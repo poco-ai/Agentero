@@ -4,11 +4,7 @@ import { type BibEntry, parseBibEntries } from "@/lib/bibtex/parse";
 import { events } from "@/lib/core/bindings";
 import { dirnameOf, joinPath, normalizePath } from "@/lib/core/path";
 import { listenEventSafe } from "@/lib/core/tauri-events";
-import {
-	explicitTexRoot,
-	texBuildOptions,
-	texSettingsStore,
-} from "@/lib/tex/config";
+import { texBuildOptions, texSettingsStore } from "@/lib/tex/config";
 import { inspectLatexProject, type LatexProjectInfo } from "@/lib/tex/host";
 import {
 	resolveTexInputPath,
@@ -210,7 +206,7 @@ export function loadTexProjectIndex(path: string): Promise<TexProjectIndex> {
 	const existing = cache.get(key);
 	if (existing && Date.now() - existing.at < 1500) return existing.promise;
 	const promise = (async () => {
-		const rootPath = explicitTexRoot(path) ?? (await resolveTexRoot(path));
+		const rootPath = await resolveTexRoot(path);
 		const info = await inspectLatexProject(
 			path,
 			vaultStore.getState().vaultPath ?? "",

@@ -91,8 +91,7 @@ impl SourceStack {
     }
 }
 
-pub fn parse_diagnostics(output: &str, root: &Path) -> Vec<LatexDiagnostic> {
-    let cwd = root.parent().unwrap_or(Path::new("."));
+pub fn parse_diagnostics(output: &str, root: &Path, cwd: &Path) -> Vec<LatexDiagnostic> {
     let mut diagnostics: Vec<LatexDiagnostic> = Vec::new();
     let mut pending_error: Option<(String, PathBuf)> = None;
     let mut pending_warning: Option<usize> = None;
@@ -306,7 +305,7 @@ mod tests {
 
     #[test]
     fn parses_windows_and_unix_file_line_errors_and_warnings() {
-        let found = parse_diagnostics("C:\\work\\chapter.tex:42: Undefined control sequence.\n./intro.tex:8: LaTeX Warning: Reference missing.\n! Missing $ inserted.\nl.9 text\nOverfull \\hbox (3pt too wide) at lines 10--11", Path::new("/work/main.tex"));
+        let found = parse_diagnostics("C:\\work\\chapter.tex:42: Undefined control sequence.\n./intro.tex:8: LaTeX Warning: Reference missing.\n! Missing $ inserted.\nl.9 text\nOverfull \\hbox (3pt too wide) at lines 10--11", Path::new("/work/main.tex"), Path::new("/work"));
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].path, "C:\\work\\chapter.tex");
         assert_eq!(found[0].line, 42);
@@ -317,7 +316,11 @@ mod tests {
     #[test]
     fn attributes_chapter_warnings_badboxes_and_wrapped_citations_to_source() {
         let output="This is pdfTeX\n(./main.tex\n(/tex/article.cls\nDocument Class: article (standard class)\n)\n(./chapters/intro.tex\nLaTeX Warning: Reference `missing' undefined on input line 7.\nOverfull \\hbox (4pt too wide) at lines 8--9\nPackage natbib Warning: Citation `unknown' undefined\n(natbib) on input line 11.\n)\nLaTeX Warning: Reference `root' undefined on input line 20.\n)";
-        let found = parse_diagnostics(output, Path::new("/project/main.tex"));
+        let found = parse_diagnostics(
+            output,
+            Path::new("/project/main.tex"),
+            Path::new("/project"),
+        );
         assert_eq!(found.len(), 4);
         for item in &found[..3] {
             assert_eq!(portable(&item.path), "/project/chapters/intro.tex");
@@ -337,7 +340,11 @@ Missing character: There is no 中 (U+4E2D) in font cmr10!
 l.4 \\includegraphics{plot.png}
 ERROR - Error: Found biblatex control file version 3.2, expected version 3.11.
 )";
-        let found = parse_diagnostics(output, Path::new("/project/main.tex"));
+        let found = parse_diagnostics(
+            output,
+            Path::new("/project/main.tex"),
+            Path::new("/project"),
+        );
         assert!(found.iter().any(|item| {
             item.severity == "warning" && item.message.starts_with("Missing character:")
         }));

@@ -25,6 +25,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WritingProblems } from "@/components/writing/writing-problems";
+import {
+	useWritingProject,
+	useWritingProjectRelative,
+} from "@/hooks/use-writing-project";
 import { commands } from "@/lib/core/bindings";
 import { notifyError } from "@/lib/core/notify";
 import { normalizePath } from "@/lib/core/path";
@@ -52,7 +56,6 @@ import {
 	readWritingGitHub,
 	type WritingGitHubLink,
 } from "@/lib/writing/github";
-import { writingHistoryProjectRel } from "@/lib/writing/session";
 import {
 	closeWritingHistory,
 	openWritingHistory,
@@ -112,7 +115,8 @@ export function WritingPdfBar({
 	const running = display === "running";
 	const ready = enginesLoading || engines.length > 0;
 	const vault = getVaultPath();
-	const project = vault ? writingHistoryProjectRel(vault, rootFile) : null;
+	const project = useWritingProjectRelative(vault, rootFile);
+	const manifest = useWritingProject(vault, rootFile);
 	const historyActive = useStore(writingStore, (state) => state.historyActive);
 	const [engineChoice, setEngineChoice] = useState<TexEngineChoice | null>(
 		null,
@@ -134,15 +138,23 @@ export function WritingPdfBar({
 	}, []);
 
 	useEffect(() => {
-		if (enginesLoading && engines.length === 0) return;
+		if (
+			manifest.status === "pending" ||
+			(enginesLoading && engines.length === 0)
+		)
+			return;
 		let cancelled = false;
-		void engineChoiceForRoot(key).then((choice) => {
-			if (!cancelled) setEngineChoice(choice);
-		});
+		void engineChoiceForRoot(key)
+			.then((choice) => {
+				if (!cancelled) setEngineChoice(choice);
+			})
+			.catch(() => {
+				if (!cancelled) setEngineChoice(null);
+			});
 		return () => {
 			cancelled = true;
 		};
-	}, [key, engines, enginesLoading]);
+	}, [key, engines, enginesLoading, manifest]);
 
 	useEffect(() => {
 		const refresh = () => {

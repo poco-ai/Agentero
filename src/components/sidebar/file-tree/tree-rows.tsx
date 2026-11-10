@@ -1,4 +1,5 @@
 import {
+	BookOpen,
 	Bot,
 	ChevronRight,
 	Database,
@@ -31,6 +32,8 @@ import {
 import { TreeRowActionButton } from "@/components/sidebar/tree-row-action-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NewProjectButton } from "@/components/writing/new-project-button";
+import { ProjectSettingsButton } from "@/components/writing/project-settings-button";
+import { useWritingProject } from "@/hooks/use-writing-project";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
 import { cn } from "@/lib/core/utils";
 import { isPapersRoot } from "@/lib/paper";
@@ -48,7 +51,10 @@ import {
 	skillDescriptionTooltip,
 } from "@/lib/vault/agent-tree";
 import { normalizePathKey } from "@/lib/vault/path";
-import { isWritingPath } from "@/lib/writing/project-target";
+import {
+	sameWritingDirectory,
+	writingLibraryRelative,
+} from "@/lib/writing/project-manifest";
 import type { TexCompileActions as TexCompileHookActions } from "./hooks/use-tex-compile";
 import {
 	DOWNLOAD_REASON_KEYS,
@@ -229,6 +235,11 @@ export function NodeTreeRow({
 	skillLabels,
 }: NodeTreeRowProps) {
 	const { t } = useTranslation("sidebar");
+	const lookup = useWritingProject(
+		vaultPath,
+		node.kind === "directory" ? node.path : null,
+		true,
+	);
 	if (
 		node.kind === "directory" &&
 		isVaultSkillDirectory(vaultPath, node.path)
@@ -254,6 +265,12 @@ export function NodeTreeRow({
 		const isAgentRoot = isVaultAgentRoot(vaultPath, node.path);
 		const rootFace =
 			isLibraryRoot || isAgentRoot ? null : vaultRootFace(vaultPath, node.path);
+		const rel = vaultPath ? writingLibraryRelative(vaultPath, node.path) : null;
+		const owningProject = lookup.status === "ready" ? lookup.project : null;
+		const project =
+			owningProject && sameWritingDirectory(owningProject.directory, node.path)
+				? owningProject
+				: null;
 		return (
 			<div
 				className={cn(
@@ -263,11 +280,13 @@ export function NodeTreeRow({
 				{...(isLibraryRoot ? { "data-library-row": "" } : {})}
 				{...(isAgentRoot ? { "data-vault-root": "agents" } : {})}
 				{...(rootFace ? { "data-vault-root": rootFace } : {})}
+				{...(project
+					? { "data-writing-project": project.manifest.projectId }
+					: {})}
 			>
 				<FileTreeFolderRow
-					openOnLabel={Boolean(
-						vaultPath && isWritingPath(vaultPath, node.path),
-					)}
+					openOnLabel={Boolean(project || (rel && lookup.status === "error"))}
+					expandOnOpen={Boolean(project)}
 					path={node.path}
 					style={treeRowIndentStyle(depth)}
 					name={
@@ -281,7 +300,7 @@ export function NodeTreeRow({
 												? "writing.write"
 												: VAULT_ROOT_LABEL_KEY[rootFace],
 										)
-									: node.name
+									: (project?.manifest.name ?? node.name)
 					}
 					icon={
 						isLibraryRoot ? (
@@ -290,11 +309,17 @@ export function NodeTreeRow({
 							<Bot className="size-4 text-muted-foreground" aria-hidden />
 						) : rootFace ? (
 							<VaultRootIcon face={rootFace} />
+						) : project ? (
+							<BookOpen className="size-4 text-muted-foreground" aria-hidden />
 						) : undefined
 					}
 					actions={
-						rootFace === "thesis" && vaultPath ? (
-							<NewProjectButton vaultPath={vaultPath} />
+						vaultPath && project ? (
+							<ProjectSettingsButton vault={vaultPath} project={project} />
+						) : vaultPath &&
+							(rootFace === "thesis" ||
+								(rel && lookup.status === "ready" && !owningProject)) ? (
+							<NewProjectButton vaultPath={vaultPath} parent={node.path} />
 						) : undefined
 					}
 				/>

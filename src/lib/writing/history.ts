@@ -23,6 +23,7 @@ import { isTauri } from "@/lib/core/tauri";
 import { joinVaultPath } from "@/lib/vault/path";
 import { getVaultPath } from "@/lib/vault/store";
 import { writingHistoryProjectRel } from "@/lib/writing/session";
+import { explicitWritingProjectForPath } from "./project-manifest";
 
 export const HISTORY_COALESCE_MS = 120_000;
 export const HISTORY_LIMIT = 80;
@@ -184,30 +185,30 @@ export function noteWritingSave(absPath: string, content: string): void {
 	});
 }
 
-export function saveWritingSnapshot(
+export async function saveWritingSnapshot(
 	absPath: string,
 	content: string,
 	options: SaveOptions = {},
 ): Promise<void> {
-	const located = locateProjectFile(absPath);
-	if (!located || !isHistorySourceName(basenameOf(absPath))) {
-		return Promise.resolve();
-	}
+	if (!isHistorySourceName(basenameOf(absPath))) return;
+	const located = await locateProjectFile(absPath);
+	if (!located) return;
 	const key = historyProjectKey(located.projectDir);
 	return enqueue(key, () =>
 		writeSnapshot(located.projectDir, located.rel, content, options),
 	);
 }
 
-function locateProjectFile(
+async function locateProjectFile(
 	absPath: string,
-): { projectDir: string; rel: string } | null {
+): Promise<{ projectDir: string; rel: string } | null> {
 	if (!isTauri()) return null;
 	const vault = getVaultPath();
 	if (!vault) return null;
 	const projectRel = writingHistoryProjectRel(vault, absPath);
 	if (!projectRel) return null;
-	const projectDir = joinVaultPath(vault, projectRel);
+	const explicit = await explicitWritingProjectForPath(vault, absPath);
+	const projectDir = explicit?.directory ?? joinVaultPath(vault, projectRel);
 	const root = normalizePath(projectDir);
 	const abs = normalizePath(absPath);
 	const prefix = `${root}/`;

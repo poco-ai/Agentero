@@ -12,11 +12,15 @@ import {
 	DialogFooter,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	useActiveWritingRoot,
+	useWritingProjectRelative,
+} from "@/hooks/use-writing-project";
 import { errorText } from "@/lib/core/error";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
+import { joinVaultPath } from "@/lib/vault/path";
 import { reloadOpenWritingFiles } from "@/lib/writing/history";
-import { writingProjectDir } from "@/lib/writing/session";
 import { writingStore } from "@/lib/writing/store";
 import {
 	loadWritingGitDiff,
@@ -29,9 +33,10 @@ import {
 export function WritingHistory() {
 	const { t } = useTranslation("sidebar");
 	const vault = useStore(writingStore, (state) => state.vaultPath);
-	const activeRoot = useStore(writingStore, (state) => state.activeRoot);
+	const activeRoot = useActiveWritingRoot();
+	const projectRel = useWritingProjectRelative(vault, activeRoot);
 	const projectDir =
-		vault && activeRoot ? writingProjectDir(vault, activeRoot) : "";
+		vault && projectRel ? joinVaultPath(vault, projectRel) : "";
 	const [commits, setCommits] = useState<WritingGitCommit[]>([]);
 	const [notice, setNotice] = useState<string | null>(null);
 	const [selectedId, setSelectedId] = useState<string | null>(null);

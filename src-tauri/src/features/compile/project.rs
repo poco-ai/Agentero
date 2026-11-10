@@ -66,8 +66,7 @@ pub(super) fn subfile_parent(tex: &Path, content: &str) -> Option<PathBuf> {
     root::resolve_input(tex.parent()?, parent).map(|p| root::normalize_lexical(&p))
 }
 
-fn project_files(root_file: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
-    let project_dir = root_file.parent().unwrap_or(Path::new("."));
+fn project_files(root_file: &Path, project_dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
     let mut tex = BTreeSet::new();
     let mut bib = BTreeSet::new();
     let mut queue = VecDeque::from([root_file.to_path_buf()]);
@@ -149,16 +148,19 @@ pub async fn latex_project_inspect(
         if !root_file.is_file() {
             return ApiResult::err(AppError::message("LaTeX root file does not exist"));
         }
-        let (mut tex_files, mut bib_files) = project_files(&root_file);
+        let declared = crate::features::writing::project_directory_for_main(&vault, &root_file);
+        let scan_dir = declared.unwrap_or_else(|| root_file.parent().unwrap_or(Path::new(".")));
+        let (mut tex_files, mut bib_files) = project_files(&root_file, scan_dir);
         let mut candidates = BTreeSet::from([root_file.to_string_lossy().into_owned()]);
-        let scan_dir = root_file.parent().unwrap_or(Path::new("."));
         let mut scanned = Vec::new();
-        root::collect_tex_files(scan_dir, 0, &mut scanned);
+        if declared.is_none() {
+            root::collect_tex_files(scan_dir, 0, &mut scanned);
+        }
         for path in scanned {
             if root::read_lossy(&path)
                 .is_some_and(|text| root::has_indicator(&root::strip_comments(&text)))
             {
-                let (files, _) = project_files(&path);
+                let (files, _) = project_files(&path, path.parent().unwrap_or(scan_dir));
                 if files.contains(&root::normalize_lexical(&tex).to_string_lossy().into_owned()) {
                     candidates.insert(path.to_string_lossy().into_owned());
                 }
@@ -205,7 +207,7 @@ mod tests {
         for name in ["refs.bib", "other.bib"] {
             std::fs::write(dir.path().join(name), "@article{key}").unwrap();
         }
-        let (tex, bib) = project_files(&dir.path().join("main.tex"));
+        let (tex, bib) = project_files(&dir.path().join("main.tex"), dir.path());
         assert_eq!(tex.len(), 3);
         assert_eq!(bib.len(), 2);
     }

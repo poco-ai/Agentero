@@ -14,7 +14,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { notifyError } from "@/lib/core/notify";
-import { openTab } from "@/lib/workspace/actions";
+import { openWritingFile } from "@/lib/workspace/navigation";
+import {
+	isWritingCompiler,
+	WRITING_COMPILERS,
+	type WritingCompiler,
+} from "@/lib/writing/project-manifest";
 import { createWritingProject } from "@/lib/writing/projects";
 import {
 	isWritingTemplateId,
@@ -24,10 +29,12 @@ import {
 
 export function NewProjectForm({
 	vaultPath,
+	parent,
 	startOpen = false,
 	onCreated,
 }: {
 	vaultPath: string;
+	parent?: string;
 	startOpen?: boolean;
 	onCreated?: () => void;
 }) {
@@ -35,14 +42,24 @@ export function NewProjectForm({
 	const [open, setOpen] = useState(startOpen);
 	const [name, setName] = useState("");
 	const templateId = useId();
+	const compilerId = useId();
 	const [template, setTemplate] = useState<WritingTemplateId>("blank");
+	const [compiler, setCompiler] = useState<WritingCompiler | "template">(
+		"template",
+	);
 	const [busy, setBusy] = useState(false);
 
 	const submit = async () => {
 		if (busy) return;
 		setBusy(true);
 		try {
-			const result = await createWritingProject(vaultPath, name, template);
+			const result = await createWritingProject(
+				vaultPath,
+				name,
+				template,
+				parent,
+				compiler === "template" ? undefined : compiler,
+			);
 			if (!result.ok) {
 				if (result.reason === "invalid") notifyError(t("fileTree.invalidName"));
 				else if (result.reason === "exists") {
@@ -50,7 +67,7 @@ export function NewProjectForm({
 				} else notifyError(result.message || t("writing.createFailed"));
 				return;
 			}
-			openTab(result.rootFile, { preferMode: "text" });
+			openWritingFile(result.rootFile, result.rootFile);
 			setName("");
 			if (!startOpen) setOpen(false);
 			onCreated?.();
@@ -97,6 +114,33 @@ export function NewProjectForm({
 						{WRITING_TEMPLATE_IDS.map((id) => (
 							<SelectItem key={id} value={id}>
 								{t(`writing.templates.${id}`)}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+			<div className="flex flex-col gap-1">
+				<label htmlFor={compilerId} className="text-muted-foreground text-xs">
+					{t("writing.compiler")}
+				</label>
+				<Select
+					value={compiler}
+					disabled={busy}
+					onValueChange={(value) => {
+						if (value === "template" || isWritingCompiler(value))
+							setCompiler(value);
+					}}
+				>
+					<SelectTrigger id={compilerId} className="h-8 w-full text-sm">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="template">
+							{t("writing.templateCompiler")}
+						</SelectItem>
+						{WRITING_COMPILERS.map((engine) => (
+							<SelectItem key={engine} value={engine}>
+								{engine}
 							</SelectItem>
 						))}
 					</SelectContent>

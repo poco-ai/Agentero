@@ -1,10 +1,6 @@
-/**
- * One project per first-level folder under the vault's thesis/ folder.
- * Folders are created and removed outside the app, so discovery only needs
- * to read what is on disk. A folder without any TeX file is not a project.
- */
+/** Discover declared projects and retain first-level legacy local projects. */
 
-import { basenameOf } from "@/lib/core/path";
+import { basenameOf, normalizePath } from "@/lib/core/path";
 import {
 	type FileNode,
 	joinVaultPath,
@@ -17,6 +13,10 @@ import {
 	manuscriptFromRoot,
 	writingProjectTitle,
 } from "@/lib/writing/session";
+import {
+	listExplicitWritingProjects,
+	WRITING_MANIFEST,
+} from "./project-manifest";
 
 const FILES_PER_DIR = 64;
 const DIRS_PER_LEVEL = 16;
@@ -55,6 +55,8 @@ export async function findTexRoot(
 	} catch {
 		return null;
 	}
+	if (children.some((node) => node.name.toLowerCase() === WRITING_MANIFEST))
+		return null;
 	const texFiles = children
 		.filter((node) => node.kind === "file" && isTexFile(node.path))
 		.slice(0, FILES_PER_DIR)
@@ -86,7 +88,7 @@ async function projectFromRoot(rootFile: string): Promise<Manuscript> {
 	return { ...base, title: writingProjectTitle(rootFile, head) };
 }
 
-/** First-level folders under thesis/, in title order. */
+/** Projects at any classification depth, in title order. */
 export async function discoverWritingProjects(
 	vaultPath: string,
 ): Promise<Manuscript[]> {
@@ -103,15 +105,32 @@ export async function discoverWritingProjects(
 		(node) =>
 			node.kind === "directory" && isWritingSourceName("directory", node.name),
 	);
+	const declared = await listExplicitWritingProjects(vaultPath);
 	const projects = await Promise.all(
-		directories.map(async (directory) => {
-			const root = await findTexRoot(vaultPath, directory.path, 1);
-			return root ? projectFromRoot(root) : null;
-		}),
+		directories
+			.filter(
+				(directory) =>
+					!declared.some(
+						(project) =>
+							normalizePath(project.directory) ===
+								normalizePath(directory.path) ||
+							normalizePath(project.directory).startsWith(
+								`${normalizePath(directory.path)}/`,
+							),
+					),
+			)
+			.map(async (directory) => {
+				const root = await findTexRoot(vaultPath, directory.path, 1);
+				return root ? projectFromRoot(root) : null;
+			}),
 	);
-	const manuscripts = projects.filter(
-		(item): item is Manuscript => item != null,
-	);
+	const manuscripts: Manuscript[] = [
+		...declared.map((project) => ({
+			...manuscriptFromRoot(project.root),
+			title: project.manifest.name,
+		})),
+		...projects.filter((project): project is Manuscript => project !== null),
+	];
 	manuscripts.sort((a, b) => {
 		if (!a.title && b.title) return 1;
 		if (a.title && !b.title) return -1;

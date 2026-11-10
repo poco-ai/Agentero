@@ -555,8 +555,8 @@ async fn sync_project(
     Ok(network_failure(clip_output(&pushed)))
 }
 
-/// A project repository lives in one folder under `thesis/`, or in `thesis/`
-/// itself for older vaults whose main file sits directly on the shelf.
+/// A declared project can be beneath any classification folder. A Git
+/// operation must never absorb a second project through an ancestor path.
 fn writing_project_dir_ok(path: &Path) -> bool {
     if !path.is_dir() {
         return false;
@@ -564,13 +564,58 @@ fn writing_project_dir_ok(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
         return false;
     };
-    if name.eq_ignore_ascii_case("thesis") {
-        return true;
+    let is_shelf = |dir: &Path| {
+        dir.file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("thesis"))
+    };
+    let parent = path.parent();
+    let inside_shelf = path.ancestors().skip(1).any(is_shelf);
+    let marker = path.join("agentero.project.json");
+    let marker_exists = marker.symlink_metadata().is_ok();
+    let declared = marker.symlink_metadata().is_ok_and(|meta| meta.is_file())
+        && std::fs::read(&marker)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .is_some_and(|value| value["schemaVersion"] == 1 && value["projectId"].is_string());
+    let allowed = if marker_exists {
+        declared
+            && inside_shelf
+            && !path
+                .ancestors()
+                .skip(1)
+                .take_while(|dir| !is_shelf(dir))
+                .any(|dir| dir.join("agentero.project.json").symlink_metadata().is_ok())
+    } else {
+        name.eq_ignore_ascii_case("thesis") || parent.is_some_and(is_shelf)
+    };
+    if !allowed {
+        return false;
     }
-    path.parent()
-        .and_then(|parent| parent.file_name())
-        .and_then(|parent| parent.to_str())
-        .is_some_and(|parent| parent.eq_ignore_ascii_case("thesis"))
+    let mut pending = vec![path.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return false;
+        };
+        for entry in entries {
+            let Ok(entry) = entry else { return false };
+            let entry_path = entry.path();
+            if entry_path != marker
+                && entry
+                    .file_name()
+                    .eq_ignore_ascii_case("agentero.project.json")
+            {
+                return false;
+            }
+            let Ok(kind) = entry.file_type() else {
+                return false;
+            };
+            if kind.is_dir() && entry.file_name() != ".git" {
+                pending.push(entry_path);
+            }
+        }
+    }
+    true
 }
 
 fn normalize_github_remote(input: &str) -> Option<String> {
@@ -835,6 +880,23 @@ mod tests {
         let outside = root.path().join("notes");
         std::fs::create_dir_all(&outside).unwrap();
         assert!(!writing_project_dir_ok(&outside));
+    }
+
+    #[test]
+    fn refuses_to_sync_a_classification_containing_a_declared_project() {
+        let root = tempfile::tempdir().unwrap();
+        let shelf = root.path().join("thesis");
+        let collection = shelf.join("2026");
+        let project = collection.join("投稿/paper-a");
+        std::fs::create_dir_all(&project).unwrap();
+        std::fs::write(
+            project.join("agentero.project.json"),
+            r#"{"schemaVersion":1,"projectId":"2a616bc4-cda8-4df4-a466-0e1a886d051b"}"#,
+        )
+        .unwrap();
+        assert!(writing_project_dir_ok(&project));
+        assert!(!writing_project_dir_ok(&collection));
+        assert!(!writing_project_dir_ok(&shelf));
     }
 
     #[test]
