@@ -2,7 +2,12 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/hooks/use-app-stores";
-import { assignHintLabels, matchHintLabel } from "@/lib/keyboard/hint-labels";
+import {
+	assignHintLabels,
+	HINT_MODIFIER_KEYS,
+	hintKeyFromEvent,
+	matchHintLabel,
+} from "@/lib/keyboard/hint-labels";
 import {
 	collectHintTargets,
 	type HintTarget,
@@ -50,26 +55,17 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			setAnnouncement(t("navigator.hintTargets", { count: targets.length }));
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.isComposing || event.repeat) return;
+			if (event.repeat) return;
 			const current = sessionRef.current;
-			if (
-				current &&
-				(isKeyboardInput(event.target) ||
-					event.metaKey ||
-					event.ctrlKey ||
-					event.altKey)
-			) {
-				exit();
-				return;
-			}
 			if (!current) {
 				if (
 					!enabledRef.current ||
-					event.key !== "f" ||
+					event.isComposing ||
 					event.metaKey ||
 					event.ctrlKey ||
 					event.altKey ||
 					isKeyboardInput(event.target) ||
+					hintKeyFromEvent(event) !== "f" ||
 					!selectionIsCollapsed(doc)
 				) {
 					return;
@@ -77,6 +73,14 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 				event.preventDefault();
 				event.stopImmediatePropagation();
 				enter();
+				return;
+			}
+			// A held modifier types the label; it does not cancel the session.
+			// Shift+A arrives as a Shift keydown followed by an "A" keydown, and
+			// treating the first one as unknown input made every badge disappear.
+			if (HINT_MODIFIER_KEYS.has(event.key)) return;
+			if (event.metaKey || event.ctrlKey || event.altKey) {
+				exit();
 				return;
 			}
 			if (event.key === "Escape") {
@@ -88,12 +92,7 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			// F is the hint-mode toggle. Reserve it while a session is open so a
 			// second press dismisses the labels instead of being treated as a label
 			// character.
-			if (
-				event.key.toLowerCase() === "f" &&
-				!event.metaKey &&
-				!event.ctrlKey &&
-				!event.altKey
-			) {
+			if (hintKeyFromEvent(event) === "f") {
 				event.preventDefault();
 				event.stopImmediatePropagation();
 				exit();
@@ -105,13 +104,14 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 				setSession({ ...current, query: current.query.slice(0, -1) });
 				return;
 			}
-			if (!/^[a-z]$/i.test(event.key)) {
+			const key = hintKeyFromEvent(event);
+			if (!key) {
 				exit();
 				return;
 			}
 			event.preventDefault();
 			event.stopImmediatePropagation();
-			const query = current.query + event.key.toLowerCase();
+			const query = current.query + key;
 			const match = matchHintLabel(query, current.labels);
 			if (match.kind === "unique") {
 				const target = current.targets[match.index]?.element;
@@ -121,7 +121,8 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 				target.click();
 				return;
 			}
-			setSession({ ...current, query });
+			// Unknown keys keep the current prefix so the labels stay readable.
+			if (match.kind === "partial") setSession({ ...current, query });
 		};
 		const onCancel = () => exit();
 		const observer = new MutationObserver(() => {
@@ -136,7 +137,6 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 		window.addEventListener("resize", onCancel);
 		window.addEventListener("blur", onCancel);
 		window.addEventListener("pointerdown", onCancel, true);
-		window.addEventListener("focusin", onCancel, true);
 		return () => {
 			observer.disconnect();
 			window.removeEventListener("keydown", onKeyDown, true);
@@ -144,7 +144,6 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			window.removeEventListener("resize", onCancel);
 			window.removeEventListener("blur", onCancel);
 			window.removeEventListener("pointerdown", onCancel, true);
-			window.removeEventListener("focusin", onCancel, true);
 		};
 	}, [t]);
 
@@ -157,21 +156,31 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 							aria-hidden="true"
 							className="pointer-events-none fixed inset-0 z-[var(--z-hint-overlay,999)]"
 						>
-							{session.targets.map((target, index) => (
-								<span
-									key={`${session.labels[index]}-${target.element.dataset.hint ?? index}`}
-									className="absolute rounded border border-amber-500/80 bg-amber-200/95 px-1.5 py-0.5 font-mono font-semibold text-[11px] text-amber-950 shadow-sm dark:bg-amber-800/95 dark:text-amber-50"
-									style={{
-										opacity: session.labels[index].startsWith(session.query)
-											? 1
-											: 0.2,
-										left: target.rect.left,
-										top: target.rect.top,
-									}}
-								>
-									{session.labels[index].toUpperCase()}
-								</span>
-							))}
+							{session.targets.map((target, index) => {
+								const label = session.labels[index];
+								const matched = label.startsWith(session.query);
+								// The typed prefix is already spent, keep the remaining key
+								// characters as the only prominent part of the badge.
+								const typed = matched ? session.query.length : 0;
+								return (
+									<span
+										key={`${label}-${target.element.dataset.hint ?? index}`}
+										className="absolute rounded border border-amber-500/80 bg-amber-200/95 px-1.5 py-0.5 font-mono font-semibold text-[11px] text-amber-950 tracking-wide shadow-sm dark:bg-amber-800/95 dark:text-amber-50"
+										style={{
+											opacity: matched ? 1 : 0.15,
+											left: target.rect.left,
+											top: target.rect.top,
+										}}
+									>
+										{typed > 0 ? (
+											<span className="text-amber-700/60 dark:text-amber-200/50">
+												{label.slice(0, typed)}
+											</span>
+										) : null}
+										{label.slice(typed)}
+									</span>
+								);
+							})}
 						</div>,
 						document.body,
 					)

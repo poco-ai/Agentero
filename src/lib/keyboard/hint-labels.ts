@@ -2,6 +2,48 @@
 // to a target label. This keeps the second F press unambiguous.
 export const HINT_ALPHABET = "asdghjklqwertyuiopzxcvbnm";
 
+/**
+ * Keys that are only held to type a label character. Their own keydown (for
+ * example the Shift event that precedes Shift+A) must never cancel a session,
+ * otherwise users who type the badge in the case it is displayed close hint
+ * mode before the letter lands.
+ */
+export const HINT_MODIFIER_KEYS: ReadonlySet<string> = new Set([
+	"Shift",
+	"Control",
+	"Alt",
+	"AltGraph",
+	"Meta",
+	"OS",
+	"Super",
+	"Hyper",
+	"CapsLock",
+	"Fn",
+	"FnLock",
+	"Symbol",
+	"SymbolLock",
+	"Dead",
+	"Unidentified",
+]);
+
+/**
+ * Resolve the label character a keydown represents. Matching is
+ * case-insensitive; layouts that compose the letter (Shift / Option, non-Latin
+ * keyboards, IME `Process` events) fall back to the physical `KeyA`–`KeyZ`
+ * code so hint typing keeps working.
+ */
+export function hintKeyFromEvent(event: {
+	key: string;
+	code?: string;
+}): string | null {
+	if (event.key.length === 1) {
+		const key = event.key.toLowerCase();
+		if (key >= "a" && key <= "z") return key;
+	}
+	const physical = /^Key([A-Z])$/.exec(event.code ?? "");
+	return physical ? physical[1].toLowerCase() : null;
+}
+
 /** Generate stable, prefix-friendly labels for a hint session. */
 export function assignHintLabels(
 	count: number,

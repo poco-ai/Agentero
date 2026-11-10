@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { assignHintLabels, matchHintLabel } from "@/lib/keyboard/hint-labels";
+import {
+	assignHintLabels,
+	HINT_MODIFIER_KEYS,
+	hintKeyFromEvent,
+	matchHintLabel,
+} from "@/lib/keyboard/hint-labels";
 import { collectHintTargets } from "@/lib/keyboard/hint-targets";
 import { PdfKeySequence } from "@/lib/keyboard/pdf-key-sequence";
 
@@ -42,6 +47,25 @@ describe("keyboard navigation primitives", () => {
 			remaining: 25,
 		});
 		expect(matchHintLabel("z", labels)).toEqual({ kind: "none" });
+	});
+
+	it("accepts label keys regardless of Shift and layout", () => {
+		expect(hintKeyFromEvent({ key: "a", code: "KeyA" })).toBe("a");
+		expect(hintKeyFromEvent({ key: "A", code: "KeyA" })).toBe("a");
+		// Shift / Option compose the letter, IME reports Process.
+		expect(hintKeyFromEvent({ key: "Å", code: "KeyA" })).toBe("a");
+		expect(hintKeyFromEvent({ key: "Process", code: "KeyI" })).toBe("i");
+		expect(hintKeyFromEvent({ key: "1", code: "Digit1" })).toBeNull();
+		expect(
+			hintKeyFromEvent({ key: "Backspace", code: "Backspace" }),
+		).toBeNull();
+	});
+
+	it("never treats a held modifier as unknown input", () => {
+		for (const key of ["Shift", "Control", "Alt", "Meta", "CapsLock"]) {
+			expect(HINT_MODIFIER_KEYS.has(key)).toBe(true);
+			expect(hintKeyFromEvent({ key, code: `${key}Left` })).toBeNull();
+		}
 	});
 
 	it("filters disabled, hidden, editable, and out-of-viewport controls", () => {
