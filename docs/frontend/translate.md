@@ -18,7 +18,12 @@ Settings → **翻译**：
   - OpenAI 兼容翻译要求服务支持 **Chat Completions** 格式：`POST {baseUrl}/chat/completions`，返回 `choices[0].message.content`。设置里填写 Base URL（例如 `https://api.openai.com/v1` 或服务商自己的 `/v1` 根地址），不要填写 Responses / Completions 端点；应用会自动追加 `/chat/completions`。
     用户配置说明见 [配置 OpenAI 兼容翻译](../usage/translate-openai-compatible.md)。
 - 默认服务为 Agent 时展示 Agent / 模型座。
+- **导入后自动翻译**：开启后导入的论文在版面解析完成后后台翻译全文；并发数控制同时翻译的论文数。只有导入 / 下载链路触发，打开论文补解析和手动重新解析不触发。实现见下文「导入后自动翻译」。
 - **自定义翻译提示词**（`translate.customSystem` / `translate.customUser`，旧 `translate.customPrompt` 仍可读）：仅对 **Agent 与 OpenAI 兼容**两条 LLM 路径生效（免费引擎与内置 provider 无提示词概念）。设置里分系统提示词和用户模板两栏。引擎规则（只输出译文、不反问、公式 / 引用 / `⟦n⟧` 原样）始终生效。系统栏里多行或带占位符的内容只替换学术风格块；一行不超过 180 字、且不含 `{{…}}` 的口语（如「翻译得自然一点」）作为附加偏好追加。占位符只认 `{{targetLang}}` / `{{sourceLang}}` / `{{text}}`，其它在失焦时校验失败、不写入；手改 settings.json 里的未知占位符会在归一化时被剥离。用户模板留空时原文仍用 `"""…"""` 包裹；非空则必须包含 `{{text}}`，由它决定原文插入位置。`[[n]]` 批量规则写在 system。每栏上限 8000 字符。「填入默认」把学术风格块写入系统栏并清掉旧的单段 `customPrompt`，「恢复默认」三栏都清空。OpenAI 兼容路径由 Host 在 `translate_text` 内注入（WebView 调用方无感）。保存系统栏时写入 `customSystem` 并清空 `customPrompt`，避免两段叠在一起。
+
+## 导入后自动翻译
+
+设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
 
 ## 消费方
 

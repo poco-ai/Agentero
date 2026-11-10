@@ -744,6 +744,17 @@ function normalizeTranslateSettings(
 	if (typeof raw.cacheReflowFinal === "boolean") {
 		base.cacheReflowFinal = raw.cacheReflowFinal;
 	}
+	if (typeof raw.autoTranslateImport === "boolean") {
+		base.autoTranslateImport = raw.autoTranslateImport;
+	}
+	if (
+		typeof raw.autoTranslateImportConcurrency === "number" &&
+		Number.isInteger(raw.autoTranslateImportConcurrency) &&
+		raw.autoTranslateImportConcurrency >= 1 &&
+		raw.autoTranslateImportConcurrency <= 5
+	) {
+		base.autoTranslateImportConcurrency = raw.autoTranslateImportConcurrency;
+	}
 	return base;
 }
 
