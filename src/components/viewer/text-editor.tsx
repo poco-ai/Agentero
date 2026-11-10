@@ -24,7 +24,6 @@ import {
 } from "@/components/viewer/text-editor-theme";
 import { TextEditorToolbar } from "@/components/viewer/text-editor-toolbar";
 import { useTextEditorSelection } from "@/components/viewer/use-text-editor-selection";
-import { TikzFigureDialog } from "@/components/writing/tikz-figure-dialog";
 import { useWritingSelectionGroup } from "@/components/writing/writing-selection-group";
 import { dirnameOf, normalizePath } from "@/lib/core/path";
 import { texSettingsStore } from "@/lib/tex/config";
@@ -48,13 +47,6 @@ import {
 	subscribeTexProjectChanges,
 } from "@/lib/tex/project-index";
 import { syncTexToPdf } from "@/lib/tex/synctex";
-import {
-	emptyTikzPicture,
-	parseTikz,
-	serializeTikz,
-	type TikzPicture,
-	tikzPictureAround,
-} from "@/lib/tex/tikz";
 import {
 	registerTexLiveEditor,
 	texLiveApplyUpdate,
@@ -114,10 +106,6 @@ export function TextEditor({
 	className,
 }: TextEditorProps) {
 	const [citationOpen, setCitationOpen] = useState(false);
-	const [figure, setFigure] = useState<{
-		picture: TikzPicture;
-		range: { from: number; to: number } | null;
-	} | null>(null);
 	// Font size managed by hook with process-wide persistence (like PDF paper tone).
 	const { fontSize, setFontSize } = useTextEditorFontSize();
 
@@ -593,30 +581,6 @@ export function TextEditor({
 		<div
 			className={`relative flex h-full w-full flex-col overflow-hidden ${className ?? ""}`}
 		>
-			{figure ? (
-				<TikzFigureDialog
-					key={`${figure.range?.from ?? "insert"}:${figure.range?.to ?? "end"}`}
-					open
-					picture={figure.picture}
-					onOpenChange={(open) => {
-						if (!open) setFigure(null);
-					}}
-					onApply={(picture) => {
-						const view = viewRef.current;
-						if (!view) return;
-						const text = serializeTikz(picture);
-						const range = figure.range;
-						if (range) {
-							view.dispatch({
-								changes: { from: range.from, to: range.to, insert: text },
-							});
-						} else {
-							view.dispatch(view.state.replaceSelection(`${text}\n`));
-						}
-						setFigure(null);
-					}}
-				/>
-			) : null}
 			{isTexPath(path) ? (
 				<TexCitationPicker
 					path={path}
@@ -636,27 +600,7 @@ export function TextEditor({
 					fontSize={fontSize}
 					onFontSizeChange={setFontSize}
 					texTools={
-						isTexPath(path)
-							? {
-									onCitation: () => setCitationOpen(true),
-									onFigure: () => {
-										const view = viewRef.current;
-										if (!view) return;
-										const source = view.state.doc.toString();
-										const range = tikzPictureAround(
-											source,
-											view.state.selection.main.head,
-										);
-										const parsed = range
-											? parseTikz(source.slice(range.from, range.to))
-											: null;
-										setFigure({
-											picture: parsed ?? emptyTikzPicture(),
-											range: parsed ? range : null,
-										});
-									},
-								}
-							: null
+						isTexPath(path) ? { onCitation: () => setCitationOpen(true) } : null
 					}
 				/>
 				<div ref={hostRef} className="h-full w-full overflow-hidden" />

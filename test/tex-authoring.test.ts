@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { latexColorHex } from "@/lib/tex/color";
 import { latexFromClipboard } from "@/lib/tex/html-to-latex";
 import { plainTexTitle } from "@/lib/tex/plain-title";
 import { texRequirements } from "@/lib/tex/requirements";
@@ -8,7 +7,6 @@ import {
 	bibliographyKind,
 	declaredTexBibliographies,
 } from "@/lib/tex/source";
-import { parseTikz, serializeTikz, tikzPictureAround } from "@/lib/tex/tikz";
 
 describe("plain tex titles", () => {
 	it("keeps unknown commands and decodes accents", () => {
@@ -53,46 +51,6 @@ describe("tex requirements", () => {
 			{ id: "glossaries", line: 1 },
 			{ id: "pythontex", line: 2 },
 		]);
-	});
-});
-
-describe("tikz pictures", () => {
-	it("round-trips nodes and edges and keeps unknown statements", () => {
-		const source = [
-			"\\begin{tikzpicture}",
-			"\\node[circle, fill=red] (a) at (1, 2) {Start};",
-			"\\node (b) at (3, 2) {End};",
-			"\\draw[->] (a) -- (b);",
-			"\\fill (0,0) circle (2pt);",
-			"\\end{tikzpicture}",
-		].join("\n");
-		const picture = parseTikz(source);
-		expect(
-			picture?.nodes.map((node) => [
-				node.id,
-				node.label,
-				node.shape,
-				node.fill,
-			]),
-		).toEqual([
-			["a", "Start", "circle", "red"],
-			["b", "End", "rectangle", undefined],
-		]);
-		expect(picture?.edges).toMatchObject([
-			{ source: "a", target: "b", arrow: true },
-		]);
-		expect(picture?.rest).toEqual(["\\fill (0,0) circle (2pt);"]);
-		if (!picture) throw new Error("picture");
-		const written = serializeTikz(picture);
-		const again = parseTikz(written);
-		expect(again?.nodes.map((node) => node.label)).toEqual(["Start", "End"]);
-		expect(again?.rest).toEqual(["\\fill (0,0) circle (2pt);"]);
-		expect(tikzPictureAround(`before\n${source}\nafter`, 10)).toEqual({
-			from: 7,
-			to: 7 + source.length,
-		});
-		expect(latexColorHex("red!50")).toMatch(/^#[0-9a-f]{6}$/);
-		expect(latexColorHex("not-a-color")).toBeNull();
 	});
 });
 
