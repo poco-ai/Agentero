@@ -49,7 +49,7 @@ pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         } else {
             Transport::Auto
         })
-        .api_routes(api, ["/api/desktop/transfer-ownership"]);
+        .api_routes(api, ["/api/desktop/transfer-ownership", "/api/writing/"]);
     for (method, path) in AUTH_ROUTES {
         builder = builder.auth_route(*method, *path, AuthRouteKind::Passthrough);
     }

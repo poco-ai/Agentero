@@ -9,7 +9,11 @@ export function useFlushMarkdownOnClose() {
 		if (!isTauri() || isMobileApp()) return;
 		const listener = getCurrentWindow().onCloseRequested(async (event) => {
 			try {
-				if (await flushMarkdownSources()) return;
+				const { flushCloudCheckouts } = await import(
+					"@/lib/writing/cloud/session"
+				);
+				if ((await flushMarkdownSources()) && (await flushCloudCheckouts()))
+					return;
 			} catch {
 				// Keep the document open when the save could not finish.
 			}

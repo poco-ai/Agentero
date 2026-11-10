@@ -381,6 +381,7 @@ async fn restore_tree(project_dir: &Path, commit: &str) -> Result<WritingSyncRep
     let dir = project_dir
         .canonicalize()
         .map_err(|err| AppError::message(err.to_string()))?;
+    super::cloud::check_project_git_write(&dir)?;
     if !writing_project_dir_ok(&dir) || !dir.join(".git").exists() {
         return Ok(report(false, false, false, "no_repo", ""));
     }
@@ -447,6 +448,7 @@ async fn sync_project(
     let dir = project_dir
         .canonicalize()
         .map_err(|err| AppError::message(err.to_string()))?;
+    super::cloud::check_project_git_write(&dir)?;
     if !writing_project_dir_ok(&dir) {
         return Ok(report(false, false, false, "invalid_dir", ""));
     }

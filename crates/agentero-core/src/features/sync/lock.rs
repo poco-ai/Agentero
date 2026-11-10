@@ -13,7 +13,7 @@ use std::path::Path;
 
 /// RAII guard: dropping it (or the process exiting) releases the lock.
 #[must_use = "keep the guard alive for the entire sync pass"]
-pub(crate) struct SyncLock {
+pub struct SyncLock {
     _file: File,
 }
 

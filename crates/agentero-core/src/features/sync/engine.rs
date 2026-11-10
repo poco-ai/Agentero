@@ -79,6 +79,7 @@ pub type Progress<'a> = &'a (dyn Fn(&str, usize, usize) + Send + Sync);
 /// PUTs (Aliyun OSS, most WebDAV servers) degrade to plain PUTs before the
 /// first real sync instead of failing mid-pass.
 pub async fn test_connection(vault: &Path, cfg: &SyncBackendConfig) -> Result<bool, AppError> {
+    crate::features::sync::ensure_vault_sync_available(vault)?;
     if cfg.backend == SyncBackendKind::Git {
         crate::features::sync::git::test_connection(vault, cfg).await?;
         return Ok(true);
@@ -100,6 +101,7 @@ pub async fn sync_vault(
     cfg: &SyncBackendConfig,
     progress: Progress<'_>,
 ) -> Result<SyncOutcome, AppError> {
+    crate::features::sync::ensure_vault_sync_available(vault)?;
     if cfg.backend == SyncBackendKind::Git {
         return crate::features::sync::git::sync_vault(vault, cfg, progress).await;
     }

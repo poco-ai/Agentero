@@ -291,6 +291,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::compile::tools::latex_synctex_forward,
             crate::features::compile::tools::latex_synctex_backward,
             crate::features::compile::tools::latex_clean,
+            crate::features::writing::cloud::writing_cloud_state,
             crate::features::writing::sync::writing_sync_project,
             crate::features::writing::sync::writing_git_log,
             crate::features::writing::sync::writing_git_diff,

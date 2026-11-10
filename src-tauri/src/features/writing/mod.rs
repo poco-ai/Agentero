@@ -1,5 +1,6 @@
 //! Writing-project sync. History snapshots stay in app data on the frontend.
 
+pub mod cloud;
 pub mod sync;
 
 use std::path::Path;
