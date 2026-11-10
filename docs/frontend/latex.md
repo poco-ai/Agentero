@@ -1,6 +1,6 @@
 # LaTeX 写作与编译
 
-LaTeX 编辑使用 CodeMirror 源码模式，没有所见即所得。正式编译走本机 latexmk，PDF 使用已有 EmbedPDF 查看器；实时预览走独立 LuaLaTeX/rtex 会话。后端见 [../backend/latex.md](../backend/latex.md)。写作项目位于文件树的「写作」目录，源码、PDF 与论文库共用工作区；多个项目各自编译。见 [writing.md](writing.md)。
+LaTeX 编辑使用 CodeMirror 源码模式，没有所见即所得。高亮沿用 `codemirror-lang-latex` 的语法树，并把命令分成标题、格式、引用、环境、结构、公式和普通命令，颜色跟应用主题。正式编译走本机 latexmk，PDF 使用已有 EmbedPDF 查看器；实时预览走独立 LuaLaTeX/rtex 会话。后端见 [../backend/latex.md](../backend/latex.md)。写作项目位于文件树的「写作」目录，源码、PDF 与论文库共用工作区；多个项目各自编译。见 [writing.md](writing.md)。
 
 ## 界面与编译
 

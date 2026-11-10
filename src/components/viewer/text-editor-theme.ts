@@ -12,6 +12,7 @@ import {
 	type ViewUpdate,
 } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { texTokenClass } from "@/lib/tex/highlight";
 
 /**
  * Editor surface follows the app theme. Selectors start with `&` so they
@@ -146,6 +147,12 @@ function tone(
 }
 
 const command = tone([0.4, 0.86], 0.145);
+const heading = tone([0.38, 0.88], 0.15, "calc(h + 18)");
+const format = tone([0.42, 0.86], 0.13, "calc(h - 16)");
+const reference = tone([0.4, 0.86], 0.14, "calc(h + 78)");
+const environment = tone([0.4, 0.86], 0.13, "calc(h + 42)");
+const structure = tone([0.4, 0.86], 0.12, "calc(h - 48)");
+const math = tone([0.44, 0.84], 0.12, "calc(h + 62)");
 const name = tone([0.42, 0.84], 0.12, "calc(h + 26)");
 const literal = tone([0.45, 0.83], 0.115, "calc(h + 54)");
 const value = tone([0.43, 0.84], 0.12, "calc(h - 28)");
@@ -159,19 +166,19 @@ const editorHighlightStyle = HighlightStyle.define([
 	{
 		tag: [
 			tags.keyword,
-			tags.definitionKeyword,
 			tags.controlKeyword,
 			tags.moduleKeyword,
 			tags.modifier,
-			// `\cite` / `\citep` are quote, `\texttt` is monospace — not keyword.
-			tags.quote,
 			tags.monospace,
 		],
 		color: command,
 	},
-	{ tag: tags.heading, color: command, fontWeight: "600" },
-	{ tag: tags.strong, color: command, fontWeight: "600" },
-	{ tag: tags.emphasis, color: command, fontStyle: "italic" },
+	{ tag: tags.definitionKeyword, color: structure },
+	// `\cite` is quote and `\ref` / `\label` are label names in the grammar.
+	{ tag: [tags.quote, tags.labelName], color: reference },
+	{ tag: tags.heading, color: heading, fontWeight: "600" },
+	{ tag: tags.strong, color: format, fontWeight: "600" },
+	{ tag: tags.emphasis, color: format, fontStyle: "italic" },
 	{
 		tag: [
 			tags.string,
@@ -192,7 +199,6 @@ const editorHighlightStyle = HighlightStyle.define([
 			tags.typeName,
 			tags.namespace,
 			tags.propertyName,
-			tags.labelName,
 			tags.macroName,
 			tags.function(tags.variableName),
 			tags.attributeName,
@@ -215,18 +221,20 @@ const editorHighlightStyle = HighlightStyle.define([
 	{ tag: tags.strikethrough, textDecoration: "line-through" },
 ]);
 
-// `\ref` / `\label` keep the name hue. Everything else ending in CtrlSeq
-// (cite, includegraphics, footnote, …) is a command, including nodes the
-// grammar splits out without a highlight tag.
-const labelCommands = new Set([
-	"LabelCtrlSeq",
-	"RefCtrlSeq",
-	"RefStarrableCtrlSeq",
-]);
+// The grammar tags most commands as one keyword. These marks split the
+// visible ones into heading, format, reference, environment, and math.
+const tokenMarks = new Map<string, Decoration>();
 
-const texCommandMark = Decoration.mark({ class: "cm-tex-cmd" });
+function tokenMark(className: string): Decoration {
+	let mark = tokenMarks.get(className);
+	if (!mark) {
+		mark = Decoration.mark({ class: className });
+		tokenMarks.set(className, mark);
+	}
+	return mark;
+}
 
-function texCommandMarks(view: EditorView): DecorationSet {
+function texTokenMarks(view: EditorView): DecorationSet {
 	const marks: Range<Decoration>[] = [];
 	const tree = syntaxTree(view.state);
 	for (const { from, to } of view.visibleRanges) {
@@ -234,9 +242,10 @@ function texCommandMarks(view: EditorView): DecorationSet {
 			from,
 			to,
 			enter(node) {
-				if (node.from === node.to || !node.name.endsWith("CtrlSeq")) return;
-				if (labelCommands.has(node.name)) return;
-				marks.push(texCommandMark.range(node.from, node.to));
+				if (node.from === node.to) return;
+				const className = texTokenClass(node.name);
+				if (!className) return;
+				marks.push(tokenMark(className).range(node.from, node.to));
 			},
 		});
 	}
@@ -247,7 +256,7 @@ const texCommandHighlight = ViewPlugin.fromClass(
 	class {
 		decorations: DecorationSet;
 		constructor(view: EditorView) {
-			this.decorations = texCommandMarks(view);
+			this.decorations = texTokenMarks(view);
 		}
 		update(update: ViewUpdate) {
 			if (
@@ -255,7 +264,7 @@ const texCommandHighlight = ViewPlugin.fromClass(
 				update.viewportChanged ||
 				syntaxTree(update.state) !== syntaxTree(update.startState)
 			) {
-				this.decorations = texCommandMarks(update.view);
+				this.decorations = texTokenMarks(update.view);
 			}
 		}
 	},
@@ -270,5 +279,14 @@ export const editorHighlight: Extension = [
 	texCommandHighlight,
 	EditorView.theme({
 		"& .cm-tex-cmd": { color: command },
+		"& .cm-tex-heading": { color: heading, fontWeight: "600" },
+		"& .cm-tex-format": { color: format },
+		"& .cm-tex-format-bold": { fontWeight: "600" },
+		"& .cm-tex-format-italic": { fontStyle: "italic" },
+		"& .cm-tex-ref": { color: reference },
+		"& .cm-tex-env": { color: environment },
+		"& .cm-tex-structure": { color: structure },
+		"& .cm-tex-math": { color: math },
+		"& .cm-tex-link": { color: command, textDecoration: "underline" },
 	}),
 ];
