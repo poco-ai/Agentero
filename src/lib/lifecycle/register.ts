@@ -20,6 +20,7 @@ import {
 	noteCommittedRename,
 	registerExternalLibraryReconciler,
 } from "@/lib/lifecycle/refresh-wave";
+import { registerSuggestionLifecycle } from "@/lib/navigator/suggestion-lifecycle";
 import {
 	dismissPaperBackfill,
 	maybeShowPaperBackfill,
@@ -57,6 +58,7 @@ import {
 
 export function registerLifecycleHandlers(): () => void {
 	registerExternalLibraryReconciler(reconcileExternalLibraryChange);
+	const unregisterSuggestions = registerSuggestionLifecycle();
 	const offs = [
 		lifecycle.on("window:closed", ({ kind, view }) => {
 			if (kind === "settings") {
@@ -171,6 +173,7 @@ export function registerLifecycleHandlers(): () => void {
 		}),
 	];
 	return () => {
+		unregisterSuggestions();
 		for (const off of offs) off();
 		registerExternalLibraryReconciler(null);
 	};
