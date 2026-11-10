@@ -11,11 +11,19 @@ import {
 	type ReactNode,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import {
 	Tooltip,
 	TooltipContent,
@@ -26,12 +34,31 @@ import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import {
+	type CcfCategory,
 	type CcfDeadlineItem,
 	type CcfRank,
+	ccfCategoriesOf,
 	loadCcfDeadlines,
 } from "@/lib/plaza/ccf-deadlines";
 
 const RANKS: readonly CcfRank[] = ["A", "B", "C", "N"];
+
+/** Select value for "no category filter" (Radix forbids an empty value). */
+const CATEGORY_ALL = "all";
+
+/** i18n key per known CCF sub-area; kept literal so typed `t()` accepts it. */
+const CATEGORY_LABEL_KEY = {
+	DS: "plaza.ccfDeadlines.categories.ds",
+	NW: "plaza.ccfDeadlines.categories.nw",
+	SC: "plaza.ccfDeadlines.categories.sc",
+	SE: "plaza.ccfDeadlines.categories.se",
+	DB: "plaza.ccfDeadlines.categories.db",
+	CT: "plaza.ccfDeadlines.categories.ct",
+	CG: "plaza.ccfDeadlines.categories.cg",
+	AI: "plaza.ccfDeadlines.categories.ai",
+	HI: "plaza.ccfDeadlines.categories.hi",
+	MX: "plaza.ccfDeadlines.categories.mx",
+} as const satisfies Record<CcfCategory, string>;
 
 /**
  * Monochrome rank ramp (no colour): A carries the most weight, N the least, so
@@ -53,6 +80,8 @@ export function PlazaCcfDeadlinesView({ className }: { className?: string }) {
 	const [busy, setBusy] = useState(true);
 	const [error, setError] = useState(false);
 	const [rankFilter, setRankFilter] = useState<CcfRank[]>([]);
+	/** Selected CCF sub-area code; null shows every category. */
+	const [category, setCategory] = useState<string | null>(null);
 	const loadedRef = useRef(false);
 
 	const load = useCallback(async () => {
@@ -75,15 +104,23 @@ export function PlazaCcfDeadlinesView({ className }: { className?: string }) {
 		void load();
 	}, [load]);
 
-	const visible =
-		rankFilter.length === 0
-			? items
-			: items.filter((item) => rankFilter.includes(item.rank));
+	const categories = useMemo(() => ccfCategoriesOf(items), [items]);
+
+	const visible = items.filter(
+		(item) =>
+			(rankFilter.length === 0 || rankFilter.includes(item.rank)) &&
+			(category === null || item.sub === category),
+	);
 
 	const toggleRank = (rank: CcfRank) =>
 		setRankFilter((prev) =>
 			prev.includes(rank) ? prev.filter((r) => r !== rank) : [...prev, rank],
 		);
+
+	const categoryLabel = (code: string) =>
+		code in CATEGORY_LABEL_KEY
+			? t(CATEGORY_LABEL_KEY[code as CcfCategory])
+			: code;
 
 	return (
 		<div className={cn("relative flex h-full min-h-0 flex-col", className)}>
@@ -91,13 +128,42 @@ export function PlazaCcfDeadlinesView({ className }: { className?: string }) {
 				{/* Translucent chrome: rows scroll under it (Apple material). */}
 				<div
 					data-plaza-header
-					className="sticky top-0 z-10 flex items-center gap-2 bg-background/72 px-2.5 py-2 shadow-[0_1px_0_0_color-mix(in_oklch,var(--border)_55%,transparent)] backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/60 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-background/80 after:to-transparent after:content-['']"
+					className="sticky top-0 z-10 flex flex-wrap items-center gap-x-2 gap-y-1.5 bg-background/72 px-2.5 py-2 shadow-[0_1px_0_0_color-mix(in_oklch,var(--border)_55%,transparent)] backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/60 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-background/80 after:to-transparent after:content-['']"
 				>
 					<RankFilter
 						selected={rankFilter}
 						onToggle={toggleRank}
 						onClear={() => setRankFilter([])}
 					/>
+					{categories.length > 0 ? (
+						<Select
+							value={category ?? CATEGORY_ALL}
+							onValueChange={(value) =>
+								setCategory(value === CATEGORY_ALL ? null : value)
+							}
+						>
+							<SelectTrigger
+								size="sm"
+								aria-label={t("plaza.ccfDeadlines.categoryLabel")}
+								className={cn(
+									"ml-auto h-6 max-w-44 min-w-0 gap-1 rounded-md border-0 bg-foreground/5 py-0 pr-1.5 pl-2 text-caption",
+									category === null && "text-muted-foreground",
+								)}
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent align="end" className="max-w-64">
+								<SelectItem value={CATEGORY_ALL}>
+									{t("plaza.ccfDeadlines.categoryAll")}
+								</SelectItem>
+								{categories.map((code) => (
+									<SelectItem key={code} value={code}>
+										{categoryLabel(code)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					) : null}
 				</div>
 
 				<div className="p-1.5">

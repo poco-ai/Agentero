@@ -22,7 +22,7 @@ import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 export const CCF_DEADLINES_DATA_URL =
 	"https://ccfddl.com/conference/initial.json";
 
-const CACHE_KEY = "plaza:ccf-deadlines:v1";
+const CACHE_KEY = "plaza:ccf-deadlines:v2";
 
 /** Estimate only while the last known cycle is recent enough to recur. */
 const ESTIMATE_RECENT_MS = 548 * 86_400_000; // ~18 months
@@ -31,12 +31,34 @@ const ESTIMATE_HORIZON_MS = 365 * 86_400_000; // ~12 months
 
 export type CcfRank = "A" | "B" | "C" | "N";
 
+/**
+ * CCF sub-area codes in the recommendation-list order. The upstream dataset
+ * labels every conference with one of these (`sub`), and the panel offers them
+ * as a category filter.
+ */
+export const CCF_CATEGORY_ORDER = [
+	"DS",
+	"NW",
+	"SC",
+	"SE",
+	"DB",
+	"CT",
+	"CG",
+	"AI",
+	"HI",
+	"MX",
+] as const;
+
+export type CcfCategory = (typeof CCF_CATEGORY_ORDER)[number];
+
 /** One upcoming submission deadline, ready to render. */
 export type CcfDeadlineItem = {
 	/** Stable render key: conference + edition + raw deadline. */
 	key: string;
 	title: string;
 	rank: CcfRank;
+	/** CCF sub-area code, e.g. `HI` (人机交互); empty when upstream omits it. */
+	sub: string;
 	/** Edition id, e.g. `aaai26`. Empty for estimated items. */
 	editionId: string;
 	year: number;
@@ -65,6 +87,7 @@ type RawEdition = {
 type RawConference = {
 	title?: unknown;
 	conference_key?: unknown;
+	sub?: unknown;
 	rank?: { ccf?: unknown } | null;
 	confs?: unknown;
 };
@@ -73,6 +96,8 @@ type RawConference = {
 type RawDeadline = {
 	title: string;
 	rank: CcfRank;
+	/** CCF sub-area code (`sub`), empty when upstream omits it. */
+	sub: string;
 	conferenceKey: string;
 	editionId: string;
 	year: number;
@@ -169,6 +194,7 @@ function* iterDeadlines(payloads: readonly unknown[]): Generator<RawDeadline> {
 			if (!isRank(rank)) continue;
 			const title = typeof raw.title === "string" ? raw.title : "";
 			if (!title) continue;
+			const sub = typeof raw.sub === "string" ? raw.sub.trim() : "";
 			const conferenceKey =
 				typeof raw.conference_key === "string" ? raw.conference_key : title;
 			const editions = Array.isArray(raw.confs)
@@ -196,6 +222,7 @@ function* iterDeadlines(payloads: readonly unknown[]): Generator<RawDeadline> {
 					yield {
 						title,
 						rank,
+						sub,
 						conferenceKey,
 						editionId,
 						year,
@@ -219,6 +246,26 @@ function compareItems(a: CcfDeadlineItem, b: CcfDeadlineItem): number {
 }
 
 /**
+ * Category codes present in `items`, in recommendation-list order. Codes the
+ * upstream dataset adds later still appear, after the known ten.
+ */
+export function ccfCategoriesOf(
+	items: readonly Pick<CcfDeadlineItem, "sub">[],
+): string[] {
+	const present = new Set<string>();
+	for (const item of items) {
+		if (item.sub) present.add(item.sub);
+	}
+	const known: string[] = CCF_CATEGORY_ORDER.filter((code) =>
+		present.has(code),
+	);
+	const extra = [...present]
+		.filter((code) => !(CCF_CATEGORY_ORDER as readonly string[]).includes(code))
+		.sort();
+	return [...known, ...extra];
+}
+
+/**
  * Flatten upstream payload into future deadlines sorted ascending. `TBD` and
  * past deadlines are dropped; an unknown timezone keeps the item but sorts last.
  */
@@ -233,6 +280,7 @@ export function parseCcfDeadlines(
 			key: `${raw.conferenceKey}:${raw.editionId || raw.year}:${raw.deadline}`,
 			title: raw.title,
 			rank: raw.rank,
+			sub: raw.sub,
 			editionId: raw.editionId,
 			year: raw.year,
 			deadline: raw.deadline,
@@ -290,6 +338,7 @@ export function predictCcfDeadlines(
 			key: `${conferenceKey}:est:${projected}`,
 			title: latest.title,
 			rank: latest.rank,
+			sub: latest.sub,
 			editionId: "",
 			year: Number(projected.slice(0, 4)),
 			deadline: projected,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	ccfCategoriesOf,
 	ccfDeadlineInstant,
 	ccfNextYearDeadline,
 	ccfTimezoneOffsetHours,
@@ -47,6 +48,7 @@ describe("parseCcfDeadlines", () => {
 			{
 				title: "AAA",
 				conference_key: "AI/aaa",
+				sub: "AI",
 				rank: { ccf: "A" },
 				confs: [
 					{
@@ -65,6 +67,7 @@ describe("parseCcfDeadlines", () => {
 			{
 				title: "BBB",
 				conference_key: "DB/bbb",
+				sub: "DB",
 				rank: { ccf: "B" },
 				confs: [
 					{
@@ -89,18 +92,39 @@ describe("parseCcfDeadlines", () => {
 		const [bbb, aaa] = parseCcfDeadlines(payload, now);
 		expect(bbb).toMatchObject({
 			rank: "B",
+			sub: "DB",
 			year: 2027,
 			editionId: "bbb27",
 			link: "https://bbb.example",
 			timezone: "UTC+8",
 			at: ccfDeadlineInstant("2027-03-01 23:59:59", "UTC+8"),
 		});
-		expect(aaa).toMatchObject({ rank: "A", comment: "Round 1" });
+		expect(aaa).toMatchObject({ rank: "A", sub: "AI", comment: "Round 1" });
 	});
 
 	it("tolerates a malformed payload", () => {
 		expect(parseCcfDeadlines(null, now)).toEqual([]);
 		expect(parseCcfDeadlines({ conferences: "nope" }, now)).toEqual([]);
+	});
+});
+
+describe("ccfCategoriesOf", () => {
+	const item = (sub: string) => ({ sub });
+
+	it("lists present categories in recommendation-list order", () => {
+		expect(ccfCategoriesOf([item("HI"), item("AI"), item("HI")])).toEqual([
+			"AI",
+			"HI",
+		]);
+	});
+
+	it("appends categories the upstream dataset adds later", () => {
+		expect(ccfCategoriesOf([item("ZZ"), item("NW")])).toEqual(["NW", "ZZ"]);
+	});
+
+	it("ignores missing categories", () => {
+		expect(ccfCategoriesOf([item(""), item("CT")])).toEqual(["CT"]);
+		expect(ccfCategoriesOf([])).toEqual([]);
 	});
 });
 
