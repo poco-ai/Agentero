@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/hooks/use-app-stores";
+import { activateHintTarget } from "@/lib/keyboard/hint-activate";
 import {
 	assignHintLabels,
 	HINT_MODIFIER_KEYS,
@@ -124,8 +125,7 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 				const target = current.targets[match.index]?.element;
 				exit();
 				if (!target?.isConnected) return;
-				target.focus({ preventScroll: true });
-				target.click();
+				activateHintTarget(target);
 				return;
 			}
 			// Unknown keys keep the current prefix so the labels stay readable.

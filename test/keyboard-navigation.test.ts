@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
+import { activateHintTarget } from "@/lib/keyboard/hint-activate";
 import {
 	assignHintLabels,
 	HINT_MODIFIER_KEYS,
@@ -110,6 +111,30 @@ describe("keyboard navigation primitives", () => {
 		expect(targets.map((target) => target.element.textContent)).toEqual([
 			"Open",
 			"Star",
+		]);
+	});
+
+	it("activates pointerdown-only triggers like a real click", () => {
+		const button = document.createElement("button");
+		const seen: string[] = [];
+		for (const type of [
+			"pointerdown",
+			"mousedown",
+			"pointerup",
+			"mouseup",
+			"click",
+		]) {
+			button.addEventListener(type, () => seen.push(type));
+		}
+		document.body.appendChild(button);
+		button.getBoundingClientRect = () => new DOMRect(10, 10, 40, 24);
+		activateHintTarget(button);
+		expect(seen).toEqual([
+			"pointerdown",
+			"mousedown",
+			"pointerup",
+			"mouseup",
+			"click",
 		]);
 	});
 
