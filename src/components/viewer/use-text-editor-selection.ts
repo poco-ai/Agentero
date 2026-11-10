@@ -17,6 +17,17 @@ import {
 } from "@/lib/agent/selection-store";
 import { basenameOf } from "@/lib/core/path";
 
+/** Last non-empty range. A toolbar click collapses the live selection first. */
+let armedEditorRange: { path: string; from: number; to: number } | null = null;
+
+export function armedTextEditorRange(): {
+	path: string;
+	from: number;
+	to: number;
+} | null {
+	return armedEditorRange;
+}
+
 export type TextEditorSelectionMenu = {
 	text: string;
 	screen: SelectionDraftScreen;
@@ -126,6 +137,11 @@ export function useTextEditorSelection({
 		const screen = selectionMenuScreen(view);
 		if (!screen) return;
 		const { lineFrom, lineTo } = selectionLines(view.state.doc, selection);
+		armedEditorRange = {
+			path: pathRef.current,
+			from: selection.from,
+			to: selection.to,
+		};
 		menuRef.current = { text, screen, lineFrom, lineTo };
 		openSelectionChat(
 			{

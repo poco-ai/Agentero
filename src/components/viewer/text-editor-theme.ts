@@ -288,5 +288,27 @@ export const editorHighlight: Extension = [
 		"& .cm-tex-structure": { color: structure },
 		"& .cm-tex-math": { color: math },
 		"& .cm-tex-link": { color: command, textDecoration: "underline" },
+		"& .cm-tex-comment": {
+			backgroundColor: "color-mix(in oklab, var(--primary) 16%, transparent)",
+		},
+		"& .cm-tex-comment-active": {
+			backgroundColor: "color-mix(in oklab, var(--primary) 32%, transparent)",
+		},
 	}),
 ];
+
+/** Highlights review comments. Rebuilt when the thread list changes. */
+export function texCommentHighlight(
+	ranges: readonly { from: number; to: number; active: boolean }[],
+): Extension {
+	const marks = ranges
+		.filter((range) => range.to > range.from)
+		.map((range) =>
+			Decoration.mark({
+				class: range.active
+					? "cm-tex-comment cm-tex-comment-active"
+					: "cm-tex-comment",
+			}).range(range.from, range.to),
+		);
+	return EditorView.decorations.of(Decoration.set(marks, true));
+}

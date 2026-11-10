@@ -1,4 +1,4 @@
-import { ChevronDown, Quote } from "lucide-react";
+import { ChevronDown, MessageSquare, Quote } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -21,12 +21,18 @@ interface TextEditorToolbarProps {
 	texTools?: {
 		onCitation: () => void;
 	} | null;
+	review?: {
+		open: boolean;
+		count: number;
+		onToggle: () => void;
+	} | null;
 }
 
 export function TextEditorToolbar({
 	fontSize,
 	onFontSizeChange,
 	texTools,
+	review,
 }: TextEditorToolbarProps) {
 	const { t } = useTranslation("settings");
 	const { t: tx } = useTranslation("latexLanguage");
@@ -60,6 +66,20 @@ export function TextEditorToolbar({
 					>
 						<Quote className="size-3.5" aria-hidden />
 						{tx("insertCitation")}
+					</Button>
+				) : null}
+				{review ? (
+					<Button
+						type="button"
+						size="xs"
+						variant={review.open ? "secondary" : "ghost"}
+						className="flex h-5 gap-1 self-center whitespace-nowrap px-1.5 text-xs"
+						aria-pressed={review.open}
+						aria-label={tx("review")}
+						onClick={review.onToggle}
+					>
+						<MessageSquare className="size-3.5" aria-hidden />
+						{review.count > 0 ? <span>{review.count}</span> : null}
 					</Button>
 				) : null}
 				<Popover open={open} onOpenChange={setOpen}>

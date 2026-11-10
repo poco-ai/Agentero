@@ -9,6 +9,13 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
+import { addSelectionToChat } from "@/components/selection/add-selection-to-chat";
+import {
+	ResizableGroup,
+	ResizableHandle,
+	ResizablePanel,
+} from "@/components/ui/resizable";
 import { useTextEditorFontSize } from "@/components/viewer/hooks/use-text-editor-font-size";
 import { TexCitationPicker } from "@/components/viewer/tex-citation-picker";
 import { textLanguageExtensions } from "@/components/viewer/text-editor-language";
@@ -21,11 +28,43 @@ import {
 	editorChrome,
 	editorColorScheme,
 	editorHighlight,
+	texCommentHighlight,
 } from "@/components/viewer/text-editor-theme";
 import { TextEditorToolbar } from "@/components/viewer/text-editor-toolbar";
-import { useTextEditorSelection } from "@/components/viewer/use-text-editor-selection";
+import {
+	armedTextEditorRange,
+	useTextEditorSelection,
+} from "@/components/viewer/use-text-editor-selection";
+import {
+	readTexReviewWidth,
+	TEX_REVIEW_MAX_PX,
+	TEX_REVIEW_MIN_PX,
+	TexReviewPanel,
+	writeTexReviewWidth,
+} from "@/components/writing/tex-review-panel";
 import { useWritingSelectionGroup } from "@/components/writing/writing-selection-group";
 import { dirnameOf, normalizePath } from "@/lib/core/path";
+import {
+	addTexComment,
+	commentFileKey,
+	deleteTexComment,
+	editTexComment,
+	loadTexComments,
+	relocateTexComments,
+	replyTexComment,
+	resolveTexComment,
+	shiftTexComments,
+	texCommentStore,
+} from "@/lib/tex/comment-store";
+import {
+	attachComment,
+	commentChatQuote,
+	commentChatRecord,
+	isCommentableTexPath,
+	shiftComment,
+	TEX_ADD_COMMENT_EVENT,
+	type TexComment,
+} from "@/lib/tex/comments";
 import { texSettingsStore } from "@/lib/tex/config";
 import { insertTexCitation } from "@/lib/tex/editor-intelligence";
 import {
@@ -59,6 +98,12 @@ import { bindTexOutline } from "@/lib/workspace/tex-outline-bridge";
 import { registerTextEditorFlusher } from "@/lib/workspace/text-editor-flush";
 import { isTexPath, textLanguageIdForPath } from "@/lib/workspace/viewer";
 import { writingStore } from "@/lib/writing/store";
+
+/** Toolbar paths are vault-relative; the editor prop is absolute. */
+function sameTexFile(left: string, right: string): boolean {
+	if (normalizePath(left) === normalizePath(right)) return true;
+	return commentFileKey(left) === commentFileKey(right);
+}
 
 interface TextEditorProps {
 	panelId?: string;
@@ -106,6 +151,28 @@ export function TextEditor({
 	className,
 }: TextEditorProps) {
 	const [citationOpen, setCitationOpen] = useState(false);
+	const [reviewOpen, setReviewOpen] = useState(false);
+	const [showResolved, setShowResolved] = useState(false);
+	const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+	const [draft, setDraft] = useState<{
+		from: number;
+		to: number;
+		quote: string;
+	} | null>(null);
+	const draftRef = useRef(draft);
+	draftRef.current = draft;
+	const commentCompartment = useRef(new Compartment());
+	const threads = useStore(texCommentStore, (state) => state.threads);
+	const fileKey = commentFileKey(path);
+	const fileThreads = useMemo(
+		() => threads.filter((thread) => thread.file === fileKey),
+		[threads, fileKey],
+	);
+	const fileThreadsRef = useRef(fileThreads);
+	fileThreadsRef.current = fileThreads;
+	const openCommentCount = fileThreads.filter(
+		(thread) => !thread.resolved,
+	).length;
 	// Font size managed by hook with process-wide persistence (like PDF paper tone).
 	const { fontSize, setFontSize } = useTextEditorFontSize();
 
@@ -320,9 +387,26 @@ export function TextEditor({
 			fontSizeCompartment.current.of(
 				EditorView.theme({ "&": { fontSize: `${fontSizeRef.current}px` } }),
 			),
+			commentCompartment.current.of(texCommentHighlight([])),
 			EditorView.domEventHandlers({
 				focus(_event, view) {
 					markTexEditorActive(pathRef.current, view);
+				},
+				click(event, view) {
+					if (!isCommentableTexPath(pathRef.current)) return false;
+					const pos = view.posAtCoords({
+						x: event.clientX,
+						y: event.clientY,
+					});
+					if (pos == null) return false;
+					const hit = fileThreadsRef.current.find(
+						(thread) =>
+							!thread.detached && pos >= thread.from && pos < thread.to,
+					);
+					if (!hit) return false;
+					setActiveCommentId(hit.id);
+					setReviewOpen(true);
+					return false;
 				},
 				paste(event, view) {
 					if (!isTexPath(pathRef.current)) return false;
@@ -350,6 +434,47 @@ export function TextEditor({
 				}
 				if (isTexPath(pathRef.current) && !texLiveReloadRef.current) {
 					texLiveApplyUpdate(pathRef.current, view, update);
+				}
+				if (isCommentableTexPath(pathRef.current)) {
+					const doc = update.state.doc.toString();
+					const file = commentFileKey(pathRef.current);
+					if (texLiveReloadRef.current) relocateTexComments(file, doc);
+					else shiftTexComments(file, update.changes, doc);
+					const current = draftRef.current;
+					if (current) {
+						const before = update.startState.doc.toString();
+						const synthetic: TexComment = {
+							id: "draft",
+							file,
+							quote: before.slice(current.from, current.to),
+							prefix: before.slice(
+								Math.max(0, current.from - 40),
+								current.from,
+							),
+							suffix: before.slice(current.to, current.to + 40),
+							from: current.from,
+							to: current.to,
+							detached: false,
+							resolved: false,
+							messages: [],
+							createdAt: 0,
+						};
+						const next = texLiveReloadRef.current
+							? attachComment(doc, synthetic)
+							: shiftComment(synthetic, update.changes, doc);
+						if (next.detached) setDraft(null);
+						else if (
+							next.from !== current.from ||
+							next.to !== current.to ||
+							next.quote !== current.quote
+						) {
+							setDraft({
+								from: next.from,
+								to: next.to,
+								quote: next.quote,
+							});
+						}
+					}
 				}
 				schedulePersistRef.current(update.state.doc);
 			}),
@@ -572,6 +697,58 @@ export function TextEditor({
 		onDirtyChangeRef.current(false);
 	}, [reloadKey, path]);
 
+	useEffect(() => {
+		if (!isCommentableTexPath(path)) return;
+		void loadTexComments();
+	}, [path]);
+
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+		const ranges = [
+			...fileThreads
+				.filter((thread) => !thread.detached && !thread.resolved)
+				.map((thread) => ({
+					from: thread.from,
+					to: thread.to,
+					active: thread.id === activeCommentId,
+				})),
+			...(draft ? [{ from: draft.from, to: draft.to, active: true }] : []),
+		];
+		view.dispatch({
+			effects: commentCompartment.current.reconfigure(
+				texCommentHighlight(ranges),
+			),
+		});
+	}, [fileThreads, draft, activeCommentId]);
+
+	useEffect(() => {
+		const onAdd = (event: Event) => {
+			const detail = (event as CustomEvent<{ path?: string }>).detail;
+			const range = armedTextEditorRange();
+			if (!detail?.path || !range || !sameTexFile(detail.path, path)) return;
+			if (!sameTexFile(range.path, path)) return;
+			const view = viewRef.current;
+			if (!view) return;
+			const quote = view.state.sliceDoc(range.from, range.to);
+			if (!quote.trim()) return;
+			setDraft({ from: range.from, to: range.to, quote });
+			setReviewOpen(true);
+			setShowResolved(false);
+		};
+		window.addEventListener(TEX_ADD_COMMENT_EVENT, onAdd);
+		return () => window.removeEventListener(TEX_ADD_COMMENT_EVENT, onAdd);
+	}, [path]);
+
+	const revealComment = useCallback((thread: TexComment) => {
+		setActiveCommentId(thread.id);
+		const view = viewRef.current;
+		if (!view || thread.detached) return;
+		view.dispatch({
+			effects: EditorView.scrollIntoView(thread.from, { y: "center" }),
+		});
+	}, []);
+
 	// An unreadable file still opens an empty buffer — the next autosave
 	// creates/repairs the file on disk.
 	// The selection chrome portals to body so the fixed-position toolbar and
@@ -595,15 +772,117 @@ export function TextEditor({
 			) : null}
 			{/* The chip anchors to the editor viewport, so the lint footer and
 			panel edges never affect its position. */}
-			<div className="relative min-h-0 w-full flex-1 overflow-hidden">
-				<TextEditorToolbar
-					fontSize={fontSize}
-					onFontSizeChange={setFontSize}
-					texTools={
-						isTexPath(path) ? { onCitation: () => setCitationOpen(true) } : null
-					}
-				/>
-				<div ref={hostRef} className="h-full w-full overflow-hidden" />
+			<div className="flex min-h-0 w-full flex-1 overflow-hidden">
+				<ResizableGroup
+					orientation="horizontal"
+					className="h-full min-h-0 w-full"
+				>
+					<ResizablePanel
+						id="tex-source"
+						minSize={160}
+						className="min-h-0 min-w-0"
+					>
+						<div className="relative h-full min-h-0 min-w-0 overflow-hidden">
+							<TextEditorToolbar
+								fontSize={fontSize}
+								onFontSizeChange={setFontSize}
+								texTools={
+									isTexPath(path)
+										? { onCitation: () => setCitationOpen(true) }
+										: null
+								}
+								review={
+									isCommentableTexPath(path)
+										? {
+												open: reviewOpen,
+												count: openCommentCount,
+												onToggle: () => setReviewOpen((open) => !open),
+											}
+										: null
+								}
+							/>
+							<div ref={hostRef} className="h-full w-full overflow-hidden" />
+						</div>
+					</ResizablePanel>
+					{reviewOpen && isCommentableTexPath(path) ? (
+						<ResizableHandle />
+					) : null}
+					{reviewOpen && isCommentableTexPath(path) ? (
+						<ResizablePanel
+							id="tex-review"
+							defaultSize={readTexReviewWidth()}
+							minSize={TEX_REVIEW_MIN_PX}
+							maxSize={TEX_REVIEW_MAX_PX}
+							groupResizeBehavior="preserve-pixel-size"
+							className="min-h-0 min-w-0"
+							onResize={(size) => writeTexReviewWidth(size.inPixels)}
+						>
+							<TexReviewPanel
+								threads={fileThreads}
+								draft={draft}
+								activeId={activeCommentId}
+								showResolved={showResolved}
+								onShowResolved={setShowResolved}
+								onSubmitDraft={(body) => {
+									if (!draft) return;
+									const view = viewRef.current;
+									if (!view) return;
+									const thread = addTexComment(
+										fileKey,
+										view.state.doc.toString(),
+										draft.from,
+										draft.to,
+										body,
+									);
+									setDraft(null);
+									if (thread) setActiveCommentId(thread.id);
+								}}
+								onCancelDraft={() => {
+									setDraft(null);
+									if (fileThreads.length === 0) setReviewOpen(false);
+								}}
+								onReply={replyTexComment}
+								onEdit={editTexComment}
+								onDelete={(threadId, messageId) => {
+									const root = fileThreads.find(
+										(thread) => thread.id === threadId,
+									)?.messages[0]?.id;
+									deleteTexComment(threadId, messageId);
+									if (root === messageId) setActiveCommentId(null);
+								}}
+								onResolve={(threadId, resolved) => {
+									resolveTexComment(threadId, resolved);
+									if (resolved && activeCommentId === threadId) {
+										setActiveCommentId(null);
+									}
+								}}
+								onSelect={revealComment}
+								onAddToChat={(thread) => {
+									const doc = viewRef.current?.state.doc.toString() ?? null;
+									const quote = commentChatQuote(thread, doc);
+									if (!quote) return;
+									addSelectionToChat({
+										text: quote.text,
+										sourcePath: path,
+										origin: "markdown",
+										surface: "text",
+										lineFrom: quote.lineFrom,
+										lineTo: quote.lineTo,
+										context: {
+											status:
+												quote.before.trim() || quote.after.trim()
+													? "available"
+													: "unavailable",
+											before: quote.before,
+											after: quote.after,
+										},
+										comment: commentChatRecord(thread),
+									});
+								}}
+							/>
+						</ResizablePanel>
+					) : null}
+				</ResizableGroup>
 			</div>
 			{hasLintSources && !hideLintFooter ? (
 				<TextEditorLintFooter

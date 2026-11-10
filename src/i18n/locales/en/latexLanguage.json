@@ -9,5 +9,20 @@
 	"syncPdfHint": "Go to code location in PDF (⌘/Ctrl+Alt+J)",
 	"syncSourceHint": "Go to PDF location in code (Tip: ⌘/Ctrl-click a spot on the PDF for best results)",
 	"saveFailed": "Save the project changes before inserting a citation.",
-	"noDocumentEnd": "Add a bibliography declaration to the root document before inserting a citation."
+	"noDocumentEnd": "Add a bibliography declaration to the root document before inserting a citation.",
+	"addComment": "Add comment",
+	"addCommentToChat": "Add to chat",
+	"review": "Review",
+	"commentPlaceholder": "Comment",
+	"replyPlaceholder": "Reply",
+	"submitComment": "Comment",
+	"cancelComment": "Cancel",
+	"resolveComment": "Resolve",
+	"reopenComment": "Re-open",
+	"editComment": "Edit",
+	"deleteComment": "Delete",
+	"resolvedComments": "Resolved",
+	"noComments": "Select text and add a comment.",
+	"noResolvedComments": "No resolved comments yet.",
+	"commentRemoved": "This text is no longer in the file."
 }
