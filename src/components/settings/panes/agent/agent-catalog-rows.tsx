@@ -44,6 +44,7 @@ import {
 } from "@/lib/agent";
 import { isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
+import { isDesktopBundledCliPath } from "@/lib/system/desktop-apps";
 
 type AgentToolLifecycle = ReturnType<typeof useAgentToolLifecycle>;
 
@@ -217,6 +218,17 @@ function AgentCatalogEntryRow({
 								})}
 							>
 								{t("agent.badges.acpBundled")}
+							</StatusBadge>
+						) : null}
+						{entry.binaryAvailable &&
+						isDesktopBundledCliPath(entry.resolvedPath) ? (
+							<StatusBadge
+								tone="muted"
+								title={t("agent.badges.desktopBundledTitle", {
+									path: entry.resolvedPath,
+								})}
+							>
+								{t("agent.badges.desktopBundled")}
 							</StatusBadge>
 						) : null}
 						{!entry.acpCommandAvailable ? (

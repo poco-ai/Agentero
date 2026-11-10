@@ -67,13 +67,14 @@
 		"cliAgents": "CLI Agent",
 		"desktopApps": {
 			"title": "本地桌面应用",
-			"hint": "（暂不支持，请安装下方 CLI Agent）",
-			"unsupported": "暂不支持",
+			"hint": "（它们本身不支持 ACP，Agentero 用其自带的 CLI 接入）",
 			"chatgpt": "ChatGPT",
 			"qwenwork": "千问办公",
 			"workbuddy": "WorkBuddy",
-			"dsh-desktop": "Dsh 桌面版"
-		}
+			"dsh-desktop": "Dsh 桌面版",
+			"bundledCli": "自带 CLI，可接入"
+		},
+		"desktopBundled": "桌面内置"
 	},
 	"translate": {
 		"title": "设置翻译",

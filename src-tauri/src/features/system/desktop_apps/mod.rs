@@ -69,9 +69,11 @@ const APPS: &[AppSpec] = &[
     },
     AppSpec {
         id: DesktopAppId::Qwenwork,
-        // Vendor bundle id is not published; match by bundle name.
-        names: &["QwenWork", "千问办公"],
-        bundle_ids: &[],
+        // Two builds install under different bundle names and ids: the
+        // international app is `QwenWork.app` (com.qwenwork.desktop.mac),
+        // 千问办公 (China) is `QwenWorkCN.app` (cn.qwenwork.desktop.mac).
+        names: &["QwenWork", "QwenWorkCN", "千问办公"],
+        bundle_ids: &["com.qwenwork.desktop.mac", "cn.qwenwork.desktop.mac"],
         #[cfg(windows)]
         windows: windows::WinSpec {
             uninstall_names: &["千问办公", "QwenWork", "QwenWorkCN"],
@@ -148,6 +150,85 @@ fn dsh_cli_dir_for_executable(executable: &std::path::Path) -> Option<PathBuf> {
     // mode and loads its CLI from app.asar. Never substitute the GUI executable.
     (resources.join("app.asar").is_file() && directory.join("dsh.cmd").is_file())
         .then_some(directory)
+}
+
+/// CLI engine a known desktop app ships inside its own bundle.
+///
+/// Agentero never drives these GUIs over ACP; it reuses the CLI the installer
+/// already put on disk, so a user who only installed the desktop app still gets
+/// the matching Agent. A PATH install always wins.
+///
+/// - QwenWork / 千问办公 ship `qoderclicn` in `Contents/Resources/bin`; the
+///   `qoder-cn` template falls back to it. Verified 2026-11-10 by mounting both
+///   official DMGs: `QwenWork.app` 1.4.0 and `QwenWorkCN.app` 2.0.0 both ship
+///   `qoderclicn` 1.1.71, whose `--acp` initialize reports "Qoder CLI CN" (the
+///   international bundle even updates from `static.qoder.com.cn`), so
+///   `qodercli` must not fall back to it — that would switch account region.
+/// - WorkBuddy ships Tencent's CodeBuddy CLI under
+///   `Resources/app.asar.unpacked/cli/bin/codebuddy` (package `@genie/agent-cli`
+///   advertises `codebuddy`, `codebuddy-code` and `cbc` with `--acp`).
+///
+/// Returns `None` for commands no known desktop app bundles.
+pub(crate) fn bundled_cli(command: &str) -> Option<PathBuf> {
+    let (app, directory, candidates) = bundled_cli_spec(command)?;
+    let detected = detect_app(APPS.iter().find(|spec| spec.id == app)?)?;
+    let resources = app_resources_dir(&detected)?;
+    bundled_cli_in(&resources.join(directory), candidates)
+}
+
+/// `(app id, bin directory under Resources, candidate binary names)`.
+///
+/// `qodercn` is the CN template's dispatcher name (what the official installer
+/// puts on PATH) while the engine inside the app keeps the product binary name
+/// `qoderclicn`; accepting both keeps a future bundle rename from silently
+/// disabling the fallback.
+fn bundled_cli_spec(
+    command: &str,
+) -> Option<(DesktopAppId, &'static str, &'static [&'static str])> {
+    match command {
+        "qodercn" | "qoderclicn" => {
+            Some((DesktopAppId::Qwenwork, "bin", &["qoderclicn", "qodercn"]))
+        }
+        "qodercli" | "qoder" => Some((DesktopAppId::Qwenwork, "bin", &["qodercli", "qoder"])),
+        "codebuddy" | "codebuddy-code" | "cbc" => Some((
+            DesktopAppId::Workbuddy,
+            "app.asar.unpacked/cli/bin",
+            &["codebuddy", "cbc"],
+        )),
+        _ => None,
+    }
+}
+
+/// Resolve one of `candidates` inside the app's resources `bin/` directory.
+///
+/// Reuses the shared executable validation (`resolve_command_in_paths`) so a
+/// leftover data file with the right name cannot report a usable engine, and
+/// Windows picks up its PATHEXT/shim rules (`qoderclicn.exe`, …) for free.
+fn bundled_cli_in(directory: &std::path::Path, candidates: &[&str]) -> Option<PathBuf> {
+    let directory = std::path::PathBuf::from(directory);
+    candidates.iter().find_map(|name| {
+        crate::core::process::discover::resolve_command_in_paths(
+            name,
+            std::slice::from_ref(&directory),
+        )
+    })
+}
+
+/// macOS detects the `.app` bundle; Windows detects the GUI executable.
+fn app_resources_dir(detected: &std::path::Path) -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        Some(detected.join("Contents/Resources"))
+    }
+    #[cfg(windows)]
+    {
+        Some(detected.parent()?.join("resources"))
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let _ = detected;
+        None
+    }
 }
 
 /// Launch an installed app. Errors when the platform/open call fails; callers
@@ -284,6 +365,62 @@ mod tests {
         assert!(dsh_cli_dir_for_executable(&executable).is_none());
         std::fs::write(directory.join("dsh.cmd"), b"@echo off").unwrap();
         assert_eq!(dsh_cli_dir_for_executable(&executable), Some(directory));
+    }
+
+    #[test]
+    fn qwenwork_probe_matches_both_macos_builds() {
+        let spec = APPS
+            .iter()
+            .find(|spec| spec.id == DesktopAppId::Qwenwork)
+            .expect("qwenwork spec");
+        assert!(spec.names.contains(&"QwenWork"));
+        assert!(spec.names.contains(&"QwenWorkCN"));
+        assert!(spec.bundle_ids.contains(&"cn.qwenwork.desktop.mac"));
+    }
+
+    #[test]
+    fn bundled_cli_spec_maps_only_known_desktop_apps() {
+        let (app, dir, names) = bundled_cli_spec("qodercn").expect("CN qoder");
+        assert_eq!(app, DesktopAppId::Qwenwork);
+        assert_eq!(dir, "bin");
+        assert!(names.contains(&"qoderclicn"));
+
+        let (app, dir, names) = bundled_cli_spec("codebuddy").expect("codebuddy");
+        assert_eq!(app, DesktopAppId::Workbuddy);
+        assert_eq!(dir, "app.asar.unpacked/cli/bin");
+        assert!(names.contains(&"codebuddy"));
+
+        // The CN template must never be pointed at the international engine.
+        let (_, _, cn_names) = bundled_cli_spec("qodercn").unwrap();
+        let (_, _, intl_names) = bundled_cli_spec("qodercli").unwrap();
+        assert!(!cn_names.contains(&"qodercli"));
+        assert!(!intl_names.contains(&"qoderclicn"));
+        assert!(bundled_cli_spec("codex").is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bundled_cli_requires_an_executable() {
+        use std::os::unix::fs::PermissionsExt;
+
+        fn write_executable(path: &std::path::Path) {
+            std::fs::write(path, b"fixture").unwrap();
+            let mut permissions = std::fs::metadata(path).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(path, permissions).unwrap();
+        }
+
+        let fixture = tempfile::tempdir().unwrap();
+        let cn = &["qoderclicn", "qodercn"];
+        assert!(bundled_cli_in(fixture.path(), cn).is_none());
+
+        let path = fixture.path().join("qoderclicn");
+        std::fs::write(&path, b"fixture").unwrap();
+        // Plain data files are not runnable engines.
+        assert!(bundled_cli_in(fixture.path(), cn).is_none());
+
+        write_executable(&path);
+        assert_eq!(bundled_cli_in(fixture.path(), cn), Some(path));
     }
 
     #[test]

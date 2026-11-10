@@ -366,14 +366,14 @@
 		"nodeRequired": "This Agent action needs Node.js. Install Node.js, then retry.",
 		"desktopApps": {
 			"section": "Local desktop apps",
-			"hint": "These popular desktop apps do not support ACP yet, so they cannot be connected as Agents here.",
+			"hint": "These desktop apps don't speak ACP themselves — Agentero connects through the CLI they bundle (Codex in ChatGPT, CodeBuddy in WorkBuddy, …).",
 			"scanning": "Detecting…",
-			"unsupported": "Not supported yet",
 			"open": "Open {{name}}",
 			"chatgpt": "ChatGPT",
 			"qwenwork": "QwenWork",
 			"workbuddy": "WorkBuddy",
-			"dsh-desktop": "Dsh Desktop"
+			"dsh-desktop": "Dsh Desktop",
+			"bundledCli": "Bundled CLI — connectable"
 		},
 		"zcodeDesktopPathHint": "If ZCode is not found, set ZCODE_BIN to its zcode.cjs path. This supports any drive and nested install folder.",
 		"defaultAgent": {
@@ -420,7 +420,9 @@
 			"agentMissing": "No agent",
 			"acpMissing": "No ACP",
 			"acpBundled": "Built-in",
-			"acpBundledTitle": "Bundled ACP adapter {{version}} — used only when no adapter is on PATH (a PATH install always wins; the bundled one moves with app releases)."
+			"acpBundledTitle": "Bundled ACP adapter {{version}} — used only when no adapter is on PATH (a PATH install always wins; the bundled one moves with app releases).",
+			"desktopBundled": "Desktop‑bundled",
+			"desktopBundledTitle": "Driven by the CLI bundled with a desktop app ({{path}}). A PATH install always wins."
 		},
 		"permission": {
 			"label": "Permission mode",

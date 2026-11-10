@@ -116,6 +116,8 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `npm uninstall -g @tencent-ai/codebuddy-code` 并清理受管原生入口，但不删除
   `~/.codebuddy` 里的登录和配置（可用 `CODEBUDDY_CONFIG_DIR` 覆盖）。首次登录在交互式
   CLI 里选择中国站 / 国际站 / 企业站 / iOA；skill 走 slash mention。
+  WorkBuddy 桌面端自带同一 CLI（`Resources/app.asar.unpacked/cli/bin/codebuddy`）：PATH 上没有
+  `codebuddy` 时目录扫描、可用性判断和拉起都会回退到这个绝对路径（PATH 安装优先）。
 - Qoder CLI：原生 ACP（`qodercli --acp`）。官方 installer（`https://qoder.com/install`，
   Windows PowerShell 为 `irm https://qoder.com/install.ps1 | iex`）安装原生 `qodercli`；
   npm 包 `@qoder-ai/qodercli`（需 Node 20+）作回退。静默 update 优先 `qodercli update`，
@@ -123,6 +125,8 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `~/.qoder/bin/qodercli`、`~/.qoder/entry` 和 `~/.local/bin/qodercli`（只删这个链接；Windows 同位置
   再试 `qodercli.exe` / `qodercli.cmd`）。没有 npm 时仍删除这些路径。不删除 `~/.qoder` 里的会话和登录，
   不改 shell rc，也不处理 Homebrew cask。登录在终端完成（`qodercli login`）。
+  桌面端不回退：国际版 `QwenWork.app` 目前内置的是大陆版引擎 `qoderclicn`（Qoder CLI CN），
+  接到 `qodercli` 会连错区域，所以这个模板只认 PATH 上自己装的 `qodercli`。
 - Qoder CN：Qoder CLI 中国大陆版，原生 ACP（`qodercn --acp`）。官方 installer
   （`https://static.qoder.com.cn/qoder-cli-cn/install.sh`，Windows 为
   `irm https://static.qoder.com.cn/qoder-cli-cn/install.ps1 | iex`）安装原生 `qodercn`；
@@ -132,6 +136,9 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   Windows 同位置不含该链接）。没有 npm 时仍删除这些路径。`~/.qoder-cn` 里的会话和登录保留，
   不改 shell rc。登录在终端完成（`qodercn login`）。GUI 启动或静默安装后尚未继承 shell rc 时，
   Agentero 也会直接扫描 `~/.qoder-cn/entry`。
+  千问办公大陆版（`QwenWorkCN.app`）在应用包 `Contents/Resources/bin/qoderclicn` 里自带同一引擎：
+  PATH 上没有 `qodercn` 时，目录扫描、可用性判断和拉起都会回退到这个绝对路径（PATH 安装优先）。
+  国际版 `QwenWork.app` 内置的也是这份大陆版引擎，因此只装国际版桌面端同样能接入 `qoder-cn`。
 - Antigravity ACP：原生 ACP（`agy acp`）。Google Antigravity CLI（`agy`）原生内置 ACP stdio server。
   直接复用本机 `agy` 的登录凭据（无需写入 `settings.json`），登录命令为 `agy acp --login`。
 - ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server server`（桥接无头

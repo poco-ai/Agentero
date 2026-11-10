@@ -277,6 +277,19 @@ pub(crate) fn resolve_command_in_agent_env(
     crate::core::process::resolve_command_in_paths(command, &paths)
 }
 
+/// Resolve a template's ACP entrypoint: PATH first, then a CLI that ships
+/// inside an already-installed desktop app (QwenWork bundles the Qoder /
+/// Qoder CN engine). Availability checks, catalog scan and the actual spawn all
+/// resolve through here, so a desktop-bundled engine never reports "installed"
+/// on one path and fails to spawn on another.
+pub(crate) fn resolve_acp_entry(
+    command: &str,
+    environment: &HashMap<String, String>,
+) -> Option<PathBuf> {
+    resolve_command_in_agent_env(command, environment)
+        .or_else(|| crate::features::system::desktop_apps::bundled_cli(command))
+}
+
 /// Resolve the ACP session cwd, also used by cwd-aware process launchers.
 ///
 /// A remote target advertises its own vault path; a local one uses the open
@@ -355,7 +368,7 @@ fn plan_local_launch_with(
     child_env: &mut HashMap<String, String>,
     bundled_spawn: BundledSpawnFn,
 ) -> Result<(AgentDescriptor, PathBuf), AppError> {
-    if let Some(path) = resolve_command_in_agent_env(&desc.command, child_env) {
+    if let Some(path) = resolve_acp_entry(&desc.command, child_env) {
         #[cfg(windows)]
         if desc.template == AgentTemplate::Dsh {
             if let Some((node, entry)) = crate::features::agent::registry::dsh::npm_launch(

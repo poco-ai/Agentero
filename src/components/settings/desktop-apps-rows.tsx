@@ -20,9 +20,10 @@ import {
 } from "@/lib/system/desktop-apps";
 
 /**
- * Read-only list of popular desktop AI apps that do NOT speak ACP, so they can
- * never appear in the ACP catalog. Installed rows are highlighted + labelled
- * "not supported yet" and open the app on click; missing rows are dimmed.
+ * Read-only list of popular desktop AI apps that do NOT speak ACP themselves.
+ * Each one ships a CLI (ChatGPT → Codex, WorkBuddy → CodeBuddy, QwenWork →
+ * Qoder CN, Dsh 桌面版 → Dsh) that Agentero drives over ACP, so the row opens
+ * the app and says so; the matching Agent appears in the catalog above.
  * Detection is local-only (see `features/system/desktop_apps`).
  */
 export function DesktopAppsSection() {
@@ -145,7 +146,7 @@ function DesktopAppsRows() {
 							{text}
 						</div>
 						<span className="flex shrink-0 items-center gap-1.5 text-muted-foreground text-xs">
-							{t("agent.desktopApps.unsupported")}
+							{t("agent.desktopApps.bundledCli")}
 							{opening === id ? (
 								<Loader2 className="size-3.5 animate-spin" aria-hidden />
 							) : (

@@ -25,7 +25,7 @@ Onboarding 关闭、Vault 首次打开后，`useFeatureTour` 用 driver.js 高�
 | 外观 | `theme` | 明暗模式 + tweakcn 配色主题即时预览 | `patchSettings` + `applyUiTheme` / `next-themes` |
 | 网络 | `proxy` | 配置应用级网络代理，并运行「问题诊断 → 网络连通性」同一组 probe | `saveSettingsAsync` / `doctorCheckNetwork` |
 | 运行环境 | `node` | 检测本机 Node.js / npm；缺失时提示并支持一键安装，安装期间显示百分比进度。Node.js 与 npm 都已可用时**整步跳过**（不出现进度圆点，下一步/上一步直接越过） | `useHostNodeStatus` / `installNodeInBackground`（`doctorCheckHost` / `doctorInstallNode`） |
-| Agent | `agent` | 扫描本机 ACP Agent、安装可托管 Agent、探测、设默认（可跳过）；安装期间卡片显示 `agent-lifecycle:progress` 进度与阶段，并提供取消（X）按钮静默中止安装。下方另列**本地桌面应用**（ChatGPT / 千问办公 / WorkBuddy）：不支持 ACP，已装高亮、未装灰度，均标注「暂不支持」，不可选 | `scanCatalog` / `probeCatalogAgent` / `ensureCatalogAgent` / `useAgentToolLifecycle` / `probeDesktopApps` |
+| Agent | `agent` | 扫描本机 ACP Agent、安装可托管 Agent、探测、设默认（可跳过）；安装期间卡片显示 `agent-lifecycle:progress` 进度与阶段，并提供取消（X）按钮静默中止安装。CLI 目录**之后**另列**本地桌面应用**（ChatGPT / 千问办公 / WorkBuddy / Dsh 桌面版）：GUI 本身不支持 ACP，已装高亮、未装灰度，不可选；四项统一标注「自带 CLI，可接入」（Agentero 复用各自应用包里的 Codex / CodeBuddy / Qoder CN / Dsh）。卡片用 `auto-rows-fr` + `h-full` 保证已装/未装高度一致 | `scanCatalog` / `probeCatalogAgent` / `ensureCatalogAgent` / `useAgentToolLifecycle` / `probeDesktopApps` / `isDesktopBundledCliPath` |
 | 翻译 | `translate` | 选择「用自己的翻译 API」或「内置免费翻译」，选前者则填 Key 并测试 | `probeCommercialMtProvider` |
 | 图表公式 | `layout` | 选择「配置云端服务」或「本地免费模型」，选前者则填 Key 并测试 | `probeLayoutProvider` |
 | 收尾 | `vault` | 创建 Vault / 从 Zotero 导入 / 稍后再说 | `createNewVault()` / `migrateZoteroFromWelcome()`（`src/lib/vault/actions.ts`） |

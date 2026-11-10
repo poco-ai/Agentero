@@ -366,14 +366,14 @@
 		"nodeRequired": "该 Agent 操作需要 Node.js，请先安装 Node.js 再重试。",
 		"desktopApps": {
 			"section": "本地桌面应用",
-			"hint": "这些桌面应用暂不支持 ACP，无法作为 Agent 接入。",
+			"hint": "这些桌面应用本身不支持 ACP；Agentero 会用它们自带的 CLI（ChatGPT 的 Codex、WorkBuddy 的 CodeBuddy 等）作为 Agent 接入。",
 			"scanning": "检测中…",
-			"unsupported": "暂不支持",
 			"open": "打开 {{name}}",
 			"chatgpt": "ChatGPT",
 			"qwenwork": "千问办公",
 			"workbuddy": "WorkBuddy",
-			"dsh-desktop": "Dsh 桌面版"
+			"dsh-desktop": "Dsh 桌面版",
+			"bundledCli": "自带 CLI，可接入"
 		},
 		"zcodeDesktopPathHint": "若未找到 ZCode，请将 ZCODE_BIN 设为其 zcode.cjs 路径；支持任意盘符及多层目录安装。",
 		"defaultAgent": {
@@ -420,7 +420,9 @@
 			"agentMissing": "无 Agent",
 			"acpMissing": "无 ACP",
 			"acpBundled": "内置",
-			"acpBundledTitle": "内置 ACP 适配器 {{version}} —— 仅在 PATH 无适配器时启用（PATH 安装优先；内置版本随应用发版更新）。"
+			"acpBundledTitle": "内置 ACP 适配器 {{version}} —— 仅在 PATH 无适配器时启用（PATH 安装优先；内置版本随应用发版更新）。",
+			"desktopBundled": "桌面内置",
+			"desktopBundledTitle": "使用桌面应用自带的 CLI（{{path}}）。PATH 上装有同名 CLI 时优先用 PATH 的。"
 		},
 		"permission": {
 			"label": "权限模式",

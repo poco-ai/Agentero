@@ -15,6 +15,10 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 - [GenericAgent ACP](genericagent-acp.md)
 - 自定义 `command` / `args` / `env`
 
+千问办公 / QwenWork 桌面端在应用包里自带 Qoder CLI（`Contents/Resources/bin/qoderclicn`，国际版与大陆版当前内置的都是大陆版引擎），因此只装桌面端、没装独立 CLI 的机器也能直接接入 Qoder CN：PATH 上找不到 `qodercn` 时，Agentero 用应用包里的那份，PATH 安装始终优先。国际版 Qoder（`qodercli`）不会回退到这份引擎——它连的是大陆服务。桌面端登录状态与独立 CLI 共用（`~/.qoder-cn`），未登录时仍需在终端跑一次 `qodercn login`。
+
+同样的兜底也适用于 ChatGPT（内置 Codex）、WorkBuddy（内置 CodeBuddy）与 Dsh 桌面版（内置 `dsh`）：装了桌面端就不必再单独装 CLI。这类 CLI 的卡片会带「桌面内置」标记，扫一眼就能看出它不是 PATH 安装。
+
 自定义项与内置目录相同：Agentero 在当前 Vault 根目录启动你填写的命令，经标准输入/输出走 ACP。参数按空格拆分。命令本身必须是 ACP 服务（如 `opencode acp`、`grok agent stdio`），或指向一个 ACP bridge（如 `python /绝对路径/bridge.py`）。脚本和解释器请用绝对路径；图形应用的 PATH 往往和终端不一致。设置里新增或编辑自定义 Agent 时会显示同一段说明。
 
 请先按对应 Agent 的官方说明完成安装和登录。
@@ -28,7 +32,7 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 | 应用 | 当前状态 | 说明 |
 |---|---|---|
 | **OpenAI Codex 桌面版** | 不支持 | Agentero 通过 ACP 接入的是 **Codex CLI**（命令行版）+ `@agentclientprotocol/codex-acp` 适配器；独立的 Codex 桌面 App 未暴露可被 Agentero 连接的 ACP/MCP 接口。 |
-| **WorkBuddy（腾讯）** | 不支持 | Agentero 当前没有 WorkBuddy 的 ACP 适配模板；即使 WorkBuddy 支持 ACP，也需要额外适配才能接入。 |
+| **WorkBuddy（腾讯）** | 通过内置 CLI 接入 | WorkBuddy 桌面端自带 CodeBuddy CLI（`WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy`），Agentero 在 PATH 上没有 `codebuddy` 时直接用它（`codebuddy --acp`）。 |
 
 如果你希望这些应用操作 Vault，可参考：
 

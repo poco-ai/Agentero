@@ -1,6 +1,6 @@
 use crate::core::error::AppError;
 use crate::features::agent::acp::client::{
-    build_child_env, effective_local_agent_env, resolve_command_in_agent_env,
+    build_child_env, effective_local_agent_env, resolve_acp_entry, resolve_command_in_agent_env,
 };
 use crate::features::agent::models::{
     default_agent_proxy_url, is_builtin_template, merge_no_proxy, AgentDescriptor,
@@ -393,8 +393,7 @@ impl AgentRegistry {
                     crate::features::agent::registry::discovery::login_shell_env().as_deref(),
                     &descriptor_env,
                 );
-                let path_acp_available =
-                    resolve_command_in_agent_env(&info.command, &environment).is_some();
+                let path_acp_available = resolve_acp_entry(&info.command, &environment).is_some();
                 let bundled = bundled::bundled_adapter(&info.id);
                 let detect_path = if info.id == AgentTemplate::Zcode.as_str() {
                     zcode_host_path(&environment)
@@ -405,7 +404,7 @@ impl AgentRegistry {
                         .detect_command
                         .as_deref()
                         .unwrap_or(info.command.as_str());
-                    resolve_command_in_agent_env(detect, &environment)
+                    resolve_acp_entry(detect, &environment)
                 };
                 let binary_available = detect_path.is_some();
                 let availability =
@@ -1040,7 +1039,7 @@ fn local_command_availability(
     if template_id == AgentTemplate::Zcode.as_str() && zcode_host_path(environment).is_none() {
         return Err("ZCode desktop CLI not found (install ZCode or set ZCODE_BIN)".to_string());
     }
-    if resolve_command_in_agent_env(command, environment).is_some() {
+    if resolve_acp_entry(command, environment).is_some() {
         return Ok(());
     }
     if bundled_spawnable() && bundled::host_requirement(template_id).is_some() {

@@ -29,6 +29,7 @@ import { cn } from "@/lib/core/utils";
 import {
 	DESKTOP_APP_IDS,
 	type DesktopAppStatus,
+	isDesktopBundledCliPath,
 	probeDesktopApps,
 } from "@/lib/system/desktop-apps";
 
@@ -220,40 +221,6 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 
 				<div className="space-y-2">
 					<p className="px-0.5 text-muted-foreground text-xs">
-						{t("agent.desktopApps.title")}{" "}
-						<span className="text-muted-foreground/70">
-							{t("agent.desktopApps.hint")}
-						</span>
-					</p>
-					<ul className="grid grid-cols-4 gap-3">
-						{DESKTOP_APP_IDS.map((id) => {
-							const installed = desktopApps[id]?.installed ?? false;
-							return (
-								<li key={id}>
-									<div
-										className={cn(
-											"flex w-full flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center",
-											!installed && "opacity-60",
-										)}
-									>
-										<div className="flex size-14 items-center justify-center">
-											<DesktopAppLogo id={id} className="size-12" />
-										</div>
-										<p className="w-full truncate font-medium text-sm">
-											{t(`agent.desktopApps.${id}`)}
-										</p>
-										<p className="w-full text-caption text-muted-foreground leading-tight">
-											{t("agent.desktopApps.unsupported")}
-										</p>
-									</div>
-								</li>
-							);
-						})}
-					</ul>
-				</div>
-
-				<div className="space-y-2">
-					<p className="px-0.5 text-muted-foreground text-xs">
 						{t("agent.cliAgents")}
 					</p>
 					{entries.length === 0 ? (
@@ -262,7 +229,7 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 							<span>{scanning ? t("agent.scanning") : t("agent.none")}</span>
 						</div>
 					) : (
-						<ul className="grid grid-cols-4 gap-3">
+						<ul className="grid grid-cols-4 auto-rows-fr gap-3">
 							{entries.map((entry) => {
 								const available = isAvailable(entry);
 								const layer = available ? null : missingLayer(entry);
@@ -275,7 +242,7 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 								const busy = settingDefault || installing;
 								const rowLifecycle = lifecycleProgress[entry.templateId];
 								const cardClassName = cn(
-									"group relative flex w-full flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center outline-none transition-colors hover:border-primary/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+									"group relative flex h-full w-full flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center outline-none transition-colors hover:border-primary/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
 									isDefault && "border-primary bg-primary/5",
 									!available && "opacity-60",
 								);
@@ -347,6 +314,13 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 										<p className="w-full truncate text-sm font-medium">
 											{entry.name}
 										</p>
+										{available &&
+										!rowLifecycle &&
+										isDesktopBundledCliPath(entry.resolvedPath) ? (
+											<p className="w-full text-caption text-muted-foreground leading-tight">
+												{t("agent.desktopBundled")}
+											</p>
+										) : null}
 										{layer && !rowLifecycle ? (
 											<p className="w-full text-caption text-muted-foreground leading-tight">
 												{adapterOnly
@@ -413,6 +387,39 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 							})}
 						</ul>
 					)}
+				</div>
+				<div className="space-y-2">
+					<p className="px-0.5 text-muted-foreground text-xs">
+						{t("agent.desktopApps.title")}{" "}
+						<span className="text-muted-foreground/70">
+							{t("agent.desktopApps.hint")}
+						</span>
+					</p>
+					<ul className="grid grid-cols-4 auto-rows-fr gap-3">
+						{DESKTOP_APP_IDS.map((id) => {
+							const installed = desktopApps[id]?.installed ?? false;
+							return (
+								<li key={id}>
+									<div
+										className={cn(
+											"flex h-full w-full flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center",
+											!installed && "opacity-60",
+										)}
+									>
+										<div className="flex size-14 items-center justify-center">
+											<DesktopAppLogo id={id} className="size-12" />
+										</div>
+										<p className="w-full truncate font-medium text-sm">
+											{t(`agent.desktopApps.${id}`)}
+										</p>
+										<p className="w-full text-caption text-muted-foreground leading-tight">
+											{t("agent.desktopApps.bundledCli")}
+										</p>
+									</div>
+								</li>
+							);
+						})}
+					</ul>
 				</div>
 			</div>
 		);

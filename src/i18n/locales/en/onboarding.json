@@ -67,13 +67,14 @@
 		"cliAgents": "CLI Agents",
 		"desktopApps": {
 			"title": "Local desktop apps",
-			"hint": "(not supported yet — install a CLI Agent below)",
-			"unsupported": "Not supported yet",
+			"hint": "(they don't speak ACP themselves — Agentero uses the CLI they bundle)",
 			"chatgpt": "ChatGPT",
 			"qwenwork": "QwenWork",
 			"workbuddy": "WorkBuddy",
-			"dsh-desktop": "Dsh Desktop"
-		}
+			"dsh-desktop": "Dsh Desktop",
+			"bundledCli": "Bundled CLI — connectable"
+		},
+		"desktopBundled": "Desktop‑bundled"
 	},
 	"translate": {
 		"title": "Set up translation",

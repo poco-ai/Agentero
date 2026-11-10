@@ -2,7 +2,43 @@
 
 Agent 设置页与 Onboarding 的「本地桌面应用」区块列出若干**不支持直接 ACP 接入** 的流行 AI 桌面端 App（ChatGPT、千问办公 / QwenWork、腾讯 WorkBuddy、Dsh 桌面版）。它们装了也不会作为桌面 GUI 出现在 Agent 目录里，这个区块向用户解释原因；设置页允许直接打开。
 
+四个 App 的 GUI 都不说 ACP，但**都自带一个会说 ACP 的 CLI**，Agentero 直接复用该 CLI 接入（见下文「应用包内置 CLI」）：ChatGPT → Codex、WorkBuddy → CodeBuddy、千问办公 / QwenWork → Qoder CN、Dsh 桌面版 → Dsh。因此这个区块不再标注「暂不支持」，而是统一标注「自带 CLI，可接入」；对应 Agent 出现在上方 CLI 目录里，并在卡片上带「桌面内置」标记。
+
 Dsh 桌面版与 Dsh CLI 使用独立 ID：桌面应用为 `dsh-desktop`，名称显示「Dsh 桌面版 / Dsh Desktop」，已安装时标注「暂不支持」；CLI 模板仍为 `dsh`，通过 `dsh --profile acp` 接入。桌面应用的检测不以 npm `dsh.cmd`、Node 或 `~/.dsh` 用户数据目录作为安装依据。
+
+## 应用包内置 CLI
+
+桌面端只在「用户没自己装 CLI」时作为兜底，PATH 安装永远优先。四个已知来源：
+
+| App | macOS 内置 CLI | Agent 模板 |
+|---|---|---|
+| ChatGPT | `ChatGPT.app/Contents/Resources/codex-cli/bin/codex` | `codex-acp` |
+| WorkBuddy | `WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy`（`@genie/agent-cli`，bin 名 `codebuddy` / `codebuddy-code` / `cbc`） | `codebuddy` |
+| 千问办公 / QwenWork | `QwenWork.app` / `QwenWorkCN.app` 的 `Contents/Resources/bin/qoderclicn` | `qoder-cn` |
+| Dsh 桌面版 | `DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh` | `dsh` |
+
+Codex / Dsh 走 `crates/agentero-core/src/process/desktop_cli.rs` 的目录注入（把应用包内的 bin 目录以低优先级追加到 PATH）；Qoder / CodeBuddy 走 `features/system/desktop_apps::bundled_cli()` 的按名解析（Claude/Codex 之外的模板没有同名二进制，只能按名映射）。两者共用同一个判据——真实可执行文件，不做目录名字猜测。
+
+千问办公有两个发行版，包名与 bundle id 不同（2026-11-10 实测，**均为挂载官方 DMG 检查**，国际版未安装到本机）：
+
+| 发行版 | `.app` 包名 | bundle id | 内置 CLI |
+|---|---|---|---|
+| 国际版 QwenWork 1.4.0 | `QwenWork.app` | `com.qwenwork.desktop.mac` | `Contents/Resources/bin/qoderclicn`（1.1.71） |
+| 大陆版 千问办公 2.0.0 | `QwenWorkCN.app` | `cn.qwenwork.desktop.mac` | `Contents/Resources/bin/qoderclicn`（1.1.71） |
+
+两个发行版当前内置的都是**大陆版**引擎，判定依据（三项独立证据）：
+
+1. 国际版包内的 `app-update.yml` 更新源是 `https://static.qoder.com.cn/qwen-work-cn/releases`，即直接复用大陆构建产物；
+2. 两边 `qoderclicn --version` 都是 `1.1.71`（sha256 不同：国际版包内 `87dbe7f2…`、大陆版 `48d37c58…`，属同版本的两次构建）；
+3. `qoderclicn --acp` 的 `initialize` 返回 `agentInfo = {name: "qoder-cli-cn", title: "Qoder CLI CN"}`。
+
+因此只有 `qoder-cn` 模板会回退到它。`qodercli`（国际版）模板只认 PATH 上用户自己装的 `qodercli`，不会拿这份引擎顶替——它连的是大陆服务，混用会把国际账号接到错误的区域。`bundled_cli("qodercli")` 仍保留 `qodercli` 分支，等国际版将来真的自带国际引擎时无需改代码。
+
+解析顺序是 **PATH 优先**：PATH 上存在同名 CLI 时用用户自己装的，只有缺失时才回退到应用包内的绝对路径。启动、目录扫描、可用性判断共用同一个解析函数（`acp::client::resolve_acp_entry`），避免出现「显示已安装但拉起失败」。
+
+`CatalogEntry.resolved_path` 指向应用包内时，CLI 卡片会显示「桌面内置」徽标（前端 `isDesktopBundledCliPath()` 判定，Settings 与 Onboarding 共用）。
+
+交互式 CLI（终端里 `qodercn login`、`codebuddy login`）仍按 PATH 解析，不指向应用包内的二进制——登录和版本升级需要用户自己装的完整 CLI。
 
 ## 定位
 
@@ -22,8 +58,8 @@ Dsh 桌面版与 Dsh CLI 使用独立 ID：桌面应用为 `dsh-desktop`，名�
 ## 检测方式（macOS）
 
 1. 直接探测 `/Applications/<name>.app` 与 `~/Applications/<name>.app`（用户可能装在个人目录）。
-2. `mdfind "kMDItemCFBundleIdentifier == '<id>'"` 兜住被移动的 App（ChatGPT 新版 `com.openai.codex` / 旧版 `com.openai.chat`）。
-3. `mdfind "kMDItemFSName == '<name>.app'"` 文件名兜底。
+2. `mdfind "kMDItemCFBundleIdentifier == '<id>'"` 兜住被移动的 App（ChatGPT 新版 `com.openai.codex` / 旧版 `com.openai.chat`，千问办公大陆版 `cn.qwenwork.desktop.mac`）。
+3. `mdfind "kMDItemFSName == '<name>.app'"` 文件名兜底。千问办公按 `QwenWork` / `QwenWorkCN` / `千问办公` 三个名字探测——大陆版官方 DMG 装出来的是 `QwenWorkCN.app`（`CFBundleName` 也是 `QwenWorkCN`），漏掉它会误报「未安装」。
 
 **刻意不做**：扫描 `~/Library` 或 `~/.<app>` 残留目录。已卸载但留下日志/数据的 App 会因此被误判为「已安装」（WorkBuddy 卸载后仍留 `~/.workbuddy-ai` 等，是典型反例）。可靠判据只有真实 `.app` bundle 与系统注册信息。
 
