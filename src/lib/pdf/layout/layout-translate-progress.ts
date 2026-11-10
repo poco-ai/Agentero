@@ -38,6 +38,9 @@ export function layoutTranslateDisplayRatio(
 	const built = Number.isFinite(reflowProgress)
 		? Math.max(0, Math.min(1, reflowProgress))
 		: 0;
-	// Leave 100% for the committed output, not just PDF byte generation.
-	return Math.min(0.99, cacheOnly ? built : settled * 0.7 + built * 0.3);
+	if (cacheOnly) return Math.min(0.99, built);
+	// Leave 100% for the committed output, not just PDF byte generation, but
+	// never claim more than the document has settled: a partial run would peak
+	// above its share while pages build and drop back when the preview lands.
+	return Math.min(0.99, settled, settled * 0.7 + built * 0.3);
 }

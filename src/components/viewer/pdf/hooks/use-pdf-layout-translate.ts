@@ -404,6 +404,13 @@ export function usePdfLayoutTranslate({
 		pdfBytes,
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
+	/**
+	 * High-water mark of the meter for the current run. Upstream sources can
+	 * step back (a reflow rebuild restarts its own ratio; a partial run ends on
+	 * the settled share after a weighted preview peak), and a bar that moves
+	 * backwards reads as a failure. Reset by every run entry point.
+	 */
+	const progressFloorRef = useRef(0);
 	/** Queued target to auto-start once layout regions land. */
 	const layoutTranslateWaitTargetRef = useRef<LayoutTranslateWaitTarget | null>(
 		null,
@@ -559,6 +566,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current = ac;
 		setSourcePreparing(true);
 		setHiddenPageIndexes(new Set());
+		progressFloorRef.current = 0;
 		const cacheKey = currentLayoutTranslateCacheKey();
 		const pendingItems = reuseCompletedTranslateItems(
 			toLayoutTranslateItems(regions),
@@ -902,6 +910,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current?.abort();
 		const ac = new AbortController();
 		layoutTranslateAbortRef.current = ac;
+		progressFloorRef.current = 0;
 		setPartialDialogOpen(false);
 		setHiddenPageIndexes(new Set());
 		setSourcePreparing(false);
@@ -1017,6 +1026,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current?.abort();
 		const ac = new AbortController();
 		layoutTranslateAbortRef.current = ac;
+		progressFloorRef.current = 0;
 		setPartialDialogOpen(false);
 		setHiddenPageIndexes(new Set());
 		setSourcePreparing(false);
@@ -1170,6 +1180,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateWaitTargetRef.current = null;
 		waitingAutoStartedRef.current = false;
 		partialAutoOpenedKeyRef.current = null;
+		progressFloorRef.current = 0;
 		setPartialDialogOpen(false);
 		setLayoutTranslateJob(EMPTY_LAYOUT_TRANSLATE_JOB);
 		return () => {
@@ -1441,12 +1452,24 @@ export function usePdfLayoutTranslate({
 		previewPending &&
 		sawFinalReflowBusyRef.current &&
 		!reflowBusy;
-	const layoutTranslateProgress = layoutTranslateDisplayRatio(
-		layoutTranslateRunning && sourcePreparing ? null : textSettled,
-		(layoutTranslateRunning || previewPending) && !finalReflowFailed,
-		reflowProgress,
-		cacheOnly,
-	);
+	// A cancelled run marks its unfinished blocks as settled, which would read as
+	// 100% and linger a "complete" check; the meter must retract instead.
+	const rawTranslateProgress =
+		layoutTranslateJob.status === "cancelled"
+			? null
+			: layoutTranslateDisplayRatio(
+					layoutTranslateRunning && sourcePreparing ? null : textSettled,
+					(layoutTranslateRunning || previewPending) && !finalReflowFailed,
+					reflowProgress,
+					cacheOnly,
+				);
+	// Never step back inside one run: see `progressFloorRef`.
+	const layoutTranslateProgress =
+		rawTranslateProgress == null
+			? null
+			: Math.max(progressFloorRef.current, rawTranslateProgress);
+	progressFloorRef.current =
+		layoutTranslateProgress ?? progressFloorRef.current;
 	// Cached re-runs settle almost immediately, but the translated page only
 	// paints once the final reflow build publishes its previews. Keep the
 	// loading indicator up through that build instead of leaving a blank wait.

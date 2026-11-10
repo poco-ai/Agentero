@@ -52,6 +52,18 @@ describe("layoutTranslateDisplayRatio", () => {
 		);
 		expect(values).toEqual([0.7, 0.76, 0.85, 0.94, 0.99]);
 	});
+	it("never peaks above a partial run's settled share", () => {
+		// A half-translated document builds pages too, but it can only ever
+		// reach 50%: weighting would peak at 0.65 and drop back on landing.
+		const values = [0, 0.5, 1].map((built) =>
+			layoutTranslateDisplayRatio(0.5, true, built),
+		);
+		expect(values).toEqual([0.35, 0.5, 0.5]);
+		expect(layoutTranslateDisplayRatio(0.5, false)).toBe(0.5);
+	});
+	it("holds back the last percent until the committed output is ready", () => {
+		expect(layoutTranslateDisplayRatio(1, true, 1)).toBe(0.99);
+	});
 	it("uses page work alone when all translation results came from cache", () => {
 		expect(layoutTranslateDisplayRatio(1, true, 0, true)).toBe(0);
 		expect(layoutTranslateDisplayRatio(1, true, 0.5, true)).toBe(0.5);
