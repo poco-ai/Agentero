@@ -172,6 +172,33 @@ pub fn parse_diagnostics(output: &str, root: &Path) -> Vec<LatexDiagnostic> {
             }
             continue;
         }
+        if text.starts_with("Missing character:") {
+            diagnostics.push(LatexDiagnostic {
+                path: stack.source(root).to_string_lossy().into_owned(),
+                line: diagnostic_line(text).unwrap_or(1),
+                column: 1,
+                severity: "warning".into(),
+                message: text.into(),
+                source: "latex".into(),
+            });
+            continue;
+        }
+        if text.starts_with("Package graphics Error")
+            || text.starts_with("Package graphicx Error")
+            || text.contains("Unable to load picture")
+            || text.contains("unknown graphics extension")
+        {
+            diagnostics.push(LatexDiagnostic {
+                path: stack.source(root).to_string_lossy().into_owned(),
+                line: diagnostic_line(text).unwrap_or(1),
+                column: 1,
+                severity: "error".into(),
+                message: text.trim_start_matches("! ").into(),
+                source: "latex".into(),
+            });
+            pending_error = None;
+            continue;
+        }
         let lower = text.to_lowercase();
         let is_warning = lower.contains("warning:")
             || text.starts_with("Warning--")
@@ -300,6 +327,30 @@ mod tests {
         assert_eq!(found[2].line, 11);
         assert_eq!(portable(&found[3].path), "/project/main.tex");
         assert_eq!(found[3].line, 20);
+    }
+    #[test]
+    fn keeps_missing_glyphs_picture_failures_and_biber_version_errors() {
+        let output = "\
+(./main.tex
+Missing character: There is no 中 (U+4E2D) in font cmr10!
+! Unable to load picture or PDF file 'plot.png'.
+l.4 \\includegraphics{plot.png}
+ERROR - Error: Found biblatex control file version 3.2, expected version 3.11.
+)";
+        let found = parse_diagnostics(output, Path::new("/project/main.tex"));
+        assert!(found.iter().any(|item| {
+            item.severity == "warning" && item.message.starts_with("Missing character:")
+        }));
+        assert!(found.iter().any(|item| {
+            item.severity == "error"
+                && item.message.contains("Unable to load picture")
+                && item.line == 4
+        }));
+        assert!(found.iter().any(|item| {
+            item.severity == "error"
+                && item.source == "biber"
+                && item.message.contains("control file")
+        }));
     }
     #[test]
     fn recorder_preserves_space_paths_and_excludes_outputs() {

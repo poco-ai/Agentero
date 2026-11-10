@@ -9,5 +9,11 @@
 	"askAgent": "交给 Agent",
 	"askAgentPrompt": "在 LaTeX 源文件里修掉这个问题，只改和它有关的地方。",
 	"copyProblem": "复制问题",
-	"copyFailed": "无法复制此问题。"
+	"copyFailed": "无法复制此问题。",
+	"requirement": {
+		"minted": "minted 会调用外部高亮程序。编译前要在这个项目的构建配方里允许 shell escape。",
+		"glossaries": "glossaries 需要额外的索引步骤。把它加进这个项目的构建配方。",
+		"pythontex": "pythontex 会在编译时运行 Python。把它加进这个项目的构建配方。",
+		"shellEscape": "这个文件使用了 \\write18。默认构建不允许 shell escape。"
+	}
 }

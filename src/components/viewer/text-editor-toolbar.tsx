@@ -1,4 +1,4 @@
-import { ChevronDown, Quote } from "lucide-react";
+import { ChevronDown, Quote, Shapes } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ interface TextEditorToolbarProps {
 	/** TeX-only actions; null hides the citation entry. */
 	texTools?: {
 		onCitation: () => void;
+		onFigure: () => void;
 	} | null;
 }
 
@@ -60,6 +61,18 @@ export function TextEditorToolbar({
 					>
 						<Quote className="size-3.5" aria-hidden />
 						{tx("insertCitation")}
+					</Button>
+				) : null}
+				{texTools ? (
+					<Button
+						type="button"
+						size="xs"
+						variant="ghost"
+						className="shrink-0 self-center whitespace-nowrap"
+						aria-label={tx("editFigure")}
+						onClick={texTools.onFigure}
+					>
+						<Shapes className="size-3.5" aria-hidden />
 					</Button>
 				) : null}
 

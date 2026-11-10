@@ -65,6 +65,19 @@ describe("tex outline", () => {
 		expect(activeOutlineSectionId(items, 0)).toBeNull();
 	});
 
+	it("unwraps formatting and accents, and lists wrapped section commands", () => {
+		const items = outline(
+			[
+				"\\newcommand{\\mysec}[1]{\\section{#1}}",
+				"\\section{\\textbf{R\\'esum\\'e}}",
+				"\\mysec{引言}",
+			].join("\n"),
+		);
+		expect(
+			items.filter((item) => item.kind === "section").map((item) => item.title),
+		).toEqual(["Résumé".normalize("NFC"), "引言"]);
+	});
+
 	it("resolves include paths next to the source file", () => {
 		expect(
 			resolveTexInputPath("/vault/thesis/main.tex", "chapters/intro"),

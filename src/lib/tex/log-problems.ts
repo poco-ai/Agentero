@@ -88,6 +88,49 @@ export function parseLatexLog(text: string): LogProblem[] {
 				line: Number(box[1]),
 				logLine: index,
 			});
+			continue;
+		}
+		if (line.startsWith("Missing character:")) {
+			problems.push({
+				severity: "warning",
+				message: line.trim(),
+				file: currentFile,
+				logLine: index,
+			});
+			continue;
+		}
+		if (
+			line.startsWith("ERROR - ") ||
+			/biblatex control file version/i.test(line)
+		) {
+			problems.push({
+				severity: "error",
+				message: line.replace(/^ERROR - /, "").trim(),
+				file: currentFile,
+				logLine: index,
+			});
+			continue;
+		}
+		if (line.startsWith("WARN - ")) {
+			problems.push({
+				severity: "warning",
+				message: line.replace(/^WARN - /, "").trim(),
+				file: currentFile,
+				logLine: index,
+			});
+			continue;
+		}
+		if (
+			/Unable to load picture|unknown graphics extension|not a PDF file|Package (?:graphics|graphicx) Error:/i.test(
+				line,
+			)
+		) {
+			problems.push({
+				severity: "error",
+				message: line.replace(/^! /, "").trim(),
+				file: currentFile,
+				logLine: index,
+			});
 		}
 	}
 	return problems;

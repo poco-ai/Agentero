@@ -45,6 +45,7 @@ AGENTERO_UPDATE_BINDINGS=1 cargo test -p agentero export_typescript_bindings
 - `compile:log`：jobId、rootPath、line。
 - `compile:finished`：jobId、rootPath、success、PDF / log / SyncTeX 路径、dependencies、diagnostics。
 - 每条诊断包含 path、1 起始的 line / column、severity、message、source。
+- `Missing character:` 记为警告。`Unable to load picture`、未知图片扩展名和 `Package graphics Error` 记为错误。`ERROR -` / `WARN -` 仍归到 Biber。
 
 无 `file:line:` 前缀的警告借助 TeX 日志文件栈恢复章节归属。引擎日志补充 console 未输出的警告。取消既覆盖流式读取，也覆盖 stdout/stderr 关闭后的进程等待；Unix 使用独立进程组，Windows 把 latexmk / chktex / synctex 放进独立 Job Object，关闭句柄时结束启动器及其引擎后代，不再靠 `taskkill /T`。
 

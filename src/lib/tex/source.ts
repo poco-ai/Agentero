@@ -15,6 +15,57 @@ export function texSourceCode(source: string): string {
 	return visible.join("");
 }
 
+function unsafeBibliographyPath(value: string): boolean {
+	for (const character of value) {
+		const code = character.codePointAt(0) ?? 0;
+		if (code <= 0x1f || code === 0x7f || character === "{" || character === "}")
+			return true;
+	}
+	return false;
+}
+
+/**
+ * A bibliography path the project can open. Absolute paths, URLs and a `..`
+ * that leaves the project are dropped; a missing extension becomes `.bib`.
+ */
+export function bibliographyFilePath(raw: string): string | null {
+	const value = raw.trim().replaceAll("\\", "/");
+	if (!value || unsafeBibliographyPath(value)) return null;
+	if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return null;
+	if (value.startsWith("/") || /^[A-Za-z]:\//.test(value)) return null;
+	const parts: string[] = [];
+	for (const part of value.split("/")) {
+		if (!part || part === ".") continue;
+		if (part === "..") {
+			if (!parts.length) return null;
+			parts.pop();
+			continue;
+		}
+		parts.push(part);
+	}
+	const joined = parts.join("/");
+	if (!joined) return null;
+	if (/\.[A-Za-z0-9]+$/.test(joined))
+		return /\.bib$/i.test(joined) ? joined : null;
+	return `${joined}.bib`;
+}
+
+/** Biblatex when the preamble loads it or calls `\addbibresource`. */
+export function bibliographyKind(source: string): "biblatex" | "bibtex" | null {
+	const code = texSourceCode(source);
+	if (
+		/\\addbibresource\b/.test(code) ||
+		/\\usepackage(?:\s*\[[^\]]*\])?\s*\{[^}]*\bbiblatex\b/.test(code)
+	)
+		return "biblatex";
+	if (
+		/\\bibliography\b/.test(code) ||
+		/\\begin\s*\{thebibliography\}/.test(code)
+	)
+		return "bibtex";
+	return null;
+}
+
 /** Declared bibliography targets include resources that have not been created yet. */
 export function declaredTexBibliographies(source: string): string[] {
 	const targets: string[] = [];
@@ -24,9 +75,8 @@ export function declaredTexBibliographies(source: string): string[] {
 		const parts =
 			match[1] === "bibliography" ? match[2].split(",") : [match[2]];
 		for (const part of parts) {
-			const target = part.trim();
-			if (target && !/[\\{}]/.test(target))
-				targets.push(/\.bib$/i.test(target) ? target : `${target}.bib`);
+			const target = bibliographyFilePath(part);
+			if (target) targets.push(target);
 		}
 	}
 	return targets;

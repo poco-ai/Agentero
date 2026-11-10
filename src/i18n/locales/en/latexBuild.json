@@ -9,5 +9,11 @@
 	"askAgent": "Ask Agent",
 	"askAgentPrompt": "Fix this in the LaTeX source. Change only what this problem requires.",
 	"copyProblem": "Copy problem",
-	"copyFailed": "Could not copy the problem."
+	"copyFailed": "Could not copy the problem.",
+	"requirement": {
+		"minted": "minted runs an external highlighter. Allow shell escape in this project's build recipe before it can compile.",
+		"glossaries": "glossaries needs an index pass. Add it to this project's build recipe.",
+		"pythontex": "pythontex runs Python during the build. Add it to this project's build recipe.",
+		"shellEscape": "This file runs \\write18. The default build does not allow shell escape."
+	}
 }

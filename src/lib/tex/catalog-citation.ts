@@ -12,7 +12,11 @@ import {
 	loadTexProjectIndex,
 	type TexCitation,
 } from "@/lib/tex/project-index";
-import { declaredTexBibliographies, texSourceCode } from "@/lib/tex/source";
+import {
+	bibliographyKind,
+	declaredTexBibliographies,
+	texSourceCode,
+} from "@/lib/tex/source";
 import { readVaultFile } from "@/lib/vault/fs";
 import { persistTextFile } from "@/lib/workspace/persistence";
 import {
@@ -127,10 +131,7 @@ export function projectBibliographyChanges(
 	const begin = /\\begin\s*\{document\}/.exec(code);
 	const end = /\\end\s*\{document\}/.exec(code);
 	if (!begin || !end) return [];
-	const biblatex = /\\usepackage(?:\[[^\]]*\])?\s*\{[^}]*\bbiblatex\b/.test(
-		code,
-	);
-	if (biblatex) {
+	if (bibliographyKind(source) === "biblatex") {
 		return [
 			{ from: begin.index, insert: "\\addbibresource{references.bib}\n" },
 			...(/\\printbibliography\b/.test(code)

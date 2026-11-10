@@ -34,6 +34,37 @@ export type TexProjectIndex = LatexProjectInfo & {
 	outline: TexOutlineItem[];
 };
 const buffers = new Map<string, () => string>();
+let bufferVersion = 0;
+const bufferListeners = new Set<() => void>();
+
+function touchTexBuffers(): void {
+	bufferVersion += 1;
+	for (const listener of bufferListeners) listener();
+}
+
+/** Re-read mounted TeX buffers after an edit. The snapshot is the version. */
+export function subscribeTexBuffers(listener: () => void): () => void {
+	bufferListeners.add(listener);
+	return () => {
+		bufferListeners.delete(listener);
+	};
+}
+
+export function texBufferVersion(): number {
+	return bufferVersion;
+}
+
+export function readTexBuffers(): ReadonlyMap<string, string> {
+	const documents = new Map<string, string>();
+	for (const [path, read] of buffers) {
+		try {
+			documents.set(path, read());
+		} catch {
+			// A buffer can unmount between the version bump and this read.
+		}
+	}
+	return documents;
+}
 const cache = new Map<
 	string,
 	{ at: number; promise: Promise<TexProjectIndex> }
@@ -84,6 +115,7 @@ export function registerTexProjectBuffer(
 
 export function invalidateTexProjectIndex(): void {
 	cache.clear();
+	touchTexBuffers();
 }
 
 /** Normalize relative segments while retaining Windows/UNC separator style. */

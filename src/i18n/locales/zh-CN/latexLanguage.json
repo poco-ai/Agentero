@@ -9,5 +9,20 @@
 	"syncPdfHint": "在 PDF 中定位当前源码位置（⌘/Ctrl+Alt+J）",
 	"syncSourceHint": "在源码中定位 PDF 位置（提示：⌘/Ctrl + 点击 PDF 中的具体位置可更准确地定位）",
 	"saveFailed": "请先保存项目中的修改，再插入引用。",
-	"noDocumentEnd": "请先在主文档中添加参考文献声明，再插入引用。"
+	"noDocumentEnd": "请先在主文档中添加参考文献声明，再插入引用。",
+	"editFigure": "编辑 TikZ 图",
+	"figureTitle": "TikZ 图",
+	"addNode": "添加节点",
+	"addEdge": "添加连线",
+	"applyFigure": "应用",
+	"nodeLabel": "标签",
+	"nodeShape": "形状",
+	"nodeColor": "颜色",
+	"deleteNode": "删除",
+	"shape": {
+		"rectangle": "矩形",
+		"circle": "圆形",
+		"ellipse": "椭圆",
+		"diamond": "菱形"
+	}
 }

@@ -9,5 +9,20 @@
 	"syncPdfHint": "Go to code location in PDF (⌘/Ctrl+Alt+J)",
 	"syncSourceHint": "Go to PDF location in code (Tip: ⌘/Ctrl-click a spot on the PDF for best results)",
 	"saveFailed": "Save the project changes before inserting a citation.",
-	"noDocumentEnd": "Add a bibliography declaration to the root document before inserting a citation."
+	"noDocumentEnd": "Add a bibliography declaration to the root document before inserting a citation.",
+	"editFigure": "Edit TikZ figure",
+	"figureTitle": "TikZ figure",
+	"addNode": "Add node",
+	"addEdge": "Add edge",
+	"applyFigure": "Apply",
+	"nodeLabel": "Label",
+	"nodeShape": "Shape",
+	"nodeColor": "Color",
+	"deleteNode": "Delete",
+	"shape": {
+		"rectangle": "Rectangle",
+		"circle": "Circle",
+		"ellipse": "Ellipse",
+		"diamond": "Diamond"
+	}
 }

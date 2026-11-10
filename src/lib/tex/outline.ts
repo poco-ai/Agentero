@@ -7,6 +7,8 @@
  */
 
 import { joinPath } from "@/lib/core/path";
+import { plainTexTitle } from "@/lib/tex/plain-title";
+import { customTexSections } from "@/lib/tex/section-defs";
 
 /**
  * The slice of a Lezer node this walk needs. Declared locally so the
@@ -75,11 +77,16 @@ function oneLine(text: string): string {
 	return text.replace(/\s+/g, " ").trim();
 }
 
+function displayTitle(text: string): string {
+	const plain = plainTexTitle(oneLine(text));
+	return plain || oneLine(text);
+}
+
 function sectionTitle(node: OutlineNode, doc: TexOutlineDoc): string {
 	const command = childNamed(node, "SectioningCommand") ?? node;
 	const arg = descendantNamed(command, "LongArg");
 	if (arg) {
-		const title = oneLine(doc.sliceString(arg.from, arg.to));
+		const title = displayTitle(doc.sliceString(arg.from, arg.to));
 		if (title) return title;
 	}
 	const ctrl = command.firstChild;
@@ -129,7 +136,9 @@ function walk(
 			doc,
 			indent,
 			kind,
-			arg ? oneLine(doc.sliceString(arg.from, arg.to)) : `\\begin{${kind}}`,
+			arg
+				? displayTitle(doc.sliceString(arg.from, arg.to))
+				: `\\begin{${kind}}`,
 		);
 		for (let child = node.firstChild; child; child = child.nextSibling) {
 			walk(child, doc, indent + 1, out);
@@ -173,6 +182,19 @@ function walk(
 	}
 }
 
+function indentFor(
+	items: readonly TexOutlineItem[],
+	before: number,
+	level: number,
+): number {
+	for (let index = before - 1; index >= 0; index -= 1) {
+		const item = items[index];
+		if (item?.kind === "section" && (item.level ?? 0) < level)
+			return item.indent + 1;
+	}
+	return 0;
+}
+
 /** Document-order outline. `root` is the parse tree's top node. */
 export function texOutlineFromTree(
 	root: OutlineNode,
@@ -180,6 +202,23 @@ export function texOutlineFromTree(
 ): TexOutlineItem[] {
 	const items: TexOutlineItem[] = [];
 	walk(root, doc, 0, items);
+	const source = doc.sliceString(0, root.to);
+	for (const section of customTexSections(source)) {
+		let index = items.findIndex((item) => item.line > section.line);
+		if (index < 0) index = items.length;
+		const duplicate = items.some(
+			(item) => item.kind === "section" && item.line === section.line,
+		);
+		if (duplicate) continue;
+		items.splice(index, 0, {
+			id: `section:${section.from}`,
+			kind: "section",
+			indent: indentFor(items, index, section.level),
+			level: section.level,
+			title: section.title,
+			line: section.line,
+		});
+	}
 	return items;
 }
 

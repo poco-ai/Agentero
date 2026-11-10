@@ -6,7 +6,7 @@
  */
 
 import { FileText, MessageSquare, Square, TriangleAlert } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,13 @@ import {
 	parseLatexLog,
 	resolveLogProblemPath,
 } from "@/lib/tex/log-problems";
+import {
+	readTexBuffers,
+	subscribeTexBuffers,
+	texBufferVersion,
+} from "@/lib/tex/project-index";
+import { type TexRequirement, texRequirements } from "@/lib/tex/requirements";
+import { manuscriptDir } from "@/lib/writing/session";
 
 type Row = {
 	key: string;
@@ -61,7 +68,31 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 	const [selected, setSelected] = useState<string | null>(null);
 	const logRef = useRef<HTMLTextAreaElement>(null);
 	const logText = snapshot?.logs.join("\n") ?? "";
+	const bufferVersion = useSyncExternalStore(
+		subscribeTexBuffers,
+		texBufferVersion,
+	);
 	const compileProblems = useMemo(() => parseLatexLog(logText), [logText]);
+	// bufferVersion is the open-buffer generation; readTexBuffers() is not a stable snapshot.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: bufferVersion is the re-scan signal
+	const requirementRows = useMemo(() => {
+		const dir = normalizePath(manuscriptDir(rootFile));
+		const root = normalizePath(rootFile);
+		const rows: Row[] = [];
+		for (const [path, source] of readTexBuffers()) {
+			const file = normalizePath(path);
+			if (file !== root && !file.startsWith(`${dir}/`)) continue;
+			for (const requirement of texRequirements(source))
+				rows.push(
+					requirementRow(
+						path,
+						requirement,
+						requirementMessage(t, requirement.id),
+					),
+				);
+		}
+		return rows;
+	}, [bufferVersion, rootFile, t]);
 	const rows = useMemo(
 		() => [
 			...(lint && normalizePath(lint.path) === key
@@ -69,6 +100,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						editorRow(diagnostic, lint.path, lint.jump),
 					)
 				: []),
+			...requirementRows,
 			...compileProblems.map((problem) => compileRow(problem, rootFile)),
 			...(snapshot?.status === "failed" &&
 			!compileProblems.some((problem) => problem.severity === "error")
@@ -81,7 +113,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 					]
 				: []),
 		],
-		[compileProblems, key, lint, rootFile, snapshot, t],
+		[compileProblems, key, lint, requirementRows, rootFile, snapshot, t],
 	);
 	const counts = { error: 0, warning: 0, info: 0 };
 	for (const row of rows) counts[row.severity] += 1;
@@ -129,7 +161,11 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 							"shrink-0",
 							counts.error > 0
 								? "text-destructive"
-								: "text-amber-600 dark:text-amber-500",
+								: counts.warning > 0
+									? "text-amber-600 dark:text-amber-500"
+									: counts.info > 0
+										? "text-sky-600 dark:text-sky-500"
+										: "text-muted-foreground",
 						)}
 						aria-label={
 							shown.length
@@ -329,6 +365,39 @@ function buildFailureRow(
 		logLine: null,
 		sourcePath: rootFile,
 		jump: () => {},
+	};
+}
+
+function requirementMessage(
+	translate: ReturnType<typeof useTranslation<["latexBuild"]>>["t"],
+	id: TexRequirement["id"],
+): string {
+	switch (id) {
+		case "minted":
+			return translate("requirement.minted");
+		case "glossaries":
+			return translate("requirement.glossaries");
+		case "pythontex":
+			return translate("requirement.pythontex");
+		case "shellEscape":
+			return translate("requirement.shellEscape");
+	}
+}
+
+function requirementRow(
+	path: string,
+	requirement: TexRequirement,
+	message: string,
+): Row {
+	return {
+		key: `requirement:${normalizePath(path)}:${requirement.id}`,
+		severity: "info",
+		message,
+		where: String(requirement.line),
+		logLine: null,
+		sourcePath: path,
+		line: requirement.line,
+		jump: () => navigateTexSource(path, requirement.line),
 	};
 }
 

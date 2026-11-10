@@ -68,6 +68,23 @@ describe("latex log problems", () => {
 		]);
 	});
 
+	it("keeps missing glyphs, picture failures, and biber errors", () => {
+		const problems = parseLatexLog(
+			[
+				"(./main.tex",
+				"Missing character: There is no 中 (U+4E2D) in font cmr10!",
+				"! Unable to load picture or PDF file 'plot.png'.",
+				"ERROR - Error: Found biblatex control file version 3.2, expected version 3.11.",
+			].join("\n"),
+		);
+		expect(problems.map((problem) => problem.severity)).toEqual([
+			"warning",
+			"error",
+			"error",
+		]);
+		expect(problems[2]?.message).toContain("control file");
+	});
+
 	it("does not read source text on context lines as a file name", () => {
 		expect(
 			parseLatexLog(
