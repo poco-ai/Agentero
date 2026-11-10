@@ -4,6 +4,7 @@
 //! See `docs/backend/catalog.md`.
 
 pub mod add_paper;
+pub mod copy_paper;
 pub mod move_paper;
 pub mod papers;
 pub mod properties;
@@ -62,8 +63,49 @@ pub fn plan_paper_move_under(
     Ok((from, new_rel))
 }
 
-/// Related on-disk paths for one paper, in reading order: paper folder,
-/// NOTES.md, PAPER.md, marks/, the local PDF, and source/ when TeX exists.
+/// Validate a copy under `papers/` without mutating the filesystem or catalog.
+///
+/// Same destination rules as a move, but the source must be a real paper/org
+/// folder below `papers/` and an existing target is always an error (a copy
+/// never overwrites).
+pub fn plan_paper_copy_under(
+    vault: &Path,
+    from_rel: &str,
+    dest_parent_rel: &str,
+) -> Result<(String, String), AppError> {
+    let from = sanitize_vault_rel(from_rel).map_err(AppError::message)?;
+    let dest_norm = normalize_rel(dest_parent_rel);
+    let dest_parent = if dest_norm.is_empty() {
+        "papers".to_string()
+    } else {
+        sanitize_vault_rel(&dest_norm).map_err(AppError::message)?
+    };
+    if from.is_empty() || from == "papers" {
+        return Err(AppError::message("cannot copy this path"));
+    }
+    if !from.starts_with("papers/") {
+        return Err(AppError::message("source must be under papers/"));
+    }
+    if dest_parent != "papers" && !dest_parent.starts_with("papers/") {
+        return Err(AppError::message("destination must be under papers/"));
+    }
+    // Reject copying a folder into itself or its own descendant.
+    if dest_parent == from || dest_parent.starts_with(&format!("{from}/")) {
+        return Err(AppError::message("cannot copy a folder into itself"));
+    }
+    let base = from.rsplit('/').next().unwrap_or(from.as_str()).to_string();
+    let new_rel = format!("{dest_parent}/{base}");
+    let from_abs = vault.join(&from);
+    if !from_abs.is_dir() {
+        return Err(AppError::message("source path does not exist"));
+    }
+    if new_rel == from || vault.join(&new_rel).exists() {
+        return Err(AppError::message("target already exists"));
+    }
+    Ok((from, new_rel))
+}
+
+/// Related on-disk paths for one paper, in reading order: paper folder,/// NOTES.md, PAPER.md, marks/, the local PDF, and source/ when TeX exists.
 ///
 /// Shared by CLI `paper paths` and MCP `paper_paths`; never reads file bodies.
 pub fn paper_related_paths(vault: &Path, paper_rel: &str) -> Result<Vec<String>, AppError> {

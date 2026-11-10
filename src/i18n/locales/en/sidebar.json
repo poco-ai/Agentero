@@ -57,6 +57,8 @@
 		"movedWithErrors": "{{count}} item(s) could not be moved.",
 		"moveFailed": "Failed to move.",
 		"moveDesktopOnly": "Move requires the desktop app.",
+		"copyDesktopOnly": "Copy requires the desktop app.",
+		"copyFailed": "Failed to copy.",
 		"cut": "Cut",
 		"cutSelected": "Cut {{count}}",
 		"paste": "Paste",
@@ -166,6 +168,23 @@
 		"copied": "Copied {{label}}",
 		"copyFailed": "Could not copy to clipboard",
 		"count": "{{formatted}} papers",
+		"copy": {
+			"action": "Copy to folder…",
+			"title": "Copy {{count}} paper(s) to a folder",
+			"confirm": "Copy",
+			"cancel": "Cancel",
+			"busy": "Copying…",
+			"copied": "Copied {{count}} paper(s) to {{folder}}",
+			"failed": "{{count}} paper(s) could not be copied"
+		},
+		"selection": {
+			"selectRow": "Select {{title}}",
+			"selectAll": "Select all",
+			"count": "{{count}} selected",
+			"countWithTotal": "{{selected}} of {{total}} selected",
+			"delete": "Delete {{count}}",
+			"clear": "Clear selection"
+		},
 		"search": "Search title, author, ID, DOI, or tag",
 		"filterTags": "Filter by tag",
 		"filterTagsEmpty": "No tags in this library yet.",

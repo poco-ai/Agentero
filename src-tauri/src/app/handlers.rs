@@ -126,6 +126,7 @@ macro_rules! common_commands {
             crate::features::paper::catalog::commands::paper_get,
             crate::features::paper::catalog::commands::paper_list,
             crate::features::paper::catalog::commands::paper_move,
+            crate::features::paper::catalog::commands::paper_copy,
             crate::features::paper::catalog::commands::paper_repath,
             crate::features::paper::catalog::commands::paper_set_is_read,
             crate::features::paper::catalog::commands::paper_update_meta,

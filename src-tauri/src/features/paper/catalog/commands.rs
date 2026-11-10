@@ -551,6 +551,36 @@ pub async fn paper_set_page_counts(args: PaperSetPageCountsArgs) -> ApiResult<()
 }
 
 pub use super::service::{PaperMoveArgs, PaperMoveResult};
+pub use agentero_core::features::paper::catalog::copy_paper::PaperCopyResult;
+
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PaperCopyArgs {
+    pub vault_path: String,
+    /// Vault-relative item to duplicate (paper or org folder under `papers/`).
+    pub from_rel: String,
+    /// Vault-relative destination parent (`papers` or under `papers/`).
+    pub dest_parent_rel: String,
+}
+
+/// Duplicate a folder into another `papers/` folder (the library's batch
+/// "copy to folder"). Never overwrites; the source keeps its links and row.
+#[tauri::command]
+#[specta::specta]
+pub async fn paper_copy(args: PaperCopyArgs) -> ApiResult<PaperCopyResult> {
+    run_blocking(move || {
+        let vault = try_vault!(&args.vault_path);
+        match agentero_core::features::paper::catalog::copy_paper::copy_paper_under(
+            &vault,
+            &args.from_rel,
+            &args.dest_parent_rel,
+        ) {
+            Ok(result) => ApiResult::ok(result),
+            Err(error) => map_err(error),
+        }
+    })
+    .await
+}
 
 /// Move an item into another `papers/` folder on disk and rewrite matching
 /// catalog path prefixes. Never overwrites an existing target.
