@@ -104,6 +104,7 @@
 		"useDefault": "用本地免费模型",
 		"useDefaultDesc": "完全本地运行，无需配置，离线可用；会占用系统性能，速度较慢，复杂版面识别效果稍弱。",
 		"openDocsLabel": "获取 API Key",
+		"selfHostedHint": "使用自建 MinerU？选「用本地免费模型」跳过这一步，稍后在「设置 → 版面解析」中打开「自建 API」并填写 Base URL。",
 		"test": "测试",
 		"probeIdle": "尚未测试",
 		"probeProbing": "测试中…",

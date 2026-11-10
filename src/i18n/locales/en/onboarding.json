@@ -104,6 +104,7 @@
 		"useDefault": "Use the free on-device model",
 		"useDefaultDesc": "Runs entirely on your device with no setup and works offline, but uses system resources, is slower, and is less accurate on complex layouts.",
 		"openDocsLabel": "Get an API key",
+		"selfHostedHint": "Using a self-hosted MinerU? Choose \"Use the local model\" to skip this step, then turn on \"Self-hosted API\" under Settings → Layout Analysis and fill in the base URL.",
 		"test": "Test",
 		"probeIdle": "Not tested yet",
 		"probeProbing": "Testing…",

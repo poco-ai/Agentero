@@ -638,6 +638,7 @@
 			"mineru": "MinerU",
 			"openaiCompatible": "OpenAI 兼容"
 		},
+		"menusHint": "这里只列出已配置好的服务商。若下拉里找不到 Paddle 或 MinerU，请先在下方配置并保存，检测可用后即可在这里选择。",
 		"providerConfig": {
 			"section": "服务商配置",
 			"sectionHint": "推荐优先配置 Paddle 或 MinerU；其他 OpenAI 兼容服务见下方「其他」。",
@@ -647,7 +648,7 @@
 				"mineru": "MinerU",
 				"openaiCompatible": "OpenAI 兼容"
 			},
-			"confirm": "确定",
+			"confirm": "保存",
 			"openDocsLabel": "获取 API Key",
 			"advanced": "高级",
 			"apiKey": {
