@@ -70,8 +70,7 @@ export class SuggestionCoordinator {
 	}
 	accept(suggestionId: string): NavigatorSuggestion | null {
 		const item = this.suggestions.get(suggestionId);
-		if (!item || item.status !== "pending" || item.expiresAt <= Date.now())
-			return null;
+		if (item?.status !== "pending" || item.expiresAt <= Date.now()) return null;
 		item.status = "accepted";
 		return { ...item };
 	}
