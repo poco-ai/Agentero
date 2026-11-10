@@ -1006,6 +1006,8 @@
 		"title": "云同步",
 		"advanced": "高级",
 		"localVaultOnly": "云同步仅支持本地 Vault。",
+		"vault": "资料库",
+		"vaultPlaceholder": "选择资料库",
 		"backend": "同步方式",
 		"backendAgentero": "当前账号",
 		"backendS3": "对象存储",

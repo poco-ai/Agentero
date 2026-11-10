@@ -112,6 +112,10 @@ pub struct SettingsChangedEvent(pub crate::features::system::settings::AppSettin
 pub struct SettingsSectionRequestedEvent(pub String);
 
 #[derive(specta::Type, tauri_specta::Event)]
+#[tauri_specta(event_name = "settings:vault-requested")]
+pub struct SettingsVaultRequestedEvent(pub String);
+
+#[derive(specta::Type, tauri_specta::Event)]
 #[tauri_specta(event_name = "job:progress")]
 pub struct JobProgressEvent(
     pub agentero_core::features::paper::import::download::AssetDownloadProgress,
@@ -467,6 +471,7 @@ fn registered_event_names() -> BTreeSet<String> {
         VaultFileChangedEvent::NAME,
         SettingsChangedEvent::NAME,
         SettingsSectionRequestedEvent::NAME,
+        SettingsVaultRequestedEvent::NAME,
         WordChangedEvent::NAME,
         JobProgressEvent::NAME,
         LayoutRemoteProgressEvent::NAME,

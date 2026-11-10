@@ -1006,6 +1006,8 @@
 		"title": "Cloud sync",
 		"advanced": "Advanced",
 		"localVaultOnly": "Cloud sync is available for local vaults only.",
+		"vault": "Vault",
+		"vaultPlaceholder": "Choose a vault",
 		"backend": "Sync method",
 		"backendAgentero": "This account",
 		"backendS3": "Object storage",

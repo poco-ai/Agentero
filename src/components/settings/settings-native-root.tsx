@@ -107,6 +107,23 @@ export function SettingsNativeRoot() {
 		[handleSectionChange],
 	);
 
+	// The Settings window is a singleton: opening it from another Vault must
+	// retarget the panes (sync binds per Vault) instead of keeping the first
+	// opener's `vault_path`.
+	const handleVaultChange = useCallback((next: string) => {
+		const path = next.trim();
+		if (!path) return;
+		setSearchParams((prev) => ({ ...prev, vaultPath: path }));
+		const url = new URL(window.location.href);
+		url.searchParams.set("vault_path", path);
+		window.history.replaceState(null, "", url.toString());
+	}, []);
+
+	useEffect(
+		() => listenEventSafe(events.settingsVaultRequested, handleVaultChange),
+		[handleVaultChange],
+	);
+
 	const handleChange = useCallback(async (next: typeof settings) => {
 		const previous = loadSettings();
 		setSettings(next);

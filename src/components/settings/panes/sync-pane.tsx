@@ -50,6 +50,7 @@ import { formatBytes } from "@/lib/core/background-tasks";
 import { events } from "@/lib/core/bindings";
 import { errorMessage, notifyError, notifySuccess } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
+import { displayPath } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
 import { toSafeDisposer } from "@/lib/core/tauri-events";
 import { cn } from "@/lib/core/utils";
@@ -68,7 +69,9 @@ import {
 	syncNow,
 	syncScopeSizes,
 } from "@/lib/sync/api";
+import { vaultDisplayName } from "@/lib/vault/path";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
+import { getRecentVaults } from "@/lib/vault/session";
 
 type SyncProviderLink = {
 	id: string;
@@ -162,11 +165,46 @@ const BACKEND_OPTIONS = [
 	{ value: "git", labelKey: "sync.backendGit" },
 ] as const;
 
+/** Local Vaults this pane can edit: the opener plus the shared MRU list. */
+function localVaultChoices(primary: string | null): string[] {
+	const out: string[] = [];
+	const seen = new Set<string>();
+	for (const candidate of [primary, ...getRecentVaults()]) {
+		if (!candidate || isRemoteVaultHandle(candidate)) continue;
+		const key = candidate.replace(/[\\/]+$/, "");
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push(candidate);
+	}
+	return out;
+}
+
 export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 	const { t } = useTranslation("settings");
+	const [vaults, setVaults] = useState(() => localVaultChoices(vaultPath));
+	const [selectedVault, setSelectedVault] = useState<string | null>(
+		() => localVaultChoices(vaultPath)[0] ?? null,
+	);
+
+	useEffect(() => {
+		const choices = localVaultChoices(vaultPath);
+		setVaults(choices);
+		setSelectedVault((prev) => {
+			if (vaultPath && choices.includes(vaultPath)) return vaultPath;
+			if (prev && choices.includes(prev)) return prev;
+			return choices[0] ?? null;
+		});
+	}, [vaultPath]);
+
+	useEffect(() => {
+		const onStorage = () => setVaults(localVaultChoices(vaultPath));
+		window.addEventListener("storage", onStorage);
+		return () => window.removeEventListener("storage", onStorage);
+	}, [vaultPath]);
+
 	const localVault =
-		isTauri() && vaultPath && !isRemoteVaultHandle(vaultPath)
-			? vaultPath
+		isTauri() && selectedVault && !isRemoteVaultHandle(selectedVault)
+			? selectedVault
 			: null;
 
 	const [status, setStatus] = useState<SyncStatus | null>(null);
@@ -212,10 +250,22 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 			) {
 				setAdvancedOpen(true);
 			}
+		} else {
+			setForm(emptySyncConfig());
+			setAdvancedOpen(false);
 		}
 	}, [localVault]);
 
+	// `refresh` is recreated when the selected Vault changes. Reset first so a
+	// different Vault never inherits the previous one's form values: otherwise
+	// "connect" on an unconfigured Vault would save the old remote.
 	useEffect(() => {
+		setStatus(null);
+		setForm(emptySyncConfig());
+		setSyncError(null);
+		setProgress(null);
+		setScopeSizes(null);
+		setAdvancedOpen(false);
 		void refresh().catch((error) => notifyError(errorMessage(error)));
 	}, [refresh]);
 
@@ -458,6 +508,40 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 				}
 				actions={primaryAction}
 			/>
+
+			<div className="mb-3 flex flex-wrap items-center gap-2">
+				<span id="sync-vault-label" className="text-muted-foreground text-xs">
+					{t("sync.vault")}
+				</span>
+				<Select
+					value={localVault ?? undefined}
+					onValueChange={(value) => setSelectedVault(value || null)}
+					disabled={vaults.length === 0}
+				>
+					<SelectTrigger
+						id="sync-vault"
+						size="sm"
+						className="w-44"
+						aria-labelledby="sync-vault-label"
+					>
+						<SelectValue placeholder={t("sync.vaultPlaceholder")}>
+							{localVault ? vaultDisplayName(localVault) : undefined}
+						</SelectValue>
+					</SelectTrigger>
+					<SelectContent>
+						{vaults.map((path) => (
+							<SelectItem key={path} value={path}>
+								<span className="flex min-w-0 flex-col items-start">
+									<span className="truncate">{vaultDisplayName(path)}</span>
+									<span className="truncate text-muted-foreground text-xs">
+										{displayPath(path)}
+									</span>
+								</span>
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
 
 			{status?.configured && !isGit && !form.conditionalWrites ? (
 				<p className="mb-3 text-muted-foreground text-xs">

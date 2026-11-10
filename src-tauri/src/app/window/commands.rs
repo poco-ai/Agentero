@@ -22,6 +22,7 @@ const SETTINGS_TRAFFIC_LIGHT_Y: f64 = 16.0;
 
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 pub const SETTINGS_SECTION_REQUESTED_EVENT: &str = "settings:section-requested";
+pub const SETTINGS_VAULT_REQUESTED_EVENT: &str = "settings:vault-requested";
 
 /// Broadcast when a singleton child window closes (or fails to build).
 /// Wire naming follows docs/development/lifecycle-events.md (`domain:event`);
@@ -183,6 +184,20 @@ pub async fn settings_window_open(
                 EventTarget::webview_window(SETTINGS_WINDOW_LABEL),
                 SETTINGS_SECTION_REQUESTED_EVENT,
                 section,
+            )
+            .map_err(|error| error.to_string())?;
+        }
+        // The window is a singleton; reuse must retarget it at the Vault that
+        // asked for it, otherwise the sync pane keeps editing the first vault.
+        if let Some(path) = vault_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+        {
+            win.emit_to(
+                EventTarget::webview_window(SETTINGS_WINDOW_LABEL),
+                SETTINGS_VAULT_REQUESTED_EVENT,
+                path,
             )
             .map_err(|error| error.to_string())?;
         }

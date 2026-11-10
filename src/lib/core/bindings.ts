@@ -843,6 +843,7 @@ export const events = {
 	rtexEvent: makeEvent<RtexEventEvt>("rtex:event"),
 	settingsChanged: makeEvent<SettingsChangedEvent_Deserialize>("settings:changed"),
 	settingsSectionRequested: makeEvent<SettingsSectionRequestedEvent>("settings:section-requested"),
+	settingsVaultRequested: makeEvent<SettingsVaultRequestedEvent>("settings:vault-requested"),
 	syncProgress: makeEvent<SyncProgressEvent>("sync:progress"),
 	syncState: makeEvent<SyncStateEvent_Deserialize>("sync:state"),
 	uiRequest: makeEvent<UiRequestEvent_Deserialize>("ui:request"),
@@ -5337,6 +5338,8 @@ export type SettingsGetResult_Serialize = {
 };
 
 export type SettingsSectionRequestedEvent = string;
+
+export type SettingsVaultRequestedEvent = string;
 
 export type ShortcutBinding = ShortcutBinding_Serialize | ShortcutBinding_Deserialize;
 

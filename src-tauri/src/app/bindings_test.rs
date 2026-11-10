@@ -316,6 +316,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::app::events_contract::VaultFileChangedEvent,
             crate::app::events_contract::SettingsChangedEvent,
             crate::app::events_contract::SettingsSectionRequestedEvent,
+            crate::app::events_contract::SettingsVaultRequestedEvent,
             crate::app::events_contract::JobProgressEvent,
             crate::app::events_contract::LayoutRemoteProgressEvent,
             crate::app::events_contract::AgentLifecycleProgressEvent,
