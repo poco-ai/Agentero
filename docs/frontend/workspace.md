@@ -103,4 +103,4 @@ Library · Trash · PDF · HTML · 图片 · Markdown · 论文 NOTES · 纯文�
 | `src/lib/workspace/dock-registry.ts` | 命令式 dockview 句柄 |
 | `src/lib/workspace/selection-overlay.ts` | 划词工具栏 / Ask 卡等浮动浮层的挂载计数；工作区据此在浮层打开时 `disableDnd`（#608） |
 
-PDF 分屏拖动性能：见 `docs/bug_fix/dockview-sash-pdf-resize-jank.md`。
+PDF 分屏拖动性能见 [Markdown 编辑](markdown.md) 的长文阅读说明。
