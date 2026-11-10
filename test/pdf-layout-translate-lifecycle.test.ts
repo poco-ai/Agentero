@@ -323,7 +323,12 @@ function createHarness() {
 			});
 		},
 	};
-	const prepareReflow = async (items: Item[]) => items;
+	let prepareGate: Promise<void> | null = null;
+	let releasePrepare: (() => void) | null = null;
+	const prepareReflow = async (items: Item[]) => {
+		if (prepareGate) await prepareGate;
+		return items;
+	};
 	const t = (key: string) => key;
 	const modules: Record<string, unknown> = {
 		"./use-pdf-reflow": {
@@ -436,6 +441,16 @@ function createHarness() {
 		setReflowReady(ready: boolean) {
 			reflowReady = ready;
 			dirty = true;
+		},
+		deferPrepare() {
+			prepareGate = new Promise<void>((resolve) => {
+				releasePrepare = resolve;
+			});
+		},
+		releasePrepare() {
+			releasePrepare?.();
+			prepareGate = null;
+			releasePrepare = null;
 		},
 		setTranslateSidecar(items: CachedTranslate[]) {
 			translateSidecar = { items };
@@ -600,6 +615,43 @@ it("offers pending-only completion when a translation pane reopens a partial cac
 	await h.flush();
 	assert.equal(h.view.layoutTranslateStatus, "done");
 	assert.equal(h.view.layoutTranslatePartial.visible, false);
+});
+
+it("does not let a late translation-pane hydrate erase a completed recovery", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.render({ translationPane: true });
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+
+	h.deferPrepare();
+	h.render({
+		translationPane: true,
+		layoutRawRegions: [region(0), region(1)],
+	});
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+
+	h.view.layoutTranslatePartial.onCompleteMissing();
+	await h.flush();
+	assert.equal(h.runs.length, 1);
+	h.runs[0].resolve(completed(h.runs[0], "补全译文"));
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+
+	// The older hydrate started before the recovery and is still preparing.
+	h.releasePrepare();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(1)?.[0]?.translated,
+		"补全译文",
+	);
+	assert.equal(h.runs.length, 1);
 });
 
 it("keeps an ignored translation-pane gap set recoverable after reopening", async () => {

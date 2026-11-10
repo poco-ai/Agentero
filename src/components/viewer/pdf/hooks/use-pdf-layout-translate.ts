@@ -197,7 +197,20 @@ function layoutTranslatePendingDismissKey(
 	});
 }
 
-/** Run ids for the meter: the whole block list unless the run only fills gaps. */
+/** In-memory translations are reusable only for the same provider configuration. */
+function sameLayoutTranslateCacheIdentity(
+	a: LayoutTranslateCacheKey | null,
+	b: LayoutTranslateCacheKey,
+): boolean {
+	return (
+		a !== null &&
+		a.providerId === b.providerId &&
+		a.sourceLang === b.sourceLang &&
+		a.targetLang === b.targetLang &&
+		a.serviceKey === b.serviceKey
+	);
+}
+
 function layoutTranslateScopeIds(
 	items: readonly LayoutTranslateItem[],
 	onlyPending: boolean,
@@ -241,6 +254,7 @@ function reuseCompletedTranslateItems(
 				...item,
 				status: "done" as const,
 				translated: previous.translated.trim(),
+				sentences: previous.sentences,
 				error: undefined,
 			};
 		}
@@ -404,6 +418,8 @@ export function usePdfLayoutTranslate({
 		pdfBytes,
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
+	/** Incremented whenever a translation owner changes; stale cache hydrates cannot commit. */
+	const layoutTranslateRunEpochRef = useRef(0);
 	/**
 	 * High-water mark of the meter for the current run. Upstream sources can
 	 * step back (a reflow rebuild restarts its own ratio; a partial run ends on
@@ -446,6 +462,7 @@ export function usePdfLayoutTranslate({
 	const parsePendingForPaper = layoutJobPending || layoutUiRunning;
 
 	const stopLayoutTranslate = useCallback(() => {
+		layoutTranslateRunEpochRef.current += 1;
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
 		setSourcePreparing(false);
@@ -561,6 +578,7 @@ export function usePdfLayoutTranslate({
 			notifyError(t("pdf.layoutTranslate.noText"));
 			return;
 		}
+		layoutTranslateRunEpochRef.current += 1;
 		layoutTranslateAbortRef.current?.abort();
 		const ac = new AbortController();
 		layoutTranslateAbortRef.current = ac;
@@ -713,6 +731,7 @@ export function usePdfLayoutTranslate({
 				notifyError(t("pdf.layoutTranslate.noText"));
 				return;
 			}
+			layoutTranslateRunEpochRef.current += 1;
 			layoutTranslateAbortRef.current?.abort();
 			const ac = new AbortController();
 			layoutTranslateAbortRef.current = ac;
@@ -907,6 +926,7 @@ export function usePdfLayoutTranslate({
 		if (pendingIds.size === 0) return;
 		const cacheKey = job.cacheKey ?? currentLayoutTranslateCacheKey();
 		const snapshot = snapshotTranslatedItems(job.items);
+		layoutTranslateRunEpochRef.current += 1;
 		layoutTranslateAbortRef.current?.abort();
 		const ac = new AbortController();
 		layoutTranslateAbortRef.current = ac;
@@ -1023,6 +1043,7 @@ export function usePdfLayoutTranslate({
 		const cacheKey = job.cacheKey ?? currentLayoutTranslateCacheKey();
 		const snapshot = snapshotTranslatedItems(job.items);
 		clearTranslationPartialDismissal(job.partialDismissKey);
+		layoutTranslateRunEpochRef.current += 1;
 		layoutTranslateAbortRef.current?.abort();
 		const ac = new AbortController();
 		layoutTranslateAbortRef.current = ac;
@@ -1173,6 +1194,7 @@ export function usePdfLayoutTranslate({
 	// Abort bulk translate when switching documents.
 	useEffect(() => {
 		if (!docId) return;
+		layoutTranslateRunEpochRef.current += 1;
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
 		setSourcePreparing(false);
@@ -1184,6 +1206,7 @@ export function usePdfLayoutTranslate({
 		setPartialDialogOpen(false);
 		setLayoutTranslateJob(EMPTY_LAYOUT_TRANSLATE_JOB);
 		return () => {
+			layoutTranslateRunEpochRef.current += 1;
 			layoutTranslateAbortRef.current?.abort();
 		};
 	}, [docId]);
@@ -1289,11 +1312,16 @@ export function usePdfLayoutTranslate({
 	// so both modes agree on cached blocks and the remaining pending set.
 	useEffect(() => {
 		if (!translationPane || !paperAbsPath) return;
+		// A manual run already owns both the items and preview preparation.
+		if (layoutTranslateAbortRef.current) return;
 		let cancelled = false;
+		const epoch = layoutTranslateRunEpochRef.current;
+		const isStale = () =>
+			cancelled || epoch !== layoutTranslateRunEpochRef.current;
 		const cacheKey = currentLayoutTranslateCacheKey();
 		void (async () => {
 			const sidecar = await readLayoutTranslateSidecar(paperAbsPath, cacheKey);
-			if (cancelled || !sidecar?.items.length) return;
+			if (isStale() || !sidecar?.items.length) return;
 			// Paint the cached blocks before the region-prepare pass. Besides making
 			// the pane visible sooner, this marks the job active so the pane's
 			// auto-start cannot fire a second, network-backed job while preparing.
@@ -1301,7 +1329,7 @@ export function usePdfLayoutTranslate({
 				...item,
 				status: "done" as const,
 			}));
-			if (layoutTranslateJobRef.current.status !== "running") {
+			if (layoutTranslateJobRef.current.items.length === 0) {
 				setLayoutTranslateJob((prev) => ({
 					...prev,
 					status: "done",
@@ -1320,10 +1348,19 @@ export function usePdfLayoutTranslate({
 					)
 				: seededItems;
 			const prepared = await prepareReflow(seed);
-			if (cancelled) return;
-			const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
+			if (isStale()) return;
+			// Disk writes are debounced. A repeated layout notification must not
+			// replace freshly completed or retranslated blocks with an old sidecar.
+			const cachedItems = applyLayoutTranslateSidecar(prepared, sidecar, {
 				requireReflowSentencePairs: true,
 			});
+			const current = layoutTranslateJobRef.current;
+			const hydration = hydrateLayoutTranslateItems(
+				sameLayoutTranslateCacheIdentity(current.cacheKey, cacheKey)
+					? reuseCompletedTranslateItems(cachedItems, current.items)
+					: cachedItems,
+				null,
+			);
 			if (!hydration.fromCache) {
 				// The cache exists but no block matches the current layout/source.
 				// Fall back to the normal first-translation flow.
@@ -1331,7 +1368,8 @@ export function usePdfLayoutTranslate({
 				return;
 			}
 			// A real run started while preparing owns the visible state.
-			if (layoutTranslateJobRef.current.status === "running") return;
+			if (isStale() || layoutTranslateJobRef.current.status === "running")
+				return;
 			const dismissKey = layoutTranslatePendingDismissKey(
 				dismissalPaperKey,
 				cacheKey,
