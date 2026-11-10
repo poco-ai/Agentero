@@ -683,30 +683,24 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 											</span>
 										) : null}
 									</button>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												type="button"
-												variant="ghost"
-												size="icon-sm"
-												className="absolute top-1/2 right-0.5 size-6 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover/feed:opacity-100 focus-visible:opacity-100"
-												aria-label={t("plaza.feeds.more")}
-												onClick={(event) => {
-													event.stopPropagation();
-													const rect =
-														event.currentTarget.getBoundingClientRect();
-													setSubMenu({
-														sub,
-														x: rect.right,
-														y: rect.bottom,
-													});
-												}}
-											>
-												<EllipsisVertical className="size-3.5" aria-hidden />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent>{t("plaza.feeds.more")}</TooltipContent>
-									</Tooltip>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon-sm"
+										className="absolute top-0 right-0.5 bottom-0 my-auto size-6 opacity-0 transition-opacity duration-150 group-hover/feed:opacity-100 focus-visible:opacity-100"
+										aria-label={t("plaza.feeds.more")}
+										onClick={(event) => {
+											event.stopPropagation();
+											const rect = event.currentTarget.getBoundingClientRect();
+											setSubMenu({
+												sub,
+												x: rect.right,
+												y: rect.bottom,
+											});
+										}}
+									>
+										<EllipsisVertical className="size-3.5" aria-hidden />
+									</Button>
 								</div>
 							))}
 						</div>
