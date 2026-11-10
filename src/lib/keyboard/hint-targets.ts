@@ -10,9 +10,11 @@ const GENERIC = [
 	"button:not([disabled])",
 	"[role='tab']",
 	"[role='button']",
+	"[role='treeitem']",
 	"a[href]",
 ].join(",");
-const INTERACTIVE = "button, [role='tab'], [role='button'], a[href]";
+const INTERACTIVE =
+	"button, [role='tab'], [role='button'], [role='treeitem'], a[href]";
 const MAX_HINT_TARGETS = 60;
 
 function visible(

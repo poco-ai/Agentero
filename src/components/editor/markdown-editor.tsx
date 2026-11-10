@@ -1008,29 +1008,31 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 						)}
 					>
 						{showToolbar && !bodyReadOnly ? (
-							source ? (
-								<MarkdownSourceToolbar
-									viewRef={sourceViewRef}
-									onExport={isTauri() ? openExportDialog : undefined}
-								/>
-							) : (
-								<MarkdownEditorToolbar
-									onOpenFind={() => {
-										setFindOpen(true);
-										setFindFocusTick((tick) => tick + 1);
-									}}
-									onExport={isTauri() ? openExportDialog : undefined}
-									propertiesPanel={
-										<FrontmatterPanel
-											value={frontmatterYaml}
-											readOnly={bodyReadOnly}
-											onChange={
-												bodyReadOnly ? undefined : handleFrontmatterChange
-											}
-										/>
-									}
-								/>
-							)
+							<div data-hint-ignore>
+								{source ? (
+									<MarkdownSourceToolbar
+										viewRef={sourceViewRef}
+										onExport={isTauri() ? openExportDialog : undefined}
+									/>
+								) : (
+									<MarkdownEditorToolbar
+										onOpenFind={() => {
+											setFindOpen(true);
+											setFindFocusTick((tick) => tick + 1);
+										}}
+										onExport={isTauri() ? openExportDialog : undefined}
+										propertiesPanel={
+											<FrontmatterPanel
+												value={frontmatterYaml}
+												readOnly={bodyReadOnly}
+												onChange={
+													bodyReadOnly ? undefined : handleFrontmatterChange
+												}
+											/>
+										}
+									/>
+								)}
+							</div>
 						) : null}
 						<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
 							{saveConflict ? (

@@ -85,6 +85,20 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 				exit();
 				return;
 			}
+			// F is the hint-mode toggle. Reserve it while a session is open so a
+			// second press dismisses the labels instead of being treated as a label
+			// character.
+			if (
+				event.key.toLowerCase() === "f" &&
+				!event.metaKey &&
+				!event.ctrlKey &&
+				!event.altKey
+			) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				exit();
+				return;
+			}
 			if (event.key === "Backspace") {
 				event.preventDefault();
 				event.stopImmediatePropagation();

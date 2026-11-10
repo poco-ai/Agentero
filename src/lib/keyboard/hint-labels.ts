@@ -1,4 +1,6 @@
-export const HINT_ALPHABET = "asdfghjklqwertyuiopzxcvbnm";
+// F is reserved for entering/leaving hint mode, so it must never be assigned
+// to a target label. This keeps the second F press unambiguous.
+export const HINT_ALPHABET = "asdghjklqwertyuiopzxcvbnm";
 
 /** Generate stable, prefix-friendly labels for a hint session. */
 export function assignHintLabels(

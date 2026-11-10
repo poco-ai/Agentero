@@ -30,6 +30,7 @@ describe("keyboard navigation primitives", () => {
 		const labels = assignHintLabels(28);
 		expect(labels).toHaveLength(28);
 		expect(labels[0]).toBe("aa");
+		expect(labels.every((label) => !label.includes("f"))).toBe(true);
 		expect(labels.every((label) => label.length === 2)).toBe(true);
 		expect(matchHintLabel("aa", labels)).toEqual({ kind: "unique", index: 0 });
 	});
@@ -38,7 +39,7 @@ describe("keyboard navigation primitives", () => {
 		const labels = assignHintLabels(28);
 		expect(matchHintLabel("a", labels)).toEqual({
 			kind: "partial",
-			remaining: 26,
+			remaining: 25,
 		});
 		expect(matchHintLabel("z", labels)).toEqual({ kind: "none" });
 	});
