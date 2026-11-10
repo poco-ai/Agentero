@@ -323,6 +323,34 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		expect(out[0]?.sentences).toBeUndefined();
 		expect(out[0]?.translated).toBeUndefined();
 	});
+
+	it("stops issuing requests once the provider is unreachable", async () => {
+		runTranslate.mockRejectedValue(
+			new Error(
+				"Tencent Transmart request failed: error sending request for url (https://transmart.qq.com/api/imt)",
+			),
+		);
+		const body = "Sentence ".repeat(300);
+		const items = Array.from({ length: 6 }, (_, index) =>
+			item(`dead-${index}`, `${index} ${body}`, 0),
+		);
+
+		const out = await runPublicLayoutTranslate({
+			items,
+			onUpdate: () => {},
+		});
+
+		// Three transport failures mark the endpoint dead; the remaining batches
+		// fail without a request and no retry round replays them.
+		expect(runTranslate.mock.calls.length).toBeGreaterThanOrEqual(3);
+		expect(runTranslate.mock.calls.length).toBeLessThan(8);
+		expect(out.every((translated) => translated.status === "error")).toBe(true);
+		expect(
+			out.every((translated) =>
+				translated.error?.includes("error sending request"),
+			),
+		).toBe(true);
+	});
 });
 
 it("retries structural formulas with nonnumeric placeholders when MT interprets token IDs as quantities", async () => {

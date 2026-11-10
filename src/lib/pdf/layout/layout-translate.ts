@@ -41,6 +41,7 @@ import {
 } from "@/lib/pdf/translate/agent-session-cache";
 import { loadSettings } from "@/lib/settings";
 import { runTranslate } from "@/lib/translate";
+import { isTranslateTransportError } from "@/lib/translate/errors";
 import { langsFromSettings } from "@/lib/translate/lang";
 import {
 	type MaskedToken,
@@ -58,6 +59,16 @@ import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 
 /** Parallel free/commercial MT workers (order of *start* follows reading order). */
 export const LAYOUT_TRANSLATE_CONCURRENCY = 2;
+
+/**
+ * Consecutive transport failures before a run stops calling the provider.
+ *
+ * A dead endpoint (expired TLS certificate, DNS failure, blocked route) fails
+ * every block the same way. Without this bound a whole-document run keeps
+ * issuing doomed requests with the meter pinned near full; three failures is
+ * enough to tell an unreachable provider from a single flaky request.
+ */
+export const LAYOUT_TRANSLATE_PROVIDER_DOWN_FAILURES = 3;
 
 /**
  * Soft cap on the summed payload per batch request. The Host rejects text over
@@ -958,6 +969,10 @@ export async function runLayoutRegionTranslate(options: {
 	}
 	const batches = buildTranslateBatches(units);
 	let nextBatch = 0;
+	/** Consecutive transport failures; a success proves the endpoint is alive. */
+	let transportFailures = 0;
+	/** Set once the provider is deemed unreachable; short-circuits new requests. */
+	let providerDown: string | null = null;
 
 	const publish = () => {
 		if (
@@ -982,16 +997,36 @@ export async function runLayoutRegionTranslate(options: {
 			LAYOUT_TRANSLATE_BATCH_CHARS,
 		)) {
 			if (signal?.aborted) return "";
-			const translated = await runTranslate(
-				{
-					text: chunk,
-					context: {
-						page: pageIndex != null ? pageIndex + 1 : undefined,
-						surface: "pdf-layout-bulk",
+			// The provider was already unreachable; a further request would only
+			// spend another timeout on the same dead endpoint.
+			if (providerDown) throw new Error(providerDown);
+			let translated: string;
+			try {
+				translated = await runTranslate(
+					{
+						text: chunk,
+						context: {
+							page: pageIndex != null ? pageIndex + 1 : undefined,
+							surface: "pdf-layout-bulk",
+						},
 					},
-				},
-				agentOpts,
-			);
+					agentOpts,
+				);
+			} catch (error) {
+				const message = errorText(error);
+				transportFailures = isTranslateTransportError(message)
+					? transportFailures + 1
+					: 0;
+				if (transportFailures >= LAYOUT_TRANSLATE_PROVIDER_DOWN_FAILURES) {
+					providerDown = message;
+					logger.warn("pdf.translate.provider-down", {
+						failures: transportFailures,
+						error: message,
+					});
+				}
+				throw error;
+			}
+			transportFailures = 0;
 			if (!translated.trim()) throw new Error("Empty translation result");
 			parts.push(translated.trim());
 		}

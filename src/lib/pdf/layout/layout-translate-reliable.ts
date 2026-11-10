@@ -7,6 +7,7 @@ import { errorText } from "@/lib/core/error";
 import { runLayoutRegionTranslate as runCoreLayoutRegionTranslate } from "@/lib/pdf/layout/layout-translate";
 import { splitTranslationChunks } from "@/lib/pdf/layout/translation-chunks";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
+import { isTranslateTransportError } from "@/lib/translate/errors";
 
 export {
 	applyLayoutTranslateSidecar,
@@ -27,6 +28,21 @@ export type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 
 export const LAYOUT_TRANSLATE_MAX_CHARS = 2200;
 const LAYOUT_TRANSLATE_RETRY_ROUNDS = 2;
+/** Same bound the core runner uses to declare the provider unreachable. */
+const LAYOUT_TRANSLATE_PROVIDER_DOWN_FAILURES = 3;
+
+/**
+ * True when retrying cannot help: nothing translated and every failure is a
+ * transport-level error. Retrying a dead endpoint replays the same requests and
+ * keeps the progress meter open for minutes after the real work settled.
+ */
+function providerUnreachable(items: readonly LayoutTranslateItem[]): boolean {
+	const failed = items.filter((item) => item.status === "error");
+	if (failed.length < LAYOUT_TRANSLATE_PROVIDER_DOWN_FAILURES) return false;
+	if (items.some((item) => item.status === "done" && item.translated?.trim()))
+		return false;
+	return failed.every((item) => isTranslateTransportError(item.error));
+}
 
 /** Compatibility helper; core transport splits protected text after masking. */
 export function splitLongLayoutTranslateSource(
@@ -126,6 +142,9 @@ export async function runLayoutRegionTranslate(options: {
 
 	for (let round = 0; round < LAYOUT_TRANSLATE_RETRY_ROUNDS; round++) {
 		if (options.signal?.aborted) break;
+		// Every block failed without the endpoint answering once: skip the
+		// retry rounds rather than replay the same doomed requests.
+		if (providerUnreachable(items)) break;
 		const failed = items
 			.filter((item) => item.status === "error")
 			.map((item) => ({

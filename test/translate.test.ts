@@ -13,6 +13,7 @@ import {
 	isFreeMtProvider,
 	isShortColloquialPrompt,
 	isTranslateProviderId,
+	isTranslateTransportError,
 	langsFromSettings,
 	listSelectableProviders,
 	resolveTargetLangCode,
@@ -50,6 +51,28 @@ describe("translate lang", () => {
 		expect(l.sourceLang).toBe("auto");
 		expect(l.targetLang).toBe("zh-CN");
 		expect(l.targetLangName).toBe("Chinese");
+	});
+});
+
+describe("isTranslateTransportError", () => {
+	it("flags endpoint-level failures that retrying cannot fix", () => {
+		expect(
+			isTranslateTransportError(
+				"Tencent Transmart request failed: error sending request for url (https://transmart.qq.com/api/imt)",
+			),
+		).toBe(true);
+		expect(
+			isTranslateTransportError("translate read body: operation timed out"),
+		).toBe(true);
+		expect(isTranslateTransportError("error: dns error")).toBe(true);
+	});
+
+	it("leaves provider answers and payload problems retryable", () => {
+		expect(
+			isTranslateTransportError("Tencent Transmart failed (HTTP 500): oops"),
+		).toBe(false);
+		expect(isTranslateTransportError("Empty translation result")).toBe(false);
+		expect(isTranslateTransportError(undefined)).toBe(false);
 	});
 });
 

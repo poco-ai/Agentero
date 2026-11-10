@@ -521,7 +521,8 @@
 			"probeProbing": "正在检测可用性…"
 		},
 		"errors": {
-			"noBuiltinKey": "当前构建未启用内置翻译。"
+			"noBuiltinKey": "当前构建未启用内置翻译。",
+			"unreachable": "无法连接翻译服务，请检查网络，或在翻译设置中更换服务。"
 		},
 		"targetLang": {
 			"label": "目标语言",
