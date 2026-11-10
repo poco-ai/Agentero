@@ -1,6 +1,6 @@
 [package]
 name = "agentero"
-version = "0.15.4"
+version = "0.15.5"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
