@@ -25,8 +25,12 @@ Settings → **翻译**：
 
 设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
 
+- `LayoutTranslate` 改为渲染端执行（`ExecHost::Renderer`），`registerTaskExecutor("layoutTranslate", …)` 在后台任务面板显示逐篇进度、可取消；`layoutTranslate` 已加入面板投影。
 - `LayoutTranslateCap` 由 `autoTranslateImportConcurrency` 播种（默认 1），设置变化时更新 cap 并 `drain_and_spawn`，控制自动与手动全文任务共同占用的论文并发数；单篇内部仍沿用原有批次并发。
 - 版面失败 / 取消时依赖任务标为 `Skipped`，不发翻译请求。`job_cancel` 和终止态 `job_report` 都会触发 `drain`，依赖任务随即结算；`cancel_for_paper` / `cancel_for_vault` 直接取消同论文或同 Vault 的所有任务，不再单独 `drain`。
+- Headless 流程（`src/lib/pdf/layout/headless-translate.ts`）：读取论文根 `{id}.pdf` → `source/layout.json`（raw regions）→ `listTranslatableLayoutRegions` → `prepareReflowItems`（IR 缓存受 `cacheReflowIr` 控制）→ 用 `layout-translate.json` hydrate → 只翻译 pending 块（后台失败不自动重试）→ 写回 sidecar，已完成块保留为 partial。完整命中缓存时 no-op；无 PDF / 无 translatable 区域时跳过且不报错。
+- `cacheReflowFinal` 开启时额外构建译文 PDF 并写入现有 final build 缓存（命中则跳过重建）；关闭时只写 sidecar，页面留到打开论文后生成。构建失败只记日志、任务仍按成功结算（sidecar 已写入，下次打开重建页面）。
+- **缓存写入**：单页和后台完成块按相同 cache key 增量合并；防抖期间汇总两边的完成块，结束时立即 flush 并等待写入。桌面 Host 串行执行读取、合并与原子替换，避免跨窗口覆盖；单页增量写入保留同页其它完成块。
 
 ## 消费方
 

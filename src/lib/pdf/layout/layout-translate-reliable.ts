@@ -13,6 +13,7 @@ export {
 	applyLayoutTranslateSidecar,
 	countPendingLayoutTranslateItems,
 	currentLayoutTranslateCacheKey,
+	flushLayoutTranslateSidecar,
 	groupLayoutTranslateItemsByPage,
 	hasPendingLayoutTranslateItems,
 	hydrateLayoutTranslateItems,

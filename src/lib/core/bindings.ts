@@ -280,6 +280,7 @@ export const commands = {
 	/**  Empty the entire recycle bin (permanent). */
 	pathPurgeTrash: (args: TrashVaultArgs) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("path_purge_trash", { args })),
 	translateText: (args: TranslateTextArgs) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text", { args }),
+	layoutTranslateCacheWrite: (args: LayoutTranslateCacheWriteArgs) => __TAURI_INVOKE<ApiResult<null>>("layout_translate_cache_write", { args }),
 	/**
 	 *  Batch resolve identifiers and write papers into vault.
 	 *  Deduplicates within the batch and against existing catalog entries.
@@ -3921,6 +3922,12 @@ export type LayoutSettings = {
 	 */
 	parserBackend?: string,
 	providerConfigs?: { [key in string]: LayoutProviderConfig },
+};
+
+export type LayoutTranslateCacheWriteArgs = {
+	paperAbsPath: string,
+	sidecar: Json,
+	preserveExisting: boolean,
 };
 
 export type LibraryCitingScanArgs = {

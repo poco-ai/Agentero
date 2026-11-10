@@ -170,11 +170,11 @@ export type JobChangedSnapshot = JobSnapshot;
 
 /**
  * Job kinds projected into the background-tasks panel (§7.6). Kinds absent
- * here (pageCount / wikiReindex / layoutTranslate) stay silent to avoid
- * idle-lane noise.
+ * here (pageCount / wikiReindex) stay silent to avoid idle-lane noise.
  */
 const PROJECTED_JOB_KINDS: ReadonlySet<JobKind> = new Set([
 	"layoutAnalyze",
+	"layoutTranslate",
 	"parseRefs",
 	"parseBody",
 	"downloadAssets",
@@ -259,6 +259,8 @@ function jobPanelTitle(job: JobChangedSnapshot): string {
 			return i18n.t("app:tasks.recognizeMeta");
 		case "modelDownload":
 			return i18n.t("app:tasks.layoutModelDownload");
+		case "layoutTranslate":
+			return i18n.t("app:tasks.layoutTranslate");
 		case "citingScan":
 			return i18n.t("app:tasks.citingScan");
 		case "metadataRefresh":
