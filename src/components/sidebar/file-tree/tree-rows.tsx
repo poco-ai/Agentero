@@ -34,6 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { NewProjectButton } from "@/components/writing/new-project-button";
 import { ProjectSettingsButton } from "@/components/writing/project-settings-button";
 import { WritingCloudDownloadButton } from "@/components/writing/writing-cloud-controls";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { useWritingProject } from "@/hooks/use-writing-project";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
 import { cn } from "@/lib/core/utils";
@@ -322,10 +323,12 @@ export function NodeTreeRow({
 								(rel && lookup.status === "ready" && !owningProject)) ? (
 							<>
 								<NewProjectButton vaultPath={vaultPath} parent={node.path} />
-								<WritingCloudDownloadButton
-									vault={vaultPath}
-									collection={node.path}
-								/>
+								{accountSurfaceEnabled && (
+									<WritingCloudDownloadButton
+										vault={vaultPath}
+										collection={node.path}
+									/>
+								)}
 							</>
 						) : undefined
 					}

@@ -7,6 +7,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { useWritingProject } from "@/hooks/use-writing-project";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -53,19 +54,25 @@ export function useSharedWritingEditor(path: string) {
 	};
 }
 
-export function WritingCloudProvider({
-	vault,
-	root,
-	children,
-}: {
+type WritingCloudProviderProps = {
 	vault: string;
 	root: string;
 	children: ReactNode;
-}) {
+};
+
+export function WritingCloudProvider(props: WritingCloudProviderProps) {
+	if (!accountSurfaceEnabled || isMobileApp()) return props.children;
+	return <ActiveWritingCloudProvider {...props} />;
+}
+
+function ActiveWritingCloudProvider({
+	vault,
+	root,
+	children,
+}: WritingCloudProviderProps) {
 	const { t } = useTranslation("sidebar");
 	const lookup = useWritingProject(vault, root);
-	const project =
-		lookup.status === "ready" && !isMobileApp() ? lookup.project : null;
+	const project = lookup.status === "ready" ? lookup.project : null;
 	const [session, setSession] = useState<WritingCheckoutSession | null>(null);
 	const [resolved, setResolved] = useState("");
 	const projectKey = project

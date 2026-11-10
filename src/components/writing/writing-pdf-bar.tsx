@@ -25,6 +25,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WritingProblems } from "@/components/writing/writing-problems";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import {
 	useWritingProject,
 	useWritingProjectRelative,
@@ -404,7 +405,10 @@ export function WritingPdfBar({
 				</DropdownMenu>
 			</div>
 			<WritingProblems rootFile={rootFile} />
-			{vault && manifest.status === "ready" && manifest.project ? (
+			{accountSurfaceEnabled &&
+			vault &&
+			manifest.status === "ready" &&
+			manifest.project ? (
 				<WritingCloudControl
 					vault={vault}
 					directory={manifest.project.directory}
