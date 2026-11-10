@@ -56,6 +56,8 @@ type PdfToolbarProps = {
 	 * Null before the total is known.
 	 */
 	layoutTranslateProgress?: number | null;
+	/** Pages done ÷ pages in the current stage, when the stage has a count. */
+	layoutTranslatePageCounts?: { done: number; total: number } | null;
 	onToggleLayoutTranslate: () => void;
 	/** True while jEV smart highlights are being generated. */
 	smartHighlightBusy?: boolean;
@@ -83,6 +85,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 	layoutTranslateLabel,
 	layoutTranslatePartial = null,
 	layoutTranslateProgress = null,
+	layoutTranslatePageCounts = null,
 	onToggleLayoutTranslate,
 	smartHighlightBusy = false,
 	onSmartHighlight,
@@ -184,6 +187,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 		layoutTranslatePreparing,
 		layoutTranslateWaiting,
 		layoutTranslateProgress,
+		layoutTranslatePageCounts,
 	});
 	const {
 		busy: translateBusy,
@@ -192,6 +196,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 		retracting: meterRetracting,
 		ratio: meterRatio,
 		percent: meterPercent,
+		pagesLabel: meterPagesLabel,
 		stage: meterStage,
 		width: smoothWidth,
 		lingerFull,
@@ -347,10 +352,18 @@ export const PdfToolbar = memo(function PdfToolbar({
 											    `text-caption` for a text color and drops it. */}
 											<span
 												aria-hidden
-												className={`min-w-0 flex-1 ${PDF_TRANSLATE_METER_STAGE}`}
+												className={`min-w-0 flex-1 truncate ${PDF_TRANSLATE_METER_STAGE}`}
 											>
 												{meterStage}
 											</span>
+											{meterPagesLabel && !meterRetracting ? (
+												<span
+													aria-hidden
+													className={PDF_TRANSLATE_METER_PERCENT}
+												>
+													{meterPagesLabel}
+												</span>
+											) : null}
 											{!meterIndeterminate && !meterRetracting ? (
 												<span
 													aria-hidden

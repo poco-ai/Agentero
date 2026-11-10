@@ -1265,6 +1265,7 @@ function PdfViewerInner({
 		layoutTranslateLabel,
 		layoutTranslatePartial,
 		layoutTranslateProgress,
+		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	} = usePdfLayoutCluster({
@@ -2449,6 +2450,7 @@ function PdfViewerInner({
 					layoutTranslateLabel={layoutTranslateLabel}
 					layoutTranslatePartial={layoutTranslatePartial}
 					layoutTranslateProgress={layoutTranslateProgress}
+					layoutTranslatePageCounts={layoutTranslatePageCounts}
 					onToggleLayoutTranslate={handleToggleLayoutTranslateWithDualPane}
 					isRemotePaper={isRemotePaper}
 					onImportToLibrary={handleImportToLibrary}

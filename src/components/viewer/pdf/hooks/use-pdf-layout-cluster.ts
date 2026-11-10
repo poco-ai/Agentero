@@ -197,6 +197,7 @@ export function usePdfLayoutCluster({
 		layoutTranslateStatus,
 		layoutTranslatePartial,
 		layoutTranslateProgress,
+		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	} = usePdfLayoutTranslate({
@@ -242,6 +243,7 @@ export function usePdfLayoutCluster({
 		layoutTranslateStatus,
 		layoutTranslatePartial,
 		layoutTranslateProgress,
+		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	};

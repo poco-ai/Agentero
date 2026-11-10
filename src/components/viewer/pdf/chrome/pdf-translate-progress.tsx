@@ -15,6 +15,8 @@ type PdfTranslateProgressChipProps = {
 	layoutTranslatePreparing?: boolean;
 	layoutTranslateWaiting?: boolean;
 	layoutTranslateProgress?: number | null;
+	/** Pages done ÷ pages in the current stage, when the stage has a count. */
+	layoutTranslatePageCounts?: { done: number; total: number } | null;
 	onStop: () => void;
 };
 
@@ -28,6 +30,7 @@ export function PdfTranslateProgressChip({
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
 	layoutTranslateProgress = null,
+	layoutTranslatePageCounts = null,
 	onStop,
 }: PdfTranslateProgressChipProps) {
 	const { t } = useTranslation("viewer");
@@ -37,6 +40,7 @@ export function PdfTranslateProgressChip({
 		retracting,
 		ratio,
 		percent,
+		pagesLabel,
 		stage,
 		width,
 		lingerFull,
@@ -45,6 +49,7 @@ export function PdfTranslateProgressChip({
 		layoutTranslatePreparing,
 		layoutTranslateWaiting,
 		layoutTranslateProgress,
+		layoutTranslatePageCounts,
 	});
 	if (!open) return null;
 	const cancellable = layoutTranslateRunning || layoutTranslateWaiting;
@@ -72,6 +77,11 @@ export function PdfTranslateProgressChip({
 			<span aria-hidden className={PDF_TRANSLATE_METER_STAGE}>
 				{stage}
 			</span>
+			{pagesLabel && !retracting ? (
+				<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
+					{pagesLabel}
+				</span>
+			) : null}
 			{indeterminate || retracting ? null : (
 				<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
 					{percent}%

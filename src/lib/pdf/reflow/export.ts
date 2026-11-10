@@ -166,7 +166,8 @@ export async function buildReflowPdf(
 	cjkFont: Uint8Array | ReflowFontBytes,
 	signal?: AbortSignal,
 	commonScale = true,
-	onProgress?: (ratio: number) => void,
+	/** `pages` reports the page loop so the meter can show a real count. */
+	onProgress?: (ratio: number, pages?: { done: number; total: number }) => void,
 ): Promise<ReflowOutput> {
 	signal?.throwIfAborted();
 	const original = new Uint8Array(await engine.saveAsCopy(doc).toPromise());
@@ -252,7 +253,10 @@ export async function buildReflowPdf(
 						drawBlackBoxes: false,
 					})
 					.toPromise();
-			onProgress?.(0.4 + 0.2 * ((pageIndex + 1) / ir.pages.length));
+			onProgress?.(0.4 + 0.2 * ((pageIndex + 1) / ir.pages.length), {
+				done: pageIndex + 1,
+				total: ir.pages.length,
+			});
 		}
 		const redacted = new Uint8Array(await engine.saveAsCopy(clone).toPromise());
 		signal?.throwIfAborted();

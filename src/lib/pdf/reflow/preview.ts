@@ -89,6 +89,8 @@ export class ReflowPreviewSession {
 	private dirty = false;
 	output: Uint8Array | null = null;
 	progress = 0;
+	/** Pages built so far in the current final pass; cleared by a rebuild. */
+	pages: { done: number; total: number } | null = null;
 
 	constructor(
 		private engine: PdfEngine,
@@ -178,6 +180,7 @@ export class ReflowPreviewSession {
 		if (finalKey !== this.finalKey) {
 			this.output = null;
 			this.progress = 0;
+			this.pages = null;
 		}
 		this.finalKey = finalKey;
 		for (const [index, job] of this.jobs) {
@@ -237,12 +240,17 @@ export class ReflowPreviewSession {
 			}
 		} else if (finalKey) {
 			this.enqueue("final", finalKey, async (signal) => {
-				const report = (ratio: number) => {
+				const report = (
+					ratio: number,
+					pages?: { done: number; total: number },
+				) => {
 					if (signal.aborted || this.disposed || this.finalKey !== finalKey)
 						return;
 					const next = Math.floor(ratio * 100) / 100;
-					if (next <= this.progress) return;
-					this.progress = next;
+					const pageGrew = pages ? pages.done > (this.pages?.done ?? 0) : false;
+					if (pages) this.pages = pages;
+					if (next <= this.progress && !pageGrew) return;
+					this.progress = Math.max(this.progress, next);
 					this.dirty = true;
 					this.notify();
 				};
@@ -260,7 +268,7 @@ export class ReflowPreviewSession {
 					);
 					signal.throwIfAborted();
 					this.output = cached.bytes;
-					report(1);
+					report(1, { done: ir.pages.length, total: ir.pages.length });
 					return;
 				}
 				const target = await this.obtainBuild(signal);
@@ -273,7 +281,7 @@ export class ReflowPreviewSession {
 						fonts,
 						signal,
 						true,
-						(ratio) => report(ratio * 0.8),
+						(ratio, pages) => report(ratio * 0.8, pages),
 					),
 				);
 				await this.saveFinal(ir, translations, fonts, built.bytes);

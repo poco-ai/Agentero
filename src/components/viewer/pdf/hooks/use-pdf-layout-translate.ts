@@ -49,7 +49,7 @@ import {
 } from "@/lib/pdf/layout/io";
 import {
 	layoutTranslateDisplayRatio,
-	layoutTranslateSettledRatio,
+	layoutTranslatePageProgress,
 } from "@/lib/pdf/layout/layout-translate-progress";
 import {
 	clearTranslationPartialDismissal,
@@ -131,10 +131,12 @@ export type PdfLayoutTranslate = {
 	/** Partial-translation entry; render the button only when `visible`. */
 	layoutTranslatePartial: PdfLayoutTranslatePartial;
 	/**
-	 * Settled blocks ÷ blocks in the job, 0–1.
-	 * Null before the job has any blocks (the meter stays indeterminate).
+	 * Staged progress 0–1: translating owns 0–0.7 (page-normalized), typesetting
+	 * 0.7–1 (generated pages). Null before the job has any blocks.
 	 */
 	layoutTranslateProgress: number | null;
+	/** Pages done ÷ pages in the current stage, fixed when that stage starts. */
+	layoutTranslatePageCounts: { done: number; total: number } | null;
 	/** Toolbar button: start → stop → retry incomplete / hide or show retained translations. */
 	toggleLayoutTranslate: () => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
@@ -391,7 +393,7 @@ export function usePdfLayoutTranslate({
 		reflowBusy,
 		reflowReady,
 		reflowOutput,
-		reflowProgress,
+		reflowPages,
 		exportTranslatedPdf,
 	} = usePdfReflow(
 		reflowContext,
@@ -1413,29 +1415,38 @@ export function usePdfLayoutTranslate({
 		() => countPendingLayoutTranslateItems(layoutTranslateJob.items),
 		[layoutTranslateJob.items],
 	);
-	// A pending-completion run measures only the blocks it is filling in, not the
-	// document-wide ratio (which would sit near 98% for a handful of gaps).
-	const textSettled = useMemo(() => {
-		const scopeIds = layoutTranslateJob.runScopeIds;
-		const items = layoutTranslateJob.items;
-		if (layoutTranslateJob.runScope === "all" || scopeIds.length === 0) {
-			return layoutTranslateSettledRatio(items);
-		}
-		return layoutTranslateSettledRatio(
-			items.filter((item) => scopeIds.includes(item.id)),
-		);
-	}, [
-		layoutTranslateJob.items,
-		layoutTranslateJob.runScope,
-		layoutTranslateJob.runScopeIds,
-	]);
+	// Page-normalized: every page in the run weighs the same and advances by its
+	// own settled blocks, so the text stage cannot step backwards. A
+	// pending-completion run measures only the pages it is filling in.
+	const textProgress = useMemo(
+		() =>
+			layoutTranslatePageProgress(
+				layoutTranslateJob.items,
+				layoutTranslateJob.runScope === "all" ||
+					layoutTranslateJob.runScopeIds.length === 0
+					? null
+					: layoutTranslateJob.runScopeIds,
+			),
+		[
+			layoutTranslateJob.items,
+			layoutTranslateJob.runScope,
+			layoutTranslateJob.runScopeIds,
+		],
+	);
 	const hasTranslatedText = layoutTranslateJob.items.some(
 		(item) => item.status === "done" && Boolean(item.translated?.trim()),
+	);
+	// Only blocks carrying extracted reflow IR can ever reach a translated page.
+	// Without IR the final build is never enqueued, so waiting for it would pin
+	// the meter at 99% forever after the text finished.
+	const reflowPossible = layoutTranslateJob.items.some((item) =>
+		Boolean(item.reflow),
 	);
 	// `reflowReady` stays false for the whole run, and also for the paint
 	// before the final build flips `reflowBusy`. Hold the meter across that
 	// paint so the rim does not unmount, freeze, and start over.
 	const previewPending =
+		reflowPossible &&
 		hasTranslatedText &&
 		!reflowReady &&
 		(layoutTranslateRunning ||
@@ -1458,9 +1469,9 @@ export function usePdfLayoutTranslate({
 		layoutTranslateJob.status === "cancelled"
 			? null
 			: layoutTranslateDisplayRatio(
-					layoutTranslateRunning && sourcePreparing ? null : textSettled,
+					layoutTranslateRunning && sourcePreparing ? null : textProgress,
 					(layoutTranslateRunning || previewPending) && !finalReflowFailed,
-					reflowProgress,
+					reflowPages,
 					cacheOnly,
 				);
 	// Never step back inside one run: see `progressFloorRef`.
@@ -1475,6 +1486,13 @@ export function usePdfLayoutTranslate({
 	// loading indicator up through that build instead of leaving a blank wait.
 	const layoutTranslatePreparing =
 		previewPending && !layoutTranslateRunning && !finalReflowFailed;
+	// Typesetting counts the pages it lays out; translating counts the pages of
+	// this run. Both totals are fixed before their stage starts.
+	const layoutTranslatePageCounts = layoutTranslatePreparing
+		? reflowPages
+		: textProgress
+			? { done: textProgress.pagesDone, total: textProgress.pagesTotal }
+			: null;
 	const layoutTranslateWaiting = layoutTranslateJob.status === "waitingLayout";
 	const layoutTranslateActive =
 		layoutTranslateRunning ||
@@ -1561,6 +1579,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateStatus: layoutTranslateJob.status,
 		layoutTranslatePartial,
 		layoutTranslateProgress,
+		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	};

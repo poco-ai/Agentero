@@ -26,6 +26,8 @@ type TranslateMeterOptions = {
 	layoutTranslateWaiting?: boolean;
 	/** 0–1 fill. Stays under full while the reflow preview is still blank. */
 	layoutTranslateProgress?: number | null;
+	/** Pages done ÷ pages in the current stage, when the stage has a count. */
+	layoutTranslatePageCounts?: { done: number; total: number } | null;
 };
 
 /**
@@ -39,6 +41,7 @@ export function useTranslateMeter({
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
 	layoutTranslateProgress = null,
+	layoutTranslatePageCounts = null,
 }: TranslateMeterOptions) {
 	const { t } = useTranslation("viewer");
 	const busy =
@@ -106,6 +109,12 @@ export function useTranslateMeter({
 		else smoothPercent.set(target);
 	}, [open, indeterminate, ratio, reduceMotion, smoothPercent]);
 
+	const pagesLabel = layoutTranslatePageCounts
+		? t("pdf.layoutTranslate.pagesCount", {
+				done: layoutTranslatePageCounts.done,
+				total: layoutTranslatePageCounts.total,
+			})
+		: null;
 	const stage = lingerFull
 		? t("pdf.layoutTranslate.phaseDone")
 		: layoutTranslateWaiting
@@ -123,6 +132,7 @@ export function useTranslateMeter({
 		retracting,
 		ratio,
 		percent,
+		pagesLabel,
 		stage,
 		width: smoothWidth,
 		lingerFull,

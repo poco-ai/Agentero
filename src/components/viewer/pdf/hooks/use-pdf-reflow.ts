@@ -176,6 +176,8 @@ export function usePdfReflow(
 		/** Finished translated PDF bytes; opened as a display document. */
 		reflowOutput: session.current?.output ?? null,
 		reflowProgress: session.current?.progress ?? 0,
+		/** Pages built in the current final pass, when the build reached that phase. */
+		reflowPages: session.current?.pages ?? null,
 		exportTranslatedPdf: exportPdf,
 	};
 }

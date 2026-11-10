@@ -83,7 +83,8 @@
 			"cancel": "Cancel",
 			"retranslateConfirmTitle": "Retranslate all?",
 			"retranslateConfirmDescription": "This requests every block again and replaces translations that succeed. Blocks that fail keep their previous translation.",
-			"retranslateConfirm": "Retranslate"
+			"retranslateConfirm": "Retranslate",
+			"pagesCount": "{{done}}/{{total}} pages"
 		},
 		"translation": {
 			"title": "Translation",
