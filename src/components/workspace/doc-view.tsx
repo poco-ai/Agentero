@@ -9,6 +9,7 @@ import { HtmlViewer, ImageViewer } from "@/components/viewer";
 import { LocalHtmlViewer } from "@/components/viewer/local-html-viewer";
 import { RecycleBinView } from "@/components/workspace/recycle-bin-view";
 import { TexProjectView } from "@/components/writing/tex-project-view";
+import { useSharedWritingEditor } from "@/components/writing/writing-cloud-context";
 import { useSettings } from "@/hooks/use-app-stores";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -293,6 +294,7 @@ const DocumentContent = memo(function DocumentContent({
 	trashReloadSignal = 0,
 }: DocViewProps) {
 	const plazaEnabled = useSettings((s) => s.plazaEnabled);
+	const cloud = useSharedWritingEditor(tab.path);
 	// Bind tab.id once per tab so PdfViewer's memo bails out when only the tab
 	// record changes (highlight / ask patches via updateTab).
 	const handlePdfHandle = useCallback(
@@ -579,6 +581,8 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.mode === "text") {
+		if (cloud.pending || (cloud.session && !cloud.shared))
+			return <TabLoadingSkeleton />;
 		// Same keep-alive gate as the Markdown editor: an evicted tab's
 		// unmount flushes its pending autosave; remount re-seeds from disk.
 		if (!active && !keepMounted) return <TabLoadingSkeleton />;
@@ -588,7 +592,8 @@ const DocumentContent = memo(function DocumentContent({
 					<TextEditor
 						// Stable per-tab key: external disk changes swap the document
 						// in place via `reloadKey` (view state and scroll survive).
-						key={`text-${tab.id}`}
+						key={`text-${tab.id}-${cloud.shared ? (cloud.shared.readOnly ? "cloud-view" : "cloud-edit") : "local"}`}
+						shared={cloud.shared ?? undefined}
 						panelId={tab.id}
 						hideLintFooter={isWritingSource(tab, vaultPath)}
 						seed={tab.textSeed}

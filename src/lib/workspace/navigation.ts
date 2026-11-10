@@ -591,6 +591,13 @@ export function remapMovedWorkspacePaths(
 	setLibraryScopePath((scope) =>
 		scope ? remapPathUnder(scope, fromRel, toRel) : scope,
 	);
+	for (const [root, source] of [...recentWritingFiles]) {
+		const nextRoot = remapPathUnder(root, fromAbs, toAbs);
+		const nextSource = remapPathUnder(source, fromAbs, toAbs);
+		if (nextRoot === root && nextSource === source) continue;
+		recentWritingFiles.delete(root);
+		recentWritingFiles.set(nextRoot, nextSource);
+	}
 }
 
 /** Close every panel whose path is at or under the given path. */

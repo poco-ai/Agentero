@@ -9,7 +9,13 @@ import {
 } from "@/components/ui/popover";
 import { NewProjectForm } from "./new-project-form";
 
-export function NewProjectButton({ vaultPath }: { vaultPath: string }) {
+export function NewProjectButton({
+	vaultPath,
+	parent,
+}: {
+	vaultPath: string;
+	parent?: string;
+}) {
 	const { t } = useTranslation("sidebar");
 	const [open, setOpen] = useState(false);
 	return (
@@ -23,6 +29,7 @@ export function NewProjectButton({ vaultPath }: { vaultPath: string }) {
 			<PopoverContent align="start" className="w-72">
 				<NewProjectForm
 					vaultPath={vaultPath}
+					parent={parent}
 					startOpen
 					onCreated={() => setOpen(false)}
 				/>

@@ -16,8 +16,22 @@ pub mod config;
 pub mod engine;
 pub mod git;
 pub mod local;
-mod lock;
+pub mod lock;
 mod s3;
 pub mod snapshot;
 mod store;
 mod webdav;
+
+pub fn writing_cloud_database(vault: &std::path::Path) -> std::path::PathBuf {
+    vault.join(".agentero").join("writing-cloud.sqlite")
+}
+
+pub fn ensure_vault_sync_available(vault: &std::path::Path) -> Result<(), crate::error::AppError> {
+    if writing_cloud_database(vault).symlink_metadata().is_ok() {
+        return Err(crate::error::AppError::domain(
+            "writing_vault_sync_conflict",
+            "This vault has a shared writing checkout. Vault Sync cannot overwrite the checkout.",
+        ));
+    }
+    Ok(())
+}

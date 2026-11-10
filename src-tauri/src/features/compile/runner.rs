@@ -434,7 +434,11 @@ pub(super) async fn run_latexmk(
     if !root.is_file() {
         return RunOutcome::Failed(Some(format!("tex file not found: {}", root.display())));
     }
-    let cwd = root.parent().unwrap_or(Path::new("."));
+    let project_dir = crate::features::writing::project_directory_for_main(
+        Path::new(&started.snapshot.vault_id),
+        &root,
+    );
+    let cwd = project_dir.unwrap_or_else(|| root.parent().unwrap_or(Path::new(".")));
     for dir in [&artifact.out_dir, &artifact.aux_dir] {
         if let Err(e) = std::fs::create_dir_all(dir) {
             return RunOutcome::Failed(Some(format!("cannot create build directory: {e}")));
@@ -450,7 +454,9 @@ pub(super) async fn run_latexmk(
     let tool_artifact = tool_artifacts(&artifact);
     let mut tools = Vec::new();
     if options.clean {
-        tools.push(clean_tool(&tool_root, &tool_artifact));
+        let mut tool = clean_tool(&tool_root, &tool_artifact);
+        tool.cwd = project_dir.map(|dir| tool_path(dir).to_string_lossy().into_owned());
+        tools.push(tool);
     }
     if let Some(recipe) = &options.recipe {
         if recipe.tools.is_empty() || recipe.tools.len() > 32 {
@@ -486,7 +492,7 @@ pub(super) async fn run_latexmk(
             command: "latexmk".into(),
             args,
             env: None,
-            cwd: None,
+            cwd: project_dir.map(|dir| tool_path(dir).to_string_lossy().into_owned()),
         });
     }
     let mut output = String::new();
@@ -689,7 +695,7 @@ pub(super) async fn run_latexmk(
             .into_iter()
             .map(|path| caller_path(&path, &root))
             .collect(),
-        diagnostics: parse_diagnostics(&output, &root)
+        diagnostics: parse_diagnostics(&output, &root, cwd)
             .into_iter()
             .map(|mut diagnostic| {
                 diagnostic.path = caller_path(&diagnostic.path, &root);

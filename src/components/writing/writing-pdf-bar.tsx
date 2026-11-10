@@ -25,6 +25,11 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WritingProblems } from "@/components/writing/writing-problems";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
+import {
+	useWritingProject,
+	useWritingProjectRelative,
+} from "@/hooks/use-writing-project";
 import { commands } from "@/lib/core/bindings";
 import { notifyError } from "@/lib/core/notify";
 import { normalizePath } from "@/lib/core/path";
@@ -52,7 +57,6 @@ import {
 	readWritingGitHub,
 	type WritingGitHubLink,
 } from "@/lib/writing/github";
-import { writingHistoryProjectRel } from "@/lib/writing/session";
 import {
 	closeWritingHistory,
 	openWritingHistory,
@@ -65,6 +69,8 @@ import {
 	resumeWritingAutoSync,
 	uploadWritingProject,
 } from "@/lib/writing/upload";
+import { useWritingCloudContext } from "./writing-cloud-context";
+import { WritingCloudControl } from "./writing-cloud-controls";
 
 export function WritingPdfBar({
 	rootFile,
@@ -78,6 +84,8 @@ export function WritingPdfBar({
 	manageSync?: boolean;
 }) {
 	const { t } = useTranslation(["sidebar", "latexBuild"]);
+	const cloud = useWritingCloudContext();
+	manageSync = manageSync && !cloud.session;
 	const key = normalizePath(rootFile);
 	const engines = useStore(texCompileStore, (state) => state.engines);
 	const enginesLoading = useStore(
@@ -112,7 +120,8 @@ export function WritingPdfBar({
 	const running = display === "running";
 	const ready = enginesLoading || engines.length > 0;
 	const vault = getVaultPath();
-	const project = vault ? writingHistoryProjectRel(vault, rootFile) : null;
+	const project = useWritingProjectRelative(vault, rootFile);
+	const manifest = useWritingProject(vault, rootFile);
 	const historyActive = useStore(writingStore, (state) => state.historyActive);
 	const [engineChoice, setEngineChoice] = useState<TexEngineChoice | null>(
 		null,
@@ -134,15 +143,23 @@ export function WritingPdfBar({
 	}, []);
 
 	useEffect(() => {
-		if (enginesLoading && engines.length === 0) return;
+		if (
+			manifest.status === "pending" ||
+			(enginesLoading && engines.length === 0)
+		)
+			return;
 		let cancelled = false;
-		void engineChoiceForRoot(key).then((choice) => {
-			if (!cancelled) setEngineChoice(choice);
-		});
+		void engineChoiceForRoot(key)
+			.then((choice) => {
+				if (!cancelled) setEngineChoice(choice);
+			})
+			.catch(() => {
+				if (!cancelled) setEngineChoice(null);
+			});
 		return () => {
 			cancelled = true;
 		};
-	}, [key, engines, enginesLoading]);
+	}, [key, engines, enginesLoading, manifest]);
 
 	useEffect(() => {
 		const refresh = () => {
@@ -388,6 +405,15 @@ export function WritingPdfBar({
 				</DropdownMenu>
 			</div>
 			<WritingProblems rootFile={rootFile} />
+			{accountSurfaceEnabled &&
+			vault &&
+			manifest.status === "ready" &&
+			manifest.project ? (
+				<WritingCloudControl
+					vault={vault}
+					directory={manifest.project.directory}
+				/>
+			) : null}
 			<span className="min-w-0 flex-1" />
 			<Button
 				type="button"
@@ -405,28 +431,30 @@ export function WritingPdfBar({
 				<History aria-hidden />
 				{t("writing.history")}
 			</Button>
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				className="shrink-0 text-muted-foreground"
-				aria-label={
-					syncing
-						? t("writing.syncing")
-						: github
-							? t("writing.syncTo", { repo: github.label })
-							: t("writing.sync")
-				}
-				disabled={syncing}
-				onClick={syncProject}
-			>
-				{syncing ? (
-					<Loader2 className="animate-spin" aria-hidden />
-				) : (
-					<CloudUpload aria-hidden />
-				)}
-				{syncing ? t("writing.syncing") : t("writing.sync")}
-			</Button>
+			{!cloud.session && (
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					className="shrink-0 text-muted-foreground"
+					aria-label={
+						syncing
+							? t("writing.syncing")
+							: github
+								? t("writing.syncTo", { repo: github.label })
+								: t("writing.sync")
+					}
+					disabled={syncing}
+					onClick={syncProject}
+				>
+					{syncing ? (
+						<Loader2 className="animate-spin" aria-hidden />
+					) : (
+						<CloudUpload aria-hidden />
+					)}
+					{syncing ? t("writing.syncing") : t("writing.sync")}
+				</Button>
+			)}
 		</div>
 	);
 }

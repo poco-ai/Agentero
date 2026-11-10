@@ -100,6 +100,13 @@ function deliver(
 	}
 }
 
+export function jumpWritingPdf(
+	pdfPath: string,
+	location: SyncTexLocation,
+): void {
+	deliver(pdfPath, location, true, undefined, undefined, "writing");
+}
+
 export async function syncTexToPdf(
 	sourcePath: string,
 	line: number,

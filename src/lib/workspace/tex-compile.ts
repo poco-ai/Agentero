@@ -9,6 +9,7 @@ import { createStore } from "zustand/vanilla";
 import i18n from "@/i18n";
 import { isBackgroundTaskCancelledError } from "@/lib/core/background-tasks";
 import { commands } from "@/lib/core/bindings";
+import { errorText } from "@/lib/core/error";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
 import { normalizePath } from "@/lib/core/path";
 import { enqueueTaskSettled } from "@/lib/core/tasks";
@@ -34,6 +35,10 @@ import { cleanLatexArtifacts, getLatexArtifacts } from "@/lib/tex/host";
 import { readVaultFile } from "@/lib/vault/fs";
 import { vaultStore } from "@/lib/vault/store";
 import { texPdfPath } from "@/lib/workspace/viewer";
+import {
+	explicitWritingProjectForPath,
+	hasWritingMainFile,
+} from "@/lib/writing/project-manifest";
 
 export type LatexEngine = {
 	id: string;
@@ -117,6 +122,17 @@ export async function engineChoiceForRoot(
 	const available = texCompileStore
 		.getState()
 		.engines.map((engine) => engine.id);
+	const vault = vaultStore.getState().vaultPath;
+	const project =
+		vault && (await explicitWritingProjectForPath(vault, rootPath));
+	if (project) {
+		const compiler = project.manifest.compiler;
+		return {
+			rootPath,
+			engineId: available.includes(compiler) ? compiler : null,
+			locked: true,
+		};
+	}
 	let source = "";
 	try {
 		source = await readVaultFile(rootPath);
@@ -164,6 +180,14 @@ export type TexRootResolution = {
 export async function resolveTexRootInfo(
 	texPath: string,
 ): Promise<TexRootResolution> {
+	const vault = vaultStore.getState().vaultPath;
+	const project =
+		vault && (await explicitWritingProjectForPath(vault, texPath));
+	if (vault && project) {
+		if (!(await hasWritingMainFile(vault, project)))
+			throw new Error(i18n.t("sidebar:writing.missingMainFile"));
+		return { rootPath: project.root, fallbackSelf: false };
+	}
 	const override = explicitTexRoot(texPath);
 	if (override) return { rootPath: override, fallbackSelf: false };
 	try {
@@ -281,10 +305,21 @@ export async function compileTexFile(
 	await ensureTexEngines();
 	const { compilingPath } = texCompileStore.getState();
 	if (compilingPath) return null;
-	const choice = await engineChoiceForRoot(texPath);
+	let choice: TexEngineChoice;
+	try {
+		const vault = vaultStore.getState().vaultPath;
+		if (vault && (await explicitWritingProjectForPath(vault, texPath)))
+			texPath = await resolveTexRoot(texPath);
+		choice = await engineChoiceForRoot(texPath);
+	} catch (error) {
+		notifyError(errorText(error));
+		return null;
+	}
 	const engineId =
 		choice.engineId ??
-		(getTexProjectSettings(texPath).recipe ? "pdflatex" : null);
+		(!choice.locked && getTexProjectSettings(texPath).recipe
+			? "pdflatex"
+			: null);
 	if (!engineId) {
 		notifyError(i18n.t("sidebar:fileTree.noLatexEngine"));
 		return null;

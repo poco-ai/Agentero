@@ -136,6 +136,8 @@ pub async fn sync_configure(
     let key = args.vault_path.trim().to_string();
     let inner = async {
         let dir = vault_dir(&args.vault_path)?;
+        let _lock = agentero_core::features::sync::lock::SyncLock::try_acquire(&dir)?
+            .ok_or_else(|| AppError::message("another vault sync is running"))?;
         let mut cfg = args.config.normalized();
         cfg.merge_mask(config::get(&key).as_ref());
         attach_agentero_session(&app, &mut cfg).await;

@@ -6,11 +6,12 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SiGithub } from "react-icons/si";
-import { useStore } from "zustand";
 import { WritingSyncForm } from "@/components/writing/writing-sync-form";
+import {
+	useActiveWritingRoot,
+	useWritingProjectRelative,
+} from "@/hooks/use-writing-project";
 import type { WritingGitHubLink } from "@/lib/writing/github";
-import { writingHistoryProjectRel } from "@/lib/writing/session";
-import { writingStore } from "@/lib/writing/store";
 import { uploadWritingProject } from "@/lib/writing/upload";
 
 export function WritingSyncTab({
@@ -22,10 +23,8 @@ export function WritingSyncTab({
 	showHeader?: boolean;
 }) {
 	const { t } = useTranslation("sidebar");
-	const activeRoot = useStore(writingStore, (state) => state.activeRoot);
-	const project = activeRoot
-		? writingHistoryProjectRel(vaultPath, activeRoot)
-		: null;
+	const activeRoot = useActiveWritingRoot();
+	const project = useWritingProjectRelative(vaultPath, activeRoot);
 	const [syncing, setSyncing] = useState(false);
 
 	async function saveAndUpload(link: WritingGitHubLink) {

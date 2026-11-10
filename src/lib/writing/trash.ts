@@ -14,6 +14,7 @@ import {
 	setDiscoveredManuscripts,
 	setWritingDiscovering,
 } from "@/lib/writing/store";
+import { explicitWritingProjectForPath } from "./project-manifest";
 
 export async function trashWritingProject(
 	vaultPath: string,
@@ -21,7 +22,8 @@ export async function trashWritingProject(
 ): Promise<boolean> {
 	const rel = writingProjectTrashRel(vaultPath, rootFile);
 	if (!rel) return false;
-	const target = joinVaultPath(vaultPath, rel);
+	const project = await explicitWritingProjectForPath(vaultPath, rootFile);
+	const target = project?.directory ?? joinVaultPath(vaultPath, rel);
 	const fileOnly = normalizePath(target) === normalizePath(rootFile);
 	await trashPathsAndNotify([target]);
 	if (await vaultPathExists(target)) return false;

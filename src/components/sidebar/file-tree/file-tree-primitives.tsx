@@ -248,6 +248,7 @@ export const FileTreeFolderRow = ({
 	className,
 	style,
 	openOnLabel = false,
+	expandOnOpen = false,
 	actions,
 }: {
 	path: string;
@@ -258,6 +259,7 @@ export const FileTreeFolderRow = ({
 	/** Content inset; the row background still spans the full container. */
 	style?: CSSProperties;
 	openOnLabel?: boolean;
+	expandOnOpen?: boolean;
 	/** Trailing actions rendered inside the row background. */
 	actions?: ReactNode;
 }) => {
@@ -312,6 +314,8 @@ export const FileTreeFolderRow = ({
 				) {
 					togglePath(path);
 					if (openOnLabel) return;
+				} else if (expandOnOpen && !isExpanded) {
+					togglePath(path);
 				}
 				onSelectRow?.(path, {
 					meta: false,
