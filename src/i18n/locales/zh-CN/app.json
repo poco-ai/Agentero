@@ -1,4 +1,5 @@
 {
+	"navigator": { "hintTargets": "{{count}} 个键盘目标" },
 	"labels": {
 		"agent": "Agent",
 		"notes": "笔记",

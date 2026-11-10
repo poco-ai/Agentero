@@ -1,4 +1,5 @@
 {
+	"navigator": { "hintTargets": "{{count}} keyboard targets" },
 	"labels": {
 		"agent": "Agent",
 		"notes": "Notes",

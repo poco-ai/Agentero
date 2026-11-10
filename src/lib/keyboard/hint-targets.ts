@@ -20,6 +20,12 @@ function visible(
 	viewport: { width: number; height: number },
 ) {
 	if (
+		element.closest(
+			"[inert], [hidden], [aria-hidden='true'], [data-hint-ignore], [contenteditable]:not([contenteditable='false']), [data-pdf-content]",
+		)
+	)
+		return false;
+	if (
 		element.matches(
 			"[disabled], [aria-disabled='true'], [inert], [hidden], [data-hint-ignore], input, textarea, select, [contenteditable], canvas, [data-pdf-content]",
 		)
@@ -36,6 +42,12 @@ function visible(
 		return false;
 	}
 	const rect = element.getBoundingClientRect();
+	const doc = element.ownerDocument;
+	const hit = doc.elementFromPoint?.(
+		(Math.max(0, rect.left) + Math.min(viewport.width, rect.right)) / 2,
+		(Math.max(0, rect.top) + Math.min(viewport.height, rect.bottom)) / 2,
+	);
+	if (hit && !element.contains(hit)) return false;
 	return (
 		rect.width >= 8 &&
 		rect.height >= 8 &&

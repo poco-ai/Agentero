@@ -2,6 +2,7 @@ import { useScrollCapability } from "@embedpdf/plugin-scroll/react";
 import { useViewportElement } from "@embedpdf/plugin-viewport/react";
 import { type RefObject, useEffect, useRef } from "react";
 import { useSettings } from "@/hooks/use-app-stores";
+import { PdfKeySequence } from "@/lib/keyboard/pdf-key-sequence";
 import { ownsPdfKeyboard } from "@/lib/pdf/keyboard-ownership";
 import { handleScrollSyncIntent } from "@/lib/pdf/scroll-sync";
 
@@ -41,13 +42,8 @@ export function PdfVimKeyHandler({
 	useEffect(() => {
 		const viewport = viewportRef?.current;
 		if (!enabled || !viewport) return;
-		let prefix = "";
-		let prefixTimer: number | undefined;
-		const clearPrefix = () => {
-			prefix = "";
-			if (prefixTimer !== undefined) window.clearTimeout(prefixTimer);
-			prefixTimer = undefined;
-		};
+		const sequence = new PdfKeySequence();
+		const clearPrefix = () => sequence.reset();
 		const page = (direction: number) => {
 			const scope = scrollRef.current?.forDocument(documentId);
 			if (!scope) return;
@@ -68,50 +64,29 @@ export function PdfVimKeyHandler({
 					active: activeRef.current,
 				})
 			) {
+				clearPrefix();
 				return;
 			}
 			const scope = scrollRef.current?.forDocument(documentId);
 			if (!scope) return;
 			const key = event.key;
-			if (key === "Escape") {
-				if (prefix) {
-					event.preventDefault();
-					clearPrefix();
-				}
+			if (event.repeat && (key === "g" || key === "G" || /^\d$/.test(key)))
 				return;
-			}
-			if (/^\d$/.test(key)) {
-				prefix += key;
-				prefixTimer = window.setTimeout(clearPrefix, 1200);
+			const parsed = sequence.feed(key, Date.now());
+			if (parsed.consumed) {
 				event.preventDefault();
-				return;
-			}
-			if (key === "g" && !event.shiftKey) {
-				if (prefix === "g") {
-					event.preventDefault();
-					clearPrefix();
-					handleScrollSyncIntent(documentId);
-					scope.scrollToPage({ pageNumber: 1, behavior: "instant" });
-				} else {
-					prefix = "g";
-					prefixTimer = window.setTimeout(clearPrefix, 700);
-					event.preventDefault();
-				}
-				return;
-			}
-			if (key === "G") {
-				event.preventDefault();
+				if (parsed.page === undefined) return;
 				handleScrollSyncIntent(documentId);
-				const number = prefix && prefix !== "g" ? Number(prefix) : undefined;
-				clearPrefix();
 				const total = totalPages || 1;
 				scope.scrollToPage({
-					pageNumber: Math.max(1, Math.min(number ?? total, total)),
+					pageNumber: Math.max(
+						1,
+						Math.min(parsed.page === "last" ? total : parsed.page, total),
+					),
 					behavior: "instant",
 				});
 				return;
 			}
-			if (prefix) return;
 			if (key === "n") {
 				event.preventDefault();
 				findNextRef.current?.();
@@ -145,8 +120,14 @@ export function PdfVimKeyHandler({
 			}
 		};
 		window.addEventListener("keydown", onKeyDown, true);
+		window.addEventListener("blur", clearPrefix);
+		window.addEventListener("focusin", clearPrefix);
+		window.addEventListener("pointerdown", clearPrefix);
 		return () => {
 			window.removeEventListener("keydown", onKeyDown, true);
+			window.removeEventListener("blur", clearPrefix);
+			window.removeEventListener("focusin", clearPrefix);
+			window.removeEventListener("pointerdown", clearPrefix);
 			clearPrefix();
 		};
 	}, [documentId, enabled, hostRef, totalPages, viewportRef]);

@@ -3,8 +3,29 @@
 import { describe, expect, it } from "vitest";
 import { assignHintLabels, matchHintLabel } from "@/lib/keyboard/hint-labels";
 import { collectHintTargets } from "@/lib/keyboard/hint-targets";
+import { PdfKeySequence } from "@/lib/keyboard/pdf-key-sequence";
 
 describe("keyboard navigation primitives", () => {
+	it("parses page sequences with renewed deadlines and cancellation", () => {
+		const parser = new PdfKeySequence();
+		parser.feed("1", 0);
+		parser.feed("2", 1000);
+		expect(parser.feed("G", 1800).page).toBe(12);
+		parser.feed("g", 2000);
+		expect(parser.feed("g", 2100).page).toBe(1);
+		parser.feed("4", 3000);
+		expect(parser.feed("G", 5000).page).toBe("last");
+		parser.feed("2", 6000);
+		parser.reset();
+		expect(parser.feed("G", 6100).page).toBe("last");
+	});
+	it("excludes controls inside ignored, inert, and editable ancestors", () => {
+		document.body.innerHTML = `<div data-hint-ignore><button>Ignore</button></div><div inert><button>Inert</button></div><div contenteditable="true"><button>Edit</button></div>`;
+		for (const button of document.querySelectorAll("button")) {
+			button.getBoundingClientRect = () => new DOMRect(10, 10, 40, 24);
+		}
+		expect(collectHintTargets(document.body)).toEqual([]);
+	});
 	it("uses one label width so prefixes never collide", () => {
 		const labels = assignHintLabels(28);
 		expect(labels).toHaveLength(28);

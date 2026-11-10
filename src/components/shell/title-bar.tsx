@@ -85,6 +85,8 @@ export const TitleBar = memo(function TitleBar({
 								variant="ghost"
 								size="icon-sm"
 								data-tb-sidebar
+								data-hint
+								data-hint-priority="1"
 								aria-label={
 									sidebarCollapsed
 										? t("titlebar.showLeftSidebar")
@@ -121,6 +123,8 @@ export const TitleBar = memo(function TitleBar({
 										variant="ghost"
 										size="icon-sm"
 										data-tb-agent
+										data-hint
+										data-hint-priority="1"
 										aria-label={
 											rightSidebarOpen
 												? t("titlebar.hideRightSidebar")
