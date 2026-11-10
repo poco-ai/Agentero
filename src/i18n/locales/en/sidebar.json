@@ -547,6 +547,25 @@
 		}
 	},
 	"writing": {
+		"cloudCompile": "Cloud compile",
+		"localCompile": "Local compile",
+		"cloudBuildCancel": "Cancel cloud build",
+		"cloudBuildLog": "Build log",
+		"cloudBuildLogDescription": "Output from the cloud compiler.",
+		"cloudBuildLocate": "Locate source in PDF",
+		"cloudBuildLocateSource": "Find source location",
+		"cloudBuildNoMatch": "No location in this build.",
+		"cloudBuildOlderSource": "This PDF location refers to the compiled source version.",
+		"cloudBuildVersion": "PDF from version {{version}}",
+		"cloudBuildStatus": {
+			"queued": "Queued",
+			"preparing": "Preparing",
+			"running": "Compiling",
+			"uploading": "Saving build",
+			"succeeded": "Compile succeeded",
+			"failed": "Compile failed",
+			"cancelled": "Cancelled"
+		},
 		"cloudCheckoutDiffers": "The local files differ from the shared project. Copy this project to a new ID to keep your edits before downloading the shared version.",
 		"cloudProject": "Project collaboration",
 		"cloudPublish": "Enable collaboration",

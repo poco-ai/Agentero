@@ -546,6 +546,25 @@
 		}
 	},
 	"writing": {
+		"cloudCompile": "云编译",
+		"localCompile": "本地编译",
+		"cloudBuildCancel": "取消云编译",
+		"cloudBuildLog": "编译日志",
+		"cloudBuildLogDescription": "云端编译器的输出。",
+		"cloudBuildLocate": "在 PDF 中定位源码",
+		"cloudBuildLocateSource": "定位到源码",
+		"cloudBuildNoMatch": "本次构建中没有对应位置。",
+		"cloudBuildOlderSource": "此 PDF 位置对应编译时的源码版本。",
+		"cloudBuildVersion": "PDF 源码版本 {{version}}",
+		"cloudBuildStatus": {
+			"queued": "排队中",
+			"preparing": "准备中",
+			"running": "编译中",
+			"uploading": "保存产物中",
+			"succeeded": "编译成功",
+			"failed": "编译失败",
+			"cancelled": "已取消"
+		},
 		"cloudCheckoutDiffers": "本地文件与云项目不同。请先复制项目以保留修改，再下载云版本。",
 		"cloudProject": "项目云协作",
 		"cloudPublish": "启用云协作",
