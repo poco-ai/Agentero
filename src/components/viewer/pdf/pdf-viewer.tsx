@@ -127,6 +127,7 @@ import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-view
 import { KeyboardScrollHandler } from "@/components/viewer/pdf/viewport/keyboard-scroll-handler";
 import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
+import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
 import { useLibraryStore, useSettings } from "@/hooks/use-app-stores";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
@@ -2489,6 +2490,14 @@ function PdfViewerInner({
 					documentId={docId}
 					active={isActive}
 					hostRef={hostRef}
+				/>
+				<PdfVimKeyHandler
+					documentId={docId}
+					active={isActive}
+					hostRef={hostRef}
+					totalPages={totalPages}
+					onFindNext={handleFindNext}
+					onFindPrev={handleFindPrev}
 				/>
 				<PanDragHandler
 					active={isActive}

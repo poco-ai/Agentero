@@ -188,6 +188,10 @@ export type AppSettings = {
 	 * one page at a time (`paginated`).
 	 */
 	pdfScrollStrategy: PdfScrollStrategy;
+	/** Enable Vim-style single-key navigation on the PDF reading surface. */
+	pdfVimKeys: boolean;
+	/** Enable the ephemeral F-key global element hint overlay. */
+	hintModeEnabled: boolean;
 	/**
 	 * PDF reader page layout: `none` (default) = one page per row, `odd`/`even`
 	 * = two-page spreads (paired from page 1 / after a standalone cover).

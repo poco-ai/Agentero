@@ -13,6 +13,7 @@ import {
 } from "@/components/settings/shortcut-recorder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
 	Tooltip,
 	TooltipContent,
@@ -150,9 +151,11 @@ function isSearchChord(chord: ShortcutDisplay): boolean {
 }
 
 export function KeyboardPane({
+	settings,
 	shortcutOverrides: overrides,
 	patch,
 }: {
+	settings: AppSettings;
 	shortcutOverrides: ShortcutOverrides;
 	patch: (settings: Partial<AppSettings>) => void;
 }) {
@@ -250,6 +253,16 @@ export function KeyboardPane({
 					}}
 				/>
 			</div>
+			<SettingsGroup>
+				<div className={settingsRowClassName}>
+					<span>{t("shortcuts:hintModeEnabled")}</span>
+					<Switch
+						aria-checked={settings.hintModeEnabled}
+						checked={settings.hintModeEnabled}
+						onCheckedChange={(checked) => patch({ hintModeEnabled: checked })}
+					/>
+				</div>
+			</SettingsGroup>
 			{matched ? (
 				(Object.keys(GROUP_KEY) as ShortcutGroup[]).map((group) => {
 					const items = visible.filter((def) => def.group === group);

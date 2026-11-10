@@ -1723,6 +1723,10 @@ export type AppSettings_Deserialize = {
 	terminalApp?: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy?: string,
+	/**  Enable single-key Vim navigation on PDF reading surfaces. */
+	pdfVimKeys?: boolean,
+	/**  Enable the ephemeral F-key global element hint overlay. */
+	hintModeEnabled?: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode?: string,
 	libraryColumns?: LibraryColumnPref_Deserialize[],
@@ -1864,6 +1868,10 @@ export type AppSettings_Serialize = {
 	terminalApp: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy: string,
+	/**  Enable single-key Vim navigation on PDF reading surfaces. */
+	pdfVimKeys: boolean,
+	/**  Enable the ephemeral F-key global element hint overlay. */
+	hintModeEnabled: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode: string,
 	libraryColumns: LibraryColumnPref_Serialize[],

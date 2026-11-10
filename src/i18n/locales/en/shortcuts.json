@@ -4,6 +4,7 @@
 	"unbound": "Unbound",
 	"invalid": "Use a modifier with a key, or a function key (F1–F24).",
 	"conflict": "Already used by {{command}}.",
+	"hintModeEnabled": "Enable element hints (F)",
 	"groups": {
 		"app": "App",
 		"vault": "Vault",

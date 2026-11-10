@@ -4,6 +4,7 @@
 	"unbound": "未绑定",
 	"invalid": "请使用修饰键组合，或功能键（F1–F24）。",
 	"conflict": "已被「{{command}}」使用。",
+	"hintModeEnabled": "启用元素提示（F）",
 	"groups": {
 		"app": "应用",
 		"vault": "知识库",

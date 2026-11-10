@@ -409,6 +409,12 @@ export function GeneralPane({
 						</SelectContent>
 					</Select>
 				</SettingsRow>
+				<SettingsRow label={t("general.pdfVimKeys.label")}>
+					<Switch
+						checked={settings.pdfVimKeys}
+						onCheckedChange={(checked) => patch({ pdfVimKeys: checked })}
+					/>
+				</SettingsRow>
 				<SettingsRow label={t("general.pdfSpreadMode.label")}>
 					<Select
 						disabled={settings.pdfScrollStrategy === "paginated"}

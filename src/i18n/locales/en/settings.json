@@ -141,6 +141,9 @@
 			"horizontal": "Horizontal",
 			"paginated": "Page by page"
 		},
+		"pdfVimKeys": {
+			"label": "Enable PDF Vim keys (j/k/h/l)"
+		},
 		"pdfSpreadMode": {
 			"label": "PDF page layout",
 			"none": "Single page",

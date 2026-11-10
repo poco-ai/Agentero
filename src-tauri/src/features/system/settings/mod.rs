@@ -125,6 +125,12 @@ pub struct AppSettings {
     /// PDF navigation: `vertical` | `horizontal` | `paginated`.
     #[serde(default = "default_pdf_scroll_strategy")]
     pub pdf_scroll_strategy: String,
+    /// Enable single-key Vim navigation on PDF reading surfaces.
+    #[serde(default = "default_true")]
+    pub pdf_vim_keys: bool,
+    /// Enable the ephemeral F-key global element hint overlay.
+    #[serde(default = "default_true")]
+    pub hint_mode_enabled: bool,
     /// PDF page layout: `none` (single page) | `odd` | `even` (two-page spread).
     #[serde(default = "default_pdf_spread_mode")]
     pub pdf_spread_mode: String,
@@ -492,6 +498,8 @@ impl Default for AppSettings {
             auto_update_internal_links: default_auto_update_internal_links(),
             terminal_app: String::new(),
             pdf_scroll_strategy: default_pdf_scroll_strategy(),
+            pdf_vim_keys: true,
+            hint_mode_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
             library_columns: default_library_columns(),
             connector_enabled: false,

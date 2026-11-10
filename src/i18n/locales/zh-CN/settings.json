@@ -141,6 +141,9 @@
 			"horizontal": "横向",
 			"paginated": "逐页切换"
 		},
+		"pdfVimKeys": {
+			"label": "启用 PDF Vim 按键（j/k/h/l）"
+		},
 		"pdfSpreadMode": {
 			"label": "PDF 页面版式",
 			"none": "单页",

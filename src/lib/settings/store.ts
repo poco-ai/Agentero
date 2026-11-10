@@ -378,6 +378,12 @@ function normalizePartial(
 	if (!isPdfScrollStrategy(merged.pdfScrollStrategy)) {
 		merged.pdfScrollStrategy = DEFAULT_SETTINGS.pdfScrollStrategy;
 	}
+	if (typeof parsed.pdfVimKeys !== "boolean") {
+		merged.pdfVimKeys = DEFAULT_SETTINGS.pdfVimKeys;
+	}
+	if (typeof parsed.hintModeEnabled !== "boolean") {
+		merged.hintModeEnabled = DEFAULT_SETTINGS.hintModeEnabled;
+	}
 	if (!isPdfSpreadMode(merged.pdfSpreadMode)) {
 		merged.pdfSpreadMode = DEFAULT_SETTINGS.pdfSpreadMode;
 	}

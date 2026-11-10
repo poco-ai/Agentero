@@ -177,6 +177,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	autoUpdateInternalLinks: "ask",
 	terminalApp: "",
 	pdfScrollStrategy: "vertical",
+	pdfVimKeys: true,
+	hintModeEnabled: true,
 	pdfSpreadMode: "none",
 	paperNoteMode: "standard",
 	autoOpenPaperNotes: true,
