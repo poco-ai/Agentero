@@ -368,6 +368,7 @@ export type TaskReportArgs = {
 	phase?: string | null;
 	error?: string | null;
 	state?: JobState | null;
+	params?: Json | null;
 };
 
 export type TaskExecutorContext = {

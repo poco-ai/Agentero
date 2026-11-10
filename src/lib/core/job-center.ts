@@ -36,6 +36,7 @@ import {
 	type JobReportArgs,
 	type JobSnapshot,
 	type JobState,
+	type Json,
 } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
@@ -147,6 +148,7 @@ export async function jobReport(args: {
 	phase?: string | null;
 	error?: string | null;
 	state?: JobState | null;
+	params?: Json | null;
 }): Promise<void> {
 	await callApiResult(() =>
 		commands.jobReport({
@@ -155,6 +157,7 @@ export async function jobReport(args: {
 			phase: args.phase ?? null,
 			error: args.error ?? null,
 			state: args.state ?? null,
+			params: args.params ?? null,
 		} satisfies JobReportArgs),
 	);
 }

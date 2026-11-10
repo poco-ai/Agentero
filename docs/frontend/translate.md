@@ -25,6 +25,9 @@ Settings → **翻译**：
 
 设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
 
+- `LayoutTranslateCap` 由 `autoTranslateImportConcurrency` 播种（默认 1），设置变化时更新 cap 并 `drain_and_spawn`，控制自动与手动全文任务共同占用的论文并发数；单篇内部仍沿用原有批次并发。
+- 版面失败 / 取消时依赖任务标为 `Skipped`，不发翻译请求。`job_cancel` 和终止态 `job_report` 都会触发 `drain`，依赖任务随即结算；`cancel_for_paper` / `cancel_for_vault` 直接取消同论文或同 Vault 的所有任务，不再单独 `drain`。
+
 ## 消费方
 
 - RSS、论文摘要、Markdown 笔记、Agent 消息、文本编辑器和代理网页的划词翻译通过[通用划词组件](selection.md)接入；共享翻译服务、来源信息和窗口单卡规则，结果为瞬态卡片。卡片按选区矩形在原文外打开；代理网页里按 `Esc` 由选区桥转发后收起。

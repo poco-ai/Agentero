@@ -101,7 +101,10 @@ export const commands = {
 	agentCancelRun: (sessionId: string) => __TAURI_INVOKE<ApiResult<boolean>>("agent_cancel_run", { sessionId }),
 	jobParseRefsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_parse_refs_enqueue", { args })),
 	jobParseBodyEnqueue: (args: JobParseBodyEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_parse_body_enqueue", { args })),
-	jobLayoutAnalyzeEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
+	jobLayoutAnalyzeEnqueue: (args: JobLayoutAnalyzeEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
+	/**  Request a document translation through the same queue used by imports. */
+	jobLayoutTranslateEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_translate_enqueue", { args })),
+	jobLayoutTranslateClaim: (args: JobLayoutTranslateClaimArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_layout_translate_claim", { args })),
 	jobDownloadAssetsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_download_assets_enqueue", { args })),
 	/**
 	 *  Enqueue a renderer-orchestrated import (magic wand / local PDF / plaza /
@@ -3511,6 +3514,24 @@ export type JobLatexCompileEnqueueArgs = {
 	build?: LatexBuildOptions | null,
 };
 
+/**
+ *  `layoutAnalyze` enqueue args. `auto_translate` marks import / download
+ *  origins: when Settings → Translate → "Auto-translate after import" is on,
+ *  the Host also queues the dependent `layoutTranslate` job. Opening a paper or
+ *  re-parsing layout leaves it false.
+ */
+export type JobLayoutAnalyzeEnqueueArgs = {
+	vaultPath: string,
+	path: string,
+	lane?: JobLane | null,
+	force?: boolean,
+	autoTranslate?: boolean,
+};
+
+export type JobLayoutTranslateClaimArgs = {
+	jobId: string,
+};
+
 export type JobListArgs = {
 	vaultPath?: string | null,
 	path?: string | null,
@@ -3570,6 +3591,7 @@ export type JobReportArgs = {
 	phase?: string | null,
 	error?: string | null,
 	state?: JobState | null,
+	params?: Json | null,
 };
 
 export type JobSnapshot = {

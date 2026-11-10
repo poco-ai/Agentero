@@ -42,6 +42,8 @@ macro_rules! common_commands {
             crate::features::jobs::commands::job_parse_refs_enqueue,
             crate::features::jobs::commands::job_parse_body_enqueue,
             crate::features::jobs::commands::job_layout_analyze_enqueue,
+            crate::features::jobs::commands::job_layout_translate_enqueue,
+            crate::features::jobs::commands::job_layout_translate_claim,
             crate::features::jobs::commands::job_download_assets_enqueue,
             crate::features::jobs::commands::job_import_enqueue,
             crate::features::jobs::commands::job_connector_sync_enqueue,

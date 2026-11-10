@@ -324,6 +324,7 @@ describe("job task projection", () => {
 			phase: null,
 			error: null,
 			state: "cancelled",
+			params: null,
 		});
 
 		// Settling the executor disposes its per-offer listener.
