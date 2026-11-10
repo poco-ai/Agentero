@@ -138,12 +138,10 @@ export type LayoutTranslateSidecar = {
 
 export type LayoutTranslateWriteOptions = {
 	/**
-	 * Single-page translation writes only a subset of layout blocks. Preserve
-	 * cached blocks from other pages instead of replacing the whole sidecar.
+	 * Page and background runs can write a subset of the document. Preserve
+	 * all completed cached blocks when merging that subset.
 	 */
 	preserveExisting?: boolean;
-	/** Existing cached blocks on these pages are replaced by `items`. */
-	replacePageIndexes?: readonly number[];
 };
 
 /** Prefer body extract; fall back to caption title for headers. */

@@ -24,6 +24,7 @@ type TranslateMeterOptions = {
 	layoutTranslatePreparing?: boolean;
 	/** Queued behind layout analysis; a click cancels the wait. */
 	layoutTranslateWaiting?: boolean;
+	layoutTranslateQueued?: boolean;
 	/** 0–1 fill. Stays under full while the reflow preview is still blank. */
 	layoutTranslateProgress?: number | null;
 	/** Pages done ÷ pages in the current stage, when the stage has a count. */
@@ -40,6 +41,7 @@ export function useTranslateMeter({
 	layoutTranslateRunning,
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
+	layoutTranslateQueued = false,
 	layoutTranslateProgress = null,
 	layoutTranslatePageCounts = null,
 }: TranslateMeterOptions) {
@@ -47,7 +49,8 @@ export function useTranslateMeter({
 	const busy =
 		layoutTranslateRunning ||
 		layoutTranslatePreparing ||
-		layoutTranslateWaiting;
+		layoutTranslateWaiting ||
+		layoutTranslateQueued;
 	const complete = layoutTranslateProgress === 1;
 	const reduceMotion = useReducedMotion();
 	const [lingerFull, setLingerFull] = useState(false);
@@ -91,7 +94,9 @@ export function useTranslateMeter({
 		open &&
 		!lingerFull &&
 		!retracting &&
-		(layoutTranslateWaiting || layoutTranslateProgress == null);
+		(layoutTranslateQueued ||
+			layoutTranslateWaiting ||
+			layoutTranslateProgress == null);
 	const ratio = lingerFull
 		? 1
 		: retracting
@@ -117,13 +122,15 @@ export function useTranslateMeter({
 		: null;
 	const stage = lingerFull
 		? t("pdf.layoutTranslate.phaseDone")
-		: layoutTranslateWaiting
-			? t("pdf.layoutTranslate.phaseLayout")
-			: layoutTranslatePreparing
-				? t("pdf.layoutTranslate.phaseTypeset")
-				: indeterminate
-					? t("pdf.layoutTranslate.phaseExtract")
-					: t("pdf.layoutTranslate.phaseTranslate");
+		: layoutTranslateQueued
+			? t("pdf.layoutTranslate.queued")
+			: layoutTranslateWaiting
+				? t("pdf.layoutTranslate.phaseLayout")
+				: layoutTranslatePreparing
+					? t("pdf.layoutTranslate.phaseTypeset")
+					: indeterminate
+						? t("pdf.layoutTranslate.phaseExtract")
+						: t("pdf.layoutTranslate.phaseTranslate");
 
 	return {
 		busy,

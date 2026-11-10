@@ -171,6 +171,7 @@ export function PdfTranslationViewerInner({
 		layoutTranslateRunning,
 		layoutTranslatePreparing,
 		layoutTranslateWaiting,
+		layoutTranslateQueued,
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		layoutTranslatePartial,
@@ -535,6 +536,7 @@ export function PdfTranslationViewerInner({
 				layoutTranslateRunning={layoutTranslateRunning}
 				layoutTranslatePreparing={layoutTranslatePreparing}
 				layoutTranslateWaiting={layoutTranslateWaiting}
+				layoutTranslateQueued={layoutTranslateQueued}
 				layoutTranslateProgress={layoutTranslateProgress}
 				layoutTranslatePageCounts={layoutTranslatePageCounts}
 				layoutTranslatePartial={layoutTranslatePartial}

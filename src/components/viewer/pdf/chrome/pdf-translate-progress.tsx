@@ -16,6 +16,7 @@ type PdfTranslateProgressChipProps = {
 	layoutTranslateRunning: boolean;
 	layoutTranslatePreparing?: boolean;
 	layoutTranslateWaiting?: boolean;
+	layoutTranslateQueued?: boolean;
 	layoutTranslateProgress?: number | null;
 	/** Pages done ÷ pages in the current stage, when the stage has a count. */
 	layoutTranslatePageCounts?: { done: number; total: number } | null;
@@ -33,6 +34,7 @@ export function PdfTranslateProgressChip({
 	layoutTranslateRunning,
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
+	layoutTranslateQueued = false,
 	layoutTranslateProgress = null,
 	layoutTranslatePageCounts = null,
 	layoutTranslatePartial = null,
@@ -53,6 +55,7 @@ export function PdfTranslateProgressChip({
 		layoutTranslateRunning,
 		layoutTranslatePreparing,
 		layoutTranslateWaiting,
+		layoutTranslateQueued,
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 	});
