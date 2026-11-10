@@ -627,6 +627,35 @@ it("keeps the partial entry after a failed completion without reopening", async 
 	assert.equal(h.errors.length, 1);
 });
 
+it("opens the partial card when translate is clicked after a failure", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.setReflowReady(true);
+	h.render();
+	h.view.layoutTranslatePartial.onCompleteMissing();
+	await h.flush();
+	h.runs[0].resolve([
+		h.runs[0].items[0],
+		{ ...h.runs[0].items[1], status: "error", error: "boom" },
+	]);
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePartial.open, false);
+	// The main button surfaces the warning instead of hiding existing pages.
+	h.view.toggleLayoutTranslate();
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+	// Once ignored, the same click goes back to plain show/hide.
+	h.view.layoutTranslatePartial.onDismiss();
+	h.render();
+	h.view.toggleLayoutTranslate();
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, false);
+});
+
 it("retranslates everything and restores old text for failed blocks", async () => {
 	const h = createHarness();
 	h.setTranslateSidecar([

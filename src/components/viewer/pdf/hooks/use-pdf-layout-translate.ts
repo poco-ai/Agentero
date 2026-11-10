@@ -1130,6 +1130,17 @@ export function usePdfLayoutTranslate({
 			stopLayoutTranslate();
 			return;
 		}
+		// A real warning (failed blocks, or a completion run that left gaps)
+		// deserves the summary card rather than silently hiding translated pages.
+		const hasWarning =
+			countPendingLayoutTranslateItems(layoutTranslateJob.items) > 0 &&
+			(layoutTranslateJob.partialCompletionFailed ||
+				layoutTranslateJob.items.some((item) => item.status === "error")) &&
+			!isTranslationPartialDismissed(layoutTranslateJob.partialDismissKey);
+		if (hasWarning) {
+			setPartialDialogOpen(true);
+			return;
+		}
 		if (hiddenPageIndexes.size > 0) {
 			setHiddenPageIndexes(new Set());
 			return;
