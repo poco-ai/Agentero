@@ -48,7 +48,14 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			setAnnouncement("");
 		};
 		const enter = () => {
-			const root = topKeyboardModal(doc) ?? doc.body;
+			// Only real modals own the scan scope. PDF / hover cards are
+			// `role="dialog" aria-modal="false"`: they float over the window and
+			// must not blank out every other hint target while open.
+			const modal = topKeyboardModal(doc);
+			const root =
+				modal && modal.getAttribute("aria-modal") !== "false"
+					? modal
+					: doc.body;
 			const targets = collectHintTargets(root);
 			const labels = assignHintLabels(targets.length);
 			setSession({ targets, labels, query: "" });

@@ -11,10 +11,14 @@ const GENERIC = [
 	"[role='tab']",
 	"[role='button']",
 	"[role='treeitem']",
+	"[role='menuitem']",
+	"[role='menuitemcheckbox']",
+	"[role='menuitemradio']",
+	"[role='option']",
 	"a[href]",
 ].join(",");
 const INTERACTIVE =
-	"button, [role='tab'], [role='button'], [role='treeitem'], a[href]";
+	"button, [role='tab'], [role='button'], [role='treeitem'], [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'], [role='option'], a[href]";
 const MAX_HINT_TARGETS = 60;
 
 function visible(
@@ -29,7 +33,7 @@ function visible(
 		return false;
 	if (
 		element.matches(
-			"[disabled], [aria-disabled='true'], [inert], [hidden], [data-hint-ignore], input, textarea, select, [contenteditable], canvas, [data-pdf-content]",
+			"[disabled], [aria-disabled='true'], [data-disabled], [inert], [hidden], [data-hint-ignore], input, textarea, select, [contenteditable], canvas, [data-pdf-content]",
 		)
 	) {
 		return false;
@@ -61,6 +65,10 @@ function visible(
 }
 
 function dedupe(element: HTMLElement): HTMLElement | null {
+	// An explicit container owns its subtree: a paper row, tree row or tab gets
+	// one badge instead of one per icon button inside it.
+	const explicit = element.closest(EXPLICIT);
+	if (explicit instanceof HTMLElement && explicit !== element) return explicit;
 	const parent = element.closest(INTERACTIVE);
 	return parent instanceof HTMLElement && parent !== element ? parent : element;
 }

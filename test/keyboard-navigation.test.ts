@@ -68,6 +68,51 @@ describe("keyboard navigation primitives", () => {
 		}
 	});
 
+	it("collapses an explicit target's descendants into one row hint", () => {
+		document.body.innerHTML = `
+			<table><tbody>
+				<tr data-hint data-hint-priority="1">
+					<td><button>Paper title</button></td>
+					<td><button>Star</button></td>
+				</tr>
+			</tbody></table>
+		`;
+		const row = document.querySelector("tr") as HTMLElement;
+		row.getBoundingClientRect = () => new DOMRect(10, 10, 600, 36);
+		for (const button of document.querySelectorAll("button")) {
+			button.getBoundingClientRect = () => new DOMRect(12, 12, 100, 20);
+		}
+		const targets = collectHintTargets(document.body, {
+			width: 800,
+			height: 600,
+		});
+		expect(targets).toHaveLength(1);
+		expect(targets[0].element).toBe(row);
+		expect(targets[0].priority).toBe(1);
+	});
+
+	it("finds menu items in floating popups and skips disabled ones", () => {
+		document.body.innerHTML = `
+			<div role="menu">
+				<div role="menuitem">Open</div>
+				<div role="menuitem" data-disabled>Disabled</div>
+				<div role="menuitemcheckbox">Star</div>
+			</div>
+		`;
+		for (const item of document.querySelectorAll("[role^='menuitem']")) {
+			(item as HTMLElement).getBoundingClientRect = () =>
+				new DOMRect(10, 10, 120, 24);
+		}
+		const targets = collectHintTargets(document.body, {
+			width: 800,
+			height: 600,
+		});
+		expect(targets.map((target) => target.element.textContent)).toEqual([
+			"Open",
+			"Star",
+		]);
+	});
+
 	it("filters disabled, hidden, editable, and out-of-viewport controls", () => {
 		document.body.innerHTML = `
 			<button data-hint data-hint-priority="1">Primary</button>
