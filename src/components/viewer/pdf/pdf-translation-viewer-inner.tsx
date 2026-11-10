@@ -173,6 +173,7 @@ export function PdfTranslationViewerInner({
 		layoutTranslateWaiting,
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
+		layoutTranslatePartial,
 		reflowOutput,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
@@ -536,6 +537,7 @@ export function PdfTranslationViewerInner({
 				layoutTranslateWaiting={layoutTranslateWaiting}
 				layoutTranslateProgress={layoutTranslateProgress}
 				layoutTranslatePageCounts={layoutTranslatePageCounts}
+				layoutTranslatePartial={layoutTranslatePartial}
 				onStop={toggleLayoutTranslate}
 			/>
 			{typeof document !== "undefined"

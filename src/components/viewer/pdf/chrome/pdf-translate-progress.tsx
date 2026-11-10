@@ -7,6 +7,8 @@ import {
 	PDF_TRANSLATE_METER_STAGE,
 	PdfTranslateMeterBar,
 } from "@/components/viewer/pdf/chrome/pdf-translate-meter";
+import { PdfTranslatePartialButton } from "@/components/viewer/pdf/chrome/pdf-translate-partial-button";
+import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
 import { cn } from "@/lib/core/utils";
 
@@ -17,13 +19,15 @@ type PdfTranslateProgressChipProps = {
 	layoutTranslateProgress?: number | null;
 	/** Pages done ÷ pages in the current stage, when the stage has a count. */
 	layoutTranslatePageCounts?: { done: number; total: number } | null;
+	layoutTranslatePartial?: PdfLayoutTranslatePartial | null;
 	onStop: () => void;
 };
 
 /**
  * Floating full-text translation meter for the dual-pane translation panel.
  * The panel owns the job but hides the source toolbar, so this keeps the same
- * stage / percentage feedback visible while the translation runs.
+ * stage / percentage feedback visible while the translation runs, and the
+ * shared recovery actions available after a partial run or cache hydrate.
  */
 export function PdfTranslateProgressChip({
 	layoutTranslateRunning,
@@ -31,6 +35,7 @@ export function PdfTranslateProgressChip({
 	layoutTranslateWaiting = false,
 	layoutTranslateProgress = null,
 	layoutTranslatePageCounts = null,
+	layoutTranslatePartial = null,
 	onStop,
 }: PdfTranslateProgressChipProps) {
 	const { t } = useTranslation("viewer");
@@ -51,7 +56,8 @@ export function PdfTranslateProgressChip({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 	});
-	if (!open) return null;
+	const showPartial = layoutTranslatePartial?.visible;
+	if (!open && !showPartial) return null;
 	const cancellable = layoutTranslateRunning || layoutTranslateWaiting;
 	const stopLabel = layoutTranslateWaiting
 		? t("pdf.layoutTranslate.waiting")
@@ -61,48 +67,62 @@ export function PdfTranslateProgressChip({
 		<div
 			data-pdf-chrome
 			className={cn(
-				"pointer-events-none absolute top-2 right-3 z-20 flex h-7 select-none items-center gap-1.5 rounded-lg pl-2.5",
-				cancellable || lingerFull ? "pr-0.5" : "pr-2.5",
+				"pointer-events-none absolute top-2 right-3 z-20 flex h-7 select-none items-center gap-1.5 rounded-lg",
+				open ? "pl-2.5" : "pl-0.5",
+				!open || cancellable || lingerFull ? "pr-0.5" : "pr-2.5",
 				PDF_CHROME_CHIP,
 			)}
 		>
-			<span
-				role="progressbar"
-				className="sr-only"
-				aria-label={stage}
-				aria-valuemin={0}
-				aria-valuemax={100}
-				aria-valuenow={indeterminate ? undefined : Math.round(ratio * 100)}
-			/>
-			<span aria-hidden className={PDF_TRANSLATE_METER_STAGE}>
-				{stage}
-			</span>
-			{pagesLabel && !retracting ? (
-				<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
-					{pagesLabel}
-				</span>
+			{showPartial ? (
+				<PdfTranslatePartialButton
+					partial={layoutTranslatePartial}
+					className="pointer-events-auto shrink-0"
+				/>
 			) : null}
-			{indeterminate || retracting ? null : (
-				<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
-					{percent}%
-				</span>
-			)}
-			{cancellable ? (
-				<Button
-					type="button"
-					size="icon-xs"
-					variant="ghost"
-					className="pointer-events-auto text-foreground"
-					aria-label={stopLabel}
-					title={stopLabel}
-					onClick={onStop}
-				>
-					<Square className="size-2.5 fill-current opacity-60" aria-hidden />
-				</Button>
-			) : lingerFull ? (
-				<Check className="size-3.5 text-foreground/70" aria-hidden />
+			{open ? (
+				<>
+					<span
+						role="progressbar"
+						className="sr-only"
+						aria-label={stage}
+						aria-valuemin={0}
+						aria-valuemax={100}
+						aria-valuenow={indeterminate ? undefined : Math.round(ratio * 100)}
+					/>
+					<span aria-hidden className={PDF_TRANSLATE_METER_STAGE}>
+						{stage}
+					</span>
+					{pagesLabel && !retracting ? (
+						<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
+							{pagesLabel}
+						</span>
+					) : null}
+					{indeterminate || retracting ? null : (
+						<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
+							{percent}%
+						</span>
+					)}
+					{cancellable ? (
+						<Button
+							type="button"
+							size="icon-xs"
+							variant="ghost"
+							className="pointer-events-auto text-foreground"
+							aria-label={stopLabel}
+							title={stopLabel}
+							onClick={onStop}
+						>
+							<Square
+								className="size-2.5 fill-current opacity-60"
+								aria-hidden
+							/>
+						</Button>
+					) : lingerFull ? (
+						<Check className="size-3.5 text-foreground/70" aria-hidden />
+					) : null}
+					<PdfTranslateMeterBar indeterminate={indeterminate} width={width} />
+				</>
 			) : null}
-			<PdfTranslateMeterBar indeterminate={indeterminate} width={width} />
 		</div>
 	);
 }
