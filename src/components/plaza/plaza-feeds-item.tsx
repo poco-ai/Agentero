@@ -69,8 +69,11 @@ export function PlazaFeedItemRow({
 					draggable
 					onDragStart={(event) => beginFeedItemDrag(event.dataTransfer, item)}
 					className={cn(
-						"group relative flex items-start gap-1 rounded-lg border bg-background p-2.5",
-						"transition-colors hover:border-foreground/20 hover:bg-muted/50",
+						"group relative flex items-start gap-2 rounded-xl p-3",
+						"transition-[background-color] duration-200 ease-out",
+						item.readAt
+							? "bg-muted/50 hover:bg-muted/70"
+							: "bg-muted hover:bg-accent",
 					)}
 				>
 					<button
@@ -137,7 +140,7 @@ export function PlazaFeedItemRow({
 										type="button"
 										variant="ghost"
 										size="icon-sm"
-										className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+										className="opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 focus-visible:opacity-100"
 										aria-label={t("plaza.feeds.openOriginal")}
 										onClick={(event) => {
 											event.stopPropagation();
@@ -225,7 +228,7 @@ export function PlazaFeedItemDetail({
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<div className="flex shrink-0 select-none items-center gap-1 border-b px-2 py-1.5">
+			<div className="flex shrink-0 select-none items-center gap-1 px-2.5 py-2">
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
@@ -240,11 +243,29 @@ export function PlazaFeedItemDetail({
 					</TooltipTrigger>
 					<TooltipContent>{t("plaza.feeds.back")}</TooltipContent>
 				</Tooltip>
-				<span className="min-w-0 flex-1 truncate text-muted-foreground text-xs">
-					{[hideSource ? null : item.subscriptionTitle, when]
-						.filter(Boolean)
-						.join(" · ")}
-				</span>
+				<div className="flex min-w-0 flex-1 items-center gap-1">
+					<span className="min-w-0 truncate text-muted-foreground text-xs tracking-[0.01em]">
+						{[hideSource ? null : item.subscriptionTitle, when]
+							.filter(Boolean)
+							.join(" · ")}
+					</span>
+					{href ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon-sm"
+									aria-label={t("plaza.feeds.openOriginal")}
+									onClick={() => openExternalUrl(href)}
+								>
+									<ExternalLink className="size-3.5" aria-hidden />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>{t("plaza.feeds.openOriginal")}</TooltipContent>
+						</Tooltip>
+					) : null}
+				</div>
 				<FeedReadButton item={item} onClick={onToggleRead} />
 				{resolving ? (
 					<Loader2
@@ -266,22 +287,6 @@ export function PlazaFeedItemDetail({
 					</TooltipTrigger>
 					<TooltipContent>{t("plaza.feeds.addToChat")}</TooltipContent>
 				</Tooltip>
-				{href ? (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								aria-label={t("plaza.feeds.openOriginal")}
-								onClick={() => openExternalUrl(href)}
-							>
-								<ExternalLink className="size-3.5" aria-hidden />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>{t("plaza.feeds.openOriginal")}</TooltipContent>
-					</Tooltip>
-				) : null}
 				{canImport ? (
 					imported ? (
 						<span className="inline-flex items-center gap-0.5 pr-1 text-muted-foreground text-xs">
@@ -320,10 +325,10 @@ export function PlazaFeedItemDetail({
 					surface: "feed",
 				}}
 				autoCopy
-				className="agentero-scroll min-h-0 flex-1 select-text overflow-y-auto px-5 py-4"
+				className="agentero-scroll min-h-0 flex-1 select-text overflow-y-auto px-6 py-5"
 			>
 				{markdown ? (
-					<MessageResponse className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed [&_h1]:mt-0 [&_h1]:mb-3 [&_h1]:font-medium [&_h1]:text-base [&_h1]:leading-snug">
+					<MessageResponse className="prose prose-sm dark:prose-invert mx-auto max-w-[68ch] text-sm leading-relaxed [&_h1]:mt-0 [&_h1]:mb-3 [&_h1]:font-medium [&_h1]:text-base [&_h1]:leading-snug">
 						{markdown}
 					</MessageResponse>
 				) : null}

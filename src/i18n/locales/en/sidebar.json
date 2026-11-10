@@ -300,6 +300,7 @@
 				"opFailed": "The feed operation failed."
 			},
 			"hideRead": "Hide read items",
+			"hideReadShort": "Hide read",
 			"emptyUnread": "No unread items.",
 			"read": "Read",
 			"unread": "Unread",

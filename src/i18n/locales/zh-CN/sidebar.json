@@ -300,6 +300,7 @@
 				"opFailed": "订阅源操作失败。"
 			},
 			"hideRead": "隐藏已读",
+			"hideReadShort": "隐藏已读",
 			"emptyUnread": "没有未读条目。",
 			"read": "已读",
 			"unread": "未读",

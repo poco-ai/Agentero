@@ -6,7 +6,15 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { TFunction } from "i18next";
-import { EllipsisVertical, EyeOff, Pin, Plus, RefreshCw } from "lucide-react";
+import {
+	EllipsisVertical,
+	EyeOff,
+	Inbox,
+	Pin,
+	Plus,
+	RefreshCw,
+	Rss,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -210,7 +218,7 @@ function AddForm({
 					<TooltipTrigger asChild>
 						<Button
 							type="submit"
-							size="icon-sm"
+							size="icon"
 							disabled={busy || !url.trim()}
 							aria-label={t("plaza.feeds.add")}
 						>
@@ -225,7 +233,7 @@ function AddForm({
 							<Button
 								type="button"
 								variant="ghost"
-								size="icon-sm"
+								size="icon"
 								disabled={refreshing}
 								aria-label={t("plaza.feeds.refresh")}
 								onClick={onRefresh}
@@ -550,22 +558,12 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 
 	return (
 		<div className={cn("flex h-full min-h-0 flex-col", className)}>
-			{hasSubs && !openItem ? (
-				<div className="shrink-0 border-b px-4 py-3">
-					<AddForm
-						busy={busy}
-						refreshing={refreshing}
-						onAdd={(url) => void onAdd(url)}
-						onRefresh={() => void onRefresh()}
-						showRefresh
-						showChips={false}
-					/>
-				</div>
-			) : null}
-
 			{!hasSubs ? (
 				<div className="flex flex-1 flex-col items-center justify-center p-6">
-					<div className="w-full max-w-md space-y-3">
+					<div className="w-full max-w-md space-y-4 animate-in fade-in-0 duration-200">
+						<div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground">
+							<Rss className="size-5" aria-hidden />
+						</div>
 						<p className="text-center font-medium text-sm">
 							{t("plaza.feeds.emptyTitle")}
 						</p>
@@ -584,8 +582,55 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 				</div>
 			) : (
 				<div className="flex min-h-0 min-w-0 flex-1">
-					<nav className="flex w-52 shrink-0 select-none flex-col border-r">
-						<div className="agentero-scroll min-h-0 flex-1 overflow-y-auto p-2">
+					<nav className="flex w-52 shrink-0 select-none flex-col gap-2 bg-muted/50 p-2">
+						<AddForm
+							busy={busy}
+							refreshing={refreshing}
+							onAdd={(url) => void onAdd(url)}
+							onRefresh={() => void onRefresh()}
+							showRefresh={false}
+							showChips={false}
+						/>
+						<div className="grid shrink-0 grid-cols-2 gap-1.5">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="w-full min-w-0 bg-foreground/5 hover:bg-foreground/10"
+								disabled={refreshing}
+								onClick={() => void onRefresh()}
+							>
+								<RefreshCw
+									data-icon="inline-start"
+									className={cn(refreshing && "animate-spin")}
+									aria-hidden
+								/>
+								<span className="min-w-0 truncate">
+									{t("plaza.feeds.refresh")}
+								</span>
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								aria-pressed={hideRead}
+								className={cn(
+									"w-full min-w-0 bg-foreground/5 hover:bg-foreground/10",
+									hideRead && "bg-foreground/10 text-foreground",
+								)}
+								onClick={() => {
+									hideReadRef.current = !hideRead;
+									setHideRead(!hideRead);
+									void loadItems(selectedId, false);
+								}}
+							>
+								<EyeOff data-icon="inline-start" aria-hidden />
+								<span className="min-w-0 truncate">
+									{t("plaza.feeds.hideReadShort")}
+								</span>
+							</Button>
+						</div>
+						<div className="agentero-scroll min-h-0 flex-1 space-y-0.5 overflow-y-auto">
 							<button
 								type="button"
 								onClick={() => {
@@ -593,17 +638,18 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 									void loadItems(null);
 								}}
 								className={cn(
-									"flex w-full rounded-md px-2 py-1.5 text-left text-sm",
+									"flex w-full rounded-lg px-2.5 py-1.5 text-left text-sm",
+									"transition-colors duration-150 ease-out",
 									"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 									selectedId === null
-										? "bg-muted text-foreground"
-										: "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+										? "bg-foreground/10 text-foreground"
+										: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
 								)}
 							>
 								{t("plaza.feeds.all")}
 							</button>
 							{subs.map((sub) => (
-								<div key={sub.id} className="group/feed relative mt-0.5">
+								<div key={sub.id} className="group/feed relative">
 									<button
 										type="button"
 										onClick={() => {
@@ -614,11 +660,12 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 											openFeedSubMenu(sub, event, setSubMenu)
 										}
 										className={cn(
-											"flex w-full flex-col rounded-md py-1.5 pr-7 pl-2 text-left",
+											"flex w-full flex-col rounded-lg py-1.5 pr-7 pl-2.5 text-left",
+											"transition-colors duration-150 ease-out",
 											"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 											selectedId === sub.id
-												? "bg-muted text-foreground"
-												: "hover:bg-muted/60",
+												? "bg-foreground/10 text-foreground"
+												: "hover:bg-foreground/5",
 										)}
 									>
 										<span className="flex min-w-0 items-center gap-1">
@@ -642,7 +689,7 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 												type="button"
 												variant="ghost"
 												size="icon-sm"
-												className="absolute top-1 right-0.5 size-6 opacity-0 group-hover/feed:opacity-100 focus-visible:opacity-100"
+												className="absolute top-1/2 right-0.5 size-6 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover/feed:opacity-100 focus-visible:opacity-100"
 												aria-label={t("plaza.feeds.more")}
 												onClick={(event) => {
 													event.stopPropagation();
@@ -665,31 +712,6 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 						</div>
 					</nav>
 					<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-						{openItem ? null : (
-							<div className="flex shrink-0 justify-end border-b px-2 py-1">
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon-sm"
-											aria-pressed={hideRead}
-											className={cn(
-												hideRead && "bg-accent text-accent-foreground",
-											)}
-											aria-label={t("plaza.feeds.hideRead")}
-											onClick={() => {
-												hideReadRef.current = !hideRead;
-												setHideRead(!hideRead);
-												void loadItems(selectedId, false);
-											}}
-										>
-											<EyeOff className="size-3.5" aria-hidden />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent>{t("plaza.feeds.hideRead")}</TooltipContent>
-								</Tooltip>
-							</div>
-						)}
 						{openItem ? (
 							<PlazaFeedItemDetail
 								item={openItem}
@@ -704,19 +726,25 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 								onResolved={applyItem}
 							/>
 						) : emptyItems ? (
-							<div className="flex flex-1 items-center justify-center p-6 text-center text-muted-foreground text-sm">
-								{selected?.lastError
-									? formatHostError(selected.lastError, t)
-									: t(
-											hideRead
-												? "plaza.feeds.emptyUnread"
-												: "plaza.feeds.emptyItems",
-										)}
+							<div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+								<Inbox
+									className="size-5 text-muted-foreground/60"
+									aria-hidden
+								/>
+								<p className="text-muted-foreground text-sm">
+									{selected?.lastError
+										? formatHostError(selected.lastError, t)
+										: t(
+												hideRead
+													? "plaza.feeds.emptyUnread"
+													: "plaza.feeds.emptyItems",
+											)}
+								</p>
 							</div>
 						) : (
 							<div
 								ref={listRef}
-								className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-3 py-2"
+								className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-3 pt-2 pb-3"
 							>
 								<div
 									className="relative w-full"
