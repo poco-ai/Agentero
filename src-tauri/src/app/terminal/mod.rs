@@ -1,9 +1,19 @@
 //! Open the system default terminal at a local path, or with a confirm-then-run command.
 
 use crate::core::error::AppError;
+use crate::core::process::SanitizeAppImageEnv;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+/// Terminal launchers inherit the Host environment, including any loader paths
+/// an AppImage injected. Strip them so a node/npm started in the new terminal
+/// loads the distribution's libraries (#1002).
+fn sanitized_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    command.sanitize_appimage_env();
+    command
+}
 
 #[cfg(all(unix, not(target_os = "macos")))]
 type TerminalCommandFactory = fn(&str) -> Command;
@@ -276,7 +286,7 @@ echo "You can close this window."
     #[cfg(target_os = "macos")]
     {
         let apple = format!("tell application \"Terminal\" to do script \"bash '{script}'\"");
-        let status = Command::new("osascript")
+        let status = sanitized_command("osascript")
             .arg("-e")
             .arg(&apple)
             .status()
@@ -286,7 +296,7 @@ echo "You can close this window."
                 "failed to open Terminal (exit {status})"
             )));
         }
-        let _ = Command::new("osascript")
+        let _ = sanitized_command("osascript")
             .args(["-e", "tell application \"Terminal\" to activate"])
             .status();
         return Ok(());
@@ -295,7 +305,7 @@ echo "You can close this window."
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         let bash_cmd = format!("bash '{script}'; exec bash");
-        if Command::new("xdg-terminal-exec")
+        if sanitized_command("xdg-terminal-exec")
             .args(["bash", "-lc", &bash_cmd])
             .spawn()
             .is_ok()
@@ -304,7 +314,7 @@ echo "You can close this window."
         }
         if let Ok(term) = std::env::var("TERMINAL") {
             if !term.is_empty()
-                && Command::new(&term)
+                && sanitized_command(&term)
                     .args(["-e", "bash", "-lc", &bash_cmd])
                     .spawn()
                     .is_ok()
@@ -334,7 +344,7 @@ fn open_terminal_command_unix(
     {
         // Terminal.app: run the script in a new window.
         let apple = format!("tell application \"Terminal\" to do script \"bash '{script}'\"");
-        let status = Command::new("osascript")
+        let status = sanitized_command("osascript")
             .arg("-e")
             .arg(&apple)
             .status()
@@ -345,7 +355,7 @@ fn open_terminal_command_unix(
             )));
         }
         // Bring Terminal to front.
-        let _ = Command::new("osascript")
+        let _ = sanitized_command("osascript")
             .args(["-e", "tell application \"Terminal\" to activate"])
             .status();
         return Ok(());
@@ -354,7 +364,7 @@ fn open_terminal_command_unix(
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         let bash_cmd = format!("bash '{script}'; exec bash");
-        if Command::new("xdg-terminal-exec")
+        if sanitized_command("xdg-terminal-exec")
             .args(["bash", "-lc", &bash_cmd])
             .spawn()
             .is_ok()
@@ -363,7 +373,7 @@ fn open_terminal_command_unix(
         }
         if let Ok(term) = std::env::var("TERMINAL") {
             if !term.is_empty()
-                && Command::new(&term)
+                && sanitized_command(&term)
                     .args(["-e", "bash", "-lc", &bash_cmd])
                     .spawn()
                     .is_ok()
@@ -373,32 +383,32 @@ fn open_terminal_command_unix(
         }
         let candidates: &[(&str, TerminalCommandFactory)] = &[
             ("gnome-terminal", |c| {
-                let mut cmd = Command::new("gnome-terminal");
+                let mut cmd = sanitized_command("gnome-terminal");
                 cmd.args(["--", "bash", "-lc", c]);
                 cmd
             }),
             ("konsole", |c| {
-                let mut cmd = Command::new("konsole");
+                let mut cmd = sanitized_command("konsole");
                 cmd.args(["-e", "bash", "-lc", c]);
                 cmd
             }),
             ("xfce4-terminal", |c| {
-                let mut cmd = Command::new("xfce4-terminal");
+                let mut cmd = sanitized_command("xfce4-terminal");
                 cmd.args(["-e", &format!("bash -lc {c:?}")]);
                 cmd
             }),
             ("alacritty", |c| {
-                let mut cmd = Command::new("alacritty");
+                let mut cmd = sanitized_command("alacritty");
                 cmd.args(["-e", "bash", "-lc", c]);
                 cmd
             }),
             ("kitty", |c| {
-                let mut cmd = Command::new("kitty");
+                let mut cmd = sanitized_command("kitty");
                 cmd.args(["bash", "-lc", c]);
                 cmd
             }),
             ("x-terminal-emulator", |c| {
-                let mut cmd = Command::new("x-terminal-emulator");
+                let mut cmd = sanitized_command("x-terminal-emulator");
                 cmd.args(["-e", "bash", "-lc", c]);
                 cmd
             }),
@@ -538,7 +548,7 @@ pause\r\n"
         .filter(|p| !p.trim().is_empty())
         .unwrap_or_else(|| dir.display().to_string());
 
-    if Command::new("wt")
+    if sanitized_command("wt")
         .arg("-d")
         .arg(&start_dir)
         .args(["cmd", "/K"])
@@ -548,7 +558,7 @@ pause\r\n"
     {
         return Ok(());
     }
-    Command::new("cmd")
+    sanitized_command("cmd")
         .args(["/C", "start", "", "cmd", "/K"])
         .arg(&path)
         .spawn()
@@ -560,7 +570,7 @@ pause\r\n"
 fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
     // Terminal.app is the system default terminal on macOS.
     // `open -a Terminal <dir>` opens a new window with that directory as cwd.
-    let status = Command::new("open")
+    let status = sanitized_command("open")
         .args(["-a", "Terminal"])
         .arg(cwd)
         .status()
@@ -576,7 +586,12 @@ fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
 #[cfg(target_os = "windows")]
 fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
     // Prefer Windows Terminal when available (often the system default on Win11).
-    if Command::new("wt.exe").arg("-d").arg(cwd).spawn().is_ok() {
+    if sanitized_command("wt.exe")
+        .arg("-d")
+        .arg(cwd)
+        .spawn()
+        .is_ok()
+    {
         return Ok(());
     }
     let status = cmd_terminal_command(cwd)
@@ -595,7 +610,7 @@ fn cmd_terminal_command(cwd: &Path) -> Command {
     // `start` gives the interactive shell its own console handles. Directly
     // spawning cmd with CREATE_NEW_CONSOLE can inherit closed/redirected stdin
     // from the desktop app and exit immediately. Never put the path in script.
-    let mut command = Command::new("cmd.exe");
+    let mut command = sanitized_command("cmd.exe");
     command
         .args(["/D", "/C", "start", "", "cmd.exe", "/D"])
         .current_dir(cwd);
@@ -607,7 +622,7 @@ fn cmd_terminal_command(cwd: &Path) -> Command {
 #[cfg(all(unix, not(target_os = "macos")))]
 fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
     // FreeDesktop default terminal launcher (when installed).
-    if Command::new("xdg-terminal-exec")
+    if sanitized_command("xdg-terminal-exec")
         .current_dir(cwd)
         .spawn()
         .is_ok()
@@ -617,7 +632,7 @@ fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
 
     // $TERMINAL if the user set it.
     if let Ok(term) = std::env::var("TERMINAL") {
-        if !term.is_empty() && Command::new(&term).current_dir(cwd).spawn().is_ok() {
+        if !term.is_empty() && sanitized_command(&term).current_dir(cwd).spawn().is_ok() {
             return Ok(());
         }
     }
@@ -633,7 +648,7 @@ fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
         ("kitty", &["--directory"]),
     ];
     for (bin, flag) in candidates {
-        let mut cmd = Command::new(bin);
+        let mut cmd = sanitized_command(bin);
         if flag.len() == 1 {
             cmd.arg(flag[0]).arg(cwd);
         }
@@ -643,7 +658,7 @@ fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
     }
 
     // Debian/Ubuntu alternative; cwd via process current_dir when supported.
-    if Command::new("x-terminal-emulator")
+    if sanitized_command("x-terminal-emulator")
         .current_dir(cwd)
         .spawn()
         .is_ok()

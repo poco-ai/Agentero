@@ -28,6 +28,9 @@ export type NodeDependentEntry = Pick<
 export type HostNodeGap = {
 	nodeMissing: boolean;
 	npmMissing: boolean;
+	/** Located on PATH but `--version` failed (e.g. loader conflict, #1002). */
+	nodeUnusable: boolean;
+	npmUnusable: boolean;
 };
 
 /** Host CLIs whose install/update is `npm i -g …` on every platform. */
@@ -82,6 +85,14 @@ export function isLifecycleNodeBlocked(
 	action: ToolLifecycleAction,
 	host: HostNodeGap | null,
 ): boolean {
-	if (!host || (!host.nodeMissing && !host.npmMissing)) return false;
+	if (
+		!host ||
+		(!host.nodeMissing &&
+			!host.npmMissing &&
+			!host.nodeUnusable &&
+			!host.npmUnusable)
+	) {
+		return false;
+	}
 	return lifecycleNeedsNode(entry, action);
 }

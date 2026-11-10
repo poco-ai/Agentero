@@ -248,6 +248,11 @@ pub(crate) fn build_child_env(
         child_env.insert("PATH".to_string(), path.to_string_lossy().to_string());
     }
 
+    // AppImage's loader overrides make a host Node load the bundle's older
+    // libraries and die before ACP starts (#1002). Done after merging so the
+    // login shell cannot reintroduce them.
+    crate::core::process::strip_appimage_library_env(&mut child_env);
+
     child_env
 }
 
@@ -1329,5 +1334,31 @@ mod cwd_shell_wrap_tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn build_child_env_drops_appimage_loader_overrides() {
+        let process_env = vec![
+            ("APPDIR".to_string(), "/tmp/.mount_Agentero".to_string()),
+            (
+                "LD_LIBRARY_PATH".to_string(),
+                "/tmp/.mount_Agentero/usr/lib".to_string(),
+            ),
+            (
+                "LD_PRELOAD".to_string(),
+                "/tmp/.mount_Agentero/lib.so".to_string(),
+            ),
+        ]
+        .into_iter();
+        let mut shell_env = HashMap::new();
+        shell_env.insert(
+            "LD_LIBRARY_PATH".to_string(),
+            "/tmp/.mount_Agentero/shell/lib".to_string(),
+        );
+
+        let env = build_child_env(process_env, Some(&shell_env), &HashMap::new());
+
+        assert!(!env.contains_key("LD_LIBRARY_PATH"));
+        assert!(!env.contains_key("LD_PRELOAD"));
     }
 }

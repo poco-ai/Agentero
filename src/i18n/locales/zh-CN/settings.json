@@ -361,9 +361,13 @@
 			"title": "需要 Node.js",
 			"npmTitle": "需要 npm",
 			"description": "ACP 适配器与 npm 安装的 Agent 依赖 Node.js（安装 Node.js 会一并安装 npm），安装后重试即可。",
+			"unusableTitle": "Node.js 无法运行",
+			"npmUnusableTitle": "npm 无法运行",
+			"unusableDescription": "Agentero 找到了 Node.js，但无法启动它。请在问题诊断中查看错误详情（库路径冲突是常见原因），然后重试。",
 			"diagnostics": "问题诊断"
 		},
 		"nodeRequired": "该 Agent 操作需要 Node.js，请先安装 Node.js 再重试。",
+		"nodeUnusable": "该 Agent 操作需要可运行的 Node.js。请在问题诊断中查看错误详情后重试。",
 		"desktopApps": {
 			"section": "本地桌面应用",
 			"hint": "这些桌面应用本身不支持 ACP；Agentero 会用它们自带的 CLI（ChatGPT 的 Codex、WorkBuddy 的 CodeBuddy 等）作为 Agent 接入。",
@@ -419,6 +423,7 @@
 			"agentInstalled": "Agent 已安装",
 			"agentMissing": "无 Agent",
 			"acpMissing": "无 ACP",
+			"acpNodeBlocker": "Node 无法运行",
 			"acpBundled": "内置",
 			"acpBundledTitle": "内置 ACP 适配器 {{version}} —— 仅在 PATH 无适配器时启用（PATH 安装优先；内置版本随应用发版更新）。",
 			"desktopBundled": "桌面内置",

@@ -77,8 +77,11 @@ export function DoctorHostRuntimeSection({
 	const [installing, setInstalling] = useState(false);
 	const [installNotice, setInstallNotice] = useState<string | null>(null);
 
-	const nodeMissing = report ? report.node.status !== "available" : false;
-	const npmMissing = report ? report.npm.status !== "available" : false;
+	// "unusable" means a binary was found but cannot start (e.g. an AppImage
+	// loader conflict); installing another copy cannot fix it. Keep the row
+	// focused on the reported error instead of offering an install (#1002).
+	const nodeMissing = report ? report.node.status === "missing" : false;
+	const npmMissing = report ? report.npm.status === "missing" : false;
 	const showInstall = nodeMissing || npmMissing || installNotice !== null;
 
 	const handleInstall = async () => {

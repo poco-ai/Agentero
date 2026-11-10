@@ -8,6 +8,7 @@
 use crate::core::http::effective_proxy_url;
 use crate::core::paths::mcp_tunnel_dir;
 use crate::core::process::discover::resolve_command;
+use crate::core::process::SanitizeAppImageEnv;
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -383,6 +384,7 @@ impl McpTunnelController {
         if let Some(url) = proxy.as_deref() {
             cmd.env("AGENTERO_TUNNEL_PROXY", url);
         }
+        cmd.sanitize_appimage_env();
         crate::core::process::hide_console_window_tokio(&mut cmd);
 
         let child = match crate::core::process::ProcessTree::spawn(&mut cmd) {
@@ -659,6 +661,7 @@ async fn probe_ready(binary: &Path, url_file: &Path, pid: u32) -> (bool, Option<
     }
     let mut cmd = Command::new(binary);
     cmd.args(health_args(url_file, pid)).stdin(Stdio::null());
+    cmd.sanitize_appimage_env();
     // `tunnel-client` is a console binary on Windows; without this flag every
     // keepalive probe flashes a console window on the GUI host.
     crate::core::process::hide_console_window_tokio(&mut cmd);

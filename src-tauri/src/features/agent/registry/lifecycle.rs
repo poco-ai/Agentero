@@ -4,6 +4,7 @@
 //! npm fallback; login-shell PATH for GUI apps; no `curl | bash` pipes).
 //! Scoped to Motif catalog templates.
 
+use crate::core::process::SanitizeAppImageEnv;
 use crate::features::agent::registry::discovery::{login_shell_env, path_entries, resolve_command};
 use crate::features::agent::registry::templates::{
     kimi_launcher_dir, template_info, zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND,
@@ -1319,6 +1320,9 @@ fn run_tool_lifecycle_silently(
         if let Ok(path) = std::env::join_paths(&merged_paths) {
             cmd.env("PATH", path);
         }
+        // Installers run npm/node; the AppImage's bundled libraries must not
+        // shadow the distro's when those child processes start (#1002).
+        cmd.sanitize_appimage_env();
         let output = run_command_with_cancellation(cmd, app, task_id, phase);
         crate::core::process::discover::invalidate_login_shell_env();
         let output = output.map_err(format_lifecycle_process_error)?;
@@ -1336,6 +1340,7 @@ fn run_tool_lifecycle_silently(
             .arg("/C")
             .arg(&bat_file)
             .env("PATH", merged_path);
+        cmd.sanitize_appimage_env();
         crate::core::process::hide_console_window(&mut cmd);
         apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
         apply_npm_cache_env(&mut cmd, effective_npm_cache_dir().as_deref());

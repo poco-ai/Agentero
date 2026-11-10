@@ -1,3 +1,5 @@
+#[cfg(not(windows))]
+use super::SanitizeAppImageEnv;
 use crate::install_dirs;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -267,10 +269,12 @@ fn login_shell_env_snapshot(refresh: bool) -> Option<Arc<HashMap<String, String>
 #[cfg(not(windows))]
 fn read_login_shell_env() -> Option<HashMap<String, String>> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-    let output = std::process::Command::new(&shell)
-        .args(["-lic", "env -0"])
-        .output()
-        .ok()?;
+    let mut command = std::process::Command::new(&shell);
+    command.args(["-lic", "env -0"]);
+    // Snapshot the user's shell environment, not the AppImage mount paths the
+    // runtime injected into this process (#1002).
+    command.sanitize_appimage_env();
+    let output = command.output().ok()?;
     if !output.status.success() {
         return None;
     }

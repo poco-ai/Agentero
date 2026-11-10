@@ -361,9 +361,13 @@
 			"title": "Node.js is required",
 			"npmTitle": "npm is required",
 			"description": "ACP adapters and npm-based Agent installs need Node.js (npm ships with it). Install it, then retry.",
+			"unusableTitle": "Node.js cannot run",
+			"npmUnusableTitle": "npm cannot run",
+			"unusableDescription": "Agentero found Node.js but could not start it. Open Diagnostics for the error details (a library-path conflict is a common cause), then retry.",
 			"diagnostics": "Diagnostics"
 		},
 		"nodeRequired": "This Agent action needs Node.js. Install Node.js, then retry.",
+		"nodeUnusable": "This Agent action needs a working Node.js. Open Diagnostics for the error details, then retry.",
 		"desktopApps": {
 			"section": "Local desktop apps",
 			"hint": "These desktop apps don't speak ACP themselves — Agentero connects through the CLI they bundle (Codex in ChatGPT, CodeBuddy in WorkBuddy, …).",
@@ -419,6 +423,7 @@
 			"agentInstalled": "Agent installed",
 			"agentMissing": "No agent",
 			"acpMissing": "No ACP",
+			"acpNodeBlocker": "Node unavailable",
 			"acpBundled": "Built-in",
 			"acpBundledTitle": "Bundled ACP adapter {{version}} — used only when no adapter is on PATH (a PATH install always wins; the bundled one moves with app releases).",
 			"desktopBundled": "Desktop‑bundled",

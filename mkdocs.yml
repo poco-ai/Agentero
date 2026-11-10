@@ -127,6 +127,7 @@ nav:
       - 远程 Vault 文件树懒加载: bug_fix/remote-vault-tree-lazy.md
       - Codex 历史恢复误用 session id: bug_fix/codex-history-runtime-session-id.md
       - 导入 PDF 无法生成 PAPER.md: bug_fix/local-pdf-parse-missing-pdfium.md
+      - AppImage 库路径泄漏导致 Node 无法运行: bug_fix/appimage-ld-library-path-leak.md
       - Windows 启动与问题诊断弹出黑色控制台窗口: bug_fix/windows-console-window-flash.md
       - "笔记正文 < 比较符截断后续内容（#533）": bug_fix/note-markdown-stray-less-than.md
       - "笔记正文花括号截断后续内容（MDX 表达式）": bug_fix/note-markdown-mdx-brace-truncation.md

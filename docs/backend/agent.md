@@ -53,6 +53,12 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `OPENAI_BASE_URL` 等变量；`AgentDescriptor.env` 优先级最高，可覆盖 shell 值（#478）。
   ACP、命令探测和安装器共用 core 的 shell 环境快照；安装前刷新，安装结束（含失败/取消）后失效，
   下次启动重新读取安装器可能修改的 PATH。快照不写入日志。
+- **AppImage 环境清理**：Linux AppImage 会给自身注入 `LD_LIBRARY_PATH` /
+  `LD_PRELOAD`，直接传给外部 Node/npm 会让它们加载 AppImage 内的旧库并启动失败。
+  `agentero-core::process` 提供 `strip_appimage_library_env` 与 `SanitizeAppImageEnv`，
+  在 ACP、Doctor、lifecycle、MCP tunnel、终端和 Node 探测的启动路径统一剥离；
+  非 AppImage 安装保留用户自己的 loader 变量。见
+  [复盘](../bug_fix/appimage-ld-library-path-leak.md)。
 - 统一接口：OpenCode、Hermes、Claude ACP、Codex ACP、Cursor Agent、Antigravity ACP、Qoder、Qoder CN、Grok、Pi、Dsh（DeepSeek Harness）、Kimi Code、ZCode、MiniMax Code、MiMo Code、CodeBuddy、自定义 `command`/`args`/`env`。自定义项不探测安装器，保存后按同一 stdio 路径拉起；前端把参数字符串按空白拆开。设置表单用 `agent.form.hint` 说明这一约定。
 - Dsh：umbrella CLI `@deepseek-ai/dsh`（npm，需 0.1.2+）内置 ACP profile——
   `dsh --profile acp` 以 ACP stdio 服务，首次启动从内置模板自动初始化 profile

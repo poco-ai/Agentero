@@ -164,6 +164,8 @@ export function AgentPane({
 			<AgentNodeNotice
 				nodeMissing={lifecycle.hostNode.nodeMissing}
 				npmMissing={lifecycle.hostNode.npmMissing}
+				nodeUnusable={lifecycle.hostNode.nodeUnusable}
+				npmUnusable={lifecycle.hostNode.npmUnusable}
 				installing={lifecycle.hostNode.installing}
 				onInstall={() => void lifecycle.hostNode.installNode()}
 				onOpenDiagnostics={onOpenDiagnostics}

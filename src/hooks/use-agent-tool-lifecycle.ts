@@ -111,17 +111,22 @@ export function useAgentToolLifecycle(opts: {
 			// guide the user to install it instead of failing silently in the
 			// background task. Wait for the mount probe so a click that lands
 			// before its first result cannot bypass this guard.
-			if (
-				lifecycleNeedsNode(entry, action) &&
-				isLifecycleNodeBlocked(entry, action, await checkNodeGap())
-			) {
-				const message = t("agent.nodeRequired");
+			const needsNode = lifecycleNeedsNode(entry, action);
+			const nodeGap = needsNode ? await checkNodeGap() : null;
+			if (needsNode && isLifecycleNodeBlocked(entry, action, nodeGap)) {
+				const canInstall =
+					nodeGap?.nodeMissing === true || nodeGap?.npmMissing === true;
+				const message = canInstall
+					? t("agent.nodeRequired")
+					: t("agent.nodeUnusable");
 				onError?.(message);
 				notifyError(message, {
-					action: {
-						label: t("doctor.host.install.button"),
-						onClick: installNode,
-					},
+					action: canInstall
+						? {
+								label: t("doctor.host.install.button"),
+								onClick: installNode,
+							}
+						: undefined,
 				});
 				return false;
 			}

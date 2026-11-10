@@ -6,6 +6,61 @@ mod windows_job;
 
 pub use discover::{path_entries, probe_command, resolve_command, resolve_command_in_paths};
 
+/// Library-loader variables an AppImage runtime injects so its bundled libraries
+/// shadow the host's. Forwarding them to external tools makes a distro `node`
+/// load the AppImage's older libffi/libbrotli and abort at startup (#1002).
+pub const APPIMAGE_LIBRARY_ENV: [&str; 2] = ["LD_LIBRARY_PATH", "LD_PRELOAD"];
+
+fn appimage_marker_present(mut has: impl FnMut(&str) -> bool) -> bool {
+    // The AppImage runtime sets both for the mounted application. Native
+    // packages leave them unset, so a user's own loader overrides stay intact.
+    has("APPIMAGE") || has("APPDIR")
+}
+
+pub fn running_in_appimage() -> bool {
+    appimage_marker_present(|key| std::env::var_os(key).is_some())
+}
+
+/// Remove loader overrides leaked by the AppImage runtime from a child env map.
+pub fn strip_appimage_library_env(env: &mut std::collections::HashMap<String, String>) {
+    if !appimage_marker_present(|key| env.contains_key(key)) {
+        return;
+    }
+    for key in APPIMAGE_LIBRARY_ENV {
+        env.remove(key);
+    }
+}
+
+/// Drop loader overrides before a command inherits the Host environment.
+///
+/// Implemented for both `std` and `tokio` commands because agents, installers
+/// and terminals spawn through both.
+pub trait SanitizeAppImageEnv {
+    fn sanitize_appimage_env(&mut self) -> &mut Self;
+}
+
+impl SanitizeAppImageEnv for std::process::Command {
+    fn sanitize_appimage_env(&mut self) -> &mut Self {
+        if running_in_appimage() {
+            for key in APPIMAGE_LIBRARY_ENV {
+                self.env_remove(key);
+            }
+        }
+        self
+    }
+}
+
+impl SanitizeAppImageEnv for tokio::process::Command {
+    fn sanitize_appimage_env(&mut self) -> &mut Self {
+        if running_in_appimage() {
+            for key in APPIMAGE_LIBRARY_ENV {
+                self.env_remove(key);
+            }
+        }
+        self
+    }
+}
+
 /// Capture a prepared command's output and own its process tree until the
 /// future completes. Dropping it (timeout or cancellation) kills Windows
 /// descendants too; `kill_on_drop` alone only kills the directly spawned process.
@@ -256,6 +311,43 @@ mod tests {
         assert_eq!(
             windows_shell_path(std::path::Path::new("/home/user/vault")),
             std::path::Path::new("/home/user/vault")
+        );
+    }
+
+    #[test]
+    fn strip_appimage_library_env_only_touches_appimage_children() {
+        let mut appimage = std::collections::HashMap::from([
+            (
+                "APPIMAGE".to_string(),
+                "/home/me/Agentero.AppImage".to_string(),
+            ),
+            (
+                "LD_LIBRARY_PATH".to_string(),
+                "/tmp/.mount_Agent/usrs/lib".to_string(),
+            ),
+            (
+                "LD_PRELOAD".to_string(),
+                "/tmp/.mount_Agent/lib.so".to_string(),
+            ),
+            ("PATH".to_string(), "/usr/bin".to_string()),
+        ]);
+        strip_appimage_library_env(&mut appimage);
+        assert!(!appimage.contains_key("LD_LIBRARY_PATH"));
+        assert!(!appimage.contains_key("LD_PRELOAD"));
+        assert_eq!(appimage.get("PATH").map(String::as_str), Some("/usr/bin"));
+
+        let mut native = std::collections::HashMap::from([
+            ("LD_LIBRARY_PATH".to_string(), "/opt/cuda/lib".to_string()),
+            ("LD_PRELOAD".to_string(), "/opt/lib.so".to_string()),
+        ]);
+        strip_appimage_library_env(&mut native);
+        assert_eq!(
+            native.get("LD_LIBRARY_PATH").map(String::as_str),
+            Some("/opt/cuda/lib")
+        );
+        assert_eq!(
+            native.get("LD_PRELOAD").map(String::as_str),
+            Some("/opt/lib.so")
         );
     }
 }

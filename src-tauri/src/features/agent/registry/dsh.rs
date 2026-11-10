@@ -1,4 +1,5 @@
 //! Launch the Windows npm Dsh CLI without a shim's stale adjacent Node.
+use crate::core::process::SanitizeAppImageEnv;
 use std::path::{Component, Path, PathBuf};
 
 /// Only recognize the official npm layout. Desktop/custom launchers keep their
@@ -75,6 +76,7 @@ fn compatible_node(node: &Path) -> bool {
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    command.sanitize_appimage_env();
     crate::core::process::hide_console_window(&mut command);
     let Ok(mut child) = command.spawn() else {
         return false;

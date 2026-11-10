@@ -169,6 +169,15 @@ async fn run_command(
     run_command_with_timeout(path, args, environment, HOST_PROBE_TIMEOUT).await
 }
 
+/// Replace the inherited environment with `environment`, minus the loader
+/// overrides an AppImage runtime injects. Doctor children include the user's
+/// own `node`/`npm`/adapter, which must load the distro's libraries (#1002).
+fn set_child_environment(command: &mut Command, environment: &HashMap<String, String>) {
+    let mut environment = environment.clone();
+    crate::core::process::strip_appimage_library_env(&mut environment);
+    command.env_clear().envs(environment);
+}
+
 async fn run_command_with_timeout(
     path: &Path,
     args: &[&str],
@@ -176,7 +185,7 @@ async fn run_command_with_timeout(
     timeout: Duration,
 ) -> Result<CommandOutput, String> {
     let mut command = diagnostic_command(path, args);
-    command.env_clear().envs(environment);
+    set_child_environment(&mut command, environment);
     let output = tokio::time::timeout(timeout, crate::core::process::command_output(&mut command))
         .await
         .map_err(|_| format!("timed out after {}s", timeout.as_secs()))?
@@ -210,7 +219,7 @@ async fn run_installer_cancellable(
 ) -> Result<CancellableOutcome, String> {
     let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
     let mut command = diagnostic_command(path, &arg_refs);
-    command.env_clear().envs(environment);
+    set_child_environment(&mut command, environment);
     let mut joined =
         tokio::spawn(async move { crate::core::process::command_output(&mut command).await });
     let started = Instant::now();
@@ -286,10 +295,14 @@ pub(crate) async fn diagnose_tool(
             status: HostToolStatus::Unusable,
             resolved_path,
             version: None,
-            detail: Some(match output.code {
-                Some(code) => format!("exited with status {code}"),
-                None => "terminated without an exit status".to_string(),
-            }),
+            // A dynamic-loader/symbol error is the actionable part; the exit
+            // status alone would send users looking for a missing Node (#1002).
+            detail: Some(
+                first_output_line(&output).unwrap_or_else(|| match output.code {
+                    Some(code) => format!("exited with status {code}"),
+                    None => "terminated without an exit status".to_string(),
+                }),
+            ),
         },
         Err(detail) => HostToolDiagnostic {
             status: HostToolStatus::Unusable,
@@ -378,9 +391,8 @@ async fn codex_account_auth_status(
     environment: &HashMap<String, String>,
 ) -> Option<CodexAuthDiagnostic> {
     let mut command = diagnostic_command(adapter, &["cli", "app-server"]);
+    set_child_environment(&mut command, environment);
     command
-        .env_clear()
-        .envs(environment)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())

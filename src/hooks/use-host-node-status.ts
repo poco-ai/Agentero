@@ -28,6 +28,9 @@ import {
 export type HostNodeStatus = {
 	nodeMissing: boolean;
 	npmMissing: boolean;
+	/** Found on PATH but cannot execute; not fixable by installing Node again. */
+	nodeUnusable: boolean;
+	npmUnusable: boolean;
 	/** Latest host probe; null before the first result or after a failed probe. */
 	report: HostDoctorReport | null;
 	/** True while a probe is in flight. */
@@ -111,8 +114,10 @@ export function useHostNodeStatus(
 		const current = await probe(false);
 		if (!current) return null;
 		return {
-			nodeMissing: current.node.status !== "available",
-			npmMissing: current.npm.status !== "available",
+			nodeMissing: current.node.status === "missing",
+			npmMissing: current.npm.status === "missing",
+			nodeUnusable: current.node.status === "unusable",
+			npmUnusable: current.npm.status === "unusable",
 		};
 	}, [probe]);
 
@@ -175,8 +180,10 @@ export function useHostNodeStatus(
 	}, [installing, t]);
 
 	return {
-		nodeMissing: report ? report.node.status !== "available" : false,
-		npmMissing: report ? report.npm.status !== "available" : false,
+		nodeMissing: report ? report.node.status === "missing" : false,
+		npmMissing: report ? report.npm.status === "missing" : false,
+		nodeUnusable: report ? report.node.status === "unusable" : false,
+		npmUnusable: report ? report.npm.status === "unusable" : false,
 		report,
 		probing,
 		installing,

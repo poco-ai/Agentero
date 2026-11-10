@@ -3,6 +3,7 @@
 //! Implements the `terminal/*` request family (create, output, release, wait_for_exit, kill)
 //! so ACP agents like Kimi Code can execute shell commands in the local environment.
 
+use crate::core::process::SanitizeAppImageEnv;
 use crate::features::agent::registry::discovery::resolve_command;
 use agent_client_protocol::schema::v1::{
     CreateTerminalRequest, CreateTerminalResponse, EnvVariable, KillTerminalRequest,
@@ -134,6 +135,10 @@ impl AcpTerminalManager {
         for EnvVariable { name, value, .. } in &request.env {
             cmd.env(name, value);
         }
+        // Agent terminals run user tools (node, git, package managers) inside
+        // whatever environment launched Agentero; never leak an AppImage's
+        // loader paths into them (#1002).
+        cmd.sanitize_appimage_env();
 
         let mut child = cmd
             .spawn()

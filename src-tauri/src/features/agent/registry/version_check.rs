@@ -4,6 +4,7 @@
 //! known — not merely because the binary is installed. Network checks stay out
 //! of synchronous `scan_catalog` (Doctor / chat switcher also call that path).
 
+use crate::core::process::SanitizeAppImageEnv;
 use crate::features::agent::models::CatalogScanResponse;
 use crate::features::agent::registry::discovery::resolve_command;
 use crate::features::agent::registry::templates::template_info;
@@ -115,6 +116,7 @@ fn read_installed_version(template_id: &str) -> Option<String> {
 
     let mut cmd = Command::new(&path);
     cmd.arg("--version");
+    cmd.sanitize_appimage_env();
     crate::core::process::hide_console_window(&mut cmd);
     let output = cmd.output().ok()?;
     if !output.status.success() {
@@ -137,6 +139,7 @@ fn npm_view_version(package: &str, proxy_enabled: bool, proxy_url: &str) -> Opti
     let npm = resolve_command("npm")?;
     let mut cmd = Command::new(npm);
     cmd.args(["view", package, "version"]);
+    cmd.sanitize_appimage_env();
     apply_proxy_env(&mut cmd, proxy_enabled, proxy_url);
     crate::core::process::hide_console_window(&mut cmd);
     let output = cmd.output().ok()?;

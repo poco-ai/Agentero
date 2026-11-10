@@ -236,7 +236,9 @@ function AgentCatalogEntryRow({
 								tone={entry.binaryAvailable ? "warn" : "muted"}
 								title={entry.lastProbeError ?? entry.installHint ?? undefined}
 							>
-								{t("agent.badges.acpMissing")}
+								{entry.acpBundled && entry.binaryAvailable
+									? t("agent.badges.acpNodeBlocker")
+									: t("agent.badges.acpMissing")}
 							</StatusBadge>
 						) : isProbing ? (
 							<ProbingBadge label={t("agent.probing")} />
@@ -648,7 +650,9 @@ export function RemoteAgentCatalogRow({
 							tone={entry.binaryAvailable ? "warn" : "muted"}
 							title={entry.lastProbeError ?? undefined}
 						>
-							{t("agent.badges.acpMissing")}
+							{entry.acpBundled && entry.binaryAvailable
+								? t("agent.badges.acpNodeBlocker")
+								: t("agent.badges.acpMissing")}
 						</StatusBadge>
 					) : isProbing ? (
 						<ProbingBadge label={t("agent.probing")} />

@@ -5,11 +5,18 @@
 //! missing or its launch fails, so a stale setting never breaks the action.
 
 use crate::core::error::AppError;
+use crate::core::process::SanitizeAppImageEnv;
 use serde::Serialize;
 use std::path::Path;
 #[cfg(target_os = "macos")]
 use std::path::PathBuf;
 use std::process::Command;
+
+fn sanitized_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    command.sanitize_appimage_env();
+    command
+}
 
 /// One row in Settings. `name` is a brand name shown verbatim.
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -190,7 +197,7 @@ fn launch_otty(cwd: &Path) -> Result<(), AppError> {
     // bundled CLI and common install locations before AppleScript.
     let app = macos_app("otty");
     for bin in otty_cli_candidates(app.as_deref()) {
-        if Command::new(&bin)
+        if sanitized_command(&bin)
             .arg("open")
             .arg(cwd)
             .status()
@@ -200,7 +207,7 @@ fn launch_otty(cwd: &Path) -> Result<(), AppError> {
             // behind Agentero. `open` on a running bundle only brings it to the
             // front: no extra window, and no Apple Events permission prompt.
             if let Some(app) = app.as_deref() {
-                let _ = Command::new("open").arg(app).status();
+                let _ = sanitized_command("open").arg(app).status();
             }
             return Ok(());
         }
@@ -230,7 +237,7 @@ fn otty_cli_candidates(app: Option<&Path>) -> Vec<PathBuf> {
 
 #[cfg(target_os = "macos")]
 fn open_app(name: &str, cwd: &Path) -> Result<(), AppError> {
-    let status = Command::new("open")
+    let status = sanitized_command("open")
         .args(["-a", name])
         .arg(cwd)
         .status()
@@ -245,7 +252,7 @@ fn open_app(name: &str, cwd: &Path) -> Result<(), AppError> {
 
 #[cfg(target_os = "macos")]
 fn run_osascript(script: &str) -> Result<(), AppError> {
-    let status = Command::new("osascript")
+    let status = sanitized_command("osascript")
         .arg("-e")
         .arg(script)
         .status()
@@ -272,12 +279,12 @@ fn apple_quote(value: &str) -> String {
 fn launch_installed(id: &str, cwd: &Path) -> Result<(), AppError> {
     match id {
         "wt" => {
-            let mut command = Command::new("wt.exe");
+            let mut command = sanitized_command("wt.exe");
             command.arg("-d").arg(cwd);
             spawn(command)
         }
         "powershell" => {
-            let mut command = Command::new("cmd.exe");
+            let mut command = sanitized_command("cmd.exe");
             command
                 .args(["/D", "/C", "start", "", "powershell.exe", "-NoExit"])
                 .current_dir(cwd);
@@ -291,7 +298,7 @@ fn launch_installed(id: &str, cwd: &Path) -> Result<(), AppError> {
 
 #[cfg(all(unix, not(target_os = "macos")))]
 fn launch_installed(id: &str, cwd: &Path) -> Result<(), AppError> {
-    let mut command = Command::new(id);
+    let mut command = sanitized_command(id);
     match id {
         "gnome-terminal" | "mate-terminal" | "tilix" => {
             command.arg("--working-directory").arg(cwd);

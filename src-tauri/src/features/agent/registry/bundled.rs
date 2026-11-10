@@ -13,6 +13,7 @@
 //! `manifest.json` + one shared `node_modules/` tree whose entry paths the
 //! manifest records relative to the root.
 
+use crate::core::process::SanitizeAppImageEnv;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -136,6 +137,7 @@ pub fn bundled_adapter(template_id: &str) -> Option<BundledAdapter> {
 fn node_major_of(node: &Path) -> Option<u32> {
     let mut command = std::process::Command::new(node);
     command.arg("--version");
+    command.sanitize_appimage_env();
     crate::core::process::hide_console_window(&mut command);
     let output = command.output().ok()?;
     if !output.status.success() {
@@ -253,24 +255,29 @@ pub fn host_env_injection(
     Ok(vec![(key.to_string(), path.display().to_string())])
 }
 
-/// Scan-status hint when the tier exists but cannot run (Node missing/old).
+/// Scan-status hint when the tier exists but cannot run (Node missing, unable to
+/// start, or too old). An installed-but-unusable Node must not be reported as
+/// "install Node.js" or as an old version (#1002).
 pub fn node_blocker_message(template_id: &str) -> Option<String> {
     let adapter = bundled_adapter(template_id)?;
-    if super::resolve_command("node").is_none() {
+    let Some(node) = super::resolve_command("node") else {
         return Some(format!(
             "bundled ACP adapter {} present but Node.js is required to run it",
             adapter.version
         ));
-    }
+    };
+    let Some(major) = node_major_of(&node) else {
+        return Some(format!(
+            "bundled ACP adapter {} present but Node.js at {} cannot run",
+            adapter.version,
+            node.display()
+        ));
+    };
     match adapter.node_major {
-        Some(min)
-            if super::resolve_command("node").is_some_and(|node| !node_meets(Some(min), &node)) =>
-        {
-            Some(format!(
-                "bundled ACP adapter {} requires Node.js {min} or newer",
-                adapter.version
-            ))
-        }
+        Some(min) if major < min => Some(format!(
+            "bundled ACP adapter {} requires Node.js {min} or newer (found {major})",
+            adapter.version
+        )),
         _ => None,
     }
 }
