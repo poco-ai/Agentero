@@ -4,11 +4,19 @@ import {
 	useSpring,
 	useTransform,
 } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Keep the completed meter visible briefly before collapsing. */
 const TRANSLATE_METER_LINGER_MS = 700;
+
+/**
+ * Cancelling retracts the fill before the chip closes. Without this the chip
+ * collapses the instant it stops, which reads as "the click did something"
+ * rather than "the job backed out". Tuned to the spring below so the fill
+ * reaches zero before the collapse starts.
+ */
+const TRANSLATE_METER_RETRACT_MS = 340;
 
 type TranslateMeterOptions = {
 	layoutTranslateRunning: boolean;
@@ -22,9 +30,9 @@ type TranslateMeterOptions = {
 
 /**
  * Shared full-text translation meter state: the stage caption, a smoothed
- * percentage, the open/indeterminate flags, and the brief "complete" linger.
- * The toolbar embeds it in its expandable translate button; the dual-pane
- * translation panel renders the same state as a floating chip.
+ * percentage, the open/indeterminate flags, the brief "complete" linger, and
+ * the cancel retract. The toolbar embeds it in its expandable translate button;
+ * the dual-pane translation panel renders the same state as a floating chip.
  */
 export function useTranslateMeter({
 	layoutTranslateRunning,
@@ -38,38 +46,54 @@ export function useTranslateMeter({
 		layoutTranslatePreparing ||
 		layoutTranslateWaiting;
 	const complete = layoutTranslateProgress === 1;
+	const reduceMotion = useReducedMotion();
 	const [lingerFull, setLingerFull] = useState(false);
+	const [retracting, setRetracting] = useState(false);
 	const wasTranslateBusyRef = useRef(false);
-	useEffect(() => {
+	// Layout effect: the retract flag must land in the same paint that clears
+	// `busy`, otherwise the chip collapses for a frame and re-expands.
+	useLayoutEffect(() => {
 		if (busy) {
 			wasTranslateBusyRef.current = true;
 			setLingerFull(false);
+			setRetracting(false);
 			return;
 		}
-		if (!complete) {
+		if (!wasTranslateBusyRef.current) {
 			setLingerFull(false);
-			wasTranslateBusyRef.current = false;
 			return;
 		}
-		if (!wasTranslateBusyRef.current) return;
 		wasTranslateBusyRef.current = false;
-		setLingerFull(true);
+		if (complete) {
+			setLingerFull(true);
+			const id = window.setTimeout(
+				() => setLingerFull(false),
+				TRANSLATE_METER_LINGER_MS,
+			);
+			return () => window.clearTimeout(id);
+		}
+		if (reduceMotion) return;
+		// Cancelled: keep the meter mounted until the fill has retracted to zero,
+		// then let the chip collapse on its own.
+		setRetracting(true);
 		const id = window.setTimeout(
-			() => setLingerFull(false),
-			TRANSLATE_METER_LINGER_MS,
+			() => setRetracting(false),
+			TRANSLATE_METER_RETRACT_MS,
 		);
 		return () => window.clearTimeout(id);
-	}, [busy, complete]);
+	}, [busy, complete, reduceMotion]);
 
-	const open = busy || lingerFull;
+	const open = busy || lingerFull || retracting;
 	const indeterminate =
 		open &&
 		!lingerFull &&
+		!retracting &&
 		(layoutTranslateWaiting || layoutTranslateProgress == null);
 	const ratio = lingerFull
 		? 1
-		: Math.max(0, Math.min(1, layoutTranslateProgress ?? 0));
-	const reduceMotion = useReducedMotion();
+		: retracting
+			? 0
+			: Math.max(0, Math.min(1, layoutTranslateProgress ?? 0));
 	const smoothPercent = useSpring(0, { stiffness: 180, damping: 30 });
 	const smoothWidth = useTransform(smoothPercent, (value) => `${value}%`);
 	const [percent, setPercent] = useState(0);
@@ -96,6 +120,7 @@ export function useTranslateMeter({
 		busy,
 		open,
 		indeterminate,
+		retracting,
 		ratio,
 		percent,
 		stage,

@@ -67,7 +67,6 @@
 			"phaseTranslate": "正在翻译",
 			"phaseTypeset": "生成页面",
 			"phaseDone": "已完成",
-			"progress": "{{percent}}%",
 			"parseFailedWhileWaiting": "版面解析失败，翻译已取消",
 			"partialButton": "部分译文 · {{count}}",
 			"partialButtonRemaining": "部分译文 · 仍有 {{count}} 段",

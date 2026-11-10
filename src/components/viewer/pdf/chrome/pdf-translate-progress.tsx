@@ -1,8 +1,12 @@
 import { Check, Square } from "lucide-react";
-import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
+import {
+	PDF_TRANSLATE_METER_PERCENT,
+	PDF_TRANSLATE_METER_STAGE,
+	PdfTranslateMeterBar,
+} from "@/components/viewer/pdf/chrome/pdf-translate-meter";
 import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
 import { cn } from "@/lib/core/utils";
 
@@ -27,13 +31,21 @@ export function PdfTranslateProgressChip({
 	onStop,
 }: PdfTranslateProgressChipProps) {
 	const { t } = useTranslation("viewer");
-	const { open, indeterminate, ratio, percent, stage, width, lingerFull } =
-		useTranslateMeter({
-			layoutTranslateRunning,
-			layoutTranslatePreparing,
-			layoutTranslateWaiting,
-			layoutTranslateProgress,
-		});
+	const {
+		open,
+		indeterminate,
+		retracting,
+		ratio,
+		percent,
+		stage,
+		width,
+		lingerFull,
+	} = useTranslateMeter({
+		layoutTranslateRunning,
+		layoutTranslatePreparing,
+		layoutTranslateWaiting,
+		layoutTranslateProgress,
+	});
 	if (!open) return null;
 	const cancellable = layoutTranslateRunning || layoutTranslateWaiting;
 	const stopLabel = layoutTranslateWaiting
@@ -57,17 +69,11 @@ export function PdfTranslateProgressChip({
 				aria-valuemax={100}
 				aria-valuenow={indeterminate ? undefined : Math.round(ratio * 100)}
 			/>
-			<span
-				aria-hidden
-				className="text-[0.625rem] font-medium text-foreground/75"
-			>
+			<span aria-hidden className={PDF_TRANSLATE_METER_STAGE}>
 				{stage}
 			</span>
-			{indeterminate ? null : (
-				<span
-					aria-hidden
-					className="text-[0.625rem] text-muted-foreground tabular-nums"
-				>
+			{indeterminate || retracting ? null : (
+				<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
 					{percent}%
 				</span>
 			)}
@@ -76,7 +82,7 @@ export function PdfTranslateProgressChip({
 					type="button"
 					size="icon-xs"
 					variant="ghost"
-					className="pointer-events-auto"
+					className="pointer-events-auto text-foreground"
 					aria-label={stopLabel}
 					title={stopLabel}
 					onClick={onStop}
@@ -86,18 +92,7 @@ export function PdfTranslateProgressChip({
 			) : lingerFull ? (
 				<Check className="size-3.5 text-foreground/70" aria-hidden />
 			) : null}
-			<span
-				aria-hidden
-				className="pointer-events-none absolute inset-x-2 bottom-0 h-0.5 overflow-hidden rounded-full bg-foreground/5"
-			>
-				<motion.span
-					className={cn(
-						"absolute inset-y-0 left-0 rounded-full bg-foreground/45",
-						indeterminate && "pdf-translate-indeterminate",
-					)}
-					style={{ width: indeterminate ? "30%" : width }}
-				/>
-			</span>
+			<PdfTranslateMeterBar indeterminate={indeterminate} width={width} />
 		</div>
 	);
 }

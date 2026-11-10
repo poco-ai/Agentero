@@ -67,7 +67,6 @@
 			"phaseTranslate": "Translating",
 			"phaseTypeset": "Typesetting",
 			"phaseDone": "Complete",
-			"progress": "{{percent}}%",
 			"parseFailedWhileWaiting": "Layout analysis failed; translation cancelled",
 			"partialButton": "Partial · {{count}}",
 			"partialButtonRemaining": "Partial · {{count}} left",

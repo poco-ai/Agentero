@@ -9,7 +9,6 @@ import {
 	ScanSearch,
 	Square,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,11 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
+import {
+	PDF_TRANSLATE_METER_PERCENT,
+	PDF_TRANSLATE_METER_STAGE,
+	PdfTranslateMeterBar,
+} from "@/components/viewer/pdf/chrome/pdf-translate-meter";
 import { PdfTranslatePartialButton } from "@/components/viewer/pdf/chrome/pdf-translate-partial-button";
 import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
@@ -185,16 +189,18 @@ export const PdfToolbar = memo(function PdfToolbar({
 		busy: translateBusy,
 		open: meterOpen,
 		indeterminate: meterIndeterminate,
+		retracting: meterRetracting,
 		ratio: meterRatio,
 		percent: meterPercent,
 		stage: meterStage,
 		width: smoothWidth,
 		lingerFull,
 	} = translateMeter;
-	const translateAriaLabel =
-		meterOpen && !meterIndeterminate
-			? `${layoutTranslateLabel} ${t("pdf.layoutTranslate.progress", { percent: meterPercent })}`
-			: layoutTranslateLabel;
+	const translateAriaLabel = translateBusy
+		? layoutTranslateWaiting
+			? t("pdf.layoutTranslate.waiting")
+			: t("pdf.layoutTranslate.stop")
+		: layoutTranslateLabel;
 	const asideClass = cn(
 		"grid min-w-0 transition-[grid-template-columns,opacity] duration-300 ease-out motion-reduce:transition-none",
 		meterOpen
@@ -225,6 +231,13 @@ export const PdfToolbar = memo(function PdfToolbar({
 						PDF_CHROME_CHIP,
 					)}
 				>
+					{/* Partial-translation warning sits first: it is a document-level
+					    state, so it stays put when the translate button expands. */}
+					{!isRemotePaper && layoutTranslatePartial?.visible ? (
+						<div className="shrink-0">
+							<PdfTranslatePartialButton partial={layoutTranslatePartial} />
+						</div>
+					) : null}
 					{onExportTranslatedPdf ? (
 						<div className={asideClass} inert={meterOpen}>
 							<div className="min-w-0 overflow-hidden">
@@ -316,99 +329,99 @@ export const PdfToolbar = memo(function PdfToolbar({
 						</div>
 					) : null}
 					{!isRemotePaper ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									size="icon-xs"
-									variant={
-										layoutTranslateActive ||
-										layoutTranslateWaiting ||
-										longPressing
-											? "secondary"
-											: "ghost"
-									}
-									className={cn(
-										"relative h-6! overflow-hidden px-0 transition-[width,border-radius,color,background-color,border-color,box-shadow,transform,opacity] duration-300 ease-out motion-reduce:transition-none",
-										meterOpen
-											? "w-44! justify-end rounded-lg! bg-transparent! hover:bg-muted/60!"
-											: "w-6!",
-									)}
-									data-full-text-translate
-									aria-label={translateAriaLabel}
-									aria-pressed={layoutTranslateActive || layoutTranslateWaiting}
-									disabled={!engine}
-									onPointerDown={handleTranslatePointerDown}
-									onPointerUp={handleTranslatePointerUp}
-									onPointerLeave={handleTranslatePointerLeave}
-									onPointerCancel={handleTranslatePointerLeave}
-									onClick={handleTranslateClick}
-								>
-									{meterOpen ? (
-										<>
+						<div
+							data-full-text-translate
+							className={cn(
+								"relative flex h-6 shrink-0 items-center justify-end overflow-hidden transition-[width,border-radius,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+								meterOpen ? "w-44 rounded-lg" : "w-6",
+							)}
+						>
+							{/* The running surface is a readout, not a control: only the
+							    trailing square cancels, so the expanded card is not a
+							    button and does not swallow clicks. */}
+							{meterOpen ? (
+								<>
+									<span className="pointer-events-none absolute inset-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150 motion-reduce:animate-none">
+										<span className="absolute top-0 right-7 bottom-[5px] left-2.5 flex items-center gap-2">
+											{/* String concat, not `cn`: tailwind-merge mistakes
+											    `text-caption` for a text color and drops it. */}
 											<span
 												aria-hidden
-												className="pointer-events-none absolute inset-x-2 bottom-0 h-0.5 overflow-hidden rounded-full bg-foreground/5"
-											>
-												<motion.span
-													className={cn(
-														"absolute inset-y-0 left-0 rounded-full bg-foreground/45",
-														meterIndeterminate && "pdf-translate-indeterminate",
-													)}
-													style={{
-														width: meterIndeterminate ? "30%" : smoothWidth,
-													}}
-												/>
-											</span>
-											<span
-												aria-hidden
-												className="pointer-events-none absolute left-2.5 right-14 truncate text-left text-[0.625rem] font-medium text-foreground/75"
+												className={`min-w-0 flex-1 ${PDF_TRANSLATE_METER_STAGE}`}
 											>
 												{meterStage}
 											</span>
-											{!meterIndeterminate ? (
+											{!meterIndeterminate && !meterRetracting ? (
 												<span
 													aria-hidden
-													className="absolute right-7 text-[0.625rem] text-muted-foreground tabular-nums"
+													className={PDF_TRANSLATE_METER_PERCENT}
 												>
 													{meterPercent}%
 												</span>
 											) : null}
-										</>
-									) : null}
-									<span className="relative z-10 flex size-6 items-center justify-center">
-										{lingerFull ? (
+										</span>
+										<PdfTranslateMeterBar
+											indeterminate={meterIndeterminate}
+											width={smoothWidth}
+										/>
+									</span>
+									{lingerFull ? (
+										<span className="pointer-events-none absolute top-0 right-0 flex size-6 items-center justify-center text-foreground/70">
 											<Check className="size-3.5" aria-hidden />
-										) : translateBusy ? (
+										</span>
+									) : meterRetracting ? null : (
+										<Button
+											type="button"
+											size="icon-xs"
+											variant="ghost"
+											className="absolute top-0 right-0 size-6 text-foreground"
+											aria-label={translateAriaLabel}
+											title={translateAriaLabel}
+											disabled={!engine}
+											onClick={onToggleLayoutTranslate}
+										>
 											<Square
 												className="size-2.5 fill-current opacity-60"
 												aria-hidden
 											/>
-										) : (
+										</Button>
+									)}
+								</>
+							) : (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											type="button"
+											size="icon-xs"
+											variant={
+												layoutTranslateActive || longPressing
+													? "secondary"
+													: "ghost"
+											}
+											className="size-6"
+											aria-label={translateAriaLabel}
+											aria-pressed={
+												layoutTranslateActive || layoutTranslateWaiting
+											}
+											disabled={!engine}
+											onPointerDown={handleTranslatePointerDown}
+											onPointerUp={handleTranslatePointerUp}
+											onPointerLeave={handleTranslatePointerLeave}
+											onPointerCancel={handleTranslatePointerLeave}
+											onClick={handleTranslateClick}
+										>
 											<Languages className="size-3.5" aria-hidden />
-										)}
-									</span>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								{layoutTranslateLabel}
-								{meterOpen && !meterIndeterminate ? (
-									<span className="ml-2 text-background/70">
-										{t("pdf.layoutTranslate.progress", {
-											percent: meterPercent,
-										})}
-									</span>
-								) : null}
-								{/* Inverted tooltip: mute via text-background, not muted-foreground. */}
-								<span className="ml-2 text-background/70">
-									{translateShortcut}
-								</span>
-							</TooltipContent>
-						</Tooltip>
-					) : null}
-					{!isRemotePaper && layoutTranslatePartial?.visible ? (
-						<div className="shrink-0">
-							<PdfTranslatePartialButton partial={layoutTranslatePartial} />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="bottom">
+										{translateAriaLabel}
+										{/* Inverted tooltip: mute via text-background, not muted-foreground. */}
+										<span className="ml-2 text-background/70">
+											{translateShortcut}
+										</span>
+									</TooltipContent>
+								</Tooltip>
+							)}
 						</div>
 					) : null}
 					{!isRemotePaper && onSmartHighlight ? (
