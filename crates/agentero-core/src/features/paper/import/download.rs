@@ -1050,6 +1050,18 @@ fn is_retired_unversioned_stamp_refusal(error: &str) -> bool {
     error.contains("Cannot determine the local PDF's arXiv version")
 }
 
+/// The e-print endpoint answers 404/410 when arXiv has no source package for
+/// the requested id/version — a terminal answer, not a transient network
+/// failure. Replaying it cannot succeed and must not block PDF body parsing,
+/// so it maps to `Unavailable`. State files written by older builds received
+/// the raw HTTP message with `retryableError`, so the same predicate upgrades
+/// those records instead of surfacing a stale failure.
+fn eprint_missing(message: &str) -> bool {
+    ["HTTP 404", "HTTP 410"]
+        .iter()
+        .any(|code| message.contains(code))
+}
+
 pub async fn prepare_arxiv_source(
     paper_dir: &Path,
     arxiv_id: &str,
@@ -1072,7 +1084,7 @@ async fn prepare_arxiv_source_with_progress(
     if let Some(state) =
         source::state(paper_dir).filter(|s| source::matches_request(arxiv_id, &s.arxiv_id))
     {
-        if state.status == SourceStatus::Unavailable {
+        if state.status == SourceStatus::Unavailable && !retry {
             return Ok(false);
         }
         if !retry
@@ -1083,11 +1095,21 @@ async fn prepare_arxiv_source_with_progress(
                 .as_deref()
                 .is_some_and(is_retired_unversioned_stamp_refusal)
         {
-            return Err(AppError::message(
-                state
-                    .error
-                    .unwrap_or_else(|| "arXiv source download needs retry".into()),
-            ));
+            let message = state
+                .error
+                .unwrap_or_else(|| "arXiv source download needs retry".into());
+            // Older builds recorded a missing e-print as retryable. Treat it as
+            // terminal now instead of replaying the same 404 on every parse.
+            if eprint_missing(&message) {
+                source::record_state(
+                    paper_dir,
+                    arxiv_id,
+                    SourceStatus::Unavailable,
+                    Some(message),
+                )?;
+                return Ok(false);
+            }
+            return Err(AppError::message(message));
         }
     }
     let mut request = arxiv_id.to_string();
@@ -1142,12 +1164,24 @@ async fn prepare_arxiv_source_with_progress(
         }
         Err(error) => {
             super::check_task_not_cancelled(progress.task_id())?;
+            let message = error.to_string();
+            // A missing e-print is terminal: record it as unavailable and let
+            // the caller fall back to PDF body parsing instead of retrying a
+            // request that cannot succeed.
+            let missing = eprint_missing(&message);
             source::record_state(
                 paper_dir,
                 arxiv_id,
-                SourceStatus::RetryableError,
-                Some(error.to_string()),
+                if missing {
+                    SourceStatus::Unavailable
+                } else {
+                    SourceStatus::RetryableError
+                },
+                Some(message),
             )?;
+            if missing {
+                return Ok(false);
+            }
             Err(error)
         }
     }
@@ -1727,6 +1761,45 @@ mod tests {
                 "https://doi.org/10.1038/nature12373"
             ),
             "https://webvpn.example.edu/login?url=https%3A%2F%2Fdoi.org%2F10.1038%2Fnature12373"
+        );
+    }
+
+    #[test]
+    fn missing_eprint_status_is_terminal_not_retryable() {
+        assert!(eprint_missing("download HTTP 404 Not Found"));
+        assert!(eprint_missing("download HTTP 410 Gone"));
+        // Transient and auth failures must stay retryable.
+        assert!(!eprint_missing("download HTTP 429 Too Many Requests"));
+        assert!(!eprint_missing("download HTTP 503 Service Unavailable"));
+        assert!(!eprint_missing("download: connection reset by peer"));
+    }
+
+    #[tokio::test]
+    async fn recorded_missing_eprint_unblocks_body_parsing() {
+        let paper = tempfile::tempdir().unwrap();
+        fs::create_dir_all(paper.path().join("source")).unwrap();
+        source::record_state(
+            paper.path(),
+            "7349.25227",
+            SourceStatus::RetryableError,
+            Some("download HTTP 404 Not Found".into()),
+        )
+        .unwrap();
+
+        let aggregator = AssetProgressAggregator::new(None, None, "tex", 1);
+        let ready = prepare_arxiv_source_with_progress(
+            paper.path(),
+            "7349.25227",
+            aggregator.stream(0),
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert!(!ready);
+        assert_eq!(
+            source::state(paper.path()).unwrap().status,
+            SourceStatus::Unavailable
         );
     }
 

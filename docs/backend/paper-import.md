@@ -102,7 +102,9 @@ CLI `paper parse` 使用相同规则。远程导入保留 staging / 上传路径
   隐藏源码缺失。打开 Vault / 论文时可补齐历史 OCR 论文的源码；已存在的 `PAPER.md` 保留。
 - `source/agentero-source.json` 保存请求版本、尝试时间，以及 `ready` / `unavailable` /
   `retryableError` 和错误原因。PDF-only、PostScript 或成功解包但没有 TeX 的提交属于明确无
-  TeX；网络错误、坏归档、缺失正文 input 属于可重试失败，不静默启动云端 OCR。
+  TeX；e-print 返回 404 / 410 表示该 id / 版本在 arXiv 没有源码包，同样记为 `unavailable`，
+  不再按网络错误重试；网络错误、坏归档、缺失正文 input 属于可重试失败。源码不可得时正文
+  继续解析本地 PDF，不静默启动云端 OCR，也不因源码缺失让 ParseBody 整体失败。
 - 自动重试间隔 15 分钟；手动下载可立即重试。该间隔只控制自动网络请求，不隐藏缺源码提示。
   同步配置排除 `source` 时，自动正文准备不主动下载该目录；用户显式下载仍可执行。
 - 保留显式版本 URL，catalog 去重仍用 bare ID。资源下载先落 PDF；原生文字里能读到版本戳时，用它固定 e-print。保存时没有带版本的 URL，文字戳也读不出来，就按最新版下载源码：无版本的 arXiv 链接本身就是当时的最新版。显式版本和 PDF 文字戳冲突时仍报错，不混合下载或覆盖旧文件。
