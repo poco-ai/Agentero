@@ -390,6 +390,7 @@ async function finishImportedPapers(
 						vaultPath,
 						path: rel,
 						force: false,
+						autoTranslate: true,
 					}),
 				{ fallback: "layout analysis enqueue failed" },
 			);
@@ -749,6 +750,7 @@ export async function runLocalPdfImportJob(
 			enqueuePaperLayoutAnalysis({
 				paperAbsPath: paper.paperDir.replace(/[\\/]+$/, ""),
 				paperLabel: paper.title?.trim() || paper.path,
+				autoTranslate: true,
 			});
 		}
 	}

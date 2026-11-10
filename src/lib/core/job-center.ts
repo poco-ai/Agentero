@@ -36,6 +36,7 @@ import {
 	type JobReportArgs,
 	type JobSnapshot,
 	type JobState,
+	type Json,
 } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
@@ -147,6 +148,7 @@ export async function jobReport(args: {
 	phase?: string | null;
 	error?: string | null;
 	state?: JobState | null;
+	params?: Json | null;
 }): Promise<void> {
 	await callApiResult(() =>
 		commands.jobReport({
@@ -155,6 +157,7 @@ export async function jobReport(args: {
 			phase: args.phase ?? null,
 			error: args.error ?? null,
 			state: args.state ?? null,
+			params: args.params ?? null,
 		} satisfies JobReportArgs),
 	);
 }
@@ -167,11 +170,11 @@ export type JobChangedSnapshot = JobSnapshot;
 
 /**
  * Job kinds projected into the background-tasks panel (§7.6). Kinds absent
- * here (pageCount / wikiReindex / layoutTranslate) stay silent to avoid
- * idle-lane noise.
+ * here (pageCount / wikiReindex) stay silent to avoid idle-lane noise.
  */
 const PROJECTED_JOB_KINDS: ReadonlySet<JobKind> = new Set([
 	"layoutAnalyze",
+	"layoutTranslate",
 	"parseRefs",
 	"parseBody",
 	"downloadAssets",
@@ -256,6 +259,8 @@ function jobPanelTitle(job: JobChangedSnapshot): string {
 			return i18n.t("app:tasks.recognizeMeta");
 		case "modelDownload":
 			return i18n.t("app:tasks.layoutModelDownload");
+		case "layoutTranslate":
+			return i18n.t("app:tasks.layoutTranslate");
 		case "citingScan":
 			return i18n.t("app:tasks.citingScan");
 		case "metadataRefresh":

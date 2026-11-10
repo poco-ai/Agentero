@@ -10,6 +10,7 @@ import {
 import {
 	applyLayoutTranslateSidecar,
 	countPendingLayoutTranslateItems,
+	flushLayoutTranslateSidecar,
 	groupLayoutTranslateItemsByPage,
 	hasPendingLayoutTranslateItems,
 	hydrateLayoutTranslateItems,
@@ -825,6 +826,34 @@ describe("persistLayoutTranslateSidecarBestEffort debounce", () => {
 		expect(vault.writeVaultFile).not.toHaveBeenCalled();
 
 		vi.advanceTimersByTime(LAYOUT_TRANSLATE_WRITE_DEBOUNCE_MS + 1);
+		expect(vault.writeVaultFile).toHaveBeenCalledTimes(1);
+	});
+
+	it("merges pending page and document progress when a finished run flushes", async () => {
+		const vault = await import("@/lib/vault");
+		vi.mocked(vault.writeVaultFile).mockReset();
+		vi.mocked(vault.readVaultFile).mockRejectedValue(new Error("missing"));
+		persistLayoutTranslateSidecarBestEffort(
+			"/vault/concurrent",
+			key,
+			[doneItem],
+			{ preserveExisting: true },
+		);
+		await flushLayoutTranslateSidecar(
+			"/vault/concurrent",
+			key,
+			[{ ...doneItem, id: "b", pageIndex: 1 }],
+			{ preserveExisting: true },
+		);
+		expect(vault.writeVaultFile).toHaveBeenCalledTimes(1);
+		const written = JSON.parse(
+			vi.mocked(vault.writeVaultFile).mock.calls[0][1],
+		);
+		expect(written.items.map((item: { id: string }) => item.id)).toEqual([
+			"a",
+			"b",
+		]);
+		await vi.runAllTimersAsync();
 		expect(vault.writeVaultFile).toHaveBeenCalledTimes(1);
 	});
 

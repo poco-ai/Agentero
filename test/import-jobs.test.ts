@@ -195,6 +195,7 @@ describe("import job executor", () => {
 				phase: null,
 				error: null,
 				state: "succeeded",
+				params: null,
 			},
 		]);
 	});
@@ -221,6 +222,7 @@ describe("import job executor", () => {
 				phase: null,
 				error: null,
 				state: "succeeded",
+				params: null,
 			},
 		]);
 	});
@@ -241,6 +243,7 @@ describe("import job executor", () => {
 				phase: null,
 				error: "translator offline",
 				state: "failed",
+				params: null,
 			},
 		]);
 	});
@@ -261,6 +264,7 @@ describe("import job executor", () => {
 				phase: null,
 				error: null,
 				state: "cancelled",
+				params: null,
 			},
 		]);
 	});
@@ -339,6 +343,7 @@ describe("connector sync relay", () => {
 				phase: "Saving browser PDF",
 				error: null,
 				state: null,
+				params: null,
 			},
 		]);
 
@@ -351,6 +356,7 @@ describe("connector sync relay", () => {
 			phase: "Browser PDF saved",
 			error: null,
 			state: "succeeded",
+			params: null,
 		});
 
 		// A later save for the same key starts a fresh job.
@@ -386,6 +392,7 @@ describe("connector sync relay", () => {
 				phase: "Browser PDF save failed",
 				error: "login wall",
 				state: "failed",
+				params: null,
 			},
 		]);
 
@@ -441,6 +448,7 @@ describe("connector sync relay", () => {
 				phase: null,
 				error: null,
 				state: "cancelled",
+				params: null,
 			},
 		]);
 	});

@@ -2,6 +2,9 @@
 
 | Command | 说明 |
 |---|---|
+| `job_layout_translate_enqueue` | 复用同论文活动全文任务，或创建 `Focus` 任务；排队任务及其版面依赖提优，共享论文并发上限 |
+| `job_layout_translate_claim` | 同一全文任务只允许一个窗口执行，其他窗口订阅进度 |
+| `layout_translate_cache_write` | 跨窗口串行合并相同 key 的完成块，原子写入 `source/layout-translate.json` |
 | `translate_text` | 免费 MT + 商用 BYOK + 内置 provider 路径（非文献 Translator） |
 | `builtin_provider_status` | 内置 provider 的非秘密快照（`available` / `baseUrl` / 三个 model id）；见 [builtin-provider.md](builtin-provider.md) |
 
@@ -17,6 +20,8 @@
 | 导入摘要 `free_mt_to_zh` | **并行竞速** 腾讯 / 火山 / DeepLX，取最先成功；单引擎 5s（`FREE_MT_ZH_TIMEOUT_MS`）；全失败则不写翻译。**内置 provider 不参与这条竞速**：`ZH_RACE_PROVIDERS` 只含免费引擎，导入摘要仍走非官方免费接口 |
 | DeepLX 升级提示 | `result.texts[0].text` 若以已知完整英文升级提示开头（忽略前导空白），适配器返回服务错误，导入摘要继续等待其他引擎；全失败时省略摘要。此检查只拦截已知提示，不恢复接口可用性、不重写已有笔记。离线回归覆盖提示解析 → 引擎竞速 → `NOTES.md` 写入；测试响应依据已出现的提示构造，并非在线抓包。 |
 | 设置页探测 | 前端 5s / 引擎，不含 Agent；内置 provider 可用时一并探测（真发一次 "Hi" 翻译请求，顺带验证网关连通），不可用时跳过——那只会在下方确定性报 no-key 错误 |
+
+全文执行器通过 `job_report.params.layoutTranslate` 发布不含字符 IR 与页面预览的 items、cache key 和递增 revision。Host 保留最近快照，并随现有 `job:changed` 广播；后加入的查看器可以从 `job_list` 或入队响应获取当前状态。终止报告前先 flush 最后快照与缓存，查看器解除订阅不会改变 job 状态。任务去重、依赖和 `Focus` 调度见 `features/jobs`；前端执行与订阅见 `src/lib/pdf/layout/headless-translate.ts` 和 `translation-job.ts`。
 
 ## OpenAI-compatible 额外参数
 

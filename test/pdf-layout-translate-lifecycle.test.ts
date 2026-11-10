@@ -3,11 +3,13 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { it } from "vitest";
+import type { JobSnapshot } from "@/lib/core/bindings";
 import {
 	layoutSidecarNeedsTextLayer,
 	type PdfLayoutSidecar,
 } from "@/lib/pdf/layout/io";
 import * as translateProgress from "@/lib/pdf/layout/layout-translate-progress";
+import type { TranslationSnapshot } from "@/lib/pdf/layout/translation-job";
 
 // Exercise the real hook with deterministic request completion and hook slots.
 // No DOM or Tauri runtime is needed; this does not replace desktop UI testing.
@@ -54,6 +56,7 @@ type Options = {
 	docId: string;
 	paperAbsPath: string | null;
 	paperRelPath?: string | null;
+	vaultPath?: string | null;
 	layoutRawRegions: Item[];
 };
 
@@ -85,6 +88,9 @@ type View = {
 	>;
 	layoutTranslateRunning: boolean;
 	layoutTranslateWaiting: boolean;
+	layoutTranslateQueued: boolean;
+	layoutTranslateProgress: number | null;
+	layoutTranslatePageCounts: { done: number; total: number } | null;
 	layoutTranslateLabel: string;
 	layoutTranslatePendingRequired: number;
 	layoutTranslateStatus: string;
@@ -152,6 +158,20 @@ function createHarness() {
 	const warnings: unknown[][] = [];
 	const dismissed: unknown[][] = [];
 	const enqueues: unknown[][] = [];
+	const flushes: unknown[][] = [];
+	const cancels: string[] = [];
+	type Observer = {
+		start: boolean;
+		force?: boolean;
+		signal: AbortSignal;
+		onUpdate: (job: JobSnapshot, snapshot: TranslationSnapshot | null) => void;
+		onJob?: (id: string) => void;
+	};
+	const observers: Observer[] = [];
+	let deferSharedRequest = false;
+	let finishSharedRequest: (() => void) | undefined;
+	let sharedJob: JobSnapshot | null = null;
+	let sharedSnapshot: TranslationSnapshot | null = null;
 	let cachedLayout: PdfLayoutSidecar | null = null;
 	const dismissedPartialKeys = new Set<string>();
 	const layoutWrites = new Set<(path: string) => void>();
@@ -308,6 +328,11 @@ function createHarness() {
 		},
 		persistLayoutTranslateSidecarBestEffort: (...args: unknown[]) =>
 			writes.push(args),
+		flushLayoutTranslateSidecar: (...args: unknown[]) => {
+			flushes.push(args);
+			writes.push(args);
+		},
+
 		normalizeLayoutPaperKey: (path: string) =>
 			path.replace(/[/\\]+$/, "").replace(/\\/g, "/"),
 		enqueuePaperLayoutAnalysis: (...args: unknown[]) => enqueues.push(args),
@@ -323,14 +348,29 @@ function createHarness() {
 			});
 		},
 	};
+	let prepareTransform: ((items: Item[]) => Item[]) | null = null;
 	let prepareGate: Promise<void> | null = null;
 	let releasePrepare: (() => void) | null = null;
 	const prepareReflow = async (items: Item[]) => {
 		if (prepareGate) await prepareGate;
-		return items;
+		return prepareTransform ? prepareTransform(items) : items;
 	};
 	const t = (key: string) => key;
 	const modules: Record<string, unknown> = {
+		"@/lib/core/tasks": { cancelTask: (id: string) => cancels.push(id) },
+		"@/lib/pdf/layout/translation-job": {
+			observePaperTranslation: async (observer: Observer) => {
+				observers.push(observer);
+				if (deferSharedRequest)
+					await new Promise<void>((resolve) => {
+						finishSharedRequest = resolve;
+					});
+				if (sharedJob) observer.onJob?.(sharedJob.id);
+				if (!sharedJob || observer.signal.aborted) return null;
+				observer.onUpdate(sharedJob, sharedSnapshot);
+				return { jobId: sharedJob.id, dispose() {} };
+			},
+		},
 		"./use-pdf-reflow": {
 			usePdfReflow: (_context: unknown, _regions: unknown, items: Item[]) => {
 				reflowInput = items;
@@ -352,7 +392,10 @@ function createHarness() {
 			useStore: <T, S>(store: FakeStore<T>, selector: (state: T) => S): S =>
 				selector(store.getState()),
 		},
-		"@/lib/core/background-tasks": { backgroundTasksStore: backgroundTasks },
+		"@/lib/core/background-tasks": {
+			backgroundTasksStore: backgroundTasks,
+			cancelBackgroundTask: (id: string) => cancels.push(id),
+		},
 		"@/lib/core/error": { errorText: String },
 		"@/lib/core/notify": {
 			notifyError: (...args: unknown[]) => errors.push(args),
@@ -437,6 +480,25 @@ function createHarness() {
 		dismissed,
 		dismissedPartialKeys,
 		enqueues,
+		flushes,
+		cancels,
+		observers,
+		deferShared() {
+			deferSharedRequest = true;
+		},
+		finishShared() {
+			finishSharedRequest?.();
+		},
+		setShared(job: JobSnapshot, snapshot: TranslationSnapshot | null) {
+			sharedJob = job;
+			sharedSnapshot = snapshot;
+		},
+		publishShared(job: JobSnapshot, snapshot: TranslationSnapshot | null) {
+			sharedJob = job;
+			sharedSnapshot = snapshot;
+			for (const observer of observers)
+				if (!observer.signal.aborted) observer.onUpdate(job, snapshot);
+		},
 		publishedLayouts,
 		setReflowReady(ready: boolean) {
 			reflowReady = ready;
@@ -451,6 +513,9 @@ function createHarness() {
 			releasePrepare?.();
 			prepareGate = null;
 			releasePrepare = null;
+		},
+		setPrepareTransform(transform: ((items: Item[]) => Item[]) | null) {
+			prepareTransform = transform;
 		},
 		setTranslateSidecar(items: CachedTranslate[]) {
 			translateSidecar = { items };
@@ -529,6 +594,237 @@ it("hydrates a partial sidecar and starts no translation request", async () => {
 		"译文 0",
 	);
 });
+
+function sharedJob(state: JobSnapshot["state"] = "running"): JobSnapshot {
+	return {
+		id: "bg-1",
+		kind: "layoutTranslate",
+		state,
+		vaultPath: "/vault",
+		paperPath: "papers/a",
+		force: false,
+	} as JobSnapshot;
+}
+function sharedSnapshot(items: Item[]): TranslationSnapshot {
+	return {
+		revision: 1,
+		cacheKey: {
+			providerId: "googleapi",
+			sourceLang: "en",
+			targetLang: "zh",
+			serviceKey: "test",
+		},
+		items,
+	} as TranslationSnapshot;
+}
+
+it("subscribes to a running automatic document without cancelling or starting requests", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		sharedJob(),
+		sharedSnapshot([
+			{ ...region(0), status: "done", translated: "Already translated" },
+			{ ...region(1), status: "running" },
+		]),
+	);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.observers.length, 1);
+	assert.equal(h.observers[0].start, true);
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.cancels.length, 0);
+	assert.equal(h.view.layoutTranslateRunning, true);
+	assert.ok((h.view.layoutTranslateProgress ?? 0) > 0);
+	h.publishShared(
+		sharedJob("succeeded"),
+		sharedSnapshot(
+			[0, 1].map((page) => ({
+				...region(page),
+				status: "done",
+				translated: "Finished",
+			})),
+		),
+	);
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
+});
+
+it("shows queued translation and continues when the same job starts", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(sharedJob("queued"), null);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateQueued, true);
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.queued");
+	assert.equal(h.cancels.length, 0);
+	h.publishShared(
+		sharedJob(),
+		sharedSnapshot([{ ...region(0), status: "running" }]),
+	);
+	await h.flush();
+	assert.equal(h.view.layoutTranslateQueued, false);
+	assert.equal(h.view.layoutTranslateRunning, true);
+	assert.equal(h.runs.length, 0);
+});
+
+it("a page click joins automatic items and never cancels the document", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		sharedJob(),
+		sharedSnapshot(
+			[0, 1].map((page) => ({ ...region(page), status: "running" })),
+		),
+	);
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.observers[0].start, false);
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	assert.equal(h.cancels.length, 0);
+	assert.equal(h.view.layoutTranslateItemsByPage.has(1), false);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.observers.at(-1)?.start, true);
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.cancels.length, 0);
+	assert.equal(h.view.layoutTranslateItemsByPage.has(1), true);
+});
+
+it("closing a viewer detaches while the shared task continues", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		sharedJob(),
+		sharedSnapshot([{ ...region(0), status: "running" }]),
+	);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.unmount();
+	assert.equal(h.observers[0].signal.aborted, true);
+	assert.equal(h.cancels.length, 0);
+	const writes = h.stateWrites;
+	h.publishShared(
+		sharedJob("succeeded"),
+		sharedSnapshot([
+			{ ...region(0), status: "done", translated: "Background result" },
+		]),
+	);
+	await h.flush();
+	assert.equal(h.stateWrites, writes);
+});
+
+it("the full-document stop action cancels the shared job", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		sharedJob(),
+		sharedSnapshot([{ ...region(0), status: "running" }]),
+	);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.deepEqual(h.cancels, ["bg-1"]);
+	assert.equal(h.view.layoutTranslateStatus, "cancelled");
+});
+
+it("keeps shared partial recovery available and counts only the pages being completed", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	const partial = [
+		{ ...region(0), status: "done", translated: "Cached" },
+		{ ...region(1), status: "error" },
+	];
+	h.setShared(sharedJob("failed"), sharedSnapshot(partial));
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+	h.view.layoutTranslatePartial.onDismiss();
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+
+	h.setShared(
+		sharedJob(),
+		sharedSnapshot([partial[0], { ...region(1), status: "running" }]),
+	);
+	h.view.layoutTranslatePartial.onCompleteMissing();
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.view.layoutTranslateProgress, 0);
+	assert.equal(h.view.layoutTranslatePageCounts?.done, 0);
+	assert.equal(h.view.layoutTranslatePageCounts?.total, 1);
+	h.publishShared(
+		sharedJob("succeeded"),
+		sharedSnapshot([
+			partial[0],
+			{ ...region(1), status: "done", translated: "Completed" },
+		]),
+	);
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePartial.visible, false);
+	assert.equal(h.view.layoutTranslatePageCounts?.done, 1);
+	assert.equal(h.view.layoutTranslatePageCounts?.total, 1);
+});
+
+it("resets a shared retranslation's progress after the previous run completed", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		sharedJob("succeeded"),
+		sharedSnapshot([{ ...region(0), status: "done", translated: "Finished" }]),
+	);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateProgress, 1);
+	h.setShared(
+		sharedJob(),
+		sharedSnapshot([{ ...region(0), status: "running" }]),
+	);
+	h.view.layoutTranslatePartial.onRetranslateAll();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateProgress, 0);
+	assert.equal(h.observers.at(-1)?.force, true);
+	assert.equal(h.runs.length, 0);
+});
+
+it("hydrates a remote translation pane through the cache path", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "Cached" },
+	]);
+	h.render({ translationPane: true, vaultPath: "remote:server/vault" });
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.observers.length, 0);
+});
+
+for (const action of ["stop", "close"] as const) {
+	it(`${action} while enqueueing ${action === "stop" ? "cancels" : "retains"} the eventual shared job`, async () => {
+		const h = createHarness();
+		h.render({ vaultPath: "/vault" });
+		h.setShared(sharedJob(), null);
+		h.deferShared();
+		h.view.toggleLayoutTranslate();
+		await h.flush();
+		if (action === "stop") {
+			h.view.toggleLayoutTranslate();
+			h.render();
+		} else h.unmount();
+		h.finishShared();
+		await h.flush();
+		assert.deepEqual(h.cancels, action === "stop" ? ["bg-1"] : []);
+	});
+}
 
 it("hydrates a complete sidecar as done without a translation request", async () => {
 	const h = createHarness();
@@ -968,20 +1264,29 @@ for (const mode of ["document", "page"]) {
 		await h.flush();
 		h.runs[0].onUpdate(completed(h.runs[0], "Visible progress"));
 		h.render();
-		h.view.toggleLayoutTranslate(); // stop
-		h.render();
-		h.view.toggleLayoutTranslate(); // hide
+		if (mode === "document") {
+			h.view.toggleLayoutTranslate();
+			h.render();
+		}
+		// A page-only run is hidden from its page tag; the toolbar owns the
+		// whole document and would start a document run here.
+		if (mode === "document")
+			h.view.toggleLayoutTranslate(); // hide
+		else h.view.togglePageLayoutTranslate(0); // hide
 		h.render();
 		const writes = h.writes.length;
 		h.runs[0].resolve(completed(h.runs[0], "Late"));
 		await h.flush();
 		assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
-		assert.equal(h.writes.length, writes);
-		h.view.toggleLayoutTranslate(); // show retained progress
+		if (mode === "document") assert.equal(h.writes.length, writes);
+		else assert.ok(h.writes.length > writes);
+		if (mode === "document")
+			h.view.toggleLayoutTranslate(); // show retained
+		else h.view.togglePageLayoutTranslate(0); // show retained
 		await h.flush();
 		assert.equal(
 			h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
-			"Visible progress",
+			mode === "document" ? "Visible progress" : "Late",
 		);
 		assert.equal(h.runs.length, 1);
 	});
@@ -1037,7 +1342,8 @@ it("persists a successful current page and completes its job", async () => {
 	h.runs[0].resolve(completed(h.runs[0], "Current result"));
 	await h.flush();
 	assert.equal(h.view.layoutTranslateRunning, false);
-	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
+	// A page-only job never makes the toolbar look like a document translation.
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
 	assert.equal(
 		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
 		"Current result",
@@ -1045,34 +1351,164 @@ it("persists a successful current page and completes its job", async () => {
 	assert.equal(h.writes.length, writes + 1);
 });
 
-for (const entry of ["toolbar", "page"]) {
-	it(`restores a hidden page through the ${entry} without translating or writing again`, async () => {
-		const h = createHarness();
-		h.view.togglePageLayoutTranslate(0);
-		await h.flush();
-		h.runs[0].resolve(completed(h.runs[0], "Saved page"));
-		await h.flush();
-		const writes = h.writes.length;
-		const reflowInput = h.reflowInput;
-		h.view.togglePageLayoutTranslate(0); // hide
-		h.render();
-		assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
-		assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.show");
-		assert.equal(h.reflowInput, reflowInput);
-		if (entry === "toolbar") h.view.toggleLayoutTranslate();
-		else h.view.togglePageLayoutTranslate(0);
-		await h.flush();
-		assert.equal(
-			h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
-			"Saved page",
-		);
-		assert.equal(h.view.layoutTranslatePageStateByPage.get(0)?.active, true);
-		assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
-		assert.equal(h.runs.length, 1);
-		assert.equal(h.writes.length, writes);
-		assert.equal(h.reflowInput, reflowInput);
+it("flushes the sidecar as soon as a run completes", async () => {
+	const h = createHarness();
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	h.runs[0].resolve(completed(h.runs[0], "刚写完"));
+	await h.flush();
+	assert.equal(h.flushes.length, 1);
+	assert.equal(
+		(h.flushes[0]?.[2] as Item[] | undefined)?.[0]?.translated,
+		"刚写完",
+	);
+});
+
+it("reuses finished document blocks when a page restarts before the cache write lands", async () => {
+	const h = createHarness();
+	// The runtime works on prepared (protected) sources, not the raw region
+	// text; simulate that so the post-prepare reuse is what keeps a0 done.
+	h.setPrepareTransform((items) =>
+		items.map((item) => ({ ...item, source: `prepared:${item.source}` })),
+	);
+	h.render({
+		layoutRawRegions: [
+			{ ...region(0), id: "a0", source: "A0" },
+			{ ...region(0), id: "a1", source: "A1" },
+			{ ...region(1), id: "b0", source: "B0" },
+		],
 	});
-}
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.runs[0].resolve([
+		{ ...h.runs[0].items[0], status: "done", translated: "译文 A0" },
+		{ ...h.runs[0].items[1], status: "error", error: "boom" },
+		{ ...h.runs[0].items[2], status: "done", translated: "译文 B0" },
+	]);
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
+	// Retry page 0 immediately: the sidecar may still be stale, so the finished
+	// block must come from the in-memory prepared items.
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	assert.equal(h.runs.length, 2);
+	assert.deepEqual(
+		h.runs[1].items.map((item) => [
+			item.id,
+			item.status,
+			item.translated ?? null,
+		]),
+		[
+			["a0", "done", "译文 A0"],
+			["a1", "pending", null],
+		],
+	);
+});
+
+it("does not abort a document run when a pending page tag is clicked", async () => {
+	const h = createHarness();
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.runs[0].onUpdate([
+		{ ...h.runs[0].items[0], status: "running" },
+		{ ...h.runs[0].items[1], status: "pending" },
+	]);
+	h.render();
+	h.view.togglePageLayoutTranslate(1); // page 1 is still queued in the doc run
+	h.render();
+	assert.equal(h.runs[0].signal.aborted, false);
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.view.layoutTranslateRunning, true);
+});
+
+it("hydrates a page from the sidecar without a request", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "缓存页面" },
+	]);
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"缓存页面",
+	);
+	// Still a page-scoped job: the toolbar offers the whole document.
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
+	assert.equal(h.view.layoutTranslatePartial.visible, false);
+});
+
+it("reports a page translation failure as a page failure", async () => {
+	const h = createHarness();
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	h.runs[0].reject(
+		new Error("Unexpected Tencent Transmart translation response"),
+	);
+	await h.flush();
+	assert.equal(h.errors.length, 1);
+	assert.equal(h.errors[0]?.[0], "pdf.layoutTranslate.pageFailed");
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
+	// The document-level partial dialog stays out of a page-only failure.
+	assert.equal(h.view.layoutTranslatePartial.visible, false);
+});
+
+it("restores a hidden page through its page tag without translating or writing again", async () => {
+	const h = createHarness();
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	h.runs[0].resolve(completed(h.runs[0], "Saved page"));
+	await h.flush();
+	const writes = h.writes.length;
+	const reflowInput = h.reflowInput;
+	h.view.togglePageLayoutTranslate(0); // hide
+	h.render();
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
+	assert.equal(h.reflowInput, reflowInput);
+	h.view.togglePageLayoutTranslate(0); // show
+	await h.flush();
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"Saved page",
+	);
+	assert.equal(h.view.layoutTranslatePageStateByPage.get(0)?.active, true);
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.writes.length, writes);
+	assert.equal(h.reflowInput, reflowInput);
+});
+
+it("starts a cache-first document run from the toolbar after a page-only translation", async () => {
+	const h = createHarness();
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	h.runs[0].resolve(completed(h.runs[0], "Saved page"));
+	await h.flush();
+	// The auto-translation sidecar is complete for the whole paper.
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "Saved page" },
+		{ id: "region-1", source: "Source 1", translated: "Cached page two" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	// Cache-first document hydrate: no second request, both pages rendered.
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(1)?.[0]?.translated,
+		"Cached page two",
+	);
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
+	h.view.toggleLayoutTranslate(); // hide the whole document
+	h.render();
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.show");
+});
 
 it("resets hidden pages when switching documents", async () => {
 	const h = createHarness();
@@ -1094,7 +1530,7 @@ it("resets hidden pages when switching documents", async () => {
 	);
 });
 
-it("keeps a hidden page while another page finishes and shows both from the toolbar", async () => {
+it("keeps a hidden page while another page finishes and restores it from its page tag", async () => {
 	const h = createHarness();
 	h.view.togglePageLayoutTranslate(0);
 	await h.flush();
@@ -1109,7 +1545,7 @@ it("keeps a hidden page while another page finishes and shows both from the tool
 	assert.equal(h.view.layoutTranslateItemsByPage.has(0), false);
 	assert.equal(h.view.layoutTranslateItemsByPage.has(1), true);
 	const writes = h.writes.length;
-	h.view.toggleLayoutTranslate(); // show the first page, preserving the second
+	h.view.togglePageLayoutTranslate(0); // show the first page
 	await h.flush();
 	assert.equal(
 		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
@@ -1119,12 +1555,10 @@ it("keeps a hidden page while another page finishes and shows both from the tool
 		h.view.layoutTranslateItemsByPage.get(1)?.[0]?.translated,
 		"Second page",
 	);
-	h.view.toggleLayoutTranslate(); // hide both
+	h.view.togglePageLayoutTranslate(1); // hide the second page
 	h.render();
-	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
-	h.view.toggleLayoutTranslate(); // show both
-	await h.flush();
-	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
+	assert.equal(h.view.layoutTranslateItemsByPage.has(1), false);
+	assert.equal(h.view.layoutTranslateItemsByPage.has(0), true);
 	assert.equal(h.runs.length, 2);
 	assert.equal(h.writes.length, writes);
 });

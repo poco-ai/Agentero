@@ -533,6 +533,13 @@
 		"autoSelection": {
 			"label": "Auto-translate PDF selection"
 		},
+		"autoImport": {
+			"label": "Auto-translate after import",
+			"description": "Runs full-text translation in the background once layout analysis finishes. Uses the current translation service and cache settings.",
+			"concurrency": {
+				"label": "Concurrent papers for auto-translation"
+			}
+		},
 		"displayMode": {
 			"label": "Translation display mode",
 			"overlay": "Overlay on original PDF",
@@ -605,6 +612,9 @@
 			"reset": "Reset",
 			"unknownPlaceholder": "Unknown placeholder: {{name}}. Only {{targetLang}}, {{sourceLang}}, and {{text}} are allowed.",
 			"userNeedsText": "A user template must include {{text}} where the source goes."
+		},
+		"autoTranslation": {
+			"section": "Auto-translate"
 		}
 	},
 	"layout": {

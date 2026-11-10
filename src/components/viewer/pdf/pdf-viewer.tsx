@@ -1261,6 +1261,7 @@ function PdfViewerInner({
 		layoutTranslateRunning,
 		layoutTranslatePreparing,
 		layoutTranslateWaiting,
+		layoutTranslateQueued,
 		layoutTranslateActive,
 		layoutTranslateLabel,
 		layoutTranslatePartial,
@@ -2446,6 +2447,7 @@ function PdfViewerInner({
 					layoutTranslateRunning={layoutTranslateRunning}
 					layoutTranslatePreparing={layoutTranslatePreparing}
 					layoutTranslateWaiting={layoutTranslateWaiting}
+					layoutTranslateQueued={layoutTranslateQueued}
 					layoutTranslateActive={layoutTranslateActive}
 					layoutTranslateLabel={layoutTranslateLabel}
 					layoutTranslatePartial={layoutTranslatePartial}

@@ -18,7 +18,10 @@ Host 在 **`127.0.0.1:23119`** 模拟 Zotero 桌面 Connector HTTP，官方浏�
 - Connector 保存对话框后续发送的 `updateSession` 只更新该 session 的 `desired_parent`；附件
   仍未终结时不移动，成功或失败终结后，本地 Vault 统一通过共享 `paper_move` 事务移动一次。
 - `connector:item-saved` 只在初次 finalizer 得到稳定路径后发出；前端随后刷新并打开该路径，
-  现有 open/reconcile 流程再按需启动 backend parser。Connector 本身不主动解析。
+  现有 open/reconcile 流程再按需启动 backend parser。PDF 由 Connector 直接落盘、不经过 `DownloadAssets`，
+  所以初次 finalizer 会为有本地 PDF 的论文入队 `layoutAnalyze`（开启「导入后自动翻译」时再入队依赖的
+  `layoutTranslate`）；已交给 `RecognizeMetadata` 的论文跳过，由识别任务在改名 / 合并后的路径入队。
+  远程 Vault 不入队（版面只在本地执行）。
 - Connector 返回的 Zotero 标签会以 `@zotero:` 前缀保存在 catalog 中，用于保留来源信息；
   arXiv 学科分类标签则走 `@arxiv:`。两类内部标签都不会显示在 Library、Paper Info 或标签筛选中。
 - 远程：stage 后 SFTP；catalog 经 work mirror。

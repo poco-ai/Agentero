@@ -533,6 +533,13 @@
 		"autoSelection": {
 			"label": "PDF 划词后自动翻译"
 		},
+		"autoImport": {
+			"label": "导入后自动翻译",
+			"description": "版面解析完成后在后台翻译全文，会使用当前翻译服务和缓存设置。",
+			"concurrency": {
+				"label": "自动翻译的论文并发数"
+			}
+		},
 		"displayMode": {
 			"label": "翻译显示模式",
 			"overlay": "在原 PDF 上覆盖",
@@ -605,6 +612,9 @@
 			"reset": "恢复默认",
 			"unknownPlaceholder": "不能使用占位符 {{name}}。只允许 {{targetLang}}、{{sourceLang}} 和 {{text}}。",
 			"userNeedsText": "用户模板必须包含 {{text}}，原文会替换到这里。"
+		},
+		"autoTranslation": {
+			"section": "自动翻译"
 		}
 	},
 	"layout": {

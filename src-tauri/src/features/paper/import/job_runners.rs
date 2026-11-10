@@ -136,17 +136,9 @@ fn download_assets_runner(
                     }
                 }
                 if caps.has_pdf() {
-                    let backend = app
-                        .state::<crate::features::system::settings::AppSettingsStore>()
-                        .layout_backend();
-                    center.apply_layout_backend(&backend).await;
-                    let lsnap = center
-                        .enqueue_layout_analyze(&vault, &path, JobLane::Normal, false)
-                        .await;
-                    emit_job_changed(&app, lsnap.clone());
-                    if let StartOutcome::Started(started) = center.try_start(&lsnap.id).await {
-                        center.spawn_runner(&app, started);
-                    }
+                    // Shared import entry: layout plus the optional dependent
+                    // background translation (settings gate inside).
+                    crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &path);
                 }
                 RunOutcome::Succeeded
             }
@@ -297,17 +289,7 @@ fn recognize_metadata_runner(
             &final_path,
         );
         if final_caps.has_pdf() {
-            let backend = app
-                .state::<crate::features::system::settings::AppSettingsStore>()
-                .layout_backend();
-            center.apply_layout_backend(&backend).await;
-            let lsnap = center
-                .enqueue_layout_analyze(&vault, &final_path, JobLane::Normal, false)
-                .await;
-            emit_job_changed(&app, lsnap.clone());
-            if let StartOutcome::Started(started) = center.try_start(&lsnap.id).await {
-                center.spawn_runner(&app, started);
-            }
+            crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &final_path);
         }
 
         match outcome {

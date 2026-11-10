@@ -103,6 +103,9 @@ pub struct SaveSession {
     pub active_writers: usize,
     /// Completion events held until every new item has a stable final path.
     pub pending_saved: Vec<ConnectorItemSaved>,
+    /// Paper folders whose `RecognizeMetadata` job owns the layout follow-up;
+    /// the connector finalizer must not queue one for the placeholder path.
+    pub pending_recognition: std::collections::HashSet<String>,
     pub initial_finalized: bool,
     /// Serializes finalization and collection moves without blocking browser downloads.
     pub io_gate: Arc<AsyncMutex<()>>,
@@ -430,6 +433,7 @@ impl ConnectorController {
                 attachment_phase: HashMap::new(),
                 active_writers: 0,
                 pending_saved: Vec::new(),
+                pending_recognition: std::collections::HashSet::new(),
                 initial_finalized: false,
                 io_gate: Arc::new(AsyncMutex::new(())),
             },
@@ -504,6 +508,32 @@ impl ConnectorController {
             if let Some(s) = g.sessions.get_mut(session_id) {
                 s.item_map
                     .insert(connector_item_id.to_string(), paper_path.replace('\\', "/"));
+            }
+        }
+    }
+
+    /// Paper folders that still need the layout follow-up: everything in the
+    /// session except papers whose recognition job owns it.
+    pub fn session_layout_paths(&self, session_id: &str) -> Option<Vec<String>> {
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        g.sessions.get(session_id).map(|session| {
+            session
+                .paper_paths
+                .iter()
+                .filter(|path| !session.pending_recognition.contains(*path))
+                .cloned()
+                .collect()
+        })
+    }
+
+    /// Mark a paper as recognition-owned so the finalizer leaves its layout
+    /// follow-up to the recognize runner (which runs against the final path).
+    pub fn record_pending_recognition(&self, session_id: &str, paper_path: &str) {
+        if let Ok(mut g) = self.inner.lock() {
+            if let Some(session) = g.sessions.get_mut(session_id) {
+                session
+                    .pending_recognition
+                    .insert(paper_path.replace('\\', "/"));
             }
         }
     }
@@ -732,6 +762,11 @@ impl ConnectorController {
                 for saved in &mut session.pending_saved {
                     saved.path = Self::rebase_path(&saved.path, from, to);
                 }
+                session.pending_recognition = session
+                    .pending_recognition
+                    .iter()
+                    .map(|path| Self::rebase_path(path, from, to))
+                    .collect();
             }
         }
     }
@@ -799,6 +834,7 @@ impl ConnectorController {
             (handle, parent, session.paper_paths.clone())
         };
 
+        let moved = !paths.is_empty();
         for from in paths {
             let new_rel = match self
                 .move_paper_to_parent(&vault_handle, &from, &desired_parent)
@@ -816,7 +852,7 @@ impl ConnectorController {
             self.rebase_session_path(session_id, &from, &new_rel);
         }
 
-        let pending = {
+        let (pending, first_finalize) = {
             let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             let session = g
                 .sessions
@@ -824,14 +860,21 @@ impl ConnectorController {
                 .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
             session.desired_parent = None;
             if session.initial_finalized {
-                Vec::new()
+                (Vec::new(), false)
             } else {
                 session.initial_finalized = true;
-                std::mem::take(&mut session.pending_saved)
+                (std::mem::take(&mut session.pending_saved), true)
             }
         };
         for saved in pending {
             self.emit_item_saved(saved);
+        }
+        if first_finalize || moved {
+            // Every attachment has landed and the papers are now at their final
+            // collection path: queue the layout follow-up (+ optional import
+            // translation) that the JobCenter never ran for this browser-driven
+            // save. A later collection move re-queues against the new path too.
+            super::import::spawn_layout_after_session_papers(self, session_id);
         }
         Ok(())
     }

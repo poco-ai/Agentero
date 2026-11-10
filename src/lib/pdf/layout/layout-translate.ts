@@ -5,8 +5,11 @@
 
 import i18n from "@/i18n";
 import { listenAgentCompleted, listenAgentFailed, runOnce } from "@/lib/agent";
+import { commands, type Json } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
+import { callApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
+import { isTauri } from "@/lib/core/tauri";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import {
 	isAlgorithmLayoutKind,
@@ -135,12 +138,10 @@ export type LayoutTranslateSidecar = {
 
 export type LayoutTranslateWriteOptions = {
 	/**
-	 * Single-page translation writes only a subset of layout blocks. Preserve
-	 * cached blocks from other pages instead of replacing the whole sidecar.
+	 * Page and background runs can write a subset of the document. Preserve
+	 * all completed cached blocks when merging that subset.
 	 */
 	preserveExisting?: boolean;
-	/** Existing cached blocks on these pages are replaced by `items`. */
-	replacePageIndexes?: readonly number[];
 };
 
 /** Prefer body extract; fall back to caption title for headers. */
@@ -598,11 +599,12 @@ export async function writeLayoutTranslateSidecar(
 			return written;
 		});
 	const merged = new Map<string, LayoutTranslateSidecarItem>();
-	if (options.preserveExisting) {
+	if (
+		options.preserveExisting &&
+		(!isTauri() || paperAbsPath.startsWith("remote:"))
+	) {
 		const existing = await readLayoutTranslateSidecar(paperAbsPath, key);
-		const replacePageIndexes = new Set(options.replacePageIndexes ?? []);
 		for (const item of existing?.items ?? []) {
-			if (replacePageIndexes.has(item.pageIndex)) continue;
 			merged.set(item.id, item);
 		}
 	}
@@ -627,6 +629,16 @@ export async function writeLayoutTranslateSidecar(
 				a.bbox.x - b.bbox.x,
 		),
 	};
+	if (isTauri() && !paperAbsPath.startsWith("remote:")) {
+		await callApi(() =>
+			commands.layoutTranslateCacheWrite({
+				paperAbsPath,
+				sidecar: sidecar as unknown as Json,
+				preserveExisting: options.preserveExisting ?? false,
+			}),
+		);
+		return;
+	}
 	await writeVaultFile(
 		layoutTranslateSidecarPath(paperAbsPath),
 		`${JSON.stringify(sidecar, null, 2)}\n`,
@@ -646,6 +658,39 @@ function chainNeedsTranslate(chain: LayoutTranslateChain): boolean {
 	return hasPendingLayoutTranslateItems(chain.members);
 }
 
+const pendingSidecarWrites = new Map<
+	string,
+	{
+		key: LayoutTranslateCacheKey;
+		items: readonly LayoutTranslateItem[];
+		options: LayoutTranslateWriteOptions;
+	}
+>();
+
+function mergePendingSidecarWrite(
+	paper: string,
+	key: LayoutTranslateCacheKey,
+	items: readonly LayoutTranslateItem[],
+	options: LayoutTranslateWriteOptions,
+): readonly LayoutTranslateItem[] {
+	const pending = pendingSidecarWrites.get(paper);
+	if (
+		!pending ||
+		!options.preserveExisting ||
+		!pending.options.preserveExisting ||
+		!sameLayoutTranslateCacheKey(pending.key, key)
+	)
+		return items;
+	const merged = new Map(
+		pending.items
+			.filter((item) => item.status === "done")
+			.map((item) => [item.id, item]),
+	);
+	for (const item of items)
+		if (item.status === "done") merged.set(item.id, item);
+	return [...merged.values()];
+}
+
 export function persistLayoutTranslateSidecarBestEffort(
 	paperAbsPath: string | null | undefined,
 	key: LayoutTranslateCacheKey,
@@ -655,17 +700,51 @@ export function persistLayoutTranslateSidecarBestEffort(
 	if (!paperAbsPath) return;
 	const pending = translateSidecarWriteTimers.get(paperAbsPath);
 	if (pending) clearTimeout(pending);
+	const merged = mergePendingSidecarWrite(paperAbsPath, key, items, options);
+	pendingSidecarWrites.set(paperAbsPath, { key, items: merged, options });
 	const timer = setTimeout(() => {
 		translateSidecarWriteTimers.delete(paperAbsPath);
-		void writeLayoutTranslateSidecar(paperAbsPath, key, items, options).catch(
-			(error) => {
-				logger.warn("layout translate cache write failed", {
-					error: errorText(error),
-				});
-			},
-		);
+		const pending = pendingSidecarWrites.get(paperAbsPath);
+		pendingSidecarWrites.delete(paperAbsPath);
+		if (!pending) return;
+		void writeLayoutTranslateSidecar(
+			paperAbsPath,
+			pending.key,
+			pending.items,
+			pending.options,
+		).catch((error) => {
+			logger.warn("layout translate cache write failed", {
+				error: errorText(error),
+			});
+		});
 	}, LAYOUT_TRANSLATE_WRITE_DEBOUNCE_MS);
 	translateSidecarWriteTimers.set(paperAbsPath, timer);
+}
+
+/**
+ * Flush a finished run's sidecar immediately, cancelling its pending debounce.
+ * A page toggle issued right after the run must be able to read the blocks
+ * that just completed instead of starting a second translation pass.
+ */
+export async function flushLayoutTranslateSidecar(
+	paperAbsPath: string | null | undefined,
+	key: LayoutTranslateCacheKey,
+	items: readonly LayoutTranslateItem[],
+	options: LayoutTranslateWriteOptions = {},
+): Promise<void> {
+	if (!paperAbsPath) return;
+	const pending = translateSidecarWriteTimers.get(paperAbsPath);
+	if (pending) clearTimeout(pending);
+	translateSidecarWriteTimers.delete(paperAbsPath);
+	const merged = mergePendingSidecarWrite(paperAbsPath, key, items, options);
+	pendingSidecarWrites.delete(paperAbsPath);
+	await writeLayoutTranslateSidecar(paperAbsPath, key, merged, options).catch(
+		(error) => {
+			logger.warn("layout translate cache write failed", {
+				error: errorText(error),
+			});
+		},
+	);
 }
 
 /** Paint-relevant identity of one bucket slot (id, progress, partial text). */

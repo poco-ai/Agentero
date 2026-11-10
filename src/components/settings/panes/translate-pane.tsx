@@ -16,6 +16,7 @@ import {
 	PageTitle,
 	SettingsGroup,
 	SettingsRow,
+	SettingsSectionLabel,
 } from "@/components/settings/settings-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -448,18 +449,6 @@ export function TranslatePane({
 						</SelectContent>
 					</Select>
 				</SettingsRow>
-				<SettingsRow
-					label={t("translate.autoSelection.label")}
-					htmlFor="translate-auto-selection"
-				>
-					<Switch
-						id="translate-auto-selection"
-						checked={tr.autoTranslateSelection}
-						onCheckedChange={(v) =>
-							patchTranslate({ autoTranslateSelection: v })
-						}
-					/>
-				</SettingsRow>
 				<SettingsRow label={t("translate.displayMode.label")}>
 					<Select
 						value={tr.displayMode}
@@ -484,25 +473,81 @@ export function TranslatePane({
 				</SettingsRow>
 			</SettingsGroup>
 
+			<SettingsSectionLabel className="mt-4">
+				{t("translate.autoTranslation.section")}
+			</SettingsSectionLabel>
+			<SettingsGroup>
+				<SettingsRow
+					label={t("translate.autoSelection.label")}
+					htmlFor="translate-auto-selection"
+				>
+					<Switch
+						id="translate-auto-selection"
+						checked={tr.autoTranslateSelection}
+						onCheckedChange={(v) =>
+							patchTranslate({ autoTranslateSelection: v })
+						}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={t("translate.autoImport.label")}
+					description={t("translate.autoImport.description")}
+					htmlFor="translate-auto-import"
+				>
+					<Switch
+						id="translate-auto-import"
+						checked={tr.autoTranslateImport}
+						onCheckedChange={(v) => patchTranslate({ autoTranslateImport: v })}
+					/>
+				</SettingsRow>
+				{tr.autoTranslateImport ? (
+					<SettingsRow
+						label={t("translate.autoImport.concurrency.label")}
+						htmlFor="translate-auto-import-concurrency"
+					>
+						<Input
+							id="translate-auto-import-concurrency"
+							type="number"
+							min={1}
+							max={5}
+							className="h-8 w-24"
+							defaultValue={tr.autoTranslateImportConcurrency}
+							onBlur={(e) => {
+								const parsed = Number(e.currentTarget.value);
+								const next = Number.isFinite(parsed)
+									? Math.min(5, Math.max(1, Math.round(parsed)))
+									: DEFAULT_TRANSLATE_SETTINGS.autoTranslateImportConcurrency;
+								e.currentTarget.value = String(next);
+								if (next !== tr.autoTranslateImportConcurrency) {
+									patchTranslate({ autoTranslateImportConcurrency: next });
+								}
+							}}
+						/>
+					</SettingsRow>
+				) : null}
+			</SettingsGroup>
+
 			<div className="mb-5">
-				<div className="mb-2 flex items-center justify-between gap-2 px-0.5">
-					<h3 className="flex items-center gap-1 font-medium text-sm">
-						{t("translate.cache.section")}
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<button
-									type="button"
-									aria-label={t("translate.cache.tip")}
-									className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-								>
-									<Info className="size-3.5" aria-hidden />
-								</button>
-							</TooltipTrigger>
-							<TooltipContent className="max-w-64">
-								{t("translate.cache.tip")}
-							</TooltipContent>
-						</Tooltip>
-					</h3>
+				<div className="mb-2 flex items-center justify-between gap-2">
+					<SettingsSectionLabel className="mb-0">
+						<span className="flex items-center gap-1">
+							{t("translate.cache.section")}
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<button
+										type="button"
+										aria-label={t("translate.cache.tip")}
+										className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+									>
+										<Info className="size-3.5" aria-hidden />
+									</button>
+								</TooltipTrigger>
+								<TooltipContent className="max-w-64">
+									{t("translate.cache.tip")}
+								</TooltipContent>
+							</Tooltip>
+						</span>
+					</SettingsSectionLabel>
 					<Button
 						type="button"
 						variant="outline"
@@ -550,9 +595,9 @@ export function TranslatePane({
 			</div>
 
 			<div className="mb-5">
-				<h3 className="mb-2 px-0.5 font-medium text-sm">
+				<SettingsSectionLabel>
 					{t("translate.providerConfig.section")}
-				</h3>
+				</SettingsSectionLabel>
 				<div className="grid gap-2">
 					{COMMERCIAL_MT_PROVIDER_IDS.map((id) => {
 						const cfg = getProviderConfig(id);
@@ -771,10 +816,10 @@ export function TranslatePane({
 			</div>
 
 			<div className="mb-5">
-				<div className="mb-2 flex items-center justify-between gap-2 px-0.5">
-					<h3 className="font-medium text-sm">
+				<div className="mb-2 flex items-center justify-between gap-2">
+					<SettingsSectionLabel className="mb-0">
 						{t("translate.customPrompt.label")}
-					</h3>
+					</SettingsSectionLabel>
 					<div className="flex items-center gap-1.5">
 						<Button
 							type="button"

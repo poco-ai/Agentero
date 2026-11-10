@@ -224,6 +224,7 @@ describe("library task executors", () => {
 			phase: null,
 			error: null,
 			state: "succeeded",
+			params: null,
 		});
 	});
 
@@ -252,6 +253,7 @@ describe("library task executors", () => {
 			phase: null,
 			error: null,
 			state: "cancelled",
+			params: null,
 		});
 		expect(reports.some((r) => r.state === "succeeded")).toBe(false);
 	});
@@ -283,6 +285,7 @@ describe("library task executors", () => {
 			phase: null,
 			error: null,
 			state: "succeeded",
+			params: null,
 		});
 	});
 
@@ -367,6 +370,7 @@ describe("library task executors", () => {
 			phase: null,
 			error: null,
 			state: "succeeded",
+			params: null,
 		});
 	});
 });

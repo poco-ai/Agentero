@@ -47,6 +47,7 @@ type PdfToolbarProps = {
 	layoutTranslatePreparing?: boolean;
 	/** Queued behind layout analysis; plain click cancels the wait. */
 	layoutTranslateWaiting?: boolean;
+	layoutTranslateQueued?: boolean;
 	layoutTranslateActive: boolean;
 	layoutTranslateLabel: string;
 	/** Partial-translation entry; hidden while the meter is running. */
@@ -81,6 +82,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 	layoutTranslateRunning,
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
+	layoutTranslateQueued = false,
 	layoutTranslateActive,
 	layoutTranslateLabel,
 	layoutTranslatePartial = null,
@@ -186,6 +188,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 		layoutTranslateRunning,
 		layoutTranslatePreparing,
 		layoutTranslateWaiting,
+		layoutTranslateQueued,
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 	});

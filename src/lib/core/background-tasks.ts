@@ -35,7 +35,8 @@ export type BackgroundTaskIcon =
 	| "plug"
 	| "scan"
 	| "fileCode"
-	| "list";
+	| "list"
+	| "translate";
 
 export type BackgroundTaskStatus =
 	| "queued"
