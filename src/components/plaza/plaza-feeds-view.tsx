@@ -550,7 +550,7 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 
 	return (
 		<div className={cn("flex h-full min-h-0 flex-col", className)}>
-			{hasSubs ? (
+			{hasSubs && !openItem ? (
 				<div className="shrink-0 border-b px-4 py-3">
 					<AddForm
 						busy={busy}
@@ -665,29 +665,31 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 						</div>
 					</nav>
 					<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-						<div className="flex shrink-0 justify-end border-b px-2 py-1">
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										aria-pressed={hideRead}
-										className={cn(
-											hideRead && "bg-accent text-accent-foreground",
-										)}
-										aria-label={t("plaza.feeds.hideRead")}
-										onClick={() => {
-											hideReadRef.current = !hideRead;
-											setHideRead(!hideRead);
-											void loadItems(selectedId, false);
-										}}
-									>
-										<EyeOff className="size-3.5" aria-hidden />
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>{t("plaza.feeds.hideRead")}</TooltipContent>
-							</Tooltip>
-						</div>
+						{openItem ? null : (
+							<div className="flex shrink-0 justify-end border-b px-2 py-1">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon-sm"
+											aria-pressed={hideRead}
+											className={cn(
+												hideRead && "bg-accent text-accent-foreground",
+											)}
+											aria-label={t("plaza.feeds.hideRead")}
+											onClick={() => {
+												hideReadRef.current = !hideRead;
+												setHideRead(!hideRead);
+												void loadItems(selectedId, false);
+											}}
+										>
+											<EyeOff className="size-3.5" aria-hidden />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>{t("plaza.feeds.hideRead")}</TooltipContent>
+								</Tooltip>
+							</div>
+						)}
 						{openItem ? (
 							<PlazaFeedItemDetail
 								item={openItem}
