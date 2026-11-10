@@ -42,6 +42,8 @@ fn extra_path_dirs() -> Vec<PathBuf> {
         dirs.push(PathBuf::from("/usr/bin"));
         dirs.push(PathBuf::from("/bin"));
     }
+    #[cfg(target_os = "macos")]
+    dirs.extend(super::desktop_cli::path_dirs());
     dirs
 }
 
@@ -97,7 +99,7 @@ pub fn path_entries() -> Vec<PathBuf> {
     entries
 }
 
-fn is_executable(path: &Path) -> bool {
+pub(super) fn is_executable(path: &Path) -> bool {
     if !path.is_file() {
         return false;
     }

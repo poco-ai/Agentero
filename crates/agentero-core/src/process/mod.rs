@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "macos", test))]
+mod desktop_cli;
 pub mod discover;
 #[cfg(windows)]
 mod windows_job;
