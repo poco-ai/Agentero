@@ -953,8 +953,24 @@ pub fn slug_from_stem(stem: &str) -> String {
             prev_sep = true;
         }
     }
-    let s: String = s.chars().take(60).collect();
-    let s = s.trim_matches(|c| c == '-' || c == '.').to_string();
+    let normalized: String = s
+        .chars()
+        .take(60)
+        .collect::<String>()
+        .trim_matches(|c| c == '-' || c == '.')
+        .to_string();
+    // Keep long names distinguishable after truncation. Without a suffix,
+    // unrelated files sharing the first 60 characters receive the same id
+    // and can be treated as one local paper during import.
+    let truncated = s.chars().count() > 60;
+    let s = if truncated {
+        use sha2::{Digest, Sha256};
+        let digest = hex::encode(Sha256::digest(stem.trim().as_bytes()));
+        let prefix: String = normalized.chars().take(47).collect();
+        format!("{prefix}-{}", &digest[..12])
+    } else {
+        normalized
+    };
     if s.is_empty() {
         use sha2::{Digest, Sha256};
         format!(
@@ -1538,6 +1554,10 @@ mod tests {
         assert_ne!(slug_from_stem("!!!"), slug_from_stem("???"));
         assert_eq!(slug_from_stem("舞蹈概论"), "舞蹈概论");
         assert_eq!(slug_from_stem("舞蹈学：中国学派"), "舞蹈学-中国学派");
+        let long_a = format!("{}甲", "中文论文".repeat(16));
+        let long_b = format!("{}乙", "中文论文".repeat(16));
+        assert_ne!(slug_from_stem(&long_a), slug_from_stem(&long_b));
+        assert!(slug_from_stem(&long_a).chars().count() <= 60);
     }
 
     #[test]

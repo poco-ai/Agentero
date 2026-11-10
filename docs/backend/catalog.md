@@ -14,7 +14,7 @@
 
 ## 要点
 
-本地 PDF ID 保留中文等 Unicode 字母/数字；空 slug 使用名称 SHA-256 的前 12 位，同名本地 ID 追加后缀（原地自动入库用 Vault 相对路径短哈希，分配新目录的文件导入用编号）。无 DOI/arXiv 的本地 PDF 不仅凭 ID 去重。`list_all` / `paper_rescan` 修复旧 `id=paper` 本地条目并经 `pending_sidecars` 写回 `metadata.json`，保持路径、资源及其它元数据；先合入更新的 sidecar，再投影修复后的记录，避免再次 Rescan 恢复冲突（#937）。
+本地 PDF ID 保留中文等 Unicode 字母/数字；空 slug 使用名称 SHA-256 的前 12 位，超过 60 个字符的 slug 也带稳定哈希后缀避免截断碰撞，同名本地 ID 追加后缀（原地自动入库用 Vault 相对路径短哈希，分配新目录的文件导入用编号）。无 DOI/arXiv 的本地 PDF 不仅凭 ID 去重。`list_all` / `paper_rescan` 修复旧 `id=paper` 本地条目并经 `pending_sidecars` 写回 `metadata.json`，保持路径、资源及其它元数据；先合入更新的 sidecar，再投影修复后的记录，避免再次 Rescan 恢复冲突（#937）。
 
 - 主键：论文 `path`（Vault 相对路径）
 - 字段以 `crates/agentero-core/src/features/paper/catalog/schema.rs` 为准（当前 schema v13）
