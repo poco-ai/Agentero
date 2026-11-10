@@ -545,7 +545,7 @@ it("auto-opens the partial dialog once after the cached page is ready", async ()
 	assert.equal(h.view.layoutTranslatePartial.open, true);
 });
 
-it("ignores the partial hint without removing the entry", async () => {
+it("ignores the partial hint and hides the entry", async () => {
 	const h = createHarness();
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "译文 0" },
@@ -558,12 +558,9 @@ it("ignores the partial hint without removing the entry", async () => {
 	h.view.layoutTranslatePartial.onDismiss();
 	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, false);
-	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	// "Ignore" is a per-gap-set decision: the warning entry goes away with it.
+	assert.equal(h.view.layoutTranslatePartial.visible, false);
 	assert.equal(h.dismissedPartialKeys.size, 1);
-	// The entry still opens manually after "ignore".
-	h.view.layoutTranslatePartial.onOpenChange(true);
-	h.render();
-	assert.equal(h.view.layoutTranslatePartial.open, true);
 });
 
 it("completes only pending blocks and rewrites the sidecar", async () => {

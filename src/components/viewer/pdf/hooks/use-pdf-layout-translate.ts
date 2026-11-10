@@ -375,6 +375,8 @@ export function usePdfLayoutTranslate({
 	const layoutTranslateJobRef = useRef(layoutTranslateJob);
 	layoutTranslateJobRef.current = layoutTranslateJob;
 	const [partialDialogOpen, setPartialDialogOpen] = useState(false);
+	/** Bumped after an in-session "ignore" so the entry re-reads its record. */
+	const [, setPartialDismissRevision] = useState(0);
 	/** Gap identity that already got its one automatic open this session. */
 	const partialAutoOpenedKeyRef = useRef<string | null>(null);
 	/** Stable paper identity for the machine-local dismissal records. */
@@ -1458,15 +1460,19 @@ export function usePdfLayoutTranslate({
 	const dismissPartialLayoutTranslate = useCallback(() => {
 		dismissTranslationPartial(layoutTranslateJobRef.current.partialDismissKey);
 		setPartialDialogOpen(false);
+		setPartialDismissRevision((value) => value + 1);
 	}, []);
 
 	// The main translate button owns original/translated switching; the partial
 	// entry stays a separate, always-available action while gaps remain (page
 	// building does not hide it, only an in-flight translation run does).
+	// "Ignore" is persistent for this gap set, so it drops the entry entirely
+	// rather than only suppressing its automatic popover.
 	const layoutTranslatePartialVisible =
 		layoutTranslatePendingRequired > 0 &&
 		!layoutTranslateRunning &&
-		!layoutTranslateWaiting;
+		!layoutTranslateWaiting &&
+		!isTranslationPartialDismissed(layoutTranslateJob.partialDismissKey);
 
 	const partialPageRange = useMemo(
 		() => layoutTranslatePendingPageRange(layoutTranslateJob.items),
