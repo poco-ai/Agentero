@@ -50,6 +50,7 @@ type Run = RunOptions & {
 };
 
 type Options = {
+	translationPane?: boolean;
 	docId: string;
 	paperAbsPath: string | null;
 	paperRelPath?: string | null;
@@ -201,7 +202,16 @@ function createHarness() {
 			if (!(index in slots)) slots[index] = { current: initial };
 			return slots[index] as { current: T };
 		},
-		useCallback: <T>(callback: T) => callback,
+		useCallback<T>(callback: T, deps: readonly unknown[]): T {
+			const index = cursor++;
+			const previous = slots[index] as
+				| { deps: readonly unknown[]; callback: T }
+				| undefined;
+			if (previous && deps.every((dep, i) => Object.is(dep, previous.deps[i])))
+				return previous.callback;
+			slots[index] = { deps, callback };
+			return callback;
+		},
 		useMemo: <T>(factory: () => T) => factory(),
 		useEffect(
 			effect: () => (() => void) | undefined,
@@ -314,6 +324,7 @@ function createHarness() {
 		},
 	};
 	const prepareReflow = async (items: Item[]) => items;
+	const t = (key: string) => key;
 	const modules: Record<string, unknown> = {
 		"./use-pdf-reflow": {
 			usePdfReflow: (_context: unknown, _regions: unknown, items: Item[]) => {
@@ -328,7 +339,7 @@ function createHarness() {
 			},
 		},
 		react,
-		"react-i18next": { useTranslation: () => ({ t: (key: string) => key }) },
+		"react-i18next": { useTranslation: () => ({ t }) },
 		sonner: {
 			toast: { dismiss: (...args: unknown[]) => dismissed.push(args) },
 		},
@@ -545,7 +556,7 @@ it("auto-opens the partial dialog once after the cached page is ready", async ()
 	assert.equal(h.view.layoutTranslatePartial.open, true);
 });
 
-it("ignores the partial hint and hides the entry", async () => {
+it("ignores the partial hint but keeps manual recovery available", async () => {
 	const h = createHarness();
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "译文 0" },
@@ -558,9 +569,53 @@ it("ignores the partial hint and hides the entry", async () => {
 	h.view.layoutTranslatePartial.onDismiss();
 	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, false);
-	// "Ignore" is a per-gap-set decision: the warning entry goes away with it.
-	assert.equal(h.view.layoutTranslatePartial.visible, false);
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
 	assert.equal(h.dismissedPartialKeys.size, 1);
+	h.view.layoutTranslatePartial.onOpenChange(true);
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+});
+
+it("offers pending-only completion when a translation pane reopens a partial cache", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.render({ translationPane: true });
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+	h.view.layoutTranslatePartial.onCompleteMissing();
+	await h.flush();
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.runs[0].items[0].status, "done");
+	assert.equal(h.runs[0].items[0].translated, "译文 0");
+	assert.equal(h.runs[0].items[1].status, "running");
+	h.runs[0].resolve([
+		h.runs[0].items[0],
+		{ ...h.runs[0].items[1], status: "done", translated: "补全译文" },
+	]);
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslatePartial.visible, false);
+});
+
+it("keeps an ignored translation-pane gap set recoverable after reopening", async () => {
+	const h = createHarness();
+	h.dismissedPartialKeys.add("/vault/papers/a:region-1");
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.render({ translationPane: true });
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.view.layoutTranslatePartial.open, false);
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	h.view.layoutTranslatePartial.onOpenChange(true);
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, true);
 });
 
 it("completes only pending blocks and rewrites the sidecar", async () => {
