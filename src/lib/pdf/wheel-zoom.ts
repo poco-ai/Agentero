@@ -36,6 +36,8 @@ export type ZoomGesturePoint = { x: number; y: number };
 
 export type ZoomGestureBindingOptions = {
 	target: Pick<HTMLElement, "addEventListener" | "removeEventListener">;
+	/** Treat every wheel tick as zoom (used by dedicated fullscreen canvases). */
+	zoomOnWheel?: boolean;
 	/** First event of the gesture; the point is in client coordinates. */
 	onZoomStart: (point: ZoomGesturePoint) => void;
 	/** Magnification relative to the gesture start (1 = unchanged). */
@@ -67,6 +69,7 @@ export type ZoomGestureBindingOptions = {
  */
 export function bindZoomGesture({
 	target,
+	zoomOnWheel = false,
 	onZoomStart,
 	onZoomChange,
 	onZoomEnd,
@@ -106,7 +109,7 @@ export function bindZoomGesture({
 
 	const handleWheel = (event: WheelEvent, canPreventDefault: boolean) => {
 		if (disposed) return;
-		if (event.ctrlKey || event.metaKey) {
+		if (zoomOnWheel || event.ctrlKey || event.metaKey) {
 			if (canPreventDefault && event.cancelable) event.preventDefault();
 			setPassive(false);
 			if (!wheelZooming) {

@@ -68,6 +68,12 @@
 		"viewSource": "View source",
 		"viewDiagram": "View diagram",
 		"copySource": "Copy Mermaid source",
+		"zoomIn": "Zoom in",
+		"zoomOut": "Zoom out",
+		"resetZoom": "Reset to 100%",
+		"fitToView": "Fit diagram",
+		"viewFullscreen": "View fullscreen",
+		"exitFullscreen": "Exit fullscreen",
 		"error": "This Mermaid diagram could not be rendered."
 	},
 	"promptInput": {

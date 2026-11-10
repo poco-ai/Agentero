@@ -305,6 +305,24 @@ describe("PDF wheel zoom WebKit gesture binding", () => {
 	});
 });
 
+describe("fullscreen canvas wheel zoom binding", () => {
+	it("treats an ordinary wheel as zoom only when explicitly enabled", () => {
+		const harness = wheelTargetHarness();
+		const onZoomChange = vi.fn();
+		const binding = bindZoomGesture({
+			target: harness.target,
+			zoomOnWheel: true,
+			onZoomStart: vi.fn(),
+			onZoomChange,
+			onZoomEnd: vi.fn(),
+		});
+		harness.dispatch({ deltaY: -100 });
+		expect(onZoomChange).toHaveBeenCalledOnce();
+		expect(onZoomChange.mock.calls[0][0]).toBeGreaterThan(1);
+		binding.dispose();
+	});
+});
+
 describe("PDF wheel delta to zoom ratio", () => {
 	it("preserves the existing gentle wheel conversion", () => {
 		const delta = -1000 * Math.log(1.25);

@@ -127,13 +127,15 @@ Skill 语法由 Host 按 provider 分流（Claude `/id`，其它注入 `SKILL.md
 |---|---|---|
 | 表格 | `PlainTable` | 复制（Markdown / CSV / TSV）、下载（CSV / Markdown）、全屏 |
 | 代码块 | `PlainCodeBlock` | 左上角语言小标签；悬停复制/下载（按语言后缀）；无外侧卡片、无全屏 |
-| Mermaid | `MermaidBlock` | 默认只显示图形；悬停右上角出现复制与源码图标，点源码才换成代码；无法编译时自动回退源码 |
+| Mermaid | `MermaidBlock` | 默认只显示图形；悬停右上角出现源码、缩放和全屏操作；源码模式使用带语言标题的高亮代码块，并显示复制按钮；图形可拖拽平移，无法编译时自动回退源码 |
 
 表格全屏是应用内覆盖层（portal），保留粘性表头、Esc 关闭和复制/下载操作；不再对 `<table>` 直接调用 Fullscreen API，避免浏览器把表格拉伸到视口高度、露出透明背景。
 
 `mermaid` 代码块不再交给 `@streamdown/mermaid` 的默认卡片：`MessageResponse` 的 `AgentCodeBlock` 在 code renderer 里拦截该语言，复用编辑器的 `MermaidCodeRenderer` / `MermaidBlock`。`MarkdownSurface` 的 `renderers` 在这里不会生效，因为 `components.code` 已替换 Streamdown 内置渲染器。渲染配色、字体与排版由 `lib/markdown/mermaid-theme.ts` 按亮/暗主题生成（主题令牌的 sRGB 等价色，Mermaid 的取色库无法解析 `oklch()`）。
 
 落盘：`src/components/agent/rendering/plain-table.tsx`、`plain-code-block.tsx`；正文与推理统一复用同目录的 `message-response.tsx`。Mermaid 走 `src/components/markdown/mermaid-diagram.tsx`（`MermaidBlock` / `MermaidDiagram` / `useMermaidSvg`）。代码高亮复用 shadcn 的 `use-highlighted-code` 与 `lib/ui/highlighter`，复制经业务适配调用 Tauri 兼容剪贴板。
+
+Mermaid 聊天块使用固定高度的变换视口，缩放和平移只改变图形的 `transform`，不会在拖动或触控板缩放时重新排版消息。工具栏提供放大、缩小、百分比重置、适应视图和全屏；全屏使用应用内 Dialog，Escape 关闭并恢复焦点。编辑器预览与导出仍使用被动的完整图形布局。
 
 Streamdown 的 `mode` 由 `isAnimating` 派生：流式中 `"streaming"`（跑 remend 补全未闭合标签），消息落定后 `"static"` 跳过 remend——否则公式里 `x_{<n}` 的 `<n…` 会被当成未闭合 HTML 标签截掉，KaTeX 报 `Expected '}', got 'EOF'`（#584，复盘见 [bug_fix/agent-message-math-less-than](../bug_fix/agent-message-math-less-than.md)）。
 

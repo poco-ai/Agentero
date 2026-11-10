@@ -10,6 +10,16 @@ export function useHighlightedCode(value: string, language: string) {
 		highlighter: Awaited<ReturnType<typeof loadHighlighter>>;
 	} | null>(null);
 	const highlighter = loaded?.language === language ? loaded.highlighter : null;
+	const mermaidLines = React.useMemo(() => {
+		if (language !== "mermaid" || !highlighter) return null;
+
+		// Shiki's Mermaid grammar is embedded in Markdown and only enters its
+		// Mermaid state after seeing a fenced block. The renderer already owns
+		// the fence, so add it only for tokenization and remove those two lines
+		// from the rendered result.
+		const fenced = `\`\`\`mermaid\n${code}\n\`\`\``;
+		return highlighter.highlight(fenced).lines.slice(1, -1);
+	}, [code, highlighter, language]);
 
 	React.useEffect(() => {
 		let cancelled = false;
@@ -66,10 +76,12 @@ export function useHighlightedCode(value: string, language: string) {
 	const tail = code.slice(end);
 
 	return React.useMemo(() => {
+		if (mermaidLines) return mermaidLines;
+		if (language === "mermaid") return code.split("\n");
 		if (!highlighter) {
 			return code.split("\n");
 		}
 
 		return [...next.lines, highlighter.highlight(tail, next.state).lines[0]];
-	}, [code, highlighter, next, tail]);
+	}, [code, highlighter, language, mermaidLines, next, tail]);
 }
