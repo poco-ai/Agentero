@@ -178,6 +178,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	terminalApp: "",
 	pdfScrollStrategy: "vertical",
 	pdfVimKeys: true,
+	vimMode: true,
 	hintModeEnabled: true,
 	pdfSpreadMode: "none",
 	paperNoteMode: "standard",

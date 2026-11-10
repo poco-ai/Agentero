@@ -190,6 +190,11 @@ export type AppSettings = {
 	pdfScrollStrategy: PdfScrollStrategy;
 	/** Enable Vim-style single-key navigation on the PDF reading surface. */
 	pdfVimKeys: boolean;
+	/**
+	 * Master switch for Vim-style single-key navigation: `j/k/h/l` in the
+	 * file tree, dropdown lists and the PDF reader. Off keeps plain typing.
+	 */
+	vimMode: boolean;
 	/** Enable the ephemeral F-key global element hint overlay. */
 	hintModeEnabled: boolean;
 	/**

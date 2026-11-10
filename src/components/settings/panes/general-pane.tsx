@@ -387,6 +387,23 @@ export function GeneralPane({
 			</SettingsGroup>
 
 			<SettingsSectionLabel className="mt-4">
+				{t("general.sections.keyboard")}
+			</SettingsSectionLabel>
+			<SettingsGroup>
+				<SettingsRow
+					label={t("general.vimMode.label")}
+					htmlFor="vim-mode"
+					description={t("general.vimMode.description")}
+				>
+					<Switch
+						id="vim-mode"
+						checked={settings.vimMode}
+						onCheckedChange={(checked) => patch({ vimMode: checked })}
+					/>
+				</SettingsRow>
+			</SettingsGroup>
+
+			<SettingsSectionLabel className="mt-4">
 				{t("general.sections.pdf")}
 			</SettingsSectionLabel>
 			<SettingsGroup>
@@ -409,8 +426,18 @@ export function GeneralPane({
 						</SelectContent>
 					</Select>
 				</SettingsRow>
-				<SettingsRow label={t("general.pdfVimKeys.label")}>
+				<SettingsRow
+					label={t("general.pdfVimKeys.label")}
+					htmlFor="pdf-vim-keys"
+					description={
+						settings.vimMode
+							? undefined
+							: t("general.pdfVimKeys.requiresVimMode")
+					}
+				>
 					<Switch
+						id="pdf-vim-keys"
+						disabled={!settings.vimMode}
 						checked={settings.pdfVimKeys}
 						onCheckedChange={(checked) => patch({ pdfVimKeys: checked })}
 					/>

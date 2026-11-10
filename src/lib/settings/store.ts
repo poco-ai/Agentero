@@ -381,6 +381,9 @@ function normalizePartial(
 	if (typeof parsed.pdfVimKeys !== "boolean") {
 		merged.pdfVimKeys = DEFAULT_SETTINGS.pdfVimKeys;
 	}
+	if (typeof parsed.vimMode !== "boolean") {
+		merged.vimMode = DEFAULT_SETTINGS.vimMode;
+	}
 	if (typeof parsed.hintModeEnabled !== "boolean") {
 		merged.hintModeEnabled = DEFAULT_SETTINGS.hintModeEnabled;
 	}

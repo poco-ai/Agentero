@@ -31,12 +31,15 @@ function selectionIsCollapsed(doc: Document): boolean {
 export function HintModeProvider({ children }: { children: ReactNode }) {
 	const { t } = useTranslation("app");
 	const enabled = useSettings((settings) => settings.hintModeEnabled);
+	const vimMode = useSettings((settings) => settings.vimMode);
 	const [session, setSession] = useState<HintSession | null>(null);
 	const [announcement, setAnnouncement] = useState("");
 	const sessionRef = useRef(session);
 	sessionRef.current = session;
 	const enabledRef = useRef(enabled);
 	enabledRef.current = enabled;
+	const vimModeRef = useRef(vimMode);
+	vimModeRef.current = vimMode;
 
 	useEffect(() => {
 		if (!enabled) setSession(null);
@@ -67,6 +70,7 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			// j/k move inside an open dropdown list or a focused tree. Skip while a
 			// hint session is open (letters are labels) or while typing.
 			if (
+				vimModeRef.current &&
 				!sessionRef.current &&
 				!event.isComposing &&
 				!isKeyboardInput(event.target) &&

@@ -1726,6 +1726,11 @@ export type AppSettings_Deserialize = {
 	pdfScrollStrategy?: string,
 	/**  Enable single-key Vim navigation on PDF reading surfaces. */
 	pdfVimKeys?: boolean,
+	/**
+	 *  Master switch for Vim-style single-key navigation (PDF + list surfaces).
+	 *  Off keeps plain typing and arrow keys only.
+	 */
+	vimMode?: boolean,
 	/**  Enable the ephemeral F-key global element hint overlay. */
 	hintModeEnabled?: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
@@ -1871,6 +1876,11 @@ export type AppSettings_Serialize = {
 	pdfScrollStrategy: string,
 	/**  Enable single-key Vim navigation on PDF reading surfaces. */
 	pdfVimKeys: boolean,
+	/**
+	 *  Master switch for Vim-style single-key navigation (PDF + list surfaces).
+	 *  Off keeps plain typing and arrow keys only.
+	 */
+	vimMode: boolean,
 	/**  Enable the ephemeral F-key global element hint overlay. */
 	hintModeEnabled: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */

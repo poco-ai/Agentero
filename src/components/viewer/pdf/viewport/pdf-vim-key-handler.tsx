@@ -24,7 +24,7 @@ export function PdfVimKeyHandler({
 	onFindNext,
 	onFindPrev,
 }: PdfVimKeyHandlerProps) {
-	const enabled = useSettings((s) => s.pdfVimKeys);
+	const enabled = useSettings((s) => s.pdfVimKeys && s.vimMode);
 	const strategy = useSettings((s) => s.pdfScrollStrategy);
 	const viewportRef = useViewportElement();
 	const { provides: scrollCapability } = useScrollCapability();

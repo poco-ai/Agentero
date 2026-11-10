@@ -128,6 +128,10 @@ pub struct AppSettings {
     /// Enable single-key Vim navigation on PDF reading surfaces.
     #[serde(default = "default_true")]
     pub pdf_vim_keys: bool,
+    /// Master switch for Vim-style single-key navigation (PDF + list surfaces).
+    /// Off keeps plain typing and arrow keys only.
+    #[serde(default = "default_true")]
+    pub vim_mode: bool,
     /// Enable the ephemeral F-key global element hint overlay.
     #[serde(default = "default_true")]
     pub hint_mode_enabled: bool,
@@ -499,6 +503,7 @@ impl Default for AppSettings {
             terminal_app: String::new(),
             pdf_scroll_strategy: default_pdf_scroll_strategy(),
             pdf_vim_keys: true,
+            vim_mode: true,
             hint_mode_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
             library_columns: default_library_columns(),
