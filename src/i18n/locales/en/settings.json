@@ -148,7 +148,7 @@
 		},
 		"vimMode": {
 			"label": "Vim mode",
-			"description": "Move with j/k/h/l in the file tree, dropdown lists and the PDF reader. Off keeps plain typing and arrow keys."
+			"description": "Enable j/k/h/l navigation and F jump labels in the file tree, dropdown lists and the PDF reader. Off keeps plain typing and arrow keys."
 		},
 		"pdfSpreadMode": {
 			"label": "PDF page layout",

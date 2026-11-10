@@ -5,6 +5,7 @@ import { useSettings } from "@/hooks/use-app-stores";
 import { PdfKeySequence } from "@/lib/keyboard/pdf-key-sequence";
 import { ownsPdfKeyboard } from "@/lib/pdf/keyboard-ownership";
 import { handleScrollSyncIntent } from "@/lib/pdf/scroll-sync";
+import { loadSettings } from "@/lib/settings";
 
 type PdfVimKeyHandlerProps = {
 	documentId: string;
@@ -24,7 +25,6 @@ export function PdfVimKeyHandler({
 	onFindNext,
 	onFindPrev,
 }: PdfVimKeyHandlerProps) {
-	const enabled = useSettings((s) => s.pdfVimKeys && s.vimMode);
 	const strategy = useSettings((s) => s.pdfScrollStrategy);
 	const viewportRef = useViewportElement();
 	const { provides: scrollCapability } = useScrollCapability();
@@ -41,7 +41,7 @@ export function PdfVimKeyHandler({
 
 	useEffect(() => {
 		const viewport = viewportRef?.current;
-		if (!enabled || !viewport) return;
+		if (!viewport) return;
 		const sequence = new PdfKeySequence();
 		const clearPrefix = () => sequence.reset();
 		const page = (direction: number) => {
@@ -52,7 +52,12 @@ export function PdfVimKeyHandler({
 			else scope.scrollToPreviousPage("instant");
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
+			// Read the module cache so a settings window toggle applies even
+			// before this component re-renders.
+			const { pdfVimKeys, vimMode } = loadSettings();
 			if (
+				!pdfVimKeys ||
+				!vimMode ||
 				event.defaultPrevented ||
 				event.altKey ||
 				event.ctrlKey ||
@@ -130,6 +135,6 @@ export function PdfVimKeyHandler({
 			window.removeEventListener("pointerdown", clearPrefix);
 			clearPrefix();
 		};
-	}, [documentId, enabled, hostRef, totalPages, viewportRef]);
+	}, [documentId, hostRef, totalPages, viewportRef]);
 	return null;
 }

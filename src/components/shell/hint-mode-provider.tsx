@@ -15,6 +15,7 @@ import {
 } from "@/lib/keyboard/hint-targets";
 import { forwardListVimKey } from "@/lib/keyboard/list-vim-keys";
 import { isKeyboardInput, topKeyboardModal } from "@/lib/keyboard/ownership";
+import { loadSettings } from "@/lib/settings";
 
 type HintSession = {
 	targets: HintTarget[];
@@ -36,14 +37,11 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 	const [announcement, setAnnouncement] = useState("");
 	const sessionRef = useRef(session);
 	sessionRef.current = session;
-	const enabledRef = useRef(enabled);
-	enabledRef.current = enabled;
-	const vimModeRef = useRef(vimMode);
-	vimModeRef.current = vimMode;
 
+	// Turning either switch off must also dismiss labels that are already up.
 	useEffect(() => {
-		if (!enabled) setSession(null);
-	}, [enabled]);
+		if (!enabled || !vimMode) setSession(null);
+	}, [enabled, vimMode]);
 
 	useEffect(() => {
 		const doc = document;
@@ -67,10 +65,13 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			setAnnouncement(t("navigator.hintTargets", { count: targets.length }));
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
+			// Read the module cache rather than a render-time ref: cross-window
+			// settings broadcasts land here even if React has not re-rendered.
+			const { hintModeEnabled, vimMode: vimOn } = loadSettings();
 			// j/k move inside an open dropdown list or a focused tree. Skip while a
 			// hint session is open (letters are labels) or while typing.
 			if (
-				vimModeRef.current &&
+				vimOn &&
 				!sessionRef.current &&
 				!event.isComposing &&
 				!isKeyboardInput(event.target) &&
@@ -84,7 +85,8 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			const current = sessionRef.current;
 			if (!current) {
 				if (
-					!enabledRef.current ||
+					!hintModeEnabled ||
+					!vimOn ||
 					event.isComposing ||
 					event.metaKey ||
 					event.ctrlKey ||

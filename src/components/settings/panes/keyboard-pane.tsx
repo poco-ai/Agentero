@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
 	PageTitle,
 	SettingsGroup,
+	SettingsRow,
 	SettingsSectionLabel,
 	settingsRowClassName,
 } from "@/components/settings/settings-layout";
@@ -254,14 +255,21 @@ export function KeyboardPane({
 				/>
 			</div>
 			<SettingsGroup>
-				<div className={settingsRowClassName}>
-					<span>{t("shortcuts:hintModeEnabled")}</span>
+				<SettingsRow
+					label={t("shortcuts:hintModeEnabled")}
+					htmlFor="hint-mode-enabled"
+					description={
+						settings.vimMode ? undefined : t("shortcuts:requiresVimMode")
+					}
+				>
 					<Switch
+						id="hint-mode-enabled"
+						disabled={!settings.vimMode}
 						aria-checked={settings.hintModeEnabled}
 						checked={settings.hintModeEnabled}
 						onCheckedChange={(checked) => patch({ hintModeEnabled: checked })}
 					/>
-				</div>
+				</SettingsRow>
 			</SettingsGroup>
 			{matched ? (
 				(Object.keys(GROUP_KEY) as ShortcutGroup[]).map((group) => {

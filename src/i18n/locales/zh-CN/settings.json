@@ -148,7 +148,7 @@
 		},
 		"vimMode": {
 			"label": "Vim 模式",
-			"description": "在文件树、下拉列表和 PDF 阅读器里用 j/k/h/l 移动。关闭后只保留普通输入与方向键。"
+			"description": "开启后文件树、下拉列表和 PDF 阅读器支持 j/k/h/l 导航，F 元素提示也随此开关。关闭后只保留普通输入与方向键。"
 		},
 		"pdfSpreadMode": {
 			"label": "PDF 页面版式",
