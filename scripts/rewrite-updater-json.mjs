@@ -12,7 +12,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const API_ASSET = /^https:\/\/api\.github\.com\/repos\/([^/]+)\/([^/]+)\/releases\/assets\/(\d+)$/;
+const API_ASSET =
+	/^https:\/\/api\.github\.com\/repos\/([^/]+)\/([^/]+)\/releases\/assets\/(\d+)$/;
 
 export function buildAssetNameMap(assets) {
 	return new Map(
@@ -31,7 +32,8 @@ export function rewriteManifest(manifest, { repository, tag, idToName }) {
 		const url = entry.url ?? "";
 		const match = url.match(API_ASSET);
 		const assetId =
-			match && `${match[1]}/${match[2]}`.toLowerCase() === repository.toLowerCase()
+			match &&
+			`${match[1]}/${match[2]}`.toLowerCase() === repository.toLowerCase()
 				? match[3]
 				: null;
 		if (!assetId) {
