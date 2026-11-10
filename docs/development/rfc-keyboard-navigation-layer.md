@@ -1,21 +1,227 @@
-# [RFC]: 键盘导航层 —— PDF 位移键与全局元素提示
+# [RFC]: Navigator —— 键盘导航、决策层与主动式交互
 
 > 状态：草稿（待评审）  
-> 日期：2026-11-09  
-> 范围：桌面端前端（React / Dockview / EmbedPDF），不改数据模型与 IPC 契约
+> 日期：2026-11-10
+> 范围：桌面端交互层、Decision Layer、主动式建议；不改变 Vault 文件格式和 Catalog 权威模型
 
 ## 摘要
 
-为桌面端增加一层可选的键盘导航能力，拆成两个互相独立、可分别开关的子能力：
+本 RFC 将 Vimium 风格的键盘浏览重新定义为 Agentero 的 Navigator：覆盖文件树、Library、Dockview、PDF、Markdown 和 Agent 的统一交互协议。Navigator 不是快捷键清单，而是把目标、动作、上下文和判断连接起来。
+
+1. **目标（Target）**：可以被定位、聚焦或操作的论文、面板、引用、图表、选区和按钮。
+2. **动作（Action）**：打开、跳转、分屏、复制引用、加入 Agent、翻译、标注等可执行操作。
+3. **上下文（Context）**：Vault、论文、文件、面板、页码、选区和会话的稳定快照。
+4. **判断（Decision）**：在多个动作中选择默认建议，或判断是否值得主动提醒用户。
+
+第一阶段只做键盘导航和元素提示；后续把用户活动、生命周期事件和语义决策接入受控的主动式建议。模型只能产生带来源、置信度、过期时间和风险等级的建议，不能绕过用户直接执行破坏性操作。
+
+原有 C1/C2 方案保留为 Navigator 的第一阶段实现：
 
 1. **PDF 位移键（C1）**：在 PDF 阅读面用 `j/k/h/l/d/u/J/K/gg/G/数字` 完成滚动、翻页与跳页，不涉及 PDF 内容链接提示。
 2. **全局元素提示（C2）**：按 `F` 在当前窗口（或最上层对话框）内给可交互元素打字母标签，输入字母直接点击对应按钮，覆盖标签页、标题栏、侧栏、Agent 按钮、PDF 工具栏等应用 Chrome。
 
-两者共享"当前哪个表面拥有键盘"的归属模型，但 UI 与状态机彼此独立。目标不是把应用改造成 Vim，而是补齐"已经看见、但不想摸鼠标"的入口。
+两者共享“当前哪个表面拥有键盘”的归属模型，但 UI 与状态机彼此独立。后续阶段扩展为科研对象操作、决策层和主动式建议。
 
 ---
 
-## 背景与动机
+## 1. 现有架构
+
+下面的实线表示当前已有的数据和命令流；决策层与前端之间的虚线表示目前尚无通用语义决策入口。C1/C2 是本 RFC 的首个实现切片，尚未落地。
+
+~~~mermaid
+flowchart LR
+    subgraph UI[React WebView]
+        KB[shortcuts.ts / useAppShortcuts]
+        CP[Command Palette / command registry]
+        Surface[文件树 / Library / Dockview / PDF / Markdown / Agent]
+        Store[Zustand 业务 stores]
+        Selection[选区上下文 / Ask / Agent composer]
+        Lifecycle[生命周期总线]
+        Activity[Activity track]
+    end
+    subgraph Host[Tauri Host 与 agentero-core]
+        IPC[Tauri commands / typed events]
+        Features[Vault / Paper / PDF / Agent / Jobs]
+        Decision[DecisionEngine: rules / System One]
+        Vault[Vault 文件与 Catalog SQLite]
+        Usage[usage.sqlite]
+    end
+    KB --> Surface
+    CP --> Surface
+    Surface --> Store --> IPC --> Features --> Vault
+    Surface --> Selection
+    IPC --> Lifecycle --> Surface
+    Activity --> IPC --> Usage
+    IPC -. 前端语义决策入口尚未实现 .-> Decision
+~~~
+
+现有边界决定了 Navigator 的接入方式：组合快捷键继续处理固定动作；命令面板继续作为命令目录；Dockview 操作走 DockHandle；选区进入已有 SelectionContext；生命周期事件与 Activity 分开使用。DecisionEngine 已在 agentero-core 内实现规则与 System One provider，当前只有前端同步规则注册表，语义决策没有前端 IPC 入口。详见 [决策层实现](../backend/decision.md)。
+
+## 2. 目标架构
+
+Navigator 被定义为工作台的目标与动作协议，不只是 Vim 键位。键盘、鼠标、命令面板和未来的主动建议，都应通过相同的目标解析和动作执行路径。
+
+| 层 | 职责 | 所有权 |
+|---|---|---|
+| Surface Adapter | 注册当前可见的论文、文件、面板、引用、图表、选区、按钮 | 各业务表面 |
+| Interaction Kernel | 当前键盘归属、模式、hint 标签、上下文快照 | 前端 Navigator |
+| Action Registry | 目标支持的动作、风险等级、执行器、确认策略 | 前端业务命令组合 |
+| Decision Gateway | 白名单、最小化 state、超时、取消、provider 错误和 trace | Host 与 agentero-core |
+| Proactive Coordinator | 触发条件、候选生成、排序、去重、过期和静默策略 | Host 统筹，前端展示 |
+
+~~~mermaid
+flowchart TB
+    Input[键盘 / 鼠标 / 命令面板] --> Kernel[Navigator Interaction Kernel]
+    subgraph Frontend[React 前端]
+        Surface[PDF / Library / Tree / Markdown / Agent adapters] --> Targets[Target Registry]
+        Kernel --> Targets
+        Kernel --> Context[Context Composer]
+        Targets --> Resolver[Target + Action Resolver]
+        Context --> Resolver
+        Resolver --> Actions[Action Registry]
+        Actions --> Executor[DockHandle / commands / Ask / marks / Wiki]
+        Suggestions[建议界面: status / Agent / task row] --> Resolver
+    end
+    subgraph Backend[Tauri Host / agentero-core]
+        Gateway[Decision Gateway] --> Engine[DecisionEngine]
+        Engine --> Rules[RuleProvider]
+        Engine --> Semantic[SystemOneProvider]
+        Events[Lifecycle + Activity + Job events] --> Coordinator[Proactive Coordinator]
+        Coordinator --> Policy[开关 / 时机 / 冷却 / 风险策略]
+        Policy --> Candidate[规则 / 决策 / Agent 候选]
+        Candidate --> Queue[Suggestion Queue]
+    end
+    Context --> Gateway
+    Queue --> Suggestions
+    Executor --> Events
+~~~
+
+### 核心契约
+
+- **TargetRef**：kind、稳定 id、Vault/path/paper/page/anchor 等必要定位字段；不传 DOM 节点、React ref 或屏幕坐标。业务表面负责解析与重新验证。
+- **NavigatorContext**：当前 Vault、论文、面板、页码、选区、Agent 会话和捕获时间。它是一次操作的冻结快照，不从延迟返回时的活动 tab 偷换上下文。
+- **ActionDescriptor**：稳定 action id、可用 target kind、权限、风险等级、执行器和确认要求。现有 command registry 的 handler 优先复用。
+- **Suggestion**：trigger、TargetRef、action id、结构化原因、provider/modelVersion、过期时间、风险和状态。它不是可执行命令；接受后仍要经过 Action Registry 的目标与权限校验。
+
+~~~ts
+type TargetRef = {
+  kind: "paper" | "file" | "panel" | "pdf-region" | "selection" | "ui-control";
+  id: string;
+  vaultId: string;
+  paperId?: string;
+  path?: string;
+  page?: number;
+  anchor?: string;
+};
+
+type NavigatorContext = {
+  target: TargetRef;
+  panelId?: string;
+  selection?: SelectionSnapshot;
+  agentSessionId?: string;
+  capturedAt: string;
+  fingerprint: string;
+};
+
+type ActionDescriptor = {
+  id: string;
+  supportedKinds: TargetRef["kind"][];
+  risk: "read" | "write" | "external" | "destructive";
+  confirm: "never" | "on-suggestion" | "always";
+};
+
+type Suggestion = {
+  id: string;
+  trigger: string;
+  context: NavigatorContext;
+  actionId: string;
+  reasonKey: string;
+  provider: string;
+  modelVersion?: string;
+  expiresAt: string;
+  status: "pending" | "accepted" | "dismissed" | "expired";
+};
+~~~
+
+这里的 SelectionSnapshot 是现有选区上下文在交互层的只读快照，不能整体持久化到建议队列。跨重启建议只保存 TargetRef 和最小定位信息；再次展示或执行前由表面适配器重新解析。
+
+通用 DOM button/link 仅作 hint 兜底。PDF canvas 正文不做全量扫描；引用、图、表、公式由现有 link/layout/selection 解析结果显式注册。目标卸载或 Vault 切换后失效。
+
+## 3. 与决策层结合
+
+Navigator 负责“用户指向哪个目标、有哪些动作”；Decision Layer 负责“多个合理动作里建议哪一个”。文件树节点类型、按钮点击、保存等确定性判断继续留在同步规则或业务代码；PDF 选区意图、导入后的下一步、Agent 结果后续操作这类语义判断才进入异步 Gateway。
+
+~~~mermaid
+sequenceDiagram
+    participant U as 用户
+    participant N as Navigator
+    participant G as Decision Gateway
+    participant D as DecisionEngine
+    participant A as Action Registry
+    U->>N: 选中 PDF 内容并请求建议
+    N->>N: 冻结 TargetRef 与 NavigatorContext
+    N->>G: decisionId + 白名单 state
+    G->>D: 路由规则或语义 provider
+    D-->>G: action / status / provider / modelVersion / metadata
+    G-->>N: DecisionOutcome
+    N->>A: 验证 action、目标、权限与风险
+    A-->>U: 展示建议及其他可选动作
+    U->>A: 接受一个动作
+    A-->>N: 执行结果与事件归因
+~~~
+
+Gateway 应只接受注册过的 decisionId 和对应 schema，不接受任意前端传来的 provider prompt。它负责 state 最小化、超时、取消、并发限制、错误映射和 trace id。模型返回的 action 必须是该目标允许的 action id；置信度只在同 provider/modelVersion 标定范围内比较。首个用例建议是 PDF 选区意图；规则优先，System One 只做语义兜底。新增 IPC 时按项目契约重新生成 bindings，并运行事件登记检查。
+
+建议的 Gateway 请求形状是 decisionId、版本化 state、context fingerprint 和允许的 action id 列表；返回沿用 DecisionOutcome 的 action、status、provider、modelVersion 与 metadata。Host 按 decisionId 构造 provider 请求，不信任前端提供的任意 prompt 或 action。异步结果返回时先比对 fingerprint，再解析 TargetRef；上下文已变化则丢弃结果。此处是未来契约，当前仓库没有对应 Tauri command。
+
+## 4. 主动式交互
+
+主动式交互的产品行为是：系统观察到明确的工作流节点后，提出一条可解释、可忽略、会过期的下一步建议。建议默认非阻塞，出现在任务完成行、Agent 消息尾部或紧凑状态位；避免在阅读中频繁弹 Toast。
+
+~~~mermaid
+flowchart LR
+    E[资源就绪 / 任务完成 / Agent 结束 / 搜索无结果] --> Normalize[Event Normalizer]
+    Normalize --> Reduce[Context Reducer: 最小必要事实]
+    Reduce --> Eligible[Eligibility: 开关 / 当前表面 / 冷却]
+    Eligible --> Candidate[规则 / Decision / Agent 候选]
+    Candidate --> Rank[排序 / 去重 / 过期 / 退避]
+    Rank --> Queue[Suggestion Queue]
+    Queue --> UI[任务行 / Agent / 状态位 / 未来 Inbox]
+    UI -->|接受| Execute[Action Registry 重新验证并执行]
+    UI -->|忽略或稍后| Feedback[记录状态与冷却]
+    Execute --> Feedback
+    Feedback -. 防止重复触发 .-> Eligible
+~~~
+
+首批触发器只选有明确因果关系的事件：现有生命周期总线的 paper:assets-ready 和 job:completed 可以直接消费。Agent 生成文件后的建议需要从现有 Agent 运行终态适配器采集，不应写成已经存在的 agent:completed 生命周期事件；搜索无结果和翻译完成也需要在对应前端业务表面产生本地事实。连续阅读推断、跨论文计划和 Agent 生成候选放在后续阶段。
+
+| 风险 | 示例 | 主动建议处理 |
+|---|---|---|
+| read | 打开 PDF、定位引用 | 接受后直接执行 |
+| write | 创建高亮、Notes 草稿 | 接受后显示目标和写入位置 |
+| external | 调用付费 provider、打开外部链接 | 明确成本或目的地，必要时确认 |
+| destructive | 删除、移动、覆盖、发送外部消息 | 永远确认；首版不主动建议执行 |
+
+Suggestion Queue 仅持久化 id、trigger、稳定 TargetRef、action、reason key、状态、provider/modelVersion 和过期时间；不保存选区原文、模型请求正文、Agent 私密内容或 DOM 坐标。相同 trigger/target/action 在冷却期只保留一条；执行产生的事件需要由 Coordinator 附带 suggestion id 归因，若扩展 Tauri 事件 payload 则同步 bindings 和事件契约。用户可以全局关闭、按触发器关闭、忽略一次、稍后提醒或永久忽略。Activity 仅记录展示、接受、忽略、过期和执行结果等低敏 facet。
+
+## 5. 实施路线
+
+| 阶段 | 交付 | 验收 |
+|---|---|---|
+| 0 契约 | TargetRef、Context、Action Registry、Target Registry；复用 command registry 和 DockHandle | 能列出当前表面的目标与动作，现有行为不变 |
+| 1 导航 | 原 C1/C2 的 PDF 位移键和 F hint | 无鼠标打开论文、切 Notes、聚焦 Agent；输入/IME 不受影响 |
+| 2 科研目标 | PDF 引用/图表/选区、Markdown 块；复制、提问、翻译、标注 | 切 tab、重载或换 Vault 后不会执行悬空目标 |
+| 3 决策 | 受限前端 Gateway、PDF 选区意图 | provider 错误和超时不破坏现有选区动作 |
+| 4 主动建议 | 资源就绪、任务完成、Agent 结束；队列和关闭设置 | 可接受、忽略、稍后提醒、过期，不重复打扰 |
+| 5 工作流 | 阅读计划、论文关系、受限 Agent 候选 | 以接受率、忽略率、错误率和延迟评估效果 |
+
+开放问题：F 是否默认开启；Target Registry 何时成为 plugin API；建议队列是否跨窗口共享；何时需要独立 Inbox。初期采用进程内目标注册、按窗口展示、全局 decision provider 设置和规则优先的保守默认。
+
+## 附录：第一阶段 C1/C2 实现细案
+
+以下细案继承原版 RFC；如与主文的目标契约不同，以主文为准。
+
+## A. 背景与动机
 
 ### 现状
 
@@ -37,13 +243,13 @@
 
 ### 为什么不直接照搬 Vimium
 
-- PDF 是 canvas，不是 DOM，不能全量扫描可点击元素；本 RFC 明确**不做 PDF 内容提示**。
+- PDF 是 canvas，不是 DOM，不能全量扫描可点击元素；第一阶段不做 PDF 内容提示。后续只为现有解析结果提供显式目标。
 - 桌面应用的按钮密度远低于网页，全量扫描会产生"标签雨"，必须做目标筛选。
 - 单字母键必须服从输入框/编辑器/IME 的优先级，不能做成无条件 `window` 监听。
 
 ---
 
-## 目标与非目标
+## B. 第一阶段目标与非目标
 
 ### 目标
 
@@ -54,15 +260,18 @@
 
 ### 非目标
 
-- 不做 PDF 正文/引用/图表的链接提示。
-- 不做完整的 Vim 模式（normal/insert/visual/寄存器/宏），不引入 `:` 命令行。
+- 第一阶段不做 PDF 正文/引用/图表的链接提示。
+- 第一阶段不做完整的 Vim 模式（normal/insert/visual/寄存器/宏），不引入 `:` 命令行。
 - 不做跨窗口提示；多窗口各自独立。
 - 不替代命令面板，不把设置页的每个开关都纳入提示。
 - 首版不做用户自定义提示键位（`F` 先固定，后续可接入快捷键注册表）。
+- 不让模型直接调用任意 DOM、文件系统或 Dockview API。
+- 不在第一阶段自动删除、移动、发送消息、修改笔记或提交远程请求。
+- 不把所有 if-else、保存流程和简单 UI 状态都迁入 Decision Layer。
 
 ---
 
-## 方案总览
+## C. 方案总览
 
 ```mermaid
 flowchart TD
@@ -96,7 +305,7 @@ flowchart TD
 
 ---
 
-## C1：PDF 位移键
+## D. C1：PDF 位移键
 
 ### 触发与归属
 
@@ -151,7 +360,7 @@ export function ownsPdfKeyboard(args: {
 
 ---
 
-## C2：全局元素提示
+## E. C2：全局元素提示
 
 ### 状态机
 
@@ -270,7 +479,7 @@ export function matchHintLabel(query: string, labels: string[]): string | null;
 
 ---
 
-## 数据流
+## F. 数据流
 
 ```mermaid
 sequenceDiagram
@@ -295,7 +504,7 @@ sequenceDiagram
 
 ---
 
-## 关键类型与设置
+## G. 关键类型与设置
 
 ```ts
 // src/lib/keyboard/hint-targets.ts
@@ -325,7 +534,7 @@ type Settings = {
 
 ---
 
-## 替代方案与取舍
+## H. 替代方案与取舍
 
 | 方案 | 优点 | 缺点 | 结论 |
 |---|---|---|---|
@@ -339,7 +548,7 @@ type Settings = {
 
 ---
 
-## 分阶段实施与验收
+## I. 第一阶段实施与验收
 
 ### Phase 0：基础设施（0.5 天）
 
@@ -389,7 +598,7 @@ type Settings = {
 
 ---
 
-## 风险与边界
+## J. 第一阶段风险与边界
 
 | 风险 | 影响 | 缓解 |
 |---|---|---|
@@ -404,7 +613,7 @@ type Settings = {
 
 ---
 
-## 开放问题
+## K. 第一阶段开放问题
 
 - [ ] `F` 默认开启还是首次引导后开启？倾向：默认开启，但在输入态严格放行。
 - [ ] `Shift+F` 是否用于"只提示核心 chrome"，还是留给未来的"提示并关闭/次级动作"？
