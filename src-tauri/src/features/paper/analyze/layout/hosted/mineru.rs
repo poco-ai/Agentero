@@ -7,10 +7,11 @@
 //! cloud v4 — for per-page sizes.
 //!
 //! The `selfHosted` option switches to a self-hosted deployment instead: its
-//! dialect is detected from the health endpoint (see [`MineruDialect`]), and
-//! the same zip is read back — 4.0 zips carry `middle_json.json`
-//! (`docvortex.middle`, 0–1 normalized boxes), 3.x zips the cloud-shaped
-//! `*content_list.json` + `*middle.json` pair.
+//! dialect is negotiated from the capabilities in `/v1/health` (see
+//! [`MineruDialect`]), and the same zip is read back — 4.0 and 4.1 zips both
+//! carry `middle_json.json` (`docvortex.middle`, 0–1 normalized boxes), 3.x
+//! zips the cloud-shaped `*content_list.json` + `*middle.json` pair. Only the
+//! transport differs between 4.0 and 4.1, not the artifact.
 
 use crate::core::error::AppError;
 use crate::core::http;
@@ -39,6 +40,10 @@ const MINERU_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 /// MinerU's own default and covers Chinese (Simplified / Traditional) plus
 /// English, which fits mixed-language papers.
 const MINERU_DEFAULT_LANGUAGE: &str = "ch";
+/// Stable code for a server without `/v1/uploads`. The caller uses it to tell
+/// a mis-guessed dialect apart from a genuine server error, so a relay that
+/// strips `features` can still fall forward to the 4.1 transport.
+const ERR_MINERU_UPLOADS_MISSING: &str = "mineru.uploads_missing";
 /// Untrusted result zip: cap the download and each decompressed JSON entry
 /// to prevent zip-bomb OOM (same rationale as the sync gunzip caps).
 const MAX_RESULT_ZIP_BYTES: usize = 256 * 1024 * 1024;
@@ -141,12 +146,57 @@ fn resolve_target(credentials: &HostedProviderCredentials) -> Result<(String, St
     Ok((base, auth))
 }
 
-/// Self-hosted transport dialect. MinerU 4.0 replaced the 3.x `/file_parse` +
-/// `/tasks` routes with the V1 upload → parse-job → artifact flow.
+/// Wire dialect of a self-hosted MinerU server. 4.0 replaced the 3.x
+/// `/file_parse` + `/tasks` routes with an upload → parse-job → artifact flow;
+/// 4.1 then folded that upload and the submit into a single `POST /v1/tasks`
+/// and hands back a per-file `result_url` instead of a `zip` file id.
+///
+/// Adding the next generation (4.2 / 5.x) is a three-step change, all of it
+/// local to this file:
+///   1. add a variant here and name the endpoints it replaces;
+///   2. extend [`dialect_from_health`] with a capability probe for the new
+///      shape — read `features`, never compare `version`, because relays and
+///      mirrors rewrite or drop it;
+///   3. add a `run_*_extract()` arm in `run_mineru_extract_unshared()` and
+///      reuse `authed` / `json_body` / `resolve_upload_url` / `read_capped_zip`.
+///
+/// Keep the `None` fallback (inferred → oldest still-supported dialect) so an
+/// unknown server degrades to today's behaviour instead of hard-failing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MineruDialect {
+    /// 4.0.x: `POST /v1/uploads` → `PUT` → `/complete` → `/v1/parse/jobs`.
     V1,
+    /// 4.1.x: `POST /v1/tasks` (input + output formats in one request), then
+    /// `PUT files[].upload.url` → poll `/v1/tasks/{id}` → `files[].result_url`.
+    V1Tasks,
+    /// 3.x: multipart `/tasks` + `/tasks/{id}/result`.
     Legacy,
+}
+
+/// Health-probe outcome: the negotiated dialect, the server version (logging
+/// only), and whether the dialect was *inferred* because the server did not
+/// advertise any capability. Only an inferred dialect may fall forward to
+/// another transport when the picked endpoints turn out to be missing.
+#[derive(Debug, Clone)]
+struct DetectedDialect {
+    dialect: MineruDialect,
+    version: String,
+    inferred: bool,
+}
+
+/// Capability-based dialect detection: 4.1 swapped `output_formats` for
+/// `task_output_formats` when it moved the upload and the submit into
+/// `POST /v1/tasks`. A build that advertises both is a newer one that still
+/// tolerates the old shape, so the newer key wins.
+fn dialect_from_health(body: &Value) -> Option<MineruDialect> {
+    let features = body.get("features")?;
+    if features.get("task_output_formats").is_some() {
+        Some(MineruDialect::V1Tasks)
+    } else if features.get("output_formats").is_some() {
+        Some(MineruDialect::V1)
+    } else {
+        None
+    }
 }
 
 /// Read and parse a JSON response; when the body is not JSON, report the HTTP
@@ -163,41 +213,64 @@ async fn json_body(response: reqwest::Response, what: &str) -> Result<Value, App
     })
 }
 
-/// Detect the self-hosted dialect from the health endpoint and return it with
-/// the server version (`GET /v1/health` on 4.0+, `GET /health` on 3.x).
+/// Negotiate the self-hosted dialect from the health endpoint and return it
+/// with the server version (`GET /v1/health` on 4.0+, `GET /health` on 3.x).
+///
+/// The 4.x endpoint answers for both 4.0 and 4.1, so the version string alone
+/// cannot pick a transport: the capability list decides. When a server omits
+/// `features` entirely the dialect is *inferred* as 4.0 — that keeps every
+/// deployment that works today working — and the caller may still fall
+/// forward if `/v1/uploads` turns out to be missing.
 async fn detect_self_hosted(
     client: &reqwest::Client,
     base: &str,
     auth: &str,
-) -> Result<(MineruDialect, String), AppError> {
-    for (path, dialect) in [
-        ("/v1/health", MineruDialect::V1),
-        ("/health", MineruDialect::Legacy),
-    ] {
-        let Ok(response) = authed(client.get(format!("{base}{path}")), auth)
-            .send()
-            .await
-        else {
-            continue;
-        };
-        if !response.status().is_success() {
-            continue;
+) -> Result<DetectedDialect, AppError> {
+    if let Ok(response) = authed(client.get(format!("{base}/v1/health")), auth)
+        .send()
+        .await
+    {
+        if response.status().is_success() {
+            let body = response.json::<Value>().await.ok();
+            let version = body
+                .as_ref()
+                .and_then(|value| value.get("version"))
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_string();
+            let advertised = body.as_ref().and_then(dialect_from_health);
+            return Ok(DetectedDialect {
+                dialect: advertised.unwrap_or(MineruDialect::V1),
+                inferred: advertised.is_none(),
+                version,
+            });
         }
-        let version = response
-            .json::<Value>()
-            .await
-            .ok()
-            .and_then(|value| {
-                value
-                    .get("version")
-                    .and_then(Value::as_str)
-                    .map(str::to_string)
-            })
-            .unwrap_or_else(|| "unknown".to_string());
-        return Ok((dialect, version));
+    }
+    if let Ok(response) = authed(client.get(format!("{base}/health")), auth)
+        .send()
+        .await
+    {
+        if response.status().is_success() {
+            let version = response
+                .json::<Value>()
+                .await
+                .ok()
+                .and_then(|value| {
+                    value
+                        .get("version")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                })
+                .unwrap_or_else(|| "unknown".to_string());
+            return Ok(DetectedDialect {
+                dialect: MineruDialect::Legacy,
+                inferred: false,
+                version,
+            });
+        }
     }
     Err(AppError::message(format!(
-        "MinerU self-hosted server {base} answered neither /v1/health (4.0+) nor /health (3.x)"
+        "MinerU self-hosted server {base} answered neither /v1/health (4.x) nor /health (3.x)"
     )))
 }
 
@@ -952,14 +1025,71 @@ async fn run_mineru_extract_unshared(
         )
         .await;
     }
-    let (dialect, version) = detect_self_hosted(&client, &base, &auth).await?;
+    let DetectedDialect {
+        dialect,
+        version,
+        inferred,
+    } = detect_self_hosted(&client, &base, &auth).await?;
     log::info!(
         target: "agentero::layout::hosted",
-        "mineru self-hosted: {dialect:?} version={version}"
+        "mineru self-hosted: {dialect:?} version={version} inferred={inferred}"
     );
+    // Dispatch by negotiated capability, not by base URL or version string: a
+    // self-hosted "server" is often a relay, and a relay's `version` is not
+    // trustworthy enough to pick a wire protocol from.
     match dialect {
+        // An inferred 4.0 dialect may still be a 4.1 relay that stripped
+        // `features`. Keep the bytes so the upload 404 can be retried once on
+        // the task transport instead of failing the whole parse.
+        MineruDialect::V1 if inferred => {
+            let retry_bytes = pdf_bytes.clone();
+            match run_v1_extract(
+                &client,
+                &base,
+                &auth,
+                pdf_bytes,
+                file_name,
+                credentials,
+                progress,
+                cancel,
+            )
+            .await
+            {
+                Err(err) if err.code() == ERR_MINERU_UPLOADS_MISSING => {
+                    log::warn!(
+                        target: "agentero::layout::hosted",
+                        "mineru self-hosted: /v1/uploads missing on an inferred 4.0 dialect, retrying as 4.1"
+                    );
+                    run_task_extract(
+                        &client,
+                        &base,
+                        &auth,
+                        retry_bytes,
+                        file_name,
+                        credentials,
+                        progress,
+                        cancel,
+                    )
+                    .await
+                }
+                other => other,
+            }
+        }
         MineruDialect::V1 => {
             run_v1_extract(
+                &client,
+                &base,
+                &auth,
+                pdf_bytes,
+                file_name,
+                credentials,
+                progress,
+                cancel,
+            )
+            .await
+        }
+        MineruDialect::V1Tasks => {
+            run_task_extract(
                 &client,
                 &base,
                 &auth,
@@ -1246,6 +1376,17 @@ async fn run_v1_extract(
         .send()
         .await
         .map_err(|e| AppError::message(format!("MinerU upload request failed: {e}")))?;
+    // 4.1 removed `/v1/uploads`; a 404 here means the dialect guess was wrong
+    // (or the server is a version this build does not know). Report it as a
+    // domain error so the caller can retry on the task transport, and so the
+    // user sees the real cause instead of a downstream timeout.
+    if create.status() == StatusCode::NOT_FOUND {
+        return Err(AppError::domain(
+            ERR_MINERU_UPLOADS_MISSING,
+            "MinerU self-hosted server has no /v1/uploads endpoint \
+             (expected 4.0; 4.1 moved to /v1/tasks)",
+        ));
+    }
     let upload = json_body(create, "upload request").await?;
     let upload_id = upload
         .get("id")
@@ -1359,6 +1500,173 @@ async fn run_v1_extract(
 
     progress("downloading", None, None);
     let response = authed(client.get(&artifact_url), auth)
+        .send()
+        .await
+        .map_err(|e| AppError::message(format!("MinerU result download failed: {e}")))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(AppError::message(format!(
+            "MinerU result download failed (HTTP {status})"
+        )));
+    }
+    read_capped_zip(response).await
+}
+
+/// `result_url` of the finished file of a 4.1 task (first completed file).
+fn v1_task_result_url(task: &Value) -> Result<String, AppError> {
+    task.get("files")
+        .and_then(Value::as_array)
+        .and_then(|files| {
+            files
+                .iter()
+                .find(|file| file.get("status").and_then(Value::as_str) == Some("completed"))
+                .or_else(|| files.first())
+        })
+        .and_then(|file| file.get("result_url"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| {
+            AppError::message(format!(
+                "MinerU task done without a result file: {}",
+                v1_failure(task, "completed")
+            ))
+        })
+}
+
+/// Self-hosted 4.1 flow: one `POST /v1/tasks` declares the input and the
+/// output formats, the service answers with a presigned upload link, and the
+/// finished document is a per-file `result_url` instead of a `zip` file id.
+///
+/// The artifact itself is unchanged: `default` still returns the zip holding
+/// `markdown.md`, `middle_json.json` and `images/`, so
+/// [`parse_result_zip`] reads 4.1 output through the same docvortex path.
+#[allow(clippy::too_many_arguments)]
+async fn run_task_extract(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &str,
+    pdf_bytes: Vec<u8>,
+    file_name: &str,
+    credentials: &HostedProviderCredentials,
+    progress: super::ProgressFn<'_>,
+    cancel: super::CancelFn<'_>,
+) -> Result<Vec<u8>, AppError> {
+    progress("uploading", None, None);
+    let create = authed(client.post(format!("{base}/v1/tasks")), auth)
+        .json(&json!({
+            "files": [{ "file_name": file_name, "bytes": pdf_bytes.len() }],
+            // 4.1 rejects the 4.0 `zip` token; `default` is the one that
+            // returns Markdown + `middle_json.json` + `images/` as a zip.
+            "output_formats": ["default"],
+            // `ocr` treats every page as an image; `auto` prefers the text
+            // layer and still OCRs scanned pages.
+            "ocr_mode": if credentials.is_ocr { "ocr" } else { "auto" },
+        }))
+        .send()
+        .await
+        .map_err(|e| AppError::message(format!("MinerU task create failed: {e}")))?;
+    // Report the real cause: a 401 used to fall through to the JSON reader and
+    // surface as "missing task_id", which points nowhere.
+    let status = create.status();
+    if status == StatusCode::UNAUTHORIZED {
+        return Err(AppError::message(
+            "MinerU task create failed: invalid API token (HTTP 401)",
+        ));
+    }
+    if !status.is_success() {
+        let text = create.text().await.unwrap_or_default();
+        let snippet = http::http_err_snippet(&text);
+        return Err(AppError::message(format!(
+            "MinerU task create failed (HTTP {status}): {snippet}"
+        )));
+    }
+    let created = json_body(create, "task create").await?;
+    let task_id = created
+        .get("task_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| AppError::message("Unexpected MinerU response: missing task_id"))?
+        .to_string();
+
+    let upload = created
+        .get("files")
+        .and_then(Value::as_array)
+        .and_then(|files| files.first())
+        .and_then(|file| file.get("upload"))
+        .ok_or_else(|| AppError::message("Unexpected MinerU response: missing upload link"))?;
+    let target = upload
+        .get("url")
+        .and_then(Value::as_str)
+        .ok_or_else(|| AppError::message("Unexpected MinerU response: missing upload_url"))?;
+    let url = resolve_upload_url(base, target)?;
+    let mut request = client.request(reqwest::Method::PUT, &url).body(pdf_bytes);
+    if let Some(headers) = upload.get("headers").and_then(Value::as_object) {
+        for (name, value) in headers {
+            if let Some(value) = value.as_str() {
+                request = request.header(name, value);
+            }
+        }
+    }
+    // Same rule as the 4.0 path: the token only travels to our own origin.
+    if same_origin(base, &url) {
+        request = authed(request, auth);
+    }
+    let response = request
+        .send()
+        .await
+        .map_err(|e| AppError::message(format!("MinerU upload failed: {e}")))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(AppError::message(format!(
+            "MinerU upload failed (HTTP {status})"
+        )));
+    }
+
+    let poll_url = format!("{base}/v1/tasks/{task_id}");
+    let started = Instant::now();
+    let artifact_url = loop {
+        if cancel() {
+            return Err(AppError::message(CANCELLED_MESSAGE));
+        }
+        if started.elapsed() > MINERU_JOB_DEADLINE {
+            return Err(AppError::message("MinerU task timed out"));
+        }
+        tokio::time::sleep(MINERU_POLL_INTERVAL).await;
+        let poll = authed(client.get(&poll_url), auth)
+            .send()
+            .await
+            .map_err(|e| AppError::message(format!("MinerU task poll failed: {e}")))?;
+        let poll = json_body(poll, "task poll").await?;
+        let status = poll.get("status").and_then(Value::as_str).unwrap_or("");
+        let job_progress = poll.get("progress");
+        let completed = job_progress
+            .and_then(|p| p.get("completed"))
+            .and_then(Value::as_u64);
+        let total = job_progress
+            .and_then(|p| p.get("total"))
+            .and_then(Value::as_u64);
+        match classify_v1_status(status) {
+            ExtractState::Done => {
+                let target = v1_task_result_url(&poll)?;
+                progress("done", completed, total);
+                break target;
+            }
+            ExtractState::Failed => {
+                return Err(AppError::message(format!(
+                    "MinerU task {status}: {}",
+                    v1_failure(&poll, status)
+                )))
+            }
+            ExtractState::InProgress => progress(status, completed, total),
+        }
+    };
+
+    progress("downloading", None, None);
+    let url = resolve_upload_url(base, &artifact_url)?;
+    let mut request = client.get(&url);
+    if same_origin(base, &url) {
+        request = authed(request, auth);
+    }
+    let response = request
         .send()
         .await
         .map_err(|e| AppError::message(format!("MinerU result download failed: {e}")))?;
@@ -1527,15 +1835,16 @@ async fn probe(
 }
 
 /// Self-hosted probe: the health endpoint identifies the dialect and version
-/// (both are anonymous), and on V1 the job listing additionally proves the
-/// token is accepted.
+/// (both are anonymous), and on 4.0 the job listing additionally proves the
+/// token is accepted. 4.1 dropped that listing, so its health answer is the
+/// whole probe.
 async fn probe_self_hosted(
     client: &reqwest::Client,
     base: &str,
     auth: &str,
 ) -> Result<LayoutRemoteProbeResult, AppError> {
-    let (dialect, version) = detect_self_hosted(client, base, auth).await?;
-    if dialect == MineruDialect::V1 {
+    let detected = detect_self_hosted(client, base, auth).await?;
+    if detected.dialect == MineruDialect::V1 {
         let response = authed(client.get(format!("{base}/v1/parse/jobs")), auth)
             .query(&[("limit", "1")])
             .send()
@@ -1556,7 +1865,7 @@ async fn probe_self_hosted(
         }
     }
     Ok(LayoutRemoteProbeResult {
-        job_id: format!("mineru {version}"),
+        job_id: format!("mineru {}", detected.version),
     })
 }
 
@@ -2025,5 +2334,67 @@ mod tests {
         assert!(mineru_api_error("probe", &not_found, StatusCode::NOT_FOUND)
             .to_string()
             .contains("Self-hosted API"));
+    }
+
+    /// 4.0 and 4.1 both answer `/v1/health`; only the capability list tells
+    /// them apart. Bodies below are real responses.
+    #[test]
+    fn detects_dialect_from_health_capabilities() {
+        let v40: Value = serde_json::from_str(
+            r#"{"status":"ok","version":"4.0.12","features":{"webhook":false,
+                "output_formats":["markdown","middle_json","structured_content","zip"],
+                "sources":["file_id","url","inline"]}}"#,
+        )
+        .unwrap();
+        let v41: Value = serde_json::from_str(
+            r#"{"status":"ok","version":"4.1.7","features":{"webhook":false,
+                "task_output_formats":["default","docx","html","latex"],
+                "sources":["upload","url"]}}"#,
+        )
+        .unwrap();
+        assert_eq!(dialect_from_health(&v40), Some(MineruDialect::V1));
+        assert_eq!(dialect_from_health(&v41), Some(MineruDialect::V1Tasks));
+
+        // A build that advertises both shapes is newer: the task API wins.
+        let both: Value = serde_json::from_str(
+            r#"{"features":{"output_formats":["zip"],"task_output_formats":["default"]}}"#,
+        )
+        .unwrap();
+        assert_eq!(dialect_from_health(&both), Some(MineruDialect::V1Tasks));
+
+        // No capability list (older builds, relays that strip it): the caller
+        // infers 4.0 and may fall forward on a missing upload endpoint.
+        let bare: Value = serde_json::from_str(r#"{"status":"ok","version":"4.0.0"}"#).unwrap();
+        assert_eq!(dialect_from_health(&bare), None);
+    }
+
+    /// 4.1 keeps the 4.0 artifact contract (`middle_json.json` with docvortex
+    /// page sizes), so the existing reader must keep working on it.
+    #[test]
+    fn parses_self_hosted_41_result_zip() {
+        let middle = json!({
+            "schema": "docvortex.middle",
+            "extensions": { "docvortex_layout": { "version": 1, "pages": [
+                { "page_idx": 0, "width_pt": 595.28, "height_pt": 841.89 }
+            ]}},
+            "pages": [
+                { "page_idx": 0, "blocks": [
+                    { "type": "image", "index": 0, "bbox": [0.1, 0.2, 0.5, 0.6], "content": [] },
+                    { "type": "text", "index": 1, "bbox": [0.1, 0.7, 0.9, 0.75], "level": null,
+                      "content": [{ "type": "text", "content": "Body text" }] }
+                ]}
+            ]
+        });
+        let body = middle.to_string();
+        let zip = zip_fixture(&[("middle_json.json", body.as_bytes())]);
+        let result = parse_result_zip(&zip).expect("4.1 middle_json reads through the 4.0 path");
+        assert_eq!(result.pages.len(), 1);
+        let labels: Vec<&str> = result.pages[0]
+            .boxes
+            .iter()
+            .map(|b| b.label.as_str())
+            .collect();
+        assert!(labels.contains(&"image"), "labels: {labels:?}");
+        assert!(labels.contains(&"text"), "labels: {labels:?}");
     }
 }
