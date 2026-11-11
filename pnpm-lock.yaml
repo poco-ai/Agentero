@@ -34,7 +34,7 @@ overrides:
 
 patchedDependencies:
   '@embedpdf/ai@0.0.1': a6b2b0295114a7b189d832890228c861b9fda9da2174f2b5b55e6c06891dfee8
-  '@embedpdf/engines@2.14.4': 0fa4da1d1358458c705920ffe640078f89c2291f2ddafb5827bf47e7b20855f3
+  '@embedpdf/engines@2.14.4': ab6be1e30b2b06e2423605183648408265ef7da52be472e37da38bfc92bb4c63
   '@embedpdf/plugin-annotation@2.14.4': 920b3fcb96cb539c29f7c96f457c3012ef3c25d2ba25e103d0516865b3103dd3
   '@embedpdf/plugin-document-manager@2.14.4': 40f81e74a2058a267cf4e42eb7619d0ac331432bf427846c3a9c7608e42bd352
   '@embedpdf/plugin-scroll@2.14.4': 46f51180000bc3639503170803c08d40e9d58bf474309441195a90cf3ea62c9d
@@ -113,7 +113,7 @@ importers:
         version: 2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
       '@embedpdf/engines':
         specifier: 2.14.4
-        version: 2.14.4(patch_hash=0fa4da1d1358458c705920ffe640078f89c2291f2ddafb5827bf47e7b20855f3)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
+        version: 2.14.4(patch_hash=ab6be1e30b2b06e2423605183648408265ef7da52be472e37da38bfc92bb4c63)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
       '@embedpdf/models':
         specifier: 2.14.4
         version: 2.14.4
@@ -7517,7 +7517,7 @@ snapshots:
 
   '@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))':
     dependencies:
-      '@embedpdf/engines': 2.14.4(patch_hash=0fa4da1d1358458c705920ffe640078f89c2291f2ddafb5827bf47e7b20855f3)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
+      '@embedpdf/engines': 2.14.4(patch_hash=ab6be1e30b2b06e2423605183648408265ef7da52be472e37da38bfc92bb4c63)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
       '@embedpdf/models': 2.14.4
       preact: 10.29.7
       react: 19.2.7
@@ -7525,7 +7525,7 @@ snapshots:
       svelte: 5.56.6
       vue: 3.5.43(typescript@5.8.3)
 
-  '@embedpdf/engines@2.14.4(patch_hash=0fa4da1d1358458c705920ffe640078f89c2291f2ddafb5827bf47e7b20855f3)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))':
+  '@embedpdf/engines@2.14.4(patch_hash=ab6be1e30b2b06e2423605183648408265ef7da52be472e37da38bfc92bb4c63)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))':
     dependencies:
       '@embedpdf/fonts-arabic': 1.0.0
       '@embedpdf/fonts-hebrew': 1.0.0
