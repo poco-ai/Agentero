@@ -192,12 +192,6 @@ export function SelectionActions({
 				<TranslateCard
 					key={translation.translation.selection.id}
 					screen={translation.translation.screen}
-					source={{
-						quote: translation.translation.selection.text,
-						title:
-							translation.translation.selection.sourceTitle ??
-							translation.translation.selection.sourcePath,
-					}}
 					result={translation.translation.result}
 					streaming={translation.translation.streaming}
 					error={translation.translation.error}

@@ -35,7 +35,6 @@ async function renderCard(
 	onHide = vi.fn(),
 	onTogglePin = vi.fn(),
 	screen: Parameters<typeof TranslateCard>[0]["screen"] = { x: 600, y: 200 },
-	source?: Parameters<typeof TranslateCard>[0]["source"],
 ) {
 	await act(() =>
 		root.render(
@@ -44,7 +43,6 @@ async function renderCard(
 				{ isStatic: true },
 				createElement(TranslateCard, {
 					screen,
-					source,
 					result,
 					streaming: false,
 					error: null,
