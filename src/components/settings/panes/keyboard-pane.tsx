@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
 	PageTitle,
 	SettingsGroup,
+	SettingsRow,
 	SettingsSectionLabel,
 	settingsRowClassName,
 } from "@/components/settings/settings-layout";
@@ -13,6 +14,7 @@ import {
 } from "@/components/settings/shortcut-recorder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
 	Tooltip,
 	TooltipContent,
@@ -150,9 +152,11 @@ function isSearchChord(chord: ShortcutDisplay): boolean {
 }
 
 export function KeyboardPane({
+	settings,
 	shortcutOverrides: overrides,
 	patch,
 }: {
+	settings: AppSettings;
 	shortcutOverrides: ShortcutOverrides;
 	patch: (settings: Partial<AppSettings>) => void;
 }) {
@@ -250,6 +254,23 @@ export function KeyboardPane({
 					}}
 				/>
 			</div>
+			<SettingsGroup>
+				<SettingsRow
+					label={t("shortcuts:hintModeEnabled")}
+					htmlFor="hint-mode-enabled"
+					description={
+						settings.vimMode ? undefined : t("shortcuts:requiresVimMode")
+					}
+				>
+					<Switch
+						id="hint-mode-enabled"
+						disabled={!settings.vimMode}
+						aria-checked={settings.hintModeEnabled}
+						checked={settings.hintModeEnabled}
+						onCheckedChange={(checked) => patch({ hintModeEnabled: checked })}
+					/>
+				</SettingsRow>
+			</SettingsGroup>
 			{matched ? (
 				(Object.keys(GROUP_KEY) as ShortcutGroup[]).map((group) => {
 					const items = visible.filter((def) => def.group === group);

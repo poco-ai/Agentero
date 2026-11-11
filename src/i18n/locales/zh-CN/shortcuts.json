@@ -4,6 +4,8 @@
 	"unbound": "未绑定",
 	"invalid": "请使用修饰键组合，或功能键（F1–F24）。",
 	"conflict": "已被「{{command}}」使用。",
+	"hintModeEnabled": "启用元素提示（F）",
+	"requiresVimMode": "需要先开启 Vim 模式",
 	"groups": {
 		"app": "应用",
 		"vault": "知识库",
@@ -42,6 +44,8 @@
 		"splitPane": "向右分栏（TeX：打开编译 PDF）",
 		"nextTab": "下一个标签",
 		"prevTab": "上一个标签",
+		"nextGroupTab": "组内下一个标签页",
+		"prevGroupTab": "组内上一个标签页",
 		"visualAnnotation": "添加视觉批注（PDF）",
 		"layoutTranslate": "全文翻译（PDF）",
 		"toggleFullscreen": "切换无边框全屏",

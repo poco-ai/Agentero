@@ -76,7 +76,8 @@
 			"system": "System",
 			"network": "Network",
 			"integrations": "Integrations",
-			"mcp": "MCP"
+			"mcp": "MCP",
+			"keyboard": "Keyboard"
 		},
 		"terminalApp": {
 			"label": "Open in Terminal with",
@@ -140,6 +141,14 @@
 			"vertical": "Vertical",
 			"horizontal": "Horizontal",
 			"paginated": "Page by page"
+		},
+		"pdfVimKeys": {
+			"label": "Enable PDF Vim keys (j/k/h/l)",
+			"requiresVimMode": "Requires Vim mode"
+		},
+		"vimMode": {
+			"label": "Vim mode",
+			"description": "Enable j/k/h/l navigation and F jump labels in the file tree, dropdown lists and the PDF reader. Off keeps plain typing and arrow keys."
 		},
 		"pdfSpreadMode": {
 			"label": "PDF page layout",

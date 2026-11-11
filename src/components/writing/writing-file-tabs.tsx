@@ -227,6 +227,7 @@ function WritingFileTab({
 			<ContextMenuTrigger asChild>
 				<div
 					role="tab"
+					data-hint
 					aria-selected={selected}
 					tabIndex={selected ? 0 : -1}
 					title={title}
@@ -278,6 +279,7 @@ function WritingAuxTab({
 	return (
 		<div
 			role="tab"
+			data-hint
 			aria-selected={active}
 			tabIndex={active ? 0 : -1}
 			title={title}

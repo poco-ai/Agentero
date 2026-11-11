@@ -73,6 +73,7 @@ function Fixture() {
 		setSettings(next);
 	};
 	return createElement(KeyboardPane, {
+		settings,
 		shortcutOverrides: settings.shortcutOverrides,
 		patch: patchSettings,
 	});
@@ -154,6 +155,20 @@ describe("editable keyboard settings", () => {
 		).toBeNull();
 		await click(button("Unbind Settings…"));
 		expect(button("Restore default for Settings…")).toBeTruthy();
+	});
+
+	it("toggles element hints without touching shortcut overrides", async () => {
+		const hint = container.querySelector(
+			'[role="switch"]',
+		) as HTMLButtonElement | null;
+		if (!hint) throw new Error("Missing element hint switch");
+		expect(hint.getAttribute("aria-checked")).toBe("true");
+		await click(hint);
+		expect(saveSettings).toHaveBeenLastCalledWith(
+			expect.objectContaining({ hintModeEnabled: false }),
+		);
+		expect(storage.overrides).toEqual({});
+		expect(hint.getAttribute("aria-checked")).toBe("false");
 	});
 
 	it("filters rows by command text or a typed or pressed chord", async () => {

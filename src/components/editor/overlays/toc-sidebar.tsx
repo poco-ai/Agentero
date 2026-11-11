@@ -161,6 +161,7 @@ export function TocSidebar(props: TocSideBarProps) {
 	return (
 		<nav
 			{...navProps}
+			data-hint-ignore
 			aria-label={i18n.t("editor:toc.label")}
 			className={cn(
 				"group/toc absolute top-1/4 right-2 z-20 w-10",

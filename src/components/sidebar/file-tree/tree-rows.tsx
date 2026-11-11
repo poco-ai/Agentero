@@ -117,6 +117,7 @@ export function PaperTreeRow({
 		<FileTreeFile
 			path={node.path}
 			name={label}
+			data-hint
 			className={cn(isCut && "opacity-50")}
 			style={treeRowIndentStyle(depth)}
 		>

@@ -14,6 +14,7 @@ import { AppDialogs } from "@/components/shell/app-dialogs";
 import { BackgroundTasksPanel } from "@/components/shell/background-tasks-panel";
 import { ErrorBoundary } from "@/components/shell/error-boundary";
 import { fileTreeHandle } from "@/components/shell/file-tree-registry";
+import { HintModeProvider } from "@/components/shell/hint-mode-provider";
 import { RightSidebar } from "@/components/shell/right-sidebar";
 import { TitleBar } from "@/components/shell/title-bar";
 import { VaultSidebar } from "@/components/shell/vault-sidebar";
@@ -120,6 +121,7 @@ import {
 import {
 	applyDiskChange,
 	closeTabOrWindow,
+	cycleActiveGroupTab,
 	cycleActiveTab,
 	dirtyVaultPaths,
 	reopenClosedTab,
@@ -411,6 +413,8 @@ export default function App() {
 		splitPane: splitActivePane,
 		nextTab: () => cycleActiveTab(1),
 		prevTab: () => cycleActiveTab(-1),
+		nextGroupTab: () => cycleActiveGroupTab(1),
+		prevGroupTab: () => cycleActiveGroupTab(-1),
 		zoomIn,
 		zoomOut,
 		zoomReset,
@@ -472,161 +476,163 @@ export default function App() {
 	};
 
 	return (
-		<WikiNavProvider>
-			<div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground">
-				{/*
+		<HintModeProvider>
+			<WikiNavProvider>
+				<div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground">
+					{/*
 				  macOS title bar (traffic lights row): Tauri Overlay + hiddenTitle.
 				  Height must match trafficLightPosition math in tao (≈32px → h-8).
 				*/}
-				<AppTitleBar />
+					<AppTitleBar />
 
-				<ErrorBoundary label="workspace">
-					<ResizableGroup
-						orientation="horizontal"
-						className="h-full min-h-0 flex-1 overflow-hidden"
-						onLayoutChanged={(_nextLayout, meta) => {
-							// Only genuine user resizes (drag release / keyboard) update
-							// the remembered widths; mount echoes, window resizes and
-							// programmatic preset applies are filtered out here.
-							if (!meta.isUserInteraction) return;
-							// Only user resize of the right (Agent) rail transitions the
-							// layout into custom. The left Vault sidebar is independent of
-							// Agent / Notes presets.
-							if (
-								isResizingRightRef.current &&
-								uiStore.getState().layoutMode !== "reading"
-							) {
-								setLayoutMode("custom");
-							}
-							isResizingRightRef.current = false;
-							commitUserRailPx(
-								vaultPath
-									? sidebarPanelRef.current?.getSize().inPixels
-									: undefined,
-								rightSidebarPanelRef.current?.getSize().inPixels,
-							);
-						}}
-					>
-						{vaultPath ? (
-							<Fragment>
-								<ResizablePanel
-									id="sidebar"
-									panelRef={sidebarPanelRef}
-									defaultSize={sidebarCollapsed ? 0 : initialLeftPx}
-									minSize={SIDEBAR_MIN_PX}
-									maxSize={`${Math.round(SIDEBAR_MAX_RATIO * 100)}%`}
-									collapsible
-									collapsedSize={0}
-									// Keep pixel width when the right rail or Notes column toggles.
-									groupResizeBehavior="preserve-pixel-size"
-									className="min-h-0 overflow-hidden"
-									onResize={(size) => {
-										// Only mark collapsed after a real collapse, never mid-drag.
-										if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
-											setSidebarCollapsedState(true);
-										} else if (size.inPixels >= RAIL_RECORD_MIN_PX) {
-											setSidebarCollapsedState(false);
-											leftWidthPxRef.current = size.inPixels;
-										}
-									}}
-								>
-									{/*
+					<ErrorBoundary label="workspace">
+						<ResizableGroup
+							orientation="horizontal"
+							className="h-full min-h-0 flex-1 overflow-hidden"
+							onLayoutChanged={(_nextLayout, meta) => {
+								// Only genuine user resizes (drag release / keyboard) update
+								// the remembered widths; mount echoes, window resizes and
+								// programmatic preset applies are filtered out here.
+								if (!meta.isUserInteraction) return;
+								// Only user resize of the right (Agent) rail transitions the
+								// layout into custom. The left Vault sidebar is independent of
+								// Agent / Notes presets.
+								if (
+									isResizingRightRef.current &&
+									uiStore.getState().layoutMode !== "reading"
+								) {
+									setLayoutMode("custom");
+								}
+								isResizingRightRef.current = false;
+								commitUserRailPx(
+									vaultPath
+										? sidebarPanelRef.current?.getSize().inPixels
+										: undefined,
+									rightSidebarPanelRef.current?.getSize().inPixels,
+								);
+							}}
+						>
+							{vaultPath ? (
+								<Fragment>
+									<ResizablePanel
+										id="sidebar"
+										panelRef={sidebarPanelRef}
+										defaultSize={sidebarCollapsed ? 0 : initialLeftPx}
+										minSize={SIDEBAR_MIN_PX}
+										maxSize={`${Math.round(SIDEBAR_MAX_RATIO * 100)}%`}
+										collapsible
+										collapsedSize={0}
+										// Keep pixel width when the right rail or Notes column toggles.
+										groupResizeBehavior="preserve-pixel-size"
+										className="min-h-0 overflow-hidden"
+										onResize={(size) => {
+											// Only mark collapsed after a real collapse, never mid-drag.
+											if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
+												setSidebarCollapsedState(true);
+											} else if (size.inPixels >= RAIL_RECORD_MIN_PX) {
+												setSidebarCollapsedState(false);
+												leftWidthPxRef.current = size.inPixels;
+											}
+										}}
+									>
+										{/*
 									  `isolate` (stacking context) separates the rail from the PDF
 									  pane, but a whole-rail `transform-gpu` GPU layer goes
 									  unpainted in WKWebView after paper open / tab switch /
 									  import and only recovers on scroll. Rows use `top`, not
 									  `translateY`, so no compositing layer is needed here.
 									*/}
-									<aside
-										ref={sidebarAsideRef}
-										data-vault-sidebar
-										className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar isolate"
-									>
-										<VaultSidebar />
-									</aside>
-								</ResizablePanel>
+										<aside
+											ref={sidebarAsideRef}
+											data-vault-sidebar
+											className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar isolate"
+										>
+											<VaultSidebar />
+										</aside>
+									</ResizablePanel>
 
-								{sidebarCollapsed ? null : (
-									<ResizableHandle
-										onDoubleClick={() => commitRailReset("left")}
-										onPointerDown={() => {
-											isResizingRightRef.current = false;
-										}}
-										onKeyDown={() => {
-											isResizingRightRef.current = false;
-										}}
-									/>
-								)}
-							</Fragment>
-						) : null}
+									{sidebarCollapsed ? null : (
+										<ResizableHandle
+											onDoubleClick={() => commitRailReset("left")}
+											onPointerDown={() => {
+												isResizingRightRef.current = false;
+											}}
+											onKeyDown={() => {
+												isResizingRightRef.current = false;
+											}}
+										/>
+									)}
+								</Fragment>
+							) : null}
 
-						<ResizablePanel
-							id="source"
-							panelRef={sourcePanelRef}
-							minSize={200}
-							collapsible
-							collapsedSize={0}
-							className="min-h-0 min-w-0 overflow-hidden"
-						>
-							<div
-								ref={editorPaneRef}
-								className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+							<ResizablePanel
+								id="source"
+								panelRef={sourcePanelRef}
+								minSize={200}
+								collapsible
+								collapsedSize={0}
+								className="min-h-0 min-w-0 overflow-hidden"
 							>
-								{/* Document panels + library toolbar live inside dockview. */}
-								{!vaultPath ? (
-									<WelcomeCenter />
-								) : (
-									<div className="relative h-full min-h-0 flex-1 overflow-hidden">
-										<WorkspaceHost />
-										<WritingDialogs />
-									</div>
-								)}
-							</div>
-						</ResizablePanel>
+								<div
+									ref={editorPaneRef}
+									className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+								>
+									{/* Document panels + library toolbar live inside dockview. */}
+									{!vaultPath ? (
+										<WelcomeCenter />
+									) : (
+										<div className="relative h-full min-h-0 flex-1 overflow-hidden">
+											<WorkspaceHost />
+											<WritingDialogs />
+										</div>
+									)}
+								</div>
+							</ResizablePanel>
 
-						{/* Right sidebar: always mounted + collapsible (same as left). */}
-						{rightSidebarOpen ? (
-							<ResizableHandle
-								onDoubleClick={() => commitRailReset("right")}
-								onPointerDown={() => {
-									isResizingRightRef.current = true;
+							{/* Right sidebar: always mounted + collapsible (same as left). */}
+							{rightSidebarOpen ? (
+								<ResizableHandle
+									onDoubleClick={() => commitRailReset("right")}
+									onPointerDown={() => {
+										isResizingRightRef.current = true;
+									}}
+									onKeyDown={() => {
+										isResizingRightRef.current = true;
+									}}
+								/>
+							) : null}
+							<ResizablePanel
+								id="right-sidebar"
+								panelRef={rightSidebarPanelRef}
+								defaultSize={rightSidebarOpen ? initialRightPx : 0}
+								minSize={RIGHT_SIDEBAR_MIN_PX}
+								maxSize={`${Math.round(RIGHT_SIDEBAR_MAX_RATIO * 100)}%`}
+								collapsible
+								collapsedSize={0}
+								groupResizeBehavior="preserve-pixel-size"
+								className="min-h-0 overflow-hidden"
+								onResize={(size) => {
+									if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
+										setRightSidebarOpenState(false);
+									} else if (size.inPixels >= RAIL_RECORD_MIN_PX) {
+										setRightSidebarOpenState(true);
+										rightWidthPxRef.current = size.inPixels;
+									}
 								}}
-								onKeyDown={() => {
-									isResizingRightRef.current = true;
-								}}
-							/>
-						) : null}
-						<ResizablePanel
-							id="right-sidebar"
-							panelRef={rightSidebarPanelRef}
-							defaultSize={rightSidebarOpen ? initialRightPx : 0}
-							minSize={RIGHT_SIDEBAR_MIN_PX}
-							maxSize={`${Math.round(RIGHT_SIDEBAR_MAX_RATIO * 100)}%`}
-							collapsible
-							collapsedSize={0}
-							groupResizeBehavior="preserve-pixel-size"
-							className="min-h-0 overflow-hidden"
-							onResize={(size) => {
-								if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
-									setRightSidebarOpenState(false);
-								} else if (size.inPixels >= RAIL_RECORD_MIN_PX) {
-									setRightSidebarOpenState(true);
-									rightWidthPxRef.current = size.inPixels;
-								}
-							}}
-						>
-							<RightSidebar />
-						</ResizablePanel>
-					</ResizableGroup>
-				</ErrorBoundary>
+							>
+								<RightSidebar />
+							</ResizablePanel>
+						</ResizableGroup>
+					</ErrorBoundary>
 
-				<AppDialogs />
+					<AppDialogs />
 
-				<BackgroundTasksPanel />
+					<BackgroundTasksPanel />
 
-				{/* First-run setup wizard (Raycast-style full-window overlay). */}
-				<OnboardingRoot />
-			</div>
-		</WikiNavProvider>
+					{/* First-run setup wizard (Raycast-style full-window overlay). */}
+					<OnboardingRoot />
+				</div>
+			</WikiNavProvider>
+		</HintModeProvider>
 	);
 }

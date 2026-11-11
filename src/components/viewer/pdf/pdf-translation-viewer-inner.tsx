@@ -52,6 +52,7 @@ import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-view
 import { KeyboardScrollHandler } from "@/components/viewer/pdf/viewport/keyboard-scroll-handler";
 import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
+import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { destinationInPageBox } from "@/lib/pdf/citation-dest-keys";
@@ -517,6 +518,11 @@ export function PdfTranslationViewerInner({
 			>
 				<WheelZoomHandler docId={docId} />
 				<KeyboardScrollHandler
+					documentId={docId}
+					active={isActive}
+					hostRef={hostRef}
+				/>
+				<PdfVimKeyHandler
 					documentId={docId}
 					active={isActive}
 					hostRef={hostRef}

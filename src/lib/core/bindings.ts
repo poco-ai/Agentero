@@ -47,6 +47,7 @@ export const commands = {
 	 */
 	institutionProxyLoginOpen: (prefix: string) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix })),
 	builtinProviderStatus: () => __TAURI_INVOKE<ApiResult<BuiltinProviderStatus>>("builtin_provider_status"),
+	decisionGatewayDecide: (request: DecisionGatewayRequest) => __TAURI_INVOKE<ApiResult<DecisionGatewayResponse>>("decision_gateway_decide", { request }),
 	layoutModelStatus: () => __TAURI_INVOKE<ApiResult<LayoutModelStatus>>("layout_model_status"),
 	layoutRemoteAnalyzePdf: (args: LayoutRemoteAnalyzePdfArgs) => __TAURI_INVOKE<ApiResult<LayoutRemoteAnalyzePdfResult>>("layout_remote_analyze_pdf", { args }),
 	layoutRemoteProbe: (args: LayoutRemoteProbeArgs) => __TAURI_INVOKE<ApiResult<LayoutRemoteProbeResult>>("layout_remote_probe", { args }),
@@ -1723,6 +1724,15 @@ export type AppSettings_Deserialize = {
 	terminalApp?: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy?: string,
+	/**  Enable single-key Vim navigation on PDF reading surfaces. */
+	pdfVimKeys?: boolean,
+	/**
+	 *  Master switch for Vim-style single-key navigation (PDF + list surfaces).
+	 *  Off keeps plain typing and arrow keys only.
+	 */
+	vimMode?: boolean,
+	/**  Enable the ephemeral F-key global element hint overlay. */
+	hintModeEnabled?: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode?: string,
 	libraryColumns?: LibraryColumnPref_Deserialize[],
@@ -1864,6 +1874,15 @@ export type AppSettings_Serialize = {
 	terminalApp: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy: string,
+	/**  Enable single-key Vim navigation on PDF reading surfaces. */
+	pdfVimKeys: boolean,
+	/**
+	 *  Master switch for Vim-style single-key navigation (PDF + list surfaces).
+	 *  Off keeps plain typing and arrow keys only.
+	 */
+	vimMode: boolean,
+	/**  Enable the ephemeral F-key global element hint overlay. */
+	hintModeEnabled: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode: string,
 	libraryColumns: LibraryColumnPref_Serialize[],
@@ -2834,6 +2853,25 @@ export type CustomProperty_Serialize = {
 	options: PropertyOption_Serialize[],
 	createdAt: string,
 	updatedAt: string,
+};
+
+export type DecisionGatewayRequest = {
+	requestId: string,
+	decisionId: string,
+	stateVersion: string,
+	state: Json,
+	targetIdentity: string,
+	contextIdentity: string,
+	allowedActionIds: string[],
+};
+
+export type DecisionGatewayResponse = {
+	requestId: string,
+	traceId: string,
+	stateVersion: string,
+	recommendation: string | null,
+	allowedActionIds: string[],
+	provider: string,
 };
 
 /**

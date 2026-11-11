@@ -24,6 +24,8 @@ type AppCommandBase = {
 	/** When false, hide from the palette. `listCommands` does not apply this. */
 	when?: () => boolean;
 	run: (context?: MenuContext) => void | Promise<void>;
+	/** Optional semantic target support for Navigator callers. */
+	navigatorAction?: import("@/lib/navigator/types").NavigatorAction;
 };
 
 /** Built-in command. Title copy lives in the `app` i18n catalog. */

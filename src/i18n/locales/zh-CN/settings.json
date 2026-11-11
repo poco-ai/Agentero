@@ -76,7 +76,8 @@
 			"system": "系统",
 			"network": "网络",
 			"integrations": "集成",
-			"mcp": "MCP"
+			"mcp": "MCP",
+			"keyboard": "键盘"
 		},
 		"terminalApp": {
 			"label": "终端打开方式",
@@ -140,6 +141,14 @@
 			"vertical": "纵向",
 			"horizontal": "横向",
 			"paginated": "逐页切换"
+		},
+		"pdfVimKeys": {
+			"label": "启用 PDF Vim 按键（j/k/h/l）",
+			"requiresVimMode": "需要先开启 Vim 模式"
+		},
+		"vimMode": {
+			"label": "Vim 模式",
+			"description": "开启后文件树、下拉列表和 PDF 阅读器支持 j/k/h/l 导航，F 元素提示也随此开关。关闭后只保留普通输入与方向键。"
 		},
 		"pdfSpreadMode": {
 			"label": "PDF 页面版式",

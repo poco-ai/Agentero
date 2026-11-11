@@ -1,9 +1,11 @@
 import { useScrollCapability } from "@embedpdf/plugin-scroll/react";
 import { useViewportElement } from "@embedpdf/plugin-viewport/react";
+import { useZoomCapability } from "@embedpdf/plugin-zoom/react";
 import { type RefObject, useEffect, useRef } from "react";
-import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import { useSettings } from "@/hooks/use-app-stores";
+import { ownsPdfKeyboard } from "@/lib/pdf/keyboard-ownership";
 import { handleScrollSyncIntent } from "@/lib/pdf/scroll-sync";
+import { stepPdfZoom } from "@/lib/pdf/zoom";
 
 /** One arrow press moves roughly one block of body text, like a browser scroll. */
 const ARROW_SCROLL_STEP_PX = 72;
@@ -13,25 +15,6 @@ const ARROW_SCROLL_STEP_PX = 72;
  * tabs are deliberately absent: while reading, focus often sits on a tab or a
  * toolbar button, where the arrow keys do nothing on their own.
  */
-const EXCLUDED = [
-	"[data-pdf-chrome]",
-	"[role='dialog']",
-	"[role='menu']",
-	"[role='menuitem']",
-	"[role='menuitemradio']",
-	"[role='listbox']",
-	"[role='option']",
-	"[role='tree']",
-	"[role='treeitem']",
-	"[role='grid']",
-	"[role='gridcell']",
-	"[role='slider']",
-	"[role='spinbutton']",
-	"[role='combobox']",
-	"[role='radiogroup']",
-	"[role='tablist']",
-].join(", ");
-
 type KeyboardScrollHandlerProps = {
 	documentId: string;
 	/** Gates the focus fallback; hover claims without it. */
@@ -58,35 +41,44 @@ export function KeyboardScrollHandler({
 	const viewportRef = useViewportElement();
 	const strategy = useSettings((s) => s.pdfScrollStrategy);
 	const { provides: scrollCapability } = useScrollCapability();
+	const { provides: zoomCapability } = useZoomCapability();
 	const activeRef = useRef(active);
 	activeRef.current = active;
 	const strategyRef = useRef(strategy);
 	strategyRef.current = strategy;
 	const scrollCapabilityRef = useRef(scrollCapability);
 	scrollCapabilityRef.current = scrollCapability;
+	const zoomCapabilityRef = useRef(zoomCapability);
+	zoomCapabilityRef.current = zoomCapability;
 
 	useEffect(() => {
 		const viewport = viewportRef?.current;
 		if (!viewport) return;
 
-		const ownsArrowKey = (target: EventTarget | null): boolean => {
-			const host = hostRef.current;
-			if (!host) return false;
-			if (isEditableClipboardTarget(target)) return false;
-			if (target instanceof Element && target.closest(EXCLUDED)) return false;
-			if (host.matches(":hover")) return true;
-			if (!activeRef.current) return false;
-			const focused = document.activeElement;
-			return (
-				!focused ||
-				focused === document.body ||
-				focused === document.documentElement ||
-				host.contains(focused)
-			);
-		};
-
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.defaultPrevented) return;
+			// `+` / `=` / `-` zoom the page (not the UI: ⌘+ / ⌘- stay global).
+			// `+` needs Shift on most layouts, so this runs before the shift gate.
+			const zoomIn = event.key === "+" || event.key === "=";
+			const zoomOut = event.key === "-";
+			if (zoomIn || zoomOut) {
+				if (event.altKey || event.ctrlKey || event.metaKey) return;
+				if (
+					!ownsPdfKeyboard({
+						target: event.target,
+						host: hostRef.current,
+						active: activeRef.current,
+					})
+				)
+					return;
+				const zoom = zoomCapabilityRef.current?.forDocument(documentId);
+				if (!zoom) return;
+				event.preventDefault();
+				zoom.requestZoom(
+					stepPdfZoom(zoom.getState().currentZoomLevel, zoomIn ? 1 : -1),
+				);
+				return;
+			}
 			if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
 				return;
 			}
@@ -97,7 +89,14 @@ export function KeyboardScrollHandler({
 						? false
 						: null;
 			if (forward === null) return;
-			if (!ownsArrowKey(event.target)) return;
+			if (
+				!ownsPdfKeyboard({
+					target: event.target,
+					host: hostRef.current,
+					active: activeRef.current,
+				})
+			)
+				return;
 
 			event.preventDefault();
 			handleScrollSyncIntent(documentId);

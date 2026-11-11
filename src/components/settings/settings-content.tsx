@@ -612,6 +612,7 @@ export function SettingsContent({
 						>
 							<Suspense fallback={<PaneFallback />}>
 								<KeyboardPane
+									settings={settings}
 									shortcutOverrides={settings.shortcutOverrides}
 									patch={patch}
 								/>

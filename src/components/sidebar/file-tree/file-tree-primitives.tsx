@@ -46,6 +46,9 @@ interface FileTreeContextType {
 	selectedPaths?: Set<string>;
 	/** Row click carrying modifier keys (files + modifier-clicked folders). */
 	onSelectRow?: (path: string, mods: SelectMods) => void;
+	/** Keyboard cursor row: styled like hover, independent from selection. */
+	cursorPath?: string | null;
+	setCursorPath: (path: string | null) => void;
 	/** Drag-and-drop to move: current drop-target row (highlight) + callbacks. */
 	dropTargetPath?: string | null;
 	onRowDragStart?: (path: string, e: DragEvent) => void;
@@ -59,6 +62,8 @@ const noop = () => {};
 const FileTreeContext = createContext<FileTreeContextType>({
 	expandedPaths: new Set(),
 	togglePath: noop,
+	cursorPath: null,
+	setCursorPath: noop,
 });
 
 export function useFileTree(): FileTreeContextType {
@@ -101,6 +106,7 @@ export const FileTree = ({
 	onRowDrop,
 	onRowDragEnd,
 	onExpandedChange,
+	onKeyDown: onKeyDownProp,
 	className,
 	children,
 	...props
@@ -109,6 +115,7 @@ export const FileTree = ({
 		() => defaultExpanded ?? new Set(),
 	);
 	const expandedPaths = controlledExpanded ?? internalExpanded;
+	const [cursorPath, setCursorPath] = useState<string | null>(null);
 
 	const togglePath = useCallback(
 		(path: string) => {
@@ -127,6 +134,97 @@ export const FileTree = ({
 		[controlledExpanded, internalExpanded, onExpandedChange],
 	);
 
+	/**
+	 * Move the keyboard cursor. Arrow keys/`j/k/h/l` only move focus — they
+	 * must not open the row: opening re-centres the sidebar and the next key
+	 * would then jump back to the row that was just activated.
+	 */
+	const focusRow = useCallback((row: HTMLElement) => {
+		row.focus();
+		setCursorPath(row.dataset.path ?? null);
+	}, []);
+
+	/**
+	 * Arrow keys navigate the flat, visible rows: up/down move,
+	 * right expands or enters the first child, left collapses or goes to the
+	 * parent folder — the WAI-ARIA tree pattern `j/k/h/l` builds on.
+	 */
+	const handleTreeKeyDown = useCallback(
+		(event: KeyboardEvent<HTMLDivElement>) => {
+			onKeyDownProp?.(event);
+			const arrow = [
+				"ArrowDown",
+				"ArrowUp",
+				"ArrowLeft",
+				"ArrowRight",
+			].includes(event.key);
+			if (!arrow || event.defaultPrevented) return;
+			if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+				return;
+			}
+			const target = event.target;
+			const current =
+				target instanceof HTMLElement
+					? target.closest<HTMLElement>("[role='treeitem']")
+					: null;
+			if (!current || !event.currentTarget.contains(current)) return;
+			const items = Array.from(
+				event.currentTarget.querySelectorAll<HTMLElement>("[role='treeitem']"),
+			).filter((item) => item.getClientRects().length > 0);
+			const index = items.indexOf(current);
+			if (index < 0) return;
+			const path = current.dataset.path;
+			const isFolder = current.hasAttribute("aria-expanded");
+			const expanded = current.getAttribute("aria-expanded") === "true";
+
+			if (event.key === "ArrowLeft") {
+				// Collapse an open folder, otherwise step up to its parent row.
+				// Toggle directly: clicking the row would also open it.
+				if (isFolder && expanded && path) {
+					event.preventDefault();
+					togglePath(path);
+					return;
+				}
+				const slash = path?.lastIndexOf("/") ?? -1;
+				if (!path || slash <= 0) return;
+				const parentPath = path.slice(0, slash);
+				const parent = items.find((item) => item.dataset.path === parentPath);
+				if (!parent) return;
+				event.preventDefault();
+				focusRow(parent);
+				return;
+			}
+
+			if (event.key === "ArrowRight") {
+				if (!isFolder) {
+					// Leaf (paper / file): enter activates it like a single click.
+					event.preventDefault();
+					current.click();
+					return;
+				}
+				// Expand a closed folder; otherwise enter its first child row.
+				if (!expanded) {
+					if (!path) return;
+					event.preventDefault();
+					togglePath(path);
+					return;
+				}
+				const next = items[index + 1];
+				if (!next || !path) return;
+				if (!next.dataset.path?.startsWith(`${path}/`)) return;
+				event.preventDefault();
+				focusRow(next);
+				return;
+			}
+
+			const next = items[index + (event.key === "ArrowDown" ? 1 : -1)];
+			if (!next) return;
+			event.preventDefault();
+			focusRow(next);
+		},
+		[onKeyDownProp, focusRow, togglePath],
+	);
+
 	const contextValue = useMemo(
 		() => ({
 			expandedPaths,
@@ -137,6 +235,8 @@ export const FileTree = ({
 			selectedPath,
 			selectedPaths,
 			onSelectRow,
+			cursorPath,
+			setCursorPath,
 			dropTargetPath,
 			onRowDragStart,
 			onRowDragOver,
@@ -153,6 +253,7 @@ export const FileTree = ({
 			selectedPath,
 			selectedPaths,
 			onSelectRow,
+			cursorPath,
 			dropTargetPath,
 			onRowDragStart,
 			onRowDragOver,
@@ -168,6 +269,11 @@ export const FileTree = ({
 				className={cn("text-sm", className)}
 				role="tree"
 				aria-multiselectable={Boolean(onSelectRow)}
+				onKeyDown={handleTreeKeyDown}
+				onBlur={(event) => {
+					if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+					setCursorPath(null);
+				}}
 				{...props}
 			>
 				{children}
@@ -235,6 +341,9 @@ const DROP_RING = "ring-1 ring-inset ring-primary bg-accent";
 export const FILE_TREE_ROW_STATE = `${TREE_ROW_TEXT_STATE} transition-colors duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)] hover:bg-sidebar-accent/80 active:not-has-[[data-tex-compile]:active]:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/80`;
 export const FILE_TREE_ROW_SELECTED_STATE =
 	"bg-sidebar-primary/75 text-sidebar-primary-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-primary/75 active:not-has-[[data-tex-compile]:active]:bg-sidebar-primary/75 [&_svg]:text-sidebar-primary-foreground/90";
+/** `j/k` cursor: exactly the hover material, not the selected (opened) row. */
+export const FILE_TREE_ROW_CURSOR_STATE =
+	"bg-sidebar-accent/80 text-foreground";
 
 /**
  * Flat folder ROW (no nested children) for virtualized rendering: renders the
@@ -273,6 +382,8 @@ export const FileTreeFolderRow = ({
 		onContextMenuPath,
 		onRenamePath,
 		dropTargetPath,
+		cursorPath,
+		setCursorPath,
 		onRowDragStart,
 		onRowDragOver,
 		onRowDrop,
@@ -285,15 +396,18 @@ export const FileTreeFolderRow = ({
 	return (
 		<div
 			data-path={path}
+			data-cursor={cursorPath === path ? "true" : undefined}
 			draggable
 			className={cn(
 				"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pl-2.5 pr-4 text-left text-sm font-normal",
 				FILE_TREE_ROW_STATE,
+				cursorPath === path && !isSelected && FILE_TREE_ROW_CURSOR_STATE,
 				isSelected && FILE_TREE_ROW_SELECTED_STATE,
 				dropTargetPath === path && DROP_RING,
 				className,
 			)}
 			style={style}
+			onFocus={() => setCursorPath(path)}
 			onClick={(e) => {
 				// Keep the row focused so Enter can start inline rename right
 				// after a click (WebKit does not focus buttons on click).
@@ -410,6 +524,8 @@ export const FileTreeFile = ({
 		selectedPaths,
 		onSelectRow,
 		dropTargetPath,
+		cursorPath,
+		setCursorPath,
 		onRowDragStart,
 		onRowDragOver,
 		onRowDrop,
@@ -483,14 +599,17 @@ export const FileTreeFile = ({
 		<FileTreeFileContext.Provider value={fileContextValue}>
 			<div
 				data-path={path}
+				data-cursor={cursorPath === path ? "true" : undefined}
 				draggable
 				className={cn(
 					"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pl-2.5 pr-4 text-sm font-normal",
 					FILE_TREE_ROW_STATE,
+					cursorPath === path && !isSelected && FILE_TREE_ROW_CURSOR_STATE,
 					isSelected && FILE_TREE_ROW_SELECTED_STATE,
 					dropTargetPath === path && DROP_RING,
 					className,
 				)}
+				onFocus={() => setCursorPath(path)}
 				onClick={handleClick}
 				onDoubleClick={handleDoubleClick}
 				onContextMenu={handleContextMenu}

@@ -22,6 +22,9 @@ const fixture = vi.hoisted(() => ({
 }));
 
 vi.mock("react-i18next", () => ({
+	// The vim key handler pulls in the settings store, which imports `@/i18n`;
+	// keep that module's bootstrap working without loading real resources.
+	initReactI18next: { type: "3rdParty", init() {} },
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("@/lib/shell/settings-window", () => ({
@@ -36,6 +39,10 @@ vi.mock("@embedpdf/plugin-interaction-manager/react", () => ({
 }));
 vi.mock("@embedpdf/plugin-scroll/react", () => ({
 	useScroll: () => ({ provides: null }),
+	useScrollCapability: () => ({ provides: null }),
+}));
+vi.mock("@embedpdf/plugin-viewport/react", () => ({
+	useViewportElement: () => null,
 }));
 vi.mock("@embedpdf/plugin-zoom/react", () => ({
 	useZoom: () => ({ state: { zoomLevel: 1 } }),

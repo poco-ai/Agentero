@@ -4,6 +4,8 @@
 //! reads credentials lazily at request time, so settings changes take effect
 //! without rebuilding it.
 
+pub mod commands;
+
 use crate::core::decision::SystemOneProvider;
 use crate::core::error::AppError;
 use crate::features::system::settings::AppSettingsStore;

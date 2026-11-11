@@ -34,6 +34,7 @@ import {
 import { getVaultPath } from "@/lib/vault/store";
 import {
 	closeTabOrWindow,
+	cycleActiveGroupTab,
 	cycleActiveTab,
 	reopenClosedTab,
 	selectLibrary,
@@ -208,6 +209,18 @@ export const paletteCommands: AppCommand[] = [
 		titleKey: "commands.tabPrev",
 		categoryKey: "commands.catTab",
 		run: () => cycleActiveTab(-1),
+	},
+	{
+		id: "tab.nextInGroup",
+		titleKey: "commands.tabNextInGroup",
+		categoryKey: "commands.catTab",
+		run: () => cycleActiveGroupTab(1),
+	},
+	{
+		id: "tab.prevInGroup",
+		titleKey: "commands.tabPrevInGroup",
+		categoryKey: "commands.catTab",
+		run: () => cycleActiveGroupTab(-1),
 	},
 	{
 		id: "editor.toggleMarkdownSource",

@@ -69,6 +69,11 @@ export const LibraryPaperRow = memo(function LibraryPaperRow({
 			data-index={index}
 			data-selected={selected ? "" : undefined}
 			ref={measureRef}
+			// One hint per paper: the row owns the name/title, so `F` labels
+			// every visible paper instead of filling the budget with per-cell
+			// copy and tag buttons.
+			data-hint
+			data-hint-priority="1"
 			className={cn(
 				"group/row border-border/40 border-b transition-colors duration-100",
 				selected ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-accent/70",

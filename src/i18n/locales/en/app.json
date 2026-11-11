@@ -1,4 +1,5 @@
 {
+	"navigator": { "hintTargets": "{{count}} keyboard targets" },
 	"labels": {
 		"agent": "Agent",
 		"notes": "Notes",
@@ -51,6 +52,8 @@
 		"tabSplitPane": "Split Pane Right",
 		"tabNext": "Next Tab",
 		"tabPrev": "Previous Tab",
+		"tabNextInGroup": "Next Tab in Group",
+		"tabPrevInGroup": "Previous Tab in Group",
 		"exportAnnotatedPdf": "Export Annotated PDF",
 		"wandOpen": "Magic Wand (Import by ID)",
 		"pluginsLoadDevelopment": "Load development plugin…",

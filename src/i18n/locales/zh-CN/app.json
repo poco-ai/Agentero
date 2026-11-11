@@ -1,4 +1,5 @@
 {
+	"navigator": { "hintTargets": "{{count}} 个键盘目标" },
 	"labels": {
 		"agent": "Agent",
 		"notes": "笔记",
@@ -51,6 +52,8 @@
 		"tabSplitPane": "向右分栏",
 		"tabNext": "下一标签",
 		"tabPrev": "上一标签",
+		"tabNextInGroup": "组内下一个标签页",
+		"tabPrevInGroup": "组内上一个标签页",
 		"exportAnnotatedPdf": "导出带批注的 PDF",
 		"wandOpen": "魔棒（按标识符入库）",
 		"pluginsLoadDevelopment": "加载开发插件…",
