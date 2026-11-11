@@ -32,11 +32,22 @@ function baselineTolerance(heightA: number, heightB: number): number {
 	return Math.max(1.5, height * 0.45);
 }
 
-function median(values: readonly number[]): number {
-	const sorted = values.slice().sort((a, b) => a - b);
-	const mid = Math.floor(sorted.length / 2);
-	if (sorted.length % 2 === 1) return sorted[mid] ?? 0;
-	return ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
+function medianSorted(values: readonly number[]): number {
+	const mid = Math.floor(values.length / 2);
+	if (values.length % 2 === 1) return values[mid] ?? 0;
+	return ((values[mid - 1] ?? 0) + (values[mid] ?? 0)) / 2;
+}
+
+/** Insert into an ascending array. Median reads stay O(1) as a line grows. */
+function insertSorted(values: number[], value: number): void {
+	let low = 0;
+	let high = values.length;
+	while (low < high) {
+		const mid = (low + high) >> 1;
+		if ((values[mid] ?? 0) <= value) low = mid + 1;
+		else high = mid;
+	}
+	values.splice(low, 0, value);
 }
 
 export function groupReadingLines<T>(
@@ -56,8 +67,8 @@ export function groupReadingLines<T>(
 		let best: Bucket | null = null;
 		let bestDistance = Number.POSITIVE_INFINITY;
 		for (const bucket of buckets) {
-			const distance = Math.abs(bottom - median(bucket.bottoms));
-			const limit = baselineTolerance(box.height, median(bucket.heights));
+			const distance = Math.abs(bottom - medianSorted(bucket.bottoms));
+			const limit = baselineTolerance(box.height, medianSorted(bucket.heights));
 			if (distance <= limit && distance < bestDistance) {
 				best = bucket;
 				bestDistance = distance;
@@ -65,8 +76,8 @@ export function groupReadingLines<T>(
 		}
 		if (best) {
 			best.items.push(item);
-			best.bottoms.push(bottom);
-			best.heights.push(box.height);
+			insertSorted(best.bottoms, bottom);
+			insertSorted(best.heights, box.height);
 		} else {
 			buckets.push({
 				items: [item],

@@ -443,18 +443,22 @@ export function usePdfTextSelection({
 					);
 				if (epoch !== selectionEpochRef.current) return;
 			}
-			const excludedByPage = new Map(content.selectionTextExclusionsByPage);
-			for (const [pageIndex, rects] of excludedByPage) {
-				excludedByPage.set(
-					pageIndex,
-					selectionTextExclusionsForPage(
-						rects,
-						state.geometry,
-						state.selection,
+			const excludedByPage = new Map(
+				crossPageSelection ? content.selectionTextExclusionsByPage : [],
+			);
+			if (crossPageSelection) {
+				for (const [pageIndex, rects] of excludedByPage) {
+					excludedByPage.set(
 						pageIndex,
-						selectionStartPageRef.current,
-					),
-				);
+						selectionTextExclusionsForPage(
+							rects,
+							state.geometry,
+							state.selection,
+							pageIndex,
+							selectionStartPageRef.current,
+						),
+					);
+				}
 			}
 			const layout = getLayoutDocumentResult(docId);
 			const insertions = selectionInsertionExclusions(
@@ -521,11 +525,7 @@ export function usePdfTextSelection({
 					let lines = await selectionCap.getSelectedText(docId).toPromise();
 					const doc = docCap.getDocument(docId);
 					const { engine } = content;
-					const crossPage =
-						state.selection &&
-						state.selection.start.page !== state.selection.end.page;
 					const requests =
-						crossPage &&
 						engine &&
 						doc &&
 						rawPages.some((page) => excludedByPage.get(page.pageIndex)?.length)

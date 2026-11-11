@@ -13,6 +13,7 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
+import { scheduleIdle } from "@/lib/core/idle";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import {
 	linkPreviewDragActive,
@@ -22,6 +23,7 @@ import {
 	buildTightSelectionRects,
 	selectionInsertionExclusions,
 	selectionTextExclusionsForPage,
+	warmDisplayFormulaExclusions,
 } from "@/lib/pdf/selection-appearance";
 
 /**
@@ -90,28 +92,35 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 		geometry: Record<number, PdfPageGeometry>;
 		selection: SelectionRangeX | null;
 	} | null>(null);
+	const [formulaEpoch, setFormulaEpoch] = useState(0);
 	const rects = useMemo(() => {
+		const selection = pageSelection?.selection ?? null;
+		const crossPage =
+			selection != null && selection.start.page !== selection.end.page;
 		const insertions =
 			pageSelection && insertionRegions
 				? selectionInsertionExclusions(
 						pageSelection.geometry,
-						pageSelection.selection,
+						selection,
 						insertionRegions,
 						selectionStartPageIndex,
+						"cached",
 					)
 				: null;
 		return buildTightSelectionRects(
 			pageSelection?.geometry[pageIndex],
-			pageSelection?.selection ?? null,
+			selection,
 			pageIndex,
 			[
-				...selectionTextExclusionsForPage(
-					excludedTextRects ?? [],
-					pageSelection?.geometry ?? {},
-					pageSelection?.selection ?? null,
-					pageIndex,
-					selectionStartPageIndex,
-				),
+				...(crossPage
+					? selectionTextExclusionsForPage(
+							excludedTextRects ?? [],
+							pageSelection?.geometry ?? {},
+							selection,
+							pageIndex,
+							selectionStartPageIndex,
+						)
+					: []),
 				...(insertions?.get(pageIndex) ?? []),
 			],
 		);
@@ -121,11 +130,42 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 		excludedTextRects,
 		insertionRegions,
 		selectionStartPageIndex,
+		formulaEpoch,
 	]);
 	const scale = useMemo(
 		() => documentState?.scale ?? 1,
 		[documentState?.scale],
 	);
+
+	useEffect(() => {
+		if (!armed || !provides) return;
+		let cancelled = false;
+		let cancelIdle = () => {};
+		let attempts = 0;
+		const warm = () => {
+			if (cancelled) return;
+			const geometry = provides
+				.forDocument(documentId)
+				.getState().geometry[pageIndex];
+			if (!geometry) {
+				// Geometry arrives from the selection registration below. A few
+				// idle checks cover that without polling on the pointer path.
+				if (attempts < 8) {
+					attempts += 1;
+					cancelIdle = scheduleIdle(warm, 500);
+				}
+				return;
+			}
+			if (warmDisplayFormulaExclusions(geometry)) {
+				setFormulaEpoch((epoch) => epoch + 1);
+			}
+		};
+		cancelIdle = scheduleIdle(warm, 500);
+		return () => {
+			cancelled = true;
+			cancelIdle();
+		};
+	}, [armed, documentId, pageIndex, provides]);
 
 	useEffect(() => {
 		if (!armed) return;

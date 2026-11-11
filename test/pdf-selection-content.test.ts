@@ -97,13 +97,14 @@ describe("selection content", () => {
 				1,
 			).size,
 		).toBe(2);
-		expect(
-			selectionInsertionExclusions(
-				{ 0: page },
-				{ start: { page: 0, index: 1 }, end: { page: 0, index: 7 } },
-				regions,
-			).size,
-		).toBe(0);
+		const samePage = selectionInsertionExclusions(
+			{ 0: page },
+			{ start: { page: 0, index: 1 }, end: { page: 0, index: 7 } },
+			regions,
+		);
+		if (insertion.kind === "formula" || insertion.kind === "formula_number")
+			expect(samePage.get(0)).toHaveLength(1);
+		else expect(samePage.size).toBe(0);
 	});
 	it("keeps prose references, section headings and inline formulas in the body flow", () => {
 		for (const region of [
@@ -199,6 +200,168 @@ describe("selection content", () => {
 				number,
 			]).get(0),
 		).toHaveLength(2);
+		const tall: PdfPageGeometry = {
+			runs: [
+				{
+					charStart: 0,
+					rect: { x: 130, y: 100, width: 20, height: 10 },
+					glyphs: [0, 1].map((i) => ({
+						x: 130 + i * 10,
+						y: 100,
+						width: 10,
+						height: 10,
+						flags: 0,
+					})),
+				},
+			],
+		};
+		expect(
+			selectionInsertionExclusions({ 0: tall }, selection, [
+				{
+					kind: "formula" as const,
+					pageIndex: 0,
+					rect: { x: 40, y: 90, w: 50, h: 30 },
+				},
+			]).get(0),
+		).toHaveLength(1);
+		expect(
+			selectionInsertionExclusions(
+				{ 0: tall },
+				{ start: { page: 0, index: 0 }, end: { page: 0, index: 1 } },
+				[
+					{
+						kind: "formula" as const,
+						pageIndex: 0,
+						rect: { x: 40, y: 90, w: 50, h: 30 },
+					},
+				],
+			).get(0),
+		).toHaveLength(1);
+	});
+	it("skips centered and numbered display formulas that layout analysis missed", () => {
+		function run(
+			charStart: number,
+			x: number,
+			y: number,
+			count: number,
+			width = 8,
+			height = 10,
+		) {
+			return {
+				charStart,
+				rect: { x, y, width: count * width, height },
+				glyphs: Array.from({ length: count }, (_, index) => ({
+					x: x + index * width,
+					y,
+					width,
+					height,
+					flags: 0,
+				})),
+			};
+		}
+		const geometry: PdfPageGeometry = {
+			runs: [
+				run(0, 40, 80, 40),
+				run(40, 40, 100, 40),
+				run(80, 40, 120, 40),
+				run(120, 150, 160, 10),
+				run(130, 336, 160, 3),
+				run(133, 170, 152, 1, 4, 5),
+				run(134, 40, 200, 40),
+				run(174, 150, 240, 8),
+				run(182, 40, 280, 6),
+				run(188, 40, 320, 40),
+				{
+					...run(228, 70, 320, 1, 4, 5),
+					glyphs: [{ x: 70, y: 312, width: 4, height: 5, flags: 0 }],
+				},
+				run(229, 160, 360, 8),
+				run(237, 176, 352, 1, 4, 5),
+			],
+		};
+		const right: PdfPageGeometry = {
+			runs: [
+				run(0, 40, 80, 30),
+				run(30, 40, 100, 30),
+				run(60, 40, 120, 30),
+				run(90, 320, 80, 30),
+				run(120, 320, 100, 30),
+				run(150, 320, 120, 30),
+				run(180, 90, 180, 8),
+				run(188, 256, 180, 3),
+				run(191, 320, 200, 30),
+			],
+		};
+		const selection = {
+			start: { page: 0, index: 0 },
+			end: { page: 1, index: 0 },
+		};
+		const excluded = selectionInsertionExclusions(
+			{ 0: geometry },
+			selection,
+			[],
+		);
+		const covered = new Set<number>();
+		for (const slice of selectionTextSlices(
+			geometry,
+			0,
+			238,
+			excluded.get(0) ?? [],
+		)) {
+			for (let index = 0; index < slice.count; index++)
+				covered.add(slice.start + index);
+		}
+		for (const index of [120, 130, 133, 229, 237])
+			expect(covered.has(index)).toBe(false);
+		for (const index of [0, 134, 174, 182, 188, 228])
+			expect(covered.has(index)).toBe(true);
+		const rightExcluded = selectionInsertionExclusions(
+			{ 0: right },
+			selection,
+			[],
+		);
+		const rightCovered = new Set<number>();
+		for (const slice of selectionTextSlices(
+			right,
+			0,
+			221,
+			rightExcluded.get(0) ?? [],
+		)) {
+			for (let index = 0; index < slice.count; index++)
+				rightCovered.add(slice.start + index);
+		}
+		expect(rightCovered.has(180)).toBe(false);
+		expect(rightCovered.has(188)).toBe(false);
+		expect(rightCovered.has(191)).toBe(true);
+		const samePage = {
+			start: { page: 0, index: 0 },
+			end: { page: 0, index: 237 },
+		};
+		const sameExcluded = selectionInsertionExclusions(
+			{ 0: geometry },
+			samePage,
+			[],
+		);
+		const sameCovered = new Set<number>();
+		for (const slice of selectionTextSlices(
+			geometry,
+			0,
+			238,
+			sameExcluded.get(0) ?? [],
+		)) {
+			for (let index = 0; index < slice.count; index++)
+				sameCovered.add(slice.start + index);
+		}
+		expect(sameCovered.has(120)).toBe(false);
+		expect(sameCovered.has(130)).toBe(false);
+		expect(sameCovered.has(0)).toBe(true);
+		expect(
+			selectionInsertionExclusions(
+				{ 0: geometry },
+				{ start: { page: 0, index: 120 }, end: { page: 0, index: 173 } },
+				[],
+			).size,
+		).toBe(0);
 	});
 	const size = { width: 600, height: 800 };
 	function line(content: string, y = 45): PdfTextRectObject {
@@ -293,7 +456,7 @@ describe("selection content", () => {
 		).toEqual([page.rect]);
 	});
 
-	it("uses matching glyph ranges for cross-page highlight and translation, preserving direct header selection", () => {
+	it("uses matching glyph ranges for highlight and translation", () => {
 		const geometry: PdfPageGeometry = {
 			runs: [10, 40].map((y, row) => ({
 				charStart: row * 3,
@@ -324,7 +487,7 @@ describe("selection content", () => {
 				1,
 				excluded,
 			),
-		).toEqual(excluded);
+		).toEqual([]);
 	});
 });
 
