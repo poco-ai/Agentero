@@ -128,20 +128,14 @@ export const FileTree = ({
 		[controlledExpanded, internalExpanded, onExpandedChange],
 	);
 
-	/** Focus a row and mirror the click-selection it implies. */
-	const selectRow = useCallback(
-		(row: HTMLElement) => {
-			row.focus();
-			const path = row.dataset.path;
-			if (!path) return;
-			if (onSelectRow) {
-				onSelectRow(path, { meta: false, ctrl: false, shift: false });
-			} else {
-				onSelect?.(path);
-			}
-		},
-		[onSelect, onSelectRow],
-	);
+	/**
+	 * Move the keyboard cursor. Arrow keys/`j/k/h/l` only move focus — they
+	 * must not open the row: opening re-centres the sidebar and the next key
+	 * would then jump back to the row that was just activated.
+	 */
+	const focusRow = useCallback((row: HTMLElement) => {
+		row.focus();
+	}, []);
 
 	/**
 	 * Arrow keys navigate the flat, visible rows: up/down move,
@@ -175,14 +169,13 @@ export const FileTree = ({
 			const path = current.dataset.path;
 			const isFolder = current.hasAttribute("aria-expanded");
 			const expanded = current.getAttribute("aria-expanded") === "true";
-			const disclosure = () =>
-				current.querySelector<HTMLElement>("[data-tree-disclosure]");
 
 			if (event.key === "ArrowLeft") {
 				// Collapse an open folder, otherwise step up to its parent row.
-				if (isFolder && expanded) {
+				// Toggle directly: clicking the row would also open it.
+				if (isFolder && expanded && path) {
 					event.preventDefault();
-					disclosure()?.click();
+					togglePath(path);
 					return;
 				}
 				const slash = path?.lastIndexOf("/") ?? -1;
@@ -191,7 +184,7 @@ export const FileTree = ({
 				const parent = items.find((item) => item.dataset.path === parentPath);
 				if (!parent) return;
 				event.preventDefault();
-				selectRow(parent);
+				focusRow(parent);
 				return;
 			}
 
@@ -199,24 +192,25 @@ export const FileTree = ({
 				if (!isFolder) return;
 				// Expand a closed folder; otherwise enter its first child row.
 				if (!expanded) {
+					if (!path) return;
 					event.preventDefault();
-					disclosure()?.click();
+					togglePath(path);
 					return;
 				}
 				const next = items[index + 1];
 				if (!next || !path) return;
 				if (!next.dataset.path?.startsWith(`${path}/`)) return;
 				event.preventDefault();
-				selectRow(next);
+				focusRow(next);
 				return;
 			}
 
 			const next = items[index + (event.key === "ArrowDown" ? 1 : -1)];
 			if (!next) return;
 			event.preventDefault();
-			selectRow(next);
+			focusRow(next);
 		},
-		[onKeyDownProp, selectRow],
+		[onKeyDownProp, focusRow, togglePath],
 	);
 
 	const contextValue = useMemo(
@@ -325,7 +319,7 @@ export function FileTreeDisclosureIcon({
 /** Ring shown on the row a drag is currently hovering (valid drop target). */
 const DROP_RING = "ring-1 ring-inset ring-primary bg-accent";
 /** Row interaction states shared by the reading tree and the writing sidebar. */
-export const FILE_TREE_ROW_STATE = `${TREE_ROW_TEXT_STATE} transition-colors duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)] hover:bg-sidebar-accent/80 active:not-has-[[data-tex-compile]:active]:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/80`;
+export const FILE_TREE_ROW_STATE = `${TREE_ROW_TEXT_STATE} transition-colors duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)] hover:bg-sidebar-accent/80 active:not-has-[[data-tex-compile]:active]:bg-sidebar-accent focus-visible:bg-sidebar-accent/80 focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/80`;
 export const FILE_TREE_ROW_SELECTED_STATE =
 	"bg-sidebar-primary/75 text-sidebar-primary-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-primary/75 active:not-has-[[data-tex-compile]:active]:bg-sidebar-primary/75 [&_svg]:text-sidebar-primary-foreground/90";
 

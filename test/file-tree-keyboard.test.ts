@@ -84,15 +84,16 @@ describe("file tree vim keys", () => {
 		container.remove();
 	});
 
-	it("walks rows with j/k and selects the focused row", () => {
+	it("moves the cursor with j/k without opening the row", () => {
 		const [docs, file] = rows();
 		docs.focus();
 		pressVim("j");
 		expect(document.activeElement).toBe(file);
-		expect(selected).toEqual(["docs/a.md"]);
 		pressVim("k");
 		expect(document.activeElement).toBe(docs);
-		expect(selected).toEqual(["docs/a.md", "docs"]);
+		// Navigation is focus-only: selecting would open the file and recentre
+		// the sidebar under the cursor.
+		expect(selected).toEqual([]);
 	});
 
 	it("enters the first child with l and returns to the parent with h", () => {
