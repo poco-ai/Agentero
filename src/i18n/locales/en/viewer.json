@@ -203,7 +203,8 @@
 		"kindTable": "Table",
 		"kindEquation": "Equation",
 		"kindAlgorithm": "Algorithm",
-		"kindReference": "Reference"
+		"kindReference": "Reference",
+		"missingReferences": "Could not locate references {{numbers}}. Check the original PDF."
 	},
 	"figures": {
 		"title": "Analysis",

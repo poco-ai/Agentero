@@ -203,7 +203,8 @@
 		"kindTable": "表",
 		"kindEquation": "公式",
 		"kindAlgorithm": "算法",
-		"kindReference": "参考文献"
+		"kindReference": "参考文献",
+		"missingReferences": "未定位到参考文献 {{numbers}}，请查看原文。"
 	},
 	"figures": {
 		"title": "解析",
