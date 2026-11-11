@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
 	read: vi.fn(),
 	backfill: vi.fn().mockResolvedValue(true),
 	store: vi.fn(),
+	ui: vi.fn(),
+	ensureModel: vi.fn(),
 }));
 vi.mock("@/lib/pdf/layout/io", async (original) => ({
 	...(await original<typeof import("@/lib/pdf/layout/io")>()),
@@ -14,12 +16,16 @@ vi.mock("@/lib/pdf/layout/io", async (original) => ({
 	writeLayoutIndexFromRaw: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/pdf/layout/store", () => ({
-	setLayoutAnalysisUi: vi.fn(),
+	setLayoutAnalysisUi: mocks.ui,
 	setLayoutDocumentResult: mocks.store,
 }));
-vi.mock("@/lib/pdf/layout/model", () => ({ ensureLayoutModel: vi.fn() }));
+vi.mock("@/lib/pdf/layout/model", () => ({
+	ensureLayoutModel: mocks.ensureModel,
+}));
 vi.mock("@/lib/paper", () => ({}));
-vi.mock("@/lib/settings/store", () => ({ loadSettings: vi.fn() }));
+vi.mock("@/lib/settings/store", () => ({
+	loadSettings: () => ({ layout: { backend: "local" } }),
+}));
 
 describe("cached MinerU caption text walk", () => {
 	beforeEach(() => {
@@ -78,5 +84,42 @@ describe("cached MinerU caption text walk", () => {
 			totalPages: 1,
 		});
 		expect(mocks.backfill).not.toHaveBeenCalled();
+	});
+	it("does not acquire a plugin task after cancellation during model preparation", async () => {
+		const model = Promise.withResolvers<void>();
+		mocks.ensureModel.mockReturnValue(model.promise);
+		const analyzeAllPages = vi.fn();
+		const controller = new AbortController();
+		const onError = vi.fn();
+		const run = runDocumentLayoutAnalysis(
+			{ analyzeAllPages } as unknown as LayoutAnalysisScope,
+			"doc",
+			{
+				force: true,
+				signal: controller.signal,
+				onError,
+			},
+		);
+		controller.abort();
+		mocks.ui.mockClear();
+		model.resolve();
+		await run;
+		expect(analyzeAllPages).not.toHaveBeenCalled();
+		expect(mocks.ui).not.toHaveBeenCalled();
+		expect(onError).toHaveBeenCalledWith("document closed", true);
+	});
+	it("does not publish a cached result after cancellation during its read", async () => {
+		const sidecar = Promise.withResolvers<null>();
+		mocks.read.mockReturnValue(sidecar.promise);
+		const controller = new AbortController();
+		const run = runDocumentLayoutAnalysis({} as LayoutAnalysisScope, "doc", {
+			paperAbsPath: "E:/paper",
+			signal: controller.signal,
+		});
+		controller.abort();
+		sidecar.resolve(null);
+		await run;
+		expect(mocks.store).not.toHaveBeenCalled();
+		expect(mocks.ensureModel).not.toHaveBeenCalled();
 	});
 });

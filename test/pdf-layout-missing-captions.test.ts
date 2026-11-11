@@ -34,6 +34,38 @@ const figures = (raw: PdfLayoutRegion[]) =>
 	);
 
 describe("missing figure captions (#704)", () => {
+	it("does not let a wider rejected detection suppress a confident caption", () => {
+		const image = region("image", "chart", 0, {
+			x: 0.53,
+			y: 0.08,
+			w: 0.4,
+			h: 0.21,
+		});
+		const caption = region(
+			"caption",
+			"figure_title",
+			0,
+			{ x: 0.52, y: 0.3, w: 0.43, h: 0.025 },
+			"Fig. 7. Measured results.",
+		);
+		const weak = {
+			...caption,
+			id: "weak",
+			score: 0.01,
+			bbox: { ...caption.bbox, x: 0.44, w: 0.47 },
+		};
+		const heading = region(
+			"heading",
+			"header",
+			0,
+			{ x: 0.52, y: 0.34, w: 0.12, h: 0.015 },
+			"4. Discussion",
+		);
+		const out = figures([image, weak, caption, heading]);
+		expect(out).toHaveLength(1);
+		expect(out[0].title).toBe(caption.title);
+		expect(out[0].titleBbox).toEqual(caption.bbox);
+	});
 	it("keeps an uncaptioned image through both title gates without changing its geometry", () => {
 		const image = region("image", "image");
 		expect(figures([image])).toEqual([image]);

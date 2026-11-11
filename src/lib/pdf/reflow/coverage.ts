@@ -70,7 +70,29 @@ export function fallbackCharacterGroups(
 			if (group.length) groups.push(group);
 		}
 	}
-	return groups.filter(
+	// Color/font changes create separate PDF objects inside one sentence. Join
+	// their adjacent line fragments before rejecting standalone numeric labels.
+	const joined: Character[][] = [];
+	for (const line of groupReadingLines(groups, (group) => {
+		const box = unionBoxes(group.map((c) => c.box));
+		return { x: box.x, y: box.y, width: box.w, height: box.h };
+	})) {
+		let current: Character[] = [];
+		for (const fragment of line.items) {
+			const previous = current.at(-1);
+			if (
+				previous &&
+				fragment[0].box.x - previous.box.x - previous.box.w >
+					Math.max(previous.style.size, fragment[0].style.size) * 1.2
+			) {
+				joined.push(current);
+				current = [];
+			}
+			current.push(...fragment);
+		}
+		if (current.length) joined.push(current);
+	}
+	return joined.filter(
 		(g) =>
 			/\p{L}{2}/u.test(g.map((c) => c.text).join("")) &&
 			unionBoxes(g.map((c) => c.visualBox)).h > 0,
@@ -102,6 +124,16 @@ export function characterCoverage(
 /** Rendering observes inherited clipping that PDFium text extraction omits.
  * This is a conservative ink check, not reconstruction of the clipping path.
  */
+export function needsCharacterInkCheck(c: Character): boolean {
+	return Boolean(
+		c.text.trim() &&
+			(c.renderMode === 3 ||
+				c.renderMode === 7 ||
+				(c.textMatrix &&
+					Math.abs(Math.hypot(c.textMatrix[0], c.textMatrix[1]) - 1) > 0.01)),
+	);
+}
+
 export function nonPaintingCharacters(
 	chars: readonly Character[],
 	image: { width: number; height: number; data: Uint8ClampedArray },
@@ -110,13 +142,7 @@ export function nonPaintingCharacters(
 ): Set<number> {
 	const groups = new Map<number, Character[]>();
 	for (const c of chars)
-		if (
-			c.text.trim() &&
-			(c.renderMode === 3 ||
-				c.renderMode === 7 ||
-				(c.textMatrix &&
-					Math.abs(Math.hypot(c.textMatrix[0], c.textMatrix[1]) - 1) > 0.01))
-		) {
+		if (needsCharacterInkCheck(c)) {
 			const id = c.textObjectId ?? c.index;
 			const g = groups.get(id) ?? [];
 			g.push(c);
@@ -132,13 +158,15 @@ export function nonPaintingCharacters(
 			const b = c.visualBox;
 			let ink = false;
 			for (
-				let y = Math.max(0, Math.floor(b.y * sy));
-				y < Math.min(image.height, Math.ceil((b.y + b.h) * sy)) && !ink;
+				// Tight bounds round to page points; a thin dash can paint just
+				// outside its rounded one-point rectangle.
+				let y = Math.max(0, Math.floor((b.y - 1) * sy));
+				y < Math.min(image.height, Math.ceil((b.y + b.h + 1) * sy)) && !ink;
 				y++
 			)
 				for (
-					let x = Math.max(0, Math.floor(b.x * sx));
-					x < Math.min(image.width, Math.ceil((b.x + b.w) * sx));
+					let x = Math.max(0, Math.floor((b.x - 1) * sx));
+					x < Math.min(image.width, Math.ceil((b.x + b.w + 1) * sx));
 					x++
 				) {
 					const i = (y * image.width + x) * 4;

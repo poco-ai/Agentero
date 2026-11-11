@@ -28,6 +28,46 @@ function region(
 }
 
 describe("selectFormulasForNumber", () => {
+	it.each([
+		0.06, 0.51,
+	])("joins a short left-aligned equation to its distant number in column %s", (left) => {
+		const body = region({
+			id: "short",
+			kind: "formula",
+			score: 0.85,
+			bbox: { x: left, y: 0.4, w: 0.06, h: 0.024 },
+		});
+		const num = region({
+			id: "number",
+			kind: "formula_number",
+			score: 0.8,
+			bbox: { x: left + 0.4, y: 0.407, w: 0.02, h: 0.012 },
+		});
+		const adjacent = region({
+			id: "other-line",
+			kind: "formula",
+			score: 0.95,
+			bbox: { x: left, y: 0.435, w: 0.06, h: 0.012 },
+		});
+		expect(
+			selectFormulasForNumber(num, [adjacent, body]).map((f) => f.id),
+		).toEqual(["short"]);
+	});
+	it("does not bridge a distant equation number into the neighbouring column", () => {
+		const num = region({
+			id: "right-number",
+			kind: "formula_number",
+			score: 0.9,
+			bbox: { x: 0.92, y: 0.4, w: 0.02, h: 0.012 },
+		});
+		const body = region({
+			id: "left-body",
+			kind: "formula",
+			score: 0.9,
+			bbox: { x: 0.1, y: 0.4, w: 0.4, h: 0.02 },
+		});
+		expect(selectFormulasForNumber(num, [body])).toEqual([]);
+	});
 	it("picks left-side formula bodies in the number band", () => {
 		const num = region({
 			id: "n1",

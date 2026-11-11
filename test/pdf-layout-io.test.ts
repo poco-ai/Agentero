@@ -26,6 +26,24 @@ function region(): PdfLayoutSidecar["regions"][number] {
 }
 
 describe("layout sidecar", () => {
+	it("refreshes previous text walks for corrected caption and paragraph geometry", () => {
+		const old: PdfLayoutSidecar = {
+			schemaVersion: 3,
+			source: {
+				mode: "embedpdf-layout",
+				generatedAt: "same-parse",
+				textLayerExtracted: true,
+				figureCaptionsExtracted: true,
+				sourceStylesExtracted: true,
+				textGeometryVersion: 3,
+			},
+			regions: [region()],
+		};
+		expect(layoutSidecarNeedsTextLayer(old)).toBe(true);
+		const updated = layoutTextBackfillSidecar(old, old.regions);
+		expect(layoutSidecarNeedsTextLayer(updated)).toBe(false);
+		expect(updated.source.generatedAt).toBe("same-parse");
+	});
 	it("backfills old MinerU captions once without invalidating the model parse", () => {
 		const old: PdfLayoutSidecar = {
 			schemaVersion: 3,

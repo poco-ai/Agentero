@@ -731,7 +731,7 @@ export function suppressOrphanFiguresInsideClusters(
 	return hosts.filter((h) => !drop.has(h.id));
 }
 
-function attachLegendHeaders(
+export function attachLegendHeaders(
 	clusterBbox: PdfAskNormalizedRect,
 	title: PdfLayoutRegion,
 	headers: PdfLayoutRegion[],
@@ -742,8 +742,13 @@ function attachLegendHeaders(
 		if (h.pageIndex !== pageIndex) return false;
 		// Never treat table/algorithm captions as figure legends.
 		const role = resolveCaptionRole(h);
-		if (role === "table_main" || role === "algorithm_main") return false;
-		if (role === "subpanel") return false;
+		if (
+			(role === "figure_main" &&
+				(h.title?.trim() || h.bbox.y >= clusterBbox.y)) ||
+			role === "table_main" ||
+			role === "algorithm_main"
+		)
+			return false;
 		if (h.bbox.h > 0.12) return false;
 		const hCy = h.bbox.y + h.bbox.h / 2;
 		const bandTop = clusterBbox.y - 0.04;
@@ -753,6 +758,7 @@ function attachLegendHeaders(
 		if (horizontalOverlapRatio(h.bbox, span) < 0.2) return false;
 		for (const b of blockers) {
 			if (b.pageIndex !== pageIndex) continue;
+			if (b.score < LAYOUT_SIDEBAR_MIN_SCORE) continue;
 			const fam = hostFamily(b.kind);
 			if (fam !== "table" && fam !== "algorithm") continue;
 			const s = captionAttachScore(
@@ -998,7 +1004,22 @@ export function selectFormulasForNumber(
 		// Mostly left of the number (equation body, not another margin tag).
 		if (f.bbox.x >= num.x + num.w * 0.5) return false;
 		const gap = num.x - fRight;
-		if (gap > maxGap) return false;
+		if (gap > maxGap) {
+			// Flush-left short equations can leave most of their column blank.
+			// Extend only within the same column and with actual vertical overlap;
+			// the loose baseline band alone could capture a neighbouring line.
+			const sameColumn =
+				(num.x < LAYOUT_MERGE.columnMidX &&
+					fRight <= LAYOUT_MERGE.columnMidX) ||
+				(num.x >= LAYOUT_MERGE.columnMidX &&
+					f.bbox.x >= LAYOUT_MERGE.columnMidX);
+			if (
+				!sameColumn ||
+				gap > LAYOUT_MERGE.columnMidX ||
+				verticalOverlapRatio(f.bbox, num) < 0.5
+			)
+				return false;
+		}
 		if (gap < -0.12) return false; // heavy overlap with number box → skip
 		const vOv = verticalOverlapRatio(f.bbox, expandBbox(num, 0, pad));
 		const inBand = Math.abs(fCy - numCy) <= halfBand;
@@ -1075,6 +1096,7 @@ function mergeFormulaCluster(
  */
 export function mergeFormulasByNumber(
 	regions: PdfLayoutRegion[],
+	preserveReadingOrder = false,
 ): PdfLayoutRegion[] {
 	const formulas = regions.filter((r) => isFormulaLayoutKind(r.kind));
 	const numbers = regions.filter(
@@ -1110,8 +1132,11 @@ export function mergeFormulasByNumber(
 	// Bare formula without model formula_number box is dropped (geometry only).
 	// Sort by number-box column/y so sidebar follows eq order on dual-column pages.
 	merged.sort((a, b) => compareLayoutReadingOrder(a, b, formulaSortAnchor));
-	// Rewrite readingOrder to match so NMS / gallery keep this sequence.
-	const ordered = merged.map((r, i) => ({ ...r, readingOrder: i }));
+	// The gallery has its own sequence. Prose reflow must retain the source
+	// order shared with paragraphs rather than moving every equation first.
+	const ordered = preserveReadingOrder
+		? merged
+		: merged.map((r, i) => ({ ...r, readingOrder: i }));
 
 	return [...rest, ...ordered];
 }
@@ -1148,6 +1173,7 @@ function recoverFigureCaptionLabels(
 			(other, otherIndex) =>
 				otherIndex !== index &&
 				other.kind === "figure_title" &&
+				other.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
 				other.pageIndex === r.pageIndex &&
 				figureCaptionKey(other.title ?? "") === key &&
 				Math.max(
@@ -1362,9 +1388,7 @@ export function mergeCaptionsIntoHosts(
 		const body = unionMany(cluster.map((c) => c.bbox));
 		if (!body) continue;
 
-		const freeHeaders = otherCaptions.filter(
-			(h) => !usedCaptionIds.has(h.id) && h.kind === "header",
-		);
+		const freeHeaders = otherCaptions.filter((h) => !usedCaptionIds.has(h.id));
 		const legends = attachLegendHeaders(
 			body,
 			title,

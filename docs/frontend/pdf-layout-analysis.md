@@ -293,7 +293,7 @@ type LayoutSidecar = {
 | `LAYOUT_MERGE.fullWidthPanelBottomSlack` | 0.14 | 全宽：底行 chart 允许压进 caption |
 | `LAYOUT_MERGE.panelNeighborGap` | 0.08 | 子图邻接 |
 | `LAYOUT_MERGE.orphanContainment` | 0.55 | 吞并孤儿 panel |
-| `LAYOUT_MERGE.formulaNumberMaxGap` | 0.28 | 公式体与编号水平间距 |
+| `LAYOUT_MERGE.formulaNumberMaxGap` | 0.28 | 通常的公式体与编号水平间距；同栏靠左的短公式允许更远，但须与编号实际竖向重叠 ≥0.5，间距不超过半页，不能借宽松行带跨行合并 |
 | `LAYOUT_MERGE.formulaNumberBandPad` | 0.02 | 同行竖带（相对编号框） |
 | `LAYOUT_MERGE.formulaNumberMinScore` | 0.3 | formula_number 锚点最低置信度 |
 | `LAYOUT_MERGE.formulaBodyMinScore` | 0.3 | formula 主体 seed 最低置信度 |

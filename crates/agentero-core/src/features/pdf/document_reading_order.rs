@@ -32,31 +32,42 @@ fn page_order<'a>(page: &[&'a RawLayoutRegion]) -> Vec<&'a RawLayoutRegion> {
         })
         .collect();
     body.sort_by(|a, b| a.bbox.x.total_cmp(&b.bbox.x));
-    let mut intervals: Vec<(f64, f64)> = Vec::new();
-    for r in &body {
-        let b = &r.bbox;
-        if let Some(last) = intervals.last_mut().filter(|last| b.x - last.1 < 0.01) {
-            last.1 = last.1.max(b.x + b.w);
-        } else {
-            intervals.push((b.x, b.x + b.w));
-        }
-    }
     let mut gutter = None;
     let mut gap = 0.0;
-    for pair in intervals.windows(2) {
-        let width = pair[1].0 - pair[0].1;
-        if width <= gap {
-            continue;
+    let mut support = 0;
+    for row in &body {
+        let mut intervals: Vec<(f64, f64)> = Vec::new();
+        for r in &body {
+            let b = &r.bbox;
+            if (row.bbox.y + row.bbox.h).min(b.y + b.h) <= row.bbox.y.max(b.y) {
+                continue;
+            }
+            if let Some(last) = intervals.last_mut().filter(|last| b.x - last.1 < 0.002) {
+                last.1 = last.1.max(b.x + b.w);
+            } else {
+                intervals.push((b.x, b.x + b.w));
+            }
         }
-        let mid = (pair[0].1 + pair[1].0) / 2.0;
-        let overlaps = body.iter().filter(|a| a.bbox.x + a.bbox.w <= mid).any(|a| {
-            body.iter()
-                .filter(|b| b.bbox.x >= mid)
-                .any(|b| (a.bbox.y + a.bbox.h).min(b.bbox.y + b.bbox.h) > a.bbox.y.max(b.bbox.y))
-        });
-        if overlaps {
-            gutter = Some(mid);
-            gap = width;
+        for pair in intervals.windows(2) {
+            let width = pair[1].0 - pair[0].1;
+            let mid = (pair[0].1 + pair[1].0) / 2.0;
+            let count = body
+                .iter()
+                .filter(|r| r.bbox.x + r.bbox.w <= mid || r.bbox.x >= mid)
+                .count();
+            if count < support || (count == support && width <= gap) {
+                continue;
+            }
+            let overlaps = body.iter().filter(|a| a.bbox.x + a.bbox.w <= mid).any(|a| {
+                body.iter().filter(|b| b.bbox.x >= mid).any(|b| {
+                    (a.bbox.y + a.bbox.h).min(b.bbox.y + b.bbox.h) > a.bbox.y.max(b.bbox.y)
+                })
+            });
+            if overlaps {
+                gutter = Some(mid);
+                gap = width;
+                support = count;
+            }
         }
     }
     let Some(mid) = gutter else {
