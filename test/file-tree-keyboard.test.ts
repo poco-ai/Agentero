@@ -94,6 +94,9 @@ describe("file tree vim keys", () => {
 		// Navigation is focus-only: selecting would open the file and recentre
 		// the sidebar under the cursor.
 		expect(selected).toEqual([]);
+		// The cursor is painted with the hover material, not the selected row.
+		expect(docs.hasAttribute("data-cursor")).toBe(true);
+		expect(file.hasAttribute("data-cursor")).toBe(false);
 	});
 
 	it("enters the first child with l and returns to the parent with h", () => {
