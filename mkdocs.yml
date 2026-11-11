@@ -100,6 +100,9 @@ nav:
       - macOS 签名与公证: test/macos-signing.md
       - iOS TestFlight: test/ios-testflight.md
       - 发布前 Checklist: test/release-checklist.md
+      - Wiley 引用完整性: test/2026-11-10-wiley-citation-completeness.md
+      - 阅读选区批注映射: test/2026-11-10-reader-selection-mapping.md
+      - 上游阅读器试用: test/2026-11-10-upstream-reader-trial.md
 
   - Bug 修复记录:
       - DeepSeek 正文落入 Thinking: bug_fix/deepseek-thinking-body.md
