@@ -799,7 +799,7 @@ export function usePdfLayoutTranslate({
 				status: "running",
 			}));
 			void (async () => {
-				// Opening a finished translation must not wait for a translation slot.
+				// Opening cached translations must not wait for a translation slot.
 				// Explicit completion/retranslation still belongs to the shared job.
 				if (!force && runScopeIds.length === 0) {
 					const cacheKey = currentLayoutTranslateCacheKey();
@@ -835,20 +835,28 @@ export function usePdfLayoutTranslate({
 							const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
 								requireReflowSentencePairs: true,
 							});
-							if (hydration.fromCache && hydration.pendingRequired === 0) {
+							if (hydration.fromCache) {
+								const dismissKey = layoutTranslatePendingDismissKey(
+									dismissalPaperKey,
+									cacheKey,
+									hydration.items,
+								);
 								setCacheOnly(true);
 								setSourcePreparing(false);
 								setLayoutTranslateJob(
 									layoutTranslateJobPatch({
-										status: "done",
+										status: hydration.pendingRequired > 0 ? "partial" : "done",
 										scope: "document",
 										items: hydration.items,
 										cacheKey,
 										fromCache: true,
 										runScope: "all",
 										runScopeIds: [],
+										partialDismissKey: dismissKey,
 									}),
 								);
+								if (hydration.pendingRequired > 0)
+									schedulePartialAutoOpen(dismissKey);
 								if (layoutTranslateAbortRef.current === ac)
 									layoutTranslateAbortRef.current = null;
 								return;
@@ -875,6 +883,8 @@ export function usePdfLayoutTranslate({
 			layoutRawRegions,
 			docId,
 			prepareReflow,
+			dismissalPaperKey,
+			schedulePartialAutoOpen,
 		],
 	);
 
@@ -946,8 +956,7 @@ export function usePdfLayoutTranslate({
 			const prepared = await prepareReflow(pendingItems, ac.signal);
 			if (ac.signal.aborted) return;
 			setSourcePreparing(false);
-			// Loose PDFs retain cache-first display. Papers use the shared
-			// queue above, where an explicit document request fills gaps.
+			// Cached text renders immediately; filling gaps is an explicit action.
 			const hydration = hydrateLayoutTranslateItems(
 				reuseCompletedTranslateItems(prepared, previousItems),
 				sidecar,

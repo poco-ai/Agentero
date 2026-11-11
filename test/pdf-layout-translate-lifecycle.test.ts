@@ -729,19 +729,94 @@ it("opens a cached paper translation pane before its layout store is populated",
 	assert.equal(h.reflowInput.length, 2);
 });
 
-it("queues a paper when its sidecar is partial or does not match prepared source", async () => {
-	for (const source of ["Source 0", "Old source"]) {
+for (const translationPane of [false, true]) {
+	it(`opens a partial paper cache with a warning and no automatic completion (${translationPane ? "translation pane" : "toolbar"})`, async () => {
 		const h = createHarness();
-		h.render({ vaultPath: "/vault" });
+		h.render({ vaultPath: "/vault", translationPane });
 		h.setShared(sharedJob("queued"), null);
-		h.setTranslateSidecar([{ id: "region-0", source, translated: "Cached" }]);
+		h.setTranslateSidecar([
+			{ id: "region-0", source: "Source 0", translated: "Cached" },
+		]);
 		h.view.toggleLayoutTranslate();
+		await h.flush();
+		assert.equal(h.observers.length, 0);
+		assert.equal(h.runs.length, 0);
+		assert.equal(h.writes.length, 0);
+		assert.equal(h.view.layoutTranslateQueued, false);
+		assert.equal(h.view.layoutTranslateRunning, false);
+		assert.equal(h.view.layoutTranslateStatus, "partial");
+		assert.equal(h.view.layoutTranslateFromCache, true);
+		assert.equal(h.reflowInput.length, 2);
+		assert.equal(h.reflowInput[0].translated, "Cached");
+		assert.equal(h.reflowInput[1].translated, undefined);
+		assert.equal(h.view.layoutTranslatePartial.visible, true);
+		assert.equal(h.view.layoutTranslatePartial.open, true);
+		assert.equal(h.view.layoutTranslatePartial.pendingRequired, 1);
+
+		h.view.layoutTranslatePartial.onOpenChange(false);
+		await h.flush();
+		h.view.toggleLayoutTranslate();
+		await h.flush();
+		assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+		h.view.toggleLayoutTranslate();
+		await h.flush();
+		assert.equal(
+			h.view.layoutTranslateItemsByPage.get(0)?.[0].translated,
+			"Cached",
+		);
+		assert.equal(h.observers.length, 0);
+
+		h.setShared(
+			sharedJob(),
+			sharedSnapshot([
+				{ ...region(0), status: "done", translated: "Cached" },
+				{ ...region(1), status: "running" },
+			]),
+		);
+		h.view.layoutTranslatePartial.onCompleteMissing();
 		await h.flush();
 		assert.equal(h.observers.length, 1);
 		assert.equal(h.observers[0].start, true);
-		assert.equal(h.view.layoutTranslateQueued, true);
+		assert.equal(h.observers[0].force, false);
+		assert.equal(h.view.layoutTranslatePartial.open, false);
+		assert.equal(h.view.layoutTranslatePageCounts?.total, 1);
+		assert.equal(
+			h.view.layoutTranslateItemsByPage.get(0)?.[0].translated,
+			"Cached",
+		);
 		assert.equal(h.runs.length, 0);
-	}
+	});
+}
+
+it("queues a paper when its sidecar does not match prepared source", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(sharedJob("queued"), null);
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Old source", translated: "Cached" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.observers.length, 1);
+	assert.equal(h.observers[0].start, true);
+	assert.equal(h.view.layoutTranslateQueued, true);
+	assert.equal(h.runs.length, 0);
+});
+
+it("keeps an ignored paper cache warning dismissed after reopening without completing gaps", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.dismissedPartialKeys.add("/vault/papers/a:region-1");
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "Cached" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	assert.equal(h.view.layoutTranslatePartial.open, false);
+	assert.equal(h.observers.length, 0);
+	assert.equal(h.runs.length, 0);
 });
 
 for (const action of ["stop", "close"] as const) {

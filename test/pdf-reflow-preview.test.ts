@@ -157,6 +157,20 @@ it("publishes a finished page during translation and preserves it across other b
 	expect(buildReflowPdf).not.toHaveBeenCalled();
 });
 
+it("builds the final cached PDF while untranslated blocks remain pending", async () => {
+	const cached = item(0);
+	const missing = { ...item(0, "pending"), id: "missing" };
+	session.update([cached, missing], [], false);
+	await settled();
+	expect(buildReflowPdf).toHaveBeenCalledTimes(1);
+	const call = vi.mocked(buildReflowPdf).mock.calls[0];
+	expect(call[2].pages[0].paragraphs).toHaveLength(2);
+	expect([...call[3].entries()]).toEqual([[cached.id, cached.translated]]);
+	expect(session.output).toEqual(new Uint8Array([1, 2]));
+	expect(buildReflowPage).not.toHaveBeenCalled();
+	expect(failed).not.toHaveBeenCalled();
+});
+
 it("waits for the entire page and retains failed IR paragraphs as obstacles", async () => {
 	const first = item(0),
 		pending = { ...item(0, "pending"), id: "other" };
