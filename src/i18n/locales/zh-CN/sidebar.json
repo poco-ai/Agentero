@@ -57,6 +57,8 @@
 		"movedWithErrors": "{{count}} 项移动失败。",
 		"moveFailed": "移动失败。",
 		"moveDesktopOnly": "移动需要桌面应用。",
+		"copyDesktopOnly": "复制需要桌面应用。",
+		"copyFailed": "复制失败。",
 		"cut": "剪切",
 		"cutSelected": "剪切 {{count}} 项",
 		"paste": "粘贴",
@@ -166,6 +168,23 @@
 		"copied": "已复制{{label}}",
 		"copyFailed": "无法复制到剪贴板",
 		"count": "共 {{formatted}} 篇",
+		"copy": {
+			"action": "复制到文件夹…",
+			"title": "复制 {{count}} 篇到文件夹",
+			"confirm": "复制",
+			"cancel": "取消",
+			"busy": "正在复制…",
+			"copied": "已复制 {{count}} 篇到 {{folder}}",
+			"failed": "{{count}} 篇复制失败"
+		},
+		"selection": {
+			"selectRow": "选择{{title}}",
+			"selectAll": "全选",
+			"count": "已选 {{count}} 篇",
+			"countWithTotal": "已选 {{selected}} / 共 {{total}} 篇",
+			"delete": "删除 {{count}} 篇",
+			"clear": "清除选择"
+		},
 		"search": "按标题、作者、ID、DOI 或标签搜索",
 		"filterTags": "按标签筛选",
 		"filterTagsEmpty": "当前库中还没有标签。",

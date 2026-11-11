@@ -310,10 +310,32 @@ export async function movePaperFolder(
 	);
 }
 
+export type PaperCopyResult = {
+	newRel: string;
+	cataloged: boolean;
+};
+
+/**
+ * Duplicate a paper/org folder into another papers/ folder. Never overwrites;
+ * the source keeps its catalog row and incoming links.
+ */
+export async function copyPaperFolder(
+	vaultPath: string,
+	fromRel: string,
+	destParentRel: string,
+): Promise<PaperCopyResult> {
+	if (!isTauri()) {
+		throw new Error(i18n.t("sidebar:fileTree.copyDesktopOnly"));
+	}
+	return callApi(
+		() => commands.paperCopy({ vaultPath, fromRel, destParentRel }),
+		{ fallback: i18n.t("sidebar:fileTree.copyFailed") },
+	);
+}
+
 /**
  * Mark paper as read / unread after paper-reader workflow (catalog authority).
- */
-export async function setPaperIsRead(
+ */ export async function setPaperIsRead(
 	vaultPath: string,
 	path: string,
 	isRead: boolean,

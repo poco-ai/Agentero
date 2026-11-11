@@ -1767,6 +1767,23 @@ pub fn list_page_counts(
     })
 }
 
+/// Cached page count for one paper path, if a probe ever recorded it.
+pub fn get_page_count(vault_root: &Path, path: &str) -> Result<Option<i64>, AppError> {
+    let path = crate::fs::normalize_rel_separators(path);
+    with_catalog(vault_root, |conn| {
+        let mut stmt = conn
+            .prepare("SELECT page_count FROM pdf_page_counts WHERE path = ?1")
+            .map_err(AppError::from)?;
+        let mut rows = stmt
+            .query_map(params![path], |row| row.get::<_, i64>(0))
+            .map_err(AppError::from)?;
+        match rows.next() {
+            Some(value) => Ok(Some(value.map_err(AppError::from)?)),
+            None => Ok(None),
+        }
+    })
+}
+
 /// Batch-upsert cached page counts. Deliberately does not touch `papers`
 /// (no `updated_at` bump) so caching never reorders the library.
 pub fn set_page_counts(vault_root: &Path, counts: &[(String, i64)]) -> Result<(), AppError> {

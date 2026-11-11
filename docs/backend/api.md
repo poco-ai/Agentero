@@ -1345,6 +1345,26 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 - **单测**：`papers.rs::move_under_path`（叶子 + 组织目录下多行前缀改写）。
 - **前端**：`src/lib/paper/api.ts` → `movePaperFolder`；文件树多选批量移动（`MovePapersDialog`）。
 
+#### `paper_copy`
+
+把 paper 文件夹（或 `papers/` 下组织目录）**复制**到另一 `papers/` 目录，保留目录 basename：递归复制文件，并为副本写入独立 catalog 行（同一逻辑 `id`、不同 `path`）与 `pdf_page_counts` 缓存。源路径、入链和 catalog 行都不动（不覆盖已存在目标）。
+
+- **参数**（invoke 字段名 `args`）：
+
+```ts
+{
+  vaultPath: string;
+  /** 要复制的 Vault 相对路径（paper / 组织目录） */
+  fromRel: string;
+  /** 目标父目录（`papers` 或 `papers/` 下），Vault 相对 */
+  destParentRel: string;
+}
+```
+
+- **返回**：`{ ok: true; data: { newRel: string, cataloged: boolean } }`（`cataloged` 表示副本是否写入了 catalog 行；纯文件夹复制为 `false`）。
+- **校验**：源与目标都须在 `papers/` 下；拒绝复制到自身 / 子孙；目标已存在时报错（半途失败会回滚已复制的目录）。
+- **前端**：`src/lib/paper/api.ts` → `copyPaperFolder`；论文库多选右键「复制到文件夹…」（`LibraryCopyDialog` + `copyLibraryPapersTo`）。
+
 #### `paper_set_is_read`
 
 更新 catalog 中单篇论文的 **`is_read`**（是否已完成 paper-reader 精读）。

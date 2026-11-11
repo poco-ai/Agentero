@@ -24,6 +24,7 @@ import {
 	resolvePapersParentDir,
 } from "@/lib/paper";
 import {
+	copyPaperFolder,
 	type PaperMetaPatch,
 	rescanPapers,
 	resolveIdentifierMetadata,
@@ -50,6 +51,7 @@ import { joinVaultPath, readVaultFile } from "@/lib/vault";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { getVaultPath, refreshTree, vaultStore } from "@/lib/vault/store";
 import { toVaultRelative } from "@/lib/wiki";
+import { rebuildWikiAndNotify } from "@/lib/wiki/store";
 import { openPaper, syncUpdatedPaperTabs } from "@/lib/workspace/actions";
 import {
 	refreshTabNotes,
@@ -239,6 +241,55 @@ export async function downloadPaperAssetsAction(node: FileNode): Promise<void> {
  * Library-table row action: re-download assets (PDF / TeX) from the paper's
  * upstream source — the row for papers synced without bulky attachments.
  */
+/**
+ * Duplicate library papers into one `papers/` folder ("copy to folder").
+ *
+ * Batch-safe: a paper whose target already exists only fails that paper, and
+ * the summary toast reports the counts. The library is refreshed so the copies
+ * appear as their own rows (same logical id, different path).
+ */
+export async function copyLibraryPapersTo(
+	papers: PaperMetadata[],
+	destParentRel: string,
+): Promise<void> {
+	const vaultPath = getVaultPath();
+	if (!vaultPath) return;
+	if (isRemoteVaultHandle(vaultPath)) {
+		notifyError(i18n.t("sidebar:fileTree.copyDesktopOnly"));
+		return;
+	}
+	const rels = papers
+		.map((paper) => paper.path?.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""))
+		.filter((rel): rel is string => Boolean(rel));
+	if (rels.length === 0) return;
+	let copied = 0;
+	let failed = 0;
+	for (const rel of rels) {
+		try {
+			await copyPaperFolder(vaultPath, rel, destParentRel);
+			copied++;
+		} catch {
+			failed++;
+		}
+	}
+	await refreshTree(vaultPath);
+	await refreshLibrary();
+	if (copied > 0) await rebuildWikiAndNotify(vaultPath);
+	if (copied > 0) {
+		notifySuccess(
+			i18n.t("sidebar:papersLibrary.copy.copied", {
+				count: copied,
+				folder: destParentRel || "papers",
+			}),
+		);
+	}
+	if (failed > 0) {
+		notifyWarning(
+			i18n.t("sidebar:papersLibrary.copy.failed", { count: failed }),
+		);
+	}
+}
+
 export async function downloadLibraryPaper(
 	paper: PaperMetadata,
 ): Promise<void> {

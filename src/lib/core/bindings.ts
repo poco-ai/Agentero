@@ -362,6 +362,11 @@ export const commands = {
 	 */
 	paperMove: (args: PaperMoveArgs) => typedError<ApiResult<PaperMoveResult>, string>(__TAURI_INVOKE("paper_move", { args })),
 	/**
+	 *  Duplicate a folder into another `papers/` folder (the library's batch
+	 *  "copy to folder"). Never overwrites; the source keeps its links and row.
+	 */
+	paperCopy: (args: PaperCopyArgs) => __TAURI_INVOKE<ApiResult<PaperCopyResult>>("paper_copy", { args }),
+	/**
 	 *  Rewrite catalog `path` prefixes after an item was moved outside the app.
 	 * 
 	 *  This does **not** touch the filesystem; it only keeps `papers` rows and
@@ -4263,6 +4268,21 @@ export type PaperCommitResult = {
 	assetMessages: string[],
 	/**  True when assets are still downloading in the background (`Deferred`). */
 	assetsPending: boolean,
+};
+
+export type PaperCopyArgs = {
+	vaultPath: string,
+	/**  Vault-relative item to duplicate (paper or org folder under `papers/`). */
+	fromRel: string,
+	/**  Vault-relative destination parent (`papers` or under `papers/`). */
+	destParentRel: string,
+};
+
+export type PaperCopyResult = {
+	/**  Vault-relative path of the new duplicate. */
+	newRel: string,
+	/**  Whether a catalog row was written for the duplicate. */
+	cataloged: boolean,
 };
 
 export type PaperEnsureRowsArgs = {

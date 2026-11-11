@@ -33,6 +33,7 @@ import type {
 	SortKey,
 } from "@/components/library/library-row-utils";
 import { PaperTagChip } from "@/components/library/paper-tag-chip";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	ContextMenu,
 	ContextMenuCheckboxItem,
@@ -95,6 +96,11 @@ type LibraryTableHeaderProps = {
 	onColumnReorder: (fromKey: SortKey, toKey: SortKey) => void;
 	onColumnResize: (key: SortKey, width: number | null, commit: boolean) => void;
 	vaultPath?: string | null;
+	/** Selection mode: leading select-all checkbox column is drawn. */
+	showSelection: boolean;
+	allSelected: boolean;
+	someSelected: boolean;
+	onToggleAll: (next: boolean) => void;
 };
 
 export const LibraryTableHeader = memo(function LibraryTableHeader({
@@ -121,6 +127,10 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 	onColumnReorder,
 	onColumnResize,
 	vaultPath,
+	showSelection,
+	allSelected,
+	someSelected,
+	onToggleAll,
 }: LibraryTableHeaderProps) {
 	// --- Column customization (order + visibility) ---
 	const [dragKey, setDragKey] = useState<SortKey | null>(null);
@@ -152,6 +162,26 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 					className="sticky top-0 z-[1] select-none border-b border-transparent bg-background/72 shadow-[0_1px_0_0_color-mix(in_oklch,var(--border)_55%,transparent)] backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/60"
 				>
 					<tr className="text-muted-foreground text-xs tracking-wide">
+						{showSelection ? (
+							<th className="w-8 min-w-8 p-0 font-normal">
+								<div className="flex h-10 items-center justify-center">
+									<Checkbox
+										checked={
+											allSelected
+												? true
+												: someSelected
+													? "indeterminate"
+													: false
+										}
+										aria-label={t("papersLibrary.selection.selectAll")}
+										title={t("papersLibrary.selection.selectAll")}
+										onClick={(e) => e.stopPropagation()}
+										onMouseDown={(e) => e.stopPropagation()}
+										onCheckedChange={(next) => onToggleAll(next === true)}
+									/>
+								</div>
+							</th>
+						) : null}
 						{visibleColumns.map((col) => {
 							const meta = getColumnMeta(col.key);
 							const active = sortKey === col.key;

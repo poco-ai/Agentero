@@ -1,88 +1,23 @@
 /**
- * One virtualized paper row for the library table: cells rendered from
- * COLUMN_META plus the row context menu (open / download / edit / reveal /
- * delete / add-to-chat).
+ * One virtualized paper row for the library table: selection checkbox plus
+ * cells rendered from COLUMN_META. The row context menu lives one level up in
+ * `library-row-menu.tsx` so a multi-selection has a single menu instance.
  *
- * Single-click opens the paper; double-click a copyable cell copies that field.
+ * Single-click opens the paper (⌘/Shift-click selects instead); double-click a
+ * copyable cell copies that field.
  *
  * Memoized — the parent must keep `ctx` (t + onCellCopy) and `measureRef`
  * reference-stable or every scroll re-renders all visible rows.
  */
-import {
-	BookOpen,
-	Download,
-	FolderOpen,
-	MessageSquarePlus,
-	Pencil,
-	RefreshCw,
-	Trash2,
-} from "lucide-react";
 import type { MouseEvent } from "react";
 import { Fragment, memo } from "react";
 import { getColumnMeta } from "@/components/library/library-columns";
-import {
-	type CellCtx,
-	isMissingLocalPdf,
-	type PaperRow,
-} from "@/components/library/library-row-utils";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuSeparator,
-	ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { presentAgentComposer } from "@/lib/agent/composer-focus";
-import { broadcastAgentAttachContext } from "@/lib/agent/context-attach";
-import { notifyError } from "@/lib/core/notify";
+import type { CellCtx, PaperRow } from "@/components/library/library-row-utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper";
-import { downloadLibraryPaper } from "@/lib/paper/library-actions";
-import { setEditMetaDraft } from "@/lib/paper/library-store";
 import type { ReadingHeatmap } from "@/lib/paper/reading-heatmap";
 import type { LibraryColumnPref } from "@/lib/settings";
-import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
-import {
-	activateMenuContribution,
-	visibleMenuContributions,
-} from "@/lib/shell/commands/menu-contributions";
-import { trashPathsAndNotify } from "@/lib/vault/actions";
-import { revealInFileManager, revealInOsLabelKey } from "@/lib/vault/reveal";
-
-/**
- * Reads the contribution list when the menu content mounts, not when the
- * memoized row last rendered. An empty list renders nothing, including no
- * separator.
- */
-function LibraryRowMenuContributions({
-	vaultPath,
-	relPath,
-	paperId,
-}: {
-	vaultPath: string | null;
-	relPath: string | undefined;
-	paperId: string | undefined;
-}) {
-	const menuContext: MenuContext = { vaultPath };
-	if (relPath) menuContext.relPath = relPath;
-	if (paperId) menuContext.paperId = paperId;
-	const items = visibleMenuContributions("library.row", menuContext);
-	if (items.length === 0) return null;
-	return (
-		<>
-			<ContextMenuSeparator />
-			{items.map((item) => (
-				<ContextMenuItem
-					key={item.id}
-					onSelect={() => {
-						activateMenuContribution(item, menuContext);
-					}}
-				>
-					{item.title}
-				</ContextMenuItem>
-			))}
-		</>
-	);
-}
 
 type LibraryPaperRowProps = {
 	/** Virtualizer index (`data-index` for measureElement). */
@@ -92,16 +27,15 @@ type LibraryPaperRowProps = {
 	visibleColumns: LibraryColumnPref[];
 	/** Stable `t` + `onCellCopy` pair shared by all rows (memo friendly). */
 	ctx: Pick<CellCtx, "t" | "onCellCopy">;
-	paperAbsPath: string | null;
-	/** Vault root the library view already has. Null when it does not. */
-	vaultPath?: string | null;
-	canEditMeta: boolean;
-	onOpenPaper: (paper: PaperMetadata) => void;
+	/** Selection mode: draw the leading checkbox cell. */
+	showSelection: boolean;
+	selected: boolean;
+	/** Checkbox click; Shift extends the range from the last anchor. */
+	onToggleSelected: (paper: PaperMetadata, mods: { shift: boolean }) => void;
 	onRowClick: (
 		e: MouseEvent<HTMLTableRowElement>,
 		paper: PaperMetadata,
 	) => void;
-	onRefreshMetadata?: (paper: PaperMetadata) => void;
 	/** Schedule the row preview; leaving cancels only the pending change. */
 	onHoverPaper?: (relPath: string | null) => void;
 	onLeavePaper?: () => void;
@@ -115,12 +49,10 @@ export const LibraryPaperRow = memo(function LibraryPaperRow({
 	heat,
 	visibleColumns,
 	ctx,
-	paperAbsPath,
-	vaultPath = null,
-	canEditMeta,
-	onOpenPaper,
+	showSelection,
+	selected,
+	onToggleSelected,
 	onRowClick,
-	onRefreshMetadata,
 	onHoverPaper,
 	onLeavePaper,
 	measureRef,
@@ -133,88 +65,45 @@ export const LibraryPaperRow = memo(function LibraryPaperRow({
 		tags: row.tags,
 	};
 	return (
-		<ContextMenu>
-			<ContextMenuTrigger asChild>
-				<tr
-					data-index={index}
-					ref={measureRef}
-					className="border-border/40 border-b transition-colors duration-100 hover:bg-accent/70 active:bg-accent"
-					onClick={(e) => onRowClick(e, p)}
-					onMouseEnter={() => onHoverPaper?.(p.path ?? null)}
-					onMouseLeave={onLeavePaper}
-				>
-					{visibleColumns.map((col) => (
-						<Fragment key={col.key}>
-							{getColumnMeta(col.key).render(p, cellCtx)}
-						</Fragment>
-					))}
-					<td className="w-9 min-w-9 p-0" />
-				</tr>
-			</ContextMenuTrigger>
-			<ContextMenuContent className="w-44">
-				<ContextMenuItem onSelect={() => onOpenPaper(p)}>
-					<BookOpen className="size-3.5" />
-					{ctx.t("papersLibrary.rowOpen")}
-				</ContextMenuItem>
-				{canEditMeta && isMissingLocalPdf(p) ? (
-					<ContextMenuItem onSelect={() => void downloadLibraryPaper(p)}>
-						<Download className="size-3.5" />
-						{ctx.t("papersLibrary.rowDownloadPdf")}
-					</ContextMenuItem>
-				) : null}
-				{canEditMeta ? (
-					<ContextMenuItem onSelect={() => setEditMetaDraft(p)}>
-						<Pencil className="size-3.5" />
-						{ctx.t("papersLibrary.rowEditMeta")}
-					</ContextMenuItem>
-				) : null}
-				{canEditMeta &&
-				onRefreshMetadata &&
-				(p.doi?.trim() || p.arxiv_id?.trim() || p.title?.trim()) ? (
-					<ContextMenuItem onSelect={() => void onRefreshMetadata?.(p)}>
-						<RefreshCw className="size-3.5" />
-						{ctx.t("papersLibrary.rowRefreshMeta")}
-					</ContextMenuItem>
-				) : null}
-				{paperAbsPath ? (
-					<>
-						<ContextMenuSeparator />
-						<ContextMenuItem
-							onSelect={() => {
-								broadcastAgentAttachContext([paperAbsPath]);
-								presentAgentComposer();
+		<tr
+			data-index={index}
+			data-selected={selected ? "" : undefined}
+			ref={measureRef}
+			className={cn(
+				"group/row border-border/40 border-b transition-colors duration-100",
+				selected ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-accent/70",
+			)}
+			onClick={(e) => onRowClick(e, p)}
+			onMouseEnter={() => onHoverPaper?.(p.path ?? null)}
+			onMouseLeave={onLeavePaper}
+		>
+			{showSelection ? (
+				<td className="w-8 min-w-8 p-0 align-middle">
+					<div className="flex h-full animate-in items-center justify-center fade-in-0 duration-150">
+						<Checkbox
+							checked={selected}
+							aria-label={ctx.t("papersLibrary.selection.selectRow", {
+								title: p.title,
+							})}
+							className={cn(
+								"transition-opacity duration-100",
+								!selected && "opacity-60 group-hover/row:opacity-100",
+							)}
+							onClick={(event) => {
+								// Keep the row's open-on-click (and marquee start) out of it.
+								event.stopPropagation();
+								onToggleSelected(p, { shift: event.shiftKey });
 							}}
-						>
-							<MessageSquarePlus className="size-3.5" />
-							{ctx.t("fileTree.addToChat")}
-						</ContextMenuItem>
-						{canEditMeta ? (
-							<ContextMenuItem
-								onSelect={() => {
-									void revealInFileManager(paperAbsPath).catch(() =>
-										notifyError(ctx.t("fileTree.revealFailed")),
-									);
-								}}
-							>
-								<FolderOpen className="size-3.5" />
-								{ctx.t(revealInOsLabelKey())}
-							</ContextMenuItem>
-						) : null}
-						<ContextMenuItem
-							className="text-destructive focus:text-destructive"
-							onSelect={() => void trashPathsAndNotify([paperAbsPath])}
-						>
-							<Trash2 className="size-3.5" />
-							{ctx.t("fileTree.delete")}
-						</ContextMenuItem>
-					</>
-				) : null}
-				<LibraryRowMenuContributions
-					vaultPath={vaultPath}
-					relPath={p.path || undefined}
-					paperId={p.id || undefined}
-				/>
-			</ContextMenuContent>
-		</ContextMenu>
+						/>
+					</div>
+				</td>
+			) : null}
+			{visibleColumns.map((col) => (
+				<Fragment key={col.key}>
+					{getColumnMeta(col.key).render(p, cellCtx)}
+				</Fragment>
+			))}
+			<td className="w-9 min-w-9 p-0" />
+		</tr>
 	);
 });

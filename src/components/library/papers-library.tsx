@@ -4,20 +4,26 @@
  * Title-header inline search + tags-header filter (no separate toolbar).
  * Single-click a row to open the paper (deferred so double-click can cancel);
  * double-click a cell to copy that field.
+ * Multi-select: leading checkbox column, marquee drag over rows, and a batch
+ * context menu / floating action bar once more than one row is selected.
  * Reading heat: title text background as a left→right spine (doc start→end).
  */
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { RefreshCw } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCellCopy } from "@/components/library/hooks/use-cell-copy";
 import { useLibraryHeatmap } from "@/components/library/hooks/use-library-heatmap";
+import { useLibraryMarquee } from "@/components/library/hooks/use-library-marquee";
 import { useLibraryPreview } from "@/components/library/hooks/use-library-preview";
+import { useLibrarySelection } from "@/components/library/hooks/use-library-selection";
 import { resolveColumnWidths } from "@/components/library/library-column-widths";
 import { getColumnMeta } from "@/components/library/library-columns";
+import { LibraryCopyDialog } from "@/components/library/library-copy-dialog";
 import { LibraryPaperRow } from "@/components/library/library-paper-row";
 import { LibraryPdfDropSurface } from "@/components/library/library-pdf-drop-surface";
+import { LibraryRowMenu } from "@/components/library/library-row-menu";
 import {
 	buildPaperRow,
 	type CellCtx,
@@ -28,15 +34,20 @@ import {
 	type SortKey,
 	toggleColumnVisibility,
 } from "@/components/library/library-row-utils";
+import { paperSelectionKey } from "@/components/library/library-selection";
+import { LibrarySelectionBar } from "@/components/library/library-selection-bar";
 import { LibraryTableHeader } from "@/components/library/library-table-header";
 import { Button } from "@/components/ui/button";
 import { useWritingStore } from "@/hooks/use-app-stores";
 import { useDebouncedCallback } from "@/hooks/use-debounce";
+import { presentAgentComposer } from "@/lib/agent/composer-focus";
+import { broadcastAgentAttachContext } from "@/lib/agent/context-attach";
 import { cn } from "@/lib/core/utils";
 import type { PaperLibraryRow, PaperMetadata } from "@/lib/paper";
 import { filterPapersByScope } from "@/lib/paper/api";
 import { loadCustomProperties } from "@/lib/paper/custom-properties-store";
 import {
+	copyLibraryPapersTo,
 	refreshPaperMetadata,
 	syncLibraryPublication,
 } from "@/lib/paper/library-actions";
@@ -47,7 +58,9 @@ import {
 	type LibraryColumnPref,
 	useUiScale,
 } from "@/lib/settings";
+import { allowsNativeSelectAll } from "@/lib/shell/native-select-all";
 import { joinVaultPath } from "@/lib/vault";
+import { trashPathsAndNotify } from "@/lib/vault/actions";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 
 export type PapersLibraryProps = {
@@ -88,6 +101,20 @@ export type PapersLibraryProps = {
 const SEARCH_DEBOUNCE_MS = 250;
 /** Hide header search/actions while scrolling; restore after this idle gap. */
 const HEADER_SCROLL_IDLE_MS = 450;
+/** Leading selection checkbox column width (rem) — header, colgroup, rows. */
+const SELECTION_COL_REM = 2;
+/** Trailing custom-property "add column" cell width (rem). */
+const ACTIONS_COL_REM = 2.25;
+
+/** Radix dialog/menu/popover is open → app-level shortcuts must not fight it. */
+function blockingOverlayOpen(): boolean {
+	if (typeof document === "undefined") return false;
+	return Boolean(
+		document.querySelector(
+			"[data-radix-popper-content-wrapper] [data-state='open'], [role='dialog'][data-state='open'], [role='alertdialog'][data-state='open']",
+		),
+	);
+}
 
 export function PapersLibrary({
 	papers,
@@ -309,6 +336,41 @@ export function PapersLibrary({
 		return copy;
 	}, [indexedRows, normalizedQuery, tagFilterSet, sortKey, sortDir]);
 
+	/** Visible row order (sorted + filtered) — the universe selection lives in. */
+	const order = useMemo(
+		() => rows.map((row) => paperSelectionKey(row.paper)),
+		[rows],
+	);
+	const {
+		keys: selectedKeys,
+		count: selectedCount,
+		allSelected,
+		someSelected,
+		selectRow,
+		applyDrag,
+		selectAll,
+		clear: clearSelection,
+		prepareContext,
+		beginDrag,
+		cancelDrag,
+	} = useLibrarySelection(order);
+	/**
+	 * Latest rows / selection for callbacks that must stay identity-stable —
+	 * a marquee drag re-renders this table every frame, and unstable props
+	 * would re-render every visible row with it.
+	 */
+	const rowsRef = useRef(rows);
+	rowsRef.current = rows;
+	const selectedKeysRef = useRef(selectedKeys);
+	selectedKeysRef.current = selectedKeys;
+	const selectedCountRef = useRef(selectedCount);
+	selectedCountRef.current = selectedCount;
+	/** Virtualizer index → selection key (stable per rendered row order). */
+	const keyForIndex = useCallback(
+		(index: number) => order[index] ?? "",
+		[order],
+	);
+
 	const previewPaths = useMemo(
 		() =>
 			new Set(rows.flatMap(({ paper }) => (paper.path ? [paper.path] : []))),
@@ -333,6 +395,26 @@ export function PapersLibrary({
 	const detachScrollRef = useRef<(() => void) | null>(null);
 	/** True only while the table is scrolling; idle restores search/actions. */
 	const [headerCompact, setHeaderCompact] = useState(false);
+	const {
+		onPointerDown: onMarqueePointerDown,
+		overlayRef: marqueeOverlayRef,
+		dragging: marqueeDragging,
+		isDragging: marqueeIsDragging,
+		didJustDrag: marqueeDidJustDrag,
+	} = useLibraryMarquee({
+		scrollRef,
+		keyForIndex,
+		onSelect: applyDrag,
+		onDragStart: beginDrag,
+		onCancel: cancelDrag,
+		enabled: active,
+	});
+	/**
+	 * Selection mode: the checkbox column only exists while a marquee is being
+	 * drawn or rows are selected. Inside it, a row click toggles instead of
+	 * opening, so the table reads exactly like before until you drag.
+	 */
+	const selectionActive = marqueeDragging || selectedCount > 0;
 	/** Bind scroll listener when the table scroller mounts (after loading). */
 	const setScrollEl = useCallback(
 		(el: HTMLDivElement | null) => {
@@ -345,6 +427,9 @@ export function PapersLibrary({
 			}
 			let idleTimer: ReturnType<typeof setTimeout> | null = null;
 			const onScroll = () => {
+				// A marquee drag scrolls the list itself: keep the header steady and
+				// leave the (suppressed) hover preview alone.
+				if (marqueeIsDragging()) return;
 				// Cancel pending hover when rows move, but retain the current preview.
 				previewPaper.cancel();
 				setHeaderCompact((prev) => (prev ? prev : true));
@@ -372,7 +457,7 @@ export function PapersLibrary({
 				el.removeEventListener("scroll", onScroll);
 			};
 		},
-		[previewPaper],
+		[previewPaper, marqueeIsDragging],
 	);
 	useEffect(
 		() => () => {
@@ -415,6 +500,160 @@ export function PapersLibrary({
 		[t, onCellCopy],
 	);
 
+	/** Selected papers, resolved on action only (never per marquee frame). */
+	const collectSelectedPapers = useCallback(
+		() =>
+			rowsRef.current
+				.filter((row) =>
+					selectedKeysRef.current.has(paperSelectionKey(row.paper)),
+				)
+				.map((row) => row.paper),
+		[],
+	);
+
+	const absPathsForPapers = useCallback(
+		(papers: PaperLibraryRow[]) =>
+			papers
+				.map((paper) =>
+					paper.path && vaultPath ? joinVaultPath(vaultPath, paper.path) : null,
+				)
+				.filter((path): path is string => Boolean(path)),
+		[vaultPath],
+	);
+
+	const addPapersToChat = useCallback(
+		(papers: PaperLibraryRow[]) => {
+			const paths = absPathsForPapers(papers);
+			if (!paths.length) return;
+			broadcastAgentAttachContext(paths);
+			presentAgentComposer();
+		},
+		[absPathsForPapers],
+	);
+
+	/** Papers pending "copy to folder" (dialog open while non-null). */
+	const [copyPapers, setCopyPapers] = useState<PaperLibraryRow[] | null>(null);
+	const openCopyDialog = useCallback((papers: PaperLibraryRow[]) => {
+		if (papers.length) setCopyPapers(papers);
+	}, []);
+	const confirmCopy = useCallback(
+		async (destParentRel: string) => {
+			const papers = copyPapers ?? [];
+			setCopyPapers(null);
+			await copyLibraryPapersTo(papers, destParentRel);
+		},
+		[copyPapers],
+	);
+
+	const deletePapers = useCallback(
+		(papers: PaperLibraryRow[]) => {
+			const paths = absPathsForPapers(papers);
+			if (!paths.length) return;
+			void trashPathsAndNotify(paths);
+			clearSelection();
+		},
+		[absPathsForPapers, clearSelection],
+	);
+
+	/** Row press: selection mode toggles, everything else keeps open-on-click. */
+	const handleRowClick = useCallback(
+		(event: MouseEvent<HTMLTableRowElement>, paper: PaperMetadata) => {
+			if (marqueeDidJustDrag()) return;
+			if (selectionActive) {
+				// Inside selection mode the whole row is the toggle; the checkbox
+				// itself stops propagation. Double-click still copies a cell.
+				selectRow(paperSelectionKey(paper), { shift: event.shiftKey });
+				return;
+			}
+			if (event.shiftKey || event.metaKey || event.ctrlKey) {
+				selectRow(paperSelectionKey(paper), { shift: event.shiftKey });
+				return;
+			}
+			onRowClick(event, paper);
+		},
+		[marqueeDidJustDrag, onRowClick, selectRow, selectionActive],
+	);
+
+	const handleToggleSelected = useCallback(
+		(paper: PaperMetadata, mods: { shift: boolean }) => {
+			selectRow(paperSelectionKey(paper), mods);
+		},
+		[selectRow],
+	);
+
+	const handleToggleAll = useCallback(
+		(next: boolean) => {
+			if (next) selectAll();
+			else clearSelection();
+		},
+		[clearSelection, selectAll],
+	);
+
+	/** Hover preview is noise while a marquee drag sweeps across the rows. */
+	const handleHoverPaper = useCallback(
+		(relPath: string | null) => {
+			if (marqueeIsDragging()) return;
+			previewPaper(relPath);
+		},
+		[marqueeIsDragging, previewPaper],
+	);
+
+	/** Clicking empty table space drops the selection (like the file tree). */
+	const handleScrollAreaClick = useCallback(
+		(event: MouseEvent<HTMLDivElement>) => {
+			if (marqueeDidJustDrag() || selectedCountRef.current === 0) return;
+			const target = event.target as HTMLElement | null;
+			if (!target) return;
+			if (target.closest("tr[data-index]") || target.closest("thead")) return;
+			clearSelection();
+		},
+		[clearSelection, marqueeDidJustDrag],
+	);
+
+	// ⌘A / Delete / Esc on the library surface: kept out of text fields and
+	// open menus/dialogs so typing and other shortcuts keep working.
+	useEffect(() => {
+		if (!active) return;
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (blockingOverlayOpen() || marqueeIsDragging()) return;
+			const typing = allowsNativeSelectAll(event.target);
+			if (
+				(event.metaKey || event.ctrlKey) &&
+				!event.shiftKey &&
+				!event.altKey &&
+				event.key.toLowerCase() === "a"
+			) {
+				if (typing) return;
+				event.preventDefault();
+				selectAll();
+				return;
+			}
+			if (typing || event.defaultPrevented) return;
+			if (event.key === "Escape") {
+				if (selectedCountRef.current === 0) return;
+				event.preventDefault();
+				clearSelection();
+				return;
+			}
+			if (
+				(event.key === "Delete" || event.key === "Backspace") &&
+				selectedCountRef.current > 0
+			) {
+				event.preventDefault();
+				deletePapers(collectSelectedPapers());
+			}
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [
+		active,
+		clearSelection,
+		collectSelectedPapers,
+		deletePapers,
+		marqueeIsDragging,
+		selectAll,
+	]);
+
 	const filtering = normalizedQuery.length > 0 || tagFilterSet.size > 0;
 	const tagFilterActive = tagFilterSet.size > 0;
 
@@ -429,10 +668,14 @@ export function PapersLibrary({
 		const empty = rows.length === 0;
 		body = (
 			<>
+				{/* biome-ignore lint/a11y/noStaticElementInteractions: scroll surface; rows and the header own the real controls */}
+				{/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape clears the selection from the keyboard */}
 				<div
 					ref={setScrollEl}
+					onPointerDown={onMarqueePointerDown}
+					onClick={handleScrollAreaClick}
 					className={cn(
-						"agentero-scroll-both min-w-0",
+						"agentero-scroll-both relative min-w-0",
 						empty ? "h-auto" : "min-h-0 flex-1",
 					)}
 				>
@@ -440,10 +683,13 @@ export function PapersLibrary({
 					<table
 						className="table-fixed border-collapse text-left text-sm"
 						style={{
-							width: `${columnWidths.reduce((sum, width) => sum + width, 0) + 2.25}rem`,
+							width: `${columnWidths.reduce((sum, width) => sum + width, 0) + (selectionActive ? SELECTION_COL_REM : 0) + ACTIONS_COL_REM}rem`,
 						}}
 					>
 						<colgroup>
+							{selectionActive ? (
+								<col style={{ width: `${SELECTION_COL_REM}rem` }} />
+							) : null}
 							{visibleColumns.map((col, index) => (
 								<col
 									key={col.key}
@@ -452,7 +698,7 @@ export function PapersLibrary({
 									}}
 								/>
 							))}
-							<col style={{ width: "2.25rem" }} />
+							<col style={{ width: `${ACTIONS_COL_REM}rem` }} />
 						</colgroup>
 						<LibraryTableHeader
 							t={t}
@@ -478,68 +724,118 @@ export function PapersLibrary({
 							onColumnReorder={handleColumnReorder}
 							onColumnResize={resizeColumn}
 							vaultPath={vaultPath}
+							showSelection={selectionActive}
+							allSelected={allSelected}
+							someSelected={someSelected}
+							onToggleAll={handleToggleAll}
 						/>
-						{/* key={reorderKey} remounts the tbody to replay the fade animation. */}
-						<tbody
-							key={reorderKey}
-							className="animate-in fade-in-0 duration-150"
+						{/* One shared menu for the whole body: single-row actions, or
+						    batch actions when the right-clicked row is selected. */}
+						<LibraryRowMenu
+							rows={rows}
+							vaultPath={vaultPath}
+							canEditMeta={canEditMeta}
+							selectedKeys={selectedKeys}
+							onOpenPaper={openPaperFromRow}
+							onRefreshMetadata={handleRefreshPaperMetadata}
+							onAddToChat={addPapersToChat}
+							onCopyPapers={openCopyDialog}
+							onDeletePapers={deletePapers}
+							onClearSelection={clearSelection}
+							onPrepareContext={prepareContext}
+							t={t}
 						>
-							{paddingTop > 0 ? (
-								<tr aria-hidden>
-									<td
-										colSpan={visibleColumns.length + 1}
-										style={{ height: paddingTop }}
-									/>
-								</tr>
-							) : null}
-							{virtualRows.map((vr) => {
-								const row = rows[vr.index];
-								const p = row.paper;
-								return (
-									<LibraryPaperRow
-										key={p.path ?? p.id}
-										index={vr.index}
-										row={row}
-										heat={heatmaps.get(heatmapCacheKey(p))}
-										visibleColumns={visibleColumns}
-										ctx={cellCtx}
-										paperAbsPath={
-											p.path && vaultPath
-												? joinVaultPath(vaultPath, p.path)
-												: null
-										}
-										vaultPath={vaultPath}
-										canEditMeta={canEditMeta}
-										onOpenPaper={openPaperFromRow}
-										onRowClick={onRowClick}
-										onRefreshMetadata={handleRefreshPaperMetadata}
-										onHoverPaper={previewPaper}
-										onLeavePaper={previewPaper.cancel}
-										measureRef={rowVirtualizer.measureElement}
-									/>
-								);
-							})}
-							{paddingBottom > 0 ? (
-								<tr aria-hidden>
-									<td
-										colSpan={visibleColumns.length + 1}
-										style={{ height: paddingBottom }}
-									/>
-								</tr>
-							) : null}
-						</tbody>
+							{/* key={reorderKey} remounts the tbody to replay the fade animation. */}
+							<tbody
+								key={reorderKey}
+								className="animate-in fade-in-0 duration-150"
+							>
+								{paddingTop > 0 ? (
+									<tr aria-hidden className="pointer-events-none">
+										<td
+											colSpan={
+												visibleColumns.length + (selectionActive ? 2 : 1)
+											}
+											style={{ height: paddingTop }}
+										/>
+									</tr>
+								) : null}
+								{virtualRows.map((vr) => {
+									const row = rows[vr.index];
+									const p = row.paper;
+									return (
+										<LibraryPaperRow
+											key={p.path ?? p.id}
+											index={vr.index}
+											row={row}
+											heat={heatmaps.get(heatmapCacheKey(p))}
+											visibleColumns={visibleColumns}
+											ctx={cellCtx}
+											showSelection={selectionActive}
+											selected={selectedKeys.has(paperSelectionKey(p))}
+											onToggleSelected={handleToggleSelected}
+											onRowClick={handleRowClick}
+											onHoverPaper={handleHoverPaper}
+											onLeavePaper={previewPaper.cancel}
+											measureRef={rowVirtualizer.measureElement}
+										/>
+									);
+								})}
+								{paddingBottom > 0 ? (
+									<tr aria-hidden className="pointer-events-none">
+										<td
+											colSpan={
+												visibleColumns.length + (selectionActive ? 2 : 1)
+											}
+											style={{ height: paddingBottom }}
+										/>
+									</tr>
+								) : null}
+							</tbody>
+						</LibraryRowMenu>
 					</table>
+					{/* Marquee box: positioned in scroll-content coordinates so it
+					    stays glued to the rows while the list auto-scrolls. */}
+					<div
+						ref={marqueeOverlayRef}
+						aria-hidden
+						className="pointer-events-none absolute z-20 hidden rounded-[3px] border border-primary/50 bg-primary/10"
+					/>
 					{!empty ? (
 						<p className="sticky left-0 border-border/40 border-t px-3 py-2 text-muted-foreground text-xs tracking-wide">
-							{t("papersLibrary.count", {
-								count: rows.length,
-								formatted: new Intl.NumberFormat(i18n.language).format(
-									rows.length,
-								),
-							})}
+							{selectedCount > 0
+								? t("papersLibrary.selection.countWithTotal", {
+										selected: new Intl.NumberFormat(i18n.language).format(
+											selectedCount,
+										),
+										total: new Intl.NumberFormat(i18n.language).format(
+											rows.length,
+										),
+									})
+								: t("papersLibrary.count", {
+										count: rows.length,
+										formatted: new Intl.NumberFormat(i18n.language).format(
+											rows.length,
+										),
+									})}
 						</p>
 					) : null}
 				</div>
+				<LibrarySelectionBar
+					count={selectedCount}
+					onAddToChat={() => addPapersToChat(collectSelectedPapers())}
+					onDelete={() => deletePapers(collectSelectedPapers())}
+					onClear={clearSelection}
+				/>
+				<LibraryCopyDialog
+					open={copyPapers !== null}
+					papers={copyPapers ?? []}
+					vaultPath={vaultPath}
+					onOpenChange={(next) => {
+						if (!next) setCopyPapers(null);
+					}}
+					onConfirm={confirmCopy}
+				/>
 				{empty ? (
 					<div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
 						<p className="font-medium text-sm">
