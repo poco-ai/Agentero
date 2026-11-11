@@ -1,5 +1,5 @@
 import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,13 @@ export function TranslateCard({
 	/** Smallest height that still shows the header. */
 	const [resizeMinHeight, setResizeMinHeight] = useState<number>();
 
+	const copyResult = useCallback(async () => {
+		const ok = await copyTextToClipboard(result.trim(), {
+			errorMessage: t("selection.translateCopyFailed"),
+		});
+		if (ok) setCopied(true);
+	}, [result, t]);
+
 	useEffect(() => {
 		// This nonmodal card stays open when focus leaves it. Scope the keys to
 		// its mounted lifetime and leave native editing and other dialogs alone.
@@ -71,7 +78,9 @@ export function TranslateCard({
 					? onHide
 					: event.key.toLowerCase() === "p"
 						? onTogglePin
-						: undefined;
+						: event.key.toLowerCase() === "c" && showResult
+							? copyResult
+							: undefined;
 			if (
 				!action ||
 				event.defaultPrevented ||
@@ -92,25 +101,18 @@ export function TranslateCard({
 					: null;
 			if (overlay && !overlay.contains(scrollPortRef.current)) return;
 			event.preventDefault();
-			action();
+			void action();
 		};
 		// Capture before the card's action tooltip can consume Escape.
 		window.addEventListener("keydown", onKeyDown, true);
 		return () => window.removeEventListener("keydown", onKeyDown, true);
-	}, [onHide, onTogglePin]);
+	}, [copyResult, onHide, onTogglePin, showResult]);
 
 	useEffect(() => {
 		if (!copied) return;
 		const timer = setTimeout(() => setCopied(false), 1500);
 		return () => clearTimeout(timer);
 	}, [copied]);
-
-	const copyResult = async () => {
-		const ok = await copyTextToClipboard(result.trim(), {
-			errorMessage: t("selection.translateCopyFailed"),
-		});
-		if (ok) setCopied(true);
-	};
 
 	const handleScroll = () => {
 		const el = scrollPortRef.current;
@@ -177,6 +179,7 @@ export function TranslateCard({
 								label: t(copied ? "selection.copied" : "selection.copy"),
 								onClick: () => void copyResult(),
 								icon: copied ? <Check /> : <Copy />,
+								shortcut: "C",
 							},
 						]
 					: []),
