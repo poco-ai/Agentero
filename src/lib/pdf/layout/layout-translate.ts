@@ -1100,6 +1100,72 @@ export async function runLayoutRegionTranslate(options: {
 
 	const pageOf = (unit: SentenceUnit) => unit.job.chain.members[0]?.pageIndex;
 
+	// Only missing translations are content-recovery candidates. HTTP, network,
+	// configuration and cancellation failures keep their existing handling.
+	const isMissingTranslationResponse = (error: unknown) => {
+		const message = errorText(error);
+		return (
+			message === "Empty translation result" ||
+			message === "Unexpected Tencent Transmart translation response"
+		);
+	};
+	const canRecoverProtectedResponse = (unit: SentenceUnit, error: unknown) =>
+		!signal?.aborted &&
+		isMissingTranslationResponse(error) &&
+		unit.tokens.length > 0 &&
+		/\p{L}/u.test(unit.source.replace(/⟦\d+⟧/gu, ""));
+
+	/** Keep protected boundaries in source order and translate only their prose. */
+	const translateProtectedSpans = async (
+		unit: SentenceUnit,
+		tokens: readonly MaskedToken[],
+	): Promise<string> => {
+		const protectedParts = unit.source.split(/(⟦\d+⟧)/u);
+		const prose = protectedParts.flatMap((part, index) => {
+			if (!part.trim() || /^⟦\d+⟧$/u.test(part) || !/\p{L}/u.test(part))
+				return [];
+			// Keep leading punctuation outside MT, which may echo the fragment.
+			const leading = part.match(/^[\s.,;:!?。；，：！？)\]]*/u)?.[0] ?? "";
+			return [{ index, leading, source: part.slice(leading.length) }];
+		});
+		for (const batch of buildTranslateBatches(prose)) {
+			if (signal?.aborted) return "";
+			let segments: string[] | null = null;
+			try {
+				const result = await translateText(
+					buildNumberedPayload(batch),
+					pageOf(unit),
+				);
+				segments = parseNumberedTranslation(result, batch.length);
+			} catch (error) {
+				if (signal?.aborted) return "";
+				if (batch.length === 1 || !isMissingTranslationResponse(error))
+					throw error;
+			}
+			for (const [index, part] of batch.entries()) {
+				if (signal?.aborted) return "";
+				protectedParts[part.index] =
+					part.leading +
+					(segments?.[index] ??
+						(await translateText(part.source, pageOf(unit))));
+			}
+		}
+		const segmented = restoreInlineTokens(
+			protectedParts.join(" ").replace(/\s+/gu, " ").trim(),
+			tokens,
+		);
+		if (
+			!segmented.missing &&
+			!segmented.invalid &&
+			(!unit.validateReflow || unit.validateReflow(segmented.text))
+		) {
+			if (unit.validateReflow)
+				unit.job.chain.members[0].reflowFallback = "protected-spans";
+			return segmented.text;
+		}
+		throw new Error(i18n.t("viewer:pdf.layoutTranslate.invalidTokens"));
+	};
+
 	/** Retry with protection intact; never publish a corrupted formula/link. */
 	const finalizeSentence = async (
 		unit: SentenceUnit,
@@ -1117,12 +1183,18 @@ export async function runLayoutRegionTranslate(options: {
 		if (signal?.aborted) return "";
 		// A structural failure may recur with the same token spelling. Change
 		// the spelling immediately instead of repeating the same request.
-		const retry = validateReflow
-			? restored
-			: restoreInlineTokens(
+		let retry = restored;
+		if (!validateReflow) {
+			try {
+				retry = restoreInlineTokens(
 					await translateText(unit.source, pageOf(unit)),
 					tokens,
 				);
+			} catch (error) {
+				if (!canRecoverProtectedResponse(unit, error)) throw error;
+				return translateProtectedSpans(unit, tokens);
+			}
+		}
 		if (
 			retry.missing ||
 			retry.invalid ||
@@ -1138,7 +1210,12 @@ export async function runLayoutRegionTranslate(options: {
 				let protectedSource = unit.source;
 				for (const { token, alias } of aliases)
 					protectedSource = protectedSource.replaceAll(token, alias);
-				let alternate = await translateText(protectedSource, pageOf(unit));
+				let alternate = "";
+				try {
+					alternate = await translateText(protectedSource, pageOf(unit));
+				} catch (error) {
+					if (!canRecoverProtectedResponse(unit, error)) throw error;
+				}
 				for (const { token, alias } of aliases)
 					alternate = alternate.replace(new RegExp(alias, "gi"), token);
 				const restoredAlternate = restoreInlineTokens(alternate, tokens);
@@ -1148,44 +1225,7 @@ export async function runLayoutRegionTranslate(options: {
 					validateReflow(restoredAlternate.text)
 				)
 					return restoredAlternate.text;
-				// Last resort: keep structural boundaries in source order and translate
-				// only their intervening prose. This trades sentence fluency for an
-				// intact formula/style contract, and is exposed for acceptance audits.
-				const protectedParts = unit.source.split(/(⟦\d+⟧)/u);
-				const prose = protectedParts.flatMap((part, index) => {
-					if (!part.trim() || /^⟦\d+⟧$/u.test(part) || !/\p{L}/u.test(part))
-						return [];
-					// Keep leading punctuation outside MT, which may otherwise echo
-					// an entire fragment unchanged.
-					const leading = part.match(/^[\s.,;:!?。；，：！？)\]]*/u)?.[0] ?? "";
-					return [{ index, leading, source: part.slice(leading.length) }];
-				});
-				// Reuse the normal payload budget and strict marker parser. Most
-				// paragraphs need one request, not one round trip per style span.
-				for (const batch of buildTranslateBatches(prose)) {
-					if (signal?.aborted) return "";
-					const result = await translateText(
-						buildNumberedPayload(batch),
-						pageOf(unit),
-					);
-					const segments = parseNumberedTranslation(result, batch.length);
-					for (const [index, part] of batch.entries()) {
-						if (signal?.aborted) return "";
-						protectedParts[part.index] =
-							part.leading +
-							(segments?.[index] ??
-								(await translateText(part.source, pageOf(unit))));
-					}
-				}
-				const segmented = restoreInlineTokens(protectedParts.join(" "), tokens);
-				if (
-					!segmented.missing &&
-					!segmented.invalid &&
-					validateReflow(segmented.text)
-				) {
-					unit.job.chain.members[0].reflowFallback = "protected-spans";
-					return segmented.text;
-				}
+				return translateProtectedSpans(unit, tokens);
 			}
 			throw new Error(i18n.t("viewer:pdf.layoutTranslate.invalidTokens"));
 		}
@@ -1245,9 +1285,18 @@ export async function runLayoutRegionTranslate(options: {
 	};
 
 	const translateSentence = async (unit: SentenceUnit) => {
-		const raw = await translateText(unit.source, pageOf(unit));
+		let raw: string | null;
+		try {
+			raw = await translateText(unit.source, pageOf(unit));
+		} catch (error) {
+			if (!canRecoverProtectedResponse(unit, error)) throw error;
+			raw = null;
+		}
 		if (signal?.aborted) return;
-		const text = await finalizeSentence(unit, raw, unit.tokens);
+		const text =
+			raw === null
+				? await translateProtectedSpans(unit, unit.tokens)
+				: await finalizeSentence(unit, raw, unit.tokens);
 		if (signal?.aborted) return;
 		if (text) succeedUnit(unit, text);
 		else failUnit(unit);
@@ -1255,27 +1304,39 @@ export async function runLayoutRegionTranslate(options: {
 		publish();
 	};
 
+	const translateIndividually = async (batch: readonly SentenceUnit[]) => {
+		for (const unit of batch) {
+			if (signal?.aborted) return;
+			try {
+				await translateSentence(unit);
+			} catch (error) {
+				failUnit(unit, error);
+				paintJob(unit.job);
+				publish();
+			}
+		}
+	};
+
 	const translateSentenceBatch = async (batch: readonly SentenceUnit[]) => {
 		const maskedUnits = batch.map((unit) => {
 			return { unit, source: unit.source, tokens: unit.tokens };
 		});
-		const result = await translateText(
-			buildNumberedPayload(maskedUnits),
-			pageOf(batch[0] as SentenceUnit),
-		);
+		let result: string;
+		try {
+			result = await translateText(
+				buildNumberedPayload(maskedUnits),
+				pageOf(batch[0] as SentenceUnit),
+			);
+		} catch (error) {
+			if (!batch.some((unit) => canRecoverProtectedResponse(unit, error)))
+				throw error;
+			await translateIndividually(batch);
+			return;
+		}
 		if (signal?.aborted) return;
 		const segments = parseNumberedTranslation(result, batch.length);
 		if (!segments) {
-			for (const unit of batch) {
-				if (signal?.aborted) return;
-				try {
-					await translateSentence(unit);
-				} catch (error) {
-					failUnit(unit, error);
-					paintJob(unit.job);
-					publish();
-				}
-			}
+			await translateIndividually(batch);
 			return;
 		}
 		const retries: {

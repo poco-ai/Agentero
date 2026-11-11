@@ -424,3 +424,239 @@ it.each([
 	expect(out[0].translated).toContain(". 一个");
 	expect(out[0].translated).toContain("⟪S0⟫ 词 ⟪/S0⟫");
 });
+
+describe("protected caption response recovery", () => {
+	const missingResponse = "Unexpected Tencent Transmart translation response";
+	function caption(styled = false) {
+		const reflow = paragraphFromCharacters(
+			"caption",
+			2,
+			{ x: 10, y: 20, w: 100, h: 30 },
+			[],
+			[],
+			false,
+		);
+		reflow.source = styled ? "mask" : "x mask y";
+		reflow.protectedText = styled ? "⟪S0⟫mask⟪/S0⟫" : "⟪F0⟫mask⟪F1⟫";
+		if (styled) reflow.styles = { "0": { ...reflow.style, bold: true } };
+		else
+			reflow.formulas = ["x", "y"].map((text, index) => ({
+				id: String(index),
+				text,
+				box: { x: index * 20, y: 0, w: 5, h: 10 },
+				characterIndexes: [index],
+				baselineOffset: 0,
+			}));
+		return {
+			...item("caption", reflow.protectedText, 2, "figure_title"),
+			raw: reflow.source,
+			reflow,
+		};
+	}
+	const requests = () =>
+		runTranslate.mock.calls.map(([task]) => (task as { text: string }).text);
+	const run = (items: LayoutTranslateItem[], signal?: AbortSignal) =>
+		runLayoutRegionTranslate({ items, signal, onUpdate: () => {} });
+
+	beforeEach(() => {
+		runTranslate.mockReset();
+	});
+
+	it.each([
+		"provider error",
+		"empty",
+		"styles",
+	])("recovers a short caption after %s without losing structure or anchors", async (mode) => {
+		const input = caption(mode === "styles");
+		if (mode === "empty") runTranslate.mockResolvedValueOnce(" ");
+		else runTranslate.mockRejectedValueOnce(new Error(missingResponse));
+		runTranslate.mockResolvedValueOnce("掩码");
+		const [out] = await run([input]);
+		expect(requests()).toEqual(["⟦0⟧mask⟦1⟧", "mask"]);
+		expect(out).toMatchObject({
+			id: input.id,
+			pageIndex: input.pageIndex,
+			bbox: input.bbox,
+			status: "done",
+			reflowFallback: "protected-spans",
+			error: undefined,
+			sentences: [{ quote: input.raw, source: input.source }],
+		});
+		expect(out.translated).toContain("掩码");
+		expect(validReflowTranslation(input.reflow, out.translated ?? "")).toBe(
+			true,
+		);
+	});
+
+	it("recovers when the nonnumeric placeholder retry also returns no translation", async () => {
+		runTranslate
+			.mockResolvedValueOnce("坏结果")
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockResolvedValueOnce("掩码");
+		const [out] = await run([caption()]);
+		expect(requests()).toEqual(["⟦0⟧mask⟦1⟧", "ZXQAQXZmaskZXQBQXZ", "mask"]);
+		expect(out.status).toBe("done");
+		expect(validReflowTranslation(caption().reflow, out.translated ?? "")).toBe(
+			true,
+		);
+	});
+
+	it("also recovers protected links without a reflow paragraph", async () => {
+		runTranslate
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockResolvedValueOnce("掩码");
+		const [out] = await run([
+			item("link-caption", "https://example.org mask", 0, "figure_title"),
+		]);
+		expect(requests()).toEqual(["⟦0⟧ mask", "mask"]);
+		expect(out.status).toBe("done");
+		expect(out.translated).toBe("https://example.org 掩码");
+	});
+
+	it("recovers a missing response during the normal protected-token retry", async () => {
+		runTranslate
+			.mockResolvedValueOnce("坏结果")
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockResolvedValueOnce("掩码");
+		const [out] = await run([
+			item("link-caption", "https://example.org mask", 0, "figure_title"),
+		]);
+		expect(requests()).toEqual(["⟦0⟧ mask", "⟦0⟧ mask", "mask"]);
+		expect(out.translated).toBe("https://example.org 掩码");
+	});
+
+	it("retries a missing batch response per sentence and preserves independent body text", async () => {
+		runTranslate.mockImplementation(async (task) => {
+			const text = (task as { text: string }).text;
+			if (text.includes("⟦")) throw new Error(missingResponse);
+			return text === "mask" ? "掩码" : "正常正文。";
+		});
+		const [recovered, body] = await run([
+			caption(),
+			item("body", "Normal body.", 0),
+		]);
+		expect(requests()).toHaveLength(4);
+		expect(requests()[0]).toContain("[[1]] ⟦0⟧mask⟦1⟧");
+		expect(requests().slice(1)).toEqual(["⟦0⟧mask⟦1⟧", "mask", "Normal body."]);
+		expect(recovered.status).toBe("done");
+		expect(body.translated).toBe("正常正文。");
+	});
+
+	it("falls back to individual prose spans if their numbered payload returns no translation", async () => {
+		const input = caption();
+		input.reflow.source = "first x mask y";
+		input.source = input.reflow.protectedText = "first ⟪F0⟫mask⟪F1⟫";
+		input.raw = input.reflow.source;
+		runTranslate
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockResolvedValueOnce("首先")
+			.mockResolvedValueOnce("掩码");
+		const [out] = await run([input]);
+		expect(requests()).toEqual([
+			"first ⟦0⟧mask⟦1⟧",
+			"[[1]] first \n\n[[2]] mask",
+			"first ",
+			"mask",
+		]);
+		expect(out.status).toBe("done");
+		expect(validReflowTranslation(input.reflow, out.translated ?? "")).toBe(
+			true,
+		);
+	});
+
+	it.each([
+		"error sending request: connection refused",
+		"Tencent Transmart failed (HTTP 401): invalid key",
+		"Tencent Transmart failed (HTTP 429): rate limited",
+		"Aborted",
+	])("does not add content-recovery requests for %s", async (message) => {
+		runTranslate.mockRejectedValue(new Error(message));
+		const [out] = await run([caption()]);
+		expect(requests()).toHaveLength(1);
+		expect(out).toMatchObject({ status: "error", error: message });
+	});
+
+	it("does not turn a missing plain-text response into a new fallback request", async () => {
+		runTranslate.mockRejectedValue(new Error(missingResponse));
+		const [out] = await run([item("plain", "mask", 0)]);
+		expect(requests()).toEqual(["mask"]);
+		expect(out.status).toBe("error");
+	});
+
+	it("does not retry a failed prose recovery or publish partial translated text", async () => {
+		runTranslate.mockRejectedValue(new Error(missingResponse));
+		const [out] = await run([caption()]);
+		expect(requests()).toEqual(["⟦0⟧mask⟦1⟧", "mask"]);
+		expect(out).toMatchObject({ status: "error", translated: undefined });
+		expect(out.sentences).toBeUndefined();
+	});
+
+	it("rejects protected markers invented in a prose-only response", async () => {
+		runTranslate
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockResolvedValueOnce("掩码 ⟦7⟧");
+		const [out] = await run([caption()]);
+		expect(out).toMatchObject({ status: "error", translated: undefined });
+		expect(out.sentences).toBeUndefined();
+	});
+
+	it("keeps a multi-sentence caption untranslated if one prose recovery fails", async () => {
+		const input = caption();
+		input.raw = input.reflow.source = "x mask y. Another label.";
+		input.source = input.reflow.protectedText = "⟪F0⟫mask⟪F1⟫. Another label.";
+		runTranslate
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockResolvedValueOnce("掩码")
+			.mockRejectedValueOnce(new Error(missingResponse));
+		const [out] = await run([input]);
+		expect(requests()).toHaveLength(4);
+		expect(out).toMatchObject({ status: "error", translated: undefined });
+		expect(out.sentences).toBeUndefined();
+	});
+
+	it("does not enter response recovery for a formula-only fragment", async () => {
+		const input = caption();
+		input.raw = input.reflow.source = "x y";
+		input.source = input.reflow.protectedText = "⟪F0⟫⟪F1⟫";
+		runTranslate.mockRejectedValueOnce(new Error(missingResponse));
+		const [out] = await run([input]);
+		expect(requests()).toEqual(["⟦0⟧⟦1⟧"]);
+		expect(out.status).toBe("error");
+	});
+
+	it("does not publish a late prose recovery after cancellation", async () => {
+		const controller = new AbortController();
+		runTranslate
+			.mockRejectedValueOnce(new Error(missingResponse))
+			.mockImplementationOnce(async () => {
+				controller.abort();
+				return "掩码";
+			});
+		const [out] = await run([caption()], controller.signal);
+		expect(requests()).toEqual(["⟦0⟧mask⟦1⟧", "mask"]);
+		expect(out.status).toBe("skipped");
+		expect(out.translated).toBeUndefined();
+	});
+
+	it("ignores a late missing response after cancellation", async () => {
+		const controller = new AbortController();
+		runTranslate.mockImplementationOnce(async () => {
+			controller.abort();
+			throw new Error(missingResponse);
+		});
+		const [out] = await run([caption()], controller.signal);
+		expect(requests()).toHaveLength(1);
+		expect(out.status).toBe("skipped");
+		expect(out.translated).toBeUndefined();
+	});
+
+	it("does not add requests to a successfully translated protected caption", async () => {
+		runTranslate.mockResolvedValueOnce("⟦0⟧掩码⟦1⟧");
+		const [out] = await run([caption()]);
+		expect(out.status).toBe("done");
+		expect(requests()).toHaveLength(1);
+		expect(out.reflowFallback).toBeUndefined();
+	});
+});
