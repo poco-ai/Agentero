@@ -49,7 +49,9 @@ const BUILD_ENV_KEYS: &[&str] = &[
 /// `rerun-if-env-changed` is what makes this correct — cargo does not otherwise
 /// observe env changes, so a rotated key would silently keep the stale binary.
 fn forward_build_env() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let manifest_dir = PathBuf::from(
+        env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by Cargo"),
+    );
     let dotenv = manifest_dir.join("../.env");
     for key in BUILD_ENV_KEYS {
         println!("cargo:rerun-if-env-changed={key}");
