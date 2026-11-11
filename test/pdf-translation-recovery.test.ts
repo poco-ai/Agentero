@@ -18,10 +18,14 @@ const fixture = vi.hoisted(() => ({
 	retranslate: vi.fn(),
 	toggle: vi.fn(),
 	page: vi.fn(),
+	openSettings: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
+}));
+vi.mock("@/lib/shell/settings-window", () => ({
+	openSettingsWindow: fixture.openSettings,
 }));
 vi.mock("@embedpdf/plugin-document-manager/react", () => ({
 	useDocumentManagerCapability: () => ({ provides: null }),
@@ -160,10 +164,6 @@ beforeEach(() => {
 		},
 		onCompleteMissing: fixture.complete,
 		onRetranslateAll: fixture.retranslate,
-		onDismiss: () => {
-			if (fixture.partial)
-				fixture.partial = { ...fixture.partial, open: false };
-		},
 	};
 	host = document.createElement("div");
 	document.body.append(host);
@@ -176,13 +176,17 @@ afterEach(async () => {
 	vi.unstubAllGlobals();
 });
 
-it("offers completion in the idle translation pane and keeps recovery after ignore", async () => {
+it("offers completion in the idle translation pane and keeps recovery after closing", async () => {
 	await renderPane();
 	expect(
 		host.querySelector("[data-full-text-translate-partial]"),
 	).not.toBeNull();
 	expect(fixture.toggle).not.toHaveBeenCalled();
-	await act(() => action("partialDismiss").click());
+	const close = document.querySelector<HTMLButtonElement>(
+		'button[aria-label="pdf.layoutTranslate.close"]',
+	);
+	expect(close).not.toBeNull();
+	await act(() => close?.click());
 	await renderPane();
 	expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
 	const trigger = host.querySelector<HTMLButtonElement>(
@@ -204,6 +208,25 @@ it("requires confirmation before the translation pane retranslates everything", 
 	await act(() => action("retranslateConfirm").click());
 	expect(fixture.retranslate).toHaveBeenCalledOnce();
 	expect(fixture.complete).not.toHaveBeenCalled();
+	expect(fixture.toggle).not.toHaveBeenCalled();
+});
+
+it("opens translation settings from partial recovery without starting a translation", async () => {
+	await renderPane();
+	const buttons = [
+		...document.querySelectorAll<HTMLButtonElement>(
+			'[data-slot="popover-content"] button',
+		),
+	];
+	expect(buttons.map((button) => button.textContent).filter(Boolean)).toEqual([
+		"pdf.layoutTranslate.openSettings",
+		"pdf.layoutTranslate.completeMissing",
+		"pdf.layoutTranslate.retranslateAll",
+	]);
+	await act(() => action("openSettings").click());
+	expect(fixture.openSettings).toHaveBeenCalledExactlyOnceWith("translate");
+	expect(fixture.complete).not.toHaveBeenCalled();
+	expect(fixture.retranslate).not.toHaveBeenCalled();
 	expect(fixture.toggle).not.toHaveBeenCalled();
 });
 

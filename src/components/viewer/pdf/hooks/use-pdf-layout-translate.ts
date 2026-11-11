@@ -59,12 +59,6 @@ import {
 	observePaperTranslation,
 	type TranslationSnapshot,
 } from "@/lib/pdf/layout/translation-job";
-import {
-	clearTranslationPartialDismissal,
-	dismissTranslationPartial,
-	isTranslationPartialDismissed,
-	translationPartialDismissalKey,
-} from "@/lib/pdf/translation-partial-dismissal";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { displayTranslateError } from "@/lib/translate";
 
@@ -102,7 +96,6 @@ export type PdfLayoutTranslatePartial = {
 	onOpenChange: (open: boolean) => void;
 	onCompleteMissing: () => void;
 	onRetranslateAll: () => void;
-	onDismiss: () => void;
 };
 
 export type PdfLayoutTranslate = {
@@ -174,10 +167,8 @@ type LayoutTranslateJobState = {
 	fromCache: boolean;
 	runScope: LayoutTranslateRunScope;
 	runScopeIds: readonly string[];
-	/** Cache identity backing `items`; keys the UI-only dismissal state. */
+	/** Cache identity backing `items`; completed blocks reuse it on retries. */
 	cacheKey: LayoutTranslateCacheKey | null;
-	/** Identity of the current gap set; null when nothing is pending. */
-	partialDismissKey: string | null;
 	/** A completion / retranslate ran and some blocks still have no translation. */
 	partialCompletionFailed: boolean;
 };
@@ -190,7 +181,6 @@ const EMPTY_LAYOUT_TRANSLATE_JOB: LayoutTranslateJobState = {
 	runScope: "initial",
 	runScopeIds: [],
 	cacheKey: null,
-	partialDismissKey: null,
 	partialCompletionFailed: false,
 };
 
@@ -212,19 +202,6 @@ function sameLayoutTranslateCacheIdentity(
 		a.targetLang === b.targetLang &&
 		a.serviceKey === b.serviceKey
 	);
-}
-
-/** Dismissal identity for the untranslated subset of `items`. */
-function layoutTranslatePendingDismissKey(
-	paperKey: string,
-	cacheKey: LayoutTranslateCacheKey | null,
-	items: readonly LayoutTranslateItem[],
-): string | null {
-	return translationPartialDismissalKey({
-		paperKey,
-		cacheKey,
-		pendingItems: items.filter((item) => !item.translated?.trim()),
-	});
 }
 
 function layoutTranslateScopeIds(
@@ -414,8 +391,6 @@ export function usePdfLayoutTranslate({
 	const [partialDialogOpen, setPartialDialogOpen] = useState(false);
 	/** Gap identity that already got its one automatic open this session. */
 	const partialAutoOpenedKeyRef = useRef<string | null>(null);
-	/** Stable paper identity for the machine-local dismissal records. */
-	const dismissalPaperKey = paperAbsPath ?? paperRelPath ?? docId;
 	// Visibility must not discard the translation or invalidate its reflow preview.
 	const [hiddenPageIndexes, setHiddenPageIndexes] = useState<
 		ReadonlySet<number>
@@ -500,18 +475,13 @@ export function usePdfLayoutTranslate({
 				...prev,
 				status: "cancelled",
 				items,
-				partialDismissKey: layoutTranslatePendingDismissKey(
-					dismissalPaperKey,
-					prev.cacheKey,
-					items,
-				),
 				partialCompletionFailed: false,
 			};
 		});
-	}, [dismissalPaperKey]);
+	}, []);
 
-	// `runLayoutRegionTranslate` settles per-chain errors into item state instead
-	// of throwing, so a dead translation API would otherwise finish silently.
+	// Document item failures are surfaced by the partial-translation popover.
+	// Page failures and errors outside translation still use an actionable toast.
 	const notifyTranslateFailure = useCallback(
 		(description: string, title?: string) => {
 			notifyError(title ?? t("pdf.layoutTranslate.failed"), {
@@ -581,17 +551,30 @@ export function usePdfLayoutTranslate({
 		],
 	);
 
-	/**
-	 * Ask for at most one automatic popover per gap set. Dismissed sets stay
-	 * silent across sessions; a changed gap set has a new key and asks again.
-	 */
-	const schedulePartialAutoOpen = useCallback((dismissKey: string | null) => {
-		if (!dismissKey) return;
-		if (partialAutoOpenedKeyRef.current === dismissKey) return;
-		partialAutoOpenedKeyRef.current = dismissKey;
-		if (isTranslationPartialDismissed(dismissKey)) return;
-		setPartialDialogOpen(true);
-	}, []);
+	/** Open once per cache identity and gap set during this document session. */
+	const schedulePartialAutoOpen = useCallback(
+		(
+			cacheKey: LayoutTranslateCacheKey,
+			items: readonly LayoutTranslateItem[],
+		) => {
+			const pendingIds = items
+				.filter((item) => !item.translated?.trim())
+				.map((item) => item.id)
+				.sort();
+			if (pendingIds.length === 0) return;
+			const key = JSON.stringify([
+				cacheKey.providerId,
+				cacheKey.sourceLang,
+				cacheKey.targetLang,
+				cacheKey.serviceKey,
+				pendingIds,
+			]);
+			if (partialAutoOpenedKeyRef.current === key) return;
+			partialAutoOpenedKeyRef.current = key;
+			setPartialDialogOpen(true);
+		},
+		[],
+	);
 
 	/** Attach to the queue-owned execution. Disposal never cancels the job. */
 	const attachSharedTranslate = useCallback(
@@ -661,31 +644,34 @@ export function usePdfLayoutTranslate({
 						fromCache: snapshot.fromCache ?? false,
 						runScope: runScopeIds.length > 0 ? "pending" : "all",
 						runScopeIds,
-						partialDismissKey: active
-							? null
-							: layoutTranslatePendingDismissKey(
-									dismissalPaperKey,
-									snapshot.cacheKey,
-									visibleItems,
-								),
 						partialCompletionFailed: !active && pending,
 					};
 				});
 				if (!active && job.state !== "cancelled" && !notified) {
 					notified = true;
-					if (job.error)
-						notifyTranslateFailure(
-							displayTranslateError(job.error),
-							mode === "document"
-								? undefined
-								: t("pdf.layoutTranslate.pageFailed"),
-						);
-					else
+					if (job.error) {
+						const message = displayTranslateError(job.error);
+						// A job can fail after publishing items (cache write / reflow).
+						// Suppress only an error already recorded on a document item.
+						const documentItemFailure =
+							mode === "document" &&
+							projected.some(
+								(item) =>
+									item.status === "error" &&
+									item.error &&
+									displayTranslateError(item.error) === message,
+							);
+						if (!documentItemFailure)
+							notifyTranslateFailure(
+								message,
+								mode === "document"
+									? undefined
+									: t("pdf.layoutTranslate.pageFailed"),
+							);
+					} else if (mode !== "document")
 						notifyTranslateItemErrors(
 							projected,
-							mode === "document"
-								? undefined
-								: t("pdf.layoutTranslate.pageFailed"),
+							t("pdf.layoutTranslate.pageFailed"),
 						);
 				}
 			};
@@ -778,7 +764,6 @@ export function usePdfLayoutTranslate({
 			paperAbsPath,
 			paperRelPath,
 			vaultPath,
-			dismissalPaperKey,
 			prepareReflow,
 			notifyTranslateFailure,
 			notifyTranslateItemErrors,
@@ -841,11 +826,6 @@ export function usePdfLayoutTranslate({
 								requireReflowSentencePairs: true,
 							});
 							if (hydration.fromCache) {
-								const dismissKey = layoutTranslatePendingDismissKey(
-									dismissalPaperKey,
-									cacheKey,
-									hydration.items,
-								);
 								setCacheOnly(true);
 								setSourcePreparing(false);
 								setLayoutTranslateJob(
@@ -857,11 +837,10 @@ export function usePdfLayoutTranslate({
 										fromCache: true,
 										runScope: "all",
 										runScopeIds: [],
-										partialDismissKey: dismissKey,
 									}),
 								);
 								if (hydration.pendingRequired > 0)
-									schedulePartialAutoOpen(dismissKey);
+									schedulePartialAutoOpen(cacheKey, hydration.items);
 								if (layoutTranslateAbortRef.current === ac)
 									layoutTranslateAbortRef.current = null;
 								return;
@@ -888,7 +867,6 @@ export function usePdfLayoutTranslate({
 			layoutRawRegions,
 			docId,
 			prepareReflow,
-			dismissalPaperKey,
 			schedulePartialAutoOpen,
 		],
 	);
@@ -968,11 +946,6 @@ export function usePdfLayoutTranslate({
 				{ requireReflowSentencePairs: true },
 			);
 			const needsRun = !hydration.fromCache;
-			const dismissKey = layoutTranslatePendingDismissKey(
-				dismissalPaperKey,
-				cacheKey,
-				hydration.items,
-			);
 			setCacheOnly(!needsRun);
 			setLayoutTranslateJob({
 				status: needsRun
@@ -987,14 +960,14 @@ export function usePdfLayoutTranslate({
 				// Include cached blocks in document-wide progress.
 				runScopeIds: hydration.items.map((item) => item.id),
 				cacheKey,
-				partialDismissKey: dismissKey,
 				partialCompletionFailed: false,
 			});
 			if (!needsRun) {
 				// Cache-first renders a partial page without asking the user yet;
 				// the popover opens once the page build finishes and the button can
 				// anchor it. The build itself is never blocked.
-				if (hydration.pendingRequired > 0) schedulePartialAutoOpen(dismissKey);
+				if (hydration.pendingRequired > 0)
+					schedulePartialAutoOpen(cacheKey, hydration.items);
 				return;
 			}
 			const finalItems = await runLayoutRegionTranslate({
@@ -1011,17 +984,10 @@ export function usePdfLayoutTranslate({
 			// must not restore hidden overlays or overwrite a newer sidecar write.
 			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
 			await flushLayoutTranslateSidecar(paperAbsPath, cacheKey, finalItems);
-			notifyTranslateItemErrors(finalItems);
-			const pendingKey = layoutTranslatePendingDismissKey(
-				dismissalPaperKey,
-				cacheKey,
-				finalItems,
-			);
 			setLayoutTranslateJob((prev) => ({
 				...prev,
 				status: hasPendingLayoutTranslateItems(finalItems) ? "partial" : "done",
 				items: finalItems,
-				partialDismissKey: pendingKey,
 				partialCompletionFailed: false,
 			}));
 		})()
@@ -1046,10 +1012,8 @@ export function usePdfLayoutTranslate({
 		paperAbsPath,
 		paperKey,
 		vaultPath,
-		dismissalPaperKey,
 		enterWaitingLayout,
 		prepareReflow,
-		notifyTranslateItemErrors,
 		notifyTranslateFailure,
 		schedulePartialAutoOpen,
 		startSharedDocumentTranslate,
@@ -1337,7 +1301,6 @@ export function usePdfLayoutTranslate({
 			cacheKey,
 			runScope: "pending",
 			runScopeIds: scopeIds,
-			partialDismissKey: null,
 			partialCompletionFailed: false,
 		});
 		const publishes = createTranslatePublishCoalescer((next) => {
@@ -1362,14 +1325,7 @@ export function usePdfLayoutTranslate({
 			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
 			const settled = restoreTranslatedItems(finalItems, snapshot);
 			await flushLayoutTranslateSidecar(paperAbsPath, cacheKey, settled);
-			notifyTranslateItemErrors(settled);
 			const pending = settled.filter((item) => !item.translated?.trim());
-			const dismissKey = layoutTranslatePendingDismissKey(
-				dismissalPaperKey,
-				cacheKey,
-				settled,
-			);
-			if (!dismissKey) clearTranslationPartialDismissal(job.partialDismissKey);
 			setLayoutTranslateJob((prev) => ({
 				...prev,
 				status: pending.length > 0 ? "partial" : "done",
@@ -1377,7 +1333,6 @@ export function usePdfLayoutTranslate({
 				cacheKey,
 				runScope: "pending",
 				runScopeIds: scopeIds,
-				partialDismissKey: dismissKey,
 				// Failure keeps the button visible but must not auto-open again.
 				partialCompletionFailed: pending.length > 0,
 			}));
@@ -1395,11 +1350,6 @@ export function usePdfLayoutTranslate({
 						...prev,
 						status: "partial",
 						items: settled,
-						partialDismissKey: layoutTranslatePendingDismissKey(
-							dismissalPaperKey,
-							cacheKey,
-							settled,
-						),
 						partialCompletionFailed: pending.length > 0,
 					};
 				});
@@ -1415,9 +1365,7 @@ export function usePdfLayoutTranslate({
 		paperAbsPath,
 		paperKey,
 		vaultPath,
-		dismissalPaperKey,
 		notifyTranslateFailure,
-		notifyTranslateItemErrors,
 		paperRelPath,
 		startSharedDocumentTranslate,
 	]);
@@ -1442,7 +1390,6 @@ export function usePdfLayoutTranslate({
 		if (job.items.length === 0) return;
 		const cacheKey = job.cacheKey ?? currentLayoutTranslateCacheKey();
 		const snapshot = snapshotTranslatedItems(job.items);
-		clearTranslationPartialDismissal(job.partialDismissKey);
 		layoutTranslateRunEpochRef.current += 1;
 		layoutTranslateAbortRef.current?.abort();
 		const ac = new AbortController();
@@ -1467,7 +1414,6 @@ export function usePdfLayoutTranslate({
 			cacheKey,
 			runScope: "all",
 			runScopeIds: scopeIds,
-			partialDismissKey: null,
 			partialCompletionFailed: false,
 		});
 		const publishes = createTranslatePublishCoalescer((next) => {
@@ -1492,7 +1438,6 @@ export function usePdfLayoutTranslate({
 			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
 			const settled = restoreTranslatedItems(finalItems, snapshot);
 			await flushLayoutTranslateSidecar(paperAbsPath, cacheKey, settled);
-			notifyTranslateItemErrors(settled);
 			const pending = settled.filter((item) => !item.translated?.trim());
 			setLayoutTranslateJob((prev) => ({
 				...prev,
@@ -1501,11 +1446,6 @@ export function usePdfLayoutTranslate({
 				cacheKey,
 				runScope: "all",
 				runScopeIds: scopeIds,
-				partialDismissKey: layoutTranslatePendingDismissKey(
-					dismissalPaperKey,
-					cacheKey,
-					settled,
-				),
 				partialCompletionFailed: pending.length > 0,
 			}));
 		})()
@@ -1522,11 +1462,6 @@ export function usePdfLayoutTranslate({
 						...prev,
 						status: pending.length > 0 ? "partial" : "done",
 						items: settled,
-						partialDismissKey: layoutTranslatePendingDismissKey(
-							dismissalPaperKey,
-							cacheKey,
-							settled,
-						),
 						partialCompletionFailed: pending.length > 0,
 					};
 				});
@@ -1542,9 +1477,7 @@ export function usePdfLayoutTranslate({
 		paperAbsPath,
 		paperKey,
 		vaultPath,
-		dismissalPaperKey,
 		notifyTranslateFailure,
-		notifyTranslateItemErrors,
 		paperRelPath,
 		startSharedDocumentTranslate,
 	]);
@@ -1579,8 +1512,7 @@ export function usePdfLayoutTranslate({
 		const hasWarning =
 			countPendingLayoutTranslateItems(layoutTranslateJob.items) > 0 &&
 			(layoutTranslateJob.partialCompletionFailed ||
-				layoutTranslateJob.items.some((item) => item.status === "error")) &&
-			!isTranslationPartialDismissed(layoutTranslateJob.partialDismissKey);
+				layoutTranslateJob.items.some((item) => item.status === "error"));
 		if (hasWarning) {
 			setPartialDialogOpen(true);
 			return;
@@ -1776,7 +1708,6 @@ export function usePdfLayoutTranslate({
 					runScopeIds: seededItems.map((item) => item.id),
 					items: seededItems,
 					cacheKey,
-					partialDismissKey: null,
 					partialCompletionFailed: false,
 				}));
 			}
@@ -1804,11 +1735,6 @@ export function usePdfLayoutTranslate({
 			// A real run started while preparing owns the visible state.
 			if (isStale() || layoutTranslateJobRef.current.status === "running")
 				return;
-			const dismissKey = layoutTranslatePendingDismissKey(
-				dismissalPaperKey,
-				cacheKey,
-				hydration.items,
-			);
 			setCacheOnly(true);
 			setSourcePreparing(false);
 			setLayoutTranslateJob((prev) => ({
@@ -1823,10 +1749,10 @@ export function usePdfLayoutTranslate({
 					hydration.pendingRequired > 0,
 				),
 				cacheKey,
-				partialDismissKey: dismissKey,
 				partialCompletionFailed: false,
 			}));
-			if (hydration.pendingRequired > 0) schedulePartialAutoOpen(dismissKey);
+			if (hydration.pendingRequired > 0)
+				schedulePartialAutoOpen(cacheKey, hydration.items);
 		})().catch((error) => {
 			if (!cancelled)
 				notifyError(t("pdf.layoutTranslate.reflowFailed"), {
@@ -1843,7 +1769,6 @@ export function usePdfLayoutTranslate({
 		vaultPath,
 		layoutRawRegions,
 		prepareReflow,
-		dismissalPaperKey,
 		schedulePartialAutoOpen,
 		t,
 	]);
@@ -1988,12 +1913,6 @@ export function usePdfLayoutTranslate({
 							? t("pdf.layoutTranslate.hide")
 							: t("pdf.layoutTranslate.start");
 
-	const dismissPartialLayoutTranslate = useCallback(() => {
-		dismissTranslationPartial(layoutTranslateJobRef.current.partialDismissKey);
-		setPartialDialogOpen(false);
-	}, []);
-
-	// Ignore suppresses automatic prompts, never the manual recovery actions.
 	// Keep the entry available while gaps remain, including during page building;
 	// only an in-flight translation or layout wait temporarily hides it.
 	// Page-only gaps remain recoverable from their page tag.
@@ -2023,7 +1942,6 @@ export function usePdfLayoutTranslate({
 			onOpenChange: setPartialDialogOpen,
 			onCompleteMissing: completeMissingLayoutTranslate,
 			onRetranslateAll: retranslateAllLayoutTranslate,
-			onDismiss: dismissPartialLayoutTranslate,
 		}),
 		[
 			layoutTranslatePendingRequired,
@@ -2035,7 +1953,6 @@ export function usePdfLayoutTranslate({
 			layoutTranslateJob.partialCompletionFailed,
 			completeMissingLayoutTranslate,
 			retranslateAllLayoutTranslate,
-			dismissPartialLayoutTranslate,
 		],
 	);
 

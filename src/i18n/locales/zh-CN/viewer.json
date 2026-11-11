@@ -80,7 +80,6 @@
 			"partialPagesRange": "第 {{start}}–{{end}} 页",
 			"completeMissing": "补全 {{count}} 段",
 			"retranslateAll": "重译整篇",
-			"partialDismiss": "忽略提示",
 			"close": "关闭",
 			"cancel": "取消",
 			"retranslateConfirmTitle": "重译整篇？",

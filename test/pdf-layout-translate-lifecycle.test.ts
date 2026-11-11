@@ -42,6 +42,7 @@ type Item = {
 	source: string;
 	status?: string;
 	translated?: string;
+	error?: string;
 };
 
 type RunOptions = {
@@ -81,7 +82,6 @@ type PartialView = {
 	onOpenChange: (open: boolean) => void;
 	onCompleteMissing: () => void;
 	onRetranslateAll: () => void;
-	onDismiss: () => void;
 };
 
 type View = {
@@ -177,7 +177,6 @@ function createHarness() {
 	let sharedJob: JobSnapshot | null = null;
 	let sharedSnapshot: TranslationSnapshot | null = null;
 	let cachedLayout: PdfLayoutSidecar | null = null;
-	const dismissedPartialKeys = new Set<string>();
 	const layoutWrites = new Set<(path: string) => void>();
 	const publishedLayouts: unknown[] = [];
 	const backgroundTasks = createFakeStore<{ tasks: FakeTask[] }>({
@@ -431,29 +430,6 @@ function createHarness() {
 				return () => layoutWrites.delete(listener);
 			},
 		},
-		"@/lib/pdf/translation-partial-dismissal": {
-			translationPartialDismissalKey: ({
-				paperKey,
-				pendingItems,
-			}: {
-				paperKey: string;
-				pendingItems: Item[];
-			}) =>
-				pendingItems.length > 0
-					? `${paperKey}:${pendingItems
-							.map((item) => item.id)
-							.sort()
-							.join(",")}`
-					: null,
-			isTranslationPartialDismissed: (key: string | null) =>
-				key != null && dismissedPartialKeys.has(key),
-			dismissTranslationPartial: (key: string | null) => {
-				if (key) dismissedPartialKeys.add(key);
-			},
-			clearTranslationPartialDismissal: (key: string | null) => {
-				if (key) dismissedPartialKeys.delete(key);
-			},
-		},
 		"@/lib/pdf/layout/layout-translate-progress": translateProgress,
 		"@/lib/shell/settings-window": { openSettingsWindow: () => undefined },
 		// Identity stub: the hook only maps known Host markers, else passes through.
@@ -491,7 +467,6 @@ function createHarness() {
 		successes,
 		warnings,
 		dismissed,
-		dismissedPartialKeys,
 		enqueues,
 		flushes,
 		cancels,
@@ -816,18 +791,22 @@ it("queues a paper when its sidecar does not match prepared source", async () =>
 	assert.equal(h.runs.length, 0);
 });
 
-it("keeps an ignored paper cache warning dismissed after reopening without completing gaps", async () => {
+it("reopens a partial paper cache warning in a new document session without completing gaps", async () => {
 	const h = createHarness();
 	h.render({ vaultPath: "/vault" });
-	h.dismissedPartialKeys.add("/vault/papers/a:region-1");
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "Cached" },
 	]);
 	h.view.toggleLayoutTranslate();
 	await h.flush();
+	h.view.layoutTranslatePartial.onOpenChange(false);
+	h.render({ docId: "paper-b", paperAbsPath: "/vault/papers/b" });
+	h.render({ docId: "paper-a", paperAbsPath: "/vault/papers/a" });
+	h.view.toggleLayoutTranslate();
+	await h.flush();
 	assert.equal(h.view.layoutTranslateStatus, "partial");
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
-	assert.equal(h.view.layoutTranslatePartial.open, false);
+	assert.equal(h.view.layoutTranslatePartial.open, true);
 	assert.equal(h.observers.length, 0);
 	assert.equal(h.runs.length, 0);
 });
@@ -937,7 +916,7 @@ it("keeps shared partial recovery available and counts only the pages being comp
 	h.view.toggleLayoutTranslate();
 	await h.flush();
 	assert.equal(h.view.layoutTranslatePartial.open, true);
-	h.view.layoutTranslatePartial.onDismiss();
+	h.view.layoutTranslatePartial.onOpenChange(false);
 	await h.flush();
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
 
@@ -962,6 +941,91 @@ it("keeps shared partial recovery available and counts only the pages being comp
 	assert.equal(h.view.layoutTranslatePartial.visible, false);
 	assert.equal(h.view.layoutTranslatePageCounts?.done, 1);
 	assert.equal(h.view.layoutTranslatePageCounts?.total, 1);
+});
+
+for (const allFailed of [false, true]) {
+	it(`routes shared document failures through partial recovery (${allFailed ? "all blocks" : "some blocks"})`, async () => {
+		const h = createHarness();
+		h.render({ vaultPath: "/vault" });
+		const message = "Translation service unavailable";
+		h.setShared(
+			{ ...sharedJob("failed"), error: allFailed ? message : null },
+			sharedSnapshot([
+				allFailed
+					? { ...region(0), status: "error", error: message }
+					: { ...region(0), status: "done", translated: "Saved translation" },
+				{ ...region(1), status: "error", error: message },
+			]),
+		);
+		h.view.toggleLayoutTranslate();
+		await h.flush();
+		assert.equal(h.errors.length, 0);
+		assert.equal(h.view.layoutTranslatePartial.visible, true);
+		assert.equal(
+			h.view.layoutTranslatePartial.pendingRequired,
+			allFailed ? 2 : 1,
+		);
+	});
+}
+
+it("keeps a shared page failure toast with its translation settings action", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		sharedJob("succeeded"),
+		sharedSnapshot([
+			{
+				...region(0),
+				status: "error",
+				error: "Translation service unavailable",
+			},
+		]),
+	);
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	assert.equal(h.errors.length, 1);
+	assert.equal(h.errors[0]?.[0], "pdf.layoutTranslate.pageFailed");
+	assert.equal(
+		(h.errors[0]?.[1] as { action: { label: string } }).action.label,
+		"pdf.layoutTranslate.openSettings",
+	);
+	assert.equal(h.view.layoutTranslatePartial.visible, false);
+});
+
+it("reports a shared task failure before any translation snapshot exists", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		{ ...sharedJob("failed"), error: "PDF preparation failed" },
+		null,
+	);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.errors.length, 1);
+	assert.equal(h.view.layoutTranslatePartial.visible, false);
+});
+
+it("reports a shared cache write failure even when translation blocks also failed", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(
+		{ ...sharedJob("failed"), error: "Cache write failed" },
+		sharedSnapshot([
+			{
+				...region(0),
+				status: "error",
+				error: "Translation service unavailable",
+			},
+		]),
+	);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.errors.length, 1);
+	assert.equal(
+		(h.errors[0]?.[1] as { description: string }).description,
+		"Cache write failed",
+	);
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
 });
 
 it("resets a shared retranslation's progress after the previous run completed", async () => {
@@ -1112,7 +1176,7 @@ it("auto-opens the partial dialog once after the cached page is ready", async ()
 	assert.equal(h.view.layoutTranslatePartial.open, true);
 });
 
-it("ignores the partial hint but keeps manual recovery available", async () => {
+it("keeps a closed partial hint closed during repeated cache hydration", async () => {
 	const h = createHarness();
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "译文 0" },
@@ -1122,11 +1186,14 @@ it("ignores the partial hint but keeps manual recovery available", async () => {
 	h.setReflowReady(true);
 	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, true);
-	h.view.layoutTranslatePartial.onDismiss();
+	h.view.layoutTranslatePartial.onOpenChange(false);
 	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, false);
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
-	assert.equal(h.dismissedPartialKeys.size, 1);
+	// A repeated layout notification must not reopen the same gap set.
+	h.render({ translationPane: true, layoutRawRegions: [region(0), region(1)] });
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePartial.open, false);
 	h.view.layoutTranslatePartial.onOpenChange(true);
 	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, true);
@@ -1195,19 +1262,20 @@ it("does not let a late translation-pane hydrate erase a completed recovery", as
 	assert.equal(h.runs.length, 1);
 });
 
-it("keeps an ignored translation-pane gap set recoverable after reopening", async () => {
+it("reopens the partial hint when a translation pane returns to the document", async () => {
 	const h = createHarness();
-	h.dismissedPartialKeys.add("/vault/papers/a:region-1");
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "译文 0" },
 	]);
 	h.render({ translationPane: true });
 	await h.flush();
+	h.view.layoutTranslatePartial.onOpenChange(false);
+	h.render({ docId: "paper-b", paperAbsPath: "/vault/papers/b" });
+	await h.flush();
+	h.render({ docId: "paper-a", paperAbsPath: "/vault/papers/a" });
+	await h.flush();
 	assert.equal(h.runs.length, 0);
-	assert.equal(h.view.layoutTranslatePartial.open, false);
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
-	h.view.layoutTranslatePartial.onOpenChange(true);
-	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, true);
 });
 
@@ -1272,8 +1340,50 @@ it("keeps the partial entry after a failed completion without reopening", async 
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
 	assert.equal(h.view.layoutTranslatePartial.open, false);
 	assert.equal(h.view.layoutTranslatePartial.completionFailed, true);
-	assert.equal(h.errors.length, 1);
+	assert.equal(h.errors.length, 0);
 });
+
+for (const action of ["initial", "retranslate"] as const) {
+	it(`keeps local ${action} document failures in the partial entry`, async () => {
+		const h = createHarness();
+		h.view.toggleLayoutTranslate();
+		await h.flush();
+		if (action === "retranslate") {
+			h.runs[0].resolve([
+				{ ...h.runs[0].items[0], status: "done", translated: "Saved" },
+				{
+					...h.runs[0].items[1],
+					status: "error",
+					error: "Service unavailable",
+				},
+			]);
+			await h.flush();
+			h.view.layoutTranslatePartial.onRetranslateAll();
+			await h.flush();
+		}
+		const run = h.runs.at(-1);
+		assert.ok(run);
+		run.resolve(
+			run.items.map((item) => ({
+				...item,
+				status: "error",
+				error: "Service unavailable",
+			})),
+		);
+		await h.flush();
+		assert.equal(h.errors.length, 0);
+		assert.equal(h.view.layoutTranslatePartial.visible, true);
+		assert.equal(
+			h.view.layoutTranslatePartial.pendingRequired,
+			action === "retranslate" ? 1 : 2,
+		);
+		if (action === "retranslate")
+			assert.equal(
+				h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+				"Saved",
+			);
+	});
+}
 
 it("opens the partial card when translate is clicked after a failure", async () => {
 	const h = createHarness();
@@ -1296,12 +1406,12 @@ it("opens the partial card when translate is clicked after a failure", async () 
 	h.view.toggleLayoutTranslate();
 	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, true);
-	// Once ignored, the same click goes back to plain show/hide.
-	h.view.layoutTranslatePartial.onDismiss();
+	// Closing the popover preserves its warning and manual recovery entry.
+	h.view.layoutTranslatePartial.onOpenChange(false);
 	h.render();
 	h.view.toggleLayoutTranslate();
 	h.render();
-	assert.equal(h.view.layoutTranslatePartial.open, false);
+	assert.equal(h.view.layoutTranslatePartial.open, true);
 });
 
 it("retranslates everything and restores old text for failed blocks", async () => {

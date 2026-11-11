@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/popover";
 import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { cn } from "@/lib/core/utils";
+import { openSettingsWindow } from "@/lib/shell/settings-window";
 
 type PdfTranslatePartialButtonProps = {
 	partial: PdfLayoutTranslatePartial;
@@ -35,7 +36,6 @@ type PdfTranslatePartialDialogProps = {
 	onConfirmingChange: (confirming: boolean) => void;
 	onCompleteMissing: () => void;
 	onRetranslateAll: () => void;
-	onDismiss: () => void;
 	onClose: () => void;
 };
 
@@ -74,7 +74,6 @@ export function PdfTranslatePartialDialog({
 	onConfirmingChange,
 	onCompleteMissing,
 	onRetranslateAll,
-	onDismiss,
 	onClose,
 }: PdfTranslatePartialDialogProps) {
 	const { t } = useTranslation("viewer");
@@ -143,11 +142,16 @@ export function PdfTranslatePartialDialog({
 						: null}
 				</PopoverDescription>
 			</PopoverHeader>
-			<div className="flex items-center justify-between gap-2">
-				<Button type="button" size="sm" variant="outline" onClick={onDismiss}>
-					{t("pdf.layoutTranslate.partialDismiss")}
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<Button
+					type="button"
+					size="sm"
+					variant="outline"
+					onClick={() => openSettingsWindow("translate")}
+				>
+					{t("pdf.layoutTranslate.openSettings")}
 				</Button>
-				<div className="flex shrink-0 items-center gap-1.5">
+				<div className="ml-auto flex flex-wrap items-center gap-1.5">
 					<Button type="button" size="sm" onClick={onCompleteMissing}>
 						{t("pdf.layoutTranslate.completeMissing", {
 							count: pendingRequired,
@@ -188,7 +192,6 @@ export const PdfTranslatePartialButton = memo(
 			onOpenChange,
 			onCompleteMissing,
 			onRetranslateAll,
-			onDismiss,
 		} = partial;
 
 		const pages = pageRange
@@ -224,10 +227,6 @@ export const PdfTranslatePartialButton = memo(
 			onOpenChange(false);
 			onRetranslateAll();
 		}, [onOpenChange, onRetranslateAll]);
-		const handleDismiss = useCallback(() => {
-			setConfirming(false);
-			onDismiss();
-		}, [onDismiss]);
 
 		return (
 			// Non-modal on purpose: the reader must keep scrolling the PDF while
@@ -269,7 +268,6 @@ export const PdfTranslatePartialButton = memo(
 						onConfirmingChange={setConfirming}
 						onCompleteMissing={handleComplete}
 						onRetranslateAll={handleRetranslate}
-						onDismiss={handleDismiss}
 						onClose={() => handleOpenChange(false)}
 					/>
 				</PopoverContent>

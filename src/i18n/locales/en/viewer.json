@@ -80,7 +80,6 @@
 			"partialPagesRange": "p{{start}}–p{{end}}",
 			"completeMissing": "Translate {{count}} missing",
 			"retranslateAll": "Retranslate all",
-			"partialDismiss": "Ignore hint",
 			"close": "Close",
 			"cancel": "Cancel",
 			"retranslateConfirmTitle": "Retranslate all?",
