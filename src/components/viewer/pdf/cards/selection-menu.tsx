@@ -66,10 +66,15 @@ export function SelectionMenu({
 			beforeActions={
 				showHighlight ? (
 					<>
-						<HighlightColorStack ref={colorsRef} onSelect={onHighlight} />
+						<HighlightColorStack
+							ref={colorsRef}
+							onSelect={onHighlight}
+							shortcuts
+						/>
 						{onNote && (
 							<SelectionToolbarIconButton
 								label={t("selection.note")}
+								shortcut="N"
 								onClick={onNote}
 							>
 								<MessageSquare className="size-3.5" />
@@ -87,6 +92,7 @@ export function SelectionMenu({
 					{onBookmark && (
 						<SelectionToolbarIconButton
 							label={t("pdf.bookmarks.add")}
+							shortcut="B"
 							onClick={onBookmark}
 						>
 							<Bookmark className="size-3.5" />

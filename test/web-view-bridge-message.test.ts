@@ -239,6 +239,36 @@ const selectionBindings = [
 ];
 
 describe("injected selection shortcut routing", () => {
+	it("forwards bare toolbar keys only while armed with a live selection", () => {
+		const frame = frameBridge();
+		const bindings = [
+			{ id: "selectionTranslate", key: "t" },
+			{ id: "selectionCopy", key: "c" },
+		];
+		expect(frame.keydown("t", { metaKey: false })).toBe(false);
+		frame.configure(bindings);
+		for (const key of ["t", "c"]) {
+			expect(frame.keydown(key, { metaKey: false })).toBe(true);
+			expect(frame.messages.at(-1)).toMatchObject({
+				type: "shortcut",
+				event: { key },
+			});
+		}
+		for (const overrides of [
+			{ repeat: true },
+			{ isComposing: true },
+			{ ctrlKey: true },
+			{ shiftKey: true },
+			{ target: { nodeName: "INPUT" } },
+		])
+			expect(frame.keydown("t", { metaKey: false, ...overrides })).toBe(false);
+		frame.select(false);
+		expect(frame.keydown("t", { metaKey: false })).toBe(false);
+		frame.select(true);
+		frame.configure([]);
+		expect(frame.keydown("t", { metaKey: false })).toBe(false);
+	});
+
 	it("requests configuration and separates toggle, pin, and quick chat with exact modifiers", () => {
 		const frame = frameBridge();
 		expect(frame.messages).toEqual([{ source: "agentero-web", type: "ready" }]);

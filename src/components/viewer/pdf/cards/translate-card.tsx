@@ -73,6 +73,14 @@ export function TranslateCard({
 		// This nonmodal card stays open when focus leaves it. Scope the keys to
 		// its mounted lifetime and leave native editing and other dialogs alone.
 		const onKeyDown = (event: KeyboardEvent) => {
+			// A new selection menu owns C while the previous result stays open.
+			if (
+				event.key.toLowerCase() === "c" &&
+				document.querySelector(
+					'[data-selection-menu] button[aria-keyshortcuts="C"]',
+				)
+			)
+				return;
 			const action =
 				event.key === "Escape"
 					? onHide

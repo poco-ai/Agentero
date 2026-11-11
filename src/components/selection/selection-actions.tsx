@@ -146,6 +146,7 @@ export function SelectionActions({
 						isCommentableTexPath(menu.selection.sourcePath) ? (
 							<SelectionToolbarAction
 								label={texLabel("addComment")}
+								shortcut="N"
 								onClick={() => {
 									window.dispatchEvent(
 										new CustomEvent(TEX_ADD_COMMENT_EVENT, {

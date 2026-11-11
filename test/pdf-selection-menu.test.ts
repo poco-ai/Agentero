@@ -47,10 +47,10 @@ describe("SelectionMenu", () => {
 		expect(html).not.toContain("快速对话");
 		expect(html).toContain('aria-label="对话操作"');
 
-		expect(html.indexOf('aria-label="批注"')).toBeLessThan(
-			html.indexOf('aria-label="翻译"'),
+		expect(html.indexOf('aria-label="批注 N"')).toBeLessThan(
+			html.indexOf('aria-label="翻译 T"'),
 		);
-		const translateIdx = html.indexOf('aria-label="翻译"');
+		const translateIdx = html.indexOf('aria-label="翻译 T"');
 		const copyIdx = html.indexOf("复制");
 		const addToChatIdx = html.indexOf("加入对话");
 		const chatMenuIdx = html.indexOf('aria-label="对话操作"');

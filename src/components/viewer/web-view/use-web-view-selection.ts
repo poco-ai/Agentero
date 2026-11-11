@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect } from "react";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 import {
 	closeSelectionSource,
 	dismissSelectionChat,
@@ -34,27 +34,47 @@ export function useWebViewSelection({
 	origin?: string;
 	scale?: number;
 }) {
+	const selectionSourceRef = useRef(srcUrl);
 	const syncShortcuts = useCallback(() => {
+		const ownsSelection =
+			selectionChatStore.getState().draft?.selection.sourcePath ===
+			selectionSourceRef.current;
 		iframeRef.current?.contentWindow?.postMessage(
 			{
 				source: "agentero-web-host",
 				type: "shortcuts",
 				isMac: getPlatformOS() === "macos",
-				bindings: (["toggleChat", "quickChat", "addSelectionToChat"] as const)
-					.map((id) =>
-						getShortcut(id, settingsStore.getState().shortcutOverrides),
-					)
-					.filter(Boolean),
+				bindings: [
+					...(["toggleChat", "quickChat", "addSelectionToChat"] as const)
+						.map((id) =>
+							getShortcut(id, settingsStore.getState().shortcutOverrides),
+						)
+						.filter(Boolean),
+					...(ownsSelection
+						? [
+								{ id: "selectionTranslate", key: "t" },
+								{ id: "selectionCopy", key: "c" },
+							]
+						: []),
+				],
 			},
 			origin && origin !== "null" ? origin : "*",
 		);
 	}, [iframeRef, origin]);
 	useEffect(() => {
 		syncShortcuts();
-		return settingsStore.subscribe(syncShortcuts);
+		const unsubscribeSettings = settingsStore.subscribe(syncShortcuts);
+		const unsubscribeSelection = selectionChatStore.subscribe((state, prev) => {
+			if (state.draft !== prev.draft) syncShortcuts();
+		});
+		return () => {
+			unsubscribeSettings();
+			unsubscribeSelection();
+		};
 	}, [syncShortcuts]);
 	useEffect(() => {
 		let selectionSource = srcUrl;
+		selectionSourceRef.current = srcUrl;
 		const closeMenu = () => {
 			const draft = selectionChatStore.getState().draft;
 			if (draft && draft.selection.sourcePath === selectionSource)
@@ -105,6 +125,7 @@ export function useWebViewSelection({
 				}
 				if (selectionSource !== url) closeSelectionSource(selectionSource);
 				selectionSource = url;
+				selectionSourceRef.current = url;
 				openSelectionChat(
 					{
 						text: msg.text,
@@ -130,6 +151,21 @@ export function useWebViewSelection({
 			} else if (msg.type === "scroll") closeMenu();
 			else if (msg.type === "escape") relaySelectionDismiss();
 			else if (msg.type === "shortcut") {
+				if (
+					selectionChatStore.getState().draft?.selection.sourcePath ===
+						selectionSource &&
+					["t", "c"].includes(msg.event.key.toLowerCase()) &&
+					!msg.event.metaKey &&
+					!msg.event.ctrlKey &&
+					!msg.event.altKey &&
+					!msg.event.shiftKey
+				) {
+					// Run the same mounted toolbar action and copied feedback as a click.
+					window.dispatchEvent(
+						new KeyboardEvent("keydown", { ...msg.event, cancelable: true }),
+					);
+					return;
+				}
 				const id = resolveShortcutId(new KeyboardEvent("keydown", msg.event), {
 					settingsOpen: false,
 				});

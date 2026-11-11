@@ -73,6 +73,7 @@ export function SelectionToolbarAction({
 			aria-label={
 				ariaLabel ?? (shortcut !== undefined ? `${label} ${shortcut}` : label)
 			}
+			aria-keyshortcuts={shortcut?.length === 1 ? shortcut : undefined}
 			className={cn(
 				"inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 font-medium text-caption text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 motion-reduce:active:scale-100",
 				className,
@@ -124,6 +125,7 @@ export function SelectionToolbarIconButton({
 					variant="ghost"
 					size="icon-sm"
 					aria-label={shortcut !== undefined ? `${label} ${shortcut}` : label}
+					aria-keyshortcuts={shortcut?.length === 1 ? shortcut : undefined}
 					disabled={disabled}
 					className={className}
 					onPointerDown={(event) => event.preventDefault()}
@@ -132,7 +134,14 @@ export function SelectionToolbarIconButton({
 					{children}
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent side={tooltipSide}>{tooltip ?? label}</TooltipContent>
+			<TooltipContent side={tooltipSide}>
+				{tooltip ?? label}
+				{shortcut ? (
+					<kbd className="ml-2 font-sans text-[10px] opacity-70">
+						{shortcut}
+					</kbd>
+				) : null}
+			</TooltipContent>
 		</Tooltip>
 	);
 }

@@ -148,7 +148,8 @@
 		window.addEventListener(
 			"keydown",
 			(event) => {
-				if (event.isComposing || isEditable(event.target)) return;
+				if (event.isComposing || event.repeat || isEditable(event.target))
+					return;
 				if (event.key === "Escape") {
 					if (!event.repeat) post({ type: "escape" });
 					return;
@@ -201,7 +202,9 @@
 								typeof def.key === "string" &&
 								(def.id === "toggleChat" ||
 									def.id === "quickChat" ||
-									def.id === "addSelectionToChat"),
+									def.id === "addSelectionToChat" ||
+									def.id === "selectionTranslate" ||
+									def.id === "selectionCopy"),
 						)
 					: [];
 				isMac = data.isMac === true;
