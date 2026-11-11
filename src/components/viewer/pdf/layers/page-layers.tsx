@@ -510,6 +510,10 @@ export type PdfPageLayersProps = {
 	pageIndex: number;
 	/** Finished translated PDF registered as a hidden display document. */
 	reflowDocumentId?: string | null;
+	/** Lightweight version currently loaded by the hidden translated document. */
+	reflowDocumentVersion?:
+		| import("@/lib/pdf/reflow/output-version").ReflowOutputVersion
+		| null;
 	width: number;
 	height: number;
 	/** Paper tone for this viewer (process-wide preference). */
@@ -620,6 +624,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	docId,
 	pageIndex,
 	reflowDocumentId,
+	reflowDocumentVersion,
 	width,
 	height,
 	tone,
@@ -1167,6 +1172,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				items={layoutTranslateOnPage}
 				pageIndex={pageIndex}
 				reflowDocumentId={reflowDocumentId}
+				reflowDocumentVersion={reflowDocumentVersion}
 				zoom={
 					pageSize?.width && pageSize.width > 0
 						? width / pageSize.width

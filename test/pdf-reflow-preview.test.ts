@@ -5,8 +5,10 @@ import {
 	buildReflowPage,
 	buildReflowPdf,
 	type ReflowOutput,
+	replaceReflowPages,
 } from "@/lib/pdf/reflow/export";
 import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
+import { reflowOutputVersion } from "@/lib/pdf/reflow/output-version";
 import { ReflowPreviewSession } from "@/lib/pdf/reflow/preview";
 import type { ReflowDocument } from "@/lib/pdf/reflow/types";
 
@@ -20,6 +22,7 @@ vi.mock("@/lib/pdf/reflow/fonts", () => ({
 vi.mock("@/lib/pdf/reflow/export", () => ({
 	buildReflowPage: vi.fn(),
 	buildReflowPdf: vi.fn(),
+	replaceReflowPages: vi.fn(async () => new Uint8Array([3, 4])),
 }));
 
 function deferred<T>() {
@@ -206,7 +209,7 @@ it("keeps an in-flight page alive when another page changes and serializes build
 	);
 });
 
-it("discards superseded page results and clears previews on retry", async () => {
+it("discards superseded page results and retains the last preview on retry", async () => {
 	const first = item(0),
 		gate = deferred<ReflowOutput>();
 	vi.mocked(buildReflowPage).mockReturnValueOnce(gate.promise);
@@ -223,8 +226,8 @@ it("discards superseded page results and clears previews on retry", async () => 
 		[],
 		true,
 	);
-	expect(session.decorate([first])[0].reflowPreview).toBeUndefined();
-	expect(URL.revokeObjectURL).toHaveBeenCalledWith(url);
+	expect(session.decorate([first])[0].reflowPreview).toBe(url);
+	expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(url);
 });
 
 it("finalizes the whole PDF while rendering only changed layouts", async () => {
@@ -268,15 +271,17 @@ it("publishes each final page before the remaining pages finish rendering", asyn
 	expect(session.output).not.toBeNull();
 });
 
-it("clears obsolete export bytes and ignores a late result after disposal", async () => {
+it("keeps obsolete display bytes unavailable for export and ignores a late result after disposal", async () => {
 	const items = [item(0)];
 	session.update(items, [], false);
 	await settled();
 	const url = session.decorate(items)[0].reflowPreview;
 	const gate = deferred<ReflowOutput>();
 	vi.mocked(buildReflowPdf).mockReturnValueOnce(gate.promise);
+	const previous = session.output;
 	session.update([{ ...items[0], translated: "new" }], [], false);
-	expect(session.output).toBeNull();
+	expect(session.output).toBe(previous);
+	expect(session.ready).toBe(false);
 	await vi.waitFor(() => expect(buildReflowPdf).toHaveBeenCalledTimes(2));
 	session.dispose();
 	gate.resolve(result(vi.mocked(buildReflowPdf).mock.calls[1][2]));
@@ -305,6 +310,8 @@ it("invalidates a page when its IR changes even if the translated text is unchan
 	await settled();
 	const url = session.decorate([original])[0].reflowPreview;
 	const changed = item(0);
+	if (!changed.reflow) throw new Error("Missing fixture IR");
+	changed.reflow = { ...changed.reflow, box: { x: 15, y: 10, w: 80, h: 20 } };
 	session.update([changed], [], true);
 	await settled();
 	expect(buildReflowPage).toHaveBeenCalledTimes(2);
@@ -444,4 +451,205 @@ it("keeps the build engine alive when a rebuild starts before the idle deadline"
 	} finally {
 		vi.useRealTimers();
 	}
+});
+
+it("keeps other pages and the old display while completing only one page", async () => {
+	const first = item(0);
+	const second = item(1);
+	const missing = { ...item(1, "error"), id: "missing" };
+	const initial = [first, second, missing];
+	session.update(initial, [], false);
+	await settled();
+	const output = session.output;
+	const urls = session.decorate(initial).map((i) => i.reflowPreview);
+	if (!output) throw new Error("Initial output missing");
+	const retry = [first, second, { ...missing, status: "running" as const }];
+	session.update(retry, [], true);
+	await settled();
+	expect(session.output).toBe(output);
+	expect(session.ready).toBe(false);
+	expect(session.decorate(retry).map((i) => i.reflowPreview)).toEqual(urls);
+	expect(buildReflowPage).not.toHaveBeenCalled();
+	const completed = [
+		first,
+		second,
+		{ ...missing, status: "done" as const, translated: "filled" },
+	];
+	const gate = deferred<ReflowOutput>();
+	vi.mocked(buildReflowPdf).mockReturnValueOnce(gate.promise);
+	session.update(completed, [], false);
+	await vi.waitFor(() => expect(buildReflowPdf).toHaveBeenCalledTimes(2));
+	expect(session.output).toBe(output);
+	expect(session.decorate(completed)[0].reflowPreview).toBe(urls[0]);
+	const call = vi.mocked(buildReflowPdf).mock.calls[1];
+	expect(call[2].pages.map((page) => page.index)).toEqual([1]);
+	expect(call[6]).toBe(false);
+	gate.resolve(result(call[2]));
+	await settled();
+	expect(replaceReflowPages).toHaveBeenCalledWith(
+		output,
+		new Uint8Array([1, 2]),
+		[1],
+	);
+	expect(session.ready).toBe(true);
+	const decorated = session.decorate(completed);
+	expect(decorated[0].reflowPreview).toBe(urls[0]);
+	expect(decorated[1].reflowPreview).not.toBe(urls[1]);
+	if (!session.output) throw new Error("Updated output missing");
+	expect(
+		decorated[0].reflowPreviewSources?.has(reflowOutputVersion(output)),
+	).toBe(true);
+	expect(
+		decorated[1].reflowPreviewSources?.has(reflowOutputVersion(output)),
+	).toBe(false);
+	expect(
+		decorated[0].reflowPreviewSources?.has(reflowOutputVersion(session.output)),
+	).toBe(true);
+	expect(
+		decorated[1].reflowPreviewSources?.has(reflowOutputVersion(session.output)),
+	).toBe(true);
+	expect(render).toHaveBeenCalledTimes(3);
+	expect(failed).not.toHaveBeenCalled();
+});
+
+it("does not rebuild completed pages when preparation returns equivalent IR objects", async () => {
+	const items = [item(0), item(1)];
+	session.update(items, [], false);
+	await settled();
+	const output = session.output;
+	const copied = structuredClone(items);
+	session.update(copied, [], true);
+	await settled();
+	session.update(copied, [], false);
+	await settled();
+	expect(buildReflowPage).not.toHaveBeenCalled();
+	expect(buildReflowPdf).toHaveBeenCalledTimes(1);
+	expect(session.output).toBe(output);
+	expect(session.ready).toBe(true);
+});
+
+it("keeps glyph IR out of update keys while translation batches reuse it", async () => {
+	const first = item(0);
+	if (!first.reflow) throw new Error("Missing paragraph IR");
+	const serialize = vi.fn(() => []);
+	Object.defineProperty(first.reflow.characters, "toJSON", {
+		value: serialize,
+	});
+	session.update([first], [], false);
+	await settled();
+	for (let index = 0; index < 10; index++) {
+		session.update([{ ...first, progress: index / 10 }], [], false);
+	}
+	await settled();
+	expect(serialize).not.toHaveBeenCalled();
+	expect(buildReflowPdf).toHaveBeenCalledTimes(1);
+	expect(session.ready).toBe(true);
+});
+
+it("rebuilds only the changed page when rehydrated IR has different geometry", async () => {
+	const items = [item(0), item(1)];
+	session.update(items, [], false);
+	await settled();
+	const copied = structuredClone(items);
+	if (!copied[1].reflow) throw new Error("Missing paragraph IR");
+	copied[1].reflow.box.y += 10;
+	session.update(copied, [], false);
+	await settled();
+	expect(buildReflowPdf).toHaveBeenCalledTimes(2);
+	expect(
+		vi.mocked(buildReflowPdf).mock.calls[1][2].pages.map((page) => page.index),
+	).toEqual([1]);
+	expect(session.ready).toBe(true);
+});
+
+it("keeps old page previews until replacement succeeds and survives a failed build", async () => {
+	const items = [item(0), item(1)];
+	session.update(items, [], false);
+	await settled();
+	const output = session.output;
+	const urls = session.decorate(items).map((i) => i.reflowPreview);
+	vi.mocked(buildReflowPdf).mockRejectedValueOnce(new Error("page failed"));
+	session.update([items[0], { ...items[1], translated: "changed" }], [], false);
+	await settled();
+	expect(session.output).toBe(output);
+	expect(session.decorate(items).map((i) => i.reflowPreview)).toEqual(urls);
+	expect(session.ready).toBe(false);
+	expect(failed).toHaveBeenCalledTimes(1);
+});
+
+it("publishes a changed streaming page above the retained document without changing other pages", async () => {
+	const items = [item(0), item(1)];
+	session.update(items, [], false);
+	await settled();
+	const output = session.output;
+	const urls = session.decorate(items).map((i) => i.reflowPreview);
+	const changed = [items[0], { ...items[1], translated: "changed" }];
+	session.update(changed, [], true);
+	await settled();
+	expect(session.output).toBe(output);
+	expect(buildReflowPage).toHaveBeenCalledTimes(1);
+	expect(vi.mocked(buildReflowPage).mock.calls[0][2].pages[0].index).toBe(1);
+	const decorated = session.decorate(changed);
+	if (!output) throw new Error("Initial output missing");
+	expect(decorated[0].reflowPreview).toBe(urls[0]);
+	expect(
+		decorated[0].reflowPreviewSources?.has(reflowOutputVersion(output)),
+	).toBe(true);
+	expect(
+		decorated[1].reflowPreviewSources?.has(reflowOutputVersion(output)),
+	).toBe(false);
+	expect(decorated[1].reflowPreview).not.toBe(urls[1]);
+});
+
+it("keeps unfinished retranslation pages when the run is cancelled", async () => {
+	const items = [item(0), item(1)];
+	session.update(items, [], false);
+	await settled();
+	const output = session.output;
+	const urls = session.decorate(items).map((entry) => entry.reflowPreview);
+	const pending = items.map((entry) => ({
+		...entry,
+		status: "pending" as const,
+	}));
+	session.update(pending, [], true);
+	await settled();
+	const cancelled = [{ ...items[0], translated: "new text" }, pending[1]];
+	session.update(cancelled, [], false);
+	await settled();
+	expect(buildReflowPage).not.toHaveBeenCalled();
+	const call = vi.mocked(buildReflowPdf).mock.calls[1];
+	expect(call[2].pages.map((page) => page.index)).toEqual([0]);
+	expect(call[3].get(items[1].id)).toBe(items[1].translated);
+	expect(session.decorate(cancelled)[1].reflowPreview).toBe(urls[1]);
+	expect(replaceReflowPages).toHaveBeenCalledWith(
+		output,
+		expect.any(Uint8Array),
+		[0],
+	);
+});
+
+it("keeps the selection text aligned with the retained page until replacement succeeds", async () => {
+	const first = {
+		...item(0),
+		sentences: [
+			{ source: "original", quote: "original", translated: "translated" },
+		],
+	};
+	session.update([first], [], false);
+	await settled();
+	const gate = deferred<ReflowOutput>();
+	vi.mocked(buildReflowPdf).mockReturnValueOnce(gate.promise);
+	const changed = {
+		...first,
+		translated: "replacement",
+		sentences: [{ ...first.sentences[0], translated: "replacement" }],
+	};
+	session.update([changed], [], false);
+	await vi.waitFor(() => expect(buildReflowPdf).toHaveBeenCalledTimes(2));
+	expect(session.decorate([changed])[0].translated).toBe(first.translated);
+	expect(session.decorate([changed])[0].sentences).toEqual(first.sentences);
+	gate.resolve(result(vi.mocked(buildReflowPdf).mock.calls[1][2]));
+	await settled();
+	expect(session.decorate([changed])[0].translated).toBe(changed.translated);
+	expect(session.decorate([changed])[0].sentences).toEqual(changed.sentences);
 });

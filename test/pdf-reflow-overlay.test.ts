@@ -81,6 +81,42 @@ it("renders PDF previews even when no legacy DOM paragraphs remain", () => {
 	expect(html).toContain("译文");
 });
 
+it("uses a newer page preview instead of the retained document only on that page", () => {
+	const reflow = paragraphFromCharacters(
+		"p",
+		0,
+		{ x: 10, y: 10, w: 100, h: 40 },
+		[],
+		[],
+		false,
+	);
+	const html = renderToStaticMarkup(
+		createElement(LayoutTranslateOverlay, {
+			items: [
+				{
+					id: "p",
+					pageIndex: 0,
+					kind: "text",
+					readingOrder: 0,
+					bbox: { x: 0.1, y: 0.1, w: 0.5, h: 0.2 },
+					source: "Source",
+					translated: "new",
+					status: "done",
+					reflow,
+					reflowPreview: "blob:new-page",
+					reflowPreviewSources: new WeakSet([{ id: 2 }]),
+				},
+			],
+			pageWidthPx: 200,
+			pageHeightPx: 200,
+			reflowDocumentId: "old-document",
+			reflowDocumentVersion: { id: 1 },
+		}),
+	);
+	expect(html).toContain('src="blob:new-page"');
+	// A document render would mount EmbedPDF hooks, which this static tree lacks.
+});
+
 it("writes continuous source line highlights for the selected reflow sentences", async () => {
 	const sourceStyle = {
 		font: "Helvetica",

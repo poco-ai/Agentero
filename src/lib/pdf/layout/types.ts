@@ -128,6 +128,10 @@ export type LayoutTranslateRegion = {
 	reflowFallback?: "protected-spans";
 	/** Shared page preview rendered from the same PDF bytes used for export. */
 	reflowPreview?: string;
+	/** Output versions that contain this page preview. Transient renderer state. */
+	reflowPreviewSources?: WeakSet<
+		import("@/lib/pdf/reflow/output-version").ReflowOutputVersion
+	>;
 	reflowLayout?: import("@/lib/pdf/reflow/types").ParagraphLayout;
 	id: string;
 	pageIndex: number;

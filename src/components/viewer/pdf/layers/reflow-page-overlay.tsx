@@ -115,6 +115,7 @@ export function ReflowPageOverlay({
 			{renderDocumentId ? (
 				<div ref={renderRef} className="absolute inset-0">
 					<AgenteroRenderLayer
+						key={renderDocumentId}
 						pageRef={renderRef}
 						documentId={renderDocumentId}
 						pageIndex={pageIndex}

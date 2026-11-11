@@ -1293,7 +1293,7 @@ function PdfViewerInner({
 		plainViewer,
 	});
 
-	const reflowDisplayDocumentId = useReflowDisplayDocument(
+	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
 		reflowOutput,
 		docId,
@@ -2094,7 +2094,8 @@ function PdfViewerInner({
 				annotationSource={paperRelPath ?? paperAbsPath ?? undefined}
 				docId={docId}
 				pageIndex={pageIndex}
-				reflowDocumentId={reflowDisplayDocumentId}
+				reflowDocumentId={reflowDisplayDocument?.id}
+				reflowDocumentVersion={reflowDisplayDocument?.version}
 				width={rotatedWidth || width}
 				height={rotatedHeight || height}
 				tone={pdfTone}
@@ -2128,7 +2129,7 @@ function PdfViewerInner({
 			bookmarkEditor.draft?.saving,
 			handleBookmarkPage,
 			bookmarkedPages,
-			reflowDisplayDocumentId,
+			reflowDisplayDocument,
 		],
 	);
 

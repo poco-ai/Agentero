@@ -54,6 +54,10 @@ type LayoutTranslateOverlayProps = {
 	pageIndex: number;
 	/** Finished translated PDF document id for the shared render path. */
 	reflowDocumentId?: string | null;
+	/** Lightweight version currently loaded by the hidden translated document. */
+	reflowDocumentVersion?:
+		| import("@/lib/pdf/reflow/output-version").ReflowOutputVersion
+		| null;
 	/** Current viewer zoom, forwarded to the shared render layer. */
 	zoom: number;
 	/** Page pixel size (for font-size heuristic). */
@@ -740,6 +744,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	items,
 	pageIndex,
 	reflowDocumentId,
+	reflowDocumentVersion,
 	zoom,
 	pageWidthPx,
 	pageHeightPx,
@@ -826,6 +831,12 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 		[links, onPage],
 	);
 	const preview = items.find((item) => item.reflowPreview)?.reflowPreview;
+	const previewSources = items.find(
+		(item) => item.reflowPreview,
+	)?.reflowPreviewSources;
+	const displayMatchesPreview =
+		!previewSources ||
+		(reflowDocumentVersion && previewSources.has(reflowDocumentVersion));
 	if (preview || reflowDocumentId)
 		return (
 			<ReflowPageOverlay
@@ -838,7 +849,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 				items={items}
 				preview={preview ?? ""}
 				pageIndex={pageIndex}
-				renderDocumentId={reflowDocumentId}
+				renderDocumentId={displayMatchesPreview ? reflowDocumentId : null}
 				zoom={zoom}
 				width={pageWidthPx}
 				height={pageHeightPx}

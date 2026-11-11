@@ -10,12 +10,21 @@
 
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import { useEffect, useRef, useState } from "react";
+import {
+	type ReflowOutputVersion,
+	reflowOutputVersion,
+} from "@/lib/pdf/reflow/output-version";
 
 type DocumentManagerCapability = ReturnType<
 	typeof useDocumentManagerCapability
 >["provides"];
 
 let sequence = 0;
+
+export type ReflowDisplayDocument = {
+	id: string;
+	version: ReflowOutputVersion;
+};
 
 /** Closing a hidden display document is best-effort; teardown is not an error. */
 function closeDisplayDocument(
@@ -32,9 +41,9 @@ export function useReflowDisplayDocument(
 	docCap: DocumentManagerCapability | null | undefined,
 	output: Uint8Array | null | undefined,
 	docId: string,
-): string | null {
-	const [displayId, setDisplayId] = useState<string | null>(null);
-	const active = useRef<{ source: Uint8Array; id: string } | null>(null);
+): ReflowDisplayDocument | null {
+	const [display, setDisplay] = useState<ReflowDisplayDocument | null>(null);
+	const active = useRef<ReflowDisplayDocument | null>(null);
 	const generation = useRef(0);
 
 	useEffect(() => {
@@ -42,11 +51,12 @@ export function useReflowDisplayDocument(
 			generation.current += 1;
 			const previous = active.current;
 			active.current = null;
-			setDisplayId(null);
+			setDisplay(null);
 			if (previous) closeDisplayDocument(docCap, previous.id);
 			return;
 		}
-		if (active.current?.source === output) return;
+		const version = reflowOutputVersion(output);
+		if (active.current?.version === version) return;
 		const token = ++generation.current;
 		const id = `reflow-display-${docId}-${++sequence}`;
 		let cancelled = false;
@@ -72,8 +82,8 @@ export function useReflowDisplayDocument(
 								return;
 							}
 							const previous = active.current;
-							active.current = { source: output, id };
-							setDisplayId(id);
+							active.current = { version, id };
+							setDisplay(active.current);
 							if (previous) closeDisplayDocument(docCap, previous.id);
 						},
 						() => {
@@ -81,10 +91,7 @@ export function useReflowDisplayDocument(
 							// failed entry so it does not linger in the document manager.
 							closeDisplayDocument(docCap, id);
 							if (superseded()) return;
-							const previous = active.current;
-							active.current = null;
-							setDisplayId(null);
-							if (previous) closeDisplayDocument(docCap, previous.id);
+							// The previous loaded display remains readable on replacement failure.
 						},
 					);
 				},
@@ -106,5 +113,5 @@ export function useReflowDisplayDocument(
 		};
 	}, [docCap]);
 
-	return displayId;
+	return display;
 }
