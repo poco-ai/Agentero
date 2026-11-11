@@ -57,6 +57,28 @@ describe("shell shortcuts", () => {
 		).toBe("splitPane");
 	});
 
+	it("resolves in-group tab cycling and keeps whole-dock cycling separate", () => {
+		expect(
+			resolveShortcutId(keyEvent({ key: "Tab", ctrlKey: true }), {
+				settingsOpen: false,
+			}),
+		).toBe("nextGroupTab");
+		expect(
+			resolveShortcutId(
+				keyEvent({ key: "Tab", ctrlKey: true, shiftKey: true }),
+				{ settingsOpen: false },
+			),
+		).toBe("prevGroupTab");
+		expect(
+			resolveShortcutId(
+				keyEvent({ key: "ArrowRight", metaKey: true, altKey: true }),
+				{ settingsOpen: false },
+			),
+		).toBe("nextTab");
+		// ⌃Tab stays bindable in Settings.
+		expect(validateShortcutBinding({ key: "Tab", ctrl: true })).toBe(true);
+	});
+
 	it("resolves the Markdown source chord, including an override and overlay scope", () => {
 		const slash = keyEvent({ key: "/", metaKey: true });
 		expect(resolveShortcutId(slash, { settingsOpen: false })).toBe(

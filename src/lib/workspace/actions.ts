@@ -15,6 +15,7 @@ export {
 	closeTabOrWindow,
 	closeTabsUnderPath,
 	closeWindow,
+	cycleActiveGroupTab,
 	cycleActiveTab,
 	ensureLibraryTabPresent,
 	handleActivePanelChange,

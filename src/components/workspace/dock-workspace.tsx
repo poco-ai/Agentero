@@ -616,6 +616,19 @@ export const DockWorkspace = memo(
 					const nextIdx = (base + delta + panels.length) % panels.length;
 					panels[nextIdx]?.api.setActive();
 				},
+				cycleGroupTab(delta) {
+					const api = apiRef.current;
+					const group = api?.activeGroup;
+					if (!api || !group) return;
+					// Only this group's tab bar: ⌥⌘→/← still walks the whole dock.
+					const panels = group.panels;
+					if (panels.length < 2) return;
+					const cur = group.activePanel?.id;
+					const idx = panels.findIndex((panel) => panel.id === cur);
+					const base = idx < 0 ? 0 : idx;
+					const next = panels[(base + delta + panels.length) % panels.length];
+					next?.api.setActive();
+				},
 				visiblePanelIds() {
 					const api = apiRef.current;
 					return api ? visiblePanelIds(api) : [];

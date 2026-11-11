@@ -44,6 +44,8 @@
 		"splitPane": "向右分栏（TeX：打开编译 PDF）",
 		"nextTab": "下一个标签",
 		"prevTab": "上一个标签",
+		"nextGroupTab": "组内下一个标签页",
+		"prevGroupTab": "组内上一个标签页",
 		"visualAnnotation": "添加视觉批注（PDF）",
 		"layoutTranslate": "全文翻译（PDF）",
 		"toggleFullscreen": "切换无边框全屏",

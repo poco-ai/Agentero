@@ -44,6 +44,10 @@ export type ShortcutId =
 	| "splitPane"
 	| "nextTab"
 	| "prevTab"
+	/** ⌃Tab — next tab within the active dock group */
+	| "nextGroupTab"
+	/** ⌃⇧Tab — previous tab within the active dock group */
+	| "prevGroupTab"
 	| "zoomIn"
 	| "zoomOut"
 	| "zoomReset"
@@ -336,6 +340,23 @@ export const SHORTCUTS: ShortcutDef[] = [
 		key: "ArrowLeft",
 		meta: true,
 		alt: true,
+		whenSettingsClosed: true,
+	},
+	{
+		id: "nextGroupTab",
+		group: "Navigation",
+		// ⌃Tab — next tab in the active dock group only (⌥⌘→ cycles panels).
+		key: "Tab",
+		ctrl: true,
+		whenSettingsClosed: true,
+	},
+	{
+		id: "prevGroupTab",
+		group: "Navigation",
+		// ⌃⇧Tab — previous tab in the active dock group only.
+		key: "Tab",
+		ctrl: true,
+		shift: true,
 		whenSettingsClosed: true,
 	},
 	{

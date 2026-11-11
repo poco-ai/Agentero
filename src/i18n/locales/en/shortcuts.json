@@ -44,6 +44,8 @@
 		"splitPane": "Split pane right (TeX: open compiled PDF)",
 		"nextTab": "Next tab",
 		"prevTab": "Previous tab",
+		"nextGroupTab": "Next tab in group",
+		"prevGroupTab": "Previous tab in group",
 		"visualAnnotation": "Add visual annotation (PDF)",
 		"layoutTranslate": "Full-text translation (PDF)",
 		"toggleFullscreen": "Toggle borderless fullscreen",

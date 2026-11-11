@@ -619,6 +619,11 @@ export function cycleActiveTab(delta: number): void {
 	dockHandle()?.cycleActive(delta);
 }
 
+/** Cycle tabs inside the active dock group only (the group's tab bar). */
+export function cycleActiveGroupTab(delta: number): void {
+	dockHandle()?.cycleGroupTab(delta);
+}
+
 export function cloneTabForSplit(tab: DocTab, tabs: DocTab[]): DocTab {
 	return {
 		...tab,

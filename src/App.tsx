@@ -121,6 +121,7 @@ import {
 import {
 	applyDiskChange,
 	closeTabOrWindow,
+	cycleActiveGroupTab,
 	cycleActiveTab,
 	dirtyVaultPaths,
 	reopenClosedTab,
@@ -412,6 +413,8 @@ export default function App() {
 		splitPane: splitActivePane,
 		nextTab: () => cycleActiveTab(1),
 		prevTab: () => cycleActiveTab(-1),
+		nextGroupTab: () => cycleActiveGroupTab(1),
+		prevGroupTab: () => cycleActiveGroupTab(-1),
 		zoomIn,
 		zoomOut,
 		zoomReset,
