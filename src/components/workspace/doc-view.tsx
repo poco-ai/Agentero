@@ -346,9 +346,11 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.texCompiling && !tab.pdfBytes && !tab.pdfUrl) {
+		if (!active && !keepMounted) return null;
 		return <TexCompilingPlaceholder />;
 	}
 	if (!tab.loaded) {
+		if (!active && !keepMounted) return null;
 		return <TabLoadingSkeleton />;
 	}
 	if (tab.kind === "library") {
@@ -406,7 +408,7 @@ const DocumentContent = memo(function DocumentContent({
 			!keepMounted &&
 			!(isNotes ? tab.notesDirty : tab.markdownDirty)
 		)
-			return <TabLoadingSkeleton />;
+			return null;
 		return (
 			<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/30">
 				<Suspense fallback={<TabLoadingSkeleton />}>
