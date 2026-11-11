@@ -694,7 +694,9 @@ function displayFormulaExclusionRects(geometry: PdfPageGeometry): Rect[] {
 }
 
 /** True when this call did the line scan. Page geometry is stable, so repeat calls are free. */
-export function warmDisplayFormulaExclusions(geometry: PdfPageGeometry): boolean {
+export function warmDisplayFormulaExclusions(
+	geometry: PdfPageGeometry,
+): boolean {
 	if (displayFormulaRectCache.has(geometry)) return false;
 	displayFormulaExclusionRects(geometry);
 	return true;

@@ -94,6 +94,7 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 	} | null>(null);
 	const [formulaEpoch, setFormulaEpoch] = useState(0);
 	const rects = useMemo(() => {
+		void formulaEpoch;
 		const selection = pageSelection?.selection ?? null;
 		const crossPage =
 			selection != null && selection.start.page !== selection.end.page;
@@ -144,9 +145,9 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 		let attempts = 0;
 		const warm = () => {
 			if (cancelled) return;
-			const geometry = provides
-				.forDocument(documentId)
-				.getState().geometry[pageIndex];
+			const geometry = provides.forDocument(documentId).getState().geometry[
+				pageIndex
+			];
 			if (!geometry) {
 				// Geometry arrives from the selection registration below. A few
 				// idle checks cover that without polling on the pointer path.
