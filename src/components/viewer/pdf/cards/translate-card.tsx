@@ -163,6 +163,8 @@ export function TranslateCard({
 			trackPin
 			draggable
 			resizable
+			// Reopen at the width the user dragged this card to last time.
+			rememberWidth="translate"
 			resizeMinWidth={TRANSLATE_CARD_MIN_WIDTH}
 			resizeMaxWidth={TRANSLATE_CARD_MAX_WIDTH}
 			// Never shrink past the header + source quote (0 until measured).

@@ -190,3 +190,23 @@ it("clamps dragging using the resized dimensions and keeps the offset as the pag
 	expect(card.style.left).toBe("588px");
 	expect(card.style.top).toBe("328px");
 });
+
+it("opens at the width the user last dragged it to, still content-sized", async () => {
+	const map = new Map<string, string>();
+	vi.stubGlobal("localStorage", {
+		getItem: (key: string) => map.get(key) ?? null,
+		setItem: (key: string, value: string) => {
+			map.set(key, value);
+		},
+		removeItem: (key: string) => {
+			map.delete(key);
+		},
+	});
+	map.set("agentero-pdf-card-widths", JSON.stringify({ translate: 440 }));
+
+	const card = await renderCard();
+	expect(card.style.width).toBe("440px");
+	// Height stays content-sized: a remembered height would leave blank space
+	// under shorter translations.
+	expect(card.style.height).toBe("");
+});
