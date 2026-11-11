@@ -107,6 +107,7 @@ macOS 原生菜单在启动及设置保存后读取 `shortcutOverrides`，菜单
 
 ## 设计约定
 
+- **Tailwind 源文件范围**：`src/index.css` 用 `source(".")` 扫描 `src/`，另显式纳入根 `index.html`。文档、测试和 Rust 文件不作为类名来源，避免写报告或测试时刷新整个桌面开发页面。更改扫描范围后重启 Vite，清除旧依赖；新增外部界面模板需显式 `@source`。见 [开发页刷新复盘](../bug_fix/tailwind-dev-reload.md)。
 - **Motion tokens**（`index.css` / `src/lib/core/motion.ts` 的 `MOTION_MS`）：`micro` 100ms（按压/hover）、`fast` 150ms（浮层进出）、`normal` 200ms（任务 HUD 等大块编排）。壳层默认无 bounce；可打断的手势再考虑弹簧。侧栏折叠/展开不做布局动画，避免 PDF 等重内容在动画中逐帧重排。
 - **按压反馈**：`Button` 为 `active:scale-[0.97]`；文件树行 / Dock 页签 / 任务圆环共享同档微反馈（色阶或轻 scale/opacity）。Layout 菜单触发器保留 ghost hover fill。
 - 工具栏优先图标 + `aria-label` + Tooltip；避免常驻解释文案。

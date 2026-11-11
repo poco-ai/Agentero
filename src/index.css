@@ -1,8 +1,11 @@
-@import "tailwindcss";
+@import "tailwindcss" source(".");
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "dockview-react/dist/styles/dockview.css";
+
+/* Keep documentation and test edits outside Tailwind's full-reload sources. */
+@source "../index.html";
 
 @custom-variant dark (&:is(.dark *));
 
