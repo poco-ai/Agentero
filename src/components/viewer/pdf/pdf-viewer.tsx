@@ -180,6 +180,7 @@ import {
 	selectionAnchorKey,
 } from "@/lib/pdf/selection";
 import {
+	tintedTranslateRecords,
 	translateHighlightsByPage as translateHighlightsByPageOf,
 	translateHighlightsFingerprint,
 } from "@/lib/pdf/translate/highlights";
@@ -755,9 +756,17 @@ function PdfViewerInner({
 		onAsksChangeRef,
 		onVisualTracesChangeRef,
 	});
+	// Only pinned results keep a source tint once their card is gone; an
+	// unpinned record is discarded with its card, and any leftover (crashed
+	// session, card that never got placed) would paint a highlight with no
+	// translation behind it.
+	const tintedTranslates = useStableDerived(
+		() => tintedTranslateRecords(translates),
+		translateHighlightsFingerprint(tintedTranslateRecords(translates)),
+	);
 	const translateHighlightsByPage = useStableDerived(
-		() => translateHighlightsByPageOf(translates),
-		translateHighlightsFingerprint(translates),
+		() => translateHighlightsByPageOf(tintedTranslates),
+		translateHighlightsFingerprint(tintedTranslates),
 	);
 	/**
 	 * Per-page 0–1 text rects from PDFium `getPageTextRects` — used to decide
@@ -1872,10 +1881,13 @@ function PdfViewerInner({
 		glyphRunsByPage,
 	]);
 
+	// A translate card that was never placed (retry budget exhausted) must not
+	// keep painting its source tint: the highlight belongs to a visible card.
+	const translateCardPlaced = cardScreen != null;
 	const pageMarks = useMemo<PdfPageMarksSlice>(
 		() => ({
 			activeAskAnchor,
-			activeTranslateAnchor,
+			activeTranslateAnchor: translateCardPlaced ? activeTranslateAnchor : null,
 			activeVisualTrace,
 			visualDraftRegion: null,
 			visualCropRegion,
@@ -1914,6 +1926,7 @@ function PdfViewerInner({
 			citationLinks,
 			textLinks,
 			activeCard?.id,
+			translateCardPlaced,
 			selectionCommentDraft,
 			translateHighlightsByPage,
 			highlightQuotesByPage,

@@ -16,6 +16,19 @@ export type TranslateHighlight = {
 	rects: PdfTranslateRect[];
 };
 
+/**
+ * Records that keep a source tint while their card is closed.
+ *
+ * Only pinned results survive dismissal, so an unpinned leftover — a mark
+ * file from a crashed/killed session, or a card that never got placed — must
+ * not paint a highlight with nothing behind it.
+ */
+export function tintedTranslateRecords(
+	records: readonly PdfTranslateRecord[],
+): PdfTranslateRecord[] {
+	return records.filter((record) => record.pinned === true);
+}
+
 export function translateHighlightsByPage(
 	records: readonly PdfTranslateRecord[],
 ): Map<number, TranslateHighlight[]> {
