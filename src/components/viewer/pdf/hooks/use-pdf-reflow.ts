@@ -62,11 +62,15 @@ export function usePdfReflow(
 	const engine = ctx?.engine,
 		document = ctx?.document;
 	const prepare = useCallback(
-		async (seed: LayoutTranslateItem[], signal?: AbortSignal) => {
+		async (
+			seed: LayoutTranslateItem[],
+			signal?: AbortSignal,
+			rawRegions = current.current.regions ?? [],
+		) => {
 			const value = session.current;
 			const ctx = current.current.context?.();
 			if (!ctx) return seed;
-			const regions = current.current.regions ?? [];
+			const regions = rawRegions;
 			const cache = createReflowIrCache(
 				{
 					paperKey: current.current.paperKey || current.current.paperAbsPath,

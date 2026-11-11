@@ -791,19 +791,76 @@ export function usePdfLayoutTranslate({
 			setHiddenPageIndexes(new Set());
 			setPartialDialogOpen(false);
 			setSourcePreparing(true);
-			setLayoutTranslateQueued(true);
+			setLayoutTranslateQueued(false);
+			sharedTranslateRef.current = null;
 			setLayoutTranslateJob((prev) => ({
 				...prev,
 				scope: "document",
 				status: "running",
 			}));
-			void attachSharedTranslate(
-				"document",
-				true,
-				ac,
-				force,
-				runScopeIds,
-			).catch((error) => {
+			void (async () => {
+				// Opening a finished translation must not wait for a translation slot.
+				// Explicit completion/retranslation still belongs to the shared job.
+				if (!force && runScopeIds.length === 0) {
+					const cacheKey = currentLayoutTranslateCacheKey();
+					const sidecar = await readLayoutTranslateSidecar(
+						paperAbsPath,
+						cacheKey,
+					);
+					if (ac.signal.aborted) return;
+					if (sidecar?.items.length) {
+						let raw = layoutRawRegions;
+						if (!raw?.length && paperAbsPath) {
+							const layout = await readLayoutSidecar(paperAbsPath);
+							if (ac.signal.aborted) return;
+							if (layout && !layoutSidecarNeedsTextLayer(layout)) {
+								raw = layout.regions;
+								setLayoutDocumentResult(
+									buildLayoutDocumentResult(
+										docId,
+										mergeCaptionsIntoHosts(raw),
+										raw,
+									),
+								);
+							}
+						}
+						if (ac.signal.aborted) return;
+						if (raw?.length) {
+							const prepared = await prepareReflow(
+								toLayoutTranslateItems(listTranslatableLayoutRegions(raw)),
+								ac.signal,
+								raw,
+							);
+							if (ac.signal.aborted) return;
+							const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
+								requireReflowSentencePairs: true,
+							});
+							if (hydration.fromCache && hydration.pendingRequired === 0) {
+								setCacheOnly(true);
+								setSourcePreparing(false);
+								setLayoutTranslateJob(
+									layoutTranslateJobPatch({
+										status: "done",
+										scope: "document",
+										items: hydration.items,
+										cacheKey,
+										fromCache: true,
+										runScope: "all",
+										runScopeIds: [],
+									}),
+								);
+								if (layoutTranslateAbortRef.current === ac)
+									layoutTranslateAbortRef.current = null;
+								return;
+							}
+						}
+					}
+				}
+				if (ac.signal.aborted) return;
+				setCacheOnly(false);
+				setLayoutTranslateQueued(true);
+				await attachSharedTranslate("document", true, ac, force, runScopeIds);
+			})().catch((error) => {
 				if (ac.signal.aborted) return;
 				setSourcePreparing(false);
 				setLayoutTranslateQueued(false);
@@ -811,7 +868,14 @@ export function usePdfLayoutTranslate({
 				notifyTranslateFailure(displayTranslateError(errorText(error)));
 			});
 		},
-		[attachSharedTranslate, notifyTranslateFailure],
+		[
+			attachSharedTranslate,
+			notifyTranslateFailure,
+			paperAbsPath,
+			layoutRawRegions,
+			docId,
+			prepareReflow,
+		],
 	);
 
 	const startLayoutTranslate = useCallback(() => {

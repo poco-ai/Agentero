@@ -670,6 +670,108 @@ it("shows queued translation and continues when the same job starts", async () =
 	assert.equal(h.runs.length, 0);
 });
 
+it("opens a complete paper cache without joining a blocked translation queue", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault" });
+	h.setShared(sharedJob("queued"), null);
+	h.setPrepareTransform((items) =>
+		items.map((item) => ({ ...item, source: `Prepared ${item.source}` })),
+	);
+	h.setTranslateSidecar(
+		[0, 1].map((page) => ({
+			id: `region-${page}`,
+			source: `Prepared Source ${page}`,
+			translated: `Cached ${page}`,
+		})),
+	);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.observers.length, 0);
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.writes.length, 0);
+	assert.equal(h.view.layoutTranslateQueued, false);
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslateFromCache, true);
+	assert.equal(h.reflowInput.length, 2);
+	assert.equal(h.reflowInput[1].translated, "Cached 1");
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+	assert.equal(h.cancels.length, 0);
+	h.view.layoutTranslatePartial.onRetranslateAll();
+	await h.flush();
+	assert.equal(h.observers.length, 1);
+	assert.equal(h.observers[0].start, true);
+	assert.equal(h.observers[0].force, true);
+});
+
+it("opens a cached paper translation pane before its layout store is populated", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar(
+		[0, 1].map((page) => ({
+			id: `region-${page}`,
+			source: `Source ${page}`,
+			translated: `Cached ${page}`,
+		})),
+	);
+	h.setCachedLayout([region(0), region(1)]);
+	h.render({
+		vaultPath: "/vault",
+		translationPane: true,
+		layoutRawRegions: [],
+	});
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.observers.length, 0);
+	assert.equal(h.publishedLayouts.length, 1);
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslateQueued, false);
+	assert.equal(h.reflowInput.length, 2);
+});
+
+it("queues a paper when its sidecar is partial or does not match prepared source", async () => {
+	for (const source of ["Source 0", "Old source"]) {
+		const h = createHarness();
+		h.render({ vaultPath: "/vault" });
+		h.setShared(sharedJob("queued"), null);
+		h.setTranslateSidecar([{ id: "region-0", source, translated: "Cached" }]);
+		h.view.toggleLayoutTranslate();
+		await h.flush();
+		assert.equal(h.observers.length, 1);
+		assert.equal(h.observers[0].start, true);
+		assert.equal(h.view.layoutTranslateQueued, true);
+		assert.equal(h.runs.length, 0);
+	}
+});
+
+for (const action of ["stop", "close"] as const) {
+	it(`${action} during paper cache preparation prevents a late render or enqueue`, async () => {
+		const h = createHarness();
+		h.render({ vaultPath: "/vault" });
+		h.setTranslateSidecar(
+			[0, 1].map((page) => ({
+				id: `region-${page}`,
+				source: `Source ${page}`,
+				translated: `Cached ${page}`,
+			})),
+		);
+		h.deferPrepare();
+		h.view.toggleLayoutTranslate();
+		await h.flush();
+		assert.equal(h.view.layoutTranslateQueued, false);
+		if (action === "stop") {
+			h.view.toggleLayoutTranslate();
+			h.render();
+		} else h.unmount();
+		const writes = h.stateWrites;
+		h.releasePrepare();
+		await h.flush();
+		assert.equal(h.stateWrites, writes);
+		assert.equal(h.observers.length, 0);
+		assert.equal(h.cancels.length, 0);
+	});
+}
+
 it("a page click joins automatic items and never cancels the document", async () => {
 	const h = createHarness();
 	h.render({ vaultPath: "/vault" });
