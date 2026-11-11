@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	tintedTranslateRecords,
 	translateHighlightsByPage,
 	translateHighlightsFingerprint,
 } from "@/lib/pdf/translate/highlights";
@@ -34,5 +35,15 @@ describe("translateHighlightsByPage", () => {
 		]);
 		expect(byPage.get(2)?.map((item) => item.id)).toEqual(["a", "b"]);
 		expect(byPage.get(3)?.map((item) => item.id)).toEqual(["c"]);
+	});
+});
+
+describe("tintedTranslateRecords", () => {
+	it("keeps only pinned results after their card is closed", () => {
+		const pinned = { ...record("a", 2), pinned: true };
+		const discarded = record("b", 2);
+		expect(
+			tintedTranslateRecords([pinned, discarded]).map((r) => r.id),
+		).toEqual(["a"]);
 	});
 });
