@@ -1,13 +1,13 @@
 [workspace]
 members = ["src-tauri", "cli", "crates/agentero-core", "crates/agentero-mcp", "crates/agentero-plugin-host"]
-exclude = ["vendor/tesseract-rs"]
+exclude = ["patches/tesseract-rs"]
 resolver = "2"
 
 # Upstream tesseract-rs 0.2.0 (liteparse's OCR build dependency) pins zip 2,
 # whose extraction path is affected by GHSA-m665-v7pm-7grj and friends.
 # The vendored copy only bumps zip to the patched 9.x line.
 [patch.crates-io]
-tesseract-rs = { path = "vendor/tesseract-rs" }
+tesseract-rs = { path = "patches/tesseract-rs" }
 
 # Shared dependencies declared once for both members (src-tauri / cli).
 # Only version + common features live here; `optional`, target-specific

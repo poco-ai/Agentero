@@ -2,10 +2,14 @@
 
 ## tesseract-rs
 
-`vendor/tesseract-rs` is tesseract-rs 0.2.0, vendored so its build-time
+`patches/tesseract-rs` is tesseract-rs 0.2.0, vendored so its build-time
 Tesseract source download uses the patched `zip` 9 line instead of the
 upstream `zip = "2"` (GHSA-m665-v7pm-7grj). The only source change is the
 `mangled_name()` result unwrap in `build.rs`.
+
+It lives alongside the other local dependency fixes in `patches/`. Cargo's
+root `[patch.crates-io]` points to this complete crate; it is excluded from
+the workspace members. The crate's upstream README and MIT license are retained.
 
 MIT License
 
