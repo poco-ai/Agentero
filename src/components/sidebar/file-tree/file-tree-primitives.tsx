@@ -196,7 +196,12 @@ export const FileTree = ({
 			}
 
 			if (event.key === "ArrowRight") {
-				if (!isFolder) return;
+				if (!isFolder) {
+					// Leaf (paper / file): enter activates it like a single click.
+					event.preventDefault();
+					current.click();
+					return;
+				}
 				// Expand a closed folder; otherwise enter its first child row.
 				if (!expanded) {
 					if (!path) return;

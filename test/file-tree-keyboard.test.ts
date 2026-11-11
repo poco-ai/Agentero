@@ -108,6 +108,13 @@ describe("file tree vim keys", () => {
 		expect(document.activeElement).toBe(docs);
 	});
 
+	it("opens a leaf row with l, like a single click", () => {
+		const [, file] = rows();
+		file.focus();
+		pressVim("l");
+		expect(selected).toEqual(["docs/a.md"]);
+	});
+
 	it("collapses with h and expands with l instead of jumping rows", () => {
 		const [docs] = rows();
 		docs.focus();
