@@ -647,6 +647,7 @@
 			"mineru": "MinerU",
 			"openaiCompatible": "OpenAI-compatible"
 		},
+		"menusHint": "Only configured providers are listed here. If Paddle or MinerU is missing, configure it below and save — it becomes selectable once the check passes.",
 		"providerConfig": {
 			"section": "Provider settings",
 			"sectionHint": "Paddle or MinerU is recommended. Other OpenAI-compatible services are collapsed under Other below.",
@@ -656,7 +657,7 @@
 				"mineru": "MinerU",
 				"openaiCompatible": "OpenAI-compatible"
 			},
-			"confirm": "Confirm",
+			"confirm": "Save",
 			"openDocsLabel": "Get an API key",
 			"advanced": "Advanced",
 			"apiKey": {

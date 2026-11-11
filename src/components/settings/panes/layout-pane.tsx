@@ -59,7 +59,9 @@ import {
 	probeLayoutProvider,
 } from "@/lib/pdf/layout/provider-config";
 import {
+	hasReadyProvider,
 	isProviderCardConfigurable,
+	isProviderReady,
 	isRemoteLayoutProvider,
 	LAYOUT_PROVIDERS,
 	layoutProviderCard,
@@ -119,8 +121,6 @@ export function LayoutPane({
 	const [scope, setScope] = useState<ParseResultScope>("all");
 	const [busy, setBusy] = useState(false);
 	const [otherProvidersOpen, setOtherProvidersOpen] = useState(false);
-	const isProviderConfigured = (id: LayoutProviderId) =>
-		(layout.providerConfigs[id]?.apiKey ?? "").trim().length > 0;
 	// All remote providers are listed for configuration, like the translate
 	// pane; the backend selects only offer the configured ones (plus local).
 	// Cards with no editable field (the built-in parser) render nothing.
@@ -130,6 +130,15 @@ export function LayoutPane({
 		),
 		...Object.values(PARSER_PROVIDERS),
 	]).filter(isProviderCardConfigurable);
+	const isProviderConfigured = (id: LayoutProviderId) => {
+		const card = cards.find((candidate) => candidate.id === id);
+		const config = layout.providerConfigs[id];
+		return Boolean(card && config && isProviderReady(card, config));
+	};
+	// The menus only list configured providers, so an empty menu reads as "this
+	// app cannot do MinerU". Explain the ordering where the user looks first,
+	// and drop the hint once any provider is usable.
+	const noProviderReady = !hasReadyProvider(cards, layout.providerConfigs);
 	const backendOptions = Object.values(LAYOUT_PROVIDERS).filter(
 		(descriptor) => {
 			if (!isRemoteLayoutProvider(descriptor)) return true;
@@ -267,6 +276,12 @@ export function LayoutPane({
 					</Select>
 				</SettingsRow>
 			</SettingsGroup>
+
+			{noProviderReady ? (
+				<p className="mt-3 px-0.5 text-muted-foreground text-xs">
+					{t("layout.menusHint")}
+				</p>
+			) : null}
 
 			<div className="mb-5">
 				<h3 className="mb-2 px-0.5 font-medium text-sm">
@@ -457,31 +472,38 @@ function ProviderConfigCard({
 	const displayIsOcr = draft.isOcr !== undefined ? draft.isOcr : stored.isOcr;
 	const displaySelfHosted =
 		draft.selfHosted !== undefined ? draft.selfHosted : stored.selfHosted;
-	const configured = displayApiKey.trim().length > 0;
+	// Usable without a key when the card points at a self-hosted endpoint.
+	const configured = isProviderReady(provider, {
+		apiKey: displayApiKey,
+		baseUrl: displayBaseUrl,
+		selfHosted: displaySelfHosted,
+	});
 
 	const runProbe = useCallback(
 		(apiKey: string) => {
 			if (!isTauri()) return;
-			if (!apiKey.trim()) {
-				setStatus("idle");
-				return;
-			}
 			probeAbortRef.current?.abort();
 			const ac = new AbortController();
 			probeAbortRef.current = ac;
 			setStatus("probing");
 			// Mask → Host resolves the stored token; plaintext draft → test pre-save.
-			void probeLayoutProvider(provider.id, apiKey).then((ok) => {
-				if (!ac.signal.aborted) setStatus(ok ? "ok" : "fail");
+			void probeLayoutProvider(provider.id, apiKey).then((result) => {
+				if (ac.signal.aborted) return;
+				setStatus(result.ok ? "ok" : "fail");
+				// The dot alone cannot say why; surface the Host's reason so a
+				// failed probe is actionable instead of a silent grey dot.
+				if (!result.ok && result.error) notifyError(result.error);
 			});
 		},
 		[provider.id],
 	);
 
 	/**
-	 * Persist the current card fields. Empty apiKey clears the stored secret,
-	 * falls backends back to local when needed, and drops the provider from the
-	 * selects — clearing the input triggers this immediately (no Confirm).
+	 * Persist the current card fields. A card that is not ready (no key and no
+	 * self-hosted endpoint) clears the stored secret, falls backends back to
+	 * local when needed, and drops the provider from the selects — clearing the
+	 * input triggers this immediately (no Confirm). A ready card persists and
+	 * probes, even with an empty key.
 	 */
 	const persistConfig = useCallback(
 		async (apiKey: string) => {
@@ -502,8 +524,9 @@ function ProviderConfigCard({
 				isOcr,
 				selfHosted,
 			};
+			const ready = isProviderReady(provider, config);
 
-			if (!apiKey) {
+			if (!ready) {
 				// Optimistic UI: hide from backend selects before Host round-trip.
 				const cleared = layoutBackendsAfterClearingProvider(
 					layout,
@@ -527,10 +550,11 @@ function ProviderConfigCard({
 				settings,
 				provider: provider.id,
 				config,
+				ready,
 			});
 			patch({ layout: displayLayout });
 			setDraft({});
-			if (!apiKey) {
+			if (!ready) {
 				setStatus("idle");
 				return;
 			}

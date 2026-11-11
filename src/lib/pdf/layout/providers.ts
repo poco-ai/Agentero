@@ -6,6 +6,7 @@
 import type { LayoutSidecarMode } from "@/lib/pdf/layout/io";
 import type {
 	LayoutBackend,
+	LayoutProviderConfig,
 	LayoutProviderId,
 	ParserBackend,
 } from "@/lib/pdf/layout/settings";
@@ -190,4 +191,35 @@ export function isRemoteLayoutProvider(
 	descriptor: LayoutProviderDescriptor,
 ): descriptor is RemoteLayoutProviderDescriptor {
 	return descriptor.kind === "remote";
+}
+
+/**
+ * A provider card is usable when it has a credential, or — for providers that
+ * support it — when it points at a self-hosted endpoint, which may run
+ * anonymously. This gates the backend selects and the connectivity probe, so a
+ * keyless self-hosted MinerU can be configured like any other provider; the
+ * cloud providers keep requiring a key.
+ */
+export function isProviderReady(
+	card: Pick<ProviderCardDescriptor, "supportsSelfHosted">,
+	config: Pick<LayoutProviderConfig, "apiKey" | "baseUrl" | "selfHosted">,
+): boolean {
+	if (config.apiKey.trim().length > 0) return true;
+	if (!card.supportsSelfHosted || !config.selfHosted) return false;
+	return config.baseUrl.trim().length > 0;
+}
+
+/**
+ * True when at least one card can be used. Drives the "configure a provider
+ * first" hint: while every card is unusable the backend menus list nothing but
+ * the on-device engines, which otherwise reads as "this app cannot do MinerU".
+ */
+export function hasReadyProvider(
+	cards: readonly ProviderCardDescriptor[],
+	configs: Partial<Record<LayoutProviderId, LayoutProviderConfig>>,
+): boolean {
+	return cards.some((card) => {
+		const config = configs[card.id];
+		return Boolean(config && isProviderReady(card, config));
+	});
 }
