@@ -208,7 +208,7 @@ export function PdfTranslationViewerInner({
 		pdfBytes: pdfCacheBytes ?? sourceBytes,
 	});
 
-	const reflowDisplayDocumentId = useReflowDisplayDocument(
+	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
 		reflowOutput,
 		docId,
@@ -494,7 +494,8 @@ export function PdfTranslationViewerInner({
 			<PdfPageLayers
 				docId={docId}
 				pageIndex={pageIndex}
-				reflowDocumentId={reflowDisplayDocumentId}
+				reflowDocumentId={reflowDisplayDocument?.id}
+				reflowDocumentVersion={reflowDisplayDocument?.version}
 				width={rotatedWidth || width}
 				height={rotatedHeight || height}
 				tone={pdfTone}
@@ -513,7 +514,7 @@ export function PdfTranslationViewerInner({
 			pageMarks,
 			pageLayout,
 			pageHandlers,
-			reflowDisplayDocumentId,
+			reflowDisplayDocument,
 		],
 	);
 

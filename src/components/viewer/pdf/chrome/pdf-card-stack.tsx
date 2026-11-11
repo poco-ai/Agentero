@@ -224,10 +224,6 @@ export const PdfCardStack = memo(function PdfCardStack({
 						key={`translate-${translate.record.id}`}
 						screen={cardScreen}
 						preferRight={cardScreen.preferRight ?? false}
-						source={{
-							quote: translate.record.quote,
-							page: translate.record.page,
-						}}
 						result={translate.record.result ?? ""}
 						streaming={translate.streaming}
 						error={translate.error ?? translate.record.error ?? null}

@@ -10,11 +10,15 @@ import {
 	type PDFFont,
 	PDFName,
 	PDFNumber,
+	PDFRawStream,
 	PDFString,
 } from "pdf-lib";
 import { describe, expect, it, vi } from "vitest";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
-import { interleaveReflowPdf } from "@/lib/pdf/reflow/export";
+import {
+	interleaveReflowPdf,
+	replaceReflowPages,
+} from "@/lib/pdf/reflow/export";
 import {
 	extractReflowDocument,
 	paragraphFromCharacters,
@@ -1042,6 +1046,91 @@ describe("reflow PDF navigation", () => {
 		expect(
 			annotation?.lookup(PDFName.of("Dest"), PDFArray).get(0).toString(),
 		).toBe(result.getPage(3).ref.toString());
+	});
+	it("replaces only changed pages and keeps navigation to and from untouched pages", async () => {
+		const old = await PDFDocument.create();
+		const originals = [
+			old.addPage([100, 120]),
+			old.addPage([200, 220]),
+			old.addPage([300, 320]),
+		];
+		const addLink = (pdf: PDFDocument, pageIndex: number, target: number) => {
+			pdf.getPage(pageIndex).node.addAnnot(
+				pdf.context.register(
+					pdf.context.obj({
+						Type: "Annot",
+						Subtype: "Link",
+						Rect: [0, 0, 10, 10],
+						Dest: [pdf.getPage(target).ref, "Fit"],
+					}),
+				),
+			);
+		};
+		addLink(old, 0, 1);
+		const replacement = await PDFDocument.create();
+		replacement.addPage([900, 900]);
+		replacement.addPage([201, 221]);
+		replacement.addPage([901, 901]);
+		addLink(replacement, 1, 2);
+		const output = await PDFDocument.load(
+			await replaceReflowPages(await old.save(), await replacement.save(), [1]),
+		);
+		expect(output.getPages().map((p) => p.getWidth())).toEqual([100, 201, 300]);
+		expect(output.getPages().map((p) => p.ref.toString())).toEqual(
+			originals.map((p) => p.ref.toString()),
+		);
+		for (const [pageIndex, target] of [
+			[0, 1],
+			[1, 2],
+		]) {
+			const annotation = output
+				.getPage(pageIndex)
+				.node.Annots()
+				?.lookup(0, PDFDict);
+			expect(
+				annotation?.lookup(PDFName.of("Dest"), PDFArray).get(0).toString(),
+			).toBe(output.getPage(target).ref.toString());
+		}
+	});
+	it("reuses embedded font data and releases resources from repeated page replacements", async () => {
+		const make = async (label: string) => {
+			const pdf = await PDFDocument.create();
+			const fontData = pdf.context.register(
+				pdf.context.stream(new Uint8Array(4096).fill(65)),
+			);
+			const descriptor = pdf.context.register(
+				pdf.context.obj({ Type: "FontDescriptor", FontFile2: fontData }),
+			);
+			const font = pdf.context.register(
+				pdf.context.obj({ Type: "Font", FontDescriptor: descriptor }),
+			);
+			for (let i = 0; i < 2; i++) {
+				const page = pdf.addPage([100, 100]);
+				page.node.set(
+					PDFName.of("Resources"),
+					pdf.context.obj({ Font: { F0: font } }),
+				);
+				page.drawText(`${label}-${i}`);
+			}
+			return pdf.save();
+		};
+		let bytes = await make("old");
+		const replacement = await make("new");
+		let objectCount = 0;
+		for (let i = 0; i < 3; i++) {
+			bytes = await replaceReflowPages(bytes, replacement, [1]);
+			const pdf = await PDFDocument.load(bytes);
+			const objects = pdf.context.enumerateIndirectObjects();
+			expect(
+				objects.filter(
+					([, object]) =>
+						object instanceof PDFRawStream &&
+						object.getContents().length === 4096,
+				),
+			).toHaveLength(1);
+			if (i > 0) expect(objects.length).toBe(objectCount);
+			objectCount = objects.length;
+		}
 	});
 	it("moves citation links with formula units and preserves their action", async () => {
 		const pdf = await PDFDocument.create();

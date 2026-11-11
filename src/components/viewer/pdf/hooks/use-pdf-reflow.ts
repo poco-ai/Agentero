@@ -139,7 +139,7 @@ export function usePdfReflow(
 		async (dual = false) => {
 			const value = session.current;
 			const output = value?.output;
-			if (!output || current.current.running) return;
+			if (!output || !value?.ready || current.current.running) return;
 			try {
 				const { save } = await import("@tauri-apps/plugin-dialog");
 				const path = await save({
@@ -150,6 +150,7 @@ export function usePdfReflow(
 					path &&
 					session.current === value &&
 					value.output === output &&
+					value.ready &&
 					!current.current.running
 				) {
 					const ctx = current.current.context?.();
@@ -176,7 +177,7 @@ export function usePdfReflow(
 		prepare,
 		reflowItems,
 		reflowBusy: session.current?.busy ?? false,
-		reflowReady: !running && Boolean(session.current?.output),
+		reflowReady: !running && Boolean(session.current?.ready),
 		/** Finished translated PDF bytes; opened as a display document. */
 		reflowOutput: session.current?.output ?? null,
 		reflowProgress: session.current?.progress ?? 0,

@@ -52,12 +52,25 @@ export function PdfVimKeyHandler({
 			else scope.scrollToPreviousPage("instant");
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
+			// Selection actions win even when this capture listener was mounted first.
+			const selectionAction =
+				!event.shiftKey &&
+				Array.from(
+					document.querySelectorAll<HTMLButtonElement>(
+						"[data-selection-menu] button[aria-keyshortcuts]:not(:disabled)",
+					),
+				).some(
+					(button) =>
+						button.getAttribute("aria-keyshortcuts")?.toLowerCase() ===
+						event.key.toLowerCase(),
+				);
 			// Read the module cache so a settings window toggle applies even
 			// before this component re-renders.
 			const { pdfVimKeys, vimMode } = loadSettings();
 			if (
 				!pdfVimKeys ||
 				!vimMode ||
+				selectionAction ||
 				event.defaultPrevented ||
 				event.altKey ||
 				event.ctrlKey ||

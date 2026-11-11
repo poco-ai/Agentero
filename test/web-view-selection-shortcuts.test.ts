@@ -222,3 +222,36 @@ it("relays an in-frame Escape to the shared selection host", async () => {
 		window.removeEventListener(SELECTION_DISMISS_EVENT, dismiss);
 	}
 });
+
+it("arms bare selection keys only for this frame and relays them to the mounted menu", async () => {
+	await message({
+		type: "selection",
+		text: "quote",
+		rect: { x: 0, y: 0, width: 30, height: 10 },
+		url: "https://example.com/paper",
+	});
+	expect(postMessage.mock.lastCall?.[0].bindings).toEqual(
+		expect.arrayContaining([
+			{ id: "selectionTranslate", key: "t" },
+			{ id: "selectionCopy", key: "c" },
+		]),
+	);
+	const keydown = vi.fn();
+	window.addEventListener("keydown", keydown);
+	const bareKey = { ...key, key: "t", code: "KeyT", metaKey: false };
+	try {
+		await message({ type: "shortcut", event: bareKey }, {});
+		expect(keydown).not.toHaveBeenCalled();
+		await message({ type: "shortcut", event: bareKey });
+		expect(keydown).toHaveBeenCalledOnce();
+		expect(keydown.mock.lastCall?.[0]).toMatchObject(bareKey);
+		await message({ type: "scroll" });
+		expect(postMessage.mock.lastCall?.[0].bindings).not.toEqual(
+			expect.arrayContaining([{ id: "selectionTranslate", key: "t" }]),
+		);
+		await message({ type: "shortcut", event: bareKey });
+		expect(keydown).toHaveBeenCalledOnce();
+	} finally {
+		window.removeEventListener("keydown", keydown);
+	}
+});

@@ -39,6 +39,8 @@ type HighlightColorStackProps = {
 	onSelect: (color: HighlightColor) => void;
 	/** Currently active color (annotation recolor menu). */
 	activeColor?: HighlightColor;
+	/** Number-key hints when composed into the text selection menu. */
+	shortcuts?: boolean;
 	/** Tooltip / expand direction relative to the toolbar. */
 	tooltipSide?: "top" | "bottom";
 	className?: string;
@@ -54,6 +56,7 @@ export function HighlightColorStack({
 	ref,
 	onSelect,
 	activeColor,
+	shortcuts = false,
 	tooltipSide = "top",
 	className,
 }: HighlightColorStackProps) {
@@ -100,6 +103,7 @@ export function HighlightColorStack({
 							<motion.button
 								type="button"
 								aria-label={colorLabel(color)}
+								aria-keyshortcuts={shortcuts ? String(i + 1) : undefined}
 								aria-pressed={activeColor ? isActive : undefined}
 								className={cn(
 									"absolute top-0 inline-flex items-center justify-center rounded-full outline-none",
@@ -133,6 +137,11 @@ export function HighlightColorStack({
 						</TooltipTrigger>
 						<TooltipContent side={tooltipSide}>
 							{colorLabel(color)}
+							{shortcuts ? (
+								<kbd className="ml-2 font-sans text-[10px] opacity-70">
+									{i + 1}
+								</kbd>
+							) : null}
 						</TooltipContent>
 					</Tooltip>
 				);

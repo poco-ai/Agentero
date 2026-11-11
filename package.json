@@ -66,6 +66,7 @@
 		"@embedpdf/plugin-annotation": "2.14.4",
 		"@embedpdf/plugin-bookmark": "2.14.4",
 		"@embedpdf/plugin-document-manager": "2.14.4",
+		"@embedpdf/plugin-history": "2.14.4",
 		"@embedpdf/plugin-interaction-manager": "2.14.4",
 		"@embedpdf/plugin-layout-analysis": "0.0.1",
 		"@embedpdf/plugin-render": "2.14.4",

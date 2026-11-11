@@ -23,10 +23,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { clamp } from "@/lib/core/math";
-import { formatModShortcut } from "@/lib/shell/shortcuts";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 export type SelectionActionMenuProps = {
@@ -93,7 +93,7 @@ function SelectionCopyButton({
 	return (
 		<SelectionToolbarIconButton
 			label={copied ? copiedLabel : label}
-			shortcut={copied ? undefined : shortcut}
+			shortcut={shortcut}
 			tooltip={label}
 			onClick={handleClick}
 		>
@@ -121,13 +121,51 @@ export function SelectionActionMenu({
 	useSelectionOverlayGuard();
 	const quickChatShortcut = useShortcutLabel("quickChat");
 	const addToChatShortcut = useShortcutLabel("addSelectionToChat");
-	const copyShortcut = formatModShortcut("c");
 	const menuRef = useRef<HTMLDivElement>(null);
 	const [position, setPosition] = useState<{
 		right: number;
 		top: number;
 		dimmed: boolean;
 	} | null>(null);
+
+	useEffect(() => {
+		const onKeyDown = (event: KeyboardEvent) => {
+			const menu = menuRef.current;
+			if (
+				!menu ||
+				event.defaultPrevented ||
+				event.isComposing ||
+				event.repeat ||
+				event.altKey ||
+				event.ctrlKey ||
+				event.metaKey ||
+				event.shiftKey ||
+				isEditableClipboardTarget(event.target)
+			)
+				return;
+			const overlay =
+				event.target instanceof Element
+					? event.target.closest(
+							"[role='dialog'], [role='alertdialog'], [role='menu'], [role='listbox']",
+						)
+					: null;
+			if (overlay && !overlay.contains(menu)) return;
+			const action = Array.from(
+				menu.querySelectorAll<HTMLButtonElement>(
+					"button[aria-keyshortcuts]:not(:disabled)",
+				),
+			).find(
+				(button) =>
+					button.getAttribute("aria-keyshortcuts")?.toLowerCase() ===
+					event.key.toLowerCase(),
+			);
+			if (!action) return;
+			event.preventDefault();
+			action.click();
+		};
+		window.addEventListener("keydown", onKeyDown, true);
+		return () => window.removeEventListener("keydown", onKeyDown, true);
+	}, []);
 
 	useLayoutEffect(() => {
 		const menu = menuRef.current;
@@ -221,6 +259,7 @@ export function SelectionActionMenu({
 		<SelectionToolbar
 			ref={menuRef}
 			data-selection-ui
+			data-selection-menu
 			data-pdf-chrome
 			// Dim when covering body text or when the selection scrolled away.
 			dimmed={position?.dimmed}
@@ -241,6 +280,7 @@ export function SelectionActionMenu({
 				{onTranslate ? (
 					<SelectionToolbarIconButton
 						label={t("selection.translate")}
+						shortcut="T"
 						onClick={onTranslate}
 					>
 						<Languages className="size-3.5" />
@@ -251,7 +291,7 @@ export function SelectionActionMenu({
 						onCopy={onCopy}
 						label={t("selection.copy")}
 						copiedLabel={t("selection.copied")}
-						shortcut={copyShortcut}
+						shortcut="C"
 					/>
 				) : null}
 

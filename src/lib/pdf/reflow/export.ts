@@ -5,7 +5,10 @@ import {
 	PDFDict,
 	PDFDocument,
 	PDFName,
+	type PDFObject,
 	type PDFPage,
+	PDFRef,
+	PDFStream,
 	rgb,
 	StandardFonts,
 } from "pdf-lib";
@@ -344,15 +347,102 @@ export async function interleaveReflowPdf(
 	return pdf.save();
 }
 
+/** Replace changed pages while keeping the existing page references and order. */
+export async function replaceReflowPages(
+	previous: Uint8Array,
+	replacement: Uint8Array,
+	indexes: readonly number[],
+): Promise<Uint8Array> {
+	const pdf = await PDFDocument.load(previous);
+	const source = await PDFDocument.load(replacement);
+	if (pdf.getPageCount() !== source.getPageCount())
+		throw new Error("Replacement PDF page counts differ");
+	const targets = pdf.getPages();
+	const originals = indexes.map((index) => source.getPage(index));
+	const copies = await pdf.copyPages(source, [...indexes]);
+	remapCopiedPageDestinations(pdf, source, originals, copies, targets);
+	copies.forEach((page, i) => {
+		const target = targets[indexes[i]];
+		const parent = target.node.get(PDFName.of("Parent"));
+		if (parent) page.node.set(PDFName.of("Parent"), parent);
+		const annotations = page.node.Annots();
+		if (annotations)
+			for (let j = 0; j < annotations.size(); j++) {
+				const annotation = annotations.lookup(j, PDFDict);
+				if (annotation.has(PDFName.of("P")))
+					annotation.set(PDFName.of("P"), target.ref);
+			}
+		// Assign into the old ref so links from untouched pages keep their target.
+		pdf.context.assign(target.ref, page.node);
+	});
+	// Every page build embeds the full CJK font pair. Reuse identical font
+	// streams and release replaced page resources before serializing the result.
+	const fontStreams = new Map<string, { ref: PDFRef; bytes: Uint8Array }[]>();
+	for (const [, object] of pdf.context.enumerateIndirectObjects()) {
+		if (
+			!(object instanceof PDFDict) ||
+			object.get(PDFName.of("Type")) !== PDFName.of("FontDescriptor")
+		)
+			continue;
+		for (const name of ["FontFile", "FontFile2", "FontFile3"]) {
+			const key = PDFName.of(name);
+			const ref = object.get(key);
+			const stream = pdf.context.lookup(ref);
+			if (!(ref instanceof PDFRef) || !(stream instanceof PDFStream)) continue;
+			const bytes = stream.getContents();
+			const streamKey = `${name}:${bytes.length}:${stream.dict.toString()}`;
+			const candidates = fontStreams.get(streamKey) ?? [];
+			const match = candidates.find(
+				(candidate) =>
+					candidate.ref === ref ||
+					candidate.bytes.every((byte, i) => byte === bytes[i]),
+			);
+			if (match) object.set(key, match.ref);
+			else {
+				candidates.push({ ref, bytes });
+				fontStreams.set(streamKey, candidates);
+			}
+		}
+	}
+	const reachable = new Set<PDFObject>();
+	const pending = Object.values(pdf.context.trailerInfo).filter(
+		(value): value is PDFObject => value !== undefined,
+	);
+	while (pending.length) {
+		const object = pending.pop();
+		if (!object || reachable.has(object)) continue;
+		reachable.add(object);
+		if (object instanceof PDFRef) {
+			const target = pdf.context.lookup(object);
+			if (target) pending.push(target);
+		} else if (object instanceof PDFStream) pending.push(object.dict);
+		else if (object instanceof PDFDict) pending.push(...object.values());
+		else if (object instanceof PDFArray) pending.push(...object.asArray());
+	}
+	for (const [ref] of pdf.context.enumerateIndirectObjects())
+		if (!reachable.has(ref)) pdf.context.delete(ref);
+	return pdf.save();
+}
+
 /** copyPages can leave GoTo destinations pointing at detached copies of pages. */
 async function copyOriginalPages(
 	pdf: PDFDocument,
 	source: PDFDocument,
 ): Promise<PDFPage[]> {
 	const pages = await pdf.copyPages(source, source.getPageIndices());
-	const originals = source.getPages();
+	remapCopiedPageDestinations(pdf, source, source.getPages(), pages, pages);
+	return pages;
+}
+
+function remapCopiedPageDestinations(
+	pdf: PDFDocument,
+	source: PDFDocument,
+	originals: PDFPage[],
+	copies: PDFPage[],
+	targets: PDFPage[],
+): void {
 	const pageIndex = new Map(
-		originals.map((page, i) => [page.ref.toString(), i]),
+		source.getPages().map((page, i) => [page.ref.toString(), i]),
 	);
 	const destination = (annotation: PDFDict) => {
 		const action = annotation.lookupMaybe(PDFName.of("A"), PDFDict);
@@ -363,7 +453,7 @@ async function copyOriginalPages(
 				: undefined)
 		);
 	};
-	pages.forEach((page, index) => {
+	copies.forEach((page, index) => {
 		const annotations = page.node.Annots(),
 			originalAnnotations = originals[index].node.Annots();
 		if (!annotations || !originalAnnotations) return;
@@ -375,8 +465,7 @@ async function copyOriginalPages(
 			if (!(oldArray instanceof PDFArray) || !(newArray instanceof PDFArray))
 				continue;
 			const target = pageIndex.get(oldArray.get(0).toString());
-			if (target !== undefined) newArray.set(0, pages[target].ref);
+			if (target !== undefined) newArray.set(0, targets[target].ref);
 		}
 	});
-	return pages;
 }

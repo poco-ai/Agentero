@@ -56,6 +56,7 @@ export function createTranslationPublisher(
 				({
 					reflow: _ir,
 					reflowPreview: _preview,
+					reflowPreviewSources: _previewSources,
 					reflowLayout: _layout,
 					...item
 				}) => item,

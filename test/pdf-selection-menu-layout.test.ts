@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { MotionConfig } from "motion/react";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -9,6 +10,8 @@ import {
 	HIGHLIGHT_COLOR_STACK_EXPANDED_W,
 } from "@/components/viewer/pdf/cards/highlight-color-stack";
 import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
+import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
+import { HIGHLIGHT_COLORS } from "@/lib/pdf/highlight/palette";
 import { settingsStore } from "@/lib/settings/react-store";
 import type { MenuContribution } from "@/lib/shell/commands/menu-contributions";
 import { formatShortcut } from "@/lib/shell/shortcuts";
@@ -135,6 +138,7 @@ afterEach(async () => {
 	await act(() => root.unmount());
 	settingsStore.setState({ shortcutOverrides: originalOverrides });
 	container.remove();
+	document.body.replaceChildren();
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
 });
@@ -160,7 +164,7 @@ it("anchors the divider after optional actions, locale, and plugin widths change
 	expect(dividerCenter(menu)).toBe(500);
 	expect(menu.textContent).toContain("A long plugin action");
 	expect(
-		menu.querySelector('[aria-label="selection.translate"]'),
+		menu.querySelector('[aria-label="selection.translate T"]'),
 	).not.toBeNull();
 });
 
@@ -168,7 +172,7 @@ it("keeps actions and the divider still throughout color expansion and collapse"
 	const menu = await render();
 	const right = menu.style.right;
 	const action = menu.querySelector<HTMLElement>(
-		'button[aria-label="selection.translate"]',
+		'button[aria-label="selection.translate T"]',
 	);
 	if (!action) throw new Error("Translate action did not render");
 	const actionLeft = action.getBoundingClientRect().left;
@@ -262,7 +266,7 @@ it("keeps note clicks explicit and opens quick chat through the chat arrow", asy
 	const onAddToChat = vi.fn();
 	const menu = await render({ onNote, onAsk, onAddToChat });
 	const note = menu.querySelector<HTMLButtonElement>(
-		'[aria-label="selection.note"]',
+		'[aria-label="selection.note N"]',
 	);
 	const trigger = menu.querySelector<HTMLButtonElement>(
 		'[aria-haspopup="menu"]',
@@ -355,4 +359,115 @@ it("updates shared menu hints and removes disabled bindings without remounting",
 		}),
 	);
 	expect(labels()).toEqual([""]);
+});
+
+async function pressKey(
+	key: string,
+	init: KeyboardEventInit = {},
+	target = document.body,
+) {
+	const event = new KeyboardEvent("keydown", {
+		key,
+		bubbles: true,
+		cancelable: true,
+		...init,
+	});
+	await act(async () => {
+		target.dispatchEvent(event);
+	});
+	return event.defaultPrevented;
+}
+
+it("runs the displayed selection actions with single keys and keeps copy feedback", async () => {
+	const onTranslate = vi.fn();
+	const onCopy = vi.fn(async () => true);
+	const onNote = vi.fn();
+	const onBookmark = vi.fn();
+	const onHighlight = vi.fn();
+	const menu = await render({
+		onTranslate,
+		onCopy,
+		onNote,
+		onBookmark,
+		onHighlight,
+	});
+	for (const key of ["t", "c", "n", "b", "1", "2", "3", "4", "5"])
+		expect(await pressKey(key)).toBe(true);
+	expect(onTranslate).toHaveBeenCalledOnce();
+	expect(onCopy).toHaveBeenCalledOnce();
+	expect(
+		menu.querySelector('[aria-keyshortcuts="C"]')?.getAttribute("aria-label"),
+	).toBe("selection.copied C");
+	expect(onNote).toHaveBeenCalledOnce();
+	expect(onBookmark).toHaveBeenCalledOnce();
+	expect(onHighlight.mock.calls.map(([color]) => color)).toEqual(
+		HIGHLIGHT_COLORS,
+	);
+});
+
+it("ignores typing, IME, modified keys, repeats and other dialogs", async () => {
+	const onTranslate = vi.fn();
+	await render({ onTranslate });
+	const input = document.createElement("input");
+	const editor = document.createElement("div");
+	editor.setAttribute("contenteditable", "true");
+	const dialog = document.createElement("div");
+	dialog.setAttribute("role", "dialog");
+	document.body.append(input, editor, dialog);
+	for (const target of [input, editor, dialog])
+		expect(await pressKey("t", {}, target)).toBe(false);
+	for (const init of [
+		{ isComposing: true },
+		{ repeat: true },
+		{ metaKey: true },
+		{ ctrlKey: true },
+		{ altKey: true },
+		{ shiftKey: true },
+	])
+		expect(await pressKey("t", init)).toBe(false);
+	expect(onTranslate).not.toHaveBeenCalled();
+	expect(await pressKey("t")).toBe(true);
+	expect(onTranslate).toHaveBeenCalledOnce();
+});
+
+it("only handles visible actions and stops handling keys after dismissal", async () => {
+	await render({
+		showHighlight: false,
+		showTranslate: false,
+		onCopy: undefined,
+		onNote: vi.fn(),
+	});
+	for (const key of ["t", "c", "n", "b", "1"])
+		expect(await pressKey(key)).toBe(false);
+	await act(() => root.render(null));
+	expect(await pressKey("t")).toBe(false);
+});
+
+it.each([
+	true,
+	false,
+])("copies the new selection while a translation stays open (menu first: %s)", async (menuFirst) => {
+	const writeText = vi
+		.spyOn(navigator.clipboard, "writeText")
+		.mockResolvedValue();
+	const onCopy = vi.fn(async () => true);
+	const menu = createElement(SelectionMenu, { ...props, key: "menu", onCopy });
+	const card = createElement(TranslateCard, {
+		key: "translation",
+		screen: props.screen,
+		result: "previous translation",
+		streaming: false,
+		error: null,
+		onHide: vi.fn(),
+		onOpenSettings: vi.fn(),
+	});
+	const scene = (children: ReturnType<typeof createElement>[]) =>
+		createElement(MotionConfig, { isStatic: true }, children);
+	await act(() => root.render(scene(menuFirst ? [menu, card] : [card, menu])));
+	expect(await pressKey("c")).toBe(true);
+	expect(onCopy).toHaveBeenCalledOnce();
+	expect(writeText).not.toHaveBeenCalled();
+	await act(() => root.render(scene([card])));
+	expect(await pressKey("c")).toBe(true);
+	expect(writeText).toHaveBeenCalledExactlyOnceWith("previous translation");
 });

@@ -783,6 +783,7 @@ function sameLayoutTranslateBucketSlot(
 		before.translated === after.translated &&
 		before.reflow === after.reflow &&
 		before.reflowPreview === after.reflowPreview &&
+		before.reflowPreviewSources === after.reflowPreviewSources &&
 		before.reflowLayout === after.reflowLayout &&
 		sentencePaintKey(before) === sentencePaintKey(after)
 	);
