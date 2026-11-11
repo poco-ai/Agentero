@@ -50,9 +50,12 @@ function parenBalance(text: string): number {
 	return balance;
 }
 const CITATION_LINK =
-	/[[［]\s*[0-9]+[a-z]?(?:\s*[-–—~,，]\s*[0-9]+[a-z]?)*\s*[\]］]/gi;
-const REF_LINK =
-	/\b(?:Figures?|Figs?\.|Tables?|Tabs?\.|Sections?|Secs?\.|Equations?|Eqs?\.|Eqn?\.|Algorithms?|Algs?\.|Theorems?|Lemmas?|Appendices|Appendix)\s+\(?\d+(?:\.\d+)?[a-z]?(?:\s*[-–—]\s*\(?\d+(?:\.\d+)?[a-z]?)?\)?/gi;
+	/[[［]\s*[0-9]+[a-z]?(?:\s*[-–—−~,，]\s*[0-9]+[a-z]?)*\s*[\]］]/gi;
+const REF_NUMBER = String.raw`(?:\d+(?:\.\d+)?[a-z]?|[ivxlcdm]+\b)(?:\([a-z]\d*\))?`;
+const REF_LINK = new RegExp(
+	String.raw`(?:\b(?:Figures?|Figs?\.|Tables?|Tabs?\.|Sections?|Secs?\.|Equations?|Eqs?\.|Eqn?\.|Algorithms?|Algs?\.|Theorems?|Lemmas?|Appendices|Appendix)|[图圖表式])\s*\(?${REF_NUMBER}(?:\s*[-–—−]\s*\(?${REF_NUMBER})?\)?(?:\s*(?:,\s*(?:and\s+)?|and\s+)\d+\([a-z]\))*`,
+	"gi",
+);
 const AUTHOR_NAME = "(?:[A-Z][A-Za-z'’-]{1,40}|[\\u4e00-\\u9fff]{1,12})";
 // PDF text often pads the parenthesis and the comma. Machine translation
 // then rewrites them to fullwidth brackets, a Chinese comma, and 等人.

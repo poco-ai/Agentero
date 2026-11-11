@@ -216,6 +216,14 @@ export function linkColorOnPaper(hex: string, tone: PdfPaperTone): string {
 	const rgb = parseHex(hex);
 	if (!rgb) return hex;
 	if (tone === "white") return hexOf(rgb[0], rgb[1], rgb[2]);
+	if (tone === "black") {
+		const filtered = hueRotate180(255 - rgb[0], 255 - rgb[1], 255 - rgb[2]);
+		return hexOf(
+			channel(filtered[0]),
+			channel(filtered[1]),
+			channel(filtered[2]),
+		);
+	}
 	if (tone === "dark") {
 		const filtered = darkPaperRgb(rgb[0], rgb[1], rgb[2]);
 		return hexOf(filtered[0], filtered[1], filtered[2]);

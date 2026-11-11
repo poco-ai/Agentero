@@ -1120,7 +1120,6 @@ function PdfViewerInner({
 		clearCitationPreview,
 		handleCitationLinkActivate,
 		handleCitationLinkHover,
-		hasCitationMatch,
 		citationImport,
 		pageOrigins,
 	} = usePdfCitations({
@@ -1151,8 +1150,7 @@ function PdfViewerInner({
 
 	// Cross-reference (\ref) hover: preview the figure/table/equation crop,
 	// or fallback destination crop for unmapped citations / internal links.
-	// When structured metadata exists for a citation, hasCitationMatch suppresses
-	// this preview in favor of the rich metadata card.
+	// Resolve the complete source group before choosing verified metadata or crops.
 	const {
 		crossrefPreview,
 		scheduleCrossrefHide,
@@ -1167,11 +1165,11 @@ function PdfViewerInner({
 		sourceBytes,
 		engineRef,
 		docCapRef,
+		showCitationPreview: handleCitationLinkHover,
 		onPreviewShow: () => {
 			clearCitationPreviewRef.current();
 			clearLinkUrlTipRef.current();
 		},
-		hasCitationMatch,
 	});
 
 	const {
@@ -1448,7 +1446,7 @@ function PdfViewerInner({
 				clearLinkUrlTip();
 				return;
 			}
-			handleCitationLinkHover(link, clientPoint);
+			if (!link) handleCitationLinkHover(null);
 			handleCrossrefLinkHover(link, clientPoint);
 		},
 		[

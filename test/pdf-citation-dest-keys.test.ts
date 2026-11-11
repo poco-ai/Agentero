@@ -13,6 +13,8 @@ import {
 	citationDestKey,
 	citationRefNumber,
 	citationSidecarKeysForDest,
+	defaultCitationNameParsers,
+	defaultCrossrefNameParsers,
 	destinationInPageBox,
 	expandCitationLinkCluster,
 	fitHCoordResolver,
@@ -39,6 +41,166 @@ import { mergeCaptionsIntoHosts } from "@/lib/pdf/layout/merge-captions";
 const paperDir = process.env.AGENTERO_TEST_PAPER;
 
 describe("citation destination keys", () => {
+	it("normalizes reversed annotation corners to the same PDFium link rectangle", async () => {
+		const { PDFDocument, PDFName, PDFString } = await import("pdf-lib");
+		const doc = await PDFDocument.create(),
+			page = doc.addPage([600, 800]);
+		doc.catalog.set(
+			PDFName.of("Names"),
+			doc.context.obj({
+				Dests: {
+					Names: [
+						PDFString.of("cite.sample"),
+						doc.context.obj([page.ref, PDFName.of("XYZ"), 50, 700, 0]),
+					],
+				},
+			}),
+		);
+		page.node.addAnnot(
+			doc.context.register(
+				doc.context.obj({
+					Type: "Annot",
+					Subtype: "Link",
+					Rect: [160, 190, 130, 175],
+					Dest: PDFString.of("cite.sample"),
+				}),
+			),
+		);
+		const maps = await buildPdfDestMaps(await doc.save());
+		expect(maps.citationLinks).toMatchObject([
+			{ x: 130, y: 610, w: 30, h: 15, key: "sample" },
+		]);
+	});
+	it.each([
+		"JOURNAL_123.indd%3Ajournal123-bib-0047%3A1554",
+		"JOURNAL_123.indd:journal123-bib-0047:1554",
+	])("recognizes InDesign bibliography targets without inventing printed numbers: %s", (name) => {
+		expect(
+			defaultCitationNameParsers.map((parser) => parser(name)).find(Boolean),
+		).toBe(name);
+		expect(citationRefNumber(name)).toBeNull();
+	});
+	it("retains each named citation target across pages and colliding coordinates", async () => {
+		const { PDFDocument, PDFName, PDFString } = await import("pdf-lib");
+		const doc = await PDFDocument.create();
+		const first = doc.addPage([600, 800]),
+			second = doc.addPage([600, 800]);
+		doc.catalog.set(
+			PDFName.of("Names"),
+			doc.context.obj({
+				Dests: {
+					Names: [
+						PDFString.of("cite.First"),
+						doc.context.obj([first.ref, PDFName.of("XYZ"), 50, 600, 0]),
+						PDFString.of("cite.Second"),
+						doc.context.obj([first.ref, PDFName.of("XYZ"), 300, 600, 0]),
+						PDFString.of("cite.Third"),
+						doc.context.obj([second.ref, PDFName.of("FitH"), 700]),
+					],
+				},
+			}),
+		);
+		const maps = await buildPdfDestMaps(await doc.save());
+		expect(maps.cites.has("0:600.0")).toBe(false);
+		expect([...(maps.citationTargets ?? new Map())]).toEqual([
+			["First", { pageIndex: 0, pdfX: 50, pdfY: 600 }],
+			["Second", { pageIndex: 0, pdfX: 300, pdfY: 600 }],
+			["Third", { pageIndex: 1, pdfX: null, pdfY: 700 }],
+		]);
+	});
+	it("indexes publisher reference names and PLOS figure identities without treating section names as references", async () => {
+		const { PDFDocument, PDFName, PDFString, PDFHexString } = await import(
+			"pdf-lib"
+		);
+		const doc = await PDFDocument.create();
+		const page = doc.addPage([600, 800]);
+		const names = [
+			"ref31",
+			"B48",
+			"ell270574-bib-0018",
+			"lBc24",
+			"Rpdig.0000536.g001",
+			"Lpdig.0000536.g013",
+			"section.31",
+			"B.48",
+		];
+		const pairs = names.flatMap((name, i) => [
+			name === "B48" ? PDFHexString.fromText(name) : PDFString.of(name),
+			doc.context.obj([page.ref, PDFName.of("XYZ"), 50, 700 - i * 30, 0]),
+		]);
+		doc.catalog.set(
+			PDFName.of("Names"),
+			doc.context.obj({ Dests: { Names: pairs } }),
+		);
+		for (const [i, name] of names.entries())
+			page.node.addAnnot(
+				doc.context.register(
+					doc.context.obj({
+						Type: "Annot",
+						Subtype: "Link",
+						Rect: [50, 700 - i * 30, 90, 710 - i * 30],
+						Dest:
+							name === "B48" ? PDFHexString.fromText(name) : PDFString.of(name),
+					}),
+				),
+			);
+		const maps = await buildPdfDestMaps(await doc.save());
+		expect(maps.citationLinks.map((l) => l.key)).toEqual(names.slice(0, 4));
+		expect(maps.crossrefLinks.map((l) => l.label)).toEqual([
+			{ kind: "figure", number: 1 },
+			{ kind: "figure", number: 13 },
+		]);
+		expect(maps.otherNamedLinks).toHaveLength(2);
+		// Author/year target suffixes identify entries, not printed numbers.
+		expect(citationRefNumber("ref31")).toBeNull();
+		expect(citationRefNumber("B48")).toBeNull();
+		expect(citationRefNumber("ell270574-bib-0018")).toBeNull();
+		expect(citationRefNumber("journal-bib-0048")).toBeNull();
+		expect(citationRefNumber("lBc24")).toBe(24);
+	});
+	it.each([
+		false,
+		true,
+	])("reads legacy catalog destinations (wrapped: %s) alongside a name tree", async (wrapped) => {
+		const { PDFDocument, PDFName, PDFString } = await import("pdf-lib");
+		const doc = await PDFDocument.create();
+		const page = doc.addPage([600, 800]),
+			ctx = doc.context;
+		const dest = ctx.obj([page.ref, PDFName.of("XYZ"), 72, 450, 0]);
+		doc.catalog.set(
+			PDFName.of("Dests"),
+			ctx.obj({
+				"cite.Old84": wrapped ? ctx.obj({ D: dest }) : dest,
+				"equation.1.2": ctx.obj([page.ref, PDFName.of("XYZ"), 100, 300, 0]),
+			}),
+		);
+		doc.catalog.set(
+			PDFName.of("Names"),
+			ctx.obj({
+				Dests: ctx.obj({
+					Names: ctx.obj([
+						PDFString.of("cite.New24"),
+						ctx.obj([page.ref, PDFName.of("XYZ"), 72, 200, 0]),
+					]),
+				}),
+			}),
+		);
+		page.node.addAnnot(
+			ctx.register(
+				ctx.obj({
+					Type: "Annot",
+					Subtype: "Link",
+					Rect: [20, 600, 50, 610],
+					Dest: PDFName.of("cite.Old84"),
+				}),
+			),
+		);
+		const maps = await buildPdfDestMaps(await doc.save());
+		expect(maps.cites.get("0:450.0")).toBe("Old84");
+		expect(maps.cites.get("0:200.0")).toBe("New24");
+		expect(maps.crossrefs.get("0:300.0")).toBe("equation");
+		expect(maps.citationLinks[0]?.key).toBe("Old84");
+	});
 	it("returns an empty map for a PDF without hyperref cite destinations", async () => {
 		// Minimal PDF with no /Names tree at all.
 		const { PDFDocument } = await import("pdf-lib");
@@ -930,4 +1092,13 @@ describe("crossref label extraction", () => {
 		expect(extractCrossrefLabel("see Section 1")).toBeNull();
 		expect(extractCrossrefLabel("hello world")).toBeNull();
 	});
+});
+
+it("recognizes Wiley display equation targets instead of treating them as figures", () => {
+	for (const n of [1, 2, 3]) {
+		const matches = defaultCrossrefNameParsers
+			.map((parse) => parse(`ell270574-disp-000${n}`))
+			.filter(Boolean);
+		expect(matches).toEqual([{ kind: "equation", number: n }]);
+	}
 });

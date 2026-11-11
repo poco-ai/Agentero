@@ -97,13 +97,22 @@ const CROSSREF_LABEL_PATTERNS: {
 	kind: CrossrefKind;
 	regex: RegExp;
 }[] = [
-	{ kind: "figure", regex: /\b(?:Figure|Fig\.?)\s*(\d+(?:[a-z])?)\b/i },
-	{ kind: "table", regex: /\b(?:Table|Tbl\.?)\s*(\d+(?:[a-z])?)\b/i },
+	{
+		kind: "figure",
+		regex: /(?:\b(?:Figures?|Figs?)\.?|[图圖])\s*(\d+(?:[a-z])?)\b/i,
+	},
+	{
+		kind: "table",
+		regex: /(?:\b(?:Tables?|Tbls?)\.?|表)\s*(\d+(?:[a-z])?|[ivxlcdm]+)\b/i,
+	},
 	{
 		kind: "equation",
-		regex: /\b(?:Equation|Eq\.?)\s*\(?(\d+(?:[a-z])?)\)?\b/i,
+		regex: /\b(?:Equations?|Eqs?)\.?\s*\(?(\d+(?:[a-z])?)\)?\b/i,
 	},
-	{ kind: "algorithm", regex: /\b(?:Algorithm|Alg\.?)\s*(\d+(?:[a-z])?)\b/i },
+	{
+		kind: "algorithm",
+		regex: /\b(?:Algorithms?|Algs?)\.?\s*(\d+(?:[a-z])?)\b/i,
+	},
 ];
 
 /**
@@ -116,29 +125,34 @@ export function extractCrossrefLabel(text: string): CrossrefLabel | null {
 		const match = regex.exec(text);
 		if (match) {
 			const raw = match[1];
-			const number = Number.parseInt(raw, 10);
+			let number = Number.parseInt(raw, 10);
+			if (
+				Number.isNaN(number) &&
+				/^(?=.)M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/i.test(
+					raw,
+				)
+			) {
+				const roman: Record<string, number> = {
+					I: 1,
+					V: 5,
+					X: 10,
+					L: 50,
+					C: 100,
+					D: 500,
+					M: 1000,
+				};
+				const values = [...raw.toUpperCase()].map((c) => roman[c]);
+				number = values.reduce(
+					(sum, value, i) =>
+						sum + (value < (values[i + 1] ?? 0) ? -value : value),
+					0,
+				);
+			}
 			if (Number.isNaN(number)) continue;
 			return { kind, number };
 		}
 	}
 	return null;
-}
-
-/** Title prefixes that identify a numbered float in the PDF text layer. */
-function labelTitlePrefixes(label: CrossrefLabel): string[] {
-	const { kind, number } = label;
-	switch (kind) {
-		case "figure":
-			return [`Figure ${number}`, `Fig. ${number}`, `Fig ${number}`];
-		case "table":
-			return [`Table ${number}`, `Tbl. ${number}`, `Tbl ${number}`];
-		case "equation":
-			return [`Equation ${number}`, `Eq. ${number}`, `Eq ${number}`];
-		case "algorithm":
-			return [`Algorithm ${number}`, `Alg. ${number}`, `Alg ${number}`];
-		case "reference":
-			return [];
-	}
 }
 
 /**
@@ -153,18 +167,23 @@ export function pickCrossrefRegionByLabel(
 	label: CrossrefLabel,
 ): PdfLayoutRegion | null {
 	const candidates = hoverableLayoutRegionsOnPage(regions, pageIndex).filter(
-		(region) => matchesCrossrefKind(label.kind, region.kind),
+		(region) => {
+			if (!matchesCrossrefKind(label.kind, region.kind)) return false;
+			const caption = extractCrossrefLabel(region.title ?? "");
+			return (
+				!caption ||
+				(caption.kind === label.kind && caption.number === label.number)
+			);
+		},
 	);
 	if (candidates.length === 0) return null;
 	if (candidates.length === 1) return candidates[0] ?? null;
 
-	const prefixes = labelTitlePrefixes(label);
-	for (const prefix of prefixes) {
-		const match = candidates.find((region) =>
-			region.title?.toLowerCase().startsWith(prefix.toLowerCase()),
-		);
-		if (match) return match;
-	}
+	const match = candidates.find((region) => {
+		const caption = extractCrossrefLabel(region.title ?? "");
+		return caption?.kind === label.kind && caption.number === label.number;
+	});
+	if (match) return match;
 
 	// Multiple candidates and no title match. Equations rarely carry caption
 	// titles, so order them top-to-bottom by normalized y and pick the N-th one.

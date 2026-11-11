@@ -177,7 +177,11 @@ export const PdfCardStack = memo(function PdfCardStack({
 					kind={crossrefPreview.state.kind}
 					page={crossrefPreview.state.page}
 					image={crossrefPreview.state.image}
+					referenceImages={crossrefPreview.state.referenceImages}
+					referenceEntries={crossrefPreview.state.referenceEntries}
+					missingReferences={crossrefPreview.state.missingReferences}
 					targetSize={crossrefPreview.state.targetSize}
+					focusPoint={crossrefPreview.state.focusPoint}
 					onPointerEnter={crossrefPreview.onHoverEnter}
 					onPointerLeave={crossrefPreview.onHoverLeave}
 				/>

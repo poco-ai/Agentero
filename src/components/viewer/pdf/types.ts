@@ -19,6 +19,7 @@ import type { CrossrefKind } from "@/lib/pdf/citation-dest-keys";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
+import type { BracketCitation } from "@/lib/pdf/link-text";
 import type { PdfNavigationTarget } from "@/lib/pdf/pending-pdf-page";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
 import type { PdfViewerHandle } from "@/lib/workspace/viewer/pdf-viewer-registry";
@@ -176,6 +177,13 @@ export type ScreenPoint = {
 	cursorX?: number;
 };
 
+/** Floating anchor plus the exact reference under the pointer. The original
+ * annotation remains intact for navigation and named-destination lookup. */
+export type PdfLinkHoverPoint = ScreenPoint & {
+	citation?: BracketCitation;
+	sourcePoint?: { x: number; y: number };
+};
+
 /** Screen anchor for a floating card, including which side to open on. */
 export type CardScreenPoint = ScreenPoint & {
 	preferRight?: boolean;
@@ -263,10 +271,21 @@ export type CrossrefPreviewState = {
 	page: number;
 	/** Normalized bbox of the resolved layout region on the destination page. */
 	region: PdfAskNormalizedRect;
-	/** Rendered region crop; null while in flight. */
+	/** Full target page for floats; a bibliography crop for references. */
 	image: PromptImage | null;
 	/** 1:1 on-screen display size in CSS pixels matching the document's zoom. */
 	targetSize?: { width: number; height: number };
+	/** Separate bibliography entry crops, ordered by reference number. */
+	referenceEntries?: number[];
+	missingReferences?: number[];
+	referenceImages?: {
+		id: string;
+		image: PromptImage;
+		width: number;
+		height: number;
+	}[];
+	/** Point within the rendered image to reveal initially (normalized top-left). */
+	focusPoint?: { x: number; y: number };
 };
 
 export type VisualDraftEditorState = {

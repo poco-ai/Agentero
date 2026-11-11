@@ -23,6 +23,67 @@ function region(
 }
 
 describe("pickCrossrefRegionByLabel", () => {
+	it("does not focus a differently numbered figure when the source link names a stale page", () => {
+		expect(
+			pickCrossrefRegionByLabel(
+				[
+					region(
+						19,
+						"image",
+						{ x: 0.1, y: 0.1, w: 0.7, h: 0.3 },
+						"Fig 11. caption",
+					),
+				],
+				19,
+				requireLabel("Fig 13"),
+			),
+		).toBeNull();
+	});
+	it("recognizes Chinese labels embedded directly in prose", () => {
+		expect(extractCrossrefLabel("如图1(a)所示")).toEqual({
+			kind: "figure",
+			number: 1,
+		});
+		expect(extractCrossrefLabel("见表 2")).toEqual({
+			kind: "table",
+			number: 2,
+		});
+	});
+	it("resolves plural figure references and Roman table numbers without matching prose words", () => {
+		expect(extractCrossrefLabel("Figs. 6(a)")).toEqual({
+			kind: "figure",
+			number: 6,
+		});
+		expect(extractCrossrefLabel("Table XIV")).toEqual({
+			kind: "table",
+			number: 14,
+		});
+		expect(extractCrossrefLabel("Table INVALID")).toBeNull();
+		expect(
+			pickCrossrefRegionByLabel(
+				[
+					region(0, "table", { x: 0, y: 0, w: 1, h: 0.4 }, "TABLE I. First"),
+					region(
+						0,
+						"table",
+						{ x: 0, y: 0.5, w: 1, h: 0.4 },
+						"TABLE II. Second",
+					),
+				],
+				0,
+				requireLabel("Table II"),
+			)?.title,
+		).toBe("TABLE II. Second");
+	});
+	it("does not mistake Figure 10 for Figure 1 on the same page", () => {
+		const regions = [
+			region(0, "image", { x: 0, y: 0, w: 1, h: 0.4 }, "Figure 10. caption"),
+			region(0, "image", { x: 0, y: 0.5, w: 1, h: 0.4 }, "Fig. 1. caption"),
+		];
+		expect(
+			pickCrossrefRegionByLabel(regions, 0, requireLabel("Figure 1"))?.title,
+		).toBe("Fig. 1. caption");
+	});
 	it("matches a figure by caption title", () => {
 		const regions = [
 			region(0, "image", { x: 0, y: 0, w: 1, h: 0.4 }, "Figure 1. caption"),
@@ -73,4 +134,14 @@ describe("pickCrossrefRegionByLabel", () => {
 		// Top-to-bottom: eq1 at y=0.5, eq2 at y=0.6, eq3 at y=0.7.
 		expect(matched?.bbox.y).toBe(0.6);
 	});
+});
+
+it("accepts full cross-reference nouns with publisher punctuation", () => {
+	for (const [text, kind] of [
+		["Table. 1", "table"],
+		["Equation. (1)", "equation"],
+		["Figure. 1", "figure"],
+	]) {
+		expect(extractCrossrefLabel(text)).toEqual({ kind, number: 1 });
+	}
 });

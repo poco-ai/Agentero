@@ -22,10 +22,9 @@
  * conventions so adding a new publisher is a matter of adding a small parser,
  * not changing the core walk.
  *
- * Measured over 31 real papers / 3703 in-text citation links: 95% resolved, 0
- * wrong. Coordinates shared by several citation keys are dropped rather than
- * guessed; colliding crossrefs fall back to the link-rect index (then link
- * text) instead of showing a wrong float.
+ * Coordinates shared by several citation keys are dropped from the coordinate
+ * index. Individual named targets remain available for multi-entry crops;
+ * colliding crossrefs fall back to the link-rect index, then link text.
  */
 
 import {
@@ -146,9 +145,9 @@ export function isOtherNamedLink(
 }
 
 /**
- * Candidate sidecar ids / rawKeys for a PDF destination name. Hyperref
+ * Candidate explicit sidecar rawKeys for a PDF destination name. Hyperref
  * `cite.<key>` passes through; ACS `mk:refN` and Springer `ch<N>CR<N>` / `CR<N>`
- * also try `ref-N` / `refN` / `N` (S2 / crossref parses use `id: "ref-N"`).
+ * also try `ref-N` / `refN` / `N`. Generated ids are not numbering evidence.
  */
 export function citationSidecarKeysForDest(destKey: string): string[] {
 	const keys = [destKey];
@@ -172,6 +171,10 @@ export function citationSidecarKeysForDest(destKey: string): string[] {
 
 /** Parse the numeric bibliography index from an ACS `mk:refN`, Springer `ch<N>CR<N>`, or ACM `Bib0001` key. */
 export function citationRefNumber(destKey: string): number | null {
+	// Wiley -bib-N is an internal ID in both numeric and author-year papers.
+	// Printed numbering must come from the citation text, not that suffix.
+	const publisher = /^lBc(\d+)$/i.exec(destKey);
+	if (publisher) return Number.parseInt(publisher[1], 10);
 	const mk = /^mk:ref(\d+)$/i.exec(destKey);
 	if (mk) {
 		const n = Number.parseInt(mk[1] ?? "", 10);
@@ -377,10 +380,18 @@ export type CitationLinkKey = {
 /** All citation link annotations found while walking the PDF. */
 export type CitationLinkKeyList = readonly CitationLinkKey[];
 
+export type CitationDestination = {
+	pageIndex: number;
+	pdfX: number | null;
+	pdfY: number;
+};
+
 /** Both destination indexes parsed from one PDF in a single object-tree walk. */
 export type PdfDestMaps = {
 	/** In-text citation destinations. */
 	cites: CitationDestKeyMap;
+	/** All citation targets by native key, including colliding coordinates. */
+	citationTargets?: ReadonlyMap<string, CitationDestination>;
 	/**
 	 * Best unambiguous cross-reference kind at each coordinate. Coordinates
 	 * shared by different kinds are omitted; callers can fall back to
@@ -593,6 +604,31 @@ export const defaultCrossrefNameParsers: CrossrefNameParser[] = [
 	hyperrefCrossrefParser,
 	acsCrossrefParser,
 	springerCrossrefParser,
+	(name) => {
+		const match = /^[\w.-]+-(disp|fig|tbl)-0*(\d+)$/i.exec(name);
+		return match
+			? {
+					kind:
+						match[1].toLowerCase() === "disp"
+							? "equation"
+							: match[1].toLowerCase() === "fig"
+								? "figure"
+								: "table",
+					number: Number.parseInt(match[2], 10),
+				}
+			: null;
+	},
+	(name) => {
+		// PLOS preserves figure/table identities even when the source caption
+		// text is split into glyph runs or the native anchor is imprecise.
+		const match = /^[LR]p[a-z]+\.\d+\.([gt])(\d+)$/i.exec(name);
+		return match
+			? {
+					kind: match[1].toLowerCase() === "g" ? "figure" : "table",
+					number: Number.parseInt(match[2], 10),
+				}
+			: null;
+	},
 ];
 
 /** Standard hyperref citation name: `cite.<bibtexKey>`. */
@@ -626,6 +662,14 @@ export const defaultCitationNameParsers: CitationNameParser[] = [
 	hyperrefCitationParser,
 	acsCitationParser,
 	springerCitationParser,
+	// Cambridge / Frontiers author-year keys are identities, not printed
+	// bibliography numbers. Keep the key for grouping linked author/year runs.
+	(name) =>
+		/^(?:ref\d+|B\d+|[A-Za-z][\w.-]*-bib-\d+|lBc\d+)$/.test(name) ? name : null,
+	// InDesign retains its document prefix and object suffix, sometimes with
+	// encoded colons. Preserve the complete identity for the annotation lookup.
+	(name) =>
+		/(?:^|:|%3[aA])[\w.-]+-bib-\d+(?::|%3[aA])\d+$/.test(name) ? name : null,
 ];
 
 // ---- Pluggable destination-coordinate resolvers ----
@@ -715,7 +759,7 @@ function collectNameTree(
 				const inner = context.lookup(value.get(PDFName.of("D")));
 				if (inner instanceof PDFArray) dest = inner;
 			}
-			if (dest) out.set(rawName.asString(), dest);
+			if (dest) out.set(rawName.decodeText(), dest);
 		}
 	}
 
@@ -785,7 +829,7 @@ function linkAnnotationDestName(
 ): string | null {
 	const asName = (value: unknown): string | null => {
 		if (value instanceof PDFString || value instanceof PDFHexString) {
-			return value.asString();
+			return value.decodeText();
 		}
 		if (value instanceof PDFName) {
 			// asString keeps the leading `/` (PDF name syntax); strip it.
@@ -821,10 +865,10 @@ function pdfAnnotRectToDevice(
 	originX = 0,
 	originY = 0,
 ): { x: number; y: number; w: number; h: number } {
-	const left = llx;
-	const top = ury;
-	const right = urx;
-	const bottom = lly;
+	const left = Math.min(llx, urx);
+	const top = Math.max(lly, ury);
+	const right = Math.max(llx, urx);
+	const bottom = Math.min(lly, ury);
 	return {
 		x: left - originX,
 		y: pageHeight - (top - originY),
@@ -843,6 +887,7 @@ export async function buildPdfDestMaps(
 ): Promise<PdfDestMaps> {
 	const empty: PdfDestMaps = {
 		cites: new Map(),
+		citationTargets: new Map(),
 		crossrefs: new Map(),
 		crossrefKinds: new Map(),
 		crossrefLabels: new Map(),
@@ -854,18 +899,30 @@ export async function buildPdfDestMaps(
 	const doc = await PDFDocument.load(bytes, { updateMetadata: false });
 	const context = doc.context;
 
-	const names = context.lookup(doc.catalog.get(PDFName.of("Names")));
-	if (!(names instanceof PDFDict)) return empty;
-	const dests = context.lookup(names.get(PDFName.of("Dests")));
-	if (!(dests instanceof PDFDict)) return empty;
-
 	const namedDests = new Map<string, PDFArray>();
-	collectNameTree(context, dests, namedDests);
+	// PDF 1.1 stores destinations directly in the catalog /Dests dictionary;
+	// newer producers use /Names /Dests. Both may coexist in an updated file.
+	const legacy = context.lookup(doc.catalog.get(PDFName.of("Dests")));
+	if (legacy instanceof PDFDict)
+		for (const [name, ref] of legacy.entries()) {
+			const value = context.lookup(ref);
+			const dest =
+				value instanceof PDFDict
+					? context.lookup(value.get(PDFName.of("D")))
+					: value;
+			if (dest instanceof PDFArray) namedDests.set(name.decodeText(), dest);
+		}
+	const names = context.lookup(doc.catalog.get(PDFName.of("Names")));
+	if (names instanceof PDFDict) {
+		const dests = context.lookup(names.get(PDFName.of("Dests")));
+		if (dests instanceof PDFDict) collectNameTree(context, dests, namedDests);
+	}
 	if (!namedDests.size) return empty;
 
 	const pages = doc.getPages();
 	const pageRefs = pages.map((page) => page.ref.toString());
 	const citeByCoord = new Map<string, string | null>();
+	const citationTargets = new Map<string, CitationDestination>();
 	const crossByCoord = new Map<string, CrossrefKind | null>();
 	const crossKindsByCoord = new Map<string, CrossrefKind[]>();
 	const crossLabelsByCoord = new Map<string, CrossrefDestLabel[]>();
@@ -926,7 +983,21 @@ export async function buildPdfDestMaps(
 		const citationKey = parseCitationKey(name);
 		if (citationKey) {
 			const coord = destCoordKey(dest, context, pageRefs, coordResolvers);
-			if (coord) stash(citeByCoord, coord, citationKey);
+			if (coord) {
+				stash(citeByCoord, coord, citationKey);
+				const [pageIndex, pdfY] = coord.split(":").map(Number);
+				const mode = context.lookup(dest.asArray()[1]);
+				// FitH's third item is a top coordinate, not a left coordinate.
+				const x =
+					mode instanceof PDFName && ["/XYZ", "/FitR"].includes(mode.toString())
+						? context.lookup(dest.asArray()[2])
+						: null;
+				citationTargets.set(citationKey, {
+					pageIndex,
+					pdfY,
+					pdfX: x instanceof PDFNumber ? x.asNumber() : null,
+				});
+			}
 			continue;
 		}
 
@@ -1021,6 +1092,7 @@ export async function buildPdfDestMaps(
 
 	return {
 		cites: resolveUnambiguous(citeByCoord),
+		citationTargets,
 		crossrefs: resolveUnambiguous(crossByCoord),
 		crossrefKinds: crossKindsByCoord,
 		crossrefLabels: crossLabelsByCoord,

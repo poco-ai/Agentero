@@ -7,8 +7,9 @@
  * 1. Unambiguous dest coordinate → key (hyperref `cite.<bibtexKey>` /XYZ).
  * 2. Link annotation rect → dest key (`mk:ref12`) when ACS `/FitR`
  *    bibliography entries collide on one page.
- * 3. Key → sidecar via `rawKey`, or ACS `mk:refN` → `id: "ref-N"`.
- * Links that cannot be resolved show nothing.
+ * 3. Key → sidecar via explicit `rawKey`; generated online-list ids cannot
+ *    establish PDF numbering. The shared resolver supplies the complete group.
+ * Missing metadata leaves the PDF-entry crop resolver in control.
  *
  * Its own hook because the preview is a self-contained hover state machine —
  * a short hide delay lets the pointer travel from the link into the card.
@@ -56,7 +57,6 @@ import {
 	citationRefNumber,
 	citationSidecarKeysForDest,
 	destinationInPageBox,
-	expandCitationLinkCluster,
 	matchCitationLinkKey,
 	type PageOrigin,
 } from "@/lib/pdf/citation-dest-keys";
@@ -130,9 +130,8 @@ export type PdfCitations = {
 	handleCitationLinkHover: (
 		link: PdfLinkAnnoObject | null,
 		clientPoint?: ScreenPoint | null,
-	) => void;
-	/** True when this link resolves to at least one known citation in the sidecar. */
-	hasCitationMatch: (link: PdfLinkAnnoObject) => boolean;
+		keys?: string[],
+	) => boolean;
 	/** Library-import surface for the hover card; null when not a vault paper. */
 	citationImport: {
 		folders: string[];
@@ -145,8 +144,8 @@ export type PdfCitations = {
 };
 
 /**
- * Match a PDF destination key to a sidecar citation. Hyperref keys hit
- * `rawKey`; ACS `mk:refN` hits sidecar `id: "ref-N"` (no rawKey on S2 parses).
+ * Match native PDF keys only to explicit sidecar rawKeys. Online S2/Crossref
+ * result order is not the PDF bibliography order; generated ids cannot match.
  */
 function findCitationByDestKey(
 	destKey: string,
@@ -155,16 +154,17 @@ function findCitationByDestKey(
 	const candidates = new Set(citationSidecarKeysForDest(destKey));
 	return citations.find(
 		(citation) =>
-			(citation.rawKey != null && candidates.has(citation.rawKey)) ||
-			candidates.has(citation.id),
+			Boolean(citation.metadata?.title?.trim() || citation.raw?.trim()) &&
+			citation.rawKey != null &&
+			candidates.has(citation.rawKey),
 	);
 }
 
 /**
  * Which reference(s) a citation link points at. Prefers unambiguous dest-coord
  * keys (hyperref `/XYZ`); falls back to the link-annotation dest name when ACS
- * `/FitR` bibliography entries collide. Nearby ACS superscripts are clustered
- * so `14-18` expands to refs 14…18 (comma-separated neighbours stay separate).
+ * `/FitR` bibliography entries collide. The shared source-text resolver
+ * supplies all keys of a citation group before this synchronous lookup.
  * Returns an empty list when nothing resolves, so the card does not appear.
  */
 function resolveCitations(
@@ -172,43 +172,20 @@ function resolveCitations(
 	destKeys: CitationDestKeyMap | null,
 	citationLinks: CitationLinkKeyList | null,
 	citations: Citation[],
+	keys?: string[],
 ): Citation[] {
 	const destination = getLinkDestination(link.target);
-	if (destination) {
-		const byCoord = destKeys?.get(
-			citationDestKey(destination.pageIndex, destination.pdfY),
-		);
-		if (byCoord) {
-			const matched = findCitationByDestKey(byCoord, citations);
-			if (matched) return [matched];
-		}
-	}
-
-	const clusterKeys = expandCitationLinkCluster(
-		citationLinks,
-		link.pageIndex,
-		link.rect,
-	);
-	if (clusterKeys.length === 0) {
-		const byLink = matchCitationLinkKey(
-			citationLinks,
-			link.pageIndex,
-			link.rect,
-		);
-		if (!byLink) return [];
-		const matched = findCitationByDestKey(byLink, citations);
-		return matched ? [matched] : [];
-	}
-
-	const out: Citation[] = [];
-	const seen = new Set<string>();
-	for (const key of clusterKeys) {
-		const matched = findCitationByDestKey(key, citations);
-		if (!matched || seen.has(matched.id)) continue;
-		seen.add(matched.id);
-		out.push(matched);
-	}
-	return out;
+	const key =
+		matchCitationLinkKey(citationLinks, link.pageIndex, link.rect) ??
+		(destination
+			? destKeys?.get(citationDestKey(destination.pageIndex, destination.pdfY))
+			: null);
+	const requested = keys ?? (key ? [key] : []);
+	const matched = requested.map((key) => findCitationByDestKey(key, citations));
+	// A partial sidecar must not suppress complete PDF entry crops.
+	return matched.length && matched.every((c): c is Citation => c != null)
+		? [...new Map(matched.map((c) => [c.id, c])).values()]
+		: [];
 }
 
 /** Build a minimal read-only Citation from a PDF destination key. */
@@ -437,37 +414,45 @@ export function usePdfCitations({
 	);
 
 	const handleCitationLinkHover = useCallback(
-		(link: PdfLinkAnnoObject | null, clientPoint?: ScreenPoint | null) => {
+		(
+			link: PdfLinkAnnoObject | null,
+			clientPoint?: ScreenPoint | null,
+			keys?: string[],
+		) => {
 			if (!link) {
 				// Delay so the pointer can bridge into the card (import menu,
 				// external links, scrolling a multi-entry list).
 				scheduleCitationHide();
-				return;
+				return false;
 			}
 			const matched = resolveCitations(
 				link,
 				destKeyMapRef.current,
 				citationLinksRef.current,
 				citationsRef.current,
+				keys,
 			);
 			if (matched.length === 0) {
 				scheduleCitationHide();
-				return;
+				return false;
 			}
 			cancelCitationHide();
 			// Treat show as an active hover surface so a mount-under-cursor
 			// (which skips pointerenter) does not auto-close.
 			citationHoverSurfaceRef.current = true;
 			const pageEl = pageElByIndex(hostRef.current, link.pageIndex);
-			if (!pageEl) return;
+			if (!clientPoint && !pageEl) return false;
 			onPreviewShowRef.current?.();
 			const zoom = zoomRef.current && zoomRef.current > 0 ? zoomRef.current : 1;
 			const screen =
-				clientPoint ?? rectBottomCenterScreen(pageEl, link.rect, zoom);
+				clientPoint ??
+				(pageEl ? rectBottomCenterScreen(pageEl, link.rect, zoom) : null);
+			if (!screen) return false;
 			setCitationPreview({
 				screen,
 				matched,
 			});
+			return true;
 		},
 		[
 			scheduleCitationHide,
@@ -476,17 +461,6 @@ export function usePdfCitations({
 			zoomRef,
 			citationHoverSurfaceRef,
 		],
-	);
-
-	const hasCitationMatch = useCallback(
-		(link: PdfLinkAnnoObject) =>
-			resolveCitations(
-				link,
-				destKeyMapRef.current,
-				citationLinksRef.current,
-				citationsRef.current,
-			).length > 0,
-		[],
 	);
 
 	// Clean up the citation preview hide timer when the document changes or unmounts.
@@ -506,7 +480,6 @@ export function usePdfCitations({
 		clearCitationPreview,
 		handleCitationLinkActivate,
 		handleCitationLinkHover,
-		hasCitationMatch,
 		citationImport,
 		pageOrigins,
 	};

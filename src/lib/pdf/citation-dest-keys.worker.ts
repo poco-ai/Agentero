@@ -14,6 +14,7 @@
 import { errorText } from "@/lib/core/error";
 import {
 	buildPdfDestMaps,
+	type CitationDestination,
 	type CitationLinkKey,
 	type CrossrefDestLabel,
 	type CrossrefKind,
@@ -33,6 +34,7 @@ export type CitationDestKeysResponse =
 			id: number;
 			ok: true;
 			cites: [string, string][];
+			citationTargets: [string, CitationDestination][];
 			crossrefs: [string, CrossrefKind][];
 			crossrefKinds: [string, CrossrefKind[]][];
 			crossrefLabels: [string, CrossrefDestLabel[]][];
@@ -57,6 +59,7 @@ scope.onmessage = (event) => {
 				id,
 				ok: true,
 				cites: [...maps.cites.entries()],
+				citationTargets: [...(maps.citationTargets ?? new Map()).entries()],
 				crossrefs: [...maps.crossrefs.entries()],
 				crossrefKinds: [...maps.crossrefKinds.entries()],
 				crossrefLabels: [...maps.crossrefLabels.entries()],

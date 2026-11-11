@@ -6,6 +6,8 @@ import { ReflowPageOverlay } from "./reflow-page-overlay";
  */
 
 import { Fragment, memo, useLayoutEffect, useMemo, useRef } from "react";
+import { textLinkHoverPoint } from "@/components/viewer/pdf/link-hover";
+import type { PdfLinkHoverPoint } from "@/components/viewer/pdf/types";
 import { cn } from "@/lib/core/utils";
 import { highlightFill } from "@/lib/pdf/highlight/palette";
 import {
@@ -42,9 +44,10 @@ import {
 	linkPreviewDragActive,
 } from "@/lib/pdf/link-preview-drag";
 import {
-	PDF_PAGE_RASTER_DARK_CLASS,
+	isDarkPdfPaper,
 	PDF_PAPER_BLOCK_CLASS,
 	type PdfPaperTone,
+	pdfPaperRasterClass,
 } from "@/lib/pdf/page-theme";
 
 type LayoutTranslateOverlayProps = {
@@ -85,7 +88,7 @@ type LayoutTranslateOverlayProps = {
 	onOpenLink?: (assignment: PreservedLinkAssignment) => void;
 	onHoverLink?: (
 		assignment: PreservedLinkAssignment | null,
-		point: { x: number; y: number; top: number; bottom: number } | null,
+		point: PdfLinkHoverPoint | null,
 	) => void;
 };
 
@@ -514,16 +517,6 @@ function linkInkStyle(
 	return { color: linkColorOnPaper(color, tone) };
 }
 
-function linkPoint(element: HTMLElement) {
-	const box = element.getBoundingClientRect();
-	return {
-		x: box.left + box.width / 2,
-		y: box.bottom,
-		top: box.top,
-		bottom: box.bottom,
-	};
-}
-
 /**
  * Render `text`, wrapping preserved link tokens. Anchors stay non-draggable:
  * the browser default drag on `<a href>` replaces the text range when a drag
@@ -592,7 +585,17 @@ function LinkifiedText({
 				}}
 				onPointerEnter={(event) => {
 					if (linkHoverSuppressed(event.buttons)) return;
-					onHoverLink?.(part.assignment, linkPoint(event.currentTarget));
+					onHoverLink?.(
+						part.assignment,
+						textLinkHoverPoint(event.currentTarget, event),
+					);
+				}}
+				onPointerMove={(event) => {
+					if (!linkHoverSuppressed(event.buttons))
+						onHoverLink?.(
+							part.assignment,
+							textLinkHoverPoint(event.currentTarget, event),
+						);
 				}}
 				onPointerLeave={() => {
 					if (linkPreviewDragActive()) return;
@@ -896,7 +899,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 								className={cn(
 									"absolute inset-0",
 									PDF_PAPER_BLOCK_CLASS[tone],
-									tone === "dark" && PDF_PAGE_RASTER_DARK_CLASS,
+									pdfPaperRasterClass(tone),
 								)}
 							/>
 						</div>
@@ -910,7 +913,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							<div
 								className={cn(
 									"h-full w-full",
-									tone === "dark" ? "text-zinc-100" : "text-zinc-900",
+									isDarkPdfPaper(tone) ? "text-zinc-100" : "text-zinc-900",
 								)}
 								style={{
 									fontSize,

@@ -35,6 +35,8 @@ export type PreviewPlacementParams = {
 	gap?: number;
 	viewportPadding?: number;
 	arrowMargin?: number;
+	/** Override the default cap for scrollable page previews. */
+	maxContentHeight?: number;
 };
 
 export type PreviewPlacementResult = {
@@ -56,6 +58,7 @@ export function computePreviewPlacement({
 	gap = PREVIEW_GAP,
 	viewportPadding = PREVIEW_VIEWPORT_PADDING,
 	arrowMargin = PREVIEW_ARROW_MARGIN,
+	maxContentHeight: contentHeightLimit = PREVIEW_MAX_CONTENT_HEIGHT,
 }: PreviewPlacementParams): PreviewPlacementResult {
 	// Center horizontally relative to the triggering link, clamped within viewport bounds
 	const rawLeft = screen.x - cardWidth / 2;
@@ -81,7 +84,7 @@ export function computePreviewPlacement({
 	const maxContentHeight = Math.max(
 		PREVIEW_MIN_CONTENT_HEIGHT,
 		Math.min(
-			PREVIEW_MAX_CONTENT_HEIGHT,
+			contentHeightLimit,
 			(placement === "bottom" ? spaceBelow : spaceAbove) -
 				gap -
 				cardChromeHeight,
