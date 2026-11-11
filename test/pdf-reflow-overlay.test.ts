@@ -15,6 +15,7 @@ import {
 	usePdfTranslationSelection,
 } from "@/components/viewer/pdf/hooks/use-pdf-translation-selection";
 import { LayoutTranslateOverlay } from "@/components/viewer/pdf/layers/layout-translate-overlay";
+import { ReflowPageOverlay } from "@/components/viewer/pdf/layers/reflow-page-overlay";
 import type { SelectionMenuState } from "@/components/viewer/pdf/types";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
@@ -79,6 +80,94 @@ it("renders PDF previews even when no legacy DOM paragraphs remain", () => {
 	expect(html).toContain('data-layout-item="p"');
 	expect(html).toContain('data-reflow-selection="true"');
 	expect(html).toContain("译文");
+});
+
+it.each([
+	"",
+	"⟪S0⟫𝑥⟪/S0⟫ ",
+])("gives each number inside one protected formula its own rectangle after prefix %s", (prefix) => {
+	const formula = {
+		id: "0",
+		text: "[48,49]",
+		box: { x: 100, y: 100, w: 35, h: 10 },
+		baselineOffset: 0,
+		characterIndexes: [],
+	};
+	const reflow = paragraphFromCharacters(
+		"p",
+		0,
+		{ x: 0, y: 0, w: 600, h: 800 },
+		[],
+		[],
+		false,
+	);
+	const html = renderToStaticMarkup(
+		createElement(ReflowPageOverlay, {
+			items: [
+				{
+					id: "p",
+					pageIndex: 0,
+					kind: "text",
+					readingOrder: 0,
+					bbox: { x: 0, y: 0, w: 1, h: 1 },
+					source: "⟪F0⟫",
+					raw: formula.text,
+					translated: `${prefix}⟪F0⟫`,
+					status: "done",
+					reflow,
+					reflowLayout: {
+						id: "p",
+						pageIndex: 0,
+						sourceBox: reflow.box,
+						box: reflow.box,
+						scale: 1,
+						fits: true,
+						units: [
+							{
+								text: formula.text,
+								translatedOffset: prefix.length,
+								formula,
+								x: 100,
+								y: 110,
+								width: 35,
+								height: 10,
+								font: "regular",
+								fontSize: 10,
+								color: { r: 0, g: 0, b: 0 },
+							},
+						],
+					},
+				},
+			],
+			links: [
+				{
+					key: "cite48",
+					kind: "goto",
+					box: { x: 0.175, y: 0.125, w: 0.017, h: 0.013 },
+				},
+				{
+					key: "cite49",
+					kind: "goto",
+					box: { x: 0.2, y: 0.125, w: 0.017, h: 0.013 },
+				},
+			],
+			glyphRuns: [
+				{
+					text: formula.text,
+					box: { x: 1 / 6, y: 0.125, w: 35 / 600, h: 10 / 800 },
+				},
+			],
+			preview: "blob:preview",
+			pageIndex: 0,
+			zoom: 2,
+			width: 1200,
+			height: 1600,
+		}),
+	);
+	expect(html).toContain('data-translated-link="cite48"');
+	expect(html).toContain('data-translated-link="cite49"');
+	expect(html).toContain('aria-label="48"');
+	expect(html).toContain('aria-label="49"');
 });
 
 it("writes continuous source line highlights for the selected reflow sentences", async () => {

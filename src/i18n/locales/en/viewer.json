@@ -37,6 +37,55 @@
 		"exportAnnotatedPdfFailed": "Failed to export annotated PDF",
 		"exportAnnotatedPdfSaved": "Annotated PDF saved",
 		"exportDesktopOnly": "Export is only available in the desktop app",
+		"reading": {
+			"title": "Reading mode",
+			"reset": "Restore reading defaults",
+			"lineHeight": "Line height",
+			"wordSpacing": "Word spacing",
+			"characterSpacing": "Character spacing",
+			"pageWidth": "Page width",
+			"scroll": {
+				"label": "Scroll",
+				"vertical": "Vertical scrolling",
+				"horizontal": "Horizontal scrolling",
+				"paginated": "Page by page"
+			},
+			"spread": {
+				"label": "Page layout",
+				"none": "Single page",
+				"odd": "Two pages from page 1",
+				"even": "Two pages with separate cover"
+			},
+			"split": "Split view",
+			"pdfLayout": {
+				"single": "Single PDF",
+				"side-by-side": "Original and translation side by side",
+				"top-bottom": "Original and translation stacked"
+			},
+			"layout": {
+				"single": "Reader only",
+				"side-by-side": "Source and reader side by side",
+				"top-bottom": "Source above reader"
+			},
+			"theme": "Theme",
+			"themes": {
+				"original": "Original",
+				"dark": "Dark",
+				"black": "Black",
+				"snow": "Snow",
+				"sepia": "Sepia",
+				"custom": "Custom"
+			},
+			"foreground": "Text color",
+			"background": "Background",
+			"unavailable": "Import this PDF into the local library to use reading mode.",
+			"preparing": "Preparing reading view…",
+			"failed": "Could not prepare reading view",
+			"retry": "Retry",
+			"empty": "No readable content was found.",
+			"imageFailed": "Could not load source image",
+			"showSource": "Show source on page {{page}}"
+		},
 		"layout": {
 			"unavailable": "Layout analysis is not ready yet.",
 			"preparingModel": "Preparing layout model…",
@@ -46,6 +95,9 @@
 		"layoutTranslate": {
 			"start": "Full-text translate",
 			"stop": "Stop full-text translate",
+			"clear": "Clear full-text translations",
+			"showOriginal": "Show original",
+			"showTranslation": "Show translation",
 			"hide": "Hide translations",
 			"show": "Show translations",
 			"translatePage": "Translate this page",
@@ -203,8 +255,8 @@
 		"kindTable": "Table",
 		"kindEquation": "Equation",
 		"kindAlgorithm": "Algorithm",
-		"kindReference": "Reference",
-		"missingReferences": "Could not locate references {{numbers}}. Check the original PDF."
+		"missingReferences": "Could not locate references {{numbers}}. Check the original PDF.",
+		"kindReference": "Reference"
 	},
 	"figures": {
 		"title": "Analysis",
@@ -272,6 +324,7 @@
 		"chatActions": "Chat actions",
 		"quickChat": "Quick chat",
 		"addToChat": "Add to chat",
+		"chatCommentPlaceholder": "Add an optional comment…",
 		"translate": "Translate",
 		"removeHighlight": "Remove highlight",
 		"highlightMenuLabel": "Highlight actions",

@@ -37,6 +37,55 @@
 		"exportAnnotatedPdfFailed": "导出带批注的 PDF 失败",
 		"exportAnnotatedPdfSaved": "已导出带批注的 PDF",
 		"exportDesktopOnly": "导出功能仅在桌面端可用",
+		"reading": {
+			"title": "阅读模式",
+			"reset": "恢复默认阅读样式",
+			"lineHeight": "行高",
+			"wordSpacing": "字间距",
+			"characterSpacing": "字符间距",
+			"pageWidth": "页宽",
+			"scroll": {
+				"label": "滚动",
+				"vertical": "纵向滚动",
+				"horizontal": "横向滚动",
+				"paginated": "逐页翻页"
+			},
+			"spread": {
+				"label": "平铺",
+				"none": "单页",
+				"odd": "从第1页起双页",
+				"even": "封面单独，后续双页"
+			},
+			"split": "拆分视图",
+			"pdfLayout": {
+				"single": "单栏 PDF",
+				"side-by-side": "原文与译文左右对照",
+				"top-bottom": "原文与译文上下对照"
+			},
+			"layout": {
+				"single": "仅阅读视图",
+				"side-by-side": "原文与阅读视图左右对照",
+				"top-bottom": "原文与阅读视图上下对照"
+			},
+			"theme": "主题",
+			"themes": {
+				"original": "原始",
+				"dark": "深色",
+				"black": "黑色",
+				"snow": "雪色",
+				"sepia": "棕褐",
+				"custom": "自定义"
+			},
+			"foreground": "文字颜色",
+			"background": "背景颜色",
+			"unavailable": "将此 PDF 导入本地论文库后即可使用阅读模式。",
+			"preparing": "正在准备阅读视图…",
+			"failed": "无法准备阅读视图",
+			"retry": "重试",
+			"empty": "未找到可阅读的内容。",
+			"imageFailed": "无法加载原文图片",
+			"showSource": "查看第 {{page}} 页原文"
+		},
 		"layout": {
 			"unavailable": "版面分析尚未就绪。",
 			"preparingModel": "正在准备版面模型…",
@@ -46,6 +95,9 @@
 		"layoutTranslate": {
 			"start": "全文翻译",
 			"stop": "停止全文翻译",
+			"showOriginal": "显示原文",
+			"showTranslation": "显示翻译",
+			"clear": "清除全文译文",
 			"hide": "隐藏译文",
 			"show": "查看译文",
 			"translatePage": "翻译本页",
@@ -203,8 +255,8 @@
 		"kindTable": "表",
 		"kindEquation": "公式",
 		"kindAlgorithm": "算法",
-		"kindReference": "参考文献",
-		"missingReferences": "未定位到参考文献 {{numbers}}，请查看原文。"
+		"missingReferences": "未定位到参考文献 {{numbers}}，请查看原文。",
+		"kindReference": "参考文献"
 	},
 	"figures": {
 		"title": "解析",
@@ -272,6 +324,7 @@
 		"chatActions": "对话操作",
 		"quickChat": "快速对话",
 		"addToChat": "加入对话",
+		"chatCommentPlaceholder": "添加批注（可选）…",
 		"translate": "翻译",
 		"removeHighlight": "删除高亮",
 		"highlightMenuLabel": "高亮操作",

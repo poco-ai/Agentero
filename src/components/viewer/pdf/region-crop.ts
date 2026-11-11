@@ -6,6 +6,7 @@ import type {
 
 import type { PromptImage } from "@/lib/agent";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
+import { glyphMaskBlob } from "@/lib/pdf/reading/glyph-mask";
 import { normalizedRegionToPdfRect } from "@/lib/pdf/region";
 
 const MAX_CROP_EDGE_PX = 1600;
@@ -36,13 +37,14 @@ function cropScaleFactor(
 	return Math.max(0.25, Math.min(2, maxEdgePx / longestEdge));
 }
 
-export async function renderPdfRegionPromptImage({
+export async function renderPdfRegionImageBlob({
 	engine,
 	document,
 	pageIndex,
 	region,
 	maxEdgePx = MAX_CROP_EDGE_PX,
 	scaleFactor,
+	transparentBackground,
 }: {
 	engine: PdfEngine;
 	document: PdfDocumentObject;
@@ -55,7 +57,9 @@ export async function renderPdfRegionPromptImage({
 	 * Still capped so the longest edge stays within `maxEdgePx`.
 	 */
 	scaleFactor?: number;
-}): Promise<PromptImage> {
+	/** Remove paper after compositing for inline mathematical glyph masks. */
+	transparentBackground?: boolean;
+}): Promise<Blob> {
 	const page = document.pages[pageIndex];
 	if (!page) throw new Error("PDF page is unavailable");
 	const rect = normalizedRegionToPdfRect(region, page.size);
@@ -80,7 +84,15 @@ export async function renderPdfRegionPromptImage({
 			imageType: "image/png",
 			withAnnotations: false,
 			withForms: false,
+			// Some PDFs lose dark glyphs on a transparent
+			// PDFium surface. Composite normally, then remove paper below.
 		})
 		.toPromise();
-	return blobToPromptImage(blob);
+	return transparentBackground ? glyphMaskBlob(blob) : blob;
+}
+
+export async function renderPdfRegionPromptImage(
+	options: Parameters<typeof renderPdfRegionImageBlob>[0],
+): Promise<PromptImage> {
+	return blobToPromptImage(await renderPdfRegionImageBlob(options));
 }

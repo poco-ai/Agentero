@@ -61,12 +61,12 @@ const EDIT_MIN_COMMENT_LINES = 3;
 /** In-place editor: layout estimate cap; textarea scrolls past this. */
 const EDIT_MAX_COMMENT_LINES = 12;
 const COMMENT_CARD_SURFACE_CLASS =
-	"group pointer-events-auto absolute select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] hover:shadow-dialog hover:!h-auto supports-backdrop-blur:bg-background/70 dark:border-white/10";
+	"group/comment pointer-events-auto absolute select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] hover:shadow-dialog hover:!h-auto supports-backdrop-blur:bg-background/70 dark:border-white/10";
 const COMMENT_DRAFT_SURFACE_CLASS =
 	"group/draft pointer-events-auto absolute z-[6] cursor-text overflow-hidden rounded-lg border border-white/55 bg-background/88 text-left shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 outline-none supports-backdrop-blur:bg-background/70 dark:border-white/10";
 /** Horizontal action bar floating just above the card's top-right corner. */
 const COMMENT_ACTION_BAR_CLASS =
-	"pointer-events-none absolute right-0 bottom-full z-[1] flex items-center gap-0.5 rounded-md border border-white/50 bg-background/82 p-0.5 shadow-raised ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-150 group-hover:pointer-events-auto dark:border-white/10";
+	"pointer-events-none absolute right-0 bottom-full z-[1] flex items-center gap-0.5 rounded-md border border-white/50 bg-background/82 p-0.5 shadow-raised ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-150 group-hover/comment:pointer-events-auto dark:border-white/10";
 
 type CommentCardsLayerProps = {
 	inset?: boolean;
@@ -242,6 +242,8 @@ function autosizeTextarea(el: HTMLTextAreaElement | null) {
 }
 
 type CommentCardProps = {
+	/** Reader cards participate in prose flow instead of the PDF page rail. */
+	flow?: boolean;
 	inset?: boolean;
 	item: PageAnnotationComment;
 	topPx: number;
@@ -260,7 +262,8 @@ type CommentCardProps = {
 	onLeave: () => void;
 };
 
-const CommentCard = memo(function CommentCard({
+export const CommentCard = memo(function CommentCard({
+	flow,
 	inset,
 	item,
 	topPx,
@@ -359,6 +362,7 @@ const CommentCard = memo(function CommentCard({
 			data-pdf-chrome
 			className={cn(
 				COMMENT_CARD_SURFACE_CLASS,
+				flow && "relative! my-3 w-full! max-w-lg",
 				editing
 					? "z-[6] bg-background/92 shadow-dialog ring-2 ring-ring/50"
 					: hovered
@@ -366,12 +370,13 @@ const CommentCard = memo(function CommentCard({
 						: "",
 			)}
 			style={{
-				...(inset
-					? { right: COMMENT_CARD_GAP_PX }
-					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
-				top: topPx,
+				...(!flow &&
+					(inset
+						? { right: COMMENT_CARD_GAP_PX }
+						: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` })),
+				top: flow ? undefined : topPx,
 				width: COMMENT_CARD_WIDTH_PX,
-				height: editing ? undefined : heightPx,
+				height: editing || flow ? undefined : heightPx,
 				minHeight: heightPx,
 			}}
 			onPointerEnter={() => onHover(item)}
@@ -383,7 +388,7 @@ const CommentCard = memo(function CommentCard({
 					"h-full rounded-[inherit] px-2.5 py-2",
 					editing
 						? "overflow-visible"
-						: "overflow-hidden group-hover:overflow-visible group-focus-within:overflow-visible",
+						: "overflow-hidden group-hover/comment:overflow-visible group-focus-within/comment:overflow-visible",
 				)}
 				onPointerDown={(e) => e.stopPropagation()}
 				onBlur={
@@ -492,7 +497,7 @@ const CommentCard = memo(function CommentCard({
 							)}
 							<div
 								className={cn(
-									"mt-1 max-h-[3.75rem] overflow-hidden break-words text-sm leading-relaxed group-hover:max-h-none group-hover:overflow-x-auto",
+									"mt-1 max-h-[3.75rem] overflow-hidden break-words text-sm leading-relaxed group-hover/comment:max-h-none group-hover/comment:overflow-x-auto",
 									item.comment.trim()
 										? "text-foreground/80"
 										: "text-muted-foreground/70",
@@ -508,7 +513,7 @@ const CommentCard = memo(function CommentCard({
 							</div>
 							{item.messages && item.messages.length > 0 ? (
 								<div className="mt-1.5 border-t border-border/40 pt-1.5">
-									<div className="line-clamp-3 space-y-1 group-hover:line-clamp-none">
+									<div className="line-clamp-3 space-y-1 group-hover/comment:line-clamp-none">
 										{item.messages.map((m) => (
 											<p
 												key={m.id}
@@ -531,9 +536,11 @@ const CommentCard = memo(function CommentCard({
 				<div
 					className={cn(
 						COMMENT_ACTION_BAR_CLASS,
-						editing
-							? "opacity-0 group-hover:opacity-100"
-							: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+						flow
+							? "relative! bottom-auto mt-2 ml-auto w-fit pointer-events-auto"
+							: editing
+								? "opacity-0 group-hover/comment:opacity-100"
+								: "opacity-0 group-hover/comment:opacity-100 group-focus-within/comment:opacity-100",
 					)}
 				>
 					{wikiTarget ? (
@@ -607,6 +614,7 @@ const CommentCard = memo(function CommentCard({
 });
 
 type SelectionCommentAffordanceProps = {
+	flow?: boolean;
 	inset?: boolean;
 	draft: SelectionCommentDraft;
 	pageHeightPx: number;
@@ -617,195 +625,202 @@ type SelectionCommentAffordanceProps = {
 };
 
 /** Selection note editor opened explicitly from the floating toolbar. */
-const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
-	inset,
-	draft,
-	pageHeightPx,
-	onCommit,
-	onActiveChange,
-	onDismiss,
-}: SelectionCommentAffordanceProps) {
-	const { t } = useTranslation("viewer");
-	const rootRef = useRef<HTMLDivElement>(null);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const draftTextRef = useRef("");
-	const committedRef = useRef(false);
-	const onCommitRef = useRef(onCommit);
-	onCommitRef.current = onCommit;
-	const onActiveChangeRef = useRef(onActiveChange);
-	onActiveChangeRef.current = onActiveChange;
-	const onDismissRef = useRef(onDismiss);
-	onDismissRef.current = onDismiss;
-	const aliveRef = useRef(true);
-	const closingRef = useRef(false);
-	const { isBlockedByIme, compositionProps } = useImeGuard();
+export const SelectionCommentAffordance = memo(
+	function SelectionCommentAffordance({
+		flow,
+		inset,
+		draft,
+		pageHeightPx,
+		onCommit,
+		onActiveChange,
+		onDismiss,
+	}: SelectionCommentAffordanceProps) {
+		const { t } = useTranslation("viewer");
+		const rootRef = useRef<HTMLDivElement>(null);
+		const textareaRef = useRef<HTMLTextAreaElement>(null);
+		const draftTextRef = useRef("");
+		const committedRef = useRef(false);
+		const onCommitRef = useRef(onCommit);
+		onCommitRef.current = onCommit;
+		const onActiveChangeRef = useRef(onActiveChange);
+		onActiveChangeRef.current = onActiveChange;
+		const onDismissRef = useRef(onDismiss);
+		onDismissRef.current = onDismiss;
+		const aliveRef = useRef(true);
+		const closingRef = useRef(false);
+		const { isBlockedByIme, compositionProps } = useImeGuard();
 
-	const heightPx = estimateCommentCardHeight(
-		{
-			id: "__selection-draft__",
-			pageIndex: draft.page - 1,
-			anchorY: draft.anchorY,
-			rects: [],
-			quote: draft.quote,
-			comment: "",
-			color: DEFAULT_HIGHLIGHT_COLOR,
-			kind: "highlight",
-			linkAlias: null,
-		},
-		true,
-	);
-	const topPx = Math.max(
-		0,
-		Math.min(draft.anchorY * pageHeightPx, pageHeightPx - heightPx),
-	);
+		const heightPx = estimateCommentCardHeight(
+			{
+				id: "__selection-draft__",
+				pageIndex: draft.page - 1,
+				anchorY: draft.anchorY,
+				rects: [],
+				quote: draft.quote,
+				comment: "",
+				color: DEFAULT_HIGHLIGHT_COLOR,
+				kind: "highlight",
+				linkAlias: null,
+			},
+			true,
+		);
+		const topPx = Math.max(
+			0,
+			Math.min(draft.anchorY * pageHeightPx, pageHeightPx - heightPx),
+		);
 
-	const commit = useCallback((text: string) => {
-		if (committedRef.current) return;
-		const trimmed = text.trim();
-		if (!trimmed) return;
-		committedRef.current = true;
-		closingRef.current = true;
-		onActiveChangeRef.current?.(false);
-		onCommitRef.current(trimmed);
-	}, []);
-
-	useEffect(() => {
-		aliveRef.current = true;
-		onActiveChangeRef.current?.(true);
-		const frame = requestAnimationFrame(() => {
-			const el = textareaRef.current;
-			if (!el || closingRef.current) return;
-			el.focus();
-			autosizeTextarea(el);
-		});
-		return () => {
-			cancelAnimationFrame(frame);
-			aliveRef.current = false;
-			onActiveChangeRef.current?.(false);
-		};
-	}, []);
-
-	// Clicking outside the note (e.g. anywhere on the PDF page) commits typed
-	// text or drops an empty draft. Chrome elements (like the selection toolbar)
-	// do not trigger dismissal.
-	useEffect(() => {
-		const onPointerDown = (event: PointerEvent) => {
-			const target = event.target;
-			if (!(target instanceof Node) || rootRef.current?.contains(target)) {
-				return;
-			}
-			if ((target as Element).closest?.("[data-pdf-chrome]")) {
-				return;
-			}
-			const text = (textareaRef.current?.value ?? draftTextRef.current).trim();
+		const commit = useCallback((text: string) => {
+			if (committedRef.current) return;
+			const trimmed = text.trim();
+			if (!trimmed) return;
+			committedRef.current = true;
 			closingRef.current = true;
-			if (text) {
-				commit(text);
-			} else {
-				onDismissRef.current?.();
-			}
-			textareaRef.current?.blur();
-		};
-		document.addEventListener("pointerdown", onPointerDown, true);
-		return () => {
-			document.removeEventListener("pointerdown", onPointerDown, true);
-		};
-	}, [commit]);
+			onActiveChangeRef.current?.(false);
+			onCommitRef.current(trimmed);
+		}, []);
 
-	return (
-		// biome-ignore lint/a11y/useSemanticElements: hosts a textarea; native <button> cannot wrap it
-		<div
-			ref={rootRef}
-			role="group"
-			aria-label={t("selection.note")}
-			data-pdf-chrome
-			data-selection-comment=""
-			className={cn(
-				COMMENT_DRAFT_SURFACE_CLASS,
-				"z-[7] w-56 bg-background/92 shadow-dialog ring-2 ring-ring/50",
-			)}
-			style={{
-				...(inset
-					? { right: COMMENT_CARD_GAP_PX }
-					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
-				top: topPx,
-				minHeight: heightPx,
-			}}
-			onPointerDown={(e) => {
-				// Page-local hit: stop EmbedPDF from treating this as click-away
-				// before the textarea can take focus. Do not preventDefault.
-				e.stopPropagation();
-			}}
-		>
-			<div className="w-56 px-2.5 py-2">
-				<span
-					className={cn(
-						"block size-2 rounded-full",
-						swatchColorClass(DEFAULT_HIGHLIGHT_COLOR),
-					)}
-					aria-hidden
-				/>
-				<textarea
-					ref={textareaRef}
-					className="mt-1 max-h-60 w-full resize-none bg-transparent p-0 text-sm text-foreground/80 leading-relaxed outline-none placeholder:text-muted-foreground/70 select-text"
-					placeholder={t("annotations.placeholder")}
-					aria-label={t("annotations.editorLabel")}
-					rows={EDIT_MIN_COMMENT_LINES}
-					{...compositionProps}
-					onFocus={() => {
-						onActiveChangeRef.current?.(true);
-					}}
-					onChange={(e) => {
-						draftTextRef.current = e.currentTarget.value;
-						autosizeTextarea(e.currentTarget);
-					}}
-					onBlur={(e) => {
-						if (!aliveRef.current || closingRef.current) return;
-						const next = e.relatedTarget as Node | null;
-						if (next && rootRef.current?.contains(next)) return;
-						const text = draftTextRef.current;
-						if (text.trim()) {
-							commit(text);
-							return;
-						}
-						closingRef.current = true;
-						onDismissRef.current?.();
-					}}
-					onClick={(e) => e.stopPropagation()}
-					onPointerDown={(e) => e.stopPropagation()}
-					onKeyDown={(e) => {
-						e.stopPropagation();
-						if (
-							applyMarkdownTextareaShortcut(e, (value) => {
-								draftTextRef.current = value;
-								autosizeTextarea(e.currentTarget);
-							})
-						)
-							return;
-						if (e.key === "Escape") {
-							e.preventDefault();
-							draftTextRef.current = "";
-							e.currentTarget.value = "";
+		useEffect(() => {
+			aliveRef.current = true;
+			onActiveChangeRef.current?.(true);
+			const frame = requestAnimationFrame(() => {
+				const el = textareaRef.current;
+				if (!el || closingRef.current) return;
+				el.focus();
+				autosizeTextarea(el);
+			});
+			return () => {
+				cancelAnimationFrame(frame);
+				aliveRef.current = false;
+				onActiveChangeRef.current?.(false);
+			};
+		}, []);
+
+		// Clicking outside the note (e.g. anywhere on the PDF page) commits typed
+		// text or drops an empty draft. Chrome elements (like the selection toolbar)
+		// do not trigger dismissal.
+		useEffect(() => {
+			const onPointerDown = (event: PointerEvent) => {
+				const target = event.target;
+				if (!(target instanceof Node) || rootRef.current?.contains(target)) {
+					return;
+				}
+				if ((target as Element).closest?.("[data-pdf-chrome]")) {
+					return;
+				}
+				const text = (
+					textareaRef.current?.value ?? draftTextRef.current
+				).trim();
+				closingRef.current = true;
+				if (text) {
+					commit(text);
+				} else {
+					onDismissRef.current?.();
+				}
+				textareaRef.current?.blur();
+			};
+			document.addEventListener("pointerdown", onPointerDown, true);
+			return () => {
+				document.removeEventListener("pointerdown", onPointerDown, true);
+			};
+		}, [commit]);
+
+		return (
+			// biome-ignore lint/a11y/useSemanticElements: hosts a textarea; native <button> cannot wrap it
+			<div
+				ref={rootRef}
+				role="group"
+				aria-label={t("selection.note")}
+				data-pdf-chrome
+				data-selection-comment=""
+				className={cn(
+					COMMENT_DRAFT_SURFACE_CLASS,
+					"z-[7] w-56 bg-background/92 shadow-dialog ring-2 ring-ring/50",
+					flow && "relative! my-3",
+				)}
+				style={{
+					...(!flow &&
+						(inset
+							? { right: COMMENT_CARD_GAP_PX }
+							: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` })),
+					top: flow ? undefined : topPx,
+					minHeight: heightPx,
+				}}
+				onPointerDown={(e) => {
+					// Page-local hit: stop EmbedPDF from treating this as click-away
+					// before the textarea can take focus. Do not preventDefault.
+					e.stopPropagation();
+				}}
+			>
+				<div className="w-56 px-2.5 py-2">
+					<span
+						className={cn(
+							"block size-2 rounded-full",
+							swatchColorClass(DEFAULT_HIGHLIGHT_COLOR),
+						)}
+						aria-hidden
+					/>
+					<textarea
+						ref={textareaRef}
+						className="mt-1 max-h-60 w-full resize-none bg-transparent p-0 text-sm text-foreground/80 leading-relaxed outline-none placeholder:text-muted-foreground/70 select-text"
+						placeholder={t("annotations.placeholder")}
+						aria-label={t("annotations.editorLabel")}
+						rows={EDIT_MIN_COMMENT_LINES}
+						{...compositionProps}
+						onFocus={() => {
+							onActiveChangeRef.current?.(true);
+						}}
+						onChange={(e) => {
+							draftTextRef.current = e.currentTarget.value;
+							autosizeTextarea(e.currentTarget);
+						}}
+						onBlur={(e) => {
+							if (!aliveRef.current || closingRef.current) return;
+							const next = e.relatedTarget as Node | null;
+							if (next && rootRef.current?.contains(next)) return;
+							const text = draftTextRef.current;
+							if (text.trim()) {
+								commit(text);
+								return;
+							}
 							closingRef.current = true;
-							onActiveChangeRef.current?.(false);
 							onDismissRef.current?.();
-							e.currentTarget.blur();
-							return;
-						}
-						if (
-							e.key === "Enter" &&
-							(e.metaKey || e.ctrlKey) &&
-							!isBlockedByIme(e)
-						) {
-							e.preventDefault();
-							commit(e.currentTarget.value);
-						}
-					}}
-				/>
+						}}
+						onClick={(e) => e.stopPropagation()}
+						onPointerDown={(e) => e.stopPropagation()}
+						onKeyDown={(e) => {
+							e.stopPropagation();
+							if (
+								applyMarkdownTextareaShortcut(e, (value) => {
+									draftTextRef.current = value;
+									autosizeTextarea(e.currentTarget);
+								})
+							)
+								return;
+							if (e.key === "Escape") {
+								e.preventDefault();
+								draftTextRef.current = "";
+								e.currentTarget.value = "";
+								closingRef.current = true;
+								onActiveChangeRef.current?.(false);
+								onDismissRef.current?.();
+								e.currentTarget.blur();
+								return;
+							}
+							if (
+								e.key === "Enter" &&
+								(e.metaKey || e.ctrlKey) &&
+								!isBlockedByIme(e)
+							) {
+								e.preventDefault();
+								commit(e.currentTarget.value);
+							}
+						}}
+					/>
+				</div>
 			</div>
-		</div>
-	);
-});
+		);
+	},
+);
 
 export const CommentCardsLayer = memo(function CommentCardsLayer({
 	inset = false,

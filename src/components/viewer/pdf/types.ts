@@ -113,6 +113,8 @@ export type PdfViewerProps = {
 	translationPane?: boolean;
 	/** Render the PDF page and translation overlay without reader chrome. */
 	translationOnly?: boolean;
+	/** Inline comparison: mirror this source and hydrate cache without auto-starting translation. */
+	translationSourceDocId?: string;
 	/**
 	 * True for remote papers (e.g. arXiv Daily preview) that have no local
 	 * sidecar. Hides mark-persisting UI (highlight / note / translate); Ask /
@@ -220,6 +222,8 @@ export type SelectionMenuState = {
 	copyText?: string;
 	/** The anchor quote is English recovered from the translation selection. */
 	fromTranslation?: boolean;
+	/** Native reader selection; screen placement is independent of PDF page layout. */
+	fromReader?: { blockId: string };
 	/** Sentence translations passed to chat as context, not stored on the mark. */
 	pairedTranslation?: string;
 	/**
@@ -234,6 +238,7 @@ export type SelectionMenuState = {
  * `pages` even if focusing the editor cleared the live selection.
  */
 export type SelectionCommentDraft = {
+	readerBlockId?: string;
 	/** 1-based page number (matches `commentsByPage` keys). */
 	page: number;
 	/** Normalized Y of the selection top (0–1). */

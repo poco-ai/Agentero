@@ -22,6 +22,19 @@ function normalize(translate: Record<string, unknown>) {
 }
 
 describe("translate prompt settings", () => {
+	it("falls back from removed providers without losing Agent settings", () => {
+		const settings = normalize({
+			provider: "web-ai",
+			agentId: "saved-agent",
+			modelId: "saved-model",
+			customPrompt: "Keep formulas unchanged.",
+		});
+		expect(settings.provider).toBe(DEFAULT_SETTINGS.translate.provider);
+		expect(settings.agentId).toBe("saved-agent");
+		expect(settings.modelId).toBe("saved-model");
+		expect(settings.customPrompt).toBe("Keep formulas unchanged.");
+		expect(normalize({ provider: "agent" }).provider).toBe("agent");
+	});
 	it("preserves extra JSON through settings normalization and defaults legacy settings", () => {
 		const extraRequestBody = '{"thinking":{"type":"disabled"}}';
 		const cfg = normalize({

@@ -26,6 +26,10 @@ import {
 } from "@/components/ui/tooltip";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
 import {
+	type PdfReadingControls,
+	PdfReadingPopover,
+} from "@/components/viewer/pdf/chrome/pdf-reading-popover";
+import {
 	PDF_TRANSLATE_METER_PERCENT,
 	PDF_TRANSLATE_METER_STAGE,
 	PdfTranslateMeterBar,
@@ -37,6 +41,7 @@ import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { cn } from "@/lib/core/utils";
 
 type PdfToolbarProps = {
+	reading?: PdfReadingControls;
 	onExportTranslatedPdf?: (dual?: boolean) => void;
 	regionSelecting: boolean;
 	visualCropPending: boolean;
@@ -74,6 +79,7 @@ type PdfToolbarProps = {
 
 /** Top-right toolbar: region select, bulk translate. Always visible. */
 export const PdfToolbar = memo(function PdfToolbar({
+	reading,
 	onExportTranslatedPdf,
 	regionSelecting,
 	visualCropPending,
@@ -239,6 +245,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 						PDF_CHROME_CHIP,
 					)}
 				>
+					{reading && <PdfReadingPopover {...reading} />}
 					{/* Partial-translation warning sits first: it is a document-level
 					    state, so it stays put when the translate button expands. */}
 					{!isRemotePaper && layoutTranslatePartial?.visible ? (

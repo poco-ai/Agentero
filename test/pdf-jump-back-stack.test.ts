@@ -69,4 +69,21 @@ describe("jump back stack", () => {
 		expect(pushed.entries).toHaveLength(1);
 		expect(popped.stack.entries).toHaveLength(0);
 	});
+	it("keeps different reading positions even when their source PDF scroll offsets match", () => {
+		let stack = createJumpBackStack();
+		stack = pushJumpOrigin(stack, {
+			x: 0,
+			y: 2000,
+			page: 3,
+			reader: { blockId: "a", top: 48, scrollTop: 8000 },
+		});
+		stack = pushJumpOrigin(stack, {
+			x: 0,
+			y: 2000,
+			page: 3,
+			reader: { blockId: "b", top: 48, scrollTop: 8500 },
+		});
+		expect(stack.entries).toHaveLength(2);
+		expect(popJumpOrigin(stack)?.origin.reader?.blockId).toBe("b");
+	});
 });

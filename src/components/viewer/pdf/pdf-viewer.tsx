@@ -55,8 +55,10 @@ import { PdfFindBar } from "@/components/viewer/pdf/chrome/pdf-find-bar";
 import { PdfJumpBackChip } from "@/components/viewer/pdf/chrome/pdf-jump-back-chip";
 import { PdfLeftToolbar } from "@/components/viewer/pdf/chrome/pdf-left-toolbar";
 import { PdfOutlinePanel } from "@/components/viewer/pdf/chrome/pdf-outline-panel";
+import { PdfReadingPopover } from "@/components/viewer/pdf/chrome/pdf-reading-popover";
 import { PdfReferencesPanel } from "@/components/viewer/pdf/chrome/pdf-references-panel";
 import { PdfToolbar } from "@/components/viewer/pdf/chrome/pdf-toolbar";
+import { PdfContinuousReader } from "@/components/viewer/pdf/continuous-reader";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
 import { usePdfActiveAnchors } from "@/components/viewer/pdf/hooks/use-pdf-active-anchors";
 import { usePdfAskThreads } from "@/components/viewer/pdf/hooks/use-pdf-ask-threads";
@@ -64,6 +66,7 @@ import { usePdfBookmarkEditor } from "@/components/viewer/pdf/hooks/use-pdf-book
 import { usePdfCards } from "@/components/viewer/pdf/hooks/use-pdf-cards";
 import { usePdfChromeVisibility } from "@/components/viewer/pdf/hooks/use-pdf-chrome-visibility";
 import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations";
+import { usePdfContinuousReader } from "@/components/viewer/pdf/hooks/use-pdf-continuous-reader";
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
 import { usePdfFind } from "@/components/viewer/pdf/hooks/use-pdf-find";
 import { usePdfHighlights } from "@/components/viewer/pdf/hooks/use-pdf-highlights";
@@ -82,6 +85,7 @@ import { usePdfOutline } from "@/components/viewer/pdf/hooks/use-pdf-outline";
 import { usePdfPageText } from "@/components/viewer/pdf/hooks/use-pdf-page-text";
 import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-tone";
 import { usePdfPinAnchors } from "@/components/viewer/pdf/hooks/use-pdf-pin-anchors";
+import { usePdfReaderSelection } from "@/components/viewer/pdf/hooks/use-pdf-reader-selection";
 import { usePdfReadingMode } from "@/components/viewer/pdf/hooks/use-pdf-reading-mode";
 import { usePdfRegionFraming } from "@/components/viewer/pdf/hooks/use-pdf-region-framing";
 import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
@@ -92,6 +96,7 @@ import { usePdfSidebarPanels } from "@/components/viewer/pdf/hooks/use-pdf-sideb
 import { usePdfSmartHighlights } from "@/components/viewer/pdf/hooks/use-pdf-smart-highlights";
 import { usePdfSyncTex } from "@/components/viewer/pdf/hooks/use-pdf-synctex";
 import { usePdfTextSelection } from "@/components/viewer/pdf/hooks/use-pdf-text-selection";
+import { usePdfTranslationDisplay } from "@/components/viewer/pdf/hooks/use-pdf-translation-display";
 import { usePdfTranslationSelection } from "@/components/viewer/pdf/hooks/use-pdf-translation-selection";
 import { usePdfViewerHandle } from "@/components/viewer/pdf/hooks/use-pdf-viewer-handle";
 import { usePdfVisualMarks } from "@/components/viewer/pdf/hooks/use-pdf-visual-marks";
@@ -115,6 +120,7 @@ import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
 import type {
 	PageAnnotationComment,
+	PdfLinkHoverPoint,
 	PdfViewerInnerProps,
 	PdfViewerProps,
 	RailEditState,
@@ -172,6 +178,7 @@ import {
 	linkPreviewDragActive,
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
+import type { ReadingSplit } from "@/lib/pdf/reading/settings";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
 import {
 	type ActiveSelectionCard,
@@ -491,6 +498,7 @@ function pdfSelectionMenuContext(input: {
 }
 
 function PdfViewerInner({
+	source,
 	docId,
 	baseDocId,
 	embeddedTarget,
@@ -677,6 +685,7 @@ function PdfViewerInner({
 		pageFocusedRef,
 		goToPage,
 		goToRegion,
+		navigationTarget,
 		commitPageField,
 	} = usePdfNavigation({
 		docId,
@@ -1080,7 +1089,8 @@ function PdfViewerInner({
 		captureJumpOrigin,
 		commitJumpOrigin,
 		goBack: goBackToJumpOrigin,
-	} = usePdfJumpBack({ docId });
+		readerRestore,
+	} = usePdfJumpBack({ docId, hostRef });
 
 	// Attention flash at the jump destination: reuse the citation focus flash
 	// (amber hold + fade) over the destination line, so the reader sees where
@@ -1109,8 +1119,15 @@ function PdfViewerInner({
 				},
 				{ flash: true },
 			);
+			if (hostRef.current?.querySelector("[data-pdf-reader]"))
+				goToRegion({
+					id: `jump:${target.pageIndex}:${target.pdfY}`,
+					pageIndex: target.pageIndex,
+					bbox: { x: anchorX, y, w: Math.max(0.06, 0.95 - anchorX), h },
+					kind: "text",
+				});
 		},
-		[docId],
+		[docId, goToRegion],
 	);
 
 	const {
@@ -1151,6 +1168,7 @@ function PdfViewerInner({
 	// Cross-reference (\ref) hover: preview the figure/table/equation crop,
 	// or fallback destination crop for unmapped citations / internal links.
 	// Resolve the complete source group before choosing verified metadata or crops.
+	const readerPreviewZoomRef = useRef<number | null>(null);
 	const {
 		crossrefPreview,
 		scheduleCrossrefHide,
@@ -1161,6 +1179,7 @@ function PdfViewerInner({
 		docId,
 		hostRef,
 		zoomRef,
+		previewZoomRef: readerPreviewZoomRef,
 		paperAbsPath,
 		sourceBytes,
 		engineRef,
@@ -1264,11 +1283,14 @@ function PdfViewerInner({
 		layoutTranslateWaiting,
 		layoutTranslateQueued,
 		layoutTranslateActive,
+		layoutTranslationSnapshot,
+		layoutTranslateScope,
 		layoutTranslateLabel,
 		layoutTranslatePartial,
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		restoreLayoutTranslate,
 		togglePageLayoutTranslate,
 	} = usePdfLayoutCluster({
 		docId,
@@ -1291,14 +1313,101 @@ function PdfViewerInner({
 		plainViewer,
 	});
 
+	const readerContext = useCallback(() => {
+		const engine = engineRef.current;
+		const document = docCapRef.current?.getDocument(docId);
+		return engine && document ? { engine, document } : null;
+	}, [docId]);
+	const continuousReader = usePdfContinuousReader({
+		docId,
+		paperAbsPath,
+		paperKey,
+		pdfBytes: pdfCacheBytes ?? sourceBytes,
+		translation: layoutTranslationSnapshot,
+		available: !plainViewer && !isRemotePaper,
+		regions: layoutRawRegions,
+		context: readerContext,
+		startAnalysis: (signal) =>
+			startLayoutAnalysisRef.current({
+				signal,
+				openFigures: false,
+				showOverlay: false,
+				asBackgroundTask: true,
+				notifyOnError: true,
+			}),
+	});
+	readerPreviewZoomRef.current = continuousReader.enabled
+		? (96 / 72) * 1.25 * continuousReader.settings.fontScale
+		: null;
+	const [pdfSplit, setPdfSplit] = useState<ReadingSplit>("single");
+	const pdfComparison =
+		!continuousReader.enabled &&
+		pdfSplit !== "single" &&
+		!plainViewer &&
+		!isRemotePaper;
+	const readerControls = {
+		enabled: continuousReader.enabled,
+		onEnabledChange: (enabled: boolean) => {
+			closeSelectionMenu();
+			continuousReader.setEnabled(enabled);
+		},
+		settings: continuousReader.settings,
+		onSettingsChange: continuousReader.updateSettings,
+		available: !plainViewer && !isRemotePaper,
+		pdfSplit,
+		onPdfSplitChange: (split: ReadingSplit) => {
+			closeSelectionMenu();
+			setPdfSplit(split);
+		},
+	};
+	const hasTranslations =
+		layoutTranslateActive || continuousReader.hasTranslations;
+	const {
+		visible: translationsVisible,
+		toggle: toggleTranslationDisplay,
+		show: showTranslations,
+	} = usePdfTranslationDisplay({
+		docId,
+		hasTranslations,
+		active: layoutTranslateActive,
+		busy:
+			layoutTranslateRunning ||
+			layoutTranslatePreparing ||
+			layoutTranslateWaiting,
+		restore: restoreLayoutTranslate,
+		closeSelection: closeSelectionMenu,
+	});
+	const translationDisplayed = translationsVisible && hasTranslations;
+	usePdfReaderSelection({
+		enabled: continuousReader.enabled && isActive,
+		hostRef,
+		engineRef,
+		docCapRef,
+		docId,
+		blocks: continuousReader.blocks,
+		setSelectionMenu,
+		closeSelectionMenu,
+		paperRelPath,
+		paperAbsPath,
+	});
+
 	const reflowDisplayDocumentId = useReflowDisplayDocument(
 		docCap,
-		reflowOutput,
+		pdfComparison ||
+			(continuousReader.enabled && continuousReader.settings.split === "single")
+			? null
+			: reflowOutput,
 		docId,
 	);
 
 	usePdfTranslationSelection({
-		enabled: layoutTranslateActive && !translationOnly && !plainViewer,
+		enabled:
+			translationsVisible &&
+			layoutTranslateActive &&
+			!translationOnly &&
+			!plainViewer &&
+			!continuousReader.enabled &&
+			!pdfComparison,
 		hostRef,
 		zoomRef,
 		engineRef,
@@ -1314,7 +1423,22 @@ function PdfViewerInner({
 
 	const handleToggleLayoutTranslateWithDualPane = useCallback(() => {
 		if (plainViewer) return;
-		if (displayMode !== "dualPane") {
+		if (
+			hasTranslations &&
+			!layoutTranslateRunning &&
+			!layoutTranslateWaiting &&
+			layoutTranslateScope !== "page" &&
+			!layoutTranslatePartial.completionFailed
+		) {
+			toggleTranslationDisplay();
+			return;
+		}
+		if (
+			pdfComparison ||
+			continuousReader.enabled ||
+			displayMode !== "dualPane"
+		) {
+			showTranslations();
 			toggleLayoutTranslate();
 			return;
 		}
@@ -1342,9 +1466,18 @@ function PdfViewerInner({
 		);
 	}, [
 		plainViewer,
+		layoutTranslateScope,
+		layoutTranslatePartial.completionFailed,
 		displayMode,
 		dualPaneSource,
 		toggleLayoutTranslate,
+		hasTranslations,
+		layoutTranslateRunning,
+		layoutTranslateWaiting,
+		toggleTranslationDisplay,
+		continuousReader.enabled,
+		pdfComparison,
+		showTranslations,
 		onOpenTranslationTab,
 		baseDocId,
 		paperAbsPath,
@@ -1439,7 +1572,10 @@ function PdfViewerInner({
 	]);
 
 	const handleLinkHover = useCallback(
-		(link: PdfLinkAnnoObject | null, clientPoint?: ScreenPoint | null) => {
+		(
+			link: PdfLinkAnnoObject | null,
+			clientPoint?: PdfLinkHoverPoint | null,
+		) => {
 			if (suppressLinkPreviews || linkPreviewDragActive()) {
 				clearCitationPreview();
 				clearCrossrefPreview();
@@ -1710,6 +1846,7 @@ function PdfViewerInner({
 		const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
 		selectionCommentEngagedRef.current = true;
 		setSelectionCommentDraft({
+			readerBlockId: menu.fromReader?.blockId,
 			page: visible?.page ?? menu.anchor.page,
 			anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
 			quote: menu.anchor.quote ?? "",
@@ -1779,7 +1916,10 @@ function PdfViewerInner({
 		};
 		const scrollScope = scrollRef.current;
 		const offPlugin = scrollScope?.onScroll(rePlace) ?? (() => undefined);
+		const reader = hostRef.current?.querySelector("[data-pdf-reader]");
+		reader?.addEventListener("scroll", rePlace);
 		return () => {
+			reader?.removeEventListener("scroll", rePlace);
 			if (raf != null) cancelAnimationFrame(raf);
 			offPlugin();
 		};
@@ -1845,6 +1985,15 @@ function PdfViewerInner({
 			scrollReady,
 		},
 	);
+	const readerLinkSource = useMemo(
+		() => ({
+			citationLinks,
+			textLinks,
+			inkByKey: linkInkByKey,
+			glyphRunsByPage,
+		}),
+		[citationLinks, textLinks, linkInkByKey, glyphRunsByPage],
+	);
 	useEffect(() => {
 		if (translationPane) return;
 		publishTranslatedLinkSource(baseDocId, {
@@ -1885,7 +2034,9 @@ function PdfViewerInner({
 			// hoveredCommentId deliberately not bundled: it is passed as a
 			// per-page gated prop in renderPage so a comment hover re-renders
 			// only the owning page, not every page sharing this bundle.
-			selectionCommentDraft,
+			selectionCommentDraft: selectionCommentDraft?.readerBlockId
+				? null
+				: selectionCommentDraft,
 			translateHighlightsByPage,
 			highlightQuotesByPage,
 			translatedHighlightsByPage,
@@ -1919,11 +2070,15 @@ function PdfViewerInner({
 			rawRegionsByPage,
 			layoutOverlayVisible,
 			layoutTranslateItemsByPage:
-				translationPane || !dualPaneTranslate
+				!pdfComparison &&
+				translationsVisible &&
+				(continuousReader.enabled || translationPane || !dualPaneTranslate)
 					? layoutTranslateItemsByPage
 					: new Map(),
 			layoutTranslatePageStateByPage:
-				translationPane || !dualPaneTranslate
+				!pdfComparison &&
+				translationsVisible &&
+				(continuousReader.enabled || translationPane || !dualPaneTranslate)
 					? layoutTranslatePageStateByPage
 					: new Map(),
 			sentenceRectsByItemId,
@@ -1938,6 +2093,9 @@ function PdfViewerInner({
 			layoutTranslatePageStateByPage,
 			translationPane,
 			dualPaneTranslate,
+			translationsVisible,
+			pdfComparison,
+			continuousReader.enabled,
 			sentenceRectsByItemId,
 			linkInkByKey,
 			glyphRunsByPage,
@@ -2084,32 +2242,40 @@ function PdfViewerInner({
 	 * can bail out instead of rebuilding ten page subtrees.
 	 */
 	const renderPage = useCallback(
-		({ pageIndex, width, height, rotatedWidth, rotatedHeight }: PageLayout) => (
-			<PdfPageLayers
-				bookmarkSaving={Boolean(bookmarkEditor.draft?.saving)}
-				onBookmarkPage={bookmarkEditor.canEdit ? handleBookmarkPage : undefined}
-				pageBookmarked={bookmarkedPages.has(pageIndex)}
-				annotationSource={paperRelPath ?? paperAbsPath ?? undefined}
-				docId={docId}
-				pageIndex={pageIndex}
-				reflowDocumentId={reflowDisplayDocumentId}
-				width={rotatedWidth || width}
-				height={rotatedHeight || height}
-				tone={pdfTone}
-				zoomRef={zoomRef}
-				annotationCap={annotationCap}
-				marks={pageMarks}
-				// Gated to the page owning the hovered comment: other pages
-				// keep null and their memo holds on hover.
-				hoveredCommentId={
-					hoveredCommentPage === pageIndex + 1 ? hoveredCommentId : null
-				}
-				layout={pageLayout}
-				mode={pageMode}
-				handlers={pageHandlers}
-			/>
-		),
+		({ pageIndex, width, height, rotatedWidth, rotatedHeight }: PageLayout) =>
+			// Keep the source scroller's geometry/navigation, but release hidden
+			// page rasters, tiles and text layers during single-pane reading.
+			continuousReader.enabled &&
+			continuousReader.settings.split === "single" ? null : (
+				<PdfPageLayers
+					bookmarkSaving={Boolean(bookmarkEditor.draft?.saving)}
+					onBookmarkPage={
+						bookmarkEditor.canEdit ? handleBookmarkPage : undefined
+					}
+					pageBookmarked={bookmarkedPages.has(pageIndex)}
+					annotationSource={paperRelPath ?? paperAbsPath ?? undefined}
+					docId={docId}
+					pageIndex={pageIndex}
+					reflowDocumentId={reflowDisplayDocumentId}
+					width={rotatedWidth || width}
+					height={rotatedHeight || height}
+					tone={pdfTone}
+					zoomRef={zoomRef}
+					annotationCap={annotationCap}
+					marks={pageMarks}
+					// Gated to the page owning the hovered comment: other pages
+					// keep null and their memo holds on hover.
+					hoveredCommentId={
+						hoveredCommentPage === pageIndex + 1 ? hoveredCommentId : null
+					}
+					layout={pageLayout}
+					mode={pageMode}
+					handlers={pageHandlers}
+				/>
+			),
 		[
+			continuousReader.enabled,
+			continuousReader.settings.split,
 			docId,
 			paperRelPath,
 			paperAbsPath,
@@ -2440,6 +2606,7 @@ function PdfViewerInner({
 			)}
 			{!translationOnly && !plainViewer && (
 				<PdfToolbar
+					reading={readerControls}
 					onExportTranslatedPdf={reflowReady ? exportTranslatedPdf : undefined}
 					regionSelecting={regionSelecting}
 					visualCropPending={visualCropPending}
@@ -2448,9 +2615,19 @@ function PdfViewerInner({
 					layoutTranslateRunning={layoutTranslateRunning}
 					layoutTranslatePreparing={layoutTranslatePreparing}
 					layoutTranslateWaiting={layoutTranslateWaiting}
+					layoutTranslateActive={translationDisplayed}
+					layoutTranslateLabel={
+						hasTranslations &&
+						!layoutTranslateRunning &&
+						!layoutTranslateWaiting
+							? t(
+									translationDisplayed
+										? "pdf.layoutTranslate.showOriginal"
+										: "pdf.layoutTranslate.showTranslation",
+								)
+							: layoutTranslateLabel
+					}
 					layoutTranslateQueued={layoutTranslateQueued}
-					layoutTranslateActive={layoutTranslateActive}
-					layoutTranslateLabel={layoutTranslateLabel}
 					layoutTranslatePartial={layoutTranslatePartial}
 					layoutTranslateProgress={layoutTranslateProgress}
 					layoutTranslatePageCounts={layoutTranslatePageCounts}
@@ -2464,59 +2641,154 @@ function PdfViewerInner({
 					}
 				/>
 			)}
+			{!translationOnly && plainViewer && (
+				<div
+					data-pdf-chrome
+					className="pointer-events-auto absolute top-2 right-3 z-20 rounded-lg bg-background/90 p-0.5"
+				>
+					<PdfReadingPopover {...readerControls} />
+				</div>
+			)}
 
-			<DockviewViewport
-				documentId={docId}
-				hostRef={hostRef}
-				rightGutter={rightGutter}
-				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
-				onClickCapture={(event) => {
-					const target = event.target;
-					// Observe the reading surface without swallowing its click. Portaled
-					// menus and page controls keep their own interaction unchanged.
-					if (
-						showOutline &&
-						target instanceof Element &&
-						event.currentTarget.contains(target) &&
-						!target.closest("[data-pdf-chrome]")
-					)
-						toggleOutline();
-				}}
+			<div
+				className={cn(
+					"relative flex min-h-0 min-w-0 flex-1",
+					(continuousReader.enabled
+						? continuousReader.settings.split
+						: pdfSplit) === "top-bottom" && "flex-col",
+				)}
 			>
-				<WheelZoomHandler docId={docId} />
-				<KeyboardScrollHandler
-					documentId={docId}
-					active={isActive}
-					hostRef={hostRef}
-				/>
-				<PdfVimKeyHandler
-					documentId={docId}
-					active={isActive}
-					hostRef={hostRef}
-					totalPages={totalPages}
-					onFindNext={handleFindNext}
-					onFindPrev={handleFindPrev}
-				/>
-				<PanDragHandler
-					active={isActive}
-					hostRef={hostRef}
-					allowLeftDrag={!translationOnly && !regionSelecting}
-				/>
-				<ActiveCardScrollSync
-					active={Boolean(activeCard) || Boolean(selectionMenu)}
-					onScroll={rePlaceFloatingOnScroll}
-				/>
-				{/* Ctrl+wheel and trackpad pinch are handled by WheelZoomHandler (WebKit
+				<div
+					aria-hidden={
+						continuousReader.enabled &&
+						continuousReader.settings.split === "single"
+					}
+					inert={
+						continuousReader.enabled &&
+						continuousReader.settings.split === "single"
+					}
+					className={cn(
+						"flex min-h-0 min-w-0 flex-1",
+						continuousReader.enabled &&
+							continuousReader.settings.split === "single" &&
+							"pointer-events-none invisible absolute inset-0",
+					)}
+				>
+					<DockviewViewport
+						documentId={docId}
+						hostRef={hostRef}
+						rightGutter={rightGutter}
+						className="agentero-scroll-both agentero-scroll-visible min-h-0 min-w-0 flex-1"
+						onClickCapture={(event) => {
+							const target = event.target;
+							// Observe the reading surface without swallowing its click. Portaled
+							// menus and page controls keep their own interaction unchanged.
+							if (
+								showOutline &&
+								target instanceof Element &&
+								event.currentTarget.contains(target) &&
+								!target.closest("[data-pdf-chrome]")
+							)
+								toggleOutline();
+						}}
+					>
+						<WheelZoomHandler docId={docId} />
+						<KeyboardScrollHandler
+							documentId={docId}
+							active={isActive}
+							hostRef={hostRef}
+						/>
+						<PdfVimKeyHandler
+							documentId={docId}
+							active={isActive}
+							hostRef={hostRef}
+							totalPages={totalPages}
+							onFindNext={handleFindNext}
+							onFindPrev={handleFindPrev}
+						/>
+						<PanDragHandler
+							active={isActive}
+							hostRef={hostRef}
+							allowLeftDrag={!translationOnly && !regionSelecting}
+						/>
+						<ActiveCardScrollSync
+							active={Boolean(activeCard) || Boolean(selectionMenu)}
+							onScroll={rePlaceFloatingOnScroll}
+						/>
+						{/* Ctrl+wheel and trackpad pinch are handled by WheelZoomHandler (WebKit
 				    pinch arrives as GestureEvents, not ctrl+wheel); EmbedPDF's built-in
 				    wheel zoom is disabled because its per-tick scale factor collapses
 				    the zoom on a single mouse notch, and its enablePinch only covers
 				    touch devices. */}
-				<ZoomGestureWrapper documentId={docId} enableWheel={false}>
-					<GlobalPointerProvider documentId={docId}>
-						<PdfScroller documentId={docId} renderPage={renderPage} />
-					</GlobalPointerProvider>
-				</ZoomGestureWrapper>
-			</DockviewViewport>
+						<ZoomGestureWrapper documentId={docId} enableWheel={false}>
+							<GlobalPointerProvider documentId={docId}>
+								<PdfScroller documentId={docId} renderPage={renderPage} />
+							</GlobalPointerProvider>
+						</ZoomGestureWrapper>
+					</DockviewViewport>
+				</div>
+				{pdfComparison && (
+					<div
+						data-pdf-translation-comparison
+						className="min-h-0 min-w-0 flex-1 border-border border-l"
+					>
+						<PdfViewer
+							source={source}
+							sourceBytes={pdfCacheBytes}
+							docId={`${baseDocId}::inline-translation`}
+							translationSourceDocId={docId}
+							translationOnly
+							translationPane
+							paperAbsPath={paperAbsPath}
+							paperRelPath={paperRelPath}
+							vaultPath={vaultPath}
+							isActive={isActive}
+						/>
+					</div>
+				)}
+				{continuousReader.enabled && (
+					<PdfContinuousReader
+						key={docId}
+						blocks={continuousReader.blocks}
+						showTranslations={translationsVisible}
+						settings={continuousReader.settings}
+						onFontScaleChange={(fontScale) =>
+							continuousReader.updateSettings({ fontScale })
+						}
+						preparing={continuousReader.preparing}
+						error={continuousReader.error}
+						currentPage={currentPage}
+						navigationTarget={navigationTarget}
+						onPageChange={(page) => {
+							if (page !== currentPage)
+								scrollRef.current?.scrollToPage({
+									pageNumber: page,
+									behavior: "instant",
+								});
+						}}
+						onShowSource={(block) => {
+							if (continuousReader.settings.split === "single")
+								continuousReader.setEnabled(false);
+							goToRegion(block);
+						}}
+						onRetry={continuousReader.retryPreparation}
+						context={readerContext}
+						linkSource={readerLinkSource}
+						onLinkActivate={handleCitationLinkActivate}
+						onLinkHover={handleLinkHover}
+						onUrlActivate={openExternalUrl}
+						onUrlHover={handleLinkUrlHover}
+						readerRestore={readerRestore}
+						highlights={highlights}
+						annotations={{
+							draft: selectionCommentDraft,
+							editingId: railEdit?.id ?? null,
+							wikiTarget: commentWikiTarget,
+							handlers: pageHandlers,
+						}}
+					/>
+				)}
+			</div>
 
 			{!translationOnly && (
 				<PdfCardStack

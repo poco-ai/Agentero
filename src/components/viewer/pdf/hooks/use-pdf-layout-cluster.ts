@@ -182,6 +182,8 @@ export function usePdfLayoutCluster({
 
 	const {
 		reflowBusy,
+		layoutTranslationSnapshot,
+		layoutTranslateScope,
 		reflowReady,
 		reflowOutput,
 		exportTranslatedPdf,
@@ -200,6 +202,7 @@ export function usePdfLayoutCluster({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		restoreLayoutTranslate,
 		togglePageLayoutTranslate,
 	} = usePdfLayoutTranslate({
 		reflowContext: () => {
@@ -219,6 +222,8 @@ export function usePdfLayoutCluster({
 
 	return {
 		reflowBusy,
+		layoutTranslationSnapshot,
+		layoutTranslateScope,
 		reflowReady,
 		reflowOutput,
 		exportTranslatedPdf,
@@ -247,6 +252,7 @@ export function usePdfLayoutCluster({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		restoreLayoutTranslate,
 		togglePageLayoutTranslate,
 	};
 }

@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
+import {
+	renderPdfRegionImageBlob,
+	renderPdfRegionPromptImage,
+} from "@/components/viewer/pdf/region-crop";
 import {
 	expandNormalizedRegion,
 	normalizedRegionFromPoints,
@@ -9,6 +12,71 @@ import {
 } from "@/lib/pdf/region";
 
 describe("PDF visual regions", () => {
+	it("preserves dark formula ink by compositing on paper before making the glyph mask", async () => {
+		// Some Wiley/IET glyphs disappear on a transparent PDFium surface.
+		// Model that renderer result here and
+		// exercise the real crop -> glyphMaskBlob -> removeGlyphPaper pipeline.
+		let painted = false;
+		const canvas = {
+			width: 0,
+			height: 0,
+			getContext: () => ({
+				drawImage: (bitmap: { painted: boolean }) => {
+					painted = bitmap.painted;
+				},
+				getImageData: () => ({
+					data: new Uint8ClampedArray([
+						0,
+						0,
+						0,
+						painted ? 255 : 0,
+						255,
+						255,
+						255,
+						255,
+					]),
+				}),
+				putImageData: (image: { data: Uint8ClampedArray }) => {
+					painted = image.data[3] === 255 && image.data[7] === 0;
+				},
+			}),
+			toBlob: (complete: (blob: Blob) => void) =>
+				complete(new Blob([painted ? "ink" : "missing"])),
+		};
+		vi.stubGlobal("createImageBitmap", async (blob: Blob) => ({
+			width: 2,
+			height: 1,
+			painted: (await blob.text()) === "opaque",
+			close: () => undefined,
+		}));
+		vi.stubGlobal("document", { createElement: () => canvas });
+		try {
+			const engine = {
+				renderPageRect: (
+					_doc: unknown,
+					_page: unknown,
+					_rect: unknown,
+					options: { transparentBackground?: boolean },
+				) => ({
+					toPromise: async () =>
+						new Blob([
+							options.transparentBackground ? "transparent" : "opaque",
+						]),
+				}),
+			};
+			const mask = await renderPdfRegionImageBlob({
+				engine: engine as never,
+				document: { pages: [{ size: { width: 600, height: 800 } }] } as never,
+				pageIndex: 0,
+				region: { x: 0.8, y: 0.6, w: 0.05, h: 0.01 },
+				transparentBackground: true,
+			});
+			expect(await mask.text()).toBe("ink");
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it("normalizes a drag in either direction", () => {
 		const region = normalizedRegionFromPoints(
 			{ x: 0.8, y: 0.7 },

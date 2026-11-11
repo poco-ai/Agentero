@@ -92,6 +92,47 @@ async function fixture() {
 	return pdf.save();
 }
 
+it("retains bibliography text for continuous reading while excluding it from translation", async () => {
+	const engine = new PdfiumNative(
+		await init({
+			wasmBinary: readFileSync(
+				fileURLToPath(import.meta.resolve("@embedpdf/pdfium/pdfium.wasm")),
+			),
+		}),
+		{ fontFallback: null },
+	);
+	const doc = await engine
+		.openDocumentBuffer({
+			id: "reader-reference-preservation",
+			content: (await fixture()).slice().buffer,
+		})
+		.toPromise();
+	try {
+		const seed = toLayoutTranslateItems(listTranslatableLayoutRegions(regions));
+		const reader = await prepareReflowItems(
+			engine,
+			doc,
+			seed,
+			regions,
+			undefined,
+			null,
+			{ includeUnselectedPages: true, includeReferences: true },
+		);
+		const source = reader.map((item) => item.raw).join("\n");
+		expect(source).toContain("Smith. A reference. 2024.");
+		expect(source).toContain("Jones. Another reference. 2025.");
+		expect(source).toContain("References");
+		const translated = await prepareReflowItems(engine, doc, seed, regions);
+		expect(translated.some((item) => item.raw?.includes("reference"))).toBe(
+			false,
+		);
+		expect(translated.some((item) => item.pageIndex === 1)).toBe(false);
+	} finally {
+		await engine.closeDocument(doc).toPromise();
+		engine.destroy();
+	}
+});
+
 it("keeps bibliography out of detected, table and fallback IR while retaining body citations and appendices", async () => {
 	const engine = new PdfiumNative(
 		await init({

@@ -91,6 +91,7 @@ export {
 	parseLayoutIndexSidecar,
 	slugFromTitle,
 } from "@/lib/pdf/layout/layout-index";
+export { subscribeLayoutTranslateSidecarWrite } from "@/lib/pdf/layout/layout-translate";
 export {
 	applyLayoutTranslateSidecar,
 	countPendingLayoutTranslateItems,

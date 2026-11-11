@@ -12,7 +12,7 @@ import { tightenFormattedSelection } from "@/lib/pdf/selection-appearance";
  * The copy interception exists because a PDFium text selection is not a DOM
  * selection: the browser has nothing to copy. It is installed only while a menu
  * is open on the active tab, and defers to any real editable target or native
- * selection outside the viewer host so it cannot steal a normal copy.
+ * selection outside the viewer host or inside the reader so it cannot steal a normal copy.
  */
 
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
@@ -63,7 +63,7 @@ type SelectionCapabilityProvides = ReturnType<
 
 /** DOM-text surfaces inside the viewer that keep native selection. */
 const SELECTABLE_PDF_TEXT =
-	".pdf-translate-selection, [data-reflow-selection], [data-selection-comment], input, textarea, [contenteditable='true']";
+	".pdf-translate-selection, [data-reflow-selection], [data-pdf-reader], [data-selection-comment], input, textarea, [contenteditable='true']";
 
 /**
  * Starting a pointer gesture on the PDF page must not let the browser extend a
@@ -243,13 +243,17 @@ export function usePdfTextSelection({
 	const isCommentDraftActiveRef = useRef(isCommentDraftActive);
 	isCommentDraftActiveRef.current = isCommentDraftActive;
 
-	const closeSelectionMenu = useCallback(() => {
+	const clearPdfSelection = useCallback(() => {
 		selectionEpochRef.current += 1;
-		clearDomSelectionInside(hostRef.current);
+		setIsSelecting(false);
 		setSelectionMenu(null);
 		selectionCap?.clear(docId);
 		clearActiveSelection("pdf");
-	}, [selectionCap, docId, hostRef]);
+	}, [selectionCap, docId]);
+	const closeSelectionMenu = useCallback(() => {
+		clearDomSelectionInside(hostRef.current);
+		clearPdfSelection();
+	}, [clearPdfSelection, hostRef]);
 
 	// Dockview keeps hidden tabs mounted. Drop their selection, including any
 	// pending text extraction, as soon as this viewer loses focus or unmounts.
@@ -261,6 +265,7 @@ export function usePdfTextSelection({
 	const rePlaceSelectionMenu = useCallback(() => {
 		setSelectionMenu((prev) => {
 			if (!prev) return prev;
+			if (prev.fromReader) return prev;
 			const screen = menuScreenFromState(
 				hostRef.current,
 				prev,
@@ -295,6 +300,17 @@ export function usePdfTextSelection({
 				upY: null,
 				upX: null,
 			};
+			const target =
+				event.target instanceof Element
+					? event.target
+					: event.target instanceof Node
+						? event.target.parentElement
+						: null;
+			if (target?.closest("[data-pdf-reader]")) {
+				// Reader DOM ranges must survive clearing the old PDFium selection.
+				clearPdfSelection();
+				return;
+			}
 			releaseNativeSelectionForPdfPointer({
 				host,
 				target: event.target,
@@ -316,7 +332,7 @@ export function usePdfTextSelection({
 			host.removeEventListener("pointerdown", onPointerDown, true);
 			window.removeEventListener("pointerup", onPointerUp, true);
 		};
-	}, [hostRef]);
+	}, [hostRef, clearPdfSelection]);
 
 	// Source editor took over the writing split: drop the PDFium selection and
 	// its toolbar so only one side stays visibly selected.
@@ -345,7 +361,16 @@ export function usePdfTextSelection({
 			) {
 				return false;
 			}
-			return translationHitsFromRange(selection.getRangeAt(0), host).length > 0;
+			const range = selection.getRangeAt(0);
+			const node = range.startContainer;
+			const element = node instanceof Element ? node : node.parentElement;
+			return (
+				Boolean(
+					element &&
+						host.contains(element) &&
+						element.closest("[data-pdf-reader]"),
+				) || translationHitsFromRange(range, host).length > 0
+			);
 		};
 		const offBegin = scope.onBeginSelection(() => {
 			setIsSelecting(true);
@@ -500,6 +525,13 @@ export function usePdfTextSelection({
 		const shouldHandlePdfCopy = (target: EventTarget | null): boolean => {
 			if (isEditableClipboardTarget(target)) return false;
 			if (hasNativeSelectionOutsideHost(host)) return false;
+			const selection = window.getSelection();
+			if (selection && !selection.isCollapsed) {
+				for (const node of [selection.anchorNode, selection.focusNode]) {
+					const element = node instanceof Element ? node : node?.parentElement;
+					if (element?.closest("[data-pdf-reader]")) return false;
+				}
+			}
 			return true;
 		};
 
@@ -517,7 +549,7 @@ export function usePdfTextSelection({
 			event.preventDefault();
 			// PDFium's clipboard is the English text layer. A translation
 			// selection has no PDFium range; copy the visible translation.
-			if (selectionMenu.fromTranslation) {
+			if (selectionMenu.fromTranslation || selectionMenu.fromReader) {
 				void copyTextToClipboard(selectedText);
 				return;
 			}

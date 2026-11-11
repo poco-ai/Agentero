@@ -69,6 +69,8 @@ export type PdfNavigation = {
 	/** Clamp and jump; also the outline / citation jump target. */
 	goToPage: (page: number) => void;
 	goToRegion: (region: PdfNavigationRegion) => void;
+	/** Explicit jumps, including repeated targets on the current page. */
+	navigationTarget: PdfNavigationTarget | null;
 	/** Apply the typed page (falls back to the current page). */
 	commitPageField: () => void;
 };
@@ -89,6 +91,8 @@ export function usePdfNavigation({
 }: UsePdfNavigationOptions): PdfNavigation {
 	const [pageField, setPageField] = useState("1");
 	const pageFocusedRef = useRef(false);
+	const [navigationTarget, setNavigationTarget] =
+		useState<PdfNavigationTarget | null>(null);
 	const restoredRef = useRef(false);
 	const embeddedTargetRef = useRef(embeddedTarget);
 	embeddedTargetRef.current = embeddedTarget;
@@ -127,6 +131,7 @@ export function usePdfNavigation({
 				} else {
 					scope.scrollToPage({ pageNumber: target.page, behavior: "instant" });
 				}
+				setNavigationTarget({ ...target });
 				return true;
 			},
 			restore: (pages) => {
@@ -271,6 +276,7 @@ export function usePdfNavigation({
 		setPageField,
 		pageFocusedRef,
 		goToPage,
+		navigationTarget,
 		goToRegion,
 		commitPageField,
 	};

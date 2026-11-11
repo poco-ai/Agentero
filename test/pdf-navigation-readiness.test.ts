@@ -152,8 +152,8 @@ it("uses replayed layout readiness and capability scope for a cold citation befo
 			currentPage: 1,
 			totalPages: 1,
 			scroll: null,
-			scrollRef: { current: null },
-			docCapRef: { current: null },
+			scrollRef: useRef(null),
+			docCapRef: useRef(null),
 		});
 		return null;
 	}

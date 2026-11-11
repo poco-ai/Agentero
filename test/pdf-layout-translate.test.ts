@@ -23,12 +23,29 @@ import {
 	listTranslatableLayoutRegions,
 	parseLayoutTranslateSidecar,
 	persistLayoutTranslateSidecarBestEffort,
+	subscribeLayoutTranslateSidecarWrite,
 	toLayoutTranslateItems,
 	translateServiceKey,
 	writeLayoutTranslateSidecar,
 } from "@/lib/pdf/layout/layout-translate";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
+
+const cacheWatch = vi.hoisted(() => ({
+	handler: null as
+		| ((payload: {
+				paths: string[];
+				rename?: { from: string; to: string } | null;
+		  }) => void)
+		| null,
+	off: vi.fn(),
+}));
+vi.mock("@/lib/vault/file-change-gate", () => ({
+	listenVaultFileChangedGated: (handler: typeof cacheWatch.handler) => {
+		cacheWatch.handler = handler;
+		return cacheWatch.off;
+	},
+}));
 
 vi.mock("@/lib/vault", () => ({
 	joinVaultPath: (parent: string, name: string) => `${parent}/${name}`,
@@ -996,4 +1013,71 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 			}),
 		).toBe("googleapi");
 	});
+});
+
+it("notifies readers only after Host cache writes succeed", async () => {
+	const { commands } = await import("@/lib/core/bindings");
+	const tauri = vi
+		.spyOn(await import("@/lib/core/tauri"), "isTauri")
+		.mockReturnValue(true);
+	const write = vi
+		.spyOn(commands, "layoutTranslateCacheWrite")
+		.mockResolvedValue({ ok: true, data: null });
+	const listener = vi.fn();
+	const off = subscribeLayoutTranslateSidecarWrite(listener);
+	const key = {
+		providerId: "google" as const,
+		sourceLang: "en",
+		targetLang: "zh",
+		serviceKey: "google",
+	};
+	try {
+		await writeLayoutTranslateSidecar("/vault/paper", key, []);
+		expect(write).toHaveBeenCalledOnce();
+		expect(listener).toHaveBeenCalledWith("/vault/paper");
+		listener.mockClear();
+		write.mockRejectedValue(new Error("write failed"));
+		await expect(
+			writeLayoutTranslateSidecar("/vault/paper", key, []),
+		).rejects.toThrow("write failed");
+		expect(listener).not.toHaveBeenCalled();
+	} finally {
+		off();
+		write.mockRestore();
+		tauri.mockRestore();
+	}
+});
+
+it("refreshes open views after external or atomic translation cache writes and releases the watcher", () => {
+	cacheWatch.handler = null;
+	cacheWatch.off.mockClear();
+	const listener = vi.fn();
+	const off = subscribeLayoutTranslateSidecarWrite(listener);
+	try {
+		expect(cacheWatch.handler).not.toBeNull();
+		cacheWatch.handler?.({
+			paths: ["D:\\Vault\\paper\\source\\layout-translate.json"],
+		});
+		expect(listener).toHaveBeenLastCalledWith("D:/Vault/paper");
+		listener.mockClear();
+		cacheWatch.handler?.({ paths: ["D:/Vault/paper/notes.md"] });
+		expect(listener).not.toHaveBeenCalled();
+		cacheWatch.handler?.({
+			paths: [],
+			rename: {
+				from: "D:/Vault/paper/source/tmp.json",
+				to: "D:/Vault/paper/source/layout-translate.json",
+			},
+		});
+		expect(listener).toHaveBeenCalledOnce();
+		expect(listener).toHaveBeenCalledWith("D:/Vault/paper");
+	} finally {
+		off();
+	}
+	expect(cacheWatch.off).toHaveBeenCalledOnce();
+	listener.mockClear();
+	cacheWatch.handler?.({
+		paths: ["D:/Vault/paper/source/layout-translate.json"],
+	});
+	expect(listener).not.toHaveBeenCalled();
 });

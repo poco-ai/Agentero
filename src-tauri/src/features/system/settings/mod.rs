@@ -2051,6 +2051,16 @@ mod tests {
     }
 
     #[test]
+    fn normalize_legacy_grid_pdf_mode_to_vertical() {
+        let mut s = AppSettings {
+            pdf_scroll_strategy: "grid".into(),
+            ..AppSettings::default()
+        };
+        normalize(&mut s);
+        assert_eq!(s.pdf_scroll_strategy, "vertical");
+    }
+
+    #[test]
     fn normalize_reading_layout_prefs() {
         let mut invalid = AppSettings {
             wiki_embed_font_size: 99,

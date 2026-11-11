@@ -898,7 +898,9 @@ html[data-linux-scrollbars]:has(
 	.overflow-auto,
 	.overflow-x-auto,
 	.overflow-y-auto
-):not(:is([data-radix-popper-content-wrapper], [data-viewport-floating]) *) {
+):not(.agentero-scroll-visible):not(
+	:is([data-radix-popper-content-wrapper], [data-viewport-floating]) *
+) {
 	scrollbar-width: none;
 }
 

@@ -40,6 +40,8 @@
 		{
 			"identifier": "fs:scope",
 			"allow": [
+				{ "path": "$APPCACHE/pdf-fonts" },
+				{ "path": "$APPCACHE/pdf-fonts/**" },
 				{ "path": "$HOME/**" },
 				{ "path": "$DOCUMENT/**" },
 				{ "path": "$DESKTOP/**" },

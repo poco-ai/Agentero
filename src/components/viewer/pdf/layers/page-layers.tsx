@@ -81,6 +81,7 @@ import {
 } from "@/components/viewer/pdf/marks-index";
 import type {
 	PageAnnotationComment,
+	PdfLinkHoverPoint,
 	ScreenPoint,
 	SelectionCommentDraft,
 } from "@/components/viewer/pdf/types";
@@ -128,11 +129,12 @@ import {
 	unrotatedPageFrameTransform,
 } from "@/lib/pdf/page-frame";
 import {
+	isDarkPdfPaper,
 	PDF_ANNOTATION_DARK_CLASS,
-	PDF_PAGE_RASTER_DARK_CLASS,
 	PDF_PAPER_SHELL_CLASS,
 	PDF_PAPER_TINT,
 	type PdfPaperTone,
+	pdfPaperRasterClass,
 } from "@/lib/pdf/page-theme";
 import type { PdfNavigationRegion } from "@/lib/pdf/pending-pdf-page";
 import type { SelectionPin } from "@/lib/pdf/selection";
@@ -443,7 +445,7 @@ export type PdfPageHandlers = {
 	onTextLinkActivate: (url: string) => void;
 	onCitationHover: (
 		link: PdfLinkAnnoObject | null,
-		clientPoint?: ScreenPoint | null,
+		clientPoint?: PdfLinkHoverPoint | null,
 	) => void;
 	/** External URL hover (annotation URI / Launch, or detected page text). */
 	onLinkUrlHover?: (
@@ -650,7 +652,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			: quarter % 2 === 1
 				? width
 				: height;
-	const pdfDark = tone === "dark";
+	const pdfDark = isDarkPdfPaper(tone);
 	const paperTint = PDF_PAPER_TINT[tone];
 	const cardScale = zoomRef.current > 0 ? zoomRef.current : 1;
 	const pageShellRef = useRef<HTMLDivElement | null>(null);
@@ -1032,7 +1034,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					pageIndex={pageIndex}
 					scale={1}
 					dpr={1}
-					className={pdfDark ? PDF_PAGE_RASTER_DARK_CLASS : undefined}
+					className={pdfPaperRasterClass(tone)}
 					style={PAGE_LAYER_STYLE}
 				/>
 			)}
@@ -1040,7 +1042,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				documentId={docId}
 				pageIndex={pageIndex}
 				dpr={pdfTileDpr()}
-				className={pdfDark ? PDF_PAGE_RASTER_DARK_CLASS : undefined}
+				className={pdfPaperRasterClass(tone)}
 				style={PAGE_LAYER_STYLE}
 			/>
 			{/*
@@ -1141,7 +1143,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	const hoverTranslatedLink = useCallback(
 		(
 			assignment: PreservedLinkAssignment | null,
-			point: { x: number; y: number; top: number; bottom: number } | null,
+			point: PdfLinkHoverPoint | null,
 		) => {
 			const link = assignment?.key
 				? citationById.get(assignment.key)
@@ -1377,17 +1379,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						onToggle={handlers.onTogglePageLayoutTranslate}
 					/>
 				) : null}
-				<CitationLinkLayer
-					links={marks.citationLinks.get(pageIndex) ?? EMPTY_CITATION_LINKS}
-					textLinks={marks.textLinks.get(pageIndex) ?? []}
-					pageWidthPt={width / zoomRef.current}
-					pageHeightPt={height / zoomRef.current}
-					label={t("pdf.linkAria")}
-					onActivate={handlers.onCitationActivate}
-					onTextActivate={handlers.onTextLinkActivate}
-					onHover={handlers.onCitationHover}
-					onUrlHover={handlers.onLinkUrlHover}
-				/>
 				<PdfRegionSelectLayer
 					active={mode.regionSelecting && !mode.visualCropPending}
 					label={t("pdfExplain.regionSelectionLabel", {
@@ -1552,6 +1543,23 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 							);
 						})
 					: null}
+				{/*
+				 * Same z-2 as layout hit boxes, but later in paint order: links
+				 * inside a table/figure must win over click-to-annotate. Keep them
+				 * below translation paper (z-3) so source rects cannot steal hits
+				 * from translated text at a different position.
+				 */}
+				<CitationLinkLayer
+					links={marks.citationLinks.get(pageIndex) ?? EMPTY_CITATION_LINKS}
+					textLinks={marks.textLinks.get(pageIndex) ?? []}
+					pageWidthPt={width / zoomRef.current}
+					pageHeightPt={height / zoomRef.current}
+					label={t("pdf.linkAria")}
+					onActivate={handlers.onCitationActivate}
+					onTextActivate={handlers.onTextLinkActivate}
+					onHover={handlers.onCitationHover}
+					onUrlHover={handlers.onLinkUrlHover}
+				/>
 				{/*
 				 * Quick-chat selections stay painted after the card closes, in the
 				 * same yellow as saved annotations. The open card still bridges
