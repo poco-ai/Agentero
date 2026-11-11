@@ -1,9 +1,11 @@
 import { useScrollCapability } from "@embedpdf/plugin-scroll/react";
 import { useViewportElement } from "@embedpdf/plugin-viewport/react";
+import { useZoomCapability } from "@embedpdf/plugin-zoom/react";
 import { type RefObject, useEffect, useRef } from "react";
 import { useSettings } from "@/hooks/use-app-stores";
 import { ownsPdfKeyboard } from "@/lib/pdf/keyboard-ownership";
 import { handleScrollSyncIntent } from "@/lib/pdf/scroll-sync";
+import { stepPdfZoom } from "@/lib/pdf/zoom";
 
 /** One arrow press moves roughly one block of body text, like a browser scroll. */
 const ARROW_SCROLL_STEP_PX = 72;
@@ -39,12 +41,15 @@ export function KeyboardScrollHandler({
 	const viewportRef = useViewportElement();
 	const strategy = useSettings((s) => s.pdfScrollStrategy);
 	const { provides: scrollCapability } = useScrollCapability();
+	const { provides: zoomCapability } = useZoomCapability();
 	const activeRef = useRef(active);
 	activeRef.current = active;
 	const strategyRef = useRef(strategy);
 	strategyRef.current = strategy;
 	const scrollCapabilityRef = useRef(scrollCapability);
 	scrollCapabilityRef.current = scrollCapability;
+	const zoomCapabilityRef = useRef(zoomCapability);
+	zoomCapabilityRef.current = zoomCapability;
 
 	useEffect(() => {
 		const viewport = viewportRef?.current;
@@ -52,6 +57,28 @@ export function KeyboardScrollHandler({
 
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.defaultPrevented) return;
+			// `+` / `=` / `-` zoom the page (not the UI: ⌘+ / ⌘- stay global).
+			// `+` needs Shift on most layouts, so this runs before the shift gate.
+			const zoomIn = event.key === "+" || event.key === "=";
+			const zoomOut = event.key === "-";
+			if (zoomIn || zoomOut) {
+				if (event.altKey || event.ctrlKey || event.metaKey) return;
+				if (
+					!ownsPdfKeyboard({
+						target: event.target,
+						host: hostRef.current,
+						active: activeRef.current,
+					})
+				)
+					return;
+				const zoom = zoomCapabilityRef.current?.forDocument(documentId);
+				if (!zoom) return;
+				event.preventDefault();
+				zoom.requestZoom(
+					stepPdfZoom(zoom.getState().currentZoomLevel, zoomIn ? 1 : -1),
+				);
+				return;
+			}
 			if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
 				return;
 			}
