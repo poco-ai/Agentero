@@ -9,6 +9,7 @@ import {
 	type PdfLayoutSidecar,
 } from "@/lib/pdf/layout/io";
 import * as translateProgress from "@/lib/pdf/layout/layout-translate-progress";
+import * as translationExclusions from "@/lib/pdf/layout/translation-exclusions";
 import type { TranslationSnapshot } from "@/lib/pdf/layout/translation-job";
 
 // Exercise the real hook with deterministic request completion and hook slots.
@@ -34,6 +35,9 @@ type Item = {
 	pageIndex: number;
 	bbox: { x: number; y: number; w: number; h: number };
 	kind: string;
+	label?: string;
+	text?: string;
+	score?: number;
 	readingOrder: number;
 	source: string;
 	status?: string;
@@ -281,7 +285,14 @@ function createHarness() {
 			options.layoutRawRegions = result.rawRegions;
 			dirty = true;
 		},
-		listTranslatableLayoutRegions: (regions: Item[]) => regions,
+		listTranslatableLayoutRegions: (regions: Item[]) =>
+			regions.filter(
+				(region) =>
+					!translationExclusions.isReferenceLayoutRegion({
+						...region,
+						label: region.label ?? region.kind,
+					} as unknown as PdfLayoutSidecar["regions"][number]),
+			),
 		toLayoutTranslateItems: (regions: Item[]) =>
 			regions.map((item) => ({ ...item, status: "pending" })),
 		currentLayoutTranslateCacheKey: () => ({
@@ -411,6 +422,8 @@ function createHarness() {
 					b.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""),
 		},
 		"@/lib/pdf/layout": layout,
+		"@/lib/pdf/layout/constants": { LAYOUT_SIDEBAR_MIN_SCORE: 0.3 },
+		"@/lib/pdf/layout/translation-exclusions": translationExclusions,
 		"@/lib/pdf/layout/io": {
 			layoutSidecarNeedsTextLayer,
 			subscribeLayoutSidecarWrite: (listener: (path: string) => void) => {
@@ -969,6 +982,61 @@ it("resets a shared retranslation's progress after the previous run completed", 
 	await h.flush();
 	assert.equal(h.view.layoutTranslateProgress, 0);
 	assert.equal(h.observers.at(-1)?.force, true);
+	assert.equal(h.runs.length, 0);
+});
+
+it.each([
+	false,
+	true,
+])("filters old reference translations before a remote pane publishes cached blocks (saved layout: %s)", async (savedLayout) => {
+	const h = createHarness();
+	const reference = {
+		...region(1),
+		label: "reference",
+		score: 1,
+		text: "[1] Smith. A reference.",
+	};
+	h.setTranslateSidecar([
+		{ ...region(0), translated: "正文缓存" },
+		{ ...reference, translated: "旧参考文献译文" },
+	]);
+	if (savedLayout) h.setCachedLayout([region(0), reference]);
+	h.deferPrepare();
+	h.render({
+		translationPane: true,
+		vaultPath: "remote:server/vault",
+		layoutRawRegions: savedLayout ? [] : [region(0), reference],
+	});
+	await h.flush();
+	assert.equal(h.view.layoutTranslateItemsByPage.has(1), false);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"正文缓存",
+	);
+	h.releasePrepare();
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+	assert.equal(h.runs.length, 0);
+});
+
+it("waits for layout before publishing an unclassified remote sidecar without engine preparation", async () => {
+	const h = createHarness();
+	const reference = { ...region(1), label: "reference", score: 1 };
+	h.setTranslateSidecar([
+		{ ...region(0), translated: "正文缓存" },
+		{ ...reference, translated: "旧参考文献译文" },
+	]);
+	h.render({
+		translationPane: true,
+		vaultPath: "remote:server/vault",
+		layoutRawRegions: [],
+	});
+	await h.flush();
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+	h.render({ layoutRawRegions: [region(0), reference] });
+	await h.flush();
+	assert.equal(h.view.layoutTranslateItemsByPage.has(1), false);
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
 	assert.equal(h.runs.length, 0);
 });
 

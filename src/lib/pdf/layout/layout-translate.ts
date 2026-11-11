@@ -31,6 +31,7 @@ import {
 } from "@/lib/pdf/layout/layout-translate-source";
 import { bboxCoveredBy } from "@/lib/pdf/layout/merge-captions";
 import { splitTranslationChunks } from "@/lib/pdf/layout/translation-chunks";
+import { isReferenceLayoutRegion } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	LayoutTranslateRegion,
@@ -169,31 +170,15 @@ export function isAlgorithmTitleText(text: string): boolean {
 	return /^(algorithm|alg\.?)\s*\d/i.test(t);
 }
 
-/**
- * PP-DocLayoutV3 reference labels (mapped to kind `text` in LABEL_TO_KIND).
- * Raw `label` is still preserved on the region.
- */
-export function isReferenceLayoutLabel(label: string): boolean {
-	const k = label.trim().toLowerCase();
-	return k === "reference" || k === "reference_content";
-}
-
 /** PP-DocLayoutV3 side-margin text (`aside_text` → kind text; keep raw label). */
 export function isAsideTextLayoutLabel(label: string): boolean {
 	return label.trim().toLowerCase() === "aside_text";
 }
 
-/** Section headings like "References" / "Bibliography" / "参考文献". */
-export function isReferenceSectionTitle(text: string): boolean {
-	const t = text.trim();
-	if (!t || t.length > 64) return false;
-	return /^(references?|bibliography|works\s+cited|参考文[献獻])\b/i.test(t);
-}
-
 /**
  * Reading-order list of regions with extractable source text
  * (body, abstract, headers, figure/table captions).
- * Skips algorithm / aside_text regions; bibliography entries are included.
+ * Skips algorithm, aside_text, and bibliography regions and headings.
  */
 export function listTranslatableLayoutRegions(
 	regions: readonly PdfLayoutRegion[],
@@ -208,6 +193,7 @@ export function listTranslatableLayoutRegions(
 		if (isAlgorithmLayoutKind(r.kind)) continue;
 		// Side-margin / running column text (e.g. arXiv strip when labeled aside_text).
 		if (isAsideTextLayoutLabel(r.label)) continue;
+		if (isReferenceLayoutRegion(r)) continue;
 		if (!isLayoutTranslatableKind(r.kind)) continue;
 		if (!(r.score >= minScore)) continue;
 		if (!(r.bbox.w > 0 && r.bbox.h > 0)) continue;

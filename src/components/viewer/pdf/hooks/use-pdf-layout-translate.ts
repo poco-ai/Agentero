@@ -42,6 +42,7 @@ import {
 	setLayoutDocumentResult,
 	toLayoutTranslateItems,
 } from "@/lib/pdf/layout";
+import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import {
 	layoutSidecarNeedsTextLayer,
 	subscribeLayoutSidecarWrite,
@@ -50,6 +51,10 @@ import {
 	layoutTranslateDisplayRatio,
 	layoutTranslatePageProgress,
 } from "@/lib/pdf/layout/layout-translate-progress";
+import {
+	isInsideReferenceRegion,
+	isReferenceLayoutRegion,
+} from "@/lib/pdf/layout/translation-exclusions";
 import {
 	observePaperTranslation,
 	type TranslationSnapshot,
@@ -1737,13 +1742,29 @@ export function usePdfLayoutTranslate({
 		void (async () => {
 			const sidecar = await readLayoutTranslateSidecar(paperAbsPath, cacheKey);
 			if (isStale() || !sidecar?.items.length) return;
+			let raw = layoutRawRegions;
+			if (!raw?.length) {
+				const savedLayout = await readLayoutSidecar(paperAbsPath);
+				if (isStale()) return;
+				// The sidecar has no reference labels. Wait for layout semantics
+				// before publishing old translations, including without a PDF engine.
+				if (!savedLayout?.regions.length) return;
+				raw = savedLayout.regions;
+			}
+			const references = raw.filter(
+				(region) =>
+					region.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+					isReferenceLayoutRegion(region),
+			);
 			// Paint the cached blocks before the region-prepare pass. Besides making
 			// the pane visible sooner, this marks the job active so the pane's
 			// auto-start cannot fire a second, network-backed job while preparing.
-			const seededItems = sidecar.items.map((item) => ({
-				...item,
-				status: "done" as const,
-			}));
+			const seededItems = sidecar.items
+				.filter((item) => !isInsideReferenceRegion(item, references))
+				.map((item) => ({
+					...item,
+					status: "done" as const,
+				}));
 			if (layoutTranslateJobRef.current.items.length === 0) {
 				setLayoutTranslateJob((prev) => ({
 					...prev,
@@ -1759,12 +1780,8 @@ export function usePdfLayoutTranslate({
 					partialCompletionFailed: false,
 				}));
 			}
-			const seed = layoutRawRegions?.length
-				? toLayoutTranslateItems(
-						listTranslatableLayoutRegions(layoutRawRegions),
-					)
-				: seededItems;
-			const prepared = await prepareReflow(seed);
+			const seed = toLayoutTranslateItems(listTranslatableLayoutRegions(raw));
+			const prepared = await prepareReflow(seed, undefined, raw);
 			if (isStale()) return;
 			// Disk writes are debounced. A repeated layout notification must not
 			// replace freshly completed or retranslated blocks with an old sidecar.

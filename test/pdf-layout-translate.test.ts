@@ -195,7 +195,7 @@ describe("listTranslatableLayoutRegions", () => {
 		expect(list[1]?.source).toContain("Table 2");
 	});
 
-	it("includes reference entries and the References heading in full-document translation", () => {
+	it("excludes reference entries and their heading from translation and missing counts", () => {
 		const list = listTranslatableLayoutRegions([
 			region({
 				id: "ref1",
@@ -229,7 +229,52 @@ describe("listTranslatableLayoutRegions", () => {
 				text: "Introduction body.",
 			}),
 		]);
-		expect(list.map((r) => r.id)).toEqual(["body", "reftitle", "ref1", "refc"]);
+		expect(list.map((r) => r.id)).toEqual(["body"]);
+		const hydration = hydrateLayoutTranslateItems(
+			toLayoutTranslateItems(list),
+			{
+				schemaVersion: 2,
+				source: {
+					mode: "pdf-layout-translate",
+					generatedAt: "2026-11-11T00:00:00Z",
+					providerId: "tencenttransmart",
+					sourceLang: "auto",
+					targetLang: "zh-CN",
+					serviceKey: "tencenttransmart",
+				},
+				items: [...list, { ...list[0], id: "ref1" }].map((r) => ({
+					...r,
+					translated: "Cached translation",
+				})),
+			},
+		);
+		expect(hydration.items.map((item) => item.id)).toEqual(["body"]);
+		expect(hydration.pendingRequired).toBe(0);
+	});
+
+	it.each([
+		"Bibliography",
+		"Works Cited",
+		"参考文献",
+		"參考文獻",
+		"9. References",
+	])("preserves the standalone %s heading while keeping inline citations and appendices translatable", (title) => {
+		const list = listTranslatableLayoutRegions([
+			region({ id: "heading", kind: "header", pageIndex: 0, text: title }),
+			region({
+				id: "body",
+				kind: "text",
+				pageIndex: 0,
+				text: "References [1, 2] support our approach.",
+			}),
+			region({
+				id: "appendix",
+				kind: "header",
+				pageIndex: 1,
+				text: "A. Additional experiments",
+			}),
+		]);
+		expect(list.map((r) => r.id)).toEqual(["body", "appendix"]);
 	});
 
 	it("skips aside_text side-margin regions", () => {

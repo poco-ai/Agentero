@@ -2,6 +2,10 @@ import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import { errorText } from "@/lib/core/error";
 import { logger, logOp } from "@/lib/core/logger";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
+import {
+	isInsideReferenceRegion,
+	isReferenceLayoutRegion,
+} from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
@@ -106,10 +110,16 @@ export async function prepareReflowItems(
 				() => writeCachedPages(writeCache, extracted.pages),
 			);
 	}
-	return preparedItemsFromDocument(doc, items, {
+	const prepared = preparedItemsFromDocument(doc, items, {
 		version: REFLOW_IR_SCHEMA_VERSION,
 		pages: [...pages.values()].sort((a, b) => a.index - b.index),
 	});
+	const references = regions.filter(
+		(region) =>
+			region.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+			isReferenceLayoutRegion(region),
+	);
+	return prepared.filter((item) => !isInsideReferenceRegion(item, references));
 }
 
 function preparedItemsFromDocument(

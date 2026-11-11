@@ -6,6 +6,7 @@ import type {
 } from "@embedpdf/models";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
+import { isReferenceLayoutRegion } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
@@ -432,6 +433,14 @@ export async function extractReflowDocument(
 		const pageRegions = regions.filter(
 			(r) => r.pageIndex === page.index && r.score >= LAYOUT_SIDEBAR_MIN_SCORE,
 		);
+		const references = pageRegions.filter(isReferenceLayoutRegion);
+		const referenceCharacters = new Set(
+			characters
+				.filter((c) =>
+					references.some((r) => centerInside(c.visualBox, r.rect)),
+				)
+				.map((c) => c.index),
+		);
 		const formulaBoxes = pageRegions
 			.filter((r) => r.kind === "formula")
 			.map((r) => r.rect);
@@ -449,6 +458,7 @@ export async function extractReflowDocument(
 					(c) =>
 						!hidden.has(c.index) &&
 						!clipped.has(c.index) &&
+						!referenceCharacters.has(c.index) &&
 						!claimed.has(c.index) &&
 						centerInside(c.visualBox, box),
 				);
@@ -510,8 +520,9 @@ export async function extractReflowDocument(
 		const rotated = rotatedCharacterIndexes(characters);
 		for (const c of characters) {
 			if (
-				c.textObjectId !== undefined &&
-				conflictingHeadingObjects.has(c.textObjectId)
+				referenceCharacters.has(c.index) ||
+				(c.textObjectId !== undefined &&
+					conflictingHeadingObjects.has(c.textObjectId))
 			)
 				preserved.set(c.index, "excluded");
 			else if (clipped.has(c.index)) preserved.set(c.index, "clipped");
@@ -540,6 +551,7 @@ export async function extractReflowDocument(
 				(c) =>
 					!hidden.has(c.index) &&
 					!clipped.has(c.index) &&
+					!referenceCharacters.has(c.index) &&
 					!claimed.has(c.index) &&
 					centerInside(c.visualBox, table.rect),
 			);

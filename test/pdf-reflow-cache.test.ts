@@ -1,6 +1,9 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import { describe, expect, it, vi } from "vitest";
-import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
+import type {
+	LayoutTranslateItem,
+	PdfLayoutRegion,
+} from "@/lib/pdf/layout/types";
 import {
 	createReflowIrCache,
 	decodeReflowIrCachePage,
@@ -292,6 +295,49 @@ describe("reflow IR cache", () => {
 		);
 		expect(getPageGlyphs).toHaveBeenCalledTimes(1);
 		expect(cache.write).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not restore bibliography paragraphs or their fallback blocks from cached IR", async () => {
+		const page = pageWithFormula(0);
+		const reference = {
+			...page.paragraphs[0],
+			id: "reference",
+			box: box(10, 100, 120, 30),
+		};
+		page.paragraphs.push(reference, {
+			...reference,
+			id: "0:fallback:100",
+			box: box(15, 110, 40, 10),
+			origin: "fallback",
+		});
+		const region: PdfLayoutRegion = {
+			id: reference.id,
+			pageIndex: 0,
+			kind: "text",
+			label: "reference",
+			score: 1,
+			readingOrder: 1,
+			rect: reference.box,
+			bbox: { x: 0.05, y: 1 / 3, w: 0.6, h: 0.1 },
+		};
+		const engine = {
+			getPageGlyphs: vi.fn(() => {
+				throw new Error("extraction must not run on a cache hit");
+			}),
+		} as unknown as PdfEngine;
+		const prepared = await prepareReflowItems(
+			engine,
+			document,
+			[item("p0", 0)],
+			[region],
+			undefined,
+			{
+				read: async () => new Map([[0, page]]),
+				write: vi.fn(),
+			},
+		);
+		expect(prepared.map((entry) => entry.id)).toEqual(["p0"]);
+		expect(engine.getPageGlyphs).not.toHaveBeenCalled();
 	});
 
 	it("persists pages through the real store and misses when PDF or layout changes", async () => {
