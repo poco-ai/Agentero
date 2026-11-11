@@ -738,7 +738,7 @@ for (const translationPane of [false, true]) {
 		assert.equal(h.reflowInput[0].translated, "Cached");
 		assert.equal(h.reflowInput[1].translated, undefined);
 		assert.equal(h.view.layoutTranslatePartial.visible, true);
-		assert.equal(h.view.layoutTranslatePartial.open, true);
+		assert.equal(h.view.layoutTranslatePartial.open, false);
 		assert.equal(h.view.layoutTranslatePartial.pendingRequired, 1);
 
 		h.view.layoutTranslatePartial.onOpenChange(false);
@@ -791,7 +791,7 @@ it("queues a paper when its sidecar does not match prepared source", async () =>
 	assert.equal(h.runs.length, 0);
 });
 
-it("reopens a partial paper cache warning in a new document session without completing gaps", async () => {
+it("keeps a partial paper cache warning closed in a new document session without completing gaps", async () => {
 	const h = createHarness();
 	h.render({ vaultPath: "/vault" });
 	h.setTranslateSidecar([
@@ -806,7 +806,7 @@ it("reopens a partial paper cache warning in a new document session without comp
 	await h.flush();
 	assert.equal(h.view.layoutTranslateStatus, "partial");
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
-	assert.equal(h.view.layoutTranslatePartial.open, true);
+	assert.equal(h.view.layoutTranslatePartial.open, false);
 	assert.equal(h.observers.length, 0);
 	assert.equal(h.runs.length, 0);
 });
@@ -961,6 +961,7 @@ for (const allFailed of [false, true]) {
 		await h.flush();
 		assert.equal(h.errors.length, 0);
 		assert.equal(h.view.layoutTranslatePartial.visible, true);
+		assert.equal(h.view.layoutTranslatePartial.open, false);
 		assert.equal(
 			h.view.layoutTranslatePartial.pendingRequired,
 			allFailed ? 2 : 1,
@@ -1149,16 +1150,16 @@ it("hydrates a complete sidecar as done without a translation request", async ()
 	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
 });
 
-it("auto-opens the partial dialog once after the cached page is ready", async () => {
+it("shows the partial entry without opening the dialog after cached pages load", async () => {
 	const h = createHarness();
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "译文 0" },
 	]);
 	h.view.toggleLayoutTranslate();
 	await h.flush();
-	// The popover opens while page generation continues in the background.
+	// Page generation and missing translations never open the popover.
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
-	assert.equal(h.view.layoutTranslatePartial.open, true);
+	assert.equal(h.view.layoutTranslatePartial.open, false);
 	assert.equal(h.view.layoutTranslatePartial.pendingRequired, 1);
 	assert.equal(h.view.layoutTranslatePartial.translatedCount, 1);
 	assert.equal(h.view.layoutTranslatePartial.totalCount, 2);
@@ -1185,6 +1186,8 @@ it("keeps a closed partial hint closed during repeated cache hydration", async (
 	await h.flush();
 	h.setReflowReady(true);
 	h.render();
+	h.view.layoutTranslatePartial.onOpenChange(true);
+	h.render();
 	assert.equal(h.view.layoutTranslatePartial.open, true);
 	h.view.layoutTranslatePartial.onOpenChange(false);
 	h.render();
@@ -1209,7 +1212,7 @@ it("offers pending-only completion when a translation pane reopens a partial cac
 	assert.equal(h.runs.length, 0);
 	assert.equal(h.view.layoutTranslateStatus, "partial");
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
-	assert.equal(h.view.layoutTranslatePartial.open, true);
+	assert.equal(h.view.layoutTranslatePartial.open, false);
 	h.view.layoutTranslatePartial.onCompleteMissing();
 	await h.flush();
 	assert.equal(h.runs.length, 1);
@@ -1262,7 +1265,7 @@ it("does not let a late translation-pane hydrate erase a completed recovery", as
 	assert.equal(h.runs.length, 1);
 });
 
-it("reopens the partial hint when a translation pane returns to the document", async () => {
+it("keeps the partial hint closed when a translation pane returns to the document", async () => {
 	const h = createHarness();
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "译文 0" },
@@ -1276,7 +1279,7 @@ it("reopens the partial hint when a translation pane returns to the document", a
 	await h.flush();
 	assert.equal(h.runs.length, 0);
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
-	assert.equal(h.view.layoutTranslatePartial.open, true);
+	assert.equal(h.view.layoutTranslatePartial.open, false);
 });
 
 it("completes only pending blocks and rewrites the sidecar", async () => {
@@ -1373,6 +1376,7 @@ for (const action of ["initial", "retranslate"] as const) {
 		await h.flush();
 		assert.equal(h.errors.length, 0);
 		assert.equal(h.view.layoutTranslatePartial.visible, true);
+		assert.equal(h.view.layoutTranslatePartial.open, false);
 		assert.equal(
 			h.view.layoutTranslatePartial.pendingRequired,
 			action === "retranslate" ? 1 : 2,

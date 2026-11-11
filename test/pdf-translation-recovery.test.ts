@@ -201,6 +201,27 @@ it("offers completion in the idle translation pane and keeps recovery after clos
 	expect(fixture.toggle).not.toHaveBeenCalled();
 });
 
+it("keeps the warning collapsed until clicked and tracks its expanded state", async () => {
+	if (fixture.partial) fixture.partial = { ...fixture.partial, open: false };
+	await renderPane();
+	const trigger = host.querySelector<HTMLButtonElement>(
+		"[data-full-text-translate-partial]",
+	);
+	expect(trigger).not.toBeNull();
+	expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+	expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
+	await act(() => trigger?.click());
+	await renderPane();
+	expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+	expect(
+		document.querySelector('[data-slot="popover-content"]'),
+	).not.toBeNull();
+	await act(() => trigger?.click());
+	await renderPane();
+	expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+	expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
+});
+
 it("requires confirmation before the translation pane retranslates everything", async () => {
 	await renderPane();
 	await act(() => action("retranslateAll").click());

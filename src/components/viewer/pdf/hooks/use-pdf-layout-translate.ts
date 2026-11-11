@@ -389,8 +389,6 @@ export function usePdfLayoutTranslate({
 	const layoutTranslateJobRef = useRef(layoutTranslateJob);
 	layoutTranslateJobRef.current = layoutTranslateJob;
 	const [partialDialogOpen, setPartialDialogOpen] = useState(false);
-	/** Gap identity that already got its one automatic open this session. */
-	const partialAutoOpenedKeyRef = useRef<string | null>(null);
 	// Visibility must not discard the translation or invalidate its reflow preview.
 	const [hiddenPageIndexes, setHiddenPageIndexes] = useState<
 		ReadonlySet<number>
@@ -549,31 +547,6 @@ export function usePdfLayoutTranslate({
 			notifyTranslateFailure,
 			t,
 		],
-	);
-
-	/** Open once per cache identity and gap set during this document session. */
-	const schedulePartialAutoOpen = useCallback(
-		(
-			cacheKey: LayoutTranslateCacheKey,
-			items: readonly LayoutTranslateItem[],
-		) => {
-			const pendingIds = items
-				.filter((item) => !item.translated?.trim())
-				.map((item) => item.id)
-				.sort();
-			if (pendingIds.length === 0) return;
-			const key = JSON.stringify([
-				cacheKey.providerId,
-				cacheKey.sourceLang,
-				cacheKey.targetLang,
-				cacheKey.serviceKey,
-				pendingIds,
-			]);
-			if (partialAutoOpenedKeyRef.current === key) return;
-			partialAutoOpenedKeyRef.current = key;
-			setPartialDialogOpen(true);
-		},
-		[],
 	);
 
 	/** Attach to the queue-owned execution. Disposal never cancels the job. */
@@ -839,8 +812,6 @@ export function usePdfLayoutTranslate({
 										runScopeIds: [],
 									}),
 								);
-								if (hydration.pendingRequired > 0)
-									schedulePartialAutoOpen(cacheKey, hydration.items);
 								if (layoutTranslateAbortRef.current === ac)
 									layoutTranslateAbortRef.current = null;
 								return;
@@ -867,7 +838,6 @@ export function usePdfLayoutTranslate({
 			layoutRawRegions,
 			docId,
 			prepareReflow,
-			schedulePartialAutoOpen,
 		],
 	);
 
@@ -962,14 +932,7 @@ export function usePdfLayoutTranslate({
 				cacheKey,
 				partialCompletionFailed: false,
 			});
-			if (!needsRun) {
-				// Cache-first renders a partial page without asking the user yet;
-				// the popover opens once the page build finishes and the button can
-				// anchor it. The build itself is never blocked.
-				if (hydration.pendingRequired > 0)
-					schedulePartialAutoOpen(cacheKey, hydration.items);
-				return;
-			}
+			if (!needsRun) return;
 			const finalItems = await runLayoutRegionTranslate({
 				items: hydration.items,
 				signal: ac.signal,
@@ -1015,7 +978,6 @@ export function usePdfLayoutTranslate({
 		enterWaitingLayout,
 		prepareReflow,
 		notifyTranslateFailure,
-		schedulePartialAutoOpen,
 		startSharedDocumentTranslate,
 		paperRelPath,
 		t,
@@ -1546,7 +1508,6 @@ export function usePdfLayoutTranslate({
 		setHiddenPageIndexes(new Set());
 		layoutTranslateWaitTargetRef.current = null;
 		waitingAutoStartedRef.current = false;
-		partialAutoOpenedKeyRef.current = null;
 		progressFloorRef.current = 0;
 		setPartialDialogOpen(false);
 		setLayoutTranslateJob(EMPTY_LAYOUT_TRANSLATE_JOB);
@@ -1751,8 +1712,6 @@ export function usePdfLayoutTranslate({
 				cacheKey,
 				partialCompletionFailed: false,
 			}));
-			if (hydration.pendingRequired > 0)
-				schedulePartialAutoOpen(cacheKey, hydration.items);
 		})().catch((error) => {
 			if (!cancelled)
 				notifyError(t("pdf.layoutTranslate.reflowFailed"), {
@@ -1769,7 +1728,6 @@ export function usePdfLayoutTranslate({
 		vaultPath,
 		layoutRawRegions,
 		prepareReflow,
-		schedulePartialAutoOpen,
 		t,
 	]);
 

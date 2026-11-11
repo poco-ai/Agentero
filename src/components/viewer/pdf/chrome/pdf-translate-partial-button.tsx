@@ -171,10 +171,7 @@ export function PdfTranslatePartialDialog({
 	);
 }
 
-/**
- * Button + anchored popover. Rendered only while `partial.visible` is true, so
- * the trigger always exists when the dialog auto-opens.
- */
+/** Manual recovery entry, rendered only while `partial.visible` is true. */
 export const PdfTranslatePartialButton = memo(
 	function PdfTranslatePartialButton({
 		partial,
@@ -236,12 +233,12 @@ export const PdfTranslatePartialButton = memo(
 					<Button
 						type="button"
 						size="icon-xs"
-						variant="secondary"
+						variant="ghost"
 						data-full-text-translate-partial
 						aria-label={label}
 						title={label}
 						className={cn(
-							"text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400",
+							"bg-transparent text-amber-600 hover:text-amber-700 active:text-amber-700 aria-expanded:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 dark:active:text-amber-300 dark:aria-expanded:text-amber-300",
 							className,
 						)}
 					>
