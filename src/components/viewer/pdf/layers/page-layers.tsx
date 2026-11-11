@@ -227,10 +227,16 @@ const EMPTY_SELECTION_BANDS: readonly PdfAskNormalizedRect[] = [];
  * characters remain readable, and it is one box so the gap between two
  * characters is not painted twice.
  */
-function TranslationLiveSelection({ pageIndex }: { pageIndex: number }) {
+function TranslationLiveSelection({
+	documentId,
+	pageIndex,
+}: {
+	documentId: string;
+	pageIndex: number;
+}) {
 	const rects = useSyncExternalStore(
 		subscribeTranslationSelectionBands,
-		() => translationSelectionBandsFor(pageIndex),
+		() => translationSelectionBandsFor(documentId, pageIndex),
 		() => EMPTY_SELECTION_BANDS,
 	);
 	if (!rects.length) return null;
@@ -1434,7 +1440,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				 * z-5); glyphs are z-6 so the tint cannot wash them out.
 				 */}
 				{translateOverlay}
-				<TranslationLiveSelection pageIndex={pageIndex} />
+				<TranslationLiveSelection documentId={docId} pageIndex={pageIndex} />
 				{translationVisible ? (
 					<TranslatedHighlightLayer paints={translatedPaints} />
 				) : null}

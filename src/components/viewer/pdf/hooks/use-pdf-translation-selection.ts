@@ -18,6 +18,7 @@ import {
 	pageElByIndex,
 	rectBottomCenterScreen,
 } from "@/components/viewer/pdf/coords";
+import { clearDomSelectionInside } from "@/components/viewer/pdf/host-dom";
 import type { SelectionMenuState } from "@/components/viewer/pdf/types";
 import {
 	selectionFocusRect,
@@ -222,9 +223,6 @@ export function usePdfTranslationSelection({
 	const langRef = useRef(i18n.language);
 	langRef.current = i18n.language;
 	const genRef = useRef(0);
-	const pointerDownRef = useRef(false);
-	const inflightRef = useRef(0);
-	const releaseDragRef = useRef<(() => void) | null>(null);
 
 	useEffect(() => {
 		if (enabled || !menuRef.current?.fromTranslation) return;
@@ -233,24 +231,59 @@ export function usePdfTranslationSelection({
 
 	useEffect(() => {
 		if (!enabled) {
-			clearTranslationSelectionBands();
+			clearTranslationSelectionBands(docId);
 			return;
 		}
 		const host = hostRef.current;
 		if (!host) return;
+		let disposed = false;
+		let visible = true;
+		let pointerDown = false;
+		let releaseDrag: (() => void) | null = null;
+		let releaseFrame = 0;
+		let bandFrame = 0;
+		const inflight = new Set<number>();
+		const reset = () => {
+			genRef.current += 1;
+			pointerDown = false;
+			inflight.clear();
+			if (bandFrame) cancelAnimationFrame(bandFrame);
+			if (releaseFrame) cancelAnimationFrame(releaseFrame);
+			bandFrame = 0;
+			releaseFrame = 0;
+			clearTranslationSelectionBands(docId);
+			releaseDrag?.();
+			releaseDrag = null;
+		};
+		// Dockview retains hidden tabs. Visibility, rather than workspace focus,
+		// ends a drag so a visible split pane can still select translated text.
+		const observer =
+			typeof IntersectionObserver === "undefined"
+				? null
+				: new IntersectionObserver((entries) => {
+						visible = entries.some((entry) => entry.isIntersecting);
+						if (visible) return;
+						reset();
+						clearDomSelectionInside(host);
+						if (menuRef.current?.fromTranslation) setSelectionMenu(null);
+					});
+		observer?.observe(host);
 
 		// Drop the hold once the locate has settled and React has painted the
 		// selection menu, which suppresses previews on its own. A locate that
 		// finishes mid-drag must not release early.
 		const scheduleReleaseDrag = () => {
-			requestAnimationFrame(() => {
-				if (pointerDownRef.current || inflightRef.current > 0) return;
-				releaseDragRef.current?.();
-				releaseDragRef.current = null;
+			if (releaseFrame || !releaseDrag) return;
+			releaseFrame = requestAnimationFrame(() => {
+				releaseFrame = 0;
+				if (pointerDown || inflight.size > 0) return;
+				releaseDrag?.();
+				releaseDrag = null;
 			});
 		};
 
 		const commit = () => {
+			if (!visible) return;
 			const root = hostRef.current;
 			if (!root) return;
 			const range = hostRange(root);
@@ -285,7 +318,7 @@ export function usePdfTranslationSelection({
 			);
 			if (!resolved) return;
 			void (async () => {
-				inflightRef.current += 1;
+				inflight.add(generation);
 				try {
 					const pages = await locatePages(
 						engineRef.current,
@@ -389,15 +422,15 @@ export function usePdfTranslationSelection({
 							: undefined,
 					});
 				} finally {
-					inflightRef.current = Math.max(0, inflightRef.current - 1);
-					if (!pointerDownRef.current) scheduleReleaseDrag();
+					inflight.delete(generation);
+					if (!disposed && visible && !pointerDown) scheduleReleaseDrag();
 				}
 			})();
 		};
 
 		const onPointerDown = (event: PointerEvent) => {
-			pointerDownRef.current = true;
-			if (event.button !== 0) return;
+			if (!visible || event.button !== 0) return;
+			pointerDown = true;
 			const target = event.target;
 			const el =
 				target instanceof Element
@@ -407,22 +440,22 @@ export function usePdfTranslationSelection({
 						: null;
 			if (!el || !host.contains(el) || !el.closest("[data-layout-item]"))
 				return;
-			if (!releaseDragRef.current) {
-				releaseDragRef.current = holdLinkPreviewDrag();
+			if (!releaseDrag) {
+				releaseDrag = holdLinkPreviewDrag();
 			}
 		};
 		// The page ends a text drag on bubble pointerup. Stopping that event
 		// here leaves the drag active, so later moves keep extending it.
 		const onPointerUp = () => {
-			pointerDownRef.current = false;
+			pointerDown = false;
 			commit();
 			scheduleReleaseDrag();
 		};
 		// One rectangle per line. Reflow places one absolute box per character
 		// above the raster; painting ::selection on each of those boxes stacks
 		// in the seam. The band covers a reflow drag too.
-		let bandFrame = 0;
 		const publishBands = () => {
+			if (!visible) return;
 			const root = hostRef.current;
 			const selection = window.getSelection();
 			if (
@@ -431,7 +464,7 @@ export function usePdfTranslationSelection({
 				selection.isCollapsed ||
 				selection.rangeCount === 0
 			) {
-				clearTranslationSelectionBands();
+				clearTranslationSelectionBands(docId);
 				return;
 			}
 			const range = selection.getRangeAt(0);
@@ -440,10 +473,11 @@ export function usePdfTranslationSelection({
 			const inside = (el: Element | null) =>
 				Boolean(el && root.contains(el) && el.closest("[data-layout-item]"));
 			if (!inside(anchor) && !inside(focus)) {
-				clearTranslationSelectionBands();
+				clearTranslationSelectionBands(docId);
 				return;
 			}
 			publishTranslationSelectionBands(
+				docId,
 				visiblePagesFromClientRects(
 					mergeClientRectsIntoLines(Array.from(range.getClientRects())),
 					pageFrames(root),
@@ -458,8 +492,9 @@ export function usePdfTranslationSelection({
 			});
 		};
 		const onSelectionChange = () => {
+			if (!visible) return;
 			scheduleBands();
-			if (pointerDownRef.current) return;
+			if (pointerDown) return;
 			commit();
 		};
 
@@ -468,11 +503,9 @@ export function usePdfTranslationSelection({
 		host.addEventListener("pointercancel", onPointerUp, true);
 		document.addEventListener("selectionchange", onSelectionChange);
 		return () => {
-			genRef.current += 1;
-			if (bandFrame) cancelAnimationFrame(bandFrame);
-			clearTranslationSelectionBands();
-			releaseDragRef.current?.();
-			releaseDragRef.current = null;
+			disposed = true;
+			observer?.disconnect();
+			reset();
 			host.removeEventListener("pointerdown", onPointerDown);
 			host.removeEventListener("pointerup", onPointerUp, true);
 			host.removeEventListener("pointercancel", onPointerUp, true);

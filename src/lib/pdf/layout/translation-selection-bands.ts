@@ -11,7 +11,9 @@ import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-re
 
 const EMPTY_RECTS: readonly PdfAskNormalizedRect[] = [];
 
-let pages: readonly VisibleSelectionPage[] = [];
+// Recent PDF tabs stay mounted together. Each viewer owns its own bands,
+// including clears from selectionchange, translation toggles, and teardown.
+const pagesByDocument = new Map<string, readonly VisibleSelectionPage[]>();
 const listeners = new Set<() => void>();
 
 function samePages(
@@ -47,22 +49,28 @@ function emit(): void {
 }
 
 export function publishTranslationSelectionBands(
+	documentId: string,
 	next: readonly VisibleSelectionPage[],
 ): void {
-	if (samePages(pages, next)) return;
-	pages = next;
+	const previous = pagesByDocument.get(documentId) ?? [];
+	if (samePages(previous, next)) return;
+	if (next.length) pagesByDocument.set(documentId, next);
+	else pagesByDocument.delete(documentId);
 	emit();
 }
 
-export function clearTranslationSelectionBands(): void {
-	publishTranslationSelectionBands([]);
+export function clearTranslationSelectionBands(documentId: string): void {
+	publishTranslationSelectionBands(documentId, []);
 }
 
 export function translationSelectionBandsFor(
+	documentId: string,
 	pageIndex: number,
 ): readonly PdfAskNormalizedRect[] {
 	return (
-		pages.find((page) => page.pageIndex === pageIndex)?.rects ?? EMPTY_RECTS
+		pagesByDocument
+			.get(documentId)
+			?.find((page) => page.pageIndex === pageIndex)?.rects ?? EMPTY_RECTS
 	);
 }
 
