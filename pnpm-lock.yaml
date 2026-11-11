@@ -131,6 +131,9 @@ importers:
       '@embedpdf/plugin-document-manager':
         specifier: 2.14.4
         version: 2.14.4(patch_hash=40f81e74a2058a267cf4e42eb7619d0ac331432bf427846c3a9c7608e42bd352)(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3)))(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
+      '@embedpdf/plugin-history':
+        specifier: 2.14.4
+        version: 2.14.4(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3)))(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
       '@embedpdf/plugin-interaction-manager':
         specifier: 2.14.4
         version: 2.14.4(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3)))(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))

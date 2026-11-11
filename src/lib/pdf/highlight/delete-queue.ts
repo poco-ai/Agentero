@@ -14,6 +14,7 @@ type DeleteScope = Pick<
 export function createAnnotationDeleteQueue(
 	scope: DeleteScope,
 	onError: (error?: unknown) => void,
+	withoutRecording: (action: () => void) => void = (action) => action(),
 ) {
 	const pending = new Map<string, { pageIndex: number; reasserted: boolean }>();
 	let disposed = false;
@@ -39,7 +40,7 @@ export function createAnnotationDeleteQueue(
 				}
 				request.reasserted = true;
 				try {
-					scope.deleteAnnotation(request.pageIndex, id);
+					withoutRecording(() => scope.deleteAnnotation(request.pageIndex, id));
 				} catch (error) {
 					pending.delete(id);
 					onError(error);
