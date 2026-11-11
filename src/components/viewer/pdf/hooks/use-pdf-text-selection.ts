@@ -466,6 +466,7 @@ export function usePdfTextSelection({
 				state.selection,
 				[...(layout?.rawRegions ?? []), ...(layout?.regions ?? [])],
 				selectionStartPageRef.current,
+				"cached",
 			);
 			for (const [pageIndex, rects] of insertions) {
 				excludedByPage.set(pageIndex, [
