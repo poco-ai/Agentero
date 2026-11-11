@@ -110,9 +110,10 @@ export function useTranslateMeter({
 	);
 	useEffect(() => {
 		const target = open && !indeterminate ? ratio * 100 : 0;
-		if (reduceMotion || !open || indeterminate) smoothPercent.jump(target);
+		if (complete || reduceMotion || !open || indeterminate)
+			smoothPercent.jump(target);
 		else smoothPercent.set(target);
-	}, [open, indeterminate, ratio, reduceMotion, smoothPercent]);
+	}, [open, indeterminate, ratio, complete, reduceMotion, smoothPercent]);
 
 	const pagesLabel = layoutTranslatePageCounts
 		? t("pdf.layoutTranslate.pagesCount", {
@@ -138,7 +139,9 @@ export function useTranslateMeter({
 		indeterminate,
 		retracting,
 		ratio,
-		percent,
+		// Completion must agree with the caption even before the animation frame
+		// catches up after a busy build or a quick cached run.
+		percent: lingerFull ? 100 : percent,
 		pagesLabel,
 		stage,
 		width: smoothWidth,
