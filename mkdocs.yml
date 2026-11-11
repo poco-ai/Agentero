@@ -90,24 +90,8 @@ nav:
 
   - 开发草稿:
       - 概览: development/index.md
-      - 键盘导航层 RFC: development/rfc-keyboard-navigation-layer.md
-      - Word 引用集成: development/zotero-word-integration.md
-      - 标注 CLI 路线 (#170): development/mark-cli-roadmap.md
-      - 标注惰性定位: development/mark-locate-lazy.md
-      - 标注即时定位: development/mark-locate-eager.md
-      - 广场 Plaza: development/plaza.md
-      - 广场订阅（Feeds）— MVP: development/plaza-feeds.md
       - 使用记录总结 (#239): development/usage-analytics.md
-      - 生命周期事件系统（Lifecycle Events）: development/lifecycle-events.md
-      - 云同步设计草稿: development/cloud-sync-s3.md
       - A2A 本机与远端协作: development/A2A.md
-      - 面板 resize 性能调研（同类项目做法）: development/resize-performance-research.md
-      - Agent DX（CLI / MCP / Skill）: development/agent-dx.md
-      - 插件 API 契约（Phase 0–1）: development/plugin-api.md
-      - Crate 拆分路线图: development/crate-split-roadmap.md
-      - Import 学术 API 抽象层: development/import-api-abstraction.md
-      - Rust 端架构重构计划: development/rust-arch-refactor.md
-      - 知乎开放平台集成: development/zhihu.md
 
   - 测试:
       - 概览: test/index.md

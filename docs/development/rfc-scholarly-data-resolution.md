@@ -27,7 +27,7 @@
 
 ## 2. 代码现状与不足
 
-主要实现：[学术数据模型](../../crates/agentero-core/src/features/paper/scholar_api/mod.rs)、[来源接口](../../crates/agentero-core/src/features/paper/scholar_api/traits.rs)、[标题搜索](../../crates/agentero-core/src/features/paper/scholar_api/search.rs)、[精确查询回退](../../crates/agentero-core/src/features/paper/scholar_api/identifiers/fallback.rs)、[入库映射](../../crates/agentero-core/src/features/paper/import/api_mapper.rs)、[PwC](../../crates/agentero-core/src/features/paper/discovery/pwc.rs)、[venue](../../crates/agentero-core/src/features/paper/venue.rs)、[资源下载](../../crates/agentero-core/src/features/paper/import/download.rs)。
+主要实现：`crates/agentero-core/src/features/paper/scholar_api/mod.rs`（学术数据模型）、`.../scholar_api/traits.rs`（来源接口）、`.../scholar_api/search.rs`（标题搜索）、`.../scholar_api/identifiers/fallback.rs`（精确查询回退）、`.../paper/import/api_mapper.rs`（入库映射）、`.../paper/discovery/pwc.rs`（PwC）、`.../paper/venue.rs`（venue）、`.../paper/import/download.rs`（资源下载）。
 
 ~~~mermaid
 flowchart LR
