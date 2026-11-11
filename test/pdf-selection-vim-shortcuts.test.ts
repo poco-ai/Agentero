@@ -148,3 +148,17 @@ it("keeps Vim number navigation when the selection has no highlight buttons", as
 		behavior: "instant",
 	});
 });
+
+it("jumps to the numbered page after the complete physical Shift+G key sequence", async () => {
+	await press("1", { code: "Digit1" });
+	await press("2", { code: "Digit2" });
+	expect(await press("Shift", { code: "ShiftLeft", shiftKey: true })).toBe(
+		false,
+	);
+	expect(mocks.scroll.scrollToPage).not.toHaveBeenCalled();
+	await press("G", { code: "KeyG", shiftKey: true });
+	expect(mocks.scroll.scrollToPage).toHaveBeenCalledExactlyOnceWith({
+		pageNumber: 12,
+		behavior: "instant",
+	});
+});

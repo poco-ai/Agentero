@@ -36,6 +36,16 @@ describe("keyboard navigation primitives", () => {
 		parser.reset();
 		expect(parser.feed("G", 6100).page).toBe("last");
 	});
+	it("keeps the page number through the Shift keydown used to type G", () => {
+		const parser = new PdfKeySequence();
+		parser.feed("1", 0);
+		parser.feed("2", 100);
+		expect(parser.feed("Shift", 200)).toEqual({ consumed: false });
+		expect(parser.feed("G", 250)).toEqual({ consumed: true, page: 12 });
+		parser.feed("3", 1000);
+		parser.feed("Shift", 2100);
+		expect(parser.feed("G", 2300).page).toBe("last");
+	});
 	it("excludes controls inside ignored, inert, and editable ancestors", () => {
 		document.body.innerHTML = `<div data-hint-ignore><button>Ignore</button></div><div inert><button>Inert</button></div><div contenteditable="true"><button>Edit</button></div>`;
 		for (const button of document.querySelectorAll("button")) {

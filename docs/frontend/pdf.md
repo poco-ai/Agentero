@@ -33,6 +33,8 @@ viewport 始终上报滚动容器的真实尺寸，使放大或与笔记分屏�
 
 ## 阅读能力
 
+启用 Vim 模式与 PDF Vim 按键后，依次输入页码，再按 `Shift+G` 可跳到对应 PDF 页，例如 `1` → `2` → `Shift+G` 跳到第 12 页。每次数字输入续期 1.2 秒，最后一个数字到 `G` 也需在此期限内；按下 `Shift` 保留页码，但不延长期限。单独 `G` 跳到末页，`gg` 跳到首页。选区菜单打开且有高亮按钮时，`1–5` 优先选色；关闭菜单后恢复数字跳页。
+
 | 能力 | 说明 |
 |---|---|
 | 缩放 | 键盘 `+`/`=` 放大、`-` 缩小（10% 一档，50%–300%；仅 PDF 拥有键盘时，输入框内不生效；`⌘+`/`⌘-` 仍是界面缩放）。底部栏滑动条调节 50%–300%（旁显示当前百分比；静止为灰色，hover / 聚焦 / 拖动时为 brand 主题色），滑动条右侧另有适应宽度 / 适应整页按钮；另支持 ⌘滚轮、触控板捏合；真实 scale 重渲染。默认仍以适应宽度打开。⌘滚轮 / 触控板捏合在手势期间**只做 CSS transform 预览**（缩放 ZoomGestureWrapper 那层 div，`transform-origin: 0 0`）；窄页面维持阅读器的自动居中，页面开始横向溢出后在约 30% 阅读区宽度内平滑过渡至以手势点为锚。松手或滚轮静默 150ms 后**只提交一次真实 zoom**（`requestZoom(目标, 指针位置)`，`clampZoomPreviewScale` 把它夹在 50%–300%）；提交会等待虚拟 scroller 发布目标页的新尺寸，在同一绘制帧用手势所在 PDF 点校正 scroll 后再撤掉 transform，避免预览与真实居中布局交接时的横向跳变。一次提交是必须的，不是优化：每次真实 zoom 都会重排 scroller 并在下一帧投递一个视口 scroll 请求，逐帧提交会不断覆盖自己的锚点、最终把视口推向文档开头；而按 10%–20% 固定档位跳格又让慢速捏合看起来毫无响应。wheel 监听不常驻 non-passive（`bindZoomGesture`）：普通滚动手势期间切成 passive，滚轮静默后再换回 non-passive，保证捏合缩放仍可 `preventDefault`，同时普通滚动不被主线程阻塞。WebKit（Safari / macOS WKWebView）的触控板捏合不以 ctrl+wheel 送达，而是 `gesturestart/change/end`，`bindZoomGesture` 用同一组 start/change/end 回调上报相对手势起点的 magnification 并 `preventDefault` 抑制平台放大，`gestureend` 丢失时由 1.2s 看门狗兜底提交。页内覆盖卡片与页面保持固定比例：左上翻译 tab 与右侧评论列在未缩放的页面坐标里排版，再用布局级 `zoom` 按当前比例放大整层，字体、图标与内边距按目标比例重新排版后再绘制（`transform: scale` 拉伸的是已栅格化的层，backdrop-blur 玻璃面会发糊）；50% 时同步减半，300% 时同步放大；Ask / 翻译 / 视觉批注浮卡保持固定 UI 尺寸与字号；其屏幕锚点仍随 PDF 缩放更新，定位与最大高度继续受视口约束 |

@@ -11,6 +11,8 @@ export class PdfKeySequence {
 		now: number,
 	): { consumed: boolean; page?: number | "last" } {
 		if (now >= this.expiresAt) this.reset();
+		// Shift is pressed before G; keep the page prefix and its deadline.
+		if (key === "Shift") return { consumed: false };
 		if (key === "Escape") {
 			const consumed = !!this.prefix;
 			this.reset();
