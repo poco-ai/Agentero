@@ -576,6 +576,13 @@
  * selection. A ::selection background here is a second layer: translucent
  * quads overlap between characters, and an opaque fill covers the ink.
  */
+/* A PDF drag cannot select the Markdown rail between consecutive page shells. */
+[data-pdf-drag-selection] [data-pdf-chrome],
+[data-pdf-drag-selection] [data-pdf-chrome] * {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
 .pdf-translate-selection::selection,
 .pdf-translate-selection *::selection {
 	background-color: transparent;

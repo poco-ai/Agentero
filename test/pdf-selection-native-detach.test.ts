@@ -56,4 +56,18 @@ describe("PDF pointer selection isolation", () => {
 		expect(window.getSelection()?.rangeCount).toBe(1);
 		expect(window.getSelection()?.toString()).toBe("译文");
 	});
+
+	it("prevents a native drag from starting on PDF raster without blocking comment editing or translation", () => {
+		document.body.innerHTML = `<div id="pdf"><div data-embed-pdf-page="0"><canvas></canvas><div data-pdf-chrome><textarea></textarea></div><p class="pdf-translate-selection">译文</p></div></div>`;
+		const host = document.getElementById("pdf") as HTMLElement;
+		for (const selector of ["canvas", "textarea", ".pdf-translate-selection"]) {
+			const event = new MouseEvent("pointerdown", { cancelable: true });
+			releaseNativeSelectionForPdfPointer({
+				host,
+				target: host.querySelector(selector),
+				event,
+			});
+			expect(event.defaultPrevented).toBe(selector === "canvas");
+		}
+	});
 });

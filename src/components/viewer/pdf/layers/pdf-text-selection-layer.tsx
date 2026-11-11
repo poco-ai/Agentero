@@ -1,7 +1,8 @@
 import { useDocumentState } from "@embedpdf/core/react";
-import type { Rect } from "@embedpdf/models";
+import type { PdfPageGeometry, Rect } from "@embedpdf/models";
 import {
 	type FormattedSelection,
+	type SelectionRangeX,
 	useSelectionCapability,
 	useSelectionPlugin,
 } from "@embedpdf/plugin-selection/react";
@@ -12,11 +13,16 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
+import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import {
 	linkPreviewDragActive,
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
-import { buildTightSelectionRects } from "@/lib/pdf/selection-appearance";
+import {
+	buildTightSelectionRects,
+	selectionInsertionExclusions,
+	selectionTextExclusionsForPage,
+} from "@/lib/pdf/selection-appearance";
 
 /**
  * A translation drag hits the English glyphs underneath as well. Those rects
@@ -46,6 +52,9 @@ function subscribeTranslationCover(onChange: () => void): () => void {
 }
 
 export type PdfTextSelectionLayerProps = {
+	selectionStartPageIndex?: number | null;
+	insertionRegions?: readonly PdfLayoutRegion[];
+	excludedTextRects?: readonly Rect[];
 	documentId: string;
 	pageIndex: number;
 	background: string;
@@ -69,12 +78,50 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 	pageIndex,
 	background,
 	armed,
+	excludedTextRects,
+	insertionRegions,
+	selectionStartPageIndex,
 	draftPages,
 }: PdfTextSelectionLayerProps) {
 	const { plugin } = useSelectionPlugin();
 	const { provides } = useSelectionCapability();
 	const documentState = useDocumentState(documentId);
-	const [rects, setRects] = useState<Rect[]>([]);
+	const [pageSelection, setPageSelection] = useState<{
+		geometry: Record<number, PdfPageGeometry>;
+		selection: SelectionRangeX | null;
+	} | null>(null);
+	const rects = useMemo(() => {
+		const insertions =
+			pageSelection && insertionRegions
+				? selectionInsertionExclusions(
+						pageSelection.geometry,
+						pageSelection.selection,
+						insertionRegions,
+						selectionStartPageIndex,
+					)
+				: null;
+		return buildTightSelectionRects(
+			pageSelection?.geometry[pageIndex],
+			pageSelection?.selection ?? null,
+			pageIndex,
+			[
+				...selectionTextExclusionsForPage(
+					excludedTextRects ?? [],
+					pageSelection?.geometry ?? {},
+					pageSelection?.selection ?? null,
+					pageIndex,
+					selectionStartPageIndex,
+				),
+				...(insertions?.get(pageIndex) ?? []),
+			],
+		);
+	}, [
+		pageSelection,
+		pageIndex,
+		excludedTextRects,
+		insertionRegions,
+		selectionStartPageIndex,
+	]);
 	const scale = useMemo(
 		() => documentState?.scale ?? 1,
 		[documentState?.scale],
@@ -89,18 +136,15 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 			pageIndex,
 			onRectsChange: ({ rects: sourceRects }) => {
 				if (sourceRects.length === 0) {
-					setRects([]);
+					setPageSelection(null);
 					return;
 				}
 
 				const state = provides.forDocument(documentId).getState();
-				setRects(
-					buildTightSelectionRects(
-						state.geometry[pageIndex],
-						state.selection,
-						pageIndex,
-					),
-				);
+				setPageSelection({
+					geometry: state.geometry,
+					selection: state.selection,
+				});
 			},
 		});
 	}, [armed, documentId, pageIndex, plugin, provides]);

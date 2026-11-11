@@ -1,6 +1,6 @@
 import type { PdfTextRun } from "@embedpdf/models";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
-import { recoverFigureCaptionsFromRuns } from "@/lib/pdf/layout/captions-from-runs";
+import { recoverCaptionsFromRuns } from "@/lib/pdf/layout/captions-from-runs";
 import { figureCaptionKey } from "@/lib/pdf/layout/figure-caption-text";
 import {
 	isCaptionLayoutKind,
@@ -263,7 +263,7 @@ export function enrichCaptionRegionsWithText(
 
 		return region;
 	});
-	return recoverFigureCaptionsFromRuns(enriched, pageIndex, runs, pageSize).map(
+	return recoverCaptionsFromRuns(enriched, pageIndex, runs, pageSize).map(
 		(region) => {
 			if (region.pageIndex !== pageIndex || !(region.text || region.title))
 				return region;

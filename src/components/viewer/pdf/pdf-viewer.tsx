@@ -179,6 +179,7 @@ import {
 	type ActiveSelectionCard,
 	selectionAnchorKey,
 } from "@/lib/pdf/selection";
+import { isSelectionInsertionRegion } from "@/lib/pdf/selection-appearance";
 import {
 	translateHighlightsByPage as translateHighlightsByPageOf,
 	translateHighlightsFingerprint,
@@ -763,12 +764,19 @@ function PdfViewerInner({
 	 * Per-page 0–1 text rects from PDFium `getPageTextRects` — used to decide
 	 * whether a gutter pin sits on real glyphs (translucent) vs in a free gutter.
 	 */
-	const { pageTextMap, pageTextLinkMap, pageTextMapRef } = usePdfPageText({
+	const {
+		pageTextMap,
+		pageTextLinkMap,
+		pageTextMapRef,
+		selectionTextExclusionsByPage,
+		ensureSelectionTextExclusions,
+	} = usePdfPageText({
 		engine,
 		docCap,
 		docId,
 		totalPages,
 		currentPage,
+		paperTitle,
 		translates,
 		threads,
 		highlights,
@@ -829,9 +837,13 @@ function PdfViewerInner({
 		selectionMenu,
 		setSelectionMenu,
 		isSelecting,
+		selectionStartPageIndex,
 		closeSelectionMenu,
 		rePlaceSelectionMenu,
 	} = usePdfTextSelection({
+		ensureSelectionTextExclusions,
+		engine,
+		selectionTextExclusionsByPage,
 		selectionCap,
 		docCap,
 		docId,
@@ -1253,6 +1265,7 @@ function PdfViewerInner({
 	const {
 		layoutOverlayVisible,
 		layoutRawRegions,
+		layoutDocRegions,
 		hoverableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,
@@ -1921,8 +1934,18 @@ function PdfViewerInner({
 		],
 	);
 
+	const selectionInsertionRegions = useMemo(
+		() =>
+			[...(layoutRawRegions ?? []), ...(layoutDocRegions ?? [])].filter(
+				isSelectionInsertionRegion,
+			),
+		[layoutRawRegions, layoutDocRegions],
+	);
 	const pageLayout = useMemo<PdfPageLayoutSlice>(
 		() => ({
+			selectionInsertionRegions,
+			selectionStartPageIndex,
+			selectionTextExclusionsByPage,
 			hoverableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
@@ -1941,7 +1964,10 @@ function PdfViewerInner({
 		[
 			hoverableRegionsByPage,
 			rawRegionsByPage,
+			selectionTextExclusionsByPage,
+			selectionInsertionRegions,
 			layoutOverlayVisible,
+			selectionStartPageIndex,
 			layoutTranslateItemsByPage,
 			layoutTranslatePageStateByPage,
 			translationPane,
