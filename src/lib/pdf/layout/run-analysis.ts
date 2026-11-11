@@ -65,6 +65,8 @@ export type RunLayoutAnalysisOptions = {
 	paperLabel?: string;
 	/** Optional live document guard for viewer-bound analysis. */
 	isDocumentOpen?: () => boolean;
+	/** Caller-owned cancellation during acquisition and result publication. */
+	signal?: AbortSignal;
 	/**
 	 * True PDF page size in points for remote backends (the service renders
 	 * pages itself, so sizes cannot come from a local render).
@@ -326,8 +328,12 @@ export async function runDocumentLayoutAnalysis(
 ): Promise<LayoutTaskLike | null> {
 	const started = performance.now();
 	const onDone = options.onDone;
+	const isDocumentOpen = options.isDocumentOpen;
 	options = {
 		...options,
+		isDocumentOpen: options.signal
+			? () => !options.signal?.aborted && (isDocumentOpen?.() ?? true)
+			: isDocumentOpen,
 		onDone: (summary, count) => {
 			logger.info("pdf.layout.complete", {
 				documentId,
@@ -343,6 +349,7 @@ export async function runDocumentLayoutAnalysis(
 		ui: Parameters<typeof setLayoutAnalysisUi>[0],
 		withPaper = false,
 	) => {
+		if (options.signal?.aborted) return;
 		setLayoutAnalysisUi(ui, documentId, withPaper ? paperKey : undefined);
 	};
 
@@ -430,6 +437,7 @@ export async function runDocumentLayoutAnalysis(
 						});
 					}
 				}
+				assertDocumentOpen(options.isDocumentOpen);
 				setLayoutDocumentResult(result);
 				const summary = summarizeLayoutResult(result);
 				setUi({
@@ -493,10 +501,15 @@ export async function runDocumentLayoutAnalysis(
 
 	try {
 		const s = await ensureLayoutModel();
+		assertDocumentOpen(options.isDocumentOpen);
 		if (s && !s.ready) {
 			logger.warn("layout model ensure returned not ready", s);
 		}
 	} catch (e) {
+		if (options.isDocumentOpen && !options.isDocumentOpen()) {
+			cancelClosedDocument();
+			return null;
+		}
 		const message = errorText(e);
 		logger.warn("layout model ensure failed", { error: message });
 		setUi({ stage: "error", message });
@@ -642,6 +655,7 @@ export async function runDocumentLayoutAnalysis(
 						const message = errorText(e);
 						logger.warn("layout index write failed", { error: message });
 					}
+					assertDocumentOpen(options.isDocumentOpen);
 					setLayoutDocumentResult(result);
 					const summary = summarizeLayoutResult(result);
 					setUi({
@@ -896,6 +910,7 @@ function startRemoteLayoutAnalysis(
 			assertDocumentOpen(options.isDocumentOpen);
 			const pdfPath = await findCanonicalPaperPdfPath(paperAbsPath);
 			if (!pdfPath) throw new Error("No local PDF for layout analysis");
+			assertDocumentOpen(options.isDocumentOpen);
 			const buffer = await localFileToArrayBuffer(pdfPath);
 			if (!buffer) throw new Error("Failed to read paper PDF");
 			assertDocumentOpen(options.isDocumentOpen);
@@ -904,6 +919,11 @@ function startRemoteLayoutAnalysis(
 			// Host emits job progress (upload → pending/running → download).
 			if (isTauri()) {
 				unlisten = await events.layoutRemoteProgress.listen((event) => {
+					if (
+						task.isAborted ||
+						(options.isDocumentOpen && !options.isDocumentOpen())
+					)
+						return;
 					const p = event.payload;
 					if (p.requestId && p.requestId !== requestId) return;
 					const known =
@@ -932,6 +952,8 @@ function startRemoteLayoutAnalysis(
 					);
 				});
 			}
+			assertDocumentOpen(options.isDocumentOpen);
+			if (task.isAborted) return;
 
 			setLayoutAnalysisUi(
 				{
@@ -993,6 +1015,7 @@ function startRemoteLayoutAnalysis(
 				cancelClosedDocument: deps.cancelClosedDocument,
 			});
 		} catch (error) {
+			if (task.isAborted) return;
 			if (
 				isLayoutDocumentClosedError(error) ||
 				(options.isDocumentOpen && !options.isDocumentOpen())

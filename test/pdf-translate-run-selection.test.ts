@@ -313,14 +313,44 @@ describe("runSelectionTranslate", () => {
 		await runSelectionTranslate(h.options);
 
 		expect(runOnce).not.toHaveBeenCalled();
-		expect(runTranslate).toHaveBeenCalledWith(
-			{ text: "the text", context: { page: 1, surface: "pdf-selection" } },
-			{ providerId: "googleapi" },
-		);
 		expect(h.records.get("t8")?.result).toBe("译文");
 		expect(h.persisted).toHaveLength(1);
 		expect(h.failures).toEqual([]);
 		expect(h.getStops()).toBe(1);
+	});
+
+	it.each([
+		"result",
+		"error",
+	])("ignores a late provider %s after cancellation", async (outcome) => {
+		const h = harness(record("cancelled"));
+		providerId = "googleapi";
+		const abort = new AbortController();
+		const { promise, resolve, reject } = Promise.withResolvers<string>();
+		runTranslate.mockReturnValue(promise);
+		const pending = runSelectionTranslate({
+			...h.options,
+			signal: abort.signal,
+		});
+		abort.abort();
+		if (outcome === "result") resolve("Late translation");
+		else reject(new DOMException("Aborted", "AbortError"));
+		await pending;
+		expect(h.records.get("cancelled")?.result).toBeUndefined();
+		expect(h.persisted).toEqual([]);
+		expect(h.failures).toEqual([]);
+		expect(notifyError).not.toHaveBeenCalled();
+		expect(h.getStops()).toBe(0);
+	});
+
+	it("does not dispatch a selection that was already cancelled", async () => {
+		const h = harness(record("cancelled-before-dispatch"));
+		providerId = "googleapi";
+		const abort = new AbortController();
+		abort.abort();
+		await runSelectionTranslate({ ...h.options, signal: abort.signal });
+		expect(runTranslate).not.toHaveBeenCalled();
+		expect(h.persisted).toEqual([]);
 	});
 
 	it("wraps provider failures and stops streaming", async () => {

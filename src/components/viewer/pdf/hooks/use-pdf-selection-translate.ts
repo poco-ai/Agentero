@@ -124,8 +124,11 @@ export function usePdfSelectionTranslate({
 	const temporaryTranslateIdsRef = useRef(new Set<string>());
 	/** Serialize writes and removals so late pin toggles cannot win races. */
 	const pendingWritesRef = useRef(new Map<string, Promise<void>>());
+	const translateAbortRef = useRef<AbortController | null>(null);
 
 	const stopTranslateSession = useCallback(() => {
+		translateAbortRef.current?.abort();
+		translateAbortRef.current = null;
 		translateGenerationRef.current += 1;
 		translateRunIdRef.current = null;
 		const sid = translateSessionRef.current;
@@ -210,6 +213,8 @@ export function usePdfSelectionTranslate({
 		translateDisposedRef.current = false;
 		return () => {
 			translateGenerationRef.current += 1;
+			translateAbortRef.current?.abort();
+			translateAbortRef.current = null;
 			disposeAgentRun({
 				disposedRef: translateDisposedRef,
 				unsubsRef: translateUnsubsRef,
@@ -269,6 +274,8 @@ export function usePdfSelectionTranslate({
 			const quote = anchor.quote?.trim();
 			if (!quote || !isActive) return;
 			stopTranslateSession();
+			const abort = new AbortController();
+			translateAbortRef.current = abort;
 			const paperPath = paperRelPath || paperAbsPath || "paper";
 			const paperKey = paperRelPath || paperAbsPath || null;
 			const rec = createTranslateRecord({
@@ -310,6 +317,7 @@ export function usePdfSelectionTranslate({
 				context: { page: anchor.page, surface: "pdf-selection" },
 				paperKey,
 				vaultPath,
+				signal: abort.signal,
 				noAgentText: () => t("selection.translateNoAgent"),
 				agentFailedText: () => t("pdfAsk.agentFailed"),
 				disposedRef: {

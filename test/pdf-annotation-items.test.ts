@@ -104,6 +104,43 @@ describe("annotation transfer deduplication", () => {
 		expect(dedupeAnnotationItems([imported], [native])).toEqual([]);
 	});
 
+	it("matches nullable native fields against omitted fields after sidecar serialization", () => {
+		const native = {
+			...link("pdfium-id").annotation,
+			strokeDashArray: null,
+			author: null,
+			modified: null,
+			created: null,
+			custom: null,
+		} as unknown as PdfLinkAnnoObject;
+		const saved = link("sidecar-id");
+		const oldCopy = {
+			annotation: native,
+			ctx: null,
+		} as unknown as AnnotationTransferItem;
+		expect(
+			planAnnotationItemImport([saved, oldCopy], [native]).imports,
+		).toEqual([]);
+		expect(dedupeAnnotationItems([saved, oldCopy])).toEqual([saved]);
+		expect(native).toHaveProperty("custom", null);
+	});
+
+	it("preserves meaningful nested null metadata and populated optional fields", () => {
+		const items = [
+			link("empty"),
+			...[
+				{ custom: { reference: null } },
+				{ custom: {} },
+				{ author: "Researcher" },
+				{ created: new Date("2026-01-01T00:00:00Z") },
+				{ strokeDashArray: [3, 2] },
+			].map((patch, index) => ({
+				annotation: { ...link(`optional-${index}`).annotation, ...patch },
+			})),
+		];
+		expect(dedupeAnnotationItems(items)).toEqual(items);
+	});
+
 	it("stays bounded across export and reopen instead of accumulating native copies", () => {
 		let saved = Array.from({ length: 100 }, (_, index) => link(`old-${index}`));
 		for (let open = 0; open < 3; open++) {

@@ -41,9 +41,17 @@ function linkContentKey(item: AnnotationTransferItem): string | null {
 	if (item.annotation?.type !== PdfAnnotationSubtype.LINK || item.ctx != null)
 		return null;
 	const { id: _id, ...annotation } = item.annotation;
-	// Ignore only the link's transient id. Keep target ids, styles and metadata.
-	// Entries with transfer context are always preserved.
-	return stableValueKey({ ...item, annotation });
+	const { ctx: _ctx, ...transfer } = item;
+	// Native PDFium objects expose absent optional fields as null, while the
+	// serialized sidecar omits them. Normalize only the annotation's top level:
+	// nested target/custom values (including null) still distinguish links.
+	// Entries carrying a transfer context are always preserved above.
+	return stableValueKey({
+		...transfer,
+		annotation: Object.fromEntries(
+			Object.entries(annotation).filter(([, value]) => value != null),
+		),
+	});
 }
 
 /** Compact exact link copies as well as repeated ids, without mutating input. */

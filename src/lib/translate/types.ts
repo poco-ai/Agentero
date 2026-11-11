@@ -150,6 +150,8 @@ export type TranslateRunOptions = {
 	providerId?: TranslateProviderId;
 	/** Current BYOK provider config, resolved from settings. */
 	providerConfig?: TranslateProviderConfig;
+	/** Cancel providers that support an in-flight request. */
+	signal?: AbortSignal;
 	/**
 	 * Agent path: custom prompt override; defaults to
 	 * settings.translate.customPrompt (set by `runTranslate`).

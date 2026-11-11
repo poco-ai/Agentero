@@ -29,6 +29,7 @@ import {
 	layoutDocumentKey,
 	readLayoutSidecar,
 	runDocumentLayoutAnalysis,
+	setLayoutAnalysisUi,
 	setLayoutOverlayVisible,
 } from "@/lib/pdf/layout";
 import {
@@ -62,6 +63,8 @@ export type StartLayoutAnalysisOptions = {
 	asBackgroundTask?: boolean;
 	/** When false, skip notifyError (auto-run reports through the tasks panel). */
 	notifyOnError?: boolean;
+	/** Cancels only this invocation, including asynchronous task acquisition. */
+	signal?: AbortSignal;
 };
 
 type LayoutCapability = ReturnType<
@@ -127,6 +130,14 @@ export function usePdfLayoutRun({
 }: UsePdfLayoutRunOptions): PdfLayoutRun {
 	const { t } = useTranslation("viewer");
 	const layoutTaskRef = useRef<LayoutAnalysisTask | null>(null);
+	const layoutRunRef = useRef<AbortController | null>(null);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Document identity owns layout run cancellation.
+	useEffect(
+		() => () => {
+			layoutRunRef.current?.abort();
+		},
+		[docId],
+	);
 	const totalPagesRef = useRef(totalPages);
 	totalPagesRef.current = totalPages;
 
@@ -153,7 +164,7 @@ export function usePdfLayoutRun({
 	 */
 	const startLayoutAnalysis = useCallback(
 		(opts?: StartLayoutAnalysisOptions) => {
-			if (isRemotePaper || plainViewer) return;
+			if (isRemotePaper || plainViewer || opts?.signal?.aborted) return;
 			const docs = docCapRef.current ?? docCap;
 			if (!docs?.isDocumentOpen(docId)) {
 				if (opts?.notifyOnError !== false) {
@@ -168,88 +179,109 @@ export function usePdfLayoutRun({
 				}
 				return;
 			}
-			layoutTaskRef.current?.abort({
-				type: "no-document",
-				message: "superseded",
-			});
+			layoutRunRef.current?.abort();
+			const controller = new AbortController();
+			layoutRunRef.current = controller;
 			const pages = totalPagesRef.current;
 			const paperLabel =
 				paperRelPath || paperAbsPath?.split(/[/\\]/).pop() || docId;
 
-			const runCore = (hooks?: { signal?: AbortSignal }) =>
-				new Promise<void>((resolve, reject) => {
-					let settled = false;
-					const finish = (fn: () => void) => {
-						if (settled) return;
-						settled = true;
-						hooks?.signal?.removeEventListener("abort", onAbort);
-						fn();
-					};
-					const onAbort = () => {
-						layoutTaskRef.current?.abort({
-							type: "no-document",
-							message: "cancelled",
-						});
-						layoutTaskRef.current = null;
-						finish(() => reject(new BackgroundTaskCancelledError()));
-					};
-					if (hooks?.signal?.aborted) {
-						onAbort();
-						return;
+			const runCore = (hooks?: { signal?: AbortSignal }) => {
+				let resolve!: () => void;
+				let reject!: (reason: unknown) => void;
+				const promise = new Promise<void>((onResolve, onReject) => {
+					resolve = onResolve;
+					reject = onReject;
+				});
+				let settled = false;
+				let ownedTask: LayoutAnalysisTask | null = null;
+				const isCurrent = () =>
+					layoutRunRef.current === controller && !controller.signal.aborted;
+				const finish = (fn: () => void) => {
+					if (settled) return;
+					settled = true;
+					controller.signal.removeEventListener("abort", onAbort);
+					opts?.signal?.removeEventListener("abort", abortRun);
+					hooks?.signal?.removeEventListener("abort", abortRun);
+					if (layoutTaskRef.current === ownedTask) layoutTaskRef.current = null;
+					fn();
+				};
+				const onAbort = () => {
+					if (settled) return;
+					if (
+						layoutRunRef.current === controller &&
+						layoutAnalysisStore.getState().activeDocumentId === docId
+					) {
+						setLayoutAnalysisUi({ stage: "cancelled" }, docId);
 					}
-					hooks?.signal?.addEventListener("abort", onAbort);
+					finish(() => reject(new BackgroundTaskCancelledError()));
+					ownedTask?.abort({ type: "no-document", message: "cancelled" });
+				};
+				const abortRun = () => controller.abort();
+				controller.signal.addEventListener("abort", onAbort, { once: true });
+				opts?.signal?.addEventListener("abort", abortRun, { once: true });
+				hooks?.signal?.addEventListener("abort", abortRun, { once: true });
+				if (
+					controller.signal.aborted ||
+					opts?.signal?.aborted ||
+					hooks?.signal?.aborted
+				) {
+					controller.abort();
+					onAbort();
+					return promise;
+				}
 
-					// True page sizes for the remote paddle backend (it renders pages itself).
-					const pageSizeAt = (pageIndex: number) => {
-						const docs = docCapRef.current ?? docCap;
-						const size = docs?.getDocument(docId)?.pages[pageIndex]?.size;
-						return size && size.width > 0 && size.height > 0 ? size : null;
-					};
+				// True page sizes for the remote paddle backend (it renders pages itself).
+				const pageSizeAt = (pageIndex: number) => {
+					const docs = docCapRef.current ?? docCap;
+					const size = docs?.getDocument(docId)?.pages[pageIndex]?.size;
+					return size && size.width > 0 && size.height > 0 ? size : null;
+				};
 
-					void runDocumentLayoutAnalysis(la, docId, {
-						paperAbsPath,
-						totalPages: pages > 0 ? pages : null,
-						force: opts?.force === true,
-						pageSizeAt,
-						isDocumentOpen: () =>
-							docCapRef.current?.isDocumentOpen(docId) ?? false,
-						onDone: () => {
-							layoutTaskRef.current = null;
-							if (opts?.showOverlay) {
-								setLayoutOverlayVisible(docId, true);
-							}
-							// Note: figures now lives in the PDF viewer left overlay, not
-							// the right sidebar. Callers that want the panel visible after
-							// analysis should toggle it themselves (the panel button is
-							// inside the viewer, so this is normally already open).
-							finish(() => resolve());
-						},
-						onError: (message, aborted) => {
-							layoutTaskRef.current = null;
-							finish(() => {
-								if (aborted) {
-									reject(new BackgroundTaskCancelledError());
-									return;
-								}
-								reject(new Error(message));
-							});
-						},
-					})
-						.then((task) => {
-							layoutTaskRef.current = task;
-							// Cache hit resolves via onDone before returning null.
-							if (task == null && !settled) {
-								// onDone should have run; if not, resolve to avoid hang.
-								finish(() => resolve());
-							}
-						})
-						.catch((e) => {
-							layoutTaskRef.current = null;
-							finish(() =>
-								reject(e instanceof Error ? e : new Error(String(e))),
+				void runDocumentLayoutAnalysis(la, docId, {
+					paperAbsPath,
+					signal: controller.signal,
+					totalPages: pages > 0 ? pages : null,
+					force: opts?.force === true,
+					pageSizeAt,
+					isDocumentOpen: () =>
+						docCapRef.current?.isDocumentOpen(docId) ?? false,
+					onDone: () => {
+						if (settled || !isCurrent()) return;
+						if (opts?.showOverlay) {
+							setLayoutOverlayVisible(docId, true);
+						}
+						// Figures visibility remains owned by the invoking viewer control.
+						finish(resolve);
+					},
+					onError: (message, aborted) => {
+						if (settled || !isCurrent()) return;
+						finish(() => {
+							reject(
+								aborted
+									? new BackgroundTaskCancelledError()
+									: new Error(message),
 							);
 						});
-				});
+					},
+				})
+					.then((task) => {
+						if (!isCurrent()) {
+							task?.abort({ type: "no-document", message: "cancelled" });
+							return;
+						}
+						if (settled) return;
+						ownedTask = task;
+						layoutTaskRef.current = task;
+						// Cache hits may complete before an abortable task is returned.
+						if (task == null) finish(resolve);
+					})
+					.catch((e) => {
+						if (settled || !isCurrent()) return;
+						finish(() => reject(e instanceof Error ? e : new Error(String(e))));
+					});
+				return promise;
+			};
 
 			if (opts?.asBackgroundTask) {
 				void runLocalActivity(
@@ -305,7 +337,12 @@ export function usePdfLayoutRun({
 						}
 					},
 				).catch((e) => {
-					if (isBackgroundTaskCancelledError(e)) return;
+					if (
+						controller.signal.aborted ||
+						opts?.signal?.aborted ||
+						isBackgroundTaskCancelledError(e)
+					)
+						return;
 					if (opts?.notifyOnError !== false) {
 						notifyLayoutFailure(errorText(e));
 					}
@@ -314,7 +351,12 @@ export function usePdfLayoutRun({
 			}
 
 			void runCore().catch((e) => {
-				if (isBackgroundTaskCancelledError(e)) return;
+				if (
+					controller.signal.aborted ||
+					opts?.signal?.aborted ||
+					isBackgroundTaskCancelledError(e)
+				)
+					return;
 				if (opts?.notifyOnError === false) return;
 				notifyLayoutFailure(errorText(e));
 			});

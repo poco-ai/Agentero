@@ -276,18 +276,6 @@ export function usePdfHighlights({
 		});
 	}, [annotationCap, docCap, docId, paperKey, onHighlightsChangeRef]);
 
-	// A batch import emits one event per annotation within a single task;
-	// coalesce the burst into one rebuild (n events → O(n²) full walks → O(n)).
-	const rebuildPendingRef = useRef(false);
-	const scheduleRebuild = useCallback(() => {
-		if (rebuildPendingRef.current) return;
-		rebuildPendingRef.current = true;
-		queueMicrotask(() => {
-			rebuildPendingRef.current = false;
-			rebuildHighlights();
-		});
-	}, [rebuildHighlights]);
-
 	const persistAnnotations = useCallback(() => {
 		if (!paperAbsPath || !annotationCap) return;
 		// Capture while this document still exists, including an unmount flush.
@@ -327,9 +315,19 @@ export function usePdfHighlights({
 
 	useEffect(() => {
 		if (!annotationCap) return;
+		let cancelled = false;
+		let pending = false;
 		const scope = annotationCap.forDocument(docId);
 		const off = scope.onAnnotationEvent((event) => {
-			scheduleRebuild();
+			// Coalesce import bursts, but never read a scope after its subscription
+			// has gone away: the parent can already have destroyed the plugin.
+			if (!pending) {
+				pending = true;
+				queueMicrotask(() => {
+					pending = false;
+					if (!cancelled) rebuildHighlights();
+				});
+			}
 			if (
 				event.type !== "loaded" &&
 				!event.committed &&
@@ -340,40 +338,44 @@ export function usePdfHighlights({
 			}
 		});
 		rebuildHighlights();
-		return () => off();
-	}, [
-		annotationCap,
-		docId,
-		paperAbsPath,
-		rebuildHighlights,
-		scheduleRebuild,
-		scheduleSave,
-	]);
+		return () => {
+			cancelled = true;
+			off();
+		};
+	}, [annotationCap, docId, paperAbsPath, rebuildHighlights, scheduleSave]);
 
 	useEffect(() => {
 		if (importedRef.current || !annotationCap || !docCap || totalPages <= 0)
 			return;
 		importedRef.current = true;
-		void (async () => {
-			const scope = annotationCap.forDocument(docId);
+		let cancelled = false;
+		let finished = false;
+		let started = false;
+		let settleTimer: ReturnType<typeof setTimeout> | null = null;
+		const scope = annotationCap.forDocument(docId);
+		const importSavedAnnotations = async () => {
 			let items: AnnotationTransferItem[] = paperAbsPath
 				? await loadAnnotationItems(paperAbsPath)
 				: [];
+			if (cancelled) return;
 			if (
 				paperAbsPath &&
 				!items.length &&
 				!(await hasAnnotationsFile(paperAbsPath))
 			) {
+				if (cancelled) return;
 				const doc = docCap.getDocument(docId);
 				const migrated = await migrateHighlightMarks(
 					paperAbsPath,
 					(pageIndex) => doc?.pages[pageIndex]?.size ?? null,
 				);
+				if (cancelled) return;
 				if (migrated.length) {
 					items = migrated;
 					await saveAnnotationItems(paperAbsPath, migrated);
 				}
 			}
+			if (cancelled) return;
 			if (items.length) {
 				importingRef.current = true;
 				const plan = planAnnotationItemImport(
@@ -388,14 +390,44 @@ export function usePdfHighlights({
 					scope.updateAnnotations(plan.highlightOverrides);
 				}
 			}
-			setTimeout(() => {
+			settleTimer = setTimeout(() => {
+				settleTimer = null;
+				if (cancelled) return;
+				finished = true;
 				importingRef.current = false;
 				initialImportDoneRef.current = true;
 				for (const event of pendingPeerEventsRef.current.splice(0))
 					applyPeerEvent(event);
 				rebuildHighlights();
 			}, 0);
-		})();
+		};
+		const startImport = () => {
+			if (cancelled || started) return;
+			started = true;
+			void importSavedAnnotations().catch((error) => {
+				if (cancelled) return;
+				importedRef.current = false;
+				importingRef.current = false;
+				notifyError(errorText(error));
+			});
+		};
+		// The plugin queues imports until native annotation loading completes.
+		// Planning against its still-empty store would enqueue every saved link
+		// and duplicate them when that queue is replayed. Subscribe before reading
+		// state; loaded pages include empty arrays even on unannotated pages.
+		const offLoaded = scope.onAnnotationEvent((event) => {
+			if (event.type === "loaded") startImport();
+		});
+		if (Object.keys(scope.getState().pages).length >= totalPages) startImport();
+		return () => {
+			cancelled = true;
+			offLoaded();
+			if (settleTimer !== null) clearTimeout(settleTimer);
+			if (!finished) {
+				importedRef.current = false;
+				importingRef.current = false;
+			}
+		};
 	}, [
 		annotationCap,
 		docCap,
@@ -417,6 +449,7 @@ export function usePdfHighlights({
 		);
 		let cancelled = false;
 		let burstTimer: number | null = null;
+		let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
 		const schedule = () => {
 			if (burstTimer !== null) return;
@@ -427,9 +460,10 @@ export function usePdfHighlights({
 		};
 
 		const reimport = async () => {
+			if (cancelled) return;
 			// The mount-time import is still filling the scope; comparing against
 			// it now would re-import the same ids. Wait one burst and retry.
-			if (importingRef.current) {
+			if (!initialImportDoneRef.current || importingRef.current) {
 				schedule();
 				return;
 			}
@@ -447,7 +481,9 @@ export function usePdfHighlights({
 			if (plan.highlightOverrides.length) {
 				scope.updateAnnotations(plan.highlightOverrides);
 			}
-			setTimeout(() => {
+			settleTimer = setTimeout(() => {
+				settleTimer = null;
+				if (cancelled) return;
 				importingRef.current = false;
 				rebuildHighlights();
 			}, 0);
@@ -466,6 +502,10 @@ export function usePdfHighlights({
 		return () => {
 			cancelled = true;
 			if (burstTimer !== null) window.clearTimeout(burstTimer);
+			if (settleTimer !== null) {
+				clearTimeout(settleTimer);
+				importingRef.current = false;
+			}
 			unsub();
 		};
 	}, [annotationCap, docId, paperAbsPath, totalPages, rebuildHighlights]);

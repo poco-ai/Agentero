@@ -23,7 +23,10 @@ export function useSelectionTranslation() {
 	const { t } = useTranslation("viewer");
 	const [translation, setTranslation] = useState<Translation | null>(null);
 	const run = useRef<AgentRunRefs | null>(null);
+	const abort = useRef<AbortController | null>(null);
 	const close = useCallback(() => {
+		abort.current?.abort();
+		abort.current = null;
 		releaseSelectionTranslation(close);
 		if (run.current) disposeAgentRun(run.current);
 		run.current = null;
@@ -41,6 +44,8 @@ export function useSelectionTranslation() {
 				activeSessionRef: { current: null },
 			};
 			run.current = refs;
+			const controller = new AbortController();
+			abort.current = controller;
 			setTranslation({
 				selection,
 				screen,
@@ -60,6 +65,7 @@ export function useSelectionTranslation() {
 				},
 				paperKey: selection.sourcePath,
 				vaultPath: getVaultPath(),
+				signal: controller.signal,
 				...refs,
 				noAgentText: () => t("selection.translateNoAgent"),
 				agentFailedText: () => t("pdfAsk.agentFailed"),

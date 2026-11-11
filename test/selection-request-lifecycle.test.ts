@@ -82,6 +82,7 @@ it("disposes replaced and closed translations and ignores their late replies", a
 	const second = mocks.translate.mock
 		.lastCall?.[0] as RunSelectionTranslateOptions;
 	expect(first.disposedRef.current).toBe(true);
+	expect(first.signal?.aborted).toBe(true);
 	await act(() => {
 		first.commitProviderResult("stale");
 		first.markFailed("stale error");
@@ -94,6 +95,7 @@ it("disposes replaced and closed translations and ignores their late replies", a
 	});
 	await act(() => translation.close());
 	expect(second.disposedRef.current).toBe(true);
+	expect(second.signal?.aborted).toBe(true);
 	await act(() => second.commitProviderResult("late success"));
 	expect(translation.translation).toBeNull();
 });
