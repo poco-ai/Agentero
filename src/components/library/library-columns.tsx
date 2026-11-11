@@ -266,6 +266,46 @@ export const COLUMN_META = {
 			);
 		},
 	},
+	readingTime: {
+		labelKey: "papersLibrary.colReadingTime",
+		widthWeight: 12,
+		headerClassName: "min-w-[8rem]",
+		render: (_p, ctx) => {
+			const seconds = Math.floor(Math.max(0, ctx.readingTimeMs) / 1000);
+			const text =
+				seconds < 60
+					? ctx.t("papersLibrary.readingSeconds", { count: seconds })
+					: seconds < 3600
+						? ctx.t("papersLibrary.readingMinutes", {
+								count: Math.floor(seconds / 60),
+							})
+						: ctx.t("papersLibrary.readingHours", {
+								count: Math.floor(seconds / 3600),
+							});
+			const ratio =
+				ctx.maxReadingTimeMs > 0
+					? Math.min(1, ctx.readingTimeMs / ctx.maxReadingTimeMs)
+					: 0;
+			return (
+				<td className="px-3 py-2.5 text-xs">
+					<span className="flex min-w-0 items-center gap-2">
+						<span
+							className="h-1 min-w-4 flex-1 overflow-hidden rounded-full bg-foreground/10"
+							aria-hidden
+						>
+							<span
+								className="block h-full rounded-full bg-emerald-600 dark:bg-emerald-400"
+								style={{ width: `${ratio * 100}%` }}
+							/>
+						</span>
+						<span className="shrink-0 tabular-nums text-foreground">
+							{text}
+						</span>
+					</span>
+				</td>
+			);
+		},
+	},
 	publication: {
 		labelKey: "papersLibrary.colPublication",
 		widthWeight: 14,

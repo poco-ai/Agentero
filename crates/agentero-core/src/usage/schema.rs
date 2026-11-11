@@ -14,7 +14,7 @@ pub const SCHEMA_VERSION: i32 = 1;
 /// Raw events older than this are pruned on open.
 pub const EVENT_RETENTION_DAYS: i32 = 180;
 
-/// Daily aggregates older than this are pruned on open.
+/// Daily aggregates older than this are pruned on open, except cumulative reading time.
 pub const DAILY_RETENTION_DAYS: i32 = 730;
 
 const DDL_V1: &str = r#"
@@ -121,7 +121,7 @@ fn prune(conn: &Connection) -> Result<(), AppError> {
     )
     .map_err(|e| AppError::message(format!("prune usage_events: {e}")))?;
     conn.execute(
-        "DELETE FROM usage_daily WHERE day < date('now', ?1)",
+        "DELETE FROM usage_daily WHERE day < date('now', ?1) AND kind != 'paper.blur'",
         [format!("-{DAILY_RETENTION_DAYS} days")],
     )
     .map_err(|e| AppError::message(format!("prune usage_daily: {e}")))?;

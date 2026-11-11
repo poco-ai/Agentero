@@ -121,6 +121,7 @@ export function buildPaperRow(p: PaperLibraryRow): PaperRow {
 			authors: (p.authors?.[0] ?? "").toLocaleLowerCase(),
 			date: publicationDateSortKey(p) ?? Number.NEGATIVE_INFINITY,
 			addedAt: addedDate(p.added_at)?.getTime() ?? Number.NEGATIVE_INFINITY,
+			readingTime: 0,
 			publication: (venue.name ?? "").toLocaleLowerCase(),
 			id: id.toLocaleLowerCase(),
 			tags: tags
@@ -205,6 +206,8 @@ export type CellCtx = {
 	t: CellT;
 	onCellCopy: (text: string | null | undefined, label: string) => void;
 	heat: ReadingHeatmap | undefined;
+	readingTimeMs: number;
+	maxReadingTimeMs: number;
 	tags: PaperTag[];
 };
 

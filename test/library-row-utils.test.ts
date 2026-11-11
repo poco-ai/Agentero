@@ -80,3 +80,26 @@ describe("added-date sorting", () => {
 		expect(comparePaperRows(a, b, "addedAt", "asc")).toBeLessThan(0);
 	});
 });
+
+describe("reading-time sorting", () => {
+	it("sorts numeric cumulative milliseconds and treats unread papers as zero", () => {
+		const rows = [0, 50_000, 60_000, 180_000].map((duration, index) => {
+			const built = buildPaperRow({
+				...row(true),
+				id: String(index),
+				title: String(index),
+			});
+			return { ...built, sort: { ...built.sort, readingTime: duration } };
+		});
+		expect(
+			[...rows]
+				.sort((a, b) => comparePaperRows(a, b, "readingTime", "desc"))
+				.map((r) => r.sort.readingTime),
+		).toEqual([180_000, 60_000, 50_000, 0]);
+		expect(
+			[...rows]
+				.sort((a, b) => comparePaperRows(a, b, "readingTime", "asc"))
+				.map((r) => r.sort.readingTime),
+		).toEqual([0, 50_000, 60_000, 180_000]);
+	});
+});

@@ -2393,6 +2393,14 @@ UI 入口见 `settings_window_open`：Settings 现为独立原生单例窗口，
 
 CLI 不再暴露 usage 命令；清除通过桌面端设置 / Host API 操作。前端入口：`src/lib/activity/`。
 
+#### `usage_reading_durations`（已实现）
+
+按当前 Vault 聚合设备本地 `usage_daily` 中的 `paper.blur`，供论文库的阅读时长列显示和排序；不重复累计 `paper.session`。
+
+- **参数**（`args`）：`{ vault: string }`。
+- **返回**：论文根路径 → 累计毫秒数的映射，无记录时为空对象。
+- **保留与计时**：`paper.blur` 日聚合保留至用户清除使用记录；计时沿用单次连续焦点最多 30 分钟的限制。详见 [usage.md](usage.md) 和 [../frontend/library.md](../frontend/library.md)。
+
 ### 3.10.4 广场订阅（XDG `feeds.sqlite`）
 
 用户 RSS / Atom / JSON Feed 订阅与条目缓存。**不写 catalog / Vault**。

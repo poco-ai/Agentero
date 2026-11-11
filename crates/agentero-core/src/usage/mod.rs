@@ -18,8 +18,8 @@ use crate::error::AppError;
 pub use crate::paths::usage_db_path;
 pub use projection::{telemetry_projection, ActivityProjection};
 pub use query::{
-    clear_all, clear_vault, list_events, rename_path, summarize, ListFilter, UsageEvent,
-    UsageKindCount,
+    clear_all, clear_vault, list_events, reading_durations, rename_path, summarize, ListFilter,
+    UsageEvent, UsageKindCount,
 };
 pub use record::{record_events, UsageRecord};
 

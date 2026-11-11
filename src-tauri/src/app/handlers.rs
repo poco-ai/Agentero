@@ -143,6 +143,7 @@ macro_rules! common_commands {
             crate::features::markdown::tables::commands::research_table_backlinks,
             crate::core::usage::commands::activity_record_events,
             crate::core::usage::commands::usage_clear,
+            crate::core::usage::commands::usage_reading_durations,
             crate::app::logging::logs_clear,
             crate::features::paper::discovery::feeds::commands::feeds_list,
             crate::features::paper::discovery::feeds::commands::feeds_add,

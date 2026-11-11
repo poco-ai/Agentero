@@ -51,9 +51,15 @@ describe("library column settings migration", () => {
 			"id",
 			"citations",
 			"addedAt",
+			"readingTime",
 		]);
-		expect(migrated.at(-1)).toEqual({ key: "addedAt", visible: false });
-		migrated[migrated.length - 1].visible = true;
+		expect(migrated.find((c) => c.key === "addedAt")).toEqual({
+			key: "addedAt",
+			visible: false,
+		});
+		for (const column of migrated) {
+			if (column.key === "addedAt") column.visible = true;
+		}
 		expect(normalize(migrated)).toEqual(migrated);
 	});
 });
@@ -71,4 +77,23 @@ it("preserves valid saved widths and sanitizes invalid widths", () => {
 	expect(columns.find((c) => c.key === "date")?.widthRem).toBeUndefined();
 	expect(columns.find((c) => c.key === "tags")?.widthRem).toBe(120);
 	expect(columns.find((c) => c.key === "id")?.widthRem).toBe(5);
+});
+
+it("adds the visible reading-time column and preserves its saved visibility and width", () => {
+	const existing = DEFAULT_SETTINGS.libraryColumns.filter(
+		(c) => c.key !== "readingTime",
+	);
+	expect(normalize(existing)).toEqual([
+		...existing,
+		{ key: "readingTime", visible: true },
+	]);
+	const saved = normalize([
+		{ key: "readingTime", visible: false, widthRem: 11 },
+		...existing,
+	]);
+	expect(saved[0]).toEqual({
+		key: "readingTime",
+		visible: false,
+		widthRem: 11,
+	});
 });

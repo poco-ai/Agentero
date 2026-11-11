@@ -591,6 +591,7 @@ const LIBRARY_COLUMN_KEYS: &[&str] = &[
     "id",
     "citations",
     "addedAt",
+    "readingTime",
 ];
 fn default_library_columns() -> Vec<LibraryColumnPref> {
     LIBRARY_COLUMN_KEYS
@@ -2187,7 +2188,8 @@ mod tests {
                 "tags",
                 "id",
                 "citations",
-                "addedAt"
+                "addedAt",
+                "readingTime"
             ]
         );
         // Title forced visible even though stored hidden.
