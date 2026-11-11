@@ -27,6 +27,7 @@ import {
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
 
 export type UsePdfSelectionActionsOptions = {
+	runAnnotationBatch: (action: () => void) => void;
 	/** Placed menu; every action no-ops when null. */
 	selectionMenu: SelectionMenuState | null;
 	closeSelectionMenu: () => void;
@@ -74,6 +75,7 @@ export type PdfSelectionActions = {
 };
 
 export function usePdfSelectionActions({
+	runAnnotationBatch,
 	selectionMenu,
 	closeSelectionMenu,
 	createHighlights,
@@ -117,18 +119,25 @@ export function usePdfSelectionActions({
 		) => {
 			const trimmed = comment.trim();
 			if (!trimmed || !draft.pages.length) return;
-			const created = createHighlights(
-				draft.pages,
-				DEFAULT_HIGHLIGHT_COLOR,
-				draft.quote,
-				draft.visiblePages,
-			);
-			const first = created[0];
-			closeSelectionMenu();
-			if (!first) return;
-			updateHighlightComment(first.pageIndex, first.id, trimmed);
+			runAnnotationBatch(() => {
+				const created = createHighlights(
+					draft.pages,
+					DEFAULT_HIGHLIGHT_COLOR,
+					draft.quote,
+					draft.visiblePages,
+				);
+				const first = created[0];
+				closeSelectionMenu();
+				if (!first) return;
+				updateHighlightComment(first.pageIndex, first.id, trimmed);
+			});
 		},
-		[createHighlights, updateHighlightComment, closeSelectionMenu],
+		[
+			createHighlights,
+			updateHighlightComment,
+			closeSelectionMenu,
+			runAnnotationBatch,
+		],
 	);
 
 	const handleMenuAsk = useCallback(() => {

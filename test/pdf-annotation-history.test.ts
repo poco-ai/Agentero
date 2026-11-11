@@ -72,11 +72,10 @@ async function viewer(engineOverrides: Partial<PdfEngine> = {}) {
 		throw new Error("Missing annotation/history capability");
 	const history = capability.forDocument("doc");
 	const onError = vi.fn();
-	const queue = createAnnotationDeleteQueue(
-		annotations,
-		onError,
-		history.withoutRecording,
-	);
+	const queue = createAnnotationDeleteQueue(annotations, onError, (action) => {
+		history.withoutRecording(action);
+		annotations.commit();
+	});
 	const replay = createAnnotationHistoryReplay(annotations, history, onError);
 	return {
 		annotations,

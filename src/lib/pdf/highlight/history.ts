@@ -23,8 +23,12 @@ export interface PdfHistoryCapability extends HistoryCapability {
 }
 
 /** Extend the upstream command stack through its public capability interface. */
-class PdfHistoryPlugin extends HistoryPlugin {
+export class PdfHistoryPlugin extends HistoryPlugin {
 	private scopes = new Map<string, PdfHistoryScope>();
+
+	provides(): Readonly<PdfHistoryCapability> {
+		return super.provides() as PdfHistoryCapability;
+	}
 
 	protected buildCapability(): PdfHistoryCapability {
 		const capability = super.buildCapability();

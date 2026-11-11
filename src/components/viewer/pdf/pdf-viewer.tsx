@@ -126,6 +126,7 @@ import { ActiveCardScrollSync } from "@/components/viewer/pdf/viewport/active-ca
 import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-viewport";
 import { KeyboardScrollHandler } from "@/components/viewer/pdf/viewport/keyboard-scroll-handler";
 import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
+import { PdfHistoryKeyHandler } from "@/components/viewer/pdf/viewport/pdf-history-key-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
@@ -154,6 +155,7 @@ import {
 	removePageBookmark,
 } from "@/lib/pdf/bookmark-edit";
 import { embedPdfDocumentId } from "@/lib/pdf/document-id";
+import { PdfHistoryPluginPackage } from "@/lib/pdf/highlight/history";
 import { HIGHLIGHT_HEX_LIST } from "@/lib/pdf/highlight/palette";
 import { partitionHighlightPaint } from "@/lib/pdf/highlight/translated-geometry";
 import {
@@ -319,6 +321,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				// explicit ScanSearch mode instead.
 				marquee: { enabled: false },
 			}),
+			createPluginRegistration(PdfHistoryPluginPackage),
 			createPluginRegistration(AnnotationPluginPackage, {
 				...PDF_LINK_ANNOTATION_CONFIG,
 				annotationAuthor: "Agentero",
@@ -718,6 +721,8 @@ function PdfViewerInner({
 		updateHighlightComment,
 		updateHighlightColor,
 		deleteHighlightAnnotation,
+		runAnnotationBatch,
+		replayAnnotationHistory,
 	} = usePdfHighlights({
 		annotationCap,
 		docCap,
@@ -1627,6 +1632,7 @@ function PdfViewerInner({
 		handleMenuTranslate,
 		handleMenuCopy,
 	} = usePdfSelectionActions({
+		runAnnotationBatch,
 		selectionMenu,
 		closeSelectionMenu,
 		createHighlights,
@@ -2491,6 +2497,11 @@ function PdfViewerInner({
 					documentId={docId}
 					active={isActive}
 					hostRef={hostRef}
+				/>
+				<PdfHistoryKeyHandler
+					active={isActive}
+					hostRef={hostRef}
+					onReplay={replayAnnotationHistory}
 				/>
 				<PdfVimKeyHandler
 					documentId={docId}
