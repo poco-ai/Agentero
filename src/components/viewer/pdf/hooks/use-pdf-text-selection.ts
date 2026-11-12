@@ -1,4 +1,9 @@
-import { tightenFormattedSelection } from "@/lib/pdf/selection-appearance";
+import {
+	selectionInsertionExclusions,
+	selectionTextExclusionsForPage,
+	selectionTextSlices,
+	tightenFormattedSelection,
+} from "@/lib/pdf/selection-appearance";
 /**
  * Text-selection detection for the EmbedPDF viewer: turning an EmbedPDF drag
  * selection into a placed floating action menu, publishing the selected text to
@@ -15,6 +20,7 @@ import { tightenFormattedSelection } from "@/lib/pdf/selection-appearance";
  * selection outside the viewer host or inside the reader so it cannot steal a normal copy.
  */
 
+import type { PdfEngine, Rect } from "@embedpdf/models";
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import type {
 	FormattedSelection,
@@ -51,6 +57,7 @@ import {
 } from "@/lib/agent/selection-store";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { translationHitsFromRange } from "@/lib/pdf/layout/layout-sentence-selection";
+import { getLayoutDocumentResult } from "@/lib/pdf/layout/store";
 import {
 	type PageFrame,
 	visibleMenuPoint,
@@ -74,9 +81,11 @@ const SELECTABLE_PDF_TEXT =
 export function releaseNativeSelectionForPdfPointer({
 	host,
 	target,
+	event,
 }: {
 	host: HTMLElement;
 	target: EventTarget | null;
+	event?: Pick<PointerEvent, "preventDefault">;
 }): void {
 	const element =
 		target instanceof Element
@@ -85,6 +94,15 @@ export function releaseNativeSelectionForPdfPointer({
 				? target.parentElement
 				: null;
 	if (element?.closest(SELECTABLE_PDF_TEXT)) return;
+	if (element?.closest("[data-pdf-chrome]")) return;
+	if (element?.closest("[data-embed-pdf-page]")) {
+		event?.preventDefault();
+		// Canceling the pointer default keeps WebKit from moving focus off a
+		// previously focused tree or tab, so claim the reading surface explicitly.
+		element
+			.closest<HTMLElement>("[data-pdf-viewport]")
+			?.focus({ preventScroll: true });
+	}
 	// CodeMirror is contenteditable: if it keeps focus, its DOM observer can
 	// adopt the browser selection dragged across the split.
 	const active = document.activeElement;
@@ -180,6 +198,11 @@ function menuScreenFromState(
 }
 
 export type UsePdfTextSelectionOptions = {
+	ensureSelectionTextExclusions?: (
+		pages: readonly number[],
+	) => Promise<ReadonlyMap<number, readonly Rect[]>>;
+	engine?: PdfEngine | null;
+	selectionTextExclusionsByPage?: ReadonlyMap<number, readonly Rect[]>;
 	/** EmbedPDF capabilities; owned by `PdfViewerInner` (plugin context). */
 	selectionCap: SelectionCapabilityProvides;
 	docCap: DocumentManagerCapability;
@@ -197,6 +220,7 @@ export type UsePdfTextSelectionOptions = {
 };
 
 export type PdfTextSelection = {
+	selectionStartPageIndex: number | null;
 	selectionMenu: SelectionMenuState | null;
 	setSelectionMenu: Dispatch<SetStateAction<SelectionMenuState | null>>;
 	/**
@@ -215,6 +239,9 @@ export type PdfTextSelection = {
 };
 
 export function usePdfTextSelection({
+	ensureSelectionTextExclusions,
+	engine,
+	selectionTextExclusionsByPage,
 	selectionCap,
 	docCap,
 	docId,
@@ -229,8 +256,22 @@ export function usePdfTextSelection({
 		null,
 	);
 	const [isSelecting, setIsSelecting] = useState(false);
+	const [selectionStartPageIndex, setSelectionStartPageIndex] = useState<
+		number | null
+	>(null);
 	const selectionGroup = useWritingSelectionGroup();
 	const selectionEpochRef = useRef(0);
+	const contentRef = useRef({
+		engine,
+		selectionTextExclusionsByPage,
+		ensureSelectionTextExclusions,
+	});
+	contentRef.current = {
+		engine,
+		selectionTextExclusionsByPage,
+		ensureSelectionTextExclusions,
+	};
+	const selectionStartPageRef = useRef<number | null>(null);
 	/** Vertical drag direction; PDFium normalizes start/end, so track the pointer. */
 	const dragPointerRef = useRef<{
 		downY: number;
@@ -246,10 +287,11 @@ export function usePdfTextSelection({
 	const clearPdfSelection = useCallback(() => {
 		selectionEpochRef.current += 1;
 		setIsSelecting(false);
+		hostRef.current?.removeAttribute("data-pdf-drag-selection");
 		setSelectionMenu(null);
 		selectionCap?.clear(docId);
 		clearActiveSelection("pdf");
-	}, [selectionCap, docId]);
+	}, [selectionCap, docId, hostRef]);
 	const closeSelectionMenu = useCallback(() => {
 		clearDomSelectionInside(hostRef.current);
 		clearPdfSelection();
@@ -295,6 +337,17 @@ export function usePdfTextSelection({
 		if (!host) return;
 		const onPointerDown = (event: PointerEvent) => {
 			if (event.button !== 0) return;
+			const element = event.target instanceof Element ? event.target : null;
+			if (
+				element?.closest("[data-embed-pdf-page]") &&
+				!element.closest(
+					"[data-pdf-chrome], input, textarea, [contenteditable='true']",
+				)
+			) {
+				host.setAttribute("data-pdf-drag-selection", "");
+			} else {
+				host.removeAttribute("data-pdf-drag-selection");
+			}
 			dragPointerRef.current = {
 				downY: event.clientY,
 				upY: null,
@@ -314,6 +367,7 @@ export function usePdfTextSelection({
 			releaseNativeSelectionForPdfPointer({
 				host,
 				target: event.target,
+				event,
 			});
 		};
 		const onPointerUp = (event: PointerEvent) => {
@@ -330,6 +384,7 @@ export function usePdfTextSelection({
 		window.addEventListener("pointerup", onPointerUp, true);
 		return () => {
 			host.removeEventListener("pointerdown", onPointerDown, true);
+			host.removeAttribute("data-pdf-drag-selection");
 			window.removeEventListener("pointerup", onPointerUp, true);
 		};
 	}, [hostRef, clearPdfSelection]);
@@ -372,13 +427,17 @@ export function usePdfTextSelection({
 				) || translationHitsFromRange(range, host).length > 0
 			);
 		};
-		const offBegin = scope.onBeginSelection(() => {
+		const offBegin = scope.onBeginSelection(({ page }) => {
+			setSelectionStartPageIndex(page);
+			selectionEpochRef.current += 1;
+			selectionStartPageRef.current = page;
 			setIsSelecting(true);
 		});
-		const offEnd = scope.onEndSelection(() => {
+		const offEnd = scope.onEndSelection(async () => {
+			const epoch = selectionEpochRef.current;
 			const drag = dragPointerRef.current;
 			dragPointerRef.current = null;
-			const side: SelectionSide | undefined =
+			let side: SelectionSide | undefined =
 				drag?.upY != null && Math.abs(drag.upY - drag.downY) >= 4
 					? drag.upY > drag.downY
 						? "below"
@@ -405,15 +464,67 @@ export function usePdfTextSelection({
 			// selections the first page may be scrolled out of view, which makes the
 			// toolbar appear off-screen and seem missing.
 			const state = selectionCap.getState(docId);
+			const content = { ...contentRef.current };
+			const crossPageSelection =
+				state.selection &&
+				state.selection.start.page !== state.selection.end.page;
+			if (crossPageSelection && content.ensureSelectionTextExclusions) {
+				content.selectionTextExclusionsByPage =
+					await content.ensureSelectionTextExclusions(
+						rawPages.map((page) => page.pageIndex),
+					);
+				if (epoch !== selectionEpochRef.current) return;
+			}
+			const excludedByPage = new Map(
+				crossPageSelection ? content.selectionTextExclusionsByPage : [],
+			);
+			if (crossPageSelection) {
+				for (const [pageIndex, rects] of excludedByPage) {
+					excludedByPage.set(
+						pageIndex,
+						selectionTextExclusionsForPage(
+							rects,
+							state.geometry,
+							state.selection,
+							pageIndex,
+							selectionStartPageRef.current,
+						),
+					);
+				}
+			}
+			const layout = getLayoutDocumentResult(docId);
+			const insertions = selectionInsertionExclusions(
+				state.geometry,
+				state.selection,
+				[...(layout?.rawRegions ?? []), ...(layout?.regions ?? [])],
+				selectionStartPageRef.current,
+				"cached",
+			);
+			for (const [pageIndex, rects] of insertions) {
+				excludedByPage.set(pageIndex, [
+					...(excludedByPage.get(pageIndex) ?? []),
+					...rects,
+				]);
+			}
 			const pages = tightenFormattedSelection(
 				rawPages,
 				state.geometry,
 				state.selection,
+				excludedByPage,
 			);
-			const endPage = state.selection?.end?.page ?? null;
+			// EmbedPDF sorts the range in reading order. The endpoint opposite
+			// the drag's start page is the cursor page, including upward drags.
+			const endPage =
+				selectionStartPageRef.current === state.selection?.end.page
+					? state.selection?.start.page
+					: state.selection?.end.page;
+			const startPage = selectionStartPageRef.current;
+			if (startPage != null && endPage != null && startPage !== endPage) {
+				side = endPage > startPage ? "below" : "above";
+			}
 			const anchorPage = menuAnchorPage(
-				pages,
-				endPage != null ? endPage : undefined,
+				pages.filter((page) => pageElByIndex(hostRef.current, page.pageIndex)),
+				endPage,
 			);
 			if (!anchorPage) {
 				setIsSelecting(false);
@@ -439,19 +550,46 @@ export function usePdfTextSelection({
 			}
 			// Keep isSelecting true across the async quote extract so link
 			// previews cannot flash between mouseup and the selection menu.
-			const epoch = selectionEpochRef.current;
 			void (async () => {
 				let quote = "";
 				try {
-					const lines = await selectionCap.getSelectedText(docId).toPromise();
+					// Keep the selection capability's copy-permission checks before
+					// requesting the same text with margins and table cells omitted.
+					let lines = await selectionCap.getSelectedText(docId).toPromise();
+					const doc = docCap.getDocument(docId);
+					const { engine } = content;
+					const requests =
+						engine &&
+						doc &&
+						rawPages.some((page) => excludedByPage.get(page.pageIndex)?.length)
+							? Object.entries(state.slices).flatMap(([key, slice]) => {
+									const pageIndex = Number(key);
+									const excluded = excludedByPage.get(pageIndex) ?? [];
+									const geometry = state.geometry[pageIndex];
+									const slices =
+										geometry && excluded.length
+											? selectionTextSlices(
+													geometry,
+													slice.start,
+													slice.count,
+													excluded,
+												)
+											: [slice];
+									return slices.map(({ start, count }) => ({
+										pageIndex,
+										charIndex: start,
+										charCount: count,
+									}));
+								})
+							: null;
+					if (requests && engine && doc) {
+						lines = await engine.getTextSlices(doc, requests).toPromise();
+					}
 					quote = (lines ?? []).join(" ").replace(/\s+/g, " ").trim();
 				} catch {
 					// text extraction is best-effort
 				}
-				if (epoch !== selectionEpochRef.current) {
-					setIsSelecting(false);
-					return;
-				}
+				if (epoch !== selectionEpochRef.current) return;
 				const doc = docCap.getDocument(docId);
 				const anchor = anchorFromEmbedSelection(
 					pages,
@@ -479,6 +617,7 @@ export function usePdfTextSelection({
 		});
 		const offChange = scope.onSelectionChange((sel) => {
 			if (!sel) {
+				selectionEpochRef.current += 1;
 				setIsSelecting(false);
 				if (selectionInsideTranslation()) return;
 				if (
@@ -524,6 +663,9 @@ export function usePdfTextSelection({
 
 		const shouldHandlePdfCopy = (target: EventTarget | null): boolean => {
 			if (isEditableClipboardTarget(target)) return false;
+			const node = window.getSelection()?.anchorNode;
+			const element = node instanceof Element ? node : node?.parentElement;
+			if (element?.closest("[data-pdf-chrome]")) return false;
 			if (hasNativeSelectionOutsideHost(host)) return false;
 			const selection = window.getSelection();
 			if (selection && !selection.isCollapsed) {
@@ -547,13 +689,7 @@ export function usePdfTextSelection({
 				return;
 			if (!shouldHandlePdfCopy(event.target)) return;
 			event.preventDefault();
-			// PDFium's clipboard is the English text layer. A translation
-			// selection has no PDFium range; copy the visible translation.
-			if (selectionMenu.fromTranslation || selectionMenu.fromReader) {
-				void copyTextToClipboard(selectedText);
-				return;
-			}
-			selectionCap.copyToClipboard(docId);
+			void copyTextToClipboard(selectedText);
 		};
 
 		document.addEventListener("copy", onCopy);
@@ -562,9 +698,10 @@ export function usePdfTextSelection({
 			document.removeEventListener("copy", onCopy);
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, [isActive, selectionMenu, selectionCap, docId, hostRef]);
+	}, [isActive, selectionMenu, selectionCap, hostRef]);
 
 	return {
+		selectionStartPageIndex,
 		selectionMenu: isActive ? selectionMenu : null,
 		setSelectionMenu,
 		isSelecting,

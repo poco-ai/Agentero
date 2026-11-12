@@ -40,9 +40,31 @@ export function zoomPreviewTranslate(
 	return { x: (1 - scale) * localX, y: (1 - scale) * localY };
 }
 
+/** Keep a PDF page point under the gesture while real page sizes are changing. */
+export function zoomCommitPreviewTransform(
+	page: { left: number; top: number; width: number; height: number },
+	element: { left: number; top: number },
+	anchor: { x: number; y: number },
+	pointer: { x: number; y: number },
+	targetWidth: number,
+): { x: number; y: number; scale: number } {
+	const scale = targetWidth / page.width;
+	return {
+		x:
+			pointer.x -
+			element.left -
+			scale * (page.left + page.width * anchor.x - element.left),
+		y:
+			pointer.y -
+			element.top -
+			scale * (page.top + page.height * anchor.y - element.top),
+		scale,
+	};
+}
+
 /**
- * Width left for the page after the viewport's own padding. The right padding
- * includes the comment rail, so this is the reading box fit-width uses.
+ * Width left for the page after the viewport's symmetric padding. The
+ * page-outside comment rail is revealed separately by hover panning.
  */
 export function zoomReadingWidth(
 	clientWidth: number,
@@ -54,9 +76,9 @@ export function zoomReadingWidth(
 }
 
 /**
- * Left margin that centers the gesture element inside the reading box.
- * Zero once the page fills that box, so a zoom commit does not collapse a
- * margin that was only there because the rail was left out of the box.
+ * Center the gesture wrapper inside the symmetric reading area. Apply the
+ * settled margin before measuring the final zoom anchor so the wrapper's
+ * ResizeObserver cannot shift the page afterwards.
  */
 export function zoomGestureCenteringMargin(
 	elementWidth: number,

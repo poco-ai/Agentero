@@ -16,6 +16,7 @@ import {
 	PdfAnnotationSubtype,
 	type PdfHighlightAnnoObject,
 	type PdfLinkAnnoObject,
+	type Rect,
 } from "@embedpdf/models";
 import {
 	AnnotationLayer,
@@ -384,6 +385,9 @@ export type PdfPageMarksSlice = {
 
 /** Layout-analysis derived overlays (hover targets, debug boxes, translations). */
 export type PdfPageLayoutSlice = {
+	selectionStartPageIndex?: number | null;
+	selectionInsertionRegions?: readonly PdfLayoutRegion[];
+	selectionTextExclusionsByPage?: ReadonlyMap<number, readonly Rect[]>;
 	hoverableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	rawRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	layoutOverlayVisible: boolean;
@@ -433,7 +437,7 @@ export type PdfPageModeSlice = {
 	translationOnly?: boolean;
 	/** PDFs outside papers/: annotation / translate / layout layers stay off. */
 	plainViewer?: boolean;
-	/** Full-width embeds show active comment cards inside the page. */
+	/** Narrow embeds show active comment cards inside the page. */
 	insetCommentCards?: boolean;
 };
 
@@ -1331,6 +1335,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 							pageIndex={pageIndex}
 							background={PDF_TEXT_SELECTION_BACKGROUND}
 							armed={selectionArmed}
+							insertionRegions={layout.selectionInsertionRegions}
+							selectionStartPageIndex={layout.selectionStartPageIndex}
+							excludedTextRects={layout.selectionTextExclusionsByPage?.get(
+								pageIndex,
+							)}
 							draftPages={
 								marks.selectionCommentDraft?.visiblePages?.length
 									? undefined
@@ -1798,7 +1807,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						inset={mode.insetCommentCards}
 						pageWidthPx={width}
 						pageHeightPx={height}
-						scale={cardScale}
 						editingId={marks.editingCommentId}
 						wikiTarget={marks.commentWikiTarget}
 						hoveredId={hoveredCommentId}

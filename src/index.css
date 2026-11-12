@@ -6,6 +6,15 @@
 
 /* Keep documentation and test edits outside Tailwind's full-reload sources. */
 @source "../index.html";
+/*
+ * Streamdown keeps its component classes in node_modules, which Tailwind v4
+ * does not scan by default. Without these sources, utilities it relies on
+ * (e.g. `list-inside`) are never generated: lists fall back to outside
+ * markers, which the comment card's overflow clips — previews then show no
+ * bullets even though the Markdown parsed correctly.
+ */
+@source "../node_modules/streamdown/dist";
+@source "../node_modules/@streamdown/*/dist";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -579,6 +588,13 @@
  * selection. A ::selection background here is a second layer: translucent
  * quads overlap between characters, and an opaque fill covers the ink.
  */
+/* A PDF drag cannot select the Markdown rail between consecutive page shells. */
+[data-pdf-drag-selection] [data-pdf-chrome],
+[data-pdf-drag-selection] [data-pdf-chrome] * {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
 .pdf-translate-selection::selection,
 .pdf-translate-selection *::selection {
 	background-color: transparent;
@@ -613,6 +629,86 @@
 	text-decoration: none;
 	-webkit-user-select: text;
 	user-select: text;
+}
+
+/*
+ * Compact Markdown shared by the PDF comment card's Plate editor and its
+ * Streamdown preview so both states render identically. Unlayered on purpose:
+ * it must win over Streamdown's generated utilities (list-inside, space-y-4,
+ * py-1). The editor's unordered items are `display:list-item` blocks whose
+ * gutter comes from the comment kit's IndentPlugin (1.15rem); the preview's
+ * <ul>/<ol> mirror that gutter here. Paragraphs and list items share the same
+ * compact vertical rhythm so spacing matches too.
+ */
+.comment-md {
+	--comment-list-indent: 1.15rem;
+	line-height: 1.5;
+}
+.comment-md :is(ul, ol) {
+	list-style-position: outside;
+	padding-left: var(--comment-list-indent);
+	margin-block: 0;
+}
+.comment-md .slate-p {
+	padding-block: 0.125rem;
+}
+/* Streamdown list items own the item rhythm in preview. The editor's ordered
+ * and todo items also render an <li> wrapper, but their paragraph block
+ * already carries the same padding; adding it to the wrapper too would make
+ * those items taller than the same Markdown in preview. */
+.comment-md [data-streamdown="list-item"] {
+	padding-block: 0.125rem;
+	padding-left: 0;
+}
+/* Empty editors keep the 3-line typing area; filled notes hug their content
+ * so entering edit mode never adds bottom whitespace. */
+.comment-md:has([data-slate-placeholder]) {
+	min-height: 3.75rem;
+}
+/* Ordered/todo items render as an <ol>/<ul> wrapper (BlockList) inside the
+ * indented block; the wrapper padding already provides the gutter, so cancel
+ * the IndentPlugin margin on that block to avoid indenting twice. Unordered
+ * items have no wrapper and keep the block margin as their gutter. */
+.comment-md :has(> ol, > ul) {
+	/* biome-ignore lint/complexity/noImportantStyles: must beat Plate IndentPlugin's inline margin-left on the list block */
+	margin-left: 0 !important;
+}
+.comment-md p {
+	margin-block: 0;
+	padding-block: 0.125rem;
+}
+.comment-md ::marker {
+	color: var(--muted-foreground);
+}
+.comment-md :is(blockquote, pre, hr, h1, h2, h3, h4, h5, h6) {
+	margin-block: 0.125rem;
+}
+.comment-md > :first-child {
+	margin-top: 0;
+}
+.comment-md > :last-child {
+	margin-bottom: 0;
+}
+.comment-md :is(h1, h2, h3, h4, h5, h6) {
+	font-size: 1em;
+	font-weight: 600;
+	line-height: 1.4;
+}
+.comment-md blockquote {
+	padding-left: 0.75rem;
+	border-left: 2px solid var(--border);
+	color: var(--muted-foreground);
+	font-style: normal;
+}
+.comment-md pre {
+	padding: 0.5rem 0.625rem;
+	font-size: 0.85em;
+}
+.comment-md :not(pre) > code {
+	padding: 0.1em 0.35em;
+	border-radius: 0.3em;
+	background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+	font-size: 0.85em;
 }
 
 /*

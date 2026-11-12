@@ -429,6 +429,18 @@ export function selectedTextWithin(range: Range, element: HTMLElement): string {
 	}
 }
 
+/** Read only translated page blocks; a cross-page DOM range can span rail cards. */
+export function translationTextFromRange(
+	range: Range,
+	root: ParentNode,
+): string {
+	return Array.from(root.querySelectorAll<HTMLElement>("[data-layout-item]"))
+		.filter((block) => range.intersectsNode(block))
+		.map((block) => selectedTextWithin(range, block))
+		.filter(Boolean)
+		.join(" ");
+}
+
 /** Span hits inside `root` covered by `range`, in document order. */
 export function translationHitsFromRange(
 	range: Range,

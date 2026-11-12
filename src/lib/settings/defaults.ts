@@ -85,31 +85,6 @@ export const DEFAULT_TRANSLATOR_BASE_URL =
 	"https://translation-server.agentero.app";
 export const DEFAULT_NETWORK_PROXY_URL = "http://127.0.0.1:7890";
 
-/** Gateway flavour for the institution proxy (`institutionProxyType`). */
-export type InstitutionProxyKind = "ezproxy" | "wengine";
-
-export type InstitutionProxyPreset = {
-	id: string;
-	kind: InstitutionProxyKind;
-	/** Gateway origin only — the rewrite logic appends the path/query form. */
-	prefix: string;
-};
-
-/**
- * Built-in institution WebVPN gateways offered as quick-fill presets beside the
- * free-text prefix field. Only gateways confirmed to run the wengine
- * path-rewriting engine are listed: the AES key is engine-wide, so the origin
- * is all we need and both gateway kinds still accept a hand-typed prefix.
- * Covers the "preset school table" deferred from the first institution-proxy
- * PR (#677). Labels live at `general.institutionProxy.presets.{id}`.
- */
-export const INSTITUTION_PROXY_PRESETS = [
-	{ id: "zju", kind: "wengine", prefix: "https://webvpn.zju.edu.cn" },
-	{ id: "ustc", kind: "wengine", prefix: "https://webvpn.ustc.edu.cn" },
-	{ id: "xjtu", kind: "wengine", prefix: "https://webvpn.xjtu.edu.cn" },
-	{ id: "neu", kind: "wengine", prefix: "https://webvpn.neu.edu.cn" },
-] as const satisfies readonly InstitutionProxyPreset[];
-
 /**
  * Discrete UI scale presets exposed in Settings. Keyboard shortcuts and the
  * settings UI move between these values instead of using a continuous slider.
@@ -169,7 +144,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	zhihuAccessSecret: "",
 	institutionProxyPrefix: "",
 	institutionProxyCookie: "",
-	institutionProxyType: "ezproxy",
+	institutionProxyType: "auto",
 	networkProxyEnabled: false,
 	networkProxyUrl: DEFAULT_NETWORK_PROXY_URL,
 	paperTreeLabelMode: "title-author",
@@ -180,6 +155,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	pdfVimKeys: true,
 	vimMode: true,
 	hintModeEnabled: true,
+	soundEnabled: true,
 	pdfSpreadMode: "none",
 	paperNoteMode: "standard",
 	autoOpenPaperNotes: true,

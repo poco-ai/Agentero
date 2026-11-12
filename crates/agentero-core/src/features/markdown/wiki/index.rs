@@ -61,6 +61,67 @@ pub(crate) fn is_pdf(path: &Path) -> bool {
         .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"))
 }
 
+fn paper_dir_of(path: &Path) -> Option<&Path> {
+    let parent = path.parent()?;
+    let mut components = parent.components();
+    let first = components.next()?;
+    if !first
+        .as_os_str()
+        .to_str()
+        .is_some_and(|name| name.eq_ignore_ascii_case("papers"))
+    {
+        return None;
+    }
+    components.next()?;
+    Some(parent)
+}
+
+fn is_paper_notes(path: &Path) -> bool {
+    is_markdown(path)
+        && path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("NOTES.md"))
+        && paper_dir_of(path).is_some()
+}
+
+fn paper_pdf_sibling_for_notes(path: &Path) -> Option<String> {
+    if !is_paper_notes(path) {
+        return None;
+    }
+    let paper_dir = path.parent()?;
+    let paper_id = paper_dir.file_name()?.to_str()?;
+    Some(
+        paper_dir
+            .join(format!("{paper_id}.pdf"))
+            .to_string_lossy()
+            .replace('\\', "/"),
+    )
+}
+
+/// Keep a paper's canonical PDF next to its NOTES row, with the PDF first.
+fn paper_completion_sort_key(path: &str) -> (&str, &str, u8) {
+    let parsed = Path::new(path);
+    let Some(paper_dir) = paper_dir_of(parsed).and_then(Path::to_str) else {
+        return (path, "", 0);
+    };
+    let Some(file_name) = parsed.file_name().and_then(|name| name.to_str()) else {
+        return (path, "", 0);
+    };
+    if file_name.eq_ignore_ascii_case("NOTES.md") {
+        return (paper_dir, "NOTES.md", 1);
+    }
+    let stem = parsed.file_stem().and_then(|stem| stem.to_str());
+    let paper_id = parsed
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str());
+    if is_pdf(parsed) && stem == paper_id {
+        return (paper_dir, "NOTES.md", 0);
+    }
+    (path, "", 0)
+}
+
 pub(crate) fn is_image(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
@@ -1445,6 +1506,11 @@ impl WikiIndex {
     ) -> Vec<WikiSearchCandidate> {
         let query_key = query.trim().to_lowercase();
         let heading_search = parse_heading_search(query);
+        let indexed_paths = self
+            .documents
+            .iter()
+            .map(|document| document.path.as_str())
+            .collect::<HashSet<_>>();
         let stem_counts =
             self.documents
                 .iter()
@@ -1498,6 +1564,20 @@ impl WikiIndex {
             if include_file && !query_key.is_empty() {
                 for alias in &document.aliases {
                     if alias.to_lowercase().contains(&query_key) {
+                        if let Some(pdf_path) =
+                            paper_pdf_sibling_for_notes(Path::new(&document.path))
+                                .filter(|path| indexed_paths.contains(path.as_str()))
+                        {
+                            candidates.push(WikiSearchCandidate {
+                                kind: WikiSearchCandidateKind::File,
+                                path: pdf_path.clone(),
+                                insert_text: pdf_path,
+                                label: alias.clone(),
+                                detail: None,
+                                alias: None,
+                                fragment: None,
+                            });
+                        }
                         candidates.push(WikiSearchCandidate {
                             kind: WikiSearchCandidateKind::File,
                             path: document.path.clone(),
@@ -1546,10 +1626,18 @@ impl WikiIndex {
                 }
             }
         }
+        let mut seen = HashSet::new();
+        candidates
+            .retain(|candidate| seen.insert((candidate.path.clone(), candidate.label.clone())));
         candidates.sort_by(|left, right| {
-            left.path
-                .cmp(&right.path)
+            let (left_group, left_name, left_rank) = paper_completion_sort_key(&left.path);
+            let (right_group, right_name, right_rank) = paper_completion_sort_key(&right.path);
+            left_group
+                .cmp(right_group)
+                .then(left_name.cmp(right_name))
                 .then(left.label.cmp(&right.label))
+                .then(left_rank.cmp(&right_rank))
+                .then(left.path.cmp(&right.path))
         });
         candidates.truncate(100);
         candidates
@@ -1615,6 +1703,15 @@ mod tests {
         let root = std::env::temp_dir().join(format!("agentero-wiki-embed-{}", Uuid::new_v4()));
         fs::create_dir_all(root.join("notes")).expect("create embed fixture vault");
         root
+    }
+
+    fn wiki_file(path: &str, aliases: &[&str]) -> WikiDocument {
+        WikiDocument {
+            path: path.into(),
+            aliases: aliases.iter().map(|alias| (*alias).into()).collect(),
+            headings: Vec::new(),
+            blocks: Vec::new(),
+        }
     }
 
     #[test]
@@ -1965,6 +2062,97 @@ mod tests {
             .expect("block candidate");
         assert_eq!(block.insert_text, "Canonical#^验收块");
         assert_eq!(block.detail.as_deref(), Some("Canonical block preview"));
+    }
+
+    #[test]
+    fn alias_search_derives_canonical_paper_pdf_before_notes() {
+        let title = "Attention Is All You Need";
+        let index = WikiIndex {
+            documents: vec![
+                wiki_file("papers/attention/NOTES.md", &[title]),
+                wiki_file("papers/attention/attention.pdf", &[]),
+            ],
+            ..Default::default()
+        };
+
+        let files = index
+            .search("attention is all")
+            .into_iter()
+            .filter(|candidate| candidate.kind == WikiSearchCandidateKind::File)
+            .collect::<Vec<_>>();
+
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].path, "papers/attention/attention.pdf");
+        assert_eq!(files[0].insert_text, "papers/attention/attention.pdf");
+        assert_eq!(files[0].label, title);
+        assert_eq!(files[0].alias, None);
+        assert_eq!(files[0].detail, None);
+        assert_eq!(files[1].path, "papers/attention/NOTES.md");
+        assert_eq!(files[1].alias.as_deref(), Some(title));
+    }
+
+    #[test]
+    fn alias_search_requires_an_indexed_canonical_paper_pdf() {
+        let title = "No PDF Paper";
+        let index = WikiIndex {
+            documents: vec![
+                wiki_file("papers/no-pdf/NOTES.md", &[title]),
+                wiki_file("papers/no-pdf/attachments/no-pdf.pdf", &[]),
+                wiki_file("papers/no-pdf/source/no-pdf.pdf", &[]),
+                wiki_file("papers/no-pdf.pdf", &[]),
+            ],
+            ..Default::default()
+        };
+
+        let files = index
+            .search("no pdf")
+            .into_iter()
+            .filter(|candidate| candidate.kind == WikiSearchCandidateKind::File)
+            .collect::<Vec<_>>();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "papers/no-pdf/NOTES.md");
+        assert_eq!(files[0].label, title);
+    }
+
+    #[test]
+    fn alias_search_keeps_duplicate_paper_titles_in_separate_directories() {
+        let title = "Shared Title";
+        let index = WikiIndex {
+            documents: vec![
+                wiki_file("papers/alpha/NOTES.md", &[title]),
+                wiki_file("papers/alpha/alpha.pdf", &[]),
+                wiki_file("papers/beta/NOTES.md", &[title]),
+                wiki_file("papers/beta/beta.pdf", &[]),
+            ],
+            ..Default::default()
+        };
+
+        let files = index
+            .search("shared title")
+            .into_iter()
+            .filter(|candidate| candidate.kind == WikiSearchCandidateKind::File)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            files
+                .iter()
+                .map(|candidate| candidate.path.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "papers/alpha/alpha.pdf",
+                "papers/alpha/NOTES.md",
+                "papers/beta/beta.pdf",
+                "papers/beta/NOTES.md",
+            ]
+        );
+        assert_eq!(
+            files
+                .iter()
+                .filter(|candidate| candidate.alias.is_none())
+                .count(),
+            2
+        );
     }
 
     #[test]

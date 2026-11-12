@@ -6,7 +6,7 @@
 
 - `[[wikilink]]` Live Preview；光标进入显示源码。
 - 输入 `[[`：文件 / frontmatter alias / 标题 / block / 批注（`@`）候选；↑↓ 在列表内循环，不关闭菜单；底部提示 `#标题 · ^文本块 · |显示文本 · @批注`。
-- **Frontmatter `aliases`**：笔记 YAML 中的别名参与 file 搜索与 resolve（与 Obsidian 一致）。按别名命中时**只**出现 alias 候选（主行=别名，副行=vault 相对路径），不再额外挂一条 basename `NOTES`。选中后写入 canonical 目标（**不**自动补 `|显示名`），便于继续输入 `#` / `@`。同名 alias 多文件时列出多条，不静默选第一条。
+- **Frontmatter `aliases`**：笔记 YAML 中的别名参与 file 搜索与 resolve（与 Obsidian 一致）。按别名命中时**只**出现 alias 候选（主行=别名，副行=vault 相对路径），不再额外挂一条 basename `NOTES`。选中后写入 canonical 目标（**不**自动补 `|显示名`），便于继续输入 `#` / `@`。同名 alias 多文件时列出多条，不静默选第一条。论文的 title alias 另有同目录 canonical 主 PDF 候选，排在同名 NOTES 候选之前；选择后写入 `[[papers/<paper>/<paper>.pdf]]`，裸 `[[标题]]` 仍解析到笔记。
 - 嵌套标题路径没有层数限制：`[[2026-W31#07-28 周二#复盘分析#paper 阅读]]`、同文件写法与对应 `![[...]]` 均合法。
 - 完整路径是标题的 canonical identity；Markdown 引用也可省略开头祖先，使用任意长度的连续路径后缀，例如唯一时 `[[2026-W31#复盘分析#paper 阅读]]` 合法。后缀命中多个标题时返回歧义，不选择第一个结果。
 - 每输入一个额外 `#`，其前面的路径段成为已确认父路径，候选只显示该父标题的直接子标题。父路径本身也按后缀匹配，因此可从省略祖先的标题继续逐级补全，且没有两级或其他固定深度限制。

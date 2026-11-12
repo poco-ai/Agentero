@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
 	CommentCard,
-	estimateCommentCardHeight,
 	SelectionCommentAffordance,
 } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import type { PdfPageHandlers } from "@/components/viewer/pdf/layers/page-layers";
@@ -17,6 +16,8 @@ import {
 	normalizeHighlightColor,
 } from "@/lib/pdf/highlight/palette";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+
+const ignoreCardMeasure = () => undefined;
 
 export type ReaderAnnotationControls = {
 	highlights: readonly PdfHighlight[];
@@ -74,7 +75,8 @@ export function ReaderAnnotations({
 							wikiTarget={wikiTarget}
 							hovered={false}
 							topPx={0}
-							heightPx={estimateCommentCardHeight(item, editing)}
+							maxHeightPx={400}
+							onMeasure={ignoreCardMeasure}
 							onOpen={handlers.onOpenComment}
 							onSave={handlers.onSaveComment}
 							onCancel={handlers.onCancelComment}

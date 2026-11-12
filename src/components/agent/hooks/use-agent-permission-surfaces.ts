@@ -21,6 +21,7 @@ import {
 } from "@/lib/agent";
 import type { ToolAskUserRequest } from "@/lib/agent/chat-state";
 import { events } from "@/lib/core/bindings";
+import { playCue } from "@/lib/ui/sound";
 
 export type UseAgentPermissionSurfacesOptions = {
 	toolAskUserRequest: ToolAskUserRequest | null;
@@ -110,18 +111,21 @@ export function useAgentPermissionSurfaces({
 		{ modal: false },
 	);
 
-	useTauriEvent(events.agentPermissionRequest, (payload) =>
-		setPermissionRequest(payload),
-	);
+	useTauriEvent(events.agentPermissionRequest, (payload) => {
+		playCue("attention");
+		setPermissionRequest(payload);
+	});
 
 	useTauriEvent(events.agentElicitationRequest, (payload) => {
 		// Prefer host elicitation over tool-card promote.
+		playCue("attention");
 		setToolAskUserRequest(null);
 		setElicitationRequest(payload);
 	});
 
 	useTauriEvent(events.agentAskUserRequest, (payload) => {
 		// Grok ext is the authoritative respond path; drop tool-promote duplicate.
+		playCue("attention");
 		setToolAskUserRequest(null);
 		setAskUserRequest(payload);
 	});

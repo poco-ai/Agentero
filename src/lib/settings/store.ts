@@ -387,6 +387,9 @@ function normalizePartial(
 	if (typeof parsed.hintModeEnabled !== "boolean") {
 		merged.hintModeEnabled = DEFAULT_SETTINGS.hintModeEnabled;
 	}
+	if (typeof parsed.soundEnabled !== "boolean") {
+		merged.soundEnabled = DEFAULT_SETTINGS.soundEnabled;
+	}
 	if (!isPdfSpreadMode(merged.pdfSpreadMode)) {
 		merged.pdfSpreadMode = DEFAULT_SETTINGS.pdfSpreadMode;
 	}

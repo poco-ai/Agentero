@@ -10,7 +10,7 @@ import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import { figureCaptionKey } from "@/lib/pdf/layout/figure-caption-text";
 import { bboxCoveredBy } from "@/lib/pdf/layout/merge-captions";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
-import { isReferenceLayoutRegion } from "@/lib/pdf/layout/translation-exclusions";
+import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
@@ -593,6 +593,7 @@ function reflowPage(
 	regions: readonly PdfLayoutRegion[],
 	characters: Character[],
 	raster: ImageDataLike | null,
+	sourcePreservedIds: ReadonlyMap<string, unknown>,
 	includeReferences = false,
 ): ReflowDocument["pages"][number] {
 	const hidden = raster
@@ -621,12 +622,17 @@ function reflowPage(
 	const pageRegions = regions.filter(
 		(r) => r.pageIndex === page.index && r.score >= LAYOUT_SIDEBAR_MIN_SCORE,
 	);
-	const references = includeReferences
+	const sourcePreservedRegions = includeReferences
 		? []
-		: pageRegions.filter(isReferenceLayoutRegion);
-	const referenceCharacters = new Set(
+		: regions.filter(
+				(region) =>
+					region.pageIndex === page.index && sourcePreservedIds.has(region.id),
+			);
+	const sourcePreservedCharacters = new Set(
 		characters
-			.filter((c) => references.some((r) => centerInside(c.visualBox, r.rect)))
+			.filter((c) =>
+				sourcePreservedRegions.some((r) => centerInside(c.visualBox, r.rect)),
+			)
 			.map((c) => c.index),
 	);
 	const formulaBoxes = pageRegions
@@ -662,7 +668,7 @@ function reflowPage(
 				(c) =>
 					!hidden.has(c.index) &&
 					!clipped.has(c.index) &&
-					!referenceCharacters.has(c.index) &&
+					!sourcePreservedCharacters.has(c.index) &&
 					!claimed.has(c.index) &&
 					// Advance boxes share vertical line metrics. Ink centers vary
 					// with ascenders/descenders and can split a boundary word.
@@ -702,7 +708,7 @@ function reflowPage(
 						!claimed.has(c.index) &&
 						!hidden.has(c.index) &&
 						!clipped.has(c.index) &&
-						!referenceCharacters.has(c.index) &&
+						!sourcePreservedCharacters.has(c.index) &&
 						c.index < first.index &&
 						c.index >= first.index - 4 &&
 						c.box.x + c.box.w <= first.box.x + 0.5 &&
@@ -755,7 +761,7 @@ function reflowPage(
 			claimed.has(c.index) ||
 			hidden.has(c.index) ||
 			clipped.has(c.index) ||
-			referenceCharacters.has(c.index) ||
+			sourcePreservedCharacters.has(c.index) ||
 			!/^[\p{L}\p{N}*†‡]+$/u.test(c.text)
 		)
 			continue;
@@ -797,7 +803,7 @@ function reflowPage(
 	const rotated = rotatedCharacterIndexes(characters);
 	for (const c of characters) {
 		if (
-			referenceCharacters.has(c.index) ||
+			sourcePreservedCharacters.has(c.index) ||
 			(c.textObjectId !== undefined &&
 				conflictingHeadingObjects.has(c.textObjectId))
 		)
@@ -828,7 +834,7 @@ function reflowPage(
 			(c) =>
 				!hidden.has(c.index) &&
 				!clipped.has(c.index) &&
-				!referenceCharacters.has(c.index) &&
+				!sourcePreservedCharacters.has(c.index) &&
 				!claimed.has(c.index) &&
 				centerInside(c.visualBox, table.rect),
 		);
@@ -976,6 +982,7 @@ export async function extractReflowDocument(
 ): Promise<ReflowDocument> {
 	const pages: ReflowDocument["pages"] = [];
 	const styles = new Map<string, CharacterStyle>();
+	const sourcePreservedIds = preservedLayoutRegions(regions);
 	for (const page of doc.pages) {
 		if (options.pageIndexes && !options.pageIndexes.has(page.index)) continue;
 		const selected: LayoutTranslateItem[] = [];
@@ -1015,6 +1022,7 @@ export async function extractReflowDocument(
 				regions,
 				characters,
 				raster,
+				sourcePreservedIds,
 				options.includeReferences,
 			),
 		);

@@ -19,9 +19,16 @@
  * unrelated clusters (ask / translate / visual marks) are readers.
  */
 
-import type { PdfEngine } from "@embedpdf/models";
+import type { PdfEngine, Rect } from "@embedpdf/models";
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
-import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { PDF_WORKER_SETTLE_MS } from "@/components/viewer/pdf/constants";
 import {
 	detectPdfTextLinks,
@@ -31,10 +38,16 @@ import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+import { recoverCaptionsFromRuns } from "@/lib/pdf/layout/captions-from-runs";
 import {
 	type NormalizedRect,
 	normalizePageTextRects,
 } from "@/lib/pdf/selection";
+import {
+	type SelectionMarginCandidate,
+	selectionMarginCandidates,
+	selectionPageMargins,
+} from "@/lib/pdf/selection-page-margins";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
 
 type DocumentManagerCapability = ReturnType<
@@ -48,6 +61,7 @@ export type UsePdfPageTextOptions = {
 	docCap: DocumentManagerCapability;
 	docId: string;
 	totalPages: number;
+	paperTitle?: string;
 	currentPage: number;
 	/** Mark arrays decide which off-screen pages must also load their text. */
 	translates: PdfTranslateRecord[];
@@ -57,6 +71,10 @@ export type UsePdfPageTextOptions = {
 };
 
 export type PdfPageText = {
+	ensureSelectionTextExclusions: (
+		pages: readonly number[],
+	) => Promise<ReadonlyMap<number, readonly Rect[]>>;
+	selectionTextExclusionsByPage: ReadonlyMap<number, readonly Rect[]>;
 	/** 0-based page index → normalized text rects (missing while unloaded). */
 	pageTextMap: Map<number, NormalizedRect[]>;
 	/** 0-based page index → external links detected from plain PDF text. */
@@ -85,11 +103,23 @@ function sameTextLinks(
 	);
 }
 
+function textExclusions(
+	candidates: ReadonlyMap<number, readonly SelectionMarginCandidate[]>,
+	paperTitle: string | undefined,
+	captions: ReadonlyMap<number, readonly Rect[]>,
+): ReadonlyMap<number, readonly Rect[]> {
+	const result = new Map(selectionPageMargins(candidates, paperTitle));
+	for (const [page, rects] of captions)
+		result.set(page, [...(result.get(page) ?? []), ...rects]);
+	return result;
+}
+
 export function usePdfPageText({
 	engine,
 	docCap,
 	docId,
 	totalPages,
+	paperTitle,
 	currentPage,
 	translates,
 	threads,
@@ -102,7 +132,19 @@ export function usePdfPageText({
 	const [pageTextLinkMap, setPageTextLinkMap] = useState(
 		() => new Map<number, PdfTextLink[]>(),
 	);
-	const pageTextPendingRef = useRef(new Set<number>());
+	const [headerCandidates, setHeaderCandidates] = useState(
+		() => new Map<number, SelectionMarginCandidate[]>(),
+	);
+	const [captionRects, setCaptionRects] = useState(
+		() => new Map<number, readonly Rect[]>(),
+	);
+	const captionRectsRef = useRef(captionRects);
+	const selectionTextExclusionsByPage = useMemo(
+		() => textExclusions(headerCandidates, paperTitle, captionRects),
+		[headerCandidates, paperTitle, captionRects],
+	);
+	const pageTextPendingRef = useRef(new Map<number, Promise<void>>());
+	const headerCandidatesRef = useRef(headerCandidates);
 	const pageTextMapRef = useRef(pageTextMap);
 	pageTextMapRef.current = pageTextMap;
 	const [settledPage, setSettledPage] = useState(currentPage);
@@ -135,6 +177,68 @@ export function usePdfPageText({
 		return [...pages].sort((a, b) => a - b).join(",");
 	}, [translates, threads, highlights, visualTraces]);
 
+	const loadPageText = useCallback(
+		(pageIndex: number): Promise<void> => {
+			const pending = pageTextPendingRef.current.get(pageIndex);
+			if (pending) return pending;
+			if (headerCandidatesRef.current.has(pageIndex)) return Promise.resolve();
+			const doc = docCap?.getDocument(docId);
+			const page = doc?.pages[pageIndex];
+			if (!engine || !doc || !page) return Promise.resolve();
+			const task = engine
+				.getPageTextRects(doc, page)
+				.toPromise()
+				.then((rects) => {
+					const captions = recoverCaptionsFromRuns(
+						[],
+						pageIndex,
+						rects.map(({ content, rect }) => ({ text: content, rect })),
+						page.size,
+					).map(({ rect: { x, y, w, h } }) => ({
+						origin: { x, y },
+						size: { width: w, height: h },
+					}));
+					captionRectsRef.current = new Map(captionRectsRef.current).set(
+						pageIndex,
+						captions,
+					);
+					setCaptionRects(captionRectsRef.current);
+					const norm = normalizePageTextRects(rects, page.size);
+					const candidates = selectionMarginCandidates(rects, page.size);
+					headerCandidatesRef.current = new Map(
+						headerCandidatesRef.current,
+					).set(pageIndex, candidates);
+					setHeaderCandidates(headerCandidatesRef.current);
+					setPageTextMap((prev) => new Map(prev).set(pageIndex, norm));
+					const textLinks = detectPdfTextLinks(rects);
+					setPageTextLinkMap((prev) =>
+						sameTextLinks(prev.get(pageIndex), textLinks)
+							? prev
+							: new Map(prev).set(pageIndex, textLinks),
+					);
+				})
+				.catch(() => {
+					// Leave failed pages unloaded so later interactions can retry.
+				})
+				.finally(() => pageTextPendingRef.current.delete(pageIndex));
+			pageTextPendingRef.current.set(pageIndex, task);
+			return task;
+		},
+		[engine, docCap, docId],
+	);
+
+	const ensureSelectionTextExclusions = useCallback(
+		async (pages: readonly number[]) => {
+			await Promise.all(pages.map(loadPageText));
+			return textExclusions(
+				headerCandidatesRef.current,
+				paperTitle,
+				captionRectsRef.current,
+			);
+		},
+		[loadPageText, paperTitle],
+	);
+
 	// Load real page text geometry for pages that have pins (or near the viewport).
 	// biome-ignore lint/correctness/useExhaustiveDependencies: mark arrays are intentionally represented by markPagesKey — the anchor page set is the only input the fetch consumes
 	useEffect(() => {
@@ -157,43 +261,22 @@ export function usePdfPageText({
 		}
 		for (const v of visualTraces) need.add(v.page - 1);
 
-		for (const pageIndex of need) {
-			if (
-				pageTextMapRef.current.has(pageIndex) ||
-				pageTextPendingRef.current.has(pageIndex)
-			) {
-				continue;
-			}
-			const page = doc.pages[pageIndex];
-			if (!page) continue;
-			pageTextPendingRef.current.add(pageIndex);
-			void engine
-				.getPageTextRects(doc, page)
-				.toPromise()
-				.then((rects) => {
-					const norm = normalizePageTextRects(rects, page.size);
-					const textLinks = detectPdfTextLinks(rects);
-					setPageTextMap((prev) => {
-						if (prev.get(pageIndex) === norm) return prev;
-						const next = new Map(prev);
-						next.set(pageIndex, norm);
-						return next;
-					});
-					setPageTextLinkMap((prev) => {
-						if (sameTextLinks(prev.get(pageIndex), textLinks)) return prev;
-						const next = new Map(prev);
-						next.set(pageIndex, textLinks);
-						return next;
-					});
-				})
-				.catch(() => {
-					// Leave unloaded; pins stay solid until text geometry is available.
-				})
-				.finally(() => {
-					pageTextPendingRef.current.delete(pageIndex);
-				});
-		}
-	}, [engine, docCap, docId, totalPages, settledPage, markPagesKey]);
+		for (const pageIndex of need) void loadPageText(pageIndex);
+	}, [
+		engine,
+		docCap,
+		docId,
+		totalPages,
+		settledPage,
+		markPagesKey,
+		loadPageText,
+	]);
 
-	return { pageTextMap, pageTextLinkMap, pageTextMapRef };
+	return {
+		pageTextMap,
+		pageTextLinkMap,
+		pageTextMapRef,
+		selectionTextExclusionsByPage,
+		ensureSelectionTextExclusions,
+	};
 }

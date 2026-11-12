@@ -43,7 +43,6 @@ import {
 	subscribeLayoutTranslateSidecarWrite,
 	toLayoutTranslateItems,
 } from "@/lib/pdf/layout";
-import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import {
 	layoutSidecarNeedsTextLayer,
 	subscribeLayoutSidecarWrite,
@@ -53,8 +52,8 @@ import {
 	layoutTranslatePageProgress,
 } from "@/lib/pdf/layout/layout-translate-progress";
 import {
-	isInsideReferenceRegion,
-	isReferenceLayoutRegion,
+	isInsidePreservedRegion,
+	preservedLayoutRegions,
 } from "@/lib/pdf/layout/translation-exclusions";
 import {
 	observePaperTranslation,
@@ -1719,16 +1718,12 @@ export function usePdfLayoutTranslate({
 				if (!savedLayout?.regions.length) return;
 				raw = savedLayout.regions;
 			}
-			const references = raw.filter(
-				(region) =>
-					region.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
-					isReferenceLayoutRegion(region),
-			);
+			const preserved = preservedLayoutRegions(raw);
 			// Paint the cached blocks before the region-prepare pass. Besides making
 			// the pane visible sooner, this marks the job active so the pane's
 			// auto-start cannot fire a second, network-backed job while preparing.
 			const seededItems = sidecar.items
-				.filter((item) => !isInsideReferenceRegion(item, references))
+				.filter((item) => !isInsidePreservedRegion(item, raw, preserved))
 				.map((item) => ({
 					...item,
 					status: "done" as const,

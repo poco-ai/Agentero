@@ -14,6 +14,7 @@ import { notifySuccess } from "@/lib/core/notify";
 import { perfActive, perfFollow } from "@/lib/core/perf";
 import { isTauri } from "@/lib/core/tauri";
 import { lifecycle } from "@/lib/lifecycle";
+import { jobTerminalCue } from "@/lib/lifecycle/job-cues";
 import {
 	noteCommittedLibraryList,
 	noteCommittedPaths,
@@ -39,6 +40,7 @@ import {
 	setFeaturePoppedOut,
 	setSettingsOpenState,
 } from "@/lib/shell/ui-store";
+import { playCue } from "@/lib/ui/sound";
 import { seedVaultSkills } from "@/lib/vault/actions";
 import { joinVaultPath } from "@/lib/vault/path";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
@@ -56,10 +58,38 @@ import {
 	syncRenamedPaperTabs,
 } from "@/lib/workspace/actions";
 
+/**
+ * Every webview receives the same broadcast job events. Audio belongs to the
+ * main window only, otherwise two Web Audio contexts play the cue twice.
+ * Resolved once at startup; jobs finish long after this settles.
+ */
+let jobAudioOwner = !isTauri();
+if (isTauri()) {
+	void import("@tauri-apps/api/window")
+		.then(({ getCurrentWindow }) => {
+			jobAudioOwner = getCurrentWindow().label === "main";
+		})
+		.catch(() => undefined);
+}
+function ownsJobAudioCues(): boolean {
+	return jobAudioOwner;
+}
+
 export function registerLifecycleHandlers(): () => void {
 	registerExternalLibraryReconciler(reconcileExternalLibraryChange);
 	const unregisterSuggestions = registerSuggestionLifecycle();
 	const offs = [
+		// Full-document layout translation runs for minutes with the user
+		// elsewhere, so its terminal state gets an audio cue. Other job kinds
+		// stay visual: they are frequent and usually already on screen.
+		lifecycle.on("job:completed", ({ kind }) => {
+			const cue = jobTerminalCue("completed", kind);
+			if (cue && ownsJobAudioCues()) playCue(cue);
+		}),
+		lifecycle.on("job:failed", ({ kind }) => {
+			const cue = jobTerminalCue("failed", kind);
+			if (cue && ownsJobAudioCues()) playCue(cue);
+		}),
 		lifecycle.on("window:closed", ({ kind, view }) => {
 			if (kind === "settings") {
 				setSettingsOpenState(false);

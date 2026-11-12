@@ -85,8 +85,10 @@ export default defineConfig(async () => ({
 				}
 			: undefined,
 		watch: {
-			// 3. tell Vite to ignore watching `src-tauri`
-			ignored: ["**/src-tauri/**"],
+			// 3. tell Vite to ignore the Rust host and its build artifacts.
+			//    `target/` holds thousands of generated files; watching it can
+			//    exhaust the system inotify limit (ENOSPC) during `tauri dev`.
+			ignored: ["**/src-tauri/**", "**/target/**"],
 		},
 	},
 }));

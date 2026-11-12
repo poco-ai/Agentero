@@ -6,7 +6,10 @@ import { PdfAnnotationSubtype } from "@embedpdf/models";
 import type { TrackedAnnotation } from "@embedpdf/plugin-annotation";
 import type { AnnotationTransferItem } from "@embedpdf/plugin-annotation/react";
 import { isTauri } from "@/lib/core/tauri";
-import { dedupeAnnotationItems } from "@/lib/pdf/highlight/annotation-items";
+import {
+	dedupeAnnotationItems,
+	reviveAnnotationDates,
+} from "@/lib/pdf/highlight/annotation-items";
 import {
 	type HighlightColor,
 	highlightColorFromHex,
@@ -54,6 +57,14 @@ async function removeFileIfExists(path: string): Promise<void> {
 	}
 }
 
+function parseAnnotationItems(raw: string): AnnotationTransferItem[] {
+	const parsed = JSON.parse(raw) as unknown;
+	if (!Array.isArray(parsed)) return [];
+	return dedupeAnnotationItems(
+		(parsed as AnnotationTransferItem[]).map(reviveAnnotationDates),
+	);
+}
+
 export async function loadAnnotationItems(
 	paperAbsPath: string,
 ): Promise<AnnotationTransferItem[]> {
@@ -64,20 +75,17 @@ export async function loadAnnotationItems(
 
 	// Prefer marks/; fall back to paper-root and migrate once.
 	try {
-		const raw = await readVaultFile(annotationsPath(paperAbsPath));
-		const parsed = JSON.parse(raw) as unknown;
-		return Array.isArray(parsed)
-			? dedupeAnnotationItems(parsed as AnnotationTransferItem[])
-			: [];
+		return parseAnnotationItems(
+			await readVaultFile(annotationsPath(paperAbsPath)),
+		);
 	} catch {
 		// continue to legacy
 	}
 
 	try {
-		const raw = await readVaultFile(legacyAnnotationsPath(paperAbsPath));
-		const parsed = JSON.parse(raw) as unknown;
-		if (!Array.isArray(parsed)) return [];
-		const items = dedupeAnnotationItems(parsed as AnnotationTransferItem[]);
+		const items = parseAnnotationItems(
+			await readVaultFile(legacyAnnotationsPath(paperAbsPath)),
+		);
 		if (items.length) {
 			await saveAnnotationItems(paperAbsPath, items);
 		} else {

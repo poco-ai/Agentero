@@ -25,6 +25,7 @@ export function createTranslateRecord(input: {
 	paperPath: string;
 	page: number;
 	rects: PdfTranslateRect[];
+	selectionPages?: PdfTranslateRecord["selectionPages"];
 	quote?: string;
 	result?: string;
 	error?: string;
@@ -43,6 +44,7 @@ export function createTranslateRecord(input: {
 		pinned: false,
 	};
 	if (input.quote?.trim()) rec.quote = input.quote.trim();
+	if (input.selectionPages?.length) rec.selectionPages = input.selectionPages;
 	if (input.result?.trim()) rec.result = input.result.trim();
 	if (input.error?.trim()) rec.error = input.error.trim();
 	return rec;

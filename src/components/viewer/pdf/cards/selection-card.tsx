@@ -20,6 +20,11 @@ import { PDF_FLOAT_CARD } from "@/components/viewer/pdf/chrome/pdf-chrome-surfac
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { clamp } from "@/lib/core/math";
 import { cn } from "@/lib/core/utils";
+import {
+	readPdfCardWidth,
+	watchCardWidthResize,
+	writePdfCardWidth,
+} from "@/lib/pdf/card-size";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 /** Minimum inset from the viewport edges (px). */
@@ -296,6 +301,12 @@ type SelectionCardProps = {
 	 * room; prose cards pass their reading width so lines never grow unbounded.
 	 */
 	resizeMaxWidth?: number;
+	/**
+	 * Remember the width the user drags the native resize corner to under this
+	 * kind key, and open the next card of the same kind at that width. Height
+	 * stays content-sized, so a short result keeps hugging its text.
+	 */
+	rememberWidth?: string;
 	/** Allow repositioning from the title. */
 	draggable?: boolean;
 	/** Show the centered grip glyph in a draggable header (default true). */
@@ -350,6 +361,7 @@ export function SelectionCard({
 	resizeMinWidth = RESIZE_MIN_WIDTH,
 	resizeMinHeight = RESIZE_MIN_HEIGHT,
 	resizeMaxWidth,
+	rememberWidth,
 	draggable = false,
 	showDragHandle = true,
 	bodyScroll = true,
@@ -382,6 +394,10 @@ export function SelectionCard({
 		anchorX: number;
 		anchorY: number;
 	} | null>(null);
+	/** Width from the previous card of this kind, applied once at mount. */
+	const [rememberedWidth] = useState<number | null>(() =>
+		rememberWidth ? readPdfCardWidth(rememberWidth) : null,
+	);
 	const reduceMotion = useReducedMotion();
 	const [viewport, setViewport] = useState(() => ({
 		width: typeof window !== "undefined" ? window.innerWidth : 1200,
@@ -397,6 +413,16 @@ export function SelectionCard({
 	// Suspend dockview drag-and-drop while this card floats over the tab strip
 	// so a stray drag cannot split the layout (#608).
 	useSelectionOverlayGuard();
+	// CSS `resize: both` only writes inline width/height and fires no event;
+	// remember a settled drag so the next card of this kind reopens at that
+	// width (height stays content-sized).
+	useEffect(() => {
+		const element = rootRef.current;
+		if (!element || !resizable || !rememberWidth || lockHeight) return;
+		return watchCardWidthResize(element, (width) => {
+			writePdfCardWidth(rememberWidth, width);
+		});
+	}, [lockHeight, rememberWidth, resizable]);
 	// Floating controls keep their UI size while the document is zoomed.
 	// Placement still clamps each card within the current viewport.
 	const viewportWidth =
@@ -424,8 +450,11 @@ export function SelectionCard({
 				),
 			}
 		: undefined;
+	const preferredWidth = rememberedWidth
+		? Math.min(rememberedWidth, resizeMaxWidth ?? Infinity)
+		: width;
 	const renderedWidth = Math.min(
-		width,
+		preferredWidth,
 		Math.max(0, viewportWidth - SELECTION_CARD_EDGE * 2),
 	);
 	const anchor = placeSelectionCard(screen, {

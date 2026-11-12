@@ -91,8 +91,9 @@ pub struct AppSettings {
     /// the browser). Empty = no cookie.
     #[serde(default)]
     pub institution_proxy_cookie: String,
-    /// Gateway flavour: `ezproxy` (query passthrough) or `wengine`
-    /// (path-rewriting WebVPN, e.g. ZJU). Default `ezproxy`.
+    /// Gateway flavour: `auto` (fingerprint the prefix), `ezproxy` (query
+    /// passthrough), `wengine` (path-rewriting WebVPN, e.g. ZJU) or
+    /// `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
     #[serde(default)]
     pub institution_proxy_type: String,
     #[serde(default = "default_paper_tree_label_mode")]
@@ -135,6 +136,9 @@ pub struct AppSettings {
     /// Enable the ephemeral F-key global element hint overlay.
     #[serde(default = "default_true")]
     pub hint_mode_enabled: bool,
+    /// Subtle in-app sound cues (agent attention / turn done / failure).
+    #[serde(default = "default_true")]
+    pub sound_enabled: bool,
     /// PDF page layout: `none` (single page) | `odd` | `even` (two-page spread).
     #[serde(default = "default_pdf_spread_mode")]
     pub pdf_spread_mode: String,
@@ -492,7 +496,7 @@ impl Default for AppSettings {
             network_proxy_url: default_network_proxy_url(),
             institution_proxy_prefix: String::new(),
             institution_proxy_cookie: String::new(),
-            institution_proxy_type: "ezproxy".to_string(),
+            institution_proxy_type: "auto".to_string(),
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
@@ -505,6 +509,7 @@ impl Default for AppSettings {
             pdf_vim_keys: true,
             vim_mode: true,
             hint_mode_enabled: true,
+            sound_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
             library_columns: default_library_columns(),
             connector_enabled: false,
@@ -1065,7 +1070,7 @@ impl AppSettingsStore {
     pub fn institution_proxy(
         &self,
     ) -> Option<(
-        agentero_core::features::paper::import::download::InstitutionProxyKind,
+        agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind,
         String,
         String,
     )> {
@@ -1075,7 +1080,7 @@ impl AppSettingsStore {
             return None;
         }
         let kind =
-            agentero_core::features::paper::import::download::InstitutionProxyKind::from_setting(
+            agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::from_setting(
                 &guard.institution_proxy_type,
             );
         Some((
@@ -1107,7 +1112,7 @@ impl AppSettingsStore {
             redact_secrets(next)
         };
         if let Some((kind, prefix, cookie)) = self.institution_proxy() {
-            agentero_core::features::paper::import::download::set_institution_proxy(
+            agentero_core::features::paper::import::institution_proxy::set_institution_proxy(
                 kind, &prefix, &cookie,
             );
         }
@@ -1331,14 +1336,18 @@ fn normalize(s: &mut AppSettings) {
     s.institution_proxy_cookie = s.institution_proxy_cookie.trim().to_string();
     s.institution_proxy_type = if s.institution_proxy_type.eq_ignore_ascii_case("wengine") {
         "wengine".to_string()
-    } else {
+    } else if s.institution_proxy_type.eq_ignore_ascii_case("subdomain") {
+        "subdomain".to_string()
+    } else if s.institution_proxy_type.eq_ignore_ascii_case("ezproxy") {
         "ezproxy".to_string()
+    } else {
+        "auto".to_string()
     };
     // Keep the core download fallback in sync on both load and set paths.
-    let kind = agentero_core::features::paper::import::download::InstitutionProxyKind::from_setting(
+    let kind = agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::from_setting(
         &s.institution_proxy_type,
     );
-    agentero_core::features::paper::import::download::set_institution_proxy(
+    agentero_core::features::paper::import::institution_proxy::set_institution_proxy(
         kind,
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,

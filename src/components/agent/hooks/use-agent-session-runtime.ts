@@ -83,6 +83,7 @@ import {
 	writePdfAskThread,
 } from "@/lib/pdf/ask";
 import { nextLineId, nextPartId } from "@/lib/pdf-visual/ids";
+import { playCue } from "@/lib/ui/sound";
 
 export type UseAgentSessionRuntimeOptions = {
 	refs: Pick<
@@ -497,6 +498,7 @@ export function useAgentSessionRuntime({
 				});
 				return;
 			}
+			playCue("done");
 			thinkParsersRef.current.delete(ev.sessionId);
 			updateSessionLinesOrdered(ev.sessionId, (prev) => {
 				const next = [...prev];
@@ -587,6 +589,7 @@ export function useAgentSessionRuntime({
 	const failSession = useCallback(
 		(sessionId: string, error: string) => {
 			if (!isChatOwnedSession(sessionId)) return;
+			playCue("error");
 			clearPhase(sessionId);
 			const failedLine: ChatLine = errorChatLine(error);
 			updateSessionLinesOrdered(sessionId, (prev) => {

@@ -12,7 +12,9 @@ fn main() {
 }
 
 fn generate_onboarding_templates() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let manifest_dir = PathBuf::from(
+        env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by Cargo"),
+    );
     let notes_root = manifest_dir.join("../../templates/vault/notes");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     let generated = out_dir.join("onboarding_templates.rs");
@@ -65,7 +67,9 @@ fn generate_onboarding_templates() {
 }
 
 fn generate_skill_templates() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let manifest_dir = PathBuf::from(
+        env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by Cargo"),
+    );
     let skills_root = manifest_dir.join("../../templates/vault/.agents/skills");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     let generated = out_dir.join("skill_templates.rs");

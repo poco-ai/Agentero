@@ -4,6 +4,7 @@ import {
 	clampZoomPreviewScale,
 	formatPdfZoomPercentage,
 	parsePdfZoomPercentage,
+	zoomCommitPreviewTransform,
 	zoomGestureCenteringMargin,
 	zoomPreviewTranslate,
 	zoomPreviewTranslateForViewport,
@@ -55,14 +56,41 @@ describe("zoomPreviewTranslate", () => {
 	});
 });
 
+describe("zoomCommitPreviewTransform", () => {
+	it("keeps the same page point fixed across old and new layout sizes", () => {
+		const anchor = { x: 0.5, y: 0.5 };
+		// Narrow-page centering puts the point away from the gesture pointer.
+		const previewPosition = { x: 350, y: 400 };
+		const element = { left: 50, top: 100 };
+		for (const page of [
+			{ left: 100, top: 200, width: 200, height: 400 },
+			{ left: 125, top: 150, width: 400, height: 800 },
+		]) {
+			const { x, y, scale } = zoomCommitPreviewTransform(
+				page,
+				element,
+				anchor,
+				previewPosition,
+				400,
+			);
+			expect(scale * page.width).toBe(400);
+			expect(
+				element.left + x + scale * (page.left + page.width / 2 - element.left),
+			).toBe(previewPosition.x);
+			expect(
+				element.top + y + scale * (page.top + page.height / 2 - element.top),
+			).toBe(previewPosition.y);
+		}
+	});
+});
+
 describe("zoom gesture reading box", () => {
-	it("centers a narrow page in the box left of the comment rail", () => {
-		// 900px viewport, 20px gap, 212px rail reserved on the right.
-		const readingWidth = zoomReadingWidth(900, 20, 232);
-		expect(readingWidth).toBe(648);
-		// Fit-width already fills that box, so the gesture margin stays put.
-		expect(zoomGestureCenteringMargin(648, readingWidth)).toBe(0);
-		expect(zoomGestureCenteringMargin(400, readingWidth)).toBe(124);
+	it("centers a narrow page within symmetric viewport padding", () => {
+		// The comment rail is outside the reading box and contributes no padding.
+		const readingWidth = zoomReadingWidth(900, 20, 20);
+		expect(readingWidth).toBe(860);
+		expect(zoomGestureCenteringMargin(860, readingWidth)).toBe(0);
+		expect(zoomGestureCenteringMargin(400, readingWidth)).toBe(230);
 	});
 });
 

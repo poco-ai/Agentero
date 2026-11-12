@@ -172,8 +172,10 @@
 			"loginFailed": "Could not open the institution login",
 			"cookieExpired": "Institution login expired. Open the gateway and sign in again; cookies are saved automatically.",
 			"typeLabel": "Gateway type",
+			"typeAuto": "Auto-detect",
 			"typeEzproxy": "EZProxy (login?url=)",
 			"typeWengine": "WebVPN (wengine)",
+			"typeSubdomain": "WebVPN (subdomain mapping)",
 			"test": "Test",
 			"testing": "Testing…",
 			"probeIdle": "Not tested",
@@ -185,7 +187,10 @@
 				"zju": "Zhejiang University",
 				"ustc": "University of Science and Technology of China",
 				"xjtu": "Xi'an Jiaotong University",
-				"neu": "Northeastern University"
+				"neu": "Northeastern University",
+				"tsinghua": "Tsinghua University",
+				"fudan": "Fudan University",
+				"bjmu": "Peking University Health Science Center"
 			}
 		},
 		"easyScholar": {
@@ -270,6 +275,11 @@
 		"uiScale": {
 			"label": "Interface scale",
 			"value": "{{percent}}%"
+		},
+		"sound": {
+			"label": "In-app sounds",
+			"description": "Quiet cues when an Agent needs you, or a turn or PDF translation finishes or fails",
+			"preview": "Preview"
 		},
 		"fonts": {
 			"section": "Fonts",

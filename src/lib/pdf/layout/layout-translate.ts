@@ -32,7 +32,7 @@ import {
 } from "@/lib/pdf/layout/layout-translate-source";
 import { bboxCoveredBy } from "@/lib/pdf/layout/merge-captions";
 import { splitTranslationChunks } from "@/lib/pdf/layout/translation-chunks";
-import { isReferenceLayoutRegion } from "@/lib/pdf/layout/translation-exclusions";
+import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	LayoutTranslateRegion,
@@ -224,13 +224,14 @@ export function listTranslatableLayoutRegions(
 	const algorithms = regions.filter(
 		(r) => isAlgorithmLayoutKind(r.kind) && r.score >= minScore,
 	);
+	const preserved = preservedLayoutRegions(regions);
 	const out: LayoutTranslateRegion[] = [];
 	for (const r of regions) {
+		if (preserved.has(r.id)) continue;
 		// Never translate algorithm detections themselves.
 		if (isAlgorithmLayoutKind(r.kind)) continue;
 		// Side-margin / running column text (e.g. arXiv strip when labeled aside_text).
 		if (isAsideTextLayoutLabel(r.label)) continue;
-		if (isReferenceLayoutRegion(r)) continue;
 		if (!isLayoutTranslatableKind(r.kind)) continue;
 		if (!(r.score >= minScore)) continue;
 		if (!(r.bbox.w > 0 && r.bbox.h > 0)) continue;
