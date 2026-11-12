@@ -194,10 +194,10 @@ export const FREE_MT_PROVIDER_IDS: FreeTranslateProviderId[] = [
 
 /** Ordered list for settings UI (commercial BYOK engines). */
 export const COMMERCIAL_MT_PROVIDER_IDS: CommercialTranslateProviderId[] = [
+	"aimlapi",
 	"deepl",
 	"azure",
 	"googleCloud",
-	"aimlapi",
 	"openaiCompatible",
 ];
 

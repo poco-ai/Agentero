@@ -49,7 +49,9 @@ import {
 } from "@/lib/translate/defaults";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 
-const FIRST_COMMERCIAL_PROVIDER: CommercialTranslateProviderId = "deepl";
+// AI/ML API needs only a key (its model has a default), which is all this
+// step asks for; the generic OpenAI-compatible card also needs a model.
+const FIRST_COMMERCIAL_PROVIDER: CommercialTranslateProviderId = "aimlapi";
 
 const PROBE_LABEL_KEYS = {
 	ok: "translate.probeOk",
