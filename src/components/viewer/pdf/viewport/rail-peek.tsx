@@ -17,8 +17,6 @@ const PEEK_LEAVE_MS = 80;
 const PEEK_HOVER_SLOP_PX = 8;
 /** Time to cross from a highlighted passage to its revealed card. */
 const PEEK_CARD_TRAVEL_MS = 500;
-/** A zoom may move the page under a stationary pointer without hover intent. */
-const PEEK_ZOOM_COOLDOWN_MS = 400;
 /** Clearance kept between the revealed rail and the viewport edge. */
 const PEEK_MARGIN_PX = 8;
 /**
@@ -76,6 +74,8 @@ export function RailPeek({
 	hasCommentsRef.current = hasCommentsOnPage;
 	const holdOpenRef = useRef(holdOpen);
 	holdOpenRef.current = holdOpen;
+	const hoveredCommentRef = useRef(hoveredCommentId);
+	hoveredCommentRef.current = hoveredCommentId;
 	const apiRef = useRef<RailPeekApi | null>(null);
 
 	useEffect(() => {
@@ -92,8 +92,7 @@ export function RailPeek({
 		let lastPointer: { x: number; y: number } | null = null;
 		let pressed = false;
 		let zoomSuspended = false;
-		let zoomPointer: { x: number; y: number } | null = null;
-		let lastZoomInput = 0;
+		let zoomActive = false;
 
 		const clearDwell = () => {
 			if (dwell === null) return;
@@ -274,15 +273,13 @@ export function RailPeek({
 			if (event.pointerType === "touch" || pressed) return;
 			if (zoomSuspended) {
 				if (
-					performance.now() - lastZoomInput < PEEK_ZOOM_COOLDOWN_MS ||
-					(zoomPointer &&
-						Math.hypot(
-							event.clientX - zoomPointer.x,
-							event.clientY - zoomPointer.y,
-						) <= PEEK_HOVER_SLOP_PX)
+					zoomActive ||
+					hoveredCommentRef.current ||
+					keepsOpen(event.clientX, event.clientY)
 				)
 					return;
 				zoomSuspended = false;
+				return;
 			}
 			if (holdOpenRef.current) {
 				clearLeave();
@@ -321,18 +318,8 @@ export function RailPeek({
 
 		// A wheel or a press is reading intent elsewhere; retract rather than
 		// fight the gesture. Wheel over a card keeps the rail (editor in use).
-		const suspendForZoom = (x?: number, y?: number) => {
-			if (!zoomSuspended) {
-				zoomPointer =
-					typeof x === "number" &&
-					typeof y === "number" &&
-					Number.isFinite(x) &&
-					Number.isFinite(y)
-						? { x, y }
-						: lastPointer;
-			}
+		const suspendForZoom = () => {
 			zoomSuspended = true;
-			lastZoomInput = performance.now();
 			clearDwell();
 			clearHoverDwell();
 			clearLeave();
@@ -343,7 +330,7 @@ export function RailPeek({
 		};
 		const handleWheel = (event: WheelEvent) => {
 			if (event.ctrlKey || event.metaKey) {
-				suspendForZoom(event.clientX, event.clientY);
+				suspendForZoom();
 				return;
 			}
 			clearDwell();
@@ -355,9 +342,13 @@ export function RailPeek({
 			}
 			restore();
 		};
-		const handleGesture = (event: Event) => {
-			const point = event as Event & { clientX?: number; clientY?: number };
-			suspendForZoom(point.clientX, point.clientY);
+		const handleGesture = () => suspendForZoom();
+		const handleZoomStart = () => {
+			zoomActive = true;
+			suspendForZoom();
+		};
+		const handleZoomSettled = () => {
+			zoomActive = false;
 		};
 
 		const handlePointerDown = (event: PointerEvent) => {
@@ -387,6 +378,8 @@ export function RailPeek({
 		viewport.addEventListener("gesturestart", handleGesture, true);
 		viewport.addEventListener("gesturechange", handleGesture, true);
 		viewport.addEventListener("gestureend", handleGesture, true);
+		viewport.addEventListener("pdf-zoom-start", handleZoomStart);
+		viewport.addEventListener("pdf-zoom-settled", handleZoomSettled);
 		viewport.addEventListener("pointerdown", handlePointerDown, true);
 		window.addEventListener("pointerup", handlePointerUp, true);
 		window.addEventListener("pointercancel", handlePointerUp, true);
@@ -402,6 +395,8 @@ export function RailPeek({
 			viewport.removeEventListener("gesturestart", handleGesture, true);
 			viewport.removeEventListener("gesturechange", handleGesture, true);
 			viewport.removeEventListener("gestureend", handleGesture, true);
+			viewport.removeEventListener("pdf-zoom-start", handleZoomStart);
+			viewport.removeEventListener("pdf-zoom-settled", handleZoomSettled);
 			viewport.removeEventListener("pointerdown", handlePointerDown, true);
 			window.removeEventListener("pointerup", handlePointerUp, true);
 			window.removeEventListener("pointercancel", handlePointerUp, true);

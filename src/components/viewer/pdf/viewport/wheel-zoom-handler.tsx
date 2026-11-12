@@ -137,6 +137,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 			pendingScrollRef.current = null;
 			pendingAnchorRef.current = null;
 			resetPreview();
+			container.dispatchEvent(new Event("pdf-zoom-settled"));
 		};
 
 		const scheduleSettle = () => {
@@ -233,6 +234,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 			const target = previewZoom * previewScale;
 			if (Math.abs(target - zoomLevelRef.current) < ZOOM_COMMIT_EPSILON) {
 				resetPreview();
+				container.dispatchEvent(new Event("pdf-zoom-settled"));
 				return;
 			}
 			pendingCommitRef.current = true;
@@ -268,6 +270,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 				pendingScrollRef.current = null;
 				pendingAnchorRef.current = null;
 				resetPreview();
+				container.dispatchEvent(new Event("pdf-zoom-start"));
 				const containerRect = container.getBoundingClientRect();
 				// WebKit's GestureEvent does not always carry coordinates.
 				pointer = {
