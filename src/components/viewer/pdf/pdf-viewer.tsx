@@ -159,6 +159,7 @@ import { embedPdfDocumentId } from "@/lib/pdf/document-id";
 import { PdfHistoryPluginPackage } from "@/lib/pdf/highlight/history";
 import { HIGHLIGHT_HEX_LIST } from "@/lib/pdf/highlight/palette";
 import { partitionHighlightPaint } from "@/lib/pdf/highlight/translated-geometry";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import {
 	getPdfAiRuntime,
 	layoutAnalysisStore,
@@ -1741,21 +1742,30 @@ function PdfViewerInner({
 		}
 	}, [isRemotePaper, plainViewer, regionSelecting, selectionCommentKeyValue]);
 
-	const handleMenuNote = useCallback(() => {
-		const menu = selectionMenuRef.current;
-		if (!menu?.pages.length || isRemotePaper || plainViewer || regionSelecting)
-			return;
-		const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
-		selectionCommentEngagedRef.current = true;
-		setSelectionCommentDraft({
-			page: visible?.page ?? menu.anchor.page,
-			anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
-			quote: menu.anchor.quote ?? "",
-			pages: menu.pages,
-			visiblePages: menu.visiblePages,
-		});
-		closeSelectionMenu();
-	}, [isRemotePaper, plainViewer, regionSelecting, closeSelectionMenu]);
+	const handleMenuNote = useCallback(
+		(shape: PdfTextMarkupKind = "highlight") => {
+			const menu = selectionMenuRef.current;
+			if (
+				!menu?.pages.length ||
+				isRemotePaper ||
+				plainViewer ||
+				regionSelecting
+			)
+				return;
+			const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
+			selectionCommentEngagedRef.current = true;
+			setSelectionCommentDraft({
+				page: visible?.page ?? menu.anchor.page,
+				anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
+				quote: menu.anchor.quote ?? "",
+				shape,
+				pages: menu.pages,
+				visiblePages: menu.visiblePages,
+			});
+			closeSelectionMenu();
+		},
+		[isRemotePaper, plainViewer, regionSelecting, closeSelectionMenu],
+	);
 
 	const handleSelectionCommentActiveChange = useCallback((active: boolean) => {
 		selectionCommentEngagedRef.current = active;
@@ -1779,6 +1789,7 @@ function PdfViewerInner({
 				{
 					pages: draft.pages,
 					quote: draft.quote,
+					shape: draft.shape,
 					visiblePages: draft.visiblePages,
 				},
 				comment,

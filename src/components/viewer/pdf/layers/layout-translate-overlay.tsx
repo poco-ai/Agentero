@@ -7,7 +7,7 @@ import { ReflowPageOverlay } from "./reflow-page-overlay";
 
 import { Fragment, memo, useLayoutEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/core/utils";
-import { highlightFill } from "@/lib/pdf/highlight/palette";
+import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import {
 	sentenceHighlightTints,
 	type TranslateSentenceTint,
@@ -702,10 +702,17 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 							{index > 0 ? sentenceNodes.gap : null}
 							<span
 								data-sentence={node.index}
-								className={cn(tint && "rounded-[1px]")}
+								className={cn(tint?.shape !== "underline" && "rounded-[1px]")}
 								style={
 									tint
-										? { backgroundColor: highlightFill(tint.color) }
+										? tint.shape === "underline"
+											? {
+													textDecorationLine: "underline",
+													textDecorationColor: HIGHLIGHT_HEX[tint.color],
+													textDecorationThickness: "2px",
+													textUnderlineOffset: "2px",
+												}
+											: { backgroundColor: highlightFill(tint.color) }
 										: undefined
 								}
 							>

@@ -1,10 +1,13 @@
+import { Underline } from "lucide-react";
 import { cn } from "@/lib/core/utils";
 import {
 	DEFAULT_HIGHLIGHT_COLOR,
+	HIGHLIGHT_HEX,
 	type HighlightColor,
 	swatchBorderClass,
 	swatchColorClass,
 } from "@/lib/pdf/highlight/palette";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 
 /** Quote row shared by note embeds and the composer reference card. */
 export function AnnotationQuoteBlock({
@@ -12,6 +15,7 @@ export function AnnotationQuoteBlock({
 	translation,
 	locationLabel,
 	color = DEFAULT_HIGHLIGHT_COLOR,
+	shape = "highlight",
 	showSwatch = true,
 	selectable = false,
 	textClassName,
@@ -20,6 +24,8 @@ export function AnnotationQuoteBlock({
 	translation?: string | null;
 	locationLabel?: string | null;
 	color?: HighlightColor;
+	/** Text-markup shape; the swatch becomes an underline glyph when set. */
+	shape?: PdfTextMarkupKind;
 	showSwatch?: boolean;
 	/** Let the quote and translation be drag-selected. */
 	selectable?: boolean;
@@ -32,13 +38,21 @@ export function AnnotationQuoteBlock({
 			{locationLabel || showSwatch ? (
 				<div className="flex items-center gap-1.5">
 					{showSwatch ? (
-						<span
-							className={cn(
-								"size-2 shrink-0 rounded-full",
-								swatchColorClass(color),
-							)}
-							aria-hidden
-						/>
+						shape === "underline" ? (
+							<Underline
+								className="size-3 shrink-0"
+								style={{ color: HIGHLIGHT_HEX[color] }}
+								aria-hidden
+							/>
+						) : (
+							<span
+								className={cn(
+									"size-2 shrink-0 rounded-full",
+									swatchColorClass(color),
+								)}
+								aria-hidden
+							/>
+						)
 					) : null}
 					{locationLabel ? (
 						<span

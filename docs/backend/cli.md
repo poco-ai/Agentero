@@ -115,7 +115,7 @@ agentero translate "Hello world" --to zh-CN --json
 
 | 落盘 | 内容 |
 |---|---|
-| `{paper}/marks/annotations.json` | 高亮 / 批注（EmbedPDF annotation 传输格式，页面点坐标；CLI 追加时按 id 去重 + 原子写） |
+| `{paper}/marks/annotations.json` | 高亮 / 下划线与批注（EmbedPDF annotation 传输格式，页面点坐标；annotation `type` 区分形状，CLI 追加时按 id 去重 + 原子写） |
 | `{paper}/marks/<id>.json` | ask / translate（归一 0–1 rects，与桌面划词同一 schema） |
 
 零命中返回 `mark_locate_failed`（业务错误，退出码 1）且**不落盘**——让 Agent 换更独特的

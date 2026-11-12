@@ -261,7 +261,9 @@
 	},
 	"selection": {
 		"menuLabel": "选区操作",
-		"colorGroupLabel": "高亮颜色",
+		"colorGroupLabel": "标注颜色",
+		"shapeHighlight": "高亮",
+		"shapeUnderline": "下划线",
 		"color": {
 			"yellow": "黄色",
 			"green": "绿色",
@@ -277,8 +279,8 @@
 		"quickChat": "快速对话",
 		"addToChat": "加入对话",
 		"translate": "翻译",
-		"removeHighlight": "删除高亮",
-		"highlightMenuLabel": "高亮操作",
+		"removeHighlight": "删除标注",
+		"highlightMenuLabel": "标注操作",
 		"editComment": "编辑批注",
 		"translateTitle": "翻译",
 		"translateCopyFailed": "无法复制译文。",

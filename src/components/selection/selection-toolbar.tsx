@@ -102,6 +102,8 @@ type SelectionToolbarIconButtonProps = {
 	tooltipSide?: React.ComponentProps<typeof TooltipContent>["side"];
 	onClick?: () => void;
 	disabled?: boolean;
+	/** Pressed state for toggle actions such as the markup shape. */
+	pressed?: boolean;
 	className?: string;
 	children: React.ReactNode;
 };
@@ -114,6 +116,7 @@ export function SelectionToolbarIconButton({
 	tooltipSide = "top",
 	onClick,
 	disabled,
+	pressed,
 	className,
 	children,
 }: SelectionToolbarIconButtonProps) {
@@ -126,8 +129,13 @@ export function SelectionToolbarIconButton({
 					size="icon-sm"
 					aria-label={shortcut !== undefined ? `${label} ${shortcut}` : label}
 					aria-keyshortcuts={shortcut?.length === 1 ? shortcut : undefined}
+					aria-pressed={pressed}
 					disabled={disabled}
-					className={className}
+					className={cn(
+						pressed &&
+							"bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+						className,
+					)}
 					onPointerDown={(event) => event.preventDefault()}
 					onClick={onClick}
 				>

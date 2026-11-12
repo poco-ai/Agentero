@@ -21,19 +21,20 @@ import type {
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import type { PdfAskThread } from "@/lib/pdf/ask";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
 
 type PdfCardStackProps = {
 	selectionMenu: {
 		state: SelectionMenuState | null;
-		onHighlight: (color: HighlightColor) => void;
+		onHighlight: (color: HighlightColor, shape: PdfTextMarkupKind) => void;
 		onAsk: () => void;
 		onAddToChat: () => void;
 		onTranslate: () => void;
 		onCopy?: () => Promise<boolean>;
 		onBookmark?: () => void;
-		onNote?: () => void;
+		onNote?: (shape: PdfTextMarkupKind) => void;
 		/** Hide highlight / translate (no marks/ to persist into); keep Ask. */
 		showHighlight?: boolean;
 		showTranslate?: boolean;

@@ -12,12 +12,7 @@
  */
 
 import { useDocumentState } from "@embedpdf/core/react";
-import {
-	PdfAnnotationSubtype,
-	type PdfHighlightAnnoObject,
-	type PdfLinkAnnoObject,
-	type Rect,
-} from "@embedpdf/models";
+import type { PdfLinkAnnoObject, Rect } from "@embedpdf/models";
 import {
 	AnnotationLayer,
 	type BoxedAnnotationRenderer,
@@ -70,6 +65,7 @@ import { PASSIVE_LINK_RENDERER } from "@/components/viewer/pdf/layers/link-annot
 import { PdfTextSelectionLayer } from "@/components/viewer/pdf/layers/pdf-text-selection-layer";
 import {
 	PASSIVE_HIGHLIGHT_RENDERER,
+	PASSIVE_UNDERLINE_RENDERER,
 	READING_ANNOTATION_RENDERERS,
 } from "@/components/viewer/pdf/layers/reading-annotation-renderers";
 import { PdfRegionSelectLayer } from "@/components/viewer/pdf/layers/region-select-layer";
@@ -88,7 +84,10 @@ import type {
 import { cn } from "@/lib/core/utils";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
-import { isLiveAnnotation } from "@/lib/pdf/highlight/annotation-store";
+import {
+	isLiveAnnotation,
+	isTextMarkupObject,
+} from "@/lib/pdf/highlight/annotation-store";
 import {
 	HIGHLIGHT_HEX,
 	HIGHLIGHT_OPACITY,
@@ -100,6 +99,10 @@ import {
 	sentenceHighlightTints,
 } from "@/lib/pdf/highlight/sentence-tint";
 import type { HighlightQuoteTint } from "@/lib/pdf/highlight/translated-geometry";
+import type {
+	PdfTextMarkupAnnoObject,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import {
 	isLayoutRegionActivation,
 	isLayoutTranslateItemPainted,
@@ -191,6 +194,7 @@ function TranslatedHighlightLayer({
 	paints: readonly {
 		id: string;
 		color: HighlightColor;
+		shape: PdfTextMarkupKind;
 		rects: PdfAskNormalizedRect[];
 	}[];
 }) {
@@ -205,15 +209,27 @@ function TranslatedHighlightLayer({
 				paint.rects.map((rect) => (
 					<div
 						key={`${paint.id}:${rect.x}:${rect.y}:${rect.w}:${rect.h}`}
-						style={{
-							position: "absolute",
-							left: `${rect.x * 100}%`,
-							top: `${rect.y * 100}%`,
-							width: `${rect.w * 100}%`,
-							height: `${rect.h * 100}%`,
-							backgroundColor: HIGHLIGHT_HEX[paint.color],
-							opacity: HIGHLIGHT_OPACITY,
-						}}
+						style={
+							paint.shape === "underline"
+								? {
+										position: "absolute",
+										left: `${rect.x * 100}%`,
+										top: `${rect.y * 100}%`,
+										width: `${rect.w * 100}%`,
+										height: `${rect.h * 100}%`,
+										borderBottom: `2px solid ${HIGHLIGHT_HEX[paint.color]}`,
+										boxSizing: "border-box",
+									}
+								: {
+										position: "absolute",
+										left: `${rect.x * 100}%`,
+										top: `${rect.y * 100}%`,
+										width: `${rect.w * 100}%`,
+										height: `${rect.h * 100}%`,
+										backgroundColor: HIGHLIGHT_HEX[paint.color],
+										opacity: HIGHLIGHT_OPACITY,
+									}
+						}
 					/>
 				)),
 			)}
@@ -384,7 +400,12 @@ export type PdfPageMarksSlice = {
 	 */
 	translatedHighlightsByPage: ReadonlyMap<
 		number,
-		{ id: string; color: HighlightColor; rects: PdfAskNormalizedRect[] }[]
+		{
+			id: string;
+			color: HighlightColor;
+			shape: PdfTextMarkupKind;
+			rects: PdfAskNormalizedRect[];
+		}[]
 	>;
 };
 
@@ -851,18 +872,25 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		if (!translationVisible || resolvedTranslatedIds.size === 0) {
 			return READING_ANNOTATION_RENDERERS;
 		}
-		return [
-			{
-				...PASSIVE_HIGHLIGHT_RENDERER,
-				render: (props) => {
-					if (resolvedTranslatedIds.has(props.currentObject.id)) {
-						return (
-							<span className="pointer-events-none hidden" aria-hidden="true" />
-						);
-					}
-					return PASSIVE_HIGHLIGHT_RENDERER.render(props);
-				},
+		// The translated sentence tint owns these marks while the overlay shows;
+		// suppressing both shapes avoids a duplicate English highlight/rule on
+		// top of the translated text.
+		const suppress = (
+			renderer: BoxedAnnotationRenderer,
+		): BoxedAnnotationRenderer => ({
+			...renderer,
+			render: (props) => {
+				if (resolvedTranslatedIds.has(props.currentObject.id)) {
+					return (
+						<span className="pointer-events-none hidden" aria-hidden="true" />
+					);
+				}
+				return renderer.render(props);
 			},
+		});
+		return [
+			suppress(PASSIVE_HIGHLIGHT_RENDERER),
+			suppress(PASSIVE_UNDERLINE_RENDERER),
 			PASSIVE_LINK_RENDERER,
 		];
 	}, [translationVisible, resolvedTranslatedIds]);
@@ -927,10 +955,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					.getAnnotationById(hit.id);
 				if (tracked && isLiveAnnotation(tracked)) {
 					const object = tracked.object;
-					if (
-						object.type === PdfAnnotationSubtype.HIGHLIGHT &&
-						object.pageIndex === pageIndex
-					) {
+					if (isTextMarkupObject(object) && object.pageIndex === pageIndex) {
 						return object;
 					}
 				}
@@ -944,8 +969,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			.filter(isLiveAnnotation)
 			.map((annotation) => annotation.object)
 			.filter(
-				(annotation): annotation is PdfHighlightAnnoObject =>
-					annotation.type === PdfAnnotationSubtype.HIGHLIGHT &&
+				(annotation): annotation is PdfTextMarkupAnnoObject =>
+					isTextMarkupObject(annotation) &&
 					annotation.pageIndex === pageIndex &&
 					(!translationVisible || !resolvedTranslatedIds.has(annotation.id)),
 			);
@@ -1760,15 +1785,26 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 							<div
 								key={`comment-hover-${emphasizedComment.id}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
 								className="pointer-events-none absolute z-[4] rounded-[1px] mix-blend-multiply"
-								style={{
-									left: `${rect.x * 100}%`,
-									top: `${rect.y * 100}%`,
-									width: `${rect.w * 100}%`,
-									height: `${rect.h * 100}%`,
-									backgroundColor: highlightHoverOverlayColor(
-										emphasizedComment.color,
-									),
-								}}
+								style={
+									emphasizedComment.shape === "underline"
+										? {
+												left: `${rect.x * 100}%`,
+												top: `${rect.y * 100}%`,
+												width: `${rect.w * 100}%`,
+												height: `${rect.h * 100}%`,
+												borderBottom: `2px solid ${HIGHLIGHT_HEX[emphasizedComment.color]}`,
+												boxSizing: "border-box",
+											}
+										: {
+												left: `${rect.x * 100}%`,
+												top: `${rect.y * 100}%`,
+												width: `${rect.w * 100}%`,
+												height: `${rect.h * 100}%`,
+												backgroundColor: highlightHoverOverlayColor(
+													emphasizedComment.color,
+												),
+											}
+								}
 								aria-hidden="true"
 							/>
 						))}

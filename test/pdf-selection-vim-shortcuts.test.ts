@@ -119,11 +119,24 @@ it("selects every color without hovering while Vim reading keys are enabled", as
 	expect(onFindNext).not.toHaveBeenCalled();
 });
 
+it("creates underlines after switching the shape with the same color shortcuts", async () => {
+	await render(true);
+	const underline = container.querySelector<HTMLButtonElement>(
+		'[aria-label="selection.shapeUnderline"]',
+	);
+	if (!underline) throw new Error("Underline shape toggle missing");
+	expect(underline.getAttribute("aria-pressed")).toBe("false");
+	await act(() => underline.click());
+	expect(underline.getAttribute("aria-pressed")).toBe("true");
+	expect(await press("3")).toBe(true);
+	expect(onHighlight).toHaveBeenCalledExactlyOnceWith("blue", "underline");
+});
+
 it("clears the Vim page prefix when a selection action takes over and restores navigation on close", async () => {
 	expect(await press("9")).toBe(true);
 	await render(true);
 	expect(await press("2")).toBe(true);
-	expect(onHighlight).toHaveBeenCalledExactlyOnceWith("green");
+	expect(onHighlight).toHaveBeenCalledExactlyOnceWith("green", "highlight");
 	await render(false);
 	await press("G", { shiftKey: true });
 	expect(mocks.scroll.scrollToPage).toHaveBeenLastCalledWith({

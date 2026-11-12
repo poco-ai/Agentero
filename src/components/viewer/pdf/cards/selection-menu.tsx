@@ -1,5 +1,5 @@
-import { Bookmark, MessageSquare } from "lucide-react";
-import { useRef } from "react";
+import { Bookmark, Highlighter, MessageSquare, Underline } from "lucide-react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectionActionMenu } from "@/components/selection/selection-action-menu";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@/components/selection/selection-toolbar";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import {
 	activateMenuContribution,
 	type MenuContext,
@@ -21,13 +22,13 @@ import {
 
 type SelectionMenuProps = {
 	screen: ScreenPoint;
-	onHighlight: (color: HighlightColor) => void;
+	onHighlight: (color: HighlightColor, shape: PdfTextMarkupKind) => void;
 	onAsk: () => void;
 	onAddToChat: () => void;
 	onTranslate: () => void;
 	onCopy?: () => Promise<boolean>;
 	onBookmark?: () => void;
-	onNote?: () => void;
+	onNote?: (shape: PdfTextMarkupKind) => void;
 	showHighlight?: boolean;
 	showTranslate?: boolean;
 	contributionContext?: MenuContext;
@@ -50,6 +51,7 @@ export function SelectionMenu({
 	const { t } = useTranslation("viewer");
 	const dividerRef = useRef<HTMLDivElement>(null);
 	const colorsRef = useRef<HTMLFieldSetElement>(null);
+	const [shape, setShape] = useState<PdfTextMarkupKind>("highlight");
 	const contributions = contributionContext
 		? visibleMenuContributions("pdf.selection", contributionContext)
 		: [];
@@ -66,16 +68,30 @@ export function SelectionMenu({
 			beforeActions={
 				showHighlight ? (
 					<>
+						<SelectionToolbarIconButton
+							label={t("selection.shapeHighlight")}
+							pressed={shape === "highlight"}
+							onClick={() => setShape("highlight")}
+						>
+							<Highlighter className="size-3.5" />
+						</SelectionToolbarIconButton>
+						<SelectionToolbarIconButton
+							label={t("selection.shapeUnderline")}
+							pressed={shape === "underline"}
+							onClick={() => setShape("underline")}
+						>
+							<Underline className="size-3.5" />
+						</SelectionToolbarIconButton>
 						<HighlightColorStack
 							ref={colorsRef}
-							onSelect={onHighlight}
+							onSelect={(color) => onHighlight(color, shape)}
 							shortcuts
 						/>
 						{onNote && (
 							<SelectionToolbarIconButton
 								label={t("selection.note")}
 								shortcut="N"
-								onClick={onNote}
+								onClick={() => onNote(shape)}
 							>
 								<MessageSquare className="size-3.5" />
 							</SelectionToolbarIconButton>

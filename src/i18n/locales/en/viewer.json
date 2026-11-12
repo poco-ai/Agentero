@@ -261,7 +261,9 @@
 	},
 	"selection": {
 		"menuLabel": "Selection actions",
-		"colorGroupLabel": "Highlight colors",
+		"colorGroupLabel": "Annotation colors",
+		"shapeHighlight": "Highlight",
+		"shapeUnderline": "Underline",
 		"color": {
 			"yellow": "Yellow",
 			"green": "Green",
@@ -277,8 +279,8 @@
 		"quickChat": "Quick chat",
 		"addToChat": "Add to chat",
 		"translate": "Translate",
-		"removeHighlight": "Remove highlight",
-		"highlightMenuLabel": "Highlight actions",
+		"removeHighlight": "Delete annotation",
+		"highlightMenuLabel": "Annotation actions",
 		"editComment": "Edit note",
 		"translateTitle": "Translation",
 		"translateCopyFailed": "Could not copy the translation.",

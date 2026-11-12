@@ -1,4 +1,9 @@
-import type { PdfHighlightAnnoObject, Rect, Size } from "@embedpdf/models";
+import type {
+	PdfHighlightAnnoObject,
+	PdfUnderlineAnnoObject,
+	Rect,
+	Size,
+} from "@embedpdf/models";
 import { PdfAnnotationSubtype } from "@embedpdf/models";
 import type { AnnotationTransferItem } from "@embedpdf/plugin-annotation/react";
 
@@ -13,13 +18,13 @@ import { unionRectsAll } from "@/lib/pdf/selection-appearance";
 
 /**
  * One-time migration of legacy normalized-rect highlight marks
- * (`papers/<id>/marks/<id>.json`, kind "highlight") into EmbedPDF annotation
- * transfer items (later saved as `marks/annotations.json`). Normalized rects
- * (top-left origin, y-down) are scaled by the page size in points.
- * Ask/Translate marks are left untouched.
+ * (`papers/<id>/marks/<id>.json`, kind "highlight" | "underline") into
+ * EmbedPDF annotation transfer items (later saved as `marks/annotations.json`).
+ * Normalized rects (top-left origin, y-down) are scaled by the page size in
+ * points. Ask/Translate marks are left untouched.
  *
- * Migrated highlight mark files are deleted so `marks/annotations.json` becomes
- * the single source of truth for highlights/批注.
+ * Migrated text-markup mark files are deleted so `marks/annotations.json`
+ * becomes the single source of truth for highlights/批注.
  */
 export async function migrateHighlightMarks(
 	paperAbsPath: string,
@@ -40,17 +45,20 @@ export async function migrateHighlightMarks(
 			size: { width: r.w * size.width, height: r.h * size.height },
 		}));
 		const color = normalizeHighlightColor(h.color);
-		const obj: PdfHighlightAnnoObject = {
-			type: PdfAnnotationSubtype.HIGHLIGHT,
+		const underline = h.kind === "underline";
+		const base = {
 			id: h.id,
 			pageIndex,
 			rect: unionRectsAll(segmentRects) ?? { origin: { x: 0, y: 0 }, size },
 			segmentRects,
 			strokeColor: HIGHLIGHT_HEX[color],
-			opacity: HIGHLIGHT_OPACITY,
+			opacity: underline ? 1 : HIGHLIGHT_OPACITY,
 			created: new Date(h.createdAt),
 			custom: { app: "agentero", paletteKey: color, quote: h.quote },
 		};
+		const obj: PdfHighlightAnnoObject | PdfUnderlineAnnoObject = underline
+			? { ...base, type: PdfAnnotationSubtype.UNDERLINE }
+			: { ...base, type: PdfAnnotationSubtype.HIGHLIGHT };
 		if (h.comment?.trim()) obj.contents = h.comment.trim();
 		items.push({ annotation: obj });
 		migratedIds.push(h.id);

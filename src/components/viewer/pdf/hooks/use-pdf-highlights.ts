@@ -24,6 +24,7 @@ import { useCapability } from "@embedpdf/core/react";
 import type {
 	PdfHighlightAnnoObject,
 	PdfLinkAnnoObject,
+	PdfUnderlineAnnoObject,
 } from "@embedpdf/models";
 import { PdfAnnotationSubtype } from "@embedpdf/models";
 import type {
@@ -52,8 +53,8 @@ import {
 	type HighlightCustom,
 	hasAnnotationsFile,
 	highlightViewFromObject,
-	isHighlightObject,
 	isLiveAnnotation,
+	isTextMarkupObject,
 	loadAnnotationItems,
 	saveAnnotationItems,
 } from "@/lib/pdf/highlight/annotation-store";
@@ -74,7 +75,10 @@ import {
 	HIGHLIGHT_OPACITY,
 	type HighlightColor,
 } from "@/lib/pdf/highlight/palette";
-import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+import type {
+	PdfHighlight,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
 import type { NormalizedRect } from "@/lib/pdf/selection";
 import { marksDir } from "@/lib/pdf/selection";
@@ -124,7 +128,7 @@ export type PdfHighlights = {
 	citationLinks: Map<number, PdfLinkAnnoObject[]>;
 	/** Re-read the plugin scope; also the annotation-event handler. */
 	rebuildHighlights: () => void;
-	/** Create one highlight per selected page span; returns the new ids. */
+	/** Create one text-markup annotation per selected page span; returns the new ids. */
 	createHighlights: (
 		pages: FormattedSelection[],
 		color: HighlightColor,
@@ -134,6 +138,8 @@ export type PdfHighlights = {
 		 * glyph boxes and painted only while the translation overlay is on.
 		 */
 		translatedPages?: readonly VisibleSelectionPage[],
+		/** Markup shape; defaults to a highlight. */
+		shape?: PdfTextMarkupKind,
 	) => { pageIndex: number; id: string }[];
 	/** Write a 批注 comment onto an existing highlight (empty clears it). */
 	updateHighlightComment: (
@@ -240,7 +246,7 @@ export function usePdfHighlights({
 		// session). They must not reach the rail, pins or paint layers.
 		const all = scope.getAnnotations().filter(isLiveAnnotation);
 		const doc = docCap?.getDocument(docId);
-		const objects = all.map((a) => a.object).filter(isHighlightObject);
+		const objects = all.map((a) => a.object).filter(isTextMarkupObject);
 		const list = objects.map((o) => {
 			const view = highlightViewFromObject(o, paperKey ?? "");
 			const size = doc?.pages[o.pageIndex]?.size;
@@ -415,8 +421,8 @@ export function usePdfHighlights({
 						.map((item) => item.object),
 				);
 				if (plan.imports.length) scope.importAnnotations(plan.imports);
-				if (plan.highlightOverrides.length) {
-					const apply = () => scope.updateAnnotations(plan.highlightOverrides);
+				if (plan.annotationOverrides.length) {
+					const apply = () => scope.updateAnnotations(plan.annotationOverrides);
 					if (history) history.withoutRecording(apply);
 					else apply();
 					scope.commit();
@@ -476,15 +482,15 @@ export function usePdfHighlights({
 			const items = await loadAnnotationItems(paperAbsPath);
 			if (cancelled) return;
 			const plan = planAnnotationItemImport(items, existing);
-			if (!plan.imports.length && !plan.highlightOverrides.length) return;
+			if (!plan.imports.length && !plan.annotationOverrides.length) return;
 			importingRef.current = true;
 			history?.invalidate([
 				...plan.imports.map((item) => item.annotation.id),
-				...plan.highlightOverrides.map((item) => item.id),
+				...plan.annotationOverrides.map((item) => item.id),
 			]);
 			if (plan.imports.length) scope.importAnnotations(plan.imports);
-			if (plan.highlightOverrides.length) {
-				const apply = () => scope.updateAnnotations(plan.highlightOverrides);
+			if (plan.annotationOverrides.length) {
+				const apply = () => scope.updateAnnotations(plan.annotationOverrides);
 				if (history) history.withoutRecording(apply);
 				else apply();
 				scope.commit();
@@ -525,9 +531,11 @@ export function usePdfHighlights({
 			color: HighlightColor,
 			quote: string,
 			translatedPages?: readonly VisibleSelectionPage[],
+			shape: PdfTextMarkupKind = "highlight",
 		) => {
 			const scope = annotationCap?.forDocument(docId);
 			if (!scope) return [] as { pageIndex: number; id: string }[];
+			const underline = shape === "underline";
 			const created: { pageIndex: number; id: string }[] = [];
 			runAnnotationBatch(() => {
 				for (const page of pages) {
@@ -541,17 +549,21 @@ export function usePdfHighlights({
 						quote,
 					};
 					if (translatedRects?.length) custom.translatedRects = translatedRects;
-					const obj: PdfHighlightAnnoObject = {
-						type: PdfAnnotationSubtype.HIGHLIGHT,
+					const base = {
 						id,
 						pageIndex: page.pageIndex,
 						rect: page.rect,
 						segmentRects: page.segmentRects,
 						strokeColor: HIGHLIGHT_HEX[color],
-						opacity: HIGHLIGHT_OPACITY,
+						// Underlines read as a solid stroke; highlights keep the
+						// translucent fill used by the palette.
+						opacity: underline ? 1 : HIGHLIGHT_OPACITY,
 						created: new Date(),
 						custom,
 					};
+					const obj: PdfHighlightAnnoObject | PdfUnderlineAnnoObject = underline
+						? { ...base, type: PdfAnnotationSubtype.UNDERLINE }
+						: { ...base, type: PdfAnnotationSubtype.HIGHLIGHT };
 					scope.createAnnotation(page.pageIndex, obj);
 					created.push({ pageIndex: page.pageIndex, id });
 				}
@@ -583,7 +595,7 @@ export function usePdfHighlights({
 			if (
 				!tracked ||
 				!isLiveAnnotation(tracked) ||
-				!isHighlightObject(tracked.object)
+				!isTextMarkupObject(tracked.object)
 			) {
 				return;
 			}
