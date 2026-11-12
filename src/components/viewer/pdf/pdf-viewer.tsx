@@ -1390,6 +1390,7 @@ function PdfViewerInner({
 		docId,
 	);
 	const translationShown =
+		translationsVisible &&
 		(translationPane || !dualPaneTranslate) &&
 		layoutTranslatePageStateByPage.size > 0;
 	const searchDocumentId = pickPdfSearchDocumentId({
