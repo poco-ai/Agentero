@@ -211,7 +211,11 @@
 			"label": "兼容 Zotero Connector",
 			"hint": "请先退出本地Zotero",
 			"portLabel": "Connector 端口",
-			"invalidPort": "端口必须在 1 到 65535 之间。"
+			"invalidPort": "端口必须在 1 到 65535 之间。",
+			"notListening": "未监听",
+			"portInUse": "端口 {{port}} 已被占用。Agentero 每 5 秒自动重试，请退出 Zotero 或其他占用此端口的应用。",
+			"bindFailed": "无法监听端口 {{port}}。Agentero 每 5 秒自动重试，请检查端口或更换端口。",
+			"serverStopped": "Connector 服务已停止。Agentero 每 5 秒自动重试，也可立即重试。"
 		},
 		"mcp": {
 			"exposeText": {

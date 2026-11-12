@@ -211,7 +211,11 @@
 			"label": "Zotero Connector compatibility",
 			"hint": "Quit local Zotero first",
 			"portLabel": "Connector port",
-			"invalidPort": "Port must be between 1 and 65535."
+			"invalidPort": "Port must be between 1 and 65535.",
+			"notListening": "Not listening",
+			"portInUse": "Port {{port}} is in use. Agentero retries every 5 seconds. Quit Zotero or the other app using this port.",
+			"bindFailed": "Cannot listen on port {{port}}. Agentero retries every 5 seconds. Check the port or choose another one.",
+			"serverStopped": "The Connector service stopped. Agentero retries every 5 seconds. You can also retry now."
 		},
 		"mcp": {
 			"exposeText": {

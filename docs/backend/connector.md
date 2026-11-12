@@ -6,6 +6,12 @@ Host 在 **`127.0.0.1:23119`** 模拟 Zotero 桌面 Connector HTTP，官方浏�
 
 - 设置 → 通用：**兼容 Zotero Connector**（`connectorEnabled`，**默认关**）。
 - 与 Zotero 桌面端端口互斥；端口可在设置中修改（默认 `23119`）。
+- 开关保持开启时，bind 失败或服务意外停止后，Host 每 5 秒自动重试；端口释放后自动恢复，
+  无需重启应用或切换开关。关闭开关 / 退出应用取消重试；修改端口取消旧端口的重试，
+  相同端口的设置同步不重启服务。
+- 设置端口行在失败期间保留红色「未监听」状态、中文 / 英文错误原因和立即重试按钮；
+  恢复后通过 `connector:status` 自动切回绿色监听状态。`lastErrorCode` 用于本地化，
+  `lastError` 保留系统诊断详情；后台自动重试不会反复弹 Toast。
 - 支持 `saveItems`、目标文件夹选择、**`saveAttachment`**（浏览器上传 PDF）。
 - 支持 **`saveStandaloneAttachment`**（在 PDF 标签页直接保存，无父书目条目）。
 - 支持 **`hasAttachmentResolvers`** / **`saveAttachmentFromResolver`**：浏览器直连 PDF
@@ -55,5 +61,6 @@ Host 在 **`127.0.0.1:23119`** 模拟 Zotero 桌面 Connector HTTP，官方浏�
 
 ## 代码
 
-`src-tauri/src/features/connector/`  
+`src-tauri/src/integration/connector/`
+
 用户教程：[../usage/zotero.md](../usage/zotero.md)
