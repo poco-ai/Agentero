@@ -27,6 +27,7 @@ import {
 	translateServiceKey,
 	writeLayoutTranslateSidecar,
 } from "@/lib/pdf/layout/layout-translate";
+import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
 
@@ -420,6 +421,193 @@ describe("listTranslatableLayoutRegions", () => {
 			"caption",
 			"body-2",
 		]);
+	});
+
+	it("preserves explicit metadata labels below the normal confidence gate", () => {
+		const regions = [
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				score: 0.05,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "A Low-Confidence Paper Title",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				score: 0.05,
+				bbox: { x: 0.2, y: 0.11, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace and Alan Turing",
+			}),
+			region({
+				id: "footnote",
+				kind: "text",
+				label: "footnote",
+				pageIndex: 0,
+				score: 0.05,
+				bbox: { x: 0.1, y: 0.9, w: 0.8, h: 0.03 },
+				text: "Corresponding author.",
+			}),
+			region({
+				id: "footer",
+				kind: "text",
+				label: "footer",
+				pageIndex: 0,
+				score: 0.05,
+				bbox: { x: 0.4, y: 0.97, w: 0.2, h: 0.02 },
+				text: "Published 2026",
+			}),
+			region({
+				id: "number",
+				kind: "text",
+				label: "number",
+				pageIndex: 0,
+				score: 0.05,
+				bbox: { x: 0.48, y: 0.95, w: 0.04, h: 0.02 },
+				text: "7",
+			}),
+			region({
+				id: "seal",
+				kind: "text",
+				label: "seal",
+				pageIndex: 0,
+				score: 0.05,
+				bbox: { x: 0.85, y: 0.85, w: 0.1, h: 0.1 },
+				text: "Received",
+			}),
+			region({
+				id: "aside",
+				kind: "text",
+				label: "aside_text",
+				pageIndex: 0,
+				score: 0.05,
+				bbox: { x: 0.01, y: 0.2, w: 0.04, h: 0.6 },
+				text: "arXiv:2608.00881v1",
+			}),
+			region({
+				id: "body",
+				kind: "text",
+				pageIndex: 0,
+				score: 0.9,
+				bbox: { x: 0.1, y: 0.35, w: 0.8, h: 0.1 },
+				text: "Body prose stays translatable.",
+			}),
+		];
+		const preserved = preservedLayoutRegions(regions);
+		expect(preserved.get("title")).toBe("paper-title");
+		expect(preserved.get("authors")).toBe("metadata-band");
+		expect(preserved.get("footnote")).toBe("footnote");
+		expect(preserved.get("footer")).toBe("footer");
+		expect(preserved.get("number")).toBe("page-number");
+		expect(preserved.get("seal")).toBe("seal");
+		expect(preserved.get("aside")).toBe("aside-text");
+		expect(preserved.has("body")).toBe(false);
+	});
+
+	it("infers a MinerU paper title when Content List labels it as a paragraph title", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "title",
+				kind: "header",
+				label: "paragraph_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.07, w: 0.6, h: 0.04 },
+				text: "Attention Is All You Need",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.14, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace and Alan Turing",
+			}),
+			region({
+				id: "abstract",
+				kind: "abstract",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.22, w: 0.8, h: 0.12 },
+				text: "The abstract stays translatable.",
+			}),
+			region({
+				id: "section",
+				kind: "header",
+				label: "paragraph_title",
+				pageIndex: 0,
+				readingOrder: 3,
+				bbox: { x: 0.1, y: 0.4, w: 0.4, h: 0.03 },
+				text: "1 Introduction",
+			}),
+		]);
+		expect(list.map((item) => item.id)).toEqual(["abstract", "section"]);
+	});
+
+	it("keeps numbered leading section headings translatable", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "section",
+				kind: "header",
+				label: "paragraph_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.08, w: 0.4, h: 0.03 },
+				text: "1 Introduction",
+			}),
+			region({
+				id: "body",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.1, y: 0.14, w: 0.8, h: 0.1 },
+				text: "Body prose remains translatable.",
+			}),
+		]);
+		expect(list.map((item) => item.id)).toEqual(["section", "body"]);
+	});
+
+	it("preserves short journal names repeated at the same page margin", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "header-1",
+				kind: "header",
+				label: "header",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.08, y: 0.01, w: 0.16, h: 0.02 },
+				text: "Nature",
+			}),
+			region({
+				id: "body-1",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.1, y: 0.2, w: 0.8, h: 0.1 },
+				text: "First-page body.",
+			}),
+			region({
+				id: "header-2",
+				kind: "header",
+				label: "header",
+				pageIndex: 1,
+				readingOrder: 0,
+				bbox: { x: 0.08, y: 0.01, w: 0.16, h: 0.02 },
+				text: "Nature",
+			}),
+			region({
+				id: "body-2",
+				kind: "text",
+				pageIndex: 1,
+				readingOrder: 1,
+				bbox: { x: 0.1, y: 0.2, w: 0.8, h: 0.1 },
+				text: "Second-page body.",
+			}),
+		]);
+		expect(list.map((item) => item.id)).toEqual(["body-1", "body-2"]);
 	});
 
 	it("does not mistake figure captions or section headings for running headers", () => {

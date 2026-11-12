@@ -130,7 +130,9 @@ async function fixture() {
 	return pdf.save();
 }
 
-it("keeps first-page metadata and page furniture out of reflow fallback", async () => {
+async function expectMetadataExcluded(
+	layoutRegions: readonly PdfLayoutRegion[],
+) {
 	const engine = new PdfiumNative(
 		await init({
 			wasmBinary: readFileSync(
@@ -146,7 +148,7 @@ it("keeps first-page metadata and page furniture out of reflow fallback", async 
 		})
 		.toPromise();
 	try {
-		const selected = listTranslatableLayoutRegions(regions);
+		const selected = listTranslatableLayoutRegions(layoutRegions);
 		expect(selected.map((item) => item.id)).toEqual([
 			"abstract",
 			"body",
@@ -157,7 +159,7 @@ it("keeps first-page metadata and page furniture out of reflow fallback", async 
 			engine,
 			doc,
 			toLayoutTranslateItems(selected),
-			regions,
+			layoutRegions,
 		);
 		expect(items.map((item) => item.id).sort()).toEqual([
 			"abstract",
@@ -175,4 +177,23 @@ it("keeps first-page metadata and page furniture out of reflow fallback", async 
 	} finally {
 		await engine.closeDocument(doc).toPromise();
 	}
+}
+
+it("keeps first-page metadata and page furniture out of reflow fallback", async () => {
+	await expectMetadataExcluded(regions);
+});
+
+it("covers legacy MinerU titles and low-confidence page furniture", async () => {
+	const legacyMineruRegions = regions.map((item) => {
+		if (item.id === "title")
+			return { ...item, label: "paragraph_title", score: 1 };
+		if (
+			["authors", "affiliation", "footnote", "header-1", "header-2"].includes(
+				item.id,
+			)
+		)
+			return { ...item, score: 0.05 };
+		return item;
+	});
+	await expectMetadataExcluded(legacyMineruRegions);
 });

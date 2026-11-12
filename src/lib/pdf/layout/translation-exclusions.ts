@@ -72,6 +72,10 @@ function textKey(text: string): string {
 		.replace(/[^\p{L}\p{N}]/gu, "");
 }
 
+function regionText(region: Pick<PdfLayoutRegion, "text" | "title">): string {
+	return (region.text ?? region.title ?? "").trim();
+}
+
 function isCaptionHeader(
 	region: Pick<PdfLayoutRegion, "kind" | "captionRole" | "text" | "title">,
 ): boolean {
@@ -112,9 +116,12 @@ function marginHeaderIds(
 	const idsByKey = new Map<string, string[]>();
 	for (const region of regions) {
 		if (!isMarginHeader(region) || isCaptionHeader(region)) continue;
-		const rawText = region.text ?? region.title ?? "";
+		const rawText = regionText(region);
 		const text = textKey(rawText);
-		if (text.length < 8) continue;
+		// Short journal names are common running headers. Exact text and
+		// margin-position repetition across pages is the guard against section
+		// headings and one-off labels.
+		if (text.length < 2) continue;
 		const key = `${Math.round(region.bbox.y * 100)}:${text}`;
 		const pages = pagesByKey.get(key) ?? new Set<number>();
 		pages.add(region.pageIndex);
@@ -138,17 +145,21 @@ function marginHeaderIds(
 type VerticalOrigin = "top" | "bottom";
 type MetadataBand = { low: number; high: number };
 
+function isAbstractHeading(
+	region: Pick<PdfLayoutRegion, "kind" | "text" | "title">,
+): boolean {
+	return (
+		region.kind === "header" &&
+		/^(?:abstract|summary|摘\s*要)[\s.:：]*$/iu.test(regionText(region))
+	);
+}
+
 function isMetadataAnchor(
 	region: Pick<PdfLayoutRegion, "kind" | "label" | "text" | "title">,
 ): boolean {
 	if (region.kind === "abstract") return true;
 	if (labelKey(region) === "paragraph_title") return true;
-	return (
-		region.kind === "header" &&
-		/^(?:abstract|summary|摘\s*要)[\s.:：]*$/iu.test(
-			(region.text ?? region.title ?? "").trim(),
-		)
-	);
+	return isAbstractHeading(region);
 }
 
 function inferVerticalOrigin(
@@ -175,12 +186,15 @@ function inferVerticalOrigin(
 /** Author / affiliation / contact lines sit between the paper title and abstract. */
 function firstPageMetadataBand(
 	regions: readonly PdfLayoutRegion[],
+	titleIds: ReadonlySet<string>,
 ): MetadataBand | null {
 	const pageZero = regions.filter((region) => region.pageIndex === 0);
-	const titles = pageZero.filter((region) => labelKey(region) === "doc_title");
+	const titles = pageZero.filter((region) => titleIds.has(region.id));
 	if (!titles.length) return null;
 	const origin = inferVerticalOrigin(pageZero, titles);
-	const anchors = pageZero.filter(isMetadataAnchor);
+	const anchors = pageZero.filter(
+		(region) => !titleIds.has(region.id) && isMetadataAnchor(region),
+	);
 	if (origin === "top") {
 		const titleBottom = Math.max(
 			...titles.map((region) => region.bbox.y + region.bbox.h),
@@ -221,6 +235,120 @@ function isMetadataBandRegion(
 	);
 }
 
+function looksLikeNumberedSection(text: string): boolean {
+	return /^\d+(?:\.\d+)*[.)]?\s+\S/u.test(text.trim());
+}
+
+function isPaperTitleHeading(region: PdfLayoutRegion): boolean {
+	if (region.pageIndex !== 0 || labelKey(region) !== "paragraph_title")
+		return false;
+	if (isCaptionHeader(region) || isReferenceSectionTitle(regionText(region)))
+		return false;
+	const text = regionText(region);
+	return (
+		text.length > 0 &&
+		region.bbox.y <= 0.32 &&
+		!looksLikeNumberedSection(text) &&
+		!/^(?:abstract|summary|摘\s*要)[\s.:：]*$/iu.test(text)
+	);
+}
+
+function median(values: readonly number[]): number | null {
+	if (!values.length) return null;
+	const sorted = [...values].sort((a, b) => a - b);
+	const middle = Math.floor(sorted.length / 2);
+	return sorted.length % 2
+		? (sorted[middle] ?? null)
+		: ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
+}
+
+function looksLikeAffiliation(text: string): boolean {
+	return /(?:@|\b(?:university|institute|department|school|laboratory|research|college|academy)\b|大学|学院|研究院|研究所|实验室)/iu.test(
+		text,
+	);
+}
+
+/**
+ * Older MinerU Content Lists collapse the paper title into a `paragraph_title`
+ * (`text_level: 1`) instead of emitting `doc_title`. Infer only the leading
+ * heading, and only with an abstract, affiliation, or noticeably larger type
+ * below it. Numbered section headings stay translatable.
+ */
+function firstPageTitleIds(
+	regions: readonly PdfLayoutRegion[],
+	geometryCandidates: readonly PdfLayoutRegion[],
+): ReadonlySet<string> {
+	const pageZero = regions.filter((region) => region.pageIndex === 0);
+	const explicit = pageZero.filter(
+		(region) => labelKey(region) === "doc_title",
+	);
+	if (explicit.length) return new Set(explicit.map((region) => region.id));
+
+	const candidate = geometryCandidates
+		.filter((region) => region.pageIndex === 0 && isPaperTitleHeading(region))
+		.sort(
+			(a, b) =>
+				a.bbox.y - b.bbox.y ||
+				a.readingOrder - b.readingOrder ||
+				a.bbox.x - b.bbox.x,
+		)[0];
+	if (!candidate) return new Set();
+	const candidateBottom = candidate.bbox.y + candidate.bbox.h;
+	const abstractBelow = pageZero.some(
+		(region) =>
+			region.bbox.y >= candidateBottom - 0.005 &&
+			(region.kind === "abstract" ||
+				(labelKey(region) === "paragraph_title" &&
+					/^(?:abstract|summary|摘\s*要)[\s.:：]*$/iu.test(
+						regionText(region),
+					))),
+	);
+	const affiliationBelow = pageZero.some(
+		(region) =>
+			region.id !== candidate.id &&
+			region.bbox.y >= candidateBottom - 0.005 &&
+			region.bbox.y <= candidate.bbox.y + 0.22 &&
+			looksLikeAffiliation(regionText(region)),
+	);
+	const bodyFontSizes = pageZero
+		.filter(
+			(region) =>
+				region.kind === "text" &&
+				region.sourceStyle &&
+				!isMetadataAnchor(region),
+		)
+		.map((region) => region.sourceStyle?.fontSize ?? 0)
+		.filter((fontSize) => fontSize > 0);
+	const bodyFontSize = median(bodyFontSizes);
+	const largerThanBody =
+		candidate.sourceStyle != null &&
+		bodyFontSize != null &&
+		candidate.sourceStyle.fontSize >= bodyFontSize * 1.25;
+	return abstractBelow || affiliationBelow || largerThanBody
+		? new Set([candidate.id])
+		: new Set();
+}
+
+const ALWAYS_PRESERVE_LABELS = new Set([
+	"doc_title",
+	"footnote",
+	"vision_footnote",
+	"footer",
+	"number",
+	"seal",
+	"aside_text",
+]);
+
+function isAlwaysPreservedRegion(region: PdfLayoutRegion): boolean {
+	return (
+		ALWAYS_PRESERVE_LABELS.has(labelKey(region)) ||
+		isAbstractHeading(region) ||
+		region.kind === "abstract" ||
+		region.kind === "algorithm" ||
+		isReferenceLayoutRegion(region)
+	);
+}
+
 /**
  * Regions left in their source language during paper-wide PDF translation.
  * Bibliographic metadata and page furniture are not reading content; captions,
@@ -230,18 +358,19 @@ export function preservedLayoutRegions(
 	regions: readonly PdfLayoutRegion[],
 	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
 ): ReadonlyMap<string, LayoutPreserveReason> {
-	const candidates = regions.filter(
-		(region) => region.score >= minScore || isReferenceLayoutRegion(region),
+	const geometryCandidates = regions.filter(
+		(region) => region.score >= minScore || isAlwaysPreservedRegion(region),
 	);
-	const marginHeaders = marginHeaderIds(candidates);
-	const metadataBand = firstPageMetadataBand(candidates);
+	const titleIds = firstPageTitleIds(regions, geometryCandidates);
+	const marginHeaders = marginHeaderIds(regions);
+	const metadataBand = firstPageMetadataBand(regions, titleIds);
 	const out = new Map<string, LayoutPreserveReason>();
-	for (const region of candidates) {
+	for (const region of regions) {
 		const label = labelKey(region);
 		let reason: LayoutPreserveReason | undefined;
 		if (isReferenceLayoutRegion(region)) reason = "reference";
 		else if (region.kind === "algorithm") reason = "algorithm";
-		else if (label === "doc_title") reason = "paper-title";
+		else if (titleIds.has(region.id)) reason = "paper-title";
 		else if (label === "footnote" || label === "vision_footnote")
 			reason = "footnote";
 		else if (marginHeaders.has(region.id)) reason = "page-header";
