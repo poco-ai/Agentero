@@ -7,16 +7,16 @@ import { railPeekKeepsOpen, railPeekScrollDelta } from "@/lib/pdf/rail-peek";
 const PEEK_EDGE_PX = 28;
 /** Vertical slack around the card stack, so moving between cards stays in. */
 const PEEK_CARD_HALO_PX = 12;
-/** Rest on the edge strip or on a commented highlight before panning. */
-const PEEK_DWELL_MS = 280;
-/** Grace for moving from the page onto a revealed card. */
-const PEEK_LEAVE_MS = 120;
-/**
- * How long a highlight-hover reveal stays put. Panning moves the text out from
- * under the pointer, so the hover that started it cannot keep the rail open;
- * give the reader time to read the revealed card before sliding back.
- */
-const PEEK_HOVER_HOLD_MS = 2600;
+/** Rest on the edge strip before panning. */
+const PEEK_DWELL_MS = 400;
+/** Outlast the highlight's 500ms leave grace before committing to a pan. */
+const PEEK_HIGHLIGHT_DWELL_MS = 550;
+/** Grace after leaving the revealed column or moving away from a highlight. */
+const PEEK_LEAVE_MS = 80;
+/** Small pointer jitter after the page moves should not dismiss the peek. */
+const PEEK_HOVER_SLOP_PX = 8;
+/** Time to cross from a highlighted passage to its revealed card. */
+const PEEK_CARD_TRAVEL_MS = 500;
 /** Clearance kept between the revealed rail and the viewport edge. */
 const PEEK_MARGIN_PX = 8;
 /**
@@ -84,8 +84,9 @@ export function RailPeek({
 		let savedScrollLeft = 0;
 		let targetScrollLeft = 0;
 		let dwell: ReturnType<typeof setTimeout> | null = null;
+		let hoverDwell: ReturnType<typeof setTimeout> | null = null;
 		let leave: ReturnType<typeof setTimeout> | null = null;
-		let hold: ReturnType<typeof setTimeout> | null = null;
+		let hoverAnchor: { x: number; y: number } | null = null;
 		let lastPointer: { x: number; y: number } | null = null;
 		let pressed = false;
 
@@ -94,15 +95,15 @@ export function RailPeek({
 			clearTimeout(dwell);
 			dwell = null;
 		};
+		const clearHoverDwell = () => {
+			if (hoverDwell === null) return;
+			clearTimeout(hoverDwell);
+			hoverDwell = null;
+		};
 		const clearLeave = () => {
 			if (leave === null) return;
 			clearTimeout(leave);
 			leave = null;
-		};
-		const clearHold = () => {
-			if (hold === null) return;
-			clearTimeout(hold);
-			hold = null;
 		};
 
 		/** Vertical span of the comment cards currently on screen. */
@@ -161,13 +162,19 @@ export function RailPeek({
 
 		const restore = () => {
 			clearDwell();
+			clearHoverDwell();
 			clearLeave();
-			clearHold();
 			if (!revealed) return;
 			if (holdOpenRef.current) return;
 			revealed = false;
-			// The reader scrolled or zoomed since the reveal: keep their view.
-			if (Math.abs(viewport.scrollLeft - targetScrollLeft) > 2) return;
+			hoverAnchor = null;
+			// A quick leave can interrupt the reveal animation before it reaches
+			// the target. Only a scroll outside that path belongs to the reader.
+			if (
+				viewport.scrollLeft < savedScrollLeft - 2 ||
+				viewport.scrollLeft > targetScrollLeft + 2
+			)
+				return;
 			viewport.scrollTo({ left: savedScrollLeft, behavior: "smooth" });
 		};
 
@@ -201,32 +208,25 @@ export function RailPeek({
 			savedScrollLeft = from;
 			targetScrollLeft = to;
 			revealed = true;
+			hoverAnchor = soft ? lastPointer : null;
+			clearHoverDwell();
 			clearLeave();
-			clearHold();
-			if (soft) armSoftHold();
 			viewport.scrollTo({ left: to, behavior: "smooth" });
 		};
 
-		const armSoftHold = () => {
-			clearHold();
-			hold = setTimeout(() => {
-				hold = null;
-				release();
-			}, PEEK_HOVER_HOLD_MS);
-		};
-
 		/**
-		 * A commented highlight (or its card) is hovered. Keeps the column open
-		 * and restarts the reading window when the reader moves to another one.
+		 * A commented highlight (or its card) is hovered. Dwell before the first
+		 * pan; switching comments restarts the dwell rather than panning at once.
 		 */
 		const peek = () => {
 			if (pressed || !lastPointer) return;
 			clearLeave();
-			if (revealed) {
-				armSoftHold();
-				return;
-			}
-			revealAt(lastPointer.y, true);
+			clearHoverDwell();
+			if (revealed) return;
+			hoverDwell = setTimeout(() => {
+				hoverDwell = null;
+				if (lastPointer) revealAt(lastPointer.y, true);
+			}, PEEK_HIGHLIGHT_DWELL_MS);
 		};
 
 		/** Editor opened from the toolbar / annotations panel. */
@@ -243,16 +243,19 @@ export function RailPeek({
 				revealAt(clientY);
 			}, PEEK_DWELL_MS);
 		};
+		const armLeave = (delay: number) => {
+			if (leave !== null) return;
+			leave = setTimeout(restore, delay);
+		};
 
 		const release = () => {
 			clearDwell();
-			if (!revealed || holdOpenRef.current || hold !== null) return;
+			clearHoverDwell();
+			if (!revealed || holdOpenRef.current || hoverAnchor) return;
 			// The pointer may be on its way to a card: the band keeps it open.
 			if (lastPointer && keepsOpen(lastPointer.x, lastPointer.y)) return;
-			// Start the retract once, when the pointer leaves; keep moving does
-			// not postpone it again.
-			if (leave !== null) return;
-			leave = setTimeout(restore, PEEK_LEAVE_MS);
+			// Start the retract once; continued movement does not postpone it.
+			armLeave(PEEK_LEAVE_MS);
 		};
 
 		apiRef.current = {
@@ -269,8 +272,20 @@ export function RailPeek({
 				return;
 			}
 			if (revealed) {
-				if (keepsOpen(event.clientX, event.clientY)) clearLeave();
-				else release();
+				if (keepsOpen(event.clientX, event.clientY)) {
+					hoverAnchor = null;
+					clearLeave();
+				} else if (hoverAnchor) {
+					const dx = event.clientX - hoverAnchor.x;
+					const dy = event.clientY - hoverAnchor.y;
+					if (Math.hypot(dx, dy) <= PEEK_HOVER_SLOP_PX) return;
+					hoverAnchor = null;
+					// Moving right is the path to the card; give that trip time.
+					// Other directions are leaving the comment interaction.
+					armLeave(dx > Math.abs(dy) ? PEEK_CARD_TRAVEL_MS : PEEK_LEAVE_MS);
+				} else if (leave === null) {
+					release();
+				}
 				return;
 			}
 			if (keepsOpen(event.clientX, event.clientY)) armDwell(event.clientY);
@@ -282,6 +297,7 @@ export function RailPeek({
 			// Leaving the reading area entirely: retract without the card grace,
 			// there is no card to travel to.
 			clearDwell();
+			clearHoverDwell();
 			restore();
 		};
 
@@ -289,12 +305,13 @@ export function RailPeek({
 		// fight the gesture. Wheel over a card keeps the rail (editor in use).
 		const handleWheel = (event: WheelEvent) => {
 			clearDwell();
+			clearHoverDwell();
 			if (!revealed) return;
 			// ⌘/Ctrl+wheel is zoom: its own commit owns the scroll position now.
 			if (event.ctrlKey || event.metaKey) {
 				clearLeave();
-				clearHold();
 				revealed = false;
+				hoverAnchor = null;
 				return;
 			}
 			const target = event.target;
@@ -307,6 +324,7 @@ export function RailPeek({
 		const handlePointerDown = (event: PointerEvent) => {
 			pressed = true;
 			clearDwell();
+			clearHoverDwell();
 			if (!revealed) return;
 			const target = event.target;
 			if (target instanceof Element && target.closest("[data-pdf-chrome]")) {
@@ -333,8 +351,8 @@ export function RailPeek({
 
 		return () => {
 			clearDwell();
+			clearHoverDwell();
 			clearLeave();
-			clearHold();
 			apiRef.current = null;
 			viewport.removeEventListener("pointermove", handlePointerMove);
 			viewport.removeEventListener("pointerleave", handlePointerLeave);
