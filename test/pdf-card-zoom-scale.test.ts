@@ -26,14 +26,13 @@ const comment: PageAnnotationComment = {
 	linkAlias: null,
 };
 
-describe("PDF comment rail follows document zoom", () => {
-	it("lays out the comment rail in page space and zooms the layer", () => {
+describe("PDF comment rail keeps a fixed UI size", () => {
+	it("lays out the rail in screen pixels without scaling the layer", () => {
 		const html = renderToStaticMarkup(
 			createElement(CommentCardsLayer, {
 				items: [comment],
 				pageWidthPx: 600,
 				pageHeightPx: 800,
-				scale: 0.5,
 				editingId: null,
 				wikiTarget: null,
 				hoveredId: null,
@@ -48,10 +47,10 @@ describe("PDF comment rail follows document zoom", () => {
 				onLeave: vi.fn(),
 			}),
 		);
-		// Unscaled page box doubles, then layout zoom halves the rendered result.
-		expect(html).toContain("width:1200px");
-		expect(html).toContain("height:1600px");
-		expect(html).toContain("zoom:0.5");
+		// The rail box equals the rendered page box; zoom rescales nothing.
+		expect(html).toContain("width:600px");
+		expect(html).toContain("height:800px");
+		expect(html).not.toContain("zoom:");
 		expect(html).not.toContain("transform:scale(");
 	});
 });

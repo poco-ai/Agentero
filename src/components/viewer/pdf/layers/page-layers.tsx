@@ -1799,7 +1799,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						inset={mode.insetCommentCards}
 						pageWidthPx={width}
 						pageHeightPx={height}
-						scale={cardScale}
 						editingId={marks.editingCommentId}
 						wikiTarget={marks.commentWikiTarget}
 						hoveredId={hoveredCommentId}
