@@ -13,6 +13,8 @@
  *
  * Card height hugs the rendered content (measured, not estimated): short or
  * empty notes stay compact, long notes / conversations scroll inside the card.
+ * The height cap also clamps to the reading viewport so short windows and
+ * panes scroll the card body instead of clipping it.
  */
 
 import { Crop, Link2, MessageSquarePlus, Trash2 } from "lucide-react";
@@ -65,6 +67,10 @@ const CARD_CHARS_PER_LINE = 13;
 const CARD_BASE_HEIGHT_PX = 54;
 /** Hard height cap so one huge note cannot dominate the rail. */
 const COMMENT_CARD_MAX_HEIGHT_PX = 420;
+/** Floor below the viewport-derived cap so short panes stay usable. */
+const COMMENT_CARD_MIN_HEIGHT_PX = 120;
+/** Keep the viewport-capped card clear of the reading-area edges. */
+const COMMENT_VIEWPORT_MARGIN_PX = 12;
 /** Layout seed for the note body (3 lines) until the card is measured. */
 const VIEW_COMMENT_LINES = 3;
 /** View-mode clamp for the inline visual-mark conversation preview. */
@@ -264,6 +270,8 @@ type CommentCardProps = {
 	inset?: boolean;
 	item: PageAnnotationComment;
 	topPx: number;
+	/** Height cap: content cap clamped by the reading-viewport height. */
+	maxHeightPx: number;
 	editing: boolean;
 	wikiTarget: string | null;
 	hovered: boolean;
@@ -284,6 +292,7 @@ const CommentCard = memo(function CommentCard({
 	inset,
 	item,
 	topPx,
+	maxHeightPx,
 	editing,
 	wikiTarget,
 	hovered,
@@ -410,7 +419,7 @@ const CommentCard = memo(function CommentCard({
 					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
 				top: topPx,
 				width: COMMENT_CARD_WIDTH_PX,
-				maxHeight: COMMENT_CARD_MAX_HEIGHT_PX,
+				maxHeight: maxHeightPx,
 			}}
 			onPointerEnter={() => onHover(item)}
 			onPointerLeave={onLeave}
@@ -871,6 +880,31 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 			return next;
 		});
 	}, []);
+	// Cap card height to the reading viewport so a short window / pane scrolls
+	// the card body instead of clipping it against the chrome around it.
+	const rootRef = useRef<HTMLDivElement>(null);
+	const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+	const hasCards = items.length > 0 || Boolean(selectionDraft);
+	useLayoutEffect(() => {
+		if (!hasCards) return;
+		const el = rootRef.current;
+		if (!el) return;
+		const scroller = el.closest("[data-pdf-viewport]");
+		if (!scroller) return;
+		const measure = () => setViewportHeight(scroller.clientHeight);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(scroller);
+		return () => observer.disconnect();
+	}, [hasCards]);
+	const cardMaxHeightPx = Math.max(
+		COMMENT_CARD_MIN_HEIGHT_PX,
+		Math.min(
+			COMMENT_CARD_MAX_HEIGHT_PX,
+			(viewportHeight ?? Number.POSITIVE_INFINITY) -
+				COMMENT_VIEWPORT_MARGIN_PX * 2,
+		),
+	);
 	useEffect(() => {
 		if (!inset) return;
 		if (hoveredId) {
@@ -910,6 +944,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 	return (
 		// Above translated glyphs (also z-6, mounted earlier) so the rail stays visible.
 		<div
+			ref={rootRef}
 			className="pointer-events-none absolute top-0 left-0 z-[6] overflow-visible"
 			style={{
 				width: pageWidthPx,
@@ -963,6 +998,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 							key={item.id}
 							item={item}
 							topPx={pos.topPx}
+							maxHeightPx={cardMaxHeightPx}
 							editing={item.id === editingId}
 							wikiTarget={wikiTarget}
 							hovered={item.id === hoveredId}
