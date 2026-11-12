@@ -91,8 +91,9 @@ pub struct AppSettings {
     /// the browser). Empty = no cookie.
     #[serde(default)]
     pub institution_proxy_cookie: String,
-    /// Gateway flavour: `ezproxy` (query passthrough) or `wengine`
-    /// (path-rewriting WebVPN, e.g. ZJU). Default `ezproxy`.
+    /// Gateway flavour: `auto` (fingerprint the prefix), `ezproxy` (query
+    /// passthrough), `wengine` (path-rewriting WebVPN, e.g. ZJU) or
+    /// `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
     #[serde(default)]
     pub institution_proxy_type: String,
     #[serde(default = "default_paper_tree_label_mode")]
@@ -492,7 +493,7 @@ impl Default for AppSettings {
             network_proxy_url: default_network_proxy_url(),
             institution_proxy_prefix: String::new(),
             institution_proxy_cookie: String::new(),
-            institution_proxy_type: "ezproxy".to_string(),
+            institution_proxy_type: "auto".to_string(),
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
@@ -1331,8 +1332,12 @@ fn normalize(s: &mut AppSettings) {
     s.institution_proxy_cookie = s.institution_proxy_cookie.trim().to_string();
     s.institution_proxy_type = if s.institution_proxy_type.eq_ignore_ascii_case("wengine") {
         "wengine".to_string()
-    } else {
+    } else if s.institution_proxy_type.eq_ignore_ascii_case("subdomain") {
+        "subdomain".to_string()
+    } else if s.institution_proxy_type.eq_ignore_ascii_case("ezproxy") {
         "ezproxy".to_string()
+    } else {
+        "auto".to_string()
     };
     // Keep the core download fallback in sync on both load and set paths.
     let kind = agentero_core::features::paper::import::download::InstitutionProxyKind::from_setting(

@@ -172,8 +172,10 @@
 			"loginFailed": "无法打开机构登录页面",
 			"cookieExpired": "机构登录已失效，请重新打开网关登录，成功后会静默保存 Cookie。",
 			"typeLabel": "网关类型",
+			"typeAuto": "自动检测",
 			"typeEzproxy": "EZProxy（login?url=）",
 			"typeWengine": "WebVPN（wengine 路径式）",
+			"typeSubdomain": "WebVPN（子域映射）",
 			"test": "测试",
 			"testing": "测试中…",
 			"probeIdle": "尚未检测",
@@ -185,7 +187,10 @@
 				"zju": "浙江大学",
 				"ustc": "中国科学技术大学",
 				"xjtu": "西安交通大学",
-				"neu": "东北大学"
+				"neu": "东北大学",
+				"tsinghua": "清华大学",
+				"fudan": "复旦大学",
+				"bjmu": "北京大学医学部"
 			}
 		},
 		"easyScholar": {

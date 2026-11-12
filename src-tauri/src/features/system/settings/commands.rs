@@ -216,7 +216,7 @@ pub async fn institution_proxy_probe(app: AppHandle) -> ApiResult<String> {
     )
     .await
     {
-        Ok(n) => ApiResult::ok(format!("ok ({n} bytes)")),
+        Ok((kind, n)) => ApiResult::ok(format!("ok ({n} bytes, {})", kind.as_str())),
         Err(e) => ApiResult::err(agentero_core::error::AppError::domain(
             if e.contains("authentication required") || e.contains("HTTP 401") {
                 "institution_proxy_auth_required"

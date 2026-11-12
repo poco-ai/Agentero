@@ -86,7 +86,7 @@ export const DEFAULT_TRANSLATOR_BASE_URL =
 export const DEFAULT_NETWORK_PROXY_URL = "http://127.0.0.1:7890";
 
 /** Gateway flavour for the institution proxy (`institutionProxyType`). */
-export type InstitutionProxyKind = "ezproxy" | "wengine";
+export type InstitutionProxyKind = "auto" | "ezproxy" | "wengine" | "subdomain";
 
 export type InstitutionProxyPreset = {
 	id: string;
@@ -96,18 +96,23 @@ export type InstitutionProxyPreset = {
 };
 
 /**
- * Built-in institution WebVPN gateways offered as quick-fill presets beside the
- * free-text prefix field. Only gateways confirmed to run the wengine
- * path-rewriting engine are listed: the AES key is engine-wide, so the origin
- * is all we need and both gateway kinds still accept a hand-typed prefix.
- * Covers the "preset school table" deferred from the first institution-proxy
- * PR (#677). Labels live at `general.institutionProxy.presets.{id}`.
+ * Built-in institution gateways offered as quick-fill presets beside the
+ * free-text prefix field. Kinds are fingerprint-verified (wengine ticket or
+ * Astraeus subdomain redirect), but that says nothing about whether the
+ * institution's subscription can fetch a given publisher PDF — users still
+ * run the PDF probe. Covers the "preset school table" deferred from the first
+ * institution-proxy PR (#677); #848 tracks gateways that need real-account
+ * download verification. Labels live at
+ * `general.institutionProxy.presets.{id}`.
  */
 export const INSTITUTION_PROXY_PRESETS = [
 	{ id: "zju", kind: "wengine", prefix: "https://webvpn.zju.edu.cn" },
-	{ id: "ustc", kind: "wengine", prefix: "https://webvpn.ustc.edu.cn" },
+	{ id: "ustc", kind: "wengine", prefix: "https://wvpn.ustc.edu.cn" },
 	{ id: "xjtu", kind: "wengine", prefix: "https://webvpn.xjtu.edu.cn" },
 	{ id: "neu", kind: "wengine", prefix: "https://webvpn.neu.edu.cn" },
+	{ id: "tsinghua", kind: "wengine", prefix: "https://webvpn.tsinghua.edu.cn" },
+	{ id: "fudan", kind: "wengine", prefix: "https://webvpn.fudan.edu.cn" },
+	{ id: "bjmu", kind: "subdomain", prefix: "https://webvpn.bjmu.edu.cn" },
 ] as const satisfies readonly InstitutionProxyPreset[];
 
 /**
@@ -169,7 +174,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	zhihuAccessSecret: "",
 	institutionProxyPrefix: "",
 	institutionProxyCookie: "",
-	institutionProxyType: "ezproxy",
+	institutionProxyType: "auto",
 	networkProxyEnabled: false,
 	networkProxyUrl: DEFAULT_NETWORK_PROXY_URL,
 	paperTreeLabelMode: "title-author",

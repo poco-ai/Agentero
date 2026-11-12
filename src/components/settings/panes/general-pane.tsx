@@ -540,11 +540,17 @@ export function GeneralPane({
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
+							<SelectItem value="auto" className="text-xs">
+								{t("general.institutionProxy.typeAuto")}
+							</SelectItem>
 							<SelectItem value="ezproxy" className="text-xs">
 								{t("general.institutionProxy.typeEzproxy")}
 							</SelectItem>
 							<SelectItem value="wengine" className="text-xs">
 								{t("general.institutionProxy.typeWengine")}
+							</SelectItem>
+							<SelectItem value="subdomain" className="text-xs">
+								{t("general.institutionProxy.typeSubdomain")}
 							</SelectItem>
 						</SelectContent>
 					</Select>
@@ -555,9 +561,9 @@ export function GeneralPane({
 					prefix={institutionProxyPrefixDraft}
 					cookie={institutionProxyCookieDraft}
 					prefixPlaceholder={
-						settings.institutionProxyType === "wengine"
-							? "https://webvpn.example.edu"
-							: "https://webvpn.example.edu/login?url="
+						settings.institutionProxyType === "ezproxy"
+							? "https://webvpn.example.edu/login?url="
+							: "https://webvpn.example.edu"
 					}
 					cookiePlaceholder={t("general.institutionProxy.cookiePlaceholder")}
 					cookieLabel={t("general.institutionProxy.cookieLabel")}

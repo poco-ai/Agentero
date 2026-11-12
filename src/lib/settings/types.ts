@@ -161,7 +161,7 @@ export type AppSettings = {
 	institutionProxyPrefix: string;
 	/** Session cookie for institution proxy requests. */
 	institutionProxyCookie: string;
-	/** Gateway type: "ezproxy" | "wengine". */
+	/** Gateway type: "auto" | "ezproxy" | "wengine" | "subdomain". */
 	institutionProxyType: string;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */
 	networkProxyEnabled: boolean;

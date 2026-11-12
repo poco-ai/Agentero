@@ -198,8 +198,8 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 | 后台 PDF 识别（RecognizeMetadata job） | `job_runners.rs` 直接使用官方常量 | `DEFAULT_TRANSLATOR_BASE_URL` | **不**经 IPC 入参传入（`ImportLocalPdfArgs` 无此字段） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 环境变量，`scholar_api/client.rs::auth_headers` 按请求读取 | 未设置 | 对 `api.semanticscholar.org` 的请求追加 `x-api-key` 头；免费 key 可将共享池限速提升至 1 req/s+ |
 | `NCBI_API_KEY` | 环境变量，`scholar_api/sources/pubmed.rs` 按请求读取 | 未设置 | esearch/efetch 追加 `api_key=` 参数；免费 key 将单 IP 限速从 3 提升到 10 req/s |
-| `institutionProxyType` | 设置项 | `ezproxy` | 网关形态：`ezproxy`（查询透传 `{prefix}{urlencode(target)}`，裸域名自动补 `/login?url=`）或 `wengine`（网瑞达路径式 `/https/{AES-128-CTR(host)}/{path}`，浙大等，见 [settings.md](settings.md)） |
-| `institutionProxyPrefix` | 设置项（`settings.json`，camelCase） | 未设置 | 机构网关地址（源站即可），如 `https://webvpn.zju.edu.cn`（wengine）。设置页提供**常见院校快速填充**（浙大 / 中科大 / 西交 / 东北大学，均为实测 wengine 网关）。配置后 PDF 下载链在 Unpaywall 未命中时经前缀重写请求，覆盖 #654 一类"浏览器能看、直连 403"的机构订阅场景（预设表为 #677 第一期后的延续项） |
+| `institutionProxyType` | 设置项 | `auto` | 网关形态。`auto` 先按 URL 规则 + 网关根指纹 + 重写探测判定，再落到具体类型；也可指定 `ezproxy`（查询透传 `{prefix}{urlencode(target)}`，裸域名自动补 `/login?url=`）、`wengine`（网瑞达路径式 `/https/{AES-128-CTR(host)}/{path}`，浙大等）或 `subdomain`（Astraeus 子域映射 `{host 点换横线}-{port}.{gateway}`，经网关换发子域 token，见 [settings.md](settings.md)） |
+| `institutionProxyPrefix` | 设置项（`settings.json`，camelCase） | 未设置 | 机构网关地址（源站即可），如 `https://webvpn.zju.edu.cn`（wengine）。设置页提供**常见院校快速填充**（浙大 / 中科大 / 西交 / 东北大学 / 清华 / 复旦 / 北大医学部）。自定义地址保留自由输入，类型为 `auto` 时自动识别。配置后 PDF 下载链在 Unpaywall 未命中时经前缀重写请求，覆盖 #654 一类"浏览器能看、直连 403"的机构订阅场景（预设表为 #677 第一期后的延续项；入口识别不等于订阅验证，#848 跟踪授权账号实测） |
 | `institutionProxyCookie` | 设置项 | 空 | 会话 Cookie。设置页打开独立 WebVPN 登录窗口后，每 2 秒检查网关 Cookie；新 Cookie 通过 10.1038/nature12373 PDF 探测后自动保存并关闭窗口。也可粘贴浏览器 Network 中发往网关的 `Cookie` 请求头。各校登录 Cookie 名称不统一，没有固定最小名称集合。桌面端每天最多自动探测一次，明确跳转登录或 HTTP 401 时 Toast 提醒更新。HTML 但未跳转登录可能是未订阅，不能认定 Cookie 过期。桌面与 headless CLI 共用 `settings.json`，CLI 的 `import id` / `paper download` 同样使用该配置 |
 | `OPENALEX_MAILTO` | 环境变量，`scholar_api/sources/openalex.rs` 按请求读取 | `agentero@users.noreply.github.com` | 覆盖 OpenAlex polite pool 联系邮箱；同时补齐 `doi:` 端点的 `mailto` 参数 |
 

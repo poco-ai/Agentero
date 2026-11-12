@@ -43,14 +43,38 @@ pub enum InstitutionProxyKind {
     /// by several CN universities (ZJU etc.). Hosts are AES-128-CTR encrypted
     /// with the fixed public `wrdvpnisthebest!` key and prefixed with the IV.
     Wengine,
+    /// Astraeus-style subdomain mapping: the target host and port become a
+    /// dedicated gateway subdomain (`{host with dots as dashes}-{port}`).
+    /// The first hop normally redirects through the gateway to mint a
+    /// per-subdomain token, so the saved gateway cookie must ride along on
+    /// redirects as well.
+    Subdomain,
+    /// Classify the entered prefix first (gateway fingerprint + rewrite
+    /// probe), then use the detected kind. Lets custom gateways work without
+    /// the user knowing the vendor.
+    Auto,
 }
 
 impl InstitutionProxyKind {
     pub fn from_setting(s: &str) -> Self {
         if s.eq_ignore_ascii_case("wengine") {
             Self::Wengine
-        } else {
+        } else if s.eq_ignore_ascii_case("subdomain") {
+            Self::Subdomain
+        } else if s.eq_ignore_ascii_case("ezproxy") {
             Self::EzProxy
+        } else {
+            Self::Auto
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Direct => "direct",
+            Self::EzProxy => "ezproxy",
+            Self::Wengine => "wengine",
+            Self::Subdomain => "subdomain",
+            Self::Auto => "auto",
         }
     }
 }
@@ -198,6 +222,207 @@ fn ezproxy_rewrite(prefix: &str, target: &str) -> String {
     format!("{prefix}{}", urlencoding::encode(target))
 }
 
+/// Rewrite `target` into an Astraeus-style subdomain-mapped URL:
+/// `{gateway}://{host-with-dashes}-{port}.{gateway-host}{path}?{query}`.
+///
+/// Unlike wengine this preserves the query and the original path verbatim;
+/// authentication lives in a per-subdomain token minted through the gateway,
+/// not in the rewritten path.
+fn subdomain_rewrite(origin: &str, target: &str) -> Option<String> {
+    let mut gateway = reqwest::Url::parse(origin).ok()?;
+    let gateway_host = gateway.host_str()?.to_ascii_lowercase();
+    let target = reqwest::Url::parse(target).ok()?;
+    let host = target.host_str()?.to_ascii_lowercase();
+    let port = target.port_or_known_default()?;
+    let mapped = format!("{}-{port}.{gateway_host}", host.replace('.', "-"));
+    gateway.set_host(Some(&mapped)).ok()?;
+    gateway.set_path(target.path());
+    gateway.set_query(target.query());
+    gateway.set_fragment(target.fragment());
+    Some(gateway.to_string())
+}
+
+/// True when `target` already points at the gateway or one of its mapped
+/// subdomains, so a second rewrite would nest the host.
+fn is_subdomain_mapped(target: &str, gateway_origin: &str) -> bool {
+    let (Ok(target), Ok(gateway)) = (
+        reqwest::Url::parse(target),
+        reqwest::Url::parse(gateway_origin),
+    ) else {
+        return false;
+    };
+    let (Some(target_host), Some(gateway_host)) = (target.host_str(), gateway.host_str()) else {
+        return false;
+    };
+    let target_host = target_host.to_ascii_lowercase();
+    let gateway_host = gateway_host.to_ascii_lowercase();
+    target_host == gateway_host || target_host.ends_with(&format!(".{gateway_host}"))
+}
+
+/// True when the prefix itself spells out the EZProxy convention, so no
+/// network probe is needed.
+fn looks_like_ezproxy_prefix(prefix: &str) -> bool {
+    (prefix.contains('?') && prefix.contains("url="))
+        || reqwest::Url::parse(prefix)
+            .is_ok_and(|url| url.path().trim_end_matches('/').ends_with("/login"))
+}
+
+/// Classify an arbitrary gateway prefix without a full PDF probe.
+///
+/// Cheap rules run first (explicit EZProxy query form), then the gateway root
+/// is fingerprinted (wengine sets `wengine_vpn_ticket`, Astraeus sets
+/// `_astraeus_session` / `_webvpn_key`), then each rewrite form is tried.
+/// Returns `None` when no candidate answers recognisably.
+pub async fn detect_institution_proxy_kind(
+    prefix: &str,
+    cookie: &str,
+) -> Option<InstitutionProxyKind> {
+    let prefix = prefix.trim().trim_end_matches('/');
+    if prefix.is_empty() {
+        return None;
+    }
+    // Explicit `/login?url=` (or a bare `/login`) only makes sense for EZProxy.
+    if looks_like_ezproxy_prefix(prefix) {
+        return Some(InstitutionProxyKind::EzProxy);
+    }
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .user_agent(http::BROWSER_USER_AGENT)
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .ok()?;
+
+    // 1. Gateway-root fingerprint. Unauthenticated wengine still issues its
+    //    ticket cookie; Astraeus issues a session cookie and bounces to its
+    //    own sign-in page.
+    if let Some(res) = gateway_get(&client, prefix, cookie).await {
+        let mut set_cookie = String::new();
+        for value in res.headers().get_all(reqwest::header::SET_COOKIE) {
+            if let Ok(value) = value.to_str() {
+                set_cookie.push_str(&value.to_ascii_lowercase());
+                set_cookie.push(' ');
+            }
+        }
+        let location = response_location(&res);
+        if set_cookie.contains("wengine_vpn_ticket") {
+            return Some(InstitutionProxyKind::Wengine);
+        }
+        if set_cookie.contains("_astraeus")
+            || set_cookie.contains("webvpn_key")
+            || location.contains("/vpn_key/")
+            || location.contains("/users/sign_in")
+        {
+            return Some(InstitutionProxyKind::Subdomain);
+        }
+    }
+
+    // 2. Subdomain mapping: a wengine gateway has no wildcard DNS for the
+    //    mapped host, so only Astraeus-style gateways answer here.
+    if let Some(mapped) = subdomain_rewrite(prefix, "https://www.nature.com/") {
+        if let Some(res) = gateway_get(&client, &mapped, cookie).await {
+            let location = response_location(&res);
+            if location.contains("/vpn_key/") || res.status().is_success() {
+                return Some(InstitutionProxyKind::Subdomain);
+            }
+        }
+    }
+
+    // 3. wengine path rewrite: non-wengine gateways reject the `/https/{hex}`
+    //    form with 400/404 instead of serving a login page.
+    if let Some(mapped) = wengine_rewrite(prefix, "https://www.nature.com/") {
+        if let Some(res) = gateway_get(&client, &mapped, cookie).await {
+            if !matches!(
+                res.status(),
+                reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::NOT_FOUND
+            ) {
+                return Some(InstitutionProxyKind::Wengine);
+            }
+        }
+    }
+
+    // 4. EZProxy query passthrough.
+    let mapped = format!(
+        "{prefix}/login?url={}",
+        urlencoding::encode("https://www.nature.com/")
+    );
+    if let Some(res) = gateway_get(&client, &mapped, cookie).await {
+        if !matches!(
+            res.status(),
+            reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::NOT_FOUND
+        ) {
+            return Some(InstitutionProxyKind::EzProxy);
+        }
+    }
+    None
+}
+
+fn response_location(res: &reqwest::Response) -> String {
+    res.headers()
+        .get(reqwest::header::LOCATION)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+}
+
+async fn gateway_get(
+    client: &reqwest::Client,
+    url: &str,
+    cookie: &str,
+) -> Option<reqwest::Response> {
+    let mut req = client.get(url);
+    let cookie = cookie.trim();
+    if !cookie.is_empty() {
+        if let Ok(value) = reqwest::header::HeaderValue::from_str(cookie) {
+            req = req.header(reqwest::header::COOKIE, value);
+        }
+    }
+    req.send().await.ok()
+}
+
+/// Cache of `prefix -> detected kind`, so `Auto` fingerprints at most once per
+/// process (batch imports reuse it).
+static DETECTED_KINDS: Mutex<Vec<(String, InstitutionProxyKind)>> = Mutex::new(Vec::new());
+
+fn cached_detected_kind(prefix: &str) -> Option<InstitutionProxyKind> {
+    DETECTED_KINDS
+        .lock()
+        .ok()?
+        .iter()
+        .rev()
+        .find(|(cached, _)| cached == prefix)
+        .map(|(_, kind)| *kind)
+}
+
+fn remember_detected_kind(prefix: &str, kind: InstitutionProxyKind) {
+    if let Ok(mut cache) = DETECTED_KINDS.lock() {
+        cache.retain(|(cached, _)| cached != prefix);
+        cache.push((prefix.to_string(), kind));
+        if cache.len() > 16 {
+            cache.remove(0);
+        }
+    }
+}
+
+/// Resolve `Auto` to a concrete kind, caching the result. Explicit kinds pass
+/// through unchanged.
+pub async fn resolve_institution_proxy_kind(
+    kind: InstitutionProxyKind,
+    prefix: &str,
+    cookie: &str,
+) -> Option<InstitutionProxyKind> {
+    if kind != InstitutionProxyKind::Auto {
+        return Some(kind);
+    }
+    let prefix = prefix.trim().trim_end_matches('/');
+    if let Some(kind) = cached_detected_kind(prefix) {
+        return Some(kind);
+    }
+    let kind = detect_institution_proxy_kind(prefix, cookie).await?;
+    remember_detected_kind(prefix, kind);
+    Some(kind)
+}
+
 /// Extract candidate PDF links from a proxied landing page. Absolute links are
 /// returned as-is; publisher-relative paths are resolved against the proxy
 /// origin so the caller can rewrite them again.
@@ -241,22 +466,29 @@ fn pdf_links_from_html(html: &str, proxy_origin: &str, gateway_origin: &str) -> 
 
 /// One-shot probe of an institution proxy configuration: fetch a known
 /// paywalled DOI through the rewrite and check the response is a PDF.
-/// Returns the byte count on success. Backs the settings "test connection".
+/// Returns the resolved gateway kind and byte count on success. Backs the
+/// settings "test connection" and also classifies `Auto` prefixes.
 pub async fn probe_institution_proxy(
     kind: InstitutionProxyKind,
     prefix: &str,
     cookie: &str,
-) -> Result<usize, String> {
+) -> Result<(InstitutionProxyKind, usize), String> {
     const PROBE_DOI: &str = "10.1038/nature12373";
     let prefix = prefix.trim().trim_end_matches('/');
     if prefix.is_empty() {
         return Err("proxy prefix is empty".into());
     }
+    let kind = resolve_institution_proxy_kind(kind, prefix, cookie)
+        .await
+        .ok_or_else(|| {
+            "could not detect the gateway type; choose ezproxy / wengine / subdomain".to_string()
+        })?;
     let target = "https://www.nature.com/articles/nature12373.pdf";
-    let rewritten = match kind {
+    let (rewritten, seeds) = match kind {
         InstitutionProxyKind::Direct => {
             return Err("direct mode has no gateway to probe".into());
         }
+        InstitutionProxyKind::Auto => unreachable!("Auto is resolved above"),
         InstitutionProxyKind::EzProxy => {
             // The stored prefix may be a bare origin (normalize appends
             // /login?url= only for the runtime config, not for probe args);
@@ -266,22 +498,42 @@ pub async fn probe_institution_proxy(
             if !ez.contains('?') {
                 ez.push_str("/login?url=");
             }
-            ezproxy_rewrite(&ez, &format!("https://doi.org/{PROBE_DOI}"))
+            (
+                ezproxy_rewrite(&ez, &format!("https://doi.org/{PROBE_DOI}")),
+                Vec::new(),
+            )
         }
-        InstitutionProxyKind::Wengine => {
-            wengine_rewrite(prefix, target).ok_or_else(|| "wengine rewrite failed".to_string())?
+        InstitutionProxyKind::Wengine => (
+            wengine_rewrite(prefix, target).ok_or_else(|| "wengine rewrite failed".to_string())?,
+            Vec::new(),
+        ),
+        InstitutionProxyKind::Subdomain => {
+            let mapped = subdomain_rewrite(prefix, target)
+                .ok_or_else(|| "subdomain rewrite failed".to_string())?;
+            // The gateway session cookie must also be present when the mapped
+            // host redirects through `/vpn_key/update`.
+            (mapped.clone(), vec![prefix.to_string(), mapped])
         }
     };
-    let (bytes, final_url) = fetch_bytes_checked_with_url(&rewritten, cookie.trim()).await?;
+    let seeds: Vec<&str> = seeds.iter().map(String::as_str).collect();
+    let (bytes, final_url) =
+        fetch_bytes_checked_with_url_seeded(&rewritten, cookie.trim(), &seeds).await?;
     if bytes.len() >= 4 && &bytes[..4] == b"%PDF" {
-        return Ok(bytes.len());
+        return Ok((kind, bytes.len()));
     }
     let login_redirect = reqwest::Url::parse(&final_url).is_ok_and(|url| {
         let path = url.path().to_ascii_lowercase();
         let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
-        ["/login", "/auth", "/cas", "/sso"]
-            .iter()
-            .any(|part| path.contains(part))
+        [
+            "/login",
+            "/sign_in",
+            "/authserver",
+            "/vpn_key",
+            "/cas",
+            "/sso",
+        ]
+        .iter()
+        .any(|part| path.contains(part))
             || ["login.", "sso.", "cas.", "passport."]
                 .iter()
                 .any(|part| host.starts_with(part))
@@ -298,18 +550,60 @@ async fn fetch_bytes_checked_with_url(
     url: &str,
     cookie: &str,
 ) -> Result<(Vec<u8>, String), String> {
+    fetch_bytes_checked_with_url_seeded(url, cookie, &[]).await
+}
+
+/// [`fetch_bytes_checked_with_url`] with optional cookie seeding.
+///
+/// `seed_urls` puts the saved cookie into the client's jar for every origin.
+/// Subdomain gateways redirect the first hop through the gateway host to mint
+/// a per-subdomain token, and reqwest does not replay a manually attached
+/// `Cookie` header across redirects — the jar does. An empty slice keeps the
+/// old single-request header behaviour.
+async fn fetch_bytes_checked_with_url_seeded(
+    url: &str,
+    cookie: &str,
+    seed_urls: &[&str],
+) -> Result<(Vec<u8>, String), String> {
+    let cookie = cookie.trim();
     // Cookie store on: publisher bot checks (e.g. nature.com) accept the
     // request once the landing page's cookies ride along, which also makes
     // direct on-campus downloads work with zero configuration.
-    let client = reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .user_agent(http::BROWSER_USER_AGENT)
-        .redirect(reqwest::redirect::Policy::limited(10))
-        .cookie_store(true)
-        .build()
-        .map_err(|e| e.to_string())?;
+        .redirect(reqwest::redirect::Policy::limited(10));
+    let jar = if seed_urls.is_empty() {
+        builder = builder.cookie_store(true);
+        None
+    } else {
+        let jar = std::sync::Arc::new(reqwest::cookie::Jar::default());
+        if !cookie.is_empty() {
+            // A pasted `Cookie` request header is `name=value; …`; the jar
+            // wants one Set-Cookie-shaped string at a time.
+            for seed in seed_urls {
+                let Ok(mut seed_url) = reqwest::Url::parse(seed) else {
+                    continue;
+                };
+                // Seed the whole origin: a cookie minted for a path only would
+                // not ride along when the gateway redirects to another path.
+                seed_url.set_path("/");
+                seed_url.set_query(None);
+                seed_url.set_fragment(None);
+                for pair in cookie.split(';') {
+                    let pair = pair.trim();
+                    if !pair.is_empty() {
+                        jar.add_cookie_str(pair, &seed_url);
+                    }
+                }
+            }
+        }
+        builder = builder.cookie_provider(jar.clone());
+        Some(jar)
+    };
+    let client = builder.build().map_err(|e| e.to_string())?;
     let mut req = client.get(url);
-    if !cookie.is_empty() {
+    if jar.is_none() && !cookie.is_empty() {
         let value = reqwest::header::HeaderValue::from_str(cookie)
             .map_err(|e| format!("cookie contains characters invalid in a header ({e})"))?;
         req = req.header("Cookie", value);
@@ -923,6 +1217,22 @@ async fn try_institution_proxy_download(
     conf: &InstitutionProxyConf,
     out: &mut PdfAssetResult,
 ) -> bool {
+    let mut conf = conf.clone();
+    if conf.kind == InstitutionProxyKind::Auto {
+        let Some(kind) =
+            resolve_institution_proxy_kind(conf.kind, &conf.prefix, &conf.cookie).await
+        else {
+            out.messages
+                .push("institution proxy: could not detect the gateway type".into());
+            return false;
+        };
+        conf.kind = kind;
+        // `set_institution_proxy` only appends the EZProxy query form for an
+        // explicit kind; a detected one needs the same normalization.
+        if kind == InstitutionProxyKind::EzProxy && !conf.prefix.contains('?') {
+            conf.prefix.push_str("/login?url=");
+        }
+    }
     let proxy_origin = conf
         .prefix
         .split("/login?url=")
@@ -936,6 +1246,7 @@ async fn try_institution_proxy_download(
         for target in &targets {
             let rewritten = match conf.kind {
                 InstitutionProxyKind::Direct => target.clone(),
+                InstitutionProxyKind::Auto => unreachable!("Auto is resolved above"),
                 InstitutionProxyKind::EzProxy => ezproxy_rewrite(&conf.prefix, target),
                 InstitutionProxyKind::Wengine => {
                     if target.starts_with(&proxy_origin) {
@@ -949,8 +1260,28 @@ async fn try_institution_proxy_download(
                         }
                     }
                 }
+                InstitutionProxyKind::Subdomain => {
+                    if is_subdomain_mapped(target, &proxy_origin) {
+                        target.clone()
+                    } else {
+                        match subdomain_rewrite(&proxy_origin, target) {
+                            Some(url) => url,
+                            None => continue,
+                        }
+                    }
+                }
             };
-            match fetch_bytes_checked_with_url(&rewritten, &conf.cookie).await {
+            let fetch = if conf.kind == InstitutionProxyKind::Subdomain {
+                fetch_bytes_checked_with_url_seeded(
+                    &rewritten,
+                    &conf.cookie,
+                    &[proxy_origin.as_str(), rewritten.as_str()],
+                )
+                .await
+            } else {
+                fetch_bytes_checked_with_url(&rewritten, &conf.cookie).await
+            };
+            match fetch {
                 Ok((bytes, final_url)) => {
                     if bytes.len() >= 4 && &bytes[..4] == b"%PDF" {
                         let name = safe_filename(id, "pdf");
@@ -988,7 +1319,11 @@ async fn try_institution_proxy_download(
                                         .replacen("://http", "http", 1)
                                 })
                                 .unwrap_or_else(|| proxy_origin.clone()),
-                            InstitutionProxyKind::Wengine => {
+                            InstitutionProxyKind::Wengine | InstitutionProxyKind::Subdomain => {
+                                // Path-preserving gateways: relative links
+                                // resolve against the landed page directory
+                                // (wengine keeps the `/https/{enc-host}/`
+                                // prefix, subdomain keeps the mapped host).
                                 let mut base = final_url.clone();
                                 while base.ends_with('/') {
                                     base.pop();
@@ -999,6 +1334,9 @@ async fn try_institution_proxy_download(
                                 }
                             }
                             InstitutionProxyKind::EzProxy => proxy_origin.clone(),
+                            InstitutionProxyKind::Auto => {
+                                unreachable!("Auto is resolved before link resolution")
+                            }
                         };
                         let mut mined = pdf_links_from_html(&html, &link_base, &proxy_origin);
                         // Prefer article-body PDFs (/articles/{id}.pdf) over
@@ -1772,6 +2110,78 @@ mod tests {
     }
 
     #[test]
+    fn subdomain_rewrite_maps_host_and_keeps_path_and_query() {
+        assert_eq!(
+            subdomain_rewrite(
+                "https://webvpn.bjmu.edu.cn",
+                "https://www.nature.com/articles/nature12373.pdf?proof=true"
+            )
+            .as_deref(),
+            Some(
+                "https://www-nature-com-443.webvpn.bjmu.edu.cn/articles/nature12373.pdf?proof=true"
+            )
+        );
+        // Plain HTTP targets keep their effective port in the mapped host.
+        assert_eq!(
+            subdomain_rewrite("https://webvpn.example.edu", "http://example.org/a/b").as_deref(),
+            Some("https://example-org-80.webvpn.example.edu/a/b")
+        );
+    }
+
+    #[test]
+    fn subdomain_mapping_detects_gateway_hosts() {
+        assert!(is_subdomain_mapped(
+            "https://www-nature-com-443.webvpn.bjmu.edu.cn/x.pdf",
+            "https://webvpn.bjmu.edu.cn"
+        ));
+        assert!(is_subdomain_mapped(
+            "https://webvpn.bjmu.edu.cn/vpn_key/update",
+            "https://webvpn.bjmu.edu.cn"
+        ));
+        assert!(!is_subdomain_mapped(
+            "https://www.nature.com/x.pdf",
+            "https://webvpn.bjmu.edu.cn"
+        ));
+        assert!(!is_subdomain_mapped(
+            "https://evilwebvpn.bjmu.edu.cn/x.pdf",
+            "https://webvpn.bjmu.edu.cn"
+        ));
+    }
+
+    #[test]
+    fn gateway_kind_rules_classify_known_shapes() {
+        assert!(looks_like_ezproxy_prefix(
+            "https://ezproxy.example.edu/login?url="
+        ));
+        assert!(looks_like_ezproxy_prefix(
+            "https://ezproxy.example.edu/login"
+        ));
+        assert!(!looks_like_ezproxy_prefix("https://webvpn.zju.edu.cn"));
+        assert!(!looks_like_ezproxy_prefix("https://webvpn.bjmu.edu.cn"));
+
+        assert_eq!(
+            InstitutionProxyKind::from_setting("wengine"),
+            InstitutionProxyKind::Wengine
+        );
+        assert_eq!(
+            InstitutionProxyKind::from_setting("subdomain"),
+            InstitutionProxyKind::Subdomain
+        );
+        assert_eq!(
+            InstitutionProxyKind::from_setting("ezproxy"),
+            InstitutionProxyKind::EzProxy
+        );
+        assert_eq!(
+            InstitutionProxyKind::from_setting("auto"),
+            InstitutionProxyKind::Auto
+        );
+        assert_eq!(
+            InstitutionProxyKind::from_setting("unknown-vendor"),
+            InstitutionProxyKind::Auto
+        );
+    }
+
+    #[test]
     fn set_institution_proxy_blank_prefix_disables() {
         set_institution_proxy(InstitutionProxyKind::EzProxy, "  ", "cookie");
         assert!(institution_proxy().is_none());
@@ -1806,10 +2216,32 @@ mod tests {
                 "S=1".to_string(),
             ))
         );
-        // Unknown/absent type falls back to EZProxy; missing prefix stays empty.
+        // Unknown/absent type now falls through to auto-detection; missing
+        // prefix stays empty.
         assert_eq!(
             parse_institution_proxy_settings(r#"{"institutionProxyPrefix":""}"#),
-            Some((InstitutionProxyKind::EzProxy, String::new(), String::new()))
+            Some((InstitutionProxyKind::Auto, String::new(), String::new()))
+        );
+        assert_eq!(
+            parse_institution_proxy_settings(
+                r#"{"institutionProxyPrefix":"https://ezproxy.example.edu/login?url=","institutionProxyType":"ezproxy"}"#
+            ),
+            Some((
+                InstitutionProxyKind::EzProxy,
+                "https://ezproxy.example.edu/login?url=".to_string(),
+                String::new(),
+            ))
+        );
+        // Subdomain gateways (Astraeus) round-trip through the same setting.
+        assert_eq!(
+            parse_institution_proxy_settings(
+                r#"{"institutionProxyPrefix":"https://webvpn.bjmu.edu.cn","institutionProxyCookie":"S=1","institutionProxyType":"subdomain"}"#
+            ),
+            Some((
+                InstitutionProxyKind::Subdomain,
+                "https://webvpn.bjmu.edu.cn".to_string(),
+                "S=1".to_string(),
+            ))
         );
         // Malformed JSON is ignored rather than panicking.
         assert!(parse_institution_proxy_settings("not json").is_none());
