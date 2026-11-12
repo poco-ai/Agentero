@@ -14,7 +14,7 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-it("scrolls and flashes the exact paragraph box without expanding a short block into a heading preview", () => {
+it("scrolls and flashes the exact paragraph box", () => {
 	vi.useFakeTimers();
 	const block = layout.regions.find((region) => region.id === "body-2");
 	expect(block).toBeDefined();
@@ -48,6 +48,39 @@ it("scrolls and flashes the exact paragraph box without expanding a short block 
 	});
 	vi.runAllTimers();
 	expect(layoutAnalysisStore.getState().focused).toBeNull();
+});
+
+it("scrolls and flashes a section heading at its raw column bbox", () => {
+	vi.useFakeTimers();
+	const heading = layout.regions.find((region) => region.id === "h21");
+	expect(heading).toBeDefined();
+	if (!heading) throw new Error("missing heading fixture");
+	const scrollToPage = vi.fn();
+	const document = {
+		pages: [{ size: { width: 600, height: 800 } }],
+	} as unknown as PdfDocumentObject;
+	scrollToPdfRegion(
+		"section-document",
+		{
+			id: heading.id,
+			pageIndex: heading.pageIndex,
+			bbox: heading.bbox,
+			kind: layoutKindFromCitationFragment("2"),
+		},
+		document,
+		{ scrollToPage } as unknown as ScrollScope,
+	);
+	expect(scrollToPage).toHaveBeenCalledWith({
+		pageNumber: 1,
+		behavior: "instant",
+		pageCoordinates: { x: 330, y: 320 },
+		alignX: 0,
+		alignY: 18,
+	});
+	expect(layoutAnalysisStore.getState().focused).toMatchObject({
+		flash: true,
+		region: { bbox: heading.bbox, kind: "header" },
+	});
 });
 
 it("positions an embedded heading at its raw bbox without taking the main viewer's focus", () => {
