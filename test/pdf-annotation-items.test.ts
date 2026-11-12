@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import {
 	dedupeAnnotationItems,
 	planAnnotationItemImport,
+	reviveAnnotationDates,
 } from "@/lib/pdf/highlight/annotation-items";
 
 function link(id: string, pageIndex = 0): AnnotationTransferItem {
@@ -217,5 +218,41 @@ describe("annotation transfer deduplication", () => {
 		} finally {
 			await registry.destroy();
 		}
+	});
+});
+
+describe("annotation transfer dates", () => {
+	const savedAt = "2026-10-09T02:49:36.400Z";
+
+	it("restores dates that JSON.stringify turned into ISO strings", () => {
+		const saved = JSON.parse(
+			JSON.stringify([
+				highlight("saved", {
+					created: new Date(savedAt),
+					modified: new Date(savedAt),
+				}),
+			]),
+		) as AnnotationTransferItem[];
+
+		const savedItem = saved.at(0);
+		if (!savedItem) throw new Error("saved highlight missing");
+		const revived = reviveAnnotationDates(savedItem);
+
+		expect(revived.annotation.created).toBeInstanceOf(Date);
+		expect(revived.annotation.modified).toBeInstanceOf(Date);
+		expect(revived.annotation.created?.toISOString()).toBe(savedAt);
+		expect(revived.annotation.modified?.toISOString()).toBe(savedAt);
+		expect(saved[0]?.annotation.created).toBe(savedAt);
+	});
+
+	it("keeps Date instances and drops values that cannot be parsed", () => {
+		const created = new Date(savedAt);
+		const dated = highlight("dated", { created });
+		expect(reviveAnnotationDates(dated)).toBe(dated);
+
+		const invalid = highlight("invalid", {
+			created: "not-a-date" as unknown as Date,
+		});
+		expect(reviveAnnotationDates(invalid).annotation.created).toBeUndefined();
 	});
 });

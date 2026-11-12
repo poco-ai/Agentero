@@ -24,6 +24,46 @@ export type AnnotationImportPlan = {
 	highlightOverrides: HighlightAnnotationOverride[];
 };
 
+type SerializedAnnotation = Omit<
+	AnnotationTransferItem["annotation"],
+	"created" | "modified"
+> & {
+	created?: Date | string | null;
+	modified?: Date | string | null;
+};
+
+function reviveDate(value: unknown): Date | undefined {
+	if (value instanceof Date)
+		return Number.isNaN(value.getTime()) ? undefined : value;
+	if (typeof value !== "string" || !value.trim()) return undefined;
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/**
+ * `annotations.json` is JSON, so a saved annotation's `created` / `modified`
+ * Date becomes an ISO string. PDFium calls Date methods directly when creating
+ * the annotation, which rejects the whole import. Restore the two fields at the
+ * file boundary so reopened highlights commit like freshly created ones.
+ */
+export function reviveAnnotationDates(
+	item: AnnotationTransferItem,
+): AnnotationTransferItem {
+	const annotation = item.annotation as SerializedAnnotation;
+	const created = reviveDate(annotation.created);
+	const modified = reviveDate(annotation.modified);
+	if (created === annotation.created && modified === annotation.modified)
+		return item;
+	return {
+		...item,
+		annotation: {
+			...annotation,
+			created,
+			modified,
+		} as AnnotationTransferItem["annotation"],
+	};
+}
+
 function stableValueKey(value: unknown): string {
 	return (
 		JSON.stringify(value, (_key, nested) => {
