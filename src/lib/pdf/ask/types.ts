@@ -19,6 +19,8 @@ export type PdfAskNormalizedRect = {
 export type PdfAskAnchor = {
 	page: number;
 	rects: PdfAskNormalizedRect[];
+	/** Full text selection; page/rects above keep the floating-card anchor. */
+	selectionPages?: { page: number; rects: PdfAskNormalizedRect[] }[];
 	quote?: string;
 	trigger: PdfAskTrigger;
 	/** Visual crop semantics for multimodal formula/figure explanations. */

@@ -1,6 +1,6 @@
 import type { PdfTextRun } from "@embedpdf/models";
 import { describe, expect, it } from "vitest";
-import { recoverFigureCaptionsFromRuns } from "@/lib/pdf/layout/captions-from-runs";
+import { recoverCaptionsFromRuns } from "@/lib/pdf/layout/captions-from-runs";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
 const page = { width: 600, height: 800 };
@@ -19,9 +19,28 @@ function run(
 	} as PdfTextRun;
 }
 
-describe("recoverFigureCaptionsFromRuns", () => {
+describe("recoverCaptionsFromRuns", () => {
+	it("recovers a missing table caption across split font runs and retains body references", () => {
+		const result = recoverCaptionsFromRuns(
+			[],
+			6,
+			[
+				run("Table 4:", 62, 203, 36, 10),
+				run("Reward-hacking analysis results.", 101, 203, 210, 10),
+				run("Table 4 shows differences between models.", 62, 390, 350, 10),
+			],
+			page,
+		);
+		expect(result).toHaveLength(1);
+		expect(result[0]).toMatchObject({
+			pageIndex: 6,
+			captionRole: "table_main",
+			title: "Table 4: Reward-hacking analysis results.",
+			rect: { x: 62, y: 203, w: 249, h: 10 },
+		});
+	});
 	it("recovers split Nature caption runs and stops at a paragraph gap", () => {
-		const result = recoverFigureCaptionsFromRuns(
+		const result = recoverCaptionsFromRuns(
 			[],
 			2,
 			[
@@ -42,7 +61,7 @@ describe("recoverFigureCaptionsFromRuns", () => {
 		});
 	});
 	it("rejects prose mentions and does not consume a different caption", () => {
-		const result = recoverFigureCaptionsFromRuns(
+		const result = recoverCaptionsFromRuns(
 			[],
 			0,
 			[
@@ -59,7 +78,7 @@ describe("recoverFigureCaptionsFromRuns", () => {
 		]);
 	});
 	it("keeps a next-page hint isolated from neighboring prose", () => {
-		const result = recoverFigureCaptionsFromRuns(
+		const result = recoverCaptionsFromRuns(
 			[],
 			0,
 			[
@@ -94,24 +113,24 @@ describe("recoverFigureCaptionsFromRuns", () => {
 			index += text.length;
 			return r;
 		});
-		const result = recoverFigureCaptionsFromRuns([], 0, runs, page);
+		const result = recoverCaptionsFromRuns([], 0, runs, page);
 		expect(result[0].title).toBe(texts.join(" "));
 		expect(result[0].rect).toEqual({ x: 40, y: 600, w: 510, h: 28 });
 		const unrelated = runs.map((r, i) =>
 			i >= 3 ? { ...r, charIndex: r.charIndex + 100 } : r,
 		);
-		expect(recoverFigureCaptionsFromRuns([], 0, unrelated, page)[0].title).toBe(
+		expect(recoverCaptionsFromRuns([], 0, unrelated, page)[0].title).toBe(
 			texts.slice(0, 3).join(" "),
 		);
 	});
 	it("does not duplicate existing numbered captions or an overlapping caption box", () => {
-		const existing = recoverFigureCaptionsFromRuns(
+		const existing = recoverCaptionsFromRuns(
 			[],
 			0,
 			[run("Fig. 1 | Already present.", 40, 600)],
 			page,
 		)[0];
-		const result = recoverFigureCaptionsFromRuns(
+		const result = recoverCaptionsFromRuns(
 			[existing],
 			0,
 			[run("Fig. 1 | New extraction.", 40, 500)],
@@ -124,7 +143,7 @@ describe("recoverFigureCaptionsFromRuns", () => {
 			text: undefined,
 		} as PdfLayoutRegion;
 		expect(
-			recoverFigureCaptionsFromRuns(
+			recoverCaptionsFromRuns(
 				[untitled],
 				0,
 				[run("Fig. 1 | Already present.", 40, 600)],
@@ -133,7 +152,7 @@ describe("recoverFigureCaptionsFromRuns", () => {
 		).toEqual([untitled]);
 	});
 	it("stops when adjacent text changes size", () => {
-		const result = recoverFigureCaptionsFromRuns(
+		const result = recoverCaptionsFromRuns(
 			[],
 			0,
 			[
@@ -145,7 +164,7 @@ describe("recoverFigureCaptionsFromRuns", () => {
 		expect(result[0].title).toBe("Fig. 1 | Small caption.");
 	});
 	it("keeps superscripts and an unusually tall dash inside caption prose", () => {
-		const result = recoverFigureCaptionsFromRuns(
+		const result = recoverCaptionsFromRuns(
 			[],
 			0,
 			[
@@ -181,12 +200,12 @@ describe("recoverFigureCaptionsFromRuns", () => {
 			charIndex += text.length;
 			return item;
 		});
-		expect(recoverFigureCaptionsFromRuns([], 0, runs, page)[0].title).toBe(
+		expect(recoverCaptionsFromRuns([], 0, runs, page)[0].title).toBe(
 			texts.join(" "),
 		);
 	});
 	it("grows partial caption geometry and ignores host titles without caption geometry", () => {
-		const caption = recoverFigureCaptionsFromRuns(
+		const caption = recoverCaptionsFromRuns(
 			[],
 			0,
 			[run("Fig. 1 | A caption", 40, 600)],
@@ -196,13 +215,11 @@ describe("recoverFigureCaptionsFromRuns", () => {
 			run("Fig. 1 | A caption", 40, 600),
 			run("with another line.", 40, 610),
 		];
-		const upgraded = recoverFigureCaptionsFromRuns([caption], 0, runs, page);
+		const upgraded = recoverCaptionsFromRuns([caption], 0, runs, page);
 		expect(upgraded).toHaveLength(1);
 		expect(upgraded[0].title).toBe("Fig. 1 | A caption with another line.");
 		expect(upgraded[0].rect.h).toBe(18);
 		const host = { ...caption, kind: "image" as const };
-		expect(recoverFigureCaptionsFromRuns([host], 0, runs, page)).toHaveLength(
-			2,
-		);
+		expect(recoverCaptionsFromRuns([host], 0, runs, page)).toHaveLength(2);
 	});
 });

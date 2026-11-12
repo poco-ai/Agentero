@@ -32,6 +32,7 @@ import {
 	type TranslationSelection,
 	translationHitsFromRange,
 	translationSelectionFromHits,
+	translationTextFromRange,
 } from "@/lib/pdf/layout/layout-sentence-selection";
 import {
 	clearTranslationSelectionBands,
@@ -314,7 +315,7 @@ export function usePdfTranslationSelection({
 				hits,
 				items,
 				targetLang,
-				range.toString(),
+				translationTextFromRange(range, root),
 			);
 			if (!resolved) return;
 			void (async () => {

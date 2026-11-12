@@ -275,6 +275,7 @@ export function usePdfSelectionTranslate({
 				paperPath,
 				page: anchor.page,
 				rects: anchor.rects,
+				selectionPages: anchor.selectionPages,
 				quote,
 			});
 			let currentRecord = upsertTranslate(rec);

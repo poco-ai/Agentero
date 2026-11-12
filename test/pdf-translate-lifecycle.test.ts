@@ -111,6 +111,23 @@ beforeEach(() => {
 });
 
 describe("translation compatibility and refresh", () => {
+	it("creates a translation with every selected page before opening its result card", () => {
+		const h = harness();
+		const rects = record("anchor").rects;
+		const selectionPages = [
+			{ page: 1, rects },
+			{ page: 2, rects },
+		];
+		h.hook.translateSelection({
+			page: 2,
+			rects,
+			quote: "cross-page source",
+			trigger: "selection",
+			selectionPages,
+		});
+		expect(h.records.current[0].page).toBe(2);
+		expect(h.records.current[0].selectionPages).toEqual(selectionPages);
+	});
 	it("keeps legacy records reachable while respecting explicit unpin", () => {
 		const { pinned: _, ...legacy } = record("old");
 		expect(parsePdfTranslateRecord(legacy)?.pinned).toBe(true);

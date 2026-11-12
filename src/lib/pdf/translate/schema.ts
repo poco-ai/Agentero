@@ -29,6 +29,20 @@ export function parsePdfTranslateRecord(
 		pinned: raw.pinned === undefined || raw.pinned === true,
 	};
 	if (typeof raw.quote === "string") rec.quote = raw.quote;
+	if (Array.isArray(raw.selectionPages)) {
+		const pages = raw.selectionPages.flatMap((page) =>
+			isRecord(page) &&
+			typeof page.page === "number" &&
+			Number.isInteger(page.page) &&
+			page.page >= 1 &&
+			Array.isArray(page.rects) &&
+			page.rects.length > 0 &&
+			page.rects.every(isRect)
+				? [{ page: page.page, rects: page.rects as PdfTranslateRect[] }]
+				: [],
+		);
+		if (pages.length) rec.selectionPages = pages;
+	}
 	if (typeof raw.updatedAt === "string") rec.updatedAt = raw.updatedAt;
 	if (typeof raw.result === "string") rec.result = raw.result;
 	if (typeof raw.error === "string") rec.error = raw.error;

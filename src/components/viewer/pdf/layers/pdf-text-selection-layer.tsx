@@ -1,7 +1,8 @@
 import { useDocumentState } from "@embedpdf/core/react";
-import type { Rect } from "@embedpdf/models";
+import type { PdfPageGeometry, Rect } from "@embedpdf/models";
 import {
 	type FormattedSelection,
+	type SelectionRangeX,
 	useSelectionCapability,
 	useSelectionPlugin,
 } from "@embedpdf/plugin-selection/react";
@@ -12,11 +13,18 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
+import { scheduleIdle } from "@/lib/core/idle";
+import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import {
 	linkPreviewDragActive,
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
-import { buildTightSelectionRects } from "@/lib/pdf/selection-appearance";
+import {
+	buildTightSelectionRects,
+	selectionInsertionExclusions,
+	selectionTextExclusionsForPage,
+	warmDisplayFormulaExclusions,
+} from "@/lib/pdf/selection-appearance";
 
 /**
  * A translation drag hits the English glyphs underneath as well. Those rects
@@ -46,6 +54,9 @@ function subscribeTranslationCover(onChange: () => void): () => void {
 }
 
 export type PdfTextSelectionLayerProps = {
+	selectionStartPageIndex?: number | null;
+	insertionRegions?: readonly PdfLayoutRegion[];
+	excludedTextRects?: readonly Rect[];
 	documentId: string;
 	pageIndex: number;
 	background: string;
@@ -69,16 +80,93 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 	pageIndex,
 	background,
 	armed,
+	excludedTextRects,
+	insertionRegions,
+	selectionStartPageIndex,
 	draftPages,
 }: PdfTextSelectionLayerProps) {
 	const { plugin } = useSelectionPlugin();
 	const { provides } = useSelectionCapability();
 	const documentState = useDocumentState(documentId);
-	const [rects, setRects] = useState<Rect[]>([]);
+	const [pageSelection, setPageSelection] = useState<{
+		geometry: Record<number, PdfPageGeometry>;
+		selection: SelectionRangeX | null;
+	} | null>(null);
+	const [formulaEpoch, setFormulaEpoch] = useState(0);
+	const rects = useMemo(() => {
+		void formulaEpoch;
+		const selection = pageSelection?.selection ?? null;
+		const crossPage =
+			selection != null && selection.start.page !== selection.end.page;
+		const insertions =
+			pageSelection && insertionRegions
+				? selectionInsertionExclusions(
+						pageSelection.geometry,
+						selection,
+						insertionRegions,
+						selectionStartPageIndex,
+						"cached",
+					)
+				: null;
+		return buildTightSelectionRects(
+			pageSelection?.geometry[pageIndex],
+			selection,
+			pageIndex,
+			[
+				...(crossPage
+					? selectionTextExclusionsForPage(
+							excludedTextRects ?? [],
+							pageSelection?.geometry ?? {},
+							selection,
+							pageIndex,
+							selectionStartPageIndex,
+						)
+					: []),
+				...(insertions?.get(pageIndex) ?? []),
+			],
+		);
+	}, [
+		pageSelection,
+		pageIndex,
+		excludedTextRects,
+		insertionRegions,
+		selectionStartPageIndex,
+		formulaEpoch,
+	]);
 	const scale = useMemo(
 		() => documentState?.scale ?? 1,
 		[documentState?.scale],
 	);
+
+	useEffect(() => {
+		if (!armed || !provides) return;
+		let cancelled = false;
+		let cancelIdle = () => {};
+		let attempts = 0;
+		const warm = () => {
+			if (cancelled) return;
+			const geometry = provides.forDocument(documentId).getState().geometry[
+				pageIndex
+			];
+			if (!geometry) {
+				// Geometry arrives from the selection registration below. A few
+				// idle checks cover that without polling on the pointer path.
+				if (attempts < 8) {
+					attempts += 1;
+					cancelIdle = scheduleIdle(warm, 500);
+				}
+				return;
+			}
+			if (warmDisplayFormulaExclusions(geometry)) {
+				setFormulaEpoch((epoch) => epoch + 1);
+			}
+		};
+		cancelIdle = scheduleIdle(warm, 500);
+		return () => {
+			cancelled = true;
+			cancelIdle();
+		};
+	}, [armed, documentId, pageIndex, provides]);
 
 	useEffect(() => {
 		if (!armed) return;
@@ -89,18 +177,15 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 			pageIndex,
 			onRectsChange: ({ rects: sourceRects }) => {
 				if (sourceRects.length === 0) {
-					setRects([]);
+					setPageSelection(null);
 					return;
 				}
 
 				const state = provides.forDocument(documentId).getState();
-				setRects(
-					buildTightSelectionRects(
-						state.geometry[pageIndex],
-						state.selection,
-						pageIndex,
-					),
-				);
+				setPageSelection({
+					geometry: state.geometry,
+					selection: state.selection,
+				});
 			},
 		});
 	}, [armed, documentId, pageIndex, plugin, provides]);
