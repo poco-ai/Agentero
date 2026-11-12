@@ -20,8 +20,12 @@ import {
 	type PairPendingEvent,
 } from "@/lib/bridge/client";
 
+function isAndroid(): boolean {
+	return /Android/i.test(navigator.userAgent);
+}
+
 function mobileDeviceName(): string {
-	if (/Android/i.test(navigator.userAgent)) return "Android";
+	if (isAndroid()) return "Android";
 	if (navigator.userAgent.includes("iPad")) return "iPad";
 	return "iPhone";
 }
@@ -31,7 +35,7 @@ function describeBridgeError(
 	networkPermissionMessage: string,
 ): string | null {
 	if (!message) return null;
-	if (/operation not permitted/i.test(message)) {
+	if (!isAndroid() && /operation not permitted/i.test(message)) {
 		return networkPermissionMessage;
 	}
 	return message;
