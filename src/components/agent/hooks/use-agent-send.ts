@@ -11,12 +11,14 @@
  */
 import {
 	type Dispatch,
+	type RefObject,
 	type SetStateAction,
 	useCallback,
 	useEffect,
 	useRef,
 	useState,
 } from "react";
+import type { ModelSelection } from "@/components/agent/hooks/use-agent-config";
 import type {
 	AgentPanelRefs,
 	AgentPanelT,
@@ -143,6 +145,7 @@ export type SendOptions = {
 
 /** Request-shaping context for a turn: agent / model / effort / fast selection. */
 export type AgentTurnConfig = {
+	modelSelectionRef: RefObject<ModelSelection | null>;
 	selected: AgentOption | undefined;
 	registry: AgentListResponse | null;
 	refresh: () => Promise<void>;
@@ -267,6 +270,7 @@ export function useAgentSend({
 		registry,
 		refresh,
 		modelId,
+		modelSelectionRef,
 		collaborationModeId,
 		collaborationOptions,
 		reasoningEffort,
@@ -443,7 +447,7 @@ export function useAgentSend({
 	};
 
 	/** Assemble and dispatch the runOnce request for a resolved turn. */
-	const startTurn = (turn: {
+	const startTurn = async (turn: {
 		agentId: string;
 		resumeSessionId: string | undefined;
 		prompt: string;
@@ -456,8 +460,11 @@ export function useAgentSend({
 		skillIds: string[];
 		context: ReturnType<typeof sidebarContextRequest>;
 		resumeTranscript?: string;
-	}) =>
-		runOnce({
+	}) => {
+		const selection = modelSelectionRef.current;
+		const forceModel =
+			selection?.agentId === turn.agentId && selection.modelId === turn.modelId;
+		const accepted = await runOnce({
 			agentId: turn.agentId,
 			sessionId: turn.resumeSessionId,
 			prompt: turn.prompt,
@@ -467,6 +474,7 @@ export function useAgentSend({
 			workflow: turn.workflow ?? "free",
 			target: turn.workflowTarget,
 			modelId: turn.modelId,
+			forceModel,
 			collaborationModeId:
 				collaborationModeId &&
 				collaborationOptions.some((mode) => mode.id === collaborationModeId)
@@ -485,6 +493,11 @@ export function useAgentSend({
 			context: turn.context ?? undefined,
 			resumeTranscript: turn.resumeTranscript,
 		});
+		if (forceModel && modelSelectionRef.current === selection) {
+			modelSelectionRef.current = null;
+		}
+		return accepted;
+	};
 
 	/**
 	 * Pin binding for a session opened from a visual mark. Composer reference

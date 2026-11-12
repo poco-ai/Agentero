@@ -201,6 +201,7 @@ export function useAgentPanel({
 	}, [vaultPath, vaultPathRef]);
 
 	const {
+		modelSelectionRef,
 		registry,
 		catalog,
 		skills,
@@ -336,6 +337,7 @@ export function useAgentPanel({
 
 	/** Request-shaping context for the send pipeline (agent/model selection). */
 	const turnConfig = {
+		modelSelectionRef,
 		selected,
 		registry,
 		refresh,

@@ -427,6 +427,9 @@ pub struct RunOnceRequest {
     /// Preferred model id from ACP session config (category: model). Applied after session/new.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    /// Reapply an explicit model selection even when ACP reports it as current.
+    #[serde(default)]
+    pub force_model: bool,
     /// Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub collaboration_mode_id: Option<String>,
@@ -693,6 +696,9 @@ pub struct WarmRequest {
     pub vault_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    /// Reapply an explicit model selection even when ACP reports it as current.
+    #[serde(default)]
+    pub force_model: bool,
     /// Preferred collaboration mode (`collaboration_mode`: default / plan).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub collaboration_mode_id: Option<String>,
