@@ -1,6 +1,6 @@
 [package]
 name = "agentero-mcp"
-version = "0.15.5"
+version = "0.16.0"
 edition = "2021"
 description = "Streamable HTTP MCP server shared by the Agentero desktop app and CLI"
 authors = ["you"]
