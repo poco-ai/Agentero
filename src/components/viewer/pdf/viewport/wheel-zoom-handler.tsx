@@ -9,6 +9,7 @@ import { cancelPendingViewportScroll } from "@/lib/pdf/scroll-sync";
 import { bindZoomGesture, type ZoomGesturePoint } from "@/lib/pdf/wheel-zoom";
 import {
 	clampZoomPreviewScale,
+	zoomCommitPreviewTransform,
 	zoomGestureCenteringMargin,
 	zoomPreviewTranslateForViewport,
 	zoomReadingWidth,
@@ -21,7 +22,7 @@ const ZOOM_GESTURE_WATCHDOG_MS = 1200;
 const ZOOM_COMMIT_EPSILON = 1e-3;
 
 /** Let the virtual scroller publish its new page dimensions before giving up. */
-const ZOOM_LAYOUT_SETTLE_FRAMES = 8;
+const ZOOM_LAYOUT_SETTLE_FRAMES = 30;
 
 type PageAnchor = {
 	pageIndex: number;
@@ -160,6 +161,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 			// layout, then restore the preview if the virtual page sizes are still old.
 			const previewTransform = element.style.transform;
 			element.style.transform = "";
+			const elementRect = element.getBoundingClientRect();
 			const page = anchor
 				? container.querySelector<HTMLElement>(
 						`[${EMBED_PAGE_ATTR}="${anchor.pageIndex}"]`,
@@ -174,7 +176,18 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 					Math.abs((pageRect?.height ?? Infinity) - expectedHeight) <= 2);
 
 			if (!layoutReady && settleFrames < ZOOM_LAYOUT_SETTLE_FRAMES) {
-				element.style.transform = previewTransform;
+				if (anchor && page && pageRect && pageRect.width > 0) {
+					const offset = zoomCommitPreviewTransform(
+						pageRect,
+						elementRect,
+						anchor,
+						pointer,
+						expectedWidth,
+					);
+					element.style.transform = `translate(${offset.x}px, ${offset.y}px) scale(${offset.scale})`;
+				} else {
+					element.style.transform = previewTransform;
+				}
 				settleFrames += 1;
 				scheduleSettle();
 				return;

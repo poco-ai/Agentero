@@ -4,6 +4,7 @@ import {
 	clampZoomPreviewScale,
 	formatPdfZoomPercentage,
 	parsePdfZoomPercentage,
+	zoomCommitPreviewTransform,
 	zoomGestureCenteringMargin,
 	zoomPreviewTranslate,
 	zoomPreviewTranslateForViewport,
@@ -52,6 +53,33 @@ describe("zoomPreviewTranslate", () => {
 		// ...while a point twice as far from it ends up twice as far from the origin.
 		expect(zoomPreviewTranslate(200, 100, 2)).toEqual({ x: -200, y: -100 });
 		expect(zoomPreviewTranslate(200, 100, 0.5)).toEqual({ x: 100, y: 50 });
+	});
+});
+
+describe("zoomCommitPreviewTransform", () => {
+	it("keeps the same page point fixed across old and new layout sizes", () => {
+		const anchor = { x: 0.5, y: 0.5 };
+		const pointer = { x: 300, y: 400 };
+		const element = { left: 50, top: 100 };
+		for (const page of [
+			{ left: 100, top: 200, width: 200, height: 400 },
+			{ left: 125, top: 150, width: 400, height: 800 },
+		]) {
+			const { x, y, scale } = zoomCommitPreviewTransform(
+				page,
+				element,
+				anchor,
+				pointer,
+				400,
+			);
+			expect(scale * page.width).toBe(400);
+			expect(
+				element.left + x + scale * (page.left + page.width / 2 - element.left),
+			).toBe(pointer.x);
+			expect(
+				element.top + y + scale * (page.top + page.height / 2 - element.top),
+			).toBe(pointer.y);
+		}
 	});
 });
 
