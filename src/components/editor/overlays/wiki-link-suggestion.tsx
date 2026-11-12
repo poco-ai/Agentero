@@ -13,6 +13,7 @@ import { useEditorRef } from "platejs/react";
 import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FaRegFilePdf } from "react-icons/fa6";
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
 import {
 	type CompletionMenuController,
@@ -97,13 +98,8 @@ function completionRequestKey(
 		: `${request.kind}\u0000${request.target}\u0000${request.query}`;
 }
 
-function CandidateIcon({
-	kind,
-	detail,
-}: {
-	kind: WikiSearchCandidate["kind"];
-	detail?: string;
-}) {
+function CandidateIcon({ candidate }: { candidate: WikiSearchCandidate }) {
+	const { kind, detail } = candidate;
 	if (kind === "alias") return null;
 	// Annotation candidates: visual uses magnifier; highlight/划词 uses highlighter.
 	if (kind === "annotation") {
@@ -116,8 +112,16 @@ function CandidateIcon({
 			/>
 		);
 	}
+	const isPdf =
+		kind === "file" && candidate.path.toLowerCase().endsWith(".pdf");
 	const Icon =
-		kind === "file" ? FileText : kind === "heading" ? Hash : TextQuote;
+		kind === "file"
+			? isPdf
+				? FaRegFilePdf
+				: FileText
+			: kind === "heading"
+				? Hash
+				: TextQuote;
 	return (
 		<Icon
 			className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
@@ -669,7 +673,7 @@ export function WikiLinkSuggestion({
 							onMouseDown={(event) => event.preventDefault()}
 							onClick={() => selectCandidate(candidate)}
 						>
-							<CandidateIcon kind={candidate.kind} detail={candidate.detail} />
+							<CandidateIcon candidate={candidate} />
 							<span className="min-w-0 flex-1">
 								<span
 									className={`block truncate font-medium ${
