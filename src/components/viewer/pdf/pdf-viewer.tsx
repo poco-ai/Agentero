@@ -183,6 +183,7 @@ import {
 } from "@/lib/pdf/link-preview-drag";
 import type { ReadingSplit } from "@/lib/pdf/reading/settings";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
+import { pickPdfSearchDocumentId } from "@/lib/pdf/search-target";
 import {
 	type ActiveSelectionCard,
 	selectionAnchorKey,
@@ -268,9 +269,9 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 		const initialDocument = effectiveSourceBytes
 			? { buffer: effectiveSourceBytes, documentId: docId, name: docId }
 			: { url: source as string, documentId: docId, name: docId };
-		// Translation pane only needs raster + scroll/zoom. Skipping selection /
-		// annotation / search / ONNX layout avoids a second full viewer tax when
-		// dual-pane translation opens beside the source.
+		// Translation pane only needs raster + scroll/zoom + search. Skipping
+		// selection, annotation, and ONNX layout avoids a second full viewer tax
+		// when dual-pane translation opens beside the source.
 		//
 		// Reading mode is a snapshot at registration so the first layout already
 		// matches the stored preference (no vertical→horizontal flash); later
@@ -315,6 +316,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				maxZoom: PDF_ZOOM_MAX,
 			}),
 			createPluginRegistration(InteractionManagerPluginPackage),
+			createPluginRegistration(SearchPluginPackage),
 		];
 		if (translationOnly) return core;
 		return [
@@ -334,7 +336,6 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				selectAfterCreate: false,
 				deactivateToolAfterCreate: true,
 			}),
-			createPluginRegistration(SearchPluginPackage),
 			createPluginRegistration(BookmarkPluginPackage),
 			// Experimental: on-device layout (image/table/formula) via ONNX.
 			// Model lives under XDG cache (startup prefetch: ModelScope → HF).
@@ -551,7 +552,6 @@ function PdfViewerInner({
 	const { provides: interactionCap } = useInteractionManagerCapability();
 	const { provides: annotationCap } = useAnnotationCapability();
 	const { provides: docCap } = useDocumentManagerCapability();
-	const { state: searchState, provides: search } = useSearch(docId);
 	const { provides: bookmarkCap } = useBookmarkCapability();
 	const { provides: layoutCap } = useLayoutAnalysisCapability();
 
@@ -991,36 +991,6 @@ function PdfViewerInner({
 	clearAskErrorRef.current = clearAskError;
 	closeAskChromeRef.current = closeAskChrome;
 
-	const {
-		findOpen,
-		findQuery,
-		setFindQuery,
-		findInputRef,
-		findTotal,
-		findActiveIndex,
-		findNext,
-		findPrev,
-		closeFind,
-	} = usePdfFind({ hostRef, search, searchState, scroll });
-
-	// Same latest-ref pattern as navigation: findNext / findPrev / closeFind
-	// are re-created per render but the find bar only needs stable identities.
-	const findNextRef = useRef(findNext);
-	findNextRef.current = findNext;
-	const handleFindNext = useCallback(() => {
-		findNextRef.current();
-	}, []);
-	const findPrevRef = useRef(findPrev);
-	findPrevRef.current = findPrev;
-	const handleFindPrev = useCallback(() => {
-		findPrevRef.current();
-	}, []);
-	const closeFindRef = useRef(closeFind);
-	closeFindRef.current = closeFind;
-	const handleCloseFind = useCallback(() => {
-		closeFindRef.current();
-	}, []);
-
 	const { outline, outlineReady, showOutline, toggleOutline } = usePdfOutline({
 		pdfPath,
 		bookmarkCap,
@@ -1419,6 +1389,46 @@ function PdfViewerInner({
 			: reflowOutput,
 		docId,
 	);
+	const translationShown =
+		(translationPane || !dualPaneTranslate) &&
+		layoutTranslatePageStateByPage.size > 0;
+	const searchDocumentId = pickPdfSearchDocumentId({
+		sourceDocumentId: docId,
+		translatedDocumentId: reflowDisplayDocument?.id,
+		translationVisible: translationShown,
+	});
+	const { state: searchState, provides: search } = useSearch(searchDocumentId);
+	const searchScale = searchDocumentId === docId ? undefined : zoomLevel;
+
+	const {
+		findOpen,
+		findQuery,
+		setFindQuery,
+		findInputRef,
+		findTotal,
+		findActiveIndex,
+		findNext,
+		findPrev,
+		closeFind,
+	} = usePdfFind({ hostRef, search, searchState, scroll });
+
+	// Same latest-ref pattern as navigation: findNext / findPrev / closeFind
+	// are re-created per render but the find bar only needs stable identities.
+	const findNextRef = useRef(findNext);
+	findNextRef.current = findNext;
+	const handleFindNext = useCallback(() => {
+		findNextRef.current();
+	}, []);
+	const findPrevRef = useRef(findPrev);
+	findPrevRef.current = findPrev;
+	const handleFindPrev = useCallback(() => {
+		findPrevRef.current();
+	}, []);
+	const closeFindRef = useRef(closeFind);
+	closeFindRef.current = closeFind;
+	const handleCloseFind = useCallback(() => {
+		closeFindRef.current();
+	}, []);
 
 	usePdfTranslationSelection({
 		enabled:
@@ -2301,6 +2311,8 @@ function PdfViewerInner({
 					pageIndex={pageIndex}
 					reflowDocumentId={reflowDisplayDocument?.id}
 					reflowDocumentVersion={reflowDisplayDocument?.version}
+					searchDocumentId={searchDocumentId}
+					searchScale={searchScale}
 					width={rotatedWidth || width}
 					height={rotatedHeight || height}
 					tone={pdfTone}
@@ -2323,6 +2335,8 @@ function PdfViewerInner({
 			docId,
 			paperRelPath,
 			paperAbsPath,
+			searchDocumentId,
+			searchScale,
 			pdfTone,
 			zoomRef,
 			annotationCap,

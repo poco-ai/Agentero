@@ -175,6 +175,13 @@ function UnrotatedPageFrame({
 }
 
 const EMPTY_HIGHLIGHT_SET = new Set<string>();
+const TRANSLATION_SEARCH_LAYER_STYLE = {
+	...PAGE_LAYER_STYLE,
+	zIndex: 5,
+	// The z-index isolates the child result boxes' multiply blend from the
+	// translated page. Blend the whole layer so glyphs stay visible.
+	mixBlendMode: "multiply" as const,
+};
 
 /**
  * Saved translation selection. Same yellow as the English highlight, placed
@@ -520,6 +527,10 @@ export type PdfPageLayersProps = {
 	reflowDocumentVersion?:
 		| import("@/lib/pdf/reflow/output-version").ReflowOutputVersion
 		| null;
+	/** Document whose active find results should be painted on this page. */
+	searchDocumentId?: string;
+	/** Explicit scale for a hidden search document (the translated PDF). */
+	searchScale?: number;
 	width: number;
 	height: number;
 	/** Paper tone for this viewer (process-wide preference). */
@@ -631,6 +642,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	pageIndex,
 	reflowDocumentId,
 	reflowDocumentVersion,
+	searchDocumentId,
+	searchScale,
 	width,
 	height,
 	tone,
@@ -763,6 +776,9 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		layout.layoutTranslateItemsByPage.get(pageIndex);
 	const translationVisible =
 		layoutTranslateOnPage?.some(isLayoutTranslateItemPainted) ?? false;
+	const activeSearchDocumentId = searchDocumentId ?? docId;
+	const searchAboveTranslation =
+		translationVisible || activeSearchDocumentId !== docId;
 	const shownComments = translationVisible
 		? comments.map((comment) => commentForVisibleTranslation(comment, true))
 		: comments;
@@ -1214,6 +1230,12 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			>
 				{paperRaster}
 				{translateOverlay}
+				<SearchLayer
+					documentId={activeSearchDocumentId}
+					pageIndex={pageIndex}
+					scale={searchScale}
+					style={TRANSLATION_SEARCH_LAYER_STYLE}
+				/>
 			</div>
 		);
 	}
@@ -1303,11 +1325,13 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				</button>
 			)}
 			{paperRaster}
-			<SearchLayer
-				documentId={docId}
-				pageIndex={pageIndex}
-				style={PAGE_LAYER_STYLE}
-			/>
+			{!searchAboveTranslation ? (
+				<SearchLayer
+					documentId={docId}
+					pageIndex={pageIndex}
+					style={PAGE_LAYER_STYLE}
+				/>
+			) : null}
 			{/*
 			 * EmbedPDF raw bbox layer — kept mounted for plugin state, but
 			 * visibility is forced off (see effect). Store-backed boxes below.
@@ -1446,6 +1470,14 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				 * z-5); glyphs are z-6 so the tint cannot wash them out.
 				 */}
 				{translateOverlay}
+				{searchAboveTranslation ? (
+					<SearchLayer
+						documentId={activeSearchDocumentId}
+						pageIndex={pageIndex}
+						scale={searchScale}
+						style={TRANSLATION_SEARCH_LAYER_STYLE}
+					/>
+				) : null}
 				<TranslationLiveSelection documentId={docId} pageIndex={pageIndex} />
 				{translationVisible ? (
 					<TranslatedHighlightLayer paints={translatedPaints} />
