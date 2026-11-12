@@ -5,7 +5,8 @@
  * stack vertically with collision avoidance and clamp into the page height.
  *
  * Click a card to edit the note in place (Notion-style): the body becomes a
- * textarea, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating editor.
+ * Markdown editor, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating
+ * editor.
  *
  * Cards keep a fixed UI size like the ask / translate floating cards: the rail
  * is laid out in screen pixels (the page shell already tracks zoom), so zoom
@@ -36,13 +37,16 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+	CommentMarkdownEditor,
+	type CommentMarkdownEditorHandle,
+} from "@/components/viewer/pdf/layers/comment-markdown-editor";
 import type {
 	PageAnnotationComment,
 	SelectionCommentDraft,
 } from "@/components/viewer/pdf/types";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { cn } from "@/lib/core/utils";
-import { applyMarkdownTextareaShortcut } from "@/lib/markdown/textarea-shortcuts";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 import {
 	DEFAULT_HIGHLIGHT_COLOR,
@@ -77,10 +81,10 @@ const VIEW_COMMENT_LINES = 3;
 const VIEW_CONVERSATION_PREVIEW_LINES = 3;
 /** In-place editor: min rows so an empty new note has room to type. */
 const EDIT_MIN_COMMENT_LINES = 3;
-/** In-place editor: layout estimate cap; textarea scrolls past this. */
+/** In-place editor: layout estimate cap until the measured height lands. */
 const EDIT_MAX_COMMENT_LINES = 12;
 const COMMENT_CARD_SURFACE_CLASS =
-	"group pointer-events-auto absolute flex flex-col select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] hover:shadow-dialog supports-backdrop-blur:bg-background/70 dark:border-white/10";
+	"group pointer-events-auto absolute flex flex-col select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] supports-backdrop-blur:bg-background/70 dark:border-white/10";
 const COMMENT_DRAFT_SURFACE_CLASS =
 	"group/draft pointer-events-auto absolute z-[6] cursor-text overflow-hidden rounded-lg border border-white/55 bg-background/88 text-left shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 outline-none supports-backdrop-blur:bg-background/70 dark:border-white/10";
 /** Horizontal action bar floating just above the card's top-right corner. */
@@ -135,6 +139,15 @@ function clampedLines(text: string, max: number): number {
 		if (lines >= max) return max;
 	}
 	return Math.max(1, lines);
+}
+
+/**
+ * Obsidian-style line parity for note cards: the in-place editor shows every
+ * newline as a line break, so single newlines render as hard breaks instead
+ * of joining into one paragraph. Blank lines already produce separate <p>s.
+ */
+function withEditorLineBreaks(text: string): string {
+	return text.replace(/(?<!\n)\n(?!\n)/g, "  \n");
 }
 
 /**
@@ -260,12 +273,6 @@ export function commentConnectorPath(
 	return `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${y2Rounded} L ${x2} ${y2Rounded}`;
 }
 
-function autosizeTextarea(el: HTMLTextAreaElement | null) {
-	if (!el) return;
-	el.style.height = "0px";
-	el.style.height = `${Math.max(el.scrollHeight, CARD_LINE_HEIGHT_PX * EDIT_MIN_COMMENT_LINES)}px`;
-}
-
 type CommentCardProps = {
 	inset?: boolean;
 	item: PageAnnotationComment;
@@ -309,7 +316,7 @@ const CommentCard = memo(function CommentCard({
 }: CommentCardProps) {
 	const { t } = useTranslation("viewer");
 	const rootRef = useRef<HTMLDivElement>(null);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const editorHandleRef = useRef<CommentMarkdownEditorHandle | null>(null);
 	const cancelledRef = useRef(false);
 	const itemRef = useRef(item);
 	itemRef.current = item;
@@ -320,18 +327,25 @@ const CommentCard = memo(function CommentCard({
 	const draftRef = useRef(item.comment);
 	const commentSeedRef = useRef(item.comment);
 	commentSeedRef.current = item.comment;
-	const { isBlockedByIme, compositionProps } = useImeGuard();
+	// True once the editable itself has taken focus this edit session. WebKit
+	// fires a queued focusout when the focused view body is swapped out for the
+	// editor; until the editable focuses, any blur is that swap, not a click-away.
+	const editorFocusedRef = useRef(false);
+	const { isBlockedByIme } = useImeGuard();
 
-	useEffect(() => {
+	// The WYSIWYG editor reads back as Markdown at commit points; blur races
+	// fall back to the last onChange draft (seeded with the stored comment).
+	const readDraft = useCallback(
+		() => editorHandleRef.current?.getMarkdown() ?? draftRef.current,
+		[],
+	);
+
+	// Reset the commit guard each time editing opens.
+	useLayoutEffect(() => {
 		if (!editing) return;
 		cancelledRef.current = false;
+		editorFocusedRef.current = false;
 		draftRef.current = commentSeedRef.current;
-		const el = textareaRef.current;
-		if (!el) return;
-		el.focus();
-		const len = el.value.length;
-		el.setSelectionRange(len, len);
-		autosizeTextarea(el);
 	}, [editing]);
 
 	// Report the rendered height (border-box) so the rail stacks against real
@@ -355,12 +369,13 @@ const CommentCard = memo(function CommentCard({
 
 	// Page virtualization unmounts the card if the user scrolls away — treat
 	// dirty drafts like blur and commit. Skip no-op saves so React StrictMode's
-	// fake unmount doesn't close a freshly opened editor.
+	// fake unmount doesn't close a freshly opened editor. Serialize output is
+	// normalized (trailing newline etc.), so compare without edge whitespace.
 	useEffect(() => {
 		if (!editing) return;
 		return () => {
 			if (cancelledRef.current) return;
-			if (draftRef.current === commentSeedRef.current) return;
+			if (draftRef.current.trim() === commentSeedRef.current.trim()) return;
 			onSaveRef.current(itemRef.current, draftRef.current);
 		};
 	}, [editing]);
@@ -376,7 +391,7 @@ const CommentCard = memo(function CommentCard({
 		onCancel();
 	};
 
-	// Clicking the page does not always blur the textarea. A new empty note
+	// Clicking the page does not always blur the editor. A new empty note
 	// should disappear on that click; typed text still commits.
 	useEffect(() => {
 		if (!editing) return;
@@ -385,7 +400,7 @@ const CommentCard = memo(function CommentCard({
 			if (!current.isNew || cancelledRef.current) return;
 			const target = event.target as Node | null;
 			if (!target || rootRef.current?.contains(target)) return;
-			const text = textareaRef.current?.value ?? draftRef.current;
+			const text = readDraft();
 			if (!text.trim()) {
 				cancelledRef.current = true;
 				onCancelRef.current();
@@ -399,7 +414,7 @@ const CommentCard = memo(function CommentCard({
 		return () => {
 			document.removeEventListener("pointerdown", onPointerDown, true);
 		};
-	}, [editing]);
+	}, [editing, readDraft]);
 
 	return (
 		<div
@@ -408,9 +423,9 @@ const CommentCard = memo(function CommentCard({
 			className={cn(
 				COMMENT_CARD_SURFACE_CLASS,
 				editing
-					? "z-[6] bg-background/92 shadow-dialog ring-2 ring-ring/50"
+					? "z-[6] bg-background/92 ring-2 ring-ring/50"
 					: hovered
-						? "z-[6] bg-background/92 shadow-dialog ring-2 ring-primary/45"
+						? "z-[6] bg-background/92 ring-2 ring-primary/45"
 						: "",
 			)}
 			style={{
@@ -439,8 +454,14 @@ const CommentCard = memo(function CommentCard({
 								) {
 									return;
 								}
+								// Ignore the view→edit swap: WebKit queues a focusout
+								// when the focused view body unmounts. It is not a
+								// click-away until the editable has focus and focus has
+								// actually left the card.
+								if (!editorFocusedRef.current) return;
+								if (rootRef.current?.contains(document.activeElement)) return;
 								if (cancelledRef.current) return;
-								const text = textareaRef.current?.value ?? "";
+								const text = readDraft();
 								if (item.isNew && !text.trim()) {
 									cancel();
 									return;
@@ -463,28 +484,20 @@ const CommentCard = memo(function CommentCard({
 								aria-hidden
 							/>
 						)}
-						<textarea
-							ref={textareaRef}
-							className="mt-1 max-h-60 w-full resize-none bg-transparent p-0 text-sm text-foreground/80 leading-relaxed outline-none placeholder:text-muted-foreground/70 select-text"
+						<CommentMarkdownEditor
+							initialValue={item.comment}
 							placeholder={t("annotations.placeholder")}
-							aria-label={t("annotations.editorLabel")}
-							defaultValue={item.comment}
-							rows={EDIT_MIN_COMMENT_LINES}
-							{...compositionProps}
-							onChange={(e) => {
-								draftRef.current = e.currentTarget.value;
-								autosizeTextarea(e.currentTarget);
+							ariaLabel={t("annotations.editorLabel")}
+							className="comment-md mt-1 w-full overflow-y-auto break-words text-sm leading-relaxed text-foreground/80"
+							handleRef={editorHandleRef}
+							onChange={(markdown) => {
+								draftRef.current = markdown;
 							}}
-							onClick={(e) => e.stopPropagation()}
+							onFocus={() => {
+								editorFocusedRef.current = true;
+							}}
 							onKeyDown={(e) => {
 								e.stopPropagation();
-								if (
-									applyMarkdownTextareaShortcut(e, (value) => {
-										draftRef.current = value;
-										autosizeTextarea(e.currentTarget);
-									})
-								)
-									return;
 								if (e.key === "Escape") {
 									e.preventDefault();
 									cancel();
@@ -496,7 +509,7 @@ const CommentCard = memo(function CommentCard({
 									!isBlockedByIme(e)
 								) {
 									e.preventDefault();
-									commit(e.currentTarget.value);
+									commit(readDraft());
 								}
 							}}
 						/>
@@ -540,8 +553,8 @@ const CommentCard = memo(function CommentCard({
 							)}
 						>
 							{item.comment.trim() ? (
-								<MessageResponse className="text-sm leading-relaxed [&_p]:my-0 [&_table]:min-w-max">
-									{item.comment}
+								<MessageResponse className="comment-md text-sm leading-relaxed [&_table]:min-w-max">
+									{withEditorLineBreaks(item.comment)}
 								</MessageResponse>
 							) : (
 								t("annotations.placeholder")
@@ -665,8 +678,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 }: SelectionCommentAffordanceProps) {
 	const { t } = useTranslation("viewer");
 	const rootRef = useRef<HTMLDivElement>(null);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const draftTextRef = useRef("");
+	const editorHandleRef = useRef<CommentMarkdownEditorHandle | null>(null);
 	const committedRef = useRef(false);
 	const onCommitRef = useRef(onCommit);
 	onCommitRef.current = onCommit;
@@ -676,9 +688,9 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 	onDismissRef.current = onDismiss;
 	const aliveRef = useRef(true);
 	const closingRef = useRef(false);
-	const { isBlockedByIme, compositionProps } = useImeGuard();
+	const { isBlockedByIme } = useImeGuard();
 
-	// The card hugs the textarea; this estimate only keeps the anchor inside
+	// The card hugs the editor; this estimate only keeps the anchor inside
 	// the page while the draft is short.
 	const clampHeightPx = estimateCommentCardHeight(
 		{
@@ -709,17 +721,17 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 		onCommitRef.current(trimmed);
 	}, []);
 
+	// Keep the latest serialized draft for blur / click-away commits.
+	const draftRef = useRef("");
+	const readDraft = useCallback(
+		() => editorHandleRef.current?.getMarkdown() ?? draftRef.current,
+		[],
+	);
+
 	useEffect(() => {
 		aliveRef.current = true;
 		onActiveChangeRef.current?.(true);
-		const frame = requestAnimationFrame(() => {
-			const el = textareaRef.current;
-			if (!el || closingRef.current) return;
-			el.focus();
-			autosizeTextarea(el);
-		});
 		return () => {
-			cancelAnimationFrame(frame);
 			aliveRef.current = false;
 			onActiveChangeRef.current?.(false);
 		};
@@ -737,23 +749,23 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			if ((target as Element).closest?.("[data-pdf-chrome]")) {
 				return;
 			}
-			const text = (textareaRef.current?.value ?? draftTextRef.current).trim();
+			const text = readDraft().trim();
 			closingRef.current = true;
 			if (text) {
 				commit(text);
 			} else {
 				onDismissRef.current?.();
 			}
-			textareaRef.current?.blur();
+			editorHandleRef.current?.blur();
 		};
 		document.addEventListener("pointerdown", onPointerDown, true);
 		return () => {
 			document.removeEventListener("pointerdown", onPointerDown, true);
 		};
-	}, [commit]);
+	}, [commit, readDraft]);
 
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: hosts a textarea; native <button> cannot wrap it
+		// biome-ignore lint/a11y/useSemanticElements: hosts the note editor; native <button> cannot wrap it
 		<div
 			ref={rootRef}
 			role="group"
@@ -762,7 +774,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			data-selection-comment=""
 			className={cn(
 				COMMENT_DRAFT_SURFACE_CLASS,
-				"z-[7] w-56 bg-background/92 shadow-dialog ring-2 ring-ring/50",
+				"z-[7] w-56 bg-background/92 ring-2 ring-ring/50",
 			)}
 			style={{
 				...(inset
@@ -772,7 +784,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			}}
 			onPointerDown={(e) => {
 				// Page-local hit: stop EmbedPDF from treating this as click-away
-				// before the textarea can take focus. Do not preventDefault.
+				// before the editor can take focus. Do not preventDefault.
 				e.stopPropagation();
 			}}
 		>
@@ -784,25 +796,20 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 					)}
 					aria-hidden
 				/>
-				<textarea
-					ref={textareaRef}
-					className="mt-1 max-h-60 w-full resize-none bg-transparent p-0 text-sm text-foreground/80 leading-relaxed outline-none placeholder:text-muted-foreground/70 select-text"
+				<CommentMarkdownEditor
+					initialValue=""
 					placeholder={t("annotations.placeholder")}
-					aria-label={t("annotations.editorLabel")}
-					rows={EDIT_MIN_COMMENT_LINES}
-					{...compositionProps}
-					onFocus={() => {
-						onActiveChangeRef.current?.(true);
-					}}
-					onChange={(e) => {
-						draftTextRef.current = e.currentTarget.value;
-						autosizeTextarea(e.currentTarget);
+					ariaLabel={t("annotations.editorLabel")}
+					className="comment-md mt-1 min-h-15 max-h-60 w-full overflow-y-auto break-words text-sm leading-relaxed text-foreground/80"
+					handleRef={editorHandleRef}
+					onChange={(markdown) => {
+						draftRef.current = markdown;
 					}}
 					onBlur={(e) => {
 						if (!aliveRef.current || closingRef.current) return;
 						const next = e.relatedTarget as Node | null;
 						if (next && rootRef.current?.contains(next)) return;
-						const text = draftTextRef.current;
+						const text = readDraft();
 						if (text.trim()) {
 							commit(text);
 							return;
@@ -810,25 +817,16 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 						closingRef.current = true;
 						onDismissRef.current?.();
 					}}
-					onClick={(e) => e.stopPropagation()}
-					onPointerDown={(e) => e.stopPropagation()}
+					onFocus={() => {
+						onActiveChangeRef.current?.(true);
+					}}
 					onKeyDown={(e) => {
 						e.stopPropagation();
-						if (
-							applyMarkdownTextareaShortcut(e, (value) => {
-								draftTextRef.current = value;
-								autosizeTextarea(e.currentTarget);
-							})
-						)
-							return;
 						if (e.key === "Escape") {
 							e.preventDefault();
-							draftTextRef.current = "";
-							e.currentTarget.value = "";
 							closingRef.current = true;
 							onActiveChangeRef.current?.(false);
 							onDismissRef.current?.();
-							e.currentTarget.blur();
 							return;
 						}
 						if (
@@ -837,7 +835,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 							!isBlockedByIme(e)
 						) {
 							e.preventDefault();
-							commit(e.currentTarget.value);
+							commit(readDraft());
 						}
 					}}
 				/>
@@ -973,7 +971,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 					<path
 						d={connectorD}
 						fill="none"
-						className="stroke-default-primary/85"
+						className="stroke-foreground/60"
 						strokeWidth={2.5}
 						strokeLinecap="round"
 						strokeLinejoin="round"
