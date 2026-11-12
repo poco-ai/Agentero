@@ -34,7 +34,13 @@ pub const FREE_PROVIDERS: &[&str] = &[
 ];
 
 /// Commercial BYOK provider ids configured in Settings → Translate.
-pub const COMMERCIAL_PROVIDERS: &[&str] = &["deepl", "azure", "googleCloud", "openaiCompatible"];
+pub const COMMERCIAL_PROVIDERS: &[&str] = &[
+    "deepl",
+    "azure",
+    "googleCloud",
+    "aimlapi",
+    "openaiCompatible",
+];
 
 /// Default free engines raced in parallel for best-effort zh-CN (NOTES abstract).
 /// First non-empty success wins; remaining in-flight requests are dropped.
@@ -289,6 +295,22 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
             )
             .await?
         }
+        "aimlapi" => {
+            sources::openai_compatible::translate_aimlapi(
+                text,
+                &source,
+                &target,
+                timeout,
+                args.api_key.as_deref(),
+                args.base_url.as_deref(),
+                args.model.as_deref(),
+                args.custom_prompt.as_deref(),
+                args.custom_system.as_deref(),
+                args.custom_user.as_deref(),
+                args.extra_request_body.as_deref(),
+            )
+            .await?
+        }
         BUILTIN_PROVIDER_ID => {
             sources::hunyuan_mt::translate_hunyuan_mt(
                 text,
@@ -437,6 +459,35 @@ mod tests {
         // Keep abstract-MT snappy: enough for slow success (~1.3s bench max);
         // parallel race → wall ≈ one timeout, not 3×.
         assert!((3_000..=8_000).contains(&FREE_MT_ZH_TIMEOUT_MS));
+    }
+
+    #[tokio::test]
+    async fn aimlapi_is_a_commercial_provider() {
+        assert!(COMMERCIAL_PROVIDERS.contains(&"aimlapi"));
+        // No key: the dispatch reaches the AI/ML API source, which refuses
+        // before any request is made.
+        let err = translate_text(TranslateTextArgs {
+            text: "hello".into(),
+            source_lang: "en".into(),
+            target_lang: "zh-CN".into(),
+            provider: "aimlapi".into(),
+            api_key: None,
+            base_url: None,
+            region: None,
+            model: None,
+            extra_request_body: None,
+            custom_prompt: None,
+            custom_system: None,
+            custom_user: None,
+            timeout_ms: None,
+        })
+        .await
+        .err()
+        .unwrap();
+        assert_eq!(
+            err.to_string(),
+            "AI/ML API requires apiKey (Settings → Translate)"
+        );
     }
 
     #[test]

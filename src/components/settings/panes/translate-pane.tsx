@@ -49,6 +49,7 @@ import type {
 import { saveSettingsAsync } from "@/lib/settings";
 import {
 	COMMERCIAL_MT_DEFAULT_BASE_URLS,
+	COMMERCIAL_MT_DEFAULT_MODELS,
 	COMMERCIAL_MT_DOCS_URLS,
 	COMMERCIAL_MT_PROVIDER_IDS,
 	type CommercialMtProbeMap,
@@ -56,6 +57,7 @@ import {
 	FREE_MT_PROVIDER_IDS,
 	type FreeMtProbeMap,
 	type FreeMtProbeStatus,
+	isChatCompletionsProvider,
 	isCommercialProviderConfigured,
 	isCommercialTranslateProvider,
 	isFreeMtProvider,
@@ -296,7 +298,7 @@ export function TranslatePane({
 				...draft,
 				apiKey: draftOrStored,
 			};
-			if (providerId === "openaiCompatible") {
+			if (isChatCompletionsProvider(providerId)) {
 				const issue = extraRequestBodyIssue(toSave.extraRequestBody);
 				if (issue) {
 					notifyError(t(`translate.providerConfig.extraRequestBody.${issue}`));
@@ -759,7 +761,7 @@ export function TranslatePane({
 											/>
 										</ProviderFieldRow>
 									) : null}
-									{id === "openaiCompatible" ? (
+									{isChatCompletionsProvider(id) ? (
 										<>
 											<ProviderFieldRow
 												label={t("translate.providerConfig.model.label")}
@@ -773,9 +775,10 @@ export function TranslatePane({
 															model: e.target.value,
 														})
 													}
-													placeholder={t(
-														"translate.providerConfig.model.placeholder",
-													)}
+													placeholder={
+														COMMERCIAL_MT_DEFAULT_MODELS[id] ??
+														t("translate.providerConfig.model.placeholder")
+													}
 													className={PROVIDER_INPUT_CLASS}
 													spellCheck={false}
 													autoComplete="off"

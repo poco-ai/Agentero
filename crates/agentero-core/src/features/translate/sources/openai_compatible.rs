@@ -444,6 +444,49 @@ pub(crate) fn openai_chat_body(model: &str, system: &str, user: &str) -> Value {
     body
 }
 
+/// An OpenAI Chat Completions endpoint the Host translates through.
+struct ChatEndpoint {
+    /// Provider name in error messages.
+    label: &'static str,
+    /// API root used when the settings card leaves Base URL empty.
+    default_root: &'static str,
+    /// Model used when the settings card leaves Model empty; `None` = required.
+    default_model: Option<&'static str>,
+    /// Send `X-AIMLAPI-Source` when the request goes to `api.aimlapi.com`.
+    aimlapi_source: bool,
+}
+
+const OPENAI_COMPATIBLE: ChatEndpoint = ChatEndpoint {
+    label: "OpenAI-compatible",
+    default_root: "https://api.openai.com/v1",
+    default_model: None,
+    aimlapi_source: false,
+};
+
+/// AI/ML API root. Model ids are `vendor/model`, e.g. `deepseek/deepseek-v4-flash`.
+pub const AIMLAPI_BASE_URL: &str = "https://api.aimlapi.com/v1";
+/// Used when the AI/ML API card has no model, so a key alone is enough.
+pub const AIMLAPI_DEFAULT_MODEL: &str = "deepseek/deepseek-v4-flash";
+const AIMLAPI_HOST: &str = "api.aimlapi.com";
+const AIMLAPI_SOURCE: &str = "agent/agentero";
+
+const AIMLAPI: ChatEndpoint = ChatEndpoint {
+    label: "AI/ML API",
+    default_root: AIMLAPI_BASE_URL,
+    default_model: Some(AIMLAPI_DEFAULT_MODEL),
+    aimlapi_source: true,
+};
+
+/// `X-AIMLAPI-Source` goes only to `api.aimlapi.com` itself, never to a
+/// lookalike, subdomain or a relay the user typed into Base URL.
+fn is_aimlapi_host(url: &str) -> bool {
+    url::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_string))
+        .as_deref()
+        == Some(AIMLAPI_HOST)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn translate_openai_compatible(
     text: &str,
@@ -458,15 +501,7 @@ pub async fn translate_openai_compatible(
     custom_user: Option<&str>,
     extra_request_body: Option<&str>,
 ) -> Result<String, AppError> {
-    let key = super::required_api_key("OpenAI-compatible", api_key)?;
-    let model = model
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| {
-            AppError::message("OpenAI-compatible requires model (Settings → Translate)")
-        })?;
-    let url = super::optional_endpoint(base_url, "https://api.openai.com/v1", "/chat/completions");
-    let (system, user) = openai_translate_messages(
+    let messages = openai_translate_messages(
         text,
         source,
         target,
@@ -474,31 +509,109 @@ pub async fn translate_openai_compatible(
         custom_system,
         custom_user,
     );
+    let request = chat_request(
+        &OPENAI_COMPATIBLE,
+        timeout,
+        api_key,
+        base_url,
+        model,
+        messages,
+        extra_request_body,
+    )?;
+    send_chat_request(&OPENAI_COMPATIBLE, request).await
+}
+
+/// AI/ML API: the OpenAI-compatible path with its own root, a default model,
+/// and `X-AIMLAPI-Source` on its exact host.
+#[allow(clippy::too_many_arguments)]
+pub async fn translate_aimlapi(
+    text: &str,
+    source: &str,
+    target: &str,
+    timeout: Duration,
+    api_key: Option<&str>,
+    base_url: Option<&str>,
+    model: Option<&str>,
+    custom_prompt: Option<&str>,
+    custom_system: Option<&str>,
+    custom_user: Option<&str>,
+    extra_request_body: Option<&str>,
+) -> Result<String, AppError> {
+    let messages = openai_translate_messages(
+        text,
+        source,
+        target,
+        custom_prompt,
+        custom_system,
+        custom_user,
+    );
+    let request = chat_request(
+        &AIMLAPI,
+        timeout,
+        api_key,
+        base_url,
+        model,
+        messages,
+        extra_request_body,
+    )?;
+    send_chat_request(&AIMLAPI, request).await
+}
+
+fn chat_request(
+    endpoint: &ChatEndpoint,
+    timeout: Duration,
+    api_key: Option<&str>,
+    base_url: Option<&str>,
+    model: Option<&str>,
+    (system, user): (String, String),
+    extra_request_body: Option<&str>,
+) -> Result<reqwest::RequestBuilder, AppError> {
+    let label = endpoint.label;
+    let key = super::required_api_key(label, api_key)?;
+    let model = model
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or(endpoint.default_model)
+        .ok_or_else(|| {
+            AppError::message(format!("{label} requires model (Settings → Translate)"))
+        })?;
+    let url = super::optional_endpoint(base_url, endpoint.default_root, "/chat/completions");
     let mut body = openai_chat_body(model, &system, &user);
     apply_request_options(&mut body, extra_request_body)?;
     let client = http::client(timeout)?;
-    let resp = client
+    let mut request = client
         .post(&url)
         .header("Authorization", format!("Bearer {key}"))
-        .header("Content-Type", "application/json")
-        .json(&body)
+        .header("Content-Type", "application/json");
+    if endpoint.aimlapi_source && is_aimlapi_host(&url) {
+        request = request.header("X-AIMLAPI-Source", AIMLAPI_SOURCE);
+    }
+    Ok(request.json(&body))
+}
+
+async fn send_chat_request(
+    endpoint: &ChatEndpoint,
+    request: reqwest::RequestBuilder,
+) -> Result<String, AppError> {
+    let label = endpoint.label;
+    let resp = request
         .send()
         .await
-        .map_err(|e| AppError::message(format!("OpenAI-compatible request failed: {e}")))?;
+        .map_err(|e| AppError::message(format!("{label} request failed: {e}")))?;
     let (status, body) = super::read_body(resp).await?;
     if !status.is_success() {
-        return Err(super::http_err(status, &body, "OpenAI-compatible"));
+        return Err(super::http_err(status, &body, label));
     }
     let v: Value = serde_json::from_str(&body)
-        .map_err(|e| AppError::message(format!("OpenAI-compatible parse: {e}")))?;
+        .map_err(|e| AppError::message(format!("{label} parse: {e}")))?;
     let choice = v
         .get("choices")
         .and_then(|x| x.get(0))
-        .ok_or_else(|| AppError::message("Unexpected OpenAI-compatible response"))?;
+        .ok_or_else(|| AppError::message(format!("Unexpected {label} response")))?;
     if let Some(reason) = choice.get("finish_reason").and_then(|x| x.as_str()) {
         if matches!(reason, "length" | "max_tokens" | "content_filter") {
             return Err(AppError::message(format!(
-                "OpenAI-compatible translation incomplete (finish_reason={reason}); retry with a smaller chunk"
+                "{label} translation incomplete (finish_reason={reason}); retry with a smaller chunk"
             )));
         }
     }
@@ -507,7 +620,7 @@ pub async fn translate_openai_compatible(
         .and_then(|x| x.get("content"))
         .and_then(|x| x.as_str())
         .map(|s| s.to_string())
-        .ok_or_else(|| AppError::message("Unexpected OpenAI-compatible response"))
+        .ok_or_else(|| AppError::message(format!("Unexpected {label} response")))
 }
 
 /// A supplied JSON object replaces all inferred request options. Only the
@@ -548,6 +661,103 @@ fn apply_request_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn built(
+        endpoint: &ChatEndpoint,
+        base_url: Option<&str>,
+        model: Option<&str>,
+    ) -> reqwest::Request {
+        chat_request(
+            endpoint,
+            Duration::from_secs(5),
+            Some("sk-test"),
+            base_url,
+            model,
+            ("system".into(), "user".into()),
+            None,
+        )
+        .unwrap()
+        .build()
+        .unwrap()
+    }
+
+    fn body_model(request: &reqwest::Request) -> String {
+        let bytes = request.body().and_then(|b| b.as_bytes()).unwrap();
+        let v: Value = serde_json::from_slice(bytes).unwrap();
+        v["model"].as_str().unwrap().to_string()
+    }
+
+    fn source_header(request: &reqwest::Request) -> Option<String> {
+        request
+            .headers()
+            .get("X-AIMLAPI-Source")
+            .map(|v| v.to_str().unwrap().to_string())
+    }
+
+    #[test]
+    fn aimlapi_works_from_a_key_alone() {
+        let request = built(&AIMLAPI, None, None);
+        assert_eq!(
+            request.url().as_str(),
+            "https://api.aimlapi.com/v1/chat/completions"
+        );
+        assert_eq!(body_model(&request), AIMLAPI_DEFAULT_MODEL);
+        assert_eq!(source_header(&request).as_deref(), Some("agent/agentero"));
+        let blank = built(&AIMLAPI, Some("  "), Some(" "));
+        assert_eq!(body_model(&blank), AIMLAPI_DEFAULT_MODEL);
+    }
+
+    #[test]
+    fn aimlapi_model_from_settings_wins() {
+        let request = built(&AIMLAPI, None, Some("google/gemini-3.1-flash-lite"));
+        assert_eq!(body_model(&request), "google/gemini-3.1-flash-lite");
+    }
+
+    #[test]
+    fn aimlapi_source_only_on_its_exact_host() {
+        let with = built(&AIMLAPI, Some("https://api.aimlapi.com/v1/"), None);
+        assert_eq!(source_header(&with).as_deref(), Some("agent/agentero"));
+        for other in [
+            "https://api.aimlapi.com.example.net/v1",
+            "https://eu.api.aimlapi.com/v1",
+            "https://aimlapi.com/v1",
+            "https://relay.example.net/api.aimlapi.com/v1",
+            "http://127.0.0.1:8080/v1",
+        ] {
+            let request = built(&AIMLAPI, Some(other), None);
+            assert_eq!(source_header(&request), None, "{other}");
+        }
+    }
+
+    #[test]
+    fn openai_compatible_is_unchanged() {
+        let request = built(
+            &OPENAI_COMPATIBLE,
+            Some("https://api.aimlapi.com/v1"),
+            Some("gpt-x"),
+        );
+        assert_eq!(source_header(&request), None);
+        let default_root = built(&OPENAI_COMPATIBLE, None, Some("gpt-x"));
+        assert_eq!(
+            default_root.url().as_str(),
+            "https://api.openai.com/v1/chat/completions"
+        );
+        let err = chat_request(
+            &OPENAI_COMPATIBLE,
+            Duration::from_secs(5),
+            Some("sk-test"),
+            None,
+            None,
+            ("s".into(), "u".into()),
+            None,
+        )
+        .err()
+        .unwrap();
+        assert_eq!(
+            err.to_string(),
+            "OpenAI-compatible requires model (Settings → Translate)"
+        );
+    }
 
     #[test]
     fn extra_parameters_override_defaults_without_deep_merging() {

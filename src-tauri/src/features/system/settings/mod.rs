@@ -1187,6 +1187,7 @@ pub fn commercial_provider_settings_key(provider: &str) -> Option<&'static str> 
         "deepl" => Some("deepl"),
         "azure" => Some("azure"),
         "googlecloud" => Some("googleCloud"),
+        "aimlapi" => Some("aimlapi"),
         "openaicompatible" => Some("openaiCompatible"),
         _ => None,
     }
@@ -1619,7 +1620,13 @@ fn normalize_layout_provider_configs(configs: &mut HashMap<String, LayoutProvide
 }
 
 fn normalize_translate_provider_configs(configs: &mut HashMap<String, TranslateProviderConfig>) {
-    const COMMERCIAL: &[&str] = &["deepl", "azure", "googleCloud", "openaiCompatible"];
+    const COMMERCIAL: &[&str] = &[
+        "deepl",
+        "azure",
+        "googleCloud",
+        "aimlapi",
+        "openaiCompatible",
+    ];
     configs.retain(|k, _| COMMERCIAL.contains(&k.as_str()));
     for cfg in configs.values_mut() {
         cfg.api_key = cfg.api_key.trim().to_string();
@@ -1886,6 +1893,23 @@ mod tests {
     }
 
     #[test]
+    fn aimlapi_translate_config_survives_normalize() {
+        let mut settings = AppSettings::default();
+        settings.translate.provider_configs.insert(
+            "aimlapi".into(),
+            TranslateProviderConfig {
+                api_key: " sk-aimlapi ".into(),
+                model: "google/gemini-3.1-flash-lite".into(),
+                ..Default::default()
+            },
+        );
+        normalize(&mut settings);
+        let cfg = settings.translate.provider_configs.get("aimlapi").unwrap();
+        assert_eq!(cfg.api_key, "sk-aimlapi");
+        assert_eq!(cfg.model, "google/gemini-3.1-flash-lite");
+    }
+
+    #[test]
     fn commercial_provider_key_mapping() {
         assert_eq!(
             commercial_provider_settings_key("googleCloud"),
@@ -1899,6 +1923,7 @@ mod tests {
             commercial_provider_settings_key("openaiCompatible"),
             Some("openaiCompatible")
         );
+        assert_eq!(commercial_provider_settings_key("AIMLAPI"), Some("aimlapi"));
         assert_eq!(commercial_provider_settings_key("deeplx"), None);
     }
 

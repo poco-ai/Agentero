@@ -94,6 +94,8 @@ choices[0].message.content
 | SiliconFlow | `https://api.siliconflow.cn/v1` |
 | 智谱 BigModel | `https://open.bigmodel.cn/api/paas/v4` |
 
+AI/ML API 有单独的「AI/ML API」卡片：只填 API Key 即可，Base URL 默认 `https://api.aimlapi.com/v1`，模型留空时使用 `deepseek/deepseek-v4-flash`，也可以填其他带厂商前缀的模型 ID（如 `google/gemini-3.1-flash-lite`）。
+
 不要填写这些值：
 
 | 错误写法 | 原因 |

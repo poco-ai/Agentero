@@ -537,6 +537,7 @@
 			"deepl": "DeepL API",
 			"azure": "Microsoft Translator",
 			"googleCloud": "Google Cloud Translate",
+			"aimlapi": "AI/ML API",
 			"openaiCompatible": "OpenAI-compatible",
 			"agent": "Agent",
 			"probeIdle": "Not checked yet",
@@ -612,6 +613,7 @@
 			"deepl": "DeepL neural machine translation, configured with an official API key.",
 			"azure": "Microsoft Translator, configured with an Azure subscription key.",
 			"googleCloud": "Google Cloud Translation API, configured with a service-account key.",
+			"aimlapi": "AI/ML API, OpenAI-compatible with vendor-prefixed model ids. An API key is enough; Model defaults to deepseek/deepseek-v4-flash.",
 			"openaiCompatible": "OpenAI Chat Completions-compatible endpoint. Enter the Base URL, e.g. https://api.openai.com/v1; Agentero appends /chat/completions."
 		},
 		"agentId": {

@@ -537,6 +537,7 @@
 			"deepl": "DeepL API",
 			"azure": "微软翻译",
 			"googleCloud": "Google Cloud Translate",
+			"aimlapi": "AI/ML API",
 			"openaiCompatible": "OpenAI 兼容",
 			"agent": "Agent",
 			"probeIdle": "尚未检测",
@@ -612,6 +613,7 @@
 			"deepl": "DeepL 神经机器翻译，使用官方 API Key。",
 			"azure": "微软翻译，使用 Azure 订阅密钥。",
 			"googleCloud": "谷歌云翻译 API，使用服务账号密钥。",
+			"aimlapi": "AI/ML API，兼容 OpenAI 接口，模型 ID 带厂商前缀。只填 API Key 即可；模型留空时使用 deepseek/deepseek-v4-flash。",
 			"openaiCompatible": "兼容 OpenAI Chat Completions 的接口。填写 Base URL，如 https://api.openai.com/v1；Agentero 会自动追加 /chat/completions。"
 		},
 		"agentId": {

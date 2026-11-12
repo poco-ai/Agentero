@@ -845,11 +845,11 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     text: string;
     sourceLang?: string;     // default "auto"
     targetLang: string;      // e.g. "zh-CN" | "en"
-    provider?: string;       // agentero (内置；注入 key 的构建里的默认) | tencenttransmart | huoshanweb | deeplx | cnki | googleapi | google | deepl | azure | googleCloud | openaiCompatible
+    provider?: string;       // agentero (内置；注入 key 的构建里的默认) | tencenttransmart | huoshanweb | deeplx | cnki | googleapi | google | deepl | azure | googleCloud | aimlapi | openaiCompatible
     apiKey?: string | null;  // 商用 BYOK；可省略或传同长度 "*" 掩码，Host 从 settings 注入真实密钥。provider 为 agentero 时被 Host 用构建期凭证**覆写**，调用方传什么都无效
     baseUrl?: string | null; // 商用 provider endpoint override（可选）；agentero 同样被覆写
     region?: string | null;  // azure 必填
-    model?: string | null;   // openaiCompatible 必填；agentero 被覆写为构建期 translate model
+    model?: string | null;   // openaiCompatible 必填；aimlapi 可省略（默认 deepseek/deepseek-v4-flash）；agentero 被覆写为构建期 translate model
     timeoutMs?: number | null;   // optional; clamped 1s–30s server-side (default 30s); settings probe uses 5000
   }
   ```

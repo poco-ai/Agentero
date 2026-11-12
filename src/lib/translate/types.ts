@@ -22,6 +22,7 @@ export type CommercialTranslateProviderId =
 	| "deepl"
 	| "azure"
 	| "googleCloud"
+	| "aimlapi"
 	| "openaiCompatible";
 
 export type HostTranslateProviderId =
@@ -196,6 +197,7 @@ export const COMMERCIAL_MT_PROVIDER_IDS: CommercialTranslateProviderId[] = [
 	"deepl",
 	"azure",
 	"googleCloud",
+	"aimlapi",
 	"openaiCompatible",
 ];
 
@@ -211,8 +213,26 @@ export const COMMERCIAL_MT_DEFAULT_BASE_URLS: Record<
 	deepl: "https://api-free.deepl.com",
 	azure: "https://api.cognitive.microsofttranslator.com",
 	googleCloud: "https://translation.googleapis.com",
+	aimlapi: "https://api.aimlapi.com/v1",
 	openaiCompatible: "https://api.openai.com/v1",
 };
+
+/**
+ * Model used when the card's Model field is empty. Keep in sync with
+ * `AIMLAPI_DEFAULT_MODEL` in `openai_compatible.rs`.
+ */
+export const COMMERCIAL_MT_DEFAULT_MODELS: Partial<
+	Record<CommercialTranslateProviderId, string>
+> = {
+	aimlapi: "deepseek/deepseek-v4-flash",
+};
+
+/** Providers that speak OpenAI Chat Completions (model + extra JSON fields). */
+export function isChatCompletionsProvider(
+	id: CommercialTranslateProviderId,
+): boolean {
+	return id === "openaiCompatible" || id === "aimlapi";
+}
 
 /** Official docs / console pages for obtaining keys (settings UI external link). */
 export const COMMERCIAL_MT_DOCS_URLS: Record<
@@ -224,6 +244,7 @@ export const COMMERCIAL_MT_DOCS_URLS: Record<
 		"https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/TextTranslation",
 	googleCloud:
 		"https://console.cloud.google.com/apis/library/translate.googleapis.com",
+	aimlapi: "https://aimlapi.com/app/keys",
 	openaiCompatible: "https://platform.openai.com/api-keys",
 };
 
