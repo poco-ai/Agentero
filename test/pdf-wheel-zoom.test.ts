@@ -91,6 +91,33 @@ describe("PDF wheel zoom gesture binding", () => {
 		);
 	});
 
+	it("keeps a zoom gesture alive through brief gaps between wheel bursts", () => {
+		const harness = wheelTargetHarness();
+		const onZoomStart = vi.fn();
+		const onZoomChange = vi.fn();
+		const onZoomEnd = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart,
+			onZoomChange,
+			onZoomEnd,
+		});
+
+		harness.dispatch({ deltaY: -50, ctrlKey: true });
+		vi.advanceTimersByTime(200);
+		harness.dispatch({ deltaY: -50, ctrlKey: true });
+		expect(onZoomStart).toHaveBeenCalledOnce();
+		expect(onZoomEnd).not.toHaveBeenCalled();
+		expect(onZoomChange).toHaveBeenLastCalledWith(
+			expect.closeTo(wheelDeltaToZoomRatio(-50) ** 2, 10),
+		);
+
+		vi.advanceTimersByTime(399);
+		expect(onZoomEnd).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(1);
+		expect(onZoomEnd).toHaveBeenCalledOnce();
+	});
+
 	it("starts non-passive so a cold pinch can cancel platform zoom", () => {
 		const harness = wheelTargetHarness();
 		const onZoomChange = vi.fn();

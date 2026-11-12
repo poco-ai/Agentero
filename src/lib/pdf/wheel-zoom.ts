@@ -10,7 +10,7 @@
  */
 
 /** Wheel stream must be silent this long before a zoom gesture is over. */
-const WHEEL_ZOOM_IDLE_MS = 150;
+const WHEEL_ZOOM_IDLE_MS = 400;
 
 /**
  * Wheel deltaY units per unit of natural log magnification. A wheel notch of
