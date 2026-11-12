@@ -33,12 +33,6 @@ type DockviewViewportProps = HTMLAttributes<HTMLDivElement> & {
 	children: ReactNode;
 	documentId: string;
 	hostRef: RefObject<HTMLDivElement | null>;
-	/**
-	 * Extra right padding (px) beyond the viewport gap, reserving room for
-	 * overlays pinned outside the page's right edge (comment rail) so they do
-	 * not grow scrollWidth into a horizontal scrollbar.
-	 */
-	rightGutter?: number;
 };
 
 /**
@@ -52,7 +46,6 @@ export function DockviewViewport({
 	children,
 	documentId,
 	hostRef,
-	rightGutter = 0,
 	...props
 }: DockviewViewportProps) {
 	const paginated = useSettings((s) => s.pdfScrollStrategy === "paginated");
@@ -144,7 +137,8 @@ export function DockviewViewport({
 				`${viewport.clientHeight}px`,
 			);
 			// Visibility and tiling need the entire scrollport, including any area
-			// a zoomed page occupies beside the rail. Zoom reserves its own gutter.
+			// a zoomed page occupies. The viewport reserves no side gutter, so the
+			// zoom plugin's fit-width math matches the reading surface 1:1.
 			viewportPlugin.setViewportResizeMetrics(documentId, {
 				width: viewport.offsetWidth,
 				height: viewport.offsetHeight,
@@ -272,9 +266,6 @@ export function DockviewViewport({
 					// auto zoom does not flip between two percentages on open.
 					scrollbarGutter: "stable",
 					padding: `${viewportGap}px`,
-					// The shorthand above would clobber a caller's paddingRight; merge
-					// the reserved rail gutter explicitly.
-					paddingRight: `${viewportGap + rightGutter}px`,
 				}}
 			>
 				{!isGated && children}

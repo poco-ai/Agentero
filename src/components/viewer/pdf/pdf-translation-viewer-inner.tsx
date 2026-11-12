@@ -514,7 +514,6 @@ export function PdfTranslationViewerInner({
 			<DockviewViewport
 				documentId={docId}
 				hostRef={hostRef}
-				rightGutter={0}
 				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
 			>
 				<WheelZoomHandler docId={docId} />

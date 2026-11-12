@@ -102,7 +102,6 @@ import {
 	excludeOverlappingPdfTextLinks,
 	type PdfTextLink,
 } from "@/components/viewer/pdf/layers/citation-links";
-import { COMMENT_RAIL_WIDTH_PX } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import { PDF_LINK_ANNOTATION_CONFIG } from "@/components/viewer/pdf/layers/link-annotation";
 import {
 	type PdfPageHandlers,
@@ -254,10 +253,6 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 	const effectiveSourceBytes = pdfBuffer ?? sourceBytes;
 
 	const translationOnly = Boolean(props.translationOnly);
-	const rightGutter =
-		translationOnly || props.plainViewer || props.reserveCommentRail === false
-			? 0
-			: COMMENT_RAIL_WIDTH_PX;
 	const plugins = useMemo(() => {
 		if (!source && !effectiveSourceBytes) return null;
 		// Prefer bytes (no fetch step); fall back to a URL (remote https).
@@ -307,7 +302,6 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 			createPluginRegistration(TilingPluginPackage, { tileSize: 512 }),
 			createPluginRegistration(ZoomPluginPackage, {
 				defaultZoomLevel: ZoomMode.FitWidth,
-				viewportPaddingRight: rightGutter,
 				minZoom: PDF_ZOOM_MIN,
 				maxZoom: PDF_ZOOM_MAX,
 			}),
@@ -346,7 +340,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				renderScale: 2,
 			}),
 		];
-	}, [source, effectiveSourceBytes, docId, translationOnly, rightGutter]);
+	}, [source, effectiveSourceBytes, docId, translationOnly]);
 
 	const hostClass = cn(
 		"relative flex h-full min-h-0 flex-col bg-muted/40",
@@ -500,7 +494,6 @@ function PdfViewerInner({
 	baseDocId,
 	embeddedTarget,
 	embeddedTargetRequest,
-	reserveCommentRail = true,
 	rememberReadingPosition = true,
 	sourceBytes = null,
 	paperAbsPath = null,
@@ -528,10 +521,6 @@ function PdfViewerInner({
 	onOpenTranslationTab,
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
-	const rightGutter =
-		translationOnly || plainViewer || !reserveCommentRail
-			? 0
-			: COMMENT_RAIL_WIDTH_PX;
 	const [importBusy, setImportBusy] = useState(false);
 	// Parent often passes inline lambdas; keep latest in refs so data effects
 	// do not re-fire every parent render (was Maximum update depth exceeded).
@@ -1996,17 +1985,10 @@ function PdfViewerInner({
 			regionSelecting,
 			visualCropPending,
 			visualDraftOpen: false,
-			insetCommentCards: !reserveCommentRail,
 			translationOnly,
 			plainViewer,
 		}),
-		[
-			regionSelecting,
-			visualCropPending,
-			translationOnly,
-			plainViewer,
-			reserveCommentRail,
-		],
+		[regionSelecting, visualCropPending, translationOnly, plainViewer],
 	);
 
 	const handleLayoutRegionClick = useCallback(
@@ -2516,7 +2498,6 @@ function PdfViewerInner({
 			<DockviewViewport
 				documentId={docId}
 				hostRef={hostRef}
-				rightGutter={rightGutter}
 				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
 				onClickCapture={(event) => {
 					const target = event.target;

@@ -340,7 +340,6 @@ export function WikiAttachmentEmbed({
 			docId={`wiki-embed:${instanceId}:${targetPath}:${revision}`}
 			embeddedTarget={citationKey === citation?.key ? citation?.target : null}
 			embeddedTargetRequest={locateRequest}
-			reserveCommentRail={false}
 			rememberReadingPosition={false}
 			paperAbsPath={paperAbsPath}
 			paperRelPath={

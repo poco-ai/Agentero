@@ -1,14 +1,19 @@
 /**
- * Comment rail: one persistent card per annotated highlight / visual note,
- * pinned just outside the page's right edge (`left: 100%` inside the
- * overflow-visible page container). Cards
- * stack vertically with collision avoidance and clamp into the page height.
+ * Comment cards for annotated highlights / visual notes, stacked vertically
+ * with collision avoidance and clamped into the page height.
+ *
+ * The reading surface reserves no space for comments. The app renders the
+ * layer `inset`: cards sit inside the page's right edge and only the hovered,
+ * editing, or brand-new card paints, so a comment peeks over the page instead
+ * of a permanent rail narrowing the fit-width reading area. `inset` stays
+ * optional for a future docked rail; the non-inset placement pins cards just
+ * outside the page's right edge (`left: 100%`).
  *
  * Click a card to edit the note in place (Notion-style): the body becomes a
  * Markdown editor, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating
  * editor.
  *
- * Cards keep a fixed UI size like the ask / translate floating cards: the rail
+ * Cards keep a fixed UI size like the ask / translate floating cards: the layer
  * is laid out in screen pixels (the page shell already tracks zoom), so zoom
  * only moves the anchors, never rescales the cards.
  *
@@ -52,15 +57,10 @@ import {
 	DEFAULT_HIGHLIGHT_COLOR,
 	swatchColorClass,
 } from "@/lib/pdf/highlight/palette";
-/** Card width in CSS px — also the gutter width reserved on the viewport. */
+/** Card width in CSS px. */
 export const COMMENT_CARD_WIDTH_PX = 200;
-/** Horizontal gap between the page edge and the rail. */
+/** Horizontal gap between the page edge and the card. */
 export const COMMENT_CARD_GAP_PX = 8;
-/** Extra px so ring + shadow aren't clipped by the viewport overflow. */
-const COMMENT_RAIL_BLEED_PX = 4;
-/** Viewport right padding that keeps the rail clear of horizontal scroll. */
-export const COMMENT_RAIL_WIDTH_PX =
-	COMMENT_CARD_WIDTH_PX + COMMENT_CARD_GAP_PX + COMMENT_RAIL_BLEED_PX;
 
 const CARD_GAP_PX = 8;
 /** text-xs leading-relaxed ≈ 12px × 1.625. */
@@ -909,8 +909,10 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 			setRetainedHoverId(hoveredId);
 			return;
 		}
-		// Let the pointer cross from the source highlight into the inset card.
-		const timer = setTimeout(() => setRetainedHoverId(null), 250);
+		// Let the pointer travel from the source highlight into the inset card.
+		// The card sits at the page's right edge, so a left-column highlight is
+		// a long trip; too short a window makes the card vanish on the way.
+		const timer = setTimeout(() => setRetainedHoverId(null), 500);
 		return () => clearTimeout(timer);
 	}, [inset, hoveredId]);
 	// Stacking depends only on items / page height / the edited card; hover

@@ -67,8 +67,6 @@ export type PdfViewerProps = {
 	embeddedTarget?: PdfNavigationTarget | null;
 	/** Increment to return to the same embed target without reopening the PDF. */
 	embeddedTargetRequest?: number;
-	/** Reserve space beside the page for comment cards (off in note embeds). */
-	reserveCommentRail?: boolean;
 	/** Note embeds keep their own scroll position instead of changing the paper's last-read page. */
 	rememberReadingPosition?: boolean;
 	/** Absolute path to paper folder for annotations/marks persistence */
