@@ -63,8 +63,8 @@ export function zoomCommitPreviewTransform(
 }
 
 /**
- * Width left for the page after the viewport's own padding. The right padding
- * includes the comment rail, so this is the reading box fit-width uses.
+ * Width left for the page after the viewport's symmetric padding. The
+ * page-outside comment rail is revealed separately by hover panning.
  */
 export function zoomReadingWidth(
 	clientWidth: number,
@@ -78,7 +78,7 @@ export function zoomReadingWidth(
 /**
  * Left margin that centers the gesture element inside the reading box.
  * Zero once the page fills that box, so a zoom commit does not collapse a
- * margin that was only there because the rail was left out of the box.
+ * margin that was only there to center a narrower page.
  */
 export function zoomGestureCenteringMargin(
 	elementWidth: number,

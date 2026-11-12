@@ -84,13 +84,13 @@ describe("zoomCommitPreviewTransform", () => {
 });
 
 describe("zoom gesture reading box", () => {
-	it("centers a narrow page in the box left of the comment rail", () => {
-		// 900px viewport, 20px gap, 212px rail reserved on the right.
-		const readingWidth = zoomReadingWidth(900, 20, 232);
-		expect(readingWidth).toBe(648);
+	it("centers a narrow page within symmetric viewport padding", () => {
+		// The comment rail is outside the reading box and contributes no padding.
+		const readingWidth = zoomReadingWidth(900, 20, 20);
+		expect(readingWidth).toBe(860);
 		// Fit-width already fills that box, so the gesture margin stays put.
-		expect(zoomGestureCenteringMargin(648, readingWidth)).toBe(0);
-		expect(zoomGestureCenteringMargin(400, readingWidth)).toBe(124);
+		expect(zoomGestureCenteringMargin(860, readingWidth)).toBe(0);
+		expect(zoomGestureCenteringMargin(400, readingWidth)).toBe(230);
 	});
 });
 

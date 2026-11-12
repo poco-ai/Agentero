@@ -17,6 +17,8 @@ const PEEK_LEAVE_MS = 80;
 const PEEK_HOVER_SLOP_PX = 8;
 /** Time to cross from a highlighted passage to its revealed card. */
 const PEEK_CARD_TRAVEL_MS = 500;
+/** A zoom may move the page under a stationary pointer without hover intent. */
+const PEEK_ZOOM_COOLDOWN_MS = 400;
 /** Clearance kept between the revealed rail and the viewport edge. */
 const PEEK_MARGIN_PX = 8;
 /**
@@ -89,6 +91,9 @@ export function RailPeek({
 		let hoverAnchor: { x: number; y: number } | null = null;
 		let lastPointer: { x: number; y: number } | null = null;
 		let pressed = false;
+		let zoomSuspended = false;
+		let zoomPointer: { x: number; y: number } | null = null;
+		let lastZoomInput = 0;
 
 		const clearDwell = () => {
 			if (dwell === null) return;
@@ -219,7 +224,7 @@ export function RailPeek({
 		 * pan; switching comments restarts the dwell rather than panning at once.
 		 */
 		const peek = () => {
-			if (pressed || !lastPointer) return;
+			if (pressed || zoomSuspended || !lastPointer) return;
 			clearLeave();
 			clearHoverDwell();
 			if (revealed) return;
@@ -237,7 +242,7 @@ export function RailPeek({
 		};
 
 		const armDwell = (clientY: number) => {
-			if (dwell !== null || pressed) return;
+			if (dwell !== null || pressed || zoomSuspended) return;
 			dwell = setTimeout(() => {
 				dwell = null;
 				revealAt(clientY);
@@ -267,6 +272,18 @@ export function RailPeek({
 		const handlePointerMove = (event: PointerEvent) => {
 			lastPointer = { x: event.clientX, y: event.clientY };
 			if (event.pointerType === "touch" || pressed) return;
+			if (zoomSuspended) {
+				if (
+					performance.now() - lastZoomInput < PEEK_ZOOM_COOLDOWN_MS ||
+					(zoomPointer &&
+						Math.hypot(
+							event.clientX - zoomPointer.x,
+							event.clientY - zoomPointer.y,
+						) <= PEEK_HOVER_SLOP_PX)
+				)
+					return;
+				zoomSuspended = false;
+			}
 			if (holdOpenRef.current) {
 				clearLeave();
 				return;
@@ -294,6 +311,7 @@ export function RailPeek({
 
 		const handlePointerLeave = () => {
 			lastPointer = null;
+			zoomSuspended = false;
 			// Leaving the reading area entirely: retract without the card grace,
 			// there is no card to travel to.
 			clearDwell();
@@ -303,22 +321,43 @@ export function RailPeek({
 
 		// A wheel or a press is reading intent elsewhere; retract rather than
 		// fight the gesture. Wheel over a card keeps the rail (editor in use).
+		const suspendForZoom = (x?: number, y?: number) => {
+			if (!zoomSuspended) {
+				zoomPointer =
+					typeof x === "number" &&
+					typeof y === "number" &&
+					Number.isFinite(x) &&
+					Number.isFinite(y)
+						? { x, y }
+						: lastPointer;
+			}
+			zoomSuspended = true;
+			lastZoomInput = performance.now();
+			clearDwell();
+			clearHoverDwell();
+			clearLeave();
+			// The zoom gesture owns the current viewport offset. Do not restore or
+			// start another rail pan while its layout changes under the pointer.
+			revealed = false;
+			hoverAnchor = null;
+		};
 		const handleWheel = (event: WheelEvent) => {
+			if (event.ctrlKey || event.metaKey) {
+				suspendForZoom(event.clientX, event.clientY);
+				return;
+			}
 			clearDwell();
 			clearHoverDwell();
 			if (!revealed) return;
-			// ⌘/Ctrl+wheel is zoom: its own commit owns the scroll position now.
-			if (event.ctrlKey || event.metaKey) {
-				clearLeave();
-				revealed = false;
-				hoverAnchor = null;
-				return;
-			}
 			const target = event.target;
 			if (target instanceof Element && target.closest("[data-pdf-chrome]")) {
 				return;
 			}
 			restore();
+		};
+		const handleGesture = (event: Event) => {
+			const point = event as Event & { clientX?: number; clientY?: number };
+			suspendForZoom(point.clientX, point.clientY);
 		};
 
 		const handlePointerDown = (event: PointerEvent) => {
@@ -345,6 +384,9 @@ export function RailPeek({
 			capture: true,
 			passive: true,
 		});
+		viewport.addEventListener("gesturestart", handleGesture, true);
+		viewport.addEventListener("gesturechange", handleGesture, true);
+		viewport.addEventListener("gestureend", handleGesture, true);
 		viewport.addEventListener("pointerdown", handlePointerDown, true);
 		window.addEventListener("pointerup", handlePointerUp, true);
 		window.addEventListener("pointercancel", handlePointerUp, true);
@@ -357,6 +399,9 @@ export function RailPeek({
 			viewport.removeEventListener("pointermove", handlePointerMove);
 			viewport.removeEventListener("pointerleave", handlePointerLeave);
 			viewport.removeEventListener("wheel", handleWheel, true);
+			viewport.removeEventListener("gesturestart", handleGesture, true);
+			viewport.removeEventListener("gesturechange", handleGesture, true);
+			viewport.removeEventListener("gestureend", handleGesture, true);
 			viewport.removeEventListener("pointerdown", handlePointerDown, true);
 			window.removeEventListener("pointerup", handlePointerUp, true);
 			window.removeEventListener("pointercancel", handlePointerUp, true);
