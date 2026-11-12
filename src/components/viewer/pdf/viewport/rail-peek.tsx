@@ -1,0 +1,324 @@
+import { useViewportElement } from "@embedpdf/plugin-viewport/react";
+import { type RefObject, useEffect, useRef } from "react";
+import { EMBED_PAGE_ATTR, pageElByIndex } from "@/components/viewer/pdf/coords";
+import { railPeekBandWidth, railPeekScrollDelta } from "@/lib/pdf/rail-peek";
+
+/** Strip along the viewport's right edge that arms the peek. */
+const PEEK_EDGE_PX = 28;
+/** Rest on the edge strip or on a commented highlight before panning. */
+const PEEK_DWELL_MS = 160;
+/** Grace for moving from the page onto a revealed card. */
+const PEEK_LEAVE_MS = 420;
+/**
+ * How long a highlight-hover reveal stays put. Panning moves the text out from
+ * under the pointer, so the hover that started it cannot keep the rail open;
+ * give the reader time to read the revealed card before sliding back.
+ */
+const PEEK_HOVER_HOLD_MS = 2600;
+/** Clearance kept between the revealed rail and the viewport edge. */
+const PEEK_MARGIN_PX = 8;
+/**
+ * Cap for the reveal pan. A page wider than this has its right edge well
+ * outside the viewport, so a hover must not drag the view across the page.
+ */
+const PEEK_MAX_PAN_PX = 240;
+
+type RailPeekProps = {
+	/** PDF host, used to measure the page beside the pointer. */
+	hostRef: RefObject<HTMLDivElement | null>;
+	/** Outer width of the page-outside comment card column. */
+	railWidth: number;
+	/** True when the 1-based page carries comment cards worth revealing. */
+	hasCommentsOnPage: (pageNumber: number) => boolean;
+	/** Comment whose highlight is hovered; reveals the rail that holds its card. */
+	hoveredCommentId?: string | null;
+	/** 1-based page whose card editor is open; reveals without any hover. */
+	revealPage?: number | null;
+	/** Keep the rail revealed while a card editor owns focus. */
+	holdOpen?: boolean;
+};
+
+type RailPeekApi = {
+	/** Pan towards the card column at the last pointer position. */
+	peek: () => void;
+	/** Pan towards the card column for one page, whatever the pointer does. */
+	revealPage: (pageNumber: number) => void;
+	/** Retract after the leave grace unless the pointer is on the rail. */
+	release: () => void;
+};
+
+/**
+ * Reveal the comment rail by panning the viewport.
+ *
+ * Comment cards live outside the page's right edge and the reader reserves no
+ * space for them, so at fit-width the card column sits just beyond the
+ * viewport. Resting on the right edge, or hovering a commented highlight,
+ * scrolls the viewport horizontally just far enough to show the column;
+ * leaving it scrolls back. Nothing about page width, zoom or fit-width changes,
+ * so zooming never drags the page sideways.
+ *
+ * Must render inside `DockviewViewport` (ViewportElementContext).
+ */
+export function RailPeek({
+	hostRef,
+	railWidth,
+	hasCommentsOnPage,
+	hoveredCommentId = null,
+	revealPage = null,
+	holdOpen = false,
+}: RailPeekProps) {
+	const viewportRef = useViewportElement();
+	const hasCommentsRef = useRef(hasCommentsOnPage);
+	hasCommentsRef.current = hasCommentsOnPage;
+	const holdOpenRef = useRef(holdOpen);
+	holdOpenRef.current = holdOpen;
+	const apiRef = useRef<RailPeekApi | null>(null);
+
+	useEffect(() => {
+		const viewport = viewportRef?.current;
+		if (!viewport) return;
+
+		let revealed = false;
+		let savedScrollLeft = 0;
+		let targetScrollLeft = 0;
+		let dwell: ReturnType<typeof setTimeout> | null = null;
+		let leave: ReturnType<typeof setTimeout> | null = null;
+		let hold: ReturnType<typeof setTimeout> | null = null;
+		let lastPointer: { x: number; y: number } | null = null;
+		let pressed = false;
+
+		const clearDwell = () => {
+			if (dwell === null) return;
+			clearTimeout(dwell);
+			dwell = null;
+		};
+		const clearLeave = () => {
+			if (leave === null) return;
+			clearTimeout(leave);
+			leave = null;
+		};
+		const clearHold = () => {
+			if (hold === null) return;
+			clearTimeout(hold);
+			hold = null;
+		};
+
+		const bandWidth = () =>
+			railPeekBandWidth({
+				revealed,
+				edge: PEEK_EDGE_PX,
+				railWidth,
+				margin: PEEK_MARGIN_PX,
+			});
+
+		const inBand = (clientX: number, clientY: number) => {
+			const rect = viewport.getBoundingClientRect();
+			if (clientY < rect.top || clientY > rect.bottom) return false;
+			return clientX >= rect.right - bandWidth() && clientX <= rect.right;
+		};
+
+		/** Rendered page under the pointer; pages stack vertically. */
+		const pageAt = (clientY: number) => {
+			const host = hostRef.current;
+			if (!host) return null;
+			for (const element of host.querySelectorAll<HTMLElement>(
+				`[${EMBED_PAGE_ATTR}]`,
+			)) {
+				const rect = element.getBoundingClientRect();
+				if (rect.height <= 0) continue;
+				if (clientY < rect.top || clientY > rect.bottom) continue;
+				const pageIndex = Number(element.getAttribute(EMBED_PAGE_ATTR));
+				return { pageNumber: pageIndex + 1, rect };
+			}
+			return null;
+		};
+
+		const restore = () => {
+			clearDwell();
+			clearLeave();
+			clearHold();
+			if (!revealed) return;
+			if (holdOpenRef.current) return;
+			revealed = false;
+			// The reader scrolled or zoomed since the reveal: keep their view.
+			if (Math.abs(viewport.scrollLeft - targetScrollLeft) > 2) return;
+			viewport.scrollTo({ left: savedScrollLeft, behavior: "smooth" });
+		};
+
+		const revealAt = (clientY: number, soft = false) => {
+			clearDwell();
+			if (revealed || pressed) return;
+			const page = pageAt(clientY);
+			if (!page) return;
+			revealPageRect(page.pageNumber, page.rect, soft);
+		};
+
+		const revealPageRect = (
+			pageNumber: number,
+			rect: { right: number },
+			soft: boolean,
+		) => {
+			if (revealed || pressed) return;
+			if (!hasCommentsRef.current(pageNumber)) return;
+			const delta = railPeekScrollDelta({
+				pageRight: rect.right,
+				viewportRight: viewport.getBoundingClientRect().right,
+				railWidth,
+				margin: PEEK_MARGIN_PX,
+				maxPan: PEEK_MAX_PAN_PX,
+			});
+			if (delta === null) return;
+			const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
+			const from = viewport.scrollLeft;
+			const to = Math.min(maxScrollLeft, from + delta);
+			if (to - from < 2) return;
+			savedScrollLeft = from;
+			targetScrollLeft = to;
+			revealed = true;
+			clearLeave();
+			clearHold();
+			if (soft) {
+				hold = setTimeout(() => {
+					hold = null;
+					release();
+				}, PEEK_HOVER_HOLD_MS);
+			}
+			viewport.scrollTo({ left: to, behavior: "smooth" });
+		};
+
+		const revealAtPointer = (soft: boolean) => {
+			if (pressed) return;
+			if (lastPointer) revealAt(lastPointer.y, soft);
+		};
+
+		/** Editor opened from the toolbar / annotations panel. */
+		const revealForPage = (pageNumber: number) => {
+			const element = pageElByIndex(hostRef.current, pageNumber - 1);
+			if (!element) return;
+			revealPageRect(pageNumber, element.getBoundingClientRect(), false);
+		};
+
+		const armDwell = (clientY: number) => {
+			if (dwell !== null || pressed) return;
+			dwell = setTimeout(() => {
+				dwell = null;
+				revealAt(clientY);
+			}, PEEK_DWELL_MS);
+		};
+
+		const release = () => {
+			clearDwell();
+			if (!revealed || holdOpenRef.current || hold !== null) return;
+			// The pointer may be on its way to a card: the band keeps it open.
+			if (lastPointer && inBand(lastPointer.x, lastPointer.y)) return;
+			clearLeave();
+			leave = setTimeout(restore, PEEK_LEAVE_MS);
+		};
+
+		apiRef.current = {
+			peek: () => revealAtPointer(true),
+			revealPage: revealForPage,
+			release,
+		};
+
+		const handlePointerMove = (event: PointerEvent) => {
+			lastPointer = { x: event.clientX, y: event.clientY };
+			if (event.pointerType === "touch" || pressed) return;
+			if (holdOpenRef.current) {
+				clearLeave();
+				return;
+			}
+			if (revealed) {
+				if (inBand(event.clientX, event.clientY)) clearLeave();
+				else release();
+				return;
+			}
+			if (inBand(event.clientX, event.clientY)) armDwell(event.clientY);
+			else clearDwell();
+		};
+
+		const handlePointerLeave = () => {
+			lastPointer = null;
+			release();
+		};
+
+		// A wheel or a press is reading intent elsewhere; retract rather than
+		// fight the gesture. Wheel over a card keeps the rail (editor in use).
+		const handleWheel = (event: WheelEvent) => {
+			clearDwell();
+			if (!revealed) return;
+			// ⌘/Ctrl+wheel is zoom: its own commit owns the scroll position now.
+			if (event.ctrlKey || event.metaKey) {
+				clearLeave();
+				clearHold();
+				revealed = false;
+				return;
+			}
+			const target = event.target;
+			if (target instanceof Element && target.closest("[data-pdf-chrome]")) {
+				return;
+			}
+			restore();
+		};
+
+		const handlePointerDown = (event: PointerEvent) => {
+			pressed = true;
+			clearDwell();
+			if (!revealed) return;
+			const target = event.target;
+			if (target instanceof Element && target.closest("[data-pdf-chrome]")) {
+				return;
+			}
+			restore();
+		};
+
+		const handlePointerUp = () => {
+			pressed = false;
+		};
+
+		viewport.addEventListener("pointermove", handlePointerMove, {
+			passive: true,
+		});
+		viewport.addEventListener("pointerleave", handlePointerLeave);
+		viewport.addEventListener("wheel", handleWheel, {
+			capture: true,
+			passive: true,
+		});
+		viewport.addEventListener("pointerdown", handlePointerDown, true);
+		window.addEventListener("pointerup", handlePointerUp, true);
+		window.addEventListener("pointercancel", handlePointerUp, true);
+
+		return () => {
+			clearDwell();
+			clearLeave();
+			clearHold();
+			apiRef.current = null;
+			viewport.removeEventListener("pointermove", handlePointerMove);
+			viewport.removeEventListener("pointerleave", handlePointerLeave);
+			viewport.removeEventListener("wheel", handleWheel, true);
+			viewport.removeEventListener("pointerdown", handlePointerDown, true);
+			window.removeEventListener("pointerup", handlePointerUp, true);
+			window.removeEventListener("pointercancel", handlePointerUp, true);
+		};
+	}, [hostRef, railWidth, viewportRef]);
+
+	// Hovering a commented highlight (or its card) reveals the column that
+	// holds the note; letting go retracts after the leave grace.
+	useEffect(() => {
+		if (hoveredCommentId) apiRef.current?.peek();
+		else apiRef.current?.release();
+	}, [hoveredCommentId]);
+
+	// A card editor opened from the toolbar or the annotations panel needs the
+	// column on screen even though nothing was hovered.
+	useEffect(() => {
+		if (revealPage != null) apiRef.current?.revealPage(revealPage);
+	}, [revealPage]);
+
+	// Keep the revealed column in place while a card editor owns focus.
+	useEffect(() => {
+		if (!holdOpen) apiRef.current?.release();
+	}, [holdOpen]);
+
+	return null;
+}

@@ -435,6 +435,8 @@ export type PdfPageModeSlice = {
 	translationOnly?: boolean;
 	/** PDFs outside papers/: annotation / translate / layout layers stay off. */
 	plainViewer?: boolean;
+	/** Narrow embeds show active comment cards inside the page. */
+	insetCommentCards?: boolean;
 };
 
 export type PdfPageHandlers = {
@@ -1794,7 +1796,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				{!mode.plainViewer ? (
 					<CommentCardsLayer
 						items={shownComments}
-						inset
+						inset={mode.insetCommentCards}
 						pageWidthPx={width}
 						pageHeightPx={height}
 						editingId={marks.editingCommentId}

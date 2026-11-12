@@ -102,6 +102,7 @@ import {
 	excludeOverlappingPdfTextLinks,
 	type PdfTextLink,
 } from "@/components/viewer/pdf/layers/citation-links";
+import { COMMENT_RAIL_WIDTH_PX } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import { PDF_LINK_ANNOTATION_CONFIG } from "@/components/viewer/pdf/layers/link-annotation";
 import {
 	type PdfPageHandlers,
@@ -128,6 +129,7 @@ import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
 import { PdfHistoryKeyHandler } from "@/components/viewer/pdf/viewport/pdf-history-key-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
+import { RailPeek } from "@/components/viewer/pdf/viewport/rail-peek";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
 import { useLibraryStore, useSettings } from "@/hooks/use-app-stores";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
@@ -494,6 +496,7 @@ function PdfViewerInner({
 	baseDocId,
 	embeddedTarget,
 	embeddedTargetRequest,
+	insetCommentCards = false,
 	rememberReadingPosition = true,
 	sourceBytes = null,
 	paperAbsPath = null,
@@ -1591,6 +1594,11 @@ function PdfViewerInner({
 	const hoveredCommentPage = hoveredCommentId
 		? (commentPageById.get(hoveredCommentId) ?? 0)
 		: 0;
+	/** Drives the right-edge peek: only pan when this page has cards to show. */
+	const hasCommentsOnPage = useCallback(
+		(pageNumber: number) => (commentsByPage.get(pageNumber)?.length ?? 0) > 0,
+		[commentsByPage],
+	);
 
 	const {
 		handleOpenPin,
@@ -1985,10 +1993,17 @@ function PdfViewerInner({
 			regionSelecting,
 			visualCropPending,
 			visualDraftOpen: false,
+			insetCommentCards,
 			translationOnly,
 			plainViewer,
 		}),
-		[regionSelecting, visualCropPending, translationOnly, plainViewer],
+		[
+			regionSelecting,
+			visualCropPending,
+			translationOnly,
+			plainViewer,
+			insetCommentCards,
+		],
 	);
 
 	const handleLayoutRegionClick = useCallback(
@@ -2536,6 +2551,16 @@ function PdfViewerInner({
 					hostRef={hostRef}
 					allowLeftDrag={!translationOnly && !regionSelecting}
 				/>
+				{!translationOnly && !plainViewer ? (
+					<RailPeek
+						hostRef={hostRef}
+						railWidth={COMMENT_RAIL_WIDTH_PX}
+						hasCommentsOnPage={hasCommentsOnPage}
+						hoveredCommentId={hoveredCommentId}
+						revealPage={railEdit ? railEdit.pageIndex + 1 : null}
+						holdOpen={Boolean(railEdit)}
+					/>
+				) : null}
 				<ActiveCardScrollSync
 					active={Boolean(activeCard) || Boolean(selectionMenu)}
 					onScroll={rePlaceFloatingOnScroll}

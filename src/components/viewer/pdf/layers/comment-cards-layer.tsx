@@ -2,12 +2,12 @@
  * Comment cards for annotated highlights / visual notes, stacked vertically
  * with collision avoidance and clamped into the page height.
  *
- * The reading surface reserves no space for comments. The app renders the
- * layer `inset`: cards sit inside the page's right edge and only the hovered,
- * editing, or brand-new card paints, so a comment peeks over the page instead
- * of a permanent rail narrowing the fit-width reading area. `inset` stays
- * optional for a future docked rail; the non-inset placement pins cards just
- * outside the page's right edge (`left: 100%`).
+ * Cards live outside the page's right edge (`left: 100%`), but the reading
+ * surface reserves no space for them: at fit-width the column sits just past
+ * the viewport and `RailPeek` pans the viewport when the pointer dwells on the
+ * right edge. Narrow note embeds render `inset` instead (cards inside the
+ * page, only the hovered / editing / brand-new one visible), because their
+ * viewport is too small to peek without moving the content.
  *
  * Click a card to edit the note in place (Notion-style): the body becomes a
  * Markdown editor, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating
@@ -61,6 +61,11 @@ import {
 export const COMMENT_CARD_WIDTH_PX = 200;
 /** Horizontal gap between the page edge and the card. */
 export const COMMENT_CARD_GAP_PX = 8;
+/** Extra px so ring + shadow aren't clipped by the scroll overflow. */
+export const COMMENT_RAIL_BLEED_PX = 4;
+/** Outer width of the page-outside card column (not reserved anywhere). */
+export const COMMENT_RAIL_WIDTH_PX =
+	COMMENT_CARD_WIDTH_PX + COMMENT_CARD_GAP_PX + COMMENT_RAIL_BLEED_PX;
 
 const CARD_GAP_PX = 8;
 /** text-xs leading-relaxed ≈ 12px × 1.625. */

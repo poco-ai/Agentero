@@ -67,6 +67,11 @@ export type PdfViewerProps = {
 	embeddedTarget?: PdfNavigationTarget | null;
 	/** Increment to return to the same embed target without reopening the PDF. */
 	embeddedTargetRequest?: number;
+	/**
+	 * Draw comment cards inside the page instead of the page-outside rail.
+	 * Narrow note embeds cannot peek the rail without panning their content.
+	 */
+	insetCommentCards?: boolean;
 	/** Note embeds keep their own scroll position instead of changing the paper's last-read page. */
 	rememberReadingPosition?: boolean;
 	/** Absolute path to paper folder for annotations/marks persistence */
