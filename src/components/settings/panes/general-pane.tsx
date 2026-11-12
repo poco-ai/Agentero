@@ -165,6 +165,42 @@ export function GeneralPane({
 					? "general.institutionProxy.probeFail"
 					: "general.institutionProxy.probeIdle",
 	);
+	const institutionProxyTypeRow = (
+		<SettingsRow
+			label={t("general.institutionProxy.typeLabel")}
+			htmlFor="institution-proxy-type"
+		>
+			<Select
+				value={settings.institutionProxyType}
+				onValueChange={(institutionProxyType) =>
+					patch({ institutionProxyType })
+				}
+			>
+				<SelectTrigger
+					id="institution-proxy-type"
+					size="sm"
+					className="h-8 w-44 text-xs"
+					disabled={!isTauri()}
+				>
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="auto" className="text-xs">
+						{t("general.institutionProxy.typeAuto")}
+					</SelectItem>
+					<SelectItem value="ezproxy" className="text-xs">
+						{t("general.institutionProxy.typeEzproxy")}
+					</SelectItem>
+					<SelectItem value="wengine" className="text-xs">
+						{t("general.institutionProxy.typeWengine")}
+					</SelectItem>
+					<SelectItem value="subdomain" className="text-xs">
+						{t("general.institutionProxy.typeSubdomain")}
+					</SelectItem>
+				</SelectContent>
+			</Select>
+		</SettingsRow>
+	);
 	const [seedingTemplate, setSeedingTemplate] = useState(false);
 
 	// Custom note mode seeds `.agentero/templates/NOTES.md` in the active vault;
@@ -521,45 +557,12 @@ export function GeneralPane({
 				/>
 			</SettingsGroup>
 			<SettingsGroup>
-				<SettingsRow
-					label={t("general.institutionProxy.typeLabel")}
-					htmlFor="institution-proxy-type"
-				>
-					<Select
-						value={settings.institutionProxyType}
-						onValueChange={(institutionProxyType) =>
-							patch({ institutionProxyType })
-						}
-					>
-						<SelectTrigger
-							id="institution-proxy-type"
-							size="sm"
-							className="h-8 w-44 text-xs"
-							disabled={!isTauri()}
-						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="auto" className="text-xs">
-								{t("general.institutionProxy.typeAuto")}
-							</SelectItem>
-							<SelectItem value="ezproxy" className="text-xs">
-								{t("general.institutionProxy.typeEzproxy")}
-							</SelectItem>
-							<SelectItem value="wengine" className="text-xs">
-								{t("general.institutionProxy.typeWengine")}
-							</SelectItem>
-							<SelectItem value="subdomain" className="text-xs">
-								{t("general.institutionProxy.typeSubdomain")}
-							</SelectItem>
-						</SelectContent>
-					</Select>
-				</SettingsRow>
 				<InstitutionProxyRow
 					htmlFor="institution-proxy-prefix"
 					label={t("general.institutionProxy.label")}
 					prefix={institutionProxyPrefixDraft}
 					cookie={institutionProxyCookieDraft}
+					typeRow={institutionProxyTypeRow}
 					prefixPlaceholder={
 						settings.institutionProxyType === "ezproxy"
 							? "https://webvpn.example.edu/login?url="
