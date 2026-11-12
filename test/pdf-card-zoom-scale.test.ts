@@ -52,5 +52,7 @@ describe("PDF comment rail keeps a fixed UI size", () => {
 		expect(html).toContain("height:800px");
 		expect(html).not.toContain("zoom:");
 		expect(html).not.toContain("transform:scale(");
+		// Cards hug their content under a hard height cap.
+		expect(html).toContain("max-height:420px");
 	});
 });

@@ -97,7 +97,7 @@ PDF 阅读区域支持 `⌘/Ctrl+Z` 撤销、`⌘/Ctrl+Shift+Z` 重做文字高�
 - 评论列中已保存批注和新选区批注的输入框支持 ⌘/Ctrl+B、⌘/Ctrl+I，将选中文字包成 Markdown 加粗或斜体标记；再次按相同快捷键可去掉标记。
 - 已保存的文字批注在评论卡 hover 工具栏里有「加入侧边栏对话」，和视觉批注用同一个图标。点击后原文和备注作为行内引用块插在 Agent 输入框光标处；同一条批注再次加入只刷新这一块。
 - 文字高亮与视觉区域批注的备注以原始 Markdown 字符串存储；PDF 评论卡在非编辑状态和笔记中的批注嵌入卡均渲染 Markdown，编辑时显示源码。
-- PDF 评论卡保留原有 224px 宽度；长备注悬停展开后可在卡内纵向滚动，超宽内容可横向滚动。
+- PDF 评论卡与 Ask / 翻译浮卡同一套尺寸策略：固定 UI 宽度（卡片 200px、选区草稿 224px），不随 PDF 缩放放大缩小；高度按卡片实测内容自适应，空态收紧，超长备注 / 多行会话在卡内纵向滚动（上限 420px），超宽表格卡内横向滚动。
 - 提问 Agent 可与面板默认 Agent 分开配置。
 - 坐标归一化；多段 rect 支持双栏。
 - 批注高亮与划词底色画在未旋转的 PDF 点坐标上。带 `/Rotate` 的页面用与瓦片相同的变换（`transformRect` / CSS matrix）把这层旋进正立页框，缩放后仍贴着字形；点击命中经 `restorePosition` 回到同一坐标系。正立页不插入这层变换。
@@ -146,7 +146,7 @@ PDF 快速对话在会话接收后同时把空的 assistant 消息及其 `agentS
 | `src/components/viewer/pdf/host-dom.ts` | 宿主 DOM 判定：可编辑目标、原生选区归属、文档关闭竞态错误 |
 | `src/components/viewer/pdf/region-crop.ts` | PDF 区域裁剪与 Agent 图片编码 |
 | `src/lib/pdf/engine.ts` + `src/components/viewer/pdf/engine-provider.tsx` | viewer / headless 共享创建与销毁策略：worker 优先 + 就绪探针 + 主线程回退 + 本机字体回退；宿主只负责 React 生命周期 |
-| `src/components/viewer/pdf/layers/` | 页内绘制层：`page-layers`（memo 单页栈）/ `agentero-render-layer`（可见页光栅渲染、旋转与位图缓存生命周期）/ `reading-annotation-renderers`（稳定的只读批注 renderer 注册表）/ `citation-links` / `layout-translate-overlay` / `region-select-layer` / `selection-gutter` / `comment-cards-layer`（批注评论列：页右缘常驻卡片 + `layoutCommentCards` 纵向避让；选区竖向评论入口 hover 展开；点击就地编辑；hover 卡片或原文命中区时页内高亮叠半透明强调层，并用 `commentConnectorPath` 画页缘直角连接细线（多段高亮锚到离卡片最近的段落，而非整段竖直中点）；线色与视觉选框相同，用默认主题中性色（浅色近黑、深色近白），不跟随外观配色） |
+| `src/components/viewer/pdf/layers/` | 页内绘制层：`page-layers`（memo 单页栈）/ `agentero-render-layer`（可见页光栅渲染、旋转与位图缓存生命周期）/ `reading-annotation-renderers`（稳定的只读批注 renderer 注册表）/ `citation-links` / `layout-translate-overlay` / `region-select-layer` / `selection-gutter` / `comment-cards-layer`（批注评论列：页右缘常驻卡片 + `layoutCommentCards` 纵向避让（首帧用估算高度占位，卡片挂载后按 `ResizeObserver` 实测高度重排）；固定 UI 尺寸、高度随内容自适应、超长内容卡内滚动；选区竖向评论入口 hover 展开；点击就地编辑；hover 卡片或原文命中区时页内高亮叠半透明强调层，并用 `commentConnectorPath` 画页缘直角连接细线（多段高亮锚到离卡片最近的段落，而非整段竖直中点）；线色与视觉选框相同，用默认主题中性色（浅色近黑、深色近白），不跟随外观配色） |
 | `src/components/viewer/pdf/chrome/` | 纯展示 chrome：`pdf-toolbar`（右上：框选 / 全文翻译，常显；翻译进行中显示中性色阶段胶囊、底部细进度线与停止按钮）/ `pdf-left-toolbar` / `pdf-find-bar` / `pdf-outline-panel`（+`outline-tree`）/ `pdf-references-panel` / `pdf-figures-panel` / `pdf-bottom-bar`（页码 + 缩放滑动条 + 适应宽度 / 适应整页 + 纸色）/ `pdf-card-stack`（portal 卡片栈）。共享材质见 `pdf-chrome-surface.ts`（小芯片轻玻璃、侧栏厚材质、划词菜单玻璃、长文卡片近实色；`data-pdf-chrome` 供 `prefers-reduced-transparency` 实色回退）。左上工具栏自动显隐（`use-pdf-chrome-visibility`）：滚动中或指针靠近顶部区域时显示，静读时以 opacity + 轻微上移/缩放 materialize（`prefers-reduced-motion` 仅淡入淡出）；面板打开 / ⌘F 时保持可见；左侧大纲/引用/图表面板自左滑入；⌘F 查找栏自右上角 zoom-in；底部页码条按页数位数扩展输入宽度，并限制在视口内以适配窄面板。阅读区底色 `bg-muted/40`，与纸面 tone 分层 |
 | `src/components/viewer/pdf/cards/` | 划词与 mark 卡片：`selection-menu` / `highlight-color-stack`（高亮色点叠放与向左展开）/ `selection-card`（共用壳）/ `ask-popover` / `translate-card` / `visual-trace-card` / `visual-annotation-editor` / `formula-annotation-card` / `citation-preview` |
 | `src/components/viewer/pdf/viewport/` | 宿主接线：`dockview-viewport`（resize 门控 + 滚动指标按帧提交；上报真实可视尺寸，`rightGutter` 为评论列预留页外空间，zoom 单独扣除该空间）/ `wheel-zoom-handler` / `pan-handler`（中键 / 空格拖拽平移的空格归属判定与光标 class）/ `keyboard-scroll-handler`（↑↓ 连续滚动或逐页 / 横向翻页，归属规则与空格平移一致）/ `active-card-scroll-sync` |

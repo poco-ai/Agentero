@@ -148,6 +148,45 @@ describe("layoutCommentCards", () => {
 			withoutMessages[0]?.heightPx ?? 0,
 		);
 	});
+
+	it("prefers a measured height over the layout seed estimate", () => {
+		const estimate = layoutCommentCards([comment("a", 0.2)], 800);
+		const measured = layoutCommentCards(
+			[comment("a", 0.2)],
+			800,
+			null,
+			new Map([["a", 260]]),
+		);
+		expect(measured[0].heightPx).toBe(260);
+		expect(measured[0].heightPx).not.toBe(estimate[0].heightPx);
+	});
+
+	it("stacks against measured heights with the avoidance gap", () => {
+		const laid = layoutCommentCards(
+			[comment("a", 0.3), comment("b", 0.31)],
+			800,
+			null,
+			new Map([
+				["a", 200],
+				["b", 120],
+			]),
+		);
+		const [a, b] = laid;
+		expect(a.heightPx).toBe(200);
+		expect(b.topPx).toBeGreaterThanOrEqual(a.topPx + a.heightPx + 8);
+		expect(b.topPx + b.heightPx).toBeLessThanOrEqual(800);
+	});
+
+	it("keeps the estimate when no measurement exists yet", () => {
+		const seed = layoutCommentCards([comment("a", 0.2)], 800);
+		const fallback = layoutCommentCards(
+			[comment("a", 0.2)],
+			800,
+			null,
+			new Map(),
+		);
+		expect(fallback[0].heightPx).toBe(seed[0].heightPx);
+	});
 });
 
 describe("commentConnectorPath", () => {
