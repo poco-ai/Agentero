@@ -608,6 +608,7 @@ function PdfViewerInner({
 
 	// Catalog title + link for the ask card's external "open in chat" query.
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
+	const pdfScrollStrategy = useSettings((s) => s.pdfScrollStrategy);
 	const autoTranslateSelection = useSettings(
 		(s) => s.translate.autoTranslateSelection,
 	);
@@ -2388,6 +2389,16 @@ function PdfViewerInner({
 		zoomCapRef.current?.requestZoom(next);
 	}, []);
 	const handleFitWidth = useCallback(() => {
+		const centerReadingSurface = () => {
+			// Horizontal paging uses scrollLeft as its page axis, so fitting a page
+			// must not recenter it like a vertical spread.
+			if (pdfScrollStrategy === "horizontal") return;
+			const viewport = hostRef.current?.querySelector<HTMLElement>(
+				"[data-pdf-viewport]",
+			);
+			if (viewport && viewport.scrollLeft !== 0) viewport.scrollLeft = 0;
+		};
+
 		const requestFitWidth = (retry = false) => {
 			const capability = zoomCapRef.current;
 			if (!capability) {
@@ -2404,7 +2415,13 @@ function PdfViewerInner({
 				// once on the next frame after ResizeObserver has committed them.
 				if (!retry) {
 					window.requestAnimationFrame(() => requestFitWidth(true));
+					return;
 				}
+				// The zoom plugin derives its scroll from the pre-fit viewport, and
+				// off-page comment cards add horizontal room that lets a peeked rail
+				// survive the fit. Its scroll request lands next frame; recenter
+				// after it so the page fills the whole reading width, centered.
+				window.requestAnimationFrame(centerReadingSurface);
 			} catch {
 				// The document scope can be recreated while a PDF buffer is reloading.
 				// Give the next render a chance to expose a fresh capability.
@@ -2415,7 +2432,7 @@ function PdfViewerInner({
 		};
 
 		requestFitWidth();
-	}, []);
+	}, [pdfScrollStrategy]);
 
 	return (
 		<div
