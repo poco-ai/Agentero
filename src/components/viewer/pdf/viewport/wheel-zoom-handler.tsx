@@ -112,6 +112,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 		let previewElementWidth = 0;
 		let previewViewportWidth = 0;
 		let pointer: ZoomGesturePoint = { x: 0, y: 0 };
+		let commitTarget: ZoomGesturePoint = { x: 0, y: 0 };
 		/** Gesture point in the transformed element's own coordinates. */
 		let local = { x: 0, y: 0 };
 		let watchdog: ReturnType<typeof setTimeout> | null = null;
@@ -182,7 +183,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 						pageRect,
 						elementRect,
 						anchor,
-						pointer,
+						commitTarget,
 						expectedWidth,
 					);
 					element.style.transform = `translate(${offset.x}px, ${offset.y}px) scale(${offset.scale})`;
@@ -194,11 +195,8 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 				return;
 			}
 
-			// The gesture wrapper recenters with marginLeft after layout, in a
-			// resize observer that runs after this frame's anchor correction.
-			// Write the final margin first so that correction measures the
-			// position the observer will keep, instead of letting a collapsing
-			// margin slide the page sideways once the transform is gone.
+			// The wrapper's ResizeObserver may center the new layout after this
+			// frame. Apply that margin before measuring the final anchor.
 			const readingWidth = readingWidthOf(container);
 			element.style.marginLeft = `${zoomGestureCenteringMargin(
 				element.offsetWidth,
@@ -211,8 +209,8 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 				const current = page.getBoundingClientRect();
 				const anchoredX = current.left + current.width * anchor.x;
 				const anchoredY = current.top + current.height * anchor.y;
-				container.scrollLeft += anchoredX - pointer.x;
-				container.scrollTop += anchoredY - pointer.y;
+				container.scrollLeft += anchoredX - commitTarget.x;
+				container.scrollTop += anchoredY - commitTarget.y;
 			}
 			// The zoom plugin also queues a viewport scroll for the next frame.
 			// Once the real page is anchored, that older request must not undo it.
@@ -226,12 +224,27 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 			running = false;
 			clearWatchdog();
 			const containerRect = container.getBoundingClientRect();
-			// The focus keeps the gesture point in place once the real layout lands.
-			const focus = {
-				vx: pointer.x - containerRect.left,
-				vy: pointer.y - containerRect.top,
-			};
+			// Ask EmbedPDF to keep the PDF point where the preview currently shows
+			// it. A centered narrow-page preview may have moved it off the pointer.
 			const target = previewZoom * previewScale;
+			const anchor = pendingAnchorRef.current;
+			const previewPage = anchor
+				? container.querySelector<HTMLElement>(
+						`[${EMBED_PAGE_ATTR}="${anchor.pageIndex}"]`,
+					)
+				: null;
+			const previewRect = previewPage?.getBoundingClientRect();
+			commitTarget =
+				anchor && previewRect
+					? {
+							x: previewRect.left + previewRect.width * anchor.x,
+							y: previewRect.top + previewRect.height * anchor.y,
+						}
+					: pointer;
+			const focus = {
+				vx: commitTarget.x - containerRect.left,
+				vy: commitTarget.y - containerRect.top,
+			};
 			if (Math.abs(target - zoomLevelRef.current) < ZOOM_COMMIT_EPSILON) {
 				resetPreview();
 				container.dispatchEvent(new Event("pdf-zoom-settled"));

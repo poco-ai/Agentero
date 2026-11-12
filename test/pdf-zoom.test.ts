@@ -59,7 +59,8 @@ describe("zoomPreviewTranslate", () => {
 describe("zoomCommitPreviewTransform", () => {
 	it("keeps the same page point fixed across old and new layout sizes", () => {
 		const anchor = { x: 0.5, y: 0.5 };
-		const pointer = { x: 300, y: 400 };
+		// Narrow-page centering puts the point away from the gesture pointer.
+		const previewPosition = { x: 350, y: 400 };
 		const element = { left: 50, top: 100 };
 		for (const page of [
 			{ left: 100, top: 200, width: 200, height: 400 },
@@ -69,16 +70,16 @@ describe("zoomCommitPreviewTransform", () => {
 				page,
 				element,
 				anchor,
-				pointer,
+				previewPosition,
 				400,
 			);
 			expect(scale * page.width).toBe(400);
 			expect(
 				element.left + x + scale * (page.left + page.width / 2 - element.left),
-			).toBe(pointer.x);
+			).toBe(previewPosition.x);
 			expect(
 				element.top + y + scale * (page.top + page.height / 2 - element.top),
-			).toBe(pointer.y);
+			).toBe(previewPosition.y);
 		}
 	});
 });
@@ -88,7 +89,6 @@ describe("zoom gesture reading box", () => {
 		// The comment rail is outside the reading box and contributes no padding.
 		const readingWidth = zoomReadingWidth(900, 20, 20);
 		expect(readingWidth).toBe(860);
-		// Fit-width already fills that box, so the gesture margin stays put.
 		expect(zoomGestureCenteringMargin(860, readingWidth)).toBe(0);
 		expect(zoomGestureCenteringMargin(400, readingWidth)).toBe(230);
 	});

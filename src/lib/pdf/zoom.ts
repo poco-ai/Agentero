@@ -76,9 +76,9 @@ export function zoomReadingWidth(
 }
 
 /**
- * Left margin that centers the gesture element inside the reading box.
- * Zero once the page fills that box, so a zoom commit does not collapse a
- * margin that was only there to center a narrower page.
+ * Center the gesture wrapper inside the symmetric reading area. Apply the
+ * settled margin before measuring the final zoom anchor so the wrapper's
+ * ResizeObserver cannot shift the page afterwards.
  */
 export function zoomGestureCenteringMargin(
 	elementWidth: number,
