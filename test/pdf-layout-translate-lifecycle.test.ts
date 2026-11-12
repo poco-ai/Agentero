@@ -141,6 +141,8 @@ function region(pageIndex: number): Item {
 		pageIndex,
 		bbox: { x: 0, y: 0, w: 1, h: 1 },
 		kind: "text",
+		label: "text",
+		score: 1,
 		readingOrder: pageIndex,
 		source: `Source ${pageIndex}`,
 	};

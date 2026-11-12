@@ -202,6 +202,11 @@ export {
 	resolveCaptionRole,
 	textFromRunsInBbox,
 } from "@/lib/pdf/layout/title-text";
+export {
+	isInsidePreservedRegion,
+	type LayoutPreserveReason,
+	preservedLayoutRegions,
+} from "@/lib/pdf/layout/translation-exclusions";
 export type {
 	LayoutAnalysisUiStatus,
 	PdfLayoutDocumentResult,

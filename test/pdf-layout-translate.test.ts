@@ -298,6 +298,185 @@ describe("listTranslatableLayoutRegions", () => {
 		]);
 		expect(list.map((r) => r.id)).toEqual(["body"]);
 	});
+
+	it("keeps bibliographic metadata and page furniture in the source language", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Attention Is All You Need",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace and Alan Turing",
+			}),
+			region({
+				id: "affiliation",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.2, y: 0.14, w: 0.6, h: 0.03 },
+				text: "Institute for Advanced Study, ada@example.org",
+			}),
+			region({
+				id: "abstract",
+				kind: "abstract",
+				pageIndex: 0,
+				readingOrder: 3,
+				bbox: { x: 0.1, y: 0.22, w: 0.8, h: 0.12 },
+				text: "The abstract stays translatable.",
+			}),
+			region({
+				id: "section",
+				kind: "header",
+				label: "paragraph_title",
+				pageIndex: 0,
+				readingOrder: 4,
+				bbox: { x: 0.1, y: 0.37, w: 0.4, h: 0.03 },
+				text: "1 Introduction",
+			}),
+			region({
+				id: "body",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 5,
+				bbox: { x: 0.1, y: 0.42, w: 0.8, h: 0.1 },
+				text: "Body prose.",
+			}),
+			region({
+				id: "caption",
+				kind: "figure_title",
+				pageIndex: 0,
+				readingOrder: 6,
+				bbox: { x: 0.1, y: 0.55, w: 0.8, h: 0.04 },
+				title: "Figure 1: Overview.",
+			}),
+			region({
+				id: "footnote",
+				kind: "text",
+				label: "footnote",
+				pageIndex: 0,
+				readingOrder: 7,
+				bbox: { x: 0.1, y: 0.9, w: 0.8, h: 0.04 },
+				text: "1 Corresponding author.",
+			}),
+			region({
+				id: "footer",
+				kind: "text",
+				label: "footer",
+				pageIndex: 0,
+				readingOrder: 8,
+				bbox: { x: 0.4, y: 0.97, w: 0.2, h: 0.02 },
+				text: "Published 2026",
+			}),
+			region({
+				id: "header-1",
+				kind: "header",
+				label: "header",
+				pageIndex: 0,
+				readingOrder: 9,
+				bbox: { x: 0.1, y: 0.01, w: 0.5, h: 0.02 },
+				text: "Journal of Testing 2026",
+			}),
+			region({
+				id: "header-2",
+				kind: "header",
+				label: "header",
+				pageIndex: 1,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.01, w: 0.5, h: 0.02 },
+				text: "Journal of Testing 2026",
+			}),
+			region({
+				id: "banner",
+				kind: "header",
+				label: "header",
+				pageIndex: 1,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.04, w: 0.7, h: 0.02 },
+				text: "Proceedings of Testing 2026",
+			}),
+			region({
+				id: "body-2",
+				kind: "text",
+				pageIndex: 1,
+				readingOrder: 1,
+				bbox: { x: 0.1, y: 0.2, w: 0.8, h: 0.1 },
+				text: "Second-page body prose.",
+			}),
+		]);
+		expect(list.map((r) => r.id)).toEqual([
+			"abstract",
+			"section",
+			"body",
+			"caption",
+			"body-2",
+		]);
+	});
+
+	it("does not mistake figure captions or section headings for running headers", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "caption-header",
+				kind: "header",
+				label: "header",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.03, w: 0.8, h: 0.04 },
+				text: "Figure 2: Translation quality.",
+				captionRole: "figure_main",
+			}),
+			region({
+				id: "section",
+				kind: "header",
+				label: "paragraph_title",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.1, y: 0.2, w: 0.4, h: 0.03 },
+				text: "2 Method",
+			}),
+		]);
+		expect(list.map((r) => r.id)).toEqual(["caption-header", "section"]);
+	});
+
+	it("limits the first-page metadata fallback when no abstract anchor exists", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "A Paper Without An Abstract",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace",
+			}),
+			region({
+				id: "body",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.32, w: 0.8, h: 0.1 },
+				text: "Body prose remains translatable.",
+			}),
+		]);
+		expect(list.map((r) => r.id)).toEqual(["body"]);
+	});
 });
 
 describe("fontSizeForLayoutTranslateBox", () => {

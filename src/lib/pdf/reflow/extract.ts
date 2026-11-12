@@ -6,7 +6,7 @@ import type {
 } from "@embedpdf/models";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
-import { isReferenceLayoutRegion } from "@/lib/pdf/layout/translation-exclusions";
+import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
@@ -336,6 +336,7 @@ export async function extractReflowDocument(
 	signal?: AbortSignal,
 ): Promise<ReflowDocument> {
 	const pages: ReflowDocument["pages"] = [];
+	const sourcePreservedIds = preservedLayoutRegions(regions);
 	for (const page of doc.pages) {
 		const selected = items.filter((i) => i.pageIndex === page.index);
 		if (!selected.length) continue;
@@ -433,11 +434,13 @@ export async function extractReflowDocument(
 		const pageRegions = regions.filter(
 			(r) => r.pageIndex === page.index && r.score >= LAYOUT_SIDEBAR_MIN_SCORE,
 		);
-		const references = pageRegions.filter(isReferenceLayoutRegion);
-		const referenceCharacters = new Set(
+		const sourcePreservedRegions = regions.filter(
+			(r) => r.pageIndex === page.index && sourcePreservedIds.has(r.id),
+		);
+		const sourcePreservedCharacters = new Set(
 			characters
 				.filter((c) =>
-					references.some((r) => centerInside(c.visualBox, r.rect)),
+					sourcePreservedRegions.some((r) => centerInside(c.visualBox, r.rect)),
 				)
 				.map((c) => c.index),
 		);
@@ -458,7 +461,7 @@ export async function extractReflowDocument(
 					(c) =>
 						!hidden.has(c.index) &&
 						!clipped.has(c.index) &&
-						!referenceCharacters.has(c.index) &&
+						!sourcePreservedCharacters.has(c.index) &&
 						!claimed.has(c.index) &&
 						centerInside(c.visualBox, box),
 				);
@@ -520,7 +523,7 @@ export async function extractReflowDocument(
 		const rotated = rotatedCharacterIndexes(characters);
 		for (const c of characters) {
 			if (
-				referenceCharacters.has(c.index) ||
+				sourcePreservedCharacters.has(c.index) ||
 				(c.textObjectId !== undefined &&
 					conflictingHeadingObjects.has(c.textObjectId))
 			)
@@ -551,7 +554,7 @@ export async function extractReflowDocument(
 				(c) =>
 					!hidden.has(c.index) &&
 					!clipped.has(c.index) &&
-					!referenceCharacters.has(c.index) &&
+					!sourcePreservedCharacters.has(c.index) &&
 					!claimed.has(c.index) &&
 					centerInside(c.visualBox, table.rect),
 			);

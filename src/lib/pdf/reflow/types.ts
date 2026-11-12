@@ -68,8 +68,8 @@ export type ReflowPage = {
 	obstacles: Box[];
 	coverage?: CharacterCoverage[];
 };
-/** Bump when the persisted character IR shape changes. */
-export const REFLOW_IR_SCHEMA_VERSION = 1;
+/** Bump when persisted character IR shape or extraction semantics change. */
+export const REFLOW_IR_SCHEMA_VERSION = 2;
 export type ReflowDocument = {
 	version: typeof REFLOW_IR_SCHEMA_VERSION;
 	pages: ReflowPage[];
