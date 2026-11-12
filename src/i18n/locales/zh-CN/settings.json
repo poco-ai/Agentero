@@ -278,7 +278,7 @@
 		},
 		"sound": {
 			"label": "应用内提示音",
-			"description": "Agent 需要你处理、回合完成或失败时播放轻提示音",
+			"description": "Agent 需要你处理，或回合、PDF 排版翻译结束或失败时播放轻提示音",
 			"preview": "试听"
 		},
 		"fonts": {

@@ -278,7 +278,7 @@
 		},
 		"sound": {
 			"label": "In-app sounds",
-			"description": "Quiet cues when an Agent needs you, finishes a turn, or fails",
+			"description": "Quiet cues when an Agent needs you, or a turn or PDF translation finishes or fails",
 			"preview": "Preview"
 		},
 		"fonts": {
