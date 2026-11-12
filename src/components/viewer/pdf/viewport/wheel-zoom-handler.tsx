@@ -5,6 +5,7 @@ import {
 import { useZoom } from "@embedpdf/plugin-zoom/react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
+import { cancelPendingViewportScroll } from "@/lib/pdf/scroll-sync";
 import { bindZoomGesture, type ZoomGesturePoint } from "@/lib/pdf/wheel-zoom";
 import {
 	clampZoomPreviewScale,
@@ -199,6 +200,9 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 				container.scrollLeft += anchoredX - pointer.x;
 				container.scrollTop += anchoredY - pointer.y;
 			}
+			// The zoom plugin also queues a viewport scroll for the next frame.
+			// Once the real page is anchored, that older request must not undo it.
+			cancelPendingViewportScroll(docId);
 			completeCommit();
 		};
 		settleCommitRef.current = settleCommit;
