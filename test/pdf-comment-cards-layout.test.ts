@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/viewer/pdf/layers/comment-markdown-editor", () => ({
+	CommentMarkdownEditor: () => null,
+}));
 
 import {
 	COMMENT_CARD_GAP_PX,
+	CommentCardsLayer,
 	commentConnectorPath,
 	layoutCommentCards,
 } from "@/components/viewer/pdf/layers/comment-cards-layer";
@@ -25,6 +32,37 @@ function comment(
 		linkAlias: null,
 	};
 }
+
+describe("PDF comment rail keeps a fixed UI size", () => {
+	it("lays out the rail in screen pixels without scaling the layer", () => {
+		const html = renderToStaticMarkup(
+			createElement(CommentCardsLayer, {
+				items: [comment("c1", 0.5)],
+				pageWidthPx: 600,
+				pageHeightPx: 800,
+				editingId: null,
+				wikiTarget: null,
+				hoveredId: null,
+				onOpen: vi.fn(),
+				onSave: vi.fn(),
+				onCancel: vi.fn(),
+				onDelete: vi.fn(),
+				onCopyLink: vi.fn(),
+				onCopyEmbed: vi.fn(),
+				onAddToChat: vi.fn(),
+				onHover: vi.fn(),
+				onLeave: vi.fn(),
+			}),
+		);
+		// The rail box equals the rendered page box; zoom rescales nothing.
+		expect(html).toContain("width:600px");
+		expect(html).toContain("height:800px");
+		expect(html).not.toContain("zoom:");
+		expect(html).not.toContain("transform:scale(");
+		// Cards hug their content under a hard height cap.
+		expect(html).toContain("max-height:420px");
+	});
+});
 
 describe("layoutCommentCards", () => {
 	it("returns an empty layout for no comments", () => {
