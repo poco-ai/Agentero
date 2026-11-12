@@ -80,11 +80,14 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   - 会话：当前版本声明 `sessionCapabilities` 的 `close`/`list`/`resume`，多轮续聊
     走标准 resume 路径，连接也可进入 warm 池。
     这些能力不代表支持历史回放：当前官方桥没有 `loadSession` / `session/load`。
-    本机 Dsh 在缺少该能力时，只读 `$DSH_HOME/sessions`（默认 `~/.dsh/sessions`）
+    本机 Dsh 在缺少该能力时，读取 `$DSH_HOME/sessions`（默认 `~/.dsh/sessions`）
     中的标准 v2–v4 JSONL / Zstd 日志，恢复文字、推理、工具记录与标题；按会话
     UUID 和 workspace 核对 header，优先最新已提交格式，不改写或迁移日志。
-    标题仍由现有前端回退首条用户消息。远端、自定义存储根目录、v0/v1 和未来
-    格式不走该兼容读取；支持 `loadSession` 的新版 Dsh 优先用 ACP 回放。
+    存储根被 `session-persistence-jsonl` 的 `config.root` 搬走时，会一并读取
+    `$DSH_HOME` 与 `$DSH_HOME/profiles/*` 下 `cordis.yml` / `cordis.patch.yml`
+    声明的根（相对路径按 `$DSH_HOME`、支持 `~`、`!!js` 表达式跳过）。
+    标题仍由现有前端回退首条用户消息。远端、v0/v1 和未来格式不走该兼容读取；
+    支持 `loadSession` 的新版 Dsh 优先用 ACP 回放。
   - API Key：官方 CLI 的分层 env（`~/.dsh/.env` 等）由 `dsh` 自身加载，ACP
     profile 同样受益；也可在注册项 env 中 export `DEEPSEEK_API_KEY`。
 - Kimi Code：原生 ACP（`kimi acp`）。官方 installer（`code.kimi.com/kimi-code/install.sh`）
