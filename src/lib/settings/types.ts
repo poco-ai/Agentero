@@ -197,6 +197,8 @@ export type AppSettings = {
 	vimMode: boolean;
 	/** Enable the ephemeral F-key global element hint overlay. */
 	hintModeEnabled: boolean;
+	/** Subtle in-app sound cues for agent attention / turn done / failure. */
+	soundEnabled: boolean;
 	/**
 	 * PDF reader page layout: `none` (default) = one page per row, `odd`/`even`
 	 * = two-page spreads (paired from page 1 / after a standalone cover).

@@ -155,6 +155,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	pdfVimKeys: true,
 	vimMode: true,
 	hintModeEnabled: true,
+	soundEnabled: true,
 	pdfSpreadMode: "none",
 	paperNoteMode: "standard",
 	autoOpenPaperNotes: true,

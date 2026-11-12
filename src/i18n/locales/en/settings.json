@@ -96,6 +96,11 @@
 			"installFailed": "Could not install the Finder Quick Action",
 			"uninstallFailed": "Could not remove the Finder Quick Action"
 		},
+		"sound": {
+			"label": "In-app sounds",
+			"description": "Quiet cues when an Agent needs you, finishes a turn, or fails",
+			"preview": "Preview"
+		},
 		"paperTreeLabelMode": {
 			"label": "Paper names in file tree",
 			"title-author": "Title · Author",

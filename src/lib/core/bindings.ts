@@ -1740,6 +1740,8 @@ export type AppSettings_Deserialize = {
 	vimMode?: boolean,
 	/**  Enable the ephemeral F-key global element hint overlay. */
 	hintModeEnabled?: boolean,
+	/**  Subtle in-app sound cues (agent attention / turn done / failure). */
+	soundEnabled?: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode?: string,
 	libraryColumns?: LibraryColumnPref_Deserialize[],
@@ -1891,6 +1893,8 @@ export type AppSettings_Serialize = {
 	vimMode: boolean,
 	/**  Enable the ephemeral F-key global element hint overlay. */
 	hintModeEnabled: boolean,
+	/**  Subtle in-app sound cues (agent attention / turn done / failure). */
+	soundEnabled: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode: string,
 	libraryColumns: LibraryColumnPref_Serialize[],

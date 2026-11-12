@@ -136,6 +136,9 @@ pub struct AppSettings {
     /// Enable the ephemeral F-key global element hint overlay.
     #[serde(default = "default_true")]
     pub hint_mode_enabled: bool,
+    /// Subtle in-app sound cues (agent attention / turn done / failure).
+    #[serde(default = "default_true")]
+    pub sound_enabled: bool,
     /// PDF page layout: `none` (single page) | `odd` | `even` (two-page spread).
     #[serde(default = "default_pdf_spread_mode")]
     pub pdf_spread_mode: String,
@@ -506,6 +509,7 @@ impl Default for AppSettings {
             pdf_vim_keys: true,
             vim_mode: true,
             hint_mode_enabled: true,
+            sound_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
             library_columns: default_library_columns(),
             connector_enabled: false,

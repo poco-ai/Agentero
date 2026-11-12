@@ -1,3 +1,4 @@
+import { Volume2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -51,6 +52,7 @@ import {
 } from "@/lib/settings";
 import { DEFAULT_NETWORK_PROXY_URL } from "@/lib/settings/defaults";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
+import { playCue } from "@/lib/ui/sound";
 import { notesTemplateSeed } from "@/lib/vault/note-template";
 import { ConnectorSettingsBlock } from "./general/connector-settings-block";
 import { EasyScholarSettingsBlock } from "./general/easy-scholar-settings-block";
@@ -538,6 +540,29 @@ export function GeneralPane({
 					onChange={(terminalApp) => patch({ terminalApp })}
 				/>
 				<FinderIntegrationRow />
+				<SettingsRow
+					label={t("general.sound.label")}
+					description={t("general.sound.description")}
+					htmlFor="sound-enabled"
+				>
+					<div className="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
+							aria-label={t("general.sound.preview")}
+							disabled={!settings.soundEnabled}
+							onClick={() => playCue("done")}
+						>
+							<Volume2 />
+						</Button>
+						<Switch
+							id="sound-enabled"
+							checked={settings.soundEnabled}
+							onCheckedChange={(checked) => patch({ soundEnabled: checked })}
+						/>
+					</div>
+				</SettingsRow>
 			</SettingsGroup>
 
 			<SettingsSectionLabel className="mt-4">
