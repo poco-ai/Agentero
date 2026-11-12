@@ -133,6 +133,8 @@ PRIMARY KEY (day, vault, kind, paper_path, facet)
 | `usage_clear` | 清空全部或指定 vault |
 | `usage_reading_durations` | 按 Vault 汇总 `paper.blur` 的 `SUM(dur_ms)`，返回论文根路径 → 累计毫秒数；不重复累计 `paper.session` |
 
+累计汇总使用 `idx_usage_daily_reading` 部分索引，按 `(vault, paper_path, dur_ms)` 排列有效 `paper.blur` 日聚合，避免全表扫描及临时分组排序。每次打开幂等检查，已有 schema v1 数据库也补建。首次创建的耗时与空间取决于历史聚合量。大论文库的实际 Host IPC 与表格性能见[性能验证](../test/2026-11-12-library-reading-time-performance.md)。
+
 ## CLI
 
 CLI 不再暴露 `usage` 命令；清除请通过桌面端设置或 Host API 进行。

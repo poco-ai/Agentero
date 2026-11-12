@@ -1,5 +1,7 @@
 # 测试
 
+新增[大论文库阅读时长性能验证](2026-11-12-library-reading-time-performance.md)：1,000 / 10,000 篇合成目录、真实 Windows Host IPC、虚拟表刷新与排序，以及聚合索引前后对照。
+
 当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 `src/` 与 `test/` 解耦：应用代码不能 import 测试 fixture 或 helper。
 
 ## 发布前验收
