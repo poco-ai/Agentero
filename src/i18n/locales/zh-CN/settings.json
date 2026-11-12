@@ -96,11 +96,6 @@
 			"installFailed": "无法安装访达快捷操作",
 			"uninstallFailed": "无法移除访达快捷操作"
 		},
-		"sound": {
-			"label": "应用内提示音",
-			"description": "Agent 需要你处理、回合完成或失败时播放轻提示音",
-			"preview": "试听"
-		},
 		"paperTreeLabelMode": {
 			"label": "文件树论文名称",
 			"title-author": "标题 · 作者",
@@ -280,6 +275,11 @@
 		"uiScale": {
 			"label": "界面缩放",
 			"value": "{{percent}}%"
+		},
+		"sound": {
+			"label": "应用内提示音",
+			"description": "Agent 需要你处理、回合完成或失败时播放轻提示音",
+			"preview": "试听"
 		},
 		"fonts": {
 			"section": "字体",
