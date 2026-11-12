@@ -76,6 +76,8 @@ QR = App URL + fragment 中的 offer；解析入口 `parseConnectionOfferFromUrl
 
 ### 2.4 移动端配对实现（源码）
 
+Android 通过 Tauri 的 `app_config_dir()` 将配对配置和设备签名密钥保存在应用私有的 `bridge/` 子目录，供重启后恢复连接。
+
 | 关注点 | 证据 |
 |---|---|
 | 扫码界面 | `packages/app/src/app/pair-scan.tsx`：`expo-camera` `CameraView`，`barcodeTypes:["qr"]`；只接受含 `#offer=` 的载荷；扫到后先 `connectToDaemon` 探活拿 hostname，再 `upsertConnectionFromOfferUrl` 落库 |

@@ -85,12 +85,12 @@ impl BridgeClientController {
             device_name,
             paired: false,
         };
-        BridgeClientProfileStore::at_default_path().save(&profile)?;
+        BridgeClientProfileStore::at_app_path(&app)?.save(&profile)?;
         self.start_profile(app, profile)
     }
 
     pub fn resume(&self, app: AppHandle) -> Result<BridgeClientStatus, AppError> {
-        let Some(profile) = BridgeClientProfileStore::at_default_path().load()? else {
+        let Some(profile) = BridgeClientProfileStore::at_app_path(&app)?.load()? else {
             return Ok(BridgeClientStatus::disconnected());
         };
         if !profile.paired {
@@ -105,7 +105,7 @@ impl BridgeClientController {
         profile: BridgeClientProfile,
     ) -> Result<BridgeClientStatus, AppError> {
         let offer = BridgeOffer::from_pair_url(&profile.offer_url)?;
-        let identity = BridgeClientIdentityStore::at_default_path().load_or_create()?;
+        let identity = BridgeClientIdentityStore::at_app_path(&app)?.load_or_create()?;
         self.disconnect()?;
 
         let status = Arc::new(Mutex::new(BridgeClientStatus {
@@ -231,7 +231,6 @@ async fn run_client_loop(
                     &identity,
                     &device_name,
                     &status,
-                    &BridgeClientProfileStore::at_default_path(),
                     &mut commands,
                     &mut stop,
                 )
@@ -258,7 +257,6 @@ async fn run_client_session(
     identity: &BridgeClientIdentity,
     device_name: &str,
     status: &Arc<Mutex<BridgeClientStatus>>,
-    profile_store: &BridgeClientProfileStore,
     commands: &mut mpsc::Receiver<ClientCommand>,
     stop: &mut watch::Receiver<bool>,
 ) -> Result<(), AppError> {
@@ -357,7 +355,7 @@ async fn run_client_session(
                     )
                     .await?;
                 } else {
-                    handle_message(app, status, &mut pending, profile_store, message)?;
+                    handle_message(app, status, &mut pending, message)?;
                 }
             }
         }
@@ -368,7 +366,6 @@ fn handle_message(
     app: &AppHandle,
     status: &Arc<Mutex<BridgeClientStatus>>,
     pending: &mut HashMap<String, oneshot::Sender<Result<Value, AppError>>>,
-    profile_store: &BridgeClientProfileStore,
     message: BridgeMessage,
 ) -> Result<(), AppError> {
     match message {
@@ -382,7 +379,7 @@ fn handle_message(
             );
         }
         BridgeMessage::PairOk { .. } => {
-            profile_store.mark_paired()?;
+            BridgeClientProfileStore::at_app_path(app)?.mark_paired()?;
             let mut current = status
                 .lock()
                 .map_err(|_| AppError::message("Bridge client status lock poisoned"))?;
