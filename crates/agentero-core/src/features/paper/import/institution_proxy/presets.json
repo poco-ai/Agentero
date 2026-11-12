@@ -1,0 +1,51 @@
+[
+	{
+		"id": "zju",
+		"prefix": "https://webvpn.zju.edu.cn",
+		"kind": "wengine",
+		"protocolVerifiedAt": "2026-10",
+		"subscriptionVerified": false
+	},
+	{
+		"id": "ustc",
+		"prefix": "https://wvpn.ustc.edu.cn",
+		"kind": "wengine",
+		"protocolVerifiedAt": "2026-11-09",
+		"subscriptionVerified": false
+	},
+	{
+		"id": "xjtu",
+		"prefix": "https://webvpn.xjtu.edu.cn",
+		"kind": "wengine",
+		"protocolVerifiedAt": "2026-10",
+		"subscriptionVerified": false
+	},
+	{
+		"id": "neu",
+		"prefix": "https://webvpn.neu.edu.cn",
+		"kind": "wengine",
+		"protocolVerifiedAt": "2026-10",
+		"subscriptionVerified": false
+	},
+	{
+		"id": "tsinghua",
+		"prefix": "https://webvpn.tsinghua.edu.cn",
+		"kind": "wengine",
+		"protocolVerifiedAt": "2026-11-09",
+		"subscriptionVerified": false
+	},
+	{
+		"id": "fudan",
+		"prefix": "https://webvpn.fudan.edu.cn",
+		"kind": "wengine",
+		"protocolVerifiedAt": "2026-11-09",
+		"subscriptionVerified": false
+	},
+	{
+		"id": "bjmu",
+		"prefix": "https://webvpn.bjmu.edu.cn",
+		"kind": "subdomain",
+		"protocolVerifiedAt": "2026-11-09",
+		"subscriptionVerified": false
+	}
+]

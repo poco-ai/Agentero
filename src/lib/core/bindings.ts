@@ -41,6 +41,12 @@ export const commands = {
 	 */
 	institutionProxyProbe: () => __TAURI_INVOKE<ApiResult<string>>("institution_proxy_probe"),
 	/**
+	 *  Built-in institution gateway presets for the settings quick-fill menu.
+	 *  The registry lives in `agentero-core/.../institution_proxy/presets.json`;
+	 *  exposing it here keeps the UI free of a duplicated address list.
+	 */
+	institutionProxyPresets: () => __TAURI_INVOKE<ApiResult<InstitutionProxyPreset[]>>("institution_proxy_presets"),
+	/**
 	 *  Open the configured gateway in a dedicated webview for interactive SSO.
 	 *  Async is required when creating a window from WebView2 on Windows.
 	 *  Resolves once the login window closes; `true` when a cookie was captured.
@@ -1689,8 +1695,9 @@ export type AppSettings_Deserialize = {
 	 */
 	institutionProxyCookie?: string,
 	/**
-	 *  Gateway flavour: `ezproxy` (query passthrough) or `wengine`
-	 *  (path-rewriting WebVPN, e.g. ZJU). Default `ezproxy`.
+	 *  Gateway flavour: `auto` (fingerprint the prefix), `ezproxy` (query
+	 *  passthrough), `wengine` (path-rewriting WebVPN, e.g. ZJU) or
+	 *  `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
 	 */
 	institutionProxyType?: string,
 	paperTreeLabelMode?: string,
@@ -1839,8 +1846,9 @@ export type AppSettings_Serialize = {
 	 */
 	institutionProxyCookie: string,
 	/**
-	 *  Gateway flavour: `ezproxy` (query passthrough) or `wengine`
-	 *  (path-rewriting WebVPN, e.g. ZJU). Default `ezproxy`.
+	 *  Gateway flavour: `auto` (fingerprint the prefix), `ezproxy` (query
+	 *  passthrough), `wengine` (path-rewriting WebVPN, e.g. ZJU) or
+	 *  `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
 	 */
 	institutionProxyType: string,
 	paperTreeLabelMode: string,
@@ -3420,6 +3428,23 @@ export type ImportLocalPdfResult_Serialize = {
 	papers: LookupImportResult_Serialize[],
 	/**  `"<file>: <reason>"` for each file that failed to import. */
 	errors: string[],
+};
+
+export type InstitutionProxyPreset = {
+	id: string,
+	prefix: string,
+	/**
+	 *  `ezproxy` | `wengine` | `subdomain` (never `auto`: a preset states its
+	 *  known shape).
+	 */
+	kind: string,
+	/**
+	 *  Date the unauthenticated gateway fingerprint was captured (ISO 8601),
+	 *  or empty when unknown.
+	 */
+	protocolVerifiedAt?: string,
+	/**  True only after an authorized account downloaded a paywalled PDF. */
+	subscriptionVerified?: boolean,
 };
 
 /**

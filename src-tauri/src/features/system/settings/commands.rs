@@ -7,6 +7,7 @@
 
 use crate::core::error::{map_err, ApiResult};
 use crate::features::system::settings::{AppSettings, AppSettingsStore, SettingsGetResult};
+use agentero_core::features::paper::import::institution_proxy::InstitutionProxyPreset;
 use tauri::{AppHandle, Emitter, Manager, State, Url, WebviewUrl, WebviewWindowBuilder};
 
 const PROXY_LOGIN_WINDOW: &str = "institution-proxy-login";
@@ -54,7 +55,7 @@ pub async fn institution_proxy_login_open(app: AppHandle, prefix: String) -> Res
 }
 
 async fn monitor_institution_login(app: AppHandle, prefix: String) -> bool {
-    use agentero_core::features::paper::import::download::probe_institution_proxy;
+    use agentero_core::features::paper::import::institution_proxy::probe_institution_proxy;
     use std::time::Duration;
 
     let gateway_url = match proxy_gateway_url(&prefix) {
@@ -199,6 +200,15 @@ pub fn settings_set(
     }
 }
 
+/// Built-in institution gateway presets for the settings quick-fill menu.
+/// The registry lives in `agentero-core/.../institution_proxy/presets.json`;
+/// exposing it here keeps the UI free of a duplicated address list.
+#[tauri::command]
+#[specta::specta]
+pub fn institution_proxy_presets() -> ApiResult<Vec<InstitutionProxyPreset>> {
+    ApiResult::ok(agentero_core::features::paper::import::institution_proxy::presets())
+}
+
 /// Probe the configured institution proxy (EZProxy/WebVPN) by fetching a
 /// known paywalled DOI through the rewrite and checking the response is a
 /// PDF. Returns a short human-readable result for the settings UI.
@@ -211,7 +221,7 @@ pub async fn institution_proxy_probe(app: AppHandle) -> ApiResult<String> {
             "prefix not configured",
         ));
     };
-    match agentero_core::features::paper::import::download::probe_institution_proxy(
+    match agentero_core::features::paper::import::institution_proxy::probe_institution_proxy(
         kind, &prefix, &cookie,
     )
     .await

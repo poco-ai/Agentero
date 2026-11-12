@@ -29,6 +29,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::system::settings::commands::list_system_fonts,
             crate::features::system::settings::commands::easy_scholar_probe,
             crate::features::system::settings::commands::institution_proxy_probe,
+            crate::features::system::settings::commands::institution_proxy_presets,
             crate::features::system::settings::commands::institution_proxy_login_open,
             crate::features::system::builtin::builtin_provider_status,
             crate::features::decision::commands::decision_gateway_decide,

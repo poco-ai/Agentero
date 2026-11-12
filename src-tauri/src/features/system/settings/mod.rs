@@ -1066,7 +1066,7 @@ impl AppSettingsStore {
     pub fn institution_proxy(
         &self,
     ) -> Option<(
-        agentero_core::features::paper::import::download::InstitutionProxyKind,
+        agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind,
         String,
         String,
     )> {
@@ -1076,7 +1076,7 @@ impl AppSettingsStore {
             return None;
         }
         let kind =
-            agentero_core::features::paper::import::download::InstitutionProxyKind::from_setting(
+            agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::from_setting(
                 &guard.institution_proxy_type,
             );
         Some((
@@ -1108,7 +1108,7 @@ impl AppSettingsStore {
             redact_secrets(next)
         };
         if let Some((kind, prefix, cookie)) = self.institution_proxy() {
-            agentero_core::features::paper::import::download::set_institution_proxy(
+            agentero_core::features::paper::import::institution_proxy::set_institution_proxy(
                 kind, &prefix, &cookie,
             );
         }
@@ -1340,10 +1340,10 @@ fn normalize(s: &mut AppSettings) {
         "auto".to_string()
     };
     // Keep the core download fallback in sync on both load and set paths.
-    let kind = agentero_core::features::paper::import::download::InstitutionProxyKind::from_setting(
+    let kind = agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::from_setting(
         &s.institution_proxy_type,
     );
-    agentero_core::features::paper::import::download::set_institution_proxy(
+    agentero_core::features::paper::import::institution_proxy::set_institution_proxy(
         kind,
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,
