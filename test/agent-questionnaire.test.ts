@@ -95,6 +95,12 @@ describe("ACP questionnaire adapter", () => {
 			{ question: "Pick?", allowOther: true, options: [{ label: "A" }] },
 		]);
 		await click('input[value="A"]');
+		// Other expands inline instead of showing a separate free-text row.
+		await act(async () => {
+			[...host.querySelectorAll("button")]
+				.find((button) => button.textContent === "askUserQuestion.other")
+				?.click();
+		});
 		await type("Custom answer");
 		await submit();
 		expect(sent).toHaveBeenCalledWith(["Custom answer"]);
