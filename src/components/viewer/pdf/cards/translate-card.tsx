@@ -1,4 +1,14 @@
-import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
+import {
+	ArrowUpRight,
+	BookOpen,
+	Check,
+	Copy,
+	Languages,
+	Pin,
+	PinOff,
+	Settings2Icon,
+	X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
@@ -31,6 +41,19 @@ type TranslateCardProps = {
 	onTogglePin?: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
+	/** Display mode: "translate" (default) or "dictionary" */
+	mode?: "translate" | "dictionary";
+	/** Dictionary-specific data */
+	dictionaryData?: {
+		word: string;
+		paperDefinition?: {
+			text: string;
+			location: number;
+			onJumpToDefinition?: () => void;
+		};
+	};
+	/** Toggle between dictionary and translate modes */
+	onToggleMode?: () => void;
 };
 
 /**
@@ -51,6 +74,9 @@ export function TranslateCard({
 	onTogglePin,
 	onPointerEnter,
 	onPointerLeave,
+	mode = "translate",
+	dictionaryData,
+	onToggleMode,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
 	const showResult = result.trim().length > 0;
@@ -58,6 +84,16 @@ export function TranslateCard({
 	const scrollPortRef = useRef<HTMLDivElement>(null);
 	const stickToBottomRef = useRef(true);
 	const [copied, setCopied] = useState(false);
+
+	// 根据模式切换标题和 loading 文案
+	const title =
+		mode === "dictionary"
+			? t("selection.dictionaryTitle")
+			: t("selection.translateTitle");
+	const loadingText =
+		mode === "dictionary"
+			? t("selection.lookingUp")
+			: t("selection.translating");
 
 	/** Smallest height that still shows the header. */
 	const [resizeMinHeight, setResizeMinHeight] = useState<number>();
@@ -177,7 +213,7 @@ export function TranslateCard({
 			className="bg-background!"
 			// Slightly tighter header than other selection cards.
 			headerClassName="pt-2 pb-1.5"
-			title={t("selection.translateTitle")}
+			title={title}
 			ariaLive="polite"
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
@@ -190,6 +226,19 @@ export function TranslateCard({
 								onClick: () => void copyResult(),
 								icon: copied ? <Check /> : <Copy />,
 								shortcut: "C",
+							},
+						]
+					: []),
+				...(onToggleMode
+					? [
+							{
+								id: "toggle-mode",
+								label:
+									mode === "dictionary"
+										? t("selection.switchToTranslate")
+										: t("selection.switchToDictionary"),
+								onClick: onToggleMode,
+								icon: <Languages className="size-3.5" />,
 							},
 						]
 					: []),
@@ -231,20 +280,24 @@ export function TranslateCard({
 			>
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">
-						{t("selection.translating")}
+						{loadingText}
 					</Shimmer>
 				) : null}
 
-				{showResult ? (
+				{/* 词典模式：结构化展示 */}
+				{mode === "dictionary" && showResult ? (
+					<DictionaryResult result={result} dictionaryData={dictionaryData} />
+				) : null}
+
+				{/* 翻译模式：原有 Markdown 渲染 */}
+				{mode === "translate" && showResult ? (
 					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[0.9375rem] text-foreground leading-relaxed">
 						{result}
 					</MessageResponse>
 				) : null}
 
 				{!showLoading && !showResult && !error ? (
-					<p className="text-muted-foreground text-sm">
-						{t("selection.translating")}
-					</p>
+					<p className="text-muted-foreground text-sm">{loadingText}</p>
 				) : null}
 
 				{error ? (
@@ -266,5 +319,46 @@ export function TranslateCard({
 				) : null}
 			</div>
 		</SelectionCard>
+	);
+}
+
+type DictionaryResultProps = {
+	result: string;
+	dictionaryData?: TranslateCardProps["dictionaryData"];
+};
+
+function DictionaryResult({ result, dictionaryData }: DictionaryResultProps) {
+	const { t } = useTranslation("viewer");
+
+	return (
+		<div className="flex flex-col gap-2.5">
+			{/* LLM 输出的释义 + 语境义（Markdown 渲染） */}
+			<MessageResponse className="min-w-0 text-[0.9375rem] leading-relaxed">
+				{result}
+			</MessageResponse>
+
+			{/* L1: 论文内定义 */}
+			{dictionaryData?.paperDefinition &&
+			dictionaryData.paperDefinition.onJumpToDefinition ? (
+				<div className="mt-1 flex flex-col gap-1 rounded-md border border-border/50 bg-muted/30 p-2 text-sm">
+					<div className="flex items-start gap-1.5">
+						<BookOpen className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+						<div className="flex-1 text-muted-foreground">
+							{t("selection.dictionaryPaperDef")}
+						</div>
+					</div>
+					<button
+						type="button"
+						onClick={dictionaryData.paperDefinition.onJumpToDefinition}
+						className="group flex items-start gap-1.5 text-left text-foreground/90 hover:text-foreground"
+					>
+						<span className="flex-1 leading-snug">
+							"{dictionaryData.paperDefinition.text}"
+						</span>
+						<ArrowUpRight className="mt-0.5 size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+					</button>
+				</div>
+			) : null}
+		</div>
 	);
 }
