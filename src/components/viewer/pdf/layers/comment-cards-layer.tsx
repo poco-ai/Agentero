@@ -425,6 +425,7 @@ const CommentCard = memo(function CommentCard({
 		<div
 			ref={rootRef}
 			data-pdf-chrome
+			data-comment-card
 			className={cn(
 				COMMENT_CARD_SURFACE_CLASS,
 				editing
@@ -777,6 +778,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			aria-label={t("selection.note")}
 			data-pdf-chrome
 			data-selection-comment=""
+			data-comment-card
 			className={cn(
 				COMMENT_DRAFT_SURFACE_CLASS,
 				"z-[7] w-56 bg-background/92 ring-2 ring-ring/50",

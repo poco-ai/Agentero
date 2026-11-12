@@ -1,14 +1,16 @@
 import { useViewportElement } from "@embedpdf/plugin-viewport/react";
 import { type RefObject, useEffect, useRef } from "react";
 import { EMBED_PAGE_ATTR, pageElByIndex } from "@/components/viewer/pdf/coords";
-import { railPeekBandWidth, railPeekScrollDelta } from "@/lib/pdf/rail-peek";
+import { railPeekKeepsOpen, railPeekScrollDelta } from "@/lib/pdf/rail-peek";
 
 /** Strip along the viewport's right edge that arms the peek. */
 const PEEK_EDGE_PX = 28;
+/** Vertical slack around the card stack, so moving between cards stays in. */
+const PEEK_CARD_HALO_PX = 12;
 /** Rest on the edge strip or on a commented highlight before panning. */
-const PEEK_DWELL_MS = 160;
+const PEEK_DWELL_MS = 280;
 /** Grace for moving from the page onto a revealed card. */
-const PEEK_LEAVE_MS = 180;
+const PEEK_LEAVE_MS = 120;
 /**
  * How long a highlight-hover reveal stays put. Panning moves the text out from
  * under the pointer, so the hover that started it cannot keep the rail open;
@@ -103,18 +105,42 @@ export function RailPeek({
 			hold = null;
 		};
 
-		const bandWidth = () =>
-			railPeekBandWidth({
+		/** Vertical span of the comment cards currently on screen. */
+		const cardSpan = () => {
+			const host = hostRef.current;
+			if (!host) return null;
+			const view = viewport.getBoundingClientRect();
+			let top = Number.POSITIVE_INFINITY;
+			let bottom = Number.NEGATIVE_INFINITY;
+			for (const element of host.querySelectorAll<HTMLElement>(
+				"[data-comment-card]",
+			)) {
+				const box = element.getBoundingClientRect();
+				if (box.width <= 0 || box.height <= 0) continue;
+				if (box.bottom < view.top || box.top > view.bottom) continue;
+				top = Math.min(top, box.top);
+				bottom = Math.max(bottom, box.bottom);
+			}
+			return Number.isFinite(top) ? { top, bottom } : null;
+		};
+
+		const keepsOpen = (clientX: number, clientY: number) => {
+			const rect = viewport.getBoundingClientRect();
+			return railPeekKeepsOpen({
+				x: clientX,
+				y: clientY,
+				viewport: {
+					left: rect.left,
+					right: rect.right,
+					top: rect.top,
+					bottom: rect.bottom,
+				},
 				revealed,
 				edge: PEEK_EDGE_PX,
-				railWidth,
-				margin: PEEK_MARGIN_PX,
+				railColumn: railWidth,
+				cards: revealed ? cardSpan() : null,
+				halo: PEEK_CARD_HALO_PX,
 			});
-
-		const inBand = (clientX: number, clientY: number) => {
-			const rect = viewport.getBoundingClientRect();
-			if (clientY < rect.top || clientY > rect.bottom) return false;
-			return clientX >= rect.right - bandWidth() && clientX <= rect.right;
 		};
 
 		/** Rendered page under the pointer; pages stack vertically. */
@@ -222,7 +248,7 @@ export function RailPeek({
 			clearDwell();
 			if (!revealed || holdOpenRef.current || hold !== null) return;
 			// The pointer may be on its way to a card: the band keeps it open.
-			if (lastPointer && inBand(lastPointer.x, lastPointer.y)) return;
+			if (lastPointer && keepsOpen(lastPointer.x, lastPointer.y)) return;
 			// Start the retract once, when the pointer leaves; keep moving does
 			// not postpone it again.
 			if (leave !== null) return;
@@ -243,11 +269,11 @@ export function RailPeek({
 				return;
 			}
 			if (revealed) {
-				if (inBand(event.clientX, event.clientY)) clearLeave();
+				if (keepsOpen(event.clientX, event.clientY)) clearLeave();
 				else release();
 				return;
 			}
-			if (inBand(event.clientX, event.clientY)) armDwell(event.clientY);
+			if (keepsOpen(event.clientX, event.clientY)) armDwell(event.clientY);
 			else clearDwell();
 		};
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { railPeekBandWidth, railPeekScrollDelta } from "@/lib/pdf/rail-peek";
+import { railPeekKeepsOpen, railPeekScrollDelta } from "@/lib/pdf/rail-peek";
 
 const railWidth = 212;
+const viewport = { left: 0, right: 900, top: 0, bottom: 800 };
 
 describe("railPeekScrollDelta", () => {
 	it("pans by the rail width when fit-width fills the viewport", () => {
@@ -55,26 +56,108 @@ describe("railPeekScrollDelta", () => {
 	});
 });
 
-describe("railPeekBandWidth", () => {
-	it("arms only the edge strip before the reveal", () => {
+describe("railPeekKeepsOpen", () => {
+	const base = {
+		viewport,
+		edge: 28,
+		railColumn: railWidth,
+		halo: 12,
+	};
+
+	it("arms on the right-edge strip before the reveal", () => {
 		expect(
-			railPeekBandWidth({
+			railPeekKeepsOpen({
+				...base,
+				x: 880,
+				y: 700,
 				revealed: false,
-				edge: 28,
-				railWidth,
-				margin: 8,
+				cards: null,
 			}),
-		).toBe(28);
+		).toBe(true);
 	});
 
-	it("covers the revealed card column so moving onto a card keeps it open", () => {
+	it("ignores the middle of the page before the reveal", () => {
 		expect(
-			railPeekBandWidth({
-				revealed: true,
-				edge: 28,
-				railWidth,
-				margin: 8,
+			railPeekKeepsOpen({
+				...base,
+				x: 500,
+				y: 400,
+				revealed: false,
+				cards: null,
 			}),
-		).toBe(28 + railWidth + 8);
+		).toBe(false);
+	});
+
+	it("keeps the revealed column open while the pointer is on the cards", () => {
+		expect(
+			railPeekKeepsOpen({
+				...base,
+				x: 800,
+				y: 300,
+				revealed: true,
+				cards: { top: 250, bottom: 420 },
+			}),
+		).toBe(true);
+	});
+
+	it("retracts once the pointer leaves the card's vertical span", () => {
+		// Same x inside the revealed column, but far below the only card.
+		expect(
+			railPeekKeepsOpen({
+				...base,
+				x: 800,
+				y: 650,
+				revealed: true,
+				cards: { top: 250, bottom: 420 },
+			}),
+		).toBe(false);
+	});
+
+	it("allows the halo between stacked cards", () => {
+		expect(
+			railPeekKeepsOpen({
+				...base,
+				x: 800,
+				y: 430,
+				revealed: true,
+				cards: { top: 250, bottom: 420 },
+			}),
+		).toBe(true);
+	});
+
+	it("retracts when the pointer leaves the column horizontally", () => {
+		expect(
+			railPeekKeepsOpen({
+				...base,
+				x: 600,
+				y: 300,
+				revealed: true,
+				cards: { top: 250, bottom: 420 },
+			}),
+		).toBe(false);
+	});
+
+	it("still keeps the edge strip open away from the cards", () => {
+		expect(
+			railPeekKeepsOpen({
+				...base,
+				x: 890,
+				y: 650,
+				revealed: true,
+				cards: { top: 250, bottom: 420 },
+			}),
+		).toBe(true);
+	});
+
+	it("ignores points outside the viewport", () => {
+		expect(
+			railPeekKeepsOpen({
+				...base,
+				x: 890,
+				y: 900,
+				revealed: true,
+				cards: { top: 250, bottom: 420 },
+			}),
+		).toBe(false);
 	});
 });

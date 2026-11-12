@@ -44,24 +44,46 @@ export function railPeekScrollDelta({
 	return delta;
 }
 
-export type RailPeekBandInput = {
+export type RailPeekKeepsOpenInput = {
+	/** Pointer position in screen coordinates. */
+	x: number;
+	y: number;
+	/** Scrollport bounds in screen coordinates. */
+	viewport: { left: number; right: number; top: number; bottom: number };
 	revealed: boolean;
-	/** Strip along the viewport's right edge that arms the peek. */
+	/** Strip along the viewport's right edge that also arms the peek. */
 	edge: number;
-	railWidth: number;
-	margin: number;
+	/** Width of the revealed card column, measured left from the viewport edge. */
+	railColumn: number;
+	/** Vertical span of the visible cards; null when none is on screen. */
+	cards: { top: number; bottom: number } | null;
+	/** Vertical slack so moving between stacked cards does not retract. */
+	halo: number;
 };
 
 /**
- * Pointer band that keeps the peek open. Before the reveal it is the edge
- * strip; once revealed it grows to cover the card column, so moving onto a
- * card (or typing into it) does not retract the rail from under the pointer.
+ * Whether the pointer still belongs to the peeked comment column.
+ *
+ * Keep-open has an X and a Y component: the right-edge strip always qualifies
+ * (that is how the rail is summoned), and the revealed card column qualifies
+ * only within the vertical span of the cards on screen. Sliding up or down out
+ * of that span counts as leaving even though the pointer is still over the
+ * column's x-range, so the rail does not stay open for the whole panel height.
  */
-export function railPeekBandWidth({
+export function railPeekKeepsOpen({
+	x,
+	y,
+	viewport,
 	revealed,
 	edge,
-	railWidth,
-	margin,
-}: RailPeekBandInput): number {
-	return revealed ? edge + railWidth + margin : edge;
+	railColumn,
+	cards,
+	halo,
+}: RailPeekKeepsOpenInput): boolean {
+	if (x < viewport.left || x > viewport.right) return false;
+	if (y < viewport.top || y > viewport.bottom) return false;
+	if (x >= viewport.right - edge) return true;
+	if (!revealed || !cards) return false;
+	if (x < viewport.right - edge - railColumn) return false;
+	return y >= cards.top - halo && y <= cards.bottom + halo;
 }
