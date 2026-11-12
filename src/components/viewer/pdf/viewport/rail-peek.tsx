@@ -8,7 +8,7 @@ const PEEK_EDGE_PX = 28;
 /** Rest on the edge strip or on a commented highlight before panning. */
 const PEEK_DWELL_MS = 160;
 /** Grace for moving from the page onto a revealed card. */
-const PEEK_LEAVE_MS = 420;
+const PEEK_LEAVE_MS = 180;
 /**
  * How long a highlight-hover reveal stays put. Panning moves the text out from
  * under the pointer, so the hover that started it cannot keep the rail open;
@@ -177,18 +177,30 @@ export function RailPeek({
 			revealed = true;
 			clearLeave();
 			clearHold();
-			if (soft) {
-				hold = setTimeout(() => {
-					hold = null;
-					release();
-				}, PEEK_HOVER_HOLD_MS);
-			}
+			if (soft) armSoftHold();
 			viewport.scrollTo({ left: to, behavior: "smooth" });
 		};
 
-		const revealAtPointer = (soft: boolean) => {
-			if (pressed) return;
-			if (lastPointer) revealAt(lastPointer.y, soft);
+		const armSoftHold = () => {
+			clearHold();
+			hold = setTimeout(() => {
+				hold = null;
+				release();
+			}, PEEK_HOVER_HOLD_MS);
+		};
+
+		/**
+		 * A commented highlight (or its card) is hovered. Keeps the column open
+		 * and restarts the reading window when the reader moves to another one.
+		 */
+		const peek = () => {
+			if (pressed || !lastPointer) return;
+			clearLeave();
+			if (revealed) {
+				armSoftHold();
+				return;
+			}
+			revealAt(lastPointer.y, true);
 		};
 
 		/** Editor opened from the toolbar / annotations panel. */
@@ -211,12 +223,14 @@ export function RailPeek({
 			if (!revealed || holdOpenRef.current || hold !== null) return;
 			// The pointer may be on its way to a card: the band keeps it open.
 			if (lastPointer && inBand(lastPointer.x, lastPointer.y)) return;
-			clearLeave();
+			// Start the retract once, when the pointer leaves; keep moving does
+			// not postpone it again.
+			if (leave !== null) return;
 			leave = setTimeout(restore, PEEK_LEAVE_MS);
 		};
 
 		apiRef.current = {
-			peek: () => revealAtPointer(true),
+			peek,
 			revealPage: revealForPage,
 			release,
 		};
@@ -239,7 +253,10 @@ export function RailPeek({
 
 		const handlePointerLeave = () => {
 			lastPointer = null;
-			release();
+			// Leaving the reading area entirely: retract without the card grace,
+			// there is no card to travel to.
+			clearDwell();
+			restore();
 		};
 
 		// A wheel or a press is reading intent elsewhere; retract rather than
