@@ -20,6 +20,12 @@ import {
 	type PairPendingEvent,
 } from "@/lib/bridge/client";
 
+function mobileDeviceName(): string {
+	if (/Android/i.test(navigator.userAgent)) return "Android";
+	if (navigator.userAgent.includes("iPad")) return "iPad";
+	return "iPhone";
+}
+
 function describeBridgeError(
 	message: string | undefined,
 	networkPermissionMessage: string,
@@ -86,7 +92,7 @@ export function MobilePairing({
 			try {
 				const next = await bridgeConnect({
 					offerUrl: offer,
-					deviceName: navigator.userAgent.includes("iPad") ? "iPad" : "iPhone",
+					deviceName: mobileDeviceName(),
 				});
 				setLinkOpen(false);
 				onStatus(next);
@@ -95,7 +101,11 @@ export function MobilePairing({
 				toast.dismiss("bridge-progress");
 				setError(
 					describeBridgeError(
-						cause instanceof Error ? cause.message : undefined,
+						cause instanceof Error
+							? cause.message
+							: typeof cause === "string"
+								? cause
+								: undefined,
 						t("errors.networkPermission"),
 					) ?? t("errors.connect"),
 				);
