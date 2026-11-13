@@ -242,26 +242,24 @@ export function SelectionActionMenu({
 	useLayoutEffect(() => {
 		const menu = menuRef.current;
 		if (!menu) return;
+		let leadingWidth: number | null = null;
 		const place = () => {
 			const rect = menu.getBoundingClientRect();
 			const divider = anchorRef?.current?.getBoundingClientRect();
-			const paletteWidth =
-				expandingRef?.current?.getBoundingClientRect().width ?? 0;
-			// Measure the action side, so labels and plugin actions need no estimates.
-			// Keep `right` fixed while the color stack expands to the left.
+			const palette = expandingRef?.current?.getBoundingClientRect();
+			// Measure from the palette's right edge, which stays fixed as it fans
+			// left. Subtracting its animated width from the toolbar width combines
+			// two independently rounded measurements and moves the action buttons.
+			const trailingWidth = palette ? rect.right - palette.right : rect.width;
+			leadingWidth ??= palette ? palette.left - rect.left : 0;
 			const reservedWidth =
-				rect.width + (expandingRef?.current ? expandedWidth - paletteWidth : 0);
+				leadingWidth + trailingWidth + (palette ? expandedWidth : 0);
 			// Anchor to the collapsed bar so a palette that fans out left does not
 			// also push the actions right: the right edge stays put while the
 			// palette fieldset grows. Only the initial (collapsed) center follows
 			// the cursor endpoint.
 			const collapsedTotalWidth =
-				expandingRef?.current && collapsedWidth > 0
-					? rect.width - (paletteWidth - collapsedWidth)
-					: rect.width;
-			const anchor = divider
-				? divider.left + divider.width / 2
-				: rect.left + rect.width / 2;
+				leadingWidth + trailingWidth + (palette ? collapsedWidth : 0);
 			// Center the collapsed bar on the gesture endpoint, not the selection
 			// center; legacy anchors keep the palette/action divider fixed.
 			const anchorX = screen.cursorX ?? screen.x;
@@ -270,7 +268,9 @@ export function SelectionActionMenu({
 					anchorX -
 					(screen.cursorX != null
 						? collapsedTotalWidth / 2
-						: rect.right - anchor),
+						: divider
+							? rect.right - (divider.left + divider.width / 2)
+							: rect.width / 2),
 				EDGE,
 				Math.max(EDGE, window.innerWidth - reservedWidth - EDGE),
 			);

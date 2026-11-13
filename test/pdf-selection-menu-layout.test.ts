@@ -41,6 +41,7 @@ vi.mock("@/lib/shell/commands/menu-contributions", () => ({
 let container: HTMLDivElement;
 let root: Root;
 let colorWidth: number;
+let paletteMeasurementOffset: number;
 let notifyResize: () => void;
 
 // happy-dom has no layout engine. Supply measured flex boxes with variable
@@ -74,6 +75,14 @@ function measuredBox(element: HTMLElement): DOMRect {
 		5 +
 		widths.slice(0, index).reduce((sum, next) => sum + next, 0) +
 		index * 2;
+	if (element.tagName === "FIELDSET") {
+		return new DOMRect(
+			x - paletteMeasurementOffset,
+			top + 2,
+			widths[index] + paletteMeasurementOffset,
+			28,
+		);
+	}
 	return element.tagName === "DIV"
 		? new DOMRect(x + 2, top + 8, 1, 16)
 		: new DOMRect(x, top + 2, widths[index], 28);
@@ -111,6 +120,7 @@ beforeEach(() => {
 	english = false;
 	contributions = [];
 	colorWidth = HIGHLIGHT_COLOR_STACK_COLLAPSED_W;
+	paletteMeasurementOffset = 0;
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal("innerWidth", 1200);
 	vi.stubGlobal("innerHeight", 800);
@@ -187,6 +197,24 @@ it("keeps actions and the divider still throughout color expansion and collapse"
 		expect(menu.style.right).toBe(right);
 		expect(dividerCenter(menu)).toBe(500);
 		expect(action.getBoundingClientRect().left).toBe(actionLeft);
+	}
+});
+
+it("ignores subpixel rounding differences in the animated palette measurement", async () => {
+	const menu = await render({
+		screen: { x: 0, y: 200, cursorX: 0, side: "below" },
+	});
+	const right = menu.style.right;
+	for (const [width, offset] of [
+		[80.25, 0.25],
+		[HIGHLIGHT_COLOR_STACK_EXPANDED_W, -0.25],
+		[73.5, 0.5],
+		[HIGHLIGHT_COLOR_STACK_COLLAPSED_W, 0],
+	]) {
+		colorWidth = width;
+		paletteMeasurementOffset = offset;
+		await act(() => notifyResize());
+		expect(menu.style.right).toBe(right);
 	}
 });
 
