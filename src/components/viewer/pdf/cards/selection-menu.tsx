@@ -30,6 +30,7 @@ import {
 	visibleMenuContributions,
 } from "@/lib/shell/commands/menu-contributions";
 import {
+	HIGHLIGHT_COLOR_STACK_COLLAPSED_W,
 	HIGHLIGHT_COLOR_STACK_EXPANDED_W,
 	HighlightColorStack,
 } from "./highlight-color-stack";
@@ -123,6 +124,7 @@ export function SelectionMenu({
 			anchorRef={dividerRef}
 			expandingRef={colorsRef}
 			expandedWidth={HIGHLIGHT_COLOR_STACK_EXPANDED_W}
+			collapsedWidth={HIGHLIGHT_COLOR_STACK_COLLAPSED_W}
 			shortcutActions={showHighlight ? shortcutActions : undefined}
 			beforeActions={
 				showHighlight ? (

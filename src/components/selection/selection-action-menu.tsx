@@ -81,10 +81,23 @@ export type SelectionActionMenuProps = {
 	anchorRef?: RefObject<HTMLElement | null>;
 	expandingRef?: RefObject<HTMLElement | null>;
 	expandedWidth?: number;
+	/** Collapsed palette width; keeps expansion to the left of the actions. */
+	collapsedWidth?: number;
 };
 
 const EDGE = 12;
 const COPIED_FLASH_MS = 1500;
+
+/**
+ * The trailing dropdown continues the bar surface instead of reading as a
+ * separate menu: same background and hairline, caption type, and a row height
+ * that matches the bar's own action buttons.
+ */
+const SELECTION_MENU_CONTENT =
+	"border border-border/80 bg-background p-1 text-foreground";
+const SELECTION_MENU_ITEM = "h-7 gap-1.5 px-1.5 py-0 text-caption!";
+const SELECTION_MENU_SHORTCUT =
+	"ml-auto pl-2 text-caption text-muted-foreground/80";
 
 function SelectionCopyButton({
 	onCopy,
@@ -148,6 +161,7 @@ export function SelectionActionMenu({
 	anchorRef,
 	expandingRef,
 	expandedWidth = 0,
+	collapsedWidth = 0,
 }: SelectionActionMenuProps) {
 	const { t } = useTranslation("viewer");
 	// Suspend dockview drag-and-drop while this toolbar floats over the tab
@@ -231,26 +245,32 @@ export function SelectionActionMenu({
 		const place = () => {
 			const rect = menu.getBoundingClientRect();
 			const divider = anchorRef?.current?.getBoundingClientRect();
-			// With a cursor endpoint, center the whole bar on it. Legacy
-			// selection-center anchors keep the palette/action divider fixed so
-			// expanding the color stack never moves the actions.
-			const anchor =
-				screen.cursorX != null
-					? rect.left + rect.width / 2
-					: divider
-						? divider.left + divider.width / 2
-						: rect.left + rect.width / 2;
+			const paletteWidth =
+				expandingRef?.current?.getBoundingClientRect().width ?? 0;
 			// Measure the action side, so labels and plugin actions need no estimates.
 			// Keep `right` fixed while the color stack expands to the left.
 			const reservedWidth =
-				rect.width +
-				(expandingRef?.current
-					? expandedWidth - expandingRef.current.getBoundingClientRect().width
-					: 0);
-			// Center the bar on the gesture endpoint, not the selection center.
+				rect.width + (expandingRef?.current ? expandedWidth - paletteWidth : 0);
+			// Anchor to the collapsed bar so a palette that fans out left does not
+			// also push the actions right: the right edge stays put while the
+			// palette fieldset grows. Only the initial (collapsed) center follows
+			// the cursor endpoint.
+			const collapsedTotalWidth =
+				expandingRef?.current && collapsedWidth > 0
+					? rect.width - (paletteWidth - collapsedWidth)
+					: rect.width;
+			const anchor = divider
+				? divider.left + divider.width / 2
+				: rect.left + rect.width / 2;
+			// Center the collapsed bar on the gesture endpoint, not the selection
+			// center; legacy anchors keep the palette/action divider fixed.
 			const anchorX = screen.cursorX ?? screen.x;
 			const right = clamp(
-				window.innerWidth - anchorX - (rect.right - anchor),
+				window.innerWidth -
+					anchorX -
+					(screen.cursorX != null
+						? collapsedTotalWidth / 2
+						: rect.right - anchor),
 				EDGE,
 				Math.max(EDGE, window.innerWidth - reservedWidth - EDGE),
 			);
@@ -311,6 +331,7 @@ export function SelectionActionMenu({
 		anchorRef,
 		expandingRef,
 		expandedWidth,
+		collapsedWidth,
 	]);
 
 	return (
@@ -380,24 +401,32 @@ export function SelectionActionMenu({
 								align="end"
 								data-pdf-chrome
 								data-selection-ui
+								className={SELECTION_MENU_CONTENT}
 							>
 								{onAsk ? (
-									<DropdownMenuItem onSelect={onAsk}>
+									<DropdownMenuItem
+										onSelect={onAsk}
+										className={SELECTION_MENU_ITEM}
+									>
 										{t("selection.quickChat")}
-										<kbd className="ml-auto pl-3 text-xs text-muted-foreground">
+										<kbd className={SELECTION_MENU_SHORTCUT}>
 											{quickChatShortcut}
 										</kbd>
 									</DropdownMenuItem>
 								) : null}
 								{onAsk && moreActions?.length ? (
-									<DropdownMenuSeparator />
+									<DropdownMenuSeparator className="-mx-1" />
 								) : null}
 								{moreActions?.map((action) => (
-									<DropdownMenuItem key={action.id} onSelect={action.onSelect}>
+									<DropdownMenuItem
+										key={action.id}
+										onSelect={action.onSelect}
+										className={SELECTION_MENU_ITEM}
+									>
 										{action.icon}
 										{action.label}
 										{action.shortcut ? (
-											<kbd className="ml-auto pl-3 text-xs text-muted-foreground">
+											<kbd className={SELECTION_MENU_SHORTCUT}>
 												{action.shortcut}
 											</kbd>
 										) : null}

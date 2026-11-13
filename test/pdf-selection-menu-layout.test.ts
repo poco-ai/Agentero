@@ -190,6 +190,34 @@ it("keeps actions and the divider still throughout color expansion and collapse"
 	}
 });
 
+it("fans the palette out left when the bar is centered on the cursor", async () => {
+	const menu = await render({
+		screen: {
+			x: 500,
+			y: 200,
+			cursorX: 620,
+			bottom: 260,
+			side: "below",
+		},
+		onNote: vi.fn(),
+	});
+	const right = menu.style.right;
+	const collapsedLeft = menu.getBoundingClientRect().left;
+	const collapsedRight = menu.getBoundingClientRect().right;
+	const action = menu.querySelector<HTMLElement>(
+		'button[aria-label="selection.translate T"]',
+	);
+	if (!action) throw new Error("Translate action did not render");
+	const actionLeft = action.getBoundingClientRect().left;
+	colorWidth = HIGHLIGHT_COLOR_STACK_EXPANDED_W;
+	await act(() => notifyResize());
+	// The action side is pinned: the extra palette width grows left only.
+	expect(menu.style.right).toBe(right);
+	expect(menu.getBoundingClientRect().right).toBe(collapsedRight);
+	expect(action.getBoundingClientRect().left).toBe(actionLeft);
+	expect(menu.getBoundingClientRect().left).toBeLessThan(collapsedLeft);
+});
+
 it("reserves the expanded palette at the left edge and clamps to the right edge", async () => {
 	const menu = await render({ screen: { x: 0, y: 200 } });
 	colorWidth = HIGHLIGHT_COLOR_STACK_EXPANDED_W;
