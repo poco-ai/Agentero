@@ -135,6 +135,42 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		).toMatchObject({ status: "done", sentences: translated.sentences });
 	});
 
+	it("translates printed LaTeX containing a reflow formula token", async () => {
+		const reflow = paragraphFromCharacters(
+			"p",
+			42,
+			{ x: 0, y: 0, w: 100, h: 40 },
+			[],
+			[],
+			false,
+		);
+		reflow.source = "Therefore, $5-x>0$.";
+		reflow.protectedText = "Therefore, $5-x⟪F0⟫$.";
+		reflow.formulas = [
+			{
+				id: "0",
+				text: ">0",
+				box: { x: 0, y: 0, w: 5, h: 5 },
+				characterIndexes: [],
+				baselineOffset: 0,
+			},
+		];
+		runTranslate.mockResolvedValueOnce("因此，⟦0⟧。");
+		const [translated] = await runLayoutRegionTranslate({
+			items: [
+				{ ...item("p", reflow.protectedText, 42), raw: reflow.source, reflow },
+			],
+			onUpdate: () => {},
+		});
+		expect(translated.status).toBe("done");
+		expect(translated.translated).toBe("因此，$5-x⟪F0⟫$。");
+		expect(translated.sentences).toHaveLength(1);
+		expect(validReflowTranslation(reflow, translated.translated ?? "")).toBe(
+			true,
+		);
+		expect(runTranslate).toHaveBeenCalledTimes(1);
+	});
+
 	it("publishes valid batch results before a different paragraph finishes retrying", async () => {
 		let finishRetry!: (text: string) => void;
 		runTranslate.mockResolvedValueOnce("[[1]] 参见网址。\n\n[[2]] 第二段。");
