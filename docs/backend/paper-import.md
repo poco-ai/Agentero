@@ -162,9 +162,10 @@ PDF 版面任务保持独立，供坐标、图表与引用等功能使用；`for
 ## PDFium 随包分发
 
 liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 build script 只
-把**构建机**的下载缓存绝对路径 bake 进二进制。用户机上那个路径不存在，加载失败会
-直接 panic（子进程退出码 101），表现为“一直解析中 / 解析失败”。因此 PDFium 必须
-随安装包一起分发。
+把**构建机**的下载缓存绝对路径 bake 进二进制。用户机上那个路径不存在。桌面安装包
+和 CLI 归档都必须带上与 `liteparse-pdfium-sys` 同一 tag 的 **run-llama** 构建；
+stock PDFium（例如 bblanchon/pdfium-binaries）能 `LoadLibrary`，但缺 fork 符号，
+以前会被 `Library::init` 收成没有路径的 `LibraryUnavailable`。
 
 | 环节 | 位置 |
 |---|---|
@@ -172,7 +173,8 @@ liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 buil
 | 来源优先级 | `PDFIUM_LIB_PATH` → 平台缓存 `<cache>/pdfium-rs/<tag>/<asset>/` → 从 pdfium-binaries release 下载（5xx 重试，仍失败则改走 release asset API） |
 | macOS 打包 | `bundle.macOS.frameworks` → `Contents/Frameworks/libpdfium.dylib`（tauri-bundler 会把它登记为 codesign target，公证需要） |
 | Windows / Linux 打包 | `bundle.resources: ["pdfium/*"]` → exe 同级 `pdfium/`，deb/AppImage 为 `/usr/lib/agentero/pdfium/` |
-| 运行时定位 | `pdf_parse::bundled_pdfium_dir()` 从 `current_exe` 探测上述位置，作为 `PDFIUM_LIB_PATH` 传给解析子进程；外部已设置该环境变量时不覆盖 |
+| CLI 归档 | release 的 `cli` job 把同一份库放进 `agentero-cli-*` 归档，与 `agentero` / `agentero.exe` 同级。设置 → 安装 CLI 解压到受管目录；归档里没有时，从当前 App bundle 拷一份过去 |
+| 运行时定位 | worker 先按绝对路径 `load`：`PDFIUM_LIB_PATH` 里的库，失败再试 `bundled_pdfium_dir()`（`pdfium/` 子目录、deb/AppImage、exe 同级）。都没有才走 liteparse 自己的搜索。加载失败把路径和符号错误写进 response，不再让 `Library::init` panic 成 `LibraryUnavailable` |
 
 - iOS/Android 不打包 PDFium：正文解析走配对的桌面 Host，平台 config 已清空 `resources`。
 - 子进程 stderr 落到 worker 临时目录的 `stderr.log`；拿不到 response 时其尾部会拼进错误消息。
