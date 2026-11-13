@@ -115,7 +115,7 @@ export const commands = {
 	jobParseBodyEnqueue: (args: JobParseBodyEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_parse_body_enqueue", { args })),
 	jobLayoutAnalyzeEnqueue: (args: JobLayoutAnalyzeEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
 	/**  Request a document translation through the same queue used by imports. */
-	jobLayoutTranslateEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_translate_enqueue", { args })),
+	jobLayoutTranslateEnqueue: (args: JobLayoutTranslateEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_translate_enqueue", { args })),
 	jobLayoutTranslateClaim: (args: JobLayoutTranslateClaimArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_layout_translate_claim", { args })),
 	jobDownloadAssetsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_download_assets_enqueue", { args })),
 	/**
@@ -3609,6 +3609,18 @@ export type JobLayoutAnalyzeEnqueueArgs = {
 
 export type JobLayoutTranslateClaimArgs = {
 	jobId: string,
+};
+
+export type JobLayoutTranslateEnqueueArgs = {
+	vaultPath: string,
+	path: string,
+	lane?: JobLane | null,
+	force?: boolean,
+	/**
+	 *  Rebuild layout before starting this translation, even when the current
+	 *  sidecar is structurally complete.
+	 */
+	forceLayout?: boolean,
 };
 
 export type JobListArgs = {

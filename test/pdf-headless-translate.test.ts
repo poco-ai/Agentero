@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 	executor: null as ((ctx: TaskExecutorContext) => Promise<void>) | null,
 	open: vi.fn(),
 	close: vi.fn(),
+	layoutCompleteness: null as unknown,
 }));
 vi.mock("@/lib/core/bindings", () => ({
 	commands: { jobLayoutTranslateClaim: mocks.claim },
@@ -39,6 +40,7 @@ vi.mock("@/lib/paper/media", () => ({
 }));
 vi.mock("@/lib/pdf/layout/io", () => ({
 	readLayoutSidecar: async () => ({
+		source: { completeness: mocks.layoutCompleteness },
 		regions: [0, 1].map((pageIndex) => ({
 			id: `p${pageIndex}`,
 			kind: "text",
@@ -104,6 +106,19 @@ const cached = (pages: number[]) => ({
 });
 beforeEach(() => {
 	mocks.sidecar = null;
+	mocks.layoutCompleteness = {
+		pageCount: 2,
+		processedPages: [0, 1],
+		textLayerComplete: true,
+		pageStats: [0, 1].map((pageIndex) => ({
+			pageIndex,
+			regionCount: 1,
+			textChars: 100,
+			translatableRegionCount: 1,
+		})),
+		warnings: [],
+		contentRepairAttempted: true,
+	};
 	mocks.open.mockReset().mockResolvedValue({ id: "doc", pageCount: 2 });
 	mocks.close.mockReset().mockResolvedValue(undefined);
 	mocks.claim.mockReset().mockResolvedValue(true);
@@ -139,6 +154,30 @@ it("continues only missing blocks and publishes existing translations before req
 		]),
 		{ preserveExisting: true },
 	);
+});
+
+it("refuses to translate from a structurally incomplete layout", async () => {
+	mocks.layoutCompleteness = {
+		...(mocks.layoutCompleteness as object),
+		textLayerComplete: false,
+	};
+	await expect(translatePaperLayoutHeadless(request())).rejects.toThrow(
+		"Layout analysis is incomplete",
+	);
+	expect(mocks.run).not.toHaveBeenCalled();
+});
+
+it("passes content-gap warnings to the shared viewer snapshot", async () => {
+	mocks.layoutCompleteness = {
+		...(mocks.layoutCompleteness as object),
+		warnings: [{ code: "content-gap", pages: [1] }],
+	};
+	const onItems = vi.fn();
+	await translatePaperLayoutHeadless(request({ onItems }));
+	expect(onItems.mock.calls[0][2]).toEqual({
+		warnings: [{ code: "content-gap", pages: [1] }],
+		pageCount: 2,
+	});
 });
 
 it("publishes a complete cache without requesting translations or rewriting it", async () => {

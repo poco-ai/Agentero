@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use tauri::{Manager, State};
 
 use super::{
-    emit_job_changed, parse_lane, start_enqueued_job, JobCenter, JobKind, JobLane, JobSnapshot,
-    JobState, StartOutcome,
+    emit_job_changed, layout_readiness::read_layout_input_readiness, parse_lane,
+    start_enqueued_job, JobCenter, JobKind, JobLane, JobSnapshot, JobState, StartOutcome,
 };
 
 /// Validate the command's (vault, paper) pair or early-return the IPC error
@@ -32,6 +32,21 @@ pub struct JobEnqueueArgs {
     pub lane: Option<JobLane>,
     #[serde(default)]
     pub force: bool,
+}
+
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct JobLayoutTranslateEnqueueArgs {
+    pub vault_path: String,
+    pub path: String,
+    #[serde(default)]
+    pub lane: Option<JobLane>,
+    #[serde(default)]
+    pub force: bool,
+    /// Rebuild layout before starting this translation, even when the current
+    /// sidecar is structurally complete.
+    #[serde(default)]
+    pub force_layout: bool,
 }
 
 /// `layoutAnalyze` enqueue args. `auto_translate` marks import / download
@@ -434,52 +449,227 @@ pub async fn job_papers_needing_assets(
 pub async fn job_layout_translate_enqueue(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
-    args: JobEnqueueArgs,
+    args: JobLayoutTranslateEnqueueArgs,
 ) -> Result<ApiResult<JobSnapshot>, String> {
     let (vault, path) = try_job_paper!(args);
-    let active = center
-        .list(Some(&vault), Some(&path))
-        .await
-        .into_iter()
-        .find(|job| {
-            job.kind == JobKind::LayoutTranslate
-                && matches!(job.state, JobState::Queued | JobState::Running)
-        });
-    let job = if let Some(job) = active {
-        job
-    } else if vault.join(&path).join("source/layout.json").is_file() {
+    center.refresh_layout_backend().await;
+    let (job, changed) =
+        enqueue_layout_translation(&center, vault, path, args.force, args.force_layout).await;
+    for snapshot in changed {
+        emit_job_changed(&app, snapshot);
+    }
+    for snapshot in center.focus_layout_translate(&job.id).await {
+        emit_job_changed(&app, snapshot);
+    }
+    center.drain_and_spawn(&app).await;
+    Ok(ApiResult::ok(center.snapshot(&job.id).await.unwrap_or(job)))
+}
+
+async fn enqueue_layout_translation(
+    center: &JobCenter,
+    vault: PathBuf,
+    path: String,
+    force: bool,
+    force_layout: bool,
+) -> (JobSnapshot, Vec<JobSnapshot>) {
+    let readiness = read_layout_input_readiness(&vault.join(&path));
+    let needs_layout = force_layout || readiness.needs_layout_analysis();
+    let active = center.list(Some(&vault), Some(&path)).await;
+    let mut changed = Vec::new();
+    if force_layout {
+        // An explicit reparse replaces this paper's active pipeline. Cancel
+        // translation first so it cannot consume a superseded layout result.
+        for kind in [JobKind::LayoutTranslate, JobKind::LayoutAnalyze] {
+            for job in active.iter().filter(|job| job.kind == kind) {
+                if center.cancel(&job.id).await {
+                    if let Some(snapshot) = center.snapshot(&job.id).await {
+                        changed.push(snapshot);
+                    }
+                }
+            }
+        }
+    } else if let Some(job) = active.into_iter().find(|job| {
+        job.kind == JobKind::LayoutTranslate
+            && matches!(job.state, JobState::Queued | JobState::Running)
+    }) {
+        return (job, changed);
+    }
+    let job = if !needs_layout {
         center
             .enqueue_core(
                 JobKind::LayoutTranslate,
                 vault,
                 path,
                 JobLane::Focus,
-                args.force,
+                force,
                 None,
                 None,
             )
             .await
     } else {
         let layout = center
-            .enqueue_layout_analyze(vault.clone(), path.clone(), JobLane::Focus, false)
+            .enqueue_layout_analyze(
+                vault.clone(),
+                path.clone(),
+                JobLane::Focus,
+                force_layout || readiness.force_layout_analysis(),
+            )
             .await;
         let translate = center
             .enqueue_layout_translate_after(
                 vault,
                 path,
                 JobLane::Focus,
-                args.force,
+                force,
                 super::JobId(layout.id.clone()),
             )
             .await;
-        emit_job_changed(&app, layout);
+        changed.push(layout);
         translate
     };
-    for snapshot in center.focus_layout_translate(&job.id).await {
-        emit_job_changed(&app, snapshot);
+    (job, changed)
+}
+
+#[cfg(test)]
+mod layout_translate_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn reparse_replaces_active_layout_and_its_translation_dependency() {
+        for previous_force in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let vault = dir.path().to_path_buf();
+            let path = "papers/a".to_string();
+            let center = JobCenter::new();
+            let (old_layout, old_translate) = center
+                .enqueue_layout_analysis_with_translate(
+                    &vault,
+                    &path,
+                    JobLane::Normal,
+                    previous_force,
+                    true,
+                )
+                .await;
+            let old_translate = old_translate.unwrap();
+            let running = match center.try_start(&old_layout.id).await {
+                StartOutcome::Started(job) => job,
+                other => panic!("expected running layout, got {other:?}"),
+            };
+            let unrelated = center
+                .enqueue_layout_analyze(&vault, "papers/b", JobLane::Normal, false)
+                .await;
+            let body = center
+                .enqueue_parse_body(&vault, &path, JobLane::Normal, false, None)
+                .await;
+
+            let (translate, changed) =
+                enqueue_layout_translation(&center, vault, path, false, true).await;
+            let layout = changed
+                .iter()
+                .find(|job| job.kind == JobKind::LayoutAnalyze && job.state == JobState::Queued)
+                .unwrap();
+            assert_ne!(layout.id, old_layout.id);
+            assert_ne!(translate.id, old_translate.id);
+            assert!(layout.force);
+            assert!(!translate.force, "completed translations remain reusable");
+            assert_eq!(translate.depends_on, vec![layout.id.clone()]);
+            assert!(running.cancel_token.is_cancelled());
+            assert_eq!(
+                center.snapshot(&old_layout.id).await.unwrap().state,
+                JobState::Cancelled
+            );
+            assert_eq!(
+                center.snapshot(&old_translate.id).await.unwrap().state,
+                JobState::Cancelled
+            );
+            assert_eq!(
+                center.snapshot(&unrelated.id).await.unwrap().state,
+                JobState::Queued
+            );
+            assert_eq!(
+                center.snapshot(&body.id).await.unwrap().state,
+                JobState::Queued
+            );
+            assert!(matches!(
+                center.try_start(&translate.id).await,
+                StartOutcome::Waiting
+            ));
+            assert!(matches!(
+                center.try_start(&layout.id).await,
+                StartOutcome::Started(_)
+            ));
+        }
     }
-    center.drain_and_spawn(&app).await;
-    Ok(ApiResult::ok(center.snapshot(&job.id).await.unwrap_or(job)))
+
+    #[tokio::test]
+    async fn reparse_cancels_a_running_translation_before_queuing_new_layout() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path().to_path_buf();
+        let path = "papers/a".to_string();
+        let center = JobCenter::new();
+        let layout = center
+            .enqueue_layout_analyze(&vault, &path, JobLane::Normal, false)
+            .await;
+        assert!(matches!(
+            center.try_start(&layout.id).await,
+            StartOutcome::Started(_)
+        ));
+        center
+            .job_report(
+                &layout.id,
+                Some(100.0),
+                None,
+                None,
+                Some(JobState::Succeeded),
+            )
+            .await
+            .unwrap();
+        let translate = center
+            .enqueue_layout_translate_after(
+                &vault,
+                &path,
+                JobLane::Normal,
+                false,
+                super::super::JobId(layout.id),
+            )
+            .await;
+        let running = match center.try_start(&translate.id).await {
+            StartOutcome::Started(job) => job,
+            other => panic!("expected running translation, got {other:?}"),
+        };
+
+        let (replacement, changed) =
+            enqueue_layout_translation(&center, vault, path, false, true).await;
+        assert_ne!(replacement.id, translate.id);
+        assert!(running.cancel_token.is_cancelled());
+        assert_eq!(changed[0].id, translate.id);
+        assert_eq!(changed[0].state, JobState::Cancelled);
+        assert!(matches!(
+            center.try_start(&replacement.id).await,
+            StartOutcome::Waiting
+        ));
+    }
+
+    #[tokio::test]
+    async fn ordinary_translation_joins_an_active_pipeline() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path().to_path_buf();
+        let path = "papers/a".to_string();
+        let center = JobCenter::new();
+        let (layout, translate) = center
+            .enqueue_layout_analysis_with_translate(&vault, &path, JobLane::Normal, false, true)
+            .await;
+        let translate = translate.unwrap();
+
+        let (joined, changed) =
+            enqueue_layout_translation(&center, vault, path, false, false).await;
+        assert_eq!(joined.id, translate.id);
+        assert!(changed.is_empty());
+        assert_eq!(
+            center.snapshot(&layout.id).await.unwrap().state,
+            JobState::Queued
+        );
+    }
 }
 
 #[derive(Debug, Deserialize, specta::Type)]

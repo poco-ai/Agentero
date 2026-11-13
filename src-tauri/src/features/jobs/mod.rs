@@ -1,4 +1,5 @@
 pub mod commands;
+mod layout_readiness;
 
 use crate::core::error::AppError;
 use crate::core::fs::canonicalize_best_effort;
