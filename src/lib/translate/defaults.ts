@@ -18,7 +18,6 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	customPrompt: "",
 	customSystem: "",
 	customUser: "",
-	glossaries: {},
 	cacheReflowIr: true,
 	cacheReflowFinal: false,
 	autoTranslateImport: false,

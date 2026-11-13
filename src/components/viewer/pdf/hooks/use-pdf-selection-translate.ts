@@ -1,6 +1,3 @@
-import { quoteContextFromText } from "@/lib/agent/selection-context";
-import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
-import { dictionarySurrounding } from "@/lib/translate/dictionary";
 /**
  * Selection → 翻译 workflow for the EmbedPDF viewer: the one ephemeral mark kind.
  * A translate card is created straight from the selection menu and streams into
@@ -50,10 +47,10 @@ import {
 	writePdfTranslate,
 } from "@/lib/pdf/translate";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
+import { shouldUseDictionary } from "@/lib/translate/dictionary";
 
 export type UsePdfSelectionTranslateOptions = {
 	isActive: boolean;
-	docId?: string;
 	/** Sidecar root for `marks/<id>.json` (null for loose PDFs — nothing persists). */
 	paperAbsPath: string | null;
 	/** Vault-relative provenance stamped into the record. */
@@ -86,6 +83,8 @@ export type PdfSelectionTranslate = {
 	translateSelection: (anchor: PdfAskAnchor) => void;
 	/** Toggle whether the result survives dismissal, without affecting the run. */
 	toggleTranslatePin: (record: PdfTranslateRecord) => void;
+	/** Toggle between dictionary and translate modes for a record. */
+	toggleTranslateMode: (record: PdfTranslateRecord) => void;
 	/** Discard an unpinned result when its card is dismissed. */
 	discardUnpinnedTranslateOnClose: (id: string) => void;
 	/** Cancel the in-flight run; also wired into {@link usePdfCards}. */
@@ -98,7 +97,6 @@ export type PdfSelectionTranslate = {
 
 export function usePdfSelectionTranslate({
 	isActive,
-	docId,
 	paperAbsPath,
 	paperRelPath,
 	vaultPath,
@@ -246,6 +244,20 @@ export function usePdfSelectionTranslate({
 		[translatesRef, upsertTranslate, persistTranslate],
 	);
 
+	const toggleTranslateMode = useCallback(
+		(record: PdfTranslateRecord) => {
+			const current =
+				translatesRef.current.find((item) => item.id === record.id) ?? record;
+			const next = upsertTranslate({
+				...current,
+				mode: current.mode === "dictionary" ? "translate" : "dictionary",
+				updatedAt: new Date().toISOString(),
+			});
+			void persistTranslate(next);
+		},
+		[translatesRef, upsertTranslate, persistTranslate],
+	);
+
 	const discardUnpinnedTranslateOnClose = useCallback(
 		(id: string) => {
 			const record = translatesRef.current.find((item) => item.id === id);
@@ -276,12 +288,15 @@ export function usePdfSelectionTranslate({
 			stopTranslateSession();
 			const paperPath = paperRelPath || paperAbsPath || "paper";
 			const paperKey = paperRelPath || paperAbsPath || null;
+			// 判定是否为词典模式，在创建记录之前确定
+			const mode = shouldUseDictionary(quote) ? "dictionary" : "translate";
 			const rec = createTranslateRecord({
 				paperPath,
 				page: anchor.page,
 				rects: anchor.rects,
 				selectionPages: anchor.selectionPages,
 				quote,
+				mode,
 			});
 			let currentRecord = upsertTranslate(rec);
 			protectedTranslateIdsRef.current.add(rec.id);
@@ -313,25 +328,7 @@ export function usePdfSelectionTranslate({
 
 			void runSelectionTranslate({
 				text: quote,
-				context: {
-					page: anchor.page,
-					surface: "pdf-selection",
-					dictionarySurrounding: (() => {
-						const regions = docId
-							? (layoutAnalysisStore.getState().byDocument[docId]?.regions ??
-								[])
-							: [];
-						const matches = regions.filter(
-							(r) => r.pageIndex === anchor.page - 1 && r.text?.includes(quote),
-						);
-						return matches.length === 1
-							? dictionarySurrounding(
-									quote,
-									quoteContextFromText(matches[0].text ?? "", quote),
-								)
-							: undefined;
-					})(),
-				},
+				context: { page: anchor.page, surface: "pdf-selection" },
 				paperKey,
 				vaultPath,
 				noAgentText: () => t("selection.translateNoAgent"),
@@ -376,7 +373,6 @@ export function usePdfSelectionTranslate({
 		},
 		[
 			t,
-			docId,
 			isActive,
 			vaultPath,
 			paperAbsPath,
@@ -395,6 +391,7 @@ export function usePdfSelectionTranslate({
 		translateError,
 		translateSelection,
 		toggleTranslatePin,
+		toggleTranslateMode,
 		discardUnpinnedTranslateOnClose,
 		stopTranslateSession,
 		openTranslateSettings,

@@ -91,8 +91,6 @@ export type TranslateSettings = {
 	 * otherwise the source is still quoted. Max 8000 chars.
 	 */
 	customUser: string;
-	/** Global, user-authored glossary text keyed by target language. */
-	glossaries: Record<string, string>;
 	/**
 	 * Persist extracted reflow character IR pages under the app cache directory
 	 * (default on). Off = extraction runs again on every open and nothing is
@@ -143,13 +141,10 @@ export type TranslateTask = {
 		quote?: string;
 		/** e.g. "pdf-selection" */
 		surface?: string;
-		dictionarySurrounding?: string;
 	};
 };
 
 export type TranslateRunOptions = {
-	/** Resolved terminology constraint for this source text. */
-	glossary?: string;
 	/** Override settings.provider for this call. */
 	providerId?: TranslateProviderId;
 	/** Current BYOK provider config, resolved from settings. */

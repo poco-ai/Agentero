@@ -18,7 +18,6 @@ import {
 	SettingsRow,
 	SettingsSectionLabel,
 } from "@/components/settings/settings-layout";
-import { TranslationGlossaryEditor } from "@/components/settings/translation-glossary-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -70,7 +69,6 @@ import {
 	DEFAULT_TRANSLATE_SETTINGS,
 	EMPTY_TRANSLATE_PROVIDER_CONFIG,
 } from "@/lib/translate/defaults";
-import { resolveTargetLangCode } from "@/lib/translate/lang";
 import { extraRequestBodyIssue } from "@/lib/translate/request-options";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 
@@ -119,11 +117,7 @@ export function TranslatePane({
 	patch: (p: Partial<AppSettings>) => void;
 	onOpenAgentSettings?: () => void;
 }) {
-	const { t, i18n } = useTranslation("settings");
-	const glossaryLang = resolveTargetLangCode(
-		settings.translate.targetLang,
-		i18n.language,
-	);
+	const { t } = useTranslation("settings");
 	const tr = settings.translate;
 	const storedSystem = tr.customSystem || tr.customPrompt;
 	const [systemDraft, setSystemDraft] = useState(storedSystem);
@@ -478,23 +472,6 @@ export function TranslatePane({
 					</Select>
 				</SettingsRow>
 			</SettingsGroup>
-
-			<div className="mt-4">
-				<TranslationGlossaryEditor
-					key={glossaryLang}
-					value={tr.glossaries[glossaryLang] ?? ""}
-					language={t(
-						glossaryLang === "zh-CN"
-							? "translate.targetLang.zhCN"
-							: "translate.targetLang.en",
-					)}
-					onSave={(value) =>
-						patchTranslate({
-							glossaries: { ...tr.glossaries, [glossaryLang]: value },
-						})
-					}
-				/>
-			</div>
 
 			<SettingsSectionLabel className="mt-4">
 				{t("translate.autoTranslation.section")}

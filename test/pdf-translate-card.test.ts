@@ -36,7 +36,6 @@ async function renderCard(
 	onTogglePin = vi.fn(),
 	screen: Parameters<typeof TranslateCard>[0]["screen"] = { x: 600, y: 200 },
 	text = result,
-	sourceText?: string,
 ) {
 	await act(() =>
 		root.render(
@@ -46,7 +45,6 @@ async function renderCard(
 				createElement(TranslateCard, {
 					screen,
 					result: text,
-					sourceText,
 					streaming: false,
 					error: null,
 					onOpenSettings: vi.fn(),
@@ -292,38 +290,4 @@ it("opens at the width the user last dragged it to, still content-sized", async 
 	// Height stays content-sized: a remembered height would leave blank space
 	// under shorter translations.
 	expect(card.style.height).toBe("");
-});
-
-it("shows a dictionary headword and accepts a plain MT gloss with existing actions", async () => {
-	const onHide = vi.fn();
-	const onPin = vi.fn();
-	const card = await renderCard(
-		onHide,
-		onPin,
-		{ x: 600, y: 200 },
-		"分辨率",
-		"resolution",
-	);
-	expect(card.getAttribute("aria-label")).toBe("selection.dictionaryTitle");
-	expect(card.textContent).toContain("resolution");
-	expect(card.textContent).toContain("分辨率");
-	expect(card.querySelector('[aria-keyshortcuts="P"]')).not.toBeNull();
-	const writeText = vi
-		.spyOn(navigator.clipboard, "writeText")
-		.mockResolvedValue();
-	await act(() =>
-		card.querySelector<HTMLButtonElement>('[aria-keyshortcuts="C"]')?.click(),
-	);
-	expect(writeText).toHaveBeenCalledWith("分辨率");
-});
-it("keeps a sentence in the translation card", async () => {
-	const card = await renderCard(
-		vi.fn(),
-		vi.fn(),
-		{ x: 600, y: 200 },
-		"该图像具有高分辨率。",
-		"The image has high resolution.",
-	);
-	expect(card.getAttribute("aria-label")).toBe("selection.translateTitle");
-	expect(card.textContent).not.toContain("The image has high resolution.");
 });

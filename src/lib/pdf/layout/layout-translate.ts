@@ -181,13 +181,6 @@ export function translateServiceKey(settings: TranslateSettings): string {
 		settings.customPrompt,
 		settings.customSystem,
 		settings.customUser,
-		Object.keys(settings.glossaries ?? {}).length
-			? JSON.stringify(
-					Object.entries(settings.glossaries).sort(([a], [b]) =>
-						a.localeCompare(b),
-					),
-				)
-			: "",
 	]
 		.map((part) => part.trim())
 		.filter(Boolean)

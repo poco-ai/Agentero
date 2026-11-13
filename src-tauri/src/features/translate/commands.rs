@@ -14,10 +14,9 @@ use tauri::{AppHandle, Manager};
 #[specta::specta]
 pub async fn translate_text_stream(
     app: AppHandle,
-    mut args: TranslateTextArgs,
+    args: TranslateTextArgs,
     on_delta: Channel<String>,
 ) -> ApiResult<TranslateTextResult> {
-    inject_glossary(&app, &mut args);
     let sent = args.clone();
     match translate::translate_text_stream(&sent, |d| {
         let _ = on_delta.send(d.to_string());
@@ -37,7 +36,6 @@ pub async fn translate_text(
     mut args: TranslateTextArgs,
 ) -> ApiResult<TranslateTextResult> {
     use crate::core::log_util::OpTimer;
-    inject_glossary(&app, &mut args);
 
     // Credentials resolve before any `.await` so we never hold managed state across await.
     if args
@@ -138,15 +136,5 @@ pub async fn translate_text(
             op.finish_err(&e);
             map_err(e)
         }
-    }
-}
-
-fn inject_glossary(app: &AppHandle, args: &mut TranslateTextArgs) {
-    if args.glossary.is_none() {
-        let target = match args.target_lang.to_ascii_lowercase().as_str() {
-            "zh" | "zh-cn" | "zh-hans" => "zh-CN".to_string(),
-            other => other.to_string(),
-        };
-        args.glossary = app.state::<AppSettingsStore>().translate_glossary(&target);
     }
 }

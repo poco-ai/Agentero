@@ -932,12 +932,12 @@ function PdfViewerInner({
 		translateError,
 		translateSelection,
 		toggleTranslatePin,
+		toggleTranslateMode,
 		discardUnpinnedTranslateOnClose,
 		openTranslateSettings,
 		clearTranslateError,
 		stopTranslateSession: stopTranslateSessionImpl,
 	} = usePdfSelectionTranslate({
-		docId,
 		isActive,
 		paperAbsPath,
 		paperRelPath,
@@ -2377,7 +2377,9 @@ function PdfViewerInner({
 	const handleToggleTranslatePin = useCallback(() => {
 		if (activeTranslate) toggleTranslatePin(activeTranslate);
 	}, [activeTranslate, toggleTranslatePin]);
-
+	const handleToggleTranslateMode = useCallback(() => {
+		if (activeTranslate) toggleTranslateMode(activeTranslate);
+	}, [activeTranslate, toggleTranslateMode]);
 	const cardTranslate = useMemo(
 		() => ({
 			record: isActive ? activeTranslate : null,
@@ -2389,6 +2391,7 @@ function PdfViewerInner({
 					? handleToggleTranslatePin
 					: undefined,
 			onHide: hideActiveCard,
+			onToggleMode: activeTranslate ? handleToggleTranslateMode : undefined,
 		}),
 		[
 			isActive,
@@ -2398,6 +2401,7 @@ function PdfViewerInner({
 			openTranslateSettings,
 			paperAbsPath,
 			handleToggleTranslatePin,
+			handleToggleTranslateMode,
 			hideActiveCard,
 		],
 	);

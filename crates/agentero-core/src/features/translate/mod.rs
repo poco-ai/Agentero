@@ -7,10 +7,7 @@ use crate::http;
 use serde::Serialize;
 use std::time::Duration;
 
-mod dictionary;
-mod glossary;
 mod sources;
-pub use glossary::{matching_glossary, parse_glossary, GlossaryTerm};
 
 pub use sources::openai_compatible::strip_unknown_translate_placeholders;
 
@@ -80,9 +77,6 @@ where
         let translate = &translate;
         tasks.push(async move {
             let r = translate(TranslateTextArgs {
-                glossary: None,
-                dictionary: false,
-                dictionary_surrounding: None,
                 text,
                 source_lang: "auto".into(),
                 target_lang: "zh-CN".into(),
@@ -135,12 +129,6 @@ pub fn looks_mostly_cjk(s: &str) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct TranslateTextArgs {
     pub text: String,
-    #[serde(default)]
-    pub glossary: Option<String>,
-    #[serde(default)]
-    pub dictionary: bool,
-    #[serde(default)]
-    pub dictionary_surrounding: Option<String>,
     #[serde(default = "default_source")]
     pub source_lang: String,
     pub target_lang: String,
@@ -218,7 +206,6 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
         return Err(AppError::message("Missing target language"));
     }
 
-    let glossary = matching_glossary(args.glossary.as_deref().unwrap_or(""), text)?;
     let timeout = resolve_timeout(args.timeout_ms);
 
     let translated = match provider.as_str() {
@@ -229,7 +216,7 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
             let model = sources::index_translate::model_for_provider(&provider)
                 .unwrap_or(sources::index_translate::MODEL_35B_A3B);
             sources::index_translate::translate_index_translate(
-                text, &source, &target, timeout, model, &glossary,
+                text, &source, &target, timeout, model,
             )
             .await?
         }
@@ -287,9 +274,6 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
                 args.custom_system.as_deref(),
                 args.custom_user.as_deref(),
                 args.extra_request_body.as_deref(),
-                &glossary,
-                args.dictionary,
-                args.dictionary_surrounding.as_deref(),
             )
             .await?
         }
@@ -353,7 +337,6 @@ pub async fn translate_text_stream(
         &target,
         resolve_timeout(args.timeout_ms),
         model,
-        &matching_glossary(args.glossary.as_deref().unwrap_or(""), text)?,
         on_delta,
     )
     .await?;
@@ -488,9 +471,6 @@ mod tests {
         // Non-streaming ids short-circuit to `None` without a network call, so
         // the Host command can fall back to `translate_text`.
         let args = TranslateTextArgs {
-            glossary: None,
-            dictionary: false,
-            dictionary_surrounding: None,
             text: "hello".into(),
             source_lang: "auto".into(),
             target_lang: "zh-CN".into(),

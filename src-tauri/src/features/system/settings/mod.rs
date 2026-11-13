@@ -399,9 +399,6 @@ pub struct TranslateSettings {
     /// Custom user template. Applied only when it contains `{{text}}`.
     #[serde(default)]
     pub custom_user: String,
-    /// User-authored glossary text keyed by target language.
-    #[serde(default)]
-    pub glossaries: HashMap<String, String>,
     /// Persist extracted reflow character IR pages in the app cache (default on).
     #[serde(default = "default_true")]
     pub cache_reflow_ir: bool,
@@ -435,7 +432,6 @@ impl Default for TranslateSettings {
             custom_prompt: String::new(),
             custom_system: String::new(),
             custom_user: String::new(),
-            glossaries: HashMap::new(),
             cache_reflow_ir: true,
             cache_reflow_final: false,
             auto_translate_import: false,
@@ -844,19 +840,9 @@ impl AppSettingsStore {
         }
     }
 
-    /// Global user glossary for one target language.
-    pub fn translate_glossary(&self, target: &str) -> Option<String> {
-        self.inner
-            .lock()
-            .ok()?
-            .translate
-            .glossaries
-            .get(target)
-            .cloned()
-    }
-
-    /// Custom translate templates (legacy prompt, system, user). The Agent
-    /// path reads the same fields on the frontend.
+    /// Custom translate templates (legacy prompt, system, user). Injected by
+    /// `translate_text` for the OpenAI-compatible path. The Agent path reads
+    /// the same fields on the frontend.
     pub fn translate_custom_templates(&self) -> (String, String, String) {
         self.inner
             .lock()
@@ -1568,10 +1554,6 @@ fn normalize(s: &mut AppSettings) {
     // value is echoed to a billed API on every request. No trim: leading
     // whitespace may be intentional (the settings UI trims on blur).
     s.translate.custom_prompt = cap_translate_template(&s.translate.custom_prompt);
-    s.translate.glossaries.retain(|lang, value| {
-        matches!(lang.as_str(), "en" | "zh-CN")
-            && agentero_core::features::translate::parse_glossary(value).is_ok()
-    });
     s.translate.custom_system = cap_translate_template(&s.translate.custom_system);
     s.translate.custom_user = cap_translate_template(&s.translate.custom_user);
 

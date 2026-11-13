@@ -23,6 +23,7 @@ export type { TranslateTemplateIssue } from "@/lib/translate/prompt";
 export {
 	buildTranslateMessages,
 	buildTranslatePrompt,
+	classifyTranslateQuery,
 	DEFAULT_TRANSLATE_PROMPT_TEMPLATE,
 	fillTranslateTextPlaceholder,
 	hasNumberedMarkers,

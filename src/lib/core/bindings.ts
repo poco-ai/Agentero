@@ -5839,8 +5839,6 @@ export type TranslateSettings = {
 	customSystem?: string,
 	/**  Custom user template. Applied only when it contains `{{text}}`. */
 	customUser?: string,
-	/**  User-authored glossary text keyed by target language. */
-	glossaries?: { [key in string]: string },
 	/**  Persist extracted reflow character IR pages in the app cache (default on). */
 	cacheReflowIr?: boolean,
 	/**
@@ -5862,9 +5860,6 @@ export type TranslateSettings = {
 
 export type TranslateTextArgs = {
 	text: string,
-	glossary?: string | null,
-	dictionary?: boolean,
-	dictionarySurrounding?: string | null,
 	sourceLang?: string,
 	targetLang: string,
 	/**  Provider id: free MT, commercial BYOK, or `agent`. */
