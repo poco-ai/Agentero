@@ -357,7 +357,6 @@ function looksLikeAffiliation(text: string): boolean {
  */
 function firstPageTitleIds(
 	regions: readonly PdfLayoutRegion[],
-	geometryCandidates: readonly PdfLayoutRegion[],
 ): ReadonlySet<string> {
 	const pageZero = regions.filter((region) => region.pageIndex === 0);
 	const explicit = pageZero.filter(
@@ -365,7 +364,7 @@ function firstPageTitleIds(
 	);
 	if (explicit.length) return new Set(explicit.map((region) => region.id));
 
-	const candidate = geometryCandidates
+	const candidate = regions
 		.filter((region) => region.pageIndex === 0 && isPaperTitleHeading(region))
 		.sort(
 			(a, b) =>
@@ -410,26 +409,6 @@ function firstPageTitleIds(
 		: new Set();
 }
 
-const ALWAYS_PRESERVE_LABELS = new Set([
-	"doc_title",
-	"footnote",
-	"vision_footnote",
-	"footer",
-	"number",
-	"seal",
-	"aside_text",
-]);
-
-function isAlwaysPreservedRegion(region: PdfLayoutRegion): boolean {
-	return (
-		ALWAYS_PRESERVE_LABELS.has(labelKey(region)) ||
-		isAbstractHeading(region) ||
-		region.kind === "abstract" ||
-		region.kind === "algorithm" ||
-		isReferenceLayoutRegion(region)
-	);
-}
-
 /**
  * Regions left in their source language during paper-wide PDF translation.
  * Bibliographic metadata and page furniture are not reading content; captions,
@@ -439,14 +418,19 @@ export function preservedLayoutRegions(
 	regions: readonly PdfLayoutRegion[],
 	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
 ): ReadonlyMap<string, LayoutPreserveReason> {
-	const geometryCandidates = regions.filter(
-		(region) => region.score >= minScore || isAlwaysPreservedRegion(region),
-	);
-	const titleIds = firstPageTitleIds(regions, geometryCandidates);
-	const marginHeaders = marginHeaderIds(regions);
-	const metadataBand = firstPageMetadataBand(regions, titleIds);
+	const candidates = regions.filter((region) => region.score >= minScore);
+	const titleIds = firstPageTitleIds(candidates);
+	const marginHeaders = marginHeaderIds(candidates);
+	const metadataBand = firstPageMetadataBand(candidates, titleIds);
 	const out = new Map<string, LayoutPreserveReason>();
 	for (const region of regions) {
+		// Metadata geometry is grounded in confident title/abstract anchors.
+		// Model labels alone must not let weak overlapping candidates erase prose.
+		if (!(region.score >= minScore)) {
+			if (metadataBand && isMetadataBandRegion(region, metadataBand))
+				out.set(region.id, "metadata-band");
+			continue;
+		}
 		const label = labelKey(region);
 		let reason: LayoutPreserveReason | undefined;
 		if (isReferenceLayoutRegion(region)) reason = "reference";

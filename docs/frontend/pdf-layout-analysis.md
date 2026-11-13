@@ -200,6 +200,8 @@ type LayoutSidecar = {
 
 旧 sidecar 没有 `completeness` 时视为 `unknown`。导入、打开论文后的后台分析或翻译前守卫会首次打开 PDF，复用已有框轻量重走文字层：页数变化、文字层失败或发现正文缺口时才重新运行版面模型；能证明完整时写回元数据并保留原 `generatedAt`。`contentRepairAttempted` 表示翻译前已经主动重跑过一次内容修复，后续再次出现警告时继续翻译可用页，避免无限重试和重复费用。
 
+翻译保真区域与正文提取共用 `preservedLayoutRegions()`：算法、脚注、页眉页脚、页码等模型分类须达到 `LAYOUT_SIDEBAR_MIN_SCORE`（0.3）才参与字符排除和翻译项过滤，低分重叠候选框保留在 raw sidecar 中但不遮蔽正文。首页作者信息带由达到阈值的标题与摘要等锚点推导，带内低分文字块仍按几何关系保留原文。提取规则变化同步升级 reflow IR 算法版本，已有缺字缓存会重新提取。
+
 #### 侧栏索引（CLI）
 
 `{paper}/source/layout-index.json` 在 **每次 merge 后**（含缓存命中只重算 merge）写出，与 Figures 轨 / hover 目标同源：

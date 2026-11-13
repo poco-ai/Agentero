@@ -423,14 +423,14 @@ describe("listTranslatableLayoutRegions", () => {
 		]);
 	});
 
-	it("preserves explicit metadata labels below the normal confidence gate", () => {
+	it("preserves confident metadata labels and inferred low-confidence authors", () => {
 		const regions = [
 			region({
 				id: "title",
 				kind: "header",
 				label: "doc_title",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
 				text: "A Low-Confidence Paper Title",
 			}),
@@ -447,7 +447,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "footnote",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.1, y: 0.9, w: 0.8, h: 0.03 },
 				text: "Corresponding author.",
 			}),
@@ -456,7 +456,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "footer",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.4, y: 0.97, w: 0.2, h: 0.02 },
 				text: "Published 2026",
 			}),
@@ -465,7 +465,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "number",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.48, y: 0.95, w: 0.04, h: 0.02 },
 				text: "7",
 			}),
@@ -474,7 +474,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "seal",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.85, y: 0.85, w: 0.1, h: 0.1 },
 				text: "Received",
 			}),
@@ -483,7 +483,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "aside_text",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.01, y: 0.2, w: 0.04, h: 0.6 },
 				text: "arXiv:2608.00881v1",
 			}),

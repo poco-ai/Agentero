@@ -53,7 +53,7 @@ export function listTranslatableLayoutRegions(
 	const algorithms = regions.filter(
 		(r) => isAlgorithmLayoutKind(r.kind) && r.score >= minScore,
 	);
-	const preserved = preservedLayoutRegions(regions);
+	const preserved = preservedLayoutRegions(regions, minScore);
 	const out: LayoutTranslateRegion[] = [];
 	for (const r of regions) {
 		if (preserved.has(r.id)) continue;

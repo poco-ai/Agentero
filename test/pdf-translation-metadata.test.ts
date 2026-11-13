@@ -166,6 +166,9 @@ async function expectMetadataExcluded(
 			"body",
 			"body-2",
 		]);
+		expect(items.find((item) => item.id === "body")?.raw).toBe(
+			"Main body prose.",
+		);
 		for (const blocked of [
 			"Attention Is All You Need",
 			"Ada Lovelace",
@@ -183,17 +186,32 @@ it("keeps first-page metadata and page furniture out of reflow fallback", async 
 	await expectMetadataExcluded(regions);
 });
 
-it("covers legacy MinerU titles and low-confidence page furniture", async () => {
+it("covers legacy MinerU titles and inferred low-confidence author metadata", async () => {
 	const legacyMineruRegions = regions.map((item) => {
 		if (item.id === "title")
 			return { ...item, label: "paragraph_title", score: 1 };
-		if (
-			["authors", "affiliation", "footnote", "header-1", "header-2"].includes(
-				item.id,
-			)
-		)
+		if (["authors", "affiliation"].includes(item.id))
 			return { ...item, score: 0.05 };
 		return item;
 	});
 	await expectMetadataExcluded(legacyMineruRegions);
+});
+
+// Weak alternate labels on a body bbox must not remove its characters or item.
+it.each([
+	["algorithm", "algorithm"],
+	["text", "footnote"],
+	["text", "vision_footnote"],
+	["text", "footer"],
+	["text", "number"],
+	["text", "aside_text"],
+	["text", "seal"],
+	["header", "doc_title"],
+	["text", "reference"],
+] as const)("ignores a low-confidence %s / %s over body text", async (kind, label) => {
+	const noise = {
+		...region("noise", 0, kind, label, "Main body prose.", 0.45, 0.1),
+		score: 0.02,
+	};
+	await expectMetadataExcluded([...regions, noise]);
 });
