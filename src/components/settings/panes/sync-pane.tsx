@@ -674,13 +674,37 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 				</SettingsGroup>
 			) : isGit ? (
 				<SettingsGroup>
-					<SettingsRow label={t("sync.gitRemote")} htmlFor="sync-gitRemote">
+					<SettingsRow
+						label={t("sync.gitRemote")}
+						description={t("sync.gitRemoteHint")}
+						htmlFor="sync-gitRemote"
+					>
 						{field("gitRemote", {
-							placeholder: "git@github.com:you/papers.git",
+							placeholder: "https://git.example.com/you/papers.git",
 						})}
 					</SettingsRow>
 					<SettingsRow label={t("sync.gitBranch")} htmlFor="sync-gitBranch">
 						{field("gitBranch", { placeholder: "main" })}
+					</SettingsRow>
+					<SettingsRow
+						label={t("sync.gitAllowInsecureHttp")}
+						description={t("sync.gitAllowInsecureHttpHint")}
+						htmlFor="sync-gitAllowInsecureHttp"
+					>
+						<Switch
+							id="sync-gitAllowInsecureHttp"
+							checked={form.gitAllowInsecureHttp}
+							onCheckedChange={(checked) =>
+								patch({ gitAllowInsecureHttp: checked })
+							}
+						/>
+					</SettingsRow>
+					<SettingsRow
+						label={t("sync.gitSslCa")}
+						description={t("sync.gitSslCaHint")}
+						htmlFor="sync-gitSslCaInfo"
+					>
+						{field("gitSslCaInfo", { placeholder: "/path/to/ca.pem" })}
 					</SettingsRow>
 				</SettingsGroup>
 			) : isWebdav ? (
