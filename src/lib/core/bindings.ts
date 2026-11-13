@@ -2917,6 +2917,10 @@ export type DecisionSettings = {
 	model?: string,
 	/**  Whether the experimental smart-highlight toolbar action is enabled. */
 	smartHighlight?: boolean,
+	/**  How many smart-highlight batches may be in flight. One of 1, 2, 4, 16. */
+	smartHighlightConcurrency?: number,
+	/**  Seconds for one smart-highlight batch, starting when its request is sent. */
+	smartHighlightTimeoutSecs?: number,
 };
 
 export type DepPolicy = "allSettled" | "allSucceeded";

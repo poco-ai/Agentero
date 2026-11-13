@@ -423,6 +423,10 @@ export type DecisionSettings = {
 	model: string;
 	/** Enable the experimental smart-highlight action in the PDF toolbar. */
 	smartHighlight: boolean;
+	/** In-flight smart-highlight batches. One of 1, 2, 4, 16. */
+	smartHighlightConcurrency: number;
+	/** Seconds for one smart-highlight batch, counted from send. */
+	smartHighlightTimeoutSecs: number;
 };
 
 /**

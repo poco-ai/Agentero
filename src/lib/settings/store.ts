@@ -30,6 +30,9 @@ import {
 	DEFAULT_PAPER_READER_SETTINGS,
 	DEFAULT_PDF_ASK_SETTINGS,
 	DEFAULT_SETTINGS,
+	SMART_HIGHLIGHT_CONCURRENCY_CHOICES,
+	SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+	SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
 	snapUiScale,
 } from "@/lib/settings/defaults";
 import { normalizeFontFamilyValue } from "@/lib/settings/fonts";
@@ -555,6 +558,26 @@ function normalizeDecisionSettings(raw: unknown): DecisionSettings {
 	}
 	if (typeof partial.smartHighlight === "boolean") {
 		base.smartHighlight = partial.smartHighlight;
+	}
+	if (
+		typeof partial.smartHighlightConcurrency === "number" &&
+		(SMART_HIGHLIGHT_CONCURRENCY_CHOICES as readonly number[]).includes(
+			partial.smartHighlightConcurrency,
+		)
+	) {
+		base.smartHighlightConcurrency = partial.smartHighlightConcurrency;
+	}
+	if (
+		typeof partial.smartHighlightTimeoutSecs === "number" &&
+		Number.isFinite(partial.smartHighlightTimeoutSecs)
+	) {
+		base.smartHighlightTimeoutSecs = Math.min(
+			SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+			Math.max(
+				SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
+				Math.round(partial.smartHighlightTimeoutSecs),
+			),
+		);
 	}
 	const preset = DECISION_PROVIDER_PRESETS[base.provider];
 	const baseUrl =
