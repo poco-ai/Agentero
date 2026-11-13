@@ -92,6 +92,7 @@ function ZenSlotPanel({
 				paperMetaByRelPath={paperMetaByRelPath}
 				paperTreeLabelMode={paperTreeLabelMode}
 				className="h-full min-h-0"
+				wide
 				initialAgentId={slot.agent.id}
 				openHistoryItem={historyItem}
 				onOpenHistoryHandled={() =>

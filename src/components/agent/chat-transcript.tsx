@@ -1158,6 +1158,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	activeTabId,
 	hydratingSessionId,
 	compact = false,
+	wide = false,
 	forceVirtualize = false,
 	activeTabIsRunning,
 	submitting,
@@ -1181,6 +1182,8 @@ export const ChatTranscript = memo(function ChatTranscript({
 	activeTabId: string;
 	hydratingSessionId: string | null;
 	compact?: boolean;
+	/** Full-page surface: extra horizontal inset for the message column. */
+	wide?: boolean;
 	/** Storybook / tests: windowed rendering even below the line threshold. */
 	forceVirtualize?: boolean;
 	activeTabIsRunning: boolean;
@@ -1299,6 +1302,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	return (
 		<Conversation className="min-h-0 flex-1">
 			<ConversationContent
+				className={wide ? "px-5 lg:px-10" : undefined}
 				scrollClassName={
 					compact
 						? "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

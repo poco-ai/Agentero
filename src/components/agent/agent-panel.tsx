@@ -61,6 +61,7 @@ export const AgentPanel = memo(function AgentPanel({
 	onAgentChange,
 	openHistoryItem = null,
 	onOpenHistoryHandled,
+	wide = false,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
 	const panel = useAgentPanel({
@@ -412,6 +413,7 @@ export const AgentPanel = memo(function AgentPanel({
 
 				<div ref={bodyRef} className="flex min-h-0 flex-1 flex-col">
 					<ChatTranscript
+						wide={wide}
 						activeTabId={activeTabId}
 						hydratingSessionId={hydratingSessionId}
 						compact={composerCompact}
@@ -468,6 +470,7 @@ export const AgentPanel = memo(function AgentPanel({
 							</button>
 
 							<AgentComposer
+								wide={wide}
 								autoFocus={autoFocus}
 								heightPx={composerDisplayHeightPx}
 								compact={composerCompact}

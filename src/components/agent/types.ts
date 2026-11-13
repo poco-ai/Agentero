@@ -59,6 +59,8 @@ export type AgentPanelProps = {
 	openHistoryItem?: ChatSessionHistoryItem | null;
 	/** Clear the one-shot request once loading has started. */
 	onOpenHistoryHandled?: () => void;
+	/** Full-page surface: inset the transcript and composer horizontally. */
+	wide?: boolean;
 	className?: string;
 	headerActions?: ReactNode;
 	autoFocus?: boolean;
