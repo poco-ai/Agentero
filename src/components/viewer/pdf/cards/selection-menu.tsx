@@ -1,7 +1,10 @@
 import { Bookmark, MessageSquare } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SelectionActionMenu } from "@/components/selection/selection-action-menu";
+import {
+	SelectionActionMenu,
+	type SelectionMenuShortcut,
+} from "@/components/selection/selection-action-menu";
 import {
 	SelectionToolbarAction,
 	SelectionToolbarDivider,
@@ -13,9 +16,13 @@ import {
 	oppositeTextMarkupKind,
 	readLastMarkupShape,
 	readMarkupShapes,
+	writeLastMarkupShape,
 	writeMarkupShape,
 } from "@/lib/pdf/highlight/markup-pref";
-import type { HighlightColor } from "@/lib/pdf/highlight/palette";
+import {
+	HIGHLIGHT_COLORS,
+	type HighlightColor,
+} from "@/lib/pdf/highlight/palette";
 import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import {
 	activateMenuContribution,
@@ -80,6 +87,29 @@ export function SelectionMenu({
 		},
 		[shapes, onHighlight],
 	);
+	/**
+	 * Forced shape from a modifier shortcut: applies without flipping the
+	 * swatch's remembered click shape.
+	 */
+	const applyForcedShape = useCallback(
+		(color: HighlightColor, kind: PdfTextMarkupKind) => {
+			writeLastMarkupShape(kind);
+			setNoteShape(kind);
+			onHighlight(color, kind);
+		},
+		[onHighlight],
+	);
+	// Bare digits come from the palette's aria hints. Each modifier prefix
+	// forces one shape; a future wavy shape adds its own prefix here.
+	const shortcutActions = useMemo<SelectionMenuShortcut[]>(
+		() =>
+			HIGHLIGHT_COLORS.map((color, i) => ({
+				key: String(i + 1),
+				alt: true,
+				run: () => applyForcedShape(color, "underline"),
+			})),
+		[applyForcedShape],
+	);
 	const contributions = contributionContext
 		? visibleMenuContributions("pdf.selection", contributionContext)
 		: [];
@@ -93,6 +123,7 @@ export function SelectionMenu({
 			anchorRef={dividerRef}
 			expandingRef={colorsRef}
 			expandedWidth={HIGHLIGHT_COLOR_STACK_EXPANDED_W}
+			shortcutActions={showHighlight ? shortcutActions : undefined}
 			beforeActions={
 				showHighlight ? (
 					<>

@@ -14,6 +14,7 @@ import {
 	swatchBorderClass,
 	swatchColorClass,
 } from "@/lib/pdf/highlight/palette";
+import { formatShortcut } from "@/lib/shell/shortcuts";
 
 /** Visual size of each color dot (px). */
 const CARD = 16;
@@ -119,6 +120,14 @@ export function HighlightColorStack({
 				const toggleHint = hollow
 					? t("selection.shapeSwitchHint.toHighlight")
 					: t("selection.shapeSwitchHint.toUnderline");
+				const shortcutKey = String(i + 1);
+				// Bare digit applies the swatch's remembered shape; the modifier
+				// variant forces an underline. A future wavy shape gets another
+				// modifier prefix and its own hint line here.
+				const underlineShortcut = formatShortcut({
+					key: shortcutKey,
+					alt: true,
+				});
 				return (
 					<Tooltip key={color}>
 						<TooltipTrigger asChild>
@@ -129,7 +138,9 @@ export function HighlightColorStack({
 										? `${colorLabel(color)} · ${shapeLabel}`
 										: colorLabel(color)
 								}
-								aria-keyshortcuts={shortcuts ? String(i + 1) : undefined}
+								aria-keyshortcuts={
+									shortcuts ? `${shortcutKey} Alt+${shortcutKey}` : undefined
+								}
 								aria-pressed={activeColor ? isActive : undefined}
 								className={cn(
 									"absolute top-0 inline-flex items-center justify-center rounded-full outline-none",
@@ -185,10 +196,16 @@ export function HighlightColorStack({
 									) : null}
 									{shortcuts ? (
 										<kbd className="ml-2 font-sans text-[10px] opacity-70">
-											{i + 1}
+											{shortcutKey}
 										</kbd>
 									) : null}
 								</span>
+								{shortcuts ? (
+									<span className="text-[10px] opacity-60">
+										<kbd className="font-sans">{underlineShortcut}</kbd>{" "}
+										{t("selection.shapeUnderline")}
+									</span>
+								) : null}
 								{onToggleShape ? (
 									<span className="text-[10px] opacity-60">{toggleHint}</span>
 								) : null}

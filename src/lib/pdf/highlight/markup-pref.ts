@@ -70,6 +70,15 @@ export function writeMarkupShape(
 	});
 }
 
+/**
+ * Remember the note shape without changing any swatch's click shape, for
+ * forced-shape shortcuts that bypass the palette (e.g. ⌥1 → underline).
+ */
+export function writeLastMarkupShape(kind: PdfTextMarkupKind): void {
+	const { colors } = readState();
+	writeJsonStorage(KEY, { colors, last: kind });
+}
+
 /** The shape a right-click on that swatch switches to. */
 export function oppositeTextMarkupKind(
 	kind: PdfTextMarkupKind,

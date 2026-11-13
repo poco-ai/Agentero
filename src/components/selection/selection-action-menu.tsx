@@ -28,7 +28,23 @@ import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { clamp } from "@/lib/core/math";
+import {
+	matchesAriaShortcut,
+	matchShortcut,
+	type ShortcutDef,
+} from "@/lib/shell/shortcuts";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
+
+/**
+ * Modifier shortcut owned by the menu source, such as ⌥1 → underline. Bare
+ * single keys still come from the toolbar's `aria-keyshortcuts`.
+ */
+export type SelectionMenuShortcut = Pick<
+	ShortcutDef,
+	"key" | "meta" | "ctrl" | "alt" | "shift"
+> & {
+	run: () => void;
+};
 
 /** Secondary action collected by the trailing dropdown. */
 export type SelectionMenuMoreAction = {
@@ -59,6 +75,8 @@ export type SelectionActionMenuProps = {
 	afterActions?: ReactNode;
 	/** Secondary actions appended to the chat dropdown. */
 	moreActions?: SelectionMenuMoreAction[];
+	/** Source-specific modifier shortcuts, e.g. ⌥1 forces an underline. */
+	shortcutActions?: SelectionMenuShortcut[];
 	/** Optional anchor and expansion reserve for a leading palette. */
 	anchorRef?: RefObject<HTMLElement | null>;
 	expandingRef?: RefObject<HTMLElement | null>;
@@ -126,6 +144,7 @@ export function SelectionActionMenu({
 	beforeActions,
 	afterActions,
 	moreActions,
+	shortcutActions,
 	anchorRef,
 	expandingRef,
 	expandedWidth = 0,
@@ -139,6 +158,8 @@ export function SelectionActionMenu({
 	const menuRef = useRef<HTMLDivElement>(null);
 	const moreActionsRef = useRef(moreActions);
 	moreActionsRef.current = moreActions;
+	const shortcutActionsRef = useRef(shortcutActions);
+	shortcutActionsRef.current = shortcutActions;
 	const hasMoreMenu = Boolean(onAsk) || Boolean(moreActions?.length);
 	const [position, setPosition] = useState<{
 		right: number;
@@ -154,10 +175,6 @@ export function SelectionActionMenu({
 				event.defaultPrevented ||
 				event.isComposing ||
 				event.repeat ||
-				event.altKey ||
-				event.ctrlKey ||
-				event.metaKey ||
-				event.shiftKey ||
 				isEditableClipboardTarget(event.target)
 			)
 				return;
@@ -168,28 +185,41 @@ export function SelectionActionMenu({
 						)
 					: null;
 			if (overlay && !overlay.contains(menu)) return;
-			const action = Array.from(
-				menu.querySelectorAll<HTMLButtonElement>(
-					"button[aria-keyshortcuts]:not(:disabled)",
-				),
-			).find(
-				(button) =>
-					button.getAttribute("aria-keyshortcuts")?.toLowerCase() ===
-					event.key.toLowerCase(),
-			);
-			if (!action) {
+			const modified =
+				event.altKey || event.ctrlKey || event.metaKey || event.shiftKey;
+			if (!modified) {
+				const action = Array.from(
+					menu.querySelectorAll<HTMLButtonElement>(
+						"button[aria-keyshortcuts]:not(:disabled)",
+					),
+				).find((button) =>
+					matchesAriaShortcut(
+						button.getAttribute("aria-keyshortcuts"),
+						event.key,
+					),
+				);
+				if (action) {
+					event.preventDefault();
+					action.click();
+					return;
+				}
 				// Dropdown items live in a portal, so their single-key hints are
 				// resolved from the action list instead of the toolbar DOM.
 				const extra = moreActionsRef.current?.find(
 					(item) => item.shortcut?.toLowerCase() === event.key.toLowerCase(),
 				);
-				if (!extra) return;
-				event.preventDefault();
-				extra.onSelect();
-				return;
+				if (extra) {
+					event.preventDefault();
+					extra.onSelect();
+					return;
+				}
 			}
+			const custom = shortcutActionsRef.current?.find((item) =>
+				matchShortcut(event, item),
+			);
+			if (!custom) return;
 			event.preventDefault();
-			action.click();
+			custom.run();
 		};
 		window.addEventListener("keydown", onKeyDown, true);
 		return () => window.removeEventListener("keydown", onKeyDown, true);
