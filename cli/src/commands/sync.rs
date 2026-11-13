@@ -85,6 +85,9 @@ pub struct ConfigureArgs {
     /// The token travels in cleartext; only for a trusted intranet.
     #[arg(long = "git-allow-insecure-http", value_name = "BOOL")]
     pub git_allow_insecure_http: Option<String>,
+    /// Absolute PEM CA bundle for a self-signed HTTPS Git remote.
+    #[arg(long = "git-ssl-ca", value_name = "PATH")]
+    pub git_ssl_ca_info: Option<String>,
     /// Bulky asset categories to keep out of sync (comma list of
     /// pdf,source,attachments). Notes, sidecars and marks always sync.
     #[arg(long = "exclude", value_name = "LIST", value_delimiter = ',')]
@@ -292,6 +295,9 @@ fn assemble_config(
     }
     if let Some(v) = &args.git_allow_insecure_http {
         cfg.git_allow_insecure_http = parse_bool_flag("git-allow-insecure-http", v)?;
+    }
+    if let Some(v) = &args.git_ssl_ca_info {
+        cfg.git_ssl_ca_info = v.clone();
     }
     if let Some(v) = env_non_empty(ENV_ACCESS_KEY) {
         cfg.access_key = v;
