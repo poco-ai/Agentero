@@ -665,6 +665,188 @@ describe("listTranslatableLayoutRegions", () => {
 		]);
 		expect(list.map((r) => r.id)).toEqual(["body"]);
 	});
+
+	it("translates an abstract whose heading is merged into ordinary text", () => {
+		const regions = [
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace",
+			}),
+			region({
+				id: "abstract",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.1 },
+				text: "Abstract: We present a method.",
+			}),
+			region({
+				id: "page2",
+				kind: "text",
+				label: "text",
+				pageIndex: 1,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.06 },
+				text: "Second-page body at the same height.",
+			}),
+		];
+		const preserved = preservedLayoutRegions(regions);
+		expect(preserved.get("authors")).toBe("metadata-band");
+		expect(preserved.has("abstract")).toBe(false);
+		expect(preserved.has("page2")).toBe(false);
+		expect(
+			listTranslatableLayoutRegions(regions).map((item) => item.id),
+		).toEqual(["abstract", "page2"]);
+	});
+
+	it("translates a plain-text abstract heading and the body under it", () => {
+		const regions = [
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace and Alan Turing",
+			}),
+			region({
+				id: "abstract-title",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.16, w: 0.2, h: 0.02 },
+				text: "Abstract",
+			}),
+			region({
+				id: "abstract-body",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 3,
+				bbox: { x: 0.1, y: 0.19, w: 0.8, h: 0.08 },
+				text: "We present a method.",
+			}),
+		];
+		const preserved = preservedLayoutRegions(regions);
+		expect(preserved.get("authors")).toBe("metadata-band");
+		expect(preserved.has("abstract-title")).toBe(false);
+		expect(preserved.has("abstract-body")).toBe(false);
+		expect(
+			listTranslatableLayoutRegions(regions).map((item) => item.id),
+		).toEqual(["abstract-title", "abstract-body"]);
+	});
+
+	it("translates an abstract lead without punctuation after the heading", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace",
+			}),
+			region({
+				id: "abstract",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.1 },
+				text: "Abstract We present a method.",
+			}),
+		]);
+		expect(list.map((item) => item.id)).toEqual(["abstract"]);
+	});
+
+	it("does not drop unlabeled prose just because it sits in the title fallback band", () => {
+		const regions = [
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace",
+			}),
+			region({
+				id: "affiliation",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.2, y: 0.13, w: 0.6, h: 0.02 },
+				text: "New York University, ada@example.org",
+			}),
+			region({
+				id: "abstract",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 3,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.1 },
+				text: "We present a method for private inference.",
+			}),
+			region({
+				id: "page2",
+				kind: "text",
+				label: "text",
+				pageIndex: 1,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.06 },
+				text: "Second-page body at the same height.",
+			}),
+		];
+		const preserved = preservedLayoutRegions(regions);
+		expect(preserved.get("authors")).toBe("metadata-band");
+		expect(preserved.get("affiliation")).toBe("metadata-band");
+		expect(preserved.has("abstract")).toBe(false);
+		expect(preserved.has("page2")).toBe(false);
+		expect(
+			listTranslatableLayoutRegions(regions).map((item) => item.id),
+		).toEqual(["abstract", "page2"]);
+	});
 });
 
 describe("fontSizeForLayoutTranslateBox", () => {
