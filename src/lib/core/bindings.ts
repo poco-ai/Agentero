@@ -3607,10 +3607,10 @@ export type JobLatexCompileEnqueueArgs = {
 };
 
 /**
- *  `layoutAnalyze` enqueue args. `auto_translate` marks import / download
- *  origins: when Settings → Translate → "Auto-translate after import" is on,
- *  the Host also queues the dependent `layoutTranslate` job. Opening a paper or
- *  re-parsing layout leaves it false.
+ *  `layoutAnalyze` enqueue args. `auto_translate` asks the Host to queue a
+ *  dependent `layoutTranslate` when Settings → Translate → auto-translate after
+ *  layout analysis is on. Import, download, and manual reparse set it. Opening
+ *  a paper leaves it false.
  */
 export type JobLayoutAnalyzeEnqueueArgs = {
 	vaultPath: string,

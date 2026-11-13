@@ -49,10 +49,10 @@ pub struct JobLayoutTranslateEnqueueArgs {
     pub force_layout: bool,
 }
 
-/// `layoutAnalyze` enqueue args. `auto_translate` marks import / download
-/// origins: when Settings → Translate → "Auto-translate after import" is on,
-/// the Host also queues the dependent `layoutTranslate` job. Opening a paper or
-/// re-parsing layout leaves it false.
+/// `layoutAnalyze` enqueue args. `auto_translate` asks the Host to queue a
+/// dependent `layoutTranslate` when Settings → Translate → auto-translate after
+/// layout analysis is on. Import, download, and manual reparse set it. Opening
+/// a paper leaves it false.
 #[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobLayoutAnalyzeEnqueueArgs {
@@ -712,8 +712,25 @@ pub async fn job_layout_analyze_enqueue(
     {
         return Ok(ApiResult::ok(snapshot));
     }
-    // Only import / download origins opt in; the setting is read here so the
-    // renderer never has to mirror it and a settings change needs no requeue.
+    // A forced reparse replaces this paper's layout. Cancel translation first
+    // so it cannot write a sidecar for the layout that is about to be replaced.
+    if args.force {
+        let active = center.list(Some(&vault), Some(&path)).await;
+        for kind in [JobKind::LayoutTranslate, JobKind::LayoutAnalyze] {
+            for job in active.iter().filter(|job| job.kind == kind) {
+                if !matches!(job.state, JobState::Queued | JobState::Running) {
+                    continue;
+                }
+                if center.cancel(&job.id).await {
+                    if let Some(snapshot) = center.snapshot(&job.id).await {
+                        emit_job_changed(&app, snapshot);
+                    }
+                }
+            }
+        }
+    }
+    // Callers that should follow the setting pass `auto_translate`. The Host
+    // still reads the setting, so the renderer does not mirror it.
     let auto_translate = args.auto_translate
         && app
             .state::<crate::features::system::settings::AppSettingsStore>()
@@ -1195,7 +1212,9 @@ fn remove_file_best_effort(path: &Path) -> Result<bool, AppError> {
 }
 
 /// Cancel queued/running jobs whose output files we are about to delete, so the
-/// deletion is not immediately undone by a late runner write.
+/// deletion is not immediately undone by a late runner write. Layout scope also
+/// cancels translation: it would otherwise keep writing a sidecar for the
+/// layout that is being replaced.
 async fn cancel_related_parse_jobs(
     app: &tauri::AppHandle,
     center: &JobCenter,
@@ -1203,9 +1222,13 @@ async fn cancel_related_parse_jobs(
     scope: ParseResultScope,
 ) {
     let relevant_kinds: &[JobKind] = match scope {
-        ParseResultScope::Layout => &[JobKind::LayoutAnalyze],
+        ParseResultScope::Layout => &[JobKind::LayoutAnalyze, JobKind::LayoutTranslate],
         ParseResultScope::Paper => &[JobKind::ParseBody],
-        ParseResultScope::All => &[JobKind::LayoutAnalyze, JobKind::ParseBody],
+        ParseResultScope::All => &[
+            JobKind::LayoutAnalyze,
+            JobKind::LayoutTranslate,
+            JobKind::ParseBody,
+        ],
     };
     let jobs = center.list(Some(vault), None).await;
     for job in jobs {
@@ -1322,13 +1345,27 @@ pub async fn clear_and_reparse(
 
     let mut layout_enqueued = 0u32;
     let mut paper_enqueued = 0u32;
+    let auto_translate = matches!(args.scope, ParseResultScope::Layout | ParseResultScope::All)
+        && app
+            .state::<crate::features::system::settings::AppSettingsStore>()
+            .auto_translate_import();
 
     for path in affected_paths {
         if matches!(args.scope, ParseResultScope::Layout | ParseResultScope::All) {
-            enqueue_backfill(&app, &center, JobLane::Idle, |lane| {
-                center.enqueue_layout_analyze(&vault, &path, lane, true)
-            })
-            .await;
+            let (layout, translate) = center
+                .enqueue_layout_analysis_with_translate(
+                    &vault,
+                    &path,
+                    JobLane::Idle,
+                    true,
+                    auto_translate,
+                )
+                .await;
+            start_or_hold(&app, &center, layout).await;
+            if let Some(translate) = translate {
+                emit_job_changed(&app, translate.clone());
+                start_enqueued_job(&app, &center, &translate).await;
+            }
             layout_enqueued += 1;
         }
         if matches!(args.scope, ParseResultScope::Paper | ParseResultScope::All) {

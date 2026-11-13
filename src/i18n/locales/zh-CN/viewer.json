@@ -222,6 +222,7 @@
 		"forceReanalyze": "强制重新解析版面",
 		"forceReanalyzeTitle": "重新解析版面？",
 		"forceReanalyzeBody": "将替换这篇论文已保存的版面结果，并从论文 PDF 重新检测插图、表格与公式。",
+		"forceReanalyzeTranslate": "已开启版面解析后自动翻译，完成后会把翻译加入后台队列。已有译文会复用，只补译变化的内容。",
 		"forceReanalyzeConfirm": "重新解析",
 		"forceReanalyzeMissingPdf": "论文目录里还没有论文 PDF。",
 		"forceReanalyzeFailed": "无法重新解析版面",

@@ -18,16 +18,16 @@ Settings → **翻译**：
   - OpenAI 兼容翻译要求服务支持 **Chat Completions** 格式：`POST {baseUrl}/chat/completions`，返回 `choices[0].message.content`。设置里填写 Base URL（例如 `https://api.openai.com/v1` 或服务商自己的 `/v1` 根地址），不要填写 Responses / Completions 端点；应用会自动追加 `/chat/completions`。
     用户配置说明见 [配置 OpenAI 兼容翻译](../usage/translate-openai-compatible.md)。
 - 默认服务为 Agent 时展示 Agent / 模型座。
-- **导入后自动翻译**：开启后导入的论文在版面解析完成后后台翻译全文；并发数控制同时翻译的论文数。只有导入 / 下载链路触发，打开论文补解析和手动重新解析不触发。实现见下文「导入后自动翻译」。
+- **版面解析后自动翻译**：开启后，导入、下载或重新解析版面完成时在后台翻译全文；并发数控制同时翻译的论文数。打开论文后的补解析不触发。实现见下文「版面解析后自动翻译」。
 - **自定义翻译提示词**（`translate.customSystem` / `translate.customUser`，旧 `translate.customPrompt` 仍可读）：仅对 **Agent 与 OpenAI 兼容**两条 LLM 路径生效（免费引擎与内置 provider 无提示词概念）。设置里分系统提示词和用户模板两栏。引擎规则（只输出译文、不反问、公式 / 引用 / `⟦n⟧` 原样）始终生效。系统栏里多行或带占位符的内容只替换学术风格块；一行不超过 180 字、且不含 `{{…}}` 的口语（如「翻译得自然一点」）作为附加偏好追加。占位符只认 `{{targetLang}}` / `{{sourceLang}}` / `{{text}}`，其它在失焦时校验失败、不写入；手改 settings.json 里的未知占位符会在归一化时被剥离。用户模板留空时原文仍用 `"""…"""` 包裹；非空则必须包含 `{{text}}`，由它决定原文插入位置。`[[n]]` 批量规则写在 system。每栏上限 8000 字符。「填入默认」把学术风格块写入系统栏并清掉旧的单段 `customPrompt`，「恢复默认」三栏都清空。OpenAI 兼容路径由 Host 在 `translate_text` 内注入（WebView 调用方无感）。保存系统栏时写入 `customSystem` 并清空 `customPrompt`，避免两段叠在一起。
 
-## 导入后自动翻译
+## 版面解析后自动翻译
 
-设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
+设置 → **翻译** →「版面解析后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
 
 触发点是**导入 / 下载链路**入队 `layoutAnalyze` 时：设置开启时 Host 同时入队一个 `layoutTranslate` 任务，用 JobCenter `depends_on` 指向那次版面任务（`DepPolicy::AllSucceeded`）。覆盖本地 PDF、魔棒 / lookup、广场（PWC / papers.cool）与 Connector 附件——广场和 Connector 的 PDF 由 Host 直接落盘、不经过 `DownloadAssets`，所以这些入口在 Host 侧显式调用同一个 helper（`jobs::spawn_layout_after_import`）：广场只对新建且有本地 PDF 的提交入队（广场提交不会推迟到元数据识别）；Connector 在附件写完时入队，另在会话首次 finalize、以及每次论文移动到目标分类后按最终路径补一次，并跳过已交给元数据识别的论文（识别任务会在改名 / 合并后的最终路径入队）。
 
-只有导入来源的入队才带 `autoTranslate` 标记：打开论文后的补解析与手动重新解析不带，因此不触发。打开一篇没有本地 PDF 的论文会先入队 `DownloadAssets`，属于下载链路，下载完成后同样触发。
+打开论文后的补解析不带 `autoTranslate`，因此不触发。单篇强制重新解析，以及设置里「清除并重新解析」中包含版面的范围，会带上该标记：设置开启时 Host 入队依赖这次版面任务的全文翻译，复用仍匹配的译文，只请求变化的块；版面失败或取消则跳过翻译。全库确认弹窗在开关开启且范围包含版面时提示可能产生批量翻译费用。单篇强制重新解析会先取消该论文进行中的版面分析和翻译。打开一篇没有本地 PDF 的论文会先入队 `DownloadAssets`，属于下载链路，下载完成后同样触发。
 
 - `LayoutTranslate` 改为渲染端执行（`ExecHost::Renderer`），`registerTaskExecutor("layoutTranslate", …)` 在后台任务面板显示逐篇进度、可取消；`layoutTranslate` 已加入面板投影。
 - `LayoutTranslateCap` 由 `autoTranslateImportConcurrency` 播种（默认 1），设置变化时更新 cap 并 `drain_and_spawn`，控制自动与手动全文任务共同占用的论文并发数；单篇内部仍沿用原有批次并发。

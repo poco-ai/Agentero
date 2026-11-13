@@ -222,6 +222,7 @@
 		"forceReanalyze": "Force layout re-analysis",
 		"forceReanalyzeTitle": "Re-run layout analysis?",
 		"forceReanalyzeBody": "The saved layout for this paper will be replaced. Figures, tables, and formulas are detected again from the paper PDF.",
+		"forceReanalyzeTranslate": "Auto-translate after layout analysis is on, so a background translation is queued when this reparse succeeds. Cached translations are reused and only changed blocks are requested.",
 		"forceReanalyzeConfirm": "Re-run",
 		"forceReanalyzeMissingPdf": "The paper PDF is not in the paper folder yet.",
 		"forceReanalyzeFailed": "Could not re-run layout analysis",

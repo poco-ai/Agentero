@@ -829,10 +829,9 @@ impl JobCenter {
         .await
     }
 
-    /// Import / download pipeline: queue layout analysis and, when
-    /// `auto_translate` is set, the dependent background translation. Shared
-    /// by the `job_layout_analyze_enqueue` command and the import runners so
-    /// every import entry point queues the same pair.
+    /// Queue layout analysis and, when `auto_translate` is set, the dependent
+    /// background translation. Shared by import / download, manual reparse,
+    /// and bulk reparse so those entries queue the same pair.
     ///
     /// A dedupe hit returns the already-active layout job and does not retarget
     /// an existing translation job's dependency; the translation stays queued

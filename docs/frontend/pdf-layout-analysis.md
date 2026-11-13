@@ -21,10 +21,11 @@
         │  headless EmbedPDF 栈写 `{paper}/source/layout.json`（有缓存则跳过；`force` 不跳过）
         │  只打开论文根目录 `{id}.pdf`。根文件还没落盘时跳过，不改用 `source/assets/` 里的插图 PDF
         │  实现：`enqueue-paper-layout.ts` + `headless-analyze.ts`
-        │  设置开启「导入后自动翻译」时，同一次入队还创建依赖该任务的
+        │  设置开启「版面解析后自动翻译」时，同一次入队还创建依赖该任务的
         │  `layoutTranslate`（JobCenter `depends_on` / `AllSucceeded`）；
         │  广场 / Connector 的 PDF 由 Host 直接落盘，也显式调用同一 helper；
-        │  版面失败或取消则标记 Skipped，打开论文补解析 / 手动重解析不触发
+        │  版面失败或取消则标记 Skipped。打开论文补解析不触发；
+        │  单篇强制重解析和全库清除并重解析（范围含版面）会触发
         │  实现：`JobCenter::enqueue_layout_analysis_with_translate` +
         │  `headless-translate.ts`（渲染端执行，见 translate.md）
         │
@@ -213,9 +214,9 @@ type LayoutSidecar = {
 
 **重新分析按钮**（Figures header）：`force: false`。有 `source/layout.json` 时不跑 PP-DocLayoutV3。文字层标记已在则只重跑 JSON→侧栏（`mergeCaptionsIntoHosts` + NMS），不改 raw sidecar。标记缺失时把抽到的文字写回同一次解析，`generatedAt` 不变；写之前若磁盘上的 mode、时间戳或框几何已经变了，则放弃这次写回。两种情况都会刷新 `layout-index.json`（内容没变则不落盘）。无缓存时才走完整 PDF→JSON。
 
-**强制重新解析**（插图侧栏右上角，布局叠加开关左侧）：确认弹窗后只处理当前这一篇。入口 `forcePaperLayoutAnalysis`（`enqueue-paper-layout.ts`）+ `PdfForceLayoutButton`。根目录没有 `{id}.pdf` 时只提示，不改 sidecar。否则取消这篇进行中的 `layoutAnalyze`，enqueue `force: true`（focus lane），入队成功后再删 `source/layout.json` 和 `source/layout-index.json`。`analyzePaperLayoutHeadless` 读任务上的 `force`，为真时跳过「已有 regions 就返回」；`runDocumentLayoutAnalysis` 同样收到 `force: true`。版面分析重新选 PDF 时只用 `canonicalPaperPdfPath`（`{paper}/{id}.pdf`），根目录文件不在则 soft-skip，不再调用会下钻到 `source/assets/` 的 `findLocalPdfPath`。远程 provider 上传同一条路径。
+**强制重新解析**（插图侧栏右上角，布局叠加开关左侧）：确认弹窗后只处理当前这一篇。入口 `forcePaperLayoutAnalysis`（`enqueue-paper-layout.ts`）+ `PdfForceLayoutButton`。根目录没有 `{id}.pdf` 时只提示，不改 sidecar。否则取消这篇进行中的 `layoutAnalyze` 和 `layoutTranslate`，enqueue `force: true`（focus lane）并带 `autoTranslate`。设置开启「版面解析后自动翻译」时，Host 再入队依赖这次版面任务的全文翻译，复用仍匹配的译文；版面失败或取消则跳过。确认弹窗会说明这一点。入队成功后再删 `source/layout.json` 和 `source/layout-index.json`。`analyzePaperLayoutHeadless` 读任务上的 `force`，为真时跳过「已有 regions 就返回」；`runDocumentLayoutAnalysis` 同样收到 `force: true`。版面分析重新选 PDF 时只用 `canonicalPaperPdfPath`（`{paper}/{id}.pdf`），根目录文件不在则 soft-skip，不再调用会下钻到 `source/assets/` 的 `findLocalPdfPath`。远程 provider 上传同一条路径。
 
-**全库重置**（设置 →「版面解析」底部两个按钮）：Host 命令 `clear_parse_results` / `clear_and_reparse`（`src-tauri/src/features/jobs/commands.rs`）按 catalog 逐篇删除所选 scope 的解析产物——`layout`（`source/layout.json` + `layout-index.json`）、`paper`（`PAPER.md`）或 `all`（默认）。删除前先取消该 Vault 下相关 queued/running 的 `layoutAnalyze` / `parseBody` job（防止晚到的 runner 把旧结果写回），删除后清空 `CapsCache`。「清除并重新解析」再对全部论文 enqueue `force: true` 的重新解析 job（idle lane，沿用 per-kind 并发上限）。仅支持本地 Vault；前端入口 `src/lib/paper/reparse.ts` + `layout-pane.tsx`（确认弹窗内选 scope）。
+**全库重置**（设置 →「版面解析」底部两个按钮）：Host 命令 `clear_parse_results` / `clear_and_reparse`（`src-tauri/src/features/jobs/commands.rs`）按 catalog 逐篇删除所选 scope 的解析产物——`layout`（`source/layout.json` + `layout-index.json`）、`paper`（`PAPER.md`）或 `all`（默认）。删除前先取消该 Vault 下相关 queued/running 的 job：版面范围取消 `layoutAnalyze` 和 `layoutTranslate`，正文范围取消 `parseBody`（防止晚到的 runner 把旧结果写回），删除后清空 `CapsCache`。「清除并重新解析」再对全部论文 enqueue `force: true` 的重新解析 job（idle lane，沿用 per-kind 并发上限）。范围包含版面且「版面解析后自动翻译」开启时，每篇再入队依赖该次版面任务的全文翻译；确认弹窗提示可能产生批量翻译请求和费用。仅支持本地 Vault；前端入口 `src/lib/paper/reparse.ts` + `layout-pane.tsx`（确认弹窗内选 scope）。
 
 ---
 

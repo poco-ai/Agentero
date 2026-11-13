@@ -561,8 +561,8 @@
 			"label": "Auto-translate PDF selection"
 		},
 		"autoImport": {
-			"label": "Auto-translate after import",
-			"description": "Runs full-text translation in the background once layout analysis finishes. Uses the current translation service and cache settings.",
+			"label": "Auto-translate after layout analysis",
+			"description": "After import, download, or a layout reparse, runs full-text translation in the background. Reuses cached translations and only requests changed blocks. Uses the current translation service and cache settings.",
 			"concurrency": {
 				"label": "Concurrent papers for auto-translation"
 			}
@@ -730,7 +730,8 @@
 			"dialog": {
 				"clearTitle": "Clear parse results?",
 				"reparseTitle": "Clear and reparse?",
-				"scopeLabel": "Choose scope"
+				"scopeLabel": "Choose scope",
+				"reparseTranslate": "Auto-translate after layout analysis is on. This queues full-text translation for every paper in the layout scope and may create a batch of translation requests and charges. Cached translations are reused."
 			}
 		}
 	},
