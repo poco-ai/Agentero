@@ -18,7 +18,7 @@ vi.mock("@/lib/translate", () => ({
 vi.mock("@/lib/settings", () => ({
 	loadSettings: () => ({
 		translate: {
-			provider: "googleapi",
+			provider: "tencenttransmart",
 			targetLang: "zh-CN",
 			sourceLang: "auto",
 			providerConfigs: {},
@@ -99,7 +99,7 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 			source: {
 				mode: "pdf-layout-translate",
 				generatedAt: "",
-				providerId: "googleapi",
+				providerId: "tencenttransmart",
 				sourceLang: "en",
 				targetLang: "zh-CN",
 				serviceKey: "",

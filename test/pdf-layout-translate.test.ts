@@ -878,10 +878,10 @@ describe("groupLayoutTranslateItemsByPage", () => {
 
 describe("layout translate sidecar cache", () => {
 	const key: LayoutTranslateCacheKey = {
-		providerId: "googleapi",
+		providerId: "tencenttransmart",
 		sourceLang: "auto",
 		targetLang: "zh-CN",
-		serviceKey: "googleapi",
+		serviceKey: "tencenttransmart",
 	};
 
 	function item(id: string, source = `source ${id}`): LayoutTranslateItem {
@@ -903,10 +903,10 @@ describe("layout translate sidecar cache", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "zh-CN",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: [
 					{
@@ -952,10 +952,10 @@ describe("layout translate sidecar cache", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "en",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: [
 					{
@@ -988,10 +988,10 @@ describe("layout translate sidecar cache", () => {
 					source: {
 						mode: "pdf-layout-translate",
 						generatedAt: "2026-08-10T00:00:00.000Z",
-						providerId: "googleapi",
+						providerId: "tencenttransmart",
 						sourceLang: "auto",
 						targetLang: "zh-CN",
-						serviceKey: "googleapi",
+						serviceKey: "tencenttransmart",
 					},
 					items: [
 						{
@@ -1017,10 +1017,10 @@ describe("layout translate sidecar cache", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "zh-CN",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: [
 					{
@@ -1096,10 +1096,10 @@ describe("layout translate sidecar cache", () => {
 
 describe("hydrateLayoutTranslateItems", () => {
 	const key: LayoutTranslateCacheKey = {
-		providerId: "googleapi",
+		providerId: "tencenttransmart",
 		sourceLang: "auto",
 		targetLang: "zh-CN",
-		serviceKey: "googleapi",
+		serviceKey: "tencenttransmart",
 	};
 
 	function item(
@@ -1127,10 +1127,10 @@ describe("hydrateLayoutTranslateItems", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "zh-CN",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: entries.map((entry) => ({
 					id: entry.id,
@@ -1205,10 +1205,10 @@ describe("hydrateLayoutTranslateItems", () => {
 
 describe("persistLayoutTranslateSidecarBestEffort debounce", () => {
 	const key: LayoutTranslateCacheKey = {
-		providerId: "googleapi",
+		providerId: "tencenttransmart",
 		sourceLang: "auto",
 		targetLang: "zh-CN",
-		serviceKey: "googleapi",
+		serviceKey: "tencenttransmart",
 	};
 	const doneItem: LayoutTranslateItem = {
 		id: "a",
@@ -1303,15 +1303,15 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 	});
 	const base = {
 		...DEFAULT_TRANSLATE_SETTINGS,
-		provider: "googleapi" as const,
+		provider: "tencenttransmart" as const,
 	};
 
 	it("empty prompt keeps the prompt-less key byte-identical", () => {
 		expect(translateServiceKey({ ...base, customPrompt: "" })).toBe(
-			"googleapi",
+			"tencenttransmart",
 		);
 		expect(translateServiceKey({ ...base, customPrompt: "   " })).toBe(
-			"googleapi",
+			"tencenttransmart",
 		);
 	});
 
@@ -1319,7 +1319,7 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 		const a = translateServiceKey({ ...base, customPrompt: "Be terse." });
 		const b = translateServiceKey({ ...base, customPrompt: "Be terse." });
 		const c = translateServiceKey({ ...base, customPrompt: "Be verbose." });
-		expect(a).not.toBe("googleapi");
+		expect(a).not.toBe("tencenttransmart");
 		expect(a).toBe(b);
 		expect(a).not.toBe(c);
 	});
@@ -1361,6 +1361,6 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 				...base,
 				customUser: "\n  \n",
 			}),
-		).toBe("googleapi");
+		).toBe("tencenttransmart");
 	});
 });

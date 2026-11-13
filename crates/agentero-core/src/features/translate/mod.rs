@@ -25,9 +25,6 @@ pub const ERR_NO_BUILTIN_KEY: &str = "translate.no_builtin_key";
 
 /// Known free MT provider ids.
 pub const FREE_PROVIDERS: &[&str] = &[
-    "google",
-    "googleapi",
-    "deeplx",
     "cnki",
     "huoshanweb",
     "tencenttransmart",
@@ -41,7 +38,7 @@ pub const COMMERCIAL_PROVIDERS: &[&str] = &["deepl", "azure", "googleCloud", "op
 /// Default free engines raced in parallel for best-effort zh-CN (NOTES abstract).
 /// First non-empty success wins; remaining in-flight requests are dropped.
 /// Prefer engines that work better from CN networks.
-pub const ZH_RACE_PROVIDERS: &[&str] = &["tencenttransmart", "huoshanweb", "deeplx"];
+pub const ZH_RACE_PROVIDERS: &[&str] = &["tencenttransmart", "huoshanweb"];
 
 /// Per-engine HTTP timeout for [`free_mt_to_zh`] (import NOTES abstract, etc.).
 ///
@@ -212,27 +209,6 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
     let timeout = resolve_timeout(args.timeout_ms);
 
     let translated = match provider.as_str() {
-        "google" => {
-            sources::google::translate_google(
-                "https://translate.google.com",
-                text,
-                &source,
-                &target,
-                timeout,
-            )
-            .await?
-        }
-        "googleapi" => {
-            sources::google::translate_google(
-                "https://translate.googleapis.com",
-                text,
-                &source,
-                &target,
-                timeout,
-            )
-            .await?
-        }
-        "deeplx" => sources::deeplx::translate_deeplx(text, &source, &target, timeout).await?,
         "cnki" => sources::cnki::translate_cnki(text, &source, &target, timeout).await?,
         "indextranslate" | "indextranslate2b" => {
             // The arm guarantees one of the two ids; fall back to the default
@@ -462,15 +438,12 @@ mod tests {
 
     #[test]
     fn free_providers_listed() {
-        assert!(FREE_PROVIDERS.contains(&"deeplx"));
         assert!(FREE_PROVIDERS.contains(&"cnki"));
         // CNKI stays out of the zh race: slow (chunked + pauses) and
         // captcha-prone, racing it would only trip the rate limit.
         assert!(!ZH_RACE_PROVIDERS.contains(&"cnki"));
         assert!(FREE_PROVIDERS.contains(&"huoshanweb"));
         assert!(FREE_PROVIDERS.contains(&"tencenttransmart"));
-        assert!(FREE_PROVIDERS.contains(&"googleapi"));
-        assert!(FREE_PROVIDERS.contains(&"google"));
         // Both Index-Translate tiers are keyless free endpoints; the id suffix
         // picks the model (35B-A3B default, 2B lighter).
         assert!(FREE_PROVIDERS.contains(&"indextranslate"));
@@ -487,10 +460,7 @@ mod tests {
                 "{p} missing from FREE_PROVIDERS"
             );
         }
-        assert_eq!(
-            ZH_RACE_PROVIDERS,
-            &["tencenttransmart", "huoshanweb", "deeplx"]
-        );
+        assert_eq!(ZH_RACE_PROVIDERS, &["tencenttransmart", "huoshanweb"]);
         // Keep abstract-MT snappy: enough for slow success (~1.3s bench max);
         // parallel race → wall ≈ one timeout, not 3×.
         assert!((3_000..=8_000).contains(&FREE_MT_ZH_TIMEOUT_MS));
@@ -504,7 +474,7 @@ mod tests {
             text: "hello".into(),
             source_lang: "auto".into(),
             target_lang: "zh-CN".into(),
-            provider: "deeplx".into(),
+            provider: "tencenttransmart".into(),
             api_key: None,
             base_url: None,
             region: None,

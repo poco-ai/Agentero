@@ -307,7 +307,7 @@ describe("runSelectionTranslate", () => {
 
 	it("commits the provider result without touching the agent path", async () => {
 		const h = harness(record("t8"));
-		providerId = "googleapi";
+		providerId = "tencenttransmart";
 		runTranslate.mockResolvedValue(" 译文 ");
 
 		await runSelectionTranslate(h.options);
@@ -319,7 +319,7 @@ describe("runSelectionTranslate", () => {
 				context: { page: 1, surface: "pdf-selection" },
 			},
 			// The engine forwards its chunk sink so free-MT deltas land in the card.
-			{ providerId: "googleapi", onDelta: h.options.appendChunk },
+			{ providerId: "tencenttransmart", onDelta: h.options.appendChunk },
 		);
 		expect(h.records.get("t8")?.result).toBe("译文");
 		expect(h.persisted).toHaveLength(1);
@@ -329,7 +329,7 @@ describe("runSelectionTranslate", () => {
 
 	it("wraps provider failures and stops streaming", async () => {
 		const h = harness(record("t9"));
-		providerId = "googleapi";
+		providerId = "tencenttransmart";
 		runTranslate.mockRejectedValue(new Error("quota"));
 
 		await runSelectionTranslate(h.options);

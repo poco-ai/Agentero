@@ -252,7 +252,7 @@ mod tests {
     fn provider_ids_map_to_model_tiers() {
         assert_eq!(model_for_provider("indextranslate"), Some(MODEL_35B_A3B));
         assert_eq!(model_for_provider("indextranslate2b"), Some(MODEL_2B));
-        assert_eq!(model_for_provider("google"), None);
+        assert_eq!(model_for_provider("huoshanweb"), None);
         assert_eq!(model_for_provider(""), None);
     }
 

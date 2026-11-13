@@ -1899,7 +1899,7 @@ mod tests {
             commercial_provider_settings_key("openaiCompatible"),
             Some("openaiCompatible")
         );
-        assert_eq!(commercial_provider_settings_key("deeplx"), None);
+        assert_eq!(commercial_provider_settings_key("cnki"), None);
     }
 
     #[test]

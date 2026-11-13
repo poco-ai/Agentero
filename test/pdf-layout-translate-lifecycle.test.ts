@@ -655,7 +655,7 @@ function sharedSnapshot(items: Item[]): TranslationSnapshot {
 	return {
 		revision: 1,
 		cacheKey: {
-			providerId: "googleapi",
+			providerId: "tencenttransmart",
 			sourceLang: "en",
 			targetLang: "zh",
 			serviceKey: "test",

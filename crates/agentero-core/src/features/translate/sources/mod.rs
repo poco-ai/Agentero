@@ -1,8 +1,6 @@
 pub mod azure;
 pub mod cnki;
 pub mod deepl;
-pub mod deeplx;
-pub mod google;
 pub mod google_cloud;
 pub mod hunyuan_mt;
 pub mod huoshanweb;

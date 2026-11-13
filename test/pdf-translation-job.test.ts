@@ -28,7 +28,7 @@ vi.mock("@/lib/core/bindings", () => ({
 	},
 }));
 const cacheKey = {
-	providerId: "googleapi" as const,
+	providerId: "tencenttransmart" as const,
 	sourceLang: "en",
 	targetLang: "zh-CN",
 	serviceKey: "test",

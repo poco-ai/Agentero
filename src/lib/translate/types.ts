@@ -10,9 +10,6 @@
  */
 export type FreeTranslateProviderId =
 	| "agentero"
-	| "google"
-	| "googleapi"
-	| "deeplx"
 	| "cnki"
 	| "huoshanweb"
 	| "tencenttransmart"
@@ -191,10 +188,7 @@ export const FREE_MT_PROVIDER_IDS: FreeTranslateProviderId[] = [
 	"indextranslate2b",
 	"tencenttransmart",
 	"huoshanweb",
-	"deeplx",
 	"cnki",
-	"googleapi",
-	"google",
 ];
 
 /** Ordered list for settings UI (commercial BYOK engines). */

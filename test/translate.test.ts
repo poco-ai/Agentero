@@ -90,18 +90,18 @@ describe("translate services registry", () => {
 		expect(getTranslateService("agent")?.requireExternalConfig).toBe(true);
 		expect(isTranslateProviderId("deepl")).toBe(true);
 		expect(isCommercialTranslateProvider("deepl")).toBe(true);
-		expect(isFreeMtProvider("deeplx")).toBe(true);
+		expect(isFreeMtProvider("tencenttransmart")).toBe(true);
 		expect(isFreeMtProvider("cnki")).toBe(true);
 		expect(isFreeMtProvider("agent")).toBe(false);
 		expect(isFreeMtProvider("deepl")).toBe(false);
+		expect(isFreeMtProvider("deeplx")).toBe(false);
+		expect(isFreeMtProvider("googleapi")).toBe(false);
 	});
 
 	it("settings list includes free engines, commercial BYOK engines, and agent", () => {
 		const ids = listSelectableProviders().map((s) => s.id);
-		expect(ids).toContain("googleapi");
 		expect(ids).toContain("tencenttransmart");
 		expect(ids).toContain("huoshanweb");
-		expect(ids).toContain("deeplx");
 		expect(ids).toContain("cnki");
 		expect(ids).toContain("deepl");
 		expect(ids).toContain("azure");

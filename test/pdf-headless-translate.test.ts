@@ -57,7 +57,7 @@ vi.mock("@/lib/pdf/layout/io", () => ({
 vi.mock("@/lib/settings", () => ({
 	loadSettings: () => ({
 		translate: {
-			provider: "googleapi",
+			provider: "tencenttransmart",
 			sourceLang: "en",
 			targetLang: "zh-CN",
 			providerConfigs: {},
