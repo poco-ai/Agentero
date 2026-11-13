@@ -29,6 +29,11 @@ import {
 	resolveConfiguredTranslateAgent,
 	runTranslate,
 } from "@/lib/translate";
+import {
+	buildDictionaryPrompt,
+	extractPaperDefinition,
+	shouldUseDictionary,
+} from "@/lib/translate/dictionary";
 import type { TranslateTask } from "@/lib/translate/types";
 
 export type RunSelectionTranslateOptions = AgentRunRefs & {
@@ -91,16 +96,30 @@ export async function runSelectionTranslate({
 			context,
 		});
 
+	// Phase 2: 判定是否使用词典模式
+	const isDictionary = shouldUseDictionary(text);
+
+	// Phase 2: L1 论文内定义提取（暂时返回 undefined）
+	const paperDefinition = await extractPaperDefinition(text);
+
 	if (providerId === "agent") {
-		const prompt = buildTranslatePrompt({
-			text,
-			targetLangName,
-			page: context.page,
-			surface: context.surface,
-			customPrompt,
-			customSystem,
-			customUser,
-		});
+		// 根据模式选择提示词
+		const prompt = isDictionary
+			? buildDictionaryPrompt({
+					word: text,
+					sentence: context.quote || text, // 使用上下文句子，如果没有则使用原文
+					targetLang: targetLangName,
+					paperDefinition: paperDefinition?.text,
+				})
+			: buildTranslatePrompt({
+					text,
+					targetLangName,
+					page: context.page,
+					surface: context.surface,
+					customPrompt,
+					customSystem,
+					customUser,
+				});
 		try {
 			const resolved = await resolveConfiguredTranslateAgent();
 			if (disposedRef.current) return;

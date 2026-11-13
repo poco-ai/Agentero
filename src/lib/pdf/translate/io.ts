@@ -30,6 +30,8 @@ export function createTranslateRecord(input: {
 	result?: string;
 	error?: string;
 	id?: string;
+	mode?: "translate" | "dictionary";
+	dictionaryData?: PdfTranslateRecord["dictionaryData"];
 }): PdfTranslateRecord {
 	const now = new Date().toISOString();
 	const rec: PdfTranslateRecord = {
@@ -47,6 +49,8 @@ export function createTranslateRecord(input: {
 	if (input.selectionPages?.length) rec.selectionPages = input.selectionPages;
 	if (input.result?.trim()) rec.result = input.result.trim();
 	if (input.error?.trim()) rec.error = input.error.trim();
+	if (input.mode) rec.mode = input.mode;
+	if (input.dictionaryData) rec.dictionaryData = input.dictionaryData;
 	return rec;
 }
 
