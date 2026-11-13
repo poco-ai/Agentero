@@ -138,7 +138,7 @@ OpenAI 兼容服务卡片增加「额外参数」JSON 输入框，与 API Key / 
 | 类型 | 路径 |
 |---|---|
 | 内置 provider | Host `translate_text`（`agentero` → Hunyuan-MT，构建期凭证，无凭证卡片） |
-| 免费 MT | Host `translate_text`（腾讯交互翻译 / 火山 Web / DeepLX / 知网 CNKI / Google gtx） |
+| 免费 MT | Host `translate_text`（腾讯交互翻译 / Index-Translate / 火山 Web / DeepLX / 知网 CNKI / Google gtx） |
 | 商用 BYOK | Host `translate_text`（DeepL / Azure / Google Cloud / OpenAI-compatible） |
 | Agent | `agent_run_once` + 翻译 prompt；同一篇文献的多次翻译复用同一个 ACP provider session |
 

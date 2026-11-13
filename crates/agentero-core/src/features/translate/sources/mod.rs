@@ -6,6 +6,7 @@ pub mod google;
 pub mod google_cloud;
 pub mod hunyuan_mt;
 pub mod huoshanweb;
+pub mod index_translate;
 pub mod openai_compatible;
 pub mod tencent_transmart;
 

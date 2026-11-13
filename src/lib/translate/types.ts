@@ -15,7 +15,8 @@ export type FreeTranslateProviderId =
 	| "deeplx"
 	| "cnki"
 	| "huoshanweb"
-	| "tencenttransmart";
+	| "tencenttransmart"
+	| "indextranslate";
 
 /** Commercial BYOK engines called directly by the Tauri Host. */
 export type CommercialTranslateProviderId =
@@ -183,6 +184,7 @@ export type TranslateService = {
 /** Ordered list for settings UI (free engines). */
 export const FREE_MT_PROVIDER_IDS: FreeTranslateProviderId[] = [
 	"agentero",
+	"indextranslate",
 	"tencenttransmart",
 	"huoshanweb",
 	"deeplx",

@@ -31,6 +31,7 @@ pub const FREE_PROVIDERS: &[&str] = &[
     "cnki",
     "huoshanweb",
     "tencenttransmart",
+    "indextranslate",
 ];
 
 /// Commercial BYOK provider ids configured in Settings → Translate.
@@ -232,6 +233,10 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
         }
         "deeplx" => sources::deeplx::translate_deeplx(text, &source, &target, timeout).await?,
         "cnki" => sources::cnki::translate_cnki(text, &source, &target, timeout).await?,
+        "indextranslate" => {
+            sources::index_translate::translate_index_translate(text, &source, &target, timeout)
+                .await?
+        }
         "huoshanweb" => {
             sources::huoshanweb::translate_huoshan_web(text, &source, &target, timeout).await?
         }
