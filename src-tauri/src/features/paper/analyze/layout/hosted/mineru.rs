@@ -967,7 +967,7 @@ async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdf
     };
 
     let zip_bytes =
-        run_mineru_extract(&credentials, pdf_bytes, &file_name, &emit_progress, &|| {
+        run_mineru_extract_unshared(&credentials, pdf_bytes, &file_name, &emit_progress, &|| {
             false
         })
         .await?;
@@ -983,10 +983,9 @@ async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdf
     Ok(result)
 }
 
-/// Whole-document MinerU extract returning the result zip. Shared by the
-/// layout analyze path and the PAPER.md body-parse engine, both of which read
-/// their own entries out of that zip. Identical concurrent requests share one
-/// extraction; completed ZIPs are not retained in a cache.
+/// Whole-document MinerU extract for PAPER.md body parsing. Identical
+/// concurrent body requests share one extraction; completed ZIPs are not
+/// retained in a cache. Layout analysis calls the unshared path directly.
 ///
 /// `selfHosted` chooses between the cloud batch flow (including custom relays)
 /// and a self-hosted deployment, whose dialect is detected from `/v1/health`
@@ -1153,16 +1152,29 @@ async fn run_cloud_extract(
             "MinerU upload failed (HTTP {upload_status})"
         )));
     }
+    log::info!(
+        target: "agentero::layout::hosted",
+        "mineru batch {batch_id} uploaded HTTP {upload_status}"
+    );
 
     // 2) Poll until done (deadline guards a stuck task).
     let poll_url = format!("{base}/api/v4/extract-results/batch/{batch_id}");
     let started = Instant::now();
+    let mut last_state = String::new();
+    let mut last_log = started;
     let zip_url = loop {
         if cancel() {
             return Err(AppError::message(CANCELLED_MESSAGE));
         }
         if started.elapsed() > MINERU_JOB_DEADLINE {
-            return Err(AppError::message("MinerU task timed out"));
+            log::warn!(
+                target: "agentero::layout::hosted",
+                "mineru batch {batch_id} timed out after {:?}",
+                started.elapsed()
+            );
+            return Err(AppError::message(format!(
+                "MinerU task timed out (batch {batch_id}, state {last_state})"
+            )));
         }
         tokio::time::sleep(MINERU_POLL_INTERVAL).await;
         let poll = client
@@ -1208,6 +1220,15 @@ async fn run_cloud_extract(
         let total = extract_progress
             .and_then(|p| p.get("total_pages"))
             .and_then(Value::as_u64);
+        if state != last_state || last_log.elapsed() >= Duration::from_secs(30) {
+            log::info!(
+                target: "agentero::layout::hosted",
+                "mineru batch {batch_id} state={state} extracted={extracted:?} total={total:?} elapsed_s={}",
+                started.elapsed().as_secs()
+            );
+            last_state.clone_from(&state);
+            last_log = Instant::now();
+        }
         match classify_extract_state(&state) {
             ExtractState::Done => {
                 let url = result

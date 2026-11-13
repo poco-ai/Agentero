@@ -151,7 +151,7 @@ LayoutAnalysisPluginPackage: {
 
 1. 读取本地 PDF，整份 base64 交给 Host 命令 `layout_remote_analyze_pdf`（`provider` 参数分发到 `src-tauri/src/features/paper/analyze/layout/hosted/` 的 `RemoteLayoutEngine` 实现：`paddle.rs` / `mineru.rs`）；token 由 Host 从设置注入，WebView 只持有 `*` 掩码；
 2. Host 轮询远端任务（总时限 10 分钟），期间通过 `layout-remote:progress` 事件回报进度（`requestId` 隔离并行任务）；
-3. 每页返回统一的 `boxes`（像素坐标 + `label` + `score`）；
+3. 每页返回统一的 `boxes`（像素坐标 + `label` + `score`）；返回页数必须等于上传 PDF 页数，少页时整次分析失败，不写 sidecar；
 4. 后续与本地路径完全共用：PDF text runs 补文字 / captionRole → `mergeCaptionsIntoHosts` → sidecar / index。
 
 **Paddle**（`paddle.rs`）：multipart 提交 `POST https://paddleocr.aistudio-app.com/api/v2/ocr/jobs`（`model: PP-StructureV3`，`Authorization: bearer <token>`）→ 每 3s 轮询 `GET …/jobs/{jobId}` → 下载 `resultUrl.jsonUrl`（JSONL），提取每页 `prunedResult.layout_det_res.boxes`；渲染像素尺寸优先取响应 `dataInfo` / `inputImage` JPEG 头，缺失时按 200 DPI 估算（归一化 `bbox` 不受影响，仅 points `rect` 可能有轻微偏差）。API Key 在 [AI Studio 访问令牌页](https://aistudio.baidu.com/account/accessToken) 获取。
@@ -161,6 +161,7 @@ LayoutAnalysisPluginPackage: {
 - 标签词表与本地一致，阈值同为 0.3。
 - sidecar `source.mode` 按 provider 记为 `paddle-layout` / `mineru-layout`（本地为 `embedpdf-layout`），均可被解析。
 - 进度 / 取消沿用 `LayoutTask` 形状。JobCenter 对远程 provider **不设并发上限**；`layout-remote:progress` 带 `requestId`，并行任务互不串进度。
+- 每次远程版面分析独立提交，使用唯一 `requestId`；重试不会复用旧版面请求，已取消请求的进度也不会覆盖新任务。取消会通过 `layout_remote_cancel` 终止对应 Host 等待；已提交的云端 batch 仍由服务端处理。
 - 无 paper 目录（拿不到 PDF 字节）或页数未知时自动回退本地 ONNX。
 
 ### Layout sidecar
@@ -174,10 +175,29 @@ type LayoutSidecar = {
     mode: "embedpdf-layout" | "paddle-layout" | "mineru-layout";
     generatedAt: string;
     textLayerExtracted?: boolean; // 文字层整篇已抽过；缺省则打开时再抽一次
+    completeness?: {
+      pageCount: number;
+      processedPages: number[];
+      textLayerComplete: boolean;
+      pageStats: Array<{
+        pageIndex: number;
+        regionCount: number;
+        textChars: number;
+        translatableRegionCount: number;
+        excludedTextChars?: number;
+        visualArea?: number;
+      }>;
+      warnings: Array<{ code: "content-gap"; pages: number[] }>;
+      contentRepairAttempted: boolean;
+    };
   };
   regions: PdfLayoutRegion[]; // raw, pre-merge
 };
 ```
+
+`completeness` 记录一次版面分析实际覆盖了哪些页。`processedPages` 与 `pageStats` 必须刚好覆盖 `0..pageCount-1`，`textLayerComplete` 必须为真，否则翻译入口按结构不完整处理。`content-gap` 只标记有文字层正文、却没有可译区域的页；空白页、整页图片或表格、算法框内文字、参考文献等保真内容不产生该警告。
+
+旧 sidecar 没有 `completeness` 时视为 `unknown`。导入、打开论文后的后台分析或翻译前守卫会首次打开 PDF，复用已有框轻量重走文字层：页数变化、文字层失败或发现正文缺口时才重新运行版面模型；能证明完整时写回元数据并保留原 `generatedAt`。`contentRepairAttempted` 表示翻译前已经主动重跑过一次内容修复，后续再次出现警告时继续翻译可用页，避免无限重试和重复费用。
 
 #### 侧栏索引（CLI）
 

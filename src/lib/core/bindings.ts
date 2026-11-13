@@ -56,6 +56,11 @@ export const commands = {
 	decisionGatewayDecide: (request: DecisionGatewayRequest) => __TAURI_INVOKE<ApiResult<DecisionGatewayResponse>>("decision_gateway_decide", { request }),
 	layoutModelStatus: () => __TAURI_INVOKE<ApiResult<LayoutModelStatus>>("layout_model_status"),
 	layoutRemoteAnalyzePdf: (args: LayoutRemoteAnalyzePdfArgs) => __TAURI_INVOKE<ApiResult<LayoutRemoteAnalyzePdfResult>>("layout_remote_analyze_pdf", { args }),
+	/**
+	 *  Cancel one in-flight remote layout analyze command. Unknown or already
+	 *  settled request ids are a no-op so unmount cleanup can fire unconditionally.
+	 */
+	layoutRemoteCancel: (requestId: string) => __TAURI_INVOKE<ApiResult<boolean>>("layout_remote_cancel", { requestId }),
 	layoutRemoteProbe: (args: LayoutRemoteProbeArgs) => __TAURI_INVOKE<ApiResult<LayoutRemoteProbeResult>>("layout_remote_probe", { args }),
 	agentListAgents: () => __TAURI_INVOKE<ApiResult<AgentListResponse_Serialize>>("agent_list_agents"),
 	agentListSkills: (vaultPath: string | null) => typedError<ApiResult<AgentSkill[]>, string>(__TAURI_INVOKE("agent_list_skills", { vaultPath })),

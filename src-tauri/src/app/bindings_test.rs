@@ -35,6 +35,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::decision::commands::decision_gateway_decide,
             crate::features::paper::analyze::layout::model_assets::commands::layout_model_status,
             crate::features::paper::analyze::layout::hosted::commands::layout_remote_analyze_pdf,
+            crate::features::paper::analyze::layout::hosted::commands::layout_remote_cancel,
             crate::features::paper::analyze::layout::hosted::commands::layout_remote_probe,
             crate::features::agent::commands::agent_list_agents,
             crate::features::agent::commands::agent_list_skills,
