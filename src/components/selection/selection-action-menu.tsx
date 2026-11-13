@@ -20,6 +20,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +29,17 @@ import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { clamp } from "@/lib/core/math";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
+
+/** Secondary action collected by the trailing dropdown. */
+export type SelectionMenuMoreAction = {
+	id: string;
+	label: string;
+	/** Leading glyph; sized by the menu item styles. */
+	icon?: ReactNode;
+	/** Single-key hint; the key also works while the menu is mounted. */
+	shortcut?: string;
+	onSelect: () => void;
+};
 
 export type SelectionActionMenuProps = {
 	screen: ScreenPoint & {
@@ -45,6 +57,8 @@ export type SelectionActionMenuProps = {
 	/** Source-specific actions, such as the PDF highlight palette. */
 	beforeActions?: ReactNode;
 	afterActions?: ReactNode;
+	/** Secondary actions appended to the chat dropdown. */
+	moreActions?: SelectionMenuMoreAction[];
 	/** Optional anchor and expansion reserve for a leading palette. */
 	anchorRef?: RefObject<HTMLElement | null>;
 	expandingRef?: RefObject<HTMLElement | null>;
@@ -111,6 +125,7 @@ export function SelectionActionMenu({
 	onCopy,
 	beforeActions,
 	afterActions,
+	moreActions,
 	anchorRef,
 	expandingRef,
 	expandedWidth = 0,
@@ -122,6 +137,9 @@ export function SelectionActionMenu({
 	const quickChatShortcut = useShortcutLabel("quickChat");
 	const addToChatShortcut = useShortcutLabel("addSelectionToChat");
 	const menuRef = useRef<HTMLDivElement>(null);
+	const moreActionsRef = useRef(moreActions);
+	moreActionsRef.current = moreActions;
+	const hasMoreMenu = Boolean(onAsk) || Boolean(moreActions?.length);
 	const [position, setPosition] = useState<{
 		right: number;
 		top: number;
@@ -159,7 +177,17 @@ export function SelectionActionMenu({
 					button.getAttribute("aria-keyshortcuts")?.toLowerCase() ===
 					event.key.toLowerCase(),
 			);
-			if (!action) return;
+			if (!action) {
+				// Dropdown items live in a portal, so their single-key hints are
+				// resolved from the action list instead of the toolbar DOM.
+				const extra = moreActionsRef.current?.find(
+					(item) => item.shortcut?.toLowerCase() === event.key.toLowerCase(),
+				);
+				if (!extra) return;
+				event.preventDefault();
+				extra.onSelect();
+				return;
+			}
 			event.preventDefault();
 			action.click();
 		};
@@ -295,25 +323,25 @@ export function SelectionActionMenu({
 					/>
 				) : null}
 
-				{(onAsk || onAddToChat) && <SelectionToolbarDivider />}
+				{(hasMoreMenu || onAddToChat) && <SelectionToolbarDivider />}
 				<div className="flex shrink-0 items-center">
 					{onAddToChat && (
 						<SelectionToolbarAction
 							label={t("selection.addToChat")}
 							shortcut={addToChatShortcut}
-							className={onAsk ? "rounded-r-none" : undefined}
+							className={hasMoreMenu ? "rounded-r-none" : undefined}
 							onClick={onAddToChat}
 						/>
 					)}
-					{onAsk && (
+					{hasMoreMenu && (
 						<DropdownMenu modal={false}>
 							<DropdownMenuTrigger asChild>
 								<Button
 									type="button"
 									variant="ghost"
 									size="icon-sm"
-									className="w-6 rounded-l-none"
-									aria-label={t("selection.chatActions")}
+									className={onAddToChat ? "w-6 rounded-l-none" : "w-6"}
+									aria-label={t("selection.moreActions")}
 								>
 									<ChevronDown className="size-3" />
 								</Button>
@@ -323,12 +351,28 @@ export function SelectionActionMenu({
 								data-pdf-chrome
 								data-selection-ui
 							>
-								<DropdownMenuItem onSelect={onAsk}>
-									{t("selection.quickChat")}
-									<kbd className="ml-auto pl-3 text-xs text-muted-foreground">
-										{quickChatShortcut}
-									</kbd>
-								</DropdownMenuItem>
+								{onAsk ? (
+									<DropdownMenuItem onSelect={onAsk}>
+										{t("selection.quickChat")}
+										<kbd className="ml-auto pl-3 text-xs text-muted-foreground">
+											{quickChatShortcut}
+										</kbd>
+									</DropdownMenuItem>
+								) : null}
+								{onAsk && moreActions?.length ? (
+									<DropdownMenuSeparator />
+								) : null}
+								{moreActions?.map((action) => (
+									<DropdownMenuItem key={action.id} onSelect={action.onSelect}>
+										{action.icon}
+										{action.label}
+										{action.shortcut ? (
+											<kbd className="ml-auto pl-3 text-xs text-muted-foreground">
+												{action.shortcut}
+											</kbd>
+										) : null}
+									</DropdownMenuItem>
+								))}
 							</DropdownMenuContent>
 						</DropdownMenu>
 					)}

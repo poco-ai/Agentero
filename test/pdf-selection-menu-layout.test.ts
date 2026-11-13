@@ -299,6 +299,35 @@ it("keeps note clicks explicit and opens quick chat through the chat arrow", asy
 	expect(onAsk).toHaveBeenCalledOnce();
 });
 
+it("moves bookmark into the more menu while keeping its B shortcut", async () => {
+	const onBookmark = vi.fn();
+	const menu = await render({ onBookmark });
+	expect(menu.querySelector('[aria-label="pdf.bookmarks.add B"]')).toBeNull();
+	expect(await pressKey("b")).toBe(true);
+	expect(onBookmark).toHaveBeenCalledOnce();
+
+	const trigger = menu.querySelector<HTMLButtonElement>(
+		'[aria-haspopup="menu"]',
+	);
+	if (!trigger) throw new Error("More menu trigger missing");
+	await act(() =>
+		trigger.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				button: 0,
+				pointerType: "mouse",
+			}),
+		),
+	);
+	const items = Array.from(
+		document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+	);
+	const bookmark = items.find((item) =>
+		item.textContent?.includes("pdf.bookmarks.add"),
+	);
+	expect(bookmark?.textContent).toContain("B");
+});
+
 const customBindings = {
 	quickChat: { key: "j", meta: true },
 	addSelectionToChat: { key: "u", meta: true, shift: true },

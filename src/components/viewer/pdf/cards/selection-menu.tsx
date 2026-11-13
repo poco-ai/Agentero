@@ -103,32 +103,34 @@ export function SelectionMenu({
 					</>
 				) : undefined
 			}
+			moreActions={
+				onBookmark
+					? [
+							{
+								id: "bookmark",
+								label: t("pdf.bookmarks.add"),
+								icon: <Bookmark className="size-4" />,
+								shortcut: "B",
+								onSelect: onBookmark,
+							},
+						]
+					: undefined
+			}
 			afterActions={
-				<>
-					{onBookmark && (
-						<SelectionToolbarIconButton
-							label={t("pdf.bookmarks.add")}
-							shortcut="B"
-							onClick={onBookmark}
-						>
-							<Bookmark className="size-3.5" />
-						</SelectionToolbarIconButton>
-					)}
-					{contributions.length > 0 && (
-						<>
-							<SelectionToolbarDivider />
-							{contributions.map((item) => (
-								<SelectionToolbarAction
-									key={item.id}
-									label={item.title}
-									onClick={() =>
-										activateMenuContribution(item, contributionContext)
-									}
-								/>
-							))}
-						</>
-					)}
-				</>
+				contributions.length > 0 ? (
+					<>
+						<SelectionToolbarDivider />
+						{contributions.map((item) => (
+							<SelectionToolbarAction
+								key={item.id}
+								label={item.title}
+								onClick={() =>
+									activateMenuContribution(item, contributionContext)
+								}
+							/>
+						))}
+					</>
+				) : undefined
 			}
 		/>
 	);
