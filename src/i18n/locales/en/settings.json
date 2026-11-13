@@ -650,7 +650,9 @@
 			"hint": "Saved globally for this target language. Supports JSON or source:target / source→target pairs. Applies to Index-Translate, OpenAI-compatible services and Agent. Other services do not apply this glossary.",
 			"invalid": "Invalid terminology. Use a JSON object with string values or source → target pairs. Maximum: 200 terms / 16,000 characters; source 120, target 240 characters.",
 			"save": "Save",
-			"cancel": "Cancel"
+			"cancel": "Cancel",
+			"optional": "Custom terminology (optional)",
+			"builtin": "Offline English–Chinese dictionary and AI terminology are included. No setup needed."
 		}
 	},
 	"layout": {
@@ -749,6 +751,14 @@
 			"section": "Decision model",
 			"getKey": "Get an API key",
 			"smartHighlight": "Smart highlight",
+			"concurrency": {
+				"label": "Concurrent requests",
+				"description": "Lower this when a self-hosted model queues requests."
+			},
+			"timeout": {
+				"label": "Request timeout (seconds)",
+				"description": "Starts when the batch is sent, not while it waits."
+			},
 			"provider": {
 				"label": "Provider",
 				"jev": "TypeSafe Jev",

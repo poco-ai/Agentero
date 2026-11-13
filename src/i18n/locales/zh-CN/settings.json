@@ -650,7 +650,9 @@
 			"hint": "按目标语言全局保存。支持 JSON 或 原词:译词 / 原词→译词。适用于 Index-Translate、OpenAI 兼容服务和 Agent。其他服务不应用此词表。",
 			"invalid": "术语格式无效。请使用值为字符串的 JSON 对象或「原词 → 译词」。最多 200 条、16000 字符；原词上限 120、译词 240 字符。",
 			"save": "保存",
-			"cancel": "取消"
+			"cancel": "取消",
+			"optional": "自定义术语（可选）",
+			"builtin": "已内置离线英汉词典与 AI 术语，无需配置。"
 		}
 	},
 	"layout": {
@@ -749,6 +751,14 @@
 			"section": "决策模型",
 			"getKey": "获取 API Key",
 			"smartHighlight": "智能高亮",
+			"concurrency": {
+				"label": "并发请求数",
+				"description": "自建模型会排队时调低。"
+			},
+			"timeout": {
+				"label": "单批超时（秒）",
+				"description": "从该批请求发出时开始计时，等待调度不计入。"
+			},
 			"provider": {
 				"label": "提供方",
 				"jev": "TypeSafe Jev",
