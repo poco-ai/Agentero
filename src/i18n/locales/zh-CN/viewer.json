@@ -264,6 +264,10 @@
 		"colorGroupLabel": "标注颜色",
 		"shapeHighlight": "高亮",
 		"shapeUnderline": "下划线",
+		"shapeSwitchHint": {
+			"toHighlight": "右键色块切换回高亮",
+			"toUnderline": "右键色块切换为下划线"
+		},
 		"color": {
 			"yellow": "黄色",
 			"green": "绿色",

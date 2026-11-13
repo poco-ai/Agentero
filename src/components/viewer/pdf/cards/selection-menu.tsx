@@ -1,5 +1,5 @@
-import { Bookmark, Highlighter, MessageSquare, Underline } from "lucide-react";
-import { useRef, useState } from "react";
+import { Bookmark, MessageSquare } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectionActionMenu } from "@/components/selection/selection-action-menu";
 import {
@@ -8,6 +8,13 @@ import {
 	SelectionToolbarIconButton,
 } from "@/components/selection/selection-toolbar";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import {
+	type MarkupShapes,
+	oppositeTextMarkupKind,
+	readLastMarkupShape,
+	readMarkupShapes,
+	writeMarkupShape,
+} from "@/lib/pdf/highlight/markup-pref";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import {
@@ -51,7 +58,28 @@ export function SelectionMenu({
 	const { t } = useTranslation("viewer");
 	const dividerRef = useRef<HTMLDivElement>(null);
 	const colorsRef = useRef<HTMLFieldSetElement>(null);
-	const [shape, setShape] = useState<PdfTextMarkupKind>("highlight");
+	const [shapes, setShapes] = useState<MarkupShapes>(readMarkupShapes);
+	// Notes take no color, so they follow the last shape the user touched.
+	const [noteShape, setNoteShape] =
+		useState<PdfTextMarkupKind>(readLastMarkupShape);
+	const toggleShape = useCallback(
+		(color: HighlightColor) => {
+			const next = oppositeTextMarkupKind(shapes[color]);
+			writeMarkupShape(color, next);
+			setShapes({ ...shapes, [color]: next });
+			setNoteShape(next);
+		},
+		[shapes],
+	);
+	const applyShape = useCallback(
+		(color: HighlightColor) => {
+			const shape = shapes[color];
+			writeMarkupShape(color, shape);
+			setNoteShape(shape);
+			onHighlight(color, shape);
+		},
+		[shapes, onHighlight],
+	);
 	const contributions = contributionContext
 		? visibleMenuContributions("pdf.selection", contributionContext)
 		: [];
@@ -68,30 +96,18 @@ export function SelectionMenu({
 			beforeActions={
 				showHighlight ? (
 					<>
-						<SelectionToolbarIconButton
-							label={t("selection.shapeHighlight")}
-							pressed={shape === "highlight"}
-							onClick={() => setShape("highlight")}
-						>
-							<Highlighter className="size-3.5" />
-						</SelectionToolbarIconButton>
-						<SelectionToolbarIconButton
-							label={t("selection.shapeUnderline")}
-							pressed={shape === "underline"}
-							onClick={() => setShape("underline")}
-						>
-							<Underline className="size-3.5" />
-						</SelectionToolbarIconButton>
 						<HighlightColorStack
 							ref={colorsRef}
-							onSelect={(color) => onHighlight(color, shape)}
+							shapes={shapes}
+							onToggleShape={toggleShape}
+							onSelect={applyShape}
 							shortcuts
 						/>
 						{onNote && (
 							<SelectionToolbarIconButton
 								label={t("selection.note")}
 								shortcut="N"
-								onClick={() => onNote(shape)}
+								onClick={() => onNote(noteShape)}
 							>
 								<MessageSquare className="size-3.5" />
 							</SelectionToolbarIconButton>

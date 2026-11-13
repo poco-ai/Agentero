@@ -264,6 +264,10 @@
 		"colorGroupLabel": "Annotation colors",
 		"shapeHighlight": "Highlight",
 		"shapeUnderline": "Underline",
+		"shapeSwitchHint": {
+			"toHighlight": "Right-click a color to switch back to highlight",
+			"toUnderline": "Right-click a color to switch to underline"
+		},
 		"color": {
 			"yellow": "Yellow",
 			"green": "Green",

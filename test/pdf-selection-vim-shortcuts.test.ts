@@ -86,6 +86,7 @@ async function press(key: string, init: KeyboardEventInit = {}) {
 beforeEach(async () => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.clearAllMocks();
+	localStorage.clear();
 	container = document.createElement("div");
 	host = document.createElement("div");
 	host.setAttribute("data-pdf-viewport", "");
@@ -119,17 +120,37 @@ it("selects every color without hovering while Vim reading keys are enabled", as
 	expect(onFindNext).not.toHaveBeenCalled();
 });
 
-it("creates underlines after switching the shape with the same color shortcuts", async () => {
-	await render(true);
-	const underline = container.querySelector<HTMLButtonElement>(
-		'[aria-label="selection.shapeUnderline"]',
+async function rightClickSwatch(color: string) {
+	const swatch =
+		container.querySelectorAll<HTMLButtonElement>("fieldset button")[
+			HIGHLIGHT_COLORS.indexOf(color as (typeof HIGHLIGHT_COLORS)[number])
+		];
+	if (!swatch) throw new Error(`Missing ${color} swatch`);
+	await act(() =>
+		swatch.dispatchEvent(
+			new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+		),
 	);
-	if (!underline) throw new Error("Underline shape toggle missing");
-	expect(underline.getAttribute("aria-pressed")).toBe("false");
-	await act(() => underline.click());
-	expect(underline.getAttribute("aria-pressed")).toBe("true");
+}
+
+it("right-click flips only the swatch it targets", async () => {
+	await render(true);
+	await rightClickSwatch("blue");
+	expect(await press("1")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("yellow", "highlight");
 	expect(await press("3")).toBe(true);
-	expect(onHighlight).toHaveBeenCalledExactlyOnceWith("blue", "underline");
+	expect(onHighlight).toHaveBeenLastCalledWith("blue", "underline");
+});
+
+it("remembers each swatch's shape across selection menus", async () => {
+	await render(true);
+	await rightClickSwatch("green");
+	await render(false);
+	await render(true);
+	expect(await press("3")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("blue", "highlight");
+	expect(await press("2")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("green", "underline");
 });
 
 it("clears the Vim page prefix when a selection action takes over and restores navigation on close", async () => {
