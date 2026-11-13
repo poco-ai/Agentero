@@ -168,6 +168,42 @@ pub(crate) fn managed_cli_binary() -> PathBuf {
     managed_cli_dir().join(managed_binary_name())
 }
 
+/// Copy the desktop bundle's PDFium next to `cli_bin` when that binary cannot
+/// already see one. Release archives include the library; this covers a local
+/// dev binary and an older archive that shipped only the executable.
+pub(crate) fn ensure_pdfium_beside(cli_bin: &Path) -> Result<(), AppError> {
+    let Ok(app_exe) = std::env::current_exe() else {
+        return Ok(());
+    };
+    let Some(src) =
+        agentero_core::features::paper::analyze::parse::pdfium_donor_for(cli_bin, &app_exe)
+    else {
+        return Ok(());
+    };
+    let Some(dest_dir) = cli_bin.parent() else {
+        return Ok(());
+    };
+    let dest =
+        dest_dir.join(agentero_core::features::paper::analyze::parse::pdfium_library_file_name());
+    fs::copy(&src, &dest).map_err(|error| {
+        AppError::message(format!(
+            "copy PDFium library {} → {}: {error}",
+            src.display(),
+            dest.display()
+        ))
+    })?;
+    Ok(())
+}
+
+/// Drop the PDFium library cached beside the managed CLI binary.
+pub(crate) fn remove_managed_pdfium() {
+    let path = managed_cli_dir()
+        .join(agentero_core::features::paper::analyze::parse::pdfium_library_file_name());
+    if path.is_file() {
+        let _ = fs::remove_file(path);
+    }
+}
+
 pub(crate) fn resolve_local_cli<R: Runtime>(app: &AppHandle<R>) -> Option<ResolvedCli> {
     // 1) Managed download cache (product path after Install).
     let managed = managed_cli_binary();

@@ -1,9 +1,10 @@
 use crate::core::error::{map_err, ApiResult, AppError};
 
 use super::{
-    add_shim_dir_to_user_path, cli_command_name, collect_status, ensure_cli_binary, install_shim,
-    managed_cli_binary, managed_cli_dir, managed_shim_path, remove_shim_dir_from_user_path,
-    resolve_local_cli, uninstall_shim, CliInstallResult, CliInstallStatus,
+    add_shim_dir_to_user_path, cli_command_name, collect_status, ensure_cli_binary,
+    ensure_pdfium_beside, install_shim, managed_cli_binary, managed_cli_dir, managed_shim_path,
+    remove_managed_pdfium, remove_shim_dir_from_user_path, resolve_local_cli, uninstall_shim,
+    CliInstallResult, CliInstallStatus,
 };
 use tauri::{AppHandle, Runtime};
 
@@ -25,6 +26,9 @@ pub async fn cli_install_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<Cli
         Ok(v) => v,
         Err(e) => return map_err(e),
     };
+    if let Err(e) = ensure_pdfium_beside(&binary) {
+        return map_err(e);
+    }
     let shim = managed_shim_path();
     if let Err(e) = install_shim(&binary, &shim) {
         return map_err(e);
@@ -82,8 +86,9 @@ fn run_uninstall<R: Runtime>(app: &AppHandle<R>) -> Result<CliInstallResult, App
     let managed = managed_cli_binary();
     if managed.is_file() {
         let _ = std::fs::remove_file(&managed);
-        let _ = std::fs::remove_dir(managed_cli_dir());
     }
+    remove_managed_pdfium();
+    let _ = std::fs::remove_dir(managed_cli_dir());
     // Windows: best-effort removal of the shim dir from the user PATH.
     if let Err(e) = remove_shim_dir_from_user_path() {
         log::warn!("cli uninstall: failed to remove shim dir from user PATH: {e}");
