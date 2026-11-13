@@ -105,6 +105,7 @@ function ZenSlotPanel({
 				onOpenHistoryHandled={() =>
 					zenStore.getState().clearSlotHistory(slot.id)
 				}
+				restoringHistory={Boolean(slot.pendingHistory)}
 				onAgentChange={(agent) =>
 					zenStore.getState().setSlotAgent(slot.id, agent)
 				}

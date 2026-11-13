@@ -59,6 +59,11 @@ export type AgentPanelProps = {
 	openHistoryItem?: ChatSessionHistoryItem | null;
 	/** Clear the one-shot request once loading has started. */
 	onOpenHistoryHandled?: () => void;
+	/**
+	 * A history row is queued for this panel but hydration has not started yet.
+	 * Shows the restore shimmer instead of the empty-chat suggestions.
+	 */
+	restoringHistory?: boolean;
 	/** Full-page surface: inset the transcript and composer horizontally. */
 	wide?: boolean;
 	className?: string;

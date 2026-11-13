@@ -61,6 +61,7 @@ export const AgentPanel = memo(function AgentPanel({
 	onAgentChange,
 	openHistoryItem = null,
 	onOpenHistoryHandled,
+	restoringHistory = false,
 	wide = false,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
@@ -416,6 +417,7 @@ export const AgentPanel = memo(function AgentPanel({
 						wide={wide}
 						activeTabId={activeTabId}
 						hydratingSessionId={hydratingSessionId}
+						restoring={restoringHistory}
 						compact={composerCompact}
 						activeTabIsRunning={activeTabIsRunning}
 						phase={activePhase}

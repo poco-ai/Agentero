@@ -1157,6 +1157,7 @@ function TranscriptBody({
 export const ChatTranscript = memo(function ChatTranscript({
 	activeTabId,
 	hydratingSessionId,
+	restoring = false,
 	compact = false,
 	wide = false,
 	forceVirtualize = false,
@@ -1181,6 +1182,8 @@ export const ChatTranscript = memo(function ChatTranscript({
 }: {
 	activeTabId: string;
 	hydratingSessionId: string | null;
+	/** A queued history row: shimmer until hydration takes over. */
+	restoring?: boolean;
 	compact?: boolean;
 	/** Full-page surface: extra horizontal inset for the message column. */
 	wide?: boolean;
@@ -1218,7 +1221,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	// re-rendered the whole shell (composer, config bar, switcher) per frame.
 	const lines = useActiveChatLines();
 	const restoringHistorySession =
-		hydratingSessionId === activeTabId && lines.length === 0;
+		restoring || (hydratingSessionId === activeTabId && lines.length === 0);
 	// Chat-only built-ins (Zhihu) replace the generic suggestions with their own
 	// empty state.
 	const zhihuEmpty = isChatOnlyAgentTemplate(agentTemplate);
@@ -1328,7 +1331,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 							>
 								{zhihuEmpty ? (
 									<ZhihuDiscussions paper={paper} />
-								) : (
+								) : activeTabId === "draft" || activeTabIsRunning ? (
 									<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
 										{activeTabIsRunning ? (
 											<Shimmer className="text-center text-sm">
@@ -1351,7 +1354,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 											})
 										)}
 									</div>
-								)}
+								) : null}
 							</ConversationEmptyState>
 						</MessageScrollerItem>
 					</MessageScrollerContent>
