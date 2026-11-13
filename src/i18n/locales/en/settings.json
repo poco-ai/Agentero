@@ -1067,6 +1067,8 @@
 		"pathStyleHint": "Keep on for R2 / MinIO; turn off for bucket subdomains.",
 		"gitRemote": "Repository URL",
 		"gitBranch": "Branch",
+		"gitAuthFailed": "Git could not sign in, and sync does not prompt.\n{{detail}}\nHTTPS: store a token first with `git credential approve` or your credential helper. SSH: run `ssh-add`.",
+		"gitTlsFailed": "Git rejected the server certificate.\n{{detail}}\nFor a self-signed server, set the CA certificate path and connect again.",
 		"noConditionalWrites": "This storage doesn't support conditional (atomic) writes, so sync falls back to plain uploads. Fine for single-device use; concurrent edits from multiple devices may need an extra sync round to converge.",
 		"saved": "Sync configured",
 		"disconnect": "Disconnect",
