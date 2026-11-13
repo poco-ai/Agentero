@@ -25,7 +25,9 @@ import {
 } from "@/lib/agent";
 import {
 	type AgentSessionRecord,
+	type AgentSessionStoreApi,
 	agentSessionStore,
+	useAgentSessionStoreApi,
 } from "@/lib/agent/agent-session-store";
 import {
 	type AgentOption,
@@ -239,13 +241,14 @@ export function renameHistorySessionTitle(
 		"id" | "agentId" | "providerSessionId" | "title"
 	>,
 	nextTitle: string,
+	store: AgentSessionStoreApi = agentSessionStore,
 ): string | null {
 	const cleaned = nextTitle.trim();
 	if (!cleaned) return null;
 	const title = displayHistoryTitle(cleaned, "");
 	if (!title) return null;
 	setUserHistoryTitle(item.agentId, item.id, title, item.providerSessionId);
-	agentSessionStore
+	store
 		.getState()
 		.setSessions((prev) =>
 			prev.map((session) =>
@@ -270,6 +273,7 @@ export async function deleteHistorySession(
 		"id" | "agentId" | "providerSessionId" | "status"
 	>,
 	vaultPath: string | null,
+	store: AgentSessionStoreApi = agentSessionStore,
 ): Promise<AcpDeleteSessionResult> {
 	const providerId = item.providerSessionId?.trim() || item.id;
 	if (item.status === "running") {
@@ -288,7 +292,7 @@ export async function deleteHistorySession(
 	if (item.id !== providerId) {
 		rememberDismissedAcpSession(item.agentId, item.id);
 	}
-	const state = agentSessionStore.getState();
+	const state = store.getState();
 	const removed =
 		state.activeTabId === item.id || state.activeTabId === providerId;
 	state.setSessions((prev) =>
@@ -303,7 +307,7 @@ export async function deleteHistorySession(
 				),
 		),
 	);
-	if (removed) agentSessionStore.getState().startDraft();
+	if (removed) store.getState().startDraft();
 	return result;
 }
 
@@ -511,6 +515,7 @@ export function useAgentHistory({
 	historyOpen,
 	clearMessageQueue,
 }: UseAgentHistoryOptions): AgentHistory {
+	const sessionStore = useAgentSessionStoreApi();
 	const [supportsResume, setSupportsResume] = useState(false);
 
 	const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -549,7 +554,7 @@ export function useAgentHistory({
 			);
 			const { sessions: mergedSessions, hydrationCandidates } =
 				mergeImportedSessions(
-					agentSessionStore.getState().sessions,
+					sessionStore.getState().sessions,
 					chatSessions,
 					selectedAgentId,
 					selected?.name ?? "Agent",
@@ -584,6 +589,7 @@ export function useAgentHistory({
 		selectedAgentId,
 		vaultPath,
 		setSessionHistory,
+		sessionStore,
 		historyGenRef,
 		runTitleHydration,
 	]);
@@ -642,7 +648,7 @@ export function useAgentHistory({
 		activateComposerSession(item.id);
 		activeTabRef.current = item.id;
 		activeConversationRef.current = providerSessionId;
-		agentSessionStore.getState().upsertSession(
+		sessionStore.getState().upsertSession(
 			{
 				...item,
 				lines: [],
@@ -774,8 +780,8 @@ export function useAgentHistory({
 			const active =
 				activeTabRef.current === item.id ||
 				activeTabRef.current === providerId ||
-				agentSessionStore.getState().activeTabId === item.id ||
-				agentSessionStore.getState().activeTabId === providerId;
+				sessionStore.getState().activeTabId === item.id ||
+				sessionStore.getState().activeTabId === providerId;
 			// Drop the continue target before the RPC returns so a queued send
 			// cannot resume the conversation being removed. The visible tab
 			// stays until the delete succeeds.
@@ -783,7 +789,11 @@ export function useAgentHistory({
 				activeConversationRef.current = null;
 				clearMessageQueue();
 			}
-			const result = await deleteHistorySession(item, vaultPathRef.current);
+			const result = await deleteHistorySession(
+				item,
+				vaultPathRef.current,
+				sessionStore,
+			);
 			if (active) {
 				activeTabRef.current = "draft";
 				activateComposerSession("draft");
@@ -795,6 +805,7 @@ export function useAgentHistory({
 			activeConversationRef,
 			activeTabRef,
 			clearMessageQueue,
+			sessionStore,
 			vaultPathRef,
 		],
 	);

@@ -46,6 +46,14 @@ export type AgentPanelProps = {
 	paperMetaByRelPath?: ReadonlyMap<string, PaperMetadata> | null;
 	/** Settings → General: paper labels in file tree (display-only). */
 	paperTreeLabelMode?: PaperTreeLabelMode;
+	/** Start with this harness instead of the registry default (Zen slots). */
+	initialAgentId?: string | null;
+	/** Report the active harness to the host surface (Zen slot rows). */
+	onAgentChange?: (agent: {
+		id: string;
+		name: string;
+		template: string | null;
+	}) => void;
 	className?: string;
 	headerActions?: ReactNode;
 	autoFocus?: boolean;

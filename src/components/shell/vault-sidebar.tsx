@@ -89,6 +89,7 @@ import {
 	selectFileNode,
 	selectLibrary,
 	selectTrash,
+	selectZen,
 } from "@/lib/workspace/actions";
 import { bindWritingVault } from "@/lib/writing/store";
 
@@ -346,6 +347,7 @@ export function VaultSidebar() {
 						onSelectFile={selectFileNode}
 						onSelectLibrary={selectLibrary}
 						onSelectTrash={selectTrash}
+						onSelectZen={selectZen}
 						onSelectPlazaSource={openPlazaSource}
 						zoteroCollectionPapers={papers}
 						onOpenZoteroCollectionPaper={onOpenZoteroCollectionPaper}

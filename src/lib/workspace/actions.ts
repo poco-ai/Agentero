@@ -34,6 +34,7 @@ export {
 	selectFileNode,
 	selectLibrary,
 	selectTrash,
+	selectZen,
 	setNotesSplit,
 	syncRenamedPaperTabs,
 	syncUpdatedPaperTabs,

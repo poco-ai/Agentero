@@ -24,6 +24,7 @@ import {
 } from "@/hooks/use-app-stores";
 import type { useSessionComposerState } from "@/hooks/use-session-composer-state";
 import type { AgentSkill } from "@/lib/agent";
+import { useAgentSessionScope } from "@/lib/agent/agent-session-store";
 import type { ChatLine } from "@/lib/agent/chat-state";
 import {
 	appendMissingInlineTokens,
@@ -171,6 +172,9 @@ export type AgentComposer = {
 	composerInputRef: RefObject<ComposerInlineInputHandle | null>;
 };
 
+const EMPTY_PINNED_SELECTIONS: SelectionContext[] = [];
+const EMPTY_VISUAL_DRAFTS: PdfVisualDraft[] = [];
+
 export function useAgentComposer({
 	refs: {
 		promptHistoryAppliedRef,
@@ -208,6 +212,10 @@ export function useAgentComposer({
 	activeTabIsRunning,
 	cancelCurrentRun,
 }: UseAgentComposerOptions): AgentComposer {
+	const { scopeId } = useAgentSessionScope();
+	// App-wide inputs (pinned selections, PDF visual drafts, Add to chat,
+	// seeded prompts) target the rail composer; Zen slots only take typed input.
+	const railScope = scopeId === null;
 	const [composerMenuDismissed, setComposerMenuDismissed] = useState(false);
 	const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
 	const [skillActiveIndex, setSkillActiveIndex] = useState(0);
@@ -215,6 +223,7 @@ export function useAgentComposer({
 
 	// Doctor / Settings may seed the composer via a cross-window event.
 	useEffect(() => {
+		if (!railScope) return;
 		const apply = (text: string) => {
 			const next = text.trim();
 			if (!next) return;
@@ -224,7 +233,7 @@ export function useAgentComposer({
 		const pending = takePendingAgentComposerPrompt();
 		if (pending) apply(pending);
 		return subscribePendingAgentComposerPrompt(apply);
-	}, [setComposerText]);
+	}, [railScope, setComposerText]);
 
 	/** Same paper label mode as the file tree (settings); title fallback if meta missing. */
 	const currentFileLabel = useMemo(() => {
@@ -256,7 +265,10 @@ export function useAgentComposer({
 
 	// Only explicitly pinned selections (Add to chat / ⇧⌘L) enter the draft.
 	// Live drag-selection stays in the store until pinActiveSelection freezes it.
-	const pinnedSelections = useSelectionStore((s) => s.pinned);
+	const railPinnedSelections = useSelectionStore((s) => s.pinned);
+	const pinnedSelections = railScope
+		? railPinnedSelections
+		: EMPTY_PINNED_SELECTIONS;
 
 	// Pin quotes at the caret the composer last reported. Appending at the
 	// string end lands after the contenteditable's trailing break, which
@@ -302,19 +314,22 @@ export function useAgentComposer({
 		prevPinnedRef.current = pinnedSelections;
 	}, [pinnedSelections, setComposerText]);
 
-	const visualDrafts = useVisualContextStore((s) => s.drafts);
+	const railVisualDrafts = useVisualContextStore((s) => s.drafts);
+	const visualDrafts = railScope ? railVisualDrafts : EMPTY_VISUAL_DRAFTS;
 	const visualSyncRef = useRef<VisualMarkerBaseline | null>(null);
 	// Keep this session's visual drafts and inline markers in step.
 	// Switching sessions shows that session's own bucket; it does not delete
 	// or rewrite another session's unsent block. An explicit add inserts into
 	// the composer that is open.
 	useEffect(() => {
+		if (!railScope) return;
 		const liveIdentity = composerIdentity();
 		const liveText = snapshotComposer().text;
 		if (
 			liveText !== composerText ||
 			liveIdentity.sessionId !== sessionId ||
-			liveIdentity.scopeKey !== composerScopeKey(vaultPath, selectedAgentId)
+			liveIdentity.scopeKey !==
+				composerScopeKey(vaultPath, selectedAgentId, scopeId)
 		) {
 			return;
 		}
@@ -372,6 +387,8 @@ export function useAgentComposer({
 	}, [
 		composerIdentity,
 		composerText,
+		railScope,
+		scopeId,
 		selectedAgentId,
 		sessionId,
 		setComposerText,
@@ -646,6 +663,7 @@ export function useAgentComposer({
 	// Handles same-window (module pub/sub) and the singleton feature window
 	// (Tauri event). Consumes one pending batch on mount.
 	useEffect(() => {
+		if (!railScope) return;
 		const pending = takePendingAgentContextPaths();
 		if (pending) attachContextPaths(pending);
 		const unsubscribe = subscribePendingAgentContextPaths(attachContextPaths);
@@ -656,7 +674,7 @@ export function useAgentComposer({
 			unsubscribe();
 			unlisten();
 		};
-	}, [attachContextPaths]);
+	}, [attachContextPaths, railScope]);
 
 	/**
 	 * Drag from file tree sets `text/plain` vault paths (newline-separated).

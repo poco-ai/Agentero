@@ -22,6 +22,17 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 
 章节与段落引用也支持 `[label](papers/<id>/<id>.pdf#2.1)`、`[label](papers/<id>/<id>.pdf#2.1#p3)` 和同格式的 PDF 双链。Agent 应先用 `agentero layout list <paper> --kind paragraph --json` 查询真实锚点，再引用返回的 `anchor`；`p3` 是章节内的正文块序号，子章节独立计数。聊天、普通 Markdown 链接与双链使用同一个解析器；缺少解析、目标不存在或有歧义时报告失败。Markdown 的 `#标题` 与 PDF 的编号章节分别解释。
 
+## Zen 对话工作区
+
+整页的多会话 Agent 工作面，入口是文件树虚拟节点「Zen」，在中间 Dockview 打开为一个虚拟标签（`agentero:zen`），可以和论文分屏。
+
+- **会话槽**：左栏每行是一个槽（Agent 图标 + 当前会话标题 + 运行中 / 失败状态点，悬停出现关闭按钮），顶部「新对话」新建槽。所有槽同时挂载、只隐藏非当前槽，因此后台槽继续接收流事件；关闭 Zen 标签页会取消所有槽里运行中的回合并清空槽列表（`lib/agent/zen-store.ts`）。
+- **独立 store**：每个槽由 `createAgentSessionStore()` 拥有一份会话 store，经 `AgentSessionScopeContext` 注入；右侧栏仍用共享的 `agentSessionStore`。槽内可各自换 Harness / 模型，规则与侧栏一致（有运行中会话时不能换 Harness）；历史弹层从 ACP `session/list` 读取，打开的会话载入当前槽。
+- **从侧栏接管**：打开 Zen 时收起右侧栏；若还没有槽，用右侧栏当前 `sessions` / `activeTabId` / `draftLines` 与选中的 Agent 创建第一个槽，并把侧栏 composer 的当前草稿复制到该槽的存储命名空间。侧栏 store 不清空，重新展开仍可看到原对话；PDF 视觉批注产生的 pin 会话不接管。两边同时收到同一会话的流事件时各写各的 store（都按 `sessionId` 认领），因此不会互相污染；权限 / elicitation / ask-user 请求按 request id 只让最先收到的那一面显示（`lib/agent/interactive-claims.ts`），overlay id 带 scope 后缀，避免两面各弹一次。
+- **草稿隔离**：composer 草稿 key 带 scope 前缀（`zen:<slotId>`）。非侧栏 scope 不消费应用级输入：钉选划词（`⇧⌘L`）、PDF 视觉批注草稿同步、「添加到对话」、外部预填 prompt、`agentChromeStore` 写入与跨窗口 handoff 都只作用于右侧栏；PDF 视觉批注仍进右侧栏。
+- **原生拖入图片**：`ComposerDropTarget` 用自身元素所在的 `[data-composer-drop-shell]` / `[data-agent-panel]` 做命中测试，不再取页面第一个 composer，因此每个槽都能接住 Finder 拖入的图片。
+- **默认上下文**：Zen 本身不是文档焦点，Agent 默认上下文不含它（可用 `@` 显式加文件）。
+
 ## 面板行为
 
 - **Dsh 重启历史**：官方 ACP 桥仅支持 `session/resume` 时，本机历史从

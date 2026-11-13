@@ -57,6 +57,8 @@ export const AgentPanel = memo(function AgentPanel({
 	title = "Chat",
 	onOpenAgentSettings,
 	onOpenSource,
+	initialAgentId = null,
+	onAgentChange,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
 	const panel = useAgentPanel({
@@ -68,6 +70,8 @@ export const AgentPanel = memo(function AgentPanel({
 		vaultPaperPaths,
 		paperMetaByRelPath,
 		paperTreeLabelMode,
+		initialAgentId,
+		onAgentChange,
 	});
 	const bodyRef = useRef<HTMLDivElement>(null);
 	const [composerHeightPx, setComposerHeightPx] = useState(
