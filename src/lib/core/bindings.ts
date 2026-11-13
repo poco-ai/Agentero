@@ -3634,6 +3634,12 @@ export type JobLayoutTranslateEnqueueArgs = {
 	 *  sidecar is structurally complete.
 	 */
 	forceLayout?: boolean,
+	/**
+	 *  `complete` names a gap-fill started from the partial-translation
+	 *  action. Any other value is ignored. Joining an active translation
+	 *  keeps that job's name.
+	 */
+	purpose?: string | null,
 };
 
 export type JobListArgs = {

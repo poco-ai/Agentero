@@ -124,6 +124,8 @@ export async function observePaperTranslation(options: {
 	start: boolean;
 	force?: boolean;
 	forceLayout?: boolean;
+	/** Gap-fill from the partial-translation action. Omitted for a full run. */
+	purpose?: "complete";
 	signal: AbortSignal;
 	onUpdate: (job: JobSnapshot, snapshot: TranslationSnapshot | null) => void;
 	onJob?: (jobId: string) => void;
@@ -173,6 +175,7 @@ export async function observePaperTranslation(options: {
 						lane: "focus",
 						force: options.force ?? false,
 						forceLayout: options.forceLayout ?? false,
+						purpose: options.purpose ?? null,
 					}),
 				)
 			: (

@@ -814,6 +814,7 @@ impl JobCenter {
         lane: JobLane,
         force: bool,
         dependency: JobId,
+        params: Option<serde_json::Value>,
     ) -> JobSnapshot {
         self.enqueue_core_with_deps(
             JobKind::LayoutTranslate,
@@ -822,7 +823,7 @@ impl JobCenter {
             lane,
             force,
             None,
-            None,
+            params,
             vec![dependency],
             DepPolicy::AllSucceeded,
         )
@@ -857,6 +858,7 @@ impl JobCenter {
                     lane,
                     force,
                     JobId(layout.id.clone()),
+                    None,
                 )
                 .await,
             )

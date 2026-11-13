@@ -673,6 +673,7 @@ export function usePdfLayoutTranslate({
 					start,
 					force,
 					forceLayout: reanalyzeLayout,
+					purpose: runScopeIds.length > 0 ? "complete" : undefined,
 					signal: ac.signal,
 					onJob(jobId) {
 						shared.jobId = jobId;

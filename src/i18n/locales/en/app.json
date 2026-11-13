@@ -248,6 +248,7 @@
 		"layoutModelDetail": "ModelScope → HuggingFace · PP-DocLayoutV3",
 		"layoutAnalysis": "Parse figures, tables, and text",
 		"layoutTranslate": "Translate full text",
+		"layoutTranslateComplete": "Complete translation",
 		"pdfParse": "Parse PDF body",
 		"parseRefs": "Parse references",
 		"openLayoutSettings": "Open analysis settings",

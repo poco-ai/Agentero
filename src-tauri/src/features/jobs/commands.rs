@@ -47,6 +47,11 @@ pub struct JobLayoutTranslateEnqueueArgs {
     /// sidecar is structurally complete.
     #[serde(default)]
     pub force_layout: bool,
+    /// `complete` names a gap-fill started from the partial-translation
+    /// action. Any other value is ignored. Joining an active translation
+    /// keeps that job's name.
+    #[serde(default)]
+    pub purpose: Option<String>,
 }
 
 /// `layoutAnalyze` enqueue args. `auto_translate` asks the Host to queue a
@@ -453,8 +458,13 @@ pub async fn job_layout_translate_enqueue(
 ) -> Result<ApiResult<JobSnapshot>, String> {
     let (vault, path) = try_job_paper!(args);
     center.refresh_layout_backend().await;
+    let purpose = match args.purpose.as_deref() {
+        Some("complete") => Some(serde_json::json!({ "purpose": "complete" })),
+        _ => None,
+    };
     let (job, changed) =
-        enqueue_layout_translation(&center, vault, path, args.force, args.force_layout).await;
+        enqueue_layout_translation(&center, vault, path, args.force, args.force_layout, purpose)
+            .await;
     for snapshot in changed {
         emit_job_changed(&app, snapshot);
     }
@@ -471,6 +481,7 @@ async fn enqueue_layout_translation(
     path: String,
     force: bool,
     force_layout: bool,
+    params: Option<serde_json::Value>,
 ) -> (JobSnapshot, Vec<JobSnapshot>) {
     let readiness = read_layout_input_readiness(&vault.join(&path));
     let needs_layout = force_layout || readiness.needs_layout_analysis();
@@ -492,6 +503,8 @@ async fn enqueue_layout_translation(
         job.kind == JobKind::LayoutTranslate
             && matches!(job.state, JobState::Queued | JobState::Running)
     }) {
+        // Keep the active job's label. A later completion or full-document
+        // request does not rename the translation that is already queued.
         return (job, changed);
     }
     let job = if !needs_layout {
@@ -503,7 +516,7 @@ async fn enqueue_layout_translation(
                 JobLane::Focus,
                 force,
                 None,
-                None,
+                params,
             )
             .await
     } else {
@@ -522,6 +535,7 @@ async fn enqueue_layout_translation(
                 JobLane::Focus,
                 force,
                 super::JobId(layout.id.clone()),
+                params,
             )
             .await;
         changed.push(layout);
@@ -563,7 +577,7 @@ mod layout_translate_tests {
                 .await;
 
             let (translate, changed) =
-                enqueue_layout_translation(&center, vault, path, false, true).await;
+                enqueue_layout_translation(&center, vault, path, false, true, None).await;
             let layout = changed
                 .iter()
                 .find(|job| job.kind == JobKind::LayoutAnalyze && job.state == JobState::Queued)
@@ -631,6 +645,7 @@ mod layout_translate_tests {
                 JobLane::Normal,
                 false,
                 super::super::JobId(layout.id),
+                None,
             )
             .await;
         let running = match center.try_start(&translate.id).await {
@@ -639,7 +654,7 @@ mod layout_translate_tests {
         };
 
         let (replacement, changed) =
-            enqueue_layout_translation(&center, vault, path, false, true).await;
+            enqueue_layout_translation(&center, vault, path, false, true, None).await;
         assert_ne!(replacement.id, translate.id);
         assert!(running.cancel_token.is_cancelled());
         assert_eq!(changed[0].id, translate.id);
@@ -662,13 +677,85 @@ mod layout_translate_tests {
         let translate = translate.unwrap();
 
         let (joined, changed) =
-            enqueue_layout_translation(&center, vault, path, false, false).await;
+            enqueue_layout_translation(&center, vault, path, false, false, None).await;
         assert_eq!(joined.id, translate.id);
         assert!(changed.is_empty());
         assert_eq!(
             center.snapshot(&layout.id).await.unwrap().state,
             JobState::Queued
         );
+    }
+
+    #[tokio::test]
+    async fn completion_purpose_labels_a_new_job_and_join_keeps_the_active_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path().to_path_buf();
+        let center = JobCenter::new();
+        let complete = serde_json::json!({ "purpose": "complete" });
+
+        let (job, _) = enqueue_layout_translation(
+            &center,
+            vault.clone(),
+            "papers/a".to_string(),
+            false,
+            false,
+            Some(complete.clone()),
+        )
+        .await;
+        assert_eq!(
+            job.params.as_ref().and_then(|params| params.get("purpose")),
+            Some(&serde_json::json!("complete"))
+        );
+
+        let (joined_full, changed) = enqueue_layout_translation(
+            &center,
+            vault.clone(),
+            "papers/a".to_string(),
+            false,
+            false,
+            None,
+        )
+        .await;
+        assert_eq!(joined_full.id, job.id);
+        assert!(changed.is_empty());
+        assert_eq!(
+            joined_full
+                .params
+                .as_ref()
+                .and_then(|params| params.get("purpose"))
+                .and_then(|value| value.as_str()),
+            Some("complete")
+        );
+
+        let (full, _) = enqueue_layout_translation(
+            &center,
+            vault.clone(),
+            "papers/b".to_string(),
+            false,
+            false,
+            None,
+        )
+        .await;
+        assert!(full
+            .params
+            .as_ref()
+            .and_then(|params| params.get("purpose"))
+            .is_none());
+        let (still_full, _) = enqueue_layout_translation(
+            &center,
+            vault,
+            "papers/b".to_string(),
+            false,
+            false,
+            Some(complete),
+        )
+        .await;
+        assert_eq!(still_full.id, full.id);
+        assert!(still_full
+            .params
+            .as_ref()
+            .and_then(|params| params.get("purpose"))
+            .is_none());
     }
 }
 
