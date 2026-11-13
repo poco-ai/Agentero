@@ -64,6 +64,12 @@ export type AgentPanelProps = {
 	 * Shows the restore shimmer instead of the empty-chat suggestions.
 	 */
 	restoringHistory?: boolean;
+	/**
+	 * The host surface already lists this harness's ACP sessions (Zen rail), so
+	 * the panel must not import them into its own store: that listed every
+	 * session as an open tab and spawned one ACP process per slot.
+	 */
+	suppressHistoryImport?: boolean;
 	/** Full-page surface: inset the transcript and composer horizontally. */
 	wide?: boolean;
 	className?: string;

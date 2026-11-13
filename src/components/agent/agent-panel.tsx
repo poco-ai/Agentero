@@ -62,6 +62,7 @@ export const AgentPanel = memo(function AgentPanel({
 	openHistoryItem = null,
 	onOpenHistoryHandled,
 	restoringHistory = false,
+	suppressHistoryImport = false,
 	wide = false,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
@@ -78,6 +79,7 @@ export const AgentPanel = memo(function AgentPanel({
 		onAgentChange,
 		openHistoryItem,
 		onOpenHistoryHandled,
+		suppressHistoryImport,
 	});
 	const bodyRef = useRef<HTMLDivElement>(null);
 	const [composerHeightPx, setComposerHeightPx] = useState(

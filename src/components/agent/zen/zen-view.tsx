@@ -106,6 +106,7 @@ function ZenSlotPanel({
 					zenStore.getState().clearSlotHistory(slot.id)
 				}
 				restoringHistory={Boolean(slot.pendingHistory)}
+				suppressHistoryImport
 				onAgentChange={(agent) =>
 					zenStore.getState().setSlotAgent(slot.id, agent)
 				}

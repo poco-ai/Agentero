@@ -481,6 +481,12 @@ export type UseAgentHistoryOptions = {
 	/** When true, finish hydrating any still-untitled rows in the open drawer. */
 	historyOpen: boolean;
 	clearMessageQueue: () => void;
+	/**
+	 * Import the harness's ACP session list into this store (default true).
+	 * Zen panels disable it: the rail already lists every session, and the
+	 * import would spawn an ACP process per slot and fake "open" tabs.
+	 */
+	importHistory?: boolean;
 };
 
 export type AgentHistory = {
@@ -519,6 +525,7 @@ export function useAgentHistory({
 	setHistoryOpen,
 	historyOpen,
 	clearMessageQueue,
+	importHistory = true,
 }: UseAgentHistoryOptions): AgentHistory {
 	const sessionStore = useAgentSessionStoreApi();
 	const [supportsResume, setSupportsResume] = useState(false);
@@ -540,6 +547,12 @@ export function useAgentHistory({
 	);
 
 	const loadAgentHistory = useCallback(async () => {
+		// Zen panels leave the ACP list to the rail: importing it here spawned a
+		// process per slot and turned every history row into an "open" tab.
+		if (!importHistory) {
+			setHistoryLoaded(true);
+			return;
+		}
 		if (!isTauri() || !selectedAgentId) {
 			setHistoryLoaded(true);
 			return;
@@ -590,6 +603,7 @@ export function useAgentHistory({
 		}
 	}, [
 		i18nLanguage,
+		importHistory,
 		selected?.name,
 		selectedAgentId,
 		vaultPath,

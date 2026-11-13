@@ -37,15 +37,32 @@ function byDefaultThenName(defaultId: string | null) {
 	};
 }
 
+/** Repeat Zen opens reuse the last list instead of re-spawning every harness. */
+const HISTORY_CACHE_TTL_MS = 30_000;
+
+let historyCache: {
+	key: string;
+	fetchedAt: number;
+	sections: ZenHarnessHistory[];
+} | null = null;
+
 export function useZenHarnessHistory(
 	vaultPath: string | null,
 	enabled: boolean,
 ): ZenHarnessHistoryState {
-	const [sections, setSections] = useState<ZenHarnessHistory[]>([]);
+	const key = vaultPath ?? "";
+	const [sections, setSections] = useState<ZenHarnessHistory[]>(() =>
+		historyCache && historyCache.key === key ? historyCache.sections : [],
+	);
 	const [loading, setLoading] = useState(false);
 
 	const refresh = useCallback(async () => {
 		if (!isTauri()) return;
+		const cached = historyCache?.key === key ? historyCache : null;
+		if (cached && Date.now() - cached.fetchedAt < HISTORY_CACHE_TTL_MS) {
+			setSections(cached.sections);
+			return;
+		}
 		setLoading(true);
 		try {
 			const registry = await listAgents();
@@ -77,13 +94,16 @@ export function useZenHarnessHistory(
 			);
 			// Drop harnesses that neither run nor have history; the sidebar would
 			// otherwise list every installed agent as an empty heading.
-			setSections(loaded.filter((section) => section.sessions.length > 0));
+			const next = loaded.filter((section) => section.sessions.length > 0);
+			historyCache = { key, fetchedAt: Date.now(), sections: next };
+			setSections(next);
 		} catch {
-			setSections([]);
+			// Keep whatever is on screen; the list is supplementary.
+			setSections((prev) => prev);
 		} finally {
 			setLoading(false);
 		}
-	}, [vaultPath]);
+	}, [key, vaultPath]);
 
 	useEffect(() => {
 		if (enabled) void refresh();
@@ -93,6 +113,8 @@ export function useZenHarnessHistory(
 		if (!enabled) return;
 		let timer: number | undefined;
 		const off = lifecycle.on("agent:registry-changed", () => {
+			// Capabilities/chats changed: drop the cache and refetch.
+			historyCache = null;
 			window.clearTimeout(timer);
 			timer = window.setTimeout(() => {
 				void refresh();
