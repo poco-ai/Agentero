@@ -1296,8 +1296,13 @@ mod tests {
     }
 
     async fn advance_retry() {
+        for _ in 0..16 {
+            tokio::task::yield_now().await;
+        }
         tokio::time::advance(RETRY_INTERVAL + std::time::Duration::from_millis(1)).await;
-        tokio::task::yield_now().await;
+        for _ in 0..16 {
+            tokio::task::yield_now().await;
+        }
     }
 
     #[tokio::test(start_paused = true)]
