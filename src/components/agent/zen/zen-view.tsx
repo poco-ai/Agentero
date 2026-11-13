@@ -1,16 +1,18 @@
 /**
  * Zen — full-page multi-conversation Agent surface.
  *
- * Left: one row per conversation slot (harness, current session, status).
- * Right: the active slot's {@link AgentPanel}. Every slot stays mounted and
- * hidden while inactive so background turns keep streaming; each slot has its
- * own session store injected through `AgentSessionScopeContext`.
+ * Left: sessions grouped by harness — open slots plus each harness's ACP
+ * history, so a past conversation can be reopened without switching the
+ * composer first. Right: the active slot's {@link AgentPanel}. Every slot
+ * stays mounted and hidden while inactive so background turns keep streaming;
+ * each slot has its own session store injected through
+ * `AgentSessionScopeContext`.
  *
  * Virtual tab path / slot store live in `lib/agent/zen-path.ts` and
  * `lib/agent/zen-store.ts`.
  */
-import { Plus, Waves, X } from "lucide-react";
-import { useMemo } from "react";
+import { Plus, RotateCw, Waves, X } from "lucide-react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { AgentLogo } from "@/components/agent/agent-logo";
@@ -20,12 +22,17 @@ import {
 	useSettings,
 	useVaultStore,
 } from "@/hooks/use-app-stores";
-import type { AgentSessionStore } from "@/lib/agent/agent-session-store";
-import { AgentSessionScopeContext } from "@/lib/agent/agent-session-store";
+import {
+	AgentSessionScopeContext,
+	type AgentSessionStore,
+} from "@/lib/agent/agent-session-store";
+import type { AcpSessionInfo } from "@/lib/agent/api";
+import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import {
 	useZenStore,
+	type ZenHistoryItem,
 	type ZenSlot,
 	zenScopeId,
 	zenStore,
@@ -33,9 +40,25 @@ import {
 import { cn } from "@/lib/core/utils";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { openCitation } from "@/lib/workspace/actions";
+import { useZenHarnessHistory } from "./use-zen-history";
 
 function onOpenAgentSettings(): void {
 	openSettingsWindow("agent");
+}
+
+function historyItemFor(pending: ZenHistoryItem): ChatSessionHistoryItem {
+	return {
+		id: pending.id,
+		agentId: pending.agentId,
+		agentName: pending.agentName,
+		title: pending.title,
+		startedAt: pending.startedAt,
+		providerSessionId: pending.providerSessionId,
+		source: "external",
+		lines: [],
+		status: "completed",
+		resumeable: true,
+	};
 }
 
 function ZenSlotPanel({
@@ -48,6 +71,10 @@ function ZenSlotPanel({
 	const scope = useMemo(
 		() => ({ store: slot.store, scopeId: zenScopeId(slot.id) }),
 		[slot.id, slot.store],
+	);
+	const historyItem = useMemo(
+		() => (slot.pendingHistory ? historyItemFor(slot.pendingHistory) : null),
+		[slot.pendingHistory],
 	);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const vaultMarkdownPaths = useVaultStore((s) => s.vaultMdFiles);
@@ -67,6 +94,10 @@ function ZenSlotPanel({
 				paperTreeLabelMode={paperTreeLabelMode}
 				className="h-full min-h-0"
 				initialAgentId={slot.agent.id}
+				openHistoryItem={historyItem}
+				onOpenHistoryHandled={() =>
+					zenStore.getState().clearSlotHistory(slot.id)
+				}
 				onAgentChange={(agent) =>
 					zenStore.getState().setSlotAgent(slot.id, agent)
 				}
@@ -85,13 +116,7 @@ function activeSessionTitle(state: AgentSessionStore): string {
 	return active?.title ?? "";
 }
 
-function ZenSlotRow({
-	slot,
-	activeSlotId,
-}: {
-	slot: ZenSlot;
-	activeSlotId: string | null;
-}) {
+function ZenSlotRow({ slot, active }: { slot: ZenSlot; active: boolean }) {
 	const { t } = useTranslation("agent");
 	// Primitive selectors: streaming flushes swap `lines` (and the sessions
 	// array identity) without touching these signals, so the list stays calm.
@@ -105,7 +130,6 @@ function ZenSlotRow({
 			state.sessions.find((session) => session.id === state.activeTabId)
 				?.status === "failed",
 	);
-	const active = slot.id === activeSlotId;
 	const label = displayHistoryTitle(title, "") || t("zen.untitled");
 	const status = running ? "running" : failed ? "failed" : null;
 
@@ -154,14 +178,226 @@ function ZenSlotRow({
 	);
 }
 
-export function ZenView() {
+function ZenHistoryRow({
+	session,
+	onOpen,
+}: {
+	session: AcpSessionInfo;
+	onOpen: () => void;
+}) {
+	const { t } = useTranslation("agent");
+	const label =
+		displayHistoryTitle(session.title ?? "", "") || t("zen.untitled");
+	return (
+		<button
+			type="button"
+			title={label}
+			className="flex w-full min-w-0 items-center rounded-md py-1 pe-2 ps-7 text-start text-muted-foreground text-xs outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+			onClick={onOpen}
+		>
+			<span className="min-w-0 flex-1 truncate">{label}</span>
+		</button>
+	);
+}
+
+/** One harness section: its open slots first, then recent ACP sessions. */
+type HarnessGroup = {
+	key: string;
+	agentId: string | null;
+	name: string;
+	template: string | null;
+	slots: ZenSlot[];
+	history: AcpSessionInfo[];
+};
+
+/**
+ * Session ids already open in a slot (runtime + provider id). Kept as a stable
+ * string signature so stream flushes do not re-render the history list.
+ */
+function useOpenSessionIds(slots: ZenSlot[]): ReadonlySet<string> {
+	const subscribe = useCallback(
+		(onChange: () => void) => {
+			const unsubs = slots.map((slot) => slot.store.subscribe(onChange));
+			return () => {
+				for (const unsubscribe of unsubs) unsubscribe();
+			};
+		},
+		[slots],
+	);
+	const getSnapshot = useCallback(() => {
+		const ids: string[] = [];
+		for (const slot of slots) {
+			for (const session of slot.store.getState().sessions) {
+				ids.push(session.id);
+				if (session.providerSessionId) ids.push(session.providerSessionId);
+			}
+		}
+		return [...new Set(ids)].sort().join("\n");
+	}, [slots]);
+	const signature = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+	return useMemo(
+		() => new Set(signature ? signature.split("\n") : []),
+		[signature],
+	);
+}
+
+function HarnessSection({
+	group,
+	activeSlotId,
+	openSessionIds,
+	onNewSlot,
+	onOpenHistory,
+}: {
+	group: HarnessGroup;
+	activeSlotId: string | null;
+	openSessionIds: ReadonlySet<string>;
+	onNewSlot: () => void;
+	onOpenHistory: (session: AcpSessionInfo) => void;
+}) {
+	const { t } = useTranslation("agent");
+	const history = group.history.filter(
+		(session) => !openSessionIds.has(session.sessionId),
+	);
+
+	return (
+		<section className="pb-1">
+			<div className="group flex h-7 items-center gap-1.5 pe-1 ps-2">
+				<AgentLogo template={group.template} plain className="size-3.5" />
+				<span className="min-w-0 flex-1 truncate font-medium text-muted-foreground text-xs">
+					{group.name}
+				</span>
+				<button
+					type="button"
+					aria-label={t("zen.newConversation")}
+					title={t("zen.newConversation")}
+					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+					onClick={onNewSlot}
+				>
+					<Plus className="size-3.5" />
+				</button>
+			</div>
+			{group.slots.map((slot) => (
+				<ZenSlotRow
+					key={slot.id}
+					slot={slot}
+					active={slot.id === activeSlotId}
+				/>
+			))}
+			{history.map((session) => (
+				<ZenHistoryRow
+					key={session.sessionId}
+					session={session}
+					onOpen={() => onOpenHistory(session)}
+				/>
+			))}
+		</section>
+	);
+}
+
+const UNKNOWN_HARNESS = "__unknown__";
+
+export function ZenView({ active }: { active: boolean }) {
 	const { t } = useTranslation("agent");
 	const slots = useZenStore((s) => s.slots);
 	const activeSlotId = useZenStore((s) => s.activeSlotId);
+	const vaultPath = useVaultStore((s) => s.vaultPath);
+	const {
+		sections: historySections,
+		loading: historyLoading,
+		refresh: refreshHistory,
+	} = useZenHarnessHistory(vaultPath, active);
+	const openSessionIds = useOpenSessionIds(slots);
 
-	const newSlot = () => {
-		// The new panel mounts with `autoFocus`, which focuses once committed.
-		zenStore.getState().addSlot();
+	const groups = useMemo<HarnessGroup[]>(() => {
+		const map = new Map<string, HarnessGroup>();
+		for (const section of historySections) {
+			map.set(section.agent.id, {
+				key: section.agent.id,
+				agentId: section.agent.id,
+				name: section.agent.name,
+				template: section.agent.template,
+				slots: [],
+				history: section.sessions,
+			});
+		}
+		for (const slot of slots) {
+			const key = slot.agent.id ?? UNKNOWN_HARNESS;
+			let group = map.get(key);
+			if (!group) {
+				group = {
+					key,
+					agentId: slot.agent.id,
+					name: slot.agent.name ?? t("defaultName"),
+					template: slot.agent.template,
+					slots: [],
+					history: [],
+				};
+				map.set(key, group);
+			}
+			group.slots.push(slot);
+		}
+		// Empty harnesses (installed, no slots, no history) are not listed.
+		return [...map.values()].filter(
+			(group) => group.slots.length > 0 || group.history.length > 0,
+		);
+	}, [historySections, slots, t]);
+
+	const newSlotFor = (
+		agent: { id: string; name: string; template: string | null } | null,
+	) => {
+		zenStore.getState().addSlot(
+			agent
+				? {
+						agentId: agent.id,
+						agentName: agent.name,
+						agentTemplate: agent.template,
+					}
+				: undefined,
+		);
+		focusAgentComposer();
+	};
+
+	const openHistory = (
+		agentId: string,
+		name: string,
+		session: AcpSessionInfo,
+	) => {
+		const existing = zenStore
+			.getState()
+			.slots.find(
+				(slot) =>
+					slot.pendingHistory?.id === session.sessionId ||
+					slot.store
+						.getState()
+						.sessions.some(
+							(item) =>
+								item.id === session.sessionId ||
+								item.providerSessionId === session.sessionId,
+						),
+			);
+		if (existing) {
+			zenStore.getState().activateSlot(existing.id);
+			focusAgentComposer();
+			return;
+		}
+		const title =
+			displayHistoryTitle(session.title ?? "", "") || t("zen.untitled");
+		zenStore.getState().addSlot({
+			agentId,
+			agentName: name,
+			agentTemplate:
+				historySections.find((section) => section.agent.id === agentId)?.agent
+					.template ?? null,
+			history: {
+				id: session.sessionId,
+				agentId,
+				agentName: name,
+				title,
+				startedAt: session.updatedAt ?? "",
+				providerSessionId: session.sessionId,
+			},
+		});
+		focusAgentComposer();
 	};
 
 	return (
@@ -169,24 +405,61 @@ export function ZenView() {
 			className="flex h-full min-h-0 w-full bg-background"
 			aria-label={t("zen.title")}
 		>
-			<aside className="flex w-56 shrink-0 flex-col border-r bg-sidebar/60">
+			<aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar/60">
 				<div className="flex h-9 shrink-0 items-center justify-between pe-1.5 ps-3">
 					<span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
 						{t("zen.title")}
 					</span>
-					<button
-						type="button"
-						aria-label={t("zen.newConversation")}
-						title={t("zen.newConversation")}
-						className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-						onClick={newSlot}
-					>
-						<Plus className="size-4" />
-					</button>
+					<div className="flex items-center gap-0.5">
+						<button
+							type="button"
+							aria-label={t("zen.refreshHistory")}
+							title={t("zen.refreshHistory")}
+							className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+							onClick={() => void refreshHistory()}
+						>
+							<RotateCw
+								className={cn(
+									"size-3.5",
+									historyLoading && "animate-spin motion-reduce:animate-none",
+								)}
+							/>
+						</button>
+						<button
+							type="button"
+							aria-label={t("zen.newConversation")}
+							title={t("zen.newConversation")}
+							className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+							onClick={() => newSlotFor(null)}
+						>
+							<Plus className="size-4" />
+						</button>
+					</div>
 				</div>
 				<div className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
-					{slots.map((slot) => (
-						<ZenSlotRow key={slot.id} slot={slot} activeSlotId={activeSlotId} />
+					{groups.map((group) => (
+						<HarnessSection
+							key={group.key}
+							group={group}
+							activeSlotId={activeSlotId}
+							openSessionIds={openSessionIds}
+							onNewSlot={() =>
+								newSlotFor(
+									group.agentId
+										? {
+												id: group.agentId,
+												name: group.name,
+												template: group.template ?? "custom",
+											}
+										: null,
+								)
+							}
+							onOpenHistory={(session) => {
+								if (group.agentId) {
+									openHistory(group.agentId, group.name, session);
+								}
+							}}
+						/>
 					))}
 				</div>
 			</aside>
@@ -197,7 +470,7 @@ export function ZenView() {
 						<button
 							type="button"
 							className="rounded-md border border-border/70 bg-background px-3 py-1.5 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring"
-							onClick={newSlot}
+							onClick={() => newSlotFor(null)}
 						>
 							{t("zen.newConversation")}
 						</button>

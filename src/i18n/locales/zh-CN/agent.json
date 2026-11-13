@@ -75,9 +75,10 @@
 	},
 	"zen": {
 		"title": "Zen",
-		"newConversation": "新对话",
+		"newConversation": "新会话",
 		"untitled": "新对话",
-		"close": "关闭对话"
+		"close": "关闭对话",
+		"refreshHistory": "刷新历史"
 	},
 	"tabs": {
 		"new": "新建会话"

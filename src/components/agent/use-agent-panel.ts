@@ -36,6 +36,7 @@ import {
 	type AgentOption,
 	buildOptions,
 	type ChatLine,
+	type ChatSessionHistoryItem,
 	errorChatLine,
 	errorText,
 	resolveSelected,
@@ -65,6 +66,9 @@ export type UseAgentPanelArgs = Pick<
 		name: string;
 		template: string | null;
 	}) => void;
+	/** One-shot ACP history row to load once the history probe is ready. */
+	openHistoryItem?: ChatSessionHistoryItem | null;
+	onOpenHistoryHandled?: () => void;
 };
 
 export function useAgentPanel({
@@ -78,6 +82,8 @@ export function useAgentPanel({
 	paperTreeLabelMode = "title-author",
 	initialAgentId = null,
 	onAgentChange,
+	openHistoryItem = null,
+	onOpenHistoryHandled,
 }: UseAgentPanelArgs) {
 	const { t, i18n } = useTranslation("agent");
 	const { store: sessionStore, scopeId } = useAgentSessionScope();
@@ -623,22 +629,35 @@ export function useAgentPanel({
 		clearMessageQueue();
 	};
 
-	const { openHistorySession, removeHistorySession } = useAgentHistory({
-		refs,
-		t,
-		i18nLanguage: i18n.language,
-		vaultPath,
-		selectedAgentId,
-		selected,
-		setSessionHistory,
-		setLines,
-		hydrateAndActivateSession,
-		setHydratingSessionId,
-		activateComposerSession,
-		setHistoryOpen,
-		historyOpen,
-		clearMessageQueue,
-	});
+	const { historyReady, openHistorySession, removeHistorySession } =
+		useAgentHistory({
+			refs,
+			t,
+			i18nLanguage: i18n.language,
+			vaultPath,
+			selectedAgentId,
+			selected,
+			setSessionHistory,
+			setLines,
+			hydrateAndActivateSession,
+			setHydratingSessionId,
+			activateComposerSession,
+			setHistoryOpen,
+			historyOpen,
+			clearMessageQueue,
+		});
+
+	// Zen history rows: wait for the slot's ACP history probe before loading,
+	// otherwise the resume branch would be mistaken for an unsupported bridge.
+	const openHistorySessionRef = useRef(openHistorySession);
+	openHistorySessionRef.current = openHistorySession;
+	const onOpenHistoryHandledRef = useRef(onOpenHistoryHandled);
+	onOpenHistoryHandledRef.current = onOpenHistoryHandled;
+	useEffect(() => {
+		if (!openHistoryItem || !historyReady) return;
+		onOpenHistoryHandledRef.current?.();
+		openHistorySessionRef.current(openHistoryItem);
+	}, [historyReady, openHistoryItem]);
 
 	return {
 		t,

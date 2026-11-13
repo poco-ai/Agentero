@@ -43,7 +43,6 @@ import {
 	PlazaSourceRow,
 	TrashRow,
 	treeRowIndentStyle,
-	ZenRow,
 } from "./tree-rows";
 import { TreeRowsViewport } from "./tree-rows-viewport";
 import type { TreeCreateDraft, TreeCreateKind, TreeRenameDraft } from "./types";
@@ -73,8 +72,6 @@ type FileTreeProps = {
 	onSelectLibrary?: () => void;
 	/** Virtual trash node → recycle bin view in center pane. */
 	onSelectTrash?: () => void;
-	/** Virtual Zen node → full-page Agent workspace in center pane. */
-	onSelectZen?: () => void;
 	/** Virtual 广场 child node → that source's page in center pane. */
 	onSelectPlazaSource?: (source: PlazaSource) => void;
 	/** Catalog papers used to add Zotero multi-collection references in-place. */
@@ -194,7 +191,6 @@ export const FileTree = memo(
 			onSelectFile,
 			onSelectLibrary,
 			onSelectTrash,
-			onSelectZen,
 			onSelectPlazaSource,
 			zoteroCollectionPapers = [],
 			onOpenZoteroCollectionPaper,
@@ -286,7 +282,6 @@ export const FileTree = memo(
 			onSelectFile,
 			onSelectLibrary,
 			onSelectTrash,
-			onSelectZen,
 			onSelectPlazaSource,
 			onOpenZoteroCollectionPaper,
 			onTogglePath: expansion.togglePath,
@@ -419,7 +414,6 @@ export const FileTree = memo(
 		);
 
 		const trashRow = <TrashRow />;
-		const zenRow = <ZenRow />;
 		const plazaExpanded = expansion.expanded.has(PLAZA_VIRTUAL_PATH);
 		const plazaRows = plazaEnabled ? (
 			<>
@@ -479,7 +473,6 @@ export const FileTree = memo(
 									onSelectRow={selection.handleSelectRow}
 								>
 									{trashRow}
-									{zenRow}
 									{plazaRows}
 								</AiFileTree>
 								{vaultPath && loading ? (

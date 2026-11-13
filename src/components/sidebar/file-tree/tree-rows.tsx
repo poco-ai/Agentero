@@ -13,7 +13,6 @@ import {
 	ScrollText,
 	Sparkles,
 	Trash2,
-	Waves,
 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,7 +37,6 @@ import { WritingCloudDownloadButton } from "@/components/writing/writing-cloud-c
 import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { useWritingProject } from "@/hooks/use-writing-project";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
-import { ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import { cn } from "@/lib/core/utils";
 import { isPapersRoot } from "@/lib/paper";
 import { TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
@@ -290,7 +288,9 @@ export function NodeTreeRow({
 					: {})}
 			>
 				<FileTreeFolderRow
-					openOnLabel={Boolean(project || (rel && lookup.status === "error"))}
+					openOnLabel={Boolean(
+						isAgentRoot || project || (rel && lookup.status === "error"),
+					)}
 					expandOnOpen={Boolean(project)}
 					path={node.path}
 					style={treeRowIndentStyle(depth)}
@@ -463,20 +463,6 @@ export function TrashRow() {
 			<FileTreeName className="min-w-0 flex-1 truncate">
 				{t("recycleBin.title")}
 			</FileTreeName>
-		</FileTreeFile>
-	);
-}
-
-/** Zen row — full-page Agent workspace, opened as a center tab. */
-export function ZenRow() {
-	const { t } = useTranslation("sidebar");
-	const label = t("zen.title");
-	return (
-		<FileTreeFile path={ZEN_VIRTUAL_PATH} name={label}>
-			<FileTreeIcon>
-				<Waves className="size-4 text-muted-foreground" aria-hidden />
-			</FileTreeIcon>
-			<FileTreeName className="min-w-0 flex-1 truncate">{label}</FileTreeName>
 		</FileTreeFile>
 	);
 }

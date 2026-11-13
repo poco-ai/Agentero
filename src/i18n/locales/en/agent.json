@@ -75,9 +75,10 @@
 	},
 	"zen": {
 		"title": "Zen",
-		"newConversation": "New chat",
+		"newConversation": "New Session",
 		"untitled": "New chat",
-		"close": "Close conversation"
+		"close": "Close conversation",
+		"refreshHistory": "Refresh history"
 	},
 	"tabs": {
 		"new": "Start a new conversation"

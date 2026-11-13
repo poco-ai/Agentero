@@ -1,4 +1,3 @@
-import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { toVaultRelative } from "@/lib/core/path";
 import {
 	isPaperDirectory,
@@ -74,7 +73,6 @@ export function isVirtualTreePath(path: string): boolean {
 	return (
 		path === LIBRARY_VIRTUAL_PATH ||
 		path === TRASH_VIRTUAL_PATH ||
-		isZenVirtualPath(path) ||
 		isPlazaVirtualPath(path) ||
 		isZoteroCollectionReferencePath(path)
 	);

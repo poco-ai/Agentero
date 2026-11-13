@@ -410,7 +410,7 @@ const DocumentContent = memo(function DocumentContent({
 		// streaming, regardless of the editor/PDF keep-alive LRU.
 		return (
 			<Suspense fallback={<TabLoadingSkeleton />}>
-				<ZenView />
+				<ZenView active={active} />
 			</Suspense>
 		);
 	}

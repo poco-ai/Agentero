@@ -484,6 +484,8 @@ export type UseAgentHistoryOptions = {
 };
 
 export type AgentHistory = {
+	/** ACP history probe finished (listSessions resolved or unsupported). */
+	historyReady: boolean;
 	openHistorySession: (item: ChatSessionHistoryItem) => void;
 	removeHistorySession: (
 		item: ChatSessionHistoryItem,
@@ -811,6 +813,7 @@ export function useAgentHistory({
 	);
 
 	return {
+		historyReady: historyLoaded,
 		openHistorySession,
 		removeHistorySession,
 	};

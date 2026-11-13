@@ -34,19 +34,34 @@ export type ZenSlotAgent = {
 	template: string | null;
 };
 
+/** One ACP history row waiting to be loaded into a fresh slot. */
+export type ZenHistoryItem = {
+	/** Provider/runtime session id used for `session/load`. */
+	id: string;
+	agentId: string;
+	agentName: string;
+	title: string;
+	startedAt: string;
+	providerSessionId: string;
+};
+
 export type ZenSlot = {
 	id: string;
 	store: AgentSessionStoreApi;
 	agent: ZenSlotAgent;
+	/** One-shot history row; the panel loads it once its history probe is ready. */
+	pendingHistory?: ZenHistoryItem | null;
 };
 
-/** Initial session state for a new slot (rail takeover). */
+/** Initial session state for a new slot (rail takeover / history row). */
 export type ZenSlotSeed = {
 	sessions?: AgentSessionRecord[];
 	activeTabId?: string;
 	draftLines?: ChatLine[];
 	agentId?: string | null;
 	agentName?: string | null;
+	agentTemplate?: string | null;
+	history?: ZenHistoryItem | null;
 };
 
 export type ZenState = {
@@ -58,6 +73,8 @@ export type ZenState = {
 	removeSlot: (id: string) => void;
 	activateSlot: (id: string) => void;
 	setSlotAgent: (id: string, agent: ZenSlotAgent) => void;
+	/** Drop the pending history request once the panel has begun loading it. */
+	clearSlotHistory: (id: string) => void;
 	/** Cancel every slot's in-flight turns and clear the list (tab closed). */
 	closeAll: () => void;
 };
@@ -106,8 +123,9 @@ export const zenStore = createStore<ZenState>((set, get) => ({
 			agent: {
 				id: seed?.agentId ?? null,
 				name: seed?.agentName ?? null,
-				template: null,
+				template: seed?.agentTemplate ?? null,
 			},
+			pendingHistory: seed?.history ?? null,
 		};
 		set((state) => ({ slots: [...state.slots, slot], activeSlotId: id }));
 		return id;
@@ -146,6 +164,18 @@ export const zenStore = createStore<ZenState>((set, get) => ({
 		set((state) => ({
 			slots: state.slots.map((candidate) =>
 				candidate.id === id ? { ...candidate, agent } : candidate,
+			),
+		}));
+	},
+
+	clearSlotHistory: (id) => {
+		const slot = get().slots.find((candidate) => candidate.id === id);
+		if (!slot?.pendingHistory) return;
+		set((state) => ({
+			slots: state.slots.map((candidate) =>
+				candidate.id === id
+					? { ...candidate, pendingHistory: null }
+					: candidate,
 			),
 		}));
 	},

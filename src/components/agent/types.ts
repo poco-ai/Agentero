@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { PromptImage } from "@/lib/agent/api";
+import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 import type { PaperMetadata, PaperTreeLabelMode } from "@/lib/paper";
@@ -54,6 +55,10 @@ export type AgentPanelProps = {
 		name: string;
 		template: string | null;
 	}) => void;
+	/** One-shot ACP history row to load (Zen harness history). */
+	openHistoryItem?: ChatSessionHistoryItem | null;
+	/** Clear the one-shot request once loading has started. */
+	onOpenHistoryHandled?: () => void;
 	className?: string;
 	headerActions?: ReactNode;
 	autoFocus?: boolean;

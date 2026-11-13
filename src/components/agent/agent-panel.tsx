@@ -59,6 +59,8 @@ export const AgentPanel = memo(function AgentPanel({
 	onOpenSource,
 	initialAgentId = null,
 	onAgentChange,
+	openHistoryItem = null,
+	onOpenHistoryHandled,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
 	const panel = useAgentPanel({
@@ -72,6 +74,8 @@ export const AgentPanel = memo(function AgentPanel({
 		paperTreeLabelMode,
 		initialAgentId,
 		onAgentChange,
+		openHistoryItem,
+		onOpenHistoryHandled,
 	});
 	const bodyRef = useRef<HTMLDivElement>(null);
 	const [composerHeightPx, setComposerHeightPx] = useState(

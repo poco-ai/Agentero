@@ -48,6 +48,7 @@ import { closeCurrentWindow } from "@/lib/shell/close-window";
 import { layout, setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { type FileNode, joinVaultPath } from "@/lib/vault";
 import {
+	isVaultAgentRoot,
 	isVaultSkillDirectory,
 	skillMarkdownPath,
 } from "@/lib/vault/agent-tree";
@@ -948,9 +949,9 @@ export function selectTrash(): void {
 /**
  * Open the Zen workspace: collapse the Agent rail (Zen takes over its current
  * conversation on first open) and focus the virtual Zen tab.
+ * Reached by clicking the tree's Agent root row.
  */
-export function selectZen(): void {
-	setTreeSelectedPath(ZEN_VIRTUAL_PATH);
+export function openZenWorkspace(): void {
 	layout()?.setRightCollapsed(true);
 	seedZenFromRail(getVaultPath());
 	openTab(ZEN_VIRTUAL_PATH);
@@ -1032,6 +1033,13 @@ export function openWritingFile(
 export function selectFileNode(node: FileNode): void {
 	const request = ++writingSelectionRequest;
 	const vault = getVaultPath();
+	// The Agent root row is the Zen entry: the label opens the workspace, the
+	// disclosure chevron still expands AGENTS.md / skills as before.
+	if (vault && isVaultAgentRoot(vault, node.path)) {
+		setTreeSelectedPath(node.path);
+		openZenWorkspace();
+		return;
+	}
 	if (
 		vault &&
 		normalizeTabPath(node.path) ===

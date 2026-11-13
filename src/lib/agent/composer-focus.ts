@@ -1,3 +1,4 @@
+import { zenOwnsChatInput } from "@/lib/agent/chat-input-surface";
 import { openRightTab } from "@/lib/shell/ui-window-actions";
 
 /**
@@ -57,8 +58,21 @@ function placeCaretAtEnd(el: HTMLElement) {
 	selection.addRange(range);
 }
 
-/** Open the Agent rail and put the caret in the composer. */
+/**
+ * Surface the chat that owns app-wide inputs and put the caret in its
+ * composer: the Agent rail normally, or the active Zen slot when an open Zen
+ * workspace owns them.
+ */
 export function presentAgentComposer(options?: ComposerFocusOptions): void {
+	if (zenOwnsChatInput()) {
+		// Dynamic import keeps workspace actions (and navigation) out of this
+		// hot module's static graph.
+		void import("@/lib/workspace/actions").then(({ openZenWorkspace }) => {
+			openZenWorkspace();
+			focusAgentComposer(options);
+		});
+		return;
+	}
 	openRightTab("agent");
 	focusAgentComposer(options);
 }

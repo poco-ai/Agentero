@@ -4,7 +4,6 @@
  */
 import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from "react";
-import { ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import { scrollBehavior } from "@/lib/core/motion";
 import { TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import { PLAZA_VIRTUAL_PATH } from "@/lib/plaza";
@@ -22,7 +21,6 @@ function findRowIndex(rows: FlatRow[], target: string): number {
 	const targetKey = pathKey(target);
 	return rows.findIndex((row) => {
 		if (row.kind === "trash") return targetKey === pathKey(TRASH_VIRTUAL_PATH);
-		if (row.kind === "zen") return targetKey === pathKey(ZEN_VIRTUAL_PATH);
 		if (row.kind === "plaza") return targetKey === pathKey(PLAZA_VIRTUAL_PATH);
 		if (row.kind === "plazaSource")
 			return targetKey === pathKey(row.source.path);

@@ -250,12 +250,9 @@ export function useTreeRows({
 	}, [displayNodes, expanded, zoteroCollectionReferences]);
 
 	const flatRows = useMemo<FlatRow[]>(() => {
-		// Virtual rows sit at the top: Recycle Bin, Zen, then 广场 + its sources.
+		// Virtual rows sit at the top: Recycle Bin, then 广场 + its sources.
 		// The library has no virtual row — the `papers/` folder row represents it.
-		const out: FlatRow[] = [
-			{ key: "__trash__", kind: "trash" },
-			{ key: "__zen__", kind: "zen" },
-		];
+		const out: FlatRow[] = [{ key: "__trash__", kind: "trash" }];
 		if (plazaEnabled) {
 			out.push({ key: "__plaza__", kind: "plaza" });
 			if (expanded.has(PLAZA_VIRTUAL_PATH)) {

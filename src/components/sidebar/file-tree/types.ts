@@ -20,7 +20,6 @@ export type TreeRenameDraft = {
 /** One flattened, windowable tree row in display order. */
 export type FlatRow =
 	| { key: string; kind: "trash" }
-	| { key: string; kind: "zen" }
 	| { key: string; kind: "plaza" }
 	| { key: string; kind: "plazaSource"; source: PlazaSource }
 	| {

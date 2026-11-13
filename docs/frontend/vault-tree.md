@@ -20,6 +20,8 @@ Markdown（`.md` / `.mdx` / `.markdown`）和科研表格（`*.table.json`）在
 
 Vault 根上的 `.agents/` 与 `AGENTS.md` 合成一行，标题为 Agent（中英文相同），`Bot` 图标，排在其它根目录之前（仍在回收站和广场下面），默认收起。磁盘布局不变：`AGENTS.md` 仍在库根，技能仍在 `.agents/skills/<id>/`。没有 `.agents/` 目录时，`AGENTS.md` 仍单独出现在根上。
 
+**单击 Agent 行标签打开 Zen 对话工作区**（中间 `agentero:zen` 虚拟标签，并收起右侧栏）；行首的展开箭头仍只负责展开/收起，下面的 `AGENTS.md` / 技能行保持原样。Zen 的会话与历史分组见 [agent.md](agent.md#zen-对话工作区)。
+
 展开后：
 
 - 第一行是根上的 `AGENTS.md`，显示文件名。点开即该文件。
@@ -35,7 +37,6 @@ Vault 根上的 `.agents/` 与 `AGENTS.md` 合成一行，标题为 Agent（中�
 | 节点 | 路径常量 | 行为 |
 |---|---|---|
 | Recycle Bin | `agentero:trash` | 打开回收站视图（论文项主行显示快照标题，经 `MathText`；普通文件显示文件名；副行原路径 + 删除时间）；右键清空 |
-| Zen | `agentero:zen` | 打开整页多会话 Agent 工作面（`Waves` 图标，排在回收站之后、广场之前）；打开时收起右侧栏并接管侧栏当前对话，详见 [agent.md](agent.md#zen-对话工作区) |
 | 广场 | `agentero:plaza` | 单击只切换展开/收起（纯虚拟文件夹，无广场首页）；`Globe` 图标。子来源含 Cool Papers、ModelScope 论文、Skill 推荐与 **订阅**；右键父节点列出全部来源逐条勾选显隐（`plazaHiddenSources`） |
 
 ## 建树

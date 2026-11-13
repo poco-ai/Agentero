@@ -53,6 +53,34 @@ describe("zen slots", () => {
 		expect(zenStore.getState().activeSlotId).toBe(second);
 	});
 
+	it("starts a harness slot with a pending history row", () => {
+		const id = zenStore.getState().addSlot({
+			agentId: "agent-2",
+			agentName: "Codex",
+			agentTemplate: "codex-acp",
+			history: {
+				id: "ses-1",
+				agentId: "agent-2",
+				agentName: "Codex",
+				title: "Past chat",
+				startedAt: "",
+				providerSessionId: "ses-1",
+			},
+		});
+		const slot = zenStore.getState().slots.find((item) => item.id === id);
+		expect(slot?.agent).toEqual({
+			id: "agent-2",
+			name: "Codex",
+			template: "codex-acp",
+		});
+		expect(slot?.pendingHistory?.id).toBe("ses-1");
+
+		zenStore.getState().clearSlotHistory(id);
+		expect(
+			zenStore.getState().slots.find((item) => item.id === id)?.pendingHistory,
+		).toBeNull();
+	});
+
 	it("reports the harness chosen inside a slot", () => {
 		const id = zenStore.getState().addSlot();
 		zenStore.getState().setSlotAgent(id, {

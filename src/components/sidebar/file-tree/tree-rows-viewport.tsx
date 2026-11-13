@@ -32,7 +32,6 @@ import {
 	PlazaRow,
 	PlazaSourceRow,
 	treeRowIndentStyle,
-	ZenRow,
 	ZoteroCollectionReferenceRow,
 } from "./tree-rows";
 import type { FlatRow, TreeRenameDraft } from "./types";
@@ -144,7 +143,6 @@ function renderRow(
 	depth: number,
 ): ReactNode {
 	if (row.kind === "trash") return props.trashRow;
-	if (row.kind === "zen") return <ZenRow />;
 	if (row.kind === "plaza")
 		return <PlazaRow expanded={props.expanded.has(PLAZA_VIRTUAL_PATH)} />;
 	if (row.kind === "plazaSource")
@@ -203,7 +201,7 @@ export function TreeRowsViewport(props: TreeRowsViewportProps) {
 				const row = flatRows[vi.index];
 				if (!row) return null;
 				const depth =
-					row.kind === "trash" || row.kind === "plaza" || row.kind === "zen"
+					row.kind === "trash" || row.kind === "plaza"
 						? 0
 						: row.kind === "plazaSource"
 							? 1

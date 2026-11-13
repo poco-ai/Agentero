@@ -56,7 +56,7 @@ import {
 	getAgentChromeState,
 } from "@/lib/agent/agent-chrome-store";
 import { listAgents } from "@/lib/agent/api";
-import { focusAgentComposer } from "@/lib/agent/composer-focus";
+import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	listenOpenAgentWithPrompt,
 	setPendingAgentComposerPrompt,
@@ -396,12 +396,11 @@ export default function App() {
 		quickChat: () => {
 			runSelectionQuickChat();
 		},
-		// Pin a staged selection, open Agent, and focus the composer.
+		// Pin a staged selection, surface the owning chat, and focus its composer.
 		addSelectionToChat: () => {
 			if (runSelectionAddToChat()) return;
 			pinActiveSelection();
-			openRightTab("agent");
-			focusAgentComposer();
+			presentAgentComposer();
 		},
 		focusSidebar: () => layout()?.focusSidebar(),
 		focusEditor: () => layout()?.focusEditorPane(),

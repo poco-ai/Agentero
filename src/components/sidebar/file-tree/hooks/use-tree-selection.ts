@@ -3,7 +3,6 @@
  * selection-scoped actions (batch delete, cut, paste).
  */
 import { useCallback, useEffect, useState } from "react";
-import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { LIBRARY_VIRTUAL_PATH, TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import {
 	isPlazaVirtualPath,
@@ -43,7 +42,6 @@ export function useTreeSelection({
 	onSelectFile,
 	onSelectLibrary,
 	onSelectTrash,
-	onSelectZen,
 	onSelectPlazaSource,
 	onOpenZoteroCollectionPaper,
 	onTogglePath,
@@ -62,7 +60,6 @@ export function useTreeSelection({
 	onSelectFile: (node: FileNode) => void;
 	onSelectLibrary?: () => void;
 	onSelectTrash?: () => void;
-	onSelectZen?: () => void;
 	onSelectPlazaSource?: (source: PlazaSource) => void;
 	/** Open the real paper behind a read-only Zotero collection reference. */
 	onOpenZoteroCollectionPaper?: (relPath: string) => void;
@@ -115,10 +112,6 @@ export function useTreeSelection({
 				onSelectTrash?.();
 				return;
 			}
-			if (isZenVirtualPath(path)) {
-				onSelectZen?.();
-				return;
-			}
 			// Plaza paths are virtual: they have no FileNode to fall through to.
 			// The root node is a plain folder — it only expands/collapses.
 			if (isPlazaVirtualPath(path)) {
@@ -143,7 +136,6 @@ export function useTreeSelection({
 			onSelectFile,
 			onSelectLibrary,
 			onSelectTrash,
-			onSelectZen,
 			onSelectPlazaSource,
 			onOpenZoteroCollectionPaper,
 			onTogglePath,
