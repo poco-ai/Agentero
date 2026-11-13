@@ -26,12 +26,13 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 
 整页的多会话 Agent 工作面。入口是文件树里的 **Agent 根节点**：单击行标签在中间 Dockview 打开虚拟标签（`agentero:zen`），可以和论文分屏；行首展开箭头仍只展开 `AGENTS.md` / 技能。
 
-- **按 harness 分组**：左栏按可用的 Harness 分区。每个分区先列该 harness 已打开的槽（Agent 图标 + 当前会话标题 + 运行中 / 失败状态点，悬停出现关闭按钮），再列它的 ACP 历史会话（`session/list`，排除后台工作流与已删除项）；点击历史项在**新槽**中载入（已打开则只聚焦），分区标题的 `+` 为该 harness 新建会话，顶部 `+` 用注册表默认 harness，刷新按钮重新拉取历史。历史拉取只在 Zen 可见时进行。
-- **会话槽**：所有槽同时挂载、只隐藏非当前槽，因此后台槽继续接收流事件；关闭 Zen 标签页会取消所有槽里运行中的回合并清空槽列表（`lib/agent/zen-store.ts`）。
+- **按 harness 分组、按 session 成行**：左栏按可用的 Harness 分区，分区标题（Agent 图标 + 名称）可点击折叠 / 展开，悬停出现 `+` 为该 harness 新建会话。分区内每行就是一个 Session，已打开的槽会话与该 harness 的 ACP 历史会话（`session/list`，排除后台工作流与已删除项）按最近使用时间排在一起、地位相同：打开的用正文色并可悬停关闭，历史项用弱化色。点任意一行都在右侧显示该 Session，其他 Session 保持打开并继续接收流；历史项在**新槽**中载入（已打开则只聚焦），关闭某一行只移除该 Session，槽里最后一个 Session 关掉才回收整个槽。顶部整行的「New Session」按钮在**当前激活的 harness** 下新建会话，右上角刷新重新拉取历史；历史拉取只在 Zen 可见时进行。
+- **会话槽**：每个槽是一块独立的对话面，所有槽同时挂载、只隐藏非当前槽，因此后台槽继续接收流事件；关闭 Zen 标签页会取消所有槽里运行中的回合并清空槽列表（`lib/agent/zen-store.ts`）。
 - **独立 store**：每个槽由 `createAgentSessionStore()` 拥有一份会话 store，经 `AgentSessionScopeContext` 注入；右侧栏仍用共享的 `agentSessionStore`。槽内可各自换 Harness / 模型，规则与侧栏一致（有运行中会话时不能换 Harness）；历史弹层从 ACP `session/list` 读取，打开的会话载入当前槽。
 - **从侧栏接管**：打开 Zen 时收起右侧栏；若还没有槽，用右侧栏当前 `sessions` / `activeTabId` / `draftLines` 与选中的 Agent 创建第一个槽，并把侧栏 composer 的当前草稿复制到该槽的存储命名空间。侧栏 store 不清空，重新展开仍可看到原对话；PDF 视觉批注产生的 pin 会话不接管。两边同时收到同一会话的流事件时各写各的 store（都按 `sessionId` 认领），因此不会互相污染；权限 / elicitation / ask-user 请求按 request id 只让最先收到的那一面显示（`lib/agent/interactive-claims.ts`），overlay id 带 scope 后缀，避免两面各弹一次。
 - **草稿隔离**：composer 草稿 key 带 scope 前缀（`zen:<slotId>`）。**应用级输入跟随可见的对话面**：右侧栏在显示 Agent 页时优先；否则打开的 Zen 由当前激活槽接收「添加到对话」、钉选划词（`⇧⌘L`）与外部预填 prompt（`lib/agent/chat-input-surface.ts`），并自动把 Zen 标签提到前台。PDF 视觉批注草稿与 `agentChromeStore` 写入仍只由右侧栏处理；跨窗口 handoff 不影响槽。
 - **原生拖入图片**：`ComposerDropTarget` 用自身元素所在的 `[data-composer-drop-shell]` / `[data-agent-panel]` 做命中测试，不再取页面第一个 composer，因此每个槽都能接住 Finder 拖入的图片。
+- **整页留白**：Zen 的 `AgentPanel` 以 `wide` 模式渲染，消息列和输入框左右各留 20px（`lg` 及以上 40px）内边距，避免整页宽度下正文和 composer 贴边；右侧栏保持原来的紧凑边距。
 - **默认上下文**：Zen 本身不是文档焦点，Agent 默认上下文不含它（可用 `@` 显式加文件）。
 
 ## 面板行为

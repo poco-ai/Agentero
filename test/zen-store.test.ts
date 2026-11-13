@@ -94,6 +94,32 @@ describe("zen slots", () => {
 			template: "codex-acp",
 		});
 	});
+
+	it("closes one session and keeps the slot's other sessions", () => {
+		const id = zenStore.getState().addSlot({
+			sessions: [session("chat-1"), session("chat-2")],
+			activeTabId: "chat-2",
+		});
+
+		zenStore.getState().closeSlotSession(id, "chat-2");
+
+		const slot = zenStore.getState().slots.find((item) => item.id === id);
+		expect(slot?.store.getState().sessions.map((item) => item.id)).toEqual([
+			"chat-1",
+		]);
+		expect(slot?.store.getState().activeTabId).toBe("chat-1");
+	});
+
+	it("drops the slot with its last session", () => {
+		const id = zenStore.getState().addSlot({
+			sessions: [session("chat-1")],
+			activeTabId: "chat-1",
+		});
+
+		zenStore.getState().closeSlotSession(id, "chat-1");
+
+		expect(zenStore.getState().slots).toHaveLength(0);
+	});
 });
 
 describe("rail takeover", () => {

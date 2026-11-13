@@ -1,20 +1,19 @@
 /**
  * Zen — full-page multi-conversation Agent surface.
  *
- * Left: sessions grouped by harness — open slots plus each harness's ACP
- * history, so a past conversation can be reopened without switching the
- * composer first. Right: the active slot's {@link AgentPanel}. Every slot
- * stays mounted and hidden while inactive so background turns keep streaming;
- * each slot has its own session store injected through
- * `AgentSessionScopeContext`.
+ * Left: every session grouped by harness. Open sessions sit side by side with
+ * the harness's ACP history, so a past conversation can be reopened without
+ * switching the composer first and opening one never closes another. Right:
+ * the active slot's {@link AgentPanel}. Every slot stays mounted and hidden
+ * while inactive so background turns keep streaming; each slot has its own
+ * session store injected through `AgentSessionScopeContext`.
  *
  * Virtual tab path / slot store live in `lib/agent/zen-path.ts` and
  * `lib/agent/zen-store.ts`.
  */
-import { Plus, RotateCw, Waves, X } from "lucide-react";
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { ChevronRight, Plus, RotateCw, Waves, X } from "lucide-react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { useStore } from "zustand";
 import { AgentLogo } from "@/components/agent/agent-logo";
 import { AgentPanel } from "@/components/agent/agent-panel";
 import {
@@ -23,8 +22,8 @@ import {
 	useVaultStore,
 } from "@/hooks/use-app-stores";
 import {
+	type AgentSessionRecord,
 	AgentSessionScopeContext,
-	type AgentSessionStore,
 } from "@/lib/agent/agent-session-store";
 import type { AcpSessionInfo } from "@/lib/agent/api";
 import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
@@ -109,112 +108,84 @@ function ZenSlotPanel({
 	);
 }
 
-function activeSessionTitle(state: AgentSessionStore): string {
-	const active = state.sessions.find(
-		(session) => session.id === state.activeTabId,
-	);
-	return active?.title ?? "";
-}
+/** One session row as the sidebar sees it (open slot session or ACP history). */
+type ZenSessionRow = {
+	key: string;
+	title: string;
+	status: "running" | "failed" | null;
+	/** ISO timestamp used for recency ordering; empty means "just created". */
+	sortAt: string;
+	active: boolean;
+	/** Open session: owning slot (null for a history row). */
+	slotId: string | null;
+	/** Open session id; null while the slot still shows its draft. */
+	sessionId: string | null;
+	/** History row payload, needed to resume it in a fresh slot. */
+	history?: AcpSessionInfo;
+};
 
-function ZenSlotRow({ slot, active }: { slot: ZenSlot; active: boolean }) {
-	const { t } = useTranslation("agent");
-	// Primitive selectors: streaming flushes swap `lines` (and the sessions
-	// array identity) without touching these signals, so the list stays calm.
-	const title = useStore(slot.store, activeSessionTitle);
-	const running = useStore(slot.store, (state) =>
-		state.sessions.some((session) => session.status === "running"),
-	);
-	const failed = useStore(
-		slot.store,
-		(state) =>
-			state.sessions.find((session) => session.id === state.activeTabId)
-				?.status === "failed",
-	);
-	const label = displayHistoryTitle(title, "") || t("zen.untitled");
-	const status = running ? "running" : failed ? "failed" : null;
-
-	return (
-		<div className="group relative">
-			<button
-				type="button"
-				aria-current={active ? "true" : undefined}
-				className={cn(
-					"flex w-full min-w-0 items-center gap-2 rounded-md py-1.5 pe-8 ps-2 text-start outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
-					active
-						? "bg-accent text-accent-foreground"
-						: "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-				)}
-				onClick={() => {
-					zenStore.getState().activateSlot(slot.id);
-					focusAgentComposer();
-				}}
-			>
-				<AgentLogo template={slot.agent.template} plain className="size-4" />
-				<span className="min-w-0 flex-1 truncate text-sm">{label}</span>
-			</button>
-			{status ? (
-				<span
-					role="img"
-					aria-label={t(`history.status.${status}`)}
-					title={t(`history.status.${status}`)}
-					className={cn(
-						"pointer-events-none absolute top-1/2 right-2.5 size-1.5 -translate-y-1/2 rounded-full motion-reduce:animate-none group-hover:opacity-0",
-						status === "running"
-							? "animate-pulse bg-emerald-500"
-							: "bg-destructive",
-					)}
-				/>
-			) : null}
-			<button
-				type="button"
-				aria-label={t("zen.close")}
-				title={t("zen.close")}
-				className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
-				onClick={() => zenStore.getState().removeSlot(slot.id)}
-			>
-				<X className="size-3.5" />
-			</button>
-		</div>
-	);
-}
-
-function ZenHistoryRow({
-	session,
-	onOpen,
-}: {
-	session: AcpSessionInfo;
-	onOpen: () => void;
-}) {
-	const { t } = useTranslation("agent");
-	const label =
-		displayHistoryTitle(session.title ?? "", "") || t("zen.untitled");
-	return (
-		<button
-			type="button"
-			title={label}
-			className="flex w-full min-w-0 items-center rounded-md py-1 pe-2 ps-7 text-start text-muted-foreground text-xs outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-			onClick={onOpen}
-		>
-			<span className="min-w-0 flex-1 truncate">{label}</span>
-		</button>
-	);
-}
-
-/** One harness section: its open slots first, then recent ACP sessions. */
 type HarnessGroup = {
 	key: string;
 	agentId: string | null;
 	name: string;
 	template: string | null;
-	slots: ZenSlot[];
-	history: AcpSessionInfo[];
+	rows: ZenSessionRow[];
 };
 
+/** Open-session projection — the only signals the row list reacts to. */
+type ZenOpenRow = {
+	slotId: string;
+	sessionId: string | null;
+	providerSessionId: string | null;
+	agentId: string | null;
+	title: string;
+	status: AgentSessionRecord["status"] | null;
+	startedAt: string;
+	activeTab: boolean;
+	pendingId: string | null;
+};
+
+function openRowsSnapshot(slots: ZenSlot[]): ZenOpenRow[] {
+	const rows: ZenOpenRow[] = [];
+	for (const slot of slots) {
+		const state = slot.store.getState();
+		if (state.sessions.length === 0) {
+			rows.push({
+				slotId: slot.id,
+				sessionId: null,
+				providerSessionId: null,
+				agentId: slot.agent.id,
+				title: slot.pendingHistory?.title ?? "",
+				status: null,
+				startedAt: slot.pendingHistory?.startedAt ?? "",
+				activeTab: true,
+				pendingId: slot.pendingHistory?.id ?? null,
+			});
+			continue;
+		}
+		for (const session of state.sessions) {
+			rows.push({
+				slotId: slot.id,
+				sessionId: session.id,
+				providerSessionId: session.providerSessionId ?? null,
+				agentId: session.agentId ?? slot.agent.id,
+				title: session.title,
+				status: session.status,
+				startedAt: session.startedAt,
+				activeTab: session.id === state.activeTabId,
+				pendingId: null,
+			});
+		}
+	}
+	return rows;
+}
+
 /**
- * Session ids already open in a slot (runtime + provider id). Kept as a stable
- * string signature so stream flushes do not re-render the history list.
+ * Subscribe to every slot's store and project open sessions. The snapshot is a
+ * JSON signature of presentation-only fields, so stream flushes (`lines`)
+ * do not re-render the list.
  */
-function useOpenSessionIds(slots: ZenSlot[]): ReadonlySet<string> {
+function useOpenZenRows(slots: ZenSlot[]): ZenOpenRow[] {
 	const subscribe = useCallback(
 		(onChange: () => void) => {
 			const unsubs = slots.map((slot) => slot.store.subscribe(onChange));
@@ -224,48 +195,130 @@ function useOpenSessionIds(slots: ZenSlot[]): ReadonlySet<string> {
 		},
 		[slots],
 	);
-	const getSnapshot = useCallback(() => {
-		const ids: string[] = [];
-		for (const slot of slots) {
-			for (const session of slot.store.getState().sessions) {
-				ids.push(session.id);
-				if (session.providerSessionId) ids.push(session.providerSessionId);
-			}
-		}
-		return [...new Set(ids)].sort().join("\n");
-	}, [slots]);
+	const getSnapshot = useCallback(
+		() => JSON.stringify(openRowsSnapshot(slots)),
+		[slots],
+	);
 	const signature = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-	return useMemo(
-		() => new Set(signature ? signature.split("\n") : []),
-		[signature],
+	return useMemo(() => JSON.parse(signature) as ZenOpenRow[], [signature]);
+}
+
+function sortRows(a: ZenSessionRow, b: ZenSessionRow): number {
+	if (!a.sortAt || !b.sortAt) return a.sortAt ? 1 : b.sortAt ? -1 : 0;
+	return b.sortAt.localeCompare(a.sortAt);
+}
+
+function ZenSessionRowView({
+	row,
+	onActivate,
+	onClose,
+}: {
+	row: ZenSessionRow;
+	onActivate: () => void;
+	onClose: () => void;
+}) {
+	const { t } = useTranslation("agent");
+	const label = displayHistoryTitle(row.title, "") || t("zen.untitled");
+	const open = row.slotId !== null;
+	return (
+		<div className="group/row relative">
+			<button
+				type="button"
+				aria-current={row.active ? "true" : undefined}
+				title={label}
+				className={cn(
+					"flex w-full min-w-0 items-center gap-2 rounded-lg py-1.5 ps-2.5 text-start text-sm outline-none transition-[background-color,color,box-shadow,transform] duration-150 ease-out focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none motion-reduce:transition-colors",
+					open ? "pe-8" : "pe-2.5",
+					row.active
+						? "bg-card font-medium text-foreground shadow-raised ring-1 ring-border/60"
+						: open
+							? "text-foreground/80 hover:bg-accent/70 hover:text-foreground"
+							: "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
+				)}
+				onClick={onActivate}
+			>
+				<span className="min-w-0 flex-1 truncate">{label}</span>
+			</button>
+			{row.status ? (
+				<span
+					role="img"
+					aria-label={t(`history.status.${row.status}`)}
+					title={t(`history.status.${row.status}`)}
+					className={cn(
+						"pointer-events-none absolute top-1/2 right-2.5 size-1.5 -translate-y-1/2 rounded-full motion-reduce:animate-none group-hover/row:opacity-0",
+						row.status === "running"
+							? "animate-pulse bg-emerald-500"
+							: "bg-destructive",
+					)}
+				/>
+			) : null}
+			{open ? (
+				<button
+					type="button"
+					aria-label={t("zen.close")}
+					title={t("zen.close")}
+					className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100"
+					onClick={(event) => {
+						event.stopPropagation();
+						onClose();
+					}}
+				>
+					<X className="size-3.5" />
+				</button>
+			) : null}
+		</div>
 	);
 }
 
 function HarnessSection({
 	group,
-	activeSlotId,
-	openSessionIds,
+	collapsed,
+	onToggle,
 	onNewSlot,
+	onActivateSession,
 	onOpenHistory,
+	onCloseSession,
 }: {
 	group: HarnessGroup;
-	activeSlotId: string | null;
-	openSessionIds: ReadonlySet<string>;
+	collapsed: boolean;
+	onToggle: () => void;
 	onNewSlot: () => void;
-	onOpenHistory: (session: AcpSessionInfo) => void;
+	onActivateSession: (row: ZenSessionRow) => void;
+	onOpenHistory: (row: ZenSessionRow) => void;
+	onCloseSession: (row: ZenSessionRow) => void;
 }) {
 	const { t } = useTranslation("agent");
-	const history = group.history.filter(
-		(session) => !openSessionIds.has(session.sessionId),
-	);
+	const running = group.rows.some((row) => row.status === "running");
 
 	return (
-		<section className="pb-1">
-			<div className="group flex h-7 items-center gap-1.5 pe-1 ps-2">
-				<AgentLogo template={group.template} plain className="size-3.5" />
-				<span className="min-w-0 flex-1 truncate font-medium text-muted-foreground text-xs">
-					{group.name}
-				</span>
+		<section className="mb-1 space-y-0.5">
+			<div className="group flex h-7 items-center pe-1">
+				<button
+					type="button"
+					aria-expanded={!collapsed}
+					aria-label={group.name}
+					className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 ps-1 text-start outline-none transition-colors hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring"
+					onClick={onToggle}
+				>
+					<ChevronRight
+						className={cn(
+							"size-3 shrink-0 text-muted-foreground transition-transform duration-150 ease-out motion-reduce:transition-none",
+							!collapsed && "rotate-90",
+						)}
+						aria-hidden
+					/>
+					<AgentLogo template={group.template} plain className="size-3.5" />
+					<span className="min-w-0 flex-1 truncate font-medium text-muted-foreground text-xs">
+						{group.name}
+					</span>
+					{collapsed && running ? (
+						<span
+							role="img"
+							aria-label={t("history.status.running")}
+							className="size-1.5 shrink-0 rounded-full bg-emerald-500 motion-reduce:animate-none"
+						/>
+					) : null}
+				</button>
 				<button
 					type="button"
 					aria-label={t("zen.newConversation")}
@@ -276,20 +329,18 @@ function HarnessSection({
 					<Plus className="size-3.5" />
 				</button>
 			</div>
-			{group.slots.map((slot) => (
-				<ZenSlotRow
-					key={slot.id}
-					slot={slot}
-					active={slot.id === activeSlotId}
-				/>
-			))}
-			{history.map((session) => (
-				<ZenHistoryRow
-					key={session.sessionId}
-					session={session}
-					onOpen={() => onOpenHistory(session)}
-				/>
-			))}
+			{collapsed
+				? null
+				: group.rows.map((row) => (
+						<ZenSessionRowView
+							key={row.key}
+							row={row}
+							onActivate={() =>
+								row.history ? onOpenHistory(row) : onActivateSession(row)
+							}
+							onClose={() => onCloseSession(row)}
+						/>
+					))}
 		</section>
 	);
 }
@@ -306,62 +357,104 @@ export function ZenView({ active }: { active: boolean }) {
 		loading: historyLoading,
 		refresh: refreshHistory,
 	} = useZenHarnessHistory(vaultPath, active);
-	const openSessionIds = useOpenSessionIds(slots);
+	const openRows = useOpenZenRows(slots);
+	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
 	const groups = useMemo<HarnessGroup[]>(() => {
 		const map = new Map<string, HarnessGroup>();
-		for (const section of historySections) {
-			map.set(section.agent.id, {
-				key: section.agent.id,
-				agentId: section.agent.id,
-				name: section.agent.name,
-				template: section.agent.template,
-				slots: [],
-				history: section.sessions,
-			});
-		}
-		for (const slot of slots) {
-			const key = slot.agent.id ?? UNKNOWN_HARNESS;
+		const ensure = (
+			agentId: string | null,
+			name: string,
+			template: string | null,
+		) => {
+			const key = agentId ?? UNKNOWN_HARNESS;
 			let group = map.get(key);
 			if (!group) {
-				group = {
-					key,
-					agentId: slot.agent.id,
-					name: slot.agent.name ?? t("defaultName"),
-					template: slot.agent.template,
-					slots: [],
-					history: [],
-				};
+				group = { key, agentId, name, template, rows: [] };
 				map.set(key, group);
 			}
-			group.slots.push(slot);
-		}
-		// Empty harnesses (installed, no slots, no history) are not listed.
-		return [...map.values()].filter(
-			(group) => group.slots.length > 0 || group.history.length > 0,
-		);
-	}, [historySections, slots, t]);
+			return group;
+		};
 
-	const newSlotFor = (
-		agent: { id: string; name: string; template: string | null } | null,
-	) => {
+		const slotById = new Map(slots.map((slot) => [slot.id, slot]));
+		for (const section of historySections) {
+			ensure(section.agent.id, section.agent.name, section.agent.template);
+		}
+		for (const row of openRows) {
+			const slot = slotById.get(row.slotId);
+			const group = ensure(
+				row.agentId ?? slot?.agent.id ?? null,
+				slot?.agent.name ?? t("defaultName"),
+				slot?.agent.template ?? null,
+			);
+			group.rows.push({
+				key: `open:${row.slotId}:${row.sessionId ?? "draft"}`,
+				title: row.title,
+				status:
+					row.status === "running"
+						? "running"
+						: row.status === "failed"
+							? "failed"
+							: null,
+				sortAt: row.startedAt,
+				active: row.slotId === activeSlotId && row.activeTab,
+				slotId: row.slotId,
+				sessionId: row.sessionId,
+			});
+		}
+
+		const openIds = new Set<string>();
+		for (const row of openRows) {
+			if (row.sessionId) openIds.add(row.sessionId);
+			if (row.providerSessionId) openIds.add(row.providerSessionId);
+			if (row.pendingId) openIds.add(row.pendingId);
+		}
+		for (const section of historySections) {
+			const group = ensure(
+				section.agent.id,
+				section.agent.name,
+				section.agent.template,
+			);
+			for (const session of section.sessions) {
+				if (openIds.has(session.sessionId)) continue;
+				group.rows.push({
+					key: `history:${session.sessionId}`,
+					title: session.title ?? "",
+					status: null,
+					sortAt: session.updatedAt ?? "",
+					active: false,
+					slotId: null,
+					sessionId: null,
+					history: session,
+				});
+			}
+		}
+
+		for (const group of map.values()) group.rows.sort(sortRows);
+		return [...map.values()].filter((group) => group.rows.length > 0);
+	}, [historySections, slots, openRows, activeSlotId, t]);
+
+	const newSlotFor = (group: HarnessGroup | null) => {
 		zenStore.getState().addSlot(
-			agent
+			group?.agentId
 				? {
-						agentId: agent.id,
-						agentName: agent.name,
-						agentTemplate: agent.template,
+						agentId: group.agentId,
+						agentName: group.name,
+						agentTemplate: group.template ?? "custom",
 					}
 				: undefined,
 		);
 		focusAgentComposer();
 	};
 
-	const openHistory = (
-		agentId: string,
-		name: string,
-		session: AcpSessionInfo,
-	) => {
+	/** Top "New Session" row targets the harness the user is currently in. */
+	const activeGroup =
+		groups.find((group) => group.rows.some((row) => row.active)) ??
+		groups.find((group) => group.agentId) ??
+		null;
+
+	const openHistory = (group: HarnessGroup, session: AcpSessionInfo) => {
+		if (!group.agentId) return;
 		const existing = zenStore
 			.getState()
 			.slots.find(
@@ -383,15 +476,13 @@ export function ZenView({ active }: { active: boolean }) {
 		const title =
 			displayHistoryTitle(session.title ?? "", "") || t("zen.untitled");
 		zenStore.getState().addSlot({
-			agentId,
-			agentName: name,
-			agentTemplate:
-				historySections.find((section) => section.agent.id === agentId)?.agent
-					.template ?? null,
+			agentId: group.agentId,
+			agentName: group.name,
+			agentTemplate: group.template,
 			history: {
 				id: session.sessionId,
-				agentId,
-				agentName: name,
+				agentId: group.agentId,
+				agentName: group.name,
 				title,
 				startedAt: session.updatedAt ?? "",
 				providerSessionId: session.sessionId,
@@ -400,65 +491,77 @@ export function ZenView({ active }: { active: boolean }) {
 		focusAgentComposer();
 	};
 
+	const activateSession = (row: ZenSessionRow) => {
+		if (!row.slotId) return;
+		zenStore.getState().activateSlot(row.slotId);
+		const slot = zenStore
+			.getState()
+			.slots.find((candidate) => candidate.id === row.slotId);
+		if (slot && row.sessionId) {
+			slot.store.getState().setActiveTabId(row.sessionId);
+		}
+		focusAgentComposer();
+	};
+
+	const closeSession = (row: ZenSessionRow) => {
+		if (!row.slotId) return;
+		if (!row.sessionId) {
+			zenStore.getState().removeSlot(row.slotId);
+			return;
+		}
+		zenStore.getState().closeSlotSession(row.slotId, row.sessionId);
+	};
+
 	return (
 		<section
 			className="flex h-full min-h-0 w-full bg-background"
 			aria-label={t("zen.title")}
 		>
 			<aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar/60">
-				<div className="flex h-9 shrink-0 items-center justify-between pe-1.5 ps-3">
-					<span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-						{t("zen.title")}
-					</span>
-					<div className="flex items-center gap-0.5">
-						<button
-							type="button"
-							aria-label={t("zen.refreshHistory")}
-							title={t("zen.refreshHistory")}
-							className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-							onClick={() => void refreshHistory()}
-						>
-							<RotateCw
-								className={cn(
-									"size-3.5",
-									historyLoading && "animate-spin motion-reduce:animate-none",
-								)}
-							/>
-						</button>
-						<button
-							type="button"
-							aria-label={t("zen.newConversation")}
-							title={t("zen.newConversation")}
-							className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-							onClick={() => newSlotFor(null)}
-						>
-							<Plus className="size-4" />
-						</button>
-					</div>
+				<div className="flex h-8 shrink-0 items-center justify-end pe-1.5">
+					<button
+						type="button"
+						aria-label={t("zen.refreshHistory")}
+						title={t("zen.refreshHistory")}
+						className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+						onClick={() => void refreshHistory()}
+					>
+						<RotateCw
+							className={cn(
+								"size-3.5",
+								historyLoading && "animate-spin motion-reduce:animate-none",
+							)}
+						/>
+					</button>
+				</div>
+				<div className="px-1.5 pb-2">
+					<button
+						type="button"
+						className="flex w-full min-w-0 items-center justify-center gap-2 rounded-lg bg-foreground/5 py-2.5 pe-2 ps-2 text-foreground text-sm outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-foreground/10 focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none"
+						onClick={() => newSlotFor(activeGroup)}
+					>
+						<Plus className="size-4 shrink-0" aria-hidden />
+						<span className="min-w-0 truncate">{t("zen.newConversation")}</span>
+					</button>
 				</div>
 				<div className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
 					{groups.map((group) => (
 						<HarnessSection
 							key={group.key}
 							group={group}
-							activeSlotId={activeSlotId}
-							openSessionIds={openSessionIds}
-							onNewSlot={() =>
-								newSlotFor(
-									group.agentId
-										? {
-												id: group.agentId,
-												name: group.name,
-												template: group.template ?? "custom",
-											}
-										: null,
-								)
+							collapsed={Boolean(collapsed[group.key])}
+							onToggle={() =>
+								setCollapsed((prev) => ({
+									...prev,
+									[group.key]: !prev[group.key],
+								}))
 							}
-							onOpenHistory={(session) => {
-								if (group.agentId) {
-									openHistory(group.agentId, group.name, session);
-								}
+							onNewSlot={() => newSlotFor(group)}
+							onActivateSession={activateSession}
+							onOpenHistory={(row) => {
+								if (row.history) openHistory(group, row.history);
 							}}
+							onCloseSession={closeSession}
 						/>
 					))}
 				</div>
@@ -469,9 +572,10 @@ export function ZenView({ active }: { active: boolean }) {
 						<Waves className="size-6 opacity-60" aria-hidden />
 						<button
 							type="button"
-							className="rounded-md border border-border/70 bg-background px-3 py-1.5 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring"
-							onClick={() => newSlotFor(null)}
+							className="flex items-center justify-center gap-2 rounded-lg bg-foreground/5 px-4 py-2 text-foreground text-sm outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-foreground/10 focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none"
+							onClick={() => newSlotFor(activeGroup)}
 						>
+							<Plus className="size-4 shrink-0" aria-hidden />
 							{t("zen.newConversation")}
 						</button>
 					</div>

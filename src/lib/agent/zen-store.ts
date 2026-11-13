@@ -71,6 +71,8 @@ export type ZenState = {
 	addSlot: (seed?: ZenSlotSeed) => string;
 	/** Cancel that slot's in-flight turns, then drop it. */
 	removeSlot: (id: string) => void;
+	/** Drop one session inside a slot; the slot goes with its last session. */
+	closeSlotSession: (slotId: string, sessionId: string) => void;
 	activateSlot: (id: string) => void;
 	setSlotAgent: (id: string, agent: ZenSlotAgent) => void;
 	/** Drop the pending history request once the panel has begun loading it. */
@@ -143,6 +145,26 @@ export const zenStore = createStore<ZenState>((set, get) => ({
 				? (slots[Math.min(index, slots.length - 1)]?.id ?? null)
 				: state.activeSlotId;
 		set({ slots, activeSlotId });
+	},
+
+	closeSlotSession: (slotId, sessionId) => {
+		const slot = get().slots.find((candidate) => candidate.id === slotId);
+		if (!slot) return;
+		const state = slot.store.getState();
+		const session = state.sessions.find((item) => item.id === sessionId);
+		if (!session) return;
+		if (session.status === "running") {
+			void cancelAgentRun(session.id).catch(() => undefined);
+		}
+		const remaining = state.sessions.filter((item) => item.id !== sessionId);
+		if (remaining.length === 0) {
+			get().removeSlot(slotId);
+			return;
+		}
+		state.setSessions(remaining);
+		if (state.activeTabId === sessionId) {
+			state.setActiveTabId(remaining[0]?.id ?? "draft");
+		}
 	},
 
 	activateSlot: (id) => {
