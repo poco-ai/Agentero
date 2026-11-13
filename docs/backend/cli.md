@@ -438,6 +438,9 @@ agentero sync disconnect --vault ~/papers -y   # 解绑（远端数据不动）
 # Git：Vault 即 work tree；认证走系统 credential helper / SSH agent
 agentero sync configure --vault ~/papers \
   --backend git --git-remote git@github.com:you/papers.git --git-branch main
+# 内网明文 HTTP 或自签 HTTPS：
+#   --git-allow-insecure-http true
+#   --git-ssl-ca /path/to/ca.pem
 agentero sync now --vault ~/papers --json
 ```
 
@@ -446,7 +449,7 @@ agentero sync now --vault ~/papers --json
 - **状态与错误码**：未配置 → `sync_not_configured`；配置非法（缺 secret 等，非交互下无法补提示时错误里附 secret 传入门径）→ `sync_config_invalid`；引擎错误透传 `AppError` 域码。`status` 输出 `configured` / `config`（掩码）/ `lastSyncAt` / `lastVersion` / `lastError`。
 - **进度**：`now` 的阶段进度（scan/pull/download/upload/finalize）打 stderr，stdout 始终纯 JSON；text 模式默认显示，`--progress` 在 `--json` 下开启。
 - **同步范围**：`configure --exclude pdf,source,attachments` 排除大体积可再生资产（与设置页「同步范围」一致）；笔记、sidecar、marks 永远同步。Git 把同一组排除项写进仓库 `.gitignore`，并取消跟踪。
-- **Git**：`--backend git --git-remote <url|path> [--git-branch main]`；不接收 secret flag、不做 TTY 提示，使用系统 Git 凭据。Vault 已有仓库时要求当前分支与 `--git-branch` 一致、`origin` 与配置一致，否则报错。冲突、`.agentero` 被跟踪、历史重写等分别返回 `sync_conflict` / `git_agentero_tracked` / `git_history_rewritten`；推送被非 fast-forward 拒绝会自动重试 fetch+merge+push。
+- **Git**：`--backend git --git-remote <url|path> [--git-branch main] [--git-allow-insecure-http true|false] [--git-ssl-ca <pem>]`；不接收 secret flag、不做 TTY 提示，使用系统 Git 凭据。HTTPS 需事先写入 credential helper；非 loopback 的 `http://` 必须显式打开 `--git-allow-insecure-http true`（令牌明文传输）。`--git-ssl-ca` 是自签 HTTPS 的绝对 PEM 路径，传给 `http.sslCAInfo`。Vault 已有仓库时要求当前分支与 `--git-branch` 一致、`origin` 与配置一致，否则报错。冲突、`.agentero` 被跟踪、历史重写等分别返回 `sync_conflict` / `git_agentero_tracked` / `git_history_rewritten`；推送被非 fast-forward 拒绝会自动重试 fetch+merge+push。认证失败与证书失败分别为 `git_auth_failed` / `git_tls_failed`。
 
 ## Doctor
 
