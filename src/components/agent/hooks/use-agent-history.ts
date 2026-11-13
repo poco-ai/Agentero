@@ -484,9 +484,12 @@ export type UseAgentHistoryOptions = {
 };
 
 export type AgentHistory = {
-	/** ACP history probe finished (listSessions resolved or unsupported). */
-	historyReady: boolean;
-	openHistorySession: (item: ChatSessionHistoryItem) => void;
+	/**
+	 * Load a conversation. Returns false when nothing was started (no agent yet
+	 * or a turn is in flight) so callers can retry instead of dropping the
+	 * request.
+	 */
+	openHistorySession: (item: ChatSessionHistoryItem) => boolean;
 	removeHistorySession: (
 		item: ChatSessionHistoryItem,
 	) => Promise<AcpDeleteSessionResult>;
@@ -622,18 +625,29 @@ export function useAgentHistory({
 		sessionHistoryRef,
 	]);
 
-	const openHistorySession = (item: ChatSessionHistoryItem) => {
-		if (submittingRef.current) return;
+	const openHistorySession = (item: ChatSessionHistoryItem): boolean => {
+		if (submittingRef.current) return false;
 		const providerSessionId = providerSessionIdForHistoryLoad(item);
 		const hydrationGeneration = ++historyHydrationGenRef.current;
 		setHistoryOpen(false);
 		clearMessageQueue();
-		if (!supportsResume || item.lines.length > 0) {
+		if (item.lines.length > 0 || item.resumeable === false) {
 			const localLines = sanitizeChatLines(item.lines);
 			setHydratingSessionId(null);
 			activateComposerSession(item.id);
 			activeTabRef.current = item.id;
-			hydrateAndActivateSession(item, localLines);
+			hydrateAndActivateSession(
+				item,
+				localLines.length > 0
+					? localLines
+					: [
+							{
+								id: nextLineId("sys"),
+								kind: "system",
+								text: t("messages.sessionEmpty"),
+							},
+						],
+			);
 			// Visual-trace (and other non-resumeable) sessions keep multi-turn
 			// context in local lines; never set an ACP resume id for them.
 			if (supportsResume && item.resumeable !== false) {
@@ -641,11 +655,14 @@ export function useAgentHistory({
 			} else {
 				activeConversationRef.current = null;
 			}
-			return;
+			return true;
 		}
+		// No local transcript: always ask the agent, even before the history
+		// probe settles. Gating this on `supportsResume` turned a failed probe
+		// into an empty conversation instead of loading the session.
 		const requestAgentId = selectedAgentId;
 		const requestVaultPath = vaultPath;
-		if (!requestAgentId) return;
+		if (!requestAgentId) return false;
 		setHydratingSessionId(item.id);
 		activateComposerSession(item.id);
 		activeTabRef.current = item.id;
@@ -774,6 +791,7 @@ export function useAgentHistory({
 				setLines((prev) => [...prev, errorChatLine(errorText(error))]);
 			}
 		})();
+		return true;
 	};
 
 	const removeHistorySession = useCallback(
@@ -813,7 +831,6 @@ export function useAgentHistory({
 	);
 
 	return {
-		historyReady: historyLoaded,
 		openHistorySession,
 		removeHistorySession,
 	};

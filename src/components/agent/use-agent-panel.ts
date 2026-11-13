@@ -629,35 +629,36 @@ export function useAgentPanel({
 		clearMessageQueue();
 	};
 
-	const { historyReady, openHistorySession, removeHistorySession } =
-		useAgentHistory({
-			refs,
-			t,
-			i18nLanguage: i18n.language,
-			vaultPath,
-			selectedAgentId,
-			selected,
-			setSessionHistory,
-			setLines,
-			hydrateAndActivateSession,
-			setHydratingSessionId,
-			activateComposerSession,
-			setHistoryOpen,
-			historyOpen,
-			clearMessageQueue,
-		});
+	const { openHistorySession, removeHistorySession } = useAgentHistory({
+		refs,
+		t,
+		i18nLanguage: i18n.language,
+		vaultPath,
+		selectedAgentId,
+		selected,
+		setSessionHistory,
+		setLines,
+		hydrateAndActivateSession,
+		setHydratingSessionId,
+		activateComposerSession,
+		setHistoryOpen,
+		historyOpen,
+		clearMessageQueue,
+	});
 
-	// Zen history rows: wait for the slot's ACP history probe before loading,
-	// otherwise the resume branch would be mistaken for an unsupported bridge.
+	// Zen history rows: load straight away (the agent is known from the slot),
+	// and keep the pending row until a load actually starts so a registry that
+	// is still resolving retries instead of landing on an empty conversation.
 	const openHistorySessionRef = useRef(openHistorySession);
 	openHistorySessionRef.current = openHistorySession;
 	const onOpenHistoryHandledRef = useRef(onOpenHistoryHandled);
 	onOpenHistoryHandledRef.current = onOpenHistoryHandled;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: submitting is a retry trigger; the load reads it through refs
 	useEffect(() => {
-		if (!openHistoryItem || !historyReady) return;
+		if (!openHistoryItem || !selectedAgentId) return;
+		if (!openHistorySessionRef.current(openHistoryItem)) return;
 		onOpenHistoryHandledRef.current?.();
-		openHistorySessionRef.current(openHistoryItem);
-	}, [historyReady, openHistoryItem]);
+	}, [openHistoryItem, selectedAgentId, submitting]);
 
 	return {
 		t,
