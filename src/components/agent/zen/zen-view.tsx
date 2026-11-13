@@ -11,11 +11,18 @@
  * Virtual tab path / slot store live in `lib/agent/zen-path.ts` and
  * `lib/agent/zen-store.ts`.
  */
-import { ChevronRight, Plus, RotateCw, Waves, X } from "lucide-react";
+import { Plus, Waves, X } from "lucide-react";
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
 import { AgentPanel } from "@/components/agent/agent-panel";
+import { FileTreeDisclosureIcon } from "@/components/sidebar/file-tree/file-tree-primitives";
+import {
+	FILE_TREE_ROW_SELECTED_STATE,
+	FILE_TREE_ROW_STATE,
+	TREE_ROW_INDENT_STEP_PX,
+	TREE_ROW_INSET_PX,
+} from "@/components/sidebar/tree-row-styles";
 import {
 	useLibraryStore,
 	useSettings,
@@ -209,6 +216,11 @@ function sortRows(a: ZenSessionRow, b: ZenSessionRow): number {
 	return b.sortAt.localeCompare(a.sortAt);
 }
 
+/** Session rows sit one tree step inside their harness header. */
+const sessionRowIndentStyle = {
+	paddingLeft: TREE_ROW_INSET_PX + TREE_ROW_INDENT_STEP_PX,
+};
+
 function ZenSessionRowView({
 	row,
 	onActivate,
@@ -222,20 +234,18 @@ function ZenSessionRowView({
 	const label = displayHistoryTitle(row.title, "") || t("zen.untitled");
 	const open = row.slotId !== null;
 	return (
-		<div className="group/row relative">
+		<div
+			className={cn(
+				"group/row flex h-7 w-full items-center rounded-md pr-1",
+				row.active ? FILE_TREE_ROW_SELECTED_STATE : FILE_TREE_ROW_STATE,
+			)}
+			style={sessionRowIndentStyle}
+		>
 			<button
 				type="button"
 				aria-current={row.active ? "true" : undefined}
 				title={label}
-				className={cn(
-					"flex w-full min-w-0 items-center gap-2 rounded-lg py-1.5 ps-2.5 text-start text-sm outline-none transition-[background-color,color,box-shadow,transform] duration-150 ease-out focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none motion-reduce:transition-colors",
-					open ? "pe-8" : "pe-2.5",
-					row.active
-						? "bg-card font-medium text-foreground shadow-raised ring-1 ring-border/60"
-						: open
-							? "text-foreground/80 hover:bg-accent/70 hover:text-foreground"
-							: "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
-				)}
+				className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start text-sm outline-none focus-visible:ring-1 focus-visible:ring-brand/80"
 				onClick={onActivate}
 			>
 				<span className="min-w-0 flex-1 truncate">{label}</span>
@@ -246,7 +256,7 @@ function ZenSessionRowView({
 					aria-label={t(`history.status.${row.status}`)}
 					title={t(`history.status.${row.status}`)}
 					className={cn(
-						"pointer-events-none absolute top-1/2 right-2.5 size-1.5 -translate-y-1/2 rounded-full motion-reduce:animate-none group-hover/row:opacity-0",
+						"size-1.5 shrink-0 rounded-full motion-reduce:animate-none group-hover/row:opacity-0",
 						row.status === "running"
 							? "animate-pulse bg-emerald-500"
 							: "bg-destructive",
@@ -258,7 +268,7 @@ function ZenSessionRowView({
 					type="button"
 					aria-label={t("zen.close")}
 					title={t("zen.close")}
-					className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100"
+					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100"
 					onClick={(event) => {
 						event.stopPropagation();
 						onClose();
@@ -292,24 +302,27 @@ function HarnessSection({
 	const running = group.rows.some((row) => row.status === "running");
 
 	return (
-		<section className="mb-1 space-y-0.5">
-			<div className="group flex h-7 items-center pe-1">
+		<section className="pb-1">
+			<div
+				className={cn(
+					"group flex h-7 w-full items-center rounded-md pr-1 pl-2.5",
+					FILE_TREE_ROW_STATE,
+				)}
+			>
 				<button
 					type="button"
 					aria-expanded={!collapsed}
 					aria-label={group.name}
-					className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 ps-1 text-start outline-none transition-colors hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring"
+					className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-brand/80"
 					onClick={onToggle}
 				>
-					<ChevronRight
-						className={cn(
-							"size-3 shrink-0 text-muted-foreground transition-transform duration-150 ease-out motion-reduce:transition-none",
-							!collapsed && "rotate-90",
-						)}
-						aria-hidden
+					<FileTreeDisclosureIcon
+						isExpanded={!collapsed}
+						icon={
+							<AgentLogo template={group.template} plain className="size-4" />
+						}
 					/>
-					<AgentLogo template={group.template} plain className="size-3.5" />
-					<span className="min-w-0 flex-1 truncate font-medium text-muted-foreground text-xs">
+					<span className="min-w-0 flex-1 truncate font-medium text-xs">
 						{group.name}
 					</span>
 					{collapsed && running ? (
@@ -324,7 +337,7 @@ function HarnessSection({
 					type="button"
 					aria-label={t("zen.newConversation")}
 					title={t("zen.newConversation")}
-					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-brand/80"
 					onClick={onNewSlot}
 				>
 					<Plus className="size-3.5" />
@@ -353,11 +366,7 @@ export function ZenView({ active }: { active: boolean }) {
 	const slots = useZenStore((s) => s.slots);
 	const activeSlotId = useZenStore((s) => s.activeSlotId);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
-	const {
-		sections: historySections,
-		loading: historyLoading,
-		refresh: refreshHistory,
-	} = useZenHarnessHistory(vaultPath, active);
+	const { sections: historySections } = useZenHarnessHistory(vaultPath, active);
 	const openRows = useOpenZenRows(slots);
 	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -519,23 +528,7 @@ export function ZenView({ active }: { active: boolean }) {
 			aria-label={t("zen.title")}
 		>
 			<aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar/60">
-				<div className="flex h-8 shrink-0 items-center justify-end pe-1.5">
-					<button
-						type="button"
-						aria-label={t("zen.refreshHistory")}
-						title={t("zen.refreshHistory")}
-						className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-						onClick={() => void refreshHistory()}
-					>
-						<RotateCw
-							className={cn(
-								"size-3.5",
-								historyLoading && "animate-spin motion-reduce:animate-none",
-							)}
-						/>
-					</button>
-				</div>
-				<div className="px-1.5 pb-2">
+				<div className="px-1.5 pt-2 pb-2">
 					<button
 						type="button"
 						className="flex w-full min-w-0 items-center justify-center gap-2 rounded-lg bg-foreground/5 py-2.5 pe-2 ps-2 text-foreground text-sm outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-foreground/10 focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none"
