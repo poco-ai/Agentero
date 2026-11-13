@@ -5600,7 +5600,8 @@ export type SyncBackendConfig = {
 	webdavPassword?: string,
 	/**
 	 *  Git remote URL or local path. Credentials are never stored here; the
-	 *  system credential helper / SSH agent is used.
+	 *  system credential helper / SSH agent is used. Non-loopback `http://`
+	 *  requires [`Self::git_allow_insecure_http`].
 	 */
 	gitRemote?: string,
 	/**
@@ -5608,6 +5609,12 @@ export type SyncBackendConfig = {
 	 *  already match when it is an existing repository.
 	 */
 	gitBranch?: string,
+	/**
+	 *  Allow a non-loopback `http://` Git remote. The credential travels in
+	 *  cleartext; leave this off unless the server is on a trusted intranet
+	 *  and has no HTTPS.
+	 */
+	gitAllowInsecureHttp?: boolean,
 	/**  `user` or `organization`. Official cloud only. */
 	agenteroSubject?: string,
 	/**  Organization id when [`Self::agentero_subject`] is `organization`. */

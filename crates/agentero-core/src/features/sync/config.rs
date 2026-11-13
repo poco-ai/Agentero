@@ -59,13 +59,19 @@ pub struct SyncBackendConfig {
     #[serde(default)]
     pub webdav_password: String,
     /// Git remote URL or local path. Credentials are never stored here; the
-    /// system credential helper / SSH agent is used.
+    /// system credential helper / SSH agent is used. Non-loopback `http://`
+    /// requires [`Self::git_allow_insecure_http`].
     #[serde(default)]
     pub git_remote: String,
     /// Branch to sync. Defaults to `main`; the vault's current branch must
     /// already match when it is an existing repository.
     #[serde(default = "default_git_branch")]
     pub git_branch: String,
+    /// Allow a non-loopback `http://` Git remote. The credential travels in
+    /// cleartext; leave this off unless the server is on a trusted intranet
+    /// and has no HTTPS.
+    #[serde(default)]
+    pub git_allow_insecure_http: bool,
     /// `user` or `organization`. Official cloud only.
     #[serde(default = "default_agentero_subject")]
     pub agentero_subject: String,
@@ -187,7 +193,7 @@ impl SyncBackendConfig {
                 require_https("server url", &self.webdav_url)
             }
             SyncBackendKind::Git => {
-                validate_git_remote(&self.git_remote)?;
+                validate_git_remote(&self.git_remote, self.git_allow_insecure_http)?;
                 validate_branch(&self.git_branch)
             }
             SyncBackendKind::Agentero => {
@@ -337,7 +343,11 @@ fn is_loopback_host(host: &str) -> bool {
 
 /// Git remotes cannot carry secrets in `sync.json`. Allow the transports the
 /// system git binary understands without a custom remote helper.
-fn validate_git_remote(raw: &str) -> Result<(), AppError> {
+///
+/// Plain `http` to a non-loopback host is rejected unless
+/// `allow_insecure_http` is set. The token then travels in cleartext, which
+/// is only appropriate for a trusted intranet server.
+fn validate_git_remote(raw: &str, allow_insecure_http: bool) -> Result<(), AppError> {
     let value = raw.trim();
     if value.is_empty() {
         return Err(AppError::message("repository url is required"));
@@ -358,9 +368,10 @@ fn validate_git_remote(raw: &str) -> Result<(), AppError> {
                 }
                 if url.scheme() == "http"
                     && !is_loopback_host(url.host_str().unwrap_or_default())
+                    && !allow_insecure_http
                 {
                     return Err(AppError::message(
-                        "repository url must use https (plain http is only allowed for localhost)",
+                        "repository url must use https (plain http stays off unless explicitly allowed for a trusted intranet; localhost is always allowed)",
                     ));
                 }
                 if !url.username().is_empty() || url.password().is_some() {
@@ -707,6 +718,7 @@ mod tests {
         let cfg = git_config("  https://github.com/u/papers.git  ", "").normalized();
         assert_eq!(cfg.git_remote, "https://github.com/u/papers.git");
         assert_eq!(cfg.git_branch, "main");
+        assert!(!cfg.git_allow_insecure_http);
         assert!(cfg.scope.is_all());
         assert_eq!(
             cfg.remote_identity(),
@@ -816,6 +828,20 @@ mod tests {
                 "branch {branch:?} should be accepted"
             );
         }
+    }
+
+    #[test]
+    fn git_plain_http_requires_explicit_opt_in() {
+        let mut cfg = git_config("http://git.example.com/papers.git", "main");
+        let err = cfg.validate().unwrap_err().to_string();
+        assert!(
+            err.contains("explicitly allowed"),
+            "expected the intranet opt-in to be named, got {err}"
+        );
+        cfg.git_allow_insecure_http = true;
+        assert!(cfg.validate().is_ok());
+        cfg.git_remote = "http://user:secret@git.example.com/papers.git".into();
+        assert!(cfg.validate().is_err());
     }
 
     #[test]
