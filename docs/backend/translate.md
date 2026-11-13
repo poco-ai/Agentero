@@ -49,3 +49,16 @@ OpenAI-compatible 的 `TranslateTextArgs.extraRequestBody` 是可选 JSON 对象
 Agent 翻译走 `agent_run_once`，不经本 command。  
 前端服务层：[../frontend/translate.md](../frontend/translate.md)  
 代码：`src-tauri/src/features/translate/`
+
+## 用户术语与词典请求
+
+`TranslateSettings.glossaries` 按目标语言保存全局用户词表（默认空）；格式与边界见前端翻译文档。
+`TranslateTextArgs` 新增可选 `glossary`、`dictionarySurrounding` 与默认 false 的 `dictionary`。
+Host 在普通 / 流式命令都从设置补入缺省 glossary；core 解析并只传命中词条给 Index-Translate / OpenAI 兼容路径。
+Agent 在前端解析同一配置并使用相同词条约束，不经新请求路径。
+
+OpenAI 兼容服务只有 `dictionary=true` 且满足短词规则时采用独立词典提示词；其余使用原行文模板，避免全文短标题变成词条。
+`dictionarySurrounding` 最多 1000 字符，仅作为释义消歧的参考原文；没有上下文时禁止编造本文义项。
+前端 / core 判定共用 `test/fixtures/dictionary-selection.json`，该文件仅为自写回归样例，不含外部词库。
+
+实现参考 Index-Translate 官方 `inference/llm/call_api.py` 的输入格式与约束协议，沿用现有 HTTP/SSE 管线；没有引入第三方词库、额外服务或词典依赖。

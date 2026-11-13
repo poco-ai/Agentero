@@ -28,6 +28,8 @@ export function makeCommercialMtService(
 				sourceLang: task.sourceLang || "auto",
 				targetLang: task.targetLang,
 				provider: id,
+				dictionary: task.context?.surface?.endsWith("-selection") ?? false,
+				dictionarySurrounding: task.context?.dictionarySurrounding,
 				// Never send the mask token as if it were a key.
 				apiKey: rawKey && !isSecretMask(rawKey) ? rawKey : undefined,
 				baseUrl: cfg?.baseUrl,

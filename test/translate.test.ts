@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-
 import { isSecretMask, maskSecret } from "@/lib/core/secret-mask";
 import {
 	buildTranslateMessages,
 	buildTranslatePrompt,
 	COMMERCIAL_MT_PROVIDER_IDS,
-	classifyTranslateQuery,
 	FREE_MT_PROVIDER_IDS,
 	getTranslateService,
 	isCommercialProviderConfigured,
@@ -25,6 +23,7 @@ import {
 	unknownTranslatePlaceholders,
 } from "@/lib/translate";
 import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
 
 describe("translate lang", () => {
 	it("resolves ui target from interface language", () => {
@@ -237,28 +236,26 @@ describe("translate prompts", () => {
 		expect(system).not.toContain(text);
 		expect(system).not.toContain("{{targetLang}}");
 		expect(user).toBe(`"""${text}"""`);
-		expect(classifyTranslateQuery(text)).toBe("prose");
+		expect(isDictionaryLookup(text)).toBe(false);
 	});
 
 	it("forbids a clarifying question on a word or short phrase", () => {
-		expect(classifyTranslateQuery("attention")).toBe("word");
-		expect(classifyTranslateQuery("multi-head attention")).toBe("word");
-		expect(classifyTranslateQuery("注意力")).toBe("word");
+		expect(isDictionaryLookup("attention")).toBe(true);
+		expect(isDictionaryLookup("multi-head attention")).toBe(true);
+		expect(isDictionaryLookup("注意力")).toBe(true);
 		expect(
-			classifyTranslateQuery(
+			isDictionaryLookup(
 				"We propose a transformer architecture for sequence transduction.",
 			),
-		).toBe("prose");
+		).toBe(false);
 
 		for (const text of ["attention", "multi-head attention", "注意力"]) {
 			const { system, user } = buildTranslateMessages({
 				text,
 				targetLangName: "Chinese",
 			});
-			expect(system).toContain("compact dictionary gloss");
-			expect(system).toContain(
-				"Do not ask whether the user wants a translation",
-			);
+			expect(system).toContain("research dictionary");
+			expect(system).toContain("Do not ask questions");
 			expect(system).not.toMatch(/你想翻译还是解释/);
 			expect(user).toBe(`"""${text}"""`);
 		}
@@ -277,7 +274,7 @@ describe("translate prompts", () => {
 			page: 3,
 			surface: "pdf-selection",
 		});
-		expect(prompt.startsWith("OUTPUT ONLY THE TRANSLATION.")).toBe(true);
+		expect(prompt.startsWith("OUTPUT ONLY THE DICTIONARY ENTRY.")).toBe(true);
 		expect(prompt.indexOf("SYSTEM:")).toBeLessThan(
 			prompt.indexOf("USER TEXT:"),
 		);
@@ -291,6 +288,7 @@ describe("translate prompts", () => {
 		expect(isShortColloquialPrompt("翻译得自然一点")).toBe(true);
 		const { system, user } = buildTranslateMessages({
 			text: "Hello world",
+			dictionary: false,
 			targetLangName: "Chinese",
 			customPrompt: "Be terse.",
 		});
@@ -329,6 +327,7 @@ describe("translate prompts", () => {
 	it("empty custom prompt matches the built-in prompt", () => {
 		const base = {
 			text: "Hello world",
+			dictionary: false,
 			targetLangName: "Chinese",
 			page: 2,
 			surface: "pdf-selection" as const,
@@ -370,6 +369,7 @@ describe("translate prompts", () => {
 			customPrompt: "legacy preference",
 			customSystem: "Be terse.",
 			customUser: "SRC:\n{{ text }}",
+			dictionary: false,
 		});
 		expect(system).toContain("Be terse.");
 		expect(system).not.toContain("legacy preference");

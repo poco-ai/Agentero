@@ -140,6 +140,7 @@ export function SelectionActions({
 			{menu && !ask.ask && (
 				<SelectionActionMenu
 					screen={menu.screen}
+					selectionText={menu.selection.text}
 					onAsk={openAsk}
 					onAddToChat={addMenuSelectionToChat}
 					beforeActions={
@@ -193,6 +194,7 @@ export function SelectionActions({
 				<TranslateCard
 					key={translation.translation.selection.id}
 					screen={translation.translation.screen}
+					sourceText={translation.translation.selection.text}
 					result={translation.translation.result}
 					streaming={translation.translation.streaming}
 					error={translation.translation.error}

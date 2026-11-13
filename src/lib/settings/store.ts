@@ -52,6 +52,7 @@ import {
 	type PdfAskSettings,
 } from "@/lib/settings/types";
 import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
+import { parseGlossary } from "@/lib/translate/glossary";
 import { stripUnknownTranslatePlaceholders } from "@/lib/translate/prompt";
 import {
 	isCommercialTranslateProvider,
@@ -740,6 +741,19 @@ function normalizeTranslateSettings(
 	}
 	if (typeof raw.modelId === "string") {
 		base.modelId = raw.modelId.trim();
+	}
+	base.glossaries = {};
+	if (raw.glossaries && typeof raw.glossaries === "object") {
+		for (const [lang, value] of Object.entries(raw.glossaries)) {
+			if (typeof value !== "string" || !["en", "zh-CN"].includes(lang))
+				continue;
+			try {
+				parseGlossary(value);
+				base.glossaries[lang] = value.trim();
+			} catch {
+				/* Invalid external settings never reach prompts. */
+			}
+		}
 	}
 	if (typeof raw.customPrompt === "string") {
 		base.customPrompt = normalizeTranslateTemplate(raw.customPrompt);

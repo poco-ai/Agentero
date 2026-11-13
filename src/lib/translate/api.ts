@@ -22,6 +22,8 @@ export async function invokeTranslateText(args: {
 	baseUrl?: string;
 	region?: string;
 	model?: string;
+	dictionary?: boolean;
+	dictionarySurrounding?: string;
 	extraRequestBody?: string;
 	/** Host request timeout (ms); clamped 1s–30s server-side. */
 	timeoutMs?: number;
@@ -40,6 +42,8 @@ export async function invokeTranslateText(args: {
 		baseUrl: args.baseUrl?.trim() || null,
 		region: args.region?.trim() || null,
 		model: args.model?.trim() || null,
+		dictionary: args.dictionary ?? false,
+		dictionarySurrounding: args.dictionarySurrounding || null,
 		extraRequestBody: args.extraRequestBody?.trim() || null,
 		timeoutMs: args.timeoutMs ?? null,
 	};

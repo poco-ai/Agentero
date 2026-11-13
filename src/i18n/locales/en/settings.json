@@ -642,6 +642,15 @@
 		},
 		"autoTranslation": {
 			"section": "Auto-translate"
+		},
+		"glossary": {
+			"label": "Terminology · {{language}}",
+			"count": "Terms: {{count}}",
+			"placeholder": "LLM → 大模型\nKV cache → KV 缓存\nTransformer → Transformer",
+			"hint": "Saved globally for this target language. Supports JSON or source:target / source→target pairs. Applies to Index-Translate, OpenAI-compatible services and Agent. Other services do not apply this glossary.",
+			"invalid": "Invalid terminology. Use a JSON object with string values or source → target pairs. Maximum: 200 terms / 16,000 characters; source 120, target 240 characters.",
+			"save": "Save",
+			"cancel": "Cancel"
 		}
 	},
 	"layout": {

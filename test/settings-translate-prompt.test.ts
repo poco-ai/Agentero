@@ -22,6 +22,24 @@ function normalize(translate: Record<string, unknown>) {
 }
 
 describe("translate prompt settings", () => {
+	it("keeps user glossaries separated by target language and ignores malformed external entries", () => {
+		const settings = normalize({
+			glossaries: {
+				"zh-CN": "LLM→大模型",
+				en: '{"大模型":"LLM"}',
+				de: "LLM→Modell",
+			},
+		});
+		expect(settings.glossaries).toEqual({
+			"zh-CN": "LLM→大模型",
+			en: '{"大模型":"LLM"}',
+		});
+		expect(
+			normalize({ glossaries: { "zh-CN": "{broken" } }).glossaries,
+		).toEqual({});
+		expect(normalize({}).glossaries).toEqual({});
+	});
+
 	it("preserves extra JSON through settings normalization and defaults legacy settings", () => {
 		const extraRequestBody = '{"thinking":{"type":"disabled"}}';
 		const cfg = normalize({

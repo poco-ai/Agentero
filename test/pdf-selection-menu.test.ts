@@ -33,6 +33,14 @@ describe("SelectionMenu", () => {
 		showTranslate: true,
 	};
 
+	it("uses the same action and shortcut for dictionary lookups", () => {
+		const html = renderToStaticMarkup(
+			createElement(SelectionMenu, { ...baseProps, selectionText: "KV cache" }),
+		);
+		expect(html).toContain('aria-label="selection.dictionaryTitle T"');
+		expect(html).not.toContain('aria-label="翻译 T"');
+	});
+
 	it("renders the copy button after translate and before add to chat when onCopy is provided", () => {
 		const html = renderToStaticMarkup(
 			createElement(SelectionMenu, {

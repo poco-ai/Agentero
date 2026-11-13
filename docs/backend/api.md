@@ -845,6 +845,9 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     text: string;
     sourceLang?: string;     // default "auto"
     targetLang: string;      // e.g. "zh-CN" | "en"
+    glossary?: string | null; // 用户术语文本；缺省由 Host 按目标语言读取全局设置
+    dictionary?: boolean;    // 划词入口启用；默认 false，全文保持纯翻译
+    dictionarySurrounding?: string | null; // 词义消歧参考上下文（最多使用 1000 字符）
     provider?: string;       // agentero (内置；注入 key 的构建里的默认) | tencenttransmart | huoshanweb | cnki | indextranslate | indextranslate2b | deepl | azure | googleCloud | openaiCompatible
     apiKey?: string | null;  // 商用 BYOK；可省略或传同长度 "*" 掩码，Host 从 settings 注入真实密钥。provider 为 agentero 时被 Host 用构建期凭证**覆写**，调用方传什么都无效
     baseUrl?: string | null; // 商用 provider endpoint override（可选）；agentero 同样被覆写

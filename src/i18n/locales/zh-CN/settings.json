@@ -642,6 +642,15 @@
 		},
 		"autoTranslation": {
 			"section": "自动翻译"
+		},
+		"glossary": {
+			"label": "术语表 · {{language}}",
+			"count": "{{count}} 个术语",
+			"placeholder": "LLM → 大模型\nKV cache → KV 缓存\nTransformer → Transformer",
+			"hint": "按目标语言全局保存。支持 JSON 或 原词:译词 / 原词→译词。适用于 Index-Translate、OpenAI 兼容服务和 Agent。其他服务不应用此词表。",
+			"invalid": "术语格式无效。请使用值为字符串的 JSON 对象或「原词 → 译词」。最多 200 条、16000 字符；原词上限 120、译词 240 字符。",
+			"save": "保存",
+			"cancel": "取消"
 		}
 	},
 	"layout": {

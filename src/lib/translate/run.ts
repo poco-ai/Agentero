@@ -11,6 +11,7 @@ import type {
 	TranslateRunOptions,
 	TranslateTask,
 } from "@/lib/translate/types";
+import { glossaryConstraint } from "./glossary";
 
 /**
  * App-wide translation entry: resolve default provider, run service, return text.
@@ -45,6 +46,10 @@ export async function runTranslate(
 
 	const runOpts: TranslateRunOptions = {
 		...opts,
+		glossary: glossaryConstraint(
+			settings.translate.glossaries[task.targetLang] ?? "",
+			text,
+		),
 		providerConfig:
 			opts.providerConfig ??
 			(isCommercialTranslateProvider(providerId)
@@ -82,6 +87,7 @@ export function prepareTranslateTask(
 	customPrompt: string;
 	customSystem: string;
 	customUser: string;
+	glossary: string;
 } {
 	const settings = loadSettings();
 	const langs = langsFromSettings(settings.translate, i18n.language ?? "en");
@@ -91,6 +97,11 @@ export function prepareTranslateTask(
 		customPrompt: settings.translate.customPrompt,
 		customSystem: settings.translate.customSystem,
 		customUser: settings.translate.customUser,
+		glossary: glossaryConstraint(
+			settings.translate.glossaries[partial.targetLang ?? langs.targetLang] ??
+				"",
+			partial.text,
+		),
 		task: {
 			text: partial.text,
 			sourceLang: partial.sourceLang ?? langs.sourceLang,

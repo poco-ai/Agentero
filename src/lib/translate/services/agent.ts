@@ -29,6 +29,9 @@ export const AgentTranslateService: TranslateService = {
 		}
 		const prompt = buildTranslatePrompt({
 			text,
+			dictionary: task.context?.surface?.endsWith("-selection") ?? false,
+			dictionarySurrounding: task.context?.dictionarySurrounding,
+			glossary: opts.glossary,
 			targetLangName: targetLangDisplayName(task.targetLang),
 			page: task.context?.page,
 			surface: task.context?.surface,
