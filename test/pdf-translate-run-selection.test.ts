@@ -58,7 +58,7 @@ function record(id: string): PdfTranslateRecord {
 		createdAt: "2026-01-01T00:00:00.000Z",
 		page: 1,
 		rects: [],
-		quote: "the text",
+		quote: "the quick brown text",
 	};
 }
 
@@ -70,7 +70,7 @@ function harness(seed: PdfTranslateRecord) {
 	const chunks: string[] = [];
 	let stops = 0;
 	const options = {
-		text: seed.quote ?? "the text",
+		text: seed.quote ?? "the quick brown text",
 		context: { page: 1, surface: "pdf-selection" },
 		paperKey: `paper:${seed.id}`,
 		vaultPath: "/vault",
@@ -164,7 +164,7 @@ describe("runSelectionTranslate", () => {
 
 		expect(runOnce).toHaveBeenCalledTimes(1);
 		expect(runOnce.mock.calls[0]?.[0]).toMatchObject({
-			prompt: "PROMPT:CUSTOM:the text",
+			prompt: "PROMPT:CUSTOM:the quick brown text",
 			agentId: "agent-1",
 			modelId: "model-1",
 			sessionId: "prov-old",
@@ -314,8 +314,12 @@ describe("runSelectionTranslate", () => {
 
 		expect(runOnce).not.toHaveBeenCalled();
 		expect(runTranslate).toHaveBeenCalledWith(
-			{ text: "the text", context: { page: 1, surface: "pdf-selection" } },
-			{ providerId: "googleapi" },
+			{
+				text: "the quick brown text",
+				context: { page: 1, surface: "pdf-selection" },
+			},
+			// The engine forwards its chunk sink so free-MT deltas land in the card.
+			{ providerId: "googleapi", onDelta: h.options.appendChunk },
 		);
 		expect(h.records.get("t8")?.result).toBe("译文");
 		expect(h.persisted).toHaveLength(1);

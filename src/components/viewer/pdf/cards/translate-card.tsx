@@ -11,12 +11,13 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ThinkingOrb } from "thinking-orbs";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
-import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
+import { useTypewriter } from "@/hooks/use-typewriter";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 
 const TRANSLATE_CARD_WIDTH = 340;
@@ -80,6 +81,8 @@ export function TranslateCard({
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
 	const showResult = result.trim().length > 0;
+	const typed = useTypewriter(result, mode === "translate");
+	const typing = streaming || typed.typing;
 	const showLoading = streaming && !showResult;
 	const scrollPortRef = useRef<HTMLDivElement>(null);
 	const stickToBottomRef = useRef(true);
@@ -170,9 +173,9 @@ export function TranslateCard({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: result is the re-run trigger for new chunks, not a value read inside
 	useEffect(() => {
 		const el = scrollPortRef.current;
-		if (!el || !streaming || !stickToBottomRef.current) return;
+		if (!el || !typing || !stickToBottomRef.current) return;
 		el.scrollTop = el.scrollHeight;
-	}, [result, streaming]);
+	}, [result, typed.text, typing]);
 
 	// Keep the header visible when the card is shrunk: the floor is
 	// everything outside the translation scrollport (header + margins).
@@ -278,11 +281,7 @@ export function TranslateCard({
 				onScroll={handleScroll}
 				className="agentero-scroll mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 			>
-				{showLoading ? (
-					<Shimmer className="text-sm" as="p">
-						{loadingText}
-					</Shimmer>
-				) : null}
+				{showLoading ? <StreamingOrb label={loadingText} /> : null}
 
 				{/* 词典模式：结构化展示 */}
 				{mode === "dictionary" && showResult ? (
@@ -292,8 +291,13 @@ export function TranslateCard({
 				{/* 翻译模式：原有 Markdown 渲染 */}
 				{mode === "translate" && showResult ? (
 					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[0.9375rem] text-foreground leading-relaxed">
-						{result}
+						{typed.text}
 					</MessageResponse>
+				) : null}
+
+				{/* 流式未完成或打字机未追上时，动画跟在最新文字后面 */}
+				{typing && showResult && !error ? (
+					<StreamingOrb label={loadingText} showLabel={false} />
 				) : null}
 
 				{!showLoading && !showResult && !error ? (
@@ -319,6 +323,22 @@ export function TranslateCard({
 				) : null}
 			</div>
 		</SelectionCard>
+	);
+}
+
+/** Same orb as the Agent chat; label optional when it trails streamed text. */
+function StreamingOrb({
+	label,
+	showLabel = true,
+}: {
+	label: string;
+	showLabel?: boolean;
+}) {
+	return (
+		<div className="inline-flex items-center gap-2 text-muted-foreground text-sm">
+			<ThinkingOrb state="working" size={20} theme="auto" aria-label={label} />
+			{showLabel ? <span>{label}</span> : null}
+		</div>
 	);
 }
 

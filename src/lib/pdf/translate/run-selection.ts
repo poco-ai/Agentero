@@ -184,7 +184,10 @@ export async function runSelectionTranslate({
 	}
 
 	try {
-		const result = await runTranslate({ text, context }, { providerId });
+		const result = await runTranslate(
+			{ text, context },
+			{ providerId, onDelta: appendChunk },
+		);
 		if (disposedRef.current) return;
 		commitProviderResult(result.trim());
 	} catch (e) {

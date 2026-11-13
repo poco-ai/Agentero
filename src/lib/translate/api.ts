@@ -1,3 +1,4 @@
+import { Channel } from "@tauri-apps/api/core";
 import { commands } from "@/lib/core/bindings";
 import { isTauri } from "@/lib/core/tauri";
 
@@ -24,11 +25,13 @@ export async function invokeTranslateText(args: {
 	extraRequestBody?: string;
 	/** Host request timeout (ms); clamped 1s–30s server-side. */
 	timeoutMs?: number;
+	/** Receives each increment when the provider streams; others call it never. */
+	onDelta?: (chunk: string) => void;
 }): Promise<string> {
 	if (!isTauri()) {
 		throw new Error("Free translation requires the Tauri desktop app.");
 	}
-	const res = await commands.translateText({
+	const request = {
 		text: args.text,
 		sourceLang: args.sourceLang,
 		targetLang: args.targetLang,
@@ -39,7 +42,16 @@ export async function invokeTranslateText(args: {
 		model: args.model?.trim() || null,
 		extraRequestBody: args.extraRequestBody?.trim() || null,
 		timeoutMs: args.timeoutMs ?? null,
-	});
+	};
+	const onDelta = args.onDelta;
+	let res: Awaited<ReturnType<typeof commands.translateText>>;
+	if (onDelta) {
+		const channel = new Channel<string>();
+		channel.onmessage = onDelta;
+		res = await commands.translateTextStream(request, channel);
+	} else {
+		res = await commands.translateText(request);
+	}
 	if (!res.ok || !res.data) {
 		// Only a known domain marker is surfaced verbatim for `displayTranslateError`
 		// to map. `AppError::code()` also yields generic codes (`io`, `json`,

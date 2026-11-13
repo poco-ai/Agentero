@@ -23,7 +23,7 @@ log = { workspace = true }
 tempfile = { workspace = true }
 thiserror = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks", "multipart", "cookies"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks", "multipart", "cookies", "stream"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 async-trait = "0.1.91"
 # `error::ApiResult` and `features::translate` models derive `specta::Type`

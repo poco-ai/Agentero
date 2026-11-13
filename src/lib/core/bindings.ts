@@ -292,6 +292,12 @@ export const commands = {
 	/**  Empty the entire recycle bin (permanent). */
 	pathPurgeTrash: (args: TrashVaultArgs) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("path_purge_trash", { args })),
 	translateText: (args: TranslateTextArgs) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text", { args }),
+	/**
+	 *  Streaming translate: pushes each increment through `on_delta`, then returns
+	 *  the final text. Providers without a streaming path fall back to one-shot
+	 *  translation (no deltas, final text only).
+	 */
+	translateTextStream: (args: TranslateTextArgs, onDelta: Channel<string>) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text_stream", { args, onDelta }),
 	layoutTranslateCacheWrite: (args: LayoutTranslateCacheWriteArgs) => __TAURI_INVOKE<ApiResult<null>>("layout_translate_cache_write", { args }),
 	/**
 	 *  Batch resolve identifiers and write papers into vault.

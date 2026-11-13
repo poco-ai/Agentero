@@ -7,8 +7,23 @@ use serde_json::{json, Value};
 use std::time::Duration;
 
 const API_ROOT: &str = "https://index-translate.bilibili.com/v1";
-const MODEL: &str = "Index-Translate-35B-A3B";
+/// 35B total / 3B active MoE (preview). Best instruction following of the
+/// text tiers; the free endpoint's default.
+pub const MODEL_35B_A3B: &str = "Index-Translate-35B-A3B";
+/// Dense 2B tier: lower latency, weaker on instruction following (glossary,
+/// marker preservation) and on meme/slang handling.
+pub const MODEL_2B: &str = "Index-Translate-2B";
 const MAX_TOKENS: u32 = 4096;
+
+/// Provider id → text-model tier. Both ids hit the same endpoint with the same
+/// prompt; only `model` differs. `None` for ids this source does not own.
+pub fn model_for_provider(provider: &str) -> Option<&'static str> {
+    match provider {
+        "indextranslate" => Some(MODEL_35B_A3B),
+        "indextranslate2b" => Some(MODEL_2B),
+        _ => None,
+    }
+}
 
 /// Language code -> Chinese name, as used by the upstream prompt template.
 fn lang_name(code: &str) -> Option<&'static str> {
@@ -42,7 +57,9 @@ fn build_prompt(
     glossary: &[GlossaryTerm],
 ) -> Result<String, AppError> {
     let tgt = lang_name(target).ok_or_else(|| {
-        AppError::message(format!("Index-Translate: unsupported target language {target}"))
+        AppError::message(format!(
+            "Index-Translate: unsupported target language {target}"
+        ))
     })?;
     let source = source.trim();
     let src = if source.is_empty() || source.eq_ignore_ascii_case("auto") {
@@ -89,18 +106,11 @@ pub async fn translate_index_translate(
     source: &str,
     target: &str,
     timeout: Duration,
+    model: &str,
 ) -> Result<String, AppError> {
     let prompt = build_prompt(text, source, target, &[])?;
     let url = super::optional_endpoint(None, API_ROOT, "/chat/completions");
-    let body = json!({
-        "model": MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.0,
-        "max_tokens": MAX_TOKENS,
-        "stream": false,
-        // Keep reasoning off: CoT text can replace the translation in the response.
-        "chat_template_kwargs": {"enable_thinking": false}
-    });
+    let body = chat_body(&prompt, false, model);
     let client = http::client(timeout)?;
     let resp = client
         .post(&url)
@@ -134,9 +144,117 @@ pub async fn translate_index_translate(
         .ok_or_else(|| AppError::message("Unexpected Index-Translate response"))
 }
 
+fn chat_body(prompt: &str, stream: bool, model: &str) -> Value {
+    json!({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.0,
+        "max_tokens": MAX_TOKENS,
+        "stream": stream,
+        // Keep reasoning off: CoT text can replace the translation in the response.
+        "chat_template_kwargs": {"enable_thinking": false}
+    })
+}
+
+enum SseEvent {
+    Delta(String),
+    Done,
+}
+
+/// One SSE line -> content delta. Chunks without choices or content are skipped.
+fn parse_sse_line(line: &str) -> Option<SseEvent> {
+    let body = line.trim().strip_prefix("data:")?.trim();
+    if body == "[DONE]" {
+        return Some(SseEvent::Done);
+    }
+    let v: Value = serde_json::from_str(body).ok()?;
+    let content = v
+        .get("choices")?
+        .get(0)?
+        .get("delta")?
+        .get("content")?
+        .as_str()?;
+    (!content.is_empty()).then(|| SseEvent::Delta(content.to_string()))
+}
+
+/// Streaming variant: `on_delta` receives each content increment as it arrives;
+/// the full trimmed translation is returned at the end.
+pub async fn translate_index_translate_stream(
+    text: &str,
+    source: &str,
+    target: &str,
+    timeout: Duration,
+    model: &str,
+    mut on_delta: impl FnMut(&str),
+) -> Result<String, AppError> {
+    use futures_util::StreamExt;
+
+    let prompt = build_prompt(text, source, target, &[])?;
+    let url = super::optional_endpoint(None, API_ROOT, "/chat/completions");
+    let client = http::client(timeout)?;
+    let resp = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&chat_body(&prompt, true, model))
+        .send()
+        .await
+        .map_err(|e| AppError::message(format!("Index-Translate request failed: {e}")))?;
+    if !resp.status().is_success() {
+        let (status, body) = super::read_body(resp).await?;
+        return Err(super::http_err(status, &body, "Index-Translate"));
+    }
+
+    let mut stream = resp.bytes_stream();
+    // Byte buffer: a multi-byte char can straddle two network chunks.
+    let mut buf: Vec<u8> = Vec::new();
+    let mut out = String::new();
+    'read: while let Some(chunk) = stream.next().await {
+        let chunk =
+            chunk.map_err(|e| AppError::message(format!("Index-Translate stream failed: {e}")))?;
+        buf.extend_from_slice(&chunk);
+        while let Some(pos) = buf.iter().position(|b| *b == b'\n') {
+            let line: Vec<u8> = buf.drain(..=pos).collect();
+            match parse_sse_line(&String::from_utf8_lossy(&line)) {
+                Some(SseEvent::Delta(d)) => {
+                    out.push_str(&d);
+                    on_delta(&d);
+                }
+                Some(SseEvent::Done) => break 'read,
+                None => {}
+            }
+        }
+    }
+    let out = strip_think(&out);
+    if out.is_empty() {
+        return Err(AppError::message("Empty translation result"));
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sse_lines_yield_deltas_and_done() {
+        let line = r#"data: {"choices":[{"delta":{"content":"你好"}}]}"#;
+        assert!(matches!(parse_sse_line(line), Some(SseEvent::Delta(d)) if d == "你好"));
+        assert!(matches!(
+            parse_sse_line("data: [DONE]"),
+            Some(SseEvent::Done)
+        ));
+        assert!(parse_sse_line(r#"data: {"choices":[]}"#).is_none());
+        assert!(parse_sse_line(r#"data: {"choices":[{"delta":{"role":"assistant"}}]}"#).is_none());
+        assert!(parse_sse_line(": keep-alive").is_none());
+    }
+
+    #[test]
+    fn provider_ids_map_to_model_tiers() {
+        assert_eq!(model_for_provider("indextranslate"), Some(MODEL_35B_A3B));
+        assert_eq!(model_for_provider("indextranslate2b"), Some(MODEL_2B));
+        assert_eq!(model_for_provider("google"), None);
+        assert_eq!(model_for_provider(""), None);
+    }
 
     #[test]
     fn prompt_has_header_source_and_constraints() {
