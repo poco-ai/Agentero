@@ -72,6 +72,10 @@ pub struct SyncBackendConfig {
     /// and has no HTTPS.
     #[serde(default)]
     pub git_allow_insecure_http: bool,
+    /// Absolute path to a PEM CA bundle (`http.sslCAInfo`) for a self-signed
+    /// HTTPS Git remote. Empty uses the system trust store.
+    #[serde(default)]
+    pub git_ssl_ca_info: String,
     /// `user` or `organization`. Official cloud only.
     #[serde(default = "default_agentero_subject")]
     pub agentero_subject: String,
@@ -194,7 +198,8 @@ impl SyncBackendConfig {
             }
             SyncBackendKind::Git => {
                 validate_git_remote(&self.git_remote, self.git_allow_insecure_http)?;
-                validate_branch(&self.git_branch)
+                validate_branch(&self.git_branch)?;
+                validate_git_ssl_ca(&self.git_ssl_ca_info)
             }
             SyncBackendKind::Agentero => {
                 if self.agentero_subject != "user" && self.agentero_subject != "organization" {
@@ -232,6 +237,7 @@ impl SyncBackendConfig {
         if self.git_branch.is_empty() {
             self.git_branch = default_git_branch();
         }
+        self.git_ssl_ca_info = self.git_ssl_ca_info.trim().to_string();
         self.agentero_api = self.agentero_api.trim().trim_end_matches('/').to_string();
         self.agentero_subject = self.agentero_subject.trim().to_string();
         if self.agentero_subject.is_empty() {
@@ -413,6 +419,26 @@ fn validate_git_remote(raw: &str, allow_insecure_http: bool) -> Result<(), AppEr
     Err(AppError::message(
         "repository url must be an absolute path, file:// URL, https/ssh URL, or git@host:path",
     ))
+}
+
+/// An empty CA path uses the system trust store. A set path must be an
+/// existing absolute file so `http.sslCAInfo` cannot become a git option or
+/// a relative lookup that depends on the work tree.
+fn validate_git_ssl_ca(raw: &str) -> Result<(), AppError> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return Ok(());
+    }
+    if value.starts_with('-') || value.chars().any(char::is_control) {
+        return Err(AppError::message("CA certificate path is invalid"));
+    }
+    let path = Path::new(value);
+    if !path.is_absolute() || !path.is_file() {
+        return Err(AppError::message(
+            "CA certificate path must be an existing absolute file",
+        ));
+    }
+    Ok(())
 }
 
 fn is_scp_like_git_remote(value: &str) -> bool {
@@ -719,6 +745,7 @@ mod tests {
         assert_eq!(cfg.git_remote, "https://github.com/u/papers.git");
         assert_eq!(cfg.git_branch, "main");
         assert!(!cfg.git_allow_insecure_http);
+        assert!(cfg.git_ssl_ca_info.is_empty());
         assert!(cfg.scope.is_all());
         assert_eq!(
             cfg.remote_identity(),
@@ -842,6 +869,30 @@ mod tests {
         assert!(cfg.validate().is_ok());
         cfg.git_remote = "http://user:secret@git.example.com/papers.git".into();
         assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn git_ssl_ca_must_be_an_existing_absolute_file() {
+        let mut cfg = git_config("https://git.example.com/papers.git", "main");
+        cfg.git_ssl_ca_info = "certs/ca.pem".into();
+        assert!(cfg.validate().is_err());
+        cfg.git_ssl_ca_info = "-ca.pem".into();
+        assert!(cfg.validate().is_err());
+
+        let ca = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        cfg.git_ssl_ca_info = format!("  {}  ", ca.display());
+        let cfg = cfg.normalized();
+        assert_eq!(cfg.git_ssl_ca_info, ca.display().to_string());
+        assert!(cfg.validate().is_ok());
+
+        let mut missing = cfg.clone();
+        missing.git_ssl_ca_info = ca
+            .parent()
+            .expect("manifest dir")
+            .join("missing-agentero-ca.pem")
+            .display()
+            .to_string();
+        assert!(missing.validate().is_err());
     }
 
     #[test]

@@ -5615,6 +5615,11 @@ export type SyncBackendConfig = {
 	 *  and has no HTTPS.
 	 */
 	gitAllowInsecureHttp?: boolean,
+	/**
+	 *  Absolute path to a PEM CA bundle (`http.sslCAInfo`) for a self-signed
+	 *  HTTPS Git remote. Empty uses the system trust store.
+	 */
+	gitSslCaInfo?: string,
 	/**  `user` or `organization`. Official cloud only. */
 	agenteroSubject?: string,
 	/**  Organization id when [`Self::agentero_subject`] is `organization`. */
