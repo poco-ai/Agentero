@@ -157,8 +157,8 @@ export function SelectionMenu({
 					? [
 							{
 								id: "bookmark",
-								label: t("pdf.bookmarks.add"),
-								icon: <Bookmark className="size-4" />,
+								label: t("selection.bookmark"),
+								icon: <Bookmark className="size-3.5" />,
 								shortcut: "B",
 								onSelect: onBookmark,
 							},

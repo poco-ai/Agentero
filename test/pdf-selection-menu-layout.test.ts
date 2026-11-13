@@ -330,7 +330,7 @@ it("keeps note clicks explicit and opens quick chat through the chat arrow", asy
 it("moves bookmark into the more menu while keeping its B shortcut", async () => {
 	const onBookmark = vi.fn();
 	const menu = await render({ onBookmark });
-	expect(menu.querySelector('[aria-label="pdf.bookmarks.add B"]')).toBeNull();
+	expect(menu.querySelector('[aria-label="selection.bookmark B"]')).toBeNull();
 	expect(await pressKey("b")).toBe(true);
 	expect(onBookmark).toHaveBeenCalledOnce();
 
@@ -351,7 +351,7 @@ it("moves bookmark into the more menu while keeping its B shortcut", async () =>
 		document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
 	);
 	const bookmark = items.find((item) =>
-		item.textContent?.includes("pdf.bookmarks.add"),
+		item.textContent?.includes("selection.bookmark"),
 	);
 	expect(bookmark?.textContent).toContain("B");
 });
