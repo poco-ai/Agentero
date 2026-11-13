@@ -292,10 +292,7 @@ fn matches_old_title(h1_text: &str, old_title: &str) -> bool {
     }
     let h1_url_stem = file_stem_from_url_or_path(h1_trim);
     let old_url_stem = file_stem_from_url_or_path(old_trim);
-    if !h1_url_stem.is_empty() && h1_url_stem.eq_ignore_ascii_case(old_url_stem) {
-        return true;
-    }
-    false
+    !h1_url_stem.is_empty() && h1_url_stem.eq_ignore_ascii_case(old_url_stem)
 }
 
 fn has_user_notes(content_part: &str, old_title: &str) -> bool {
