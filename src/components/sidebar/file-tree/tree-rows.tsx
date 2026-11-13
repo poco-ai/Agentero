@@ -25,11 +25,13 @@ import {
 	FileTreeFolderRow,
 	FileTreeIcon,
 	FileTreeName,
-	TREE_ROW_INDENT_STEP_PX,
-	TREE_ROW_INSET_PX,
 	useFileTree,
 } from "@/components/sidebar/file-tree/file-tree-primitives";
 import { TreeRowActionButton } from "@/components/sidebar/tree-row-action-button";
+import {
+	TREE_ROW_INDENT_STEP_PX,
+	TREE_ROW_INSET_PX,
+} from "@/components/sidebar/tree-row-styles";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NewProjectButton } from "@/components/writing/new-project-button";
 import { ProjectSettingsButton } from "@/components/writing/project-settings-button";
