@@ -309,7 +309,8 @@
 		"chatSource": "Chat message",
 		"sourcePage": "Page {{page}}",
 		"sourceUnavailable": "The source is unavailable, changed, or matches more than one location. The original quote is preserved.",
-		"dictionaryContext": "In context · AI"
+		"dictionaryContext": "In context · AI",
+		"dictionaryAiEngineeringSource": "AI Engineering"
 	},
 	"html": {
 		"empty": "No paper available.",

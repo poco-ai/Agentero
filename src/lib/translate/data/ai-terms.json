@@ -886,5 +886,12 @@
 		"translation": "Scaling Law（扩展定律）",
 		"definition": "Scaling Law 是描述模型性能随参数量、数据量和计算量增长呈幂律改善的经验规律。",
 		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["LLM-as-a-Judge"],
+		"translation": "大模型评审",
+		"definition": "使用 language model 按 rubric 对另一系统的输出进行评分、比较、分类或批评。",
+		"source": "ai-engineering",
+		"url": "https://github.com/fancyboi999/ai-engineering-from-scratch-zh/blob/2a9d8d23e65723f48c1ee5c82f122258e6229932/glossary/terms.md#llm-as-a-judge"
 	}
 ]

@@ -5,7 +5,7 @@ import {
 	parseGlossary,
 } from "./glossary";
 
-export const TERMINOLOGY_REVISION = "ai-abc74818-ecdict-bc015ed-normalization-v4";
+export const TERMINOLOGY_REVISION = "ai-abc74818-ecdict-bc015ed-compounds-v4";
 export const isKnownDictionaryTerm = (text: string) =>
 	terms.some((term) =>
 		term.aliases.some(

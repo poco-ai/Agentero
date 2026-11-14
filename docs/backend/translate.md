@@ -54,6 +54,8 @@ Agent 翻译走 `agent_run_once`，不经本 command。
 
 `dictionary_lookup(text, targetLang)` 在 blocking pool 打开随包 `dictionary/lexicon.sqlite` 的只读连接，以规范化词头/变形索引查询，最多返回 4 个候选；不依赖 Vault、网络或翻译密钥。目标目前为 `zh-CN` / `en`。返回 `DictionaryEntry { word, phonetic, translation, definition, source, sourceUrl }`；音频和词典原始大文件不进入仓库。开发模式可使用 `src-tauri/dictionary`，发布版只使用应用资源目录。
 
-`pnpm dictionary:stage` 在桌面 dev / build 钩子生成数据库：固定 ECDICT commit 与 SHA-256 校验、成熟 CSV 解析器、事务构建临时 SQLite、只在完成后替换；含 770,611 条通用词条和 148 条专业词条。数据库约 75.4 MB，安装器压缩后体积取决于平台。Windows/Linux 与 macOS 的 bundle.resources 都包括数据库、来源清单及两份 MIT 通知。CI 验证真实资源和类型契约。更新专业快照使用 `scripts/update-dictionary-terms.mjs`，详情见 [来源与许可](../../resources/dictionary/README.md)。
+`pnpm dictionary:stage` 在桌面 dev / build 钩子生成数据库：固定 ECDICT commit 与 SHA-256 校验、成熟 CSV 解析器、事务构建临时 SQLite、只在完成后替换；含 770,611 条通用词条和 149 条专业词条。数据库约 75.4 MB，安装器压缩后体积取决于平台。Windows/Linux 与 macOS 的 bundle.resources 都包括数据库、来源清单及三份 MIT 通知。CI 验证真实资源和类型契约。更新专业快照使用 `scripts/update-dictionary-terms.mjs`，详情见 [来源与许可](../../resources/dictionary/README.md)。
+
+复合术语按完整词条优先匹配，兼容大小写、空格与常见 Unicode 连字符；例如 `LLM-as-a-Judge` / `LLM as a Judge` 统一使用「大模型评审」，不会只替换内部 `LLM`。同句其他位置单独出现的 `LLM` 仍使用「大模型」。本地词典索引和前后端术语约束采用相同的分隔符归一规则，匹配后保留原文范围再交给现有 provider。词条补充来自固定版本的 MIT AI Engineering glossary，仅收录相关释义并保留许可证。
 
 `TranslateTextArgs` 的 `dictionary` / `dictionarySurrounding` / `dictionaryReference` 仅用于划词 LLM 请求。存在本地候选时 OpenAI-compatible 只生成语境说明；全文短标题不进入词典契约。Agent 使用同样的前端契约。默认专业术语来自同一份固定 JSON；Index/OpenAI 和非流式 MT 共用匹配规则，MT 的标记恢复在原始响应中建立空白折叠后的字符偏移映射，兼容大小写和内部空白变化（腾讯 `AGTX 0XZ`），保留周围译文及空格。每个完整标记仍须恰好出现一次，缺字、错号或重复则拒绝；一次性按原响应的位置恢复，避免译名内容被二次替换。失败时使用未修改原文在同一 provider 重试一次，复用原请求剩余超时。成功回退后，按 provider / endpoint / model / 源语言 / 目标语言缓存不兼容情况 10 分钟（最多 64 项），暂停该配置的术语标记保护；不会静默切换服务。网络、鉴权等请求失败不触发这一额外重试，仍报告原错误。普通 MT 回退结果不承诺术语准确性。可选调用参数 `glossary` 仍接受字符串映射/键值对，但产品默认不依赖用户维护它。

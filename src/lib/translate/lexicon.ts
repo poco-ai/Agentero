@@ -15,10 +15,7 @@ export async function lookupDictionary(
 	targetLang: string,
 ): Promise<DictionaryEntry[]> {
 	if (!isTauri()) return [];
-	const key = JSON.stringify([
-		normalizeTermKey(text),
-		targetLang,
-	]);
+	const key = JSON.stringify([normalizeTermKey(text), targetLang]);
 	const hit = cache.get(key);
 	if (hit) {
 		cache.delete(key);
@@ -43,7 +40,14 @@ export function renderDictionaryEntries(
 ): string {
 	return entries
 		.map((entry) => {
-			const source = entry.source === "ecdict" ? "ECDICT" : "AI/LLM Glossary";
+			const source =
+				entry.source === "ecdict"
+					? "ECDICT"
+					: entry.source === "ai-engineering"
+						? i18n.t("selection.dictionaryAiEngineeringSource", {
+								ns: "viewer",
+							})
+						: "AI/LLM Glossary";
 			const url =
 				entry.source === "ecdict"
 					? "https://github.com/skywind3000/ECDICT"
@@ -77,8 +81,10 @@ export function dictionaryEntriesForContext(
 	query: string,
 	surrounding = "",
 ): DictionaryEntry[] {
-	const specialist = entries.filter((entry) => entry.source === "ai-glossary");
-	const general = entries.filter((entry) => entry.source !== "ai-glossary");
+	const isSpecialist = (entry: DictionaryEntry) =>
+		["ai-glossary", "ai-engineering"].includes(entry.source);
+	const specialist = entries.filter(isSpecialist);
+	const general = entries.filter((entry) => !isSpecialist(entry));
 	if (!specialist.length) return entries;
 	if (excludesAiSense(surrounding)) return general;
 	const standaloneTechnical =

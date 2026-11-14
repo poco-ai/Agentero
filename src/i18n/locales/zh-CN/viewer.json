@@ -308,7 +308,8 @@
 		"chatSource": "聊天消息",
 		"sourcePage": "第 {{page}} 页",
 		"sourceUnavailable": "来源暂不可用，或原文已改动、存在多处匹配。引用原文仍保留在批注中。",
-		"dictionaryContext": "本文语境 · AI"
+		"dictionaryContext": "本文语境 · AI",
+		"dictionaryAiEngineeringSource": "AI Engineering"
 	},
 	"html": {
 		"empty": "暂无论文。",

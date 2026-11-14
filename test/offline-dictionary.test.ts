@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commands } from "@/lib/core/bindings";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
 import { glossaryConstraint } from "@/lib/translate/glossary";
 import {
 	dictionaryEntriesForContext,
@@ -25,6 +26,21 @@ describe("bundled dictionary", () => {
 			expect(constraint ? JSON.parse(constraint.split("\n")[1]) : {}).toEqual(
 				test.expected,
 			);
+		}
+		for (const term of [
+			"LLM-as-a-Judge",
+			"llm-as-a-judge",
+			"LLM as a Judge",
+			"LLM‑as‑a‑Judge",
+		]) {
+			expect(isDictionaryLookup(term)).toBe(true);
+			const constraint = defaultGlossaryConstraint(
+				"",
+				`We use ${term} to evaluate answers.`,
+				"zh-CN",
+			);
+			const terms = JSON.parse(constraint.split("\n")[1]);
+			expect(Object.values(terms)).toEqual(["大模型评审"]);
 		}
 	});
 	beforeEach(() => vi.mocked(commands.dictionaryLookup).mockReset());

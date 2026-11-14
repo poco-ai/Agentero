@@ -239,6 +239,28 @@ pub fn restore(text: String, replacements: &[(String, String)]) -> Result<String
 mod tests {
     use super::*;
 
+    #[test]
+    fn bundled_compound_is_protected_as_one_term_inside_sentences() {
+        for term in [
+            "LLM-as-a-Judge",
+            "llm-as-a-judge",
+            "LLM as a Judge",
+            "LLM‑as‑a‑Judge",
+            "LLM-\nas-a-Judge",
+        ] {
+            let text = format!("We use {term} to evaluate answers.");
+            let glossary = effective_glossary("", &text, "zh-CN").unwrap();
+            assert_eq!(glossary.len(), 1, "{term}");
+            assert_eq!(glossary[0].1, "大模型评审");
+            let (masked, replacements) = protect(&text, &glossary);
+            assert_eq!(masked, "We use AGTX0XZ to evaluate answers.");
+            assert_eq!(
+                restore("我们采用 AGTX 0XZ 评估答案。".into(), &replacements).unwrap(),
+                "我们采用 大模型评审 评估答案。"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn damaged_or_duplicated_markers_retry_the_untouched_source_once() {
         for damaged in ["AGTY0XZ", "AGTX0XZ and AGTX 0XZ", "a translated acronym"] {

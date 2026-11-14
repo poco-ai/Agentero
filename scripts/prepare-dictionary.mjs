@@ -41,6 +41,7 @@ function verify() {
 			"kv cache",
 			"llm",
 			"transformer",
+			"llm as a judge",
 		]) {
 			if (
 				!db.prepare("SELECT 1 FROM entries WHERE lookup = ? LIMIT 1").get(query)
@@ -147,6 +148,7 @@ if (
 	for (const name of [
 		"ECDICT-LICENSE.txt",
 		"AI-GLOSSARY-LICENSE.txt",
+		"AI-ENGINEERING-LICENSE.txt",
 		"sources.json",
 	])
 		fs.copyFileSync(
