@@ -1,0 +1,15 @@
+{
+	"ecdict": {
+		"repository": "https://github.com/skywind3000/ECDICT",
+		"revision": "bc015ed2e24a7abef49fc6dbbb7fe32c1dadaf8b",
+		"url": "https://raw.githubusercontent.com/skywind3000/ECDICT/bc015ed2e24a7abef49fc6dbbb7fe32c1dadaf8b/ecdict.csv",
+		"sha256": "1a6947e04785db63613a92e14903cdae7954f7e84860b10e68e5c7cbb3f9c3cf",
+		"license": "MIT"
+	},
+	"aiGlossary": {
+		"repository": "https://github.com/JingHao-Leon/ai-llm-glossary",
+		"revision": "abc74818e14884f0e28fe6465c2328c68f9aae53",
+		"license": "MIT",
+		"transformation": "148 entries: English aliases, Chinese names and first definition paragraph. LLM display name shortened to 大模型; relative Markdown links removed. No tutorials, examples, images or benchmark data redistributed."
+	}
+}
