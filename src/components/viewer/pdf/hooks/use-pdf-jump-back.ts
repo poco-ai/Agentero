@@ -12,7 +12,13 @@
 
 import { useScrollCapability } from "@embedpdf/plugin-scroll/react";
 import { useViewportCapability } from "@embedpdf/plugin-viewport/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import {
 	createJumpBackStack,
 	type JumpBackStack,
@@ -25,6 +31,7 @@ const EMPTY_STACK = createJumpBackStack();
 
 export type UsePdfJumpBackOptions = {
 	docId: string;
+	hostRef?: RefObject<HTMLDivElement | null>;
 };
 
 export type PdfJumpBack = {
@@ -36,12 +43,17 @@ export type PdfJumpBack = {
 	commitJumpOrigin: () => void;
 	/** Restore the newest origin and pop it. */
 	goBack: () => void;
+	readerRestore: JumpOrigin | null;
 };
 
-export function usePdfJumpBack({ docId }: UsePdfJumpBackOptions): PdfJumpBack {
+export function usePdfJumpBack({
+	docId,
+	hostRef,
+}: UsePdfJumpBackOptions): PdfJumpBack {
 	const viewportCap = useViewportCapability().provides;
 	const scrollCap = useScrollCapability().provides;
 	const [stack, setStack] = useState<JumpBackStack>(EMPTY_STACK);
+	const [readerRestore, setReaderRestore] = useState<JumpOrigin | null>(null);
 	/** Mirror so `goBack` reads the live stack without a stale closure. */
 	const stackRef = useRef(stack);
 	stackRef.current = stack;
@@ -52,6 +64,7 @@ export function usePdfJumpBack({ docId }: UsePdfJumpBackOptions): PdfJumpBack {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is the effect trigger, not a value read inside the effect.
 	useEffect(() => {
 		setStack(EMPTY_STACK);
+		setReaderRestore(null);
 		pendingRef.current = null;
 	}, [docId]);
 
@@ -62,12 +75,33 @@ export function usePdfJumpBack({ docId }: UsePdfJumpBackOptions): PdfJumpBack {
 			const page = scrollCap.forDocument(docId).getCurrentPage();
 			if (!Number.isFinite(page) || page < 1) return null;
 			const metrics = viewportCap.forDocument(docId).getMetrics();
-			return { x: metrics.scrollLeft, y: metrics.scrollTop, page };
+			const reader =
+				hostRef?.current?.querySelector<HTMLElement>("[data-pdf-reader]");
+			const top = reader?.getBoundingClientRect().top ?? 0;
+			const block =
+				reader &&
+				Array.from(
+					reader.querySelectorAll<HTMLElement>("[data-reader-block]"),
+				).find((element) => element.getBoundingClientRect().bottom > top + 48);
+			return {
+				x: metrics.scrollLeft,
+				y: metrics.scrollTop,
+				page,
+				...(reader
+					? {
+							reader: {
+								blockId: block?.dataset.readerBlock ?? null,
+								top: block ? block.getBoundingClientRect().top - top : 0,
+								scrollTop: reader.scrollTop,
+							},
+						}
+					: {}),
+			};
 		} catch {
 			// Viewport metrics may not be available yet; nothing to remember.
 			return null;
 		}
-	}, [viewportCap, scrollCap, docId]);
+	}, [viewportCap, scrollCap, docId, hostRef]);
 
 	const captureJumpOrigin = useCallback(() => {
 		pendingRef.current = readOrigin();
@@ -87,8 +121,15 @@ export function usePdfJumpBack({ docId }: UsePdfJumpBackOptions): PdfJumpBack {
 		if (!popped) return;
 		stackRef.current = popped.stack;
 		setStack(popped.stack);
+		setReaderRestore(popped.origin);
 		if (viewportCap) {
 			try {
+				// Restore the observed page as well as pixels. A viewport-only
+				// scroll can leave the scroll plugin at the previous link target.
+				scrollCap?.forDocument(docId).scrollToPage({
+					pageNumber: popped.origin.page,
+					behavior: "instant",
+				});
 				viewportCap
 					.forDocument(docId)
 					// Instant: smooth jumps across distant pages feel like slow render.
@@ -101,9 +142,15 @@ export function usePdfJumpBack({ docId }: UsePdfJumpBackOptions): PdfJumpBack {
 				// Ignore transient scroll failures; the origin is popped either way.
 			}
 		}
-	}, [viewportCap, docId]);
+	}, [viewportCap, scrollCap, docId]);
 
 	const backTarget = stack.entries[stack.entries.length - 1] ?? null;
 
-	return { backTarget, captureJumpOrigin, commitJumpOrigin, goBack };
+	return {
+		backTarget,
+		captureJumpOrigin,
+		commitJumpOrigin,
+		goBack,
+		readerRestore,
+	};
 }

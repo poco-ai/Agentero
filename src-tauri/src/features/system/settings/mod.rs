@@ -126,6 +126,9 @@ pub struct AppSettings {
     /// PDF navigation: `vertical` | `horizontal` | `paginated`.
     #[serde(default = "default_pdf_scroll_strategy")]
     pub pdf_scroll_strategy: String,
+    /// Opt in to the experimental PDF reading view.
+    #[serde(default)]
+    pub pdf_reading_mode_enabled: bool,
     /// Enable single-key Vim navigation on PDF reading surfaces.
     #[serde(default = "default_true")]
     pub pdf_vim_keys: bool,
@@ -526,6 +529,7 @@ impl Default for AppSettings {
             auto_update_internal_links: default_auto_update_internal_links(),
             terminal_app: String::new(),
             pdf_scroll_strategy: default_pdf_scroll_strategy(),
+            pdf_reading_mode_enabled: false,
             pdf_vim_keys: true,
             vim_mode: true,
             hint_mode_enabled: true,

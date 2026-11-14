@@ -54,6 +54,28 @@ function runReadingBox(run: PdfTextRun): ReadingBox {
 	};
 }
 
+function proseRunBox(run: PdfTextRun, runs: PdfTextRun[]): ReadingBox {
+	const b = runReadingBox(run);
+	if (run.text.trim().length > 2) return b;
+	const anchor = runs.find((other) => {
+		const a = runReadingBox(other);
+		if (
+			other === run ||
+			(other.text.trim().length <= 4 &&
+				!(a.height > b.height * 1.35 && /[\p{L}\p{N}]/u.test(other.text)))
+		)
+			return false;
+		return (
+			Math.abs(b.y - a.y) < a.height * 0.6 &&
+			Math.min(Math.abs(b.x - a.x - a.width), Math.abs(a.x - b.x - b.width)) <=
+				2
+		);
+	});
+	return anchor
+		? { ...b, y: anchor.rect.origin.y, height: anchor.rect.size.height }
+		: b;
+}
+
 function runsInBbox(
 	runs: PdfTextRun[],
 	bbox: PdfAskNormalizedRect,
@@ -65,7 +87,7 @@ function runsInBbox(
 			Boolean(run.text?.trim()) &&
 			runCenterInBbox(run, bbox, pageWidth, pageHeight),
 	);
-	return orderByReadingLine(inside, runReadingBox);
+	return orderByReadingLine(inside, (run) => proseRunBox(run, inside));
 }
 
 /**
@@ -82,7 +104,9 @@ export function splitBodyRegionAtParagraphGaps(
 	const inside = runsInBbox(runs, region.bbox, pageSize.width, pageSize.height);
 	if (inside.length < 2) return [region];
 
-	const lines = groupReadingLines(inside, runReadingBox).map((line) => ({
+	const lines = groupReadingLines(inside, (run) =>
+		proseRunBox(run, inside),
+	).map((line) => ({
 		runs: line.items,
 		top: line.top,
 		bottom: line.bottom,
@@ -92,14 +116,25 @@ export function splitBodyRegionAtParagraphGaps(
 	const medianHeight = heights.slice().sort((a, b) => a - b)[
 		Math.floor(heights.length / 2)
 	];
+	// Ink height is smaller than a font's line box, particularly for CJK.
+	// Estimate ordinary leading from the lower half of observed gaps, while
+	// two-line regions use a conservative font-relative minimum.
+	const gaps = lines
+		.slice(1)
+		.map((line, i) => Math.max(0, line.top - lines[i].bottom))
+		.sort((a, b) => a - b);
+	const ordinaryGap =
+		gaps.length > 1 ? gaps[Math.floor((gaps.length - 1) / 3)] : 0;
+	const paragraphGap = Math.max(
+		2,
+		medianHeight * 0.8,
+		Math.min(ordinaryGap, medianHeight) + medianHeight * 0.35,
+	);
 	const paragraphs: TextRunLine[][] = [];
 	let current: TextRunLine[] = [];
 	for (const line of lines) {
 		const previous = current.at(-1);
-		if (
-			previous &&
-			line.top - previous.bottom > Math.max(2, (medianHeight ?? 1) * 0.55)
-		) {
+		if (previous && line.top - previous.bottom > paragraphGap) {
 			paragraphs.push(current);
 			current = [];
 		}
@@ -217,7 +252,37 @@ export function enrichCaptionRegionsWithText(
 	runs: PdfTextRun[],
 	pageSize: { width: number; height: number },
 ): PdfLayoutRegion[] {
-	const enriched = regions.flatMap((region) => {
+	// Earlier walks may have split a single paragraph around small scripts.
+	// Reconstruct that detector's extent before applying the current line rule.
+	const seeds = new Map<string, PdfLayoutRegion>();
+	for (const r of regions) {
+		const id =
+			r.pageIndex === pageIndex
+				? r.id.replace(/(?:::paragraph-\d+)+$/, "")
+				: r.id;
+		const key = `${r.pageIndex}:${id}`;
+		const prior = seeds.get(key);
+		if (!prior) {
+			seeds.set(key, id === r.id ? r : { ...r, id });
+			continue;
+		}
+		const union = (a: PdfLayoutRegion["bbox"], b: PdfLayoutRegion["bbox"]) => {
+			const x = Math.min(a.x, b.x),
+				y = Math.min(a.y, b.y);
+			return {
+				x,
+				y,
+				w: Math.max(a.x + a.w, b.x + b.w) - x,
+				h: Math.max(a.y + a.h, b.y + b.h) - y,
+			};
+		};
+		seeds.set(key, {
+			...prior,
+			bbox: union(prior.bbox, r.bbox),
+			rect: union(prior.rect, r.rect),
+		});
+	}
+	const enriched = [...seeds.values()].flatMap((region) => {
 		if (region.pageIndex !== pageIndex) return region;
 
 		if (isCaptionLayoutKind(region.kind)) {

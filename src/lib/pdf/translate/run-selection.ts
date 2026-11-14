@@ -45,6 +45,8 @@ export type RunSelectionTranslateOptions = AgentRunRefs & {
 	paperKey: string | null;
 	/** Vault root passed to the Agent run as its cwd. */
 	vaultPath?: string | null;
+	/** Cancel a provider request when its selection is replaced or dismissed. */
+	signal?: AbortSignal;
 	noAgentText: () => string;
 	agentFailedText: () => string;
 	/** Append one streamed chunk to the record. */
@@ -78,6 +80,7 @@ export async function runSelectionTranslate({
 	context,
 	paperKey,
 	vaultPath,
+	signal,
 	noAgentText,
 	agentFailedText,
 	appendChunk,
@@ -90,6 +93,7 @@ export async function runSelectionTranslate({
 	sessionRef,
 	activeSessionRef,
 }: RunSelectionTranslateOptions): Promise<void> {
+	if (signal?.aborted || disposedRef.current) return;
 	const { providerId, targetLangName, customPrompt, customSystem, customUser } =
 		prepareTranslateTask({
 			text,
@@ -186,12 +190,12 @@ export async function runSelectionTranslate({
 	try {
 		const result = await runTranslate(
 			{ text, context },
-			{ providerId, onDelta: appendChunk },
+			{ providerId, signal, onDelta: appendChunk },
 		);
-		if (disposedRef.current) return;
-		commitProviderResult(result.trim());
+		if (!signal?.aborted && !disposedRef.current)
+			commitProviderResult(result.trim());
 	} catch (e) {
-		if (disposedRef.current) return;
+		if (signal?.aborted || disposedRef.current) return;
 		const message = displayTranslateError(errorText(e));
 		notifyError(message);
 		markFailed(message);

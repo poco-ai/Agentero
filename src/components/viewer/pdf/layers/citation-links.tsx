@@ -20,7 +20,10 @@ import {
 	PdfZoomMode,
 } from "@embedpdf/models";
 import { memo } from "react";
-import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import type {
+	PdfLinkHoverPoint,
+	ScreenPoint,
+} from "@/components/viewer/pdf/types";
 import { normalizeArxivId } from "@/lib/paper/arxiv";
 import {
 	linkHoverSuppressed,
@@ -129,6 +132,7 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 	textLinks,
 	pageWidthPt,
 	pageHeightPt,
+	viewport,
 	label,
 	onActivate,
 	onTextActivate,
@@ -140,13 +144,15 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 	/** Page size in PDF points (CSS px ÷ zoom). */
 	pageWidthPt: number;
 	pageHeightPt: number;
+	/** A reader image crop in page coordinates; events retain the native link. */
+	viewport?: Rect;
 	/** Accessible name for link hit targets. */
 	label: string;
 	onActivate: (link: PdfLinkAnnoObject) => void;
 	onTextActivate: (url: string) => void;
 	onHover: (
 		link: PdfLinkAnnoObject | null,
-		clientPoint?: ScreenPoint | null,
+		clientPoint?: PdfLinkHoverPoint | null,
 	) => void;
 	/** Full external URL (annotation URI / Launch, or detected page text). */
 	onUrlHover?: (url: string | null, clientPoint?: ScreenPoint | null) => void;
@@ -158,83 +164,135 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 	) {
 		return null;
 	}
+	const visibleRect = (rect: Rect): Rect | null => {
+		if (!viewport) return rect;
+		const x = Math.max(rect.origin.x, viewport.origin.x);
+		const y = Math.max(rect.origin.y, viewport.origin.y);
+		const right = Math.min(
+			rect.origin.x + rect.size.width,
+			viewport.origin.x + viewport.size.width,
+		);
+		const bottom = Math.min(
+			rect.origin.y + rect.size.height,
+			viewport.origin.y + viewport.size.height,
+		);
+		return right > x && bottom > y
+			? { origin: { x, y }, size: { width: right - x, height: bottom - y } }
+			: null;
+	};
+	const position = (rect: Rect) => ({
+		left: `${((rect.origin.x - (viewport?.origin.x ?? 0)) / (viewport?.size.width ?? pageWidthPt)) * 100}%`,
+		top: `${((rect.origin.y - (viewport?.origin.y ?? 0)) / (viewport?.size.height ?? pageHeightPt)) * 100}%`,
+		width: `${(rect.size.width / (viewport?.size.width ?? pageWidthPt)) * 100}%`,
+		height: `${(rect.size.height / (viewport?.size.height ?? pageHeightPt)) * 100}%`,
+	});
 	return (
 		<>
-			{links.map((link) => (
-				<button
-					key={`${link.id}-${link.rect.origin.x}-${link.rect.origin.y}-${link.rect.size.width}-${link.rect.size.height}`}
-					type="button"
-					tabIndex={-1}
-					aria-label={label}
-					className="absolute z-[2] cursor-pointer rounded-[2px] border-0 bg-transparent p-0 hover:bg-primary/10"
-					style={{
-						left: `${(link.rect.origin.x / pageWidthPt) * 100}%`,
-						top: `${(link.rect.origin.y / pageHeightPt) * 100}%`,
-						width: `${(link.rect.size.width / pageWidthPt) * 100}%`,
-						height: `${(link.rect.size.height / pageHeightPt) * 100}%`,
-					}}
-					onClick={(e) => {
-						e.stopPropagation();
-						onActivate(link);
-					}}
-					// Match floating preview cards (pointerenter/leave) so hide
-					// timers do not race mouse-only leave on trackpads.
-					// Skip while a primary button is held, and while a translation
-					// DOM drag is in progress (`pointerenter.buttons` stays 0 then).
-					onPointerEnter={(e) => {
-						if (linkHoverSuppressed(e.buttons)) return;
-						const box = e.currentTarget.getBoundingClientRect();
-						const point = {
-							x: box.left + box.width / 2,
-							y: box.bottom,
-							top: box.top,
-							bottom: box.bottom,
-						};
-						onHover(link, point);
-						const url = linkTargetUrl(link.target);
-						onUrlHover?.(url, url ? point : null);
-					}}
-					onPointerLeave={() => {
-						if (linkPreviewDragActive()) return;
-						onHover(null);
-						onUrlHover?.(null);
-					}}
-				/>
-			))}
-			{textLinks.map((link) => (
-				<button
-					key={`text-${link.url}-${link.rect.origin.x}-${link.rect.origin.y}`}
-					type="button"
-					tabIndex={-1}
-					aria-label={link.url}
-					data-url={link.url}
-					className="absolute z-[2] cursor-pointer rounded-[2px] border-0 bg-transparent p-0 hover:bg-primary/10"
-					style={{
-						left: `${(link.rect.origin.x / pageWidthPt) * 100}%`,
-						top: `${(link.rect.origin.y / pageHeightPt) * 100}%`,
-						width: `${(link.rect.size.width / pageWidthPt) * 100}%`,
-						height: `${(link.rect.size.height / pageHeightPt) * 100}%`,
-					}}
-					onClick={(e) => {
-						e.stopPropagation();
-						onTextActivate(link.url);
-					}}
-					onPointerEnter={(e) => {
-						if (linkHoverSuppressed(e.buttons)) return;
-						const box = e.currentTarget.getBoundingClientRect();
-						onUrlHover?.(link.url, {
-							x: box.left + box.width / 2,
-							y: box.bottom,
-							top: box.top,
-							bottom: box.bottom,
-						});
-					}}
-					onPointerLeave={() => {
-						if (linkPreviewDragActive()) return;
-						onUrlHover?.(null);
-					}}
-				/>
-			))}
+			{links.map((link) => {
+				const rect = visibleRect(link.rect);
+				if (!rect) return null;
+				return (
+					<button
+						key={`${link.id}-${link.rect.origin.x}-${link.rect.origin.y}-${link.rect.size.width}-${link.rect.size.height}`}
+						type="button"
+						tabIndex={-1}
+						aria-label={label}
+						data-pdf-link={link.id}
+						className="absolute z-[2] cursor-pointer rounded-[2px] border-0 bg-transparent p-0 hover:bg-primary/10"
+						style={position(rect)}
+						onClick={(e) => {
+							e.stopPropagation();
+							onActivate(link);
+						}}
+						// Match floating preview cards (pointerenter/leave) so hide
+						// timers do not race mouse-only leave on trackpads.
+						// Skip while a primary button is held, and while a translation
+						// DOM drag is in progress (`pointerenter.buttons` stays 0 then).
+						onPointerEnter={(e) => {
+							if (linkHoverSuppressed(e.buttons)) return;
+							const box = e.currentTarget.getBoundingClientRect();
+							const point = {
+								x: box.left + box.width / 2,
+								y: box.bottom,
+								top: box.top,
+								bottom: box.bottom,
+								sourcePoint: {
+									x:
+										rect.origin.x +
+										((e.clientX - box.left) / Math.max(box.width, 1)) *
+											rect.size.width,
+									y:
+										rect.origin.y +
+										((e.clientY - box.top) / Math.max(box.height, 1)) *
+											rect.size.height,
+								},
+							};
+							onHover(link, point);
+							const url = linkTargetUrl(link.target);
+							onUrlHover?.(url, url ? point : null);
+						}}
+						onPointerMove={(e) => {
+							if (linkHoverSuppressed(e.buttons) || linkTargetUrl(link.target))
+								return;
+							const box = e.currentTarget.getBoundingClientRect();
+							onHover(link, {
+								x: box.left + box.width / 2,
+								y: box.bottom,
+								top: box.top,
+								bottom: box.bottom,
+								sourcePoint: {
+									x:
+										rect.origin.x +
+										((e.clientX - box.left) / Math.max(box.width, 1)) *
+											rect.size.width,
+									y:
+										rect.origin.y +
+										((e.clientY - box.top) / Math.max(box.height, 1)) *
+											rect.size.height,
+								},
+							});
+						}}
+						onPointerLeave={() => {
+							if (linkPreviewDragActive()) return;
+							onHover(null);
+							onUrlHover?.(null);
+						}}
+					/>
+				);
+			})}
+			{textLinks.map((link) => {
+				const rect = visibleRect(link.rect);
+				if (!rect) return null;
+				return (
+					<button
+						key={`text-${link.url}-${link.rect.origin.x}-${link.rect.origin.y}`}
+						type="button"
+						tabIndex={-1}
+						aria-label={link.url}
+						data-url={link.url}
+						className="absolute z-[2] cursor-pointer rounded-[2px] border-0 bg-transparent p-0 hover:bg-primary/10"
+						style={position(rect)}
+						onClick={(e) => {
+							e.stopPropagation();
+							onTextActivate(link.url);
+						}}
+						onPointerEnter={(e) => {
+							if (linkHoverSuppressed(e.buttons)) return;
+							const box = e.currentTarget.getBoundingClientRect();
+							onUrlHover?.(link.url, {
+								x: box.left + box.width / 2,
+								y: box.bottom,
+								top: box.top,
+								bottom: box.bottom,
+							});
+						}}
+						onPointerLeave={() => {
+							if (linkPreviewDragActive()) return;
+							onUrlHover?.(null);
+						}}
+					/>
+				);
+			})}
 		</>
 	);
 });

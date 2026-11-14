@@ -185,6 +185,22 @@ export function ExperimentalPane({
 
 			<SettingsGroup>
 				<SettingsRow
+					label={t("experimental.readingMode.label")}
+					description={t("experimental.readingMode.description")}
+					htmlFor="pdf-reading-mode-enabled"
+				>
+					<Switch
+						id="pdf-reading-mode-enabled"
+						checked={settings.pdfReadingModeEnabled}
+						onCheckedChange={(enabled) =>
+							patch({ pdfReadingModeEnabled: enabled })
+						}
+					/>
+				</SettingsRow>
+			</SettingsGroup>
+
+			<SettingsGroup>
+				<SettingsRow
 					label={t("experimental.decision.smartHighlight")}
 					htmlFor="decision-smart-highlight"
 				>

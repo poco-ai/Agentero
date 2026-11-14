@@ -19,6 +19,7 @@ import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 /** Bump when label mapping / stored region semantics change (invalidates cache). */
 export const LAYOUT_SIDECAR_SCHEMA_VERSION = 3;
 export const LAYOUT_SIDECAR_FILE = "layout.json";
+const TEXT_GEOMETRY_VERSION = 4;
 
 /** Producer recorded in `source.mode` — which backend generated the regions. */
 export type LayoutSidecarMode =
@@ -47,6 +48,8 @@ export type PdfLayoutSidecar = {
 		figureCaptionsExtracted?: boolean;
 		/** Rich PDF run styles sampled; old caches need only a text walk. */
 		sourceStylesExtracted?: boolean;
+		/** Text geometry revision; a new revision walks text without rerunning the model. */
+		textGeometryVersion?: number;
 		/** Verifiable page coverage and content-readiness metadata. */
 		completeness?: LayoutCompleteness;
 	};
@@ -164,6 +167,8 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 		source.sourceStylesExtracted = true;
 	if (raw.source.figureCaptionsExtracted === true)
 		source.figureCaptionsExtracted = true;
+	if (typeof raw.source.textGeometryVersion === "number")
+		source.textGeometryVersion = raw.source.textGeometryVersion;
 	const completeness = parseLayoutCompleteness(raw.source.completeness);
 	if (completeness) source.completeness = completeness;
 	return {
@@ -218,6 +223,7 @@ export function layoutSidecarNeedsTextLayer(
 	sidecar: PdfLayoutSidecar,
 ): boolean {
 	return (
+		sidecar.source.textGeometryVersion !== TEXT_GEOMETRY_VERSION ||
 		sidecar.source.sourceStylesExtracted !== true ||
 		sidecar.source.textLayerExtracted !== true ||
 		(sidecar.source.mode === "mineru-layout" &&
@@ -294,6 +300,7 @@ export async function writeLayoutSidecar(
 		source.textLayerExtracted = true;
 		source.figureCaptionsExtracted = true;
 		source.sourceStylesExtracted = true;
+		source.textGeometryVersion = TEXT_GEOMETRY_VERSION;
 	}
 	const sidecar: PdfLayoutSidecar = {
 		schemaVersion: LAYOUT_SIDECAR_SCHEMA_VERSION,
@@ -358,6 +365,7 @@ export function layoutTextBackfillSidecar(
 			textLayerExtracted: true,
 			figureCaptionsExtracted: true,
 			sourceStylesExtracted: true,
+			textGeometryVersion: TEXT_GEOMETRY_VERSION,
 		},
 		regions,
 	};

@@ -1,3 +1,4 @@
+import type { BracketCitation } from "@/lib/pdf/link-text";
 /**
  * Public contract of the EmbedPDF viewer plus the local card/editor state
  * shapes its features pass around.
@@ -118,6 +119,8 @@ export type PdfViewerProps = {
 	translationPane?: boolean;
 	/** Render the PDF page and translation overlay without reader chrome. */
 	translationOnly?: boolean;
+	/** Inline comparison shares the original translation task and cache. */
+	translationSourceDocId?: string;
 	/**
 	 * True for remote papers (e.g. arXiv Daily preview) that have no local
 	 * sidecar. Hides mark-persisting UI (highlight / note / translate); Ask /
@@ -346,4 +349,9 @@ export type RailEditState = {
 	 * saving an empty new note deletes the underlying mark (#491).
 	 */
 	isNew?: boolean;
+};
+
+export type PdfLinkHoverPoint = ScreenPoint & {
+	citation?: BracketCitation;
+	sourcePoint?: { x: number; y: number };
 };

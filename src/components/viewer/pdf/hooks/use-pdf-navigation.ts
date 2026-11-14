@@ -69,6 +69,8 @@ export type PdfNavigation = {
 	/** Clamp and jump; also the outline / citation jump target. */
 	goToPage: (page: number) => void;
 	goToRegion: (region: PdfNavigationRegion) => void;
+	/** Explicit jumps, including repeated targets on the current page. */
+	navigationTarget: PdfNavigationTarget | null;
 	/** Apply the typed page (falls back to the current page). */
 	commitPageField: () => void;
 };
@@ -89,7 +91,16 @@ export function usePdfNavigation({
 }: UsePdfNavigationOptions): PdfNavigation {
 	const [pageField, setPageField] = useState("1");
 	const pageFocusedRef = useRef(false);
+	const [navigationTarget, setNavigationTarget] =
+		useState<PdfNavigationTarget | null>(null);
 	const restoredRef = useRef(false);
+	const navigationRefs = useRef({
+		docCapRef,
+		scrollRef,
+		zoomRef,
+		reloadPositionRef,
+	});
+	navigationRefs.current = { docCapRef, scrollRef, zoomRef, reloadPositionRef };
 	const embeddedTargetRef = useRef(embeddedTarget);
 	embeddedTargetRef.current = embeddedTarget;
 	const { provides: scrollCapability } = useScrollCapability();
@@ -109,6 +120,7 @@ export function usePdfNavigation({
 		restoredRef.current = false;
 		const owner = registerPdfNavigationOwner(baseDocId, {
 			navigate: (target) => {
+				const { scrollRef, docCapRef } = navigationRefs.current;
 				const scope = scrollRef.current ?? scrollCapability.forDocument(docId);
 				if (!scope) return false;
 				if (restoreFrame != null) {
@@ -127,9 +139,12 @@ export function usePdfNavigation({
 				} else {
 					scope.scrollToPage({ pageNumber: target.page, behavior: "instant" });
 				}
+				setNavigationTarget({ ...target });
 				return true;
 			},
 			restore: (pages) => {
+				const { scrollRef, zoomRef, reloadPositionRef } =
+					navigationRefs.current;
 				const scope = scrollRef.current ?? scrollCapability.forDocument(docId);
 				if (!scope) return false;
 				restoredRef.current = true;
@@ -177,16 +192,7 @@ export function usePdfNavigation({
 			owner.dispose();
 			if (ownerRef.current === owner) ownerRef.current = null;
 		};
-	}, [
-		docId,
-		baseDocId,
-		paperKey,
-		scrollCapability,
-		scrollRef,
-		docCapRef,
-		zoomRef,
-		reloadPositionRef,
-	]);
+	}, [docId, baseDocId, paperKey, scrollCapability]);
 
 	// Re-queue on owner/target changes or an explicit return request, never on scroll/zoom renders.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: owner dependencies and the return-request counter intentionally re-run navigation.
@@ -199,10 +205,6 @@ export function usePdfNavigation({
 		docId,
 		baseDocId,
 		paperKey,
-		scrollRef,
-		docCapRef,
-		zoomRef,
-		reloadPositionRef,
 	]);
 
 	useEffect(() => {
@@ -271,6 +273,7 @@ export function usePdfNavigation({
 		setPageField,
 		pageFocusedRef,
 		goToPage,
+		navigationTarget,
 		goToRegion,
 		commitPageField,
 	};

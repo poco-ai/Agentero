@@ -73,6 +73,27 @@ export function joinPath(parent: string, name: string): string {
 }
 
 /** Strip vault root prefix when path is absolute. */
+export function relativePathWithin(
+	rootPath: string,
+	path: string,
+): string | null {
+	// Only normalize for comparison. Preserve verbatim paths at filesystem calls.
+	const comparable = (value: string) =>
+		normalizePath(value)
+			.replace(/^\/\/\?\/UNC\//i, "//")
+			.replace(/^\/\/\?\/(?=[a-z]:\/)/i, "");
+	const root = comparable(rootPath),
+		child = comparable(path);
+	const windows = /^[a-z]:\//i.test(root) || root.startsWith("//");
+	const rootKey = windows ? root.toLowerCase() : root;
+	const childKey = windows ? child.toLowerCase() : child;
+	if (childKey === rootKey) return "";
+	return childKey.startsWith(`${rootKey}/`)
+		? child.slice(root.length + 1)
+		: null;
+}
+
+/** Strip the vault root even when Windows spelling or verbatim prefixes differ. */
 export function toVaultRelative(
 	vaultPath: string | null,
 	path: string,
@@ -81,10 +102,7 @@ export function toVaultRelative(
 	if (!vaultPath) {
 		return n;
 	}
-	const root = normalizeRelPath(vaultPath);
-	if (n === root) return "";
-	if (n.startsWith(`${root}/`)) return n.slice(root.length + 1);
-	return n;
+	return relativePathWithin(vaultPath, path) ?? n;
 }
 
 /** Case-insensitive file/directory moves, applied in order without chaining. */

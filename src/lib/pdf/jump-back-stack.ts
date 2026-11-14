@@ -11,6 +11,8 @@ export type JumpOrigin = {
 	x: number;
 	y: number;
 	page: number;
+	/** Reflowed text has its own scroll geometry, independent of the PDF. */
+	reader?: { blockId: string | null; top: number; scrollTop: number };
 };
 
 /** Max remembered origins per document; further jumps drop the oldest. */
@@ -32,6 +34,9 @@ export function createJumpBackStack(): JumpBackStack {
 }
 
 function distance(a: JumpOrigin, b: JumpOrigin): number {
+	if (!!a.reader !== !!b.reader) return Number.POSITIVE_INFINITY;
+	if (a.reader && b.reader)
+		return Math.abs(a.reader.scrollTop - b.reader.scrollTop);
 	return Math.hypot(a.x - b.x, a.y - b.y);
 }
 

@@ -48,6 +48,7 @@ import {
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
 import type {
+	PdfLinkHoverPoint,
 	PdfViewerInnerProps,
 	ScreenPoint,
 } from "@/components/viewer/pdf/types";
@@ -71,6 +72,10 @@ import {
 	linkPreviewDragActive,
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
+import {
+	registerScrollSyncPair,
+	unregisterScrollSyncPair,
+} from "@/lib/pdf/scroll-sync";
 import { pickPdfSearchDocumentId } from "@/lib/pdf/search-target";
 
 const EMPTY_PAGE_MAP = new Map();
@@ -145,7 +150,14 @@ export function PdfTranslationViewerInner({
 	importIdentifier,
 	isActive = true,
 	onHandle,
+	translationSourceDocId,
 }: PdfViewerInnerProps) {
+	const sourceKey = translationSourceDocId ?? translationSourceKey(docId);
+	useEffect(() => {
+		if (!translationSourceDocId) return;
+		const group = registerScrollSyncPair(translationSourceDocId, docId);
+		return () => unregisterScrollSyncPair(group);
+	}, [translationSourceDocId, docId]);
 	usePdfScrollSync(docId);
 	usePdfReadingMode(docId);
 	const { provides: scroll } = useScroll(docId);
@@ -192,6 +204,7 @@ export function PdfTranslationViewerInner({
 		docId,
 		layoutRawRegions,
 		translationPane: true,
+		cacheOnlyPane: !!translationSourceDocId,
 		paperAbsPath,
 		paperRelPath,
 		paperKey,
@@ -242,10 +255,9 @@ export function PdfTranslationViewerInner({
 	// still running then, mirror the source result when it lands so the
 	// auto-start below can fire.
 	useEffect(() => {
-		const sourceKey = translationSourceKey(docId);
 		if (!sourceKey) return;
 		return mirrorLayoutResultToTranslation(docId, sourceKey);
-	}, [docId]);
+	}, [docId, sourceKey]);
 
 	const translationAutoStartedRef = useRef(false);
 	const hadLayoutRegionsRef = useRef(false);
@@ -255,6 +267,7 @@ export function PdfTranslationViewerInner({
 	layoutTranslateRunningRef.current = layoutTranslateRunning;
 
 	useEffect(() => {
+		if (translationSourceDocId) return;
 		const hasRegions = (layoutRawRegions?.length ?? 0) > 0;
 		if (hasRegions) {
 			hadLayoutRegionsRef.current = true;
@@ -295,6 +308,7 @@ export function PdfTranslationViewerInner({
 		layoutTranslateActive,
 		layoutTranslateRunning,
 		toggleLayoutTranslate,
+		translationSourceDocId,
 	]);
 
 	useEffect(() => {
@@ -302,7 +316,6 @@ export function PdfTranslationViewerInner({
 		return () => onHandle?.(null);
 	}, [onHandle]);
 
-	const sourceKey = translationSourceKey(docId);
 	const linkSource = useSyncExternalStore(
 		subscribeTranslatedLinkSource,
 		() => getTranslatedLinkSource(sourceKey),
@@ -417,11 +430,11 @@ export function PdfTranslationViewerInner({
 		sourceBytes,
 		engineRef,
 		docCapRef,
+		hasCitationMatch,
 		onPreviewShow: () => {
 			clearCitationPreviewRef.current();
 			clearLinkUrlTipRef.current();
 		},
-		hasCitationMatch,
 	});
 
 	const {
@@ -445,7 +458,7 @@ export function PdfTranslationViewerInner({
 	}, []);
 
 	const handleLinkHover = useCallback(
-		(link: PdfLinkAnnoObject | null, point?: ScreenPoint | null) => {
+		(link: PdfLinkAnnoObject | null, point?: PdfLinkHoverPoint | null) => {
 			if (linkPreviewDragActive()) {
 				clearCitationPreview();
 				clearCrossrefPreview();

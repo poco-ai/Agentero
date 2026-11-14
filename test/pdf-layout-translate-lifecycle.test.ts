@@ -8,6 +8,7 @@ import { formatLayoutPageRanges } from "@/lib/pdf/layout/completeness";
 import {
 	layoutSidecarBlocksAnalysis,
 	layoutSidecarNeedsTextLayer,
+	layoutTextBackfillSidecar,
 	type PdfLayoutSidecar,
 } from "@/lib/pdf/layout/io";
 import * as translateProgress from "@/lib/pdf/layout/layout-translate-progress";
@@ -555,6 +556,11 @@ function createHarness() {
 				},
 				regions: regions as unknown as PdfLayoutSidecar["regions"],
 			};
+			cachedLayout = layoutTextBackfillSidecar(
+				cachedLayout,
+				cachedLayout.regions,
+				cachedLayout.source.completeness,
+			);
 			if (notify && options.paperAbsPath)
 				for (const listener of layoutWrites) listener(options.paperAbsPath);
 		},

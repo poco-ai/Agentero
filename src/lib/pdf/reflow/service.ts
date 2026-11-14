@@ -11,8 +11,10 @@ import type {
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
 import type { ReflowIrCacheStore } from "./cache";
+import type { ReflowExtractionOptions } from "./extract";
 import { extractReflowDocument } from "./extract";
 import {
+	type CharacterStyle,
 	REFLOW_IR_SCHEMA_VERSION,
 	type ReflowDocument,
 	type ReflowPage,
@@ -63,8 +65,13 @@ export async function prepareReflowItems(
 	regions: readonly PdfLayoutRegion[],
 	signal?: AbortSignal,
 	cache?: ReflowIrCacheStore | null,
+	options: ReflowExtractionOptions & {
+		onPagePrepared?: (pageIndex: number, items: LayoutTranslateItem[]) => void;
+	} = {},
 ): Promise<LayoutTranslateItem[]> {
-	const pageIndexes = [...new Set(items.map((item) => item.pageIndex))];
+	const pageIndexes = options.includeUnselectedPages
+		? doc.pages.map((page) => page.index)
+		: [...new Set(items.map((item) => item.pageIndex))];
 	// The Settings switch gates new writes only; files written earlier stay
 	// reusable. Fakes without `writesEnabled` run exactly as before.
 	const writeCache = cache && (cache.writesEnabled?.() ?? true) ? cache : null;
@@ -94,13 +101,34 @@ export async function prepareReflowItems(
 				reason: "page geometry",
 			});
 		}
-	const missing = items.filter((item) => !pages.has(item.pageIndex));
-	if (missing.length) {
+	const publish = (page: ReflowPage) =>
+		options.onPagePrepared?.(
+			page.index,
+			preparedItemsFromDocument(
+				doc,
+				items.filter((item) => item.pageIndex === page.index),
+				{ version: REFLOW_IR_SCHEMA_VERSION, pages: [page] },
+			),
+		);
+	if (options.onPagePrepared) for (const page of pages.values()) publish(page);
+	const missingPages = new Set(
+		pageIndexes.filter((index) => !pages.has(index)),
+	);
+	const missing = items.filter((item) => missingPages.has(item.pageIndex));
+	if (missingPages.size) {
 		signal?.throwIfAborted();
 		const extracted = await logOp(
 			"pdf.reflow.prepare.extract",
-			{ pages: new Set(missing.map((item) => item.pageIndex)).size },
-			() => extractReflowDocument(engine, doc, missing, regions, signal),
+			{ pages: missingPages.size },
+			() =>
+				extractReflowDocument(engine, doc, missing, regions, signal, {
+					...options,
+					pageIndexes: missingPages,
+					onPageExtracted: (page) => {
+						options.onPageExtracted?.(page);
+						publish(page);
+					},
+				}),
 		);
 		for (const page of extracted.pages) pages.set(page.index, page);
 		if (writeCache && !signal?.aborted)
@@ -110,10 +138,36 @@ export async function prepareReflowItems(
 				() => writeCachedPages(writeCache, extracted.pages),
 			);
 	}
+	// JSON decoding expands shared styles into one object per character. Restore
+	// document-wide identity for cache hits and freshly extracted pages together.
+	const styles = new Map<string, CharacterStyle>();
+	const intern = (style: CharacterStyle) => {
+		const key = JSON.stringify([
+			style.font,
+			style.size,
+			style.bold,
+			style.italic,
+			style.color.r,
+			style.color.g,
+			style.color.b,
+		]);
+		const shared = styles.get(key) ?? style;
+		styles.set(key, shared);
+		return shared;
+	};
+	for (const page of pages.values())
+		for (const paragraph of page.paragraphs) {
+			paragraph.style = intern(paragraph.style);
+			for (const character of paragraph.characters)
+				character.style = intern(character.style);
+			for (const key of Object.keys(paragraph.styles))
+				paragraph.styles[key] = intern(paragraph.styles[key]);
+		}
 	const prepared = preparedItemsFromDocument(doc, items, {
 		version: REFLOW_IR_SCHEMA_VERSION,
 		pages: [...pages.values()].sort((a, b) => a.index - b.index),
 	});
+	if (options.includeReferences) return prepared;
 	const preserved = preservedLayoutRegions(regions);
 	return prepared.filter(
 		(item) => !isInsidePreservedRegion(item, regions, preserved),

@@ -43,6 +43,7 @@ import {
 	readLayoutTranslateSidecar,
 	runLayoutRegionTranslate,
 	setLayoutDocumentResult,
+	subscribeLayoutTranslateSidecarWrite,
 	toLayoutTranslateItems,
 } from "@/lib/pdf/layout";
 import {
@@ -69,6 +70,8 @@ export type UsePdfLayoutTranslateOptions = {
 	docId: string;
 	/** Translation-only panes hydrate completed overlays from the shared cache. */
 	translationPane?: boolean;
+	/** Inline comparison may hydrate a cache but must not start network work on a miss. */
+	cacheOnlyPane?: boolean;
 	/** Pre-merge regions from {@link usePdfLayoutRegions}; the translate source. */
 	layoutRawRegions: PdfLayoutRegion[] | null;
 	/** Paper folder path; when present, full-document translations cache under source/. */
@@ -149,6 +152,14 @@ export type PdfLayoutTranslate = {
 	layoutTranslatePageCounts: { done: number; total: number } | null;
 	/** Toolbar button: start → stop → retry incomplete / hide or show retained translations. */
 	toggleLayoutTranslate: () => void;
+	/** Restore only cached translations; never start a translation request. */
+	restoreLayoutTranslate: () => void;
+	/** Provenance-bearing shared progress for companion reading views. */
+	layoutTranslationSnapshot: Pick<
+		TranslationSnapshot,
+		"cacheKey" | "items"
+	> | null;
+	layoutTranslateScope: LayoutTranslateJobState["scope"];
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
 	togglePageLayoutTranslate: (pageIndex: number) => void;
 };
@@ -381,6 +392,7 @@ export function usePdfLayoutTranslate({
 	docId,
 	layoutRawRegions,
 	translationPane = false,
+	cacheOnlyPane = false,
 	paperAbsPath,
 	paperRelPath,
 	paperKey,
@@ -490,15 +502,83 @@ export function usePdfLayoutTranslate({
 		});
 	}, []);
 
+	const restoreLayoutTranslate = useCallback(() => {
+		const current = layoutTranslateJobRef.current;
+		if (
+			layoutTranslateAbortRef.current ||
+			current.status === "running" ||
+			current.status === "waitingLayout"
+		)
+			return;
+		const cacheKey = currentLayoutTranslateCacheKey();
+		if (
+			sameLayoutTranslateCacheIdentity(current.cacheKey, cacheKey) &&
+			current.items.some((item) => item.translated?.trim())
+		) {
+			setHiddenPageIndexes(new Set());
+			return;
+		}
+		const controller = new AbortController();
+		layoutTranslateAbortRef.current = controller;
+		void (async () => {
+			const sidecar = await readLayoutTranslateSidecar(paperAbsPath, cacheKey);
+			if (controller.signal.aborted || !sidecar?.items.length) return;
+			const seed = layoutRawRegions?.length
+				? toLayoutTranslateItems(
+						listTranslatableLayoutRegions(layoutRawRegions),
+					)
+				: sidecar.items.map((item) => ({
+						...item,
+						status: "pending" as const,
+					}));
+			const prepared = await prepareReflow(seed, controller.signal);
+			if (controller.signal.aborted) return;
+			const items = applyLayoutTranslateSidecar(prepared, sidecar);
+			setCacheOnly(true);
+			setHiddenPageIndexes(new Set());
+			setLayoutTranslateJob(
+				layoutTranslateJobPatch({
+					status: hasPendingLayoutTranslateItems(items) ? "partial" : "done",
+					items,
+					scope: "document",
+					fromCache: true,
+					cacheKey,
+				}),
+			);
+		})()
+			.catch((error) => {
+				if (!controller.signal.aborted)
+					notifyError(t("pdf.layoutTranslate.reflowFailed"), {
+						description: errorText(error),
+					});
+			})
+			.finally(() => {
+				if (layoutTranslateAbortRef.current === controller)
+					layoutTranslateAbortRef.current = null;
+			});
+	}, [paperAbsPath, layoutRawRegions, prepareReflow, t]);
+
 	// Document item failures are surfaced by the partial-translation popover.
 	// Page failures and errors outside translation still use an actionable toast.
 	const notifyTranslateFailure = useCallback(
 		(description: string, title?: string) => {
-			notifyError(title ?? t("pdf.layoutTranslate.failed"), {
+			const layoutFailure = /^Layout analysis is (?:missing|incomplete)$/.test(
 				description,
+			);
+			notifyError(title ?? t("pdf.layoutTranslate.failed"), {
+				description: layoutFailure
+					? description.endsWith("missing")
+						? t("pdf.layoutTranslate.needLayout")
+						: t("pdf.layoutTranslate.layoutWarningTitle")
+					: description,
 				action: {
-					label: t("pdf.layoutTranslate.openSettings"),
-					onClick: () => openSettingsWindow("translate"),
+					label: t(
+						layoutFailure
+							? "pdf.layoutTranslate.openLayoutSettings"
+							: "pdf.layoutTranslate.openSettings",
+					),
+					onClick: () =>
+						openSettingsWindow(layoutFailure ? "layout" : "translate"),
 				},
 			});
 		},
@@ -1678,17 +1758,24 @@ export function usePdfLayoutTranslate({
 		if (
 			!translationPane ||
 			!paperAbsPath ||
-			(paperRelPath && vaultPath && !vaultPath.startsWith("remote:"))
+			(!cacheOnlyPane &&
+				paperRelPath &&
+				vaultPath &&
+				!vaultPath.startsWith("remote:"))
 		)
 			return;
 		// A manual run owns the items and preview preparation.
 		if (layoutTranslateAbortRef.current) return;
 		let cancelled = false;
 		const epoch = layoutTranslateRunEpochRef.current;
-		const isStale = () =>
-			cancelled || epoch !== layoutTranslateRunEpochRef.current;
 		const cacheKey = currentLayoutTranslateCacheKey();
-		void (async () => {
+		let sequence = 0;
+		const hydrate = async () => {
+			const ticket = ++sequence;
+			const isStale = () =>
+				cancelled ||
+				ticket !== sequence ||
+				epoch !== layoutTranslateRunEpochRef.current;
 			const sidecar = await readLayoutTranslateSidecar(paperAbsPath, cacheKey);
 			if (isStale() || !sidecar?.items.length) return;
 			const savedLayout = await readLayoutSidecar(paperAbsPath);
@@ -1736,7 +1823,8 @@ export function usePdfLayoutTranslate({
 			});
 			const current = layoutTranslateJobRef.current;
 			const hydration = hydrateLayoutTranslateItems(
-				sameLayoutTranslateCacheIdentity(current.cacheKey, cacheKey)
+				!cacheOnlyPane &&
+					sameLayoutTranslateCacheIdentity(current.cacheKey, cacheKey)
 					? reuseCompletedTranslateItems(cachedItems, current.items)
 					: cachedItems,
 				null,
@@ -1744,7 +1832,7 @@ export function usePdfLayoutTranslate({
 			if (!hydration.fromCache) {
 				// The cache exists but no block matches the current layout/source.
 				// Fall back to the normal first-translation flow.
-				startLayoutTranslateRef.current();
+				if (!cacheOnlyPane) startLayoutTranslateRef.current();
 				return;
 			}
 			// A real run started while preparing owns the visible state.
@@ -1768,17 +1856,31 @@ export function usePdfLayoutTranslate({
 				layoutWarnings: savedLayout?.source.completeness?.warnings ?? [],
 				layoutPageCount: savedLayout?.source.completeness?.pageCount ?? null,
 			}));
-		})().catch((error) => {
-			if (!cancelled)
-				notifyError(t("pdf.layoutTranslate.reflowFailed"), {
-					description: errorText(error),
-				});
-		});
+		};
+		const load = () =>
+			void hydrate().catch((error) => {
+				if (!cancelled)
+					notifyError(t("pdf.layoutTranslate.reflowFailed"), {
+						description: errorText(error),
+					});
+			});
+		load();
+		const unsubscribe = cacheOnlyPane
+			? subscribeLayoutTranslateSidecarWrite((path) => {
+					if (
+						normalizeLayoutPaperKey(path) ===
+						normalizeLayoutPaperKey(paperAbsPath)
+					)
+						load();
+				})
+			: () => {};
 		return () => {
 			cancelled = true;
+			unsubscribe();
 		};
 	}, [
 		translationPane,
+		cacheOnlyPane,
 		paperAbsPath,
 		paperRelPath,
 		vaultPath,
@@ -2001,7 +2103,19 @@ export function usePdfLayoutTranslate({
 		],
 	);
 
+	const layoutTranslationSnapshot = useMemo(
+		() =>
+			layoutTranslateJob.cacheKey
+				? {
+						cacheKey: layoutTranslateJob.cacheKey,
+						items: layoutTranslateJob.items,
+					}
+				: null,
+		[layoutTranslateJob.cacheKey, layoutTranslateJob.items],
+	);
 	return {
+		layoutTranslationSnapshot,
+		layoutTranslateScope: layoutTranslateJob.scope,
 		reflowBusy,
 		reflowReady,
 		reflowOutput,
@@ -2021,6 +2135,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		restoreLayoutTranslate,
 		togglePageLayoutTranslate,
 	};
 }

@@ -9,6 +9,7 @@ import { commands, type Json } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
+import { dirnameOf, normalizePath } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
 import { parseBbox } from "@/lib/pdf/layout/layout-index";
 import {
@@ -53,6 +54,7 @@ import type {
 	TranslateSettings,
 } from "@/lib/translate/types";
 import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
+import { listenVaultFileChangedGated } from "@/lib/vault/file-change-gate";
 
 /** Parallel free/commercial MT workers (order of *start* follows reading order). */
 export const LAYOUT_TRANSLATE_CONCURRENCY = 2;
@@ -90,6 +92,41 @@ const translateSidecarWriteTimers = new Map<
 	string,
 	ReturnType<typeof setTimeout>
 >();
+
+type LayoutTranslateWriteListener = (paperAbsPath: string) => void;
+const layoutTranslateWriteListeners = new Set<LayoutTranslateWriteListener>();
+let unwatchTranslateSidecars: (() => void) | null = null;
+
+/** Notify open reading views after a translation cache reaches disk. */
+export function subscribeLayoutTranslateSidecarWrite(
+	listener: LayoutTranslateWriteListener,
+): () => void {
+	layoutTranslateWriteListeners.add(listener);
+	if (!unwatchTranslateSidecars) {
+		unwatchTranslateSidecars = listenVaultFileChangedGated((payload) => {
+			const paths = payload.rename
+				? [...payload.paths, payload.rename.from, payload.rename.to]
+				: payload.paths;
+			const papers = new Set(
+				paths
+					.map(normalizePath)
+					.filter((path) =>
+						path.toLowerCase().endsWith("/source/layout-translate.json"),
+					)
+					.map((path) => dirnameOf(dirnameOf(path))),
+			);
+			for (const paper of papers)
+				for (const notify of layoutTranslateWriteListeners) notify(paper);
+		});
+	}
+	return () => {
+		layoutTranslateWriteListeners.delete(listener);
+		if (layoutTranslateWriteListeners.size === 0) {
+			unwatchTranslateSidecars?.();
+			unwatchTranslateSidecars = null;
+		}
+	};
+}
 
 export type {
 	LayoutTranslateItem,
@@ -556,12 +593,13 @@ export async function writeLayoutTranslateSidecar(
 				preserveExisting: options.preserveExisting ?? false,
 			}),
 		);
-		return;
+	} else {
+		await writeVaultFile(
+			layoutTranslateSidecarPath(paperAbsPath),
+			`${JSON.stringify(sidecar, null, 2)}\n`,
+		);
 	}
-	await writeVaultFile(
-		layoutTranslateSidecarPath(paperAbsPath),
-		`${JSON.stringify(sidecar, null, 2)}\n`,
-	);
+	for (const listener of layoutTranslateWriteListeners) listener(paperAbsPath);
 }
 
 export function hasPendingLayoutTranslateItems(
@@ -907,12 +945,14 @@ export async function runLayoutRegionTranslate(options: {
 		vaultPath: options.vaultPath,
 	});
 	// Agent is heavy — serialize; free/commercial MT keeps a small pool.
+	const providerId = loadSettings().translate.provider;
 	const concurrency = Math.max(
 		1,
 		agentOpts ? 1 : (options.concurrency ?? LAYOUT_TRANSLATE_CONCURRENCY),
 	);
 	const items = options.items.map((it) => ({ ...it }));
 	const signal = options.signal;
+	const runOptions = { ...agentOpts, providerId, signal };
 	const targetLang = langsFromSettings(
 		loadSettings().translate,
 		i18n.language ?? "en",
@@ -1009,7 +1049,7 @@ export async function runLayoutRegionTranslate(options: {
 							surface: "pdf-layout-bulk",
 						},
 					},
-					agentOpts,
+					runOptions,
 				);
 			} catch (error) {
 				const message = errorText(error);

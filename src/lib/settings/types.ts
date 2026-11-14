@@ -188,6 +188,8 @@ export type AppSettings = {
 	 * one page at a time (`paginated`).
 	 */
 	pdfScrollStrategy: PdfScrollStrategy;
+	/** Opt in to the experimental PDF reading view. */
+	pdfReadingModeEnabled: boolean;
 	/** Enable Vim-style single-key navigation on the PDF reading surface. */
 	pdfVimKeys: boolean;
 	/**

@@ -90,7 +90,9 @@
 			"retranslateConfirmTitle": "Retranslate all?",
 			"retranslateConfirmDescription": "This requests every block again and replaces translations that succeed. Blocks that fail keep their previous translation.",
 			"retranslateConfirm": "Retranslate",
-			"pagesCount": "{{done}}/{{total}} pages"
+			"pagesCount": "{{done}}/{{total}} pages",
+			"showOriginal": "Show original",
+			"showTranslation": "Show translation"
 		},
 		"translation": {
 			"title": "Translation",
@@ -124,6 +126,58 @@
 			"saving": "Saving bookmarks…",
 			"retry": "Retry saving",
 			"discard": "Discard unsaved edits"
+		},
+		"reading": {
+			"title": "Reading mode (experimental)",
+			"reset": "Restore reading defaults",
+			"lineHeight": "Line height",
+			"wordSpacing": "Word spacing",
+			"characterSpacing": "Character spacing",
+			"pageWidth": "Page width",
+			"scroll": {
+				"label": "Scroll",
+				"vertical": "Vertical scrolling",
+				"horizontal": "Horizontal scrolling",
+				"paginated": "Page by page"
+			},
+			"spread": {
+				"label": "Page layout",
+				"none": "Single page",
+				"odd": "Two pages from page 1",
+				"even": "Two pages with separate cover"
+			},
+			"split": "Split view",
+			"pdfLayout": {
+				"single": "Single PDF",
+				"side-by-side": "Original and translation side by side",
+				"top-bottom": "Original and translation stacked"
+			},
+			"layout": {
+				"single": "Reader only",
+				"side-by-side": "Source and reader side by side",
+				"top-bottom": "Source above reader"
+			},
+			"theme": "Theme",
+			"themes": {
+				"original": "Original",
+				"dark": "Dark",
+				"black": "Black",
+				"snow": "Snow",
+				"sepia": "Sepia",
+				"custom": "Custom"
+			},
+			"foreground": "Text color",
+			"background": "Background",
+			"unavailable": "Import this PDF into the local library to use reading mode.",
+			"preparing": "Preparing reading view…",
+			"preparingLayout": "Preparing reading view. Waiting for {{provider}} to analyze the layout…",
+			"failed": "Could not prepare reading view",
+			"retry": "Retry",
+			"empty": "No readable content was found.",
+			"imageFailed": "Could not load source image",
+			"copyFormula": "Copy LaTeX",
+			"showSource": "Show source on page {{page}}",
+			"experimental": "Experimental feature; not yet broadly tested."
 		}
 	},
 	"pdfAsk": {

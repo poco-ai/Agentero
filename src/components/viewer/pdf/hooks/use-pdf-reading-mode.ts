@@ -31,6 +31,7 @@ export function usePdfReadingMode(docId: string): void {
 	const strategy = useSettings((s) => s.pdfScrollStrategy);
 	const spreadMode = useSettings((s) => s.pdfSpreadMode);
 	const { provides: scroll, state: scrollState } = useScroll(docId);
+	const totalPages = scrollState.totalPages || 0;
 	const { provides: spread } = useSpread(docId);
 
 	// EmbedPDF returns a fresh scope object every render; keep it out of deps and
@@ -40,7 +41,6 @@ export function usePdfReadingMode(docId: string): void {
 	const spreadRef = useRef(spread);
 	spreadRef.current = spread;
 
-	const totalPages = scrollState.totalPages || 0;
 	const appliedModeRef = useRef<string | null>(null);
 
 	useEffect(() => {

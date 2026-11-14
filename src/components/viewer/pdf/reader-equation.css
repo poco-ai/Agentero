@@ -1,0 +1,25 @@
+/* Keep equation numbers in the scrollable math flow. KaTeX's default absolute
+ * tag can cover the expression when a reader column is narrower than the math. */
+.reader-equation .katex-display > .katex > .katex-html {
+	display: flex;
+	align-items: baseline;
+	justify-content: center;
+	width: max-content;
+	min-width: 100%;
+}
+
+.reader-equation .katex-html > .katex-base {
+	flex-shrink: 0;
+}
+
+.reader-equation .katex-html:has(> .katex-tag)::before {
+	content: "";
+	flex: 1 0 1em;
+}
+
+.reader-equation .katex-display > .katex > .katex-html > .katex-tag {
+	position: static;
+	flex: 1 0 auto;
+	margin-left: 1em;
+	text-align: right;
+}

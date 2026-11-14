@@ -737,6 +737,10 @@
 	},
 	"experimental": {
 		"title": "实验功能",
+		"readingMode": {
+			"label": "阅读模式",
+			"description": "显示 PDF 阅读模式按钮，使用所选版面解析服务。尚未经过广泛测试。"
+		},
 		"decision": {
 			"section": "决策模型",
 			"getKey": "获取 API Key",

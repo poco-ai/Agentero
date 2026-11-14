@@ -100,7 +100,10 @@ export function KeyboardScrollHandler({
 
 			event.preventDefault();
 			handleScrollSyncIntent(documentId);
-			if (strategyRef.current !== "vertical") {
+			if (
+				strategyRef.current === "horizontal" ||
+				strategyRef.current === "paginated"
+			) {
 				const scroll = scrollCapabilityRef.current?.forDocument(documentId);
 				if (!scroll) return;
 				if (forward) scroll.scrollToNextPage("instant");

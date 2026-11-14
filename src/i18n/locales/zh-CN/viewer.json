@@ -90,7 +90,9 @@
 			"retranslateConfirmTitle": "重译整篇？",
 			"retranslateConfirmDescription": "将重新请求整篇并覆盖成功返回的译文；失败段落保留旧译文。",
 			"retranslateConfirm": "确认重译",
-			"pagesCount": "{{done}}/{{total}} 页"
+			"pagesCount": "{{done}}/{{total}} 页",
+			"showOriginal": "显示原文",
+			"showTranslation": "显示翻译"
 		},
 		"translation": {
 			"title": "翻译",
@@ -124,6 +126,58 @@
 			"saving": "正在保存书签…",
 			"retry": "重试保存",
 			"discard": "放弃未保存修改"
+		},
+		"reading": {
+			"title": "阅读模式（实验性）",
+			"reset": "恢复默认阅读样式",
+			"lineHeight": "行高",
+			"wordSpacing": "字间距",
+			"characterSpacing": "字符间距",
+			"pageWidth": "页宽",
+			"scroll": {
+				"label": "滚动",
+				"vertical": "纵向滚动",
+				"horizontal": "横向滚动",
+				"paginated": "逐页翻页"
+			},
+			"spread": {
+				"label": "平铺",
+				"none": "单页",
+				"odd": "从第1页起双页",
+				"even": "封面单独，后续双页"
+			},
+			"split": "拆分视图",
+			"pdfLayout": {
+				"single": "单栏 PDF",
+				"side-by-side": "原文与译文左右对照",
+				"top-bottom": "原文与译文上下对照"
+			},
+			"layout": {
+				"single": "仅阅读视图",
+				"side-by-side": "原文与阅读视图左右对照",
+				"top-bottom": "原文与阅读视图上下对照"
+			},
+			"theme": "主题",
+			"themes": {
+				"original": "原始",
+				"dark": "深色",
+				"black": "黑色",
+				"snow": "雪色",
+				"sepia": "棕褐",
+				"custom": "自定义"
+			},
+			"foreground": "文字颜色",
+			"background": "背景颜色",
+			"unavailable": "将此 PDF 导入本地论文库后即可使用阅读模式。",
+			"preparing": "正在准备阅读视图…",
+			"preparingLayout": "正在准备阅读视图，等待{{provider}}解析版面中…",
+			"failed": "无法准备阅读视图",
+			"retry": "重试",
+			"empty": "未找到可阅读的内容。",
+			"imageFailed": "无法加载原文图片",
+			"copyFormula": "复制 LaTeX",
+			"showSource": "查看第 {{page}} 页原文",
+			"experimental": "实验性功能，尚未经过广泛测试。"
 		}
 	},
 	"pdfAsk": {

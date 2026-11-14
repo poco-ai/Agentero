@@ -731,7 +731,7 @@ export function suppressOrphanFiguresInsideClusters(
 	return hosts.filter((h) => !drop.has(h.id));
 }
 
-function attachLegendHeaders(
+export function attachLegendHeaders(
 	clusterBbox: PdfAskNormalizedRect,
 	title: PdfLayoutRegion,
 	headers: PdfLayoutRegion[],
@@ -1075,6 +1075,7 @@ function mergeFormulaCluster(
  */
 export function mergeFormulasByNumber(
 	regions: PdfLayoutRegion[],
+	preserveReadingOrder = false,
 ): PdfLayoutRegion[] {
 	const formulas = regions.filter((r) => isFormulaLayoutKind(r.kind));
 	const numbers = regions.filter(
@@ -1111,7 +1112,9 @@ export function mergeFormulasByNumber(
 	// Sort by number-box column/y so sidebar follows eq order on dual-column pages.
 	merged.sort((a, b) => compareLayoutReadingOrder(a, b, formulaSortAnchor));
 	// Rewrite readingOrder to match so NMS / gallery keep this sequence.
-	const ordered = merged.map((r, i) => ({ ...r, readingOrder: i }));
+	const ordered = preserveReadingOrder
+		? merged
+		: merged.map((r, i) => ({ ...r, readingOrder: i }));
 
 	return [...rest, ...ordered];
 }

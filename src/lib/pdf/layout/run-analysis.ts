@@ -70,6 +70,8 @@ export type RunLayoutAnalysisOptions = {
 	paperLabel?: string;
 	/** Optional live document guard for viewer-bound analysis. */
 	isDocumentOpen?: () => boolean;
+	/** Caller-owned cancellation during acquisition and result publication. */
+	signal?: AbortSignal;
 	/**
 	 * True PDF page size in points for remote backends (the service renders
 	 * pages itself, so sizes cannot come from a local render).
@@ -364,8 +366,12 @@ export async function runDocumentLayoutAnalysis(
 ): Promise<LayoutTaskLike | null> {
 	const started = performance.now();
 	const onDone = options.onDone;
+	const isDocumentOpen = options.isDocumentOpen;
 	options = {
 		...options,
+		isDocumentOpen: options.signal
+			? () => !options.signal?.aborted && (isDocumentOpen?.() ?? true)
+			: isDocumentOpen,
 		onDone: (summary, count) => {
 			logger.info("pdf.layout.complete", {
 				documentId,
@@ -377,11 +383,17 @@ export async function runDocumentLayoutAnalysis(
 
 	/** Attribute progress to this paper so the open Figures rail can match. */
 	const paperKey = options.paperAbsPath ?? null;
+	let backend: import("./settings").LayoutBackend | undefined;
 	const setUi = (
 		ui: Parameters<typeof setLayoutAnalysisUi>[0],
 		withPaper = false,
 	) => {
-		setLayoutAnalysisUi(ui, documentId, withPaper ? paperKey : undefined);
+		if (options.signal?.aborted) return;
+		setLayoutAnalysisUi(
+			ui.stage === "running" ? { ...ui, backend } : ui,
+			documentId,
+			withPaper ? paperKey : undefined,
+		);
 	};
 
 	const cancelClosedDocument = () => {
@@ -478,6 +490,7 @@ export async function runDocumentLayoutAnalysis(
 						});
 					}
 				}
+				assertDocumentOpen(options.isDocumentOpen);
 				setLayoutDocumentResult(result);
 				const summary = summarizeLayoutResult(result);
 				setUi({
@@ -511,6 +524,16 @@ export async function runDocumentLayoutAnalysis(
 	}
 
 	const analyzingMessage = options.paperLabel?.trim() || "Analyzing layout…";
+	const provider = layoutProviderFor(loadSettings().layout.backend);
+	const paperAbsPath = options.paperAbsPath;
+	const totalPages = options.totalPages;
+	const remote =
+		provider &&
+		isRemoteLayoutProvider(provider) &&
+		paperAbsPath &&
+		typeof totalPages === "number" &&
+		totalPages > 0;
+	backend = remote ? provider.id : "local";
 
 	setUi(
 		{
@@ -523,17 +546,10 @@ export async function runDocumentLayoutAnalysis(
 
 	// Remote layout backend (Settings → Layout): whole-PDF async job.
 	// Falls back to local ONNX when the paper folder / page count is unknown.
-	const provider = layoutProviderFor(loadSettings().layout.backend);
-	if (
-		provider &&
-		isRemoteLayoutProvider(provider) &&
-		options.paperAbsPath &&
-		typeof options.totalPages === "number" &&
-		options.totalPages > 0
-	) {
+	if (remote) {
 		return startRemoteLayoutAnalysis(provider, scope, documentId, options, {
-			paperAbsPath: options.paperAbsPath,
-			totalPages: Math.floor(options.totalPages),
+			paperAbsPath,
+			totalPages: Math.floor(totalPages),
 			analyzingMessage,
 			cancelClosedDocument,
 		});
@@ -541,10 +557,15 @@ export async function runDocumentLayoutAnalysis(
 
 	try {
 		const s = await ensureLayoutModel();
+		assertDocumentOpen(options.isDocumentOpen);
 		if (s && !s.ready) {
 			logger.warn("layout model ensure returned not ready", s);
 		}
 	} catch (e) {
+		if (options.isDocumentOpen && !options.isDocumentOpen()) {
+			cancelClosedDocument();
+			return null;
+		}
 		const message = errorText(e);
 		logger.warn("layout model ensure failed", { error: message });
 		setUi({ stage: "error", message });
@@ -691,6 +712,7 @@ export async function runDocumentLayoutAnalysis(
 						const message = errorText(e);
 						logger.warn("layout index write failed", { error: message });
 					}
+					assertDocumentOpen(options.isDocumentOpen);
 					setLayoutDocumentResult(result);
 					const summary = summarizeLayoutResult(result);
 					setUi({
@@ -813,7 +835,7 @@ async function finalizeRemoteLayoutRegions(args: {
 	raw: PdfLayoutRegion[];
 	pageSizes: Map<number, { width: number; height: number }>;
 	totalPages: number;
-	backendLabel: string;
+	backendLabel: import("./settings").LayoutBackend;
 	sidecarMode: LayoutSidecarMode;
 	cancelClosedDocument: () => void;
 }): Promise<void> {
@@ -822,6 +844,7 @@ async function finalizeRemoteLayoutRegions(args: {
 	setLayoutAnalysisUi(
 		{
 			stage: "running",
+			backend: args.backendLabel,
 			message: "Merging figures & captions…",
 			progress: 99,
 			page: totalPages,
@@ -968,6 +991,7 @@ function startRemoteLayoutAnalysis(
 			assertDocumentOpen(options.isDocumentOpen);
 			const pdfPath = await findCanonicalPaperPdfPath(paperAbsPath);
 			if (!pdfPath) throw new Error("No local PDF for layout analysis");
+			assertDocumentOpen(options.isDocumentOpen);
 			const buffer = await localFileToArrayBuffer(pdfPath);
 			if (!buffer) throw new Error("Failed to read paper PDF");
 			assertDocumentOpen(options.isDocumentOpen);
@@ -975,6 +999,11 @@ function startRemoteLayoutAnalysis(
 			// Host emits job progress (upload → pending/running → download).
 			if (isTauri()) {
 				unlisten = await events.layoutRemoteProgress.listen((event) => {
+					if (
+						task.isAborted ||
+						(options.isDocumentOpen && !options.isDocumentOpen())
+					)
+						return;
 					const p = event.payload;
 					if (task.isAborted || p.requestId !== requestId) return;
 					const known =
@@ -992,6 +1021,7 @@ function startRemoteLayoutAnalysis(
 					setLayoutAnalysisUi(
 						{
 							stage: "running",
+							backend: provider.id,
 							message: analyzingMessage,
 							progress,
 							page: Math.min(done + 1, known),
@@ -1003,10 +1033,13 @@ function startRemoteLayoutAnalysis(
 					);
 				});
 			}
+			assertDocumentOpen(options.isDocumentOpen);
+			if (task.isAborted) return;
 
 			setLayoutAnalysisUi(
 				{
 					stage: "running",
+					backend: provider.id,
 					message: analyzingMessage,
 					progress: 2,
 					completed: 0,

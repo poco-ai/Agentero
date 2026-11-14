@@ -13,15 +13,22 @@
  * inverts, since no tint can brighten text that is already black.
  */
 
-export type PdfPaperTone = "white" | "sepia" | "green" | "dark";
+export type PdfPaperTone =
+	| "white"
+	| "sepia"
+	| "green"
+	| "dark"
+	| "black"
+	| "snow"
+	| "custom";
 
 /** Picker order: light tones first, dark last. */
-export const PDF_PAPER_TONES: PdfPaperTone[] = [
+export const PDF_PAPER_TONES = [
 	"white",
 	"sepia",
 	"green",
 	"dark",
-];
+] as const satisfies readonly PdfPaperTone[];
 
 /** Multiply tint over page rasters; null paints no overlay. */
 export const PDF_PAPER_TINT: Record<PdfPaperTone, string | null> = {
@@ -29,6 +36,9 @@ export const PDF_PAPER_TINT: Record<PdfPaperTone, string | null> = {
 	sepia: "#faf9de",
 	green: "#e3edcd",
 	dark: null,
+	black: null,
+	snow: "#f0f5fc",
+	custom: "var(--pdf-custom-paper, #ffffff)",
 };
 
 /** Page shell background, so loading/zoom gaps match the finished paper. */
@@ -37,6 +47,9 @@ export const PDF_PAPER_SHELL_CLASS: Record<PdfPaperTone, string> = {
 	sepia: "bg-[#faf9de] ring-black/5",
 	green: "bg-[#e3edcd] ring-black/5",
 	dark: "bg-zinc-800 ring-white/10",
+	black: "bg-black ring-white/10",
+	snow: "bg-[#f0f5fc] ring-black/5",
+	custom: "bg-[var(--pdf-custom-paper,#ffffff)] ring-black/5",
 };
 
 /** Opaque overlays painted as paper (layout-translate cover blocks). */
@@ -46,6 +59,9 @@ export const PDF_PAPER_BLOCK_CLASS: Record<PdfPaperTone, string> = {
 	green: "bg-[#e3edcd]",
 	// Inverted by PDF_PAGE_RASTER_DARK_CLASS to the same dark gray as rasters.
 	dark: "bg-white",
+	black: "bg-white",
+	snow: "bg-[#f0f5fc]",
+	custom: "bg-[var(--pdf-custom-paper,#ffffff)]",
 };
 
 /** Swatch fill for the paper-tone picker. */
@@ -54,11 +70,18 @@ export const PDF_PAPER_SWATCH_CLASS: Record<PdfPaperTone, string> = {
 	sepia: "bg-[#faf9de]",
 	green: "bg-[#e3edcd]",
 	dark: "bg-zinc-800",
+	black: "bg-black",
+	snow: "bg-[#f0f5fc]",
+	custom: "bg-[var(--pdf-custom-paper,#ffffff)]",
 };
 
 export function isPdfPaperTone(value: unknown): value is PdfPaperTone {
 	return (
-		typeof value === "string" && PDF_PAPER_TONES.includes(value as PdfPaperTone)
+		typeof value === "string" &&
+		((PDF_PAPER_TONES as readonly string[]).includes(value) ||
+			value === "black" ||
+			value === "snow" ||
+			value === "custom")
 	);
 }
 
@@ -77,6 +100,17 @@ export function isPdfPaperTone(value: unknown): value is PdfPaperTone {
  */
 export const PDF_PAGE_RASTER_DARK_CLASS =
 	"[filter:invert(0.84)_hue-rotate(180deg)_brightness(1.0)_contrast(0.9)]";
+
+/** Full inversion makes the black reading theme's paper actually black. */
+export function pdfPaperRasterClass(tone: PdfPaperTone): string | undefined {
+	if (tone === "black") return "[filter:invert(1)_hue-rotate(180deg)]";
+	if (tone === "dark") return PDF_PAGE_RASTER_DARK_CLASS;
+	return undefined;
+}
+
+export function isDarkPdfPaper(tone: PdfPaperTone): boolean {
+	return tone === "dark" || tone === "black";
+}
 
 /**
  * Dark-mode annotation overlay styling.

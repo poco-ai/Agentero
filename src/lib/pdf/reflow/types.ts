@@ -136,6 +136,8 @@ export function validReflowTranslation(
 		opened = new Set<string>(),
 		closed = new Set<string>();
 	let active: string | undefined;
+	let styleStart = 0;
+	if (!text.trim()) return false;
 	for (const match of text.matchAll(/⟪(F|S|\/S)(\d+)⟫/gu)) {
 		const kind = match[1],
 			id = match[2];
@@ -146,9 +148,11 @@ export function validReflowTranslation(
 		} else if (kind === "S") {
 			if (active || !p.styles[id] || opened.has(id)) return false;
 			active = id;
+			styleStart = match.index + match[0].length;
 			opened.add(id);
 		} else {
 			if (active !== id || closed.has(id)) return false;
+			if (!text.slice(styleStart, match.index).trim()) return false;
 			active = undefined;
 			closed.add(id);
 		}

@@ -26,37 +26,48 @@ fn page_order<'a>(page: &[&'a RawLayoutRegion]) -> Vec<&'a RawLayoutRegion> {
         .iter()
         .copied()
         .filter(|r| {
-            matches!(r.kind.as_str(), "text" | "paragraph")
+            matches!(r.kind.as_str(), "text" | "paragraph" | "abstract")
                 && r.text.as_deref().is_some_and(|s| !s.trim().is_empty())
                 && r.bbox.w <= 0.6
         })
         .collect();
     body.sort_by(|a, b| a.bbox.x.total_cmp(&b.bbox.x));
-    let mut intervals: Vec<(f64, f64)> = Vec::new();
-    for r in &body {
-        let b = &r.bbox;
-        if let Some(last) = intervals.last_mut().filter(|last| b.x - last.1 < 0.01) {
-            last.1 = last.1.max(b.x + b.w);
-        } else {
-            intervals.push((b.x, b.x + b.w));
-        }
-    }
     let mut gutter = None;
     let mut gap = 0.0;
-    for pair in intervals.windows(2) {
-        let width = pair[1].0 - pair[0].1;
-        if width <= gap {
-            continue;
+    let mut support = 0;
+    for row in &body {
+        let mut intervals: Vec<(f64, f64)> = Vec::new();
+        for r in &body {
+            let b = &r.bbox;
+            if (row.bbox.y + row.bbox.h).min(b.y + b.h) <= row.bbox.y.max(b.y) {
+                continue;
+            }
+            if let Some(last) = intervals.last_mut().filter(|last| b.x - last.1 < 0.002) {
+                last.1 = last.1.max(b.x + b.w);
+            } else {
+                intervals.push((b.x, b.x + b.w));
+            }
         }
-        let mid = (pair[0].1 + pair[1].0) / 2.0;
-        let overlaps = body.iter().filter(|a| a.bbox.x + a.bbox.w <= mid).any(|a| {
-            body.iter()
-                .filter(|b| b.bbox.x >= mid)
-                .any(|b| (a.bbox.y + a.bbox.h).min(b.bbox.y + b.bbox.h) > a.bbox.y.max(b.bbox.y))
-        });
-        if overlaps {
-            gutter = Some(mid);
-            gap = width;
+        for pair in intervals.windows(2) {
+            let width = pair[1].0 - pair[0].1;
+            let mid = (pair[0].1 + pair[1].0) / 2.0;
+            let count = body
+                .iter()
+                .filter(|r| r.bbox.x + r.bbox.w <= mid || r.bbox.x >= mid)
+                .count();
+            if count < support || (count == support && width <= gap) {
+                continue;
+            }
+            let overlaps = body.iter().filter(|a| a.bbox.x + a.bbox.w <= mid).any(|a| {
+                body.iter().filter(|b| b.bbox.x >= mid).any(|b| {
+                    (a.bbox.y + a.bbox.h).min(b.bbox.y + b.bbox.h) > a.bbox.y.max(b.bbox.y)
+                })
+            });
+            if overlaps {
+                gutter = Some(mid);
+                gap = width;
+                support = count;
+            }
         }
     }
     let Some(mid) = gutter else {
@@ -89,6 +100,53 @@ fn page_order<'a>(page: &[&'a RawLayoutRegion]) -> Vec<&'a RawLayoutRegion> {
     remaining.sort_by(columns);
     ordered.extend(remaining);
     ordered
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::pdf::layout_index::Bbox;
+
+    #[test]
+    fn affiliations_precede_the_adjacent_abstract_column() {
+        let regions: Vec<_> = [
+            ("authors", "text", 0.08, 0.23, 0.7, 0.05),
+            ("affiliation-1", "text", 0.08, 0.31, 0.28, 0.03),
+            ("abstract-title", "header", 0.41, 0.32, 0.1, 0.02),
+            ("abstract", "abstract", 0.41, 0.34, 0.5, 0.38),
+            ("affiliation-2", "text", 0.08, 0.35, 0.28, 0.05),
+            ("contact-title", "header", 0.08, 0.52, 0.1, 0.02),
+            ("contact", "text", 0.08, 0.54, 0.28, 0.04),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(order, (id, kind, x, y, w, h))| RawLayoutRegion {
+            id: id.into(),
+            page_index: 0,
+            kind: kind.into(),
+            text: Some(id.into()),
+            title: None,
+            bbox: Bbox { x, y, w, h },
+            reading_order: Some(order as u32),
+            score: 1.0,
+        })
+        .collect();
+        assert_eq!(
+            document_reading_order(&regions)
+                .iter()
+                .map(|r| r.id.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "authors",
+                "affiliation-1",
+                "affiliation-2",
+                "contact-title",
+                "contact",
+                "abstract-title",
+                "abstract"
+            ]
+        );
+    }
 }
 
 pub(super) fn document_reading_order(regions: &[RawLayoutRegion]) -> Vec<&RawLayoutRegion> {

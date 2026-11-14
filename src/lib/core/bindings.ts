@@ -1742,6 +1742,8 @@ export type AppSettings_Deserialize = {
 	terminalApp?: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy?: string,
+	/**  Opt in to the experimental PDF reading view. */
+	pdfReadingModeEnabled?: boolean,
 	/**  Enable single-key Vim navigation on PDF reading surfaces. */
 	pdfVimKeys?: boolean,
 	/**
@@ -1895,6 +1897,8 @@ export type AppSettings_Serialize = {
 	terminalApp: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy: string,
+	/**  Opt in to the experimental PDF reading view. */
+	pdfReadingModeEnabled: boolean,
 	/**  Enable single-key Vim navigation on PDF reading surfaces. */
 	pdfVimKeys: boolean,
 	/**

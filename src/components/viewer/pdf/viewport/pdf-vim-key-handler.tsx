@@ -122,20 +122,30 @@ export function PdfVimKeyHandler({
 				page(key === "J" ? 1 : -1);
 				return;
 			}
-			const half = Math.max(1, viewport.clientHeight / 2);
+			const reader =
+				hostRef.current?.querySelector<HTMLElement>("[data-pdf-reader]");
+			const readerOwnsScroll =
+				reader &&
+				(reader.matches(":hover") ||
+					reader.contains(document.activeElement) ||
+					viewport.closest("[inert]"));
+			const scrollViewport = readerOwnsScroll ? reader : viewport;
+			const half = Math.max(1, scrollViewport.clientHeight / 2);
 			if (key === "j" || key === "k" || key === "d" || key === "u") {
 				event.preventDefault();
 				handleScrollSyncIntent(documentId);
 				const distance = key === "d" || key === "u" ? half : 72;
-				viewport.scrollTop += key === "j" || key === "d" ? distance : -distance;
+				scrollViewport.scrollTop +=
+					key === "j" || key === "d" ? distance : -distance;
 				return;
 			}
 			if (key === "h" || key === "l") {
 				event.preventDefault();
-				if (strategyRef.current === "paginated") page(key === "l" ? 1 : -1);
+				if (!readerOwnsScroll && strategyRef.current === "paginated")
+					page(key === "l" ? 1 : -1);
 				else {
 					handleScrollSyncIntent(documentId);
-					viewport.scrollLeft += key === "l" ? 72 : -72;
+					scrollViewport.scrollLeft += key === "l" ? 72 : -72;
 				}
 			}
 		};

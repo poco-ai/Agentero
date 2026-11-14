@@ -60,12 +60,14 @@ export const REFLOW_IR_CACHE_FORMAT_VERSION = 1;
  * changes the IR for the same PDF and layout, even if the persisted shape stays
  * compatible. Old cache files then fail the key check and are re-extracted.
  */
-export const REFLOW_IR_ALGORITHM_VERSION = 4;
+export const REFLOW_IR_ALGORITHM_VERSION = 14;
 const CACHE_DIR = "reflow-ir";
 /** Bound stale-key accumulation; the app cache directory may also be cleared by the OS. */
 const MAX_FILES_PER_PAPER = 96;
 
 export type ReflowIrCacheSource = {
+	/** Keep reading IR separate from translation IR that excludes bibliography. */
+	includeReferences?: boolean;
 	/** Stable paper identifier, usually the vault-relative paper folder. */
 	paperKey: string | null | undefined;
 	/** Local paper folder containing `source/layout.json`. */
@@ -245,10 +247,11 @@ export function createReflowIrCache(
 			const cacheBase = await baseIdentity();
 			if (!cacheBase) return null;
 			const pageItems = itemsByPage.get(pageIndex) ?? [];
-			if (!pageItems.length) return null;
 			const pageRegions = regionsByPage.get(pageIndex) ?? [];
 			const [itemsSha256, regionsSha256] = await Promise.all([
-				sha256Text(itemsFingerprint(pageItems)),
+				sha256Text(
+					`${source.includeReferences ? "reading" : "translation"}:${itemsFingerprint(pageItems)}`,
+				),
 				sha256Text(regionsFingerprint(pageRegions)),
 			]);
 			const key = pageCacheKey(

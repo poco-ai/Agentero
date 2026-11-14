@@ -170,6 +170,8 @@ export type LayoutAnalysisUiStatus =
 	| { stage: "idle" }
 	| {
 			stage: "running";
+			/** Actual model for this run; absent during cached text reconstruction. */
+			backend?: import("./settings").LayoutBackend;
 			message: string;
 			/**
 			 * Overall analysis progress 0–100 when known.

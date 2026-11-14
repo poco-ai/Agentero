@@ -16,6 +16,7 @@ import { commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
+import { toVaultRelative } from "@/lib/core/path";
 import {
 	registerTaskExecutor,
 	type TaskExecutorContext,
@@ -100,13 +101,14 @@ async function runLayoutTranslateExecutor(
 
 	if (!(await callApiResult(() => commands.jobLayoutTranslateClaim({ jobId }))))
 		return;
-	const paperAbsPath = joinVaultPath(vaultPath, paperPath);
+	const paperKey = toVaultRelative(vaultPath, paperPath);
+	const paperAbsPath = joinVaultPath(vaultPath, paperKey);
 	const publisher = createTranslationPublisher(report, jobId);
 
 	try {
 		const result = await translatePaperLayoutHeadless({
 			paperAbsPath,
-			paperKey: paperPath,
+			paperKey,
 			vaultPath,
 			jobId,
 			signal,

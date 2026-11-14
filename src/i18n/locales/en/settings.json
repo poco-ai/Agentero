@@ -737,6 +737,10 @@
 	},
 	"experimental": {
 		"title": "Experimental features",
+		"readingMode": {
+			"label": "Reading mode",
+			"description": "Show the PDF reading mode button. Uses the selected layout analysis service; not yet broadly tested."
+		},
 		"decision": {
 			"section": "Decision model",
 			"getKey": "Get an API key",
