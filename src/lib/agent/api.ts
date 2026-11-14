@@ -599,6 +599,7 @@ export async function runOnce(request: {
 	target?: string;
 	/** ACP model config value id (from agent:models). */
 	modelId?: string;
+	forceModel?: boolean;
 	/** Collaboration mode id (from agent:collaboration), e.g. default / plan. */
 	collaborationModeId?: string;
 	/** ACP reasoning-effort value id (from agent:effort). */
@@ -666,6 +667,7 @@ export async function runOnce(request: {
 				workflow: request.workflow,
 				target: request.target,
 				modelId: request.modelId,
+				forceModel: request.forceModel ?? false,
 				collaborationModeId: request.collaborationModeId,
 				reasoningEffort: request.reasoningEffort,
 				preferHighestReasoningEffort:
@@ -836,6 +838,7 @@ export async function warmAgent(request: {
 	agentId?: string;
 	vaultPath?: string;
 	modelId?: string;
+	forceModel?: boolean;
 	collaborationModeId?: string;
 }): Promise<WarmResult> {
 	return callApiResult(
@@ -844,6 +847,7 @@ export async function warmAgent(request: {
 				agentId: request.agentId,
 				vaultPath: request.vaultPath,
 				modelId: request.modelId,
+				forceModel: request.forceModel ?? false,
 				collaborationModeId: request.collaborationModeId,
 			}),
 		AGENT_CALL_OPTS,

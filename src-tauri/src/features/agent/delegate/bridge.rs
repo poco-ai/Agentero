@@ -521,6 +521,7 @@ async fn base_params(
         target: None,
         vault_path: Some(format!("remote:{}", target.session_id)),
         preferred_model_id: None,
+        force_model: false,
         preferred_collaboration_mode_id: None,
         preferred_reasoning_effort: None,
         prefer_highest_reasoning_effort: false,

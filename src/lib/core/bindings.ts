@@ -5309,6 +5309,8 @@ export type RunOnceRequest_Deserialize = {
 	target?: string | null,
 	/**  Preferred model id from ACP session config (category: model). Applied after session/new. */
 	modelId?: string | null,
+	/**  Reapply an explicit model selection even when ACP reports it as current. */
+	forceModel?: boolean,
 	/**  Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan. */
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
@@ -5376,6 +5378,8 @@ export type RunOnceRequest_Serialize = {
 	target?: string | null,
 	/**  Preferred model id from ACP session config (category: model). Applied after session/new. */
 	modelId?: string | null,
+	/**  Reapply an explicit model selection even when ACP reports it as current. */
+	forceModel: boolean,
 	/**  Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan. */
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
@@ -6195,6 +6199,8 @@ export type WarmRequest_Deserialize = {
 	agentId?: string | null,
 	vaultPath?: string | null,
 	modelId?: string | null,
+	/**  Reapply an explicit model selection even when ACP reports it as current. */
+	forceModel?: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };
@@ -6204,6 +6210,8 @@ export type WarmRequest_Serialize = {
 	agentId?: string | null,
 	vaultPath?: string | null,
 	modelId?: string | null,
+	/**  Reapply an explicit model selection even when ACP reports it as current. */
+	forceModel: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };

@@ -302,6 +302,7 @@ pub async fn accept_run_once(
             target: request.target.clone(),
             vault_path: request.vault_path,
             preferred_model_id: request.model_id,
+            force_model: request.force_model,
             preferred_collaboration_mode_id: request.collaboration_mode_id,
             preferred_reasoning_effort: request.reasoning_effort,
             prefer_highest_reasoning_effort: request.prefer_highest_reasoning_effort,

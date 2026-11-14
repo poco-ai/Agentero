@@ -229,8 +229,12 @@ pub async fn agent_warm(
         events,
         desc,
         request.vault_path,
-        request.model_id,
-        request.collaboration_mode_id,
+        crate::features::agent::session::config::RunPreferences {
+            model_id: request.model_id,
+            force_model: request.force_model,
+            collaboration_mode_id: request.collaboration_mode_id,
+            ..Default::default()
+        },
         remote,
         pool.inner().clone(),
     )

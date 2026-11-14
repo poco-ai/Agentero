@@ -6,6 +6,7 @@
  */
 import {
 	type Dispatch,
+	type RefObject,
 	type SetStateAction,
 	useCallback,
 	useEffect,
@@ -79,7 +80,10 @@ export type UseAgentConfigOptions = {
 	setLines: (update: ChatLine[] | ((prev: ChatLine[]) => ChatLine[])) => void;
 };
 
+export type ModelSelection = { agentId: string; modelId: string };
+
 export type AgentConfig = {
+	modelSelectionRef: RefObject<ModelSelection | null>;
 	registry: AgentListResponse | null;
 	catalog: CatalogScanResponse | null;
 	skills: AgentSkill[];
@@ -175,6 +179,7 @@ export function useAgentConfig({
 	const [fastAvailable, setFastAvailable] = useState(false);
 	const [fastEnabled, setFastEnabled] = useState(false);
 	const warmGenRef = useRef(0);
+	const modelSelectionRef = useRef<ModelSelection | null>(null);
 	/**
 	 * Richest model catalog seen for each agent in this panel session. ACP
 	 * agents (opencode 2.x) report a partial catalog first and push the complete
@@ -375,6 +380,7 @@ export function useAgentConfig({
 			agentId: string;
 			vaultPath: string | null;
 			modelId?: string;
+			forceModel?: boolean;
 			collaborationModeId?: string;
 			generation: number;
 			/** Apply models/usage only when still the intended warm target. */
@@ -392,6 +398,7 @@ export function useAgentConfig({
 					agentId: args.agentId,
 					vaultPath: args.vaultPath ?? undefined,
 					modelId: args.modelId,
+					forceModel: args.forceModel,
 					collaborationModeId: args.collaborationModeId,
 				});
 				if (args.generation !== warmGenRef.current || !args.stillValid()) {
@@ -512,12 +519,13 @@ export function useAgentConfig({
 	const pickModel = (id: string) => {
 		const next = id.trim();
 		if (!next) return;
-		if (next === modelId) return;
 		// Free-form / third-party ids may not be in the advertised catalog yet.
 		setModels((prev) => ensureModelsInclude(prev, [next]));
 		setModelId(next);
 		if (!selectedAgentId) return;
 		saveModelPref(selectedAgentId, next);
+		// ACP may misreport current; also reapply on the next resumed/cold turn.
+		modelSelectionRef.current = { agentId: selectedAgentId, modelId: next };
 		if (!isTauri() || !agentListenersReady) return;
 
 		const agentId = selectedAgentId;
@@ -531,6 +539,7 @@ export function useAgentConfig({
 			agentId,
 			vaultPath: requestVaultPath,
 			modelId: next,
+			forceModel: true,
 			collaborationModeId:
 				loadCollaborationPref(agentId) ?? collaborationModeId ?? undefined,
 			generation,
@@ -569,6 +578,7 @@ export function useAgentConfig({
 	);
 
 	return {
+		modelSelectionRef,
 		registry,
 		catalog,
 		skills,

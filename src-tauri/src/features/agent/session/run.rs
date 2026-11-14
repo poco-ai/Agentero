@@ -9,9 +9,8 @@ use crate::features::agent::acp::client::{
 use crate::features::agent::acp::interaction::PermissionPolicy;
 use crate::features::agent::acp::terminal::AcpTerminalManager;
 use crate::features::agent::acp::updates::{
-    collaboration_from_config_options, effort_from_config_options, emit_rich_session_update,
-    emit_session_config_options, fast_mode_value_to_set, is_fast_option, is_pi_startup_banner,
-    models_from_config_options, stream_from_update,
+    effort_from_config_options, emit_rich_session_update, emit_session_config_options,
+    fast_mode_value_to_set, is_fast_option, is_pi_startup_banner, stream_from_update,
 };
 use crate::features::agent::context_turn::{
     insert_context_block, insert_resume_transcript, prepare_context,
@@ -27,7 +26,9 @@ use crate::features::agent::prompt::skills::{
 use crate::features::agent::runtime::events::AgentEventEmitter;
 use crate::features::agent::runtime::gates::{AskUserGate, ElicitationGate, PermissionGate};
 use crate::features::agent::runtime::stream::{StreamCoalescer, STREAM_COALESCE_WINDOW};
-use crate::features::agent::session::config::RunPreferences;
+use crate::features::agent::session::config::{
+    apply_model_and_collaboration_prefs, RunPreferences,
+};
 use crate::features::agent::session::handlers::{
     agentero_turn_builder, clear_turn, install_turn, new_registry, ActiveTurn, TurnRegistry,
 };
@@ -60,6 +61,7 @@ pub struct RunOnceParams {
     pub target: Option<String>,
     pub vault_path: Option<String>,
     pub preferred_model_id: Option<String>,
+    pub force_model: bool,
     pub preferred_collaboration_mode_id: Option<String>,
     pub preferred_reasoning_effort: Option<String>,
     pub prefer_highest_reasoning_effort: bool,
@@ -517,6 +519,7 @@ impl RunOnceContext {
             ask_user_gate,
             cancellation,
             preferred_model_id,
+            force_model,
             preferred_collaboration_mode_id,
             preferred_reasoning_effort,
             prefer_highest_reasoning_effort,
@@ -524,7 +527,7 @@ impl RunOnceContext {
             workflow,
             ..
         } = params;
-        let turn = RunTurnInput {
+        let mut turn = RunTurnInput {
             full_prompt: prep.full_prompt,
             prompt_images: prep.prompt_images,
             cwd: prep.cwd.clone(),
@@ -539,6 +542,8 @@ impl RunOnceContext {
                 fast_mode,
             ),
         };
+
+        turn.preferences.force_model = force_model;
 
         // Cold path: the turn registry is pre-filled for the whole connection
         // lifetime, so the shared handlers behave exactly like the previous
@@ -876,71 +881,17 @@ impl RunOnceContext {
                 ))
             };
         }
-        if let Some(ev) =
-            models_from_config_options(&self.session_id, &self.agent_id, &config_options)
-        {
-            // Model changes can affect supported effort and service tiers, so retain the
-            // complete response before resolving the remaining preferences.
-            // Also attempt custom / third-party model ids not in the advertised catalog
-            // (gateway models, cc-switch, free-form provider ids).
-            if let Some(pref) = prefs.model_id.clone() {
-                if pref != ev.current_id {
-                    let listed = ev.models.iter().any(|m| m.id == pref);
-                    let response = tokio::select! {
-                        result = timed_acp_request(
-                            "set model",
-                            connection
-                                .send_request(SetSessionConfigOptionRequest::new(
-                                    acp_session_id.clone(),
-                                    SessionConfigId::new(ev.config_id.as_str()),
-                                    SessionConfigOptionValue::value_id(pref.clone()),
-                                ))
-                                .block_task(),
-                        ) => result,
-                        () = wait_for_cancellation(&mut *cancellation) => return_cancelled!(),
-                    };
-                    match response {
-                        Ok(response) => {
-                            config_options = response.config_options;
-                        }
-                        Err(e) => {
-                            log::debug!(
-                                target: "agentero::agent",
-                                "agent={} set model failed (listed={}): pref={} err={}",
-                                self.agent_id,
-                                listed,
-                                pref,
-                                e
-                            );
-                        }
-                    }
-                }
-            }
-        }
-        if let Some(pref) = prefs.collaboration_mode_id.clone() {
-            if let Some(ev) =
-                collaboration_from_config_options(&self.session_id, &self.agent_id, &config_options)
-            {
-                if pref != ev.current_id && ev.modes.iter().any(|mode| mode.id == pref) {
-                    let response = tokio::select! {
-                        result = timed_acp_request(
-                            "set collaboration mode",
-                            connection
-                                .send_request(SetSessionConfigOptionRequest::new(
-                                    acp_session_id.clone(),
-                                    SessionConfigId::new(ev.config_id.as_str()),
-                                    SessionConfigOptionValue::value_id(pref),
-                                ))
-                                .block_task(),
-                        ) => result.ok(),
-                        () = wait_for_cancellation(&mut *cancellation) => return_cancelled!(),
-                    };
-                    if let Some(response) = response {
-                        config_options = response.config_options;
-                    }
-                }
-            }
-        }
+        config_options = tokio::select! {
+            options = apply_model_and_collaboration_prefs(
+                connection,
+                &self.session_id,
+                &self.agent_id,
+                acp_session_id,
+                config_options,
+                prefs,
+            ) => options,
+            () = wait_for_cancellation(&mut *cancellation) => return_cancelled!(),
+        };
         if let Some(ev) =
             effort_from_config_options(&self.session_id, &self.agent_id, &config_options)
         {
@@ -1155,7 +1106,7 @@ async fn run_on_pooled(
     };
     let used_session_id = session.acp_session_id.clone();
 
-    let preferences = RunPreferences::for_workflow(
+    let mut preferences = RunPreferences::for_workflow(
         params.workflow.as_deref(),
         params.preferred_model_id.clone(),
         params.preferred_collaboration_mode_id.clone(),
@@ -1163,6 +1114,7 @@ async fn run_on_pooled(
         params.prefer_highest_reasoning_effort,
         params.fast_mode,
     );
+    preferences.force_model = params.force_model;
     let result = state
         .prompt_phase(
             &slot.connection,

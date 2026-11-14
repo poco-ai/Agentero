@@ -1,9 +1,7 @@
 //! Session model / mode / effort / fast-mode preference types and warm helpers.
 //!
 //! Warm applies model + collaboration via [`apply_model_and_collaboration_prefs`].
-//! Run's cancel-aware `apply_session_preferences` (model/collab/effort/fast) remains
-//! on `RunOnceContext` in `run.rs` because it is tightly coupled to cancellation
-//! and `agent:completed` emission.
+//! Run wraps the same helper with cancellation before applying effort / fast mode.
 
 use crate::features::agent::acp::client::timed_acp_request;
 use crate::features::agent::acp::updates::{
@@ -17,8 +15,9 @@ use agent_client_protocol::{Agent, ConnectionTo};
 
 /// User-selected session preferences applied after the session opens.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct RunPreferences {
+pub struct RunPreferences {
     pub model_id: Option<String>,
+    pub force_model: bool,
     pub collaboration_mode_id: Option<String>,
     pub reasoning_effort: Option<String>,
     pub prefer_highest_reasoning_effort: bool,
@@ -43,6 +42,7 @@ impl RunPreferences {
         let prefer_lowest = workflow == Some("translate") && reasoning_effort.is_none();
         Self {
             model_id,
+            force_model: false,
             collaboration_mode_id,
             reasoning_effort,
             prefer_highest_reasoning_effort: prefer_highest_reasoning_effort && !prefer_lowest,
@@ -102,23 +102,23 @@ fn lowest_known_effort(
     lowest.map(|(_, id)| id)
 }
 
-/// Apply preferred model (free-form) and collaboration mode after session/new.
-/// Failures are logged and do not abort the warm path.
+/// Apply model and collaboration preferences, retaining the full ACP response.
+/// Explicit model choices bypass current-value deduplication; automatic setup does not.
+/// Failures are logged and do not abort setup.
 pub(crate) async fn apply_model_and_collaboration_prefs(
     connection: &ConnectionTo<Agent>,
     runtime_session_id: &str,
     agent_id: &str,
     acp_session_id: &SessionId,
     mut config_options: Vec<SessionConfigOption>,
-    preferred_model: Option<String>,
-    preferred_collab: Option<String>,
+    prefs: &RunPreferences,
 ) -> Vec<SessionConfigOption> {
     if let Some(ev) = models_from_config_options(runtime_session_id, agent_id, &config_options) {
         // Attempt preferred model even when not in the advertised catalog
         // (third-party / gateway free-form ids).
-        if let Some(pref) = preferred_model {
-            if pref != ev.current_id {
-                let listed = ev.models.iter().any(|m| m.id == pref);
+        if let Some(pref) = prefs.model_id.as_ref() {
+            if prefs.force_model || *pref != ev.current_id {
+                let listed = ev.models.iter().any(|m| m.id == *pref);
                 match timed_acp_request(
                     "set model",
                     connection
@@ -137,7 +137,7 @@ pub(crate) async fn apply_model_and_collaboration_prefs(
                     Err(e) => {
                         log::debug!(
                             target: "agentero::agent",
-                            "agent={} warm set model failed (listed={}): pref={} err={}",
+                            "agent={} set model failed (listed={}): pref={} err={}",
                             agent_id,
                             listed,
                             pref,
@@ -148,11 +148,11 @@ pub(crate) async fn apply_model_and_collaboration_prefs(
             }
         }
     }
-    if let Some(pref) = preferred_collab {
+    if let Some(pref) = prefs.collaboration_mode_id.as_ref() {
         if let Some(ev) =
             collaboration_from_config_options(runtime_session_id, agent_id, &config_options)
         {
-            if pref != ev.current_id && ev.modes.iter().any(|mode| mode.id == pref) {
+            if *pref != ev.current_id && ev.modes.iter().any(|mode| mode.id == *pref) {
                 match timed_acp_request(
                     "set collaboration mode",
                     connection
@@ -171,7 +171,7 @@ pub(crate) async fn apply_model_and_collaboration_prefs(
                     Err(e) => {
                         log::debug!(
                             target: "agentero::agent",
-                            "agent={} warm set collaboration mode failed: pref={} err={}",
+                            "agent={} set collaboration mode failed: pref={} err={}",
                             agent_id,
                             pref,
                             e
@@ -290,5 +290,111 @@ mod tests {
                 .as_deref(),
             Some("high")
         );
+    }
+    fn model_options(current: &str) -> Vec<agent_client_protocol::schema::v1::SessionConfigOption> {
+        use agent_client_protocol::schema::v1::{
+            SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
+        };
+        vec![SessionConfigOption::select(
+            "model",
+            "Model",
+            current.to_string(),
+            vec![SessionConfigSelectOption::new("sonnet", "Sonnet")],
+        )
+        .category(SessionConfigOptionCategory::Model)]
+    }
+
+    #[tokio::test]
+    async fn explicit_model_selection_corrects_a_misreported_current_model() {
+        use super::apply_model_and_collaboration_prefs;
+        use agent_client_protocol::schema::v1::{
+            SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
+            SessionConfigSelectOption, SessionId, SetSessionConfigOptionRequest,
+            SetSessionConfigOptionResponse,
+        };
+        use agent_client_protocol::{Agent, Client};
+        use std::sync::{Arc, Mutex};
+
+        // Like the Claude ACP failure: advertised sonnet, actually running opus.
+        let actual_model = Arc::new(Mutex::new("opus".to_string()));
+        let observed = actual_model.clone();
+        let agent = Agent.builder().on_receive_request(
+            async move |request: SetSessionConfigOptionRequest, responder, _connection| {
+                assert_eq!(request.session_id.to_string(), "provider-session");
+                assert_eq!(request.config_id.to_string(), "model");
+                let SessionConfigOptionValue::ValueId { value } = request.value else {
+                    panic!("expected a model id");
+                };
+                *actual_model.lock().unwrap() = value.to_string();
+                let mut options = model_options(&value.to_string());
+                // Model changes can replace the effort catalog; retain the whole response.
+                options.push(
+                    SessionConfigOption::select(
+                        "effort",
+                        "Effort",
+                        "high",
+                        vec![SessionConfigSelectOption::new("high", "High")],
+                    )
+                    .category(SessionConfigOptionCategory::ThoughtLevel),
+                );
+                responder.respond(SetSessionConfigOptionResponse::new(options))
+            },
+            agent_client_protocol::on_receive_request!(),
+        );
+        Client
+            .builder()
+            .connect_with(agent, async |connection| {
+                let session = SessionId::new("provider-session");
+                let mut prefs = RunPreferences {
+                    model_id: Some("sonnet".into()),
+                    ..Default::default()
+                };
+                // Automatic warm/restore still deduplicates an equal reported value.
+                let options = apply_model_and_collaboration_prefs(
+                    &connection,
+                    "runtime",
+                    "claude",
+                    &session,
+                    model_options("sonnet"),
+                    &prefs,
+                )
+                .await;
+                assert_eq!(*observed.lock().unwrap(), "opus");
+                assert_eq!(options.len(), 1);
+
+                prefs.force_model = true;
+                let options = apply_model_and_collaboration_prefs(
+                    &connection,
+                    "runtime",
+                    "claude",
+                    &session,
+                    options,
+                    &prefs,
+                )
+                .await;
+                assert_eq!(*observed.lock().unwrap(), "sonnet");
+                let effort = crate::features::agent::acp::updates::effort_from_config_options(
+                    "runtime", "claude", &options,
+                )
+                .expect("the model response must retain the effort catalog");
+                assert_eq!(effort.current_id, "high");
+
+                // Free-form gateway ids remain supported by the shared warm/run helper.
+                prefs.model_id = Some("gateway/custom-model".into());
+                prefs.force_model = false;
+                apply_model_and_collaboration_prefs(
+                    &connection,
+                    "runtime",
+                    "claude",
+                    &session,
+                    options,
+                    &prefs,
+                )
+                .await;
+                assert_eq!(*observed.lock().unwrap(), "gateway/custom-model");
+                Ok(())
+            })
+            .await
+            .unwrap();
     }
 }

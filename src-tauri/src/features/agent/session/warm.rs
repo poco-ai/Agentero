@@ -17,7 +17,9 @@ use crate::features::agent::acp::updates::{
 };
 use crate::features::agent::models::{AgentDescriptor, WarmResult};
 use crate::features::agent::runtime::events::AgentEventEmitter;
-use crate::features::agent::session::config::apply_model_and_collaboration_prefs;
+use crate::features::agent::session::config::{
+    apply_model_and_collaboration_prefs, RunPreferences,
+};
 use crate::features::agent::session::handlers::{
     agentero_turn_builder, new_registry, WarmIdleHooks,
 };
@@ -71,8 +73,7 @@ pub async fn warm_agent(
     app: AgentEventEmitter,
     desc: AgentDescriptor,
     vault_path: Option<String>,
-    preferred_model_id: Option<String>,
-    preferred_collaboration_mode_id: Option<String>,
+    preferences: RunPreferences,
     remote: Option<Arc<dyn crate::features::agent::remote_host::RemoteAgentLaunch>>,
     pool: Arc<AgentWarmPool>,
 ) -> WarmResult {
@@ -103,7 +104,31 @@ pub async fn warm_agent(
 
     // Healthy pooled slot from an earlier warm: reuse its cached models /
     // usage instead of spawning a second agent process.
-    if let Some((models, usage)) = pool.snapshot_warm_result(&key) {
+    if preferences.force_model {
+        if let Some(mut slot) = pool.take(&key).await {
+            slot.config_options = apply_model_and_collaboration_prefs(
+                &slot.connection,
+                &session_id,
+                &agent_id,
+                &slot.acp_session_id,
+                slot.config_options,
+                &preferences,
+            )
+            .await;
+            emit_session_config_options(&app, &session_id, &agent_id, &slot.config_options);
+            slot.models = models_from_config_options(&session_id, &agent_id, &slot.config_options);
+            let result = WarmResult {
+                agent_id,
+                ok: true,
+                models: slot.models.clone(),
+                usage_used: slot.usage.map(|(u, _)| u),
+                usage_size: slot.usage.map(|(_, s)| s),
+                error: None,
+            };
+            pool.release(slot);
+            return result;
+        }
+    } else if let Some((models, usage)) = pool.snapshot_warm_result(&key) {
         log::debug!(
             target: "agentero::agent",
             "agent={} warm reused pooled slot cwd={}",
@@ -168,8 +193,7 @@ pub async fn warm_agent(
         pool: pool.clone(),
         session_id: session_id.clone(),
         agent_id: agent_id.clone(),
-        preferred_model_id,
-        preferred_collaboration_mode_id,
+        preferences,
         models_out: models_out.clone(),
         usage_out: usage_out.clone(),
         terminals: terminals.clone(),
@@ -275,8 +299,7 @@ struct WarmSetupCtx {
     pool: Arc<AgentWarmPool>,
     session_id: String,
     agent_id: String,
-    preferred_model_id: Option<String>,
-    preferred_collaboration_mode_id: Option<String>,
+    preferences: RunPreferences,
     models_out: Arc<Mutex<Option<crate::features::agent::models::AgentModelsEvent>>>,
     usage_out: Arc<Mutex<Option<(u64, u64)>>>,
     terminals: Arc<tokio::sync::Mutex<crate::features::agent::acp::terminal::AcpTerminalManager>>,
@@ -412,8 +435,7 @@ impl WarmSetupCtx {
             &self.agent_id,
             &acp_session_id,
             new_session.config_options.unwrap_or_default(),
-            self.preferred_model_id.clone(),
-            self.preferred_collaboration_mode_id.clone(),
+            &self.preferences,
         )
         .await;
         emit_session_config_options(&self.app, &self.session_id, &self.agent_id, &config_options);
