@@ -118,6 +118,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::vault::trash::commands::path_purge_trash,
             crate::features::translate::commands::translate_text,
             crate::features::translate::commands::translate_text_stream,
+            crate::features::translate::dictionary::dictionary_lookup,
             crate::features::translate::layout_cache::layout_translate_cache_write,
             crate::features::paper::import::commands::lookup_import_batch,
             crate::features::paper::import::commands::chat_import_extract,

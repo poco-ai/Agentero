@@ -8,4 +8,7 @@ pub use agentero_core::features::translate::*;
 pub mod commands;
 
 #[cfg(feature = "desktop")]
+pub mod dictionary;
+
+#[cfg(feature = "desktop")]
 pub mod layout_cache;

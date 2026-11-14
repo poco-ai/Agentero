@@ -298,6 +298,7 @@ export const commands = {
 	 *  translation (no deltas, final text only).
 	 */
 	translateTextStream: (args: TranslateTextArgs, onDelta: Channel<string>) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text_stream", { args, onDelta }),
+	dictionaryLookup: (text: string, targetLang: string) => __TAURI_INVOKE<ApiResult<DictionaryEntry[]>>("dictionary_lookup", { text, targetLang }),
 	layoutTranslateCacheWrite: (args: LayoutTranslateCacheWriteArgs) => __TAURI_INVOKE<ApiResult<null>>("layout_translate_cache_write", { args }),
 	/**
 	 *  Batch resolve identifiers and write papers into vault.
@@ -2969,6 +2970,15 @@ export type DevelopmentPluginInfo = {
 	pluginId: string,
 	commands: DevelopmentPluginCommand[],
 	manifest: Json,
+};
+
+export type DictionaryEntry = {
+	word: string,
+	phonetic: string,
+	translation: string,
+	definition: string,
+	source: string,
+	sourceUrl: string,
 };
 
 export type DoctorApplyAliasesArgs = {
@@ -5868,6 +5878,10 @@ export type TranslateSettings = {
 
 export type TranslateTextArgs = {
 	text: string,
+	glossary?: string | null,
+	dictionary?: boolean,
+	dictionarySurrounding?: string | null,
+	dictionaryReference?: string | null,
 	sourceLang?: string,
 	targetLang: string,
 	/**  Provider id: free MT, commercial BYOK, or `agent`. */
