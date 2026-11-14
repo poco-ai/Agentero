@@ -6742,7 +6742,10 @@ export type ZoteroMigrateArgs = {
 	 *  standalone notes (no parent item) into `notes/` as Markdown files.
 	 */
 	migrateNotes?: boolean,
-	/**  Migrate each item's PDF annotations (highlights/comments) into NOTES.md. */
+	/**
+	 *  Migrate each item's PDF highlights and underlines into `marks/annotations.json`.
+	 *  Comments stay on the highlight. Child notes still go to NOTES.md.
+	 */
 	migrateAnnotations?: boolean,
 };
 

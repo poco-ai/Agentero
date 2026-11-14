@@ -1,7 +1,7 @@
 //! Incremental Zotero → Vault pull (read-only; safe while Zotero is running).
 //!
 //! Scope: metadata fill (empty fields only, never overwrite), user-written
-//! child notes → NOTES.md (idempotent append), PDF annotations → NOTES.md.
+//! child notes → NOTES.md (idempotent append), PDF annotations → `marks/annotations.json`.
 //! New Zotero items are NOT imported here (that is migration's job); Zotero
 //! deletions never remove vault papers.
 
@@ -11,7 +11,9 @@ use crate::core::error::AppError;
 use crate::features::paper::catalog::papers;
 use crate::features::paper::import::map_zotero_item_to_record;
 use crate::features::paper::zotero::codec;
-use crate::features::paper::zotero::db::{append_markdown_blocks, SyncItem};
+use crate::features::paper::zotero::db::{
+    append_markdown_blocks, paper_pdf_file, persist_zotero_highlights, SyncItem,
+};
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
@@ -129,10 +131,12 @@ pub(crate) fn pull(
             }
         }
 
-        if opts.annotations && !item.annotations.is_empty() && notes_path.is_file() {
-            // Content-level idempotent append; no conflict risk (never edits).
-            if append_markdown_blocks(&notes_path, &item.annotations) {
-                report.annotations_added += 1;
+        if opts.annotations && !item.annotations.is_empty() {
+            let paper_dir = vault.join(&record.path);
+            if let Some(pdf) = paper_pdf_file(&paper_dir) {
+                if persist_zotero_highlights(&paper_dir, &pdf, &item.annotations) > 0 {
+                    report.annotations_added += 1;
+                }
             }
         }
 

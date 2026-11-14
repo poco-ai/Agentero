@@ -108,7 +108,8 @@ pub struct ZoteroMigrateArgs {
     /// standalone notes (no parent item) into `notes/` as Markdown files.
     #[serde(default)]
     pub migrate_notes: bool,
-    /// Migrate each item's PDF annotations (highlights/comments) into NOTES.md.
+    /// Migrate each item's PDF highlights and underlines into `marks/annotations.json`.
+    /// Comments stay on the highlight. Child notes still go to NOTES.md.
     #[serde(default)]
     pub migrate_annotations: bool,
 }
@@ -151,8 +152,8 @@ struct ReadItem {
     collection_ids: Vec<i64>,
     /// Raw HTML of the item's child notes (converted to Markdown at import time).
     note_html: Vec<String>,
-    /// Pre-formatted Markdown blocks for the item's PDF annotations.
-    annotations: Vec<String>,
+    /// PDF highlights / underlines / area notes, not child notes.
+    annotations: Vec<ZoteroPdfMark>,
 }
 
 /// Read-only preview: how many regular items, and how many have a local PDF.
@@ -472,7 +473,7 @@ async fn migrate_one(
         return Err(AppError::message("mapped item has empty id"));
     }
 
-    let blocks = note_blocks(item, flags.migrate_notes, flags.migrate_annotations);
+    let blocks = note_blocks(item, flags.migrate_notes);
 
     // Recreate the Zotero collection folder under the base parent when requested.
     let base_parent = if flags.preserve_collections && !coll_path.is_empty() {
@@ -520,6 +521,15 @@ async fn migrate_one(
                 let notes_md = vault.join(p).join("NOTES.md");
                 if notes_md.is_file() && append_markdown_blocks(&notes_md, &blocks) {
                     backfilled = true;
+                }
+            }
+        }
+        if flags.migrate_annotations {
+            if let Some(p) = &path {
+                let dir = vault.join(p);
+                let pdf = paper_pdf_file(&dir).or_else(|| item.pdfs.first().cloned());
+                if let Some(pdf) = pdf {
+                    persist_zotero_highlights(&dir, &pdf, &item.annotations);
                 }
             }
         }
@@ -609,6 +619,14 @@ async fn migrate_one(
             }
         }
     }
+    if flags.migrate_annotations {
+        // Measure the file the viewer opens. Without a copied PDF, the Zotero
+        // attachment still has the page geometry the highlight rects belong to.
+        let pdf = paper_pdf_file(&paper_dir).or_else(|| item.pdfs.first().cloned());
+        if let Some(pdf) = pdf {
+            persist_zotero_highlights(&paper_dir, &pdf, &item.annotations);
+        }
+    }
 
     Ok((
         MigrateOutcome::Imported {
@@ -678,8 +696,8 @@ fn relocate_paper(vault: &Path, existing: &str, new_rel: &str) -> Result<(), App
 
 pub(crate) use agentero_core::features::markdown::append::append_markdown_blocks;
 
-/// Markdown blocks to migrate into NOTES.md: converted child notes + PDF annotations.
-fn note_blocks(item: &ReadItem, migrate_notes: bool, migrate_annotations: bool) -> Vec<String> {
+/// Child notes for NOTES.md. PDF highlights stay out of this file.
+fn note_blocks(item: &ReadItem, migrate_notes: bool) -> Vec<String> {
     let mut blocks = Vec::new();
     if migrate_notes {
         for html in &item.note_html {
@@ -693,20 +711,6 @@ fn note_blocks(item: &ReadItem, migrate_notes: bool, migrate_annotations: bool) 
             if !md.is_empty() {
                 blocks.push(md);
             }
-        }
-    }
-    if migrate_annotations && !item.annotations.is_empty() {
-        // Group every highlight into a single block so import adds one tidy
-        // section (a lone `---` divider), not a divider between each highlight.
-        let hl = item
-            .annotations
-            .iter()
-            .map(|a| a.trim())
-            .filter(|a| !a.is_empty())
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        if !hl.is_empty() {
-            blocks.push(hl);
         }
     }
     blocks
@@ -893,8 +897,8 @@ pub(crate) struct SyncItem {
     /// Assembled Zotero-API-JSON (feeds `map_zotero_item_to_record`, same as migration).
     pub json: Value,
     pub notes: Vec<SyncNote>,
-    /// Pre-formatted Markdown blocks for PDF annotations (migration format).
-    pub annotations: Vec<String>,
+    /// PDF highlights / underlines to write into `marks/annotations.json`.
+    pub annotations: Vec<ZoteroPdfMark>,
 }
 
 /// Read regular items with the subset bidirectional sync needs. Reuses the
@@ -1624,133 +1628,370 @@ fn sanitize_segment(name: &str) -> Option<String> {
     }
 }
 
-/// Human-readable label for a Zotero `itemAnnotations.type` value.
-/// 1=highlight, 2=note, 3=image, 5=underline; unknown types stay "annotation".
-fn annotation_kind_label(kind: Option<i64>) -> Option<&'static str> {
-    kind.map(|value| match value {
-        1 => "高亮",
-        5 => "下划线",
-        2 => "笔记",
-        3 => "图片",
-        _ => "标注",
-    })
+/// One Zotero PDF annotation. `rects` are PDF user space
+/// `[left, bottom, right, top]` when `position` was present.
+#[derive(Debug, Clone)]
+pub(crate) struct ZoteroPdfMark {
+    pub id: String,
+    pub kind: Option<i64>,
+    pub text: String,
+    pub comment: String,
+    pub color: Option<String>,
+    pub page_label: Option<String>,
+    /// 0-based page from `position.pageIndex`.
+    pub page_index: Option<u32>,
+    pub rects: Vec<[f32; 4]>,
 }
 
-/// Migrate a paper's PDF annotations (highlights / underlines + comments) as
-/// Markdown blocks. Annotations hang off the PDF attachment, which hangs off
-/// the paper. Type and color are kept so the same passage marked twice with a
-/// different shape or color is not collapsed by the content-level dedupe.
-fn read_annotations(conn: &Connection, parent_item_id: i64) -> Result<Vec<String>, AppError> {
-    type Row = (
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<i64>,
-        Option<String>,
-    );
-    let mut rows: Vec<Row> = Vec::new();
-
-    // Zotero 5+ stores type/color on itemAnnotations. Older schemas (or
-    // partially migrated databases) lack those columns; fall back to the
-    // text-only query so existing libraries keep importing.
-    match conn.prepare(
-        "SELECT a.text, a.comment, a.pageLabel, a.type, a.color
+/// PDF annotations hanging off this item's attachments.
+///
+/// Zotero 6+ stores `position` (page + rects). Older schemas only have the
+/// marked text; those still import when the quote can be found in the PDF.
+fn read_annotations(
+    conn: &Connection,
+    parent_item_id: i64,
+) -> Result<Vec<ZoteroPdfMark>, AppError> {
+    const WITH_POSITION: &str =
+        "SELECT a.itemID, a.text, a.comment, a.pageLabel, a.type, a.color, a.position, ai.key
+         FROM itemAnnotations a
+         JOIN itemAttachments att ON a.parentItemID = att.itemID
+         LEFT JOIN items ai ON a.itemID = ai.itemID
+         WHERE att.parentItemID = ?1
+           AND a.itemID NOT IN (SELECT itemID FROM deletedItems)
+         ORDER BY att.itemID, a.sortIndex";
+    const WITH_TYPE: &str =
+        "SELECT a.itemID, a.text, a.comment, a.pageLabel, a.type, a.color, NULL, ai.key
+         FROM itemAnnotations a
+         JOIN itemAttachments att ON a.parentItemID = att.itemID
+         LEFT JOIN items ai ON a.itemID = ai.itemID
+         WHERE att.parentItemID = ?1
+           AND a.itemID NOT IN (SELECT itemID FROM deletedItems)
+         ORDER BY att.itemID, a.sortIndex";
+    const TEXT_ONLY: &str =
+        "SELECT a.itemID, a.text, a.comment, a.pageLabel, NULL, NULL, NULL, NULL
          FROM itemAnnotations a
          JOIN itemAttachments att ON a.parentItemID = att.itemID
          WHERE att.parentItemID = ?1
            AND a.itemID NOT IN (SELECT itemID FROM deletedItems)
-         ORDER BY att.itemID, a.sortIndex",
-    ) {
-        Ok(mut stmt) => {
-            let mapped = stmt.query_map(params![parent_item_id], |r| {
-                Ok((
-                    r.get::<_, Option<String>>(0)?,
-                    r.get::<_, Option<String>>(1)?,
-                    r.get::<_, Option<String>>(2)?,
-                    r.get::<_, Option<i64>>(3)?,
-                    r.get::<_, Option<String>>(4)?,
-                ))
-            })?;
-            for row in mapped {
-                rows.push(row?);
-            }
-        }
-        Err(_) => {
-            let mut stmt = match conn.prepare(
-                "SELECT a.text, a.comment, a.pageLabel
-                 FROM itemAnnotations a
-                 JOIN itemAttachments att ON a.parentItemID = att.itemID
-                 WHERE att.parentItemID = ?1
-                   AND a.itemID NOT IN (SELECT itemID FROM deletedItems)
-                 ORDER BY att.itemID, a.sortIndex",
-            ) {
-                Ok(s) => s,
-                Err(_) => return Ok(Vec::new()), // older Zotero without annotations
-            };
-            let mapped = stmt.query_map(params![parent_item_id], |r| {
-                Ok((
-                    r.get::<_, Option<String>>(0)?,
-                    r.get::<_, Option<String>>(1)?,
-                    r.get::<_, Option<String>>(2)?,
-                    None::<i64>,
-                    None::<String>,
-                ))
-            })?;
-            for row in mapped {
-                rows.push(row?);
-            }
+         ORDER BY att.itemID, a.sortIndex";
+    for sql in [WITH_POSITION, WITH_TYPE, TEXT_ONLY] {
+        if let Some(rows) = query_annotation_rows(conn, parent_item_id, sql)? {
+            return Ok(rows);
         }
     }
+    // Libraries from before PDF annotations have no such table.
+    Ok(Vec::new())
+}
 
+/// `Ok(None)` when the statement cannot be prepared (missing column or table).
+fn query_annotation_rows(
+    conn: &Connection,
+    parent_item_id: i64,
+    sql: &str,
+) -> Result<Option<Vec<ZoteroPdfMark>>, AppError> {
+    let mut stmt = match conn.prepare(sql) {
+        Ok(stmt) => stmt,
+        Err(_) => return Ok(None),
+    };
+    let mapped = stmt.query_map(params![parent_item_id], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, Option<String>>(1)?,
+            r.get::<_, Option<String>>(2)?,
+            r.get::<_, Option<String>>(3)?,
+            r.get::<_, Option<i64>>(4)?,
+            r.get::<_, Option<String>>(5)?,
+            r.get::<_, Option<String>>(6)?,
+            r.get::<_, Option<String>>(7)?,
+        ))
+    })?;
     let mut out = Vec::new();
-    for (text, comment, page, kind, color) in rows {
+    for row in mapped {
+        let (item_id, text, comment, page_label, kind, color, position, key) = row?;
         let text = text.unwrap_or_default();
         let comment = comment.unwrap_or_default();
-        let text = text.trim();
-        let comment = comment.trim();
-        if text.is_empty() && comment.is_empty() {
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        let comment = comment.trim().to_string();
+        let (page_index, rects) = position
+            .as_deref()
+            .map(parse_zotero_position)
+            .unwrap_or((None, Vec::new()));
+        if text.is_empty() && comment.is_empty() && rects.is_empty() {
             continue;
         }
-        let page = page.as_deref().map(str::trim).filter(|s| !s.is_empty());
-        let color = color.as_deref().map(str::trim).filter(|s| !s.is_empty());
-        let meta = match (annotation_kind_label(kind), color) {
-            (Some(label), Some(color)) => Some(format!("{label} · {color}")),
-            (Some(label), None) => Some(label.to_string()),
-            (None, Some(color)) => Some(color.to_string()),
-            (None, None) => None,
-        };
-        // Collapse the marked passage into one quoted line with an inline
-        // type/color tag, page ref and the comment underneath — compact, not
-        // divider-heavy. Text-only rows keep the legacy format.
-        let mut block = String::new();
-        if !text.is_empty() {
-            let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
-            block.push_str("> ");
-            if let Some(meta) = &meta {
-                block.push_str(&format!("[{meta}] "));
-            }
-            block.push_str(&collapsed);
-            if let Some(p) = page {
-                block.push_str(&format!(" (p. {p})"));
-            }
-        } else if let Some(p) = page {
-            if let Some(meta) = &meta {
-                block.push_str(&format!("> [{meta}] (p. {p})"));
-            } else {
-                block.push_str(&format!("(p. {p})"));
-            }
-        } else if let Some(meta) = &meta {
-            block.push_str(&format!("> [{meta}]"));
-        }
-        if !comment.is_empty() {
-            if !block.is_empty() {
-                block.push('\n');
-            }
-            block.push_str(comment);
-        }
-        out.push(block.trim().to_string());
+        let id = key
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|key| format!("zotero-{key}"))
+            .unwrap_or_else(|| format!("zotero-{item_id}"));
+        out.push(ZoteroPdfMark {
+            id,
+            kind,
+            text,
+            comment,
+            color: color
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string),
+            page_label: page_label
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string),
+            page_index,
+            rects,
+        });
     }
-    Ok(out)
+    Ok(Some(out))
+}
+
+/// `position` JSON: `{ "pageIndex": N, "rects": [[left, bottom, right, top]] }`.
+/// Ink annotations contribute their path bounding box when `rects` is absent.
+fn parse_zotero_position(raw: &str) -> (Option<u32>, Vec<[f32; 4]>) {
+    let Ok(value) = serde_json::from_str::<Value>(raw) else {
+        return (None, Vec::new());
+    };
+    let page_index = value
+        .get("pageIndex")
+        .and_then(Value::as_u64)
+        .and_then(|n| u32::try_from(n).ok());
+    let mut rects = Vec::new();
+    if let Some(list) = value.get("rects").and_then(Value::as_array) {
+        for rect in list {
+            let Some(nums) = rect.as_array() else {
+                continue;
+            };
+            if nums.len() < 4 {
+                continue;
+            }
+            let Some(coords) = nums
+                .iter()
+                .take(4)
+                .map(|n| n.as_f64().map(|v| v as f32))
+                .collect::<Option<Vec<_>>>()
+            else {
+                continue;
+            };
+            rects.push([coords[0], coords[1], coords[2], coords[3]]);
+        }
+    }
+    if rects.is_empty() {
+        if let Some(bbox) = path_bbox(value.get("paths")) {
+            rects.push(bbox);
+        }
+    }
+    (page_index, rects)
+}
+
+fn path_bbox(paths: Option<&Value>) -> Option<[f32; 4]> {
+    let paths = paths?.as_array()?;
+    let mut min_x = f32::MAX;
+    let mut min_y = f32::MAX;
+    let mut max_x = f32::MIN;
+    let mut max_y = f32::MIN;
+    let mut any = false;
+    for path in paths {
+        let Some(points) = path.as_array() else {
+            continue;
+        };
+        for point in points {
+            let Some(xy) = point.as_array() else { continue };
+            let (Some(x), Some(y)) = (
+                xy.first().and_then(Value::as_f64),
+                xy.get(1).and_then(Value::as_f64),
+            ) else {
+                continue;
+            };
+            let x = x as f32;
+            let y = y as f32;
+            any = true;
+            min_x = min_x.min(x);
+            min_y = min_y.min(y);
+            max_x = max_x.max(x);
+            max_y = max_y.max(y);
+        }
+    }
+    if !any || max_x <= min_x || max_y <= min_y {
+        None
+    } else {
+        Some([min_x, min_y, max_x, max_y])
+    }
+}
+
+pub(crate) fn paper_pdf_file(paper_dir: &Path) -> Option<PathBuf> {
+    let name = paper_dir.file_name()?.to_owned();
+    let mut named = paper_dir.join(name);
+    named.set_extension("pdf");
+    if named.is_file() {
+        return Some(named);
+    }
+    let entries = fs::read_dir(paper_dir).ok()?;
+    let mut found = None;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("pdf") || !path.is_file() {
+            continue;
+        }
+        if found.is_some() {
+            return None;
+        }
+        found = Some(path);
+    }
+    found
+}
+
+/// Write highlights the viewer can paint. Re-runs skip ids already present.
+/// A missing or unreadable PDF leaves the paper's notes untouched.
+pub(crate) fn persist_zotero_highlights(
+    paper_dir: &Path,
+    pdf_path: &Path,
+    marks: &[ZoteroPdfMark],
+) -> usize {
+    if marks.is_empty() {
+        return 0;
+    }
+    let pdf = match fs::read(pdf_path) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            log::warn!(
+                "zotero highlights: cannot read {}: {err}",
+                pdf_path.display()
+            );
+            return 0;
+        }
+    };
+    match zotero_highlight_items(&pdf, marks) {
+        Ok(items) => {
+            match agentero_core::features::pdf_locate::annotations::append(paper_dir, items) {
+                Ok(added) => added,
+                Err(err) => {
+                    log::warn!("zotero highlights: write annotations.json: {err}");
+                    0
+                }
+            }
+        }
+        Err(err) => {
+            log::warn!("zotero highlights: {err}");
+            0
+        }
+    }
+}
+
+fn zotero_highlight_items(pdf: &[u8], marks: &[ZoteroPdfMark]) -> Result<Vec<Value>, AppError> {
+    use agentero_core::features::pdf_locate::annotations::{now_iso, text_markup_item};
+    use agentero_core::features::pdf_locate::{map_pdf_user_rects, PdfUserRects};
+
+    let groups: Vec<PdfUserRects> = marks
+        .iter()
+        .map(|mark| PdfUserRects {
+            page_index: mark.page_index.map(|page| page as i32).unwrap_or(-1),
+            rects: mark.rects.clone(),
+        })
+        .collect();
+    let mapped = map_pdf_user_rects(pdf, &groups)?;
+    let created = now_iso();
+    let mut items = Vec::new();
+    for (mark, geometry) in marks.iter().zip(mapped) {
+        let underline = mark.kind == Some(5);
+        let (stroke, palette) = annotation_paint(mark.color.as_deref());
+        let comment = (!mark.comment.is_empty()).then_some(mark.comment.as_str());
+        if !geometry.rects.is_empty() && geometry.page_width > 0.0 {
+            let page_index = mark.page_index.unwrap_or(0);
+            items.push(text_markup_item(
+                &mark.id,
+                page_index,
+                &geometry.rects,
+                geometry.page_width,
+                geometry.page_height,
+                underline,
+                &mark.text,
+                &stroke,
+                palette,
+                comment,
+                &created,
+            ));
+            continue;
+        }
+        let Some(hit) = locate_mark(pdf, mark) else {
+            continue;
+        };
+        items.push(text_markup_item(
+            &mark.id,
+            hit.page.saturating_sub(1),
+            &hit.rects,
+            hit.page_width,
+            hit.page_height,
+            underline,
+            &mark.text,
+            &stroke,
+            palette,
+            comment,
+            &created,
+        ));
+    }
+    Ok(items)
+}
+
+fn locate_mark(
+    pdf: &[u8],
+    mark: &ZoteroPdfMark,
+) -> Option<agentero_core::features::pdf_locate::LocateMatch> {
+    use agentero_core::features::pdf_locate::{locate_in_pdf, LocateRequest};
+    if mark.text.chars().filter(|c| !c.is_whitespace()).count() < 4 {
+        return None;
+    }
+    let mut request = LocateRequest::new(mark.text.clone());
+    request.page = mark
+        .page_label
+        .as_deref()
+        .and_then(|label| label.parse::<u32>().ok())
+        .filter(|page| *page >= 1);
+    request.max_matches = 1;
+    locate_in_pdf(pdf, &request)
+        .ok()
+        .and_then(|result| result.matches.into_iter().next())
+}
+
+/// Desktop swatches. A Zotero hex is kept as the painted color and snapped to
+/// the nearest swatch so the picker still has a selection.
+fn annotation_paint(color: Option<&str>) -> (String, &'static str) {
+    const SWATCHES: &[(&str, u8, u8, u8)] = &[
+        ("yellow", 0xfc, 0xd3, 0x4d),
+        ("green", 0x86, 0xef, 0xac),
+        ("blue", 0x7d, 0xd3, 0xfc),
+        ("pink", 0xf9, 0xa8, 0xd4),
+        ("purple", 0xd8, 0xb4, 0xfe),
+    ];
+    let Some((r, g, b)) = color.and_then(parse_hex_color) else {
+        return ("#fcd34d".to_string(), "yellow");
+    };
+    let mut best = SWATCHES[0];
+    let mut best_dist = i32::MAX;
+    for swatch in SWATCHES {
+        let dist = (i32::from(r) - i32::from(swatch.1)).pow(2)
+            + (i32::from(g) - i32::from(swatch.2)).pow(2)
+            + (i32::from(b) - i32::from(swatch.3)).pow(2);
+        if dist < best_dist {
+            best = *swatch;
+            best_dist = dist;
+        }
+    }
+    (format!("#{r:02x}{g:02x}{b:02x}"), best.0)
+}
+
+fn parse_hex_color(raw: &str) -> Option<(u8, u8, u8)> {
+    let hex = raw.trim().trim_start_matches('#');
+    if hex.len() != 6 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    let value = u32::from_str_radix(hex, 16).ok()?;
+    Some((
+        ((value >> 16) & 0xff) as u8,
+        ((value >> 8) & 0xff) as u8,
+        (value & 0xff) as u8,
+    ))
 }
 
 fn read_notes(conn: &Connection, parent_item_id: i64) -> Result<Vec<String>, AppError> {
@@ -1871,7 +2112,7 @@ mod tests {
              CREATE TABLE collections (collectionID INTEGER PRIMARY KEY, collectionName TEXT, parentCollectionID INTEGER);
              CREATE TABLE collectionItems (collectionID INTEGER, itemID INTEGER, orderIndex INTEGER);
              CREATE TABLE itemNotes (itemID INTEGER, parentItemID INTEGER, note TEXT, title TEXT);
-             CREATE TABLE itemAnnotations (itemID INTEGER, parentItemID INTEGER, type INTEGER, text TEXT, comment TEXT, color TEXT, pageLabel TEXT, sortIndex TEXT);
+             CREATE TABLE itemAnnotations (itemID INTEGER, parentItemID INTEGER, type INTEGER, text TEXT, comment TEXT, color TEXT, pageLabel TEXT, sortIndex TEXT, position TEXT);
 
              INSERT INTO itemTypes VALUES (1,'journalArticle'),(2,'attachment'),(3,'note');
              INSERT INTO creatorTypes VALUES (1,'author');
@@ -1888,7 +2129,8 @@ mod tests {
              INSERT INTO collections VALUES (1,'NLP',NULL),(2,'Transformers',1);
              INSERT INTO collectionItems VALUES (2,10,0);
              INSERT INTO itemNotes VALUES (12,10,'<p>Great <strong>paper</strong>.</p>','Great');
-             INSERT INTO itemAnnotations VALUES (13,11,1,'Key finding here','my comment','#ffd400','3','00001');
+             INSERT INTO itemAnnotations VALUES (13,11,1,'Key finding here','my comment','#ffd400','3','00001','{\"pageIndex\":2,\"rects\":[[20,50,80,70]]}');
+             INSERT INTO items VALUES (13,4,'HLKEY001');
              -- pdf attachment (child item 11) in storage/BBBB2222
              INSERT INTO items VALUES (11,2,'BBBB2222');
              INSERT INTO itemAttachments VALUES (11,10,0,'application/pdf','storage:paper.pdf');
@@ -2243,36 +2485,184 @@ mod tests {
             read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
         let a = &items[0].annotations;
         assert_eq!(a.len(), 1);
+        assert_eq!(a[0].id, "zotero-HLKEY001");
+        assert_eq!(a[0].kind, Some(1));
+        assert_eq!(a[0].text, "Key finding here");
+        assert_eq!(a[0].comment, "my comment");
+        assert_eq!(a[0].page_label.as_deref(), Some("3"));
+        assert_eq!(a[0].page_index, Some(2));
+        assert_eq!(a[0].rects, vec![[20.0, 50.0, 80.0, 70.0]]);
+        assert_eq!(a[0].color.as_deref(), Some("#ffd400"));
+    }
+
+    #[test]
+    fn writes_highlights_to_annotations_json_not_notes() {
+        let dir = std::env::temp_dir().join(format!("motif-zhl-{}", now_nanos()));
+        fs::create_dir_all(&dir).unwrap();
+        let pdf = dir.join("paper.pdf");
+        fs::write(&pdf, one_page_pdf()).unwrap();
+        let marks = vec![ZoteroPdfMark {
+            id: "zotero-HLKEY001".into(),
+            kind: Some(1),
+            text: "Key finding here".into(),
+            comment: "my comment".into(),
+            color: Some("#ffd400".into()),
+            page_label: Some("1".into()),
+            page_index: Some(0),
+            rects: vec![[20.0, 50.0, 80.0, 70.0]],
+        }];
+        assert_eq!(persist_zotero_highlights(&dir, &pdf, &marks), 1);
+        assert_eq!(persist_zotero_highlights(&dir, &pdf, &marks), 0);
+        let raw = fs::read_to_string(dir.join("marks").join("annotations.json")).unwrap();
+        assert!(raw.contains("\"type\": 9"), "{raw}");
+        assert!(raw.contains("zotero-HLKEY001"), "{raw}");
+        assert!(raw.contains("my comment"), "{raw}");
+        assert!(raw.contains("#ffd400"), "{raw}");
+        assert!(!dir.join("NOTES.md").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn migrate_puts_highlights_on_the_pdf_and_notes_in_markdown() {
+        let base = std::env::temp_dir().join(format!("motif-zmig-hl-{}", now_nanos()));
+        let vault = base.join("vault");
+        let zdir = base.join("zotero");
+        let storage = zdir.join("storage").join("BBBB2222");
+        fs::create_dir_all(&vault).unwrap();
+        fs::create_dir_all(&storage).unwrap();
+        fs::write(storage.join("paper.pdf"), one_page_pdf()).unwrap();
+        {
+            let conn = Connection::open(zdir.join("zotero.sqlite")).unwrap();
+            conn.execute_batch(SEED_SQL).unwrap();
+            // The seeded PDF is one page. Point the highlight at that page.
+            conn.execute(
+                "UPDATE itemAnnotations SET position = ?1 WHERE itemID = 13",
+                params![r#"{"pageIndex":0,"rects":[[20,50,80,70]]}"#],
+            )
+            .unwrap();
+        }
+
+        let args = || ZoteroMigrateArgs {
+            vault_path: vault.to_string_lossy().to_string(),
+            zotero_dir: zdir.to_string_lossy().to_string(),
+            parent_dir: Some("papers".into()),
+            copy_pdfs: true,
+            preserve_collections: true,
+            include_collections: None,
+            include_items: None,
+            prefer_collection: None,
+            migrate_notes: true,
+            migrate_annotations: true,
+        };
+        let out = migrate_zotero(args(), |_c, _t, _p| {}, None, NoteShellMode::Standard)
+            .await
+            .unwrap();
+        assert_eq!(out.imported, 1);
+        assert_eq!(out.copied_pdfs, 1);
+        let paper = vault.join(&out.paths[0]);
+        let notes = fs::read_to_string(paper.join("NOTES.md")).unwrap();
         assert!(
-            a[0].contains("> [高亮 · #ffd400] Key finding here"),
-            "got: {}",
-            a[0]
+            notes.contains("**paper**"),
+            "child note should be markdown, got: {notes}"
         );
-        assert!(a[0].contains("my comment"), "got: {}", a[0]);
-        assert!(a[0].contains("p. 3"), "got: {}", a[0]);
+        assert!(
+            !notes.contains("Key finding here"),
+            "highlight quote must not be appended to NOTES.md, got: {notes}"
+        );
+        assert!(
+            !notes.contains("my comment"),
+            "highlight comment must stay on the annotation, got: {notes}"
+        );
+
+        let raw = fs::read_to_string(paper.join("marks").join("annotations.json")).unwrap();
+        let items: Vec<serde_json::Value> = serde_json::from_str(&raw).unwrap();
+        assert_eq!(items.len(), 1, "{raw}");
+        let anno = &items[0]["annotation"];
+        assert_eq!(anno["type"], 9);
+        assert_eq!(anno["id"], "zotero-HLKEY001");
+        assert_eq!(anno["pageIndex"], 0);
+        assert_eq!(anno["contents"], "my comment");
+        assert_eq!(anno["strokeColor"], "#ffd400");
+        assert_eq!(anno["custom"]["quote"], "Key finding here");
+        // [20, 50, 80, 70] on a 200×100 page, top-left origin: y = 100 - 70.
+        assert!((anno["rect"]["origin"]["x"].as_f64().unwrap() - 20.0).abs() < 0.5);
+        assert!((anno["rect"]["origin"]["y"].as_f64().unwrap() - 30.0).abs() < 0.5);
+        assert!((anno["rect"]["size"]["width"].as_f64().unwrap() - 60.0).abs() < 0.5);
+        assert!((anno["rect"]["size"]["height"].as_f64().unwrap() - 20.0).abs() < 0.5);
+
+        // A second migration must not duplicate the highlight or the note.
+        let again = migrate_zotero(args(), |_c, _t, _p| {}, None, NoteShellMode::Standard)
+            .await
+            .unwrap();
+        assert_eq!(again.imported, 0);
+        let raw = fs::read_to_string(paper.join("marks").join("annotations.json")).unwrap();
+        let items: Vec<serde_json::Value> = serde_json::from_str(&raw).unwrap();
+        assert_eq!(items.len(), 1, "{raw}");
+        let notes_again = fs::read_to_string(paper.join("NOTES.md")).unwrap();
+        assert_eq!(notes_again.matches("**paper**").count(), 1);
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    /// MediaBox [0 0 200 100], enough for PDFium to map a user-space rect.
+    fn one_page_pdf() -> Vec<u8> {
+        let content = "BT /F1 12 Tf 20 60 Td (Hello) Tj ET\n";
+        let objects = [
+            "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_string(),
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Contents 4 0 R \
+              /Resources << /Font << /F1 5 0 R >> >> >>"
+                .to_string(),
+            format!(
+                "<< /Length {} >>\nstream\n{content}endstream",
+                content.len()
+            ),
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(),
+        ];
+        let mut out = String::from("%PDF-1.4\n");
+        let mut offsets = Vec::new();
+        for (i, body) in objects.iter().enumerate() {
+            offsets.push(out.len());
+            out.push_str(&format!("{} 0 obj\n{body}\nendobj\n", i + 1));
+        }
+        let xref_at = out.len();
+        out.push_str(&format!("xref\n0 {}\n", objects.len() + 1));
+        out.push_str("0000000000 65535 f \n");
+        for offset in &offsets {
+            out.push_str(&format!("{offset:010} 00000 n \n"));
+        }
+        out.push_str(&format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF\n",
+            objects.len() + 1
+        ));
+        out.into_bytes()
     }
 
     #[test]
     fn distinguishes_annotation_shape_and_color() {
         let conn = seed_db();
         conn.execute_batch(
-            "INSERT INTO itemAnnotations VALUES (14,11,5,'Underlined passage','','#2ea8e5','7','00002');
-             INSERT INTO itemAnnotations VALUES (15,11,1,'Underlined passage','','#2ea8e5','7','00003');
-             INSERT INTO itemAnnotations VALUES (16,11,5,'Mystery annotation','','','8','00004');
-             INSERT INTO itemAnnotations VALUES (17,11,99,'Unknown type','','#000000','9','00005');",
+            "INSERT INTO itemAnnotations VALUES (14,11,5,'Underlined passage','','#2ea8e5','7','00002',NULL);
+             INSERT INTO itemAnnotations VALUES (15,11,1,'Underlined passage','','#2ea8e5','7','00003',NULL);
+             INSERT INTO itemAnnotations VALUES (16,11,5,'Mystery annotation','','','8','00004',NULL);
+             INSERT INTO itemAnnotations VALUES (17,11,99,'Unknown type','','#000000','9','00005',NULL);",
         )
         .unwrap();
         let ZoteroRead { items, .. } =
             read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
         let a = &items[0].annotations;
         assert_eq!(a.len(), 5);
-        assert!(a[1].contains("> [下划线 · #2ea8e5] Underlined passage (p. 7)"));
-        assert!(a[2].contains("> [高亮 · #2ea8e5] Underlined passage (p. 7)"));
-        // Same text with a different shape stays a separate block (no dedupe
-        // by quote alone). The append layer compares the whole line.
-        assert_ne!(a[1], a[2]);
-        assert!(a[3].contains("> [下划线] Mystery annotation (p. 8)"));
-        assert!(a[4].contains("> [标注 · #000000] Unknown type (p. 9)"));
+        assert_eq!(a[1].kind, Some(5));
+        assert_eq!(a[1].text, "Underlined passage");
+        assert_eq!(a[1].color.as_deref(), Some("#2ea8e5"));
+        assert_eq!(a[2].kind, Some(1));
+        assert_eq!(a[2].text, "Underlined passage");
+        // Same passage with a different shape stays a separate mark.
+        assert_ne!(a[1].id, a[2].id);
+        assert_eq!(a[3].kind, Some(5));
+        assert!(a[3].color.is_none());
+        assert_eq!(a[4].kind, Some(99));
+        assert_eq!(a[4].color.as_deref(), Some("#000000"));
     }
 
     #[test]
@@ -2289,7 +2679,12 @@ mod tests {
 
         let out = read_annotations(&conn, 10).unwrap();
         assert_eq!(out.len(), 1);
-        assert_eq!(out[0], "> Old highlight (p. 2)\nold comment");
+        assert_eq!(out[0].id, "zotero-13");
+        assert_eq!(out[0].text, "Old highlight");
+        assert_eq!(out[0].comment, "old comment");
+        assert_eq!(out[0].page_label.as_deref(), Some("2"));
+        assert!(out[0].kind.is_none());
+        assert!(out[0].rects.is_empty());
     }
 
     #[test]
