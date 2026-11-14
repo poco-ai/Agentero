@@ -181,25 +181,56 @@ pub fn protect(text: &str, terms: &[GlossaryTerm]) -> (String, Vec<(String, Stri
     }
     (result, replacements)
 }
-pub fn restore(mut text: String, replacements: &[(String, String)]) -> Result<String, AppError> {
+pub fn restore(text: String, replacements: &[(String, String)]) -> Result<String, AppError> {
+    if replacements.is_empty() {
+        return Ok(text);
+    }
+    // MT tokenizers can split an opaque marker: Tencent returns "AGTX 0XZ"
+    // for "AGTX0XZ-as-a-judge". Accept whitespace/case changes, never missing
+    // characters, changed numbers, or duplicated markers. Scan only the original
+    // output so restoring one term cannot accidentally consume another term.
+    let mut normalized = String::with_capacity(text.len());
+    let mut offsets = Vec::with_capacity(text.len());
+    for (start, c) in text.char_indices() {
+        if !c.is_whitespace() {
+            normalized.push(c.to_ascii_uppercase());
+            offsets.extend(std::iter::repeat_n(
+                (start, start + c.len_utf8()),
+                c.len_utf8(),
+            ));
+        }
+    }
+    let mut spans = Vec::with_capacity(replacements.len());
     for (marker, target) in replacements {
-        let lower = text.to_ascii_lowercase();
-        let key = marker.to_ascii_lowercase();
-        let Some(start) = lower.find(&key) else {
+        let mut matches = normalized.match_indices(marker);
+        let Some((start, _)) = matches.next() else {
             return Err(AppError::domain(
                 "translate.terminology_not_preserved",
                 "Translation service did not preserve terminology markers.",
             ));
         };
-        if lower.matches(&key).count() != 1 {
+        if matches.next().is_some() {
             return Err(AppError::domain(
                 "translate.terminology_not_preserved",
                 "Translation service duplicated a terminology marker.",
             ));
         }
-        text.replace_range(start..start + marker.len(), target);
+        spans.push((
+            offsets[start].0,
+            offsets[start + marker.len() - 1].1,
+            target,
+        ));
     }
-    Ok(text)
+    spans.sort_by_key(|(start, _, _)| *start);
+    let mut restored = String::with_capacity(text.len());
+    let mut end = 0;
+    for (start, finish, target) in spans {
+        restored.push_str(&text[end..start]);
+        restored.push_str(target);
+        end = finish;
+    }
+    restored.push_str(&text[end..]);
+    Ok(restored)
 }
 
 #[cfg(test)]
@@ -208,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn damaged_or_duplicated_markers_retry_the_untouched_source_once() {
-        for damaged in ["AGTX 0 XZ", "AGTX0XZ and AGTX0XZ", "a translated acronym"] {
+        for damaged in ["AGTY0XZ", "AGTX0XZ and AGTX 0XZ", "a translated acronym"] {
             let mut requests = Vec::new();
             let result = translate_with_fallback(
                 "The LLM generates text.",
@@ -252,6 +283,62 @@ mod tests {
         assert_eq!(calls, 1);
         assert_eq!(result.text, "大模型 生成文本。");
         assert!(!result.rejected_protection);
+    }
+
+    #[tokio::test]
+    async fn tencent_split_markers_keep_compound_terms_without_plain_text_fallback() {
+        for marker in ["AGTX 0XZ", "agtx0 xz", "A G T X\u{a0}0\u{2009}X Z"] {
+            let mut requests = Vec::new();
+            let result = translate_with_fallback(
+                "LLM-as-a-judge",
+                &[("LLM".into(), "大模型".into())],
+                true,
+                |request| {
+                    requests.push(request);
+                    // Observed Tencent output; the original input yields 法学硕士法官.
+                    std::future::ready(Ok(format!("{marker}-作为一个法官")))
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(requests, ["AGTX0XZ-as-a-judge"]);
+            assert_eq!(result.text, "大模型-作为一个法官");
+            assert!(!result.rejected_protection);
+        }
+    }
+
+    #[test]
+    fn split_markers_preserve_surrounding_text_indices_and_validate_every_occurrence() {
+        let (masked, replacements) = protect(
+            "LLM uses KV cache, not literal AGTX0XZ.",
+            &[
+                ("LLM".into(), "大模型".into()),
+                ("KV cache".into(), "键值缓存".into()),
+            ],
+        );
+        assert!(masked.starts_with("AGTXX0XZ"));
+        assert_eq!(
+            restore(
+                "前文 AGTXX 1XZ，后文 agtxx0 xz。原样 AGTX0XZ。".into(),
+                &replacements
+            )
+            .unwrap(),
+            "前文 键值缓存，后文 大模型。原样 AGTX0XZ。"
+        );
+        for broken in ["AGTXX 0XZ AGTXX 0XZ AGTXX1XZ", "AGTXX0XZ AGTXX2XZ"] {
+            assert!(restore(broken.into(), &replacements).is_err());
+        }
+        assert_eq!(
+            restore(
+                "AGTX 0XZ AGTX1XZ".into(),
+                &[
+                    ("AGTX0XZ".into(), "AGTX1XZ".into()),
+                    ("AGTX1XZ".into(), "缓存".into())
+                ]
+            )
+            .unwrap(),
+            "AGTX1XZ 缓存"
+        );
     }
 
     #[tokio::test]

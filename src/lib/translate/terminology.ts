@@ -1,7 +1,7 @@
 import terms from "./data/ai-terms.json";
 import { glossaryConstraint, parseGlossary } from "./glossary";
 
-export const TERMINOLOGY_REVISION = "ai-abc74818-ecdict-bc015ed-v2";
+export const TERMINOLOGY_REVISION = "ai-abc74818-ecdict-bc015ed-v3";
 export const isKnownDictionaryTerm = (text: string) =>
 	terms.some((term) =>
 		term.aliases.some(
