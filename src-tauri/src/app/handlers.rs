@@ -1,9 +1,9 @@
-//! Command registration shared between desktop and iOS.
+//! Command registration shared between desktop and mobile.
 //!
-//! Desktop-only commands are listed once via `$($desktop:path),*` so the iOS
-//! branch does not duplicate the common list.
+//! Desktop-only commands are listed once so mobile targets do not
+//! duplicate the common list.
 
-/// Commands available on every platform (including iOS).
+/// Commands available on every platform (including iOS and Android).
 /// Desktop-only extras are appended by the caller; `$extra` stays a raw token
 /// stream so individual entries can carry `#[cfg(...)]` (e.g. features that
 /// need the desktop PDFium stack and are absent on mobile targets).
@@ -173,7 +173,7 @@ macro_rules! common_commands {
 
 /// Attach the platform-appropriate invoke handler to the builder.
 pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         builder.invoke_handler(common_commands![
             #[cfg(not(any(target_os = "ios", target_os = "android")))]
@@ -333,7 +333,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::jev::commands::jev_probe_health,
         ])
     }
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         builder.invoke_handler(common_commands![
             crate::integration::bridge::client_commands::bridge_connect,

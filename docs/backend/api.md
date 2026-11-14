@@ -104,8 +104,8 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 `src/lib/core/bindings.ts` 由 [tauri-specta](https://github.com/specta-rs/specta)（rc.25）从 Rust 签名生成，是 Frontend ↔ Host IPC 的类型化契约。**生成物，不要手改**。
 
 - **覆盖范围**
-  - **命令**：desktop 注册的全部 192 个 `#[tauri::command]`（`app/handlers.rs` 的 `common_commands!` + desktop-only extras）逐一 collect 于 `src-tauri/src/app/bindings_test.rs`。iOS-only 的 5 个 bridge client 命令（`bridge_connect` / `bridge_resume` / `bridge_disconnect` / `bridge_rpc` / client 版 `bridge_status`）不进 desktop bindings。
-  - **事件**：desktop 侧 emit 的 42 个事件（`job:*`（含 `job:progress` 字节/计数进度）、`agent:*`、`vault:file-changed`、`settings:changed`、`bridge:host-status`/`bridge:pair-request`、`connector:*`、`mcp:*`、`sync:*`、`paper:*` 等），声明于 `src-tauri/src/app/events_contract.rs`（wrapper/mirror + `#[tauri_specta(event_name = "…")]`，事件名与 emit 字面量一致，emit 调用点不改造）。iOS-only bridge client 事件（`bridge:status` / `bridge:progress` / `bridge:pair-pending`）不在其中。
+  - **命令**：desktop 注册的全部 192 个 `#[tauri::command]`（`app/handlers.rs` 的 `common_commands!` + desktop-only extras）逐一 collect 于 `src-tauri/src/app/bindings_test.rs`。iOS 和 Android 共用的 5 个 bridge client 命令（`bridge_connect` / `bridge_resume` / `bridge_disconnect` / `bridge_rpc` / client 版 `bridge_status`）不进 desktop bindings。
+  - **事件**：desktop 侧 emit 的 42 个事件（`job:*`（含 `job:progress` 字节/计数进度）、`agent:*`、`vault:file-changed`、`settings:changed`、`bridge:host-status`/`bridge:pair-request`、`connector:*`、`mcp:*`、`sync:*`、`paper:*` 等），声明于 `src-tauri/src/app/events_contract.rs`（wrapper/mirror + `#[tauri_specta(event_name = "…")]`，事件名与 emit 字面量一致，emit 调用点不改造）。移动端 bridge client 事件（`bridge:status` / `bridge:progress` / `bridge:pair-pending`）不在其中。
 - **再生成 / 防漂移**
 
   ```bash
@@ -124,7 +124,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 - **前端调用形态（迁移说明）**：bindings 导出 `commands`（camelCase 命令函数）与 `events`（`events.jobChanged.listen(cb)` 等，payload 已按事件名类型化）。返回值有两种信封：
   - 命令返回 `ApiResult<T>`（如 `commands.settingsGet()`）：Promise 直接 resolve 信封，判错看 `r.ok === false` 时读 `r.error`（`{ code, message, details? }`）；`r.data` 类型为 `T | null`。
   - 命令返回 `Result<ApiResult<T>, String>`（如 `commands.jobReport(args)`）：bindings 包了一层 `typedError`，resolve 为 `{ status: "ok", data: ApiResult<T> } | { status: "error", error: string }`；先判 `status`（外层 IPC 级错误，对应 Rust `Err(String)`），再判 `data.ok`（业务错误信封）。
-- **前端 helper（`src/lib/core/ipc.ts`）**：`callApi` / `callApiResult` / `callResult` 分别按上述信封形态解包并保留旧的 throw 语义（Host 错误抛出 `Error & { details }`，`fallback` / `desktopOnly` 可定制文案），返回类型由命令函数推断。旧的 `invokeApi` 与 app 命令的裸 `invoke` 已全部迁移删除：新调用点一律 `commands.*` + helper；事件订阅一律 `events.*.listen`（React 侧用 `useTauriEvent(events.x, cb)`，非 UI 模块用 `listenEventSafe(events.x, cb)`）。保留字符串形态的仅限：前端窗口间广播（`workspace:*`、`agent:attach-context` 等）与 iOS bridge client 事件（`bridge:status` / `bridge:progress` / `bridge:pair-pending` / `bridge:event:*`），以及 `src/lib/bridge/client.ts` 中 iOS bridge client **命令**（`bridge_connect` / `bridge_disconnect` / `bridge_resume` / `bridge_status` / `bridge_rpc`，mobile-gated，未进桌面 bindings）的裸 `invoke`。
+- **前端 helper（`src/lib/core/ipc.ts`）**：`callApi` / `callApiResult` / `callResult` 分别按上述信封形态解包并保留旧的 throw 语义（Host 错误抛出 `Error & { details }`，`fallback` / `desktopOnly` 可定制文案），返回类型由命令函数推断。旧的 `invokeApi` 与 app 命令的裸 `invoke` 已全部迁移删除：新调用点一律 `commands.*` + helper；事件订阅一律 `events.*.listen`（React 侧用 `useTauriEvent(events.x, cb)`，非 UI 模块用 `listenEventSafe(events.x, cb)`）。保留字符串形态的仅限：前端窗口间广播（`workspace:*`、`agent:attach-context` 等）与 移动端 bridge client 事件（`bridge:status` / `bridge:progress` / `bridge:pair-pending` / `bridge:event:*`），以及 `src/lib/bridge/client.ts` 中 移动端 bridge client **命令**（`bridge_connect` / `bridge_disconnect` / `bridge_resume` / `bridge_status` / `bridge_rpc`，mobile-gated，未进桌面 bindings）的裸 `invoke`。
 
 ## 3. Host 层 Tauri invoke API
 
