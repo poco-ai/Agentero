@@ -46,6 +46,7 @@ import {
 	restoreInlineTokens,
 } from "@/lib/translate/mask";
 import { resolveConfiguredTranslateAgent } from "@/lib/translate/resolve-agent";
+import { TERMINOLOGY_REVISION } from "@/lib/translate/terminology";
 import type {
 	CommercialTranslateProviderId,
 	TranslateProviderId,
@@ -179,6 +180,7 @@ function promptFingerprint(prompt: string): string {
 export function translateServiceKey(settings: TranslateSettings): string {
 	const providerId = settings.provider;
 	const promptSource = [
+		TERMINOLOGY_REVISION,
 		settings.customPrompt,
 		settings.customSystem,
 		settings.customUser,
