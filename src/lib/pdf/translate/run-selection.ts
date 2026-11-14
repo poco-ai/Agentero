@@ -29,11 +29,13 @@ import {
 	resolveConfiguredTranslateAgent,
 	runTranslate,
 } from "@/lib/translate";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
 import {
-	buildDictionaryPrompt,
-	extractPaperDefinition,
-	shouldUseDictionary,
-} from "@/lib/translate/dictionary";
+	contextualDictionaryResult,
+	dictionaryEntriesForContext,
+	lookupDictionary,
+	renderDictionaryEntries,
+} from "@/lib/translate/lexicon";
 import type { TranslateTask } from "@/lib/translate/types";
 
 export type RunSelectionTranslateOptions = AgentRunRefs & {
@@ -90,43 +92,72 @@ export async function runSelectionTranslate({
 	sessionRef,
 	activeSessionRef,
 }: RunSelectionTranslateOptions): Promise<void> {
-	const { providerId, targetLangName, customPrompt, customSystem, customUser } =
-		prepareTranslateTask({
+	const {
+		providerId,
+		targetLangName,
+		customPrompt,
+		customSystem,
+		customUser,
+		glossary,
+		task,
+	} = prepareTranslateTask({
+		text,
+		context,
+	});
+	let localEntry = "";
+	if (isDictionaryLookup(text)) {
+		let entries = await lookupDictionary(text, task.targetLang);
+		if (disposedRef.current) return;
+		entries = dictionaryEntriesForContext(
+			entries,
 			text,
-			context,
-		});
-
-	// Phase 2: 判定是否使用词典模式
-	const isDictionary = shouldUseDictionary(text);
-
-	// Phase 2: L1 论文内定义提取（暂时返回 undefined）
-	const paperDefinition = await extractPaperDefinition(text);
+			context.dictionarySurrounding,
+		);
+		localEntry = renderDictionaryEntries(entries, task.targetLang);
+		if (localEntry) {
+			if (
+				!context.dictionarySurrounding ||
+				!["agent", "openaiCompatible"].includes(providerId)
+			) {
+				commitProviderResult(localEntry);
+				return;
+			}
+			appendChunk(localEntry);
+			context = { ...context, dictionaryReference: localEntry };
+		}
+	}
+	const withContext = (result: string) =>
+		localEntry && result.trim()
+			? contextualDictionaryResult(localEntry, result)
+			: localEntry || result;
+	const fail = (message: string) => {
+		if (localEntry) {
+			commitProviderResult(localEntry);
+			return;
+		}
+		notifyError(message);
+		markFailed(message);
+	};
 
 	if (providerId === "agent") {
-		// 根据模式选择提示词
-		const prompt = isDictionary
-			? buildDictionaryPrompt({
-					word: text,
-					sentence: context.quote || text, // 使用上下文句子，如果没有则使用原文
-					targetLang: targetLangName,
-					paperDefinition: paperDefinition?.text,
-				})
-			: buildTranslatePrompt({
-					text,
-					targetLangName,
-					page: context.page,
-					surface: context.surface,
-					customPrompt,
-					customSystem,
-					customUser,
-				});
+		const prompt = buildTranslatePrompt({
+			text,
+			targetLangName,
+			page: context.page,
+			surface: context.surface,
+			customPrompt,
+			customSystem,
+			customUser,
+			dictionarySurrounding: context.dictionarySurrounding,
+			dictionaryReference: context.dictionaryReference,
+			glossary,
+		});
 		try {
 			const resolved = await resolveConfiguredTranslateAgent();
 			if (disposedRef.current) return;
 			if (!resolved.agentId) {
 				const msg = noAgentText();
-				notifyError(msg);
-				markFailed(msg);
+				fail(msg);
 				return;
 			}
 			const agentId = resolved.agentId;
@@ -148,9 +179,13 @@ export async function runSelectionTranslate({
 				unsubsRef,
 				sessionRef,
 				activeSessionRef,
-				onStream: (ev) => appendChunk(ev.chunk),
+				onStream: (ev) => {
+					if (!localEntry) appendChunk(ev.chunk);
+				},
 				onCompleted: (ev) => {
-					const current = commitAgentResult(ev);
+					const current = commitAgentResult(
+						localEntry ? { ...ev, content: withContext(ev.content) } : ev,
+					);
 					if (
 						current &&
 						ev.providerSessionId &&
@@ -168,16 +203,14 @@ export async function runSelectionTranslate({
 					if (disposedRef.current) return;
 					evictAgentTranslateSessionId(paperKey, agentId, modelId);
 					const msg = ev.error || agentFailedText();
-					notifyError(msg);
-					markFailed(msg);
+					fail(msg);
 				},
 				onSettled: () => stopStreaming(),
 			});
 		} catch (e) {
 			if (disposedRef.current) return;
 			const message = errorText(e);
-			notifyError(message);
-			markFailed(message);
+			fail(message);
 			stopStreaming();
 		}
 		return;
@@ -186,15 +219,14 @@ export async function runSelectionTranslate({
 	try {
 		const result = await runTranslate(
 			{ text, context },
-			{ providerId, onDelta: appendChunk },
+			{ providerId, onDelta: localEntry ? undefined : appendChunk },
 		);
 		if (disposedRef.current) return;
-		commitProviderResult(result.trim());
+		commitProviderResult(withContext(result.trim()));
 	} catch (e) {
 		if (disposedRef.current) return;
 		const message = displayTranslateError(errorText(e));
-		notifyError(message);
-		markFailed(message);
+		fail(message);
 		stopStreaming();
 	}
 }

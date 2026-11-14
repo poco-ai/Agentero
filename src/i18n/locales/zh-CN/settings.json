@@ -549,7 +549,8 @@
 		},
 		"errors": {
 			"noBuiltinKey": "当前构建未启用内置翻译。",
-			"unreachable": "无法连接翻译服务，请检查网络，或在翻译设置中更换服务。"
+			"unreachable": "无法连接翻译服务，请检查网络，或在翻译设置中更换服务。",
+			"terminology": "当前服务未能保留专业术语，请切换翻译服务后重试。"
 		},
 		"targetLang": {
 			"label": "目标语言",
@@ -642,7 +643,8 @@
 		},
 		"autoTranslation": {
 			"section": "自动翻译"
-		}
+		},
+		"dictionaryIncluded": "已内置离线英汉词典与 AI 术语，无需配置。"
 	},
 	"layout": {
 		"title": "版面解析",

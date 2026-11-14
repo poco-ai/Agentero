@@ -549,7 +549,8 @@
 		},
 		"errors": {
 			"noBuiltinKey": "Built-in translation is not available in this build.",
-			"unreachable": "Could not reach the translation service. Check the network or pick another service in Translate settings."
+			"unreachable": "Could not reach the translation service. Check the network or pick another service in Translate settings.",
+			"terminology": "This service could not preserve the terminology. Choose another translation service and retry."
 		},
 		"targetLang": {
 			"label": "Target language",
@@ -642,7 +643,8 @@
 		},
 		"autoTranslation": {
 			"section": "Auto-translate"
-		}
+		},
+		"dictionaryIncluded": "Offline English–Chinese dictionary and AI terminology are included. No setup needed."
 	},
 	"layout": {
 		"title": "Layout Analysis",

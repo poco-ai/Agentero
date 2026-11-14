@@ -5,6 +5,7 @@ import { isTauri } from "@/lib/core/tauri";
 /** Host marker for "the built-in provider has no compiled-in key". */
 export const ERR_TRANSLATE_NO_BUILTIN_KEY = "translate.no_builtin_key";
 export const ERR_TRANSLATE_EXTRA_INVALID = "translate.extra_parameters_invalid";
+export const ERR_TRANSLATE_TERMINOLOGY = "translate.terminology_not_preserved";
 export const ERR_TRANSLATE_EXTRA_RESERVED =
 	"translate.extra_parameters_reserved";
 
@@ -22,6 +23,9 @@ export async function invokeTranslateText(args: {
 	baseUrl?: string;
 	region?: string;
 	model?: string;
+	dictionary?: boolean;
+	dictionarySurrounding?: string;
+	dictionaryReference?: string;
 	extraRequestBody?: string;
 	/** Host request timeout (ms); clamped 1s–30s server-side. */
 	timeoutMs?: number;
@@ -40,6 +44,9 @@ export async function invokeTranslateText(args: {
 		baseUrl: args.baseUrl?.trim() || null,
 		region: args.region?.trim() || null,
 		model: args.model?.trim() || null,
+		dictionary: args.dictionary ?? false,
+		dictionarySurrounding: args.dictionarySurrounding || null,
+		dictionaryReference: args.dictionaryReference || null,
 		extraRequestBody: args.extraRequestBody?.trim() || null,
 		timeoutMs: args.timeoutMs ?? null,
 	};
@@ -60,6 +67,7 @@ export async function invokeTranslateText(args: {
 		const code = res.error?.code;
 		throw new Error(
 			code === ERR_TRANSLATE_NO_BUILTIN_KEY ||
+				code === ERR_TRANSLATE_TERMINOLOGY ||
 				code === ERR_TRANSLATE_EXTRA_INVALID ||
 				code === ERR_TRANSLATE_EXTRA_RESERVED
 				? code
