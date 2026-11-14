@@ -17,6 +17,223 @@ const cjk =
 const opening = /^[“‘（《「『【([{]$/u;
 const closing = /^[”’，。！？；：、）》」』】)\]},.!?;:]$/u;
 type Unit = Omit<PlacedUnit, "x" | "y"> & { cjk: boolean; space: boolean };
+/** Rebuild TOC rows when layout.json merges a whole section into one region. */
+type TocEntry = { number: string; title: string; page: string; level: number };
+
+/** The source text layer still carries one box per TOC row even when MinerU merges the text. */
+function sourceLines(p: Paragraph): string[] {
+	const grouped = new Map<number, { x: number; text: string }[]>();
+	for (const character of p.characters) {
+		const key = Math.round(character.box.y * 2) / 2;
+		const line = grouped.get(key) ?? [];
+		line.push({ x: character.box.x, text: character.text });
+		grouped.set(key, line);
+	}
+	return [...grouped.entries()]
+		.sort(([a], [b]) => a - b)
+		.map(([, line]) =>
+			line
+				.sort((a, b) => a.x - b.x)
+				.map((part) => part.text)
+				.join("")
+				.replace(/\s+/gu, " ")
+				.trim(),
+		)
+		.filter(Boolean);
+}
+
+function entryParts(line: string): { number: string; page: string } | null {
+	const number = /^((?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*))/u.exec(line)?.[1];
+	const page = /(\d{1,3})\s*$/u.exec(line)?.[1];
+	return number && page ? { number, page } : null;
+}
+
+function tocEntries(p: Paragraph, text: string): TocEntry[] | null {
+	const lines = sourceLines(p);
+	if (!lines.length) return null;
+	const clean = text
+		.replace(/⟪\/?S\d+⟫/gu, "")
+		.replace(/⟪F\d+⟫/gu, "")
+		.trim();
+	const candidates = [
+		...clean.matchAll(
+			/(^|\s)((?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*))(?=\s|[^\d.])/gu,
+		),
+	].map((match) => ({
+		number: match[2],
+		index: (match.index ?? 0) + match[1].length,
+	}));
+	// Match translated labels by section number; source page numbers remain authoritative.
+	const entries: TocEntry[] = [];
+	let cursor = 0;
+	for (const line of lines) {
+		const parts = entryParts(line);
+		if (!parts) continue;
+		let candidate = -1;
+		for (let index = cursor; index < candidates.length; index++) {
+			if (candidates[index]?.number === parts.number) {
+				candidate = index;
+				break;
+			}
+		}
+		const sourceTitle = line
+			.slice(line.indexOf(parts.number) + parts.number.length)
+			.replace(/(?:\.\s*){2,}.*$/u, "")
+			.replace(new RegExp(`${parts.page}\\s*$`, "u"), "")
+			.trim();
+		let title = sourceTitle;
+		if (candidate >= 0) {
+			const start = candidates[candidate].index;
+			const end = candidates[candidate + 1]?.index ?? clean.length;
+			const segment = clean.slice(start, end);
+			title =
+				segment
+					.replace(new RegExp(`^${parts.number}`, "u"), "")
+					.replace(/(?:\.\s*){2,}.*$/u, "")
+					.replace(new RegExp(`${parts.page}\\s*$`, "u"), "")
+					.trim() || sourceTitle;
+			cursor = candidate + 1;
+		} else if (!candidates.length) {
+			title =
+				clean
+					.replace(/(?:\.\s*){2,}.*$/u, "")
+					.replace(new RegExp(`${parts.page}\\s*$`, "u"), "")
+					.trim() || sourceTitle;
+		}
+		title = title
+			.replace(/^[一二三四五六七八九十百]+[、.．]\s*/u, "")
+			.replace(/[。.]\s*$/u, "")
+			.trim();
+		entries.push({
+			number: parts.number,
+			title,
+			page: parts.page,
+			level: (parts.number.match(/\./gu) ?? []).length,
+		});
+	}
+	return entries.length ? entries : null;
+}
+
+function tocPage(page: ReflowPage): boolean {
+	return page.paragraphs.some((paragraph) =>
+		/^(contents|table of contents|目录)$/iu.test(paragraph.source.trim()),
+	);
+}
+
+/** Lay out a TOC without prose wrapping; only pages with a Contents heading take this path. */
+function tocLayout(
+	p: Paragraph,
+	text: string,
+	page: ReflowPage,
+	fonts: ReflowFonts,
+): ParagraphLayout | null {
+	if (!tocPage(page)) return null;
+	const entries = tocEntries(p, text);
+	if (!entries) return null;
+	const box = { ...p.box };
+	const base = p.style.size;
+	const width = (value: string, key: FontKey, size: number) =>
+		fonts[key].widthOfTextAtSize(value, size);
+	const fontForEntry = (value: string, bold: boolean): FontKey =>
+		cjk.test(value) ? (bold ? "cjkBold" : "cjk") : bold ? "bold" : "regular";
+	let scale = 1;
+	for (const entry of entries) {
+		const bold = entry.level === 0;
+		const titleFont = fontForEntry(entry.title, bold);
+		const needed =
+			width(`${entry.number} ${entry.title}`, titleFont, base) +
+			width(entry.page, "regular", base) +
+			base * 2;
+		if (needed > box.w) scale = Math.min(scale, box.w / needed);
+	}
+	scale = Math.max(0.6, scale);
+	const em = base * scale;
+	const lineHeight = box.h / entries.length;
+	const units: PlacedUnit[] = [];
+	// Chapters have no leaders; sub-entries keep leaders and an indented label.
+	entries.forEach((entry, index) => {
+		const bold = entry.level === 0;
+		const titleFont = fontForEntry(entry.title, bold);
+		const indent =
+			entry.level * em * 1.5 + Math.max(0, entry.level - 1) * em * 0.8;
+		const x = box.x + indent;
+		const baseline = box.y + lineHeight * (index + 0.8);
+		const pageWidth = width(entry.page, "regular", em);
+		const pageX = box.x + box.w - pageWidth;
+		units.push({
+			text: entry.number,
+			translatedOffset: 0,
+			x,
+			y: baseline,
+			width: width(entry.number, "regular", em),
+			height: fonts.regular.heightAtSize(em),
+			font: "regular",
+			fontSize: em,
+			color: p.style.color,
+		});
+		const titleX = x + width(entry.number, "regular", em) + em * 0.9;
+		const titleWidth = width(entry.title, titleFont, em);
+		units.push({
+			text: entry.title,
+			translatedOffset: 0,
+			x: titleX,
+			y: baseline,
+			width: titleWidth,
+			height: fonts[titleFont].heightAtSize(em),
+			font: titleFont,
+			fontSize: em,
+			color: p.style.color,
+		});
+		if (entry.level > 0) {
+			const start = titleX + titleWidth + em * 0.3;
+			const end = pageX - em * 0.3;
+			let dots = "";
+			while (
+				start + width(dots, "regular", em) + width(". ", "regular", em) <=
+				end
+			)
+				dots += ". ";
+			if (dots)
+				units.push({
+					text: dots.trimEnd(),
+					translatedOffset: 0,
+					x: start,
+					y: baseline,
+					width: width(dots.trimEnd(), "regular", em),
+					height: fonts.regular.heightAtSize(em),
+					font: "regular",
+					fontSize: em,
+					color: p.style.color,
+				});
+		}
+		units.push({
+			text: entry.page,
+			translatedOffset: 0,
+			x: pageX,
+			y: baseline,
+			width: pageWidth,
+			height: fonts.regular.heightAtSize(em),
+			font: "regular",
+			fontSize: em,
+			color: p.style.color,
+		});
+	});
+	return {
+		id: p.id,
+		pageIndex: p.pageIndex,
+		sourceBox: p.box,
+		box,
+		scale,
+		units,
+		fits: units.every(
+			(unit) =>
+				unit.x >= box.x - 0.01 &&
+				unit.x + unit.width <= box.x + box.w + 0.01 &&
+				unit.y <= box.y + box.h + 0.01,
+		),
+	};
+}
+
 function fontFor(text: string, p: Paragraph, fonts: ReflowFonts): FontKey {
 	if (cjk.test(text) || (text.codePointAt(0) ?? 0) > 255)
 		return p.style.bold ? "cjkBold" : "cjk";
@@ -287,6 +504,9 @@ export function layoutParagraph(
 	initialScale = 1,
 	occupied: Box[] = [],
 ): ParagraphLayout {
+	// MinerU can return an entire TOC as one text region; keep its rows out of prose wrapping.
+	const toc = tocLayout(p, text, page, fonts);
+	if (toc) return toc;
 	const units = translationUnits(p, text, fonts);
 	const obstacles = [
 		...page.obstacles,
