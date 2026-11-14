@@ -1,11 +1,15 @@
 import terms from "./data/ai-terms.json";
-import { glossaryConstraint, parseGlossary } from "./glossary";
+import {
+	glossaryConstraint,
+	normalizeTermKey,
+	parseGlossary,
+} from "./glossary";
 
-export const TERMINOLOGY_REVISION = "ai-abc74818-ecdict-bc015ed-v3";
+export const TERMINOLOGY_REVISION = "ai-abc74818-ecdict-bc015ed-normalization-v4";
 export const isKnownDictionaryTerm = (text: string) =>
 	terms.some((term) =>
 		term.aliases.some(
-			(alias) => alias.toLowerCase() === text.trim().toLowerCase(),
+			(alias) => normalizeTermKey(alias) === normalizeTermKey(text),
 		),
 	);
 export function excludesAiSense(text: string): boolean {
@@ -39,12 +43,8 @@ export function defaultGlossaryConstraint(
 	const builtin = defaults.filter(
 		([key]) => !overridden.has(key.toLowerCase()),
 	);
-	const constraints = [builtin, user]
-		.map((entries) =>
-			entries.length
-				? glossaryConstraint(JSON.stringify(Object.fromEntries(entries)), text)
-				: "",
-		)
-		.filter(Boolean);
-	return constraints.join("\n\n");
+	return glossaryConstraint(
+		JSON.stringify(Object.fromEntries([...builtin, ...user])),
+		text,
+	);
 }

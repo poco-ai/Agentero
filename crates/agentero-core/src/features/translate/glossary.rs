@@ -2,6 +2,38 @@
 use crate::error::AppError;
 use std::collections::BTreeMap;
 pub type GlossaryTerm = (String, String);
+
+pub(super) fn word_character(c: char) -> bool {
+    (c.is_alphanumeric() || c == '_') && !('\u{4e00}'..='\u{9fff}').contains(&c)
+}
+
+// Keep original byte ranges so PDF line breaks and Unicode hyphens can match a
+// compound alias without changing the surrounding source sent to the provider.
+fn fold_term_text(text: &str) -> (String, Vec<(usize, usize)>) {
+    let mut folded = String::new();
+    let mut offsets: Vec<(usize, usize)> = Vec::new();
+    for (start, c) in text.char_indices() {
+        let end = start + c.len_utf8();
+        if c.is_whitespace() || matches!(c, '-' | '\u{2010}'..='\u{2015}' | '\u{2212}') {
+            if folded.ends_with(' ') {
+                offsets.last_mut().expect("space offset").1 = end;
+            } else {
+                folded.push(' ');
+                offsets.push((start, end));
+            }
+        } else {
+            for lower in c.to_lowercase() {
+                folded.push(lower);
+                offsets.extend(std::iter::repeat_n((start, end), lower.len_utf8()));
+            }
+        }
+    }
+    (folded, offsets)
+}
+
+pub(super) fn lookup_key(text: &str) -> String {
+    fold_term_text(text).0.trim().to_owned()
+}
 pub fn parse_glossary(input: &str) -> Result<Vec<GlossaryTerm>, AppError> {
     let invalid = || {
         AppError::message("Invalid glossary: use a JSON string map or source → target pairs (up to 200 entries / 16000 characters).")
@@ -55,26 +87,44 @@ pub fn parse_glossary(input: &str) -> Result<Vec<GlossaryTerm>, AppError> {
     Ok(terms.into_iter().collect())
 }
 pub fn matching_glossary(input: &str, text: &str) -> Result<Vec<GlossaryTerm>, AppError> {
-    Ok(parse_glossary(input)?
-        .into_iter()
-        .filter(|(source, _)| {
-            let source = source.to_lowercase();
-            let text = text.to_lowercase();
-            text.match_indices(&source).any(|(start, matched)| {
-                let word_character = |c: char| {
-                    (c.is_alphanumeric() || c == '_') && !('\u{4e00}'..='\u{9fff}').contains(&c)
+    let (folded, offsets) = fold_term_text(text);
+    let mut spans = Vec::new();
+    for (source, target) in parse_glossary(input)? {
+        let key = lookup_key(&source);
+        if key.is_empty() {
+            continue;
+        }
+        for (index, _) in folded.match_indices(&key) {
+            let start = offsets[index].0;
+            let end = offsets[index + key.len() - 1].1;
+            let boundary = |c: char| !word_character(c);
+            if (!source.chars().next().is_some_and(word_character)
+                || text[..start].chars().next_back().is_none_or(boundary))
+                && (!source.chars().next_back().is_some_and(word_character)
+                    || text[end..].chars().next().is_none_or(boundary))
+            {
+                let actual = &text[start..end];
+                let alias = if source.eq_ignore_ascii_case(actual) {
+                    source.clone()
+                } else {
+                    actual.to_owned()
                 };
-                let boundary = |c: char| !word_character(c);
-                (!source.chars().next().is_some_and(word_character)
-                    || text[..start].chars().next_back().is_none_or(boundary))
-                    && (!source.chars().next_back().is_some_and(word_character)
-                        || text[start + matched.len()..]
-                            .chars()
-                            .next()
-                            .is_none_or(boundary))
-            })
-        })
-        .collect())
+                spans.push((start, end, alias, target.clone()));
+            }
+        }
+    }
+    // Leftmost, longest match wins. A standalone LLM later in the same sentence
+    // still contributes its own constraint; the LLM inside a compound does not.
+    spans.sort_by_key(|(start, end, _, _)| (*start, std::cmp::Reverse(end - start)));
+    let mut end = 0;
+    let mut terms = BTreeMap::new();
+    for (start, finish, source, target) in spans {
+        if start >= end {
+            terms.insert(source, target);
+            end = finish;
+        }
+    }
+    Ok(terms.into_iter().collect())
 }
 pub(crate) fn prompt_constraint(terms: &[GlossaryTerm]) -> Option<String> {
     if terms.is_empty() {
@@ -96,6 +146,27 @@ pub(crate) fn prompt_constraint(terms: &[GlossaryTerm]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compound_matches_share_frontend_boundaries_and_longest_match_rules() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../../test/fixtures/translate-compounds.json"
+        ))
+        .unwrap();
+        let glossary = serde_json::to_string(&fixture["glossary"]).unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            let actual: BTreeMap<_, _> =
+                matching_glossary(&glossary, case["text"].as_str().unwrap())
+                    .unwrap()
+                    .into_iter()
+                    .collect();
+            assert_eq!(
+                serde_json::to_value(actual).unwrap(),
+                case["expected"],
+                "{}",
+                case["text"]
+            );
+        }
+    }
     #[test]
     fn accepts_user_formats_and_rejects_invalid_entries() {
         let expected = vec![

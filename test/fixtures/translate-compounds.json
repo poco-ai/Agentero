@@ -1,0 +1,38 @@
+{
+	"glossary": { "LLM": "大模型", "LLM-as-a-Judge": "大模型评审" },
+	"cases": [
+		{
+			"text": "We use LLM-as-a-Judge to evaluate answers.",
+			"expected": { "LLM-as-a-Judge": "大模型评审" }
+		},
+		{
+			"text": "LLM-as-a-Judge evaluates another LLM.",
+			"expected": { "LLM-as-a-Judge": "大模型评审", "LLM": "大模型" }
+		},
+		{
+			"text": "We use llm-as-a-judge.",
+			"expected": { "LLM-as-a-Judge": "大模型评审" }
+		},
+		{
+			"text": "We use LLM as a Judge.",
+			"expected": { "LLM as a Judge": "大模型评审" }
+		},
+		{
+			"text": "LLM‑as‑a‑Judge’s ratings",
+			"expected": { "LLM‑as‑a‑Judge": "大模型评审" }
+		},
+		{
+			"text": "中LLM—as—a—Judge用于评估",
+			"expected": { "LLM—as—a—Judge": "大模型评审" }
+		},
+		{
+			"text": "LLM-\nas-a-Judge",
+			"expected": { "LLM-\nas-a-Judge": "大模型评审" }
+		},
+		{ "text": "myLLM-as-a-Judge and LLMs are not aliases.", "expected": {} },
+		{
+			"text": "LLM-as-a-Judgement is a different compound.",
+			"expected": { "LLM": "大模型" }
+		}
+	]
+}

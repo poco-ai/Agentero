@@ -17,9 +17,15 @@ const termsPath = path.join(root, "src/lib/translate/data/ai-terms.json");
 const terms = JSON.parse(fs.readFileSync(termsPath, "utf8"));
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const version = hash(
-	`${JSON.stringify(manifest)}${JSON.stringify(terms)}schema-1`,
+	`${JSON.stringify(manifest)}${JSON.stringify(terms)}schema-2`,
 );
 const stamp = path.join(out, "version.txt");
+// Mirrors frontend normalizeTermKey and core glossary::lookup_key.
+const lookupKey = (text) =>
+	text
+		.replace(/[\p{White_Space}\u2010-\u2015\u2212-]+/gu, " ")
+		.trim()
+		.toLowerCase();
 
 function verify() {
 	const db = new DatabaseSync(output, { readOnly: true });
@@ -103,7 +109,7 @@ if (
 		})) {
 			const word = row.word.trim();
 			if (!word) continue;
-			const key = word.toLowerCase().replace(/\s+/g, " ");
+			const key = lookupKey(word);
 			insert.run(
 				key,
 				word,
@@ -117,23 +123,23 @@ if (
 			for (const form of (row.exchange || "").split("/")) {
 				const [kind, value] = form.split(":");
 				if (value && kind !== "0" && kind !== "1")
-					alias.run(value.toLowerCase(), key);
+					alias.run(lookupKey(value), key);
 			}
 		}
 		for (const term of terms) {
 			for (const name of term.aliases)
 				insert.run(
-					name.toLowerCase(),
+					lookupKey(name),
 					name,
 					"",
 					`${term.translation}\n${term.definition}`,
 					"",
-					"ai-glossary",
+					term.source || "ai-glossary",
 					term.url,
 					10,
 				);
 		}
-		db.exec("COMMIT; PRAGMA user_version=1; VACUUM");
+		db.exec("COMMIT; PRAGMA user_version=2; VACUUM");
 	} finally {
 		db.close();
 	}

@@ -1,6 +1,7 @@
 import i18n from "@/i18n";
 import { commands, type DictionaryEntry } from "@/lib/core/bindings";
 import { isTauri } from "@/lib/core/tauri";
+import { normalizeTermKey } from "./glossary";
 import { excludesAiSense, hasAiContext } from "./terminology";
 
 const cache = new Map<string, DictionaryEntry[]>();
@@ -15,7 +16,7 @@ export async function lookupDictionary(
 ): Promise<DictionaryEntry[]> {
 	if (!isTauri()) return [];
 	const key = JSON.stringify([
-		text.trim().toLowerCase().replace(/\s+/g, " "),
+		normalizeTermKey(text),
 		targetLang,
 	]);
 	const hit = cache.get(key);

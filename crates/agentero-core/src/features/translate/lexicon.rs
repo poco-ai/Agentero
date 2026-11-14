@@ -16,11 +16,7 @@ pub struct DictionaryEntry {
 }
 
 pub fn lookup(path: &Path, query: &str, target: &str) -> Result<Vec<DictionaryEntry>, AppError> {
-    let query = query
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase();
+    let query = super::glossary::lookup_key(query);
     if query.is_empty() || query.chars().count() > 80 || !matches!(target, "en" | "zh-CN") {
         return Ok(vec![]);
     }
@@ -62,6 +58,7 @@ mod tests {
         let path = dir.path().join("dictionary.sqlite");
         let db = Connection::open(&path).unwrap();
         db.execute_batch("CREATE TABLE entries(lookup TEXT, word TEXT, phonetic TEXT, translation TEXT, definition TEXT, source TEXT, source_url TEXT, priority INTEGER); CREATE INDEX lookup_index ON entries(lookup); CREATE TABLE aliases(lookup TEXT, canonical TEXT); INSERT INTO aliases VALUES('examples','example'); INSERT INTO entries VALUES('example','example','','示例','an illustration','test','https://example.org',0);").unwrap();
+        db.execute_batch("INSERT INTO entries VALUES('llm as a judge','LLM-as-a-Judge','','大模型评审','model evaluation','test','https://example.org',10);").unwrap();
         drop(db);
         assert_eq!(
             lookup(&path, " Example ", "zh-CN").unwrap()[0].word,
@@ -69,6 +66,12 @@ mod tests {
         );
         assert!(lookup(&path, "' OR 1=1 --", "zh-CN").unwrap().is_empty());
         assert!(lookup(&path, "example", "fr").unwrap().is_empty());
+        for query in ["LLM-as-a-Judge", "llm as a judge", "LLM‑as‑a‑Judge"] {
+            assert_eq!(
+                lookup(&path, query, "zh-CN").unwrap()[0].translation,
+                "大模型评审"
+            );
+        }
         assert_eq!(
             lookup(&path, "examples", "zh-CN").unwrap()[0].word,
             "example"

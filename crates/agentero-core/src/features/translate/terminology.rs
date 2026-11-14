@@ -1,5 +1,8 @@
 //! Default terminology is derived from the licensed AI/LLM glossary, not user setup.
-use super::{matching_glossary, GlossaryTerm};
+use super::{
+    glossary::{lookup_key, word_character},
+    matching_glossary, GlossaryTerm,
+};
 use crate::error::AppError;
 use serde::Deserialize;
 use std::{
@@ -90,11 +93,10 @@ fn terms() -> &'static Vec<Term> {
     })
 }
 pub fn is_known_term(text: &str) -> bool {
-    terms().iter().any(|term| {
-        term.aliases
-            .iter()
-            .any(|alias| alias.eq_ignore_ascii_case(text.trim()))
-    })
+    let key = lookup_key(text);
+    terms()
+        .iter()
+        .any(|term| term.aliases.iter().any(|alias| lookup_key(alias) == key))
 }
 fn technical_context(text: &str) -> bool {
     let text = text.to_ascii_lowercase();
@@ -148,13 +150,13 @@ pub fn effective_glossary(
 
 /** Protect matched terms for MT services that have no glossary parameter. */
 pub fn protect(text: &str, terms: &[GlossaryTerm]) -> (String, Vec<(String, String)>) {
-    let mut terms: Vec<_> = terms.iter().filter(|(s, _)| s.is_ascii()).collect();
+    let mut terms: Vec<_> = terms.iter().collect();
     terms.sort_by_key(|(s, _)| std::cmp::Reverse(s.len()));
     let mut prefix = "AGTX".to_string();
     while text.to_ascii_uppercase().contains(&prefix) {
         prefix.push('X');
     }
-    let word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let word = word_character;
     let mut result = String::new();
     let mut replacements = Vec::new();
     let mut pos = 0;
