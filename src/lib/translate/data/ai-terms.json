@@ -1,0 +1,890 @@
+[
+	{
+		"aliases": ["Agent"],
+		"translation": "智能体",
+		"definition": "智能体是以大模型为决策核心、能自主感知环境、规划步骤并调用工具完成复杂任务的 AI 系统。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Tool Use"],
+		"translation": "工具调用",
+		"definition": "工具调用是大模型在推理过程中调用外部函数、API 或系统以获取信息或执行操作的能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Computer Use"],
+		"translation": "计算机使用",
+		"definition": "计算机使用是让 AI 像人一样直接操作图形界面（看屏幕、移动鼠标、点击、键入）来完成任务的能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Function Calling"],
+		"translation": "Function Calling（函数调用）",
+		"definition": "Function Calling 是模型按预定义的函数签名生成结构化参数、请求宿主程序执行对应函数的能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["MCP", "Model Context Protocol"],
+		"translation": "MCP（模型上下文协议）",
+		"definition": "MCP 是 Anthropic 于 2024 年提出的开放协议，用于标准化大模型应用与外部数据源、工具之间的连接方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["ReAct"],
+		"translation": "ReAct",
+		"definition": "ReAct 是将推理（Reasoning）与行动（Acting）交织进行、让模型\"边想边做\"的智能体范式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Multi-Agent System"],
+		"translation": "多智能体",
+		"definition": "多智能体系统是由多个分工不同的 Agent 协作、通过消息传递共同完成复杂任务的架构。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Planning"],
+		"translation": "规划",
+		"definition": "规划是 Agent 将复杂目标拆解为可执行子任务序列、并在执行中动态调整的能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Memory"],
+		"translation": "记忆",
+		"definition": "记忆是 Agent 跨轮次、跨会话保存与调用信息的机制，使其具备持续上下文与个性化能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Reflection"],
+		"translation": "反思",
+		"definition": "反思是 Agent 对自身输出进行评估、发现错误并迭代改进的自我修正机制。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Autonomy"],
+		"translation": "自主性",
+		"definition": "自主性是 Agent 在无人类逐步干预下连续决策与执行的程度。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["Workflow Orchestration"],
+		"translation": "工作流编排",
+		"definition": "工作流编排是用预定义的流程图或状态机组织多个 LLM 调用与工具节点的工程方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/agents.md"
+	},
+	{
+		"aliases": ["LLM", "Large Language Model"],
+		"translation": "大模型",
+		"definition": "大语言模型（LLM）是在海量文本数据上训练、拥有数十亿至数万亿参数的深度学习模型，能够理解和生成自然语言。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Token"],
+		"translation": "Token（词元）",
+		"definition": "Token 是大模型处理文本的最小单位，可以是一个字、一个词、一个子词片段或一个标点符号。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Parameters"],
+		"translation": "参数",
+		"definition": "参数是神经网络中通过训练学习得到的数值权重，决定模型对输入的响应方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Context Window"],
+		"translation": "上下文窗口",
+		"definition": "上下文窗口是模型单次推理时能够处理的最大 Token 数量，包括输入与输出。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Emergent Abilities"],
+		"translation": "涌现能力",
+		"definition": "涌现能力是指模型规模扩大到一定程度后突然出现、在小模型中不存在的能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["ICL", "In-context Learning"],
+		"translation": "上下文学习",
+		"definition": "上下文学习是大模型不更新任何参数、仅通过提示中提供的示例现场学会新任务的能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Hallucination"],
+		"translation": "幻觉",
+		"definition": "幻觉是指大模型生成看似合理但事实上错误或无依据内容的现象。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Reasoning Model"],
+		"translation": "推理模型",
+		"definition": "推理模型是专门针对多步推理任务优化、在回答前自动生成长篇内部思维链的大模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Foundation Model"],
+		"translation": "基础模型",
+		"definition": "基础模型是在大规模数据上预训练、可通过微调适配多种下游任务的通用模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Generative AI"],
+		"translation": "生成式人工智能",
+		"definition": "生成式 AI 是能够生成文本、图像、音频、视频等新内容的人工智能技术总称。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["AGI", "Artificial General Intelligence"],
+		"translation": "通用人工智能",
+		"definition": "通用人工智能（AGI）是指在所有认知任务上达到或超过人类平均水平、可自主泛化到未知领域的人工智能。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Temperature"],
+		"translation": "温度",
+		"definition": "温度是控制大模型生成随机性的采样参数，取值通常在 0 到 2 之间。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Nucleus Sampling", "Top-p"],
+		"translation": "Top-p（核采样）",
+		"definition": "Top-p 是一种采样策略，模型只从累计概率达到阈值 p 的最小候选词集合中抽样。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Sampling"],
+		"translation": "采样",
+		"definition": "采样是模型根据输出的概率分布选择下一个 Token 的过程。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/basic-concepts.md"
+	},
+	{
+		"aliases": ["Open-Source", "Open-Weight Model"],
+		"translation": "开源模型",
+		"definition": "开源模型是公开模型权重、允许下载与本地部署的模型，严格说多数为\"开放权重\"（Open-Weight）模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["API"],
+		"translation": "API（应用程序接口）",
+		"definition": "API 是模型服务商提供的程序化调用接口，开发者经 HTTP 请求即可获得模型能力而无需自建基础设施。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["Inference Cost"],
+		"translation": "推理成本",
+		"definition": "推理成本是模型运行阶段产生的算力开销，通常按每百万 Token（输入/输出分开计价）核算。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["Hugging Face"],
+		"translation": "Hugging Face",
+		"definition": "Hugging Face 是最大的开源 AI 模型与数据集托管平台，被称为\"AI 界的 GitHub\"。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["Ollama"],
+		"translation": "Ollama",
+		"definition": "Ollama 是在个人电脑上一键下载和运行开源大模型的本地推理工具。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["Model Weights"],
+		"translation": "模型权重",
+		"definition": "模型权重是训练完成后模型全部参数的具体数值，以文件形式保存，是模型能力的物质载体。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["License"],
+		"translation": "许可证",
+		"definition": "许可证是规定模型权重与代码可被如何使用、修改与商用的法律条款。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["LLMOps", "MLOps", "MLOps / LLMOps"],
+		"translation": "MLOps / LLMOps",
+		"definition": "LLMOps 是将大模型应用的开发、部署、监控与迭代流程工程化管理的实践体系。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["GPU VRAM", "GPU 显存"],
+		"translation": "GPU 显存（VRAM）",
+		"definition": "显存是 GPU 上用于存放模型权重、中间激活与 KV Cache 的高速内存，是决定能运行多大模型的硬约束。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["Prompt Caching"],
+		"translation": "提示缓存",
+		"definition": "提示缓存是缓存重复出现的提示前缀的计算结果、避免重复计费的推理优化机制。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["Rate Limit"],
+		"translation": "速率限制",
+		"definition": "速率限制是 API 服务商对单位时间请求数（RPM）或 Token 数（TPM）设置的使用上限。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/ecosystem-engineering.md"
+	},
+	{
+		"aliases": ["Benchmark"],
+		"translation": "基准测试",
+		"definition": "基准测试是用标准化数据集与指标衡量并横向比较不同模型能力的评测体系。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["MMLU", "Massive Multitask Language Understanding"],
+		"translation": "MMLU",
+		"definition": "MMLU 是涵盖 57 个学科（数学、法律、医学、历史等）的多选题知识基准，是衡量模型知识与推理能力的权威测试之一。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["HumanEval"],
+		"translation": "HumanEval",
+		"definition": "HumanEval 是 OpenAI 发布的代码生成基准，包含 164 道手写 Python 编程题，以生成代码能否通过单元测试（pass@k）为指标。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["PPL", "Perplexity"],
+		"translation": "困惑度",
+		"definition": "困惑度是衡量语言模型对一段文本预测不确定程度的指标，数值越低表示模型拟合越好。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["Benchmark Contamination"],
+		"translation": "基准污染",
+		"definition": "基准污染是基准测试题目泄漏进训练数据、导致评测分数虚高而非真实能力的现象。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["GSM8K"],
+		"translation": "GSM8K",
+		"definition": "GSM8K 是包含 8500 道小学数学应用题的基准，用于评估模型的多步算术推理能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["Elo Rating", "Elo 评分"],
+		"translation": "Elo 评分（Elo Rating）",
+		"definition": "Elo 评分是借自棋类排名、通过模型间两两对战结果计算相对强弱的评分体系。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["Human Evaluation"],
+		"translation": "人工评估",
+		"definition": "人工评估是由人类标注员直接对模型输出质量进行打分的评测方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["BLEU", "BLEU 与 ROUGE", "ROUGE"],
+		"translation": "BLEU 与 ROUGE",
+		"definition": "BLEU 与 ROUGE 是基于 n-gram 重叠度衡量生成文本与参考文本相似度的经典自动评估指标。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["Generalization"],
+		"translation": "泛化能力",
+		"definition": "泛化能力是模型将训练中学到的规律应用到未见过的新样本、新任务上的能力。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/evaluation-benchmarks.md"
+	},
+	{
+		"aliases": ["SFT", "Supervised Fine-Tuning"],
+		"translation": "监督微调",
+		"definition": "监督微调（SFT）是用\"指令-回答\"格式的标注数据对预训练模型进行有监督训练的过程。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["LoRA", "Low-Rank Adaptation"],
+		"translation": "LoRA（低秩自适应）",
+		"definition": "LoRA 是一种冻结原模型权重、仅训练低秩矩阵来近似参数增量的高效微调方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["QLoRA", "Quantized Low-Rank Adaptation"],
+		"translation": "QLoRA（量化低秩微调）",
+		"definition": "QLoRA 是将基座模型量化为 4-bit 后再进行 LoRA 微调、进一步降低显存占用的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["PEFT", "Parameter-Efficient Fine-Tuning"],
+		"translation": "PEFT（参数高效微调）",
+		"definition": "PEFT 是只更新模型一小部分参数即可完成微调的一类方法的总称。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Full-Parameter Fine-Tuning"],
+		"translation": "全参微调",
+		"definition": "全参微调是在微调阶段更新模型全部参数的训练方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Knowledge Distillation"],
+		"translation": "知识蒸馏",
+		"definition": "知识蒸馏是用大模型（教师）的输出训练小模型（学生）、将能力迁移到更小模型的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Instruction Tuning"],
+		"translation": "指令微调",
+		"definition": "指令微调是用多样化的\"指令-响应\"数据训练模型、使其学会遵循人类指令的微调方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Adapter"],
+		"translation": "Adapter（适配器）",
+		"definition": "Adapter 是在预训练模型的层之间插入小型可训练模块、仅训练这些模块的微调方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Prompt Tuning"],
+		"translation": "提示微调",
+		"definition": "提示微调是冻结模型全部参数、只训练一小段连续向量作为\"软提示\"的轻量微调方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Domain Adaptation"],
+		"translation": "领域适配",
+		"definition": "领域适配是让通用模型适应医疗、法律、金融等特定领域知识与语气的过程。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Model Merging"],
+		"translation": "模型合并",
+		"definition": "模型合并是将多个同源微调模型的权重直接加权融合、获得兼具各方能力的新模型的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/fine-tuning.md"
+	},
+	{
+		"aliases": ["Quantization"],
+		"translation": "量化",
+		"definition": "量化是将模型权重和激活值从 FP16/BF16 高精度压缩为 INT8、INT4 等低精度表示的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["KV Cache"],
+		"translation": "键值缓存",
+		"definition": "KV Cache 是在自回归生成时缓存历史 Token 的 Key/Value 向量、避免重复计算注意力的高效推理技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["vLLM"],
+		"translation": "vLLM",
+		"definition": "vLLM 是伯克利开源的高吞吐量大模型推理与服务框架，以 PagedAttention 技术著称。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["Batching"],
+		"translation": "批处理",
+		"definition": "批处理是将多个推理请求合并为一个批次并行计算、提升 GPU 利用率的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["Latency"],
+		"translation": "延迟",
+		"definition": "延迟是模型从接收请求到返回结果所需的时间，是推理服务的核心体验指标。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["Throughput"],
+		"translation": "吞吐",
+		"definition": "吞吐是推理系统单位时间内处理的 Token 数或请求数，衡量服务的整体产能。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["GGUF"],
+		"translation": "GGUF",
+		"definition": "GGUF 是 llama.cpp 项目定义的单文件模型格式，专为 CPU 与消费级设备上的量化推理设计。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["ONNX", "Open Neural Network Exchange"],
+		"translation": "ONNX",
+		"definition": "ONNX 是一种开放的神经网络模型交换格式，使模型可在不同框架与硬件之间迁移。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["Speculative Decoding"],
+		"translation": "投机解码",
+		"definition": "投机解码是用小模型快速草拟多个候选 Token、再由大模型一次性并行验证的推理加速技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["Model Parallelism"],
+		"translation": "模型并行",
+		"definition": "模型并行是将单个模型切分到多张 GPU 上共同承载、以突破单卡显存限制的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["Edge Deployment"],
+		"translation": "边缘部署",
+		"definition": "边缘部署是将模型直接运行在手机、PC、嵌入式设备等终端上而非云端的部署方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["PagedAttention"],
+		"translation": "PagedAttention",
+		"definition": "PagedAttention 是将 KV Cache 按固定大小的\"页\"管理、借鉴虚拟内存思想的注意力优化算法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/inference-deployment.md"
+	},
+	{
+		"aliases": ["Transformer"],
+		"translation": "Transformer",
+		"definition": "Transformer 是 2017 年 Google 在论文《Attention Is All You Need》中提出的神经网络架构，是当前几乎所有大模型的基础。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Attention Mechanism"],
+		"translation": "注意力机制",
+		"definition": "注意力机制是让模型在处理序列时动态关注不同位置信息的计算方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Self-Attention"],
+		"translation": "自注意力",
+		"definition": "自注意力是注意力机制的一种形式，序列中的每个位置都与同一序列的所有位置计算关联权重。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["MHA", "Multi-Head Attention"],
+		"translation": "多头注意力",
+		"definition": "多头注意力是将注意力计算拆分为多个并行的\"头\"，各自学习不同类型的关联模式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["GQA", "Grouped-Query Attention"],
+		"translation": "GQA（分组查询注意力）",
+		"definition": "GQA 是让多个查询头共享同一组键值头的注意力变体，在模型质量与推理效率之间取得平衡。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Mixture of Experts", "MoE"],
+		"translation": "混合专家模型",
+		"definition": "MoE 是一种将模型拆分为多个\"专家\"子网络、每次只激活其中一部分的架构设计。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Positional Encoding"],
+		"translation": "位置编码",
+		"definition": "位置编码是为序列中每个 Token 注入位置信息的技术，弥补注意力机制本身不感知顺序的缺陷。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Layer Normalization"],
+		"translation": "层归一化",
+		"definition": "层归一化是对神经网络每层的输出进行标准化、使训练更稳定的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Residual Connection"],
+		"translation": "残差连接",
+		"definition": "残差连接是将层的输入直接加到输出上（y = F(x) + x）的结构设计。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Tokenizer"],
+		"translation": "分词器",
+		"definition": "分词器是将原始文本切分为 Token 序列、并在 Token 与数值 ID 之间双向转换的组件。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Embedding"],
+		"translation": "词嵌入",
+		"definition": "词嵌入是将离散的 Token 映射为连续稠密向量、使其可被神经网络处理的表示方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Decoder-only Architecture"],
+		"translation": "解码器架构",
+		"definition": "解码器架构是仅使用 Transformer 解码器堆叠、以自回归方式逐个生成 Token 的模型结构。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Encoder-Decoder Architecture"],
+		"translation": "编码器-解码器架构",
+		"definition": "编码器-解码器架构由编码器理解输入序列、解码器生成输出序列两部分组成。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/model-architecture.md"
+	},
+	{
+		"aliases": ["Multimodal Model"],
+		"translation": "多模态模型",
+		"definition": "多模态模型是能同时处理两种及以上数据模态（文本、图像、音频、视频等）的 AI 模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["VLM", "Vision-Language Model"],
+		"translation": "VLM（视觉语言模型）",
+		"definition": "VLM 是能将图像与文本联合理解、支持以文图混合输入进行问答与推理的模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["Text-to-Image"],
+		"translation": "文生图",
+		"definition": "文生图是根据文本描述自动生成对应图像的生成式 AI 技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["Text-to-Video"],
+		"translation": "文生视频",
+		"definition": "文生视频是根据文本描述自动生成连续视频片段的生成式 AI 技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["TTS", "Text-to-Speech"],
+		"translation": "TTS（文本转语音）",
+		"definition": "TTS 是将书面文本转换为自然语音的技术，是语音交互系统的输出端。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["ASR", "Automatic Speech Recognition"],
+		"translation": "ASR（自动语音识别）",
+		"definition": "ASR 是将语音信号自动转写为文本的技术，是语音交互系统的输入端。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["Voice Cloning"],
+		"translation": "语音克隆",
+		"definition": "语音克隆是仅凭少量参考音频复制特定人声音色、并用其合成任意文本语音的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["Multimodal Alignment"],
+		"translation": "多模态对齐",
+		"definition": "多模态对齐是将不同模态的数据映射到统一语义空间、使跨模态内容可相互对应的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["Diffusion Model"],
+		"translation": "扩散模型",
+		"definition": "扩散模型是通过逐步向数据加噪再学习逆向去噪过程来生成样本的生成模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["CLIP"],
+		"translation": "CLIP",
+		"definition": "CLIP 是 OpenAI 于 2021 年提出的通过对比学习联合训练图像与文本编码器的模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["Image Understanding"],
+		"translation": "图像理解",
+		"definition": "图像理解是模型对图像内容进行识别、描述、问答与推理的能力总称。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["OCR", "Optical Character Recognition"],
+		"translation": "OCR（光学字符识别）",
+		"definition": "OCR 是将图像中的印刷或手写文字识别并转换为可编辑文本的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/multimodal.md"
+	},
+	{
+		"aliases": ["Prompt Engineering"],
+		"translation": "提示工程",
+		"definition": "提示工程是通过设计和优化输入文本（Prompt）来引导大模型产生期望输出的实践方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Prompt"],
+		"translation": "Prompt（提示词）",
+		"definition": "Prompt 是用户或系统输入给大模型、用于引导其生成期望输出的文本指令与上下文的总称。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["System Prompt"],
+		"translation": "System Prompt（系统提示词）",
+		"definition": "System Prompt 是在对话开始前设定模型行为准则、角色与边界的高优先级指令。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Few-shot", "Few-shot Prompting"],
+		"translation": "Few-shot（少样本提示）",
+		"definition": "Few-shot 是在提示中提供少量输入输出示例、让模型通过上下文学习任务模式的方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["One-shot", "One-shot Prompting"],
+		"translation": "One-shot（单样本提示）",
+		"definition": "One-shot 是在提示中只提供一个输入输出示例、让模型依样完成任务的方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Zero-shot"],
+		"translation": "Zero-shot（零样本）",
+		"definition": "Zero-shot 是不提供任何示例、仅依靠指令直接让模型完成任务的方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Chain-of-Thought", "CoT"],
+		"translation": "CoT（思维链）",
+		"definition": "思维链是引导模型在给出答案前先逐步写出推理过程的提示技巧。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Prompt Injection"],
+		"translation": "提示注入",
+		"definition": "提示注入是通过精心构造的输入诱导模型忽略原有指令、执行攻击者意图的攻击手法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Role-playing"],
+		"translation": "角色设定",
+		"definition": "角色设定是在提示中为模型指定特定身份（如\"你是一位资深律师\"）以约束输出风格与专业度的技巧。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Prompt Template"],
+		"translation": "提示模板",
+		"definition": "提示模板是将提示中固定结构与动态变量分离、便于程序化复用的工程化组件。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["ToT", "Tree of Thoughts"],
+		"translation": "思维树",
+		"definition": "思维树是让模型同时探索多条推理路径、以树状结构搜索最优解的推理框架。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Self-Consistency"],
+		"translation": "自我一致性",
+		"definition": "自我一致性是对同一问题采样多条思维链、再以多数投票确定最终答案的推理增强方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["Structured Output"],
+		"translation": "结构化输出",
+		"definition": "结构化输出是约束模型按预定义格式（如 JSON Schema）返回结果的技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/prompt-engineering.md"
+	},
+	{
+		"aliases": ["RAG", "Retrieval-Augmented Generation"],
+		"translation": "RAG（检索增强生成）",
+		"definition": "RAG 是在生成前先从外部知识库检索相关内容、再将其注入提示让模型据以作答的技术架构。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Embedding"],
+		"translation": "Embedding（嵌入）",
+		"definition": "Embedding 是将文本、图像等内容映射为高维稠密向量、使语义相似度可用距离计算的表示技术。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Vector Database"],
+		"translation": "向量数据库",
+		"definition": "向量数据库是专门存储和高效检索高维向量的数据库系统。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Chunking"],
+		"translation": "Chunking（文本切分）",
+		"definition": "Chunking 是将长文档切分为较小片段以便嵌入与检索的预处理步骤。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Reranking"],
+		"translation": "重排序",
+		"definition": "重排序是对初步检索结果用更精确的模型重新打分排序、提升相关性的后处理步骤。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Hybrid Search"],
+		"translation": "混合检索",
+		"definition": "混合检索是同时结合向量语义检索与关键词检索（BM25）、融合两者结果的检索策略。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Cosine Similarity"],
+		"translation": "余弦相似度",
+		"definition": "余弦相似度是通过计算两个向量夹角余弦值衡量其方向相似程度的度量。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Recall"],
+		"translation": "召回率",
+		"definition": "召回率是检索系统成功找到的相关文档占全部相关文档的比例。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Semantic Search"],
+		"translation": "语义搜索",
+		"definition": "语义搜索是基于内容含义而非字面关键词匹配进行检索的搜索方式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Knowledge Base"],
+		"translation": "知识库",
+		"definition": "知识库是为模型提供外部事实来源、经过结构化整理的数据集合。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["GraphRAG"],
+		"translation": "GraphRAG",
+		"definition": "GraphRAG 是将知识图谱引入检索流程、利用实体关系增强多跳问答能力的 RAG 变体。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Agentic RAG"],
+		"translation": "Agentic RAG",
+		"definition": "Agentic RAG 是由智能体自主决定何时检索、检索什么、以及如何验证检索结果的动态 RAG 范式。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["HyDE", "Hypothetical Document Embeddings"],
+		"translation": "HyDE（假设性文档嵌入）",
+		"definition": "HyDE 是先让模型生成一段假设性答案、再用该答案的向量去检索真实文档的检索增强技巧。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/rag-retrieval.md"
+	},
+	{
+		"aliases": ["Alignment"],
+		"translation": "对齐",
+		"definition": "对齐是让 AI 系统的行为符合人类意图、价值观与安全规范的研究与工程方向。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Jailbreak"],
+		"translation": "越狱",
+		"definition": "越狱是通过精心构造的提示绕过模型安全限制、诱使其生成被禁止内容的攻击行为。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Guardrails"],
+		"translation": "护栏",
+		"definition": "护栏是部署在模型输入输出两侧、拦截违规内容与越权行为的安全过滤层。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Red Teaming"],
+		"translation": "红队测试",
+		"definition": "红队测试是模拟攻击者主动寻找模型安全漏洞、在发布前暴露风险的对抗性评估方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Harmful Content"],
+		"translation": "有害内容",
+		"definition": "有害内容是模型输出中可能造成现实伤害的内容，包括暴力教唆、歧视言论、虚假信息、恶意代码等。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Deepfake"],
+		"translation": "深度伪造",
+		"definition": "深度伪造是利用生成式 AI 合成足以乱真的人脸、声音或视频、冒充真实人物的伪造内容。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Bias"],
+		"translation": "偏见",
+		"definition": "偏见是模型从训练数据中习得并放大的系统性倾向，涉及性别、种族、地域、文化等维度。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Privacy Leakage"],
+		"translation": "隐私泄露",
+		"definition": "隐私泄露是模型在输出中重现训练数据里的个人信息（PII）或机密内容的风险。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Data Poisoning"],
+		"translation": "数据投毒",
+		"definition": "数据投毒是攻击者向训练数据中恶意注入样本、使模型习得错误知识或后门行为的攻击手法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Interpretability"],
+		"translation": "可解释性",
+		"definition": "可解释性是研究神经网络内部表征与决策机制、让\"黑箱\"模型变得可理解的方向。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Constitutional AI"],
+		"translation": "宪法 AI",
+		"definition": "宪法 AI 是 Anthropic 提出的对齐方法，让模型依据一组成文原则（\"宪法\"）自我批评并修正输出。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Content Moderation"],
+		"translation": "内容审核",
+		"definition": "内容审核是对用户输入与模型输出进行合规检查、拦截违规内容的产品化安全机制。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/safety-alignment.md"
+	},
+	{
+		"aliases": ["Pre-training"],
+		"translation": "预训练",
+		"definition": "预训练是在海量无标注文本上以自监督方式训练模型、使其掌握通用语言能力的第一阶段训练。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Post-training"],
+		"translation": "后训练",
+		"definition": "后训练是在预训练完成之后、让模型对齐人类意图与偏好的系列训练阶段的总称。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["RLHF", "Reinforcement Learning from Human Feedback"],
+		"translation": "RLHF（人类反馈强化学习）",
+		"definition": "RLHF 是利用人类偏好数据训练奖励模型、再用强化学习优化语言模型输出质量的对齐方法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["RM", "Reward Model"],
+		"translation": "奖励模型",
+		"definition": "奖励模型是根据人类偏好数据训练、为模型输出打分以指导对齐的评分模型。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["DPO", "Direct Preference Optimization"],
+		"translation": "DPO（直接偏好优化）",
+		"definition": "DPO 是一种无需训练奖励模型、直接在偏好数据对上优化语言模型的对齐算法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["GRPO", "Group Relative Policy Optimization"],
+		"translation": "GRPO（组相对策略优化）",
+		"definition": "GRPO 是一种去掉 Critic 价值网络、用同组样本的相对得分估计优势的强化学习算法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Loss Function"],
+		"translation": "损失函数",
+		"definition": "损失函数是量化模型预测与真实目标之间差距、为参数更新提供方向的数学函数。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Gradient Descent"],
+		"translation": "梯度下降",
+		"definition": "梯度下降是沿损失函数梯度的反方向迭代更新参数、以最小化损失的优化算法。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Learning Rate"],
+		"translation": "学习率",
+		"definition": "学习率是控制每次参数更新步长的超参数，是训练中最重要的超参数之一。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Data Cleaning"],
+		"translation": "数据清洗",
+		"definition": "数据清洗是对训练语料进行去重、过滤低质内容、去除有害信息等预处理的过程。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Synthetic Data"],
+		"translation": "合成数据",
+		"definition": "合成数据是由模型而非人类生成、用于训练或微调其他模型（或模型自身）的数据。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Distributed Training"],
+		"translation": "分布式训练",
+		"definition": "分布式训练是将模型训练任务拆分到成百上千张 GPU 上协同完成的技术体系。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Overfitting"],
+		"translation": "过拟合",
+		"definition": "过拟合是模型过度记忆训练数据细节、在未见数据上表现变差的现象。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Catastrophic Forgetting"],
+		"translation": "灾难性遗忘",
+		"definition": "灾难性遗忘是模型在学习新任务时丢失原有知识与能力的现象。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	},
+	{
+		"aliases": ["Scaling Law"],
+		"translation": "Scaling Law（扩展定律）",
+		"definition": "Scaling Law 是描述模型性能随参数量、数据量和计算量增长呈幂律改善的经验规律。",
+		"url": "https://github.com/JingHao-Leon/ai-llm-glossary/blob/abc74818e14884f0e28fe6465c2328c68f9aae53/docs/training.md"
+	}
+]

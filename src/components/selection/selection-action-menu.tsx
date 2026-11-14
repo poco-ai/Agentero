@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Copy, Languages } from "lucide-react";
+import { BookA, Check, ChevronDown, Copy, Languages } from "lucide-react";
 import {
 	type ReactNode,
 	type RefObject,
@@ -33,6 +33,7 @@ import {
 	matchShortcut,
 	type ShortcutDef,
 } from "@/lib/shell/shortcuts";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 /**
@@ -69,6 +70,7 @@ export type SelectionActionMenuProps = {
 	onAsk?: () => void;
 	onAddToChat?: () => void;
 	onTranslate?: () => void;
+	selectionText?: string;
 	onCopy?: () => Promise<boolean>;
 	/** Source-specific actions, such as the PDF highlight palette. */
 	beforeActions?: ReactNode;
@@ -153,6 +155,7 @@ export function SelectionActionMenu({
 	onAsk,
 	onAddToChat,
 	onTranslate,
+	selectionText = "",
 	onCopy,
 	beforeActions,
 	afterActions,
@@ -358,11 +361,19 @@ export function SelectionActionMenu({
 				{beforeActions}
 				{onTranslate ? (
 					<SelectionToolbarIconButton
-						label={t("selection.translate")}
+						label={t(
+							isDictionaryLookup(selectionText)
+								? "selection.dictionaryTitle"
+								: "selection.translate",
+						)}
 						shortcut="T"
 						onClick={onTranslate}
 					>
-						<Languages className="size-3.5" />
+						{isDictionaryLookup(selectionText) ? (
+							<BookA className="size-3.5" />
+						) : (
+							<Languages className="size-3.5" />
+						)}
 					</SelectionToolbarIconButton>
 				) : null}
 				{onCopy ? (

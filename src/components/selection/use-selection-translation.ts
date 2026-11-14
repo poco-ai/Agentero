@@ -4,6 +4,7 @@ import { type AgentRunRefs, disposeAgentRun } from "@/lib/agent/run-attach";
 import type { SelectionDraftScreen } from "@/lib/agent/selection-chat-store";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import { runSelectionTranslate } from "@/lib/pdf/translate/run-selection";
+import { dictionarySurrounding } from "@/lib/translate/dictionary";
 import { getVaultPath } from "@/lib/vault/store";
 import {
 	claimSelectionTranslation,
@@ -57,6 +58,10 @@ export function useSelectionTranslation() {
 				text: selection.text,
 				context: {
 					surface: `${selection.surface ?? selection.origin}-selection`,
+					dictionarySurrounding: dictionarySurrounding(
+						selection.text,
+						selection.context,
+					),
 				},
 				paperKey: selection.sourcePath,
 				vaultPath: getVaultPath(),

@@ -41,6 +41,7 @@ type SelectionMenuProps = {
 	onAsk: () => void;
 	onAddToChat: () => void;
 	onTranslate: () => void;
+	selectionText?: string;
 	onCopy?: () => Promise<boolean>;
 	onBookmark?: () => void;
 	onNote?: (shape: PdfTextMarkupKind) => void;
@@ -56,6 +57,7 @@ export function SelectionMenu({
 	onAsk,
 	onAddToChat,
 	onTranslate,
+	selectionText,
 	onCopy,
 	onBookmark,
 	onNote,
@@ -117,6 +119,7 @@ export function SelectionMenu({
 	return (
 		<SelectionActionMenu
 			screen={screen}
+			selectionText={selectionText}
 			onAsk={onAsk}
 			onAddToChat={onAddToChat}
 			onTranslate={showTranslate ? onTranslate : undefined}

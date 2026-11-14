@@ -12,6 +12,16 @@ const attachAgentRun = vi.fn<(...args: unknown[]) => Promise<void>>();
 const resolveAgent = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const runTranslate = vi.fn<(...args: unknown[]) => Promise<string>>();
 const notifyError = vi.fn<(message: string) => void>();
+const lookupDictionary = vi.fn<(...args: unknown[]) => Promise<unknown[]>>();
+
+vi.mock("@/lib/translate/lexicon", () => ({
+	lookupDictionary: (...args: unknown[]) => lookupDictionary(...args),
+	dictionaryEntriesForContext: (entries: unknown[]) => entries,
+	renderDictionaryEntries: (entries: unknown[]) =>
+		entries.length ? "LOCAL ENTRY" : "",
+	contextualDictionaryResult: (base: string, context: string) =>
+		`${base}\nCONTEXT:${context}`,
+}));
 
 let providerId = "agent";
 
@@ -32,7 +42,7 @@ vi.mock("@/lib/translate", () => ({
 		providerId,
 		targetLangName: "Chinese",
 		customPrompt: "CUSTOM",
-		task: {},
+		task: { targetLang: "zh-CN" },
 	}),
 	resolveConfiguredTranslateAgent: () => resolveAgent(),
 	runTranslate: (...args: unknown[]) => runTranslate(...args),
@@ -137,6 +147,47 @@ describe("runSelectionTranslate", () => {
 		runTranslate.mockReset();
 		notifyError.mockReset();
 		providerId = "agent";
+		lookupDictionary.mockReset();
+		lookupDictionary.mockResolvedValue([]);
+	});
+
+	it("serves dictionary hits without any configured Agent or network provider", async () => {
+		const h = harness({ ...record("offline"), quote: "KV cache" });
+		lookupDictionary.mockResolvedValue([{ source: "ai-glossary" }]);
+		await runSelectionTranslate(h.options);
+		expect(h.records.get("offline")?.result).toBe("LOCAL ENTRY");
+		expect(runOnce).not.toHaveBeenCalled();
+		expect(runTranslate).not.toHaveBeenCalled();
+		expect(h.failures).toEqual([]);
+	});
+
+	it("keeps local definitions visible when contextual enrichment fails", async () => {
+		providerId = "openaiCompatible";
+		const h = harness({ ...record("context-failure"), quote: "resolution" });
+		lookupDictionary.mockResolvedValue([{ source: "ecdict" }]);
+		runTranslate.mockRejectedValue(new Error("offline"));
+		await runSelectionTranslate({
+			...h.options,
+			context: {
+				...h.options.context,
+				dictionarySurrounding: "The image resolution is measured in pixels.",
+			},
+		});
+		expect(h.chunks).toEqual(["LOCAL ENTRY"]);
+		expect(h.records.get("context-failure")?.result).toBe("LOCAL ENTRY");
+		expect(h.failures).toEqual([]);
+		expect(notifyError).not.toHaveBeenCalled();
+	});
+
+	it("does not publish a local result after the card has been dismissed", async () => {
+		const h = harness({ ...record("dismissed-local"), quote: "attention" });
+		lookupDictionary.mockImplementation(async () => {
+			h.options.disposedRef.current = true;
+			return [{ source: "ecdict" }];
+		});
+		await runSelectionTranslate(h.options);
+		expect(h.persisted).toEqual([]);
+		expect(runOnce).not.toHaveBeenCalled();
 	});
 
 	it("streams an agent run, commits the trimmed result, and rewrites the session cache", async () => {

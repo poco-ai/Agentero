@@ -44,6 +44,10 @@ pub async fn run_raw(
             .ok_or_else(|| CliError::message("all free translation engines failed")),
         (chosen, _) => {
             let result = translate_text(TranslateTextArgs {
+                glossary: None,
+                dictionary: false,
+                dictionary_surrounding: None,
+                dictionary_reference: None,
                 text: text.to_string(),
                 source_lang: source.to_string(),
                 target_lang: target.to_string(),

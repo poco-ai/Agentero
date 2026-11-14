@@ -2522,3 +2522,7 @@ CLI 不再暴露 usage 命令；清除通过桌面端设置 / Host API 操作。
 - ~~`search:full_text`~~ → 已用 walk 式 `vault_search`（命令面板）；FTS5 / PDF 正文层仍可替换增强。
 - `reader:annotations`（历史规划；划词标注现为前端 `marks/*.json`，不经 Host command）。
 - `sync:*` 多设备同步（远期）。
+
+### 离线词典命令
+
+`dictionary_lookup(text: String, targetLang: String) -> ApiResult<Vec<DictionaryEntry>>`：桌面只读词典查询；固定资源路径，不接受调用方文件路径，返回词头、音标、中英文释义和出处。未知词返回空数组；调用方继续现有翻译管线。`translate_text` / `translate_text_stream` 的可选 `glossary` 是调用方译名约束；`dictionary`、`dictionarySurrounding`、`dictionaryReference` 用于划词模式与候选义项，不改变全文翻译输出契约。见 [翻译 Host](translate.md)。

@@ -7,7 +7,12 @@ use crate::http;
 use serde::Serialize;
 use std::time::Duration;
 
+mod dictionary;
+mod glossary;
+pub mod lexicon;
 mod sources;
+mod terminology;
+pub use glossary::{matching_glossary, parse_glossary, GlossaryTerm};
 
 pub use sources::openai_compatible::strip_unknown_translate_placeholders;
 
@@ -77,6 +82,10 @@ where
         let translate = &translate;
         tasks.push(async move {
             let r = translate(TranslateTextArgs {
+                glossary: None,
+                dictionary: false,
+                dictionary_surrounding: None,
+                dictionary_reference: None,
                 text,
                 source_lang: "auto".into(),
                 target_lang: "zh-CN".into(),
@@ -129,6 +138,14 @@ pub fn looks_mostly_cjk(s: &str) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct TranslateTextArgs {
     pub text: String,
+    #[serde(default)]
+    pub glossary: Option<String>,
+    #[serde(default)]
+    pub dictionary: bool,
+    #[serde(default)]
+    pub dictionary_surrounding: Option<String>,
+    #[serde(default)]
+    pub dictionary_reference: Option<String>,
     #[serde(default = "default_source")]
     pub source_lang: String,
     pub target_lang: String,
@@ -206,32 +223,86 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
         return Err(AppError::message("Missing target language"));
     }
 
+    let glossary =
+        terminology::effective_glossary(args.glossary.as_deref().unwrap_or(""), text, &target)?;
     let timeout = resolve_timeout(args.timeout_ms);
+    let prompt_driven = matches!(
+        provider.as_str(),
+        "indextranslate" | "indextranslate2b" | "openaicompatible"
+    );
+    let protection_key =
+        serde_json::json!([provider, args.base_url, args.model, source, target]).to_string();
+    let started = std::time::Instant::now();
+    let result = terminology::translate_with_fallback(
+        text,
+        &glossary,
+        !prompt_driven && terminology::protection_allowed(&protection_key),
+        |input| {
+            let args = &args;
+            let provider = &provider;
+            let source = &source;
+            let target = &target;
+            let glossary = &glossary;
+            async move {
+                // A retry shares the original request's timeout budget.
+                let remaining = timeout
+                    .saturating_sub(started.elapsed())
+                    .max(Duration::from_millis(1));
+                translate_with_provider(args, &input, provider, source, target, glossary, remaining)
+                    .await
+            }
+        },
+    )
+    .await?;
+    if result.rejected_protection {
+        terminology::remember_rejected_protection(protection_key);
+        log::debug!("translate.terminology provider={provider} action=retry_without_markers");
+    }
 
-    let translated = match provider.as_str() {
-        "cnki" => sources::cnki::translate_cnki(text, &source, &target, timeout).await?,
+    let out = result.text.trim().to_string();
+    if out.is_empty() {
+        return Err(AppError::message("Empty translation result"));
+    }
+    Ok(TranslateTextResult {
+        text: out,
+        provider,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn translate_with_provider(
+    args: &TranslateTextArgs,
+    text: &str,
+    provider: &str,
+    source: &str,
+    target: &str,
+    glossary: &[GlossaryTerm],
+    timeout: Duration,
+) -> Result<String, AppError> {
+    let translated = match provider {
+        "cnki" => sources::cnki::translate_cnki(text, source, target, timeout).await?,
         "indextranslate" | "indextranslate2b" => {
             // The arm guarantees one of the two ids; fall back to the default
             // tier rather than unwrapping.
-            let model = sources::index_translate::model_for_provider(&provider)
+            let model = sources::index_translate::model_for_provider(provider)
                 .unwrap_or(sources::index_translate::MODEL_35B_A3B);
             sources::index_translate::translate_index_translate(
-                text, &source, &target, timeout, model,
+                text, source, target, timeout, model, glossary,
             )
             .await?
         }
         "huoshanweb" => {
-            sources::huoshanweb::translate_huoshan_web(text, &source, &target, timeout).await?
+            sources::huoshanweb::translate_huoshan_web(text, source, target, timeout).await?
         }
         "tencenttransmart" => {
-            sources::tencent_transmart::translate_tencent_transmart(text, &source, &target, timeout)
+            sources::tencent_transmart::translate_tencent_transmart(text, source, target, timeout)
                 .await?
         }
         "deepl" => {
             sources::deepl::translate_deepl(
                 text,
-                &source,
-                &target,
+                source,
+                target,
                 timeout,
                 args.api_key.as_deref(),
                 args.base_url.as_deref(),
@@ -241,8 +312,8 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
         "azure" => {
             sources::azure::translate_azure(
                 text,
-                &source,
-                &target,
+                source,
+                target,
                 timeout,
                 args.api_key.as_deref(),
                 args.base_url.as_deref(),
@@ -253,8 +324,8 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
         "googlecloud" => {
             sources::google_cloud::translate_google_cloud(
                 text,
-                &source,
-                &target,
+                source,
+                target,
                 timeout,
                 args.api_key.as_deref(),
                 args.base_url.as_deref(),
@@ -264,8 +335,8 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
         "openaicompatible" => {
             sources::openai_compatible::translate_openai_compatible(
                 text,
-                &source,
-                &target,
+                source,
+                target,
                 timeout,
                 args.api_key.as_deref(),
                 args.base_url.as_deref(),
@@ -274,13 +345,17 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
                 args.custom_system.as_deref(),
                 args.custom_user.as_deref(),
                 args.extra_request_body.as_deref(),
+                glossary,
+                args.dictionary,
+                args.dictionary_surrounding.as_deref(),
+                args.dictionary_reference.as_deref(),
             )
             .await?
         }
         BUILTIN_PROVIDER_ID => {
             sources::hunyuan_mt::translate_hunyuan_mt(
                 text,
-                &target,
+                target,
                 timeout,
                 args.api_key.as_deref(),
                 args.base_url.as_deref(),
@@ -294,15 +369,7 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
             )));
         }
     };
-
-    let out = translated.trim().to_string();
-    if out.is_empty() {
-        return Err(AppError::message("Empty translation result"));
-    }
-    Ok(TranslateTextResult {
-        text: out,
-        provider,
-    })
+    Ok(translated)
 }
 
 /// Streaming translation for providers that support it (currently Index-Translate).
@@ -337,6 +404,7 @@ pub async fn translate_text_stream(
         &target,
         resolve_timeout(args.timeout_ms),
         model,
+        &terminology::effective_glossary(args.glossary.as_deref().unwrap_or(""), text, &target)?,
         on_delta,
     )
     .await?;
@@ -471,6 +539,10 @@ mod tests {
         // Non-streaming ids short-circuit to `None` without a network call, so
         // the Host command can fall back to `translate_text`.
         let args = TranslateTextArgs {
+            glossary: None,
+            dictionary: false,
+            dictionary_surrounding: None,
+            dictionary_reference: None,
             text: "hello".into(),
             source_lang: "auto".into(),
             target_lang: "zh-CN".into(),

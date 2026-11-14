@@ -141,10 +141,14 @@ export type TranslateTask = {
 		quote?: string;
 		/** e.g. "pdf-selection" */
 		surface?: string;
+		dictionarySurrounding?: string;
+		dictionaryReference?: string;
 	};
 };
 
 export type TranslateRunOptions = {
+	/** Resolved terminology constraint for this source text. */
+	glossary?: string;
 	/** Override settings.provider for this call. */
 	providerId?: TranslateProviderId;
 	/** Current BYOK provider config, resolved from settings. */

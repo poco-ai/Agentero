@@ -83,7 +83,6 @@ type PdfCardStackProps = {
 		onOpenSettings: () => void;
 		onTogglePin?: () => void;
 		onHide: () => void;
-		onToggleMode?: () => void;
 	};
 	visual: {
 		trace: PdfVisualSessionTrace | null;
@@ -159,6 +158,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 					onNote={selectionMenu.onNote}
 					showHighlight={selectionMenu.showHighlight}
 					showTranslate={selectionMenu.showTranslate}
+					selectionText={selectionMenu.state.anchor.quote}
 					contributionContext={selectionMenu.contributionContext}
 				/>
 			) : null}
@@ -231,9 +231,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 						onHide={translate.onHide}
 						onPointerEnter={onCardHoverEnter}
 						onPointerLeave={onCardHoverLeave}
-						mode={translate.record.mode}
-						dictionaryData={translate.record.dictionaryData}
-						onToggleMode={translate.onToggleMode}
+						sourceText={translate.record.quote}
 					/>
 				</PageClip>
 			) : null}

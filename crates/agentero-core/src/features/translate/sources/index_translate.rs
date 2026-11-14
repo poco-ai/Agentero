@@ -40,13 +40,18 @@ fn lang_name(code: &str) -> Option<&'static str> {
     }
 }
 
-/// One glossary entry: (source term, target term).
-pub(crate) type GlossaryTerm = (String, String);
-
-/// Glossary constraint line. Upstream renders `【硬性要求】专名/术语对照: A→B、C→D`.
-/// Intentionally empty until the glossary feature lands (see the tracking issue).
-fn glossary_constraint(_terms: &[GlossaryTerm]) -> Option<String> {
-    None
+use super::super::GlossaryTerm;
+fn glossary_constraint(terms: &[GlossaryTerm]) -> Option<String> {
+    (!terms.is_empty()).then(|| {
+        format!(
+            "【硬性要求】专名/术语对照: {}",
+            terms
+                .iter()
+                .map(|(s, t)| format!("{s}→{t}"))
+                .collect::<Vec<_>>()
+                .join("、")
+        )
+    })
 }
 
 /// Canonical instTrans prompt: header, source, numbered constraints, output rule.
@@ -107,8 +112,9 @@ pub async fn translate_index_translate(
     target: &str,
     timeout: Duration,
     model: &str,
+    glossary: &[GlossaryTerm],
 ) -> Result<String, AppError> {
-    let prompt = build_prompt(text, source, target, &[])?;
+    let prompt = build_prompt(text, source, target, glossary)?;
     let url = super::optional_endpoint(None, API_ROOT, "/chat/completions");
     let body = chat_body(&prompt, false, model);
     let client = http::client(timeout)?;
@@ -179,17 +185,19 @@ fn parse_sse_line(line: &str) -> Option<SseEvent> {
 
 /// Streaming variant: `on_delta` receives each content increment as it arrives;
 /// the full trimmed translation is returned at the end.
+#[allow(clippy::too_many_arguments)]
 pub async fn translate_index_translate_stream(
     text: &str,
     source: &str,
     target: &str,
     timeout: Duration,
     model: &str,
+    glossary: &[GlossaryTerm],
     mut on_delta: impl FnMut(&str),
 ) -> Result<String, AppError> {
     use futures_util::StreamExt;
 
-    let prompt = build_prompt(text, source, target, &[])?;
+    let prompt = build_prompt(text, source, target, glossary)?;
     let url = super::optional_endpoint(None, API_ROOT, "/chat/completions");
     let client = http::client(timeout)?;
     let resp = client
@@ -234,6 +242,16 @@ pub async fn translate_index_translate_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn glossary_reaches_canonical_prompt() {
+        let terms = vec![
+            ("LLM".into(), "大模型".into()),
+            ("KV cache".into(), "KV 缓存".into()),
+        ];
+        let prompt = build_prompt("The LLM uses KV cache.", "en", "zh-CN", &terms).unwrap();
+        assert!(prompt.contains("【硬性要求】专名/术语对照: LLM→大模型、KV cache→KV 缓存"));
+        assert!(glossary_constraint(&[]).is_none());
+    }
 
     #[test]
     fn sse_lines_yield_deltas_and_done() {

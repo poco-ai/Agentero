@@ -1,14 +1,4 @@
-import {
-	ArrowUpRight,
-	BookOpen,
-	Check,
-	Copy,
-	Languages,
-	Pin,
-	PinOff,
-	Settings2Icon,
-	X,
-} from "lucide-react";
+import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ThinkingOrb } from "thinking-orbs";
@@ -19,6 +9,7 @@ import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { useTypewriter } from "@/hooks/use-typewriter";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
 
 const TRANSLATE_CARD_WIDTH = 340;
 const TRANSLATE_CARD_MIN_WIDTH = 220;
@@ -42,19 +33,7 @@ type TranslateCardProps = {
 	onTogglePin?: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
-	/** Display mode: "translate" (default) or "dictionary" */
-	mode?: "translate" | "dictionary";
-	/** Dictionary-specific data */
-	dictionaryData?: {
-		word: string;
-		paperDefinition?: {
-			text: string;
-			location: number;
-			onJumpToDefinition?: () => void;
-		};
-	};
-	/** Toggle between dictionary and translate modes */
-	onToggleMode?: () => void;
+	sourceText?: string;
 };
 
 /**
@@ -75,11 +54,12 @@ export function TranslateCard({
 	onTogglePin,
 	onPointerEnter,
 	onPointerLeave,
-	mode = "translate",
-	dictionaryData,
-	onToggleMode,
+	sourceText,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
+	const mode = isDictionaryLookup(sourceText ?? "")
+		? "dictionary"
+		: "translate";
 	const showResult = result.trim().length > 0;
 	const typed = useTypewriter(result, mode === "translate");
 	const typing = streaming || typed.typing;
@@ -232,19 +212,6 @@ export function TranslateCard({
 							},
 						]
 					: []),
-				...(onToggleMode
-					? [
-							{
-								id: "toggle-mode",
-								label:
-									mode === "dictionary"
-										? t("selection.switchToTranslate")
-										: t("selection.switchToDictionary"),
-								onClick: onToggleMode,
-								icon: <Languages className="size-3.5" />,
-							},
-						]
-					: []),
 				...(onTogglePin
 					? [
 							{
@@ -281,17 +248,18 @@ export function TranslateCard({
 				onScroll={handleScroll}
 				className="agentero-scroll mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 			>
+				{mode === "dictionary" && (
+					<p className="break-words font-semibold text-base leading-snug">
+						{sourceText}
+					</p>
+				)}
 				{showLoading ? <StreamingOrb label={loadingText} /> : null}
 
-				{/* 词典模式：结构化展示 */}
-				{mode === "dictionary" && showResult ? (
-					<DictionaryResult result={result} dictionaryData={dictionaryData} />
-				) : null}
-
-				{/* 翻译模式：原有 Markdown 渲染 */}
-				{mode === "translate" && showResult ? (
-					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[0.9375rem] text-foreground leading-relaxed">
-						{typed.text}
+				{showResult ? (
+					<MessageResponse
+						className={`min-w-0 break-words text-[0.9375rem] text-foreground leading-relaxed ${mode === "dictionary" ? "space-y-2 whitespace-normal [&_p]:my-0" : "whitespace-pre-wrap"}`}
+					>
+						{mode === "dictionary" ? result : typed.text}
 					</MessageResponse>
 				) : null}
 
@@ -338,47 +306,6 @@ function StreamingOrb({
 		<div className="inline-flex items-center gap-2 text-muted-foreground text-sm">
 			<ThinkingOrb state="working" size={20} theme="auto" aria-label={label} />
 			{showLabel ? <span>{label}</span> : null}
-		</div>
-	);
-}
-
-type DictionaryResultProps = {
-	result: string;
-	dictionaryData?: TranslateCardProps["dictionaryData"];
-};
-
-function DictionaryResult({ result, dictionaryData }: DictionaryResultProps) {
-	const { t } = useTranslation("viewer");
-
-	return (
-		<div className="flex flex-col gap-2.5">
-			{/* LLM 输出的释义 + 语境义（Markdown 渲染） */}
-			<MessageResponse className="min-w-0 text-[0.9375rem] leading-relaxed">
-				{result}
-			</MessageResponse>
-
-			{/* L1: 论文内定义 */}
-			{dictionaryData?.paperDefinition &&
-			dictionaryData.paperDefinition.onJumpToDefinition ? (
-				<div className="mt-1 flex flex-col gap-1 rounded-md border border-border/50 bg-muted/30 p-2 text-sm">
-					<div className="flex items-start gap-1.5">
-						<BookOpen className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-						<div className="flex-1 text-muted-foreground">
-							{t("selection.dictionaryPaperDef")}
-						</div>
-					</div>
-					<button
-						type="button"
-						onClick={dictionaryData.paperDefinition.onJumpToDefinition}
-						className="group flex items-start gap-1.5 text-left text-foreground/90 hover:text-foreground"
-					>
-						<span className="flex-1 leading-snug">
-							"{dictionaryData.paperDefinition.text}"
-						</span>
-						<ArrowUpRight className="mt-0.5 size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
-					</button>
-				</div>
-			) : null}
 		</div>
 	);
 }
