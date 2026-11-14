@@ -2642,6 +2642,8 @@ export type CliInstallStatus = {
 	canInstall: boolean,
 	/**  Whether a user-level shim/link we manage is installed. */
 	installed: boolean,
+	/**  Whether startup may install the CLI; explicit uninstall disables it. */
+	autoInstallEnabled: boolean,
 	/**  Where the managed shim lives. */
 	installPath: string | null,
 	/**  Shim points at our CLI and CLI version matches the app. */
