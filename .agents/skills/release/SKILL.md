@@ -1,19 +1,55 @@
 ---
 name: release
 description: >-
-  Prepare and optionally update Agentero GitHub Release notes from merged pull
-  requests and uncovered first-parent commits. Use when the user asks to
-  prepare, dry-run, review, or update a release; summarize changes between
-  versions or tags; or fill a Draft GitHub Release after the v* release
-  workflow. Produce mirrored Chinese and English notes (Chinese first) and
-  require explicit approval before changing GitHub state.
+  Ship an Agentero release: bump the version, commit and push it, create and
+  push the release tag, monitor the release workflow, repair real failures,
+  rerun capacity failures, and write bilingual release notes to the Draft
+  Release. Use when the user asks to bump, tag, push, watch CI, or complete an
+  Agentero release. Notes-only and dry-run requests remain available.
 ---
 
 # Agentero Release
 
-Prepare evidence-backed bilingual Release notes and write them directly to the
-Draft GitHub Release. Use dry runs when the user explicitly requests read-only
-preview.
+Complete the requested release through a successful Release workflow and written
+Draft Release notes. A notes-only or dry-run request does not authorize a version
+change, commit, tag, push, workflow rerun, or Release edit.
+
+## Ship the release
+
+When the user names a version and asks to ship it:
+
+1. Follow `.agents/skills/bump/SKILL.md` for the version change and
+   `.agents/skills/commit/SKILL.md` for the dedicated
+   `chore(release): bump version to <version>` commit. Stop if unrelated work is
+   present.
+2. Push the release branch, then create and push the annotated tag `v<version>`
+   on that version commit. The tag without `v` must match every version field.
+3. Never move or overwrite a remote tag that GitHub Actions has already observed
+   or that is attached to a Release. If the workflow has not yet observed a
+   newly pushed tag, a user-requested correction may replace that tag; otherwise
+   stop and report the immutability conflict.
+4. Identify the Release workflow run created by the tag. Monitor it through
+   completion, including validation, Draft creation, installers, Android, CLI,
+   and updater assets.
+5. Treat Cloudflare-only failures as non-blocking. Do not rerun or delay the
+   release for them.
+6. For a failure caused by runner capacity or other transient infrastructure,
+   rerun the failed GitHub Actions job. Do not create a new commit or tag.
+7. For a real code, configuration, test, or workflow failure, fix it, commit and
+   push the correction, then create and push a new release tag for the corrected
+   commit. Continue from that run. Do not rewrite the previously observed tag.
+8. After the required Release workflow succeeds, verify the expected Draft assets,
+   then write the notes below. Leave the Release unpublished.
+
+## Watch workflow progress
+
+Prefer one scheduled check over polling whenever the agent can create a
+scheduled task. Poll only when the user explicitly asks for polling.
+
+For a long-running workflow, schedule one check about an hour later. If the run
+is still incomplete, report the remaining work and schedule the next one-hour
+check. If it failed, apply the failure policy above. If it succeeded, continue
+directly to asset verification and release notes.
 
 ## Establish the release range
 
@@ -159,8 +195,7 @@ After drafting the notes, write them directly to the Draft GitHub Release.
 5. Remove the temporary file.
 6. Return the selected range, evidence coverage, and the written body.
 
-Do not publish the Draft, push commits, create or move tags, or change version
-files unless the user separately requests those actions. Publishing with
+Do not publish the Draft. Publishing with
 `gh release edit "<tag>" --draft=false` requires explicit approval after the
 final body and assets have been reviewed.
 

@@ -121,6 +121,9 @@
 		"loadFailed": "Failed to load the recycle bin.",
 		"purgeFailed": "Failed to delete permanently."
 	},
+	"zen": {
+		"title": "Zen"
+	},
 	"papersLibrary": {
 		"title": "Library",
 		"loading": "Loading papers…",

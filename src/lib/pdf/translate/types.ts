@@ -24,6 +24,8 @@ export type PdfTranslateRecord = {
 	/** 1-based page number */
 	page: number;
 	rects: PdfTranslateRect[];
+	/** All selected pages for a cross-page translation; page/rects anchor the card. */
+	selectionPages?: { page: number; rects: PdfTranslateRect[] }[];
 	/** Source text that was translated */
 	quote?: string;
 	/** Translation body (persisted so the card can be reopened) */
@@ -32,4 +34,14 @@ export type PdfTranslateRecord = {
 	pinned: boolean;
 	/** Last error message if the run failed */
 	error?: string;
+	/** Display mode: "translate" or "dictionary" */
+	mode?: "translate" | "dictionary";
+	/** Dictionary-specific data (only when mode === "dictionary") */
+	dictionaryData?: {
+		word: string;
+		paperDefinition?: {
+			text: string;
+			location: number;
+		};
+	};
 };

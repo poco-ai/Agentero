@@ -20,8 +20,8 @@ use crate::features::agent::runtime::gates::{
 };
 use crate::features::agent::{
     delete_acp_session, list_acp_sessions, load_acp_session, new_ids, probe_agent, run_once,
-    AgentEventEmitter, AgentRegistry, AgentRunController, AgentWarmGate, AgentWarmPool,
-    PermissionPolicy, RunOnceParams,
+    AgentEventEmitter, AgentQueryPool, AgentRegistry, AgentRunController, AgentWarmGate,
+    AgentWarmPool, PermissionPolicy, RunOnceParams,
 };
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
@@ -348,11 +348,13 @@ pub async fn accept_run_once(
 }
 
 /// Service for `agent_list_sessions`: list ACP sessions via `session/list`.
+#[allow(clippy::too_many_arguments)]
 pub async fn list_sessions(
     registry: &AgentRegistry,
     remote_hosts: &dyn RemoteAgentHosts,
     warm_gate: &AgentWarmGate,
     pool: &AgentWarmPool,
+    queries: &Arc<AgentQueryPool>,
     agent_id: Option<String>,
     vault_path: Option<String>,
     cursor: Option<String>,
@@ -396,7 +398,7 @@ pub async fn list_sessions(
             return Err(error);
         }
     };
-    match list_acp_sessions(&desc, cwd, cursor, remote_target.as_deref()).await {
+    match list_acp_sessions(queries, &desc, cwd, cursor, remote_target.as_ref()).await {
         Ok(mut result) => {
             let hidden = pool.unprompted_ids();
             let dismissed = pool.dismissed_ids();
@@ -429,6 +431,7 @@ pub async fn list_sessions(
 pub async fn load_session(
     registry: &AgentRegistry,
     remote_hosts: &dyn RemoteAgentHosts,
+    queries: &Arc<AgentQueryPool>,
     agent_id: Option<String>,
     session_id: String,
     vault_path: Option<String>,
@@ -444,7 +447,7 @@ pub async fn load_session(
     }
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
-    load_acp_session(&desc, session_id, cwd, remote_target.as_deref()).await
+    load_acp_session(queries, &desc, session_id, cwd, remote_target.as_ref()).await
 }
 
 /// Service for `agent_delete_session`.
@@ -457,6 +460,7 @@ pub async fn delete_session(
     registry: &AgentRegistry,
     remote_hosts: &dyn RemoteAgentHosts,
     pool: &AgentWarmPool,
+    queries: &Arc<AgentQueryPool>,
     agent_id: Option<String>,
     session_id: String,
     vault_path: Option<String>,
@@ -479,7 +483,7 @@ pub async fn delete_session(
 
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
-    match delete_acp_session(&desc, &session_id, cwd, remote_target.as_deref()).await {
+    match delete_acp_session(queries, &desc, &session_id, cwd, remote_target.as_ref()).await {
         Ok(true) => Ok(AcpDeleteSessionResult {
             session_id,
             deleted_on_agent: true,

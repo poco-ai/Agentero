@@ -526,6 +526,7 @@ export function SettingsContent({
 									uiTheme={settings.uiTheme}
 									locale={settings.locale}
 									uiScale={settings.uiScale}
+									soundEnabled={settings.soundEnabled}
 									editorFontSize={settings.editorFontSize}
 									interfaceFontFamily={settings.interfaceFontFamily}
 									textFontFamily={settings.textFontFamily}

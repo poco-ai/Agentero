@@ -235,34 +235,10 @@ function sameFocusedBbox(
 	return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }
 
-/**
- * Section headers from layout OCR are often a ~1% tall title strip. Expand to
- * a readable preview block (title + following body) so citation jumps are visible.
- */
-export function expandFocusBboxForOverlay(
-	bbox: PdfAskNormalizedRect,
-	kind: PdfLayoutKind,
-): PdfAskNormalizedRect {
-	if (kind !== "header" || bbox.h >= 0.05) return bbox;
-	const top = Math.max(0, bbox.y - 0.008);
-	const left = Math.min(Math.max(0, bbox.x - 0.02), 0.12);
-	const right = 0.92;
-	const previewH = 0.28;
-	const h = Math.min(previewH, Math.max(0.08, 1 - top));
-	const w = Math.max(bbox.w, right - left);
-	return {
-		x: left,
-		y: top,
-		w: Math.min(w, 1 - left),
-		h,
-	};
-}
-
 function regionFromSnapshot(
 	regionId: string,
 	snapshot: FocusedLayoutSnapshot,
 ): PdfLayoutRegion {
-	const bbox = expandFocusBboxForOverlay(snapshot.bbox, snapshot.kind);
 	return {
 		id: regionId,
 		pageIndex: snapshot.pageIndex,
@@ -271,7 +247,7 @@ function regionFromSnapshot(
 		score: 1,
 		readingOrder: 0,
 		rect: { x: 0, y: 0, w: 0, h: 0 },
-		bbox,
+		bbox: snapshot.bbox,
 	};
 }
 

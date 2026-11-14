@@ -172,8 +172,10 @@
 			"loginFailed": "Could not open the institution login",
 			"cookieExpired": "Institution login expired. Open the gateway and sign in again; cookies are saved automatically.",
 			"typeLabel": "Gateway type",
+			"typeAuto": "Auto-detect",
 			"typeEzproxy": "EZProxy (login?url=)",
 			"typeWengine": "WebVPN (wengine)",
+			"typeSubdomain": "WebVPN (subdomain mapping)",
 			"test": "Test",
 			"testing": "Testing…",
 			"probeIdle": "Not tested",
@@ -185,7 +187,10 @@
 				"zju": "Zhejiang University",
 				"ustc": "University of Science and Technology of China",
 				"xjtu": "Xi'an Jiaotong University",
-				"neu": "Northeastern University"
+				"neu": "Northeastern University",
+				"tsinghua": "Tsinghua University",
+				"fudan": "Fudan University",
+				"bjmu": "Peking University Health Science Center"
 			}
 		},
 		"easyScholar": {
@@ -206,7 +211,11 @@
 			"label": "Zotero Connector compatibility",
 			"hint": "Quit local Zotero first",
 			"portLabel": "Connector port",
-			"invalidPort": "Port must be between 1 and 65535."
+			"invalidPort": "Port must be between 1 and 65535.",
+			"notListening": "Not listening",
+			"portInUse": "Port {{port}} is in use. Agentero retries every 5 seconds. Quit Zotero or the other app using this port.",
+			"bindFailed": "Cannot listen on port {{port}}. Agentero retries every 5 seconds. Check the port or choose another one.",
+			"serverStopped": "The Connector service stopped. Agentero retries every 5 seconds. You can also retry now."
 		},
 		"mcp": {
 			"exposeText": {
@@ -270,6 +279,11 @@
 		"uiScale": {
 			"label": "Interface scale",
 			"value": "{{percent}}%"
+		},
+		"sound": {
+			"label": "In-app sounds",
+			"description": "Quiet cues when an Agent needs you, or a turn or PDF translation finishes or fails",
+			"preview": "Preview"
 		},
 		"fonts": {
 			"section": "Fonts",
@@ -518,12 +532,11 @@
 		"provider": {
 			"label": "Default service",
 			"agentero": "Agentero built-in",
-			"deeplx": "DeepLX",
 			"cnki": "CNKI Translate",
 			"huoshanweb": "Volcengine Web",
 			"tencenttransmart": "Tencent Transmart",
-			"googleapi": "Google Translate (API)",
-			"google": "Google Translate",
+			"indextranslate": "Bilibili Translate 35B-A3B",
+			"indextranslate2b": "Bilibili Translate 2B",
 			"deepl": "DeepL API",
 			"azure": "Microsoft Translator",
 			"googleCloud": "Google Cloud Translate",
@@ -548,8 +561,8 @@
 			"label": "Auto-translate PDF selection"
 		},
 		"autoImport": {
-			"label": "Auto-translate after import",
-			"description": "Runs full-text translation in the background once layout analysis finishes. Uses the current translation service and cache settings.",
+			"label": "Auto-translate after layout analysis",
+			"description": "After import, download, or a layout reparse, runs full-text translation in the background. Reuses cached translations and only requests changed blocks. Uses the current translation service and cache settings.",
 			"concurrency": {
 				"label": "Concurrent papers for auto-translation"
 			}
@@ -717,7 +730,8 @@
 			"dialog": {
 				"clearTitle": "Clear parse results?",
 				"reparseTitle": "Clear and reparse?",
-				"scopeLabel": "Choose scope"
+				"scopeLabel": "Choose scope",
+				"reparseTranslate": "Auto-translate after layout analysis is on. This queues full-text translation for every paper in the layout scope and may create a batch of translation requests and charges. Cached translations are reused."
 			}
 		}
 	},
@@ -727,6 +741,14 @@
 			"section": "Decision model",
 			"getKey": "Get an API key",
 			"smartHighlight": "Smart highlight",
+			"concurrency": {
+				"label": "Concurrent requests",
+				"description": "Lower this when a self-hosted model queues requests."
+			},
+			"timeout": {
+				"label": "Request timeout (seconds)",
+				"description": "Starts when the batch is sent, not while it waits."
+			},
 			"provider": {
 				"label": "Provider",
 				"jev": "TypeSafe Jev",
@@ -1006,7 +1028,7 @@
 			"uninstallFailed": "Could not remove CLI command",
 			"statusFailed": "Could not read CLI status",
 			"openReleaseFailed": "Could not open the release page",
-			"syncFailed": "Could not auto-sync the installed CLI with this app version. Update it from Settings → About"
+			"syncFailed": "Could not automatically install or update the CLI. Try again from Settings → About"
 		},
 		"feedback": {
 			"label": "Feedback",
@@ -1053,7 +1075,14 @@
 		"pathStyle": "Path-style addressing",
 		"pathStyleHint": "Keep on for R2 / MinIO; turn off for bucket subdomains.",
 		"gitRemote": "Repository URL",
+		"gitRemoteHint": "SSH uses your agent. HTTPS does not prompt: store a token with `git credential approve` or your credential helper before connecting.",
 		"gitBranch": "Branch",
+		"gitAllowInsecureHttp": "Allow plain HTTP",
+		"gitAllowInsecureHttpHint": "Intranet servers without HTTPS only. The token is sent in cleartext.",
+		"gitSslCa": "CA certificate",
+		"gitSslCaHint": "Absolute PEM path for a self-signed HTTPS server. Empty uses the system trust store.",
+		"gitAuthFailed": "Git could not sign in, and sync does not prompt.\n{{detail}}\nHTTPS: store a token first with `git credential approve` or your credential helper. SSH: run `ssh-add`.",
+		"gitTlsFailed": "Git rejected the server certificate.\n{{detail}}\nFor a self-signed server, set the CA certificate path and connect again.",
 		"noConditionalWrites": "This storage doesn't support conditional (atomic) writes, so sync falls back to plain uploads. Fine for single-device use; concurrent edits from multiple devices may need an extra sync round to converge.",
 		"saved": "Sync configured",
 		"disconnect": "Disconnect",

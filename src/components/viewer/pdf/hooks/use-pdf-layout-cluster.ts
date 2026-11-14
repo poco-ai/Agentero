@@ -69,7 +69,7 @@ export type UsePdfLayoutClusterOptions = {
 	plainViewer?: boolean;
 };
 
-export type PdfLayoutCluster = Omit<PdfLayoutRegions, "layoutDocRegions"> &
+export type PdfLayoutCluster = PdfLayoutRegions &
 	ReturnType<typeof usePdfLayoutRun> &
 	ReturnType<typeof usePdfVisualDraft> &
 	ReturnType<typeof usePdfLayoutTranslate> & {
@@ -107,6 +107,7 @@ export function usePdfLayoutCluster({
 	// mutually exclusive hover cards) and the bulk-translate job.
 	const {
 		layoutOverlayVisible,
+		layoutDocRegions,
 		layoutRawRegions,
 		hoverableRegionsByPage,
 		rawRegionsByPage,
@@ -227,6 +228,7 @@ export function usePdfLayoutCluster({
 		hoverableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,
+		layoutDocRegions,
 		layoutTaskRef,
 		handleAnalyzeLayout,
 		handleJumpToLayoutRegion,

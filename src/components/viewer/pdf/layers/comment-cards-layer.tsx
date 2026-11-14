@@ -1,19 +1,44 @@
 /**
- * Comment rail: one persistent card per annotated highlight / visual note,
- * pinned just outside the page's right edge (`left: 100%` inside the
- * overflow-visible page container). Cards
- * stack vertically with collision avoidance and clamp into the page height.
+ * Comment cards for annotated highlights / visual notes, stacked vertically
+ * with collision avoidance and clamped into the page height.
+ *
+ * Cards live outside the page's right edge (`left: 100%`), but the reading
+ * surface reserves no space for them: at fit-width the column sits just past
+ * the viewport and `RailPeek` pans the viewport when the pointer dwells on the
+ * right edge. Narrow note embeds render `inset` instead (cards inside the
+ * page, only the hovered / editing / brand-new one visible), because their
+ * viewport is too small to peek without moving the content.
  *
  * Click a card to edit the note in place (Notion-style): the body becomes a
- * textarea, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating editor.
+ * Markdown editor, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating
+ * editor.
  *
- * The rail is laid out in unscaled page space and the whole layer is zoomed
- * exactly with the PDF zoom, so cards keep a constant ratio to the page while
- * text, icons, and padding are laid out at their final size.
+ * Cards keep a fixed UI size like the ask / translate floating cards: the layer
+ * is laid out in screen pixels (the page shell already tracks zoom), so zoom
+ * only moves the anchors, never rescales the cards.
+ *
+ * Card height hugs the rendered content (measured, not estimated): short or
+ * empty notes stay compact, long notes / conversations scroll inside the card.
+ * The height cap also clamps to the reading viewport so short windows and
+ * panes scroll the card body instead of clipping it.
  */
 
-import { Crop, Link2, MessageSquarePlus, Trash2 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	Crop,
+	Link2,
+	MessageSquarePlus,
+	Trash2,
+	Underline,
+} from "lucide-react";
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
 import { QuietIconButton } from "@/components/ui/quiet-icon-button";
@@ -23,25 +48,29 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+	CommentMarkdownEditor,
+	type CommentMarkdownEditorHandle,
+} from "@/components/viewer/pdf/layers/comment-markdown-editor";
 import type {
 	PageAnnotationComment,
 	SelectionCommentDraft,
 } from "@/components/viewer/pdf/types";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { cn } from "@/lib/core/utils";
-import { applyMarkdownTextareaShortcut } from "@/lib/markdown/textarea-shortcuts";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 import {
 	DEFAULT_HIGHLIGHT_COLOR,
+	HIGHLIGHT_HEX,
 	swatchColorClass,
 } from "@/lib/pdf/highlight/palette";
-/** Card width in CSS px — also the gutter width reserved on the viewport. */
+/** Card width in CSS px. */
 export const COMMENT_CARD_WIDTH_PX = 200;
-/** Horizontal gap between the page edge and the rail. */
+/** Horizontal gap between the page edge and the card. */
 export const COMMENT_CARD_GAP_PX = 8;
-/** Extra px so ring + shadow aren't clipped by the viewport overflow. */
-const COMMENT_RAIL_BLEED_PX = 4;
-/** Viewport right padding that keeps the rail clear of horizontal scroll. */
+/** Extra px so ring + shadow aren't clipped by the scroll overflow. */
+export const COMMENT_RAIL_BLEED_PX = 4;
+/** Outer width of the page-outside card column (not reserved anywhere). */
 export const COMMENT_RAIL_WIDTH_PX =
 	COMMENT_CARD_WIDTH_PX + COMMENT_CARD_GAP_PX + COMMENT_RAIL_BLEED_PX;
 
@@ -52,16 +81,22 @@ const CARD_LINE_HEIGHT_PX = 20;
 const CARD_CHARS_PER_LINE = 13;
 /** Padding + color-dot row + blockquote/comment margins. */
 const CARD_BASE_HEIGHT_PX = 54;
-/** View-mode clamp for the note body. */
+/** Hard height cap so one huge note cannot dominate the rail. */
+const COMMENT_CARD_MAX_HEIGHT_PX = 420;
+/** Floor below the viewport-derived cap so short panes stay usable. */
+const COMMENT_CARD_MIN_HEIGHT_PX = 120;
+/** Keep the viewport-capped card clear of the reading-area edges. */
+const COMMENT_VIEWPORT_MARGIN_PX = 12;
+/** Layout seed for the note body (3 lines) until the card is measured. */
 const VIEW_COMMENT_LINES = 3;
 /** View-mode clamp for the inline visual-mark conversation preview. */
 const VIEW_CONVERSATION_PREVIEW_LINES = 3;
 /** In-place editor: min rows so an empty new note has room to type. */
 const EDIT_MIN_COMMENT_LINES = 3;
-/** In-place editor: layout estimate cap; textarea scrolls past this. */
+/** In-place editor: layout estimate cap until the measured height lands. */
 const EDIT_MAX_COMMENT_LINES = 12;
 const COMMENT_CARD_SURFACE_CLASS =
-	"group pointer-events-auto absolute select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] hover:shadow-dialog hover:!h-auto supports-backdrop-blur:bg-background/70 dark:border-white/10";
+	"group pointer-events-auto absolute flex flex-col select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] supports-backdrop-blur:bg-background/70 dark:border-white/10";
 const COMMENT_DRAFT_SURFACE_CLASS =
 	"group/draft pointer-events-auto absolute z-[6] cursor-text overflow-hidden rounded-lg border border-white/55 bg-background/88 text-left shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 outline-none supports-backdrop-blur:bg-background/70 dark:border-white/10";
 /** Horizontal action bar floating just above the card's top-right corner. */
@@ -76,8 +111,6 @@ type CommentCardsLayerProps = {
 	pageWidthPx: number;
 	/** Rendered page height in px (zoom-aware). */
 	pageHeightPx: number;
-	/** PDF zoom; the rail is laid out in page space and scaled to match. */
-	scale?: number;
 	/** Id of the card currently being edited in place; null when idle. */
 	editingId: string | null;
 	/** Resolvable wiki target; copy buttons only render when set. */
@@ -120,7 +153,20 @@ function clampedLines(text: string, max: number): number {
 	return Math.max(1, lines);
 }
 
-/** Conservative card height estimate from clamped comment + conversation lines. */
+/**
+ * Obsidian-style line parity for note cards: the in-place editor shows every
+ * newline as a line break, so single newlines render as hard breaks instead
+ * of joining into one paragraph. Blank lines already produce separate <p>s.
+ */
+function withEditorLineBreaks(text: string): string {
+	return text.replace(/(?<!\n)\n(?!\n)/g, "  \n");
+}
+
+/**
+ * Layout seed from clamped comment + conversation lines. The rail re-lays
+ * out with measured card heights as soon as the cards report them; this
+ * estimate only covers the first paint.
+ */
 export function estimateCommentCardHeight(
 	item: PageAnnotationComment,
 	editing = false,
@@ -151,11 +197,13 @@ export function estimateCommentCardHeight(
 /**
  * Anchor each card at its highlight height, then nudge overlapping cards
  * downward (never sideways) and clamp the whole stack into the page height.
+ * Measured card heights override the estimates when provided.
  */
 export function layoutCommentCards(
 	items: PageAnnotationComment[],
 	pageHeightPx: number,
 	editingId?: string | null,
+	measuredHeights?: ReadonlyMap<string, number>,
 ): CommentCardPlacement[] {
 	const sorted = [...items].sort(
 		(a, b) => a.anchorY - b.anchorY || a.id.localeCompare(b.id),
@@ -163,7 +211,9 @@ export function layoutCommentCards(
 	const laid: CommentCardPlacement[] = [];
 
 	for (const item of sorted) {
-		const heightPx = estimateCommentCardHeight(item, item.id === editingId);
+		const heightPx =
+			measuredHeights?.get(item.id) ??
+			estimateCommentCardHeight(item, item.id === editingId);
 		const anchorTop = item.anchorY * pageHeightPx;
 		const prev = laid[laid.length - 1];
 		const topPx = Math.max(
@@ -191,7 +241,7 @@ export function layoutCommentCards(
  * Word / Feishu-style orthogonal leader from the nearest highlight segment to
  * the laid-out card's left midpoint, folding at the page's right edge.
  * Multi-line highlights pick the rect closest to the card (not the envelope mid).
- * Returns an SVG path `d` in unscaled page-space pixels, or null when undrawable.
+ * Returns an SVG path `d` in screen-space pixels, or null when undrawable.
  */
 export function commentConnectorPath(
 	rects: readonly PdfAskNormalizedRect[],
@@ -235,20 +285,17 @@ export function commentConnectorPath(
 	return `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${y2Rounded} L ${x2} ${y2Rounded}`;
 }
 
-function autosizeTextarea(el: HTMLTextAreaElement | null) {
-	if (!el) return;
-	el.style.height = "0px";
-	el.style.height = `${Math.max(el.scrollHeight, CARD_LINE_HEIGHT_PX * EDIT_MIN_COMMENT_LINES)}px`;
-}
-
 type CommentCardProps = {
 	inset?: boolean;
 	item: PageAnnotationComment;
 	topPx: number;
-	heightPx: number;
+	/** Height cap: content cap clamped by the reading-viewport height. */
+	maxHeightPx: number;
 	editing: boolean;
 	wikiTarget: string | null;
 	hovered: boolean;
+	/** Report the rendered card height so stacking uses real sizes. */
+	onMeasure: (id: string, heightPx: number) => void;
 	onOpen: (comment: PageAnnotationComment) => void;
 	onSave: (comment: PageAnnotationComment, text: string) => void;
 	onCancel: () => void;
@@ -260,14 +307,41 @@ type CommentCardProps = {
 	onLeave: () => void;
 };
 
+/** Shape glyph at the top of a card: crop for visual notes, color bar / dot. */
+function MarkerGlyph({
+	kind,
+	color,
+	shape,
+}: Pick<PageAnnotationComment, "kind" | "color" | "shape">) {
+	if (kind === "visual") {
+		return <Crop className="size-2.5 text-muted-foreground" aria-hidden />;
+	}
+	if (shape === "underline") {
+		return (
+			<Underline
+				className="size-3"
+				style={{ color: HIGHLIGHT_HEX[color] }}
+				aria-hidden
+			/>
+		);
+	}
+	return (
+		<span
+			className={cn("block size-2 rounded-full", swatchColorClass(color))}
+			aria-hidden
+		/>
+	);
+}
+
 const CommentCard = memo(function CommentCard({
 	inset,
 	item,
 	topPx,
-	heightPx,
+	maxHeightPx,
 	editing,
 	wikiTarget,
 	hovered,
+	onMeasure,
 	onOpen,
 	onSave,
 	onCancel,
@@ -280,7 +354,7 @@ const CommentCard = memo(function CommentCard({
 }: CommentCardProps) {
 	const { t } = useTranslation("viewer");
 	const rootRef = useRef<HTMLDivElement>(null);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const editorHandleRef = useRef<CommentMarkdownEditorHandle | null>(null);
 	const cancelledRef = useRef(false);
 	const itemRef = useRef(item);
 	itemRef.current = item;
@@ -291,28 +365,55 @@ const CommentCard = memo(function CommentCard({
 	const draftRef = useRef(item.comment);
 	const commentSeedRef = useRef(item.comment);
 	commentSeedRef.current = item.comment;
-	const { isBlockedByIme, compositionProps } = useImeGuard();
+	// True once the editable itself has taken focus this edit session. WebKit
+	// fires a queued focusout when the focused view body is swapped out for the
+	// editor; until the editable focuses, any blur is that swap, not a click-away.
+	const editorFocusedRef = useRef(false);
+	const { isBlockedByIme } = useImeGuard();
 
-	useEffect(() => {
+	// The WYSIWYG editor reads back as Markdown at commit points; blur races
+	// fall back to the last onChange draft (seeded with the stored comment).
+	const readDraft = useCallback(
+		() => editorHandleRef.current?.getMarkdown() ?? draftRef.current,
+		[],
+	);
+
+	// Reset the commit guard each time editing opens.
+	useLayoutEffect(() => {
 		if (!editing) return;
 		cancelledRef.current = false;
+		editorFocusedRef.current = false;
 		draftRef.current = commentSeedRef.current;
-		const el = textareaRef.current;
-		if (!el) return;
-		el.focus();
-		const len = el.value.length;
-		el.setSelectionRange(len, len);
-		autosizeTextarea(el);
 	}, [editing]);
+
+	// Report the rendered height (border-box) so the rail stacks against real
+	// card sizes instead of the layout seed estimate.
+	useLayoutEffect(() => {
+		const el = rootRef.current;
+		if (!el) return;
+		let last = -1;
+		const report = () => {
+			const height = el.offsetHeight;
+			if (height > 0 && height !== last) {
+				last = height;
+				onMeasure(item.id, height);
+			}
+		};
+		report();
+		const observer = new ResizeObserver(report);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [item.id, onMeasure]);
 
 	// Page virtualization unmounts the card if the user scrolls away — treat
 	// dirty drafts like blur and commit. Skip no-op saves so React StrictMode's
-	// fake unmount doesn't close a freshly opened editor.
+	// fake unmount doesn't close a freshly opened editor. Serialize output is
+	// normalized (trailing newline etc.), so compare without edge whitespace.
 	useEffect(() => {
 		if (!editing) return;
 		return () => {
 			if (cancelledRef.current) return;
-			if (draftRef.current === commentSeedRef.current) return;
+			if (draftRef.current.trim() === commentSeedRef.current.trim()) return;
 			onSaveRef.current(itemRef.current, draftRef.current);
 		};
 	}, [editing]);
@@ -328,7 +429,7 @@ const CommentCard = memo(function CommentCard({
 		onCancel();
 	};
 
-	// Clicking the page does not always blur the textarea. A new empty note
+	// Clicking the page does not always blur the editor. A new empty note
 	// should disappear on that click; typed text still commits.
 	useEffect(() => {
 		if (!editing) return;
@@ -337,7 +438,7 @@ const CommentCard = memo(function CommentCard({
 			if (!current.isNew || cancelledRef.current) return;
 			const target = event.target as Node | null;
 			if (!target || rootRef.current?.contains(target)) return;
-			const text = textareaRef.current?.value ?? draftRef.current;
+			const text = readDraft();
 			if (!text.trim()) {
 				cancelledRef.current = true;
 				onCancelRef.current();
@@ -351,18 +452,19 @@ const CommentCard = memo(function CommentCard({
 		return () => {
 			document.removeEventListener("pointerdown", onPointerDown, true);
 		};
-	}, [editing]);
+	}, [editing, readDraft]);
 
 	return (
 		<div
 			ref={rootRef}
 			data-pdf-chrome
+			data-comment-card
 			className={cn(
 				COMMENT_CARD_SURFACE_CLASS,
 				editing
-					? "z-[6] bg-background/92 shadow-dialog ring-2 ring-ring/50"
+					? "z-[6] bg-background/92 ring-2 ring-ring/50"
 					: hovered
-						? "z-[6] bg-background/92 shadow-dialog ring-2 ring-primary/45"
+						? "z-[6] bg-background/92 ring-2 ring-primary/45"
 						: "",
 			)}
 			style={{
@@ -371,20 +473,14 @@ const CommentCard = memo(function CommentCard({
 					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
 				top: topPx,
 				width: COMMENT_CARD_WIDTH_PX,
-				height: editing ? undefined : heightPx,
-				minHeight: heightPx,
+				maxHeight: maxHeightPx,
 			}}
 			onPointerEnter={() => onHover(item)}
 			onPointerLeave={onLeave}
 		>
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: blur/pointer isolation for the in-place editor */}
 			<div
-				className={cn(
-					"h-full rounded-[inherit] px-2.5 py-2",
-					editing
-						? "overflow-visible"
-						: "overflow-hidden group-hover:overflow-visible group-focus-within:overflow-visible",
-				)}
+				className="agentero-scroll min-h-0 w-full flex-1 overflow-auto rounded-[inherit] px-2.5 py-2 text-left"
 				onPointerDown={(e) => e.stopPropagation()}
 				onBlur={
 					editing
@@ -397,8 +493,14 @@ const CommentCard = memo(function CommentCard({
 								) {
 									return;
 								}
+								// Ignore the view→edit swap: WebKit queues a focusout
+								// when the focused view body unmounts. It is not a
+								// click-away until the editable has focus and focus has
+								// actually left the card.
+								if (!editorFocusedRef.current) return;
+								if (rootRef.current?.contains(document.activeElement)) return;
 								if (cancelledRef.current) return;
-								const text = textareaRef.current?.value ?? "";
+								const text = readDraft();
 								if (item.isNew && !text.trim()) {
 									cancel();
 									return;
@@ -408,199 +510,175 @@ const CommentCard = memo(function CommentCard({
 						: undefined
 				}
 			>
-				<div className={cn(!editing && "max-h-[70vh] overflow-y-auto")}>
-					{editing ? (
-						<div className="block w-full text-left">
-							{item.kind === "visual" ? (
-								<Crop className="size-2.5 text-muted-foreground" aria-hidden />
-							) : (
-								<span
-									className={cn(
-										"block size-2 rounded-full",
-										swatchColorClass(item.color),
-									)}
-									aria-hidden
-								/>
-							)}
-							<textarea
-								ref={textareaRef}
-								className="mt-1 max-h-60 w-full resize-none bg-transparent p-0 text-sm text-foreground/80 leading-relaxed outline-none placeholder:text-muted-foreground/70 select-text"
-								placeholder={t("annotations.placeholder")}
-								aria-label={t("annotations.editorLabel")}
-								defaultValue={item.comment}
-								rows={EDIT_MIN_COMMENT_LINES}
-								{...compositionProps}
-								onChange={(e) => {
-									draftRef.current = e.currentTarget.value;
-									autosizeTextarea(e.currentTarget);
-								}}
-								onClick={(e) => e.stopPropagation()}
-								onKeyDown={(e) => {
-									e.stopPropagation();
-									if (
-										applyMarkdownTextareaShortcut(e, (value) => {
-											draftRef.current = value;
-											autosizeTextarea(e.currentTarget);
-										})
-									)
-										return;
-									if (e.key === "Escape") {
-										e.preventDefault();
-										cancel();
-										return;
-									}
-									if (
-										e.key === "Enter" &&
-										(e.metaKey || e.ctrlKey) &&
-										!isBlockedByIme(e)
-									) {
-										e.preventDefault();
-										commit(e.currentTarget.value);
-									}
-								}}
-							/>
-						</div>
-					) : (
-						// biome-ignore lint/a11y/useSemanticElements: a native <button> cannot wrap the blockquote/p flow content
-						<div
-							role="button"
-							tabIndex={0}
-							className="block w-full cursor-text text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-							onClick={(e) => {
-								e.stopPropagation();
-								if ((e.target as Element).closest("a, button")) return;
-								onOpen(item);
+				{editing ? (
+					<div className="block w-full text-left">
+						<MarkerGlyph
+							kind={item.kind}
+							color={item.color}
+							shape={item.shape}
+						/>
+						<CommentMarkdownEditor
+							initialValue={item.comment}
+							placeholder={t("annotations.placeholder")}
+							ariaLabel={t("annotations.editorLabel")}
+							className="comment-md mt-1 w-full overflow-y-auto break-words text-sm leading-relaxed text-foreground/80"
+							handleRef={editorHandleRef}
+							onChange={(markdown) => {
+								draftRef.current = markdown;
+							}}
+							onFocus={() => {
+								editorFocusedRef.current = true;
 							}}
 							onKeyDown={(e) => {
-								if (e.target !== e.currentTarget) return;
-								if (e.key === "Enter" || e.key === " ") {
+								e.stopPropagation();
+								if (e.key === "Escape") {
 									e.preventDefault();
-									onOpen(item);
+									cancel();
+									return;
+								}
+								if (
+									e.key === "Enter" &&
+									(e.metaKey || e.ctrlKey) &&
+									!isBlockedByIme(e)
+								) {
+									e.preventDefault();
+									commit(readDraft());
 								}
 							}}
-						>
-							{item.kind === "visual" ? (
-								<Crop className="size-2.5 text-muted-foreground" aria-hidden />
-							) : (
-								<span
-									className={cn(
-										"block size-2 rounded-full",
-										swatchColorClass(item.color),
-									)}
-									aria-hidden
-								/>
+						/>
+					</div>
+				) : (
+					// biome-ignore lint/a11y/useSemanticElements: a native <button> cannot wrap the blockquote/p flow content
+					<div
+						role="button"
+						tabIndex={0}
+						className="block w-full cursor-text text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+						onClick={(e) => {
+							e.stopPropagation();
+							if ((e.target as Element).closest("a, button")) return;
+							onOpen(item);
+						}}
+						onKeyDown={(e) => {
+							if (e.target !== e.currentTarget) return;
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								onOpen(item);
+							}
+						}}
+					>
+						<MarkerGlyph
+							kind={item.kind}
+							color={item.color}
+							shape={item.shape}
+						/>
+						<div
+							className={cn(
+								"mt-1 break-words text-sm leading-relaxed",
+								item.comment.trim()
+									? "text-foreground/80"
+									: "text-muted-foreground/70",
 							)}
-							<div
-								className={cn(
-									"mt-1 max-h-[3.75rem] overflow-hidden break-words text-sm leading-relaxed group-hover:max-h-none group-hover:overflow-x-auto",
-									item.comment.trim()
-										? "text-foreground/80"
-										: "text-muted-foreground/70",
-								)}
-							>
-								{item.comment.trim() ? (
-									<MessageResponse className="text-sm leading-relaxed [&_p]:my-0 [&_table]:min-w-max">
-										{item.comment}
-									</MessageResponse>
-								) : (
-									t("annotations.placeholder")
-								)}
-							</div>
-							{item.messages && item.messages.length > 0 ? (
-								<div className="mt-1.5 border-t border-border/40 pt-1.5">
-									<div className="line-clamp-3 space-y-1 group-hover:line-clamp-none">
-										{item.messages.map((m) => (
-											<p
-												key={m.id}
-												className={cn(
-													"whitespace-pre-wrap break-words text-caption leading-relaxed",
-													m.role === "assistant"
-														? "text-muted-foreground"
-														: "text-foreground/80",
-												)}
-											>
-												{m.content}
-											</p>
-										))}
-									</div>
-								</div>
-							) : null}
+						>
+							{item.comment.trim() ? (
+								<MessageResponse className="comment-md text-sm leading-relaxed [&_table]:min-w-max">
+									{withEditorLineBreaks(item.comment)}
+								</MessageResponse>
+							) : (
+								t("annotations.placeholder")
+							)}
 						</div>
-					)}
-				</div>
-				<div
-					className={cn(
-						COMMENT_ACTION_BAR_CLASS,
-						editing
-							? "opacity-0 group-hover:opacity-100"
-							: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
-					)}
-				>
-					{wikiTarget ? (
-						<>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<QuietIconButton
-										aria-label={t("annotations.copyLink")}
-										onClick={(e) => {
-											e.stopPropagation();
-											onCopyLink(item);
-										}}
+						{item.messages && item.messages.length > 0 ? (
+							<div className="mt-1.5 space-y-1 border-t border-border/40 pt-1.5">
+								{item.messages.map((m) => (
+									<p
+										key={m.id}
+										className={cn(
+											"whitespace-pre-wrap break-words text-caption leading-relaxed",
+											m.role === "assistant"
+												? "text-muted-foreground"
+												: "text-foreground/80",
+										)}
 									>
-										<Link2 className="size-3.5" />
-									</QuietIconButton>
-								</TooltipTrigger>
-								<TooltipContent>{t("annotations.copyLink")}</TooltipContent>
-							</Tooltip>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<QuietIconButton
-										aria-label={t("annotations.copyEmbed")}
-										onClick={(e) => {
-											e.stopPropagation();
-											onCopyEmbed(item);
-										}}
-									>
-										<span className="font-mono text-caption leading-none">
-											![[
-										</span>
-									</QuietIconButton>
-								</TooltipTrigger>
-								<TooltipContent>{t("annotations.copyEmbed")}</TooltipContent>
-							</Tooltip>
-						</>
-					) : null}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<QuietIconButton
-								aria-label={t("pdfExplain.addToSidebarChat")}
-								onClick={(e) => {
-									e.stopPropagation();
-									onAddToChat(item);
-								}}
-							>
-								<MessageSquarePlus className="size-3.5" />
-							</QuietIconButton>
-						</TooltipTrigger>
-						<TooltipContent>{t("pdfExplain.addToSidebarChat")}</TooltipContent>
-					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<QuietIconButton
-								tone="destructive"
-								aria-label={t("annotations.delete")}
-								onClick={(e) => {
-									e.stopPropagation();
-									cancelledRef.current = true;
-									onDelete(item);
-								}}
-							>
-								<Trash2 className="size-3.5" />
-							</QuietIconButton>
-						</TooltipTrigger>
-						<TooltipContent>{t("annotations.delete")}</TooltipContent>
-					</Tooltip>
-				</div>
+										{m.content}
+									</p>
+								))}
+							</div>
+						) : null}
+					</div>
+				)}
+			</div>
+			<div
+				className={cn(
+					COMMENT_ACTION_BAR_CLASS,
+					editing
+						? "opacity-0 group-hover:opacity-100"
+						: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+				)}
+			>
+				{wikiTarget ? (
+					<>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<QuietIconButton
+									aria-label={t("annotations.copyLink")}
+									onClick={(e) => {
+										e.stopPropagation();
+										onCopyLink(item);
+									}}
+								>
+									<Link2 className="size-3.5" />
+								</QuietIconButton>
+							</TooltipTrigger>
+							<TooltipContent>{t("annotations.copyLink")}</TooltipContent>
+						</Tooltip>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<QuietIconButton
+									aria-label={t("annotations.copyEmbed")}
+									onClick={(e) => {
+										e.stopPropagation();
+										onCopyEmbed(item);
+									}}
+								>
+									<span className="font-mono text-caption leading-none">
+										![[
+									</span>
+								</QuietIconButton>
+							</TooltipTrigger>
+							<TooltipContent>{t("annotations.copyEmbed")}</TooltipContent>
+						</Tooltip>
+					</>
+				) : null}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<QuietIconButton
+							aria-label={t("pdfExplain.addToSidebarChat")}
+							onClick={(e) => {
+								e.stopPropagation();
+								onAddToChat(item);
+							}}
+						>
+							<MessageSquarePlus className="size-3.5" />
+						</QuietIconButton>
+					</TooltipTrigger>
+					<TooltipContent>{t("pdfExplain.addToSidebarChat")}</TooltipContent>
+				</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<QuietIconButton
+							tone="destructive"
+							aria-label={t("annotations.delete")}
+							onClick={(e) => {
+								e.stopPropagation();
+								cancelledRef.current = true;
+								onDelete(item);
+							}}
+						>
+							<Trash2 className="size-3.5" />
+						</QuietIconButton>
+					</TooltipTrigger>
+					<TooltipContent>{t("annotations.delete")}</TooltipContent>
+				</Tooltip>
 			</div>
 		</div>
 	);
@@ -627,8 +705,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 }: SelectionCommentAffordanceProps) {
 	const { t } = useTranslation("viewer");
 	const rootRef = useRef<HTMLDivElement>(null);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const draftTextRef = useRef("");
+	const editorHandleRef = useRef<CommentMarkdownEditorHandle | null>(null);
 	const committedRef = useRef(false);
 	const onCommitRef = useRef(onCommit);
 	onCommitRef.current = onCommit;
@@ -638,9 +715,11 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 	onDismissRef.current = onDismiss;
 	const aliveRef = useRef(true);
 	const closingRef = useRef(false);
-	const { isBlockedByIme, compositionProps } = useImeGuard();
+	const { isBlockedByIme } = useImeGuard();
 
-	const heightPx = estimateCommentCardHeight(
+	// The card hugs the editor; this estimate only keeps the anchor inside
+	// the page while the draft is short.
+	const clampHeightPx = estimateCommentCardHeight(
 		{
 			id: "__selection-draft__",
 			pageIndex: draft.page - 1,
@@ -656,7 +735,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 	);
 	const topPx = Math.max(
 		0,
-		Math.min(draft.anchorY * pageHeightPx, pageHeightPx - heightPx),
+		Math.min(draft.anchorY * pageHeightPx, pageHeightPx - clampHeightPx),
 	);
 
 	const commit = useCallback((text: string) => {
@@ -669,17 +748,17 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 		onCommitRef.current(trimmed);
 	}, []);
 
+	// Keep the latest serialized draft for blur / click-away commits.
+	const draftRef = useRef("");
+	const readDraft = useCallback(
+		() => editorHandleRef.current?.getMarkdown() ?? draftRef.current,
+		[],
+	);
+
 	useEffect(() => {
 		aliveRef.current = true;
 		onActiveChangeRef.current?.(true);
-		const frame = requestAnimationFrame(() => {
-			const el = textareaRef.current;
-			if (!el || closingRef.current) return;
-			el.focus();
-			autosizeTextarea(el);
-		});
 		return () => {
-			cancelAnimationFrame(frame);
 			aliveRef.current = false;
 			onActiveChangeRef.current?.(false);
 		};
@@ -697,43 +776,43 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			if ((target as Element).closest?.("[data-pdf-chrome]")) {
 				return;
 			}
-			const text = (textareaRef.current?.value ?? draftTextRef.current).trim();
+			const text = readDraft().trim();
 			closingRef.current = true;
 			if (text) {
 				commit(text);
 			} else {
 				onDismissRef.current?.();
 			}
-			textareaRef.current?.blur();
+			editorHandleRef.current?.blur();
 		};
 		document.addEventListener("pointerdown", onPointerDown, true);
 		return () => {
 			document.removeEventListener("pointerdown", onPointerDown, true);
 		};
-	}, [commit]);
+	}, [commit, readDraft]);
 
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: hosts a textarea; native <button> cannot wrap it
+		// biome-ignore lint/a11y/useSemanticElements: hosts the note editor; native <button> cannot wrap it
 		<div
 			ref={rootRef}
 			role="group"
 			aria-label={t("selection.note")}
 			data-pdf-chrome
 			data-selection-comment=""
+			data-comment-card
 			className={cn(
 				COMMENT_DRAFT_SURFACE_CLASS,
-				"z-[7] w-56 bg-background/92 shadow-dialog ring-2 ring-ring/50",
+				"z-[7] w-56 bg-background/92 ring-2 ring-ring/50",
 			)}
 			style={{
 				...(inset
 					? { right: COMMENT_CARD_GAP_PX }
 					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
 				top: topPx,
-				minHeight: heightPx,
 			}}
 			onPointerDown={(e) => {
 				// Page-local hit: stop EmbedPDF from treating this as click-away
-				// before the textarea can take focus. Do not preventDefault.
+				// before the editor can take focus. Do not preventDefault.
 				e.stopPropagation();
 			}}
 		>
@@ -745,25 +824,20 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 					)}
 					aria-hidden
 				/>
-				<textarea
-					ref={textareaRef}
-					className="mt-1 max-h-60 w-full resize-none bg-transparent p-0 text-sm text-foreground/80 leading-relaxed outline-none placeholder:text-muted-foreground/70 select-text"
+				<CommentMarkdownEditor
+					initialValue=""
 					placeholder={t("annotations.placeholder")}
-					aria-label={t("annotations.editorLabel")}
-					rows={EDIT_MIN_COMMENT_LINES}
-					{...compositionProps}
-					onFocus={() => {
-						onActiveChangeRef.current?.(true);
-					}}
-					onChange={(e) => {
-						draftTextRef.current = e.currentTarget.value;
-						autosizeTextarea(e.currentTarget);
+					ariaLabel={t("annotations.editorLabel")}
+					className="comment-md mt-1 min-h-15 max-h-60 w-full overflow-y-auto break-words text-sm leading-relaxed text-foreground/80"
+					handleRef={editorHandleRef}
+					onChange={(markdown) => {
+						draftRef.current = markdown;
 					}}
 					onBlur={(e) => {
 						if (!aliveRef.current || closingRef.current) return;
 						const next = e.relatedTarget as Node | null;
 						if (next && rootRef.current?.contains(next)) return;
-						const text = draftTextRef.current;
+						const text = readDraft();
 						if (text.trim()) {
 							commit(text);
 							return;
@@ -771,25 +845,16 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 						closingRef.current = true;
 						onDismissRef.current?.();
 					}}
-					onClick={(e) => e.stopPropagation()}
-					onPointerDown={(e) => e.stopPropagation()}
+					onFocus={() => {
+						onActiveChangeRef.current?.(true);
+					}}
 					onKeyDown={(e) => {
 						e.stopPropagation();
-						if (
-							applyMarkdownTextareaShortcut(e, (value) => {
-								draftTextRef.current = value;
-								autosizeTextarea(e.currentTarget);
-							})
-						)
-							return;
 						if (e.key === "Escape") {
 							e.preventDefault();
-							draftTextRef.current = "";
-							e.currentTarget.value = "";
 							closingRef.current = true;
 							onActiveChangeRef.current?.(false);
 							onDismissRef.current?.();
-							e.currentTarget.blur();
 							return;
 						}
 						if (
@@ -798,7 +863,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 							!isBlockedByIme(e)
 						) {
 							e.preventDefault();
-							commit(e.currentTarget.value);
+							commit(readDraft());
 						}
 					}}
 				/>
@@ -812,7 +877,6 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 	items,
 	pageWidthPx,
 	pageHeightPx,
-	scale = 1,
 	editingId,
 	wikiTarget,
 	hoveredId,
@@ -831,28 +895,59 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 	onLeave,
 }: CommentCardsLayerProps) {
 	const [retainedHoverId, setRetainedHoverId] = useState<string | null>(null);
+	const [measuredHeights, setMeasuredHeights] = useState<
+		ReadonlyMap<string, number>
+	>(() => new Map());
+	const handleMeasure = useCallback((id: string, heightPx: number) => {
+		setMeasuredHeights((prev) => {
+			if (prev.get(id) === heightPx) return prev;
+			const next = new Map(prev);
+			next.set(id, heightPx);
+			return next;
+		});
+	}, []);
+	// Cap card height to the reading viewport so a short window / pane scrolls
+	// the card body instead of clipping it against the chrome around it.
+	const rootRef = useRef<HTMLDivElement>(null);
+	const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+	const hasCards = items.length > 0 || Boolean(selectionDraft);
+	useLayoutEffect(() => {
+		if (!hasCards) return;
+		const el = rootRef.current;
+		if (!el) return;
+		const scroller = el.closest("[data-pdf-viewport]");
+		if (!scroller) return;
+		const measure = () => setViewportHeight(scroller.clientHeight);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(scroller);
+		return () => observer.disconnect();
+	}, [hasCards]);
+	const cardMaxHeightPx = Math.max(
+		COMMENT_CARD_MIN_HEIGHT_PX,
+		Math.min(
+			COMMENT_CARD_MAX_HEIGHT_PX,
+			(viewportHeight ?? Number.POSITIVE_INFINITY) -
+				COMMENT_VIEWPORT_MARGIN_PX * 2,
+		),
+	);
 	useEffect(() => {
 		if (!inset) return;
 		if (hoveredId) {
 			setRetainedHoverId(hoveredId);
 			return;
 		}
-		// Let the pointer cross from the source highlight into the inset card.
-		const timer = setTimeout(() => setRetainedHoverId(null), 250);
+		// Let the pointer travel from the source highlight into the inset card.
+		// The card sits at the page's right edge, so a left-column highlight is
+		// a long trip; too short a window makes the card vanish on the way.
+		const timer = setTimeout(() => setRetainedHoverId(null), 500);
 		return () => clearTimeout(timer);
 	}, [inset, hoveredId]);
-	// Build the rail in page space, then zoom the whole layer with the same
-	// ratio as the page so cards shrink and grow with it. Layout `zoom`
-	// re-computes the cards' font, icon, and padding sizes before painting;
-	// `transform: scale` would stretch a pre-rasterized layer instead.
-	const zoom = scale > 0 ? scale : 1;
-	const pageWidth = pageWidthPx / zoom;
-	const pageHeight = pageHeightPx / zoom;
 	// Stacking depends only on items / page height / the edited card; hover
 	// re-renders (hoveredId flips) must not redo layout for the whole rail.
 	const laid = useMemo(
-		() => layoutCommentCards(items, pageHeight, editingId),
-		[items, pageHeight, editingId],
+		() => layoutCommentCards(items, pageHeightPx, editingId, measuredHeights),
+		[items, pageHeightPx, editingId, measuredHeights],
 	);
 	const byId = useMemo(
 		() => new Map(items.map((item) => [item.id, item])),
@@ -868,20 +963,20 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 			? commentConnectorPath(
 					hoveredItem.rects,
 					hoveredPlacement,
-					pageWidth,
-					pageHeight,
+					pageWidthPx,
+					pageHeightPx,
 				)
 			: null;
-	const svgWidth = pageWidth + COMMENT_CARD_GAP_PX + COMMENT_CARD_WIDTH_PX;
+	const svgWidth = pageWidthPx + COMMENT_CARD_GAP_PX + COMMENT_CARD_WIDTH_PX;
 
 	return (
 		// Above translated glyphs (also z-6, mounted earlier) so the rail stays visible.
 		<div
+			ref={rootRef}
 			className="pointer-events-none absolute top-0 left-0 z-[6] overflow-visible"
 			style={{
-				width: pageWidth,
-				height: pageHeight,
-				zoom,
+				width: pageWidthPx,
+				height: pageHeightPx,
 			}}
 		>
 			{connectorD ? (
@@ -892,8 +987,8 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 					focusable="false"
 					className="pointer-events-none absolute top-0 left-0 overflow-visible"
 					width={svgWidth}
-					height={pageHeight}
-					viewBox={`0 0 ${svgWidth} ${pageHeight}`}
+					height={pageHeightPx}
+					viewBox={`0 0 ${svgWidth} ${pageHeightPx}`}
 				>
 					<path
 						d={connectorD}
@@ -902,16 +997,14 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 						strokeWidth={5}
 						strokeLinecap="round"
 						strokeLinejoin="round"
-						vectorEffect="non-scaling-stroke"
 					/>
 					<path
 						d={connectorD}
 						fill="none"
-						className="stroke-default-primary/85"
+						className="stroke-foreground/60"
 						strokeWidth={2.5}
 						strokeLinecap="round"
 						strokeLinejoin="round"
-						vectorEffect="non-scaling-stroke"
 					/>
 				</svg>
 			) : null}
@@ -933,10 +1026,11 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 							key={item.id}
 							item={item}
 							topPx={pos.topPx}
-							heightPx={pos.heightPx}
+							maxHeightPx={cardMaxHeightPx}
 							editing={item.id === editingId}
 							wikiTarget={wikiTarget}
 							hovered={item.id === hoveredId}
+							onMeasure={handleMeasure}
 							onOpen={onOpen}
 							onSave={onSave}
 							onCancel={onCancel}
@@ -953,7 +1047,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 					<SelectionCommentAffordance
 						inset={inset}
 						draft={selectionDraft}
-						pageHeightPx={pageHeight}
+						pageHeightPx={pageHeightPx}
 						onCommit={onCommitSelectionComment}
 						onActiveChange={onSelectionCommentActiveChange}
 						onDismiss={onDismissSelectionComment}

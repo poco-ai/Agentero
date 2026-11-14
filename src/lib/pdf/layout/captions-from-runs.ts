@@ -3,8 +3,16 @@ import { figureCaptionKey } from "@/lib/pdf/layout/figure-caption-text";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
+type CaptionTextRun = Pick<PdfTextRun, "text" | "rect"> &
+	Partial<Pick<PdfTextRun, "charIndex" | "charCount">>;
+
+function numberedCaptionKey(text: string): string | null {
+	const table = text.trim().match(/^tab(?:le)?\.?\s*(\d+)\s*[:.|]\s+\S/iu);
+	return table ? `table-${table[1]}` : figureCaptionKey(text);
+}
+
 type Line = {
-	runs: PdfTextRun[];
+	runs: CaptionTextRun[];
 	text: string;
 	x: number;
 	right: number;
@@ -13,7 +21,7 @@ type Line = {
 	height: number;
 };
 
-function makeLine(runs: PdfTextRun[]): Line {
+function makeLine(runs: CaptionTextRun[]): Line {
 	const top = Math.min(...runs.map((r) => r.rect.origin.y));
 	const bottom = Math.max(
 		...runs.map((r) => r.rect.origin.y + r.rect.size.height),
@@ -46,7 +54,7 @@ function makeLine(runs: PdfTextRun[]): Line {
 }
 
 /** Baselines alone mix columns; split each baseline at its physical gutter. */
-function captionLines(runs: PdfTextRun[]): Line[] {
+function captionLines(runs: CaptionTextRun[]): Line[] {
 	const visible = runs.filter(
 		(r) => r.text?.trim() && r.rect.size.width > 0 && r.rect.size.height > 0,
 	);
@@ -78,7 +86,7 @@ function captionLines(runs: PdfTextRun[]): Line[] {
 		};
 	})
 		.flatMap((line) => {
-			const groups: PdfTextRun[][] = [];
+			const groups: CaptionTextRun[][] = [];
 			for (const run of line.items) {
 				const current = groups.at(-1);
 				const previous = current?.at(-1);
@@ -119,7 +127,7 @@ function paragraph(start: Line, lines: Line[], maxHeight: number): Line[] {
 			line.top - start.top > maxHeight ||
 			line.top - previous.bottom > Math.max(2, start.height * 0.75) ||
 			!sameSize(start, line) ||
-			figureCaptionKey(line.text) ||
+			numberedCaptionKey(line.text) ||
 			/^(?:table|algorithm)\s+\d/i.test(line.text)
 		)
 			break;
@@ -137,16 +145,20 @@ function continuousCharacters(last: Line, next: Line): boolean {
 		!next.runs.every((r) => Number.isFinite(r.charIndex))
 	)
 		return false;
-	const end = Math.max(...last.runs.map((r) => r.charIndex + r.charCount));
-	const start = Math.min(...next.runs.map((r) => r.charIndex));
+	const end = Math.max(
+		...last.runs.map(
+			(r) => (r.charIndex ?? Number.NaN) + (r.charCount ?? Number.NaN),
+		),
+	);
+	const start = Math.min(...next.runs.map((r) => r.charIndex ?? Number.NaN));
 	return start >= end && start - end <= 2;
 }
 
 /** Recover only numbered caption starts; all geometry comes from actual text runs. */
-export function recoverFigureCaptionsFromRuns(
+export function recoverCaptionsFromRuns(
 	regions: readonly PdfLayoutRegion[],
 	pageIndex: number,
-	runs: PdfTextRun[],
+	runs: CaptionTextRun[],
 	pageSize: { width: number; height: number },
 ): PdfLayoutRegion[] {
 	const output = [...regions];
@@ -155,13 +167,13 @@ export function recoverFigureCaptionsFromRuns(
 	const onPage = regions.filter((r) => r.pageIndex === pageIndex);
 	const seen = new Set<string>();
 	for (const start of lines) {
-		const key = figureCaptionKey(start.text);
+		const key = numberedCaptionKey(start.text);
 		if (!key || seen.has(key)) continue;
 		seen.add(key);
 		const existing = onPage.find(
 			(r) =>
 				r.kind === "figure_title" &&
-				figureCaptionKey(r.title ?? r.text ?? "") === key,
+				numberedCaptionKey(r.title ?? r.text ?? "") === key,
 		);
 		const cx = (start.x + start.right) / 2 / pageSize.width;
 		const cy = (start.top + start.bottom) / 2 / pageSize.height;
@@ -188,7 +200,7 @@ export function recoverFigureCaptionsFromRuns(
 					line.x > right + 5 &&
 					Math.abs(line.top - start.top) <= start.height * 0.6 &&
 					sameSize(start, line) &&
-					!figureCaptionKey(line.text) &&
+					!numberedCaptionKey(line.text) &&
 					continuousCharacters(last, line),
 			);
 			if (candidates.length === 1)
@@ -221,7 +233,7 @@ export function recoverFigureCaptionsFromRuns(
 			},
 			title,
 			text: title,
-			captionRole: "figure_main",
+			captionRole: key.startsWith("table-") ? "table_main" : "figure_main",
 		};
 		if (existing) {
 			const ex = existing.rect.x + existing.rect.w / 2;

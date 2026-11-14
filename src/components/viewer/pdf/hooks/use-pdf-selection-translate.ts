@@ -47,6 +47,7 @@ import {
 	writePdfTranslate,
 } from "@/lib/pdf/translate";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
+import { shouldUseDictionary } from "@/lib/translate/dictionary";
 
 export type UsePdfSelectionTranslateOptions = {
 	isActive: boolean;
@@ -82,6 +83,8 @@ export type PdfSelectionTranslate = {
 	translateSelection: (anchor: PdfAskAnchor) => void;
 	/** Toggle whether the result survives dismissal, without affecting the run. */
 	toggleTranslatePin: (record: PdfTranslateRecord) => void;
+	/** Toggle between dictionary and translate modes for a record. */
+	toggleTranslateMode: (record: PdfTranslateRecord) => void;
 	/** Discard an unpinned result when its card is dismissed. */
 	discardUnpinnedTranslateOnClose: (id: string) => void;
 	/** Cancel the in-flight run; also wired into {@link usePdfCards}. */
@@ -241,6 +244,20 @@ export function usePdfSelectionTranslate({
 		[translatesRef, upsertTranslate, persistTranslate],
 	);
 
+	const toggleTranslateMode = useCallback(
+		(record: PdfTranslateRecord) => {
+			const current =
+				translatesRef.current.find((item) => item.id === record.id) ?? record;
+			const next = upsertTranslate({
+				...current,
+				mode: current.mode === "dictionary" ? "translate" : "dictionary",
+				updatedAt: new Date().toISOString(),
+			});
+			void persistTranslate(next);
+		},
+		[translatesRef, upsertTranslate, persistTranslate],
+	);
+
 	const discardUnpinnedTranslateOnClose = useCallback(
 		(id: string) => {
 			const record = translatesRef.current.find((item) => item.id === id);
@@ -271,11 +288,15 @@ export function usePdfSelectionTranslate({
 			stopTranslateSession();
 			const paperPath = paperRelPath || paperAbsPath || "paper";
 			const paperKey = paperRelPath || paperAbsPath || null;
+			// 判定是否为词典模式，在创建记录之前确定
+			const mode = shouldUseDictionary(quote) ? "dictionary" : "translate";
 			const rec = createTranslateRecord({
 				paperPath,
 				page: anchor.page,
 				rects: anchor.rects,
+				selectionPages: anchor.selectionPages,
 				quote,
+				mode,
 			});
 			let currentRecord = upsertTranslate(rec);
 			protectedTranslateIdsRef.current.add(rec.id);
@@ -370,6 +391,7 @@ export function usePdfSelectionTranslate({
 		translateError,
 		translateSelection,
 		toggleTranslatePin,
+		toggleTranslateMode,
 		discardUnpinnedTranslateOnClose,
 		stopTranslateSession,
 		openTranslateSettings,

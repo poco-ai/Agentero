@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ProbeDot } from "@/components/settings/provider-card";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,8 @@ export type InstitutionProxyPresetOption = {
 
 /** Institution proxy (EZProxy/WebVPN) prefix + session cookie for paywalled
  * PDF fallback, with a connection test that fetches a known paywalled DOI.
- * Two stacked rows (prefix + cookie) so the control column never wraps. */
+ * Prefix comes first; `typeRow` slots the gateway-type control between the
+ * prefix and cookie rows so the primary field stays on top. */
 export function InstitutionProxyRow({
 	htmlFor,
 	label,
@@ -116,6 +118,7 @@ export function InstitutionProxyRow({
 	loginLabel,
 	presetsLabel,
 	presets,
+	typeRow,
 	onPrefixChange,
 	onCookieChange,
 	onPresetSelect,
@@ -140,6 +143,7 @@ export function InstitutionProxyRow({
 	loginLabel: string;
 	presetsLabel: string;
 	presets: readonly InstitutionProxyPresetOption[];
+	typeRow?: ReactNode;
 	onPrefixChange: (v: string) => void;
 	onCookieChange: (v: string) => void;
 	onPresetSelect: (preset: InstitutionProxyPresetOption) => void;
@@ -234,6 +238,7 @@ export function InstitutionProxyRow({
 					</Button>
 				</div>
 			</SettingsRow>
+			{typeRow}
 			<SettingsRow label={cookieLabel} htmlFor={`${htmlFor}-cookie`}>
 				<div className="flex items-center gap-2">
 					<Input

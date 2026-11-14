@@ -3,8 +3,8 @@ import { errorText } from "@/lib/core/error";
 import { logger, logOp } from "@/lib/core/logger";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import {
-	isInsideReferenceRegion,
-	isReferenceLayoutRegion,
+	isInsidePreservedRegion,
+	preservedLayoutRegions,
 } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
@@ -114,12 +114,10 @@ export async function prepareReflowItems(
 		version: REFLOW_IR_SCHEMA_VERSION,
 		pages: [...pages.values()].sort((a, b) => a.index - b.index),
 	});
-	const references = regions.filter(
-		(region) =>
-			region.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
-			isReferenceLayoutRegion(region),
+	const preserved = preservedLayoutRegions(regions);
+	return prepared.filter(
+		(item) => !isInsidePreservedRegion(item, regions, preserved),
 	);
-	return prepared.filter((item) => !isInsideReferenceRegion(item, references));
 }
 
 function preparedItemsFromDocument(

@@ -16,8 +16,9 @@ import type { PdfAskNormalizedRect } from "@/lib/pdf/ask";
 import {
 	highlightColorOf,
 	highlightQuoteOf,
-	isHighlightObject,
 	isLiveAnnotation,
+	isTextMarkupObject,
+	textMarkupKindOf,
 } from "@/lib/pdf/highlight/annotation-store";
 
 type AnnotationCapabilityProvides = ReturnType<
@@ -91,7 +92,7 @@ export function usePdfNoteEditor({
 			const tracked = annotationCap?.forDocument(docId).getAnnotationById(id);
 			if (!tracked || !isLiveAnnotation(tracked)) return;
 			const obj = tracked.object;
-			if (!isHighlightObject(obj)) return;
+			if (!isTextMarkupObject(obj)) return;
 			beginRailEdit({
 				id,
 				pageIndex: obj.pageIndex,
@@ -99,6 +100,7 @@ export function usePdfNoteEditor({
 				comment: obj.contents?.trim() ?? "",
 				quote: highlightQuoteOf(obj),
 				color: highlightColorOf(obj),
+				shape: textMarkupKindOf(obj),
 				anchorY: anchorYForHighlight(id),
 				rects: rectsForHighlight(id),
 			});
@@ -170,6 +172,7 @@ export function railEditFromComment(
 		comment: comment.comment,
 		quote: comment.quote,
 		color: comment.color,
+		shape: comment.shape,
 		anchorY: comment.anchorY,
 		rects: comment.rects,
 		isNew: comment.isNew,

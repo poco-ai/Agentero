@@ -73,6 +73,12 @@
 			"failed": "失败"
 		}
 	},
+	"zen": {
+		"title": "Zen",
+		"newConversation": "新会话",
+		"untitled": "新对话",
+		"close": "关闭对话"
+	},
 	"tabs": {
 		"new": "新建会话"
 	},
@@ -236,6 +242,7 @@
 		"answerRequired": "请选择答案或填写回复。",
 		"progress": "{{current}} / {{total}}",
 		"freeTextPlaceholder": "输入你的回答",
+		"other": "其他",
 		"pendingInComposer": "请在下方问卷中作答",
 		"noAnswer": "未作答",
 		"cancelled": "已取消",

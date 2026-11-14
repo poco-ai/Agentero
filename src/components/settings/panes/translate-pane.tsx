@@ -420,7 +420,7 @@ export function TranslatePane({
 											) : null}
 											<span className="truncate">
 												{t(
-													`translate.provider.${s.nameKey}` as "translate.provider.google",
+													`translate.provider.${s.nameKey}` as "translate.provider.tencenttransmart",
 												)}
 											</span>
 										</span>
@@ -636,7 +636,7 @@ export function TranslatePane({
 											/>
 											<p className="min-w-0 truncate font-medium text-sm">
 												{t(
-													`translate.provider.${id}` as "translate.provider.google",
+													`translate.provider.${id}` as "translate.provider.tencenttransmart",
 												)}
 											</p>
 											<Button

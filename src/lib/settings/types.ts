@@ -163,7 +163,7 @@ export type AppSettings = {
 	institutionProxyPrefix: string;
 	/** Session cookie for institution proxy requests. */
 	institutionProxyCookie: string;
-	/** Gateway type: "ezproxy" | "wengine". */
+	/** Gateway type: "auto" | "ezproxy" | "wengine" | "subdomain". */
 	institutionProxyType: string;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */
 	networkProxyEnabled: boolean;
@@ -199,6 +199,8 @@ export type AppSettings = {
 	vimMode: boolean;
 	/** Enable the ephemeral F-key global element hint overlay. */
 	hintModeEnabled: boolean;
+	/** Subtle in-app sound cues for agent attention / turn done / failure. */
+	soundEnabled: boolean;
 	/**
 	 * PDF reader page layout: `none` (default) = one page per row, `odd`/`even`
 	 * = two-page spreads (paired from page 1 / after a standalone cover).
@@ -423,6 +425,10 @@ export type DecisionSettings = {
 	model: string;
 	/** Enable the experimental smart-highlight action in the PDF toolbar. */
 	smartHighlight: boolean;
+	/** In-flight smart-highlight batches. One of 1, 2, 4, 16. */
+	smartHighlightConcurrency: number;
+	/** Seconds for one smart-highlight batch, counted from send. */
+	smartHighlightTimeoutSecs: number;
 };
 
 /**

@@ -75,7 +75,7 @@ CLI 的 `<rust-host>` 来自发布 runner 上 `rustc -vV` 的 `host` 字段，�
 - `aarch64-unknown-linux-gnu`：ARM64 Linux；
 - `x86_64-pc-windows-msvc`：Windows MSVC。
 
-CLI 压缩包内部统一包含名为 `agentero`（Windows 为 `agentero.exe`）的可执行文件；外部归档名使用 `agentero-cli-` 前缀，避免与桌面安装包混淆。
+CLI 压缩包内部包含名为 `agentero`（Windows 为 `agentero.exe`）的可执行文件，以及同级的 PDFium 共享库（`pdfium.dll` / `libpdfium.dylib` / `libpdfium.so`，与 `scripts/prepare-pdfium.mjs` 的 tag 一致）。外部归档名使用 `agentero-cli-` 前缀，避免与桌面安装包混淆。缺少该库时 `paper parse` 无法从 PDF 生成 `PAPER.md`。
 
 桌面安装包 **不** 嵌入真实 CLI（[#285](https://github.com/poco-ai/Agentero/issues/285)）：`externalBin` 只有插件宿主 sidecar `binaries/agentero-plugin-host`，安装目录不含任何 `agentero-cli` 文件（历史上 Windows 随包附带的批处理占位 `.exe` 会触发“不支持的 16 位应用程序”系统弹窗，已根除）。用户从 **设置 → 关于 → 安装 CLI** 下载与 App 同版本的上述归档（Host 校验 sibling `.sha256`）。独立 CLI 归档仍须随 Release 上传，供 headless 与应用内安装共用。
 

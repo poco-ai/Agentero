@@ -4,7 +4,30 @@ use crate::core::error::{map_err, ApiResult, AppError};
 use crate::features::system::builtin;
 use crate::features::system::settings::{is_translate_api_key_mask, AppSettingsStore};
 use crate::features::translate::{self, TranslateTextArgs, TranslateTextResult};
+use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
+
+/// Streaming translate: pushes each increment through `on_delta`, then returns
+/// the final text. Providers without a streaming path fall back to one-shot
+/// translation (no deltas, final text only).
+#[tauri::command]
+#[specta::specta]
+pub async fn translate_text_stream(
+    app: AppHandle,
+    args: TranslateTextArgs,
+    on_delta: Channel<String>,
+) -> ApiResult<TranslateTextResult> {
+    let sent = args.clone();
+    match translate::translate_text_stream(&sent, |d| {
+        let _ = on_delta.send(d.to_string());
+    })
+    .await
+    {
+        Ok(Some(r)) => ApiResult::ok(r),
+        Ok(None) => translate_text(app, args).await,
+        Err(e) => map_err(e),
+    }
+}
 
 #[tauri::command]
 #[specta::specta]

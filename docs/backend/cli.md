@@ -6,10 +6,10 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 
 - 目录：`cli/`（crate `agentero-cli`）
 - path 依赖 `agentero-core` 与 `agentero-mcp`（**不**依赖 `agentero_lib`，依赖树无 tauri/wry/tao）：`features::{vault,catalog,import,wiki,zotero,feeds,translate,doctor,trash,pdf_locate,open_request,sync}` + 顶层 `{error,fs}`。`agentero mcp serve` 与桌面端共用 `agentero-mcp` 的工具面
-- 可选同版本 CLI 安装（不随桌面安装包打入，减小体积 [#285](https://github.com/poco-ai/Agentero/issues/285)；open/deep-link 仍见 [#165](https://github.com/poco-ai/Agentero/issues/165) / [#166](https://github.com/poco-ai/Agentero/issues/166)）
-  - 设置 → 关于：**安装 CLI** 从 GitHub Release 下载与 App **同版本** 的 `agentero-cli-{ver}-{triple}` 归档，校验 `.sha256` 后写入用户目录并创建 PATH shim。POSIX 写 `~/.local/bin/agentero` 软链（不静默改 shell rc）；Windows 写 `agentero-cli.cmd` 并**自动把安装目录加入用户 PATH**（`HKCU\Environment`，广播 `WM_SETTINGCHANGE`，无需重启，新开终端即可用 `agentero-cli`）。下载 404 的错误文案会带上完整资产 URL（含宿主 triple），架构/版本不匹配时自解释；`CliInstallStatus.commandName` 供前端按平台展示验证命令
+- 同版本 CLI 安装（不随桌面安装包打入，减小体积 [#285](https://github.com/poco-ai/Agentero/issues/285)；open/deep-link 仍见 [#165](https://github.com/poco-ai/Agentero/issues/165) / [#166](https://github.com/poco-ai/Agentero/issues/166)）
+  - 设置 → 关于：**安装 CLI** 从 GitHub Release 下载与 App **同版本** 的 `agentero-cli-{ver}-{triple}` 归档，校验 `.sha256` 后写入用户目录并创建 PATH shim。归档里的 PDFium 共享库解到可执行文件同级；归档没有该成员时从 App bundle 拷贝。没有这份库时 `paper parse` 无法从 PDF 生成 `PAPER.md`。POSIX 写 `~/.local/bin/agentero` 软链（不静默改 shell rc）；Windows 写 `agentero-cli.cmd` 并**自动把安装目录加入用户 PATH**（`HKCU\Environment`，广播 `WM_SETTINGCHANGE`，无需重启，新开终端即可用 `agentero-cli`）。下载 404 的错误文案会带上完整资产 URL（含宿主 triple），架构/版本不匹配时自解释；`CliInstallStatus.commandName` 供前端按平台展示验证命令
   - 独立 CLI 归档仍随每次 Release 发布，供无桌面的 headless 机器使用；macOS 亦可通过 Homebrew tap `poco-ai/agentero` 安装 headless CLI
-  - **更新后自动同步**：应用内更新只替换 GUI 包；更新重启后的新进程在 main window 启动时检测已安装 shim（`installed && !shimCurrent`，见 `syncInstalledCliWithApp`），自动重新下载同版本 CLI 并刷新 shim（Host 按编译期 App 版本下载校验，旧进程无法预装新版 CLI，故只能在新进程里同步）。Release 的桌面包与 CLI 归档独立上传，首次请求暂未命中或网络短暂失败时会在 15 秒、60 秒后重试；只对已有 CLI 生效，未安装 CLI 的用户不会被自动安装。成功静默，最终失败 `notifyError` Toast；dev 环境跳过
+  - **启动自动安装与同步**：main window 启动时，CLI 尚未安装或版本 / shim 已过期（`!shimCurrent`，见 `syncCliWithApp`），自动复用上述同版本下载、校验与 shim 安装流程。应用内更新只替换 GUI 包，CLI 由更新重启后的新进程按编译期 App 版本同步。Release 的桌面包与 CLI 归档独立上传，首次请求暂未命中或网络短暂失败时会在 15 秒、60 秒后重试。设置 → 关于的「卸载 CLI」会写入配置目录的 `cli.removed`，后续启动不再安装；手动安装成功后清除标记。下载期间卸载会在创建 shim 前再次检查，并删掉这次刚下完的归档，避免卸载被下载写回。成功静默，最终失败 `notifyError` Toast；dev 环境跳过，不覆盖非 Agentero 管理的同名文件，遇到这种文件时启动不再重复报错。
 
 ## 命令组
 
@@ -115,7 +115,7 @@ agentero translate "Hello world" --to zh-CN --json
 
 | 落盘 | 内容 |
 |---|---|
-| `{paper}/marks/annotations.json` | 高亮 / 批注（EmbedPDF annotation 传输格式，页面点坐标；CLI 追加时按 id 去重 + 原子写） |
+| `{paper}/marks/annotations.json` | 高亮 / 下划线与批注（EmbedPDF annotation 传输格式，页面点坐标；annotation `type` 区分形状，CLI 追加时按 id 去重 + 原子写） |
 | `{paper}/marks/<id>.json` | ask / translate（归一 0–1 rects，与桌面划词同一 schema） |
 
 零命中返回 `mark_locate_failed`（业务错误，退出码 1）且**不落盘**——让 Agent 换更独特的
@@ -438,6 +438,9 @@ agentero sync disconnect --vault ~/papers -y   # 解绑（远端数据不动）
 # Git：Vault 即 work tree；认证走系统 credential helper / SSH agent
 agentero sync configure --vault ~/papers \
   --backend git --git-remote git@github.com:you/papers.git --git-branch main
+# 内网明文 HTTP 或自签 HTTPS：
+#   --git-allow-insecure-http true
+#   --git-ssl-ca /path/to/ca.pem
 agentero sync now --vault ~/papers --json
 ```
 
@@ -446,7 +449,7 @@ agentero sync now --vault ~/papers --json
 - **状态与错误码**：未配置 → `sync_not_configured`；配置非法（缺 secret 等，非交互下无法补提示时错误里附 secret 传入门径）→ `sync_config_invalid`；引擎错误透传 `AppError` 域码。`status` 输出 `configured` / `config`（掩码）/ `lastSyncAt` / `lastVersion` / `lastError`。
 - **进度**：`now` 的阶段进度（scan/pull/download/upload/finalize）打 stderr，stdout 始终纯 JSON；text 模式默认显示，`--progress` 在 `--json` 下开启。
 - **同步范围**：`configure --exclude pdf,source,attachments` 排除大体积可再生资产（与设置页「同步范围」一致）；笔记、sidecar、marks 永远同步。Git 把同一组排除项写进仓库 `.gitignore`，并取消跟踪。
-- **Git**：`--backend git --git-remote <url|path> [--git-branch main]`；不接收 secret flag、不做 TTY 提示，使用系统 Git 凭据。Vault 已有仓库时要求当前分支与 `--git-branch` 一致、`origin` 与配置一致，否则报错。冲突、`.agentero` 被跟踪、历史重写等分别返回 `sync_conflict` / `git_agentero_tracked` / `git_history_rewritten`；推送被非 fast-forward 拒绝会自动重试 fetch+merge+push。
+- **Git**：`--backend git --git-remote <url|path> [--git-branch main] [--git-allow-insecure-http true|false] [--git-ssl-ca <pem>]`；不接收 secret flag、不做 TTY 提示，使用系统 Git 凭据。HTTPS 需事先写入 credential helper；非 loopback 的 `http://` 必须显式打开 `--git-allow-insecure-http true`（令牌明文传输）。`--git-ssl-ca` 是自签 HTTPS 的绝对 PEM 路径，传给 `http.sslCAInfo`。Vault 已有仓库时要求当前分支与 `--git-branch` 一致、`origin` 与配置一致，否则报错。冲突、`.agentero` 被跟踪、历史重写等分别返回 `sync_conflict` / `git_agentero_tracked` / `git_history_rewritten`；推送被非 fast-forward 拒绝会自动重试 fetch+merge+push。认证失败与证书失败分别为 `git_auth_failed` / `git_tls_failed`。
 
 ## Doctor
 

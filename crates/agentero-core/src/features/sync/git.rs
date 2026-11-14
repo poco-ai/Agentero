@@ -51,6 +51,8 @@ const SYNC_IGNORE_END: &str = "# agentero-sync-end";
 struct Git {
     exe: PathBuf,
     vault: PathBuf,
+    /// Absolute PEM path passed as `http.sslCAInfo` on every command.
+    http_ssl_ca_info: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -72,7 +74,7 @@ enum PushOutcome {
 /// repository. Used by `sync_configure` (and the CLI `sync test`).
 pub async fn test_connection(vault: &Path, cfg: &SyncBackendConfig) -> Result<(), AppError> {
     cfg.validate()?;
-    let git = Git::new(vault)?;
+    let git = Git::new(vault, cfg)?;
     if let Some(repo) = git.inspect_repo().await? {
         if repo.branch != cfg.git_branch {
             return Err(AppError::domain(
@@ -106,7 +108,7 @@ pub async fn sync_vault(
     progress: Progress<'_>,
 ) -> Result<SyncOutcome, AppError> {
     cfg.validate()?;
-    let git = Git::new(vault)?;
+    let git = Git::new(vault, cfg)?;
 
     let projection_root = vault.to_path_buf();
     tokio::task::spawn_blocking(move || {
@@ -210,18 +212,29 @@ pub async fn sync_vault(
 }
 
 impl Git {
-    fn new(vault: &Path) -> Result<Self, AppError> {
+    fn new(vault: &Path, cfg: &SyncBackendConfig) -> Result<Self, AppError> {
         let exe = crate::process::resolve_command("git").ok_or_else(|| {
             AppError::domain(
                 "git_unavailable",
                 "Git is not installed or not on PATH; install Git and retry",
             )
         })?;
+        let ca = cfg.git_ssl_ca_info.trim();
+        let http_ssl_ca_info = if ca.is_empty() {
+            None
+        } else {
+            Some(
+                crate::process::windows_shell_path(Path::new(ca))
+                    .to_string_lossy()
+                    .into_owned(),
+            )
+        };
         Ok(Self {
             exe,
             // Git for Windows handles plain drive paths better than the
             // extended-length `\\?\` prefix (#181).
             vault: crate::process::windows_shell_path(vault),
+            http_ssl_ca_info,
         })
     }
 
@@ -230,11 +243,13 @@ impl Git {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        let args: Vec<std::ffi::OsString> = args
+        let user_args: Vec<std::ffi::OsString> = args
             .into_iter()
             .map(|arg| arg.as_ref().to_os_string())
             .collect();
-        let label = args
+        let mut argv = http_ssl_ca_args(self.http_ssl_ca_info.as_deref());
+        argv.extend(user_args);
+        let label = argv
             .iter()
             .map(|arg| arg.to_string_lossy())
             .collect::<Vec<_>>()
@@ -242,7 +257,7 @@ impl Git {
         let mut command = Command::new(&self.exe);
         command
             .current_dir(&self.vault)
-            .args(&args)
+            .args(&argv)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -1000,9 +1015,22 @@ fn classify_git_error(stderr: &str) -> &'static str {
         || lower.contains("host key verification failed")
     {
         "git_auth_failed"
+    } else if lower.contains("ssl") || lower.contains("certificate") || lower.contains("tls") {
+        "git_tls_failed"
     } else {
         "git_failed"
     }
+}
+
+/// `git -c http.sslCAInfo=<path>` before the subcommand. Empty means the
+/// system trust store. Never passes `http.sslVerify=false`.
+fn http_ssl_ca_args(ca: Option<&str>) -> Vec<std::ffi::OsString> {
+    let Some(ca) = ca.map(str::trim).filter(|ca| !ca.is_empty()) else {
+        return Vec::new();
+    };
+    let mut setting = std::ffi::OsString::from("http.sslCAInfo=");
+    setting.push(ca);
+    vec!["-c".into(), setting]
 }
 
 fn is_push_race(text: &str) -> bool {
@@ -1061,6 +1089,35 @@ fn now() -> String {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn classifies_auth_and_tls_failures() {
+        assert_eq!(
+            classify_git_error("fatal: Authentication failed for 'https://example.com/'"),
+            "git_auth_failed"
+        );
+        assert_eq!(
+            classify_git_error(
+                "fatal: could not read Username for 'https://example.com': terminal prompts disabled"
+            ),
+            "git_auth_failed"
+        );
+        assert_eq!(
+            classify_git_error("SSL certificate problem: self-signed certificate"),
+            "git_tls_failed"
+        );
+        assert_eq!(classify_git_error("nothing to commit"), "git_failed");
+    }
+
+    #[test]
+    fn ssl_ca_args_are_a_single_config_assignment() {
+        assert!(http_ssl_ca_args(None).is_empty());
+        assert!(http_ssl_ca_args(Some("  ")).is_empty());
+        let args = http_ssl_ca_args(Some(r"C:\certs\lan ca.pem"));
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0], "-c");
+        assert_eq!(args[1], r"http.sslCAInfo=C:\certs\lan ca.pem");
+    }
 
     fn git_exe() -> Option<PathBuf> {
         crate::process::resolve_command("git")

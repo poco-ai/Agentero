@@ -25,10 +25,13 @@ export function createTranslateRecord(input: {
 	paperPath: string;
 	page: number;
 	rects: PdfTranslateRect[];
+	selectionPages?: PdfTranslateRecord["selectionPages"];
 	quote?: string;
 	result?: string;
 	error?: string;
 	id?: string;
+	mode?: "translate" | "dictionary";
+	dictionaryData?: PdfTranslateRecord["dictionaryData"];
 }): PdfTranslateRecord {
 	const now = new Date().toISOString();
 	const rec: PdfTranslateRecord = {
@@ -43,8 +46,11 @@ export function createTranslateRecord(input: {
 		pinned: false,
 	};
 	if (input.quote?.trim()) rec.quote = input.quote.trim();
+	if (input.selectionPages?.length) rec.selectionPages = input.selectionPages;
 	if (input.result?.trim()) rec.result = input.result.trim();
 	if (input.error?.trim()) rec.error = input.error.trim();
+	if (input.mode) rec.mode = input.mode;
+	if (input.dictionaryData) rec.dictionaryData = input.dictionaryData;
 	return rec;
 }
 

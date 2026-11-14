@@ -9,12 +9,17 @@ import {
 } from "@/lib/pdf/reflow/export";
 import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
 import { reflowOutputVersion } from "@/lib/pdf/reflow/output-version";
-import { ReflowPreviewSession } from "@/lib/pdf/reflow/preview";
+import {
+	isRasterAllocationError,
+	previewRasterScale,
+	ReflowPreviewSession,
+} from "@/lib/pdf/reflow/preview";
 import type { ReflowDocument } from "@/lib/pdf/reflow/types";
 
 vi.mock("@/lib/core/logger", () => ({
 	logOp: (_name: string, _fields: unknown, run: () => Promise<unknown>) =>
 		run(),
+	logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() },
 }));
 vi.mock("@/lib/pdf/reflow/fonts", () => ({
 	loadReflowFonts: vi.fn(async () => ({})),
@@ -110,6 +115,41 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 const settled = () => vi.waitFor(() => expect(session.busy).toBe(false));
+
+it("caps preview bitmap memory and recognizes allocation failures", () => {
+	const a4 = { width: 595.276, height: 841.89 };
+	const scale = previewRasterScale(a4, 2);
+	const bytes = a4.width * a4.height * (scale * 2) ** 2 * 4;
+	expect(bytes).toBeLessThanOrEqual(16 * 1024 * 1024 + 1024);
+	expect(previewRasterScale({ width: 100, height: 100 }, 2)).toBe(2);
+	expect(
+		isRasterAllocationError(new Error("Failed to allocate 32076832 bytes")),
+	).toBe(true);
+	expect(
+		isRasterAllocationError({
+			code: 1,
+			message: "Error: Failed to allocate 32076832 bytes",
+		}),
+	).toBe(true);
+	expect(isRasterAllocationError(new Error("bad page"))).toBe(false);
+});
+
+it("retries a preview render at a smaller scale when wasm cannot allocate", async () => {
+	const first = item(0);
+	render.mockImplementationOnce(() => ({
+		toPromise: async () => {
+			throw new Error("Failed to allocate 32076832 bytes");
+		},
+	}));
+	session.update([first], [], true);
+	await settled();
+	expect(render).toHaveBeenCalledTimes(2);
+	const initial = render.mock.calls[0]?.[2] as { scaleFactor: number };
+	const retry = render.mock.calls[1]?.[2] as { scaleFactor: number };
+	expect(retry.scaleFactor).toBeLessThan(initial.scaleFactor);
+	expect(session.decorate([first])[0]?.reflowPreview).toBeTruthy();
+	expect(failed).not.toHaveBeenCalled();
+});
 
 it("reports final build work and resets progress when that output is superseded", async () => {
 	const gate = deferred<ReflowOutput>();

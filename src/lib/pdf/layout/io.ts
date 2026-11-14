@@ -1,4 +1,9 @@
 import {
+	assessLayoutReadiness,
+	type LayoutCompleteness,
+	parseLayoutCompleteness,
+} from "@/lib/pdf/layout/completeness";
+import {
 	buildLayoutIndexSidecar,
 	LAYOUT_INDEX_FILE,
 	type LayoutIndexItem,
@@ -42,6 +47,8 @@ export type PdfLayoutSidecar = {
 		figureCaptionsExtracted?: boolean;
 		/** Rich PDF run styles sampled; old caches need only a text walk. */
 		sourceStylesExtracted?: boolean;
+		/** Verifiable page coverage and content-readiness metadata. */
+		completeness?: LayoutCompleteness;
 	};
 	/** Raw text-enriched model regions, before caption/formula merge. */
 	regions: PdfLayoutRegion[];
@@ -157,6 +164,8 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 		source.sourceStylesExtracted = true;
 	if (raw.source.figureCaptionsExtracted === true)
 		source.figureCaptionsExtracted = true;
+	const completeness = parseLayoutCompleteness(raw.source.completeness);
+	if (completeness) source.completeness = completeness;
 	return {
 		schemaVersion: LAYOUT_SIDECAR_SCHEMA_VERSION,
 		source,
@@ -191,15 +200,17 @@ export function layoutSidecarWasReplaced(
 }
 
 /**
- * A non-empty sidecar is a finished parse. `force` is the only way through
- * it: headless analysis used to return here even when the job was enqueued
- * with `force: true`.
+ * A sidecar is reusable only when its page walk proves it complete. `force`
+ * always reparses; legacy / partial caches are audited by headless analysis.
  */
 export function layoutSidecarBlocksAnalysis(
 	force: boolean | undefined,
-	regionCount: number,
+	sidecar: PdfLayoutSidecar,
 ): boolean {
-	return force !== true && regionCount > 0;
+	if (force === true) return false;
+	const readiness = assessLayoutReadiness(sidecar.source.completeness);
+	if (readiness.status === "ready") return true;
+	return readiness.status === "warning" && !readiness.needsContentRepair;
 }
 
 /** Old sidecars, and reads that did not finish, still need the text layer. */
@@ -248,14 +259,38 @@ export async function writeLayoutSidecar(
 	paperAbsPath: string | null | undefined,
 	regions: PdfLayoutRegion[],
 	mode: LayoutSidecarMode = "embedpdf-layout",
-	options: { textLayerExtracted?: boolean } = {},
+	options: {
+		textLayerExtracted?: boolean;
+		completeness?: LayoutCompleteness;
+	} = {},
 ): Promise<void> {
 	if (!paperAbsPath) return;
+	if (
+		options.completeness &&
+		assessLayoutReadiness(options.completeness).status === "incomplete"
+	) {
+		const current = await readLayoutSidecar(paperAbsPath);
+		const currentStatus = assessLayoutReadiness(
+			current?.source.completeness,
+		).status;
+		if (
+			current &&
+			current.regions.length > 0 &&
+			(currentStatus === "ready" || currentStatus === "warning")
+		) {
+			// A failed text-layer walk must not replace a trusted parse.
+			return;
+		}
+	}
 	const source: PdfLayoutSidecar["source"] = {
 		mode,
 		generatedAt: new Date().toISOString(),
 	};
-	if (options.textLayerExtracted === true) {
+	if (options.completeness) source.completeness = options.completeness;
+	if (
+		options.completeness?.textLayerComplete === true ||
+		options.textLayerExtracted === true
+	) {
 		source.textLayerExtracted = true;
 		source.figureCaptionsExtracted = true;
 		source.sourceStylesExtracted = true;
@@ -313,8 +348,9 @@ export function sameLayoutParse(
 export function layoutTextBackfillSidecar(
 	expected: PdfLayoutSidecar,
 	regions: PdfLayoutRegion[],
+	completeness?: LayoutCompleteness,
 ): PdfLayoutSidecar {
-	return {
+	const sidecar: PdfLayoutSidecar = {
 		schemaVersion: LAYOUT_SIDECAR_SCHEMA_VERSION,
 		source: {
 			mode: expected.source.mode,
@@ -325,6 +361,8 @@ export function layoutTextBackfillSidecar(
 		},
 		regions,
 	};
+	if (completeness) sidecar.source.completeness = completeness;
+	return sidecar;
 }
 
 /**
@@ -335,11 +373,12 @@ export async function writeLayoutTextBackfill(
 	paperAbsPath: string | null | undefined,
 	expected: PdfLayoutSidecar,
 	regions: PdfLayoutRegion[],
+	completeness?: LayoutCompleteness,
 ): Promise<boolean> {
 	if (!paperAbsPath) return false;
 	const current = await readLayoutSidecar(paperAbsPath);
 	if (!current || !sameLayoutParse(current, expected)) return false;
-	const sidecar = layoutTextBackfillSidecar(expected, regions);
+	const sidecar = layoutTextBackfillSidecar(expected, regions, completeness);
 	await writeVaultFile(
 		layoutSidecarPath(paperAbsPath),
 		`${JSON.stringify(sidecar, null, 2)}\n`,

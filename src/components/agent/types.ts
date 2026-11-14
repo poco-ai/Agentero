@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { PromptImage } from "@/lib/agent/api";
+import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 import type { PaperMetadata, PaperTreeLabelMode } from "@/lib/paper";
@@ -46,6 +47,31 @@ export type AgentPanelProps = {
 	paperMetaByRelPath?: ReadonlyMap<string, PaperMetadata> | null;
 	/** Settings → General: paper labels in file tree (display-only). */
 	paperTreeLabelMode?: PaperTreeLabelMode;
+	/** Start with this harness instead of the registry default (Zen slots). */
+	initialAgentId?: string | null;
+	/** Report the active harness to the host surface (Zen slot rows). */
+	onAgentChange?: (agent: {
+		id: string;
+		name: string;
+		template: string | null;
+	}) => void;
+	/** One-shot ACP history row to load (Zen harness history). */
+	openHistoryItem?: ChatSessionHistoryItem | null;
+	/** Clear the one-shot request once loading has started. */
+	onOpenHistoryHandled?: () => void;
+	/**
+	 * A history row is queued for this panel but hydration has not started yet.
+	 * Shows the restore shimmer instead of the empty-chat suggestions.
+	 */
+	restoringHistory?: boolean;
+	/**
+	 * The host surface already lists this harness's ACP sessions (Zen rail), so
+	 * the panel must not import them into its own store: that listed every
+	 * session as an open tab and spawned one ACP process per slot.
+	 */
+	suppressHistoryImport?: boolean;
+	/** Full-page surface: inset the transcript and composer horizontally. */
+	wide?: boolean;
 	className?: string;
 	headerActions?: ReactNode;
 	autoFocus?: boolean;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	type InstitutionProxyPresetOption,
@@ -49,10 +49,7 @@ import {
 	type PdfSpreadMode,
 	saveSettingsAsync,
 } from "@/lib/settings";
-import {
-	DEFAULT_NETWORK_PROXY_URL,
-	INSTITUTION_PROXY_PRESETS,
-} from "@/lib/settings/defaults";
+import { DEFAULT_NETWORK_PROXY_URL } from "@/lib/settings/defaults";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 import { notesTemplateSeed } from "@/lib/vault/note-template";
 import { ConnectorSettingsBlock } from "./general/connector-settings-block";
@@ -85,6 +82,9 @@ export function GeneralPane({
 		useState(settings.institutionProxyPrefix);
 	const [institutionProxyCookieDraft, setInstitutionProxyCookieDraft] =
 		useState(settings.institutionProxyCookie);
+	const [institutionProxyPresets, setInstitutionProxyPresets] = useState<
+		InstitutionProxyPresetOption[]
+	>([]);
 	const [institutionProxyTesting, setInstitutionProxyTesting] = useState(false);
 	const [institutionProxyResult, setInstitutionProxyResult] = useState<
 		{ status: "ok" | "fail"; message: string } | undefined
@@ -135,14 +135,26 @@ export function GeneralPane({
 		t,
 		testInstitutionProxy,
 	]);
-	const institutionProxyPresets = useMemo(
-		() =>
-			INSTITUTION_PROXY_PRESETS.map((preset) => ({
-				...preset,
-				label: t(`general.institutionProxy.presets.${preset.id}`),
-			})),
-		[t],
-	);
+	useEffect(() => {
+		if (!isTauri()) return;
+		let cancelled = false;
+		void commands.institutionProxyPresets().then((result) => {
+			if (cancelled || !result.ok || !result.data) return;
+			setInstitutionProxyPresets(
+				result.data.map((preset) => ({
+					id: preset.id,
+					kind: preset.kind,
+					prefix: preset.prefix,
+					label: t(`general.institutionProxy.presets.${preset.id}`, {
+						defaultValue: preset.id,
+					}),
+				})),
+			);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [t]);
 	const selectInstitutionProxyPreset = useCallback(
 		(preset: InstitutionProxyPresetOption) => {
 			setInstitutionProxyPrefixDraft(preset.prefix);
@@ -164,6 +176,42 @@ export function GeneralPane({
 				: institutionProxyProbeStatus === "fail"
 					? "general.institutionProxy.probeFail"
 					: "general.institutionProxy.probeIdle",
+	);
+	const institutionProxyTypeRow = (
+		<SettingsRow
+			label={t("general.institutionProxy.typeLabel")}
+			htmlFor="institution-proxy-type"
+		>
+			<Select
+				value={settings.institutionProxyType}
+				onValueChange={(institutionProxyType) =>
+					patch({ institutionProxyType })
+				}
+			>
+				<SelectTrigger
+					id="institution-proxy-type"
+					size="sm"
+					className="h-8 w-44 text-xs"
+					disabled={!isTauri()}
+				>
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="auto" className="text-xs">
+						{t("general.institutionProxy.typeAuto")}
+					</SelectItem>
+					<SelectItem value="ezproxy" className="text-xs">
+						{t("general.institutionProxy.typeEzproxy")}
+					</SelectItem>
+					<SelectItem value="wengine" className="text-xs">
+						{t("general.institutionProxy.typeWengine")}
+					</SelectItem>
+					<SelectItem value="subdomain" className="text-xs">
+						{t("general.institutionProxy.typeSubdomain")}
+					</SelectItem>
+				</SelectContent>
+			</Select>
+		</SettingsRow>
 	);
 	const [seedingTemplate, setSeedingTemplate] = useState(false);
 
@@ -521,43 +569,16 @@ export function GeneralPane({
 				/>
 			</SettingsGroup>
 			<SettingsGroup>
-				<SettingsRow
-					label={t("general.institutionProxy.typeLabel")}
-					htmlFor="institution-proxy-type"
-				>
-					<Select
-						value={settings.institutionProxyType}
-						onValueChange={(institutionProxyType) =>
-							patch({ institutionProxyType })
-						}
-					>
-						<SelectTrigger
-							id="institution-proxy-type"
-							size="sm"
-							className="h-8 w-44 text-xs"
-							disabled={!isTauri()}
-						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="ezproxy" className="text-xs">
-								{t("general.institutionProxy.typeEzproxy")}
-							</SelectItem>
-							<SelectItem value="wengine" className="text-xs">
-								{t("general.institutionProxy.typeWengine")}
-							</SelectItem>
-						</SelectContent>
-					</Select>
-				</SettingsRow>
 				<InstitutionProxyRow
 					htmlFor="institution-proxy-prefix"
 					label={t("general.institutionProxy.label")}
 					prefix={institutionProxyPrefixDraft}
 					cookie={institutionProxyCookieDraft}
+					typeRow={institutionProxyTypeRow}
 					prefixPlaceholder={
-						settings.institutionProxyType === "wengine"
-							? "https://webvpn.example.edu"
-							: "https://webvpn.example.edu/login?url="
+						settings.institutionProxyType === "ezproxy"
+							? "https://webvpn.example.edu/login?url="
+							: "https://webvpn.example.edu"
 					}
 					cookiePlaceholder={t("general.institutionProxy.cookiePlaceholder")}
 					cookieLabel={t("general.institutionProxy.cookieLabel")}

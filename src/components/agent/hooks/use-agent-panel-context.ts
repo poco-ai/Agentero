@@ -20,6 +20,7 @@ import {
 	toPathSet,
 } from "@/lib/agent/context-path-icon";
 import type { ThinkTagParser } from "@/lib/agent/stream-parse";
+import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import type { PaperMetadata } from "@/lib/paper";
 import { paperDirFromPath } from "@/lib/paper";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
@@ -95,6 +96,7 @@ export function useAgentPanelContext({
 		if (
 			isLibraryVirtualPath(selectedPath) ||
 			isTrashVirtualPath(selectedPath) ||
+			isZenVirtualPath(selectedPath) ||
 			// Plaza tabs are virtual; with the whole-list collection a focused
 			// Daily tab must not silently inject the full abstract catalog
 			// into every prompt — plaza context is explicit `@` only.
@@ -107,6 +109,7 @@ export function useAgentPanelContext({
 		if (
 			isLibraryVirtualPath(relative) ||
 			isTrashVirtualPath(relative) ||
+			isZenVirtualPath(relative) ||
 			isPlazaVirtualPath(relative)
 		) {
 			return null;

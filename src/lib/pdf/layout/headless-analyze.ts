@@ -20,12 +20,20 @@ import { findCanonicalPaperPdfPath, localFileToArrayBuffer } from "@/lib/paper";
 import { createPdfEngine } from "@/lib/pdf/engine";
 import { getPdfAiRuntime } from "@/lib/pdf/layout/ai-runtime";
 import {
+	assessLayoutReadiness,
+	buildLayoutCompleteness,
+} from "@/lib/pdf/layout/completeness";
+import {
 	layoutSidecarBlocksAnalysis,
 	readLayoutSidecar,
 	writeLayoutIndexFromRaw,
+	writeLayoutTextBackfill,
 } from "@/lib/pdf/layout/io";
 import type { LayoutTaskLike } from "@/lib/pdf/layout/run-analysis";
-import { runDocumentLayoutAnalysis } from "@/lib/pdf/layout/run-analysis";
+import {
+	enrichRawRegionsWithPageText,
+	runDocumentLayoutAnalysis,
+} from "@/lib/pdf/layout/run-analysis";
 import { clearLayoutDocumentResult } from "@/lib/pdf/layout/store";
 
 let analysisEngine: PdfEngine | null = null;
@@ -76,10 +84,7 @@ export async function analyzePaperLayoutHeadless(opts: {
 
 	const existing = await readLayoutSidecar(paperAbsPath);
 	if (opts.signal?.aborted) throw new Error("cancelled");
-	if (
-		existing &&
-		layoutSidecarBlocksAnalysis(opts.force, existing.regions.length)
-	) {
+	if (existing && layoutSidecarBlocksAnalysis(opts.force, existing)) {
 		// Ensure CLI-facing sidebar index exists even on raw-only cache hits.
 		try {
 			if (opts.signal?.aborted) throw new Error("cancelled");
@@ -159,6 +164,70 @@ export async function analyzePaperLayoutHeadless(opts: {
 		if (opts.signal?.aborted) throw new Error("cancelled");
 
 		const scope = layoutCap.forDocument(documentId);
+		let forceAnalysis = opts.force === true;
+		if (existing && !forceAnalysis && pageCount > 0) {
+			const recordedPageCount = existing.source.completeness?.pageCount;
+			const highestRegionPage = existing.regions.reduce(
+				(max, region) => Math.max(max, region.pageIndex),
+				-1,
+			);
+			const stalePageRange =
+				(recordedPageCount != null && recordedPageCount !== pageCount) ||
+				highestRegionPage >= pageCount;
+			if (stalePageRange) {
+				forceAnalysis = true;
+			} else {
+				const pageSizes = new Map<number, { width: number; height: number }>();
+				for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+					const size = doc.pages[pageIndex]?.size;
+					pageSizes.set(
+						pageIndex,
+						size && size.width > 0 && size.height > 0
+							? size
+							: { width: 0, height: 0 },
+					);
+				}
+				const audited = await enrichRawRegionsWithPageText(
+					scope,
+					existing.regions,
+					pageSizes,
+					() => docCap.isDocumentOpen(documentId),
+				);
+				if (opts.signal?.aborted) throw new Error("cancelled");
+				if (!audited.complete) {
+					forceAnalysis = true;
+				} else {
+					const completeness = buildLayoutCompleteness({
+						pageCount,
+						pageStats: audited.pageStats,
+						textLayerComplete: true,
+						contentRepairAttempted:
+							existing.source.completeness?.contentRepairAttempted === true,
+					});
+					const wrote = await writeLayoutTextBackfill(
+						paperAbsPath,
+						existing,
+						audited.regions,
+						completeness,
+					);
+					if (!wrote) {
+						forceAnalysis = true;
+					} else {
+						const readiness = assessLayoutReadiness(completeness);
+						if (!readiness.needsContentRepair) {
+							await writeLayoutIndexFromRaw(paperAbsPath, audited.regions);
+							return {
+								fromCache: true,
+								summary: `audited ${audited.regions.length} regions`,
+								regionCount: audited.regions.length,
+							};
+						} else {
+							forceAnalysis = true;
+						}
+					}
+				}
+			}
+		}
 		const summary = await new Promise<string>((resolve, reject) => {
 			let settled = false;
 			let layoutTask: LayoutTaskLike | null = null;
@@ -178,7 +247,7 @@ export async function analyzePaperLayoutHeadless(opts: {
 				paperAbsPath,
 				paperLabel: opts.paperLabel,
 				totalPages: pageCount > 0 ? pageCount : null,
-				force: opts.force === true,
+				force: forceAnalysis,
 				pageSizeAt: (pageIndex) => {
 					const size = doc.pages[pageIndex]?.size;
 					return size && size.width > 0 && size.height > 0 ? size : null;
@@ -207,6 +276,13 @@ export async function analyzePaperLayoutHeadless(opts: {
 		});
 
 		const sidecar = await readLayoutSidecar(paperAbsPath);
+		const readiness = assessLayoutReadiness(sidecar?.source.completeness);
+		if (
+			!sidecar ||
+			(readiness.status !== "ready" && readiness.status !== "warning")
+		) {
+			throw new Error("Layout analysis did not produce a complete sidecar");
+		}
 		return {
 			fromCache: false,
 			summary,

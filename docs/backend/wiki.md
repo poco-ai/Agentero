@@ -16,6 +16,7 @@
 ## Host 能力
 
 - 语义解析：文件、标题、block
+- 论文标题候选：非空 file 查询命中 `papers/**/NOTES.md` 的 alias，且同一论文目录的 canonical 主 PDF（`papers/<paper>/<paper>.pdf`）已在索引中时，额外返回该 PDF 的 file 候选。候选以 alias 为标题、写入 PDF 的 Vault 相对路径，并排在同一 alias 的 NOTES 候选之前；`source/`、`assets/`、`attachments/` 与 legacy 根目录 PDF 不参与派生。
 - 标题候选：展示 canonical `outer › inner` 路径，`insert_text` 写完整 `target#outer#inner`；查询中的 `#` 与 `›` 会归一到同一路径分隔语义
 - 逐级补全：尾部 `#` 保留层级状态，已确认路径按 canonical ancestor path 的后缀匹配，候选只返回其直接子标题；可连续输入任意多个层级
 - 反链 / 出链查询

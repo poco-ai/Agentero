@@ -6,6 +6,7 @@ import { PdfKeySequence } from "@/lib/keyboard/pdf-key-sequence";
 import { ownsPdfKeyboard } from "@/lib/pdf/keyboard-ownership";
 import { handleScrollSyncIntent } from "@/lib/pdf/scroll-sync";
 import { loadSettings } from "@/lib/settings";
+import { matchesAriaShortcut } from "@/lib/shell/shortcuts";
 
 type PdfVimKeyHandlerProps = {
 	documentId: string;
@@ -59,10 +60,11 @@ export function PdfVimKeyHandler({
 					document.querySelectorAll<HTMLButtonElement>(
 						"[data-selection-menu] button[aria-keyshortcuts]:not(:disabled)",
 					),
-				).some(
-					(button) =>
-						button.getAttribute("aria-keyshortcuts")?.toLowerCase() ===
-						event.key.toLowerCase(),
+				).some((button) =>
+					matchesAriaShortcut(
+						button.getAttribute("aria-keyshortcuts"),
+						event.key,
+					),
 				);
 			// Read the module cache so a settings window toggle applies even
 			// before this component re-renders.

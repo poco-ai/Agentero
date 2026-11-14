@@ -1,18 +1,22 @@
-import type {
-	PdfAnnotationObject,
-	PdfHighlightAnnoObject,
-} from "@embedpdf/models";
+import type { PdfAnnotationObject } from "@embedpdf/models";
 import { PdfAnnotationSubtype } from "@embedpdf/models";
 import type { TrackedAnnotation } from "@embedpdf/plugin-annotation";
 import type { AnnotationTransferItem } from "@embedpdf/plugin-annotation/react";
 import { isTauri } from "@/lib/core/tauri";
-import { dedupeAnnotationItems } from "@/lib/pdf/highlight/annotation-items";
+import {
+	dedupeAnnotationItems,
+	reviveAnnotationDates,
+} from "@/lib/pdf/highlight/annotation-items";
 import {
 	type HighlightColor,
 	highlightColorFromHex,
 } from "@/lib/pdf/highlight/palette";
 import { sanitizeTranslatedRects } from "@/lib/pdf/highlight/translated-geometry";
-import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+import type {
+	PdfHighlight,
+	PdfTextMarkupAnnoObject,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import {
 	ANNOTATIONS_JSON,
 	MARKS_FOLDER,
@@ -54,6 +58,14 @@ async function removeFileIfExists(path: string): Promise<void> {
 	}
 }
 
+function parseAnnotationItems(raw: string): AnnotationTransferItem[] {
+	const parsed = JSON.parse(raw) as unknown;
+	if (!Array.isArray(parsed)) return [];
+	return dedupeAnnotationItems(
+		(parsed as AnnotationTransferItem[]).map(reviveAnnotationDates),
+	);
+}
+
 export async function loadAnnotationItems(
 	paperAbsPath: string,
 ): Promise<AnnotationTransferItem[]> {
@@ -64,20 +76,17 @@ export async function loadAnnotationItems(
 
 	// Prefer marks/; fall back to paper-root and migrate once.
 	try {
-		const raw = await readVaultFile(annotationsPath(paperAbsPath));
-		const parsed = JSON.parse(raw) as unknown;
-		return Array.isArray(parsed)
-			? dedupeAnnotationItems(parsed as AnnotationTransferItem[])
-			: [];
+		return parseAnnotationItems(
+			await readVaultFile(annotationsPath(paperAbsPath)),
+		);
 	} catch {
 		// continue to legacy
 	}
 
 	try {
-		const raw = await readVaultFile(legacyAnnotationsPath(paperAbsPath));
-		const parsed = JSON.parse(raw) as unknown;
-		if (!Array.isArray(parsed)) return [];
-		const items = dedupeAnnotationItems(parsed as AnnotationTransferItem[]);
+		const items = parseAnnotationItems(
+			await readVaultFile(legacyAnnotationsPath(paperAbsPath)),
+		);
 		if (items.length) {
 			await saveAnnotationItems(paperAbsPath, items);
 		} else {
@@ -129,10 +138,23 @@ export async function hasAnnotationsFile(
 	return false;
 }
 
-export function isHighlightObject(
+/** Text-markup annotations the reader creates and edits (highlight / underline). */
+export function isTextMarkupObject(
 	obj: PdfAnnotationObject,
-): obj is PdfHighlightAnnoObject {
-	return obj.type === PdfAnnotationSubtype.HIGHLIGHT;
+): obj is PdfTextMarkupAnnoObject {
+	return (
+		obj.type === PdfAnnotationSubtype.HIGHLIGHT ||
+		obj.type === PdfAnnotationSubtype.UNDERLINE
+	);
+}
+
+/** Shape carried by a text-markup annotation object. */
+export function textMarkupKindOf(
+	obj: PdfTextMarkupAnnoObject,
+): PdfTextMarkupKind {
+	return obj.type === PdfAnnotationSubtype.UNDERLINE
+		? "underline"
+		: "highlight";
 }
 
 /**
@@ -159,20 +181,20 @@ export type HighlightCustom = {
 	translatedRects?: PdfHighlight["translatedRects"];
 };
 
-export function highlightColorOf(obj: PdfHighlightAnnoObject): HighlightColor {
+export function highlightColorOf(obj: PdfTextMarkupAnnoObject): HighlightColor {
 	const custom = (obj.custom ?? {}) as HighlightCustom;
 	if (custom.paletteKey) return custom.paletteKey;
 	return highlightColorFromHex(obj.strokeColor ?? obj.color);
 }
 
-export function highlightQuoteOf(obj: PdfHighlightAnnoObject): string {
+export function highlightQuoteOf(obj: PdfTextMarkupAnnoObject): string {
 	const custom = (obj.custom ?? {}) as HighlightCustom;
 	return custom.quote?.trim() ?? "";
 }
 
 /** Build the PdfHighlight view model that the annotations panel + handle use. */
 export function highlightViewFromObject(
-	obj: PdfHighlightAnnoObject,
+	obj: PdfTextMarkupAnnoObject,
 	paperPath: string,
 ): PdfHighlight {
 	const iso = (d?: Date) =>
@@ -180,7 +202,7 @@ export function highlightViewFromObject(
 	const comment = obj.contents?.trim();
 	const view: PdfHighlight = {
 		version: 1,
-		kind: "highlight",
+		kind: textMarkupKindOf(obj),
 		id: obj.id,
 		paperPath,
 		createdAt: iso(obj.created),

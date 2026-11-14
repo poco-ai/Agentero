@@ -119,13 +119,9 @@ fn looks_like_machine_only_user_turn(text: &str) -> bool {
             return true;
         }
     }
-    if lower.starts_with("<permissions instructions>")
+    lower.starts_with("<permissions instructions>")
         || lower.starts_with("<skills_instructions>")
         || lower.starts_with("<multi_agent_mode>")
-    {
-        return true;
-    }
-    false
 }
 
 /// Recover the human-visible user text from a stored Agentero / Codex turn body.

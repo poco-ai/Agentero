@@ -6,7 +6,7 @@ import type {
 } from "@embedpdf/models";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
-import { isReferenceLayoutRegion } from "@/lib/pdf/layout/translation-exclusions";
+import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
@@ -72,7 +72,7 @@ function dominantStyle(chars: Character[]): CharacterStyle {
 	);
 }
 const mathFont =
-	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols))/i;
+	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols)|tx(?:sys|sy|mi|ex)\w*)/i;
 const mathSymbol = /[\p{Sm}\u0370-\u03ff\u1d00-\u1d7f\u2070-\u209f]/u;
 
 /** Detect visual formula islands, including adjacent scripts and punctuation. */
@@ -214,14 +214,15 @@ export function paragraphFromCharacters(
 	let baseline = box.y + style.size;
 	const flush = () => {
 		if (!island.length) return;
+		const glyphs = island.map((c) => c.visualBox);
 		const f: Formula = {
 			id: String(formulas.length),
 			text: island.map((c) => c.text).join(""),
-			box: unionBoxes(island.map((c) => c.visualBox)),
+			box: unionBoxes(glyphs),
 			characterIndexes: island.map((c) => c.index),
-			baselineOffset:
-				Math.max(...island.map((c) => c.visualBox.y + c.visualBox.h)) -
-				baseline,
+			// The snippet is drawn as an image. Its bottom must include tall
+			// delimiters/radicals that descend below the formula baseline.
+			baselineOffset: Math.max(...glyphs.map((b) => b.y + b.h)) - baseline,
 		};
 		formulas.push(f);
 		for (const c of island) membership.set(c.index, f);
@@ -336,6 +337,7 @@ export async function extractReflowDocument(
 	signal?: AbortSignal,
 ): Promise<ReflowDocument> {
 	const pages: ReflowDocument["pages"] = [];
+	const sourcePreservedIds = preservedLayoutRegions(regions);
 	for (const page of doc.pages) {
 		const selected = items.filter((i) => i.pageIndex === page.index);
 		if (!selected.length) continue;
@@ -433,11 +435,13 @@ export async function extractReflowDocument(
 		const pageRegions = regions.filter(
 			(r) => r.pageIndex === page.index && r.score >= LAYOUT_SIDEBAR_MIN_SCORE,
 		);
-		const references = pageRegions.filter(isReferenceLayoutRegion);
-		const referenceCharacters = new Set(
+		const sourcePreservedRegions = regions.filter(
+			(r) => r.pageIndex === page.index && sourcePreservedIds.has(r.id),
+		);
+		const sourcePreservedCharacters = new Set(
 			characters
 				.filter((c) =>
-					references.some((r) => centerInside(c.visualBox, r.rect)),
+					sourcePreservedRegions.some((r) => centerInside(c.visualBox, r.rect)),
 				)
 				.map((c) => c.index),
 		);
@@ -458,7 +462,7 @@ export async function extractReflowDocument(
 					(c) =>
 						!hidden.has(c.index) &&
 						!clipped.has(c.index) &&
-						!referenceCharacters.has(c.index) &&
+						!sourcePreservedCharacters.has(c.index) &&
 						!claimed.has(c.index) &&
 						centerInside(c.visualBox, box),
 				);
@@ -520,7 +524,7 @@ export async function extractReflowDocument(
 		const rotated = rotatedCharacterIndexes(characters);
 		for (const c of characters) {
 			if (
-				referenceCharacters.has(c.index) ||
+				sourcePreservedCharacters.has(c.index) ||
 				(c.textObjectId !== undefined &&
 					conflictingHeadingObjects.has(c.textObjectId))
 			)
@@ -551,7 +555,7 @@ export async function extractReflowDocument(
 				(c) =>
 					!hidden.has(c.index) &&
 					!clipped.has(c.index) &&
-					!referenceCharacters.has(c.index) &&
+					!sourcePreservedCharacters.has(c.index) &&
 					!claimed.has(c.index) &&
 					centerInside(c.visualBox, table.rect),
 			);

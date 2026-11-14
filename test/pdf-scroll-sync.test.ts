@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	alignScrollSyncFrom,
+	cancelPendingViewportScroll,
 	getScrollSyncElement,
 	getScrollSyncPartner,
 	getScrollSyncPeer,
@@ -219,6 +220,20 @@ describe("scroll sync across buffer revision suffixes", () => {
 		disposeElement();
 		expect(getScrollSyncPeer("paper-a::translation")).toBeNull();
 		expect(getScrollSyncElement("paper-a::translation")).toBeNull();
+	});
+
+	it("cancels a queued zoom scroll after the final gesture anchor lands", () => {
+		const cancelPendingScroll = vi.fn();
+		const dispose = registerScrollSyncElement(
+			"zoom-paper::r2",
+			{} as HTMLElement,
+			{ cancelPendingScroll },
+		);
+		cancelPendingViewportScroll("zoom-paper::r2");
+		expect(cancelPendingScroll).toHaveBeenCalledOnce();
+		dispose();
+		cancelPendingViewportScroll("zoom-paper::r2");
+		expect(cancelPendingScroll).toHaveBeenCalledOnce();
 	});
 });
 

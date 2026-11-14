@@ -4,6 +4,7 @@ import {
 	type PdfEngine,
 	type PdfHighlightAnnoObject,
 	type PdfLinkAnnoObject,
+	type PdfUnderlineAnnoObject,
 } from "@embedpdf/models";
 import type { AnnotationTransferItem } from "@embedpdf/plugin-annotation";
 import {
@@ -16,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import {
 	dedupeAnnotationItems,
 	planAnnotationItemImport,
+	reviveAnnotationDates,
 } from "@/lib/pdf/highlight/annotation-items";
 
 function link(id: string, pageIndex = 0): AnnotationTransferItem {
@@ -47,6 +49,28 @@ function highlight(
 			contents: "",
 			...overrides,
 		} as PdfHighlightAnnoObject,
+	};
+}
+
+function underline(
+	id: string,
+	overrides: Partial<PdfUnderlineAnnoObject> = {},
+): AnnotationTransferItem {
+	return {
+		annotation: {
+			id,
+			pageIndex: 0,
+			type: PdfAnnotationSubtype.UNDERLINE,
+			rect: { origin: { x: 10, y: 20 }, size: { width: 30, height: 10 } },
+			segmentRects: [
+				{ origin: { x: 10, y: 20 }, size: { width: 30, height: 10 } },
+			],
+			strokeColor: "#fcd34d",
+			color: "#fcd34d",
+			opacity: 1,
+			contents: "",
+			...overrides,
+		} as PdfUnderlineAnnoObject,
 	};
 }
 
@@ -132,8 +156,8 @@ describe("annotation transfer deduplication", () => {
 		const plan = planAnnotationItemImport([saved], [native]);
 
 		expect(plan.imports).toEqual([]);
-		expect(plan.highlightOverrides).toHaveLength(1);
-		expect(plan.highlightOverrides[0]).toMatchObject({
+		expect(plan.annotationOverrides).toHaveLength(1);
+		expect(plan.annotationOverrides[0]).toMatchObject({
 			pageIndex: 0,
 			id: "stable-highlight",
 			patch: {
@@ -141,6 +165,35 @@ describe("annotation transfer deduplication", () => {
 				strokeColor: "#ef4444",
 				color: "#ef4444",
 				custom: { paletteKey: "red", quote: "selection" },
+			},
+		});
+	});
+
+	it("restores saved underline overrides by matching shape, not only id", () => {
+		const native = underline("stable-underline", {
+			strokeColor: "#fcd34d",
+			color: "#fcd34d",
+			custom: { paletteKey: "yellow", quote: "selection" },
+		}).annotation;
+		const saved = underline("stable-underline", {
+			contents: "saved note",
+			strokeColor: "#7dd3fc",
+			color: "#7dd3fc",
+			custom: { paletteKey: "blue", quote: "selection" },
+		});
+
+		const plan = planAnnotationItemImport([saved], [native]);
+
+		expect(plan.imports).toEqual([]);
+		expect(plan.annotationOverrides).toHaveLength(1);
+		expect(plan.annotationOverrides[0]).toMatchObject({
+			pageIndex: 0,
+			id: "stable-underline",
+			patch: {
+				contents: "saved note",
+				strokeColor: "#7dd3fc",
+				color: "#7dd3fc",
+				custom: { paletteKey: "blue", quote: "selection" },
 			},
 		});
 	});
@@ -156,7 +209,7 @@ describe("annotation transfer deduplication", () => {
 		const plan = planAnnotationItemImport([saved], [native]);
 
 		expect(plan.imports).toEqual([]);
-		expect(plan.highlightOverrides).toEqual([]);
+		expect(plan.annotationOverrides).toEqual([]);
 	});
 
 	it("still imports a new highlight while suppressing redundant native links", () => {
@@ -170,7 +223,7 @@ describe("annotation transfer deduplication", () => {
 		);
 
 		expect(plan.imports).toEqual([savedHighlight]);
-		expect(plan.highlightOverrides).toEqual([]);
+		expect(plan.annotationOverrides).toEqual([]);
 	});
 
 	it("updates the real plugin store without appending a duplicate page id", async () => {
@@ -205,7 +258,7 @@ describe("annotation transfer deduplication", () => {
 				scope.getAnnotations().map(({ object }) => object),
 			);
 
-			scope.updateAnnotations(plan.highlightOverrides);
+			scope.updateAnnotations(plan.annotationOverrides);
 
 			const annotations = scope.getAnnotations();
 			expect(annotations).toHaveLength(1);
@@ -217,5 +270,41 @@ describe("annotation transfer deduplication", () => {
 		} finally {
 			await registry.destroy();
 		}
+	});
+});
+
+describe("annotation transfer dates", () => {
+	const savedAt = "2026-10-09T02:49:36.400Z";
+
+	it("restores dates that JSON.stringify turned into ISO strings", () => {
+		const saved = JSON.parse(
+			JSON.stringify([
+				highlight("saved", {
+					created: new Date(savedAt),
+					modified: new Date(savedAt),
+				}),
+			]),
+		) as AnnotationTransferItem[];
+
+		const savedItem = saved.at(0);
+		if (!savedItem) throw new Error("saved highlight missing");
+		const revived = reviveAnnotationDates(savedItem);
+
+		expect(revived.annotation.created).toBeInstanceOf(Date);
+		expect(revived.annotation.modified).toBeInstanceOf(Date);
+		expect(revived.annotation.created?.toISOString()).toBe(savedAt);
+		expect(revived.annotation.modified?.toISOString()).toBe(savedAt);
+		expect(saved[0]?.annotation.created).toBe(savedAt);
+	});
+
+	it("keeps Date instances and drops values that cannot be parsed", () => {
+		const created = new Date(savedAt);
+		const dated = highlight("dated", { created });
+		expect(reviveAnnotationDates(dated)).toBe(dated);
+
+		const invalid = highlight("invalid", {
+			created: "not-a-date" as unknown as Date,
+		});
+		expect(reviveAnnotationDates(invalid).annotation.created).toBeUndefined();
 	});
 });

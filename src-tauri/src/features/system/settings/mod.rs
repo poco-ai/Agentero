@@ -91,8 +91,9 @@ pub struct AppSettings {
     /// the browser). Empty = no cookie.
     #[serde(default)]
     pub institution_proxy_cookie: String,
-    /// Gateway flavour: `ezproxy` (query passthrough) or `wengine`
-    /// (path-rewriting WebVPN, e.g. ZJU). Default `ezproxy`.
+    /// Gateway flavour: `auto` (fingerprint the prefix), `ezproxy` (query
+    /// passthrough), `wengine` (path-rewriting WebVPN, e.g. ZJU) or
+    /// `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
     #[serde(default)]
     pub institution_proxy_type: String,
     #[serde(default = "default_paper_tree_label_mode")]
@@ -135,6 +136,9 @@ pub struct AppSettings {
     /// Enable the ephemeral F-key global element hint overlay.
     #[serde(default = "default_true")]
     pub hint_mode_enabled: bool,
+    /// Subtle in-app sound cues (agent attention / turn done / failure).
+    #[serde(default = "default_true")]
+    pub sound_enabled: bool,
     /// PDF page layout: `none` (single page) | `odd` | `even` (two-page spread).
     #[serde(default = "default_pdf_spread_mode")]
     pub pdf_spread_mode: String,
@@ -299,6 +303,12 @@ pub struct DecisionSettings {
     /// Whether the experimental smart-highlight toolbar action is enabled.
     #[serde(default)]
     pub smart_highlight: bool,
+    /// How many smart-highlight batches may be in flight. One of 1, 2, 4, 16.
+    #[serde(default = "default_smart_highlight_concurrency")]
+    pub smart_highlight_concurrency: u32,
+    /// Seconds for one smart-highlight batch, starting when its request is sent.
+    #[serde(default = "default_smart_highlight_timeout_secs")]
+    pub smart_highlight_timeout_secs: u32,
 }
 
 impl Default for DecisionSettings {
@@ -309,8 +319,22 @@ impl Default for DecisionSettings {
             base_url: default_decision_base_url(),
             model: default_decision_model(),
             smart_highlight: false,
+            smart_highlight_concurrency: default_smart_highlight_concurrency(),
+            smart_highlight_timeout_secs: default_smart_highlight_timeout_secs(),
         }
     }
+}
+
+const SMART_HIGHLIGHT_CONCURRENCY_CHOICES: &[u32] = &[1, 2, 4, 16];
+const SMART_HIGHLIGHT_TIMEOUT_MIN_SECS: u32 = 30;
+const SMART_HIGHLIGHT_TIMEOUT_MAX_SECS: u32 = 600;
+
+fn default_smart_highlight_concurrency() -> u32 {
+    16
+}
+
+fn default_smart_highlight_timeout_secs() -> u32 {
+    120
 }
 
 /// Embedding endpoint: the built-in provider, or a custom OpenAI-compatible
@@ -492,7 +516,7 @@ impl Default for AppSettings {
             network_proxy_url: default_network_proxy_url(),
             institution_proxy_prefix: String::new(),
             institution_proxy_cookie: String::new(),
-            institution_proxy_type: "ezproxy".to_string(),
+            institution_proxy_type: "auto".to_string(),
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
@@ -505,6 +529,7 @@ impl Default for AppSettings {
             pdf_vim_keys: true,
             vim_mode: true,
             hint_mode_enabled: true,
+            sound_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
             library_columns: default_library_columns(),
             connector_enabled: false,
@@ -1048,6 +1073,20 @@ impl AppSettingsStore {
         })
     }
 
+    /// Smart-highlight concurrency and per-batch timeout, after normalization.
+    pub fn smart_highlight_limits(&self) -> (u32, u32) {
+        let Ok(guard) = self.inner.lock() else {
+            return (
+                default_smart_highlight_concurrency(),
+                default_smart_highlight_timeout_secs(),
+            );
+        };
+        (
+            guard.decision.smart_highlight_concurrency,
+            guard.decision.smart_highlight_timeout_secs,
+        )
+    }
+
     /// Raw `(tunnel_id, api_key)` for the built-in ChatGPT tunnel supervisor.
     /// Returns None unless both are set; a UI mask counts as unset so a
     /// `settings_get` → `settings_set` round-trip never leaks or wipes the key.
@@ -1066,7 +1105,7 @@ impl AppSettingsStore {
     pub fn institution_proxy(
         &self,
     ) -> Option<(
-        agentero_core::features::paper::import::download::InstitutionProxyKind,
+        agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind,
         String,
         String,
     )> {
@@ -1076,7 +1115,7 @@ impl AppSettingsStore {
             return None;
         }
         let kind =
-            agentero_core::features::paper::import::download::InstitutionProxyKind::from_setting(
+            agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::from_setting(
                 &guard.institution_proxy_type,
             );
         Some((
@@ -1108,7 +1147,7 @@ impl AppSettingsStore {
             redact_secrets(next)
         };
         if let Some((kind, prefix, cookie)) = self.institution_proxy() {
-            agentero_core::features::paper::import::download::set_institution_proxy(
+            agentero_core::features::paper::import::institution_proxy::set_institution_proxy(
                 kind, &prefix, &cookie,
             );
         }
@@ -1312,6 +1351,13 @@ fn normalize(s: &mut AppSettings) {
     if s.decision.model.is_empty() && s.decision.provider == "jev" {
         s.decision.model = default_decision_model();
     }
+    if !SMART_HIGHLIGHT_CONCURRENCY_CHOICES.contains(&s.decision.smart_highlight_concurrency) {
+        s.decision.smart_highlight_concurrency = default_smart_highlight_concurrency();
+    }
+    s.decision.smart_highlight_timeout_secs = s.decision.smart_highlight_timeout_secs.clamp(
+        SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
+        SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+    );
     if s.batch_import_concurrency < 1 || s.batch_import_concurrency > 10 {
         s.batch_import_concurrency = default_batch_import_concurrency();
     }
@@ -1332,14 +1378,18 @@ fn normalize(s: &mut AppSettings) {
     s.institution_proxy_cookie = s.institution_proxy_cookie.trim().to_string();
     s.institution_proxy_type = if s.institution_proxy_type.eq_ignore_ascii_case("wengine") {
         "wengine".to_string()
-    } else {
+    } else if s.institution_proxy_type.eq_ignore_ascii_case("subdomain") {
+        "subdomain".to_string()
+    } else if s.institution_proxy_type.eq_ignore_ascii_case("ezproxy") {
         "ezproxy".to_string()
+    } else {
+        "auto".to_string()
     };
     // Keep the core download fallback in sync on both load and set paths.
-    let kind = agentero_core::features::paper::import::download::InstitutionProxyKind::from_setting(
+    let kind = agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::from_setting(
         &s.institution_proxy_type,
     );
-    agentero_core::features::paper::import::download::set_institution_proxy(
+    agentero_core::features::paper::import::institution_proxy::set_institution_proxy(
         kind,
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,
@@ -1891,7 +1941,7 @@ mod tests {
             commercial_provider_settings_key("openaiCompatible"),
             Some("openaiCompatible")
         );
-        assert_eq!(commercial_provider_settings_key("deeplx"), None);
+        assert_eq!(commercial_provider_settings_key("cnki"), None);
     }
 
     #[test]
@@ -2436,6 +2486,29 @@ mod tests {
     }
 
     #[test]
+    fn smart_highlight_limits_keep_supported_values() {
+        let mut settings = AppSettings::default();
+        assert_eq!(settings.decision.smart_highlight_concurrency, 16);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 120);
+
+        settings.decision.smart_highlight_concurrency = 3;
+        settings.decision.smart_highlight_timeout_secs = 9;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_concurrency, 16);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 30);
+
+        settings.decision.smart_highlight_concurrency = 4;
+        settings.decision.smart_highlight_timeout_secs = 300;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_concurrency, 4);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 300);
+
+        settings.decision.smart_highlight_timeout_secs = 9_000;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 600);
+    }
+
+    #[test]
     fn decision_config_never_returns_masked_key() {
         let store = AppSettingsStore::for_tests(AppSettings {
             decision: DecisionSettings {
@@ -2444,6 +2517,8 @@ mod tests {
                 base_url: "https://jev.test/v1".into(),
                 model: "jev-latest".into(),
                 smart_highlight: false,
+                smart_highlight_concurrency: 16,
+                smart_highlight_timeout_secs: 120,
             },
             ..AppSettings::default()
         });
@@ -2464,6 +2539,8 @@ mod tests {
                 base_url: "https://jev.test/v1".into(),
                 model: "jev-latest".into(),
                 smart_highlight: false,
+                smart_highlight_concurrency: 16,
+                smart_highlight_timeout_secs: 120,
             },
             ..AppSettings::default()
         });

@@ -112,10 +112,10 @@ export function enqueuePaperLayoutAnalysis(opts: {
 	/** Explicit reading action takes priority over background imports. */
 	focus?: boolean;
 	/**
-	 * Import / download origin. When Settings → Translate → "Auto-translate
-	 * after import" is on, the Host also queues a `layoutTranslate` job that
-	 * starts only after this layout analysis succeeds. Opening a paper or
-	 * re-parsing layout must leave this false.
+	 * When true and Settings → Translate → auto-translate after layout
+	 * analysis is on, the Host also queues a `layoutTranslate` job that
+	 * starts only after this layout analysis succeeds. Import, download, and
+	 * manual reparse set it. Opening a paper leaves it false.
 	 */
 	autoTranslate?: boolean;
 	onError?: (error: unknown) => void;
@@ -208,6 +208,12 @@ async function removePaperLayoutSidecars(paperAbsPath: string): Promise<void> {
  * is queued, the two sidecar files are removed so other readers do not
  * keep the old parse. The root `{id}.pdf` must already be on disk; this
  * does not fall through to `source/assets/`.
+ *
+ * An in-flight layout analysis or translation for this paper is cancelled
+ * first, so the replacement does not keep writing the old layout. The
+ * enqueue asks for a dependent translation; the Host queues it only when
+ * auto-translate after layout analysis is on, and only after this analysis
+ * succeeds.
  */
 export async function forcePaperLayoutAnalysis(opts: {
 	paperAbsPath: string;
@@ -235,7 +241,7 @@ export async function forcePaperLayoutAnalysis(opts: {
 		.getState()
 		.tasks.filter(
 			(task) =>
-				task.kind === "layoutAnalyze" &&
+				(task.kind === "layoutAnalyze" || task.kind === "layoutTranslate") &&
 				(task.status === "queued" || task.status === "running") &&
 				sameRelPaperPath(task.paperPath, paperRelPath),
 		);
@@ -246,10 +252,13 @@ export async function forcePaperLayoutAnalysis(opts: {
 					fallback: "layout job cancel failed",
 				});
 			} catch (error) {
-				logger.warn("cancel layout job before force reanalyze failed", {
-					jobId: task.id,
-					error: errorText(error),
-				});
+				logger.warn(
+					"cancel layout or translation job before force reanalyze failed",
+					{
+						jobId: task.id,
+						error: errorText(error),
+					},
+				);
 			}
 			cancelBackgroundTask(task.id);
 		}),
@@ -262,6 +271,7 @@ export async function forcePaperLayoutAnalysis(opts: {
 				path: paperRelPath,
 				lane: "focus",
 				force: true,
+				autoTranslate: true,
 			}),
 		{ fallback: "layout analysis enqueue failed" },
 	);

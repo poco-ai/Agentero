@@ -121,7 +121,7 @@ PRIMARY KEY (day, vault, kind, paper_path, facet)
 
 ### 保留与改名
 
-- 打开库时 prune：事件 180 天，日聚合 2 年；用于累计阅读时长的 `paper.blur` 日聚合长期保留，直到用户清除使用记录。旧策略已经删除的聚合无法恢复。
+- 打开库时 prune：事件 180 天，日聚合 2 年。
 - `paper_move` / `wiki_move` 成功后改写 `path` 与 `paper_path` 前缀。
 - `usage_clear` 清事件 + 日聚合 + memories；指定 vault 时保留其它库。
 
@@ -131,9 +131,6 @@ PRIMARY KEY (day, vault, kind, paper_path, facet)
 |---|---|
 | `activity_record_events` | 批量写入（前端缓冲后调用） |
 | `usage_clear` | 清空全部或指定 vault |
-| `usage_reading_durations` | 按 Vault 汇总 `paper.blur` 的 `SUM(dur_ms)`，返回论文根路径 → 累计毫秒数；不重复累计 `paper.session` |
-
-累计汇总使用 `idx_usage_daily_reading` 部分索引，按 `(vault, paper_path, dur_ms)` 排列有效 `paper.blur` 日聚合，避免全表扫描及临时分组排序。每次打开幂等检查，已有 schema v1 数据库也补建。首次创建的耗时与空间取决于历史聚合量。大论文库的实际 Host IPC 与表格性能见[性能验证](../test/2026-11-12-library-reading-time-performance.md)。
 
 ## CLI
 
@@ -141,7 +138,7 @@ CLI 不再暴露 `usage` 命令；清除请通过桌面端设置或 Host API 进
 
 ## 前端漏斗
 
-`track(kind, payload)` 是唯一入口。5s / 满 50 条 / 窗口 blur 刷新。普通事件按同一 `(kind, path, mode)` 1s 去重；持续时间片段为可累加数据，不按该窗口去重。前台活动 PDF/HTML 论文每 5s 切出 `paper.blur` 时间片并写入设备本地库，切换论文、进入笔记/Library、失焦或隐藏时提交尾段；重新聚焦只恢复当前正文。记录捕获所属 Vault 与完整论文根路径，异步提交不跟随之后的 Vault 切换。论文库显示规则及历史边界见 [../frontend/library.md](../frontend/library.md)。
+`track(kind, payload)` 是唯一入口。5s / 满 50 条 / 窗口 blur 刷新。同一 `(kind, path, mode)` 1s 去重。
 
 已接线：`paper.open` / `note.open` / `paper.focus|blur|session`、`asset.download`、`paper.import`、`skill.install`、`search.query`、`agent.run`、`paper.tag`、`paper.read`、`vault.open`、`onboarding.complete`。  
 `app.started` / `app.exited` 由 Host `Telemetry::start` / `shutdown` 写入，不走前端 `track()`。

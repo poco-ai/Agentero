@@ -91,8 +91,9 @@ pub trait DecisionProvider: Send + Sync {
 
 - `RuleProvider`：按注册顺序执行规则，`Some` 即停；无置信度（`status = decided`，无 metadata）。
 - `SystemOneProvider`：`state + questions -> answers` 的 HTTP 传输 + 答案解码，覆盖 jEV、
-  Cloudflare Clef 及兼容端点。`complete(body)` 是唯一的 HTTP 入口（Bearer key、错误截断、
-  超时、注入配置的 model），凭证通过 auth 闭包在请求时读设置。`decide` 用 config 构造请求，
+  Cloudflare Clef 及兼容端点。`complete(body)` 使用共享 client 的超时；
+  `complete_with_timeout` 只覆盖这一次请求，时钟从 `send` 起算。两者都负责 Bearer key、
+  错误截断和注入配置的 model，凭证通过 auth 闭包在请求时读设置。`decide` 用 config 构造请求，
   交给 `system_one::interpret_answers` 解码，再把 action/confidence/probabilities 组装成带
   metadata 的 `DecisionOutcome`。
 
@@ -107,6 +108,8 @@ pub trait DecisionProvider: Send + Sync {
 | `apiKey` | Bearer key（读回时打码）。 |
 | `model` | 请求注入的模型 id（如 `jev-latest` / `clef` / `clef-flash`）。 |
 | `smartHighlight` | 实验性 PDF 智能高亮开关。 |
+| `smartHighlightConcurrency` | 智能高亮同时在飞的批次数，只能是 1、2、4、16，默认 16。非法值回到 16。 |
+| `smartHighlightTimeoutSecs` | 单批超时秒数，30–600，默认 120。从该批请求发出时起算。 |
 
 预设只在设置界面切换时预填 baseUrl/model；`openai` 预填 Decisions 端点与 `gpt-6-luna`。
 调用方仍构造 System One 请求体，由 `openai_decisions` 适配器在传输层翻译为
@@ -181,6 +184,9 @@ const action = decideSync("file-tree.click", { node });
 
 智能高亮的 HTTP 传输已统一到 `SystemOneProvider::complete`：`features/jev` 保留句子抽取、
 问题构造与几何还原等业务逻辑，但不再自建 client、不再自己拼 Bearer 头、不再硬编码模型。
+每个句子有 5 个评分问题；单次请求不超过 64 个问题，因此每批最多 12 句。更长的论文按批拆开，
+按原顺序合并。实验设置里可选并发 1、2、4、16（默认 16）和单批超时 30–600 秒（默认 120）。
+超时从该批 HTTP 请求发出时起算；还在等并发名额的批次不会提前开始计时。
 
 ## 边界与后续
 

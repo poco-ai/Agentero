@@ -71,7 +71,7 @@ describe("built-in provider id", () => {
 		// hides the dot when `builtin_provider_status` reports unavailable).
 		expect("agentero" in result).toBe(true);
 		expect(result.agentero).toBe(false);
-		expect(result.google).toBe(false);
+		expect(result.tencenttransmart).toBe(false);
 	});
 });
 

@@ -19,12 +19,17 @@ import {
 	respondElicitation,
 	respondPermission,
 } from "@/lib/agent";
+import { useAgentSessionScope } from "@/lib/agent/agent-session-store";
 import type { ToolAskUserRequest } from "@/lib/agent/chat-state";
+import { claimInteractiveRequest } from "@/lib/agent/interactive-claims";
 import { events } from "@/lib/core/bindings";
+import { playCue } from "@/lib/ui/sound";
 
 export type UseAgentPermissionSurfacesOptions = {
 	toolAskUserRequest: ToolAskUserRequest | null;
 	setToolAskUserRequest: Dispatch<SetStateAction<ToolAskUserRequest | null>>;
+	/** Whether this surface owns the session that raised a request. */
+	ownsSession: (sessionId: string) => boolean;
 };
 
 export type AgentPermissionSurfaces = {
@@ -39,7 +44,12 @@ export type AgentPermissionSurfaces = {
 export function useAgentPermissionSurfaces({
 	toolAskUserRequest,
 	setToolAskUserRequest,
+	ownsSession,
 }: UseAgentPermissionSurfacesOptions): AgentPermissionSurfaces {
+	const { scopeId } = useAgentSessionScope();
+	// Overlay ids are keyed per chat surface: two mounted panels (rail + Zen
+	// slot) must not replace each other's stack entry.
+	const overlayId = (name: string) => (scopeId ? `${name}:${scopeId}` : name);
 	// Forward ACP permission requests (ask mode) to the user for an explicit decision.
 	const [permissionRequest, setPermissionRequest] =
 		useState<PermissionRequest | null>(null);
@@ -54,7 +64,7 @@ export function useAgentPermissionSurfaces({
 	const permissionRequestRef = useRef(permissionRequest);
 	permissionRequestRef.current = permissionRequest;
 	useOverlayRegistration(
-		"agent-permission",
+		overlayId("agent-permission"),
 		permissionRequest !== null,
 		() => {
 			const req = permissionRequestRef.current;
@@ -68,7 +78,7 @@ export function useAgentPermissionSurfaces({
 	const elicitationRequestRef = useRef(elicitationRequest);
 	elicitationRequestRef.current = elicitationRequest;
 	useOverlayRegistration(
-		"agent-elicitation",
+		overlayId("agent-elicitation"),
 		elicitationRequest !== null,
 		() => {
 			const req = elicitationRequestRef.current;
@@ -85,7 +95,7 @@ export function useAgentPermissionSurfaces({
 	const askUserRequestRef = useRef(askUserRequest);
 	askUserRequestRef.current = askUserRequest;
 	useOverlayRegistration(
-		"agent-ask-user",
+		overlayId("agent-ask-user"),
 		askUserRequest !== null,
 		() => {
 			const req = askUserRequestRef.current;
@@ -102,7 +112,7 @@ export function useAgentPermissionSurfaces({
 	const toolAskUserRequestRef = useRef(toolAskUserRequest);
 	toolAskUserRequestRef.current = toolAskUserRequest;
 	useOverlayRegistration(
-		"agent-tool-ask-user",
+		overlayId("agent-tool-ask-user"),
 		toolAskUserRequest !== null,
 		() => {
 			setToolAskUserRequest(null);
@@ -110,18 +120,27 @@ export function useAgentPermissionSurfaces({
 		{ modal: false },
 	);
 
-	useTauriEvent(events.agentPermissionRequest, (payload) =>
-		setPermissionRequest(payload),
-	);
+	useTauriEvent(events.agentPermissionRequest, (payload) => {
+		if (!ownsSession(payload.sessionId)) return;
+		if (!claimInteractiveRequest(payload.requestId)) return;
+		playCue("attention");
+		setPermissionRequest(payload);
+	});
 
 	useTauriEvent(events.agentElicitationRequest, (payload) => {
+		if (!ownsSession(payload.sessionId)) return;
+		if (!claimInteractiveRequest(payload.requestId)) return;
 		// Prefer host elicitation over tool-card promote.
+		playCue("attention");
 		setToolAskUserRequest(null);
 		setElicitationRequest(payload);
 	});
 
 	useTauriEvent(events.agentAskUserRequest, (payload) => {
+		if (!ownsSession(payload.sessionId)) return;
+		if (!claimInteractiveRequest(payload.requestId)) return;
 		// Grok ext is the authoritative respond path; drop tool-promote duplicate.
+		playCue("attention");
 		setToolAskUserRequest(null);
 		setAskUserRequest(payload);
 	});

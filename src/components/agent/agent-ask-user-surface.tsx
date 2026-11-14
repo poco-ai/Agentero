@@ -2,7 +2,8 @@
  * Structured ask-user UI (elicitation / Grok ext / tool-promote).
  * While active, replaces the bottom composer (mutually exclusive with free-text input).
  */
-import { useMemo } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { type ReactNode, useMemo } from "react";
 import { AskUserQuestionForm } from "@/components/agent/ask-user-question-form";
 import type { AskUserRequest, ElicitationRequest } from "@/lib/agent";
 import { respondAskUser, respondElicitation } from "@/lib/agent/api";
@@ -15,7 +16,41 @@ import {
 	questionsFromElicitationFields,
 	type ToolAskUserRequest,
 } from "@/lib/agent/chat-state";
+import { MOTION_MS } from "@/lib/core/motion";
 import { cn } from "@/lib/core/utils";
+
+/**
+ * Floating material sheet docked above the composer. Enters with a short
+ * spring from below (cross-fade when reduced motion is requested) so the
+ * questionnaire reads as a layer arriving over the transcript.
+ */
+function AskUserSurfaceCard({
+	children,
+	className,
+}: {
+	children: ReactNode;
+	className?: string;
+}) {
+	const reduceMotion = useReducedMotion();
+	return (
+		<div className={cn("shrink-0 px-3 pb-3", className)}>
+			<motion.div
+				initial={
+					reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.99 }
+				}
+				animate={{ opacity: 1, y: 0, scale: 1 }}
+				transition={
+					reduceMotion
+						? { duration: MOTION_MS.fast / 1000, ease: "easeOut" }
+						: { type: "spring", bounce: 0, duration: 0.4 }
+				}
+				className="relative overflow-hidden rounded-2xl border border-border/60 bg-popover/85 px-4 pt-2 pb-3 shadow-overlay backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-popover/70"
+			>
+				{children}
+			</motion.div>
+		</div>
+	);
+}
 
 /** True when the panel should show a questionnaire and hide the composer. */
 export function isAskUserSurfaceActive(input: {
@@ -101,138 +136,129 @@ export function AgentAskUserSurface({
 
 	if (!showElicitation && !showGrokAsk && !showToolAsk) return null;
 
-	// Docked at panel bottom while composer is hidden — a bit more bottom inset.
-	const shellClass = cn("shrink-0 bg-muted/10 px-3 pb-3 pt-0", className);
-	const cardClass =
-		"rounded-xl border border-border bg-muted/20 px-3 pb-3 pt-1";
-
 	if (showElicitation && elicitationRequest) {
 		const msg = elicitationRequest.message?.trim() ?? "";
 		const showMessage = msg.length > 0 && !/^input\s+requested\.?$/i.test(msg);
 		return (
-			<div className={shellClass}>
-				<div className={cardClass}>
-					{showMessage ? <p className="mb-2 text-sm leading-5">{msg}</p> : null}
-					<AskUserQuestionForm
-						key={elicitationRequest.requestId}
-						questions={elicitationQuestions}
-						disabled={disabled}
-						onSubmit={async (answers) => {
-							const content = elicitationContentFromAnswers(
-								elicitationQuestions,
-								answers,
-							);
-							await respondElicitation({
-								requestId: elicitationRequest.requestId,
-								action: "accept",
-								content,
-							});
+			<AskUserSurfaceCard className={className}>
+				{showMessage ? (
+					<p className="mb-1.5 text-sm leading-relaxed text-pretty">{msg}</p>
+				) : null}
+				<AskUserQuestionForm
+					key={elicitationRequest.requestId}
+					questions={elicitationQuestions}
+					disabled={disabled}
+					onSubmit={async (answers) => {
+						const content = elicitationContentFromAnswers(
+							elicitationQuestions,
+							answers,
+						);
+						await respondElicitation({
+							requestId: elicitationRequest.requestId,
+							action: "accept",
+							content,
+						});
+						onRecordAskUserAnswers({
+							sessionId: elicitationRequest.sessionId,
+							toolCallId: elicitationRequest.toolCallId,
+							questions: elicitationQuestions,
+							answers,
+						});
+						onElicitationResolved();
+						return true;
+					}}
+					onCancel={() => {
+						void respondElicitation({
+							requestId: elicitationRequest.requestId,
+							action: "cancel",
+						}).finally(() => {
 							onRecordAskUserAnswers({
 								sessionId: elicitationRequest.sessionId,
 								toolCallId: elicitationRequest.toolCallId,
 								questions: elicitationQuestions,
-								answers,
+								cancelled: true,
 							});
 							onElicitationResolved();
-							return true;
-						}}
-						onCancel={() => {
-							void respondElicitation({
-								requestId: elicitationRequest.requestId,
-								action: "cancel",
-							}).finally(() => {
-								onRecordAskUserAnswers({
-									sessionId: elicitationRequest.sessionId,
-									toolCallId: elicitationRequest.toolCallId,
-									questions: elicitationQuestions,
-									cancelled: true,
-								});
-								onElicitationResolved();
-							});
-						}}
-					/>
-				</div>
-			</div>
+						});
+					}}
+				/>
+			</AskUserSurfaceCard>
 		);
 	}
 
 	if (showGrokAsk && askUserRequest) {
 		return (
-			<div className={shellClass}>
-				<div className={cardClass}>
-					<AskUserQuestionForm
-						key={askUserRequest.requestId}
-						questions={askUserQuestions}
-						disabled={disabled}
-						onSubmit={async (answers) => {
-							await respondAskUser({
-								requestId: askUserRequest.requestId,
-								action: "accept",
-								answers: answers.map((answer) =>
-									Array.isArray(answer) ? answer.join(", ") : answer,
-								),
-							});
+			<AskUserSurfaceCard className={className}>
+				<AskUserQuestionForm
+					key={askUserRequest.requestId}
+					questions={askUserQuestions}
+					disabled={disabled}
+					onSubmit={async (answers) => {
+						await respondAskUser({
+							requestId: askUserRequest.requestId,
+							action: "accept",
+							answers: answers.map((answer) =>
+								Array.isArray(answer) ? answer.join(", ") : answer,
+							),
+						});
+						onRecordAskUserAnswers({
+							sessionId: askUserRequest.sessionId,
+							toolCallId: askUserRequest.toolCallId,
+							questions: askUserQuestions,
+							answers,
+						});
+						onAskUserResolved();
+						return true;
+					}}
+					onCancel={() => {
+						void respondAskUser({
+							requestId: askUserRequest.requestId,
+							action: "cancel",
+						}).finally(() => {
 							onRecordAskUserAnswers({
 								sessionId: askUserRequest.sessionId,
 								toolCallId: askUserRequest.toolCallId,
 								questions: askUserQuestions,
-								answers,
+								cancelled: true,
 							});
 							onAskUserResolved();
-							return true;
-						}}
-						onCancel={() => {
-							void respondAskUser({
-								requestId: askUserRequest.requestId,
-								action: "cancel",
-							}).finally(() => {
-								onRecordAskUserAnswers({
-									sessionId: askUserRequest.sessionId,
-									toolCallId: askUserRequest.toolCallId,
-									questions: askUserQuestions,
-									cancelled: true,
-								});
-								onAskUserResolved();
-							});
-						}}
-					/>
-				</div>
-			</div>
+						});
+					}}
+				/>
+			</AskUserSurfaceCard>
 		);
 	}
 
 	if (showToolAsk && toolAskUserRequest) {
 		return (
-			<div className={shellClass}>
-				<div className={cardClass}>
-					<AskUserQuestionForm
-						key={toolAskUserRequest.toolCallId}
-						questions={toolAskUserRequest.questions}
-						disabled={disabled}
-						onSubmit={async (answers) => {
-							const text = formatAskUserAnswers(
-								toolAskUserRequest.questions,
-								answers,
-							);
-							return onAnswerToolAskUser({
-								answer: text,
-								toolCallId: toolAskUserRequest.toolCallId,
-								questions: toolAskUserRequest.questions,
-								answers,
-							});
-						}}
-						onCancel={() => {
-							onRecordAskUserAnswers({
-								sessionId: toolAskUserRequest.sessionId,
-								toolCallId: toolAskUserRequest.toolCallId,
-								questions: toolAskUserRequest.questions,
-								cancelled: true,
-							});
-							onToolAskUserResolved();
-						}}
-					/>
-				</div>
-			</div>
+			<AskUserSurfaceCard className={className}>
+				<AskUserQuestionForm
+					key={toolAskUserRequest.toolCallId}
+					questions={toolAskUserRequest.questions}
+					disabled={disabled}
+					onSubmit={async (answers) => {
+						const text = formatAskUserAnswers(
+							toolAskUserRequest.questions,
+							answers,
+						);
+						return onAnswerToolAskUser({
+							answer: text,
+							toolCallId: toolAskUserRequest.toolCallId,
+							questions: toolAskUserRequest.questions,
+							answers,
+						});
+					}}
+					onCancel={() => {
+						onRecordAskUserAnswers({
+							sessionId: toolAskUserRequest.sessionId,
+							toolCallId: toolAskUserRequest.toolCallId,
+							questions: toolAskUserRequest.questions,
+							cancelled: true,
+						});
+						onToolAskUserResolved();
+					}}
+				/>
+			</AskUserSurfaceCard>
 		);
 	}
 

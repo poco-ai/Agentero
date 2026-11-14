@@ -1,4 +1,4 @@
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, LoaderCircle, Volume2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { memo, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import {
 	SettingsRow,
 	SettingsSectionLabel,
 } from "@/components/settings/settings-layout";
+import { Button } from "@/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -32,6 +33,7 @@ import {
 	WIKI_EMBED_FONT_SIZE_MAX,
 	WIKI_EMBED_FONT_SIZE_MIN,
 } from "@/lib/settings";
+import { playCue } from "@/lib/ui/sound";
 import { applyUiTheme } from "@/lib/ui/theme";
 
 export type AppearancePaneProps = {
@@ -39,6 +41,7 @@ export type AppearancePaneProps = {
 	uiTheme: string;
 	locale: LocalePreference;
 	uiScale: number;
+	soundEnabled: boolean;
 	editorFontSize: number;
 	interfaceFontFamily: string;
 	textFontFamily: string;
@@ -55,6 +58,7 @@ function AppearancePaneInner({
 	uiTheme,
 	locale,
 	uiScale,
+	soundEnabled,
 	editorFontSize,
 	interfaceFontFamily,
 	textFontFamily,
@@ -296,6 +300,29 @@ function AppearancePaneInner({
 								percent: Math.round(scale * 100),
 							})}
 						</span>
+					</div>
+				</SettingsRow>
+				<SettingsRow
+					label={t("appearance.sound.label")}
+					description={t("appearance.sound.description")}
+					htmlFor="sound-enabled"
+				>
+					<div className="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
+							aria-label={t("appearance.sound.preview")}
+							disabled={!soundEnabled}
+							onClick={() => playCue("done")}
+						>
+							<Volume2 />
+						</Button>
+						<Switch
+							id="sound-enabled"
+							checked={soundEnabled}
+							onCheckedChange={(checked) => patch({ soundEnabled: checked })}
+						/>
 					</div>
 				</SettingsRow>
 			</SettingsGroup>

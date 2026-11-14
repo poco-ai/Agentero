@@ -77,10 +77,7 @@ afterEach(() => {
 });
 
 it("keeps high-resolution tiles over the whole scrollport after zoom and split resize", async () => {
-	const { registry, viewport, zoom, scroll, tiling } = await createRegistry(
-		ZoomPluginPackage,
-		gutter,
-	);
+	const { registry, viewport, zoom, scroll, tiling } = await createRegistry();
 	const container = document.createElement("div");
 	const root = createRoot(container);
 	let tiles: Record<number, Tile[]> = {};
@@ -107,7 +104,6 @@ it("keeps high-resolution tiles over the whole scrollport after zoom and split r
 					createElement(DockviewViewport, {
 						documentId: docId,
 						hostRef: { current: container },
-						rightGutter: gutter,
 						// biome-ignore lint/correctness/noChildrenProp: required by DockviewViewportProps
 						children: "page",
 					}),
@@ -130,13 +126,14 @@ it("keeps high-resolution tiles over the whole scrollport after zoom and split r
 		expect(
 			viewport.provides().forDocument(docId).getMetrics().clientWidth,
 		).toBe(900);
-		expect(zoom.getState().currentZoomLevel).toBe(1.08);
-		expect(element.style.paddingRight).toBe("232px");
+		expect(zoom.getState().currentZoomLevel).toBe(1.433);
+		// No side gutter: the reading surface is the whole scrollport.
+		expect(element.style.paddingRight).toBe("20px");
 
 		zoom.requestZoom(2);
 		await act(() => vi.advanceTimersByTimeAsync(200));
-		// Pan to the left edge: the old reduced viewport only requested col 0,
-		// leaving the visible strip beyond 768px covered by the low-res base.
+		// Pan to the left edge: the page is wider than the viewport, so the
+		// visible strip needs the column beyond x = 512.
 		element.scrollLeft = 0;
 		await resize();
 		expect(scroll.getMetrics().pageVisibilityMetrics[0].scaled).toMatchObject({
@@ -216,7 +213,7 @@ it.each([
 	}
 });
 
-it("centers the zoom gesture in the reading box instead of half the comment rail", async () => {
+it("centers the zoom gesture in the reading box", async () => {
 	const observed: { target: Element; notify: () => void }[] = [];
 	vi.stubGlobal(
 		"ResizeObserver",
@@ -245,7 +242,6 @@ it("centers the zoom gesture in the reading box instead of half the comment rail
 					createElement(DockviewViewport, {
 						documentId: docId,
 						hostRef: { current: container },
-						rightGutter: gutter,
 						// biome-ignore lint/correctness/noChildrenProp: required by DockviewViewportProps
 						children: createElement(
 							ZoomGestureWrapper,
@@ -271,21 +267,21 @@ it("centers the zoom gesture in the reading box instead of half the comment rail
 		await act(() => vi.advanceTimersByTimeAsync(200));
 
 		const gesture = viewport.firstElementChild as HTMLDivElement;
-		expect(viewport.style.paddingRight).toBe("232px");
+		expect(viewport.style.paddingRight).toBe("20px");
 		Object.defineProperty(gesture, "offsetWidth", { get: () => pageWidth });
 		const notifyGesture = observed.find(
 			(entry) => entry.target === gesture,
 		)?.notify;
 		expect(notifyGesture).toBeTypeOf("function");
 
-		// Fit-width already fills the reading box, so the rail is not a leftover margin.
-		pageWidth = 900 - 20 - 232;
+		// Fit-width already fills the reading box, so there is no leftover margin.
+		pageWidth = 900 - 40;
 		notifyGesture?.();
 		expect(gesture.style.marginLeft).toBe("0px");
 
 		pageWidth = 400;
 		notifyGesture?.();
-		expect(gesture.style.marginLeft).toBe("124px");
+		expect(gesture.style.marginLeft).toBe("230px");
 	} finally {
 		await act(() => root.unmount());
 		container.remove();

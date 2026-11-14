@@ -73,6 +73,12 @@
 			"failed": "Failed"
 		}
 	},
+	"zen": {
+		"title": "Zen",
+		"newConversation": "New Session",
+		"untitled": "New chat",
+		"close": "Close conversation"
+	},
 	"tabs": {
 		"new": "Start a new conversation"
 	},
@@ -236,6 +242,7 @@
 		"answerRequired": "Choose an answer or enter a response.",
 		"progress": "{{current}} / {{total}}",
 		"freeTextPlaceholder": "Type your answer",
+		"other": "Other",
 		"pendingInComposer": "Answer in the questionnaire below",
 		"noAnswer": "No answer",
 		"cancelled": "Cancelled",

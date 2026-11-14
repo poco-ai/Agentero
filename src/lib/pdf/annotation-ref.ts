@@ -27,10 +27,12 @@ import {
 	highlightColorOf,
 	highlightQuoteOf,
 	highlightViewFromObject,
-	isHighlightObject,
+	isTextMarkupObject,
 	loadAnnotationItems,
+	textMarkupKindOf,
 } from "@/lib/pdf/highlight/annotation-store";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import { normalizeSentenceKey } from "@/lib/pdf/layout/layout-sentences";
 import { readMarkRaw } from "@/lib/pdf/selection/marks-io";
 import type { PdfVisualNormalizedRect } from "@/lib/pdf-visual/types";
@@ -60,6 +62,8 @@ export type AnnotationRef = {
 	/** User comment / visual-trace comment. */
 	comment: string;
 	color?: HighlightColor;
+	/** Text-markup shape; highlights / legacy refs default to `highlight`. */
+	shape?: PdfTextMarkupKind;
 	/** Optional crop preview for visual traces. */
 	image?: PdfVisualTraceImage;
 	/** Normalized rects when known (for outline y matching). */
@@ -187,7 +191,7 @@ export function highlightColorFromItems(
 		if (!item || typeof item !== "object") continue;
 		const annotation = (item as { annotation?: unknown }).annotation;
 		if (!annotation || typeof annotation !== "object") continue;
-		if (!isHighlightObject(annotation as PdfAnnotationObject)) continue;
+		if (!isTextMarkupObject(annotation as PdfAnnotationObject)) continue;
 		const color = highlightColorOf(
 			annotation as Parameters<typeof highlightColorOf>[0],
 		);
@@ -233,7 +237,7 @@ export async function lookupAnnotationRef(
 			contents?: string;
 		};
 		if (obj.id !== id) continue;
-		if (isHighlightObject(annotation as never)) {
+		if (isTextMarkupObject(annotation as never)) {
 			const hl = annotation as Parameters<typeof highlightQuoteOf>[0];
 			const comment = obj.contents?.trim() ?? "";
 			const rects = rectsFromHighlightObject(annotation);
@@ -245,6 +249,7 @@ export async function lookupAnnotationRef(
 				quote: highlightQuoteOf(hl),
 				comment,
 				color: highlightColorOf(hl),
+				shape: textMarkupKindOf(hl),
 				...(rects.length ? { rects } : {}),
 			};
 		}
@@ -440,7 +445,7 @@ export async function listPaperAnnotationSummaries(
 	for (const item of items) {
 		const annotation = (item as { annotation?: unknown }).annotation;
 		if (!annotation || typeof annotation !== "object") continue;
-		if (!isHighlightObject(annotation as never)) continue;
+		if (!isTextMarkupObject(annotation as never)) continue;
 		const view = highlightViewFromObject(
 			annotation as Parameters<typeof highlightViewFromObject>[0],
 			paperAbsPath,

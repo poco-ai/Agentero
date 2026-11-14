@@ -121,6 +121,9 @@
 		"loadFailed": "加载回收站失败。",
 		"purgeFailed": "永久删除失败。"
 	},
+	"zen": {
+		"title": "Zen"
+	},
 	"papersLibrary": {
 		"title": "论文库",
 		"loading": "正在加载论文…",

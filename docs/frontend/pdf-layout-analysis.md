@@ -21,10 +21,11 @@
         │  headless EmbedPDF 栈写 `{paper}/source/layout.json`（有缓存则跳过；`force` 不跳过）
         │  只打开论文根目录 `{id}.pdf`。根文件还没落盘时跳过，不改用 `source/assets/` 里的插图 PDF
         │  实现：`enqueue-paper-layout.ts` + `headless-analyze.ts`
-        │  设置开启「导入后自动翻译」时，同一次入队还创建依赖该任务的
+        │  设置开启「版面解析后自动翻译」时，同一次入队还创建依赖该任务的
         │  `layoutTranslate`（JobCenter `depends_on` / `AllSucceeded`）；
         │  广场 / Connector 的 PDF 由 Host 直接落盘，也显式调用同一 helper；
-        │  版面失败或取消则标记 Skipped，打开论文补解析 / 手动重解析不触发
+        │  版面失败或取消则标记 Skipped。打开论文补解析不触发；
+        │  单篇强制重解析和全库清除并重解析（范围含版面）会触发
         │  实现：`JobCenter::enqueue_layout_analysis_with_translate` +
         │  `headless-translate.ts`（渲染端执行，见 translate.md）
         │
@@ -151,7 +152,7 @@ LayoutAnalysisPluginPackage: {
 
 1. 读取本地 PDF，整份 base64 交给 Host 命令 `layout_remote_analyze_pdf`（`provider` 参数分发到 `src-tauri/src/features/paper/analyze/layout/hosted/` 的 `RemoteLayoutEngine` 实现：`paddle.rs` / `mineru.rs`）；token 由 Host 从设置注入，WebView 只持有 `*` 掩码；
 2. Host 轮询远端任务（总时限 10 分钟），期间通过 `layout-remote:progress` 事件回报进度（`requestId` 隔离并行任务）；
-3. 每页返回统一的 `boxes`（像素坐标 + `label` + `score`）；
+3. 每页返回统一的 `boxes`（像素坐标 + `label` + `score`）；返回页数必须等于上传 PDF 页数，少页时整次分析失败，不写 sidecar；
 4. 后续与本地路径完全共用：PDF text runs 补文字 / captionRole → `mergeCaptionsIntoHosts` → sidecar / index。
 
 **Paddle**（`paddle.rs`）：multipart 提交 `POST https://paddleocr.aistudio-app.com/api/v2/ocr/jobs`（`model: PP-StructureV3`，`Authorization: bearer <token>`）→ 每 3s 轮询 `GET …/jobs/{jobId}` → 下载 `resultUrl.jsonUrl`（JSONL），提取每页 `prunedResult.layout_det_res.boxes`；渲染像素尺寸优先取响应 `dataInfo` / `inputImage` JPEG 头，缺失时按 200 DPI 估算（归一化 `bbox` 不受影响，仅 points `rect` 可能有轻微偏差）。API Key 在 [AI Studio 访问令牌页](https://aistudio.baidu.com/account/accessToken) 获取。
@@ -161,6 +162,7 @@ LayoutAnalysisPluginPackage: {
 - 标签词表与本地一致，阈值同为 0.3。
 - sidecar `source.mode` 按 provider 记为 `paddle-layout` / `mineru-layout`（本地为 `embedpdf-layout`），均可被解析。
 - 进度 / 取消沿用 `LayoutTask` 形状。JobCenter 对远程 provider **不设并发上限**；`layout-remote:progress` 带 `requestId`，并行任务互不串进度。
+- 每次远程版面分析独立提交，使用唯一 `requestId`；重试不会复用旧版面请求，已取消请求的进度也不会覆盖新任务。取消会通过 `layout_remote_cancel` 终止对应 Host 等待；已提交的云端 batch 仍由服务端处理。
 - 无 paper 目录（拿不到 PDF 字节）或页数未知时自动回退本地 ONNX。
 
 ### Layout sidecar
@@ -174,10 +176,31 @@ type LayoutSidecar = {
     mode: "embedpdf-layout" | "paddle-layout" | "mineru-layout";
     generatedAt: string;
     textLayerExtracted?: boolean; // 文字层整篇已抽过；缺省则打开时再抽一次
+    completeness?: {
+      pageCount: number;
+      processedPages: number[];
+      textLayerComplete: boolean;
+      pageStats: Array<{
+        pageIndex: number;
+        regionCount: number;
+        textChars: number;
+        translatableRegionCount: number;
+        excludedTextChars?: number;
+        visualArea?: number;
+      }>;
+      warnings: Array<{ code: "content-gap"; pages: number[] }>;
+      contentRepairAttempted: boolean;
+    };
   };
   regions: PdfLayoutRegion[]; // raw, pre-merge
 };
 ```
+
+`completeness` 记录一次版面分析实际覆盖了哪些页。`processedPages` 与 `pageStats` 必须刚好覆盖 `0..pageCount-1`，`textLayerComplete` 必须为真，否则翻译入口按结构不完整处理。`content-gap` 只标记有文字层正文、却没有可译区域的页；空白页、整页图片或表格、算法框内文字、参考文献等保真内容不产生该警告。
+
+旧 sidecar 没有 `completeness` 时视为 `unknown`。导入、打开论文后的后台分析或翻译前守卫会首次打开 PDF，复用已有框轻量重走文字层：页数变化、文字层失败或发现正文缺口时才重新运行版面模型；能证明完整时写回元数据并保留原 `generatedAt`。`contentRepairAttempted` 表示翻译前已经主动重跑过一次内容修复，后续再次出现警告时继续翻译可用页，避免无限重试和重复费用。
+
+翻译保真区域与正文提取共用 `preservedLayoutRegions()`：算法、脚注、页眉页脚、页码等模型分类须达到 `LAYOUT_SIDEBAR_MIN_SCORE`（0.3）才参与字符排除和翻译项过滤，低分重叠候选框保留在 raw sidecar 中但不遮蔽正文。首页作者信息带由达到阈值的标题与摘要等锚点推导，带内低分文字块仍按几何关系保留原文。提取规则变化同步升级 reflow IR 算法版本，已有缺字缓存会重新提取。
 
 #### 侧栏索引（CLI）
 
@@ -193,9 +216,9 @@ type LayoutSidecar = {
 
 **重新分析按钮**（Figures header）：`force: false`。有 `source/layout.json` 时不跑 PP-DocLayoutV3。文字层标记已在则只重跑 JSON→侧栏（`mergeCaptionsIntoHosts` + NMS），不改 raw sidecar。标记缺失时把抽到的文字写回同一次解析，`generatedAt` 不变；写之前若磁盘上的 mode、时间戳或框几何已经变了，则放弃这次写回。两种情况都会刷新 `layout-index.json`（内容没变则不落盘）。无缓存时才走完整 PDF→JSON。
 
-**强制重新解析**（插图侧栏右上角，布局叠加开关左侧）：确认弹窗后只处理当前这一篇。入口 `forcePaperLayoutAnalysis`（`enqueue-paper-layout.ts`）+ `PdfForceLayoutButton`。根目录没有 `{id}.pdf` 时只提示，不改 sidecar。否则取消这篇进行中的 `layoutAnalyze`，enqueue `force: true`（focus lane），入队成功后再删 `source/layout.json` 和 `source/layout-index.json`。`analyzePaperLayoutHeadless` 读任务上的 `force`，为真时跳过「已有 regions 就返回」；`runDocumentLayoutAnalysis` 同样收到 `force: true`。版面分析重新选 PDF 时只用 `canonicalPaperPdfPath`（`{paper}/{id}.pdf`），根目录文件不在则 soft-skip，不再调用会下钻到 `source/assets/` 的 `findLocalPdfPath`。远程 provider 上传同一条路径。
+**强制重新解析**（插图侧栏右上角，布局叠加开关左侧）：确认弹窗后只处理当前这一篇。入口 `forcePaperLayoutAnalysis`（`enqueue-paper-layout.ts`）+ `PdfForceLayoutButton`。根目录没有 `{id}.pdf` 时只提示，不改 sidecar。否则取消这篇进行中的 `layoutAnalyze` 和 `layoutTranslate`，enqueue `force: true`（focus lane）并带 `autoTranslate`。设置开启「版面解析后自动翻译」时，Host 再入队依赖这次版面任务的全文翻译，复用仍匹配的译文；版面失败或取消则跳过。确认弹窗会说明这一点。入队成功后再删 `source/layout.json` 和 `source/layout-index.json`。`analyzePaperLayoutHeadless` 读任务上的 `force`，为真时跳过「已有 regions 就返回」；`runDocumentLayoutAnalysis` 同样收到 `force: true`。版面分析重新选 PDF 时只用 `canonicalPaperPdfPath`（`{paper}/{id}.pdf`），根目录文件不在则 soft-skip，不再调用会下钻到 `source/assets/` 的 `findLocalPdfPath`。远程 provider 上传同一条路径。
 
-**全库重置**（设置 →「版面解析」底部两个按钮）：Host 命令 `clear_parse_results` / `clear_and_reparse`（`src-tauri/src/features/jobs/commands.rs`）按 catalog 逐篇删除所选 scope 的解析产物——`layout`（`source/layout.json` + `layout-index.json`）、`paper`（`PAPER.md`）或 `all`（默认）。删除前先取消该 Vault 下相关 queued/running 的 `layoutAnalyze` / `parseBody` job（防止晚到的 runner 把旧结果写回），删除后清空 `CapsCache`。「清除并重新解析」再对全部论文 enqueue `force: true` 的重新解析 job（idle lane，沿用 per-kind 并发上限）。仅支持本地 Vault；前端入口 `src/lib/paper/reparse.ts` + `layout-pane.tsx`（确认弹窗内选 scope）。
+**全库重置**（设置 →「版面解析」底部两个按钮）：Host 命令 `clear_parse_results` / `clear_and_reparse`（`src-tauri/src/features/jobs/commands.rs`）按 catalog 逐篇删除所选 scope 的解析产物——`layout`（`source/layout.json` + `layout-index.json`）、`paper`（`PAPER.md`）或 `all`（默认）。删除前先取消该 Vault 下相关 queued/running 的 job：版面范围取消 `layoutAnalyze` 和 `layoutTranslate`，正文范围取消 `parseBody`（防止晚到的 runner 把旧结果写回），删除后清空 `CapsCache`。「清除并重新解析」再对全部论文 enqueue `force: true` 的重新解析 job（idle lane，沿用 per-kind 并发上限）。范围包含版面且「版面解析后自动翻译」开启时，每篇再入队依赖该次版面任务的全文翻译；确认弹窗提示可能产生批量翻译请求和费用。仅支持本地 Vault；前端入口 `src/lib/paper/reparse.ts` + `layout-pane.tsx`（确认弹窗内选 scope）。
 
 ---
 

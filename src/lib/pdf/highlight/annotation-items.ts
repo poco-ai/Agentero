@@ -1,28 +1,76 @@
 import {
 	type PdfAnnotationObject,
 	PdfAnnotationSubtype,
-	type PdfHighlightAnnoObject,
 } from "@embedpdf/models";
 import type { AnnotationTransferItem } from "@embedpdf/plugin-annotation";
+import type { PdfTextMarkupAnnoObject } from "@/lib/pdf/highlight/types";
 
-const HIGHLIGHT_OVERRIDE_FIELDS = [
+const MARKUP_OVERRIDE_FIELDS = [
 	"contents",
 	"strokeColor",
 	"color",
 	"opacity",
 	"custom",
-] as const satisfies readonly (keyof PdfHighlightAnnoObject)[];
+] as const satisfies readonly (keyof PdfTextMarkupAnnoObject)[];
 
-export type HighlightAnnotationOverride = {
+export type MarkupAnnotationOverride = {
 	pageIndex: number;
 	id: string;
-	patch: Partial<PdfHighlightAnnoObject>;
+	patch: Partial<PdfTextMarkupAnnoObject>;
 };
 
 export type AnnotationImportPlan = {
 	imports: AnnotationTransferItem[];
-	highlightOverrides: HighlightAnnotationOverride[];
+	annotationOverrides: MarkupAnnotationOverride[];
 };
+
+/** Both shapes share the overrideable text-markup fields. */
+function isTextMarkupType(type: PdfAnnotationSubtype): boolean {
+	return (
+		type === PdfAnnotationSubtype.HIGHLIGHT ||
+		type === PdfAnnotationSubtype.UNDERLINE
+	);
+}
+
+type SerializedAnnotation = Omit<
+	AnnotationTransferItem["annotation"],
+	"created" | "modified"
+> & {
+	created?: Date | string | null;
+	modified?: Date | string | null;
+};
+
+function reviveDate(value: unknown): Date | undefined {
+	if (value instanceof Date)
+		return Number.isNaN(value.getTime()) ? undefined : value;
+	if (typeof value !== "string" || !value.trim()) return undefined;
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/**
+ * `annotations.json` is JSON, so a saved annotation's `created` / `modified`
+ * Date becomes an ISO string. PDFium calls Date methods directly when creating
+ * the annotation, which rejects the whole import. Restore the two fields at the
+ * file boundary so reopened highlights commit like freshly created ones.
+ */
+export function reviveAnnotationDates(
+	item: AnnotationTransferItem,
+): AnnotationTransferItem {
+	const annotation = item.annotation as SerializedAnnotation;
+	const created = reviveDate(annotation.created);
+	const modified = reviveDate(annotation.modified);
+	if (created === annotation.created && modified === annotation.modified)
+		return item;
+	return {
+		...item,
+		annotation: {
+			...annotation,
+			created,
+			modified,
+		} as AnnotationTransferItem["annotation"],
+	};
+}
 
 function stableValueKey(value: unknown): string {
 	return (
@@ -70,24 +118,27 @@ export function dedupeAnnotationItems(
 	return result;
 }
 
-function highlightOverridePatch(
-	existing: PdfHighlightAnnoObject,
-	saved: PdfHighlightAnnoObject,
-): Partial<PdfHighlightAnnoObject> | null {
+function markupOverridePatch(
+	existing: PdfTextMarkupAnnoObject,
+	saved: PdfTextMarkupAnnoObject,
+): Partial<PdfTextMarkupAnnoObject> | null {
 	const patch: Record<string, unknown> = {};
-	for (const key of HIGHLIGHT_OVERRIDE_FIELDS) {
+	for (const key of MARKUP_OVERRIDE_FIELDS) {
 		if (stableValueKey(existing[key]) === stableValueKey(saved[key])) continue;
 		patch[key] = saved[key];
 	}
 	return Object.keys(patch).length
-		? (patch as Partial<PdfHighlightAnnoObject>)
+		? (patch as Partial<PdfTextMarkupAnnoObject>)
 		: null;
 }
 
 /**
- * Same-id highlights already exist in the native PDF, but their sidecar copy
- * may contain the user's comment, colour and app metadata. Re-importing that
- * id would append a duplicate page entry, so plan those values as updates.
+ * Same-id text-markup annotations already exist in the native PDF, but their
+ * sidecar copy may contain the user's comment, colour and app metadata.
+ * Re-importing that id would append a duplicate page entry, so plan those
+ * values as updates. The annotation type (highlight vs underline) must match;
+ * otherwise the stored item is a different shape and goes through the normal
+ * import path.
  */
 export function planAnnotationItemImport(
 	items: readonly AnnotationTransferItem[],
@@ -97,7 +148,7 @@ export function planAnnotationItemImport(
 		existing.map((annotation) => [annotation.id, annotation]),
 	);
 	const imports: AnnotationTransferItem[] = [];
-	const highlightOverrides = new Map<string, HighlightAnnotationOverride>();
+	const annotationOverrides = new Map<string, MarkupAnnotationOverride>();
 
 	for (const item of items) {
 		const annotation = item.annotation;
@@ -105,12 +156,17 @@ export function planAnnotationItemImport(
 			? existingById.get(annotation.id)
 			: undefined;
 		if (
-			current?.type === PdfAnnotationSubtype.HIGHLIGHT &&
-			annotation?.type === PdfAnnotationSubtype.HIGHLIGHT
+			current &&
+			annotation &&
+			isTextMarkupType(current.type) &&
+			current.type === annotation.type
 		) {
-			const patch = highlightOverridePatch(current, annotation);
+			const patch = markupOverridePatch(
+				current as PdfTextMarkupAnnoObject,
+				annotation as PdfTextMarkupAnnoObject,
+			);
 			if (patch) {
-				highlightOverrides.set(`${current.pageIndex}:${current.id}`, {
+				annotationOverrides.set(`${current.pageIndex}:${current.id}`, {
 					pageIndex: current.pageIndex,
 					id: current.id,
 					patch,
@@ -123,6 +179,6 @@ export function planAnnotationItemImport(
 
 	return {
 		imports: dedupeAnnotationItems(imports, existing),
-		highlightOverrides: [...highlightOverrides.values()],
+		annotationOverrides: [...annotationOverrides.values()],
 	};
 }

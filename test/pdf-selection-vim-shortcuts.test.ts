@@ -86,6 +86,7 @@ async function press(key: string, init: KeyboardEventInit = {}) {
 beforeEach(async () => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.clearAllMocks();
+	localStorage.clear();
 	container = document.createElement("div");
 	host = document.createElement("div");
 	host.setAttribute("data-pdf-viewport", "");
@@ -119,11 +120,68 @@ it("selects every color without hovering while Vim reading keys are enabled", as
 	expect(onFindNext).not.toHaveBeenCalled();
 });
 
+async function rightClickSwatch(color: string) {
+	const swatch =
+		container.querySelectorAll<HTMLButtonElement>("fieldset button")[
+			HIGHLIGHT_COLORS.indexOf(color as (typeof HIGHLIGHT_COLORS)[number])
+		];
+	if (!swatch) throw new Error(`Missing ${color} swatch`);
+	await act(() =>
+		swatch.dispatchEvent(
+			new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+		),
+	);
+}
+
+it("right-click flips only the swatch it targets", async () => {
+	await render(true);
+	await rightClickSwatch("blue");
+	expect(await press("1")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("yellow", "highlight");
+	expect(await press("3")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("blue", "underline");
+});
+
+it("remembers each swatch's shape across selection menus", async () => {
+	await render(true);
+	await rightClickSwatch("green");
+	await render(false);
+	await render(true);
+	expect(await press("3")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("blue", "highlight");
+	expect(await press("2")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("green", "underline");
+});
+
+it("forces underline with the Option+digit prefix without changing the swatch shape", async () => {
+	await render(true);
+	// macOS composes ⌥1 into "¡"; the physical code still identifies the key.
+	expect(await press("¡", { code: "Digit1", altKey: true })).toBe(true);
+	expect(onHighlight).toHaveBeenCalledExactlyOnceWith("yellow", "underline");
+	// Notes follow the forced shape.
+	expect(await press("n")).toBe(true);
+	expect(onNote).toHaveBeenLastCalledWith("underline");
+	// Bare digits keep the swatch's remembered shape.
+	expect(await press("1")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("yellow", "highlight");
+	expect(mocks.scroll.scrollToPage).not.toHaveBeenCalled();
+});
+
+it("keeps the Option+digit underline independent of a right-clicked swatch", async () => {
+	await render(true);
+	await rightClickSwatch("green");
+	// Windows/Linux keep the digit as event.key under Alt.
+	expect(await press("2", { code: "Digit2", altKey: true })).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("green", "underline");
+	expect(await press("2")).toBe(true);
+	expect(onHighlight).toHaveBeenLastCalledWith("green", "underline");
+});
+
 it("clears the Vim page prefix when a selection action takes over and restores navigation on close", async () => {
 	expect(await press("9")).toBe(true);
 	await render(true);
 	expect(await press("2")).toBe(true);
-	expect(onHighlight).toHaveBeenCalledExactlyOnceWith("green");
+	expect(onHighlight).toHaveBeenCalledExactlyOnceWith("green", "highlight");
 	await render(false);
 	await press("G", { shiftKey: true });
 	expect(mocks.scroll.scrollToPage).toHaveBeenLastCalledWith({

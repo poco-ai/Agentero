@@ -88,7 +88,8 @@ export function rectBottomCenterScreen(
  * EmbedPDF reports rects in PDF page coordinates (points); dividing by the page
  * size yields the 0–1 rects the Ask/Translate marks + pins use.
  *
- * Ask/Translate anchor to a single page. Use `preferredPageIndex` (e.g. the
+ * Cards anchor to a single page while retaining the full selection. Use
+ * `preferredPageIndex` (e.g. the
  * page where the cursor ended) when available; otherwise fall back to the first
  * page of the selection.
  */
@@ -99,26 +100,27 @@ export function anchorFromEmbedSelection(
 	trigger: PdfAskTrigger = "selection",
 	preferredPageIndex?: number,
 ): PdfAskAnchor | null {
-	const first = pages[0];
-	if (!first) return null;
+	const selectionPages = pages.flatMap((page) => {
+		const size = pageSizePoints(page.pageIndex);
+		if (!size || size.width <= 0 || size.height <= 0) return [];
+		const rects: PdfAskNormalizedRect[] = page.segmentRects
+			.filter((r) => r.size.width > 0 && r.size.height > 0)
+			.map((r) => ({
+				x: clamp01(r.origin.x / size.width),
+				y: clamp01(r.origin.y / size.height),
+				w: clamp01(r.size.width / size.width),
+				h: clamp01(r.size.height / size.height),
+			}));
+		return rects.length ? [{ page: page.pageIndex + 1, rects }] : [];
+	});
 	const page =
-		preferredPageIndex != null
-			? (pages.find((p) => p.pageIndex === preferredPageIndex) ?? first)
-			: first;
-	const size = pageSizePoints(page.pageIndex);
-	if (!size || size.width <= 0 || size.height <= 0) return null;
-	const rects: PdfAskNormalizedRect[] = page.segmentRects
-		.filter((r) => r.size.width > 0 && r.size.height > 0)
-		.map((r) => ({
-			x: clamp01(r.origin.x / size.width),
-			y: clamp01(r.origin.y / size.height),
-			w: clamp01(r.size.width / size.width),
-			h: clamp01(r.size.height / size.height),
-		}));
-	if (!rects.length) return null;
+		selectionPages.find(
+			(page) => page.page === (preferredPageIndex ?? -1) + 1,
+		) ?? selectionPages[0];
+	if (!page) return null;
 	return {
-		page: page.pageIndex + 1,
-		rects,
+		...page,
+		...(selectionPages.length > 1 ? { selectionPages } : {}),
 		quote: quote.trim() || undefined,
 		trigger,
 	};

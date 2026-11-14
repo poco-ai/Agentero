@@ -12,11 +12,7 @@
  */
 
 import { useDocumentState } from "@embedpdf/core/react";
-import {
-	PdfAnnotationSubtype,
-	type PdfHighlightAnnoObject,
-	type PdfLinkAnnoObject,
-} from "@embedpdf/models";
+import type { PdfLinkAnnoObject, Rect } from "@embedpdf/models";
 import {
 	AnnotationLayer,
 	type BoxedAnnotationRenderer,
@@ -69,6 +65,7 @@ import { PASSIVE_LINK_RENDERER } from "@/components/viewer/pdf/layers/link-annot
 import { PdfTextSelectionLayer } from "@/components/viewer/pdf/layers/pdf-text-selection-layer";
 import {
 	PASSIVE_HIGHLIGHT_RENDERER,
+	PASSIVE_UNDERLINE_RENDERER,
 	READING_ANNOTATION_RENDERERS,
 } from "@/components/viewer/pdf/layers/reading-annotation-renderers";
 import { PdfRegionSelectLayer } from "@/components/viewer/pdf/layers/region-select-layer";
@@ -87,7 +84,10 @@ import type {
 import { cn } from "@/lib/core/utils";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
-import { isLiveAnnotation } from "@/lib/pdf/highlight/annotation-store";
+import {
+	isLiveAnnotation,
+	isTextMarkupObject,
+} from "@/lib/pdf/highlight/annotation-store";
 import {
 	HIGHLIGHT_HEX,
 	HIGHLIGHT_OPACITY,
@@ -99,6 +99,10 @@ import {
 	sentenceHighlightTints,
 } from "@/lib/pdf/highlight/sentence-tint";
 import type { HighlightQuoteTint } from "@/lib/pdf/highlight/translated-geometry";
+import type {
+	PdfTextMarkupAnnoObject,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import {
 	isLayoutRegionActivation,
 	isLayoutTranslateItemPainted,
@@ -172,6 +176,13 @@ function UnrotatedPageFrame({
 }
 
 const EMPTY_HIGHLIGHT_SET = new Set<string>();
+const TRANSLATION_SEARCH_LAYER_STYLE = {
+	...PAGE_LAYER_STYLE,
+	zIndex: 5,
+	// The z-index isolates the child result boxes' multiply blend from the
+	// translated page. Blend the whole layer so glyphs stay visible.
+	mixBlendMode: "multiply" as const,
+};
 
 /**
  * Saved translation selection. Same yellow as the English highlight, placed
@@ -183,6 +194,7 @@ function TranslatedHighlightLayer({
 	paints: readonly {
 		id: string;
 		color: HighlightColor;
+		shape: PdfTextMarkupKind;
 		rects: PdfAskNormalizedRect[];
 	}[];
 }) {
@@ -197,15 +209,27 @@ function TranslatedHighlightLayer({
 				paint.rects.map((rect) => (
 					<div
 						key={`${paint.id}:${rect.x}:${rect.y}:${rect.w}:${rect.h}`}
-						style={{
-							position: "absolute",
-							left: `${rect.x * 100}%`,
-							top: `${rect.y * 100}%`,
-							width: `${rect.w * 100}%`,
-							height: `${rect.h * 100}%`,
-							backgroundColor: HIGHLIGHT_HEX[paint.color],
-							opacity: HIGHLIGHT_OPACITY,
-						}}
+						style={
+							paint.shape === "underline"
+								? {
+										position: "absolute",
+										left: `${rect.x * 100}%`,
+										top: `${rect.y * 100}%`,
+										width: `${rect.w * 100}%`,
+										height: `${rect.h * 100}%`,
+										borderBottom: `2px solid ${HIGHLIGHT_HEX[paint.color]}`,
+										boxSizing: "border-box",
+									}
+								: {
+										position: "absolute",
+										left: `${rect.x * 100}%`,
+										top: `${rect.y * 100}%`,
+										width: `${rect.w * 100}%`,
+										height: `${rect.h * 100}%`,
+										backgroundColor: HIGHLIGHT_HEX[paint.color],
+										opacity: HIGHLIGHT_OPACITY,
+									}
+						}
 					/>
 				)),
 			)}
@@ -376,12 +400,20 @@ export type PdfPageMarksSlice = {
 	 */
 	translatedHighlightsByPage: ReadonlyMap<
 		number,
-		{ id: string; color: HighlightColor; rects: PdfAskNormalizedRect[] }[]
+		{
+			id: string;
+			color: HighlightColor;
+			shape: PdfTextMarkupKind;
+			rects: PdfAskNormalizedRect[];
+		}[]
 	>;
 };
 
 /** Layout-analysis derived overlays (hover targets, debug boxes, translations). */
 export type PdfPageLayoutSlice = {
+	selectionStartPageIndex?: number | null;
+	selectionInsertionRegions?: readonly PdfLayoutRegion[];
+	selectionTextExclusionsByPage?: ReadonlyMap<number, readonly Rect[]>;
 	hoverableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	rawRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	layoutOverlayVisible: boolean;
@@ -431,7 +463,7 @@ export type PdfPageModeSlice = {
 	translationOnly?: boolean;
 	/** PDFs outside papers/: annotation / translate / layout layers stay off. */
 	plainViewer?: boolean;
-	/** Full-width embeds show active comment cards inside the page. */
+	/** Narrow embeds show active comment cards inside the page. */
 	insetCommentCards?: boolean;
 };
 
@@ -514,6 +546,10 @@ export type PdfPageLayersProps = {
 	reflowDocumentVersion?:
 		| import("@/lib/pdf/reflow/output-version").ReflowOutputVersion
 		| null;
+	/** Document whose active find results should be painted on this page. */
+	searchDocumentId?: string;
+	/** Explicit scale for a hidden search document (the translated PDF). */
+	searchScale?: number;
 	width: number;
 	height: number;
 	/** Paper tone for this viewer (process-wide preference). */
@@ -625,6 +661,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	pageIndex,
 	reflowDocumentId,
 	reflowDocumentVersion,
+	searchDocumentId,
+	searchScale,
 	width,
 	height,
 	tone,
@@ -757,6 +795,9 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		layout.layoutTranslateItemsByPage.get(pageIndex);
 	const translationVisible =
 		layoutTranslateOnPage?.some(isLayoutTranslateItemPainted) ?? false;
+	const activeSearchDocumentId = searchDocumentId ?? docId;
+	const searchAboveTranslation =
+		translationVisible || activeSearchDocumentId !== docId;
 	const shownComments = translationVisible
 		? comments.map((comment) => commentForVisibleTranslation(comment, true))
 		: comments;
@@ -831,18 +872,25 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		if (!translationVisible || resolvedTranslatedIds.size === 0) {
 			return READING_ANNOTATION_RENDERERS;
 		}
-		return [
-			{
-				...PASSIVE_HIGHLIGHT_RENDERER,
-				render: (props) => {
-					if (resolvedTranslatedIds.has(props.currentObject.id)) {
-						return (
-							<span className="pointer-events-none hidden" aria-hidden="true" />
-						);
-					}
-					return PASSIVE_HIGHLIGHT_RENDERER.render(props);
-				},
+		// The translated sentence tint owns these marks while the overlay shows;
+		// suppressing both shapes avoids a duplicate English highlight/rule on
+		// top of the translated text.
+		const suppress = (
+			renderer: BoxedAnnotationRenderer,
+		): BoxedAnnotationRenderer => ({
+			...renderer,
+			render: (props) => {
+				if (resolvedTranslatedIds.has(props.currentObject.id)) {
+					return (
+						<span className="pointer-events-none hidden" aria-hidden="true" />
+					);
+				}
+				return renderer.render(props);
 			},
+		});
+		return [
+			suppress(PASSIVE_HIGHLIGHT_RENDERER),
+			suppress(PASSIVE_UNDERLINE_RENDERER),
 			PASSIVE_LINK_RENDERER,
 		];
 	}, [translationVisible, resolvedTranslatedIds]);
@@ -907,10 +955,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					.getAnnotationById(hit.id);
 				if (tracked && isLiveAnnotation(tracked)) {
 					const object = tracked.object;
-					if (
-						object.type === PdfAnnotationSubtype.HIGHLIGHT &&
-						object.pageIndex === pageIndex
-					) {
+					if (isTextMarkupObject(object) && object.pageIndex === pageIndex) {
 						return object;
 					}
 				}
@@ -924,8 +969,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			.filter(isLiveAnnotation)
 			.map((annotation) => annotation.object)
 			.filter(
-				(annotation): annotation is PdfHighlightAnnoObject =>
-					annotation.type === PdfAnnotationSubtype.HIGHLIGHT &&
+				(annotation): annotation is PdfTextMarkupAnnoObject =>
+					isTextMarkupObject(annotation) &&
 					annotation.pageIndex === pageIndex &&
 					(!translationVisible || !resolvedTranslatedIds.has(annotation.id)),
 			);
@@ -1208,6 +1253,12 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			>
 				{paperRaster}
 				{translateOverlay}
+				<SearchLayer
+					documentId={activeSearchDocumentId}
+					pageIndex={pageIndex}
+					scale={searchScale}
+					style={TRANSLATION_SEARCH_LAYER_STYLE}
+				/>
 			</div>
 		);
 	}
@@ -1297,11 +1348,13 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				</button>
 			)}
 			{paperRaster}
-			<SearchLayer
-				documentId={docId}
-				pageIndex={pageIndex}
-				style={PAGE_LAYER_STYLE}
-			/>
+			{!searchAboveTranslation ? (
+				<SearchLayer
+					documentId={docId}
+					pageIndex={pageIndex}
+					style={PAGE_LAYER_STYLE}
+				/>
+			) : null}
 			{/*
 			 * EmbedPDF raw bbox layer — kept mounted for plugin state, but
 			 * visibility is forced off (see effect). Store-backed boxes below.
@@ -1329,6 +1382,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 							pageIndex={pageIndex}
 							background={PDF_TEXT_SELECTION_BACKGROUND}
 							armed={selectionArmed}
+							insertionRegions={layout.selectionInsertionRegions}
+							selectionStartPageIndex={layout.selectionStartPageIndex}
+							excludedTextRects={layout.selectionTextExclusionsByPage?.get(
+								pageIndex,
+							)}
 							draftPages={
 								marks.selectionCommentDraft?.visiblePages?.length
 									? undefined
@@ -1446,6 +1504,14 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				 * z-5); glyphs are z-6 so the tint cannot wash them out.
 				 */}
 				{translateOverlay}
+				{searchAboveTranslation ? (
+					<SearchLayer
+						documentId={activeSearchDocumentId}
+						pageIndex={pageIndex}
+						scale={searchScale}
+						style={TRANSLATION_SEARCH_LAYER_STYLE}
+					/>
+				) : null}
 				<TranslationLiveSelection documentId={docId} pageIndex={pageIndex} />
 				{translationVisible ? (
 					<TranslatedHighlightLayer paints={translatedPaints} />
@@ -1719,15 +1785,26 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 							<div
 								key={`comment-hover-${emphasizedComment.id}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
 								className="pointer-events-none absolute z-[4] rounded-[1px] mix-blend-multiply"
-								style={{
-									left: `${rect.x * 100}%`,
-									top: `${rect.y * 100}%`,
-									width: `${rect.w * 100}%`,
-									height: `${rect.h * 100}%`,
-									backgroundColor: highlightHoverOverlayColor(
-										emphasizedComment.color,
-									),
-								}}
+								style={
+									emphasizedComment.shape === "underline"
+										? {
+												left: `${rect.x * 100}%`,
+												top: `${rect.y * 100}%`,
+												width: `${rect.w * 100}%`,
+												height: `${rect.h * 100}%`,
+												borderBottom: `2px solid ${HIGHLIGHT_HEX[emphasizedComment.color]}`,
+												boxSizing: "border-box",
+											}
+										: {
+												left: `${rect.x * 100}%`,
+												top: `${rect.y * 100}%`,
+												width: `${rect.w * 100}%`,
+												height: `${rect.h * 100}%`,
+												backgroundColor: highlightHoverOverlayColor(
+													emphasizedComment.color,
+												),
+											}
+								}
 								aria-hidden="true"
 							/>
 						))}
@@ -1790,7 +1867,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						inset={mode.insetCommentCards}
 						pageWidthPx={width}
 						pageHeightPx={height}
-						scale={cardScale}
 						editingId={marks.editingCommentId}
 						wikiTarget={marks.commentWikiTarget}
 						hoveredId={hoveredCommentId}

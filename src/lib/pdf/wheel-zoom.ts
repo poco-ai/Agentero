@@ -9,8 +9,12 @@
  * anchor and walks the viewport towards the start of the document.
  */
 
-/** Wheel stream must be silent this long before a zoom gesture is over. */
-const WHEEL_ZOOM_IDLE_MS = 150;
+/** Pixel based touchpad streams need a longer gap to separate gestures. */
+const WHEEL_ZOOM_PIXEL_IDLE_MS = 400;
+/** Discrete mouse wheel ticks have an explicit end after a shorter gap. */
+const WHEEL_ZOOM_TICK_IDLE_MS = 150;
+/** WebKit emits an explicit gestureend, but closely spaced pinches can continue. */
+const WEBKIT_GESTURE_CONTINUE_MS = 240;
 
 /**
  * Wheel deltaY units per unit of natural log magnification. A wheel notch of
@@ -44,7 +48,7 @@ export type ZoomGestureBindingOptions = {
 	onZoomChange: (ratio: number) => void;
 	/** Gesture is over; the caller commits the previewed zoom. */
 	onZoomEnd: () => void;
-	/** Wheel-idle delay, shared by zoom gestures and plain scrolling. */
+	/** Pixel wheel idle delay; discrete ticks and WebKit pinches use their own. */
 	idleMs?: number;
 };
 
@@ -73,18 +77,27 @@ export function bindZoomGesture({
 	onZoomStart,
 	onZoomChange,
 	onZoomEnd,
-	idleMs = WHEEL_ZOOM_IDLE_MS,
+	idleMs = WHEEL_ZOOM_PIXEL_IDLE_MS,
 }: ZoomGestureBindingOptions): { dispose(): void } {
 	let passive = false;
 	let idleTimer: ReturnType<typeof setTimeout> | null = null;
 	let wheelZooming = false;
 	let wheelRatio = 1;
+	let gestureZooming = false;
+	let gestureRatio = 1;
+	let gestureStartScale = 1;
+	let gestureEndTimer: ReturnType<typeof setTimeout> | null = null;
 	let disposed = false;
 
 	const clearIdleTimer = () => {
 		if (idleTimer === null) return;
 		clearTimeout(idleTimer);
 		idleTimer = null;
+	};
+	const clearGestureEndTimer = () => {
+		if (gestureEndTimer === null) return;
+		clearTimeout(gestureEndTimer);
+		gestureEndTimer = null;
 	};
 
 	const armIdleTimer = (callback: () => void) => {
@@ -110,6 +123,12 @@ export function bindZoomGesture({
 	const handleWheel = (event: WheelEvent, canPreventDefault: boolean) => {
 		if (disposed) return;
 		if (zoomOnWheel || event.ctrlKey || event.metaKey) {
+			if (gestureZooming) {
+				clearGestureEndTimer();
+				gestureZooming = false;
+				gestureRatio = 1;
+				onZoomEnd();
+			}
 			if (canPreventDefault && event.cancelable) event.preventDefault();
 			setPassive(false);
 			if (!wheelZooming) {
@@ -122,10 +141,14 @@ export function bindZoomGesture({
 				(event as WheelEvent & { agenteroPinch?: boolean }).agenteroPinch,
 			);
 			onZoomChange(wheelRatio);
-			armIdleTimer(() => {
+			const streamIdleMs =
+				event.deltaMode === 0 ? idleMs : WHEEL_ZOOM_TICK_IDLE_MS;
+			clearIdleTimer();
+			idleTimer = setTimeout(() => {
+				idleTimer = null;
 				wheelZooming = false;
 				onZoomEnd();
-			});
+			}, streamIdleMs);
 			return;
 		}
 		setPassive(true);
@@ -145,8 +168,19 @@ export function bindZoomGesture({
 		const event = raw as unknown as WebKitGestureEvent;
 		event.preventDefault();
 		clearIdleTimer();
+		clearGestureEndTimer();
+		if (wheelZooming) {
+			wheelZooming = false;
+			wheelRatio = 1;
+			onZoomEnd();
+		}
 		gestureScale = event.scale || 1;
-		onZoomStart({ x: event.clientX ?? NaN, y: event.clientY ?? NaN });
+		if (!gestureZooming) {
+			gestureZooming = true;
+			gestureRatio = 1;
+			onZoomStart({ x: event.clientX ?? NaN, y: event.clientY ?? NaN });
+		}
+		gestureStartScale = gestureScale;
 	};
 	const handleGestureChange = (raw: Event) => {
 		if (disposed) return;
@@ -154,13 +188,24 @@ export function bindZoomGesture({
 		event.preventDefault();
 		const scale = event.scale || 1;
 		if (!(gestureScale > 0) || !(scale > 0)) return;
-		onZoomChange(scale / gestureScale);
+		gestureRatio *= scale / gestureStartScale;
+		gestureStartScale = scale;
+		onZoomChange(gestureRatio);
 	};
 	const handleGestureEnd = (raw: Event) => {
 		if (disposed) return;
 		(raw as unknown as WebKitGestureEvent).preventDefault();
+		if (!gestureZooming) return;
 		gestureScale = 1;
-		onZoomEnd();
+		clearGestureEndTimer();
+		gestureEndTimer = setTimeout(() => {
+			gestureEndTimer = null;
+			if (!gestureZooming) return;
+			gestureZooming = false;
+			gestureRatio = 1;
+			gestureStartScale = 1;
+			onZoomEnd();
+		}, WEBKIT_GESTURE_CONTINUE_MS);
 	};
 
 	target.addEventListener("wheel", activeListener, { passive: false });
@@ -173,6 +218,7 @@ export function bindZoomGesture({
 			if (disposed) return;
 			disposed = true;
 			clearIdleTimer();
+			clearGestureEndTimer();
 			target.removeEventListener(
 				"wheel",
 				passive ? passiveListener : activeListener,

@@ -61,6 +61,7 @@ patchedDependencies:
   # Release late worker opens when their registry is destroyed while loading.
   '@embedpdf/plugin-document-manager@2.14.4': patches/@embedpdf__plugin-document-manager@2.14.4.patch
   '@embedpdf/plugin-scroll@2.14.4': patches/@embedpdf__plugin-scroll@2.14.4.patch
+  '@embedpdf/plugin-selection@2.14.4': patches/@embedpdf__plugin-selection@2.14.4.patch
   '@embedpdf/plugin-tiling@2.14.4': patches/@embedpdf__plugin-tiling@2.14.4.patch
   '@embedpdf/plugin-zoom@2.14.4': patches/@embedpdf__plugin-zoom@2.14.4.patch
   # The heading IntersectionObserver was rebuilt on every scroll event, which

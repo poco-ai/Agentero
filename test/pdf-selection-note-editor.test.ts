@@ -1,5 +1,14 @@
 // @vitest-environment happy-dom
-import { act, createElement, StrictMode } from "react";
+import {
+	act,
+	createElement,
+	type FocusEvent,
+	type FormEvent,
+	type KeyboardEvent,
+	StrictMode,
+	useLayoutEffect,
+	useRef,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CommentCardsLayer } from "@/components/viewer/pdf/layers/comment-cards-layer";
@@ -9,6 +18,57 @@ vi.mock("react-i18next", () => ({
 }));
 vi.mock("@/components/agent/message", () => ({
 	MessageResponse: () => null,
+}));
+// The real editor is Plate + contenteditable; mirror its handle and focus
+// behavior with a textarea so the card's commit/cancel semantics stay testable.
+vi.mock("@/components/viewer/pdf/layers/comment-markdown-editor", () => ({
+	CommentMarkdownEditor: ({
+		initialValue,
+		onChange,
+		onKeyDown,
+		onBlur,
+		onFocus,
+		handleRef,
+	}: {
+		initialValue: string;
+		onChange?: (markdown: string) => void;
+		onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+		onBlur?: (event: FocusEvent<HTMLTextAreaElement>) => void;
+		onFocus?: (event: FocusEvent<HTMLTextAreaElement>) => void;
+		handleRef?: {
+			current: {
+				getMarkdown: () => string;
+				focusEnd: () => void;
+				blur: () => void;
+			} | null;
+		};
+	}) => {
+		const ref = useRef<HTMLTextAreaElement>(null);
+		const draftRef = useRef(initialValue);
+		useLayoutEffect(() => {
+			handleRef.current = {
+				getMarkdown: () => draftRef.current,
+				focusEnd: () => ref.current?.focus(),
+				blur: () => ref.current?.blur(),
+			};
+			ref.current?.focus();
+			return () => {
+				handleRef.current = null;
+			};
+		}, [handleRef]);
+		return createElement("textarea", {
+			ref,
+			"data-comment-editor": true,
+			defaultValue: initialValue,
+			onInput: (event: FormEvent<HTMLTextAreaElement>) => {
+				draftRef.current = event.currentTarget.value;
+				onChange?.(draftRef.current);
+			},
+			onKeyDown,
+			onBlur,
+			onFocus,
+		});
+	},
 }));
 
 let root: Root;

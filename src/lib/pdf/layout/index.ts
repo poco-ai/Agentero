@@ -14,6 +14,10 @@ export {
 	layoutKindHex,
 } from "@/lib/pdf/layout/colors";
 export {
+	formatLayoutPageRanges,
+	type LayoutCompletenessWarning,
+} from "@/lib/pdf/layout/completeness";
+export {
 	LAYOUT_HINT_MIN_REGION_H_PX,
 	LAYOUT_HINT_MIN_REGION_W_PX,
 	LAYOUT_SIDEBAR_MIN_SCORE,
@@ -107,7 +111,6 @@ export {
 	type LayoutTranslateJobStatus,
 	type LayoutTranslateRunScope,
 	layoutTranslatePendingPageRange,
-	listTranslatableLayoutRegions,
 	persistLayoutTranslateSidecarBestEffort,
 	readLayoutTranslateSidecar,
 	runLayoutRegionTranslate,
@@ -176,7 +179,6 @@ export {
 export {
 	CITATION_FOCUS_FLASH_MS,
 	clearLayoutDocumentResult,
-	expandFocusBboxForOverlay,
 	type FocusedLayoutSnapshot,
 	type FocusedLayoutState,
 	getLayoutDocumentResult,
@@ -202,6 +204,12 @@ export {
 	resolveCaptionRole,
 	textFromRunsInBbox,
 } from "@/lib/pdf/layout/title-text";
+export { listTranslatableLayoutRegions } from "@/lib/pdf/layout/translatable";
+export {
+	isInsidePreservedRegion,
+	type LayoutPreserveReason,
+	preservedLayoutRegions,
+} from "@/lib/pdf/layout/translation-exclusions";
 export type {
 	LayoutAnalysisUiStatus,
 	PdfLayoutDocumentResult,
