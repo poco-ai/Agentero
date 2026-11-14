@@ -145,6 +145,9 @@ pub fn run() {
         .manage(std::sync::Arc::new(
             crate::features::agent::session::pool::AgentWarmPool::new(),
         ))
+        .manage(std::sync::Arc::new(
+            crate::features::agent::session::query::AgentQueryPool::new(),
+        ))
         .manage(crate::features::agent::AgentWarmGate::new())
         .manage(crate::features::agent::PermissionGate::new())
         .manage(crate::features::agent::ElicitationGate::new())
@@ -602,6 +605,8 @@ pub fn run() {
                 tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
             ) {
                 app.state::<Arc<crate::features::agent::session::pool::AgentWarmPool>>()
+                    .shutdown();
+                app.state::<Arc<crate::features::agent::session::query::AgentQueryPool>>()
                     .shutdown();
                 app.state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
                     .shutdown();

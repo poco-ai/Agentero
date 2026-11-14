@@ -81,6 +81,7 @@ pub fn agent_pi_project_trust_status(
 pub fn agent_pi_project_trust_grant(
     registry: State<'_, AgentRegistry>,
     pool: State<'_, Arc<AgentWarmPool>>,
+    queries: State<'_, Arc<crate::features::agent::session::query::AgentQueryPool>>,
     agent_id: String,
     vault_path: String,
 ) -> ApiResult<PiProjectTrustStatus> {
@@ -90,6 +91,7 @@ pub fn agent_pi_project_trust_grant(
         let (agent_dir, home) = pi_trust::dirs_from_env(&env, &vault)?;
         let status = pi_trust::grant(&vault, &agent_dir, &home)?;
         pool.discard_agent(&agent_id);
+        queries.discard_agent(&agent_id);
         log::info!(
             target: "agentero::agent",
             "agent={agent_id} pi project trust granted vault={} required={} trusted={}",

@@ -993,6 +993,8 @@ async fn dispatch_agent_rpc(
                 remote_hosts.inner().as_ref(),
                 app.state::<crate::features::agent::AgentWarmGate>().inner(),
                 app.state::<Arc<AgentWarmPool>>().inner(),
+                app.state::<Arc<crate::features::agent::AgentQueryPool>>()
+                    .inner(),
                 optional_string(&params, "agentId"),
                 vault_path,
                 optional_string(&params, "cursor"),
@@ -1006,6 +1008,8 @@ async fn dispatch_agent_rpc(
             let result = agent_service::load_session(
                 app.state::<AgentRegistry>().inner(),
                 remote_hosts.inner().as_ref(),
+                app.state::<Arc<crate::features::agent::AgentQueryPool>>()
+                    .inner(),
                 optional_string(&params, "agentId"),
                 session_id,
                 vault_path,
@@ -1020,6 +1024,8 @@ async fn dispatch_agent_rpc(
                 app.state::<AgentRegistry>().inner(),
                 remote_hosts.inner().as_ref(),
                 app.state::<Arc<AgentWarmPool>>().inner(),
+                app.state::<Arc<crate::features::agent::AgentQueryPool>>()
+                    .inner(),
                 optional_string(&params, "agentId"),
                 session_id,
                 vault_path,
