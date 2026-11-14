@@ -1028,7 +1028,7 @@
 			"uninstallFailed": "Could not remove CLI command",
 			"statusFailed": "Could not read CLI status",
 			"openReleaseFailed": "Could not open the release page",
-			"syncFailed": "Could not auto-sync the installed CLI with this app version. Update it from Settings → About"
+			"syncFailed": "Could not automatically install or update the CLI. Try again from Settings → About"
 		},
 		"feedback": {
 			"label": "Feedback",
