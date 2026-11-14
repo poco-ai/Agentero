@@ -146,6 +146,37 @@ describe("character-level PDF reflow", () => {
 		expect(p.formulas.map((f) => f.text)).toEqual(["N = 6"]);
 		expect(p.protectedText).toContain("Use ⟪F0⟫ layers");
 	});
+	it("keeps a formula snippet's full descender in its baseline offset", () => {
+		const input = chars("a] ∈", (c) => ({
+			...c,
+			style: {
+				...style,
+				font: c.text === "a" || c.text === " " ? "Times" : "txsys",
+			},
+			box:
+				c.text === "]"
+					? { ...c.box, y: 4, h: 18 }
+					: c.text === "∈"
+						? { ...c.box, y: 12, h: 7 }
+						: c.box,
+			visualBox:
+				c.text === "]"
+					? { x: c.box.x, y: 5, w: c.box.w, h: 18 }
+					: c.text === "∈"
+						? { x: c.box.x, y: 12, w: c.box.w, h: 7 }
+						: { x: c.box.x, y: 12, w: c.box.w, h: 7 },
+		}));
+		const p = paragraphFromCharacters(
+			"p",
+			0,
+			{ x: 10, y: 10, w: 200, h: 40 },
+			input,
+			[],
+			false,
+		);
+		expect(p.formulas).toHaveLength(1);
+		expect(p.formulas[0]?.baselineOffset).toBeGreaterThan(4);
+	});
 	it("keeps italic prose translatable while protecting a mathematical island", () => {
 		const p = paragraphFromCharacters(
 			"p",
