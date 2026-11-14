@@ -30,6 +30,7 @@ import type {
 	LayoutTranslateSentence,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import { validReflowTranslation } from "@/lib/pdf/reflow/types";
 import {
 	evictAgentTranslateSessionId,
 	getAgentTranslateSessionId,
@@ -389,6 +390,17 @@ export function applyLayoutTranslateSidecar(
 	return items.map((item) => {
 		const cached = byId.get(item.id);
 		if (!cached || cached.source !== item.source) return { ...item };
+		if (
+			item.reflow &&
+			!validReflowTranslation(item.reflow, cached.translated.trim())
+		)
+			return {
+				...item,
+				status: "pending" as const,
+				translated: undefined,
+				sentences: undefined,
+				error: undefined,
+			};
 		if (options?.requireReflowSentencePairs && item.reflow) {
 			const drafts = draftReflowSentences(item.reflow);
 			if (

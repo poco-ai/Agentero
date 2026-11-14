@@ -128,6 +128,24 @@ describe("character-level PDF reflow", () => {
 		);
 		expect(p.formulas.map((f) => f.text)).toEqual(["N = 6"]);
 	});
+	it("recognizes TeX symbol fonts as math instead of prose", () => {
+		const p = paragraphFromCharacters(
+			"p",
+			0,
+			{ x: 10, y: 10, w: 200, h: 40 },
+			chars("Use N = 6 layers", (c) => ({
+				...c,
+				style: {
+					...style,
+					font: c.index >= 4 && c.index <= 8 ? "txsys" : "Times",
+				},
+			})),
+			[],
+			false,
+		);
+		expect(p.formulas.map((f) => f.text)).toEqual(["N = 6"]);
+		expect(p.protectedText).toContain("Use ⟪F0⟫ layers");
+	});
 	it("keeps italic prose translatable while protecting a mathematical island", () => {
 		const p = paragraphFromCharacters(
 			"p",

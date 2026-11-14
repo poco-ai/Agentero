@@ -1370,6 +1370,34 @@ describe("hydrateLayoutTranslateItems", () => {
 		});
 	});
 
+	it("rejects cached text that no longer matches the reflow structure", () => {
+		const reflowItem: LayoutTranslateItem = {
+			...item("a"),
+			reflow: {
+				formulas: [
+					{
+						id: "0",
+						text: "x",
+						box: { x: 10, y: 10, w: 5, h: 5 },
+						characterIndexes: [0],
+						baselineOffset: 0,
+					},
+				],
+				styles: {},
+			},
+		};
+		const hydration = hydrateLayoutTranslateItems(
+			[reflowItem, item("b")],
+			sidecar([
+				{ id: "a", source: "source a" },
+				{ id: "b", source: "source b" },
+			]),
+		);
+		expect(hydration.items[0]?.status).toBe("pending");
+		expect(hydration.items[0]?.translated).toBeUndefined();
+		expect(hydration.items[1]?.status).toBe("done");
+	});
+
 	it("needs no pending completion when every block is cached", () => {
 		const hydration = hydrateLayoutTranslateItems(
 			[item("a"), item("b")],

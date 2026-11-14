@@ -181,6 +181,8 @@ Attention 15 页 / ResNet 12 页已执行真实 Google 非 LLM 全文链路和 B
 图内局部字号转换到页面字号；旋转、不能可靠复原裁剪的内容，以及复杂公式对象保留原样。原页渲染辅助排除不可见的变换文字，仍是保守启发式。
 IR 提取结果保存每个非空白字符的归类用于审计，不能把全部单元 done 等同于全部可见文字翻译完成。
 表格排版框可利用相邻单元前的空白，源文字删除框独立保持；全文字号众数纳入标题和短段落并按输出字符加权。
+TeX 符号字体（`txsys` / `txmi` / `txex`）与 Libertine Math 一并归入公式字体，不再被当作正文锚点拆行；
+含括号、根号或分式的公式岛按普通高度字形的底边中位数确定基线，避免高笔画把整段片段推到上一行或页面顶部。
 
 ### 延迟与结构回退（2026-10-27）
 
@@ -203,6 +205,7 @@ IR 提取结果保存每个非空白字符的归类用于审计，不能把全�
 - **格式**：整页 JSON 经 gzip（`CompressionStream`）；运行环境没有压缩流时写普通 JSON，读取按 gzip 魔数自动识别。
 - **写入**：先写同目录临时文件，再 `rename` 覆盖，失败只记 warn，不影响翻译。页面级 key 让整篇翻译和单页翻译互不覆盖。
 - **读取**：校验 header 的 format / 版本 / key / paper / PDF 与 layout 哈希，校验页面结构、页码、段落归属和页面尺寸；任一不符或 gzip/JSON 损坏都按 miss 处理，回到 `extractReflowDocument` 重抽。部分页 miss 时只重抽这些页，全部页都 miss 时等价于原有整篇抽取。
+- **译文结构校验**：带 reflow IR 的缓存译文在 hydrate 时按当前公式与样式结构重新校验；旧标记缺失、重复或引用不存在的公式/样式时回退 pending，不能把上一版提取结果的占位符带进排版。
 - **开关**：设置 → 翻译 → 缓存 提供两个开关。`cacheReflowIr`（默认开）控制 IR 页缓存；`cacheReflowFinal`（默认关，单篇约 25 MB）控制最终译文 PDF 缓存。开关只控制是否写入新文件：关闭后不再新增缓存，已有文件仍会命中复用，需要释放空间时到「设置 → 关于 → 翻译缓存」清除。
 - **日志**：`pdf.reflow.prepare` 是 prepare 总耗时；`pdf.reflow.prepare.cache`（`phase=read|write`）是缓存 IO，`pdf.reflow.prepare.extract` 是 PDFium 抽取，`pdf.reflow.cache` 记录 `result=hit|miss` 与页数；`pdf.reflow.page` / `pdf.reflow.final` 仍是预览和导出耗时。命中后 prepare 只剩缓存解压与 item 映射，页构建与最终 PDF 仍会按页重算。
 - **构建结果缓存（仅整篇）**：受 `cacheReflowFinal` 开关控制（默认关）；开启后最终译文 PDF 持久化在 `appCacheDir()/reflow-build/<pdf 哈希前缀>-<内容键>.pdf`，**按原样存为可直接打开的 PDF**。键覆盖整篇 IR 内容、全部实际译文、字体字节长度与资源 revision、构建管线版本（`REFLOW_BUILD_PIPELINE_VERSION`，layout/export 输出变化时必须提升）；**键内容规范化**——段落/公式/障碍按 id 排序后参与指纹，页级运行重新合并 items 造成的绘制顺序抖动（内容语义不变）不会导致 miss。命中时 `pdf.reflow.final` 不再重跑 PDFium 去字、公式片段抽取、字体嵌入和 pdf-lib 序列化，读写走 `pdf.reflow.buildCache`（`phase=read|write`、`result=hit|miss`），命中后排版度量在内存中按同一字体重算，逐页渲染照旧。**逐页预览构建不落盘**：每页 PDF 都完整嵌入 CJK 字体对（~20 MB/页），缓存它们会让每篇占用数百 MB，因此页构建仍每次执行（`pdf.reflow.page` 照常出现），只有 final 复用。任何一层校验不符（换 PDF、译文变化、字体更新、管线升级）都按 miss 重建，构建缓存失败从不阻断翻译。单页隐藏 / 恢复会改变译文集合，final 随之 miss 一次属预期；同一篇的 final 按 mtime 只保留最新 2 份，更旧的与早期逐页缓存遗留文件在写入时清扫，磁盘占用约 25–60 MB/篇。

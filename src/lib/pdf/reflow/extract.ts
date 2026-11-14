@@ -72,7 +72,7 @@ function dominantStyle(chars: Character[]): CharacterStyle {
 	);
 }
 const mathFont =
-	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols))/i;
+	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols)|tx(?:sys|sy|mi|ex)\w*)/i;
 const mathSymbol = /[\p{Sm}\u0370-\u03ff\u1d00-\u1d7f\u2070-\u209f]/u;
 
 /** Detect visual formula islands, including adjacent scripts and punctuation. */
@@ -214,14 +214,24 @@ export function paragraphFromCharacters(
 	let baseline = box.y + style.size;
 	const flush = () => {
 		if (!island.length) return;
+		// Brackets, radicals and fractions extend far below the baseline. Anchor
+		// the snippet on ordinary-height glyphs so those tall strokes do not push
+		// the whole inline formula into the next line.
+		const glyphs = island.map((c) => c.visualBox);
+		const normal = glyphs
+			.filter((b) => b.h <= style.size * 1.2)
+			.map((b) => b.y + b.h)
+			.sort((a, b) => a - b);
+		const bottoms = normal.length
+			? normal
+			: glyphs.map((b) => b.y + b.h).sort((a, b) => a - b);
+		const bottom = bottoms[Math.floor(bottoms.length / 2)] ?? baseline;
 		const f: Formula = {
 			id: String(formulas.length),
 			text: island.map((c) => c.text).join(""),
-			box: unionBoxes(island.map((c) => c.visualBox)),
+			box: unionBoxes(glyphs),
 			characterIndexes: island.map((c) => c.index),
-			baselineOffset:
-				Math.max(...island.map((c) => c.visualBox.y + c.visualBox.h)) -
-				baseline,
+			baselineOffset: bottom - baseline,
 		};
 		formulas.push(f);
 		for (const c of island) membership.set(c.index, f);
