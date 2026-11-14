@@ -153,7 +153,7 @@ Mermaid 聊天块使用固定高度的变换视口，缩放和平移只改变图
 
 Streamdown 的 `mode` 由 `isAnimating` 派生：流式中 `"streaming"`（跑 remend 补全未闭合标签），消息落定后 `"static"` 跳过 remend——否则公式里 `x_{<n}` 的 `<n…` 会被当成未闭合 HTML 标签截掉，KaTeX 报 `Expected '}', got 'EOF'`（#584，复盘见 [bug_fix/agent-message-math-less-than](../bug_fix/agent-message-math-less-than.md)）。
 
-**复制**：消息悬停的复制按钮复制该轮原始 Markdown（Agent 返回的就是 Markdown 文本，公式保持原样）；正文划词复制时，若选区包含渲染出来的公式，会先把 KaTeX 还原为 `$…$` / `$$…$$` 再写入剪贴板（否则浏览器只能拷到 KaTeX 字形、丢失 TeX）。不含公式的划词仍是默认纯文本复制。实现：`src/lib/markdown/rendered-math-copy.ts`，`MessageContent` 用 `data-markdown-copy` 标记作用域。
+**复制**：单击回复中的公式可复制不带定界符的 LaTeX 源码，公式旁的复制按钮支持键盘与触屏；成功局部显示对勾并播报，失败才弹 Toast。拖选或滚动不触发复制。消息悬停的复制按钮复制该轮原始 Markdown（Agent 返回的就是 Markdown 文本，公式保持原样）；正文划词复制时，若选区包含渲染出来的公式，会先把 KaTeX 还原为 `$…$` / `$$…$$` 再写入剪贴板（否则浏览器只能拷到 KaTeX 字形、丢失 TeX）。不含公式的划词仍是默认纯文本复制。实现：`src/lib/markdown/rendered-math-copy.ts`，`MessageContent` 用 `data-markdown-copy` 标记作用域。
 
 
 ## 结构化 UI 块（只读 v1）

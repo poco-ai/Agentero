@@ -1,3 +1,5 @@
+import { copyTextToClipboard } from "@/lib/core/clipboard";
+
 /** KaTeX keeps the original TeX source in this hidden annotation node. */
 const KATEX_SELECTOR = ".katex";
 const KATEX_ANNOTATION = 'annotation[encoding="application/x-tex"]';
@@ -42,10 +44,10 @@ const BLOCK_TAGS = new Set([
 	"UL",
 ]);
 
-function katexTex(node: Element): string | null {
+export function katexTexFromNode(node: Element): string | null {
 	const annotation = node.querySelector(KATEX_ANNOTATION);
-	const tex = annotation?.textContent?.trim();
-	return tex ? tex : null;
+	const tex = annotation?.textContent;
+	return tex?.trim() ? tex : null;
 }
 
 function isDisplayMath(node: Element): boolean {
@@ -69,11 +71,18 @@ function appendPlainText(node: Node, out: string[]): void {
 	}
 	if (node.nodeType !== Node.ELEMENT_NODE) return;
 	const element = node as Element;
+	if (
+		element.hasAttribute("data-math-copy-ui") ||
+		element.hasAttribute("data-slate-zero-width")
+	)
+		return;
 	if (element.tagName === "BR") {
 		out.push("\n");
 		return;
 	}
-	const block = BLOCK_TAGS.has(element.tagName);
+	const block =
+		BLOCK_TAGS.has(element.tagName) &&
+		!element.hasAttribute("data-slate-inline");
 	if (block) out.push("\n");
 	for (const child of Array.from(element.childNodes)) {
 		appendPlainText(child, out);
@@ -144,7 +153,7 @@ export function renderedMathClipboardText(
 
 	let replaced = 0;
 	for (const katex of katexNodes) {
-		const tex = katexTex(katex);
+		const tex = katexTexFromNode(katex)?.trim();
 		if (!tex) continue;
 		const replacement = isDisplayMath(katex)
 			? `\n$$\n${tex}\n$$\n`
@@ -184,14 +193,87 @@ function markedSelectionRange(): Range | null {
 
 let installed = false;
 
+function installMathClickCopy(doc: Document): void {
+	let pointer: { id: number; x: number; y: number; moved: boolean } | null =
+		null;
+	doc.addEventListener(
+		"pointerdown",
+		(event) => {
+			pointer = {
+				id: event.pointerId,
+				x: event.clientX,
+				y: event.clientY,
+				moved: false,
+			};
+		},
+		true,
+	);
+	doc.addEventListener(
+		"pointermove",
+		(event) => {
+			if (
+				pointer &&
+				pointer.id === event.pointerId &&
+				Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 5
+			) {
+				pointer.moved = true;
+			}
+		},
+		true,
+	);
+	const cancel = () => {
+		if (pointer) pointer.moved = true;
+	};
+	doc.addEventListener("pointercancel", cancel, true);
+	doc.addEventListener("dragstart", cancel, true);
+	doc.addEventListener("scroll", cancel, true);
+	const timers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+	doc.addEventListener("click", async (event) => {
+		const dragged = pointer?.moved;
+		pointer = null;
+		if (
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			(event.detail > 0 && dragged)
+		)
+			return;
+		const target = event.target instanceof Element ? event.target : null;
+		const wrapper = target?.closest<HTMLElement>("[data-math-copy]");
+		if (!target || !wrapper) return;
+		const button = target.closest("[data-math-copy-button]");
+		if (
+			!button &&
+			(!doc.getSelection()?.isCollapsed || !target.closest(KATEX_SELECTOR))
+		)
+			return;
+		const tex = wrapper.dataset.mathCopyTex ?? katexTexFromNode(wrapper);
+		if (!tex?.trim()) return;
+		const copied = await copyTextToClipboard(tex, {
+			errorMessage: wrapper.dataset.mathCopyError,
+		});
+		if (!copied || !wrapper.isConnected) return;
+		clearTimeout(timers.get(wrapper));
+		wrapper.setAttribute("data-math-copied", "");
+		const status = wrapper.querySelector("[data-math-copy-status]");
+		if (status) status.textContent = wrapper.dataset.mathCopySuccess ?? "";
+		timers.set(
+			wrapper,
+			setTimeout(() => {
+				wrapper.removeAttribute("data-math-copied");
+				if (status) status.textContent = "";
+			}, 1200),
+		);
+	});
+}
+
 /**
- * Install a document-level capture listener so copying a text selection inside
- * any `[data-markdown-copy]` rendered-Markdown surface keeps formulas as
- * Markdown source. Idempotent; callers mount it once from `MessageContent`.
+ * Delegate formula clicks and preserve Markdown when copying selections inside
+ * `[data-markdown-copy]` surfaces. Idempotent across messages and math controls.
  */
 export function installRenderedMathCopy(): void {
 	if (installed || typeof document === "undefined") return;
 	installed = true;
+	installMathClickCopy(document);
 	document.addEventListener(
 		"copy",
 		(event) => {

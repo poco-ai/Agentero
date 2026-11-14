@@ -1,4 +1,9 @@
 {
+	"equation": {
+		"copy": "复制 LaTeX",
+		"copied": "已复制",
+		"copyFailed": "无法复制公式。"
+	},
 	"experiment": {
 		"purpose": "目的",
 		"steps": "步骤",
