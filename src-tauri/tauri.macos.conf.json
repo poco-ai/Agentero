@@ -19,7 +19,7 @@
     ]
   },
   "bundle": {
-    "resources": ["adapters/**/*"],
+    "resources": ["adapters/**/*", "dictionary/*"],
     "macOS": {
       "frameworks": ["pdfium/libpdfium.dylib"]
     }

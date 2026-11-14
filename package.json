@@ -35,7 +35,9 @@
 		"fix:rs": "cargo fmt --all && pnpm run lint:rs",
 		"prepare": "husky",
 		"deps:check": "depcruise --config .dependency-cruiser.cjs src",
-		"openui:catalog": "node scripts/generate-openui-catalog.mjs"
+		"openui:catalog": "node scripts/generate-openui-catalog.mjs",
+		"dictionary:stage": "node scripts/prepare-dictionary.mjs",
+		"dictionary:verify": "node scripts/prepare-dictionary.mjs --verify"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.8.0",
@@ -187,6 +189,7 @@
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
 		"@vitejs/plugin-react": "^4.6.0",
+		"csv-parse": "6.1.0",
 		"dependency-cruiser": "^18.1.0",
 		"happy-dom": "^21.0.4",
 		"husky": "^9.1.7",

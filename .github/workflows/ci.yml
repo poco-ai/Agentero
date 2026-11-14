@@ -55,6 +55,9 @@ jobs:
       - name: Test release synchronization
         if: matrix.task == 'quality'
         run: node --test scripts/sync-atomgit-release.test.mjs scripts/rewrite-updater-json.test.mjs
+      - name: Verify bundled offline dictionary
+        if: matrix.task == 'quality'
+        run: pnpm dictionary:stage
       - name: Stage bundled ACP adapters
         if: matrix.task == 'quality'
         # Exercise staging before release builds consume these trees.
@@ -133,6 +136,14 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        if: matrix.task != 'cli-tests'
+      - name: Install dictionary build dependencies
+        if: matrix.task != 'cli-tests'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Stage offline dictionary
+        if: matrix.task != 'cli-tests'
+        run: pnpm dictionary:stage
       - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-adapters.mjs
@@ -208,6 +219,14 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        if: matrix.task != 'cli-tests'
+      - name: Install dictionary build dependencies
+        if: matrix.task != 'cli-tests'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Stage offline dictionary
+        if: matrix.task != 'cli-tests'
+        run: pnpm dictionary:stage
       - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-adapters.mjs

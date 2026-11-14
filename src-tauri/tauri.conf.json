@@ -4,9 +4,9 @@
   "version": "0.16.1",
   "identifier": "com.poco-ai.agentero",
   "build": {
-    "beforeDevCommand": "pnpm pdfium:stage && pnpm adapters:stage && pnpm plugin-worker:stage && pnpm dev",
+    "beforeDevCommand": "pnpm dictionary:stage && pnpm pdfium:stage && pnpm adapters:stage && pnpm plugin-worker:stage && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm pdfium:stage && pnpm adapters:stage && pnpm plugin-worker:stage:release && pnpm build",
+    "beforeBuildCommand": "pnpm dictionary:stage && pnpm pdfium:stage && pnpm adapters:stage && pnpm plugin-worker:stage:release && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -61,7 +61,8 @@
     "resources": [
       "pdfium/*",
       "adapters/**/*",
-      "rtex/tex/**/*"
+      "rtex/tex/**/*",
+      "dictionary/*"
     ],
     "icon": [
       "icons/32x32.png",
