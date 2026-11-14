@@ -51,10 +51,20 @@ describe("library column settings migration", () => {
 			"id",
 			"citations",
 			"addedAt",
+			"readingTime",
 		]);
-		expect(migrated.at(-1)).toEqual({ key: "addedAt", visible: false });
-		migrated[migrated.length - 1].visible = true;
-		expect(normalize(migrated)).toEqual(migrated);
+		expect(migrated.find((c) => c.key === "addedAt")).toEqual({
+			key: "addedAt",
+			visible: false,
+		});
+		expect(migrated.find((c) => c.key === "readingTime")).toEqual({
+			key: "readingTime",
+			visible: true,
+		});
+		const customized = migrated.map((c) =>
+			c.key === "addedAt" ? { ...c, visible: true } : c,
+		);
+		expect(normalize(customized)).toEqual(customized);
 	});
 });
 

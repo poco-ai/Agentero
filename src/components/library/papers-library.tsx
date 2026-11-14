@@ -17,6 +17,7 @@ import { useCellCopy } from "@/components/library/hooks/use-cell-copy";
 import { useLibraryHeatmap } from "@/components/library/hooks/use-library-heatmap";
 import { useLibraryMarquee } from "@/components/library/hooks/use-library-marquee";
 import { useLibraryPreview } from "@/components/library/hooks/use-library-preview";
+import { useLibraryReadingTime } from "@/components/library/hooks/use-library-reading-time";
 import { useLibrarySelection } from "@/components/library/hooks/use-library-selection";
 import { resolveColumnWidths } from "@/components/library/library-column-widths";
 import { getColumnMeta } from "@/components/library/library-columns";
@@ -180,7 +181,10 @@ export function PapersLibrary({
 			setSortKey(key);
 			// Date / citation count default to newest/highest first; text columns ascending
 			setSortDir(
-				key === "date" || key === "addedAt" || key === "citations"
+				key === "date" ||
+					key === "addedAt" ||
+					key === "citations" ||
+					key === "readingTime"
 					? "desc"
 					: "asc",
 			);
@@ -312,10 +316,18 @@ export function PapersLibrary({
 	// PERF: stable identity for the memoized header.
 	const clearTagFilter = useCallback(() => setTagFilter([]), []);
 
+	const readingTimes = useLibraryReadingTime(vaultPath, active, papers);
 	/** Coerce tags + sort keys once per paper list change (not per keystroke). */
 	const indexedRows = useMemo(
-		() => scopedPapers.map(buildPaperRow),
-		[scopedPapers],
+		() =>
+			scopedPapers.map((paper) => {
+				const row = buildPaperRow(paper);
+				const readingTime = readingTimes?.[heatmapCacheKey(paper)] ?? 0;
+				return readingTime === 0
+					? row
+					: { ...row, sort: { ...row.sort, readingTime } };
+			}),
+		[scopedPapers, readingTimes],
 	);
 
 	/** Keystroke-level work is filter + sort over precomputed rows only. */
@@ -335,6 +347,11 @@ export function PapersLibrary({
 		copy.sort((a, b) => comparePaperRows(a, b, sortKey, sortDir));
 		return copy;
 	}, [indexedRows, normalizedQuery, tagFilterSet, sortKey, sortDir]);
+	const maxReadingTimeMs = useMemo(
+		() =>
+			rows.reduce((max, row) => Math.max(max, Number(row.sort.readingTime)), 0),
+		[rows],
+	);
 
 	/** Visible row order (sorted + filtered) — the universe selection lives in. */
 	const order = useMemo(
@@ -769,6 +786,7 @@ export function PapersLibrary({
 											index={vr.index}
 											row={row}
 											heat={heatmaps.get(heatmapCacheKey(p))}
+											maxReadingTimeMs={maxReadingTimeMs}
 											visibleColumns={visibleColumns}
 											ctx={cellCtx}
 											showSelection={selectionActive}

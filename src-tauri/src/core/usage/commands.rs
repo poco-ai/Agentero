@@ -65,3 +65,26 @@ pub async fn usage_clear(args: UsageClearArgs) -> ApiResult<u64> {
     })
     .await
 }
+
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageReadingDurationsArgs {
+    pub vault: String,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn usage_reading_durations(
+    args: UsageReadingDurationsArgs,
+) -> ApiResult<std::collections::HashMap<String, i64>> {
+    run_blocking(move || {
+        match crate::core::usage::reading_durations(
+            &crate::core::usage::usage_db_path(),
+            &args.vault,
+        ) {
+            Ok(totals) => ApiResult::ok(totals),
+            Err(e) => map_err(e),
+        }
+    })
+    .await
+}

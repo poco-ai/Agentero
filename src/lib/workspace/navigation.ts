@@ -15,7 +15,6 @@ import { decideSync, registerDecision } from "@/lib/decision/registry";
 import { lifecycle } from "@/lib/lifecycle";
 import {
 	isPaperDirectory,
-	isRemoteArxivPath,
 	isUnderPaperAttachments,
 	isUnderPapers,
 	notesPathForPaper,
@@ -119,6 +118,19 @@ function withLibraryPresent(next: DocTab[]): DocTab[] {
  */
 let readingSync = false;
 
+function readingPathForTab(tab: DocTab | null): string | null {
+	if (
+		!tab ||
+		(!isPaperContentTab(tab) &&
+			!(tab.kind === "paper" && tab.mode === "translation"))
+	)
+		return null;
+	return (
+		tab.paperMeta?.path ??
+		paperDirFromPath(tab.path, vaultStore.getState().paperFolders)
+	);
+}
+
 /**
  * Anchors of the standard two-column reading layout, or null when the dock is
  * not showing exactly two side-by-side columns.
@@ -154,6 +166,7 @@ export function activatePaperWithNotes(paperTab: DocTab): void {
 		});
 	}
 	setActiveTabId(paperTab.id);
+	notePaperFocus(readingPathForTab(paperTab));
 }
 
 /**
@@ -175,19 +188,12 @@ export function handleActivePanelChange(panelId: string | null): void {
 			});
 		},
 	);
+	if (!readingSync) notePaperFocus(readingPathForTab(activeTab));
 	if (!panelId || readingSync) {
 		return;
 	}
 	const tab = activeTab;
 	if (!tab) return;
-	if (
-		!isLibraryVirtualPath(tab.path) &&
-		!isTrashVirtualPath(tab.path) &&
-		!isZenVirtualPath(tab.path) &&
-		!isRemoteArxivPath(tab.path)
-	) {
-		notePaperFocus(tab.path);
-	}
 
 	if (isPaperContentTab(tab) && tab.notesPath) {
 		const notesId = tabIdForPath(tab.notesPath);
@@ -374,7 +380,11 @@ export function openTab(
 					timestamp: Date.now(),
 				});
 			}
-			notePaperFocus(path);
+			if (getActiveTabId() === id) {
+				notePaperFocus(
+					readingPathForTab(getTabs().find((tab) => tab.id === id) ?? null),
+				);
+			}
 		}
 	})();
 }
@@ -883,6 +893,13 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 				}
 				const patch = patchFromTabResources(res, current);
 				updateTab(id, patch);
+				if (getActiveTabId() === id) {
+					notePaperFocus(
+						readingPathForTab(
+							getTabs().find((candidate) => candidate.id === id) ?? null,
+						),
+					);
+				}
 				// A restored paper body hydrates after its NOTES panel was
 				// pruned from the layout — open the companion now, otherwise
 				// the first click shows the PDF without notes beside it.

@@ -114,7 +114,12 @@ pub(super) fn normalize(raw: &UsageRecord) -> Result<Normalized, AppError> {
     if path.as_ref().is_some_and(|p| p.len() > MAX_PATH) {
         return Err(AppError::message("usage path too long"));
     }
-    let paper_path = path.as_deref().and_then(paper_path_of);
+    // Reading-focus callers supply the exact paper root, including organization folders.
+    let paper_path = if kind == "paper.blur" {
+        path.clone()
+    } else {
+        path.as_deref().and_then(paper_path_of)
+    };
     let mode = optional_trimmed(&raw.mode, MAX_MODE);
     let (facet, status, qty) = project_extra(&kind, mode.as_deref(), raw.extra.as_ref());
     let dur_ms = raw.dur_ms.filter(|n| *n >= 0);

@@ -24,6 +24,7 @@ type LibraryPaperRowProps = {
 	index: number;
 	row: PaperRow;
 	heat: ReadingHeatmap | undefined;
+	maxReadingTimeMs: number;
 	visibleColumns: LibraryColumnPref[];
 	/** Stable `t` + `onCellCopy` pair shared by all rows (memo friendly). */
 	ctx: Pick<CellCtx, "t" | "onCellCopy">;
@@ -47,6 +48,7 @@ export const LibraryPaperRow = memo(function LibraryPaperRow({
 	index,
 	row,
 	heat,
+	maxReadingTimeMs,
 	visibleColumns,
 	ctx,
 	showSelection,
@@ -62,6 +64,8 @@ export const LibraryPaperRow = memo(function LibraryPaperRow({
 		t: ctx.t,
 		onCellCopy: ctx.onCellCopy,
 		heat,
+		readingTimeMs: Number(row.sort.readingTime),
+		maxReadingTimeMs,
 		tags: row.tags,
 	};
 	return (

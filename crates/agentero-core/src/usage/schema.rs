@@ -14,7 +14,7 @@ pub const SCHEMA_VERSION: i32 = 1;
 /// Raw events older than this are pruned on open.
 pub const EVENT_RETENTION_DAYS: i32 = 180;
 
-/// Daily aggregates older than this are pruned on open.
+/// Daily aggregates older than this are pruned on open, except cumulative reading time.
 pub const DAILY_RETENTION_DAYS: i32 = 730;
 
 const DDL_V1: &str = r#"
@@ -82,6 +82,15 @@ pub fn ensure_usage_at(db_path: &Path) -> Result<Connection, AppError> {
     }
     let conn = crate::sqlite::open_standard(db_path, crate::sqlite::DbMsgs::USAGE)?;
     migrate(&conn)?;
+    // Additive and idempotent for existing v1 databases too. Keeping vault and
+    // paper adjacent lets the cumulative query stream groups without a sort;
+    // the partial index excludes unrelated activity and duplicate sessions.
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_usage_daily_reading
+         ON usage_daily(vault, paper_path, dur_ms)
+         WHERE kind = 'paper.blur' AND paper_path != '';",
+    )
+    .map_err(|e| AppError::message(format!("index usage reading durations: {e}")))?;
     prune(&conn)?;
     Ok(conn)
 }
@@ -121,7 +130,7 @@ fn prune(conn: &Connection) -> Result<(), AppError> {
     )
     .map_err(|e| AppError::message(format!("prune usage_events: {e}")))?;
     conn.execute(
-        "DELETE FROM usage_daily WHERE day < date('now', ?1)",
+        "DELETE FROM usage_daily WHERE day < date('now', ?1) AND kind != 'paper.blur'",
         [format!("-{DAILY_RETENTION_DAYS} days")],
     )
     .map_err(|e| AppError::message(format!("prune usage_daily: {e}")))?;
@@ -222,5 +231,46 @@ mod tests {
             .unwrap();
         assert_eq!(tables, 4);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reopening_existing_usage_indexes_reading_totals_without_a_temporary_sort() {
+        let root = tempfile::tempdir().unwrap();
+        let db = root.path().join("usage.sqlite");
+        {
+            let conn = ensure_usage_at(&db).unwrap();
+            conn.execute_batch("DROP INDEX IF EXISTS idx_usage_daily_reading")
+                .unwrap();
+            conn.execute(
+                "INSERT INTO usage_daily(day,vault,kind,paper_path,dur_ms)
+                VALUES ('2026-11-01','/vault','paper.blur','papers/demo',1200)",
+                [],
+            )
+            .unwrap();
+        }
+        let conn = ensure_usage_at(&db).unwrap();
+        let plan: Vec<String> = conn
+            .prepare(
+                "EXPLAIN QUERY PLAN SELECT paper_path,SUM(dur_ms) FROM usage_daily
+             WHERE vault=?1 AND kind='paper.blur' AND paper_path!='' GROUP BY paper_path",
+            )
+            .unwrap()
+            .query_map(["/vault"], |row| row.get(3))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert!(
+            plan.iter()
+                .any(|step| step.contains("idx_usage_daily_reading")),
+            "{plan:?}"
+        );
+        assert!(
+            !plan.iter().any(|step| step.contains("TEMP B-TREE")),
+            "{plan:?}"
+        );
+        assert_eq!(
+            crate::usage::reading_durations(&db, "/vault").unwrap()["papers/demo"],
+            1200
+        );
     }
 }
