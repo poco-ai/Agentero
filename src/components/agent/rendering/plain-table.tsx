@@ -8,10 +8,10 @@ import { useTranslation } from "react-i18next";
 import {
 	extractTableDataFromElement,
 	tableDataToCSV,
-	tableDataToMarkdown,
 	tableDataToTSV,
 } from "streamdown";
 import { downloadText } from "@/components/agent/rendering/plain-code-block";
+import { tableElementToMarkdown } from "@/components/agent/rendering/table-markdown";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -43,42 +43,39 @@ export function PlainTable({
 	const fullscreenTableRef = useRef<HTMLTableElement>(null);
 	const [fullscreen, setFullscreen] = useState(false);
 
-	const getData = useCallback(() => {
-		const table = fullscreen ? fullscreenTableRef.current : tableRef.current;
-		if (!table) return null;
-		try {
-			return extractTableDataFromElement(table);
-		} catch {
-			return null;
-		}
-	}, [fullscreen]);
+	const exportTable = useCallback(
+		(format: "csv" | "tsv" | "md") => {
+			const table = fullscreen ? fullscreenTableRef.current : tableRef.current;
+			if (!table) return null;
+			try {
+				if (format === "md") return tableElementToMarkdown(table);
+				const data = extractTableDataFromElement(table);
+				return format === "csv" ? tableDataToCSV(data) : tableDataToTSV(data);
+			} catch {
+				return null;
+			}
+		},
+		[fullscreen],
+	);
 
 	const handleCopy = useCallback(
 		(format: "csv" | "tsv" | "md") => {
-			const data = getData();
-			if (!data) return;
-			const text =
-				format === "csv"
-					? tableDataToCSV(data)
-					: format === "tsv"
-						? tableDataToTSV(data)
-						: tableDataToMarkdown(data);
+			const text = exportTable(format);
+			if (text === null) return;
 			void copyTextToClipboard(text, {
 				successMessage: t("table.copy"),
 			});
 		},
-		[getData, t],
+		[exportTable, t],
 	);
 
 	const handleDownload = useCallback(
 		(format: "csv" | "markdown") => {
-			const data = getData();
-			if (!data) return;
-			const text =
-				format === "csv" ? tableDataToCSV(data) : tableDataToMarkdown(data);
+			const text = exportTable(format === "markdown" ? "md" : "csv");
+			if (text === null) return;
 			downloadText(`table.${format === "csv" ? "csv" : "md"}`, text);
 		},
-		[getData],
+		[exportTable],
 	);
 
 	useEffect(() => {

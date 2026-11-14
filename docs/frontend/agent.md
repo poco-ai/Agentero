@@ -144,6 +144,8 @@ Skill 语法由 Host 按 provider 分流（Claude `/id`，其它注入 `SKILL.md
 | 代码块 | `PlainCodeBlock` | 左上角语言小标签；悬停复制/下载（按语言后缀）；无外侧卡片、无全屏 |
 | Mermaid | `MermaidBlock` | 默认只显示图形；悬停右上角出现源码、缩放和全屏操作；源码模式使用带语言标题的高亮代码块，并显示复制按钮；图形可拖拽平移，无法编译时自动回退源码 |
 
+表格复制或下载为 Markdown 时，行内公式保留 LaTeX 源码与数学分隔符。
+
 表格全屏是应用内覆盖层（portal），保留粘性表头、Esc 关闭和复制/下载操作；不再对 `<table>` 直接调用 Fullscreen API，避免浏览器把表格拉伸到视口高度、露出透明背景。
 
 `mermaid` 代码块不再交给 `@streamdown/mermaid` 的默认卡片：`MessageResponse` 的 `AgentCodeBlock` 在 code renderer 里拦截该语言，复用编辑器的 `MermaidCodeRenderer` / `MermaidBlock`。`MarkdownSurface` 的 `renderers` 在这里不会生效，因为 `components.code` 已替换 Streamdown 内置渲染器。渲染配色、字体与排版由 `lib/markdown/mermaid-theme.ts` 按亮/暗主题生成（主题令牌的 sRGB 等价色，Mermaid 的取色库无法解析 `oklch()`）。
