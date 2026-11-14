@@ -712,7 +712,7 @@ export const commands = {
 	body: string | null,
 } | null, string>(__TAURI_INVOKE("app_update_check", { proxy, retryOnTimeout })),
 	cliInstallStatus: () => __TAURI_INVOKE<ApiResult<CliInstallStatus>>("cli_install_status"),
-	cliInstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command"),
+	cliInstallCommand: (automatic: boolean | null) => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command", { automatic }),
 	cliUninstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_uninstall_command"),
 	finderServiceStatus: () => __TAURI_INVOKE<ApiResult<FinderServiceStatus>>("finder_service_status"),
 	finderServiceInstall: () => __TAURI_INVOKE<ApiResult<FinderServiceStatus>>("finder_service_install"),

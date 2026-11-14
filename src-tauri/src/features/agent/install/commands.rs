@@ -1,10 +1,11 @@
 use crate::core::error::{map_err, ApiResult, AppError};
 
 use super::{
-    add_shim_dir_to_user_path, cli_command_name, collect_status, ensure_cli_binary,
-    ensure_pdfium_beside, install_shim, managed_cli_binary, managed_cli_dir, managed_shim_path,
-    remove_managed_pdfium, remove_shim_dir_from_user_path, resolve_local_cli,
-    set_auto_install_enabled, uninstall_shim, CliInstallResult, CliInstallStatus,
+    add_shim_dir_to_user_path, auto_install_opted_out, cli_command_name, collect_status,
+    discard_managed_download, ensure_cli_binary, ensure_pdfium_beside, foreign_shim_blocks,
+    install_shim, managed_cli_binary, managed_cli_dir, managed_shim_path, remove_managed_pdfium,
+    remove_shim_dir_from_user_path, resolve_local_cli, set_auto_install_enabled, uninstall_shim,
+    CliInstallResult, CliInstallStatus,
 };
 use tauri::{AppHandle, Runtime};
 
@@ -21,20 +22,40 @@ pub async fn cli_install_status<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliI
 
 #[tauri::command]
 #[specta::specta]
-pub async fn cli_install_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliInstallResult> {
+pub async fn cli_install_command<R: Runtime>(
+    app: AppHandle<R>,
+    automatic: Option<bool>,
+) -> ApiResult<CliInstallResult> {
+    let automatic = automatic.unwrap_or(false);
+    if automatic && auto_install_opted_out() {
+        return skipped(&app);
+    }
     let (binary, action) = match ensure_cli_binary(&app).await {
         Ok(v) => v,
         Err(e) => return map_err(e),
     };
+    // Uninstall may have happened while the release archive was downloading.
+    // Drop that download so it does not undo the uninstall.
+    if automatic && auto_install_opted_out() {
+        if action == "download-install" {
+            discard_managed_download();
+        }
+        return skipped(&app);
+    }
     if let Err(e) = ensure_pdfium_beside(&binary) {
         return map_err(e);
     }
     let shim = managed_shim_path();
+    if automatic && foreign_shim_blocks(&shim, &binary) {
+        return skipped(&app);
+    }
     if let Err(e) = install_shim(&binary, &shim) {
         return map_err(e);
     }
-    if let Err(e) = set_auto_install_enabled(true) {
-        return map_err(e);
+    if !automatic {
+        if let Err(e) = set_auto_install_enabled(true) {
+            return map_err(e);
+        }
     }
     // Windows: register the shim dir on the user PATH so `agentero-cli` works in
     // new terminals without manual setup. Non-fatal — the message below then
@@ -77,6 +98,13 @@ pub async fn cli_uninstall_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<C
         Ok(Err(e)) => map_err(e),
         Err(e) => map_err(AppError::message(format!("CLI uninstall failed: {e}"))),
     }
+}
+
+fn skipped<R: Runtime>(app: &AppHandle<R>) -> ApiResult<CliInstallResult> {
+    ApiResult::ok(CliInstallResult {
+        status: collect_status(app),
+        action: "skipped".into(),
+    })
 }
 
 /// Blocking uninstall body (shim removal + status probe) for `spawn_blocking`.

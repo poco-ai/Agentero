@@ -201,6 +201,19 @@ fn set_auto_install_enabled_at(marker: &Path, enabled: bool) -> Result<(), AppEr
     }
 }
 
+/// Drop a CLI archive that finished downloading after the user uninstalled.
+pub(crate) fn discard_managed_download() {
+    let managed = managed_cli_binary();
+    let _ = fs::remove_file(&managed);
+    remove_managed_pdfium();
+    let _ = fs::remove_dir(managed_cli_dir());
+}
+
+/// A same-named file we did not create. Startup must not replace it.
+pub(crate) fn foreign_shim_blocks(shim: &Path, binary: &Path) -> bool {
+    shim.exists() && !is_agentero_shim(shim) && !shim_points_to(shim, Some(binary))
+}
+
 /// Copy the desktop bundle's PDFium next to `cli_bin` when that binary cannot
 /// already see one. Release archives include the library; this covers a local
 /// dev binary and an older archive that shipped only the executable.
@@ -697,6 +710,18 @@ mod tests {
         set_auto_install_enabled_at(&marker, true).unwrap();
         assert!(!marker.exists());
         set_auto_install_enabled_at(&marker, true).unwrap();
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn foreign_file_blocks_a_replacement_shim() {
+        let dir = test_dir("foreign-shim");
+        let foreign = dir.join(SHIM_NAME);
+        let binary = dir.join(BUNDLED_CLI_NAME);
+        fs::write(&foreign, b"someone-elses-cli").unwrap();
+        fs::write(&binary, b"agentero-cli").unwrap();
+        assert!(foreign_shim_blocks(&foreign, &binary));
+        assert_eq!(fs::read(&foreign).unwrap(), b"someone-elses-cli");
         let _ = fs::remove_dir_all(dir);
     }
 
