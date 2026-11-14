@@ -138,6 +138,33 @@ pub fn summarize(
     Ok(out)
 }
 
+/// Cumulative effective reading milliseconds, scoped to one device-local vault.
+/// `paper.session` duplicates blur durations and must never enter this sum.
+pub fn reading_durations(
+    db_path: &Path,
+    vault: &str,
+) -> Result<std::collections::HashMap<String, i64>, AppError> {
+    let vault = vault.trim();
+    if vault.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+    let conn = ensure_usage_at(db_path)?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT paper_path, SUM(dur_ms) FROM usage_daily
+         WHERE vault = ?1 AND kind = 'paper.blur' AND paper_path != ''
+         GROUP BY paper_path",
+        )
+        .map_err(|e| AppError::message(format!("reading durations prepare: {e}")))?;
+    let rows = stmt
+        .query_map([vault], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .map_err(|e| AppError::message(format!("reading durations query: {e}")))?;
+    rows.collect::<Result<std::collections::HashMap<_, _>, _>>()
+        .map_err(|e| AppError::message(format!("reading durations row: {e}")))
+}
+
 pub fn clear_all(db_path: &Path) -> Result<u64, AppError> {
     let conn = ensure_usage_at(db_path)?;
     let n = conn
@@ -188,6 +215,19 @@ pub fn rename_path(db_path: &Path, vault: &str, from: &str, to: &str) -> Result<
     let tx = conn
         .unchecked_transaction()
         .map_err(|e| AppError::message(format!("usage rename tx: {e}")))?;
+    let reading_events = tx
+        .execute(
+            "UPDATE usage_events SET
+           path = CASE WHEN path = ?1 THEN ?2 ELSE ?2 || substr(path, length(?1) + 1) END,
+           paper_path = CASE
+             WHEN paper_path = ?1 THEN ?2
+             WHEN paper_path LIKE ?3 ESCAPE '!' THEN ?2 || substr(paper_path, length(?1) + 1)
+             ELSE paper_path END
+         WHERE vault = ?4 AND kind = 'paper.blur' AND (path = ?1 OR path LIKE ?3 ESCAPE '!')",
+            params![from, to, like, vault],
+        )
+        .map_err(|e| AppError::message(format!("rename reading events: {e}")))?;
+    let reading_daily = rename_daily_totals(&tx, vault, &from, &to, true)?;
     let events = tx
         .execute(
             "UPDATE usage_events
@@ -201,44 +241,52 @@ pub fn rename_path(db_path: &Path, vault: &str, from: &str, to: &str) -> Result<
                WHEN paper_path LIKE ?7 ESCAPE '!' THEN ?6 || substr(paper_path, length(?5) + 1)
                ELSE paper_path
              END
-             WHERE vault = ?4 AND (
+             WHERE vault = ?4 AND kind != 'paper.blur' AND (
                path = ?1 OR path LIKE ?3 ESCAPE '!' OR paper_path = ?5 OR paper_path LIKE ?7 ESCAPE '!'
              )",
             params![from, to, like, vault, from_paper, to_paper, paper_like],
         )
         .map_err(|e| AppError::message(format!("rename usage_events: {e}")))?;
-    let daily = if from_paper != to_paper {
-        let merged = tx
-            .execute(
-                "INSERT INTO usage_daily (day, vault, kind, paper_path, facet, count, dur_ms, qty)
-                 SELECT day, vault, kind,
-                   CASE
-                     WHEN paper_path = ?1 THEN ?2
-                     WHEN paper_path LIKE ?4 ESCAPE '!' THEN ?2 || substr(paper_path, length(?1) + 1)
-                     ELSE paper_path
-                   END,
-                   facet, count, dur_ms, qty
-                 FROM usage_daily
-                 WHERE vault = ?3 AND (paper_path = ?1 OR paper_path LIKE ?4 ESCAPE '!')
-                 ON CONFLICT(day, vault, kind, paper_path, facet) DO UPDATE SET
-                   count = usage_daily.count + excluded.count,
-                   dur_ms = usage_daily.dur_ms + excluded.dur_ms,
-                   qty = usage_daily.qty + excluded.qty",
-                params![from_paper, to_paper, vault, paper_like],
-            )
-            .map_err(|e| AppError::message(format!("rename usage_daily: {e}")))?;
-        let _ = tx.execute(
-            "DELETE FROM usage_daily
-             WHERE vault = ?2 AND (paper_path = ?1 OR paper_path LIKE ?3 ESCAPE '!')",
-            params![from_paper, vault, paper_like],
-        );
-        merged
-    } else {
-        0
-    };
+    let daily = rename_daily_totals(&tx, vault, &from_paper, &to_paper, false)?;
     tx.commit()
         .map_err(|e| AppError::message(format!("usage rename commit: {e}")))?;
-    Ok((events + daily) as u64)
+    Ok((reading_events + reading_daily + events + daily) as u64)
+}
+
+fn rename_daily_totals(
+    tx: &rusqlite::Transaction<'_>,
+    vault: &str,
+    from: &str,
+    to: &str,
+    reading: bool,
+) -> Result<usize, AppError> {
+    if from == to {
+        return Ok(0);
+    }
+    let like = descendant_path_pattern(from);
+    let merged = tx
+        .execute(
+            "INSERT INTO usage_daily (day, vault, kind, paper_path, facet, count, dur_ms, qty)
+         SELECT day, vault, kind,
+           CASE WHEN paper_path = ?1 THEN ?2 ELSE ?2 || substr(paper_path, length(?1) + 1) END,
+           facet, count, dur_ms, qty FROM usage_daily
+         WHERE vault = ?3 AND (paper_path = ?1 OR paper_path LIKE ?4 ESCAPE '!')
+           AND (kind = 'paper.blur') = ?5
+         ON CONFLICT(day, vault, kind, paper_path, facet) DO UPDATE SET
+           count = usage_daily.count + excluded.count,
+           dur_ms = usage_daily.dur_ms + excluded.dur_ms,
+           qty = usage_daily.qty + excluded.qty",
+            params![from, to, vault, like, reading],
+        )
+        .map_err(|e| AppError::message(format!("rename usage_daily: {e}")))?;
+    tx.execute(
+        "DELETE FROM usage_daily WHERE vault = ?2
+         AND (paper_path = ?1 OR paper_path LIKE ?3 ESCAPE '!')
+         AND (kind = 'paper.blur') = ?4",
+        params![from, vault, like, reading],
+    )
+    .map_err(|e| AppError::message(format!("rename usage_daily source: {e}")))?;
+    Ok(merged)
 }
 
 fn row_to_event(row: &rusqlite::Row<'_>) -> Result<UsageEvent, AppError> {
@@ -268,6 +316,66 @@ mod tests {
     use super::*;
     use crate::usage::{rec, record_events, temp_db};
     use std::fs;
+
+    #[test]
+    fn reading_durations_sum_blur_only_across_reopens_and_preserve_old_rollups() {
+        let root = tempfile::tempdir().unwrap();
+        let db = root.path().join("usage.sqlite");
+        let mut first = rec("paper.blur", "papers/demo");
+        first.ts = None;
+        first.dur_ms = Some(50_000);
+        let mut second = first.clone();
+        second.path = Some("papers/demo".into());
+        second.dur_ms = Some(10_000);
+        let mut session = first.clone();
+        session.kind = "paper.session".into();
+        let mut other_vault = first.clone();
+        other_vault.vault = Some("/other".into());
+        record_events(&db, &[first, second, session, other_vault]).unwrap();
+        assert_eq!(
+            reading_durations(&db, "/vaults/demo").unwrap()["papers/demo"],
+            60_000
+        );
+        let conn = ensure_usage_at(&db).unwrap();
+        conn.execute("INSERT INTO usage_daily (day,vault,kind,paper_path,dur_ms) VALUES ('2000-01-01','/vaults/demo','paper.blur','papers/old',5000)", []).unwrap();
+        conn.execute("INSERT INTO usage_daily (day,vault,kind,paper_path,dur_ms) VALUES ('2000-01-01','/vaults/demo','paper.session','papers/old',5000)", []).unwrap();
+        drop(conn);
+        let totals = reading_durations(&db, "/vaults/demo").unwrap();
+        assert_eq!(totals["papers/demo"], 60_000);
+        assert_eq!(totals["papers/old"], 5000);
+        assert!(reading_durations(&db, "").unwrap().is_empty());
+        let mut nested = rec("paper.blur", "papers/topic/nested");
+        nested.ts = None;
+        nested.dur_ms = Some(3000);
+        record_events(&db, &[nested]).unwrap();
+        assert_eq!(
+            reading_durations(&db, "/vaults/demo").unwrap()["papers/topic/nested"],
+            3000
+        );
+    }
+
+    #[test]
+    fn reading_duration_rename_moves_only_the_nested_paper_and_merges_target() {
+        let root = tempfile::tempdir().unwrap();
+        let db = root.path().join("usage.sqlite");
+        let records = [
+            ("papers/topic/old", 50_000),
+            ("papers/topic/new", 10_000),
+            ("papers/topic/sibling", 7000),
+        ]
+        .map(|(path, duration)| {
+            let mut record = rec("paper.blur", path);
+            record.ts = None;
+            record.dur_ms = Some(duration);
+            record
+        });
+        record_events(&db, &records).unwrap();
+        rename_path(&db, "/vaults/demo", "papers/topic/old", "papers/topic/new").unwrap();
+        let totals = reading_durations(&db, "/vaults/demo").unwrap();
+        assert_eq!(totals["papers/topic/new"], 60_000);
+        assert_eq!(totals["papers/topic/sibling"], 7000);
+        assert!(!totals.contains_key("papers/topic/old"));
+    }
 
     #[test]
     fn literal_path_prefix_filters_and_renames_only_its_subtree() {

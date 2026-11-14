@@ -38,6 +38,7 @@ export type BuiltinLibraryColumnKey =
 	| "authors"
 	| "date"
 	| "addedAt"
+	| "readingTime"
 	| "publication"
 	| "tags"
 	| "id"
@@ -64,6 +65,7 @@ export const LIBRARY_COLUMN_KEYS: LibraryColumnKey[] = [
 	"id",
 	"citations",
 	"addedAt",
+	"readingTime",
 ];
 
 /** Keep the existing layout; users can enable the added-date column. */
