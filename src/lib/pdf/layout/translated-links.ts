@@ -44,8 +44,6 @@ export type LinkAssignContext = {
 	source?: string;
 	block?: NormBox;
 	runs?: readonly GlyphRun[];
-	/** Character IR already orders columns, baselines and superscripts. */
-	runsInReadingOrder?: boolean;
 };
 
 export type PreservedLinkAssignment = {
@@ -58,87 +56,6 @@ export type PreservedLinkAssignment = {
 	/** Raw PDF fill `#rrggbb`, before paper-tone adjustment. */
 	color?: string;
 };
-
-/** Original reading text has ordered character geometry. Preserve every native
- * link (including author-year citations and headings) without guessing syntax.
- * Reflow only inserts spaces and removes discretionary hyphens, so require an
- * exact compact alignment before using this path. Translation keeps token matching.
- */
-function nativeReadingAssignments(
-	text: string,
-	links: readonly TranslateLinkBox[],
-	context?: LinkAssignContext,
-): PreservedLinkAssignment[] | null {
-	if (
-		!context?.runsInReadingOrder ||
-		!context.runs?.length ||
-		context.source !== text
-	)
-		return null;
-	const ignored = /[\s\u00ad-]/u;
-	const chars: { text: string; box: NormBox }[] = [];
-	for (const run of context.runs) {
-		const letters = [...run.text];
-		for (const [i, char] of letters.entries()) {
-			if (ignored.test(char)) continue;
-			chars.push({
-				text: char,
-				box: {
-					...run.box,
-					x: run.box.x + (run.box.w * i) / letters.length,
-					w: run.box.w / letters.length,
-				},
-			});
-		}
-	}
-	const offsets: { start: number; end: number; text: string }[] = [];
-	let position = 0;
-	for (const char of text) {
-		if (!ignored.test(char))
-			offsets.push({
-				start: position,
-				end: position + char.length,
-				text: char,
-			});
-		position += char.length;
-	}
-	if (
-		chars.length !== offsets.length ||
-		chars.some((c, i) => c.text !== offsets[i].text)
-	)
-		return null;
-	const result: PreservedLinkAssignment[] = [];
-	let previous: PreservedLinkAssignment | undefined;
-	for (const [i, char] of chars.entries()) {
-		const cx = char.box.x + char.box.w / 2,
-			cy = char.box.y + char.box.h / 2;
-		const link = links
-			.filter((l) => contains(l.box, cx, cy))
-			.sort((a, b) => a.box.w * a.box.h - b.box.w * b.box.h)[0];
-		if (!link) {
-			previous = undefined;
-			continue;
-		}
-		const { start, end } = offsets[i];
-		if (previous?.key === link.key) {
-			previous.end = end;
-			previous.text = text.slice(previous.start, end);
-		} else {
-			previous = withLinkColor(
-				{
-					start,
-					end,
-					text: text.slice(start, end),
-					key: link.key,
-					...(link.url ? { url: link.url } : {}),
-				},
-				link,
-			);
-			result.push(previous);
-		}
-	}
-	return result;
-}
 
 type LinkHost = {
 	id: string;
@@ -228,16 +145,15 @@ export function claimTranslateLinks<T extends LinkHost>(
 	for (const link of dedupeTranslateLinks(links)) {
 		const cx = link.box.x + link.box.w / 2;
 		const cy = link.box.y + link.box.h / 2;
-		const centered = ordered.filter((item) => contains(item.bbox, cx, cy));
-		let host: T | undefined;
-		let best = 0;
-		// Detector boxes can overlap at adjacent baselines. The earlier block
-		// must not steal a link fully contained in the following paragraph.
-		for (const item of centered.length ? centered : ordered) {
-			const area = intersectionArea(item.bbox, link.box);
-			if (area > best) {
-				best = area;
-				host = item;
+		let host = ordered.find((item) => contains(item.bbox, cx, cy));
+		if (!host) {
+			let best = 0;
+			for (const item of ordered) {
+				const area = intersectionArea(item.bbox, link.box);
+				if (area > best) {
+					best = area;
+					host = item;
+				}
 			}
 		}
 		if (!host) continue;
@@ -251,58 +167,6 @@ function urlsMatch(a: string, b: string): boolean {
 	return (
 		trimPreservedUrl(a).toLowerCase() === trimPreservedUrl(b).toLowerCase()
 	);
-}
-
-/** PDF line wrapping inserts spaces inside URLs. Only a complete native URI
- * can extend the ordinary URL match across whitespace; prose stays separate. */
-function spansWithNativeUrls(
-	text: string,
-	links: readonly TranslateLinkBox[],
-): PreservedLinkSpan[] {
-	const spans = findPreservedLinkSpans(text);
-	const urls = new Set(
-		links.flatMap((l) => (l.kind === "url" && l.url ? [l.url] : [])),
-	);
-	if (!urls.size) return spans;
-	let compact = "";
-	const offsets: number[] = [];
-	for (let index = 0; index < text.length; index++) {
-		if (/\s/u.test(text[index])) continue;
-		compact += text[index].toLowerCase();
-		offsets.push(index);
-	}
-	for (const url of urls) {
-		const needle = trimPreservedUrl(url).toLowerCase();
-		if (!needle) continue;
-		let from = 0;
-		while (from < compact.length) {
-			const at = compact.indexOf(needle, from);
-			if (at < 0) break;
-			const start = offsets[at],
-				end = offsets[at + needle.length - 1] + 1;
-			// Do not replace a Markdown label or a longer existing URL.
-			if (
-				!spans.some(
-					(s) =>
-						s.start < end &&
-						s.end > start &&
-						(s.kind === "markdown" || s.end > end),
-				)
-			) {
-				for (let i = spans.length - 1; i >= 0; i--)
-					if (spans[i].start < end && spans[i].end > start) spans.splice(i, 1);
-				spans.push({
-					kind: "url",
-					start,
-					end,
-					text: text.slice(start, end),
-					url,
-				});
-			}
-			from = at + needle.length;
-		}
-	}
-	return spans.sort((a, b) => a.start - b.start || b.end - a.end);
 }
 
 function withLinkColor(
@@ -327,11 +191,7 @@ const TOKEN_HIT_PAD = 0.003;
 
 function numberPieces(span: PreservedLinkSpan): TextPiece[] {
 	const pieces: TextPiece[] = [];
-	const pattern =
-		span.kind === "ref"
-			? /[0-9]+(?:\.[0-9]+)?[a-z]?(?:\([a-z]\))?/gi
-			: /[0-9]+(?:\.[0-9]+)?[a-z]?/gi;
-	for (const match of span.text.matchAll(pattern)) {
+	for (const match of span.text.matchAll(/[0-9]+(?:\.[0-9]+)?[a-z]?/gi)) {
 		const rel = match.index ?? 0;
 		const text = match[0];
 		pieces.push({
@@ -372,7 +232,7 @@ function semicolonPieces(span: PreservedLinkSpan): TextPiece[] {
  * two author-year cites). Each atom is a separate hit target.
  */
 function splittablePieces(span: PreservedLinkSpan): TextPiece[] | null {
-	if (span.kind === "citation" && /^(?:[[［]|\d)/.test(span.text)) {
+	if (span.kind === "citation" && /^[[［]/.test(span.text)) {
 		const pieces = numberPieces(span);
 		return pieces.length >= 2 ? pieces : null;
 	}
@@ -451,17 +311,17 @@ function tokenChars(
 	runs: readonly GlyphRun[],
 	block: NormBox,
 	occurrence: number,
-	orderedRuns = false,
 ): GlyphChar[] | null {
 	const needle = token.replace(/\s+/g, "");
 	if (!needle) return null;
-	const inside = runs.filter((run) => {
-		if (!run.text) return false;
-		const cx = run.box.x + run.box.w / 2;
-		const cy = run.box.y + run.box.h / 2;
-		return contains(block, cx, cy);
-	});
-	const ordered = orderedRuns ? inside : sortByReading(inside);
+	const ordered = sortByReading(
+		runs.filter((run) => {
+			if (!run.text) return false;
+			const cx = run.box.x + run.box.w / 2;
+			const cy = run.box.y + run.box.h / 2;
+			return contains(block, cx, cy);
+		}),
+	);
 	const compact: GlyphChar[] = [];
 	let hay = "";
 	for (const run of ordered) {
@@ -472,17 +332,14 @@ function tokenChars(
 			const ch = glyphs[index];
 			if (!ch || /\s/.test(ch)) continue;
 			hay += ch;
-			const char = {
+			compact.push({
 				box: {
 					x: run.box.x + index * step,
 					y: run.box.y,
 					w: step,
 					h: run.box.h,
 				},
-			};
-			// indexOf/slice offsets are UTF-16 code units. Astral math letters
-			// occupy two units but one painted glyph, so repeat its geometry.
-			for (let unit = 0; unit < ch.length; unit++) compact.push(char);
+			});
 		}
 	}
 	let from = 0;
@@ -491,13 +348,6 @@ function tokenChars(
 		at = hay.indexOf(needle, from);
 		if (at < 0) return null;
 		from = at + needle.length;
-		// "37" in a citation must not match the suffix of an earlier "737 nm".
-		if (
-			(/^\d/.test(needle) && /\d/.test(hay[at - 1] ?? "")) ||
-			(/\d$/.test(needle) && /\d/.test(hay[from] ?? ""))
-		) {
-			index--;
-		}
 	}
 	const slice = compact.slice(at, at + needle.length);
 	return slice.length === needle.length ? slice : null;
@@ -636,13 +486,7 @@ function collectBindings(
 		seenTokens.set(span.text, occurrence + 1);
 		const chars =
 			context?.block && context.runs && context.runs.length > 0
-				? tokenChars(
-						span.text,
-						context.runs,
-						context.block,
-						occurrence,
-						context.runsInReadingOrder,
-					)
+				? tokenChars(span.text, context.runs, context.block, occurrence)
 				: null;
 		const pieces = splittablePieces(span);
 		if (pieces) {
@@ -689,14 +533,6 @@ function collectBindings(
 			bindings.push({ text: span.text, start: span.start, parts: [] });
 			continue;
 		}
-		// A non-pattern link earlier in the paragraph must not steal this
-		// token. When glyphs are available, their position is authoritative.
-		if (!span.url && chars) {
-			const at = gotos.findIndex(
-				(link) => !used.has(link.key) && centerInChars(link, chars),
-			);
-			if (at >= 0) gotoIndex = at;
-		}
 		const hit = matchSpan(span, links, gotos, used, gotoIndex);
 		if (hit.gotoIndex !== gotoIndex) gotoIndex = hit.gotoIndex;
 		if (hit.assignment)
@@ -711,47 +547,10 @@ function bindingsInOrder(
 	links: readonly TranslateLinkBox[],
 	context?: LinkAssignContext,
 ): PreservedLinkAssignment[] {
-	return collectBindings(
-		links,
-		spansWithNativeNumbers(text, links, context),
-		context,
-	).flatMap((binding) =>
-		binding.parts.map((part) => assignmentFromPart(binding.start, part)),
+	return collectBindings(links, findPreservedLinkSpans(text), context).flatMap(
+		(binding) =>
+			binding.parts.map((part) => assignmentFromPart(binding.start, part)),
 	);
-}
-
-/** Bare superscripts have no bracket syntax. Only actual PDF hit geometry can
- * distinguish them from experimental values or equation operands. */
-function spansWithNativeNumbers(
-	text: string,
-	links: readonly TranslateLinkBox[],
-	context?: LinkAssignContext,
-): PreservedLinkSpan[] {
-	const spans = spansWithNativeUrls(text, links);
-	if (!context?.block || !context.runs?.length) return spans;
-	const occurrences = new Map<string, number>();
-	for (const m of text.matchAll(/\d+(?:\s*[,–—−-]\s*\d+)*/g)) {
-		const occurrence = occurrences.get(m[0]) ?? 0;
-		occurrences.set(m[0], occurrence + 1);
-		if (spans.some((s) => m.index < s.end && m.index + m[0].length > s.start))
-			continue;
-		const cs = tokenChars(
-			m[0],
-			context.runs,
-			context.block,
-			occurrence,
-			context.runsInReadingOrder,
-		);
-		if (!cs || !links.some((l) => l.kind === "goto" && centerInChars(l, cs)))
-			continue;
-		spans.push({
-			kind: "citation",
-			start: m.index,
-			end: m.index + m[0].length,
-			text: m[0],
-		});
-	}
-	return spans.sort((a, b) => a.start - b.start);
 }
 
 /**
@@ -767,7 +566,7 @@ function assignBySourceIdentity(
 	const queues = new Map<string, SpanBinding[]>();
 	for (const binding of collectBindings(
 		links,
-		spansWithNativeUrls(source, links),
+		findPreservedLinkSpans(source),
 		context,
 	)) {
 		const key = compactToken(binding.text);
@@ -855,22 +654,7 @@ export function assignPreservedLinks(
 	context?: LinkAssignContext,
 ): PreservedLinkAssignment[] {
 	const unique = dedupeTranslateLinks(links);
-	const native = nativeReadingAssignments(text, unique, context);
-	if (native) {
-		// Bare URLs can be present without PDF annotations.
-		for (const span of spansWithNativeUrls(text, unique))
-			if (
-				span.url &&
-				!native.some((a) => a.start < span.end && a.end > span.start)
-			)
-				native.push({ ...span, key: null });
-		return native.sort((a, b) => a.start - b.start);
-	}
-	const spans = spansWithNativeNumbers(
-		text,
-		unique,
-		context?.source && context.source !== text ? undefined : context,
-	);
+	const spans = findPreservedLinkSpans(text);
 	if (!spans.length || !unique.length) {
 		return spans
 			.filter((span) => span.url)
@@ -883,11 +667,7 @@ export function assignPreservedLinks(
 			}));
 	}
 	const source = context?.source;
-	if (
-		source &&
-		source !== text &&
-		spansWithNativeUrls(source, unique).length > 0
-	) {
+	if (source && source !== text && findPreservedLinkSpans(source).length > 0) {
 		return assignBySourceIdentity(spans, source, unique, context);
 	}
 	return bindingsInOrder(text, unique, context);

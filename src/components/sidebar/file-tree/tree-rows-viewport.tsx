@@ -5,6 +5,7 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { Bot, FolderIcon, ScrollText, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
+import { TREE_ROW_INDENT_STEP_PX } from "@/components/sidebar/tree-row-styles";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
 import {
 	formatPaperTreeLabel,
@@ -21,7 +22,6 @@ import {
 	isVaultSkillDirectory,
 	type SkillTreeLabel,
 } from "@/lib/vault/agent-tree";
-import { TREE_ROW_INDENT_STEP_PX } from "./file-tree-primitives";
 import type { PaperRowActions } from "./hooks/use-paper-row-actions";
 import type { TexCompileActions } from "./hooks/use-tex-compile";
 import { pathKey } from "./tree-helpers";

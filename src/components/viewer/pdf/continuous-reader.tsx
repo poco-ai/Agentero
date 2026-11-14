@@ -3,6 +3,7 @@ import { Loader2, LocateFixed } from "lucide-react";
 import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 import {
 	memo,
+	type ReactNode,
 	useEffect,
 	useLayoutEffect,
 	useMemo,
@@ -13,18 +14,22 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ScrollBar } from "@/components/ui/scroll-area";
 import { CitationLinkLayer } from "@/components/viewer/pdf/layers/citation-links";
+
+import { readerCropBlob } from "@/components/viewer/pdf/reader-crop-cache";
+import { ReaderEquation } from "@/components/viewer/pdf/reader-equation";
 import {
-	type ReaderAnnotationControls,
-	ReaderAnnotations,
-} from "@/components/viewer/pdf/reader-annotations";
+	type ReaderFormulaContent,
+	readerFormulaText,
+} from "@/components/viewer/pdf/reader-formula-text";
+
 import {
 	type ReaderLinkHandlers,
 	type ReaderPageLinks,
 	ReaderText,
 } from "@/components/viewer/pdf/reader-text";
-import { renderPdfRegionImageBlob } from "@/components/viewer/pdf/region-crop";
+
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
-import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+
 import type { JumpOrigin } from "@/lib/pdf/jump-back-stack";
 import { layoutKindI18nKey } from "@/lib/pdf/layout/labels";
 import { translatedTextLinkKey } from "@/lib/pdf/layout/link-ink";
@@ -38,12 +43,23 @@ import { linkTargetUrl } from "@/lib/pdf/link-target";
 import type { PdfNavigationTarget } from "@/lib/pdf/pending-pdf-page";
 import type { ReadingBlock } from "@/lib/pdf/reading/blocks";
 import {
+	normalizeReadingSettings,
 	type ReadingSettings,
 	readingColors,
 } from "@/lib/pdf/reading/settings";
 import { wheelDeltaToZoomRatio } from "@/lib/pdf/wheel-zoom";
 
 type Context = () => { engine: PdfEngine; document: PdfDocumentObject } | null;
+function visibleReaderAnchor(root: HTMLElement | null) {
+	if (!root) return null;
+	const top = root.getBoundingClientRect().top;
+	const element = Array.from(
+		root.querySelectorAll<HTMLElement>("[data-reader-block]"),
+	).find((block) => block.getBoundingClientRect().bottom > top + 48);
+	return element
+		? { element, top: element.getBoundingClientRect().top - top }
+		: null;
+}
 // PDF points to CSS pixels, with the same 125% reading enlargement as Zotero.
 const CROP_DISPLAY_SCALE = (96 / 72) * 1.25;
 const ReaderCrop = memo(function ReaderCrop({
@@ -53,8 +69,13 @@ const ReaderCrop = memo(function ReaderCrop({
 	context,
 	inline,
 	math = false,
+	displayFontScale = 1,
 	linkSource,
 	handlers,
+	selectionText,
+	selectionGlyphs,
+
+	children,
 }: {
 	pageIndex: number;
 	bbox: PdfAskNormalizedRect;
@@ -62,31 +83,51 @@ const ReaderCrop = memo(function ReaderCrop({
 	context: Context;
 	inline?: { fontSize: number; baselineOffset: number; fontScale: number };
 	math?: boolean;
+	displayFontScale?: number;
 	linkSource?: Pick<TranslatedLinkSource, "citationLinks" | "textLinks">;
 	handlers?: ReaderLinkHandlers;
+	selectionText?: string;
+	selectionGlyphs?: ReaderFormulaContent["glyphs"];
+
+	children?: ReactNode;
 }) {
 	const { t } = useTranslation("viewer");
 	const ref = useRef<HTMLSpanElement>(null);
 	const [image, setImage] = useState<string | null>(null);
+	const imageUrl = useRef<string | null>(null);
 	const [failed, setFailed] = useState(false);
+	const [nativeContent, setNativeContent] =
+		useState<ReaderFormulaContent | null>(null);
 	const { x, y, w, h } = bbox;
 	const isInline = inline !== undefined;
 	const mask = isInline || math;
+	const selectable = selectionText || nativeContent?.text;
+	const glyphs = selectionGlyphs ?? nativeContent?.glyphs;
 	// Inline math follows the reading font, which can exceed the PDF's point
 	// size several times over. Keep small symbols crisp at the current zoom.
+	const displayScale = CROP_DISPLAY_SCALE * (math ? displayFontScale : 1);
 	const rasterScale = inline
 		? Math.max(3, (16 * inline.fontScale) / inline.fontSize)
-		: CROP_DISPLAY_SCALE;
+		: displayScale;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Source identity owns the URL; zoom keeps it until a sharper replacement is ready.
+	useEffect(() => {
+		setImage(null);
+		setNativeContent(null);
+		return () => {
+			if (imageUrl.current) URL.revokeObjectURL(imageUrl.current);
+			imageUrl.current = null;
+		};
+	}, [pageIndex, x, y, w, h, context, mask, selectionText]);
 	useEffect(() => {
 		let cancelled = false,
 			visible = false,
 			pending = false;
 		let url: string | null = null;
 		const release = () => {
-			if (url) URL.revokeObjectURL(url);
+			if (imageUrl.current) URL.revokeObjectURL(imageUrl.current);
+			imageUrl.current = null;
 			url = null;
 		};
-		setImage(null);
 		setFailed(false);
 		const load = async () => {
 			if (pending || url || cancelled || !visible) return;
@@ -97,17 +138,39 @@ const ReaderCrop = memo(function ReaderCrop({
 			}
 			pending = true;
 			setFailed(false);
+			if (math && !selectionText)
+				void readerFormulaText({ ...ctx, pageIndex, region: { x, y, w, h } })
+					.then((content) => {
+						if (!cancelled) setNativeContent(content);
+					})
+					.catch(() => {});
 			try {
-				const crop = await renderPdfRegionImageBlob({
+				const page = ctx.document.pages[pageIndex];
+				const scaleFactor = rasterScale * Math.max(1, window.devicePixelRatio);
+				const crop = await readerCropBlob({
 					...ctx,
 					pageIndex,
 					region: { x, y, w, h },
-					maxEdgePx: isInline ? 600 : 1400,
+					maxEdgePx:
+						mask && page
+							? Math.min(
+									4096,
+									Math.max(
+										600,
+										Math.ceil(
+											Math.max(w * page.size.width, h * page.size.height) *
+												scaleFactor,
+										),
+									),
+								)
+							: 1400,
 					transparentBackground: mask,
-					scaleFactor: rasterScale * Math.max(1, window.devicePixelRatio),
+					scaleFactor,
 				});
 				if (!cancelled && visible) {
+					release();
 					url = URL.createObjectURL(crop);
+					imageUrl.current = url;
 					setImage(url);
 				}
 			} catch {
@@ -132,20 +195,22 @@ const ReaderCrop = memo(function ReaderCrop({
 		return () => {
 			cancelled = true;
 			observer.disconnect();
-			release();
 		};
-	}, [pageIndex, x, y, w, h, context, isInline, mask, rasterScale]);
+	}, [pageIndex, x, y, w, h, context, mask, rasterScale, math, selectionText]);
 	const page = context()?.document.pages[pageIndex];
 	const width = page ? Math.max(bbox.w * page.size.width, 1) : undefined;
 	const height = page ? Math.max(bbox.h * page.size.height, 1) : undefined;
 	return (
 		<span
 			ref={ref}
+			data-reader-start={math && selectable ? 0 : undefined}
+			data-reader-end={math && selectable ? selectable.length : undefined}
+			data-reader-raster={math && selectable ? "" : undefined}
 			className={
 				inline ? "relative inline-block" : "relative mx-auto block max-w-full"
 			}
-			style={
-				width && height
+			style={{
+				...(width && height
 					? inline
 						? {
 								// The crop is measured in PDF points; match the surrounding
@@ -156,18 +221,50 @@ const ReaderCrop = memo(function ReaderCrop({
 								lineHeight: 0,
 							}
 						: {
-								width: `${(width * CROP_DISPLAY_SCALE) / 16}rem`,
+								width: `${(width * displayScale) / 16}rem`,
 								aspectRatio: `${width} / ${height}`,
 							}
-					: undefined
-			}
+					: undefined),
+			}}
 		>
+			{selectable && (
+				<span
+					data-reader-crop-text
+					data-reader-copy={selectable}
+					className="absolute inset-0 z-[1] select-text overflow-hidden text-transparent selection:text-transparent"
+					style={{
+						fontSize: glyphs?.length ? undefined : "inherit",
+						lineHeight: "normal",
+						letterSpacing: 0,
+						wordSpacing: 0,
+					}}
+				>
+					{glyphs?.length
+						? glyphs.map((glyph) => (
+								<span
+									key={glyph.index}
+									className="absolute whitespace-pre leading-none"
+									style={{
+										left: `${glyph.box.x * 100}%`,
+										top: `${glyph.box.y * 100}%`,
+										fontSize: inline
+											? `${(glyph.box.h * (height ?? 1)) / inline.fontSize}em`
+											: `${(glyph.box.h * (height ?? 1) * displayScale) / 16}rem`,
+									}}
+								>
+									{glyph.text}
+								</span>
+							))
+						: selectable}
+				</span>
+			)}
 			{image && mask ? (
 				<span
 					data-reader-math-mask
 					role="img"
 					aria-label={label}
-					className="absolute inset-0 block"
+					aria-hidden={selectable ? true : undefined}
+					className="pointer-events-none absolute inset-0 block"
 					style={{
 						backgroundColor: "currentColor",
 						maskImage: `url("${image}")`,
@@ -182,7 +279,10 @@ const ReaderCrop = memo(function ReaderCrop({
 					className="absolute inset-0 block h-full w-full object-contain"
 				/>
 			) : (
-				<span className="absolute inset-0 flex items-center justify-center gap-2 overflow-hidden text-xs opacity-60">
+				<span
+					className="absolute inset-0 flex select-none items-center justify-center gap-2 overflow-hidden text-xs opacity-60"
+					aria-hidden={selectable ? true : undefined}
+				>
 					{failed ? (
 						<>
 							{t("pdf.reading.imageFailed")}
@@ -213,6 +313,7 @@ const ReaderCrop = memo(function ReaderCrop({
 					onUrlHover={(url, point) => handlers.onUrlHover?.(url, point)}
 				/>
 			)}
+			{children}
 		</span>
 	);
 });
@@ -223,6 +324,9 @@ type Props = ReaderLinkHandlers & {
 	settings: ReadingSettings;
 	onFontScaleChange?: (scale: number) => void;
 	preparing: boolean;
+	preparingLayoutBackend?:
+		| import("@/lib/pdf/layout/settings").LayoutBackend
+		| null;
 	error: string | null;
 	currentPage: number;
 	navigationTarget?: PdfNavigationTarget | null;
@@ -235,8 +339,6 @@ type Props = ReaderLinkHandlers & {
 		"citationLinks" | "textLinks" | "inkByKey" | "glyphRunsByPage"
 	>;
 	readerRestore?: JumpOrigin | null;
-	highlights?: readonly PdfHighlight[];
-	annotations?: Omit<ReaderAnnotationControls, "highlights">;
 };
 export function PdfContinuousReader({
 	blocks,
@@ -244,6 +346,7 @@ export function PdfContinuousReader({
 	settings,
 	onFontScaleChange,
 	preparing,
+	preparingLayoutBackend,
 	error,
 	currentPage,
 	navigationTarget,
@@ -257,33 +360,43 @@ export function PdfContinuousReader({
 	onUrlActivate,
 	onUrlHover,
 	readerRestore,
-	highlights,
-	annotations,
 }: Props) {
-	const { t } = useTranslation("viewer");
+	const { t } = useTranslation(["viewer", "settings"]);
 	const rootRef = useRef<HTMLDivElement>(null);
-	const pages = context()?.document.pages;
-	const highlightsByBlock = useMemo(() => {
-		const grouped = new Map<string, PdfHighlight[]>();
-		for (const highlight of highlights ?? []) {
-			const rect = highlight.rects[0];
-			if (!rect) continue;
-			const x = rect.x + rect.w / 2,
-				y = rect.y + rect.h / 2;
-			const block = blocks.find(
-				(b) =>
-					!b.image &&
-					b.pageIndex === highlight.page - 1 &&
-					x >= b.bbox.x - 0.002 &&
-					x <= b.bbox.x + b.bbox.w + 0.002 &&
-					y >= b.bbox.y - 0.002 &&
-					y <= b.bbox.y + b.bbox.h + 0.002,
-			);
-			if (block)
-				grouped.set(block.id, [...(grouped.get(block.id) ?? []), highlight]);
+	const progressAnchor = useRef<ReturnType<typeof visibleReaderAnchor>>(null);
+	const previousPreparation = useRef({
+		blocks,
+		preparing,
+		navigationTarget,
+		readerRestore,
+	});
+	useLayoutEffect(() => {
+		const prior = previousPreparation.current;
+		const root = rootRef.current;
+		const anchor = progressAnchor.current;
+		if (
+			root &&
+			anchor?.element.isConnected &&
+			prior.preparing &&
+			prior.blocks !== blocks &&
+			prior.navigationTarget === navigationTarget &&
+			prior.readerRestore === readerRestore
+		) {
+			root.scrollTop +=
+				anchor.element.getBoundingClientRect().top -
+				root.getBoundingClientRect().top -
+				anchor.top;
 		}
-		return grouped;
-	}, [blocks, highlights]);
+		previousPreparation.current = {
+			blocks,
+			preparing,
+			navigationTarget,
+			readerRestore,
+		};
+		progressAnchor.current = preparing ? visibleReaderAnchor(root) : null;
+	}, [blocks, preparing, navigationTarget, readerRestore]);
+	const pages = context()?.document.pages;
+
 	const linksByBlock = useMemo(() => {
 		const result = new Map<string, ReaderPageLinks>();
 		if (!linkSource || !pages) return result;
@@ -341,7 +454,6 @@ export function PdfContinuousReader({
 				block={block}
 				translated={translated}
 				pageSize={page?.size}
-				highlights={highlights}
 				settings={settings}
 				links={linksByBlock.get(block.id)}
 				handlers={{ onLinkActivate, onLinkHover, onUrlActivate, onUrlHover }}
@@ -356,6 +468,19 @@ export function PdfContinuousReader({
 								h: formula.box.h / page.size.height,
 							}}
 							label={formula.text}
+							selectionText={formula.text}
+							selectionGlyphs={block.item?.reflow?.characters
+								.filter((c) => formula.characterIndexes.includes(c.index))
+								.map((c) => ({
+									index: c.index,
+									text: c.text,
+									box: {
+										x: (c.visualBox.x - formula.box.x) / formula.box.w,
+										y: (c.visualBox.y - formula.box.y) / formula.box.h,
+										w: c.visualBox.w / formula.box.w,
+										h: c.visualBox.h / formula.box.h,
+									},
+								}))}
 							context={context}
 							inline={{
 								fontSize: block.item?.reflow?.style.size ?? 10,
@@ -405,10 +530,9 @@ export function PdfContinuousReader({
 					: event.deltaMode === 2
 						? root.clientHeight
 						: 1);
-			const next = Math.max(
-				0.5,
-				Math.min(3, fontScaleRef.current * wheelDeltaToZoomRatio(delta)),
-			);
+			const next = normalizeReadingSettings({
+				fontScale: fontScaleRef.current * wheelDeltaToZoomRatio(delta),
+			}).fontScale;
 			fontScaleRef.current = next;
 			setFontScale(next);
 			clearTimeout(saveTimer);
@@ -451,6 +575,7 @@ export function PdfContinuousReader({
 					origin.top
 				: origin.scrollTop;
 			visiblePage.current = readerRestore.page;
+			progressAnchor.current = preparing ? visibleReaderAnchor(root) : null;
 			const frame = requestAnimationFrame(() => {
 				scrollingFromPdf.current = false;
 			});
@@ -499,6 +624,7 @@ export function PdfContinuousReader({
 				root.getBoundingClientRect().top -
 				48;
 			visiblePage.current = page;
+			progressAnchor.current = preparing ? visibleReaderAnchor(root) : null;
 			const frame = requestAnimationFrame(() => {
 				scrollingFromPdf.current = false;
 			});
@@ -507,7 +633,7 @@ export function PdfContinuousReader({
 				scrollingFromPdf.current = false;
 			};
 		}
-	}, [currentPage, blocks, navigationTarget, readerRestore]);
+	}, [currentPage, blocks, navigationTarget, readerRestore, preparing]);
 	useEffect(() => {
 		const root = rootRef.current;
 		if (!root) return;
@@ -589,6 +715,7 @@ export function PdfContinuousReader({
 				}}
 				onScroll={() => {
 					const root = rootRef.current;
+					progressAnchor.current = preparing ? visibleReaderAnchor(root) : null;
 					if (!root || scrollingFromPdf.current) return;
 					const top = root.getBoundingClientRect().top + 64;
 					const elements =
@@ -630,7 +757,13 @@ export function PdfContinuousReader({
 							className="flex items-center gap-2 font-sans text-sm opacity-65"
 						>
 							<Loader2 className="size-4 animate-spin" aria-hidden />
-							{t("pdf.reading.preparing")}
+							{preparingLayoutBackend
+								? t("pdf.reading.preparingLayout", {
+										provider: t(
+											`settings:layout.backend.${preparingLayoutBackend}`,
+										),
+									})
+								: t("pdf.reading.preparing")}
 						</p>
 					)}
 					{error && (
@@ -675,22 +808,35 @@ export function PdfContinuousReader({
 								<LocateFixed className="size-3.5" aria-hidden />
 							</Button>
 							{block.image ? (
-								<figure>
-									<ReaderCrop
-										pageIndex={block.pageIndex}
-										bbox={block.bbox}
-										label={t(layoutKindI18nKey(block.kind))}
-										context={context}
-										linkSource={linkSource}
-										handlers={{
-											onLinkActivate,
-											onLinkHover,
-											onUrlActivate,
-											onUrlHover,
-										}}
-										math={
-											block.kind === "formula" ||
-											block.kind === "formula_number"
+								<figure
+									data-reader-text-root={
+										block.kind === "formula" || block.kind === "formula_number"
+											? ""
+											: undefined
+									}
+								>
+									<ReaderEquation
+										source={block.source}
+										fallback={
+											<ReaderCrop
+												pageIndex={block.pageIndex}
+												bbox={block.bbox}
+												label={t(layoutKindI18nKey(block.kind))}
+												selectionText={block.source}
+												displayFontScale={fontScale}
+												context={context}
+												linkSource={linkSource}
+												handlers={{
+													onLinkActivate,
+													onLinkHover,
+													onUrlActivate,
+													onUrlHover,
+												}}
+												math={
+													block.kind === "formula" ||
+													block.kind === "formula_number"
+												}
+											></ReaderCrop>
 										}
 									/>
 								</figure>
@@ -726,19 +872,6 @@ export function PdfContinuousReader({
 									)}
 								</>
 							)}
-							{annotations &&
-								((highlightsByBlock.get(block.id)?.length ?? 0) > 0 ||
-									annotations.draft?.readerBlockId === block.id) && (
-									<ReaderAnnotations
-										{...annotations}
-										highlights={highlightsByBlock.get(block.id) ?? []}
-										draft={
-											annotations.draft?.readerBlockId === block.id
-												? annotations.draft
-												: null
-										}
-									/>
-								)}
 						</section>
 					))}
 				</article>

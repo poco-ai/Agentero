@@ -1624,30 +1624,86 @@ fn sanitize_segment(name: &str) -> Option<String> {
     }
 }
 
-/// Migrate a paper's PDF annotations (highlights + comments) as Markdown blocks.
-/// Annotations hang off the PDF attachment, which hangs off the paper.
+/// Human-readable label for a Zotero `itemAnnotations.type` value.
+/// 1=highlight, 2=note, 3=image, 5=underline; unknown types stay "annotation".
+fn annotation_kind_label(kind: Option<i64>) -> Option<&'static str> {
+    kind.map(|value| match value {
+        1 => "高亮",
+        5 => "下划线",
+        2 => "笔记",
+        3 => "图片",
+        _ => "标注",
+    })
+}
+
+/// Migrate a paper's PDF annotations (highlights / underlines + comments) as
+/// Markdown blocks. Annotations hang off the PDF attachment, which hangs off
+/// the paper. Type and color are kept so the same passage marked twice with a
+/// different shape or color is not collapsed by the content-level dedupe.
 fn read_annotations(conn: &Connection, parent_item_id: i64) -> Result<Vec<String>, AppError> {
-    let mut stmt = match conn.prepare(
-        "SELECT a.text, a.comment, a.pageLabel
+    type Row = (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+    );
+    let mut rows: Vec<Row> = Vec::new();
+
+    // Zotero 5+ stores type/color on itemAnnotations. Older schemas (or
+    // partially migrated databases) lack those columns; fall back to the
+    // text-only query so existing libraries keep importing.
+    match conn.prepare(
+        "SELECT a.text, a.comment, a.pageLabel, a.type, a.color
          FROM itemAnnotations a
          JOIN itemAttachments att ON a.parentItemID = att.itemID
          WHERE att.parentItemID = ?1
            AND a.itemID NOT IN (SELECT itemID FROM deletedItems)
          ORDER BY att.itemID, a.sortIndex",
     ) {
-        Ok(s) => s,
-        Err(_) => return Ok(Vec::new()), // older Zotero without annotations
-    };
-    let rows = stmt.query_map(params![parent_item_id], |r| {
-        Ok((
-            r.get::<_, Option<String>>(0)?,
-            r.get::<_, Option<String>>(1)?,
-            r.get::<_, Option<String>>(2)?,
-        ))
-    })?;
+        Ok(mut stmt) => {
+            let mapped = stmt.query_map(params![parent_item_id], |r| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    r.get::<_, Option<i64>>(3)?,
+                    r.get::<_, Option<String>>(4)?,
+                ))
+            })?;
+            for row in mapped {
+                rows.push(row?);
+            }
+        }
+        Err(_) => {
+            let mut stmt = match conn.prepare(
+                "SELECT a.text, a.comment, a.pageLabel
+                 FROM itemAnnotations a
+                 JOIN itemAttachments att ON a.parentItemID = att.itemID
+                 WHERE att.parentItemID = ?1
+                   AND a.itemID NOT IN (SELECT itemID FROM deletedItems)
+                 ORDER BY att.itemID, a.sortIndex",
+            ) {
+                Ok(s) => s,
+                Err(_) => return Ok(Vec::new()), // older Zotero without annotations
+            };
+            let mapped = stmt.query_map(params![parent_item_id], |r| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    None::<i64>,
+                    None::<String>,
+                ))
+            })?;
+            for row in mapped {
+                rows.push(row?);
+            }
+        }
+    }
+
     let mut out = Vec::new();
-    for row in rows {
-        let (text, comment, page) = row?;
+    for (text, comment, page, kind, color) in rows {
         let text = text.unwrap_or_default();
         let comment = comment.unwrap_or_default();
         let text = text.trim();
@@ -1655,19 +1711,36 @@ fn read_annotations(conn: &Connection, parent_item_id: i64) -> Result<Vec<String
         if text.is_empty() && comment.is_empty() {
             continue;
         }
-        // Collapse the highlighted passage into one quoted line with an inline
-        // page ref and the comment underneath — compact, not divider-heavy.
         let page = page.as_deref().map(str::trim).filter(|s| !s.is_empty());
+        let color = color.as_deref().map(str::trim).filter(|s| !s.is_empty());
+        let meta = match (annotation_kind_label(kind), color) {
+            (Some(label), Some(color)) => Some(format!("{label} · {color}")),
+            (Some(label), None) => Some(label.to_string()),
+            (None, Some(color)) => Some(color.to_string()),
+            (None, None) => None,
+        };
+        // Collapse the marked passage into one quoted line with an inline
+        // type/color tag, page ref and the comment underneath — compact, not
+        // divider-heavy. Text-only rows keep the legacy format.
         let mut block = String::new();
         if !text.is_empty() {
             let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
             block.push_str("> ");
+            if let Some(meta) = &meta {
+                block.push_str(&format!("[{meta}] "));
+            }
             block.push_str(&collapsed);
             if let Some(p) = page {
                 block.push_str(&format!(" (p. {p})"));
             }
         } else if let Some(p) = page {
-            block.push_str(&format!("(p. {p})"));
+            if let Some(meta) = &meta {
+                block.push_str(&format!("> [{meta}] (p. {p})"));
+            } else {
+                block.push_str(&format!("(p. {p})"));
+            }
+        } else if let Some(meta) = &meta {
+            block.push_str(&format!("> [{meta}]"));
         }
         if !comment.is_empty() {
             if !block.is_empty() {
@@ -2170,9 +2243,53 @@ mod tests {
             read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
         let a = &items[0].annotations;
         assert_eq!(a.len(), 1);
-        assert!(a[0].contains("> Key finding here"), "got: {}", a[0]);
+        assert!(
+            a[0].contains("> [高亮 · #ffd400] Key finding here"),
+            "got: {}",
+            a[0]
+        );
         assert!(a[0].contains("my comment"), "got: {}", a[0]);
         assert!(a[0].contains("p. 3"), "got: {}", a[0]);
+    }
+
+    #[test]
+    fn distinguishes_annotation_shape_and_color() {
+        let conn = seed_db();
+        conn.execute_batch(
+            "INSERT INTO itemAnnotations VALUES (14,11,5,'Underlined passage','','#2ea8e5','7','00002');
+             INSERT INTO itemAnnotations VALUES (15,11,1,'Underlined passage','','#2ea8e5','7','00003');
+             INSERT INTO itemAnnotations VALUES (16,11,5,'Mystery annotation','','','8','00004');
+             INSERT INTO itemAnnotations VALUES (17,11,99,'Unknown type','','#000000','9','00005');",
+        )
+        .unwrap();
+        let ZoteroRead { items, .. } =
+            read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
+        let a = &items[0].annotations;
+        assert_eq!(a.len(), 5);
+        assert!(a[1].contains("> [下划线 · #2ea8e5] Underlined passage (p. 7)"));
+        assert!(a[2].contains("> [高亮 · #2ea8e5] Underlined passage (p. 7)"));
+        // Same text with a different shape stays a separate block (no dedupe
+        // by quote alone). The append layer compares the whole line.
+        assert_ne!(a[1], a[2]);
+        assert!(a[3].contains("> [下划线] Mystery annotation (p. 8)"));
+        assert!(a[4].contains("> [标注 · #000000] Unknown type (p. 9)"));
+    }
+
+    #[test]
+    fn reads_annotations_from_an_old_schema_without_type_and_color() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE itemAttachments (itemID INTEGER, parentItemID INTEGER);
+             CREATE TABLE deletedItems (itemID INTEGER);
+             CREATE TABLE itemAnnotations (itemID INTEGER, parentItemID INTEGER, text TEXT, comment TEXT, pageLabel TEXT, sortIndex TEXT);
+             INSERT INTO itemAttachments VALUES (11,10);
+             INSERT INTO itemAnnotations VALUES (13,11,'Old highlight','old comment','2','00001');",
+        )
+        .unwrap();
+
+        let out = read_annotations(&conn, 10).unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0], "> Old highlight (p. 2)\nold comment");
     }
 
     #[test]

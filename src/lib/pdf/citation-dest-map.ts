@@ -76,7 +76,6 @@ function ensureWorker(): Worker | null {
 		if (event.data.ok) {
 			request.resolve({
 				cites: new Map(event.data.cites),
-				citationTargets: new Map(event.data.citationTargets),
 				crossrefs: new Map(event.data.crossrefs),
 				crossrefKinds: new Map(event.data.crossrefKinds),
 				crossrefLabels: new Map(event.data.crossrefLabels),

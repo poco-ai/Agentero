@@ -59,4 +59,27 @@ describe("pdf-highlight schema", () => {
 		});
 		expect(plain.comment).toBeUndefined();
 	});
+
+	it("parses underlines and degrades unknown shapes to highlights", () => {
+		expect(parsePdfHighlight({ ...base, kind: "underline" })?.kind).toBe(
+			"underline",
+		);
+		expect(parsePdfHighlight({ ...base, kind: "squiggly" })?.kind).toBe(
+			"highlight",
+		);
+		expect(parsePdfHighlight({ ...base, kind: undefined })?.kind).toBe(
+			"highlight",
+		);
+	});
+
+	it("createHighlight carries the shape", () => {
+		const h = createHighlight({
+			paperPath: "papers/x",
+			page: 1,
+			rects: [{ x: 0, y: 0, w: 0.1, h: 0.1 }],
+			quote: "q",
+			kind: "underline",
+		});
+		expect(h.kind).toBe("underline");
+	});
 });

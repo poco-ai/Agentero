@@ -56,6 +56,11 @@ export const commands = {
 	decisionGatewayDecide: (request: DecisionGatewayRequest) => __TAURI_INVOKE<ApiResult<DecisionGatewayResponse>>("decision_gateway_decide", { request }),
 	layoutModelStatus: () => __TAURI_INVOKE<ApiResult<LayoutModelStatus>>("layout_model_status"),
 	layoutRemoteAnalyzePdf: (args: LayoutRemoteAnalyzePdfArgs) => __TAURI_INVOKE<ApiResult<LayoutRemoteAnalyzePdfResult>>("layout_remote_analyze_pdf", { args }),
+	/**
+	 *  Cancel one in-flight remote layout analyze command. Unknown or already
+	 *  settled request ids are a no-op so unmount cleanup can fire unconditionally.
+	 */
+	layoutRemoteCancel: (requestId: string) => __TAURI_INVOKE<ApiResult<boolean>>("layout_remote_cancel", { requestId }),
 	layoutRemoteProbe: (args: LayoutRemoteProbeArgs) => __TAURI_INVOKE<ApiResult<LayoutRemoteProbeResult>>("layout_remote_probe", { args }),
 	agentListAgents: () => __TAURI_INVOKE<ApiResult<AgentListResponse_Serialize>>("agent_list_agents"),
 	agentListSkills: (vaultPath: string | null) => typedError<ApiResult<AgentSkill[]>, string>(__TAURI_INVOKE("agent_list_skills", { vaultPath })),
@@ -110,7 +115,7 @@ export const commands = {
 	jobParseBodyEnqueue: (args: JobParseBodyEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_parse_body_enqueue", { args })),
 	jobLayoutAnalyzeEnqueue: (args: JobLayoutAnalyzeEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
 	/**  Request a document translation through the same queue used by imports. */
-	jobLayoutTranslateEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_translate_enqueue", { args })),
+	jobLayoutTranslateEnqueue: (args: JobLayoutTranslateEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_translate_enqueue", { args })),
 	jobLayoutTranslateClaim: (args: JobLayoutTranslateClaimArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_layout_translate_claim", { args })),
 	jobDownloadAssetsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_download_assets_enqueue", { args })),
 	/**
@@ -287,6 +292,12 @@ export const commands = {
 	/**  Empty the entire recycle bin (permanent). */
 	pathPurgeTrash: (args: TrashVaultArgs) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("path_purge_trash", { args })),
 	translateText: (args: TranslateTextArgs) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text", { args }),
+	/**
+	 *  Streaming translate: pushes each increment through `on_delta`, then returns
+	 *  the final text. Providers without a streaming path fall back to one-shot
+	 *  translation (no deltas, final text only).
+	 */
+	translateTextStream: (args: TranslateTextArgs, onDelta: Channel<string>) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text_stream", { args, onDelta }),
 	layoutTranslateCacheWrite: (args: LayoutTranslateCacheWriteArgs) => __TAURI_INVOKE<ApiResult<null>>("layout_translate_cache_write", { args }),
 	/**
 	 *  Batch resolve identifiers and write papers into vault.
@@ -701,7 +712,7 @@ export const commands = {
 	body: string | null,
 } | null, string>(__TAURI_INVOKE("app_update_check", { proxy, retryOnTimeout })),
 	cliInstallStatus: () => __TAURI_INVOKE<ApiResult<CliInstallStatus>>("cli_install_status"),
-	cliInstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command"),
+	cliInstallCommand: (automatic: boolean | null) => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command", { automatic }),
 	cliUninstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_uninstall_command"),
 	finderServiceStatus: () => __TAURI_INVOKE<ApiResult<FinderServiceStatus>>("finder_service_status"),
 	finderServiceInstall: () => __TAURI_INVOKE<ApiResult<FinderServiceStatus>>("finder_service_install"),
@@ -1731,6 +1742,8 @@ export type AppSettings_Deserialize = {
 	terminalApp?: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy?: string,
+	/**  Opt in to the experimental PDF reading view. */
+	pdfReadingModeEnabled?: boolean,
 	/**  Enable single-key Vim navigation on PDF reading surfaces. */
 	pdfVimKeys?: boolean,
 	/**
@@ -1884,6 +1897,8 @@ export type AppSettings_Serialize = {
 	terminalApp: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy: string,
+	/**  Opt in to the experimental PDF reading view. */
+	pdfReadingModeEnabled: boolean,
 	/**  Enable single-key Vim navigation on PDF reading surfaces. */
 	pdfVimKeys: boolean,
 	/**
@@ -2631,6 +2646,8 @@ export type CliInstallStatus = {
 	canInstall: boolean,
 	/**  Whether a user-level shim/link we manage is installed. */
 	installed: boolean,
+	/**  Whether startup may install the CLI; explicit uninstall disables it. */
+	autoInstallEnabled: boolean,
 	/**  Where the managed shim lives. */
 	installPath: string | null,
 	/**  Shim points at our CLI and CLI version matches the app. */
@@ -2661,6 +2678,8 @@ export type CompileLogEvent = {
 	rootPath: string,
 	line: string,
 };
+
+export type ConnectorErrorCode = "portInUse" | "bindFailed" | "serverStopped" | "invalidPort";
 
 /**
  *  Mirror of the inline `json!({ "message", "sessionId" })` in
@@ -2717,6 +2736,7 @@ export type ConnectorStatus = {
 	port: number,
 	boundAddress: string | null,
 	lastError: string | null,
+	lastErrorCode: ConnectorErrorCode | null,
 	vaultPath: string | null,
 	parentDir: string,
 };
@@ -2903,6 +2923,10 @@ export type DecisionSettings = {
 	model?: string,
 	/**  Whether the experimental smart-highlight toolbar action is enabled. */
 	smartHighlight?: boolean,
+	/**  How many smart-highlight batches may be in flight. One of 1, 2, 4, 16. */
+	smartHighlightConcurrency?: number,
+	/**  Seconds for one smart-highlight batch, starting when its request is sent. */
+	smartHighlightTimeoutSecs?: number,
 };
 
 export type DepPolicy = "allSettled" | "allSucceeded";
@@ -3589,10 +3613,10 @@ export type JobLatexCompileEnqueueArgs = {
 };
 
 /**
- *  `layoutAnalyze` enqueue args. `auto_translate` marks import / download
- *  origins: when Settings → Translate → "Auto-translate after import" is on,
- *  the Host also queues the dependent `layoutTranslate` job. Opening a paper or
- *  re-parsing layout leaves it false.
+ *  `layoutAnalyze` enqueue args. `auto_translate` asks the Host to queue a
+ *  dependent `layoutTranslate` when Settings → Translate → auto-translate after
+ *  layout analysis is on. Import, download, and manual reparse set it. Opening
+ *  a paper leaves it false.
  */
 export type JobLayoutAnalyzeEnqueueArgs = {
 	vaultPath: string,
@@ -3604,6 +3628,24 @@ export type JobLayoutAnalyzeEnqueueArgs = {
 
 export type JobLayoutTranslateClaimArgs = {
 	jobId: string,
+};
+
+export type JobLayoutTranslateEnqueueArgs = {
+	vaultPath: string,
+	path: string,
+	lane?: JobLane | null,
+	force?: boolean,
+	/**
+	 *  Rebuild layout before starting this translation, even when the current
+	 *  sidecar is structurally complete.
+	 */
+	forceLayout?: boolean,
+	/**
+	 *  `complete` names a gap-fill started from the partial-translation
+	 *  action. Any other value is ignored. Joining an active translation
+	 *  keeps that job's name.
+	 */
+	purpose?: string | null,
 };
 
 export type JobListArgs = {
@@ -5574,7 +5616,8 @@ export type SyncBackendConfig = {
 	webdavPassword?: string,
 	/**
 	 *  Git remote URL or local path. Credentials are never stored here; the
-	 *  system credential helper / SSH agent is used.
+	 *  system credential helper / SSH agent is used. Non-loopback `http://`
+	 *  requires [`Self::git_allow_insecure_http`].
 	 */
 	gitRemote?: string,
 	/**
@@ -5582,6 +5625,17 @@ export type SyncBackendConfig = {
 	 *  already match when it is an existing repository.
 	 */
 	gitBranch?: string,
+	/**
+	 *  Allow a non-loopback `http://` Git remote. The credential travels in
+	 *  cleartext; leave this off unless the server is on a trusted intranet
+	 *  and has no HTTPS.
+	 */
+	gitAllowInsecureHttp?: boolean,
+	/**
+	 *  Absolute path to a PEM CA bundle (`http.sslCAInfo`) for a self-signed
+	 *  HTTPS Git remote. Empty uses the system trust store.
+	 */
+	gitSslCaInfo?: string,
 	/**  `user` or `organization`. Official cloud only. */
 	agenteroSubject?: string,
 	/**  Organization id when [`Self::agentero_subject`] is `organization`. */

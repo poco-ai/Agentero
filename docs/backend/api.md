@@ -845,7 +845,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     text: string;
     sourceLang?: string;     // default "auto"
     targetLang: string;      // e.g. "zh-CN" | "en"
-    provider?: string;       // agentero (内置；注入 key 的构建里的默认) | tencenttransmart | huoshanweb | deeplx | cnki | googleapi | google | deepl | azure | googleCloud | openaiCompatible
+    provider?: string;       // agentero (内置；注入 key 的构建里的默认) | tencenttransmart | huoshanweb | cnki | indextranslate | indextranslate2b | deepl | azure | googleCloud | openaiCompatible
     apiKey?: string | null;  // 商用 BYOK；可省略或传同长度 "*" 掩码，Host 从 settings 注入真实密钥。provider 为 agentero 时被 Host 用构建期凭证**覆写**，调用方传什么都无效
     baseUrl?: string | null; // 商用 provider endpoint override（可选）；agentero 同样被覆写
     region?: string | null;  // azure 必填
@@ -879,7 +879,8 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     listening: boolean;
     port: number;                 // 23119
     boundAddress: string | null;  // "127.0.0.1:23119"
-    lastError: string | null;
+    lastError: string | null;     // diagnostic detail; display via lastErrorCode
+    lastErrorCode: "portInUse" | "bindFailed" | "serverStopped" | "invalidPort" | null;
     vaultPath: string | null;
     parentDir: string;            // default "papers"
   };
@@ -888,7 +889,8 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 #### `connector_set_enabled`
 
 - **参数**（`args`）：`{ enabled: boolean }`
-- **返回**：`{ ok: true; data: ConnectorStatus }`（bind 失败时 `listening=false` 且 `lastError` 有文案）
+- **返回**：`{ ok: true; data: ConnectorStatus }`（首次 bind 失败时 `enabled=true`、`listening=false`，`lastError` 保留诊断详情，前端按 `lastErrorCode` 本地化）
+- **恢复**：Host 在启用期间每 5 秒重试失败的 bind / 意外停止的服务，并通过 `connector:status` 更新状态；成功清除错误，禁用或退出取消待重试任务。再次传 `enabled=true` 会立即重试，已监听时不重启。
 
 #### `connector_set_vault`
 

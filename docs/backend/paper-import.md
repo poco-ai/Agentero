@@ -141,7 +141,7 @@ PDF 版面任务保持独立，供坐标、图表与引用等功能使用；`for
 - **提示词**：默认按 model id 自动选择（含 `deepseek-ocr` → grounding 提示词；含 `paddleocr` → `OCR:`；其余 → 通用指令）。设置里的 Prompt 输入框可覆盖，留空即走自动。
   - ⚠️ `PaddleOCR-VL` 是**任务提示词**模型，只认它自己那几个固定提示词；换成自由指令会退化成检测模式并吐出 `<|LOC_n|>` 坐标 token。自定义提示词请配指令型 VLM（如 DeepSeek-OCR 去掉 `<|grounding|>`、Qwen-VL 等）。
 - **MinerU 高级选项**：`language`（OCR 语言包，默认 `ch` 中英文，Host 白名单校验）与 `isOcr`（强制 OCR，默认关闭、按文本层自动判断）存在共用的 `layout.providerConfigs.mineru`，版面分析与正文解析复用同一套请求参数。打开「自建 API」开关（`selfHosted`）后按自建服务处理，版本在请求时自动识别（4.0 V1 / 3.x `/file_parse`），正文解析读 zip 内的 Markdown（`markdown.md` 或 `<stem>.md`）与 `images/`。
-- **MinerU 在途提取共享**：相同 PDF 内容、文件名、服务地址、凭据、语言、OCR 与自建协议选项的并发正文/版面请求只执行一次提取，并读取同一 `Arc` ZIP；两个消费者各自接收进度。取消一个消费者不影响另一个，最后消费者退出即释放上游 HTTP future；已提交到服务端的任务不保证取消。仅保留在途弱引用，不缓存已结束的 ZIP、不落盘请求键或凭据，结束后重算仍会新建提取。Paddle 的不同模型保持独立。
+- **MinerU 在途提取共享**：相同 PDF 内容、文件名、服务地址、凭据、语言、OCR 与自建协议选项的并发正文请求只执行一次提取，并读取同一 `Arc` ZIP；消费者各自接收进度。取消一个正文消费者不影响另一个，最后消费者退出即释放上游 HTTP future。版面分析独立提交，每次重试创建新 batch，取消会停止对应 Host 等待；已经提交的云端 batch 仍由服务端处理。仅保留在途弱引用，不缓存已结束的 ZIP、不落盘请求键或凭据，结束后重算仍会新建提取。Paddle 的不同模型保持独立。
 - **MinerU 图片资产**：MinerU 的 `full.md` 使用 `images/...` 相对链接引用结果 ZIP 中的裁图。Agentero 将这些图片与 `PAPER.md` 一起写到论文目录中的 `images/`；二者均为可重建的派生物，不改变 PDF、TeX 或 `NOTES.md` 的归档地位。
 - **MinerU 版面图注（#704）**：远程版面框保留 Content List 的正文与 `image_caption` / `table_caption` 文字；从 `middle.json` / `layout.json` 的嵌套 `image_caption` / `table_caption` 块追加真实图注框。Content List 的 0–1000 坐标仍按页面尺寸换算，中间格式图注框直接使用 PDF points。只有文字时不伪造图注几何；前端补读 PDF 文字并进行同页 / 保守跨页关联，见 [PDF 版面分析](../frontend/pdf-layout-analysis.md)。
 - **输出清洗**：grounding 输出形如 `<|ref|>label<|/ref|><|det|>[[box]]<|/det|>\n正文`，`<|ref|>` 内是版面**类别名**（`text` / `title`）而非正文，两段都整体丢弃，否则正文里会混入 `text` / `sub_title` 噪声行；`<|LOC_n|>` 同样剥离。
@@ -162,9 +162,10 @@ PDF 版面任务保持独立，供坐标、图表与引用等功能使用；`for
 ## PDFium 随包分发
 
 liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 build script 只
-把**构建机**的下载缓存绝对路径 bake 进二进制。用户机上那个路径不存在，加载失败会
-直接 panic（子进程退出码 101），表现为“一直解析中 / 解析失败”。因此 PDFium 必须
-随安装包一起分发。
+把**构建机**的下载缓存绝对路径 bake 进二进制。用户机上那个路径不存在。桌面安装包
+和 CLI 归档都必须带上与 `liteparse-pdfium-sys` 同一 tag 的 **run-llama** 构建；
+stock PDFium（例如 bblanchon/pdfium-binaries）能 `LoadLibrary`，但缺 fork 符号，
+以前会被 `Library::init` 收成没有路径的 `LibraryUnavailable`。
 
 | 环节 | 位置 |
 |---|---|
@@ -172,7 +173,8 @@ liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 buil
 | 来源优先级 | `PDFIUM_LIB_PATH` → 平台缓存 `<cache>/pdfium-rs/<tag>/<asset>/` → 从 pdfium-binaries release 下载（5xx 重试，仍失败则改走 release asset API） |
 | macOS 打包 | `bundle.macOS.frameworks` → `Contents/Frameworks/libpdfium.dylib`（tauri-bundler 会把它登记为 codesign target，公证需要） |
 | Windows / Linux 打包 | `bundle.resources: ["pdfium/*"]` → exe 同级 `pdfium/`，deb/AppImage 为 `/usr/lib/agentero/pdfium/` |
-| 运行时定位 | `pdf_parse::bundled_pdfium_dir()` 从 `current_exe` 探测上述位置，作为 `PDFIUM_LIB_PATH` 传给解析子进程；外部已设置该环境变量时不覆盖 |
+| CLI 归档 | release 的 `cli` job 把同一份库放进 `agentero-cli-*` 归档，与 `agentero` / `agentero.exe` 同级。设置 → 安装 CLI 解压到受管目录；归档里没有时，从当前 App bundle 拷一份过去 |
+| 运行时定位 | worker 先按绝对路径 `load`：`PDFIUM_LIB_PATH` 里的库，失败再试 `bundled_pdfium_dir()`（`pdfium/` 子目录、deb/AppImage、exe 同级）。都没有才走 liteparse 自己的搜索。加载失败把路径和符号错误写进 response，不再让 `Library::init` panic 成 `LibraryUnavailable` |
 
 - iOS/Android 不打包 PDFium：正文解析走配对的桌面 Host，平台 config 已清空 `resources`。
 - 子进程 stderr 落到 worker 临时目录的 `stderr.log`；拿不到 response 时其尾部会拼进错误消息。

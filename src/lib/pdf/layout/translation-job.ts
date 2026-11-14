@@ -9,6 +9,7 @@ import { callApiResult } from "@/lib/core/ipc";
 import { normalizePath, sameRelPaperPath } from "@/lib/core/path";
 import type { TaskReportArgs } from "@/lib/core/tasks";
 import { isTauri } from "@/lib/core/tauri";
+import type { LayoutCompletenessWarning } from "@/lib/pdf/layout/completeness";
 import type { LayoutTranslateCacheKey } from "@/lib/pdf/layout/layout-translate";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 
@@ -18,6 +19,8 @@ export type TranslationSnapshot = {
 	revision: number;
 	fromCache?: boolean;
 	cacheOnly?: boolean;
+	layoutWarnings?: LayoutCompletenessWarning[];
+	layoutPageCount?: number | null;
 };
 const localSnapshots = new Map<string, TranslationSnapshot>();
 const listeners = new Set<
@@ -43,6 +46,8 @@ export function createTranslationPublisher(
 	let revision = 0;
 	let fromCache: boolean | undefined;
 	let cacheOnly: boolean | undefined;
+	let layoutWarnings: LayoutCompletenessWarning[] | undefined;
+	let layoutPageCount: number | null | undefined;
 	let pending: TranslationSnapshot | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let tail = Promise.resolve();
@@ -72,7 +77,18 @@ export function createTranslationPublisher(
 		return tail;
 	};
 	return {
-		publish(cacheKey: LayoutTranslateCacheKey, items: LayoutTranslateItem[]) {
+		publish(
+			cacheKey: LayoutTranslateCacheKey,
+			items: LayoutTranslateItem[],
+			layout?: {
+				warnings: LayoutCompletenessWarning[];
+				pageCount: number | null;
+			},
+		) {
+			if (layout) {
+				layoutWarnings = layout.warnings;
+				layoutPageCount = layout.pageCount;
+			}
 			fromCache ??= items.some((item) => Boolean(item.translated?.trim()));
 			cacheOnly ??= items.every(
 				(item) => item.status === "done" && Boolean(item.translated?.trim()),
@@ -83,6 +99,8 @@ export function createTranslationPublisher(
 				revision: ++revision,
 				fromCache,
 				cacheOnly,
+				layoutWarnings,
+				layoutPageCount,
 			};
 			localSnapshots.set(jobId, snapshot);
 			for (const listener of listeners) listener(jobId, snapshot);
@@ -105,6 +123,9 @@ export async function observePaperTranslation(options: {
 	paperPath: string;
 	start: boolean;
 	force?: boolean;
+	forceLayout?: boolean;
+	/** Gap-fill from the partial-translation action. Omitted for a full run. */
+	purpose?: "complete";
 	signal: AbortSignal;
 	onUpdate: (job: JobSnapshot, snapshot: TranslationSnapshot | null) => void;
 	onJob?: (jobId: string) => void;
@@ -153,6 +174,8 @@ export async function observePaperTranslation(options: {
 						path: options.paperPath,
 						lane: "focus",
 						force: options.force ?? false,
+						forceLayout: options.forceLayout ?? false,
+						purpose: options.purpose ?? null,
 					}),
 				)
 			: (

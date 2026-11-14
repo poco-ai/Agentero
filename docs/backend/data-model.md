@@ -55,7 +55,7 @@ papers/<id>/
 
 ## marks/
 
-- 高亮/批注：`annotations.json`（含 `contents` 的为批注）。桌面划词与 CLI（`mark add --quote` / `--region`）都写这里；CLI 按 annotation id 去重后原子替换，阅读器监听外部变更增量导入。历史 per-id `kind: highlight` mark 仍可读（Doctor / 首次打开时投影）
+- 高亮 / 下划线 / 批注：`annotations.json`（含 `contents` 的为批注；annotation `type` 区分高亮与下划线）。桌面划词与 CLI（`mark add --quote` / `--region`）都写这里；CLI 按 annotation id 去重后原子替换，阅读器监听外部变更增量导入。历史 per-id `kind: highlight` / `kind: underline` mark 仍可读（Doctor / 首次打开时投影）
 - 提问/翻译：`<id>.json`（`kind`）；CLI 可用 `mark add --region … --question` 写 `ask` 壳
 - 视觉批注：`<id>.json`（`kind: visual` v2）保存区域、用户 `comment`、可选嵌套 `agent` 与 `image.path`；裁剪图片位于 `assets/<id>.png`。旧版 `kind: agent-trace`（扁平 agent 字段）仍可读，Doctor 可迁移
 - 不写 PDF 二进制，不强制写入 NOTES

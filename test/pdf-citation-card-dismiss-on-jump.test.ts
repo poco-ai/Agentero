@@ -33,11 +33,7 @@ type Link = Pick<PdfLinkAnnoObject, "pageIndex" | "rect" | "target">;
 
 type View = {
 	citationPreview: { matched: { id: string }[] } | null;
-	handleCitationLinkHover: (
-		link: Link | null,
-		point?: { x: number; y: number },
-		keys?: string[],
-	) => void;
+	handleCitationLinkHover: (link: Link | null) => void;
 	handleCitationLinkActivate: (link: Link) => void;
 };
 
@@ -65,22 +61,12 @@ function citationLink(destPdfY: number): Link {
 	} as Link;
 }
 
-function createHarness(
-	navigateOutcome: { outcome: string; uri?: string },
-	pageMounted = true,
-) {
+function createHarness(navigateOutcome: { outcome: string; uri?: string }) {
 	const slots: unknown[] = [];
 	const openedUrls: string[] = [];
 	const jumps: unknown[] = [];
 	const sidecarBox: {
-		current: {
-			citations: {
-				id: string;
-				rawKey?: string;
-				raw?: string;
-				source?: string;
-			}[];
-		} | null;
+		current: { citations: { id: string; rawKey: string }[] } | null;
 	} = { current: null };
 	const mapsBox: {
 		current: { cites: Map<string, string>; citationLinks: [] } | null;
@@ -134,7 +120,7 @@ function createHarness(
 	const modules: Record<string, unknown> = {
 		react,
 		"@/components/viewer/pdf/coords": {
-			pageElByIndex: () => (pageMounted ? {} : null),
+			pageElByIndex: () => ({}),
 			rectBottomCenterScreen: () => ({ x: 120, y: 240 }),
 		},
 		"@/components/viewer/pdf/floating-hover": {
@@ -294,13 +280,7 @@ function createHarness(
 	// Seed before the first render: the dest-map effect loads once per deps,
 	// so a later assignment would never be picked up.
 	sidecarBox.current = {
-		citations: [
-			{
-				id: "c1",
-				rawKey: "cite.evans2021",
-				raw: "Evans (2021). A real reference title.",
-			},
-		],
+		citations: [{ id: "c1", rawKey: "cite.evans2021" }],
 	};
 	mapsBox.current = {
 		cites: new Map([[citationDestKey(9, 500), "cite.evans2021"]]),
@@ -354,68 +334,4 @@ it("keeps the card for a uri link (external open does not move the page)", async
 	assert.equal(h.openedUrls[0], "https://example.org");
 	assert.notEqual(h.view.citationPreview, null);
 	assert.equal(h.jumps.length, 0);
-});
-
-it("shows the same citation card at a reading-text anchor without a mounted source PDF page", async () => {
-	const h = createHarness({ outcome: "navigated" }, false);
-	await h.flush();
-	h.view.handleCitationLinkHover(citationLink(500), { x: 460, y: 320 });
-	h.render();
-	assert.equal(h.view.citationPreview?.matched[0]?.id, "c1");
-});
-
-it("lets the source crop handle a sidecar entry containing only an identifier", async () => {
-	const h = createHarness({ outcome: "navigated" }, false);
-	h.sidecarBox.current = {
-		citations: [{ id: "c1", rawKey: "cite.evans2021" }],
-	};
-	await h.flush();
-	h.view.handleCitationLinkHover(citationLink(500), { x: 460, y: 320 });
-	h.render();
-	assert.equal(h.view.citationPreview, null);
-});
-
-it("does not treat online reference-list order as PDF bibliography numbering", async () => {
-	const h = createHarness({ outcome: "navigated" }, false);
-	h.mapsBox.current?.cites.set(citationDestKey(9, 500), "mk:ref18");
-	h.sidecarBox.current = {
-		citations: [
-			{ id: "ref-18", raw: "Wrong eighteenth online result", source: "s2" },
-		],
-	};
-	await h.flush();
-	h.view.handleCitationLinkHover(citationLink(500), { x: 460, y: 320 });
-	h.render();
-	assert.equal(h.view.citationPreview, null);
-});
-
-it("uses complete native-key metadata groups and falls back when any member is missing", async () => {
-	const h = createHarness({ outcome: "navigated" }, false);
-	h.sidecarBox.current = {
-		citations: [
-			{ id: "a", rawKey: "alpha", raw: "Alpha paper" },
-			{ id: "b", rawKey: "beta", raw: "Beta paper" },
-		],
-	};
-	await h.flush();
-	h.view.handleCitationLinkHover(citationLink(500), { x: 460, y: 320 }, [
-		"alpha",
-		"beta",
-	]);
-	h.render();
-	assert.equal(
-		JSON.stringify(h.view.citationPreview?.matched.map((c) => c.id)),
-		JSON.stringify(["a", "b"]),
-	);
-	const other = createHarness({ outcome: "navigated" }, false);
-	other.sidecarBox.current = {
-		citations: [{ id: "a", rawKey: "alpha", raw: "Alpha paper" }],
-	};
-	await other.flush();
-	other.view.handleCitationLinkHover(citationLink(500), { x: 460, y: 320 }, [
-		"alpha",
-		"beta",
-	]);
-	other.render();
-	assert.equal(other.view.citationPreview, null);
 });

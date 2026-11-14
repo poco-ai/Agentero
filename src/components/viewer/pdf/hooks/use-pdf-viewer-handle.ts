@@ -36,8 +36,8 @@ import { isTauri } from "@/lib/core/tauri";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import { deletePdfAskThread, type PdfAskThread } from "@/lib/pdf/ask";
 import {
-	isHighlightObject,
 	isLiveAnnotation,
+	isTextMarkupObject,
 } from "@/lib/pdf/highlight/annotation-store";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
 import { setFocusedLayoutRegion } from "@/lib/pdf/layout";
@@ -137,7 +137,7 @@ export function usePdfViewerHandle({
 				const tracked = annotationCap?.forDocument(docId).getAnnotationById(id);
 				if (!tracked || !isLiveAnnotation(tracked)) return;
 				const obj = tracked.object;
-				if (!isHighlightObject(obj)) return;
+				if (!isTextMarkupObject(obj)) return;
 				// Instant: smooth jumps across distant pages feel like slow render.
 				scrollRef.current?.scrollToPage({
 					pageNumber: obj.pageIndex + 1,
@@ -148,7 +148,7 @@ export function usePdfViewerHandle({
 			editComment: (id) => openEditorForAnnotation(id),
 			deleteHighlight: (id) => {
 				const tracked = annotationCap?.forDocument(docId).getAnnotationById(id);
-				if (tracked && isHighlightObject(tracked.object)) {
+				if (tracked && isTextMarkupObject(tracked.object)) {
 					deleteHighlightAnnotation(tracked.object.pageIndex, id);
 				}
 			},

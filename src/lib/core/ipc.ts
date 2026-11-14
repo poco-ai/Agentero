@@ -19,7 +19,7 @@
 import type { ApiResult } from "@/lib/core/bindings";
 import { isTauri } from "@/lib/core/tauri";
 
-export type ApiError = Error & { details?: unknown };
+export type ApiError = Error & { code?: string; details?: unknown };
 
 /** IPC-level envelope produced by specta's `typedError` wrapper. */
 export type TypedResult<T> =
@@ -58,6 +58,7 @@ function hostError(error: unknown, fallback?: string): ApiError {
 	const thrown = new Error(
 		body?.message || fallback || "Host command failed",
 	) as ApiError;
+	if (typeof body?.code === "string" && body.code) thrown.code = body.code;
 	thrown.details = body?.details;
 	return thrown;
 }

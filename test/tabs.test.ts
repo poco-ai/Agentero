@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readingColumnAnchors } from "@/components/workspace/dock-layout";
+import { ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import * as tauri from "@/lib/core/tauri";
 import * as paperApi from "@/lib/paper/api";
 import { LIBRARY_VIRTUAL_PATH } from "@/lib/paper/api";
@@ -102,6 +103,15 @@ describe("createPlaceholderTab", () => {
 		expect(tab.kind).toBe("library");
 		expect(tab.title).toBe("Library");
 		expect(tab.mode).toBe("markdown");
+	});
+
+	it("special-cases the Zen virtual path", () => {
+		expect(tabIdForPath(ZEN_VIRTUAL_PATH)).toBe(ZEN_VIRTUAL_PATH);
+		const tab = createPlaceholderTab(ZEN_VIRTUAL_PATH);
+		expect(tab.path).toBe(ZEN_VIRTUAL_PATH);
+		expect(tab.kind).toBe("zen");
+		expect(tab.mode).toBe("markdown");
+		expect(tab.loaded).toBe(false);
 	});
 });
 

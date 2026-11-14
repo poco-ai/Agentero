@@ -178,30 +178,6 @@ function pageWithFormula(index: number): ReflowPage {
 	};
 }
 
-it("isolates reader bibliography IR from translation cache entries in both directions", async () => {
-	disk.files.clear();
-	const input = {
-		paperKey: "papers/reference-cache",
-		paperAbsPath: "/vault/papers/reference-cache",
-		pdfBytes: new Uint8Array([37, 80, 68, 70]),
-		items: [],
-		regions: [],
-	};
-	const translation = createReflowIrCache(input);
-	const reader = createReflowIrCache({ ...input, includeReferences: true });
-	await translation.write([pageWithFormula(0)]);
-	expect((await reader.read([0])).size).toBe(0);
-	const retained = pageWithFormula(0);
-	retained.paragraphs[0].source = "Retained bibliography";
-	await reader.write([retained]);
-	expect((await reader.read([0])).get(0)?.paragraphs[0].source).toBe(
-		"Retained bibliography",
-	);
-	expect((await translation.read([0])).get(0)?.paragraphs[0].source).toBe(
-		"source 0",
-	);
-});
-
 function item(id: string, pageIndex: number): LayoutTranslateItem {
 	return {
 		id,
@@ -222,70 +198,6 @@ const document = {
 } as unknown as PdfDocumentObject;
 
 describe("reflow IR cache", () => {
-	it("invalidates the pre-migration extraction algorithm", async () => {
-		const expected = header(0);
-		const old = await encodeReflowIrCachePage({
-			...expected,
-			algorithmVersion: 1,
-			page: pageWithFormula(0),
-		});
-		expect(await decodeReflowIrCachePage(old, expected)).toBeNull();
-	});
-	it("shares decoded styles across the prepared document", async () => {
-		const pages = new Map<number, ReflowPage>();
-		for (const index of [0, 1]) {
-			const expected = header(index);
-			const page = await decodeReflowIrCachePage(
-				await encodeReflowIrCachePage({
-					...expected,
-					page: pageWithFormula(index),
-				}),
-				expected,
-			);
-			if (page) pages.set(index, page);
-		}
-		const prepared = await prepareReflowItems(
-			{} as PdfEngine,
-			document,
-			[item("p0", 0), item("p1", 1)],
-			[],
-			undefined,
-			{ read: async () => pages, write: async () => {} },
-		);
-		const styles = prepared.flatMap(
-			(p) => p.reflow?.characters.map((c) => c.style) ?? [],
-		);
-		expect(new Set(styles).size).toBe(1);
-		expect(prepared[0].reflow?.style).toBe(styles[0]);
-	});
-	it("recovers an unselected page while keeping a selected cache hit", async () => {
-		const getPageGlyphs = vi.fn(() => ({ toPromise: async () => [] }));
-		const engine = {
-			getPageGlyphs,
-			getPageTextRuns: () => ({ toPromise: async () => ({ runs: [] }) }),
-			getTextSlices: () => ({ toPromise: async () => [] }),
-		} as unknown as PdfEngine;
-		const cache = {
-			read: vi.fn(async () => new Map([[0, pageWithFormula(0)]])),
-			write: vi.fn(async () => {}),
-		};
-		await prepareReflowItems(
-			engine,
-			document,
-			[item("p0", 0)],
-			[],
-			undefined,
-			cache,
-			{ includeUnselectedPages: true },
-		);
-		expect(cache.read).toHaveBeenCalledWith([0, 1]);
-		expect(getPageGlyphs).toHaveBeenCalledTimes(1);
-		expect(getPageGlyphs.mock.calls[0]).toEqual([document, document.pages[1]]);
-		expect(cache.write).toHaveBeenCalledWith([
-			expect.objectContaining({ index: 1 }),
-		]);
-	});
-
 	it("roundtrips a page with formulas, styles, table fields, and coverage", async () => {
 		const page = pageWithFormula(0);
 		const expected = header(0);

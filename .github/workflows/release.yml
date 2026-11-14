@@ -420,17 +420,18 @@ jobs:
 
       # tauri.macos.conf.json lists pdfium/libpdfium.dylib under
       # bundle.macOS.frameworks; tauri-build hard-fails when the file is
-      # missing even when only compiling the headless CLI. The staging script
-      # owns the release tag and the download fallbacks.
+      # missing even when only compiling the headless CLI. Every platform
+      # stages the same library so the CLI archive can ship it beside the
+      # binary — liteparse dlopens PDFium, and the path baked at compile time
+      # is this runner's cache, which does not exist on a user machine.
+      # The staging script owns the release tag and the download fallbacks.
       - name: Setup Node.js for PDFium staging
-        if: runner.os == 'macOS'
         uses: actions/setup-node@v5
         with:
           node-version: 22
           package-manager-cache: false
 
-      - name: Stage PDFium for Tauri build-script
-        if: runner.os == 'macOS'
+      - name: Stage PDFium
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/prepare-pdfium.mjs
@@ -451,15 +452,29 @@ jobs:
           mkdir -p "$STAGE"
           # Cargo bin is `agentero-cli` (no collision with GUI `agentero`);
           # archive still exposes the user-facing name `agentero`.
+          # PDFium sits beside that binary. bundled_pdfium_dir looks there;
+          # a stock PDFium build is not a substitute.
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            PDFIUM_NAME="pdfium.dll"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            PDFIUM_NAME="libpdfium.dylib"
+          else
+            PDFIUM_NAME="libpdfium.so"
+          fi
+          if [[ ! -f "src-tauri/pdfium/${PDFIUM_NAME}" ]]; then
+            echo "refusing to package CLI without src-tauri/pdfium/${PDFIUM_NAME}" >&2
+            exit 1
+          fi
+          cp "src-tauri/pdfium/${PDFIUM_NAME}" "$STAGE/${PDFIUM_NAME}"
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cp "target/release/agentero-cli.exe" "$STAGE/agentero.exe"
             powershell.exe -NoProfile -Command \
-              "Compress-Archive -Path '${STAGE}/agentero.exe' -DestinationPath '${OUT_DIR}/${STAGE}.zip' -Force"
+              "Compress-Archive -Path '${STAGE}/agentero.exe','${STAGE}/${PDFIUM_NAME}' -DestinationPath '${OUT_DIR}/${STAGE}.zip' -Force"
             echo "CLI_ASSET=${OUT_DIR}/${STAGE}.zip" >> "$GITHUB_ENV"
           else
             cp "target/release/agentero-cli" "$STAGE/agentero"
             chmod +x "$STAGE/agentero"
-            tar -C "$STAGE" -czf "${OUT_DIR}/${STAGE}.tar.gz" agentero
+            tar -C "$STAGE" -czf "${OUT_DIR}/${STAGE}.tar.gz" agentero "${PDFIUM_NAME}"
             echo "CLI_ASSET=${OUT_DIR}/${STAGE}.tar.gz" >> "$GITHUB_ENV"
           fi
           ls -la "$OUT_DIR"

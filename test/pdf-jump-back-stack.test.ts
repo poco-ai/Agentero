@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment happy-dom
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { describe, expect, it, vi } from "vitest";
+import { usePdfJumpBack } from "@/components/viewer/pdf/hooks/use-pdf-jump-back";
 import {
 	createJumpBackStack,
 	JUMP_BACK_DEDUPE_DISTANCE_PX,
@@ -7,6 +11,58 @@ import {
 	popJumpOrigin,
 	pushJumpOrigin,
 } from "@/lib/pdf/jump-back-stack";
+
+const restore = vi.hoisted(() => ({ page: vi.fn(), position: vi.fn() }));
+vi.mock("@embedpdf/plugin-scroll/react", () => ({
+	useScrollCapability: () => ({
+		provides: {
+			forDocument: () => ({
+				getCurrentPage: () => 2,
+				scrollToPage: restore.page,
+			}),
+		},
+	}),
+}));
+vi.mock("@embedpdf/plugin-viewport/react", () => ({
+	useViewportCapability: () => ({
+		provides: {
+			forDocument: () => ({
+				getMetrics: () => ({ scrollLeft: 25, scrollTop: 850 }),
+				scrollTo: restore.position,
+			}),
+		},
+	}),
+}));
+
+it("restores the scroll plugin's current page before the exact viewport position", async () => {
+	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+	let view: ReturnType<typeof usePdfJumpBack>;
+	function Viewer() {
+		view = usePdfJumpBack({ docId: "paper" });
+		return null;
+	}
+	const root = createRoot(document.createElement("div"));
+	await act(() => root.render(createElement(Viewer)));
+	await act(() => {
+		view.captureJumpOrigin();
+		view.commitJumpOrigin();
+	});
+	await act(() => view.goBack());
+	expect(restore.page).toHaveBeenCalledWith({
+		pageNumber: 2,
+		behavior: "instant",
+	});
+	expect(restore.position).toHaveBeenCalledWith({
+		x: 25,
+		y: 850,
+		behavior: "instant",
+	});
+	expect(restore.page.mock.invocationCallOrder[0]).toBeLessThan(
+		restore.position.mock.invocationCallOrder[0],
+	);
+	await act(() => root.unmount());
+	vi.unstubAllGlobals();
+});
 
 describe("jump back stack", () => {
 	it("pushes and pops in LIFO order", () => {
@@ -68,22 +124,5 @@ describe("jump back stack", () => {
 		const popped = popJumpOrigin(pushed) ?? { stack: pushed, origin: null };
 		expect(pushed.entries).toHaveLength(1);
 		expect(popped.stack.entries).toHaveLength(0);
-	});
-	it("keeps different reading positions even when their source PDF scroll offsets match", () => {
-		let stack = createJumpBackStack();
-		stack = pushJumpOrigin(stack, {
-			x: 0,
-			y: 2000,
-			page: 3,
-			reader: { blockId: "a", top: 48, scrollTop: 8000 },
-		});
-		stack = pushJumpOrigin(stack, {
-			x: 0,
-			y: 2000,
-			page: 3,
-			reader: { blockId: "b", top: 48, scrollTop: 8500 },
-		});
-		expect(stack.entries).toHaveLength(2);
-		expect(popJumpOrigin(stack)?.origin.reader?.blockId).toBe("b");
 	});
 });

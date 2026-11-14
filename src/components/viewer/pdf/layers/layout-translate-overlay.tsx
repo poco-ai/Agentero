@@ -6,10 +6,8 @@ import { ReflowPageOverlay } from "./reflow-page-overlay";
  */
 
 import { Fragment, memo, useLayoutEffect, useMemo, useRef } from "react";
-import { textLinkHoverPoint } from "@/components/viewer/pdf/link-hover";
-import type { PdfLinkHoverPoint } from "@/components/viewer/pdf/types";
 import { cn } from "@/lib/core/utils";
-import { highlightFill } from "@/lib/pdf/highlight/palette";
+import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import {
 	sentenceHighlightTints,
 	type TranslateSentenceTint,
@@ -44,10 +42,9 @@ import {
 	linkPreviewDragActive,
 } from "@/lib/pdf/link-preview-drag";
 import {
-	isDarkPdfPaper,
+	PDF_PAGE_RASTER_DARK_CLASS,
 	PDF_PAPER_BLOCK_CLASS,
 	type PdfPaperTone,
-	pdfPaperRasterClass,
 } from "@/lib/pdf/page-theme";
 
 type LayoutTranslateOverlayProps = {
@@ -92,7 +89,7 @@ type LayoutTranslateOverlayProps = {
 	onOpenLink?: (assignment: PreservedLinkAssignment) => void;
 	onHoverLink?: (
 		assignment: PreservedLinkAssignment | null,
-		point: PdfLinkHoverPoint | null,
+		point: { x: number; y: number; top: number; bottom: number } | null,
 	) => void;
 };
 
@@ -521,6 +518,16 @@ function linkInkStyle(
 	return { color: linkColorOnPaper(color, tone) };
 }
 
+function linkPoint(element: HTMLElement) {
+	const box = element.getBoundingClientRect();
+	return {
+		x: box.left + box.width / 2,
+		y: box.bottom,
+		top: box.top,
+		bottom: box.bottom,
+	};
+}
+
 /**
  * Render `text`, wrapping preserved link tokens. Anchors stay non-draggable:
  * the browser default drag on `<a href>` replaces the text range when a drag
@@ -589,17 +596,7 @@ function LinkifiedText({
 				}}
 				onPointerEnter={(event) => {
 					if (linkHoverSuppressed(event.buttons)) return;
-					onHoverLink?.(
-						part.assignment,
-						textLinkHoverPoint(event.currentTarget, event),
-					);
-				}}
-				onPointerMove={(event) => {
-					if (!linkHoverSuppressed(event.buttons))
-						onHoverLink?.(
-							part.assignment,
-							textLinkHoverPoint(event.currentTarget, event),
-						);
+					onHoverLink?.(part.assignment, linkPoint(event.currentTarget));
 				}}
 				onPointerLeave={() => {
 					if (linkPreviewDragActive()) return;
@@ -705,10 +702,17 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 							{index > 0 ? sentenceNodes.gap : null}
 							<span
 								data-sentence={node.index}
-								className={cn(tint && "rounded-[1px]")}
+								className={cn(tint?.shape !== "underline" && "rounded-[1px]")}
 								style={
 									tint
-										? { backgroundColor: highlightFill(tint.color) }
+										? tint.shape === "underline"
+											? {
+													textDecorationLine: "underline",
+													textDecorationColor: HIGHLIGHT_HEX[tint.color],
+													textDecorationThickness: "2px",
+													textUnderlineOffset: "2px",
+												}
+											: { backgroundColor: highlightFill(tint.color) }
 										: undefined
 								}
 							>
@@ -910,7 +914,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 								className={cn(
 									"absolute inset-0",
 									PDF_PAPER_BLOCK_CLASS[tone],
-									pdfPaperRasterClass(tone),
+									tone === "dark" && PDF_PAGE_RASTER_DARK_CLASS,
 								)}
 							/>
 						</div>
@@ -924,7 +928,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							<div
 								className={cn(
 									"h-full w-full",
-									isDarkPdfPaper(tone) ? "text-zinc-100" : "text-zinc-900",
+									tone === "dark" ? "text-zinc-100" : "text-zinc-900",
 								)}
 								style={{
 									fontSize,

@@ -32,6 +32,7 @@ import {
 	type Paragraph,
 	REFLOW_IR_SCHEMA_VERSION,
 	type ReflowDocument,
+	type ReflowPage,
 	unionBoxes,
 } from "./types";
 
@@ -95,7 +96,7 @@ function dominantStyle(chars: Character[]): CharacterStyle {
 	);
 }
 const mathFont =
-	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols))/i;
+	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols)|tx(?:sys|sy|mi|ex)\w*)/i;
 const mathSymbol = /[\p{Sm}\u0370-\u03ff\u1d00-\u1d7f\u2070-\u209f]/u;
 const cjk =
 	/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
@@ -220,6 +221,23 @@ export function paragraphFromCharacters(
 			else lines.push({ items: [c], top: c.box.y, bottom: c.box.y + c.box.h });
 		}
 	lines.sort((a, b) => a.top - b.top);
+	// Some PDFs place thin whitespace objects inside a letter's advance.
+	// Ignore only placeholders inside preceding source text; real word spaces
+	// can overlap the next letter at rounded bounds. Recover missing gaps below.
+	for (const line of lines)
+		line.items = line.items.filter((c) => {
+			if (c.text.trim() || c.box.w <= 0) return true;
+			return !line.items.some(
+				(other) =>
+					other.text.trim() &&
+					other.index < c.index &&
+					c.box.h < other.box.h * 0.3 &&
+					c.box.x >= other.box.x &&
+					c.box.x + c.box.w <= other.box.x + other.box.w &&
+					Math.min(c.box.y + c.box.h, other.box.y + other.box.h) >
+						Math.max(c.box.y, other.box.y),
+			);
+		});
 	// A single caption detection can contain two text columns. A gutter must
 	// remain empty through at least three baselines with substantial text on
 	// both sides; ordinary word spaces and an inset line are insufficient.
@@ -368,14 +386,15 @@ export function paragraphFromCharacters(
 			island = [];
 			return;
 		}
+		const glyphs = painted.map((c) => c.visualBox);
 		const f: Formula = {
 			id: String(formulas.length),
 			text: island.map((c) => c.text).join(""),
-			box: unionBoxes(painted.map((c) => c.visualBox)),
+			box: unionBoxes(glyphs),
 			characterIndexes: island.map((c) => c.index),
-			baselineOffset:
-				Math.max(...painted.map((c) => c.visualBox.y + c.visualBox.h)) -
-				baseline,
+			// The snippet is drawn as an image. Its bottom must include tall
+			// delimiters/radicals that descend below the formula baseline.
+			baselineOffset: Math.max(...glyphs.map((b) => b.y + b.h)) - baseline,
 		};
 		formulas.push(f);
 		for (const c of island) membership.set(c.index, f);
@@ -589,7 +608,7 @@ function pageCharacters(
 /** All per-page closures stay outside the suspendable extraction loop. */
 function reflowPage(
 	page: PdfPageObject,
-	selected: readonly LayoutTranslateItem[],
+	selectedItems: readonly LayoutTranslateItem[],
 	regions: readonly PdfLayoutRegion[],
 	characters: Character[],
 	raster: ImageDataLike | null,
@@ -622,6 +641,26 @@ function reflowPage(
 	const pageRegions = regions.filter(
 		(r) => r.pageIndex === page.index && r.score >= LAYOUT_SIDEBAR_MIN_SCORE,
 	);
+	// Source-only regions are excluded from translation requests, but the reader
+	// still needs their complete paragraphs. Otherwise each PDF text object falls
+	// back to a separate line, and the detector's copy can reappear beside it.
+	const selected = includeReferences
+		? selectedItems.concat(
+				pageRegions
+					.filter(
+						(r) =>
+							["text", "header", "abstract", "figure_title"].includes(r.kind) &&
+							!selectedItems.some((item) => item.id === r.id),
+					)
+					.map(
+						(r): LayoutTranslateItem => ({
+							...r,
+							source: r.text ?? r.title ?? "",
+							status: "pending",
+						}),
+					),
+			)
+		: selectedItems;
 	const sourcePreservedRegions = includeReferences
 		? []
 		: regions.filter(
@@ -655,6 +694,28 @@ function reflowPage(
 			)
 			.map((item) => item.id),
 	);
+	// A display equation may overlap the first line's detector box. Its glyphs
+	// belong to the equation, even if an advance center also enters that prose.
+	// Keep contained inline islands available to the paragraph's formula IR.
+	const displayFormulaBoxes = pageRegions
+		.filter(
+			(r) =>
+				r.kind === "formula" &&
+				(/^\s*(?:\$\$|\\\[)/u.test(r.text ?? "") ||
+					!selected.some(
+						(item) =>
+							!containers.has(item.id) &&
+							bboxCoveredBy(r.bbox, item.bbox) >= 0.5,
+					)),
+		)
+		.map((r) => r.rect);
+	const displayFormulaCharacters = new Set(
+		characters
+			.filter((c) =>
+				displayFormulaBoxes.some((box) => centerInside(c.visualBox, box)),
+			)
+			.map((c) => c.index),
+	);
 	const paragraphs = [...selected]
 		.sort((a, b) => Number(containers.has(a.id)) - Number(containers.has(b.id)))
 		.map((item) => {
@@ -669,6 +730,7 @@ function reflowPage(
 					!hidden.has(c.index) &&
 					!clipped.has(c.index) &&
 					!sourcePreservedCharacters.has(c.index) &&
+					!displayFormulaCharacters.has(c.index) &&
 					!claimed.has(c.index) &&
 					// Advance boxes share vertical line metrics. Ink centers vary
 					// with ascenders/descenders and can split a boundary word.
@@ -709,13 +771,18 @@ function reflowPage(
 						!hidden.has(c.index) &&
 						!clipped.has(c.index) &&
 						!sourcePreservedCharacters.has(c.index) &&
+						!displayFormulaCharacters.has(c.index) &&
 						c.index < first.index &&
 						c.index >= first.index - 4 &&
 						c.box.x + c.box.w <= first.box.x + 0.5 &&
 						first.box.x - c.box.x - c.box.w <= first.style.size &&
 						Math.abs(c.box.y - first.box.y) < first.style.size * 0.3,
 				);
-				if (/^\d{1,3}[.)]?\s*$/u.test(prefix.map((c) => c.text).join("")))
+				if (
+					/^(?:\[\d{0,3}\]?|\d{1,3}[.)\]]?)\s*$/u.test(
+						prefix.map((c) => c.text).join(""),
+					)
+				)
 					chars.push(...prefix);
 			}
 
@@ -752,48 +819,19 @@ function reflowPage(
 				item.kind === "header",
 			);
 		})
-		.filter((p) => p.characters.length > 0);
-	// Detector bounds sometimes shave off a small leading footnote marker.
-	// Recover it only when it directly precedes an owned baseline; isolated
-	// digits elsewhere on the page are still excluded by the fallback rules.
-	for (const c of characters) {
-		if (
-			claimed.has(c.index) ||
-			hidden.has(c.index) ||
-			clipped.has(c.index) ||
-			sourcePreservedCharacters.has(c.index) ||
-			!/^[\p{L}\p{N}*†‡]+$/u.test(c.text)
-		)
-			continue;
-		const candidates = paragraphs
-			.flatMap((p, index) => {
-				if (c.style.size >= p.style.size * 0.8) return [];
-				const next = p.characters
-					.filter(
-						(n) =>
-							n.text.trim() &&
-							n.box.x >= c.box.x + c.box.w - 0.5 &&
-							n.box.x - c.box.x - c.box.w <= p.style.size * 0.6 &&
-							n.box.y >= c.box.y &&
-							n.box.y < c.box.y + c.box.h,
-					)
-					.sort((a, b) => a.box.x - b.box.x)[0];
-				return next ? [{ p, index, gap: next.box.x - c.box.x - c.box.w }] : [];
-			})
-			.sort((a, b) => a.gap - b.gap);
-		const owner = candidates[0];
-		if (!owner) continue;
-		const p = owner.p;
-		paragraphs[owner.index] = paragraphFromCharacters(
-			p.id,
-			page.index,
-			unionBoxes([p.box, c.box]),
-			[...p.characters, c],
-			formulaBoxes,
-			p.heading,
+		.filter(
+			(p) =>
+				p.characters.length > 0 ||
+				// Keep an empty source item when another paragraph owns this box's
+				// glyphs. The reader must not resurrect a mismatching OCR duplicate.
+				(includeReferences &&
+					characters.some(
+						(c) =>
+							c.text.trim() &&
+							claimed.has(c.index) &&
+							centerInside(c.box, p.box),
+					)),
 		);
-		claimed.add(c.index);
-	}
 	// Account only for characters retained in the IR (tiny embedded glyphs
 	// may have been filtered while constructing a detected paragraph).
 	claimed.clear();
@@ -936,7 +974,53 @@ function reflowPage(
 			continue;
 		p.fixedBox = true;
 		p.origin = "fallback";
+		for (const c of p.characters) claimed.add(c.index);
 		paragraphs.push(p);
+	}
+	// Detector bounds sometimes shave off a small leading footnote marker.
+	// Recover it only when it directly precedes an owned baseline; isolated
+	// digits elsewhere on the page are still excluded by the fallback rules.
+	for (const c of characters) {
+		if (
+			claimed.has(c.index) ||
+			hidden.has(c.index) ||
+			clipped.has(c.index) ||
+			sourcePreservedCharacters.has(c.index) ||
+			displayFormulaCharacters.has(c.index) ||
+			!/^[\p{L}\p{N}*†‡]+$/u.test(c.text)
+		)
+			continue;
+		const candidates = paragraphs
+			.flatMap((p, index) => {
+				if (c.style.size >= p.style.size * 0.8) return [];
+				const next = p.characters
+					.filter(
+						(n) =>
+							n.text.trim() &&
+							n.box.x >= c.box.x + c.box.w - 0.5 &&
+							n.box.x - c.box.x - c.box.w <= p.style.size * 0.6 &&
+							n.box.y >= c.box.y &&
+							n.box.y < c.box.y + c.box.h,
+					)
+					.sort((a, b) => a.box.x - b.box.x)[0];
+				return next ? [{ p, index, gap: next.box.x - c.box.x - c.box.w }] : [];
+			})
+			.sort((a, b) => a.gap - b.gap);
+		const owner = candidates[0];
+		if (!owner) continue;
+		const p = owner.p;
+		Object.assign(
+			p,
+			paragraphFromCharacters(
+				p.id,
+				page.index,
+				unionBoxes([p.box, c.box]),
+				[...p.characters, c],
+				formulaBoxes,
+				p.heading,
+			),
+		);
+		claimed.add(c.index);
 	}
 	for (const p of paragraphs)
 		if (p.layoutBox) {
@@ -969,6 +1053,10 @@ export type ReflowExtractionOptions = {
 	includeUnselectedPages?: boolean;
 	/** Restrict extraction to missing cache pages without changing PDF indexes. */
 	pageIndexes?: ReadonlySet<number>;
+	/** Reader entry starts with the currently visible page. */
+	priorityPageIndex?: number;
+	/** Publish one complete page; never expose partially classified glyphs. */
+	onPageExtracted?: (page: ReflowPage) => void;
 };
 
 /** Index-based extraction avoids matching normalized run strings to geometry. */
@@ -983,7 +1071,15 @@ export async function extractReflowDocument(
 	const pages: ReflowDocument["pages"] = [];
 	const styles = new Map<string, CharacterStyle>();
 	const sourcePreservedIds = preservedLayoutRegions(regions);
-	for (const page of doc.pages) {
+	const orderedPages =
+		options.priorityPageIndex === undefined
+			? doc.pages
+			: [...doc.pages].sort(
+					(a, b) =>
+						Math.abs(a.index - (options.priorityPageIndex ?? 0)) -
+						Math.abs(b.index - (options.priorityPageIndex ?? 0)),
+				);
+	for (const page of orderedPages) {
 		if (options.pageIndexes && !options.pageIndexes.has(page.index)) continue;
 		const selected: LayoutTranslateItem[] = [];
 		for (const item of items)
@@ -1015,17 +1111,20 @@ export async function extractReflowDocument(
 			? await engine.renderPageRaw(doc, page, { scaleFactor: 2 }).toPromise()
 			: null;
 		signal?.throwIfAborted();
-		pages.push(
-			reflowPage(
-				page,
-				selected,
-				regions,
-				characters,
-				raster,
-				sourcePreservedIds,
-				options.includeReferences,
-			),
+		const extractedPage = reflowPage(
+			page,
+			selected,
+			regions,
+			characters,
+			raster,
+			sourcePreservedIds,
+			options.includeReferences,
 		);
+		pages.push(extractedPage);
+		options.onPageExtracted?.(extractedPage);
 	}
-	return { version: REFLOW_IR_SCHEMA_VERSION, pages };
+	return {
+		version: REFLOW_IR_SCHEMA_VERSION,
+		pages: pages.sort((a, b) => a.index - b.index),
+	};
 }

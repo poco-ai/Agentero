@@ -47,6 +47,7 @@ import {
 	writePdfTranslate,
 } from "@/lib/pdf/translate";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
+import { shouldUseDictionary } from "@/lib/translate/dictionary";
 
 export type UsePdfSelectionTranslateOptions = {
 	isActive: boolean;
@@ -82,6 +83,8 @@ export type PdfSelectionTranslate = {
 	translateSelection: (anchor: PdfAskAnchor) => void;
 	/** Toggle whether the result survives dismissal, without affecting the run. */
 	toggleTranslatePin: (record: PdfTranslateRecord) => void;
+	/** Toggle between dictionary and translate modes for a record. */
+	toggleTranslateMode: (record: PdfTranslateRecord) => void;
 	/** Discard an unpinned result when its card is dismissed. */
 	discardUnpinnedTranslateOnClose: (id: string) => void;
 	/** Cancel the in-flight run; also wired into {@link usePdfCards}. */
@@ -124,11 +127,8 @@ export function usePdfSelectionTranslate({
 	const temporaryTranslateIdsRef = useRef(new Set<string>());
 	/** Serialize writes and removals so late pin toggles cannot win races. */
 	const pendingWritesRef = useRef(new Map<string, Promise<void>>());
-	const translateAbortRef = useRef<AbortController | null>(null);
 
 	const stopTranslateSession = useCallback(() => {
-		translateAbortRef.current?.abort();
-		translateAbortRef.current = null;
 		translateGenerationRef.current += 1;
 		translateRunIdRef.current = null;
 		const sid = translateSessionRef.current;
@@ -213,8 +213,6 @@ export function usePdfSelectionTranslate({
 		translateDisposedRef.current = false;
 		return () => {
 			translateGenerationRef.current += 1;
-			translateAbortRef.current?.abort();
-			translateAbortRef.current = null;
 			disposeAgentRun({
 				disposedRef: translateDisposedRef,
 				unsubsRef: translateUnsubsRef,
@@ -241,6 +239,20 @@ export function usePdfSelectionTranslate({
 			);
 			if (next.pinned) temporaryTranslateIdsRef.current.delete(next.id);
 			else temporaryTranslateIdsRef.current.add(next.id);
+			void persistTranslate(next);
+		},
+		[translatesRef, upsertTranslate, persistTranslate],
+	);
+
+	const toggleTranslateMode = useCallback(
+		(record: PdfTranslateRecord) => {
+			const current =
+				translatesRef.current.find((item) => item.id === record.id) ?? record;
+			const next = upsertTranslate({
+				...current,
+				mode: current.mode === "dictionary" ? "translate" : "dictionary",
+				updatedAt: new Date().toISOString(),
+			});
 			void persistTranslate(next);
 		},
 		[translatesRef, upsertTranslate, persistTranslate],
@@ -274,16 +286,17 @@ export function usePdfSelectionTranslate({
 			const quote = anchor.quote?.trim();
 			if (!quote || !isActive) return;
 			stopTranslateSession();
-			const abort = new AbortController();
-			translateAbortRef.current = abort;
 			const paperPath = paperRelPath || paperAbsPath || "paper";
 			const paperKey = paperRelPath || paperAbsPath || null;
+			// 判定是否为词典模式，在创建记录之前确定
+			const mode = shouldUseDictionary(quote) ? "dictionary" : "translate";
 			const rec = createTranslateRecord({
 				paperPath,
 				page: anchor.page,
 				rects: anchor.rects,
 				selectionPages: anchor.selectionPages,
 				quote,
+				mode,
 			});
 			let currentRecord = upsertTranslate(rec);
 			protectedTranslateIdsRef.current.add(rec.id);
@@ -318,7 +331,6 @@ export function usePdfSelectionTranslate({
 				context: { page: anchor.page, surface: "pdf-selection" },
 				paperKey,
 				vaultPath,
-				signal: abort.signal,
 				noAgentText: () => t("selection.translateNoAgent"),
 				agentFailedText: () => t("pdfAsk.agentFailed"),
 				disposedRef: {
@@ -379,6 +391,7 @@ export function usePdfSelectionTranslate({
 		translateError,
 		translateSelection,
 		toggleTranslatePin,
+		toggleTranslateMode,
 		discardUnpinnedTranslateOnClose,
 		stopTranslateSession,
 		openTranslateSettings,

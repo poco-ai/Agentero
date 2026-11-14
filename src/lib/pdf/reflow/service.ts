@@ -65,7 +65,9 @@ export async function prepareReflowItems(
 	regions: readonly PdfLayoutRegion[],
 	signal?: AbortSignal,
 	cache?: ReflowIrCacheStore | null,
-	options: ReflowExtractionOptions = {},
+	options: ReflowExtractionOptions & {
+		onPagePrepared?: (pageIndex: number, items: LayoutTranslateItem[]) => void;
+	} = {},
 ): Promise<LayoutTranslateItem[]> {
 	const pageIndexes = options.includeUnselectedPages
 		? doc.pages.map((page) => page.index)
@@ -99,6 +101,16 @@ export async function prepareReflowItems(
 				reason: "page geometry",
 			});
 		}
+	const publish = (page: ReflowPage) =>
+		options.onPagePrepared?.(
+			page.index,
+			preparedItemsFromDocument(
+				doc,
+				items.filter((item) => item.pageIndex === page.index),
+				{ version: REFLOW_IR_SCHEMA_VERSION, pages: [page] },
+			),
+		);
+	if (options.onPagePrepared) for (const page of pages.values()) publish(page);
 	const missingPages = new Set(
 		pageIndexes.filter((index) => !pages.has(index)),
 	);
@@ -112,6 +124,10 @@ export async function prepareReflowItems(
 				extractReflowDocument(engine, doc, missing, regions, signal, {
 					...options,
 					pageIndexes: missingPages,
+					onPageExtracted: (page) => {
+						options.onPageExtracted?.(page);
+						publish(page);
+					},
 				}),
 		);
 		for (const page of extracted.pages) pages.set(page.index, page);

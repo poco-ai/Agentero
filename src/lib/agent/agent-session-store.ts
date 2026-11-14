@@ -8,7 +8,8 @@
  * `getLines(state)` derives the active transcript — never a second copy.
  */
 
-import { createStore, useStore } from "zustand";
+import { createContext, useContext } from "react";
+import { createStore, type StoreApi, useStore } from "zustand";
 
 import type { PromptImage } from "@/lib/agent/api";
 import type { ChatLine, ChatSessionHistoryItem } from "@/lib/agent/chat-state";
@@ -127,176 +128,216 @@ export type AgentSessionStore = {
 };
 
 let turnNonce = 0;
-/** Non-reactive handler slot — mutating this must not call set(). */
-let sendHandlerSlot: ((req: AgentTurnRequest) => Promise<boolean>) | null =
-	null;
 
-export const agentSessionStore = createStore<AgentSessionStore>((set, get) => ({
-	sessions: [],
-	activeTabId: "draft",
-	hydratingSessionId: null,
-	draftLines: EMPTY_CHAT_LINES,
-	runningSessionIds: [],
-	turnRequest: null,
-	_sendHandler: null,
+export type AgentSessionStoreApi = StoreApi<AgentSessionStore>;
 
-	setSessions: (update) =>
-		set((s) => {
-			const sessions =
-				typeof update === "function" ? update(s.sessions) : update;
-			if (sessions === s.sessions) return s;
-			return { sessions };
-		}),
+/**
+ * One chat surface's session store. The right rail uses the shared
+ * {@link agentSessionStore}; each Zen conversation slot owns its own, so
+ * surfaces never fight over `activeTabId` or the turn bridge.
+ */
+export function createAgentSessionStore(): AgentSessionStoreApi {
+	/** Non-reactive handler slot — mutating this must not call set(). */
+	let sendHandlerSlot: ((req: AgentTurnRequest) => Promise<boolean>) | null =
+		null;
+	return createStore<AgentSessionStore>((set, get) => ({
+		sessions: [],
+		activeTabId: "draft",
+		hydratingSessionId: null,
+		draftLines: EMPTY_CHAT_LINES,
+		runningSessionIds: [],
+		turnRequest: null,
+		_sendHandler: null,
 
-	setActiveTabId: (id) =>
-		set((s) => {
-			if (s.activeTabId === id) return s;
-			// Leaving draft discards optimistic draft transcript.
-			if (id !== "draft" && s.draftLines !== EMPTY_CHAT_LINES) {
-				return { activeTabId: id, draftLines: EMPTY_CHAT_LINES };
-			}
-			return { activeTabId: id };
-		}),
+		setSessions: (update) =>
+			set((s) => {
+				const sessions =
+					typeof update === "function" ? update(s.sessions) : update;
+				if (sessions === s.sessions) return s;
+				return { sessions };
+			}),
 
-	setHydratingSessionId: (id) =>
-		set((s) => (s.hydratingSessionId === id ? s : { hydratingSessionId: id })),
+		setActiveTabId: (id) =>
+			set((s) => {
+				if (s.activeTabId === id) return s;
+				// Leaving draft discards optimistic draft transcript.
+				if (id !== "draft" && s.draftLines !== EMPTY_CHAT_LINES) {
+					return { activeTabId: id, draftLines: EMPTY_CHAT_LINES };
+				}
+				return { activeTabId: id };
+			}),
 
-	startDraft: () =>
-		set({
-			activeTabId: "draft",
-			hydratingSessionId: null,
-			draftLines: EMPTY_CHAT_LINES,
-		}),
+		setHydratingSessionId: (id) =>
+			set((s) =>
+				s.hydratingSessionId === id ? s : { hydratingSessionId: id },
+			),
 
-	setLines: (update) =>
-		set((s) => {
-			if (s.activeTabId === "draft") {
-				const prevLines = s.draftLines;
+		startDraft: () =>
+			set({
+				activeTabId: "draft",
+				hydratingSessionId: null,
+				draftLines: EMPTY_CHAT_LINES,
+			}),
+
+		setLines: (update) =>
+			set((s) => {
+				if (s.activeTabId === "draft") {
+					const prevLines = s.draftLines;
+					const nextLines =
+						typeof update === "function" ? update(prevLines) : update;
+					if (nextLines === prevLines) return s;
+					return {
+						draftLines: nextLines.length === 0 ? EMPTY_CHAT_LINES : nextLines,
+					};
+				}
+				const idx = s.sessions.findIndex((item) => item.id === s.activeTabId);
+				if (idx < 0) return s;
+				const prevLines = s.sessions[idx].lines;
 				const nextLines =
 					typeof update === "function" ? update(prevLines) : update;
 				if (nextLines === prevLines) return s;
-				return {
-					draftLines: nextLines.length === 0 ? EMPTY_CHAT_LINES : nextLines,
+				const sessions = s.sessions.slice();
+				sessions[idx] = { ...sessions[idx], lines: nextLines };
+				return { sessions };
+			}),
+
+		setRunningSessionIds: (update) =>
+			set((s) => {
+				const runningSessionIds =
+					typeof update === "function" ? update(s.runningSessionIds) : update;
+				if (runningSessionIds === s.runningSessionIds) return s;
+				return { runningSessionIds };
+			}),
+
+		upsertSession: (session, opts) => {
+			set((s) => {
+				const idx = s.sessions.findIndex((item) => item.id === session.id);
+				const sessions =
+					idx >= 0
+						? s.sessions.map((item, i) => (i === idx ? session : item))
+						: [session, ...s.sessions.filter((item) => item.id !== session.id)];
+				const activate = opts?.activate !== false;
+				if (activate) {
+					return {
+						sessions,
+						activeTabId: session.id,
+					};
+				}
+				if (sessions === s.sessions) return s;
+				return { sessions };
+			});
+		},
+
+		hydrateAndActivateSession: (session, lines, title) => {
+			set((s) => {
+				const idx = s.sessions.findIndex(
+					(item) => item.id === session.id && item.agentId === session.agentId,
+				);
+				const current = idx >= 0 ? s.sessions[idx] : undefined;
+				const hydrated = {
+					...session,
+					...current,
+					...(title !== undefined ? { title } : {}),
+					lines,
 				};
-			}
-			const idx = s.sessions.findIndex((item) => item.id === s.activeTabId);
-			if (idx < 0) return s;
-			const prevLines = s.sessions[idx].lines;
-			const nextLines =
-				typeof update === "function" ? update(prevLines) : update;
-			if (nextLines === prevLines) return s;
-			const sessions = s.sessions.slice();
-			sessions[idx] = { ...sessions[idx], lines: nextLines };
-			return { sessions };
-		}),
-
-	setRunningSessionIds: (update) =>
-		set((s) => {
-			const runningSessionIds =
-				typeof update === "function" ? update(s.runningSessionIds) : update;
-			if (runningSessionIds === s.runningSessionIds) return s;
-			return { runningSessionIds };
-		}),
-
-	upsertSession: (session, opts) => {
-		set((s) => {
-			const idx = s.sessions.findIndex((item) => item.id === session.id);
-			const sessions =
-				idx >= 0
-					? s.sessions.map((item, i) => (i === idx ? session : item))
-					: [session, ...s.sessions.filter((item) => item.id !== session.id)];
-			const activate = opts?.activate !== false;
-			if (activate) {
+				const sessions =
+					idx >= 0
+						? s.sessions.map((item, i) => (i === idx ? hydrated : item))
+						: [hydrated, ...s.sessions];
 				return {
 					sessions,
-					activeTabId: session.id,
+					activeTabId: hydrated.id,
+					hydratingSessionId: null,
+					draftLines: EMPTY_CHAT_LINES,
 				};
+			});
+		},
+
+		updateSessionLines: (sessionId, update) => {
+			set((s) => {
+				const idx = s.sessions.findIndex((item) => item.id === sessionId);
+				if (idx < 0) return s;
+				const prevLines = s.sessions[idx].lines;
+				const nextLines = update(prevLines);
+				if (nextLines === prevLines) return s;
+				const sessions = s.sessions.slice();
+				sessions[idx] = { ...sessions[idx], lines: nextLines };
+				return { sessions };
+			});
+		},
+
+		findByVisualTraceId: (traceId) =>
+			get().sessions.find((s) => s.visualTraceId === traceId),
+
+		findByProviderSessionId: (providerSessionId) =>
+			get().sessions.find((s) => s.providerSessionId === providerSessionId),
+
+		registerSendHandler: (handler) => {
+			// Non-reactive: do not call set() — avoids re-render storms on mount.
+			sendHandlerSlot = handler;
+			get()._sendHandler = handler;
+			const pending = get().turnRequest;
+			if (handler && pending) {
+				void handler(pending).finally(() => {
+					if (get().turnRequest?.nonce === pending.nonce) {
+						set({ turnRequest: null });
+					}
+				});
 			}
-			if (sessions === s.sessions) return s;
-			return { sessions };
-		});
-	},
+		},
 
-	hydrateAndActivateSession: (session, lines, title) => {
-		set((s) => {
-			const idx = s.sessions.findIndex(
-				(item) => item.id === session.id && item.agentId === session.agentId,
-			);
-			const current = idx >= 0 ? s.sessions[idx] : undefined;
-			const hydrated = {
-				...session,
-				...current,
-				...(title !== undefined ? { title } : {}),
-				lines,
-			};
-			const sessions =
-				idx >= 0
-					? s.sessions.map((item, i) => (i === idx ? hydrated : item))
-					: [hydrated, ...s.sessions];
-			return {
-				sessions,
-				activeTabId: hydrated.id,
-				hydratingSessionId: null,
-				draftLines: EMPTY_CHAT_LINES,
-			};
-		});
-	},
+		requestTurn: (input) => {
+			turnNonce += 1;
+			const req: AgentTurnRequest = { ...input, nonce: turnNonce };
+			const handler = sendHandlerSlot ?? get()._sendHandler;
+			set({ turnRequest: req });
+			if (handler) {
+				void handler(req).finally(() => {
+					if (get().turnRequest?.nonce === req.nonce) {
+						set({ turnRequest: null });
+					}
+				});
+			}
+			return req.nonce;
+		},
 
-	updateSessionLines: (sessionId, update) => {
-		set((s) => {
-			const idx = s.sessions.findIndex((item) => item.id === sessionId);
-			if (idx < 0) return s;
-			const prevLines = s.sessions[idx].lines;
-			const nextLines = update(prevLines);
-			if (nextLines === prevLines) return s;
-			const sessions = s.sessions.slice();
-			sessions[idx] = { ...sessions[idx], lines: nextLines };
-			return { sessions };
-		});
-	},
+		clearTurnRequest: () => set({ turnRequest: null }),
+	}));
+}
 
-	findByVisualTraceId: (traceId) =>
-		get().sessions.find((s) => s.visualTraceId === traceId),
+/** The right-rail (and Agent feature window) store; PDF pins talk to this one. */
+export const agentSessionStore = createAgentSessionStore();
 
-	findByProviderSessionId: (providerSessionId) =>
-		get().sessions.find((s) => s.providerSessionId === providerSessionId),
+export type AgentSessionScope = {
+	store: AgentSessionStoreApi;
+	/**
+	 * Null for the shared rail store. Other surfaces namespace composer drafts
+	 * with it and skip app-wide inputs (pinned selections, chrome, handoff).
+	 */
+	scopeId: string | null;
+};
 
-	registerSendHandler: (handler) => {
-		// Non-reactive: do not call set() — avoids re-render storms on mount.
-		sendHandlerSlot = handler;
-		get()._sendHandler = handler;
-		const pending = get().turnRequest;
-		if (handler && pending) {
-			void handler(pending).finally(() => {
-				if (get().turnRequest?.nonce === pending.nonce) {
-					set({ turnRequest: null });
-				}
-			});
-		}
-	},
+const DEFAULT_SCOPE: AgentSessionScope = {
+	store: agentSessionStore,
+	scopeId: null,
+};
 
-	requestTurn: (input) => {
-		turnNonce += 1;
-		const req: AgentTurnRequest = { ...input, nonce: turnNonce };
-		const handler = sendHandlerSlot ?? get()._sendHandler;
-		set({ turnRequest: req });
-		if (handler) {
-			void handler(req).finally(() => {
-				if (get().turnRequest?.nonce === req.nonce) {
-					set({ turnRequest: null });
-				}
-			});
-		}
-		return req.nonce;
-	},
+export const AgentSessionScopeContext =
+	createContext<AgentSessionScope>(DEFAULT_SCOPE);
 
-	clearTurnRequest: () => set({ turnRequest: null }),
-}));
+export function useAgentSessionScope(): AgentSessionScope {
+	return useContext(AgentSessionScopeContext);
+}
+
+/** Store of the surrounding chat surface (rail by default). */
+export function useAgentSessionStoreApi(): AgentSessionStoreApi {
+	return useContext(AgentSessionScopeContext).store;
+}
 
 export function useAgentSessionStore<T>(
 	selector: (s: AgentSessionStore) => T,
 ): T {
-	return useStore(agentSessionStore, selector);
+	return useStore(useAgentSessionStoreApi(), selector);
 }
 
 /** Active transcript — derived from sessions[activeTabId].lines (or draft). */

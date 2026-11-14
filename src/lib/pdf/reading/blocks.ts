@@ -1,4 +1,4 @@
-import { dedupeLayoutRegions } from "@/lib/pdf/layout/dedupe";
+import { bboxIoU, dedupeLayoutRegions } from "@/lib/pdf/layout/dedupe";
 import { documentReadingOrder } from "@/lib/pdf/layout/document-reading-order";
 import { layoutRegionSourceText } from "@/lib/pdf/layout/layout-translate";
 import {
@@ -390,7 +390,23 @@ export function buildReadingBlocks(
 ): ReadingBlock[] {
 	// Keep small headings and equation numbers; the sidebar's minimum area is
 	// intended for preview cards, not a complete reading surface.
-	const selectedRegions = dedupeLayoutRegions([...regions], { minArea: 0 });
+	const croppedKinds = new Set(["image", "chart", "table", "algorithm"]);
+	// Multi-label detectors can call the same picture both an image and a table.
+	// Suppress only near-identical crops; contained panels remain independent.
+	const selectedRegions = dedupeLayoutRegions([...regions], {
+		minArea: 0,
+	}).filter(
+		(region, index, candidates) =>
+			!croppedKinds.has(region.kind) ||
+			!candidates.some(
+				(other, otherIndex) =>
+					other.pageIndex === region.pageIndex &&
+					croppedKinds.has(other.kind) &&
+					(other.score > region.score ||
+						(other.score === region.score && otherIndex < index)) &&
+					bboxIoU(region.bbox, other.bbox) >= 0.95,
+			),
+	);
 	const preparedByPage = new Map<number, LayoutTranslateItem[]>();
 	for (const item of sources) {
 		if (!item.reflow) continue;
@@ -431,7 +447,26 @@ export function buildReadingBlocks(
 				region.kind === "formula_number",
 		),
 		true,
-	);
+	).map((merged) => {
+		// The gallery merge is geometry-only. Reading can retain a complete
+		// parser equation, but must not render just one of several fragments.
+		const bodies = selectedRegions.filter(
+			(region) =>
+				region.kind === "formula" &&
+				region.pageIndex === merged.pageIndex &&
+				bboxCoveredBy(region.bbox, merged.bbox) >= 0.99,
+		);
+		const source = bodies.length === 1 ? bodies[0].text?.trim() : undefined;
+		if (!source?.startsWith("$$") || !source.endsWith("$$")) return merged;
+		if (/\\tag\*?\s*\{/.test(source)) return { ...merged, text: source };
+		const number = selectedRegions
+			.find((region) => region.id === merged.id)
+			?.text?.trim();
+		const label = number?.match(/^\(([\p{L}\p{N}.:-]+)\)$/u)?.[1];
+		return label
+			? { ...merged, text: `${source.slice(0, -2)}\\tag{${label}}$$` }
+			: merged;
+	});
 	const readingRegions = selectedRegions
 		.filter((region) => {
 			if (
@@ -473,7 +508,11 @@ export function buildReadingBlocks(
 	const blocks = new Map<string, ReadingBlock>();
 	for (const region of readingRegions) {
 		if (VISUAL_KINDS[region.kind]) {
-			blocks.set(region.id, { ...region, source: "", text: "", image: region });
+			const source =
+				region.kind === "formula" || region.kind === "formula_number"
+					? (region.text ?? "")
+					: "";
+			blocks.set(region.id, { ...region, source, text: source, image: region });
 			continue;
 		}
 		const sourceItem = sourceById.get(region.id);
@@ -698,11 +737,18 @@ export function buildReadingBlocks(
 	}
 	const byId = new Map(kept.map((block) => [block.id, block]));
 	const groups = figureCaptionGroups(kept, selectedRegions, regions);
+	const originalById = new Map(regions.map((region) => [region.id, region]));
 	// Recovered paragraphs have no detector order. Start those pages in source
 	// y order, then let the shared algorithm restore columns and spanning bands.
+	// A container left with only a later entry must also follow its owned text.
 	const recoveredPages = new Set(
 		kept
-			.filter((block) => block.item?.reflow?.origin === "fallback")
+			.filter(
+				(block) =>
+					block.item?.reflow?.origin === "fallback" ||
+					(block.item?.reflow &&
+						block.bbox.y > (originalById.get(block.id)?.bbox.y ?? 1) + 0.02),
+			)
 			.map((block) => block.pageIndex),
 	);
 	const ordered = documentReadingOrder(

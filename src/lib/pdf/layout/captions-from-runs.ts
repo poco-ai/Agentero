@@ -161,57 +161,20 @@ export function recoverCaptionsFromRuns(
 	runs: CaptionTextRun[],
 	pageSize: { width: number; height: number },
 ): PdfLayoutRegion[] {
-	if (!(pageSize.width > 0 && pageSize.height > 0)) return [...regions];
+	const output = [...regions];
+	if (!(pageSize.width > 0 && pageSize.height > 0)) return output;
 	const lines = captionLines(runs);
-	const bodyContinuation = (
-		x: number,
-		y: number,
-		right: number,
-		height: number,
-	) =>
-		regions.some(
-			(r) =>
-				r.pageIndex === pageIndex &&
-				r.kind === "text" &&
-				r.score >= 0.5 &&
-				y >= r.rect.y - height &&
-				y + height <= r.rect.y + r.rect.h + height &&
-				x > r.rect.x + height &&
-				right <= r.rect.x + r.rect.w + height &&
-				runs.some(
-					(previous) =>
-						previous.rect.origin.x >= r.rect.x - 1 &&
-						previous.rect.origin.x + previous.rect.size.width <= x &&
-						x - previous.rect.origin.x - previous.rect.size.width <=
-							height * 3 &&
-						Math.abs(previous.rect.origin.y - y) < height * 0.4,
-				),
-		);
-	const output = regions.filter(
-		(r) =>
-			!(
-				r.id.startsWith(`pdf-caption-${pageIndex}-`) &&
-				bodyContinuation(r.rect.x, r.rect.y, r.rect.x + r.rect.w, r.rect.h)
-			),
-	);
-	const onPage = output.filter((r) => r.pageIndex === pageIndex);
+	const onPage = regions.filter((r) => r.pageIndex === pageIndex);
 	const seen = new Set<string>();
 	for (const start of lines) {
 		const key = numberedCaptionKey(start.text);
 		if (!key || seen.has(key)) continue;
-		// Justification can split a body line before its linked "figure 5.".
-		// A preceding run on the same baseline inside one body region proves
-		// this is a sentence fragment, not the start of a standalone caption.
-		if (bodyContinuation(start.x, start.top, start.right, start.height))
-			continue;
 		seen.add(key);
-		const existing = [...onPage]
-			.sort((a, b) => b.score - a.score)
-			.find(
-				(r) =>
-					r.kind === "figure_title" &&
-					numberedCaptionKey(r.title ?? r.text ?? "") === key,
-			);
+		const existing = onPage.find(
+			(r) =>
+				r.kind === "figure_title" &&
+				numberedCaptionKey(r.title ?? r.text ?? "") === key,
+		);
 		const cx = (start.x + start.right) / 2 / pageSize.width;
 		const cy = (start.top + start.bottom) / 2 / pageSize.height;
 		if (
@@ -226,26 +189,7 @@ export function recoverCaptionsFromRuns(
 			)
 		)
 			continue;
-		// A caption detector occasionally covers the body beneath it. Confident
-		// independent text boxes establish its lower boundary before extraction.
-		const bodyTop = Math.min(
-			...onPage
-				.filter(
-					(r) =>
-						r.score >= 0.5 &&
-						r.kind === "text" &&
-						r.label === "text" &&
-						r.rect.y >= start.bottom &&
-						r.rect.x < start.right &&
-						r.rect.x + r.rect.w > start.x,
-				)
-				.map((r) => r.rect.y),
-		);
-		const selected = paragraph(
-			start,
-			lines.filter((l) => (l.top + l.bottom) / 2 < bodyTop),
-			pageSize.height * 0.65,
-		);
+		const selected = paragraph(start, lines, pageSize.height * 0.65);
 		// A column jump needs both matching geometry and exact PDF character order.
 		// Without that evidence, keep the complete first-column paragraph alone.
 		if (selected.length >= 3) {
@@ -294,19 +238,12 @@ export function recoverCaptionsFromRuns(
 		if (existing) {
 			const ex = existing.rect.x + existing.rect.w / 2;
 			const ey = existing.rect.y + existing.rect.h / 2;
-			const bounded =
-				Number.isFinite(bodyTop) &&
-				existing.rect.y < bodyTop &&
-				existing.rect.y + existing.rect.h > bodyTop &&
-				Math.abs(existing.rect.y - y) < start.height &&
-				y + h <= bodyTop;
 			if (
-				bounded ||
-				(title.length > (existing.title ?? existing.text ?? "").length &&
-					ex >= x &&
-					ex <= x + w &&
-					ey >= y &&
-					ey <= y + h)
+				title.length > (existing.title ?? existing.text ?? "").length &&
+				ex >= x &&
+				ex <= x + w &&
+				ey >= y &&
+				ey <= y + h
 			)
 				output[output.indexOf(existing)] = recovered;
 		} else output.push(recovered);

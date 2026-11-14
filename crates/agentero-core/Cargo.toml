@@ -2,7 +2,7 @@
 name = "agentero-core"
 # Keep in lockstep with the `agentero` / `agentero-cli` versions: `core::http`
 # bakes `CARGO_PKG_VERSION` into the product User-Agent string.
-version = "0.16.0"
+version = "0.16.1"
 edition = "2021"
 description = "Tauri-independent foundations of Agentero (errors, fs, http, paths, sqlite, usage log)"
 authors = ["you"]
@@ -23,7 +23,7 @@ log = { workspace = true }
 tempfile = { workspace = true }
 thiserror = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks", "multipart", "cookies"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks", "multipart", "cookies", "stream"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 async-trait = "0.1.91"
 # `error::ApiResult` and `features::translate` models derive `specta::Type`

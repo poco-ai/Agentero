@@ -1,9 +1,7 @@
 import { type CSSProperties, type RefObject, useRef } from "react";
 import { AgenteroRenderLayer } from "@/components/viewer/pdf/layers/agentero-render-layer";
-import { textLinkHoverPoint } from "@/components/viewer/pdf/link-hover";
-import type { PdfLinkHoverPoint } from "@/components/viewer/pdf/types";
 import { cn } from "@/lib/core/utils";
-import { highlightFill } from "@/lib/pdf/highlight/palette";
+import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
 import { layoutTranslateSentenceNodes } from "@/lib/pdf/layout/layout-sentences";
 import {
@@ -19,9 +17,9 @@ import {
 	linkPreviewDragActive,
 } from "@/lib/pdf/link-preview-drag";
 import {
+	PDF_PAGE_RASTER_DARK_CLASS,
 	PDF_PAPER_TINT,
 	type PdfPaperTone,
-	pdfPaperRasterClass,
 } from "@/lib/pdf/page-theme";
 import type { PlacedUnit } from "@/lib/pdf/reflow/types";
 
@@ -84,7 +82,7 @@ export function ReflowPageOverlay({
 	onOpenLink?: (assignment: PreservedLinkAssignment) => void;
 	onHoverLink?: (
 		assignment: PreservedLinkAssignment | null,
-		point: PdfLinkHoverPoint | null,
+		point: { x: number; y: number; top: number; bottom: number } | null,
 	) => void;
 }) {
 	const reference = items.find((i) => i.reflow && i.bbox.w > 0 && i.bbox.h > 0);
@@ -110,7 +108,7 @@ export function ReflowPageOverlay({
 					draggable={false}
 					className={cn(
 						"absolute inset-0 h-full w-full",
-						pdfPaperRasterClass(tone),
+						tone === "dark" && PDF_PAGE_RASTER_DARK_CLASS,
 					)}
 				/>
 			) : null}
@@ -122,7 +120,7 @@ export function ReflowPageOverlay({
 						documentId={renderDocumentId}
 						pageIndex={pageIndex}
 						scale={zoom}
-						className={pdfPaperRasterClass(tone)}
+						className={tone === "dark" ? PDF_PAGE_RASTER_DARK_CLASS : undefined}
 					/>
 				</div>
 			) : null}
@@ -135,22 +133,7 @@ export function ReflowPageOverlay({
 			{items.map((item) => {
 				const layout = item.reflowLayout;
 				if (!layout) return null;
-				// Keep dropped line-wrap spaces in link matching, and translate protected
-				// token offsets into visible text offsets without losing formula members.
-				let text = "";
-				let protectedEnd = 0;
-				const offsets = new Map<PlacedUnit, number>();
-				for (const unit of layout.units) {
-					text += (item.translated ?? "")
-						.slice(protectedEnd, unit.translatedOffset)
-						.replace(/⟪\/?S\d+⟫/gu, "")
-						.replace(/[\r\n]+/gu, " ");
-					offsets.set(unit, text.length);
-					text += unit.text;
-					protectedEnd =
-						unit.translatedOffset +
-						(unit.formula ? `⟪F${unit.formula.id}⟫`.length : unit.text.length);
-				}
+				const text = layout.units.map((u) => u.text).join("");
 				const assignments = assignPreservedLinks(
 					text,
 					(links ?? []).filter((l) => {
@@ -165,6 +148,7 @@ export function ReflowPageOverlay({
 					}),
 					{ source: item.raw, block: item.bbox, runs: glyphRuns },
 				);
+				let offset = 0;
 				return (
 					<div
 						key={item.id}
@@ -174,7 +158,7 @@ export function ReflowPageOverlay({
 						// transparent: one box per character would stack in the seam.
 						// The line band paints the highlight once.
 						data-reflow-selection="true"
-						className="pdf-translate-selection pointer-events-auto absolute z-[6] select-text"
+						className="pdf-translate-selection pointer-events-auto absolute select-text"
 						onPointerDownCapture={(event) => {
 							if (event.button !== 0) return;
 							beginLinkPreviewDrag();
@@ -194,107 +178,76 @@ export function ReflowPageOverlay({
 									: tints?.get(item.id)?.get(group.index);
 							return (
 								<span key={group.index ?? "block"} data-sentence={group.index}>
-									{group.units.flatMap((u) => {
-										const start = offsets.get(u) ?? 0;
-										const offset = start + u.text.length;
-										const overlapping = assignments.filter(
+									{group.units.map((u) => {
+										const start = offset;
+										offset += u.text.length;
+										const assignment = assignments.find(
 											(a) => a.start < offset && a.end > start,
 										);
-										// A protected formula is one placed unit, but `[48,49]`
-										// can contain two distinct PDF destinations. Split its hit
-										// geometry at assignment boundaries instead of taking the first.
-										const boundaries = [
-											...new Set([
-												start,
-												offset,
-												...overlapping.flatMap((a) => [
-													Math.max(start, a.start),
-													Math.min(offset, a.end),
-												]),
-											]),
-										].sort((a, b) => a - b);
-										return boundaries.slice(0, -1).map((from, index) => {
-											const to = boundaries[index + 1];
-											const assignment = overlapping.find(
-												(a) => a.start <= from && a.end >= to,
-											);
-											const style: CSSProperties = {
-												position: "absolute",
-												left:
-													(u.x -
-														layout.box.x +
-														(u.width * (from - start)) / u.text.length) *
-													sx,
-												top:
-													(u.y -
-														layout.box.y -
-														(u.formula ? u.height : u.fontSize * 0.8)) *
-													sy,
-												width: ((u.width * (to - from)) / u.text.length) * sx,
-												height: u.height * sy,
-												fontSize: u.fontSize * sy,
-												lineHeight: 1,
-												fontFamily: "serif",
-												whiteSpace: "pre",
-												color: "transparent",
-												textDecoration: "none",
-												backgroundColor: tint
-													? highlightFill(tint.color)
-													: undefined,
-											};
-											const key = `${u.x}-${u.y}-${from}`;
-											return assignment ? (
-												<a
-													key={key}
-													style={style}
-													href={assignment.url ?? "#"}
-													draggable={false}
-													data-translated-link={
-														assignment.key ?? assignment.url ?? ""
-													}
-													aria-label={assignment.text}
-													tabIndex={from === assignment.start ? 0 : -1}
-													className="select-text"
-													onDragStart={(event) => event.preventDefault()}
-													onClick={(event) => {
-														event.preventDefault();
-														event.stopPropagation();
-														if (!window.getSelection()?.toString())
-															onOpenLink?.(assignment);
-													}}
-													onPointerEnter={(event) => {
-														if (linkHoverSuppressed(event.buttons)) return;
-														onHoverLink?.(
-															assignment,
-															textLinkHoverPoint(event.currentTarget, event, {
-																text: assignment.text,
-																offset: from - assignment.start,
-															}),
-														);
-													}}
-													onPointerMove={(event) => {
-														if (!linkHoverSuppressed(event.buttons))
-															onHoverLink?.(
-																assignment,
-																textLinkHoverPoint(event.currentTarget, event, {
-																	text: assignment.text,
-																	offset: from - assignment.start,
-																}),
-															);
-													}}
-													onPointerLeave={() => {
-														if (linkPreviewDragActive()) return;
-														onHoverLink?.(null, null);
-													}}
-												>
-													{text.slice(from, to)}
-												</a>
-											) : (
-												<span key={key} style={style}>
-													{text.slice(from, to)}
-												</span>
-											);
-										});
+										const style: CSSProperties = {
+											position: "absolute",
+											left: (u.x - layout.box.x) * sx,
+											top:
+												(u.y -
+													layout.box.y -
+													(u.formula ? u.height : u.fontSize * 0.8)) *
+												sy,
+											width: u.width * sx,
+											height: u.height * sy,
+											fontSize: u.fontSize * sy,
+											lineHeight: 1,
+											fontFamily: "serif",
+											whiteSpace: "pre",
+											color: "transparent",
+											textDecoration: "none",
+											...(tint
+												? tint.shape === "underline"
+													? {
+															borderBottom: `2px solid ${HIGHLIGHT_HEX[tint.color]}`,
+															boxSizing: "border-box" as const,
+														}
+													: { backgroundColor: highlightFill(tint.color) }
+												: null),
+										};
+										const key = `${u.x}-${u.y}-${u.text}`;
+										return assignment ? (
+											<a
+												key={key}
+												style={style}
+												href={assignment.url ?? "#"}
+												draggable={false}
+												aria-label={assignment.text}
+												tabIndex={start === assignment.start ? 0 : -1}
+												className="select-text"
+												onDragStart={(event) => event.preventDefault()}
+												onClick={(event) => {
+													event.preventDefault();
+													event.stopPropagation();
+													if (!window.getSelection()?.toString())
+														onOpenLink?.(assignment);
+												}}
+												onPointerEnter={(event) => {
+													if (linkHoverSuppressed(event.buttons)) return;
+													const b = event.currentTarget.getBoundingClientRect();
+													onHoverLink?.(assignment, {
+														x: b.left + b.width / 2,
+														y: b.bottom,
+														top: b.top,
+														bottom: b.bottom,
+													});
+												}}
+												onPointerLeave={() => {
+													if (linkPreviewDragActive()) return;
+													onHoverLink?.(null, null);
+												}}
+											>
+												{u.text}
+											</a>
+										) : (
+											<span key={key} style={style}>
+												{u.text}
+											</span>
+										);
 									})}
 								</span>
 							);

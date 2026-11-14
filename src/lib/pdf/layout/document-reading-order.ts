@@ -36,7 +36,7 @@ function pageReadingOrder(
 	if (!page.every(hasBox)) return page;
 	const body = page.filter(
 		(r) =>
-			(r.kind === "text" || r.kind === "paragraph") &&
+			(r.kind === "text" || r.kind === "paragraph" || r.kind === "abstract") &&
 			r.text?.trim() &&
 			r.bbox.w <= 0.6,
 	);

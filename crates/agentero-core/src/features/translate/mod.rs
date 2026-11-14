@@ -25,12 +25,11 @@ pub const ERR_NO_BUILTIN_KEY: &str = "translate.no_builtin_key";
 
 /// Known free MT provider ids.
 pub const FREE_PROVIDERS: &[&str] = &[
-    "google",
-    "googleapi",
-    "deeplx",
     "cnki",
     "huoshanweb",
     "tencenttransmart",
+    "indextranslate",
+    "indextranslate2b",
 ];
 
 /// Commercial BYOK provider ids configured in Settings → Translate.
@@ -39,7 +38,7 @@ pub const COMMERCIAL_PROVIDERS: &[&str] = &["deepl", "azure", "googleCloud", "op
 /// Default free engines raced in parallel for best-effort zh-CN (NOTES abstract).
 /// First non-empty success wins; remaining in-flight requests are dropped.
 /// Prefer engines that work better from CN networks.
-pub const ZH_RACE_PROVIDERS: &[&str] = &["tencenttransmart", "huoshanweb", "deeplx"];
+pub const ZH_RACE_PROVIDERS: &[&str] = &["tencenttransmart", "huoshanweb"];
 
 /// Per-engine HTTP timeout for [`free_mt_to_zh`] (import NOTES abstract, etc.).
 ///
@@ -210,28 +209,17 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
     let timeout = resolve_timeout(args.timeout_ms);
 
     let translated = match provider.as_str() {
-        "google" => {
-            sources::google::translate_google(
-                "https://translate.google.com",
-                text,
-                &source,
-                &target,
-                timeout,
-            )
-            .await?
-        }
-        "googleapi" => {
-            sources::google::translate_google(
-                "https://translate.googleapis.com",
-                text,
-                &source,
-                &target,
-                timeout,
-            )
-            .await?
-        }
-        "deeplx" => sources::deeplx::translate_deeplx(text, &source, &target, timeout).await?,
         "cnki" => sources::cnki::translate_cnki(text, &source, &target, timeout).await?,
+        "indextranslate" | "indextranslate2b" => {
+            // The arm guarantees one of the two ids; fall back to the default
+            // tier rather than unwrapping.
+            let model = sources::index_translate::model_for_provider(&provider)
+                .unwrap_or(sources::index_translate::MODEL_35B_A3B);
+            sources::index_translate::translate_index_translate(
+                text, &source, &target, timeout, model,
+            )
+            .await?
+        }
         "huoshanweb" => {
             sources::huoshanweb::translate_huoshan_web(text, &source, &target, timeout).await?
         }
@@ -315,6 +303,47 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
         text: out,
         provider,
     })
+}
+
+/// Streaming translation for providers that support it (currently Index-Translate).
+/// `on_delta` receives each increment; the full text is returned at the end.
+/// Returns `Ok(None)` when the provider has no streaming path, so the caller
+/// can fall back to [`translate_text`].
+pub async fn translate_text_stream(
+    args: &TranslateTextArgs,
+    on_delta: impl FnMut(&str),
+) -> Result<Option<TranslateTextResult>, AppError> {
+    let provider = args.provider.trim().to_ascii_lowercase();
+    let Some(model) = sources::index_translate::model_for_provider(&provider) else {
+        return Ok(None);
+    };
+    let text = args.text.trim();
+    if text.is_empty() {
+        return Err(AppError::message("Empty text"));
+    }
+    if text.chars().count() > MAX_TEXT_CHARS {
+        return Err(AppError::message(format!(
+            "Text too long for translation (max {MAX_TEXT_CHARS} characters)"
+        )));
+    }
+    let source = normalize_lang(&args.source_lang, true);
+    let target = normalize_lang(&args.target_lang, false);
+    if target.is_empty() {
+        return Err(AppError::message("Missing target language"));
+    }
+    let out = sources::index_translate::translate_index_translate_stream(
+        text,
+        &source,
+        &target,
+        resolve_timeout(args.timeout_ms),
+        model,
+        on_delta,
+    )
+    .await?;
+    Ok(Some(TranslateTextResult {
+        text: out,
+        provider,
+    }))
 }
 
 pub(crate) fn required_api_key<'a>(
@@ -409,15 +438,16 @@ mod tests {
 
     #[test]
     fn free_providers_listed() {
-        assert!(FREE_PROVIDERS.contains(&"deeplx"));
         assert!(FREE_PROVIDERS.contains(&"cnki"));
         // CNKI stays out of the zh race: slow (chunked + pauses) and
         // captcha-prone, racing it would only trip the rate limit.
         assert!(!ZH_RACE_PROVIDERS.contains(&"cnki"));
         assert!(FREE_PROVIDERS.contains(&"huoshanweb"));
         assert!(FREE_PROVIDERS.contains(&"tencenttransmart"));
-        assert!(FREE_PROVIDERS.contains(&"googleapi"));
-        assert!(FREE_PROVIDERS.contains(&"google"));
+        // Both Index-Translate tiers are keyless free endpoints; the id suffix
+        // picks the model (35B-A3B default, 2B lighter).
+        assert!(FREE_PROVIDERS.contains(&"indextranslate"));
+        assert!(FREE_PROVIDERS.contains(&"indextranslate2b"));
         for p in COMMERCIAL_PROVIDERS {
             assert!(
                 !FREE_PROVIDERS.contains(p),
@@ -430,13 +460,33 @@ mod tests {
                 "{p} missing from FREE_PROVIDERS"
             );
         }
-        assert_eq!(
-            ZH_RACE_PROVIDERS,
-            &["tencenttransmart", "huoshanweb", "deeplx"]
-        );
+        assert_eq!(ZH_RACE_PROVIDERS, &["tencenttransmart", "huoshanweb"]);
         // Keep abstract-MT snappy: enough for slow success (~1.3s bench max);
         // parallel race → wall ≈ one timeout, not 3×.
         assert!((3_000..=8_000).contains(&FREE_MT_ZH_TIMEOUT_MS));
+    }
+
+    #[tokio::test]
+    async fn stream_path_only_serves_index_translate() {
+        // Non-streaming ids short-circuit to `None` without a network call, so
+        // the Host command can fall back to `translate_text`.
+        let args = TranslateTextArgs {
+            text: "hello".into(),
+            source_lang: "auto".into(),
+            target_lang: "zh-CN".into(),
+            provider: "tencenttransmart".into(),
+            api_key: None,
+            base_url: None,
+            region: None,
+            model: None,
+            extra_request_body: None,
+            custom_prompt: None,
+            custom_system: None,
+            custom_user: None,
+            timeout_ms: Some(1_000),
+        };
+        let out = translate_text_stream(&args, |_| {}).await.unwrap();
+        assert!(out.is_none());
     }
 
     #[test]

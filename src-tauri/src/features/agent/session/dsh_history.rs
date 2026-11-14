@@ -340,16 +340,22 @@ mod tests {
             "env":{"DSH_HOME":required("HOME")}
         }))
         .unwrap();
-        let listed = super::super::list_acp_sessions(&desc, cwd.clone(), None, None)
+        let queries =
+            std::sync::Arc::new(crate::features::agent::session::query::AgentQueryPool::new());
+        let listed = super::super::list_acp_sessions(&queries, &desc, cwd.clone(), None, None)
             .await
             .unwrap();
         assert!(listed.supported);
         assert!(listed.sessions.iter().any(|item| item.session_id == SID));
         for _ in 0..2 {
-            // Each call creates and then tears down a fresh official ACP process.
-            let restored = super::super::load_acp_session(&desc, SID.into(), cwd.clone(), None)
-                .await
-                .unwrap();
+            // A fresh pool per iteration keeps the original "survives a new
+            // agent process" coverage instead of reusing the warm connection.
+            let queries =
+                std::sync::Arc::new(crate::features::agent::session::query::AgentQueryPool::new());
+            let restored =
+                super::super::load_acp_session(&queries, &desc, SID.into(), cwd.clone(), None)
+                    .await
+                    .unwrap();
             assert_eq!(
                 restored
                     .lines

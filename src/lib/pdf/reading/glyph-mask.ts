@@ -13,6 +13,38 @@ export function removeGlyphPaper(rgba: Uint8ClampedArray): void {
 		rgba[i + 3] *= Math.max(0, 1 - light(i) / paper);
 }
 
+/** Encode raw PDFium pixels directly, without a PNG encode/decode round trip. */
+export async function glyphMaskImageBlob(image: {
+	data: Uint8ClampedArray<ArrayBuffer>;
+	width: number;
+	height: number;
+}): Promise<Blob> {
+	const canvas = document.createElement("canvas");
+	try {
+		canvas.width = image.width;
+		canvas.height = image.height;
+		const context = canvas.getContext("2d");
+		if (!context) throw new Error("PDF glyph mask canvas is unavailable");
+		removeGlyphPaper(image.data);
+		context.putImageData(
+			new ImageData(image.data, image.width, image.height),
+			0,
+			0,
+		);
+		return await new Promise<Blob>((resolve, reject) =>
+			canvas.toBlob(
+				(result) =>
+					result
+						? resolve(result)
+						: reject(new Error("PDF glyph mask encoding failed")),
+				"image/png",
+			),
+		);
+	} finally {
+		canvas.width = canvas.height = 0;
+	}
+}
+
 export async function glyphMaskBlob(blob: Blob): Promise<Blob> {
 	const bitmap = await createImageBitmap(blob);
 	let canvas: HTMLCanvasElement | undefined;

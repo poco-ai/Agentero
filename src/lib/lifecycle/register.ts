@@ -6,6 +6,7 @@ import { loadCustomProperties } from "@/lib/paper/custom-properties-store";
 
 import i18n from "@/i18n";
 import { clearAgentVaultState } from "@/lib/agent/agent-session-store";
+import { closeZenWorkspace } from "@/lib/agent/zen-store";
 import { commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApi, callApiResult } from "@/lib/core/ipc";
@@ -141,6 +142,7 @@ export function registerLifecycleHandlers(): () => void {
 				clearLibraryVaultState();
 				clearWikiVaultState();
 				clearAgentVaultState();
+				closeZenWorkspace();
 				clearAnnotationsVaultState();
 				clearLayoutVaultState();
 				clearUiVaultState();

@@ -397,6 +397,7 @@ export function PdfTranslationViewerInner({
 		markCitationHoverEnter,
 		clearCitationPreview,
 		handleCitationLinkHover,
+		hasCitationMatch,
 		citationImport,
 	} = usePdfCitations({
 		docId,
@@ -429,7 +430,7 @@ export function PdfTranslationViewerInner({
 		sourceBytes,
 		engineRef,
 		docCapRef,
-		showCitationPreview: handleCitationLinkHover,
+		hasCitationMatch,
 		onPreviewShow: () => {
 			clearCitationPreviewRef.current();
 			clearLinkUrlTipRef.current();
@@ -464,7 +465,7 @@ export function PdfTranslationViewerInner({
 				clearLinkUrlTip();
 				return;
 			}
-			if (!link) handleCitationLinkHover(null);
+			handleCitationLinkHover(link, point);
 			handleCrossrefLinkHover(link, point);
 		},
 		[
@@ -630,11 +631,7 @@ export function PdfTranslationViewerInner({
 									kind={crossrefPreview.kind}
 									page={crossrefPreview.page}
 									image={crossrefPreview.image}
-									referenceImages={crossrefPreview.referenceImages}
-									referenceEntries={crossrefPreview.referenceEntries}
-									missingReferences={crossrefPreview.missingReferences}
 									targetSize={crossrefPreview.targetSize}
-									focusPoint={crossrefPreview.focusPoint}
 									onPointerEnter={markCrossrefHoverEnter}
 									onPointerLeave={scheduleCrossrefHide}
 								/>

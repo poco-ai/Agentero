@@ -24,8 +24,8 @@ import {
 } from "@/components/ui/popover";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import {
-	agentSessionStore,
 	useAgentSessionStore,
+	useAgentSessionStoreApi,
 } from "@/lib/agent/agent-session-store";
 import type { AcpDeleteSessionResult } from "@/lib/agent/api";
 import type { ChatLine, ChatSessionHistoryItem } from "@/lib/agent/chat-state";
@@ -99,6 +99,7 @@ export function HistorySessionList({
 	onDelete: (item: ChatSessionHistoryItem) => Promise<AcpDeleteSessionResult>;
 }) {
 	const { t } = useTranslation(["agent", "common"]);
+	const sessionStore = useAgentSessionStoreApi();
 	const [renameTarget, setRenameTarget] =
 		useState<ChatSessionHistoryItem | null>(null);
 	const [renameTitle, setRenameTitle] = useState("");
@@ -128,7 +129,11 @@ export function HistorySessionList({
 
 	const confirmRename = () => {
 		if (!renameTarget) return;
-		const next = renameHistorySessionTitle(renameTarget, renameTitle);
+		const next = renameHistorySessionTitle(
+			renameTarget,
+			renameTitle,
+			sessionStore,
+		);
 		if (!next) return;
 		setRenameTarget(null);
 	};
@@ -343,6 +348,7 @@ function SidebarHistorySessions({
 	// Subscribe to a derived primitive: every stream flush replaces the
 	// sessions array (only `lines` change), which used to re-render this list
 	// on each flush while the popover is open.
+	const sessionStore = useAgentSessionStoreApi();
 	const fingerprint = useAgentSessionStore((s) =>
 		sessionListFingerprint(s.sessions),
 	);
@@ -350,8 +356,8 @@ function SidebarHistorySessions({
 	// also changes the fingerprint and re-runs this memo.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: fingerprint is the re-read signal; dropping it would freeze the snapshot
 	const sessionHistory = useMemo(
-		() => agentSessionStore.getState().sessions,
-		[fingerprint],
+		() => sessionStore.getState().sessions,
+		[fingerprint, sessionStore],
 	);
 	if (sessionHistory.length === 0) {
 		return (

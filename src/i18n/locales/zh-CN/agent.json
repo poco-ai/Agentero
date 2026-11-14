@@ -73,6 +73,12 @@
 			"failed": "失败"
 		}
 	},
+	"zen": {
+		"title": "Zen",
+		"newConversation": "新会话",
+		"untitled": "新对话",
+		"close": "关闭对话"
+	},
 	"tabs": {
 		"new": "新建会话"
 	},

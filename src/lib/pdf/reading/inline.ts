@@ -58,7 +58,8 @@ export function readingInlineParts(
 		if (!part.formula) continue;
 		if (
 			citations.some((s) => part.start >= s.start && part.end <= s.end) ||
-			/^[\p{L}\p{Sm}∆]$/u.test(part.text)
+			/^[\p{L}\p{Nd}\p{Sm}∆]$/u.test(part.text) ||
+			(paragraph && isLinearFormula(part.formula, paragraph))
 		)
 			part.raster = false;
 	}
@@ -123,6 +124,39 @@ export function readingInlineParts(
 	return { text: display, parts: linked };
 }
 
+/** Uniform text on one native baseline needs no raster, unlike fractions or scripts. */
+function isLinearFormula(formula: Formula, paragraph: Paragraph): boolean {
+	if (!/^[\p{L}\p{Nd}()[\].,+−=<>×÷ ±-]{2,32}$/u.test(formula.text))
+		return false;
+	const indices = new Set(formula.characterIndexes);
+	const own = paragraph.characters.filter(
+		(c) => indices.has(c.index) && c.text.trim(),
+	);
+	const first = own[0];
+	if (
+		!first?.textMatrix ||
+		own.length < 2 ||
+		own
+			.map((c) => c.text)
+			.join("")
+			.replace(/\s/g, "") !== formula.text.replace(/\s/g, "")
+	)
+		return false;
+	const baseline = first.textMatrix[5];
+	return own.every(
+		(c) =>
+			c.textMatrix &&
+			Number.isFinite(c.textMatrix[5]) &&
+			Math.abs(c.textAngle ?? 0) < 0.01 &&
+			Math.abs(c.textMatrix[5] - baseline) < 0.25 &&
+			Math.abs(c.box.y - first.box.y) < first.style.size * 0.25 &&
+			c.style.font === first.style.font &&
+			c.style.size === first.style.size &&
+			c.style.bold === first.style.bold &&
+			c.style.italic === first.style.italic,
+	);
+}
+
 const median = (values: number[]): number | undefined => {
 	values.sort((a, b) => a - b);
 	return values[Math.floor(values.length / 2)];
@@ -168,13 +202,30 @@ export function readingFormulaMetrics(
 			) <
 				paragraph.style.size * 0.8,
 	);
+	// A raised scalar near a line break can overlap both lines' ink bands.
+	// Its closest source neighbours identify the owning line, even when the
+	// previous line contains far more characters and would dominate the median.
+	const scalarAnchor =
+		own.length === 1
+			? sameLine
+					.sort(
+						(a, b) =>
+							Math.abs(a.index - own[0].index) -
+								Math.abs(b.index - own[0].index) ||
+							Math.abs(a.box.x - own[0].box.x) -
+								Math.abs(b.box.x - own[0].box.x),
+					)
+					.find((c) => characterBaseline(c, pageHeight) !== undefined)
+			: undefined;
 	const baseline =
+		(scalarAnchor && characterBaseline(scalarAnchor, pageHeight)) ??
 		median(
 			sameLine.flatMap((c) => {
 				const value = characterBaseline(c, pageHeight);
 				return value === undefined ? [] : [value];
 			}),
-		) ?? formula.box.y + formula.box.h - formula.baselineOffset;
+		) ??
+		formula.box.y + formula.box.h - formula.baselineOffset;
 	const ownBaseline = median(
 		own.flatMap((c) => {
 			const value = characterBaseline(c, pageHeight);

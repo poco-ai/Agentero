@@ -98,7 +98,7 @@ dependencies = [
 
 [[package]]
 name = "agentero"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "agent-client-protocol",
  "agentero-core",
@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "agentero-cli"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "agentero-core",
  "agentero-mcp",
@@ -195,7 +195,7 @@ dependencies = [
 
 [[package]]
 name = "agentero-core"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "aes 0.8.4",
  "async-trait",
@@ -236,7 +236,7 @@ dependencies = [
 
 [[package]]
 name = "agentero-mcp"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "agentero-core",
  "async-trait",
@@ -6130,12 +6130,14 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tokio-rustls",
+ "tokio-util",
  "tower",
  "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams 0.4.2",
  "web-sys",
  "webpki-roots 1.0.11",
 ]
@@ -6182,7 +6184,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams",
+ "wasm-streams 0.5.0",
  "web-sys",
 ]
 
@@ -8992,6 +8994,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ef64dbcc55df09c7e5a46182d181c2cfa3e925f3da937ea764728b4bbb9dcbf"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "wasm-streams"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

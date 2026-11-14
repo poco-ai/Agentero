@@ -517,12 +517,14 @@ export function matchShortcut(
 ): boolean {
 	const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
 	const defKey = def.key.length === 1 ? def.key.toLowerCase() : def.key;
-	// macOS composes ⌥+letter into a single character (⌥A → "å"), so event.key
-	// never equals the def letter. Option letter shortcuts fall back to the
-	// physical key (event.code), which stays stable across layouts.
+	// macOS composes ⌥+letter/digit into a single character (⌥A → "å",
+	// ⌥1 → "¡"), so event.key never equals the def key. Option shortcuts fall
+	// back to the physical key (event.code), which stays stable across layouts.
 	const physicalKey = /^Key[A-Z]$/.test(event.code)
 		? event.code.slice(3).toLowerCase()
-		: null;
+		: /^Digit[0-9]$/.test(event.code)
+			? event.code.slice(5)
+			: null;
 	if (
 		key !== defKey &&
 		event.key !== def.key &&
@@ -557,6 +559,21 @@ export function matchShortcut(
 	if (wantShift !== event.shiftKey) return false;
 
 	return true;
+}
+
+/**
+ * Does a space-separated `aria-keyshortcuts` value contain this exact token?
+ * Bare toolbar hints use the key itself as the token (the modifier variants,
+ * such as `Alt+1`, are resolved separately with {@link matchShortcut}).
+ */
+export function matchesAriaShortcut(
+	value: string | null,
+	key: string,
+): boolean {
+	if (!value) return false;
+	return value
+		.split(/\s+/)
+		.some((token) => token.toLowerCase() === key.toLowerCase());
 }
 
 export function resolveShortcutId(

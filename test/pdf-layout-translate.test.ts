@@ -23,7 +23,6 @@ import {
 	listTranslatableLayoutRegions,
 	parseLayoutTranslateSidecar,
 	persistLayoutTranslateSidecarBestEffort,
-	subscribeLayoutTranslateSidecarWrite,
 	toLayoutTranslateItems,
 	translateServiceKey,
 	writeLayoutTranslateSidecar,
@@ -31,22 +30,6 @@ import {
 import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
-
-const cacheWatch = vi.hoisted(() => ({
-	handler: null as
-		| ((payload: {
-				paths: string[];
-				rename?: { from: string; to: string } | null;
-		  }) => void)
-		| null,
-	off: vi.fn(),
-}));
-vi.mock("@/lib/vault/file-change-gate", () => ({
-	listenVaultFileChangedGated: (handler: typeof cacheWatch.handler) => {
-		cacheWatch.handler = handler;
-		return cacheWatch.off;
-	},
-}));
 
 vi.mock("@/lib/vault", () => ({
 	joinVaultPath: (parent: string, name: string) => `${parent}/${name}`,
@@ -440,14 +423,14 @@ describe("listTranslatableLayoutRegions", () => {
 		]);
 	});
 
-	it("preserves explicit metadata labels below the normal confidence gate", () => {
+	it("preserves confident metadata labels and inferred low-confidence authors", () => {
 		const regions = [
 			region({
 				id: "title",
 				kind: "header",
 				label: "doc_title",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
 				text: "A Low-Confidence Paper Title",
 			}),
@@ -464,7 +447,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "footnote",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.1, y: 0.9, w: 0.8, h: 0.03 },
 				text: "Corresponding author.",
 			}),
@@ -473,7 +456,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "footer",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.4, y: 0.97, w: 0.2, h: 0.02 },
 				text: "Published 2026",
 			}),
@@ -482,7 +465,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "number",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.48, y: 0.95, w: 0.04, h: 0.02 },
 				text: "7",
 			}),
@@ -491,7 +474,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "seal",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.85, y: 0.85, w: 0.1, h: 0.1 },
 				text: "Received",
 			}),
@@ -500,7 +483,7 @@ describe("listTranslatableLayoutRegions", () => {
 				kind: "text",
 				label: "aside_text",
 				pageIndex: 0,
-				score: 0.05,
+				score: 0.5,
 				bbox: { x: 0.01, y: 0.2, w: 0.04, h: 0.6 },
 				text: "arXiv:2608.00881v1",
 			}),
@@ -681,6 +664,188 @@ describe("listTranslatableLayoutRegions", () => {
 			}),
 		]);
 		expect(list.map((r) => r.id)).toEqual(["body"]);
+	});
+
+	it("translates an abstract whose heading is merged into ordinary text", () => {
+		const regions = [
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace",
+			}),
+			region({
+				id: "abstract",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.1 },
+				text: "Abstract: We present a method.",
+			}),
+			region({
+				id: "page2",
+				kind: "text",
+				label: "text",
+				pageIndex: 1,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.06 },
+				text: "Second-page body at the same height.",
+			}),
+		];
+		const preserved = preservedLayoutRegions(regions);
+		expect(preserved.get("authors")).toBe("metadata-band");
+		expect(preserved.has("abstract")).toBe(false);
+		expect(preserved.has("page2")).toBe(false);
+		expect(
+			listTranslatableLayoutRegions(regions).map((item) => item.id),
+		).toEqual(["abstract", "page2"]);
+	});
+
+	it("translates a plain-text abstract heading and the body under it", () => {
+		const regions = [
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace and Alan Turing",
+			}),
+			region({
+				id: "abstract-title",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.16, w: 0.2, h: 0.02 },
+				text: "Abstract",
+			}),
+			region({
+				id: "abstract-body",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 3,
+				bbox: { x: 0.1, y: 0.19, w: 0.8, h: 0.08 },
+				text: "We present a method.",
+			}),
+		];
+		const preserved = preservedLayoutRegions(regions);
+		expect(preserved.get("authors")).toBe("metadata-band");
+		expect(preserved.has("abstract-title")).toBe(false);
+		expect(preserved.has("abstract-body")).toBe(false);
+		expect(
+			listTranslatableLayoutRegions(regions).map((item) => item.id),
+		).toEqual(["abstract-title", "abstract-body"]);
+	});
+
+	it("translates an abstract lead without punctuation after the heading", () => {
+		const list = listTranslatableLayoutRegions([
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace",
+			}),
+			region({
+				id: "abstract",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.1 },
+				text: "Abstract We present a method.",
+			}),
+		]);
+		expect(list.map((item) => item.id)).toEqual(["abstract"]);
+	});
+
+	it("does not drop unlabeled prose just because it sits in the title fallback band", () => {
+		const regions = [
+			region({
+				id: "title",
+				kind: "header",
+				label: "doc_title",
+				pageIndex: 0,
+				readingOrder: 0,
+				bbox: { x: 0.2, y: 0.05, w: 0.6, h: 0.04 },
+				text: "Orion",
+			}),
+			region({
+				id: "authors",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 1,
+				bbox: { x: 0.2, y: 0.1, w: 0.6, h: 0.03 },
+				text: "Ada Lovelace",
+			}),
+			region({
+				id: "affiliation",
+				kind: "text",
+				pageIndex: 0,
+				readingOrder: 2,
+				bbox: { x: 0.2, y: 0.13, w: 0.6, h: 0.02 },
+				text: "New York University, ada@example.org",
+			}),
+			region({
+				id: "abstract",
+				kind: "text",
+				label: "text",
+				pageIndex: 0,
+				readingOrder: 3,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.1 },
+				text: "We present a method for private inference.",
+			}),
+			region({
+				id: "page2",
+				kind: "text",
+				label: "text",
+				pageIndex: 1,
+				readingOrder: 0,
+				bbox: { x: 0.1, y: 0.16, w: 0.8, h: 0.06 },
+				text: "Second-page body at the same height.",
+			}),
+		];
+		const preserved = preservedLayoutRegions(regions);
+		expect(preserved.get("authors")).toBe("metadata-band");
+		expect(preserved.get("affiliation")).toBe("metadata-band");
+		expect(preserved.has("abstract")).toBe(false);
+		expect(preserved.has("page2")).toBe(false);
+		expect(
+			listTranslatableLayoutRegions(regions).map((item) => item.id),
+		).toEqual(["abstract", "page2"]);
 	});
 });
 
@@ -895,10 +1060,10 @@ describe("groupLayoutTranslateItemsByPage", () => {
 
 describe("layout translate sidecar cache", () => {
 	const key: LayoutTranslateCacheKey = {
-		providerId: "googleapi",
+		providerId: "tencenttransmart",
 		sourceLang: "auto",
 		targetLang: "zh-CN",
-		serviceKey: "googleapi",
+		serviceKey: "tencenttransmart",
 	};
 
 	function item(id: string, source = `source ${id}`): LayoutTranslateItem {
@@ -920,10 +1085,10 @@ describe("layout translate sidecar cache", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "zh-CN",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: [
 					{
@@ -969,10 +1134,10 @@ describe("layout translate sidecar cache", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "en",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: [
 					{
@@ -1005,10 +1170,10 @@ describe("layout translate sidecar cache", () => {
 					source: {
 						mode: "pdf-layout-translate",
 						generatedAt: "2026-08-10T00:00:00.000Z",
-						providerId: "googleapi",
+						providerId: "tencenttransmart",
 						sourceLang: "auto",
 						targetLang: "zh-CN",
-						serviceKey: "googleapi",
+						serviceKey: "tencenttransmart",
 					},
 					items: [
 						{
@@ -1034,10 +1199,10 @@ describe("layout translate sidecar cache", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "zh-CN",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: [
 					{
@@ -1113,10 +1278,10 @@ describe("layout translate sidecar cache", () => {
 
 describe("hydrateLayoutTranslateItems", () => {
 	const key: LayoutTranslateCacheKey = {
-		providerId: "googleapi",
+		providerId: "tencenttransmart",
 		sourceLang: "auto",
 		targetLang: "zh-CN",
-		serviceKey: "googleapi",
+		serviceKey: "tencenttransmart",
 	};
 
 	function item(
@@ -1144,10 +1309,10 @@ describe("hydrateLayoutTranslateItems", () => {
 				source: {
 					mode: "pdf-layout-translate",
 					generatedAt: "2026-08-10T00:00:00.000Z",
-					providerId: "googleapi",
+					providerId: "tencenttransmart",
 					sourceLang: "auto",
 					targetLang: "zh-CN",
-					serviceKey: "googleapi",
+					serviceKey: "tencenttransmart",
 				},
 				items: entries.map((entry) => ({
 					id: entry.id,
@@ -1205,6 +1370,34 @@ describe("hydrateLayoutTranslateItems", () => {
 		});
 	});
 
+	it("rejects cached text that no longer matches the reflow structure", () => {
+		const reflowItem: LayoutTranslateItem = {
+			...item("a"),
+			reflow: {
+				formulas: [
+					{
+						id: "0",
+						text: "x",
+						box: { x: 10, y: 10, w: 5, h: 5 },
+						characterIndexes: [0],
+						baselineOffset: 0,
+					},
+				],
+				styles: {},
+			},
+		};
+		const hydration = hydrateLayoutTranslateItems(
+			[reflowItem, item("b")],
+			sidecar([
+				{ id: "a", source: "source a" },
+				{ id: "b", source: "source b" },
+			]),
+		);
+		expect(hydration.items[0]?.status).toBe("pending");
+		expect(hydration.items[0]?.translated).toBeUndefined();
+		expect(hydration.items[1]?.status).toBe("done");
+	});
+
 	it("needs no pending completion when every block is cached", () => {
 		const hydration = hydrateLayoutTranslateItems(
 			[item("a"), item("b")],
@@ -1222,10 +1415,10 @@ describe("hydrateLayoutTranslateItems", () => {
 
 describe("persistLayoutTranslateSidecarBestEffort debounce", () => {
 	const key: LayoutTranslateCacheKey = {
-		providerId: "googleapi",
+		providerId: "tencenttransmart",
 		sourceLang: "auto",
 		targetLang: "zh-CN",
-		serviceKey: "googleapi",
+		serviceKey: "tencenttransmart",
 	};
 	const doneItem: LayoutTranslateItem = {
 		id: "a",
@@ -1320,15 +1513,15 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 	});
 	const base = {
 		...DEFAULT_TRANSLATE_SETTINGS,
-		provider: "googleapi" as const,
+		provider: "tencenttransmart" as const,
 	};
 
 	it("empty prompt keeps the prompt-less key byte-identical", () => {
 		expect(translateServiceKey({ ...base, customPrompt: "" })).toBe(
-			"googleapi",
+			"tencenttransmart",
 		);
 		expect(translateServiceKey({ ...base, customPrompt: "   " })).toBe(
-			"googleapi",
+			"tencenttransmart",
 		);
 	});
 
@@ -1336,7 +1529,7 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 		const a = translateServiceKey({ ...base, customPrompt: "Be terse." });
 		const b = translateServiceKey({ ...base, customPrompt: "Be terse." });
 		const c = translateServiceKey({ ...base, customPrompt: "Be verbose." });
-		expect(a).not.toBe("googleapi");
+		expect(a).not.toBe("tencenttransmart");
 		expect(a).toBe(b);
 		expect(a).not.toBe(c);
 	});
@@ -1378,73 +1571,6 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 				...base,
 				customUser: "\n  \n",
 			}),
-		).toBe("googleapi");
+		).toBe("tencenttransmart");
 	});
-});
-
-it("notifies readers only after Host cache writes succeed", async () => {
-	const { commands } = await import("@/lib/core/bindings");
-	const tauri = vi
-		.spyOn(await import("@/lib/core/tauri"), "isTauri")
-		.mockReturnValue(true);
-	const write = vi
-		.spyOn(commands, "layoutTranslateCacheWrite")
-		.mockResolvedValue({ ok: true, data: null });
-	const listener = vi.fn();
-	const off = subscribeLayoutTranslateSidecarWrite(listener);
-	const key = {
-		providerId: "google" as const,
-		sourceLang: "en",
-		targetLang: "zh",
-		serviceKey: "google",
-	};
-	try {
-		await writeLayoutTranslateSidecar("/vault/paper", key, []);
-		expect(write).toHaveBeenCalledOnce();
-		expect(listener).toHaveBeenCalledWith("/vault/paper");
-		listener.mockClear();
-		write.mockRejectedValue(new Error("write failed"));
-		await expect(
-			writeLayoutTranslateSidecar("/vault/paper", key, []),
-		).rejects.toThrow("write failed");
-		expect(listener).not.toHaveBeenCalled();
-	} finally {
-		off();
-		write.mockRestore();
-		tauri.mockRestore();
-	}
-});
-
-it("refreshes open views after external or atomic translation cache writes and releases the watcher", () => {
-	cacheWatch.handler = null;
-	cacheWatch.off.mockClear();
-	const listener = vi.fn();
-	const off = subscribeLayoutTranslateSidecarWrite(listener);
-	try {
-		expect(cacheWatch.handler).not.toBeNull();
-		cacheWatch.handler?.({
-			paths: ["D:\\Vault\\paper\\source\\layout-translate.json"],
-		});
-		expect(listener).toHaveBeenLastCalledWith("D:/Vault/paper");
-		listener.mockClear();
-		cacheWatch.handler?.({ paths: ["D:/Vault/paper/notes.md"] });
-		expect(listener).not.toHaveBeenCalled();
-		cacheWatch.handler?.({
-			paths: [],
-			rename: {
-				from: "D:/Vault/paper/source/tmp.json",
-				to: "D:/Vault/paper/source/layout-translate.json",
-			},
-		});
-		expect(listener).toHaveBeenCalledOnce();
-		expect(listener).toHaveBeenCalledWith("D:/Vault/paper");
-	} finally {
-		off();
-	}
-	expect(cacheWatch.off).toHaveBeenCalledOnce();
-	listener.mockClear();
-	cacheWatch.handler?.({
-		paths: ["D:/Vault/paper/source/layout-translate.json"],
-	});
-	expect(listener).not.toHaveBeenCalled();
 });

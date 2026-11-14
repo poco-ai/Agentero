@@ -85,7 +85,7 @@ import { usePdfOutline } from "@/components/viewer/pdf/hooks/use-pdf-outline";
 import { usePdfPageText } from "@/components/viewer/pdf/hooks/use-pdf-page-text";
 import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-tone";
 import { usePdfPinAnchors } from "@/components/viewer/pdf/hooks/use-pdf-pin-anchors";
-import { usePdfReaderSelection } from "@/components/viewer/pdf/hooks/use-pdf-reader-selection";
+
 import { usePdfReadingMode } from "@/components/viewer/pdf/hooks/use-pdf-reading-mode";
 import { usePdfRegionFraming } from "@/components/viewer/pdf/hooks/use-pdf-region-framing";
 import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
@@ -165,6 +165,7 @@ import { embedPdfDocumentId } from "@/lib/pdf/document-id";
 import { PdfHistoryPluginPackage } from "@/lib/pdf/highlight/history";
 import { HIGHLIGHT_HEX_LIST } from "@/lib/pdf/highlight/palette";
 import { partitionHighlightPaint } from "@/lib/pdf/highlight/translated-geometry";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import {
 	getPdfAiRuntime,
 	layoutAnalysisStore,
@@ -617,6 +618,7 @@ function PdfViewerInner({
 	// Catalog title + link for the ask card's external "open in chat" query.
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
 	const pdfScrollStrategy = useSettings((s) => s.pdfScrollStrategy);
+	const readingModeEnabled = useSettings((s) => s.pdfReadingModeEnabled);
 	const autoTranslateSelection = useSettings(
 		(s) => s.translate.autoTranslateSelection,
 	);
@@ -940,6 +942,7 @@ function PdfViewerInner({
 		translateError,
 		translateSelection,
 		toggleTranslatePin,
+		toggleTranslateMode,
 		discardUnpinnedTranslateOnClose,
 		openTranslateSettings,
 		clearTranslateError,
@@ -1126,6 +1129,7 @@ function PdfViewerInner({
 		clearCitationPreview,
 		handleCitationLinkActivate,
 		handleCitationLinkHover,
+		hasCitationMatch,
 		citationImport,
 		pageOrigins,
 	} = usePdfCitations({
@@ -1157,7 +1161,6 @@ function PdfViewerInner({
 	// Cross-reference (\ref) hover: preview the figure/table/equation crop,
 	// or fallback destination crop for unmapped citations / internal links.
 	// Resolve the complete source group before choosing verified metadata or crops.
-	const readerPreviewZoomRef = useRef<number | null>(null);
 	const {
 		crossrefPreview,
 		scheduleCrossrefHide,
@@ -1168,12 +1171,11 @@ function PdfViewerInner({
 		docId,
 		hostRef,
 		zoomRef,
-		previewZoomRef: readerPreviewZoomRef,
 		paperAbsPath,
 		sourceBytes,
 		engineRef,
 		docCapRef,
-		showCitationPreview: handleCitationLinkHover,
+		hasCitationMatch,
 		onPreviewShow: () => {
 			clearCitationPreviewRef.current();
 			clearLinkUrlTipRef.current();
@@ -1310,11 +1312,12 @@ function PdfViewerInner({
 	}, [docId]);
 	const continuousReader = usePdfContinuousReader({
 		docId,
+		currentPage,
 		paperAbsPath,
 		paperKey,
 		pdfBytes: pdfCacheBytes ?? sourceBytes,
 		translation: layoutTranslationSnapshot,
-		available: !plainViewer && !isRemotePaper,
+		available: readingModeEnabled && !plainViewer && !isRemotePaper,
 		regions: layoutRawRegions,
 		context: readerContext,
 		startAnalysis: (signal) =>
@@ -1326,11 +1329,9 @@ function PdfViewerInner({
 				notifyOnError: true,
 			}),
 	});
-	readerPreviewZoomRef.current = continuousReader.enabled
-		? (96 / 72) * 1.25 * continuousReader.settings.fontScale
-		: null;
 	const [pdfSplit, setPdfSplit] = useState<ReadingSplit>("single");
 	const pdfComparison =
+		readingModeEnabled &&
 		!continuousReader.enabled &&
 		pdfSplit !== "single" &&
 		!plainViewer &&
@@ -1368,18 +1369,6 @@ function PdfViewerInner({
 		closeSelection: closeSelectionMenu,
 	});
 	const translationDisplayed = translationsVisible && hasTranslations;
-	usePdfReaderSelection({
-		enabled: continuousReader.enabled && isActive,
-		hostRef,
-		engineRef,
-		docCapRef,
-		docId,
-		blocks: continuousReader.blocks,
-		setSelectionMenu,
-		closeSelectionMenu,
-		paperRelPath,
-		paperAbsPath,
-	});
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
@@ -1613,7 +1602,7 @@ function PdfViewerInner({
 				clearLinkUrlTip();
 				return;
 			}
-			if (!link) handleCitationLinkHover(null);
+			handleCitationLinkHover(link, clientPoint);
 			handleCrossrefLinkHover(link, clientPoint);
 		},
 		[
@@ -1876,22 +1865,30 @@ function PdfViewerInner({
 		}
 	}, [isRemotePaper, plainViewer, regionSelecting, selectionCommentKeyValue]);
 
-	const handleMenuNote = useCallback(() => {
-		const menu = selectionMenuRef.current;
-		if (!menu?.pages.length || isRemotePaper || plainViewer || regionSelecting)
-			return;
-		const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
-		selectionCommentEngagedRef.current = true;
-		setSelectionCommentDraft({
-			readerBlockId: menu.fromReader?.blockId,
-			page: visible?.page ?? menu.anchor.page,
-			anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
-			quote: menu.anchor.quote ?? "",
-			pages: menu.pages,
-			visiblePages: menu.visiblePages,
-		});
-		closeSelectionMenu();
-	}, [isRemotePaper, plainViewer, regionSelecting, closeSelectionMenu]);
+	const handleMenuNote = useCallback(
+		(shape: PdfTextMarkupKind = "highlight") => {
+			const menu = selectionMenuRef.current;
+			if (
+				!menu?.pages.length ||
+				isRemotePaper ||
+				plainViewer ||
+				regionSelecting
+			)
+				return;
+			const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
+			selectionCommentEngagedRef.current = true;
+			setSelectionCommentDraft({
+				page: visible?.page ?? menu.anchor.page,
+				anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
+				quote: menu.anchor.quote ?? "",
+				shape,
+				pages: menu.pages,
+				visiblePages: menu.visiblePages,
+			});
+			closeSelectionMenu();
+		},
+		[isRemotePaper, plainViewer, regionSelecting, closeSelectionMenu],
+	);
 
 	const handleSelectionCommentActiveChange = useCallback((active: boolean) => {
 		selectionCommentEngagedRef.current = active;
@@ -1915,6 +1912,7 @@ function PdfViewerInner({
 				{
 					pages: draft.pages,
 					quote: draft.quote,
+					shape: draft.shape,
 					visiblePages: draft.visiblePages,
 				},
 				comment,
@@ -2074,9 +2072,7 @@ function PdfViewerInner({
 			// hoveredCommentId deliberately not bundled: it is passed as a
 			// per-page gated prop in renderPage so a comment hover re-renders
 			// only the owning page, not every page sharing this bundle.
-			selectionCommentDraft: selectionCommentDraft?.readerBlockId
-				? null
-				: selectionCommentDraft,
+			selectionCommentDraft,
 			translateHighlightsByPage,
 			highlightQuotesByPage,
 			translatedHighlightsByPage,
@@ -2237,20 +2233,28 @@ function PdfViewerInner({
 
 	const pageHandlers = useMemo<PdfPageHandlers>(
 		() => ({
-			onOpenPin: handleOpenPin,
+			onOpenPin: (pin) => {
+				handleOpenPin(pin);
+			},
 			onCardHoverEnter: markCardHoverEnter,
 			onCardHoverLeave: scheduleHoverHide,
 			onCitationActivate: handleCitationLinkActivate,
 			onTextLinkActivate: openExternalUrl,
 			onCitationHover: handleLinkHover,
 			onLinkUrlHover: handleLinkUrlHover,
-			onRegionSelect: handleVisualRegionSelect,
+			onRegionSelect: (page, region) => {
+				handleVisualRegionSelect(page, region);
+			},
 			onLayoutRegionClick: handleLayoutRegionClick,
 			onTogglePageLayoutTranslate: togglePageLayoutTranslate,
 			onDeleteHighlightAnnotation: handleDeleteHighlightAnnotation,
-			onEditHighlightAnnotation: handleEditHighlightAnnotation,
+			onEditHighlightAnnotation: (...args) => {
+				handleEditHighlightAnnotation(...args);
+			},
 			onChangeHighlightColor: handleChangeHighlightColor,
-			onOpenComment: (comment) => beginRailEdit(railEditFromComment(comment)),
+			onOpenComment: (comment) => {
+				beginRailEdit(railEditFromComment(comment));
+			},
 			onSaveComment: saveRailEdit,
 			onCancelComment: closeRailEdit,
 			onDeleteComment: deleteRailComment,
@@ -2530,6 +2534,9 @@ function PdfViewerInner({
 	const handleToggleTranslatePin = useCallback(() => {
 		if (activeTranslate) toggleTranslatePin(activeTranslate);
 	}, [activeTranslate, toggleTranslatePin]);
+	const handleToggleTranslateMode = useCallback(() => {
+		if (activeTranslate) toggleTranslateMode(activeTranslate);
+	}, [activeTranslate, toggleTranslateMode]);
 	const cardTranslate = useMemo(
 		() => ({
 			record: isActive ? activeTranslate : null,
@@ -2541,6 +2548,7 @@ function PdfViewerInner({
 					? handleToggleTranslatePin
 					: undefined,
 			onHide: hideActiveCard,
+			onToggleMode: activeTranslate ? handleToggleTranslateMode : undefined,
 		}),
 		[
 			isActive,
@@ -2550,6 +2558,7 @@ function PdfViewerInner({
 			openTranslateSettings,
 			paperAbsPath,
 			handleToggleTranslatePin,
+			handleToggleTranslateMode,
 			hideActiveCard,
 		],
 	);
@@ -2681,7 +2690,7 @@ function PdfViewerInner({
 			)}
 			{!translationOnly && !plainViewer && (
 				<PdfToolbar
-					reading={readerControls}
+					reading={readingModeEnabled ? readerControls : undefined}
 					onExportTranslatedPdf={reflowReady ? exportTranslatedPdf : undefined}
 					regionSelecting={regionSelecting}
 					visualCropPending={visualCropPending}
@@ -2850,6 +2859,7 @@ function PdfViewerInner({
 							continuousReader.updateSettings({ fontScale })
 						}
 						preparing={continuousReader.preparing}
+						preparingLayoutBackend={continuousReader.preparingLayoutBackend}
 						error={continuousReader.error}
 						currentPage={currentPage}
 						navigationTarget={navigationTarget}
@@ -2873,13 +2883,6 @@ function PdfViewerInner({
 						onUrlActivate={openExternalUrl}
 						onUrlHover={handleLinkUrlHover}
 						readerRestore={readerRestore}
-						highlights={highlights}
-						annotations={{
-							draft: selectionCommentDraft,
-							editingId: railEdit?.id ?? null,
-							wikiTarget: commentWikiTarget,
-							handlers: pageHandlers,
-						}}
 					/>
 				)}
 			</div>

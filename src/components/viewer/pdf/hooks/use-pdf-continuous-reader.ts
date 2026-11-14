@@ -40,6 +40,7 @@ import { prepareReflowItems } from "@/lib/pdf/reflow/service";
 const EMPTY_ITEMS: LayoutTranslateItem[] = [];
 type Options = {
 	docId: string;
+	currentPage?: number;
 	paperAbsPath: string | null;
 	available: boolean;
 	regions: PdfLayoutRegion[] | null;
@@ -58,11 +59,15 @@ export type PdfContinuousReaderState = {
 	hasTranslations: boolean;
 	preparing: boolean;
 	analysisRunning: boolean;
+	preparingLayoutBackend:
+		| import("@/lib/pdf/layout/settings").LayoutBackend
+		| null;
 	error: string | null;
 	retryPreparation: () => void;
 };
 export function usePdfContinuousReader({
 	docId,
+	currentPage = 1,
 	paperAbsPath,
 	available,
 	regions,
@@ -76,15 +81,20 @@ export function usePdfContinuousReader({
 	const [enabledDocument, setEnabledDocument] = useState<string | null>(null);
 	const enabled = available && enabledDocument === docId;
 	const setEnabled = useCallback(
-		(value: boolean) => setEnabledDocument(value ? docId : null),
-		[docId],
+		(value: boolean) => setEnabledDocument(value && available ? docId : null),
+		[docId, available],
 	);
+	useEffect(() => {
+		if (!available) setEnabledDocument(null);
+	}, [available]);
 	const [settings, setSettings] = useState(readReadingSettings);
 	const [prepared, setPrepared] = useState<{
 		docId: string;
 		regions: PdfLayoutRegion[];
 		retry: number;
 		items: LayoutTranslateItem[];
+		complete: boolean;
+		pageIndexes?: ReadonlySet<number>;
 	} | null>(null);
 	const [cache, setCache] = useState<{
 		docId: string;
@@ -101,6 +111,7 @@ export function usePdfContinuousReader({
 		startAnalysis,
 		paperKey,
 		pdfBytes,
+		currentPage,
 		translateSettings,
 	});
 	current.current = {
@@ -108,6 +119,7 @@ export function usePdfContinuousReader({
 		startAnalysis,
 		paperKey,
 		pdfBytes,
+		currentPage,
 		translateSettings,
 	};
 	// Subscribe to both provider settings and UI language (the automatic target).
@@ -214,7 +226,8 @@ export function usePdfContinuousReader({
 		if (
 			prepared?.docId === docId &&
 			prepared.regions === regions &&
-			prepared.retry === retry
+			prepared.retry === retry &&
+			prepared.complete
 		) {
 			setPreparing(false);
 			return;
@@ -222,6 +235,20 @@ export function usePdfContinuousReader({
 		const ctx = current.current.context();
 		if (!ctx) return;
 		const controller = new AbortController();
+		const readyPages = new Map<number, LayoutTranslateItem[]>();
+		let publishTimer: ReturnType<typeof setTimeout> | undefined;
+		const publish = () => {
+			publishTimer = undefined;
+			if (!controller.signal.aborted)
+				setPrepared({
+					docId,
+					regions,
+					retry,
+					items: [...readyPages.values()].flat(),
+					complete: false,
+					pageIndexes: new Set(readyPages.keys()),
+				});
+		};
 		setPreparing(true);
 		setError(null);
 		const seed = toLayoutTranslateItems(listTranslatableLayoutRegions(regions));
@@ -246,11 +273,22 @@ export function usePdfContinuousReader({
 			regions,
 			controller.signal,
 			irCache,
-			{ includeUnselectedPages: true, includeReferences: true },
+			{
+				includeUnselectedPages: true,
+				includeReferences: true,
+				priorityPageIndex: current.current.currentPage - 1,
+				onPagePrepared: (pageIndex, items) => {
+					if (controller.signal.aborted) return;
+					readyPages.set(pageIndex, items);
+					if (readyPages.size === 1) publish();
+					else publishTimer ??= setTimeout(publish, 80);
+				},
+			},
 		)
 			.then((items) => {
+				clearTimeout(publishTimer);
 				if (!controller.signal.aborted)
-					setPrepared({ docId, regions, retry, items });
+					setPrepared({ docId, regions, retry, items, complete: true });
 			})
 			.catch((cause) => {
 				if (controller.signal.aborted) return;
@@ -261,12 +299,14 @@ export function usePdfContinuousReader({
 			.finally(() => {
 				if (!controller.signal.aborted) setPreparing(false);
 			});
-		return () => controller.abort();
+		return () => {
+			clearTimeout(publishTimer);
+			controller.abort();
+		};
 	}, [enabled, docId, paperAbsPath, regions, retry, t]);
-	const sources =
-		prepared?.docId === docId && prepared.regions === regions
-			? prepared.items
-			: EMPTY_ITEMS;
+	const currentPrepared =
+		prepared?.docId === docId && prepared.regions === regions ? prepared : null;
+	const sources = currentPrepared?.items ?? EMPTY_ITEMS;
 	useEffect(() => {
 		let cancelled = false;
 		let request = 0;
@@ -329,8 +369,13 @@ export function usePdfContinuousReader({
 					}
 				: (cachedById.get(source.id) ?? source);
 		});
-		return buildReadingBlocks(regions ?? [], sources, combined);
-	}, [regions, sources, cached, translation, cacheKey]);
+		const readyRegions = currentPrepared?.complete
+			? (regions ?? [])
+			: (regions ?? []).filter((region) =>
+					currentPrepared?.pageIndexes?.has(region.pageIndex),
+				);
+		return buildReadingBlocks(readyRegions, sources, combined);
+	}, [regions, sources, currentPrepared, cached, translation, cacheKey]);
 	const retryPreparation = useCallback(() => {
 		setError(null);
 		if (!enabled) return;
@@ -350,6 +395,10 @@ export function usePdfContinuousReader({
 			blocks.some((block) => Boolean(block.translated?.trim())),
 		preparing: enabled && (preparing || (!regions && !analysisError)),
 		analysisRunning,
+		preparingLayoutBackend:
+			enabled && !regions && analysis.stage === "running" && analysisMatches
+				? (analysis.backend ?? null)
+				: null,
 		error: error ?? analysisError,
 		retryPreparation,
 	};

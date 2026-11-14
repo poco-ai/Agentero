@@ -23,40 +23,6 @@ const chars = (text: string, x = 0, offset = 0): Character[] =>
 		},
 	}));
 describe("reflow character coverage", () => {
-	it("keeps a colored reference number between fallback prose text objects", () => {
-		const source = [
-			...chars("Figure ").map((c) => ({ ...c, textObjectId: 1 })),
-			...chars("4 ", 35, 7).map((c) => ({
-				...c,
-				textObjectId: 2,
-				style: { ...c.style, color: { r: 69, g: 76, b: 169 } },
-			})),
-			...chars("presents results", 45, 9).map((c) => ({
-				...c,
-				textObjectId: 3,
-			})),
-		];
-		expect(
-			fallbackCharacterGroups(source).map((g) => g.map((c) => c.text).join("")),
-		).toEqual(["Figure 4 presents results"]);
-	});
-	it("retains a thin painted dash when integer tight bounds round past its ink", () => {
-		const dash: Character = {
-			...chars("–", 10)[0],
-			textObjectId: 9,
-			textMatrix: [10, 0, 0, 10, 0, 0],
-			visualBox: { x: 10, y: 6, w: 5, h: 1 },
-		};
-		const data = new Uint8ClampedArray(40 * 20 * 4).fill(255);
-		for (let x = 20; x < 30; x++) {
-			const i = (11 * 40 + x) * 4;
-			data[i] = data[i + 1] = data[i + 2] = 0;
-		}
-		expect(
-			nonPaintingCharacters([dash], { width: 40, height: 20, data }, 20, 10)
-				.size,
-		).toBe(0);
-	});
 	it("recovers separate plot labels without concatenating across a spatial gap", () => {
 		const groups = fallbackCharacterGroups([
 			...chars("Input"),

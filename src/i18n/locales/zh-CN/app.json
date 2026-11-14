@@ -248,6 +248,7 @@
 		"layoutModelDetail": "魔搭 → HuggingFace · PP-DocLayoutV3",
 		"layoutAnalysis": "解析插图、表格、文字",
 		"layoutTranslate": "翻译全文",
+		"layoutTranslateComplete": "补全译文",
 		"pdfParse": "解析 PDF 正文",
 		"parseRefs": "解析参考文献",
 		"openLayoutSettings": "打开解析设置",

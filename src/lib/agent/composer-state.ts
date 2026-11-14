@@ -66,12 +66,19 @@ function storageKey(scopeKey: string, sessionId: string) {
 	return `${COMPOSER_STATE_PREFIX}:${encodeURIComponent(scopeKey)}:${encodeURIComponent(sessionId)}`;
 }
 
+/**
+ * Draft storage scope. `surfaceId` separates chat surfaces (Zen slots) that
+ * share an agent; the rail passes null and keeps its original keys.
+ */
 export function composerScopeKey(
 	vaultPath: string | null,
 	agentId: string | null,
+	surfaceId: string | null = null,
 ): string | null {
 	if (!vaultPath || !agentId) return null;
-	return JSON.stringify([vaultPath, agentId]);
+	return JSON.stringify(
+		surfaceId ? [vaultPath, agentId, surfaceId] : [vaultPath, agentId],
+	);
 }
 
 export function loadAgentComposerState(

@@ -6,6 +6,12 @@ Host 在 **`127.0.0.1:23119`** 模拟 Zotero 桌面 Connector HTTP，官方浏�
 
 - 设置 → 通用：**兼容 Zotero Connector**（`connectorEnabled`，**默认关**）。
 - 与 Zotero 桌面端端口互斥；端口可在设置中修改（默认 `23119`）。
+- 开关保持开启时，bind 失败或服务意外停止后，Host 每 5 秒自动重试；端口释放后自动恢复，
+  无需重启应用或切换开关。关闭开关 / 退出应用取消重试；修改端口取消旧端口的重试，
+  相同端口的设置同步不重启服务。
+- 设置端口行在失败期间保留红色「未监听」状态、中文 / 英文错误原因和立即重试按钮；
+  恢复后通过 `connector:status` 自动切回绿色监听状态。`lastErrorCode` 用于本地化，
+  `lastError` 保留系统诊断详情；后台自动重试不会反复弹 Toast。
 - 支持 `saveItems`、目标文件夹选择、**`saveAttachment`**（浏览器上传 PDF）。
 - 支持 **`saveStandaloneAttachment`**（在 PDF 标签页直接保存，无父书目条目）。
 - 支持 **`hasAttachmentResolvers`** / **`saveAttachmentFromResolver`**：浏览器直连 PDF
@@ -19,7 +25,7 @@ Host 在 **`127.0.0.1:23119`** 模拟 Zotero 桌面 Connector HTTP，官方浏�
   仍未终结时不移动，成功或失败终结后，本地 Vault 统一通过共享 `paper_move` 事务移动一次。
 - `connector:item-saved` 只在初次 finalizer 得到稳定路径后发出；前端随后刷新并打开该路径，
   现有 open/reconcile 流程再按需启动 backend parser。PDF 由 Connector 直接落盘、不经过 `DownloadAssets`，
-  所以初次 finalizer 会为有本地 PDF 的论文入队 `layoutAnalyze`（开启「导入后自动翻译」时再入队依赖的
+  所以初次 finalizer 会为有本地 PDF 的论文入队 `layoutAnalyze`（开启「版面解析后自动翻译」时再入队依赖的
   `layoutTranslate`）；已交给 `RecognizeMetadata` 的论文跳过，由识别任务在改名 / 合并后的路径入队。
   远程 Vault 不入队（版面只在本地执行）。
 - Connector 返回的 Zotero 标签会以 `@zotero:` 前缀保存在 catalog 中，用于保留来源信息；
@@ -55,5 +61,6 @@ Host 在 **`127.0.0.1:23119`** 模拟 Zotero 桌面 Connector HTTP，官方浏�
 
 ## 代码
 
-`src-tauri/src/features/connector/`  
+`src-tauri/src/integration/connector/`
+
 用户教程：[../usage/zotero.md](../usage/zotero.md)

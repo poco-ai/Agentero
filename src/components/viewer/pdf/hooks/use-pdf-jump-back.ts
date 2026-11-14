@@ -124,6 +124,12 @@ export function usePdfJumpBack({
 		setReaderRestore(popped.origin);
 		if (viewportCap) {
 			try {
+				// Restore the observed page as well as pixels. A viewport-only
+				// scroll can leave the scroll plugin at the previous link target.
+				scrollCap?.forDocument(docId).scrollToPage({
+					pageNumber: popped.origin.page,
+					behavior: "instant",
+				});
 				viewportCap
 					.forDocument(docId)
 					// Instant: smooth jumps across distant pages feel like slow render.
@@ -136,7 +142,7 @@ export function usePdfJumpBack({
 				// Ignore transient scroll failures; the origin is popped either way.
 			}
 		}
-	}, [viewportCap, docId]);
+	}, [viewportCap, scrollCap, docId]);
 
 	const backTarget = stack.entries[stack.entries.length - 1] ?? null;
 

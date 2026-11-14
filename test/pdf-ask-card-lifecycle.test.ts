@@ -126,27 +126,6 @@ it("moves an unpinned translation with its source and keeps it open when the pag
 	expect(onCardClose).not.toHaveBeenCalled();
 });
 
-it("places translation and chat cards at the reader paragraph while source pages are unmounted", async () => {
-	page.remove();
-	const reader = document.createElement("div");
-	reader.setAttribute("data-pdf-reader", "");
-	reader.getBoundingClientRect = () => new DOMRect(20, 50, 700, 600);
-	const paragraph = document.createElement("section");
-	paragraph.setAttribute("data-reader-page", "1");
-	paragraph.setAttribute("data-reader-bbox", "0.05,0.15,0.8,0.2");
-	paragraph.getBoundingClientRect = () => new DOMRect(70, 120, 500, 100);
-	reader.append(paragraph);
-	options.hostRef.current?.append(reader);
-	await act(async () => cards.openCard(translation));
-	const opened = cards.cardScreen;
-	if (!opened) throw new Error("Reader translation card was not placed");
-	expect(opened.x).toBe(320);
-	expect(opened.y).toBe(120);
-	paragraph.getBoundingClientRect = () => new DOMRect(70, 90, 500, 100);
-	await act(async () => cards.syncActiveCardPosition());
-	expect(cards.cardScreen?.y).toBe(90);
-});
-
 it("restores screen placement when opening again at the previous card's coordinates", async () => {
 	await act(async () => cards.openCard(translation));
 	const openedAt = cards.cardScreen;

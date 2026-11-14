@@ -838,7 +838,7 @@ arXiv URL 推导：
 - 分类：对话框 **“按 Zotero 分类建子文件夹”** 勾选项（**默认开**，可手动关闭）→ 迁移开始时**物化完整 collection 树**（含空分类与条目被去重的分类，目录结构与 Zotero 完全对应），条目落在 `{parent}/<collection 路径>/<id>/`，collection 名同时写入 tags（多归属不丢失）；关闭则平铺。条目在多个 collection 时取确定性的单一路径（**最深路径优先**，同深按字典序，避免父级分类吸走子级条目）。
 - 选择性导入：`zotero_scan` 预览返回各 collection（含「未分类」= id 0）及条目数，并返回逐条 `items`（id/title/itemType/year/hasPdf/notes/collections）；对话框提供**搜索 + 文件夹筛选 + 逐条勾选**（`include_items` 优先于 `include_collections`，缺省 = 全部），非常规类型（webpage 等）在列表中以类型徽标标出；迁移经 Tauri Channel 回传 `{current,total}` 进度，选项记于 localStorage。
 - 笔记：对话框「迁移 Zotero 笔记」勾选项（默认开）覆盖两类笔记。挂在论文下的子笔记（`itemNotes.parentItemID` 指向该论文）HTML 经 `htmd` 转 Markdown，追加进该篇 `NOTES.md`（以 `---` 分隔）。没有父条目的独立笔记各写成一篇 Markdown：未归类落到 `notes/<标题>.md`，开启「按分类建子文件夹」时落到 `notes/<分类路径>/<标题>.md`，关闭则全部平铺在 `notes/`。文件名取笔记标题，否则取正文第一行，再否则取 Zotero key；与已有文件重名时加 `-2` 后缀，不覆盖用户文件。文件首行写入 `<!-- zotero-note:<key> -->`，再次迁移认出标记后跳过。嵌在独立笔记下的子笔记并入同一文件。空笔记、回收站笔记不写文件。`zotero_scan` 预览把独立笔记放进条目列表（类型 `note`），未归类归到 collection id `0`。
-- 批注：对话框「迁移 PDF 高亮批注」勾选项（默认开）→ 读 `itemAnnotations`（高亮 text + comment + 页码）转 Markdown 引用块追加进 `NOTES.md`（与笔记共用幂等追加）。**注**：阅读器运行时批注为 `marks/*.json`；Zotero 导入侧暂只把文本迁入 `NOTES.md`，不做原位 PDF 高亮还原。
+- 批注：对话框「迁移 PDF 高亮批注」勾选项（默认开）→ 读 `itemAnnotations`（`type` 形状 + `color` 颜色 + text + comment + 页码）转 Markdown 引用块追加进 `NOTES.md`（与笔记共用幂等追加）。块首带 `[高亮 · #ffd400]` / `[下划线 · #ffd400]` 这类类型与颜色标记，同一段文字用不同形状或颜色标注时不会在内容级去重中互相吞掉；旧库没有 `type` / `color` 列时回退为原来的纯文本块。**注**：阅读器运行时批注为 `marks/*.json`；Zotero 导入侧暂只把文本迁入 `NOTES.md`，不做原位 PDF 高亮还原。
 - 非目标（v1）：Zotero 批注的**原位高亮渲染**（现仅迁移文本入 NOTES.md）、独立笔记的双向同步（迁移是一次性写入 `notes/`，不推回 Zotero）、群组库。
 | 2026-07-16 | 精读：入库/单篇 Download 后自动 paper-reader + Zap 手动；任务条 lookup/download → paperRead 衔接 |
 
@@ -858,7 +858,7 @@ arXiv URL 推导：
 - 沿用「拷 `zotero.sqlite`+WAL/SHM 到临时目录」方案（`copy_zotero_sqlite`）。
 - **元数据**：仅填补空字段（year/doi/arxiv/abstract/publication/creators 等），永不覆盖已有值。
 - **笔记**：只拉取**非 Agentero 标记**的子笔记（用户手写的），`htmd` 转 MD 后幂等追加进 NOTES.md。
-- **批注**：`itemAnnotations` 转 MD 块幂等追加（与迁移同格式，内容级去重）。
+- **批注**：`itemAnnotations` 的 type / color / text / comment 转 MD 块幂等追加（与迁移同格式，内容级去重）。
 - **冲突**：水位之后两侧都变更（Zotero 笔记 dateModified 与 NOTES.md mtime 都新于水位）→ 跳过该篇笔记拉取并计入 conflicts 列表报告，不自动合并。
 - **不做**：不自动导入 Zotero 新增条目（那是迁移的职责）；Zotero 侧删除不联动删 paper。
 

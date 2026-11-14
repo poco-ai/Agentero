@@ -307,7 +307,6 @@ export function usePdfTextSelection({
 	const rePlaceSelectionMenu = useCallback(() => {
 		setSelectionMenu((prev) => {
 			if (!prev) return prev;
-			if (prev.fromReader) return prev;
 			const screen = menuScreenFromState(
 				hostRef.current,
 				prev,

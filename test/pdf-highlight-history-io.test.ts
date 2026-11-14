@@ -43,8 +43,7 @@ vi.mock("@/lib/vault/file-change-gate", () => ({
 
 it("persists undone notes on unmount, mirrors undo/redo to peers and reloads without history", async () => {
 	const registry = new PluginRegistry({
-		// PDFium returns an entry for every page, including pages without annotations.
-		getAllAnnotations: () => PdfTaskHelper.resolve({ 0: [] }),
+		getAllAnnotations: () => PdfTaskHelper.resolve({}),
 		createPageAnnotation: () => PdfTaskHelper.resolve(true),
 		updatePageAnnotation: () => PdfTaskHelper.resolve(true),
 		removePageAnnotation: () => PdfTaskHelper.resolve(true),

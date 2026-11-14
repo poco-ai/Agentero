@@ -24,6 +24,7 @@ import { useCapability } from "@embedpdf/core/react";
 import type {
 	PdfHighlightAnnoObject,
 	PdfLinkAnnoObject,
+	PdfUnderlineAnnoObject,
 } from "@embedpdf/models";
 import { PdfAnnotationSubtype } from "@embedpdf/models";
 import type {
@@ -52,8 +53,8 @@ import {
 	type HighlightCustom,
 	hasAnnotationsFile,
 	highlightViewFromObject,
-	isHighlightObject,
 	isLiveAnnotation,
+	isTextMarkupObject,
 	loadAnnotationItems,
 	saveAnnotationItems,
 } from "@/lib/pdf/highlight/annotation-store";
@@ -74,7 +75,10 @@ import {
 	HIGHLIGHT_OPACITY,
 	type HighlightColor,
 } from "@/lib/pdf/highlight/palette";
-import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+import type {
+	PdfHighlight,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
 import type { NormalizedRect } from "@/lib/pdf/selection";
 import { marksDir } from "@/lib/pdf/selection";
@@ -124,7 +128,7 @@ export type PdfHighlights = {
 	citationLinks: Map<number, PdfLinkAnnoObject[]>;
 	/** Re-read the plugin scope; also the annotation-event handler. */
 	rebuildHighlights: () => void;
-	/** Create one highlight per selected page span; returns the new ids. */
+	/** Create one text-markup annotation per selected page span; returns the new ids. */
 	createHighlights: (
 		pages: FormattedSelection[],
 		color: HighlightColor,
@@ -134,6 +138,8 @@ export type PdfHighlights = {
 		 * glyph boxes and painted only while the translation overlay is on.
 		 */
 		translatedPages?: readonly VisibleSelectionPage[],
+		/** Markup shape; defaults to a highlight. */
+		shape?: PdfTextMarkupKind,
 	) => { pageIndex: number; id: string }[];
 	/** Write a 批注 comment onto an existing highlight (empty clears it). */
 	updateHighlightComment: (
@@ -240,7 +246,7 @@ export function usePdfHighlights({
 		// session). They must not reach the rail, pins or paint layers.
 		const all = scope.getAnnotations().filter(isLiveAnnotation);
 		const doc = docCap?.getDocument(docId);
-		const objects = all.map((a) => a.object).filter(isHighlightObject);
+		const objects = all.map((a) => a.object).filter(isTextMarkupObject);
 		const list = objects.map((o) => {
 			const view = highlightViewFromObject(o, paperKey ?? "");
 			const size = doc?.pages[o.pageIndex]?.size;
@@ -307,6 +313,18 @@ export function usePdfHighlights({
 		});
 	}, [annotationCap, docCap, docId, paperKey, onHighlightsChangeRef]);
 
+	// A batch import emits one event per annotation within a single task;
+	// coalesce the burst into one rebuild (n events → O(n²) full walks → O(n)).
+	const rebuildPendingRef = useRef(false);
+	const scheduleRebuild = useCallback(() => {
+		if (rebuildPendingRef.current) return;
+		rebuildPendingRef.current = true;
+		queueMicrotask(() => {
+			rebuildPendingRef.current = false;
+			rebuildHighlights();
+		});
+	}, [rebuildHighlights]);
+
 	const persistAnnotations = useCallback(() => {
 		if (!paperAbsPath || !annotationCap) return;
 		// Capture while this document still exists, including an unmount flush.
@@ -346,19 +364,9 @@ export function usePdfHighlights({
 
 	useEffect(() => {
 		if (!annotationCap) return;
-		let cancelled = false;
-		let pending = false;
 		const scope = annotationCap.forDocument(docId);
 		const off = scope.onAnnotationEvent((event) => {
-			// Coalesce import bursts, but never read a scope after its subscription
-			// has gone away: the parent can already have destroyed the plugin.
-			if (!pending) {
-				pending = true;
-				queueMicrotask(() => {
-					pending = false;
-					if (!cancelled) rebuildHighlights();
-				});
-			}
+			scheduleRebuild();
 			if (
 				event.type !== "loaded" &&
 				!event.committed &&
@@ -369,44 +377,40 @@ export function usePdfHighlights({
 			}
 		});
 		rebuildHighlights();
-		return () => {
-			cancelled = true;
-			off();
-		};
-	}, [annotationCap, docId, paperAbsPath, rebuildHighlights, scheduleSave]);
+		return () => off();
+	}, [
+		annotationCap,
+		docId,
+		paperAbsPath,
+		rebuildHighlights,
+		scheduleRebuild,
+		scheduleSave,
+	]);
 
 	useEffect(() => {
 		if (importedRef.current || !annotationCap || !docCap || totalPages <= 0)
 			return;
 		importedRef.current = true;
-		let cancelled = false;
-		let finished = false;
-		let started = false;
-		let settleTimer: ReturnType<typeof setTimeout> | null = null;
-		const scope = annotationCap.forDocument(docId);
-		const importSavedAnnotations = async () => {
+		void (async () => {
+			const scope = annotationCap.forDocument(docId);
 			let items: AnnotationTransferItem[] = paperAbsPath
 				? await loadAnnotationItems(paperAbsPath)
 				: [];
-			if (cancelled) return;
 			if (
 				paperAbsPath &&
 				!items.length &&
 				!(await hasAnnotationsFile(paperAbsPath))
 			) {
-				if (cancelled) return;
 				const doc = docCap.getDocument(docId);
 				const migrated = await migrateHighlightMarks(
 					paperAbsPath,
 					(pageIndex) => doc?.pages[pageIndex]?.size ?? null,
 				);
-				if (cancelled) return;
 				if (migrated.length) {
 					items = migrated;
 					await saveAnnotationItems(paperAbsPath, migrated);
 				}
 			}
-			if (cancelled) return;
 			if (items.length) {
 				importingRef.current = true;
 				const plan = planAnnotationItemImport(
@@ -417,51 +421,21 @@ export function usePdfHighlights({
 						.map((item) => item.object),
 				);
 				if (plan.imports.length) scope.importAnnotations(plan.imports);
-				if (plan.highlightOverrides.length) {
-					const apply = () => scope.updateAnnotations(plan.highlightOverrides);
+				if (plan.annotationOverrides.length) {
+					const apply = () => scope.updateAnnotations(plan.annotationOverrides);
 					if (history) history.withoutRecording(apply);
 					else apply();
 					scope.commit();
 				}
 			}
-			settleTimer = setTimeout(() => {
-				settleTimer = null;
-				if (cancelled) return;
-				finished = true;
+			setTimeout(() => {
 				importingRef.current = false;
 				initialImportDoneRef.current = true;
 				for (const event of pendingPeerEventsRef.current.splice(0))
 					applyPeerEvent(event);
 				rebuildHighlights();
 			}, 0);
-		};
-		const startImport = () => {
-			if (cancelled || started) return;
-			started = true;
-			void importSavedAnnotations().catch((error) => {
-				if (cancelled) return;
-				importedRef.current = false;
-				importingRef.current = false;
-				notifyError(errorText(error));
-			});
-		};
-		// The plugin queues imports until native annotation loading completes.
-		// Planning against its still-empty store would enqueue every saved link
-		// and duplicate them when that queue is replayed. Subscribe before reading
-		// state; loaded pages include empty arrays even on unannotated pages.
-		const offLoaded = scope.onAnnotationEvent((event) => {
-			if (event.type === "loaded") startImport();
-		});
-		if (Object.keys(scope.getState().pages).length >= totalPages) startImport();
-		return () => {
-			cancelled = true;
-			offLoaded();
-			if (settleTimer !== null) clearTimeout(settleTimer);
-			if (!finished) {
-				importedRef.current = false;
-				importingRef.current = false;
-			}
-		};
+		})();
 	}, [
 		annotationCap,
 		docCap,
@@ -484,7 +458,6 @@ export function usePdfHighlights({
 		);
 		let cancelled = false;
 		let burstTimer: number | null = null;
-		let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
 		const schedule = () => {
 			if (burstTimer !== null) return;
@@ -495,10 +468,9 @@ export function usePdfHighlights({
 		};
 
 		const reimport = async () => {
-			if (cancelled) return;
 			// The mount-time import is still filling the scope; comparing against
 			// it now would re-import the same ids. Wait one burst and retry.
-			if (!initialImportDoneRef.current || importingRef.current) {
+			if (importingRef.current) {
 				schedule();
 				return;
 			}
@@ -510,22 +482,20 @@ export function usePdfHighlights({
 			const items = await loadAnnotationItems(paperAbsPath);
 			if (cancelled) return;
 			const plan = planAnnotationItemImport(items, existing);
-			if (!plan.imports.length && !plan.highlightOverrides.length) return;
+			if (!plan.imports.length && !plan.annotationOverrides.length) return;
 			importingRef.current = true;
 			history?.invalidate([
 				...plan.imports.map((item) => item.annotation.id),
-				...plan.highlightOverrides.map((item) => item.id),
+				...plan.annotationOverrides.map((item) => item.id),
 			]);
 			if (plan.imports.length) scope.importAnnotations(plan.imports);
-			if (plan.highlightOverrides.length) {
-				const apply = () => scope.updateAnnotations(plan.highlightOverrides);
+			if (plan.annotationOverrides.length) {
+				const apply = () => scope.updateAnnotations(plan.annotationOverrides);
 				if (history) history.withoutRecording(apply);
 				else apply();
 				scope.commit();
 			}
-			settleTimer = setTimeout(() => {
-				settleTimer = null;
-				if (cancelled) return;
+			setTimeout(() => {
 				importingRef.current = false;
 				rebuildHighlights();
 			}, 0);
@@ -544,10 +514,6 @@ export function usePdfHighlights({
 		return () => {
 			cancelled = true;
 			if (burstTimer !== null) window.clearTimeout(burstTimer);
-			if (settleTimer !== null) {
-				clearTimeout(settleTimer);
-				importingRef.current = false;
-			}
 			unsub();
 		};
 	}, [
@@ -565,9 +531,11 @@ export function usePdfHighlights({
 			color: HighlightColor,
 			quote: string,
 			translatedPages?: readonly VisibleSelectionPage[],
+			shape: PdfTextMarkupKind = "highlight",
 		) => {
 			const scope = annotationCap?.forDocument(docId);
 			if (!scope) return [] as { pageIndex: number; id: string }[];
+			const underline = shape === "underline";
 			const created: { pageIndex: number; id: string }[] = [];
 			runAnnotationBatch(() => {
 				for (const page of pages) {
@@ -581,17 +549,21 @@ export function usePdfHighlights({
 						quote,
 					};
 					if (translatedRects?.length) custom.translatedRects = translatedRects;
-					const obj: PdfHighlightAnnoObject = {
-						type: PdfAnnotationSubtype.HIGHLIGHT,
+					const base = {
 						id,
 						pageIndex: page.pageIndex,
 						rect: page.rect,
 						segmentRects: page.segmentRects,
 						strokeColor: HIGHLIGHT_HEX[color],
-						opacity: HIGHLIGHT_OPACITY,
+						// Underlines read as a solid stroke; highlights keep the
+						// translucent fill used by the palette.
+						opacity: underline ? 1 : HIGHLIGHT_OPACITY,
 						created: new Date(),
 						custom,
 					};
+					const obj: PdfHighlightAnnoObject | PdfUnderlineAnnoObject = underline
+						? { ...base, type: PdfAnnotationSubtype.UNDERLINE }
+						: { ...base, type: PdfAnnotationSubtype.HIGHLIGHT };
 					scope.createAnnotation(page.pageIndex, obj);
 					created.push({ pageIndex: page.pageIndex, id });
 				}
@@ -623,7 +595,7 @@ export function usePdfHighlights({
 			if (
 				!tracked ||
 				!isLiveAnnotation(tracked) ||
-				!isHighlightObject(tracked.object)
+				!isTextMarkupObject(tracked.object)
 			) {
 				return;
 			}

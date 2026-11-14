@@ -41,6 +41,7 @@ vi.mock("@/lib/shell/commands/menu-contributions", () => ({
 let container: HTMLDivElement;
 let root: Root;
 let colorWidth: number;
+let paletteMeasurementOffset: number;
 let notifyResize: () => void;
 
 // happy-dom has no layout engine. Supply measured flex boxes with variable
@@ -74,6 +75,14 @@ function measuredBox(element: HTMLElement): DOMRect {
 		5 +
 		widths.slice(0, index).reduce((sum, next) => sum + next, 0) +
 		index * 2;
+	if (element.tagName === "FIELDSET") {
+		return new DOMRect(
+			x - paletteMeasurementOffset,
+			top + 2,
+			widths[index] + paletteMeasurementOffset,
+			28,
+		);
+	}
 	return element.tagName === "DIV"
 		? new DOMRect(x + 2, top + 8, 1, 16)
 		: new DOMRect(x, top + 2, widths[index], 28);
@@ -111,6 +120,7 @@ beforeEach(() => {
 	english = false;
 	contributions = [];
 	colorWidth = HIGHLIGHT_COLOR_STACK_COLLAPSED_W;
+	paletteMeasurementOffset = 0;
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal("innerWidth", 1200);
 	vi.stubGlobal("innerHeight", 800);
@@ -188,6 +198,52 @@ it("keeps actions and the divider still throughout color expansion and collapse"
 		expect(dividerCenter(menu)).toBe(500);
 		expect(action.getBoundingClientRect().left).toBe(actionLeft);
 	}
+});
+
+it("ignores subpixel rounding differences in the animated palette measurement", async () => {
+	const menu = await render({
+		screen: { x: 0, y: 200, cursorX: 0, side: "below" },
+	});
+	const right = menu.style.right;
+	for (const [width, offset] of [
+		[80.25, 0.25],
+		[HIGHLIGHT_COLOR_STACK_EXPANDED_W, -0.25],
+		[73.5, 0.5],
+		[HIGHLIGHT_COLOR_STACK_COLLAPSED_W, 0],
+	]) {
+		colorWidth = width;
+		paletteMeasurementOffset = offset;
+		await act(() => notifyResize());
+		expect(menu.style.right).toBe(right);
+	}
+});
+
+it("fans the palette out left when the bar is centered on the cursor", async () => {
+	const menu = await render({
+		screen: {
+			x: 500,
+			y: 200,
+			cursorX: 620,
+			bottom: 260,
+			side: "below",
+		},
+		onNote: vi.fn(),
+	});
+	const right = menu.style.right;
+	const collapsedLeft = menu.getBoundingClientRect().left;
+	const collapsedRight = menu.getBoundingClientRect().right;
+	const action = menu.querySelector<HTMLElement>(
+		'button[aria-label="selection.translate T"]',
+	);
+	if (!action) throw new Error("Translate action did not render");
+	const actionLeft = action.getBoundingClientRect().left;
+	colorWidth = HIGHLIGHT_COLOR_STACK_EXPANDED_W;
+	await act(() => notifyResize());
+	// The action side is pinned: the extra palette width grows left only.
+	expect(menu.style.right).toBe(right);
+	expect(menu.getBoundingClientRect().right).toBe(collapsedRight);
+	expect(action.getBoundingClientRect().left).toBe(actionLeft);
+	expect(menu.getBoundingClientRect().left).toBeLessThan(collapsedLeft);
 });
 
 it("reserves the expanded palette at the left edge and clamps to the right edge", async () => {
@@ -297,6 +353,35 @@ it("keeps note clicks explicit and opens quick chat through the chat arrow", asy
 	expect(onAsk).not.toHaveBeenCalled();
 	await act(() => item?.click());
 	expect(onAsk).toHaveBeenCalledOnce();
+});
+
+it("moves bookmark into the more menu while keeping its B shortcut", async () => {
+	const onBookmark = vi.fn();
+	const menu = await render({ onBookmark });
+	expect(menu.querySelector('[aria-label="selection.bookmark B"]')).toBeNull();
+	expect(await pressKey("b")).toBe(true);
+	expect(onBookmark).toHaveBeenCalledOnce();
+
+	const trigger = menu.querySelector<HTMLButtonElement>(
+		'[aria-haspopup="menu"]',
+	);
+	if (!trigger) throw new Error("More menu trigger missing");
+	await act(() =>
+		trigger.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				button: 0,
+				pointerType: "mouse",
+			}),
+		),
+	);
+	const items = Array.from(
+		document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+	);
+	const bookmark = items.find((item) =>
+		item.textContent?.includes("selection.bookmark"),
+	);
+	expect(bookmark?.textContent).toContain("B");
 });
 
 const customBindings = {

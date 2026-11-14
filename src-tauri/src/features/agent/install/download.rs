@@ -139,9 +139,9 @@ pub fn extract_cli_binary(
     let _ = fs::remove_file(&tmp);
 
     if archive_name.ends_with(".zip") {
-        extract_zip_member(archive_bytes, archive_inner_name(), &tmp)?;
+        extract_zip_member(archive_bytes, archive_inner_name(), &tmp, true)?;
     } else if archive_name.ends_with(".tar.gz") || archive_name.ends_with(".tgz") {
-        extract_tar_gz_member(archive_bytes, archive_inner_name(), &tmp)?;
+        extract_tar_gz_member(archive_bytes, archive_inner_name(), &tmp, true)?;
     } else {
         return Err(AppError::message(format!(
             "unsupported CLI archive format: {archive_name}"
@@ -164,10 +164,35 @@ pub fn extract_cli_binary(
             dest_bin.display()
         ))
     })?;
+
+    // The matching PDFium build ships beside the binary. Older archives omit
+    // it; a missing member is not an error (the desktop installer can still
+    // copy the library out of the app bundle).
+    if let Some(parent) = dest_bin.parent() {
+        let lib_name = pdfium_archive_name();
+        let lib_dest = parent.join(lib_name);
+        let found = if archive_name.ends_with(".zip") {
+            extract_zip_member(archive_bytes, lib_name, &lib_dest, false)?
+        } else {
+            extract_tar_gz_member(archive_bytes, lib_name, &lib_dest, false)?
+        };
+        if !found {
+            let _ = fs::remove_file(&lib_dest);
+        }
+    }
     Ok(())
 }
 
-fn extract_tar_gz_member(bytes: &[u8], member_name: &str, dest: &Path) -> Result<(), AppError> {
+fn pdfium_archive_name() -> &'static str {
+    agentero_core::features::paper::analyze::parse::pdfium_library_file_name()
+}
+
+fn extract_tar_gz_member(
+    bytes: &[u8],
+    member_name: &str,
+    dest: &Path,
+    required: bool,
+) -> Result<bool, AppError> {
     let dec = GzDecoder::new(bytes);
     let mut archive = Archive::new(dec);
     let mut found = false;
@@ -194,14 +219,22 @@ fn extract_tar_gz_member(bytes: &[u8], member_name: &str, dest: &Path) -> Result
         break;
     }
     if !found {
-        return Err(AppError::message(format!(
-            "archive missing `{member_name}` entry"
-        )));
+        if required {
+            return Err(AppError::message(format!(
+                "archive missing `{member_name}` entry"
+            )));
+        }
+        return Ok(false);
     }
-    Ok(())
+    Ok(true)
 }
 
-fn extract_zip_member(bytes: &[u8], member_name: &str, dest: &Path) -> Result<(), AppError> {
+fn extract_zip_member(
+    bytes: &[u8],
+    member_name: &str,
+    dest: &Path,
+    required: bool,
+) -> Result<bool, AppError> {
     let cursor = std::io::Cursor::new(bytes);
     let mut archive = zip::ZipArchive::new(cursor)
         .map_err(|e| AppError::message(format!("zip open error: {e}")))?;
@@ -224,15 +257,21 @@ fn extract_zip_member(bytes: &[u8], member_name: &str, dest: &Path) -> Result<()
             break;
         }
     }
-    let index = index
-        .ok_or_else(|| AppError::message(format!("zip archive missing `{member_name}` entry")))?;
+    let Some(index) = index else {
+        if required {
+            return Err(AppError::message(format!(
+                "zip archive missing `{member_name}` entry"
+            )));
+        }
+        return Ok(false);
+    };
     let mut file = archive
         .by_index(index)
         .map_err(|e| AppError::message(format!("zip entry error: {e}")))?;
     let mut out = File::create(dest)?;
     io::copy(&mut file, &mut out)
         .map_err(|e| AppError::message(format!("zip extract write error: {e}")))?;
-    Ok(())
+    Ok(true)
 }
 
 /// Download archive + checksum for `version`, verify, extract into `dest_bin`.
@@ -388,6 +427,68 @@ mod tests {
 
         extract_cli_binary(&gz, "agentero-cli-0.0.0-test.tar.gz", &dest).unwrap();
         assert_eq!(fs::read(&dest).unwrap(), b"#!/bin/sh\necho ok\n");
+        assert!(
+            !dir.join(pdfium_archive_name()).is_file(),
+            "an archive without PDFium must not invent a library file"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    fn archive_member(builder: &mut tar::Builder<&mut Vec<u8>>, name: &str, data: &[u8]) {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        builder.append_data(&mut header, name, data).unwrap();
+    }
+
+    #[test]
+    fn extract_places_pdfium_beside_the_binary() {
+        let dir = std::env::temp_dir().join(format!(
+            "agentero-cli-dl-pdfium-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let name = archive_inner_name();
+        let lib = pdfium_archive_name();
+        let dest = dir.join(name);
+
+        let mut tar_buf = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_buf);
+            archive_member(&mut builder, name, b"#!/bin/sh\necho ok\n");
+            archive_member(&mut builder, lib, b"pdfium-bytes");
+            builder.finish().unwrap();
+        }
+        let mut enc = GzEncoder::new(Vec::new(), Compression::default());
+        enc.write_all(&tar_buf).unwrap();
+        let gz = enc.finish().unwrap();
+
+        extract_cli_binary(&gz, "agentero-cli-0.0.0-test.tar.gz", &dest).unwrap();
+        assert_eq!(fs::read(dir.join(lib)).unwrap(), b"pdfium-bytes");
+
+        let mut zip_buf = std::io::Cursor::new(Vec::new());
+        {
+            let mut writer = zip::ZipWriter::new(&mut zip_buf);
+            let opts = zip::write::SimpleFileOptions::default();
+            writer.start_file(name, opts).unwrap();
+            writer.write_all(b"MZ-cli").unwrap();
+            writer.start_file(format!("pdfium/{lib}"), opts).unwrap();
+            writer.write_all(b"pdfium-zip").unwrap();
+            writer.finish().unwrap();
+        }
+        let zip_dest = dir.join("from-zip").join(name);
+        fs::create_dir_all(zip_dest.parent().unwrap()).unwrap();
+        extract_cli_binary(zip_buf.get_ref(), "agentero-cli-0.0.0-test.zip", &zip_dest).unwrap();
+        assert_eq!(
+            fs::read(zip_dest.parent().unwrap().join(lib)).unwrap(),
+            b"pdfium-zip"
+        );
+
         let _ = fs::remove_dir_all(&dir);
     }
 }

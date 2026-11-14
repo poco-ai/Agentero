@@ -29,14 +29,6 @@ export type PickDestinationRegionOptions = {
 	 * `entryIndex` through this entry.
 	 */
 	endEntryIndex?: number | null;
-	/** /FitR targets may name only a page, not the numbered entry's position. */
-	pageOnly?: boolean;
-	/** Complete visible author/year citation, assembled from its native links. */
-	citationText?: string;
-	/** Exact entry start already established by visible author/year identity. */
-	verifiedEntryStart?: boolean;
-	/** Last line of a verified author heading, before the entry title. */
-	verifiedHeadingBottom?: number;
 };
 
 export type DestinationCropRegion = {
@@ -101,104 +93,24 @@ const FALLBACK_H = 0.12;
  * - 1., 12. (dot-numbered)
  */
 const LABELLED_ENTRY_START_REGEX =
-	/^\s*(?:\[\s*\d+\s*\]|\(\s*[1-9]\d{0,2}\s*\)|\[[A-Za-z+]*\d[A-Za-z0-9+]*\]|\d{1,3}\s?\.(?=\s|\p{L}))/u;
+	/^\s*(?:\[\s*\d+\s*\]|\[[A-Za-z+]*\d[A-Za-z0-9+]*\]|\d{1,3}\s?\.\s)/;
 /** A detached entry label may sit further from its text than an ordinary word. */
 const ENTRY_LABEL_ONLY_REGEX =
-	/^\s*(?:\[\s*\d+\s*\]|\(\s*[1-9]\d{0,2}\s*\)|\[[A-Za-z+]*\d[A-Za-z0-9+]*\]|\d{1,3}\s?\.)\s*$/;
+	/^\s*(?:\[\s*\d+\s*\]|\[[A-Za-z+]*\d[A-Za-z0-9+]*\]|\d{1,3}\s?\.)\s*$/;
 /**
  * Author-year entry starts: "Author et al., 2024", "Writer (2025)". Only used
  * in bibliographies without labels — in a labelled one, continuation lines
  * such as "USA, 2017, pp. 2123–2138." would match too.
  */
 const AUTHOR_YEAR_ENTRY_START_REGEX =
-	/^\s*(?:[\p{Lu}][\p{L}\p{M}'’-]+(?:\s+et\s+al\.)?,?\s+\(?\s*(?:18|19|20)\d{2}|[\p{Lu}][\p{L}\p{M}'’-]+,\s*[\p{Lu}][\p{L}\p{M}\s.,&’'-]*\(?\s*(?:18|19|20)\d{2}|[\p{Lu}][\p{L}\p{M}'’-]+(?:\s+(?:of|the|for|and|[\p{Lu}][\p{L}\p{M}'’-]+))*\.\s+(?:18|19|20)\d{2})/u;
+	/^\s*[A-Z][A-Za-z]+(?:\s+et\s+al\.)?,?\s+(?:\(?\s*(?:19|20)\d{2}\)?)/;
 
 /** Entry-start test for one column's lines, by its bibliography style. */
-function entryStartTest(
-	lines: readonly TextLine[],
-	authorYear = false,
-): (line: TextLine) => boolean {
-	const headingText = (text: string) =>
-		text
-			.replace(/^([\p{Lu}][\p{L}\p{M}'’\s-]+)(?=,\s*\p{Lu})/u, (name) =>
-				name.replace(/\s/g, ""),
-			)
-			.replace(/(?<!\d)((?:1\s*[89]|2\s*0)\s*\d\s*\d)(?!\d)/g, (year) =>
-				year.replace(/\s/g, ""),
-			);
-	const labelled =
-		!authorYear && lines.some((l) => LABELLED_ENTRY_START_REGEX.test(l.text));
-	const wrappedAuthorYear = (line: TextLine) => {
-		if (!/^[\p{Lu}][\p{L}\p{M}\s.,&’'()…-]+$/u.test(line.text)) return false;
-		// A wrapped URL filename is not an author list. In particular, its
-		// following bibliography entry must not supply the filename's year.
-		if (/\.\p{Ll}{2,}/u.test(line.text)) return false;
-		const heading = [line];
-		for (const next of lines) {
-			const previous = heading[heading.length - 1];
-			if (
-				next.minY <= previous.minY ||
-				next.minX < line.minX - ANCHOR_X_SLACK_PT ||
-				next.minX > line.minX + ANCHOR_X_SLACK_PT * 2 ||
-				next.minY - previous.maxY > (line.maxY - line.minY) * 1.5
-			)
-				continue;
-			// A publisher/title tail cannot borrow the year of the next complete
-			// author heading. Wrapped personal author lists have a comma followed
-			// by a name; a trailing comma in prose is not that evidence.
-			if (
-				(AUTHOR_YEAR_ENTRY_START_REGEX.test(headingText(next.text)) ||
-					/^\p{Lu}[\p{L}\p{M}'’\s-]+,\s*\p{Lu}/u.test(next.text)) &&
-				!/,\s*\p{Lu}/u.test(line.text)
-			)
-				return false;
-			heading.push(next);
-			const headingMatch =
-				/^([\p{L}\p{M}\s.,&’'()…-]+)\b(?:18|19|20)\d{2}/u.exec(
-					headingText(heading.map((l) => l.text).join(" ")),
-				);
-			if (headingMatch)
-				return (
-					/,\s*\p{Lu}/u.test(headingMatch[1]) ||
-					/\.\s*\(?\s*$/u.test(headingMatch[1])
-				);
-			if (heading.length >= 16 || next.minY - line.minY > ENTRY_MAX_HEIGHT_PT)
-				break;
-		}
-		return false;
-	};
-	const authorYearStart = (line: TextLine) =>
-		AUTHOR_YEAR_ENTRY_START_REGEX.test(headingText(line.text)) ||
-		/^\p{Lu}(?:\s+\p{Lu}[\p{L}\p{M}'’-]*)+\.\s*\(?\s*(?:18|19|20)\d{2}/u.test(
-			headingText(line.text),
-		) ||
-		/^\p{Lu}[\p{L}\p{M}'’\s-]+,\s*(?:eds?|trans)\.\s*\(?\s*(?:18|19|20)\d{2}/u.test(
-			headingText(line.text),
-		) ||
-		wrappedAuthorYear(line);
-	// Some bibliographies indent the first line instead of the continuations.
-	// The preceding entry's flush-left tail must not disqualify those authors.
-	const firstLineIndent = (line: TextLine) =>
-		lines.some(
-			(next) =>
-				next.minY > line.minY &&
-				next.minY - line.maxY < line.maxY - line.minY &&
-				line.minX - next.minX > HANGING_INDENT_SLACK_PT &&
-				line.minX - next.minX <= ANCHOR_X_SLACK_PT &&
-				!authorYearStart(next),
-		);
+function entryStartTest(lines: readonly TextLine[]): (text: string) => boolean {
+	const labelled = lines.some((l) => LABELLED_ENTRY_START_REGEX.test(l.text));
 	return labelled
-		? (line) => LABELLED_ENTRY_START_REGEX.test(line.text)
-		: (line) =>
-				authorYearStart(line) &&
-				(firstLineIndent(line) ||
-					!lines.some(
-						(previous) =>
-							previous.minY < line.minY - LINE_CLUSTER_TOLERANCE_PT &&
-							line.minY - previous.minY <= ENTRY_SEARCH_RADIUS_PT &&
-							line.minX - previous.minX > HANGING_INDENT_SLACK_PT &&
-							line.minX - previous.minX <= ANCHOR_X_SLACK_PT,
-					));
+		? (text) => LABELLED_ENTRY_START_REGEX.test(text)
+		: (text) => AUTHOR_YEAR_ENTRY_START_REGEX.test(text);
 }
 
 /**
@@ -206,15 +118,12 @@ function entryStartTest(
  * joined with spaces, so the number and its dot may arrive as `n .`.
  */
 function entryMarkerRegex(n: number): RegExp {
-	return new RegExp(
-		`^\\s*(?:\\[\\s*${n}\\s*[\\]:]|\\(\\s*${n}\\s*\\)|${n}\\s?\\.(?=\\s|\\p{L}))`,
-		"u",
-	);
+	return new RegExp(`^\\s*(?:\\[\\s*${n}\\s*[\\]:]|${n}\\s?\\.\\s)`);
 }
 
 /** Bibliography number an entry line opens with (`[12] …` / `12. …`). */
 function leadingEntryNumber(text: string): number | null {
-	const m = /^\s*[[(]?\s*(\d+)/.exec(text);
+	const m = /^\s*\[?\s*(\d+)/.exec(text);
 	return m ? Number.parseInt(m[1] ?? "", 10) : null;
 }
 
@@ -235,77 +144,16 @@ type TextLine = {
 
 /** Keep separate columns on the same baseline, joining detached entry labels. */
 function entrySegments(rects: readonly PageTextRect[]): TextLine[] {
-	const raised = new Map<TextLine, number>();
 	const lines = groupLineSegments(rects)
-		.map((segment) => {
-			const line = {
-				minY: segment.coreTop,
-				maxY: segment.coreBottom,
-				minX: segment.left,
-				maxX: segment.right,
-				text: segment.glyphs.map((glyph) => glyph.ch).join(""),
-			};
-			// Some publishers place raised numbers before authors without a dot.
-			const prefix = /^(\d{1,3})(?=\p{L})/u.exec(line.text);
-			if (prefix) {
-				const end = segment.glyphs[prefix[1].length - 1].x1;
-				const digits = rects.filter(
-					(r) =>
-						/^\d+$/.test(r.content) &&
-						r.rect.origin.x >= line.minX &&
-						r.rect.origin.x < end &&
-						Math.abs(r.rect.origin.y - line.minY) < segment.height,
-				);
-				if (
-					digits.length &&
-					digits.every(
-						(r) =>
-							line.maxY - r.rect.origin.y - r.rect.size.height >=
-							segment.height * 0.2,
-					)
-				)
-					raised.set(line, Number(prefix[1]));
-			}
-			return line;
-		})
+		.map((segment) => ({
+			minY: segment.coreTop,
+			maxY: segment.coreBottom,
+			minX: segment.left,
+			maxX: segment.right,
+			text: segment.glyphs.map((glyph) => glyph.ch).join(""),
+		}))
 		.sort((a, b) => a.minY - b.minY || a.minX - b.minX);
 	const joined = new Set<TextLine>();
-	// Raised labels with similar-sized ink boxes can form a separate segment.
-	// Join only a directly adjacent, lower author line; sequential labels below
-	// must still confirm that this is a numbered bibliography.
-	for (const label of lines) {
-		if (!/^\d{1,3}$/.test(label.text)) continue;
-		const next = lines.find((line) => {
-			const height = line.maxY - line.minY;
-			return (
-				!joined.has(line) &&
-				/^\p{L}/u.test(line.text) &&
-				line.minX >= label.maxX &&
-				line.minX - label.maxX <= height &&
-				line.minY > label.minY &&
-				line.minY < label.maxY &&
-				line.maxY - label.maxY >= height * 0.2
-			);
-		});
-		if (!next) continue;
-		raised.set(label, Number(label.text));
-		label.text += next.text;
-		label.maxY = next.maxY;
-		label.maxX = next.maxX;
-		joined.add(next);
-	}
-	// Sequential neighbours at the same margin distinguish bibliography
-	// labels from exponents or an isolated numbered heading.
-	for (const [line, number] of raised)
-		if (
-			[...raised].some(
-				([other, n]) =>
-					Math.abs(n - number) === 1 &&
-					Math.abs(other.minX - line.minX) <= ANCHOR_X_SLACK_PT &&
-					Math.abs(other.minY - line.minY) <= ENTRY_SEARCH_RADIUS_PT,
-			)
-		)
-			line.text = line.text.replace(/^\d{1,3}/, `${number}. `);
 	for (const label of lines) {
 		if (!ENTRY_LABEL_ONLY_REGEX.test(label.text)) continue;
 		const next = lines
@@ -357,264 +205,10 @@ function clusterLines(rects: readonly PageTextRect[]): TextLine[] {
 				maxY: Math.max(...row.map((r) => r.rect.origin.y + r.rect.size.height)),
 				minX: Math.min(...row.map((r) => r.rect.origin.x)),
 				maxX: Math.max(...row.map((r) => r.rect.origin.x + r.rect.size.width)),
-				// Join using actual spacing. Inserting a space between every
-				// character changes `14.` into `1 4 .` and hides the range boundary.
-				text: groupLineSegments(row)
-					.sort((a, b) => a.left - b.left)
-					.map((s) => s.glyphs.map((g) => g.ch).join(""))
-					.join(" "),
+				text: row.map((r) => r.content).join(" "),
 			};
 		})
 		.sort((a, b) => a.minY - b.minY);
-}
-
-/** Only use explicit authors plus year; a BibTeX key is not display metadata. */
-function authorYearIdentity(text: string | undefined) {
-	const match = text
-		?.trim()
-		.match(/^(.+?)\s*[,;(]?\s*((?:18|19|20)\d{2}[a-z]?)\s*[).,;]*$/i);
-	if (!match) return null;
-	const authorText = match[1].replace(/\bet\s+al\.?/gi, "").trim();
-	const authors = authorText.split(/\s*(?:,|\band\b|&)\s*/).filter(Boolean);
-	if (
-		!authors.length ||
-		authors.some((a) => !/^[\p{L}\p{M}'’´`().\-\s]+$/u.test(a))
-	)
-		return null;
-	return {
-		authors: authors.map((author) =>
-			normalizeAuthor(author.replace(/\s+(?:Jr|Sr)\.?$/i, "")),
-		),
-		acronym: authors.length === 1 && /^[A-Z]{2,12}$/.test(authors[0]),
-		year: match[2].toLowerCase(),
-	};
-}
-
-function normalizeAuthor(text: string): string {
-	return text
-		.normalize("NFKD")
-		.replace(/[\p{M}´`]/gu, "")
-		.toLowerCase()
-		.replace(/[^\p{L}\p{N}]+/gu, " ")
-		.trim();
-}
-
-function singleLetterDifference(a: string, b: string): boolean {
-	if (Math.min(a.length, b.length) < 7 || Math.abs(a.length - b.length) > 1)
-		return false;
-	let i = 0,
-		j = 0,
-		differences = 0;
-	while (i < a.length && j < b.length) {
-		if (a[i] === b[j]) {
-			i++;
-			j++;
-			continue;
-		}
-		if (++differences > 1) return false;
-		if (a.length >= b.length) i++;
-		if (b.length >= a.length) j++;
-	}
-	return differences + a.length - i + b.length - j === 1;
-}
-
-/** Restore justified headings whose word gaps formed separate segments.
- * Repeated full-width line margins delimit columns, even when their gutter is
- * narrower than a justified word gap. Only bibliography matching uses this. */
-function authorYearLines(rects: readonly PageTextRect[]): TextLine[] {
-	const segments = entrySegments(rects);
-	const joined: TextLine[] = [];
-	for (const segment of segments) {
-		const previous = joined[joined.length - 1];
-		const height = segment.maxY - segment.minY;
-		const columnStart = segments.some(
-			(other) =>
-				other !== segment &&
-				Math.abs(other.minX - segment.minX) <= ANCHOR_X_SLACK_PT &&
-				other.maxX - other.minX >= height * 15 &&
-				Math.abs(other.minY - segment.minY) > LINE_CLUSTER_TOLERANCE_PT &&
-				Math.abs(other.minY - segment.minY) <= ENTRY_SEARCH_RADIUS_PT,
-		);
-		if (
-			previous &&
-			Math.abs(previous.minY - segment.minY) <= LINE_CLUSTER_TOLERANCE_PT &&
-			segment.minX >= previous.maxX - 1 &&
-			segment.minX - previous.maxX <= height * 4 &&
-			(!columnStart || segment.minX - previous.minX < height * 8)
-		) {
-			previous.text += ` ${segment.text}`;
-			previous.maxX = Math.max(previous.maxX, segment.maxX);
-			previous.maxY = Math.max(previous.maxY, segment.maxY);
-		} else joined.push({ ...segment });
-	}
-	return joined.map((line) => ({
-		...line,
-		text: line.text.replace(
-			/(?<!\d)((?:1\s*[89]|2\s*0)\s*\d\s*\d)(?!\d)/g,
-			(year) => year.replace(/\s/g, ""),
-		),
-	}));
-}
-
-/** A unique author list and publication year can recover a stale XYZ anchor.
- * Stay on its original target page; never infer another page from a fuzzy key. */
-function authorYearDestination(
-	options: PickDestinationRegionOptions,
-): PickDestinationRegionOptions | null {
-	const identity = authorYearIdentity(options.citationText);
-	if (!identity || !options.textRects?.length) return null;
-	const lines = authorYearLines(options.textRects);
-	const candidates = lines.flatMap((start) => {
-		if (
-			/^(?:references|bibliography|literaturecited|workscited)$/i.test(
-				start.text.replace(/\s/g, ""),
-			)
-		)
-			return [];
-		// Author lists may wrap. Only join close, indented continuation lines in
-		// this column, and stop at the first year (before the title/journal).
-		const entry = [start];
-		for (const line of lines) {
-			const previous = entry[entry.length - 1];
-			if (line.minY <= previous.minY + LINE_CLUSTER_TOLERANCE_PT) continue;
-			if (
-				line.minY - start.minY > ENTRY_MAX_HEIGHT_PT ||
-				line.minX < start.minX - HANGING_INDENT_SLACK_PT ||
-				line.minX > start.minX + ANCHOR_X_SLACK_PT * 2 ||
-				line.minY - previous.maxY > (start.maxY - start.minY) * 1.5
-			)
-				continue;
-			if (
-				entry.some((part) => /(?:18|19|20)\d{2}/.test(part.text)) &&
-				line.minX <= start.minX + HANGING_INDENT_SLACK_PT &&
-				AUTHOR_YEAR_ENTRY_START_REGEX.test(line.text)
-			)
-				break;
-			entry.push(line);
-			if (entry.length >= 16) break;
-		}
-		const heading = entry.map((l) => l.text).join(" ");
-		let year = /(?<!\d)((?:18|19|20)\d{2}[a-z]?)(?!\d)/i.exec(heading);
-		if (!year) return [];
-		// A report title may end in a year immediately before its publication
-		// year. Keep that second date only when it is explicitly the cited year.
-		const followingYear = /^[\s.,;()]+((?:18|19|20)\d{2}[a-z]?)(?!\d)/i.exec(
-			heading.slice(year.index + year[0].length),
-		);
-		if (followingYear?.[1].toLowerCase() === identity.year) {
-			const index =
-				year.index +
-				year[0].length +
-				followingYear[0].indexOf(followingYear[1]);
-			year = Object.assign([followingYear[1], followingYear[1]], {
-				index,
-			}) as RegExpExecArray;
-		}
-		const authorHeading = heading.slice(0, year.index);
-		const firstAuthor = normalizeAuthor(
-			authorHeading.split(/,|(?<=\p{L}{2})\.(?=\s+\p{Lu})/u)[0] ?? "",
-		);
-		const compact = (text: string) => text.replace(/\s/g, "");
-		const first = compact(identity.authors[0]);
-		// Personal names use surname-before-comma or given-name-first. An
-		// institutional author may contain conjunctions, so compare its complete
-		// heading prefix as well. Whitespace in PDF text is not authoritative.
-		const acronymMatches =
-			identity.acronym &&
-			(compact(firstAuthor).startsWith(first) ||
-				firstAuthor
-					.split(/\s+/)
-					.filter((word) => !/^(?:of|the|and|for|in)$/.test(word))
-					.map((word) => word[0])
-					.join("") === first);
-		const exactFirst =
-			compact(firstAuthor) === first ||
-			firstAuthor.endsWith(` ${identity.authors[0]}`) ||
-			acronymMatches ||
-			(identity.authors.length > 1 &&
-				compact(normalizeAuthor(authorHeading)).startsWith(first));
-		const authors = compact(normalizeAuthor(authorHeading));
-		const exactAuthors =
-			exactFirst &&
-			(acronymMatches ||
-				identity.authors.every((author) => authors.includes(compact(author))));
-		const exactYear = year[1].toLowerCase() === identity.year;
-		// Some native-linked citations list editors, omit the lead author, or
-		// include the name of a scale. Require every cited name in this entry,
-		// an exact year, and a nearby native anchor before using that evidence.
-		const nearAnchor =
-			Math.abs(start.minY - (options.pageHeightPt - options.pdfY)) <=
-				ANCHOR_WINDOW_BELOW_PT &&
-			(options.pdfX == null ||
-				options.pdfX <= 0 ||
-				Math.abs(start.minX - options.pdfX) <= ANCHOR_X_SLACK_PT);
-		const entryNames = compact(normalizeAuthor(heading));
-		const alternateAuthors =
-			exactYear &&
-			nearAnchor &&
-			identity.authors.length > 1 &&
-			identity.authors.every((author) => entryNames.includes(compact(author)));
-		// A native bibliography link plus a unique identity can resolve a minor
-		// source typo. Never relax author AND year, short surnames, or year suffixes.
-		const typoAuthor =
-			exactYear &&
-			identity.authors.length === 1 &&
-			singleLetterDifference(compact(firstAuthor), first);
-		const adjacentYear =
-			exactAuthors &&
-			/^\d{4}$/.test(identity.year) &&
-			/^\d{4}$/.test(year[1]) &&
-			Math.abs(Number(year[1]) - Number(identity.year)) === 1;
-		let count = 0;
-		const yearLine =
-			entry.find((line) => {
-				count += line.text.length + 1;
-				return count > year.index;
-			}) ?? start;
-		return exactAuthors || typoAuthor || alternateAuthors
-			? [
-					{
-						start,
-						headingBottom: yearLine.maxY,
-						exact: (exactAuthors && exactYear) || alternateAuthors,
-						relaxed: typoAuthor || adjacentYear,
-					},
-				]
-			: [];
-	});
-	const exact = candidates.filter((c) => c.exact);
-	const matches = exact.length ? exact : candidates.filter((c) => c.relaxed);
-	let match = matches.length === 1 ? matches[0] : undefined;
-	if (!match && exact.length > 1) {
-		const targetY = options.pageHeightPt - options.pdfY;
-		const ranked = exact
-			.map((candidate) => ({
-				candidate,
-				distance: Math.abs(candidate.start.minY - targetY),
-			}))
-			.sort((a, b) => a.distance - b.distance);
-		const nearby = ranked.filter(
-			({ candidate: { start }, distance }) =>
-				distance <= ANCHOR_WINDOW_ABOVE_PT &&
-				(options.pdfX == null ||
-					options.pdfX <= 0 ||
-					Math.abs(start.minX - options.pdfX) <= ANCHOR_X_SLACK_PT),
-		);
-		if (
-			nearby.length === 1 ||
-			(nearby.length > 1 && nearby[1].distance - nearby[0].distance > 2)
-		)
-			match = nearby[0].candidate;
-	}
-	if (!match) return null;
-	const start = match.start;
-	return {
-		...options,
-		pdfX: start.minX,
-		pdfY: options.pageHeightPt - start.minY,
-		verifiedEntryStart: true,
-		verifiedHeadingBottom: match.headingBottom,
-	};
 }
 
 function nearestLine(lines: readonly TextLine[], y: number): TextLine {
@@ -650,9 +244,6 @@ function cropFromText(
 		normX: number | null;
 		entryIndex?: number | null;
 		endEntryIndex?: number | null;
-		pageOnly?: boolean;
-		verifiedEntryStart?: boolean;
-		verifiedHeadingBottom?: number;
 	},
 ): { bbox: DestinationCropRegion["bbox"]; entryMatched: boolean } | null {
 	const { wPt, hPt, targetYPt, normX, entryIndex } = options;
@@ -664,12 +255,9 @@ function cropFromText(
 			: null;
 	// Rotated side watermarks span many rows and otherwise connect them all.
 	const validRects = textRects.filter(
-		(r) => r.content && r.rect.size.height <= ENTRY_MAX_HEIGHT_PT,
+		(r) => r.content?.trim() && r.rect.size.height <= ENTRY_MAX_HEIGHT_PT,
 	);
-	const allLines =
-		options.entryIndex == null
-			? authorYearLines(validRects)
-			: entrySegments(validRects);
+	const allLines = entrySegments(validRects);
 	const anchorX = normX != null ? normX * wPt : null;
 	const anchorLines =
 		anchorX != null
@@ -681,38 +269,14 @@ function cropFromText(
 			: allLines;
 	const candidates = anchorLines.length ? anchorLines : allLines;
 	if (candidates.length === 0) return null;
-	// Anchor candidates omit hanging-indented rows. Entry recognition still
-	// needs those rows to find the year at the end of a wrapped author list;
-	// entryStartTest applies its own column/alignment checks.
-	const isEntryStart = entryStartTest(allLines, options.verifiedEntryStart);
+	const isEntryStart = entryStartTest(candidates);
 
 	const marker = entryIndex != null ? entryMarkerRegex(entryIndex) : null;
-	const numberedMatches = marker
-		? allLines.filter((line) => marker.test(line.text))
-		: [];
-	// Some XYZ anchors retain a position from before the bibliography was
-	// typeset into columns. Accept a distant unique number only with a nearby
-	// sequential entry at the same margin; an isolated numbered line or a
-	// repeated label is not enough evidence to override the destination.
-	const verifiedNumber =
-		numberedMatches.length === 1 &&
-		allLines.some(
-			(line) =>
-				line !== numberedMatches[0] &&
-				LABELLED_ENTRY_START_REGEX.test(line.text) &&
-				Math.abs(
-					(leadingEntryNumber(line.text) ?? -Infinity) - (entryIndex ?? 0),
-				) === 1 &&
-				Math.abs(line.minX - numberedMatches[0].minX) <= ANCHOR_X_SLACK_PT &&
-				Math.abs(line.minY - numberedMatches[0].minY) <= ENTRY_SEARCH_RADIUS_PT,
-		);
-	// Publishers may point every bibliography link at the page top (/FitR).
-	// A unique explicit entry number is stronger evidence than that coordinate.
+	// A range's first entry sits at or above the anchor, anywhere on the page.
 	const exactCandidates = marker
-		? numberedMatches.filter(
+		? allLines.filter(
 				(l) =>
-					options.pageOnly ||
-					verifiedNumber ||
+					marker.test(l.text) &&
 					(range
 						? l.minY <= targetYPt + ANCHOR_WINDOW_BELOW_PT &&
 							targetYPt - l.minY <= hPt
@@ -724,7 +288,7 @@ function cropFromText(
 	const inRangeCandidates =
 		range && exactCandidates.length === 0
 			? candidates.filter((l) => {
-					if (!isEntryStart(l)) return false;
+					if (!isEntryStart(l.text)) return false;
 					const n = leadingEntryNumber(l.text);
 					return (
 						n != null &&
@@ -738,9 +302,7 @@ function cropFromText(
 		exactCandidates.length > 0 || inRangeCandidates.length > 0;
 
 	let startLine: TextLine;
-	if (options.verifiedEntryStart) {
-		startLine = nearestLine(candidates, targetYPt);
-	} else if (exactCandidates.length > 0) {
+	if (exactCandidates.length > 0) {
 		startLine = nearestLine(exactCandidates, targetYPt);
 	} else if (inRangeCandidates[0]) {
 		startLine = inRangeCandidates[0];
@@ -749,7 +311,7 @@ function cropFromText(
 			(l) =>
 				l.maxY >= targetYPt - ANCHOR_WINDOW_ABOVE_PT &&
 				l.minY <= targetYPt + ANCHOR_WINDOW_BELOW_PT &&
-				isEntryStart(l),
+				isEntryStart(l.text),
 		);
 		startLine = nearestLine(
 			markerCandidates.length > 0 ? markerCandidates : candidates,
@@ -761,7 +323,7 @@ function cropFromText(
 	// end early or split before a URL, so its width cannot bound wrapped rows.
 	const nearbyEntries = allLines.filter(
 		(line) =>
-			isEntryStart(line) &&
+			isEntryStart(line.text) &&
 			Math.abs(line.minY - startLine.minY) <= ENTRY_SEARCH_RADIUS_PT,
 	);
 	const columnEntries = nearbyEntries.filter(
@@ -823,13 +385,8 @@ function cropFromText(
 	}
 
 	const entryLines = [startLine];
-	const startHasMarker = isEntryStart(startLine);
+	const startHasMarker = isEntryStart(startLine.text);
 	const baseLeftX = startLine.minX;
-	const firstContinuation = lines[startIdx + 1];
-	const hangingIndent =
-		firstContinuation != null &&
-		!isEntryStart(firstContinuation) &&
-		firstContinuation.minX > baseLeftX + HANGING_INDENT_SLACK_PT;
 	for (let i = startIdx + 1; i < lines.length; i++) {
 		const prev = lines[i - 1];
 		const curr = lines[i];
@@ -837,15 +394,12 @@ function cropFromText(
 		// Wrapped lines of one entry sit tight (≤ ~half a line apart); a gap
 		// over a full line ends the bibliography. Entries of a range may sit
 		// further apart.
-		const gapLimit = isEntryStart(curr)
+		const gapLimit = isEntryStart(curr.text)
 			? RANGE_ENTRY_GAP_PT
 			: startLine.maxY - startLine.minY;
 		if (curr.minY - prev.maxY > gapLimit) break;
 		// The next entry starts — unless it is still inside the cited range.
-		if (
-			isEntryStart(curr) &&
-			curr.minY > (options.verifiedHeadingBottom ?? -Infinity)
-		) {
+		if (isEntryStart(curr.text)) {
 			const n = range ? leadingEntryNumber(curr.text) : null;
 			if (n == null || !range || n < range.start || n > range.end) break;
 		}
@@ -854,18 +408,16 @@ function cropFromText(
 		if (
 			!range &&
 			!startHasMarker &&
-			!options.verifiedEntryStart &&
 			curr.minX <= baseLeftX + HANGING_INDENT_SLACK_PT &&
 			i > startIdx + 1
 		) {
 			break;
 		}
-		// Enforce a hanging margin only when the entry actually uses one.
-		// Dot-numbered bibliographies can keep every continuation flush left.
+		// With a marker, continuation lines hang right of it; a non-entry line
+		// back at the marker column is the text after the bibliography.
 		if (
 			startHasMarker &&
-			hangingIndent &&
-			!isEntryStart(curr) &&
+			!isEntryStart(curr.text) &&
 			curr.minX <= baseLeftX + HANGING_INDENT_SLACK_PT
 		) {
 			break;
@@ -1009,9 +561,6 @@ export function pickDestinationRegion({
 	textRects,
 	entryIndex,
 	endEntryIndex,
-	pageOnly,
-	verifiedEntryStart,
-	verifiedHeadingBottom,
 }: PickDestinationRegionOptions): DestinationCropRegion {
 	const wPt = pageWidthPt > 0 ? pageWidthPt : DEFAULT_PAGE_WIDTH_PT;
 	const hPt = pageHeightPt > 0 ? pageHeightPt : DEFAULT_PAGE_HEIGHT_PT;
@@ -1029,9 +578,6 @@ export function pickDestinationRegion({
 			normX,
 			entryIndex,
 			endEntryIndex,
-			pageOnly,
-			verifiedEntryStart,
-			verifiedHeadingBottom,
 		});
 		if (fromText) return { pageIndex, ...fromText };
 	}
@@ -1039,157 +585,4 @@ export function pickDestinationRegion({
 		cropFromLayout(pageIndex, regions, normX, normY) ??
 		cropFromGeometry(regions, normX, normY);
 	return { pageIndex, bbox, entryMatched: false };
-}
-
-/** Numbered ranges can cross columns: return only the requested entries,
- * in numeric order, instead of one rectangle containing unrelated text. */
-export function pickDestinationRegions(
-	options: PickDestinationRegionOptions,
-): DestinationCropRegion[] {
-	if (
-		options.entryIndex == null &&
-		/^\s*\(?\s*(?:18|19|20)\d{2}[a-z]?\s*\)?\s*$/i.test(
-			options.citationText ?? "",
-		)
-	)
-		return [];
-	if (options.entryIndex == null && authorYearIdentity(options.citationText)) {
-		const destination = authorYearDestination(options);
-		if (!destination) return [];
-		return [{ ...pickDestinationRegion(destination), entryMatched: true }];
-	}
-	const start = options.entryIndex;
-	const end = options.endEntryIndex;
-	if (start == null || end == null || end <= start || end - start > 30)
-		return [pickDestinationRegion(options)];
-	// First validate the range against the original destination. Once it is
-	// known to land on this bibliography, its entries may be far above the
-	// anchor or in the other column, beyond the singleton search radius.
-	if (!pickDestinationRegion(options).entryMatched) return [];
-	const entries: DestinationCropRegion[] = [];
-	for (let entryIndex = start; entryIndex <= end; entryIndex++) {
-		const crop = pickDestinationRegion({
-			...options,
-			entryIndex,
-			endEntryIndex: null,
-			pageOnly: true,
-		});
-		if (crop.entryMatched) entries.push(crop);
-	}
-	return entries;
-}
-
-/** Continue a verified entry only at a column/page boundary. The next
- * bibliography heading bounds the leading continuation; an ordinary new
- * entry or page header must never be appended to the hovered reference. */
-export function pickDestinationContinuation(
-	crop: DestinationCropRegion,
-	source: PickDestinationRegionOptions,
-	target: PickDestinationRegionOptions,
-): DestinationCropRegion | null {
-	if (!crop.entryMatched || !source.textRects || !target.textRects) return null;
-	const sourceWidth = source.pageWidthPt,
-		sourceHeight = source.pageHeightPt;
-	const left = crop.bbox.x * sourceWidth;
-	const right = (crop.bbox.x + crop.bbox.w) * sourceWidth;
-	const bottom = (crop.bbox.y + crop.bbox.h) * sourceHeight;
-	if (bottom < sourceHeight * 0.7) return null;
-	const sourceLines = authorYearLines(source.textRects);
-	const own = sourceLines.filter(
-		(l) =>
-			l.minY >= crop.bbox.y * sourceHeight &&
-			l.maxY <= bottom + 1 &&
-			l.minX >= left &&
-			l.maxX <= right + 1,
-	);
-	if (!own.length) return null;
-	const height = Math.max(...own.map((l) => l.maxY - l.minY));
-	const body = (line: TextLine, pageHeight: number) =>
-		line.minY >= pageHeight * 0.04 &&
-		line.maxY <= pageHeight * 0.96 &&
-		line.maxY - line.minY >= height * 0.65 &&
-		line.maxY - line.minY <= height * 1.6;
-	const rows = sourceLines.filter((l) => body(l, sourceHeight));
-	if (rows.some((l) => l.minX >= left && l.minX < right && l.minY > bottom))
-		return null;
-	const rightColumn = rows.filter(
-		(l) => l.minX > right && l.maxX - l.minX > height * 6,
-	);
-	const samePage = target.pageIndex === source.pageIndex;
-	if (
-		samePage
-			? !rightColumn.length
-			: rightColumn.length > 0 || target.pageIndex !== source.pageIndex + 1
-	)
-		return null;
-	const targetLines = authorYearLines(target.textRects).filter((l) =>
-		body(l, target.pageHeightPt),
-	);
-	const candidates = samePage
-		? targetLines.filter((l) => l.minX > right)
-		: targetLines;
-	if (!candidates.length) return null;
-	const margin = Math.min(...candidates.map((l) => l.minX));
-	const width = right - left;
-	// The source crop's padding and hanging indent are not the next page's
-	// column width. Repeated full-width rows establish its actual gutter.
-	const neighbouringColumn = candidates.filter(
-		(line) =>
-			line.minX > margin + width * 0.7 &&
-			line.maxX - line.minX > height * 6 &&
-			candidates.some(
-				(other) =>
-					other !== line &&
-					Math.abs(other.minX - line.minX) <= ANCHOR_X_SLACK_PT &&
-					Math.abs(other.minY - line.minY) > LINE_CLUSTER_TOLERANCE_PT,
-			),
-	);
-	const columnRight = Math.min(
-		margin + width + ANCHOR_X_SLACK_PT,
-		...neighbouringColumn.map((line) => line.minX),
-	);
-	const column = clusterLines(
-		target.textRects.filter(
-			(r) => r.rect.origin.x >= margin - 1 && r.rect.origin.x < columnRight,
-		),
-	).filter((l) => body(l, target.pageHeightPt));
-	const isEntry = entryStartTest(column, source.entryIndex == null);
-	const nextIndex = column.findIndex(isEntry);
-	if (nextIndex <= 0) return null;
-	const lines = column.slice(0, nextIndex),
-		next = column[nextIndex];
-	if (lines[0].minY > target.pageHeightPt * 0.22 || lines.length > 24)
-		return null;
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i],
-			after = column[i + 1];
-		if (
-			Math.abs(line.minX - next.minX) > ANCHOR_X_SLACK_PT * 2 ||
-			after.minY - line.maxY > height * 1.5
-		)
-			return null;
-	}
-	const x = Math.max(0, Math.min(...lines.map((l) => l.minX)) - CROP_PAD_X_PT);
-	const y = Math.max(0, lines[0].minY - CROP_PAD_Y_PT);
-	const lastLine = lines[lines.length - 1];
-	const end = Math.max(
-		lastLine.maxY,
-		Math.min(next.minY - 1, lastLine.maxY + CROP_PAD_Y_PT),
-	);
-	return {
-		pageIndex: target.pageIndex,
-		entryMatched: true,
-		bbox: {
-			x: x / target.pageWidthPt,
-			y: y / target.pageHeightPt,
-			w:
-				(Math.min(
-					target.pageWidthPt,
-					Math.max(...lines.map((l) => l.maxX)) + CROP_PAD_X_PT,
-				) -
-					x) /
-				target.pageWidthPt,
-			h: (end - y) / target.pageHeightPt,
-		},
-	};
 }

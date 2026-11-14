@@ -5,6 +5,8 @@ import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-regist
 
 import i18n from "@/i18n";
 import { notePaperFocus, track } from "@/lib/activity";
+import { isZenVirtualPath, ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
+import { closeZenWorkspace, seedZenFromRail } from "@/lib/agent/zen-store";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import { closeTopOverlay } from "@/lib/core/overlay-stack";
@@ -43,9 +45,10 @@ import {
 } from "@/lib/plaza";
 import { loadSettings } from "@/lib/settings";
 import { closeCurrentWindow } from "@/lib/shell/close-window";
-import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
+import { layout, setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { type FileNode, joinVaultPath } from "@/lib/vault";
 import {
+	isVaultAgentRoot,
 	isVaultSkillDirectory,
 	skillMarkdownPath,
 } from "@/lib/vault/agent-tree";
@@ -180,6 +183,7 @@ export function handleActivePanelChange(panelId: string | null): void {
 	if (
 		!isLibraryVirtualPath(tab.path) &&
 		!isTrashVirtualPath(tab.path) &&
+		!isZenVirtualPath(tab.path) &&
 		!isRemoteArxivPath(tab.path)
 	) {
 		notePaperFocus(tab.path);
@@ -490,6 +494,7 @@ export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
 	});
 	for (const closeId of idsToClose) cancelPdfNavigationForTab(closeId);
 	removeTabAnnotations(idsToClose);
+	if (target && isZenVirtualPath(target.path)) closeZenWorkspace();
 }
 
 /**
@@ -515,7 +520,8 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 				(tab) =>
 					!companionIds.has(tab.id) &&
 					!isLibraryVirtualPath(tab.path) &&
-					!isTrashVirtualPath(tab.path),
+					!isTrashVirtualPath(tab.path) &&
+					!isZenVirtualPath(tab.path),
 			)
 			.map((tab) => ({ path: tab.path, mode: tab.mode })),
 	);
@@ -940,6 +946,17 @@ export function selectTrash(): void {
 	openTab(TRASH_VIRTUAL_PATH);
 }
 
+/**
+ * Open the Zen workspace: collapse the Agent rail (Zen takes over its current
+ * conversation on first open) and focus the virtual Zen tab.
+ * Reached by clicking the tree's Agent root row.
+ */
+export function openZenWorkspace(): void {
+	layout()?.setRightCollapsed(true);
+	seedZenFromRail(getVaultPath());
+	openTab(ZEN_VIRTUAL_PATH);
+}
+
 /** Open one Plaza source panel (from its tree child row). */
 export function openPlazaSource(source: PlazaSource): void {
 	if (!loadSettings().plazaEnabled) return;
@@ -1016,6 +1033,13 @@ export function openWritingFile(
 export function selectFileNode(node: FileNode): void {
 	const request = ++writingSelectionRequest;
 	const vault = getVaultPath();
+	// The Agent root row is the Zen entry: the label opens the workspace, the
+	// disclosure chevron still expands AGENTS.md / skills as before.
+	if (vault && isVaultAgentRoot(vault, node.path)) {
+		setTreeSelectedPath(node.path);
+		openZenWorkspace();
+		return;
+	}
 	if (
 		vault &&
 		normalizeTabPath(node.path) ===

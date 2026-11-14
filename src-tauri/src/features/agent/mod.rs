@@ -27,5 +27,5 @@ pub use runtime::{
 };
 pub use session::{
     delete_acp_session, list_acp_sessions, load_acp_session, new_ids, run_once, warm_agent,
-    AgentWarmPool, RunOnceParams,
+    AgentQueryPool, AgentWarmPool, RunOnceParams,
 };

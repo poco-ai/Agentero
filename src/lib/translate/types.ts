@@ -10,12 +10,11 @@
  */
 export type FreeTranslateProviderId =
 	| "agentero"
-	| "google"
-	| "googleapi"
-	| "deeplx"
 	| "cnki"
 	| "huoshanweb"
-	| "tencenttransmart";
+	| "tencenttransmart"
+	| "indextranslate"
+	| "indextranslate2b";
 
 /** Commercial BYOK engines called directly by the Tauri Host. */
 export type CommercialTranslateProviderId =
@@ -152,6 +151,8 @@ export type TranslateRunOptions = {
 	providerConfig?: TranslateProviderConfig;
 	/** Cancel providers that support an in-flight request. */
 	signal?: AbortSignal;
+	/** Streaming increments, for providers that stream (Bilibili Translate). */
+	onDelta?: (chunk: string) => void;
 	/**
 	 * Agent path: custom prompt override; defaults to
 	 * settings.translate.customPrompt (set by `runTranslate`).
@@ -185,12 +186,11 @@ export type TranslateService = {
 /** Ordered list for settings UI (free engines). */
 export const FREE_MT_PROVIDER_IDS: FreeTranslateProviderId[] = [
 	"agentero",
+	"indextranslate",
+	"indextranslate2b",
 	"tencenttransmart",
 	"huoshanweb",
-	"deeplx",
 	"cnki",
-	"googleapi",
-	"google",
 ];
 
 /** Ordered list for settings UI (commercial BYOK engines). */

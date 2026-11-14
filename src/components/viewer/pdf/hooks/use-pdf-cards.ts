@@ -48,9 +48,7 @@ type ClipInset = NonNullable<CardScreenPoint["clipInset"]>;
 
 /** Reading-area clip (inset from the window edges) for page-anchored cards. */
 function viewportClipInset(host: HTMLElement): ClipInset | undefined {
-	const viewport =
-		host.querySelector<HTMLElement>("[data-pdf-reader]") ??
-		host.querySelector<HTMLElement>("[data-pdf-viewport]");
+	const viewport = host.querySelector<HTMLElement>("[data-pdf-viewport]");
 	if (!viewport) return undefined;
 	const rect = viewport.getBoundingClientRect();
 	const root = host.ownerDocument.documentElement;
@@ -60,33 +58,6 @@ function viewportClipInset(host: HTMLElement): ClipInset | undefined {
 		right: Math.round(root.clientWidth - rect.right),
 		bottom: Math.round(root.clientHeight - rect.bottom),
 	};
-}
-
-function readerAnchorBounds(
-	host: HTMLElement,
-	page: number,
-	rects: PdfAskAnchor["rects"],
-) {
-	const reader = host.querySelector<HTMLElement>("[data-pdf-reader]");
-	if (!reader) return null;
-	const rect = rects[0];
-	const blocks = Array.from(
-		reader.querySelectorAll<HTMLElement>(
-			`[data-reader-page="${page}"][data-reader-bbox]`,
-		),
-	);
-	const block =
-		blocks.find((el) => {
-			const [x, y, w, h] = (el.dataset.readerBbox ?? "").split(",").map(Number);
-			return (
-				rect &&
-				rect.x + rect.w / 2 >= x &&
-				rect.x + rect.w / 2 <= x + w &&
-				rect.y + rect.h / 2 >= y &&
-				rect.y + rect.h / 2 <= y + h
-			);
-		}) ?? blocks[0];
-	return block?.getBoundingClientRect() ?? null;
 }
 
 function sameClipInset(a?: ClipInset, b?: ClipInset): boolean {
@@ -266,10 +237,9 @@ export function usePdfCards({
 			}
 			const pageEl = pageElByIndex(host, page - 1);
 			const selectionBounds =
-				readerAnchorBounds(host, page, rects) ??
-				(card.kind === "translate"
+				card.kind === "translate"
 					? selectionBoundsOnScreen(pageEl, rects)
-					: null);
+					: null;
 			const pt: CardScreenPoint | null = selectionBounds
 				? {
 						x: (selectionBounds.left + selectionBounds.right) / 2,

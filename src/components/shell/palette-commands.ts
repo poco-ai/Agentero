@@ -5,7 +5,7 @@
  */
 
 import { fileTreeHandle } from "@/components/shell/file-tree-registry";
-import { focusAgentComposer } from "@/lib/agent/composer-focus";
+import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { pinActiveSelection } from "@/lib/agent/selection-store";
 import { openMagicWand } from "@/lib/paper/import-actions";
 import { refreshLibrary } from "@/lib/paper/library-store";
@@ -23,7 +23,7 @@ import {
 	openSettingsWindow,
 } from "@/lib/shell/settings-window";
 import { layout, toggleSidebar, uiStore } from "@/lib/shell/ui-store";
-import { openRightTab, toggleChat } from "@/lib/shell/ui-window-actions";
+import { toggleChat } from "@/lib/shell/ui-window-actions";
 import {
 	createNewVault,
 	openSelectedInTerminal,
@@ -147,8 +147,7 @@ export const paletteCommands: AppCommand[] = [
 		keywords: ["agent", "chat", "selection", "context"],
 		run: () => {
 			pinActiveSelection();
-			openRightTab("agent");
-			focusAgentComposer();
+			presentAgentComposer();
 		},
 	},
 	{

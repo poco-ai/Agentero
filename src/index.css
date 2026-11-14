@@ -1,11 +1,9 @@
-@import "tailwindcss" source(".");
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "dockview-react/dist/styles/dockview.css";
 
-/* Keep documentation and test edits outside Tailwind's full-reload sources. */
-@source "../index.html";
 /*
  * Streamdown keeps its component classes in node_modules, which Tailwind v4
  * does not scan by default. Without these sources, utilities it relies on
@@ -994,9 +992,7 @@ html[data-linux-scrollbars]:has(
 	.overflow-auto,
 	.overflow-x-auto,
 	.overflow-y-auto
-):not(.agentero-scroll-visible):not(
-	:is([data-radix-popper-content-wrapper], [data-viewport-floating]) *
-) {
+):not(:is([data-radix-popper-content-wrapper], [data-viewport-floating]) *) {
 	scrollbar-width: none;
 }
 

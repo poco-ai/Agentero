@@ -211,7 +211,11 @@
 			"label": "兼容 Zotero Connector",
 			"hint": "请先退出本地Zotero",
 			"portLabel": "Connector 端口",
-			"invalidPort": "端口必须在 1 到 65535 之间。"
+			"invalidPort": "端口必须在 1 到 65535 之间。",
+			"notListening": "未监听",
+			"portInUse": "端口 {{port}} 已被占用。Agentero 每 5 秒自动重试，请退出 Zotero 或其他占用此端口的应用。",
+			"bindFailed": "无法监听端口 {{port}}。Agentero 每 5 秒自动重试，请检查端口或更换端口。",
+			"serverStopped": "Connector 服务已停止。Agentero 每 5 秒自动重试，也可立即重试。"
 		},
 		"mcp": {
 			"exposeText": {
@@ -528,12 +532,11 @@
 		"provider": {
 			"label": "默认服务",
 			"agentero": "Agentero 内置",
-			"deeplx": "DeepLX",
 			"cnki": "CNKI 翻译助手",
 			"huoshanweb": "火山翻译 Web",
 			"tencenttransmart": "腾讯交互翻译",
-			"googleapi": "Google 翻译（API）",
-			"google": "Google 翻译",
+			"indextranslate": "Bilibili翻译-35B-A3B",
+			"indextranslate2b": "Bilibili翻译-2B",
 			"deepl": "DeepL API",
 			"azure": "微软翻译",
 			"googleCloud": "Google Cloud Translate",
@@ -558,8 +561,8 @@
 			"label": "PDF 划词后自动翻译"
 		},
 		"autoImport": {
-			"label": "导入后自动翻译",
-			"description": "版面解析完成后在后台翻译全文，会使用当前翻译服务和缓存设置。",
+			"label": "版面解析后自动翻译",
+			"description": "导入、下载或重新解析版面完成后，在后台翻译全文。已有译文按缓存复用，只补译变化的块，并使用当前翻译服务和缓存设置。",
 			"concurrency": {
 				"label": "自动翻译的论文并发数"
 			}
@@ -727,16 +730,29 @@
 			"dialog": {
 				"clearTitle": "清除解析结果？",
 				"reparseTitle": "清除并重新解析？",
-				"scopeLabel": "选择范围"
+				"scopeLabel": "选择范围",
+				"reparseTranslate": "已开启版面解析后自动翻译。本次会为包含版面的范围排队全文翻译，可能产生批量翻译请求和费用。已有译文会复用。"
 			}
 		}
 	},
 	"experimental": {
 		"title": "实验功能",
+		"readingMode": {
+			"label": "阅读模式",
+			"description": "显示 PDF 阅读模式按钮，使用所选版面解析服务。尚未经过广泛测试。"
+		},
 		"decision": {
 			"section": "决策模型",
 			"getKey": "获取 API Key",
 			"smartHighlight": "智能高亮",
+			"concurrency": {
+				"label": "并发请求数",
+				"description": "自建模型会排队时调低。"
+			},
+			"timeout": {
+				"label": "单批超时（秒）",
+				"description": "从该批请求发出时开始计时，等待调度不计入。"
+			},
 			"provider": {
 				"label": "提供方",
 				"jev": "TypeSafe Jev",
@@ -1016,7 +1032,7 @@
 			"uninstallFailed": "无法移除 CLI 命令",
 			"statusFailed": "无法读取 CLI 状态",
 			"openReleaseFailed": "无法打开发布页",
-			"syncFailed": "已安装的 CLI 未能自动同步到当前版本，请到 设置 → 关于 手动更新"
+			"syncFailed": "未能自动安装或更新 CLI，请到 设置 → 关于 重试"
 		},
 		"feedback": {
 			"label": "反馈",
@@ -1063,7 +1079,14 @@
 		"pathStyle": "Path-style 寻址",
 		"pathStyleHint": "R2 / MinIO 保持开启；使用 Bucket 子域名时关闭。",
 		"gitRemote": "仓库地址",
+		"gitRemoteHint": "SSH 使用本机密钥。HTTPS 不会弹窗：连接前请用 `git credential approve` 或系统凭据助手存好 token。",
 		"gitBranch": "分支",
+		"gitAllowInsecureHttp": "允许明文 HTTP",
+		"gitAllowInsecureHttpHint": "仅用于没有 HTTPS 的内网 Git。令牌会以明文传输。",
+		"gitSslCa": "CA 证书",
+		"gitSslCaHint": "自签 HTTPS 服务器的 PEM 文件绝对路径。留空则使用系统信任库。",
+		"gitAuthFailed": "Git 无法登录，同步不会弹出凭据窗口。\n{{detail}}\nHTTPS：先用 `git credential approve` 或系统凭据助手存好 token。SSH：运行 `ssh-add`。",
+		"gitTlsFailed": "Git 拒绝了服务器证书。\n{{detail}}\n自签 HTTPS 请填写 CA 证书路径后再连接。",
 		"noConditionalWrites": "该存储不支持条件（原子）写入，同步已降级为普通上传。单设备使用不受影响；多设备并发修改可能需要多一轮同步才能收敛。",
 		"saved": "同步已配置",
 		"disconnect": "解绑",

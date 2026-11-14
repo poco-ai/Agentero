@@ -12,7 +12,6 @@ const fixture = vi.hoisted(() => ({
 	partial: null as PdfLayoutTranslatePartial | null,
 	running: false,
 	preparing: false,
-	active: true,
 	regions: [{ id: "cached-layout" }],
 	noop: () => {},
 	complete: vi.fn(),
@@ -62,7 +61,7 @@ vi.mock("@/components/viewer/pdf/hooks/use-pdf-layout-translate", () => ({
 	usePdfLayoutTranslate: () => ({
 		layoutTranslateItemsByPage: new Map(),
 		layoutTranslatePageStateByPage: new Map(),
-		layoutTranslateActive: fixture.active,
+		layoutTranslateActive: true,
 		layoutTranslateRunning: fixture.running,
 		layoutTranslatePreparing: fixture.preparing,
 		layoutTranslateWaiting: false,
@@ -159,7 +158,6 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	fixture.running = false;
 	fixture.preparing = false;
-	fixture.active = true;
 	fixture.partial = {
 		pendingRequired: 1,
 		translatedCount: 1,
@@ -239,28 +237,6 @@ it("requires confirmation before the translation pane retranslates everything", 
 	expect(fixture.retranslate).toHaveBeenCalledOnce();
 	expect(fixture.complete).not.toHaveBeenCalled();
 	expect(fixture.toggle).not.toHaveBeenCalled();
-});
-
-it("opens an inline comparison without starting a translation request", async () => {
-	vi.useFakeTimers();
-	fixture.active = false;
-	try {
-		await act(() =>
-			root.render(
-				createElement(PdfTranslationViewerInner, {
-					source: null,
-					docId: "paper::inline-translation",
-					baseDocId: "paper::inline-translation",
-					translationSourceDocId: "paper",
-					paperAbsPath: "/vault/papers/a",
-				}),
-			),
-		);
-		await act(() => vi.advanceTimersByTimeAsync(1000));
-		expect(fixture.toggle).not.toHaveBeenCalled();
-	} finally {
-		vi.useRealTimers();
-	}
 });
 
 it("opens translation settings from partial recovery without starting a translation", async () => {

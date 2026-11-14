@@ -22,7 +22,6 @@ import {
 	type ReadingBox,
 } from "@/lib/pdf/layout/reading-order";
 import type { LayoutTranslateSentence } from "@/lib/pdf/layout/types";
-import { paragraphSelectionCharacters } from "@/lib/pdf/reflow/selection-characters";
 
 export type TranslationBlockRef = {
 	reflow?: Paragraph;
@@ -351,9 +350,7 @@ export function translationSelectionFromHits(
 					),
 				)
 			: [];
-		const reflowGlyphs = item.reflow
-			? paragraphSelectionCharacters(item.reflow).map(characterGlyph)
-			: undefined;
+		const reflowGlyphs = item.reflow?.characters.map(characterGlyph);
 		const sentenceRects =
 			reflowGlyphs && picks.length
 				? glyphRectsForParts(reflowGlyphs, blockText, picks)

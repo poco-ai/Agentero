@@ -1,3 +1,4 @@
+import type { BracketCitation } from "@/lib/pdf/link-text";
 /**
  * Public contract of the EmbedPDF viewer plus the local card/editor state
  * shapes its features pass around.
@@ -17,9 +18,11 @@ import type {
 } from "@/lib/pdf/ask";
 import type { CrossrefKind } from "@/lib/pdf/citation-dest-keys";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
-import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+import type {
+	PdfHighlight,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
-import type { BracketCitation } from "@/lib/pdf/link-text";
 import type { PdfNavigationTarget } from "@/lib/pdf/pending-pdf-page";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
 import type { PdfViewerHandle } from "@/lib/workspace/viewer/pdf-viewer-registry";
@@ -116,7 +119,7 @@ export type PdfViewerProps = {
 	translationPane?: boolean;
 	/** Render the PDF page and translation overlay without reader chrome. */
 	translationOnly?: boolean;
-	/** Inline comparison: mirror this source and hydrate cache without auto-starting translation. */
+	/** Inline comparison shares the original translation task and cache. */
 	translationSourceDocId?: string;
 	/**
 	 * True for remote papers (e.g. arXiv Daily preview) that have no local
@@ -182,13 +185,6 @@ export type ScreenPoint = {
 	cursorX?: number;
 };
 
-/** Floating anchor plus the exact reference under the pointer. The original
- * annotation remains intact for navigation and named-destination lookup. */
-export type PdfLinkHoverPoint = ScreenPoint & {
-	citation?: BracketCitation;
-	sourcePoint?: { x: number; y: number };
-};
-
 /** Screen anchor for a floating card, including which side to open on. */
 export type CardScreenPoint = ScreenPoint & {
 	preferRight?: boolean;
@@ -225,8 +221,6 @@ export type SelectionMenuState = {
 	copyText?: string;
 	/** The anchor quote is English recovered from the translation selection. */
 	fromTranslation?: boolean;
-	/** Native reader selection; screen placement is independent of PDF page layout. */
-	fromReader?: { blockId: string };
 	/** Sentence translations passed to chat as context, not stored on the mark. */
 	pairedTranslation?: string;
 	/**
@@ -241,12 +235,13 @@ export type SelectionMenuState = {
  * `pages` even if focusing the editor cleared the live selection.
  */
 export type SelectionCommentDraft = {
-	readerBlockId?: string;
 	/** 1-based page number (matches `commentsByPage` keys). */
 	page: number;
 	/** Normalized Y of the selection top (0–1). */
 	anchorY: number;
 	quote: string;
+	/** Markup shape to create when the note is committed; defaults to highlight. */
+	shape?: PdfTextMarkupKind;
 	/** EmbedPDF selection pages snapped when the editor was opened. */
 	pages: FormattedSelection[];
 	/**
@@ -279,21 +274,10 @@ export type CrossrefPreviewState = {
 	page: number;
 	/** Normalized bbox of the resolved layout region on the destination page. */
 	region: PdfAskNormalizedRect;
-	/** Full target page for floats; a bibliography crop for references. */
+	/** Rendered region crop; null while in flight. */
 	image: PromptImage | null;
 	/** 1:1 on-screen display size in CSS pixels matching the document's zoom. */
 	targetSize?: { width: number; height: number };
-	/** Separate bibliography entry crops, ordered by reference number. */
-	referenceEntries?: number[];
-	missingReferences?: number[];
-	referenceImages?: {
-		id: string;
-		image: PromptImage;
-		width: number;
-		height: number;
-	}[];
-	/** Point within the rendered image to reveal initially (normalized top-left). */
-	focusPoint?: { x: number; y: number };
 };
 
 export type VisualDraftEditorState = {
@@ -331,6 +315,8 @@ export type PageAnnotationComment = {
 	comment: string;
 	color: HighlightColor;
 	kind: CommentRailKind;
+	/** Text-markup shape; visual marks leave it unset (defaults to highlight). */
+	shape?: PdfTextMarkupKind;
 	/** Pre-computed `[[alias|target]]` or null if no wiki target. */
 	linkAlias: string | null;
 	/** Visual marks with an Agent conversation show a truncated inline preview. */
@@ -354,6 +340,7 @@ export type RailEditState = {
 	comment: string;
 	quote: string;
 	color: HighlightColor;
+	shape?: PdfTextMarkupKind;
 	anchorY: number;
 	/** Normalized rects covering the highlighted text / visual region. */
 	rects: PdfAskNormalizedRect[];
@@ -362,4 +349,9 @@ export type RailEditState = {
 	 * saving an empty new note deletes the underlying mark (#491).
 	 */
 	isNew?: boolean;
+};
+
+export type PdfLinkHoverPoint = ScreenPoint & {
+	citation?: BracketCitation;
+	sourcePoint?: { x: number; y: number };
 };

@@ -4,6 +4,7 @@ import {
 	dirnameOf,
 	joinPath,
 	normalizePath,
+	relativePathWithin,
 	toVaultRelative,
 } from "@/lib/core/path";
 import { isMarkdownPath } from "@/lib/vault/fs";
@@ -17,11 +18,9 @@ export function vaultRelativePath(
 	vaultRoot: string,
 	absPath: string,
 ): string | null {
-	const root = normalizePath(vaultRoot);
 	const abs = normalizePath(absPath);
-	if (abs === root) return "";
-	const prefix = `${root}/`;
-	if (abs.startsWith(prefix)) return abs.slice(prefix.length);
+	const relative = relativePathWithin(vaultRoot, absPath);
+	if (relative !== null) return relative;
 	if (abs === "papers" || abs.startsWith("papers/")) return abs;
 	return null;
 }

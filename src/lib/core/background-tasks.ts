@@ -174,26 +174,8 @@ function uid(): string {
 	return `task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Keep completed/failed for a short while, then drop them. */
-const COMPLETED_TTL_MS = 4000;
+/** Finished rows stay until the user clears them or a newer task pushes them out. */
 const MAX_HISTORY = 12;
-
-function schedulePrune(id: string) {
-	window.setTimeout(() => {
-		const snapshot = getBackgroundTasksSnapshot();
-		const tasks = snapshot.tasks.filter((t) => t.id !== id);
-		if (tasks.length !== snapshot.tasks.length) {
-			const active = tasks.some(
-				(t) => t.status === "queued" || t.status === "running",
-			);
-			setStore({
-				...snapshot,
-				tasks,
-				expanded: active ? snapshot.expanded : false,
-			});
-		}
-	}, COMPLETED_TTL_MS);
-}
 
 export function startBackgroundTask(input: {
 	kind: BackgroundTaskKind;
@@ -284,7 +266,6 @@ export function completeBackgroundTask(id: string, detail?: string): void {
 		progress: 100,
 		...(detail !== undefined ? { detail } : {}),
 	});
-	schedulePrune(id);
 }
 
 export function failBackgroundTask(id: string, error: string): void {
@@ -296,7 +277,6 @@ export function failBackgroundTask(id: string, error: string): void {
 	// Panel expands on failure only while the pointer is over it / briefly;
 	// see background-tasks-panel (hover leave always returns to the ring).
 	setBackgroundTasksExpanded(true);
-	schedulePrune(id);
 }
 
 export function cancelBackgroundTask(id: string): void {
@@ -309,7 +289,6 @@ export function cancelBackgroundTask(id: string): void {
 		status: "cancelled",
 		detail: i18n.t("app:tasks.cancelled"),
 	});
-	schedulePrune(id);
 }
 
 export function registerBackgroundTaskCancelHandler(

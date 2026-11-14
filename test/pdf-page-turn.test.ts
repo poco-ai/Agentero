@@ -34,7 +34,6 @@ describe("paginated PDF navigation", () => {
 
 	it("accepts the new persisted mode while rejecting unknown settings", () => {
 		expect(isPdfScrollStrategy("paginated")).toBe(true);
-		expect(isPdfScrollStrategy("grid")).toBe(false);
 		expect(isPdfScrollStrategy("diagonal")).toBe(false);
 	});
 });

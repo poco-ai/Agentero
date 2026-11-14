@@ -44,6 +44,10 @@ export type SyncBackendConfig = {
 	gitRemote: string;
 	/** Branch synced by the Git backend (default `main`). */
 	gitBranch: string;
+	/** Allow a non-loopback `http://` remote. The token travels in cleartext. */
+	gitAllowInsecureHttp: boolean;
+	/** Absolute PEM CA path for a self-signed HTTPS remote. Empty uses the system store. */
+	gitSslCaInfo: string;
 	/** `user` or `organization` for official cloud sync. */
 	agenteroSubject: "user" | "organization";
 	/** Organization id when `agenteroSubject` is `organization`. */
@@ -117,6 +121,8 @@ export const emptySyncConfig = (
 	webdavPassword: "",
 	gitRemote: "",
 	gitBranch: "main",
+	gitAllowInsecureHttp: false,
+	gitSslCaInfo: "",
 	agenteroSubject: "user",
 	agenteroOrgId: "",
 	agenteroApi: "",
@@ -163,6 +169,8 @@ function configFromWire(config: SyncBackendConfigWire): SyncBackendConfig {
 		webdavPassword: config.webdavPassword ?? "",
 		gitRemote: config.gitRemote ?? "",
 		gitBranch: config.gitBranch ?? "main",
+		gitAllowInsecureHttp: config.gitAllowInsecureHttp ?? false,
+		gitSslCaInfo: config.gitSslCaInfo ?? "",
 		agenteroSubject:
 			config.agenteroSubject === "organization" ? "organization" : "user",
 		agenteroOrgId: config.agenteroOrgId ?? "",

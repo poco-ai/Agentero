@@ -1,13 +1,5 @@
 # 测试
 
-最新合并记录：[阅读器 #1077 接入上游更新](2026-11-12-reader-upstream-merge.md)，覆盖跨页选区、Markdown 批注、原文保留和连续阅读的兼容回归。
-
-当前迁移记录：[上游 0.15.5 阅读器试用](2026-11-10-upstream-reader-trial.md)，安装包验收与历史 0.15.1 / 0.15.4 证据分开记录。
-
-新增 [阅读选区映射验证](2026-11-10-reader-selection-mapping.md)：原生 Windows 开发版中，原文高亮/备注保存重开、译文句子映射及缺少句对时的动作边界；最终安装包验收不由该记录替代。
-
-最新 PDF 回归：[2026-11-10 引用完整性、原文/译文与公式修复](2026-11-10-pdf-citation-formula.md)。此前出版社报告的悬停次数只覆盖加载和目标页，不能代替组合引用逐项验证。
-
 当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 `src/` 与 `test/` 解耦：应用代码不能 import 测试 fixture 或 helper。
 
 ## 发布前验收
@@ -18,16 +10,6 @@
 - **[macOS 签名与公证](macos-signing.md)** — Developer ID、notarytool 与 stapler。
 - **[iOS TestFlight](ios-testflight.md)** — iOS 签名、上传、App Store Connect 元数据与审核说明（无登录、配对 Notes）。
 - **[发布前测试大纲（Checklist）](release-checklist.md)** — 按功能域（Vault、Library、入库、PDF、Agent、远程、CLI、平台矩阵）勾选；含 5 分钟冒烟与明确非目标说明。
-
-PDF 与连续阅读的真实论文验证见 [15 篇扩展回归](2026-11-08-pdf-reader-regression.md) 和 [8 领域跨领域回归](2026-11-08-pdf-reader-crossfield.md)；后者包含作者年份预览、长文准备复用、[WebKit 异步页状态修复](../bug_fix/pdf-webkit-async-page-state.md)、[文档写入触发开发页刷新](../bug_fix/tailwind-dev-reload.md)及内存持有者取证。历史内存峰值退出仍需复现归因。
-
-[2026-11-09 新样本与内存对照](2026-11-09-pdf-delivery-memory.md) 补充六篇、158 页冷解析 / 边界验证，以及旧前端、当前 PDF、当前阅读模式的同 Host 对照。新增阅读模式有明确内存成本，历史超限原因未确定；历史特殊版式与纯图片页存在重排限制；按最新需求，这两类不再作为本轮交付阻塞项。
-
-[主流出版社补测与内存优化](2026-11-09-pdf-publishers-memory.md) 新增 13 篇、179 页，累计样本为 42 篇、793 页（包含历史边界样本）；记录出版社目标名、引用裁剪、重复文字修复，以及隐藏源页绘制的单变量内存对照。最终 118 次双模式代表悬停与分屏 / 原文定位 / 返回交互完成；源 PDF 的坏目标仍单列，不能推断所有现代论文无损。
-
-[Windows 阅读器试用构建](2026-11-09-windows-reader-trial.md) 记录原生 x64 构建、相关回归、安装包验证与另一台电脑上的持续试用范围。
-
-[Wiley 引用完整性回归](2026-11-10-wiley-citation-completeness.md) 记录新增九篇、770 处原生链接及 1,544 个引用成员的逐项检查；[阅读选区到 PDF 批注](2026-11-10-reader-selection-mapping.md) 记录跨页、原译混合、真实翻译和备注持久化。最终 Windows 包单独按[上游迁移试用报告](2026-11-10-upstream-reader-trial.md)验收。
 
 ## 目录结构
 
@@ -137,10 +119,6 @@ CI 的 `agentero-tests` 任务运行 Host 与 `agentero-plugin-host` 测试，�
 ## 手动验证
 
 纯逻辑优先用自动化测试覆盖。涉及 UI 或桌面流程时，还需要启动应用检查受影响路径。如果 dev 端口被占用或无法做浏览器/桌面验证，汇报时需要明确说明。
-
-Linux 桌面验收与 Rust 编译不要同时使用同一 `target` 目录。`tauri-build` 会原地复制 bundle resources；若 PDF 已加载 `target/debug/pdfium/libpdfium.so`，另一次 `cargo test` / build 覆盖该文件会破坏进程内的库映射，使 PDFium 在正常退出的 C++ 标准流析构阶段崩溃。先结束编译再启动验收；需要并行时为构建设置独立的 `CARGO_TARGET_DIR`。排查退出崩溃时先确认运行期间资源文件是否被覆盖。
-
-WebKitGTK 自动化验收结束时，通过 `getCurrentWindow().close()` 触发 Tauri 原生关闭，再确认进程退出码。不要先调用 WebDriver 的关闭窗口接口：它会结束网页会话，而应用的关闭保存回调仍需前端执行，随后再关闭 GTK 窗口可能只留下后台进程。
 
 建议用 `pnpm demo:vault` 生成的 Vault 做冒烟：
 

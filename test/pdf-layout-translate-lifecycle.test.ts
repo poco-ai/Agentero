@@ -4,8 +4,11 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { it } from "vitest";
 import type { JobSnapshot } from "@/lib/core/bindings";
+import { formatLayoutPageRanges } from "@/lib/pdf/layout/completeness";
 import {
+	layoutSidecarBlocksAnalysis,
 	layoutSidecarNeedsTextLayer,
+	layoutTextBackfillSidecar,
 	type PdfLayoutSidecar,
 } from "@/lib/pdf/layout/io";
 import * as translateProgress from "@/lib/pdf/layout/layout-translate-progress";
@@ -58,7 +61,6 @@ type Run = RunOptions & {
 
 type Options = {
 	translationPane?: boolean;
-	cacheOnlyPane?: boolean;
 	docId: string;
 	paperAbsPath: string | null;
 	paperRelPath?: string | null;
@@ -80,13 +82,17 @@ type PartialView = {
 	visible: boolean;
 	open: boolean;
 	completionFailed: boolean;
+	layoutWarningPages: string | null;
+	layoutWarningCount: number;
+	layoutPageCount: number | null;
+	translatedPageCount: number;
 	onOpenChange: (open: boolean) => void;
 	onCompleteMissing: () => void;
 	onRetranslateAll: () => void;
+	onReparseAndTranslate: () => void;
 };
 
 type View = {
-	restoreLayoutTranslate: () => void;
 	layoutTranslateItemsByPage: ReadonlyMap<number, readonly Item[]>;
 	layoutTranslatePageStateByPage: ReadonlyMap<
 		number,
@@ -171,6 +177,7 @@ function createHarness() {
 	type Observer = {
 		start: boolean;
 		force?: boolean;
+		forceLayout?: boolean;
 		signal: AbortSignal;
 		onUpdate: (job: JobSnapshot, snapshot: TranslationSnapshot | null) => void;
 		onJob?: (id: string) => void;
@@ -182,7 +189,6 @@ function createHarness() {
 	let sharedSnapshot: TranslationSnapshot | null = null;
 	let cachedLayout: PdfLayoutSidecar | null = null;
 	const layoutWrites = new Set<(path: string) => void>();
-	const translationWrites = new Set<(path: string) => void>();
 	const publishedLayouts: unknown[] = [];
 	const backgroundTasks = createFakeStore<{ tasks: FakeTask[] }>({
 		tasks: [],
@@ -277,6 +283,7 @@ function createHarness() {
 		});
 	};
 	const layout = {
+		layoutSidecarBlocksAnalysis,
 		readLayoutSidecar: async () => cachedLayout,
 		mergeCaptionsIntoHosts: (regions: Item[]) => regions,
 		buildLayoutDocumentResult: (
@@ -306,12 +313,6 @@ function createHarness() {
 			serviceKey: "test",
 		}),
 		readLayoutTranslateSidecar: async () => translateSidecar,
-		subscribeLayoutTranslateSidecarWrite: (
-			listener: (path: string) => void,
-		) => {
-			translationWrites.add(listener);
-			return () => translationWrites.delete(listener);
-		},
 		applyLayoutTranslateSidecar: applyCachedTranslations,
 		hydrateLayoutTranslateItems: (
 			items: Item[],
@@ -336,6 +337,7 @@ function createHarness() {
 			const pages = pending.map((item) => item.pageIndex);
 			return { start: Math.min(...pages) + 1, end: Math.max(...pages) + 1 };
 		},
+		formatLayoutPageRanges,
 		hasPendingLayoutTranslateItems: (items: Item[]) =>
 			items.some((item) => item.status !== "done" || !item.translated?.trim()),
 		groupLayoutTranslateItemsByPage(items: Item[]) {
@@ -519,11 +521,6 @@ function createHarness() {
 		setTranslateSidecar(items: CachedTranslate[]) {
 			translateSidecar = { items };
 		},
-		notifyTranslateWrite() {
-			if (options.paperAbsPath)
-				for (const listener of translationWrites)
-					listener(options.paperAbsPath);
-		},
 		setCachedLayout(regions: Item[], notify = false) {
 			cachedLayout = {
 				schemaVersion: 3,
@@ -532,12 +529,43 @@ function createHarness() {
 					generatedAt: "cached",
 					textLayerExtracted: true,
 					sourceStylesExtracted: true,
-					textGeometryVersion: 4,
+					completeness: {
+						pageCount: Math.max(
+							1,
+							...regions.map((item) => item.pageIndex + 1),
+						),
+						processedPages: Array.from(
+							{
+								length: Math.max(
+									1,
+									...regions.map((item) => item.pageIndex + 1),
+								),
+							},
+							(_, pageIndex) => pageIndex,
+						),
+						textLayerComplete: true,
+						pageStats: regions.map((item) => ({
+							pageIndex: item.pageIndex,
+							regionCount: 1,
+							textChars: 100,
+							translatableRegionCount: 1,
+						})),
+						warnings: [],
+						contentRepairAttempted: true,
+					},
 				},
 				regions: regions as unknown as PdfLayoutSidecar["regions"],
 			};
+			cachedLayout = layoutTextBackfillSidecar(
+				cachedLayout,
+				cachedLayout.regions,
+				cachedLayout.source.completeness,
+			);
 			if (notify && options.paperAbsPath)
 				for (const listener of layoutWrites) listener(options.paperAbsPath);
+		},
+		clearLayoutCompleteness() {
+			if (cachedLayout) delete cachedLayout.source.completeness;
 		},
 		tasks: backgroundTasks,
 		analysis: layoutUi,
@@ -568,46 +596,6 @@ function createHarness() {
 function completed(run: RunOptions, translated = "Translated"): Item[] {
 	return run.items.map((item) => ({ ...item, status: "done", translated }));
 }
-
-it("restores cached translations after clear without starting a translation request", async () => {
-	const h = createHarness();
-	h.setTranslateSidecar(
-		[0, 1].map((page) => ({
-			...region(page),
-			translated: "Cached",
-			status: "done",
-		})),
-	);
-	h.view.restoreLayoutTranslate();
-	await h.flush();
-	assert.equal(h.runs.length, 0);
-	assert.equal(
-		h.view.layoutTranslateItemsByPage.get(0)?.[0].translated,
-		"Cached",
-	);
-	h.view.toggleLayoutTranslate();
-	await h.flush();
-	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
-	h.view.restoreLayoutTranslate();
-	await h.flush();
-	assert.equal(h.runs.length, 0);
-	assert.equal(
-		h.view.layoutTranslateItemsByPage.get(1)?.[0].translated,
-		"Cached",
-	);
-});
-
-it("does not let a cache restore repaint translations after changing documents", async () => {
-	const h = createHarness();
-	h.setTranslateSidecar([
-		{ ...region(0), translated: "Cached", status: "done" },
-	]);
-	h.view.restoreLayoutTranslate();
-	h.render({ docId: "paper-b", paperAbsPath: "/vault/papers/b" });
-	await h.flush();
-	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
-	assert.equal(h.runs.length, 0);
-});
 
 it("starts from an existing layout cache without a new parse or viewer file event", async () => {
 	const h = createHarness();
@@ -640,6 +628,25 @@ it("hydrates a partial sidecar and starts no translation request", async () => {
 	);
 });
 
+it("audits an unverified layout before showing a complete translation cache", async () => {
+	const h = createHarness();
+	h.setCachedLayout([region(0)]);
+	h.clearLayoutCompleteness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.setShared(
+		sharedJob(),
+		sharedSnapshot([{ ...region(0), status: "running" }]),
+	);
+	h.render({ vaultPath: "/vault" });
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.observers.length, 1);
+	assert.equal(h.observers[0].start, true);
+	assert.equal(h.runs.length, 0);
+});
+
 function sharedJob(state: JobSnapshot["state"] = "running"): JobSnapshot {
 	return {
 		id: "bg-1",
@@ -654,7 +661,7 @@ function sharedSnapshot(items: Item[]): TranslationSnapshot {
 	return {
 		revision: 1,
 		cacheKey: {
-			providerId: "googleapi",
+			providerId: "tencenttransmart",
 			sourceLang: "en",
 			targetLang: "zh",
 			serviceKey: "test",
@@ -696,6 +703,25 @@ it("subscribes to a running automatic document without cancelling or starting re
 	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
 });
 
+it("shows a layout warning even when every layout block is translated", async () => {
+	const h = createHarness();
+	h.render({ vaultPath: "/vault", layoutRawRegions: [] });
+	h.setShared(sharedJob("succeeded"), {
+		...sharedSnapshot([]),
+		layoutWarnings: [{ code: "content-gap", pages: [2, 6, 7, 8] }],
+		layoutPageCount: 15,
+	});
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	assert.equal(h.view.layoutTranslatePartial.layoutWarningPages, "3, 7–9");
+	assert.equal(h.view.layoutTranslatePartial.layoutPageCount, 15);
+	h.view.layoutTranslatePartial.onReparseAndTranslate();
+	await h.flush();
+	assert.equal(h.observers.at(-1)?.forceLayout, true);
+});
+
 it("shows queued translation and continues when the same job starts", async () => {
 	const h = createHarness();
 	h.render({ vaultPath: "/vault" });
@@ -717,6 +743,7 @@ it("shows queued translation and continues when the same job starts", async () =
 
 it("opens a complete paper cache without joining a blocked translation queue", async () => {
 	const h = createHarness();
+	h.setCachedLayout([region(0), region(1)]);
 	h.render({ vaultPath: "/vault" });
 	h.setShared(sharedJob("queued"), null);
 	h.setPrepareTransform((items) =>
@@ -777,6 +804,7 @@ it("opens a cached paper translation pane before its layout store is populated",
 for (const translationPane of [false, true]) {
 	it(`opens a partial paper cache with a warning and no automatic completion (${translationPane ? "translation pane" : "toolbar"})`, async () => {
 		const h = createHarness();
+		h.setCachedLayout([region(0), region(1)]);
 		h.render({ vaultPath: "/vault", translationPane });
 		h.setShared(sharedJob("queued"), null);
 		h.setTranslateSidecar([
@@ -835,6 +863,7 @@ for (const translationPane of [false, true]) {
 
 it("queues a paper when its sidecar does not match prepared source", async () => {
 	const h = createHarness();
+	h.setCachedLayout([region(0), region(1)]);
 	h.render({ vaultPath: "/vault" });
 	h.setShared(sharedJob("queued"), null);
 	h.setTranslateSidecar([
@@ -850,6 +879,7 @@ it("queues a paper when its sidecar does not match prepared source", async () =>
 
 it("keeps a partial paper cache warning closed in a new document session without completing gaps", async () => {
 	const h = createHarness();
+	h.setCachedLayout([region(0), region(1)]);
 	h.render({ vaultPath: "/vault" });
 	h.setTranslateSidecar([
 		{ id: "region-0", source: "Source 0", translated: "Cached" },
@@ -871,6 +901,7 @@ it("keeps a partial paper cache warning closed in a new document session without
 for (const action of ["stop", "close"] as const) {
 	it(`${action} during paper cache preparation prevents a late render or enqueue`, async () => {
 		const h = createHarness();
+		h.setCachedLayout([region(0), region(1)]);
 		h.render({ vaultPath: "/vault" });
 		h.setTranslateSidecar(
 			[0, 1].map((page) => ({
@@ -1173,45 +1204,6 @@ it("hydrates a remote translation pane through the cache path", async () => {
 	assert.equal(h.view.layoutTranslatePartial.visible, true);
 	assert.equal(h.runs.length, 0);
 	assert.equal(h.observers.length, 0);
-});
-
-it("hydrates a local comparison pane without enqueueing a second translation", async () => {
-	const h = createHarness();
-	h.setTranslateSidecar([
-		{ id: "region-0", source: "Source 0", translated: "已有译文" },
-	]);
-	h.render({ translationPane: true, cacheOnlyPane: true, vaultPath: "/vault" });
-	await h.flush();
-	assert.equal(h.view.layoutTranslateStatus, "partial");
-	assert.equal(
-		h.view.layoutTranslateItemsByPage.get(0)?.[0].translated,
-		"已有译文",
-	);
-	assert.equal(h.runs.length, 0);
-	assert.equal(h.observers.length, 0);
-	assert.equal(h.enqueues.length, 0);
-});
-
-it("updates an already open comparison pane after the source translation reaches disk", async () => {
-	const h = createHarness();
-	h.render({ translationPane: true, cacheOnlyPane: true, vaultPath: "/vault" });
-	await h.flush();
-	h.setTranslateSidecar([
-		{ id: "region-0", source: "Source 0", translated: "刚完成的译文" },
-	]);
-	h.notifyTranslateWrite();
-	await h.flush();
-	assert.equal(
-		h.view.layoutTranslateItemsByPage.get(0)?.[0].translated,
-		"刚完成的译文",
-	);
-	assert.equal(h.runs.length, 0);
-	assert.equal(h.enqueues.length, 0);
-	h.unmount();
-	const writes = h.stateWrites;
-	h.notifyTranslateWrite();
-	await h.flush();
-	assert.equal(h.stateWrites, writes);
 });
 
 for (const action of ["stop", "close"] as const) {

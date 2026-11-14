@@ -13,7 +13,7 @@ import { HighlightColorStack } from "@/components/viewer/pdf/cards/highlight-col
 import { cn } from "@/lib/core/utils";
 import {
 	highlightColorOf,
-	isHighlightObject,
+	isTextMarkupObject,
 } from "@/lib/pdf/highlight/annotation-store";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 
@@ -71,7 +71,7 @@ export function HighlightAnnotationMenu({
 
 	if (!selected || context.type !== "annotation") return null;
 	const obj = context.annotation.object;
-	if (!isHighlightObject(obj)) return null;
+	if (!isTextMarkupObject(obj)) return null;
 	const activeColor = highlightColorOf(obj);
 
 	return (

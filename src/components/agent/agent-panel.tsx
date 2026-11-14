@@ -57,6 +57,13 @@ export const AgentPanel = memo(function AgentPanel({
 	title = "Chat",
 	onOpenAgentSettings,
 	onOpenSource,
+	initialAgentId = null,
+	onAgentChange,
+	openHistoryItem = null,
+	onOpenHistoryHandled,
+	restoringHistory = false,
+	suppressHistoryImport = false,
+	wide = false,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
 	const panel = useAgentPanel({
@@ -68,6 +75,11 @@ export const AgentPanel = memo(function AgentPanel({
 		vaultPaperPaths,
 		paperMetaByRelPath,
 		paperTreeLabelMode,
+		initialAgentId,
+		onAgentChange,
+		openHistoryItem,
+		onOpenHistoryHandled,
+		suppressHistoryImport,
 	});
 	const bodyRef = useRef<HTMLDivElement>(null);
 	const [composerHeightPx, setComposerHeightPx] = useState(
@@ -404,8 +416,10 @@ export const AgentPanel = memo(function AgentPanel({
 
 				<div ref={bodyRef} className="flex min-h-0 flex-1 flex-col">
 					<ChatTranscript
+						wide={wide}
 						activeTabId={activeTabId}
 						hydratingSessionId={hydratingSessionId}
+						restoring={restoringHistory}
 						compact={composerCompact}
 						activeTabIsRunning={activeTabIsRunning}
 						phase={activePhase}
@@ -460,6 +474,7 @@ export const AgentPanel = memo(function AgentPanel({
 							</button>
 
 							<AgentComposer
+								wide={wide}
 								autoFocus={autoFocus}
 								heightPx={composerDisplayHeightPx}
 								compact={composerCompact}

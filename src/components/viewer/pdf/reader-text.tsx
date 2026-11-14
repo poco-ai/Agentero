@@ -1,12 +1,9 @@
 import type { PdfLinkAnnoObject, Size } from "@embedpdf/models";
 import { type ReactNode, useMemo } from "react";
 import { textLinkHoverPoint } from "@/components/viewer/pdf/link-hover";
+
 import type { PdfLinkHoverPoint } from "@/components/viewer/pdf/types";
-import {
-	highlightFill,
-	normalizeHighlightColor,
-} from "@/lib/pdf/highlight/palette";
-import type { PdfHighlight } from "@/lib/pdf/highlight/types";
+
 import { linkColorOnPaper } from "@/lib/pdf/layout/link-ink";
 import {
 	assignPreservedLinks,
@@ -23,7 +20,7 @@ import {
 	readingFormulaMetrics,
 	readingInlineParts,
 } from "@/lib/pdf/reading/inline";
-import { readerHighlightRanges } from "@/lib/pdf/reading/selection";
+
 import {
 	type ReadingSettings,
 	readingColors,
@@ -72,7 +69,6 @@ export function ReaderText({
 	links,
 	handlers,
 	renderFormula,
-	highlights,
 }: {
 	block: ReadingBlock;
 	translated?: boolean;
@@ -81,7 +77,6 @@ export function ReaderText({
 	links?: ReaderPageLinks;
 	handlers: ReaderLinkHandlers;
 	renderFormula: (formula: Formula, baselineOffset: number) => ReactNode;
-	highlights?: readonly PdfHighlight[];
 }) {
 	const paragraph = block.item?.reflow;
 	const protectedText = translated
@@ -111,7 +106,6 @@ export function ReaderText({
 			source: readingInlineParts(block.source, paragraph).text,
 			block: block.bbox,
 			runs,
-			runsInReadingOrder: !!paragraph?.characters.length,
 		});
 	}, [content.text, links, block.source, block.bbox, paragraph, pageSize]);
 	const linkedText = (start: number, end: number): ReactNode => {
@@ -151,32 +145,17 @@ export function ReaderText({
 					}}
 					onPointerEnter={(e) => {
 						if (linkHoverSuppressed(e.buttons)) return;
-						hover(
-							textLinkHoverPoint(e.currentTarget, e, {
-								text: content.text,
-								offset: from,
-							}),
-						);
+						hover(textLinkHoverPoint(e.currentTarget));
 					}}
 					onPointerMove={(e) => {
 						if (!linkHoverSuppressed(e.buttons))
-							hover(
-								textLinkHoverPoint(e.currentTarget, e, {
-									text: content.text,
-									offset: from,
-								}),
-							);
+							hover(textLinkHoverPoint(e.currentTarget));
 					}}
 					onPointerLeave={() => {
 						if (!linkPreviewDragActive()) hover(null);
 					}}
 					onFocus={(e) => {
-						hover(
-							textLinkHoverPoint(e.currentTarget, undefined, {
-								text: content.text,
-								offset: from,
-							}),
-						);
+						hover(textLinkHoverPoint(e.currentTarget));
 					}}
 					onBlur={() => hover(null)}
 				>
@@ -188,51 +167,11 @@ export function ReaderText({
 		if (cursor < end) nodes.push(content.text.slice(cursor, end));
 		return nodes;
 	};
-	const marks = useMemo(
-		() =>
-			pageSize && highlights?.length
-				? readerHighlightRanges(block, highlights, pageSize, translated)
-				: [],
-		[block, highlights, pageSize, translated],
-	);
-	const markedText = (start: number, end: number) => {
-		const points = [
-			...new Set([
-				start,
-				end,
-				...marks
-					.flatMap((m) => [m.start, m.end])
-					.filter((p) => p > start && p < end),
-			]),
-		].sort((a, b) => a - b);
-		return points.slice(0, -1).map((from, index) => {
-			const to = points[index + 1];
-			const mark = marks.find((m) => m.start < to && m.end > from);
-			return (
-				<span
-					key={from}
-					data-reader-start={from}
-					data-reader-end={to}
-					data-reader-highlight={mark?.highlight.id}
-					style={
-						mark
-							? {
-									backgroundColor: highlightFill(
-										normalizeHighlightColor(mark.highlight.color),
-									),
-									borderRadius: "0.1em",
-								}
-							: undefined
-					}
-				>
-					{linkedText(from, to)}
-				</span>
-			);
-		});
-	};
+
 	return readingInlineParts(protectedText, paragraph, assignments).parts.map(
 		(part) => {
 			const formula = part.formula;
+
 			const metrics =
 				paragraph && formula
 					? readingFormulaMetrics(paragraph, formula, pageSize?.height ?? 0)
@@ -274,7 +213,7 @@ export function ReaderText({
 							: {}),
 					}}
 				>
-					{markedText(part.start, part.end)}
+					{linkedText(part.start, part.end)}
 				</span>
 			);
 		},

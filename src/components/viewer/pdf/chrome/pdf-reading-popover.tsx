@@ -148,6 +148,9 @@ export function PdfReadingPopover({
 						disabled={!available}
 					/>
 				</div>
+				<p className="text-muted-foreground text-xs">
+					{t("pdf.reading.experimental")}
+				</p>
 				{!available && (
 					<p className="text-muted-foreground text-xs">
 						{t("pdf.reading.unavailable")}
