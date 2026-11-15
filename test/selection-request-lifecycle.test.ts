@@ -161,3 +161,55 @@ it("retains errors reported after streaming stops and isolates replacement Ask t
 	expect(ask.ask?.thread.anchor.quote).toBe("second quote");
 	expect(ask.askError).toBeNull();
 });
+
+it("switches dictionary and translation without losing completed results or accepting old chunks", async () => {
+	await act(() =>
+		translation.translate(
+			{ ...source, text: "attention" },
+			screen,
+			"dictionary",
+		),
+	);
+	const first = mocks.translate.mock
+		.lastCall?.[0] as RunSelectionTranslateOptions;
+	await act(() => first.commitProviderResult("dictionary entry"));
+	await act(() => translation.switchMode("translate"));
+	const second = mocks.translate.mock
+		.lastCall?.[0] as RunSelectionTranslateOptions;
+	expect(second.mode).toBe("translate");
+	expect(first.disposedRef.current).toBe(true);
+	await act(() => {
+		first.appendChunk("late");
+		second.commitProviderResult("translation result");
+	});
+	await act(() => translation.switchMode("dictionary"));
+	expect(translation.translation?.result).toBe("dictionary entry");
+	expect(translation.translation?.streaming).toBe(false);
+	await act(() => translation.switchMode("translate"));
+	expect(translation.translation?.result).toBe("translation result");
+	expect(mocks.translate).toHaveBeenCalledTimes(2);
+});
+
+it("does not reuse a stopped partial result when switching back", async () => {
+	await act(() =>
+		translation.translate(
+			{ ...source, text: "attention" },
+			screen,
+			"dictionary",
+		),
+	);
+	const first = mocks.translate.mock
+		.lastCall?.[0] as RunSelectionTranslateOptions;
+	await act(() => {
+		first.appendChunk("incomplete");
+		first.stopStreaming();
+	});
+	await act(() => translation.switchMode("translate"));
+	const second = mocks.translate.mock
+		.lastCall?.[0] as RunSelectionTranslateOptions;
+	await act(() => second.commitProviderResult("translation"));
+	await act(() => translation.switchMode("dictionary"));
+	expect(mocks.translate).toHaveBeenCalledTimes(3);
+	expect(translation.translation?.result).toBe("");
+	expect(translation.translation?.streaming).toBe(true);
+});

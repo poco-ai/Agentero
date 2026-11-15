@@ -24,6 +24,7 @@ import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
+import type { SelectionTranslateMode } from "@/lib/translate/types";
 
 type PdfCardStackProps = {
 	selectionMenu: {
@@ -78,6 +79,7 @@ type PdfCardStackProps = {
 	};
 	translate: {
 		record: PdfTranslateRecord | null;
+		onModeChange?: (mode: SelectionTranslateMode) => void;
 		streaming: boolean;
 		error: string | null;
 		onOpenSettings: () => void;
@@ -232,6 +234,8 @@ export const PdfCardStack = memo(function PdfCardStack({
 						onPointerEnter={onCardHoverEnter}
 						onPointerLeave={onCardHoverLeave}
 						sourceText={translate.record.quote}
+						mode={translate.record.mode}
+						onModeChange={translate.onModeChange}
 					/>
 				</PageClip>
 			) : null}

@@ -1,4 +1,13 @@
-import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
+import {
+	BookA,
+	Check,
+	Copy,
+	Languages,
+	Pin,
+	PinOff,
+	Settings2Icon,
+	X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ThinkingOrb } from "thinking-orbs";
@@ -10,6 +19,7 @@ import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { useTypewriter } from "@/hooks/use-typewriter";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { isDictionaryLookup } from "@/lib/translate/dictionary";
+import type { SelectionTranslateMode } from "@/lib/translate/types";
 
 const TRANSLATE_CARD_WIDTH = 340;
 const TRANSLATE_CARD_MIN_WIDTH = 220;
@@ -34,6 +44,8 @@ type TranslateCardProps = {
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	sourceText?: string;
+	mode?: SelectionTranslateMode;
+	onModeChange?: (mode: SelectionTranslateMode) => void;
 };
 
 /**
@@ -55,11 +67,13 @@ export function TranslateCard({
 	onPointerEnter,
 	onPointerLeave,
 	sourceText,
+	mode: requestedMode,
+	onModeChange,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
-	const mode = isDictionaryLookup(sourceText ?? "")
-		? "dictionary"
-		: "translate";
+	const mode =
+		requestedMode ??
+		(isDictionaryLookup(sourceText ?? "") ? "dictionary" : "translate");
 	const showResult = result.trim().length > 0;
 	const typed = useTypewriter(result, mode === "translate");
 	const typing = streaming || typed.typing;
@@ -141,6 +155,12 @@ export function TranslateCard({
 		return () => clearTimeout(timer);
 	}, [copied]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: changing modes resets the copy feedback and stream scroll position.
+	useEffect(() => {
+		setCopied(false);
+		stickToBottomRef.current = true;
+	}, [mode]);
+
 	const handleScroll = () => {
 		const el = scrollPortRef.current;
 		if (!el) return;
@@ -201,6 +221,28 @@ export function TranslateCard({
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
 			actions={[
+				...(onModeChange && isDictionaryLookup(sourceText ?? "")
+					? [
+							{
+								id: "mode",
+								label: t(
+									mode === "dictionary"
+										? "selection.switchToTranslation"
+										: "selection.switchToDictionary",
+								),
+								onClick: () =>
+									onModeChange(
+										mode === "dictionary" ? "translate" : "dictionary",
+									),
+								icon:
+									mode === "dictionary" ? (
+										<Languages className="size-3.5" />
+									) : (
+										<BookA className="size-3.5" />
+									),
+							},
+						]
+					: []),
 				...(showResult
 					? [
 							{

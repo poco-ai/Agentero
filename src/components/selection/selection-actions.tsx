@@ -195,6 +195,8 @@ export function SelectionActions({
 					key={translation.translation.selection.id}
 					screen={translation.translation.screen}
 					sourceText={translation.translation.selection.text}
+					mode={translation.translation.mode}
+					onModeChange={translation.switchMode}
 					result={translation.translation.result}
 					streaming={translation.translation.streaming}
 					error={translation.translation.error}

@@ -2378,9 +2378,28 @@ function PdfViewerInner({
 		if (activeTranslate) toggleTranslatePin(activeTranslate);
 	}, [activeTranslate, toggleTranslatePin]);
 
+	const handleTranslateModeChange = useCallback(
+		(mode: "dictionary" | "translate") => {
+			if (activeTranslate?.quote)
+				translateSelection(
+					{
+						page: activeTranslate.page,
+						rects: activeTranslate.rects,
+						selectionPages: activeTranslate.selectionPages,
+						quote: activeTranslate.quote,
+						trigger: "selection",
+					},
+					mode,
+					activeTranslate,
+				);
+		},
+		[activeTranslate, translateSelection],
+	);
+
 	const cardTranslate = useMemo(
 		() => ({
 			record: isActive ? activeTranslate : null,
+			onModeChange: handleTranslateModeChange,
 			streaming: translateStreaming,
 			error: translateError,
 			onOpenSettings: openTranslateSettings,
@@ -2398,6 +2417,7 @@ function PdfViewerInner({
 			openTranslateSettings,
 			paperAbsPath,
 			handleToggleTranslatePin,
+			handleTranslateModeChange,
 			hideActiveCard,
 		],
 	);

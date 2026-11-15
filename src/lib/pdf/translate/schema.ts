@@ -45,6 +45,14 @@ export function parsePdfTranslateRecord(
 	}
 	if (typeof raw.updatedAt === "string") rec.updatedAt = raw.updatedAt;
 	if (typeof raw.result === "string") rec.result = raw.result;
+	if (raw.mode === "dictionary" || raw.mode === "translate")
+		rec.mode = raw.mode;
+	if (isRecord(raw.results)) {
+		rec.results = {};
+		for (const mode of ["dictionary", "translate"] as const)
+			if (typeof raw.results[mode] === "string")
+				rec.results[mode] = raw.results[mode];
+	}
 	if (typeof raw.error === "string") rec.error = raw.error;
 	return rec;
 }

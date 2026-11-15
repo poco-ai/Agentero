@@ -1,6 +1,11 @@
 import { quoteContextFromText } from "@/lib/agent/selection-context";
 import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
-import { dictionarySurrounding } from "@/lib/translate/dictionary";
+import { loadSettings } from "@/lib/settings";
+import {
+	dictionarySurrounding,
+	selectionTranslateMode,
+} from "@/lib/translate/dictionary";
+import type { SelectionTranslateMode } from "@/lib/translate/types";
 /**
  * Selection → 翻译 workflow for the EmbedPDF viewer: the one ephemeral mark kind.
  * A translate card is created straight from the selection menu and streams into
@@ -83,7 +88,11 @@ export type PdfSelectionTranslate = {
 	translateStreaming: boolean;
 	translateError: string | null;
 	/** Selection-menu action: create the record and start the run. */
-	translateSelection: (anchor: PdfAskAnchor) => void;
+	translateSelection: (
+		anchor: PdfAskAnchor,
+		mode?: SelectionTranslateMode,
+		existing?: PdfTranslateRecord,
+	) => void;
 	/** Toggle whether the result survives dismissal, without affecting the run. */
 	toggleTranslatePin: (record: PdfTranslateRecord) => void;
 	/** Discard an unpinned result when its card is dismissed. */
@@ -133,6 +142,9 @@ export function usePdfSelectionTranslate({
 	const stopTranslateSession = useCallback(() => {
 		translateGenerationRef.current += 1;
 		translateRunIdRef.current = null;
+		const unsubs = translateUnsubsRef.current;
+		translateUnsubsRef.current = null;
+		if (unsubs) for (const unsubscribe of unsubs) unsubscribe();
 		const sid = translateSessionRef.current;
 		if (sid) {
 			void cancelAgentRun(sid).catch(() => undefined);
@@ -270,22 +282,40 @@ export function usePdfSelectionTranslate({
 	);
 
 	const translateSelection = useCallback(
-		(anchor: PdfAskAnchor) => {
+		(
+			anchor: PdfAskAnchor,
+			requestedMode?: SelectionTranslateMode,
+			existing?: PdfTranslateRecord,
+		) => {
 			const quote = anchor.quote?.trim();
 			if (!quote || !isActive) return;
+			const results = { ...existing?.results };
+			if (existing?.result?.trim() && !existing.error && !existing.mode)
+				results[existing.mode ?? selectionTranslateMode(quote)] =
+					existing.result;
+			const mode =
+				requestedMode ??
+				selectionTranslateMode(quote, loadSettings().translate.dictionary.mode);
 			stopTranslateSession();
 			const paperPath = paperRelPath || paperAbsPath || "paper";
 			const paperKey = paperRelPath || paperAbsPath || null;
-			const rec = createTranslateRecord({
-				paperPath,
-				page: anchor.page,
-				rects: anchor.rects,
-				selectionPages: anchor.selectionPages,
-				quote,
-			});
+			const rec: PdfTranslateRecord = {
+				...(existing ??
+					createTranslateRecord({
+						paperPath,
+						page: anchor.page,
+						rects: anchor.rects,
+						selectionPages: anchor.selectionPages,
+						quote,
+					})),
+				mode,
+				results,
+				result: "",
+				error: undefined,
+			};
 			let currentRecord = upsertTranslate(rec);
 			protectedTranslateIdsRef.current.add(rec.id);
-			temporaryTranslateIdsRef.current.add(rec.id);
+			if (!rec.pinned) temporaryTranslateIdsRef.current.add(rec.id);
 			openCard({ kind: "translate", id: rec.id });
 			const generation = translateGenerationRef.current;
 			translateRunIdRef.current = rec.id;
@@ -299,6 +329,7 @@ export function usePdfSelectionTranslate({
 				currentRecord = upsertTranslate({
 					...currentRecord,
 					result: result.trim(),
+					results: { ...currentRecord.results, [mode]: result.trim() },
 					updatedAt: new Date().toISOString(),
 					error: undefined,
 				});
@@ -311,8 +342,13 @@ export function usePdfSelectionTranslate({
 				return true;
 			};
 
+			if (results[mode]) {
+				commitResult(results[mode]);
+				return;
+			}
 			void runSelectionTranslate({
 				text: quote,
+				mode,
 				context: {
 					page: anchor.page,
 					surface: "pdf-selection",
@@ -354,7 +390,9 @@ export function usePdfSelectionTranslate({
 					});
 				},
 				commitAgentResult: (ev) =>
-					commitResult(ev.content || currentRecord.result || ""),
+					ev.stopReason === "cancelled"
+						? false
+						: commitResult(ev.content || currentRecord.result || ""),
 				commitProviderResult: commitResult,
 				markFailed: (message) => {
 					if (!isCurrentRun()) return;
