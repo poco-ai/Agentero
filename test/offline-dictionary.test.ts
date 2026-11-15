@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commands } from "@/lib/core/bindings";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
+import { glossaryConstraint } from "@/lib/translate/glossary";
 import {
 	dictionaryEntriesForContext,
 	lookupDictionary,
@@ -7,6 +9,7 @@ import {
 } from "@/lib/translate/lexicon";
 import { buildTranslateMessages } from "@/lib/translate/prompt";
 import { defaultGlossaryConstraint } from "@/lib/translate/terminology";
+import compoundFixture from "./fixtures/translate-compounds.json";
 
 vi.mock("@/lib/core/tauri", () => ({ isTauri: () => true }));
 vi.mock("@/lib/core/bindings", () => ({
@@ -14,6 +17,32 @@ vi.mock("@/lib/core/bindings", () => ({
 }));
 
 describe("bundled dictionary", () => {
+	it("matches complete compounds consistently with the Host and keeps standalone acronyms", () => {
+		for (const test of compoundFixture.cases) {
+			const constraint = glossaryConstraint(
+				JSON.stringify(compoundFixture.glossary),
+				test.text,
+			);
+			expect(constraint ? JSON.parse(constraint.split("\n")[1]) : {}).toEqual(
+				test.expected,
+			);
+		}
+		for (const term of [
+			"LLM-as-a-Judge",
+			"llm-as-a-judge",
+			"LLM as a Judge",
+			"LLM‑as‑a‑Judge",
+		]) {
+			expect(isDictionaryLookup(term)).toBe(true);
+			const constraint = defaultGlossaryConstraint(
+				"",
+				`We use ${term} to evaluate answers.`,
+				"zh-CN",
+			);
+			const terms = JSON.parse(constraint.split("\n")[1]);
+			expect(Object.values(terms)).toEqual(["大模型评审"]);
+		}
+	});
 	beforeEach(() => vi.mocked(commands.dictionaryLookup).mockReset());
 	it("looks up locally and reuses normalized queries without a second Host call", async () => {
 		vi.mocked(commands.dictionaryLookup).mockResolvedValue({

@@ -13,6 +13,7 @@
  * consumer's `markFailed` decides whether it stops).
  */
 
+import i18n from "@/i18n";
 import { type AgentResultPayload, attachAgentRun, runOnce } from "@/lib/agent";
 import type { AgentRunRefs } from "@/lib/agent/run-attach";
 import { errorText } from "@/lib/core/error";
@@ -22,6 +23,7 @@ import {
 	getAgentTranslateSessionId,
 	setAgentTranslateSessionId,
 } from "@/lib/pdf/translate/agent-session-cache";
+import { loadSettings } from "@/lib/settings";
 import {
 	buildTranslatePrompt,
 	displayTranslateError,
@@ -29,18 +31,27 @@ import {
 	resolveConfiguredTranslateAgent,
 	runTranslate,
 } from "@/lib/translate";
-import { isDictionaryLookup } from "@/lib/translate/dictionary";
+import { selectionTranslateMode } from "@/lib/translate/dictionary";
+import {
+	dictionaryCacheKey,
+	readDictionaryCache,
+	writeDictionaryCache,
+} from "@/lib/translate/dictionary-cache";
 import {
 	contextualDictionaryResult,
 	dictionaryEntriesForContext,
 	lookupDictionary,
 	renderDictionaryEntries,
 } from "@/lib/translate/lexicon";
-import type { TranslateTask } from "@/lib/translate/types";
+import type {
+	SelectionTranslateMode,
+	TranslateTask,
+} from "@/lib/translate/types";
 
 export type RunSelectionTranslateOptions = AgentRunRefs & {
 	/** Source text to translate. */
 	text: string;
+	mode?: SelectionTranslateMode;
 	/** Provenance shared by the task context and the agent prompt. */
 	context: NonNullable<TranslateTask["context"]>;
 	/** Session-cache key (paper path or web URL; null disables reuse). */
@@ -77,6 +88,7 @@ export type RunSelectionTranslateOptions = AgentRunRefs & {
  */
 export async function runSelectionTranslate({
 	text,
+	mode,
 	context,
 	paperKey,
 	vaultPath,
@@ -104,8 +116,55 @@ export async function runSelectionTranslate({
 		text,
 		context,
 	});
+	const settings = loadSettings().translate;
+	const dictionary =
+		(mode ?? selectionTranslateMode(text, settings.dictionary.mode)) ===
+		"dictionary";
+	context = { ...context, dictionary };
+	let cacheKey: string | undefined;
+	const cachedResult = async (agent?: {
+		agentId?: string;
+		modelId?: string;
+	}) => {
+		if (disposedRef.current) return true;
+		if (!dictionary) return false;
+		try {
+			cacheKey = await dictionaryCacheKey({
+				text: text.trim(),
+				uiLanguage: i18n.language,
+				targetLangName,
+				sourceLang: task.sourceLang,
+				targetLang: task.targetLang,
+				providerId,
+				config:
+					settings.providerConfigs[
+						providerId as keyof typeof settings.providerConfigs
+					],
+				agent,
+				customPrompt,
+				customSystem,
+				customUser,
+				glossary,
+				surrounding: context.dictionarySurrounding ?? "",
+				reference: localEntry,
+			});
+			const result = await readDictionaryCache(cacheKey, vaultPath);
+			if (disposedRef.current) return true;
+			if (result) {
+				commitProviderResult(result);
+				return true;
+			}
+		} catch {
+			/* Cache availability must never block lookup. */
+		}
+		return disposedRef.current;
+	};
+	const saveResult = (result: string) => {
+		if (cacheKey && !disposedRef.current && result.trim())
+			void writeDictionaryCache(cacheKey, result, vaultPath);
+	};
 	let localEntry = "";
-	if (isDictionaryLookup(text)) {
+	if (dictionary) {
 		let entries = await lookupDictionary(text, task.targetLang);
 		if (disposedRef.current) return;
 		entries = dictionaryEntriesForContext(
@@ -116,6 +175,7 @@ export async function runSelectionTranslate({
 		localEntry = renderDictionaryEntries(entries, task.targetLang);
 		if (localEntry) {
 			if (
+				settings.dictionary.mode === "offline-first" ||
 				!context.dictionarySurrounding ||
 				!["agent", "openaiCompatible"].includes(providerId)
 			) {
@@ -142,6 +202,7 @@ export async function runSelectionTranslate({
 	if (providerId === "agent") {
 		const prompt = buildTranslatePrompt({
 			text,
+			dictionary,
 			targetLangName,
 			page: context.page,
 			surface: context.surface,
@@ -160,6 +221,7 @@ export async function runSelectionTranslate({
 				fail(msg);
 				return;
 			}
+			if (await cachedResult(resolved)) return;
 			const agentId = resolved.agentId;
 			const modelId = resolved.modelId;
 			const accepted = await runOnce({
@@ -186,6 +248,8 @@ export async function runSelectionTranslate({
 					const current = commitAgentResult(
 						localEntry ? { ...ev, content: withContext(ev.content) } : ev,
 					);
+					if (current && ev.stopReason !== "cancelled" && ev.content.trim())
+						saveResult(withContext(ev.content));
 					if (
 						current &&
 						ev.providerSessionId &&
@@ -217,12 +281,29 @@ export async function runSelectionTranslate({
 	}
 
 	try {
+		if (await cachedResult()) return;
 		const result = await runTranslate(
-			{ text, context },
-			{ providerId, onDelta: localEntry ? undefined : appendChunk },
+			{
+				text,
+				context,
+				sourceLang: task.sourceLang,
+				targetLang: task.targetLang,
+			},
+			{
+				providerId,
+				customPrompt,
+				customSystem,
+				customUser,
+				providerConfig:
+					settings.providerConfigs[
+						providerId as keyof typeof settings.providerConfigs
+					],
+				onDelta: localEntry ? undefined : appendChunk,
+			},
 		);
 		if (disposedRef.current) return;
 		commitProviderResult(withContext(result.trim()));
+		saveResult(withContext(result.trim()));
 	} catch (e) {
 		if (disposedRef.current) return;
 		const message = displayTranslateError(errorText(e));

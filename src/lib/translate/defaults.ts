@@ -6,6 +6,7 @@ import type {
 export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	/** Prefer Tencent Transmart: current no-key default with better availability. */
 	provider: "tencenttransmart",
+	dictionary: { mode: "auto" },
 	targetLang: "ui",
 	sourceLang: "auto",
 	providerConfigs: {},

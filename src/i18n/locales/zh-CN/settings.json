@@ -584,7 +584,14 @@
 				"description": "保存构建完成的译文 PDF，每篇约 25 MB。"
 			},
 			"tip": "关闭开关只停止写入新文件，已有缓存仍会复用。",
-			"reset": "还原默认"
+			"reset": "还原默认",
+			"dictionary": {
+				"label": "查词缓存",
+				"description": "查词和语境结果保留 30 天。清除当前知识库缓存，内置词典仍可使用。",
+				"clear": "清除",
+				"clearFailed": "无法清除查词缓存。",
+				"cleared": "已清除"
+			}
 		},
 		"providerConfig": {
 			"section": "API 服务",
@@ -644,7 +651,16 @@
 		"autoTranslation": {
 			"section": "自动翻译"
 		},
-		"dictionaryIncluded": "已内置离线英汉词典与 AI 术语，无需配置。"
+		"dictionaryIncluded": "已内置离线英汉词典与 AI 术语，无需配置。",
+		"dictionaryMode": {
+			"label": "划词词典",
+			"auto": "自动",
+			"offline-first": "离线优先",
+			"off": "关闭",
+			"autoDescription": "先显示本地释义，再由当前 AI 服务解释本文语境。",
+			"offline-firstDescription": "命中本地词典后不请求模型；未收录的词使用当前翻译服务。",
+			"offDescription": "所有选区默认翻译，仍可从结果卡片手动切换到词典。"
+		}
 	},
 	"layout": {
 		"title": "版面解析",

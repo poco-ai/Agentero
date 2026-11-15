@@ -301,14 +301,16 @@
 		"translateNoAgent": "没有可用的 Agent 进行翻译，请先在设置 → Agent 中配置。",
 		"translateOpenSettings": "打开翻译设置",
 		"switchToTranslate": "翻译选区",
-		"switchToDictionary": "词典模式",
+		"switchToDictionary": "查看词典",
 		"dictionaryPaperDef": "文中定义",
 		"annotationCount": "{{count}} 条批注",
 		"locateSource": "定位原文",
 		"chatSource": "聊天消息",
 		"sourcePage": "第 {{page}} 页",
 		"sourceUnavailable": "来源暂不可用，或原文已改动、存在多处匹配。引用原文仍保留在批注中。",
-		"dictionaryContext": "本文语境 · AI"
+		"dictionaryContext": "本文语境 · AI",
+		"dictionaryAiEngineeringSource": "AI Engineering",
+		"switchToTranslation": "翻译选区"
 	},
 	"html": {
 		"empty": "暂无论文。",

@@ -33,7 +33,11 @@ export type TranslateTargetLang = "ui" | "en" | "zh-CN";
 
 export type TranslateSourceLang = "auto";
 
+export type DictionaryMode = "auto" | "offline-first" | "off";
+export type SelectionTranslateMode = "dictionary" | "translate";
+
 export type TranslateSettings = {
+	dictionary: { mode: DictionaryMode };
 	/** App-wide default provider. */
 	provider: TranslateProviderId;
 	targetLang: TranslateTargetLang;
@@ -141,6 +145,7 @@ export type TranslateTask = {
 		quote?: string;
 		/** e.g. "pdf-selection" */
 		surface?: string;
+		dictionary?: boolean;
 		dictionarySurrounding?: string;
 		dictionaryReference?: string;
 	};

@@ -37,6 +37,7 @@ async function renderCard(
 	screen: Parameters<typeof TranslateCard>[0]["screen"] = { x: 600, y: 200 },
 	text = result,
 	sourceText?: string,
+	options?: Pick<Parameters<typeof TranslateCard>[0], "mode" | "onModeChange">,
 ) {
 	await act(() =>
 		root.render(
@@ -52,6 +53,7 @@ async function renderCard(
 					onOpenSettings: vi.fn(),
 					onTogglePin,
 					onHide,
+					...options,
 				}),
 			),
 		),
@@ -326,4 +328,23 @@ it("keeps a sentence in the translation card", async () => {
 	);
 	expect(card.getAttribute("aria-label")).toBe("selection.translateTitle");
 	expect(card.textContent).not.toContain("The image has high resolution.");
+});
+
+it("keeps an explicit translation view for a word and exposes the dictionary switch", async () => {
+	const onModeChange = vi.fn();
+	const card = await renderCard(
+		vi.fn(),
+		vi.fn(),
+		{ x: 600, y: 200 },
+		"注意力",
+		"attention",
+		{ mode: "translate", onModeChange },
+	);
+	expect(card.getAttribute("aria-label")).toBe("selection.translateTitle");
+	const button = card.querySelector<HTMLButtonElement>(
+		'[aria-label="selection.switchToDictionary"]',
+	);
+	expect(button).not.toBeNull();
+	await act(() => button?.click());
+	expect(onModeChange).toHaveBeenCalledWith("dictionary");
 });

@@ -366,6 +366,8 @@ pub struct LibraryColumnPref {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslateSettings {
+    #[serde(default)]
+    pub dictionary: DictionarySettings,
     #[serde(default = "default_translate_provider")]
     pub provider: String,
     #[serde(default = "default_translate_target")]
@@ -419,6 +421,7 @@ pub struct TranslateSettings {
 impl Default for TranslateSettings {
     fn default() -> Self {
         Self {
+            dictionary: DictionarySettings::default(),
             provider: default_translate_provider(),
             target_lang: default_translate_target(),
             source_lang: default_translate_source(),
@@ -436,6 +439,24 @@ impl Default for TranslateSettings {
             cache_reflow_final: false,
             auto_translate_import: false,
             auto_translate_import_concurrency: default_auto_translate_import_concurrency(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
+pub struct DictionarySettings {
+    #[serde(default = "default_dictionary_mode")]
+    pub mode: String,
+}
+
+fn default_dictionary_mode() -> String {
+    "auto".into()
+}
+
+impl Default for DictionarySettings {
+    fn default() -> Self {
+        Self {
+            mode: default_dictionary_mode(),
         }
     }
 }
@@ -1359,6 +1380,12 @@ fn normalize(s: &mut AppSettings) {
     );
     if s.batch_import_concurrency < 1 || s.batch_import_concurrency > 10 {
         s.batch_import_concurrency = default_batch_import_concurrency();
+    }
+    if !matches!(
+        s.translate.dictionary.mode.as_str(),
+        "auto" | "offline-first" | "off"
+    ) {
+        s.translate.dictionary.mode = default_dictionary_mode();
     }
     if s.translate.auto_translate_import_concurrency < 1
         || s.translate.auto_translate_import_concurrency > MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY
@@ -2575,6 +2602,33 @@ mod tests {
             assert!(existed);
             assert_eq!(loaded.layout.parser_backend, "local");
             assert_eq!(loaded.layout.backend, layout_backend);
+        }
+    }
+
+    #[test]
+    fn dictionary_modes_preserve_settings_and_default_legacy_values() {
+        for (raw, expected) in [
+            (serde_json::json!({}), "auto"),
+            (
+                serde_json::json!({"dictionary": {"mode": "unknown"}}),
+                "auto",
+            ),
+            (
+                serde_json::json!({"dictionary": {"mode": "offline-first"}}),
+                "offline-first",
+            ),
+            (serde_json::json!({"dictionary": {"mode": "off"}}), "off"),
+        ] {
+            let mut app = AppSettings {
+                translate: serde_json::from_value(raw).unwrap(),
+                ..AppSettings::default()
+            };
+            normalize(&mut app);
+            let settings = app.translate;
+            assert_eq!(settings.dictionary.mode, expected);
+            let encoded = serde_json::to_value(&settings).unwrap();
+            let restored: TranslateSettings = serde_json::from_value(encoded).unwrap();
+            assert_eq!(restored, settings);
         }
     }
 

@@ -1,10 +1,12 @@
 /** Reproduce the small, licensed AI glossary snapshot; never fetch on user lookup. */
+
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { aiGlossary } = JSON.parse(
+const { aiGlossary, aiEngineering } = JSON.parse(
 	fs.readFileSync(path.join(root, "resources/dictionary/sources.json"), "utf8"),
 );
 const pages = [
@@ -84,6 +86,57 @@ for (const page of pages) {
 }
 if (terms.length !== 148)
 	throw new Error(`Unexpected snapshot size: ${terms.length}`);
+
+// Import only reviewed compound entries, keeping the rest of the tutorial out
+// of the product and preserving the exact pinned source and license notice.
+const compoundDir = process.argv.indexOf("--compound-source-dir");
+const compoundUrl = `${aiEngineering.repository}/blob/${aiEngineering.revision}/${aiEngineering.file}`;
+let compoundBytes;
+if (compoundDir >= 0)
+	compoundBytes = fs.readFileSync(
+		path.join(process.argv[compoundDir + 1], aiEngineering.file),
+	);
+else {
+	const response = await fetch(
+		compoundUrl
+			.replace("https://github.com/", "https://raw.githubusercontent.com/")
+			.replace("/blob/", "/"),
+		{ signal: AbortSignal.timeout(30000) },
+	);
+	if (!response.ok)
+		throw new Error(`Compound glossary: HTTP ${response.status}`);
+	compoundBytes = Buffer.from(await response.arrayBuffer());
+}
+if (
+	createHash("sha256").update(compoundBytes).digest("hex") !==
+	aiEngineering.sha256
+)
+	throw new Error("Compound glossary checksum mismatch");
+const blocks = new Map(
+	compoundBytes
+		.toString("utf8")
+		.split(/^### /m)
+		.slice(1)
+		.map((block) => {
+			const [headword, ...lines] = block.split(/\r?\n/);
+			return [headword.trim(), lines.join("\n")];
+		}),
+);
+for (const [headword, translation] of Object.entries(
+	aiEngineering.displayTranslations,
+)) {
+	const definition = blocks
+		.get(headword)
+		?.match(/^- \*\*实际含义[:：]\*\*\s*(.+)$/m)?.[1];
+	if (!definition) throw new Error(`Missing compound definition: ${headword}`);
+	terms.push({
+		aliases: [headword],
+		translation,
+		definition: plain(definition),
+		source: "ai-engineering",
+		url: `${compoundUrl}#${headword.toLowerCase()}`,
+	});
+}
 const destination = path.join(root, "src/lib/translate/data/ai-terms.json");
 const serialized = `${JSON.stringify(terms, null, "\t")}\n`;
 if (process.argv.includes("--check")) {

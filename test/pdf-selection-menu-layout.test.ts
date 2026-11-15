@@ -556,3 +556,38 @@ it.each([
 	expect(await pressKey("c")).toBe(true);
 	expect(writeText).toHaveBeenCalledExactlyOnceWith("previous translation");
 });
+
+it("updates the word action to translation immediately when dictionary mode is off", async () => {
+	const original = settingsStore.getState().translate;
+	try {
+		await act(() =>
+			settingsStore.setState({
+				translate: { ...original, dictionary: { mode: "auto" } },
+			}),
+		);
+		await render({ selectionText: "attention" });
+		const action = () =>
+			container.querySelector<HTMLButtonElement>('[aria-keyshortcuts="T"]');
+		expect(action()?.getAttribute("aria-label")).toContain(
+			"selection.dictionaryTitle",
+		);
+		await act(() =>
+			settingsStore.setState({
+				translate: { ...original, dictionary: { mode: "off" } },
+			}),
+		);
+		expect(action()?.getAttribute("aria-label")).toContain(
+			"selection.translate",
+		);
+		await act(() =>
+			settingsStore.setState({
+				translate: { ...original, dictionary: { mode: "offline-first" } },
+			}),
+		);
+		expect(action()?.getAttribute("aria-label")).toContain(
+			"selection.dictionaryTitle",
+		);
+	} finally {
+		await act(() => settingsStore.setState({ translate: original }));
+	}
+});

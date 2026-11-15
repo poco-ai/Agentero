@@ -301,7 +301,7 @@
 		"translateNoAgent": "No available Agent for translation. Configure one in Settings → Agent.",
 		"translateOpenSettings": "Open translation settings",
 		"switchToTranslate": "Translate selection",
-		"switchToDictionary": "Dictionary mode",
+		"switchToDictionary": "Look up word",
 		"dictionaryPaperDef": "Definition in paper",
 		"annotationCount_one": "{{count}} annotation",
 		"annotationCount_other": "{{count}} annotations",
@@ -309,7 +309,9 @@
 		"chatSource": "Chat message",
 		"sourcePage": "Page {{page}}",
 		"sourceUnavailable": "The source is unavailable, changed, or matches more than one location. The original quote is preserved.",
-		"dictionaryContext": "In context · AI"
+		"dictionaryContext": "In context · AI",
+		"dictionaryAiEngineeringSource": "AI Engineering",
+		"switchToTranslation": "Translate selection"
 	},
 	"html": {
 		"empty": "No paper available.",

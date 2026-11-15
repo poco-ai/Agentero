@@ -572,6 +572,7 @@ export function SettingsContent({
 							<Suspense fallback={<PaneFallback />}>
 								<TranslatePane
 									settings={settings}
+									vaultPath={vaultPath}
 									patch={patch}
 									onOpenAgentSettings={() => onSectionChange("agent")}
 								/>

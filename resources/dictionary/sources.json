@@ -6,6 +6,15 @@
 		"sha256": "1a6947e04785db63613a92e14903cdae7954f7e84860b10e68e5c7cbb3f9c3cf",
 		"license": "MIT"
 	},
+	"aiEngineering": {
+		"repository": "https://github.com/fancyboi999/ai-engineering-from-scratch-zh",
+		"revision": "2a9d8d23e65723f48c1ee5c82f122258e6229932",
+		"file": "glossary/terms.md",
+		"sha256": "9cc40282877c098b72173eb25b4b75c68ce803ab5ab322ccbf84acb169e430e6",
+		"license": "MIT",
+		"displayTranslations": { "LLM-as-a-Judge": "大模型评审" },
+		"transformation": "Only the selected compound headword and its meaning line; Chinese display name localized by Agentero. No lessons, examples, images or other glossary entries redistributed."
+	},
 	"aiGlossary": {
 		"repository": "https://github.com/JingHao-Leon/ai-llm-glossary",
 		"revision": "abc74818e14884f0e28fe6465c2328c68f9aae53",

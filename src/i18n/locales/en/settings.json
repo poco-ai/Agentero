@@ -584,7 +584,14 @@
 				"description": "Saves the built translated PDF. Each paper takes about 25 MB."
 			},
 			"tip": "Turning a switch off only stops new writes; existing entries keep being reused.",
-			"reset": "Restore defaults"
+			"reset": "Restore defaults",
+			"dictionary": {
+				"label": "Word lookup cache",
+				"description": "Completed word and context results are reused for 30 days. Clear for the current Vault; bundled dictionaries stay available.",
+				"clear": "Clear",
+				"clearFailed": "Could not clear the word lookup cache.",
+				"cleared": "Cleared"
+			}
 		},
 		"providerConfig": {
 			"section": "API Services",
@@ -644,7 +651,16 @@
 		"autoTranslation": {
 			"section": "Auto-translate"
 		},
-		"dictionaryIncluded": "Offline English–Chinese dictionary and AI terminology are included. No setup needed."
+		"dictionaryIncluded": "Offline English–Chinese dictionary and AI terminology are included. No setup needed.",
+		"dictionaryMode": {
+			"label": "Word lookup",
+			"auto": "Automatic",
+			"offline-first": "Offline first",
+			"off": "Off",
+			"autoDescription": "Show local definitions, then explain the context with your configured AI service.",
+			"offline-firstDescription": "Use local definitions when available. Only request your service for missing words.",
+			"offDescription": "Translate every selection. You can still open the dictionary from a result card."
+		}
 	},
 	"layout": {
 		"title": "Layout Analysis",

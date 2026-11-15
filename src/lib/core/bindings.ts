@@ -2981,6 +2981,10 @@ export type DictionaryEntry = {
 	sourceUrl: string,
 };
 
+export type DictionarySettings = {
+	mode?: string,
+};
+
 export type DoctorApplyAliasesArgs = {
 	vaultPath: string,
 	changes: AliasRepairChange[],
@@ -5833,6 +5837,7 @@ export type TranslateProviderConfig = {
 };
 
 export type TranslateSettings = {
+	dictionary?: DictionarySettings,
 	provider?: string,
 	targetLang?: string,
 	sourceLang?: string,
