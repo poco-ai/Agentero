@@ -728,6 +728,14 @@ function normalizeTranslateSettings(
 	if (raw.targetLang && isTranslateTargetLang(raw.targetLang)) {
 		base.targetLang = raw.targetLang;
 	}
+	const dictionaryMode = raw.dictionary?.mode;
+	if (
+		dictionaryMode === "auto" ||
+		dictionaryMode === "offline-first" ||
+		dictionaryMode === "off"
+	) {
+		base.dictionary = { mode: dictionaryMode };
+	}
 	if (raw.sourceLang === "auto") {
 		base.sourceLang = "auto";
 	}

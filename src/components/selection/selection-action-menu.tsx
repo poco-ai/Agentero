@@ -9,6 +9,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import {
 	SelectionToolbar,
 	SelectionToolbarAction,
@@ -28,12 +29,13 @@ import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { clamp } from "@/lib/core/math";
+import { settingsStore } from "@/lib/settings/react-store";
 import {
 	matchesAriaShortcut,
 	matchShortcut,
 	type ShortcutDef,
 } from "@/lib/shell/shortcuts";
-import { isDictionaryLookup } from "@/lib/translate/dictionary";
+import { selectionTranslateMode } from "@/lib/translate/dictionary";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 /**
@@ -167,6 +169,12 @@ export function SelectionActionMenu({
 	collapsedWidth = 0,
 }: SelectionActionMenuProps) {
 	const { t } = useTranslation("viewer");
+	const dictionarySetting = useStore(
+		settingsStore,
+		(state) => state.translate.dictionary.mode,
+	);
+	const dictionary =
+		selectionTranslateMode(selectionText, dictionarySetting) === "dictionary";
 	// Suspend dockview drag-and-drop while this toolbar floats over the tab
 	// strip so a stray drag cannot split the layout (#608).
 	useSelectionOverlayGuard();
@@ -362,14 +370,12 @@ export function SelectionActionMenu({
 				{onTranslate ? (
 					<SelectionToolbarIconButton
 						label={t(
-							isDictionaryLookup(selectionText)
-								? "selection.dictionaryTitle"
-								: "selection.translate",
+							dictionary ? "selection.dictionaryTitle" : "selection.translate",
 						)}
 						shortcut="T"
 						onClick={onTranslate}
 					>
-						{isDictionaryLookup(selectionText) ? (
+						{dictionary ? (
 							<BookA className="size-3.5" />
 						) : (
 							<Languages className="size-3.5" />
