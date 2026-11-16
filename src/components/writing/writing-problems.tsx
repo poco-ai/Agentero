@@ -5,7 +5,12 @@
  * there are errors, which is how a failed compile is reported here.
  */
 
-import { FileText, MessageSquare, Square, TriangleAlert } from "lucide-react";
+import {
+	FileText,
+	MessageSquarePlus,
+	Square,
+	TriangleAlert,
+} from "lucide-react";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
@@ -194,7 +199,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 							return (
 								<div
 									key={row.key}
-									className="flex items-start gap-1 rounded px-1 py-1 hover:bg-muted"
+									className="group/row relative flex items-start gap-1 rounded px-1 py-1 hover:bg-muted"
 								>
 									<button
 										type="button"
@@ -212,7 +217,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 											{row.message}
 										</span>
 										{row.where ? (
-											<span className="shrink-0 font-mono text-[0.65rem] text-muted-foreground">
+											<span className="min-w-6 shrink-0 text-right font-mono text-[0.65rem] text-muted-foreground group-hover/row:invisible group-has-[:focus-visible]/row:invisible [@media(hover:none)]:invisible">
 												{row.where}
 											</span>
 										) : null}
@@ -221,10 +226,10 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 										type="button"
 										aria-label={t("askAgent")}
 										title={t("askAgent")}
-										className="text-muted-foreground hover:text-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded"
+										className="pointer-events-none absolute top-1 right-1 flex size-6 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity duration-100 hover:bg-background hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-has-[:focus-visible]/row:pointer-events-auto group-has-[:focus-visible]/row:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
 										onClick={() => askAgent(row)}
 									>
-										<MessageSquare className="size-3.5" aria-hidden />
+										<MessageSquarePlus className="size-4" aria-hidden />
 									</button>
 								</div>
 							);
@@ -279,13 +284,13 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 										<div
 											key={row.key}
 											className={cn(
-												"flex items-start gap-1 border-b border-border px-1 py-1 last:border-b-0 hover:bg-muted",
+												"group/row relative flex items-start gap-1 border-b border-border px-1 py-1 last:border-b-0 hover:bg-muted",
 												selected === row.key && "bg-muted",
 											)}
 										>
 											<button
 												type="button"
-												className="flex min-w-0 flex-1 items-start gap-2 px-1 py-0.5 text-left"
+												className="flex min-w-0 flex-1 items-start gap-2 px-1 py-0.5 pr-7 text-left"
 												onClick={() => {
 													row.jump();
 													focusLog(row);
@@ -306,10 +311,10 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 												type="button"
 												aria-label={t("askAgent")}
 												title={t("askAgent")}
-												className="text-muted-foreground hover:text-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded"
+												className="pointer-events-none absolute top-1 right-1 flex size-6 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity duration-100 hover:bg-background hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-has-[:focus-visible]/row:pointer-events-auto group-has-[:focus-visible]/row:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
 												onClick={() => askAgent(row)}
 											>
-												<MessageSquare className="size-3.5" aria-hidden />
+												<MessageSquarePlus className="size-4" aria-hidden />
 											</button>
 										</div>
 									);
