@@ -158,12 +158,6 @@ export function TranslatePane({
 			patch({ translate: { ...tr, ...partial } }),
 		[patch, tr],
 	);
-	// The built-in channel stays implemented, but it is no longer offered here.
-	// A stored selection is moved to the free default so the picker is not blank.
-	useEffect(() => {
-		if (tr.provider !== BUILTIN_PROVIDER_ID) return;
-		patchTranslate({ provider: DEFAULT_TRANSLATE_SETTINGS.provider });
-	}, [tr.provider, patchTranslate]);
 	const showAgent = tr.provider === "agent";
 	const getProviderConfig = useCallback(
 		(id: CommercialTranslateProviderId): TranslateProviderConfig =>
@@ -171,13 +165,12 @@ export function TranslatePane({
 		[tr.providerConfigs],
 	);
 	/**
-	 * Free MT + Agent always; commercial only when configured (or currently
-	 * selected). The built-in channel is omitted from this picker.
+	 * Free MT, hosted Agentero and Agent always; commercial only when configured
+	 * (or currently selected). Hosted Agentero uses the signed-in account.
 	 */
 	const providers = useMemo(
 		() =>
 			listSelectableProviders().filter((s) => {
-				if (s.id === BUILTIN_PROVIDER_ID) return false;
 				if (!isCommercialTranslateProvider(s.id)) return true;
 				if (tr.provider === s.id) return true;
 				return isCommercialProviderConfigured(s.id, getProviderConfig(s.id));

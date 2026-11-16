@@ -13,6 +13,7 @@ import {
 	requestAuth,
 	signOut,
 } from "tauri-plugin-better-auth/client";
+import { CloudCapabilities } from "@/components/settings/capabilities";
 import { CloudUsageLine } from "@/components/settings/cloud-usage";
 import { Button } from "@/components/ui/button";
 import { accountWebOrigin } from "@/features/account/client";
@@ -76,6 +77,7 @@ function SignedInAccount() {
 				<p className="text-sm font-medium">{t("cloudSync.title")}</p>
 				<CloudUsageLine subject="user" namespace="account" />
 			</div>
+			<CloudCapabilities user={user.id} />
 			<div className="space-y-2">
 				<div className="flex items-center justify-between gap-3">
 					<p className="text-sm font-medium">{t("teams")}</p>

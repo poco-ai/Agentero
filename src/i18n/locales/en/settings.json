@@ -374,7 +374,10 @@
 				"ok": "Reachable",
 				"failed": "Unreachable",
 				"unconfigured": "Not configured"
-			}
+			},
+			"agentero": "Agentero Embedding",
+			"agenteroHint": "Use an Agentero account API key. Account allowances and overage settings apply. Switching clears the previous provider key.",
+			"useAgentero": "Use Agentero"
 		},
 		"desktopOnly": "Agent registry requires the desktop app.",
 		"desktopHint": "Run `pnpm tauri dev` to scan agents on this machine.",
@@ -531,7 +534,7 @@
 		"title": "Translate",
 		"provider": {
 			"label": "Default service",
-			"agentero": "Agentero built-in",
+			"agentero": "Agentero cloud (personal account)",
 			"cnki": "CNKI Translate",
 			"huoshanweb": "Volcengine Web",
 			"tencenttransmart": "Tencent Transmart",

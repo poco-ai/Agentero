@@ -3,10 +3,8 @@
  * Used by Settings → Translate when the default-service Select opens or on Confirm.
  */
 
-import {
-	BUILTIN_PROVIDER_ID,
-	loadBuiltinProviderStatus,
-} from "@/lib/core/builtin";
+import { authClient } from "@/features/account/client";
+import { BUILTIN_PROVIDER_ID } from "@/lib/core/builtin";
 import { hasSecret, isSecretMask } from "@/lib/core/secret-mask";
 import { isTauri } from "@/lib/core/tauri";
 import { invokeTranslateText } from "@/lib/translate/api";
@@ -86,24 +84,21 @@ async function probeOne(
 }
 
 /**
- * Probe all free MT engines in parallel, the built-in included (its probe
- * fires one real "Hi" translation through the Host-injected credential).
+ * Probe free MT engines in parallel. Hosted Agentero only checks sign-in:
+ * opening a provider picker must never create a billable translation.
  * Results stream via `onResult`; returned map is the final snapshot.
- *
- * The built-in resolves to `false` without a request when
- * `builtinProviderStatus` says it is unavailable — probing then would only
- * re-report the deterministic no-key failure.
  */
 export async function probeFreeMtProviders(
 	opts: ProbeFreeMtOptions = {},
 ): Promise<Record<FreeTranslateProviderId, boolean>> {
-	const builtinReady = (await loadBuiltinProviderStatus())?.available ?? false;
+	const builtinReady = await authClient
+		.getSession()
+		.then((result) => !!result.data?.user.id)
+		.catch(() => false);
 	const results = await Promise.all(
 		FREE_MT_PROVIDER_IDS.map(async (id) => {
 			const ok =
-				id === BUILTIN_PROVIDER_ID && !builtinReady
-					? false
-					: await probeOne(id, opts);
+				id === BUILTIN_PROVIDER_ID ? builtinReady : await probeOne(id, opts);
 			opts.onResult?.(id, ok);
 			return [id, ok] as const;
 		}),
