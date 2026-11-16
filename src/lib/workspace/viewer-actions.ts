@@ -598,7 +598,7 @@ export function splitActivePane(): void {
 
 	// NOTES (or an extra note inside a paper folder) → back to the body.
 	const paperBody = findPaperBodyForNotes(tabs, active);
-	if (paperBody) {
+	if (paperBody && dockHandle()?.canActivatePanel(paperBody.id)) {
 		dockHandle()?.activatePanel(paperBody.id);
 		setActiveTabId(paperBody.id);
 		return;
@@ -622,7 +622,10 @@ export function splitActivePane(): void {
 
 	if (tabNotesEligible(active) && active.notesPath) {
 		const notesId = tabIdForPath(active.notesPath);
-		if (tabs.some((t) => t.id === notesId)) {
+		if (
+			tabs.some((t) => t.id === notesId) &&
+			dockHandle()?.canActivatePanel(notesId) === true
+		) {
 			// Already open somewhere: reveal it instead of a second body pane.
 			if (dockHandle()?.isMaximizedPanel?.()) {
 				dockHandle()?.exitMaximizedPanel?.();
@@ -631,6 +634,9 @@ export function splitActivePane(): void {
 			setActiveTabId(notesId);
 			return;
 		}
+		// A restored layout can keep a notes tab in state without a dock panel;
+		// drop it so the split below registers a real, visible panel.
+		setTabs((prev) => prev.filter((t) => t.id !== notesId));
 		const notesPane = createNotesSplitPane(active);
 		if (!notesPane) return;
 		setTabs((prev) =>
