@@ -18,6 +18,7 @@ export {
 	applyMarkdownConflictChoice,
 	createNotesSplitPane,
 	findNotesPaneForReplacement,
+	findPaperBodyForNotes,
 	isPaperContentTab,
 	paperReadingPlacements,
 	readingPairCloseIds,

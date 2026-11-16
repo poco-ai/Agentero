@@ -14,18 +14,20 @@
 | CLI 工作区操作 | `agentero ui open/close/window`、`agentero paper open` / `agentero://ui?action=…` → Host `ui:request` → 需要时先切换 Vault → 调用与 UI 相同的 `openPaper` / `openVaultRel` / `closeTabsUnderPath` / 原生窗口打开 |
 | Library 常驻 | 打开 Vault 期间 Library tab 始终在标签条（打开、恢复、清空后由 `ensureLibraryTabPresent` 补齐）：不可关闭——无关闭按钮、中键与右键关闭项禁用、「关闭其他/全部」跳过、⌘W 对其 no-op；仅剩 Library 时 ⌘W 关闭窗口。其它 tab 的固定（pin）能力已移除 |
 | 首篇 paper | PDF/HTML 默认组 + `NOTES.md` 右分屏（阅读默认；通用设置 `autoOpenPaperNotes` 关闭时只开 body，NOTES 仍可 `⌘\` / 右键「打开笔记」手动开） |
-| 再开 paper | 已是「论文 \| 笔记」左右两栏时，body 固定进左栏、NOTES 固定进右栏（与当前焦点在哪一栏无关，#785）；其它布局 body 走自由 dock 放置（当前组 / 默认，可再拖分屏），NOTES 优先叠进已有笔记列；body↔NOTES **焦点仍同步** |
+| 再开 paper | 已是「论文 \| 笔记」左右两栏时，body 固定进左栏、NOTES 固定进右栏（与当前焦点在哪一栏无关，#785）；左栏必须确有论文正文、右栏必须确有 `NOTES.md`，才算阅读双列——TeX 源码 \| PDF 等其它双列不会被误判。其它布局 body 走自由 dock 放置（当前组 / 默认，可再拖分屏），NOTES 优先叠进已有笔记列；body↔NOTES **焦点仍同步** |
 | 同步关闭 | 关 paper body 时一并关 NOTES；关 NOTES 保留 body |
 | 文件树拖入 | left/right/above/below/within 分屏落点 |
 | 关 panel | dockview X → `closeTab`；焦点 `onDidActivePanelChange` |
 | 循环 | `⌥⌘←/→` 按 `api.panels` **视觉序** |
 | 移至新窗口 | 文档 tab **右键** → **移动至新窗口** → 独立 `doc-*` Webview；源 panel 关闭（Library / Trash / Zen 除外）；弹出窗自带 Vault watcher，Markdown / PDF 外部改盘就地重载；URL `mode` 参数与主窗口一致参与 PDF 模式保护（探测失败不降级 Markdown） |
 | 复制路径 | 文档 tab **右键** → **复制路径**。剪贴板用 `displayPath`（Windows 去掉 `\\?\` 前缀）。Library / Trash / 广场 / Zen 和 `agentero:` 虚拟路径不显示该项 |
-| Split pane | `⌘\` / `Ctrl+\` 向右新增 pane；当前论文未开 NOTES 时默认打开 NOTES，否则复制当前 pane；横向 pane 重新等宽 |
+| Split pane | `⌘\` / `Ctrl+\` 向右新增 pane。在论文正文上：NOTES 未开时打开 NOTES，已开时聚焦 NOTES；在 NOTES 上按则回到论文正文，从不复制可编辑的笔记缓冲。其它文档（Markdown / 文本等）复制当前 pane。只切分参考分组，不改动其它列的宽度 |
 | NOTES 开关 | Layout 菜单；优先叠右列。重复打开保持比例；重建标准 PDF / Notes 双列时恢复共用比例，没有记录时使用 Dockview 默认分配 |
-| 打开笔记 | 论文 tab 右键 /文件树论文行右键 → NOTES 进右侧阅读列（已开则聚焦；菜单显示 `⌘\` / `Ctrl+\`） |
+| 打开笔记 | 论文 tab 右键 /文件树论文行右键 → NOTES 进右侧阅读列（已开则聚焦；菜单显示 `⌘\` / `Ctrl+\`）。`⌘\` 在论文正文上等同于打开/聚焦 NOTES |
 | 切换笔记 | 已有 Notes 列时，从文件树或链接打开另一篇论文笔记（`papers/**` 下的 Markdown）默认**原位替换**当前 Notes 面板：保留分栏位置与宽度、不新增 tab；目标笔记已在别处打开时只聚焦它（#738） |
 | 关光文档 | 回到常驻的全库 Library panel |
+
+写作项目（`thesis/` 下）的 TeX 源码与编译 PDF 是**同一个 dock panel 内部**的左右分栏（`TexProjectView`），不是 Dockview 分栏：`⌘\` /「打开 PDF」不会为它新增 dock panel，只聚焦该项目面板；它也不参与下方「论文 | 笔记」双列判断，拖拽移动的是整个面板，不改变其它 panel 的并列关系。
 
 标题栏 Layout 菜单中的窗口布局预设改变当前论文的 Notes 分屏与外层 Agent panel，与左侧 Vault sidebar 解耦：Agent 模式与笔记模式均不强制或更改左侧栏展开/收起状态（开启布局时左侧栏保持原状，开关左侧栏也不退出该布局）。Agent 模式配置 PDF / Agent 栏宽并关闭笔记分屏，笔记模式折叠右侧栏并开启 PDF / Notes 分屏。阅读模式折叠左右栏并最大化**当前 Dockview 活动分组**（`maximizeGroup`），多栏 / 多标签下都只显示当前正文；其它分栏与标签不关闭，退出阅读模式时恢复进入前的布局与侧栏状态（#764）。
 

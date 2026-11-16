@@ -83,11 +83,16 @@ import {
 	subscribePdfHandles,
 } from "@/lib/workspace/viewer/pdf-viewer-registry";
 import {
+	isWritingPath,
+	resolveWritingTarget,
+} from "@/lib/writing/project-target";
+import {
 	cloneTabForSplit,
 	closeTab,
 	openPaper,
 	openPath,
 	openTab,
+	openWritingFile,
 } from "./navigation";
 import {
 	basenameOf,
@@ -95,10 +100,12 @@ import {
 	createPlaceholderTab,
 	createTranslationSplitPane,
 	type DocTab,
+	findPaperBodyForNotes,
 	insertPlaceholderTab,
 	patchTab,
 	SPLIT_PANE_ID_MARKER,
 	tabIdForPath,
+	tabIsPaperNoteDocument,
 	tabNotesEligible,
 	translationSplitPlacement,
 } from "./tabs";
@@ -157,6 +164,19 @@ export async function openTexPdf(
 ): Promise<void> {
 	if (!isTexPath(texPath)) return;
 	try {
+		// Writing projects own their preview inside the panel (TexProjectView):
+		// never add a dock PDF panel for them, so opening TeX does not change
+		// how surrounding panels are split or moved.
+		const vault = getVaultPath();
+		if (vault && isWritingPath(vault, texPath)) {
+			const project = await resolveWritingTarget(vault, texPath).catch(
+				() => null,
+			);
+			if (project) {
+				openWritingFile(texPath, project.root);
+				return;
+			}
+		}
 		const root = await resolveTexRoot(texPath);
 		await queueTexBuild(
 			root,
@@ -558,7 +578,15 @@ export async function compileTexOnManualSave(path: string): Promise<void> {
 
 registerTexAutoBuildRunner(compileTexOnSave);
 
-/** Obsidian-style Split pane: add a right pane and keep columns evenly sized. */
+/**
+ * Obsidian-style Split pane (⌘\).
+ *
+ * Paper bodies route to their NOTES companion instead of duplicating the
+ * body: open NOTES to the right when it is closed, or focus the open NOTES
+ * pane. On a NOTES pane the shortcut returns to the paper body, so the same
+ * editable notes buffer never ends up in two panes. Other documents still get
+ * a real duplicate split.
+ */
 export function splitActivePane(): void {
 	const id = getActiveTabId();
 	if (!id) return;
@@ -568,23 +596,41 @@ export function splitActivePane(): void {
 	// Library is the resident singleton — never clone it into a second pane.
 	if (isLibraryVirtualPath(active.path)) return;
 
+	// NOTES (or an extra note inside a paper folder) → back to the body.
+	const paperBody = findPaperBodyForNotes(tabs, active);
+	if (paperBody) {
+		dockHandle()?.activatePanel(paperBody.id);
+		setActiveTabId(paperBody.id);
+		return;
+	}
+	// Orphaned notes pane (body closed): never clone the editable buffer.
+	if (tabIsPaperNoteDocument(active)) return;
+
 	// TeX editor ⌘\ → open/refresh its compiled PDF as the right split.
+	// Writing projects already render that PDF inside their own panel
+	// (TexProjectView), so a dock-level copy would duplicate the preview and
+	// feed a bogus "paper | notes" column pair to the reading placement.
 	if (isTexPath(active.path)) {
-		void openTexPdf(active.path, {
-			referencePanelId: active.id,
-			exitLive: false,
-		});
+		if (!active.writingRoot) {
+			void openTexPdf(active.path, {
+				referencePanelId: active.id,
+				exitLive: false,
+			});
+		}
 		return;
 	}
 
-	const notesId = active.notesPath ? tabIdForPath(active.notesPath) : null;
-	const shouldOpenDefaultNotes =
-		tabNotesEligible(active) &&
-		Boolean(active.notesPath) &&
-		notesId != null &&
-		!tabs.some((t) => t.id === notesId);
-
-	if (shouldOpenDefaultNotes) {
+	if (tabNotesEligible(active) && active.notesPath) {
+		const notesId = tabIdForPath(active.notesPath);
+		if (tabs.some((t) => t.id === notesId)) {
+			// Already open somewhere: reveal it instead of a second body pane.
+			if (dockHandle()?.isMaximizedPanel?.()) {
+				dockHandle()?.exitMaximizedPanel?.();
+			}
+			dockHandle()?.activatePanel(notesId);
+			setActiveTabId(notesId);
+			return;
+		}
 		const notesPane = createNotesSplitPane(active);
 		if (!notesPane) return;
 		setTabs((prev) =>

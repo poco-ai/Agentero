@@ -193,6 +193,30 @@ export function findReadingCompanion(
 }
 
 /**
+ * Paper body owning an open NOTES-family tab: canonical `NOTES.md` or any
+ * extra note inside the paper folder (both carry the paper's `notesPath`).
+ * Used to route ⌘\ on a notes pane back to the body instead of cloning the
+ * editable notes buffer into a second pane.
+ */
+export function findPaperBodyForNotes(
+	tabs: DocTab[],
+	notesTab: DocTab | null,
+): DocTab | null {
+	if (!notesTab || !tabIsPaperNoteDocument(notesTab)) return null;
+	const notesPath = notesTab.notesPath ?? notesTab.path;
+	const norm = normalizeTabPath(notesPath);
+	return (
+		tabs.find(
+			(t) =>
+				isPaperContentTab(t) &&
+				Boolean(t.notesPath) &&
+				(tabIdForPath(t.notesPath ?? "") === notesTab.id ||
+					normalizeTabPath(t.notesPath ?? "") === norm),
+		) ?? null
+	);
+}
+
+/**
  * Panel ids to close together: closing a paper body (PDF/HTML) also closes
  * its open NOTES panel, but closing NOTES leaves the body open.
  */
