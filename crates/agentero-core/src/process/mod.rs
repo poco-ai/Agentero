@@ -31,6 +31,23 @@ pub fn strip_appimage_library_env(env: &mut std::collections::HashMap<String, St
     }
 }
 
+/// Empty the loader overrides in a child env map that is handed to a spawner
+/// which only adds variables on top of the inherited environment.
+///
+/// Removing a key from a map only stops it being *set*; the parent's value is
+/// still inherited when the spawner (`Command::env`, and
+/// `agent-client-protocol`'s `spawn_process`) never calls `env_clear`. An empty
+/// value overrides the inherited one for both `execve` and the dynamic loader
+/// (#1115).
+pub fn clear_appimage_library_env(env: &mut std::collections::HashMap<String, String>) {
+    if !appimage_marker_present(|key| env.contains_key(key)) {
+        return;
+    }
+    for key in APPIMAGE_LIBRARY_ENV {
+        env.insert(key.to_string(), String::new());
+    }
+}
+
 /// Drop loader overrides before a command inherits the Host environment.
 ///
 /// Implemented for both `std` and `tokio` commands because agents, installers
@@ -349,5 +366,31 @@ mod tests {
             native.get("LD_PRELOAD").map(String::as_str),
             Some("/opt/lib.so")
         );
+    }
+
+    #[test]
+    fn clear_appimage_library_env_overrides_inherited_values() {
+        let mut appimage = std::collections::HashMap::from([
+            ("APPIMAGE".to_string(), "/tmp/.mount/Agentero".to_string()),
+            (
+                "LD_LIBRARY_PATH".to_string(),
+                "/tmp/.mount/Agentero/usr/lib".to_string(),
+            ),
+        ]);
+        clear_appimage_library_env(&mut appimage);
+        // Empty rather than absent: `Command::env` cannot unset an inherited value.
+        assert_eq!(appimage.get("LD_LIBRARY_PATH"), Some(&String::new()));
+        assert_eq!(appimage.get("LD_PRELOAD"), Some(&String::new()));
+
+        let mut native = std::collections::HashMap::from([(
+            "LD_LIBRARY_PATH".to_string(),
+            "/opt/cuda/lib".to_string(),
+        )]);
+        clear_appimage_library_env(&mut native);
+        assert_eq!(
+            native.get("LD_LIBRARY_PATH").map(String::as_str),
+            Some("/opt/cuda/lib")
+        );
+        assert!(!native.contains_key("LD_PRELOAD"));
     }
 }
