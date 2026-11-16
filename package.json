@@ -61,7 +61,7 @@
 		"@embedpdf/core": "2.14.4",
 		"@embedpdf/engines": "2.14.4",
 		"@embedpdf/models": "2.14.4",
-		"@embedpdf/pdfium": "2.14.4",
+		"@embedpdf/pdfium": "2.15.1",
 		"@embedpdf/plugin-ai-manager": "0.0.1",
 		"@embedpdf/plugin-annotation": "2.14.4",
 		"@embedpdf/plugin-bookmark": "2.14.4",

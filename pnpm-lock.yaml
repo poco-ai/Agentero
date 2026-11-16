@@ -6,6 +6,7 @@ settings:
 
 overrides:
   '@better-fetch/fetch': 1.3.3
+  '@embedpdf/pdfium': 2.15.1
   brace-expansion@<5.0.12: '>=5.0.12 <6'
   vite@>=7.0.0 <7.3.7: '>=7.3.7 <8'
   '@vitest/mocker@<4.1.12': '>=4.1.12 <5'
@@ -118,8 +119,8 @@ importers:
         specifier: 2.14.4
         version: 2.14.4
       '@embedpdf/pdfium':
-        specifier: 2.14.4
-        version: 2.14.4
+        specifier: 2.15.1
+        version: 2.15.1
       '@embedpdf/plugin-ai-manager':
         specifier: 0.0.1
         version: 0.0.1(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3)))(onnxruntime-web@1.27.0)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
@@ -1110,8 +1111,8 @@ packages:
   '@embedpdf/models@2.6.1':
     resolution: {integrity: sha512-lwZJx4GdEfF8PJJ7VBQs8vTRjmRlD8PYONCURQ5gB1gJczgEg6Xp0YnGnf777FC8NTu2yZ74bWdoKNNLc5Th6Q==}
 
-  '@embedpdf/pdfium@2.14.4':
-    resolution: {integrity: sha512-0tDPQEH1WtfXcASNVp5U3dqfzZboNvcE4rDok/P4JCN+DCTaJDG2E9lYHGMo9FtuS2IdHgrzkmPRpOo5WV9MKQ==}
+  '@embedpdf/pdfium@2.15.1':
+    resolution: {integrity: sha512-qDH4gEkGSQT0iM+07Hpm3LyvoB7PEFbW3Qyk6+LPkEYLJYfHagkHM1OzYlDq2EDOhJRguykTkzdMOT3/w27x5Q==}
 
   '@embedpdf/plugin-ai-manager@0.0.1':
     resolution: {integrity: sha512-7Mj48PeoJR4E1yVA+Cs5sItrJnOyMK6bd0B/tkOkEUIbYTcC/mC4SSuZL5uZmE/B7qCHtE3J67ai5PVBPIbKiw==}
@@ -7541,7 +7542,7 @@ snapshots:
       '@embedpdf/fonts-sc': 1.0.0
       '@embedpdf/fonts-tc': 1.0.0
       '@embedpdf/models': 2.14.4
-      '@embedpdf/pdfium': 2.14.4
+      '@embedpdf/pdfium': 2.15.1
       preact: 10.29.7
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
@@ -7566,7 +7567,7 @@ snapshots:
 
   '@embedpdf/models@2.6.1': {}
 
-  '@embedpdf/pdfium@2.14.4': {}
+  '@embedpdf/pdfium@2.15.1': {}
 
   '@embedpdf/plugin-ai-manager@0.0.1(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3)))(onnxruntime-web@1.27.0)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))':
     dependencies:
