@@ -205,16 +205,15 @@ describe("formula click copy", () => {
 		expect(document.querySelector("[data-math-copied]")).toBeNull();
 	});
 
-	it("adds copy controls to Agent inline and display math, with translated feedback", async () => {
+	it("copies Agent formulas from their clickable surface without extra chrome", async () => {
 		await i18n.changeLanguage("zh-CN");
 		document.body.innerHTML = renderToStaticMarkup(
 			createElement(MarkdownSurface, null, "Inline $x^2$.\n\n$$\ny^3\n$$"),
 		);
-		const buttons = document.querySelectorAll(
-			"button[aria-label='复制 LaTeX']",
-		);
-		expect(buttons).toHaveLength(2);
-		click(buttons[1], { detail: 0 });
+		const formulas = document.querySelectorAll("[data-math-copy-formula]");
+		expect(formulas).toHaveLength(2);
+		expect(document.querySelector("[data-math-copy-button]")).toBeNull();
+		click(formulas[1], { detail: 1 });
 		await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("y^3"));
 		await vi.waitFor(() =>
 			expect(

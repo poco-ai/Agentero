@@ -25,6 +25,7 @@ export function MathCopy({
 	as?: "span" | "div";
 }) {
 	const { t } = useTranslation("editor");
+	const hasFormula = Boolean(children);
 	useEffect(installRenderedMathCopy, []);
 	return (
 		<Tag
@@ -32,42 +33,56 @@ export function MathCopy({
 			data-math-copy-tex={tex}
 			data-math-copy-success={t("equation.copied")}
 			data-math-copy-error={t("equation.copyFailed")}
+			data-math-copy-formula={hasFormula ? "" : undefined}
+			role={hasFormula ? "button" : undefined}
+			tabIndex={hasFormula ? 0 : undefined}
+			aria-label={hasFormula ? t("equation.copy") : undefined}
+			onKeyDown={
+				hasFormula
+					? (event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.preventDefault();
+								event.currentTarget.click();
+							}
+						}
+					: undefined
+			}
 			className={cn(
-				"group/math-copy inline-flex min-w-0 max-w-full items-baseline gap-0.5 align-baseline [&_.katex]:cursor-copy",
+				"group/math-copy inline-flex min-w-0 max-w-full items-baseline gap-0.5 align-baseline",
+				hasFormula &&
+					"relative rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-primary/15",
 				className,
 			)}
 			contentEditable={false}
 		>
 			{children}
-			<TooltipProvider delayDuration={300}>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-xs"
-							data-math-copy-button
-							data-math-copy-ui
-							aria-label={t("equation.copy")}
-							className={cn(
-								"self-center text-muted-foreground motion-reduce:transition-none motion-reduce:active:not-aria-[haspopup]:translate-y-0 motion-reduce:active:not-aria-[haspopup]:scale-100",
-								children &&
-									"opacity-0 group-hover/math-copy:opacity-100 group-focus-within/math-copy:opacity-100 group-data-[math-copied]/math-copy:opacity-100 [@media(hover:none)]:opacity-100",
-							)}
-						>
-							<CopyIcon
-								className="size-3.5 group-data-[math-copied]/math-copy:hidden"
-								aria-hidden
-							/>
-							<CheckIcon
-								className="hidden size-3.5 text-primary group-data-[math-copied]/math-copy:block"
-								aria-hidden
-							/>
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent sideOffset={4}>{t("equation.copy")}</TooltipContent>
-				</Tooltip>
-			</TooltipProvider>
+			{hasFormula ? null : (
+				<TooltipProvider delayDuration={300}>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-xs"
+								data-math-copy-button
+								data-math-copy-ui
+								aria-label={t("equation.copy")}
+								className="self-center text-muted-foreground motion-reduce:transition-none motion-reduce:active:not-aria-[haspopup]:translate-y-0 motion-reduce:active:not-aria-[haspopup]:scale-100"
+							>
+								<CopyIcon
+									className="size-3.5 group-data-[math-copied]/math-copy:hidden"
+									aria-hidden
+								/>
+								<CheckIcon
+									className="hidden size-3.5 text-primary group-data-[math-copied]/math-copy:block"
+									aria-hidden
+								/>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent sideOffset={4}>{t("equation.copy")}</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
+			)}
 			<span
 				data-math-copy-ui
 				data-math-copy-status
