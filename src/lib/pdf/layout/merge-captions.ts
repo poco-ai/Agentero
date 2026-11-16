@@ -1322,10 +1322,47 @@ function recoverFigureCaptionLabels(
 		)
 			return r;
 		if (!figureCaptionKey(r.text)) return r;
+		// OCR can omit a line and split a caption into two body paragraphs. A
+		// weak caption detection may still locate the whole paragraph correctly:
+		// trust it only when two confident text fragments corroborate its text.
+		const complete = regions.filter((candidate) => {
+			const text = candidate.title ?? candidate.text ?? "";
+			if (
+				candidate.kind !== "figure_title" ||
+				candidate.pageIndex !== r.pageIndex ||
+				candidate.score >= LAYOUT_SIDEBAR_MIN_SCORE ||
+				candidate.bbox.h > 0.2 ||
+				Math.abs(candidate.bbox.y - r.bbox.y) > 0.01 ||
+				Math.abs(candidate.bbox.w - r.bbox.w) > 0.01 ||
+				bboxCoveredBy(r.bbox, candidate.bbox) < 0.95 ||
+				!text.startsWith(`${r.text} `) ||
+				/[.!?。！？]\s*$/.test(r.text ?? "")
+			)
+				return false;
+			const tail = text.slice((r.text?.length ?? 0) + 1);
+			return (
+				/^[a-z]/.test(tail) &&
+				regions.some(
+					(part) =>
+						part.kind === "text" &&
+						part.pageIndex === r.pageIndex &&
+						part.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+						part.text === tail &&
+						part.bbox.y >= r.bbox.y + r.bbox.h &&
+						part.bbox.y - r.bbox.y - r.bbox.h <= 0.02 &&
+						Math.abs(part.bbox.x - r.bbox.x) <= 0.01 &&
+						bboxCoveredBy(part.bbox, candidate.bbox) >= 0.95,
+				)
+			);
+		});
+		const source = complete.length === 1 ? complete[0] : r;
 		return {
-			...r,
+			...source,
+			id: r.id,
+			score: r.score,
+			readingOrder: r.readingOrder,
 			kind: "figure_title" as const,
-			title: r.text,
+			title: source.title ?? source.text,
 			captionRole: "figure_main" as const,
 		};
 	});
@@ -1338,6 +1375,7 @@ function recoverFigureCaptionLabels(
 			(other, otherIndex) =>
 				otherIndex !== index &&
 				other.kind === "figure_title" &&
+				other.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
 				other.pageIndex === r.pageIndex &&
 				figureCaptionKey(other.title ?? "") === key &&
 				Math.max(
