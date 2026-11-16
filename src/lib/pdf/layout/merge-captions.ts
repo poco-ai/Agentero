@@ -82,6 +82,8 @@ export const LAYOUT_MERGE = {
 	figureTextCover: 0.55,
 	/** Min score for text/header/abstract to veto a figure detection. */
 	figureTextMinScore: 0.3,
+	/** Minimum geometric score lead before assigning an unreadable caption to a non-figure host. */
+	captionFamilyMinScoreMargin: 0.2,
 } as const;
 
 /**
@@ -278,7 +280,9 @@ export function captionCompatibleWithHost(
 	if (r === "subpanel") return family === "figure";
 	// Unclassified model labels:
 	if (captionKind === "figure_title") return family === "figure";
-	if (captionKind === "header") return true;
+	// A running header or section heading is not a caption merely because it
+	// happens to be near a figure/table. Explicit caption roles above still work.
+	if (captionKind === "header") return false;
 	return false;
 }
 
@@ -428,6 +432,52 @@ export function captionAttachScore(
 	}
 	if (!aboveOk) return Number.NEGATIVE_INFINITY;
 	return hOverlap * 2 + 0.2 - Math.abs(gapAbove) * 8;
+}
+
+/** Resolve text-free generic caption detections using competing host families. */
+function resolveMergeCaptionRole(
+	caption: PdfLayoutRegion,
+	regions: readonly PdfLayoutRegion[],
+): PdfLayoutRegion["captionRole"] {
+	const role = resolveCaptionRole(caption);
+	if (
+		caption.kind !== "figure_title" ||
+		caption.title?.trim() ||
+		caption.text?.trim() ||
+		(role !== "figure_main" && role !== "other")
+	)
+		return role;
+	const scores = new Map<LayoutHostFamily, number>();
+	for (const host of regions) {
+		const family = hostFamily(host.kind);
+		if (
+			!family ||
+			host.pageIndex !== caption.pageIndex ||
+			host.score < LAYOUT_SIDEBAR_MIN_SCORE
+		)
+			continue;
+		const score =
+			captionAttachScore(
+				host.bbox,
+				caption.bbox,
+				preferredCaptionPlacement(family),
+			) +
+			host.score * 0.1;
+		if (Number.isFinite(score))
+			scores.set(family, Math.max(scores.get(family) ?? -Infinity, score));
+	}
+	const ranked = [...scores].sort((a, b) => b[1] - a[1]);
+	const best = ranked[0];
+	// Keep the existing figure fallback when host families are ambiguous. Textual
+	// semantics always win; this only repairs the geometry-only generic label.
+	if (
+		!best ||
+		best[0] === "figure" ||
+		(ranked[1] &&
+			best[1] - ranked[1][1] < LAYOUT_MERGE.captionFamilyMinScoreMargin)
+	)
+		return role;
+	return best[0] === "table" ? "table_main" : "algorithm_main";
 }
 
 /**
@@ -1271,7 +1321,7 @@ export function mergeCaptionsIntoHosts(
 	// Ensure roles are resolved for merge decisions.
 	const tagged = cleaned.map((r) =>
 		isCaptionLayoutKind(r.kind)
-			? { ...r, captionRole: resolveCaptionRole(r) }
+			? { ...r, captionRole: resolveMergeCaptionRole(r, cleaned) }
 			: r,
 	);
 

@@ -240,8 +240,8 @@ type LayoutSidecar = {
 | # | 规则 | 说明 |
 |---|---|---|
 | **B1** | 文本角色优先 | `Figure N` / `Fig. N \|` / `Extended Data Fig. N \|`→`figure_main`；`Table N`→`table_main`；`Algorithm N`→`algorithm_main`；`(a)` / 单字母 `a`→`subpanel`（即使模型标成 figure_title） |
-| **B2** | 无文本时几何兜底 | 宽≥0.45 且矮 → 可能主图题；窄短框保持未定角色，已知主图题优先聚合后，再用邻近图框恢复无文字图题（单栏 / 多子图均可）。旧 sidecar 中无文字的几何 `subpanel` 重新判断 |
-| **B3** | 角色驱动绑定 | `table_main` 只绑 table；`figure_main` 只绑图；`subpanel` 不当整图锚点 |
+| **B2** | 无文本时几何兜底 | 宽≥0.45 且矮 → 可能主图题；无文字的通用 `figure_title` 在 merge 时比较图上方 / 表和算法下方宿主的贴题分数，非图宿主领先另一族至少 0.2 时才改判为表注 / 算法题，否则保持原图题兜底。已有文字语义不被几何覆盖。窄短框保持未定角色，已知主图题优先聚合后，再用邻近图框恢复无文字图题（单栏 / 多子图均可）。旧 sidecar 中无文字的几何 `subpanel` 重新判断 |
+| **B3** | 角色驱动绑定 | `table_main` 只绑 table；`figure_main` 只绑图；`subpanel` 不当整图锚点。未分类的 `header` 不作为主图注绑定，仅有明确 caption 角色时可绑定；内部图例处理保持独立，避免页眉 / 章节标题因距离近而扩入裁剪框 |
 | **B4** | 正文误标与漏检图题恢复 | `text` / `header` 以**带编号 + 标点**的主图题开头时，在 merge 中提升为 `figure_main`；也从 PDF text runs 恢复模型漏检的图注并缓存真实几何。包含无检测框的图注页。双栏续文仅在字符序连续且几何匹配时合并；`Figure 5 contains …` 等正文引用不提升 |
 
 ### C. 类型分家与贴题方向（2）
@@ -311,6 +311,7 @@ type LayoutSidecar = {
 | `layoutThreshold` | 0.3 | 插件层检测 |
 | 侧栏 `minScore` | 0.3（固定，无滑条） | 展示过滤 |
 | `LAYOUT_MERGE.fullWidthTitle` | 0.55 | 全宽联图 |
+| `LAYOUT_MERGE.captionFamilyMinScoreMargin` | 0.2 | 无文字通用图注改判表 / 算法宿主族所需的贴题分数领先量 |
 | `LAYOUT_MERGE.maxHeightAboveTitle` | 0.55 | **仅半宽**图题无 ceiling 时的竖向软上限 |
 | `LAYOUT_MERGE.panelBottomSlack` | 0.04 | 半宽：panel 底可越过 title 顶的量 |
 | `LAYOUT_MERGE.fullWidthPanelBottomSlack` | 0.14 | 全宽：底行 chart 允许压进 caption |
