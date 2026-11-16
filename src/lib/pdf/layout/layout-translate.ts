@@ -935,9 +935,16 @@ export async function runLayoutRegionTranslate(options: {
 	};
 
 	const units: SentenceUnit[] = [];
-	for (const chain of buildLayoutTranslateChains(items).filter(
-		chainNeedsTranslate,
-	)) {
+	// Schedule IR backfills with their page without reordering the items used
+	// by reflow layout and sidecar persistence.
+	const chains = buildLayoutTranslateChains(items)
+		.filter(chainNeedsTranslate)
+		.sort(
+			(a, b) =>
+				a.members[0].pageIndex - b.members[0].pageIndex ||
+				a.members[0].readingOrder - b.members[0].readingOrder,
+		);
+	for (const chain of chains) {
 		const structural = chain.members[0]?.reflow;
 		const drafts: LayoutSentenceDraft[] = structural
 			? draftReflowSentences(structural)
