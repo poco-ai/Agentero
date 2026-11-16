@@ -6,7 +6,7 @@
 
 use agentero_core::features::context::{ContextSession, EvidenceQuery, MCP_WORKER_ARG};
 use rmcp::handler::server::wrapper::{Json, Parameters};
-use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerInfo};
+use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerConfig};
 use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -198,8 +198,8 @@ impl ContextMcp {
 
 #[tool_handler]
 impl ServerHandler for ContextMcp {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_instructions(
                 "agentero-context is a read-only, session-scoped research context server. \
                  It can only see the sources in this turn's grant. \

@@ -18,7 +18,7 @@ use rmcp::handler::server::wrapper::{Json, Parameters};
 use rmcp::model::{
     CallToolResult, ContentBlock, Implementation, ListResourcesResult, PaginatedRequestParams,
     ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
-    ResourceContents, ServerCapabilities, ServerInfo,
+    ResourceContents, ServerCapabilities, ServerConfig,
 };
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::{tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler};
@@ -1484,8 +1484,8 @@ impl AgenteroMcp {
 
 #[tool_handler]
 impl ServerHandler for AgenteroMcp {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()

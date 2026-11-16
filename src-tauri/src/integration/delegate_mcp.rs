@@ -12,7 +12,7 @@ use crate::features::agent::delegate::protocol::{
 #[cfg(unix)]
 use rmcp::handler::server::wrapper::{Json, Parameters};
 #[cfg(unix)]
-use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerInfo};
+use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerConfig};
 #[cfg(unix)]
 use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
 #[cfg(unix)]
@@ -112,8 +112,8 @@ impl DelegateMcp {
 #[cfg(unix)]
 #[tool_handler]
 impl ServerHandler for DelegateMcp {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_instructions(
                 "agentero-delegate runs a task on a remote vault that is already connected. \
                  Call remote_targets first. remote_delegate takes a target, an agent id, and a task. \
