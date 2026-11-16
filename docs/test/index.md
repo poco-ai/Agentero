@@ -4,6 +4,23 @@ PDF bbox benchmark 的单篇试标、教学答案、标注规则与文件交接�
 
 当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 `src/` 与 `test/` 解耦：应用代码不能 import 测试 fixture 或 helper。
 
+## 测试保留原则
+
+功能和逻辑改动需要编写并运行专门的单元测试，但**新增测试默认只用于本地验证，不提交仓库**。这也适用于 fixture、快照和 Rust 模块内新增的 `#[cfg(test)]` 用例。只有用户明确要求长期保留时，才提交新增回归测试，并说明具体故障风险、现有覆盖的缺口和运行成本。纯文档、格式与无行为变化的样式调整不新增单元测试。
+
+本地验证优先复用已有用例与 helper，只补本次改动涉及的关键输入输出、失败路径和必要边界。临时文件优先放在已忽略的 `tmp/` 下；若测试运行器要求放在 `test/` 或源码模块内，提交前移除本次新增的临时测试与专用辅助代码，复核最终 diff，并重新运行受影响的既有检查。不要移除其他作者的未提交内容。完成后向用户报告验证命令、结果，以及新增单元测试未提交仓库。
+
+既有测试按风险维护，不因上述默认规则自动删除：
+
+| 处理方式 | 判断依据 |
+|---|---|
+| 优先保留 | 验证持久化、迁移、删除/覆盖、跨平台路径、IPC/事件契约，或能复现真实故障的行为测试 |
+| 优先评估删除 | 仅匹配源码文本、锁定样式或组件结构、重复类型系统/上游行为，且不验证独立行为契约 |
+| 优先合并 | 相同输入输出和失败风险已被其他用例覆盖；保留最小代表用例及独立边界 |
+| 单独评估执行方式 | 真实子进程、引擎、大型 fixture、性能测量等高成本用例；有价值但昂贵不等于应删除 |
+
+不要为满足数量或覆盖率机械增加用例，也不要为降低数量删掉唯一覆盖。静态契约检查只有在对应明确故障风险时才值得保留。CI 耗时分析应区分环境准备、依赖编译、测试收集和实际执行；删除前记录候选用例验证的行为、替代覆盖和预计节省的实测成本。本文只规定评估方式，不改变当前 CI 的执行任务。
+
 ## 发布前验收
 
 产品发布 / 打 tag / 分发安装包前的完整流程与 Checklist：
@@ -63,7 +80,7 @@ Demo 完整包内容（`--empty` 除外）：
 
 CI 的 TypeScript quality 任务分别显示发布同步测试、ACP adapter staging、Biome、类型检查和依赖边界检查；测试分片独立运行。Release 复用同一 CI 工作流检查 tag 对应的提交，全部通过后才创建 Draft Release 和构建产物。CI 使用只读仓库权限，并按调用工作流与 ref 隔离 concurrency，避免普通 CI 与 Release 的验证互相取消。
 
-当前桌面 Rust 检查在 macOS 运行；Windows / Linux 桌面完整编译仍由 Release 构建覆盖，尚未加入日常 CI。
+当前日常 CI 在 macOS 与 Windows 运行桌面 Rust 检查，并在 Linux runner 检查 Android lib 的 target cfg；Linux 桌面完整编译由 Release 构建覆盖。
 
 ## 前端测试
 
@@ -73,7 +90,7 @@ CI 的 TypeScript quality 任务分别显示发布同步测试、ACP adapter sta
 pnpm test
 ```
 
-Vitest 适合覆盖纯 TypeScript 逻辑，例如：
+Vitest 适合验证纯 TypeScript 逻辑；以下是验证范围示例，不是新增提交测试的清单：
 
 - 双链解析与预览链接重写；
 - Vault-relative 路径规范化与目标解析；
@@ -103,14 +120,14 @@ try {
 
 ```bash
 cargo test -p agentero
-cargo test -p agentero-core -p agentero-cli
+cargo test -p agentero-core -p agentero-mcp -p agentero-cli
 ```
 
-CI 的 `agentero-tests` 任务运行 Host 与 `agentero-plugin-host` 测试，包含真实插件子进程的取消、超时和资源限制；`cli-tests` 任务同时运行 `agentero-core` 与 CLI 自身的测试，并保留 CLI 构建检查。仅测试 Host/CLI 不会执行依赖 crate 的单元测试，因此必须显式选择共享 crate。两个 headless 包复用同一任务的 Rust 构建产物与 PDFium provisioning，不执行桌面 ACP adapter staging；PDFium 的构建与运行时路径由现有 CI provisioning 统一设置。桌面 `cargo test -p agentero` 与 `cargo clippy --workspace` 还要先有 `pnpm plugin-worker:stage` 放进 `src-tauri/binaries/` 的 sidecar，否则 `tauri-build` 会像缺少 `src-tauri/pdfium` 一样失败；`cargo test -p agentero-core -p agentero-cli` 不编译 `agentero`，不需要该文件。
+CI 的 `agentero-tests` 任务运行 Host 与 `agentero-plugin-host` 测试，包含真实插件子进程的取消、超时和资源限制；`cli-tests` 任务同时运行 `agentero-core`、`agentero-mcp` 与 CLI 自身的测试，并保留 CLI 构建检查。仅测试 Host/CLI 不会执行依赖 crate 的单元测试，因此必须显式选择共享 crate。三个 headless 包复用同一任务的 Rust 构建产物与 PDFium provisioning，不执行桌面 ACP adapter staging；PDFium 的构建与运行时路径由现有 CI provisioning 统一设置。桌面 `cargo test -p agentero` 与 `cargo clippy --workspace` 还要先有 `pnpm plugin-worker:stage` 放进 `src-tauri/binaries/` 的 sidecar，否则 `tauri-build` 会像缺少 `src-tauri/pdfium` 一样失败；`cargo test -p agentero-core -p agentero-mcp -p agentero-cli` 不编译 `agentero`，不需要该文件。
 
 `#[cfg(windows)]` 不会出现在 macOS job 里。`rust-windows`（`windows-latest`）跑同一组任务：quality（`cargo fmt --all --check` 与 `cargo clippy --workspace --all-targets -- -D warnings`）、`agentero-tests`、`cli-tests`。Windows 上 `tesseract-rs` 的 Debug `*d.lib` 和空 `eng.traineddata` 见 [CONTRIBUTING.md](https://github.com/poco-ai/agentero/blob/main/CONTRIBUTING.md)；测试任务因此使用 `--release`，让 CMake 产出并链接与 crate 匹配的库名。
 
-解析器和 resolver 的边界用例可以放在对应 Rust 模块的 `#[cfg(test)]` 中。依赖 Vault 的 graph/index 测试应创建临时目录和文件，不依赖已提交的缓存文件。
+解析器和 resolver 的临时边界用例可以放在对应 Rust 模块的 `#[cfg(test)]` 中，本地验证后按上述保留原则移除本次新增内容；用户明确要求保留的回归测试除外。依赖 Vault 的 graph/index 测试应创建临时目录和文件，不依赖已提交的缓存文件。
 
 子进程测试应在超时范围内等待就绪信号，避免用固定短 sleep 假定启动完成。ACP 终端测试等待 `ready` 输出，同时单独限制每次 output 调用耗时，继续验证运行中的输出读取和取消能力。
 
@@ -120,7 +137,7 @@ CI 的 `agentero-tests` 任务运行 Host 与 `agentero-plugin-host` 测试，�
 
 ## 手动验证
 
-纯逻辑优先用自动化测试覆盖。涉及 UI 或桌面流程时，还需要启动应用检查受影响路径。如果 dev 端口被占用或无法做浏览器/桌面验证，汇报时需要明确说明。
+纯逻辑优先用单元测试验证，新增测试的提交遵循上述保留原则。涉及 UI 或桌面流程时，还需要启动应用检查受影响路径。如果 dev 端口被占用或无法做浏览器/桌面验证，汇报时需要明确说明。
 
 建议用 `pnpm demo:vault` 生成的 Vault 做冒烟：
 
