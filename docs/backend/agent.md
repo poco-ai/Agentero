@@ -256,8 +256,10 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `login_command`；写入脚本前先把命令首个可执行文件解析为绝对路径（用注册 Agent 的合并
   env / login-shell PATH），避免 `bash -lc` 看不到 zsh 的 `~/.local/bin` 而报
   `command not found`（#686）。终端只打印命令、等回车确认后才真正执行。
+- 「登录」「终端」两个按钮都读取「设置 → 通用 → 系统 → 终端打开方式」（`settings.terminalApp`），
+  与「在终端中打开」使用同一个终端；未设置或所选终端不可用时回退系统默认（#1116）。
 - 「终端」按钮（`doctor_open_agent_cli_terminal`，仅已安装 Agent 行显示，位于「升级」与
-  「卸载」之间）**直接**在系统默认终端启动该 Agent 的交互式 CLI（无需回车确认）：命令取
+  「卸载」之间）**直接**在该终端启动该 Agent 的交互式 CLI（无需回车确认）：命令取
   模板的交互式 CLI（`registry::interactive_cli`，通常等同 `detect_command`，如 `claude` /
   `codex` / `opencode` / `agy`；Dsh 需显式 profile，使用 shipped 的 `dsh --profile tui`）；
   ZCode 只有 ACP 适配器、无面向用户的 CLI，故不显示该按钮。二进制解析逻辑与登录按钮共用
