@@ -600,10 +600,25 @@ export function selectClusterForTitle(
 ): PdfLayoutRegion[] {
 	const ceiling = verticalCeilingForTitle(title, mainFigureCaptions);
 	const fullWidth = title.bbox.w >= LAYOUT_MERGE.fullWidthTitle;
+	const captionText = title.title ?? title.text ?? "";
+	const panelReferences = new Set(
+		[...captionText.matchAll(/\(([a-z])\)|\bpanel\s+([a-z])\b/gi)].map(
+			(match) => (match[1] ?? match[2]).toLowerCase(),
+		),
+	);
 	const candidates = panelsAboveTitle(
 		title,
 		panels.filter((p) => p.score >= LAYOUT_SIDEBAR_MIN_SCORE),
-		{ ceiling, fullWidth },
+		{
+			ceiling,
+			fullWidth,
+			// A numbered caption explicitly referring to several panels can span
+			// a full column. Connectivity still requires a nearby caption seed.
+			maxHeightAbove:
+				figureCaptionKey(captionText) && panelReferences.size >= 2
+					? Number.POSITIVE_INFINITY
+					: undefined,
+		},
 	);
 	const groups = connectedPanelGroups(candidates, blockers);
 	const anchored = groups.filter((group) =>
