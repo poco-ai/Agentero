@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { tauriFetch } from "tauri-plugin-better-auth/client";
 import { accountApiOrigin, authClient } from "@/features/account/client";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 
 export type Capability = "translation" | "ocr" | "embedding";
 export type Spending = { allowCreditOverage: boolean; revision: number };
@@ -43,6 +44,7 @@ export async function capabilityRequest<T>(
 	path: string,
 	init?: RequestInit,
 ): Promise<T> {
+	if (!accountSurfaceEnabled) throw new Error("CAPABILITY_DISABLED");
 	const response = await tauriFetch(
 		`${accountApiOrigin}${capabilityPath(org)}${path}`,
 		init,
@@ -73,7 +75,7 @@ export const overviewOptions = (user: string, org: string | null) =>
 		queryKey: capabilityKey(user, org),
 		queryFn: () => capabilityRequest<Overview>(org, ""),
 		refetchInterval: 30000,
-		enabled: !!user,
+		enabled: accountSurfaceEnabled && !!user,
 	});
 export const operationOptions = (
 	user: string,
@@ -83,7 +85,7 @@ export const operationOptions = (
 	queryOptions({
 		queryKey: [...capabilityKey(user, org), "operation", id],
 		queryFn: () => capabilityRequest<Operation>(org, `/operations/${id}`),
-		enabled: !!user && !!id,
+		enabled: accountSurfaceEnabled && !!user && !!id,
 		refetchInterval: (query) =>
 			query.state.data && terminal(query.state.data) ? false : 3000,
 	});
@@ -131,6 +133,7 @@ export async function hostedTranslation(
 	source: string,
 	target: string,
 ): Promise<string> {
+	if (!accountSurfaceEnabled) throw new Error("CAPABILITY_DISABLED");
 	const session = await authClient.getSession();
 	if (!session.data?.user.id) throw new Error("CAPABILITY_SIGN_IN_REQUIRED");
 	const body = {

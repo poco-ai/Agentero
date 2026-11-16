@@ -1,5 +1,9 @@
 # Agentero 云端能力
 
+翻译、OCR 和 Embedding 的 Agentero 云端入口与登录共用构建开关 `VITE_AGENTERO_ACCOUNT_SURFACE`，默认隐藏。只有显式设为 `1` 的内部构建才展示账户中的 OCR / 额度面板、翻译供应商中的 Agentero 选项和 Embedding 的 Agentero 预设。关闭时不探测账户会话，不查询额度或恢复 OCR 任务，能力请求也会在发出前拒绝。已有 Agentero 翻译选择在打开设置时回到默认免费引擎；本地能力和第三方 BYOK 配置继续可用。
+
+内部桌面验证使用 `VITE_AGENTERO_ACCOUNT_SURFACE=1 pnpm tauri dev`；公开安装包保持关闭。
+
 账户设置中的云端区域提供翻译、OCR 和 Embedding 免费剩余额度，以及一个账户级「超额使用 Credit」开关。开关默认关闭，统一控制三项能力；说明通过问号展开，不提供能力消费上限表单。个人和组织账户分别保存设置，组织仅 owner/admin 可修改。
 
 `src/features/capabilities/data.ts` 集中管理会话请求、查询缓存、开关和操作恢复；通过 `tauriFetch` 使用现有账户会话。Rust 账户插件允许 `/api/account/capabilities` 和组织路由，不改变 IPC 命令签名。
@@ -22,4 +26,4 @@ Embedding 设置中的 Agentero 预设填入账户 API `/v1` 地址和 `agentero
 
 前端变更运行 `pnpm typecheck`、`pnpm deps:check` 和能力数据层测试。原生验证须先完成仓库词典、PDFium 等资源准备，再运行 `pnpm tauri dev`；浏览器页面验证不能替代原生会话联调。
 
-2026-11-16 本次验证：类型检查、依赖检查、31 项翻译相关测试及 Rust 格式检查通过。原生启动和提交钩子的 Clippy 均被缺少 `dictionary/*` 资源阻塞，指定来源下载超时；原生构建和会话联调尚未验证。提交时保留这一缺口，资源补齐后需重跑 `pnpm run lint:rs` 和原生流程。
+本地开关专项测试覆盖开关未设置、`0`、`1` 三种构建状态，验证翻译供应商、Embedding 预设、额度与 OCR 恢复查询、请求派发及会话探测；新增用例仅用于本地验证，不提交仓库。既有数据层测试验证内部构建的幂等恢复与账户隔离。完整原生资源构建仍需先成功准备 `dictionary/*`，临时去掉词典资源的调试配置仅适合核对设置界面。

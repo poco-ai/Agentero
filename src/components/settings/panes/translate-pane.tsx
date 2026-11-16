@@ -34,6 +34,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { BUILTIN_PROVIDER_ID } from "@/lib/core/builtin";
 import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
@@ -158,6 +159,11 @@ export function TranslatePane({
 			patch({ translate: { ...tr, ...partial } }),
 		[patch, tr],
 	);
+	useEffect(() => {
+		if (!accountSurfaceEnabled && tr.provider === BUILTIN_PROVIDER_ID) {
+			patchTranslate({ provider: DEFAULT_TRANSLATE_SETTINGS.provider });
+		}
+	}, [patchTranslate, tr.provider]);
 	const showAgent = tr.provider === "agent";
 	const getProviderConfig = useCallback(
 		(id: CommercialTranslateProviderId): TranslateProviderConfig =>
@@ -165,8 +171,8 @@ export function TranslatePane({
 		[tr.providerConfigs],
 	);
 	/**
-	 * Free MT, hosted Agentero and Agent always; commercial only when configured
-	 * (or currently selected). Hosted Agentero uses the signed-in account.
+	 * Free MT and Agent always; hosted Agentero only in account-enabled builds;
+	 * commercial only when configured (or currently selected).
 	 */
 	const providers = useMemo(
 		() =>

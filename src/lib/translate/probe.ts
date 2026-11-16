@@ -4,6 +4,7 @@
  */
 
 import { authClient } from "@/features/account/client";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { BUILTIN_PROVIDER_ID } from "@/lib/core/builtin";
 import { hasSecret, isSecretMask } from "@/lib/core/secret-mask";
 import { isTauri } from "@/lib/core/tauri";
@@ -91,10 +92,12 @@ async function probeOne(
 export async function probeFreeMtProviders(
 	opts: ProbeFreeMtOptions = {},
 ): Promise<Record<FreeTranslateProviderId, boolean>> {
-	const builtinReady = await authClient
-		.getSession()
-		.then((result) => !!result.data?.user.id)
-		.catch(() => false);
+	const builtinReady =
+		accountSurfaceEnabled &&
+		(await authClient
+			.getSession()
+			.then((result) => !!result.data?.user.id)
+			.catch(() => false));
 	const results = await Promise.all(
 		FREE_MT_PROVIDER_IDS.map(async (id) => {
 			const ok =

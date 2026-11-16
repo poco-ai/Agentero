@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), session: vi.fn() }));
 vi.mock("tauri-plugin-better-auth/client", () => ({ tauriFetch: mocks.fetch }));
+vi.mock("@/features/account/visibility", () => ({
+	accountSurfaceEnabled: true,
+}));
 vi.mock("@/features/account/client", () => ({
 	accountApiOrigin: "https://account.test",
 	authClient: { getSession: mocks.session },
