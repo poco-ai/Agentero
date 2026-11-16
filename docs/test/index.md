@@ -2,6 +2,8 @@
 
 PDF bbox benchmark 的单篇试标、教学答案、标注规则与文件交接见 [BBox 标注与教学样例](bbox-annotation.md)。
 
+使用已有人工标注评测启发式融合，见 [OmniDocBench bbox 融合评测](omnidocbench-bbox.md)。
+
 当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 `src/` 与 `test/` 解耦：应用代码不能 import 测试 fixture 或 helper。
 
 ## 测试保留原则

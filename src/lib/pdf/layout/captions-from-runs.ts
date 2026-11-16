@@ -98,7 +98,7 @@ function captionLines(runs: CaptionTextRun[]): Line[] {
 						previous.rect.size.width >
 						Math.max(
 							8,
-							Math.min(run.rect.size.height, previous.rect.size.height),
+							Math.min(run.rect.size.height, previous.rect.size.height) * 0.75,
 						)
 				)
 					groups.push([run]);

@@ -1,0 +1,9 @@
+{
+	"extends": "../bbox-annotator/tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": "../..",
+		"paths": { "@/*": ["src/*"] },
+		"types": ["node", "vite/client"]
+	},
+	"include": ["*.ts"]
+}
