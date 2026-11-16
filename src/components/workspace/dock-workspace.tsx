@@ -474,21 +474,24 @@ export const DockWorkspace = memo(
 			(api: DockviewApi) => {
 				requestAnimationFrame(() => {
 					syncingRef.current = false;
-					if (
-						uiStore.getState().layoutMode === "reading" &&
-						!api.hasMaximizedGroup()
-					) {
-						const activeId = activePanelIdRef.current ?? api.activePanel?.id;
-						const target =
-							(activeId && api.getPanel(activeId)) ??
-							api.panels.find((p) => {
-								const t = tabsRef.current.find((tab) => tab.id === p.id);
-								return t && !tabIsPaperNotes(t);
-							}) ??
-							api.activePanel;
-						if (target) {
-							api.maximizeGroup(target);
+					if (uiStore.getState().layoutMode === "reading") {
+						if (!api.hasMaximizedGroup()) {
+							const activeId = activePanelIdRef.current ?? api.activePanel?.id;
+							const target =
+								(activeId && api.getPanel(activeId)) ??
+								api.panels.find((p) => {
+									const t = tabsRef.current.find((tab) => tab.id === p.id);
+									return t && !tabIsPaperNotes(t);
+								}) ??
+								api.activePanel;
+							if (target) {
+								api.maximizeGroup(target);
+							}
 						}
+					} else if (api.hasMaximizedGroup()) {
+						// Older layouts saved while a writing project auto-maximized
+						// its group must not restore into hidden tab strips.
+						api.exitMaximizedGroup();
 					}
 					onActiveRef.current(api.activePanel?.id ?? null);
 					publishVisiblePanels(api);
