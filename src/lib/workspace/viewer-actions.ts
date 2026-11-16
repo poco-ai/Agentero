@@ -583,10 +583,10 @@ registerTexAutoBuildRunner(compileTexOnSave);
  * Obsidian-style Split pane (⌘\).
  *
  * Paper bodies route to their NOTES companion instead of duplicating the
- * body: open NOTES to the right when it is closed, or focus the open NOTES
- * pane. On a NOTES pane the shortcut returns to the paper body, so the same
- * editable notes buffer never ends up in two panes. Other documents still get
- * a real duplicate split.
+ * body: open NOTES to the right when it is closed, or retract (close) the
+ * open NOTES pane so ⌘\ toggles the split. On a NOTES pane the shortcut
+ * returns to the paper body, so the same editable notes buffer never ends up
+ * in two panes. Other documents still get a real duplicate split.
  */
 export function splitActivePane(): void {
 	const id = getActiveTabId();
@@ -596,6 +596,23 @@ export function splitActivePane(): void {
 	if (!active) return;
 	// Library is the resident singleton — never clone it into a second pane.
 	if (isLibraryVirtualPath(active.path)) return;
+
+	// ⌘\ toggles the paper/NOTES split: an open NOTES companion is retracted
+	// (closed) before touching the maximize state, so collapsing notes does not
+	// also drop the reading layout.
+	if (tabNotesEligible(active) && active.notesPath) {
+		const notesId = tabIdForPath(active.notesPath);
+		if (
+			tabs.some((t) => t.id === notesId) &&
+			dockHandle()?.canActivatePanel(notesId) === true
+		) {
+			dockHandle()?.rememberNotesSplitWidth(active.id, notesId);
+			closeTab(notesId, { remember: false });
+			dockHandle()?.activatePanel(active.id);
+			setActiveTabId(active.id);
+			return;
+		}
+	}
 
 	// A split under a maximized group would land in a hidden group (the new
 	// pane's always-rendered content then paints over the visible one). Leave
@@ -634,18 +651,6 @@ export function splitActivePane(): void {
 
 	if (tabNotesEligible(active) && active.notesPath) {
 		const notesId = tabIdForPath(active.notesPath);
-		if (
-			tabs.some((t) => t.id === notesId) &&
-			dockHandle()?.canActivatePanel(notesId) === true
-		) {
-			// Already open somewhere: reveal it instead of a second body pane.
-			if (dockHandle()?.isMaximizedPanel?.()) {
-				dockHandle()?.exitMaximizedPanel?.();
-			}
-			dockHandle()?.activatePanel(notesId);
-			setActiveTabId(notesId);
-			return;
-		}
 		// A restored layout can keep a notes tab in state without a dock panel;
 		// drop it so the split below registers a real, visible panel.
 		setTabs((prev) => prev.filter((t) => t.id !== notesId));
@@ -655,6 +660,7 @@ export function splitActivePane(): void {
 			prev.some((t) => t.id === notesPane.id) ? prev : [...prev, notesPane],
 		);
 		dockHandle()?.splitPanelRight(notesPane, active.id);
+		dockHandle()?.restoreNotesSplitWidth(active.id, notesPane.id);
 		setActiveTabId(notesPane.id);
 		return;
 	}

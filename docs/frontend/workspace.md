@@ -21,9 +21,9 @@
 | 循环 | `⌥⌘←/→` 按 `api.panels` **视觉序** |
 | 移至新窗口 | 文档 tab **右键** → **移动至新窗口** → 独立 `doc-*` Webview；源 panel 关闭（Library / Trash / Zen 除外）；弹出窗自带 Vault watcher，Markdown / PDF 外部改盘就地重载；URL `mode` 参数与主窗口一致参与 PDF 模式保护（探测失败不降级 Markdown） |
 | 复制路径 | 文档 tab **右键** → **复制路径**。剪贴板用 `displayPath`（Windows 去掉 `\\?\` 前缀）。Library / Trash / 广场 / Zen 和 `agentero:` 虚拟路径不显示该项 |
-| Split pane | `⌘\` / `Ctrl+\` 向右新增 pane。在论文正文上：NOTES 未开时打开 NOTES，已开时聚焦 NOTES；在 NOTES 上按则回到论文正文，从不复制可编辑的笔记缓冲。其它文档（Markdown / 文本等）复制当前 pane。只切分参考分组，不改动其它列的宽度 |
+| Split pane | `⌘\` / `Ctrl+\` 向右新增 pane。在论文正文上：NOTES 未开时打开 NOTES，已开时收回（关闭）NOTES 分屏，即 ⌘\ 切换论文/笔记分栏；在 NOTES 上按则回到论文正文，从不复制可编辑的笔记缓冲。其它文档（Markdown / 文本等）复制当前 pane。只切分参考分组，不改动其它列的宽度 |
 | NOTES 开关 | Layout 菜单；优先叠右列。重复打开保持比例；重建标准 PDF / Notes 双列时恢复共用比例，没有记录时使用 Dockview 默认分配 |
-| 打开笔记 | 论文 tab 右键 /文件树论文行右键 → NOTES 进右侧阅读列（已开则聚焦；菜单显示 `⌘\` / `Ctrl+\`）。`⌘\` 在论文正文上等同于打开/聚焦 NOTES |
+| 打开笔记 | 论文 tab 右键 /文件树论文行右键 → NOTES 进右侧阅读列（已开则聚焦；菜单显示 `⌘\` / `Ctrl+\`）。`⌘\` 在论文正文上切换 NOTES 分屏（打开 / 收回） |
 | 切换笔记 | 已有 Notes 列时，从文件树或链接打开另一篇论文笔记（`papers/**` 下的 Markdown）默认**原位替换**当前 Notes 面板：保留分栏位置与宽度、不新增 tab；目标笔记已在别处打开时只聚焦它（#738） |
 | 关光文档 | 回到常驻的全库 Library panel |
 
