@@ -93,6 +93,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  hover 只画当前元素。文本类有句对时主视觉是当前句浅底（含跨页链），
         │    否则画合并框（bbox，以及同页 titleBbox / captionBbox）
         │  单击 / Enter → 加入对话或选择翻译；文本引用当前句；不写 visual mark，不打开批注编辑器
+        │  双栏 PDF：左右同一句一起浅亮，不滚动对侧；LaTeX 双栏无句子表面，先只做 PDF
         │  实现：`hit-test.ts`（selectable*）+ `layout-element-selection-layer.tsx`
         │  工具栏 ⌘. 框选仍进入视觉批注
         │

@@ -1,6 +1,8 @@
 /**
  * Sentence under the layout-element pointer.
  * Subscribers paint DOM. Pointer moves do not render the page tree.
+ * Source and `::translation` panes share one catalog keyed by paper scope.
+ * An empty publish from either pane does not erase the other's sentence pairs.
  */
 
 import type { PdfEngine, Rect } from "@embedpdf/models";
@@ -8,10 +10,12 @@ import {
 	type ElementSentenceHit,
 	type ElementSentenceMember,
 	elementSentenceAtPoint,
+	mergeSentenceItems,
 	type SentenceFractionRect,
 	type SentenceItem,
 } from "@/lib/pdf/layout/element-sentence";
 import { sentenceGlyphRects } from "@/lib/pdf/layout/layout-sentence-selection";
+import { layoutSentenceScope } from "@/lib/pdf/layout/store";
 
 export type LayoutSentenceMember = ElementSentenceMember & {
 	rects: SentenceFractionRect[];
@@ -49,22 +53,52 @@ type PointerQuery = {
 	span?: { itemId: string; sentenceIndex: number } | null;
 };
 
-let catalogDocId = "";
-let catalog: CatalogItem[] = [];
-let generation = 0;
+type CatalogSlot = { scope: string; items: CatalogItem[] };
+
 let hover: LayoutSentenceHover | null = null;
 let lastQuery: PointerQuery | null = null;
 let suppressed = false;
 let source: GlyphSource | null = null;
 
+const slots = new Map<string, CatalogSlot>();
+const generationByScope = new Map<string, number>();
 const glyphs = new Map<string, readonly (readonly SentenceFractionRect[])[]>();
 const inflight = new Set<string>();
 const listeners = new Set<() => void>();
 
-function glyphKey(docId: string, item: CatalogItem): string {
+function glyphKey(scope: string, item: CatalogItem): string {
 	const quotes =
 		item.sentences?.map((sentence) => sentence.quote).join("\u0001") ?? "";
-	return `${docId}:${item.id}:${quotes}`;
+	return `${scope}:${item.id}:${quotes}`;
+}
+
+function scopeGeneration(scope: string): number {
+	return generationByScope.get(scope) ?? 0;
+}
+
+function bumpScope(scope: string): void {
+	generationByScope.set(scope, scopeGeneration(scope) + 1);
+	for (const key of inflight) {
+		if (key.startsWith(`${scope}:`)) inflight.delete(key);
+	}
+	for (const key of glyphs.keys()) {
+		if (key.startsWith(`${scope}:`)) glyphs.delete(key);
+	}
+}
+
+function scopeStillPublished(scope: string): boolean {
+	for (const slot of slots.values()) {
+		if (slot.scope === scope) return true;
+	}
+	return false;
+}
+
+function itemsForScope(scope: string): CatalogItem[] {
+	const groups: CatalogItem[][] = [];
+	for (const slot of slots.values()) {
+		if (slot.scope === scope) groups.push(slot.items);
+	}
+	return mergeSentenceItems(groups);
 }
 
 function notify(): void {
@@ -137,33 +171,36 @@ export function subscribeLayoutSentenceHover(listener: () => void): () => void {
 }
 
 export function bindLayoutSentenceGlyphs(next: GlyphSource | null): void {
-	if (source?.docId !== next?.docId) {
-		glyphs.clear();
-		inflight.clear();
-		generation += 1;
-	}
+	const previous = source ? layoutSentenceScope(source.docId) : null;
+	const nextScope = next ? layoutSentenceScope(next.docId) : null;
 	source = next;
+	if (previous && previous !== nextScope && !scopeStillPublished(previous)) {
+		bumpScope(previous);
+	}
 }
 
 export function publishLayoutSentenceCatalog(
 	docId: string,
 	items: readonly CatalogItem[],
 ): void {
-	const docChanged = catalogDocId !== docId;
-	catalogDocId = docId;
-	catalog = items.filter((item) => (item.sentences?.length ?? 0) > 0);
-	if (docChanged) {
-		glyphs.clear();
-		inflight.clear();
-		generation += 1;
-		lastQuery = null;
-		suppressed = false;
-		publish(null);
-		return;
+	const scope = layoutSentenceScope(docId);
+	const previous = slots.get(docId);
+	const nextItems = items.filter((item) => (item.sentences?.length ?? 0) > 0);
+	if (nextItems.length === 0) slots.delete(docId);
+	else slots.set(docId, { scope, items: nextItems });
+	if (
+		previous &&
+		previous.scope !== scope &&
+		!scopeStillPublished(previous.scope)
+	) {
+		bumpScope(previous.scope);
 	}
+	if (!scopeStillPublished(scope)) bumpScope(scope);
+	const merged = itemsForScope(scope);
 	if (
 		hover &&
-		!catalog.some((item) =>
+		layoutSentenceScope(hover.docId) === scope &&
+		!merged.some((item) =>
 			hover?.members.some((member) => member.itemId === item.id),
 		)
 	) {
@@ -173,34 +210,35 @@ export function publishLayoutSentenceCatalog(
 }
 
 function glyphsFor(
-	docId: string,
+	scope: string,
 ): Map<string, readonly (readonly SentenceFractionRect[])[]> {
 	const map = new Map<string, readonly (readonly SentenceFractionRect[])[]>();
-	for (const item of catalog) {
-		const cached = glyphs.get(glyphKey(docId, item));
+	for (const item of itemsForScope(scope)) {
+		const cached = glyphs.get(glyphKey(scope, item));
 		if (cached) map.set(item.id, cached);
 	}
 	return map;
 }
 
 export function primeLayoutSentenceGlyphs(pageIndex: number): void {
-	if (!source || source.docId !== catalogDocId) return;
+	if (!source) return;
+	const scope = layoutSentenceScope(source.docId);
 	const docId = source.docId;
-	const items = catalog.filter(
+	const items = itemsForScope(scope).filter(
 		(item) =>
 			item.pageIndex === pageIndex &&
 			(item.sentences?.length ?? 0) > 0 &&
-			!glyphs.has(glyphKey(docId, item)),
+			!glyphs.has(glyphKey(scope, item)),
 	);
 	if (items.length === 0) return;
-	const flight = `${docId}:${pageIndex}:${generation}`;
+	const captured = scopeGeneration(scope);
+	const flight = `${scope}:${pageIndex}:${captured}`;
 	if (inflight.has(flight)) return;
 	const engine = source.engine;
 	const document = source.getDocument();
 	const page = document?.pages[pageIndex];
 	if (!document || !page || page.size.width <= 0 || page.size.height <= 0)
 		return;
-	const captured = generation;
 	inflight.add(flight);
 	void (async () => {
 		let runs: { text: string; rect: Rect }[] = [];
@@ -218,7 +256,13 @@ export function primeLayoutSentenceGlyphs(pageIndex: number): void {
 		} catch {
 			runs = [];
 		}
-		if (captured !== generation || catalogDocId !== docId) return;
+		if (
+			captured !== scopeGeneration(scope) ||
+			!source ||
+			source.docId !== docId
+		) {
+			return;
+		}
 		for (const item of items) {
 			const rects = item.sentences?.length
 				? sentenceGlyphRects({
@@ -231,23 +275,29 @@ export function primeLayoutSentenceGlyphs(pageIndex: number): void {
 						bbox: item.bbox,
 					})
 				: [];
-			glyphs.set(glyphKey(docId, item), rects);
+			glyphs.set(glyphKey(scope, item), rects);
 		}
-		if (lastQuery && !suppressed) applyPointer(lastQuery);
-		else notify();
+		if (
+			lastQuery &&
+			!suppressed &&
+			layoutSentenceScope(lastQuery.docId) === scope
+		) {
+			applyPointer(lastQuery);
+		} else notify();
 	})().finally(() => {
 		inflight.delete(flight);
 	});
 }
 
 function applyPointer(query: PointerQuery): void {
-	if (suppressed || query.docId !== catalogDocId) {
+	if (suppressed) {
 		publish(null);
 		return;
 	}
+	const scope = layoutSentenceScope(query.docId);
 	const locate = elementSentenceAtPoint({
-		items: catalog,
-		glyphs: glyphsFor(query.docId),
+		items: itemsForScope(scope),
+		glyphs: glyphsFor(scope),
 		regionId: query.regionId,
 		x: query.x,
 		y: query.y,
@@ -255,8 +305,13 @@ function applyPointer(query: PointerQuery): void {
 	});
 	if (locate.status === "pending") {
 		primeLayoutSentenceGlyphs(query.pageIndex);
-		if (hover?.docId === query.docId && hover.regionId === query.regionId)
+		if (
+			hover &&
+			layoutSentenceScope(hover.docId) === scope &&
+			hover.regionId === query.regionId
+		) {
 			return;
+		}
 		publish(null);
 		return;
 	}
@@ -264,7 +319,7 @@ function applyPointer(query: PointerQuery): void {
 		publish(null);
 		return;
 	}
-	const glyphMap = glyphsFor(query.docId);
+	const glyphMap = glyphsFor(scope);
 	publish({
 		...locate.hit,
 		docId: query.docId,

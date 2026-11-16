@@ -47,6 +47,8 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
+import { publishLayoutSentenceCatalog } from "@/components/viewer/pdf/layout-sentence-hover";
+import { useLayoutSentencePairing } from "@/components/viewer/pdf/layout-sentence-pairing";
 import type {
 	PdfViewerInnerProps,
 	ScreenPoint,
@@ -57,6 +59,7 @@ import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
+import { useSettings } from "@/hooks/use-app-stores";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { destinationInPageBox } from "@/lib/pdf/citation-dest-keys";
 import {
@@ -162,6 +165,8 @@ export function PdfTranslationViewerInner({
 	const { zoomRef } = usePdfZoomControls(zoomLevel);
 	const hostRef = useRef<HTMLDivElement>(null);
 	const { engine } = usePdfEngineContext();
+	const displayMode = useSettings((s) => s.translate.displayMode);
+	const sentencePairing = displayMode === "dualPane";
 	const engineRef = useRef(engine);
 	engineRef.current = engine;
 	const { pdfTone } = usePdfPaperTone();
@@ -197,6 +202,21 @@ export function PdfTranslationViewerInner({
 		vaultPath,
 		pdfBytes: pdfCacheBytes ?? sourceBytes,
 	});
+
+	useEffect(() => {
+		if (!sentencePairing) {
+			publishLayoutSentenceCatalog(docId, []);
+			return;
+		}
+		publishLayoutSentenceCatalog(
+			docId,
+			[...layoutTranslateItemsByPage.values()].flat(),
+		);
+	}, [docId, layoutTranslateItemsByPage, sentencePairing]);
+	useEffect(() => {
+		return () => publishLayoutSentenceCatalog(docId, []);
+	}, [docId]);
+	useLayoutSentencePairing(docId, hostRef, sentencePairing);
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
@@ -496,6 +516,10 @@ export function PdfTranslationViewerInner({
 		[citationImport, handleCitationImportOpenChange, isRemotePaper],
 	);
 
+	const pageMode = useMemo<PdfPageModeSlice>(
+		() => ({ ...PAGE_MODE, sentencePairing }),
+		[sentencePairing],
+	);
 	const pageHandlers = useMemo<PdfPageHandlers>(
 		() => ({
 			...EMPTY_HANDLERS,
@@ -529,7 +553,7 @@ export function PdfTranslationViewerInner({
 				annotationCap={null}
 				marks={pageMarks}
 				layout={pageLayout}
-				mode={PAGE_MODE}
+				mode={pageMode}
 				handlers={pageHandlers}
 			/>
 		),
@@ -539,6 +563,7 @@ export function PdfTranslationViewerInner({
 			zoomRef,
 			pageMarks,
 			pageLayout,
+			pageMode,
 			pageHandlers,
 			reflowDisplayDocument,
 			searchDocumentId,

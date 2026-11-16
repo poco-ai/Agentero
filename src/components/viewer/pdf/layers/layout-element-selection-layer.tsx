@@ -43,6 +43,7 @@ import {
 	layoutElementPreview,
 	layoutElementQuote,
 	layoutKindI18nKey,
+	layoutSentenceScope,
 	type PdfLayoutRegion,
 	type PointerOrigin,
 	pickSelectableLayoutRegion,
@@ -225,7 +226,11 @@ export const LayoutElementSelectionLayer = memo(
 
 			const paintSentence = () => {
 				const current = layoutSentenceHover();
-				const mine = current?.docId === docId ? current : null;
+				const mine =
+					current &&
+					layoutSentenceScope(current.docId) === layoutSentenceScope(docId)
+						? current
+						: null;
 				const onPage =
 					mine?.members.filter((member) => member.pageIndex === pageIndex) ??
 					[];

@@ -80,6 +80,7 @@ import {
 import { PdfRegionSelectLayer } from "@/components/viewer/pdf/layers/region-select-layer";
 import { SelectionGutter } from "@/components/viewer/pdf/layers/selection-gutter";
 import { PDF_VISUAL_REGION_FRAME_CLASS } from "@/components/viewer/pdf/layers/visual-region-frame";
+import { LayoutSentencePageMark } from "@/components/viewer/pdf/layout-sentence-pairing";
 import {
 	askHighlightRects,
 	commentForVisibleTranslation,
@@ -469,6 +470,8 @@ export type PdfPageModeSlice = {
 	plainViewer?: boolean;
 	/** Narrow embeds show active comment cards inside the page. */
 	insetCommentCards?: boolean;
+	/** Dual-pane translation page paints the shared sentence wash. */
+	sentencePairing?: boolean;
 };
 
 export type PdfPageHandlers = {
@@ -1246,6 +1249,9 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				{...{ [EMBED_PAGE_ATTR]: pageIndex }}
 			>
 				{paperRaster}
+				{mode.sentencePairing ? (
+					<LayoutSentencePageMark docId={docId} pageIndex={pageIndex} />
+				) : null}
 				{translateOverlay}
 				{pageTranslateTab}
 				<SearchLayer

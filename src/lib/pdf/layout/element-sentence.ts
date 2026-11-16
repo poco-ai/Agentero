@@ -47,6 +47,26 @@ function chainKey(quote: string, translated: string): string {
 }
 
 /**
+ * Merge sentence catalogs from panes that share one paper.
+ * An empty publish must not erase the other pane. Equal counts keep the
+ * later group so a fresher pane wins.
+ */
+export function mergeSentenceItems<T extends SentenceItem>(
+	groups: readonly (readonly T[])[],
+): T[] {
+	const byId = new Map<string, T>();
+	for (const group of groups) {
+		for (const item of group) {
+			const existing = byId.get(item.id);
+			const nextCount = item.sentences?.length ?? 0;
+			const prevCount = existing?.sentences?.length ?? 0;
+			if (!existing || nextCount >= prevCount) byId.set(item.id, item);
+		}
+	}
+	return [...byId.values()];
+}
+
+/**
  * Sentence under a point in one text element.
  * `glyphs` maps an item id to per-sentence boxes. A missing entry means the
  * page's text runs have not been read yet (`pending`). An empty sentence list

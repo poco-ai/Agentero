@@ -6,7 +6,10 @@ import {
 	layoutElementPreview,
 	layoutElementQuote,
 } from "@/lib/pdf/layout/element-selection";
-import { elementSentenceAtPoint } from "@/lib/pdf/layout/element-sentence";
+import {
+	elementSentenceAtPoint,
+	mergeSentenceItems,
+} from "@/lib/pdf/layout/element-sentence";
 import {
 	bboxArea,
 	hoverableLayoutRegions,
@@ -18,6 +21,7 @@ import {
 	selectableLayoutRegions,
 	selectableLayoutRegionsByPage,
 } from "@/lib/pdf/layout/hit-test";
+import { layoutSentenceScope } from "@/lib/pdf/layout/store";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
 function region(
@@ -478,6 +482,34 @@ describe("elementSentenceAtPoint", () => {
 		if (located.status !== "sentence") return;
 		expect(located.hit.quote).toBe("First sentence.");
 		expect(located.hit.rects).toEqual([]);
+	});
+
+	it("merges pane catalogs and shares a paper scope", () => {
+		expect(layoutSentenceScope("paper::translation")).toBe("paper");
+		expect(layoutSentenceScope("paper::translation::r3")).toBe("paper");
+		expect(layoutSentenceScope("paper::r2")).toBe("paper");
+		const merged = mergeSentenceItems([
+			[],
+			[
+				{
+					id: "body",
+					pageIndex: 0,
+					sentences: [{ quote: "A", translated: "甲" }],
+				},
+			],
+			[
+				{
+					id: "body",
+					pageIndex: 0,
+					sentences: [
+						{ quote: "A", translated: "甲" },
+						{ quote: "B", translated: "乙" },
+					],
+				},
+			],
+		]);
+		expect(merged).toHaveLength(1);
+		expect(merged[0]?.sentences).toHaveLength(2);
 	});
 
 	it("does not invent a sentence from an empty quote", () => {

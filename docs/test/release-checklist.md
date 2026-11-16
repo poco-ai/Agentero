@@ -302,6 +302,7 @@ cargo test -p agentero-core -p agentero-cli
 | 7.3.2 | 中间栏·PDF | 框选区域后按 `⌘Enter` 向 Agent 提问 | 视觉上下文进入 Agent 会话；回答后同一 mark 可续聊 | ☐ |
 | 7.3.3 | 右栏·Figures | 打开带插图的 paper，点「分析」 | 列出 figure/table/algorithm/formula；点击跳转到对应位置 | ☐ |
 | 7.3.4 | 中间栏·PDF | 悬停有编号公式并单击 | 出现公式类别和框；单击可加入对话或翻译；不打开视觉批注编辑器，也不写入 visual mark | ☐ |
+| 7.3.5 | 中间栏·PDF | 悬停正文一句；双栏时再悬停译文同一句 | 浅底落在当前句，不是整段；双栏另一侧同一句一起浅亮，移开后两侧消失；不写入 visual mark | ☐ |
 | 7.3.5 | 中间栏·PDF | 点工具栏 Languages 全文翻译 | 分批出译文；某页条目结束即显示重排预览，后续批次不清掉它；全文结束后校正，未变化页不重复渲染；终局完成后才可导出；停止/清空/重试不恢复旧预览；磁盘 `source/layout-translate.json` 有缓存 | ☐ |
 | 7.3.5a | 中间栏·PDF（翻译服务=Agentero 内置） | 对一篇含公式 / URL / 引用标记的论文跑全文翻译，逐段对照原文 | 内置路径的 `[[n]]` 批次由 Host 拆分逐段请求再重组：译文**不错位、不并段、不丢块**；`⟦n⟧` 占位符保护的公式 / URL / 引用在译文里原样还原，**没有**出现裸露的 `⟦0⟧` 或被吞掉后整段回落原文（这两点是尚未用真实 key 验证过的假设，见 [../backend/builtin-provider.md](../backend/builtin-provider.md) §限制与后续） | ☐ |
 
