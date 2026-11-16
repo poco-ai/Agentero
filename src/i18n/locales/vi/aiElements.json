@@ -1,0 +1,95 @@
+{
+	"sources": {
+		"count_one": "{{count}} nguồn",
+		"count_other": "{{count}} nguồn",
+		"link": "Liên kết"
+	},
+	"context": {
+		"iconLabel": "Mức sử dụng ngữ cảnh của mô hình"
+	},
+	"tool": {
+		"exitCode": "Mã thoát {{code}}",
+		"status": {
+			"awaitingApproval": "Đang chờ phê duyệt",
+			"responded": "Đã phản hồi",
+			"running": "Đang chạy",
+			"pending": "Đang chờ",
+			"completed": "Hoàn tất",
+			"denied": "Đã từ chối",
+			"error": "Lỗi"
+		},
+		"parameters": "Tham số",
+		"result": "Kết quả",
+		"error": "Lỗi"
+	},
+	"reasoning": {
+		"thinking": "Đang suy nghĩ...",
+		"thought": "Quá trình suy nghĩ"
+	},
+	"conversation": {
+		"messages": "Tin nhắn",
+		"scrollToEnd": "Cuộn tới tin nhắn mới nhất",
+		"empty": {
+			"title": "Chưa có tin nhắn",
+			"description": "Hãy bắt đầu một cuộc trò chuyện để thấy tin nhắn tại đây"
+		}
+	},
+	"modelSelector": {
+		"label": "Chọn mô hình"
+	},
+	"formula": {
+		"copyLatex": "Sao chép LaTeX",
+		"copied": "Đã sao chép LaTeX",
+		"copyFailed": "Không thể sao chép LaTeX."
+	},
+	"plan": {
+		"toggle": "Hiện / ẩn kế hoạch",
+		"status": {
+			"pending": "Đang chờ",
+			"in_progress": "Đang thực hiện",
+			"completed": "Hoàn tất"
+		}
+	},
+	"chainOfThought": {
+		"title": "Chuỗi suy luận"
+	},
+	"table": {
+		"copy": "Sao chép bảng",
+		"copyAsCsv": "Sao chép dạng CSV",
+		"copyAsMarkdown": "Sao chép dạng Markdown",
+		"copyAsTsv": "Sao chép dạng TSV",
+		"download": "Tải bảng xuống",
+		"downloadAsCsv": "Tải xuống dạng CSV",
+		"downloadAsMarkdown": "Tải xuống dạng Markdown",
+		"viewFullscreen": "Xem toàn màn hình",
+		"exitFullscreen": "Thoát toàn màn hình"
+	},
+	"code": {
+		"copy": "Sao chép mã",
+		"download": "Tải mã xuống"
+	},
+	"mermaid": {
+		"label": "Sơ đồ Mermaid",
+		"viewSource": "Xem mã nguồn",
+		"viewDiagram": "Xem sơ đồ",
+		"copySource": "Sao chép mã nguồn Mermaid",
+		"zoomIn": "Phóng to",
+		"zoomOut": "Thu nhỏ",
+		"resetZoom": "Đặt lại về 100%",
+		"fitToView": "Vừa khung nhìn",
+		"viewFullscreen": "Xem toàn màn hình",
+		"exitFullscreen": "Thoát toàn màn hình",
+		"error": "Không thể hiển thị sơ đồ Mermaid này."
+	},
+	"promptInput": {
+		"placeholder": "Bạn muốn biết điều gì?",
+		"uploadFiles": "Tải tệp lên",
+		"stop": "Dừng",
+		"submit": "Gửi",
+		"error": {
+			"accept": "Không có tệp nào thuộc loại được chấp nhận.",
+			"maxFileSize": "Tất cả các tệp đều vượt quá kích thước tối đa.",
+			"maxFiles": "Quá nhiều tệp. Một số tệp chưa được thêm."
+		}
+	}
+}

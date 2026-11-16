@@ -1,0 +1,1200 @@
+{
+	"title": "Cài đặt",
+	"host": {
+		"remote": "Từ xa",
+		"remoteContextHint": "Kho đang mở trên {{host}} ({{path}}). Giao diện ứng dụng vẫn là cài đặt cục bộ; danh mục Agent bên dưới sẽ dò trên máy chủ đó khi bạn mở mục Agent."
+	},
+	"nav": {
+		"account": "Tài khoản và nhóm",
+		"general": "Chung",
+		"appearance": "Giao diện",
+		"agent": "Agent",
+		"translate": "Dịch",
+		"layout": "Bố cục",
+		"experimental": "Thử nghiệm",
+		"doctor": "Chẩn đoán",
+		"keyboard": "Bàn phím",
+		"remote-access": "Truy cập di động",
+		"about": "Giới thiệu",
+		"quickSetup": "Trình hướng dẫn thiết lập nhanh",
+		"featureTour": "Giới thiệu tính năng",
+		"sync": "Đồng bộ"
+	},
+	"writing": {
+		"uploadMode": "Thời điểm tải lên",
+		"uploadManual": "Thủ công",
+		"uploadOnCompile": "Sau mỗi lần biên dịch",
+		"uploadInterval": "Theo hẹn giờ",
+		"uploadEvery": "Chu kỳ",
+		"uploadMinutes": "{{count}} phút",
+		"save": "Lưu",
+		"saved": "Đã lưu"
+	},
+	"remoteAccess": {
+		"title": "Truy cập di động",
+		"localVaultRequired": "Hãy mở một kho cục bộ để cung cấp quyền truy cập di động.",
+		"hostName": {
+			"label": "Tên máy tính"
+		},
+		"status": {
+			"online": "Trực tuyến",
+			"offline": "Ngoại tuyến"
+		},
+		"start": "Bật truy cập di động",
+		"stop": "Tắt truy cập di động",
+		"qrAlt": "Mã QR ghép nối",
+		"pairing": {
+			"title": "Ghép nối iPhone hoặc iPad"
+		},
+		"copyLink": "Sao chép liên kết ghép nối",
+		"copied": "Đã sao chép liên kết ghép nối",
+		"copyFailed": "Không thể sao chép liên kết ghép nối",
+		"request": {
+			"title": "Ghép nối {{device}}",
+			"code": "Mã xác nhận: {{code}}"
+		},
+		"approve": "Chấp thuận",
+		"deny": "Từ chối",
+		"devices": {
+			"revoke": "Thu hồi {{device}}"
+		},
+		"cache": {
+			"section": "Bộ nhớ đệm kho từ xa",
+			"label": "Bộ nhớ đệm xem trước PDF",
+			"clear": "Xóa bộ nhớ đệm từ xa",
+			"clearing": "Đang xóa…",
+			"clearFailed": "Xóa bộ nhớ đệm từ xa thất bại"
+		}
+	},
+	"general": {
+		"title": "Chung",
+		"sections": {
+			"papers": "Thư viện bài báo",
+			"pdf": "Đọc PDF",
+			"plaza": "Quảng trường",
+			"system": "Hệ thống",
+			"network": "Mạng",
+			"integrations": "Tích hợp",
+			"mcp": "MCP",
+			"keyboard": "Bàn phím"
+		},
+		"terminalApp": {
+			"label": "Mở trong Terminal bằng",
+			"unavailable": "{{name}} (chưa cài đặt)"
+		},
+		"finder": {
+			"label": "Tích hợp Finder",
+			"description": "Thêm \"Mở bằng Agentero\" vào trình đơn chuột phải của thư mục trong Finder",
+			"descriptionInstalled": "Nhấp chuột phải vào một thư mục trong Finder để mở nó như một kho",
+			"stale": "Agentero đã bị di chuyển — hãy cập nhật để sửa mục trình đơn",
+			"install": "Cài đặt",
+			"update": "Cập nhật",
+			"uninstall": "Gỡ bỏ",
+			"installSuccess": "Đã cài Quick Action cho Finder",
+			"uninstallSuccess": "Đã gỡ Quick Action cho Finder",
+			"installFailed": "Không thể cài Quick Action cho Finder",
+			"uninstallFailed": "Không thể gỡ Quick Action cho Finder"
+		},
+		"paperTreeLabelMode": {
+			"label": "Tên bài báo trong cây thư mục",
+			"title-author": "Tiêu đề · Tác giả",
+			"title": "Tiêu đề",
+			"author-year-title": "Tác giả (năm) · Tiêu đề",
+			"folder": "Tên thư mục"
+		},
+		"paperTreeSortMode": {
+			"label": "Thứ tự sắp xếp bài báo trong cây thư mục",
+			"folder": "Tên hiển thị A–Z",
+			"title": "Tiêu đề A–Z",
+			"author": "Tác giả A–Z",
+			"year-desc": "Năm (mới nhất trước)",
+			"year-asc": "Năm (cũ nhất trước)",
+			"added-desc": "Ngày thêm (mới nhất trước)"
+		},
+		"paperNoteMode": {
+			"label": "Khởi tạo ghi chú bài báo",
+			"standard": "Chuẩn",
+			"title-only": "Chỉ tiêu đề",
+			"blank": "Trống",
+			"custom": "Mẫu tùy chỉnh",
+			"seed": "Tạo mẫu khởi đầu",
+			"seedCreated": "Đã tạo mẫu khởi đầu",
+			"seedExists": "Mẫu đã tồn tại"
+		},
+		"autoOpenPaperNotes": {
+			"label": "Mặc định mở ghi chú của bài báo"
+		},
+		"autoIngest": {
+			"label": "Tự động nhập các thư mục được thêm vào Papers"
+		},
+		"replaceCurrentTabOnOpenPaper": {
+			"label": "Thay tab hiện tại khi mở bài báo"
+		},
+		"autoUpdateInternalLinks": {
+			"label": "Cập nhật liên kết nội bộ sau khi đổi tên từ bên ngoài",
+			"ask": "Hỏi",
+			"always": "Luôn cập nhật khi an toàn"
+		},
+		"pdfScrollStrategy": {
+			"label": "Chế độ điều hướng PDF",
+			"vertical": "Dọc",
+			"horizontal": "Ngang",
+			"paginated": "Từng trang"
+		},
+		"pdfVimKeys": {
+			"label": "Bật phím Vim cho PDF (j/k/h/l)",
+			"requiresVimMode": "Cần bật chế độ Vim"
+		},
+		"vimMode": {
+			"label": "Chế độ Vim",
+			"description": "Bật điều hướng j/k/h/l và nhãn nhảy F trong cây thư mục, danh sách thả xuống và trình đọc PDF. Khi tắt, gõ phím thường và phím mũi tên hoạt động như bình thường."
+		},
+		"pdfSpreadMode": {
+			"label": "Bố cục trang PDF",
+			"none": "Một trang",
+			"odd": "Hai trang (từ trang 1)",
+			"even": "Hai trang (bìa tách riêng)"
+		},
+		"batchImportConcurrency": {
+			"label": "Số tác vụ nền chạy đồng thời",
+			"value": "{{value}} cùng lúc"
+		},
+		"networkProxy": {
+			"label": "Proxy mạng",
+			"systemDetected": "Phát hiện proxy hệ thống ({{url}}) — được dùng tự động khi công tắc này tắt."
+		},
+		"institutionProxy": {
+			"label": "Proxy của cơ quan",
+			"cookieLabel": "Cookie proxy",
+			"cookiePlaceholder": "Dán cookie WebVPN",
+			"login": "Mở trang đăng nhập",
+			"loginFailed": "Không thể mở trang đăng nhập của cơ quan",
+			"cookieExpired": "Phiên đăng nhập của cơ quan đã hết hạn. Hãy mở cổng truy cập và đăng nhập lại; cookie được lưu tự động.",
+			"typeLabel": "Loại cổng truy cập",
+			"typeAuto": "Tự động nhận diện",
+			"typeEzproxy": "EZProxy (login?url=)",
+			"typeWengine": "WebVPN (wengine)",
+			"typeSubdomain": "WebVPN (ánh xạ tên miền con)",
+			"test": "Kiểm tra",
+			"testing": "Đang kiểm tra…",
+			"probeIdle": "Chưa kiểm tra",
+			"probeOk": "Khả dụng",
+			"probeFail": "Không khả dụng",
+			"probeProbing": "Đang kiểm tra…",
+			"presetsLabel": "Các cơ quan phổ biến",
+			"presets": {
+				"zju": "Đại học Chiết Giang",
+				"ustc": "Đại học Khoa học và Công nghệ Trung Quốc",
+				"xjtu": "Đại học Giao thông Tây An",
+				"neu": "Đại học Đông Bắc",
+				"tsinghua": "Đại học Thanh Hoa",
+				"fudan": "Đại học Phúc Đán",
+				"bjmu": "Trung tâm Khoa học Y tế, Đại học Bắc Kinh"
+			}
+		},
+		"easyScholar": {
+			"section": "EasyScholar",
+			"keyLabel": "Key",
+			"placeholder": "Nhập key EasyScholar",
+			"openKeyPage": "Lấy key EasyScholar",
+			"confirm": "Xác nhận",
+			"probeIdle": "Chưa cấu hình",
+			"probeOk": "Khả dụng",
+			"probeFail": "Không khả dụng",
+			"probeProbing": "Đang kiểm tra…"
+		},
+		"plaza": {
+			"label": "Quảng trường"
+		},
+		"connector": {
+			"label": "Tương thích Zotero Connector",
+			"hint": "Hãy thoát Zotero trên máy trước",
+			"portLabel": "Cổng Connector",
+			"invalidPort": "Cổng phải nằm trong khoảng từ 1 đến 65535.",
+			"notListening": "Chưa lắng nghe",
+			"portInUse": "Cổng {{port}} đang được sử dụng. Agentero thử lại mỗi 5 giây. Hãy thoát Zotero hoặc ứng dụng khác đang dùng cổng này.",
+			"bindFailed": "Không thể lắng nghe trên cổng {{port}}. Agentero thử lại mỗi 5 giây. Hãy kiểm tra cổng hoặc chọn cổng khác.",
+			"serverStopped": "Dịch vụ Connector đã dừng. Agentero thử lại mỗi 5 giây. Bạn cũng có thể thử lại ngay."
+		},
+		"mcp": {
+			"exposeText": {
+				"label": "Cho phép truy cập nội dung bài báo (MCP)"
+			},
+			"label": "Máy chủ MCP",
+			"portLabel": "Cổng MCP",
+			"invalidPort": "Cổng phải nằm trong khoảng từ 1 đến 65535.",
+			"copyUrl": "Sao chép URL MCP",
+			"copied": "Đã sao chép",
+			"tunnel": {
+				"tunnelIdLabel": "Tunnel ID",
+				"apiKeyLabel": "Runtime API key",
+				"invalidTunnelId": "Tunnel ID phải có dạng `tunnel_` + 32 ký tự hex.",
+				"label": "Tunnel ChatGPT",
+				"start": "Bắt đầu",
+				"stop": "Dừng",
+				"starting": "Đang khởi động…",
+				"ready": "Đã kết nối",
+				"error": "Chưa kết nối",
+				"stopped": "Đã dừng",
+				"binaryMissing": "Không tìm thấy tunnel-client",
+				"installHint": "Hãy cài đặt nó; trang này sẽ tự nhận ra mà không cần khởi động lại:",
+				"copyCommand": "Sao chép lệnh cài đặt",
+				"copied": "Đã sao chép",
+				"openTunnels": "Mở trang tunnel",
+				"openApiKeys": "Mở trang API key"
+			}
+		},
+		"privacy": {
+			"section": "Quyền riêng tư",
+			"telemetry": {
+				"label": "Chia sẻ dữ liệu sử dụng ẩn danh"
+			},
+			"clearUsage": {
+				"label": "Xóa lịch sử hoạt động",
+				"action": "Xóa",
+				"done": "Đã xóa lịch sử hoạt động"
+			}
+		}
+	},
+	"appearance": {
+		"title": "Giao diện",
+		"themeLabel": "Giao diện",
+		"theme": {
+			"system": "Hệ thống",
+			"light": "Sáng",
+			"dark": "Tối"
+		},
+		"uiThemeLabel": "Chủ đề màu",
+		"uiTheme": {
+			"default": "Mặc định",
+			"select": "Dùng chủ đề {{name}}"
+		},
+		"languageLabel": "Ngôn ngữ",
+		"language": {
+			"system": "Hệ thống",
+			"en": "English",
+			"zhCN": "简体中文",
+			"vi": "Tiếng Việt"
+		},
+		"uiScale": {
+			"label": "Tỷ lệ giao diện",
+			"value": "{{percent}}%"
+		},
+		"sound": {
+			"label": "Âm thanh trong ứng dụng",
+			"description": "Tín hiệu nhẹ khi Agent cần bạn, hoặc khi một lượt chạy hay bản dịch PDF hoàn tất hoặc thất bại",
+			"preview": "Nghe thử"
+		},
+		"fonts": {
+			"section": "Phông chữ",
+			"interface": "Phông giao diện",
+			"text": "Phông văn bản",
+			"mono": "Phông mã"
+		},
+		"markdownEditor": {
+			"section": "Trình soạn thảo Markdown"
+		},
+		"fontSize": {
+			"label": "Cỡ chữ trình soạn thảo",
+			"value": "{{size}} px",
+			"select": "Chọn cỡ chữ"
+		},
+		"fontFamily": {
+			"default": "Mặc định (Hệ thống)",
+			"system": "Giao diện hệ thống",
+			"geist": "Geist",
+			"serif": "Có chân",
+			"mono": "Đơn cách",
+			"search": "Tìm phông chữ…",
+			"loading": "Đang tải phông chữ hệ thống…",
+			"noMatch": "Không có phông chữ phù hợp",
+			"suggested": "Gợi ý",
+			"systemFonts": "Phông chữ hệ thống"
+		},
+		"lineHeight": {
+			"label": "Chiều cao dòng",
+			"value": "{{value}}"
+		},
+		"wikiEmbedFontSize": {
+			"label": "Cỡ chữ nội dung nhúng wiki",
+			"value": "{{size}} px"
+		},
+		"markdownMaxWidth": {
+			"label": "Chiều rộng tối đa của Markdown",
+			"full": "Toàn chiều rộng",
+			"value": "{{width}} px"
+		},
+		"editorToolbar": {
+			"label": "Thanh công cụ định dạng"
+		}
+	},
+	"agent": {
+		"title": "Agent",
+		"zhihu": {
+			"section": "Zhihu",
+			"keyLabel": "Access Secret",
+			"placeholder": "Dán Zhihu Access Secret",
+			"confirm": "Lưu",
+			"openKeyPage": "Mở bảng điều khiển nhà phát triển Zhihu",
+			"probeIdle": "Chưa cấu hình",
+			"probeProbing": "Đang kiểm tra…",
+			"probeOk": "Sẵn sàng",
+			"probeFail": "Không khả dụng"
+		},
+		"userAgent": {
+			"section": "Tương thích trạm trung chuyển",
+			"label": "User-Agent",
+			"placeholder": "codex-cli/0.50.0",
+			"presetsAria": "Các mẫu User-Agent có sẵn",
+			"off": "Tắt",
+			"providerIdsLabel": "ID nhà cung cấp Codex",
+			"providerIdsPlaceholder": "my_proxy, openai"
+		},
+		"embedding": {
+			"section": "Mô hình embedding",
+			"source": {
+				"label": "Nguồn",
+				"builtin": "Tích hợp sẵn của Agentero",
+				"custom": "Endpoint tùy chỉnh"
+			},
+			"baseUrl": {
+				"label": "Base URL"
+			},
+			"apiKey": {
+				"label": "API key"
+			},
+			"model": {
+				"label": "Mô hình"
+			},
+			"test": "Kiểm tra kết nối",
+			"testing": "Đang kiểm tra…",
+			"probeStatus": {
+				"idle": "Chưa kiểm tra",
+				"probing": "Đang kiểm tra…",
+				"ok": "Kết nối được",
+				"failed": "Không kết nối được",
+				"unconfigured": "Chưa cấu hình"
+			},
+			"agentero": "Agentero Embedding",
+			"agenteroHint": "Dùng API key của tài khoản Agentero. Hạn mức và cài đặt vượt hạn mức của tài khoản sẽ được áp dụng. Việc chuyển đổi sẽ xóa key của nhà cung cấp trước đó.",
+			"useAgentero": "Dùng Agentero"
+		},
+		"desktopOnly": "Danh mục Agent cần ứng dụng máy tính.",
+		"desktopHint": "Chạy `pnpm tauri dev` để quét các agent trên máy này.",
+		"commonAgents": "Agent phổ biến",
+		"commonAgentsHint": "Nếu ACP lỗi, hãy thử cấu hình proxy trong mục Chung.",
+		"nodeNotice": {
+			"title": "Cần có Node.js",
+			"npmTitle": "Cần có npm",
+			"description": "Các bộ chuyển đổi ACP và việc cài Agent dựa trên npm cần Node.js (đi kèm npm). Hãy cài đặt rồi thử lại.",
+			"unusableTitle": "Node.js không chạy được",
+			"npmUnusableTitle": "npm không chạy được",
+			"unusableDescription": "Agentero tìm thấy Node.js nhưng không khởi động được. Hãy mở Chẩn đoán để xem chi tiết lỗi (xung đột đường dẫn thư viện là nguyên nhân thường gặp), rồi thử lại.",
+			"diagnostics": "Chẩn đoán"
+		},
+		"nodeRequired": "Thao tác Agent này cần Node.js. Hãy cài Node.js rồi thử lại.",
+		"nodeUnusable": "Thao tác Agent này cần Node.js hoạt động được. Hãy mở Chẩn đoán để xem chi tiết lỗi, rồi thử lại.",
+		"desktopApps": {
+			"section": "Ứng dụng máy tính cục bộ",
+			"hint": "Bản thân các ứng dụng máy tính này không hỗ trợ ACP — Agentero kết nối thông qua CLI đi kèm của chúng (Codex trong ChatGPT, CodeBuddy trong WorkBuddy, …).",
+			"scanning": "Đang dò tìm…",
+			"open": "Mở {{name}}",
+			"chatgpt": "ChatGPT",
+			"qwenwork": "QwenWork",
+			"workbuddy": "WorkBuddy",
+			"dsh-desktop": "Dsh Desktop",
+			"bundledCli": "CLI đi kèm — có thể kết nối"
+		},
+		"zcodeDesktopPathHint": "Nếu không tìm thấy ZCode, hãy đặt ZCODE_BIN thành đường dẫn tới zcode.cjs của nó. Cách này hỗ trợ mọi ổ đĩa và thư mục cài đặt lồng nhau.",
+		"defaultAgent": {
+			"section": "Agent mặc định",
+			"label": "Agent mặc định",
+			"description": "Được dùng khi một quy trình hoặc cuộc trò chuyện không chọn Agent cụ thể.",
+			"placeholder": "Chọn Agent mặc định",
+			"empty": "Không có Agent khả dụng"
+		},
+		"custom": "Tùy chỉnh",
+		"addCustom": "Thêm agent tùy chỉnh",
+		"probe": "Làm mới",
+		"probing": "Đang dò…",
+		"scanning": "Đang quét…",
+		"installAgent": "Cài đặt",
+		"installAgentAria": "Cài CLI của agent {{name}}",
+		"installAgentTitle": "Cài CLI của agent",
+		"installAdapter": "Cài ACP",
+		"installAdapterAria": "Cài bộ chuyển đổi ACP cho {{name}}",
+		"installAdapterTitle": "Cài bộ chuyển đổi ACP",
+		"installSuccess": "Đã cài {{name}}",
+		"loginAgent": "Đăng nhập",
+		"loginAgentAria": "Đăng nhập {{name}}",
+		"loginAgentTitle": "Mở terminal cho {{command}}",
+		"updateAgent": "Cập nhật",
+		"updateAgentAria": "Cập nhật CLI của agent {{name}}",
+		"updateAgentTitle": "Cập nhật CLI của agent",
+		"openCliAria": "Mở CLI của {{name}} trong terminal",
+		"openCliTitle": "Mở terminal cho {{command}}",
+		"updateSuccess": "Đã cập nhật {{name}}",
+		"lifecycleWaiting": "Đang chờ trình cài đặt…",
+		"lifecycleInstalling": "Đang chạy trình cài đặt…",
+		"lifecycleScanning": "Đang quét PATH…",
+		"lifecycleProbing": "Đang dò ACP…",
+		"lifecycleUninstalling": "Đang gỡ cài đặt…",
+		"npmCacheWriteFailed": "npm không thể ghi vào bộ nhớ đệm của nó. Các bản cài do Agentero quản lý tự động dùng một thư mục bộ nhớ đệm riêng biệt — vui lòng thử lại. Nếu vẫn lỗi, hãy chạy {{cacheCommand}} trong Command Prompt rồi thử lại, đóng các tiến trình Node/npm khác, cho phép Node.js trong phần mềm diệt virus, hoặc sửa quyền của thư mục bộ nhớ đệm.",
+		"uninstallAgentAria": "Gỡ cài đặt agent {{name}}",
+		"uninstallAgentTitle": "Gỡ cài đặt agent",
+		"uninstallSuccess": "Đã gỡ cài đặt {{name}}",
+		"removeSuccess": "Đã gỡ {{name}}",
+		"badges": {
+			"default": "mặc định",
+			"agentInstalled": "Đã cài agent",
+			"agentMissing": "Chưa có agent",
+			"acpMissing": "Chưa có ACP",
+			"acpNodeBlocker": "Node không khả dụng",
+			"acpBundled": "Tích hợp sẵn",
+			"acpBundledTitle": "Bộ chuyển đổi ACP đi kèm {{version}} — chỉ được dùng khi không có bộ chuyển đổi nào trên PATH (bản cài trên PATH luôn được ưu tiên; bản đi kèm thay đổi theo các bản phát hành của ứng dụng).",
+			"desktopBundled": "Đi kèm ứng dụng",
+			"desktopBundledTitle": "Được điều khiển bằng CLI đi kèm một ứng dụng máy tính ({{path}}). Bản cài trên PATH luôn được ưu tiên."
+		},
+		"permission": {
+			"label": "Chế độ cấp quyền",
+			"restricted": {
+				"label": "Hạn chế (mặc định)"
+			},
+			"ask": {
+				"label": "Hỏi mỗi lần"
+			},
+			"auto": {
+				"label": "Tự động phê duyệt"
+			}
+		},
+		"autoPaperReader": {
+			"label": "Tự động chạy paper-reader sau khi nhập"
+		},
+		"responseLanguage": {
+			"label": "Ngôn ngữ trả lời",
+			"auto": "Tự động (theo nội dung)",
+			"en": "English",
+			"zhCN": "简体中文"
+		},
+		"personalPrompt": {
+			"label": "Lời nhắc tùy chọn cá nhân",
+			"placeholder": "ví dụ: Ưu tiên gạch đầu dòng ngắn gọn; luôn giữ [[wikilinks]]; trích dẫn đường dẫn trong kho."
+		},
+		"pdfAsk": {
+			"section": "Hỏi về vùng chọn trong PDF",
+			"agentId": {
+				"label": "Agent dùng để hỏi",
+				"followDefault": "Theo mặc định",
+				"followDefaultNamed": "Theo mặc định ({{name}})",
+				"empty": "Không có agent khả dụng. Hãy thêm một agent ở trên trước."
+			},
+			"modelId": {
+				"label": "Mô hình dùng để hỏi",
+				"followAgent": "Theo mặc định của agent"
+			}
+		},
+		"paperReader": {
+			"section": "Đọc bài báo",
+			"agentId": {
+				"label": "Agent đọc bài"
+			},
+			"modelId": {
+				"label": "Mô hình đọc bài"
+			}
+		},
+		"form": {
+			"defaultName": "Desktop",
+			"name": "Tên",
+			"command": "Lệnh",
+			"args": "Tham số",
+			"hint": "Chạy lệnh này trong kho hiện tại và kết nối qua ACP trên stdin/stdout. Tham số được tách theo khoảng trắng. Ví dụ: lệnh opencode, tham số acp; hoặc một đường dẫn Python tuyệt đối với đường dẫn tuyệt đối của tập lệnh cầu nối làm tham số."
+		},
+		"uninstallDialog": {
+			"title": "Gỡ cài đặt {{name}}?",
+			"lead": "Chọn những gì cần gỡ:",
+			"removeAgent": "Gỡ CLI của Agent",
+			"removeAcp": "Gỡ bộ chuyển đổi ACP",
+			"dirsLabel": "Các đường dẫn sẽ bị xóa",
+			"copyAria": "Sao chép vào bảng tạm",
+			"registryOnly": "Chỉ mục đăng ký trong Agentero bị gỡ; các tệp đã cài vẫn nằm trên đĩa.",
+			"customConfirm": "Gỡ agent tùy chỉnh này khỏi Agentero?",
+			"confirm": "Gỡ cài đặt"
+		},
+		"remote": {
+			"banner": "Đang dò các agent ACP trên {{host}}. Các tệp thực thi phải được cài đặt và đăng nhập sẵn trên máy chủ (PATH / login shell).",
+			"commonAgents": "Agent trên máy chủ từ xa",
+			"probeTitle": "Quét lại & dò các agent từ xa",
+			"empty": "Danh mục không có kết quả. Hãy kiểm tra phiên SSH và PATH trên máy từ xa.",
+			"hint": "Làm mới sẽ chạy command -v rồi ACP initialize qua SSH. Nếu Claude hiện “thiếu bộ chuyển đổi ACP”, hãy dùng Cài ACP (mở Terminal → Enter → cài qua SSH trên máy chủ). API key nằm lại trên máy từ xa (BYOA). Nếu việc dò bị quá thời gian, hãy bật proxy cho Agent (proxy phải truy cập được từ máy chủ).",
+			"installAdapterAria": "Cài bộ chuyển đổi ACP cho {{name}} trên máy chủ từ xa qua Terminal",
+			"installAdapterTitle": "Mở Terminal, rồi SSH tới {{host}} và chạy: {{command}} (nhấn Enter để xác nhận)"
+		}
+	},
+	"translate": {
+		"title": "Dịch",
+		"provider": {
+			"label": "Dịch vụ mặc định",
+			"agentero": "Đám mây Agentero (tài khoản cá nhân)",
+			"cnki": "CNKI Translate",
+			"huoshanweb": "Volcengine Web",
+			"tencenttransmart": "Tencent Transmart",
+			"indextranslate": "Bilibili Translate 35B-A3B",
+			"indextranslate2b": "Bilibili Translate 2B",
+			"deepl": "DeepL API",
+			"azure": "Microsoft Translator",
+			"googleCloud": "Google Cloud Translate",
+			"openaiCompatible": "Tương thích OpenAI",
+			"agent": "Agent",
+			"probeIdle": "Chưa kiểm tra",
+			"probeOk": "Khả dụng",
+			"probeFail": "Không khả dụng",
+			"probeProbing": "Đang kiểm tra tính khả dụng…"
+		},
+		"errors": {
+			"noBuiltinKey": "Tính năng dịch tích hợp sẵn không có trong bản dựng này.",
+			"unreachable": "Không thể kết nối tới dịch vụ dịch. Hãy kiểm tra mạng hoặc chọn dịch vụ khác trong cài đặt Dịch.",
+			"terminology": "Dịch vụ này không giữ được thuật ngữ. Hãy chọn dịch vụ dịch khác rồi thử lại."
+		},
+		"targetLang": {
+			"label": "Ngôn ngữ đích",
+			"ui": "Theo ngôn ngữ giao diện",
+			"en": "English",
+			"zhCN": "简体中文"
+		},
+		"autoSelection": {
+			"label": "Tự động dịch vùng chọn trong PDF"
+		},
+		"autoImport": {
+			"label": "Tự động dịch sau khi phân tích bố cục",
+			"description": "Sau khi nhập, tải xuống hoặc phân tích lại bố cục, ứng dụng sẽ chạy dịch toàn văn ở chế độ nền. Dùng lại các bản dịch trong bộ nhớ đệm và chỉ yêu cầu dịch những khối thay đổi. Sử dụng dịch vụ dịch và cài đặt bộ nhớ đệm hiện tại.",
+			"concurrency": {
+				"label": "Số bài báo tự động dịch đồng thời"
+			}
+		},
+		"displayMode": {
+			"label": "Chế độ hiển thị bản dịch",
+			"overlay": "Phủ lên PDF gốc",
+			"dualPane": "Hai khung"
+		},
+		"cache": {
+			"section": "Bộ nhớ đệm",
+			"ir": {
+				"label": "Lưu đệm IR dàn trang lại",
+				"description": "Lưu thông tin hình học của ký tự đã trích xuất để khi mở lại bài báo không cần trích xuất nữa."
+			},
+			"final": {
+				"label": "Lưu đệm PDF đã dịch",
+				"description": "Lưu PDF đã dịch được dựng sẵn. Mỗi bài báo chiếm khoảng 25 MB."
+			},
+			"tip": "Tắt một công tắc chỉ dừng việc ghi mới; các mục đã có vẫn được dùng lại.",
+			"reset": "Khôi phục mặc định",
+			"dictionary": {
+				"label": "Bộ nhớ đệm tra từ",
+				"description": "Kết quả tra từ và ngữ cảnh đã hoàn tất được dùng lại trong 30 ngày. Thao tác xóa áp dụng cho kho hiện tại; các từ điển đi kèm vẫn dùng được.",
+				"clear": "Xóa",
+				"clearFailed": "Không thể xóa bộ nhớ đệm tra từ.",
+				"cleared": "Đã xóa"
+			}
+		},
+		"providerConfig": {
+			"section": "Dịch vụ API",
+			"confirm": "Xác nhận",
+			"openDocsLabel": "Lấy API key",
+			"notConfigured": "Chưa cấu hình",
+			"apiKey": {
+				"label": "API key",
+				"placeholder": ""
+			},
+			"baseUrl": {
+				"label": "Endpoint (không bắt buộc)"
+			},
+			"region": {
+				"label": "Khu vực",
+				"placeholder": "ví dụ: eastasia"
+			},
+			"model": {
+				"label": "Mô hình",
+				"placeholder": "ID mô hình của nhà cung cấp"
+			},
+			"extraRequestBody": {
+				"label": "JSON bổ sung",
+				"invalid": "Tham số bổ sung phải là một đối tượng JSON hợp lệ.",
+				"reserved": "Tham số bổ sung không thể ghi đè model, messages hoặc stream."
+			}
+		},
+		"providerDesc": {
+			"deepl": "Dịch máy nơ-ron DeepL, cấu hình bằng API key chính thức.",
+			"azure": "Microsoft Translator, cấu hình bằng khóa đăng ký Azure.",
+			"googleCloud": "Google Cloud Translation API, cấu hình bằng khóa tài khoản dịch vụ.",
+			"openaiCompatible": "Endpoint tương thích OpenAI Chat Completions. Nhập Base URL, ví dụ https://api.openai.com/v1; Agentero sẽ nối thêm /chat/completions."
+		},
+		"agentId": {
+			"label": "Agent",
+			"followDefault": "Theo mặc định",
+			"followDefaultNamed": "Theo mặc định ({{name}})",
+			"empty": "Không có agent khả dụng. Hãy cấu hình trong cài đặt Agent.",
+			"openAgentSettings": "Mở cài đặt Agent"
+		},
+		"modelId": {
+			"label": "Mô hình",
+			"followAgent": "Theo mặc định của agent",
+			"needWarm": "Hãy mở agent này trong Trò chuyện một lần để liệt kê các mô hình tại đây."
+		},
+		"customPrompt": {
+			"label": "Lời nhắc dịch",
+			"systemLabel": "System",
+			"userLabel": "Mẫu User",
+			"systemPlaceholder": "Để trống sẽ giữ phong cách học thuật tích hợp sẵn. Một ghi chú một dòng được xem là tùy chọn bổ sung; các quy tắc của engine vẫn được giữ.",
+			"userPlaceholder": "Để trống để gửi văn bản nguồn trong dấu ngoặc kép. Trong mẫu, văn bản nguồn chỉ thay thế {{text}}. Cũng có thể dùng {{targetLang}} và {{sourceLang}}.",
+			"seed": "Chèn mặc định",
+			"reset": "Đặt lại",
+			"unknownPlaceholder": "Biến giữ chỗ không xác định: {{name}}. Chỉ cho phép {{targetLang}}, {{sourceLang}} và {{text}}.",
+			"userNeedsText": "Mẫu User phải chứa {{text}} tại vị trí của văn bản nguồn."
+		},
+		"autoTranslation": {
+			"section": "Tự động dịch"
+		},
+		"dictionaryIncluded": "Đã kèm sẵn từ điển Anh–Trung ngoại tuyến và thuật ngữ AI. Không cần thiết lập.",
+		"dictionaryMode": {
+			"label": "Tra từ",
+			"auto": "Tự động",
+			"offline-first": "Ưu tiên ngoại tuyến",
+			"off": "Tắt",
+			"autoDescription": "Hiện định nghĩa cục bộ, sau đó giải thích ngữ cảnh bằng dịch vụ AI bạn đã cấu hình.",
+			"offline-firstDescription": "Dùng định nghĩa cục bộ khi có. Chỉ gửi yêu cầu tới dịch vụ của bạn cho các từ còn thiếu.",
+			"offDescription": "Dịch mọi vùng chọn. Bạn vẫn có thể mở từ điển từ thẻ kết quả."
+		}
+	},
+	"layout": {
+		"title": "Phân tích bố cục",
+		"backend": {
+			"label": "Engine phân tích",
+			"local": "Trên thiết bị",
+			"paddle": "Paddle",
+			"mineru": "MinerU"
+		},
+		"parserBackend": {
+			"label": "Engine phân tích nội dung",
+			"local": "Trên thiết bị",
+			"agentero": "Tích hợp sẵn của Agentero",
+			"paddle": "Paddle",
+			"mineru": "MinerU",
+			"openaiCompatible": "Tương thích OpenAI"
+		},
+		"menusHint": "Chỉ các nhà cung cấp đã cấu hình mới được liệt kê ở đây. Nếu thiếu Paddle hoặc MinerU, hãy cấu hình bên dưới rồi lưu — nó sẽ chọn được sau khi vượt qua bước kiểm tra.",
+		"providerConfig": {
+			"section": "Cài đặt nhà cung cấp",
+			"sectionHint": "Khuyên dùng Paddle hoặc MinerU. Các dịch vụ tương thích OpenAI khác được thu gọn trong mục Khác bên dưới.",
+			"other": "Nhà cung cấp khác",
+			"providerName": {
+				"paddle": "Paddle",
+				"mineru": "MinerU",
+				"openaiCompatible": "Tương thích OpenAI"
+			},
+			"confirm": "Lưu",
+			"openDocsLabel": "Lấy API key",
+			"advanced": "Nâng cao",
+			"apiKey": {
+				"label": "API key",
+				"placeholder": {
+					"paddle": "Nhập API key Paddle của bạn",
+					"mineru": "Nhập API key MinerU của bạn",
+					"openaiCompatible": "Nhập API key của bạn (ví dụ SiliconFlow)"
+				}
+			},
+			"baseUrl": {
+				"label": "Base URL"
+			},
+			"selfHostedHelp": "Địa chỉ gốc của API đám mây chính thức, hoặc địa chỉ trạm trung chuyển.",
+			"selfHosted": {
+				"label": "API tự triển khai",
+				"help": "Chỉ bật khi dùng máy chủ tự triển khai."
+			},
+			"model": {
+				"label": "Mô hình"
+			},
+			"prompt": {
+				"label": "Lời nhắc",
+				"placeholder": "Tự động, dựa theo mô hình"
+			},
+			"language": {
+				"label": "Ngôn ngữ",
+				"help": "Gói ngôn ngữ OCR; bản tự triển khai 4.0 bỏ qua tùy chọn này.",
+				"options": {
+					"ch": "Trung–Anh",
+					"en": "Thuần tiếng Anh"
+				}
+			},
+			"forceOcr": {
+				"label": "Buộc OCR",
+				"help": "OCR mọi trang bất kể có lớp văn bản hay không."
+			},
+			"probeIdle": "Chưa kiểm tra",
+			"probeOk": "Khả dụng",
+			"probeFail": "Không khả dụng",
+			"probeProbing": "Đang kiểm tra tính khả dụng…"
+		},
+		"clearResults": {
+			"clear": "Xóa kết quả phân tích",
+			"clearAndReparse": "Xóa và phân tích lại",
+			"clearing": "Đang xóa…",
+			"reparsing": "Đang phân tích lại…",
+			"confirmClear": "Xóa",
+			"confirmReparse": "Xóa & phân tích lại",
+			"clearDone": "Đã xóa {{removed}} tệp trên {{scanned}} bài báo.",
+			"reparseDone": "Đã xóa {{removed}} tệp và xếp hàng {{layout}} tác vụ bố cục / {{paper}} tác vụ nội dung.",
+			"scope": {
+				"layout": "Tệp bố cục đi kèm",
+				"paper": "Kết quả phân tích nội dung",
+				"all": "Tất cả (bố cục + nội dung)"
+			},
+			"dialog": {
+				"clearTitle": "Xóa kết quả phân tích?",
+				"reparseTitle": "Xóa và phân tích lại?",
+				"scopeLabel": "Chọn phạm vi",
+				"reparseTranslate": "Tính năng tự động dịch sau khi phân tích bố cục đang bật. Thao tác này sẽ xếp hàng dịch toàn văn cho mọi bài báo trong phạm vi bố cục và có thể tạo ra hàng loạt yêu cầu dịch cùng chi phí tương ứng. Các bản dịch trong bộ nhớ đệm được dùng lại."
+			}
+		}
+	},
+	"experimental": {
+		"title": "Tính năng thử nghiệm",
+		"decision": {
+			"section": "Mô hình ra quyết định",
+			"getKey": "Lấy API key",
+			"smartHighlight": "Tô sáng thông minh",
+			"concurrency": {
+				"label": "Số yêu cầu đồng thời",
+				"description": "Hãy giảm giá trị này khi mô hình tự triển khai phải xếp hàng các yêu cầu."
+			},
+			"timeout": {
+				"label": "Thời gian chờ yêu cầu (giây)",
+				"description": "Bắt đầu tính khi lô được gửi đi, không tính lúc chờ."
+			},
+			"provider": {
+				"label": "Nhà cung cấp",
+				"jev": "TypeSafe Jev",
+				"clef": "Cloudflare Clef",
+				"openai": "OpenAI (cấu hình)",
+				"custom": "Tùy chỉnh"
+			},
+			"apiKey": {
+				"label": "API key",
+				"placeholder": "API key"
+			},
+			"baseUrl": {
+				"label": "URL endpoint"
+			},
+			"model": {
+				"label": "Mô hình",
+				"placeholder": "ID mô hình"
+			},
+			"test": "Kiểm tra kết nối",
+			"probeStatus": {
+				"idle": "Chưa kiểm tra",
+				"probing": "Đang kiểm tra…",
+				"ok": "Kết nối được",
+				"fail": "Không kết nối được",
+				"unconfigured": "Cần có API key"
+			}
+		}
+	},
+	"doctor": {
+		"title": "Chẩn đoán kho",
+		"refresh": "Chạy chẩn đoán lại",
+		"remoteUnavailable": "Trong phiên bản này, Chẩn đoán chỉ dùng được với kho cục bộ.",
+		"openVault": "Hãy mở một kho cục bộ để chạy Chẩn đoán.",
+		"sections": {
+			"host": "Môi trường chạy của máy",
+			"agents": "Kết nối ACP của Agent",
+			"network": "Kết nối mạng",
+			"vault": "Cấu trúc kho",
+			"catalog": "Lược đồ danh mục",
+			"wikilinks": "Liên kết wiki",
+			"aliases": "Bí danh bài báo",
+			"visualMarks": "Chú thích trực quan"
+		},
+		"sectionHints": {
+			"host": "Các kiểm tra mang tính tham khảo cho Node.js và npm mà các Agent ACP sử dụng (đường dẫn và phiên bản).",
+			"agents": "Dò lại từng Agent đã đăng ký qua ACP initialize (không gửi lời nhắc nào). Agent chậm có thể mất tới 30 giây.",
+			"network": "Dò các nguồn bài báo và các máy chủ phổ biến thông qua proxy đã cấu hình.",
+			"vault": "Kiểm tra các thư mục cấp cao nhất papers/, notes/ và .agentero/.",
+			"catalog": "Kiểm tra xem .agentero/catalog.sqlite có tồn tại và lược đồ của nó có khớp với ứng dụng này không.",
+			"wikilinks": "Kiểm tra các liên kết wiki cục bộ xem có đích bị thiếu, không rõ ràng hoặc tiêu đề không hợp lệ không.",
+			"aliases": "Kiểm tra NOTES.md của bài báo có ít nhất hai bí danh khác nhau trong frontmatter.",
+			"visualMarks": "Di trú các dấu agent-trace cũ sang visual v2 dạng lồng nhau (các dấu chỉ có ghi chú vẫn hợp lệ)."
+		},
+		"host": {
+			"toolStatus": {
+				"available": "Khả dụng",
+				"missing": "Không tìm thấy",
+				"unusable": "Không chạy được"
+			},
+			"install": {
+				"button": "Cài Node.js",
+				"installing": "Đang cài đặt…",
+				"tooltip": "Cài Node.js LTS thông qua trình quản lý gói của hệ thống (winget hoặc Homebrew)",
+				"hint": "Một số Agent ACP cần Node.js và npm trên PATH. Hãy cài bản LTS qua trình quản lý gói của hệ thống, rồi dò lại.",
+				"noPackageManager": "Không tìm thấy trình quản lý gói được hỗ trợ. Hãy tự cài Node.js từ nodejs.org, rồi dò lại.",
+				"download": "Tải từ nodejs.org",
+				"success": "Đã cài Node.js. Hãy thử cài Agent lại."
+			}
+		},
+		"network": {
+			"probing": "Đang dò…",
+			"none": "Chưa cấu hình endpoint nào.",
+			"status": {
+				"reachable": "Kết nối được",
+				"timeout": "Quá thời gian",
+				"unreachable": "Không kết nối được"
+			},
+			"hints": {
+				"timeout": "Hãy kiểm tra proxy / mạng rồi thử lại.",
+				"unreachable": "Hãy kiểm tra DNS, tường lửa hoặc cài đặt proxy."
+			},
+			"endpoints": {
+				"baidu": "Baidu",
+				"google": "Google",
+				"google-scholar": "Google Scholar",
+				"github": "GitHub",
+				"arxiv": "arXiv",
+				"semantic-scholar": "Semantic Scholar"
+			},
+			"latency": "{{ms}} ms",
+			"proxy": "Proxy: {{proxy}}"
+		},
+		"agent": {
+			"probing": "Đang dò các agent…",
+			"none": "Chưa có Agent nào được đăng ký.",
+			"locationMissing": "Không tìm thấy",
+			"authLabel": "Đăng nhập",
+			"authStatus": {
+				"authenticated": "Đã đăng nhập",
+				"unauthenticated": "Chưa đăng nhập",
+				"not-applicable": "Không áp dụng",
+				"unknown": "Không rõ"
+			},
+			"categories": {
+				"command-missing": "Thiếu lệnh",
+				"not-logged-in": "Chưa đăng nhập",
+				"timeout": "Quá thời gian",
+				"spawn-failed": "Khởi chạy thất bại",
+				"protocol-failed": "Lỗi giao thức",
+				"unknown": "Không rõ"
+			},
+			"hints": {
+				"command-missing": "Hãy cài CLI (Cài đặt → Agent) hoặc sửa PATH, rồi chạy chẩn đoán lại.",
+				"not-logged-in": "Hãy đăng nhập bằng chính CLI của Agent trong terminal (ví dụ codex login), rồi chạy chẩn đoán lại.",
+				"timeout": "Hãy kiểm tra proxy / mạng và thời gian khởi động nguội của Agent.",
+				"spawn-failed": "Tiến trình không khởi động được; hãy kiểm tra quyền thực thi và đường dẫn.",
+				"protocol-failed": "Tiến trình đã khởi động nhưng bắt tay ACP thất bại; hãy cập nhật bộ chuyển đổi ACP.",
+				"unknown": "Xem lỗi gốc ở trên."
+			},
+			"login": "Đăng nhập",
+			"loginAria": "Đăng nhập {{name}}",
+			"loginTitle": "Mở terminal cho {{command}}"
+		},
+		"visualMarks": {
+			"select": "Chọn {{path}}",
+			"apply": "Nâng cấp {{count}}",
+			"applying": "Đang nâng cấp…",
+			"success": "Đã nâng cấp {{count}} tệp dấu trực quan."
+		},
+		"catalogDuplicates": {
+			"fix": "Gỡ mục trùng lặp",
+			"success": "Đã gỡ {{removed}} hàng trùng lặp trong danh mục, giữ lại {{kept}}."
+		},
+		"issueCount": "{{count}} vấn đề",
+		"repair": {
+			"select": "Chọn {{path}}",
+			"titleAlias": "Bí danh tiêu đề",
+			"shortAlias": "Bí danh ngắn",
+			"preserved": "Các bí danh hiện có được giữ lại: {{aliases}}",
+			"manual": "Cần xem xét thủ công",
+			"apply": "Sửa",
+			"ignore": "Bỏ qua {{path}}",
+			"ignoreHint": "Bỏ qua kiểm tra bí danh của bài báo này (lưu trong kho)",
+			"ignoreSelected": "Bỏ qua mục đã chọn",
+			"ignored": "Đã bỏ qua kiểm tra bí danh cho {{count}} ghi chú bài báo.",
+			"ignoredCount": "{{count}} ghi chú bài báo bị bỏ qua",
+			"restore": "Khôi phục",
+			"restoreAll": "Khôi phục tất cả",
+			"restored": "Đã khôi phục kiểm tra bí danh cho {{count}} ghi chú bài báo.",
+			"confirmTitle": "Viết lại bí danh bài báo?",
+			"confirmDescription": "Chẩn đoán sẽ cập nhật {{count}} ghi chú trong một giao dịch duy nhất. Các bí danh hiện có và phần frontmatter không liên quan được giữ nguyên.",
+			"cancel": "Hủy",
+			"confirm": "Áp dụng thay đổi",
+			"applying": "Đang áp dụng…",
+			"success": "Đã cập nhật bí danh trong {{count}} ghi chú bài báo."
+		},
+		"wikilink": {
+			"probe": "Dò",
+			"planning": "Đang chạy bước dò nhanh…",
+			"working": "Đang xử lý…",
+			"probeDone": "Dò xong: {{auto}} tự động, {{manual}} thủ công (tổng {{total}})",
+			"agentHint": "Chưa chắc chắn? Hãy đưa lời nhắc bên dưới cho Agent của bạn và yêu cầu lập kế hoạch sửa trước.",
+			"agentPromptLabel": "Lời nhắc cho Agent",
+			"copyPrompt": "Sao chép",
+			"promptCopied": "Đã sao chép lời nhắc",
+			"openInAgent": "Mở trong Agent",
+			"select": "Chọn mục sửa trong {{source}}",
+			"replacement": "Nội dung thay thế",
+			"selectAll": "Chọn tất cả",
+			"deselectAll": "Bỏ chọn tất cả",
+			"noSuggestions": "Không có gợi ý tự động. Hãy tự sửa liên kết trong các ghi chú.",
+			"confirmTitle": "Áp dụng các sửa đổi liên kết?",
+			"confirmDescription": "Chẩn đoán sẽ viết lại {{count}} đích liên kết trong một giao dịch duy nhất. Chỉ những khoảng byte được chọn mới thay đổi.",
+			"success": "Đã cập nhật liên kết trong {{count}} tệp."
+		},
+		"backfill": {
+			"title": "Bổ sung dữ liệu bài báo",
+			"downloadCount": "Tải mã nguồn: {{count}} (qua mạng)",
+			"parseCount": "Phân tích nội dung PDF: {{count}} (ghi PAPER.md)",
+			"repairCount": "Đã sửa trạng thái: {{count}} (cục bộ)",
+			"hint": "Kiểm tra các mã nguồn và nội dung bài báo còn thiếu. Việc tải xuống và phân tích PDF chỉ bắt đầu sau khi bạn xác nhận.",
+			"selection": "Đã chọn {{selected}} / {{total}}",
+			"selectAll": "Chọn tất cả",
+			"later": "Để sau",
+			"start": "Bắt đầu bổ sung",
+			"check": "Kiểm tra",
+			"queued": "Đã xếp hàng bổ sung: {{count}}",
+			"reasons": {
+				"downloadSource": "Tải mã nguồn · qua mạng",
+				"parseBody": "Phân tích nội dung"
+			}
+		}
+	},
+	"keyboard": {
+		"title": "Bàn phím",
+		"edit": "Đổi phím tắt cho {{command}}",
+		"clear": "Bỏ gán {{command}}",
+		"clearHint": "Bỏ gán phím tắt này",
+		"restore": "Khôi phục mặc định cho {{command}}",
+		"restoreHint": "Khôi phục phím tắt mặc định",
+		"restoreAll": "Khôi phục tất cả về mặc định",
+		"search": "Tìm lệnh hoặc phím tắt",
+		"noResults": "Không có phím tắt phù hợp"
+	},
+	"about": {
+		"title": "Giới thiệu",
+		"starGithub": "Tặng sao cho chúng tôi trên GitHub",
+		"version": "Phiên bản {{version}}",
+		"logs": {
+			"label": "Nhật ký",
+			"open": "Mở thư mục nhật ký",
+			"openFailed": "Không thể mở thư mục nhật ký.",
+			"clear": "Xóa nhật ký",
+			"clearDone": "Đã xóa nhật ký",
+			"clearFailed": "Không thể xóa nhật ký."
+		},
+		"scratch": {
+			"label": "Bộ nhớ đệm toàn văn bài báo",
+			"summary": "{{papers}} bài báo · {{size}}",
+			"clear": "Xóa bộ nhớ đệm",
+			"clearDone": "Đã xóa bộ nhớ đệm",
+			"clearFailed": "Không thể xóa bộ nhớ đệm toàn văn bài báo."
+		},
+		"reflowCache": {
+			"label": "Bộ nhớ đệm bản dịch",
+			"summary": "{{size}}",
+			"open": "Mở thư mục bộ nhớ đệm",
+			"openFailed": "Không thể mở thư mục bộ nhớ đệm.",
+			"clear": "Xóa bộ nhớ đệm",
+			"clearDone": "Đã xóa bộ nhớ đệm bản dịch",
+			"clearFailed": "Không thể xóa bộ nhớ đệm bản dịch.",
+			"tip": "Lưu đệm các dữ liệu trung gian của dịch toàn văn để khi dịch lại cùng một bài báo có thể dùng lại thay vì trích xuất và dựng lại. Tắt một công tắc chỉ dừng việc ghi mới; các mục đã có vẫn được dùng lại. Điều khiển cả hai bộ nhớ đệm trong Cài đặt → Dịch → Bộ nhớ đệm."
+		},
+		"downloadNetworkError": {
+			"title": "Lỗi mạng khi tải xuống từ GitHub",
+			"openSettings": "Mở cài đặt mạng"
+		},
+		"update": {
+			"available": "Phiên bản {{version}} đã sẵn sàng",
+			"downloading": "Đang tải bản cập nhật...",
+			"downloadingProgress": "Đang tải bản cập nhật: {{progress}}%",
+			"installing": "Đang cài bản cập nhật và khởi động lại...",
+			"installFailed": "Không thể cài bản cập nhật. Hãy thử lại",
+			"check": "Kiểm tra cập nhật",
+			"downloadInstall": "Cài đặt và khởi động lại",
+			"releaseNotes": "Ghi chú phát hành",
+			"tagNew": "Phiên bản mới",
+			"tagUpdating": "Đang cập nhật…",
+			"tagDownloading": "Đang cập nhật {{progress}}%",
+			"tagInstalling": "Đang cài đặt…",
+			"toastTitle": "Đã có Agentero {{version}}",
+			"toastDescription": "Tải bản cập nhật đã được xác minh và khởi động lại Agentero"
+		},
+		"cli": {
+			"label": "Công cụ dòng lệnh",
+			"description": "Vault / Catalog không giao diện dành cho tập lệnh và các agent bên ngoài",
+			"notBundled": "Bản dựng này không kèm CLI",
+			"versionMismatch": "CLI {{cli}} ≠ ứng dụng {{app}}; hãy cài lại cho khớp",
+			"pathMissing": "CLI đã được cài; terminal này chưa làm mới PATH",
+			"verifyHint": "Kiểm tra trong một terminal mới:",
+			"windowsVerifyHint": "Sao chép lệnh CMD bên dưới để kiểm tra:",
+			"verifyCopy": "Sao chép lệnh kiểm tra",
+			"verifyCopied": "Đã sao chép lệnh kiểm tra",
+			"verifyCopyFailed": "Không thể sao chép lệnh",
+			"install": "Cài đặt",
+			"update": "Cập nhật",
+			"uninstall": "Gỡ bỏ",
+			"openRelease": "Mở trang phát hành",
+			"brewHint": "Hoặc cài bằng Homebrew (Mac dùng Apple Silicon):",
+			"brewCopy": "Sao chép lệnh",
+			"brewCopied": "Đã sao chép lệnh Homebrew",
+			"brewCopyFailed": "Không thể sao chép lệnh",
+			"installSuccess": "Đã cài lệnh CLI",
+			"downloadInstallSuccess": "Đã tải và cài CLI",
+			"uninstallSuccess": "Đã gỡ lệnh CLI",
+			"installFailed": "Không thể cài lệnh CLI",
+			"uninstallFailed": "Không thể gỡ lệnh CLI",
+			"statusFailed": "Không thể đọc trạng thái CLI",
+			"openReleaseFailed": "Không thể mở trang phát hành",
+			"syncFailed": "Không thể tự động cài hoặc cập nhật CLI. Hãy thử lại từ Cài đặt → Giới thiệu"
+		},
+		"feedback": {
+			"label": "Phản hồi",
+			"description": "Gửi một vấn đề hoặc ý tưởng tới nhóm phát triển",
+			"open": "Viết",
+			"title": "Phản hồi",
+			"hint": "Kèm theo phiên bản ứng dụng và hệ điều hành. Thư viện, tên tệp và bài báo của bạn vẫn nằm trên thiết bị này.",
+			"kindBug": "Vấn đề",
+			"kindIdea": "Ý tưởng",
+			"message": "Mô tả",
+			"messagePlaceholder": "Điều gì đã xảy ra, hoặc bạn mong muốn điều gì",
+			"contact": "Email",
+			"contactPlaceholder": "Không bắt buộc, nếu bạn muốn chúng tôi phản hồi",
+			"send": "Gửi",
+			"sending": "Đang gửi",
+			"sent": "Đã gửi",
+			"unavailable": "Bản dựng này không thể gửi phản hồi",
+			"invalid": "Hãy viết một mô tả ngắn trước",
+			"failed": "Không thể gửi phản hồi. Hãy thử lại"
+		}
+	},
+	"sync": {
+		"title": "Đồng bộ đám mây",
+		"advanced": "Nâng cao",
+		"localVaultOnly": "Đồng bộ đám mây chỉ khả dụng với kho cục bộ.",
+		"vault": "Kho",
+		"vaultPlaceholder": "Chọn một kho",
+		"backend": "Phương thức đồng bộ",
+		"backendAgentero": "Tài khoản này",
+		"backendS3": "Lưu trữ đối tượng",
+		"backendWebdav": "WebDAV",
+		"backendGit": "Git",
+		"backendLocked": "Hãy ngắt kết nối trước khi đổi backend lưu trữ.",
+		"serverUrl": "URL máy chủ",
+		"username": "Tên người dùng",
+		"password": "Mật khẩu",
+		"endpoint": "Endpoint",
+		"region": "Khu vực",
+		"bucket": "Bucket",
+		"prefix": "Tiền tố khóa",
+		"prefixHint": "Không bắt buộc. Cho phép nhiều kho dùng chung một bucket.",
+		"accessKey": "Access key ID",
+		"secretKey": "Secret access key",
+		"pathStyle": "Định địa chỉ kiểu đường dẫn",
+		"pathStyleHint": "Giữ bật với R2 / MinIO; tắt với bucket dạng tên miền con.",
+		"gitRemote": "URL kho mã",
+		"gitRemoteHint": "SSH dùng agent của bạn. HTTPS không hiện lời nhắc: hãy lưu token bằng `git credential approve` hoặc trình trợ giúp thông tin đăng nhập trước khi kết nối.",
+		"gitBranch": "Nhánh",
+		"gitAllowInsecureHttp": "Cho phép HTTP không mã hóa",
+		"gitAllowInsecureHttpHint": "Chỉ dành cho máy chủ nội bộ không có HTTPS. Token được gửi ở dạng văn bản rõ.",
+		"gitSslCa": "Chứng chỉ CA",
+		"gitSslCaHint": "Đường dẫn PEM tuyệt đối cho máy chủ HTTPS dùng chứng chỉ tự ký. Để trống sẽ dùng kho tin cậy của hệ thống.",
+		"gitAuthFailed": "Git không đăng nhập được, và tính năng đồng bộ không hiện lời nhắc.\n{{detail}}\nHTTPS: hãy lưu token trước bằng `git credential approve` hoặc trình trợ giúp thông tin đăng nhập. SSH: chạy `ssh-add`.",
+		"gitTlsFailed": "Git đã từ chối chứng chỉ của máy chủ.\n{{detail}}\nVới máy chủ dùng chứng chỉ tự ký, hãy đặt đường dẫn chứng chỉ CA rồi kết nối lại.",
+		"noConditionalWrites": "Dịch vụ lưu trữ này không hỗ trợ ghi có điều kiện (nguyên tử), nên đồng bộ chuyển sang tải lên thông thường. Không sao nếu chỉ dùng một thiết bị; các chỉnh sửa đồng thời từ nhiều thiết bị có thể cần thêm một lượt đồng bộ để hội tụ.",
+		"saved": "Đã cấu hình đồng bộ",
+		"disconnect": "Ngắt kết nối",
+		"syncNow": "Đồng bộ ngay",
+		"statusConnected": "Đã kết nối",
+		"statusDisconnected": "Chưa kết nối",
+		"statusSyncing": "Đang đồng bộ",
+		"statusError": "Lỗi kết nối",
+		"providerDocsAria": "Mở hướng dẫn thiết lập {{name}}",
+		"lastSync": "Đồng bộ lần cuối {{time}}",
+		"neverSynced": "Chưa đồng bộ lần nào.",
+		"done": "Đã đồng bộ xong: tải lên {{up}}, tải xuống {{down}}",
+		"conflicts": "Đã lưu {{count}} bản sao xung đột bên cạnh tệp gốc",
+		"phase": {
+			"scan": "Đang quét kho…",
+			"pull": "Đang lấy trạng thái từ xa…",
+			"download": "Đang tải xuống {{current}}/{{total}}…",
+			"upload": "Đang tải lên {{current}}/{{total}}…",
+			"finalize": "Đang hoàn tất…"
+		},
+		"connect": "Kết nối",
+		"useAccount": "Đồng bộ bằng tài khoản này",
+		"space": "Đồng bộ tới",
+		"spacePersonal": "Không gian cá nhân",
+		"spaceTeam": "Nhóm hiện tại",
+		"noTeam": "Hãy mở một nhóm từ tài khoản của bạn trước khi đồng bộ tới không gian nhóm.",
+		"save": "Lưu",
+		"autoSync": "Tự động đồng bộ",
+		"interval": "Chu kỳ đồng bộ",
+		"intervalMinutes": "{{count}} phút",
+		"scope": "Phạm vi đồng bộ",
+		"scopeHint": "Ghi chú, siêu dữ liệu và phần tô sáng luôn được đồng bộ. Nội dung không được chọn sẽ không được tải lên hay tải xuống — và không bao giờ bị xóa vì bộ lọc. PDF và mã nguồn LaTeX có thể tải lại từ nguồn bất cứ lúc nào.",
+		"scopeHintGit": "Ghi chú, siêu dữ liệu và phần tô sáng luôn được đồng bộ. Các tệp không được chọn sẽ được ghi vào .gitignore và không nằm trong các commit mới.",
+		"scopePdf": "PDF",
+		"scopeSource": "Mã nguồn LaTeX",
+		"scopeAttachments": "Tệp đính kèm"
+	},
+	"cloudSync": {
+		"title": "Đồng bộ đám mây",
+		"usedOf": "Đã dùng {{used}} / {{limit}}",
+		"unlimited": "Không giới hạn",
+		"signInRequired": "Đăng nhập để xem dung lượng đồng bộ đám mây của bạn.",
+		"notIncluded": "Gói hiện tại không bao gồm đồng bộ đám mây."
+	},
+	"word": {
+		"damagedField": "Trích dẫn này có kết quả trường trống hoặc bị hỏng. Hãy khôi phục tài liệu hoặc chèn lại trích dẫn trong một bản sao.",
+		"label": "Plugin Word của Zotero",
+		"search": "Tìm bài báo",
+		"pages": "Trang (cho các tài liệu tham khảo đã chọn)",
+		"style": "Kiểu trích dẫn",
+		"styles": {
+			"apa": "APA 7",
+			"ieee": "IEEE",
+			"chicago": "Chicago tác giả–năm"
+		},
+		"cancel": "Hủy",
+		"apply": "Áp dụng",
+		"working": "Đang cập nhật Word…",
+		"noResults": "Không tìm thấy bài báo",
+		"actions": {
+			"addEditCitation": "Thêm / sửa trích dẫn",
+			"addEditBibliography": "Thêm / cập nhật danh mục tài liệu tham khảo",
+			"setDocPrefs": "Tùy chọn tài liệu",
+			"refresh": "Làm mới trích dẫn"
+		},
+		"noDocument": "Hãy mở một tài liệu trong Word trước.",
+		"readOnly": "Tài liệu Word đang ở chế độ chỉ đọc.",
+		"trackChanges": "Hãy tắt Track Changes trước khi dùng bản thử nghiệm này.",
+		"notesUnsupported": "Bản thử nghiệm này chỉ hỗ trợ trích dẫn trong thân bài, không hỗ trợ chú thích cuối trang hay chú thích cuối tài liệu.",
+		"documentChanged": "Tài liệu đã thay đổi. Hãy chạy lại lệnh Word.",
+		"selectionChanged": "Con trỏ đã di chuyển. Hãy chạy lại lệnh Word.",
+		"insertFailed": "Word không thể chèn trường trích dẫn.",
+		"invalidPath": "Đường dẫn trình điều khiển Word không hợp lệ.",
+		"driverFailed": "Tự động hóa Word thất bại.",
+		"timeout": "Word không phản hồi kịp thời. Hãy kiểm tra tài liệu trước khi thử lại.",
+		"platformUnsupported": "Bản thử nghiệm này hiện hỗ trợ macOS và Windows.",
+		"foreignFields": "Tài liệu này chứa các trường trích dẫn của Zotero hoặc không được hỗ trợ. Hãy dùng một tài liệu mới cho bản thử nghiệm này.",
+		"unknownStyle": "Kiểu trích dẫn không được hỗ trợ.",
+		"connectorRequired": "Hãy bật Zotero Connector trước khi bật tích hợp Word.",
+		"localVaultRequired": "Hãy mở một kho cục bộ trước.",
+		"zoteroRunning": "Hãy thoát Zotero Desktop trước khi bật tích hợp Word.",
+		"busy": "Một thao tác Word khác đang được thực hiện.",
+		"expired": "Yêu cầu Word đã hết hạn. Hãy chạy lại lệnh.",
+		"disabled": "Tích hợp Word đang bị tắt.",
+		"commandUnsupported": "Bản thử nghiệm không hỗ trợ lệnh Word này.",
+		"collapseSelection": "Hãy đặt con trỏ tại điểm chèn mà không chọn văn bản.",
+		"cursorInCitation": "Hãy di chuyển con trỏ ra ngoài trích dẫn trước khi chèn danh mục tài liệu tham khảo.",
+		"vaultChanged": "Kho đang mở đã thay đổi. Hãy chạy lại lệnh Word.",
+		"invalidSelection": "Hãy chọn từ 1 đến 50 tài liệu tham khảo hợp lệ.",
+		"noCitations": "Hãy chèn một trích dẫn trước khi thêm danh mục tài liệu tham khảo.",
+		"permission": "Hãy cho phép Agentero điều khiển Microsoft Word trong Cài đặt hệ thống macOS → Quyền riêng tư & Bảo mật → Tự động hóa.",
+		"failed": "Tích hợp Word thất bại: {{detail}}"
+	}
+}

@@ -274,6 +274,7 @@ function AppearancePaneInner({
 							<SelectItem value="zh-CN">
 								{t("appearance.language.zhCN")}
 							</SelectItem>
+							<SelectItem value="vi">{t("appearance.language.vi")}</SelectItem>
 						</SelectContent>
 					</Select>
 				</SettingsRow>

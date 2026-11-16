@@ -1,0 +1,19 @@
+{
+	"rebuild": "Buộc biên dịch lại",
+	"cleanRebuild": "Dọn dẹp và biên dịch lại",
+	"stop": "Dừng biên dịch",
+	"problems": "Vấn đề",
+	"log": "Nhật ký biên dịch",
+	"noProblems": "Không có vấn đề khi biên dịch",
+	"noLog": "Hãy biên dịch dự án để xem nhật ký.",
+	"askAgent": "Hỏi Agent",
+	"askAgentPrompt": "Hãy sửa lỗi này trong mã nguồn LaTeX. Chỉ thay đổi những gì vấn đề này yêu cầu.",
+	"copyProblem": "Sao chép vấn đề",
+	"copyFailed": "Không thể sao chép vấn đề.",
+	"requirement": {
+		"minted": "minted chạy một trình tô sáng cú pháp bên ngoài. Hãy cho phép shell escape trong công thức biên dịch của dự án này thì mới biên dịch được.",
+		"glossaries": "glossaries cần một lượt tạo chỉ mục. Hãy thêm bước đó vào công thức biên dịch của dự án này.",
+		"pythontex": "pythontex chạy Python trong lúc biên dịch. Hãy thêm bước đó vào công thức biên dịch của dự án này.",
+		"shellEscape": "Tệp này chạy \\write18. Cấu hình biên dịch mặc định không cho phép shell escape."
+	}
+}

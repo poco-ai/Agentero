@@ -1,0 +1,76 @@
+{
+	"tabs": {
+		"navigation": "Điều hướng chính",
+		"library": "Thư viện",
+		"agent": "Agent",
+		"settings": "Cài đặt"
+	},
+	"connect": {
+		"title": "Kết nối với máy tính",
+		"paste": "Dán liên kết ghép nối",
+		"placeholder": "agentero://pair#offer=…",
+		"action": "Kết nối",
+		"connecting": "Đang kết nối…",
+		"camera": "Quét mã QR",
+		"manual": "Nhập liên kết ghép nối",
+		"cancel": "Hủy",
+		"cameraHint": "Hướng camera vào mã ghép nối trên máy tính của bạn.",
+		"cameraUnavailable": "Không thể truy cập camera. Hãy dán liên kết ghép nối thay thế.",
+		"pending": "Hãy xác nhận mã trên máy tính của bạn",
+		"progress": {
+			"relayConnecting": "Đang kết nối tới máy chủ chuyển tiếp…",
+			"e2eeHandshake": "Đang bảo mật kết nối…",
+			"pairing": "Đang yêu cầu ghép nối…",
+			"authenticating": "Đang đăng nhập vào máy tính…",
+			"connected": "Đã kết nối"
+		}
+	},
+	"library": {
+		"search": "Tìm bài báo",
+		"loading": "Đang tải bài báo…",
+		"empty": "Không có bài báo"
+	},
+	"reader": {
+		"title": "Ghi chú",
+		"back": "Quay lại thư viện",
+		"pdf": "PDF",
+		"notes": "Ghi chú",
+		"loadingPdf": "Đang tải PDF…",
+		"pdfUnavailable": "Bài báo này không có PDF trên máy tính.",
+		"empty": "Hãy chọn một bài báo",
+		"save": "Lưu ghi chú",
+		"saving": "Đang lưu…"
+	},
+	"agent": {
+		"title": "Agent",
+		"placeholder": "Hỏi về nghiên cứu của bạn",
+		"empty": "Bắt đầu một cuộc trò chuyện",
+		"thinking": "Đang suy nghĩ...",
+		"starting": "Đang khởi động Agent…",
+		"waitingModel": "Đang chờ mô hình…",
+		"reconnecting": "Đang kết nối lại với dịch vụ nguồn",
+		"failed": "Agent trên máy tính không thể hoàn tất yêu cầu này.",
+		"switchBackend": "Đổi backend Agent",
+		"defaultBackend": "Agent mặc định",
+		"history": "Phiên",
+		"historyEmpty": "Chưa có phiên nào trước đây",
+		"historyUnsupported": "Agent này không cung cấp các phiên trước đây.",
+		"historyDelete": "Xóa",
+		"historyDeleteTitle": "Xóa cuộc trò chuyện này?",
+		"historyDeleteFailed": "Không thể xóa cuộc trò chuyện này.",
+		"historyDeleteAgentFailed": "Đã ẩn tại đây. Agent vẫn giữ bản sao riêng của nó.",
+		"restoring": "Đang khôi phục phiên…"
+	},
+	"settings": {
+		"menu": "Mở trình đơn",
+		"closeMenu": "Đóng trình đơn",
+		"connected": "Đã kết nối",
+		"offline": "Ngoại tuyến",
+		"addDevice": "Thêm thiết bị",
+		"disconnect": "Ngắt kết nối"
+	},
+	"errors": {
+		"connect": "Không thể kết nối",
+		"networkPermission": "iOS đang chặn quyền truy cập mạng của Agentero. Hãy mở Cài đặt > Agentero và cho phép Dữ liệu không dây (WLAN & Di động), rồi thử lại."
+	}
+}

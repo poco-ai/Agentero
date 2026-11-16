@@ -1,0 +1,288 @@
+{
+	"acpStatus": {
+		"ready": "ACP sẵn sàng",
+		"failed": "ACP lỗi",
+		"notLoggedIn": "Chưa đăng nhập",
+		"notProbed": "Chưa kiểm tra",
+		"notInstalled": "Chưa cài đặt"
+	},
+	"defaultName": "Agent",
+	"login": {
+		"action": "Đăng nhập"
+	},
+	"permission": {
+		"title": "Quyền của Agent",
+		"remoteHost": "Máy chủ từ xa: {{host}}",
+		"deny": "Từ chối",
+		"kind": {
+			"allowOnce": "Cho phép một lần",
+			"allowAlways": "Luôn cho phép",
+			"rejectOnce": "Từ chối một lần",
+			"rejectAlways": "Luôn từ chối"
+		}
+	},
+	"delegate": {
+		"targets": "Kho từ xa",
+		"result": "Kết quả từ xa",
+		"cancel": "Hủy lượt chạy từ xa",
+		"run": "{{host}} · {{agent}} · {{status}}",
+		"status": {
+			"running": "Đang chạy",
+			"completed": "Xong",
+			"failed": "Thất bại",
+			"cancelled": "Đã hủy"
+		}
+	},
+	"piTrust": {
+		"title": "Pi chưa tải tài nguyên dự án của kho này",
+		"description": "Pi cần được tin cậy thư mục trước khi có thể tải skill.",
+		"action": "Tin cậy kho này",
+		"dismiss": "Bỏ qua"
+	},
+	"switchAgent": "Đổi agent ACP",
+	"configBar": {
+		"label": "Tùy chọn mô hình và phiên"
+	},
+	"suggestions": {
+		"summarizePaper": "Tóm tắt bài báo đang mở",
+		"askLibrary": "Đặt một câu hỏi trên toàn bộ thư viện của tôi",
+		"listClaims": "Liệt kê các luận điểm chính và bằng chứng",
+		"draftRelatedWork": "Soạn thảo phần Related Work",
+		"continueManuscript": "Viết tiếp bản thảo này từ chỗ đang dừng. Giữ đúng LaTeX và giọng văn của nó.",
+		"tightenProse": "Làm cho văn phong của mục tôi đang sửa cô đọng hơn. Giữ nguyên các luận điểm và trích dẫn.",
+		"pressArgument": "Chỉ ra những điểm yếu trong lập luận và cho biết cần thay đổi gì trong mã nguồn.",
+		"citeFromLibrary": "Soạn đoạn văn tiếp theo dựa trên các bài báo trong thư viện của tôi, kèm trích dẫn."
+	},
+	"history": {
+		"aria": "Mở lịch sử trò chuyện",
+		"label": "Lịch sử",
+		"title": "Lịch sử phiên",
+		"description": "Các phiên ACP gần đây trong cuộc trò chuyện này.",
+		"empty": "Chưa có phiên nào.",
+		"restoring": "Đang khôi phục phiên…",
+		"rename": "Đổi tên",
+		"renameAria": "Tiêu đề cuộc trò chuyện",
+		"delete": "Xóa",
+		"deleteConfirmTitle": "Xóa cuộc trò chuyện này?",
+		"deleteFailed": "Không thể xóa cuộc trò chuyện này.",
+		"deleteAgentFailed": "Đã ẩn tại đây. Agent vẫn giữ bản sao riêng của nó.",
+		"status": {
+			"running": "Đang chạy",
+			"completed": "Hoàn tất",
+			"cancelled": "Đã hủy",
+			"failed": "Thất bại"
+		}
+	},
+	"zen": {
+		"title": "Zen",
+		"newConversation": "Phiên mới",
+		"untitled": "Cuộc trò chuyện mới",
+		"close": "Đóng cuộc trò chuyện"
+	},
+	"tabs": {
+		"new": "Bắt đầu cuộc trò chuyện mới"
+	},
+	"agentMenu": {
+		"title": "Backend ACP",
+		"empty": "Chưa có agent ACP nào sẵn sàng. Hãy cấu hình trong Cài đặt.",
+		"openSettings": "Mở cài đặt Agent"
+	},
+	"composer": {
+		"placeholder": "Hôm nay tôi có thể giúp gì cho bạn?",
+		"queueLabel": "Đang xếp hàng",
+		"queueRemove": "Gỡ khỏi hàng đợi",
+		"paperContext": {
+			"heading": "Bài báo hiện tại (để tham khảo):",
+			"title": "Tiêu đề",
+			"authors": "Tác giả",
+			"venue": "Nơi công bố",
+			"year": "Năm",
+			"abstract": "Tóm tắt"
+		},
+		"plazaContextInstruction": "Các mục trên Quảng trường được tham chiếu bằng @ (chưa có trong kho):",
+		"plazaEntryUnavailable": "Không có siêu dữ liệu của mục này (không còn trong bộ nhớ đệm của Quảng trường). Hãy đề nghị người dùng tham chiếu lại từ tab Quảng trường.",
+		"plazaScratchInstruction": "Toàn văn được cung cấp dưới dạng bản nháp chỉ đọc nằm ngoài kho. Hãy đọc trực tiếp các tệp được liệt kê; không tải bài báo về hay ghi bất cứ thứ gì vào kho trừ khi người dùng yêu cầu rõ ràng việc nhập một bài báo.",
+		"plazaCollectionTitle": "Đề xuất hôm nay ({{count}})",
+		"plazaCollectionInstruction": "Phía trên là danh mục tóm tắt của các bài báo được đề xuất hôm nay. Hãy sàng lọc chỉ dựa trên phần tóm tắt: nếu lọc / so sánh là đủ để trả lời, hãy đưa ra báo cáo cuối cùng ngay. Chỉ khi câu hỏi đòi hỏi đọc sâu, hãy xuất `NEED_FULLTEXT <arXiv id> ...` (tối đa {{max}} id) ở dòng ĐẦU TIÊN của câu trả lời rồi dừng lại — hệ thống sẽ tự động cung cấp toàn văn các bài đó. Đừng tự tìm hay tải các bài báo này.",
+		"plazaFulltextFollowup": "Đã lấy được toàn văn (xem ngữ cảnh). Hãy hoàn thành báo cáo cuối cùng dựa trên đó.",
+		"resizeHandle": "Đổi chiều cao khung soạn tin",
+		"openMention": "Mở {{title}}",
+		"removeContext": "Gỡ {{path}} khỏi ngữ cảnh",
+		"removeSkill": "Gỡ ${{skill}} khỏi ngữ cảnh",
+		"selection": "Vùng chọn",
+		"selectionChip": "{{title}}",
+		"selectionChipWithPage": "{{title}}:tr.{{page}}",
+		"selectionChipWithLine": "{{title}} dòng {{from}}",
+		"selectionChipWithLines": "{{title}} dòng {{from}}-{{to}}",
+		"visualAnnotation": "Chú thích trực quan",
+		"visualAnnotationPage": "tr.{{page}}",
+		"visualAnnotationsTitle": "Chú thích trực quan ({{count}})",
+		"visualAnnotationOpen": "Xem vùng cắt và bình luận",
+		"visualAnnotationOpenAria": "Mở chú thích trực quan {{index}}: {{label}}",
+		"visualAnnotationDetailTitle": "Chú thích trực quan {{index}}",
+		"visualAnnotationCommentLabel": "Ghi chú của bạn",
+		"visualAnnotationNoComment": "(không có ghi chú)",
+		"visualAnnotationPreviewAlt": "Vùng PDF được cắt từ trang {{page}}",
+		"attachImage": "Đính kèm ảnh",
+		"imageFilter": "Hình ảnh",
+		"attachedImage": "Ảnh",
+		"attachedImagesTitle": "Hình ảnh ({{count}})",
+		"removeAttachedImage": "Gỡ ảnh",
+		"attachedImageOpen": "Xem ảnh",
+		"attachedImageOpenAria": "Mở ảnh đính kèm {{index}}",
+		"attachedImageDetailTitle": "Ảnh {{index}}",
+		"attachedImagePreviewAlt": "Ảnh đính kèm {{index}}",
+		"dropImageHint": "Thả ảnh vào để đính kèm",
+		"imageAcceptError": "Chỉ có thể đính kèm tệp hình ảnh (PNG, JPEG, WebP, GIF, …).",
+		"imageMaxFilesError": "Quá nhiều ảnh. Hãy gỡ bớt một ảnh trước khi thêm.",
+		"imageMaxSizeError": "Một hoặc nhiều ảnh vượt quá giới hạn kích thước 10 MB.",
+		"imagePickFailed": "Không thể mở trình chọn ảnh.",
+		"imageOnlyPrompt": "Hãy phân tích (các) ảnh đính kèm.",
+		"currentFileRemove": "Gỡ tệp hiện tại khỏi ngữ cảnh",
+		"mentionEnterFolder": "Mở {{name}}",
+		"mentionBack": "Quay lại thư mục cha",
+		"mentionEmptyFolder": "Thư mục này không có mục nào",
+		"fastToggle": "Bật / tắt chế độ Fast",
+		"collaborationTooltip": "Chế độ phiên",
+		"collaboration": {
+			"label": "Chế độ"
+		},
+		"effort": {
+			"label": "Mức độ suy luận"
+		}
+	},
+	"empty": {
+		"title": "Trò chuyện với kho của bạn",
+		"description": "Tin nhắn được gửi tới agent ACP của bạn. Nhấp vào tên agent phía trên để đổi backend.",
+		"writingDescription": "Bản thảo đang mở đã được đính kèm. Hãy chọn một đoạn trong mã nguồn hoặc PDF để hỏi về nó.",
+		"waiting": "Đang chờ agent…"
+	},
+	"zhihuDiscussions": {
+		"noPaper": "Mở một bài báo để xem Zhihu đang bàn gì về nó.",
+		"noSecret": "Chưa có Zhihu Access Secret. Hãy thêm trong Cài đặt → Agent → Zhihu.",
+		"loading": "Đang tìm trên Zhihu…",
+		"empty": "Không tìm thấy thảo luận liên quan trên Zhihu.",
+		"note": "Tìm theo tiêu đề trên Zhihu — kết quả có thể không liên quan.",
+		"retry": "Thử lại",
+		"refresh": "Làm mới",
+		"answer": "Câu trả lời",
+		"article": "Bài viết",
+		"votes": "{{votes}} lượt tán thành"
+	},
+	"thinking": "Đang suy nghĩ…",
+	"working": "Đang làm việc…",
+	"solving": "Đang giải quyết…",
+	"streaming": {
+		"thinking": "Đang suy nghĩ",
+		"reasoning": "Đang suy luận",
+		"plan": "Đang lập kế hoạch",
+		"starting": "Đang khởi động agent…",
+		"waitingModel": "Đang chờ mô hình…",
+		"reconnecting": "Đang kết nối lại với dịch vụ nguồn",
+		"elapsed": "{{count}} giây",
+		"expandProcess": "Hiện tiến trình trực tiếp",
+		"collapseProcess": "Thu gọn tiến trình trực tiếp"
+	},
+	"copy": "Sao chép",
+	"copied": "Đã sao chép",
+	"edit": {
+		"action": "Sửa",
+		"resend": "Gửi lại",
+		"cancel": "Hủy"
+	},
+	"plan": {
+		"title": "Kế hoạch",
+		"steps": "{{completed}}/{{total}} bước"
+	},
+	"tool": {
+		"defaultTitle": "Công cụ",
+		"failed": "Công cụ gặp lỗi"
+	},
+	"uiBlock": {
+		"streaming": "Đang dựng khối giao diện…",
+		"invalid": "Khối giao diện này dùng thành phần hoặc thuộc tính không được hỗ trợ. Đang hiển thị mã nguồn của nó thay thế.",
+		"tooLarge": "Khối giao diện này quá lớn để hiển thị an toàn. Đang hiển thị mã nguồn của nó thay thế.",
+		"incomplete": "Khối giao diện này chưa hoàn tất. Đang hiển thị mã nguồn của nó thay thế.",
+		"empty": "Khối giao diện này không có nội dung để hiển thị. Đang hiển thị mã nguồn của nó thay thế.",
+		"tableEmpty": "Không có hàng nào.",
+		"chartEmpty": "Không có dữ liệu.",
+		"chartAria": "Biểu đồ cột: {{title}}",
+		"lineChartAria": "Biểu đồ đường: {{title}}",
+		"openPaper": "Mở bài báo",
+		"openSource": "Mở nguồn",
+		"page": "tr. {{page}}",
+		"paperStatus": {
+			"unread": "Chưa đọc",
+			"reading": "Đang đọc",
+			"read": "Đã đọc",
+			"queued": "Đang xếp hàng"
+		},
+		"figureKind": {
+			"figure": "Hình",
+			"table": "Bảng",
+			"formula": "Phương trình",
+			"algorithm": "Thuật toán",
+			"section": "Mục"
+		},
+		"claimStatus": {
+			"supports": "Ủng hộ",
+			"contradicts": "Mâu thuẫn",
+			"mixed": "Hỗn hợp",
+			"unclear": "Chưa rõ"
+		},
+		"stepsEmpty": "Không có bước nào."
+	},
+	"askUserQuestion": {
+		"submit": "Gửi",
+		"submitted": "Đã gửi",
+		"cancel": "Hủy",
+		"prev": "Quay lại",
+		"next": "Tiếp",
+		"skip": "Bỏ qua",
+		"answerRequired": "Hãy chọn một đáp án hoặc nhập câu trả lời.",
+		"progress": "{{current}} / {{total}}",
+		"freeTextPlaceholder": "Nhập câu trả lời của bạn",
+		"other": "Khác",
+		"pendingInComposer": "Trả lời trong bảng câu hỏi bên dưới",
+		"noAnswer": "Không có câu trả lời",
+		"cancelled": "Đã hủy",
+		"keyboardHint": "↑↓ lựa chọn · Space chọn · Enter xác nhận",
+		"keyboardHintMulti": "↑↓ lựa chọn · Space chọn · Enter tiếp · ←→ chuyển trang",
+		"collapse": "Thu gọn bảng câu hỏi",
+		"expand": "Mở rộng bảng câu hỏi"
+	},
+	"citation": {
+		"resolveFailed": "Không thể mở trích dẫn: {{source}}",
+		"figureNotFound": "Không tìm thấy hình: {{source}}",
+		"sectionNotFound": "Không tìm thấy mục: {{source}}",
+		"tableNotFound": "Không tìm thấy bảng: {{source}}",
+		"algorithmNotFound": "Không tìm thấy thuật toán: {{source}}",
+		"formulaNotFound": "Không tìm thấy công thức: {{source}}",
+		"pageNotFound": "Không tìm thấy trang: {{source}}",
+		"regionNotFound": "Không tìm thấy vùng: {{source}}"
+	},
+	"models": {
+		"currentSelection": "Lựa chọn hiện tại",
+		"locateCurrent": "Định vị mô hình hiện tại",
+		"defaultGroup": "Mô hình",
+		"favorites": "Yêu thích",
+		"addToFavorites": "Thêm vào yêu thích",
+		"removeFromFavorites": "Gỡ khỏi yêu thích",
+		"selectTooltip": "Chọn mô hình (ACP)",
+		"customOrReportedTooltip": "Tìm hoặc nhập id mô hình tùy chỉnh (bên thứ ba / gateway)",
+		"loading": "Đang tải…",
+		"button": "Mô hình",
+		"searchOrCustomPlaceholder": "Tìm hoặc nhập id mô hình…",
+		"customGroup": "Tùy chỉnh",
+		"useCustom": "Dùng “{{id}}”",
+		"emptyNoneCustom": "Chưa có mô hình nào. Hãy nhập id mô hình ở trên để dùng mô hình của bên thứ ba.",
+		"emptyNoMatch": "Không có kết quả khớp. Hãy nhập đầy đủ id mô hình để dùng như mô hình tùy chỉnh."
+	},
+	"messages": {
+		"cancelled": "Đã dừng lượt chạy hiện tại.",
+		"desktopOnly": "Hãy mở ứng dụng máy tính để chạy agent.",
+		"noAgent": "Không có agent khả dụng. Hãy mở Cài đặt → Agent để cấu hình.",
+		"sessionUnavailable": "Không thể khôi phục phiên Agent này. Đang hiển thị bản lưu câu trả lời nếu có.",
+		"sessionEmpty": "Phiên này không có tin nhắn nào có thể phát lại."
+	}
+}

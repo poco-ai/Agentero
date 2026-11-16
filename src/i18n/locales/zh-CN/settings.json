@@ -273,7 +273,8 @@
 		"language": {
 			"system": "跟随系统",
 			"en": "English",
-			"zhCN": "简体中文"
+			"zhCN": "简体中文",
+			"vi": "Tiếng Việt"
 		},
 		"uiScale": {
 			"label": "界面缩放",

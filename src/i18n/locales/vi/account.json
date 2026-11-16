@@ -1,0 +1,69 @@
+{
+	"title": "Tài khoản và nhóm",
+	"profile": "Hồ sơ",
+	"teams": "Nhóm",
+	"noTeams": "Bạn chưa tham gia nhóm nào",
+	"editProfile": "Sửa hồ sơ",
+	"manageTeams": "Quản lý nhóm",
+	"refresh": "Làm mới",
+	"signIn": "Đăng nhập bằng trình duyệt",
+	"waiting": "Đang chờ đăng nhập trên trình duyệt…",
+	"signOut": "Đăng xuất",
+	"administration": "Quản trị nền tảng",
+	"cloudSync": {
+		"title": "Đồng bộ đám mây",
+		"usedOf": "Đã dùng {{used}} / {{limit}}",
+		"unlimited": "Không giới hạn",
+		"signInRequired": "Đăng nhập để xem dung lượng đồng bộ đám mây của bạn.",
+		"notIncluded": "Gói hiện tại không bao gồm đồng bộ đám mây."
+	},
+	"common": {
+		"cancel": "Hủy"
+	},
+	"org": {
+		"transferOwnership": "Chuyển quyền sở hữu",
+		"transferDescription": "Chuyển quyền sở hữu nhóm cho {{name}}? Bạn sẽ trở thành quản trị viên của nhóm.",
+		"transferSuccess": "Đã chuyển quyền sở hữu."
+	},
+	"errors": {
+		"generic": "Thao tác thất bại. Hãy kiểm tra kết nối rồi thử lại.",
+		"permission": "Bạn không có quyền thực hiện thao tác này. Hãy làm mới tài khoản rồi thử lại.",
+		"limit": "Bạn đã đạt giới hạn của gói.",
+		"frozen": "Nhóm này đã bị đóng băng. Hãy liên hệ quản trị viên nền tảng.",
+		"owner": "Hãy chuyển quyền sở hữu trước khi rời nhóm.",
+		"storage": "Kho lưu thông tin đăng nhập của hệ thống không khả dụng. Hãy mở khóa hoặc cấp quyền truy cập rồi thử lại."
+	},
+	"capabilities": {
+		"signInRequired": "Hãy đăng nhập tài khoản Agentero để dịch.",
+		"pending": "Bản dịch vẫn đang được xử lý. Hãy thử lại để lấy kết quả của chính thao tác đó.",
+		"title": "Dịch vụ đám mây",
+		"account": "Tài khoản thanh toán",
+		"personal": "Tài khoản cá nhân",
+		"description": "Cho phép dịch, OCR và embedding dùng Credit của tài khoản này khi vượt hạn mức miễn phí. Dịch vụ dịch được lưu trữ sẽ dùng tài khoản cá nhân của bạn. Các tác vụ đang chạy vẫn hoàn tất bình thường.",
+		"translation": "Dịch",
+		"ocr": "OCR PDF",
+		"embedding": "Embedding",
+		"remaining": "Còn miễn phí: {{count}}",
+		"overage": "Dùng Credit cho phần vượt hạn mức",
+		"manage": "Xem Credit",
+		"ocrHint": "Trích xuất văn bản và các trang quét sang Markdown. Tối đa 32 MiB và 500 trang. Tài liệu của bạn sẽ được tải lên tài khoản đã chọn.",
+		"pdf": "Tệp PDF",
+		"fileLimit": "Chọn một tệp PDF tối đa 32 MiB",
+		"estimate": "Ước tính mức sử dụng",
+		"quote": "{{pages}} trang OCR · {{free}} miễn phí · tối đa {{credit}} Credit",
+		"start": "Bắt đầu / khôi phục thao tác",
+		"result": "Markdown đã trích xuất",
+		"charged": "Đã tính phí: {{credit}} Credit",
+		"newDocument": "Tài liệu mới",
+		"status": {
+			"queued": "Đang xếp hàng",
+			"running": "Đang xử lý",
+			"reconciling": "Đang đối soát mức sử dụng",
+			"succeeded": "Hoàn tất",
+			"partial": "Hoàn tất một phần",
+			"failed": "Thất bại",
+			"cancelled": "Đã hủy"
+		},
+		"help": "Về hạn mức"
+	}
+}

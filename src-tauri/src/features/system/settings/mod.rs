@@ -1504,7 +1504,7 @@ fn normalize(s: &mut AppSettings) {
     if s.ui_theme.is_empty() {
         s.ui_theme = default_ui_theme();
     }
-    const LOCALES: &[&str] = &["system", "en", "zh-CN"];
+    const LOCALES: &[&str] = &["system", "en", "zh-CN", "vi"];
     if !LOCALES.contains(&s.locale.as_str()) {
         s.locale = default_locale();
     }

@@ -1,0 +1,175 @@
+{
+	"title": "Chào mừng đến với Agentero",
+	"subtitle": "Đọc bài báo và ghi chú cùng trợ lý AI của bạn. Chỉ vài bước nhanh để thiết lập không gian làm việc.",
+	"recommended": "Khuyên dùng",
+	"steps": {
+		"welcome": "Chào mừng",
+		"theme": "Giao diện",
+		"proxy": "Mạng",
+		"node": "Node.js",
+		"agent": "Agent",
+		"translate": "Dịch",
+		"layout": "Phân tích công thức & hình",
+		"vault": "Bắt đầu"
+	},
+	"welcome": {},
+	"theme": {
+		"title": "Chọn giao diện",
+		"desc": "Chọn bảng màu bạn thích — bạn có thể đổi bất cứ lúc nào trong Cài đặt.",
+		"modeSystem": "Hệ thống",
+		"modeLight": "Sáng",
+		"modeDark": "Tối",
+		"uiThemeSelect": "Chọn {{name}}"
+	},
+	"proxy": {
+		"title": "Thiết lập truy cập mạng",
+		"desc": "Dùng proxy cục bộ khi các trang học thuật, GitHub hoặc việc tải Agent cần đến.",
+		"hint": "Để công tắc tắt nếu muốn kết nối trực tiếp, hoặc bật lên để dùng proxy HTTP/SOCKS cục bộ.",
+		"urlLabel": "URL proxy",
+		"enabledLabel": "Bật proxy mạng",
+		"probe": "Kiểm tra"
+	},
+	"node": {
+		"title": "Thiết lập Node.js",
+		"desc": "Node.js và npm dùng để chạy các bộ chuyển đổi ACP và một số trình cài đặt trợ lý AI bằng một cú nhấp.",
+		"checking": "Đang kiểm tra Node.js và npm…",
+		"ready": "Node.js đã sẵn sàng",
+		"readyDesc": "Node.js và npm đã được cài đặt. Bạn có thể tiếp tục.",
+		"missingTitle": "Cần có Node.js",
+		"missingDesc": "Hãy cài Node.js (đi kèm npm) để các bộ chuyển đổi Agent và các trình cài đặt dựa trên npm có thể chạy.",
+		"install": "Cài Node.js",
+		"installing": "Đang cài đặt…",
+		"installHint": "Dùng trình quản lý gói của hệ thống và có thể mất vài phút. Nếu không có winget hoặc Homebrew, hãy tải bộ cài từ nodejs.org rồi kiểm tra lại.",
+		"download": "Tải từ nodejs.org",
+		"installed": "Đã cài đặt",
+		"missing": "Chưa cài đặt",
+		"recheck": "Kiểm tra lại"
+	},
+	"agent": {
+		"title": "Chọn trợ lý AI của bạn",
+		"desc": "Agentero kết nối với các agent đã cài sẵn trên máy tính này để tóm tắt bài báo và trả lời câu hỏi — không cần thêm API key, chỉ việc chọn một agent.",
+		"rescan": "Quét lại",
+		"scanning": "Đang quét…",
+		"none": "Chưa tìm thấy agent nào. Hãy cài một agent trên máy tính này (ví dụ OpenCode, hoặc Claude Code kèm bộ chuyển đổi ACP), rồi nhấp Quét lại.",
+		"installAgentAria": "Cài agent {{name}}",
+		"installAgentTitle": "Cài CLI của agent",
+		"installAdapterAria": "Cài bộ chuyển đổi ACP cho {{name}}",
+		"installAdapterTitle": "Cài bộ chuyển đổi ACP",
+		"agentMissing": "Chưa cài đặt",
+		"adapterMissing": "Đã cài, thiếu bộ chuyển đổi ACP",
+		"default": "Mặc định",
+		"probe": "Kiểm tra",
+		"ready": "Sẵn sàng",
+		"missing": "Chưa cài đặt",
+		"failed": "Kiểm tra thất bại",
+		"notProbed": "Chưa kiểm tra",
+		"scanFailed": "Quét agent thất bại",
+		"cliAgents": "Agent dòng lệnh",
+		"desktopApps": {
+			"title": "Ứng dụng máy tính cục bộ",
+			"hint": "(bản thân chúng không hỗ trợ ACP — Agentero dùng CLI đi kèm của chúng)",
+			"chatgpt": "ChatGPT",
+			"qwenwork": "QwenWork",
+			"workbuddy": "WorkBuddy",
+			"dsh-desktop": "Dsh Desktop",
+			"bundledCli": "CLI đi kèm — có thể kết nối"
+		},
+		"desktopBundled": "Đi kèm ứng dụng"
+	},
+	"translate": {
+		"title": "Thiết lập dịch",
+		"desc": "Chọn văn bản trong bài báo tiếng nước ngoài để dịch ngay lập tức. Tùy chọn tích hợp sẵn dùng được ngay.",
+		"configureOwn": "Tôi có API dịch riêng",
+		"configureOwnDesc": "Dùng API key DeepL hoặc dịch vụ dịch khác của riêng bạn.",
+		"useDefault": "Dùng trình dịch tích hợp sẵn (khuyên dùng)",
+		"useDefaultDesc": "Dùng được ngay, không cần thiết lập.",
+		"apiKeyPlaceholder": "API key",
+		"endpointPlaceholder": "Endpoint (không bắt buộc)",
+		"openDocs": "Mở trang web của nhà cung cấp",
+		"test": "Kiểm tra",
+		"probeIdle": "Chưa kiểm tra",
+		"probeProbing": "Đang kiểm tra…",
+		"probeOk": "Hoạt động tốt",
+		"probeFail": "Hãy kiểm tra key rồi thử lại",
+		"displayMode": {
+			"label": "Bố cục bản dịch",
+			"overlay": "Phủ tại chỗ",
+			"dualPane": "Song song"
+		}
+	},
+	"layout": {
+		"title": "Phân tích công thức & hình",
+		"configureOwn": "Dùng dịch vụ đám mây (khuyên dùng)",
+		"configureOwnDesc": "Dùng API key Paddle, MinerU hoặc tương thích OpenAI của riêng bạn để đạt độ chính xác cao nhất với hình và công thức.",
+		"useDefault": "Dùng mô hình miễn phí chạy trên máy",
+		"useDefaultDesc": "Chạy hoàn toàn trên thiết bị của bạn, không cần thiết lập và hoạt động ngoại tuyến, nhưng tốn tài nguyên hệ thống, chậm hơn và kém chính xác hơn với bố cục phức tạp.",
+		"openDocsLabel": "Lấy API key",
+		"selfHostedHint": "Đang dùng MinerU tự triển khai? Hãy chọn \"Dùng mô hình cục bộ\" để bỏ qua bước này, sau đó bật \"API tự triển khai\" trong Cài đặt → Phân tích bố cục và điền URL gốc.",
+		"test": "Kiểm tra",
+		"probeIdle": "Chưa kiểm tra",
+		"probeProbing": "Đang kiểm tra…",
+		"probeOk": "Hoạt động tốt",
+		"probeFail": "Hãy kiểm tra key rồi thử lại"
+	},
+	"vault": {
+		"title": "Tạo thư viện của bạn",
+		"desc": "Kho (vault) chỉ là một thư mục thông thường trên máy tính, nơi lưu các bài báo và ghi chú của bạn. Bạn có thể tạo kho mới hoặc chuyển sang kho khác bất cứ lúc nào.",
+		"create": "Tạo kho",
+		"createDesc": "Trước tiên hãy chọn một thư mục riêng cho Agentero. Sau khi kho được tạo, bạn có thể nhập từ Zotero.",
+		"zotero": "Nhập từ Zotero",
+		"zoteroOfferTitle": "Nhập từ Zotero ngay bây giờ?",
+		"zoteroOfferDesc": "Kho Agentero của bạn đã sẵn sàng. Giờ bạn có thể chọn một thư mục dữ liệu Zotero làm nguồn nhập.",
+		"zoteroNo": "Không nhập từ Zotero"
+	},
+	"actions": {
+		"start": "Bắt đầu thiết lập",
+		"next": "Tiếp",
+		"back": "Quay lại",
+		"finish": "Hoàn tất thiết lập"
+	},
+	"tour": {
+		"sidebar": {
+			"title": "Thư viện & kho của bạn",
+			"desc": "Thanh bên chứa thư viện bài báo, các thư mục của kho và các nguồn khám phá. Mọi thứ chỉ là Markdown và tệp tin trên máy tính của bạn."
+		},
+		"library": {
+			"title": "Thư viện bài báo",
+			"desc": "Mọi bài báo trong kho đều hiện ở đây. Sắp xếp cột, lọc theo thẻ, sửa siêu dữ liệu và xuất BibTeX tại cùng một nơi."
+		},
+		"coolPapers": {
+			"title": "Cool Papers",
+			"desc": "Duyệt các bài nổi bật và đang thịnh hành trên arXiv. Một cú nhấp là mở được bài báo thú vị trong không gian làm việc."
+		},
+		"magicWand": {
+			"title": "Nhập bằng một cú nhấp",
+			"desc": "Dán DOI, mã arXiv hoặc liên kết; siêu dữ liệu, PDF và mã nguồn LaTeX sẽ được tải tự động. {{magicWandShortcut}} mở tính năng này bất cứ lúc nào."
+		},
+		"readPaper": {
+			"title": "Đọc & ghi chú",
+			"desc": "Nhấp vào biểu tượng tia chớp trên bất kỳ bài báo nào để mở với PDF ở bên trái và NOTES.md ở bên phải, sẵn sàng để tô sáng và chú thích."
+		},
+		"workspace": {
+			"title": "Đọc chia đôi màn hình",
+			"desc": "Mở bất kỳ bài báo nào để chia đôi khung nhìn: PDF bên trái, NOTES.md bên phải. Chọn văn bản để tô sáng, chú thích, dịch hoặc đặt câu hỏi."
+		},
+		"fullTextTranslate": {
+			"title": "Dịch toàn văn",
+			"desc": "Thanh công cụ PDF có thể dịch toàn bộ bài báo trong một lần. Chạy một lần, sau đó xem bản dịch ngay trong trang hoặc mở song song."
+		},
+		"fetchCoolPapersNotes": {
+			"title": "Ghi chú từ Cool Papers",
+			"desc": "Khi đang sửa NOTES.md của một bài báo, nhấp nút này để lấy ghi chú Kimi công khai từ Cool Papers và gộp vào ghi chú của bạn."
+		},
+		"agent": {
+			"title": "Agent của bạn, sẵn sàng trợ giúp",
+			"desc": "Dùng lại agent bạn đã đăng nhập trên máy — không cần API key. Bài báo đang mở tự động được đưa vào ngữ cảnh; nhấp vào một câu hỏi gợi ý để tóm tắt bài báo."
+		},
+		"titlebar": {
+			"title": "Bắt đầu khám phá",
+			"desc": "Mọi thứ đã sẵn sàng. {{settingsShortcut}} mở Cài đặt, {{quickOpenShortcut}} nhảy tới bất kỳ đâu. Các ghi chú hướng dẫn đã được tạo trong kho của bạn — hãy bắt đầu từ đó."
+		},
+		"next": "Tiếp",
+		"back": "Quay lại",
+		"done": "Xong"
+	}
+}

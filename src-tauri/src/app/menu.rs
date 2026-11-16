@@ -208,11 +208,31 @@ const ZH_CN: MenuLabels = MenuLabels {
     window: "窗口",
 };
 
+#[cfg(target_os = "macos")]
+const VI: MenuLabels = MenuLabels {
+    settings: "Cài đặt…",
+    new_window: "Cửa sổ mới",
+    open_vault: "Mở kho…",
+    create_vault: "Tạo kho…",
+    refresh_tree: "Làm mới cây thư mục",
+    close: "Đóng",
+    toggle_sidebar: "Bật / tắt thanh bên",
+    split_pane: "Tách khung sang phải",
+    toggle_chat: "Bật / tắt trò chuyện",
+    toggle_fullscreen: "Bật / tắt toàn màn hình",
+    app: "Agentero",
+    file: "Tệp",
+    edit: "Sửa",
+    view: "Hiển thị",
+    window: "Cửa sổ",
+};
+
 /// Return the menu label set for a locale, falling back to English.
 #[cfg(target_os = "macos")]
 pub fn menu_labels(lang: &str) -> &'static MenuLabels {
     match lang {
         "zh-CN" | "zh" => &ZH_CN,
+        "vi" => &VI,
         _ => &EN,
     }
 }

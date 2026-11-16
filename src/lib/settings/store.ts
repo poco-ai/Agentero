@@ -488,7 +488,8 @@ function normalizePartial(
 	if (
 		merged.locale !== "system" &&
 		merged.locale !== "en" &&
-		merged.locale !== "zh-CN"
+		merged.locale !== "zh-CN" &&
+		merged.locale !== "vi"
 	) {
 		merged.locale = DEFAULT_SETTINGS.locale;
 	}

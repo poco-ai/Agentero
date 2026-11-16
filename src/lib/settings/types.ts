@@ -30,7 +30,7 @@ export type {
 
 export type ThemePreference = "system" | "light" | "dark";
 
-export type LocalePreference = "system" | "en" | "zh-CN";
+export type LocalePreference = "system" | "en" | "zh-CN" | "vi";
 
 /** Builtin sortable / customizable columns in the papers Library table. */
 export type BuiltinLibraryColumnKey =

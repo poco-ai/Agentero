@@ -1,0 +1,4 @@
+{
+	"syncFailed": "Không thể đồng bộ giữa mã nguồn và PDF.",
+	"noMatch": "Không tìm thấy vị trí tương ứng trong mã nguồn. Hãy biên dịch dự án để cập nhật SyncTeX."
+}

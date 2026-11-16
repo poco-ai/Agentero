@@ -16,6 +16,21 @@ import enSettings from "./locales/en/settings.json";
 import enShortcuts from "./locales/en/shortcuts.json";
 import enSidebar from "./locales/en/sidebar.json";
 import enViewer from "./locales/en/viewer.json";
+import viAccount from "./locales/vi/account.json";
+import viAgent from "./locales/vi/agent.json";
+import viAiElements from "./locales/vi/aiElements.json";
+import viApp from "./locales/vi/app.json";
+import viCommon from "./locales/vi/common.json";
+import viEditor from "./locales/vi/editor.json";
+import viLatexBuild from "./locales/vi/latexBuild.json";
+import viLatexLanguage from "./locales/vi/latexLanguage.json";
+import viLatexPdf from "./locales/vi/latexPdf.json";
+import viMobile from "./locales/vi/mobile.json";
+import viOnboarding from "./locales/vi/onboarding.json";
+import viSettings from "./locales/vi/settings.json";
+import viShortcuts from "./locales/vi/shortcuts.json";
+import viSidebar from "./locales/vi/sidebar.json";
+import viViewer from "./locales/vi/viewer.json";
 import zhAccount from "./locales/zh-CN/account.json";
 import zhAgent from "./locales/zh-CN/agent.json";
 import zhAiElements from "./locales/zh-CN/aiElements.json";
@@ -32,7 +47,7 @@ import zhShortcuts from "./locales/zh-CN/shortcuts.json";
 import zhSidebar from "./locales/zh-CN/sidebar.json";
 import zhViewer from "./locales/zh-CN/viewer.json";
 
-const SUPPORTED_LOCALES = ["en", "zh-CN"] as const;
+const SUPPORTED_LOCALES = ["en", "zh-CN", "vi"] as const;
 type Locale = (typeof SUPPORTED_LOCALES)[number];
 
 export const DEFAULT_NS = "common";
@@ -72,16 +87,36 @@ export const resources = {
 		mobile: zhMobile,
 		onboarding: zhOnboarding,
 	},
+	vi: {
+		account: viAccount,
+		common: viCommon,
+		app: viApp,
+		settings: viSettings,
+		agent: viAgent,
+		sidebar: viSidebar,
+		viewer: viViewer,
+		editor: viEditor,
+		latexBuild: viLatexBuild,
+		latexLanguage: viLatexLanguage,
+		latexPdf: viLatexPdf,
+		shortcuts: viShortcuts,
+		aiElements: viAiElements,
+		mobile: viMobile,
+		onboarding: viOnboarding,
+	},
 } as const;
 
 /** Resolve a stored preference to a concrete BCP-47 locale we ship. */
 function resolveLocale(pref: LocalePreference): Locale {
-	if (pref === "en" || pref === "zh-CN") return pref;
-	const nav =
+	if (pref === "en" || pref === "zh-CN" || pref === "vi") return pref;
+	const nav = (
 		typeof navigator !== "undefined" && navigator.language
 			? navigator.language
-			: "en";
-	return nav.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
+			: "en"
+	).toLowerCase();
+	if (nav.startsWith("zh")) return "zh-CN";
+	if (nav.startsWith("vi")) return "vi";
+	return "en";
 }
 
 /**
