@@ -22,7 +22,15 @@ import { PagePointerProvider } from "@embedpdf/plugin-interaction-manager/react"
 import { LayoutAnalysisLayer } from "@embedpdf/plugin-layout-analysis/react";
 import { SearchLayer } from "@embedpdf/plugin-search/react";
 import { TilingLayer } from "@embedpdf/plugin-tiling/react";
-import { Bookmark, EyeOff, Languages, Loader2 } from "lucide-react";
+import {
+	Bookmark,
+	Check,
+	Circle,
+	CircleAlert,
+	EyeOff,
+	Languages,
+	Loader2,
+} from "lucide-react";
 import {
 	memo,
 	type MouseEvent as ReactMouseEvent,
@@ -116,6 +124,7 @@ import {
 	type PdfLayoutRegion,
 	type PointerOrigin,
 } from "@/lib/pdf/layout";
+import type { LayoutTranslatePageState } from "@/lib/pdf/layout/layout-translate-progress";
 import { translatedTextLinkKey } from "@/lib/pdf/layout/link-ink";
 import { translatedLinkHoverAction } from "@/lib/pdf/layout/translated-link-hover";
 import type {
@@ -421,10 +430,7 @@ export type PdfPageLayoutSlice = {
 		number,
 		readonly LayoutTranslateItem[]
 	>;
-	layoutTranslatePageStateByPage: ReadonlyMap<
-		number,
-		{ active: boolean; running: boolean }
-	>;
+	layoutTranslatePageStateByPage: ReadonlyMap<number, LayoutTranslatePageState>;
 	/**
 	 * English glyph boxes for each sentence in a translated block, keyed by
 	 * item id. Absent until that page's text layer has been read.
@@ -575,60 +581,46 @@ type PageTranslateTabProps = {
 	pageIndex: number;
 	active: boolean;
 	running: boolean;
-	/** Current PDF zoom; the tab shrinks and grows with the page. */
-	zoom: number;
+	status?: LayoutTranslatePageState["status"];
 	onToggle: (pageIndex: number) => void;
 };
 
-/**
- * In-page translate / hide tab, inside the page's top-left corner (just
- * inward of the old outside-left hang). Mounted only while the page is
- * hovered. Match PDF chrome: Callout `text-xs`, `size-3.5` icons,
- * `h-7`-wide hit target, shared surface. Rem sizes keep Windows
- * non-integer DPR from drifting the tab.
- */
-function labelCharacters(label: string): { key: string; char: string }[] {
-	const seen = new Map<string, number>();
-	return Array.from(label, (char) => {
-		const count = (seen.get(char) ?? 0) + 1;
-		seen.set(char, count);
-		return { key: `${char}-${count}`, char };
-	});
-}
-
+/** Compact page status and translate / hide action. */
 const PageTranslateTab = memo(function PageTranslateTab({
 	pageIndex,
 	active,
 	running,
-	zoom,
+	status,
 	onToggle,
 }: PageTranslateTabProps) {
 	const { t } = useTranslation("viewer");
-	const scale = zoom > 0 ? zoom : 1;
 	const label = running
 		? t("pdf.layoutTranslate.pageRunning")
 		: active
 			? t("pdf.layoutTranslate.hidePage")
 			: t("pdf.layoutTranslate.translatePage");
-	const shortLabel = active
-		? t("pdf.layoutTranslate.hidePageShort")
-		: t("pdf.layoutTranslate.translatePageShort");
-	const Icon = running ? Loader2 : active ? EyeOff : Languages;
+	const statusLabel = status
+		? t(`pdf.layoutTranslate.pageStatus.${status}`)
+		: null;
+	const Icon = status
+		? { pending: Circle, running: Loader2, done: Check, error: CircleAlert }[
+				status
+			]
+		: active
+			? EyeOff
+			: Languages;
 	return (
 		<button
 			type="button"
 			data-pdf-chrome
 			className={cn(
-				"pointer-events-auto absolute top-2 left-2 z-[8] flex w-7 min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 font-medium text-xs text-foreground transition-colors duration-100 hover:bg-muted/80 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				"pointer-events-auto absolute top-2 left-2 z-[8] flex size-7 items-center justify-center rounded-md text-foreground transition-colors duration-100 hover:bg-muted/80 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
 				PDF_CHROME_CHIP,
 				active && "border-primary/30 bg-primary/10 text-primary",
 			)}
-			style={{
-				// Layout-level zoom re-computes the chip's font, icon, and padding
-				// sizes before painting; transform scaling stretches a texture.
-				zoom: scale,
-			}}
-			aria-label={label}
+			aria-label={statusLabel ? `${statusLabel}. ${label}` : label}
+			title={statusLabel ? `${statusLabel}. ${label}` : label}
+			aria-busy={running}
 			aria-pressed={active}
 			onClick={(event) => {
 				event.preventDefault();
@@ -641,13 +633,6 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				className={cn("size-3.5 shrink-0", running && "animate-spin")}
 				aria-hidden="true"
 			/>
-			<span className="flex flex-col items-center gap-0.5 leading-none">
-				{labelCharacters(shortLabel).map((part) => (
-					<span key={part.key} className="block text-center">
-						{part.char}
-					</span>
-				))}
-			</span>
 		</button>
 	);
 });
@@ -695,7 +680,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				: height;
 	const pdfDark = tone === "dark";
 	const paperTint = PDF_PAPER_TINT[tone];
-	const cardScale = zoomRef.current > 0 ? zoomRef.current : 1;
 	const pageShellRef = useRef<HTMLDivElement | null>(null);
 	/**
 	 * Lazily arm text selection once the pointer reaches the page. Registering
@@ -826,7 +810,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	}, [activeAskOnPage, pins, translationVisible]);
 	const pageTranslateState = layout.layoutTranslatePageStateByPage.get(
 		pageIndex,
-	) ?? { active: false, running: false };
+	) ?? { active: false, running: false, status: undefined };
 	const emphasizedCommentId = hoveredCommentId ?? marks.editingCommentId;
 	const emphasizedComment = emphasizedCommentId
 		? (shownComments.find((c) => c.id === emphasizedCommentId) ?? null)
@@ -1212,7 +1196,9 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		[citationById, handlers],
 	);
 	const translateOverlay =
-		translationVisible && layoutTranslateOnPage ? (
+		layoutTranslateOnPage &&
+		(translationVisible ||
+			layoutTranslateOnPage.some((item) => item.status === "running")) ? (
 			<LayoutTranslateOverlay
 				items={layoutTranslateOnPage}
 				pageIndex={pageIndex}
@@ -1236,6 +1222,17 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			/>
 		) : null;
 
+	const pageTranslateTab =
+		!mode.plainViewer && (pageHovered || pageTranslateState.status) ? (
+			<PageTranslateTab
+				pageIndex={pageIndex}
+				active={pageTranslateState.active}
+				running={pageTranslateState.running}
+				status={pageTranslateState.status}
+				onToggle={handlers.onTogglePageLayoutTranslate}
+			/>
+		) : null;
+
 	// Dual-pane companion: raster + translated text only. Skipping the full
 	// interaction stack halves per-page React work while the second EmbedPDF
 	// instance is still warming up.
@@ -1249,10 +1246,13 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					PDF_PAPER_SHELL_CLASS[tone],
 				)}
 				style={{ width, height }}
+				onPointerEnter={() => setPageHovered(true)}
+				onPointerLeave={() => setPageHovered(false)}
 				{...{ [EMBED_PAGE_ATTR]: pageIndex }}
 			>
 				{paperRaster}
 				{translateOverlay}
+				{pageTranslateTab}
 				<SearchLayer
 					documentId={activeSearchDocumentId}
 					pageIndex={pageIndex}
@@ -1432,15 +1432,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						</div>
 					) : null}
 				</UnrotatedPageFrame>
-				{!mode.plainViewer && pageHovered ? (
-					<PageTranslateTab
-						pageIndex={pageIndex}
-						active={pageTranslateState.active}
-						running={pageTranslateState.running}
-						zoom={cardScale}
-						onToggle={handlers.onTogglePageLayoutTranslate}
-					/>
-				) : null}
+				{pageTranslateTab}
 				<CitationLinkLayer
 					links={marks.citationLinks.get(pageIndex) ?? EMPTY_CITATION_LINKS}
 					textLinks={marks.textLinks.get(pageIndex) ?? []}

@@ -50,8 +50,10 @@ import {
 	subscribeLayoutSidecarWrite,
 } from "@/lib/pdf/layout/io";
 import {
+	type LayoutTranslatePageState,
 	layoutTranslateDisplayRatio,
 	layoutTranslatePageProgress,
+	layoutTranslatePageStates,
 } from "@/lib/pdf/layout/layout-translate-progress";
 import {
 	isInsidePreservedRegion,
@@ -118,10 +120,7 @@ export type PdfLayoutTranslate = {
 		readonly LayoutTranslateItem[]
 	>;
 	/** One-page tag state, keyed by 0-based page index. */
-	layoutTranslatePageStateByPage: ReadonlyMap<
-		number,
-		{ active: boolean; running: boolean }
-	>;
+	layoutTranslatePageStateByPage: ReadonlyMap<number, LayoutTranslatePageState>;
 	layoutTranslateRunning: boolean;
 	/** Final corrected preview/export output is still building after items settled. */
 	layoutTranslatePreparing: boolean;
@@ -1808,25 +1807,11 @@ export function usePdfLayoutTranslate({
 		return grouped;
 	}, [reflowItems, hiddenPageIndexes]);
 
-	const layoutTranslatePageStateByPage = useMemo(() => {
-		const states = new Map<number, { active: boolean; running: boolean }>();
-		for (const item of layoutTranslateJob.items) {
-			if (hiddenPageIndexes.has(item.pageIndex)) continue;
-			const state = states.get(item.pageIndex) ?? {
-				active: false,
-				running: false,
-			};
-			if (item.status === "running") {
-				state.active = true;
-				state.running = true;
-			}
-			if (item.translated?.trim()) {
-				state.active = true;
-			}
-			states.set(item.pageIndex, state);
-		}
-		return states;
-	}, [layoutTranslateJob.items, hiddenPageIndexes]);
+	const layoutTranslatePageStateByPage = useMemo(
+		() =>
+			layoutTranslatePageStates(layoutTranslateJob.items, hiddenPageIndexes),
+		[layoutTranslateJob.items, hiddenPageIndexes],
+	);
 
 	const layoutTranslateRunning = layoutTranslateJob.status === "running";
 	const layoutTranslatePendingRequired = useMemo(

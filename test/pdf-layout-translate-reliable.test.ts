@@ -36,11 +36,14 @@ describe("PDF layout translation reliability", () => {
 });
 
 describe("isLayoutTranslateItemPainted", () => {
-	it("returns true for done and running items", () => {
+	it("paints completed or retained translations and keeps source visible while waiting", () => {
 		expect(
 			isLayoutTranslateItemPainted({ status: "done", translated: "已翻译" }),
 		).toBe(true);
-		expect(isLayoutTranslateItemPainted({ status: "running" })).toBe(true);
+		expect(isLayoutTranslateItemPainted({ status: "running" })).toBe(false);
+		expect(
+			isLayoutTranslateItemPainted({ status: "running", translated: "旧译文" }),
+		).toBe(true);
 	});
 
 	it("returns true for error items only when partial translation exists", () => {

@@ -66,7 +66,7 @@ export function isLayoutTranslateItemPainted(
 ): boolean {
 	return (
 		item.status === "done" ||
-		item.status === "running" ||
+		(item.status === "running" && Boolean(item.translated?.trim())) ||
 		(item.status === "error" && Boolean(item.translated))
 	);
 }

@@ -52,6 +52,12 @@
 			"translatePageShort": "翻译页面",
 			"hidePage": "隐藏本页译文",
 			"hidePageShort": "隐藏本页",
+			"pageStatus": {
+				"pending": "本页待翻译",
+				"running": "正在翻译本页…",
+				"done": "本页翻译完成",
+				"error": "本页翻译未完成"
+			},
 			"pageRunning": "正在翻译本页…",
 			"needLayout": "请先运行版面分析（Figures 面板）。",
 			"noText": "没有可提取文字的版面区域可翻译。",

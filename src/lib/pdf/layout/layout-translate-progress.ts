@@ -1,4 +1,7 @@
-import type { LayoutTranslateItemStatus } from "@/lib/pdf/layout/types";
+import type {
+	LayoutTranslateItem,
+	LayoutTranslateItemStatus,
+} from "@/lib/pdf/layout/types";
 
 /**
  * Share of a translation job that has already settled.
@@ -124,4 +127,36 @@ export function layoutTranslateDisplayRatio(
 	if (cacheOnly) return previewPending ? Math.min(0.99, built) : 1;
 	const typeset = previewPending ? Math.min(0.99, built) : 1;
 	return Math.min(previewPending ? 0.99 : 1, text.ratio * 0.7 + typeset * 0.3);
+}
+
+/** Visible page status; failed blocks keep a page out of the completed state. */
+export type LayoutTranslatePageState = {
+	active: boolean;
+	running: boolean;
+	status: "pending" | "running" | "done" | "error";
+};
+
+export function layoutTranslatePageStates(
+	items: readonly LayoutTranslateItem[],
+	hiddenPages: ReadonlySet<number>,
+): ReadonlyMap<number, LayoutTranslatePageState> {
+	const states = new Map<number, LayoutTranslatePageState>();
+	for (const item of items) {
+		if (hiddenPages.has(item.pageIndex) || item.status === "skipped") continue;
+		const status =
+			item.status === "done" && !item.translated?.trim()
+				? "pending"
+				: item.status;
+		const state = states.get(item.pageIndex);
+		const rank = { done: 0, pending: 1, error: 2, running: 3 };
+		states.set(item.pageIndex, {
+			active: Boolean(
+				state?.active || item.status === "running" || item.translated?.trim(),
+			),
+			running: Boolean(state?.running || item.status === "running"),
+			status:
+				state && rank[state.status] > rank[status] ? state.status : status,
+		});
+	}
+	return states;
 }

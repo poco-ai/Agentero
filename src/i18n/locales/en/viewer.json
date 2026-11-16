@@ -52,6 +52,12 @@
 			"translatePageShort": "Page",
 			"hidePage": "Hide this page translation",
 			"hidePageShort": "Hide",
+			"pageStatus": {
+				"pending": "Page awaiting translation",
+				"running": "Translating this page…",
+				"done": "Page translation complete",
+				"error": "Page translation incomplete"
+			},
 			"pageRunning": "Translating this page…",
 			"needLayout": "Run layout analysis first (Figures panel).",
 			"noText": "No extractable text regions to translate.",
