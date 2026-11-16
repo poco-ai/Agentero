@@ -19,6 +19,7 @@ serde_json = { workspace = true }
 # `macros` for join!/select! in import assets, parse and title_search.
 tokio = { workspace = true, features = ["fs", "rt", "sync", "process", "io-util", "time", "macros"] }
 dirs = { workspace = true }
+dunce = "1.0.5"
 log = { workspace = true }
 tempfile = { workspace = true }
 thiserror = "2"

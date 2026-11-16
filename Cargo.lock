@@ -204,6 +204,7 @@ dependencies = [
  "chrono",
  "dirs 6.0.0",
  "dom_smoothie",
+ "dunce",
  "feed-rs",
  "flate2",
  "fs2",
