@@ -24,7 +24,6 @@ Onboarding 关闭、Vault 首次打开后，`useFeatureTour` 用 driver.js 高�
 | 欢迎 | `welcome` | 品牌 + 价值主张 + 特性 | — |
 | 外观 | `theme` | 明暗模式 + tweakcn 配色主题即时预览 | `patchSettings` + `applyUiTheme` / `next-themes` |
 | 网络 | `proxy` | 配置应用级网络代理，并运行「问题诊断 → 网络连通性」同一组 probe | `saveSettingsAsync` / `doctorCheckNetwork` |
-| 运行环境 | `node` | 检测本机 Node.js / npm；缺失时提示并支持一键安装，安装期间显示百分比进度。Node.js 与 npm 都已可用时**整步跳过**（不出现进度圆点，下一步/上一步直接越过） | `useHostNodeStatus` / `installNodeInBackground`（`doctorCheckHost` / `doctorInstallNode`） |
 | Agent | `agent` | 扫描本机 ACP Agent、安装可托管 Agent、探测、设默认（可跳过）；安装期间卡片显示 `agent-lifecycle:progress` 进度与阶段，并提供取消（X）按钮静默中止安装。CLI 目录**之后**另列**本地桌面应用**（ChatGPT / 千问办公 / WorkBuddy / Dsh 桌面版）：GUI 本身不支持 ACP，已装高亮、未装灰度，不可选；四项统一标注「自带 CLI，可接入」（Agentero 复用各自应用包里的 Codex / CodeBuddy / Qoder CN / Dsh）。卡片用 `auto-rows-fr` + `h-full` 保证已装/未装高度一致 | `scanCatalog` / `probeCatalogAgent` / `ensureCatalogAgent` / `useAgentToolLifecycle` / `probeDesktopApps` / `isDesktopBundledCliPath` |
 | 翻译 | `translate` | 选择「用自己的翻译 API」或「内置免费翻译」，选前者则填 Key 并测试 | `probeCommercialMtProvider` |
 | 图表公式 | `layout` | 选择「配置云端服务」或「本地免费模型」，选前者则填 Key 并测试 | `probeLayoutProvider` |
@@ -32,7 +31,7 @@ Onboarding 关闭、Vault 首次打开后，`useFeatureTour` 用 driver.js 高�
 
 Agent 的可选性由当前依赖是否可用决定（`acpCommandAvailable`）；内置 ACP 适配器不能代替所需的 Agent CLI，保留历史注册、默认项或成功探测记录不代表当前可用。
 
-流程状态机用 **@stepperize/react**（`defineStepper` + `useStepper`），定义见 `src/components/onboarding/flow.ts`；步骤顺序固定，`onboarding-root.tsx` 在前进/后退时按检测结果跳过已满足条件的步骤（目前只有 `node`），进度圆点与索引同步过滤。
+流程状态机用 **@stepperize/react**（`defineStepper` + `useStepper`），定义见 `src/components/onboarding/flow.ts`；步骤顺序固定，向导从网络设置直接进入 Agent 扫描，不再单独要求安装系统 Node/npm；具体 Agent 的运行依赖由扫描与探测结果判断。
 
 > **翻译默认值**：`translate-step.tsx` 的默认选项使用 `DEFAULT_TRANSLATE_SETTINGS.provider`（`tencenttransmart`），与 Host 新装默认值一致，不依赖内置 key（#857）。文案中的「内置免费翻译」指此免费引擎，不是 `agentero` provider；文案与步骤交互的后续调整由 #856 跟踪。
 
