@@ -60,7 +60,7 @@ export const REFLOW_IR_CACHE_FORMAT_VERSION = 1;
  * changes the IR for the same PDF and layout, even if the persisted shape stays
  * compatible. Old cache files then fail the key check and are re-extracted.
  */
-export const REFLOW_IR_ALGORITHM_VERSION = 4;
+export const REFLOW_IR_ALGORITHM_VERSION = 5;
 const CACHE_DIR = "reflow-ir";
 /** Bound stale-key accumulation; the app cache directory may also be cleared by the OS. */
 const MAX_FILES_PER_PAPER = 96;
@@ -581,6 +581,13 @@ function parseReflowPage(value: unknown): ReflowPage | null {
 	const page = value as unknown as ReflowPage;
 	if (page.paragraphs.some((paragraph) => paragraph.pageIndex !== page.index))
 		return null;
+	const characters = new Set<number>();
+	for (const paragraph of page.paragraphs) {
+		for (const character of paragraph.characters) {
+			if (characters.has(character.index)) return null;
+			characters.add(character.index);
+		}
+	}
 	return page;
 }
 

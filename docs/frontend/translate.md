@@ -235,7 +235,7 @@ TeX 符号字体（`txsys` / `txmi` / `txex`）与 Libertine Math 一并归入�
 `prepareReflow` 的 PDFium 字符 IR 提取结果按页写入应用缓存目录，重启后再次全文翻译可直接复用，不再重新抽 glyph / text run / 字符级几何：
 
 - **位置**：`appCacheDir()/reflow-ir/<论文目录名>-<paper key 哈希>/<页码>-<缓存键哈希>.json.gz`。只放在应用缓存目录，不写 `paper/source`，不进入 vault。缓存目录按论文键隔离，单篇最多保留 96 个文件（按 mtime 淘汰更旧的键）。
-- **键**：PDF 内容 sha256 + `source/layout.json` 文件内容 sha256 + 当前页的 items 几何指纹 + 当前页的 regions 几何指纹 + 缓存格式版本 + reflow IR schema 版本 + 算法版本 + paper key。改 PDF、重新版面分析、换论文或调整提取算法都会 miss；命中时不会复用其它 PDF/版面的旧位置。提取算法或段落归组变化时，需要提升 `src/lib/pdf/reflow/cache.ts` 的 `REFLOW_IR_ALGORITHM_VERSION`。
+- **键**：PDF 内容 sha256 + `source/layout.json` 文件内容 sha256 + 当前页的 items 几何指纹 + 当前页的 regions 几何指纹 + 缓存格式版本 + reflow IR schema 版本 + 算法版本 + paper key。改 PDF、重新版面分析、换论文或调整提取算法都会 miss；命中时不会复用其它 PDF/版面的旧位置。读取缓存时拒绝同一字符被多个段落重复认领的页面，并重新提取。提取算法或段落归组变化时，需要提升 `src/lib/pdf/reflow/cache.ts` 的 `REFLOW_IR_ALGORITHM_VERSION`。
 - **内容**：只存源几何 `ReflowPage`（段落、字符、公式、样式、table/fallback 框、coverage、obstacles），不存译文。译文仍在 `layout-translate.json`；preview / 最终 PDF 仍按现有流程重建。
 - **格式**：整页 JSON 经 gzip（`CompressionStream`）；运行环境没有压缩流时写普通 JSON，读取按 gzip 魔数自动识别。
 - **写入**：先写同目录临时文件，再 `rename` 覆盖，失败只记 warn，不影响翻译。页面级 key 让整篇翻译和单页翻译互不覆盖。
