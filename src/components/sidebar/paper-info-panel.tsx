@@ -23,6 +23,7 @@ import {
 import { useTranslation } from "react-i18next";
 import {
 	SiArxiv,
+	SiDoi,
 	SiGithub,
 	SiHuggingface,
 	SiModelscope,
@@ -45,6 +46,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { normalizeDoi } from "@/lib/bibtex";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -558,6 +560,11 @@ export function PaperInfoPanel({
 	const canEditMeta =
 		Boolean(meta) && !!vaultPath && !isRemoteVaultHandle(vaultPath);
 	const arxivId = meta?.arxiv_id ? arxivUrls(meta.arxiv_id)?.id : null;
+	/** DOI-identified paper (no arXiv id): link the DOI instead of the arXiv page. */
+	const doi = arxivId ? null : normalizeDoi(meta?.doi ?? undefined);
+	/** Identifier shown next to the panel heading. */
+	const paperId = arxivId ?? doi;
+	const paperIdLabel = arxivId ? t("paperInfo.arxivId") : t("paperInfo.doi");
 	const modelScopeUrl = arxivId
 		? `https://modelscope.cn/papers/${arxivId}/overview`
 		: null;
@@ -686,16 +693,12 @@ export function PaperInfoPanel({
 						/>
 						<span className="truncate">{t("paperInfo.info")}</span>
 					</CollapsibleTrigger>
-					{arxivId ? (
+					{paperId ? (
 						<button
 							type="button"
-							title={t("paperInfo.copyHint", {
-								label: t("paperInfo.arxivId"),
-							})}
-							aria-label={t("paperInfo.copyHint", {
-								label: t("paperInfo.arxivId"),
-							})}
-							onClick={() => void copyField(arxivId, t("paperInfo.arxivId"))}
+							title={t("paperInfo.copyHint", { label: paperIdLabel })}
+							aria-label={t("paperInfo.copyHint", { label: paperIdLabel })}
+							onClick={() => void copyField(paperId, paperIdLabel)}
 							className={cn(
 								"min-w-0 max-w-[55%] shrink truncate px-1",
 								"text-caption text-muted-foreground tabular-nums transition-colors",
@@ -703,7 +706,7 @@ export function PaperInfoPanel({
 								"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 							)}
 						>
-							{arxivId}
+							{paperId}
 						</button>
 					) : null}
 				</div>
@@ -792,12 +795,10 @@ export function PaperInfoPanel({
 							</MetaRow>
 							<div className="@container/paper-links flex flex-col gap-1.5 px-3 pt-1.5">
 								<div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
-									{meta.pdf_url || meta.arxiv_id ? (
+									{arxivId ? (
 										<LinkChip
-											href={
-												meta.pdf_url ?? `https://arxiv.org/pdf/${meta.arxiv_id}`
-											}
-											label={t("paperInfo.pdf")}
+											href={meta.pdf_url ?? `https://arxiv.org/pdf/${arxivId}`}
+											label={t("paperInfo.arxiv")}
 											icon={
 												<SiArxiv
 													className="size-3.5 shrink-0 text-[#B31B1B]"
@@ -805,6 +806,19 @@ export function PaperInfoPanel({
 												/>
 											}
 										/>
+									) : doi ? (
+										<LinkChip
+											href={`https://doi.org/${doi}`}
+											label={t("paperInfo.doi")}
+											icon={
+												<SiDoi
+													className="size-3.5 shrink-0 text-[#FCA2BD]"
+													aria-hidden
+												/>
+											}
+										/>
+									) : meta.pdf_url ? (
+										<LinkChip href={meta.pdf_url} label={t("paperInfo.pdf")} />
 									) : null}
 									{alphaXivUrl ? (
 										<ServiceLinkChip
