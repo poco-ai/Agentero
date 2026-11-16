@@ -1,4 +1,4 @@
-import { normalizePath } from "@/lib/core/path";
+import { joinPath, normalizePath } from "@/lib/core/path";
 
 /** True when path is the `papers` directory itself (Vault-relative or absolute). */
 export function isPapersRoot(path: string | null): boolean {
@@ -61,6 +61,5 @@ export function isPaperAssetPath(path: string | null): boolean {
 
 /** `<paperDir>/NOTES.md` — structured notes for the paper. */
 export function notesPathForPaper(paperDir: string): string {
-	const sep = paperDir.endsWith("/") ? "" : "/";
-	return `${paperDir}${sep}NOTES.md`;
+	return joinPath(paperDir, "NOTES.md");
 }
