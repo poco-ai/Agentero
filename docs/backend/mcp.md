@@ -23,6 +23,8 @@ Host commands：`mcp_get_status` / `mcp_set_enabled` / `mcp_set_port` / `mcp_set
 
 `initialize.serverInfo` 带 `title`、`websiteUrl` 和 `icons`（应用 PNG 的 data URI）。客户端可以忽略不画。
 
+`resources/list` 不带 `icons`：resource 级图标是完整 data URI，每次调用都会重发同一张 PNG，白白占模型上下文（#1139）。品牌图标只保留在 `serverInfo.icons` 这一处。
+
 `initialize.instructions` 指向下方 resources，并强调 `paper_list` 默认瘦字段、覆盖 NOTES 前需确认。
 
 无鉴权。不要把端口绑到非 loopback。

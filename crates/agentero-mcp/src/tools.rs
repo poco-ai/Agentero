@@ -1521,20 +1521,19 @@ impl ServerHandler for AgenteroMcp {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        let icons = icons::server_icons();
+        // No `icons` here on purpose: a data-URI icon is repeated on every call
+        // and bloats the response into tens of thousands of tokens. Clients get
+        // the embedded app icon from `initialize.serverInfo.icons` instead.
         Ok(ListResourcesResult::with_all_items(vec![
             Resource::new(VAULT_URI, VAULT_NAME)
                 .with_title("Current vault")
-                .with_mime_type("text/markdown")
-                .with_icons(icons.clone()),
+                .with_mime_type("text/markdown"),
             Resource::new(INVARIANTS_URI, INVARIANTS_NAME)
                 .with_title("Agent invariants")
-                .with_mime_type("text/markdown")
-                .with_icons(icons.clone()),
+                .with_mime_type("text/markdown"),
             Resource::new(SKILL_URI, SKILL_NAME)
                 .with_title("Bundled agentero-cli skill")
-                .with_mime_type("text/markdown")
-                .with_icons(icons),
+                .with_mime_type("text/markdown"),
         ]))
     }
 
