@@ -260,6 +260,7 @@ function reuseCompletedTranslateItems(
 				status: "done" as const,
 				translated: previous.translated.trim(),
 				sentences: previous.sentences,
+				terminologyRevision: previous.terminologyRevision,
 				error: undefined,
 			};
 		}
@@ -279,6 +280,7 @@ function resetRunningTranslateItems(
 type TranslatedSnapshot = {
 	translated: string;
 	sentences?: LayoutTranslateItem["sentences"];
+	terminologyRevision?: string;
 };
 
 /** Remember successful translations before a run that may clear them. */
@@ -291,6 +293,7 @@ function snapshotTranslatedItems(
 		snapshot.set(item.id, {
 			translated: item.translated,
 			sentences: item.sentences,
+			terminologyRevision: item.terminologyRevision,
 		});
 	}
 	return snapshot;
@@ -314,6 +317,7 @@ function restoreTranslatedItems(
 			status: "done" as const,
 			translated: previous.translated,
 			sentences: previous.sentences,
+			terminologyRevision: previous.terminologyRevision,
 			error: undefined,
 		};
 	});

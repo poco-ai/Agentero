@@ -1505,7 +1505,7 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 				providerConfigs: { openaiCompatible: { ...cfg, ...options } },
 			});
 		expect(key({})).toMatch(
-			/^openaiCompatible:https:\/\/example\.test\/v1::qwen3:p[a-z0-9]+$/,
+			/^openaiCompatible:https:\/\/example\.test\/v1::qwen3$/,
 		);
 		expect(key({ extraRequestBody: "" })).toBe(key({}));
 		expect(key({ extraRequestBody: "{}" })).not.toBe(key({}));
@@ -1518,8 +1518,8 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 		provider: "tencenttransmart" as const,
 	};
 
-	it("bundled terminology invalidates legacy caches while whitespace preferences share a key", () => {
-		expect(translateServiceKey({ ...base, customPrompt: "" })).not.toBe(
+	it("bundled terminology preserves legacy caches while whitespace preferences share a key", () => {
+		expect(translateServiceKey({ ...base, customPrompt: "" })).toBe(
 			"tencenttransmart",
 		);
 		expect(translateServiceKey({ ...base, customPrompt: "   " })).toBe(
@@ -1544,7 +1544,7 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 			modelId: "",
 		};
 		expect(translateServiceKey({ ...agentBase, customPrompt: "" })).toMatch(
-			/^agent:claude-1:default:p[a-z0-9]+$/,
+			/^agent:claude-1:default$/,
 		);
 		expect(
 			translateServiceKey({ ...agentBase, customPrompt: "Be terse." }),
