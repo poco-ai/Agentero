@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 
+import { renderedMathFromTarget } from "@/lib/markdown/rendered-math";
 import { renderedMathClipboardText } from "@/lib/markdown/rendered-math-copy";
 
 /** Minimal KaTeX DOM: hidden MathML annotation carries the TeX source. */
@@ -129,5 +130,35 @@ describe("renderedMathClipboardText with real KaTeX output", () => {
 		const range = document.createRange();
 		range.selectNodeContents(root);
 		expect(renderedMathClipboardText(range)).toBe("before $x^{2}$ after");
+	});
+});
+
+describe("renderedMathFromTarget", () => {
+	it("returns the raw TeX source from a rendered formula", async () => {
+		const katex = (await import("katex")).default;
+		document.body.innerHTML = `<div data-markdown-copy><p>${katex.renderToString(
+			String.raw`\hat{\sigma}_1`,
+			{ displayMode: false, throwOnError: false },
+		)}</p></div>`;
+		const root = document.querySelector("[data-markdown-copy]");
+		const glyph = document.querySelector(".katex-html .mord");
+		if (!root || !glyph) throw new Error("rendered formula missing");
+
+		expect(renderedMathFromTarget(glyph, root)?.tex).toBe(
+			String.raw`\hat{\sigma}_1`,
+		);
+	});
+
+	it("ignores targets outside the Markdown surface", async () => {
+		const katex = (await import("katex")).default;
+		document.body.innerHTML = `<div data-markdown-copy></div><p>${katex.renderToString(
+			"x",
+			{ throwOnError: false },
+		)}</p>`;
+		const root = document.querySelector("[data-markdown-copy]");
+		const glyph = document.querySelector(".katex-html .mord");
+		if (!root || !glyph) throw new Error("rendered formula missing");
+
+		expect(renderedMathFromTarget(glyph, root)).toBe(null);
 	});
 });
