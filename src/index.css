@@ -687,9 +687,42 @@
 	outline: 2px solid var(--ring);
 	outline-offset: 2px;
 }
+[data-layout-element].is-hot.has-sentence > .pdf-layout-element-frame,
+[data-layout-element].has-sentence:focus-within > .pdf-layout-element-frame {
+	opacity: 0;
+}
+.pdf-layout-sentence-wash {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 160ms ease;
+}
+.pdf-layout-sentence-wash.is-on {
+	opacity: 1;
+}
+.pdf-layout-sentence-wash > span {
+	position: absolute;
+	border-radius: 2px;
+	background: rgb(24 24 27 / 0.22);
+}
+[data-paper="dark"] .pdf-layout-sentence-wash > span {
+	background: rgb(244 244 245 / 0.22);
+}
+[data-sentence][data-sentence-hot] {
+	border-radius: 1px;
+	background-color: rgb(24 24 27 / 0.22);
+	transition: background-color 160ms ease;
+}
+[data-paper="dark"] [data-sentence][data-sentence-hot] {
+	background-color: rgb(244 244 245 / 0.22);
+}
 @media (prefers-reduced-motion: reduce) {
 	.pdf-layout-element-frame,
-	.pdf-layout-element-chip {
+	.pdf-layout-element-chip,
+	.pdf-layout-sentence-wash,
+	[data-sentence][data-sentence-hot] {
 		transition: none;
 	}
 }

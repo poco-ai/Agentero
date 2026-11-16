@@ -112,6 +112,11 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
+import {
+	bindLayoutSentenceGlyphs,
+	publishLayoutSentenceCatalog,
+	suppressLayoutSentenceHover,
+} from "@/components/viewer/pdf/layout-sentence-hover";
 import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
 import type {
@@ -858,6 +863,26 @@ function PdfViewerInner({
 		isCommentDraftActive: () => selectionCommentEngagedRef.current,
 	});
 
+	useEffect(() => {
+		bindLayoutSentenceGlyphs(
+			engine
+				? {
+						docId,
+						engine,
+						getDocument: () => docCap?.getDocument(docId) ?? null,
+					}
+				: null,
+		);
+		return () => bindLayoutSentenceGlyphs(null);
+	}, [docCap, docId, engine]);
+
+	useEffect(() => {
+		const root = hostRef.current;
+		if (!root) return;
+		root.toggleAttribute("data-pdf-selecting", isSelecting);
+		if (isSelecting) suppressLayoutSentenceHover();
+	}, [isSelecting]);
+
 	/**
 	 * Session token of the single in-flight PDF agent run. Shared by ask and
 	 * translate (either can cancel the other's run), so it stays in the parent and
@@ -1284,6 +1309,17 @@ function PdfViewerInner({
 		isRemotePaper,
 		plainViewer,
 	});
+
+	useEffect(() => {
+		const items = [...layoutTranslateItemsByPage.values()].flat();
+		publishLayoutSentenceCatalog(docId, items);
+	}, [docId, layoutTranslateItemsByPage]);
+	// Clear only when the document changes. Declared after the publish effect so
+	// its cleanup runs first and the next publish restores the new document's
+	// pairs. An items-only update must not flash an empty catalog.
+	useEffect(() => {
+		return () => publishLayoutSentenceCatalog(docId, []);
+	}, [docId]);
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,

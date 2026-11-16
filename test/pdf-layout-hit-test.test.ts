@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import {
 	layoutElementBoxes,
 	layoutElementCaptionPage,
@@ -7,6 +6,7 @@ import {
 	layoutElementPreview,
 	layoutElementQuote,
 } from "@/lib/pdf/layout/element-selection";
+import { elementSentenceAtPoint } from "@/lib/pdf/layout/element-sentence";
 import {
 	bboxArea,
 	hoverableLayoutRegions,
@@ -331,5 +331,170 @@ describe("layout hit-test", () => {
 				h: 0.02,
 			})?.id,
 		).toBe("body");
+	});
+});
+
+describe("elementSentenceAtPoint", () => {
+	const first = { x: 0.1, y: 0.1, w: 0.4, h: 0.05 };
+	const second = { x: 0.1, y: 0.2, w: 0.3, h: 0.04 };
+	const items = [
+		{
+			id: "body",
+			pageIndex: 0,
+			sentences: [
+				{ quote: "First  sentence.", translated: "第一句。" },
+				{ quote: "Second sentence.", translated: "第二句。" },
+			],
+		},
+		{
+			id: "next",
+			pageIndex: 1,
+			sentences: [
+				{ quote: "Second sentence.", translated: "第二句。" },
+				{ quote: "Second sentence.", translated: "另一译。" },
+			],
+		},
+	];
+	const glyphs = new Map([
+		["body", [[first], [second]]],
+		[
+			"next",
+			[
+				[{ x: 0.2, y: 0.3, w: 0.2, h: 0.04 }],
+				[{ x: 0.5, y: 0.5, w: 0.2, h: 0.04 }],
+			],
+		],
+	]);
+
+	it("keeps the element frame when the block has no sentence pairs", () => {
+		expect(
+			elementSentenceAtPoint({
+				items: [{ id: "body", pageIndex: 0 }],
+				glyphs,
+				regionId: "body",
+				x: 0.2,
+				y: 0.12,
+			}).status,
+		).toBe("element");
+	});
+
+	it("returns the sentence under the point, collapsed, with its chain", () => {
+		const located = elementSentenceAtPoint({
+			items,
+			glyphs,
+			regionId: "body",
+			x: 0.2,
+			y: 0.21,
+		});
+		expect(located.status).toBe("sentence");
+		if (located.status !== "sentence") return;
+		expect(located.hit.quote).toBe("Second sentence.");
+		expect(located.hit.rects).toEqual([second]);
+		expect(located.hit.members.map((member) => member.itemId)).toEqual([
+			"body",
+			"next",
+		]);
+		expect(located.hit.members.map((member) => member.pageIndex)).toEqual([
+			0, 1,
+		]);
+		expect(located.hit.members.map((member) => member.sentenceIndex)).toEqual([
+			1, 0,
+		]);
+	});
+
+	it("does not chain a slice whose translation differs", () => {
+		const located = elementSentenceAtPoint({
+			items,
+			glyphs,
+			regionId: "next",
+			x: 0.55,
+			y: 0.51,
+		});
+		expect(located.status).toBe("sentence");
+		if (located.status !== "sentence") return;
+		expect(located.hit.members).toEqual([
+			{
+				itemId: "next",
+				pageIndex: 1,
+				sentenceIndex: 1,
+				quote: "Second sentence.",
+			},
+		]);
+	});
+
+	it("falls back to the element when the point misses every glyph", () => {
+		expect(
+			elementSentenceAtPoint({
+				items,
+				glyphs,
+				regionId: "body",
+				x: 0.2,
+				y: 0.5,
+			}).status,
+		).toBe("element");
+	});
+
+	it("prefers the smaller sentence when boxes overlap", () => {
+		const overlapping = new Map([
+			[
+				"body",
+				[
+					[{ x: 0.1, y: 0.1, w: 0.5, h: 0.2 }],
+					[{ x: 0.15, y: 0.12, w: 0.1, h: 0.04 }],
+				],
+			],
+		]);
+		const located = elementSentenceAtPoint({
+			items,
+			glyphs: overlapping,
+			regionId: "body",
+			x: 0.16,
+			y: 0.13,
+		});
+		expect(located.status).toBe("sentence");
+		if (located.status !== "sentence") return;
+		expect(located.hit.quote).toBe("Second sentence.");
+	});
+
+	it("waits for glyphs unless the overlay span already names the sentence", () => {
+		expect(
+			elementSentenceAtPoint({
+				items,
+				glyphs: new Map(),
+				regionId: "body",
+				x: 0.2,
+				y: 0.12,
+			}).status,
+		).toBe("pending");
+		const located = elementSentenceAtPoint({
+			items,
+			glyphs: new Map(),
+			regionId: "body",
+			x: 0.2,
+			y: 0.12,
+			span: { itemId: "body", sentenceIndex: 0 },
+		});
+		expect(located.status).toBe("sentence");
+		if (located.status !== "sentence") return;
+		expect(located.hit.quote).toBe("First sentence.");
+		expect(located.hit.rects).toEqual([]);
+	});
+
+	it("does not invent a sentence from an empty quote", () => {
+		expect(
+			elementSentenceAtPoint({
+				items: [
+					{
+						id: "body",
+						pageIndex: 0,
+						sentences: [{ quote: "   ", translated: "空" }],
+					},
+				],
+				glyphs: new Map([["body", [[{ x: 0.1, y: 0.1, w: 0.2, h: 0.04 }]]]]),
+				regionId: "body",
+				x: 0.12,
+				y: 0.12,
+			}).status,
+		).toBe("element");
 	});
 });

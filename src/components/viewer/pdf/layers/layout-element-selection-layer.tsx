@@ -10,6 +10,7 @@ import {
 	memo,
 	type MouseEvent as ReactMouseEvent,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,10 +22,22 @@ import {
 	openLayoutElementAction,
 } from "@/components/viewer/pdf/layout-element-action-store";
 import {
+	clearLayoutSentenceHover,
+	layoutSentenceHover,
+	primeLayoutSentenceGlyphs,
+	releaseLayoutSentenceHover,
+	sentenceForActivation,
+	subscribeLayoutSentenceHover,
+	suppressLayoutSentenceHover,
+	syncLayoutSentencePointer,
+} from "@/components/viewer/pdf/layout-sentence-hover";
+import {
+	type ElementSentenceHit,
 	isLayoutElementTextKind,
 	isLayoutRegionActivation,
 	LAYOUT_HINT_MIN_REGION_H_PX,
 	LAYOUT_HINT_MIN_REGION_W_PX,
+	LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX,
 	layoutElementBoxes,
 	layoutElementCaptionPage,
 	layoutElementPreview,
@@ -34,6 +47,51 @@ import {
 	type PointerOrigin,
 	pickSelectableLayoutRegion,
 } from "@/lib/pdf/layout";
+
+function spanFromTarget(
+	target: EventTarget | null,
+): { itemId: string; sentenceIndex: number } | null {
+	if (!(target instanceof Element)) return null;
+	const span = target.closest("[data-sentence]");
+	const item = span?.closest("[data-layout-item]");
+	if (!span || !item) return null;
+	const itemId = item.getAttribute("data-layout-item");
+	const sentenceIndex = Number(span.getAttribute("data-sentence"));
+	if (!itemId || !Number.isInteger(sentenceIndex)) return null;
+	return { itemId, sentenceIndex };
+}
+
+function textDragOwns(
+	shell: HTMLElement,
+	event: PointerEvent,
+	origin: PointerOrigin | null,
+): boolean {
+	if (shell.closest("[data-pdf-root]")?.hasAttribute("data-pdf-selecting")) {
+		return true;
+	}
+	const selected = document.getSelection();
+	if (
+		selected &&
+		!selected.isCollapsed &&
+		selected.toString().trim() &&
+		selected.anchorNode &&
+		shell.contains(selected.anchorNode)
+	) {
+		return true;
+	}
+	if (event.buttons === 1 && origin) {
+		const dx = event.clientX - origin.x;
+		const dy = event.clientY - origin.y;
+		if (
+			dx * dx + dy * dy >
+			LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX *
+				LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX
+		) {
+			return true;
+		}
+	}
+	return false;
+}
 
 type LayoutElementSelectionLayerProps = {
 	docId: string;
@@ -70,17 +128,21 @@ function openFromRegion(
 	region: PdfLayoutRegion,
 	shell: HTMLElement,
 	client: { x: number; y: number } | null,
+	sentence: ElementSentenceHit | null,
 ): void {
-	const quote = layoutElementQuote(region);
 	const boxes = layoutElementBoxes(region);
+	const sentenceQuote = sentence?.quote.trim() ?? "";
 	openLayoutElementAction({
 		docId,
 		regionId: region.id,
 		pageIndex: region.pageIndex,
 		kind: region.kind,
-		quote,
+		quote: sentenceQuote || layoutElementQuote(region),
 		bbox: region.bbox,
-		rects: boxes.map((box) => box.bbox),
+		rects:
+			sentence && sentence.rects.length > 0
+				? sentence.rects
+				: boxes.map((box) => box.bbox),
 		screen: screenForElement(shell, region, client),
 	});
 }
@@ -97,7 +159,11 @@ export const LayoutElementSelectionLayer = memo(
 		const { t } = useTranslation("viewer");
 		const rootRef = useRef<HTMLDivElement>(null);
 		const regionsRef = useRef(regions);
+		const paintSentenceRef = useRef<() => void>(() => undefined);
 		regionsRef.current = regions;
+		useLayoutEffect(() => {
+			paintSentenceRef.current();
+		});
 
 		useEffect(() => {
 			return () => {
@@ -143,9 +209,71 @@ export const LayoutElementSelectionLayer = memo(
 			const syncHot = () => {
 				const next = hoveredId ?? pinnedId();
 				if (next === paintedId) return;
-				if (paintedId) elementOf(paintedId)?.classList.remove("is-hot");
+				if (paintedId) {
+					const previous = elementOf(paintedId);
+					previous?.classList.remove("is-hot");
+					previous?.classList.remove("has-sentence");
+				}
 				if (next) elementOf(next)?.classList.add("is-hot");
 				paintedId = next;
+			};
+
+			let marked: HTMLElement[] = [];
+			let fadeTimer = 0;
+			const washOf = () =>
+				root.querySelector<HTMLElement>("[data-layout-sentence-wash]");
+
+			const paintSentence = () => {
+				const current = layoutSentenceHover();
+				const mine = current?.docId === docId ? current : null;
+				const onPage =
+					mine?.members.filter((member) => member.pageIndex === pageIndex) ??
+					[];
+				for (const node of marked) node.removeAttribute("data-sentence-hot");
+				marked = [];
+				for (const member of onPage) {
+					if (member.rects.length === 0) {
+						primeLayoutSentenceGlyphs(member.pageIndex);
+					}
+					const nodes = shell.querySelectorAll<HTMLElement>(
+						`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
+					);
+					for (const node of nodes) {
+						node.setAttribute("data-sentence-hot", "1");
+						marked.push(node);
+					}
+				}
+				const wash = washOf();
+				if (wash) {
+					const rects = onPage.flatMap((member) => member.rects);
+					if (rects.length === 0) {
+						wash.classList.remove("is-on");
+						window.clearTimeout(fadeTimer);
+						fadeTimer = window.setTimeout(() => {
+							if (!wash.classList.contains("is-on")) wash.replaceChildren();
+						}, 160);
+					} else {
+						window.clearTimeout(fadeTimer);
+						wash.replaceChildren(
+							...rects.map((rect) => {
+								const node = document.createElement("span");
+								node.style.left = `${rect.x * 100}%`;
+								node.style.top = `${rect.y * 100}%`;
+								node.style.width = `${rect.w * 100}%`;
+								node.style.height = `${rect.h * 100}%`;
+								return node;
+							}),
+						);
+						wash.classList.add("is-on");
+					}
+				}
+				const host = paintedId ? elementOf(paintedId) : null;
+				const sentenceHere =
+					mine != null &&
+					mine.regionId === paintedId &&
+					(marked.length > 0 ||
+						onPage.some((member) => member.rects.length > 0));
+				host?.classList.toggle("has-sentence", sentenceHere);
 			};
 
 			const fractionOf = (clientX: number, clientY: number) => {
@@ -155,6 +283,20 @@ export const LayoutElementSelectionLayer = memo(
 				const y = (clientY - rect.top) / rect.height;
 				if (x < 0 || y < 0 || x > 1 || y > 1) return null;
 				return { x, y };
+			};
+
+			const regionAt = (
+				target: EventTarget | null,
+				point: { x: number; y: number },
+			) => {
+				const span = spanFromTarget(target);
+				const spanned = span
+					? regionsRef.current.find((region) => region.id === span.itemId)
+					: undefined;
+				return (
+					spanned ??
+					pickSelectableLayoutRegion(regionsRef.current, point.x, point.y)
+				);
 			};
 
 			const applyHover = () => {
@@ -169,18 +311,38 @@ export const LayoutElementSelectionLayer = memo(
 				) {
 					hoveredId = null;
 					syncHot();
+					clearLayoutSentenceHover();
 					return;
 				}
+				if (textDragOwns(shell, event, origin)) {
+					hoveredId = null;
+					syncHot();
+					suppressLayoutSentenceHover();
+					return;
+				}
+				releaseLayoutSentenceHover();
 				const point = fractionOf(event.clientX, event.clientY);
 				if (!point) {
 					hoveredId = null;
 					syncHot();
+					clearLayoutSentenceHover();
 					return;
 				}
-				hoveredId =
-					pickSelectableLayoutRegion(regionsRef.current, point.x, point.y)
-						?.id ?? null;
+				const hit = regionAt(target, point);
+				hoveredId = hit?.id ?? null;
 				syncHot();
+				if (!hit || !isLayoutElementTextKind(hit.kind)) {
+					clearLayoutSentenceHover();
+					return;
+				}
+				syncLayoutSentencePointer({
+					docId,
+					regionId: hit.id,
+					pageIndex,
+					x: point.x,
+					y: point.y,
+					span: spanFromTarget(target),
+				});
 			};
 
 			const onMove = (event: PointerEvent) => {
@@ -227,18 +389,27 @@ export const LayoutElementSelectionLayer = memo(
 				}
 				const point = fractionOf(event.clientX, event.clientY);
 				if (!point) return;
-				const hit = pickSelectableLayoutRegion(
-					regionsRef.current,
-					point.x,
-					point.y,
-				);
+				const hit = regionAt(event.target, point);
 				if (!hit) return;
 				event.preventDefault();
 				event.stopPropagation();
-				openFromRegion(docId, hit, shell, {
-					x: event.clientX,
-					y: event.clientY,
-				});
+				const sentence = isLayoutElementTextKind(hit.kind)
+					? sentenceForActivation({
+							docId,
+							regionId: hit.id,
+							pageIndex,
+							x: point.x,
+							y: point.y,
+							span: spanFromTarget(event.target),
+						})
+					: null;
+				openFromRegion(
+					docId,
+					hit,
+					shell,
+					{ x: event.clientX, y: event.clientY },
+					sentence,
+				);
 			};
 
 			const onLeave = () => {
@@ -247,22 +418,38 @@ export const LayoutElementSelectionLayer = memo(
 				pending = null;
 				hoveredId = null;
 				syncHot();
+				clearLayoutSentenceHover();
 			};
 
 			shell.addEventListener("pointermove", onMove);
 			shell.addEventListener("pointerdown", onDown);
 			shell.addEventListener("click", onClick);
 			shell.addEventListener("pointerleave", onLeave);
-			const unsubscribe = layoutElementActionStore.subscribe(syncHot);
+			paintSentenceRef.current = paintSentence;
+			const unsubscribeAction = layoutElementActionStore.subscribe(syncHot);
+			const unsubscribeSentence = subscribeLayoutSentenceHover(paintSentence);
+			paintSentence();
 
 			return () => {
 				shell.removeEventListener("pointermove", onMove);
 				shell.removeEventListener("pointerdown", onDown);
 				shell.removeEventListener("click", onClick);
 				shell.removeEventListener("pointerleave", onLeave);
-				unsubscribe();
+				unsubscribeAction();
+				unsubscribeSentence();
+				paintSentenceRef.current = () => undefined;
+				window.clearTimeout(fadeTimer);
+				for (const node of marked) node.removeAttribute("data-sentence-hot");
+				washOf()?.replaceChildren();
 				if (raf) cancelAnimationFrame(raf);
-				if (paintedId) elementOf(paintedId)?.classList.remove("is-hot");
+				if (paintedId) {
+					const previous = elementOf(paintedId);
+					previous?.classList.remove("is-hot", "has-sentence");
+				}
+				const current = layoutSentenceHover();
+				if (current?.docId === docId && current.pageIndex === pageIndex) {
+					clearLayoutSentenceHover();
+				}
 			};
 		}, [docId, pageIndex, regions]);
 
@@ -272,6 +459,11 @@ export const LayoutElementSelectionLayer = memo(
 				className="contents"
 				data-paper={paperDark ? "dark" : "light"}
 			>
+				<div
+					className="pdf-layout-sentence-wash"
+					data-layout-sentence-wash
+					aria-hidden="true"
+				/>
 				{regions.map((region) => {
 					const boxes = layoutElementBoxes(region);
 					const kindLabel = t(layoutKindI18nKey(region.kind));
@@ -328,7 +520,12 @@ export const LayoutElementSelectionLayer = memo(
 									event.stopPropagation();
 									const shell = rootRef.current?.parentElement;
 									if (!(shell instanceof HTMLElement)) return;
-									openFromRegion(docId, region, shell, null);
+									const live = layoutSentenceHover();
+									const sentence =
+										live && live.docId === docId && live.regionId === region.id
+											? live
+											: null;
+									openFromRegion(docId, region, shell, null, sentence);
 								}}
 							>
 								<span className="font-medium">{kindLabel}</span>

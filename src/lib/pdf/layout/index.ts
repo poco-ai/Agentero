@@ -39,6 +39,14 @@ export {
 	layoutElementQuote,
 } from "@/lib/pdf/layout/element-selection";
 export {
+	type ElementSentenceHit,
+	type ElementSentenceMember,
+	elementSentenceAtPoint,
+	type SentenceFractionRect,
+	type SentenceItem,
+	type SentenceLocate,
+} from "@/lib/pdf/layout/element-sentence";
+export {
 	enqueuePaperLayoutAnalysis,
 	forcePaperLayoutAnalysis,
 	LayoutReanalyzeError,

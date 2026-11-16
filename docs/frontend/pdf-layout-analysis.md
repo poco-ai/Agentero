@@ -90,8 +90,9 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │
 ④ PDF 页交互 → 元素选择
         │  hit 层用 **post-merge regions**（全 kind；非 Eye 的 rawRegions，也不是侧栏子集）
-        │  hover 只画当前元素的合并框（bbox，以及同页 titleBbox / captionBbox）
-        │  单击 / Enter → 加入对话或选择翻译；不写 visual mark，不打开批注编辑器
+        │  hover 只画当前元素。文本类有句对时主视觉是当前句浅底（含跨页链），
+        │    否则画合并框（bbox，以及同页 titleBbox / captionBbox）
+        │  单击 / Enter → 加入对话或选择翻译；文本引用当前句；不写 visual mark，不打开批注编辑器
         │  实现：`hit-test.ts`（selectable*）+ `layout-element-selection-layer.tsx`
         │  工具栏 ⌘. 框选仍进入视觉批注
         │
