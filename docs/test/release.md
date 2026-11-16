@@ -84,7 +84,7 @@ CLI 压缩包内部包含名为 `agentero`（Windows 为 `agentero.exe`）的可
 
 - CI：`windows-latest`（x64）与 `windows-11-arm`（ARM64，公开仓库可用的 GitHub 托管 runner）。
 - 安装包：x64 产出 MSI + NSIS；ARM64 只产出 NSIS（Tauri 的 MSI/WiX 不支持 aarch64），构建参数为 `--target aarch64-pc-windows-msvc --bundles nsis`。安装器本身仍是 x86 程序，由 Windows 11 模拟运行；安装后的应用是原生 ARM64。
-- 原生依赖：PDFium 由 `scripts/prepare-pdfium.mjs` 按 target 选择 `pdfium-win-arm64`；SQLite、leptonica/tesseract 在 ARM64 runner 上用 MSVC ARM64 工具链从源码构建。CI 必须为 `windows-11-arm` 显式设置 `ilammy/msvc-dev-cmd` 的 `arch: arm64`，否则会按 x64 编译 C 依赖。
+- 原生依赖：PDFium 由 `scripts/prepare-pdfium.mjs` 按 target 选择 `pdfium-win-arm64`；SQLite、leptonica/tesseract 在 ARM64 runner 上用 MSVC ARM64 工具链从源码构建。CI 必须为 `windows-11-arm` 显式设置 `ilammy/msvc-dev-cmd` 的 `arch: arm64`，否则会按 x64 编译 C 依赖。rustls 使用的 AWS-LC 在 aarch64 Windows 上要求 `clang-cl`，runner 镜像自带 LLVM，`aws-lc-sys` 会自动查找；若镜像变更导致查找失败，需要显式提供 `clang-cl`。
 - CLI：同一 Release 上传 `agentero-cli-<version>-aarch64-pc-windows-msvc.zip`，ARM64 桌面端的“安装 CLI”按运行架构选择该归档。
 - 用户文档：[`../usage/getting-started.md`](../usage/getting-started.md)（[#1134](https://github.com/poco-ai/Agentero/issues/1134)）。
 
