@@ -69,6 +69,8 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 
 无 Vault 时 `agentero://vault` 仍列出，`resources/read` 返回「未打开 Vault」正文。`initialize` instructions 提示先读 vault → invariants，再调用 tools。
 
+`resources/list` 与 `resources/read` 都带 SEP-2549 缓存字段 `ttlMs: 0`、`cacheScope: "private"`：MCP `2026-07-28` 把它们列为必填，而部分客户端（如 Qoder）即使协商到旧版本也按新 schema 校验；值为 0/private 表示 Vault 内容随时可能变化、且只允许本客户端缓存。字段无条件发送，旧客户端会忽略未知字段。
+
 ## Tools
 
 `ref` = paper id 或 vault 相对路径（如 `papers/1706.03762`）。禁止 `..`。
