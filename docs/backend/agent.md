@@ -485,3 +485,13 @@ Agentero 是 ACP **Client**：模型 HTTP **不**经 Host 转发，因此只能�
 
 `src-tauri/src/features/agent/`  
 前端：[../frontend/agent.md](../frontend/agent.md)
+
+### Windows 桌面应用内置 CLI
+
+正常 PATH 安装优先；通过已注册安装位置（含 MSIX）定位桌面应用，再查其 `resources`，不扫描下载缓存：ChatGPT 使用 `resources/codex.exe`，Dsh 使用 `resources/runtime/cli/bin/dsh.cmd`，千问办公沿用 `resources/bin/qoderclicn.exe`，WorkBuddy 沿用 `resources/app.asar.unpacked/cli/bin/codebuddy` 的 Windows 可执行文件 / shim 解析。国际版 Qoder 不回退到 CN 引擎。
+
+ChatGPT 的 `resources/cua_node/bin/node.exe` 与 Dsh 的 `resources/runtime/primary-runtime/dependencies/node/bin/node.exe` 可作为内置 ACP 适配器的 Node 回退；独立 Node 仍执行原有版本检查，不把桌面 GUI 当 Node，也不要求捆绑 npm。发现、可用性检查和子进程 PATH 使用同一组目录。新手引导移除独立 Node 安装步骤，设置中的主机诊断仍可用于安装或排查系统 Node/npm。
+
+ChatGPT/Codex 与官方 Dsh 的上述 Windows 布局已在本机核对；千问办公和 WorkBuddy 本机未安装，目录沿用现有适配规则，安装检测不等于 ACP 连接成功，仍须探测实际 CLI。
+
+仅 ChatGPT 的隔离验证：固定版本 `@agentclientprotocol/codex-acp@1.12.0`，运行 PATH 只保留 Windows System32，使用 ChatGPT 自带 Node v24.22.1 与 Codex 0.169.0-alpha.11.1，在独立空 Codex 配置目录完成 ACP `initialize`。运行时无系统 Node/npm 或 Dsh 依赖。此结果只验证带上述组件的 ChatGPT 版本，旧版纯聊天客户端未必携带这些组件；不能仅凭 GUI 已安装就报告 CLI 可用。

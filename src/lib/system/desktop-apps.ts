@@ -45,6 +45,7 @@ export function isDesktopBundledCliPath(
 	if (/(^|\/)(node_modules|Cellar|\.local|\.npm)\//.test(normalized)) {
 		return false;
 	}
+	if (/(^|\/)resources\/codex\.exe$/i.test(normalized)) return true;
 	return /(^|\/)resources\/(bin|runtime\/cli\/bin|codex-cli|app\.asar\.unpacked)\//.test(
 		normalized,
 	);
