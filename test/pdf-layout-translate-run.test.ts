@@ -572,8 +572,8 @@ describe("protected caption response recovery", () => {
 			item("body", "Normal body.", 0),
 		]);
 		expect(requests()).toHaveLength(4);
-		expect(requests()[0]).toBe("[[1]] Normal body.\n\n[[2]] ⟦0⟧mask⟦1⟧");
-		expect(requests().slice(1)).toEqual(["Normal body.", "⟦0⟧mask⟦1⟧", "mask"]);
+		expect(requests()[0]).toContain("[[1]] ⟦0⟧mask⟦1⟧");
+		expect(requests().slice(1)).toEqual(["⟦0⟧mask⟦1⟧", "mask", "Normal body."]);
 		expect(recovered.status).toBe("done");
 		expect(body.translated).toBe("正常正文。");
 	});

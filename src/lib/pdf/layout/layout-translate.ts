@@ -935,16 +935,9 @@ export async function runLayoutRegionTranslate(options: {
 	};
 
 	const units: SentenceUnit[] = [];
-	// Schedule IR backfills with their page without reordering the items used
-	// by reflow layout and sidecar persistence.
-	const chains = buildLayoutTranslateChains(items)
-		.filter(chainNeedsTranslate)
-		.sort(
-			(a, b) =>
-				a.members[0].pageIndex - b.members[0].pageIndex ||
-				a.members[0].readingOrder - b.members[0].readingOrder,
-		);
-	for (const chain of chains) {
+	for (const chain of buildLayoutTranslateChains(items).filter(
+		chainNeedsTranslate,
+	)) {
 		const structural = chain.members[0]?.reflow;
 		const drafts: LayoutSentenceDraft[] = structural
 			? draftReflowSentences(structural)
@@ -975,7 +968,20 @@ export async function runLayoutRegionTranslate(options: {
 			});
 		});
 	}
-	const batches = buildTranslateBatches(units);
+	const compareUnits = (a: SentenceUnit, b: SentenceUnit) =>
+		a.job.chain.members[0].pageIndex - b.job.chain.members[0].pageIndex ||
+		a.job.chain.members[0].readingOrder - b.job.chain.members[0].readingOrder;
+	// Keep payloads intact so page priority cannot increase request count.
+	// A batch can straddle late detected blocks and early-page IR backfills.
+	const batches = buildTranslateBatches(units)
+		.map((batch) => ({
+			batch,
+			first: batch.reduce((first, unit) =>
+				compareUnits(first, unit) <= 0 ? first : unit,
+			),
+		}))
+		.sort((a, b) => compareUnits(a.first, b.first))
+		.map(({ batch }) => batch);
 	let nextBatch = 0;
 	/** Consecutive transport failures; a success proves the endpoint is alive. */
 	let transportFailures = 0;
