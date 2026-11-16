@@ -158,6 +158,8 @@ fn run_terminal_script(
 
     #[cfg(windows)]
     {
+        // Windows has one terminal launcher; the preset id is Unix-only.
+        let _ = preferred;
         open_terminal_command_windows(command, copy, mode)
     }
     #[cfg(not(windows))]
@@ -204,6 +206,8 @@ pub fn open_terminal_confirm_remote_install(
 
     #[cfg(windows)]
     {
+        // Windows has one terminal launcher; the preset id is Unix-only.
+        let _ = preferred;
         // Single remote command string so the whole npm line is the -c payload.
         let command = format!("ssh -t {destination} -- \"bash -lc {install_command:?}\"");
         open_terminal_command_windows(&command, &CONFIRM_INSTALL, RunMode::Confirm)
@@ -220,6 +224,9 @@ fn open_terminal_confirm_remote_install_unix(
     install_command: &str,
     preferred: &str,
 ) -> Result<(), AppError> {
+    // macOS always opens Terminal.app here, so the preset id is unused.
+    #[cfg(target_os = "macos")]
+    let _ = preferred;
     let dir = std::env::temp_dir().join("agentero-install");
     fs::create_dir_all(&dir)
         .map_err(|e| AppError::message(format!("failed to create temp dir: {e}")))?;
@@ -316,6 +323,9 @@ fn open_terminal_command_unix(
     mode: RunMode,
     preferred: &str,
 ) -> Result<(), AppError> {
+    // macOS always opens Terminal.app here, so the preset id is unused.
+    #[cfg(target_os = "macos")]
+    let _ = preferred;
     let script_path = write_terminal_script_unix(command, copy, mode)?;
     let script = script_path.to_string_lossy().replace('\'', "'\\''");
 
