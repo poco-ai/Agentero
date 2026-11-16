@@ -43,6 +43,7 @@ import {
 	type PdfNavigationIntent,
 } from "@/lib/pdf/pending-pdf-page";
 import { registerScrollSyncPair } from "@/lib/pdf/scroll-sync";
+import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import {
 	cancelScheduledTexAutoBuild,
 	registerTexAutoBuildRunner,
@@ -595,6 +596,17 @@ export function splitActivePane(): void {
 	if (!active) return;
 	// Library is the resident singleton — never clone it into a second pane.
 	if (isLibraryVirtualPath(active.path)) return;
+
+	// A split under a maximized group would land in a hidden group (the new
+	// pane's always-rendered content then paints over the visible one). Leave
+	// the immersive maximize and split in the normal grid instead.
+	if (dockHandle()?.isMaximizedPanel?.()) {
+		dockHandle()?.exitMaximizedPanel?.();
+		if (uiStore.getState().layoutMode === "reading") {
+			const preset = uiStore.getState().lastAppliedPreset;
+			setLayoutMode(preset && preset !== "reading" ? preset : "custom");
+		}
+	}
 
 	// NOTES (or an extra note inside a paper folder) → back to the body.
 	const paperBody = findPaperBodyForNotes(tabs, active);

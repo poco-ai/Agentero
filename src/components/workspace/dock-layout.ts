@@ -110,6 +110,13 @@ export function addPanelWithPlacement(
 ): IDockviewPanel {
 	const referencePanel = resolveReferencePanel(api, placement);
 	const direction = placement?.direction ?? "within";
+	// Splitting a maximized group leaves the new group hidden. With
+	// `renderer: "always"` its content is still mounted in the render overlay,
+	// so it can paint over the maximized pane like a floating window. Exit the
+	// maximize first; reading mode re-maximizes after the split.
+	if (direction !== "within" && api.hasMaximizedGroup()) {
+		api.exitMaximizedGroup();
+	}
 	return api.addPanel({
 		id: tab.id,
 		component: "pane",
