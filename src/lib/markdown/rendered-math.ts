@@ -8,9 +8,7 @@ export type RenderedMathHit = {
 };
 
 export function renderedMathSource(node: Element): string | null {
-	const tex = node
-		.querySelector(RENDERED_MATH_ANNOTATION)
-		?.textContent?.trim();
+	const tex = node.querySelector(RENDERED_MATH_ANNOTATION)?.textContent?.trim();
 	return tex ? tex : null;
 }
 
