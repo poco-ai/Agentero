@@ -637,6 +637,97 @@ export function selectClusterForTitle(
 	return best;
 }
 
+/** A numbered caption can wrap into a second column below a multi-row grid.
+ * Require model-caption evidence and two aligned panel rows, not adjacent prose.
+ */
+function joinGridCaptionColumns(
+	captions: PdfLayoutRegion[],
+	panels: PdfLayoutRegion[],
+	blockers: readonly PdfLayoutRegion[],
+): PdfLayoutRegion[] {
+	const used = new Set<string>();
+	const joined = new Map<string, PdfLayoutRegion>();
+	const numbered = captions.filter((c) =>
+		figureCaptionKey(c.title ?? c.text ?? ""),
+	);
+	for (const title of numbered) {
+		if (title.bbox.w >= LAYOUT_MERGE.fullWidthTitle) continue;
+		const candidates = captions.filter((next) => {
+			const gap = next.bbox.x - title.bbox.x - title.bbox.w;
+			return (
+				next.pageIndex === title.pageIndex &&
+				next.kind === "figure_title" &&
+				next.id !== title.id &&
+				!used.has(next.id) &&
+				next.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+				Boolean((next.title ?? next.text)?.trim()) &&
+				resolveCaptionRole(next) === "other" &&
+				gap >= 0 &&
+				gap <= 0.06 &&
+				Math.abs(next.bbox.y - title.bbox.y) <= 0.012 &&
+				next.bbox.h <= 0.2 &&
+				title.bbox.h <= 0.2 &&
+				next.bbox.w / title.bbox.w >= 0.6 &&
+				next.bbox.w / title.bbox.w <= 1.67
+			);
+		});
+		if (candidates.length !== 1) continue;
+		const next = candidates[0];
+		const span = unionBbox(title.bbox, next.bbox);
+		if (span.w < LAYOUT_MERGE.fullWidthTitle) continue;
+		// Another numbered caption in the same strip makes ownership ambiguous.
+		if (
+			numbered.some(
+				(c) =>
+					c.id !== title.id &&
+					c.pageIndex === title.pageIndex &&
+					Math.abs(c.bbox.y - title.bbox.y) <= 0.04 &&
+					horizontalOverlapRatio(c.bbox, span) >= 0.2,
+			)
+		)
+			continue;
+		const grid = { ...title, bbox: span };
+		const group = selectClusterForTitle(grid, panels, numbered, blockers);
+		if (group.length < 4) continue;
+		const ceiling = verticalCeilingForTitle({ ...title, bbox: span }, numbered);
+		const left = panelsAboveTitle(title, group, { fullWidth: true, ceiling });
+		const right = panelsAboveTitle(next, group, { fullWidth: true, ceiling });
+		const rows = left
+			.filter((a) =>
+				right.some((b) => {
+					const gap = b.bbox.x - a.bbox.x - a.bbox.w;
+					return (
+						gap >= -0.01 &&
+						gap <= LAYOUT_MERGE.panelNeighborGap + 1e-9 &&
+						verticalOverlapRatio(a.bbox, b.bbox) >= 0.75 &&
+						Math.abs(a.bbox.h - b.bbox.h) <=
+							Math.max(a.bbox.h, b.bbox.h) * 0.25 &&
+						!hasFigureSeparator(a, b, blockers)
+					);
+				}),
+			)
+			.sort((a, b) => a.bbox.y - b.bbox.y);
+		const distinctRows: PdfLayoutRegion[] = [];
+		for (const row of rows) {
+			const previous = distinctRows.at(-1);
+			if (!previous || row.bbox.y >= previous.bbox.y + previous.bbox.h * 0.7)
+				distinctRows.push(row);
+		}
+		if (distinctRows.length < 2) continue;
+		used.add(next.id);
+		joined.set(title.id, {
+			...title,
+			bbox: span,
+			rect: unionBbox(title.rect, next.rect),
+			title: `${title.title ?? title.text} ${next.title ?? next.text}`,
+			text: `${title.title ?? title.text} ${next.title ?? next.text}`,
+		});
+	}
+	return captions
+		.filter((c) => !used.has(c.id))
+		.map((c) => joined.get(c.id) ?? c);
+}
+
 /** True if outer fully covers inner (title must never stick out of the figure box). */
 export function bboxFullyContains(
 	outer: PdfAskNormalizedRect,
@@ -966,7 +1057,9 @@ function pairCaptionsOneToOne(
 
 	for (const host of hosts) {
 		const family = hostFamily(host.kind);
-		if (family !== familyFilter) continue;
+		// A host that will be discarded by the sidebar must not consume a caption.
+		if (family !== familyFilter || host.score < LAYOUT_SIDEBAR_MIN_SCORE)
+			continue;
 		for (const caption of captions) {
 			if (caption.pageIndex !== host.pageIndex) continue;
 			const role = resolveCaptionRole(caption);
@@ -1369,7 +1462,16 @@ export function mergeCaptionsIntoHosts(
 			),
 	);
 	const algorithms = tagged.filter((r) => isAlgorithmLayoutKind(r.kind));
-	const captions = tagged.filter((r) => isCaptionLayoutKind(r.kind));
+	const captions = joinGridCaptionColumns(
+		tagged.filter((r) => isCaptionLayoutKind(r.kind)),
+		figures,
+		tagged.filter(
+			(r) =>
+				isTableLayoutKind(r.kind) ||
+				isAlgorithmLayoutKind(r.kind) ||
+				isLayoutBodyTextKind(r.kind),
+		),
+	);
 	// formula + formula_number only (text no longer used as a formula merge gate).
 	const formulaRelated = tagged.filter(
 		(r) => isFormulaLayoutKind(r.kind) || isFormulaNumberLayoutKind(r.kind),
