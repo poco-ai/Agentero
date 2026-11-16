@@ -4,10 +4,11 @@ use crate::core::decision::SystemOneProvider;
 use crate::core::error::AppError;
 use crate::core::fs::{resolve_paper_dir, resolve_vault};
 use crate::features::jev::service::{
-    jev_suggest_highlights_with_progress, read_title_from_sidecar,
+    jev_suggest_highlights_with_progress, read_title_from_sidecar, SmartHighlightLimits,
 };
 use crate::features::jobs::{JobCenter, RunOutcome, StartedJob};
 use crate::features::paper::catalog::probe_paper_caps;
+use crate::features::system::settings::AppSettingsStore;
 use std::sync::Arc;
 use tauri::Manager;
 
@@ -41,6 +42,7 @@ pub fn jev_smart_highlights_runner(
                         .unwrap_or_else(|| "Untitled paper".to_string());
 
                     let provider = app.state::<Arc<SystemOneProvider>>().inner().clone();
+                    let limits = app.state::<AppSettingsStore>().smart_highlight_limits();
 
                     let progress_center = center.clone();
                     let progress_job_id = job_id.clone();
@@ -65,10 +67,17 @@ pub fn jev_smart_highlights_runner(
                         });
                     };
 
+                    let (concurrency, timeout_secs) = limits;
                     let highlights = jev_suggest_highlights_with_progress(
                         &provider,
                         &pdf_path,
                         &title,
+                        SmartHighlightLimits {
+                            concurrency: usize::try_from(concurrency).unwrap_or(1),
+                            request_timeout: std::time::Duration::from_secs(u64::from(
+                                timeout_secs,
+                            )),
+                        },
                         &started.cancel_token,
                         on_progress,
                     )

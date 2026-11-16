@@ -12,8 +12,32 @@ const attachAgentRun = vi.fn<(...args: unknown[]) => Promise<void>>();
 const resolveAgent = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const runTranslate = vi.fn<(...args: unknown[]) => Promise<string>>();
 const notifyError = vi.fn<(message: string) => void>();
+const lookupDictionary = vi.fn<(...args: unknown[]) => Promise<unknown[]>>();
+
+vi.mock("@/lib/translate/lexicon", () => ({
+	lookupDictionary: (...args: unknown[]) => lookupDictionary(...args),
+	dictionaryEntriesForContext: (entries: unknown[]) => entries,
+	renderDictionaryEntries: (entries: unknown[]) =>
+		entries.length ? "LOCAL ENTRY" : "",
+	contextualDictionaryResult: (base: string, context: string) =>
+		`${base}\nCONTEXT:${context}`,
+}));
 
 let providerId = "agent";
+let dictionaryMode = "auto";
+const cached = new Map<string, string>();
+vi.mock("@/lib/settings", () => ({
+	loadSettings: () => ({
+		translate: { dictionary: { mode: dictionaryMode }, providerConfigs: {} },
+	}),
+}));
+vi.mock("@/lib/translate/dictionary-cache", () => ({
+	dictionaryCacheKey: async (identity: unknown) => JSON.stringify(identity),
+	readDictionaryCache: async (key: string) => cached.get(key),
+	writeDictionaryCache: async (key: string, result: string) => {
+		cached.set(key, result);
+	},
+}));
 
 vi.mock("@/lib/agent", () => ({
 	runOnce: (...args: unknown[]) => runOnce(...args),
@@ -32,7 +56,7 @@ vi.mock("@/lib/translate", () => ({
 		providerId,
 		targetLangName: "Chinese",
 		customPrompt: "CUSTOM",
-		task: {},
+		task: { targetLang: "zh-CN" },
 	}),
 	resolveConfiguredTranslateAgent: () => resolveAgent(),
 	runTranslate: (...args: unknown[]) => runTranslate(...args),
@@ -58,7 +82,7 @@ function record(id: string): PdfTranslateRecord {
 		createdAt: "2026-01-01T00:00:00.000Z",
 		page: 1,
 		rects: [],
-		quote: "the text",
+		quote: "the quick brown text",
 	};
 }
 
@@ -70,7 +94,7 @@ function harness(seed: PdfTranslateRecord) {
 	const chunks: string[] = [];
 	let stops = 0;
 	const options = {
-		text: seed.quote ?? "the text",
+		text: seed.quote ?? "the quick brown text",
 		context: { page: 1, surface: "pdf-selection" },
 		paperKey: `paper:${seed.id}`,
 		vaultPath: "/vault",
@@ -129,14 +153,57 @@ function accepted() {
 	return { sessionId: "sess-1", messageId: "m1", agentId: "agent-1" };
 }
 
+beforeEach(() => {
+	runOnce.mockReset();
+	attachAgentRun.mockReset();
+	resolveAgent.mockReset();
+	runTranslate.mockReset();
+	notifyError.mockReset();
+	providerId = "agent";
+	dictionaryMode = "auto";
+	cached.clear();
+	lookupDictionary.mockReset();
+	lookupDictionary.mockResolvedValue([]);
+});
+
 describe("runSelectionTranslate", () => {
-	beforeEach(() => {
-		runOnce.mockReset();
-		attachAgentRun.mockReset();
-		resolveAgent.mockReset();
-		runTranslate.mockReset();
-		notifyError.mockReset();
-		providerId = "agent";
+	it("serves dictionary hits without any configured Agent or network provider", async () => {
+		const h = harness({ ...record("offline"), quote: "KV cache" });
+		lookupDictionary.mockResolvedValue([{ source: "ai-glossary" }]);
+		await runSelectionTranslate(h.options);
+		expect(h.records.get("offline")?.result).toBe("LOCAL ENTRY");
+		expect(runOnce).not.toHaveBeenCalled();
+		expect(runTranslate).not.toHaveBeenCalled();
+		expect(h.failures).toEqual([]);
+	});
+
+	it("keeps local definitions visible when contextual enrichment fails", async () => {
+		providerId = "openaiCompatible";
+		const h = harness({ ...record("context-failure"), quote: "resolution" });
+		lookupDictionary.mockResolvedValue([{ source: "ecdict" }]);
+		runTranslate.mockRejectedValue(new Error("offline"));
+		await runSelectionTranslate({
+			...h.options,
+			context: {
+				...h.options.context,
+				dictionarySurrounding: "The image resolution is measured in pixels.",
+			},
+		});
+		expect(h.chunks).toEqual(["LOCAL ENTRY"]);
+		expect(h.records.get("context-failure")?.result).toBe("LOCAL ENTRY");
+		expect(h.failures).toEqual([]);
+		expect(notifyError).not.toHaveBeenCalled();
+	});
+
+	it("does not publish a local result after the card has been dismissed", async () => {
+		const h = harness({ ...record("dismissed-local"), quote: "attention" });
+		lookupDictionary.mockImplementation(async () => {
+			h.options.disposedRef.current = true;
+			return [{ source: "ecdict" }];
+		});
+		await runSelectionTranslate(h.options);
+		expect(h.persisted).toEqual([]);
+		expect(runOnce).not.toHaveBeenCalled();
 	});
 
 	it("streams an agent run, commits the trimmed result, and rewrites the session cache", async () => {
@@ -164,7 +231,7 @@ describe("runSelectionTranslate", () => {
 
 		expect(runOnce).toHaveBeenCalledTimes(1);
 		expect(runOnce.mock.calls[0]?.[0]).toMatchObject({
-			prompt: "PROMPT:CUSTOM:the text",
+			prompt: "PROMPT:CUSTOM:the quick brown text",
 			agentId: "agent-1",
 			modelId: "model-1",
 			sessionId: "prov-old",
@@ -307,15 +374,28 @@ describe("runSelectionTranslate", () => {
 
 	it("commits the provider result without touching the agent path", async () => {
 		const h = harness(record("t8"));
-		providerId = "googleapi";
+		providerId = "tencenttransmart";
 		runTranslate.mockResolvedValue(" 译文 ");
 
 		await runSelectionTranslate(h.options);
 
 		expect(runOnce).not.toHaveBeenCalled();
 		expect(runTranslate).toHaveBeenCalledWith(
-			{ text: "the text", context: { page: 1, surface: "pdf-selection" } },
-			{ providerId: "googleapi" },
+			{
+				text: "the quick brown text",
+				context: { page: 1, surface: "pdf-selection", dictionary: false },
+				sourceLang: undefined,
+				targetLang: "zh-CN",
+			},
+			// The engine forwards its chunk sink so free-MT deltas land in the card.
+			{
+				providerId: "tencenttransmart",
+				customPrompt: "CUSTOM",
+				customSystem: undefined,
+				customUser: undefined,
+				providerConfig: undefined,
+				onDelta: h.options.appendChunk,
+			},
 		);
 		expect(h.records.get("t8")?.result).toBe("译文");
 		expect(h.persisted).toHaveLength(1);
@@ -325,7 +405,7 @@ describe("runSelectionTranslate", () => {
 
 	it("wraps provider failures and stops streaming", async () => {
 		const h = harness(record("t9"));
-		providerId = "googleapi";
+		providerId = "tencenttransmart";
 		runTranslate.mockRejectedValue(new Error("quota"));
 
 		await runSelectionTranslate(h.options);
@@ -335,4 +415,91 @@ describe("runSelectionTranslate", () => {
 		expect(h.records.get("t9")?.error).toBe("displayed:quota");
 		expect(h.getStops()).toBe(1);
 	});
+});
+
+it("reuses the completed contextual result and misses when context or provider changes", async () => {
+	providerId = "openaiCompatible";
+	lookupDictionary.mockResolvedValue([{ source: "ecdict" }]);
+	runTranslate.mockResolvedValue("image detail");
+	const h = harness({ ...record("cache-context"), quote: "resolution" });
+	const options = {
+		...h.options,
+		context: {
+			...h.options.context,
+			dictionarySurrounding: "image resolution",
+		},
+	};
+	await runSelectionTranslate(options);
+	await runSelectionTranslate(options);
+	expect(runTranslate).toHaveBeenCalledTimes(1);
+	expect(h.records.get("cache-context")?.result).toContain(
+		"CONTEXT:image detail",
+	);
+	await runSelectionTranslate({
+		...options,
+		context: { ...options.context, dictionarySurrounding: "her resolution" },
+	});
+	expect(runTranslate).toHaveBeenCalledTimes(2);
+	providerId = "tencenttransmart";
+	lookupDictionary.mockResolvedValue([]);
+	await runSelectionTranslate(options);
+	expect(runTranslate).toHaveBeenCalledTimes(3);
+});
+
+it("skips local lookup and dictionary prompts when disabled or explicitly translating", async () => {
+	providerId = "openaiCompatible";
+	dictionaryMode = "off";
+	runTranslate.mockResolvedValue("translated");
+	const h = harness({ ...record("off"), quote: "resolution" });
+	await runSelectionTranslate(h.options);
+	expect(lookupDictionary).not.toHaveBeenCalled();
+	expect(runTranslate.mock.calls[0][0]).toMatchObject({
+		context: { dictionary: false },
+	});
+	dictionaryMode = "auto";
+	await runSelectionTranslate({ ...h.options, mode: "translate" });
+	expect(lookupDictionary).not.toHaveBeenCalled();
+});
+
+it("offline-first serves local definitions without requesting context from an AI service", async () => {
+	providerId = "openaiCompatible";
+	dictionaryMode = "offline-first";
+	lookupDictionary.mockResolvedValue([{ source: "ecdict" }]);
+	const h = harness({ ...record("offline-first"), quote: "resolution" });
+	await runSelectionTranslate({
+		...h.options,
+		context: {
+			...h.options.context,
+			dictionarySurrounding: "image resolution",
+		},
+	});
+	expect(h.records.get("offline-first")?.result).toBe("LOCAL ENTRY");
+	expect(runTranslate).not.toHaveBeenCalled();
+});
+
+it("never caches failed contextual requests or cancelled Agent results", async () => {
+	providerId = "openaiCompatible";
+	lookupDictionary.mockResolvedValue([{ source: "ecdict" }]);
+	runTranslate.mockRejectedValue(new Error("offline"));
+	const h = harness({ ...record("failure-cache"), quote: "resolution" });
+	const options = {
+		...h.options,
+		context: {
+			...h.options.context,
+			dictionarySurrounding: "image resolution",
+		},
+	};
+	await runSelectionTranslate(options);
+	expect(cached.size).toBe(0);
+	providerId = "agent";
+	resolveAgent.mockResolvedValue(AGENT);
+	runOnce.mockResolvedValue(accepted());
+	attachAgentRun.mockImplementation(async (raw) => {
+		(raw as AttachOptions).onCompleted({
+			content: "incomplete",
+			stopReason: "cancelled",
+		});
+	});
+	await runSelectionTranslate(options);
+	expect(cached.size).toBe(0);
 });

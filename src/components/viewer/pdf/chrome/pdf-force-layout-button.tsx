@@ -17,6 +17,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSettings } from "@/hooks/use-app-stores";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import {
@@ -43,6 +44,7 @@ export function PdfForceLayoutButton({
 	className,
 }: PdfForceLayoutButtonProps) {
 	const { t } = useTranslation(["viewer", "common"]);
+	const autoTranslate = useSettings((s) => s.translate.autoTranslateImport);
 	const [open, setOpen] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const busyRef = useRef(false);
@@ -112,6 +114,7 @@ export function PdfForceLayoutButton({
 						<DialogTitle>{t("figures.forceReanalyzeTitle")}</DialogTitle>
 						<DialogDescription>
 							{t("figures.forceReanalyzeBody")}
+							{autoTranslate ? ` ${t("figures.forceReanalyzeTranslate")}` : ""}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="gap-2 sm:gap-0">

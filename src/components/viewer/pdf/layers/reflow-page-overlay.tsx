@@ -1,7 +1,7 @@
 import { type CSSProperties, type RefObject, useRef } from "react";
 import { AgenteroRenderLayer } from "@/components/viewer/pdf/layers/agentero-render-layer";
 import { cn } from "@/lib/core/utils";
-import { highlightFill } from "@/lib/pdf/highlight/palette";
+import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
 import { layoutTranslateSentenceNodes } from "@/lib/pdf/layout/layout-sentences";
 import {
@@ -200,9 +200,14 @@ export function ReflowPageOverlay({
 											whiteSpace: "pre",
 											color: "transparent",
 											textDecoration: "none",
-											backgroundColor: tint
-												? highlightFill(tint.color)
-												: undefined,
+											...(tint
+												? tint.shape === "underline"
+													? {
+															borderBottom: `2px solid ${HIGHLIGHT_HEX[tint.color]}`,
+															boxSizing: "border-box" as const,
+														}
+													: { backgroundColor: highlightFill(tint.color) }
+												: null),
 										};
 										const key = `${u.x}-${u.y}-${u.text}`;
 										return assignment ? (

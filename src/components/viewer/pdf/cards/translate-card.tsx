@@ -1,13 +1,25 @@
-import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
+import {
+	BookA,
+	Check,
+	Copy,
+	Languages,
+	Pin,
+	PinOff,
+	Settings2Icon,
+	X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ThinkingOrb } from "thinking-orbs";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
-import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
+import { useTypewriter } from "@/hooks/use-typewriter";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
+import type { SelectionTranslateMode } from "@/lib/translate/types";
 
 const TRANSLATE_CARD_WIDTH = 340;
 const TRANSLATE_CARD_MIN_WIDTH = 220;
@@ -31,6 +43,9 @@ type TranslateCardProps = {
 	onTogglePin?: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
+	sourceText?: string;
+	mode?: SelectionTranslateMode;
+	onModeChange?: (mode: SelectionTranslateMode) => void;
 };
 
 /**
@@ -51,13 +66,31 @@ export function TranslateCard({
 	onTogglePin,
 	onPointerEnter,
 	onPointerLeave,
+	sourceText,
+	mode: requestedMode,
+	onModeChange,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
+	const mode =
+		requestedMode ??
+		(isDictionaryLookup(sourceText ?? "") ? "dictionary" : "translate");
 	const showResult = result.trim().length > 0;
+	const typed = useTypewriter(result, mode === "translate");
+	const typing = streaming || typed.typing;
 	const showLoading = streaming && !showResult;
 	const scrollPortRef = useRef<HTMLDivElement>(null);
 	const stickToBottomRef = useRef(true);
 	const [copied, setCopied] = useState(false);
+
+	// 根据模式切换标题和 loading 文案
+	const title =
+		mode === "dictionary"
+			? t("selection.dictionaryTitle")
+			: t("selection.translateTitle");
+	const loadingText =
+		mode === "dictionary"
+			? t("selection.lookingUp")
+			: t("selection.translating");
 
 	/** Smallest height that still shows the header. */
 	const [resizeMinHeight, setResizeMinHeight] = useState<number>();
@@ -122,6 +155,12 @@ export function TranslateCard({
 		return () => clearTimeout(timer);
 	}, [copied]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: changing modes resets the copy feedback and stream scroll position.
+	useEffect(() => {
+		setCopied(false);
+		stickToBottomRef.current = true;
+	}, [mode]);
+
 	const handleScroll = () => {
 		const el = scrollPortRef.current;
 		if (!el) return;
@@ -134,9 +173,9 @@ export function TranslateCard({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: result is the re-run trigger for new chunks, not a value read inside
 	useEffect(() => {
 		const el = scrollPortRef.current;
-		if (!el || !streaming || !stickToBottomRef.current) return;
+		if (!el || !typing || !stickToBottomRef.current) return;
 		el.scrollTop = el.scrollHeight;
-	}, [result, streaming]);
+	}, [result, typed.text, typing]);
 
 	// Keep the header visible when the card is shrunk: the floor is
 	// everything outside the translation scrollport (header + margins).
@@ -177,11 +216,33 @@ export function TranslateCard({
 			className="bg-background!"
 			// Slightly tighter header than other selection cards.
 			headerClassName="pt-2 pb-1.5"
-			title={t("selection.translateTitle")}
+			title={title}
 			ariaLive="polite"
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
 			actions={[
+				...(onModeChange && isDictionaryLookup(sourceText ?? "")
+					? [
+							{
+								id: "mode",
+								label: t(
+									mode === "dictionary"
+										? "selection.switchToTranslation"
+										: "selection.switchToDictionary",
+								),
+								onClick: () =>
+									onModeChange(
+										mode === "dictionary" ? "translate" : "dictionary",
+									),
+								icon:
+									mode === "dictionary" ? (
+										<Languages className="size-3.5" />
+									) : (
+										<BookA className="size-3.5" />
+									),
+							},
+						]
+					: []),
 				...(showResult
 					? [
 							{
@@ -229,22 +290,28 @@ export function TranslateCard({
 				onScroll={handleScroll}
 				className="agentero-scroll mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 			>
-				{showLoading ? (
-					<Shimmer className="text-sm" as="p">
-						{t("selection.translating")}
-					</Shimmer>
-				) : null}
+				{mode === "dictionary" && (
+					<p className="break-words font-semibold text-base leading-snug">
+						{sourceText}
+					</p>
+				)}
+				{showLoading ? <StreamingOrb label={loadingText} /> : null}
 
 				{showResult ? (
-					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[0.9375rem] text-foreground leading-relaxed">
-						{result}
+					<MessageResponse
+						className={`min-w-0 break-words text-[0.9375rem] text-foreground leading-relaxed ${mode === "dictionary" ? "space-y-2 whitespace-normal [&_p]:my-0" : "whitespace-pre-wrap"}`}
+					>
+						{mode === "dictionary" ? result : typed.text}
 					</MessageResponse>
 				) : null}
 
+				{/* 流式未完成或打字机未追上时，动画跟在最新文字后面 */}
+				{typing && showResult && !error ? (
+					<StreamingOrb label={loadingText} showLabel={false} />
+				) : null}
+
 				{!showLoading && !showResult && !error ? (
-					<p className="text-muted-foreground text-sm">
-						{t("selection.translating")}
-					</p>
+					<p className="text-muted-foreground text-sm">{loadingText}</p>
 				) : null}
 
 				{error ? (
@@ -266,5 +333,21 @@ export function TranslateCard({
 				) : null}
 			</div>
 		</SelectionCard>
+	);
+}
+
+/** Same orb as the Agent chat; label optional when it trails streamed text. */
+function StreamingOrb({
+	label,
+	showLabel = true,
+}: {
+	label: string;
+	showLabel?: boolean;
+}) {
+	return (
+		<div className="inline-flex items-center gap-2 text-muted-foreground text-sm">
+			<ThinkingOrb state="working" size={20} theme="auto" aria-label={label} />
+			{showLabel ? <span>{label}</span> : null}
+		</div>
 	);
 }

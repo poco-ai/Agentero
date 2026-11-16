@@ -333,7 +333,9 @@ mod acp_live {
         let vault = std::env::current_dir().expect("cwd");
         let cwd =
             crate::features::agent::acp::client::agent_spawn_cwd(None, vault.to_str()).unwrap();
-        let result = list_acp_sessions(&d, cwd.clone(), None, None)
+        let queries =
+            std::sync::Arc::new(crate::features::agent::session::query::AgentQueryPool::new());
+        let result = list_acp_sessions(&queries, &d, cwd.clone(), None, None)
             .await
             .expect("session/list must succeed");
         assert!(result.supported, "codex-acp advertises session.list");

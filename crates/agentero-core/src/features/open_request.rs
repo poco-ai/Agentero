@@ -404,6 +404,7 @@ pub fn validate_open_dir(path: &Path) -> Result<PathBuf, AppError> {
         )));
     }
     path.canonicalize()
+        .map(|canonical| dunce::simplified(&canonical).to_path_buf())
         .map_err(|e| AppError::message(format!("failed to resolve path: {e}")))
 }
 
@@ -741,8 +742,12 @@ mod tests {
     fn accepts_absolute_existing_dir() {
         let dir = test_dir("ok");
         let canonical = validate_open_dir(&dir).unwrap();
+        let from_verbatim = validate_open_dir(&dir.canonicalize().unwrap()).unwrap();
+        assert_eq!(from_verbatim, canonical);
         assert!(canonical.is_absolute());
         assert!(canonical.is_dir());
+        #[cfg(windows)]
+        assert!(!canonical.to_string_lossy().starts_with(r"\\?\"));
         let _ = fs::remove_dir_all(&dir);
     }
 

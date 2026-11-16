@@ -26,16 +26,17 @@ import {
 } from "@/lib/agent";
 import { agentChromeStore } from "@/lib/agent/agent-chrome-store";
 import {
-	agentSessionStore,
 	applyAgentSessionHandoffOnce,
 	getActiveLines,
 	isActiveTabRunning,
+	useAgentSessionScope,
 	useAgentSessionStore,
 } from "@/lib/agent/agent-session-store";
 import {
 	type AgentOption,
 	buildOptions,
 	type ChatLine,
+	type ChatSessionHistoryItem,
 	errorChatLine,
 	errorText,
 	resolveSelected,
@@ -56,7 +57,21 @@ export type UseAgentPanelArgs = Pick<
 	| "vaultPaperPaths"
 	| "paperMetaByRelPath"
 	| "paperTreeLabelMode"
->;
+> & {
+	/** Start with this harness instead of the registry default (Zen slots). */
+	initialAgentId?: string | null;
+	/** Report the active harness to the host surface (Zen slot rows). */
+	onAgentChange?: (agent: {
+		id: string;
+		name: string;
+		template: string | null;
+	}) => void;
+	/** One-shot ACP history row to load once the history probe is ready. */
+	openHistoryItem?: ChatSessionHistoryItem | null;
+	onOpenHistoryHandled?: () => void;
+	/** Skip the per-panel ACP session import (Zen rail owns the history list). */
+	suppressHistoryImport?: boolean;
+};
 
 export function useAgentPanel({
 	vaultPath,
@@ -67,8 +82,16 @@ export function useAgentPanel({
 	vaultPaperPaths = [],
 	paperMetaByRelPath = null,
 	paperTreeLabelMode = "title-author",
+	initialAgentId = null,
+	onAgentChange,
+	openHistoryItem = null,
+	onOpenHistoryHandled,
+	suppressHistoryImport = false,
 }: UseAgentPanelArgs) {
 	const { t, i18n } = useTranslation("agent");
+	const { store: sessionStore, scopeId } = useAgentSessionScope();
+	/** The shared rail store also drives app chrome and cross-window handoff. */
+	const isRailScope = scopeId === null;
 
 	const {
 		selectedVaultPath,
@@ -111,12 +134,17 @@ export function useAgentPanel({
 	// (submitting / running / hydrating flips), so closures stay fresh.
 	const linesRef = useRef<ChatLine[] | null>(null);
 	if (linesRef.current === null) {
-		const initial = agentSessionStore.getState();
+		const initial = sessionStore.getState();
 		linesRef.current = getActiveLines(
 			initial.sessions,
 			initial.activeTabId,
 			initial.draftLines,
 		);
+		// A Zen slot can be seeded with the rail's sessions before the first
+		// store event fires; claim them now so their streams keep routing here.
+		if (sessionHistoryRef.current.length === 0 && initial.sessions.length > 0) {
+			sessionHistoryRef.current = initial.sessions;
+		}
 	}
 	const lines = linesRef.current;
 	const setLines = useAgentSessionStore((s) => s.setLines);
@@ -132,7 +160,9 @@ export function useAgentPanel({
 		(s) => s.hydrateAndActivateSession,
 	);
 
-	const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+	const [selectedAgentId, setSelectedAgentId] = useState<string | null>(
+		initialAgentId,
+	);
 	const [switching, setSwitching] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [historyOpen, setHistoryOpen] = useState(false);
@@ -181,8 +211,8 @@ export function useAgentPanel({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: refs are stable identity probes for the subscribe-once effect
 	useEffect(
 		() =>
-			agentSessionStore.subscribe(() => {
-				const state = agentSessionStore.getState();
+			sessionStore.subscribe(() => {
+				const state = sessionStore.getState();
 				sessionHistoryRef.current = state.sessions;
 				linesRef.current = getActiveLines(
 					state.sessions,
@@ -289,15 +319,25 @@ export function useAgentPanel({
 		}
 	}, [selectedLogin, refresh]);
 
-	// Keep app chrome (title bar, mobile nav, …) in sync with the active agent.
+	// Keep app chrome (title bar, mobile nav, …) in sync with the active agent;
+	// other surfaces (Zen slots) only report their own harness upstream.
+	const selectedId = selected?.id ?? null;
+	const selectedName = selected?.name ?? null;
+	const selectedTemplate = selected?.template ?? null;
 	useEffect(() => {
-		if (!selected) return;
-		agentChromeStore.setState({
-			agentId: selected.id,
-			name: selected.name,
-			template: selected.template ?? null,
+		if (!selectedId) return;
+		onAgentChange?.({
+			id: selectedId,
+			name: selectedName ?? selectedId,
+			template: selectedTemplate,
 		});
-	}, [selected]);
+		if (!isRailScope) return;
+		agentChromeStore.setState({
+			agentId: selectedId,
+			name: selectedName ?? selectedId,
+			template: selectedTemplate,
+		});
+	}, [isRailScope, onAgentChange, selectedId, selectedName, selectedTemplate]);
 
 	const activeTabIsRunning = useAgentSessionStore(isActiveTabRunning);
 	const activeUsage = usageBySession[activeTabId] ?? usage;
@@ -320,7 +360,12 @@ export function useAgentPanel({
 		setAcpCommandsByAgent,
 		setAgentListenersReady,
 	});
-	const { toolAskUserRequest, setToolAskUserRequest, phaseBySession } = runtime;
+	const {
+		toolAskUserRequest,
+		setToolAskUserRequest,
+		isChatOwnedSession,
+		phaseBySession,
+	} = runtime;
 
 	const {
 		permissionRequest,
@@ -332,6 +377,7 @@ export function useAgentPanel({
 	} = useAgentPermissionSurfaces({
 		toolAskUserRequest,
 		setToolAskUserRequest,
+		ownsSession: isChatOwnedSession,
 	});
 
 	/** Request-shaping context for the send pipeline (agent/model selection). */
@@ -495,44 +541,44 @@ export function useAgentPanel({
 	]);
 
 	// Cross-window handoff: first snapshot only (retries may arrive later).
-	useEffect(
-		() =>
-			toSafeDisposer(
-				listenAgentSessionHandoff((payload) => {
-					const applied = applyAgentSessionHandoffOnce({
-						sessions: payload.sessions,
-						activeTabId: payload.activeTabId,
-						draftLines: payload.draftLines,
-					});
-					if (!applied) return;
-					const agentId =
-						payload.selectedAgentId ??
-						payload.sessions.find((s) => s.id === payload.activeTabId)
-							?.agentId ??
-						payload.sessions[0]?.agentId ??
-						null;
-					if (agentId) {
-						setSelectedAgentId(agentId);
-						selectedAgentIdRef.current = agentId;
-					}
-					const tabId = payload.activeTabId || "draft";
-					activeTabRef.current = tabId;
-					activeConversationRef.current = tabId === "draft" ? null : tabId;
-					knownSessionIdsRef.current = new Set(
-						(payload.sessions ?? []).map((s) => s.id),
-					);
-					// Composer scope follows session id; force activate after handoff.
-					activateComposerSession(tabId);
-				}),
-			),
-		[
-			activateComposerSession,
-			selectedAgentIdRef,
-			knownSessionIdsRef,
-			activeTabRef,
-			activeConversationRef,
-		],
-	);
+	useEffect(() => {
+		// Handoff seeds the shared rail store of a new Agent feature window.
+		if (!isRailScope) return;
+		return toSafeDisposer(
+			listenAgentSessionHandoff((payload) => {
+				const applied = applyAgentSessionHandoffOnce({
+					sessions: payload.sessions,
+					activeTabId: payload.activeTabId,
+					draftLines: payload.draftLines,
+				});
+				if (!applied) return;
+				const agentId =
+					payload.selectedAgentId ??
+					payload.sessions.find((s) => s.id === payload.activeTabId)?.agentId ??
+					payload.sessions[0]?.agentId ??
+					null;
+				if (agentId) {
+					setSelectedAgentId(agentId);
+					selectedAgentIdRef.current = agentId;
+				}
+				const tabId = payload.activeTabId || "draft";
+				activeTabRef.current = tabId;
+				activeConversationRef.current = tabId === "draft" ? null : tabId;
+				knownSessionIdsRef.current = new Set(
+					(payload.sessions ?? []).map((s) => s.id),
+				);
+				// Composer scope follows session id; force activate after handoff.
+				activateComposerSession(tabId);
+			}),
+		);
+	}, [
+		isRailScope,
+		activateComposerSession,
+		selectedAgentIdRef,
+		knownSessionIdsRef,
+		activeTabRef,
+		activeConversationRef,
+	]);
 
 	const selectAgent = async (opt: AgentOption) => {
 		if (
@@ -601,7 +647,22 @@ export function useAgentPanel({
 		setHistoryOpen,
 		historyOpen,
 		clearMessageQueue,
+		importHistory: !suppressHistoryImport,
 	});
+
+	// Zen history rows: load straight away (the agent is known from the slot),
+	// and keep the pending row until a load actually starts so a registry that
+	// is still resolving retries instead of landing on an empty conversation.
+	const openHistorySessionRef = useRef(openHistorySession);
+	openHistorySessionRef.current = openHistorySession;
+	const onOpenHistoryHandledRef = useRef(onOpenHistoryHandled);
+	onOpenHistoryHandledRef.current = onOpenHistoryHandled;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: submitting is a retry trigger; the load reads it through refs
+	useEffect(() => {
+		if (!openHistoryItem || !selectedAgentId) return;
+		if (!openHistorySessionRef.current(openHistoryItem)) return;
+		onOpenHistoryHandledRef.current?.();
+	}, [openHistoryItem, selectedAgentId, submitting]);
 
 	return {
 		t,

@@ -161,6 +161,8 @@ export type LayoutTranslateItem = LayoutTranslateRegion & {
 	progress?: number;
 	/** Translated text when status is done (or partial). */
 	translated?: string;
+	/** Translation rules for this block; absent when the original revision is unknown. */
+	terminologyRevision?: string;
 	error?: string;
 	/** Sentence pairs for this block. Absent when the block was not paired. */
 	sentences?: LayoutTranslateSentence[];

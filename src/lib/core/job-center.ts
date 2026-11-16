@@ -243,6 +243,12 @@ function panelProgress(job: JobChangedSnapshot): number | null {
 		: null;
 }
 
+function layoutTranslatePurpose(params: unknown): string | undefined {
+	if (!params || typeof params !== "object") return undefined;
+	const purpose = (params as { purpose?: unknown }).purpose;
+	return typeof purpose === "string" ? purpose : undefined;
+}
+
 function jobPanelTitle(job: JobChangedSnapshot): string {
 	switch (job.kind) {
 		case "import":
@@ -260,7 +266,9 @@ function jobPanelTitle(job: JobChangedSnapshot): string {
 		case "modelDownload":
 			return i18n.t("app:tasks.layoutModelDownload");
 		case "layoutTranslate":
-			return i18n.t("app:tasks.layoutTranslate");
+			return layoutTranslatePurpose(job.params) === "complete"
+				? i18n.t("app:tasks.layoutTranslateComplete")
+				: i18n.t("app:tasks.layoutTranslate");
 		case "citingScan":
 			return i18n.t("app:tasks.citingScan");
 		case "metadataRefresh":
@@ -527,6 +535,7 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 			updateBackgroundTask(
 				job.id,
 				{
+					title,
 					status: job.state === "running" ? "running" : "queued",
 					paperPath,
 					// Byte progress (`job:progress`) owns the bar for

@@ -37,24 +37,25 @@ jobs:
         # Desktop installers must not embed the headless CLI (#285). A prior
         # guard required beforeBuildCommand to run cli:bundle:stub; that stub
         # path was removed in 9dee13f0 after the fake Windows .exe triggered
-        # "Unsupported 16-bit application" (#320 follow-up). externalBin may
-        # contain only the real plugin-worker sidecar. prepare-plugin-worker.mjs
-        # refuses anything under 64 KiB so a renamed batch stub cannot ship.
+        # "Unsupported 16-bit application" (#320 follow-up). The plugin worker
+        # sidecar was removed with the plugin system, so externalBin must stay
+        # empty.
         run: |
           set -euo pipefail
           node --input-type=commonjs -e "
             const conf = require('./src-tauri/tauri.conf.json');
             const bins = (conf.bundle && conf.bundle.externalBin) || [];
-            const allowed = ['binaries/agentero-plugin-host'];
-            const same = bins.length === allowed.length && bins.every((bin, i) => bin === allowed[i]);
-            if (!same) {
-              console.error('::error file=src-tauri/tauri.conf.json::bundle.externalBin must be only the plugin worker sidecar, not the CLI (#285/#320). Got: ' + JSON.stringify(bins));
+            if (bins.length !== 0) {
+              console.error('::error file=src-tauri/tauri.conf.json::bundle.externalBin must stay empty (no bundled sidecars, no CLI) (#285/#320). Got: ' + JSON.stringify(bins));
               process.exit(1);
             }
           "
       - name: Test release synchronization
         if: matrix.task == 'quality'
         run: node --test scripts/sync-atomgit-release.test.mjs scripts/rewrite-updater-json.test.mjs
+      - name: Verify bundled offline dictionary
+        if: matrix.task == 'quality'
+        run: pnpm dictionary:stage
       - name: Stage bundled ACP adapters
         if: matrix.task == 'quality'
         # Exercise staging before release builds consume these trees.
@@ -133,6 +134,14 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        if: matrix.task != 'cli-tests'
+      - name: Install dictionary build dependencies
+        if: matrix.task != 'cli-tests'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Stage offline dictionary
+        if: matrix.task != 'cli-tests'
+        run: pnpm dictionary:stage
       - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-adapters.mjs
@@ -156,14 +165,9 @@ jobs:
           # missing even for clippy/tests that never bundle.
           mkdir -p src-tauri/pdfium
           cp "$RUNNER_TEMP/pdfium/lib/libpdfium.dylib" src-tauri/pdfium/libpdfium.dylib
-      - name: Stage plugin worker sidecar
+      - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
-        run: |
-          set -euo pipefail
-          # Desktop externalBin makes tauri-build fail when the sidecar is
-          # absent, including clippy and `cargo test -p agentero`. cli-tests
-          # does not compile the agentero package, so it does not build the worker.
-          node scripts/prepare-plugin-worker.mjs
+        run: node scripts/prepare-adapters.mjs
       - name: Run Rust checks
         run: |
           set -euo pipefail
@@ -173,7 +177,7 @@ jobs:
               cargo clippy --workspace --all-targets -- -D warnings
               ;;
             agentero-tests)
-              cargo test -p agentero -p agentero-plugin-host
+              cargo test -p agentero
               ;;
             cli-tests)
               # Dependency builds do not run core/MCP unit tests. Keep all
@@ -208,12 +212,17 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        if: matrix.task != 'cli-tests'
+      - name: Install dictionary build dependencies
+        if: matrix.task != 'cli-tests'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Stage offline dictionary
+        if: matrix.task != 'cli-tests'
+        run: pnpm dictionary:stage
       - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-adapters.mjs
-      - name: Stage plugin worker sidecar
-        if: matrix.task != 'cli-tests'
-        run: node scripts/prepare-plugin-worker.mjs
       - name: Stage PDFium
         env:
           GH_TOKEN: ${{ github.token }}
@@ -235,7 +244,7 @@ jobs:
               # (*d.lib) but only links the release names. The release profile
               # makes CMake produce and link the matching libs; see
               # CONTRIBUTING.md.
-              cargo test --release -p agentero -p agentero-plugin-host
+              cargo test --release -p agentero
               ;;
             cli-tests)
               # Dependency builds do not run core/MCP unit tests. Keep all

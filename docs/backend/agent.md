@@ -311,6 +311,15 @@ warm 的 `session/new` 在用户发出 prompt 之前只是临时会话：`sessio
 Unix 终止进程组，Windows 仅结束直接子进程。已有残留不会按进程名自动清扫，需确认路径与
 归属后清理。Windows 完整进程树回收仍为已知限制（#774）；SSH 远端宿主的进程需独立管理。
 
+**历史查询连接池**：`session/list`、`session/load`、`session/delete` 走独立的
+`AgentQueryPool`，按 `(agent, cwd, remote, 启动 variant)` 缓存一条已 `initialize` 的连接
+（最多 4 条，空闲 5 分钟后回收，超限先淘汰最久未用的；`agent:registry-changed` 不主动清，
+Pi 项目信任决策作为 variant 参与 key）。`session/load` 的重放通知按 `session_id` 路由给
+调用方注册的 `ReplayBuilder`，因此同一连接可服务并发加载；权限请求一律拒绝，与冷启动路径一致。
+`initialize` 能力（`session/list` / `loadSession` / `session/delete`）在连接建立时缓存，不再每次
+重新协商。进程异常退出时连接被标记不可用，下一次调用重新 spawn；应用退出与 warm pool 一同 shutdown。
+此前每次历史请求都要 spawn → initialize → teardown，打开 Zen 或点开一条会话会连续付多次冷启动成本。
+
 Kimi Code ACP 会把 `Bash`/`Glob`/`Grep` 等工具实现为 `terminal/create`。[当前实现](https://github.com/MoonshotAI/kimi-cli/blob/main/src/kimi_cli/acp/tools.py)
 会把完整 shell 文本放进 `command`；Host 对可解析的可执行文件继续按 `command + args`
 直接 spawn，对无法解析且没有 `args` 的命令在 Windows 用 PowerShell、Unix 用

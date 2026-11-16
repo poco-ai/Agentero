@@ -17,7 +17,9 @@
 		"signInRequired": "登录后可查看云同步容量。",
 		"notIncluded": "当前套餐不包含云同步。"
 	},
-	"common": { "cancel": "取消" },
+	"common": {
+		"cancel": "取消"
+	},
 	"org": {
 		"transferOwnership": "转让所有权",
 		"transferDescription": "将团队所有权转让给 {{name}}？你将成为团队管理员。",
@@ -30,5 +32,38 @@
 		"frozen": "此团队已被冻结，请联系平台管理员。",
 		"owner": "退出团队前请先转让所有权。",
 		"storage": "系统凭据存储不可用，请解锁或允许访问后重试。"
+	},
+	"capabilities": {
+		"signInRequired": "请先登录 Agentero 账户再使用云端翻译。",
+		"pending": "翻译仍在处理中，重试可获取同一任务的结果。",
+		"title": "云端服务",
+		"account": "计费账户",
+		"personal": "个人账户",
+		"description": "开关统一控制翻译、OCR 和 Embedding 超额后是否使用当前账户的 Credit。托管翻译使用个人账户，已开始的任务正常结算。",
+		"translation": "翻译",
+		"ocr": "PDF OCR",
+		"embedding": "Embedding",
+		"remaining": "免费剩余：{{count}}",
+		"overage": "超额使用 Credit",
+		"manage": "查看 Credit",
+		"ocrHint": "将文本页和扫描页解析为 Markdown，最多 32 MiB、500 页。文档将上传至所选账户。",
+		"pdf": "PDF 文件",
+		"fileLimit": "请选择不超过 32 MiB 的 PDF",
+		"estimate": "估算用量",
+		"quote": "{{pages}} 个 OCR 页 · {{free}} 页免费 · 最多 {{credit}} Credit",
+		"start": "开始／恢复任务",
+		"result": "解析结果 Markdown",
+		"charged": "已扣除：{{credit}} Credit",
+		"newDocument": "新文档",
+		"status": {
+			"queued": "排队中",
+			"running": "处理中",
+			"reconciling": "正在核对用量",
+			"succeeded": "已完成",
+			"partial": "部分完成",
+			"failed": "失败",
+			"cancelled": "已取消"
+		},
+		"help": "额度说明"
 	}
 }

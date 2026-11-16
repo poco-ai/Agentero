@@ -20,6 +20,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { accountApiOrigin } from "@/features/account/client";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { isSecretMask } from "@/lib/core/secret-mask";
 import { cn } from "@/lib/core/utils";
 import { probeEmbedding } from "@/lib/recommend";
@@ -165,6 +167,29 @@ export function AgentEmbeddingBlock({
 				) : null}
 			</div>
 			<SettingsGroup>
+				{accountSurfaceEnabled && (
+					<SettingsRow
+						label={t("agent.embedding.agentero")}
+						description={t("agent.embedding.agenteroHint")}
+					>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								const next = {
+									source: "custom" as const,
+									baseUrl: `${accountApiOrigin}/v1`,
+									model: "agentero-embedding-v1",
+									apiKey: "",
+								};
+								setEmbDraft(next);
+								commitEmbedding(next);
+							}}
+						>
+							{t("agent.embedding.useAgentero")}
+						</Button>
+					</SettingsRow>
+				)}
 				<SettingsRow
 					label={t("agent.embedding.source.label")}
 					htmlFor="agent-embedding-source"

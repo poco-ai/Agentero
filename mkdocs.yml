@@ -36,7 +36,6 @@ nav:
       - 用 MCP 连接外部 Agent: usage/mcp.md
       - 移动端: usage/mobile.md
       - 使用 Zotero Connector: usage/zotero.md
-      - 使用本地插件: usage/plugins.md
       - 打开远程 Vault: usage/remote-vault.md
 
   - 前端:
@@ -95,6 +94,7 @@ nav:
 
   - 测试:
       - 概览: test/index.md
+      - BBox 标注与教学样例: test/bbox-annotation.md
       - 性能测试轨迹: test/performance.md
       - 发布流程: test/release.md
       - macOS 签名与公证: test/macos-signing.md

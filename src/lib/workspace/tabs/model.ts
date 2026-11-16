@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+import { isZenVirtualPath, ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import {
 	isLibraryVirtualPath,
 	isTrashVirtualPath,
@@ -25,6 +27,7 @@ export function tabTitleForPath(path: string): string {
 export function tabIdForPath(path: string): string {
 	if (isLibraryVirtualPath(path)) return LIBRARY_VIRTUAL_PATH;
 	if (isTrashVirtualPath(path)) return TRASH_VIRTUAL_PATH;
+	if (isZenVirtualPath(path)) return ZEN_VIRTUAL_PATH;
 	if (isPlazaVirtualPath(path)) return path;
 	return normalizePathKey(path);
 }
@@ -65,6 +68,7 @@ function remapTabIdForPath(
 /** Rewrite one absolute or Vault-relative path under a moved root. */
 export function remapPathUnder(path: string, from: string, to: string): string {
 	if (isLibraryVirtualPath(path) || isTrashVirtualPath(path)) return path;
+	if (isZenVirtualPath(path)) return path;
 	if (isPlazaVirtualPath(path)) return path;
 	const current = path.replace(/\\/g, "/").replace(/\/+$/, "");
 	const oldRoot = from.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -136,6 +140,7 @@ export function createPlaceholderTab(
 ): DocTab {
 	const isLibrary = isLibraryVirtualPath(path);
 	const isTrash = isTrashVirtualPath(path);
+	const isZen = isZenVirtualPath(path);
 	const isPlaza = isPlazaVirtualPath(path);
 	return {
 		id,
@@ -143,21 +148,27 @@ export function createPlaceholderTab(
 			? LIBRARY_VIRTUAL_PATH
 			: isTrash
 				? TRASH_VIRTUAL_PATH
-				: path,
+				: isZen
+					? ZEN_VIRTUAL_PATH
+					: path,
 		kind: isLibrary
 			? "library"
 			: isTrash
 				? "trash"
-				: isPlaza
-					? "plaza"
-					: "file",
+				: isZen
+					? "zen"
+					: isPlaza
+						? "plaza"
+						: "file",
 		title: isLibrary
 			? "Library"
 			: isTrash
 				? "Recycle Bin"
-				: isPlaza
-					? plazaTitleForPath(path)
-					: tabTitleForPath(path),
+				: isZen
+					? i18n.t("sidebar:zen.title")
+					: isPlaza
+						? plazaTitleForPath(path)
+						: tabTitleForPath(path),
 		mode: preferMode,
 		paperMeta: null,
 		pdfUrl: null,

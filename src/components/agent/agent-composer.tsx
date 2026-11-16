@@ -63,6 +63,8 @@ export type AgentComposerProps = {
 	autoFocus: boolean;
 	heightPx?: number;
 	compact?: boolean;
+	/** Full-page surface: extra horizontal inset around the input shell. */
+	wide?: boolean;
 	activeTabIsRunning: boolean;
 	switching: boolean;
 	submitting: boolean;
@@ -121,6 +123,7 @@ export function AgentComposer(props: AgentComposerProps) {
 		autoFocus,
 		heightPx,
 		compact = false,
+		wide = false,
 		activeTabIsRunning,
 		switching,
 		submitting,
@@ -261,7 +264,8 @@ export function AgentComposer(props: AgentComposerProps) {
 				// Keep the same horizontal inset and bottom gap in both modes so
 				// the InputGroup width / distance to the panel bottom do not jump
 				// when crossing the compact height threshold.
-				"flex shrink-0 flex-col border-t bg-muted/10 px-3 pb-3",
+				"flex shrink-0 flex-col border-t bg-muted/10 pb-3",
+				wide ? "px-5 lg:px-10" : "px-3",
 				compact ? "gap-1 pt-2" : "gap-2 pt-3",
 			)}
 		>

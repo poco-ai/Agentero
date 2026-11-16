@@ -2,6 +2,7 @@
  * Window-move helpers for documents and feature views.
  */
 
+import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { openDocWindow } from "@/lib/shell/doc-window";
 import {
@@ -24,7 +25,11 @@ export async function moveDocToWindow(
 	path: string,
 	mode?: string,
 ): Promise<void> {
-	if (isLibraryVirtualPath(path) || isTrashVirtualPath(path)) {
+	if (
+		isLibraryVirtualPath(path) ||
+		isTrashVirtualPath(path) ||
+		isZenVirtualPath(path)
+	) {
 		return;
 	}
 	const { getTabs } = await import("@/lib/workspace/store");

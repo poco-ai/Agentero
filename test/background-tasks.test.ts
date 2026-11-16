@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	backgroundTasksStore,
+	clearFinishedBackgroundTasks,
+	completeBackgroundTask,
 	mapDownloadProgress,
 	startBackgroundTask,
 	updateBackgroundTask,
@@ -40,4 +42,27 @@ describe("background task download progress", () => {
 
 		backgroundTasksStore.setState({ tasks: [], expanded: false });
 	});
+
+	it("keeps a finished task until it is cleared", () => {
+		vi.useFakeTimers();
+		const id = startBackgroundTask({
+			kind: "layoutAnalyze",
+			title: "parse",
+		});
+		completeBackgroundTask(id);
+		vi.advanceTimersByTime(10_000);
+		expect(
+			backgroundTasksStore.getState().tasks.find((task) => task.id === id)
+				?.status,
+		).toBe("completed");
+		clearFinishedBackgroundTasks();
+		expect(
+			backgroundTasksStore.getState().tasks.find((task) => task.id === id),
+		).toBeUndefined();
+	});
+});
+
+afterEach(() => {
+	vi.useRealTimers();
+	backgroundTasksStore.setState({ tasks: [], expanded: false });
 });

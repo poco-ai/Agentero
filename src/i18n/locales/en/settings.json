@@ -18,8 +18,7 @@
 		"about": "About",
 		"quickSetup": "Quick setup wizard",
 		"featureTour": "Feature tour",
-		"sync": "Sync",
-		"plugins": "Plugins"
+		"sync": "Sync"
 	},
 	"writing": {
 		"uploadMode": "When to upload",
@@ -211,7 +210,11 @@
 			"label": "Zotero Connector compatibility",
 			"hint": "Quit local Zotero first",
 			"portLabel": "Connector port",
-			"invalidPort": "Port must be between 1 and 65535."
+			"invalidPort": "Port must be between 1 and 65535.",
+			"notListening": "Not listening",
+			"portInUse": "Port {{port}} is in use. Agentero retries every 5 seconds. Quit Zotero or the other app using this port.",
+			"bindFailed": "Cannot listen on port {{port}}. Agentero retries every 5 seconds. Check the port or choose another one.",
+			"serverStopped": "The Connector service stopped. Agentero retries every 5 seconds. You can also retry now."
 		},
 		"mcp": {
 			"exposeText": {
@@ -370,7 +373,10 @@
 				"ok": "Reachable",
 				"failed": "Unreachable",
 				"unconfigured": "Not configured"
-			}
+			},
+			"agentero": "Agentero Embedding",
+			"agenteroHint": "Use an Agentero account API key. Account allowances and overage settings apply. Switching clears the previous provider key.",
+			"useAgentero": "Use Agentero"
 		},
 		"desktopOnly": "Agent registry requires the desktop app.",
 		"desktopHint": "Run `pnpm tauri dev` to scan agents on this machine.",
@@ -527,13 +533,12 @@
 		"title": "Translate",
 		"provider": {
 			"label": "Default service",
-			"agentero": "Agentero built-in",
-			"deeplx": "DeepLX",
+			"agentero": "Agentero cloud (personal account)",
 			"cnki": "CNKI Translate",
 			"huoshanweb": "Volcengine Web",
 			"tencenttransmart": "Tencent Transmart",
-			"googleapi": "Google Translate (API)",
-			"google": "Google Translate",
+			"indextranslate": "Bilibili Translate 35B-A3B",
+			"indextranslate2b": "Bilibili Translate 2B",
 			"deepl": "DeepL API",
 			"azure": "Microsoft Translator",
 			"googleCloud": "Google Cloud Translate",
@@ -546,7 +551,8 @@
 		},
 		"errors": {
 			"noBuiltinKey": "Built-in translation is not available in this build.",
-			"unreachable": "Could not reach the translation service. Check the network or pick another service in Translate settings."
+			"unreachable": "Could not reach the translation service. Check the network or pick another service in Translate settings.",
+			"terminology": "This service could not preserve the terminology. Choose another translation service and retry."
 		},
 		"targetLang": {
 			"label": "Target language",
@@ -558,8 +564,8 @@
 			"label": "Auto-translate PDF selection"
 		},
 		"autoImport": {
-			"label": "Auto-translate after import",
-			"description": "Runs full-text translation in the background once layout analysis finishes. Uses the current translation service and cache settings.",
+			"label": "Auto-translate after layout analysis",
+			"description": "After import, download, or a layout reparse, runs full-text translation in the background. Reuses cached translations and only requests changed blocks. Uses the current translation service and cache settings.",
 			"concurrency": {
 				"label": "Concurrent papers for auto-translation"
 			}
@@ -580,7 +586,14 @@
 				"description": "Saves the built translated PDF. Each paper takes about 25 MB."
 			},
 			"tip": "Turning a switch off only stops new writes; existing entries keep being reused.",
-			"reset": "Restore defaults"
+			"reset": "Restore defaults",
+			"dictionary": {
+				"label": "Word lookup cache",
+				"description": "Completed word and context results are reused for 30 days. Clear for the current Vault; bundled dictionaries stay available.",
+				"clear": "Clear",
+				"clearFailed": "Could not clear the word lookup cache.",
+				"cleared": "Cleared"
+			}
 		},
 		"providerConfig": {
 			"section": "API Services",
@@ -639,6 +652,16 @@
 		},
 		"autoTranslation": {
 			"section": "Auto-translate"
+		},
+		"dictionaryIncluded": "Offline English–Chinese dictionary and AI terminology are included. No setup needed.",
+		"dictionaryMode": {
+			"label": "Word lookup",
+			"auto": "Automatic",
+			"offline-first": "Offline first",
+			"off": "Off",
+			"autoDescription": "Show local definitions, then explain the context with your configured AI service.",
+			"offline-firstDescription": "Use local definitions when available. Only request your service for missing words.",
+			"offDescription": "Translate every selection. You can still open the dictionary from a result card."
 		}
 	},
 	"layout": {
@@ -727,7 +750,8 @@
 			"dialog": {
 				"clearTitle": "Clear parse results?",
 				"reparseTitle": "Clear and reparse?",
-				"scopeLabel": "Choose scope"
+				"scopeLabel": "Choose scope",
+				"reparseTranslate": "Auto-translate after layout analysis is on. This queues full-text translation for every paper in the layout scope and may create a batch of translation requests and charges. Cached translations are reused."
 			}
 		}
 	},
@@ -737,6 +761,14 @@
 			"section": "Decision model",
 			"getKey": "Get an API key",
 			"smartHighlight": "Smart highlight",
+			"concurrency": {
+				"label": "Concurrent requests",
+				"description": "Lower this when a self-hosted model queues requests."
+			},
+			"timeout": {
+				"label": "Request timeout (seconds)",
+				"description": "Starts when the batch is sent, not while it waits."
+			},
 			"provider": {
 				"label": "Provider",
 				"jev": "TypeSafe Jev",
@@ -1016,7 +1048,7 @@
 			"uninstallFailed": "Could not remove CLI command",
 			"statusFailed": "Could not read CLI status",
 			"openReleaseFailed": "Could not open the release page",
-			"syncFailed": "Could not auto-sync the installed CLI with this app version. Update it from Settings → About"
+			"syncFailed": "Could not automatically install or update the CLI. Try again from Settings → About"
 		},
 		"feedback": {
 			"label": "Feedback",
@@ -1063,7 +1095,14 @@
 		"pathStyle": "Path-style addressing",
 		"pathStyleHint": "Keep on for R2 / MinIO; turn off for bucket subdomains.",
 		"gitRemote": "Repository URL",
+		"gitRemoteHint": "SSH uses your agent. HTTPS does not prompt: store a token with `git credential approve` or your credential helper before connecting.",
 		"gitBranch": "Branch",
+		"gitAllowInsecureHttp": "Allow plain HTTP",
+		"gitAllowInsecureHttpHint": "Intranet servers without HTTPS only. The token is sent in cleartext.",
+		"gitSslCa": "CA certificate",
+		"gitSslCaHint": "Absolute PEM path for a self-signed HTTPS server. Empty uses the system trust store.",
+		"gitAuthFailed": "Git could not sign in, and sync does not prompt.\n{{detail}}\nHTTPS: store a token first with `git credential approve` or your credential helper. SSH: run `ssh-add`.",
+		"gitTlsFailed": "Git rejected the server certificate.\n{{detail}}\nFor a self-signed server, set the CA certificate path and connect again.",
 		"noConditionalWrites": "This storage doesn't support conditional (atomic) writes, so sync falls back to plain uploads. Fine for single-device use; concurrent edits from multiple devices may need an extra sync round to converge.",
 		"saved": "Sync configured",
 		"disconnect": "Disconnect",
@@ -1107,23 +1146,6 @@
 		"unlimited": "Unlimited",
 		"signInRequired": "Sign in to see your cloud sync capacity.",
 		"notIncluded": "The current plan does not include cloud sync."
-	},
-	"plugins": {
-		"install": "Install from folder…",
-		"localOnly": "Open a local Vault to manage plugins.",
-		"empty": "No plugins installed.",
-		"failed": "Plugin operation failed",
-		"configure": "Configure {{name}}",
-		"remove": "Uninstall {{name}}",
-		"enable": "Enable {{name}}",
-		"saveEnable": "Save and enable",
-		"permissions": {
-			"vault:read": "Read Vault files and papers",
-			"catalog:write": "Change paper tags and read status",
-			"vault:notes:write": "Write paper notes",
-			"vault:write": "Write Vault text and move papers"
-		},
-		"cancel": "Cancel"
 	},
 	"word": {
 		"damagedField": "This citation has an empty or damaged field result. Restore the document or reinsert the citation in a copy.",

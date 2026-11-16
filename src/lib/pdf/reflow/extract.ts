@@ -72,7 +72,7 @@ function dominantStyle(chars: Character[]): CharacterStyle {
 	);
 }
 const mathFont =
-	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols))/i;
+	/(?:CMSY|CMEX|CMMI|MSAM|MSBM|Math|Symbol|STIX.*(?:Math|Symbols)|tx(?:sys|sy|mi|ex)\w*)/i;
 const mathSymbol = /[\p{Sm}\u0370-\u03ff\u1d00-\u1d7f\u2070-\u209f]/u;
 
 /** Detect visual formula islands, including adjacent scripts and punctuation. */
@@ -214,14 +214,15 @@ export function paragraphFromCharacters(
 	let baseline = box.y + style.size;
 	const flush = () => {
 		if (!island.length) return;
+		const glyphs = island.map((c) => c.visualBox);
 		const f: Formula = {
 			id: String(formulas.length),
 			text: island.map((c) => c.text).join(""),
-			box: unionBoxes(island.map((c) => c.visualBox)),
+			box: unionBoxes(glyphs),
 			characterIndexes: island.map((c) => c.index),
-			baselineOffset:
-				Math.max(...island.map((c) => c.visualBox.y + c.visualBox.h)) -
-				baseline,
+			// The snippet is drawn as an image. Its bottom must include tall
+			// delimiters/radicals that descend below the formula baseline.
+			baselineOffset: Math.max(...glyphs.map((b) => b.y + b.h)) - baseline,
 		};
 		formulas.push(f);
 		for (const c of island) membership.set(c.index, f);

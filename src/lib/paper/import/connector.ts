@@ -22,6 +22,7 @@ export async function connectorGetStatus(): Promise<ConnectorStatus> {
 			port: 23119,
 			boundAddress: null,
 			lastError: null,
+			lastErrorCode: null,
 			vaultPath: null,
 			parentDir: "papers",
 		};

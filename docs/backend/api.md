@@ -118,7 +118,6 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
   另有 `event_names_match_emit_literals` 测试断言事件名与 emit 常量一致。改任何命令签名 / 事件 payload 后必须重新生成并提交 bindings.ts。Rust 类型的文档注释也会导出并参与一致性校验，因此只修改这些注释时同样需要重新生成。
   `scanned_emit_event_names_match_registered_contract` 扫描桌面 Host、`agentero-core` 与 `agentero-mcp` 的 Rust 源码，解析跨 crate 的事件常量并核对注册集合；抽取共享事件定义时需同步维护扫描范围。
   新增事件须同时登记 `events_contract.rs` 的类型和 `registered_event_names()` 集合，以及 `bindings_test.rs` 的导出列表；仅生成 TypeScript bindings 不会覆盖事件扫描检查。
-  插件事件也纳入生成契约：`plugins:changed` 的 payload 为 `null`，`plugins:data-changed` 为 Vault 路径字符串。
 - **`_Serialize` / `_Deserialize` 拆分**：specta 对 serde 不对称表示的忠实拆分——`X_Deserialize` 是 **TS→Rust 入参**形态（`#[serde(default)]` 字段可省略），`X_Serialize` 是 **Rust→TS 出参**形态（`skip_serializing_if` 字段可缺省）。二者一致时只生成单一 `X`。命令函数与 `events.*` 的签名已内嵌正确方向的类型，**调用点无需手写这些类型名**。
 - **论文域的派生范式**：`src/lib/paper/types.ts` 不再手写 `PaperRecord` 的孪生类型，而是 `PaperMetadata = Omit<PaperRecord_Serialize, …>`、`PaperLibraryRow = PaperMetadata & { has_pdf }`（源自 `PaperListRow_Serialize`）。只窄化四处：`status` / `body_source` / `body_quality`（Rust 侧仍是 `String` 列）与 `tags`（`PaperTag` 的序列化在无色时是裸字符串）。IPC → 域模型的唯一 unchecked 折叠点是 `src/lib/paper/wire.ts::paperFromWire`。给那三列加 Rust enum（照 `PaperKind` 先例：enum + `From<&str>` + `FromSql` + 未知值兜底）即可去掉窄化，列都是 TEXT，**不需要 schema migration**。
 - **前端调用形态（迁移说明）**：bindings 导出 `commands`（camelCase 命令函数）与 `events`（`events.jobChanged.listen(cb)` 等，payload 已按事件名类型化）。返回值有两种信封：
@@ -845,7 +844,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     text: string;
     sourceLang?: string;     // default "auto"
     targetLang: string;      // e.g. "zh-CN" | "en"
-    provider?: string;       // agentero (内置；注入 key 的构建里的默认) | tencenttransmart | huoshanweb | deeplx | cnki | googleapi | google | deepl | azure | googleCloud | openaiCompatible
+    provider?: string;       // agentero (内置；注入 key 的构建里的默认) | tencenttransmart | huoshanweb | cnki | indextranslate | indextranslate2b | deepl | azure | googleCloud | openaiCompatible
     apiKey?: string | null;  // 商用 BYOK；可省略或传同长度 "*" 掩码，Host 从 settings 注入真实密钥。provider 为 agentero 时被 Host 用构建期凭证**覆写**，调用方传什么都无效
     baseUrl?: string | null; // 商用 provider endpoint override（可选）；agentero 同样被覆写
     region?: string | null;  // azure 必填
@@ -879,7 +878,8 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     listening: boolean;
     port: number;                 // 23119
     boundAddress: string | null;  // "127.0.0.1:23119"
-    lastError: string | null;
+    lastError: string | null;     // diagnostic detail; display via lastErrorCode
+    lastErrorCode: "portInUse" | "bindFailed" | "serverStopped" | "invalidPort" | null;
     vaultPath: string | null;
     parentDir: string;            // default "papers"
   };
@@ -888,7 +888,8 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 #### `connector_set_enabled`
 
 - **参数**（`args`）：`{ enabled: boolean }`
-- **返回**：`{ ok: true; data: ConnectorStatus }`（bind 失败时 `listening=false` 且 `lastError` 有文案）
+- **返回**：`{ ok: true; data: ConnectorStatus }`（首次 bind 失败时 `enabled=true`、`listening=false`，`lastError` 保留诊断详情，前端按 `lastErrorCode` 本地化）
+- **恢复**：Host 在启用期间每 5 秒重试失败的 bind / 意外停止的服务，并通过 `connector:status` 更新状态；成功清除错误，禁用或退出取消待重试任务。再次传 `enabled=true` 会立即重试，已监听时不重启。
 
 #### `connector_set_vault`
 
@@ -2520,3 +2521,7 @@ CLI 不再暴露 usage 命令；清除通过桌面端设置 / Host API 操作。
 - ~~`search:full_text`~~ → 已用 walk 式 `vault_search`（命令面板）；FTS5 / PDF 正文层仍可替换增强。
 - `reader:annotations`（历史规划；划词标注现为前端 `marks/*.json`，不经 Host command）。
 - `sync:*` 多设备同步（远期）。
+
+### 离线词典命令
+
+`dictionary_lookup(text: String, targetLang: String) -> ApiResult<Vec<DictionaryEntry>>`：桌面只读词典查询；固定资源路径，不接受调用方文件路径，返回词头、音标、中英文释义和出处。未知词返回空数组；调用方继续现有翻译管线。`translate_text` / `translate_text_stream` 的可选 `glossary` 是调用方译名约束；`dictionary`、`dictionarySurrounding`、`dictionaryReference` 用于划词模式与候选义项，不改变全文翻译输出契约。见 [翻译 Host](translate.md)。

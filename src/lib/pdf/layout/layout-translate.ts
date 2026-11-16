@@ -10,11 +10,6 @@ import { errorText } from "@/lib/core/error";
 import { callApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
-import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
-import {
-	isAlgorithmLayoutKind,
-	isLayoutTranslatableKind,
-} from "@/lib/pdf/layout/labels";
 import { parseBbox } from "@/lib/pdf/layout/layout-index";
 import {
 	draftChainSentences,
@@ -27,17 +22,15 @@ import {
 import {
 	buildLayoutTranslateChains,
 	type LayoutTranslateChain,
-	normalizeLayoutSourceText,
 } from "@/lib/pdf/layout/layout-translate-source";
-import { bboxCoveredBy } from "@/lib/pdf/layout/merge-captions";
 import { splitTranslationChunks } from "@/lib/pdf/layout/translation-chunks";
-import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	LayoutTranslateRegion,
 	LayoutTranslateSentence,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import { validReflowTranslation } from "@/lib/pdf/reflow/types";
 import {
 	evictAgentTranslateSessionId,
 	getAgentTranslateSessionId,
@@ -53,6 +46,7 @@ import {
 	restoreInlineTokens,
 } from "@/lib/translate/mask";
 import { resolveConfiguredTranslateAgent } from "@/lib/translate/resolve-agent";
+import { TERMINOLOGY_REVISION } from "@/lib/translate/terminology";
 import type {
 	CommercialTranslateProviderId,
 	TranslateProviderId,
@@ -110,6 +104,8 @@ export type LayoutTranslateCacheKey = {
 	sourceLang: string;
 	targetLang: string;
 	serviceKey: string;
+	/** Previous development key, computed from the same user configuration. Read-only. */
+	legacyServiceKey?: string;
 };
 
 export type LayoutTranslateSidecarItem = {
@@ -120,6 +116,8 @@ export type LayoutTranslateSidecarItem = {
 	readingOrder: number;
 	source: string;
 	translated: string;
+	/** Rules used to generate this block; absent for unknown historical output. */
+	terminologyRevision?: string;
 	/** Present when this block was paired sentence by sentence. */
 	sentences?: LayoutTranslateSentence[];
 };
@@ -145,85 +143,13 @@ export type LayoutTranslateWriteOptions = {
 	preserveExisting?: boolean;
 };
 
-/** Prefer body extract; fall back to caption title for headers. */
-export function layoutRegionSourceText(region: PdfLayoutRegion): string {
-	return (region.text ?? region.title ?? "").replace(/\s+/g, " ").trim();
-}
-
-/** True when most of `region` sits inside an algorithm detection box. */
-export function isInsideAlgorithmRegion(
-	region: PdfLayoutRegion,
-	algorithms: readonly PdfLayoutRegion[],
-	coverage = 0.45,
-): boolean {
-	for (const alg of algorithms) {
-		if (alg.pageIndex !== region.pageIndex) continue;
-		if (bboxCoveredBy(region.bbox, alg.bbox) >= coverage) return true;
-	}
-	return false;
-}
-
-/** "Algorithm 1" / "Alg. 2" style titles — keep original, do not translate. */
-export function isAlgorithmTitleText(text: string): boolean {
-	const t = text.trim();
-	if (!t) return false;
-	return /^(algorithm|alg\.?)\s*\d/i.test(t);
-}
-
-/** PP-DocLayoutV3 side-margin text (`aside_text` → kind text; keep raw label). */
-export function isAsideTextLayoutLabel(label: string): boolean {
-	return label.trim().toLowerCase() === "aside_text";
-}
-
-/**
- * Reading-order list of regions with extractable source text
- * (body, abstract, headers, figure/table captions).
- * Skips algorithm, aside_text, and bibliography regions and headings.
- */
-export function listTranslatableLayoutRegions(
-	regions: readonly PdfLayoutRegion[],
-	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
-): LayoutTranslateRegion[] {
-	const algorithms = regions.filter(
-		(r) => isAlgorithmLayoutKind(r.kind) && r.score >= minScore,
-	);
-	const preserved = preservedLayoutRegions(regions);
-	const out: LayoutTranslateRegion[] = [];
-	for (const r of regions) {
-		if (preserved.has(r.id)) continue;
-		// Never translate algorithm detections themselves.
-		if (isAlgorithmLayoutKind(r.kind)) continue;
-		// Side-margin / running column text (e.g. arXiv strip when labeled aside_text).
-		if (isAsideTextLayoutLabel(r.label)) continue;
-		if (!isLayoutTranslatableKind(r.kind)) continue;
-		if (!(r.score >= minScore)) continue;
-		if (!(r.bbox.w > 0 && r.bbox.h > 0)) continue;
-		// Pseudocode / lines inside an algorithm bbox stay in the original language.
-		if (isInsideAlgorithmRegion(r, algorithms)) continue;
-		const raw = layoutRegionSourceText(r);
-		const full = normalizeLayoutSourceText(raw, r.kind);
-		if (!full) continue;
-		if (isAlgorithmTitleText(full)) continue;
-		out.push({
-			id: r.id,
-			pageIndex: r.pageIndex,
-			bbox: r.bbox,
-			kind: r.kind,
-			readingOrder: r.readingOrder,
-			source: full,
-			raw,
-			...(r.sourceStyle ? { sourceStyle: r.sourceStyle } : {}),
-		});
-	}
-	out.sort(
-		(a, b) =>
-			a.pageIndex - b.pageIndex ||
-			a.readingOrder - b.readingOrder ||
-			a.bbox.y - b.bbox.y ||
-			a.bbox.x - b.bbox.x,
-	);
-	return out;
-}
+export {
+	isAlgorithmTitleText,
+	isAsideTextLayoutLabel,
+	isInsideAlgorithmRegion,
+	layoutRegionSourceText,
+	listTranslatableLayoutRegions,
+} from "@/lib/pdf/layout/translatable";
 
 export function toLayoutTranslateItems(
 	regions: readonly LayoutTranslateRegion[],
@@ -256,8 +182,19 @@ function promptFingerprint(prompt: string): string {
  * `layout-translate.json` caches survive upgrades.
  */
 export function translateServiceKey(settings: TranslateSettings): string {
+	return buildTranslateServiceKey(settings);
+}
+
+// Read files already generated by the current development build (#1137).
+const PREVIOUS_TERMINOLOGY_REVISION = "ai-abc74818-ecdict-bc015ed-compounds-v4";
+
+function buildTranslateServiceKey(
+	settings: TranslateSettings,
+	terminologyRevision = "",
+): string {
 	const providerId = settings.provider;
 	const promptSource = [
+		terminologyRevision,
 		settings.customPrompt,
 		settings.customSystem,
 		settings.customUser,
@@ -308,6 +245,10 @@ export function currentLayoutTranslateCacheKey(): LayoutTranslateCacheKey {
 		sourceLang: langs.sourceLang,
 		targetLang: langs.targetLang,
 		serviceKey: translateServiceKey(settings.translate),
+		legacyServiceKey: buildTranslateServiceKey(
+			settings.translate,
+			PREVIOUS_TERMINOLOGY_REVISION,
+		),
 	};
 }
 
@@ -319,7 +260,7 @@ function sameLayoutTranslateCacheKey(
 		a.providerId === b.providerId &&
 		a.sourceLang === b.sourceLang &&
 		a.targetLang === b.targetLang &&
-		a.serviceKey === b.serviceKey
+		(a.serviceKey === b.serviceKey || a.serviceKey === b.legacyServiceKey)
 	);
 }
 
@@ -395,6 +336,8 @@ function parseLayoutTranslateSidecarItem(
 		source,
 		translated,
 	};
+	if (typeof value.terminologyRevision === "string")
+		item.terminologyRevision = value.terminologyRevision;
 	const sentences = parseSidecarSentences(value.sentences);
 	if (sentences) item.sentences = sentences;
 	return item;
@@ -430,7 +373,16 @@ export function parseLayoutTranslateSidecar(
 	if (expectedKey && !sameLayoutTranslateCacheKey(key, expectedKey))
 		return null;
 	if (!Array.isArray(raw.items)) return null;
-	const items = raw.items.map(parseLayoutTranslateSidecarItem);
+	const legacyRevision =
+		serviceKey === expectedKey?.legacyServiceKey
+			? PREVIOUS_TERMINOLOGY_REVISION
+			: undefined;
+	const items = raw.items.map((value) => {
+		const item = parseLayoutTranslateSidecarItem(value);
+		if (item && !item.terminologyRevision && legacyRevision)
+			item.terminologyRevision = legacyRevision;
+		return item;
+	});
 	if (items.some((item) => !item)) return null;
 	return {
 		schemaVersion: LAYOUT_TRANSLATE_SIDECAR_SCHEMA_VERSION,
@@ -469,6 +421,17 @@ export function applyLayoutTranslateSidecar(
 	return items.map((item) => {
 		const cached = byId.get(item.id);
 		if (!cached || cached.source !== item.source) return { ...item };
+		if (
+			item.reflow &&
+			!validReflowTranslation(item.reflow, cached.translated.trim())
+		)
+			return {
+				...item,
+				status: "pending" as const,
+				translated: undefined,
+				sentences: undefined,
+				error: undefined,
+			};
 		if (options?.requireReflowSentencePairs && item.reflow) {
 			const drafts = draftReflowSentences(item.reflow);
 			if (
@@ -492,6 +455,7 @@ export function applyLayoutTranslateSidecar(
 			status: "done" as const,
 			translated: cached.translated.trim(),
 			sentences: cached.sentences,
+			terminologyRevision: cached.terminologyRevision,
 			error: undefined,
 		};
 	});
@@ -581,15 +545,16 @@ export async function writeLayoutTranslateSidecar(
 				source: item.source,
 				translated: item.translated?.trim() ?? "",
 			};
+			if (item.terminologyRevision)
+				written.terminologyRevision = item.terminologyRevision;
 			const sentences = sidecarSentences(item.sentences);
 			if (sentences) written.sentences = sentences;
 			return written;
 		});
 	const merged = new Map<string, LayoutTranslateSidecarItem>();
-	if (
-		options.preserveExisting &&
-		(!isTauri() || paperAbsPath.startsWith("remote:"))
-	) {
+	// Include compatible historical keys before the Host atomically merges writes
+	// under the new stable key, including page-only completion of an old file.
+	if (options.preserveExisting) {
 		const existing = await readLayoutTranslateSidecar(paperAbsPath, key);
 		for (const item of existing?.items ?? []) {
 			merged.set(item.id, item);
@@ -1034,7 +999,20 @@ export async function runLayoutRegionTranslate(options: {
 			});
 		});
 	}
-	const batches = buildTranslateBatches(units);
+	const compareUnits = (a: SentenceUnit, b: SentenceUnit) =>
+		a.job.chain.members[0].pageIndex - b.job.chain.members[0].pageIndex ||
+		a.job.chain.members[0].readingOrder - b.job.chain.members[0].readingOrder;
+	// Keep payloads intact so page priority cannot increase request count.
+	// A batch can straddle late detected blocks and early-page IR backfills.
+	const batches = buildTranslateBatches(units)
+		.map((batch) => ({
+			batch,
+			first: batch.reduce((first, unit) =>
+				compareUnits(first, unit) <= 0 ? first : unit,
+			),
+		}))
+		.sort((a, b) => compareUnits(a.first, b.first))
+		.map(({ batch }) => batch);
 	let nextBatch = 0;
 	/** Consecutive transport failures; a success proves the endpoint is alive. */
 	let transportFailures = 0;
@@ -1276,6 +1254,7 @@ export async function runLayoutRegionTranslate(options: {
 				member.translated = paint.translated;
 				member.sentences = paint.sentences;
 				member.status = "done";
+				member.terminologyRevision = TERMINOLOGY_REVISION;
 				member.error = undefined;
 				return;
 			}

@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { scheduleIdle } from "@/lib/core/idle";
@@ -172,6 +173,22 @@ export async function loadTabResources(
 		return {
 			kind: "library",
 			title: "Library",
+			mode: "markdown",
+			paperMeta: null,
+			pdfUrl: null,
+			htmlUrl: null,
+			imageUrl: null,
+			notesPath: null,
+			notesSeed: "",
+			markdownSeed: "",
+			loaded: true,
+		};
+	}
+	// Zen is a virtual Agent workspace: no filesystem probe.
+	if (isZenVirtualPath(path)) {
+		return {
+			kind: "zen",
+			title: i18n.t("sidebar:zen.title"),
 			mode: "markdown",
 			paperMeta: null,
 			pdfUrl: null,

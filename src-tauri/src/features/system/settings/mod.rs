@@ -303,6 +303,12 @@ pub struct DecisionSettings {
     /// Whether the experimental smart-highlight toolbar action is enabled.
     #[serde(default)]
     pub smart_highlight: bool,
+    /// How many smart-highlight batches may be in flight. One of 1, 2, 4, 16.
+    #[serde(default = "default_smart_highlight_concurrency")]
+    pub smart_highlight_concurrency: u32,
+    /// Seconds for one smart-highlight batch, starting when its request is sent.
+    #[serde(default = "default_smart_highlight_timeout_secs")]
+    pub smart_highlight_timeout_secs: u32,
 }
 
 impl Default for DecisionSettings {
@@ -313,8 +319,22 @@ impl Default for DecisionSettings {
             base_url: default_decision_base_url(),
             model: default_decision_model(),
             smart_highlight: false,
+            smart_highlight_concurrency: default_smart_highlight_concurrency(),
+            smart_highlight_timeout_secs: default_smart_highlight_timeout_secs(),
         }
     }
+}
+
+const SMART_HIGHLIGHT_CONCURRENCY_CHOICES: &[u32] = &[1, 2, 4, 16];
+const SMART_HIGHLIGHT_TIMEOUT_MIN_SECS: u32 = 30;
+const SMART_HIGHLIGHT_TIMEOUT_MAX_SECS: u32 = 600;
+
+fn default_smart_highlight_concurrency() -> u32 {
+    16
+}
+
+fn default_smart_highlight_timeout_secs() -> u32 {
+    120
 }
 
 /// Embedding endpoint: the built-in provider, or a custom OpenAI-compatible
@@ -346,6 +366,8 @@ pub struct LibraryColumnPref {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslateSettings {
+    #[serde(default)]
+    pub dictionary: DictionarySettings,
     #[serde(default = "default_translate_provider")]
     pub provider: String,
     #[serde(default = "default_translate_target")]
@@ -399,6 +421,7 @@ pub struct TranslateSettings {
 impl Default for TranslateSettings {
     fn default() -> Self {
         Self {
+            dictionary: DictionarySettings::default(),
             provider: default_translate_provider(),
             target_lang: default_translate_target(),
             source_lang: default_translate_source(),
@@ -416,6 +439,24 @@ impl Default for TranslateSettings {
             cache_reflow_final: false,
             auto_translate_import: false,
             auto_translate_import_concurrency: default_auto_translate_import_concurrency(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
+pub struct DictionarySettings {
+    #[serde(default = "default_dictionary_mode")]
+    pub mode: String,
+}
+
+fn default_dictionary_mode() -> String {
+    "auto".into()
+}
+
+impl Default for DictionarySettings {
+    fn default() -> Self {
+        Self {
+            mode: default_dictionary_mode(),
         }
     }
 }
@@ -1052,6 +1093,20 @@ impl AppSettingsStore {
         })
     }
 
+    /// Smart-highlight concurrency and per-batch timeout, after normalization.
+    pub fn smart_highlight_limits(&self) -> (u32, u32) {
+        let Ok(guard) = self.inner.lock() else {
+            return (
+                default_smart_highlight_concurrency(),
+                default_smart_highlight_timeout_secs(),
+            );
+        };
+        (
+            guard.decision.smart_highlight_concurrency,
+            guard.decision.smart_highlight_timeout_secs,
+        )
+    }
+
     /// Raw `(tunnel_id, api_key)` for the built-in ChatGPT tunnel supervisor.
     /// Returns None unless both are set; a UI mask counts as unset so a
     /// `settings_get` → `settings_set` round-trip never leaks or wipes the key.
@@ -1316,8 +1371,21 @@ fn normalize(s: &mut AppSettings) {
     if s.decision.model.is_empty() && s.decision.provider == "jev" {
         s.decision.model = default_decision_model();
     }
+    if !SMART_HIGHLIGHT_CONCURRENCY_CHOICES.contains(&s.decision.smart_highlight_concurrency) {
+        s.decision.smart_highlight_concurrency = default_smart_highlight_concurrency();
+    }
+    s.decision.smart_highlight_timeout_secs = s.decision.smart_highlight_timeout_secs.clamp(
+        SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
+        SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+    );
     if s.batch_import_concurrency < 1 || s.batch_import_concurrency > 10 {
         s.batch_import_concurrency = default_batch_import_concurrency();
+    }
+    if !matches!(
+        s.translate.dictionary.mode.as_str(),
+        "auto" | "offline-first" | "off"
+    ) {
+        s.translate.dictionary.mode = default_dictionary_mode();
     }
     if s.translate.auto_translate_import_concurrency < 1
         || s.translate.auto_translate_import_concurrency > MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY
@@ -1899,7 +1967,7 @@ mod tests {
             commercial_provider_settings_key("openaiCompatible"),
             Some("openaiCompatible")
         );
-        assert_eq!(commercial_provider_settings_key("deeplx"), None);
+        assert_eq!(commercial_provider_settings_key("cnki"), None);
     }
 
     #[test]
@@ -2443,6 +2511,29 @@ mod tests {
     }
 
     #[test]
+    fn smart_highlight_limits_keep_supported_values() {
+        let mut settings = AppSettings::default();
+        assert_eq!(settings.decision.smart_highlight_concurrency, 16);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 120);
+
+        settings.decision.smart_highlight_concurrency = 3;
+        settings.decision.smart_highlight_timeout_secs = 9;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_concurrency, 16);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 30);
+
+        settings.decision.smart_highlight_concurrency = 4;
+        settings.decision.smart_highlight_timeout_secs = 300;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_concurrency, 4);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 300);
+
+        settings.decision.smart_highlight_timeout_secs = 9_000;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 600);
+    }
+
+    #[test]
     fn decision_config_never_returns_masked_key() {
         let store = AppSettingsStore::for_tests(AppSettings {
             decision: DecisionSettings {
@@ -2451,6 +2542,8 @@ mod tests {
                 base_url: "https://jev.test/v1".into(),
                 model: "jev-latest".into(),
                 smart_highlight: false,
+                smart_highlight_concurrency: 16,
+                smart_highlight_timeout_secs: 120,
             },
             ..AppSettings::default()
         });
@@ -2471,6 +2564,8 @@ mod tests {
                 base_url: "https://jev.test/v1".into(),
                 model: "jev-latest".into(),
                 smart_highlight: false,
+                smart_highlight_concurrency: 16,
+                smart_highlight_timeout_secs: 120,
             },
             ..AppSettings::default()
         });
@@ -2507,6 +2602,33 @@ mod tests {
             assert!(existed);
             assert_eq!(loaded.layout.parser_backend, "local");
             assert_eq!(loaded.layout.backend, layout_backend);
+        }
+    }
+
+    #[test]
+    fn dictionary_modes_preserve_settings_and_default_legacy_values() {
+        for (raw, expected) in [
+            (serde_json::json!({}), "auto"),
+            (
+                serde_json::json!({"dictionary": {"mode": "unknown"}}),
+                "auto",
+            ),
+            (
+                serde_json::json!({"dictionary": {"mode": "offline-first"}}),
+                "offline-first",
+            ),
+            (serde_json::json!({"dictionary": {"mode": "off"}}), "off"),
+        ] {
+            let mut app = AppSettings {
+                translate: serde_json::from_value(raw).unwrap(),
+                ..AppSettings::default()
+            };
+            normalize(&mut app);
+            let settings = app.translate;
+            assert_eq!(settings.dictionary.mode, expected);
+            let encoded = serde_json::to_value(&settings).unwrap();
+            let restored: TranslateSettings = serde_json::from_value(encoded).unwrap();
+            assert_eq!(restored, settings);
         }
     }
 

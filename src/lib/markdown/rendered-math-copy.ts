@@ -1,8 +1,9 @@
 import { copyTextToClipboard } from "@/lib/core/clipboard";
+import {
+	RENDERED_MATH_SELECTOR,
+	renderedMathSource,
+} from "@/lib/markdown/rendered-math";
 
-/** KaTeX keeps the original TeX source in this hidden annotation node. */
-const KATEX_SELECTOR = ".katex";
-const KATEX_ANNOTATION = 'annotation[encoding="application/x-tex"]';
 /** Temporary marker copied into the selection fragment to preserve display mode. */
 const COPY_DISPLAY_ATTR = "data-agentero-copy-display";
 
@@ -43,12 +44,6 @@ const BLOCK_TAGS = new Set([
 	"TR",
 	"UL",
 ]);
-
-export function katexTexFromNode(node: Element): string | null {
-	const annotation = node.querySelector(KATEX_ANNOTATION);
-	const tex = annotation?.textContent;
-	return tex?.trim() ? tex : null;
-}
 
 function isDisplayMath(node: Element): boolean {
 	return (
@@ -104,7 +99,7 @@ function expandRangeToMath(
 	doc: Document,
 ): { range: Range; hits: Element[] } {
 	const expanded = range.cloneRange();
-	const hits = Array.from(doc.querySelectorAll(KATEX_SELECTOR)).filter(
+	const hits = Array.from(doc.querySelectorAll(RENDERED_MATH_SELECTOR)).filter(
 		(katex) => range.intersectsNode(katex),
 	);
 	for (const katex of hits) {
@@ -148,12 +143,14 @@ export function renderedMathClipboardText(
 	} finally {
 		for (const katex of expanded.hits) katex.removeAttribute(COPY_DISPLAY_ATTR);
 	}
-	const katexNodes = Array.from(fragment.querySelectorAll(KATEX_SELECTOR));
+	const katexNodes = Array.from(
+		fragment.querySelectorAll(RENDERED_MATH_SELECTOR),
+	);
 	if (katexNodes.length === 0) return null;
 
 	let replaced = 0;
 	for (const katex of katexNodes) {
-		const tex = katexTexFromNode(katex)?.trim();
+		const tex = renderedMathSource(katex);
 		if (!tex) continue;
 		const replacement = isDisplayMath(katex)
 			? `\n$$\n${tex}\n$$\n`
@@ -243,10 +240,11 @@ function installMathClickCopy(doc: Document): void {
 		const button = target.closest("[data-math-copy-button]");
 		if (
 			!button &&
-			(!doc.getSelection()?.isCollapsed || !target.closest(KATEX_SELECTOR))
+			(!doc.getSelection()?.isCollapsed ||
+				!target.closest(RENDERED_MATH_SELECTOR))
 		)
 			return;
-		const tex = wrapper.dataset.mathCopyTex ?? katexTexFromNode(wrapper);
+		const tex = wrapper.dataset.mathCopyTex ?? renderedMathSource(wrapper);
 		if (!tex?.trim()) return;
 		const copied = await copyTextToClipboard(tex, {
 			errorMessage: wrapper.dataset.mathCopyError,

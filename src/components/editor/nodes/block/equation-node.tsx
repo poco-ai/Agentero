@@ -76,7 +76,7 @@ function useCachedEquationElement({
 	// the document shake.
 	const boxRef = React.useRef({ width: 0, height: 0 });
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: katexRef is a stable DOM container; only the TeX source should trigger re-render.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: katexRef is a stable DOM container; only TeX changes and mode switches that move it should trigger re-render.
 	useEffect(() => {
 		const container = katexRef.current;
 		if (!container) return;

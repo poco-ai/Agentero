@@ -301,6 +301,7 @@ export const WikiAnnotationEmbed = memo(function WikiAnnotationEmbed({
 				translation={pairedTranslation && !isVisual ? pairedTranslation : null}
 				locationLabel={locationLabel}
 				color={color}
+				shape={ref.shape}
 				showSwatch={!isVisual}
 				textClassName={EMBED_SOURCE_TEXT}
 			/>

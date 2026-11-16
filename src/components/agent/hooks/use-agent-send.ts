@@ -39,9 +39,9 @@ import {
 } from "@/lib/agent";
 import {
 	type AgentTurnRequest,
-	agentSessionStore,
 	isActiveTabRunning,
 	useAgentSessionStore,
+	useAgentSessionStoreApi,
 } from "@/lib/agent/agent-session-store";
 import {
 	planAnnotationRefs,
@@ -284,6 +284,7 @@ export function useAgentSend({
 	},
 }: UseAgentSendOptions): AgentSend {
 	// Store-direct values (single source of truth for the transcript).
+	const sessionStore = useAgentSessionStoreApi();
 	const setLines = useAgentSessionStore((s) => s.setLines);
 	const setSessionHistory = useAgentSessionStore((s) => s.setSessions);
 	const setActiveTabId = useAgentSessionStore((s) => s.setActiveTabId);
@@ -1034,7 +1035,7 @@ export function useAgentSend({
 		}) => {
 			const toolCallId = input.toolCallId?.trim();
 			if (!toolCallId) return;
-			agentSessionStore.getState().updateSessionLines(input.sessionId, (prev) =>
+			sessionStore.getState().updateSessionLines(input.sessionId, (prev) =>
 				applyToolToLines(prev, {
 					id: toolCallId,
 					...(input.cancelled ? {} : { status: "completed" }),
@@ -1046,7 +1047,7 @@ export function useAgentSend({
 				}),
 			);
 		},
-		[],
+		[sessionStore],
 	);
 
 	const removeQueuedMessage = useCallback((id: string) => {
@@ -1118,7 +1119,7 @@ export function useAgentSend({
 	useEffect(() => {
 		const handler = async (req: AgentTurnRequest): Promise<boolean> => {
 			const ctx = externalTurnCtxRef.current;
-			const store = agentSessionStore.getState();
+			const store = sessionStore.getState();
 			let existing = req.visualTraceId
 				? store.findByVisualTraceId(req.visualTraceId)
 				: undefined;
@@ -1207,7 +1208,7 @@ export function useAgentSend({
 			}
 			setHistoryOpen(false);
 			// Keep ref in sync before send (upsert may not have flushed React yet).
-			sessionHistoryRef.current = agentSessionStore.getState().sessions;
+			sessionHistoryRef.current = sessionStore.getState().sessions;
 			return sendRef.current(req.text, {
 				visualDrafts: req.visualDrafts,
 				images: req.images,
@@ -1220,9 +1221,9 @@ export function useAgentSend({
 				...(req.modelId ? { modelId: req.modelId } : {}),
 			});
 		};
-		agentSessionStore.getState().registerSendHandler(handler);
+		sessionStore.getState().registerSendHandler(handler);
 		return () => {
-			agentSessionStore.getState().registerSendHandler(null);
+			sessionStore.getState().registerSendHandler(null);
 		};
 		// Register once — handler reads sendRef / externalTurnCtxRef for latest.
 		// Stable store setters only; handler body uses refs for everything else.
@@ -1235,6 +1236,7 @@ export function useAgentSend({
 		activeTabRef,
 		selectedAgentIdRef,
 		sessionHistoryRef,
+		sessionStore,
 	]);
 
 	/**

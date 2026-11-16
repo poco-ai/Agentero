@@ -14,10 +14,11 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-const BATCH_SIZE: usize = 32;
-const JEV_CONCURRENCY: usize = 16;
+/// Cloudflare Clef rejects a `questions` object with more than 64 entries.
+const MAX_QUESTIONS_PER_REQUEST: usize = 64;
 const MIN_SENTENCE_LEN: usize = 40;
 const MAX_SENTENCE_LEN: usize = 250;
 const SCORE_THRESHOLD: f64 = 2.0;
@@ -71,6 +72,32 @@ const DIMS: [(&str, &str, &str); 5] = [
 ];
 
 const COLOR_PRIORITY: [&str; 5] = ["method", "novelty", "effect", "claim", "limitation"];
+
+/// How a smart-highlight pass may load the decision endpoint.
+#[derive(Debug, Clone, Copy)]
+pub struct SmartHighlightLimits {
+    /// Batches allowed in flight. Waiting batches are not polled, so their
+    /// HTTP timeout has not started.
+    pub concurrency: usize,
+    /// Deadline for one batch, measured from when its request is sent.
+    pub request_timeout: Duration,
+}
+
+impl Default for SmartHighlightLimits {
+    fn default() -> Self {
+        Self {
+            concurrency: 16,
+            request_timeout: Duration::from_secs(120),
+        }
+    }
+}
+
+/// Sentences that fit in one request. Each sentence asks one score question
+/// per dimension, and the request must stay at or under
+/// [`MAX_QUESTIONS_PER_REQUEST`].
+fn sentences_per_request() -> usize {
+    (MAX_QUESTIONS_PER_REQUEST / DIMS.len()).max(1)
+}
 
 /// Best-effort sentence extraction from a paper's PDF, including each
 /// sentence's on-page geometry so a second locate pass is unnecessary.
@@ -210,6 +237,7 @@ async fn jev_suggest_highlights_impl<F: FnMut(usize, usize) + Send>(
     provider: Arc<SystemOneProvider>,
     pdf_path: &Path,
     title: &str,
+    limits: SmartHighlightLimits,
     cancel_token: &CancellationToken,
     on_progress: F,
 ) -> Result<Vec<SuggestedHighlight>, AppError> {
@@ -218,13 +246,17 @@ async fn jev_suggest_highlights_impl<F: FnMut(usize, usize) + Send>(
         return Err(AppError::message("jevNoReadableText"));
     }
 
-    let total_batches = sentences.chunks(BATCH_SIZE).len();
+    let batch_size = sentences_per_request();
+    let total_batches = sentences.chunks(batch_size).len();
     let on_progress = std::sync::Arc::new(std::sync::Mutex::new(on_progress));
     let completed_batches = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let concurrency = limits.concurrency.max(1);
 
-    // Phase 1: score all sentences in concurrent batches.
+    // Phase 1: score sentences in batches that stay under the question cap.
+    // `buffer_unordered` polls only `concurrency` futures, so a batch waiting
+    // for a slot has not called `send` and is not on the request timeout.
     let batches: Vec<(usize, Vec<Sentence>)> = sentences
-        .chunks(BATCH_SIZE)
+        .chunks(batch_size)
         .enumerate()
         .map(|(idx, chunk)| (idx, chunk.to_vec()))
         .collect();
@@ -253,7 +285,9 @@ async fn jev_suggest_highlights_impl<F: FnMut(usize, usize) + Send>(
                     "questions": questions,
                 });
 
-                let resp = provider.complete(request).await?;
+                let resp = provider
+                    .complete_with_timeout(request, Some(limits.request_timeout))
+                    .await?;
                 let answers = resp
                     .get("answers")
                     .and_then(|a| a.as_object())
@@ -286,7 +320,7 @@ async fn jev_suggest_highlights_impl<F: FnMut(usize, usize) + Send>(
                 Ok::<_, AppError>((batch_index, decisions))
             }
         })
-        .buffer_unordered(JEV_CONCURRENCY)
+        .buffer_unordered(concurrency)
         .try_collect()
         .await?;
 
@@ -336,8 +370,43 @@ pub async fn jev_suggest_highlights_with_progress<F: FnMut(usize, usize) + Send>
     provider: &Arc<SystemOneProvider>,
     pdf_path: &Path,
     title: &str,
+    limits: SmartHighlightLimits,
     cancel_token: &CancellationToken,
     on_progress: F,
 ) -> Result<Vec<SuggestedHighlight>, AppError> {
-    jev_suggest_highlights_impl(provider.clone(), pdf_path, title, cancel_token, on_progress).await
+    jev_suggest_highlights_impl(
+        provider.clone(),
+        pdf_path,
+        title,
+        limits,
+        cancel_token,
+        on_progress,
+    )
+    .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sentence(id: &str) -> Sentence {
+        Sentence {
+            id: id.to_string(),
+            text: "x".repeat(MIN_SENTENCE_LEN),
+            page: 1,
+            rects: Vec::new(),
+            page_width: 1.0,
+            page_height: 1.0,
+        }
+    }
+
+    #[test]
+    fn each_highlight_batch_stays_within_the_question_cap() {
+        let size = sentences_per_request();
+        let sentences: Vec<Sentence> = (0..size).map(|i| sentence(&format!("s{i}"))).collect();
+        let questions = build_questions(&sentences);
+        assert_eq!(questions.len(), size * DIMS.len());
+        assert!(questions.len() <= MAX_QUESTIONS_PER_REQUEST);
+        assert!((size + 1) * DIMS.len() > MAX_QUESTIONS_PER_REQUEST);
+    }
 }

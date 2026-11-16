@@ -45,7 +45,7 @@
 - **折叠 = 进度圆环**；**悬停约 400ms 或点击圆环 → 详情列表**；**指针离开约 100ms 后收回圆环**（不常驻详情 Toast）。展开/收起沿左下角 `origin-bottom-left` 做 opacity + scale（200ms，无 bounce）；`prefers-reduced-motion` 下仅短淡入淡出。
 - 圆环使用不透明 `bg-background` 圆盘 + `ring-1 ring-border`（不用 border，避免内容区缩小导致圆环与底盘错位）+ 轨道（`muted-foreground/30`）与进度弧（`primary` / 失败 destructive / 完成 emerald）；中心图标用 `foreground`。按下 `active:scale-[0.96]`。避免浅色模式下底层内容透出或轨道过浅。
 - **完成态**：全部任务结束后圆环合并为满环（100%），成功时播放短暂合并/勾选动画（`task-ring-success-*`）；失败为满环 + destructive。进行中无数值进度时短弧旋转（indeterminate），不把完成态画成未闭合短弧；`prefers-reduced-motion` 下不轮换圆环中心 progress/icon。
-- 新任务 / 打开页面不自动展开。任务失败时短暂展开详情，未悬停约 5s 后收回；进行中可取消，可清除已完成。
+- 新任务 / 打开页面不自动展开。任务失败时短暂展开详情，未悬停约 5s 后收回；进行中可取消。结束的任务留在进行中任务下方，直到用户点「清除已完成」；列表显示最近 6 条，不跨重启保存，也不提供逐条删除。
 - 论文资源下载的总体进度由 **Host 侧聚合**：PDF 与 TeX 并发下载，两条流的字节合并成一个 `downloadedBytes` / `totalBytes` 后经 `job:progress`（`phase` = `assets`）写回同一行，前端 `mapDownloadProgress` 只做 clamp。这样先下完的一条流不会把进度条钉在 100%，纯 PDF（无 TeX 流）的入库也能走满 0–100%。
 - 版面解析 / 引用解析 / 正文解析 / 资源下载 / 元数据识别 / 论文导入（魔棒、本地 PDF、Skill、广场、Cool Papers）/ Connector 附件保存 / 库级批量操作（引用扫描、书目导入导出、批量元数据刷新）/ 版面模型下载由 JobCenter 投影到任务条（前端门面 `src/lib/core/tasks.ts`，投影/执行器桥接在其内部模块 `job-center.ts`）。取消走 `job_cancel`；迟到的 `running` 事件不得把已取消/已完成的行复活。魔棒弹层只负责提交标识符，入队后即关闭；进行中的导入统一在左下角任务条查看/取消。
 - 导入与 Connector 是 Renderer-host job：Rust 只负责调度（并发、去重、取消），编排在渲染端执行器里（`src/lib/paper/import/import-tasks.ts` 按 `params.mode` 分发；`connector-tasks.ts` 把 `connector:progress` 中继成 job）。库级批量操作同理（`src/lib/paper/library-tasks.ts`：`citingScan` / `libraryIo` 按 `params.op` / `metadataRefresh` 按 `params.papers` 逐项上报 N/M）。job id 同时作为 Host 的 `task_id`：字节/批次进度经 `job:progress`（`taskId` = job id）由投影层写回面板行，协作取消由 JobCenter 的 cancel token 按 task id 索引（`features::jobs::is_task_cancelled`，注入为 `agentero_core::cancel` 探针）。版面模型下载（`modelDownload`）是 Host runner job：全局资源、cap 1，重复触发按 fingerprint 合并。
@@ -100,8 +100,6 @@ macOS 原生菜单在启动及设置保存后读取 `shortcutOverrides`，菜单
 上表列出默认绑定；「设置 → 快捷键」支持修改、清除与恢复，工具栏提示及原生菜单随配置更新。
 
 前端快捷键绑定：`src/lib/shell/shortcuts.ts`；macOS 原生全屏由 `src-tauri/src/app/menu.rs` 的预定义菜单项处理。PDF、Markdown 编辑器及查找替换栏共用 `isFindShortcut`，macOS 仅 `⌘F`（不含 Ctrl / Shift / Alt）触发搜索，避免 `⌃⌘F` 误打开搜索或抢走搜索栏焦点；Windows/Linux 保留 `Ctrl+F`。Markdown 源码视图由 CodeMirror 处理查找与替换。文案 i18n 见 [settings.md](settings.md)。
-
-桌面设置里的「插件」入口、命令面板里的开发插件加载，以及打开 Vault 后的自动激活目前先隐藏。开关在 `src/lib/plugins/visibility.ts` 的 `pluginsSurfaceEnabled`；设置页、命令和宿主启动代码都还在，后端安装与执行路径未删。改回 `true` 后，「设置 → 插件」继续管理本地安装、按 Vault 授权及配置。插件通过命令 registry 和三个菜单贡献位接入；菜单点击传入对象上下文，切换 Vault 时撤销注册和在途调用。开发版另提供临时只读目录加载。详见 [本地插件系统](../backend/plugins.md)。
 
 命令与菜单共享的 `MenuContext` 定义在 `src/lib/shell/commands/types.ts`，菜单模块保留类型再导出供现有调用方使用。类型模块不引用菜单实现，避免与命令 registry 形成循环依赖；`pnpm deps:check` 会检查这类依赖环。
 

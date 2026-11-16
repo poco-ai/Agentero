@@ -1,4 +1,4 @@
-import { ExternalLink, Info, RotateCcw } from "lucide-react";
+import { Check, ExternalLink, Info, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -34,6 +34,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { BUILTIN_PROVIDER_ID } from "@/lib/core/builtin";
 import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
@@ -69,6 +70,7 @@ import {
 	DEFAULT_TRANSLATE_SETTINGS,
 	EMPTY_TRANSLATE_PROVIDER_CONFIG,
 } from "@/lib/translate/defaults";
+import { clearDictionaryCache } from "@/lib/translate/dictionary-cache";
 import { extraRequestBodyIssue } from "@/lib/translate/request-options";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 
@@ -112,13 +114,33 @@ export function TranslatePane({
 	settings,
 	patch,
 	onOpenAgentSettings,
+	vaultPath,
 }: {
 	settings: AppSettings;
+	vaultPath?: string | null;
 	patch: (p: Partial<AppSettings>) => void;
 	onOpenAgentSettings?: () => void;
 }) {
 	const { t } = useTranslation("settings");
 	const tr = settings.translate;
+	const [dictionaryCacheState, setDictionaryCacheState] = useState<
+		"idle" | "clearing" | "cleared"
+	>("idle");
+	useEffect(() => {
+		if (dictionaryCacheState !== "cleared") return;
+		const timer = setTimeout(() => setDictionaryCacheState("idle"), 1500);
+		return () => clearTimeout(timer);
+	}, [dictionaryCacheState]);
+	const clearLookupCache = async () => {
+		setDictionaryCacheState("clearing");
+		try {
+			await clearDictionaryCache(vaultPath);
+			setDictionaryCacheState("cleared");
+		} catch {
+			setDictionaryCacheState("idle");
+			notifyError(t("translate.cache.dictionary.clearFailed"));
+		}
+	};
 	const storedSystem = tr.customSystem || tr.customPrompt;
 	const [systemDraft, setSystemDraft] = useState(storedSystem);
 	const [userDraft, setUserDraft] = useState(tr.customUser);
@@ -137,12 +159,11 @@ export function TranslatePane({
 			patch({ translate: { ...tr, ...partial } }),
 		[patch, tr],
 	);
-	// The built-in channel stays implemented, but it is no longer offered here.
-	// A stored selection is moved to the free default so the picker is not blank.
 	useEffect(() => {
-		if (tr.provider !== BUILTIN_PROVIDER_ID) return;
-		patchTranslate({ provider: DEFAULT_TRANSLATE_SETTINGS.provider });
-	}, [tr.provider, patchTranslate]);
+		if (!accountSurfaceEnabled && tr.provider === BUILTIN_PROVIDER_ID) {
+			patchTranslate({ provider: DEFAULT_TRANSLATE_SETTINGS.provider });
+		}
+	}, [patchTranslate, tr.provider]);
 	const showAgent = tr.provider === "agent";
 	const getProviderConfig = useCallback(
 		(id: CommercialTranslateProviderId): TranslateProviderConfig =>
@@ -150,13 +171,12 @@ export function TranslatePane({
 		[tr.providerConfigs],
 	);
 	/**
-	 * Free MT + Agent always; commercial only when configured (or currently
-	 * selected). The built-in channel is omitted from this picker.
+	 * Free MT and Agent always; hosted Agentero only in account-enabled builds;
+	 * commercial only when configured (or currently selected).
 	 */
 	const providers = useMemo(
 		() =>
 			listSelectableProviders().filter((s) => {
-				if (s.id === BUILTIN_PROVIDER_ID) return false;
 				if (!isCommercialTranslateProvider(s.id)) return true;
 				if (tr.provider === s.id) return true;
 				return isCommercialProviderConfigured(s.id, getProviderConfig(s.id));
@@ -420,7 +440,7 @@ export function TranslatePane({
 											) : null}
 											<span className="truncate">
 												{t(
-													`translate.provider.${s.nameKey}` as "translate.provider.google",
+													`translate.provider.${s.nameKey}` as "translate.provider.tencenttransmart",
 												)}
 											</span>
 										</span>
@@ -449,6 +469,37 @@ export function TranslatePane({
 						</SelectContent>
 					</Select>
 				</SettingsRow>
+				<SettingsRow
+					label={t("translate.dictionaryMode.label")}
+					description={t(
+						`translate.dictionaryMode.${tr.dictionary.mode}Description`,
+					)}
+				>
+					<Select
+						value={tr.dictionary.mode}
+						onValueChange={(value) =>
+							patchTranslate({
+								dictionary: {
+									mode:
+										value === "off" || value === "offline-first"
+											? value
+											: "auto",
+								},
+							})
+						}
+					>
+						<SelectTrigger size="sm" className="min-w-[160px] max-w-[220px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{(["auto", "offline-first", "off"] as const).map((mode) => (
+								<SelectItem key={mode} value={mode}>
+									{t(`translate.dictionaryMode.${mode}`)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</SettingsRow>
 				<SettingsRow label={t("translate.displayMode.label")}>
 					<Select
 						value={tr.displayMode}
@@ -472,6 +523,10 @@ export function TranslatePane({
 					</Select>
 				</SettingsRow>
 			</SettingsGroup>
+
+			<p className="mt-4 text-caption text-muted-foreground">
+				{t("translate.dictionaryIncluded")}
+			</p>
 
 			<SettingsSectionLabel className="mt-4">
 				{t("translate.autoTranslation.section")}
@@ -570,6 +625,28 @@ export function TranslatePane({
 				</div>
 				<SettingsGroup>
 					<SettingsRow
+						label={t("translate.cache.dictionary.label")}
+						description={t("translate.cache.dictionary.description")}
+					>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={dictionaryCacheState === "clearing"}
+							onClick={() => void clearLookupCache()}
+						>
+							{dictionaryCacheState === "cleared" ? (
+								<Check className="size-3.5" />
+							) : (
+								<Trash2 className="size-3.5" />
+							)}
+							{t(
+								dictionaryCacheState === "cleared"
+									? "translate.cache.dictionary.cleared"
+									: "translate.cache.dictionary.clear",
+							)}
+						</Button>
+					</SettingsRow>
+					<SettingsRow
 						label={t("translate.cache.ir.label")}
 						description={t("translate.cache.ir.description")}
 						htmlFor="translate-cache-ir"
@@ -636,7 +713,7 @@ export function TranslatePane({
 											/>
 											<p className="min-w-0 truncate font-medium text-sm">
 												{t(
-													`translate.provider.${id}` as "translate.provider.google",
+													`translate.provider.${id}` as "translate.provider.tencenttransmart",
 												)}
 											</p>
 											<Button

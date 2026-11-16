@@ -32,10 +32,15 @@ type PdfTranslatePartialDialogProps = {
 	/** Localized page span, or null when nothing is pending. */
 	pages: string | null;
 	completionFailed: boolean;
+	layoutWarningPages: string | null;
+	layoutWarningCount: number;
+	layoutPageCount: number | null;
+	translatedPageCount: number;
 	confirming: boolean;
 	onConfirmingChange: (confirming: boolean) => void;
 	onCompleteMissing: () => void;
 	onRetranslateAll: () => void;
+	onReparseAndTranslate: () => void;
 	onClose: () => void;
 };
 
@@ -70,13 +75,21 @@ export function PdfTranslatePartialDialog({
 	pendingRequired,
 	pages,
 	completionFailed,
+	layoutWarningPages,
+	layoutWarningCount,
+	layoutPageCount,
+	translatedPageCount,
 	confirming,
 	onConfirmingChange,
 	onCompleteMissing,
 	onRetranslateAll,
+	onReparseAndTranslate,
 	onClose,
 }: PdfTranslatePartialDialogProps) {
 	const { t } = useTranslation("viewer");
+	const hasLayoutWarning =
+		layoutWarningCount > 0 && Boolean(layoutWarningPages);
+	const warningsOnly = hasLayoutWarning && pendingRequired === 0;
 
 	if (confirming) {
 		return (
@@ -121,50 +134,80 @@ export function PdfTranslatePartialDialog({
 		<>
 			<PopoverHeader>
 				<div className="flex items-start justify-between gap-2">
-					<PopoverTitle>{t("pdf.layoutTranslate.partialTitle")}</PopoverTitle>
+					<PopoverTitle>
+						{warningsOnly
+							? t("pdf.layoutTranslate.layoutWarningTitle")
+							: t("pdf.layoutTranslate.partialTitle")}
+					</PopoverTitle>
 					<DialogCloseButton
 						label={t("pdf.layoutTranslate.close")}
 						onClose={onClose}
 					/>
 				</div>
-				<PopoverDescription>
-					{t("pdf.layoutTranslate.partialSummary", {
-						translated: translatedCount,
-						total: totalCount,
-						pending: pendingRequired,
-						pages: pages ?? "",
-					})}{" "}
-					{t("pdf.layoutTranslate.partialHint")}
-					{completionFailed
-						? ` ${t("pdf.layoutTranslate.partialStillMissing", {
-								count: pendingRequired,
-							})}`
-						: null}
-				</PopoverDescription>
+				<div className="space-y-1.5">
+					{hasLayoutWarning ? (
+						<PopoverDescription className="text-amber-700 dark:text-amber-400">
+							{t("pdf.layoutTranslate.layoutWarningSummary", {
+								pages: layoutWarningPages,
+								translated: translatedPageCount,
+								total: layoutPageCount ?? totalCount,
+							})}
+						</PopoverDescription>
+					) : null}
+					{pendingRequired > 0 ? (
+						<PopoverDescription>
+							{t("pdf.layoutTranslate.partialSummary", {
+								translated: translatedCount,
+								total: totalCount,
+								pending: pendingRequired,
+								pages: pages ?? "",
+							})}{" "}
+							{t("pdf.layoutTranslate.partialHint")}
+							{completionFailed
+								? ` ${t("pdf.layoutTranslate.partialStillMissing", {
+										count: pendingRequired,
+									})}`
+								: null}
+						</PopoverDescription>
+					) : null}
+				</div>
 			</PopoverHeader>
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<Button
 					type="button"
 					size="sm"
 					variant="outline"
-					onClick={() => openSettingsWindow("translate")}
+					onClick={() =>
+						openSettingsWindow(warningsOnly ? "layout" : "translate")
+					}
 				>
-					{t("pdf.layoutTranslate.openSettings")}
+					{warningsOnly
+						? t("pdf.layoutTranslate.openLayoutSettings")
+						: t("pdf.layoutTranslate.openSettings")}
 				</Button>
 				<div className="ml-auto flex flex-wrap items-center gap-1.5">
-					<Button type="button" size="sm" onClick={onCompleteMissing}>
-						{t("pdf.layoutTranslate.completeMissing", {
-							count: pendingRequired,
-						})}
-					</Button>
-					<Button
-						type="button"
-						size="sm"
-						variant="outline"
-						onClick={() => onConfirmingChange(true)}
-					>
-						{t("pdf.layoutTranslate.retranslateAll")}
-					</Button>
+					{hasLayoutWarning ? (
+						<Button type="button" size="sm" onClick={onReparseAndTranslate}>
+							{t("pdf.layoutTranslate.reparseAndTranslate")}
+						</Button>
+					) : null}
+					{pendingRequired > 0 ? (
+						<Button type="button" size="sm" onClick={onCompleteMissing}>
+							{t("pdf.layoutTranslate.completeMissing", {
+								count: pendingRequired,
+							})}
+						</Button>
+					) : null}
+					{totalCount > 0 && !hasLayoutWarning ? (
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={() => onConfirmingChange(true)}
+						>
+							{t("pdf.layoutTranslate.retranslateAll")}
+						</Button>
+					) : null}
 				</div>
 			</div>
 		</>
@@ -186,9 +229,14 @@ export const PdfTranslatePartialButton = memo(
 			pageRange,
 			open,
 			completionFailed,
+			layoutWarningPages,
+			layoutWarningCount,
+			layoutPageCount,
+			translatedPageCount,
 			onOpenChange,
 			onCompleteMissing,
 			onRetranslateAll,
+			onReparseAndTranslate,
 		} = partial;
 
 		const pages = pageRange
@@ -201,11 +249,18 @@ export const PdfTranslatePartialButton = memo(
 						end: pageRange.end,
 					})
 			: null;
-		const label = completionFailed
-			? t("pdf.layoutTranslate.partialButtonRemaining", {
-					count: pendingRequired,
-				})
-			: t("pdf.layoutTranslate.partialButton", { count: pendingRequired });
+		const label =
+			layoutWarningCount > 0 && pendingRequired === 0
+				? t("pdf.layoutTranslate.layoutWarningButton", {
+						count: layoutWarningCount,
+					})
+				: completionFailed
+					? t("pdf.layoutTranslate.partialButtonRemaining", {
+							count: pendingRequired,
+						})
+					: t("pdf.layoutTranslate.partialButton", {
+							count: pendingRequired,
+						});
 
 		const handleOpenChange = useCallback(
 			(next: boolean) => {
@@ -224,6 +279,11 @@ export const PdfTranslatePartialButton = memo(
 			onOpenChange(false);
 			onRetranslateAll();
 		}, [onOpenChange, onRetranslateAll]);
+		const handleReparse = useCallback(() => {
+			setConfirming(false);
+			onOpenChange(false);
+			onReparseAndTranslate();
+		}, [onOpenChange, onReparseAndTranslate]);
 
 		return (
 			// Non-modal on purpose: the reader must keep scrolling the PDF while
@@ -261,10 +321,15 @@ export const PdfTranslatePartialButton = memo(
 						pendingRequired={pendingRequired}
 						pages={pages}
 						completionFailed={completionFailed}
+						layoutWarningPages={layoutWarningPages}
+						layoutWarningCount={layoutWarningCount}
+						layoutPageCount={layoutPageCount}
+						translatedPageCount={translatedPageCount}
 						confirming={confirming}
 						onConfirmingChange={setConfirming}
 						onCompleteMissing={handleComplete}
 						onRetranslateAll={handleRetranslate}
+						onReparseAndTranslate={handleReparse}
 						onClose={() => handleOpenChange(false)}
 					/>
 				</PopoverContent>

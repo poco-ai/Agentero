@@ -73,6 +73,12 @@
 			"failed": "Failed"
 		}
 	},
+	"zen": {
+		"title": "Zen",
+		"newConversation": "New Session",
+		"untitled": "New chat",
+		"close": "Close conversation"
+	},
 	"tabs": {
 		"new": "Start a new conversation"
 	},

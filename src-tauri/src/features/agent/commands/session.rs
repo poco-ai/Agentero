@@ -10,8 +10,8 @@ use crate::features::agent::remote_host::RemoteAgentHosts;
 use crate::features::agent::runtime::gates::AskUserGate;
 use crate::features::agent::service;
 use crate::features::agent::{
-    warm_agent, AgentEventEmitter, AgentRegistry, AgentRunController, AgentWarmGate, AgentWarmPool,
-    ElicitationGate, PermissionGate,
+    warm_agent, AgentEventEmitter, AgentQueryPool, AgentRegistry, AgentRunController,
+    AgentWarmGate, AgentWarmPool, ElicitationGate, PermissionGate,
 };
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -49,11 +49,13 @@ pub async fn agent_run_once(
 /// List ACP sessions for an agent via `session/list`.
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments)]
 pub async fn agent_list_sessions(
     registry: State<'_, AgentRegistry>,
     remote_registry: State<'_, Arc<dyn RemoteAgentHosts>>,
     warm_gate: State<'_, AgentWarmGate>,
     pool: State<'_, Arc<AgentWarmPool>>,
+    queries: State<'_, Arc<AgentQueryPool>>,
     agent_id: Option<String>,
     vault_path: Option<String>,
     cursor: Option<String>,
@@ -63,6 +65,7 @@ pub async fn agent_list_sessions(
         remote_registry.inner().as_ref(),
         warm_gate.inner(),
         pool.inner(),
+        queries.inner(),
         agent_id,
         vault_path,
         cursor,
@@ -84,6 +87,7 @@ pub async fn agent_delete_session(
     registry: State<'_, AgentRegistry>,
     remote_registry: State<'_, Arc<dyn RemoteAgentHosts>>,
     pool: State<'_, Arc<AgentWarmPool>>,
+    queries: State<'_, Arc<AgentQueryPool>>,
     agent_id: Option<String>,
     session_id: String,
     vault_path: Option<String>,
@@ -92,6 +96,7 @@ pub async fn agent_delete_session(
         registry.inner(),
         remote_registry.inner().as_ref(),
         pool.inner(),
+        queries.inner(),
         agent_id,
         session_id,
         vault_path,
@@ -109,6 +114,7 @@ pub async fn agent_delete_session(
 pub async fn agent_load_session(
     registry: State<'_, AgentRegistry>,
     remote_registry: State<'_, Arc<dyn RemoteAgentHosts>>,
+    queries: State<'_, Arc<AgentQueryPool>>,
     agent_id: Option<String>,
     session_id: String,
     vault_path: Option<String>,
@@ -116,6 +122,7 @@ pub async fn agent_load_session(
     match service::load_session(
         registry.inner(),
         remote_registry.inner().as_ref(),
+        queries.inner(),
         agent_id,
         session_id,
         vault_path,

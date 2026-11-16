@@ -17,6 +17,16 @@ pub use crate::features::system::settings::DEFAULT_CONNECTOR_PORT;
 
 const CONNECTOR_API_VERSION: &str = "2";
 const AGENTERO_CONNECTOR_VERSION: &str = "0.1.0-agentero";
+const RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ConnectorErrorCode {
+    PortInUse,
+    BindFailed,
+    ServerStopped,
+    InvalidPort,
+}
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +36,7 @@ pub struct ConnectorStatus {
     pub port: u16,
     pub bound_address: Option<String>,
     pub last_error: Option<String>,
+    pub last_error_code: Option<ConnectorErrorCode>,
     pub vault_path: Option<String>,
     pub parent_dir: String,
 }
@@ -116,10 +127,13 @@ struct Inner {
     listening: bool,
     port: u16,
     last_error: Option<String>,
+    last_error_code: Option<ConnectorErrorCode>,
+    /// Invalidates status updates from an older server or bind attempt.
+    generation: u64,
     /// Local absolute path or `remote:<sessionId>` handle.
     vault_handle: Option<String>,
     parent_dir: String,
-    /// Cancels the accept loop when the server should stop.
+    /// Cancels both the listener and pending retries when the server should stop.
     shutdown_tx: Option<oneshot::Sender<()>>,
     sessions: HashMap<String, SaveSession>,
     app: Option<AppHandle>,
@@ -128,6 +142,8 @@ struct Inner {
 /// Shared controller managed by Tauri (`app.manage`).
 pub struct ConnectorController {
     inner: Mutex<Inner>,
+    /// Serializes settings commands, including the first bind attempt.
+    lifecycle: AsyncMutex<()>,
     /// Fast path for handlers without locking the full struct for vault checks.
     running: AtomicBool,
     /// Remote vault registry (injected at app start) for `remote:…` saves.
@@ -148,12 +164,15 @@ impl ConnectorController {
                 listening: false,
                 port: DEFAULT_CONNECTOR_PORT,
                 last_error: None,
+                last_error_code: None,
+                generation: 0,
                 vault_handle: None,
                 parent_dir: "papers".into(),
                 shutdown_tx: None,
                 sessions: HashMap::new(),
                 app: None,
             }),
+            lifecycle: AsyncMutex::new(()),
             running: AtomicBool::new(false),
             remote_registry: Mutex::new(None),
         }
@@ -181,19 +200,7 @@ impl ConnectorController {
 
     pub fn status(&self) -> ConnectorStatus {
         let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        ConnectorStatus {
-            enabled: g.enabled,
-            listening: g.listening,
-            port: g.port,
-            bound_address: if g.listening {
-                Some(format!("127.0.0.1:{}", g.port))
-            } else {
-                None
-            },
-            last_error: g.last_error.clone(),
-            vault_path: g.vault_handle.clone(),
-            parent_dir: g.parent_dir.clone(),
-        }
+        self.status_from(&g)
     }
 
     /// Update the Vault handle used by `saveItems` (None when no vault open).
@@ -213,6 +220,7 @@ impl ConnectorController {
                     || e.contains("remote session not found")
             }) {
                 g.last_error = None;
+                g.last_error_code = None;
             }
             log::debug!(
                 target: "agentero::connector",
@@ -235,27 +243,21 @@ impl ConnectorController {
     /// Change the loopback port. If the server is enabled, restart it so the
     /// status cannot claim a port that is not actually bound.
     pub async fn set_port(self: &Arc<Self>, port: u16) -> ConnectorStatus {
-        if port == 0 {
-            if let Ok(mut g) = self.inner.lock() {
+        let _lifecycle = self.lifecycle.lock().await;
+        {
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            if port == 0 {
                 g.last_error = Some("Connector port must be between 1 and 65535".into());
+                g.last_error_code = Some(ConnectorErrorCode::InvalidPort);
+            } else if g.port == port {
+                return self.status_from(&g);
+            } else {
+                self.stop_server_locked(&mut g);
+                g.port = port;
             }
-            return self.status();
         }
-        let enabled = self.inner.lock().map(|g| g.enabled).unwrap_or(false);
-        if enabled {
-            self.stop_server_internal();
-        }
-        if let Ok(mut g) = self.inner.lock() {
-            g.port = port;
-            g.last_error = None;
-        }
-        if enabled {
-            if let Err(e) = self.start_server().await {
-                if let Ok(mut g) = self.inner.lock() {
-                    g.last_error = Some(e.to_string());
-                    g.listening = false;
-                }
-            }
+        if port != 0 {
+            self.start_server().await;
         }
         self.emit_status();
         self.status()
@@ -285,37 +287,22 @@ impl ConnectorController {
     /// Async: binding the listener is awaited on the runtime instead of
     /// `block_on`, so command handlers never stall their calling thread.
     pub async fn set_enabled(self: &Arc<Self>, enabled: bool) -> ConnectorStatus {
+        let _lifecycle = self.lifecycle.lock().await;
         if !enabled {
-            self.stop_server();
-            if let Ok(mut g) = self.inner.lock() {
-                g.enabled = false;
-                g.last_error = None;
-            }
-            self.emit_status();
+            self.stop();
             return self.status();
         }
 
         {
             let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             g.enabled = true;
-            g.last_error = None;
             if g.listening {
                 return self.status_from(&g);
             }
         }
 
-        match self.start_server().await {
-            Ok(()) => {}
-            Err(e) => {
-                if let Ok(mut g) = self.inner.lock() {
-                    g.enabled = true;
-                    g.listening = false;
-                    g.last_error = Some(e.to_string());
-                }
-                self.running.store(false, Ordering::SeqCst);
-            }
-        }
-        self.emit_status();
+        // An explicit enable while waiting for recovery is also an immediate retry.
+        self.start_server().await;
         self.status()
     }
 
@@ -330,82 +317,137 @@ impl ConnectorController {
                 None
             },
             last_error: g.last_error.clone(),
+            last_error_code: g.last_error_code,
             vault_path: g.vault_handle.clone(),
             parent_dir: g.parent_dir.clone(),
         }
     }
 
-    async fn start_server(self: &Arc<Self>) -> Result<(), AppError> {
-        let port = {
-            let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-            g.port
-        };
-
-        // Stop any previous listener first.
-        self.stop_server_internal();
-
-        let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
-        let ctrl = Arc::clone(self);
-
-        // Await the bind so EADDRINUSE fails before we claim success — without
-        // `block_on`, which would stall the calling thread.
-        let listener =
-            tokio::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], port)))
-                .await
-                .map_err(|e| {
-                    if e.kind() == std::io::ErrorKind::AddrInUse {
-                        AppError::message("Please quit the local Zotero app first".to_string())
-                    } else {
-                        AppError::message(format!("Failed to bind 127.0.0.1:{port}: {e}"))
-                    }
-                })?;
-
+    async fn start_server(self: &Arc<Self>) {
+        let (ready_tx, ready_rx) = oneshot::channel();
         {
             let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-            g.shutdown_tx = Some(shutdown_tx);
-            g.listening = true;
-            g.last_error = None;
-        }
-        self.running.store(true, Ordering::SeqCst);
-
-        let ctrl_serve = Arc::clone(&ctrl);
-        tauri::async_runtime::spawn(async move {
-            if let Err(e) = server::serve(listener, shutdown_rx, ctrl_serve).await {
-                if let Ok(mut g) = ctrl.inner.lock() {
-                    g.listening = false;
-                    g.last_error = Some(e.to_string());
-                }
-                ctrl.running.store(false, Ordering::SeqCst);
-                ctrl.emit_status();
+            if !g.enabled {
+                return;
             }
-        });
+            self.stop_server_locked(&mut g);
+            let (shutdown_tx, shutdown_rx) = oneshot::channel();
+            g.shutdown_tx = Some(shutdown_tx);
+            let ctrl = Arc::clone(self);
+            let generation = g.generation;
+            let port = g.port;
+            tokio::spawn(async move {
+                ctrl.run_server(generation, port, shutdown_rx, ready_tx)
+                    .await;
+            });
+        }
+        // Return the first bind result to the command; later attempts belong to
+        // the controller, independently of any mounted frontend window.
+        let _ = ready_rx.await;
+    }
 
-        Ok(())
+    async fn run_server(
+        self: Arc<Self>,
+        generation: u64,
+        port: u16,
+        mut shutdown_rx: oneshot::Receiver<()>,
+        ready_tx: oneshot::Sender<()>,
+    ) {
+        let mut ready_tx = Some(ready_tx);
+        let address = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+        loop {
+            let listener = tokio::select! {
+                biased;
+                _ = &mut shutdown_rx => return,
+                result = tokio::net::TcpListener::bind(address) => result,
+            };
+            {
+                let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+                if g.generation != generation || !g.enabled {
+                    return;
+                }
+                match &listener {
+                    Ok(_) => {
+                        g.listening = true;
+                        g.last_error = None;
+                        g.last_error_code = None;
+                        log::info!(target: "agentero::connector", "listening on {address}");
+                    }
+                    Err(e) => {
+                        g.listening = false;
+                        g.last_error = Some(format!("Failed to bind {address}: {e}"));
+                        g.last_error_code = Some(if e.kind() == std::io::ErrorKind::AddrInUse {
+                            ConnectorErrorCode::PortInUse
+                        } else {
+                            ConnectorErrorCode::BindFailed
+                        });
+                        log::warn!(target: "agentero::connector", "bind {address} failed: {e}; retrying in 5s");
+                    }
+                }
+                self.running.store(g.listening, Ordering::SeqCst);
+            }
+            self.emit_status();
+            if let Some(tx) = ready_tx.take() {
+                let _ = tx.send(());
+            }
+
+            if let Ok(listener) = listener {
+                let (serve_shutdown_tx, serve_shutdown_rx) = oneshot::channel();
+                let serve = server::serve(listener, serve_shutdown_rx, Arc::clone(&self));
+                tokio::pin!(serve);
+                let result = tokio::select! {
+                    biased;
+                    _ = &mut shutdown_rx => {
+                        let _ = serve_shutdown_tx.send(());
+                        // Drain in-flight saves without allowing this generation
+                        // to publish state or bind again after shutdown.
+                        let _ = serve.await;
+                        return;
+                    }
+                    result = &mut serve => result,
+                };
+                {
+                    let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+                    if g.generation != generation || !g.enabled {
+                        return;
+                    }
+                    g.listening = false;
+                    g.last_error = Some(match result {
+                        Ok(()) => "Connector server stopped unexpectedly".into(),
+                        Err(e) => e.to_string(),
+                    });
+                    g.last_error_code = Some(ConnectorErrorCode::ServerStopped);
+                    self.running.store(false, Ordering::SeqCst);
+                    log::warn!(target: "agentero::connector", "server stopped: {:?}; retrying in 5s", g.last_error);
+                }
+                self.emit_status();
+            }
+
+            tokio::select! {
+                biased;
+                _ = &mut shutdown_rx => return,
+                _ = tokio::time::sleep(RETRY_INTERVAL) => {}
+            }
+        }
     }
 
     pub fn stop(&self) {
-        self.stop_server();
-        if let Ok(mut g) = self.inner.lock() {
+        {
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             g.enabled = false;
+            self.stop_server_locked(&mut g);
         }
         self.emit_status();
     }
 
-    fn stop_server(&self) {
-        self.stop_server_internal();
-        if let Ok(mut g) = self.inner.lock() {
-            g.listening = false;
+    fn stop_server_locked(&self, g: &mut Inner) {
+        g.generation += 1;
+        if let Some(tx) = g.shutdown_tx.take() {
+            let _ = tx.send(());
         }
-        self.running.store(false, Ordering::SeqCst);
-    }
-
-    fn stop_server_internal(&self) {
-        if let Ok(mut g) = self.inner.lock() {
-            if let Some(tx) = g.shutdown_tx.take() {
-                let _ = tx.send(());
-            }
-            g.listening = false;
-        }
+        g.listening = false;
+        g.last_error = None;
+        g.last_error_code = None;
         self.running.store(false, Ordering::SeqCst);
     }
 
@@ -1244,6 +1286,172 @@ fn emit_connector_error(app: &AppHandle, message: &str, session_id: Option<&str>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::future::Future;
+
+    async fn occupied_port() -> (Arc<ConnectorController>, std::net::TcpListener) {
+        let occupied = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("reserve port");
+        let ctrl = Arc::new(ConnectorController::new());
+        ctrl.set_port(occupied.local_addr().unwrap().port()).await;
+        (ctrl, occupied)
+    }
+
+    async fn advance_retry() {
+        for _ in 0..16 {
+            tokio::task::yield_now().await;
+        }
+        tokio::time::advance(RETRY_INTERVAL + std::time::Duration::from_millis(1)).await;
+        for _ in 0..16 {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn occupied_port_recovers_automatically_after_release() {
+        let (ctrl, occupied) = occupied_port().await;
+        let status = ctrl.set_enabled(true).await;
+        assert!(status.enabled);
+        assert!(!status.listening);
+        assert!(status.bound_address.is_none());
+        assert_eq!(status.last_error_code, Some(ConnectorErrorCode::PortInUse));
+
+        advance_retry().await;
+        assert!(!ctrl.status().listening);
+        assert_eq!(
+            ctrl.status().last_error_code,
+            Some(ConnectorErrorCode::PortInUse)
+        );
+        drop(occupied);
+        tokio::time::advance(std::time::Duration::from_secs(4)).await;
+        tokio::task::yield_now().await;
+        assert!(!ctrl.status().listening, "retry must wait for its interval");
+        tokio::time::advance(std::time::Duration::from_secs(1)).await;
+        tokio::task::yield_now().await;
+
+        let status = ctrl.status();
+        assert!(status.listening);
+        assert!(status.last_error.is_none());
+        assert!(status.last_error_code.is_none());
+        assert_eq!(
+            status.bound_address,
+            Some(format!("127.0.0.1:{}", status.port))
+        );
+        let address = status.bound_address.unwrap().parse().unwrap();
+        std::net::TcpStream::connect_timeout(&address, std::time::Duration::from_secs(1))
+            .expect("recovered listener accepts connections");
+        ctrl.stop();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn disabling_or_stopping_cancels_pending_retries() {
+        for stop in [false, true] {
+            let (ctrl, occupied) = occupied_port().await;
+            ctrl.set_enabled(true).await;
+            if stop {
+                ctrl.stop();
+            } else {
+                ctrl.set_enabled(false).await;
+            }
+            drop(occupied);
+            advance_retry().await;
+
+            let status = ctrl.status();
+            assert!(!status.enabled);
+            assert!(!status.listening);
+            assert!(status.last_error.is_none());
+            assert!(status.last_error_code.is_none());
+            std::net::TcpListener::bind(("127.0.0.1", status.port))
+                .expect("disabled connector must leave the port available");
+            assert_eq!(Arc::strong_count(&ctrl), 1, "retry task must exit");
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn manual_retry_recovers_immediately_and_enable_is_idempotent() {
+        let (ctrl, occupied) = occupied_port().await;
+        ctrl.set_enabled(true).await;
+        drop(occupied);
+        let status = ctrl.set_enabled(true).await;
+        assert!(status.listening);
+        assert!(status.last_error_code.is_none());
+
+        let generation = ctrl.inner.lock().unwrap().generation;
+        let (first, second) = tokio::join!(ctrl.set_enabled(true), ctrl.set_enabled(true));
+        assert!(first.listening && second.listening);
+        ctrl.set_port(status.port).await;
+        assert_eq!(ctrl.inner.lock().unwrap().generation, generation);
+        advance_retry().await;
+        assert!(ctrl.status().listening);
+        assert!(ctrl.status().last_error.is_none());
+        ctrl.stop();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn changing_ports_cancels_the_old_retry_generation() {
+        let (ctrl, old_port) = occupied_port().await;
+        ctrl.set_enabled(true).await;
+        let new_port = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = new_port.local_addr().unwrap().port();
+        let status = ctrl.set_port(port).await;
+        assert_eq!(status.port, port);
+        assert!(!status.listening);
+        assert_eq!(status.last_error_code, Some(ConnectorErrorCode::PortInUse));
+        let old_address = old_port.local_addr().unwrap();
+        drop(old_port);
+        advance_retry().await;
+        assert!(!ctrl.status().listening);
+        let _old_port = std::net::TcpListener::bind(old_address)
+            .expect("stale retry must not bind the previous port");
+
+        drop(new_port);
+        advance_retry().await;
+        assert!(ctrl.status().listening);
+        assert_eq!(ctrl.status().port, port);
+        assert!(ctrl.status().last_error_code.is_none());
+        ctrl.stop();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn rapid_disable_reenable_and_port_change_keep_current_listener_state() {
+        let (ctrl, occupied) = occupied_port().await;
+        let port = occupied.local_addr().unwrap().port();
+        drop(occupied);
+        assert!(ctrl.set_enabled(true).await.listening);
+        ctrl.set_enabled(false).await;
+        ctrl.set_enabled(true).await;
+        advance_retry().await;
+        assert!(ctrl.status().listening);
+
+        let reserved = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let new_port = reserved.local_addr().unwrap().port();
+        drop(reserved);
+        assert!(ctrl.set_port(new_port).await.listening);
+        advance_retry().await;
+        assert!(ctrl.status().listening);
+        assert_eq!(ctrl.status().port, new_port);
+        assert!(ctrl.status().last_error.is_none());
+        std::net::TcpListener::bind(("127.0.0.1", port)).expect("old listener released");
+        ctrl.stop();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn stop_during_first_bind_cannot_resurrect_listener() {
+        let (ctrl, occupied) = occupied_port().await;
+        drop(occupied);
+        let enable = ctrl.set_enabled(true);
+        tokio::pin!(enable);
+        // Poll only far enough to spawn the controller task, before it can bind.
+        assert!(
+            std::future::poll_fn(|cx| std::task::Poll::Ready(enable.as_mut().poll(cx)))
+                .await
+                .is_pending()
+        );
+        ctrl.stop();
+        let status = enable.await;
+        assert!(!status.enabled);
+        assert!(!status.listening);
+        advance_retry().await;
+        std::net::TcpListener::bind(("127.0.0.1", status.port)).expect("stop wins the bind race");
+    }
 
     fn saved(session_id: &str, path: &str) -> ConnectorItemSaved {
         ConnectorItemSaved {

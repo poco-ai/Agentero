@@ -18,8 +18,7 @@
 		"about": "关于",
 		"quickSetup": "快速配置向导",
 		"featureTour": "功能导引",
-		"sync": "同步",
-		"plugins": "插件"
+		"sync": "同步"
 	},
 	"writing": {
 		"uploadMode": "何时上传",
@@ -211,7 +210,11 @@
 			"label": "兼容 Zotero Connector",
 			"hint": "请先退出本地Zotero",
 			"portLabel": "Connector 端口",
-			"invalidPort": "端口必须在 1 到 65535 之间。"
+			"invalidPort": "端口必须在 1 到 65535 之间。",
+			"notListening": "未监听",
+			"portInUse": "端口 {{port}} 已被占用。Agentero 每 5 秒自动重试，请退出 Zotero 或其他占用此端口的应用。",
+			"bindFailed": "无法监听端口 {{port}}。Agentero 每 5 秒自动重试，请检查端口或更换端口。",
+			"serverStopped": "Connector 服务已停止。Agentero 每 5 秒自动重试，也可立即重试。"
 		},
 		"mcp": {
 			"exposeText": {
@@ -370,7 +373,10 @@
 				"ok": "可用",
 				"failed": "不可达",
 				"unconfigured": "未配置"
-			}
+			},
+			"agentero": "Agentero Embedding",
+			"agenteroHint": "使用 Agentero 账户的 API Key。免费额度及超额开关由账户控制；切换会清空旧服务的密钥。",
+			"useAgentero": "使用 Agentero"
 		},
 		"desktopOnly": "Agent 注册表需要桌面应用。",
 		"desktopHint": "运行 `pnpm tauri dev` 以扫描本机上的 Agent。",
@@ -527,13 +533,12 @@
 		"title": "翻译",
 		"provider": {
 			"label": "默认服务",
-			"agentero": "Agentero 内置",
-			"deeplx": "DeepLX",
+			"agentero": "Agentero 云端（个人账户）",
 			"cnki": "CNKI 翻译助手",
 			"huoshanweb": "火山翻译 Web",
 			"tencenttransmart": "腾讯交互翻译",
-			"googleapi": "Google 翻译（API）",
-			"google": "Google 翻译",
+			"indextranslate": "Bilibili翻译-35B-A3B",
+			"indextranslate2b": "Bilibili翻译-2B",
 			"deepl": "DeepL API",
 			"azure": "微软翻译",
 			"googleCloud": "Google Cloud Translate",
@@ -546,7 +551,8 @@
 		},
 		"errors": {
 			"noBuiltinKey": "当前构建未启用内置翻译。",
-			"unreachable": "无法连接翻译服务，请检查网络，或在翻译设置中更换服务。"
+			"unreachable": "无法连接翻译服务，请检查网络，或在翻译设置中更换服务。",
+			"terminology": "当前服务未能保留专业术语，请切换翻译服务后重试。"
 		},
 		"targetLang": {
 			"label": "目标语言",
@@ -558,8 +564,8 @@
 			"label": "PDF 划词后自动翻译"
 		},
 		"autoImport": {
-			"label": "导入后自动翻译",
-			"description": "版面解析完成后在后台翻译全文，会使用当前翻译服务和缓存设置。",
+			"label": "版面解析后自动翻译",
+			"description": "导入、下载或重新解析版面完成后，在后台翻译全文。已有译文按缓存复用，只补译变化的块，并使用当前翻译服务和缓存设置。",
 			"concurrency": {
 				"label": "自动翻译的论文并发数"
 			}
@@ -580,7 +586,14 @@
 				"description": "保存构建完成的译文 PDF，每篇约 25 MB。"
 			},
 			"tip": "关闭开关只停止写入新文件，已有缓存仍会复用。",
-			"reset": "还原默认"
+			"reset": "还原默认",
+			"dictionary": {
+				"label": "查词缓存",
+				"description": "查词和语境结果保留 30 天。清除当前知识库缓存，内置词典仍可使用。",
+				"clear": "清除",
+				"clearFailed": "无法清除查词缓存。",
+				"cleared": "已清除"
+			}
 		},
 		"providerConfig": {
 			"section": "API 服务",
@@ -639,6 +652,16 @@
 		},
 		"autoTranslation": {
 			"section": "自动翻译"
+		},
+		"dictionaryIncluded": "已内置离线英汉词典与 AI 术语，无需配置。",
+		"dictionaryMode": {
+			"label": "划词词典",
+			"auto": "自动",
+			"offline-first": "离线优先",
+			"off": "关闭",
+			"autoDescription": "先显示本地释义，再由当前 AI 服务解释本文语境。",
+			"offline-firstDescription": "命中本地词典后不请求模型；未收录的词使用当前翻译服务。",
+			"offDescription": "所有选区默认翻译，仍可从结果卡片手动切换到词典。"
 		}
 	},
 	"layout": {
@@ -727,7 +750,8 @@
 			"dialog": {
 				"clearTitle": "清除解析结果？",
 				"reparseTitle": "清除并重新解析？",
-				"scopeLabel": "选择范围"
+				"scopeLabel": "选择范围",
+				"reparseTranslate": "已开启版面解析后自动翻译。本次会为包含版面的范围排队全文翻译，可能产生批量翻译请求和费用。已有译文会复用。"
 			}
 		}
 	},
@@ -737,6 +761,14 @@
 			"section": "决策模型",
 			"getKey": "获取 API Key",
 			"smartHighlight": "智能高亮",
+			"concurrency": {
+				"label": "并发请求数",
+				"description": "自建模型会排队时调低。"
+			},
+			"timeout": {
+				"label": "单批超时（秒）",
+				"description": "从该批请求发出时开始计时，等待调度不计入。"
+			},
 			"provider": {
 				"label": "提供方",
 				"jev": "TypeSafe Jev",
@@ -1016,7 +1048,7 @@
 			"uninstallFailed": "无法移除 CLI 命令",
 			"statusFailed": "无法读取 CLI 状态",
 			"openReleaseFailed": "无法打开发布页",
-			"syncFailed": "已安装的 CLI 未能自动同步到当前版本，请到 设置 → 关于 手动更新"
+			"syncFailed": "未能自动安装或更新 CLI，请到 设置 → 关于 重试"
 		},
 		"feedback": {
 			"label": "反馈",
@@ -1063,7 +1095,14 @@
 		"pathStyle": "Path-style 寻址",
 		"pathStyleHint": "R2 / MinIO 保持开启；使用 Bucket 子域名时关闭。",
 		"gitRemote": "仓库地址",
+		"gitRemoteHint": "SSH 使用本机密钥。HTTPS 不会弹窗：连接前请用 `git credential approve` 或系统凭据助手存好 token。",
 		"gitBranch": "分支",
+		"gitAllowInsecureHttp": "允许明文 HTTP",
+		"gitAllowInsecureHttpHint": "仅用于没有 HTTPS 的内网 Git。令牌会以明文传输。",
+		"gitSslCa": "CA 证书",
+		"gitSslCaHint": "自签 HTTPS 服务器的 PEM 文件绝对路径。留空则使用系统信任库。",
+		"gitAuthFailed": "Git 无法登录，同步不会弹出凭据窗口。\n{{detail}}\nHTTPS：先用 `git credential approve` 或系统凭据助手存好 token。SSH：运行 `ssh-add`。",
+		"gitTlsFailed": "Git 拒绝了服务器证书。\n{{detail}}\n自签 HTTPS 请填写 CA 证书路径后再连接。",
 		"noConditionalWrites": "该存储不支持条件（原子）写入，同步已降级为普通上传。单设备使用不受影响；多设备并发修改可能需要多一轮同步才能收敛。",
 		"saved": "同步已配置",
 		"disconnect": "解绑",
@@ -1107,23 +1146,6 @@
 		"unlimited": "不限",
 		"signInRequired": "登录后可查看云同步容量。",
 		"notIncluded": "当前套餐不包含云同步。"
-	},
-	"plugins": {
-		"install": "从文件夹安装…",
-		"localOnly": "打开本地 Vault 后可管理插件。",
-		"empty": "尚未安装插件。",
-		"failed": "插件操作失败",
-		"configure": "配置 {{name}}",
-		"remove": "卸载 {{name}}",
-		"enable": "启用 {{name}}",
-		"saveEnable": "保存并启用",
-		"permissions": {
-			"vault:read": "读取 Vault 文件与论文",
-			"catalog:write": "修改论文标签和已读状态",
-			"vault:notes:write": "写入论文笔记",
-			"vault:write": "写入 Vault 文本及移动论文"
-		},
-		"cancel": "取消"
 	},
 	"word": {
 		"damagedField": "引文字段结果为空或已损坏。请恢复文档，或在副本中重新插入引文。",

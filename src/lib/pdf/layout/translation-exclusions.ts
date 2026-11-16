@@ -143,23 +143,42 @@ function marginHeaderIds(
 }
 
 type VerticalOrigin = "top" | "bottom";
-type MetadataBand = { low: number; high: number };
+type MetadataBand = {
+	low: number;
+	high: number;
+	/** False when the lower edge is only the 22% title fallback. */
+	anchored: boolean;
+	anchorIds: ReadonlySet<string>;
+};
+
+/** "Abstract" / "摘要" as its own line, including a plain `text` label. */
+function isAbstractHeadingText(text: string): boolean {
+	return /^(?:abstract|summary|摘\s*要)[\s.:：]*$/iu.test(text.trim());
+}
+
+/**
+ * Abstract heading merged into the body, with or without ":" / ".".
+ * The keyword has to end the line or be followed by whitespace or punctuation,
+ * so a closed compound such as "AbstractAlgebra" stays ordinary text.
+ */
+function isAbstractLeadText(text: string): boolean {
+	return /^(?:abstract|summary|摘\s*要)(?:\s|[:：.]|$)/iu.test(text.trim());
+}
 
 function isAbstractHeading(
 	region: Pick<PdfLayoutRegion, "kind" | "text" | "title">,
 ): boolean {
-	return (
-		region.kind === "header" &&
-		/^(?:abstract|summary|摘\s*要)[\s.:：]*$/iu.test(regionText(region))
-	);
+	return region.kind === "header" && isAbstractHeadingText(regionText(region));
 }
 
 function isMetadataAnchor(
 	region: Pick<PdfLayoutRegion, "kind" | "label" | "text" | "title">,
 ): boolean {
 	if (region.kind === "abstract") return true;
-	if (labelKey(region) === "paragraph_title") return true;
-	return isAbstractHeading(region);
+	if (isAbstractHeading(region)) return true;
+	// A later section title is not an abstract boundary. Using it would keep
+	// excluding an unlabeled abstract that sits between the title and the section.
+	return isAbstractLeadText(regionText(region));
 }
 
 function inferVerticalOrigin(
@@ -183,6 +202,52 @@ function inferVerticalOrigin(
 	return titleMiddle > 0.5 ? "bottom" : "top";
 }
 
+const NAME_PARTICLES = new Set([
+	"and",
+	"&",
+	"of",
+	"the",
+	"de",
+	"van",
+	"von",
+	"da",
+	"di",
+	"la",
+	"le",
+	"y",
+	"und",
+]);
+
+/** Short capitalized byline. Sentences and single common words stay translatable. */
+function looksLikePersonLine(text: string): boolean {
+	const cleaned = text
+		.normalize("NFKC")
+		.replace(/[*†‡§¶∗]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.replace(/[.;,]+$/u, "");
+	if (!cleaned || cleaned.length > 140) return false;
+	if (/[.!?。！？]/u.test(cleaned)) return false;
+	const words = cleaned.split(/[\s,;/]+/u).filter(Boolean);
+	if (words.length < 2 || words.length > 14) return false;
+	const significant = words.filter(
+		(word) => !NAME_PARTICLES.has(word.toLowerCase()),
+	);
+	if (significant.length < 2) return false;
+	const titled = significant.filter((word) =>
+		/^[\p{Lu}][\p{L}'’-]*$/u.test(word),
+	);
+	return titled.length >= 2 && titled.length / significant.length >= 0.6;
+}
+
+function looksLikeAuthorMetadata(text: string): boolean {
+	if (isAbstractLeadText(text)) return false;
+	if (looksLikeAffiliation(text)) return true;
+	if (/(?:corresponding\s+authors?|通讯作者|联系人|e-?mail)/iu.test(text))
+		return true;
+	return looksLikePersonLine(text);
+}
+
 /** Author / affiliation / contact lines sit between the paper title and abstract. */
 function firstPageMetadataBand(
 	regions: readonly PdfLayoutRegion[],
@@ -195,29 +260,36 @@ function firstPageMetadataBand(
 	const anchors = pageZero.filter(
 		(region) => !titleIds.has(region.id) && isMetadataAnchor(region),
 	);
+	const anchorIds = new Set(anchors.map((region) => region.id));
 	if (origin === "top") {
 		const titleBottom = Math.max(
 			...titles.map((region) => region.bbox.y + region.bbox.h),
 		);
-		const anchorTop = Math.min(
-			titleBottom + 0.22,
-			...anchors
-				.filter((region) => region.bbox.y >= titleBottom - 0.005)
-				.map((region) => region.bbox.y),
+		const below = anchors.filter(
+			(region) => region.bbox.y >= titleBottom - 0.005,
 		);
-		return anchorTop > titleBottom + 0.01
-			? { low: titleBottom, high: anchorTop }
+		const nearest = below.length
+			? Math.min(...below.map((region) => region.bbox.y))
+			: null;
+		const high =
+			nearest == null
+				? titleBottom + 0.22
+				: Math.min(titleBottom + 0.22, nearest);
+		return high > titleBottom + 0.01
+			? { low: titleBottom, high, anchored: nearest != null, anchorIds }
 			: null;
 	}
-	const titleBottom = Math.min(...titles.map((region) => region.bbox.y));
-	const anchorBottom = Math.max(
-		titleBottom - 0.22,
-		...anchors
-			.filter((region) => region.bbox.y + region.bbox.h <= titleBottom + 0.005)
-			.map((region) => region.bbox.y + region.bbox.h),
+	const titleTop = Math.min(...titles.map((region) => region.bbox.y));
+	const above = anchors.filter(
+		(region) => region.bbox.y + region.bbox.h <= titleTop + 0.005,
 	);
-	return anchorBottom < titleBottom - 0.01
-		? { low: anchorBottom, high: titleBottom }
+	const nearest = above.length
+		? Math.max(...above.map((region) => region.bbox.y + region.bbox.h))
+		: null;
+	const low =
+		nearest == null ? titleTop - 0.22 : Math.max(titleTop - 0.22, nearest);
+	return low < titleTop - 0.01
+		? { low, high: titleTop, anchored: nearest != null, anchorIds }
 		: null;
 }
 
@@ -225,14 +297,23 @@ function isMetadataBandRegion(
 	region: PdfLayoutRegion,
 	band: MetadataBand,
 ): boolean {
+	// The band is inferred from page 0. The same normalized height on a later
+	// page is body text.
+	if (region.pageIndex !== 0) return false;
+	if (band.anchorIds.has(region.id)) return false;
 	const label = labelKey(region);
 	if (label !== "text" && label !== "content" && label !== "header")
 		return false;
 	if (isCaptionHeader(region)) return false;
-	return (
+	const text = regionText(region);
+	if (isAbstractLeadText(text)) return false;
+	const inside =
 		region.bbox.y >= band.low - 0.005 &&
-		region.bbox.y + region.bbox.h <= band.high + 0.005
-	);
+		region.bbox.y + region.bbox.h <= band.high + 0.005;
+	if (!inside) return false;
+	// A real abstract or section anchor bounds the author block. Without one,
+	// vertical position alone cannot tell an abstract paragraph from a byline.
+	return band.anchored || looksLikeAuthorMetadata(text);
 }
 
 function looksLikeNumberedSection(text: string): boolean {
@@ -276,7 +357,6 @@ function looksLikeAffiliation(text: string): boolean {
  */
 function firstPageTitleIds(
 	regions: readonly PdfLayoutRegion[],
-	geometryCandidates: readonly PdfLayoutRegion[],
 ): ReadonlySet<string> {
 	const pageZero = regions.filter((region) => region.pageIndex === 0);
 	const explicit = pageZero.filter(
@@ -284,7 +364,7 @@ function firstPageTitleIds(
 	);
 	if (explicit.length) return new Set(explicit.map((region) => region.id));
 
-	const candidate = geometryCandidates
+	const candidate = regions
 		.filter((region) => region.pageIndex === 0 && isPaperTitleHeading(region))
 		.sort(
 			(a, b) =>
@@ -329,26 +409,6 @@ function firstPageTitleIds(
 		: new Set();
 }
 
-const ALWAYS_PRESERVE_LABELS = new Set([
-	"doc_title",
-	"footnote",
-	"vision_footnote",
-	"footer",
-	"number",
-	"seal",
-	"aside_text",
-]);
-
-function isAlwaysPreservedRegion(region: PdfLayoutRegion): boolean {
-	return (
-		ALWAYS_PRESERVE_LABELS.has(labelKey(region)) ||
-		isAbstractHeading(region) ||
-		region.kind === "abstract" ||
-		region.kind === "algorithm" ||
-		isReferenceLayoutRegion(region)
-	);
-}
-
 /**
  * Regions left in their source language during paper-wide PDF translation.
  * Bibliographic metadata and page furniture are not reading content; captions,
@@ -358,14 +418,19 @@ export function preservedLayoutRegions(
 	regions: readonly PdfLayoutRegion[],
 	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
 ): ReadonlyMap<string, LayoutPreserveReason> {
-	const geometryCandidates = regions.filter(
-		(region) => region.score >= minScore || isAlwaysPreservedRegion(region),
-	);
-	const titleIds = firstPageTitleIds(regions, geometryCandidates);
-	const marginHeaders = marginHeaderIds(regions);
-	const metadataBand = firstPageMetadataBand(regions, titleIds);
+	const candidates = regions.filter((region) => region.score >= minScore);
+	const titleIds = firstPageTitleIds(candidates);
+	const marginHeaders = marginHeaderIds(candidates);
+	const metadataBand = firstPageMetadataBand(candidates, titleIds);
 	const out = new Map<string, LayoutPreserveReason>();
 	for (const region of regions) {
+		// Metadata geometry is grounded in confident title/abstract anchors.
+		// Model labels alone must not let weak overlapping candidates erase prose.
+		if (!(region.score >= minScore)) {
+			if (metadataBand && isMetadataBandRegion(region, metadataBand))
+				out.set(region.id, "metadata-band");
+			continue;
+		}
 		const label = labelKey(region);
 		let reason: LayoutPreserveReason | undefined;
 		if (isReferenceLayoutRegion(region)) reason = "reference";

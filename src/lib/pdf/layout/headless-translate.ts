@@ -25,7 +25,14 @@ import {
 	findCanonicalPaperPdfPath,
 	localFileToArrayBuffer,
 } from "@/lib/paper/media";
-import { getHeadlessPdfEngine } from "@/lib/pdf/layout/headless-analyze";
+import {
+	assessLayoutReadiness,
+	type LayoutCompletenessWarning,
+} from "@/lib/pdf/layout/completeness";
+import {
+	analyzePaperLayoutHeadless,
+	getHeadlessPdfEngine,
+} from "@/lib/pdf/layout/headless-analyze";
 import { readLayoutSidecar } from "@/lib/pdf/layout/io";
 import {
 	currentLayoutTranslateCacheKey,
@@ -105,7 +112,7 @@ async function runLayoutTranslateExecutor(
 			signal,
 			report: (args) => report(args),
 			force: ctx.force,
-			onItems: (key, items) => publisher.publish(key, items),
+			onItems: (key, items, layout) => publisher.publish(key, items, layout),
 		});
 		await publisher.flush();
 		if (signal.aborted) {
@@ -159,6 +166,10 @@ export async function translatePaperLayoutHeadless(opts: {
 	onItems?: (
 		key: LayoutTranslateCacheKey,
 		items: LayoutTranslateItem[],
+		layout?: {
+			warnings: LayoutCompletenessWarning[];
+			pageCount: number | null;
+		},
 	) => void;
 }): Promise<HeadlessTranslateResult> {
 	const signal = opts.signal;
@@ -186,14 +197,42 @@ export async function translatePaperLayoutHeadless(opts: {
 		};
 	};
 
-	const layout = await readLayoutSidecar(opts.paperAbsPath);
+	let layout = await readLayoutSidecar(opts.paperAbsPath);
 	signal?.throwIfAborted();
-	if (!layout?.regions?.length) return skipped("no layout");
+	if (!layout) throw new Error("Layout analysis is missing");
+	let readiness = assessLayoutReadiness(layout.source.completeness);
+	if (readiness.status === "unknown" || readiness.status === "incomplete") {
+		throw new Error("Layout analysis is incomplete");
+	}
+	if (readiness.needsContentRepair) {
+		await analyzePaperLayoutHeadless({
+			paperAbsPath: opts.paperAbsPath,
+			paperLabel: opts.paperKey ?? undefined,
+			documentId: `headless-layout-repair-${opts.jobId}`,
+			force: true,
+			signal,
+		});
+		layout = await readLayoutSidecar(opts.paperAbsPath);
+		signal?.throwIfAborted();
+		if (!layout) throw new Error("Layout analysis is missing");
+		readiness = assessLayoutReadiness(layout.source.completeness);
+		if (readiness.status === "unknown" || readiness.status === "incomplete") {
+			throw new Error("Layout analysis is incomplete");
+		}
+	}
+	const layoutReady = {
+		warnings: layout.source.completeness?.warnings ?? [],
+		pageCount: layout.source.completeness?.pageCount ?? null,
+	};
+	const cacheKey = currentLayoutTranslateCacheKey();
 	// Raw (pre-merge) detections feed IR extraction and obstacles, exactly like
 	// the viewer's `layoutRawRegions`; only the seed items use the filtered set.
 	const rawRegions = layout.regions;
 	const regions = listTranslatableLayoutRegions(rawRegions);
-	if (!regions.length) return skipped("no translatable regions");
+	if (!regions.length) {
+		opts.onItems?.(cacheKey, [], layoutReady);
+		return skipped("no translatable regions");
+	}
 
 	const pdfPath = await findCanonicalPaperPdfPath(opts.paperAbsPath);
 	if (!pdfPath) return skipped("no local PDF");
@@ -201,7 +240,6 @@ export async function translatePaperLayoutHeadless(opts: {
 	if (!pdfBytes) throw new Error("Failed to read paper PDF");
 	signal?.throwIfAborted();
 
-	const cacheKey = currentLayoutTranslateCacheKey();
 	const sidecar = await readLayoutTranslateSidecar(opts.paperAbsPath, cacheKey);
 	signal?.throwIfAborted();
 
@@ -247,7 +285,7 @@ export async function translatePaperLayoutHeadless(opts: {
 				status: "pending",
 				error: undefined,
 			}));
-		opts.onItems?.(cacheKey, hydration.items);
+		opts.onItems?.(cacheKey, hydration.items, layoutReady);
 		if (!opts.force && hydration.pendingRequired === 0) {
 			// Complete sidecar: the job is a no-op, no rewrite and no PDF build.
 			report({ progress: 100 });
@@ -262,7 +300,7 @@ export async function translatePaperLayoutHeadless(opts: {
 			paperKey: opts.paperKey,
 			vaultPath: opts.vaultPath,
 			onUpdate: (next) => {
-				opts.onItems?.(cacheKey, next);
+				opts.onItems?.(cacheKey, next, layoutReady);
 				// Persist completed blocks for crash recovery while viewers
 				// consume the shared in-memory progress.
 				persistLayoutTranslateSidecarBestEffort(
@@ -289,7 +327,7 @@ export async function translatePaperLayoutHeadless(opts: {
 		}
 		const translated = countTranslated(items);
 		const pending = total - translated;
-		opts.onItems?.(cacheKey, items);
+		opts.onItems?.(cacheKey, items, layoutReady);
 		await flushLayoutTranslateSidecar(opts.paperAbsPath, cacheKey, items, {
 			preserveExisting: true,
 		});

@@ -53,6 +53,44 @@ function previewDpr(): number {
 	return Math.min(window.devicePixelRatio || 1, 2);
 }
 
+/**
+ * A4 at 2x scale on a Retina display allocates a 32 MB bitmap. On long papers
+ * those allocations land after dozens of page builds and can exhaust the
+ * PDFium wasm heap. Keep each preview under a fixed budget and let quality
+ * fall back on unusually large pages.
+ */
+const PREVIEW_MAX_BITMAP_BYTES = 16 * 1024 * 1024;
+const PREVIEW_SCALE = 2;
+const PREVIEW_MIN_SCALE = 0.5;
+
+export function previewRasterScale(
+	page: { width: number; height: number },
+	dpr: number,
+): number {
+	const area = Math.max(1, page.width * page.height);
+	const cap = Math.sqrt(PREVIEW_MAX_BITMAP_BYTES / 4 / area);
+	return Math.max(
+		PREVIEW_MIN_SCALE,
+		Math.min(PREVIEW_SCALE, cap / Math.max(1, dpr)),
+	);
+}
+
+export function isRasterAllocationError(error: unknown): boolean {
+	const text = (
+		error &&
+		typeof error === "object" &&
+		"message" in error &&
+		typeof error.message === "string"
+			? error.message
+			: errorText(error)
+	).toLowerCase();
+	return (
+		text.includes("failed to allocate") ||
+		text.includes("out of memory") ||
+		text.includes("total memory usage would exceed")
+	);
+}
+
 const identities = new WeakMap<object, number>();
 let nextIdentity = 0;
 function identity(value: object | undefined): number {
@@ -630,12 +668,12 @@ export class ReflowPreviewSession {
 					"pdf.reflow.render",
 					{ page: page.index },
 					() =>
-						engine
-							.renderPage(preview, preview.pages[single ? 0 : page.index], {
-								scaleFactor: 2,
-								dpr: previewDpr(),
-							})
-							.toPromise(),
+						this.renderPreview(
+							engine,
+							preview,
+							preview.pages[single ? 0 : page.index],
+							signal,
+						),
 				);
 				signal.throwIfAborted();
 				const input = this.inputs.get(page.index);
@@ -657,6 +695,40 @@ export class ReflowPreviewSession {
 		} finally {
 			await engine.closeDocument(preview).toPromise();
 		}
+	}
+
+	private async renderPreview(
+		engine: PdfEngine,
+		document: PdfDocumentObject,
+		page: Parameters<PdfEngine["renderPage"]>[1],
+		signal: AbortSignal,
+	): Promise<Blob> {
+		const dpr = previewDpr();
+		const scale = previewRasterScale(page.size, dpr);
+		const attempts = [...new Set([scale, Math.max(0.25, scale / 2)])];
+		for (const [index, scaleFactor] of attempts.entries()) {
+			try {
+				return await engine
+					.renderPage(document, page, { scaleFactor, dpr })
+					.toPromise();
+			} catch (error) {
+				signal.throwIfAborted();
+				if (index === attempts.length - 1 || !isRasterAllocationError(error))
+					throw error;
+				logger.warn("pdf.reflow.render retry", {
+					page: page.index,
+					scaleFactor,
+					error:
+						error &&
+						typeof error === "object" &&
+						"message" in error &&
+						typeof error.message === "string"
+							? error.message
+							: errorText(error),
+				});
+			}
+		}
+		throw new Error("Preview render retry exhausted");
 	}
 
 	dispose(): void {

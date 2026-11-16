@@ -71,6 +71,13 @@ const TexLiveViewer = lazy(() =>
 		default: m.TexLiveViewer,
 	})),
 );
+// Zen pulls the whole Agent panel (composer, transcript, ACP hooks); keep it
+// out of the initial workspace chunk like the right-rail panel does.
+const ZenView = lazy(() =>
+	import("@/components/agent/zen/zen-view").then((m) => ({
+		default: m.ZenView,
+	})),
+);
 
 /** Library-tab-only props (ignored by PDF / editor / trash). */
 export type DocViewLibraryProps = {
@@ -265,6 +272,7 @@ function docViewPropsEqual(prev: DocViewProps, next: DocViewProps): boolean {
 		);
 	}
 	if (tab.kind === "plaza") return true;
+	if (tab.kind === "zen") return true;
 	switch (viewerModeSpec(tab.mode).props) {
 		case "editor":
 			return prev.editor === next.editor;
@@ -394,6 +402,15 @@ const DocumentContent = memo(function DocumentContent({
 					active={active}
 					className="bg-background"
 				/>
+			</Suspense>
+		);
+	}
+	if (tab.kind === "zen") {
+		// Every conversation slot must stay mounted so background turns keep
+		// streaming, regardless of the editor/PDF keep-alive LRU.
+		return (
+			<Suspense fallback={<TabLoadingSkeleton />}>
+				<ZenView active={active} />
 			</Suspense>
 		);
 	}

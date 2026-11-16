@@ -10,12 +10,11 @@
  */
 export type FreeTranslateProviderId =
 	| "agentero"
-	| "google"
-	| "googleapi"
-	| "deeplx"
 	| "cnki"
 	| "huoshanweb"
-	| "tencenttransmart";
+	| "tencenttransmart"
+	| "indextranslate"
+	| "indextranslate2b";
 
 /** Commercial BYOK engines called directly by the Tauri Host. */
 export type CommercialTranslateProviderId =
@@ -34,7 +33,11 @@ export type TranslateTargetLang = "ui" | "en" | "zh-CN";
 
 export type TranslateSourceLang = "auto";
 
+export type DictionaryMode = "auto" | "offline-first" | "off";
+export type SelectionTranslateMode = "dictionary" | "translate";
+
 export type TranslateSettings = {
+	dictionary: { mode: DictionaryMode };
 	/** App-wide default provider. */
 	provider: TranslateProviderId;
 	targetLang: TranslateTargetLang;
@@ -142,14 +145,21 @@ export type TranslateTask = {
 		quote?: string;
 		/** e.g. "pdf-selection" */
 		surface?: string;
+		dictionary?: boolean;
+		dictionarySurrounding?: string;
+		dictionaryReference?: string;
 	};
 };
 
 export type TranslateRunOptions = {
+	/** Resolved terminology constraint for this source text. */
+	glossary?: string;
 	/** Override settings.provider for this call. */
 	providerId?: TranslateProviderId;
 	/** Current BYOK provider config, resolved from settings. */
 	providerConfig?: TranslateProviderConfig;
+	/** Streaming increments, for providers that stream (Bilibili Translate). */
+	onDelta?: (chunk: string) => void;
 	/**
 	 * Agent path: custom prompt override; defaults to
 	 * settings.translate.customPrompt (set by `runTranslate`).
@@ -183,12 +193,11 @@ export type TranslateService = {
 /** Ordered list for settings UI (free engines). */
 export const FREE_MT_PROVIDER_IDS: FreeTranslateProviderId[] = [
 	"agentero",
+	"indextranslate",
+	"indextranslate2b",
 	"tencenttransmart",
 	"huoshanweb",
-	"deeplx",
 	"cnki",
-	"googleapi",
-	"google",
 ];
 
 /** Ordered list for settings UI (commercial BYOK engines). */

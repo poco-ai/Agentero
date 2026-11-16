@@ -1,11 +1,7 @@
 //! ACP session list / load and history ReplayBuilder.
 
 use crate::core::error::AppError;
-use crate::features::agent::acp::client::{
-    acp_terminals, agentero_acp_builder, client_initialize_request, timed_acp_initialize,
-    timed_acp_load_session, timed_acp_request, to_acp_agent,
-};
-use crate::features::agent::acp::interaction::permission_response;
+use crate::features::agent::acp::client::{timed_acp_load_session, timed_acp_request};
 use crate::features::agent::acp::updates::{
     plan_priority_str, plan_status_str, text_from_content_block, tool_kind_str, tool_status_str,
 };
@@ -13,15 +9,15 @@ use crate::features::agent::models::{
     AcpHistoryLine, AcpHistoryPart, AcpHistoryTool, AcpListSessionsResult, AcpLoadSessionResult,
     AcpSessionInfo, AgentDescriptor, AgentPlanEntry,
 };
+use crate::features::agent::remote_host::RemoteAgentLaunch;
+use crate::features::agent::session::query::AgentQueryPool;
 
 #[path = "dsh_history.rs"]
 mod dsh_history;
 
 use agent_client_protocol::schema::v1::{
-    DeleteSessionRequest, ListSessionsRequest, LoadSessionRequest, RequestPermissionRequest,
-    SessionId, SessionNotification, SessionUpdate,
+    DeleteSessionRequest, ListSessionsRequest, LoadSessionRequest, SessionId, SessionUpdate,
 };
-use agent_client_protocol::{Agent, ConnectionTo};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -54,113 +50,88 @@ pub fn list_sessions_page_done(
 }
 
 /// List sessions from an ACP agent via `session/list`.
-/// Returns `supported: false` if the agent does not advertise session.list capability.
-/// `cwd` is already resolved/normalized by `agent_spawn_cwd` at the service boundary.
+///
+/// Reuses the pooled query connection ([`AgentQueryPool`]) instead of spawning
+/// a fresh agent process per call. Returns `supported: false` when the agent
+/// does not advertise `session/list`. `cwd` is resolved by the service
+/// boundary.
 pub async fn list_acp_sessions(
+    queries: &Arc<AgentQueryPool>,
     desc: &AgentDescriptor,
     cwd: PathBuf,
     cursor: Option<String>,
-    remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
+    remote: Option<&Arc<dyn RemoteAgentLaunch>>,
 ) -> Result<AcpListSessionsResult, AppError> {
-    let acp = to_acp_agent(desc, Some(&cwd), remote)?;
-    let terminals = acp_terminals(Some(cwd.clone()));
-
-    let result = agentero_acp_builder!(terminals)
-        .on_receive_request(
-            async move |request: RequestPermissionRequest, responder, _cx| {
-                let _ = responder.respond(permission_response(&request, false));
-                Ok(())
-            },
-            agent_client_protocol::on_receive_request!(),
-        )
-        .connect_with(acp, {
-            move |connection: ConnectionTo<Agent>| async move {
-                let init = timed_acp_initialize(
-                    connection
-                        .send_request(client_initialize_request())
-                        .block_task(),
-                )
-                .await?;
-
-                let supports_list = init.agent_capabilities.session_capabilities.list.is_some();
-
-                if !supports_list {
-                    return Ok(AcpListSessionsResult {
-                        sessions: vec![],
-                        next_cursor: None,
-                        supported: false,
-                    });
-                }
-
-                let started = std::time::Instant::now();
-                let mut sessions: Vec<AcpSessionInfo> = Vec::new();
-                let mut seen: HashSet<String> = HashSet::new();
-                let mut cursor = cursor;
-                let mut pages = 0usize;
-
-                loop {
-                    let mut req = ListSessionsRequest::new().cwd(cwd.clone());
-                    if let Some(ref c) = cursor {
-                        req = req.cursor(c.clone());
-                    }
-
-                    let resp = timed_acp_request(
-                        "session/list",
-                        connection.send_request(req).block_task(),
-                    )
-                    .await?;
-                    pages += 1;
-
-                    for s in resp.sessions {
-                        let session_id = s.session_id.to_string();
-                        if !seen.insert(session_id.clone()) {
-                            continue;
-                        }
-                        // Some ACP agents (e.g. codex-acp) return sessions whose cwd is
-                        // a parent or sibling of the requested vault. Filter to the
-                        // requested cwd and its subdirectories so the history popover
-                        // only shows conversations belonging to the current vault.
-                        let session_cwd = PathBuf::from(s.cwd.to_string_lossy().as_ref());
-                        if session_cwd != cwd && !session_cwd.starts_with(&cwd) {
-                            continue;
-                        }
-                        sessions.push(AcpSessionInfo {
-                            session_id,
-                            cwd: s.cwd.to_string_lossy().to_string(),
-                            title: s.title,
-                            updated_at: s.updated_at,
-                        });
-                    }
-
-                    let next = resp.next_cursor;
-                    let stalled = next.is_some() && next.as_deref() == cursor.as_deref();
-                    if list_sessions_page_done(
-                        next.as_deref(),
-                        cursor.as_deref(),
-                        sessions.len(),
-                        pages,
-                        started.elapsed(),
-                    ) {
-                        // Never hand back a cursor that did not advance.
-                        cursor = if stalled { None } else { next };
-                        break;
-                    }
-                    cursor = next;
-                }
-
-                Ok(AcpListSessionsResult {
-                    sessions,
-                    next_cursor: cursor,
-                    supported: true,
-                })
-            }
-        })
-        .await;
-
-    match result {
-        Ok(r) => Ok(r),
-        Err(e) => Err(AppError::domain("acp", format!("acp: list sessions: {e}"))),
+    let conn = queries.acquire(desc, cwd.clone(), remote).await?;
+    if !conn.caps.list {
+        return Ok(AcpListSessionsResult {
+            sessions: vec![],
+            next_cursor: None,
+            supported: false,
+        });
     }
+
+    let started = std::time::Instant::now();
+    let mut sessions: Vec<AcpSessionInfo> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut cursor = cursor;
+    let mut pages = 0usize;
+
+    loop {
+        let mut req = ListSessionsRequest::new().cwd(cwd.clone());
+        if let Some(ref c) = cursor {
+            req = req.cursor(c.clone());
+        }
+        conn.touch();
+        let resp = timed_acp_request(
+            "session/list",
+            conn.connection.send_request(req).block_task(),
+        )
+        .await
+        .map_err(|e| AppError::domain("acp", format!("acp: list sessions: {e}")))?;
+        pages += 1;
+
+        for s in resp.sessions {
+            let session_id = s.session_id.to_string();
+            if !seen.insert(session_id.clone()) {
+                continue;
+            }
+            // Some ACP agents (e.g. codex-acp) return sessions whose cwd is a
+            // parent or sibling of the requested vault. Filter to the requested
+            // cwd and its subdirectories so history only shows this vault.
+            let session_cwd = PathBuf::from(s.cwd.to_string_lossy().as_ref());
+            if session_cwd != cwd && !session_cwd.starts_with(&cwd) {
+                continue;
+            }
+            sessions.push(AcpSessionInfo {
+                session_id,
+                cwd: s.cwd.to_string_lossy().to_string(),
+                title: s.title,
+                updated_at: s.updated_at,
+            });
+        }
+
+        let next = resp.next_cursor;
+        let stalled = next.is_some() && next.as_deref() == cursor.as_deref();
+        if list_sessions_page_done(
+            next.as_deref(),
+            cursor.as_deref(),
+            sessions.len(),
+            pages,
+            started.elapsed(),
+        ) {
+            // Never hand back a cursor that did not advance.
+            cursor = if stalled { None } else { next };
+            break;
+        }
+        cursor = next;
+    }
+
+    Ok(AcpListSessionsResult {
+        sessions,
+        next_cursor: cursor,
+        supported: true,
+    })
 }
 
 /// Delete one session via ACP `session/delete`.
@@ -169,62 +140,36 @@ pub async fn list_acp_sessions(
 /// not advertise `sessionCapabilities.delete` — the caller still hides the id
 /// locally. Errors are RPC failures after the capability was advertised.
 pub async fn delete_acp_session(
+    queries: &Arc<AgentQueryPool>,
     desc: &AgentDescriptor,
     session_id: &str,
     cwd: PathBuf,
-    remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
+    remote: Option<&Arc<dyn RemoteAgentLaunch>>,
 ) -> Result<bool, AppError> {
-    let acp = to_acp_agent(desc, Some(&cwd), remote)?;
-    let terminals = acp_terminals(Some(cwd));
-    let session_id = session_id.to_string();
-
-    let result = agentero_acp_builder!(terminals)
-        .on_receive_request(
-            async move |request: RequestPermissionRequest, responder, _cx| {
-                let _ = responder.respond(permission_response(&request, false));
-                Ok(())
-            },
-            agent_client_protocol::on_receive_request!(),
-        )
-        .connect_with(acp, {
-            move |connection: ConnectionTo<Agent>| async move {
-                let init = timed_acp_initialize(
-                    connection
-                        .send_request(client_initialize_request())
-                        .block_task(),
-                )
-                .await?;
-                if init
-                    .agent_capabilities
-                    .session_capabilities
-                    .delete
-                    .is_none()
-                {
-                    return Ok(false);
-                }
-                timed_acp_request(
-                    "session/delete",
-                    connection
-                        .send_request(DeleteSessionRequest::new(session_id))
-                        .block_task(),
-                )
-                .await?;
-                Ok(true)
-            }
-        })
-        .await;
-
-    match result {
-        Ok(deleted) => Ok(deleted),
-        Err(e) => Err(AppError::domain("acp", format!("acp: delete session: {e}"))),
+    if session_id.trim().is_empty() {
+        return Ok(false);
     }
+    let conn = queries.acquire(desc, cwd, remote).await?;
+    if !conn.caps.delete {
+        return Ok(false);
+    }
+    conn.touch();
+    timed_acp_request(
+        "session/delete",
+        conn.connection
+            .send_request(DeleteSessionRequest::new(SessionId::new(session_id)))
+            .block_task(),
+    )
+    .await
+    .map(|_| true)
+    .map_err(|e| AppError::domain("acp", format!("acp: delete session: {e}")))
 }
 
 /// Load a session's history from an ACP agent via `session/load`.
 /// The agent replays history as SessionNotification events which we accumulate.
 /// `messageId` boundaries split consecutive same-kind chunks into separate parts.
 #[derive(Default)]
-struct ReplayBuilder {
+pub(crate) struct ReplayBuilder {
     lines: Vec<ReplayLine>,
     title: Option<String>,
 }
@@ -263,7 +208,9 @@ fn is_synthetic_replay_placeholder(text: &str) -> bool {
     )
 }
 
-fn chunk_msg_id(chunk: &agent_client_protocol::schema::v1::ContentChunk) -> Option<String> {
+pub(crate) fn chunk_msg_id(
+    chunk: &agent_client_protocol::schema::v1::ContentChunk,
+) -> Option<String> {
     chunk.message_id.as_ref().map(|m| m.0.to_string())
 }
 
@@ -439,13 +386,17 @@ impl ReplayBuilder {
 }
 
 /// Load a session using the cwd resolved by `agent_spawn_cwd` at the service boundary.
+///
+/// Reuses the pooled query connection ([`AgentQueryPool`]); its notification
+/// handler routes replay chunks by session id into the collector registered
+/// here, so an already-initialized agent process can answer immediately.
 pub async fn load_acp_session(
+    queries: &Arc<AgentQueryPool>,
     desc: &AgentDescriptor,
     session_id: String,
     cwd: PathBuf,
-    remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
+    remote: Option<&Arc<dyn RemoteAgentLaunch>>,
 ) -> Result<AcpLoadSessionResult, AppError> {
-    let acp = to_acp_agent(desc, Some(&cwd), remote)?;
     let dsh_home = if remote.is_none()
         && desc.template == crate::features::agent::models::AgentTemplate::Dsh
     {
@@ -457,148 +408,114 @@ pub async fn load_acp_session(
         None
     };
 
-    let builder: Arc<Mutex<ReplayBuilder>> = Arc::new(Mutex::new(ReplayBuilder::default()));
-    let builder_for_notif = builder.clone();
-    let terminals = acp_terminals(Some(cwd.clone()));
-
-    let result = agentero_acp_builder!(terminals)
-        .on_receive_notification(
-            async move |notification: SessionNotification, _cx| {
-                let Ok(mut b) = builder_for_notif.lock() else {
-                    return Ok(());
-                };
-                match &notification.update {
-                    SessionUpdate::UserMessageChunk(chunk) => {
-                        if let Some(text) = text_from_content_block(&chunk.content) {
-                            b.push_user_chunk(text, chunk_msg_id(chunk));
-                        }
-                    }
-                    SessionUpdate::AgentMessageChunk(chunk) => {
-                        if let Some(text) = text_from_content_block(&chunk.content) {
-                            b.push_agent_chunk(false, text, chunk_msg_id(chunk));
-                        }
-                    }
-                    SessionUpdate::AgentThoughtChunk(chunk) => {
-                        if let Some(text) = text_from_content_block(&chunk.content) {
-                            b.push_agent_chunk(true, text, chunk_msg_id(chunk));
-                        }
-                    }
-                    SessionUpdate::ToolCall(tc) => {
-                        b.apply_tool(
-                            tc.tool_call_id.to_string(),
-                            Some(tc.title.clone()),
-                            Some(tool_kind_str(tc.kind).to_string()),
-                            Some(tool_status_str(tc.status).to_string()),
-                            tc.raw_input.clone(),
-                            tc.raw_output.clone(),
-                        );
-                    }
-                    SessionUpdate::ToolCallUpdate(upd) => {
-                        let f = &upd.fields;
-                        b.apply_tool(
-                            upd.tool_call_id.to_string(),
-                            f.title.clone(),
-                            f.kind.map(tool_kind_str).map(str::to_string),
-                            f.status.map(tool_status_str).map(str::to_string),
-                            f.raw_input.clone(),
-                            f.raw_output.clone(),
-                        );
-                    }
-                    SessionUpdate::Plan(plan) => {
-                        b.apply_plan(
-                            plan.entries
-                                .iter()
-                                .map(|e| AgentPlanEntry {
-                                    content: e.content.clone(),
-                                    status: plan_status_str(&e.status).to_string(),
-                                    priority: plan_priority_str(&e.priority).to_string(),
-                                })
-                                .collect(),
-                        );
-                    }
-                    SessionUpdate::SessionInfoUpdate(info) => {
-                        if let agent_client_protocol::schema::MaybeUndefined::Value(t) = &info.title
-                        {
-                            b.title = Some(t.clone());
-                        }
-                    }
-                    _ => {}
-                }
-                Ok(())
-            },
-            agent_client_protocol::on_receive_notification!(),
-        )
-        .on_receive_request(
-            async move |request: RequestPermissionRequest, responder, _cx| {
-                let _ = responder.respond(permission_response(&request, false));
-                Ok(())
-            },
-            agent_client_protocol::on_receive_request!(),
-        )
-        .connect_with(acp, {
+    let conn = queries.acquire(desc, cwd.clone(), remote).await?;
+    if !conn.caps.load {
+        // resume restores model context, but does not replay a transcript.
+        // Dsh currently only implements resume; recover its local durable log.
+        if let Some(home) = dsh_home {
+            let home =
+                home.map_err(|e| AppError::domain("acp", format!("acp: load session: {e}")))?;
             let sid = session_id.clone();
-            let agent_id = desc.id.clone();
-            move |connection: ConnectionTo<Agent>| async move {
-                let init = timed_acp_initialize(
-                    connection
-                        .send_request(client_initialize_request())
-                        .block_task(),
-                )
-                .await?;
-
-                if !init.agent_capabilities.load_session {
-                    // resume restores model context, but does not replay a transcript.
-                    // Dsh currently only implements resume; recover its local durable log.
-                    if let Some(home) = dsh_home {
-                        let home = home.map_err(agent_client_protocol::util::internal_error)?;
-                        return tokio::task::spawn_blocking(move || {
-                            dsh_history::load(&home, &sid, &cwd)
-                        })
-                        .await
-                        .map_err(agent_client_protocol::util::internal_error)?
-                        .map(Some)
-                        .map_err(agent_client_protocol::util::internal_error);
-                    }
-                    return Err(agent_client_protocol::util::internal_error(
-                        "This agent does not support history replay (session/load)".to_string(),
-                    ));
-                }
-
-                timed_acp_load_session(
-                    &agent_id,
-                    &sid,
-                    connection
-                        .send_request(
-                            LoadSessionRequest::new(SessionId::new(sid.as_str()), cwd)
-                                .mcp_servers(vec![]),
-                        )
-                        .block_task(),
-                )
-                .await?;
-
-                // ACP replies only after replaying the history. The SDK dispatches
-                // notifications in order and completes each handler before the next
-                // message, so the load response is the replay completion boundary.
-                Ok(None)
-            }
-        })
-        .await;
-
-    match result {
-        Ok(Some(history)) => Ok(history),
-        Ok(None) => {
-            let taken = builder
-                .lock()
-                .map(|mut g| std::mem::take(&mut *g))
-                .unwrap_or_default();
-            let (lines, title) = taken.finish();
-            Ok(AcpLoadSessionResult {
-                session_id,
-                title,
-                lines,
-            })
+            return tokio::task::spawn_blocking(move || dsh_history::load(&home, &sid, &cwd))
+                .await
+                .map_err(|e| AppError::domain("acp", format!("acp: load session: {e}")))?
+                .map_err(|e| AppError::domain("acp", format!("acp: load session: {e}")));
         }
-        Err(e) => Err(AppError::domain("acp", format!("acp: load session: {e}"))),
+        return Err(AppError::domain(
+            "acp",
+            "acp: load session: This agent does not support history replay (session/load)",
+        ));
+    }
+
+    let replay: Arc<Mutex<ReplayBuilder>> = Arc::new(Mutex::new(ReplayBuilder::default()));
+    conn.register_load(&session_id, replay.clone());
+    conn.touch();
+    let result = timed_acp_load_session(
+        &desc.id,
+        &session_id,
+        conn.connection
+            .send_request(
+                LoadSessionRequest::new(SessionId::new(session_id.as_str()), cwd)
+                    .mcp_servers(vec![]),
+            )
+            .block_task(),
+    )
+    .await;
+    conn.unregister_load(&session_id, &replay);
+    result.map_err(|e| AppError::domain("acp", format!("acp: load session: {e}")))?;
+
+    // ACP replies only after replaying the history. The SDK dispatches
+    // notifications in order and completes each handler before the next
+    // message, so the collected transcript is complete here.
+    let taken = replay
+        .lock()
+        .map(|mut g| std::mem::take(&mut *g))
+        .unwrap_or_default();
+    let (lines, title) = taken.finish();
+    Ok(AcpLoadSessionResult {
+        session_id,
+        title,
+        lines,
+    })
+}
+
+/// Fold one replayed ACP update into the transcript builder.
+pub(crate) fn apply_replay_update(builder: &mut ReplayBuilder, update: &SessionUpdate) {
+    match update {
+        SessionUpdate::UserMessageChunk(chunk) => {
+            if let Some(text) = text_from_content_block(&chunk.content) {
+                builder.push_user_chunk(text, chunk_msg_id(chunk));
+            }
+        }
+        SessionUpdate::AgentMessageChunk(chunk) => {
+            if let Some(text) = text_from_content_block(&chunk.content) {
+                builder.push_agent_chunk(false, text, chunk_msg_id(chunk));
+            }
+        }
+        SessionUpdate::AgentThoughtChunk(chunk) => {
+            if let Some(text) = text_from_content_block(&chunk.content) {
+                builder.push_agent_chunk(true, text, chunk_msg_id(chunk));
+            }
+        }
+        SessionUpdate::ToolCall(tc) => {
+            builder.apply_tool(
+                tc.tool_call_id.to_string(),
+                Some(tc.title.clone()),
+                Some(tool_kind_str(tc.kind).to_string()),
+                Some(tool_status_str(tc.status).to_string()),
+                tc.raw_input.clone(),
+                tc.raw_output.clone(),
+            );
+        }
+        SessionUpdate::ToolCallUpdate(upd) => {
+            let f = &upd.fields;
+            builder.apply_tool(
+                upd.tool_call_id.to_string(),
+                f.title.clone(),
+                f.kind.map(tool_kind_str).map(str::to_string),
+                f.status.map(tool_status_str).map(str::to_string),
+                f.raw_input.clone(),
+                f.raw_output.clone(),
+            );
+        }
+        SessionUpdate::Plan(plan) => {
+            builder.apply_plan(
+                plan.entries
+                    .iter()
+                    .map(|e| AgentPlanEntry {
+                        content: e.content.clone(),
+                        status: plan_status_str(&e.status).to_string(),
+                        priority: plan_priority_str(&e.priority).to_string(),
+                    })
+                    .collect(),
+            );
+        }
+        SessionUpdate::SessionInfoUpdate(info) => {
+            if let agent_client_protocol::schema::MaybeUndefined::Value(t) = &info.title {
+                builder.title = Some(t.clone());
+            }
+        }
+        _ => {}
     }
 }
 

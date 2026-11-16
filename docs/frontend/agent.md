@@ -22,6 +22,21 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 
 章节与段落引用也支持 `[label](papers/<id>/<id>.pdf#2.1)`、`[label](papers/<id>/<id>.pdf#2.1#p3)` 和同格式的 PDF 双链。Agent 应先用 `agentero layout list <paper> --kind paragraph --json` 查询真实锚点，再引用返回的 `anchor`；`p3` 是章节内的正文块序号，子章节独立计数。聊天、普通 Markdown 链接与双链使用同一个解析器；缺少解析、目标不存在或有歧义时报告失败。Markdown 的 `#标题` 与 PDF 的编号章节分别解释。
 
+## Zen 对话工作区
+
+整页的多会话 Agent 工作面。入口是文件树里的 **Agent 根节点**：单击行标签在中间 Dockview 打开虚拟标签（`agentero:zen`），可以和论文分屏；行首展开箭头仍只展开 `AGENTS.md` / 技能。
+
+- **按 harness 分组、按 session 成行**：左栏按可用的 Harness 分区，分区标题沿用文件树行样式（Agent 图标 + 名称；悬停时图标原位换成展开箭头，行内出现 `+` 为该 harness 新建会话），点击折叠 / 展开。分区内每行就是一个 Session，缩进一级（`TREE_ROW_INSET_PX + TREE_ROW_INDENT_STEP_PX`）、复用文件树行状态（`tree-row-styles.ts`：悬停 `sidebar-accent/80`，选中 `sidebar-primary/75` + 反色文字），已打开的槽会话与 ACP 历史会话（`session/list`，排除后台工作流与已删除项）按最近使用时间排在一起、地位相同。点任意一行都在右侧显示该 Session，其他 Session 保持打开并继续接收流；历史项在**新槽**中载入（已打开则只聚焦），关闭某一行只移除该 Session，槽里最后一个 Session 关掉才回收整个槽。顶部整行的「New Session」按钮在**当前激活的 harness** 下新建会话；历史在 Zen 可见时自动拉取（打开 Zen、Harness 注册表变化）。
+- **会话载入态**：从列表点开一个 Session 时不显示空态推荐卡片——排队中的历史项先渲染恢复 Shimmer，真正开始 `session/load` 后由 `hydratingSessionId` 接管同一个骨架屏；推荐卡片只在 `draft`（新建对话）里出现。载入不再依赖历史探针是否成功：没有本地 transcript 就直接走 `session/load`，探针失败也不会退化成空对话；Agent 回放为空时插入「该会话没有可回放的消息」系统行。排队项只在载入真正开始后才清除，Agent 还没解析出来或当前有回合在跑时保留并重试。
+- **历史列表与 ACP 开销**：`session/list` / `session/load` 每次都会另起一个 ACP 进程并 `initialize`，所以左栏只由 Zen 自己按 harness 并行拉一次历史，结果按 vault 缓存 30s（切走再回到 Zen 不重复拉取，注册表变化时缓存失效并重拉）；槽内面板用 `suppressHistoryImport` 跳过自己的 `session/list` 与历史导入，打开一个会话只付一次 `session/load` 的启动 + 回放成本。
+- **会话槽**：每个槽是一块独立的对话面，所有槽同时挂载、只隐藏非当前槽，因此后台槽继续接收流事件；关闭 Zen 标签页会取消所有槽里运行中的回合并清空槽列表（`lib/agent/zen-store.ts`）。
+- **独立 store**：每个槽由 `createAgentSessionStore()` 拥有一份会话 store，经 `AgentSessionScopeContext` 注入；右侧栏仍用共享的 `agentSessionStore`。槽内可各自换 Harness / 模型，规则与侧栏一致（有运行中会话时不能换 Harness）；历史弹层从 ACP `session/list` 读取，打开的会话载入当前槽。
+- **从侧栏接管**：打开 Zen 时收起右侧栏；若还没有槽，用右侧栏当前 `sessions` / `activeTabId` / `draftLines` 与选中的 Agent 创建第一个槽，并把侧栏 composer 的当前草稿复制到该槽的存储命名空间。侧栏 store 不清空，重新展开仍可看到原对话；PDF 视觉批注产生的 pin 会话不接管。两边同时收到同一会话的流事件时各写各的 store（都按 `sessionId` 认领），因此不会互相污染；权限 / elicitation / ask-user 请求按 request id 只让最先收到的那一面显示（`lib/agent/interactive-claims.ts`），overlay id 带 scope 后缀，避免两面各弹一次。
+- **草稿隔离**：composer 草稿 key 带 scope 前缀（`zen:<slotId>`）。**应用级输入跟随可见的对话面**：右侧栏在显示 Agent 页时优先；否则打开的 Zen 由当前激活槽接收「添加到对话」、钉选划词（`⇧⌘L`）与外部预填 prompt（`lib/agent/chat-input-surface.ts`），并自动把 Zen 标签提到前台。PDF 视觉批注草稿与 `agentChromeStore` 写入仍只由右侧栏处理；跨窗口 handoff 不影响槽。
+- **原生拖入图片**：`ComposerDropTarget` 用自身元素所在的 `[data-composer-drop-shell]` / `[data-agent-panel]` 做命中测试，不再取页面第一个 composer，因此每个槽都能接住 Finder 拖入的图片。
+- **整页留白**：Zen 的 `AgentPanel` 以 `wide` 模式渲染，消息列和输入框左右各留 20px（`lg` 及以上 40px）内边距，避免整页宽度下正文和 composer 贴边；右侧栏保持原来的紧凑边距。
+- **默认上下文**：Zen 本身不是文档焦点，Agent 默认上下文不含它（可用 `@` 显式加文件）。
+
 ## 面板行为
 
 - **Dsh 重启历史**：官方 ACP 桥仅支持 `session/resume` 时，本机历史从
@@ -129,6 +144,8 @@ Skill 语法由 Host 按 provider 分流（Claude `/id`，其它注入 `SKILL.md
 | 代码块 | `PlainCodeBlock` | 左上角语言小标签；悬停复制/下载（按语言后缀）；无外侧卡片、无全屏 |
 | Mermaid | `MermaidBlock` | 默认只显示图形；悬停右上角出现源码、缩放和全屏操作；源码模式使用带语言标题的高亮代码块，并显示复制按钮；图形可拖拽平移，无法编译时自动回退源码 |
 
+表格复制或下载为 Markdown 时，从 KaTeX 的 TeX annotation 恢复行内公式，保留 `$…$` 分隔符、TeX 反斜杠和单元格内的管道符转义。
+
 表格全屏是应用内覆盖层（portal），保留粘性表头、Esc 关闭和复制/下载操作；不再对 `<table>` 直接调用 Fullscreen API，避免浏览器把表格拉伸到视口高度、露出透明背景。
 
 `mermaid` 代码块不再交给 `@streamdown/mermaid` 的默认卡片：`MessageResponse` 的 `AgentCodeBlock` 在 code renderer 里拦截该语言，复用编辑器的 `MermaidCodeRenderer` / `MermaidBlock`。`MarkdownSurface` 的 `renderers` 在这里不会生效，因为 `components.code` 已替换 Streamdown 内置渲染器。渲染配色、字体与排版由 `lib/markdown/mermaid-theme.ts` 按亮/暗主题生成（主题令牌的 sRGB 等价色，Mermaid 的取色库无法解析 `oklch()`）。
@@ -139,7 +156,7 @@ Mermaid 聊天块使用固定高度的变换视口，缩放和平移只改变图
 
 Streamdown 的 `mode` 由 `isAnimating` 派生：流式中 `"streaming"`（跑 remend 补全未闭合标签），消息落定后 `"static"` 跳过 remend——否则公式里 `x_{<n}` 的 `<n…` 会被当成未闭合 HTML 标签截掉，KaTeX 报 `Expected '}', got 'EOF'`（#584，复盘见 [bug_fix/agent-message-math-less-than](../bug_fix/agent-message-math-less-than.md)）。
 
-**复制**：单击回复中的公式可复制不带定界符的 LaTeX 源码，公式旁的复制按钮支持键盘与触屏；成功局部显示对勾并播报，失败才弹 Toast。拖选或滚动不触发复制。消息悬停的复制按钮复制该轮原始 Markdown（Agent 返回的就是 Markdown 文本，公式保持原样）；正文划词复制时，若选区包含渲染出来的公式，会先把 KaTeX 还原为 `$…$` / `$$…$$` 再写入剪贴板（否则浏览器只能拷到 KaTeX 字形、丢失 TeX）。不含公式的划词仍是默认纯文本复制。实现：`src/lib/markdown/rendered-math-copy.ts`，`MessageContent` 用 `data-markdown-copy` 标记作用域。
+**复制**：单击回复中的公式可复制不带定界符的 LaTeX 源码，公式旁的复制按钮支持键盘与触屏；成功局部显示对勾并播报，失败才弹 Toast。拖选或滚动不触发复制，右键单个渲染公式同样可复制源码。消息悬停的复制按钮复制该轮原始 Markdown（Agent 返回的就是 Markdown 文本，公式保持原样）；正文划词复制时，若选区包含渲染出来的公式，会先把 KaTeX 还原为 `$…$` / `$$…$$` 再写入剪贴板（否则浏览器只能拷到 KaTeX 字形、丢失 TeX）。不含公式的划词仍是默认纯文本复制。实现：`src/lib/markdown/rendered-math-copy.ts`，`MessageContent` 用 `data-markdown-copy` 标记作用域，并用 `src/lib/markdown/rendered-math.ts` 读取 KaTeX 源码。
 
 
 ## 结构化 UI 块（只读 v1）

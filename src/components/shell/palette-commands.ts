@@ -5,17 +5,10 @@
  */
 
 import { fileTreeHandle } from "@/components/shell/file-tree-registry";
-import { focusAgentComposer } from "@/lib/agent/composer-focus";
+import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { pinActiveSelection } from "@/lib/agent/selection-store";
 import { openMagicWand } from "@/lib/paper/import-actions";
 import { refreshLibrary } from "@/lib/paper/library-store";
-import {
-	canLoadDevelopmentPlugin,
-	hasDevelopmentPlugins,
-	loadDevelopmentPlugin,
-	unloadDevelopmentPlugins,
-} from "@/lib/plugins/development";
-import { pluginsSurfaceEnabled } from "@/lib/plugins/visibility";
 import { registerBuiltinCommands } from "@/lib/shell/commands/registry";
 import type { AppCommand } from "@/lib/shell/commands/types";
 import {
@@ -23,7 +16,7 @@ import {
 	openSettingsWindow,
 } from "@/lib/shell/settings-window";
 import { layout, toggleSidebar, uiStore } from "@/lib/shell/ui-store";
-import { openRightTab, toggleChat } from "@/lib/shell/ui-window-actions";
+import { toggleChat } from "@/lib/shell/ui-window-actions";
 import {
 	createNewVault,
 	openSelectedInTerminal,
@@ -50,20 +43,6 @@ import { resolveActivePdfHandle } from "@/lib/workspace/viewer/pdf-viewer-regist
 const hasVault = () => Boolean(getVaultPath());
 
 export const paletteCommands: AppCommand[] = [
-	{
-		id: "plugins.loadDevelopment",
-		titleKey: "commands.pluginsLoadDevelopment",
-		categoryKey: "commands.catApp",
-		when: () => pluginsSurfaceEnabled && canLoadDevelopmentPlugin(),
-		run: loadDevelopmentPlugin,
-	},
-	{
-		id: "plugins.unloadDevelopment",
-		titleKey: "commands.pluginsUnloadDevelopment",
-		categoryKey: "commands.catApp",
-		when: () => pluginsSurfaceEnabled && hasDevelopmentPlugins(),
-		run: unloadDevelopmentPlugins,
-	},
 	{
 		id: "settings.open",
 		titleKey: "commands.settingsOpen",
@@ -147,8 +126,7 @@ export const paletteCommands: AppCommand[] = [
 		keywords: ["agent", "chat", "selection", "context"],
 		run: () => {
 			pinActiveSelection();
-			openRightTab("agent");
-			focusAgentComposer();
+			presentAgentComposer();
 		},
 	},
 	{

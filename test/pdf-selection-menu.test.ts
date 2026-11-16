@@ -9,7 +9,7 @@ vi.mock("react-i18next", () => ({
 			const dict: Record<string, string> = {
 				"selection.menuLabel": "选区操作",
 				"selection.note": "批注",
-				"selection.chatActions": "对话操作",
+				"selection.moreActions": "更多操作",
 				"selection.translate": "翻译",
 				"selection.copy": "复制",
 				"selection.quickChat": "快速对话",
@@ -33,6 +33,14 @@ describe("SelectionMenu", () => {
 		showTranslate: true,
 	};
 
+	it("uses the same action and shortcut for dictionary lookups", () => {
+		const html = renderToStaticMarkup(
+			createElement(SelectionMenu, { ...baseProps, selectionText: "KV cache" }),
+		);
+		expect(html).toContain('aria-label="selection.dictionaryTitle T"');
+		expect(html).not.toContain('aria-label="翻译 T"');
+	});
+
 	it("renders the copy button after translate and before add to chat when onCopy is provided", () => {
 		const html = renderToStaticMarkup(
 			createElement(SelectionMenu, {
@@ -45,7 +53,7 @@ describe("SelectionMenu", () => {
 		expect(html).toContain("复制");
 		expect(html).toContain("加入对话");
 		expect(html).not.toContain("快速对话");
-		expect(html).toContain('aria-label="对话操作"');
+		expect(html).toContain('aria-label="更多操作"');
 
 		expect(html.indexOf('aria-label="批注 N"')).toBeLessThan(
 			html.indexOf('aria-label="翻译 T"'),
@@ -53,7 +61,7 @@ describe("SelectionMenu", () => {
 		const translateIdx = html.indexOf('aria-label="翻译 T"');
 		const copyIdx = html.indexOf("复制");
 		const addToChatIdx = html.indexOf("加入对话");
-		const chatMenuIdx = html.indexOf('aria-label="对话操作"');
+		const chatMenuIdx = html.indexOf('aria-label="更多操作"');
 
 		expect(translateIdx).toBeGreaterThan(-1);
 		expect(copyIdx).toBeGreaterThan(translateIdx);
@@ -71,6 +79,6 @@ describe("SelectionMenu", () => {
 		expect(html).not.toContain("复制");
 		expect(html).toContain("加入对话");
 		expect(html).not.toContain("快速对话");
-		expect(html).toContain('aria-label="对话操作"');
+		expect(html).toContain('aria-label="更多操作"');
 	});
 });

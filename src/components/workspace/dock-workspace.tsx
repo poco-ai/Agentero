@@ -146,7 +146,12 @@ function buildTabContextMenuItem(opts: {
 /** Virtual rows and `agentero:` paths have no filesystem location to copy. */
 function tabPathCopyable(tab: DocTab | null): tab is DocTab {
 	if (!tab?.path) return false;
-	if (tab.kind === "library" || tab.kind === "trash" || tab.kind === "plaza") {
+	if (
+		tab.kind === "library" ||
+		tab.kind === "trash" ||
+		tab.kind === "plaza" ||
+		tab.kind === "zen"
+	) {
 		return false;
 	}
 	if (tab.path.startsWith("agentero:")) return false;
@@ -924,6 +929,7 @@ export const DockWorkspace = memo(
 					tab != null &&
 					tab.kind !== "library" &&
 					tab.kind !== "trash" &&
+					tab.kind !== "zen" &&
 					!isLibraryVirtualPath(tab.path) &&
 					!isTrashVirtualPath(tab.path);
 				if (canMoveToWindow && tab) {

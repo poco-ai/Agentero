@@ -145,6 +145,9 @@ pub fn run() {
         .manage(std::sync::Arc::new(
             crate::features::agent::session::pool::AgentWarmPool::new(),
         ))
+        .manage(std::sync::Arc::new(
+            crate::features::agent::session::query::AgentQueryPool::new(),
+        ))
         .manage(crate::features::agent::AgentWarmGate::new())
         .manage(crate::features::agent::PermissionGate::new())
         .manage(crate::features::agent::ElicitationGate::new())
@@ -215,11 +218,6 @@ pub fn run() {
                 }
             }
         });
-    }
-
-    #[cfg(not(any(target_os = "ios", target_os = "android")))]
-    {
-        builder = builder.manage(crate::integration::plugins::PluginManager::default());
     }
 
     builder = builder.setup(|app| {
@@ -546,10 +544,6 @@ pub fn run() {
                 let drained = window
                     .state::<vault_session::VaultHolders>()
                     .drain_window(window.label());
-                #[cfg(not(any(target_os = "ios", target_os = "android")))]
-                window
-                    .state::<crate::integration::plugins::PluginManager>()
-                    .unload(window.label(), None, None);
                 if !drained.is_empty() {
                     let app = window.app_handle().clone();
                     tauri::async_runtime::spawn(async move {
@@ -602,6 +596,8 @@ pub fn run() {
                 tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
             ) {
                 app.state::<Arc<crate::features::agent::session::pool::AgentWarmPool>>()
+                    .shutdown();
+                app.state::<Arc<crate::features::agent::session::query::AgentQueryPool>>()
                     .shutdown();
                 app.state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
                     .shutdown();

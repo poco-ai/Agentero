@@ -22,6 +22,7 @@ macro_rules! common_commands {
             crate::features::decision::commands::decision_gateway_decide,
             crate::features::paper::analyze::layout::model_assets::commands::layout_model_status,
             crate::features::paper::analyze::layout::hosted::commands::layout_remote_analyze_pdf,
+            crate::features::paper::analyze::layout::hosted::commands::layout_remote_cancel,
             crate::features::paper::analyze::layout::hosted::commands::layout_remote_probe,
             crate::features::agent::commands::agent_list_agents,
             crate::features::agent::commands::agent_list_skills,
@@ -101,6 +102,8 @@ macro_rules! common_commands {
             crate::features::vault::trash::commands::path_purge_item,
             crate::features::vault::trash::commands::path_purge_trash,
             crate::features::translate::commands::translate_text,
+            crate::features::translate::commands::translate_text_stream,
+            crate::features::translate::dictionary::dictionary_lookup,
             crate::features::translate::layout_cache::layout_translate_cache_write,
             crate::features::paper::import::commands::lookup_import_batch,
             crate::features::paper::import::commands::chat_import_extract,
@@ -174,26 +177,6 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
     #[cfg(not(target_os = "ios"))]
     {
         builder.invoke_handler(common_commands![
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_editor_state,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_list,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_inspect,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_install,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_configure,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_remove,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_activate,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_dev_load,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_unload,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_run,
             crate::integration::bridge::commands::bridge_start,
             crate::integration::bridge::commands::bridge_stop,
             crate::integration::bridge::commands::bridge_status,

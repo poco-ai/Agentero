@@ -1,4 +1,5 @@
 pub mod commands;
+mod layout_readiness;
 
 use crate::core::error::AppError;
 use crate::core::fs::canonicalize_best_effort;
@@ -813,6 +814,7 @@ impl JobCenter {
         lane: JobLane,
         force: bool,
         dependency: JobId,
+        params: Option<serde_json::Value>,
     ) -> JobSnapshot {
         self.enqueue_core_with_deps(
             JobKind::LayoutTranslate,
@@ -821,17 +823,16 @@ impl JobCenter {
             lane,
             force,
             None,
-            None,
+            params,
             vec![dependency],
             DepPolicy::AllSucceeded,
         )
         .await
     }
 
-    /// Import / download pipeline: queue layout analysis and, when
-    /// `auto_translate` is set, the dependent background translation. Shared
-    /// by the `job_layout_analyze_enqueue` command and the import runners so
-    /// every import entry point queues the same pair.
+    /// Queue layout analysis and, when `auto_translate` is set, the dependent
+    /// background translation. Shared by import / download, manual reparse,
+    /// and bulk reparse so those entries queue the same pair.
     ///
     /// A dedupe hit returns the already-active layout job and does not retarget
     /// an existing translation job's dependency; the translation stays queued
@@ -857,6 +858,7 @@ impl JobCenter {
                     lane,
                     force,
                     JobId(layout.id.clone()),
+                    None,
                 )
                 .await,
             )

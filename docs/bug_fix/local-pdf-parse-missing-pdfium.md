@@ -72,10 +72,28 @@ Set PDFIUM_LIB_PATH to the directory containing libpdfium.dylib
 - `run_parse_body_job` 见到 `error` 就把 job 标记 `Failed`，任务面板的错误详情
   因此能显示真实原因；`agentero paper parse` 同样改为返回非零错误。
 
-## 遗留
+## 遗留（CLI 归档，已补）
 
-`agentero-cli` 被「设置 → 安装 CLI」拷到 `~/.local/bin/agentero` 后离开 bundle，
-仍然找不到 PDFium —— 另开 issue 处理。
+桌面安装包修好之后，**独立 CLI 归档仍然只有可执行文件**。`liteparse-pdfium-sys`
+bake 进去的是 GitHub Actions runner 的缓存路径
+（`C:\Users\runneradmin\AppData\Local\pdfium-rs\...`），用户机器上不存在。
+`paper parse` 的隔离子进程因此在约 30 ms 内 panic，退出码 101，任何没有 TeX 的
+PDF 都写不出 `PAPER.md`。
+
+子进程其实就是 `current_exe()` 再拉起自己，并且会继承 `PDFIUM_LIB_PATH`。把
+**run-llama `chromium/8058`** 的 `pdfium.dll` 放在 exe 旁边，或把
+`PDFIUM_LIB_PATH` 指到那个目录，父进程这条路径是通的。stock PDFium
+（bblanchon/pdfium-binaries 等）`LoadLibrary` 能成功，但缺 fork 导出；
+`Library::init` 把 `load_default()` 的路径和符号错误丢掉，只留下
+`LibraryUnavailable`，所以看起来像「环境变量和 exe 目录都没被搜索」。
+
+修复：
+
+- CLI release 归档带上 `scripts/prepare-pdfium.mjs` 暂存的同一份库，与可执行文件同级。
+- 安装 CLI 时解出该库；旧归档没有它时，从当前 App bundle 拷贝。
+- worker 在调用 liteparse 之前按绝对路径 `load`。显式路径加载失败会再试 bundle
+  里的库，避免一个错误的 `PDFIUM_LIB_PATH` 挡住随包文件。失败信息写进
+  response，不再 panic。
 
 ## 验证
 

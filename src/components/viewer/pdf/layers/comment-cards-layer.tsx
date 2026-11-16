@@ -23,7 +23,13 @@
  * panes scroll the card body instead of clipping it.
  */
 
-import { Crop, Link2, MessageSquarePlus, Trash2 } from "lucide-react";
+import {
+	Crop,
+	Link2,
+	MessageSquarePlus,
+	Trash2,
+	Underline,
+} from "lucide-react";
 import {
 	memo,
 	useCallback,
@@ -55,6 +61,7 @@ import { cn } from "@/lib/core/utils";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 import {
 	DEFAULT_HIGHLIGHT_COLOR,
+	HIGHLIGHT_HEX,
 	swatchColorClass,
 } from "@/lib/pdf/highlight/palette";
 /** Card width in CSS px. */
@@ -300,6 +307,32 @@ type CommentCardProps = {
 	onLeave: () => void;
 };
 
+/** Shape glyph at the top of a card: crop for visual notes, color bar / dot. */
+function MarkerGlyph({
+	kind,
+	color,
+	shape,
+}: Pick<PageAnnotationComment, "kind" | "color" | "shape">) {
+	if (kind === "visual") {
+		return <Crop className="size-2.5 text-muted-foreground" aria-hidden />;
+	}
+	if (shape === "underline") {
+		return (
+			<Underline
+				className="size-3"
+				style={{ color: HIGHLIGHT_HEX[color] }}
+				aria-hidden
+			/>
+		);
+	}
+	return (
+		<span
+			className={cn("block size-2 rounded-full", swatchColorClass(color))}
+			aria-hidden
+		/>
+	);
+}
+
 const CommentCard = memo(function CommentCard({
 	inset,
 	item,
@@ -479,17 +512,11 @@ const CommentCard = memo(function CommentCard({
 			>
 				{editing ? (
 					<div className="block w-full text-left">
-						{item.kind === "visual" ? (
-							<Crop className="size-2.5 text-muted-foreground" aria-hidden />
-						) : (
-							<span
-								className={cn(
-									"block size-2 rounded-full",
-									swatchColorClass(item.color),
-								)}
-								aria-hidden
-							/>
-						)}
+						<MarkerGlyph
+							kind={item.kind}
+							color={item.color}
+							shape={item.shape}
+						/>
 						<CommentMarkdownEditor
 							initialValue={item.comment}
 							placeholder={t("annotations.placeholder")}
@@ -539,17 +566,11 @@ const CommentCard = memo(function CommentCard({
 							}
 						}}
 					>
-						{item.kind === "visual" ? (
-							<Crop className="size-2.5 text-muted-foreground" aria-hidden />
-						) : (
-							<span
-								className={cn(
-									"block size-2 rounded-full",
-									swatchColorClass(item.color),
-								)}
-								aria-hidden
-							/>
-						)}
+						<MarkerGlyph
+							kind={item.kind}
+							color={item.color}
+							shape={item.shape}
+						/>
 						<div
 							className={cn(
 								"mt-1 break-words text-sm leading-relaxed",

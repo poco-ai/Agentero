@@ -42,7 +42,7 @@ import {
 } from "@/lib/agent";
 import {
 	type AgentSessionRecord,
-	agentSessionStore,
+	useAgentSessionStoreApi,
 } from "@/lib/agent/agent-session-store";
 import {
 	type AgentPart,
@@ -137,6 +137,8 @@ export type AgentSessionRuntime = {
 	applyPlanEvent: (ev: AgentPlanEvent) => void;
 	completeSession: (ev: AgentResultPayload) => void;
 	failSession: (sessionId: string, error: string) => void;
+	/** Whether this chat surface owns the session (stream / dialog routing). */
+	isChatOwnedSession: (sessionId: string) => boolean;
 	/** Live turn phase per session (drives the streaming activity label/orb). */
 	phaseBySession: Record<string, AgentPhaseState>;
 };
@@ -164,12 +166,13 @@ export function useAgentSessionRuntime({
 	setAcpCommandsByAgent,
 	setAgentListenersReady,
 }: UseAgentSessionRuntimeOptions): AgentSessionRuntime {
+	const sessionStore = useAgentSessionStoreApi();
 	const updateSessionLines = useCallback(
 		(sessionId: string, update: (lines: ChatLine[]) => ChatLine[]) => {
 			// Shared store: modal pin + sidebar both observe the same lines.
-			agentSessionStore.getState().updateSessionLines(sessionId, update);
+			sessionStore.getState().updateSessionLines(sessionId, update);
 		},
-		[],
+		[sessionStore],
 	);
 
 	/**
@@ -693,7 +696,7 @@ export function useAgentSessionRuntime({
 				const title = ev.title ? displayHistoryTitle(ev.title) : "";
 				if (!title) return;
 				const providerId = ev.providerSessionId?.trim() ?? "";
-				agentSessionStore.getState().setSessions((prev) => {
+				sessionStore.getState().setSessions((prev) => {
 					let changed = false;
 					const next = prev.map((s) => {
 						const matches =
@@ -835,6 +838,7 @@ export function useAgentSessionRuntime({
 		setAgentListenersReady,
 		setUsage,
 		setUsageBySession,
+		sessionStore,
 		shouldDeferTerminalEvent,
 	]);
 
@@ -846,6 +850,7 @@ export function useAgentSessionRuntime({
 		applyPlanEvent,
 		completeSession,
 		failSession,
+		isChatOwnedSession,
 		phaseBySession,
 	};
 }

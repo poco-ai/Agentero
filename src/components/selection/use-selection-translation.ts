@@ -4,6 +4,12 @@ import { type AgentRunRefs, disposeAgentRun } from "@/lib/agent/run-attach";
 import type { SelectionDraftScreen } from "@/lib/agent/selection-chat-store";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import { runSelectionTranslate } from "@/lib/pdf/translate/run-selection";
+import { loadSettings } from "@/lib/settings";
+import {
+	dictionarySurrounding,
+	selectionTranslateMode,
+} from "@/lib/translate/dictionary";
+import type { SelectionTranslateMode } from "@/lib/translate/types";
 import { getVaultPath } from "@/lib/vault/store";
 import {
 	claimSelectionTranslation,
@@ -14,6 +20,8 @@ type Translation = {
 	selection: SelectionContext;
 	screen: SelectionDraftScreen;
 	result: string;
+	mode: SelectionTranslateMode;
+	results: Partial<Record<SelectionTranslateMode, string>>;
 	streaming: boolean;
 	error: string | null;
 };
@@ -22,6 +30,8 @@ type Translation = {
 export function useSelectionTranslation() {
 	const { t } = useTranslation("viewer");
 	const [translation, setTranslation] = useState<Translation | null>(null);
+	const translationRef = useRef(translation);
+	translationRef.current = translation;
 	const run = useRef<AgentRunRefs | null>(null);
 	const close = useCallback(() => {
 		releaseSelectionTranslation(close);
@@ -31,7 +41,22 @@ export function useSelectionTranslation() {
 	}, []);
 	useEffect(() => close, [close]);
 	const translate = useCallback(
-		(selection: SelectionContext, screen: Translation["screen"]) => {
+		(
+			selection: SelectionContext,
+			screen: Translation["screen"],
+			requestedMode?: SelectionTranslateMode,
+		) => {
+			const previous =
+				translationRef.current?.selection.id === selection.id
+					? translationRef.current
+					: null;
+			const results = { ...previous?.results };
+			const mode =
+				requestedMode ??
+				selectionTranslateMode(
+					selection.text,
+					loadSettings().translate.dictionary.mode,
+				);
 			close();
 			claimSelectionTranslation(close);
 			const refs: AgentRunRefs = {
@@ -44,10 +69,13 @@ export function useSelectionTranslation() {
 			setTranslation({
 				selection,
 				screen,
-				result: "",
-				streaming: true,
+				mode,
+				results,
+				result: results[mode] ?? "",
+				streaming: !results[mode],
 				error: null,
 			});
+			if (results[mode]) return;
 			const current = () => run.current === refs && !refs.disposedRef.current;
 			const patch = (update: (value: Translation) => Translation) => {
 				if (current())
@@ -55,8 +83,13 @@ export function useSelectionTranslation() {
 			};
 			void runSelectionTranslate({
 				text: selection.text,
+				mode,
 				context: {
 					surface: `${selection.surface ?? selection.origin}-selection`,
+					dictionarySurrounding: dictionarySurrounding(
+						selection.text,
+						selection.context,
+					),
 				},
 				paperKey: selection.sourcePath,
 				vaultPath: getVaultPath(),
@@ -69,11 +102,23 @@ export function useSelectionTranslation() {
 					patch((value) => ({
 						...value,
 						result: (event.content || value.result).trim(),
+						results:
+							event.stopReason === "cancelled"
+								? value.results
+								: {
+										...value.results,
+										[mode]: (event.content || value.result).trim(),
+									},
 					}));
 					return current();
 				},
 				commitProviderResult: (result) =>
-					patch((value) => ({ ...value, result, streaming: false })),
+					patch((value) => ({
+						...value,
+						result,
+						results: { ...value.results, [mode]: result },
+						streaming: false,
+					})),
 				markFailed: (error) =>
 					patch((value) => ({ ...value, error, streaming: false })),
 				stopStreaming: () => patch((value) => ({ ...value, streaming: false })),
@@ -81,5 +126,12 @@ export function useSelectionTranslation() {
 		},
 		[close, t],
 	);
-	return { translation, translate, close };
+	const switchMode = useCallback(
+		(mode: SelectionTranslateMode) => {
+			const current = translationRef.current;
+			if (current) translate(current.selection, current.screen, mode);
+		},
+		[translate],
+	);
+	return { translation, translate, switchMode, close };
 }

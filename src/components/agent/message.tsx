@@ -1,8 +1,22 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import type { ComponentProps, HTMLAttributes } from "react";
-import { createContext, useContext, useEffect } from "react";
+import type {
+	ComponentProps,
+	HTMLAttributes,
+	MouseEvent as ReactMouseEvent,
+} from "react";
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
+import {
+	FormulaContextMenu,
+	type FormulaContextMenuState,
+} from "@/components/agent/rendering/formula-context-menu";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +31,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/core/utils";
+import { renderedMathFromTarget } from "@/lib/markdown/rendered-math";
 import { installRenderedMathCopy } from "@/lib/markdown/rendered-math-copy";
 
 export {
@@ -49,33 +64,62 @@ export type MessageContentProps = HTMLAttributes<HTMLDivElement>;
 export const MessageContent = ({
 	children,
 	className,
+	onContextMenu,
 	...props
 }: MessageContentProps) => {
 	const from = useContext(MessageRole);
+	const [formulaMenu, setFormulaMenu] =
+		useState<FormulaContextMenuState | null>(null);
 	// Copying a text selection from a rendered AI reply should keep formulas as
 	// `$…$` Markdown instead of KaTeX glyph soup. One document listener covers
 	// every message; the `data-markdown-copy` marker scopes it to chat surfaces.
 	useEffect(() => {
 		installRenderedMathCopy();
 	}, []);
+
+	const handleContextMenu = useCallback(
+		(event: ReactMouseEvent<HTMLDivElement>) => {
+			onContextMenu?.(event);
+			if (event.defaultPrevented) return;
+			const formula = renderedMathFromTarget(event.target, event.currentTarget);
+			if (!formula) return;
+			event.preventDefault();
+			event.stopPropagation();
+			setFormulaMenu({
+				tex: formula.tex,
+				x: event.clientX,
+				y: event.clientY,
+			});
+		},
+		[onContextMenu],
+	);
+
+	const closeFormulaMenu = useCallback(() => setFormulaMenu(null), []);
+
 	return (
-		<MessageBody
-			data-markdown-copy
-			className={cn(
-				"flex w-fit min-w-0 max-w-full select-text flex-col gap-2 overflow-hidden text-sm",
-				"group-[.is-assistant]:text-foreground",
-				className,
-			)}
-			{...props}
-		>
-			{from === "user" ? (
-				<Bubble align="end" variant="muted" className="max-w-full">
-					<BubbleContent className="px-4 py-3">{children}</BubbleContent>
-				</Bubble>
-			) : (
-				children
-			)}
-		</MessageBody>
+		<>
+			<MessageBody
+				data-markdown-copy
+				className={cn(
+					"flex w-fit min-w-0 max-w-full select-text flex-col gap-2 overflow-hidden text-sm",
+					"group-[.is-assistant]:text-foreground",
+					className,
+				)}
+				onContextMenu={handleContextMenu}
+				{...props}
+			>
+				{from === "user" ? (
+					<Bubble align="end" variant="muted" className="max-w-full">
+						<BubbleContent className="px-4 py-3">{children}</BubbleContent>
+					</Bubble>
+				) : (
+					children
+				)}
+			</MessageBody>
+			{formulaMenu ? (
+				<FormulaContextMenu menu={formulaMenu} onClose={closeFormulaMenu} />
+			) : null}
+		</>
 	);
 };
 
