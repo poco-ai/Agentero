@@ -5,7 +5,8 @@ import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import type { ComponentProps } from "react";
 import { memo } from "react";
-import { type PluginConfig, Streamdown } from "streamdown";
+import { type ExtraProps, type PluginConfig, Streamdown } from "streamdown";
+import { MathCopy } from "@/components/markdown/math-copy";
 import { cn } from "@/lib/core/utils";
 import { AgentCitationLink } from "./agent-citation-link";
 import { PlainCodeBlock } from "./plain-code-block";
@@ -22,6 +23,18 @@ const streamdownPlugins: PluginConfig = {
 	code,
 	math: streamdownMath,
 };
+
+function MathSpan({
+	node: _node,
+	...props
+}: ComponentProps<"span"> & ExtraProps) {
+	const span = <span {...props} />;
+	return props.className?.split(/\s+/).includes("katex") ? (
+		<MathCopy>{span}</MathCopy>
+	) : (
+		span
+	);
+}
 
 /**
  * Shared Streamdown surface for chat replies and Markdown inside OpenUI Text.
@@ -46,6 +59,7 @@ export const MarkdownSurface = memo(
 					className,
 				)}
 				components={{
+					span: MathSpan,
 					a: (linkProps) => (
 						<AgentCitationLink {...linkProps} onOpenSource={onOpenSource} />
 					),

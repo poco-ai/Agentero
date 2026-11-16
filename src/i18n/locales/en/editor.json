@@ -1,4 +1,10 @@
 {
+	"equation": {
+		"apply": "Apply equation",
+		"copy": "Copy LaTeX",
+		"copied": "Copied",
+		"copyFailed": "Could not copy the equation."
+	},
 	"experiment": {
 		"purpose": "Purpose",
 		"steps": "Steps",
