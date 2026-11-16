@@ -14,6 +14,7 @@ import {
 } from "platejs/react";
 import * as React from "react";
 import { memo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
 import { MathCopy } from "@/components/markdown/math-copy";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,12 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useInView } from "@/hooks/use-in-view";
 import { cn } from "@/lib/core/utils";
 import { renderKatexToElement } from "@/lib/math/katex-cache";
@@ -121,6 +128,7 @@ function EquationPopoverContent({
 	const editor = useEditorRef();
 	const readOnly = useReadOnly();
 	const element = useElement<TEquationElement>();
+	const { t } = useTranslation("editor");
 
 	if (readOnly) return null;
 
@@ -141,10 +149,26 @@ function EquationPopoverContent({
 				placeholder={placeholder}
 				autoFocus
 			/>
-			<div className="flex items-center gap-2">
-				<Button variant="secondary" className="grow px-3" onClick={onClose}>
-					<CornerDownLeftIcon className="size-3.5" />
-				</Button>
+			<div className="flex items-center justify-end gap-2">
+				<TooltipProvider delayDuration={300}>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-xs"
+								aria-label={t("equation.apply")}
+								onClick={onClose}
+								className="text-muted-foreground"
+							>
+								<CornerDownLeftIcon className="size-3.5" aria-hidden />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent sideOffset={4}>
+							{t("equation.apply")}
+						</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
 				<MathCopy tex={element.texExpression} />
 			</div>
 		</PopoverContent>

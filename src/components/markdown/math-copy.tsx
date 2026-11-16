@@ -2,6 +2,12 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/core/utils";
 import { installRenderedMathCopy } from "@/lib/markdown/rendered-math-copy";
 
@@ -33,29 +39,35 @@ export function MathCopy({
 			contentEditable={false}
 		>
 			{children}
-			<Button
-				type="button"
-				variant="ghost"
-				size="icon-xs"
-				data-math-copy-button
-				data-math-copy-ui
-				aria-label={t("equation.copy")}
-				title={t("equation.copy")}
-				className={cn(
-					"self-center text-muted-foreground motion-reduce:transition-none motion-reduce:active:not-aria-[haspopup]:translate-y-0 motion-reduce:active:not-aria-[haspopup]:scale-100",
-					children &&
-						"opacity-0 group-hover/math-copy:opacity-100 group-focus-within/math-copy:opacity-100 group-data-[math-copied]/math-copy:opacity-100 [@media(hover:none)]:opacity-100",
-				)}
-			>
-				<CopyIcon
-					className="size-3.5 group-data-[math-copied]/math-copy:hidden"
-					aria-hidden
-				/>
-				<CheckIcon
-					className="hidden size-3.5 text-primary group-data-[math-copied]/math-copy:block"
-					aria-hidden
-				/>
-			</Button>
+			<TooltipProvider delayDuration={300}>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
+							data-math-copy-button
+							data-math-copy-ui
+							aria-label={t("equation.copy")}
+							className={cn(
+								"self-center text-muted-foreground motion-reduce:transition-none motion-reduce:active:not-aria-[haspopup]:translate-y-0 motion-reduce:active:not-aria-[haspopup]:scale-100",
+								children &&
+									"opacity-0 group-hover/math-copy:opacity-100 group-focus-within/math-copy:opacity-100 group-data-[math-copied]/math-copy:opacity-100 [@media(hover:none)]:opacity-100",
+							)}
+						>
+							<CopyIcon
+								className="size-3.5 group-data-[math-copied]/math-copy:hidden"
+								aria-hidden
+							/>
+							<CheckIcon
+								className="hidden size-3.5 text-primary group-data-[math-copied]/math-copy:block"
+								aria-hidden
+							/>
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent sideOffset={4}>{t("equation.copy")}</TooltipContent>
+				</Tooltip>
+			</TooltipProvider>
 			<span
 				data-math-copy-ui
 				data-math-copy-status

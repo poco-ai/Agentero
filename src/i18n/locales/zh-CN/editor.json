@@ -1,5 +1,6 @@
 {
 	"equation": {
+		"apply": "应用公式",
 		"copy": "复制 LaTeX",
 		"copied": "已复制",
 		"copyFailed": "无法复制公式。"
