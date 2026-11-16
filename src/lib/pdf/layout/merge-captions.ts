@@ -82,8 +82,12 @@ export const LAYOUT_MERGE = {
 	figureTextCover: 0.55,
 	/** Min score for text/header/abstract to veto a figure detection. */
 	figureTextMinScore: 0.3,
+	/** A heading taller than this may be a misclassified diagram, not reliable text evidence. */
+	figureTextMaxHeaderHeight: 0.12,
 	/** Minimum geometric score lead before assigning an unreadable caption to a non-figure host. */
 	captionFamilyMinScoreMargin: 0.2,
+	/** Only explicit numbered captions may attach beside a figure across a small gutter. */
+	sideCaptionMaxGap: 0.06,
 } as const;
 
 /**
@@ -137,6 +141,11 @@ export function figureCoveredByBodyText(
 	for (const t of bodyBlocks) {
 		if (t.pageIndex !== pageIndex) continue;
 		if (!isLayoutBodyTextKind(t.kind)) continue;
+		if (
+			t.kind === "header" &&
+			t.bbox.h > LAYOUT_MERGE.figureTextMaxHeaderHeight
+		)
+			continue;
 		if (t.score < LAYOUT_MERGE.figureTextMinScore) continue;
 		if (bboxCoveredBy(box, t.bbox) >= coverThreshold) return true;
 	}
@@ -154,6 +163,9 @@ export function suppressSpuriousFigureDetections(
 	const bodyBlocks = regions.filter(
 		(r) =>
 			isLayoutBodyTextKind(r.kind) &&
+			!(
+				r.kind === "header" && r.bbox.h > LAYOUT_MERGE.figureTextMaxHeaderHeight
+			) &&
 			r.score >= LAYOUT_MERGE.figureTextMinScore,
 	);
 	if (!bodyBlocks.length) return [...regions];
@@ -971,7 +983,27 @@ function pairCaptionsOneToOne(
 						? "above"
 						: preferred;
 
-			const spatial = captionAttachScore(host.bbox, caption.bbox, place);
+			let spatial = captionAttachScore(host.bbox, caption.bbox, place);
+			if (
+				!Number.isFinite(spatial) &&
+				family === "figure" &&
+				role === "figure_main" &&
+				figureCaptionKey(caption.title ?? caption.text ?? "")
+			) {
+				const h = host.bbox,
+					c = caption.bbox;
+				const gap = Math.max(c.x - h.x - h.w, h.x - c.x - c.w);
+				const overlap = verticalOverlapRatio(h, c);
+				if (
+					gap >= -0.01 &&
+					gap <= LAYOUT_MERGE.sideCaptionMaxGap &&
+					overlap >= 0.5 &&
+					c.w <= h.w &&
+					c.h <= h.h * 1.25
+				) {
+					spatial = overlap * 2 + 0.2 - Math.max(0, gap) * 8;
+				}
+			}
 			if (!Number.isFinite(spatial)) continue;
 
 			let score = spatial + caption.score * 0.1;
@@ -1168,7 +1200,7 @@ export function mergeFormulasByNumber(
 
 /**
  * A model can confidently call a caption `text` (ViT Figures 6 and 11).
- * Recover only numbered, punctuated caption text (including caption-only pages);
+ * Recover numbered caption starts (including caption-only pages);
  * prose such as "Figure 5 contains ..." remains body text. Keep raw unchanged.
  */
 function recoverFigureCaptionLabels(

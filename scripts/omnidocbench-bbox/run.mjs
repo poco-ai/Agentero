@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createServer } from "vite";
+import { z } from "zod";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const { positionals, values } = parseArgs({
@@ -15,6 +16,7 @@ const { positionals, values } = parseArgs({
 		images: { type: "string" },
 		model: { type: "string" },
 		snapshot: { type: "string" },
+		ocr: { type: "string" },
 		"document-map": { type: "string" },
 		seed: { type: "string", default: "agentero-bbox-v1" },
 		limit: { type: "string", default: "20" },
@@ -23,9 +25,11 @@ const { positionals, values } = parseArgs({
 	},
 });
 const command = positionals[0];
-if (!["prepare", "download", "capture", "evaluate"].includes(command)) {
+if (
+	!["prepare", "download", "capture", "enrich", "evaluate"].includes(command)
+) {
 	console.log(
-		"node scripts/omnidocbench-bbox/run.mjs prepare --gt OmniDocBench.json --out manifest.json [--limit 20] [--document-map papers.json]\n  download --manifest manifest.json --images tmp/images\n  capture --manifest manifest.json --images tmp/images --model pp-doclayoutv3.onnx --out snapshot.json\n  evaluate --manifest manifest.json --snapshot snapshot.json --out tmp/report [--split dev|test]",
+		"node scripts/omnidocbench-bbox/run.mjs prepare --gt OmniDocBench.json --out manifest.json [--limit 20] [--document-map papers.json]\n  download --manifest manifest.json --images tmp/images\n  capture --manifest manifest.json --images tmp/images --model pp-doclayoutv3.onnx --out snapshot.json\n  enrich --manifest manifest.json --snapshot snapshot.json --ocr ocr.json --out snapshot-ocr.json\n  evaluate --manifest manifest.json --snapshot snapshot.json --out tmp/report [--split dev|test]",
 	);
 	process.exit(1);
 }
@@ -52,7 +56,7 @@ const server = await createServer({
 	configFile: false,
 	root,
 	optimizeDeps: { noDiscovery: true, include: [] },
-	server: { middlewareMode: true, watch: null },
+	server: { middlewareMode: true, watch: null, hmr: false },
 	resolve: { alias: { "@": path.join(root, "src") } },
 	appType: "custom",
 });
@@ -271,6 +275,112 @@ try {
 			},
 			true,
 		);
+	} else if (command === "enrich") {
+		const manifestBytes = await readFile(required("manifest"));
+		const manifest = JSON.parse(manifestBytes.toString("utf8"));
+		const snapshotBytes = await readFile(required("snapshot"));
+		const snapshot = JSON.parse(snapshotBytes.toString("utf8"));
+		const ocrBytes = await readFile(required("ocr")),
+			ocr = JSON.parse(ocrBytes.toString("utf8"));
+		const lineSchema = z.object({
+			poly: z
+				.array(z.tuple([z.number().finite(), z.number().finite()]))
+				.length(4),
+			text: z.string(),
+			score: z.number().min(0).max(1),
+		});
+		if (
+			ocr.schemaVersion !== 1 ||
+			typeof ocr.engine !== "string" ||
+			typeof ocr.engineVersion !== "string" ||
+			ocr.pages.length !== manifest.cases.length ||
+			snapshot.pages.length !== manifest.cases.length
+		)
+			throw new Error("Invalid OCR schema or page count");
+		if (
+			snapshot.inputMode !== "detector-only-no-text" ||
+			snapshot.manifestSha256 !== core.sha256(manifestBytes) ||
+			ocr.manifestSha256 !== snapshot.manifestSha256
+		)
+			throw new Error(
+				"OCR, raw snapshot and manifest must describe the same dataset",
+			);
+		const { enrichCaptionRegionsWithText } = await server.ssrLoadModule(
+			"/src/lib/pdf/layout/title-text.ts",
+		);
+		const pages = manifest.cases.map((record) => {
+			const inputs = snapshot.pages.filter(
+				(p) => p.imagePath === record.imagePath,
+			);
+			const texts = ocr.pages.filter((p) => p.imagePath === record.imagePath);
+			if (
+				inputs.length !== 1 ||
+				texts.length !== 1 ||
+				texts[0].imageSha256 !== inputs[0].imageSha256
+			)
+				throw new Error(
+					`OCR page missing, duplicated or from another image: ${record.imagePath}`,
+				);
+			const runs = z
+				.array(lineSchema)
+				.parse(texts[0].lines)
+				.filter((line) => line.score >= 0.5)
+				.map((line) => {
+					const xs = line.poly.map((p) => p[0]),
+						ys = line.poly.map((p) => p[1]);
+					const x = Math.min(...xs),
+						y = Math.min(...ys),
+						width = Math.max(...xs) - x,
+						height = Math.max(...ys) - y;
+					if (
+						x < 0 ||
+						y < 0 ||
+						width <= 0 ||
+						height <= 0 ||
+						x + width > record.width + 1 ||
+						y + height > record.height + 1
+					)
+						throw new Error("OCR line outside image");
+					return {
+						text: line.text,
+						rect: { origin: { x, y }, size: { width, height } },
+					};
+				});
+			const regions = pipeline
+				.layoutRegionsFromBlocks(inputs[0].blocks)
+				.map((r) => ({
+					...r,
+					rect: {
+						x: r.bbox.x * record.width,
+						y: r.bbox.y * record.height,
+						w: r.bbox.w * record.width,
+						h: r.bbox.h * record.height,
+					},
+				}));
+			const enriched = enrichCaptionRegionsWithText(regions, 0, runs, {
+				width: record.width,
+				height: record.height,
+			});
+			return {
+				...inputs[0],
+				blocks: pipeline.normalizeLayoutRegions(enriched),
+			};
+		});
+		await save(
+			required("out"),
+			{
+				...snapshot,
+				gitHead,
+				inputMode: "detector-plus-ocr",
+				parentSnapshotSha256: core.sha256(snapshotBytes),
+				ocrSha256: core.sha256(ocrBytes),
+				ocrEngine: ocr.engine,
+				ocrEngineVersion: ocr.engineVersion,
+				pages,
+			},
+			true,
+		);
+		console.log(`Enriched ${pages.length} pages from observed OCR lines`);
 	} else {
 		const manifestBytes = await readFile(required("manifest")),
 			manifest = JSON.parse(manifestBytes.toString("utf8"));

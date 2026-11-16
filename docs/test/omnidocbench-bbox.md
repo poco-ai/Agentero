@@ -20,7 +20,7 @@
 
 启发式后端直接复用 `mergeCaptionsIntoHosts` 和 `dedupeLayoutRegions`，没有复制另一套融合逻辑。普通正文作为几何阻断保留，不能照搬上游为压缩 VLM prompt 而剔除正文的策略。当前只覆盖图 / 表的分组、图注关联和裁剪，不实现 Popo 的标题层级、段落续接与跨页表格重建。关联输出连接原始块 ID；融合对象另有独立 ID。成员列表按输出框包含关系重建，仅用于诊断，不冒充算法逐步决策轨迹。
 
-没有复制上游代码或引入 Python / VLM 运行时；上游项目采用 MIT 许可。本工具的 bbox 指标不是 Popo 的标题 TEDS，二者分数不可直接比较。
+没有复制上游代码或引入 VLM 运行时；可选的离线 OCR 捕获脚本单独使用 Python，不进入桌面应用依赖。上游项目采用 MIT 许可。本工具的 bbox 指标不是 Popo 的标题 TEDS，二者分数不可直接比较。
 
 ## 数据与真值
 
@@ -56,7 +56,21 @@ node scripts/omnidocbench-bbox/run.mjs evaluate --manifest tmp/omnidocbench/mani
 
 `capture` 不覆盖已有快照；新模型或新预处理使用不同输出文件。自动图像下载只接受固定 commit；使用其他数据版本时为 prepare / download 同时传入对应 `--revision`。评测会拒绝清单哈希不符、缺页或重复页的快照；绘图时还会校验图像哈希。
 
-当前 capture 从页面图像提取检测框，**没有 PDF 文字层，也没有额外 OCR**，所以输入模式明确标为 `detector-only-no-text`。它测的是几何回放基线，不等同于桌面中经过文字提取、图注恢复后的完整流水线。以后接真实 OCR 应在 capture / 标准化阶段补充模型产生的文字并重新冻结，不能从人工真值拷贝文字提高成绩。
+当前 capture 从页面图像提取检测框，**没有 PDF 文字层，也没有额外 OCR**，所以输入模式明确标为 `detector-only-no-text`。它测的是几何回放基线，不等同于桌面中经过文字提取、图注恢复后的完整流水线。可按下方流程使用独立 OCR 补充文字并冻结另一份输入，不能从人工真值拷贝文字提高成绩。
+
+### 可选：冻结独立 OCR 文字
+
+OmniDocBench 只有页面图像，使用 [RapidOCR](https://github.com/RapidAI/RapidOCR) 的 CPU ONNX 实现补充真实识别文字，复用产品已有的文字抽取、图注恢复和融合。首次运行会安装固定版本依赖，后续无需模型 API。该脚本只在评测时运行，不给桌面端新增 Python 依赖。
+
+```powershell
+uv run --with rapidocr-onnxruntime==1.4.4 python scripts/omnidocbench-bbox/ocr.py --manifest tmp/omnidocbench/manifest.json --images tmp/omnidocbench/images --out tmp/omnidocbench/ocr.json
+node scripts/omnidocbench-bbox/run.mjs enrich --manifest tmp/omnidocbench/manifest.json --snapshot tmp/omnidocbench/snapshot.json --ocr tmp/omnidocbench/ocr.json --out tmp/omnidocbench/snapshot-ocr.json
+node scripts/omnidocbench-bbox/run.mjs evaluate --manifest tmp/omnidocbench/manifest.json --snapshot tmp/omnidocbench/snapshot-ocr.json --out tmp/omnidocbench/report-ocr --split dev
+```
+
+`ocr.py` 只读取清单中的页面文件名与图像；`enrich` 使用页面尺寸，不读取人工文字、框或关联。OCR 分数至少 0.5 才进入文字流程；非法分数 / 四边形、清单或图片哈希不一致、缺页 / 重复页均拒绝。OCR 和补文字后的快照均拒绝覆盖，后者记录原检测快照、OCR 文件哈希和 OCR 引擎版本，输入模式为 `detector-plus-ocr`。OCR 行没有 PDF 字符序，不伪造字符索引，因此不能据此恢复跨栏续文。
+
+纯检测与 OCR 输入的成绩分开报告；验证融合规则收益时须固定同一份补文字快照。OCR 可恢复漏检图注，不能代替对漏检图本体或模型误分类的修复。
 
 ## 指标与报告
 
@@ -96,6 +110,26 @@ node scripts/omnidocbench-bbox/run.mjs evaluate --manifest tmp/omnidocbench/mani
 | 保留 test 3 页 / 3 目标，F1 @ IoU 0.8 | 1.000 | 1.000 |
 
 测试集只在候选确定后核验，未用于调参；3 个目标过少，不能把这个 1.000 当作泛化准确率。以上仍是无文字层的几何回放成绩，未改变评测定义、检测阈值或人工标注。尚存错误包括图注未检出、整图误标以及图本体碎片 / 边界缺失；这些应与关联错误区分，不能靠盲目扩大 bbox 消除。
+
+### 第二轮：文字恢复与完整图保护
+
+2026-11-16 将固定选样扩大到 40 页 / 52 目标：dev 31 页 / 43 目标，test 9 页 / 9 目标，来源不明的 5 个 UUID 页均仅用于 dev。新增 20 页使用同样种子排序与源论文划分，包含 14 个 dev 页和 6 个此前未查看的 test 页；复用原始 20 页快照，新增页面另行冻结。**这是页面数，不是论文数。**
+
+改动包括：编号后无分隔符 / OCR 缺空格的主图注识别、仅对明确编号的近距离侧边图注开放关联、避免大块 header 双标删除图、未配图注时在置信度接近的嵌套框中保留完整图。文字行聚合也收紧双栏间隔，避免把相邻栏的致谢拼入图注。没有按页面名、真值坐标增加特例，没有改变评测 IoU 或人工标注。
+
+以首轮提交 `61356292f` 为旧算法，旧融合模块保留旧的 `figureCaptionKey` 实现，对同一份冻结 OCR 标准块回放：
+
+| 集合 / 输入 | 旧 F1 @0.8 | 新 F1 @0.8 | 旧 TP / FP / FN | 新 TP / FP / FN |
+| --- | ---: | ---: | --- | --- |
+| 原 dev 17 页 / 26 目标，独立 OCR | 0.755 | 0.962 | 20 / 7 / 6 | 25 / 1 / 1 |
+| 新增 dev 14 页 / 17 目标，独立 OCR | 0.824 | 0.882 | 14 / 3 / 3 | 15 / 2 / 2 |
+| 合计 dev 31 页 / 43 目标，独立 OCR | 0.782 | 0.930 | 34 / 10 / 9 | 40 / 3 / 3 |
+| 新增 test 6 页 / 6 目标，独立 OCR | 0.667 | 0.667 | 5 / 4 / 1 | 5 / 4 / 1 |
+| 原 test 3 页 / 3 目标，独立 OCR | 1.000 | 1.000 | 3 / 0 / 0 | 3 / 0 / 0 |
+
+纯检测输入合计 dev 的严格 F1 **仍为 0.782**；IoU 0.5 的 F1 从 0.920 升至 0.966。不能把带 OCR 的 0.930 描述成纯几何算法准确率。旧规则即使接入同一 OCR，严格成绩仍为 0.782；本轮收益依赖文字身份识别与几何规则共同生效。
+
+新增 test 在候选固定后验收，没有继续据此调参。其失败页仍将同一张免疫印迹组合图拆成多个高置信图框（4 FP / 1 FN）；开发集还存在图内表格误分类、跨栏图注缺失和边界不全。侧边图注示例虽然通过 IoU 0.8，右侧图例仍未纳入，说明该指标不保证视觉内容完全无缺。新增 test 的 0.667 说明泛化问题尚未解决，不能用 dev 的 0.930 宣称所有论文已达到该水平。下一轮必须另留未查看的论文页作验收，优先处理多面板分组证据，而非盲目扩大 bbox。
 
 ## 本地验证
 

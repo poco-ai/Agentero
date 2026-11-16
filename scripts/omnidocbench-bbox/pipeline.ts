@@ -40,7 +40,8 @@ export const normalizedBlockSchema = z.object({
 		),
 	type: z.enum(["title", "text", "image", "table", "caption"]),
 	content: z.string(),
-	order: z.number().int(),
+	// Recovered captions may be inserted between detector reading-order slots.
+	order: z.number().finite(),
 	popo_type: z.string(),
 	source_label: z.string(),
 	meta: z.object({
@@ -111,11 +112,14 @@ function toRegion(b: NormalizedBlock): PdfLayoutRegion {
 		captionRole: b.meta.captionRole,
 	};
 }
-export function inferHeuristicAssociations(input: unknown) {
+export function layoutRegionsFromBlocks(input: unknown): PdfLayoutRegion[] {
 	const blocks = z.array(normalizedBlockSchema).parse(input);
 	if (new Set(blocks.map((b) => b.block_id)).size !== blocks.length)
 		throw new Error("Duplicate normalized block ID");
-	const regions = blocks.map(toRegion);
+	return blocks.map(toRegion);
+}
+export function inferHeuristicAssociations(input: unknown) {
+	const regions = layoutRegionsFromBlocks(input);
 	// Popo removes ordinary text from its model prompt. Our existing geometric
 	// heuristics need it as a barrier, so retain it for merge but filter link outputs.
 	const merged = dedupeLayoutRegions(mergeCaptionsIntoHosts(regions));

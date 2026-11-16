@@ -233,7 +233,7 @@ type LayoutSidecar = {
 | **A1** | 模型 label → kind | 映射：`image` `chart` `table` `algorithm` `formula` `formula_number` `figure_title` `header` `text`/`aside_text`→`text`；其余丢弃 |
 | **A2** | 侧栏种类 | 展示 **image / chart / table / algorithm / formula（有 formula_number 框并成功合并）**；**不展示** 无编号框 formula / 裸 `formula_number` / caption |
 | **A3** | image+chart 同区 | 侧栏「插图」分区；NMS 时同属 `figure` 组；**公式分区固定在列表最下方** |
-| **A4** | 纯 text/header 不得当图片 | 若 image/chart 被 score≥0.3 的 text/header/abstract **覆盖 ≥55%** 且正文置信度不低于图的 ~85%，则 **丢弃** 该 image/chart（双标 / 段落误检）。Eye 叠加层与 merge 共用 `suppressSpuriousFigureDetections` |
+| **A4** | 纯 text/header 不得当图片 | 若 image/chart 被 score≥0.3 的 text/header/abstract **覆盖 ≥55%** 且正文置信度不低于图的 ~85%，则 **丢弃** 该 image/chart（双标 / 段落误检）。高度超过页高 12% 的 header 可能是图误分类，不单独作为否决证据；普通正文与正常高度 header 的抑制保持生效。Eye 叠加层与 merge 共用 `suppressSpuriousFigureDetections` |
 
 ### B. 文字角色（4）
 
@@ -242,14 +242,14 @@ type LayoutSidecar = {
 | **B1** | 文本角色优先 | `Figure N` / `Fig. N \|` / `Extended Data Fig. N \|`→`figure_main`；`Table N`→`table_main`；`Algorithm N`→`algorithm_main`；`(a)` / 单字母 `a`→`subpanel`（即使模型标成 figure_title） |
 | **B2** | 无文本时几何兜底 | 宽≥0.45 且矮 → 可能主图题；无文字的通用 `figure_title` 在 merge 时比较图上方 / 表和算法下方宿主的贴题分数，非图宿主领先另一族至少 0.2 时才改判为表注 / 算法题，否则保持原图题兜底。已有文字语义不被几何覆盖。窄短框保持未定角色，已知主图题优先聚合后，再用邻近图框恢复无文字图题（单栏 / 多子图均可）。旧 sidecar 中无文字的几何 `subpanel` 重新判断 |
 | **B3** | 角色驱动绑定 | `table_main` 只绑 table；`figure_main` 只绑图；`subpanel` 不当整图锚点。未分类的 `header` 不作为主图注绑定，仅有明确 caption 角色时可绑定；内部图例处理保持独立，避免页眉 / 章节标题因距离近而扩入裁剪框 |
-| **B4** | 正文误标与漏检图题恢复 | `text` / `header` 以**带编号 + 标点**的主图题开头时，在 merge 中提升为 `figure_main`；也从 PDF text runs 恢复模型漏检的图注并缓存真实几何。包含无检测框的图注页。双栏续文仅在字符序连续且几何匹配时合并；`Figure 5 contains …` 等正文引用不提升 |
+| **B4** | 正文误标与漏检图题恢复 | `text` / `header` 以**带编号的主图题**开头时（编号后有标点，或紧接大写开头单词，兼容 `Fig.3Values…` 的 OCR 缺空格），在 merge 中提升为 `figure_main`；也从 PDF text runs 恢复模型漏检的图注并缓存真实几何。包含无检测框的图注页。同一基线在栏间空隙处分组，避免邻栏正文混入图注；双栏续文仅在字符序连续且几何匹配时合并；`Figure 5 contains …` 等正文引用不提升 |
 
 ### C. 类型分家与贴题方向（2）
 
 | # | 规则 | 说明 |
 |---|---|---|
 | **C1** | 宿主族隔离 | figure / table / algorithm 不交叉绑主标题 |
-| **C2** | 贴题方向 | **图：标题在下**；**表 / 算法：标题在上**（学术惯例） |
+| **C2** | 贴题方向 | **图：标题在下**；**表 / 算法：标题在上**（学术惯例）。明确编号的图注也可位于左右侧：水平间隔≤页宽 6%、垂直重叠≥50%，图注不宽于图、也不高于图的 1.25 倍，保留阻断检查与一对一归属 |
 
 ### D. 联图与 figure_title（5）
 
@@ -266,7 +266,7 @@ type LayoutSidecar = {
 | # | 规则 | 说明 |
 |---|---|---|
 | **E1** | 孤儿 panel | 落在更大联图内（覆盖≥0.55）的无主标题 panel 丢弃；已有主图题的窄图不当孤儿。左右裁切仅用于纵向重叠且图题水平分离的半宽图，上下独立图不裁切 |
-| **E2** | 侧栏 NMS | 默认 `minScore=0.3`、`minArea=0.002`、同组 IoU≥0.45 抑低分、小框被盖≥0.85 丢小 |
+| **E2** | 侧栏 NMS | 默认 `minScore=0.3`、`minArea=0.002`、同组 IoU≥0.45 或包含率≥0.85 时通常保留高分框。图的两个候选均未关联图注 / 标题、面积比 1.4–4、完整图分数≥局部框的 75% 且包含率达阈值时优先保留完整图；不覆盖已配图注的对象 |
 
 ### F. 公式编号框聚合 — **同行-only，不解析编号文本**
 
