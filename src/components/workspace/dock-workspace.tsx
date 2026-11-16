@@ -205,9 +205,7 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 	const active = focused || notesActive;
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-			{focused ? (
-				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
-			) : null}
+			<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
 			<DocView
 				{...centerProps}
 				tab={tab}
