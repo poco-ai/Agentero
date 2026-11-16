@@ -182,6 +182,12 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `## Context` / `## Skills` / `## Extensions` 清单）当作普通 agent message 推送。Host
   在本轮首个 message chunk 上识别该横幅并丢弃，不写入内容缓冲、不发 `agent:stream`，
   避免它出现在回答之前。
+- Codex 指令预算告警：未协商 typed notice 时，`codex-acp` 把 Codex 的 `warning` /
+  `configWarning` 写成一条 `Warning: …` 或 `Config warning: …` 助手文本。Host 只在
+  Codex 回合还没有助手正文时丢掉这条文本，不写入内容缓冲、不发 `agent:stream`，
+  改为 `agent:status` phase `codex-instruction-budget`。面板把它显示成可关闭的
+  警告 Toast。原始文本留在 `agentero::agent` 日志里。32KB 上限同时计入
+  `~/.codex/AGENTS.md` 与 thread 指令，告警出现不等于当前 Vault 的 `AGENTS.md` 超限。
 - **Pi 项目信任（#936）**：`pi-acp` 以 headless RPC 启动 pi，pi 的
   `defaultProjectTrust` 默认为 `ask`；无 UI 可回答时按不信任处理，于是 Vault 的
   `.agents/skills` 与 `.pi/*` 项目资源被静默跳过（pi-acp 0.0.33/0.0.34 也不转发

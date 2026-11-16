@@ -52,6 +52,30 @@ pub(crate) fn is_pi_startup_banner(text: &str) -> bool {
         .is_some_and(|line| line == "---" || line.starts_with("## "))
 }
 
+/// codex-acp, without a negotiated typed notice, turns a Codex `warning` or
+/// `configWarning` into one assistant chunk: `Warning: …\n\n` or
+/// `Config warning: …\n\n`. The chunk is the whole fallback, so it contains a
+/// newline. A model token that only shares the prefix does not.
+pub(crate) fn is_codex_instruction_warning(text: &str) -> bool {
+    let body = text.trim();
+    let prefixed = body.starts_with("Warning: ") || body.starts_with("Config warning: ");
+    prefixed && text.contains('\n')
+}
+
+/// Same window as the pi startup banner: Codex message chunks, and only before
+/// this turn has any assistant text.
+pub(crate) fn should_drop_codex_instruction_warning(
+    is_codex: bool,
+    kind: AgentStreamKind,
+    chunk: &str,
+    content_empty: bool,
+) -> bool {
+    is_codex
+        && kind == AgentStreamKind::Message
+        && content_empty
+        && is_codex_instruction_warning(chunk)
+}
+
 pub(crate) fn tool_status_str(s: ToolCallStatus) -> &'static str {
     match s {
         ToolCallStatus::Pending => "pending",
@@ -891,6 +915,77 @@ mod pi_startup_banner_tests {
             "pi v0.84.1 is the installed version."
         ));
         assert!(!is_pi_startup_banner("pi version\n---\n"));
+    }
+}
+
+#[cfg(test)]
+mod codex_instruction_warning_tests {
+    use super::{is_codex_instruction_warning, should_drop_codex_instruction_warning};
+    use crate::features::agent::models::AgentStreamKind;
+
+    const BUDGET_WARNING: &str =
+        "Warning: Combined user instructions use 72713 bytes, above the 32768-byte\n\
+project_doc_max_bytes setting. The total includes global and thread\n\
+instructions. The limit applies only to project files.\n\n";
+
+    #[test]
+    fn matches_codex_acp_warning_fallback() {
+        assert!(is_codex_instruction_warning(BUDGET_WARNING));
+        assert!(is_codex_instruction_warning(
+            "Config warning: project_doc_max_bytes is unset\n\n"
+        ));
+        assert!(is_codex_instruction_warning(
+            "  Config warning: hooks failed\n\ndetails\n\n"
+        ));
+    }
+
+    #[test]
+    fn rejects_model_text_that_only_shares_the_prefix() {
+        assert!(!is_codex_instruction_warning(""));
+        assert!(!is_codex_instruction_warning(
+            "Warning: the derivation assumes a closed system."
+        ));
+        assert!(!is_codex_instruction_warning("warning: lower case\n\n"));
+        assert!(!is_codex_instruction_warning(
+            "Config warning:missing-space\n\n"
+        ));
+        assert!(!is_codex_instruction_warning(
+            "Hello.\nWarning: Combined user instructions use 1 bytes\n\n"
+        ));
+    }
+
+    #[test]
+    fn drops_only_an_early_codex_message_chunk() {
+        assert!(should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Message,
+            BUDGET_WARNING,
+            true,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            false,
+            AgentStreamKind::Message,
+            BUDGET_WARNING,
+            true,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Thought,
+            BUDGET_WARNING,
+            true,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Message,
+            BUDGET_WARNING,
+            false,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Message,
+            "Warning: the derivation assumes a closed system.",
+            true,
+        ));
     }
 }
 

@@ -727,7 +727,9 @@ pub struct AgentFailedEvent {
 pub struct AgentStatusEvent {
     pub session_id: String,
     /// `starting` (spawn/connect) | `waiting-model` (prompt sent, no output
-    /// yet) | `reconnecting` (upstream connection lost, agent retries).
+    /// yet) | `reconnecting` (upstream connection lost, agent retries) |
+    /// `codex-instruction-budget` (Codex text fallback; the UI shows a
+    /// dismissible notice and does not treat it as a loading phase).
     pub phase: String,
     /// Optional context, e.g. the reconnect attempt counter (`2/5`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -756,6 +758,15 @@ impl AgentStatusEvent {
             session_id: session_id.into(),
             phase: "reconnecting".to_string(),
             detail,
+        }
+    }
+
+    /// Codex `Warning:` / `Config warning:` text fallback. Not a loading phase.
+    pub fn codex_instruction_budget(session_id: impl Into<String>) -> Self {
+        Self {
+            session_id: session_id.into(),
+            phase: "codex-instruction-budget".to_string(),
+            detail: None,
         }
     }
 }
@@ -935,6 +946,14 @@ mod agent_status_event_tests {
                 "sessionId": "session-1",
                 "phase": "reconnecting",
                 "detail": "2/5"
+            })
+        );
+        let notice = AgentStatusEvent::codex_instruction_budget("session-1");
+        assert_eq!(
+            serde_json::to_value(&notice).unwrap(),
+            serde_json::json!({
+                "sessionId": "session-1",
+                "phase": "codex-instruction-budget"
             })
         );
     }

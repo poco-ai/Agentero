@@ -25,6 +25,7 @@ import {
 	type AgentStreamEvent,
 	type AgentToolEvent,
 	type AgentTurnPhase,
+	CODEX_INSTRUCTION_BUDGET_PHASE,
 	displayHistoryTitle,
 	listenAgentCollaboration,
 	listenAgentCommands,
@@ -69,6 +70,7 @@ import {
 	type StreamSlice,
 	ThinkTagParser,
 } from "@/lib/agent/stream-parse";
+import { notifyWarning } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import {
 	completeTrace,
@@ -166,6 +168,7 @@ type AgentRuntimeListener = {
 	completeSession: (ev: AgentResultPayload) => void;
 	failSession: (sessionId: string, error: string) => void;
 	isChatOwnedSession: (sessionId: string) => boolean;
+	showCodexInstructionWarning: () => void;
 	setPhaseBySession: Dispatch<SetStateAction<Record<string, AgentPhaseState>>>;
 	setAgentListenersReady: UseAgentSessionRuntimeOptions["setAgentListenersReady"];
 	pendingTerminalEventsRef: UseAgentSessionRuntimeOptions["refs"]["pendingTerminalEventsRef"];
@@ -361,6 +364,10 @@ async function subscribeAgentRuntimeListeners(): Promise<void> {
 			listenAgentStatus((ev) => {
 				for (const listener of agentRuntimeListeners.values()) {
 					if (!listener.isChatOwnedSession(ev.sessionId)) continue;
+					if ((ev.phase as string) === CODEX_INSTRUCTION_BUDGET_PHASE) {
+						listener.showCodexInstructionWarning();
+						continue;
+					}
 					const phase = ev.phase as AgentTurnPhase;
 					if (
 						phase !== "starting" &&
@@ -940,6 +947,12 @@ export function useAgentSessionRuntime({
 		completeSession,
 		failSession,
 		isChatOwnedSession,
+		showCodexInstructionWarning: () =>
+			notifyWarning(t("codexInstructionBudget.title"), {
+				description: t("codexInstructionBudget.description"),
+				id: CODEX_INSTRUCTION_BUDGET_PHASE,
+				duration: Number.POSITIVE_INFINITY,
+			}),
 		setPhaseBySession,
 		setAgentListenersReady,
 		pendingTerminalEventsRef,

@@ -314,6 +314,13 @@ export type AgentFailedEvent = {
 /** Loading phase of a turn: before spawn, waiting for first model output, or upstream reconnect. */
 export type AgentTurnPhase = "starting" | "waiting-model" | "reconnecting";
 
+/**
+ * Non-loading `agent:status` phase. Codex instruction warnings use it so the
+ * panel can show a dismissible toast without writing the warning into the
+ * assistant message.
+ */
+export const CODEX_INSTRUCTION_BUDGET_PHASE = "codex-instruction-budget";
+
 export type AgentStatusEvent = {
 	sessionId: string;
 	phase: AgentTurnPhase;

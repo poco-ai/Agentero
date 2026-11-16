@@ -39,6 +39,10 @@
 		"action": "Trust this Vault",
 		"dismiss": "Dismiss"
 	},
+	"codexInstructionBudget": {
+		"title": "Codex instruction budget warning",
+		"description": "The 32KB limit also counts global instructions (~/.codex/AGENTS.md) and thread instructions. This does not necessarily mean the current Vault AGENTS.md is over the limit."
+	},
 	"switchAgent": "Switch ACP agent",
 	"configBar": {
 		"label": "Model and session options"

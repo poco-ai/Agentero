@@ -37,6 +37,9 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 如果你希望这些应用操作 Vault，可参考：
 
 - **Codex**：安装 Codex CLI 并通过 `codex-acp` 接入（见上表）。`codex-acp` 是 Node 包；Codex 自身的官方安装器只安装 host CLI，不能替代它，所以 Agentero 的 Codex 接入仍需要 Node.js/npm。
+
+  Codex 有 32KB 的指令预算（`project_doc_max_bytes`）。告警里的合计字节会把全局指令（`~/.codex/AGENTS.md`、`~/.codex/AGENTS.override.md`）和 thread 指令也算进去，不一定是当前 Vault 的 `AGENTS.md` 超限。项目文件本身会被截到这个上限，所以合计到 70KB 以上时，先用 `wc -c ~/.codex/AGENTS.md ~/.codex/AGENTS.override.md` 看全局文件，不必因此改 Vault 模板。Agentero 把这类告警显示成可关闭的通知，不放进对话正文。
+
 - **WorkBuddy**：暂无可行接入方式；如 WorkBuddy 后续提供兼容 ACP 的 CLI/bridge，可尝试「自定义 `command` / `args` / `env`」，但未经官方测试。
 
 ## 添加 Agent

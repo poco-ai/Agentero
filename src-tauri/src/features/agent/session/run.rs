@@ -11,7 +11,7 @@ use crate::features::agent::acp::terminal::AcpTerminalManager;
 use crate::features::agent::acp::updates::{
     collaboration_from_config_options, effort_from_config_options, emit_rich_session_update,
     emit_session_config_options, fast_mode_value_to_set, is_fast_option, is_pi_startup_banner,
-    models_from_config_options, stream_from_update,
+    models_from_config_options, should_drop_codex_instruction_warning, stream_from_update,
 };
 use crate::features::agent::context_turn::{
     insert_context_block, insert_resume_transcript, prepare_context,
@@ -311,6 +311,9 @@ pub(crate) struct RunOnceContext {
     agent_id: String,
     /// pi-acp forwards a CLI startup banner that must be dropped from the stream.
     is_pi: bool,
+    /// codex-acp forwards instruction warnings as assistant text when the
+    /// client has not negotiated a typed notice.
+    is_codex: bool,
     content_buf: Arc<Mutex<String>>,
     thought_buf: Arc<Mutex<String>>,
     coalescer: StreamCoalescer,
@@ -361,6 +364,7 @@ impl RunOnceContext {
             message_id: params.message_id.clone(),
             agent_id: params.desc.id.clone(),
             is_pi: matches!(params.desc.template, AgentTemplate::Pi),
+            is_codex: matches!(params.desc.template, AgentTemplate::CodexAcp),
             content_buf: Arc::new(Mutex::new(String::new())),
             thought_buf: Arc::new(Mutex::new(String::new())),
             coalescer,
@@ -424,14 +428,29 @@ impl RunOnceContext {
             return;
         }
         if let Some((chunk, kind)) = stream_from_update(&notification.update) {
+            let content_empty = self
+                .content_buf
+                .lock()
+                .is_ok_and(|buffer| buffer.is_empty());
             let drop_banner = self.is_pi
                 && matches!(kind, AgentStreamKind::Message)
                 && is_pi_startup_banner(&chunk)
-                && self
-                    .content_buf
-                    .lock()
-                    .is_ok_and(|buffer| buffer.is_empty());
-            if !drop_banner {
+                && content_empty;
+            let drop_codex_warning =
+                should_drop_codex_instruction_warning(self.is_codex, kind, &chunk, content_empty);
+            if drop_codex_warning {
+                log::info!(
+                    target: "agentero::agent",
+                    "codex instruction warning kept out of the transcript: {chunk}"
+                );
+                if !self.suppress_transcript {
+                    let _ = self.app.emit(
+                        "agent:status",
+                        AgentStatusEvent::codex_instruction_budget(self.session_id.as_str()),
+                    );
+                }
+            }
+            if !drop_banner && !drop_codex_warning {
                 match kind {
                     AgentStreamKind::Message => {
                         if let Ok(mut buf) = self.content_buf.lock() {

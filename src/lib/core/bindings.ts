@@ -1454,7 +1454,9 @@ export type AgentStatusEvent_Deserialize = {
 	sessionId: string,
 	/**
 	 *  `starting` (spawn/connect) | `waiting-model` (prompt sent, no output
-	 *  yet) | `reconnecting` (upstream connection lost, agent retries).
+	 *  yet) | `reconnecting` (upstream connection lost, agent retries) |
+	 *  `codex-instruction-budget` (Codex text fallback; the UI shows a
+	 *  dismissible notice and does not treat it as a loading phase).
 	 */
 	phase: string,
 	/**  Optional context, e.g. the reconnect attempt counter (`2/5`). */
@@ -1469,7 +1471,9 @@ export type AgentStatusEvent_Serialize = {
 	sessionId: string,
 	/**
 	 *  `starting` (spawn/connect) | `waiting-model` (prompt sent, no output
-	 *  yet) | `reconnecting` (upstream connection lost, agent retries).
+	 *  yet) | `reconnecting` (upstream connection lost, agent retries) |
+	 *  `codex-instruction-budget` (Codex text fallback; the UI shows a
+	 *  dismissible notice and does not treat it as a loading phase).
 	 */
 	phase: string,
 	/**  Optional context, e.g. the reconnect attempt counter (`2/5`). */
