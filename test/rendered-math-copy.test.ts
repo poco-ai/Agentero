@@ -161,4 +161,17 @@ describe("renderedMathFromTarget", () => {
 
 		expect(renderedMathFromTarget(glyph, root)).toBe(null);
 	});
+
+	it("allows formulas in the fullscreen table portal", async () => {
+		const katex = (await import("katex")).default;
+		document.body.innerHTML = `<div data-markdown-copy></div><div data-agentero-table-fullscreen><table><tbody><tr><td>${katex.renderToString(
+			"x_{i+1}",
+			{ throwOnError: false },
+		)}</td></tr></tbody></table></div>`;
+		const root = document.querySelector("[data-markdown-copy]");
+		const glyph = document.querySelector(".katex-html .mord");
+		if (!root || !glyph) throw new Error("rendered formula missing");
+
+		expect(renderedMathFromTarget(glyph, root)?.tex).toBe("x_{i+1}");
+	});
 });

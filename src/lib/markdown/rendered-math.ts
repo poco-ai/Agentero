@@ -21,7 +21,10 @@ export function renderedMathFromTarget(
 		return null;
 	}
 	const element = target.closest(RENDERED_MATH_SELECTOR);
-	if (!element || !root.contains(element)) return null;
+	const inFullscreenTable = element?.closest(
+		"[data-agentero-table-fullscreen]",
+	);
+	if (!element || (!root.contains(element) && !inFullscreenTable)) return null;
 	const tex = renderedMathSource(element);
 	return tex ? { element, tex } : null;
 }
