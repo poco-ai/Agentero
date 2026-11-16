@@ -48,6 +48,7 @@ jobs:
 
             ## Desktop
             Platform installers from Tauri (see assets below).
+            Windows ARM64 ships as the `arm64-setup.exe` NSIS installer (no MSI); the installed app is native ARM64.
 
             ## Android
             `Agentero_<version>_aarch64.apk` — arm64 devices, Android 7.0+.
@@ -80,7 +81,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, macos-15-intel, ubuntu-22.04, ubuntu-24.04-arm, windows-latest]
+        include:
+          - platform: macos-latest
+          - platform: macos-15-intel
+          - platform: ubuntu-22.04
+          - platform: ubuntu-24.04-arm
+          - platform: windows-latest
+            msvc_arch: x64
+          # Native ARM64 runner; NSIS is the only bundle target Tauri supports
+          # for aarch64 Windows (MSI requires WiX x86/x64). The installer itself
+          # stays x86 and runs under Windows 11 emulation; the app is ARM64.
+          - platform: windows-11-arm
+            msvc_arch: arm64
+            tauri_args: --target aarch64-pc-windows-msvc --bundles nsis
 
     steps:
       - name: Checkout repository
@@ -103,6 +116,11 @@ jobs:
       - name: Setup MSVC developer environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          # Native ARM64 toolchain on windows-11-arm. Without this the action
+          # defaults to x64, which would build the C dependencies (SQLite,
+          # leptonica/tesseract) for the wrong architecture.
+          arch: ${{ matrix.msvc_arch }}
 
       - name: Install Linux dependencies
         if: startsWith(matrix.platform, 'ubuntu-')
@@ -217,6 +235,9 @@ jobs:
           # APPLE_API_KEY_PATH, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID come from
           # the prepare step via GITHUB_ENV only when non-empty.
         with:
+          # windows-11-arm passes an explicit target + NSIS-only bundle; other
+          # entries leave it empty and build for the runner's host.
+          args: ${{ matrix.tauri_args }}
           tagName: ${{ github.ref_name }}
           releaseName: Agentero ${{ github.ref_name }}
           # Body is set by the prepare job; keep draft + same tag.
@@ -394,7 +415,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04, ubuntu-24.04-arm, windows-latest]
+        include:
+          - platform: macos-latest
+          - platform: ubuntu-22.04
+          - platform: ubuntu-24.04-arm
+          - platform: windows-latest
+            msvc_arch: x64
+          # The CLI archive name carries the rust host triple, so this emits
+          # agentero-cli-<version>-aarch64-pc-windows-msvc.zip for in-app installs
+          # on the ARM64 desktop build.
+          - platform: windows-11-arm
+            msvc_arch: arm64
 
     steps:
       - name: Checkout repository
@@ -406,6 +437,10 @@ jobs:
       - name: Setup MSVC developer environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          # Native ARM64 toolchain on windows-11-arm; the CLI links the same C
+          # dependencies (SQLite, leptonica/tesseract) as the desktop app.
+          arch: ${{ matrix.msvc_arch }}
 
       # agentero-cli path-depends agentero_lib (Tauri), so Linux still needs WebKit link libs.
       - name: Install Linux dependencies

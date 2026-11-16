@@ -9,7 +9,7 @@
 | 平台 | 最低要求 |
 |---|---|
 | macOS | 12.0+ |
-| Windows | 发布页 x64 安装包 |
+| Windows | 发布页 x64（`x86_64`）或 ARM64（`arm64`）安装包 |
 | Linux | Ubuntu **22.04+**（需 **webkit2gtk 4.1**，包名常见 `libwebkit2gtk-4.1-0`） |
 
 Linux 桌面包在 Ubuntu 22.04 上构建。更旧的发行版（如 Ubuntu 20.04，仅有 webkit2gtk 4.0）请先升级系统。

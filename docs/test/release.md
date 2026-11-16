@@ -64,7 +64,7 @@ Release 中区分两类资产：
 
 | 类型 | 命名规范 | 示例 |
 |---|---|---|
-| 桌面安装包 | `Agentero_<version>_<arch>.<format>` | `Agentero_0.3.2_aarch64.dmg`、`Agentero_0.3.2_x86_64.dmg` |
+| 桌面安装包 | `Agentero_<version>_<arch>.<format>` | `Agentero_0.3.2_aarch64.dmg`、`Agentero_0.3.2_x86_64.dmg`、`Agentero_0.3.2_arm64-setup.exe` |
 | CLI 归档 | `agentero-cli-<version>-<rust-host>.<archive>` | `agentero-cli-0.3.2-aarch64-apple-darwin.tar.gz` |
 | CLI 校验文件 | `<CLI 归档文件名>.sha256` | `agentero-cli-0.3.2-aarch64-apple-darwin.tar.gz.sha256` |
 
@@ -73,11 +73,20 @@ CLI 的 `<rust-host>` 来自发布 runner 上 `rustc -vV` 的 `host` 字段，�
 - `aarch64-apple-darwin`：Apple Silicon macOS；
 - `x86_64-unknown-linux-gnu`：x86_64 Linux；
 - `aarch64-unknown-linux-gnu`：ARM64 Linux；
-- `x86_64-pc-windows-msvc`：Windows MSVC。
+- `x86_64-pc-windows-msvc`：Windows x64 MSVC；
+- `aarch64-pc-windows-msvc`：Windows ARM64 MSVC。
 
 CLI 压缩包内部包含名为 `agentero`（Windows 为 `agentero.exe`）的可执行文件，以及同级的 PDFium 共享库（`pdfium.dll` / `libpdfium.dylib` / `libpdfium.so`，与 `scripts/prepare-pdfium.mjs` 的 tag 一致）。外部归档名使用 `agentero-cli-` 前缀，避免与桌面安装包混淆。缺少该库时 `paper parse` 无法从 PDF 生成 `PAPER.md`。
 
 桌面安装包 **不** 嵌入真实 CLI（[#285](https://github.com/poco-ai/Agentero/issues/285)）：`externalBin` 为空，安装目录不含任何 `agentero-cli` 文件（历史上 Windows 随包附带的批处理占位 `.exe` 会触发“不支持的 16 位应用程序”系统弹窗，已根除）。用户从 **设置 → 关于 → 安装 CLI** 下载与 App 同版本的上述归档（Host 校验 sibling `.sha256`）。独立 CLI 归档仍须随 Release 上传，供 headless 与应用内安装共用。
+
+### Windows 支持边界
+
+- CI：`windows-latest`（x64）与 `windows-11-arm`（ARM64，公开仓库可用的 GitHub 托管 runner）。
+- 安装包：x64 产出 MSI + NSIS；ARM64 只产出 NSIS（Tauri 的 MSI/WiX 不支持 aarch64），构建参数为 `--target aarch64-pc-windows-msvc --bundles nsis`。安装器本身仍是 x86 程序，由 Windows 11 模拟运行；安装后的应用是原生 ARM64。
+- 原生依赖：PDFium 由 `scripts/prepare-pdfium.mjs` 按 target 选择 `pdfium-win-arm64`；SQLite、leptonica/tesseract 在 ARM64 runner 上用 MSVC ARM64 工具链从源码构建。CI 必须为 `windows-11-arm` 显式设置 `ilammy/msvc-dev-cmd` 的 `arch: arm64`，否则会按 x64 编译 C 依赖。
+- CLI：同一 Release 上传 `agentero-cli-<version>-aarch64-pc-windows-msvc.zip`，ARM64 桌面端的“安装 CLI”按运行架构选择该归档。
+- 用户文档：[`../usage/getting-started.md`](../usage/getting-started.md)（[#1134](https://github.com/poco-ai/Agentero/issues/1134)）。
 
 ### Linux 支持边界
 

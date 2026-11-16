@@ -39,6 +39,10 @@ pub fn host_triple() -> Option<&'static str> {
     {
         return Some("aarch64-unknown-linux-gnu");
     }
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    {
+        return Some("aarch64-pc-windows-msvc");
+    }
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
     {
         return Some("x86_64-pc-windows-msvc");
@@ -375,6 +379,11 @@ mod tests {
             "https://github.com/poco-ai/Agentero/releases/download/v0.5.3/agentero-cli-0.5.3-x86_64-pc-windows-msvc.zip.sha256"
         );
         assert_eq!(archive_ext_for_triple("x86_64-pc-windows-msvc"), "zip");
+        assert_eq!(archive_ext_for_triple("aarch64-pc-windows-msvc"), "zip");
+        assert_eq!(
+            release_download_url("0.5.3", "aarch64-pc-windows-msvc"),
+            "https://github.com/poco-ai/Agentero/releases/download/v0.5.3/agentero-cli-0.5.3-aarch64-pc-windows-msvc.zip"
+        );
         assert_eq!(archive_ext_for_triple("x86_64-unknown-linux-gnu"), "tar.gz");
     }
 
