@@ -23,7 +23,7 @@ Settings → **翻译**：
 
 ## 开箱即用的词典与术语
 
-桌面安装包内置 **ECDICT 770,611 条英汉词条**和 **149 条专业术语（AI/LLM Glossary 148 条、AI Engineering 1 条，共 185 个英文索引名）**。不需要用户导入词库、填写词表或配置 API Key。版本、许可证与构建方法见 [词库来源](../../resources/dictionary/README.md)。设置页只提示已内置，不提供必须填写的词表。
+桌面安装包内置 **ECDICT 770,611 条英汉词条**和 **149 条专业术语（AI/LLM Glossary 148 条、AI Engineering 1 条，共 185 个英文索引名）**。不需要用户导入词库、填写词表或配置 API Key。版本、许可证与构建方法见 [词库来源](https://github.com/poco-ai/agentero/blob/main/resources/dictionary/README.md)。设置页只提示已内置，不提供必须填写的词表。
 
 复合术语按完整词条优先匹配，兼容大小写、空格与常见 Unicode 连字符；例如 `LLM-as-a-Judge` / `LLM as a Judge` 统一使用「大模型评审」，不会只替换内部 `LLM`。同句其他位置单独出现的 `LLM` 仍使用「大模型」。本地词典索引和前后端术语约束采用相同的分隔符归一规则，匹配后保留原文范围再交给现有 provider。词条补充来自固定版本的 MIT AI Engineering glossary，仅收录相关释义并保留许可证。
 

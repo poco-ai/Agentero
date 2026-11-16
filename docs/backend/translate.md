@@ -54,7 +54,7 @@ Agent 翻译走 `agent_run_once`，不经本 command。
 
 `dictionary_lookup(text, targetLang)` 在 blocking pool 打开随包 `dictionary/lexicon.sqlite` 的只读连接，以规范化词头/变形索引查询，最多返回 4 个候选；不依赖 Vault、网络或翻译密钥。目标目前为 `zh-CN` / `en`。返回 `DictionaryEntry { word, phonetic, translation, definition, source, sourceUrl }`；音频和词典原始大文件不进入仓库。开发模式可使用 `src-tauri/dictionary`，发布版只使用应用资源目录。
 
-`pnpm dictionary:stage` 在桌面 dev / build 钩子生成数据库：固定 ECDICT commit 与 SHA-256 校验、成熟 CSV 解析器、事务构建临时 SQLite、只在完成后替换；含 770,611 条通用词条和 149 条专业词条。数据库约 75.4 MB，安装器压缩后体积取决于平台。Windows/Linux 与 macOS 的 bundle.resources 都包括数据库、来源清单及三份 MIT 通知。CI 验证真实资源和类型契约。更新专业快照使用 `scripts/update-dictionary-terms.mjs`，详情见 [来源与许可](../../resources/dictionary/README.md)。
+`pnpm dictionary:stage` 在桌面 dev / build 钩子生成数据库：固定 ECDICT commit 与 SHA-256 校验、成熟 CSV 解析器、事务构建临时 SQLite、只在完成后替换；含 770,611 条通用词条和 149 条专业词条。数据库约 75.4 MB，安装器压缩后体积取决于平台。Windows/Linux 与 macOS 的 bundle.resources 都包括数据库、来源清单及三份 MIT 通知。CI 验证真实资源和类型契约。更新专业快照使用 `scripts/update-dictionary-terms.mjs`，详情见 [来源与许可](https://github.com/poco-ai/agentero/blob/main/resources/dictionary/README.md)。
 
 复合术语按完整词条优先匹配，兼容大小写、空格与常见 Unicode 连字符；例如 `LLM-as-a-Judge` / `LLM as a Judge` 统一使用「大模型评审」，不会只替换内部 `LLM`。同句其他位置单独出现的 `LLM` 仍使用「大模型」。本地词典索引和前后端术语约束采用相同的分隔符归一规则，匹配后保留原文范围再交给现有 provider。词条补充来自固定版本的 MIT AI Engineering glossary，仅收录相关释义并保留许可证。
 
