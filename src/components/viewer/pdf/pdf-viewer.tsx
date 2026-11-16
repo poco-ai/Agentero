@@ -103,6 +103,7 @@ import {
 	type PdfTextLink,
 } from "@/components/viewer/pdf/layers/citation-links";
 import { COMMENT_RAIL_WIDTH_PX } from "@/components/viewer/pdf/layers/comment-cards-layer";
+import { LayoutElementActions } from "@/components/viewer/pdf/layers/layout-element-actions";
 import { PDF_LINK_ANNOTATION_CONFIG } from "@/components/viewer/pdf/layers/link-annotation";
 import {
 	type PdfPageHandlers,
@@ -164,7 +165,6 @@ import {
 	getPdfAiRuntime,
 	layoutAnalysisStore,
 	layoutDocumentKey,
-	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
 import {
@@ -1240,7 +1240,7 @@ function PdfViewerInner({
 		layoutOverlayVisible,
 		layoutRawRegions,
 		layoutDocRegions,
-		hoverableRegionsByPage,
+		selectableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,
 		layoutTaskRef,
@@ -1640,7 +1640,6 @@ function PdfViewerInner({
 		visualCropPending,
 		visualCropRegion,
 		toggleRegionSelect,
-		beginVisualAnnotation,
 		handleVisualRegionSelect,
 	} = usePdfRegionFraming({
 		docId,
@@ -1979,7 +1978,7 @@ function PdfViewerInner({
 			selectionInsertionRegions,
 			selectionStartPageIndex,
 			selectionTextExclusionsByPage,
-			hoverableRegionsByPage,
+			selectableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
 			layoutTranslateItemsByPage:
@@ -1995,7 +1994,7 @@ function PdfViewerInner({
 			glyphRunsByPage,
 		}),
 		[
-			hoverableRegionsByPage,
+			selectableRegionsByPage,
 			rawRegionsByPage,
 			selectionTextExclusionsByPage,
 			selectionInsertionRegions,
@@ -2027,13 +2026,6 @@ function PdfViewerInner({
 			plainViewer,
 			insetCommentCards,
 		],
-	);
-
-	const handleLayoutRegionClick = useCallback(
-		(region: PdfLayoutRegion) => {
-			void beginVisualAnnotation(region.pageIndex + 1, region.bbox);
-		},
-		[beginVisualAnnotation],
 	);
 
 	const handleCopyCommentLink = useCallback(
@@ -2100,7 +2092,6 @@ function PdfViewerInner({
 			onCitationHover: handleLinkHover,
 			onLinkUrlHover: handleLinkUrlHover,
 			onRegionSelect: handleVisualRegionSelect,
-			onLayoutRegionClick: handleLayoutRegionClick,
 			onTogglePageLayoutTranslate: togglePageLayoutTranslate,
 			onDeleteHighlightAnnotation: handleDeleteHighlightAnnotation,
 			onEditHighlightAnnotation: handleEditHighlightAnnotation,
@@ -2126,7 +2117,6 @@ function PdfViewerInner({
 			handleLinkHover,
 			handleLinkUrlHover,
 			handleVisualRegionSelect,
-			handleLayoutRegionClick,
 			togglePageLayoutTranslate,
 			handleDeleteHighlightAnnotation,
 			handleEditHighlightAnnotation,
@@ -2640,6 +2630,17 @@ function PdfViewerInner({
 					</GlobalPointerProvider>
 				</ZoomGestureWrapper>
 			</DockviewViewport>
+
+			{!translationOnly && !plainViewer ? (
+				<LayoutElementActions
+					docId={docId}
+					engine={engine}
+					docCap={docCap}
+					paperRelPath={paperRelPath}
+					paperAbsPath={paperAbsPath}
+					translateSelection={translateSelection}
+				/>
+			) : null}
 
 			{!translationOnly && (
 				<PdfCardStack

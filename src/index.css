@@ -636,6 +636,64 @@
  * browser's link blue. No underline: colorlinks PDFs already mark the link
  * by ink color, and a zero-width border paints nothing on the source page.
  */
+/*
+ * Layout-element selection. The frame and chip stay invisible until the
+ * pointer or keyboard focus is on that element, so the page does not keep
+ * every detection box painted. Opacity fades in 160ms. The hit target does
+ * not take pointer events: text selection and links keep them.
+ * Paper tone, not the app theme, picks the ink — a light app over dark
+ * paper would otherwise draw a dark border on dark paper.
+ */
+.pdf-layout-element-frame,
+.pdf-layout-element-chip {
+	opacity: 0;
+	transition: opacity 160ms ease;
+}
+[data-layout-element].is-hot > .pdf-layout-element-frame,
+[data-layout-element].is-hot > .pdf-layout-element-chip,
+[data-layout-element]:focus-within > .pdf-layout-element-frame,
+[data-layout-element]:focus-within > .pdf-layout-element-chip {
+	opacity: 1;
+}
+.pdf-layout-element-frame {
+	position: absolute;
+	z-index: 2;
+	box-sizing: border-box;
+	border-radius: 2px;
+	border: 1.5px solid rgb(24 24 27 / 0.45);
+	background: rgb(24 24 27 / 0.07);
+	pointer-events: none;
+}
+[data-paper="dark"] .pdf-layout-element-frame {
+	border-color: rgb(244 244 245 / 0.72);
+	background: rgb(244 244 245 / 0.1);
+}
+.pdf-layout-element-chip {
+	position: absolute;
+	z-index: 3;
+	max-width: min(16rem, 70%);
+	pointer-events: none;
+	border-radius: 0.375rem;
+	border: 1px solid var(--border);
+	background: color-mix(in oklab, var(--background) 95%, transparent);
+	padding: 0.125rem 0.375rem;
+	text-align: left;
+	font-size: var(--text-caption);
+	line-height: 1rem;
+	color: var(--foreground);
+	box-shadow: var(--shadow-raised);
+}
+.pdf-layout-element-chip:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.pdf-layout-element-frame,
+	.pdf-layout-element-chip {
+		transition: none;
+	}
+}
+
 .pdf-translate-selection [data-translated-link] {
 	color: inherit;
 	cursor: pointer;

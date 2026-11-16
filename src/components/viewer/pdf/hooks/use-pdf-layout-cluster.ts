@@ -109,7 +109,7 @@ export function usePdfLayoutCluster({
 		layoutOverlayVisible,
 		layoutDocRegions,
 		layoutRawRegions,
-		hoverableRegionsByPage,
+		selectableRegionsByPage,
 		rawRegionsByPage,
 	} = usePdfLayoutRegions(docId);
 
@@ -225,7 +225,7 @@ export function usePdfLayoutCluster({
 		exportTranslatedPdf,
 		layoutOverlayVisible,
 		layoutRawRegions,
-		hoverableRegionsByPage,
+		selectableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,
 		layoutDocRegions,

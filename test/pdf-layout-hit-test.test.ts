@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	layoutElementBoxes,
+	layoutElementCaptionPage,
+	layoutElementNeedsCrop,
+	layoutElementPreview,
+	layoutElementQuote,
+} from "@/lib/pdf/layout/element-selection";
+import {
 	bboxArea,
 	hoverableLayoutRegions,
 	hoverableLayoutRegionsByPage,
 	hoverableLayoutRegionsOnPage,
 	pickLayoutRegionAtPoint,
+	pickSelectableLayoutRegion,
 	pointInBbox,
+	selectableLayoutRegions,
+	selectableLayoutRegionsByPage,
 } from "@/lib/pdf/layout/hit-test";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
@@ -167,5 +177,159 @@ describe("layout hit-test", () => {
 		expect(byPage.get(1)?.map((r) => r.id)).toEqual(["p1-big", "p1-small"]);
 		// Body text is not hoverable, so page 2 has no bucket at all.
 		expect(byPage.has(2)).toBe(false);
+	});
+
+	it("keeps every kind for element selection, largest first", () => {
+		const regions = [
+			region({
+				id: "header",
+				kind: "header",
+				score: 0.8,
+				bbox: { x: 0.1, y: 0.02, w: 0.5, h: 0.03 },
+			}),
+			region({
+				id: "body",
+				kind: "text",
+				score: 0.95,
+				bbox: { x: 0.1, y: 0.1, w: 0.8, h: 0.4 },
+			}),
+			region({
+				id: "abstract",
+				kind: "abstract",
+				score: 0.9,
+				bbox: { x: 0.1, y: 0.55, w: 0.8, h: 0.15 },
+			}),
+			region({
+				id: "caption",
+				kind: "figure_title",
+				score: 0.7,
+				bbox: { x: 0.1, y: 0.75, w: 0.4, h: 0.04 },
+			}),
+			region({
+				id: "low",
+				kind: "text",
+				score: 0.1,
+				bbox: { x: 0.1, y: 0.9, w: 0.4, h: 0.05 },
+			}),
+			region({
+				id: "speck",
+				kind: "header",
+				score: 0.99,
+				bbox: { x: 0.9, y: 0.9, w: 0.01, h: 0.01 },
+			}),
+			region({
+				id: "short-header",
+				kind: "header",
+				score: 0.85,
+				bbox: { x: 0.1, y: 0.01, w: 0.2, h: 0.005 },
+			}),
+		];
+		const selectable = selectableLayoutRegions(regions);
+		expect(selectable.map((item) => item.id).sort()).toEqual([
+			"abstract",
+			"body",
+			"caption",
+			"header",
+			"short-header",
+		]);
+		const byPage = selectableLayoutRegionsByPage(regions);
+		expect(byPage.get(0)?.map((item) => item.id)).toEqual([
+			"body",
+			"abstract",
+			"caption",
+			"header",
+			"short-header",
+		]);
+	});
+
+	it("prefers the smallest selectable box, including text inside a figure", () => {
+		const regions = selectableLayoutRegions([
+			region({
+				id: "figure",
+				kind: "image",
+				score: 0.9,
+				bbox: { x: 0.1, y: 0.1, w: 0.6, h: 0.6 },
+			}),
+			region({
+				id: "paragraph",
+				kind: "text",
+				score: 0.8,
+				bbox: { x: 0.15, y: 0.15, w: 0.2, h: 0.1 },
+			}),
+		]);
+		expect(pickSelectableLayoutRegion(regions, 0.2, 0.2)?.id).toBe("paragraph");
+		expect(pickSelectableLayoutRegion(regions, 0.5, 0.5)?.id).toBe("figure");
+	});
+
+	it("hits a figure through its same-page caption and ignores another page", () => {
+		const figure = region({
+			id: "fig",
+			kind: "image",
+			score: 0.9,
+			bbox: { x: 0.1, y: 0.1, w: 0.4, h: 0.3 },
+			captionBbox: { x: 0.1, y: 0.42, w: 0.4, h: 0.06 },
+			captionPageIndex: 0,
+			title: "Figure 1. Cats",
+		});
+		expect(layoutElementBoxes(figure).map((box) => box.key)).toEqual([
+			"bbox",
+			"caption",
+		]);
+		expect(pickSelectableLayoutRegion([figure], 0.2, 0.45)?.id).toBe("fig");
+		expect(layoutElementCaptionPage(figure)).toBeNull();
+
+		const split = region({
+			...figure,
+			captionPageIndex: 2,
+		});
+		expect(layoutElementBoxes(split).map((box) => box.key)).toEqual(["bbox"]);
+		expect(pickSelectableLayoutRegion([split], 0.2, 0.45)).toBeNull();
+		expect(layoutElementCaptionPage(split)).toBe(3);
+	});
+
+	it("quotes body text and figure titles, and clips the preview", () => {
+		const body = region({
+			id: "body",
+			kind: "text",
+			score: 0.9,
+			bbox: { x: 0.1, y: 0.1, w: 0.5, h: 0.2 },
+			text: "The  result\nis stable.",
+			title: "unused title",
+		});
+		const figure = region({
+			id: "fig",
+			kind: "image",
+			score: 0.9,
+			bbox: { x: 0.1, y: 0.1, w: 0.4, h: 0.3 },
+			title: "Figure 1. Cats",
+			text: "caption body",
+		});
+		expect(layoutElementQuote(body)).toBe("The result is stable.");
+		expect(layoutElementQuote(figure)).toBe("Figure 1. Cats");
+		expect(layoutElementNeedsCrop(body.kind)).toBe(false);
+		expect(layoutElementNeedsCrop(figure.kind)).toBe(true);
+		expect(layoutElementPreview("short note")).toBe("short note");
+		expect(layoutElementPreview("")).toBe("");
+		const long = layoutElementPreview("a".repeat(80));
+		expect(long.endsWith("…")).toBe(true);
+		expect(long.length).toBeLessThanOrEqual(72);
+	});
+
+	it("can hit a line that crosses the element when the point is outside it", () => {
+		const body = region({
+			id: "body",
+			kind: "text",
+			score: 0.9,
+			bbox: { x: 0.2, y: 0.2, w: 0.4, h: 0.05 },
+		});
+		expect(pickSelectableLayoutRegion([body], 0.05, 0.22)).toBeNull();
+		expect(
+			pickSelectableLayoutRegion([body], 0.05, 0.22, {
+				x: 0,
+				y: 0.21,
+				w: 0.3,
+				h: 0.02,
+			})?.id,
+		).toBe("body");
 	});
 });

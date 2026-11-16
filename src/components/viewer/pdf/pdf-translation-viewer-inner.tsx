@@ -108,7 +108,6 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 	onTextLinkActivate: NOOP,
 	onCitationHover: NOOP,
 	onRegionSelect: NOOP,
-	onLayoutRegionClick: NOOP,
 	onTogglePageLayoutTranslate: NOOP,
 	onDeleteHighlightAnnotation: NOOP,
 	onEditHighlightAnnotation: NOOP,
@@ -322,7 +321,7 @@ export function PdfTranslationViewerInner({
 
 	const pageLayout = useMemo<PdfPageLayoutSlice>(
 		() => ({
-			hoverableRegionsByPage: EMPTY_LAYOUT_REGIONS_BY_PAGE,
+			selectableRegionsByPage: EMPTY_LAYOUT_REGIONS_BY_PAGE,
 			rawRegionsByPage,
 			layoutOverlayVisible: false,
 			layoutTranslateItemsByPage,

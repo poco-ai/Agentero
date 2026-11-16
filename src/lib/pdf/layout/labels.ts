@@ -69,6 +69,20 @@ export function isTextLayoutKind(kind: PdfLayoutKind): boolean {
 }
 
 /**
+ * Text-like layout elements: the selection quote is `region.text`
+ * (body, abstract, header, figure/table caption). Figures, tables,
+ * algorithms and formulas stay whole-element crops.
+ */
+export function isLayoutElementTextKind(kind: PdfLayoutKind): boolean {
+	return (
+		kind === "text" ||
+		kind === "abstract" ||
+		kind === "header" ||
+		kind === "figure_title"
+	);
+}
+
+/**
  * Regions whose PDF text layer we extract for body / abstract / headers.
  * Algorithms are never bulk-translated (see listTranslatableLayoutRegions).
  */

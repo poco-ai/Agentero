@@ -25,7 +25,7 @@ viewport 始终上报滚动容器的真实尺寸，使放大或与笔记分屏�
 
 缩放占位复用上游 tiling reducer：只把已完成的旧尺度瓦片保留为 fallback，新瓦片完成后移除；不再额外保留任意上一套瓦片 1.5s，普通滚动移出的未完成瓦片可正常卸载并取消。marks 不再定时轮询，改由 Vault 文件监听（`vault:file-changed`，命中 `{paper}/marks/` 前缀，200ms 合并突发）触发刷新，配合激活时与窗口 focus 兜底；应用自身对 `marks/` 的写入会登记路径（3s TTL），其 watcher 回声直接跳过（写入方已更新内存态），mark 文件并发读取，读取结果仍做 JSON 指纹比对，内容未变不提交 state，避免整 viewer 重渲染。高亮派生态（视图模型 / 页边针锚点 / 链接分页图）的 annotation 事件按微任务合并后重建一次，批量导入 n 条不再逐事件 O(n²) 重建。
 
-滚动路径开销（触控板一帧内可触发多次 scroll）另有两处收敛：viewport 滚动指标按动画帧合并后再 `setViewportScrollMetrics`（每次提交仍推出 scroller layout；挂载窗口未变时不再 `setState`，见下段）；layout hover 命中框与 Eye 调试框按 `hoverableLayoutRegionsByPage` / `rawLayoutRegionsByPage` 预先分页缓存，页渲染只做 `Map.get`，不再每页重跑一遍全文档 NMS。PDF viewport 的延迟跳转请求同样按帧合并，并在用户滚轮先发生时取消；虚拟页重排、缩放布局和双栏同步产生的程序化滚动不会触发取消；虚拟页节点换入换出时关闭浏览器 scroll anchoring，避免 Windows/WebView2 将阅读位置校正到首尾页（见 [bug_fix/pdf-windows-scroll-endpoint-jump.md](../bug_fix/pdf-windows-scroll-endpoint-jump.md)）。
+滚动路径开销（触控板一帧内可触发多次 scroll）另有两处收敛：viewport 滚动指标按动画帧合并后再 `setViewportScrollMetrics`（每次提交仍推出 scroller layout；挂载窗口未变时不再 `setState`，见下段）；layout 元素选择框与 Eye 调试框按 `selectableLayoutRegionsByPage` / `rawLayoutRegionsByPage` 预先分页缓存，页渲染只做 `Map.get`，不再每页重跑一遍全文档 NMS。PDF viewport 的延迟跳转请求同样按帧合并，并在用户滚轮先发生时取消；虚拟页重排、缩放布局和双栏同步产生的程序化滚动不会触发取消；虚拟页节点换入换出时关闭浏览器 scroll anchoring，避免 Windows/WebView2 将阅读位置校正到首尾页（见 [bug_fix/pdf-windows-scroll-endpoint-jump.md](../bug_fix/pdf-windows-scroll-endpoint-jump.md)）。
 
 双栏对照左右各挂一套 EmbedPDF，各自使用上游瓦片任务生命周期；两栏同一区域会各自出图，滚回已卸载的页面也会重新生成高清瓦片。`@embedpdf/plugin-scroll` patch 在挂载窗口（间距、总尺寸、页序与页尺寸）没变时跳过 scroller 的 `setState`，纯滚动不再让已挂载页整页重渲染。译文栏跳过整页底图 `AgenteroRenderLayer`，只留 `TilingLayer`，空档由页面壳垫色。译文段落的浏览器度量按框和文本缓存，一帧大约只量 5ms，页面滚出就取消还没做的度量。layout 比较器直接位于 scroll patch 内、各订阅维护自己的上次布局；不再经 `globalThis` 桥接应用模块，也不复制整个 Scroller。全文翻译流式期间批次 `onUpdate` 合并到一帧一次（rAF，非 DOM 宿主退化为同步直通），终局结果直接取代仍排队的合并项；重排预览会话仅在预览发布/吊销、busy 翻转或产出更新时通知重渲染，批次到达本身不再触发，页签名中的 regions 以对象身份参与比较、按 regions 数组缓存分页分组。重排构建（prepare 字符提取、逐页预览、终局导出）不走 viewer 引擎：`ReflowBuildEngine` 懒创建一个专用 PDFium worker 并持有源文档的私有副本，构建期间滚动瓦片不再排在构建请求后面；worker 不可用时回退共享引擎，队列排空 30 秒后释放专用实例（约 25–35 MB），重启翻译按需重建。
 
@@ -161,7 +161,7 @@ PDF 快速对话在会话接收后同时把空的 assistant 消息及其 `agentS
 | `src/components/viewer/pdf/hooks/use-pdf-selection-translate.ts` | 划词翻译工作流与结果卡状态；双 provider 执行（agent 流式 / 免费 MT 单发）在共享引擎 `src/lib/pdf/translate/run-selection.ts`，与 `use-web-view-selection.ts` 复用 |
 | `src/components/viewer/pdf/hooks/use-pdf-region-framing.ts` | ⌘. 框选模式与单次裁剪（产出草稿交给 visual draft hook） |
 | `src/components/viewer/pdf/hooks/use-pdf-visual-marks.ts` | visual mark 工作流：草稿落盘 / 加入对话 / 续聊 / pin 卡片 |
-| `src/components/viewer/pdf/hooks/use-pdf-layout-regions.ts` | layout store 订阅与按页分桶（hover 命中框 / Eye 叠加层） |
+| `src/components/viewer/pdf/hooks/use-pdf-layout-regions.ts` | layout store 订阅与按页分桶（元素选择 / Eye 叠加层） |
 | `src/components/viewer/pdf/hooks/use-pdf-layout-run.ts` | 版面分析运行：sidecar 优先、headless 队列、可中止任务 |
 | `src/components/viewer/pdf/hooks/use-pdf-visual-draft.ts` | 裁剪草稿卡状态（`visualDraftEditor`）与区域屏幕锚点 |
 | `src/components/viewer/pdf/hooks/use-pdf-layout-translate.ts` | 全文翻译任务、工具栏三态标签，以及右上角电量条（版面块占比；重排预览出来前不满格） |
@@ -219,18 +219,18 @@ PDF 左侧 **Figures** 按钮 → 页内浮层（原「解析」：分析 / 叠�
 
 要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 `{paper}/source/layout.json`，后续 merge/filter 可重复计算。旧 DOM 翻译路径先把跨栏跨页的续段拼成一条，再按句切开（拉丁 `.` `!` `?` 要空白或结尾，`。` `！` `？` 单独即可；缩写和小数不切），归一化后按阅读顺序分批请求（`buildTranslateBatches`，一个 `[[n]]` 一句，标记解析失败则逐句重译）。缓存写入 `{paper}/source/layout-translate.json`（schema 2，含句对），按 provider / 语言 / region 原文校验后复用。详见 [translate.md](translate.md)。
 
-**单击视觉批注：** hover 插图 / 表 / 算法 / 公式的命中框时，框上出现默认主题的中性 2px 描边（不跟随外观配色）（即将裁剪的确切 bbox）与右上角「单击进行批注」提示；单击裁剪该区域并直接保存为 note-only visual mark，同时在页右缘评论列打开就地编辑（与手动框选相同；不自动发送 Agent）。框选模式或裁剪进行中时命中框不挂载。
+**版面元素选择：** 有版面分析结果时，悬停页面只画出当前命中的合并元素（正文、摘要、页眉 / 标题、图题 / 表题、插图、表、算法、公式）。同一元素的 `bbox` 与同页 `titleBbox` / `captionBbox` 一起高亮；图注在另一页时只在 chip 上提示页码。框左上角是类别 chip。单击或 Enter 打开动作：加入对话、选择翻译、复制。文本类在这一阶段把整个元素文本作为引用，并带上类别、页码和 bbox；图 / 表 / 公式等把裁剪图作为对话输入。两者都不写入 visual mark，也不打开批注编辑器。拖拽超过 6px 不当作点击。没有分析结果、`papers/` 之外的 PDF、或正在 `⌘.` 框选时不显示。工具栏「添加视觉批注」和 `⌘.` 框选仍裁剪并打开编辑器。Eye 调试层仍画 `rawRegions`，与选择视图各自开关。
 
 交互细节（均有对应实现约束）：
 
 | 项 | 行为 | 原因 |
 |---|---|---|
-| 拖拽容差 | pointerdown 到 click 位移 > 6px 视为拖拽，不裁剪（`LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX`） | 浏览器只要 down/up 落在同一元素就派发 `click`，起手在图区内的选字或平移会误触发 |
-| 键盘 | 命中框在 Tab 序列内，Enter / Space 裁剪；`MouseEvent.detail === 0` 直接放行容差判定 | 键盘激活没有指针位移可测 |
-| 焦点 | 描边与提示同时响应 `group-hover` 与 `group-focus-visible` | 半透明 UA 焦点环压在不可预测的页面内容上不可靠 |
-| 提示阈值 | 区域实际尺寸小于 `LAYOUT_HINT_MIN_REGION_W/H_PX`（120×28）时不画 chip，并配 `max-w` + `truncate` 兜底 | chip 是固定字号标签，容器随缩放变化，小区域下会溢出压住邻近内容 |
-| 光标 | 全部命中框用 `cursor-crosshair` | pointer 光标留给会跳转的引用链接 |
-| 裁剪中 | `visualCropRegion` 在页上画描边 + spinner（`role="status"`） | PDFium `renderPageRect` 是异步的，否则单击后到卡片出现之间毫无反馈 |
+| 拖拽容差 | pointerdown 到 click 位移 > 6px 视为拖拽，不打开动作（`LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX`） | 浏览器只要 down/up 落在同一元素就派发 `click`，起手在区域内的选字或平移会误触发 |
+| 键盘 | 类别 chip 在 Tab 序列内，Enter 打开动作；Esc 或点击外部关闭。`MouseEvent.detail === 0` 直接放行容差判定 | 键盘激活没有指针位移可测 |
+| 焦点 | 框与 chip 在 hover（`is-hot`）和 `:focus-within` 时显示，chip 有 `aria-label` | 半透明 UA 焦点环压在不可预测的页面内容上不可靠；指针移动只改 class，不 `setState` |
+| 预览阈值 | 区域实际尺寸小于 `LAYOUT_HINT_MIN_REGION_W/H_PX`（120×28）时 chip 只显示类别，并配 `max-w` + `truncate` | chip 是固定字号标签，容器随缩放变化，小区域下会溢出压住邻近内容 |
+| 指针 | 选择层 `pointer-events: none` | 划词、引用链接和滚动保持原事件 |
+| 显式批注 | `⌘.` 框选进行时选择层不挂载；`visualCropRegion` 仍画描边 + spinner（`role="status"`） | 元素选择与视觉批注分开；PDFium `renderPageRect` 是异步的 |
 
 Host 下载/解析：[../backend/paper-import.md](../backend/paper-import.md)。
 

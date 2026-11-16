@@ -68,6 +68,7 @@ import {
 } from "@/components/viewer/pdf/layers/citation-links";
 import { CommentCardsLayer } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import { HighlightAnnotationMenu } from "@/components/viewer/pdf/layers/highlight-annotation-menu";
+import { LayoutElementSelectionLayer } from "@/components/viewer/pdf/layers/layout-element-selection-layer";
 import { LayoutTranslateOverlay } from "@/components/viewer/pdf/layers/layout-translate-overlay";
 import { PASSIVE_LINK_RENDERER } from "@/components/viewer/pdf/layers/link-annotation";
 import { PdfTextSelectionLayer } from "@/components/viewer/pdf/layers/pdf-text-selection-layer";
@@ -112,17 +113,13 @@ import type {
 	PdfTextMarkupKind,
 } from "@/lib/pdf/highlight/types";
 import {
-	isLayoutRegionActivation,
 	isLayoutTranslateItemPainted,
-	LAYOUT_HINT_MIN_REGION_H_PX,
-	LAYOUT_HINT_MIN_REGION_W_PX,
 	type LayoutTranslateItem,
 	layoutKindBorder,
 	layoutKindFill,
 	layoutKindHex,
 	layoutKindI18nKey,
 	type PdfLayoutRegion,
-	type PointerOrigin,
 } from "@/lib/pdf/layout";
 import type { LayoutTranslatePageState } from "@/lib/pdf/layout/layout-translate-progress";
 import { translatedTextLinkKey } from "@/lib/pdf/layout/link-ink";
@@ -418,12 +415,13 @@ export type PdfPageMarksSlice = {
 	>;
 };
 
-/** Layout-analysis derived overlays (hover targets, debug boxes, translations). */
+/** Layout-analysis derived overlays (element selection, debug boxes, translations). */
 export type PdfPageLayoutSlice = {
 	selectionStartPageIndex?: number | null;
 	selectionInsertionRegions?: readonly PdfLayoutRegion[];
 	selectionTextExclusionsByPage?: ReadonlyMap<number, readonly Rect[]>;
-	hoverableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
+	/** Post-merge elements, every kind, largest first. Empty when analysis is absent. */
+	selectableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	rawRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	layoutOverlayVisible: boolean;
 	layoutTranslateItemsByPage: ReadonlyMap<
@@ -489,8 +487,6 @@ export type PdfPageHandlers = {
 		clientPoint?: ScreenPoint | null,
 	) => void;
 	onRegionSelect: (page: number, region: PdfAskNormalizedRect) => void;
-	/** Click a figure / table / algorithm / formula hit target → crop + draft card. */
-	onLayoutRegionClick: (region: PdfLayoutRegion) => void;
 	onTogglePageLayoutTranslate: (pageIndex: number) => void;
 	/** Delete a highlight annotation directly from its on-page selection menu. */
 	onDeleteHighlightAnnotation: (pageIndex: number, id: string) => void;
@@ -730,12 +726,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			observer.disconnect();
 		};
 	}, [selectionArmed]);
-	/**
-	 * Pointer position at the last pointerdown on a layout hit target. A click
-	 * that travelled beyond the tolerance was a drag, not an activation.
-	 */
-	const pointerOriginRef = useRef<PointerOrigin | null>(null);
 	const pageNumber = pageIndex + 1;
+	const selectableOnPage =
+		!mode.plainViewer && !mode.regionSelecting
+			? layout.selectableRegionsByPage.get(pageIndex)
+			: undefined;
 	const activeAskOnPage =
 		marks.activeAskAnchor?.page === pageNumber ? marks.activeAskAnchor : null;
 	const activeTranslateOnPage =
@@ -1535,87 +1530,20 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 							)),
 				)}
 				{/*
-				 * Hit targets for post-merge figure/table/algorithm/formula.
-				 * Largest first so smaller boxes stack on top and win pointer hits.
-				 * Hidden when framing or a visual draft is open (not during crop:
-				 * unmount leave must not cancel an in-flight crop).
-				 * All kinds crop on click; hover and keyboard focus preview the
-				 * exact bbox that would be cropped.
+				 * Element selection. Frames are pointer-events: none; the layer
+				 * hit-tests the page shell. Hidden while ⌘. marquee is active and
+				 * on PDFs outside papers/. Absent analysis yields no regions.
 				 */}
-				{!mode.regionSelecting && !mode.visualDraftOpen && !mode.plainViewer
-					? layout.hoverableRegionsByPage.get(pageIndex)?.map((region) => {
-							// Fixed-size chip in a zoom-scaled box: only draw it where
-							// it actually fits inside the region.
-							const showHint =
-								region.bbox.w * width >= LAYOUT_HINT_MIN_REGION_W_PX &&
-								region.bbox.h * height >= LAYOUT_HINT_MIN_REGION_H_PX;
-							return (
-								<button
-									key={`layout-hit-${region.id}`}
-									type="button"
-									data-layout-hit={region.id}
-									aria-label={t("figures.clickAnnotateAria", {
-										kind: t(layoutKindI18nKey(region.kind)),
-									})}
-									// Click crops in place; pointer cursor is reserved for
-									// navigation (citation links).
-									className={cn(
-										"group absolute z-[2] cursor-crosshair rounded-none border-0 bg-transparent p-0 transition-colors hover:bg-default-primary/5",
-									)}
-									style={{
-										left: `${region.bbox.x * 100}%`,
-										top: `${region.bbox.y * 100}%`,
-										width: `${region.bbox.w * 100}%`,
-										height: `${region.bbox.h * 100}%`,
-									}}
-									onPointerDown={(event) => {
-										pointerOriginRef.current = {
-											x: event.clientX,
-											y: event.clientY,
-										};
-									}}
-									onClick={(event) => {
-										const origin = pointerOriginRef.current;
-										pointerOriginRef.current = null;
-										// A drag that merely started here is not a click.
-										if (
-											!isLayoutRegionActivation({
-												detail: event.detail,
-												origin,
-												end: { x: event.clientX, y: event.clientY },
-											})
-										) {
-											return;
-										}
-										event.preventDefault();
-										event.stopPropagation();
-										handlers.onLayoutRegionClick(region);
-									}}
-								>
-									{/*
-									 * Frame the exact crop bounds before the click commits, and
-									 * give keyboard focus a visible landmark over unpredictable
-									 * page content.
-									 */}
-									<span
-										className={cn(
-											PDF_VISUAL_REGION_FRAME_CLASS,
-											"inset-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100",
-										)}
-										aria-hidden="true"
-									/>
-									{showHint ? (
-										<span
-											className="pointer-events-none absolute top-1 right-1 max-w-[calc(100%-0.5rem)] truncate rounded border border-border/60 bg-background/90 px-1.5 py-0.5 font-medium text-caption text-foreground/90 opacity-0 shadow-raised backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-											aria-hidden="true"
-										>
-											{t("figures.clickAnnotateHint")}
-										</span>
-									) : null}
-								</button>
-							);
-						})
-					: null}
+				{selectableOnPage && selectableOnPage.length > 0 ? (
+					<LayoutElementSelectionLayer
+						docId={docId}
+						pageIndex={pageIndex}
+						regions={selectableOnPage}
+						width={width}
+						height={height}
+						paperDark={pdfDark}
+					/>
+				) : null}
 				{/*
 				 * Quick-chat selections stay painted after the card closes, in the
 				 * same yellow as saved annotations. The open card still bridges

@@ -1,5 +1,5 @@
 /**
- * A click on a layout region crops that region, so a gesture that merely
+ * A click on a layout element opens its action view, so a gesture that merely
  * *started* inside the region — a text-selection drag, a pan, a slip of the
  * hand — must not activate it. Browsers fire `click` whenever pointerdown and
  * pointerup land on the same element, no matter how far the pointer travelled

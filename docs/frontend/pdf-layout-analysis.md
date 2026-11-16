@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | 上游 | [EmbedPDF Layout Analysis](https://www.embedpdf.com/docs/react/headless/plugins/plugin-layout-analysis) |
-| 代码 | `src/lib/pdf/layout/`、`viewer/panels/figures-panel.tsx`（header 按钮）、`viewer/pdf/hooks/use-pdf-layout-{regions,run,hover,translate}.ts`、`viewer/pdf/layers/page-layers.tsx`（页内命中框与 bbox 叠加） |
+| 代码 | `src/lib/pdf/layout/`、`viewer/panels/figures-panel.tsx`（header 按钮）、`viewer/pdf/hooks/use-pdf-layout-{regions,run,hover,translate}.ts`、`viewer/pdf/layers/layout-element-selection-layer.tsx`（元素选择）、`layout-element-actions.tsx`（加入对话 / 翻译）、`page-layers.tsx`（Eye 叠加） |
 | 持久化 | Paper PDF 写入 `{paper}/source/layout.json`（raw text-enriched regions）+ `{paper}/source/layout-index.json`（侧栏同构，供 CLI）；`layoutAnalysisStore` 仍是运行时 UI store |
 
 ---
@@ -84,14 +84,16 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  叠加层画 **rawRegions**（合并前、全 kind、无 NMS；score ≥ 0.3）
         │  每框标注分类 + 置信度（如「图片 87%」「摘要 91%」）
         │  标签映射须覆盖 PP-DocLayoutV3 全量（含 abstract）；未映射 label 会在 normalize 被丢弃
-        │  侧栏 / hover 仍用 **regions**（post-merge；不含 abstract）
+        │  侧栏仍用 **regions** 里的插图 / 表 / 算法 / 公式（post-merge）
+        │  元素选择用同一份 post-merge **regions** 的全部 kind
         │  不用 EmbedPDF LayoutAnalysisLayer 画框：sidecar 缓存命中时插件无 page layout
         │
-④ PDF 页交互 → 视觉批注卡
-        │  hit 层用 **post-merge** 区域（与侧栏同源，非插件 raw 框）
-        │  插图 / 表 / 算法 / 有编号公式：hover 框右上角提示「单击进行批注」；
-        │    单击 → VisualAnnotationEditor
-        │  实现：`hit-test.ts` + `pdf-viewer`
+④ PDF 页交互 → 元素选择
+        │  hit 层用 **post-merge regions**（全 kind；非 Eye 的 rawRegions，也不是侧栏子集）
+        │  hover 只画当前元素的合并框（bbox，以及同页 titleBbox / captionBbox）
+        │  单击 / Enter → 加入对话或选择翻译；不写 visual mark，不打开批注编辑器
+        │  实现：`hit-test.ts`（selectable*）+ `layout-element-selection-layer.tsx`
+        │  工具栏 ⌘. 框选仍进入视觉批注
         │
 ⑤ 正文 / 摘要 / 标题文字抽取（PDF text layer → region.text）
         │  分析或 sidecar 回填时 enrich；供调试与 bulk 翻译
