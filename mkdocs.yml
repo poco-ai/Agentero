@@ -96,6 +96,7 @@ nav:
   - 测试:
       - 概览: test/index.md
       - BBox 标注与教学样例: test/bbox-annotation.md
+      - OmniDocBench bbox 融合评测: test/omnidocbench-bbox.md
       - 性能测试轨迹: test/performance.md
       - 发布流程: test/release.md
       - macOS 签名与公证: test/macos-signing.md
