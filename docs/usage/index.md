@@ -22,7 +22,6 @@
 | 把 Vault 接到 ChatGPT / Codex MCP | [用 MCP 连接外部 Agent](mcp.md) |
 | 用 iPhone 连接桌面 Vault | [移动端](mobile.md) |
 | 用浏览器 Zotero Connector 保存 | [使用 Zotero Connector](zotero.md) |
-| 安装插件、配置权限与扩展阅读操作 | [使用本地插件](plugins.md) |
 | 打开服务器上的研究资料库 | [打开远程 Vault](remote-vault.md) |
 
 ## 三个概念

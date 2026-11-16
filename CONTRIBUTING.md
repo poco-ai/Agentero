@@ -37,8 +37,6 @@ cargo test -p agentero-core -p agentero-cli   # Rust 基础层与 CLI 测试
 cargo test -p agentero                        # 应用层测试
 ```
 
-桌面 `cargo test -p agentero` 与 `cargo clippy --workspace` 需要先执行 `pnpm plugin-worker:stage`，把 sidecar 放到 `src-tauri/binaries/`，否则 `tauri-build` 会因缺少 `externalBin` 失败，与缺少 `src-tauri/pdfium` 相同。
-
 Windows 上 `liteparse` 会拉起 `tesseract-rs`，有两个第三方坑，仓库修不了：
 
 - Visual Studio 的 Debug 构建会产出 `tesseract*d.lib`，crate 按发行版名字去找，于是 `cargo test` / `cargo clippy --all-targets` 链接失败。在 VS Developer Prompt 里编，或先用 release 把库编出来一次，再跑 debug；CI 的 Windows 测试任务因此直接使用 release profile。
@@ -93,7 +91,7 @@ cargo test -p agentero-core -p agentero-cli
 | TypeScript quality | `biome ci .`、`pnpm typecheck`、`pnpm deps:check`、adapter staging | `pnpm lint:ts && pnpm typecheck && pnpm deps:check` |
 | TypeScript test | vitest 两分片 | `pnpm test` |
 | Rust quality | `cargo fmt --check`、`cargo clippy -D warnings`（macOS 与 Windows） | `pnpm lint:rs` |
-| Rust tests | `cargo test -p agentero -p agentero-plugin-host` / `-p agentero-core -p agentero-cli`（macOS 与 Windows） | 同左 |
+| Rust tests | `cargo test -p agentero` / `-p agentero-core -p agentero-cli`（macOS 与 Windows） | 同左 |
 
 ## 代码与 UI 约定（摘要）
 

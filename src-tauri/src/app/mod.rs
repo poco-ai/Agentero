@@ -220,11 +220,6 @@ pub fn run() {
         });
     }
 
-    #[cfg(not(any(target_os = "ios", target_os = "android")))]
-    {
-        builder = builder.manage(crate::integration::plugins::PluginManager::default());
-    }
-
     builder = builder.setup(|app| {
         // Bundled ACP adapter tier (offline fallback): record the packaged
         // adapters root before any catalog scan / spawn path can consult it.
@@ -549,10 +544,6 @@ pub fn run() {
                 let drained = window
                     .state::<vault_session::VaultHolders>()
                     .drain_window(window.label());
-                #[cfg(not(any(target_os = "ios", target_os = "android")))]
-                window
-                    .state::<crate::integration::plugins::PluginManager>()
-                    .unload(window.label(), None, None);
                 if !drained.is_empty() {
                     let app = window.app_handle().clone();
                     tauri::async_runtime::spawn(async move {

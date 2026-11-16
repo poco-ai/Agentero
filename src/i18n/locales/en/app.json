@@ -55,9 +55,7 @@
 		"tabNextInGroup": "Next Tab in Group",
 		"tabPrevInGroup": "Previous Tab in Group",
 		"exportAnnotatedPdf": "Export Annotated PDF",
-		"wandOpen": "Magic Wand (Import by ID)",
-		"pluginsLoadDevelopment": "Load development plugin…",
-		"pluginsUnloadDevelopment": "Unload development plugins"
+		"wandOpen": "Magic Wand (Import by ID)"
 	},
 	"titlebar": {
 		"showLeftSidebar": "Show left sidebar",
@@ -291,12 +289,5 @@
 			"description": "If access is restricted, configure a proxy in settings and try again.",
 			"openSettings": "Open network settings"
 		}
-	},
-	"plugins": {
-		"chooseDirectory": "Load plugin — allow reading the current vault",
-		"failed": "Plugin operation failed",
-		"loaded": "Development plugin loaded",
-		"commandTitle": "{{title}}",
-		"suspended": "{{name}} was stopped after repeated failures. Re-enable it in Settings."
 	}
 }

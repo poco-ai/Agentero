@@ -18,8 +18,7 @@
 		"about": "关于",
 		"quickSetup": "快速配置向导",
 		"featureTour": "功能导引",
-		"sync": "同步",
-		"plugins": "插件"
+		"sync": "同步"
 	},
 	"writing": {
 		"uploadMode": "何时上传",
@@ -1147,23 +1146,6 @@
 		"unlimited": "不限",
 		"signInRequired": "登录后可查看云同步容量。",
 		"notIncluded": "当前套餐不包含云同步。"
-	},
-	"plugins": {
-		"install": "从文件夹安装…",
-		"localOnly": "打开本地 Vault 后可管理插件。",
-		"empty": "尚未安装插件。",
-		"failed": "插件操作失败",
-		"configure": "配置 {{name}}",
-		"remove": "卸载 {{name}}",
-		"enable": "启用 {{name}}",
-		"saveEnable": "保存并启用",
-		"permissions": {
-			"vault:read": "读取 Vault 文件与论文",
-			"catalog:write": "修改论文标签和已读状态",
-			"vault:notes:write": "写入论文笔记",
-			"vault:write": "写入 Vault 文本及移动论文"
-		},
-		"cancel": "取消"
 	},
 	"word": {
 		"damagedField": "引文字段结果为空或已损坏。请恢复文档，或在副本中重新插入引文。",

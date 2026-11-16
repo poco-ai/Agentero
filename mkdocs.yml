@@ -36,7 +36,6 @@ nav:
       - 用 MCP 连接外部 Agent: usage/mcp.md
       - 移动端: usage/mobile.md
       - 使用 Zotero Connector: usage/zotero.md
-      - 使用本地插件: usage/plugins.md
       - 打开远程 Vault: usage/remote-vault.md
 
   - 前端:

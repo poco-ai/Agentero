@@ -487,16 +487,6 @@ export const commands = {
 	 *  Other platforms have no native menu and need only the renderer recording guard.
 	 */
 	setMenuShortcutRecording: (recording: boolean) => typedError<null, string>(__TAURI_INVOKE("set_menu_shortcut_recording", { recording })),
-	pluginEditorState: (vaultPath: string, paths: string[]) => typedError<null, string>(__TAURI_INVOKE("plugin_editor_state", { vaultPath, paths })),
-	pluginList: (vaultPath: string) => typedError<Json, string>(__TAURI_INVOKE("plugin_list", { vaultPath })),
-	pluginInspect: (directory: string) => typedError<Json, string>(__TAURI_INVOKE("plugin_inspect", { directory })),
-	pluginInstall: (directory: string) => typedError<null, string>(__TAURI_INVOKE("plugin_install", { directory })),
-	pluginConfigure: (id: string, vaultPath: string, enabled: boolean, grants: string[], settings: Json) => typedError<null, string>(__TAURI_INVOKE("plugin_configure", { id, vaultPath, enabled, grants, settings })),
-	pluginRemove: (id: string) => typedError<null, string>(__TAURI_INVOKE("plugin_remove", { id })),
-	pluginActivate: (vaultPath: string) => typedError<DevelopmentPluginInfo[], string>(__TAURI_INVOKE("plugin_activate", { vaultPath })),
-	pluginDevLoad: (directory: string, vaultPath: string) => typedError<DevelopmentPluginInfo, string>(__TAURI_INVOKE("plugin_dev_load", { directory, vaultPath })),
-	pluginUnload: (instanceId: string | null) => __TAURI_INVOKE<void>("plugin_unload", { instanceId }),
-	pluginRun: (instanceId: string, commandId: string, context: DevelopmentPluginContext) => typedError<string, string>(__TAURI_INVOKE("plugin_run", { instanceId, commandId, context })),
 	bridgeStart: (args: BridgeStartArgs) => __TAURI_INVOKE<ApiResult<BridgeStatus>>("bridge_start", { args }),
 	bridgeStop: () => __TAURI_INVOKE<ApiResult<null>>("bridge_stop"),
 	bridgeStatus: () => __TAURI_INVOKE<ApiResult<BridgeStatus>>("bridge_status"),
@@ -867,8 +857,6 @@ export const events = {
 	paperAssetsReady: makeEvent<PaperAssetsReadyEvent>("paper:assets-ready"),
 	paperImported: makeEvent<PaperImportedEvent>("paper:imported"),
 	paperRenamed: makeEvent<PaperRenamedEventPayload>("paper:renamed"),
-	pluginsChanged: makeEvent<PluginsChangedEvent>("plugins:changed"),
-	pluginsDataChanged: makeEvent<PluginsDataChangedEvent>("plugins:data-changed"),
 	rtexEvent: makeEvent<RtexEventEvt>("rtex:event"),
 	settingsChanged: makeEvent<SettingsChangedEvent_Deserialize>("settings:changed"),
 	settingsSectionRequested: makeEvent<SettingsSectionRequestedEvent>("settings:section-requested"),
@@ -2948,30 +2936,6 @@ export type DesktopAppStatus_Serialize = {
 	path?: string | null,
 };
 
-export type DevelopmentPluginCommand = {
-	id: string,
-	title: { [key in string]: string },
-};
-
-export type DevelopmentPluginContext = {
-	paperRef?: string,
-	kind?: string,
-	event: string | null,
-	relPath: string | null,
-	selectionText: string | null,
-	payload?: Json,
-	blockedPaths?: string[],
-	locale: string,
-};
-
-export type DevelopmentPluginInfo = {
-	grants: string[],
-	instanceId: string,
-	pluginId: string,
-	commands: DevelopmentPluginCommand[],
-	manifest: Json,
-};
-
 export type DictionaryEntry = {
 	word: string,
 	phonetic: string,
@@ -4937,10 +4901,6 @@ export type PlazaScratchEntry = {
 export type PlazaScratchPrepareArgs = {
 	arxivIds: string[],
 };
-
-export type PluginsChangedEvent = null;
-
-export type PluginsDataChangedEvent = string;
 
 export type PreparationReason = "downloadSource" | "parseBody" | "repairState";
 

@@ -30,19 +30,9 @@ impl VaultHolders {
         Self::default()
     }
 
-    pub fn holder_count(&self, key: &str) -> usize {
-        self.lock().get(key).map_or(0, |labels| labels.len())
-    }
-
     /// Canonical vault paths that still have at least one holder.
     pub fn vault_keys(&self) -> Vec<String> {
         self.lock().keys().cloned().collect()
-    }
-
-    pub fn holds(&self, key: &str, label: &str) -> bool {
-        self.lock()
-            .get(key)
-            .is_some_and(|labels| labels.contains(label))
     }
 
     /// Registers `label` as a holder of `key` (a canonicalized vault path, see
