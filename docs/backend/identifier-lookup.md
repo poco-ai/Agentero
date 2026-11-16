@@ -839,6 +839,7 @@ arXiv URL 推导：
 - 选择性导入：`zotero_scan` 预览返回各 collection（含「未分类」= id 0）及条目数，并返回逐条 `items`（id/title/itemType/year/hasPdf/notes/collections）；对话框提供**搜索 + 文件夹筛选 + 逐条勾选**（`include_items` 优先于 `include_collections`，缺省 = 全部），非常规类型（webpage 等）在列表中以类型徽标标出；迁移经 Tauri Channel 回传 `{current,total}` 进度，选项记于 localStorage。
 - 笔记：对话框「迁移 Zotero 笔记」勾选项（默认开）覆盖两类笔记。挂在论文下的子笔记（`itemNotes.parentItemID` 指向该论文）HTML 经 `htmd` 转 Markdown，追加进该篇 `NOTES.md`（以 `---` 分隔）。没有父条目的独立笔记各写成一篇 Markdown：未归类落到 `notes/<标题>.md`，开启「按分类建子文件夹」时落到 `notes/<分类路径>/<标题>.md`，关闭则全部平铺在 `notes/`。文件名取笔记标题，否则取正文第一行，再否则取 Zotero key；与已有文件重名时加 `-2` 后缀，不覆盖用户文件。文件首行写入 `<!-- zotero-note:<key> -->`，再次迁移认出标记后跳过。嵌在独立笔记下的子笔记并入同一文件。空笔记、回收站笔记不写文件。`zotero_scan` 预览把独立笔记放进条目列表（类型 `note`），未归类归到 collection id `0`。
 - 批注：对话框「迁移 PDF 高亮批注」勾选项（默认开）→ 读 `itemAnnotations`（`type`、`color`、`text`、`comment`、`position`）。高亮与下划线写入该论文的 `marks/annotations.json`（EmbedPDF 传输格式，阅读器打开 PDF 时画在页面上），批注文字进 annotation 的 `contents`，不追加进 `NOTES.md`。`position.rects` 是 PDF 用户坐标 `[left, bottom, right, top]`，经与阅读器相同的 PDFium 视口变换换成页面点；没有 `position` 的旧库用划选原文在 PDF 里定位。同一 Zotero key 再次迁移不会重复写入。子笔记仍只进 `NOTES.md`。
+- 平台：PDF 高亮迁移与增量同步依赖桌面端 PDFium，仅在桌面构建启用。iOS / Android 跳过高亮写入，仍可处理元数据与笔记；移动端不能引用桌面专用的 `pdf_locate` 模块。
 - 非目标（v1）：独立笔记的双向同步（迁移是一次性写入 `notes/`，不推回 Zotero）、群组库。把 Zotero 高亮写回 PDF 文件字节（高亮只在 `annotations.json`，不改原 PDF）。
 | 2026-07-16 | 精读：入库/单篇 Download 后自动 paper-reader + Zap 手动；任务条 lookup/download → paperRead 衔接 |
 

@@ -1844,6 +1844,7 @@ pub(crate) fn paper_pdf_file(paper_dir: &Path) -> Option<PathBuf> {
 
 /// Write highlights the viewer can paint. Re-runs skip ids already present.
 /// A missing or unreadable PDF leaves the paper's notes untouched.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 pub(crate) fn persist_zotero_highlights(
     paper_dir: &Path,
     pdf_path: &Path,
@@ -1879,6 +1880,21 @@ pub(crate) fn persist_zotero_highlights(
     }
 }
 
+// PDF geometry mapping depends on desktop PDFium. Keep metadata and note
+// migration available on mobile without linking the desktop locator.
+#[cfg(any(target_os = "ios", target_os = "android"))]
+pub(crate) fn persist_zotero_highlights(
+    _paper_dir: &Path,
+    _pdf_path: &Path,
+    marks: &[ZoteroPdfMark],
+) -> usize {
+    if !marks.is_empty() {
+        log::warn!("zotero highlights: PDF annotation import requires the desktop app");
+    }
+    0
+}
+
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn zotero_highlight_items(pdf: &[u8], marks: &[ZoteroPdfMark]) -> Result<Vec<Value>, AppError> {
     use agentero_core::features::pdf_locate::annotations::{now_iso, text_markup_item};
     use agentero_core::features::pdf_locate::{map_pdf_user_rects, PdfUserRects};
@@ -1934,6 +1950,7 @@ fn zotero_highlight_items(pdf: &[u8], marks: &[ZoteroPdfMark]) -> Result<Vec<Val
     Ok(items)
 }
 
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn locate_mark(
     pdf: &[u8],
     mark: &ZoteroPdfMark,
@@ -1956,6 +1973,7 @@ fn locate_mark(
 
 /// Desktop swatches. A Zotero hex is kept as the painted color and snapped to
 /// the nearest swatch so the picker still has a selection.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn annotation_paint(color: Option<&str>) -> (String, &'static str) {
     const SWATCHES: &[(&str, u8, u8, u8)] = &[
         ("yellow", 0xfc, 0xd3, 0x4d),
@@ -1981,6 +1999,7 @@ fn annotation_paint(color: Option<&str>) -> (String, &'static str) {
     (format!("#{r:02x}{g:02x}{b:02x}"), best.0)
 }
 
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn parse_hex_color(raw: &str) -> Option<(u8, u8, u8)> {
     let hex = raw.trim().trim_start_matches('#');
     if hex.len() != 6 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {

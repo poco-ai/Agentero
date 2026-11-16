@@ -30,9 +30,16 @@ vi.mock("@embedpdf/plugin-viewport/react", () => ({
 	useViewportElement: () => mocks.viewportRef,
 }));
 vi.mock("@/hooks/use-app-stores", () => ({ useSettings: () => "vertical" }));
-vi.mock("@/lib/settings", () => ({
-	loadSettings: () => ({ pdfVimKeys: true, vimMode: true }),
-}));
+vi.mock("@/lib/settings", async () => {
+	const { DEFAULT_SETTINGS } = await import("@/lib/settings/defaults");
+	return {
+		loadSettings: () => ({
+			...DEFAULT_SETTINGS,
+			pdfVimKeys: true,
+			vimMode: true,
+		}),
+	};
+});
 vi.mock("@/lib/pdf/scroll-sync", () => ({ handleScrollSyncIntent: vi.fn() }));
 
 let root: Root;
