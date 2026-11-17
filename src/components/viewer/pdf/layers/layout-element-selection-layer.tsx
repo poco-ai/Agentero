@@ -24,6 +24,7 @@ import {
 } from "@/components/viewer/pdf/layout-element-action-store";
 import {
 	clearLayoutSentenceHover,
+	type LayoutSentenceHover,
 	layoutSentenceHover,
 	primeLayoutSentenceGlyphs,
 	releaseLayoutSentenceHover,
@@ -33,11 +34,8 @@ import {
 	syncLayoutSentencePointer,
 } from "@/components/viewer/pdf/layout-sentence-hover";
 import {
-	type ElementSentenceHit,
 	isLayoutElementTextKind,
 	isLayoutRegionActivation,
-	LAYOUT_HINT_MIN_REGION_H_PX,
-	LAYOUT_HINT_MIN_REGION_W_PX,
 	LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX,
 	layoutElementBoxes,
 	layoutElementCaptionPage,
@@ -108,10 +106,9 @@ type LayoutElementSelectionLayerProps = {
 
 function screenForElement(
 	shell: HTMLElement,
-	region: PdfLayoutRegion,
+	rects: PdfLayoutRegion["bbox"][],
 	client: { x: number; y: number } | null,
 ): LayoutElementScreen {
-	const rects = layoutElementBoxes(region).map((box) => box.bbox);
 	const bounds = selectionBoundsOnScreen(shell, rects);
 	if (!bounds) {
 		return { x: client?.x ?? 0, y: client?.y ?? 0, cursorX: client?.x };
@@ -132,10 +129,14 @@ function openFromRegion(
 	region: PdfLayoutRegion,
 	shell: HTMLElement,
 	client: { x: number; y: number } | null,
-	sentence: ElementSentenceHit | null,
+	sentence: LayoutSentenceHover | null,
 ): void {
 	const boxes = layoutElementBoxes(region);
 	const sentenceQuote = sentence?.quote.trim() ?? "";
+	const rects =
+		sentence && sentence.rects.length > 0
+			? sentence.rects
+			: boxes.map((box) => box.bbox);
 	openLayoutElementAction({
 		docId,
 		regionId: region.id,
@@ -143,11 +144,9 @@ function openFromRegion(
 		kind: region.kind,
 		quote: sentenceQuote || layoutElementQuote(region),
 		bbox: region.bbox,
-		rects:
-			sentence && sentence.rects.length > 0
-				? sentence.rects
-				: boxes.map((box) => box.bbox),
-		screen: screenForElement(shell, region, client),
+		rects,
+		screen: screenForElement(shell, rects, client),
+		sentence: sentence ?? undefined,
 	});
 }
 
@@ -213,7 +212,7 @@ export const LayoutElementSelectionLayer = memo(
 			};
 
 			const syncHot = () => {
-				const next = hoveredId ?? pinnedId();
+				const next = pinnedId() ?? hoveredId;
 				if (next === paintedId) return;
 				if (paintedId) {
 					const previous = elementOf(paintedId);
@@ -229,7 +228,8 @@ export const LayoutElementSelectionLayer = memo(
 			const washOf = () => washRef.current;
 
 			const paintSentence = () => {
-				const current = layoutSentenceHover();
+				const action = layoutElementActionStore.getState().action;
+				const current = action ? action.sentence : layoutSentenceHover();
 				const mine =
 					current &&
 					layoutSentenceScope(current.docId) === layoutSentenceScope(docId)
@@ -304,6 +304,16 @@ export const LayoutElementSelectionLayer = memo(
 				target: EventTarget | null,
 				point: { x: number; y: number },
 			) => {
+				const chipId =
+					target instanceof Element
+						? target
+								.closest("[data-layout-element]")
+								?.getAttribute("data-layout-element")
+						: null;
+				const chipRegion = chipId
+					? regionsRef.current.find((region) => region.id === chipId)
+					: null;
+				if (chipRegion) return chipRegion;
 				const span = spanFromTarget(target);
 				const spanned = span
 					? regionsRef.current.find((region) => region.id === span.itemId)
@@ -442,7 +452,10 @@ export const LayoutElementSelectionLayer = memo(
 			shell.addEventListener("click", onClick);
 			shell.addEventListener("pointerleave", onLeave);
 			paintSentenceRef.current = paintSentence;
-			const unsubscribeAction = layoutElementActionStore.subscribe(syncHot);
+			const unsubscribeAction = layoutElementActionStore.subscribe(() => {
+				syncHot();
+				paintSentence();
+			});
 			const unsubscribeSentence = subscribeLayoutSentenceHover(paintSentence);
 			paintSentence();
 
@@ -495,10 +508,6 @@ export const LayoutElementSelectionLayer = memo(
 						const quote = layoutElementQuote(region);
 						const preview = layoutElementPreview(quote);
 						const captionPage = layoutElementCaptionPage(region);
-						const showPreview =
-							Boolean(preview) &&
-							region.bbox.w * width >= LAYOUT_HINT_MIN_REGION_W_PX &&
-							region.bbox.h * height >= LAYOUT_HINT_MIN_REGION_H_PX;
 						const anchor = boxes.reduce((top, box) =>
 							box.bbox.y < top.bbox.y ? box : top,
 						);
@@ -539,20 +548,14 @@ export const LayoutElementSelectionLayer = memo(
 										top: `${anchor.bbox.y * 100}%`,
 									}}
 									aria-label={aria}
-									title={preview || kindLabel}
+									title={aria}
 									onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
 										event.preventDefault();
 										event.stopPropagation();
 										const shell = rootRef.current?.parentElement;
 										if (!(shell instanceof HTMLElement)) return;
-										const live = layoutSentenceHover();
-										const sentence =
-											live &&
-											live.docId === docId &&
-											live.regionId === region.id
-												? live
-												: null;
-										openFromRegion(docId, region, shell, null, sentence);
+										clearLayoutSentenceHover();
+										openFromRegion(docId, region, shell, null, null);
 									}}
 								>
 									<span className="font-medium">{kindLabel}</span>
@@ -560,11 +563,6 @@ export const LayoutElementSelectionLayer = memo(
 										<span className="font-normal text-muted-foreground">
 											{" "}
 											· {t("figures.captionOnPage", { page: captionPage })}
-										</span>
-									) : null}
-									{showPreview ? (
-										<span className="mt-0.5 block max-w-56 truncate font-normal text-muted-foreground">
-											{preview}
 										</span>
 									) : null}
 								</button>

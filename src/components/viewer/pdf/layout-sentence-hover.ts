@@ -747,7 +747,7 @@ export function syncLayoutSentencePointer(query: PointerQuery): void {
 /** Click / Enter resolves the sentence even if the drag guard had cleared it. */
 export function sentenceForActivation(
 	query: PointerQuery,
-): ElementSentenceHit | null {
+): LayoutSentenceHover | null {
 	suppressed = false;
 	// A new activation supersedes the sentence the previous toolbar owned;
 	// otherwise `applyPointer` stays frozen and resolves a stale document.

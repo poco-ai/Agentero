@@ -68,8 +68,8 @@ export function layoutElementCaptionPage(
 /**
  * Quote carried into chat and selection-translate.
  * Body / abstract / header / caption use `text`; figures, tables and
- * algorithms use the merged title. Phase 2 replaces text quotes with the
- * sentence under the pointer.
+ * algorithms use the merged title. Category-chip activation keeps this whole
+ * block quote; activation on a sentence uses the pointed sentence instead.
  */
 export function layoutElementQuote(region: PdfLayoutRegion): string {
 	const text = region.text?.replace(/\s+/g, " ").trim() ?? "";

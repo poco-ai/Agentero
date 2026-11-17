@@ -91,8 +91,6 @@ const EMPTY_MARKS: PdfPageMarksSlice = {
 	activeAskAnchor: null,
 	activeTranslateAnchor: null,
 	activeVisualTrace: null,
-	visualDraftRegion: null,
-	visualCropRegion: null,
 	focusedLayoutRegion: null,
 	focusedLayoutFlash: false,
 	focusedLayoutFlashToken: 0,
@@ -119,7 +117,6 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 	onCitationActivate: NOOP,
 	onTextLinkActivate: NOOP,
 	onCitationHover: NOOP,
-	onRegionSelect: NOOP,
 	onTogglePageLayoutTranslate: NOOP,
 	onDeleteHighlightAnnotation: NOOP,
 	onEditHighlightAnnotation: NOOP,
@@ -140,9 +137,6 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 
 const PAGE_MODE: PdfPageModeSlice = {
 	sentencePairing: true,
-	regionSelecting: false,
-	visualCropPending: false,
-	visualDraftOpen: false,
 	translationOnly: true,
 };
 
@@ -222,7 +216,7 @@ export function PdfTranslationViewerInner({
 	useEffect(() => {
 		return () => publishLayoutSentenceCatalog(docId, []);
 	}, [docId]);
-	usePdfSentenceInteraction(docId, hostRef, true);
+	usePdfSentenceInteraction(docId, hostRef);
 	const { provides: annotationCap } = useAnnotationCapability();
 	const onHighlightsChangeRef = useRef(onHighlightsChange);
 	onHighlightsChangeRef.current = onHighlightsChange;

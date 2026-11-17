@@ -77,7 +77,6 @@ import {
 	PASSIVE_UNDERLINE_RENDERER,
 	READING_ANNOTATION_RENDERERS,
 } from "@/components/viewer/pdf/layers/reading-annotation-renderers";
-import { PdfRegionSelectLayer } from "@/components/viewer/pdf/layers/region-select-layer";
 import { SelectionGutter } from "@/components/viewer/pdf/layers/selection-gutter";
 import { PDF_VISUAL_REGION_FRAME_CLASS } from "@/components/viewer/pdf/layers/visual-region-frame";
 import { PdfSentenceHighlight } from "@/components/viewer/pdf/layout-sentence-pairing";
@@ -334,8 +333,6 @@ function TranslationSelectionVeil({
 }
 
 /** A mark region pinned to a page (visual draft frame / formula legend frame). */
-type PageRegion = { page: number; region: PdfAskNormalizedRect } | null;
-
 /**
  * Anchor geometry of an open ask / translate card. Anchor-only: it keeps its
  * identity while the card body streams, so the page layers skip re-rendering
@@ -355,9 +352,6 @@ export type PdfPageMarksSlice = {
 	activeAskAnchor: PdfActiveCardAnchor | null;
 	activeTranslateAnchor: PdfActiveCardAnchor | null;
 	activeVisualTrace: PdfVisualSessionTrace | null;
-	visualDraftRegion: PageRegion;
-	/** Region whose crop is in flight; gets a spinner frame. */
-	visualCropRegion: PageRegion;
 	focusedLayoutRegion: PdfLayoutRegion | null;
 	/** Embed-owned citation highlight; never cleared by global focus or its timer. */
 	persistentRegion?: PdfNavigationRegion;
@@ -461,9 +455,7 @@ export type PdfPageLayoutSlice = {
 
 /** Interaction modes that unmount or gate page layers. */
 export type PdfPageModeSlice = {
-	regionSelecting: boolean;
-	visualCropPending: boolean;
-	visualDraftOpen: boolean;
+	elementSelecting?: boolean;
 	/**
 	 * Dual-pane translation companion: native translated selection and saved
 	 * translated highlights, without the original PDF text/annotation layers.
@@ -492,7 +484,6 @@ export type PdfPageHandlers = {
 		url: string | null,
 		clientPoint?: ScreenPoint | null,
 	) => void;
-	onRegionSelect: (page: number, region: PdfAskNormalizedRect) => void;
 	onTogglePageLayoutTranslate: (pageIndex: number) => void;
 	/** Delete a highlight annotation directly from its on-page selection menu. */
 	onDeleteHighlightAnnotation: (pageIndex: number, id: string) => void;
@@ -734,7 +725,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	}, [selectionArmed]);
 	const pageNumber = pageIndex + 1;
 	const selectableOnPage =
-		!mode.plainViewer && !mode.regionSelecting
+		mode.elementSelecting && !mode.plainViewer
 			? layout.selectableRegionsByPage.get(pageIndex)
 			: undefined;
 	const activeAskOnPage =
@@ -747,14 +738,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		marks.activeVisualTrace?.page === pageNumber
 			? marks.activeVisualTrace
 			: null;
-	const visualDraftRegionOnPage =
-		marks.visualDraftRegion?.page === pageNumber
-			? marks.visualDraftRegion.region
-			: null;
-	const visualCropRegionOnPage =
-		marks.visualCropRegion?.page === pageNumber
-			? marks.visualCropRegion.region
-			: null;
+
 	const focusedLayoutOnPage =
 		marks.focusedLayoutRegion?.pageIndex === pageIndex
 			? marks.focusedLayoutRegion
@@ -1418,25 +1402,22 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					heightPx={frameHeight}
 					className="z-[5]"
 				>
-					{/* Unmount text selection while framing a visual region. */}
-					{mode.regionSelecting ? null : (
-						<PdfTextSelectionLayer
-							documentId={docId}
-							pageIndex={pageIndex}
-							background={PDF_TEXT_SELECTION_BACKGROUND}
-							armed={selectionArmed}
-							insertionRegions={layout.selectionInsertionRegions}
-							selectionStartPageIndex={layout.selectionStartPageIndex}
-							excludedTextRects={layout.selectionTextExclusionsByPage?.get(
-								pageIndex,
-							)}
-							draftPages={
-								marks.selectionCommentDraft?.visiblePages?.length
-									? undefined
-									: marks.selectionCommentDraft?.pages
-							}
-						/>
-					)}
+					<PdfTextSelectionLayer
+						documentId={docId}
+						pageIndex={pageIndex}
+						background={PDF_TEXT_SELECTION_BACKGROUND}
+						armed={selectionArmed}
+						insertionRegions={layout.selectionInsertionRegions}
+						selectionStartPageIndex={layout.selectionStartPageIndex}
+						excludedTextRects={layout.selectionTextExclusionsByPage?.get(
+							pageIndex,
+						)}
+						draftPages={
+							marks.selectionCommentDraft?.visiblePages?.length
+								? undefined
+								: marks.selectionCommentDraft?.pages
+						}
+					/>
 					{/*
 					 * AnnotationLayer is not inverted with the page rasters. In PDF dark
 					 * mode its bright highlight colors look glaring on dark paper, so
@@ -1487,13 +1468,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					onHover={handlers.onCitationHover}
 					onUrlHover={handlers.onLinkUrlHover}
 				/>
-				<PdfRegionSelectLayer
-					active={mode.regionSelecting && !mode.visualCropPending}
-					label={t("pdfExplain.regionSelectionLabel", {
-						page: pageNumber,
-					})}
-					onSelect={(region) => handlers.onRegionSelect(pageNumber, region)}
-				/>
+
 				{/*
 				 * Debug Eye overlay: pre-merge detections (all kinds, no NMS),
 				 * score ≥ LAYOUT_SIDEBAR_MIN_SCORE (30%). Label = kind + conf.
@@ -1625,44 +1600,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 							/>
 						))
 					: null}
-				{/* Open visual draft / mark: show the framed source region on-page. */}
-				{visualDraftRegionOnPage ? (
-					<div
-						className={cn(PDF_VISUAL_REGION_FRAME_CLASS, "z-[2]")}
-						style={{
-							left: `${visualDraftRegionOnPage.x * 100}%`,
-							top: `${visualDraftRegionOnPage.y * 100}%`,
-							width: `${visualDraftRegionOnPage.w * 100}%`,
-							height: `${visualDraftRegionOnPage.h * 100}%`,
-						}}
-						aria-hidden="true"
-					/>
-				) : null}
-				{/*
-				 * Crop in flight: PDFium renders the region asynchronously, so frame
-				 * it and spin — otherwise a click looks like nothing happened.
-				 */}
-				{visualCropRegionOnPage ? (
-					<div
-						className={cn(
-							PDF_VISUAL_REGION_FRAME_CLASS,
-							"z-[3] flex items-center justify-center",
-						)}
-						style={{
-							left: `${visualCropRegionOnPage.x * 100}%`,
-							top: `${visualCropRegionOnPage.y * 100}%`,
-							width: `${visualCropRegionOnPage.w * 100}%`,
-							height: `${visualCropRegionOnPage.h * 100}%`,
-						}}
-						role="status"
-						aria-label={t("pdfExplain.cropping")}
-					>
-						<Loader2
-							className="size-4 animate-spin text-default-primary"
-							aria-hidden="true"
-						/>
-					</div>
-				) : null}
 				{/* Figures selection outline, or citation yellow flash block. */}
 				{persistentRegion ? (
 					<div

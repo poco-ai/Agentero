@@ -5,8 +5,10 @@
  */
 
 import { createStore } from "zustand/vanilla";
+import type { LayoutSentenceHover } from "@/components/viewer/pdf/layout-sentence-hover";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
+import { layoutSentenceScope } from "@/lib/pdf/layout/store";
 import type { PdfLayoutKind } from "@/lib/pdf/layout/types";
 
 /** Menu anchor. `selectionBounds` lets the shared menu sit above the element. */
@@ -30,15 +32,32 @@ export type LayoutElementAction = {
 	/** Every box that belongs to the element, for the chat pin and translate anchor. */
 	rects: PdfAskNormalizedRect[];
 	screen: LayoutElementScreen;
+	/** Clicked sentence stays painted until this action view is dismissed. */
+	sentence?: LayoutSentenceHover;
 };
 
 type LayoutElementActionState = {
 	action: LayoutElementAction | null;
+	/** One inspection mode shared by a source PDF and its translation pane. */
+	selectionDocumentId: string | null;
 };
 
 export const layoutElementActionStore = createStore<LayoutElementActionState>(
-	() => ({ action: null }),
+	() => ({ action: null, selectionDocumentId: null }),
 );
+
+export function setLayoutElementSelection(
+	docId: string,
+	enabled: boolean,
+): void {
+	const scope = layoutSentenceScope(docId);
+	const current = layoutElementActionStore.getState();
+	if (!enabled && current.selectionDocumentId !== scope) return;
+	layoutElementActionStore.setState({
+		selectionDocumentId: enabled ? scope : null,
+		action: null,
+	});
+}
 
 export function openLayoutElementAction(action: LayoutElementAction): void {
 	layoutElementActionStore.setState({ action });

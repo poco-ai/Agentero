@@ -7,6 +7,7 @@
 
 import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
+import { layoutElementActionStore } from "@/components/viewer/pdf/layout-element-action-store";
 import {
 	clearLayoutSentenceHover,
 	heldLayoutSentenceDocument,
@@ -65,11 +66,10 @@ function selectionOwns(
 	return dx * dx + dy * dy > limit * limit;
 }
 
-/** Host listener. Does not paint and does not scroll. */
+/** Sentence hover stays active during reading and element selection. */
 export function usePdfSentenceInteraction(
 	docId: string,
 	hostRef: RefObject<HTMLElement | null>,
-	enabled: boolean,
 	onSentenceDoubleClick?: (
 		sentence: LayoutSentenceHover,
 		event: MouseEvent,
@@ -78,7 +78,6 @@ export function usePdfSentenceInteraction(
 	const doubleClickRef = useRef(onSentenceDoubleClick);
 	doubleClickRef.current = onSentenceDoubleClick;
 	useEffect(() => {
-		if (!enabled) return;
 		const root = hostRef.current;
 		if (!root) return;
 		let origin: { x: number; y: number } | null = null;
@@ -179,7 +178,7 @@ export function usePdfSentenceInteraction(
 			const current = layoutSentenceHover();
 			if (current?.docId === docId) clearLayoutSentenceHover();
 		};
-	}, [docId, enabled, hostRef]);
+	}, [docId, hostRef]);
 }
 
 /**
@@ -261,16 +260,18 @@ export function PdfSentenceHighlight({
 		};
 		layer.addEventListener("transitionend", onTransitionEnd);
 		const paint = () => {
-			const current = layoutSentenceHover();
+			const action = layoutElementActionStore.getState().action;
+			const current = action ? action.sentence : layoutSentenceHover();
 			const mine =
 				current &&
 				layoutSentenceScope(current.docId) === layoutSentenceScope(docId)
 					? current
 					: null;
-			const selectedDocument = heldLayoutSentenceDocument();
+			const selectedDocument =
+				action?.sentence?.docId ?? heldLayoutSentenceDocument();
 			// The translated side keeps its native DOM selection tint; the source
 			// PDF has no DOM text, so this layer owns its held sentence band.
-			if (!mine || (!source && selectedDocument === docId)) {
+			if (!mine || (!action && !source && selectedDocument === docId)) {
 				transition(null);
 				return;
 			}
@@ -332,12 +333,14 @@ export function PdfSentenceHighlight({
 			} else transition(next);
 		};
 		const unsubscribe = subscribeLayoutSentenceHover(paint);
+		const unsubscribeAction = layoutElementActionStore.subscribe(paint);
 		const observer =
 			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(paint);
 		observer?.observe(shell);
 		paint();
 		return () => {
 			unsubscribe();
+			unsubscribeAction();
 			observer?.disconnect();
 			if (revealFrame) cancelAnimationFrame(revealFrame);
 			layer.removeEventListener("transitionend", onTransitionEnd);
