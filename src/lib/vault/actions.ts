@@ -113,6 +113,10 @@ function resetOpenTabs(): void {
 }
 
 export async function activateVault(path: string): Promise<void> {
+	// Do not vaultHold here. The main window holds from `vault:opened` and
+	// releases that scope once; a second hold would be dropped by that single
+	// release while the window still had the vault open. Popout windows hold
+	// after this returns.
 	// Tear down previous remote session so work catalogs are flushed.
 	const prev = getVaultPath();
 	if (prev && isRemoteVaultHandle(prev) && prev !== path) {

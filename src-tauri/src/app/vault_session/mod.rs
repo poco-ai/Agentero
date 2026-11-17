@@ -11,10 +11,13 @@ use std::sync::Mutex;
 ///
 /// The Host's release sequence (cancel in-flight jobs / clear the caps cache /
 /// evict the catalog connection) is vault-global, while the frontend activates
-/// a vault per window. A window therefore registers a hold when its
-/// `vault:opened` scope starts and drops it when the scope tears down; the
-/// global release only runs when the last holder lets go. Window destruction
-/// drains the dying window so a missed teardown cannot pin a vault.
+/// a vault per window. The main window registers a hold from its
+/// `vault:opened` scope; a document or feature window calls `vault_hold`
+/// after it opens the vault and `vault_release` when it leaves. The global
+/// release only runs when [`VaultHolders::release`] drops the last holder.
+/// A key with no record returns `false`, so a mismatched release cannot drop
+/// resources another window still holds. Window destruction drains the dying
+/// window so a missed teardown cannot pin a vault.
 ///
 /// Keys are pre-normalized by the `vault_hold` / `vault_release` commands via
 /// [`holder_key`], so one vault spelled `D:\v` by one window and `\\?\D:\v`
@@ -48,27 +51,27 @@ impl VaultHolders {
             .insert(label.to_string());
     }
 
-    /// Drops `label`'s hold on `key`. Returns `true` when the caller should
-    /// run the vault-global release sequence.
+    /// Drops `label`'s hold on `key`. Returns `true` only when that drop
+    /// removed the last holder and the caller should run the vault-global
+    /// release sequence.
     ///
-    /// "No entry at all" deliberately also returns `true`: a window that never
-    /// registered a hold (e.g. a missed `vault_hold`, or a release whose
-    /// canonicalization fallback missed the registered key) keeps today's
-    /// always-release behavior — the release command must never regress into a
-    /// silent no-op.
+    /// No record for `key` returns `false` and removes nothing. A release
+    /// whose canonical key misses the registered entry (never held, or a
+    /// canonicalize fallback onto the raw string) must not pretend to be the
+    /// last holder — that used to release resources another window still had
+    /// open. The leftover canonical entry is removed by [`Self::drain_window`]
+    /// when the holding window is destroyed.
     pub fn release(&self, key: &str, label: &str) -> bool {
         let mut guard = self.lock();
-        match guard.get_mut(key) {
-            Some(labels) => {
-                labels.remove(label);
-                if labels.is_empty() {
-                    guard.remove(key);
-                    true
-                } else {
-                    false
-                }
-            }
-            None => true,
+        let Some(labels) = guard.get_mut(key) else {
+            return false;
+        };
+        labels.remove(label);
+        if labels.is_empty() {
+            guard.remove(key);
+            true
+        } else {
+            false
         }
     }
 
@@ -105,9 +108,9 @@ impl VaultHolders {
 /// `JobCenter::enqueue_core`); a blocking-join failure falls back to the
 /// trimmed raw string. When the directory is already deleted the helper itself
 /// falls back to the raw string too: the lookup then misses the canonical
-/// entry, no removal happens, and `VaultHolders::release` still returns `true`
-/// — the release sequence runs as before (single-window fallback), while the
-/// stale entry is later cleaned by the window-destroyed drain.
+/// entry, `VaultHolders::release` returns `false`, and the global release
+/// does not run. The stale canonical entry is removed when the holding
+/// window is destroyed (`drain_window`).
 pub(super) async fn holder_key(path: &str) -> String {
     let trimmed = path.trim().to_string();
     let for_blocking = trimmed.clone();
@@ -125,13 +128,16 @@ mod tests {
     use super::{holder_key, VaultHolders};
 
     #[test]
-    fn release_without_hold_still_falls_back_to_global_release() {
-        // Single-window compatibility: the release command must keep releasing
-        // when no hold was ever registered (missed `vault_hold`).
+    fn release_without_a_record_does_not_release() {
+        // A key nobody held must not run the global release. Returning true
+        // here used to drop resources another window still had open.
         let holders = VaultHolders::new();
-        assert!(holders.release("/vault-a", "main"));
-        // The fallback leaves no entry behind.
-        assert!(holders.release("/vault-a", "main"));
+        assert!(!holders.release("/vault-a", "main"));
+        assert!(!holders.release("/vault-a", "main"));
+
+        holders.hold("/vault-b", "agentero-2");
+        assert!(!holders.release("/vault-a", "main"));
+        assert!(holders.release("/vault-b", "agentero-2"));
     }
 
     #[test]
@@ -143,9 +149,9 @@ mod tests {
         holders.hold("/vault-a", "main");
         assert!(!holders.release("/vault-a", "main"));
         assert!(holders.release("/vault-a", "agentero-2"));
-        // The emptied entry is gone; a later stray release falls back to the
-        // global release path (an idempotent re-run, not a no-op).
-        assert!(holders.release("/vault-a", "main"));
+        // The entry is gone. A later release has no record and must not run
+        // the global release again.
+        assert!(!holders.release("/vault-a", "main"));
     }
 
     #[tokio::test]
@@ -186,8 +192,8 @@ mod tests {
         let holders = VaultHolders::new();
         holders.hold("", "main");
         holders.hold("/vault-a", "");
-        // Neither registered anything: a release still goes through fallback.
-        assert!(holders.release("/vault-a", "main"));
+        // Neither registered anything, so this release is not a last holder.
+        assert!(!holders.release("/vault-a", "main"));
         assert!(holders.drain_window("main").is_empty());
     }
 }
