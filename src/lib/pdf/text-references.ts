@@ -335,7 +335,11 @@ export function bibliographyEntries(
 		}
 	for (const { citation } of entries) {
 		const raw = citation.raw ?? "";
-		const year = [...raw.matchAll(YEAR)][0]?.[0];
+		// Numbered journal references can mention a study period in the title.
+		// Prefer the publication's year;volume form over such earlier dates.
+		const year =
+			raw.match(/\b((?:18|19|20)\d{2})\s*;\s*\d/)?.[1] ??
+			[...raw.matchAll(YEAR)][0]?.[0];
 		const doi = raw
 			.match(/\b10\.\d{4,9}\/[^\s<>]+/i)?.[0]
 			.replace(/[.,;]+$/, "");
