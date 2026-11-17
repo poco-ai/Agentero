@@ -414,6 +414,9 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				activePanelId: getActiveTabId(),
 				fullscreen,
 			};
+			// A hidden notes editor must not keep consuming Escape in fullscreen.
+			if (document.activeElement instanceof HTMLElement)
+				document.activeElement.blur();
 			// Flag first so the rail setters do not persist the temporary collapse.
 			uiStore.setState({ immersiveReading: true });
 			setLeftCollapsed(true);
