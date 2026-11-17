@@ -49,6 +49,7 @@
 		"visualAnnotation": "Add visual annotation (PDF)",
 		"layoutTranslate": "Full-text translation (PDF)",
 		"toggleFullscreen": "Toggle borderless fullscreen",
-		"toggleMarkdownSource": "Toggle Markdown source"
+		"toggleMarkdownSource": "Toggle Markdown source",
+		"immersiveReading": "Immersive reading"
 	}
 }

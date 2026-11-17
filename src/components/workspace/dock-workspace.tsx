@@ -35,6 +35,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import { PaperTitle } from "@/components/paper/paper-title";
 import { MathText } from "@/components/ui/math-text";
 import {
@@ -190,6 +191,7 @@ function useWorkspace(): WorkspaceCtx {
 }
 
 function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
+	const immersiveReading = useStore(uiStore, (s) => s.immersiveReading);
 	const { tabsById, activePanelId, centerProps, keepMountedIds } =
 		useWorkspace();
 	const panelId = props.params.panelId;
@@ -205,7 +207,9 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 	const active = focused || notesActive;
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-			<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
+			{!immersiveReading && (
+				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
+			)}
 			<DocView
 				{...centerProps}
 				tab={tab}
@@ -220,8 +224,10 @@ const components = { pane: WorkspacePane };
 
 /** Restore headers hidden by older single-preview layouts. */
 function syncProjectPreviewHeaders(api: DockviewApi) {
+	const hidden = uiStore.getState().immersiveReading;
 	for (const group of api.groups) {
-		if (group.model.header.hidden) group.model.header.hidden = false;
+		if (group.model.header.hidden !== hidden)
+			group.model.header.hidden = hidden;
 	}
 }
 
@@ -379,6 +385,18 @@ export const DockWorkspace = memo(
 	) {
 		const { t } = useTranslation(["app", "viewer"]);
 		const apiRef = useRef<DockviewApi | null>(null);
+		useEffect(
+			() =>
+				uiStore.subscribe((state, previous) => {
+					if (
+						state.immersiveReading !== previous.immersiveReading &&
+						apiRef.current
+					) {
+						syncProjectPreviewHeaders(apiRef.current);
+					}
+				}),
+			[],
+		);
 		const workspaceRootRef = useRef<HTMLDivElement>(null);
 		// Suspend dockview DnD while a floating selection overlay (toolbar or
 		// ask card) is open — they can sit against the tab strip and a stray
@@ -449,6 +467,7 @@ export const DockWorkspace = memo(
 			}
 			layoutTimerRef.current = window.setTimeout(() => {
 				layoutTimerRef.current = null;
+				if (uiStore.getState().immersiveReading) return;
 				if (syncingRef.current) {
 					// Still mutating — try again after the batch settles.
 					scheduleLayoutSave(api);
@@ -472,7 +491,10 @@ export const DockWorkspace = memo(
 			(api: DockviewApi) => {
 				requestAnimationFrame(() => {
 					syncingRef.current = false;
-					if (uiStore.getState().layoutMode === "reading") {
+					if (
+						uiStore.getState().layoutMode === "reading" ||
+						uiStore.getState().immersiveReading
+					) {
 						if (!api.hasMaximizedGroup()) {
 							const activeId = activePanelIdRef.current ?? api.activePanel?.id;
 							const target =

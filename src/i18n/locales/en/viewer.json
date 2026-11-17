@@ -130,7 +130,8 @@
 			"saving": "Saving bookmarks…",
 			"retry": "Retry saving",
 			"discard": "Discard unsaved edits"
-		}
+		},
+		"exitImmersive": "Exit immersive reading"
 	},
 	"pdfAsk": {
 		"dialogLabel": "Ask about selection",

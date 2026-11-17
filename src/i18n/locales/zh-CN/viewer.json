@@ -130,7 +130,8 @@
 			"saving": "正在保存书签…",
 			"retry": "重试保存",
 			"discard": "放弃未保存修改"
-		}
+		},
+		"exitImmersive": "退出全屏阅读"
 	},
 	"pdfAsk": {
 		"dialogLabel": "划词提问",

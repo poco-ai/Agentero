@@ -43,6 +43,7 @@ type TitleBarProps = {
 	onToggleSidebar: () => void;
 	onToggleAgent: () => void;
 	onApplyLayoutMode: (mode: Exclude<LayoutMode, "custom">) => void;
+	onToggleImmersive: () => void;
 	onOpenSettings: () => void;
 };
 
@@ -59,6 +60,7 @@ export const TitleBar = memo(function TitleBar({
 	onToggleSidebar,
 	onToggleAgent,
 	onApplyLayoutMode,
+	onToggleImmersive,
 	onOpenSettings,
 }: TitleBarProps) {
 	const { t } = useTranslation(["app"]);
@@ -113,7 +115,11 @@ export const TitleBar = memo(function TitleBar({
 				<div className="min-w-0 flex-1 self-stretch" data-tauri-drag-region />
 				<div className="flex shrink-0 items-center gap-0.5 pr-2">
 					<UpdateIndicator />
-					<LayoutMenu value={layoutMode} onValueChange={onApplyLayoutMode} />
+					<LayoutMenu
+						value={layoutMode}
+						onValueChange={onApplyLayoutMode}
+						onToggleImmersive={onToggleImmersive}
+					/>
 					<ContextMenu>
 						<Tooltip>
 							<TooltipTrigger asChild>

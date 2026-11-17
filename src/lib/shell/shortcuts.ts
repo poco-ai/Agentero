@@ -55,8 +55,10 @@ export type ShortcutId =
 	| "visualAnnotation"
 	/** ⌥A — toggle PDF full-text (layout) translation (active PDF tab). */
 	| "layoutTranslate"
-	/** F11 — borderless fullscreen (Windows only). */
-	| "toggleFullscreen";
+	/** F11 — borderless fullscreen (Windows only). Does not hide reader chrome. */
+	| "toggleFullscreen"
+	/** Shift+F11 — immersive reading: fullscreen plus hidden chrome. */
+	| "immersiveReading";
 
 export type ShortcutGroup = "App" | "Navigation" | "Vault" | "Editor";
 
@@ -379,9 +381,19 @@ export const SHORTCUTS: ShortcutDef[] = [
 	{
 		id: "toggleFullscreen",
 		group: "App",
-		// F11 — exclusive (borderless) fullscreen; Windows only
+		// F11 — exclusive (borderless) fullscreen; Windows only.
+		// Window chrome stays. Immersive reading is Shift+F11.
 		key: "F11",
 		platforms: ["windows"],
+	},
+	{
+		id: "immersiveReading",
+		group: "App",
+		// Shift+F11 — fullscreen and hide title bar, rails, and the PDF toolbar.
+		// Esc restores the previous layout. Distinct from F11 and Layout → Reading.
+		key: "F11",
+		shift: true,
+		whenSettingsClosed: true,
 	},
 ];
 

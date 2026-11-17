@@ -211,6 +211,16 @@ export const paletteCommands: AppCommand[] = [
 		},
 	},
 	{
+		id: "pdf.immersiveReading",
+		titleKey: "commands.immersiveReading",
+		categoryKey: "commands.catPdf",
+		keywords: ["fullscreen", "immersive", "reading", "全屏", "沉浸"],
+		when: () => Boolean(resolveActivePdfHandle()),
+		run: () => {
+			layout()?.toggleImmersiveReading();
+		},
+	},
+	{
 		id: "pdf.exportAnnotatedPdf",
 		titleKey: "commands.exportAnnotatedPdf",
 		categoryKey: "commands.catPdf",

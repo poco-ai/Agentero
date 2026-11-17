@@ -90,7 +90,7 @@ import type {
 	ScreenPoint,
 	SelectionCommentDraft,
 } from "@/components/viewer/pdf/types";
-import { useSettings } from "@/hooks/use-app-stores";
+import { useSettings, useUiStore } from "@/hooks/use-app-stores";
 import { cn } from "@/lib/core/utils";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
@@ -691,6 +691,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	const pdfDark = tone === "dark";
 	const paperTint = PDF_PAPER_TINT[tone];
 	const translateTabMode = useSettings((s) => s.pdfTranslateTab);
+	const immersiveReading = useUiStore((s) => s.immersiveReading);
 	const pageShellRef = useRef<HTMLDivElement | null>(null);
 	/**
 	 * Lazily arm text selection once the pointer reaches the page. Registering
@@ -1235,6 +1236,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 
 	const pageTranslateTab =
 		!mode.plainViewer &&
+		!immersiveReading &&
 		translateTabMode !== "hidden" &&
 		(translateTabMode === "always" ||
 			pageHovered ||
@@ -1315,7 +1317,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			 * annotation / pin overlays keep their intended colors. Agent crops
 			 * use engine.renderPageRect and are unaffected.
 			 */}
-			{onBookmarkPage && (
+			{onBookmarkPage && !immersiveReading && (
 				<button
 					type="button"
 					data-pdf-chrome
@@ -1868,7 +1870,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						) : null,
 					),
 				)}
-				{!mode.plainViewer ? (
+				{!mode.plainViewer && !immersiveReading ? (
 					<CommentCardsLayer
 						items={shownComments}
 						inset={mode.insetCommentCards}

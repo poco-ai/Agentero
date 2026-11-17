@@ -1,5 +1,7 @@
 {
-	"navigator": { "hintTargets": "{{count}} keyboard targets" },
+	"navigator": {
+		"hintTargets": "{{count}} keyboard targets"
+	},
 	"labels": {
 		"agent": "Agent",
 		"notes": "Notes",
@@ -55,7 +57,8 @@
 		"tabNextInGroup": "Next Tab in Group",
 		"tabPrevInGroup": "Previous Tab in Group",
 		"exportAnnotatedPdf": "Export Annotated PDF",
-		"wandOpen": "Magic Wand (Import by ID)"
+		"wandOpen": "Magic Wand (Import by ID)",
+		"immersiveReading": "Immersive reading"
 	},
 	"titlebar": {
 		"showLeftSidebar": "Show left sidebar",
@@ -77,7 +80,8 @@
 		"menuSettings": "Settings…",
 		"menuKeyboardShortcuts": "Keyboard Shortcuts",
 		"menuQuickOpen": "Quick Open…",
-		"menuCommandPalette": "Command Palette…"
+		"menuCommandPalette": "Command Palette…",
+		"layoutImmersive": "Immersive reading"
 	},
 	"editor": {
 		"markdownPlaceholder": "Type Markdown here...",

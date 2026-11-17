@@ -3,6 +3,7 @@ import {
 	ChevronRight,
 	MoveHorizontal,
 	Palette,
+	X,
 } from "lucide-react";
 import type { RefObject } from "react";
 import { memo, useState } from "react";
@@ -55,6 +56,10 @@ type PdfBottomBarProps = {
 	onFitWidth: () => void;
 	/** True for remote arXiv papers with no local sidecar. */
 	isRemotePaper?: boolean;
+	/** Immersive reading: show an exit control and drop the tone picker. */
+	onExitImmersive?: () => void;
+	/** False fades the bar without unmounting it. */
+	presented?: boolean;
 };
 
 /** Bottom bar: page nav + zoom slider + PDF paper tone. */
@@ -72,6 +77,8 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 	onZoomChange,
 	onFitWidth,
 	isRemotePaper = false,
+	onExitImmersive,
+	presented = true,
 }: PdfBottomBarProps) {
 	const { t } = useTranslation("viewer");
 	const paginated = useSettings((s) => s.pdfScrollStrategy === "paginated");
@@ -158,8 +165,11 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 			<div
 				data-pdf-chrome
 				className={cn(
-					"pointer-events-auto flex max-w-full select-none items-center gap-0.5 rounded-lg p-0.5",
+					"flex max-w-full select-none items-center gap-0.5 rounded-lg p-0.5 transition-opacity duration-200 focus-within:pointer-events-auto focus-within:opacity-100 motion-reduce:transition-none",
 					PDF_CHROME_CHIP,
+					presented
+						? "pointer-events-auto opacity-100"
+						: "pointer-events-none opacity-0",
 				)}
 			>
 				{isRemotePaper ? (
@@ -221,8 +231,38 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 						<TooltipContent side="top">{t("pdf.zoomFit")}</TooltipContent>
 					</Tooltip>
 				</div>
-				<span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border" />
-				{tone}
+				{onExitImmersive ? (
+					<>
+						<span
+							aria-hidden
+							className="mx-0.5 h-3.5 w-px shrink-0 bg-border"
+						/>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									size="icon-xs"
+									variant="ghost"
+									aria-label={t("pdf.exitImmersive")}
+									onClick={onExitImmersive}
+								>
+									<X className="size-3.5" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="top">
+								{t("pdf.exitImmersive")}
+							</TooltipContent>
+						</Tooltip>
+					</>
+				) : (
+					<>
+						<span
+							aria-hidden
+							className="mx-0.5 h-3.5 w-px shrink-0 bg-border"
+						/>
+						{tone}
+					</>
+				)}
 			</div>
 		</TooltipProvider>
 	);

@@ -131,7 +131,11 @@ import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { RailPeek } from "@/components/viewer/pdf/viewport/rail-peek";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
-import { useLibraryStore, useSettings } from "@/hooks/use-app-stores";
+import {
+	useLibraryStore,
+	useSettings,
+	useUiStore,
+} from "@/hooks/use-app-stores";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	createSelectionContext,
@@ -191,6 +195,7 @@ import {
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
 import { loadSettings } from "@/lib/settings";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
+import { layout, uiStore } from "@/lib/shell/ui-store";
 import { basenameOf, vaultRelativePath } from "@/lib/vault/path";
 import { openLatexTranslationTab } from "@/lib/workspace/actions-latex-translation";
 
@@ -820,6 +825,93 @@ function PdfViewerInner({
 	}, [pageTextLinkMap, nativeCitationLinks]);
 
 	const hostRef = useRef<HTMLDivElement>(null);
+	const immersiveReading = useUiStore((s) => s.immersiveReading);
+	const [immersiveChrome, setImmersiveChrome] = useState(true);
+	const immersivePoseRef = useRef<{
+		zoom: number;
+		scrollTop: number;
+		scrollLeft: number;
+	} | null>(null);
+	const zoomLevelRef = useRef(zoomLevel);
+	zoomLevelRef.current = zoomLevel;
+
+	useEffect(() => {
+		const viewport = () =>
+			hostRef.current?.querySelector<HTMLElement>("[data-pdf-viewport]");
+		let immersive = uiStore.getState().immersiveReading;
+		let frame = 0;
+		const unsubscribe = uiStore.subscribe((state) => {
+			if (state.immersiveReading === immersive) return;
+			immersive = state.immersiveReading;
+			if (immersive) {
+				// setState runs before the rails collapse, so this is the
+				// pre-immersive page, zoom, and scroll.
+				const node = viewport();
+				immersivePoseRef.current = {
+					zoom: zoomLevelRef.current,
+					scrollTop: node?.scrollTop ?? 0,
+					scrollLeft: node?.scrollLeft ?? 0,
+				};
+				return;
+			}
+			const saved = immersivePoseRef.current;
+			immersivePoseRef.current = null;
+			if (!saved) return;
+			if (Math.abs(zoomLevelRef.current - saved.zoom) > 0.001) {
+				zoomCapRef.current?.requestZoom(saved.zoom);
+			}
+			let frames = 0;
+			const restoreScroll = () => {
+				const node = viewport();
+				if (node) {
+					node.scrollTop = saved.scrollTop;
+					node.scrollLeft = saved.scrollLeft;
+				}
+				frames += 1;
+				if (frames < 3) frame = requestAnimationFrame(restoreScroll);
+			};
+			frame = requestAnimationFrame(restoreScroll);
+		});
+		return () => {
+			unsubscribe();
+			if (frame) cancelAnimationFrame(frame);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!immersiveReading) {
+			setImmersiveChrome(true);
+			return;
+		}
+		const root = hostRef.current;
+		if (!root) return;
+		setImmersiveChrome(true);
+		const hide = () => {
+			if (
+				!root.querySelector(
+					"[data-pdf-chrome]:hover, [data-pdf-chrome]:focus-within",
+				)
+			)
+				setImmersiveChrome(false);
+		};
+		let timer = window.setTimeout(hide, 1800);
+		const show = () => {
+			setImmersiveChrome(true);
+			window.clearTimeout(timer);
+			timer = window.setTimeout(hide, 1800);
+		};
+		root.addEventListener("pointermove", show);
+		root.addEventListener("pointerdown", show);
+		root.addEventListener("focusin", show);
+		root.addEventListener("focusout", show);
+		return () => {
+			window.clearTimeout(timer);
+			root.removeEventListener("pointermove", show);
+			root.removeEventListener("pointerdown", show);
+			root.removeEventListener("focusin", show);
+			root.removeEventListener("focusout", show);
+		};
+	}, [immersiveReading]);
 	usePdfSyncTex({
 		docId,
 		tabId: baseDocId,
@@ -2441,6 +2533,9 @@ function PdfViewerInner({
 	const handleZoomSliderChange = useCallback((next: number) => {
 		zoomCapRef.current?.requestZoom(next);
 	}, []);
+	const exitImmersiveReading = useCallback(() => {
+		layout()?.toggleImmersiveReading();
+	}, []);
 	const handleFitWidth = useCallback(() => {
 		const centerReadingSurface = () => {
 			// Horizontal paging uses scrollLeft as its page axis, so fitting a page
@@ -2493,7 +2588,7 @@ function PdfViewerInner({
 			data-pdf-root
 			className="relative flex h-full min-h-0 w-full select-none flex-col"
 		>
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfLeftToolbar
 					canEditBookmarks={bookmarkEditor.canEdit}
 					outline={outline}
@@ -2509,10 +2604,10 @@ function PdfViewerInner({
 					plainViewer={plainViewer}
 				/>
 			)}
-			{!translationOnly && jumpBackTarget && (
+			{!translationOnly && !immersiveReading && jumpBackTarget && (
 				<PdfJumpBackChip onGoBack={goBackToJumpOrigin} />
 			)}
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfOutlinePanel
 					editor={bookmarkEditor}
 					currentPage={currentPage}
@@ -2521,14 +2616,14 @@ function PdfViewerInner({
 					onGoToPage={handleGoToPage}
 				/>
 			)}
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfReferencesPanel
 					vaultPath={vaultPath}
 					paperPath={paperRelPath}
 					showReferences={showReferences}
 				/>
 			)}
-			{!translationOnly && !plainViewer && (
+			{!translationOnly && !plainViewer && !immersiveReading && (
 				<PdfFiguresPanel
 					documentId={docId}
 					paperAbsPath={paperAbsPath}
@@ -2553,7 +2648,7 @@ function PdfViewerInner({
 					onClose={handleCloseFind}
 				/>
 			)}
-			{!translationOnly && !plainViewer && (
+			{!translationOnly && !plainViewer && !immersiveReading && (
 				<PdfToolbar
 					onExportTranslatedPdf={reflowReady ? exportTranslatedPdf : undefined}
 					regionSelecting={regionSelecting}
@@ -2621,7 +2716,7 @@ function PdfViewerInner({
 					hostRef={hostRef}
 					allowLeftDrag={!translationOnly && !regionSelecting}
 				/>
-				{!translationOnly && !plainViewer ? (
+				{!translationOnly && !plainViewer && !immersiveReading ? (
 					<RailPeek
 						hostRef={hostRef}
 						railWidth={COMMENT_RAIL_WIDTH_PX}
@@ -2647,7 +2742,7 @@ function PdfViewerInner({
 				</ZoomGestureWrapper>
 			</DockviewViewport>
 
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfCardStack
 					selectionMenu={cardSelectionMenu}
 					citationPreview={cardCitationPreview}
@@ -2677,6 +2772,8 @@ function PdfViewerInner({
 					onZoomChange={handleZoomSliderChange}
 					onFitWidth={handleFitWidth}
 					isRemotePaper={isRemotePaper}
+					presented={!immersiveReading || immersiveChrome}
+					onExitImmersive={immersiveReading ? exitImmersiveReading : undefined}
 				/>
 			)}
 		</div>

@@ -15,6 +15,7 @@ import {
 
 /** ⌘L — toggle right sidebar (defaults to agent). */
 export function toggleChat(): void {
+	if (uiStore.getState().immersiveReading) return;
 	setLayoutMode("custom");
 	const { rightSidebarOpen, rightSidebarTab } = uiStore.getState();
 	if (rightSidebarOpen) {
