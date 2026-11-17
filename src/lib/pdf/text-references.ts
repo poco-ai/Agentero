@@ -331,7 +331,18 @@ export function bibliographyEntries(
 					},
 				};
 				entries.push(current);
-			} else if (current && text.length > 3) current.citation.raw += ` ${text}`;
+			} else if (current && text.length > 3) {
+				const raw = current.citation.raw ?? "";
+				// PDFium represents discretionary line-end hyphens as U+0002 in
+				// some fonts. DOI suffixes also wrap after a literal slash or hyphen.
+				const softHyphen = raw.endsWith("\u0002") || raw.endsWith("\u00ad");
+				const joined =
+					softHyphen ||
+					/\b10\.\d{4,9}\/\S*[-/]$/.test(raw) ||
+					/https?:\/\/$/.test(raw);
+				current.citation.raw =
+					(softHyphen ? raw.slice(0, -1) : raw) + (joined ? "" : " ") + text;
+			}
 		}
 	for (const { citation } of entries) {
 		const raw = citation.raw ?? "";
