@@ -64,7 +64,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | URI | MIME | 内容 |
 |---|---|---|
 | `agentero://vault` | Markdown | 当前路径、schemaVersion、papers、unread，以及已知 Vault 列表 |
-| `agentero://agent-invariants` | Markdown | 与 CLI/`agentero-core::ops` 同源的 agent invariants |
+| `agentero://agent-invariants` | Markdown | MCP 专属规则 + `agentero-core::ops` 的通用 agent invariants（不含 CLI 命令；CLI 指引在 bundled Skill 正文，见 #1141） |
 | `agentero://skills/agentero-cli` | Markdown | 当前平台 bundled `agentero-cli` Skill 正文 |
 
 无 Vault 时 `agentero://vault` 仍列出，`resources/read` 返回「未打开 Vault」正文。`initialize` instructions 提示先读 vault → invariants，再调用 tools。
