@@ -210,7 +210,7 @@ function TranslatedHighlightLayer({
 		<div
 			aria-hidden="true"
 			className="pointer-events-none absolute inset-0 z-[5]"
-			style={{ isolation: "isolate", opacity: 0.28 }}
+			style={{ isolation: "isolate", mixBlendMode: "multiply" }}
 		>
 			{paints.flatMap((paint) =>
 				paint.rects.map((rect) => (
