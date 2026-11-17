@@ -129,8 +129,8 @@
 			"desc": "Paste a DOI, arXiv ID or link; metadata, PDF and LaTeX source are fetched automatically. {{magicWandShortcut}} opens it anytime."
 		},
 		"readPaper": {
-			"title": "Read & take notes",
-			"desc": "Click the lightning bolt on any paper to open it with the PDF on the left and NOTES.md on the right, ready for highlights and annotations."
+			"title": "Read a paper",
+			"desc": "Read the original PDF here. Page and zoom controls stay at the bottom; notes can sit alongside it."
 		},
 		"workspace": {
 			"title": "Split-screen reading",
@@ -149,11 +149,31 @@
 			"desc": "Reuses your locally signed-in agent — no API keys. The current paper joins the context automatically; click a suggested question to summarize it."
 		},
 		"titlebar": {
-			"title": "Start exploring",
-			"desc": "You're all set. {{settingsShortcut}} opens Settings, {{quickOpenShortcut}} jumps anywhere. Tutorial notes were created in your vault — start there."
+			"title": "Your workspace controls",
+			"desc": "Use the layout menu to arrange your workspace. {{settingsShortcut}} opens Settings and {{quickOpenShortcut}} finds a file or paper."
 		},
 		"next": "Next",
 		"back": "Back",
-		"done": "Done"
+		"done": "Done",
+		"notes": {
+			"title": "Your paper notes",
+			"desc": "NOTES.md stays beside the PDF. Your notes are saved automatically as a plain Markdown file in this paper’s folder."
+		},
+		"annotations": {
+			"title": "Highlights & annotations",
+			"desc": "Select text to highlight it or add a comment. Long comments scroll within their own card without covering nearby notes."
+		},
+		"selectionTranslate": {
+			"title": "Translate selected text",
+			"desc": "Select a passage to translate it from the selection toolbar. Page translation is also available in the PDF toolbar, even when its floating entry is hidden."
+		},
+		"workspaceNext": {
+			"title": "Try your first paper",
+			"desc": "Import a PDF or paste a DOI with {{magicWandShortcut}}, then open the paper to continue the reading tour. You can also open the tutorial notes or configure an Agent in Settings."
+		},
+		"readingNext": {
+			"title": "Keep your reading flowing",
+			"desc": "Try a highlight, add a note, and filter the library by tags. Shift+F11 enters immersive reading; Esc returns to your previous layout."
+		}
 	}
 }
