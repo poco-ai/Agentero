@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readingColumnAnchors } from "@/components/workspace/dock-layout";
 import { ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import * as tauri from "@/lib/core/tauri";
+import { REMOTE_ARXIV_PREFIX } from "@/lib/paper";
 import * as paperApi from "@/lib/paper/api";
 import { LIBRARY_VIRTUAL_PATH } from "@/lib/paper/api";
 import { paperMetaChange } from "@/lib/paper/library-actions";
@@ -36,6 +37,7 @@ import {
 	paperReadingPlacements,
 	patchFromTabResources,
 	patchTab,
+	persistedLayoutIsUnreadable,
 	readingPairCloseIds,
 	remapPathUnder,
 	remapTabsUnderPath,
@@ -43,6 +45,7 @@ import {
 	removeTabsUnderPath,
 	savePersistedTabs,
 	seedTabs,
+	shouldWritePersistedLayout,
 	syncTabSeedsForPath,
 	type TabResources,
 	tabHasNotesSplit,
@@ -565,6 +568,8 @@ describe("tab session persistence", () => {
 				removeItem: (k: string) => store.delete(k),
 			},
 		});
+		// Missing key clears the module-level unreadable flag between cases.
+		loadPersistedTabs();
 	});
 
 	it("round-trips layout-only storage", () => {
@@ -645,6 +650,102 @@ describe("tab session persistence", () => {
 		expect(loadPersistedTabs()).toBeNull();
 		savePersistedTabs({ panels: {} });
 		expect(loadPersistedTabs()).toBeNull();
+	});
+
+	it("keeps corrupt layout text and refuses a null writeback", () => {
+		const corrupt = '{"panels": not-json';
+		localStorage.setItem("agentero-open-tabs", corrupt);
+		expect(loadPersistedTabs()).toBeNull();
+		expect(persistedLayoutIsUnreadable()).toBe(true);
+		expect(localStorage.getItem("agentero-open-tabs")).toBe(corrupt);
+		expect(shouldWritePersistedLayout(null)).toBe(false);
+		expect(shouldWritePersistedLayout({ panels: { "/vault/a.md": {} } })).toBe(
+			true,
+		);
+	});
+
+	it("copies unreadable layout text to the rollback key once", () => {
+		const corrupt = '{"panels": not-json';
+		localStorage.setItem("agentero-open-tabs", corrupt);
+		expect(loadPersistedTabs()).toBeNull();
+
+		savePersistedTabs({
+			panels: {
+				"/vault/a.md": {
+					id: "/vault/a.md",
+					params: {
+						panelId: "/vault/a.md",
+						path: "/vault/a.md",
+						mode: "markdown",
+					},
+				},
+			},
+		});
+		expect(localStorage.getItem("agentero-open-tabs.rollback")).toBe(corrupt);
+
+		savePersistedTabs({
+			panels: {
+				"/vault/b.md": {
+					id: "/vault/b.md",
+					params: {
+						panelId: "/vault/b.md",
+						path: "/vault/b.md",
+						mode: "pdf",
+					},
+				},
+			},
+		});
+		expect(localStorage.getItem("agentero-open-tabs.rollback")).toBe(corrupt);
+		expect(localStorage.getItem("agentero-open-tabs")).toContain("/vault/b.md");
+	});
+
+	it("does not drop a layout whose panels are only remote arXiv paths", () => {
+		const remotePath = `${REMOTE_ARXIV_PREFIX}2401.00001`;
+		const raw = JSON.stringify({
+			layout: {
+				panels: {
+					[remotePath]: {
+						id: remotePath,
+						params: {
+							panelId: remotePath,
+							path: remotePath,
+							mode: "pdf",
+						},
+					},
+				},
+			},
+		});
+		localStorage.setItem("agentero-open-tabs", raw);
+		expect(loadPersistedTabs()).toBeNull();
+		expect(persistedLayoutIsUnreadable()).toBe(true);
+		expect(localStorage.getItem("agentero-open-tabs")).toBe(raw);
+		expect(shouldWritePersistedLayout(null)).toBe(false);
+	});
+
+	it("still restores a usable layout that carries an unknown version", () => {
+		localStorage.setItem(
+			"agentero-open-tabs",
+			JSON.stringify({
+				version: 99,
+				layout: {
+					panels: {
+						"/vault/a.md": {
+							id: "/vault/a.md",
+							params: {
+								panelId: "/vault/a.md",
+								path: "/vault/a.md",
+								mode: "markdown",
+							},
+						},
+					},
+				},
+			}),
+		);
+		const loaded = loadPersistedTabs();
+		expect(loaded?.tabs).toEqual([
+			{ id: "/vault/a.md", path: "/vault/a.md", mode: "markdown" },
+		]);
+		expect(persistedLayoutIsUnreadable()).toBe(false);
 	});
 });
 

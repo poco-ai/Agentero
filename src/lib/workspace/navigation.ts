@@ -60,6 +60,7 @@ import {
 } from "@/lib/vault/store";
 import { toVaultRelative } from "@/lib/wiki";
 import { dockHandle } from "@/lib/workspace/dock-registry";
+import { vaultLoadGeneration } from "@/lib/workspace/identity";
 import {
 	getActiveTabId,
 	getTabs,
@@ -327,12 +328,14 @@ export function openTab(
 
 	void (async () => {
 		const vaultState = vaultStore.getState();
+		const generation = vaultLoadGeneration();
 		const res = await loadTabResources(
 			path,
 			vaultState.vaultPath,
 			vaultState.tree,
 			vaultState.paperFolders,
 		);
+		if (vaultLoadGeneration() !== generation) return;
 		if (res.error) {
 			notifyError(
 				res.error === "cannotPreview"
@@ -857,6 +860,7 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 		placeholderLoads.add(id);
 		void (async () => {
 			const vaultState = vaultStore.getState();
+			const generation = vaultLoadGeneration();
 			try {
 				const res = await loadTabResources(
 					tab.path,
@@ -868,7 +872,8 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 				if (
 					!current ||
 					current.path !== tab.path ||
-					vaultStore.getState().vaultPath !== vaultState.vaultPath
+					vaultStore.getState().vaultPath !== vaultState.vaultPath ||
+					vaultLoadGeneration() !== generation
 				) {
 					return;
 				}
@@ -1123,6 +1128,7 @@ export async function syncRenamedPaperTabs(
 	toAbs: string,
 ): Promise<void> {
 	const vaultState = vaultStore.getState();
+	const generation = vaultLoadGeneration();
 	let res: Awaited<ReturnType<typeof loadTabResources>>;
 	try {
 		res = await loadTabResources(
@@ -1134,6 +1140,7 @@ export async function syncRenamedPaperTabs(
 	} catch {
 		return;
 	}
+	if (vaultLoadGeneration() !== generation) return;
 
 	const paperTabId = tabIdForPath(toAbs);
 	const notesPath = res.notesPath ?? notesPathForPaper(toAbs);

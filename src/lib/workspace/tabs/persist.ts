@@ -1,8 +1,9 @@
 import { perfActive } from "@/lib/core/perf";
 import {
-	readJsonStorage,
+	readStorageRaw,
 	removeStorageKey,
 	writeJsonStorage,
+	writeStorageRaw,
 } from "@/lib/core/storage";
 import { isRemoteArxivPath } from "@/lib/paper";
 import { tabIdForPath } from "@/lib/workspace/tabs/model";
@@ -15,6 +16,31 @@ import type {
 import { isCenterViewMode } from "@/lib/workspace/viewer";
 
 const TABS_STORAGE_KEY = "agentero-open-tabs";
+const TABS_ROLLBACK_KEY = "agentero-open-tabs.rollback";
+
+/**
+ * Last primary-key read was corrupt or yielded no tabs.
+ * A later null layout write must not delete that key.
+ */
+let retainUnreadableLayout = false;
+
+export function persistedLayoutIsUnreadable(): boolean {
+	return retainUnreadableLayout;
+}
+
+/** False when a null layout would erase a key the last read could not restore. */
+export function shouldWritePersistedLayout(layout: unknown | null): boolean {
+	if (layout == null && retainUnreadableLayout) return false;
+	return true;
+}
+
+/** Copy the primary key's raw text into the rollback key once, before overwrite. */
+function retainPrimaryRawForRollback(): void {
+	if (readStorageRaw(TABS_ROLLBACK_KEY).status !== "missing") return;
+	const current = readStorageRaw(TABS_STORAGE_KEY);
+	if (current.status !== "present") return;
+	writeStorageRaw(TABS_ROLLBACK_KEY, current.raw);
+}
 
 export function panelPersistParams(tab: DocTab): PanelPersistParams {
 	return {
@@ -139,31 +165,56 @@ export function extractTabsFromLayout(layout: unknown): {
 
 /** Read the previously persisted workspace for this window. */
 export function loadPersistedTabs(): PersistedTabs | null {
-	const parsed = readJsonStorage<{
+	const stored = readStorageRaw(TABS_STORAGE_KEY);
+	if (stored.status === "missing" || stored.status === "unavailable") {
+		retainUnreadableLayout = false;
+		return null;
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(stored.raw);
+	} catch {
+		retainUnreadableLayout = true;
+		return null;
+	}
+	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+		retainUnreadableLayout = true;
+		return null;
+	}
+
+	const record = parsed as {
 		layout?: unknown | null;
 		/** @deprecated layout-only storage; still accepted for one-shot restore */
 		tabs?: Array<{ path?: string; mode?: string }>;
 		/** @deprecated */
 		activeIndex?: number;
-	} | null>(TABS_STORAGE_KEY, null);
-	if (!parsed || typeof parsed !== "object") return null;
+	};
 
-	// Preferred: layout alone (params carry path/mode).
-	if (parsed.layout != null && typeof parsed.layout === "object") {
-		const extracted = extractTabsFromLayout(parsed.layout);
-		if (!extracted.tabs.length) return null;
+	// Preferred: layout alone (params carry path/mode). An unknown `version`
+	// is ignored when a usable layout or tabs list is still present.
+	if (record.layout != null && typeof record.layout === "object") {
+		const extracted = extractTabsFromLayout(record.layout);
+		if (!extracted.tabs.length) {
+			retainUnreadableLayout = true;
+			return null;
+		}
+		retainUnreadableLayout = false;
 		return {
 			tabs: extracted.tabs,
 			activeId: extracted.activeId,
-			layout: parsed.layout,
+			layout: record.layout,
 		};
 	}
 
 	// Legacy: explicit tabs[] without layout (pre layout-only storage).
-	if (!Array.isArray(parsed.tabs) || !parsed.tabs.length) return null;
+	if (!Array.isArray(record.tabs) || !record.tabs.length) {
+		retainUnreadableLayout = true;
+		return null;
+	}
 	const flat: PersistedTab[] = [];
 	const seen = new Set<string>();
-	for (const pt of parsed.tabs) {
+	for (const pt of record.tabs) {
 		if (!pt || typeof pt.path !== "string" || !pt.path) continue;
 		if (isRemoteArxivPath(pt.path)) continue;
 		const id = tabIdForPath(pt.path);
@@ -174,8 +225,12 @@ export function loadPersistedTabs(): PersistedTabs | null {
 			mode: isCenterViewMode(pt.mode) ? pt.mode : "markdown",
 		});
 	}
-	if (!flat.length) return null;
-	const idx = Math.min(Math.max(0, parsed.activeIndex ?? 0), flat.length - 1);
+	if (!flat.length) {
+		retainUnreadableLayout = true;
+		return null;
+	}
+	retainUnreadableLayout = false;
+	const idx = Math.min(Math.max(0, record.activeIndex ?? 0), flat.length - 1);
 	const activePath = flat[idx]?.path;
 	return {
 		tabs: flat,
@@ -192,6 +247,7 @@ export function savePersistedTabs(layout: unknown | null): void {
 	// A perf run shares WebView storage with the daily app. Do not replace
 	// the user's open tabs, and do not clear them when this process starts empty.
 	if (perfActive()) return;
+	retainPrimaryRawForRollback();
 	if (layout == null || typeof layout !== "object") {
 		removeStorageKey(TABS_STORAGE_KEY);
 		return;

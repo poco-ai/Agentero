@@ -36,6 +36,7 @@ import {
 	persistFile,
 	persistTextFile,
 } from "@/lib/workspace/actions";
+import { vaultLoadGeneration } from "@/lib/workspace/identity";
 import {
 	applyMarkdownConflictChoice,
 	createPlaceholderTab,
@@ -133,6 +134,7 @@ export function DocWindowRoot() {
 			const placeholder = createPlaceholderTab(path, preferMode);
 			setTab(placeholder);
 
+			const generation = vaultLoadGeneration();
 			const vs = vaultStore.getState();
 			const res = await loadTabResources(
 				path,
@@ -140,7 +142,7 @@ export function DocWindowRoot() {
 				vs.tree,
 				vs.paperFolders,
 			);
-			if (cancelled) return;
+			if (cancelled || vaultLoadGeneration() !== generation) return;
 			if (res.error) setError(res.error);
 
 			// The placeholder carries the URL-param mode: a PDF popout must not
