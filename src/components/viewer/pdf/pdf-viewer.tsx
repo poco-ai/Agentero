@@ -67,6 +67,7 @@ import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
 import { usePdfFind } from "@/components/viewer/pdf/hooks/use-pdf-find";
 import { usePdfHighlights } from "@/components/viewer/pdf/hooks/use-pdf-highlights";
+import { usePdfImmersivePosition } from "@/components/viewer/pdf/hooks/use-pdf-immersive-position";
 import { usePdfJumpBack } from "@/components/viewer/pdf/hooks/use-pdf-jump-back";
 import { usePdfLayoutCluster } from "@/components/viewer/pdf/hooks/use-pdf-layout-cluster";
 import { usePdfLinkInk } from "@/components/viewer/pdf/hooks/use-pdf-link-ink";
@@ -195,7 +196,7 @@ import {
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
 import { loadSettings } from "@/lib/settings";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
-import { layout, uiStore } from "@/lib/shell/ui-store";
+import { layout } from "@/lib/shell/ui-store";
 import { basenameOf, vaultRelativePath } from "@/lib/vault/path";
 import { openLatexTranslationTab } from "@/lib/workspace/actions-latex-translation";
 
@@ -827,56 +828,7 @@ function PdfViewerInner({
 	const hostRef = useRef<HTMLDivElement>(null);
 	const immersiveReading = useUiStore((s) => s.immersiveReading);
 	const [immersiveChrome, setImmersiveChrome] = useState(true);
-	const immersivePoseRef = useRef<{
-		zoom: number;
-		scrollTop: number;
-		scrollLeft: number;
-	} | null>(null);
-	const zoomLevelRef = useRef(zoomLevel);
-	zoomLevelRef.current = zoomLevel;
-
-	useEffect(() => {
-		const viewport = () =>
-			hostRef.current?.querySelector<HTMLElement>("[data-pdf-viewport]");
-		let immersive = uiStore.getState().immersiveReading;
-		let frame = 0;
-		const unsubscribe = uiStore.subscribe((state) => {
-			if (state.immersiveReading === immersive) return;
-			immersive = state.immersiveReading;
-			if (immersive) {
-				// setState runs before the rails collapse, so this is the
-				// pre-immersive page, zoom, and scroll.
-				const node = viewport();
-				immersivePoseRef.current = {
-					zoom: zoomLevelRef.current,
-					scrollTop: node?.scrollTop ?? 0,
-					scrollLeft: node?.scrollLeft ?? 0,
-				};
-				return;
-			}
-			const saved = immersivePoseRef.current;
-			immersivePoseRef.current = null;
-			if (!saved) return;
-			if (Math.abs(zoomLevelRef.current - saved.zoom) > 0.001) {
-				zoomCapRef.current?.requestZoom(saved.zoom);
-			}
-			let frames = 0;
-			const restoreScroll = () => {
-				const node = viewport();
-				if (node) {
-					node.scrollTop = saved.scrollTop;
-					node.scrollLeft = saved.scrollLeft;
-				}
-				frames += 1;
-				if (frames < 3) frame = requestAnimationFrame(restoreScroll);
-			};
-			frame = requestAnimationFrame(restoreScroll);
-		});
-		return () => {
-			unsubscribe();
-			if (frame) cancelAnimationFrame(frame);
-		};
-	}, []);
+	usePdfImmersivePosition(docId, hostRef, zoomCapRef);
 
 	useEffect(() => {
 		if (!immersiveReading) {
