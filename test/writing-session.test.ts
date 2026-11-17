@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FileNode } from "@/lib/vault/types";
+import type { DocTab } from "@/lib/workspace/tabs";
+import { isWritingSource } from "@/lib/workspace/writing-focus";
 import {
 	compareWritingNodes,
 	isWritingSourceName,
@@ -79,6 +81,33 @@ describe("writing source filter", () => {
 			"a.tex",
 			"b.bib",
 		]);
+	});
+});
+
+describe("isWritingSource", () => {
+	const sourceTab = {
+		id: "source",
+		path: "/vault/thesis/main.tex",
+		mode: "text",
+		writingRoot: "/vault/thesis/main.tex",
+	} as DocTab;
+
+	it("matches a project source with a writing root", () => {
+		expect(isWritingSource(sourceTab, "/vault")).toBe(true);
+	});
+
+	it("ignores a compiled PDF", () => {
+		expect(
+			isWritingSource(
+				{
+					...sourceTab,
+					path: "/vault/thesis/main.pdf",
+					mode: "pdf",
+					writingRoot: undefined,
+				},
+				"/vault",
+			),
+		).toBe(false);
 	});
 });
 

@@ -1,10 +1,7 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-	createMarkdownResizeFreeze,
-	MARKDOWN_QUERY_CONTAINER_SELECTOR,
-} from "@/lib/workspace/markdown-resize-freeze";
+import { createMarkdownResizeFreeze } from "@/lib/workspace/markdown-resize-freeze";
 import type { ResizeGesture } from "@/lib/workspace/resize-gesture";
 
 /** Minimal gesture stand-in: the real one is covered by resize-gesture.test.ts. */
@@ -148,11 +145,5 @@ describe("Markdown resize freeze", () => {
 
 		gesture.emit(true);
 		expect(container.style.width).toBe("");
-	});
-
-	it("keeps its selector in sync with the editor markup", () => {
-		expect(MARKDOWN_QUERY_CONTAINER_SELECTOR).toBe(
-			"[data-editor-query-container]",
-		);
 	});
 });

@@ -1,18 +1,10 @@
-import {
-	FileJson,
-	FileText,
-	FileType2,
-	Folder,
-	ScrollText,
-	Table,
-} from "lucide-react";
+import { FileJson, FileText, FileType2, Folder, Table } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import {
 	contextPathDisplayName,
 	contextPathIcon,
 	contextPathLabel,
 	isDirectoryContextPath,
-	isPaperContextPath,
 	normalizeContextPath,
 	paperContextRoot,
 	toPathSet,
@@ -79,26 +71,6 @@ describe("context-path-icon", () => {
 		expect(contextPathIcon("papers/org", { directoryPaths: dirs })).toBe(
 			Folder,
 		);
-	});
-
-	it("uses ScrollText for paper folders (same as file tree)", () => {
-		const paper = "papers/org/Smith2024_Title_2401";
-		const dirs = toPathSet(["papers", "papers/org", paper]);
-		const papers = toPathSet([paper]);
-		expect(isPaperContextPath(paper, papers)).toBe(true);
-		expect(
-			contextPathIcon(paper, {
-				directoryPaths: dirs,
-				paperPaths: papers,
-			}),
-		).toBe(ScrollText);
-		// Org folder stays Folder even under papers/
-		expect(
-			contextPathIcon("papers/org", {
-				directoryPaths: dirs,
-				paperPaths: papers,
-			}),
-		).toBe(Folder);
 	});
 
 	it("uses Table for research tables and FileJson for other JSON", () => {

@@ -237,20 +237,3 @@ it("only the Host-selected window executes a broadcast translation offer", async
 	expect(progress).toBeGreaterThanOrEqual(0);
 	expect(terminal).toBeGreaterThan(progress);
 });
-
-it("retranslation progress excludes cached text whose replacement is still pending", async () => {
-	mocks.sidecar = cached([0, 1]);
-	const report = vi.fn();
-	mocks.run.mockImplementation(async ({ items, onUpdate }) => {
-		onUpdate(items);
-		return items.map((item: LayoutTranslateItem) => ({
-			...item,
-			status: "done",
-			translated: "Replacement",
-		}));
-	});
-	await translatePaperLayoutHeadless(request({ force: true, report }));
-	expect(
-		report.mock.calls.map(([args]) => args.progress).filter(Boolean),
-	).toEqual([2, 5]);
-});

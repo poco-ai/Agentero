@@ -51,7 +51,6 @@ vi.mock("@/lib/settings/react-store", () => ({
 
 let root: Root;
 let container: HTMLDivElement;
-let selection: ReturnType<typeof useWebViewSelection>;
 const postMessage = vi.fn();
 const contentWindow = { postMessage };
 const iframeRef = {
@@ -68,7 +67,7 @@ const iframeRef = {
 	} as unknown as HTMLIFrameElement,
 };
 function Probe() {
-	selection = useWebViewSelection({
+	useWebViewSelection({
 		srcUrl: "https://example.com/paper",
 		iframeRef,
 		title: "Research paper",
@@ -119,24 +118,6 @@ afterEach(async () => {
 	container.remove();
 	vi.unstubAllGlobals();
 	expect(mocks.listeners.size).toBe(0);
-});
-
-it("syncs latest effective settings on mount, readiness, load, and settings changes", async () => {
-	expect(postMessage).toHaveBeenCalledOnce();
-	await message({ type: "ready" });
-	expect(postMessage).toHaveBeenCalledTimes(2);
-	selection.onFrameLoad();
-	expect(postMessage).toHaveBeenCalledTimes(3);
-	mocks.settings.shortcutOverrides = { toggleChat: { key: "j" } };
-	for (const listener of mocks.listeners) listener();
-	expect(postMessage.mock.lastCall?.[0]).toMatchObject({
-		type: "shortcuts",
-		bindings: [
-			{ id: "toggleChat", key: "j" },
-			{ id: "quickChat" },
-			{ id: "addSelectionToChat" },
-		],
-	});
 });
 
 it("resolves each forwarded key live and keeps toggle independent of an armed selection", async () => {

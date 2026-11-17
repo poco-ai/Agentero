@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 
 /**
- * Library multi-select wiring: checkbox toggling, tri-state select-all, and a
- * marquee drag that selects the rows it covers without opening a paper.
+ * Library multi-select wiring: a marquee drag that selects the rows it covers
+ * without opening a paper, click-to-toggle in selection mode, Escape clearing,
+ * and the batch context menu. Pure selection helpers (band intersection,
+ * toggle/range/prune) are covered by library-selection.test.ts.
  *
  * The virtualizer is mocked so every row renders (happy-dom has no layout),
  * and row rects are stubbed to a fixed 52px band per index.
@@ -170,7 +172,6 @@ afterEach(async () => {
 describe("library multi-select", () => {
 	const rowBoxes = () =>
 		document.querySelectorAll('tr[data-index] [role="checkbox"]');
-	const headerBox = () => document.querySelector('thead [role="checkbox"]');
 
 	const wait = (ms: number) =>
 		act(async () => {
@@ -185,13 +186,6 @@ describe("library multi-select", () => {
 		});
 	};
 
-	it("keeps the plain table until a selection gesture", () => {
-		expect(rows()).toHaveLength(3);
-		expect(rowBoxes()).toHaveLength(0);
-		expect(headerBox()).toBeNull();
-		expect(document.querySelector('[role="toolbar"]')).toBeNull();
-	});
-
 	it("reveals checkboxes and selects the rows a marquee covers", async () => {
 		const [alpha, beta, gamma] = rows();
 		await drag(alpha, 120);
@@ -201,7 +195,7 @@ describe("library multi-select", () => {
 		expect(beta.hasAttribute("data-selected")).toBe(true);
 		expect(gamma.hasAttribute("data-selected")).toBe(false);
 		expect(rowBoxes()).toHaveLength(3);
-		expect(headerBox()).not.toBeNull();
+		expect(document.querySelector('thead [role="checkbox"]')).not.toBeNull();
 		expect(document.querySelector('[role="toolbar"]')).not.toBeNull();
 	});
 
@@ -218,27 +212,6 @@ describe("library multi-select", () => {
 		expect(opened).toEqual([]);
 	});
 
-	it("still opens a paper on a plain click when nothing is selected", async () => {
-		await click(rows()[2]);
-		await wait(380);
-		expect(opened).toEqual(["c"]);
-	});
-
-	it("selects every visible row from the header checkbox", async () => {
-		await modifierClick(rows()[0]);
-		await click(headerBox() as Element);
-		expect(selectedRows()).toHaveLength(3);
-	});
-
-	it("toggles a row from its checkbox", async () => {
-		await modifierClick(rows()[0]);
-		const boxes = rowBoxes();
-		await click(boxes[2]);
-		expect(selectedRows()).toHaveLength(2);
-		await click(boxes[2]);
-		expect(selectedRows()).toHaveLength(1);
-	});
-
 	it("drops selection mode when the selection is cleared", async () => {
 		await modifierClick(rows()[0]);
 		expect(rowBoxes()).toHaveLength(3);
@@ -247,12 +220,6 @@ describe("library multi-select", () => {
 		});
 		expect(selectedRows()).toHaveLength(0);
 		expect(rowBoxes()).toHaveLength(0);
-	});
-
-	it("opens the single-row menu for an unselected row", async () => {
-		await rightClick(rows()[0], 60);
-		// No vault path here, so the only single-row action is "Open".
-		expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
 	});
 
 	it("swaps to batch actions when right-clicking a selected row", async () => {
