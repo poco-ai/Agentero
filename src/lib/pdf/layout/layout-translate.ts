@@ -282,16 +282,51 @@ export function currentLayoutTranslateCacheKey(): LayoutTranslateCacheKey {
 	};
 }
 
+/**
+ * Normalize a stored cache key to `model:prompt:extra`.
+ *
+ * Historical sidecars carry provider-qualified identities —
+ * `agent:<agentId>:<modelId>` or `<provider>:<baseUrl>:<region>:<model>` —
+ * which made pointing the same model at another gateway look like a different
+ * translator. Comparing the normalized form keeps those translations alive;
+ * prompt and extra-body fingerprints still bust the cache.
+ */
+export function canonicalTranslateServiceKey(raw: string): string {
+	const key = (raw ?? "").trim();
+	const fpMatch = key.match(/:p([0-9a-z]+)$/i);
+	const prompt = fpMatch ? fpMatch[1] : "";
+	const core = fpMatch ? key.slice(0, fpMatch.index) : key;
+	const extraMatch = core.match(/:o([0-9a-z]+)$/i);
+	const extra = extraMatch ? extraMatch[1] : "";
+	const base = extraMatch ? core.slice(0, extraMatch.index) : core;
+
+	let model = base;
+	if (base.toLowerCase().startsWith("agent:")) {
+		const match = base.match(/\["([^"]*)","([^"]*)"\]/);
+		model = match ? match[2] : base;
+	} else if (base.includes(":")) {
+		const parts = base.split(":");
+		model = parts[parts.length - 1] ?? base;
+	}
+	return `${model.trim().toLowerCase()}:${prompt}:${extra}`;
+}
+
 function sameLayoutTranslateCacheKey(
 	a: LayoutTranslateCacheKey,
 	b: LayoutTranslateCacheKey,
 ): boolean {
-	return (
-		a.providerId === b.providerId &&
-		a.sourceLang === b.sourceLang &&
-		a.targetLang === b.targetLang &&
-		(a.serviceKey === b.serviceKey || a.serviceKey === b.legacyServiceKey)
-	);
+	// Provider id is intentionally ignored: switching gateway or proxy must not
+	// invalidate existing translations.
+	if (a.sourceLang !== b.sourceLang || a.targetLang !== b.targetLang) {
+		return false;
+	}
+	const left = [a.serviceKey, a.legacyServiceKey]
+		.filter((key): key is string => Boolean(key))
+		.map(canonicalTranslateServiceKey);
+	const right = [b.serviceKey, b.legacyServiceKey]
+		.filter((key): key is string => Boolean(key))
+		.map(canonicalTranslateServiceKey);
+	return left.some((key) => right.includes(key));
 }
 
 export function layoutTranslateSidecarPath(paperAbsPath: string): string {
