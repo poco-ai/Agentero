@@ -1,5 +1,7 @@
 import { pointInBbox } from "@/lib/pdf/layout/hit-test";
+import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
 import type { LayoutTranslateSentence } from "@/lib/pdf/layout/types";
+import { mergeClientRectsIntoLines } from "@/lib/pdf/layout/visible-selection-rects";
 
 export type SentenceFractionRect = {
 	x: number;
@@ -7,6 +9,91 @@ export type SentenceFractionRect = {
 	w: number;
 	h: number;
 };
+
+/** Union varying glyph tops and descenders into one flat band per line. */
+export function sentenceHoverBands(
+	rects: readonly SentenceFractionRect[],
+	width = 1000,
+	height = 1000,
+): SentenceFractionRect[] {
+	return mergeClientRectsIntoLines(
+		rects.map((rect) => ({
+			left: rect.x * width,
+			top: rect.y * height,
+			width: rect.w * width,
+			height: rect.h * height,
+		})),
+	).map((rect) => ({
+		x: rect.left / width,
+		y: rect.top / height,
+		w: rect.width / width,
+		h: rect.height / height,
+	}));
+}
+
+const sourceLineCache = new WeakMap<
+	readonly SentenceFractionRect[],
+	Map<string, ReturnType<typeof groupReadingLines<SentenceFractionRect>>>
+>();
+
+/** Source glyphs have tight ink bounds; add equal breathing room around each line. */
+export function sourceSentenceHoverBands(
+	rects: readonly SentenceFractionRect[],
+	width: number,
+	height: number,
+	lineRects: readonly SentenceFractionRect[] = rects,
+	paddingRatio = 0.2,
+): SentenceFractionRect[] {
+	if (!(width > 0) || !(height > 0)) return [];
+	let sizes = sourceLineCache.get(lineRects);
+	if (!sizes) {
+		sizes = new Map();
+		sourceLineCache.set(lineRects, sizes);
+	}
+	const sizeKey = `${width}:${height}`;
+	let lines = sizes.get(sizeKey);
+	if (!lines) {
+		lines = groupReadingLines(lineRects, (rect) => ({
+			x: rect.x * width,
+			y: rect.y * height,
+			width: rect.w * width,
+			height: rect.h * height,
+		}));
+		if (sizes.size >= 4) sizes.clear();
+		sizes.set(sizeKey, lines);
+	}
+	return lines.flatMap((line) => {
+		const lineHeight = line.bottom - line.top;
+		const segments: { left: number; right: number }[] = [];
+		const selected = rects
+			.filter((rect) => {
+				const center = (rect.y + rect.h / 2) * height;
+				return (
+					center >= line.top &&
+					center <= line.bottom &&
+					line.items.some(
+						(item) => rect.x + rect.w >= item.x && rect.x <= item.x + item.w,
+					)
+				);
+			})
+			.sort((a, b) => a.x - b.x);
+		for (const rect of selected) {
+			const left = rect.x * width;
+			const right = (rect.x + rect.w) * width;
+			const previous = segments.at(-1);
+			if (previous && left - previous.right <= lineHeight * 2.5)
+				previous.right = Math.max(previous.right, right);
+			else segments.push({ left, right });
+		}
+		const padding = lineHeight * paddingRatio;
+		return segments.map((segment) => ({
+			x: segment.left / width,
+			y: (line.top - padding) / height,
+			w: (segment.right - segment.left) / width,
+			h: (lineHeight + padding * 2) / height,
+		}));
+	});
+}
 
 /** One painted slice of a sentence. Split boxes share `quote`. */
 export type ElementSentenceMember = {
@@ -58,9 +145,19 @@ export function mergeSentenceItems<T extends SentenceItem>(
 	for (const group of groups) {
 		for (const item of group) {
 			const existing = byId.get(item.id);
+			const nextPaired =
+				item.sentences?.some((sentence) => sentence.translated.trim()) ?? false;
+			const prevPaired =
+				existing?.sentences?.some((sentence) => sentence.translated.trim()) ??
+				false;
 			const nextCount = item.sentences?.length ?? 0;
 			const prevCount = existing?.sentences?.length ?? 0;
-			if (!existing || nextCount >= prevCount) byId.set(item.id, item);
+			if (
+				!existing ||
+				(nextPaired && !prevPaired) ||
+				(nextPaired === prevPaired && nextCount >= prevCount)
+			)
+				byId.set(item.id, item);
 		}
 	}
 	return [...byId.values()];
@@ -78,12 +175,36 @@ export function elementSentenceAtPoint(options: {
 	items: readonly SentenceItem[];
 	glyphs: ReadonlyMap<string, readonly (readonly SentenceFractionRect[])[]>;
 	regionId: string;
+	/** Source layout and translated paragraphs can have different IDs. */
+	pageIndex?: number;
 	x: number;
 	y: number;
 	span?: { itemId: string; sentenceIndex: number } | null;
 }): SentenceLocate {
 	const item =
 		options.items.find((entry) => entry.id === options.regionId) ?? null;
+	if (options.pageIndex != null && !options.span) {
+		const hits = options.items
+			.filter((entry) => entry.pageIndex === options.pageIndex)
+			.flatMap((entry) => {
+				const result = elementSentenceAtPoint({
+					...options,
+					regionId: entry.id,
+					pageIndex: undefined,
+				});
+				return result.status === "sentence" ? [result] : [];
+			});
+		hits.sort(
+			(left, right) => rectArea(left.hit.rects) - rectArea(right.hit.rects),
+		);
+		if (hits[0]) return hits[0];
+		return options.items.some(
+			(entry) =>
+				entry.pageIndex === options.pageIndex && !options.glyphs.has(entry.id),
+		)
+			? { status: "pending" }
+			: { status: "element" };
+	}
 	const sentences = item?.sentences ?? [];
 	if (!item || sentences.length === 0) return { status: "element" };
 

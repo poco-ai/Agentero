@@ -70,6 +70,26 @@ function glyphRect(glyph: PdfGlyphSlim): Rect | null {
 	};
 }
 
+export { glyphRect as selectionGlyphInkRect };
+
+/** Complete-page ink metrics shared by every partial selection on this geometry. */
+const pageInkRects = new WeakMap<PdfPageGeometry, Rect[]>();
+export function pageSelectionInkRects(
+	geometry: PdfPageGeometry | undefined,
+): Rect[] {
+	if (!geometry) return [];
+	const cached = pageInkRects.get(geometry);
+	if (cached) return cached;
+	const rects = geometry.runs.flatMap((run) =>
+		run.glyphs.flatMap((glyph) => {
+			const rect = glyphRect(glyph);
+			return rect ? [rect] : [];
+		}),
+	);
+	pageInkRects.set(geometry, rects);
+	return rects;
+}
+
 function unionRects(first: Rect, second: Rect): Rect {
 	const left = Math.min(first.origin.x, second.origin.x);
 	const top = Math.min(first.origin.y, second.origin.y);

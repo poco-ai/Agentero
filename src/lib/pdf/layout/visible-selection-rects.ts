@@ -103,6 +103,46 @@ export function mergeClientRectsIntoLines(
 	return separateStackedLines(merged);
 }
 
+/** Keep a partial DOM selection at the full text line's vertical extent. */
+export function fullLineSelectionRects(
+	selected: readonly ClientRectLike[],
+	fullLines: readonly ClientRectLike[],
+): ClientRectLike[] {
+	return selected.map((rect) => {
+		const line = fullLines
+			.filter(
+				(line) =>
+					verticalOverlapRatio(rect, line) >= MIN_VERTICAL_OVERLAP &&
+					rect.left < line.left + line.width &&
+					rect.left + rect.width > line.left,
+			)
+			.sort(
+				(a, b) => Math.abs(a.top - rect.top) - Math.abs(b.top - rect.top),
+			)[0];
+		return line ? { ...rect, top: line.top, height: line.height } : { ...rect };
+	});
+}
+
+/** Complete paragraph line boxes, shared by native drag and sentence hover. */
+export function translatedSelectionLineRects(
+	root: HTMLElement,
+	range: Range,
+): ClientRectLike[] {
+	const fullLines = Array.from(
+		root.querySelectorAll<HTMLElement>("[data-layout-item]"),
+	)
+		.filter((item) => range.intersectsNode(item))
+		.flatMap((item) => {
+			const whole = document.createRange();
+			whole.selectNodeContents(item);
+			return mergeClientRectsIntoLines(Array.from(whole.getClientRects()));
+		});
+	return fullLineSelectionRects(
+		mergeClientRectsIntoLines(Array.from(range.getClientRects())),
+		fullLines,
+	);
+}
+
 /**
  * Reflow gives every character the font's full height, which is taller than
  * the gap to the next baseline. Each line stays its own band, but the two
