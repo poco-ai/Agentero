@@ -681,6 +681,60 @@ export const DockWorkspace = memo(
 				exitMaximizedPanel() {
 					apiRef.current?.exitMaximizedGroup();
 				},
+				captureGroupSizes() {
+					const api = apiRef.current;
+					const root = workspaceRootRef.current;
+					const width = api?.width;
+					const height = api?.height;
+					const sizes = api?.groups.map((group) => ({
+						group,
+						box: group.api.boundingBox,
+					}));
+					let frame = 0;
+					let observer: ResizeObserver | undefined;
+					let listener: { dispose: () => void } | undefined;
+					const dispose = () => {
+						cancelAnimationFrame(frame);
+						observer?.disconnect();
+						listener?.dispose();
+					};
+					const apply = () => {
+						frame = 0;
+						if (
+							!api ||
+							!root?.isConnected ||
+							api.hasMaximizedGroup() ||
+							width == null ||
+							height == null
+						)
+							return;
+						// Native fullscreen, rail expansion and the dock resize each settle
+						// independently. Restore only in the original container geometry.
+						if (
+							Math.abs(api.width - width) > 2 ||
+							Math.abs(api.height - height) > 2
+						)
+							return;
+						dispose();
+						for (const { group, box } of sizes ?? []) {
+							if (box && api.groups.includes(group))
+								group.api.setSize({ width: box.width, height: box.height });
+						}
+					};
+					const schedule = () => {
+						frame ||= requestAnimationFrame(apply);
+					};
+					return {
+						dispose,
+						restore() {
+							if (!api || !root) return;
+							observer = new ResizeObserver(schedule);
+							observer.observe(root);
+							listener = api.onDidLayoutChange(schedule);
+							schedule();
+						},
+					};
+				},
 				isMaximizedPanel() {
 					return apiRef.current?.hasMaximizedGroup() ?? false;
 				},

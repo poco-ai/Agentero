@@ -349,6 +349,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			maximized: boolean;
 			fullscreen: boolean;
 		};
+		let groupSizes: { restore: () => void; dispose: () => void } | undefined;
 		let immersiveSnapshot: ImmersiveSnapshot | null = null;
 		let immersivePhase: "idle" | "entering" | "exiting" = "idle";
 		let exitAfterEnter = false;
@@ -390,6 +391,10 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			if (uiStore.getState().immersiveReading || immersivePhase !== "idle")
 				return;
 			immersivePhase = "entering";
+			groupSizes?.dispose();
+			groupSizes = dockHandle()?.isMaximizedPanel()
+				? undefined
+				: dockHandle()?.captureGroupSizes?.();
 			const state = uiStore.getState();
 			const fullscreen = await readBorderlessFullscreen();
 			immersiveSnapshot = {
@@ -466,6 +471,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				}
 			}
 			uiStore.setState({ immersiveReading: false });
+			groupSizes?.restore();
 			immersivePhase = "idle";
 		};
 
@@ -474,6 +480,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			else void enterImmersive();
 		};
 		const dispose = () => {
+			groupSizes?.dispose();
+			groupSizes = undefined;
 			fullscreenWatchEpoch += 1;
 			stopFullscreenWatch?.();
 			stopFullscreenWatch = null;
