@@ -20,6 +20,7 @@ export {
 export {
 	LAYOUT_HINT_MIN_REGION_H_PX,
 	LAYOUT_HINT_MIN_REGION_W_PX,
+	LAYOUT_SELECT_MIN_AREA,
 	LAYOUT_SIDEBAR_MIN_SCORE,
 } from "@/lib/pdf/layout/constants";
 export {
@@ -28,6 +29,24 @@ export {
 	type DedupeLayoutOptions,
 	dedupeLayoutRegions,
 } from "@/lib/pdf/layout/dedupe";
+export {
+	type LayoutElementBox,
+	type LayoutElementBoxKey,
+	layoutElementBoxes,
+	layoutElementCaptionPage,
+	layoutElementNeedsCrop,
+	layoutElementPreview,
+	layoutElementQuote,
+} from "@/lib/pdf/layout/element-selection";
+export {
+	type ElementSentenceHit,
+	type ElementSentenceMember,
+	elementSentenceAtPoint,
+	mergeSentenceItems,
+	type SentenceFractionRect,
+	type SentenceItem,
+	type SentenceLocate,
+} from "@/lib/pdf/layout/element-sentence";
 export {
 	enqueuePaperLayoutAnalysis,
 	forcePaperLayoutAnalysis,
@@ -48,8 +67,12 @@ export {
 	hoverableLayoutRegionsByPage,
 	hoverableLayoutRegionsOnPage,
 	pickLayoutRegionAtPoint,
+	pickSelectableLayoutRegion,
 	pointInBbox,
 	rawLayoutRegionsByPage,
+	rectsIntersect,
+	selectableLayoutRegions,
+	selectableLayoutRegionsByPage,
 } from "@/lib/pdf/layout/hit-test";
 export {
 	LAYOUT_SIDECAR_FILE,
@@ -74,6 +97,7 @@ export {
 	isFormulaLayoutKind,
 	isFormulaNumberLayoutKind,
 	isLayoutBodyTextKind,
+	isLayoutElementTextKind,
 	isLayoutTranslatableKind,
 	isLayoutTranslateHeadingKind,
 	isSidebarLayoutKind,
@@ -186,6 +210,7 @@ export {
 	layoutDocumentKey,
 	layoutKindFromCitationFragment,
 	layoutKindFromRegionId,
+	layoutSentenceScope,
 	mirrorLayoutResultToTranslation,
 	normalizeLayoutPaperKey,
 	setFocusedLayoutRegion,

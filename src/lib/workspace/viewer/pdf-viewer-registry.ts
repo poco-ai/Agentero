@@ -32,8 +32,8 @@ export type PdfViewerHandle = {
 	/** Jump to a visual agent-trace pin and open its preview card. */
 	scrollToVisualTrace: (id: string) => void;
 	deleteVisualTrace: (id: string) => void;
-	/** Toggle visual-region annotation mode (⌘.). */
-	toggleVisualAnnotation: () => void;
+	/** Toggle layout element selection (⌘.). */
+	toggleElementSelection: () => void;
 	/** Toggle full-text (layout) translation (⌥A), dual-pane aware. */
 	toggleLayoutTranslate: () => void;
 	/** Run EmbedPDF layout analysis for figures / tables / formulas. */

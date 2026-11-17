@@ -153,11 +153,7 @@
 		"openInPrompt": "请讲解以下论文选段："
 	},
 	"pdfExplain": {
-		"selectRegion": "添加视觉批注",
-		"cancelRegion": "取消区域选择",
-		"regionSelectionLabel": "选择第 {{page}} 页的图片区域",
 		"cropFailed": "无法截取所选 PDF 区域。",
-		"cropping": "正在截取区域…",
 		"annotationPreviewAlt": "第 {{page}} 页裁剪区域",
 		"visualAnnotation": "视觉批注",
 		"addToSidebarChat": "加入侧边栏对话",
@@ -221,6 +217,9 @@
 		"kindReference": "参考文献"
 	},
 	"figures": {
+		"selectElements": "选择版面元素",
+		"exitElementSelection": "退出元素选择（Esc）",
+		"selectionNeedsLayout": "完成版面分析后可选择元素",
 		"title": "解析",
 		"panelAria": "本论文的插图、表格、算法与公式",
 		"noPaper": "打开论文 PDF 以列出插图、表格、算法与公式。",
@@ -240,8 +239,9 @@
 		"queued": "版面分析排队中…",
 		"progressPages": "{{page}} / {{total}} 页",
 		"progressPct": "{{pct}}%",
-		"clickAnnotateAria": "批注此{{kind}}",
-		"clickAnnotateHint": "单击进行批注",
+		"selectElementAria": "选择{{kind}}",
+		"selectElementAriaPreview": "选择{{kind}}：{{preview}}",
+		"captionOnPage": "图注在第 {{page}} 页",
 		"sectionFigures": "插图",
 		"sectionTables": "表格",
 		"sectionAlgorithms": "算法",

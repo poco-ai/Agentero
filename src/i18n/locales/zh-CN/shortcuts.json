@@ -46,7 +46,7 @@
 		"prevTab": "上一个标签",
 		"nextGroupTab": "组内下一个标签页",
 		"prevGroupTab": "组内上一个标签页",
-		"visualAnnotation": "添加视觉批注（PDF）",
+		"layoutElementSelection": "选择版面元素（PDF）",
 		"layoutTranslate": "全文翻译（PDF）",
 		"toggleFullscreen": "切换无边框全屏",
 		"toggleMarkdownSource": "切换 Markdown 源码",

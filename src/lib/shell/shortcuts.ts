@@ -51,8 +51,8 @@ export type ShortcutId =
 	| "zoomIn"
 	| "zoomOut"
 	| "zoomReset"
-	/** ⌘. — start/cancel PDF visual-region annotation (active PDF tab). */
-	| "visualAnnotation"
+	/** ⌘. — toggle PDF layout element selection (active PDF tab). */
+	| "layoutElementSelection"
 	/** ⌥A — toggle PDF full-text (layout) translation (active PDF tab). */
 	| "layoutTranslate"
 	/** F11 — borderless fullscreen (Windows only). Does not hide reader chrome. */
@@ -362,9 +362,9 @@ export const SHORTCUTS: ShortcutDef[] = [
 		whenSettingsClosed: true,
 	},
 	{
-		id: "visualAnnotation",
+		id: "layoutElementSelection",
 		group: "App",
-		// ⌘. — toggle PDF visual annotation region select (active PDF tab)
+		// ⌘. — toggle PDF layout element selection (active PDF tab)
 		key: ".",
 		meta: true,
 		whenSettingsClosed: true,

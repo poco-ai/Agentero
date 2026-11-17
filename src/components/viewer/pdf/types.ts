@@ -277,13 +277,6 @@ export type CrossrefPreviewState = {
 	targetSize?: { width: number; height: number };
 };
 
-export type VisualDraftEditorState = {
-	screen: ScreenPoint;
-	page: number;
-	region: PdfAskNormalizedRect;
-	image: PromptImage;
-};
-
 /** Discriminator for a right-rail comment card. */
 export type CommentRailKind = "highlight" | "visual";
 

@@ -424,11 +424,11 @@ export default function App() {
 		zoomIn,
 		zoomOut,
 		zoomReset,
-		// ⌘. — toggle visual-region annotation for the paper being read.
+		// ⌘. — toggle layout element selection for the paper being read.
 		// Handles live on the PDF body tab; when NOTES is focused (default
 		// split), resolve the sibling paper tab instead of requiring mode=pdf.
-		visualAnnotation: () => {
-			resolveActivePdfHandle()?.toggleVisualAnnotation();
+		layoutElementSelection: () => {
+			resolveActivePdfHandle()?.toggleElementSelection();
 		},
 		// ⌥A — toggle full-text (layout) translation for the paper being read.
 		// Same dual-pane-aware path as the toolbar Languages button.
