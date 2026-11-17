@@ -5794,6 +5794,12 @@ export type TranslateProviderConfig = {
 	region?: string,
 	model?: string,
 	extraRequestBody?: string,
+	/**
+	 * Parallel batch workers for bulk layout translation (1–16).
+	 * Optional so existing settings files still parse; omitted keeps the
+	 * built-in default.
+	 */
+	concurrency?: number | null,
 };
 
 export type TranslateSettings = {

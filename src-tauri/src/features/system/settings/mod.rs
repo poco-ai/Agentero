@@ -474,6 +474,11 @@ pub struct TranslateProviderConfig {
     pub model: String,
     #[serde(default)]
     pub extra_request_body: String,
+    /// Parallel batch workers for bulk layout translation (1–16).
+    /// Optional so existing settings files still parse; omitted keeps the
+    /// built-in default.
+    #[serde(default)]
+    pub concurrency: Option<u32>,
 }
 
 /// PDF layout-analysis backend selection.

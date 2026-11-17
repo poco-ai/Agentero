@@ -128,6 +128,11 @@ export type TranslateProviderConfig = {
 	model: string;
 	/** JSON object replacing automatic request options; blank uses model defaults. */
 	extraRequestBody?: string;
+	/**
+	 * Parallel batch workers for bulk layout translation (1–16).
+	 * Omit to keep the built-in default; `agent` runs stay serialized.
+	 */
+	concurrency?: number;
 };
 
 export type TranslateServiceType = "sentence" | "word";

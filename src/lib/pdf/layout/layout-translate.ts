@@ -49,6 +49,7 @@ import { resolveConfiguredTranslateAgent } from "@/lib/translate/resolve-agent";
 import { TERMINOLOGY_REVISION } from "@/lib/translate/terminology";
 import type {
 	CommercialTranslateProviderId,
+	TranslateProviderConfig,
 	TranslateProviderId,
 	TranslateRunOptions,
 	TranslateSettings,
@@ -57,6 +58,9 @@ import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 
 /** Parallel free/commercial MT workers (order of *start* follows reading order). */
 export const LAYOUT_TRANSLATE_CONCURRENCY = 2;
+
+/** Upper bound for the per-provider override (Settings → Translate). */
+export const LAYOUT_TRANSLATE_CONCURRENCY_MAX = 16;
 
 /**
  * Consecutive transport failures before a run stops calling the provider.
@@ -85,6 +89,32 @@ export const LAYOUT_TRANSLATE_SIDECAR_FILE = "layout-translate.json";
  * disk churn. See paper-pipeline-orchestration.md §8.1.
  */
 export const LAYOUT_TRANSLATE_WRITE_DEBOUNCE_MS = 500;
+
+/**
+ * Bulk-translate worker count for the active provider.
+ *
+ * Settings → Translate exposes a per-provider override; omitting it keeps the
+ * built-in default. `agent` runs stay serialized in {@link runLayoutRegionTranslate},
+ * so the override only affects transports that can actually run in parallel.
+ */
+export function layoutTranslateConcurrency(): number {
+	const settings = loadSettings();
+	const provider = settings.translate.provider;
+	const config = (
+		settings.translate.providerConfigs as Partial<
+			Record<string, TranslateProviderConfig | undefined>
+		>
+	)[provider];
+	const requested = Number(config?.concurrency);
+	const value =
+		Number.isFinite(requested) && requested > 0
+			? requested
+			: LAYOUT_TRANSLATE_CONCURRENCY;
+	return Math.min(
+		Math.max(Math.trunc(value), 1),
+		LAYOUT_TRANSLATE_CONCURRENCY_MAX,
+	);
+}
 
 /** Pending debounced sidecar writes, keyed by paper folder. */
 const translateSidecarWriteTimers = new Map<
@@ -942,7 +972,7 @@ export async function runLayoutRegionTranslate(options: {
 	// Agent is heavy — serialize; free/commercial MT keeps a small pool.
 	const concurrency = Math.max(
 		1,
-		agentOpts ? 1 : (options.concurrency ?? LAYOUT_TRANSLATE_CONCURRENCY),
+		agentOpts ? 1 : (options.concurrency ?? layoutTranslateConcurrency()),
 	);
 	const items = options.items.map((it) => ({ ...it }));
 	const signal = options.signal;

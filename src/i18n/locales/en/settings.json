@@ -617,6 +617,9 @@
 				"label": "Model",
 				"placeholder": "Provider model id"
 			},
+			"concurrency": {
+				"label": "Parallel requests"
+			},
 			"extraRequestBody": {
 				"label": "Extra JSON",
 				"invalid": "Extra parameters must be a valid JSON object.",

@@ -859,6 +859,30 @@ export function TranslatePane({
 												/>
 											</ProviderFieldRow>
 											<ProviderFieldRow
+												label={t("translate.providerConfig.concurrency.label")}
+												htmlFor={`${inputPrefix}-concurrency`}
+											>
+												<Input
+													id={`${inputPrefix}-concurrency`}
+													type="number"
+													min={1}
+													max={16}
+													step={1}
+													value={effectiveCfg.concurrency ?? ""}
+													onChange={(e) => {
+														const next = Number.parseInt(e.target.value, 10);
+														setDraftField(id, {
+															concurrency: Number.isFinite(next)
+																? Math.min(Math.max(next, 1), 16)
+																: undefined,
+														});
+													}}
+													placeholder="2"
+													className={PROVIDER_INPUT_CLASS}
+													autoComplete="off"
+												/>
+											</ProviderFieldRow>
+											<ProviderFieldRow
 												label={t(
 													"translate.providerConfig.extraRequestBody.label",
 												)}
