@@ -71,7 +71,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  某一页没读完则不打标记，下次打开再抽。正文词序变了的块，译文缓存按原文 miss 后重译
         ▼
 ② mergeCaptionsIntoHosts（联图 / 表题 / 算法题 / 公式按编号框几何合并）
-        │  输出 PdfLayoutRegion[]（图题可缺失；公式仅保留有 formula_number 锚点）
+        │  输出 PdfLayoutRegion[]（保留正文 / 摘要 / 标题及未合并图题；图题可缺失；公式仅保留有 formula_number 锚点）
         ▼
 ③ 侧栏展示: isSidebarLayoutKind + dedupeLayoutRegions(minScore 默认 0.3)
         │  分区顺序：插图 → 表 → 算法 → **公式（最底）**
@@ -88,14 +88,14 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  元素选择用同一份 post-merge **regions** 的全部 kind
         │  不用 EmbedPDF LayoutAnalysisLayer 画框：sidecar 缓存命中时插件无 page layout
         │
-④ PDF 页交互 → 元素选择
+④ 普通阅读持续提供句子悬停与双栏同句联动；工具栏「选择版面元素」或 ⌘. 开启元素框 / 类别 / 点击动作（默认关闭，再次点击 / Esc 退出）
         │  hit 层用 **post-merge regions**（全 kind；非 Eye 的 rawRegions，也不是侧栏子集）
         │  hover 只画当前元素。文本类有句对时主视觉是当前句浅底（含跨页链），
-        │    否则画合并框（bbox，以及同页 titleBbox / captionBbox）
-        │  单击 / Enter → 加入对话或选择翻译；文本引用当前句；不写 visual mark，不打开批注编辑器
+        │    合并框（bbox，以及同页 titleBbox / captionBbox）左上方显示可点击的类别标签；边框 / 背景使用主题主色的 55% / 8%
+        │  类别标签单击 / Enter 选择整个段落 / 元素；段内单击选择当前句；均可加入对话或翻译，不写 visual mark，不打开批注编辑器；选中句持续高亮到动作菜单关闭
         │  双栏 PDF：左右同一句一起浅亮，不滚动对侧；LaTeX 双栏无句子表面，先只做 PDF
         │  实现：`hit-test.ts`（selectable*）+ `layout-element-selection-layer.tsx`
-        │  工具栏 ⌘. 框选仍进入视觉批注
+        │  ⌘. 与工具栏复用同一个元素选择开关
         │
 ⑤ 正文 / 摘要 / 标题文字抽取（PDF text layer → region.text）
         │  分析或 sidecar 回填时 enrich；供调试与 bulk 翻译
@@ -103,7 +103,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  行内从左往右，再接下一行。抽正文和英文句子对字形共用
         │  `reading-order.ts`
         │
-⑥ 工具栏「翻译」icon（视觉批注旁）：按阅读顺序批量翻译文字类区域
+⑥ 工具栏「翻译」icon（元素选择旁）：按阅读顺序批量翻译文字类区域
         │  并发 2；每完成一块立刻盖译文图层（`LayoutTranslateOverlay`）
         │  再次点击：运行中=停止；已有译文=清除
 ```
