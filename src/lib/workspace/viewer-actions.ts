@@ -69,11 +69,13 @@ import {
 	wikiNavigationDestination,
 } from "@/lib/wiki";
 import { rebuildWikiAndNotify } from "@/lib/wiki/store";
-import { dockHandle } from "@/lib/workspace/dock-registry";
+import {
+	cacheActiveTabBeforeDock,
+	dockHandle,
+} from "@/lib/workspace/dock-registry";
 import {
 	getActiveTabId,
 	getTabs,
-	setActiveTabId,
 	setTabs,
 	updateTab,
 } from "@/lib/workspace/store";
@@ -253,7 +255,7 @@ async function openTexPdfNow(
 					...(keepLive ? {} : { texLive: false }),
 					title: basenameOf(pdfPath),
 				});
-				setActiveTabId(pdfId);
+				cacheActiveTabBeforeDock(pdfId);
 				dockHandle()?.activatePanel(pdfId);
 			} else {
 				openTab(pdfPath, {
@@ -275,7 +277,7 @@ async function openTexPdfNow(
 			texLive: false,
 			texRoot: rootPath,
 		});
-		setActiveTabId(pdfId);
+		cacheActiveTabBeforeDock(pdfId);
 		dockHandle()?.activatePanel(pdfId);
 	} else {
 		// Hand-rolled openTab prefix (placeholder + dock placement) without
@@ -291,7 +293,7 @@ async function openTexPdfNow(
 			nextTabs.find((t) => t.id === insertedId) ??
 			createPlaceholderTab(pdfPath, "pdf");
 		setTabs(nextTabs);
-		setActiveTabId(insertedId);
+		cacheActiveTabBeforeDock(insertedId);
 		dockHandle()?.openPanel(placeholder, {
 			direction: "right",
 			referencePanelId,
@@ -405,7 +407,7 @@ export async function openTexLive(texPath: string): Promise<void> {
 			loaded: true,
 			texCompiling: false,
 		});
-		setActiveTabId(pdfId);
+		cacheActiveTabBeforeDock(pdfId);
 		dockHandle()?.activatePanel(pdfId);
 		return;
 	}
@@ -420,7 +422,7 @@ export async function openTexLive(texPath: string): Promise<void> {
 	const placeholder =
 		nextTabs.find((t) => t.id === id) ?? createPlaceholderTab(pdfPath, "pdf");
 	setTabs(nextTabs);
-	setActiveTabId(id);
+	cacheActiveTabBeforeDock(id);
 	dockHandle()?.openPanel(placeholder, {
 		direction: "right",
 		referencePanelId,
@@ -608,8 +610,8 @@ export function splitActivePane(): void {
 		) {
 			dockHandle()?.rememberNotesSplitWidth(active.id, notesId);
 			closeTab(notesId, { remember: false });
+			cacheActiveTabBeforeDock(active.id);
 			dockHandle()?.activatePanel(active.id);
-			setActiveTabId(active.id);
 			return;
 		}
 	}
@@ -628,8 +630,8 @@ export function splitActivePane(): void {
 	// NOTES (or an extra note inside a paper folder) → back to the body.
 	const paperBody = findPaperBodyForNotes(tabs, active);
 	if (paperBody && dockHandle()?.canActivatePanel(paperBody.id)) {
+		cacheActiveTabBeforeDock(paperBody.id);
 		dockHandle()?.activatePanel(paperBody.id);
-		setActiveTabId(paperBody.id);
 		return;
 	}
 	// Orphaned notes pane (body closed): never clone the editable buffer.
@@ -659,16 +661,16 @@ export function splitActivePane(): void {
 		setTabs((prev) =>
 			prev.some((t) => t.id === notesPane.id) ? prev : [...prev, notesPane],
 		);
+		cacheActiveTabBeforeDock(notesPane.id);
 		dockHandle()?.splitPanelRight(notesPane, active.id);
 		dockHandle()?.restoreNotesSplitWidth(active.id, notesPane.id);
-		setActiveTabId(notesPane.id);
 		return;
 	}
 
 	const splitPane = cloneTabForSplit(active, tabs);
 	setTabs((prev) => [...prev, splitPane]);
+	cacheActiveTabBeforeDock(splitPane.id);
 	dockHandle()?.splitPanelRight(splitPane, active.id);
-	setActiveTabId(splitPane.id);
 }
 
 /**

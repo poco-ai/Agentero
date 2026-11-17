@@ -95,7 +95,6 @@ import {
 	texLiveSetDocument,
 } from "@/lib/tex-live/session";
 import { dockHandle } from "@/lib/workspace/dock-registry";
-import { setActiveTabId } from "@/lib/workspace/store";
 import { tabIdForPath } from "@/lib/workspace/tabs";
 import { bindTexOutline } from "@/lib/workspace/tex-outline-bridge";
 import { registerTextEditorFlusher } from "@/lib/workspace/text-editor-flush";
@@ -562,7 +561,6 @@ export function TextEditor({
 			owner: texLiveOwner,
 			activate: panelId
 				? () => {
-						setActiveTabId(panelId);
 						dockHandle()?.activatePanel(panelId);
 					}
 				: undefined,

@@ -6,6 +6,7 @@
  * import components — see .dependency-cruiser.cjs).
  */
 
+import { setActiveTabId } from "@/lib/workspace/store";
 import type {
 	DocTab,
 	OpenPlacement,
@@ -63,4 +64,13 @@ export function registerDockHandle(next: DockHandle | null): void {
 
 export function dockHandle(): DockHandle | null {
 	return handle;
+}
+
+/**
+ * Remember focus only until Dockview is mounted. After registration, activation
+ * goes through the handle and `handleActivePanelChange` publishes the result.
+ */
+export function cacheActiveTabBeforeDock(panelId: string): void {
+	if (handle) return;
+	setActiveTabId(panelId);
 }

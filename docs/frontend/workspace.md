@@ -18,6 +18,7 @@
 | 同步关闭 | 关 paper body 时一并关 NOTES；关 NOTES 保留 body |
 | 文件树拖入 | left/right/above/below/within 分屏落点 |
 | 关 panel | dockview X → `closeTab`；焦点 `onDidActivePanelChange` |
+| 焦点 | 活动标签由 Dockview 的激活事件写入 store，同步结束时再补发一次。store 不再反向激活面板。Dock 尚未挂载时，打开动作先记下目标 id |
 | 循环 | `⌥⌘←/→` 按 `api.panels` **视觉序** |
 | 移至新窗口 | 文档 tab **右键** → **移动至新窗口** → 独立 `doc-*` Webview；源 panel 关闭（Library / Trash / Zen 除外）；弹出窗自带 Vault watcher，Markdown / PDF 外部改盘就地重载；URL `mode` 参数与主窗口一致参与 PDF 模式保护（探测失败不降级 Markdown） |
 | 复制路径 | 文档 tab **右键** → **复制路径**。剪贴板用 `displayPath`（Windows 去掉 `\\?\` 前缀）。Library / Trash / 广场 / Zen 和 `agentero:` 虚拟路径不显示该项 |

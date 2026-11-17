@@ -806,16 +806,6 @@ export const DockWorkspace = memo(
 			scheduleLayoutSave(api);
 		}, [metaKey, scheduleLayoutSave]);
 
-		// Activate panel when React activePanelId changes (openTab / library).
-		useEffect(() => {
-			const api = apiRef.current;
-			if (!api || !activePanelId || syncingRef.current) return;
-			const panel = api.getPanel(activePanelId);
-			if (panel && api.activePanel?.id !== activePanelId) {
-				panel.api.setActive();
-			}
-		}, [activePanelId]);
-
 		useEffect(() => {
 			return () => {
 				if (layoutTimerRef.current != null) {

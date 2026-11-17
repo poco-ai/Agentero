@@ -59,7 +59,10 @@ import {
 	vaultStore,
 } from "@/lib/vault/store";
 import { toVaultRelative } from "@/lib/wiki";
-import { dockHandle } from "@/lib/workspace/dock-registry";
+import {
+	cacheActiveTabBeforeDock,
+	dockHandle,
+} from "@/lib/workspace/dock-registry";
 import { vaultLoadGeneration } from "@/lib/workspace/identity";
 import {
 	getActiveTabId,
@@ -154,7 +157,9 @@ export function activatePaperWithNotes(paperTab: DocTab): void {
 			readingSync = false;
 		});
 	}
-	setActiveTabId(paperTab.id);
+	// `activatePanel` does not set `syncingRef`, so the paper activation
+	// reaches `handleActivePanelChange` and leaves focus on the body.
+	cacheActiveTabBeforeDock(paperTab.id);
 }
 
 /**
@@ -275,7 +280,7 @@ export function openTab(
 			}
 			activatePaperWithNotes(existing);
 		} else {
-			setActiveTabId(id);
+			cacheActiveTabBeforeDock(id);
 			dockHandle()?.activatePanel(id);
 		}
 		return;
@@ -318,7 +323,7 @@ export function openTab(
 			}).paper);
 
 	setTabs(nextTabs);
-	setActiveTabId(insertedId);
+	cacheActiveTabBeforeDock(insertedId);
 	if (replaced) {
 		dockHandle()?.remapPanel(replaced.id, placeholder);
 		dockHandle()?.activatePanel(insertedId);
@@ -585,7 +590,11 @@ export function remapMovedWorkspacePaths(
 	}
 	const active = previousTabs.find((tab) => tab.id === getActiveTabId());
 	if (active) {
-		setActiveTabId(tabIdForPath(remapPathUnder(active.path, fromAbs, toAbs)));
+		// Identity follows the moved path. A mounted dock republishes the new
+		// panel id from `remapPanel` via `endSync`.
+		cacheActiveTabBeforeDock(
+			tabIdForPath(remapPathUnder(active.path, fromAbs, toAbs)),
+		);
 	}
 	remapTabAnnotations(
 		previousTabs.map((tab) => ({
@@ -727,11 +736,11 @@ export function setNotesSplit(
 		if (prev.some((t) => t.id === notesPane.id)) return prev;
 		return [...prev, notesPane];
 	});
+	cacheActiveTabBeforeDock(notesPane.id);
 	dockHandle()?.openPanel(notesPane, notesPlacement);
 	if (notesPlacement?.direction === "right") {
 		dockHandle()?.restoreNotesSplitWidth(target.id, notesPane.id);
 	}
-	setActiveTabId(notesPane.id);
 }
 
 /** Toggle NOTES.md panel for the active paper (⌘\ / Layout menu). */
@@ -750,8 +759,8 @@ export function openTabNotes(tabId: string): void {
 		dockHandle()?.exitMaximizedPanel?.();
 	}
 	if (tabHasNotesSplit(getTabs(), target)) {
+		cacheActiveTabBeforeDock(notesId);
 		dockHandle()?.activatePanel(notesId);
-		setActiveTabId(notesId);
 		return;
 	}
 	const notesPane = createNotesSplitPane(target);
@@ -767,8 +776,8 @@ export function openTabNotes(tabId: string): void {
 		if (prev.some((t) => t.id === notesPane.id)) return prev;
 		return [...prev, notesPane];
 	});
+	cacheActiveTabBeforeDock(notesPane.id);
 	dockHandle()?.openPanel(notesPane, notesPlacement);
-	setActiveTabId(notesPane.id);
 }
 
 /** File-tree "Open notes": reading layout with NOTES in the right column. */
@@ -834,7 +843,10 @@ export function ensureLibraryTabPresent(): void {
 	const ensured = ensureFullLibraryTab(getTabs());
 	if (!ensured.inserted) return;
 	setTabs(ensured.tabs);
-	if (!getActiveTabId()) setActiveTabId(ensured.activeId);
+	if (!getActiveTabId()) {
+		cacheActiveTabBeforeDock(ensured.activeId);
+		dockHandle()?.activatePanel(ensured.activeId);
+	}
 }
 
 const placeholderLoads = new Set<string>();
