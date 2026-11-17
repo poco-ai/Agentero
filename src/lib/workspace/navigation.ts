@@ -117,6 +117,36 @@ function withLibraryPresent(next: DocTab[]): DocTab[] {
 	return ensureFullLibraryTab(next).tabs;
 }
 
+/** Put Library on the dock. `inactive` keeps the document the user is reading. */
+function showLibraryPanel(library: DocTab, inactive: boolean): void {
+	if (!inactive) {
+		cacheActiveTabBeforeDock(library.id);
+		dockHandle()?.activatePanel(library.id);
+	}
+	dockHandle()?.openPanel(
+		library,
+		undefined,
+		inactive ? { inactive: true } : undefined,
+	);
+}
+
+/** Drop closed panels, and place Library if this update just inserted it. */
+function detachClosedPanels(
+	before: readonly DocTab[],
+	removedIds: readonly string[],
+): void {
+	for (const id of removedIds) dockHandle()?.removePanel(id);
+	const library = getTabs().find((tab) => isLibraryVirtualPath(tab.path));
+	if (!library || before.some((tab) => tab.id === library.id)) return;
+	const activeId = getActiveTabId();
+	const keptActiveDocument =
+		Boolean(activeId) && !removedIds.includes(activeId);
+	const otherDocument = getTabs().some(
+		(tab) => !isLibraryVirtualPath(tab.path),
+	);
+	showLibraryPanel(library, keptActiveDocument || otherDocument);
+}
+
 /**
  * Suppress companion-tab sync while we programmatically flip paper+NOTES
  * (avoids onActivePanelChange recursion).
@@ -488,6 +518,8 @@ export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
 
 	if (opts.remember !== false) rememberClosedTabs(idsToClose);
 
+	const before = getTabs();
+	const removedIds: string[] = [];
 	setTabs((prev) => {
 		let next = prev;
 		const removedList: DocTab[] = [];
@@ -497,9 +529,11 @@ export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
 			if (result.removed) removedList.push(result.removed);
 		}
 		if (!removedList.length) return prev;
+		removedIds.push(...removedList.map((tab) => tab.id));
 		for (const r of removedList) revokeTabMediaSources(r);
 		return withLibraryPresent(next);
 	});
+	detachClosedPanels(before, removedIds);
 	for (const closeId of idsToClose) cancelPdfNavigationForTab(closeId);
 	removeTabAnnotations(idsToClose);
 	if (target && isZenVirtualPath(target.path)) closeZenWorkspace();
@@ -547,6 +581,7 @@ export function reopenClosedTab(): void {
 
 /** Close every Plaza overview / source tab. */
 export function closePlazaTabs(): void {
+	const before = getTabs();
 	let removedIds: string[] = [];
 	setTabs((prev) => {
 		const removed = prev.filter(
@@ -558,6 +593,7 @@ export function closePlazaTabs(): void {
 		const tabs = prev.filter((tab) => !removedIds.includes(tab.id));
 		return withLibraryPresent(tabs);
 	});
+	detachClosedPanels(before, removedIds);
 	if (removedIds.length) removeTabAnnotations(removedIds);
 }
 
@@ -620,6 +656,7 @@ export function remapMovedWorkspacePaths(
 
 /** Close every panel whose path is at or under the given path. */
 export function closeTabsUnderPath(path: string): void {
+	const before = getTabs();
 	let removedIds: string[] = [];
 	setTabs((prev) => {
 		const { tabs, removed } = removeTabsUnderPath(prev, path);
@@ -628,6 +665,7 @@ export function closeTabsUnderPath(path: string): void {
 		removedIds = removed.map((t) => t.id);
 		return withLibraryPresent(tabs);
 	});
+	detachClosedPanels(before, removedIds);
 	for (const removedId of removedIds) cancelPdfNavigationForTab(removedId);
 	if (removedIds.length) removeTabAnnotations(removedIds);
 }
@@ -843,10 +881,9 @@ export function ensureLibraryTabPresent(): void {
 	const ensured = ensureFullLibraryTab(getTabs());
 	if (!ensured.inserted) return;
 	setTabs(ensured.tabs);
-	if (!getActiveTabId()) {
-		cacheActiveTabBeforeDock(ensured.activeId);
-		dockHandle()?.activatePanel(ensured.activeId);
-	}
+	const library = ensured.tabs.find((tab) => tab.id === ensured.activeId);
+	if (!library) return;
+	showLibraryPanel(library, Boolean(getActiveTabId()));
 }
 
 const placeholderLoads = new Set<string>();

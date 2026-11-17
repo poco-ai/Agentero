@@ -4,7 +4,7 @@
 
 命令式操作契约统一定义在 `lib/workspace/dock-registry.ts` 的 `DockHandle`；组件导出的 `DockWorkspaceHandle` 是其类型别名。
 
-`components/workspace/dock-layout.ts` 集中维护落点映射、面板放置、栏宽调整及布局恢复后的面板对账；`dock-workspace.tsx` 保留 Dockview 注册副作用、React 挂载和事件接线。
+`components/workspace/dock-layout.ts` 集中维护落点映射、面板放置、栏宽调整及布局恢复后的面板对账；`dock-workspace.tsx` 保留 Dockview 注册副作用、React 挂载和事件接线。面板成员由打开和关闭动作直接改 Dockview：`openPanel` 加面板，`removePanel` 拆面板。`reconcilePanelMembership` / `reconcileAfterLayoutRestore` 只在 `onReady` 恢复布局时运行。
 
 ## 行为
 
@@ -12,12 +12,12 @@
 |---|---|
 | 打开文档 | 文件树 / Library / 命令面板 → `openTab` → `workspaceRef.openPanel` |
 | CLI 工作区操作 | `agentero ui open/close/window`、`agentero paper open` / `agentero://ui?action=…` → Host `ui:request` → 需要时先切换 Vault → 调用与 UI 相同的 `openPaper` / `openVaultRel` / `closeTabsUnderPath` / 原生窗口打开 |
-| Library 常驻 | 打开 Vault 期间 Library tab 始终在标签条（打开、恢复、清空后由 `ensureLibraryTabPresent` 补齐）：不可关闭——无关闭按钮、中键与右键关闭项禁用、「关闭其他/全部」跳过、⌘W 对其 no-op；仅剩 Library 时 ⌘W 关闭窗口。其它 tab 的固定（pin）能力已移除 |
+| Library 常驻 | 打开 Vault 期间 Library tab 始终在标签条（打开、恢复、清空后由 `ensureLibraryTabPresent` 补齐，并 `openPanel` 放进格子；已有活动文档时带 `inactive`，不抢焦点）：不可关闭——无关闭按钮、中键与右键关闭项禁用、「关闭其他/全部」跳过、⌘W 对其 no-op；仅剩 Library 时 ⌘W 关闭窗口。其它 tab 的固定（pin）能力已移除 |
 | 首篇 paper | PDF/HTML 默认组 + `NOTES.md` 右分屏（阅读默认；通用设置 `autoOpenPaperNotes` 关闭时只开 body，NOTES 仍可 `⌘\` / 右键「打开笔记」手动开） |
 | 再开 paper | 已是「论文 \| 笔记」左右两栏时，body 固定进左栏、NOTES 固定进右栏（与当前焦点在哪一栏无关，#785）；左栏必须确有论文正文、右栏必须确有 `NOTES.md`，才算阅读双列——TeX 源码 \| PDF 等其它双列不会被误判。其它布局 body 走自由 dock 放置（当前组 / 默认，可再拖分屏），NOTES 优先叠进已有笔记列；body↔NOTES **焦点仍同步** |
 | 同步关闭 | 关 paper body 时一并关 NOTES；关 NOTES 保留 body |
 | 文件树拖入 | left/right/above/below/within 分屏落点 |
-| 关 panel | dockview X → `closeTab`；焦点 `onDidActivePanelChange` |
+| 关 panel | 关闭按钮、中键和右键走 `closeTab`。标签条上的 Delete / Backspace 在工作区根用捕获阶段拦住，再走同一个 `closeTab`（只有已注册的 Markdown 源码模式 flush 失败能留下标签）。store 更新后对每个被关掉的 id 调用 `removePanel`。拖拽中的删除仍由 Dockview 吞掉；`onDidRemovePanel` 在非 syncing 时补一次 `closeTab`。焦点由 `onDidActivePanelChange` 写入 |
 | 焦点 | 活动标签由 Dockview 的激活事件写入 store，同步结束时再补发一次。store 不再反向激活面板。Dock 尚未挂载时，打开动作先记下目标 id |
 | 循环 | `⌥⌘←/→` 按 `api.panels` **视觉序** |
 | 移至新窗口 | 文档 tab **右键** → **移动至新窗口** → 独立 `doc-*` Webview；源 panel 关闭（Library / Trash / Zen 除外）；弹出窗自带 Vault watcher，Markdown / PDF 外部改盘就地重载；URL `mode` 参数与主窗口一致参与 PDF 模式保护（探测失败不降级 Markdown） |

@@ -58,7 +58,7 @@ import { moveDocToWindow } from "@/lib/shell/leaf";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
 import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { TAG_COLOR_IDS, tagSwatchStyle } from "@/lib/ui/tag-colors";
-import { openTexPdf } from "@/lib/workspace/actions";
+import { closeTab, openTexPdf } from "@/lib/workspace/actions";
 import type { DockHandle } from "@/lib/workspace/dock-registry";
 import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag-selection";
 import { installDockviewSashFrameLoop } from "@/lib/workspace/dockview-sash";
@@ -265,6 +265,7 @@ function WorkspaceTab({
 	return (
 		<DocumentTab
 			{...rest}
+			data-panel-id={api.id}
 			title={
 				tab?.paperMeta ? (
 					<PaperTitle text={title ?? ""} />
@@ -327,6 +328,34 @@ function WorkspaceTab({
 
 /** Alias preserves layout snapshots that stored tabComponent:"default". */
 const tabComponents = { default: WorkspaceTab };
+
+function isTabStripTextEntry(target: Element): boolean {
+	if (target.closest("input, textarea")) return true;
+	const editable = target.closest("[contenteditable]");
+	return Boolean(
+		editable && editable.getAttribute("contenteditable") !== "false",
+	);
+}
+
+/**
+ * Dockview 7.0.4's tablist closes the focused tab on bubble-phase
+ * Delete/Backspace via `panel.api.close()`, before the save gate can run.
+ * Capture the keys on the workspace root so that listener never sees them.
+ */
+function onWorkspaceTabCloseKey(event: KeyboardEvent): void {
+	if (event.key !== "Delete" && event.key !== "Backspace") return;
+	const target = event.target;
+	if (!(target instanceof Element)) return;
+	if (!target.closest('[role="tablist"]')) return;
+	if (isTabStripTextEntry(target)) return;
+	event.preventDefault();
+	event.stopPropagation();
+	const panelId = target
+		.closest(".dv-tab")
+		?.querySelector("[data-panel-id]")
+		?.getAttribute("data-panel-id");
+	if (panelId) closeTab(panelId);
+}
 
 type DockWorkspaceProps = {
 	tabs: DocTab[];
@@ -430,6 +459,14 @@ export const DockWorkspace = memo(
 			};
 		}, []);
 
+		useEffect(() => {
+			const root = workspaceRootRef.current;
+			if (!root) return;
+			root.addEventListener("keydown", onWorkspaceTabCloseKey, true);
+			return () =>
+				root.removeEventListener("keydown", onWorkspaceTabCloseKey, true);
+		}, []);
+
 		const tabGroupColors = useMemo<DockviewTabGroupColorEntry[]>(
 			() =>
 				TAB_GROUP_COLORS.map((id) => ({
@@ -519,7 +556,7 @@ export const DockWorkspace = memo(
 			[tabsById, activePanelId, centerProps, keepSet],
 		);
 
-		/** Membership only: add missing / remove closed. Placement is imperative. */
+		/** onReady only: add missing / remove stale after restore. */
 		const syncPanels = useCallback(
 			(api: DockviewApi) => {
 				syncingRef.current = true;
@@ -535,12 +572,12 @@ export const DockWorkspace = memo(
 		useImperativeHandle(
 			ref,
 			() => ({
-				openPanel(tab, placement = null) {
+				openPanel(tab, placement = null, options) {
 					const api = apiRef.current;
 					if (!api) return;
 					const existing = api.getPanel(tab.id);
 					if (existing) {
-						existing.api.setActive();
+						if (!options?.inactive) existing.api.setActive();
 						return;
 					}
 					syncingRef.current = true;
@@ -550,8 +587,20 @@ export const DockWorkspace = memo(
 							tabIsPaperNotes(tab) &&
 							Boolean(placement && placement.direction === "within");
 						addPanelWithPlacement(api, tab, placement, {
-							inactive: isBackgroundNote,
+							inactive: Boolean(options?.inactive) || isBackgroundNote,
 						});
+					} finally {
+						endSync(api);
+					}
+				},
+				removePanel(panelId) {
+					const api = apiRef.current;
+					if (!api) return;
+					const panel = api.getPanel(panelId);
+					if (!panel) return;
+					syncingRef.current = true;
+					try {
+						api.removePanel(panel);
 					} finally {
 						endSync(api);
 					}
@@ -774,15 +823,6 @@ export const DockWorkspace = memo(
 			},
 			[endSync, publishVisiblePanels, scheduleLayoutSave, syncPanels],
 		);
-
-		// Sync membership when panel ids change (not titles).
-		const panelIdsKey = tabs.map((t) => t.id).join("|");
-		useEffect(() => {
-			void panelIdsKey;
-			const api = apiRef.current;
-			if (!api) return;
-			syncPanels(api);
-		}, [panelIdsKey, syncPanels]);
 
 		// Title + persist params + renderer channel (mode/path without full membership).
 		const metaKey = tabs

@@ -14,8 +14,21 @@ import type {
 } from "@/lib/workspace/tabs";
 
 export type DockHandle = {
-	/** Add (or activate) a panel with optional split placement. */
-	openPanel: (tab: DocTab, placement?: OpenPlacement) => void;
+	/**
+	 * Add (or activate) a panel with optional split placement.
+	 * `{ inactive: true }` inserts a missing panel without taking focus, and
+	 * leaves an existing panel unfocused. The default still activates it.
+	 */
+	openPanel: (
+		tab: DocTab,
+		placement?: OpenPlacement,
+		options?: { inactive?: boolean },
+	) => void;
+	/**
+	 * Remove one panel. Sets the dock sync flag so `onDidRemovePanel` does not
+	 * close the tab a second time.
+	 */
+	removePanel: (panelId: string) => void;
 	/** Add a panel as a right split and rebalance visible grid columns. */
 	splitPanelRight: (tab: DocTab, referencePanelId: string | null) => void;
 	/** Replace a panel id after a filesystem move while preserving its group. */

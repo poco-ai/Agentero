@@ -1127,6 +1127,7 @@ describe("Notes layout actions", () => {
 		if (!notes) throw new Error("Missing notes fixture");
 		const handle = {
 			openPanel: vi.fn(),
+			removePanel: vi.fn(),
 			rememberNotesSplitWidth: vi.fn(),
 			restoreNotesSplitWidth: vi.fn(),
 			readingColumns: vi.fn(() => null),

@@ -95,13 +95,22 @@ import {
 	dirtyVaultPaths,
 	openPath,
 } from "@/lib/workspace/actions";
+import { dockHandle } from "@/lib/workspace/dock-registry";
 import {
 	clearClosedTabs,
+	getTabs,
 	setActiveTabId,
 	setTabs,
 } from "@/lib/workspace/store";
 import { basenameOf } from "@/lib/workspace/tabs";
 import { isExcalidrawPath } from "@/lib/workspace/viewer";
+
+/** Empty the tab store, then drop those panels when the dock is mounted. */
+function resetOpenTabs(): void {
+	const panelIds = getTabs().map((tab) => tab.id);
+	setTabs([]);
+	for (const panelId of panelIds) dockHandle()?.removePanel(panelId);
+}
 
 export async function activateVault(path: string): Promise<void> {
 	// Tear down previous remote session so work catalogs are flushed.
@@ -121,7 +130,7 @@ export async function activateVault(path: string): Promise<void> {
 	void import("@/lib/activity").then(({ track }) => {
 		track("vault.open");
 	});
-	setTabs([]);
+	resetOpenTabs();
 	setActiveTabId(null);
 	clearClosedTabs();
 	setTreeSelectedPath(null);
@@ -1203,7 +1212,7 @@ export function validateRestoredVault(): Promise<void> {
 			saveVaultPath(null);
 			setVaultPath(null);
 			setTree([]);
-			setTabs([]);
+			resetOpenTabs();
 			setActiveTabId(null);
 			clearClosedTabs();
 			setTreeSelectedPath(null);
