@@ -37,6 +37,7 @@ import { setNotesSplit, toggleNotesSplit } from "@/lib/workspace/actions";
 import { dockHandle } from "@/lib/workspace/dock-registry";
 import { getActiveTabId, getTabs } from "@/lib/workspace/store";
 import { tabHasNotesSplit, tabNotesEligible } from "@/lib/workspace/tabs";
+import { resolveActivePdfTabId } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 const SIDEBAR_DEFAULT_PX = 200;
 const RIGHT_SIDEBAR_DEFAULT_PX = 320;
@@ -347,6 +348,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			leftPx: number;
 			rightPx: number;
 			maximized: boolean;
+			activePanelId: string | null;
 			fullscreen: boolean;
 		};
 		let groupSizes: { restore: () => void; dispose: () => void } | undefined;
@@ -409,13 +411,15 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 						rightWidthPxRef.current)
 					: rightWidthPxRef.current,
 				maximized: Boolean(dockHandle()?.isMaximizedPanel()),
+				activePanelId: getActiveTabId(),
 				fullscreen,
 			};
 			// Flag first so the rail setters do not persist the temporary collapse.
 			uiStore.setState({ immersiveReading: true });
 			setLeftCollapsed(true);
 			setRightCollapsed(true);
-			if (!immersiveSnapshot.maximized) dockHandle()?.maximizeActivePanel();
+			if (!immersiveSnapshot.maximized)
+				dockHandle()?.maximizeActivePanel(resolveActivePdfTabId() ?? undefined);
 			try {
 				if (await setBorderlessFullscreen(true)) await armFullscreenWatch();
 				else exitAfterEnter = true;
@@ -450,7 +454,11 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				if (restoreFullscreen) {
 					await setBorderlessFullscreen(snapshot.fullscreen);
 				}
-				if (!snapshot.maximized) dockHandle()?.exitMaximizedPanel();
+				if (!snapshot.maximized) {
+					dockHandle()?.exitMaximizedPanel();
+					if (snapshot.activePanelId)
+						dockHandle()?.activatePanel?.(snapshot.activePanelId);
+				}
 				if (snapshot.leftCollapsed) {
 					setLeftCollapsed(true);
 				} else {

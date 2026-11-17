@@ -94,7 +94,7 @@ export function pdfHandleFor(tabId: string | null): PdfViewerHandle | null {
  * is visible — callers must not require `activeTab.mode === "pdf"`.
  * Same fallback pattern as the annotations side panel.
  */
-export function resolveActivePdfHandle(): PdfViewerHandle | null {
+export function resolveActivePdfTabId(): string | null {
 	const active = getActiveTab();
 	const candidates: string[] = [];
 
@@ -113,8 +113,12 @@ export function resolveActivePdfHandle(): PdfViewerHandle | null {
 	}
 
 	for (const id of candidates) {
-		const handle = handles.get(id);
-		if (handle) return handle;
+		if (handles.has(id)) return id;
 	}
 	return null;
+}
+
+export function resolveActivePdfHandle(): PdfViewerHandle | null {
+	const id = resolveActivePdfTabId();
+	return id ? (handles.get(id) ?? null) : null;
 }

@@ -121,3 +121,5 @@ macOS 原生菜单在启动及设置保存后读取 `shortcutOverrides`，菜单
 - 每个 vault 的副作用挂在 `vault:opened` 作用域上，清理写在同一 handler 的 teardown 里，见 [../architecture.md](../architecture.md) 的「生命周期」。
 
 沉浸阅读退出时还会等待原窗口、侧栏与 Dockview 容器尺寸恢复，再恢复各个分栏的尺寸；避免原 PDF / NOTES.md 比例被全屏期间的布局计算覆盖。
+
+从分屏 NOTES.md 进入沉浸阅读时，显式最大化配对的 PDF，而非当前笔记面板；退出时恢复原先激活的面板。

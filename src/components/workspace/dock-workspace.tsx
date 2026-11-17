@@ -664,9 +664,10 @@ export const DockWorkspace = memo(
 				canActivatePanel(panelId) {
 					return Boolean(apiRef.current?.getPanel(panelId));
 				},
-				maximizeActivePanel() {
+				maximizeActivePanel(panelId) {
 					const api = apiRef.current;
-					const activeId = activePanelIdRef.current ?? api?.activePanel?.id;
+					const activeId =
+						panelId ?? activePanelIdRef.current ?? api?.activePanel?.id;
 					const panel =
 						(activeId && api?.getPanel(activeId)) ??
 						api?.panels.find((p) => {
