@@ -120,7 +120,16 @@ export function groupLineSegments(
 	textRects: readonly PageTextRect[],
 ): LineSegment[] {
 	const rects = textRects
-		.filter((r) => r.content.length > 0)
+		.filter(
+			(r) =>
+				r.content.length > 0 &&
+				// Publisher watermarks often run vertically along the page edge.
+				// Their tall boxes must not bridge every horizontal body line.
+				!(
+					r.content.trim().length > 3 &&
+					r.rect.size.height > 3 * r.rect.size.width
+				),
+		)
 		.sort((a, b) => a.rect.origin.y - b.rect.origin.y);
 	const parent = rects.map((_, i) => i);
 	const find = (i: number): number => {
