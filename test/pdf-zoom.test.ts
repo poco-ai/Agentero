@@ -19,7 +19,7 @@ describe("parsePdfZoomPercentage", () => {
 
 	it("clamps percentages to the supported viewer range", () => {
 		expect(parsePdfZoomPercentage("25")).toBe(0.5);
-		expect(parsePdfZoomPercentage("450")).toBe(3);
+		expect(parsePdfZoomPercentage("450")).toBe(4);
 	});
 
 	it("rejects empty and non-numeric input", () => {
@@ -40,8 +40,8 @@ describe("clampZoomPreviewScale", () => {
 	it("keeps the previewed zoom inside the viewer range", () => {
 		// Pinching out of a 200% view cannot go below the 50% floor.
 		expect(clampZoomPreviewScale(0.1, 2)).toBe(0.25);
-		// Nor above the 300% ceiling.
-		expect(clampZoomPreviewScale(4, 1)).toBe(3);
+		// Nor above the 400% ceiling.
+		expect(clampZoomPreviewScale(5, 1)).toBe(4);
 		expect(clampZoomPreviewScale(1.5, 1)).toBe(1.5);
 	});
 });
