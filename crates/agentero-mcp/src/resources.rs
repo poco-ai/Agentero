@@ -72,7 +72,14 @@ pub fn vault_markdown(ctrl: &McpController) -> String {
 }
 
 pub fn invariants_markdown() -> String {
-    ops::agent_invariants_markdown().to_string()
+    // MCP-only section plus the shared rules; CLI guidance stays in the
+    // bundled skill so shell-less clients are never pointed at CLI commands
+    // (issue #1141).
+    format!(
+        "{}\n{}",
+        ops::mcp_invariants_markdown(),
+        ops::common_invariants_markdown()
+    )
 }
 
 pub fn skill_markdown() -> String {

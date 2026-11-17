@@ -46,42 +46,47 @@ describe("cleanTexAuxFiles", () => {
 		expect(notifyError).not.toHaveBeenCalled();
 	});
 
-	it("surfaces the backend message when the clean fails", async () => {
-		cleanLatexAuxFilesMock.mockResolvedValue({
-			ok: false,
-			data: null,
-			error: { code: "message", message: "latexmk not found on this system" },
-		});
-
-		const ok = await cleanTexAuxFiles(TEX_PATH);
-
-		expect(ok).toBe(false);
-		expect(notifyError).toHaveBeenCalledWith(
-			"latexmk not found on this system",
-		);
-		expect(notifySuccess).not.toHaveBeenCalled();
-	});
-
-	it("notifies a fallback when the failure carries no message", async () => {
-		cleanLatexAuxFilesMock.mockResolvedValue({
-			ok: false,
-			data: null,
-			error: null,
-		});
+	it.each([
+		{
+			name: "surfaces the backend message when the clean fails",
+			setup: () =>
+				cleanLatexAuxFilesMock.mockResolvedValue({
+					ok: false,
+					data: null,
+					error: {
+						code: "message",
+						message: "latexmk not found on this system",
+					},
+				}),
+			message: "latexmk not found on this system",
+		},
+		{
+			name: "notifies a fallback when the failure carries no message",
+			setup: () =>
+				cleanLatexAuxFilesMock.mockResolvedValue({
+					ok: false,
+					data: null,
+					error: null,
+				}),
+			message: undefined,
+		},
+		{
+			name: "notifies the thrown error when the invoke rejects",
+			setup: () =>
+				cleanLatexAuxFilesMock.mockRejectedValue(new Error("ipc gone")),
+			message: "ipc gone",
+		},
+	])("$name", async ({ setup, message }) => {
+		setup();
 
 		const ok = await cleanTexAuxFiles(TEX_PATH);
 
 		expect(ok).toBe(false);
 		expect(notifyError).toHaveBeenCalledTimes(1);
-	});
-
-	it("notifies the thrown error when the invoke rejects", async () => {
-		cleanLatexAuxFilesMock.mockRejectedValue(new Error("ipc gone"));
-
-		const ok = await cleanTexAuxFiles(TEX_PATH);
-
-		expect(ok).toBe(false);
-		expect(notifyError).toHaveBeenCalledWith("ipc gone");
+		if (message !== undefined) {
+			expect(notifyError).toHaveBeenCalledWith(message);
+		}
+		expect(notifySuccess).not.toHaveBeenCalled();
 	});
 
 	it("is a no-op while a compile is in flight", async () => {

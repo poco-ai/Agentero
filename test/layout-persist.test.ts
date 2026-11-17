@@ -11,6 +11,11 @@ import {
 	saveLastMode,
 	seedBootWidths,
 } from "@/lib/shell/layout-persist";
+import {
+	LAYOUT_MODE_RIGHT_RATIOS,
+	layoutModeRightCollapsed,
+	layoutModeRightRatio,
+} from "@/lib/shell/layout-presets";
 
 const LEFT: RailLimits = { minPx: 160, maxRatio: 0.3 };
 const RIGHT: RailLimits = { minPx: 260, maxRatio: 0.5 };
@@ -289,5 +294,20 @@ describe("saveLastMode / saveCustomRails", () => {
 		saveLastMode("reading", storage);
 		saveCustomRails({ leftCollapsed: true, rightOpen: false }, storage);
 		expect(read()).toBe(JSON.stringify(initialPrefs));
+	});
+});
+
+describe("layout presets", () => {
+	it("allocates Agent one third of the reading area in Agent mode", () => {
+		expect(layoutModeRightRatio("agent")).toBeCloseTo(1 / 3);
+	});
+
+	it("collapses Agent in Notes mode", () => {
+		expect(layoutModeRightCollapsed("notes")).toBe(true);
+		expect(LAYOUT_MODE_RIGHT_RATIOS.notes).toBe(0);
+	});
+
+	it("collapses Agent in Reading mode", () => {
+		expect(layoutModeRightCollapsed("reading")).toBe(true);
 	});
 });

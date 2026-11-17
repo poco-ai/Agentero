@@ -91,4 +91,4 @@ DOI 旁有 **刷新** 按钮：按当前 DOI（或 arXiv ID）拉取权威元数
 - UI：`src/components/library/`（拖入：`library-pdf-drop-surface.tsx`；自定义属性：`custom-property-dialogs.tsx` / `select-cell.tsx` / `text-cell.tsx`）
 - 状态：`src/lib/paper/library-store.ts`、`library-actions.ts`、`import-actions.ts`（`dropLocalPdfs`）
 - 单测：`test/library-scope.test.ts`、`test/prompt-image.test.ts`（`dataTransferLooksLikePdfs`）、`test/pdf-page-count.test.ts`（真实 EmbedPDF registry / 插件 + 跟踪文档和缓冲所有权的 engine 替身：重复探测、并发隔离、初始化与打开失败、页数读取异常和关闭重试；不以 WASM heap 缩小作为释放判据）
-- 原生资源回归：`test/pdf-page-count-native.test.ts` 使用安装的 PDFium WASM 和内存生成的三页 PDF，验证 32 次串行、8 次并发探测及损坏 PDF 后的文档缓存、受跟踪分配数量与字节数回到基线；WASM 从本地依赖经 data URL 加载，无网络或真实 Vault 依赖。
+- 原生资源回归：`test/pdf-page-count.test.ts`（原生用例，原 `pdf-page-count-native.test.ts` 已并入）使用安装的 PDFium WASM 和内存生成的三页 PDF，验证 32 次串行、8 次并发探测及损坏 PDF 后的文档缓存、受跟踪分配数量与字节数回到基线；WASM 从本地依赖经 data URL 加载，无网络或真实 Vault 依赖。

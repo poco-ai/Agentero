@@ -1,7 +1,12 @@
+import { MarkdownPlugin } from "@platejs/markdown";
 import { createSlateEditor, createSlatePlugin, KEYS } from "platejs";
+import { ParagraphPlugin } from "platejs/react";
 import { describe, expect, it } from "vitest";
 
 import { LinkPlugin } from "@/components/editor/plugins/link-plugin";
+import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
+import { prepareMarkdownForDeserialize } from "@/lib/markdown/deserialize";
+import { isUnfinishedMarkdownLinkContext } from "@/lib/markdown/link-input-rule";
 
 const TestParagraphPlugin = createSlatePlugin({
 	key: KEYS.p,
@@ -18,14 +23,18 @@ const TestCodeLinePlugin = createSlatePlugin({
 	node: { isElement: true },
 });
 
-function findLink(editor: { children: unknown }) {
+function findOuterLinks(editor: { children: unknown }) {
 	const children =
 		(
 			editor.children as Array<{
 				children: Array<Record<string, unknown>>;
 			}>
 		)[0]?.children ?? [];
-	return children.find((c) => c.type === KEYS.a);
+	return children.filter((c) => c.type === KEYS.a);
+}
+
+function findLink(editor: { children: unknown }) {
+	return findOuterLinks(editor)[0];
 }
 
 function createLinkEditor(text: string) {
@@ -154,9 +163,7 @@ describe("Markdown link input rule", () => {
 		});
 		editor.tf.insertText(")");
 
-		const links = (
-			editor.children[0] as { children: Array<Record<string, unknown>> }
-		).children.filter((c) => c.type === KEYS.a);
+		const links = findOuterLinks(editor);
 		expect(links).toHaveLength(2);
 		expect(links[1]).toMatchObject({
 			url: "https://github.com/poco-ai/Agentero/issues",
@@ -251,6 +258,98 @@ describe("Markdown link input rule", () => {
 		expect(findLink(editor)).toMatchObject({
 			url: "https://ex.com",
 			children: [{ text: "a" }],
+		});
+	});
+});
+
+describe("paste URL into unfinished markdown link", () => {
+	const pastePlugins = [ParagraphPlugin, LinkPlugin, ...MarkdownKit];
+	const ISSUE_URL = "https://github.com/poco-ai/Agentero/issues";
+
+	function makeEditor(text = "") {
+		const editor = createSlateEditor({
+			plugins: pastePlugins,
+			value: [{ type: "p", children: [{ text }] }],
+		});
+		editor.tf.select({
+			anchor: { path: [0, 0], offset: text.length },
+			focus: { path: [0, 0], offset: text.length },
+		});
+		return editor;
+	}
+
+	function pasteAutolink(editor: ReturnType<typeof makeEditor>) {
+		const fragment = editor
+			.getApi(MarkdownPlugin)
+			.markdown.deserialize(prepareMarkdownForDeserialize(ISSUE_URL));
+		editor.tf.insertFragment(fragment);
+	}
+
+	it("detects unfinished [label]( context", () => {
+		const editor = makeEditor("[xx](");
+		expect(isUnfinishedMarkdownLinkContext(editor)).toBe(true);
+		const plain = makeEditor("hello ");
+		expect(isUnfinishedMarkdownLinkContext(plain)).toBe(false);
+	});
+
+	it("inserts bare URL as plain text when unfinished, then ) converts", () => {
+		const editor = makeEditor();
+		for (const c of "[xx](") editor.tf.insertText(c);
+
+		expect(isUnfinishedMarkdownLinkContext(editor)).toBe(true);
+		editor.tf.insertData({
+			files: [],
+			getData: (type: string) => (type === "text/plain" ? ISSUE_URL : ""),
+		} as unknown as DataTransfer);
+		expect(JSON.stringify(editor.children)).not.toContain('"type":"a"');
+
+		editor.tf.insertText(")");
+		const links = findOuterLinks(editor);
+		expect(links).toHaveLength(1);
+		expect(links[0]).toMatchObject({
+			type: KEYS.a,
+			url: ISSUE_URL,
+			children: [{ text: "xx" }],
+		});
+	});
+
+	it("converts when URL was already pasted as an autolink node", () => {
+		const editor = makeEditor();
+		for (const c of "[xx](") editor.tf.insertText(c);
+
+		pasteAutolink(editor);
+
+		// Upstream link normalization leaves a text point after the pasted URL.
+		expect(findOuterLinks(editor)).toHaveLength(1);
+
+		// Typing ) must fold [xx]( + autolink into one labeled link.
+		editor.tf.insertText(")");
+
+		const links = findOuterLinks(editor);
+		expect(links).toHaveLength(1);
+		expect(links[0]).toMatchObject({
+			url: ISSUE_URL,
+			children: [{ text: "xx" }],
+		});
+		expect(JSON.stringify(editor.children)).not.toContain("[xx](");
+	});
+
+	it("converts fullwidth ) from inside a pasted autolink", () => {
+		const editor = makeEditor();
+		for (const c of "[issue](") editor.tf.insertText(c);
+
+		pasteAutolink(editor);
+		editor.tf.select({
+			path: [0, 1, 0],
+			offset: ISSUE_URL.length,
+		});
+		editor.tf.insertText("）");
+
+		const links = findOuterLinks(editor);
+		expect(links).toHaveLength(1);
+		expect(links[0]).toMatchObject({
+			url: ISSUE_URL,
+			children: [{ text: "issue" }],
 		});
 	});
 });

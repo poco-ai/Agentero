@@ -17,7 +17,7 @@ use serde_json::Value;
 use std::sync::OnceLock;
 
 pub use events::{public_events, PublicEventSpec};
-pub use invariants::agent_invariants_markdown;
+pub use invariants::{common_invariants_markdown, mcp_invariants_markdown};
 
 /// Side-effect class for an operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -242,9 +242,15 @@ mod tests {
 
     #[test]
     fn invariants_nonempty() {
-        let md = agent_invariants_markdown();
-        assert!(md.contains("Progressive disclosure"));
-        assert!(md.contains("agentero://vault"));
+        let common = common_invariants_markdown();
+        assert!(common.contains("Progressive disclosure"));
+        let mcp = mcp_invariants_markdown();
+        assert!(mcp.contains("agentero://vault"));
+        // MCP readers may have no shell on the server host (issue #1141).
+        assert!(!mcp.contains("agentero describe"));
+        assert!(!mcp.contains("--json"));
+        assert!(!mcp.contains("--yes"));
+        assert!(!common.contains("agentero "));
     }
 
     #[test]

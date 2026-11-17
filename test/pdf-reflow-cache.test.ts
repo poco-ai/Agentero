@@ -1,5 +1,5 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
@@ -14,6 +14,10 @@ import {
 	type ReflowIrCacheStore,
 	type ReflowIrPageHeader,
 } from "@/lib/pdf/reflow/cache";
+import {
+	clearReflowCaches,
+	reflowCacheUsage,
+} from "@/lib/pdf/reflow/cache-manage";
 import { prepareReflowItems } from "@/lib/pdf/reflow/service";
 import {
 	type Box,
@@ -40,7 +44,15 @@ const disk = vi.hoisted(() => ({
 	layout: "layout-one",
 }));
 
-vi.mock("@/lib/core/tauri", () => ({ isTauri: () => true }));
+// Directory tree with byte sizes for the cache-manage walk (merged from
+// pdf-reflow-cache-manage); `disk` above holds real IR payload bytes.
+const tree = vi.hoisted(() => ({
+	files: new Map<string, number>(),
+	dirs: new Set<string>(),
+	tauri: true,
+}));
+
+vi.mock("@/lib/core/tauri", () => ({ isTauri: () => tree.tauri !== false }));
 vi.mock("@tauri-apps/api/path", () => ({
 	appCacheDir: async () => "/app-cache",
 	join: async (...parts: string[]) => parts.join("/"),
@@ -63,21 +75,47 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 	},
 	remove: async (path: string) => {
 		disk.files.delete(path);
+		for (const key of [...disk.files.keys()])
+			if (key.startsWith(`${path}/`)) disk.files.delete(key);
+		for (const key of [...tree.files.keys()])
+			if (key === path || key.startsWith(`${path}/`)) tree.files.delete(key);
+		for (const key of [...tree.dirs])
+			if (key === path || key.startsWith(`${path}/`)) tree.dirs.delete(key);
 	},
-	readDir: async (dir: string) =>
-		[...disk.files.keys()]
-			.filter((path) => path.startsWith(`${dir}/`))
-			.map((path) => ({
-				name: path.slice(dir.length + 1),
-				isFile: true,
-				isDirectory: false,
+	readDir: async (dir: string) => {
+		const prefix = `${dir}/`;
+		const seen = new Set<string>();
+		const entries: {
+			name: string;
+			isFile: boolean;
+			isDirectory: boolean;
+			isSymlink: boolean;
+		}[] = [];
+		for (const key of [
+			...tree.dirs,
+			...tree.files.keys(),
+			...disk.files.keys(),
+		]) {
+			if (!key.startsWith(prefix)) continue;
+			const rest = key.slice(prefix.length);
+			const name = rest.split("/")[0];
+			if (!name || seen.has(name)) continue;
+			seen.add(name);
+			const full = `${prefix}${name}`;
+			entries.push({
+				name,
+				isFile: tree.files.has(full) || disk.files.has(full),
+				isDirectory: tree.dirs.has(full),
 				isSymlink: false,
-			})),
-	stat: async () => ({
+			});
+		}
+		return entries;
+	},
+	stat: async (path: string) => ({
 		isFile: true,
-		isDirectory: false,
+		isDirectory: tree.dirs.has(path),
 		isSymlink: false,
-		size: 0,
+		size: tree.files.get(path) ?? disk.files.get(path)?.byteLength ?? 0,
 		mtime: new Date(0),
 	}),
 }));
@@ -462,3 +500,66 @@ async function encodeRaw(value: unknown): Promise<Uint8Array> {
 		.pipeThrough(new CompressionStream("gzip"));
 	return new Uint8Array(await new Response(stream).arrayBuffer());
 }
+
+// --- cache usage and cleanup (merged from pdf-reflow-cache-manage) ---
+
+function seed(path: string, size: number, isDir = false): void {
+	tree.files.delete(path);
+	tree.dirs.delete(path);
+	if (isDir) tree.dirs.add(path);
+	else tree.files.set(path, size);
+	const parts = path.split("/");
+	for (let i = 1; i < parts.length; i++)
+		tree.dirs.add(parts.slice(0, i).join("/"));
+	tree.dirs.delete(path);
+}
+
+describe("reflow cache usage and cleanup", () => {
+	beforeEach(() => {
+		disk.files.clear();
+		tree.files.clear();
+		tree.dirs.clear();
+		tree.tauri = true;
+		seed("/app-cache", 0, true);
+	});
+
+	it("sums bytes across both cache roots and counts IR papers", async () => {
+		seed("/app-cache/reflow-ir/paperA-abc/0-a.json.gz", 100);
+		seed("/app-cache/reflow-ir/paperA-abc/1-b.json.gz", 50);
+		seed("/app-cache/reflow-ir/paperB-def/0-c.json.gz", 30);
+		seed("/app-cache/reflow-build/prefixA-final-k.pdf", 1000);
+		// Outside the reflow caches: must not count.
+		seed("/app-cache/pdf-fonts/rev/Noto.ttf", 99999);
+
+		const usage = await reflowCacheUsage();
+		expect(usage).toEqual({ papers: 2, bytes: 1180 });
+	});
+
+	it("reports null without IR cache and zero papers with build-only files", async () => {
+		expect(await reflowCacheUsage()).toEqual({ papers: 0, bytes: 0 });
+		seed("/app-cache/reflow-build/prefixA-final-k.pdf", 500);
+		const usage = await reflowCacheUsage();
+		expect(usage?.bytes).toBe(500);
+	});
+
+	it("clears both roots, keeps fonts, and returns the freed size", async () => {
+		seed("/app-cache/reflow-ir/paperA-abc/0-a.json.gz", 100);
+		seed("/app-cache/reflow-build/prefixA-final-k.pdf", 1000);
+		seed("/app-cache/pdf-fonts/rev/Noto.ttf", 99999);
+
+		const freed = await clearReflowCaches();
+		expect(freed).toBe(1100);
+		expect(tree.files.has("/app-cache/pdf-fonts/rev/Noto.ttf")).toBe(true);
+		expect(
+			[...tree.files.keys()].filter((path) =>
+				path.startsWith("/app-cache/reflow"),
+			),
+		).toEqual([]);
+	});
+
+	it("degrades safely outside Tauri", async () => {
+		tree.tauri = false;
+		expect(await reflowCacheUsage()).toBeNull();
+		expect(await clearReflowCaches()).toBe(0);
+	});
+});
