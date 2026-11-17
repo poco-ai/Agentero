@@ -26,6 +26,8 @@ const hookCode = ts.transpileModule(
 import { type PdfLinkAnnoObject, PdfZoomMode } from "@embedpdf/models";
 import { getLinkDestination } from "@/components/viewer/pdf/layers/citation-links";
 import * as citationDestKeys from "@/lib/pdf/citation-dest-keys";
+import * as textReferenceLink from "@/lib/pdf/text-reference-link";
+import * as textReferences from "@/lib/pdf/text-references";
 
 const { citationDestKey } = citationDestKeys;
 
@@ -118,6 +120,9 @@ function createHarness(navigateOutcome: { outcome: string; uri?: string }) {
 	const isFloatingDialogActive = () => false;
 	const loadPdfDestMaps = async () => mapsBox.current;
 	const modules: Record<string, unknown> = {
+		"@embedpdf/models": { PdfZoomMode },
+		"@/lib/pdf/text-references": textReferences,
+		"@/lib/pdf/text-reference-link": textReferenceLink,
 		react,
 		"@/components/viewer/pdf/coords": {
 			pageElByIndex: () => ({}),

@@ -19,8 +19,14 @@
  * stays with its single writer and is passed straight into the page layers.
  */
 
-import type { PdfLinkAnnoObject } from "@embedpdf/models";
+import {
+	type PdfDocumentObject,
+	type PdfEngine,
+	type PdfLinkAnnoObject,
+	PdfZoomMode,
+} from "@embedpdf/models";
 import type { useAnnotationCapability } from "@embedpdf/plugin-annotation/react";
+import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import {
 	type RefObject,
 	useCallback,
@@ -61,6 +67,20 @@ import {
 	type PageOrigin,
 } from "@/lib/pdf/citation-dest-keys";
 import { schedulePdfDestMapsBuild } from "@/lib/pdf/citation-dest-map";
+import type { PageTextRect } from "@/lib/pdf/link-text";
+import {
+	textReferenceForLink,
+	textReferenceLink,
+} from "@/lib/pdf/text-reference-link";
+import {
+	type BibliographyEntry,
+	bibliographyEntries,
+	detectTextReferences,
+	matchTextReference,
+	REFERENCE_HEADING,
+	referenceLines,
+	referenceRectsOverlap,
+} from "@/lib/pdf/text-references";
 
 type AnnotationCapabilityProvides = ReturnType<
 	typeof useAnnotationCapability
@@ -69,6 +89,12 @@ type AnnotationCapabilityProvides = ReturnType<
 const EMPTY_PAGE_ORIGINS: readonly PageOrigin[] = [];
 
 export type UsePdfCitationsOptions = {
+	pageTextRects?: ReadonlyMap<number, readonly PageTextRect[]>;
+	nativeCitationLinks?: ReadonlyMap<number, PdfLinkAnnoObject[]>;
+	engineRef?: RefObject<PdfEngine | null>;
+	docCapRef?: RefObject<
+		ReturnType<typeof useDocumentManagerCapability>["provides"]
+	>;
 	docId: string;
 	/** EmbedPDF capability; owned by `PdfViewerInner` (plugin context). */
 	annotationCap: AnnotationCapabilityProvides;
@@ -119,6 +145,7 @@ export type UsePdfCitationsOptions = {
 };
 
 export type PdfCitations = {
+	citationLinks: Map<number, PdfLinkAnnoObject[]>;
 	citationPreview: CitationPreviewState | null;
 	cancelCitationHide: () => void;
 	scheduleCitationHide: () => void;
@@ -173,6 +200,9 @@ function resolveCitations(
 	citationLinks: CitationLinkKeyList | null,
 	citations: Citation[],
 ): Citation[] {
+	const textReference = textReferenceForLink(link);
+	const group = textReference && matchTextReference(textReference, citations);
+	if (group?.length) return [...new Map(group.map((c) => [c.id, c])).values()];
 	const destination = getLinkDestination(link.target);
 	if (destination) {
 		const byCoord = destKeys?.get(
@@ -250,6 +280,10 @@ function buildRemoteCitations(
 }
 
 export function usePdfCitations({
+	pageTextRects,
+	nativeCitationLinks,
+	engineRef,
+	docCapRef,
 	docId,
 	annotationCap,
 	hostRef,
@@ -264,6 +298,87 @@ export function usePdfCitations({
 	onBeforeInternalJump,
 	onInternalJump,
 }: UsePdfCitationsOptions): PdfCitations {
+	const citationLinks = useMemo(() => {
+		const result = new Map(nativeCitationLinks);
+		for (const [page, rects] of pageTextRects ?? []) {
+			const native = nativeCitationLinks?.get(page) ?? [];
+			const detected = detectTextReferences(rects);
+			// Native targets retain navigation. Add the complete group for matching;
+			// only uncovered parts get new hit areas (including wrapped lines).
+			const annotated = native.map((link) => {
+				const reference = detected.find((r) =>
+					referenceRectsOverlap(r.rect, link.rect),
+				);
+				return reference ? { ...link, textReference: reference } : link;
+			});
+			result.set(page, [
+				...annotated,
+				...detected
+					.flatMap((reference) => {
+						let fragments = [reference.rect];
+						for (const link of native)
+							fragments = fragments.flatMap((rect) => {
+								if (!referenceRectsOverlap(rect, link.rect)) return [rect];
+								const left = rect.origin.x,
+									right = left + rect.size.width;
+								const cutLeft = Math.max(left, link.rect.origin.x),
+									cutRight = Math.min(
+										right,
+										link.rect.origin.x + link.rect.size.width,
+									);
+								return [
+									[left, cutLeft],
+									[cutRight, right],
+								]
+									.filter(([a, b]) => b - a > 0.5)
+									.map(([a, b]) => ({
+										origin: { x: a, y: rect.origin.y },
+										size: { width: b - a, height: rect.size.height },
+									}));
+							});
+						return fragments.map((rect) => ({ ...reference, rect }));
+					})
+					.map((r, i) => textReferenceLink(r, page, i)),
+			]);
+		}
+		return result;
+	}, [nativeCitationLinks, pageTextRects]);
+	const bibliographyRef = useRef<{
+		document: PdfDocumentObject;
+		promise: Promise<BibliographyEntry[]>;
+	} | null>(null);
+	const hoverRequestRef = useRef(0);
+	const loadBibliography = useCallback((): Promise<BibliographyEntry[]> => {
+		const document = docCapRef?.current?.getDocument(docId),
+			engine = engineRef?.current;
+		if (!document || !engine) return Promise.resolve([]);
+		if (bibliographyRef.current?.document === document)
+			return bibliographyRef.current.promise;
+		const promise = (async () => {
+			const pages: { pageIndex: number; rects: readonly PageTextRect[] }[] = [];
+			for (let i = document.pages.length - 1; i >= 0; i--) {
+				if (docCapRef?.current?.getDocument(docId) !== document) return [];
+				const page = document.pages[i];
+				const rects =
+					pageTextRects?.get(i) ??
+					(await engine.getPageTextRects(document, page).toPromise());
+				pages.unshift({ pageIndex: i, rects });
+				if (
+					referenceLines(rects).some((line) =>
+						REFERENCE_HEADING.test(line.glyphs.map((g) => g.ch).join("")),
+					)
+				)
+					break;
+			}
+			return bibliographyEntries(pages);
+		})();
+		bibliographyRef.current = { document, promise };
+		promise.catch(() => {
+			if (bibliographyRef.current?.promise === promise)
+				bibliographyRef.current = null;
+		});
+		return promise;
+	}, [docId, docCapRef, engineRef, pageTextRects]);
 	const onPreviewShowRef = useRef(onPreviewShow);
 	onPreviewShowRef.current = onPreviewShow;
 	const onBeforeInternalJumpRef = useRef(onBeforeInternalJump);
@@ -394,10 +509,12 @@ export function usePdfCitations({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is the effect trigger, not a value read inside the effect.
 	useEffect(() => {
 		citationHoverSurfaceRef.current = false;
+		hoverRequestRef.current++;
 		setCitationPreview(null);
 	}, [docId]);
 
 	const clearCitationPreview = useCallback(() => {
+		hoverRequestRef.current++;
 		cancelCitationHide();
 		citationHoverSurfaceRef.current = false;
 		setCitationPreview(null);
@@ -406,6 +523,55 @@ export function usePdfCitations({
 	/** GoTo/destination → smooth scroll (annotation plugin); URI → browser. */
 	const handleCitationLinkActivate = useCallback(
 		(link: PdfLinkAnnoObject) => {
+			const reference = textReferenceForLink(link);
+			if (reference && !link.target) {
+				// Text-only links have no author-provided destination. Resolve the actual
+				// bibliography marker before navigating; figure links remain previews.
+				if (!reference.label)
+					void loadBibliography()
+						.then((entries) => {
+							const matched = matchTextReference(
+								reference,
+								entries.map((e) => e.citation),
+							);
+							const entry = entries.find(
+								(e) => e.citation.id === matched[0]?.id,
+							);
+							const document = docCapRef?.current?.getDocument(docId),
+								page = entry && document?.pages[entry.pageIndex];
+							if (!entry || !page || !annotationCap) return;
+							onBeforeInternalJumpRef.current?.();
+							const pdfY = page.size.height - entry.rect.origin.y;
+							annotationCap
+								.navigateTarget(
+									{
+										type: "destination",
+										destination: {
+											pageIndex: entry.pageIndex,
+											zoom: {
+												mode: PdfZoomMode.XYZ,
+												params: { x: entry.rect.origin.x, y: pdfY, zoom: 0 },
+											},
+											view: [],
+										},
+									},
+									docId,
+								)
+								.toPromise()
+								.then((result) => {
+									if (result.outcome !== "navigated") return;
+									clearCitationPreview();
+									onInternalJumpRef.current?.({
+										pageIndex: entry.pageIndex,
+										pdfX: entry.rect.origin.x,
+										pdfY,
+									});
+								})
+								.catch(() => {});
+						})
+						.catch(() => {});
+				return;
+			}
 			const target = link.target;
 			if (!target || !annotationCap) return;
 			// Capture the pre-jump position before the scroll starts.
@@ -433,16 +599,64 @@ export function usePdfCitations({
 				})
 				.catch(() => {});
 		},
-		[annotationCap, docId, clearCitationPreview],
+		[annotationCap, docId, clearCitationPreview, loadBibliography, docCapRef],
 	);
 
 	const handleCitationLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, clientPoint?: ScreenPoint | null) => {
+			const request = ++hoverRequestRef.current;
 			if (!link) {
 				// Delay so the pointer can bridge into the card (import menu,
 				// external links, scrolling a multi-entry list).
 				scheduleCitationHide();
 				return;
+			}
+			const reference = textReferenceForLink(link);
+			const known = reference
+				? matchTextReference(reference, citationsRef.current)
+				: [];
+			const expected =
+				reference?.numbers?.length ?? reference?.authorYears?.length ?? 0;
+			if (
+				reference &&
+				!reference.label &&
+				!isRemotePaper &&
+				known.length < expected
+			) {
+				void loadBibliography()
+					.then((entries) => {
+						if (hoverRequestRef.current !== request) return;
+						const local = matchTextReference(reference, citationsRef.current);
+						const fallback = matchTextReference(
+							reference,
+							entries.map((e) => e.citation),
+						).filter(
+							(c) =>
+								!local.some((known) =>
+									known.display
+										? known.display === c.display
+										: known.raw === c.raw,
+								),
+						);
+						const complete = [
+							...new Map(
+								[...local, ...fallback].map((c) => [c.id, c]),
+							).values(),
+						];
+						if (!complete.length) return;
+						const pageEl = pageElByIndex(hostRef.current, link.pageIndex);
+						if (!pageEl) return;
+						cancelCitationHide();
+						citationHoverSurfaceRef.current = true;
+						onPreviewShowRef.current?.();
+						setCitationPreview({
+							screen:
+								clientPoint ??
+								rectBottomCenterScreen(pageEl, link.rect, zoomRef.current || 1),
+							matched: complete,
+						});
+					})
+					.catch(() => {});
 			}
 			const matched = resolveCitations(
 				link,
@@ -470,6 +684,8 @@ export function usePdfCitations({
 			});
 		},
 		[
+			isRemotePaper,
+			loadBibliography,
 			scheduleCitationHide,
 			cancelCitationHide,
 			hostRef,
@@ -499,6 +715,7 @@ export function usePdfCitations({
 	);
 
 	return {
+		citationLinks,
 		citationPreview,
 		cancelCitationHide,
 		scheduleCitationHide,

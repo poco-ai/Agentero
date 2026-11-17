@@ -83,6 +83,7 @@ import {
 	type PageTextRect,
 	parseBracketCitation,
 } from "@/lib/pdf/link-text";
+import { textReferenceForLink } from "@/lib/pdf/text-reference-link";
 
 /**
  * Preview crops render at zoom × devicePixelRatio so they match the page 1:1,
@@ -470,6 +471,24 @@ export function usePdfCrossrefPreview({
 			if (hasCitationMatchRef.current?.(link)) {
 				clearCrossrefPreview();
 				return;
+			}
+			const reference = textReferenceForLink(link);
+			const layoutRegions = getLayoutDocumentResult(docId)?.regions ?? [];
+			// A publisher may link only the suffix, or omit the link entirely.
+			// The complete text label takes precedence over a subpanel anchor.
+			if (reference?.label) {
+				const label = reference.label;
+				const named = layoutRegions.find((r) => {
+					const parsed = extractCrossrefLabel(r.title ?? "");
+					return parsed?.kind === label.kind && parsed.number === label.number;
+				});
+				const region =
+					named &&
+					pickCrossrefRegionByLabel(layoutRegions, named.pageIndex, label);
+				if (region) {
+					showPreview(link, region, label.kind, clientPoint);
+					return;
+				}
 			}
 			const rawDestination = getLinkDestination(link.target);
 			if (!rawDestination) {
