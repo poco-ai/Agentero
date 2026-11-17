@@ -59,7 +59,9 @@ const BRACKET_BODY = new RegExp(
  * Rects of similar height (body text, linked numbers) share a line only when
  * they overlap by this fraction — staggered baselines of two columns do not.
  */
-const SAME_BASELINE_OVERLAP = 0.7;
+// Integer PDFium bounds can round a descender and an adjacent number to bands
+// overlapping by only two thirds, even though both belong to the same line.
+const SAME_BASELINE_OVERLAP = 0.65;
 /** Below this height ratio a rect is a superscript / comma / dash fragment… */
 const FRAGMENT_HEIGHT_RATIO = 0.7;
 /** …which joins a line on a looser overlap of its own height. */
