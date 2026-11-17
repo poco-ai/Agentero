@@ -875,6 +875,7 @@ function PdfViewerInner({
 		hostRef,
 		zoomRef,
 		isActive,
+		sideBySide: dualPaneTranslate && !translationPane,
 		paperRelPath,
 		paperAbsPath,
 		isCommentDraftActive: () => selectionCommentEngagedRef.current,
@@ -1727,10 +1728,24 @@ function PdfViewerInner({
 		!regionSelecting,
 		(sentence, event) => {
 			const doc = docCapRef.current?.getDocument(docId);
+			// The document manager can still be opening. Fall back to the rendered
+			// page box so the source pane's double-click is not a no-op.
+			const zoom = zoomRef.current > 0 ? zoomRef.current : 1;
+			const sizeFor = (pageIndex: number) => {
+				const size = doc?.pages[pageIndex]?.size;
+				if (size) return size;
+				const box = pageElByIndex(
+					hostRef.current,
+					pageIndex,
+				)?.getBoundingClientRect();
+				return box && box.width > 0 && box.height > 0
+					? { width: box.width / zoom, height: box.height / zoom }
+					: null;
+			};
 			const pages = [
 				...new Set(sentence.members.map((member) => member.pageIndex)),
 			].flatMap((pageIndex) => {
-				const size = doc?.pages[pageIndex]?.size;
+				const size = sizeFor(pageIndex);
 				if (!size) return [];
 				const segmentRects = mergeTightGlyphRects(
 					sentence.members
@@ -1747,16 +1762,27 @@ function PdfViewerInner({
 				const rect = unionRectsAll(segmentRects);
 				return rect ? [{ pageIndex, rect, segmentRects }] : [];
 			});
-			const anchor = anchorFromEmbedSelection(
-				pages,
-				sentence.quote,
-				(pageIndex) => doc?.pages[pageIndex]?.size ?? null,
-				"selection",
-				sentence.pageIndex,
-			);
 			const rects = sentence.members
 				.filter((member) => member.pageIndex === sentence.pageIndex)
 				.flatMap((member) => member.rects);
+			// Page-fraction rects are enough for the toolbar anchor, so a missing
+			// document size only disables highlight creation, not the menu.
+			const anchor =
+				anchorFromEmbedSelection(
+					pages,
+					sentence.quote,
+					sizeFor,
+					"selection",
+					sentence.pageIndex,
+				) ??
+				(rects.length
+					? {
+							page: sentence.pageIndex + 1,
+							rects,
+							quote: sentence.quote,
+							trigger: "selection" as const,
+						}
+					: null);
 			const bounds = selectionBoundsOnScreen(
 				pageElByIndex(hostRef.current, sentence.pageIndex),
 				rects,
@@ -1767,7 +1793,6 @@ function PdfViewerInner({
 			setSelectionMenu({
 				anchor,
 				pages,
-				sentenceSelection: true,
 				screen: {
 					x: (bounds.left + bounds.right) / 2,
 					y: bounds.top,
@@ -2064,9 +2089,6 @@ function PdfViewerInner({
 			// per-page gated prop in renderPage so a comment hover re-renders
 			// only the owning page, not every page sharing this bundle.
 			selectionCommentDraft,
-			sentenceSelectionPages: selectionMenu?.sentenceSelection
-				? selectionMenu.pages
-				: undefined,
 			translateHighlightsByPage,
 			highlightQuotesByPage,
 			translatedHighlightsByPage,
@@ -2089,7 +2111,6 @@ function PdfViewerInner({
 			activeCard?.id,
 			translateCardPlaced,
 			selectionCommentDraft,
-			selectionMenu,
 			translateHighlightsByPage,
 			highlightQuotesByPage,
 			translatedHighlightsByPage,

@@ -352,7 +352,6 @@ export type PdfActiveCardAnchor = {
 
 /** Marks and mark-derived overlays. Whole-document work, bucketed by page. */
 export type PdfPageMarksSlice = {
-	sentenceSelectionPages?: import("@embedpdf/plugin-selection/react").FormattedSelection[];
 	activeAskAnchor: PdfActiveCardAnchor | null;
 	activeTranslateAnchor: PdfActiveCardAnchor | null;
 	activeVisualTrace: PdfVisualSessionTrace | null;
@@ -1432,10 +1431,9 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 								pageIndex,
 							)}
 							draftPages={
-								marks.sentenceSelectionPages ??
-								(marks.selectionCommentDraft?.visiblePages?.length
+								marks.selectionCommentDraft?.visiblePages?.length
 									? undefined
-									: marks.selectionCommentDraft?.pages)
+									: marks.selectionCommentDraft?.pages
 							}
 						/>
 					)}

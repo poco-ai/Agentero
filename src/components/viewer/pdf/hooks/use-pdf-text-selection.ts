@@ -214,6 +214,11 @@ export type UsePdfTextSelectionOptions = {
 	zoomRef: RefObject<number>;
 	/** Only the active tab may hijack copy. */
 	isActive: boolean;
+	/**
+	 * The pane is visible beside another PDF viewer (dual-pane translation).
+	 * Side-by-side panes keep selection menus while their tab is not active.
+	 */
+	sideBySide?: boolean;
 	/** Provenance for the published selection (Agent chips / conversation pins). */
 	paperRelPath: string | null;
 	paperAbsPath: string | null;
@@ -250,10 +255,24 @@ export function usePdfTextSelection({
 	hostRef,
 	zoomRef,
 	isActive,
+	sideBySide = false,
 	paperRelPath,
 	paperAbsPath,
 	isCommentDraftActive,
 }: UsePdfTextSelectionOptions): PdfTextSelection {
+	const [sideBySideVisible, setSideBySideVisible] = useState(true);
+	useEffect(() => {
+		if (!sideBySide) return;
+		const host = hostRef.current;
+		if (!host || typeof IntersectionObserver === "undefined") return;
+		const observer = new IntersectionObserver((entries) => {
+			setSideBySideVisible(Boolean(entries[0]?.isIntersecting));
+		});
+		observer.observe(host);
+		return () => observer.disconnect();
+	}, [hostRef, sideBySide]);
+	/** Selecting in a visible pane must not depend on which tab owns focus. */
+	const interactive = isActive || (sideBySide && sideBySideVisible);
 	const [selectionMenu, setSelectionMenu] = useState<SelectionMenuState | null>(
 		null,
 	);
@@ -328,9 +347,9 @@ export function usePdfTextSelection({
 	// Dockview keeps hidden tabs mounted. Drop their selection, including any
 	// pending text extraction, as soon as this viewer loses focus or unmounts.
 	useEffect(() => {
-		if (!isActive) return;
+		if (!interactive) return;
 		return closeSelectionMenu;
-	}, [isActive, closeSelectionMenu]);
+	}, [interactive, closeSelectionMenu]);
 
 	const rePlaceSelectionMenu = useCallback(() => {
 		setSelectionMenu((prev) => {
@@ -423,7 +442,7 @@ export function usePdfTextSelection({
 
 	// Show the selection action menu when a drag-selection ends.
 	useEffect(() => {
-		if (!isActive || !selectionCap || !docCap) return;
+		if (!interactive || !selectionCap || !docCap) return;
 
 		const scope = selectionCap.forDocument(docId);
 		// A translation drag is a DOM range on top of the English glyphs. Ending
@@ -652,7 +671,7 @@ export function usePdfTextSelection({
 			clearActiveSelection("pdf");
 		};
 	}, [
-		isActive,
+		interactive,
 		selectionCap,
 		docCap,
 		docId,
@@ -666,7 +685,7 @@ export function usePdfTextSelection({
 	// PDFium selections are invisible to the browser: intercept copy so ⌘/Ctrl+C
 	// yields the selected PDF text instead of nothing.
 	useEffect(() => {
-		if (!isActive || !selectionMenu) return;
+		if (!interactive || !selectionMenu) return;
 		const selectedText = (
 			selectionMenu.copyText ??
 			selectionMenu.anchor.quote ??
@@ -705,11 +724,11 @@ export function usePdfTextSelection({
 			document.removeEventListener("copy", onCopy);
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, [isActive, selectionMenu, hostRef]);
+	}, [interactive, selectionMenu, hostRef]);
 
 	return {
 		selectionStartPageIndex,
-		selectionMenu: isActive ? selectionMenu : null,
+		selectionMenu: interactive ? selectionMenu : null,
 		setSelectionMenu,
 		isSelecting,
 		closeSelectionMenu,

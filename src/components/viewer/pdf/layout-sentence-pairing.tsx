@@ -268,7 +268,9 @@ export function PdfSentenceHighlight({
 					? current
 					: null;
 			const selectedDocument = heldLayoutSentenceDocument();
-			if (!mine || selectedDocument === docId) {
+			// The translated side keeps its native DOM selection tint; the source
+			// PDF has no DOM text, so this layer owns its held sentence band.
+			if (!mine || (!source && selectedDocument === docId)) {
 				transition(null);
 				return;
 			}

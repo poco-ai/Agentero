@@ -749,6 +749,9 @@ export function sentenceForActivation(
 	query: PointerQuery,
 ): ElementSentenceHit | null {
 	suppressed = false;
+	// A new activation supersedes the sentence the previous toolbar owned;
+	// otherwise `applyPointer` stays frozen and resolves a stale document.
+	held = null;
 	lastQuery = query;
 	applyPointer(query);
 	const current = hover;
