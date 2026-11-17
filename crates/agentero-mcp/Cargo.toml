@@ -1,6 +1,6 @@
 [package]
 name = "agentero-mcp"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2021"
 description = "Streamable HTTP MCP server shared by the Agentero desktop app and CLI"
 authors = ["you"]
@@ -14,7 +14,7 @@ serde_json = { workspace = true }
 tokio = { workspace = true, features = ["net", "rt", "sync", "macros", "signal"] }
 log = { workspace = true }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
-rmcp = { version = "3.1", default-features = false, features = [
+rmcp = { version = "3.10", default-features = false, features = [
   "server",
   "macros",
   "schemars",
@@ -28,4 +28,4 @@ async-trait = "0.1.91"
 [dev-dependencies]
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net"] }
-rmcp = { version = "3.1", default-features = false, features = ["client", "transport-io"] }
+rmcp = { version = "3.10", default-features = false, features = ["client", "transport-io"] }

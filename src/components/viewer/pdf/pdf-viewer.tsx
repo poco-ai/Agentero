@@ -712,7 +712,7 @@ function PdfViewerInner({
 		highlights,
 		highlightsRef,
 		highlightAnchors,
-		citationLinks,
+		citationLinks: nativeCitationLinks,
 		createHighlights,
 		updateHighlightComment,
 		updateHighlightColor,
@@ -769,6 +769,7 @@ function PdfViewerInner({
 	 */
 	const {
 		pageTextMap,
+		pageTextRects,
 		pageTextLinkMap,
 		pageTextMapRef,
 		selectionTextExclusionsByPage,
@@ -799,7 +800,7 @@ function PdfViewerInner({
 		for (const [pageIndex, links] of pageTextLinkMap) {
 			const filtered = excludeOverlappingPdfTextLinks(
 				links,
-				citationLinks.get(pageIndex) ?? [],
+				nativeCitationLinks.get(pageIndex) ?? [],
 			);
 			const prevLinks = prev?.get(pageIndex);
 			if (
@@ -816,7 +817,7 @@ function PdfViewerInner({
 		if (!changed && prev) return prev;
 		textLinksRef.current = next;
 		return next;
-	}, [pageTextLinkMap, citationLinks]);
+	}, [pageTextLinkMap, nativeCitationLinks]);
 
 	const hostRef = useRef<HTMLDivElement>(null);
 	usePdfSyncTex({
@@ -1106,6 +1107,7 @@ function PdfViewerInner({
 
 	const {
 		citationPreview,
+		citationLinks,
 		scheduleCitationHide,
 		markCitationHoverEnter,
 		clearCitationPreview,
@@ -1115,6 +1117,10 @@ function PdfViewerInner({
 		citationImport,
 		pageOrigins,
 	} = usePdfCitations({
+		pageTextRects,
+		nativeCitationLinks,
+		engineRef,
+		docCapRef,
 		docId,
 		annotationCap,
 		hostRef,

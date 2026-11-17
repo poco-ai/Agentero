@@ -152,6 +152,46 @@ fn dsh_cli_dir_for_executable(executable: &std::path::Path) -> Option<PathBuf> {
         .then_some(directory)
 }
 
+/// Standalone runtimes only: never run a GUI executable as a Node substitute.
+#[cfg(windows)]
+fn windows_node_dirs() -> Vec<PathBuf> {
+    [
+        (DesktopAppId::Chatgpt, "cua_node/bin"),
+        (
+            DesktopAppId::DshDesktop,
+            "runtime/primary-runtime/dependencies/node/bin",
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(id, directory)| {
+        let executable = detect_app(APPS.iter().find(|spec| spec.id == id)?)?;
+        Some(app_resources_dir(&executable)?.join(directory))
+    })
+    .collect()
+}
+
+/// Append desktop CLI/runtime directories after user-owned PATH installations.
+#[cfg(windows)]
+pub(crate) fn windows_cli_dirs() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    for command in ["codex", "qodercn", "qodercli", "codebuddy", "node"] {
+        if let Some(binary) = bundled_cli(command) {
+            if let Some(parent) = binary.parent() {
+                let dir = parent.to_path_buf();
+                if !paths.contains(&dir) {
+                    paths.push(dir);
+                }
+            }
+        }
+    }
+    if let Some(directory) = dsh_cli_dir() {
+        if !paths.contains(&directory) {
+            paths.push(directory);
+        }
+    }
+    paths
+}
+
 /// CLI engine a known desktop app ships inside its own bundle.
 ///
 /// Agentero never drives these GUIs over ACP; it reuses the CLI the installer
@@ -170,6 +210,12 @@ fn dsh_cli_dir_for_executable(executable: &std::path::Path) -> Option<PathBuf> {
 ///
 /// Returns `None` for commands no known desktop app bundles.
 pub(crate) fn bundled_cli(command: &str) -> Option<PathBuf> {
+    #[cfg(windows)]
+    if command == "node" {
+        return windows_node_dirs()
+            .into_iter()
+            .find_map(|dir| bundled_cli_in(&dir, &["node"]));
+    }
     let (app, directory, candidates) = bundled_cli_spec(command)?;
     let detected = detect_app(APPS.iter().find(|spec| spec.id == app)?)?;
     let resources = app_resources_dir(&detected)?;
@@ -186,6 +232,8 @@ fn bundled_cli_spec(
     command: &str,
 ) -> Option<(DesktopAppId, &'static str, &'static [&'static str])> {
     match command {
+        #[cfg(windows)]
+        "codex" => Some((DesktopAppId::Chatgpt, "", &["codex"])),
         "qodercn" | "qoderclicn" => {
             Some((DesktopAppId::Qwenwork, "bin", &["qoderclicn", "qodercn"]))
         }
@@ -395,7 +443,7 @@ mod tests {
         let (_, _, intl_names) = bundled_cli_spec("qodercli").unwrap();
         assert!(!cn_names.contains(&"qodercli"));
         assert!(!intl_names.contains(&"qoderclicn"));
-        assert!(bundled_cli_spec("codex").is_none());
+        assert_eq!(bundled_cli_spec("codex").is_some(), cfg!(windows));
     }
 
     #[cfg(unix)]

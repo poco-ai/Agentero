@@ -2,6 +2,8 @@
 
 PDF bbox benchmark 的单篇试标、教学答案、标注规则与文件交接见 [BBox 标注与教学样例](bbox-annotation.md)。
 
+使用已有人工标注评测启发式融合，见 [OmniDocBench bbox 融合评测](omnidocbench-bbox.md)。
+
 当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 `src/` 与 `test/` 解耦：应用代码不能 import 测试 fixture 或 helper。
 
 ## 测试保留原则
@@ -21,6 +23,16 @@ PDF bbox benchmark 的单篇试标、教学答案、标注规则与文件交接�
 
 不要为满足数量或覆盖率机械增加用例，也不要为降低数量删掉唯一覆盖。静态契约检查只有在对应明确故障风险时才值得保留。CI 耗时分析应区分环境准备、依赖编译、测试收集和实际执行；删除前记录候选用例验证的行为、替代覆盖和预计节省的实测成本。本文只规定评估方式，不改变当前 CI 的执行任务。
 
+### 取舍细则（issue #1043 清理后生效）
+
+- **禁止假 React 运行时**：不得用 `typescript.transpileModule` + `runInNewContext` 自建 hook slots / effect 队列驱动 hook。hook 测试用 happy-dom + 真实 React（`test/helpers/mount.tsx` 的 `mountRoot` / `mountHook`），只 mock IO 边界。VM 仅允许用于执行无法 import 的注入脚本（shipped JS artifact，如 web-view selection bridge、WebView2 pinch 守卫）。
+- **禁止镜像生产代码**：测试不得手工复制生产 helper 的实现再断言镜像；必须 import 真品。镜像会随源码漂移，测的不是真实行为。
+- **禁止样式/像素/文案锁**：不断言 className、style 像素值、组件渲染顺序、i18n key 字面量或逐句文案；断言语义分支与可观察结果。prompt 类功能产物只保留结构性断言。
+- **mock 调用断言的边界**：模块契约本身就是边界调用（如刷新波抑制、跨 vault store 清理）时允许；其余情况断言真实状态/返回值/持久化结果，不复述接线。
+- **碎片合并**：同一模块的细碎用例并入主测试文件；<50 行的纯函数契约优先归并而非独立成文件。文件级 `// @vitest-environment` pragma 不同的文件不能合并。测试耗时大头在每文件模块加载与环境创建，合并小文件比删断言更能提速。
+- **共享脚手架**：i18n / Tauri 平台 / deferred / 键盘事件 / observers / React 挂载 / fake timers 统一用 `test/helpers/`，不再逐文件复制（见下方目录结构）。
+- **假 DOM 时序转手工回归**：依赖真实浏览器布局的时序（跨页划词、菜单/卡片像素定位、zoom/scroll 手势）不写 happy-dom 模拟测试，登记到 [发布前测试大纲](release-checklist.md) §7；可抽纯函数的（metrics、状态机）优先抽出来直测。
+
 ## 发布前验收
 
 产品发布 / 打 tag / 分发安装包前的完整流程与 Checklist：
@@ -35,13 +47,21 @@ PDF bbox benchmark 的单篇试标、教学答案、标注规则与文件交接�
 ```text
 test/
 ├── helpers/
-│   └── create-test-vault.ts
+│   ├── create-test-vault.ts   # 临时目录真实 Vault
+│   ├── i18n.ts                # react-i18next mock（t: key => key）
+│   ├── tauri.ts               # makeTauriPlatform 平台 mock 工厂
+│   ├── deferred.ts            # deferred<T>() promise 控制
+│   ├── keyboard.ts            # keyEvent / pressKey 构造
+│   ├── observers.ts           # ResizeObserver / matchMedia stub
+│   ├── mount.tsx              # mountRoot / mountHook（需 DOM pragma）
+│   └── timers.ts              # useFakeTimers 注册
 ├── scripts/
 │   └── create-demo-vault.mjs   # 本地 demo / 手工验收用 Vault
 └── *.test.ts
 ```
 
 - `test/helpers/create-test-vault.ts` 用临时目录创建真实文件形态的 Vault。
+- mock 类 helper 经 `vi.mock` 工厂使用：`vi.mock("react-i18next", () => import("./helpers/i18n"))`、`vi.mock("@/lib/core/tauri", async () => (await import("./helpers/tauri")).makeTauriPlatform({ platformOS: "macos" }))`。`vi.mock` 工厂被 hoist，不能引用顶层 import；自定义行为用 `vi.hoisted` 或 async 工厂内 dynamic import。
 - `test/scripts/create-demo-vault.mjs` 生成符合 catalog + 嵌套 paper 文件夹约定的 demo Vault（含 `.agentero/catalog.sqlite`，**schema_version = 3**）。
 - 测试文件可以从 `src/` import 生产代码，但生产代码不能从 `test/` import。
 - 优先在每个测试内声明最小必要 Vault 文件，让测试数据和断言靠近。

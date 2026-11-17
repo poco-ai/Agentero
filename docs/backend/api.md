@@ -290,11 +290,12 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
   - 路径为**目录**时：`cwd` = 该目录。
   - 路径为**文件**时：`cwd` = 父目录。
   - 路径不存在或无法解析父目录时返回错误。
-  - 读取 `settings.terminalApp`（`terminal_apps_probe` 返回的 id）；未知 id、未安装或启动失败只记 warning，随后走系统默认终端，不向上返回错误。
+  - 读取 `settings.terminalApp`（`terminal_apps_probe` 返回的 id，`system` / 空值 = 系统默认）；未知 id、未安装或启动失败只记 warning，随后走系统默认终端，不向上返回错误。
+  - 同一优先级也被 Agent「终端」「登录」按钮、远程安装终端复用（见 `agent.md`）。
   - 系统默认平台：
     - macOS：`open -a Terminal <cwd>`
     - Windows：优先 `wt -d <cwd>`，失败则 `cmd /K cd /d …`
-    - Linux：`xdg-terminal-exec` → `$TERMINAL` → 常见终端（gnome-terminal / konsole / …）→ `x-terminal-emulator`
+    - Linux：`xdg-terminal-exec` → `$TERMINAL` → `terminal_apps_probe` 中已安装的预设（gnome-terminal / konsole / xfce4-terminal / kitty / alacritty / wezterm / ghostty）→ mate-terminal / tilix → `x-terminal-emulator`
 
 #### `terminal_apps_probe`（已实现）
 
@@ -302,7 +303,11 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 - macOS：Terminal（系统内置）、iTerm2、Otty
 - Windows：Windows Terminal、PowerShell、Command Prompt
-- Linux：GNOME Terminal / Konsole / Xfce Terminal / kitty / Alacritty / WezTerm（按 PATH 检测）
+- Linux：GNOME Terminal / Konsole / Xfce Terminal / kitty / Alacritty / WezTerm / Ghostty（按 PATH 检测）
+
+设置页始终额外提供「系统默认」（`system`）项；所选 agent 终端 id 在 `run_terminal_script` 中按
+`-e bash -lc <cmd>` 形式启动（GNOME Terminal `--`、kitty 直接、xfce 单参引号、WezTerm `start --`、
+Ghostty `-e`），失败回退系统默认。
 
 #### `path_trash`
 

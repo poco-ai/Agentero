@@ -23,6 +23,8 @@ Host commands：`mcp_get_status` / `mcp_set_enabled` / `mcp_set_port` / `mcp_set
 
 `initialize.serverInfo` 带 `title`、`websiteUrl` 和 `icons`（应用 PNG 的 data URI）。客户端可以忽略不画。
 
+`resources/list` 不带 `icons`：resource 级图标是完整 data URI，每次调用都会重发同一张 PNG，白白占模型上下文（#1139）。品牌图标只保留在 `serverInfo.icons` 这一处。
+
 `initialize.instructions` 指向下方 resources，并强调 `paper_list` 默认瘦字段、覆盖 NOTES 前需确认。
 
 无鉴权。不要把端口绑到非 loopback。
@@ -62,10 +64,12 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | URI | MIME | 内容 |
 |---|---|---|
 | `agentero://vault` | Markdown | 当前路径、schemaVersion、papers、unread，以及已知 Vault 列表 |
-| `agentero://agent-invariants` | Markdown | 与 CLI/`agentero-core::ops` 同源的 agent invariants |
+| `agentero://agent-invariants` | Markdown | MCP 专属规则 + `agentero-core::ops` 的通用 agent invariants（不含 CLI 命令；CLI 指引在 bundled Skill 正文，见 #1141） |
 | `agentero://skills/agentero-cli` | Markdown | 当前平台 bundled `agentero-cli` Skill 正文 |
 
 无 Vault 时 `agentero://vault` 仍列出，`resources/read` 返回「未打开 Vault」正文。`initialize` instructions 提示先读 vault → invariants，再调用 tools。
+
+`resources/list` 与 `resources/read` 都带 SEP-2549 缓存字段 `ttlMs: 0`、`cacheScope: "private"`：MCP `2026-07-28` 把它们列为必填，而部分客户端（如 Qoder）即使协商到旧版本也按新 schema 校验；值为 0/private 表示 Vault 内容随时可能变化、且只允许本客户端缓存。字段无条件发送，旧客户端会忽略未知字段。
 
 ## Tools
 

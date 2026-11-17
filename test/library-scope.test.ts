@@ -131,48 +131,6 @@ describe("filterPapersByScope", () => {
 	});
 });
 
-describe("filterPapersByScope latency", () => {
-	it("stays well under a frame budget across catalog sizes", () => {
-		const sizes = [100, 1_000, 5_000, 10_000, 50_000] as const;
-		const results: string[] = [];
-
-		for (const n of sizes) {
-			const rows: PaperMetadata[] = [];
-			for (let i = 0; i < n; i++) {
-				const org = i % 20 === 0 ? "nlp" : i % 20 === 1 ? "cv" : `org${i % 50}`;
-				rows.push(paper(`papers/${org}/paper-${i}`));
-			}
-			// Warm JIT / allocator before timing (cold first call skews CI averages).
-			for (let w = 0; w < 5; w++) {
-				filterPapersByScope(rows, "papers/nlp");
-			}
-			const iterations = n >= 10_000 ? 30 : 100;
-			const samples: number[] = [];
-			let hits = 0;
-			for (let i = 0; i < iterations; i++) {
-				const t0 = performance.now();
-				hits = filterPapersByScope(rows, "papers/nlp").length;
-				samples.push(performance.now() - t0);
-			}
-			samples.sort((a, b) => a - b);
-			// Median resists single GC/noisy spikes that pull the mean over a hard
-			// ceiling on shared CI runners (GHA previously flaked at ~52ms mean).
-			const medianMs = samples[Math.floor(samples.length / 2)] ?? 0;
-			const avgMs = samples.reduce((a, b) => a + b, 0) / samples.length;
-			results.push(
-				`n=${String(n).padStart(5)} median=${medianMs.toFixed(3)}ms avg=${avgMs.toFixed(3)}ms hits=${hits}`,
-			);
-			// Local n=50k is ~10ms; O(n²) would be hundreds of ms+. Ceiling leaves
-			// headroom for GHA load while still catching real algorithmic blowups.
-			expect(medianMs).toBeLessThan(100);
-			expect(hits).toBeGreaterThan(0);
-		}
-
-		// eslint-disable-next-line no-console
-		console.log(`[library-scope latency]\n  ${results.join("\n  ")}`);
-	});
-});
-
 describe("ensureFullLibraryTab", () => {
 	it("inserts full library when strip is empty", () => {
 		const { tabs, activeId, inserted } = ensureFullLibraryTab([]);

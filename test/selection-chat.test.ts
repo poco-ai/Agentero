@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	encodeSelectionToken,
 	extractSelectionTokens,
@@ -13,6 +13,10 @@ import {
 	selectionChatStore,
 } from "@/lib/agent/selection-chat-store";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
+import {
+	registerSelectionAddToChat,
+	runSelectionAddToChat,
+} from "@/lib/agent/selection-quick-chat";
 import {
 	clearActiveSelection,
 	clearSelections,
@@ -163,5 +167,27 @@ describe("composer selection tokens", () => {
 				),
 			),
 		).toHaveLength(2);
+	});
+});
+
+describe("selection add-to-chat shortcut registry", () => {
+	it("offers the parent-window shortcut to the newest armed iframe selection", () => {
+		const old = vi.fn(() => true);
+		const latest = vi.fn(() => false);
+		const releaseOld = registerSelectionAddToChat(old);
+		const releaseLatest = registerSelectionAddToChat(latest);
+		try {
+			expect(runSelectionAddToChat()).toBe(true);
+			expect(latest).toHaveBeenCalledOnce();
+			expect(old).toHaveBeenCalledOnce();
+			latest.mockReturnValue(true);
+			old.mockClear();
+			expect(runSelectionAddToChat()).toBe(true);
+			expect(old).not.toHaveBeenCalled();
+		} finally {
+			releaseLatest();
+			releaseOld();
+		}
+		expect(runSelectionAddToChat()).toBe(false);
 	});
 });

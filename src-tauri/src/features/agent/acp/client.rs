@@ -251,7 +251,11 @@ pub(crate) fn build_child_env(
     // AppImage's loader overrides make a host Node load the bundle's older
     // libraries and die before ACP starts (#1002). Done after merging so the
     // login shell cannot reintroduce them.
-    crate::core::process::strip_appimage_library_env(&mut child_env);
+    //
+    // The map is passed to `agent-client-protocol`'s spawner, which only calls
+    // `Command::env` on top of the inherited environment, so the keys have to
+    // be emptied rather than removed (#1115).
+    crate::core::process::clear_appimage_library_env(&mut child_env);
 
     child_env
 }
@@ -1358,7 +1362,61 @@ mod cwd_shell_wrap_tests {
 
         let env = build_child_env(process_env, Some(&shell_env), &HashMap::new());
 
-        assert!(!env.contains_key("LD_LIBRARY_PATH"));
+        // Emptied, not removed: the ACP spawner only adds variables on top of
+        // the inherited environment, so the parent's value must be overridden.
+        assert_eq!(env.get("LD_LIBRARY_PATH"), Some(&String::new()));
+        assert_eq!(env.get("LD_PRELOAD"), Some(&String::new()));
+    }
+
+    #[test]
+    fn build_child_env_keeps_user_loader_overrides_outside_appimage() {
+        let process_env =
+            vec![("LD_LIBRARY_PATH".to_string(), "/opt/cuda/lib".to_string())].into_iter();
+
+        let env = build_child_env(process_env, None, &HashMap::new());
+
+        assert_eq!(
+            env.get("LD_LIBRARY_PATH"),
+            Some(&"/opt/cuda/lib".to_string())
+        );
         assert!(!env.contains_key("LD_PRELOAD"));
+    }
+
+    /// The reported failure (#1115) was an inherited `LD_LIBRARY_PATH` reaching a
+    /// real child, so assert on what the process actually receives.
+    #[cfg(unix)]
+    #[test]
+    fn spawned_child_does_not_inherit_appimage_loader_overrides() {
+        let env = build_child_env(
+            vec![
+                ("APPDIR".to_string(), "/tmp/.mount_Agentero".to_string()),
+                (
+                    "LD_LIBRARY_PATH".to_string(),
+                    "/tmp/.mount_Agentero/usr/lib".to_string(),
+                ),
+                (
+                    "LD_PRELOAD".to_string(),
+                    "/tmp/.mount_Agentero/lib.so".to_string(),
+                ),
+            ]
+            .into_iter(),
+            None,
+            &HashMap::new(),
+        );
+        // Simulate agent-client-protocol::spawn_process: add-on-top, no clear.
+        let mut command = std::process::Command::new("sh");
+        command
+            .args([
+                "-c",
+                "printf '%s\\n' \"${LD_LIBRARY_PATH-<unset>}\" \"${LD_PRELOAD-<unset>}\"",
+            ])
+            .env("LD_LIBRARY_PATH", "/tmp/.mount_Agentero/usr/lib")
+            .env("LD_PRELOAD", "/tmp/.mount_Agentero/lib.so");
+        for (key, value) in &env {
+            command.env(key, value);
+        }
+        let output = command.output().expect("spawn sh");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout.lines().collect::<Vec<_>>(), vec!["", ""]);
     }
 }

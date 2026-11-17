@@ -6,7 +6,6 @@
 		"welcome": "Welcome",
 		"theme": "Appearance",
 		"proxy": "Network",
-		"node": "Node.js",
 		"agent": "Agent",
 		"translate": "Translation",
 		"layout": "Formula & figure parsing",
@@ -28,22 +27,6 @@
 		"urlLabel": "Proxy URL",
 		"enabledLabel": "Enable network proxy",
 		"probe": "Probe"
-	},
-	"node": {
-		"title": "Set up Node.js",
-		"desc": "Node.js and npm power ACP adapters and some one-click AI assistant installs.",
-		"checking": "Checking Node.js and npm…",
-		"ready": "Node.js is ready",
-		"readyDesc": "Node.js and npm are already installed. You can continue.",
-		"missingTitle": "Node.js is required",
-		"missingDesc": "Install Node.js (npm ships with it) so Agent adapters and npm-based installs can run.",
-		"install": "Install Node.js",
-		"installing": "Installing…",
-		"installHint": "Uses your system package manager and can take a few minutes. Without winget or Homebrew, download the installer from nodejs.org, then check again.",
-		"download": "Download from nodejs.org",
-		"installed": "Installed",
-		"missing": "Not installed",
-		"recheck": "Check again"
 	},
 	"agent": {
 		"title": "Choose your AI assistant",

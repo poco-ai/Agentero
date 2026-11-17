@@ -256,8 +256,10 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `login_command`；写入脚本前先把命令首个可执行文件解析为绝对路径（用注册 Agent 的合并
   env / login-shell PATH），避免 `bash -lc` 看不到 zsh 的 `~/.local/bin` 而报
   `command not found`（#686）。终端只打印命令、等回车确认后才真正执行。
+- 「登录」「终端」两个按钮都读取「设置 → 通用 → 系统 → 终端打开方式」（`settings.terminalApp`），
+  与「在终端中打开」使用同一个终端；未设置或所选终端不可用时回退系统默认（#1116）。
 - 「终端」按钮（`doctor_open_agent_cli_terminal`，仅已安装 Agent 行显示，位于「升级」与
-  「卸载」之间）**直接**在系统默认终端启动该 Agent 的交互式 CLI（无需回车确认）：命令取
+  「卸载」之间）**直接**在该终端启动该 Agent 的交互式 CLI（无需回车确认）：命令取
   模板的交互式 CLI（`registry::interactive_cli`，通常等同 `detect_command`，如 `claude` /
   `codex` / `opencode` / `agy`；Dsh 需显式 profile，使用 shipped 的 `dsh --profile tui`）；
   ZCode 只有 ACP 适配器、无面向用户的 CLI，故不显示该按钮。二进制解析逻辑与登录按钮共用
@@ -483,3 +485,13 @@ Agentero 是 ACP **Client**：模型 HTTP **不**经 Host 转发，因此只能�
 
 `src-tauri/src/features/agent/`  
 前端：[../frontend/agent.md](../frontend/agent.md)
+
+### Windows 桌面应用内置 CLI
+
+正常 PATH 安装优先；通过已注册安装位置（含 MSIX）定位桌面应用，再查其 `resources`，不扫描下载缓存：ChatGPT 使用 `resources/codex.exe`，Dsh 使用 `resources/runtime/cli/bin/dsh.cmd`，千问办公沿用 `resources/bin/qoderclicn.exe`，WorkBuddy 沿用 `resources/app.asar.unpacked/cli/bin/codebuddy` 的 Windows 可执行文件 / shim 解析。国际版 Qoder 不回退到 CN 引擎。
+
+ChatGPT 的 `resources/cua_node/bin/node.exe` 与 Dsh 的 `resources/runtime/primary-runtime/dependencies/node/bin/node.exe` 可作为内置 ACP 适配器的 Node 回退；独立 Node 仍执行原有版本检查，不把桌面 GUI 当 Node，也不要求捆绑 npm。发现、可用性检查和子进程 PATH 使用同一组目录。新手引导移除独立 Node 安装步骤，设置中的主机诊断仍可用于安装或排查系统 Node/npm。
+
+ChatGPT/Codex 与官方 Dsh 的上述 Windows 布局已在本机核对；千问办公和 WorkBuddy 本机未安装，目录沿用现有适配规则，安装检测不等于 ACP 连接成功，仍须探测实际 CLI。
+
+仅 ChatGPT 的隔离验证：固定版本 `@agentclientprotocol/codex-acp@1.12.0`，运行 PATH 只保留 Windows System32，使用 ChatGPT 自带 Node v24.22.1 与 Codex 0.169.0-alpha.11.1，在独立空 Codex 配置目录完成 ACP `initialize`。运行时无系统 Node/npm 或 Dsh 依赖。此结果只验证带上述组件的 ChatGPT 版本，旧版纯聊天客户端未必携带这些组件；不能仅凭 GUI 已安装就报告 CLI 可用。

@@ -6,7 +6,6 @@ import { useStore } from "zustand";
 import type { AgentStepHandle } from "@/components/onboarding/steps/agent-step";
 import { AgentStep } from "@/components/onboarding/steps/agent-step";
 import { LayoutStep } from "@/components/onboarding/steps/layout-step";
-import { NodeStep } from "@/components/onboarding/steps/node-step";
 import { ProxyStep } from "@/components/onboarding/steps/proxy-step";
 import { ThemeStep } from "@/components/onboarding/steps/theme-step";
 import { TranslateStep } from "@/components/onboarding/steps/translate-step";
@@ -23,7 +22,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
-import { useHostNodeStatus } from "@/hooks/use-host-node-status";
 import { perfActive } from "@/lib/core/perf";
 import { isMobileApp, isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
@@ -41,27 +39,6 @@ import {
 } from "./onboarding-store";
 
 const useOnboardingStepper = onboardingFlow.useStepper;
-
-/** Steps whose only purpose is a check that can already be satisfied. */
-const SKIPPABLE_STEPS: readonly OnboardingStepId[] = ["node"];
-
-function neighborStep(
-	id: OnboardingStepId,
-	direction: 1 | -1,
-	skip: ReadonlySet<OnboardingStepId>,
-): OnboardingStepId | undefined {
-	const index = onboardingFlow.steps.findIndex((step) => step.id === id);
-	if (index === -1) return undefined;
-	for (
-		let next = index + direction;
-		next >= 0 && next < onboardingFlow.steps.length;
-		next += direction
-	) {
-		const candidate = onboardingFlow.steps[next].id;
-		if (!skip.has(candidate)) return candidate;
-	}
-	return undefined;
-}
 
 function FlowDots({ index, labels }: { index: number; labels: string[] }) {
 	const { t } = useTranslation("common");
@@ -166,20 +143,6 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 	const settings = useSettings((s) => s);
 	const patch = patchSettings;
 	const agentStepRef = useRef<AgentStepHandle>(null);
-	const hostNode = useHostNodeStatus();
-
-	// If Node.js/npm are already present the check step has nothing to offer, so
-	// drop it from the flow (and from the progress dots) instead of making the
-	// user click through a "ready" screen.
-	const skipNode =
-		hostNode.report?.node.status === "available" &&
-		hostNode.report.npm.status === "available";
-	const skippedSteps = useMemo(
-		(): ReadonlySet<OnboardingStepId> =>
-			new Set<OnboardingStepId>(skipNode ? SKIPPABLE_STEPS : []),
-		[skipNode],
-	);
-
 	/** Per-step "choice made" gate for the footer Next button. */
 	const [gate, setGate] = useState<{
 		id: OnboardingStepId;
@@ -191,21 +154,10 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 		);
 	}, []);
 
-	const visibleSteps = stepper.steps.filter(
-		(step) => !skippedSteps.has(step.id),
-	);
-	const stepLabels = visibleSteps.map((step) => t(`steps.${step.id}`));
-	const dotIndex = visibleSteps.findIndex(
+	const stepLabels = stepper.steps.map((step) => t(`steps.${step.id}`));
+	const dotIndex = stepper.steps.findIndex(
 		(step) => step.id === stepper.current.id,
 	);
-
-	// A probe started on mount can resolve while the user is already on the
-	// step; jump over it as soon as we know it is unnecessary.
-	useEffect(() => {
-		if (skippedSteps.has("node") && stepper.current.id === "node") {
-			void stepper.goTo("agent");
-		}
-	}, [skippedSteps, stepper]);
 
 	const gated = ["translate", "layout"].includes(stepper.current.id);
 	const canNext = gated
@@ -222,13 +174,11 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 			finish();
 			return;
 		}
-		const target = neighborStep(stepper.current.id, 1, skippedSteps);
-		if (target) void stepper.goTo(target);
+		void stepper.next();
 	};
 
 	const onBack = () => {
-		const target = neighborStep(stepper.current.id, -1, skippedSteps);
-		if (target) void stepper.goTo(target);
+		void stepper.prev();
 	};
 
 	const finish = () => {
@@ -255,8 +205,6 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 				return <ThemeStep settings={settings} patch={patch} />;
 			case "proxy":
 				return <ProxyStep settings={settings} patch={patch} />;
-			case "node":
-				return skippedSteps.has("node") ? null : <NodeStep status={hostNode} />;
 			case "agent":
 				return <AgentStep ref={agentStepRef} />;
 			case "translate":
@@ -288,8 +236,6 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 				return { title: t("theme.title"), desc: t("theme.desc") };
 			case "proxy":
 				return { title: t("proxy.title"), desc: t("proxy.desc") };
-			case "node":
-				return { title: t("node.title"), desc: t("node.desc") };
 			case "agent":
 				return { title: t("agent.title"), desc: t("agent.desc") };
 			case "translate":

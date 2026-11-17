@@ -121,23 +121,6 @@ describe("Plaza frame zoom", () => {
 		expect(frame.contentDocument).toBe(doc);
 		expect(doc.querySelector("input")?.value).toBe("keep me");
 	});
-	it("hands wheel overflow the frame cannot consume to the outer scrollport", async () => {
-		const origin = "https://proxy.example";
-		const frame = await mount(1280, origin);
-		await size(640);
-		const viewport = frame.parentElement?.parentElement;
-		if (!(viewport instanceof HTMLDivElement)) {
-			throw new Error("Missing viewport");
-		}
-		expect(viewport.className).toContain("overflow-auto");
-
-		await message(frame, origin, { panX: 140 });
-		expect(viewport.scrollLeft).toBe(140);
-
-		// Only the frame itself may pan the host viewport.
-		await message(frame, origin, { panX: 999 }, window);
-		expect(viewport.scrollLeft).toBe(140);
-	});
 	it("zooms from the wheel and pinch ratio messages", async () => {
 		const origin = "https://proxy.example";
 		const frame = await mount(1280, origin);

@@ -5,7 +5,6 @@ export const onboardingFlow = defineStepper([
 	{ id: "welcome" },
 	{ id: "theme" },
 	{ id: "proxy" },
-	{ id: "node" },
 	{ id: "agent" },
 	{ id: "translate" },
 	{ id: "layout" },

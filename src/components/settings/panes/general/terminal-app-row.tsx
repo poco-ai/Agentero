@@ -15,13 +15,17 @@ import {
 } from "@/lib/system/terminal-apps";
 import { TerminalAppLogo } from "./terminal-app-logo";
 
+/** `terminalApp` value meaning "let the desktop decide which terminal to open". */
+const SYSTEM_DEFAULT = "system";
+
 /**
- * Terminal used by "Open in Terminal". Only installed terminals are selectable;
- * a saved but now-missing app stays visible as unavailable and the Host falls
- * back to the system default (see `app/terminal`).
+ * Terminal used by "Open in Terminal" and the Agent terminal / login buttons.
+ * Only installed terminals are selectable; a saved but now-missing app stays
+ * visible as unavailable and the Host falls back to the system default
+ * (see `app/terminal`).
  *
- * There is no "system default" entry: when nothing is stored yet, the first
- * installed terminal is shown — the same app the Host opens by default.
+ * "System default" is always offered, so a user whose terminal is not in the
+ * probe list can still choose something instead of facing an empty dropdown.
  */
 export function TerminalAppRow({
 	value,
@@ -60,15 +64,26 @@ export function TerminalAppRow({
 		: t("general.terminalApp.unavailable", { name: value });
 	const unavailable =
 		loaded && Boolean(value) && !installed.some((app) => app.id === value);
-	const selected = value || installed[0]?.id || "";
+	// An empty preference opens the same thing as an explicit system default.
+	const selected = value || SYSTEM_DEFAULT;
+	const noTerminalHint = t("general.terminalApp.noneDetected");
+	const empty = loaded && !installed.length;
 
 	return (
-		<SettingsRow label={t("general.terminalApp.label")}>
+		<SettingsRow
+			label={t("general.terminalApp.label")}
+			description={empty ? noTerminalHint : undefined}
+		>
 			<Select value={selected} onValueChange={onChange}>
 				<SelectTrigger size="sm" className="min-w-[180px] max-w-[240px]">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
+					<SelectItem value={SYSTEM_DEFAULT}>
+						<TerminalAppLogo id={SYSTEM_DEFAULT} />
+						{t("general.terminalApp.systemDefault")}
+					</SelectItem>
+					<div className="my-1 h-px bg-border" aria-hidden />
 					{installed.map((app) => (
 						<SelectItem key={app.id} value={app.id}>
 							<TerminalAppLogo id={app.id} />

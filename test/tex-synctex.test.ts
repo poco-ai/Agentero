@@ -109,27 +109,6 @@ describe("compiled PDF SyncTeX routing", () => {
 		off();
 	});
 
-	it("routes an explicit locate to its activated pane despite stale clone focus", async () => {
-		mocks.artifacts.mockResolvedValue({ pdfPath: "/vault/thesis/split.pdf" });
-		const canonical = vi.fn();
-		const staleActiveClone = vi.fn();
-		const off1 = registerTexPdfViewer("/vault/thesis/split.pdf", {
-			tabId: "/vault/thesis/split.pdf",
-			navigate: canonical,
-			isActive: () => false,
-		});
-		const off2 = registerTexPdfViewer("/vault/thesis/split.pdf", {
-			tabId: "/vault/thesis/split.pdf::pane-2",
-			navigate: staleActiveClone,
-			isActive: () => true,
-		});
-		await syncTexToPdf("/vault/thesis/chapter.tex", 12);
-		expect(canonical).toHaveBeenCalledExactlyOnceWith(location);
-		expect(staleActiveClone).not.toHaveBeenCalled();
-		off1();
-		off2();
-	});
-
 	it("does not open, activate, or query a PDF when after-build following is disabled", async () => {
 		await syncTexAfterBuild(
 			"/vault/disabled/main.tex",
@@ -277,7 +256,31 @@ describe("compiled PDF SyncTeX routing", () => {
 		offClone();
 	});
 
-	it("waits for the activated canonical pane's exact revision during an explicit locate", async () => {
+	it("routes an explicit locate to the canonical pane despite stale clone focus, waiting for its exact revision", async () => {
+		// Without buffer revisions, a stale but active clone must not steal the
+		// locate from the canonical pane.
+		mocks.artifacts.mockResolvedValue({ pdfPath: "/vault/thesis/split.pdf" });
+		const splitCanonical = vi.fn();
+		const staleActiveClone = vi.fn();
+		const offSplit1 = registerTexPdfViewer("/vault/thesis/split.pdf", {
+			tabId: "/vault/thesis/split.pdf",
+			navigate: splitCanonical,
+			isActive: () => false,
+		});
+		const offSplit2 = registerTexPdfViewer("/vault/thesis/split.pdf", {
+			tabId: "/vault/thesis/split.pdf::pane-2",
+			navigate: staleActiveClone,
+			isActive: () => true,
+		});
+		await syncTexToPdf("/vault/thesis/chapter.tex", 12);
+		expect(splitCanonical).toHaveBeenCalledExactlyOnceWith(location);
+		expect(staleActiveClone).not.toHaveBeenCalled();
+		offSplit1();
+		offSplit2();
+
+		// With open buffers, the locate waits for the activated canonical pane's
+		// exact revision instead of navigating a stale registration.
+		mocks.open.mockClear();
 		const pdfPath = "/vault/explicit/main.pdf";
 		const bytes = new ArrayBuffer(96);
 		const cloneId = `${pdfPath}::pane-2`;

@@ -16,9 +16,9 @@ use agentero_core::features::paper::import::{self, LookupImportArgs, NoteShellMo
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::{Json, Parameters};
 use rmcp::model::{
-    CallToolResult, ContentBlock, Implementation, ListResourcesResult, PaginatedRequestParams,
-    ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
-    ResourceContents, ServerCapabilities, ServerInfo,
+    CacheScope, CallToolResult, ContentBlock, Implementation, ListResourcesResult,
+    PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
+    Resource, ResourceContents, ServerCapabilities, ServerConfig,
 };
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::{tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler};
@@ -1482,10 +1482,19 @@ impl AgenteroMcp {
     }
 }
 
+/// SEP-2549 cache hints that MCP `2026-07-28` makes mandatory on list/read
+/// results. Sent unconditionally: clients such as Qoder validate results
+/// against the 2026-07-28 schema even when they negotiate `2025-06-18`
+/// (issue #1130), and older SDKs ignore unknown fields. Vault data belongs to
+/// the connected user and changes behind the client's back, so `ttlMs` is 0
+/// (always revalidate) and the scope never leaves the client (`private`).
+const RESOURCE_CACHE_TTL_MS: u64 = 0;
+const RESOURCE_CACHE_SCOPE: CacheScope = CacheScope::Private;
+
 #[tool_handler]
 impl ServerHandler for AgenteroMcp {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
@@ -1521,21 +1530,23 @@ impl ServerHandler for AgenteroMcp {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        let icons = icons::server_icons();
-        Ok(ListResourcesResult::with_all_items(vec![
+        // No `icons` here on purpose: a data-URI icon is repeated on every call
+        // and bloats the response into tens of thousands of tokens. Clients get
+        // the embedded app icon from `initialize.serverInfo.icons` instead.
+        let mut result = ListResourcesResult::with_all_items(vec![
             Resource::new(VAULT_URI, VAULT_NAME)
                 .with_title("Current vault")
-                .with_mime_type("text/markdown")
-                .with_icons(icons.clone()),
+                .with_mime_type("text/markdown"),
             Resource::new(INVARIANTS_URI, INVARIANTS_NAME)
                 .with_title("Agent invariants")
-                .with_mime_type("text/markdown")
-                .with_icons(icons.clone()),
+                .with_mime_type("text/markdown"),
             Resource::new(SKILL_URI, SKILL_NAME)
                 .with_title("Bundled agentero-cli skill")
-                .with_mime_type("text/markdown")
-                .with_icons(icons),
-        ]))
+                .with_mime_type("text/markdown"),
+        ]);
+        result.ttl_ms = Some(RESOURCE_CACHE_TTL_MS);
+        result.cache_scope = Some(RESOURCE_CACHE_SCOPE);
+        Ok(result)
     }
 
     async fn read_resource(
@@ -1549,10 +1560,11 @@ impl ServerHandler for AgenteroMcp {
                 None,
             ));
         };
-        Ok(
-            ReadResourceResult::new(vec![ResourceContents::text(markdown, request.uri.clone())])
-                .into(),
-        )
+        let mut result =
+            ReadResourceResult::new(vec![ResourceContents::text(markdown, request.uri.clone())]);
+        result.ttl_ms = Some(RESOURCE_CACHE_TTL_MS);
+        result.cache_scope = Some(RESOURCE_CACHE_SCOPE);
+        Ok(result.into())
     }
 }
 

@@ -11,6 +11,8 @@ use crate::features::agent::models::ProbeResult;
 use crate::features::agent::registry::remote::{self as remote_catalog, RemoteAgentScanResponse};
 use crate::features::agent::remote_host::RemoteAgentHosts;
 use crate::features::agent::AgentRegistry;
+#[cfg(not(target_os = "ios"))]
+use crate::features::system::settings::AppSettingsStore;
 use serde::Deserialize;
 use std::sync::Arc;
 use tauri::State;
@@ -109,10 +111,17 @@ pub struct RemoteAgentInstallArgs {
 #[specta::specta]
 pub async fn remote_agent_open_install_terminal(
     registry: State<'_, Arc<dyn RemoteAgentHosts>>,
+    store: State<'_, AppSettingsStore>,
     args: RemoteAgentInstallArgs,
 ) -> Result<ApiResult<crate::core::json::JsonValue>, String> {
     use crate::app::terminal;
     use crate::features::agent::registry::templates::template_info;
+
+    // Same terminal choice as "Open in Terminal"; empty means system default.
+    let preferred = store
+        .get()
+        .map(|result| result.settings.terminal_app)
+        .unwrap_or_default();
 
     let info = match template_info(&args.template_id) {
         Some(t) => t,
@@ -137,13 +146,15 @@ pub async fn remote_agent_open_install_terminal(
         Err(e) => return Ok(map_err(e)),
     };
     if session.is_local_sim() {
-        return Ok(match terminal::open_terminal_confirm_command(&install) {
-            Ok(()) => ApiResult::ok(crate::core::json::JsonValue::null()),
-            Err(e) => map_err(e),
-        });
+        return Ok(
+            match terminal::open_terminal_confirm_command(&install, &preferred) {
+                Ok(()) => ApiResult::ok(crate::core::json::JsonValue::null()),
+                Err(e) => map_err(e),
+            },
+        );
     }
     let destination = session.host().to_string();
-    match terminal::open_terminal_confirm_remote_install(&destination, &install) {
+    match terminal::open_terminal_confirm_remote_install(&destination, &install, &preferred) {
         Ok(()) => Ok(ApiResult::ok(crate::core::json::JsonValue::null())),
         Err(e) => Ok(map_err(e)),
     }

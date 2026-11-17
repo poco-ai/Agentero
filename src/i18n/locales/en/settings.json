@@ -80,7 +80,9 @@
 		},
 		"terminalApp": {
 			"label": "Open in Terminal with",
-			"unavailable": "{{name}} (not installed)"
+			"systemDefault": "System default",
+			"unavailable": "{{name}} (not installed)",
+			"noneDetected": "No supported terminal detected. Pick System default to use your desktop terminal."
 		},
 		"finder": {
 			"label": "Finder integration",

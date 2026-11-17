@@ -80,7 +80,9 @@
 		},
 		"terminalApp": {
 			"label": "终端打开方式",
-			"unavailable": "{{name}}（未安装）"
+			"systemDefault": "系统默认",
+			"unavailable": "{{name}}（未安装）",
+			"noneDetected": "未检测到支持的终端，选择「系统默认」即可使用桌面默认终端。"
 		},
 		"finder": {
 			"label": "访达集成",

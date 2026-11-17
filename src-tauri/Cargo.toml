@@ -1,6 +1,6 @@
 [package]
 name = "agentero"
-version = "0.16.1"
+version = "0.16.2"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -55,7 +55,7 @@ tauri-build = { version = "2", features = [] }
 # Redirects the XDG dirs to a temp dir before unit tests start (lib.rs).
 ctor = "0.8"
 # In-memory MCP protocol tests; no listener or permanent service.
-rmcp = { version = "3.1", default-features = false, features = ["client", "transport-io"] }
+rmcp = { version = "3.10", default-features = false, features = ["client", "transport-io"] }
 # `start_paused` virtual clock for stream coalescer / throttle unit tests.
 tokio = { workspace = true, features = ["test-util", "macros"] }
 
@@ -80,7 +80,7 @@ tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "macros
 tokio-util = { version = "0.7", default-features = false }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"], optional = true }
 # Streamable HTTP MCP server (Settings toggle; loopback only).
-rmcp = { version = "3.1", optional = true, default-features = false, features = [
+rmcp = { version = "3.10", optional = true, default-features = false, features = [
   "server",
   "macros",
   "schemars",

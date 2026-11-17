@@ -97,7 +97,7 @@ const CROSSREF_LABEL_PATTERNS: {
 	kind: CrossrefKind;
 	regex: RegExp;
 }[] = [
-	{ kind: "figure", regex: /\b(?:Figure|Fig\.?)\s*(\d+(?:[a-z])?)\b/i },
+	{ kind: "figure", regex: /\b(?:Figures?|Figs?\.?)\s*(\d+(?:[a-z])?)\b/i },
 	{ kind: "table", regex: /\b(?:Table|Tbl\.?)\s*(\d+(?:[a-z])?)\b/i },
 	{
 		kind: "equation",
@@ -160,9 +160,13 @@ export function pickCrossrefRegionByLabel(
 
 	const prefixes = labelTitlePrefixes(label);
 	for (const prefix of prefixes) {
-		const match = candidates.find((region) =>
-			region.title?.toLowerCase().startsWith(prefix.toLowerCase()),
-		);
+		const match = candidates.find((region) => {
+			const title = region.title?.toLowerCase();
+			return (
+				title?.startsWith(prefix.toLowerCase()) &&
+				!/\d/.test(title.slice(prefix.length, prefix.length + 1))
+			);
+		});
 		if (match) return match;
 	}
 

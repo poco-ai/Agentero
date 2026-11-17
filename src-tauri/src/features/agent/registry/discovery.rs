@@ -10,7 +10,7 @@ pub use crate::core::process::discover::path_entries;
 #[cfg(windows)]
 pub fn path_entries() -> Vec<std::path::PathBuf> {
     let mut paths = crate::core::process::discover::path_entries();
-    if let Some(directory) = crate::features::system::desktop_apps::dsh_cli_dir() {
+    for directory in crate::features::system::desktop_apps::windows_cli_dirs() {
         if !paths.contains(&directory) {
             paths.push(directory);
         }

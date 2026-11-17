@@ -1305,6 +1305,24 @@ mod tests {
         }
     }
 
+    /// Wait for the retry loop to publish a listening status. The paused clock
+    /// only advances when the test asks, so step it forward in retry-sized
+    /// chunks and let the retry task run. This keeps the assertion independent
+    /// of how many yields the scheduler needs after a timer fires, and rides
+    /// out a port that a parallel test or the OS briefly holds.
+    async fn wait_until_listening(ctrl: &Arc<ConnectorController>) {
+        for _ in 0..64 {
+            if ctrl.status().listening {
+                return;
+            }
+            tokio::time::advance(RETRY_INTERVAL / 16).await;
+            for _ in 0..8 {
+                tokio::task::yield_now().await;
+            }
+        }
+        panic!("connector did not start listening: {:?}", ctrl.status());
+    }
+
     #[tokio::test(start_paused = true)]
     async fn occupied_port_recovers_automatically_after_release() {
         let (ctrl, occupied) = occupied_port().await;
@@ -1325,7 +1343,7 @@ mod tests {
         tokio::task::yield_now().await;
         assert!(!ctrl.status().listening, "retry must wait for its interval");
         tokio::time::advance(std::time::Duration::from_secs(1)).await;
-        tokio::task::yield_now().await;
+        wait_until_listening(&ctrl).await;
 
         let status = ctrl.status();
         assert!(status.listening);
@@ -1403,7 +1421,7 @@ mod tests {
             .expect("stale retry must not bind the previous port");
 
         drop(new_port);
-        advance_retry().await;
+        wait_until_listening(&ctrl).await;
         assert!(ctrl.status().listening);
         assert_eq!(ctrl.status().port, port);
         assert!(ctrl.status().last_error_code.is_none());

@@ -23,7 +23,7 @@ Settings → **翻译**：
 
 ## 开箱即用的词典与术语
 
-桌面安装包内置 **ECDICT 770,611 条英汉词条**和 **149 条专业术语（AI/LLM Glossary 148 条、AI Engineering 1 条，共 185 个英文索引名）**。不需要用户导入词库、填写词表或配置 API Key。版本、许可证与构建方法见 [词库来源](../../resources/dictionary/README.md)。设置页只提示已内置，不提供必须填写的词表。
+桌面安装包内置 **ECDICT 770,611 条英汉词条**和 **149 条专业术语（AI/LLM Glossary 148 条、AI Engineering 1 条，共 185 个英文索引名）**。不需要用户导入词库、填写词表或配置 API Key。版本、许可证与构建方法见 [词库来源](https://github.com/poco-ai/agentero/blob/main/resources/dictionary/README.md)。设置页只提示已内置，不提供必须填写的词表。
 
 复合术语按完整词条优先匹配，兼容大小写、空格与常见 Unicode 连字符；例如 `LLM-as-a-Judge` / `LLM as a Judge` 统一使用「大模型评审」，不会只替换内部 `LLM`。同句其他位置单独出现的 `LLM` 仍使用「大模型」。本地词典索引和前后端术语约束采用相同的分隔符归一规则，匹配后保留原文范围再交给现有 provider。词条补充来自固定版本的 MIT AI Engineering glossary，仅收录相关释义并保留许可证。
 
@@ -209,6 +209,10 @@ OpenAI 兼容服务卡片增加「额外参数」JSON 输入框，与 API Key / 
 
 Attention 15 页 / ResNet 12 页已执行真实 Google 非 LLM 全文链路和 BabelDOC 对照，正文、摘要、图题及表格文字纳入翻译；标题、作者信息、脚注、页眉页脚和参考文献按保真区域处理。
 图内标签、复杂表结构、部分未翻译英文和人名误译仍未通过；不是算法等价实现。
+
+### 表格单元原文擦除（#1127）
+
+重排导出在同一页把所有译文段落的源框一次性交给 PDFium `redactTextInRects`。2.14.4 的 WASM 在「同一个 text object 命中多个擦除区域」时，会用前一次删除后的文本矩阵继续判定后续字形，导致删除范围越界：表格单行单元格的英文残留，右侧数字列还被截断（`94` → `9`、`1000+` → `1`）。修复来自 `@embedpdf/pdfium@2.15.1` 回移的上游 #801/#822；`engines` 与各插件仍保持 2.14.4，WASM 导出表与旧版一致，由 `pnpm-workspace.yaml` 的 override 钉住。擦除矩形继续使用表格单元的字形紧框；`layoutBox` 只表示排版可用宽度，不参与擦除，避免越过单元格擦掉未翻译的数字 / 符号。最终译文 PDF 缓存按管线版本失效（`REFLOW_BUILD_PIPELINE_VERSION` → 2），旧缓存不会继续回放重影。
 
 ### 字符覆盖与图内标签（第四轮）
 
