@@ -13,6 +13,21 @@ import {
 
 const PDF_NAME_RE = /\.pdf$/i;
 
+/**
+ * In-process leases for `blob:` viewer URLs.
+ *
+ * Creating a URL takes one lease. A shallow tab copy (`cloneTabForSplit`)
+ * shares that URL and must call {@link retainViewerSource} — it does not
+ * call `createObjectURL` again. {@link revokePdfViewerSource} drops one
+ * lease; the last holder is the one that revokes the object URL. Remote
+ * `https:` sources are not tracked.
+ */
+const blobViewerLeases = new Map<string, number>();
+
+function leaseViewerSource(source: string): void {
+	blobViewerLeases.set(source, (blobViewerLeases.get(source) ?? 0) + 1);
+}
+
 export function resolveRemoteUrl(
 	ref: string | undefined | null,
 ): string | null {
@@ -53,7 +68,8 @@ async function tryReadVaultBytes(absPath: string): Promise<Uint8Array | null> {
  *
  * Prefer this over `convertFileSrc` / `asset://`: PDF.js issues range/XHR
  * requests that often fail on Tauri's asset protocol ("Unexpected server response (0)").
- * Caller should `URL.revokeObjectURL` when replacing the source.
+ * The returned `blob:` URL starts with one in-process lease. Release it with
+ * {@link revokePdfViewerSource}; the object URL is revoked with the last lease.
  */
 export async function localBytesToViewerSource(
 	absPath: string,
@@ -62,7 +78,9 @@ export async function localBytesToViewerSource(
 	const bytes = await tryReadVaultBytes(absPath);
 	if (!bytes) return null;
 	const blob = new Blob([bytes], { type: mimeType });
-	return URL.createObjectURL(blob);
+	const url = URL.createObjectURL(blob);
+	leaseViewerSource(url);
+	return url;
 }
 
 /**
@@ -99,14 +117,38 @@ export async function localImageToViewerSource(
 	return localBytesToViewerSource(absPath, mimeType);
 }
 
-/** Revoke a blob: URL created by local*ToViewerSource (no-op for others). */
+/** Take another lease on an existing viewer `blob:` URL (no-op otherwise). */
+export function retainViewerSource(source: string | null | undefined): void {
+	if (!source?.startsWith("blob:")) return;
+	leaseViewerSource(source);
+}
+
+/**
+ * Drop one lease on a `blob:` URL created by local*ToViewerSource.
+ *
+ * Untracked blob URLs (not created here) still revoke immediately. Non-blob
+ * sources are ignored.
+ */
 export function revokePdfViewerSource(source: string | null | undefined): void {
-	if (source?.startsWith("blob:")) {
+	if (!source?.startsWith("blob:")) return;
+	const leases = blobViewerLeases.get(source);
+	if (leases == null) {
 		try {
 			URL.revokeObjectURL(source);
 		} catch {
 			// ignore
 		}
+		return;
+	}
+	if (leases > 1) {
+		blobViewerLeases.set(source, leases - 1);
+		return;
+	}
+	blobViewerLeases.delete(source);
+	try {
+		URL.revokeObjectURL(source);
+	} catch {
+		// ignore
 	}
 }
 

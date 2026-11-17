@@ -23,6 +23,7 @@ import {
 	paperDirFromPath,
 	type RemotePaperItem,
 	remoteArxivPath,
+	retainViewerSource,
 	stageRemoteArxivPaper,
 } from "@/lib/paper";
 import {
@@ -139,8 +140,9 @@ function detachClosedPanels(
 	const library = getTabs().find((tab) => isLibraryVirtualPath(tab.path));
 	if (!library || before.some((tab) => tab.id === library.id)) return;
 	const activeId = getActiveTabId();
-	const keptActiveDocument =
-		Boolean(activeId) && !removedIds.includes(activeId);
+	const keptActiveDocument = Boolean(
+		activeId && !removedIds.includes(activeId),
+	);
 	const otherDocument = getTabs().some(
 		(tab) => !isLibraryVirtualPath(tab.path),
 	);
@@ -681,6 +683,10 @@ export function cycleActiveGroupTab(delta: number): void {
 }
 
 export function cloneTabForSplit(tab: DocTab, tabs: DocTab[]): DocTab {
+	// Shallow copy shares pdfBytes; each viewer slices before the worker
+	// transfer. Blob URLs are not created again, so this pane takes its own lease.
+	retainViewerSource(tab.pdfUrl);
+	retainViewerSource(tab.imageUrl);
 	return {
 		...tab,
 		id: splitPaneIdForPath(
