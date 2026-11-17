@@ -45,6 +45,7 @@ import {
 	hasNativeSelectionOutsideHost,
 	isEditableClipboardTarget,
 } from "@/components/viewer/pdf/host-dom";
+import { releaseHeldLayoutSentenceHover } from "@/components/viewer/pdf/layout-sentence-hover";
 import type {
 	ScreenPoint,
 	SelectionMenuState,
@@ -58,6 +59,7 @@ import {
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { translationHitsFromRange } from "@/lib/pdf/layout/layout-sentence-selection";
 import { getLayoutDocumentResult } from "@/lib/pdf/layout/store";
+import { clearTranslationSelectionBands } from "@/lib/pdf/layout/translation-selection-bands";
 import {
 	type PageFrame,
 	visibleMenuPoint,
@@ -285,6 +287,8 @@ export function usePdfTextSelection({
 	isCommentDraftActiveRef.current = isCommentDraftActive;
 
 	const closeSelectionMenu = useCallback(() => {
+		releaseHeldLayoutSentenceHover(docId);
+		clearTranslationSelectionBands(docId);
 		selectionEpochRef.current += 1;
 		clearDomSelectionInside(hostRef.current);
 		hostRef.current?.removeAttribute("data-pdf-drag-selection");
@@ -292,6 +296,34 @@ export function usePdfTextSelection({
 		selectionCap?.clear(docId);
 		clearActiveSelection("pdf");
 	}, [selectionCap, docId, hostRef]);
+
+	useEffect(() => {
+		if (!selectionMenu) releaseHeldLayoutSentenceHover(docId);
+	}, [selectionMenu, docId]);
+
+	useEffect(() => {
+		if (!selectionMenu) return;
+		const onPointerDown = (event: PointerEvent) => {
+			if (
+				event.target instanceof Element &&
+				event.target.closest(
+					"[data-selection-ui], [data-selection-menu], [data-selection-comment]",
+				)
+			) {
+				return;
+			}
+			closeSelectionMenu();
+		};
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") closeSelectionMenu();
+		};
+		document.addEventListener("pointerdown", onPointerDown, true);
+		window.addEventListener("keydown", onKeyDown, true);
+		return () => {
+			document.removeEventListener("pointerdown", onPointerDown, true);
+			window.removeEventListener("keydown", onKeyDown, true);
+		};
+	}, [selectionMenu, closeSelectionMenu]);
 
 	// Dockview keeps hidden tabs mounted. Drop their selection, including any
 	// pending text extraction, as soon as this viewer loses focus or unmounts.
@@ -332,6 +364,13 @@ export function usePdfTextSelection({
 		if (!host) return;
 		const onPointerDown = (event: PointerEvent) => {
 			if (event.button !== 0) return;
+			if (
+				!(
+					event.target instanceof Element &&
+					event.target.closest("[data-pdf-chrome]")
+				)
+			)
+				releaseHeldLayoutSentenceHover(docId);
 			const element = event.target instanceof Element ? event.target : null;
 			if (
 				element?.closest("[data-embed-pdf-page]") &&
@@ -371,7 +410,7 @@ export function usePdfTextSelection({
 			host.removeAttribute("data-pdf-drag-selection");
 			window.removeEventListener("pointerup", onPointerUp, true);
 		};
-	}, [hostRef]);
+	}, [hostRef, docId]);
 
 	// Source editor took over the writing split: drop the PDFium selection and
 	// its toolbar so only one side stays visibly selected.
@@ -627,7 +666,7 @@ export function usePdfTextSelection({
 	// PDFium selections are invisible to the browser: intercept copy so ⌘/Ctrl+C
 	// yields the selected PDF text instead of nothing.
 	useEffect(() => {
-		if (!isActive || !selectionMenu || !selectionCap) return;
+		if (!isActive || !selectionMenu) return;
 		const selectedText = (
 			selectionMenu.copyText ??
 			selectionMenu.anchor.quote ??
@@ -666,7 +705,7 @@ export function usePdfTextSelection({
 			document.removeEventListener("copy", onCopy);
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, [isActive, selectionMenu, selectionCap, hostRef]);
+	}, [isActive, selectionMenu, hostRef]);
 
 	return {
 		selectionStartPageIndex,

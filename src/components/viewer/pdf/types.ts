@@ -204,6 +204,8 @@ export type CardScreenPoint = ScreenPoint & {
 };
 
 export type SelectionMenuState = {
+	/** Source sentence selected by double-click rather than PDFium drag. */
+	sentenceSelection?: boolean;
 	/** Top-center of the selection — floating toolbar anchor. */
 	screen: ScreenPoint;
 	/** Page-local x fraction of the gesture endpoint; re-mapped on scroll/zoom. */

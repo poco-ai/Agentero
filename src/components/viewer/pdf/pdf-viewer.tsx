@@ -57,6 +57,11 @@ import { PdfLeftToolbar } from "@/components/viewer/pdf/chrome/pdf-left-toolbar"
 import { PdfOutlinePanel } from "@/components/viewer/pdf/chrome/pdf-outline-panel";
 import { PdfReferencesPanel } from "@/components/viewer/pdf/chrome/pdf-references-panel";
 import { PdfToolbar } from "@/components/viewer/pdf/chrome/pdf-toolbar";
+import {
+	anchorFromEmbedSelection,
+	pageElByIndex,
+	selectionBoundsOnScreen,
+} from "@/components/viewer/pdf/coords";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
 import { usePdfActiveAnchors } from "@/components/viewer/pdf/hooks/use-pdf-active-anchors";
 import { usePdfAskThreads } from "@/components/viewer/pdf/hooks/use-pdf-ask-threads";
@@ -114,9 +119,11 @@ import {
 } from "@/components/viewer/pdf/layers/page-layers";
 import {
 	bindLayoutSentenceGlyphs,
+	holdLayoutSentenceHover,
 	publishLayoutSentenceCatalog,
 	suppressLayoutSentenceHover,
 } from "@/components/viewer/pdf/layout-sentence-hover";
+import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
 import type {
@@ -172,6 +179,8 @@ import {
 	layoutDocumentKey,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
+import { isLayoutElementTextKind } from "@/lib/pdf/layout/labels";
+import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
 import {
 	clearTranslatedLinkSource,
 	publishTranslatedLinkSource,
@@ -187,7 +196,11 @@ import {
 	type ActiveSelectionCard,
 	selectionAnchorKey,
 } from "@/lib/pdf/selection";
-import { isSelectionInsertionRegion } from "@/lib/pdf/selection-appearance";
+import {
+	isSelectionInsertionRegion,
+	mergeTightGlyphRects,
+	unionRectsAll,
+} from "@/lib/pdf/selection-appearance";
 import {
 	tintedTranslateRecords,
 	translateHighlightsByPage as translateHighlightsByPageOf,
@@ -317,8 +330,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 			createPluginRegistration(InteractionManagerPluginPackage),
 			createPluginRegistration(SearchPluginPackage),
 		];
-		if (translationOnly) return core;
-		return [
+		const interactive = [
 			...core,
 			createPluginRegistration(SelectionPluginPackage, {
 				// Text selection is enough for the floating menu. EmbedPDF's built-in
@@ -335,6 +347,11 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				selectAfterCreate: false,
 				deactivateToolAfterCreate: true,
 			}),
+		];
+		// Native translated selection uses annotation/history without a PDF text layer.
+		if (translationOnly) return interactive;
+		return [
+			...interactive,
 			createPluginRegistration(BookmarkPluginPackage),
 			// Experimental: on-device layout (image/table/formula) via ONNX.
 			// Model lives under XDG cache (startup prefetch: ModelScope → HF).
@@ -864,17 +881,16 @@ function PdfViewerInner({
 	});
 
 	useEffect(() => {
-		bindLayoutSentenceGlyphs(
-			engine
-				? {
-						docId,
-						engine,
-						getDocument: () => docCap?.getDocument(docId) ?? null,
-					}
-				: null,
-		);
-		return () => bindLayoutSentenceGlyphs(null);
-	}, [docCap, docId, engine]);
+		// Read the capability through the ref. The provides object is replaced
+		// as the document opens; closing over one render left glyph lookup on a
+		// capability that did not yet know the PDF.
+		if (!engine) return;
+		return bindLayoutSentenceGlyphs({
+			docId,
+			engine,
+			getDocument: () => docCapRef.current?.getDocument(docId) ?? null,
+		});
+	}, [docId, engine]);
 
 	useEffect(() => {
 		const root = hostRef.current;
@@ -1311,9 +1327,25 @@ function PdfViewerInner({
 	});
 
 	useEffect(() => {
-		const items = [...layoutTranslateItemsByPage.values()].flat();
-		publishLayoutSentenceCatalog(docId, items);
-	}, [docId, layoutTranslateItemsByPage]);
+		const translated = [...layoutTranslateItemsByPage.values()].flat();
+		const translatedIds = new Set(translated.map((item) => item.id));
+		const source = (layoutRawRegions ?? [])
+			.filter(
+				(region) =>
+					isLayoutElementTextKind(region.kind) && !translatedIds.has(region.id),
+			)
+			.map((region) => ({
+				id: region.id,
+				pageIndex: region.pageIndex,
+				bbox: region.bbox,
+				source: region.text ?? "",
+				sentences: splitLayoutSentences(region.text ?? "").map((quote) => ({
+					quote,
+					translated: "",
+				})),
+			}));
+		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
+	}, [docId, layoutTranslateItemsByPage, layoutRawRegions]);
 	// Clear only when the document changes. Declared after the publish effect so
 	// its cleanup runs first and the next publish restores the new document's
 	// pairs. An items-only update must not flash an empty catalog.
@@ -1689,6 +1721,64 @@ function PdfViewerInner({
 		plainViewer,
 	});
 
+	usePdfSentenceInteraction(
+		docId,
+		hostRef,
+		!regionSelecting,
+		(sentence, event) => {
+			const doc = docCapRef.current?.getDocument(docId);
+			const pages = [
+				...new Set(sentence.members.map((member) => member.pageIndex)),
+			].flatMap((pageIndex) => {
+				const size = doc?.pages[pageIndex]?.size;
+				if (!size) return [];
+				const segmentRects = mergeTightGlyphRects(
+					sentence.members
+						.filter((member) => member.pageIndex === pageIndex)
+						.flatMap((member) => member.rects)
+						.map((rect) => ({
+							origin: { x: rect.x * size.width, y: rect.y * size.height },
+							size: {
+								width: rect.w * size.width,
+								height: rect.h * size.height,
+							},
+						})),
+				);
+				const rect = unionRectsAll(segmentRects);
+				return rect ? [{ pageIndex, rect, segmentRects }] : [];
+			});
+			const anchor = anchorFromEmbedSelection(
+				pages,
+				sentence.quote,
+				(pageIndex) => doc?.pages[pageIndex]?.size ?? null,
+				"selection",
+				sentence.pageIndex,
+			);
+			const rects = sentence.members
+				.filter((member) => member.pageIndex === sentence.pageIndex)
+				.flatMap((member) => member.rects);
+			const bounds = selectionBoundsOnScreen(
+				pageElByIndex(hostRef.current, sentence.pageIndex),
+				rects,
+			);
+			if (!anchor || !bounds) return;
+			selectionCap?.clear(docId);
+			holdLayoutSentenceHover(docId);
+			setSelectionMenu({
+				anchor,
+				pages,
+				sentenceSelection: true,
+				screen: {
+					x: (bounds.left + bounds.right) / 2,
+					y: bounds.top,
+					top: bounds.top,
+					bottom: bounds.bottom,
+					cursorX: event.clientX,
+				},
+			});
+		},
+	);
+
 	// ---- Selection action menu ----
 
 	const {
@@ -1974,6 +2064,9 @@ function PdfViewerInner({
 			// per-page gated prop in renderPage so a comment hover re-renders
 			// only the owning page, not every page sharing this bundle.
 			selectionCommentDraft,
+			sentenceSelectionPages: selectionMenu?.sentenceSelection
+				? selectionMenu.pages
+				: undefined,
 			translateHighlightsByPage,
 			highlightQuotesByPage,
 			translatedHighlightsByPage,
@@ -1996,6 +2089,7 @@ function PdfViewerInner({
 			activeCard?.id,
 			translateCardPlaced,
 			selectionCommentDraft,
+			selectionMenu,
 			translateHighlightsByPage,
 			highlightQuotesByPage,
 			translatedHighlightsByPage,
@@ -2054,6 +2148,7 @@ function PdfViewerInner({
 			insetCommentCards,
 			translationOnly,
 			plainViewer,
+			sentencePairing: true,
 		}),
 		[
 			regionSelecting,

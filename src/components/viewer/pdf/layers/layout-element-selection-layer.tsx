@@ -7,6 +7,7 @@
  */
 
 import {
+	Fragment,
 	memo,
 	type MouseEvent as ReactMouseEvent,
 	useEffect,
@@ -48,6 +49,7 @@ import {
 	type PointerOrigin,
 	pickSelectableLayoutRegion,
 } from "@/lib/pdf/layout";
+import { sentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
 
 function spanFromTarget(
 	target: EventTarget | null,
@@ -101,6 +103,7 @@ type LayoutElementSelectionLayerProps = {
 	width: number;
 	height: number;
 	paperDark: boolean;
+	sentencePairing?: boolean;
 };
 
 function screenForElement(
@@ -156,9 +159,11 @@ export const LayoutElementSelectionLayer = memo(
 		width,
 		height,
 		paperDark,
+		sentencePairing = false,
 	}: LayoutElementSelectionLayerProps) {
 		const { t } = useTranslation("viewer");
 		const rootRef = useRef<HTMLDivElement>(null);
+		const washRef = useRef<HTMLDivElement>(null);
 		const regionsRef = useRef(regions);
 		const paintSentenceRef = useRef<() => void>(() => undefined);
 		regionsRef.current = regions;
@@ -221,8 +226,7 @@ export const LayoutElementSelectionLayer = memo(
 
 			let marked: HTMLElement[] = [];
 			let fadeTimer = 0;
-			const washOf = () =>
-				root.querySelector<HTMLElement>("[data-layout-sentence-wash]");
+			const washOf = () => washRef.current;
 
 			const paintSentence = () => {
 				const current = layoutSentenceHover();
@@ -238,19 +242,25 @@ export const LayoutElementSelectionLayer = memo(
 				marked = [];
 				for (const member of onPage) {
 					if (member.rects.length === 0) {
-						primeLayoutSentenceGlyphs(member.pageIndex);
+						primeLayoutSentenceGlyphs(member.pageIndex, docId);
 					}
 					const nodes = shell.querySelectorAll<HTMLElement>(
 						`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
 					);
-					for (const node of nodes) {
+					for (const node of sentencePairing ? [] : nodes) {
 						node.setAttribute("data-sentence-hot", "1");
 						marked.push(node);
 					}
 				}
 				const wash = washOf();
 				if (wash) {
-					const rects = onPage.flatMap((member) => member.rects);
+					const rects = sentencePairing
+						? []
+						: sentenceHoverBands(
+								onPage.flatMap((member) => member.rects),
+								width,
+								height,
+							);
 					if (rects.length === 0) {
 						wash.classList.remove("is-on");
 						window.clearTimeout(fadeTimer);
@@ -336,6 +346,7 @@ export const LayoutElementSelectionLayer = memo(
 				const hit = regionAt(target, point);
 				hoveredId = hit?.id ?? null;
 				syncHot();
+				if (sentencePairing) return;
 				if (!hit || !isLayoutElementTextKind(hit.kind)) {
 					clearLayoutSentenceHover();
 					return;
@@ -456,100 +467,112 @@ export const LayoutElementSelectionLayer = memo(
 					clearLayoutSentenceHover();
 				}
 			};
-		}, [docId, pageIndex, regions]);
+		}, [docId, pageIndex, regions, sentencePairing, width, height]);
 
 		return (
-			<div
-				ref={rootRef}
-				className="contents"
-				data-paper={paperDark ? "dark" : "light"}
-			>
+			<Fragment>
+				{/*
+				 * Direct child of the page shell. A wash inside `display: contents`
+				 * does not paint above the text layer in WKWebView, so the English
+				 * sentence stayed invisible while the translation span did not.
+				 */}
 				<div
+					ref={washRef}
 					className="pdf-layout-sentence-wash"
 					data-layout-sentence-wash
+					data-paper={paperDark ? "dark" : "light"}
+					style={{ zIndex: 6 }}
 					aria-hidden="true"
 				/>
-				{regions.map((region) => {
-					const boxes = layoutElementBoxes(region);
-					const kindLabel = t(layoutKindI18nKey(region.kind));
-					const quote = layoutElementQuote(region);
-					const preview = layoutElementPreview(quote);
-					const captionPage = layoutElementCaptionPage(region);
-					const showPreview =
-						Boolean(preview) &&
-						region.bbox.w * width >= LAYOUT_HINT_MIN_REGION_W_PX &&
-						region.bbox.h * height >= LAYOUT_HINT_MIN_REGION_H_PX;
-					const anchor = boxes.reduce((top, box) =>
-						box.bbox.y < top.bbox.y ? box : top,
-					);
-					const aria = preview
-						? t("figures.selectElementAriaPreview", {
-								kind: kindLabel,
-								preview,
-							})
-						: t("figures.selectElementAria", { kind: kindLabel });
-					return (
-						<div
-							key={region.id}
-							data-layout-element={region.id}
-							data-layout-kind={region.kind}
-							data-layout-text={
-								isLayoutElementTextKind(region.kind) ? "1" : "0"
-							}
-							className="contents"
-						>
-							{boxes.map((box) => (
-								<div
-									key={box.key}
-									className="pdf-layout-element-frame"
-									style={{
-										left: `${box.bbox.x * 100}%`,
-										top: `${box.bbox.y * 100}%`,
-										width: `${box.bbox.w * 100}%`,
-										height: `${box.bbox.h * 100}%`,
-									}}
-									aria-hidden="true"
-								/>
-							))}
-							<button
-								type="button"
-								className="pdf-layout-element-chip"
-								style={{
-									left: `${anchor.bbox.x * 100}%`,
-									top: `${anchor.bbox.y * 100}%`,
-								}}
-								aria-label={aria}
-								title={preview || kindLabel}
-								onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-									event.preventDefault();
-									event.stopPropagation();
-									const shell = rootRef.current?.parentElement;
-									if (!(shell instanceof HTMLElement)) return;
-									const live = layoutSentenceHover();
-									const sentence =
-										live && live.docId === docId && live.regionId === region.id
-											? live
-											: null;
-									openFromRegion(docId, region, shell, null, sentence);
-								}}
+				<div
+					ref={rootRef}
+					className="contents"
+					data-paper={paperDark ? "dark" : "light"}
+				>
+					{regions.map((region) => {
+						const boxes = layoutElementBoxes(region);
+						const kindLabel = t(layoutKindI18nKey(region.kind));
+						const quote = layoutElementQuote(region);
+						const preview = layoutElementPreview(quote);
+						const captionPage = layoutElementCaptionPage(region);
+						const showPreview =
+							Boolean(preview) &&
+							region.bbox.w * width >= LAYOUT_HINT_MIN_REGION_W_PX &&
+							region.bbox.h * height >= LAYOUT_HINT_MIN_REGION_H_PX;
+						const anchor = boxes.reduce((top, box) =>
+							box.bbox.y < top.bbox.y ? box : top,
+						);
+						const aria = preview
+							? t("figures.selectElementAriaPreview", {
+									kind: kindLabel,
+									preview,
+								})
+							: t("figures.selectElementAria", { kind: kindLabel });
+						return (
+							<div
+								key={region.id}
+								data-layout-element={region.id}
+								data-layout-kind={region.kind}
+								data-layout-text={
+									isLayoutElementTextKind(region.kind) ? "1" : "0"
+								}
+								className="contents"
 							>
-								<span className="font-medium">{kindLabel}</span>
-								{captionPage != null ? (
-									<span className="font-normal text-muted-foreground">
-										{" "}
-										· {t("figures.captionOnPage", { page: captionPage })}
-									</span>
-								) : null}
-								{showPreview ? (
-									<span className="mt-0.5 block max-w-56 truncate font-normal text-muted-foreground">
-										{preview}
-									</span>
-								) : null}
-							</button>
-						</div>
-					);
-				})}
-			</div>
+								{boxes.map((box) => (
+									<div
+										key={box.key}
+										className="pdf-layout-element-frame"
+										style={{
+											left: `${box.bbox.x * 100}%`,
+											top: `${box.bbox.y * 100}%`,
+											width: `${box.bbox.w * 100}%`,
+											height: `${box.bbox.h * 100}%`,
+										}}
+										aria-hidden="true"
+									/>
+								))}
+								<button
+									type="button"
+									className="pdf-layout-element-chip"
+									style={{
+										left: `${anchor.bbox.x * 100}%`,
+										top: `${anchor.bbox.y * 100}%`,
+									}}
+									aria-label={aria}
+									title={preview || kindLabel}
+									onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+										event.preventDefault();
+										event.stopPropagation();
+										const shell = rootRef.current?.parentElement;
+										if (!(shell instanceof HTMLElement)) return;
+										const live = layoutSentenceHover();
+										const sentence =
+											live &&
+											live.docId === docId &&
+											live.regionId === region.id
+												? live
+												: null;
+										openFromRegion(docId, region, shell, null, sentence);
+									}}
+								>
+									<span className="font-medium">{kindLabel}</span>
+									{captionPage != null ? (
+										<span className="font-normal text-muted-foreground">
+											{" "}
+											· {t("figures.captionOnPage", { page: captionPage })}
+										</span>
+									) : null}
+									{showPreview ? (
+										<span className="mt-0.5 block max-w-56 truncate font-normal text-muted-foreground">
+											{preview}
+										</span>
+									) : null}
+								</button>
+							</div>
+						);
+					})}
+				</div>
+			</Fragment>
 		);
 	},
 );

@@ -1,5 +1,5 @@
 /**
- * Dual-pane sentence wash on the translation companion.
+ * Shared sentence interaction and highlight for single and dual-pane PDFs.
  * Pointer moves update the shared hover record. Each mounted page paints its
  * own spans, so a sentence lights up when its page enters the buffer and
  * nothing here scrolls the partner pane.
@@ -9,8 +9,12 @@ import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
 import {
 	clearLayoutSentenceHover,
+	heldLayoutSentenceDocument,
+	type LayoutSentenceHover,
 	layoutSentenceHover,
+	layoutSentenceLineRects,
 	releaseLayoutSentenceHover,
+	sentenceForActivation,
 	subscribeLayoutSentenceHover,
 	suppressLayoutSentenceHover,
 	syncLayoutSentencePointer,
@@ -19,6 +23,9 @@ import {
 	LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX,
 	layoutSentenceScope,
 } from "@/lib/pdf/layout";
+import { sourceSentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
+import { translatedSelectionLineRects } from "@/lib/pdf/layout/visible-selection-rects";
+import { linkPreviewDragActive } from "@/lib/pdf/link-preview-drag";
 
 function spanFromTarget(
 	target: EventTarget | null,
@@ -59,11 +66,17 @@ function selectionOwns(
 }
 
 /** Host listener. Does not paint and does not scroll. */
-export function useLayoutSentencePairing(
+export function usePdfSentenceInteraction(
 	docId: string,
 	hostRef: RefObject<HTMLElement | null>,
 	enabled: boolean,
+	onSentenceDoubleClick?: (
+		sentence: LayoutSentenceHover,
+		event: MouseEvent,
+	) => void,
 ): void {
+	const doubleClickRef = useRef(onSentenceDoubleClick);
+	doubleClickRef.current = onSentenceDoubleClick;
 	useEffect(() => {
 		if (!enabled) return;
 		const root = hostRef.current;
@@ -77,7 +90,11 @@ export function useLayoutSentencePairing(
 			const event = pending;
 			pending = null;
 			if (!event) return;
-			if (selectionOwns(root, event, origin)) {
+			if (
+				selectionOwns(root, event, origin) ||
+				root.hasAttribute("data-pdf-selecting") ||
+				linkPreviewDragActive()
+			) {
 				suppressLayoutSentenceHover();
 				return;
 			}
@@ -88,16 +105,23 @@ export function useLayoutSentencePairing(
 					? event.target.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`)
 					: null;
 			const pageIndex = Number(page?.getAttribute(EMBED_PAGE_ATTR));
-			if (!span || !page || !Number.isInteger(pageIndex)) {
+			if (
+				!page ||
+				!Number.isInteger(pageIndex) ||
+				(event.target instanceof Element &&
+					event.target.closest("[data-pdf-chrome], [data-selection-menu]"))
+			) {
 				clearLayoutSentenceHover();
 				return;
 			}
+			const box = page.getBoundingClientRect();
+			if (!box.width || !box.height) return;
 			syncLayoutSentencePointer({
 				docId,
-				regionId: span.itemId,
+				regionId: span?.itemId ?? "",
 				pageIndex,
-				x: 0,
-				y: 0,
+				x: (event.clientX - box.left) / box.width,
+				y: (event.clientY - box.top) / box.height,
 				span,
 			});
 		};
@@ -118,11 +142,37 @@ export function useLayoutSentencePairing(
 			clearLayoutSentenceHover();
 		};
 
-		root.addEventListener("pointermove", onMove);
+		const onDoubleClick = (event: MouseEvent) => {
+			if (!doubleClickRef.current || !(event.target instanceof Element)) return;
+			if (
+				event.target.closest("[data-layout-item], [data-pdf-chrome], a, button")
+			)
+				return;
+			const page = event.target.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`);
+			if (!page) return;
+			const box = page.getBoundingClientRect();
+			const pageIndex = Number(page.getAttribute(EMBED_PAGE_ATTR));
+			if (!box.width || !box.height || !Number.isInteger(pageIndex)) return;
+			const hit = sentenceForActivation({
+				docId,
+				regionId: "",
+				pageIndex,
+				x: (event.clientX - box.left) / box.width,
+				y: (event.clientY - box.top) / box.height,
+			});
+			const sentence = layoutSentenceHover();
+			if (!hit || !sentence) return;
+			event.preventDefault();
+			event.stopPropagation();
+			doubleClickRef.current(sentence, event);
+		};
+		root.addEventListener("dblclick", onDoubleClick, true);
+		root.addEventListener("pointermove", onMove, true);
 		root.addEventListener("pointerdown", onDown);
 		root.addEventListener("pointerleave", onLeave);
 		return () => {
-			root.removeEventListener("pointermove", onMove);
+			root.removeEventListener("dblclick", onDoubleClick, true);
+			root.removeEventListener("pointermove", onMove, true);
 			root.removeEventListener("pointerdown", onDown);
 			root.removeEventListener("pointerleave", onLeave);
 			if (raf) cancelAnimationFrame(raf);
@@ -133,21 +183,83 @@ export function useLayoutSentencePairing(
 }
 
 /**
- * Marks the hovered sentence's spans on one translation page.
+ * Paints the hovered sentence on one translation page.
  * Mounting the page is what paints an off-screen sentence once it is visible.
  */
-export function LayoutSentencePageMark({
+export function PdfSentenceHighlight({
 	docId,
 	pageIndex,
+	source = false,
 }: {
 	docId: string;
 	pageIndex: number;
+	source?: boolean;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
 	useLayoutEffect(() => {
-		const shell = ref.current?.parentElement;
-		if (!shell) return;
-		const marked: HTMLElement[] = [];
+		const layer = ref.current;
+		const shell = layer?.parentElement;
+		if (!layer || !shell) return;
+		const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+		let revealFrame = 0;
+		let pending: {
+			key: string;
+			content: DocumentFragment;
+			opacity: string;
+		} | null = null;
+		let paintedKey: string | null = null;
+		let fadingOut = false;
+
+		const install = () => {
+			const next = pending;
+			pending = null;
+			fadingOut = false;
+			layer.replaceChildren();
+			paintedKey = next?.key ?? null;
+			if (!next) return;
+			layer.style.setProperty("--pdf-sentence-opacity", next.opacity);
+			layer.append(next.content);
+			if (reducedMotion.matches) {
+				layer.classList.add("is-on");
+				return;
+			}
+			// Commit the hidden style before starting the shared opacity transition.
+			void getComputedStyle(layer).opacity;
+			revealFrame = requestAnimationFrame(() => {
+				revealFrame = 0;
+				layer.classList.add("is-on");
+			});
+		};
+		const transition = (next: typeof pending) => {
+			pending = next;
+			if (revealFrame) cancelAnimationFrame(revealFrame);
+			revealFrame = 0;
+			if (reducedMotion.matches) {
+				layer.classList.remove("is-on");
+				install();
+				return;
+			}
+			if (fadingOut) return;
+			if (
+				!layer.childElementCount ||
+				Number(getComputedStyle(layer).opacity) === 0
+			) {
+				layer.classList.remove("is-on");
+				install();
+				return;
+			}
+			fadingOut = true;
+			layer.classList.remove("is-on");
+		};
+		const onTransitionEnd = (event: TransitionEvent) => {
+			if (
+				event.target === layer &&
+				event.propertyName === "opacity" &&
+				fadingOut
+			)
+				install();
+		};
+		layer.addEventListener("transitionend", onTransitionEnd);
 		const paint = () => {
 			const current = layoutSentenceHover();
 			const mine =
@@ -155,26 +267,87 @@ export function LayoutSentencePageMark({
 				layoutSentenceScope(current.docId) === layoutSentenceScope(docId)
 					? current
 					: null;
-			for (const node of marked) node.removeAttribute("data-sentence-hot");
-			marked.length = 0;
-			if (!mine) return;
-			for (const member of mine.members) {
-				if (member.pageIndex !== pageIndex) continue;
-				const nodes = shell.querySelectorAll<HTMLElement>(
-					`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
-				);
-				for (const node of nodes) {
-					node.setAttribute("data-sentence-hot", "1");
-					marked.push(node);
+			const selectedDocument = heldLayoutSentenceDocument();
+			if (!mine || selectedDocument === docId) {
+				transition(null);
+				return;
+			}
+			const box = shell.getBoundingClientRect();
+			if (!box.width || !box.height) return;
+			const content = document.createDocumentFragment();
+			const append = (x: number, y: number, w: number, h: number) => {
+				const band = document.createElement("span");
+				Object.assign(band.style, {
+					left: `${x * 100}%`,
+					top: `${y * 100}%`,
+					width: `${w * 100}%`,
+					height: `${h * 100}%`,
+				});
+				content.append(band);
+			};
+			if (source) {
+				const lines = layoutSentenceLineRects(docId, pageIndex);
+				for (const rect of sourceSentenceHoverBands(
+					mine.members
+						.filter((member) => member.pageIndex === pageIndex)
+						.flatMap((member) => member.rects),
+					box.width,
+					box.height,
+					lines.length ? lines : undefined,
+				))
+					append(rect.x, rect.y, rect.w, rect.h);
+			} else {
+				for (const member of mine.members) {
+					if (member.pageIndex !== pageIndex) continue;
+					for (const node of shell.querySelectorAll<HTMLElement>(
+						`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
+					)) {
+						const range = document.createRange();
+						range.selectNodeContents(node);
+						for (const line of translatedSelectionLineRects(shell, range)) {
+							append(
+								(line.left - box.left) / box.width,
+								(line.top - box.top) / box.height,
+								line.width / box.width,
+								line.height / box.height,
+							);
+						}
+					}
 				}
 			}
+			if (!content.childElementCount) {
+				transition(null);
+				return;
+			}
+			const next = {
+				key: mine.key,
+				content,
+				opacity: selectedDocument ? "28%" : "12%",
+			};
+			if (paintedKey === mine.key && !fadingOut) {
+				layer.replaceChildren(content);
+				layer.style.setProperty("--pdf-sentence-opacity", next.opacity);
+			} else transition(next);
 		};
 		const unsubscribe = subscribeLayoutSentenceHover(paint);
+		const observer =
+			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(paint);
+		observer?.observe(shell);
 		paint();
 		return () => {
 			unsubscribe();
-			for (const node of marked) node.removeAttribute("data-sentence-hot");
+			observer?.disconnect();
+			if (revealFrame) cancelAnimationFrame(revealFrame);
+			layer.removeEventListener("transitionend", onTransitionEnd);
 		};
-	}, [docId, pageIndex]);
-	return <div ref={ref} className="contents" />;
+	}, [docId, pageIndex, source]);
+	return (
+		<div
+			ref={ref}
+			className="pdf-layout-sentence-wash"
+			data-source-sentence={source || undefined}
+			style={{ zIndex: source ? 6 : 4 }}
+			aria-hidden="true"
+		/>
+	);
 }

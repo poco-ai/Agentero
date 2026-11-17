@@ -159,6 +159,12 @@ function copySelection(): string | undefined {
 }
 
 beforeEach(() => {
+	Object.defineProperty(Range.prototype, "getClientRects", {
+		configurable: true,
+		writable: true,
+		value: () => [],
+	});
+
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	frames = new Map();
 	let frameId = 0;
@@ -194,6 +200,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+	delete (Range.prototype as unknown as Record<string, unknown>).getClientRects;
+
 	await act(() => root.unmount());
 	window.getSelection()?.removeAllRanges();
 	container.remove();

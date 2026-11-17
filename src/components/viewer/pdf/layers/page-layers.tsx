@@ -80,7 +80,7 @@ import {
 import { PdfRegionSelectLayer } from "@/components/viewer/pdf/layers/region-select-layer";
 import { SelectionGutter } from "@/components/viewer/pdf/layers/selection-gutter";
 import { PDF_VISUAL_REGION_FRAME_CLASS } from "@/components/viewer/pdf/layers/visual-region-frame";
-import { LayoutSentencePageMark } from "@/components/viewer/pdf/layout-sentence-pairing";
+import { PdfSentenceHighlight } from "@/components/viewer/pdf/layout-sentence-pairing";
 import {
 	askHighlightRects,
 	commentForVisibleTranslation,
@@ -210,7 +210,7 @@ function TranslatedHighlightLayer({
 		<div
 			aria-hidden="true"
 			className="pointer-events-none absolute inset-0 z-[5]"
-			style={{ isolation: "isolate", mixBlendMode: "multiply" }}
+			style={{ isolation: "isolate", opacity: 0.28 }}
 		>
 			{paints.flatMap((paint) =>
 				paint.rects.map((rect) => (
@@ -245,11 +245,11 @@ function TranslatedHighlightLayer({
 }
 
 /**
- * Text-selection highlight tint: a light translucent blue (Zotero-style) so the
+ * Text-selection highlight tint follows the Appearance theme so the
  * underlying glyphs stay legible under the selection. Module-level so every
  * page shares one stable value.
  */
-const PDF_TEXT_SELECTION_BACKGROUND = "rgba(96, 165, 250, 0.28)";
+const PDF_TEXT_SELECTION_BACKGROUND = "var(--primary)";
 const EMPTY_SELECTION_BANDS: readonly PdfAskNormalizedRect[] = [];
 
 /**
@@ -275,10 +275,12 @@ function TranslationLiveSelection({
 		<div
 			aria-hidden="true"
 			className="pointer-events-none absolute inset-0 z-[5]"
+			style={{ opacity: 0.28, isolation: "isolate" }}
 		>
 			{rects.map((rect) => (
 				<div
 					key={`${rect.x}:${rect.y}:${rect.w}:${rect.h}`}
+					className="pdf-live-selection-band"
 					style={{
 						position: "absolute",
 						left: `${rect.x * 100}%`,
@@ -311,11 +313,12 @@ function TranslationSelectionVeil({
 		<div
 			aria-hidden="true"
 			className="pointer-events-none absolute inset-0 z-[5]"
-			style={{ isolation: "isolate", mixBlendMode: "multiply" }}
+			style={{ isolation: "isolate", opacity: 0.28 }}
 		>
 			{rects.map((rect) => (
 				<div
 					key={`${rect.x}:${rect.y}:${rect.w}:${rect.h}`}
+					className="pdf-live-selection-band"
 					style={{
 						position: "absolute",
 						left: `${rect.x * 100}%`,
@@ -349,6 +352,7 @@ export type PdfActiveCardAnchor = {
 
 /** Marks and mark-derived overlays. Whole-document work, bucketed by page. */
 export type PdfPageMarksSlice = {
+	sentenceSelectionPages?: import("@embedpdf/plugin-selection/react").FormattedSelection[];
 	activeAskAnchor: PdfActiveCardAnchor | null;
 	activeTranslateAnchor: PdfActiveCardAnchor | null;
 	activeVisualTrace: PdfVisualSessionTrace | null;
@@ -462,8 +466,8 @@ export type PdfPageModeSlice = {
 	visualCropPending: boolean;
 	visualDraftOpen: boolean;
 	/**
-	 * Dual-pane translation companion: keep raster + translate overlay only.
-	 * Selection / annotation / search / citation chrome stay unmounted.
+	 * Dual-pane translation companion: native translated selection and saved
+	 * translated highlights, without the original PDF text/annotation layers.
 	 */
 	translationOnly?: boolean;
 	/** PDFs outside papers/: annotation / translate / layout layers stay off. */
@@ -530,7 +534,7 @@ export type PdfPageHandlers = {
 /**
  * EmbedPDF annotation capability. Passed in by the caller rather than read
  * with `useAnnotationCapability()` here: the slim dual-pane translation
- * viewer renders `PdfPageLayers` without registering the annotation plugin,
+ * viewer can render `PdfPageLayers` without registering the annotation plugin,
  * and that hook throws ("Plugin annotation not found") when the plugin is
  * absent — hooks run before the `mode.translationOnly` early return.
  */
@@ -1231,9 +1235,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			/>
 		) : null;
 
-	// Dual-pane companion: raster + translated text only. Skipping the full
-	// interaction stack halves per-page React work while the second EmbedPDF
-	// instance is still warming up.
+	// Dual-pane companion keeps native translated selection and markup, while
+	// skipping the original PDF interaction layers.
 	// Keep both shells free of blurred shadows: they can cause long scroll
 	// frames in WebKitGTK. The ring still provides a crisp paper edge.
 	if (mode.translationOnly) {
@@ -1243,6 +1246,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					"relative overflow-visible rounded-sm ring-1",
 					PDF_PAPER_SHELL_CLASS[tone],
 				)}
+				data-paper={tone}
 				style={{ width, height }}
 				onPointerEnter={() => setPageHovered(true)}
 				onPointerLeave={() => setPageHovered(false)}
@@ -1250,9 +1254,41 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			>
 				{paperRaster}
 				{mode.sentencePairing ? (
-					<LayoutSentencePageMark docId={docId} pageIndex={pageIndex} />
+					<PdfSentenceHighlight docId={docId} pageIndex={pageIndex} />
 				) : null}
 				{translateOverlay}
+				<TranslationLiveSelection documentId={docId} pageIndex={pageIndex} />
+				<TranslatedHighlightLayer paints={translatedPaints} />
+				<TranslationSelectionVeil
+					pages={marks.selectionCommentDraft?.visiblePages}
+					pageIndex={pageIndex}
+				/>
+				{selectionDraftOnPage ? (
+					<CommentCardsLayer
+						items={EMPTY_COMMENTS}
+						inset
+						pageWidthPx={width}
+						pageHeightPx={height}
+						editingId={null}
+						wikiTarget={marks.commentWikiTarget}
+						hoveredId={hoveredCommentId}
+						selectionDraft={selectionDraftOnPage}
+						onCommitSelectionComment={handlers.onCommitSelectionComment}
+						onSelectionCommentActiveChange={
+							handlers.onSelectionCommentActiveChange
+						}
+						onDismissSelectionComment={handlers.onDismissSelectionComment}
+						onOpen={handlers.onOpenComment}
+						onSave={handlers.onSaveComment}
+						onCancel={handlers.onCancelComment}
+						onDelete={handlers.onDeleteComment}
+						onCopyLink={handlers.onCopyCommentLink}
+						onCopyEmbed={handlers.onCopyCommentEmbed}
+						onAddToChat={handlers.onAddCommentToChat}
+						onHover={handlers.onHoverComment}
+						onLeave={handlers.onLeaveComment}
+					/>
+				) : null}
 				{pageTranslateTab}
 				<SearchLayer
 					documentId={activeSearchDocumentId}
@@ -1349,6 +1385,13 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				</button>
 			)}
 			{paperRaster}
+			{mode.sentencePairing ? (
+				<PdfSentenceHighlight
+					docId={docId}
+					pageIndex={pageIndex}
+					source={!translationVisible}
+				/>
+			) : null}
 			{!searchAboveTranslation ? (
 				<SearchLayer
 					documentId={docId}
@@ -1389,9 +1432,10 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 								pageIndex,
 							)}
 							draftPages={
-								marks.selectionCommentDraft?.visiblePages?.length
+								marks.sentenceSelectionPages ??
+								(marks.selectionCommentDraft?.visiblePages?.length
 									? undefined
-									: marks.selectionCommentDraft?.pages
+									: marks.selectionCommentDraft?.pages)
 							}
 						/>
 					)}
@@ -1548,6 +1592,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						width={width}
 						height={height}
 						paperDark={pdfDark}
+						sentencePairing={mode.sentencePairing}
 					/>
 				) : null}
 				{/*

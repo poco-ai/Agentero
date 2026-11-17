@@ -647,7 +647,7 @@
 .pdf-layout-element-frame,
 .pdf-layout-element-chip {
 	opacity: 0;
-	transition: opacity 160ms ease;
+	transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
 }
 [data-layout-element].is-hot > .pdf-layout-element-frame,
 [data-layout-element].is-hot > .pdf-layout-element-chip,
@@ -697,26 +697,28 @@
 	z-index: 2;
 	pointer-events: none;
 	opacity: 0;
-	transition: opacity 160ms ease;
+	transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
 }
 .pdf-layout-sentence-wash.is-on {
-	opacity: 1;
+	opacity: var(--pdf-sentence-opacity, 12%);
 }
 .pdf-layout-sentence-wash > span {
 	position: absolute;
+	transform: translateY(-12%);
 	border-radius: 2px;
-	background: rgb(24 24 27 / 0.22);
+	background: var(--primary);
 }
-[data-paper="dark"] .pdf-layout-sentence-wash > span {
-	background: rgb(244 244 245 / 0.22);
+.pdf-layout-sentence-wash[data-source-sentence] > span,
+.pdf-live-selection-band[data-source-sentence] {
+	transform: none;
 }
 [data-sentence][data-sentence-hot] {
 	border-radius: 1px;
-	background-color: rgb(24 24 27 / 0.22);
+	background-color: color-mix(in oklch, var(--primary) 12%, transparent);
 	transition: background-color 160ms ease;
 }
-[data-paper="dark"] [data-sentence][data-sentence-hot] {
-	background-color: rgb(244 244 245 / 0.22);
+.pdf-live-selection-band {
+	transform: translateY(-12%);
 }
 @media (prefers-reduced-motion: reduce) {
 	.pdf-layout-element-frame,
