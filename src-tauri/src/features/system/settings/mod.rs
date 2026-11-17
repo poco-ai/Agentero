@@ -142,6 +142,9 @@ pub struct AppSettings {
     /// PDF page layout: `none` (single page) | `odd` | `even` (two-page spread).
     #[serde(default = "default_pdf_spread_mode")]
     pub pdf_spread_mode: String,
+    /// In-page translate tab: `hover` (default) | `always` | `hidden`.
+    #[serde(default = "default_pdf_translate_tab")]
+    pub pdf_translate_tab: String,
     #[serde(default = "default_library_columns")]
     pub library_columns: Vec<LibraryColumnPref>,
     #[serde(default)]
@@ -552,6 +555,7 @@ impl Default for AppSettings {
             hint_mode_enabled: true,
             sound_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
+            pdf_translate_tab: default_pdf_translate_tab(),
             library_columns: default_library_columns(),
             connector_enabled: false,
             connector_port: default_connector_port(),
@@ -626,6 +630,9 @@ fn default_pdf_scroll_strategy() -> String {
 }
 fn default_pdf_spread_mode() -> String {
     "none".into()
+}
+fn default_pdf_translate_tab() -> String {
+    "hover".into()
 }
 /// Canonical papers-Library column keys, in default order.
 const LIBRARY_COLUMN_KEYS: &[&str] = &[
@@ -1454,6 +1461,9 @@ fn normalize(s: &mut AppSettings) {
     const PDF_SPREAD_MODES: &[&str] = &["none", "odd", "even"];
     if !PDF_SPREAD_MODES.contains(&s.pdf_spread_mode.as_str()) {
         s.pdf_spread_mode = default_pdf_spread_mode();
+    }
+    if !["hover", "always", "hidden"].contains(&s.pdf_translate_tab.as_str()) {
+        s.pdf_translate_tab = default_pdf_translate_tab();
     }
 
     // Library columns: drop unknown/duplicate keys, append missing ones

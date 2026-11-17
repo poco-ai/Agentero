@@ -256,6 +256,13 @@
 				"action": "清除",
 				"done": "已清除使用记录"
 			}
+		},
+		"pdfTranslateTab": {
+			"label": "翻译入口",
+			"description": "按钮停在页面一角，尺寸不随 PDF 缩放。隐藏后仍可用顶部工具栏和翻译快捷键。",
+			"hover": "悬停显示",
+			"always": "始终显示",
+			"hidden": "隐藏"
 		}
 	},
 	"appearance": {

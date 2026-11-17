@@ -90,6 +90,7 @@ import type {
 	ScreenPoint,
 	SelectionCommentDraft,
 } from "@/components/viewer/pdf/types";
+import { useSettings } from "@/hooks/use-app-stores";
 import { cn } from "@/lib/core/utils";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
@@ -689,6 +690,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				: height;
 	const pdfDark = tone === "dark";
 	const paperTint = PDF_PAPER_TINT[tone];
+	const translateTabMode = useSettings((s) => s.pdfTranslateTab);
 	const pageShellRef = useRef<HTMLDivElement | null>(null);
 	/**
 	 * Lazily arm text selection once the pointer reaches the page. Registering
@@ -1232,7 +1234,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		) : null;
 
 	const pageTranslateTab =
-		!mode.plainViewer && (pageHovered || pageTranslateState.status) ? (
+		!mode.plainViewer &&
+		translateTabMode !== "hidden" &&
+		(translateTabMode === "always" ||
+			pageHovered ||
+			pageTranslateState.status) ? (
 			<PageTranslateTab
 				pageIndex={pageIndex}
 				active={pageTranslateState.active}

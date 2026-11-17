@@ -256,6 +256,13 @@
 				"action": "Clear",
 				"done": "Activity history cleared"
 			}
+		},
+		"pdfTranslateTab": {
+			"label": "Page translate button",
+			"description": "Fixed screen size on the page corner. Hidden still leaves the PDF toolbar and the translate shortcut.",
+			"hover": "Show on hover",
+			"always": "Always show",
+			"hidden": "Hidden"
 		}
 	},
 	"appearance": {

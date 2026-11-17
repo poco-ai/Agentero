@@ -45,8 +45,10 @@ import {
 	type PaperNoteMode,
 	PDF_SCROLL_STRATEGIES,
 	PDF_SPREAD_MODES,
+	PDF_TRANSLATE_TAB_MODES,
 	type PdfScrollStrategy,
 	type PdfSpreadMode,
+	type PdfTranslateTabMode,
 	saveSettingsAsync,
 } from "@/lib/settings";
 import { DEFAULT_NETWORK_PROXY_URL } from "@/lib/settings/defaults";
@@ -509,6 +511,28 @@ export function GeneralPane({
 							{PDF_SPREAD_MODES.map((mode) => (
 								<SelectItem key={mode} value={mode}>
 									{t(`general.pdfSpreadMode.${mode}`)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</SettingsRow>
+				<SettingsRow
+					label={t("general.pdfTranslateTab.label")}
+					description={t("general.pdfTranslateTab.description")}
+				>
+					<Select
+						value={settings.pdfTranslateTab}
+						onValueChange={(value) =>
+							patch({ pdfTranslateTab: value as PdfTranslateTabMode })
+						}
+					>
+						<SelectTrigger size="sm" className="min-w-[180px] max-w-[240px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{PDF_TRANSLATE_TAB_MODES.map((mode) => (
+								<SelectItem key={mode} value={mode}>
+									{t(`general.pdfTranslateTab.${mode}`)}
 								</SelectItem>
 							))}
 						</SelectContent>
