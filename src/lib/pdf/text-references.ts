@@ -303,7 +303,7 @@ export function bibliographyEntries(
 				current = null;
 				continue;
 			}
-			const number = text.match(/^\s*(?:\[\s*(\d+)\s*\]|(\d+)\s*\.\s)/);
+			const number = text.match(/^\s*(?:\[\s*(\d+)\s*\]|(\d+)\s*\.(?:\s|$))/);
 			const author = /^[\p{Lu}][\p{L}'’‐-]+,\s*[\p{Lu}](?:\.|\b)/u.test(text);
 			if (number || author) {
 				const n = number?.[1] ?? number?.[2];
