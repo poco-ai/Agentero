@@ -1559,7 +1559,10 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				 * All kinds crop on click; hover and keyboard focus preview the
 				 * exact bbox that would be cropped.
 				 */}
-				{!mode.regionSelecting && !mode.visualDraftOpen && !mode.plainViewer
+				{!immersiveReading &&
+				!mode.regionSelecting &&
+				!mode.visualDraftOpen &&
+				!mode.plainViewer
 					? layout.hoverableRegionsByPage.get(pageIndex)?.map((region) => {
 							// Fixed-size chip in a zoom-scaled box: only draw it where
 							// it actually fits inside the region.

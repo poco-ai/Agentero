@@ -659,7 +659,7 @@ export default function App() {
 
 					<AppDialogs />
 
-					<BackgroundTasksPanel />
+					{!immersiveReading && <BackgroundTasksPanel />}
 
 					{/* First-run setup wizard (Raycast-style full-window overlay). */}
 					<OnboardingRoot />
