@@ -100,7 +100,47 @@ export function matchTextReference(
 
 /** Column-local order; never concatenate the ends of neighbouring columns. */
 export function referenceLines(rects: readonly PageTextRect[]): LineSegment[] {
-	const lines = groupLineSegments(rects);
+	// PDFium may include a linked number in both the preceding text run and
+	// its own shorter run. Keep the latter's actual hit geometry, trimming only
+	// repeated suffixes whose boxes overlap on the same baseline.
+	const unique = rects.map((run) => {
+		const { origin, size } = run.rect;
+		const right = origin.x + size.width;
+		const duplicate = rects.find((other) => {
+			const suffix = other.content.trim();
+			const b = other.rect;
+			const overlap =
+				Math.min(origin.y + size.height, b.origin.y + b.size.height) -
+				Math.max(origin.y, b.origin.y);
+			return (
+				other !== run &&
+				suffix.length > 0 &&
+				suffix.length <= 16 &&
+				run.content.trimEnd().length > suffix.length &&
+				run.content.trimEnd().endsWith(suffix) &&
+				b.origin.x > origin.x &&
+				b.origin.x <= right &&
+				b.origin.x + b.size.width >= right &&
+				b.origin.x >= right - b.size.width - 1 &&
+				overlap >= Math.min(size.height, b.size.height) * 0.7 &&
+				((b.origin.x < right &&
+					(/^\s/u.test(other.content) ||
+						right - b.origin.x >= b.size.width * 0.5)) ||
+					(b.size.height < size.height * 0.9 &&
+						run.content.endsWith(other.content)))
+			);
+		});
+		if (!duplicate) return run;
+		return {
+			...run,
+			content: run.content.trimEnd().slice(0, -duplicate.content.trim().length),
+			rect: {
+				origin,
+				size: { ...size, width: duplicate.rect.origin.x - origin.x },
+			},
+		};
+	});
+	const lines = groupLineSegments(unique);
 	const min = Math.min(...lines.map((l) => l.left)),
 		max = Math.max(...lines.map((l) => l.right));
 	const middle = (min + max) / 2;
@@ -145,7 +185,7 @@ export function detectTextReferences(
 			return { line, start, end: text.length - 1 };
 		});
 		const pattern =
-			/[[［][\d\s,‐‑‒–—−-]+[\]］]|[（(][^()（）]{0,600}?(?:18|19|20)\d{2}[^()（）]{0,300}?[）)]|\b(?:Fig(?:ure)?s?\.?|Tables?|Tbl\.?)\s*\d+[a-z]?(?:\s*[,–-]\s*[a-z])*/giu;
+			/[[［][\d\s,‐‑‒–—−-]+[\]］]|[（(][^()（）]{0,600}?(?:18|19|20)\d{2}[^()（）]{0,300}?[）)]|\b(?:Fig(?:ure)?s?\.?|Tables?|Tbl\.?)\s*\d+[a-z]?(?:\s*[,–-]\s*[a-z](?![\p{L}\p{N}]))*/giu;
 		for (const match of text.matchAll(pattern)) {
 			const numbers = citationNumbers(match[0]);
 			const authorYears = numbers.length ? [] : citationAuthors(match[0]);
