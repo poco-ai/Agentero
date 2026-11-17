@@ -87,7 +87,7 @@ export const LAYOUT_MERGE = {
 	/** Minimum geometric score lead before assigning an unreadable caption to a non-figure host. */
 	captionFamilyMinScoreMargin: 0.2,
 	/** Only explicit numbered captions may attach beside a figure across a small gutter. */
-	sideCaptionMaxGap: 0.06,
+	sideCaptionMaxGap: 0.1,
 } as const;
 
 /**
@@ -1102,9 +1102,22 @@ function pairCaptionsOneToOne(
 					c = caption.bbox;
 				const gap = Math.max(c.x - h.x - h.w, h.x - c.x - c.w);
 				const overlap = verticalOverlapRatio(h, c);
+				const gapLeft = Math.min(c.x + c.w, h.x + h.w);
+				const gapRight = Math.max(c.x, h.x);
+				const separated = blockers.some(
+					(block) =>
+						block.pageIndex === host.pageIndex &&
+						block.id !== host.id &&
+						block.id !== caption.id &&
+						block.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+						block.bbox.x >= gapLeft - 0.005 &&
+						block.bbox.x + block.bbox.w <= gapRight + 0.005 &&
+						verticalOverlapRatio(block.bbox, h) >= 0.5,
+				);
 				if (
 					gap >= -0.01 &&
 					gap <= LAYOUT_MERGE.sideCaptionMaxGap + 1e-9 &&
+					!separated &&
 					overlap >= 0.5 &&
 					c.w <= h.w &&
 					c.h <= h.h * 1.25
