@@ -612,17 +612,24 @@ export function usePdfCitations({
 				return;
 			}
 			const reference = textReferenceForLink(link);
-			const known = reference
-				? matchTextReference(reference, citationsRef.current)
-				: [];
-			const expected =
-				reference?.numbers?.length ?? reference?.authorYears?.length ?? 0;
-			if (
-				reference &&
-				!reference.label &&
-				!isRemotePaper &&
-				known.length < expected
-			) {
+			// Two ambiguous matches for one member cannot stand in for a missing
+			// second member of the group. Check coverage, rather than row count.
+			const hasMissingMember = reference?.numbers
+				? reference.numbers.some(
+						(number) =>
+							!matchTextReference(
+								{ ...reference, numbers: [number] },
+								citationsRef.current,
+							).length,
+					)
+				: reference?.authorYears?.some(
+						(authorYear) =>
+							!matchTextReference(
+								{ ...reference, authorYears: [authorYear] },
+								citationsRef.current,
+							).length,
+					);
+			if (reference && !reference.label && !isRemotePaper && hasMissingMember) {
 				void loadBibliography()
 					.then((entries) => {
 						if (hoverRequestRef.current !== request) return;

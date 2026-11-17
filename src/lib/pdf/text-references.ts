@@ -87,13 +87,20 @@ export function matchTextReference(
 				return false;
 			if (/[a-z]$/.test(year) && years.length && !years.includes(year))
 				return false;
-			const name =
-				c.metadata.authors?.[0] ??
-				raw.replace(/^\s*(?:\[\d+\]|\d+\.)\s*/, "").split(/[,.(]/)[0];
-			if (!name) return false;
-			return normalize(name)
-				.split(/[^\p{L}'’-]+/u)
-				.includes(normalize(author));
+			// Enrichment can prepend a consortium / organization to the authors.
+			// The original bibliography's first author remains a valid identity;
+			// arbitrary later coauthors do not establish an author-year citation.
+			const names = [
+				c.metadata.authors?.[0],
+				raw.replace(/^\s*(?:\[\d+\]|\d+\.)\s*/, "").split(/[,.(]/)[0],
+			];
+			return names.some(
+				(name) =>
+					name &&
+					normalize(name)
+						.split(/[^\p{L}'’-]+/u)
+						.includes(normalize(author)),
+			);
 		}),
 	);
 }
