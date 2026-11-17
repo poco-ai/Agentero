@@ -129,6 +129,48 @@ function rectArea(rects: readonly SentenceFractionRect[]): number {
 	return area;
 }
 
+const sentenceHitBandCache = new WeakMap<
+	readonly (readonly SentenceFractionRect[])[],
+	SentenceFractionRect[][]
+>();
+
+/** Adjacent lines share a hit boundary at their midpoint; painted boxes stay tight. */
+function sentenceHitBands(
+	bands: readonly (readonly SentenceFractionRect[])[],
+): SentenceFractionRect[][] {
+	const cached = sentenceHitBandCache.get(bands);
+	if (cached) return cached;
+	const lines = groupReadingLines(bands.flat(), (rect) => ({
+		x: rect.x * 1000,
+		y: rect.y * 1000,
+		width: rect.w * 1000,
+		height: rect.h * 1000,
+	}));
+	const expanded = new Map<SentenceFractionRect, SentenceFractionRect>();
+	lines.forEach((line, index) => {
+		for (const rect of line.items) {
+			const overlapsColumn = (neighbor: (typeof lines)[number]) =>
+				neighbor.items.some(
+					(other) => rect.x < other.x + other.w && other.x < rect.x + rect.w,
+				);
+			const previous = lines.slice(0, index).reverse().find(overlapsColumn);
+			const next = lines.slice(index + 1).find(overlapsColumn);
+			const top = previous
+				? Math.min(line.top, (previous.bottom + line.top) / 2)
+				: line.top;
+			const bottom = next
+				? Math.max(line.bottom, (line.bottom + next.top) / 2)
+				: line.bottom;
+			expanded.set(rect, { ...rect, y: top / 1000, h: (bottom - top) / 1000 });
+		}
+	});
+	const result = bands.map((rects) =>
+		rects.map((rect) => expanded.get(rect) ?? rect),
+	);
+	sentenceHitBandCache.set(bands, result);
+	return result;
+}
+
 function chainKey(quote: string, translated: string): string {
 	return `${quote}\u0000${translated}`;
 }
@@ -226,6 +268,19 @@ export function elementSentenceAtPoint(options: {
 				return;
 			}
 			const area = rectArea(rects);
+			if (area + 1e-12 < bestArea) {
+				bestArea = area;
+				sentenceIndex = index;
+			}
+		});
+	}
+	if (!spanMatches && sentenceIndex < 0 && boxes) {
+		const hitBands = sentenceHitBands(boxes);
+		let bestArea = Number.POSITIVE_INFINITY;
+		hitBands.forEach((rects, index) => {
+			if (!rects.some((rect) => pointInBbox(options.x, options.y, rect)))
+				return;
+			const area = rectArea(boxes[index] ?? []);
 			if (area + 1e-12 < bestArea) {
 				bestArea = area;
 				sentenceIndex = index;
