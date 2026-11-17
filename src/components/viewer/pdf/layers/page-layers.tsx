@@ -55,6 +55,7 @@ import {
 	pdfTileDpr,
 } from "@/components/viewer/pdf/constants";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
+import { usePageChromePosition } from "@/components/viewer/pdf/hooks/use-page-chrome-position";
 import { nativeSelectionBelongsToHost } from "@/components/viewer/pdf/host-dom";
 import {
 	AgenteroRenderLayer,
@@ -594,6 +595,8 @@ const PageTranslateTab = memo(function PageTranslateTab({
 	onToggle,
 }: PageTranslateTabProps) {
 	const { t } = useTranslation("viewer");
+	const ref = useRef<HTMLButtonElement>(null);
+	const position = usePageChromePosition(ref);
 	const label = running
 		? t("pdf.layoutTranslate.pageRunning")
 		: active
@@ -611,8 +614,14 @@ const PageTranslateTab = memo(function PageTranslateTab({
 			: Languages;
 	return (
 		<button
+			ref={ref}
 			type="button"
 			data-pdf-chrome
+			data-pdf-translate-tab
+			style={{
+				visibility: position.visible ? undefined : "hidden",
+				transform: `translate(${position.x}px, ${position.y}px)`,
+			}}
 			className={cn(
 				"pointer-events-auto absolute top-2 left-2 z-[8] flex size-7 items-center justify-center rounded-md text-foreground transition-colors duration-100 hover:bg-muted/80 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
 				PDF_CHROME_CHIP,
