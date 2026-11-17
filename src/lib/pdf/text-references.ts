@@ -304,7 +304,15 @@ export function bibliographyEntries(
 				continue;
 			}
 			const number = text.match(/^\s*(?:\[\s*(\d+)\s*\]|(\d+)\s*\.(?:\s|$))/);
-			const author = /^[\p{Lu}][\p{L}'’‐-]+,\s*[\p{Lu}](?:\.|\b)/u.test(text);
+			// A continued author list can start with another surname and initial.
+			// In a hanging bibliography it is indented from the entry's first line;
+			// keep it with that entry rather than moving its year to a new citation.
+			const indent = current ? line.left - current.rect.origin.x : 0;
+			const continuation =
+				indent > line.height * 0.5 && indent < line.height * 4;
+			const author =
+				!continuation &&
+				/^[\p{Lu}][\p{L}'’‐-]+,\s*[\p{Lu}](?:\.|\b)/u.test(text);
 			if (number || author) {
 				const n = number?.[1] ?? number?.[2];
 				current = {
