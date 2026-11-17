@@ -809,6 +809,7 @@ export const DockWorkspace = memo(
 						publishVisiblePanels(api);
 					}),
 					api.onDidMaximizedGroupChange((event) => {
+						if (uiStore.getState().immersiveReading) return;
 						if (event.isMaximized) {
 							if (uiStore.getState().layoutMode !== "reading") {
 								setLayoutMode("reading");
