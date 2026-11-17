@@ -9,7 +9,6 @@ import {
 	isFormulaLayoutKind,
 	isFormulaNumberLayoutKind,
 	isLayoutBodyTextKind,
-	isSidebarLayoutKind,
 	isTableLayoutKind,
 	isTextLayoutKind,
 } from "@/lib/pdf/layout/labels";
@@ -1549,8 +1548,7 @@ export function mergeCaptionsIntoHosts(
 			!isAlgorithmLayoutKind(r.kind) &&
 			!isCaptionLayoutKind(r.kind) &&
 			!isFormulaLayoutKind(r.kind) &&
-			!isFormulaNumberLayoutKind(r.kind) &&
-			!isTextLayoutKind(r.kind),
+			!isFormulaNumberLayoutKind(r.kind),
 	);
 
 	const mainFigureTitles = captions.filter(
@@ -1739,15 +1737,17 @@ export function mergeCaptionsIntoHosts(
 	// ── Phase 5: formulas by equation number (drop unnumbered) ──
 	const numberedFormulas = mergeFormulasByNumber(formulaRelated);
 
-	const hosts = [
-		...clustered,
-		...singles,
-		...others.filter((r) => isSidebarLayoutKind(r.kind)),
-		...numberedFormulas,
-	];
+	const hosts = [...clustered, ...singles, ...numberedFormulas];
 	// Orphans inside 联图 → soft half-width split (title always re-included)
 	// → include same-page titles in full, preserving uncaptioned figures.
-	return requireFigureTitles(
+	const mergedHosts = requireFigureTitles(
 		resolveFigureBboxOverlaps(suppressOrphanFiguresInsideClusters(hosts)),
 	);
+	// Product selection needs every block; gallery consumers filter their own kinds.
+	// Captions absorbed into a host remain part of that host's merged boxes.
+	return [
+		...mergedHosts,
+		...others,
+		...captions.filter((caption) => !usedCaptionIds.has(caption.id)),
+	];
 }

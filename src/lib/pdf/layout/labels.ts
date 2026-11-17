@@ -15,9 +15,9 @@ const LABEL_TO_KIND: Record<string, PdfLayoutKind> = {
 	formula_number: "formula_number",
 	figure_title: "figure_title",
 	header: "header",
-	/** Class 0 — paper abstract; debug overlay only. */
+	/** Class 0 — paper abstract. */
 	abstract: "abstract",
-	// Body / secondary text — formula-merge blockers or debug-only.
+	// Body / secondary text blocks.
 	text: "text",
 	aside_text: "text",
 	content: "text",
@@ -63,9 +63,23 @@ export function isFormulaNumberLayoutKind(kind: PdfLayoutKind): boolean {
 	return kind === "formula_number";
 }
 
-/** Body / aside text — formula merge blockers only. */
+/** Body / aside text blocks. */
 export function isTextLayoutKind(kind: PdfLayoutKind): boolean {
 	return kind === "text";
+}
+
+/**
+ * Text-like layout elements: the selection quote is `region.text`
+ * (body, abstract, header, figure/table caption). Figures, tables,
+ * algorithms and formulas stay whole-element crops.
+ */
+export function isLayoutElementTextKind(kind: PdfLayoutKind): boolean {
+	return (
+		kind === "text" ||
+		kind === "abstract" ||
+		kind === "header" ||
+		kind === "figure_title"
+	);
 }
 
 /**

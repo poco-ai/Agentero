@@ -11,11 +11,11 @@ import { useMemo } from "react";
 import { useStore } from "zustand";
 import { EMPTY_LAYOUT_REGIONS_BY_PAGE } from "@/components/viewer/pdf/constants";
 import {
-	hoverableLayoutRegionsByPage,
 	layoutAnalysisStore,
 	layoutDocumentKey,
 	type PdfLayoutRegion,
 	rawLayoutRegionsByPage,
+	selectableLayoutRegionsByPage,
 } from "@/lib/pdf/layout";
 
 export type PdfLayoutRegions = {
@@ -25,8 +25,11 @@ export type PdfLayoutRegions = {
 	layoutDocRegions: PdfLayoutRegion[] | null;
 	/** Pre-merge detections, flat: the bulk-translate source. */
 	layoutRawRegions: PdfLayoutRegion[] | null;
-	/** Post-merge hover hit targets, bucketed by 0-based page index. */
-	hoverableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
+	/**
+	 * Post-merge element-selection targets, every kind, bucketed by 0-based
+	 * page index. Largest first. Not the figures-rail subset.
+	 */
+	selectableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	/** Pre-merge detections for the debug Eye overlay, bucketed by page. */
 	rawRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 };
@@ -41,7 +44,7 @@ export function usePdfLayoutRegions(docId: string): PdfLayoutRegions {
 		layoutAnalysisStore,
 		(s) => s.overlayVisible[docId] ?? false,
 	);
-	/** Post-merge layout regions for hover hit targets (figures rail source). */
+	/** Post-merge layout regions for the element selection view. */
 	const layoutDocRegions = useStore(
 		layoutAnalysisStore,
 		(s) => s.byDocument[documentKey]?.regions ?? null,
@@ -55,14 +58,14 @@ export function usePdfLayoutRegions(docId: string): PdfLayoutRegions {
 			null,
 	);
 	/**
-	 * Hover hit targets and debug boxes, bucketed by page. Both passes are
-	 * whole-document (NMS / spurious-detection suppression), so they must not run
-	 * inside per-page render — scrolling re-renders every mounted page.
+	 * Element-selection targets and debug boxes, bucketed by page. Both passes
+	 * are whole-document (NMS / spurious-detection suppression), so they must
+	 * not run inside per-page render — scrolling re-renders every mounted page.
 	 */
-	const hoverableRegionsByPage = useMemo(
+	const selectableRegionsByPage = useMemo(
 		() =>
 			layoutDocRegions
-				? hoverableLayoutRegionsByPage(layoutDocRegions)
+				? selectableLayoutRegionsByPage(layoutDocRegions)
 				: EMPTY_LAYOUT_REGIONS_BY_PAGE,
 		[layoutDocRegions],
 	);
@@ -78,7 +81,7 @@ export function usePdfLayoutRegions(docId: string): PdfLayoutRegions {
 		layoutOverlayVisible,
 		layoutDocRegions,
 		layoutRawRegions,
-		hoverableRegionsByPage,
+		selectableRegionsByPage,
 		rawRegionsByPage,
 	};
 }

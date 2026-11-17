@@ -152,11 +152,7 @@
 		"openInPrompt": "Please explain the following quoted passage from this paper."
 	},
 	"pdfExplain": {
-		"selectRegion": "Add visual annotation",
-		"cancelRegion": "Cancel region selection",
-		"regionSelectionLabel": "Select a visual region on page {{page}}",
 		"cropFailed": "Could not capture the selected PDF region.",
-		"cropping": "Capturing region…",
 		"annotationPreviewAlt": "Cropped region from page {{page}}",
 		"visualAnnotation": "Visual annotation",
 		"addToSidebarChat": "Add to sidebar chat",
@@ -221,6 +217,9 @@
 		"kindReference": "Reference"
 	},
 	"figures": {
+		"selectElements": "Select layout elements",
+		"exitElementSelection": "Exit element selection (Esc)",
+		"selectionNeedsLayout": "Run layout analysis to select elements",
 		"title": "Analysis",
 		"panelAria": "Figures, tables, algorithms, and formulas of this paper",
 		"noPaper": "Open a paper PDF to list figures, tables, algorithms, and formulas.",
@@ -240,8 +239,9 @@
 		"queued": "Waiting to analyze layout…",
 		"progressPages": "{{page}} / {{total}} pages",
 		"progressPct": "{{pct}}%",
-		"clickAnnotateAria": "Annotate this {{kind}}",
-		"clickAnnotateHint": "Click to annotate",
+		"selectElementAria": "Select {{kind}}",
+		"selectElementAriaPreview": "Select {{kind}}: {{preview}}",
+		"captionOnPage": "Caption on page {{page}}",
 		"sectionFigures": "Figures",
 		"sectionTables": "Tables",
 		"sectionAlgorithms": "Algorithms",

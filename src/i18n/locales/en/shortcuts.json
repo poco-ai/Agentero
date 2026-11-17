@@ -46,7 +46,7 @@
 		"prevTab": "Previous tab",
 		"nextGroupTab": "Next tab in group",
 		"prevGroupTab": "Previous tab in group",
-		"visualAnnotation": "Add visual annotation (PDF)",
+		"layoutElementSelection": "Select layout elements (PDF)",
 		"layoutTranslate": "Full-text translation (PDF)",
 		"toggleFullscreen": "Toggle borderless fullscreen",
 		"toggleMarkdownSource": "Toggle Markdown source"

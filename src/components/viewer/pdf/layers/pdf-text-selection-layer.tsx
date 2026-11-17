@@ -14,6 +14,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { scheduleIdle } from "@/lib/core/idle";
+import { sourceSentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import {
 	linkPreviewDragActive,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/pdf/link-preview-drag";
 import {
 	buildTightSelectionRects,
+	pageSelectionInkRects,
 	selectionInsertionExclusions,
 	selectionTextExclusionsForPage,
 	warmDisplayFormulaExclusions,
@@ -204,7 +206,33 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 		translationSelectionCovering,
 		() => false,
 	);
-	const effectiveRects = rects.length > 0 ? rects : draftRects;
+	const lineRects = useMemo(
+		() =>
+			pageSelectionInkRects(
+				pageSelection?.geometry[pageIndex] ??
+					provides?.forDocument(documentId).getState().geometry[pageIndex],
+			).map((rect) => ({
+				x: rect.origin.x,
+				y: rect.origin.y,
+				w: rect.size.width,
+				h: rect.size.height,
+			})),
+		[pageSelection?.geometry, pageIndex, provides, documentId],
+	);
+	const effectiveRects = sourceSentenceHoverBands(
+		(rects.length > 0 ? rects : draftRects).map((rect) => ({
+			x: rect.origin.x,
+			y: rect.origin.y,
+			w: rect.size.width,
+			h: rect.size.height,
+		})),
+		1,
+		1,
+		lineRects.length ? lineRects : undefined,
+	).map((rect) => ({
+		origin: { x: rect.x, y: rect.y },
+		size: { width: rect.w, height: rect.h },
+	}));
 
 	if (coveredByTranslation || effectiveRects.length === 0) return null;
 
@@ -219,13 +247,15 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 				// hide the highlight; this tint on top of the glyphs washes them out.
 				zIndex: 5,
 				isolation: "isolate",
-				mixBlendMode: "multiply",
+				opacity: 0.28,
 				pointerEvents: "none",
 			}}
 		>
 			{effectiveRects.map((rect) => (
 				<div
 					key={`${rect.origin.x}:${rect.origin.y}:${rect.size.width}:${rect.size.height}`}
+					className="pdf-live-selection-band"
+					data-source-sentence
 					style={{
 						position: "absolute",
 						left: rect.origin.x * scale,

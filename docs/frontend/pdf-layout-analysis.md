@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | 上游 | [EmbedPDF Layout Analysis](https://www.embedpdf.com/docs/react/headless/plugins/plugin-layout-analysis) |
-| 代码 | `src/lib/pdf/layout/`、`viewer/panels/figures-panel.tsx`（header 按钮）、`viewer/pdf/hooks/use-pdf-layout-{regions,run,hover,translate}.ts`、`viewer/pdf/layers/page-layers.tsx`（页内命中框与 bbox 叠加） |
+| 代码 | `src/lib/pdf/layout/`、`viewer/panels/figures-panel.tsx`（header 按钮）、`viewer/pdf/hooks/use-pdf-layout-{regions,run,hover,translate}.ts`、`viewer/pdf/layers/layout-element-selection-layer.tsx`（元素选择）、`layout-element-actions.tsx`（加入对话 / 翻译）、`page-layers.tsx`（Eye 叠加） |
 | 持久化 | Paper PDF 写入 `{paper}/source/layout.json`（raw text-enriched regions）+ `{paper}/source/layout-index.json`（侧栏同构，供 CLI）；`layoutAnalysisStore` 仍是运行时 UI store |
 
 ---
@@ -71,7 +71,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  某一页没读完则不打标记，下次打开再抽。正文词序变了的块，译文缓存按原文 miss 后重译
         ▼
 ② mergeCaptionsIntoHosts（联图 / 表题 / 算法题 / 公式按编号框几何合并）
-        │  输出 PdfLayoutRegion[]（图题可缺失；公式仅保留有 formula_number 锚点）
+        │  输出 PdfLayoutRegion[]（保留正文 / 摘要 / 标题及未合并图题；图题可缺失；公式仅保留有 formula_number 锚点）
         ▼
 ③ 侧栏展示: isSidebarLayoutKind + dedupeLayoutRegions(minScore 默认 0.3)
         │  分区顺序：插图 → 表 → 算法 → **公式（最底）**
@@ -84,14 +84,18 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  叠加层画 **rawRegions**（合并前、全 kind、无 NMS；score ≥ 0.3）
         │  每框标注分类 + 置信度（如「图片 87%」「摘要 91%」）
         │  标签映射须覆盖 PP-DocLayoutV3 全量（含 abstract）；未映射 label 会在 normalize 被丢弃
-        │  侧栏 / hover 仍用 **regions**（post-merge；不含 abstract）
+        │  侧栏仍用 **regions** 里的插图 / 表 / 算法 / 公式（post-merge）
+        │  元素选择用同一份 post-merge **regions** 的全部 kind
         │  不用 EmbedPDF LayoutAnalysisLayer 画框：sidecar 缓存命中时插件无 page layout
         │
-④ PDF 页交互 → 视觉批注卡
-        │  hit 层用 **post-merge** 区域（与侧栏同源，非插件 raw 框）
-        │  插图 / 表 / 算法 / 有编号公式：hover 框右上角提示「单击进行批注」；
-        │    单击 → VisualAnnotationEditor
-        │  实现：`hit-test.ts` + `pdf-viewer`
+④ 普通阅读持续提供句子悬停与双栏同句联动；工具栏「选择版面元素」或 ⌘. 开启元素框 / 类别 / 点击动作（默认关闭，再次点击 / Esc 退出）
+        │  hit 层用 **post-merge regions**（全 kind；非 Eye 的 rawRegions，也不是侧栏子集）
+        │  hover 只画当前元素。文本类有句对时主视觉是当前句浅底（含跨页链），
+        │    合并框（bbox，以及同页 titleBbox / captionBbox）左上方显示可点击的类别标签；边框 / 背景使用主题主色的 55% / 8%
+        │  类别标签单击 / Enter 选择整个段落 / 元素；段内单击选择当前句；均可加入对话或翻译，不写 visual mark，不打开批注编辑器；选中句持续高亮到动作菜单关闭
+        │  双栏 PDF：左右同一句一起浅亮，不滚动对侧；LaTeX 双栏无句子表面，先只做 PDF
+        │  实现：`hit-test.ts`（selectable*）+ `layout-element-selection-layer.tsx`
+        │  ⌘. 与工具栏复用同一个元素选择开关
         │
 ⑤ 正文 / 摘要 / 标题文字抽取（PDF text layer → region.text）
         │  分析或 sidecar 回填时 enrich；供调试与 bulk 翻译
@@ -99,7 +103,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  行内从左往右，再接下一行。抽正文和英文句子对字形共用
         │  `reading-order.ts`
         │
-⑥ 工具栏「翻译」icon（视觉批注旁）：按阅读顺序批量翻译文字类区域
+⑥ 工具栏「翻译」icon（元素选择旁）：按阅读顺序批量翻译文字类区域
         │  并发 2；每完成一块立刻盖译文图层（`LayoutTranslateOverlay`）
         │  再次点击：运行中=停止；已有译文=清除
 ```

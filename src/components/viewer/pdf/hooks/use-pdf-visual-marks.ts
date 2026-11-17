@@ -4,7 +4,7 @@
  * Note-only marks live in the right-rail comment card column; marks that carry
  * an Agent conversation but no note use a floating conversation card beside
  * their gutter pin. The "add to sidebar chat" action lives on the comment card.
- * This hook persists new crops, updates comments from the rail, deletes marks,
+ * This hook updates comments on saved marks, deletes marks,
  * and adds existing marks to the Agent composer.
  *
  * Boundaries:
@@ -21,48 +21,29 @@ import {
 	useCallback,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type {
-	RailEditState,
-	VisualDraftEditorState,
-} from "@/components/viewer/pdf/types";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { addVisualDraft } from "@/lib/agent/visual-context-store";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import {
-	createNoteTrace,
 	deletePdfVisualTrace,
 	type PdfVisualSessionTrace,
 	writePdfVisualTrace,
 } from "@/lib/pdf/agent-trace";
 import { loadPdfVisualTraceImage } from "@/lib/pdf/agent-trace/image";
-import { DEFAULT_HIGHLIGHT_COLOR } from "@/lib/pdf/highlight/palette";
 
 export type UsePdfVisualMarksOptions = {
 	/** Sidecar root for `marks/<id>.json` (null for loose PDFs — nothing persists). */
 	paperAbsPath: string | null;
-	/** Vault-relative provenance stamped into new marks. */
+	/** Vault-relative provenance for crops added to the composer. */
 	paperRelPath: string | null;
 	/** Persisted visual marks; owned by {@link usePdfMarksIo}. */
 	visualTracesRef: RefObject<PdfVisualSessionTrace[]>;
 	setVisualTraces: Dispatch<SetStateAction<PdfVisualSessionTrace[]>>;
 	upsertVisualTrace: (trace: PdfVisualSessionTrace) => void;
-	/**
-	 * Ref to the rail editor opener. A ref breaks the declaration-order cycle
-	 * with {@link usePdfNoteEditor} (#396).
-	 */
-	beginRailEditRef: RefObject<(state: RailEditState) => void>;
 };
 
 export type PdfVisualMarks = {
-	/**
-	 * Persist a freshly-cropped region as a note-only visual mark and optionally
-	 * open it in the right-rail comment editor (#396).
-	 */
-	handleVisualDraft: (
-		draft: VisualDraftEditorState,
-		beginEdit?: boolean,
-	) => void;
 	/** Persist a comment by mark id (comment-rail in-place edit). */
 	updateVisualComment: (id: string, comment: string) => void;
 	/** Add an existing visual mark's crop to the Agent sidebar composer (#396). */
@@ -77,55 +58,8 @@ export function usePdfVisualMarks({
 	visualTracesRef,
 	setVisualTraces,
 	upsertVisualTrace,
-	beginRailEditRef,
 }: UsePdfVisualMarksOptions): PdfVisualMarks {
 	const { t } = useTranslation("viewer");
-
-	/**
-	 * Hold a freshly-cropped region in memory and open the rail editor.
-	 * An empty note is not written until the user commits text: blur, outside
-	 * click, or Escape drops the draft instead of leaving an empty box.
-	 */
-	const handleVisualDraft = useCallback(
-		(draft: VisualDraftEditorState, beginEdit = true) => {
-			const paperPath = paperRelPath || paperAbsPath || "paper";
-			let mark: PdfVisualSessionTrace;
-			try {
-				mark = createNoteTrace({
-					paperPath,
-					page: draft.page,
-					rects: [draft.region],
-					comment: "",
-					image: {
-						data: draft.image.data,
-						mimeType: draft.image.mimeType || "image/png",
-					},
-				});
-			} catch {
-				return;
-			}
-			upsertVisualTrace(mark);
-			if (beginEdit) {
-				beginRailEditRef.current?.({
-					id: mark.id,
-					pageIndex: draft.page - 1,
-					kind: "visual",
-					comment: "",
-					quote: "",
-					color: DEFAULT_HIGHLIGHT_COLOR,
-					anchorY: draft.region.y,
-					rects: [draft.region],
-					isNew: true,
-				});
-			} else if (paperAbsPath) {
-				void writePdfVisualTrace(paperAbsPath, mark).catch((error) => {
-					console.warn("[visual-mark] save note failed", error);
-					notifyError(errorText(error));
-				});
-			}
-		},
-		[paperRelPath, paperAbsPath, upsertVisualTrace, beginRailEditRef],
-	);
 
 	/** Persist a comment by mark id (rail in-place edit). */
 	const updateVisualComment = useCallback(
@@ -199,7 +133,6 @@ export function usePdfVisualMarks({
 	);
 
 	return {
-		handleVisualDraft,
 		updateVisualComment,
 		handleVisualAddToChatById,
 		deleteVisualTraceById,
