@@ -11,9 +11,9 @@
 
 ## 功能导引（Feature tour）
 
-Onboarding 关闭、Vault 首次打开后，`useFeatureTour` 用 driver.js 高亮侧栏 / 论文库 / Cool Papers / 魔棒 / 阅读记笔记 / 工作区 / 全文翻译 / Cool Paper 笔记抓取 / Agent / 标题栏。`featureTourDone === false` 且引导向导已关闭时自动开始；完成或跳过写入 `featureTourDone: true`。设置侧栏可手动重放（`onboarding:tour`）。
+Onboarding 关闭、Vault 首次打开后，`useFeatureTour` 用 driver.js 高亮侧栏 / 论文库 / Cool Papers / 魔棒 / 阅读记笔记 / 工作区 / 全文翻译 / Cool Paper 笔记抓取 / Agent / 标题栏。`featureTourDone === false` 且引导向导已关闭时自动开始；只有点击最后一步完成才写入 `featureTourDone: true`，关闭不标记完成。设置侧栏可手动重放（`onboarding:tour`）。
 
-`useFeatureTour` 订阅 `onboardingStore.open`，确保在 onboarding 覆盖层仍在显示时不提前启动，避免高亮层与向导覆盖层竞争。
+新建 Vault 后显示「知识库已准备好」，提供导入论文、从 Zotero 导入、先看看工作区三个选择。`vaultSetupPending` 覆盖创建与收尾选择的整个过程；Dialog 关闭并释放焦点后才打开下一入口。导览等待这一流程以及 Zotero、命令面板和设置关闭，不用提高 z-index 争夺点击。
 
 ## 步骤
 

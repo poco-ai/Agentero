@@ -100,9 +100,10 @@
 		"create": "Create a vault",
 		"createDesc": "Choose a separate Agentero folder first. After it is created, you can import from Zotero.",
 		"zotero": "Import from Zotero",
-		"zoteroOfferTitle": "Import from Zotero now?",
-		"zoteroOfferDesc": "Your Agentero vault is ready. You can now choose a Zotero data folder as the import source.",
-		"zoteroNo": "Don't import from Zotero"
+		"readyTitle": "Your library is ready",
+		"readyDesc": "Import your first paper to get started. The reading tour will continue when you open it.",
+		"importPaper": "Import a paper",
+		"explore": "Explore the workspace"
 	},
 	"actions": {
 		"start": "Start setup",

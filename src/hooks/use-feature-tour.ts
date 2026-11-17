@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { onboardingStore } from "@/components/onboarding/onboarding-store";
-import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
+import { useSettings, useUiStore, useVaultStore } from "@/hooks/use-app-stores";
 import { perfActive } from "@/lib/core/perf";
 import { isMobileApp, isTauri } from "@/lib/core/tauri";
 import { listenTourRequest } from "@/lib/onboarding/api";
@@ -112,9 +112,12 @@ async function startTour(t: TFunction<"onboarding">): Promise<void> {
 		prevBtnText: t("tour.back"),
 		doneBtnText: t("tour.done"),
 		steps,
+		onDoneClick: (_element, _step, { driver: instance }) => {
+			patchSettings({ featureTourDone: true });
+			instance.destroy();
+		},
 		onDestroyed: () => {
 			activeDriver = null;
-			patchSettings({ featureTourDone: true });
 		},
 	});
 	activeDriver.drive();
@@ -126,6 +129,15 @@ export function useFeatureTour(): void {
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const featureTourDone = useSettings((s) => s.featureTourDone);
 	const onboardingOpen = useStore(onboardingStore, (s) => s.open);
+	const setupPending = useStore(onboardingStore, (s) => s.vaultSetupPending);
+	const modalOpen = useUiStore(
+		(s) =>
+			s.zoteroOpen ||
+			s.zoteroSyncOpen ||
+			s.commandOpen ||
+			s.settingsOpen ||
+			s.immersiveReading,
+	);
 	const startedRef = useRef(false);
 
 	const start = useCallback(() => {
@@ -138,12 +150,28 @@ export function useFeatureTour(): void {
 	useEffect(() => {
 		if (perfActive()) return;
 		if (!isTauri() || isMobileApp()) return;
-		if (!vaultPath || featureTourDone || startedRef.current || onboardingOpen)
+		if (
+			!vaultPath ||
+			featureTourDone ||
+			startedRef.current ||
+			onboardingOpen ||
+			setupPending ||
+			modalOpen
+		)
 			return;
-		startedRef.current = true;
-		const timer = window.setTimeout(start, 800);
+		const timer = window.setTimeout(() => {
+			startedRef.current = true;
+			start();
+		}, 800);
 		return () => window.clearTimeout(timer);
-	}, [vaultPath, featureTourDone, start, onboardingOpen]);
+	}, [
+		vaultPath,
+		featureTourDone,
+		start,
+		onboardingOpen,
+		setupPending,
+		modalOpen,
+	]);
 
 	// Settings → main event: replay on demand.
 	useEffect(() => {

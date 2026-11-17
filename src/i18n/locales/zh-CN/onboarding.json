@@ -100,9 +100,10 @@
 		"create": "新建文献库",
 		"createDesc": "先选择一个独立的 Agentero 文件夹。创建完成后，可再选择是否从 Zotero 导入。",
 		"zotero": "从 Zotero 导入",
-		"zoteroOfferTitle": "要从 Zotero 导入吗？",
-		"zoteroOfferDesc": "Agentero 文献库已经创建。接下来可以选择 Zotero 数据目录作为导入来源。",
-		"zoteroNo": "不从 Zotero 导入"
+		"readyTitle": "知识库已准备好",
+		"readyDesc": "先导入一篇论文，打开后会继续介绍阅读工具。也可以先认识工作区。",
+		"importPaper": "导入论文",
+		"explore": "先看看工作区"
 	},
 	"actions": {
 		"start": "开始配置",
