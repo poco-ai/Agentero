@@ -172,21 +172,28 @@ export function ActivityPane({ vaultPath }: { vaultPath?: string | null }) {
 					metric={metric}
 				/>
 			</section>
-			<section className="flex flex-col gap-2">
-				<h3 className="font-medium text-sm">{t("activity.thisWeek")}</h3>
-				<ActivityWeekBars
-					days={board.days}
-					today={today}
-					weekStartsOn={weekStartsOn}
-					metric={metric}
-				/>
-			</section>
-			{board.workflows.length > 0 && (
-				<section className="flex flex-col gap-2">
-					<h3 className="font-medium text-sm">{t("activity.workflows")}</h3>
-					<ActivityWorkflows board={board} />
+			<div
+				className={cn(
+					"grid items-start gap-6",
+					board.workflows.length > 0 && "sm:grid-cols-2",
+				)}
+			>
+				<section className="flex min-w-0 flex-col gap-2">
+					<h3 className="font-medium text-sm">{t("activity.thisWeek")}</h3>
+					<ActivityWeekBars
+						days={board.days}
+						today={today}
+						weekStartsOn={weekStartsOn}
+						metric={metric}
+					/>
 				</section>
-			)}
+				{board.workflows.length > 0 && (
+					<section className="flex min-w-0 flex-col gap-2">
+						<h3 className="font-medium text-sm">{t("activity.workflows")}</h3>
+						<ActivityWorkflows board={board} />
+					</section>
+				)}
+			</div>
 			{board.papers.length > 0 && (
 				<section className="flex flex-col gap-2">
 					<h3 className="font-medium text-sm">{t("activity.papers")}</h3>
