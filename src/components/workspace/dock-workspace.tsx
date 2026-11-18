@@ -357,13 +357,16 @@ function onWorkspaceTabCloseKey(event: KeyboardEvent): void {
 	if (!(target instanceof Element)) return;
 	if (!target.closest('[role="tablist"]')) return;
 	if (isTabStripTextEntry(target)) return;
-	event.preventDefault();
-	event.stopPropagation();
+	// Writing-project file tabs reuse the tab strip markup but are not Dockview
+	// panels. Leave their keys alone; only a real panel id goes through closeTab.
 	const panelId = target
 		.closest(".dv-tab")
 		?.querySelector("[data-panel-id]")
 		?.getAttribute("data-panel-id");
-	if (panelId) closeTab(panelId);
+	if (!panelId) return;
+	event.preventDefault();
+	event.stopPropagation();
+	closeTab(panelId);
 }
 
 type DockWorkspaceProps = {

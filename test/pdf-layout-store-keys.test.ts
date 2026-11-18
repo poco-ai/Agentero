@@ -5,8 +5,10 @@ import {
 	getLayoutDocumentResult,
 	layoutAnalysisStore,
 	layoutDocumentKey,
+	layoutSentenceScope,
 	mirrorLayoutResultToTranslation,
 	setLayoutDocumentResult,
+	setLayoutSentenceScopeLookup,
 	translationSourceKey,
 } from "@/lib/pdf/layout/store";
 import type {
@@ -101,6 +103,21 @@ describe("translationSourceKey", () => {
 	it("returns null for ids that are not translation companions", () => {
 		expect(translationSourceKey("papers/x.pdf::r1")).toBeNull();
 		expect(translationSourceKey("papers/x.pdf")).toBeNull();
+	});
+
+	it("shares a sentence scope for an opaque translation view", () => {
+		const previous = setLayoutSentenceScopeLookup((documentId) =>
+			layoutDocumentKey(documentId) === "view-translation"
+				? "view-source"
+				: null,
+		);
+		try {
+			expect(layoutSentenceScope("view-translation")).toBe("view-source");
+			expect(layoutSentenceScope("view-translation::r4")).toBe("view-source");
+			expect(layoutSentenceScope("view-source::r2")).toBe("view-source");
+		} finally {
+			setLayoutSentenceScopeLookup(previous);
+		}
 	});
 });
 

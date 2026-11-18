@@ -254,6 +254,27 @@ describe("patchFromTabResources", () => {
 		expect(patchFromTabResources(htmlFallback, placeholder).mode).toBe("html");
 	});
 
+	it("keeps translation mode and copies pdf bytes when the paper path reloads", () => {
+		const bytes = new Uint8Array([1, 2, 3]).buffer;
+		const res = makeResources({
+			mode: "pdf",
+			pdfUrl: "blob:source",
+			pdfBytes: bytes,
+			notesPath: "/vault/papers/a/NOTES.md",
+		});
+		const pane = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "translation",
+			pane: "translation",
+		});
+		const patch = patchFromTabResources(res, pane);
+		expect(patch.mode).toBe("translation");
+		expect(patch.pdfUrl).toBeNull();
+		expect(patch.pdfBytes).toBeInstanceOf(ArrayBuffer);
+		expect(patch.pdfBytes).not.toBe(bytes);
+		expect(patch.notesPath).toBe("/vault/papers/a/NOTES.md");
+	});
+
 	it("passes resource fields through", () => {
 		const res = makeResources({
 			title: "A Paper",
@@ -897,6 +918,13 @@ describe("tab session persistence", () => {
 		expect(persistedLayoutIsUnreadable()).toBe(true);
 		expect(localStorage.getItem(key)).toBe(raw);
 		expect(shouldWritePersistedLayout(null)).toBe(false);
+		expect(shouldWritePersistedLayout({ panels: {} })).toBe(false);
+		saveWorkspaceLayout("main", "/vault/a", { panels: {} });
+		expect(localStorage.getItem(key)).toBe(raw);
+		saveWorkspaceLayout("main", "/vault/a", scopedLayout("/vault/kept.md"));
+		expect(persistedLayoutIsUnreadable()).toBe(false);
+		saveWorkspaceLayout("main", "/vault/a", { panels: {} });
+		expect(localStorage.getItem(key)).toBeNull();
 	});
 });
 

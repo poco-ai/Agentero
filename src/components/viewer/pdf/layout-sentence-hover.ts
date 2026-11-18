@@ -1,7 +1,7 @@
 /**
  * Sentence under the layout-element pointer.
  * Subscribers paint DOM. Pointer moves do not render the page tree.
- * Source and `::translation` panes share one catalog keyed by paper scope.
+ * Source and translation panes share one catalog keyed by paper scope.
  * An empty publish from either pane does not erase the other's sentence pairs.
  */
 
@@ -21,7 +21,10 @@ import {
 } from "@/lib/pdf/layout/layout-sentence-selection";
 import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
 import { orderByReadingLine } from "@/lib/pdf/layout/reading-order";
-import { layoutSentenceScope } from "@/lib/pdf/layout/store";
+import {
+	layoutSentenceScope,
+	setLayoutSentenceScopeLookup,
+} from "@/lib/pdf/layout/store";
 import {
 	getTranslatedLinkSource,
 	subscribeTranslatedLinkSource,
@@ -31,6 +34,12 @@ import {
 	pageSelectionInkRects,
 	selectionGlyphInkRect,
 } from "@/lib/pdf/selection-appearance";
+import { getTabs } from "@/lib/workspace/store";
+import { findTranslationSourceId } from "@/lib/workspace/tabs/translation-split";
+
+setLayoutSentenceScopeLookup((documentId) =>
+	findTranslationSourceId(getTabs(), documentId),
+);
 
 export type LayoutSentenceMember = ElementSentenceMember & {
 	rects: SentenceFractionRect[];

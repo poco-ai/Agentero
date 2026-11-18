@@ -110,16 +110,15 @@ export type ViewerModeSpec = {
 	resource: "pdf" | "markdown" | "html" | "image" | "text";
 	/**
 	 * Persisted-session restore override (see initWorkspaceStore). Absent: a
-	 * default placeholder tab that hydrates from disk. Translation panes are
-	 * clones of a source paper pane: they restore as loaded paper-kind tabs
-	 * and never pass through loadTabResources.
+	 * default placeholder tab that hydrates from disk. Translation panes keep
+	 * paper kind and their own view id; bytes still come from the paper path.
 	 */
 	restore?: {
 		/** Tab kind assigned to the restored placeholder. */
 		kind: "paper";
 		/** Title shown before hydration when the persisted entry has none. */
 		fallbackTitle: string;
-		/** Restored tabs are already loaded — hydration must skip them. */
+		/** False so `hydratePlaceholderTabs` reads the paper path again. */
 		loaded: boolean;
 	};
 };
@@ -174,7 +173,7 @@ export const VIEWER_MODE_TABLE = [
 		keepAlive: null,
 		props: "pdf",
 		resource: "pdf",
-		restore: { kind: "paper", fallbackTitle: "Translation", loaded: true },
+		restore: { kind: "paper", fallbackTitle: "Translation", loaded: false },
 	},
 	{
 		// CodeMirror catch-all for files no dedicated viewer claims.

@@ -32,6 +32,7 @@ import {
 	type LayoutTranslateJobStatus,
 	type LayoutTranslateRunScope,
 	layoutAnalysisStore,
+	layoutSentenceScope,
 	layoutSidecarBlocksAnalysis,
 	layoutTranslatePendingPageRange,
 	listTranslatableLayoutRegions,
@@ -1663,15 +1664,33 @@ export function usePdfLayoutTranslate({
 		};
 		const unsubTasks = backgroundTasksStore.subscribe(scanTasks);
 		const unsubUi = layoutAnalysisStore.subscribe((s) => {
-			if (s.activeDocumentId !== docId) return;
-			if (s.ui.stage === "error" || s.ui.stage === "cancelled") fail();
+			if (s.ui.stage !== "error" && s.ui.stage !== "cancelled") return;
+			const activeId = s.activeDocumentId;
+			const sameView =
+				activeId != null &&
+				layoutSentenceScope(activeId) === layoutSentenceScope(docId);
+			const activePaper = s.activePaperAbsPath;
+			const samePaper =
+				activePaper != null &&
+				paperAbsPath != null &&
+				normalizeLayoutPaperKey(activePaper) ===
+					normalizeLayoutPaperKey(paperAbsPath);
+			if (!sameView && !samePaper) return;
+			fail();
 		});
 		scanTasks();
 		return () => {
 			unsubTasks();
 			unsubUi();
 		};
-	}, [layoutTranslateJob.status, docId, paperRelPath, cancelWaitingLayout, t]);
+	}, [
+		layoutTranslateJob.status,
+		docId,
+		paperAbsPath,
+		paperRelPath,
+		cancelWaitingLayout,
+		t,
+	]);
 
 	// A translation pane must show the source pane's completed cache immediately;
 	// it should not depend on starting a second translation job or on the source

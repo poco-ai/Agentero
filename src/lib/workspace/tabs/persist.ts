@@ -37,10 +37,18 @@ export function persistedLayoutIsUnreadable(): boolean {
 	return retainUnreadableLayout;
 }
 
-/** False when a null layout would erase a key the last read could not restore. */
+/**
+ * False when this write would erase a key the last read could not restore.
+ * An empty Dockview snapshot is the same erasure as null: vault switch saves
+ * `toJSON()` of a dock that failed to restore.
+ */
 export function shouldWritePersistedLayout(layout: unknown | null): boolean {
-	if (layout == null && retainUnreadableLayout) return false;
-	return true;
+	if (!retainUnreadableLayout) return true;
+	if (layout == null || typeof layout !== "object" || Array.isArray(layout)) {
+		return false;
+	}
+	const panels = (layout as { panels?: Record<string, unknown> }).panels;
+	return Boolean(panels && Object.keys(panels).length > 0);
 }
 
 /** Copy the primary key's raw text into the rollback key once, before overwrite. */
@@ -367,6 +375,7 @@ export function saveWorkspaceLayout(
 			removeStorageKey(key);
 		} else {
 			writeJsonStorage(key, { layout });
+			retainUnreadableLayout = false;
 		}
 	}
 	if (label === "main") markLegacyLayoutMigrated();

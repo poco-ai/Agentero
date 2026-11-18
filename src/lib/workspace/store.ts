@@ -71,8 +71,8 @@ function withPersistedPane(tab: DocTab, pane: DocTab["pane"]): DocTab {
 
 function tabsFromPersisted(persisted: PersistedTabs): DocTab[] {
 	return persisted.tabs.map((pt) => {
-		// Registry-declared restore override (translation panes are clones of
-		// a source paper pane: loaded paper-kind tabs, never hydrated from disk).
+		// Registry-declared restore override. Translation panes stay paper-kind
+		// and keep their view id; `loaded: false` lets hydration read the path.
 		const restore = viewerModeSpec(pt.mode).restore;
 		if (restore) {
 			return withPersistedPane(

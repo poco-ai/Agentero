@@ -297,13 +297,21 @@ export function patchFromTabResources(
 		current?.mode === "pdf" &&
 		res.mode === "markdown" &&
 		(current.kind === "paper" || res.kind === "paper");
+	// A translation view shares the paper path, not the source view id.
+	// Hydration must not turn it into a second body, or reuse a blob lease.
+	const keepTranslation = current?.mode === "translation";
+	const pdfUrl =
+		keepTranslation && res.pdfUrl?.startsWith("blob:") ? null : res.pdfUrl;
 	return {
 		kind: res.kind,
 		title: res.title,
-		mode: keepPdfMode ? "pdf" : res.mode,
+		mode: keepTranslation ? "translation" : keepPdfMode ? "pdf" : res.mode,
 		paperMeta: res.paperMeta,
-		pdfUrl: res.pdfUrl,
-		pdfBytes: res.pdfBytes ?? null,
+		pdfUrl,
+		pdfBytes:
+			keepTranslation && res.pdfBytes
+				? res.pdfBytes.slice(0)
+				: (res.pdfBytes ?? null),
 		htmlUrl: res.htmlUrl,
 		imageUrl: res.imageUrl,
 		notesPath: res.notesPath,

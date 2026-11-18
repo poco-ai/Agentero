@@ -99,11 +99,11 @@ describe("viewer mode registry", () => {
 		expect(viewerModeSpec("image").props).toBe("none");
 	});
 
-	it("restores translation panes as loaded paper tabs; other modes as placeholders", () => {
+	it("restores translation panes as paper placeholders that hydrate by path", () => {
 		expect(viewerModeSpec("translation").restore).toEqual({
 			kind: "paper",
 			fallbackTitle: "Translation",
-			loaded: true,
+			loaded: false,
 		});
 		for (const entry of VIEWER_MODE_TABLE) {
 			if (entry.mode !== "translation") {
