@@ -423,6 +423,11 @@ pub struct TranslateSettings {
     /// Seeded into the JobCenter `LayoutTranslate` cap (1–5, default 1).
     #[serde(default = "default_auto_translate_import_concurrency")]
     pub auto_translate_import_concurrency: u32,
+    /// Close the selection translation result on a click elsewhere on the page
+    /// (default off, matching the long-standing "card stays open" behavior).
+    /// Scrolling, page turns and viewer toolbars never close it.
+    #[serde(default)]
+    pub dismiss_selection_on_outside_click: bool,
 }
 
 impl Default for TranslateSettings {
@@ -446,6 +451,7 @@ impl Default for TranslateSettings {
             cache_reflow_final: false,
             auto_translate_import: false,
             auto_translate_import_concurrency: default_auto_translate_import_concurrency(),
+            dismiss_selection_on_outside_click: false,
         }
     }
 }
