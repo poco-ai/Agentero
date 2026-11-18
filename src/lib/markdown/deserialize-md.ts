@@ -3,6 +3,7 @@ import type { SlateEditor } from "platejs";
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
 import { prepareMarkdownForDeserialize } from "@/lib/markdown/deserialize";
+import { remarkRecoverInlineHtmlMarks } from "@/lib/markdown/highlight";
 import {
 	markdownNeedsMdx,
 	selectMarkdownRemarkPluginsForDeserialize,
@@ -39,14 +40,16 @@ export function deserializeMarkdownBody(
 	// `markdownToSlateNodesSafely` recovery, which cuts the source at the first
 	// `<name`-looking slice (it cannot tell math/code from JSX) and flattens the
 	// whole tail into one inline block: most of the note silently disappears.
-	// Re-parse without MDX so every block survives; supported HTML then degrades
-	// to literal text instead of vanishing.
+	// Re-parse without MDX so every block survives. Inline HTML marks
+	// (`<mark>`, `<u>`, …) are raw `html` nodes in that pipeline, so recover
+	// them into real marks instead of letting the next save escape the tags;
+	// malformed tags stay literal text.
 	logger.warn("markdown deserialize mdx failed; retrying without mdx", {
 		chars: prepared.length,
 		error: errorText(mdxError),
 	});
 	return editor.getApi(MarkdownPlugin).markdown.deserialize(prepared, {
-		remarkPlugins,
+		remarkPlugins: [...remarkPlugins, remarkRecoverInlineHtmlMarks],
 		withoutMdx: true,
 	});
 }
