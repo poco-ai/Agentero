@@ -5,6 +5,7 @@
 ## 模型
 
 - 格式：`[[Concept]]`、`[[papers/…/NOTES]]`、`[[note#heading]]`、`[[note#outer#inner#leaf]]`、`[[note#^block]]`；标题路径没有层数限制。
+- 空白链接（如论文正文中的 `[[ ]]`、`[[　|显示文本]]`）不生成 occurrence；空白 fragment 保留文件链接语义。裁剪范围使用原文 UTF-8 字节边界，确保索引重建和依赖索引的重命名/移动不会被这类文本阻断。
 - Frontmatter `aliases`（`aliases: [A, B]` 或 block list）写入 `WikiDocument.aliases`；搜索可按别名命中，resolve 在路径/stem 之后按唯一 alias 解析，多命中为 `ambiguous`。
 - `features/wiki/frontmatter.rs` 同时提供 Doctor 使用的字节保留型 aliases 检查/patch；复杂 YAML 仍可作为 Markdown 读取，但不会被自动重写。
 - 标题 fragment 以 `LinkFragment::Heading { path: Vec<String> }` 保存 Markdown 实际写下的完整路径或连续后缀。完整 heading path 是 canonical identity；任意长度的路径后缀仅在唯一命中时解析成功。
