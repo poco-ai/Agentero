@@ -9,9 +9,9 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use agentero_core::usage::{record_events, telemetry_projection, usage_db_path, UsageRecord};
+use agentero_core::usage::{record_events, usage_db_path, UsageRecord};
 use serde_json::json;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 static LAST_TOTAL: Mutex<Option<HashMap<String, u64>>> = Mutex::new(None);
 
@@ -61,12 +61,26 @@ pub(crate) fn record_turn_tokens(
             "totalTokens": qty,
         })),
     };
-    if let Some(telemetry) = app.try_state::<std::sync::Arc<crate::core::telemetry::Telemetry>>() {
-        if let Some(projection) = telemetry_projection(&event) {
-            telemetry.capture_activity(std::slice::from_ref(&projection));
-        }
-    }
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    capture_turn_tokens(app, &event);
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    let _ = app;
     if let Err(error) = record_events(&usage_db_path(), std::slice::from_ref(&event)) {
         log::warn!(target: "agentero::usage", "record agent.usage failed: {error}");
+    }
+}
+
+/// PostHog is a desktop dependency. Mobile checks compile this crate without it.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn capture_turn_tokens(app: &AppHandle, event: &UsageRecord) {
+    use agentero_core::usage::telemetry_projection;
+    use tauri::Manager;
+
+    let Some(telemetry) = app.try_state::<std::sync::Arc<crate::core::telemetry::Telemetry>>()
+    else {
+        return;
+    };
+    if let Some(projection) = telemetry_projection(event) {
+        telemetry.capture_activity(std::slice::from_ref(&projection));
     }
 }
