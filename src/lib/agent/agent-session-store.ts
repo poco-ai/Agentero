@@ -11,7 +11,7 @@
 import { createContext, useContext } from "react";
 import { createStore, type StoreApi, useStore } from "zustand";
 
-import type { PromptImage } from "@/lib/agent/api";
+import type { PermissionRequest, PromptImage } from "@/lib/agent/api";
 import type { ChatLine, ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 
@@ -76,8 +76,8 @@ export type AgentSessionStore = {
 	 * returns a runtime session id). Cleared when leaving draft.
 	 */
 	draftLines: ChatLine[];
-	/** Streaming/running session ids. */
-	runningSessionIds: string[];
+	/** Unanswered ask-mode permission. Survives Agent panel unmount in this window. */
+	permissionRequest: PermissionRequest | null;
 
 	setSessions: (
 		update:
@@ -90,8 +90,11 @@ export type AgentSessionStore = {
 	startDraft: () => void;
 	/** Replace/update lines for the active tab (draft or session row). */
 	setLines: (update: ChatLine[] | ((prev: ChatLine[]) => ChatLine[])) => void;
-	setRunningSessionIds: (
-		update: string[] | ((prev: string[]) => string[]),
+	setPermissionRequest: (
+		update:
+			| PermissionRequest
+			| null
+			| ((prev: PermissionRequest | null) => PermissionRequest | null),
 	) => void;
 
 	/** Upsert one session and optionally make it active. */
@@ -145,7 +148,7 @@ export function createAgentSessionStore(): AgentSessionStoreApi {
 		activeTabId: "draft",
 		hydratingSessionId: null,
 		draftLines: EMPTY_CHAT_LINES,
-		runningSessionIds: [],
+		permissionRequest: null,
 		turnRequest: null,
 		_sendHandler: null,
 
@@ -201,12 +204,12 @@ export function createAgentSessionStore(): AgentSessionStoreApi {
 				return { sessions };
 			}),
 
-		setRunningSessionIds: (update) =>
+		setPermissionRequest: (update) =>
 			set((s) => {
-				const runningSessionIds =
-					typeof update === "function" ? update(s.runningSessionIds) : update;
-				if (runningSessionIds === s.runningSessionIds) return s;
-				return { runningSessionIds };
+				const permissionRequest =
+					typeof update === "function" ? update(s.permissionRequest) : update;
+				if (permissionRequest === s.permissionRequest) return s;
+				return { permissionRequest };
 			}),
 
 		upsertSession: (session, opts) => {
@@ -415,7 +418,7 @@ export function clearAgentVaultState(): void {
 		activeTabId: "draft",
 		hydratingSessionId: null,
 		draftLines: EMPTY_CHAT_LINES,
-		runningSessionIds: [],
+		permissionRequest: null,
 		turnRequest: null,
 	});
 }
