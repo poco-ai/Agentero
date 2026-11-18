@@ -6,9 +6,9 @@
  * - highlights / text notes: `marks/annotations.json` (EmbedPDF transfer)
  * - visual marks: `marks/<id>.json` with `kind: "visual"` (legacy `agent-trace`)
  *
- * Marks are stored under the paper folder. UI state is often keyed by the PDF
- * tab id (`tabIdForPath(paperAbs)`), which differs from the NOTES companion
- * tab — always resolve through the paper folder, not only the active tab id.
+ * Marks are stored under the paper folder. UI state is keyed by the open
+ * PDF body view id, which differs from the NOTES companion tab — resolve
+ * through the paper folder, not only the active tab id.
  */
 
 import type { PdfAnnotationObject } from "@embedpdf/models";
@@ -38,7 +38,7 @@ import { readMarkRaw } from "@/lib/pdf/selection/marks-io";
 import type { PdfVisualNormalizedRect } from "@/lib/pdf-visual/types";
 import { joinVaultPath } from "@/lib/vault";
 import { formatWikiLinkBody } from "@/lib/wiki/api";
-import { tabIdForPath } from "@/lib/workspace/tabs/model";
+import { findCanonicalTab } from "@/lib/workspace/tabs/model";
 
 export type AnnotationRefKind = "highlight" | "visual" | "agent-trace";
 
@@ -415,8 +415,16 @@ export function paperAbsFromWorkspaceTab(
 }
 
 /** PDF body tab id for a paper folder (where highlight store + viewer handle live). */
-export function pdfTabIdForPaper(paperAbsPath: string): string {
-	return tabIdForPath(paperAbsPath.replace(/\\/g, "/").replace(/\/+$/, ""));
+export function pdfTabIdForPaper(
+	paperAbsPath: string,
+	tabs: ReadonlyArray<{
+		id: string;
+		path: string;
+		pane?: "split" | "translation" | null;
+	}> = [],
+): string | null {
+	const path = paperAbsPath.replace(/\\/g, "/").replace(/\/+$/, "");
+	return findCanonicalTab(tabs, path)?.id ?? null;
 }
 
 /** Absolute paper dir from the NOTES/markdown source file being edited. */

@@ -33,10 +33,13 @@ export async function moveDocToWindow(
 		return;
 	}
 	const { getTabs } = await import("@/lib/workspace/store");
-	const { tabIdForPath } = await import("@/lib/workspace/tabs");
-	const id = tabIdForPath(path);
-	const tab = getTabs().find((t) => t.id === id);
+	const { findCanonicalTab } = await import("@/lib/workspace/tabs");
+	const id = findCanonicalTab(getTabs(), path)?.id ?? null;
+	const tab = id
+		? getTabs().find((candidate) => candidate.id === id)
+		: undefined;
 	await openDocWindow(path, mode, { title: tab?.title ?? null });
+	if (!id) return;
 	const { closeTab } = await import("@/lib/workspace/actions");
 	closeTab(id);
 }

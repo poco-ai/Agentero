@@ -95,7 +95,8 @@ import {
 	texLiveSetDocument,
 } from "@/lib/tex-live/session";
 import { dockHandle } from "@/lib/workspace/dock-registry";
-import { tabIdForPath } from "@/lib/workspace/tabs";
+import { getTabs } from "@/lib/workspace/store";
+import { isCanonicalView, legacyPaneKindFromId } from "@/lib/workspace/tabs";
 import { bindTexOutline } from "@/lib/workspace/tex-outline-bridge";
 import { registerTextEditorFlusher } from "@/lib/workspace/text-editor-flush";
 import { isTexPath, textLanguageIdForPath } from "@/lib/workspace/viewer";
@@ -105,6 +106,13 @@ import { writingStore } from "@/lib/writing/store";
 function sameTexFile(left: string, right: string): boolean {
 	if (normalizePath(left) === normalizePath(right)) return true;
 	return commentFileKey(left) === commentFileKey(right);
+}
+
+/** Canonical source editor. Split copies are not; a lone doc-window pane is. */
+function canonicalTexEditor(panelId: string): boolean {
+	const tab = getTabs().find((candidate) => candidate.id === panelId);
+	if (tab) return isCanonicalView(tab);
+	return !legacyPaneKindFromId(panelId);
 }
 
 type CollaborativeEditor = {
@@ -557,7 +565,7 @@ export function TextEditor({
 		const view = viewRef.current;
 		if (!view) return;
 		const unregisterEditor = registerTexEditor(path, view, {
-			canonical: !panelId || panelId === tabIdForPath(path),
+			canonical: !panelId || canonicalTexEditor(panelId),
 			owner: texLiveOwner,
 			activate: panelId
 				? () => {

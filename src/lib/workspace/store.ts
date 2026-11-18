@@ -64,37 +64,48 @@ export function currentWindowLabel(): string {
 	}
 }
 
+function withPersistedPane(tab: DocTab, pane: DocTab["pane"]): DocTab {
+	if (pane !== "split" && pane !== "translation") return tab;
+	return tab.pane === pane ? tab : { ...tab, pane };
+}
+
 function tabsFromPersisted(persisted: PersistedTabs): DocTab[] {
 	return persisted.tabs.map((pt) => {
 		// Registry-declared restore override (translation panes are clones of
 		// a source paper pane: loaded paper-kind tabs, never hydrated from disk).
 		const restore = viewerModeSpec(pt.mode).restore;
 		if (restore) {
-			return {
-				...createPlaceholderTab(pt.path, pt.mode, pt.id),
-				kind: restore.kind,
-				title: pt.title || restore.fallbackTitle,
-				loaded: restore.loaded,
-			};
+			return withPersistedPane(
+				{
+					...createPlaceholderTab(pt.path, pt.mode, pt.id),
+					kind: restore.kind,
+					title: pt.title || restore.fallbackTitle,
+					loaded: restore.loaded,
+				},
+				pt.pane,
+			);
 		}
 		const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
 		if (pt.texRoot) tab.texRoot = pt.texRoot;
 		// Realtime TeX panes have no file seed to hydrate; restore them
 		// loaded so the viewer remounts instead of showing a skeleton.
 		if (pt.texLive) {
-			return {
-				...tab,
-				loaded: true,
-				texLive: true,
-				texRoot: pt.texRoot,
-			};
+			return withPersistedPane(
+				{
+					...tab,
+					loaded: true,
+					texLive: true,
+					texRoot: pt.texRoot,
+				},
+				pt.pane,
+			);
 		}
 		// Real-path placeholders default to the folder basename; prefer the
 		// persisted title so strips show paper names before hydration.
 		if (pt.title && tab.kind === "file") {
-			return { ...tab, title: pt.title };
+			return withPersistedPane({ ...tab, title: pt.title }, pt.pane);
 		}
-		return tab;
+		return withPersistedPane(tab, pt.pane);
 	});
 }
 

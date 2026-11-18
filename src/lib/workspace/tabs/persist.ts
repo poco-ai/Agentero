@@ -6,12 +6,17 @@ import {
 	writeStorageRaw,
 } from "@/lib/core/storage";
 import { isRemoteArxivPath } from "@/lib/paper";
-import { tabIdForPath } from "@/lib/workspace/tabs/model";
+import {
+	legacyPaneKindFromId,
+	legacyPathFromPanelId,
+	tabIdForPath,
+} from "@/lib/workspace/tabs/model";
 import type {
 	DocTab,
 	PanelPersistParams,
 	PersistedTab,
 	PersistedTabs,
+	TabPaneKind,
 } from "@/lib/workspace/tabs/types";
 import { isCenterViewMode } from "@/lib/workspace/viewer";
 
@@ -54,6 +59,9 @@ export function panelPersistParams(tab: DocTab): PanelPersistParams {
 		title: tab.title,
 		...(tab.texLive ? { texLive: true } : {}),
 		...(tab.texRoot ? { texRoot: tab.texRoot } : {}),
+		...(tab.pane === "split" || tab.pane === "translation"
+			? { pane: tab.pane }
+			: {}),
 	};
 }
 
@@ -66,8 +74,13 @@ type LayoutPanelState = {
 		title?: string;
 		texLive?: boolean;
 		texRoot?: string;
+		pane?: string;
 	};
 };
+
+function persistedPane(value: string | undefined): TabPaneKind | undefined {
+	return value === "split" || value === "translation" ? value : undefined;
+}
 
 type LayoutLeafData = {
 	id?: string;
@@ -105,7 +118,8 @@ function findActivePanelIdInLayout(layout: {
 
 /**
  * Derive flat panel list + active id from a dockview `toJSON()` snapshot.
- * Prefers `params.path` / `params.mode`; falls back to panel id as path.
+ * Prefers `params.path` / `params.mode`. A missing path may fall back to a
+ * legacy path-shaped panel id. Opaque `view-` ids are not file paths.
  */
 export function extractTabsFromLayout(layout: unknown): {
 	tabs: PersistedTab[];
@@ -125,22 +139,25 @@ export function extractTabsFromLayout(layout: unknown): {
 	const tabs: PersistedTab[] = [];
 	const seen = new Set<string>();
 	for (const [id, panel] of Object.entries(l.panels)) {
-		const path =
-			typeof panel.params?.path === "string" && panel.params.path
-				? panel.params.path
-				: id;
-		if (isRemoteArxivPath(path)) continue;
-		const mode = isCenterViewMode(panel.params?.mode)
-			? panel.params.mode
-			: "markdown";
 		const panelId =
 			typeof panel.params?.panelId === "string" && panel.params.panelId
 				? panel.params.panelId
 				: id;
+		const paramsPath =
+			typeof panel.params?.path === "string" && panel.params.path
+				? panel.params.path
+				: "";
+		const path = paramsPath || legacyPathFromPanelId(panelId) || "";
+		if (!path || isRemoteArxivPath(path)) continue;
+		const mode = isCenterViewMode(panel.params?.mode)
+			? panel.params.mode
+			: "markdown";
 		const title =
 			typeof panel.params?.title === "string" && panel.params.title.trim()
 				? panel.params.title
 				: undefined;
+		const pane =
+			persistedPane(panel.params?.pane) ?? legacyPaneKindFromId(panelId);
 		if (seen.has(panelId)) continue;
 		seen.add(panelId);
 		tabs.push({
@@ -148,6 +165,7 @@ export function extractTabsFromLayout(layout: unknown): {
 			path,
 			mode,
 			title,
+			...(pane ? { pane } : {}),
 			...(panel.params?.texLive === true ? { texLive: true } : {}),
 			...(typeof panel.params?.texRoot === "string" &&
 			panel.params.texRoot.trim()
@@ -225,6 +243,7 @@ function readPersistedKey(key: string): PersistedTabs | null {
 		if (seen.has(id)) continue;
 		seen.add(id);
 		flat.push({
+			id,
 			path: pt.path,
 			mode: isCenterViewMode(pt.mode) ? pt.mode : "markdown",
 		});

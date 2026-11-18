@@ -78,9 +78,9 @@ import { getTabs } from "@/lib/workspace/store";
 import { readDraggedVaultPaths } from "@/lib/workspace/tab-dnd";
 import {
 	type DocTab,
+	findCanonicalTab,
 	type ReadingColumns,
 	type SplitDirection,
-	tabIdForPath,
 	tabIsPaperNotes,
 	tabNotesEligible,
 } from "@/lib/workspace/tabs";
@@ -201,7 +201,9 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 	const notesActive =
 		tab.mode === "html" &&
 		tab.notesPath != null &&
-		activePanelId === tabIdForPath(tab.notesPath);
+		activePanelId != null &&
+		findCanonicalTab([...tabsById.values()], tab.notesPath)?.id ===
+			activePanelId;
 	const focused = activePanelId === panelId;
 	const active = focused || notesActive;
 	return (
@@ -657,9 +659,13 @@ export const DockWorkspace = memo(
 				},
 				remapPanel(previousPanelId, tab) {
 					const api = apiRef.current;
-					if (!api || previousPanelId === tab.id) return;
+					if (!api) return;
 					const previous = api.getPanel(previousPanelId);
 					if (!previous) return;
+					if (previousPanelId === tab.id) {
+						applyTabPanelMeta(previous, tab);
+						return;
+					}
 					const activate = api.activePanel?.id === previousPanelId;
 					syncingRef.current = true;
 					try {

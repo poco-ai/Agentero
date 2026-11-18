@@ -72,6 +72,8 @@ import {
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
 import { pickPdfSearchDocumentId } from "@/lib/pdf/search-target";
+import { getTabs } from "@/lib/workspace/store";
+import { findTranslationSourceId } from "@/lib/workspace/tabs";
 
 const EMPTY_PAGE_MAP = new Map();
 
@@ -242,7 +244,8 @@ export function PdfTranslationViewerInner({
 	// still running then, mirror the source result when it lands so the
 	// auto-start below can fire.
 	useEffect(() => {
-		const sourceKey = translationSourceKey(docId);
+		const sourceKey =
+			findTranslationSourceId(getTabs(), docId) ?? translationSourceKey(docId);
 		if (!sourceKey) return;
 		return mirrorLayoutResultToTranslation(docId, sourceKey);
 	}, [docId]);
@@ -302,7 +305,8 @@ export function PdfTranslationViewerInner({
 		return () => onHandle?.(null);
 	}, [onHandle]);
 
-	const sourceKey = translationSourceKey(docId);
+	const sourceKey =
+		findTranslationSourceId(getTabs(), docId) ?? translationSourceKey(docId);
 	const linkSource = useSyncExternalStore(
 		subscribeTranslatedLinkSource,
 		() => getTranslatedLinkSource(sourceKey),

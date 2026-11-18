@@ -38,7 +38,7 @@ Dockview 保持 7.0.4，以保留当前免费模块提供的 `Ctrl+M` 键盘停�
 
 Library 始终位于所在标签条的第一位：禁止拖动 Library 及包含它的整组，其他标签不能拖到它前面。恢复旧布局、打开文档及布局变化时也会校正顺序，校正不会切换当前活动文档。
 
-布局只存 dockview `toJSON()`；path/mode/title 在 panel params。每个主窗口按窗口标签和当前 Vault 分键保存（`agentero-open-tabs::{label}::{vault}`），所以 ⌘N 新窗口不会带上另一扇窗口的标签。文档窗和功能窗不读写这份布局。旧的全局键 `agentero-open-tabs` 只由主窗口采纳一次，挂到当时打开的 Vault；采纳后的原文仍留在原键。损坏或抽不出标签的布局不会被启动写回删掉；第一次覆盖前把原文留在 `agentero-open-tabs.rollback`。同一路径可存在多个 split pane，panel id 保留 pane 实例后缀用于恢复布局。Tab 条上的论文标题经 `MathText` 渲染内联公式（`$\\pi$` 等）；`panel.api.setTitle` 仍存原始字符串。
+布局只存 dockview `toJSON()`；path/mode/title 在 panel params。每个主窗口按窗口标签和当前 Vault 分键保存（`agentero-open-tabs::{label}::{vault}`），所以 ⌘N 新窗口不会带上另一扇窗口的标签。文档窗和功能窗不读写这份布局。旧的全局键 `agentero-open-tabs` 只由主窗口采纳一次，挂到当时打开的 Vault；采纳后的原文仍留在原键。损坏或抽不出标签的布局不会被启动写回删掉；第一次覆盖前把原文留在 `agentero-open-tabs.rollback`。新视图的 panel id 不透明，路径在 `params.path`；旧布局的路径形 id（含 `::pane-N` / `::translation`）仍按原 id 恢复。Tab 条上的论文标题经 `MathText` 渲染内联公式（`$\\pi$` 等）；`panel.api.setTitle` 仍存原始字符串。
 
 活动 panel 为 `papers/` 下的论文 PDF 时，其顶部（Dockview 标签条之下、正文之上）显示面包屑路径条 `papers / 论文标题`：论文目录的 catalog id 段替换为 `paperMeta.title`（缺失时回退 tab title），标题经 `MathText`，超宽逐级 `min-w-0 truncate`。文件夹段 **悬停** 弹出其子项候选（论文目录显示 catalog 标题，超过 50 项截断），点击候选经 `selectFileNode` 跳转（论文开 PDF、普通文件夹进 scoped Library、文件直接打开）；**点击文件夹段本身** 进入该文件夹对应的 scoped Library，`papers` 段进入主 Library（`selectLibrary`）。每个论文 PDF panel 各自渲染自己的路径条，与焦点无关（⌘\ 分屏或 NOTES 获得焦点时，PDF 侧仍保留路径条）；非 PDF 论文、HTML 版与虚拟标签（Library / 回收站 / 广场）不显示。实现：`src/components/workspace/paper-path-bar.tsx`。
 

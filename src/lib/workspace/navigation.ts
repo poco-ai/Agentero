@@ -85,8 +85,10 @@ import {
 	createPlaceholderTab,
 	type DocTab,
 	ensureFullLibraryTab,
+	findCanonicalTab,
 	findNotesPaneForReplacement,
 	insertPlaceholderTab,
+	isCanonicalView,
 	isPaperContentTab,
 	loadTabResources,
 	normalizeTabPath,
@@ -100,10 +102,8 @@ import {
 	removeTab,
 	removeTabsUnderPath,
 	revokeTabMediaSources,
-	SPLIT_PANE_ID_MARKER,
 	splitPaneIdForPath,
 	tabHasNotesSplit,
-	tabIdForPath,
 	tabIsPaperNotes,
 	tabNotesEligible,
 } from "./tabs";
@@ -168,8 +168,10 @@ function readingColumns(): ReadingColumns | null {
  * activate that tab in the notes column too (focus ends on the paper).
  */
 export function activatePaperWithNotes(paperTab: DocTab): void {
-	const notesId = paperTab.notesPath ? tabIdForPath(paperTab.notesPath) : null;
-	const notesOpen = notesId != null && getTabs().some((t) => t.id === notesId);
+	const notesId = paperTab.notesPath
+		? (findCanonicalTab(getTabs(), paperTab.notesPath)?.id ?? null)
+		: null;
+	const notesOpen = notesId != null;
 	readingSync = true;
 	try {
 		// Activate NOTES first so its group shows the matching tab; then paper
@@ -228,8 +230,8 @@ export function handleActivePanelChange(panelId: string | null): void {
 	}
 
 	if (isPaperContentTab(tab) && tab.notesPath) {
-		const notesId = tabIdForPath(tab.notesPath);
-		if (!getTabs().some((t) => t.id === notesId)) return;
+		const notesId = findCanonicalTab(getTabs(), tab.notesPath)?.id ?? null;
+		if (!notesId) return;
 		readingSync = true;
 		try {
 			dockHandle()?.activatePanel(notesId, { skipSetGroupActive: true });
@@ -248,12 +250,14 @@ export function handleActivePanelChange(panelId: string | null): void {
 		return;
 	}
 
-	if (tabIsPaperNotes(tab)) {
+	if (tabIsPaperNotes(tab) && isCanonicalView(tab)) {
+		const notesKey = normalizeTabPath(tab.path);
 		const companion = getTabs().find(
 			(t) =>
 				isPaperContentTab(t) &&
+				isCanonicalView(t) &&
 				t.notesPath &&
-				tabIdForPath(t.notesPath) === tab.id,
+				normalizeTabPath(t.notesPath) === notesKey,
 		);
 		if (!companion) return;
 		readingSync = true;
@@ -292,9 +296,9 @@ export function openTab(
 		replaceNotesPaneId?: string | null;
 	},
 ): void {
-	const id = tabIdForPath(path);
-	const existing = getTabs().find((t) => t.id === id);
+	const existing = findCanonicalTab(getTabs(), path);
 	if (existing) {
+		const id = existing.id;
 		// Sync paper + NOTES tabs when re-opening an already-mounted paper.
 		if (
 			existing.kind === "paper" &&
@@ -384,7 +388,7 @@ export function openTab(
 		// preferMode (⇧⌘T reopen of a closed PDF tab), not `existing` — an
 		// existing tab returned early above and is never patched here.
 		const patch = patchFromTabResources(res, placeholder);
-		updateTab(id, patch);
+		updateTab(insertedId, patch);
 
 		// Paper default: NOTES in the notes column (or first-time right split).
 		const wantDefaultNotes =
@@ -395,7 +399,7 @@ export function openTab(
 			(patch.mode === "pdf" || patch.mode === "html") &&
 			(opts?.forceNotes || loadSettings().autoOpenPaperNotes);
 		if (wantDefaultNotes && res.notesPath) {
-			openNotesForPaper(id, patch, path);
+			openNotesForPaper(insertedId, patch, path);
 		}
 
 		const vault = getVaultPath();
@@ -437,10 +441,10 @@ function openNotesForPaper(
 	const notesPath = paperPatch?.notesPath ?? tab?.notesPath ?? null;
 	if (!tab && !paperPath) return;
 	const path = paperPath ?? tab?.path ?? "";
-	const notesId = notesPath ? tabIdForPath(notesPath) : null;
-	const notesTab = notesId
-		? (getTabs().find((t) => t.id === notesId) ?? null)
+	const notesTab = notesPath
+		? (findCanonicalTab(getTabs(), notesPath) ?? null)
 		: null;
+	const notesId = notesTab?.id ?? null;
 	const notesInDock = notesId
 		? Boolean(dockHandle()?.canActivatePanel(notesId))
 		: false;
@@ -461,7 +465,7 @@ function openNotesForPaper(
 		setTabs((prev) => prev.filter((t) => t.id !== notesId));
 	}
 	const paperLike = {
-		...createPlaceholderTab(path, tab?.mode ?? "pdf"),
+		...createPlaceholderTab(path, tab?.mode ?? "pdf", tab?.id ?? paperId),
 		...(paperPatch ?? {}),
 		...tab,
 		notesPath,
@@ -553,9 +557,7 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 		.filter((tab): tab is DocTab => Boolean(tab));
 	const companionIds = new Set(
 		closing.flatMap((tab) =>
-			isPaperContentTab(tab) && tab.notesPath
-				? [tabIdForPath(tab.notesPath)]
-				: [],
+			readingPairCloseIds(tabs, tab.id).filter((closeId) => closeId !== tab.id),
 		),
 	);
 	pushClosedTabs(
@@ -574,8 +576,7 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 /** ⇧⌘T — reopen the most recently closed panel that is not already open. */
 export function reopenClosedTab(): void {
 	for (let entry = takeClosedTab(); entry; entry = takeClosedTab()) {
-		const id = tabIdForPath(entry.path);
-		if (getTabs().some((tab) => tab.id === id)) continue;
+		if (findCanonicalTab(getTabs(), entry.path)) continue;
 		openTab(entry.path, { preferMode: entry.mode });
 		return;
 	}
@@ -622,24 +623,21 @@ export function remapMovedWorkspacePaths(
 	for (let index = 0; index < previousTabs.length; index++) {
 		const previous = previousTabs[index];
 		const remapped = remappedTabs[index];
-		if (previous && remapped && previous.id !== remapped.id) {
-			dockHandle()?.remapPanel(previous.id, remapped);
-		}
+		if (!previous || !remapped || previous === remapped) continue;
+		dockHandle()?.remapPanel(previous.id, remapped);
 	}
 	const active = previousTabs.find((tab) => tab.id === getActiveTabId());
 	if (active) {
-		// Identity follows the moved path. A mounted dock republishes the new
-		// panel id from `remapPanel` via `endSync`.
-		cacheActiveTabBeforeDock(
-			tabIdForPath(remapPathUnder(active.path, fromAbs, toAbs)),
-		);
+		// The view id does not follow the path. Dockview keeps the same panel
+		// and only receives the updated path params.
+		cacheActiveTabBeforeDock(active.id);
 	}
-	remapTabAnnotations(
-		previousTabs.map((tab) => ({
-			fromId: tab.id,
-			toId: tabIdForPath(remapPathUnder(tab.path, fromAbs, toAbs)),
-		})),
-	);
+	const annotationMoves = previousTabs.flatMap((tab, index) => {
+		const next = remappedTabs[index];
+		if (!next || next.id === tab.id) return [];
+		return [{ fromId: tab.id, toId: next.id }];
+	});
+	if (annotationMoves.length) remapTabAnnotations(annotationMoves);
 	setTabs(remappedTabs);
 	setTreeSelectedPath((path) =>
 		path ? remapPathUnder(path, fromAbs, toAbs) : path,
@@ -693,6 +691,7 @@ export function cloneTabForSplit(tab: DocTab, tabs: DocTab[]): DocTab {
 			tab.path,
 			tabs.map((candidate) => candidate.id),
 		),
+		pane: "split",
 	};
 }
 
@@ -755,10 +754,11 @@ export function setNotesSplit(
 	if (!opts.preserveLayoutMode) setLayoutMode("custom");
 	const target = activeNotesTarget();
 	if (!target?.notesPath) return;
-	const notesId = tabIdForPath(target.notesPath);
+	const notesId = findCanonicalTab(getTabs(), target.notesPath)?.id ?? null;
 	const isOpen = tabHasNotesSplit(getTabs(), target);
 	if (isOpen === open) return;
 	if (!open) {
+		if (!notesId) return;
 		dockHandle()?.rememberNotesSplitWidth(target.id, notesId);
 		closeTab(notesId, { remember: false });
 		return;
@@ -798,11 +798,11 @@ export function toggleNotesSplit(): void {
 export function openTabNotes(tabId: string): void {
 	const target = getTabs().find((t) => t.id === tabId);
 	if (!target?.notesPath || !tabNotesEligible(target)) return;
-	const notesId = tabIdForPath(target.notesPath);
+	const notesId = findCanonicalTab(getTabs(), target.notesPath)?.id ?? null;
 	if (dockHandle()?.isMaximizedPanel?.()) {
 		dockHandle()?.exitMaximizedPanel?.();
 	}
-	if (tabHasNotesSplit(getTabs(), target)) {
+	if (notesId && tabHasNotesSplit(getTabs(), target)) {
 		cacheActiveTabBeforeDock(notesId);
 		dockHandle()?.activatePanel(notesId);
 		return;
@@ -827,7 +827,7 @@ export function openTabNotes(tabId: string): void {
 /** File-tree "Open notes": reading layout with NOTES in the right column. */
 export function openPaperNotes(paperDir: string): void {
 	const abs = paperDir.replace(/\\/g, "/").replace(/\/+$/, "");
-	const existing = getTabs().find((t) => t.id === tabIdForPath(abs));
+	const existing = findCanonicalTab(getTabs(), abs);
 	if (existing && tabNotesEligible(existing)) {
 		setTreeSelectedPath(abs);
 		openTabNotes(existing.id);
@@ -853,7 +853,7 @@ export function openPaper(
 		if (
 			activeTab &&
 			!isLibraryVirtualPath(activeTab.path) &&
-			!getTabs().some((t) => t.id === tabIdForPath(abs))
+			!findCanonicalTab(getTabs(), abs)
 		) {
 			closeTab(activeTab.id, { remember: false });
 		}
@@ -1087,7 +1087,8 @@ export function openWritingFile(
 	const target = restoreSource ? (recentWritingFiles.get(root) ?? root) : path;
 	rememberWritingSource(target, root);
 	openTab(target);
-	updateTab(tabIdForPath(target), { writingRoot: root });
+	const opened = findCanonicalTab(getTabs(), target);
+	if (opened) updateTab(opened.id, { writingRoot: root });
 }
 
 export function selectFileNode(node: FileNode): void {
@@ -1197,16 +1198,14 @@ export async function syncRenamedPaperTabs(
 	}
 	if (vaultLoadGeneration() !== generation) return;
 
-	const paperTabId = tabIdForPath(toAbs);
 	const notesPath = res.notesPath ?? notesPathForPaper(toAbs);
-	const notesTabId = tabIdForPath(notesPath);
+	const paperKey = normalizeTabPath(toAbs);
+	const notesKey = normalizeTabPath(notesPath);
 	const currentTabs = getTabs();
-	// Split panes share a path but carry a `::pane-N` suffix on their id.
-	const isPaneOf = (id: string, baseId: string) =>
-		id === baseId || id.startsWith(`${baseId}${SPLIT_PANE_ID_MARKER}`);
 
 	for (const tab of currentTabs) {
-		if (isPaneOf(tab.id, paperTabId) || tab.path === toAbs) {
+		const tabPath = tab.path ? normalizeTabPath(tab.path) : "";
+		if (tabPath === paperKey) {
 			updateTab(tab.id, {
 				title: res.title || tab.title,
 				paperMeta: res.paperMeta ?? tab.paperMeta,
@@ -1217,10 +1216,8 @@ export async function syncRenamedPaperTabs(
 				notesKey: tab.notesKey + 1,
 			});
 		} else if (
-			isPaneOf(tab.id, notesTabId) ||
-			(tab.notesPath &&
-				normalizeTabPath(tab.notesPath) === normalizeTabPath(notesPath)) ||
-			(tab.path && normalizeTabPath(tab.path) === normalizeTabPath(notesPath))
+			(tab.notesPath && normalizeTabPath(tab.notesPath) === notesKey) ||
+			tabPath === notesKey
 		) {
 			updateTab(tab.id, {
 				notesSeed: res.notesSeed,

@@ -2,9 +2,9 @@ import i18n from "@/i18n";
 import { isRemoteArxivPath, notesPathForPaper } from "@/lib/paper";
 import {
 	createPlaceholderTab,
-	isCanonicalTabIdForPath,
+	findCanonicalTab,
+	isCanonicalView,
 	normalizeTabPath,
-	tabIdForPath,
 } from "@/lib/workspace/tabs/model";
 import type {
 	DocTab,
@@ -174,8 +174,7 @@ export function tabHasNotesSplit(
 	paperTab: DocTab | null,
 ): boolean {
 	if (!paperTab?.notesPath) return false;
-	const notesId = tabIdForPath(paperTab.notesPath);
-	return tabs.some((t) => t.id === notesId);
+	return findCanonicalTab(tabs, paperTab.notesPath) != null;
 }
 
 /**
@@ -187,9 +186,8 @@ export function findReadingCompanion(
 	tab: DocTab | null,
 ): DocTab | null {
 	if (!tab || !isPaperContentTab(tab) || !tab.notesPath) return null;
-	if (!isCanonicalTabIdForPath(tab.id, tab.path)) return null;
-	const notesId = tabIdForPath(tab.notesPath);
-	return tabs.find((t) => t.id === notesId) ?? null;
+	if (!isCanonicalView(tab)) return null;
+	return findCanonicalTab(tabs, tab.notesPath) ?? null;
 }
 
 /**
@@ -205,14 +203,14 @@ export function findPaperBodyForNotes(
 	if (!notesTab || !tabIsPaperNoteDocument(notesTab)) return null;
 	const notesPath = notesTab.notesPath ?? notesTab.path;
 	const norm = normalizeTabPath(notesPath);
+	const matches = (t: DocTab) =>
+		isPaperContentTab(t) &&
+		Boolean(t.notesPath) &&
+		normalizeTabPath(t.notesPath ?? "") === norm;
 	return (
-		tabs.find(
-			(t) =>
-				isPaperContentTab(t) &&
-				Boolean(t.notesPath) &&
-				(tabIdForPath(t.notesPath ?? "") === notesTab.id ||
-					normalizeTabPath(t.notesPath ?? "") === norm),
-		) ?? null
+		tabs.find((t) => matches(t) && isCanonicalView(t)) ??
+		tabs.find((t) => matches(t)) ??
+		null
 	);
 }
 
@@ -252,14 +250,15 @@ type SeedSpec = {
 
 const SEED_SPECS: Record<SeedKind, SeedSpec> = {
 	notes: {
-		owns: (tab, _norm, absPath) =>
-			tab.id === tabIdForPath(absPath) ||
-			tab.id === tabIdForPath(notesPathForPaper(absPath)) ||
-			Boolean(
-				tab.notesPath &&
-					normalizeTabPath(tab.notesPath) ===
-						normalizeTabPath(notesPathForPaper(absPath)),
-			),
+		owns: (tab, _norm, absPath) => {
+			const paper = normalizeTabPath(absPath);
+			const notes = normalizeTabPath(notesPathForPaper(absPath));
+			if (tab.notesPath && normalizeTabPath(tab.notesPath) === notes) {
+				return true;
+			}
+			const path = normalizeTabPath(tab.path);
+			return path === paper || path === notes;
+		},
 		seed: "notesSeed",
 		dirty: "notesDirty",
 		key: "notesKey",

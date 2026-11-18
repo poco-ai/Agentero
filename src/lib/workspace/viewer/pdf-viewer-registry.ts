@@ -18,7 +18,7 @@ import type { PdfAskNormalizedRect } from "@/lib/pdf/ask";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
 import type { PdfLayoutKind } from "@/lib/pdf/layout";
 import { getVaultPath, vaultStore } from "@/lib/vault/store";
-import { getActiveTab } from "@/lib/workspace/store";
+import { getActiveTab, getTabs } from "@/lib/workspace/store";
 
 /** Imperative surface consumed through the pdf viewer registry. */
 export type PdfViewerHandle = {
@@ -108,8 +108,8 @@ export function resolveActivePdfHandle(): PdfViewerHandle | null {
 		vaultStore.getState().paperFolders,
 	);
 	if (paperAbs) {
-		const bodyId = pdfTabIdForPaper(paperAbs);
-		if (!candidates.includes(bodyId)) candidates.push(bodyId);
+		const bodyId = pdfTabIdForPaper(paperAbs, getTabs());
+		if (bodyId && !candidates.includes(bodyId)) candidates.push(bodyId);
 	}
 
 	for (const id of candidates) {
