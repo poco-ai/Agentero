@@ -6,6 +6,7 @@ vi.mock("@/lib/core/tauri", async (importOriginal) => ({
 	isTauri: () => true,
 }));
 
+import { setVaultPath } from "@/lib/vault/store";
 import { initWorkspaceStore, workspaceStore } from "@/lib/workspace/store";
 import { createPlaceholderTab } from "@/lib/workspace/tabs/model";
 import {
@@ -36,6 +37,7 @@ describe("compiled LaTeX output session restore", () => {
 			texRoot: root,
 		});
 		savePersistedTabs(layout);
+		setVaultPath("/vault");
 		initWorkspaceStore();
 		expect(workspaceStore.getState().tabs[0]).toMatchObject({
 			path,
