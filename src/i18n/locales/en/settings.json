@@ -596,11 +596,11 @@
 			},
 			"tip": "Turning a switch off only stops new writes; existing entries keep being reused.",
 			"reset": "Restore defaults",
-			"dictionary": {
-				"label": "Word lookup cache",
-				"description": "Completed word and context results are reused for 30 days. Clear for the current Vault; bundled dictionaries stay available.",
+			"results": {
+				"label": "Translation cache",
+				"description": "Word lookups and identical selection passages are reused for 30 days. Clear the current Vault's results; bundled dictionaries stay available.",
 				"clear": "Clear",
-				"clearFailed": "Could not clear the word lookup cache.",
+				"clearFailed": "Could not clear the translation cache.",
 				"cleared": "Cleared"
 			}
 		},

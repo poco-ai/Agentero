@@ -43,6 +43,11 @@ import {
 	lookupDictionary,
 	renderDictionaryEntries,
 } from "@/lib/translate/lexicon";
+import {
+	readSelectionCache,
+	selectionCacheKey,
+	writeSelectionCache,
+} from "@/lib/translate/selection-cache";
 import type {
 	SelectionTranslateMode,
 	TranslateTask,
@@ -122,6 +127,7 @@ export async function runSelectionTranslate({
 		"dictionary";
 	context = { ...context, dictionary };
 	let cacheKey: string | undefined;
+	let selectionKey: string | undefined;
 	const cachedResult = async (agent?: {
 		agentId?: string;
 		modelId?: string;
@@ -159,9 +165,48 @@ export async function runSelectionTranslate({
 		}
 		return disposedRef.current;
 	};
+	/**
+	 * The same passage under the same request contract gets the previous
+	 * answer: re-selecting identical text must not spend another request.
+	 */
+	const cachedTranslation = async (agent?: {
+		agentId?: string;
+		modelId?: string;
+	}) => {
+		if (dictionary) return false;
+		try {
+			selectionKey = await selectionCacheKey({
+				text: text.trim(),
+				targetLangName,
+				sourceLang: task.sourceLang,
+				targetLang: task.targetLang,
+				providerId,
+				config:
+					settings.providerConfigs[
+						providerId as keyof typeof settings.providerConfigs
+					],
+				agent,
+				customPrompt,
+				customSystem,
+				customUser,
+				glossary,
+			});
+			const result = await readSelectionCache(selectionKey, vaultPath);
+			if (disposedRef.current) return true;
+			if (result) {
+				commitProviderResult(result);
+				return true;
+			}
+		} catch {
+			/* Cache availability must never block a translation. */
+		}
+		return disposedRef.current;
+	};
 	const saveResult = (result: string) => {
-		if (cacheKey && !disposedRef.current && result.trim())
-			void writeDictionaryCache(cacheKey, result, vaultPath);
+		if (disposedRef.current || !result.trim()) return;
+		if (cacheKey) void writeDictionaryCache(cacheKey, result, vaultPath);
+		else if (selectionKey)
+			void writeSelectionCache(selectionKey, result, vaultPath);
 	};
 	let localEntry = "";
 	if (dictionary) {
@@ -222,6 +267,7 @@ export async function runSelectionTranslate({
 				return;
 			}
 			if (await cachedResult(resolved)) return;
+			if (await cachedTranslation(resolved)) return;
 			const agentId = resolved.agentId;
 			const modelId = resolved.modelId;
 			const accepted = await runOnce({
@@ -282,6 +328,7 @@ export async function runSelectionTranslate({
 
 	try {
 		if (await cachedResult()) return;
+		if (await cachedTranslation()) return;
 		const result = await runTranslate(
 			{
 				text,

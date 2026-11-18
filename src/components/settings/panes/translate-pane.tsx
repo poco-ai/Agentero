@@ -72,6 +72,7 @@ import {
 } from "@/lib/translate/defaults";
 import { clearDictionaryCache } from "@/lib/translate/dictionary-cache";
 import { extraRequestBodyIssue } from "@/lib/translate/request-options";
+import { clearSelectionCache } from "@/lib/translate/selection-cache";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 
 /** Resolve API key for save/probe: draft wins; otherwise keep stored (may be mask). */
@@ -134,11 +135,14 @@ export function TranslatePane({
 	const clearLookupCache = async () => {
 		setDictionaryCacheState("clearing");
 		try {
-			await clearDictionaryCache(vaultPath);
+			await Promise.all([
+				clearDictionaryCache(vaultPath),
+				clearSelectionCache(vaultPath),
+			]);
 			setDictionaryCacheState("cleared");
 		} catch {
 			setDictionaryCacheState("idle");
-			notifyError(t("translate.cache.dictionary.clearFailed"));
+			notifyError(t("translate.cache.results.clearFailed"));
 		}
 	};
 	const storedSystem = tr.customSystem || tr.customPrompt;
@@ -625,8 +629,8 @@ export function TranslatePane({
 				</div>
 				<SettingsGroup>
 					<SettingsRow
-						label={t("translate.cache.dictionary.label")}
-						description={t("translate.cache.dictionary.description")}
+						label={t("translate.cache.results.label")}
+						description={t("translate.cache.results.description")}
 					>
 						<Button
 							size="sm"
@@ -641,8 +645,8 @@ export function TranslatePane({
 							)}
 							{t(
 								dictionaryCacheState === "cleared"
-									? "translate.cache.dictionary.cleared"
-									: "translate.cache.dictionary.clear",
+									? "translate.cache.results.cleared"
+									: "translate.cache.results.clear",
 							)}
 						</Button>
 					</SettingsRow>

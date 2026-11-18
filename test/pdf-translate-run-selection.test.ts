@@ -6,6 +6,7 @@ import {
 } from "@/lib/pdf/translate/agent-session-cache";
 import { runSelectionTranslate } from "@/lib/pdf/translate/run-selection";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
+import { clearSelectionCache } from "@/lib/translate/selection-cache";
 
 const runOnce = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const attachAgentRun = vi.fn<(...args: unknown[]) => Promise<void>>();
@@ -153,7 +154,8 @@ function accepted() {
 	return { sessionId: "sess-1", messageId: "m1", agentId: "agent-1" };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+	await clearSelectionCache("/vault");
 	runOnce.mockReset();
 	attachAgentRun.mockReset();
 	resolveAgent.mockReset();
