@@ -95,14 +95,34 @@ import {
 	dirtyVaultPaths,
 	openPath,
 } from "@/lib/workspace/actions";
+import { dockHandle } from "@/lib/workspace/dock-registry";
 import {
 	clearClosedTabs,
+	clearWorkspace,
+	currentWindowLabel,
+	getTabs,
+	replaceWorkspaceForVault,
 	setActiveTabId,
-	setTabs,
 } from "@/lib/workspace/store";
-import { basenameOf } from "@/lib/workspace/tabs";
+import { basenameOf, saveWorkspaceLayout } from "@/lib/workspace/tabs";
+
+/** Drop the open workspace when a restored vault is gone. */
+function resetOpenTabs(): void {
+	const panelIds = getTabs().map((tab) => tab.id);
+	clearWorkspace();
+	const dock = dockHandle();
+	if (dock?.restoreLayout) {
+		dock.restoreLayout(null);
+		return;
+	}
+	for (const panelId of panelIds) dock?.removePanel(panelId);
+}
 
 export async function activateVault(path: string): Promise<void> {
+	// Do not vaultHold here. The main window holds from `vault:opened` and
+	// releases that scope once; a second hold would be dropped by that single
+	// release while the window still had the vault open. Popout windows hold
+	// after this returns.
 	// Tear down previous remote session so work catalogs are flushed.
 	const prev = getVaultPath();
 	if (prev && isRemoteVaultHandle(prev) && prev !== path) {
@@ -115,13 +135,22 @@ export async function activateVault(path: string): Promise<void> {
 	bumpTreeGeneration();
 	setTree([]);
 	setTreeLoading(true);
+	// Flush the live grid onto the vault we are leaving before the store
+	// swaps. The debounced layout save may not have run yet.
+	if (prev && prev !== path) {
+		const live = dockHandle()?.snapshotLayout?.();
+		if (live) saveWorkspaceLayout(currentWindowLabel(), prev, live);
+	}
 	saveVaultPath(path);
 	setVaultPath(path);
 	void import("@/lib/activity").then(({ track }) => {
 		track("vault.open");
 	});
-	setTabs([]);
-	setActiveTabId(null);
+	// Swap to this window's layout for the vault being opened. A new window
+	// has no scoped layout, so it starts empty instead of inheriting another
+	// window's tabs. The active tab comes from that layout.
+	const layout = replaceWorkspaceForVault(path);
+	dockHandle()?.restoreLayout(layout);
 	clearClosedTabs();
 	setTreeSelectedPath(null);
 	setLibraryQuery("");
@@ -1192,7 +1221,7 @@ export function validateRestoredVault(): Promise<void> {
 			saveVaultPath(null);
 			setVaultPath(null);
 			setTree([]);
-			setTabs([]);
+			resetOpenTabs();
 			setActiveTabId(null);
 			clearClosedTabs();
 			setTreeSelectedPath(null);

@@ -149,7 +149,8 @@ export function getLayoutDocumentResult(
 
 /**
  * Source document key for a dual-pane translation pane id (`base::translation`).
- * Returns null when `documentId` is not a translation companion.
+ * Returns null when `documentId` is not a legacy translation companion.
+ * Opaque `view-` ids are resolved by `setLayoutSentenceScopeLookup`.
  */
 export function translationSourceKey(documentId: string): string | null {
 	const key = layoutDocumentKey(documentId);
@@ -157,9 +158,27 @@ export function translationSourceKey(documentId: string): string | null {
 	return key.endsWith(suffix) ? key.slice(0, -suffix.length) : null;
 }
 
-/** Paper key shared by a source viewer and its `::translation` companion. */
+/**
+ * Opaque translation panes do not encode the source id. The viewer registers
+ * a lookup that reads the open tabs. Legacy `::translation` ids do not need it.
+ */
+let sentenceScopeLookup: ((documentId: string) => string | null) | null = null;
+
+export function setLayoutSentenceScopeLookup(
+	lookup: (documentId: string) => string | null,
+): (documentId: string) => string | null {
+	const previous = sentenceScopeLookup ?? (() => null);
+	sentenceScopeLookup = lookup;
+	return previous;
+}
+
+/** Paper key shared by a source viewer and its translation companion. */
 export function layoutSentenceScope(documentId: string): string {
-	return translationSourceKey(documentId) ?? layoutDocumentKey(documentId);
+	return (
+		translationSourceKey(documentId) ??
+		sentenceScopeLookup?.(documentId) ??
+		layoutDocumentKey(documentId)
+	);
 }
 
 /**

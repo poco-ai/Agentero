@@ -4,7 +4,7 @@ import { createPlaceholderTab, type DocTab } from "@/lib/workspace/tabs";
 
 function pdfTab(id: string, bytes: ArrayBuffer | null): DocTab {
 	return {
-		...createPlaceholderTab(id, "pdf"),
+		...createPlaceholderTab(id, "pdf", id),
 		loaded: true,
 		pdfBytes: bytes,
 	};

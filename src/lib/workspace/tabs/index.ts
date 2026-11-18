@@ -1,8 +1,12 @@
 export {
 	basenameOf,
 	createPlaceholderTab,
+	createViewId,
 	ensureFullLibraryTab,
+	findCanonicalTab,
 	insertPlaceholderTab,
+	isCanonicalView,
+	legacyPaneKindFromId,
 	normalizeTabPath,
 	patchFromTabResources,
 	patchTab,
@@ -13,6 +17,7 @@ export {
 	SPLIT_PANE_ID_MARKER,
 	splitPaneIdForPath,
 	tabIdForPath,
+	tabsAfterMovedView,
 } from "@/lib/workspace/tabs/model";
 export {
 	applyMarkdownConflictChoice,
@@ -33,8 +38,13 @@ export {
 export {
 	extractTabsFromLayout,
 	loadPersistedTabs,
+	loadWindowVaultLayout,
 	panelPersistParams,
+	persistedLayoutIsUnreadable,
 	savePersistedTabs,
+	saveWorkspaceLayout,
+	shouldWritePersistedLayout,
+	workspaceLayoutStorageKey,
 } from "@/lib/workspace/tabs/persist";
 export {
 	loadTabResources,
@@ -42,6 +52,7 @@ export {
 } from "@/lib/workspace/tabs/resources";
 export {
 	createTranslationSplitPane,
+	findTranslationSourceId,
 	translationSplitPlacement,
 } from "@/lib/workspace/tabs/translation-split";
 export type {
@@ -49,5 +60,6 @@ export type {
 	OpenPlacement,
 	ReadingColumns,
 	SplitDirection,
+	TabPaneKind,
 	TabResources,
 } from "@/lib/workspace/tabs/types";

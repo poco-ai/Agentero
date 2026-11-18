@@ -23,6 +23,7 @@ import {
 	paperDirFromPath,
 	type RemotePaperItem,
 	remoteArxivPath,
+	retainViewerSource,
 	stageRemoteArxivPaper,
 } from "@/lib/paper";
 import {
@@ -59,7 +60,11 @@ import {
 	vaultStore,
 } from "@/lib/vault/store";
 import { toVaultRelative } from "@/lib/wiki";
-import { dockHandle } from "@/lib/workspace/dock-registry";
+import {
+	cacheActiveTabBeforeDock,
+	dockHandle,
+} from "@/lib/workspace/dock-registry";
+import { vaultLoadGeneration } from "@/lib/workspace/identity";
 import {
 	getActiveTabId,
 	getTabs,
@@ -80,8 +85,10 @@ import {
 	createPlaceholderTab,
 	type DocTab,
 	ensureFullLibraryTab,
+	findCanonicalTab,
 	findNotesPaneForReplacement,
 	insertPlaceholderTab,
+	isCanonicalView,
 	isPaperContentTab,
 	loadTabResources,
 	normalizeTabPath,
@@ -95,10 +102,8 @@ import {
 	removeTab,
 	removeTabsUnderPath,
 	revokeTabMediaSources,
-	SPLIT_PANE_ID_MARKER,
 	splitPaneIdForPath,
 	tabHasNotesSplit,
-	tabIdForPath,
 	tabIsPaperNotes,
 	tabNotesEligible,
 } from "./tabs";
@@ -111,6 +116,37 @@ import { type CenterViewMode, preferredModeForPath } from "./viewer";
 function withLibraryPresent(next: DocTab[]): DocTab[] {
 	if (!getVaultPath()) return next;
 	return ensureFullLibraryTab(next).tabs;
+}
+
+/** Put Library on the dock. `inactive` keeps the document the user is reading. */
+function showLibraryPanel(library: DocTab, inactive: boolean): void {
+	if (!inactive) {
+		cacheActiveTabBeforeDock(library.id);
+		dockHandle()?.activatePanel(library.id);
+	}
+	dockHandle()?.openPanel(
+		library,
+		undefined,
+		inactive ? { inactive: true } : undefined,
+	);
+}
+
+/** Drop closed panels, and place Library if this update just inserted it. */
+function detachClosedPanels(
+	before: readonly DocTab[],
+	removedIds: readonly string[],
+): void {
+	for (const id of removedIds) dockHandle()?.removePanel(id);
+	const library = getTabs().find((tab) => isLibraryVirtualPath(tab.path));
+	if (!library || before.some((tab) => tab.id === library.id)) return;
+	const activeId = getActiveTabId();
+	const keptActiveDocument = Boolean(
+		activeId && !removedIds.includes(activeId),
+	);
+	const otherDocument = getTabs().some(
+		(tab) => !isLibraryVirtualPath(tab.path),
+	);
+	showLibraryPanel(library, keptActiveDocument || otherDocument);
 }
 
 /**
@@ -132,8 +168,10 @@ function readingColumns(): ReadingColumns | null {
  * activate that tab in the notes column too (focus ends on the paper).
  */
 export function activatePaperWithNotes(paperTab: DocTab): void {
-	const notesId = paperTab.notesPath ? tabIdForPath(paperTab.notesPath) : null;
-	const notesOpen = notesId != null && getTabs().some((t) => t.id === notesId);
+	const notesId = paperTab.notesPath
+		? (findCanonicalTab(getTabs(), paperTab.notesPath)?.id ?? null)
+		: null;
+	const notesOpen = notesId != null;
 	readingSync = true;
 	try {
 		// Activate NOTES first so its group shows the matching tab; then paper
@@ -153,7 +191,9 @@ export function activatePaperWithNotes(paperTab: DocTab): void {
 			readingSync = false;
 		});
 	}
-	setActiveTabId(paperTab.id);
+	// `activatePanel` does not set `syncingRef`, so the paper activation
+	// reaches `handleActivePanelChange` and leaves focus on the body.
+	cacheActiveTabBeforeDock(paperTab.id);
 }
 
 /**
@@ -190,8 +230,8 @@ export function handleActivePanelChange(panelId: string | null): void {
 	}
 
 	if (isPaperContentTab(tab) && tab.notesPath) {
-		const notesId = tabIdForPath(tab.notesPath);
-		if (!getTabs().some((t) => t.id === notesId)) return;
+		const notesId = findCanonicalTab(getTabs(), tab.notesPath)?.id ?? null;
+		if (!notesId) return;
 		readingSync = true;
 		try {
 			dockHandle()?.activatePanel(notesId, { skipSetGroupActive: true });
@@ -210,12 +250,14 @@ export function handleActivePanelChange(panelId: string | null): void {
 		return;
 	}
 
-	if (tabIsPaperNotes(tab)) {
+	if (tabIsPaperNotes(tab) && isCanonicalView(tab)) {
+		const notesKey = normalizeTabPath(tab.path);
 		const companion = getTabs().find(
 			(t) =>
 				isPaperContentTab(t) &&
+				isCanonicalView(t) &&
 				t.notesPath &&
-				tabIdForPath(t.notesPath) === tab.id,
+				normalizeTabPath(t.notesPath) === notesKey,
 		);
 		if (!companion) return;
 		readingSync = true;
@@ -254,9 +296,9 @@ export function openTab(
 		replaceNotesPaneId?: string | null;
 	},
 ): void {
-	const id = tabIdForPath(path);
-	const existing = getTabs().find((t) => t.id === id);
+	const existing = findCanonicalTab(getTabs(), path);
 	if (existing) {
+		const id = existing.id;
 		// Sync paper + NOTES tabs when re-opening an already-mounted paper.
 		if (
 			existing.kind === "paper" &&
@@ -274,7 +316,7 @@ export function openTab(
 			}
 			activatePaperWithNotes(existing);
 		} else {
-			setActiveTabId(id);
+			cacheActiveTabBeforeDock(id);
 			dockHandle()?.activatePanel(id);
 		}
 		return;
@@ -317,7 +359,7 @@ export function openTab(
 			}).paper);
 
 	setTabs(nextTabs);
-	setActiveTabId(insertedId);
+	cacheActiveTabBeforeDock(insertedId);
 	if (replaced) {
 		dockHandle()?.remapPanel(replaced.id, placeholder);
 		dockHandle()?.activatePanel(insertedId);
@@ -327,12 +369,14 @@ export function openTab(
 
 	void (async () => {
 		const vaultState = vaultStore.getState();
+		const generation = vaultLoadGeneration();
 		const res = await loadTabResources(
 			path,
 			vaultState.vaultPath,
 			vaultState.tree,
 			vaultState.paperFolders,
 		);
+		if (vaultLoadGeneration() !== generation) return;
 		if (res.error) {
 			notifyError(
 				res.error === "cannotPreview"
@@ -344,7 +388,7 @@ export function openTab(
 		// preferMode (⇧⌘T reopen of a closed PDF tab), not `existing` — an
 		// existing tab returned early above and is never patched here.
 		const patch = patchFromTabResources(res, placeholder);
-		updateTab(id, patch);
+		updateTab(insertedId, patch);
 
 		// Paper default: NOTES in the notes column (or first-time right split).
 		const wantDefaultNotes =
@@ -355,7 +399,7 @@ export function openTab(
 			(patch.mode === "pdf" || patch.mode === "html") &&
 			(opts?.forceNotes || loadSettings().autoOpenPaperNotes);
 		if (wantDefaultNotes && res.notesPath) {
-			openNotesForPaper(id, patch, path);
+			openNotesForPaper(insertedId, patch, path);
 		}
 
 		const vault = getVaultPath();
@@ -397,10 +441,10 @@ function openNotesForPaper(
 	const notesPath = paperPatch?.notesPath ?? tab?.notesPath ?? null;
 	if (!tab && !paperPath) return;
 	const path = paperPath ?? tab?.path ?? "";
-	const notesId = notesPath ? tabIdForPath(notesPath) : null;
-	const notesTab = notesId
-		? (getTabs().find((t) => t.id === notesId) ?? null)
+	const notesTab = notesPath
+		? (findCanonicalTab(getTabs(), notesPath) ?? null)
 		: null;
+	const notesId = notesTab?.id ?? null;
 	const notesInDock = notesId
 		? Boolean(dockHandle()?.canActivatePanel(notesId))
 		: false;
@@ -421,7 +465,7 @@ function openNotesForPaper(
 		setTabs((prev) => prev.filter((t) => t.id !== notesId));
 	}
 	const paperLike = {
-		...createPlaceholderTab(path, tab?.mode ?? "pdf"),
+		...createPlaceholderTab(path, tab?.mode ?? "pdf", tab?.id ?? paperId),
 		...(paperPatch ?? {}),
 		...tab,
 		notesPath,
@@ -480,6 +524,8 @@ export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
 
 	if (opts.remember !== false) rememberClosedTabs(idsToClose);
 
+	const before = getTabs();
+	const removedIds: string[] = [];
 	setTabs((prev) => {
 		let next = prev;
 		const removedList: DocTab[] = [];
@@ -489,9 +535,11 @@ export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
 			if (result.removed) removedList.push(result.removed);
 		}
 		if (!removedList.length) return prev;
+		removedIds.push(...removedList.map((tab) => tab.id));
 		for (const r of removedList) revokeTabMediaSources(r);
 		return withLibraryPresent(next);
 	});
+	detachClosedPanels(before, removedIds);
 	for (const closeId of idsToClose) cancelPdfNavigationForTab(closeId);
 	removeTabAnnotations(idsToClose);
 	if (target && isZenVirtualPath(target.path)) closeZenWorkspace();
@@ -509,9 +557,7 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 		.filter((tab): tab is DocTab => Boolean(tab));
 	const companionIds = new Set(
 		closing.flatMap((tab) =>
-			isPaperContentTab(tab) && tab.notesPath
-				? [tabIdForPath(tab.notesPath)]
-				: [],
+			readingPairCloseIds(tabs, tab.id).filter((closeId) => closeId !== tab.id),
 		),
 	);
 	pushClosedTabs(
@@ -530,8 +576,7 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 /** ⇧⌘T — reopen the most recently closed panel that is not already open. */
 export function reopenClosedTab(): void {
 	for (let entry = takeClosedTab(); entry; entry = takeClosedTab()) {
-		const id = tabIdForPath(entry.path);
-		if (getTabs().some((tab) => tab.id === id)) continue;
+		if (findCanonicalTab(getTabs(), entry.path)) continue;
 		openTab(entry.path, { preferMode: entry.mode });
 		return;
 	}
@@ -539,6 +584,7 @@ export function reopenClosedTab(): void {
 
 /** Close every Plaza overview / source tab. */
 export function closePlazaTabs(): void {
+	const before = getTabs();
 	let removedIds: string[] = [];
 	setTabs((prev) => {
 		const removed = prev.filter(
@@ -550,6 +596,7 @@ export function closePlazaTabs(): void {
 		const tabs = prev.filter((tab) => !removedIds.includes(tab.id));
 		return withLibraryPresent(tabs);
 	});
+	detachClosedPanels(before, removedIds);
 	if (removedIds.length) removeTabAnnotations(removedIds);
 }
 
@@ -576,20 +623,21 @@ export function remapMovedWorkspacePaths(
 	for (let index = 0; index < previousTabs.length; index++) {
 		const previous = previousTabs[index];
 		const remapped = remappedTabs[index];
-		if (previous && remapped && previous.id !== remapped.id) {
-			dockHandle()?.remapPanel(previous.id, remapped);
-		}
+		if (!previous || !remapped || previous === remapped) continue;
+		dockHandle()?.remapPanel(previous.id, remapped);
 	}
 	const active = previousTabs.find((tab) => tab.id === getActiveTabId());
 	if (active) {
-		setActiveTabId(tabIdForPath(remapPathUnder(active.path, fromAbs, toAbs)));
+		// The view id does not follow the path. Dockview keeps the same panel
+		// and only receives the updated path params.
+		cacheActiveTabBeforeDock(active.id);
 	}
-	remapTabAnnotations(
-		previousTabs.map((tab) => ({
-			fromId: tab.id,
-			toId: tabIdForPath(remapPathUnder(tab.path, fromAbs, toAbs)),
-		})),
-	);
+	const annotationMoves = previousTabs.flatMap((tab, index) => {
+		const next = remappedTabs[index];
+		if (!next || next.id === tab.id) return [];
+		return [{ fromId: tab.id, toId: next.id }];
+	});
+	if (annotationMoves.length) remapTabAnnotations(annotationMoves);
 	setTabs(remappedTabs);
 	setTreeSelectedPath((path) =>
 		path ? remapPathUnder(path, fromAbs, toAbs) : path,
@@ -608,6 +656,7 @@ export function remapMovedWorkspacePaths(
 
 /** Close every panel whose path is at or under the given path. */
 export function closeTabsUnderPath(path: string): void {
+	const before = getTabs();
 	let removedIds: string[] = [];
 	setTabs((prev) => {
 		const { tabs, removed } = removeTabsUnderPath(prev, path);
@@ -616,6 +665,7 @@ export function closeTabsUnderPath(path: string): void {
 		removedIds = removed.map((t) => t.id);
 		return withLibraryPresent(tabs);
 	});
+	detachClosedPanels(before, removedIds);
 	for (const removedId of removedIds) cancelPdfNavigationForTab(removedId);
 	if (removedIds.length) removeTabAnnotations(removedIds);
 }
@@ -631,12 +681,17 @@ export function cycleActiveGroupTab(delta: number): void {
 }
 
 export function cloneTabForSplit(tab: DocTab, tabs: DocTab[]): DocTab {
+	// Shallow copy shares pdfBytes; each viewer slices before the worker
+	// transfer. Blob URLs are not created again, so this pane takes its own lease.
+	retainViewerSource(tab.pdfUrl);
+	retainViewerSource(tab.imageUrl);
 	return {
 		...tab,
 		id: splitPaneIdForPath(
 			tab.path,
 			tabs.map((candidate) => candidate.id),
 		),
+		pane: "split",
 	};
 }
 
@@ -699,10 +754,11 @@ export function setNotesSplit(
 	if (!opts.preserveLayoutMode) setLayoutMode("custom");
 	const target = activeNotesTarget();
 	if (!target?.notesPath) return;
-	const notesId = tabIdForPath(target.notesPath);
+	const notesId = findCanonicalTab(getTabs(), target.notesPath)?.id ?? null;
 	const isOpen = tabHasNotesSplit(getTabs(), target);
 	if (isOpen === open) return;
 	if (!open) {
+		if (!notesId) return;
 		dockHandle()?.rememberNotesSplitWidth(target.id, notesId);
 		closeTab(notesId, { remember: false });
 		return;
@@ -724,11 +780,11 @@ export function setNotesSplit(
 		if (prev.some((t) => t.id === notesPane.id)) return prev;
 		return [...prev, notesPane];
 	});
+	cacheActiveTabBeforeDock(notesPane.id);
 	dockHandle()?.openPanel(notesPane, notesPlacement);
 	if (notesPlacement?.direction === "right") {
 		dockHandle()?.restoreNotesSplitWidth(target.id, notesPane.id);
 	}
-	setActiveTabId(notesPane.id);
 }
 
 /** Toggle NOTES.md panel for the active paper (⌘\ / Layout menu). */
@@ -742,13 +798,13 @@ export function toggleNotesSplit(): void {
 export function openTabNotes(tabId: string): void {
 	const target = getTabs().find((t) => t.id === tabId);
 	if (!target?.notesPath || !tabNotesEligible(target)) return;
-	const notesId = tabIdForPath(target.notesPath);
+	const notesId = findCanonicalTab(getTabs(), target.notesPath)?.id ?? null;
 	if (dockHandle()?.isMaximizedPanel?.()) {
 		dockHandle()?.exitMaximizedPanel?.();
 	}
-	if (tabHasNotesSplit(getTabs(), target)) {
+	if (notesId && tabHasNotesSplit(getTabs(), target)) {
+		cacheActiveTabBeforeDock(notesId);
 		dockHandle()?.activatePanel(notesId);
-		setActiveTabId(notesId);
 		return;
 	}
 	const notesPane = createNotesSplitPane(target);
@@ -764,14 +820,14 @@ export function openTabNotes(tabId: string): void {
 		if (prev.some((t) => t.id === notesPane.id)) return prev;
 		return [...prev, notesPane];
 	});
+	cacheActiveTabBeforeDock(notesPane.id);
 	dockHandle()?.openPanel(notesPane, notesPlacement);
-	setActiveTabId(notesPane.id);
 }
 
 /** File-tree "Open notes": reading layout with NOTES in the right column. */
 export function openPaperNotes(paperDir: string): void {
 	const abs = paperDir.replace(/\\/g, "/").replace(/\/+$/, "");
-	const existing = getTabs().find((t) => t.id === tabIdForPath(abs));
+	const existing = findCanonicalTab(getTabs(), abs);
 	if (existing && tabNotesEligible(existing)) {
 		setTreeSelectedPath(abs);
 		openTabNotes(existing.id);
@@ -797,7 +853,7 @@ export function openPaper(
 		if (
 			activeTab &&
 			!isLibraryVirtualPath(activeTab.path) &&
-			!getTabs().some((t) => t.id === tabIdForPath(abs))
+			!findCanonicalTab(getTabs(), abs)
 		) {
 			closeTab(activeTab.id, { remember: false });
 		}
@@ -831,7 +887,9 @@ export function ensureLibraryTabPresent(): void {
 	const ensured = ensureFullLibraryTab(getTabs());
 	if (!ensured.inserted) return;
 	setTabs(ensured.tabs);
-	if (!getActiveTabId()) setActiveTabId(ensured.activeId);
+	const library = ensured.tabs.find((tab) => tab.id === ensured.activeId);
+	if (!library) return;
+	showLibraryPanel(library, Boolean(getActiveTabId()));
 }
 
 const placeholderLoads = new Set<string>();
@@ -857,6 +915,7 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 		placeholderLoads.add(id);
 		void (async () => {
 			const vaultState = vaultStore.getState();
+			const generation = vaultLoadGeneration();
 			try {
 				const res = await loadTabResources(
 					tab.path,
@@ -868,7 +927,8 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 				if (
 					!current ||
 					current.path !== tab.path ||
-					vaultStore.getState().vaultPath !== vaultState.vaultPath
+					vaultStore.getState().vaultPath !== vaultState.vaultPath ||
+					vaultLoadGeneration() !== generation
 				) {
 					return;
 				}
@@ -1027,7 +1087,8 @@ export function openWritingFile(
 	const target = restoreSource ? (recentWritingFiles.get(root) ?? root) : path;
 	rememberWritingSource(target, root);
 	openTab(target);
-	updateTab(tabIdForPath(target), { writingRoot: root });
+	const opened = findCanonicalTab(getTabs(), target);
+	if (opened) updateTab(opened.id, { writingRoot: root });
 }
 
 export function selectFileNode(node: FileNode): void {
@@ -1123,6 +1184,7 @@ export async function syncRenamedPaperTabs(
 	toAbs: string,
 ): Promise<void> {
 	const vaultState = vaultStore.getState();
+	const generation = vaultLoadGeneration();
 	let res: Awaited<ReturnType<typeof loadTabResources>>;
 	try {
 		res = await loadTabResources(
@@ -1134,17 +1196,16 @@ export async function syncRenamedPaperTabs(
 	} catch {
 		return;
 	}
+	if (vaultLoadGeneration() !== generation) return;
 
-	const paperTabId = tabIdForPath(toAbs);
 	const notesPath = res.notesPath ?? notesPathForPaper(toAbs);
-	const notesTabId = tabIdForPath(notesPath);
+	const paperKey = normalizeTabPath(toAbs);
+	const notesKey = normalizeTabPath(notesPath);
 	const currentTabs = getTabs();
-	// Split panes share a path but carry a `::pane-N` suffix on their id.
-	const isPaneOf = (id: string, baseId: string) =>
-		id === baseId || id.startsWith(`${baseId}${SPLIT_PANE_ID_MARKER}`);
 
 	for (const tab of currentTabs) {
-		if (isPaneOf(tab.id, paperTabId) || tab.path === toAbs) {
+		const tabPath = tab.path ? normalizeTabPath(tab.path) : "";
+		if (tabPath === paperKey) {
 			updateTab(tab.id, {
 				title: res.title || tab.title,
 				paperMeta: res.paperMeta ?? tab.paperMeta,
@@ -1155,10 +1216,8 @@ export async function syncRenamedPaperTabs(
 				notesKey: tab.notesKey + 1,
 			});
 		} else if (
-			isPaneOf(tab.id, notesTabId) ||
-			(tab.notesPath &&
-				normalizeTabPath(tab.notesPath) === normalizeTabPath(notesPath)) ||
-			(tab.path && normalizeTabPath(tab.path) === normalizeTabPath(notesPath))
+			(tab.notesPath && normalizeTabPath(tab.notesPath) === notesKey) ||
+			tabPath === notesKey
 		) {
 			updateTab(tab.id, {
 				notesSeed: res.notesSeed,

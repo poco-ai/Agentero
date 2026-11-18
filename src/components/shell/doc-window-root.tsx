@@ -18,16 +18,23 @@ import { useFlushMarkdownOnClose } from "@/hooks/use-flush-markdown-on-close";
 import { useNativeSelectAllGuard } from "@/hooks/use-native-select-all-guard";
 import { useAnyModalOverlayOpen } from "@/hooks/use-overlay-registration";
 import { useVaultFileEvents } from "@/hooks/use-vault-file-events";
+import {
+	useWindowVaultHold,
+	vaultPathsMatch,
+} from "@/hooks/use-window-vault-hold";
 import { isMacOS } from "@/lib/core/tauri";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { refreshLibrary } from "@/lib/paper/library-store";
 import { applyDocumentChrome, resolveFontFamilyCss } from "@/lib/settings";
 import { closeCurrentWindow } from "@/lib/shell/close-window";
-import { readDocWindowParams } from "@/lib/shell/doc-window";
+import {
+	readDocWindowParams,
+	startDocMoveTarget,
+} from "@/lib/shell/doc-window";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { resolveShortcutId } from "@/lib/shell/shortcuts";
 import { openRecentVault } from "@/lib/vault/actions";
-import { refreshTree, vaultStore } from "@/lib/vault/store";
+import { getVaultPath, refreshTree, vaultStore } from "@/lib/vault/store";
 import { shouldIgnoreInternalRenameEvent } from "@/lib/wiki/store";
 import {
 	applyDiskChange,
@@ -35,6 +42,7 @@ import {
 	persistFile,
 	persistTextFile,
 } from "@/lib/workspace/actions";
+import { vaultLoadGeneration } from "@/lib/workspace/identity";
 import {
 	applyMarkdownConflictChoice,
 	createPlaceholderTab,
@@ -69,6 +77,18 @@ const PDF_STUB: DocViewPdfProps = {
 };
 const NOOP_TRASH_CHANGED = () => {};
 
+/** Target refuses a move when this window already holds an unsaved draft. */
+function tabHasUnsavedDraft(tab: DocTab | null): boolean {
+	if (!tab) return false;
+	return (
+		tab.markdownDirty ||
+		tab.notesDirty ||
+		tab.textDirty ||
+		tab.markdownConflict === true ||
+		markdownEditorFor(tab.id)?.hasPendingSource() === true
+	);
+}
+
 export function DocWindowRoot() {
 	const { t } = useTranslation(["app"]);
 	const isMac = useMemo(() => isMacOS(), []);
@@ -77,7 +97,11 @@ export function DocWindowRoot() {
 	const [error, setError] = useState<string | null>(null);
 	const [ready, setReady] = useState(false);
 	const tabRef = useRef<DocTab | null>(null);
+	const readyRef = useRef(false);
+	const errorRef = useRef<string | null>(null);
 	tabRef.current = tab;
+	readyRef.current = ready;
+	errorRef.current = error;
 	useNativeSelectAllGuard();
 	useFlushMarkdownOnClose();
 	const modalOverlayOpen = useAnyModalOverlayOpen();
@@ -92,6 +116,7 @@ export function DocWindowRoot() {
 	const monoFontFamily = useSettings((s) => s.monoFontFamily);
 	const fontFamily = resolveFontFamilyCss(textFontFamily, "text");
 	useExternalFileDrop();
+	const vaultHold = useWindowVaultHold();
 
 	useEffect(() => {
 		applyDocumentChrome({
@@ -102,6 +127,7 @@ export function DocWindowRoot() {
 	}, [uiScale, interfaceFontFamily, monoFontFamily]);
 
 	useEffect(() => {
+		const ticket = vaultHold.claim();
 		let cancelled = false;
 		void (async () => {
 			const path = params.path;
@@ -117,13 +143,18 @@ export function DocWindowRoot() {
 			}
 			const vault = params.vaultPath;
 			if (vault) {
-				await openRecentVault(vault);
-				if (!cancelled) {
+				await vaultHold.enqueue(ticket, async () => {
+					await openRecentVault(vault);
+					if (ticket !== vaultHold.current()) return;
+					if (vaultPathsMatch(getVaultPath(), vault)) {
+						await vaultHold.adopt(vault, ticket);
+					}
+					if (ticket !== vaultHold.current()) return;
 					await refreshTree(vault);
 					await refreshLibrary();
-				}
+				});
 			}
-			if (cancelled) return;
+			if (cancelled || ticket !== vaultHold.current()) return;
 
 			// Unregistered URL modes are ignored (viewerModeSpec throws otherwise).
 			const preferMode = isCenterViewMode(params.mode)
@@ -132,6 +163,7 @@ export function DocWindowRoot() {
 			const placeholder = createPlaceholderTab(path, preferMode);
 			setTab(placeholder);
 
+			const generation = vaultLoadGeneration();
 			const vs = vaultStore.getState();
 			const res = await loadTabResources(
 				path,
@@ -139,7 +171,7 @@ export function DocWindowRoot() {
 				vs.tree,
 				vs.paperFolders,
 			);
-			if (cancelled) return;
+			if (cancelled || vaultLoadGeneration() !== generation) return;
 			if (res.error) setError(res.error);
 
 			// The placeholder carries the URL-param mode: a PDF popout must not
@@ -156,8 +188,23 @@ export function DocWindowRoot() {
 		})();
 		return () => {
 			cancelled = true;
+			vaultHold.invalidate(ticket);
 		};
-	}, [params.path, params.mode, params.vaultPath, t]);
+	}, [params.path, params.mode, params.vaultPath, t, vaultHold]);
+
+	// Accept a move only after this window's own load settles. A path that is
+	// not this window's URL is ignored. An already-loaded document accepts
+	// as-is; nothing here changes its mode.
+	useEffect(() => {
+		const path = params.path;
+		if (!path) return;
+		return startDocMoveTarget(path, () => ({
+			unsaved: tabHasUnsavedDraft(tabRef.current),
+			ready: readyRef.current,
+			loaded: Boolean(tabRef.current?.loaded && tabRef.current.path === path),
+			failed: errorRef.current != null,
+		}));
+	}, [params.path]);
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {

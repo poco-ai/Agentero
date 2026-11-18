@@ -11,8 +11,14 @@
 import { createContext, useContext } from "react";
 import { createStore, type StoreApi, useStore } from "zustand";
 
-import type { PromptImage } from "@/lib/agent/api";
+import type {
+	AskUserRequest,
+	ElicitationRequest,
+	PermissionRequest,
+	PromptImage,
+} from "@/lib/agent/api";
 import type { ChatLine, ChatSessionHistoryItem } from "@/lib/agent/chat-state";
+import type { SelectionContext } from "@/lib/agent/selection-store";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 
 export type AgentSessionRecord = ChatSessionHistoryItem & {
@@ -51,6 +57,52 @@ export type AgentTurnRequest = {
 	images?: PromptImage[];
 };
 
+/** Follow-up frozen into a cross-window handoff. Same shape as the composer queue. */
+export type AgentHandoffQueuedPrompt = {
+	id: string;
+	text: string;
+	workflow?: string;
+	contextPaths: string[];
+	skillIds: string[];
+	selections: SelectionContext[];
+	visualDrafts: PdfVisualDraft[];
+	images?: PromptImage[];
+};
+
+/**
+ * Composer, queue, and unanswered interactive requests carried with a
+ * main → feature-window snapshot. Chat lines stay on `sessions`; `running`
+ * is derived from the active session's `status`, not a separate id set.
+ */
+export type AgentSessionHandoffSlice = {
+	deliveryId: string;
+	sourceLabel: string;
+	targetLabel: string;
+	providerSessionId: string | null;
+	localSessionId: string;
+	agentId: string | null;
+	running: boolean;
+	composerText: string;
+	mentions: string[];
+	composerSkillIds: string[];
+	includeSelectedFile: boolean;
+	images: PromptImage[];
+	visualRefs: PdfVisualDraft[];
+	queue: AgentHandoffQueuedPrompt[];
+	permissionRequestId: string | null;
+	elicitationRequestId: string | null;
+	askUserRequestId: string | null;
+	elicitationRequest: ElicitationRequest | null;
+	askUserRequest: AskUserRequest | null;
+};
+
+export type AgentSessionHandoffApplyInput = {
+	sessions: AgentSessionRecord[];
+	activeTabId: string;
+	draftLines?: ChatLine[];
+	permissionRequest?: PermissionRequest | null;
+} & Partial<AgentSessionHandoffSlice>;
+
 /** Stable empty transcript (selector equality). */
 export const EMPTY_CHAT_LINES: ChatLine[] = [];
 
@@ -76,8 +128,13 @@ export type AgentSessionStore = {
 	 * returns a runtime session id). Cleared when leaving draft.
 	 */
 	draftLines: ChatLine[];
-	/** Streaming/running session ids. */
-	runningSessionIds: string[];
+	/** Unanswered ask-mode permission. Survives Agent panel unmount in this window. */
+	permissionRequest: PermissionRequest | null;
+	/**
+	 * Last main → feature-window snapshot applied in this webview.
+	 * Null until a handoff is accepted. The panel hydrates composer UI from it.
+	 */
+	handoff: AgentSessionHandoffSlice | null;
 
 	setSessions: (
 		update:
@@ -90,8 +147,11 @@ export type AgentSessionStore = {
 	startDraft: () => void;
 	/** Replace/update lines for the active tab (draft or session row). */
 	setLines: (update: ChatLine[] | ((prev: ChatLine[]) => ChatLine[])) => void;
-	setRunningSessionIds: (
-		update: string[] | ((prev: string[]) => string[]),
+	setPermissionRequest: (
+		update:
+			| PermissionRequest
+			| null
+			| ((prev: PermissionRequest | null) => PermissionRequest | null),
 	) => void;
 
 	/** Upsert one session and optionally make it active. */
@@ -145,7 +205,8 @@ export function createAgentSessionStore(): AgentSessionStoreApi {
 		activeTabId: "draft",
 		hydratingSessionId: null,
 		draftLines: EMPTY_CHAT_LINES,
-		runningSessionIds: [],
+		permissionRequest: null,
+		handoff: null,
 		turnRequest: null,
 		_sendHandler: null,
 
@@ -201,12 +262,12 @@ export function createAgentSessionStore(): AgentSessionStoreApi {
 				return { sessions };
 			}),
 
-		setRunningSessionIds: (update) =>
+		setPermissionRequest: (update) =>
 			set((s) => {
-				const runningSessionIds =
-					typeof update === "function" ? update(s.runningSessionIds) : update;
-				if (runningSessionIds === s.runningSessionIds) return s;
-				return { runningSessionIds };
+				const permissionRequest =
+					typeof update === "function" ? update(s.permissionRequest) : update;
+				if (permissionRequest === s.permissionRequest) return s;
+				return { permissionRequest };
 			}),
 
 		upsertSession: (session, opts) => {
@@ -365,12 +426,53 @@ export function getAgentSessionState(): AgentSessionStore {
  */
 let agentSessionHandoffApplied = false;
 
+function stringList(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter((item): item is string => typeof item === "string");
+}
+
+function handoffSliceFrom(
+	payload: AgentSessionHandoffApplyInput,
+	sessions: AgentSessionRecord[],
+	activeTabId: string,
+): AgentSessionHandoffSlice {
+	const session = sessions.find((item) => item.id === activeTabId) ?? null;
+	const permissionRequestId =
+		payload.permissionRequest?.requestId ?? payload.permissionRequestId ?? null;
+	return {
+		deliveryId: payload.deliveryId ?? "",
+		sourceLabel: payload.sourceLabel ?? "",
+		targetLabel: payload.targetLabel ?? "",
+		providerSessionId:
+			payload.providerSessionId ?? session?.providerSessionId ?? null,
+		localSessionId: payload.localSessionId || activeTabId,
+		agentId: payload.agentId ?? session?.agentId ?? null,
+		// The boolean on the wire is a hint. The session row is the authority,
+		// so a handoff never invents a parallel set of running ids.
+		running: session?.status === "running",
+		composerText: payload.composerText ?? "",
+		mentions: stringList(payload.mentions),
+		composerSkillIds: stringList(payload.composerSkillIds),
+		includeSelectedFile: payload.includeSelectedFile === true,
+		images: Array.isArray(payload.images) ? payload.images : [],
+		visualRefs: Array.isArray(payload.visualRefs) ? payload.visualRefs : [],
+		queue: Array.isArray(payload.queue) ? payload.queue : [],
+		permissionRequestId,
+		elicitationRequestId:
+			payload.elicitationRequest?.requestId ??
+			payload.elicitationRequestId ??
+			null,
+		askUserRequestId:
+			payload.askUserRequest?.requestId ?? payload.askUserRequestId ?? null,
+		elicitationRequest: payload.elicitationRequest ?? null,
+		askUserRequest: payload.askUserRequest ?? null,
+	};
+}
+
 /** Apply a cross-window handoff snapshot (new Agent feature window boot). */
-export function applyAgentSessionHandoff(payload: {
-	sessions: AgentSessionRecord[];
-	activeTabId: string;
-	draftLines?: ChatLine[];
-}): void {
+export function applyAgentSessionHandoff(
+	payload: AgentSessionHandoffApplyInput,
+): void {
 	const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
 	const activeTabId =
 		typeof payload.activeTabId === "string" && payload.activeTabId
@@ -385,6 +487,10 @@ export function applyAgentSessionHandoff(payload: {
 		activeTabId,
 		hydratingSessionId: null,
 		draftLines,
+		handoff: handoffSliceFrom(payload, sessions, activeTabId),
+		...(payload.permissionRequest !== undefined
+			? { permissionRequest: payload.permissionRequest }
+			: {}),
 	});
 }
 
@@ -392,15 +498,18 @@ export function applyAgentSessionHandoff(payload: {
  * Apply handoff at most once per feature-window process.
  * @returns true if this call applied the snapshot
  */
-export function applyAgentSessionHandoffOnce(payload: {
-	sessions: AgentSessionRecord[];
-	activeTabId: string;
-	draftLines?: ChatLine[];
-}): boolean {
+export function applyAgentSessionHandoffOnce(
+	payload: AgentSessionHandoffApplyInput,
+): boolean {
 	if (agentSessionHandoffApplied) return false;
 	agentSessionHandoffApplied = true;
 	applyAgentSessionHandoff(payload);
 	return true;
+}
+
+/** The once-latch is process-global. Tests reset it between cases. */
+export function resetAgentSessionHandoffApplied(): void {
+	agentSessionHandoffApplied = false;
 }
 
 /**
@@ -415,7 +524,8 @@ export function clearAgentVaultState(): void {
 		activeTabId: "draft",
 		hydratingSessionId: null,
 		draftLines: EMPTY_CHAT_LINES,
-		runningSessionIds: [],
+		permissionRequest: null,
+		handoff: null,
 		turnRequest: null,
 	});
 }

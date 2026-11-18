@@ -10,13 +10,22 @@ export type DocTabKind =
 	| "paper"
 	| "file";
 
+/** Extra view of a path. Absent means the canonical view. Not a filesystem path. */
+export type TabPaneKind = "split" | "translation";
+
 /**
  * One open document panel in the center Dockview workspace.
  * All open documents are peers — layout/split is owned by dockview, not by nesting.
  */
 export type DocTab = {
-	/** Stable id derived from the normalized path (dedupe). */
+	/**
+	 * Opaque view id (`view-…`) for file and paper panels. Library, Trash, Zen,
+	 * and Plaza keep their virtual path ids. Restored layouts keep their old
+	 * path-shaped ids instead of rewriting them.
+	 */
 	id: string;
+	/** Split copy or translation companion. Absent on the canonical view. */
+	pane?: TabPaneKind;
 	/** Absolute path, or a virtual path (Library / Recycle Bin / Plaza). */
 	path: string;
 	kind: DocTabKind;
@@ -115,6 +124,8 @@ export type PersistedTab = {
 	id?: string;
 	path: string;
 	mode: CenterViewMode;
+	/** Split or translation companion. Absent on the canonical view. */
+	pane?: TabPaneKind;
 	/** Last resolved display title (paper metadata title); shown before hydration. */
 	title?: string;
 	/** rtex live pane; persists across window reloads instead of reverting to PDF. */
@@ -129,7 +140,7 @@ export type PersistedTab = {
 export type PersistedTabs = {
 	tabs: PersistedTab[];
 	activeId: string | null;
-	/** Global dockview grid snapshot (panel ids = path-derived tab ids). */
+	/** Global dockview grid snapshot (panel ids are view ids, not file paths). */
 	layout: unknown | null;
 };
 
@@ -143,6 +154,8 @@ export type PanelPersistParams = {
 	/** Live TeX pane state; only set while live. The source association persists in either mode. */
 	texLive?: boolean;
 	texRoot?: string;
+	/** Split or translation companion. Never written into `path`. */
+	pane?: TabPaneKind;
 };
 
 export const NOTES_PLACEHOLDER =

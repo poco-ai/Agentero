@@ -76,7 +76,7 @@ describe("vault-scoped store clears", () => {
 			sessions: [{ id: "s1" }] as never,
 			activeTabId: "s1",
 			hydratingSessionId: "s1",
-			runningSessionIds: ["s1"],
+			permissionRequest: { requestId: "req-1" } as never,
 			turnRequest: {} as never,
 		});
 
@@ -87,7 +87,7 @@ describe("vault-scoped store clears", () => {
 		expect(s.activeTabId).toBe("draft");
 		expect(s.draftLines).toEqual([]);
 		expect(s.hydratingSessionId).toBeNull();
-		expect(s.runningSessionIds).toEqual([]);
+		expect(s.permissionRequest).toBeNull();
 		expect(s.turnRequest).toBeNull();
 		// AgentPanel owns this slot; clearing it would break PDF-pin turns.
 		expect(s._sendHandler).toBe(handler);

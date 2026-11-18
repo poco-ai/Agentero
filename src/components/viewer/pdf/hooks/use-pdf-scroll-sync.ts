@@ -16,8 +16,8 @@ import {
 	subscribeScrollSyncPairs,
 	subscribeScrollSyncPeers,
 } from "@/lib/pdf/scroll-sync";
-
-const TRANSLATION_DOC_SUFFIX = "::translation";
+import { getTabs } from "@/lib/workspace/store";
+import { findTranslationSourceId } from "@/lib/workspace/tabs";
 
 /**
  * Frames to wait for the target's zoom relayout before realigning its scroll.
@@ -62,15 +62,12 @@ export function usePdfScrollSync(docId: string): void {
 		[],
 	);
 
-	// Restored translation tabs skip openTranslationTab; re-bind the pair from
-	// the conventional `::translation` document id so sync survives reload.
-	// Bytes-backed panes mount as `…::translation::r<n>` — strip the buffer
-	// revision before matching the suffix.
+	// Restored translation tabs skip openTranslationTab. Pair from the pane
+	// marker, and keep the legacy `::translation` id working across reload.
 	useEffect(() => {
 		const baseId = stripEmbedPdfRevision(docId);
-		if (!baseId.endsWith(TRANSLATION_DOC_SUFFIX)) return;
-		const sourceId = baseId.slice(0, -TRANSLATION_DOC_SUFFIX.length);
-		if (!sourceId) return;
+		const sourceId = findTranslationSourceId(getTabs(), baseId);
+		if (!sourceId || sourceId === baseId) return;
 		registerScrollSyncPair(sourceId, baseId);
 	}, [docId]);
 

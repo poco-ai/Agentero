@@ -57,3 +57,41 @@ export function removeStorageKey(
 		// ignore
 	}
 }
+
+type StorageRawRead =
+	| { status: "unavailable" }
+	| { status: "missing" }
+	| { status: "present"; raw: string };
+
+/**
+ * Read a key's stored text. An empty string is missing.
+ * Does not JSON-parse; parse failures stay with the caller.
+ */
+export function readStorageRaw(
+	key: string,
+	storage: StorageLike | null | undefined = defaultStorage(),
+): StorageRawRead {
+	if (!storage) return { status: "unavailable" };
+	try {
+		const raw = storage.getItem(key);
+		if (raw == null || raw === "") return { status: "missing" };
+		return { status: "present", raw };
+	} catch {
+		return { status: "unavailable" };
+	}
+}
+
+/** Write raw text unchanged. Returns false when storage is unavailable or throws. */
+export function writeStorageRaw(
+	key: string,
+	raw: string,
+	storage: StorageLike | null | undefined = defaultStorage(),
+): boolean {
+	if (!storage) return false;
+	try {
+		storage.setItem(key, raw);
+		return true;
+	} catch {
+		return false;
+	}
+}

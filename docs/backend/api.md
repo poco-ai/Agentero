@@ -476,7 +476,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 
 #### `vault_hold`
 
-注册当前窗口对某个 vault 的持有（窗口 label 由 Host 注入，前端签名只有 `path`）。前端在 `vault:opened` 作用域 setup 时调用（remote handle 跳过），与 `vault_release` 成对。
+注册当前窗口对某个 vault 的持有（窗口 label 由 Host 注入，前端签名只有 `path`）。主窗在 `vault:opened` 作用域 setup 时调用；文档窗与功能窗在成功打开 Vault 后调用（remote handle 跳过），与 `vault_release` 成对。
 
 - **参数**：`{ path: string }`
 - **返回**：`{ ok: true; data: null }`
@@ -484,11 +484,11 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 
 #### `vault_release`
 
-释放 Host 侧为某个 vault 持有的资源。前端在释放 `vault:opened` 作用域时调用（remote handle 跳过）。
+释放 Host 侧为某个 vault 持有的资源。主窗在释放 `vault:opened` 作用域时调用；文档窗与功能窗在卸载或离开该 Vault 时调用（remote handle 跳过）。
 
 - **参数**：`{ path: string }`
 - **返回**：`{ ok: true; data: null }`
-- **行为**：先解除当前窗口的持有（键归一同 `vault_hold`）；仅当该 vault 不再被任何窗口持有时执行释放序列（取消该 vault 的 JobCenter 任务并 drain、清 paper caps cache、驱逐 catalog 连接缓存条目）。catalog 连接缓存是进程级、按 vault 根路径索引的，驱逐对正在进行的操作安全（它们持有连接的 `Arc` 克隆，这里只移除缓存条目）。**无持有记录时仍执行释放**：刻意保留的单窗口兼容回退（漏注册 `vault_hold`、或目录已删导致 canonicalize 回退原串而查不到 entry 时都不回归旧行为）。窗口销毁时 Host 的 `on_window_event(Destroyed)` 兜底清理该窗口的全部持有，对变为空的 vault 异步执行同一释放序列。
+- **行为**：先解除当前窗口的持有（键归一同 `vault_hold`）；仅当该 vault 不再被任何窗口持有时执行释放序列（取消该 vault 的 JobCenter 任务并 drain、清 paper caps cache、驱逐 catalog 连接缓存条目）。catalog 连接缓存是进程级、按 vault 根路径索引的，驱逐对正在进行的操作安全（它们持有连接的 `Arc` 克隆，这里只移除缓存条目）。**无持有记录时不释放**：key 没有记录（从未 hold，或目录已删导致 canonicalize 回退原串而对不上已登记的 key）返回 false，不执行全局释放，避免放掉仍被其他窗口使用的资源；对不上的 canonical entry 留到窗口销毁时由 drain 清理。窗口销毁时 Host 的 `on_window_event(Destroyed)` 兜底清理该窗口的全部持有，对变为空的 vault 异步执行同一释放序列。
 - **不负责**：文件监听。`fs_watch_start` 本身就会替换该窗口的既有 watcher，窗口销毁时由 Host 的 `on_window_event(Destroyed)` 停止。
 - **没有 `vault:close` 命令**：vault 的生命期由前端 `vault:opened` 作用域的 teardown 表达，见 [../architecture.md](../architecture.md) 的「生命周期」。
 

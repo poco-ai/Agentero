@@ -1,5 +1,8 @@
 import i18n from "@/i18n";
-import { createPlaceholderTab, tabIdForPath } from "@/lib/workspace/tabs/model";
+import {
+	createPlaceholderTab,
+	findCanonicalTab,
+} from "@/lib/workspace/tabs/model";
 import type { DocTab } from "@/lib/workspace/tabs/types";
 
 /**
@@ -8,15 +11,14 @@ import type { DocTab } from "@/lib/workspace/tabs/types";
  */
 export function createTranslationSplitPane(paperTab: DocTab): DocTab | null {
 	if (!paperTab.path) return null;
-	const baseId = tabIdForPath(paperTab.path);
-	const translationId = `${baseId}::translation`;
 	const title = paperTab.paperMeta?.title
 		? i18n.t("viewer:pdf.translation.tabTitle", {
 				title: paperTab.paperMeta.title,
 			})
 		: i18n.t("viewer:pdf.translation.title");
 	return {
-		...createPlaceholderTab(paperTab.path, "translation", translationId),
+		...createPlaceholderTab(paperTab.path, "translation"),
+		pane: "translation",
 		kind: "paper",
 		title,
 		paperMeta: paperTab.paperMeta,
@@ -35,6 +37,28 @@ export function createTranslationSplitPane(paperTab: DocTab): DocTab | null {
 		notesPath: paperTab.notesPath,
 		loaded: true,
 	};
+}
+
+/**
+ * Source panel for a translation document id.
+ * Restored `::translation` ids still resolve when the tab has not been stamped.
+ */
+export function findTranslationSourceId(
+	tabs: readonly DocTab[],
+	docId: string,
+): string | null {
+	const baseId = docId.replace(/::r\d+$/, "");
+	const tab = tabs.find((candidate) => candidate.id === baseId);
+	if (tab?.pane === "translation") {
+		return findCanonicalTab(tabs, tab.path)?.id ?? null;
+	}
+	const marker = "::translation";
+	if (baseId.endsWith(marker)) {
+		const source = baseId.slice(0, -marker.length);
+		if (!source) return null;
+		return findCanonicalTab(tabs, source)?.id ?? source;
+	}
+	return null;
 }
 
 /** Place the translation tab as a right split of the source paper panel. */

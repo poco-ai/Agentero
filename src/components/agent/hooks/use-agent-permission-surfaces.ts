@@ -19,7 +19,10 @@ import {
 	respondElicitation,
 	respondPermission,
 } from "@/lib/agent";
-import { useAgentSessionScope } from "@/lib/agent/agent-session-store";
+import {
+	useAgentSessionScope,
+	useAgentSessionStore,
+} from "@/lib/agent/agent-session-store";
 import type { ToolAskUserRequest } from "@/lib/agent/chat-state";
 import { claimInteractiveRequest } from "@/lib/agent/interactive-claims";
 import { events } from "@/lib/core/bindings";
@@ -50,9 +53,11 @@ export function useAgentPermissionSurfaces({
 	// Overlay ids are keyed per chat surface: two mounted panels (rail + Zen
 	// slot) must not replace each other's stack entry.
 	const overlayId = (name: string) => (scopeId ? `${name}:${scopeId}` : name);
-	// Forward ACP permission requests (ask mode) to the user for an explicit decision.
-	const [permissionRequest, setPermissionRequest] =
-		useState<PermissionRequest | null>(null);
+	// Lives on the session store so hiding the panel does not drop an unanswered ask.
+	const permissionRequest = useAgentSessionStore((s) => s.permissionRequest);
+	const setPermissionRequest = useAgentSessionStore(
+		(s) => s.setPermissionRequest,
+	);
 	// Codex Plan-mode request_user_input → form elicitation.
 	const [elicitationRequest, setElicitationRequest] =
 		useState<ElicitationRequest | null>(null);

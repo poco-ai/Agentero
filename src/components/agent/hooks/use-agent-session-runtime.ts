@@ -42,7 +42,8 @@ import {
 } from "@/lib/agent";
 import {
 	type AgentSessionRecord,
-	useAgentSessionStoreApi,
+	type AgentSessionStoreApi,
+	useAgentSessionScope,
 } from "@/lib/agent/agent-session-store";
 import {
 	type AgentPart,
@@ -143,6 +144,277 @@ export type AgentSessionRuntime = {
 	phaseBySession: Record<string, AgentPhaseState>;
 };
 
+/**
+ * One Tauri subscription per window. Panel unmount does not unsubscribe —
+ * callbacks read this map, which the mounted runtime refreshes every render,
+ * and the previous entry keeps applying events into the session store until
+ * the same scope mounts again. `pagehide` is the only unsubscribe.
+ */
+type AgentRuntimeListener = {
+	shouldDeferTerminalEvent: (sessionId: string) => boolean;
+	deferSessionEvent: (sessionId: string, event: PendingSessionEvent) => void;
+	applyStreamEvent: (ev: AgentStreamEvent) => void;
+	applyToolEvent: (ev: AgentToolEvent) => void;
+	applyPlanEvent: (ev: AgentPlanEvent) => void;
+	setUsage: UseAgentSessionRuntimeOptions["setUsage"];
+	setUsageBySession: UseAgentSessionRuntimeOptions["setUsageBySession"];
+	setAcpCommandsByAgent: UseAgentSessionRuntimeOptions["setAcpCommandsByAgent"];
+	applyModelsEvent: UseAgentSessionRuntimeOptions["applyModelsEvent"];
+	applyCollaborationEvent: UseAgentSessionRuntimeOptions["applyCollaborationEvent"];
+	applyEffortEvent: UseAgentSessionRuntimeOptions["applyEffortEvent"];
+	applyFastModeEvent: UseAgentSessionRuntimeOptions["applyFastModeEvent"];
+	completeSession: (ev: AgentResultPayload) => void;
+	failSession: (sessionId: string, error: string) => void;
+	isChatOwnedSession: (sessionId: string) => boolean;
+	setPhaseBySession: Dispatch<SetStateAction<Record<string, AgentPhaseState>>>;
+	setAgentListenersReady: UseAgentSessionRuntimeOptions["setAgentListenersReady"];
+	pendingTerminalEventsRef: UseAgentSessionRuntimeOptions["refs"]["pendingTerminalEventsRef"];
+	sessionStore: AgentSessionStoreApi;
+};
+
+const agentRuntimeListeners = new Map<string, AgentRuntimeListener>();
+
+let agentRuntimeListenPromise: Promise<void> | null = null;
+let agentRuntimeUnsubs: Array<() => void> | null = null;
+let agentRuntimePageHidden = false;
+let agentRuntimePagehideBound = false;
+
+function bindAgentRuntimePagehide(): void {
+	if (agentRuntimePagehideBound || typeof window === "undefined") return;
+	agentRuntimePagehideBound = true;
+	window.addEventListener("pagehide", () => {
+		agentRuntimePageHidden = true;
+		const unsubs = agentRuntimeUnsubs;
+		agentRuntimeUnsubs = [];
+		if (!unsubs) return;
+		for (const unsub of unsubs) unsub();
+	});
+}
+
+function keepOrDropUnsub(unsub: () => void, bucket: Array<() => void>): void {
+	if (agentRuntimePageHidden) {
+		unsub();
+		return;
+	}
+	bucket.push(unsub);
+}
+
+async function subscribeAgentRuntimeListeners(): Promise<void> {
+	const bucket: Array<() => void> = [];
+	const collect = async (pending: Promise<() => void>) => {
+		keepOrDropUnsub(await pending, bucket);
+	};
+	try {
+		await collect(
+			listenAgentStream((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					if (listener.shouldDeferTerminalEvent(ev.sessionId)) {
+						listener.deferSessionEvent(ev.sessionId, {
+							kind: "stream",
+							event: ev,
+						});
+						continue;
+					}
+					listener.applyStreamEvent(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentTool((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					if (listener.shouldDeferTerminalEvent(ev.sessionId)) {
+						listener.deferSessionEvent(ev.sessionId, {
+							kind: "tool",
+							event: ev,
+						});
+						continue;
+					}
+					listener.applyToolEvent(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentPlan((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					if (listener.shouldDeferTerminalEvent(ev.sessionId)) {
+						listener.deferSessionEvent(ev.sessionId, {
+							kind: "plan",
+							event: ev,
+						});
+						continue;
+					}
+					listener.applyPlanEvent(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentUsage((ev) => {
+				if (ev.size <= 0) return;
+				for (const listener of agentRuntimeListeners.values()) {
+					if (ev.sessionId === "warm") {
+						listener.setUsage({ used: ev.used, size: ev.size });
+						continue;
+					}
+					listener.setUsageBySession((prev) => ({
+						...prev,
+						[ev.sessionId]: { used: ev.used, size: ev.size },
+					}));
+				}
+			}),
+		);
+		await collect(
+			listenAgentCommands((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					listener.setAcpCommandsByAgent((prev) => ({
+						...prev,
+						[ev.agentId]: mapAcpCommands(ev.commands),
+					}));
+				}
+			}),
+		);
+		await collect(
+			listenAgentSessionInfo((ev) => {
+				const title = ev.title ? displayHistoryTitle(ev.title) : "";
+				if (!title) return;
+				const providerId = ev.providerSessionId?.trim() ?? "";
+				for (const listener of agentRuntimeListeners.values()) {
+					listener.sessionStore.getState().setSessions((prev) => {
+						let changed = false;
+						const next = prev.map((s) => {
+							const matches =
+								s.id === ev.sessionId ||
+								(providerId !== "" && s.providerSessionId === providerId);
+							// Visual-trace and user-renamed titles are meaningful; never override.
+							if (
+								!matches ||
+								s.visualTraceId ||
+								s.titleLocked ||
+								s.title === title
+							) {
+								return s;
+							}
+							changed = true;
+							return { ...s, title };
+						});
+						return changed ? next : prev;
+					});
+				}
+			}),
+		);
+		await collect(
+			listenAgentModels((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					listener.applyModelsEvent(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentCollaboration((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					listener.applyCollaborationEvent(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentEffort((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					listener.applyEffortEvent(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentFastMode((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					listener.applyFastModeEvent(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentCompleted((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					if (listener.shouldDeferTerminalEvent(ev.sessionId)) {
+						listener.pendingTerminalEventsRef.current.set(ev.sessionId, {
+							kind: "completed",
+							event: ev,
+						});
+						continue;
+					}
+					listener.completeSession(ev);
+				}
+			}),
+		);
+		await collect(
+			listenAgentFailed((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					if (listener.shouldDeferTerminalEvent(ev.sessionId)) {
+						listener.pendingTerminalEventsRef.current.set(ev.sessionId, {
+							kind: "failed",
+							error: ev.error,
+						});
+						continue;
+					}
+					listener.failSession(ev.sessionId, ev.error);
+				}
+			}),
+		);
+		await collect(
+			listenAgentStatus((ev) => {
+				for (const listener of agentRuntimeListeners.values()) {
+					if (!listener.isChatOwnedSession(ev.sessionId)) continue;
+					const phase = ev.phase as AgentTurnPhase;
+					if (
+						phase !== "starting" &&
+						phase !== "waiting-model" &&
+						phase !== "reconnecting"
+					) {
+						continue;
+					}
+					const detail = ev.detail?.trim();
+					listener.setPhaseBySession((prev) => {
+						const current = prev[ev.sessionId];
+						if (
+							current?.phase === phase &&
+							current.detail === (detail || undefined)
+						) {
+							return prev;
+						}
+						return {
+							...prev,
+							[ev.sessionId]: {
+								phase,
+								detail: detail || undefined,
+							},
+						};
+					});
+				}
+			}),
+		);
+		agentRuntimeUnsubs = bucket;
+		if (agentRuntimePageHidden) {
+			const pending = agentRuntimeUnsubs ?? [];
+			agentRuntimeUnsubs = [];
+			for (const unsub of pending) unsub();
+		}
+	} catch (error) {
+		for (const unsub of bucket) unsub();
+		if (agentRuntimeUnsubs === bucket) agentRuntimeUnsubs = [];
+		throw error;
+	}
+}
+
+/** Start the window subscription, or wait if a mount is already in `listen`. */
+function ensureAgentRuntimeListeners(): Promise<void> {
+	if (!agentRuntimeListenPromise) {
+		agentRuntimeListenPromise = subscribeAgentRuntimeListeners().catch(
+			(error: unknown) => {
+				agentRuntimeListenPromise = null;
+				throw error;
+			},
+		);
+	}
+	return agentRuntimeListenPromise;
+}
+
 export function useAgentSessionRuntime({
 	refs: {
 		activeConversationRef,
@@ -166,7 +438,8 @@ export function useAgentSessionRuntime({
 	setAcpCommandsByAgent,
 	setAgentListenersReady,
 }: UseAgentSessionRuntimeOptions): AgentSessionRuntime {
-	const sessionStore = useAgentSessionStoreApi();
+	const { store: sessionStore, scopeId } = useAgentSessionScope();
+	const listenerScopeKey = scopeId ?? "rail";
 	const updateSessionLines = useCallback(
 		(sessionId: string, update: (lines: ChatLine[]) => ChatLine[]) => {
 			// Shared store: modal pin + sidebar both observe the same lines.
@@ -647,200 +920,54 @@ export function useAgentSessionRuntime({
 		[knownSessionIdsRef, pendingSubmissionSessionIdRef, submittingRef],
 	);
 
+	const flushAllStreamBuffersRef = useRef(flushAllStreamBuffers);
+	flushAllStreamBuffersRef.current = flushAllStreamBuffers;
+	// Latest callbacks for the window-level listeners. Left in place on unmount
+	// so events during the gap still land in this scope's store.
+	agentRuntimeListeners.set(listenerScopeKey, {
+		shouldDeferTerminalEvent,
+		deferSessionEvent,
+		applyStreamEvent,
+		applyToolEvent,
+		applyPlanEvent,
+		setUsage,
+		setUsageBySession,
+		setAcpCommandsByAgent,
+		applyModelsEvent,
+		applyCollaborationEvent,
+		applyEffortEvent,
+		applyFastModeEvent,
+		completeSession,
+		failSession,
+		isChatOwnedSession,
+		setPhaseBySession,
+		setAgentListenersReady,
+		pendingTerminalEventsRef,
+		sessionStore,
+	});
+
 	useEffect(() => {
 		if (!isTauri()) return;
-		let cancelled = false;
-		const unsubs: Array<() => void> = [];
-		setAgentListenersReady(false);
-
-		void (async () => {
-			const u1 = await listenAgentStream((ev) => {
-				if (shouldDeferTerminalEvent(ev.sessionId)) {
-					deferSessionEvent(ev.sessionId, { kind: "stream", event: ev });
-					return;
-				}
-				applyStreamEvent(ev);
-			});
-			const uTool = await listenAgentTool((ev) => {
-				if (shouldDeferTerminalEvent(ev.sessionId)) {
-					deferSessionEvent(ev.sessionId, { kind: "tool", event: ev });
-					return;
-				}
-				applyToolEvent(ev);
-			});
-			const uPlan = await listenAgentPlan((ev) => {
-				if (shouldDeferTerminalEvent(ev.sessionId)) {
-					deferSessionEvent(ev.sessionId, { kind: "plan", event: ev });
-					return;
-				}
-				applyPlanEvent(ev);
-			});
-			const uUsage = await listenAgentUsage((ev) => {
-				if (ev.size <= 0) return;
-				if (ev.sessionId === "warm") {
-					setUsage({ used: ev.used, size: ev.size });
-					return;
-				}
-				setUsageBySession((prev) => ({
-					...prev,
-					[ev.sessionId]: { used: ev.used, size: ev.size },
-				}));
-			});
-			const uCommands = await listenAgentCommands((ev) => {
-				setAcpCommandsByAgent((prev) => ({
-					...prev,
-					[ev.agentId]: mapAcpCommands(ev.commands),
-				}));
-			});
-			const uSessionInfo = await listenAgentSessionInfo((ev) => {
-				const title = ev.title ? displayHistoryTitle(ev.title) : "";
-				if (!title) return;
-				const providerId = ev.providerSessionId?.trim() ?? "";
-				sessionStore.getState().setSessions((prev) => {
-					let changed = false;
-					const next = prev.map((s) => {
-						const matches =
-							s.id === ev.sessionId ||
-							(providerId !== "" && s.providerSessionId === providerId);
-						// Visual-trace and user-renamed titles are meaningful; never override.
-						if (
-							!matches ||
-							s.visualTraceId ||
-							s.titleLocked ||
-							s.title === title
-						)
-							return s;
-						changed = true;
-						return { ...s, title };
-					});
-					return changed ? next : prev;
-				});
-			});
-			const uModels = await listenAgentModels((ev) => {
-				applyModelsEvent(ev);
-			});
-			const uCollab = await listenAgentCollaboration((ev) => {
-				applyCollaborationEvent(ev);
-			});
-			const uEffort = await listenAgentEffort((ev) => {
-				applyEffortEvent(ev);
-			});
-			const uFast = await listenAgentFastMode((ev) => {
-				applyFastModeEvent(ev);
-			});
-			const u2 = await listenAgentCompleted((ev) => {
-				if (shouldDeferTerminalEvent(ev.sessionId)) {
-					pendingTerminalEventsRef.current.set(ev.sessionId, {
-						kind: "completed",
-						event: ev,
-					});
-					return;
-				}
-				completeSession(ev);
-			});
-			const u3 = await listenAgentFailed((ev) => {
-				if (shouldDeferTerminalEvent(ev.sessionId)) {
-					pendingTerminalEventsRef.current.set(ev.sessionId, {
-						kind: "failed",
-						error: ev.error,
-					});
-					return;
-				}
-				failSession(ev.sessionId, ev.error);
-			});
-			const uStatus = await listenAgentStatus((ev) => {
-				if (!isChatOwnedSession(ev.sessionId)) return;
-				const phase = ev.phase as AgentTurnPhase;
-				if (
-					phase !== "starting" &&
-					phase !== "waiting-model" &&
-					phase !== "reconnecting"
-				) {
-					return;
-				}
-				const detail = ev.detail?.trim();
-				setPhaseBySession((prev) => {
-					const current = prev[ev.sessionId];
-					if (
-						current?.phase === phase &&
-						current.detail === (detail || undefined)
-					) {
-						return prev;
-					}
-					return {
-						...prev,
-						[ev.sessionId]: {
-							phase,
-							detail: detail || undefined,
-						},
-					};
-				});
-			});
-
-			if (cancelled) {
-				u1();
-				uTool();
-				uPlan();
-				uUsage();
-				uCommands();
-				uSessionInfo();
-				uModels();
-				uCollab();
-				uEffort();
-				uFast();
-				u2();
-				u3();
-				uStatus();
-				return;
-			}
-			unsubs.push(
-				u1,
-				uTool,
-				uPlan,
-				uUsage,
-				uCommands,
-				uSessionInfo,
-				uModels,
-				uCollab,
-				uEffort,
-				uFast,
-				u2,
-				u3,
-				uStatus,
-			);
-			setAgentListenersReady(true);
-		})();
-
+		bindAgentRuntimePagehide();
+		let active = true;
+		void ensureAgentRuntimeListeners().then(
+			() => {
+				if (!active) return;
+				agentRuntimeListeners
+					.get(listenerScopeKey)
+					?.setAgentListenersReady(true);
+			},
+			() => undefined,
+		);
 		return () => {
-			cancelled = true;
-			for (const u of unsubs) u();
+			active = false;
 			if (streamFlushFrameRef.current) {
 				cancelAnimationFrame(streamFlushFrameRef.current);
 				streamFlushFrameRef.current = 0;
 			}
-			flushAllStreamBuffers();
+			flushAllStreamBuffersRef.current();
 		};
-	}, [
-		applyCollaborationEvent,
-		applyEffortEvent,
-		applyFastModeEvent,
-		applyModelsEvent,
-		applyPlanEvent,
-		applyStreamEvent,
-		applyToolEvent,
-		completeSession,
-		deferSessionEvent,
-		failSession,
-		flushAllStreamBuffers,
-		isChatOwnedSession,
-		pendingTerminalEventsRef,
-		setAcpCommandsByAgent,
-		setAgentListenersReady,
-		setUsage,
-		setUsageBySession,
-		sessionStore,
-		shouldDeferTerminalEvent,
-	]);
+	}, [listenerScopeKey]);
 
 	return {
 		toolAskUserRequest,

@@ -59,7 +59,7 @@ import { moveDocToWindow } from "@/lib/shell/leaf";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
 import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { TAG_COLOR_IDS, tagSwatchStyle } from "@/lib/ui/tag-colors";
-import { openTexPdf } from "@/lib/workspace/actions";
+import { closeTab, openTexPdf } from "@/lib/workspace/actions";
 import type { DockHandle } from "@/lib/workspace/dock-registry";
 import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag-selection";
 import { installDockviewSashFrameLoop } from "@/lib/workspace/dockview-sash";
@@ -75,12 +75,13 @@ import {
 } from "@/lib/workspace/notes-split-width";
 import { installResizeGesture } from "@/lib/workspace/resize-gesture";
 import { useSelectionOverlayActive } from "@/lib/workspace/selection-overlay";
+import { getTabs } from "@/lib/workspace/store";
 import { readDraggedVaultPaths } from "@/lib/workspace/tab-dnd";
 import {
 	type DocTab,
+	findCanonicalTab,
 	type ReadingColumns,
 	type SplitDirection,
-	tabIdForPath,
 	tabIsPaperNotes,
 	tabNotesEligible,
 } from "@/lib/workspace/tabs";
@@ -202,7 +203,9 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 	const notesActive =
 		tab.mode === "html" &&
 		tab.notesPath != null &&
-		activePanelId === tabIdForPath(tab.notesPath);
+		activePanelId != null &&
+		findCanonicalTab([...tabsById.values()], tab.notesPath)?.id ===
+			activePanelId;
 	const focused = activePanelId === panelId;
 	const active = focused || notesActive;
 	return (
@@ -271,6 +274,7 @@ function WorkspaceTab({
 	return (
 		<DocumentTab
 			{...rest}
+			data-panel-id={api.id}
 			title={
 				tab?.paperMeta ? (
 					<PaperTitle text={title ?? ""} />
@@ -333,6 +337,37 @@ function WorkspaceTab({
 
 /** Alias preserves layout snapshots that stored tabComponent:"default". */
 const tabComponents = { default: WorkspaceTab };
+
+function isTabStripTextEntry(target: Element): boolean {
+	if (target.closest("input, textarea")) return true;
+	const editable = target.closest("[contenteditable]");
+	return Boolean(
+		editable && editable.getAttribute("contenteditable") !== "false",
+	);
+}
+
+/**
+ * Dockview 7.0.4's tablist closes the focused tab on bubble-phase
+ * Delete/Backspace via `panel.api.close()`, before the save gate can run.
+ * Capture the keys on the workspace root so that listener never sees them.
+ */
+function onWorkspaceTabCloseKey(event: KeyboardEvent): void {
+	if (event.key !== "Delete" && event.key !== "Backspace") return;
+	const target = event.target;
+	if (!(target instanceof Element)) return;
+	if (!target.closest('[role="tablist"]')) return;
+	if (isTabStripTextEntry(target)) return;
+	// Writing-project file tabs reuse the tab strip markup but are not Dockview
+	// panels. Leave their keys alone; only a real panel id goes through closeTab.
+	const panelId = target
+		.closest(".dv-tab")
+		?.querySelector("[data-panel-id]")
+		?.getAttribute("data-panel-id");
+	if (!panelId) return;
+	event.preventDefault();
+	event.stopPropagation();
+	closeTab(panelId);
+}
 
 type DockWorkspaceProps = {
 	tabs: DocTab[];
@@ -448,6 +483,14 @@ export const DockWorkspace = memo(
 			};
 		}, []);
 
+		useEffect(() => {
+			const root = workspaceRootRef.current;
+			if (!root) return;
+			root.addEventListener("keydown", onWorkspaceTabCloseKey, true);
+			return () =>
+				root.removeEventListener("keydown", onWorkspaceTabCloseKey, true);
+		}, []);
+
 		const tabGroupColors = useMemo<DockviewTabGroupColorEntry[]>(
 			() =>
 				TAB_GROUP_COLORS.map((id) => ({
@@ -541,7 +584,7 @@ export const DockWorkspace = memo(
 			[tabsById, activePanelId, centerProps, keepSet],
 		);
 
-		/** Membership only: add missing / remove closed. Placement is imperative. */
+		/** onReady only: add missing / remove stale after restore. */
 		const syncPanels = useCallback(
 			(api: DockviewApi) => {
 				syncingRef.current = true;
@@ -557,12 +600,12 @@ export const DockWorkspace = memo(
 		useImperativeHandle(
 			ref,
 			() => ({
-				openPanel(tab, placement = null) {
+				openPanel(tab, placement = null, options) {
 					const api = apiRef.current;
 					if (!api) return;
 					const existing = api.getPanel(tab.id);
 					if (existing) {
-						existing.api.setActive();
+						if (!options?.inactive) existing.api.setActive();
 						return;
 					}
 					syncingRef.current = true;
@@ -572,8 +615,49 @@ export const DockWorkspace = memo(
 							tabIsPaperNotes(tab) &&
 							Boolean(placement && placement.direction === "within");
 						addPanelWithPlacement(api, tab, placement, {
-							inactive: isBackgroundNote,
+							inactive: Boolean(options?.inactive) || isBackgroundNote,
 						});
+					} finally {
+						endSync(api);
+					}
+				},
+				removePanel(panelId) {
+					const api = apiRef.current;
+					if (!api) return;
+					const panel = api.getPanel(panelId);
+					if (!panel) return;
+					syncingRef.current = true;
+					try {
+						api.removePanel(panel);
+					} finally {
+						endSync(api);
+					}
+				},
+				snapshotLayout() {
+					const api = apiRef.current;
+					return api ? api.toJSON() : null;
+				},
+				restoreLayout(layout) {
+					const api = apiRef.current;
+					if (!api) return;
+					const tabs = getTabs();
+					tabsRef.current = tabs;
+					if (layout && typeof layout === "object") {
+						syncingRef.current = true;
+						try {
+							api.fromJSON(layout as Parameters<DockviewApi["fromJSON"]>[0]);
+							reconcileAfterLayoutRestore(api, tabs);
+							endSync(api);
+						} catch {
+							api.clear();
+							syncPanels(api);
+						}
+						return;
+					}
+					syncingRef.current = true;
+					try {
+						api.clear();
+						reconcilePanelMembership(api, tabs);
 					} finally {
 						endSync(api);
 					}
@@ -600,9 +684,13 @@ export const DockWorkspace = memo(
 				},
 				remapPanel(previousPanelId, tab) {
 					const api = apiRef.current;
-					if (!api || previousPanelId === tab.id) return;
+					if (!api) return;
 					const previous = api.getPanel(previousPanelId);
 					if (!previous) return;
+					if (previousPanelId === tab.id) {
+						applyTabPanelMeta(previous, tab);
+						return;
+					}
 					const activate = api.activePanel?.id === previousPanelId;
 					syncingRef.current = true;
 					try {
@@ -763,7 +851,7 @@ export const DockWorkspace = memo(
 					return resolved;
 				},
 			}),
-			[endSync],
+			[endSync, syncPanels],
 		);
 
 		const onReady = useCallback(
@@ -853,15 +941,6 @@ export const DockWorkspace = memo(
 			[endSync, publishVisiblePanels, scheduleLayoutSave, syncPanels],
 		);
 
-		// Sync membership when panel ids change (not titles).
-		const panelIdsKey = tabs.map((t) => t.id).join("|");
-		useEffect(() => {
-			void panelIdsKey;
-			const api = apiRef.current;
-			if (!api) return;
-			syncPanels(api);
-		}, [panelIdsKey, syncPanels]);
-
 		// Title + persist params + renderer channel (mode/path without full membership).
 		const metaKey = tabs
 			.map(
@@ -883,16 +962,6 @@ export const DockWorkspace = memo(
 			// re-save so the next restore shows titles before hydration (#410).
 			scheduleLayoutSave(api);
 		}, [metaKey, scheduleLayoutSave]);
-
-		// Activate panel when React activePanelId changes (openTab / library).
-		useEffect(() => {
-			const api = apiRef.current;
-			if (!api || !activePanelId || syncingRef.current) return;
-			const panel = api.getPanel(activePanelId);
-			if (panel && api.activePanel?.id !== activePanelId) {
-				panel.api.setActive();
-			}
-		}, [activePanelId]);
 
 		useEffect(() => {
 			return () => {
@@ -996,7 +1065,7 @@ export const DockWorkspace = memo(
 					menu.push({
 						label: t("tabs.contextMoveToNewWindow"),
 						action: () => {
-							void moveDocToWindow(tab.path, tab.mode);
+							void moveDocToWindow(panel.id);
 						},
 					});
 				}

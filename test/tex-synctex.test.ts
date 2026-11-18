@@ -40,9 +40,6 @@ vi.mock("@/lib/workspace/store", () => ({
 	},
 	updateTab: mocks.update,
 }));
-vi.mock("@/lib/workspace/tabs", () => ({
-	tabIdForPath: (path: string) => path,
-}));
 
 import { embedPdfDocumentId } from "@/lib/pdf/document-id";
 import {
@@ -56,6 +53,10 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.tabs = [];
 	mocks.activeTabId = null;
+	mocks.open.mockImplementation((path: string) => {
+		if (mocks.tabs.some((tab) => tab.path === path)) return;
+		mocks.tabs.push({ id: path, path, mode: "pdf" });
+	});
 	mocks.resolve.mockResolvedValue("/vault/thesis/main.tex");
 	mocks.artifacts.mockResolvedValue({
 		pdfPath: "/vault/thesis/build/paper.pdf",

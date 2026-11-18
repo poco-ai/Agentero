@@ -13,7 +13,7 @@ import {
 import { validSyncTexLocation } from "@/lib/tex/synctex-geometry";
 import { openTab } from "@/lib/workspace/navigation";
 import { updateTab, workspaceStore } from "@/lib/workspace/store";
-import { tabIdForPath } from "@/lib/workspace/tabs";
+import { findCanonicalTab, isCanonicalView } from "@/lib/workspace/tabs";
 
 type SyncTexTarget = SyncTexLocation;
 
@@ -154,16 +154,20 @@ export async function syncTexToPdf(
 				if (!bytes) throw new Error(i18n.t("latexPdf:syncFailed"));
 				updateTab(liveTab.id, { pdfBytes: bytes, loaded: true });
 			}
-			const referencePanelId = tabs.find(
-				(tab) => normalizePath(tab.path) === normalizePath(sourcePath),
-			)?.id;
+			const referencePanelId =
+				findCanonicalTab(tabs, sourcePath)?.id ??
+				tabs.find(
+					(tab) => normalizePath(tab.path) === normalizePath(sourcePath),
+				)?.id;
 			openTab(pdfPath, {
 				preferMode: "pdf",
 				...(referencePanelId
 					? { placement: { direction: "right", referencePanelId } }
 					: {}),
 			});
-			targetTabId = tabIdForPath(pdfPath);
+			const opened = findCanonicalTab(workspaceStore.getState().tabs, pdfPath);
+			targetTabId = opened?.id;
+			if (!targetTabId) return;
 			updateTab(targetTabId, { texRoot: root, texLive: false });
 			// openTab activates the canonical pane synchronously, while React
 			// peers can still report the old clone's active state. Bind the jump
@@ -212,7 +216,7 @@ export async function syncTexAfterBuild(
 		return (
 			tabs.find((candidate) => candidate.id === state.activeTabId) ??
 			tabs.find((candidate) => candidate.id === activePeer?.tabId) ??
-			tabs.find((candidate) => candidate.id === tabIdForPath(pdfPath)) ??
+			tabs.find((candidate) => isCanonicalView(candidate)) ??
 			tabs[0]
 		);
 	};

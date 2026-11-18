@@ -37,6 +37,7 @@ import {
 } from "@/lib/pdf/layout";
 import { readLayoutSidecar } from "@/lib/pdf/layout/io";
 import {
+	adoptPdfNavigationKey,
 	beginPdfNavigation,
 	cancelPdfNavigation,
 	completePdfNavigation,
@@ -69,11 +70,13 @@ import {
 	wikiNavigationDestination,
 } from "@/lib/wiki";
 import { rebuildWikiAndNotify } from "@/lib/wiki/store";
-import { dockHandle } from "@/lib/workspace/dock-registry";
+import {
+	cacheActiveTabBeforeDock,
+	dockHandle,
+} from "@/lib/workspace/dock-registry";
 import {
 	getActiveTabId,
 	getTabs,
-	setActiveTabId,
 	setTabs,
 	updateTab,
 } from "@/lib/workspace/store";
@@ -101,11 +104,11 @@ import {
 	createPlaceholderTab,
 	createTranslationSplitPane,
 	type DocTab,
+	findCanonicalTab,
 	findPaperBodyForNotes,
 	insertPlaceholderTab,
+	isCanonicalView,
 	patchTab,
-	SPLIT_PANE_ID_MARKER,
-	tabIdForPath,
 	tabIsPaperNoteDocument,
 	tabNotesEligible,
 	translationSplitPlacement,
@@ -119,16 +122,33 @@ import {
 } from "./tex-compile";
 import { isTexPath, preferredModeForPath } from "./viewer";
 
-function texPdfPaneId(pdfPath: string): string {
+function canonicalTabId(path: string): string | null {
+	return findCanonicalTab(getTabs(), path)?.id ?? null;
+}
+
+function texPdfPaneId(pdfPath: string): string | null {
+	const key = normalizePath(pdfPath);
 	const matches = getTabs().filter(
 		(tab) =>
-			tab.mode === "pdf" && normalizePath(tab.path) === normalizePath(pdfPath),
+			tab.mode === "pdf" &&
+			tab.pane !== "translation" &&
+			normalizePath(tab.path) === key,
 	);
 	return (
 		matches.find((tab) => tab.id === getActiveTabId())?.id ??
-		matches.find((tab) => tab.id === tabIdForPath(pdfPath))?.id ??
+		matches.find((tab) => isCanonicalView(tab))?.id ??
 		matches[0]?.id ??
-		tabIdForPath(pdfPath)
+		null
+	);
+}
+
+function editorPanelId(path: string): string | null {
+	const key = normalizePath(path);
+	const matches = getTabs().filter(
+		(tab) => tab.pane !== "translation" && normalizePath(tab.path) === key,
+	);
+	return (
+		matches.find((tab) => isCanonicalView(tab))?.id ?? matches[0]?.id ?? null
 	);
 }
 
@@ -202,23 +222,15 @@ async function openTexPdfNow(
 	// One in-flight compile at a time (mirrors compileTexFile's guard).
 	if (texCompileStore.getState().compilingPath) return;
 
-	// Locate the reference editor panel (handles ::pane-N clones); open the
+	// Locate the reference editor panel (including a split copy); open the
 	// editor first when it is not on screen so the PDF lands beside it.
-	const canonicalTexId = tabIdForPath(texPath);
-	const refId =
-		opts?.referencePanelId ??
-		getTabs().find(
-			(t) =>
-				t.id === canonicalTexId ||
-				t.id.startsWith(`${canonicalTexId}${SPLIT_PANE_ID_MARKER}`),
-		)?.id ??
-		null;
-	if (!refId) {
+	let referencePanelId = opts?.referencePanelId ?? editorPanelId(texPath);
+	if (!referencePanelId) {
 		// openTab creates the dockview panel synchronously, so the id below
 		// resolves immediately.
 		openTab(texPath, { preferMode: "text" });
+		referencePanelId = canonicalTabId(texPath);
 	}
-	const referencePanelId = refId ?? canonicalTexId;
 
 	// Flush every mounted editor's debounced autosave first (a root compile
 	// must read the latest bytes of all its sections — the saveAll
@@ -244,7 +256,7 @@ async function openTexPdfNow(
 		// Fast path: the PDF is already on disk → open/refresh, no shimmer.
 		const bytes = await localFileToArrayBuffer(pdfPath);
 		if (bytes) {
-			if (getTabs().some((t) => t.id === pdfId)) {
+			if (pdfId && getTabs().some((t) => t.id === pdfId)) {
 				updateTexPdfPanes(pdfPath, {
 					pdfBytes: bytes,
 					loaded: true,
@@ -253,7 +265,7 @@ async function openTexPdfNow(
 					...(keepLive ? {} : { texLive: false }),
 					title: basenameOf(pdfPath),
 				});
-				setActiveTabId(pdfId);
+				cacheActiveTabBeforeDock(pdfId);
 				dockHandle()?.activatePanel(pdfId);
 			} else {
 				openTab(pdfPath, {
@@ -268,14 +280,17 @@ async function openTexPdfNow(
 
 	// Show the PDF pane immediately as a shimmer placeholder, then fill it
 	// once the compile lands.
-	const paneAlreadyOpen = getTabs().some((t) => t.id === pdfId);
-	if (paneAlreadyOpen) {
+	const paneAlreadyOpen = Boolean(
+		pdfId && getTabs().some((t) => t.id === pdfId),
+	);
+	let createdId: string | null = null;
+	if (paneAlreadyOpen && pdfId) {
 		updateTexPdfPanes(pdfPath, {
 			texCompiling: true,
 			texLive: false,
 			texRoot: rootPath,
 		});
-		setActiveTabId(pdfId);
+		cacheActiveTabBeforeDock(pdfId);
 		dockHandle()?.activatePanel(pdfId);
 	} else {
 		// Hand-rolled openTab prefix (placeholder + dock placement) without
@@ -287,11 +302,12 @@ async function openTexPdfNow(
 			pdfPath,
 			"pdf",
 		);
+		createdId = insertedId;
 		const placeholder =
 			nextTabs.find((t) => t.id === insertedId) ??
-			createPlaceholderTab(pdfPath, "pdf");
+			createPlaceholderTab(pdfPath, "pdf", insertedId);
 		setTabs(nextTabs);
-		setActiveTabId(insertedId);
+		cacheActiveTabBeforeDock(insertedId);
 		dockHandle()?.openPanel(placeholder, {
 			direction: "right",
 			referencePanelId,
@@ -309,7 +325,7 @@ async function openTexPdfNow(
 		// on a shimmer forever); just un-flag a pre-existing one so it shows
 		// its previous content again.
 		if (paneAlreadyOpen) updateTexPdfPanes(pdfPath, { texCompiling: false });
-		else closeTab(pdfId, { remember: false });
+		else if (createdId) closeTab(createdId, { remember: false });
 		if (compiled) {
 			// The compile itself succeeded but its output could not be read
 			// back (fs scope / file vanished). Say so — a silent revert behind
@@ -385,28 +401,25 @@ export async function openTexLive(texPath: string): Promise<void> {
 	if (!vaultPath) return;
 
 	const pdfPath = await resolveTexPdfPath(rootPath);
-	const pdfId = tabIdForPath(pdfPath);
-	const editorId = tabIdForPath(texPath);
-	const referencePanelId =
-		getTabs().find(
-			(t) =>
-				t.id === editorId ||
-				t.id.startsWith(`${editorId}${SPLIT_PANE_ID_MARKER}`),
-		)?.id ?? editorId;
-	if (!getTabs().some((t) => t.id === referencePanelId)) {
+	let referencePanelId = editorPanelId(texPath);
+	if (!referencePanelId) {
 		openTab(texPath, { preferMode: "text" });
+		referencePanelId = editorPanelId(texPath);
 	}
 
-	const existing = getTabs().find((t) => t.id === pdfId);
+	const existing = findCanonicalTab(
+		getTabs().filter((tab) => tab.mode === "pdf"),
+		pdfPath,
+	);
 	if (existing) {
-		updateTab(pdfId, {
+		updateTab(existing.id, {
 			texLive: true,
 			texRoot: rootPath,
 			loaded: true,
 			texCompiling: false,
 		});
-		setActiveTabId(pdfId);
-		dockHandle()?.activatePanel(pdfId);
+		cacheActiveTabBeforeDock(existing.id);
+		dockHandle()?.activatePanel(existing.id);
 		return;
 	}
 
@@ -418,9 +431,10 @@ export async function openTexLive(texPath: string): Promise<void> {
 		"pdf",
 	);
 	const placeholder =
-		nextTabs.find((t) => t.id === id) ?? createPlaceholderTab(pdfPath, "pdf");
+		nextTabs.find((t) => t.id === id) ??
+		createPlaceholderTab(pdfPath, "pdf", id);
 	setTabs(nextTabs);
-	setActiveTabId(id);
+	cacheActiveTabBeforeDock(id);
 	dockHandle()?.openPanel(placeholder, {
 		direction: "right",
 		referencePanelId,
@@ -601,15 +615,16 @@ export function splitActivePane(): void {
 	// (closed) before touching the maximize state, so collapsing notes does not
 	// also drop the reading layout.
 	if (tabNotesEligible(active) && active.notesPath) {
-		const notesId = tabIdForPath(active.notesPath);
+		const notesId = findCanonicalTab(tabs, active.notesPath)?.id;
 		if (
+			notesId &&
 			tabs.some((t) => t.id === notesId) &&
 			dockHandle()?.canActivatePanel(notesId) === true
 		) {
 			dockHandle()?.rememberNotesSplitWidth(active.id, notesId);
 			closeTab(notesId, { remember: false });
+			cacheActiveTabBeforeDock(active.id);
 			dockHandle()?.activatePanel(active.id);
-			setActiveTabId(active.id);
 			return;
 		}
 	}
@@ -628,8 +643,8 @@ export function splitActivePane(): void {
 	// NOTES (or an extra note inside a paper folder) → back to the body.
 	const paperBody = findPaperBodyForNotes(tabs, active);
 	if (paperBody && dockHandle()?.canActivatePanel(paperBody.id)) {
+		cacheActiveTabBeforeDock(paperBody.id);
 		dockHandle()?.activatePanel(paperBody.id);
-		setActiveTabId(paperBody.id);
 		return;
 	}
 	// Orphaned notes pane (body closed): never clone the editable buffer.
@@ -650,25 +665,25 @@ export function splitActivePane(): void {
 	}
 
 	if (tabNotesEligible(active) && active.notesPath) {
-		const notesId = tabIdForPath(active.notesPath);
+		const notesId = findCanonicalTab(getTabs(), active.notesPath)?.id;
 		// A restored layout can keep a notes tab in state without a dock panel;
 		// drop it so the split below registers a real, visible panel.
-		setTabs((prev) => prev.filter((t) => t.id !== notesId));
+		if (notesId) setTabs((prev) => prev.filter((t) => t.id !== notesId));
 		const notesPane = createNotesSplitPane(active);
 		if (!notesPane) return;
 		setTabs((prev) =>
 			prev.some((t) => t.id === notesPane.id) ? prev : [...prev, notesPane],
 		);
+		cacheActiveTabBeforeDock(notesPane.id);
 		dockHandle()?.splitPanelRight(notesPane, active.id);
 		dockHandle()?.restoreNotesSplitWidth(active.id, notesPane.id);
-		setActiveTabId(notesPane.id);
 		return;
 	}
 
 	const splitPane = cloneTabForSplit(active, tabs);
 	setTabs((prev) => [...prev, splitPane]);
+	cacheActiveTabBeforeDock(splitPane.id);
 	dockHandle()?.splitPanelRight(splitPane, active.id);
-	setActiveTabId(splitPane.id);
 }
 
 /**
@@ -690,8 +705,9 @@ export function openTranslationTab(
 	if (!paperTab) return;
 	paperTabId = paperTab.id;
 
+	const paperKey = normalizePath(paperAbsPath);
 	const existing = tabs.find(
-		(t) => t.id === `${tabIdForPath(paperAbsPath)}::translation`,
+		(t) => t.pane === "translation" && normalizePath(t.path) === paperKey,
 	);
 	if (existing) {
 		// Restored/reused translation tabs do not pass through the creation path;
@@ -731,9 +747,7 @@ export function openTranslationTab(
 	}
 	setTabs((prev) => [...prev, translationPane]);
 	const notesPath = paperTab.notesPath;
-	const notesPane = notesPath
-		? tabs.find((tab) => tab.id === tabIdForPath(notesPath))
-		: null;
+	const notesPane = notesPath ? findCanonicalTab(tabs, notesPath) : null;
 	if (notesPane) {
 		dockHandle()?.openPanel(translationPane, {
 			direction: "within",
@@ -904,9 +918,11 @@ export function openGraphPath(rel: string): void {
 export function scheduleCitationJump(
 	paperAbs: string,
 	target: CitationTarget,
-	intent: PdfNavigationIntent = beginPdfNavigation(tabIdForPath(paperAbs)),
+	intent?: PdfNavigationIntent,
 ): void {
-	completePdfNavigation(intent, {
+	const key = canonicalTabId(paperAbs) ?? normalizePath(paperAbs);
+	const resolved = intent ?? beginPdfNavigation(key);
+	completePdfNavigation(resolved, {
 		page: target.pageIndex + 1,
 		region: {
 			id: target.regionId,
@@ -998,10 +1014,12 @@ export function openCitation(source: string): void {
 
 	if (!paperAbs) {
 		// Reserve before detection as well: A/B clicks can resolve out of order.
-		const intent = beginPdfNavigation(tabIdForPath(full));
+		let intent = beginPdfNavigation(normalizePath(full));
 		void (async () => {
 			if (await detectPaperDirectory(full)) {
 				openPaper(full);
+				const opened = canonicalTabId(full);
+				if (opened) intent = adoptPdfNavigationKey(intent, opened);
 				void resolvePdfCitation(vaultPath, trimmed)
 					.then((target) => scheduleCitationJump(full, target, intent))
 					.catch((e) => {
@@ -1017,8 +1035,9 @@ export function openCitation(source: string): void {
 		return;
 	}
 
-	const intent = beginPdfNavigation(tabIdForPath(paperAbs));
 	openPaper(paperAbs);
+	const opened = canonicalTabId(paperAbs) ?? normalizePath(paperAbs);
+	const intent = beginPdfNavigation(opened);
 	void resolvePdfCitation(vaultPath, trimmed)
 		.then((target) => scheduleCitationJump(paperAbs, target, intent))
 		.catch((e) => {
@@ -1032,7 +1051,7 @@ let wikiNavigationIntentId = 0;
 
 /** Wait for the PDF handle registration after openPaper, then jump. */
 function scheduleAnnotationJump(paperAbs: string, annotationId: string): void {
-	const tabId = tabIdForPath(paperAbs);
+	const tabId = canonicalTabId(paperAbs);
 	let unsubscribe: (() => void) | null = null;
 	let timeoutId: number | null = null;
 	let finished = false;
@@ -1113,14 +1132,16 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 				id: ++wikiNavigationIntentId,
 				fragment: destination.fragment,
 			};
+			const paperId = canonicalTabId(paperAbs);
+			if (!paperId) return;
 			setTabs((previous) =>
-				patchTab(previous, tabIdForPath(paperAbs), {
+				patchTab(previous, paperId, {
 					navigationIntent: intent,
 				}),
 			);
 			if (destination.warning === "invalidFragment") {
 				setTabs((previous) =>
-					patchTab(previous, tabIdForPath(paperAbs), {
+					patchTab(previous, paperId, {
 						navigationIntent: undefined,
 					}),
 				);
@@ -1136,18 +1157,19 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 		}
 
 		openTab(full, { preferMode: preferredModeForPath(full) });
-		if (destination.fragment) {
+		const openedId = canonicalTabId(full);
+		if (destination.fragment && openedId) {
 			const intent = {
 				id: ++wikiNavigationIntentId,
 				fragment: destination.fragment,
 			};
 			setTabs((previous) =>
-				patchTab(previous, tabIdForPath(full), { navigationIntent: intent }),
+				patchTab(previous, openedId, { navigationIntent: intent }),
 			);
 		}
-		if (destination.warning === "invalidFragment") {
+		if (destination.warning === "invalidFragment" && openedId) {
 			setTabs((previous) =>
-				patchTab(previous, tabIdForPath(full), {
+				patchTab(previous, openedId, {
 					navigationIntent: undefined,
 				}),
 			);

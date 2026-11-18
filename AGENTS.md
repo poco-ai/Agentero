@@ -6,6 +6,39 @@ Agentero 是一个基于 Tauri 2 + React 19 的本地优先科研工作台，产
 
 架构总览：[docs/architecture.md](docs/architecture.md)
 
+## 窗口与布局
+
+长文在 [docs/frontend/workspace.md](docs/frontend/workspace.md) 和 [docs/frontend/shell.md](docs/frontend/shell.md)。这里是必须遵守的契约。Dockview 保持 7.0.4，不引入第二套布局库。
+
+四种身份不要混用：
+
+- **资源**：Vault 加载代（只在 `activateVault` 递增的 `treeLoadGeneration`）加归一化路径。不可变字节和 `blob:` URL 按引用计数。草稿和排版引擎文档不是资源。
+- **视图**：Dockview 面板 id。新建文件、论文、笔记、拆分和译文用 `createViewId()`（`view-` + UUID）。路径只放在 `params.path`，角色放在 `params.pane`（缺省是正文，`split` / `translation` 是额外视图）。同一路径再次打开只聚焦正文视图；额外视图只来自 `⌘\` 拆分或译文。重命名保持 id。不要把路径写回 id，也不要解析 `view-` id 得到路径。旧布局里的路径形 id（含 `/`、盘符、虚拟标签、`::pane-`、`::translation`）仍按原 id 恢复。
+- **窗口**：Tauri label。只负责宿主、去重和 Vault 持有，不拥有编辑状态。文档窗 label 是 `doc-` 加路径 UTF-8 字节 SHA-256 的前 16 位十六进制。功能窗是 `feature-{view}`。
+- **会话**：label + Vault 路径。值只有 Dockview `toJSON()`，键是 `agentero-open-tabs::{label}::{vault}`。左右栏和 Agent 宽度仍在 `agentero.shellLayout.v1`，论文 / 笔记比例仍在 `agentero.notesSplitRatio.v1`。文档窗和功能窗不读写这份 JSON。旧的全局键 `agentero-open-tabs` 只由主窗口采纳一次。
+
+布局权威：
+
+- Dockview 就绪后，它是几何、成员和焦点的唯一权威。zustand 里的 `dockLayout` 只是保存快照。
+- 命令先做策略，再调用 Dockview。Dock 还没挂载时记住意图，不要另建一套布局状态。
+- 活动标签、可见面板和几何快照只从 Dockview 事件发布。`syncingRef` 会吞掉编程修改期间的激活和移除事件，同步结束必须补发当前活动面板和可见面板。
+- 不要用 `origin === "api"` 过滤激活。`origin` 只用来识别用户关闭。`onWillMutateLayout` 不能 `preventDefault`。
+- 侧栏和 Agent 宽度继续用 `react-resizable-panels`。写作项目里的 TeX 源码和 PDF 是面板内部的 `TexProjectView`，不是 Dockview 分栏。
+
+关闭、移动和阅读：
+
+- 关闭前的保存否决只覆盖已注册的 Markdown 源码模式。Plate、CodeMirror 不能否决关闭。`closeUnderPath`、关闭广场和清空 Vault 不加新的保存门。标签条 Delete / Backspace 必须在捕获阶段走进 `closeTab`，不能先 `panel.api.close()`。
+- 移到新窗口：准备（源 label + 被点的视图 id；路径只给目标去重）→ 打开（失败则源视图留下；同路径已有文档窗只聚焦，不改模式）→ 目标接受（`window-created` 不是接受；目标有未保存草稿则拒绝）→ 用 `tabsAfterMovedView` + `removePanel` 提交，不走 `closeTab`。约 8 秒超时，迟到的接受忽略。被点的视图离开，论文 NOTES 留在源窗口。窗口内关闭正文时，正文的 NOTES 仍一起关闭。Library、Trash、Zen 不能移出；Plaza 可以。
+- 标准双列只由 `readingColumnAnchors` 判断，成对关闭只由 `readingPairCloseIds` 计算并由 `closeTab` 执行。预设和进入、退出阅读都走 `applyLayoutMode`。笔记预设不动左栏。`Ctrl+M` 仍进入并记住阅读模式。退出阅读是取消最大化再重放预设，不是 `fromJSON`。
+
+跨视图配对和 Agent：
+
+- 双栏句子高亮、版面镜像、链接和滚动同步要认正文视图 id。译文栏用 `findTranslationSourceId` 找回正文；`::translation` 后缀只作为旧 id 的后备。不要再靠把路径或后缀写进面板 id 来配对。
+- Agent 监听按窗口订阅，面板卸载不退订，只有 `pagehide` 退订。功能窗交接是：先监听再发 ready，源窗口发一份快照，收到对应 ack 后才 `agentRebindEventWindow`。没有 ack 就不改绑。不要恢复四次延迟广播。
+- 主窗口只在 `vault:opened` 持有 Vault。`activateVault` 不调用 `vaultHold`。弹出窗在打开成功后持有，离开时释放。
+
+平台补丁保持不变：新窗口命令必须 async；macOS 第二窗口在主线程 `setCollectionBehavior`；Windows 唤起顺序是 unminimize → show → set_focus；原生窗口装饰；`CREATE_NO_WINDOW`；`dragDropEnabled`；`PdfEngineHost` / `EditorDndProvider` 放在 StrictMode 外。沉浸全屏不并进这套布局。Windows 多窗口这次没有复验，不要写成已经验证。
+
 ## 开发规则
 
 - 优先做小而聚焦的改动，能用少的修改解决问题就不要增加复杂度。高内聚、低耦合。如果系统有额外冗余可以提示用户进行重构

@@ -19,6 +19,11 @@ import {
 } from "@/hooks/use-app-stores";
 import { useExternalFileDrop } from "@/hooks/use-external-file-drop";
 import { useNativeSelectAllGuard } from "@/hooks/use-native-select-all-guard";
+import {
+	useWindowVaultHold,
+	vaultPathsMatch,
+	type WindowVaultHold,
+} from "@/hooks/use-window-vault-hold";
 import { applyAgentSessionHandoffOnce } from "@/lib/agent/agent-session-store";
 import { toVaultRelative } from "@/lib/core/path";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
@@ -49,15 +54,17 @@ import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { resolveShortcutId } from "@/lib/shell/shortcuts";
 import { setAgentPanelMounted } from "@/lib/shell/ui-store";
 import {
+	broadcastAgentSessionHandoff,
 	listenAgentSessionHandoff,
 	listenWorkspaceActive,
 	type WorkspaceActiveChangedPayload,
 } from "@/lib/shell/workspace-broadcast";
 import { joinVaultPath } from "@/lib/vault";
 import { openRecentVault } from "@/lib/vault/actions";
-import { refreshTree } from "@/lib/vault/store";
+import { getVaultPath, refreshTree } from "@/lib/vault/store";
 import { rebuildWikiAndNotify } from "@/lib/wiki/store";
 import { openCitation } from "@/lib/workspace/actions";
+import { currentWindowLabel } from "@/lib/workspace/store";
 
 const AgentPanel = lazy(() =>
 	import("@/components/agent/agent-panel").then((m) => ({
@@ -97,6 +104,27 @@ function viewTitleKey(
 
 function handleAgentOpenSource(source: string): void {
 	openCitation(source);
+}
+
+/**
+ * Open `vault` in this feature window and hold it. `refreshIfUnopened` keeps
+ * the initial boot's refresh even when the directory is missing.
+ */
+async function openFeatureVault(
+	vault: string,
+	hold: WindowVaultHold,
+	ticket: number,
+	refreshIfUnopened: boolean,
+): Promise<void> {
+	await openRecentVault(vault);
+	if (ticket !== hold.current()) return;
+	const opened = vaultPathsMatch(getVaultPath(), vault);
+	if (opened) await hold.adopt(vault, ticket);
+	if (ticket !== hold.current()) return;
+	if (!opened && !refreshIfUnopened) return;
+	await refreshTree(vault);
+	await rebuildWikiAndNotify(vault);
+	await refreshLibrary();
 }
 
 function FeatureAnnotations({
@@ -240,6 +268,7 @@ export function FeatureWindowRoot() {
 		vaultPath: bootQuery.vaultPath,
 		paperTitle: bootQuery.paperTitle,
 	});
+	const vaultHold = useWindowVaultHold();
 
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const vaultMdFiles = useVaultStore((s) => s.vaultMdFiles);
@@ -250,50 +279,70 @@ export function FeatureWindowRoot() {
 
 	useEffect(() => {
 		setAgentPanelMounted(true);
+		const ticket = vaultHold.claim();
 		let cancelled = false;
-		void (async () => {
-			const vault = bootQuery.vaultPath;
-			if (vault) {
-				await openRecentVault(vault);
-				if (!cancelled) {
-					await refreshTree(vault);
-					await rebuildWikiAndNotify(vault);
-					await refreshLibrary();
-				}
-			}
+		const vault = bootQuery.vaultPath;
+		const opening = vault
+			? vaultHold.enqueue(ticket, () =>
+					openFeatureVault(vault, vaultHold, ticket, true),
+				)
+			: Promise.resolve();
+		void opening.finally(() => {
 			if (!cancelled) setReady(true);
-		})();
+		});
 		return () => {
 			cancelled = true;
+			vaultHold.invalidate(ticket);
 		};
-	}, [bootQuery.vaultPath]);
+	}, [bootQuery.vaultPath, vaultHold]);
 
 	useEffect(
 		() =>
 			toSafeDisposer(
 				listenWorkspaceActive((payload) => {
 					setFollowed(payload);
+					const next = payload.vaultPath?.trim() ?? "";
+					if (!next || vaultPathsMatch(getVaultPath(), next)) return;
+					const ticket = vaultHold.claim();
+					void vaultHold.enqueue(ticket, () =>
+						openFeatureVault(next, vaultHold, ticket, false),
+					);
 				}),
 			),
-		[],
+		[vaultHold],
 	);
 
 	useEffect(() => {
 		if (view !== "agent") return;
-		const offs = [
-			// First handoff only — later retries must not clobber in-window chat.
-			toSafeDisposer(
-				listenAgentSessionHandoff((payload) => {
-					applyAgentSessionHandoffOnce({
-						sessions: payload.sessions,
-						activeTabId: payload.activeTabId,
-						draftLines: payload.draftLines,
-					});
-				}),
-			),
-		];
+		let dispose = () => {};
+		let cancelled = false;
+		const pending = listenAgentSessionHandoff((payload) => {
+			if (payload.kind !== "snapshot") return;
+			if (payload.targetLabel !== currentWindowLabel()) return;
+			// Once: a second snapshot must not replace a session this window already took.
+			if (!applyAgentSessionHandoffOnce(payload)) return;
+			broadcastAgentSessionHandoff({
+				kind: "ack",
+				deliveryId: payload.deliveryId,
+				sourceLabel: payload.sourceLabel,
+				targetLabel: payload.targetLabel,
+			});
+		}).then((unlisten) => {
+			if (cancelled) {
+				unlisten();
+				return;
+			}
+			dispose = unlisten;
+			// Source sends the single snapshot only after this listen is active.
+			broadcastAgentSessionHandoff({
+				kind: "ready",
+				targetLabel: currentWindowLabel(),
+			});
+		});
+		pending.catch(() => undefined);
 		return () => {
-			for (const off of offs) off();
+			cancelled = true;
+			dispose();
 		};
 	}, [view]);
 

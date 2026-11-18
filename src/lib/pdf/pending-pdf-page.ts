@@ -53,6 +53,24 @@ export function cancelPdfNavigation(intent: PdfNavigationIntent): void {
 	owners.get(intent.key)?.();
 }
 
+/** Move a reserved jump onto the canonical view id once that panel exists. */
+export function adoptPdfNavigationKey(
+	intent: PdfNavigationIntent,
+	key: string,
+): PdfNavigationIntent {
+	const normalized = normalizeKey(key);
+	if (normalized === intent.key) return intent;
+	if (pending.get(intent.key)?.token !== intent.token) return intent;
+	pending.delete(intent.key);
+	const next: PdfNavigationIntent = {
+		token: intent.token,
+		key: normalized,
+		target: intent.target,
+	};
+	pending.set(normalized, next);
+	return next;
+}
+
 /** Closing a tab must also cancel requests made before its viewer mounted. */
 export function cancelPdfNavigationForTab(key: string): void {
 	const intent = pending.get(normalizeKey(key));
