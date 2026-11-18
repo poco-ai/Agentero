@@ -316,8 +316,10 @@ describe("escapeStrayMdxBraces", () => {
 	});
 
 	it("does not truncate a note whose LaTeX braces need MDX for a table break", () => {
-		// `\(...\)` is not editor math, but `\{` inside it used to throw acorn.
-		// Plate's recovery then cut the source at `$\rho<1$` and dropped the rest.
+		// `\(...\)` is editor math (normalized to `$…$` before deserialize), so
+		// `\{` inside it never reaches acorn; before the normalization it was
+		// plain text whose `{` threw. Plate's recovery then cut the source at
+		// `$\rho<1$` and dropped the rest.
 		const source = [
 			"# title",
 			"",
@@ -334,10 +336,18 @@ describe("escapeStrayMdxBraces", () => {
 			"",
 			"后面的内容应当完整保留。",
 		].join("\n");
-		const { text } = deserializeBody(source);
+		const { value, text } = deserializeBody(source);
 		expect(text).toContain("列表二");
 		expect(text).toContain("后面的内容应当完整保留。");
-		expect(text).toContain("{");
+		expect(JSON.stringify(value)).toContain("inline_equation");
+		const inline = value
+			.flatMap((node) => ("children" in node ? node.children : []))
+			.find(
+				(child) => (child as { type?: string }).type === "inline_equation",
+			) as { texExpression?: string } | undefined;
+		expect(inline?.texExpression).toBe(
+			"\\mathcal E^{t+1}\\le\\max\\{\\rho_z,\\rho_G\\}\\,\\mathcal E^t",
+		);
 	});
 
 	it("falls back to a no-MDX parse so content survives any MDX error", () => {
