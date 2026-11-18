@@ -252,28 +252,6 @@ export async function cleanTexAuxFiles(texPath: string): Promise<boolean> {
 	}
 }
 
-// Roots whose problems button is on screen, counted per view.
-const problemsViews = new Map<string, number>();
-
-/**
- * Mark the problems button of `rootPath` as on screen until the returned
- * cleanup runs. A TeX project view calls this while it is focused, so a
- * failed compile of its root turns that button red instead of raising a
- * toast.
- */
-export function showTexProblemsView(rootPath: string): () => void {
-	const key = normalizePath(rootPath);
-	problemsViews.set(key, (problemsViews.get(key) ?? 0) + 1);
-	let shown = true;
-	return () => {
-		if (!shown) return;
-		shown = false;
-		const count = (problemsViews.get(key) ?? 1) - 1;
-		if (count > 0) problemsViews.set(key, count);
-		else problemsViews.delete(key);
-	};
-}
-
 /**
  * Compile with the root file's engine (`% !TEX program`, else the engine
  * remembered for that project, else XeLaTeX). Runs as a background
@@ -287,9 +265,10 @@ export function showTexProblemsView(rootPath: string): () => void {
  * triggered row even when the build target is its root.
  *
  * `quietSuccess` skips the success toast (save-triggered compiles would spam
- * one per autosave). Failures notify, except while a focused TeX project view
- * shows this root (`showTexProblemsView`): its problems button turns red and
- * lists the errors instead.
+ * one per autosave). Failures never raise a toast: `finishTexBuild` writes the
+ * log / diagnostics that the writing PDF bar's problems entry shows, and the
+ * compile button returns to idle, so lengthy latexmk output stays in the
+ * problems card and its build-log dialog.
  */
 export async function compileTexFile(
 	texPath: string,
@@ -358,16 +337,6 @@ export async function compileTexFile(
 					? e.message
 					: String(e),
 		);
-		if (
-			!isBackgroundTaskCancelledError(e) &&
-			!problemsViews.has(normalizePath(texPath))
-		) {
-			notifyError(
-				e instanceof Error && e.message
-					? e.message
-					: i18n.t("sidebar:fileTree.compileFailed"),
-			);
-		}
 		return null;
 	} finally {
 		texCompileStore.setState({ compilingPath: null });
