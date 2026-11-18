@@ -746,7 +746,10 @@ function samplesNearPointer(query: PointerQuery): PointerQuery[] {
 function locateSentence(scope: string, query: PointerQuery) {
 	return elementSentenceAtPoint({
 		items: itemsForScope(scope),
-		glyphs: glyphsFor(scope, query.pageIndex, query.x, query.y),
+		glyphs: glyphsFor(scope, query.pageIndex, {
+			x: query.x,
+			y: query.y,
+		}),
 		regionId: query.regionId,
 		pageIndex: query.pageIndex,
 		x: query.x,
