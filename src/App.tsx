@@ -68,6 +68,7 @@ import {
 import { pinActiveSelection } from "@/lib/agent/selection-store";
 import { closeTopOverlay } from "@/lib/core/overlay-stack";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
+import { cn } from "@/lib/core/utils";
 import { doctorSetDirtyPaths } from "@/lib/doctor/api";
 import {
 	isCommittedRefreshPath,
@@ -583,17 +584,27 @@ export default function App() {
 										</aside>
 									</ResizablePanel>
 
-									{sidebarCollapsed ? null : (
-										<ResizableHandle
-											onDoubleClick={() => commitRailReset("left")}
-											onPointerDown={() => {
-												isResizingRightRef.current = false;
-											}}
-											onKeyDown={() => {
-												isResizingRightRef.current = false;
-											}}
-										/>
-									)}
+									{/*
+									  Keep the Separator mounted while the rail is collapsed.
+									  Unmounting it as part of the collapse leaves
+									  react-resizable-panels with a stale layout: expand() /
+									  resize() then fail silently and the separator cannot be
+									  dragged again (#1163). Hide it with layout-neutral classes
+									  instead.
+									*/}
+									<ResizableHandle
+										className={cn(
+											sidebarCollapsed && "pointer-events-none w-0 opacity-0",
+										)}
+										disabled={sidebarCollapsed}
+										onDoubleClick={() => commitRailReset("left")}
+										onPointerDown={() => {
+											isResizingRightRef.current = false;
+										}}
+										onKeyDown={() => {
+											isResizingRightRef.current = false;
+										}}
+									/>
 								</Fragment>
 							) : null}
 
@@ -621,18 +632,21 @@ export default function App() {
 								</div>
 							</ResizablePanel>
 
-							{/* Right sidebar: always mounted + collapsible (same as left). */}
-							{rightSidebarOpen ? (
-								<ResizableHandle
-									onDoubleClick={() => commitRailReset("right")}
-									onPointerDown={() => {
-										isResizingRightRef.current = true;
-									}}
-									onKeyDown={() => {
-										isResizingRightRef.current = true;
-									}}
-								/>
-							) : null}
+							{/* Right sidebar: always mounted + collapsible (same as left).
+							    Its Separator stays mounted too (see the left rail above). */}
+							<ResizableHandle
+								className={cn(
+									!rightSidebarOpen && "pointer-events-none w-0 opacity-0",
+								)}
+								disabled={!rightSidebarOpen}
+								onDoubleClick={() => commitRailReset("right")}
+								onPointerDown={() => {
+									isResizingRightRef.current = true;
+								}}
+								onKeyDown={() => {
+									isResizingRightRef.current = true;
+								}}
+							/>
 							<ResizablePanel
 								id="right-sidebar"
 								panelRef={rightSidebarPanelRef}
