@@ -812,7 +812,12 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	}, [activeAskOnPage, pins, translationVisible]);
 	const pageTranslateState = layout.layoutTranslatePageStateByPage.get(
 		pageIndex,
-	) ?? { active: false, running: false, status: undefined };
+	) ?? {
+		active: false,
+		running: false,
+		status: undefined,
+		previewPending: false,
+	};
 	const emphasizedCommentId = hoveredCommentId ?? marks.editingCommentId;
 	const emphasizedComment = emphasizedCommentId
 		? (shownComments.find((c) => c.id === emphasizedCommentId) ?? null)
@@ -1219,6 +1224,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				sentenceRectsByItemId={layout.sentenceRectsByItemId}
 				links={translateLinkBoxes}
 				glyphRuns={layout.glyphRunsByPage?.get(pageIndex)}
+				awaitingPreview={pageTranslateState.previewPending}
 				onOpenLink={openTranslatedLink}
 				onHoverLink={hoverTranslatedLink}
 			/>

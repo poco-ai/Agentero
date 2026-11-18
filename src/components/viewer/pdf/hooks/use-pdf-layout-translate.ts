@@ -55,6 +55,7 @@ import {
 	layoutTranslateDisplayRatio,
 	layoutTranslatePageProgress,
 	layoutTranslatePageStates,
+	layoutTranslatePagesAwaitingPreview,
 } from "@/lib/pdf/layout/layout-translate-progress";
 import {
 	isInsidePreservedRegion,
@@ -414,6 +415,7 @@ export function usePdfLayoutTranslate({
 		reflowItems,
 		reflowBusy,
 		reflowReady,
+		reflowFinalFailed,
 		reflowOutput,
 		reflowPages,
 		exportTranslatedPdf,
@@ -1826,12 +1828,6 @@ export function usePdfLayoutTranslate({
 		return grouped;
 	}, [reflowItems, hiddenPageIndexes]);
 
-	const layoutTranslatePageStateByPage = useMemo(
-		() =>
-			layoutTranslatePageStates(layoutTranslateJob.items, hiddenPageIndexes),
-		[layoutTranslateJob.items, hiddenPageIndexes],
-	);
-
 	const layoutTranslateRunning = layoutTranslateJob.status === "running";
 	const layoutTranslatePendingRequired = useMemo(
 		() => countPendingLayoutTranslateItems(layoutTranslateJob.items),
@@ -1874,17 +1870,30 @@ export function usePdfLayoutTranslate({
 		(layoutTranslateRunning ||
 			layoutTranslateJob.status === "done" ||
 			layoutTranslateJob.status === "partial");
-	const sawFinalReflowBusyRef = useRef(false);
-	if (layoutTranslateRunning || !previewPending) {
-		sawFinalReflowBusyRef.current = false;
-	} else if (reflowBusy) {
-		sawFinalReflowBusyRef.current = true;
-	}
+	// A failed final build stops page generation for good; retract the meter and
+	// the in-page loading state instead of waiting for previews that never land.
 	const finalReflowFailed =
-		!layoutTranslateRunning &&
-		previewPending &&
-		sawFinalReflowBusyRef.current &&
-		!reflowBusy;
+		!layoutTranslateRunning && previewPending && reflowFinalFailed;
+	// Text can settle before its translated page paints. Keep the paragraph-end
+	// and per-page indicators up through that window; a cancelled run or a
+	// failed final build retracts them, so nothing can spin forever.
+	const pagesAwaitingPreview = useMemo(
+		() =>
+			layoutTranslatePagesAwaitingPreview(
+				reflowItems,
+				previewPending && !finalReflowFailed,
+			),
+		[reflowItems, previewPending, finalReflowFailed],
+	);
+	const layoutTranslatePageStateByPage = useMemo(
+		() =>
+			layoutTranslatePageStates(
+				reflowItems,
+				hiddenPageIndexes,
+				pagesAwaitingPreview,
+			),
+		[reflowItems, hiddenPageIndexes, pagesAwaitingPreview],
+	);
 	// A cancelled run marks its unfinished blocks as settled, which would read as
 	// 100% and linger a "complete" check; the meter must retract instead.
 	const rawTranslateProgress =

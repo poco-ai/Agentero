@@ -129,16 +129,64 @@ export function layoutTranslateDisplayRatio(
 	return Math.min(previewPending ? 0.99 : 1, text.ratio * 0.7 + typeset * 0.3);
 }
 
+/** No page is waiting for its translated page. */
+const NO_PAGES: ReadonlySet<number> = new Set();
+
+/**
+ * Pages whose text is fully translated while their translated page (the reflow
+ * preview) has not been painted yet.
+ *
+ * `items` must be the session-decorated items: `ReflowPreviewSession.decorate`
+ * attaches `reflowPreview` to every block on a page once that page's preview is
+ * published. `previewExpected` is the caller's gate — a cancelled run or a
+ * failed final build must retract the loading state instead of leaving it up
+ * forever.
+ */
+export function layoutTranslatePagesAwaitingPreview(
+	items: readonly LayoutTranslateItem[],
+	previewExpected: boolean,
+): ReadonlySet<number> {
+	if (!previewExpected) return NO_PAGES;
+	const pages = new Map<
+		number,
+		{ translated: boolean; reflow: boolean; preview: boolean }
+	>();
+	for (const item of items) {
+		const page = pages.get(item.pageIndex) ?? {
+			translated: false,
+			reflow: false,
+			preview: false,
+		};
+		if (item.status === "done" && item.translated?.trim()) {
+			page.translated = true;
+			if (item.reflow) page.reflow = true;
+		}
+		if (item.reflowPreview) page.preview = true;
+		pages.set(item.pageIndex, page);
+	}
+	const awaiting = new Set<number>();
+	for (const [pageIndex, page] of pages) {
+		// One finished paragraph is enough: until the page raster lands every
+		// block on that page still shows source text and waits for the same paint.
+		if (page.translated && page.reflow && !page.preview)
+			awaiting.add(pageIndex);
+	}
+	return awaiting;
+}
+
 /** Visible page status; failed blocks keep a page out of the completed state. */
 export type LayoutTranslatePageState = {
 	active: boolean;
 	running: boolean;
 	status: "pending" | "running" | "done" | "error";
+	/** Text is translated but this page's translated page has not painted yet. */
+	previewPending: boolean;
 };
 
 export function layoutTranslatePageStates(
 	items: readonly LayoutTranslateItem[],
 	hiddenPages: ReadonlySet<number>,
+	awaitingPreviewPages: ReadonlySet<number> = NO_PAGES,
 ): ReadonlyMap<number, LayoutTranslatePageState> {
 	const states = new Map<number, LayoutTranslatePageState>();
 	for (const item of items) {
@@ -156,7 +204,18 @@ export function layoutTranslatePageStates(
 			running: Boolean(state?.running || item.status === "running"),
 			status:
 				state && rank[state.status] > rank[status] ? state.status : status,
+			previewPending: false,
 		});
+	}
+	for (const [pageIndex, state] of states) {
+		if (!awaitingPreviewPages.has(pageIndex)) continue;
+		state.previewPending = true;
+		// The source page is still on screen: keep the loading icon instead of
+		// reporting a completion the reader cannot see yet.
+		if (state.status === "done") {
+			state.running = true;
+			state.status = "running";
+		}
 	}
 	return states;
 }

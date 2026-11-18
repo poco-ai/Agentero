@@ -99,6 +99,11 @@ type LayoutTranslateOverlayProps = {
 	links?: readonly TranslateLinkBox[];
 	/** Source text runs for this page. Keeps grouped citations on their own glyphs. */
 	glyphRuns?: readonly GlyphRun[];
+	/**
+	 * The page's text is translated while its translated raster is still being
+	 * generated. Keeps the paragraph-end spinner up until the preview paints.
+	 */
+	awaitingPreview?: boolean;
 	onOpenLink?: (assignment: PreservedLinkAssignment) => void;
 	onHoverLink?: (
 		assignment: PreservedLinkAssignment | null,
@@ -819,6 +824,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	sentenceRectsByItemId,
 	links,
 	glyphRuns,
+	awaitingPreview,
 	onOpenLink,
 	onHoverLink,
 }: LayoutTranslateOverlayProps) {
@@ -899,7 +905,11 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	const displayMatchesPreview =
 		!previewSources ||
 		(reflowDocumentVersion && previewSources.has(reflowDocumentVersion));
-	const spinnerItems = translationSpinnerItems(items, layoutRegions);
+	const spinnerItems = translationSpinnerItems(
+		items,
+		layoutRegions,
+		awaitingPreview,
+	);
 	const spinnerIds = new Set(spinnerItems.map((item) => item.id));
 	const sourceSpinners = spinnerItems
 		.filter((item) => item.reflow || !isLayoutTranslateItemPainted(item))

@@ -12,10 +12,34 @@ import type {
 
 export const TRANSLATION_SPINNER_SIZE = 12;
 
-/** One status per detected paragraph, including any supplemental text fragments. */
+/** Paragraph fragments that are all translated and still wait for the page raster. */
+function awaitingPagePreview(group: readonly LayoutTranslateItem[]): boolean {
+	return (
+		group.every((item) => !item.reflowPreview) &&
+		group.some(
+			(item) =>
+				item.status === "done" &&
+				Boolean(item.translated?.trim()) &&
+				item.reflow,
+		) &&
+		group.every(
+			(item) => item.status === "done" && Boolean(item.translated?.trim()),
+		)
+	);
+}
+
+/**
+ * One status per detected paragraph, including any supplemental text fragments.
+ *
+ * `awaitingPreview` keeps the spinner on a finished paragraph until its page's
+ * translated raster covers the source text. Callers only set it while that
+ * preview is genuinely in flight: a cancelled run or a failed final build must
+ * fall back to block status alone.
+ */
 export function translationSpinnerItems(
 	items: readonly LayoutTranslateItem[],
 	regions: readonly PdfLayoutRegion[] = [],
+	awaitingPreview = false,
 ): readonly LayoutTranslateItem[] {
 	const figures = regions.filter(
 		(region) =>
@@ -51,7 +75,11 @@ export function translationSpinnerItems(
 		groups.set(key, group);
 	}
 	return [...groups.values()]
-		.filter((group) => group.some((item) => item.status === "running"))
+		.filter(
+			(group) =>
+				group.some((item) => item.status === "running") ||
+				(awaitingPreview && awaitingPagePreview(group)),
+		)
 		.flatMap((group) =>
 			group
 				.sort(

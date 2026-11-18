@@ -140,6 +140,11 @@ export class ReflowPreviewSession {
 	private attempted = new Map<number | "final", string>();
 	private queue: Promise<void> = Promise.resolve();
 	private finalKey = "";
+	/**
+	 * Set when the last final build failed. Page previews will not arrive until
+	 * the inputs change, so callers must not wait for them.
+	 */
+	private finalBuildFailed = false;
 	private outputKey = "";
 	private outputInputs = new Map<number, PageInput>();
 	private outputLayouts: PageLayout[] = [];
@@ -168,6 +173,11 @@ export class ReflowPreviewSession {
 		return Boolean(
 			this.output && this.finalKey && this.outputKey === this.finalKey,
 		);
+	}
+
+	/** A failed final build retracts page/paragraph loading until inputs change. */
+	get finalFailed(): boolean {
+		return this.finalBuildFailed;
 	}
 
 	get busy(): boolean {
@@ -302,6 +312,7 @@ export class ReflowPreviewSession {
 		if (finalKey !== this.finalKey) {
 			this.progress = 0;
 			this.pages = null;
+			this.finalBuildFailed = false;
 			this.dirty = true;
 		}
 		this.finalKey = finalKey;
@@ -415,6 +426,7 @@ export class ReflowPreviewSession {
 					this.outputKey = finalKey;
 					this.outputInputs = new Map(this.inputs);
 					this.outputLayouts = layouts;
+					this.finalBuildFailed = false;
 					// Unchanged previews also belong to the retained display. A changed
 					// preview belongs only to outputs assembled after it was published.
 					for (const [index, preview] of this.previews) {
@@ -624,7 +636,10 @@ export class ReflowPreviewSession {
 				signal.throwIfAborted();
 				await run(signal);
 			} catch (error) {
-				if (!signal.aborted) this.failed(error);
+				if (!signal.aborted) {
+					if (index === "final") this.finalBuildFailed = true;
+					this.failed(error);
+				}
 			} finally {
 				if (this.jobs.get(index) === job) this.jobs.delete(index);
 				if (!this.disposed) {
