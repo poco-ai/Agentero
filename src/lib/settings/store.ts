@@ -55,7 +55,10 @@ import {
 	type PaperReaderSettings,
 	type PdfAskSettings,
 } from "@/lib/settings/types";
-import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
+import {
+	DEFAULT_TRANSLATE_SETTINGS,
+	normalizeTranslateConcurrency,
+} from "@/lib/translate/defaults";
 import { stripUnknownTranslatePlaceholders } from "@/lib/translate/prompt";
 import {
 	isCommercialTranslateProvider,
@@ -824,6 +827,7 @@ function normalizeTranslateProviderConfigs(
 			region?: unknown;
 			model?: unknown;
 			extraRequestBody?: unknown;
+			concurrency?: unknown;
 		};
 		out[id] = {
 			apiKey: typeof cfg.apiKey === "string" ? cfg.apiKey.trim() : "",
@@ -837,6 +841,7 @@ function normalizeTranslateProviderConfigs(
 				typeof cfg.extraRequestBody === "string"
 					? cfg.extraRequestBody.trim()
 					: "",
+			concurrency: normalizeTranslateConcurrency(cfg.concurrency),
 		};
 	}
 	return out;

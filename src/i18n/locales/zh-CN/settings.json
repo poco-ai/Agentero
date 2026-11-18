@@ -672,6 +672,10 @@
 				"label": "模型",
 				"placeholder": "服务商模型 ID"
 			},
+			"advanced": "高级",
+			"concurrency": {
+				"label": "并发数"
+			},
 			"extraRequestBody": {
 				"label": "额外参数",
 				"invalid": "额外参数必须是有效的 JSON 对象。",

@@ -672,6 +672,10 @@
 				"label": "Model",
 				"placeholder": "Provider model id"
 			},
+			"advanced": "Advanced",
+			"concurrency": {
+				"label": "Concurrency"
+			},
 			"extraRequestBody": {
 				"label": "Extra JSON",
 				"invalid": "Extra parameters must be a valid JSON object.",

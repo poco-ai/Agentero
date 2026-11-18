@@ -5809,6 +5809,12 @@ export type TranslateProviderConfig = {
 	region?: string,
 	model?: string,
 	extraRequestBody?: string,
+	/**
+	 *  Full-document translation batch concurrency for the OpenAI-compatible
+	 *  path (1–8, default 2). Selection translation and the Agent path stay
+	 *  serial; other providers ignore it.
+	 */
+	concurrency?: number,
 };
 
 export type TranslateSettings = {

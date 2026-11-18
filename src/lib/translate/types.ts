@@ -128,6 +128,12 @@ export type TranslateProviderConfig = {
 	model: string;
 	/** JSON object replacing automatic request options; blank uses model defaults. */
 	extraRequestBody?: string;
+	/**
+	 * Full-document translation batch concurrency (1–8, default 2) for the
+	 * OpenAI-compatible path. Other providers ignore it; selection translation
+	 * and the Agent path stay serial. Not part of the translation cache key.
+	 */
+	concurrency: number;
 };
 
 export type TranslateServiceType = "sentence" | "word";

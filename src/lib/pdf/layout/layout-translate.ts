@@ -38,6 +38,10 @@ import {
 } from "@/lib/pdf/translate/agent-session-cache";
 import { loadSettings } from "@/lib/settings";
 import { runTranslate } from "@/lib/translate";
+import {
+	DEFAULT_TRANSLATE_CONCURRENCY,
+	normalizeTranslateConcurrency,
+} from "@/lib/translate/defaults";
 import { isTranslateTransportError } from "@/lib/translate/errors";
 import { langsFromSettings } from "@/lib/translate/lang";
 import {
@@ -55,8 +59,24 @@ import type {
 } from "@/lib/translate/types";
 import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 
-/** Parallel free/commercial MT workers (order of *start* follows reading order). */
-export const LAYOUT_TRANSLATE_CONCURRENCY = 2;
+/** Parallel MT workers when the provider has no per-provider setting. */
+export const LAYOUT_TRANSLATE_CONCURRENCY = DEFAULT_TRANSLATE_CONCURRENCY;
+
+/**
+ * Batch-pool size for a full-document run (#1155). Only the OpenAI-compatible
+ * provider exposes it; other providers keep the fixed default. Selection
+ * translation is a single request and the Agent path stays serial.
+ */
+export function layoutTranslateConcurrency(
+	settings: TranslateSettings,
+): number {
+	if (settings.provider !== "openaiCompatible") {
+		return LAYOUT_TRANSLATE_CONCURRENCY;
+	}
+	return normalizeTranslateConcurrency(
+		settings.providerConfigs.openaiCompatible?.concurrency,
+	);
+}
 
 /**
  * Consecutive transport failures before a run stops calling the provider.
@@ -935,19 +955,22 @@ export async function runLayoutRegionTranslate(options: {
 }): Promise<LayoutTranslateItem[]> {
 	const started = performance.now();
 	let firstResult = false;
+	const translateSettings = loadSettings().translate;
 	const agentOpts = await resolveLayoutTranslateAgentOpts({
 		paperKey: options.paperKey,
 		vaultPath: options.vaultPath,
 	});
-	// Agent is heavy — serialize; free/commercial MT keeps a small pool.
+	// Agent is heavy — serialize; MT keeps the configured/small pool.
 	const concurrency = Math.max(
 		1,
-		agentOpts ? 1 : (options.concurrency ?? LAYOUT_TRANSLATE_CONCURRENCY),
+		agentOpts
+			? 1
+			: (options.concurrency ?? layoutTranslateConcurrency(translateSettings)),
 	);
 	const items = options.items.map((it) => ({ ...it }));
 	const signal = options.signal;
 	const targetLang = langsFromSettings(
-		loadSettings().translate,
+		translateSettings,
 		i18n.language ?? "en",
 	).targetLang;
 
