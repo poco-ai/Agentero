@@ -805,6 +805,9 @@ function normalizeTranslateSettings(
 	) {
 		base.autoTranslateImportConcurrency = raw.autoTranslateImportConcurrency;
 	}
+	if (typeof raw.dismissSelectionOnOutsideClick === "boolean") {
+		base.dismissSelectionOnOutsideClick = raw.dismissSelectionOnOutsideClick;
+	}
 	return base;
 }
 

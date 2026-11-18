@@ -23,6 +23,7 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	cacheReflowFinal: false,
 	autoTranslateImport: false,
 	autoTranslateImportConcurrency: 1,
+	dismissSelectionOnOutsideClick: false,
 };
 
 /**

@@ -116,6 +116,12 @@ export type TranslateSettings = {
 	 * once (1–5, default 1). Seeded into the JobCenter `layoutTranslate` cap.
 	 */
 	autoTranslateImportConcurrency: number;
+	/**
+	 * Close the selection translation result card when the reader clicks
+	 * elsewhere on the page (default off: cards stay open while the reader
+	 * works). Scrolling, page turns and viewer toolbars never close it.
+	 */
+	dismissSelectionOnOutsideClick: boolean;
 };
 
 export type TranslateProviderConfig = {

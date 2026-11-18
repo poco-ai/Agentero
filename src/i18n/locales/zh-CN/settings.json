@@ -620,6 +620,10 @@
 		"autoSelection": {
 			"label": "PDF 划词后自动翻译"
 		},
+		"dismissOnOutsideClick": {
+			"label": "点击其他位置时关闭翻译结果",
+			"description": "点击翻译卡以外的位置即关闭。滚动、翻页和阅读器控件不会关闭。"
+		},
 		"autoImport": {
 			"label": "版面解析后自动翻译",
 			"description": "导入、下载或重新解析版面完成后，在后台翻译全文。已有译文按缓存复用，只补译变化的块，并使用当前翻译服务和缓存设置。",

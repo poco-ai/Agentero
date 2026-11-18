@@ -620,6 +620,10 @@
 		"autoSelection": {
 			"label": "Auto-translate PDF selection"
 		},
+		"dismissOnOutsideClick": {
+			"label": "Close selection results on an outside click",
+			"description": "A click outside the translation card closes it. Scrolling, page turns and viewer controls keep it open."
+		},
 		"autoImport": {
 			"label": "Auto-translate after layout analysis",
 			"description": "After import, download, or a layout reparse, runs full-text translation in the background. Reuses cached translations and only requests changed blocks. Uses the current translation service and cache settings.",
