@@ -47,17 +47,28 @@ export function HelpLabel({ label, help }: { label: ReactNode; help: string }) {
 export function PageTitle({
 	title,
 	actions,
+	className,
 }: {
 	title: ReactNode;
 	actions?: ReactNode;
+	className?: string;
 }) {
 	if (!actions) {
 		return (
-			<h2 className="mb-4 font-semibold text-base text-foreground">{title}</h2>
+			<h2
+				className={cn(
+					"mb-4 font-semibold text-base text-foreground",
+					className,
+				)}
+			>
+				{title}
+			</h2>
 		);
 	}
 	return (
-		<div className="mb-4 flex items-center justify-between gap-3">
+		<div
+			className={cn("mb-4 flex items-center justify-between gap-3", className)}
+		>
 			<h2 className="min-w-0 font-semibold text-base text-foreground">
 				{title}
 			</h2>

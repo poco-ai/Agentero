@@ -110,32 +110,36 @@ export function ActivityPane({ vaultPath }: { vaultPath?: string | null }) {
 
 	return (
 		<div className="flex flex-col gap-5">
-			<PageTitle title={t("activity.title")} />
-			<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-				<Stat
-					label={t("activity.week.reading")}
-					value={durationText(t, reading)}
-					delta={reading - previousReading}
-					deltaText={durationText(t, Math.abs(reading - previousReading))}
-				/>
-				<Stat
-					label={t("activity.week.papers")}
-					value={String(board.weekPaperCount)}
-				/>
-				<Stat
-					label={t("activity.week.agent")}
-					value={String(runs)}
-					delta={runs - previousRuns}
-					deltaText={String(Math.abs(runs - previousRuns))}
-				/>
-				<Stat
-					label={t("activity.week.tokens")}
-					value={
-						reported ? formatTokenCount(tokens) : t("activity.week.unreported")
-					}
-					delta={reported ? tokens - previousTokens : undefined}
-					deltaText={formatTokenCount(Math.abs(tokens - previousTokens))}
-				/>
+			<div>
+				<PageTitle className="mb-2" title={t("activity.title")} />
+				<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+					<Stat
+						label={t("activity.week.reading")}
+						value={durationText(t, reading)}
+						delta={reading - previousReading}
+						deltaText={durationText(t, Math.abs(reading - previousReading))}
+					/>
+					<Stat
+						label={t("activity.week.papers")}
+						value={String(board.weekPaperCount)}
+					/>
+					<Stat
+						label={t("activity.week.agent")}
+						value={String(runs)}
+						delta={runs - previousRuns}
+						deltaText={String(Math.abs(runs - previousRuns))}
+					/>
+					<Stat
+						label={t("activity.week.tokens")}
+						value={
+							reported
+								? formatTokenCount(tokens)
+								: t("activity.week.unreported")
+						}
+						delta={reported ? tokens - previousTokens : undefined}
+						deltaText={formatTokenCount(Math.abs(tokens - previousTokens))}
+					/>
+				</div>
 			</div>
 			<section className="flex flex-col gap-2">
 				<div className="flex items-center justify-between gap-2">
@@ -174,23 +178,27 @@ export function ActivityPane({ vaultPath }: { vaultPath?: string | null }) {
 			</section>
 			<div
 				className={cn(
-					"grid items-start gap-6",
+					"grid items-stretch gap-6",
 					board.workflows.length > 0 && "sm:grid-cols-2",
 				)}
 			>
 				<section className="flex min-w-0 flex-col gap-2">
 					<h3 className="font-medium text-sm">{t("activity.thisWeek")}</h3>
-					<ActivityWeekBars
-						days={board.days}
-						today={today}
-						weekStartsOn={weekStartsOn}
-						metric={metric}
-					/>
+					<div className="flex flex-1 flex-col justify-end">
+						<ActivityWeekBars
+							days={board.days}
+							today={today}
+							weekStartsOn={weekStartsOn}
+							metric={metric}
+						/>
+					</div>
 				</section>
 				{board.workflows.length > 0 && (
 					<section className="flex min-w-0 flex-col gap-2">
 						<h3 className="font-medium text-sm">{t("activity.workflows")}</h3>
-						<ActivityWorkflows board={board} />
+						<div className="flex flex-1 flex-col justify-end">
+							<ActivityWorkflows board={board} />
+						</div>
 					</section>
 				)}
 			</div>
