@@ -9,6 +9,11 @@
 //! routing has to be observed through `pushState` / `replaceState`; a card or
 //! nav click never becomes a real navigation. Request plumbing lives in
 //! [`super`].
+//!
+//! Account features (the AI assistant, sign-in) are Hugging Face-backed and
+//! redirect off this origin, which the embedded frame cannot complete. The
+//! bridge keeps search on the paper catalog and the proxy hands the sign-in URL
+//! to the system browser instead of rendering the foreign login page.
 
 use super::SiteProxy;
 
@@ -16,13 +21,14 @@ const ORIGIN: &str = "https://paperswithcode.co";
 const USER_AGENT: &str = "agentero/0.6 (+https://github.com/poco-ai/agentero)";
 
 /// Reports in-site navigation, keeps clicks in the frame, hands every
-/// third-party link (GitHub, Hugging Face, arXiv, …) to the system browser, and
-/// decorates paper cards with an import action.
+/// third-party link (GitHub, Hugging Face, arXiv, …) to the system browser,
+/// decorates paper cards with an import action, and keeps login-gated surfaces
+/// (the assistant, sign-in) out of the embedded frame.
 ///
 /// Only stable hooks are used: `article.paper-card`, `h3.paper-title`,
-/// `.paper-resources`, `.action-row`, `a[href^="/paper/"]`, plus the router's
-/// `pushState`. The site's CSS-module class names are content-hashed per release
-/// and are never matched.
+/// `.paper-resources`, `.action-row`, `a[href^="/paper/"]`, the search palette's
+/// semantic `search-*` classes, plus the router's `pushState`. The site's
+/// CSS-module class names are content-hashed per release and are never matched.
 const NAV_BRIDGE: &str = r##"<style>
 .agentero-import {
   display: inline-flex;
@@ -46,6 +52,10 @@ const NAV_BRIDGE: &str = r##"<style>
 .agentero-import:hover { background: color-mix(in oklab, currentColor 15%, transparent); }
 .agentero-import[data-state="pending"],
 .agentero-import[data-state="done"] { cursor: default; opacity: 0.55; }
+/* The assistant needs a Hugging Face sign-in the embedded frame cannot finish
+   (OAuth leaves this origin); search stays on the paper catalog instead. */
+.search-ask-row,
+.search-empty-sub { display: none !important; }
 </style>
 <script>
 (function () {
@@ -95,6 +105,46 @@ const NAV_BRIDGE: &str = r##"<style>
       post({ external: url });
     };
 
+    // The assistant needs a Hugging Face sign-in; the frame cannot finish that
+    // hand-off, so mounting `/chat` would strand the panel on the provider's
+    // login page. A resumed last path can point here after an upgrade, so leave
+    // for the home page before the SPA mounts the route.
+    var chatPath = /^\/chat(\/|$)/;
+    if (chatPath.test(location.pathname)) {
+      location.replace("/");
+      return;
+    }
+
+    // Enter / the "assistant" row in the search palette normally asks the AI
+    // assistant, which needs a Hugging Face sign-in the embedded frame cannot
+    // complete. The palette's own "View all paper results" button is the same
+    // route a plain search takes, so use it and keep query results in the panel.
+    var searchResults = function (query, modal) {
+      var text = (query || "").trim();
+      if (!text) return;
+      var viewAll = (modal || document).querySelector(".search-view-all-row");
+      if (viewAll) {
+        viewAll.click();
+        return;
+      }
+      location.href = "/papers?search=" + encodeURIComponent(text);
+    };
+    document.addEventListener(
+      "keydown",
+      function (event) {
+        if (event.key !== "Enter") return;
+        var input = event.target;
+        if (!input || !input.closest || !input.closest(".search-modal-input")) return;
+        // The site's shortcut only checks Enter; it ignores modifiers and IME
+        // state, so stop it before any of those can mount the login-gated chat.
+        event.stopPropagation();
+        if (event.repeat || event.isComposing || event.keyCode === 229) return;
+        event.preventDefault();
+        searchResults(input.value, input.closest(".search-modal"));
+      },
+      true
+    );
+
     // Same-origin links are the site's router's job; anything else leaves.
     document.addEventListener(
       "click",
@@ -123,6 +173,15 @@ const NAV_BRIDGE: &str = r##"<style>
           return;
         }
 
+        var ask = target.closest(".search-ask-row");
+        if (ask) {
+          event.preventDefault();
+          event.stopPropagation();
+          var search = document.querySelector(".search-modal-input");
+          searchResults(search && search.value, search && search.closest(".search-modal"));
+          return;
+        }
+
         var anchor = target.closest("a[href]");
         if (!anchor) return;
         var href = anchor.getAttribute("href");
@@ -130,6 +189,13 @@ const NAV_BRIDGE: &str = r##"<style>
         var url = resolve(href);
         if (!url) return;
         if (url.origin === location.origin) {
+          // The assistant is Hugging Face-login-gated; open it in the browser
+          // rather than letting the SPA mount a route that redirects to OAuth.
+          if (chatPath.test(url.pathname)) {
+            event.preventDefault();
+            external("https://paperswithcode.co" + url.pathname + url.search);
+            return;
+          }
           // The site renders `/api/...` files (JSON, Markdown) in place; those
           // belong in the system browser like any other non-page response.
           if (anchor.hasAttribute("download")) {
@@ -312,7 +378,26 @@ static SITE: SiteProxy = SiteProxy {
     rewrite,
 };
 
+/// Sign-in starts at this same-origin path, which then 302s to Hugging Face.
+/// The embedded frame cannot complete that hand-off, so the proxy returns a
+/// [`super::handoff_to_browser`] page instead of the foreign login document.
+///
+/// Custom-scheme handlers receive an absolute request URI
+/// (`agentero-pwc://localhost/...`), so the upstream URL is rebuilt from its
+/// path and query instead of appending the whole URI to the origin.
+fn sign_in_url(uri: &tauri::http::Uri) -> Option<String> {
+    let path = uri.path();
+    let query = uri.query().map(|q| format!("?{q}")).unwrap_or_default();
+    (path == "/api/v1/auth/hf/login").then(|| format!("{ORIGIN}{path}{query}"))
+}
+
 pub fn handle(request: tauri::http::Request<Vec<u8>>, responder: tauri::UriSchemeResponder) {
+    if *request.method() == tauri::http::Method::GET {
+        if let Some(url) = sign_in_url(request.uri()) {
+            responder.respond(super::handoff_to_browser(&url));
+            return;
+        }
+    }
     super::handle(&SITE, request, responder);
 }
 
