@@ -4,7 +4,7 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
 
 ## 协议与运行时
 
-- Crate：`agent-client-protocol` ≥ 1.3（及 Codex 的 npm ACP 适配器进程）。
+- Crate：`agent-client-protocol` 5.4（稳定 v1 线协议，不启用实验性 v2）。
 - Quick Chat 和侧边栏的论文上下文走同一解析器。本地会话在 `session/new`、`session/resume`、`session/load` 上传入 `agentero-context` stdio MCP；授权指纹变化时不恢复旧会话。见 [context.md](context.md)。
 - ACP `initialize` 在 run / warm / 历史 list / load 四处统一最多等待 30 秒（设置页
   探针同样保留 30 秒总预算），覆盖 BYOA 冷启动。warm 的 `session/new` 为 30 秒；
@@ -41,7 +41,7 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `agent-client-protocol::AcpAgent`。自定义 `windows-spawn` / Job transport 因环境变量名称
   含 `=` 时拒绝启动而回退（Windows 的 `=C:` 等特殊条目可能触发；见
   [故障记录](../bug_fix/windows-acp-orphan-processes.md)）。`ExitRequested` / `Exit` 仍关闭
-  warm 池；SDK 1.3.0 在 Windows 只结束直接子进程，launcher 后代与宿主异常退出后的
+  warm 池；SDK 5.4 的进程传输在 Windows 只结束直接子进程，launcher 后代与宿主异常退出后的
   ACP 进程可能残留，无法保证退出时完整回收。该限制由
   [#774](https://github.com/poco-ai/Agentero/issues/774) 跟踪，后续评估 SDK 的 Windows 进程树能力。
 - Windows Pi / Custom / Zcode 包装的 cwd 与完整 Agent 命令通过环境变量展开，cwd 始终携带双引号，
@@ -189,12 +189,7 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `## Context` / `## Skills` / `## Extensions` 清单）当作普通 agent message 推送。Host
   在本轮首个 message chunk 上识别该横幅并丢弃，不写入内容缓冲、不发 `agent:stream`，
   避免它出现在回答之前。
-- Codex 指令预算告警：未协商 typed notice 时，`codex-acp` 把 Codex 的 `warning` /
-  `configWarning` 写成一条 `Warning: …` 或 `Config warning: …` 助手文本。Host 只在
-  Codex 回合还没有助手正文时丢掉这条文本，不写入内容缓冲、不发 `agent:stream`，
-  改为 `agent:status` phase `codex-instruction-budget`。面板把它显示成可关闭的
-  警告 Toast。原始文本留在 `agentero::agent` 日志里。32KB 上限同时计入
-  `~/.codex/AGENTS.md` 与 thread 指令，告警出现不等于当前 Vault 的 `AGENTS.md` 超限。
+- Host 声明 `session.notices`，把实时 notice 的严重程度和原文交给当前会话的 Toast，不写入历史。旧 Codex 仅对已知的 `project_doc_max_bytes` 指令总量告警使用专用提示，普通 `Warning:` 文本照常显示。
 - **Pi 项目信任（#936）**：`pi-acp` 以 headless RPC 启动 pi，pi 的
   `defaultProjectTrust` 默认为 `ask`；无 UI 可回答时按不信任处理，于是 Vault 的
   `.agents/skills` 与 `.pi/*` 项目资源被静默跳过（pi-acp 0.0.33/0.0.34 也不转发
@@ -217,11 +212,11 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   读取 trust，因此即使信任是在 pi 自己的 TUI 里授予或通过改 `settings.json` 生效，
   下一轮也会因变体不匹配而冷启动，不会复用启动时未信任的旧进程。远程 Vault 拒绝该操作。
 - **内置 ACP 适配器（bundled 兜底层）**：`@agentclientprotocol/claude-agent-acp` 与
-  `@agentclientprotocol/codex-acp` 的纯 JS 依赖树（平台二进制裁掉，~39MB 未压缩）作为应用
+  `@agentclientprotocol/codex-acp` 的纯 JS 依赖树（平台二进制裁掉，约 64 MiB 未压缩）作为应用
   资源随包分发，离线开箱即用。Host CLI（`claude` / `codex`）**永不内置**，仍由用户 PATH
   或 lifecycle 安装。
-  - Staging：`scripts/prepare-adapters.mjs`（版本 pin 在脚本顶部常量；`pnpm adapters:stage`，
-    已挂入 `beforeDevCommand` / `beforeBuildCommand`），临时目录系统 npm
+  - Staging：`scripts/prepare-adapters.mjs`（版本和完整依赖树锁在 `scripts/acp-adapters/`；`pnpm adapters:stage`，
+    已挂入 `beforeDevCommand` / `beforeBuildCommand`），临时目录系统 `npm ci`
     `--omit=optional --omit=dev --ignore-scripts` 安装到共享单树
     `src-tauri/adapters/node_modules/` + `manifest.json`（id/package/version/entry/nodeMajor）；
     护栏：无 symlink / 原生二进制、单文件 ≤5MB、总量 ≤80MB（`AGENTERO_ADAPTER_MAX_MB` 可调）。
@@ -362,7 +357,7 @@ commands / config 仍可在 load 期间转发。
 
 `agent_load_session` 以 `session/load` 的响应为回放完成边界。
 [ACP 协议](https://agentclientprotocol.com/protocol/v1/session-setup)要求先发送全部历史通知再返回响应，
-SDK 1.3 按序等待通知 handler 完成后再处理下一条消息，因此不需要额外 200–800ms 静默等待。
+SDK 按序等待通知 handler 完成后再处理下一条消息，因此不需要额外 200–800ms 静默等待。
 没有 `session/load` 能力的 Dsh 仍沿用其本地历史读取兼容路径。
 
 回放聚合（`ReplayBuilder`）会丢弃 Agent 侧的合成占位文本：Claude Code 在

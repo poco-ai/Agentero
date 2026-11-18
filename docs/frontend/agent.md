@@ -55,10 +55,7 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
   会随信任决策失效，下一轮冷启动）。提示按 agent + Vault 记住当前面板内的关闭；有
   运行中会话时按钮禁用，避免续用旧的 Agent 进程。远程 Vault 不显示该提示。文案在
   `agent.json` 的 `piTrust`。
-- **Codex 指令预算告警**：回合还没有助手正文时，Host 丢掉 Codex 的 `Warning:` /
-  `Config warning:` 文本回退，不写入回答。面板用可关闭的警告 Toast 说明 32KB
-  限制同时计入 `~/.codex/AGENTS.md` 和 thread 指令。文案在 `agent.json` 的
-  `codexInstructionBudget`。已经写进助手正文之后，再出现的「Warning:」开头文字仍照常显示。
+- **ACP 通知**：面板用 Toast 显示提供方的实时信息、警告和错误，不将其写入回答。旧 Codex 的指令预算告警保留专用提示；普通 `Warning:` 文本不做过滤。
 
 - 空态建议 chips → workflow：`summary` / `qa` / `related_work`。
 - **Agent 切换器列表**：App 启动即 `scanCatalog` + soft-probe（`prefetchAgentCatalog`，不依赖侧栏挂载）；面板挂载与 vault 变化时再 `listAgents + scanCatalog` 刷新。Settings 探测 / 安装 / 卸载 / 改默认会改 registry，Host 广播 `agent:registry-changed`（已纳入 lifecycle typed bus，见 [../architecture.md](../architecture.md) 的「生命周期」），面板经 `lifecycle.on` 防抖刷新——面板常驻不卸载，否则探测成功后切换器仍是旧列表。catalog 项仅 `acpStatus === "ready"`（ACP 握手成功）才显示，不可用项直接隐藏而非置灰。

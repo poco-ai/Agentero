@@ -33,12 +33,12 @@ use crate::features::agent::session::handlers::{
 };
 use crate::features::agent::session::pool::{pool_key, AgentWarmPool, PooledSlot};
 use crate::features::agent::session::warm::discard_unprompted_session;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     CancelNotification, ContentBlock, ImageContent, LoadSessionRequest, NewSessionRequest,
     PromptRequest, ResumeSessionRequest, SessionConfigId, SessionConfigOptionValue, SessionId,
     SessionNotification, SessionUpdate, SetSessionConfigOptionRequest, TextContent,
 };
-use agent_client_protocol::{Agent, ConnectionTo};
+use agent_client_protocol::{v1::ConnectionTo, Agent};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -82,7 +82,7 @@ pub struct RunOnceParams {
     /// resume `resume_session_id`, so the new session still sees the conversation.
     pub resume_transcript: Option<String>,
     /// Stdio MCP servers attached on a local session, besides research context.
-    pub delegate_mcp: Vec<agent_client_protocol::schema::v1::McpServer>,
+    pub delegate_mcp: Vec<agent_client_protocol::v1::schema::McpServer>,
     /// Remote-target hint inserted before the user request. Empty when none are connected.
     pub delegate_hint: Option<String>,
     /// Keep the answer in `progress` and do not emit chat transcript events.
@@ -107,7 +107,7 @@ struct RunTurnPrep {
     full_prompt: String,
     prompt_images: Vec<PromptImage>,
     cwd: PathBuf,
-    mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+    mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     /// Provider session to continue after the context fingerprint check.
     resume_session_id: Option<String>,
     context_fingerprint: Option<String>,
@@ -123,7 +123,7 @@ struct RunTurnInput {
     cwd: PathBuf,
     /// Provider session id to continue (resume/load) instead of `session/new`.
     resume_session_id: Option<String>,
-    mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+    mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     preferences: RunPreferences,
 }
 
@@ -131,7 +131,7 @@ struct RunTurnInput {
 #[derive(Clone)]
 struct ConnectedSession {
     acp_session_id: SessionId,
-    config_options: Vec<agent_client_protocol::schema::v1::SessionConfigOption>,
+    config_options: Vec<agent_client_protocol::v1::schema::SessionConfigOption>,
     /// Resolved provider resume id when continuing an earlier session
     /// (drives the history-replay buffer clear before the prompt).
     resume_id: Option<String>,
@@ -424,6 +424,7 @@ impl RunOnceContext {
                     SessionUpdate::AvailableCommandsUpdate(_)
                     | SessionUpdate::ConfigOptionUpdate(_)
                     | SessionUpdate::UsageUpdate(_)
+                    | SessionUpdate::Notice(_)
                     | SessionUpdate::SessionInfoUpdate(_) => {
                         emit_rich_session_update(
                             &self.app,
@@ -758,7 +759,7 @@ impl RunOnceContext {
         cancellation: &mut watch::Receiver<bool>,
         resume_session_id: Option<String>,
         cwd: &Path,
-        mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+        mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     ) -> Result<TurnPhase<ConnectedSession>, agent_client_protocol::Error> {
         let init = tokio::select! {
             result = timed_acp_initialize(
@@ -846,7 +847,7 @@ impl RunOnceContext {
         rid: &str,
         cwd: &Path,
         can_resume: bool,
-        mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+        mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     ) -> Result<TurnPhase<ConnectedSession>, agent_client_protocol::Error> {
         if can_resume {
             let resp = tokio::select! {
@@ -902,10 +903,10 @@ impl RunOnceContext {
         connection: &ConnectionTo<Agent>,
         cancellation: &mut watch::Receiver<bool>,
         acp_session_id: &SessionId,
-        mut config_options: Vec<agent_client_protocol::schema::v1::SessionConfigOption>,
+        mut config_options: Vec<agent_client_protocol::v1::schema::SessionConfigOption>,
         prefs: &RunPreferences,
     ) -> Result<
-        TurnPhase<Vec<agent_client_protocol::schema::v1::SessionConfigOption>>,
+        TurnPhase<Vec<agent_client_protocol::v1::schema::SessionConfigOption>>,
         agent_client_protocol::Error,
     > {
         macro_rules! return_cancelled {

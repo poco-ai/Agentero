@@ -12,8 +12,8 @@ use crate::features::agent::acp::terminal::AcpTerminalManager;
 use crate::features::agent::models::AgentModelsEvent;
 use crate::features::agent::remote_host::RemoteAgentLaunch;
 use crate::features::agent::session::handlers::TurnRegistry;
-use agent_client_protocol::schema::v1::{SessionConfigOption, SessionId};
-use agent_client_protocol::{Agent, ConnectionTo};
+use agent_client_protocol::v1::schema::{SessionConfigOption, SessionId};
+use agent_client_protocol::{v1::ConnectionTo, Agent};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -749,7 +749,8 @@ mod slot_map_tests {
     #[tokio::test(start_paused = true)]
     async fn publication_wakes_all_waiters_but_only_one_can_claim_the_slot() {
         agent_client_protocol::Client
-            .connect_with(agent_client_protocol::Agent.builder(), async |connection| {
+            .v1()
+            .connect_with(agent_client_protocol::Agent.v1(), async |connection| {
                 let pool = std::sync::Arc::new(super::AgentWarmPool::new());
                 let wanted = key("codex", "/vault-a");
                 let warm = pool.start_warm(&wanted);

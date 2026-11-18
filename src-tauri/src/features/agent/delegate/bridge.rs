@@ -4,7 +4,7 @@
 //! [`RemoteAgentHosts`]. It presents the token from its grant file. The desktop
 //! process owns the SSH session and the remote ACP connection.
 
-use agent_client_protocol::schema::v1::McpServer;
+use agent_client_protocol::v1::schema::McpServer;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
@@ -34,7 +34,7 @@ use crate::features::agent::session::{
 #[cfg(unix)]
 use crate::features::agent::AgentRegistry;
 #[cfg(unix)]
-use agent_client_protocol::schema::v1::McpServerStdio;
+use agent_client_protocol::v1::schema::McpServerStdio;
 #[cfg(any(unix, test))]
 use std::collections::HashMap;
 #[cfg(unix)]

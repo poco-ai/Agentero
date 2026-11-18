@@ -939,12 +939,8 @@ export function questionsFromElicitationFields(
 	// Pass 1: explicit parent (meta or __other id).
 	for (const field of fields) {
 		if (!isTextishElicitationField(field) && !field.isOtherAnswer) continue;
-		const parentFromMeta =
-			field.isOtherAnswer && field.parentFieldId?.trim()
-				? field.parentFieldId.trim()
-				: field.parentFieldId?.trim() || null;
-		const parentFromId = parseOtherFieldParentId(field.id);
-		const parentId = parentFromMeta || parentFromId;
+		const parentId =
+			field.parentFieldId?.trim() || parseOtherFieldParentId(field.id);
 		if (!parentId) continue;
 		// Prefer first companion per parent; ignore extras.
 		if (otherByParent.has(parentId)) continue;

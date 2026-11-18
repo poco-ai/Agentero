@@ -11,6 +11,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { toast } from "sonner";
 import type {
 	AgentPanelRefs,
 	AgentPanelT,
@@ -24,7 +25,6 @@ import {
 	type AgentResultPayload,
 	type AgentStreamEvent,
 	type AgentToolEvent,
-	type AgentTurnPhase,
 	CODEX_INSTRUCTION_BUDGET_PHASE,
 	displayHistoryTitle,
 	listenAgentCollaboration,
@@ -70,7 +70,7 @@ import {
 	type StreamSlice,
 	ThinkTagParser,
 } from "@/lib/agent/stream-parse";
-import { notifyWarning } from "@/lib/core/notify";
+import { notifyError, notifyWarning } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import {
 	completeTrace,
@@ -364,11 +364,27 @@ async function subscribeAgentRuntimeListeners(): Promise<void> {
 			listenAgentStatus((ev) => {
 				for (const listener of agentRuntimeListeners.values()) {
 					if (!listener.isChatOwnedSession(ev.sessionId)) continue;
-					if ((ev.phase as string) === CODEX_INSTRUCTION_BUDGET_PHASE) {
+					if (
+						ev.phase === "notice-error" ||
+						ev.phase === "notice-warning" ||
+						ev.phase === "notice-info"
+					) {
+						if (ev.detail) {
+							const show =
+								ev.phase === "notice-error"
+									? notifyError
+									: ev.phase === "notice-warning"
+										? notifyWarning
+										: toast.info;
+							show(ev.detail);
+						}
+						continue;
+					}
+					if (ev.phase === CODEX_INSTRUCTION_BUDGET_PHASE) {
 						listener.showCodexInstructionWarning();
 						continue;
 					}
-					const phase = ev.phase as AgentTurnPhase;
+					const phase = ev.phase;
 					if (
 						phase !== "starting" &&
 						phase !== "waiting-model" &&

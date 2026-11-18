@@ -24,8 +24,8 @@ use crate::features::agent::session::handlers::{
 use crate::features::agent::session::pool::{
     pool_key, AgentWarmPool, PoolKey, PooledSlot, POOL_IDLE_TTL,
 };
-use agent_client_protocol::schema::v1::{DeleteSessionRequest, McpServer, NewSessionRequest};
-use agent_client_protocol::{Agent, ConnectionTo, UntypedMessage};
+use agent_client_protocol::v1::schema::{DeleteSessionRequest, McpServer, NewSessionRequest};
+use agent_client_protocol::{v1::ConnectionTo, Agent, UntypedMessage};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
@@ -285,7 +285,7 @@ struct WarmSetupCtx {
     terminals: Arc<tokio::sync::Mutex<crate::features::agent::acp::terminal::AcpTerminalManager>>,
     registry: crate::features::agent::session::handlers::TurnRegistry,
     /// Set once `session/new` returns, so a failed setup can still discard it.
-    created: Mutex<Option<(agent_client_protocol::schema::v1::SessionId, bool)>>,
+    created: Mutex<Option<(agent_client_protocol::v1::schema::SessionId, bool)>>,
     mcp_servers: Vec<McpServer>,
 }
 
@@ -296,7 +296,7 @@ struct WarmSetupCtx {
 /// times out, so `session/list` keeps hiding it.
 pub(crate) async fn discard_unprompted_session(
     connection: &ConnectionTo<Agent>,
-    session_id: &agent_client_protocol::schema::v1::SessionId,
+    session_id: &agent_client_protocol::v1::schema::SessionId,
     supports_delete: bool,
     pool: &AgentWarmPool,
 ) {
@@ -334,7 +334,7 @@ struct KeepaliveCtx {
     activity_rx: watch::Receiver<u64>,
     used: Arc<std::sync::atomic::AtomicBool>,
     supports_delete: bool,
-    acp_session_id: agent_client_protocol::schema::v1::SessionId,
+    acp_session_id: agent_client_protocol::v1::schema::SessionId,
     agent_id: String,
 }
 
@@ -390,16 +390,12 @@ impl WarmSetupCtx {
         }
         let raw_new_session = timed_acp_new_session(
             connection
-                .send_request(
-                    UntypedMessage::new("session/new", new_session).map_err(|e| {
-                        agent_client_protocol::Error::internal_error().data(e.to_string())
-                    })?,
-                )
+                .send_request(UntypedMessage::new("session/new", new_session)?)
                 .block_task(),
         )
         .await?;
-        let new_session: agent_client_protocol::schema::v1::NewSessionResponse =
-            agent_client_protocol::JsonRpcResponse::from_value(
+        let new_session: agent_client_protocol::v1::schema::NewSessionResponse =
+            agent_client_protocol::JsonRpcResponse::from_json(
                 "session/new",
                 raw_new_session.clone(),
             )?;
@@ -433,7 +429,7 @@ impl WarmSetupCtx {
         // Brief settle so agents can push usage/config updates after session create.
         tokio::time::sleep(Duration::from_millis(400)).await;
         if self.cancellation.is_cancelled() {
-            return Err(agent_client_protocol::util::internal_error(
+            return Err(crate::features::agent::acp::client::acp_err(
                 WARM_CANCELLED_ERROR,
             ));
         }

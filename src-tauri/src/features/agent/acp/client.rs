@@ -4,12 +4,12 @@ use crate::features::agent::acp::terminal::AcpTerminalManager;
 use crate::features::agent::models::{AgentDescriptor, AgentResultPayload, AgentTemplate};
 
 use crate::features::agent::registry::discovery::{login_shell_env, path_entries};
-use agent_client_protocol::schema::v1::{
-    ClientCapabilities, ElicitationCapabilities, ElicitationFormCapabilities, EnvVariable,
-    InitializeRequest, McpServer, McpServerStdio,
-};
 use agent_client_protocol::schema::ProtocolVersion;
-use agent_client_protocol::{util, AcpAgent};
+use agent_client_protocol::v1::schema::{
+    ClientCapabilities, ClientSessionCapabilities, ElicitationCapabilities,
+    ElicitationFormCapabilities, InitializeRequest, NoticeCapabilities,
+};
+use agent_client_protocol::{AcpAgent, AcpAgentConfig};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -20,7 +20,7 @@ use tokio::sync::watch;
 macro_rules! agentero_acp_builder {
     ($terminals:expr) => {
         ::agent_client_protocol::Client
-            .builder()
+            .v1()
             .name("agentero")
             .with_handler(
                 $crate::features::agent::acp::terminal::AcpTerminalHandler::new($terminals),
@@ -45,6 +45,7 @@ pub(crate) fn client_initialize_request() -> InitializeRequest {
     InitializeRequest::new(ProtocolVersion::V1).client_capabilities(
         ClientCapabilities::new()
             .elicitation(ElicitationCapabilities::new().form(ElicitationFormCapabilities::new()))
+            .session(ClientSessionCapabilities::new().notices(NoticeCapabilities::new()))
             .terminal(true),
     )
 }
@@ -438,18 +439,8 @@ pub(crate) fn to_acp_agent_local(
     // tree teardown exist.
     let (command, args) = local_launch_command(&launch_desc, command, &mut child_env, cwd);
 
-    let env: Vec<EnvVariable> = child_env
-        .into_iter()
-        .map(|(k, v)| EnvVariable::new(k.clone(), v.clone()))
-        .collect();
-
-    let stdio = McpServerStdio::new(desc.name.clone(), command)
-        .args(args)
-        .env(env);
-    Ok(acp_agent_with_debug(
-        AcpAgent::new(McpServer::Stdio(stdio)),
-        &desc.name,
-    ))
+    let config = AcpAgentConfig::new(command).args(args).envs(child_env);
+    Ok(acp_agent_with_debug(AcpAgent::new(config), &desc.name))
 }
 
 /// Build ACP agent process. When `remote` is SSH, wrap launch as `ssh … 'cd vault && exec agent'`.
@@ -462,11 +453,8 @@ pub(crate) fn to_acp_agent(
     if let Some(r) = remote {
         if r.is_ssh() {
             let (program, args) = r.ssh_stdio(&desc.command, &desc.args, &desc.env)?;
-            let stdio = McpServerStdio::new(desc.name.clone(), program).args(args);
-            return Ok(acp_agent_with_debug(
-                AcpAgent::new(McpServer::Stdio(stdio)),
-                &desc.name,
-            ));
+            let config = AcpAgentConfig::new(program).args(args);
+            return Ok(acp_agent_with_debug(AcpAgent::new(config), &desc.name));
         }
         // A stale local-sim handle must not silently run against scratch (or
         // fail later with an opaque shell/ACP handshake error). SSH paths were
@@ -627,7 +615,7 @@ pub(crate) fn cancelled_payload(
 }
 
 pub(crate) fn acp_err(msg: impl ToString) -> agent_client_protocol::Error {
-    util::internal_error(msg)
+    agent_client_protocol::Error::internal_error().data(msg.to_string())
 }
 
 #[cfg(test)]
