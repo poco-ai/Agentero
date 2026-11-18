@@ -56,6 +56,7 @@ import {
 	tabIsPaperNoteDocument,
 	tabIsPaperNotes,
 	tabNotesEligible,
+	tabsAfterMovedView,
 	workspaceLayoutStorageKey,
 } from "@/lib/workspace/tabs";
 import * as tabResources from "@/lib/workspace/tabs/resources";
@@ -1087,6 +1088,29 @@ describe("flat workspace helpers", () => {
 		expect(readingPairCloseIds([splitBody, notes], splitBody.id)).toEqual([
 			splitBody.id,
 		]);
+	});
+
+	it("moving a view removes only that id and leaves NOTES", () => {
+		const paper = makeTab("/vault/p", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/p/NOTES.md",
+			paperMeta: { path: "p", title: "P" } as DocTab["paperMeta"],
+		});
+		const notes = createNotesSplitPane(paper);
+		expect(notes).not.toBeNull();
+		if (!notes) return;
+		const open = [paper, notes];
+		expect(readingPairCloseIds(open, paper.id)).toContain(notes.id);
+		expect(tabsAfterMovedView(open, paper.id).map((tab) => tab.id)).toEqual([
+			notes.id,
+		]);
+		const splitBody = { ...paper, id: "view-split", pane: "split" as const };
+		expect(
+			tabsAfterMovedView([splitBody, notes, paper], splitBody.id).map(
+				(tab) => tab.id,
+			),
+		).toEqual([notes.id, paper.id]);
 	});
 
 	it("closeTab never closes the resident Library tab", () => {

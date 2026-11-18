@@ -984,7 +984,7 @@ export const DockWorkspace = memo(
 					menu.push({
 						label: t("tabs.contextMoveToNewWindow"),
 						action: () => {
-							void moveDocToWindow(tab.path, tab.mode);
+							void moveDocToWindow(panel.id);
 						},
 					});
 				}

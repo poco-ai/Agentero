@@ -17,6 +17,7 @@ export {
 	SPLIT_PANE_ID_MARKER,
 	splitPaneIdForPath,
 	tabIdForPath,
+	tabsAfterMovedView,
 } from "@/lib/workspace/tabs/model";
 export {
 	applyMarkdownConflictChoice,

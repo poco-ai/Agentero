@@ -375,6 +375,15 @@ export function removeTab(
 	return { tabs, removed };
 }
 
+/**
+ * Tab list after moving one view into a document window.
+ * Only `viewId` leaves. A paper body's NOTES companion is a different id
+ * and stays; this must not use `readingPairCloseIds`.
+ */
+export function tabsAfterMovedView(tabs: DocTab[], viewId: string): DocTab[] {
+	return removeTab(tabs, viewId).tabs;
+}
+
 /** Remove every tab at or under `path`; Library/Trash/Plaza virtual tabs are kept. */
 export function removeTabsUnderPath(
 	prev: DocTab[],

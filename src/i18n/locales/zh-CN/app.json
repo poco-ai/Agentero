@@ -131,6 +131,8 @@
 		"docUnsupported": "论文库与回收站不能在新窗口中打开。",
 		"featureDesktopOnly": "功能窗口需要桌面应用。",
 		"docDesktopOnly": "文档窗口需要桌面应用。",
+		"moveUnsaved": "文档窗口有未保存的修改，此标签仍留在当前窗口。",
+		"moveFailed": "文档未能在新窗口打开，此标签仍留在当前窗口。",
 		"titleAgent": "Agent",
 		"titleAnnotations": "批注",
 		"titleDocument": "文档"

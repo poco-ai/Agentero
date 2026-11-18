@@ -27,7 +27,10 @@ import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { refreshLibrary } from "@/lib/paper/library-store";
 import { applyDocumentChrome, resolveFontFamilyCss } from "@/lib/settings";
 import { closeCurrentWindow } from "@/lib/shell/close-window";
-import { readDocWindowParams } from "@/lib/shell/doc-window";
+import {
+	readDocWindowParams,
+	startDocMoveTarget,
+} from "@/lib/shell/doc-window";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { resolveShortcutId } from "@/lib/shell/shortcuts";
 import { openRecentVault } from "@/lib/vault/actions";
@@ -75,6 +78,19 @@ const PDF_STUB: DocViewPdfProps = {
 };
 const NOOP_TRASH_CHANGED = () => {};
 
+/** Target refuses a move when this window already holds an unsaved draft. */
+function tabHasUnsavedDraft(tab: DocTab | null): boolean {
+	if (!tab) return false;
+	return (
+		tab.markdownDirty ||
+		tab.notesDirty ||
+		tab.excalidrawDirty ||
+		tab.textDirty ||
+		tab.markdownConflict === true ||
+		markdownEditorFor(tab.id)?.hasPendingSource() === true
+	);
+}
+
 export function DocWindowRoot() {
 	const { t } = useTranslation(["app"]);
 	const isMac = useMemo(() => isMacOS(), []);
@@ -83,7 +99,11 @@ export function DocWindowRoot() {
 	const [error, setError] = useState<string | null>(null);
 	const [ready, setReady] = useState(false);
 	const tabRef = useRef<DocTab | null>(null);
+	const readyRef = useRef(false);
+	const errorRef = useRef<string | null>(null);
 	tabRef.current = tab;
+	readyRef.current = ready;
+	errorRef.current = error;
 	useNativeSelectAllGuard();
 	useFlushMarkdownOnClose();
 	const modalOverlayOpen = useAnyModalOverlayOpen();
@@ -173,6 +193,20 @@ export function DocWindowRoot() {
 			vaultHold.invalidate(ticket);
 		};
 	}, [params.path, params.mode, params.vaultPath, t, vaultHold]);
+
+	// Accept a move only after this window's own load settles. A path that is
+	// not this window's URL is ignored. An already-loaded document accepts
+	// as-is; nothing here changes its mode.
+	useEffect(() => {
+		const path = params.path;
+		if (!path) return;
+		return startDocMoveTarget(path, () => ({
+			unsaved: tabHasUnsavedDraft(tabRef.current),
+			ready: readyRef.current,
+			loaded: Boolean(tabRef.current?.loaded && tabRef.current.path === path),
+			failed: errorRef.current != null,
+		}));
+	}, [params.path]);
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {

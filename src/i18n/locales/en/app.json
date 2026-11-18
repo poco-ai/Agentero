@@ -131,6 +131,8 @@
 		"docUnsupported": "Library and Trash cannot be opened in a new window.",
 		"featureDesktopOnly": "Feature windows require the desktop app.",
 		"docDesktopOnly": "Document windows require the desktop app.",
+		"moveUnsaved": "This document window has unsaved changes, so the tab stayed open.",
+		"moveFailed": "The document did not open in the new window, so the tab stayed open.",
 		"titleAgent": "Agent",
 		"titleAnnotations": "Annotations",
 		"titleDocument": "Document"

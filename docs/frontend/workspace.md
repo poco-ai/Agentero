@@ -94,7 +94,7 @@ Zen 是虚拟的 Agent 工作面（`agentero:zen`），不走 viewer 模式注�
 |---|---|
 | `src/components/workspace/dock-workspace.tsx` | Dockview 宿主（tab 右键 → 移至新窗口） |
 | `src/components/workspace/paper-path-bar.tsx` | 活动论文 PDF 的 `papers / 标题` 面包屑路径条 |
-| `src/lib/shell/leaf.ts` | leaf 打开 / `moveDocToWindow` |
+| `src/lib/shell/leaf.ts` | leaf 打开 / `moveDocToWindow`（目标接住内容后才移除被点的视图，不关 NOTES） |
 | `src/lib/shell/doc-window.ts` | `doc_window_open` 前端封装 |
 | `src/components/shell/doc-window-root.tsx` | 文档弹出窗根 |
 | `src/components/viewer/text-editor.tsx` | CodeMirror 纯文本编辑器（`text` 兜底模式） |
