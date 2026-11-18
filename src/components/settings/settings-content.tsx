@@ -1,5 +1,6 @@
 import {
 	Bot,
+	ChartColumn,
 	CloudUpload,
 	Compass,
 	FlaskConical,
@@ -57,6 +58,7 @@ import {
 const PANE_LOADERS = {
 	account: () => import("@/components/settings/panes/account-pane"),
 	general: () => import("@/components/settings/panes/general-pane"),
+	activity: () => import("@/components/settings/panes/activity-pane"),
 	appearance: () => import("@/components/settings/panes/appearance-pane"),
 	agent: () => import("@/components/settings/panes/agent-pane"),
 	translate: () => import("@/components/settings/panes/translate-pane"),
@@ -95,6 +97,11 @@ const AccountPane = memo(
 );
 const GeneralPane = memo(
 	lazy(() => PANE_LOADERS.general().then((m) => ({ default: m.GeneralPane }))),
+);
+const ActivityPane = memo(
+	lazy(() =>
+		PANE_LOADERS.activity().then((m) => ({ default: m.ActivityPane })),
+	),
 );
 const AppearancePane = memo(
 	lazy(() =>
@@ -153,6 +160,7 @@ const NAV: {
 }[] = [
 	{ id: "account", icon: UserRound },
 	{ id: "general", icon: SlidersHorizontal },
+	{ id: "activity", icon: ChartColumn },
 	{ id: "appearance", icon: Paintbrush },
 	{ id: "agent", icon: Bot, dividerBefore: true },
 	{ id: "translate", icon: Languages },
@@ -503,6 +511,17 @@ export function SettingsContent({
 									hostContext={hostContext}
 									vaultPath={vaultPath}
 								/>
+							</Suspense>
+						</div>
+					)}
+					{visitedSections.includes("activity") && (
+						<div
+							data-settings-pane
+							data-active={activeSection === "activity" ? "true" : "false"}
+							hidden={activeSection !== "activity"}
+						>
+							<Suspense fallback={<PaneFallback />}>
+								<ActivityPane vaultPath={vaultPath} />
 							</Suspense>
 						</div>
 					)}

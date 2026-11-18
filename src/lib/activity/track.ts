@@ -30,6 +30,7 @@ type Buffered = ActivityRecord & { _key: string; _at: number };
 const buffer: Buffered[] = [];
 const recent = new Map<string, number>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let segmentTimer: ReturnType<typeof setTimeout> | null = null;
 let started = false;
 let focused: { path: string; startedAt: number } | null = null;
 let flushing = false;
@@ -48,9 +49,12 @@ export function track(
 	const path = normalizePath(vault, payload.path);
 	const key = `${kind}|${path ?? ""}|${payload.mode ?? ""}`;
 	const now = Date.now();
-	const last = recent.get(key);
-	if (last != null && now - last < DEDUPE_MS) return;
-	recent.set(key, now);
+	// Duration segments are real slices of one sitting, not repeated clicks.
+	if (payload.durMs == null) {
+		const last = recent.get(key);
+		if (last != null && now - last < DEDUPE_MS) return;
+		recent.set(key, now);
+	}
 
 	buffer.push({
 		ts: new Date(now).toISOString(),
@@ -70,42 +74,92 @@ export function track(
 	scheduleFlush();
 }
 
-/** Pair focus/blur so only the active Dockview panel accumulates reading time. */
-export function notePaperFocus(absOrRelPath: string | null): void {
-	const vault = getVaultPath();
-	const path = absOrRelPath ? normalizePath(vault, absOrRelPath) : null;
-	const now = Date.now();
-	if (focused) {
-		const dur = Math.min(now - focused.startedAt, MAX_FOCUS_MS);
-		if (dur >= 1000) {
-			track("paper.blur", { path: focused.path, durMs: dur });
-			if (dur >= SESSION_MIN_MS) {
-				track("paper.session", { path: focused.path, durMs: dur });
-			}
-		}
+function clearSegmentTimer(): void {
+	if (segmentTimer) {
+		clearTimeout(segmentTimer);
+		segmentTimer = null;
 	}
-	focused = path ? { path, startedAt: now } : null;
-	if (path) track("paper.focus", { path });
 }
 
-export function startActivityTracking(): () => void {
+function emitSegment(path: string, dur: number): void {
+	if (dur < 1000) return;
+	track("paper.blur", { path, durMs: dur });
+	if (dur >= SESSION_MIN_MS) {
+		track("paper.session", { path, durMs: dur });
+	}
+}
+
+/** Keep a long sitting instead of dropping everything past 30 minutes. */
+function rollFocusedSegments(now: number): void {
+	if (!focused) return;
+	while (now - focused.startedAt >= MAX_FOCUS_MS) {
+		emitSegment(focused.path, MAX_FOCUS_MS);
+		focused = {
+			path: focused.path,
+			startedAt: focused.startedAt + MAX_FOCUS_MS,
+		};
+	}
+}
+
+function armSegmentTimer(): void {
+	clearSegmentTimer();
+	if (!focused) return;
+	const wait = Math.max(MAX_FOCUS_MS - (Date.now() - focused.startedAt), 0);
+	segmentTimer = setTimeout(() => {
+		segmentTimer = null;
+		rollFocusedSegments(Date.now());
+		armSegmentTimer();
+	}, wait);
+}
+
+/** Pair focus/blur so only the active paper body accumulates reading time. */
+export function notePaperFocus(absOrRelPath: string | null): void {
+	const vault = getVaultPath();
+	const path = absOrRelPath
+		? (normalizePath(vault, absOrRelPath) ?? null)
+		: null;
+	if ((focused?.path ?? null) === path) return;
+	const now = Date.now();
+	if (focused) {
+		rollFocusedSegments(now);
+		emitSegment(focused.path, now - focused.startedAt);
+	}
+	focused = path ? { path, startedAt: now } : null;
+	if (path) {
+		track("paper.focus", { path });
+		armSegmentTimer();
+		return;
+	}
+	clearSegmentTimer();
+}
+
+export function startActivityTracking(
+	resumePath?: () => string | null,
+): () => void {
 	if (started || typeof window === "undefined") return () => undefined;
 	started = true;
 	const onHide = () => {
 		notePaperFocus(null);
 		void flushActivity();
 	};
+	const onFocus = () => {
+		const path = resumePath?.() ?? null;
+		if (path) notePaperFocus(path);
+	};
 	window.addEventListener("blur", onHide);
 	window.addEventListener("pagehide", onHide);
 	window.addEventListener("beforeunload", onHide);
+	window.addEventListener("focus", onFocus);
 	return () => {
 		window.removeEventListener("blur", onHide);
 		window.removeEventListener("pagehide", onHide);
 		window.removeEventListener("beforeunload", onHide);
+		window.removeEventListener("focus", onFocus);
 		if (flushTimer) {
 			clearTimeout(flushTimer);
 			flushTimer = null;
 		}
+		clearSegmentTimer();
 		started = false;
 	};
 }
@@ -159,6 +213,7 @@ export function resetActivityBufferForTests(): void {
 	buffer.length = 0;
 	recent.clear();
 	focused = null;
+	clearSegmentTimer();
 	if (flushTimer) {
 		clearTimeout(flushTimer);
 		flushTimer = null;

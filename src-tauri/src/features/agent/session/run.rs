@@ -331,6 +331,9 @@ pub(crate) struct RunOnceContext {
     pub(crate) permission_host: Option<String>,
     progress: Option<Arc<Mutex<String>>>,
     pub(crate) user_wait: Option<Arc<DelegateUserWait>>,
+    workflow: String,
+    vault_path: Option<String>,
+    target: Option<String>,
 }
 
 impl RunOnceContext {
@@ -375,6 +378,13 @@ impl RunOnceContext {
             permission_host: params.permission_host.clone(),
             progress: params.progress.clone(),
             user_wait: params.user_wait.clone(),
+            workflow: params
+                .workflow
+                .clone()
+                .filter(|workflow| !workflow.trim().is_empty())
+                .unwrap_or_else(|| "free".to_string()),
+            vault_path: params.vault_path.clone(),
+            target: params.target.clone(),
         }
     }
 
@@ -706,6 +716,16 @@ impl RunOnceContext {
 
         if let Ok(mut s) = self.stop_reason.lock() {
             *s = Some(format!("{:?}", prompt_response.stop_reason));
+        }
+        if let Some(usage) = prompt_response.usage.as_ref() {
+            super::tokens::record_turn_tokens(
+                self.app.app_handle(),
+                &self.session_id,
+                self.vault_path.as_deref(),
+                self.target.as_deref(),
+                &self.workflow,
+                usage.total_tokens,
+            );
         }
 
         Ok(self.finalize(&session_id))

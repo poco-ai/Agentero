@@ -103,6 +103,203 @@ pub fn list_events(db_path: &Path, filter: &ListFilter) -> Result<Vec<UsageEvent
     Ok(out)
 }
 
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageDayStat {
+    pub day: String,
+    pub reading_ms: i64,
+    pub agent_runs: i64,
+    pub tokens: i64,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UsagePaperStat {
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub reading_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageWorkflowStat {
+    pub workflow: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageBoard {
+    pub days: Vec<UsageDayStat>,
+    pub papers: Vec<UsagePaperStat>,
+    pub workflows: Vec<UsageWorkflowStat>,
+    pub week_paper_count: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct UsageBoardQuery {
+    pub vault: String,
+    pub start_day: String,
+    pub end_day: String,
+    pub week_start: String,
+}
+
+pub fn usage_board(db_path: &Path, query: &UsageBoardQuery) -> Result<UsageBoard, AppError> {
+    if !is_day(&query.start_day) || !is_day(&query.end_day) || !is_day(&query.week_start) {
+        return Err(AppError::message("usage board dates must be YYYY-MM-DD"));
+    }
+    let vault = query.vault.trim();
+    if vault.is_empty() {
+        return Ok(UsageBoard {
+            days: Vec::new(),
+            papers: Vec::new(),
+            workflows: Vec::new(),
+            week_paper_count: 0,
+        });
+    }
+    let conn = ensure_usage_at(db_path)?;
+    let days = board_days(&conn, vault, &query.start_day, &query.end_day)?;
+    let papers = board_papers(&conn, vault, &query.week_start, &query.end_day)?;
+    let workflows = board_workflows(&conn, vault, &query.week_start, &query.end_day)?;
+    let week_paper_count = board_week_papers(&conn, vault, &query.week_start, &query.end_day)?;
+    Ok(UsageBoard {
+        days,
+        papers,
+        workflows,
+        week_paper_count,
+    })
+}
+
+fn is_day(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+}
+
+fn board_days(
+    conn: &rusqlite::Connection,
+    vault: &str,
+    start: &str,
+    end: &str,
+) -> Result<Vec<UsageDayStat>, AppError> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT day,
+                COALESCE(SUM(CASE WHEN kind = 'paper.session' THEN dur_ms ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN kind = 'agent.run' THEN count ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN kind = 'agent.usage' THEN qty ELSE 0 END), 0)
+             FROM usage_daily
+             WHERE vault = ?1 AND day >= ?2 AND day <= ?3
+             GROUP BY day
+             ORDER BY day ASC",
+        )
+        .map_err(|e| AppError::message(format!("usage board days prepare: {e}")))?;
+    let mut rows = stmt
+        .query(params![vault, start, end])
+        .map_err(|e| AppError::message(format!("usage board days query: {e}")))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| AppError::message(format!("usage board days row: {e}")))?
+    {
+        out.push(UsageDayStat {
+            day: row.get(0)?,
+            reading_ms: row.get(1)?,
+            agent_runs: row.get(2)?,
+            tokens: row.get(3)?,
+        });
+    }
+    Ok(out)
+}
+
+fn board_papers(
+    conn: &rusqlite::Connection,
+    vault: &str,
+    start: &str,
+    end: &str,
+) -> Result<Vec<UsagePaperStat>, AppError> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT paper_path, COALESCE(SUM(dur_ms), 0)
+             FROM usage_daily
+             WHERE vault = ?1 AND kind = 'paper.session'
+               AND day >= ?2 AND day <= ?3 AND paper_path <> ''
+             GROUP BY paper_path
+             ORDER BY SUM(dur_ms) DESC, paper_path ASC
+             LIMIT 8",
+        )
+        .map_err(|e| AppError::message(format!("usage board papers prepare: {e}")))?;
+    let mut rows = stmt
+        .query(params![vault, start, end])
+        .map_err(|e| AppError::message(format!("usage board papers query: {e}")))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| AppError::message(format!("usage board papers row: {e}")))?
+    {
+        out.push(UsagePaperStat {
+            path: row.get(0)?,
+            title: None,
+            reading_ms: row.get(1)?,
+        });
+    }
+    Ok(out)
+}
+
+fn board_workflows(
+    conn: &rusqlite::Connection,
+    vault: &str,
+    start: &str,
+    end: &str,
+) -> Result<Vec<UsageWorkflowStat>, AppError> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT facet, COALESCE(SUM(count), 0)
+             FROM usage_daily
+             WHERE vault = ?1 AND kind = 'agent.run' AND day >= ?2 AND day <= ?3
+             GROUP BY facet
+             ORDER BY SUM(count) DESC, facet ASC",
+        )
+        .map_err(|e| AppError::message(format!("usage board workflows prepare: {e}")))?;
+    let mut rows = stmt
+        .query(params![vault, start, end])
+        .map_err(|e| AppError::message(format!("usage board workflows query: {e}")))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| AppError::message(format!("usage board workflows row: {e}")))?
+    {
+        out.push(UsageWorkflowStat {
+            workflow: row.get(0)?,
+            count: row.get(1)?,
+        });
+    }
+    Ok(out)
+}
+
+fn board_week_papers(
+    conn: &rusqlite::Connection,
+    vault: &str,
+    start: &str,
+    end: &str,
+) -> Result<i64, AppError> {
+    conn.query_row(
+        "SELECT COUNT(DISTINCT paper_path)
+         FROM usage_daily
+         WHERE vault = ?1 AND kind = 'paper.session'
+           AND day >= ?2 AND day <= ?3 AND paper_path <> ''",
+        params![vault, start, end],
+        |row| row.get(0),
+    )
+    .map_err(|e| AppError::message(format!("usage board paper count: {e}")))
+}
+
 pub fn summarize(
     db_path: &Path,
     vault: Option<&str>,

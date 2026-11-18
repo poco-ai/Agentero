@@ -452,6 +452,7 @@ export const commands = {
 	researchTableBacklinks: (args: ResearchTableBacklinkArgs) => __TAURI_INVOKE<ApiResult<ResearchTableBacklinkResult>>("research_table_backlinks", { args }),
 	activityRecordEvents: (args: ActivityRecordArgs) => typedError<ApiResult<number>, string>(__TAURI_INVOKE("activity_record_events", { args })),
 	usageClear: (args: UsageClearArgs) => __TAURI_INVOKE<ApiResult<number>>("usage_clear", { args }),
+	usageBoardQuery: (args: UsageBoardArgs) => __TAURI_INVOKE<ApiResult<UsageBoard_Serialize>>("usage_board_query", { args }),
 	feedbackSubmit: (args: FeedbackSubmitArgs) => __TAURI_INVOKE<ApiResult<null>>("feedback_submit", { args }),
 	logsClear: () => __TAURI_INVOKE<ApiResult<number>>("logs_clear"),
 	feedsList: () => __TAURI_INVOKE<ApiResult<FeedList>>("feeds_list"),
@@ -6037,8 +6038,52 @@ export type UpsertAgentRequest_Serialize = {
 	setDefault: boolean,
 };
 
+export type UsageBoard = UsageBoard_Serialize | UsageBoard_Deserialize;
+
+export type UsageBoardArgs = {
+	vault: string,
+	startDay: string,
+	endDay: string,
+	weekStart: string,
+};
+
+export type UsageBoard_Deserialize = {
+	days: UsageDayStat[],
+	papers: UsagePaperStat_Deserialize[],
+	workflows: UsageWorkflowStat[],
+	weekPaperCount: number,
+};
+
+export type UsageBoard_Serialize = {
+	days: UsageDayStat[],
+	papers: UsagePaperStat_Serialize[],
+	workflows: UsageWorkflowStat[],
+	weekPaperCount: number,
+};
+
 export type UsageClearArgs = {
 	vault?: string | null,
+};
+
+export type UsageDayStat = {
+	day: string,
+	readingMs: number,
+	agentRuns: number,
+	tokens: number,
+};
+
+export type UsagePaperStat = UsagePaperStat_Serialize | UsagePaperStat_Deserialize;
+
+export type UsagePaperStat_Deserialize = {
+	path: string,
+	title: string | null,
+	readingMs: number,
+};
+
+export type UsagePaperStat_Serialize = {
+	path: string,
+	title?: string | null,
+	readingMs: number,
 };
 
 export type UsageRecord = {
@@ -6049,6 +6094,11 @@ export type UsageRecord = {
 	mode?: string | null,
 	durMs?: number | null,
 	extra?: Json | null,
+};
+
+export type UsageWorkflowStat = {
+	workflow: string,
+	count: number,
 };
 
 export type VaultFileChangedEvent = VaultFileChangedEvent_Serialize | VaultFileChangedEvent_Deserialize;

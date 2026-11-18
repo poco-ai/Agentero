@@ -1,6 +1,7 @@
 export type SettingsSection =
 	| "account"
 	| "general"
+	| "activity"
 	| "appearance"
 	| "agent"
 	| "translate"
