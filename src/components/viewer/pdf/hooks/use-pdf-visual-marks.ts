@@ -21,16 +21,19 @@ import {
 	useCallback,
 } from "react";
 import { useTranslation } from "react-i18next";
+import type { PromptImage } from "@/lib/agent";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { addVisualDraft } from "@/lib/agent/visual-context-store";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import {
+	createNoteTrace,
 	deletePdfVisualTrace,
 	type PdfVisualSessionTrace,
 	writePdfVisualTrace,
 } from "@/lib/pdf/agent-trace";
 import { loadPdfVisualTraceImage } from "@/lib/pdf/agent-trace/image";
+import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 
 export type UsePdfVisualMarksOptions = {
 	/** Sidecar root for `marks/<id>.json` (null for loose PDFs — nothing persists). */
@@ -44,6 +47,13 @@ export type UsePdfVisualMarksOptions = {
 };
 
 export type PdfVisualMarks = {
+	/** Save an element note only after the editor submits a comment. */
+	saveVisualNote: (
+		page: number,
+		region: PdfAskNormalizedRect,
+		comment: string,
+		image: PromptImage,
+	) => Promise<void>;
 	/** Persist a comment by mark id (comment-rail in-place edit). */
 	updateVisualComment: (id: string, comment: string) => void;
 	/** Add an existing visual mark's crop to the Agent sidebar composer (#396). */
@@ -60,6 +70,21 @@ export function usePdfVisualMarks({
 	upsertVisualTrace,
 }: UsePdfVisualMarksOptions): PdfVisualMarks {
 	const { t } = useTranslation("viewer");
+
+	const saveVisualNote = useCallback<PdfVisualMarks["saveVisualNote"]>(
+		async (page, region, comment, image) => {
+			const trace = createNoteTrace({
+				paperPath: paperRelPath ?? paperAbsPath ?? "paper",
+				page,
+				rects: [region],
+				comment,
+				image,
+			});
+			if (paperAbsPath) await writePdfVisualTrace(paperAbsPath, trace);
+			upsertVisualTrace(trace);
+		},
+		[paperAbsPath, paperRelPath, upsertVisualTrace],
+	);
 
 	/** Persist a comment by mark id (rail in-place edit). */
 	const updateVisualComment = useCallback(
@@ -133,6 +158,7 @@ export function usePdfVisualMarks({
 	);
 
 	return {
+		saveVisualNote,
 		updateVisualComment,
 		handleVisualAddToChatById,
 		deleteVisualTraceById,

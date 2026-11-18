@@ -241,6 +241,8 @@ export type SelectionCommentDraft = {
 	shape?: PdfTextMarkupKind;
 	/** EmbedPDF selection pages snapped when the editor was opened. */
 	pages: FormattedSelection[];
+	/** Crop bounds for a visual note; these drafts have no text markup pages. */
+	visualRegion?: PdfAskNormalizedRect;
 	/**
 	 * Translation boxes to keep painted while the editor is open. Omitted for an
 	 * English text-layer selection, which EmbedPDF already tints.

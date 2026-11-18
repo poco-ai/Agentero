@@ -1,19 +1,15 @@
-/**
- * Action view for the layout element under the pointer.
- * Add to chat and selection-translate go through the shared selection
- * actions. A figure / table / formula crop is composer input only: nothing
- * is written to marks and the annotation editor stays closed.
- */
-
-import type { PdfEngine } from "@embedpdf/models";
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import { type ReactNode, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { addSelectionToChat } from "@/components/selection/add-selection-to-chat";
-import { SelectionActionMenu } from "@/components/selection/selection-action-menu";
-import { selectionBoundsOnScreen } from "@/components/viewer/pdf/coords";
+import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
+import {
+	anchorFromEmbedSelection,
+	formattedSelectionPage,
+	selectionBoundsOnScreen,
+} from "@/components/viewer/pdf/coords";
 import { isPdfDocumentCloseRaceError } from "@/components/viewer/pdf/host-dom";
 import {
 	closeLayoutElementAction,
@@ -22,20 +18,29 @@ import {
 	layoutElementActionStore,
 	moveLayoutElementAction,
 } from "@/components/viewer/pdf/layout-element-action-store";
-import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
+import { layoutSentenceLineRects } from "@/components/viewer/pdf/layout-sentence-hover";
+import type { SelectionCommentDraft } from "@/components/viewer/pdf/types";
+import type { PromptImage } from "@/lib/agent";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	normalizeQuoteContext,
 	quoteContextFromText,
 } from "@/lib/agent/selection-context";
+import {
+	registerSelectionAddToChat,
+	registerSelectionQuickChat,
+} from "@/lib/agent/selection-quick-chat";
 import { addVisualDraft } from "@/lib/agent/visual-context-store";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { notifyError } from "@/lib/core/notify";
-import type { PdfAskAnchor } from "@/lib/pdf/ask/types";
+import type { PdfAskAnchor, PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
+import type { HighlightColor } from "@/lib/pdf/highlight/palette";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import {
 	layoutDocumentKey,
 	layoutElementNeedsCrop,
 	layoutKindI18nKey,
+	pointInBbox,
 } from "@/lib/pdf/layout";
 import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
 
@@ -45,10 +50,22 @@ type DocumentManagerCapability = ReturnType<
 
 type LayoutElementActionsProps = {
 	docId: string;
-	engine: PdfEngine | null;
 	docCap: DocumentManagerCapability;
 	paperRelPath: string | null;
 	paperAbsPath: string | null;
+	captureRegion: (
+		pageIndex: number,
+		region: PdfAskNormalizedRect,
+	) => Promise<PromptImage>;
+	onHighlight: (
+		pages: SelectionCommentDraft["pages"],
+		color: HighlightColor,
+		quote: string,
+		shape: PdfTextMarkupKind,
+	) => void;
+	onNote: (draft: SelectionCommentDraft) => void;
+	onAsk: (anchor: PdfAskAnchor) => void;
+	onBookmark?: (page: number, title: string) => void;
 	translateSelection: (anchor: PdfAskAnchor) => void;
 };
 
@@ -87,36 +104,30 @@ function placeAction(action: LayoutElementAction): LayoutElementScreen | null {
 
 export function LayoutElementActions({
 	docId,
-	engine,
-	docCap,
-	paperRelPath,
-	paperAbsPath,
-	translateSelection,
+	...props
 }: LayoutElementActionsProps): ReactNode {
-	const { t } = useTranslation("viewer");
 	const action = useStore(layoutElementActionStore, (state) =>
 		state.action?.docId === docId ? state.action : null,
 	);
+	const actionOpen = Boolean(action);
 
 	useEffect(() => {
-		const current = layoutElementActionStore.getState().action;
-		if (current && current.docId !== docId) closeLayoutElementAction();
-	}, [docId]);
-
-	useEffect(() => {
-		if (!action) return;
+		if (!actionOpen) return;
 		const onKey = (event: KeyboardEvent) => {
 			if (event.key !== "Escape" || event.defaultPrevented) return;
+			if (layoutElementActionStore.getState().action?.docId !== docId) return;
 			event.preventDefault();
 			closeLayoutElementAction();
 		};
 		const onPointerDown = (event: PointerEvent) => {
 			const target = event.target;
 			if (!(target instanceof Element)) return;
-			if (target.closest("[data-selection-menu], [data-layout-element]")) {
+			if (target.closest("[data-selection-ui], [data-layout-element]")) {
 				return;
 			}
-			closeLayoutElementAction();
+			if (layoutElementActionStore.getState().action?.docId === docId) {
+				closeLayoutElementAction();
+			}
 		};
 		let raf = 0;
 		const onScroll = () => {
@@ -142,32 +153,97 @@ export function LayoutElementActions({
 			window.removeEventListener("scroll", onScroll, true);
 			if (raf) cancelAnimationFrame(raf);
 		};
-	}, [action, docId]);
+	}, [actionOpen, docId]);
 
 	if (!action || typeof document === "undefined") return null;
 
+	return createPortal(
+		<LayoutElementMenu
+			key={`${action.pageIndex}:${action.regionId}:${action.quote}`}
+			{...props}
+			action={action}
+		/>,
+		document.body,
+	);
+}
+
+function LayoutElementMenu({
+	action,
+	docCap,
+	paperRelPath,
+	paperAbsPath,
+	captureRegion,
+	onHighlight,
+	onNote,
+	onAsk,
+	onBookmark,
+	translateSelection,
+}: Omit<LayoutElementActionsProps, "docId"> & { action: LayoutElementAction }) {
+	const { t } = useTranslation("viewer");
+	const { docId, pageIndex } = action;
 	const kindLabel = t(layoutKindI18nKey(action.kind));
 	const quote = action.quote.trim();
-	const sourcePath = paperRelPath ?? paperAbsPath ?? "PDF";
+	const needsCrop = layoutElementNeedsCrop(action.kind) || !quote;
+	const doc = docCap?.getDocument(docId);
+	const sizeFor = (index: number) => doc?.pages[index]?.size ?? null;
+	const members = action.sentence?.members;
+	const pages = needsCrop
+		? []
+		: [
+				...new Set([
+					pageIndex,
+					...(members?.map((member) => member.pageIndex) ?? []),
+				]),
+			].flatMap((index) => {
+				const size = sizeFor(index);
+				if (!size) return [];
+				const glyphs = members
+					? members
+							.filter((member) => member.pageIndex === index)
+							.flatMap((member) => member.rects)
+					: layoutSentenceLineRects(docId, index).filter((rect) =>
+							pointInBbox(
+								rect.x + rect.w / 2,
+								rect.y + rect.h / 2,
+								action.bbox,
+							),
+						);
+				return formattedSelectionPage(
+					index,
+					glyphs.length || index !== pageIndex ? glyphs : action.rects,
+					size,
+				);
+			});
+	const hasMarkup = pages.length > 0;
+	const anchor: PdfAskAnchor = anchorFromEmbedSelection(
+		pages,
+		quote,
+		sizeFor,
+		"region",
+		pageIndex,
+	) ?? {
+		page: pageIndex + 1,
+		rects: action.rects,
+		quote,
+		trigger: "region",
+	};
 
 	const pinQuote = () => {
 		if (!quote) return false;
 		addSelectionToChat({
 			text: quote,
-			sourcePath,
+			sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
 			origin: "pdf",
 			context: elementContext(action, kindLabel),
-			page: action.pageIndex + 1,
-			rects: action.rects,
+			page: anchor.page,
+			rects: anchor.rects,
 			paperAbsPath: paperAbsPath ?? undefined,
 		});
 		return true;
 	};
 
 	const addToChat = () => {
-		const current = action;
 		closeLayoutElementAction();
-		const needsCrop = layoutElementNeedsCrop(current.kind);
 		if (!needsCrop) {
 			pinQuote();
 			return;
@@ -175,24 +251,14 @@ export function LayoutElementActions({
 		void (async () => {
 			let cropped = false;
 			try {
-				if (!engine || !docCap || !docCap.isDocumentOpen(docId)) {
-					throw new Error(t("pdfExplain.cropFailed"));
-				}
-				const documentObject = docCap.getDocument(docId);
-				if (!documentObject) throw new Error(t("pdfExplain.cropFailed"));
-				const image = await renderPdfRegionPromptImage({
-					engine,
-					document: documentObject,
-					pageIndex: current.pageIndex,
-					region: current.bbox,
-				});
-				if (!docCap.isDocumentOpen(docId)) return;
+				const image = await captureRegion(pageIndex, action.bbox);
+				if (!docCap?.isDocumentOpen(docId)) return;
 				addVisualDraft({
-					id: `layout-el:${current.regionId}`,
+					id: `layout-el:${action.regionId}`,
 					paperPath: paperRelPath || paperAbsPath || "paper",
 					paperAbsPath: paperAbsPath ?? undefined,
-					page: current.pageIndex + 1,
-					rects: [current.bbox],
+					page: pageIndex + 1,
+					rects: [action.bbox],
 					comment: kindLabel,
 					image,
 				});
@@ -216,20 +282,78 @@ export function LayoutElementActions({
 		})();
 	};
 
-	return createPortal(
-		<SelectionActionMenu
+	const ask = () => {
+		closeLayoutElementAction();
+		onAsk(
+			needsCrop
+				? {
+						...anchor,
+						rects: [action.bbox],
+						visualKind: action.kind === "formula" ? "formula" : "figure",
+					}
+				: anchor,
+		);
+	};
+
+	useEffect(() => {
+		const isCurrent = () =>
+			layoutElementActionStore.getState().action === action;
+		const unregisterAsk = registerSelectionQuickChat(() => {
+			if (!isCurrent()) return false;
+			ask();
+			return true;
+		});
+		const unregisterChat = registerSelectionAddToChat(() => {
+			if (!isCurrent()) return false;
+			addToChat();
+			return true;
+		});
+		return () => {
+			unregisterAsk();
+			unregisterChat();
+		};
+	});
+
+	return (
+		<SelectionMenu
 			screen={action.screen}
 			selectionText={quote}
 			onAddToChat={addToChat}
+			onAsk={ask}
+			onHighlight={
+				hasMarkup
+					? (color, shape) => {
+							onHighlight(pages, color, quote, shape);
+							closeLayoutElementAction();
+						}
+					: undefined
+			}
+			onNote={
+				needsCrop || hasMarkup
+					? (shape) => {
+							onNote({
+								page: anchor.page,
+								anchorY: anchor.rects[0]?.y ?? action.bbox.y,
+								quote,
+								shape,
+								pages,
+								visualRegion: needsCrop ? action.bbox : undefined,
+							});
+							closeLayoutElementAction();
+						}
+					: undefined
+			}
+			onBookmark={
+				onBookmark
+					? () => {
+							onBookmark(pageIndex + 1, quote || kindLabel);
+							closeLayoutElementAction();
+						}
+					: undefined
+			}
 			onTranslate={
 				quote
 					? () => {
-							const anchor: PdfAskAnchor = {
-								page: action.pageIndex + 1,
-								rects: action.rects,
-								quote,
-								trigger: "region",
-							};
 							closeLayoutElementAction();
 							translateSelection(anchor);
 						}
@@ -243,7 +367,6 @@ export function LayoutElementActions({
 							})
 					: undefined
 			}
-		/>,
-		document.body,
+		/>
 	);
 }

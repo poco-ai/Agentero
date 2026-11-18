@@ -805,6 +805,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 	const aliveRef = useRef(true);
 	const closingRef = useRef(false);
 	const { isBlockedByIme } = useImeGuard();
+	const kind = draft.visualRegion ? "visual" : "highlight";
 
 	// The card hugs the editor; this estimate only keeps the anchor inside
 	// the page while the draft is short.
@@ -817,7 +818,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			quote: draft.quote,
 			comment: "",
 			color: DEFAULT_HIGHLIGHT_COLOR,
-			kind: "highlight",
+			kind,
 			linkAlias: null,
 		},
 		true,
@@ -906,12 +907,10 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			}}
 		>
 			<div className="w-56 px-2.5 py-2">
-				<span
-					className={cn(
-						"block size-2 rounded-full",
-						swatchColorClass(DEFAULT_HIGHLIGHT_COLOR),
-					)}
-					aria-hidden
+				<MarkerGlyph
+					kind={kind}
+					color={DEFAULT_HIGHLIGHT_COLOR}
+					shape={draft.shape}
 				/>
 				<CommentMarkdownEditor
 					initialValue=""

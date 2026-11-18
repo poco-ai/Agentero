@@ -771,6 +771,10 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		marks.selectionCommentDraft?.page === pageNumber
 			? marks.selectionCommentDraft
 			: null;
+	const draftVisualRegion = selectionDraftOnPage?.visualRegion;
+	const activeVisualRects = draftVisualRegion
+		? [draftVisualRegion]
+		: activeVisualOnPage?.rects;
 	const translateHighlightsOnPage =
 		marks.translateHighlightsByPage.get(pageNumber) ?? [];
 	const layoutTranslateOnPage =
@@ -1667,10 +1671,10 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					/>
 				) : null}
 				{/* Active visual mark: default-theme outline of the crop region. */}
-				{activeVisualOnPage
-					? activeVisualOnPage.rects.map((rect) => (
+				{activeVisualRects
+					? activeVisualRects.map((rect) => (
 							<div
-								key={`${activeVisualOnPage.id}-region-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
+								key={`visual-region-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
 								className={cn(PDF_VISUAL_REGION_FRAME_CLASS, "z-[2]")}
 								style={{
 									left: `${rect.x * 100}%`,
@@ -1761,13 +1765,14 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				{/*
 				 * Bidirectional hover for rail comments: hovering the page region
 				 * (text highlight or visual crop) emphasizes the card and draws the
-				 * connector. Visual regions keep the existing click-to-edit path (#396);
+				 * connector. Visual regions are clickable in reading mode (#396);
+				 * element selection owns clicks when there are selectable regions.
 				 * text highlights with a note do the same, while plain highlights
 				 * (not in `comments`) still use EmbedPDF's annotation menu.
 				 */}
 				{shownComments.map((comment) =>
 					comment.rects.map((rect) =>
-						comment.kind === "visual" ? (
+						comment.kind === "visual" && !selectableOnPage?.length ? (
 							<button
 								key={`comment-hover-hit-${comment.id}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
 								type="button"

@@ -58,6 +58,7 @@ import { PdfReferencesPanel } from "@/components/viewer/pdf/chrome/pdf-reference
 import { PdfToolbar } from "@/components/viewer/pdf/chrome/pdf-toolbar";
 import {
 	anchorFromEmbedSelection,
+	formattedSelectionPage,
 	pageElByIndex,
 	selectionBoundsOnScreen,
 } from "@/components/viewer/pdf/coords";
@@ -129,6 +130,7 @@ import {
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
+import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
 import type {
 	PageAnnotationComment,
 	PdfViewerInnerProps,
@@ -169,6 +171,7 @@ import {
 	annotationWikilinkMarkdown,
 	wikiTargetForPaper,
 } from "@/lib/pdf/annotation-ref";
+import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 import { bookmarkPageIndex } from "@/lib/pdf/bookmark";
 import {
 	type EditableBookmark,
@@ -203,11 +206,7 @@ import {
 	type ActiveSelectionCard,
 	selectionAnchorKey,
 } from "@/lib/pdf/selection";
-import {
-	isSelectionInsertionRegion,
-	mergeTightGlyphRects,
-	unionRectsAll,
-} from "@/lib/pdf/selection-appearance";
+import { isSelectionInsertionRegion } from "@/lib/pdf/selection-appearance";
 import {
 	tintedTranslateRecords,
 	translateHighlightsByPage as translateHighlightsByPageOf,
@@ -603,6 +602,20 @@ function PdfViewerInner({
 	engineRef.current = engine;
 	const docCapRef = useRef(docCap);
 	docCapRef.current = docCap;
+	const captureRegion = useCallback(
+		async (pageIndex: number, region: PdfAskNormalizedRect) => {
+			const engine = engineRef.current;
+			const document = docCapRef.current?.getDocument(docId);
+			if (!engine || !document) throw new Error(t("pdfExplain.cropFailed"));
+			return renderPdfRegionPromptImage({
+				engine,
+				document,
+				pageIndex,
+				region,
+			});
+		},
+		[docId, t],
+	);
 
 	const currentPage = scrollState.currentPage || 1;
 	const totalPages = scrollState.totalPages || 0;
@@ -1060,6 +1073,7 @@ function PdfViewerInner({
 		paperAbsPath,
 		paperRelPath,
 		vaultPath,
+		captureRegion,
 		threadsRef,
 		setThreads,
 		upsertThread,
@@ -1622,9 +1636,10 @@ function PdfViewerInner({
 		[suppressLinkPreviews, clearLinkUrlTip, hoverLinkUrl],
 	);
 
-	// ---- Existing visual marks ----
+	// ---- Visual marks ----
 
 	const {
+		saveVisualNote,
 		updateVisualComment,
 		handleVisualAddToChatById,
 		deleteVisualTraceById,
@@ -1814,20 +1829,13 @@ function PdfViewerInner({
 		].flatMap((pageIndex) => {
 			const size = sizeFor(pageIndex);
 			if (!size) return [];
-			const segmentRects = mergeTightGlyphRects(
+			return formattedSelectionPage(
+				pageIndex,
 				sentence.members
 					.filter((member) => member.pageIndex === pageIndex)
-					.flatMap((member) => member.rects)
-					.map((rect) => ({
-						origin: { x: rect.x * size.width, y: rect.y * size.height },
-						size: {
-							width: rect.w * size.width,
-							height: rect.h * size.height,
-						},
-					})),
+					.flatMap((member) => member.rects),
+				size,
 			);
-			const rect = unionRectsAll(segmentRects);
-			return rect ? [{ pageIndex, rect, segmentRects }] : [];
 		});
 		const rects = sentence.members
 			.filter((member) => member.pageIndex === sentence.pageIndex)
@@ -1954,13 +1962,17 @@ function PdfViewerInner({
 		}
 	}, [isRemotePaper, plainViewer, selectionCommentKeyValue]);
 
+	const beginSelectionComment = useCallback((draft: SelectionCommentDraft) => {
+		selectionCommentEngagedRef.current = true;
+		setSelectionCommentDraft(draft);
+	}, []);
+
 	const handleMenuNote = useCallback(
 		(shape: PdfTextMarkupKind = "highlight") => {
 			const menu = selectionMenuRef.current;
 			if (!menu?.pages.length || isRemotePaper || plainViewer) return;
 			const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
-			selectionCommentEngagedRef.current = true;
-			setSelectionCommentDraft({
+			beginSelectionComment({
 				page: visible?.page ?? menu.anchor.page,
 				anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
 				quote: menu.anchor.quote ?? "",
@@ -1970,7 +1982,7 @@ function PdfViewerInner({
 			});
 			closeSelectionMenu();
 		},
-		[isRemotePaper, plainViewer, closeSelectionMenu],
+		[isRemotePaper, plainViewer, beginSelectionComment, closeSelectionMenu],
 	);
 
 	const handleSelectionCommentActiveChange = useCallback((active: boolean) => {
@@ -1990,7 +2002,18 @@ function PdfViewerInner({
 			selectionCommentDraftRef.current = null;
 			setSelectionCommentDraft(null);
 			closeSelectionMenu();
-			if (!draft?.pages.length) return;
+			if (!draft) return;
+			if (draft.visualRegion) {
+				const region = draft.visualRegion;
+				void captureRegion(draft.page - 1, region).then(
+					(image) =>
+						saveVisualNote(draft.page, region, comment, image).catch((error) =>
+							notifyError(errorText(error)),
+						),
+					() => notifyError(t("pdfExplain.cropFailed")),
+				);
+				return;
+			}
 			handleCommitSelectionNote(
 				{
 					pages: draft.pages,
@@ -2001,7 +2024,13 @@ function PdfViewerInner({
 				comment,
 			);
 		},
-		[handleCommitSelectionNote, closeSelectionMenu],
+		[
+			captureRegion,
+			saveVisualNote,
+			handleCommitSelectionNote,
+			closeSelectionMenu,
+			t,
+		],
 	);
 
 	// ---- In-PDF highlight selection menu ----
@@ -2420,39 +2449,34 @@ function PdfViewerInner({
 				: undefined,
 		[citationImport, handleCitationImportOpenChange, isRemotePaper],
 	);
+	const canBookmark = bookmarkEditor.canEdit && !bookmarkEditor.draft?.saving;
+	const bookmarkSelection = useCallback(
+		(page: number, quote: string) => {
+			if (!canBookmark) return;
+			const title = quote.replace(/\s+/g, " ").trim();
+			bookmarkEditor.begin();
+			bookmarkEditor.change([
+				...bookmarkEditor.nodes,
+				{
+					id: crypto.randomUUID(),
+					origin: null,
+					title: title || t("pdf.bookmarks.defaultTitle", { page }),
+					pageIndex: page - 1,
+					children: [],
+				},
+			]);
+			if (!showOutline) handleToggleOutline();
+		},
+		[t, canBookmark, bookmarkEditor, showOutline, handleToggleOutline],
+	);
 	const handleBookmarkSelection = useCallback(() => {
-		if (
-			!selectionMenu?.pages.length ||
-			!bookmarkEditor.canEdit ||
-			bookmarkEditor.draft?.saving
-		)
-			return;
-		const title = (selectionMenu.anchor.quote ?? selectionMenu.copyText ?? "")
-			.replace(/\s+/g, " ")
-			.trim();
-		bookmarkEditor.begin();
-		bookmarkEditor.change([
-			...bookmarkEditor.nodes,
-			{
-				id: crypto.randomUUID(),
-				origin: null,
-				title:
-					title ||
-					t("pdf.bookmarks.defaultTitle", { page: selectionMenu.anchor.page }),
-				pageIndex: selectionMenu.anchor.page - 1,
-				children: [],
-			},
-		]);
-		if (!showOutline) handleToggleOutline();
+		if (!selectionMenu?.pages.length) return;
+		bookmarkSelection(
+			selectionMenu.anchor.page,
+			selectionMenu.anchor.quote ?? selectionMenu.copyText ?? "",
+		);
 		closeSelectionMenu();
-	}, [
-		t,
-		selectionMenu,
-		bookmarkEditor,
-		showOutline,
-		handleToggleOutline,
-		closeSelectionMenu,
-	]);
+	}, [selectionMenu, bookmarkSelection, closeSelectionMenu]);
 	const contributionPaperId = paperMeta?.id?.trim() || undefined;
 	const canMarkSelection =
 		!isRemotePaper && !plainViewer && Boolean(selectionMenu?.pages.length);
@@ -2466,9 +2490,7 @@ function PdfViewerInner({
 			onTranslate: handleMenuTranslate,
 			onCopy: handleMenuCopy,
 			onBookmark:
-				bookmarkEditor.canEdit &&
-				!bookmarkEditor.draft?.saving &&
-				selectionMenu?.pages.length
+				canBookmark && selectionMenu?.pages.length
 					? handleBookmarkSelection
 					: undefined,
 			showHighlight: canMarkSelection,
@@ -2492,8 +2514,7 @@ function PdfViewerInner({
 			handleMenuAddToChat,
 			handleMenuTranslate,
 			handleMenuCopy,
-			bookmarkEditor.canEdit,
-			bookmarkEditor.draft?.saving,
+			canBookmark,
 			handleBookmarkSelection,
 			isRemotePaper,
 			vaultPath,
@@ -2808,8 +2829,11 @@ function PdfViewerInner({
 						railWidth={COMMENT_RAIL_WIDTH_PX}
 						hasCommentsOnPage={hasCommentsOnPage}
 						hoveredCommentId={hoveredCommentId}
-						revealPage={railEdit ? railEdit.pageIndex + 1 : null}
-						holdOpen={Boolean(railEdit)}
+						revealPage={
+							selectionCommentDraft?.page ??
+							(railEdit ? railEdit.pageIndex + 1 : null)
+						}
+						holdOpen={Boolean(railEdit || selectionCommentDraft)}
 					/>
 				) : null}
 				<ActiveCardScrollSync
@@ -2831,10 +2855,16 @@ function PdfViewerInner({
 			{!translationOnly && !immersiveReading && elementSelecting ? (
 				<LayoutElementActions
 					docId={docId}
-					engine={engine}
 					docCap={docCap}
 					paperRelPath={paperRelPath}
 					paperAbsPath={paperAbsPath}
+					captureRegion={captureRegion}
+					onHighlight={(pages, color, quote, shape) =>
+						createHighlights(pages, color, quote, undefined, shape)
+					}
+					onNote={beginSelectionComment}
+					onAsk={startFromAnchor}
+					onBookmark={canBookmark ? bookmarkSelection : undefined}
 					translateSelection={translateSelection}
 				/>
 			) : null}

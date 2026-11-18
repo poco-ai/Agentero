@@ -13,6 +13,11 @@ import type {
 	PdfAskNormalizedRect,
 	PdfAskTrigger,
 } from "@/lib/pdf/ask/types";
+import { normalizedRegionToPdfRect } from "@/lib/pdf/region";
+import {
+	mergeTightGlyphRects,
+	unionRectsAll,
+} from "@/lib/pdf/selection-appearance";
 
 /** Marks a rendered page wrapper so overlays/menus can map page↔screen coords. */
 export const EMBED_PAGE_ATTR = "data-embed-pdf-page";
@@ -81,6 +86,21 @@ export function rectBottomCenterScreen(
 		top,
 		bottom,
 	};
+}
+
+/** Format source glyphs or layout boxes using EmbedPDF's page-point geometry. */
+export function formattedSelectionPage(
+	pageIndex: number,
+	rects: readonly PdfAskNormalizedRect[],
+	size: Size,
+): FormattedSelection[] {
+	const segmentRects = mergeTightGlyphRects(
+		rects
+			.map((rect) => normalizedRegionToPdfRect(rect, size))
+			.filter((rect) => rect !== null),
+	);
+	const rect = unionRectsAll(segmentRects);
+	return rect ? [{ pageIndex, rect, segmentRects }] : [];
 }
 
 /**

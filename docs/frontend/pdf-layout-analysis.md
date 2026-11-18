@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | 上游 | [EmbedPDF Layout Analysis](https://www.embedpdf.com/docs/react/headless/plugins/plugin-layout-analysis) |
-| 代码 | `src/lib/pdf/layout/`、`viewer/panels/figures-panel.tsx`（header 按钮）、`viewer/pdf/hooks/use-pdf-layout-{regions,run,hover,translate}.ts`、`viewer/pdf/layers/layout-element-selection-layer.tsx`（元素选择）、`layout-element-actions.tsx`（加入对话 / 翻译）、`page-layers.tsx`（Eye 叠加） |
+| 代码 | `src/lib/pdf/layout/`、`viewer/panels/figures-panel.tsx`（header 按钮）、`viewer/pdf/hooks/use-pdf-layout-{regions,run,hover,translate}.ts`、`viewer/pdf/layers/layout-element-selection-layer.tsx`（元素选择）、`layout-element-actions.tsx`（元素工具卡）、`page-layers.tsx`（Eye 叠加） |
 | 持久化 | Paper PDF 写入 `{paper}/source/layout.json`（raw text-enriched regions）+ `{paper}/source/layout-index.json`（侧栏同构，供 CLI）；`layoutAnalysisStore` 仍是运行时 UI store |
 
 ---
@@ -92,7 +92,9 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  hit 层用 **post-merge regions**（全 kind；非 Eye 的 rawRegions，也不是侧栏子集）
         │  hover 只画当前元素，指针进入立即点亮。文本类有句对时主视觉是当前句浅底（含跨页链），
         │    合并框（bbox，以及同页 titleBbox / captionBbox）左上方显示可点击的类别标签；边框 / 背景使用纸面墨色（`--pdf-paper-ink`）的 55% / 8%
-        │  类别标签单击 / Enter 选择整个段落 / 元素；段内单击选择当前句；均可加入对话或翻译，不写 visual mark，不打开批注编辑器；选中句持续高亮到动作菜单关闭
+        │  类别标签单击 / Enter 选择整个段落或元素；段内单击选择当前句，选中句亮到工具卡关闭
+        │  文字元素支持高亮 / 下划线和文字批注；图表、公式、算法可保存整块区域批注
+        │  工具卡还提供翻译和复制（有文本时）、加入对话、快速对话及书签（可编辑时）
         │  双栏 PDF：左右同一句一起浅亮，不滚动对侧；LaTeX 双栏无句子表面，先只做 PDF
         │  实现：`hit-test.ts`（selectable*）+ `layout-element-selection-layer.tsx`
         │  ⌘. 与工具栏复用同一个元素选择开关

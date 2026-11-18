@@ -37,10 +37,10 @@ import {
 
 type SelectionMenuProps = {
 	screen: ScreenPoint;
-	onHighlight: (color: HighlightColor, shape: PdfTextMarkupKind) => void;
-	onAsk: () => void;
-	onAddToChat: () => void;
-	onTranslate: () => void;
+	onHighlight?: (color: HighlightColor, shape: PdfTextMarkupKind) => void;
+	onAsk?: () => void;
+	onAddToChat?: () => void;
+	onTranslate?: () => void;
 	selectionText?: string;
 	onCopy?: () => Promise<boolean>;
 	onBookmark?: () => void;
@@ -86,7 +86,7 @@ export function SelectionMenu({
 			const shape = shapes[color];
 			writeMarkupShape(color, shape);
 			setNoteShape(shape);
-			onHighlight(color, shape);
+			onHighlight?.(color, shape);
 		},
 		[shapes, onHighlight],
 	);
@@ -98,7 +98,7 @@ export function SelectionMenu({
 		(color: HighlightColor, kind: PdfTextMarkupKind) => {
 			writeLastMarkupShape(kind);
 			setNoteShape(kind);
-			onHighlight(color, kind);
+			onHighlight?.(color, kind);
 		},
 		[onHighlight],
 	);
@@ -116,6 +116,7 @@ export function SelectionMenu({
 	const contributions = contributionContext
 		? visibleMenuContributions("pdf.selection", contributionContext)
 		: [];
+	const showPalette = showHighlight && Boolean(onHighlight);
 	return (
 		<SelectionActionMenu
 			screen={screen}
@@ -128,17 +129,19 @@ export function SelectionMenu({
 			expandingRef={colorsRef}
 			expandedWidth={HIGHLIGHT_COLOR_STACK_EXPANDED_W}
 			collapsedWidth={HIGHLIGHT_COLOR_STACK_COLLAPSED_W}
-			shortcutActions={showHighlight ? shortcutActions : undefined}
+			shortcutActions={showPalette ? shortcutActions : undefined}
 			beforeActions={
-				showHighlight ? (
+				showHighlight && (showPalette || onNote) ? (
 					<>
-						<HighlightColorStack
-							ref={colorsRef}
-							shapes={shapes}
-							onToggleShape={toggleShape}
-							onSelect={applyShape}
-							shortcuts
-						/>
+						{showPalette && (
+							<HighlightColorStack
+								ref={colorsRef}
+								shapes={shapes}
+								onToggleShape={toggleShape}
+								onSelect={applyShape}
+								shortcuts
+							/>
+						)}
 						{onNote && (
 							<SelectionToolbarIconButton
 								label={t("selection.note")}
@@ -148,10 +151,12 @@ export function SelectionMenu({
 								<MessageSquare className="size-3.5" />
 							</SelectionToolbarIconButton>
 						)}
-						<SelectionToolbarDivider
-							ref={dividerRef}
-							data-selection-anchor=""
-						/>
+						{(onCopy || (showTranslate && onTranslate)) && (
+							<SelectionToolbarDivider
+								ref={dividerRef}
+								data-selection-anchor=""
+							/>
+						)}
 					</>
 				) : undefined
 			}
