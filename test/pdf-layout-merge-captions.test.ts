@@ -756,7 +756,11 @@ function box(
 	};
 }
 const figures = (regions: PdfLayoutRegion[]) =>
-	dedupeLayoutRegions(mergeCaptionsIntoHosts(regions));
+	dedupeLayoutRegions(
+		mergeCaptionsIntoHosts(regions).filter((region) =>
+			isFigureLayoutKind(region.kind),
+		),
+	);
 
 describe("figure aggregation regressions", () => {
 	it("preserves both rows in the right column when the left caption is higher", () => {
