@@ -29,18 +29,14 @@ function awaitingPagePreview(group: readonly LayoutTranslateItem[]): boolean {
 }
 
 /**
- * One status per detected paragraph, including any supplemental text fragments.
- *
- * `awaitingPreview` keeps the spinner on a finished paragraph until its page's
- * translated raster covers the source text. Callers only set it while that
- * preview is genuinely in flight: a cancelled run or a failed final build must
- * fall back to block status alone.
+ * Group block items by their detected paragraph, including supplemental text
+ * fragments. Items covered by a figure are dropped so the overlays never draw
+ * status icons on top of artwork.
  */
-export function translationSpinnerItems(
+export function translationParagraphGroups(
 	items: readonly LayoutTranslateItem[],
-	regions: readonly PdfLayoutRegion[] = [],
-	awaitingPreview = false,
-): readonly LayoutTranslateItem[] {
+	regions: readonly PdfLayoutRegion[],
+): LayoutTranslateItem[][] {
 	const figures = regions.filter(
 		(region) =>
 			isFigureLayoutKind(region.kind) &&
@@ -74,7 +70,23 @@ export function translationSpinnerItems(
 		group.push(item);
 		groups.set(key, group);
 	}
-	return [...groups.values()]
+	return [...groups.values()];
+}
+
+/**
+ * One status per detected paragraph, including any supplemental text fragments.
+ *
+ * `awaitingPreview` keeps the spinner on a finished paragraph until its page's
+ * translated raster covers the source text. Callers only set it while that
+ * preview is genuinely in flight: a cancelled run or a failed final build must
+ * fall back to block status alone.
+ */
+export function translationSpinnerItems(
+	items: readonly LayoutTranslateItem[],
+	regions: readonly PdfLayoutRegion[] = [],
+	awaitingPreview = false,
+): readonly LayoutTranslateItem[] {
+	return translationParagraphGroups(items, regions)
 		.filter(
 			(group) =>
 				group.some((item) => item.status === "running") ||

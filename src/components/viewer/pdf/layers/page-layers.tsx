@@ -1205,6 +1205,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	const translateOverlay =
 		layoutTranslateOnPage &&
 		(translationVisible ||
+			pageTranslateState.status === "error" ||
 			layoutTranslateOnPage.some((item) => item.status === "running")) ? (
 			<LayoutTranslateOverlay
 				items={layoutTranslateOnPage}
@@ -1225,6 +1226,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				links={translateLinkBoxes}
 				glyphRuns={layout.glyphRunsByPage?.get(pageIndex)}
 				awaitingPreview={pageTranslateState.previewPending}
+				onRetryTranslation={handlers.onTogglePageLayoutTranslate}
 				onOpenLink={openTranslatedLink}
 				onHoverLink={hoverTranslatedLink}
 			/>

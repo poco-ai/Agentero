@@ -62,7 +62,7 @@
 			"needLayout": "Run layout analysis first (Figures panel).",
 			"noText": "No extractable text regions to translate.",
 			"failed": "Full-text translate failed",
-			"pageFailed": "Page translation failed",
+			"retryPage": "Retry this page's translation",
 			"exportDualPdf": "Export bilingual PDF",
 			"exportPdf": "Export translated PDF",
 			"reflowFailed": "PDF typesetting failed",
