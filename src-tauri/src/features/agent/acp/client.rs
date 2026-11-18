@@ -1,3 +1,4 @@
+use super::launch::local_launch_command;
 use crate::core::error::AppError;
 use crate::core::process::windows_shell_path;
 use crate::features::agent::acp::terminal::AcpTerminalManager;
@@ -50,120 +51,6 @@ pub(crate) fn client_initialize_request() -> InitializeRequest {
     )
 }
 
-/// Quote a string for a POSIX `sh -c` command so spaces/special characters are
-/// preserved. Wraps in single quotes and escapes embedded single quotes.
-#[cfg(not(windows))]
-pub(crate) fn shell_quote(s: &str) -> String {
-    format!("'{}'", s.replace('\'', "'\"'\"'"))
-}
-
-/// Wrap a local agent command in a shell that changes to `cwd` before exec'ing
-/// the real agent. The ACP stdio transport has no `cwd` field, so this ensures
-/// agents like the Pi adapter start with the vault as their OS-level working
-/// directory.
-#[cfg(not(windows))]
-fn wrap_local_command_with_cwd(
-    command: &Path,
-    args: &[String],
-    cwd: &Path,
-) -> (PathBuf, Vec<String>) {
-    let mut script = format!(
-        "cd {} && exec {}",
-        shell_quote(&cwd.to_string_lossy()),
-        shell_quote(&command.to_string_lossy())
-    );
-    for arg in args {
-        script.push(' ');
-        script.push_str(&shell_quote(arg));
-    }
-    (PathBuf::from("/bin/sh"), vec!["-c".to_string(), script])
-}
-
-/// Quote a token for a Windows `cmd /C` command. Empty strings, spaces, and
-/// most cmd metacharacters trigger double-quote wrapping; internal double
-/// quotes are backslash-escaped.
-#[cfg(any(windows, test))]
-pub(crate) fn windows_shell_quote(s: &str) -> String {
-    if s.is_empty()
-        || s.contains(' ')
-        || s.contains('"')
-        || s.contains('&')
-        || s.contains('|')
-        || s.contains('<')
-        || s.contains('>')
-        || s.contains('^')
-        || s.contains('%')
-    {
-        format!("\"{}\"", s.replace('"', "\\\""))
-    } else {
-        s.to_string()
-    }
-}
-
-/// Convert Rust's canonicalized local drive path into a form accepted by `cmd.exe`.
-/// True UNC paths stay unchanged; supporting them requires a separate `pushd` flow.
-#[cfg(any(windows, test))]
-pub(crate) fn windows_cmd_cwd(cwd: &Path) -> String {
-    windows_shell_path(cwd).to_string_lossy().into_owned()
-}
-
-/// Pre-quote the cwd environment value so metacharacters remain literal after
-/// `cmd.exe` expands `%AGENTERO_AGENT_CWD%`, even when the path has no spaces.
-#[cfg(any(windows, test))]
-pub(crate) fn windows_cmd_cwd_env_value(cwd: &Path) -> String {
-    format!("\"{}\"", windows_cmd_cwd(cwd))
-}
-
-/// Templates whose Windows process must start in the Vault.
-///
-/// ACP stdio has no cwd field. Pi and Custom already used a `cmd` `cd`.
-/// Zcode's `server` mode ignores the ACP session cwd and indexes
-/// `.agents/skills` from the process cwd, so a direct spawn never sees the
-/// Vault. Other templates stay direct children: wrapping them changes
-/// quoting, `cd /d` rejects UNC, and the SDK only kills the direct child.
-#[cfg(any(windows, test))]
-fn windows_process_cwd_template(template: &AgentTemplate) -> bool {
-    matches!(
-        template,
-        AgentTemplate::Pi | AgentTemplate::Custom | AgentTemplate::Zcode
-    )
-}
-
-/// Windows launch policy and command construction. Kept available to unit
-/// tests on Unix so changes to the wrapper policy are checked on every CI run.
-#[cfg(any(windows, test))]
-fn windows_launch_command(
-    desc: &AgentDescriptor,
-    command: PathBuf,
-    env: &mut HashMap<String, String>,
-    cwd: Option<&Path>,
-) -> (PathBuf, Vec<String>) {
-    let Some(cwd) = cwd.filter(|_| windows_process_cwd_template(&desc.template)) else {
-        return (command, desc.args.clone());
-    };
-    env.insert(
-        "AGENTERO_AGENT_CWD".to_string(),
-        windows_cmd_cwd_env_value(cwd),
-    );
-    let mut agent_command = windows_shell_quote(&command.to_string_lossy());
-    for arg in &desc.args {
-        agent_command.push(' ');
-        agent_command.push_str(&windows_shell_quote(arg));
-    }
-    env.insert("AGENTERO_AGENT_COMMAND".to_string(), agent_command);
-    (
-        PathBuf::from("cmd"),
-        vec![
-            "/D".to_string(),
-            "/C".to_string(),
-            "cd /d %AGENTERO_AGENT_CWD% && %AGENTERO_AGENT_COMMAND%".to_string(),
-        ],
-    )
-}
-
-#[cfg(windows)]
-use windows_launch_command as local_launch_command;
-
 /// Summarize an ACP stdio line for debug logs without dumping the full payload.
 fn summarize_acp_line(line: &str) -> String {
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(line) {
@@ -178,7 +65,7 @@ fn summarize_acp_line(line: &str) -> String {
         }
     }
     if line.len() > 120 {
-        format!("{}...", &line[..120])
+        format!("{}...", &line[..line.floor_char_boundary(120)])
     } else {
         line.to_string()
     }
@@ -320,23 +207,6 @@ pub(crate) fn agent_spawn_cwd(
             .map_or_else(crate::core::paths::agent_scratch_dir, Ok)?,
     };
     Ok(windows_shell_path(&raw))
-}
-
-/// Unix launches change cwd before exec (#570): Finder-launched apps inherit
-/// `/`, and `dsh --profile acp` treats the invoking directory as its default
-/// workspace root. The shell takes the cwd inline, so `env` stays unused on
-/// this platform (signature parity with the Windows launcher below).
-#[cfg(not(windows))]
-fn local_launch_command(
-    desc: &AgentDescriptor,
-    command: PathBuf,
-    _env: &mut HashMap<String, String>,
-    cwd: Option<&Path>,
-) -> (PathBuf, Vec<String>) {
-    match cwd {
-        Some(cwd) => wrap_local_command_with_cwd(&command, &desc.args, cwd),
-        None => (command, desc.args.clone()),
-    }
 }
 
 /// Bundled-tier spawn plan, as a plain fn so tests can stub the tier.
@@ -689,6 +559,7 @@ mod timeout_tests {
 
 #[cfg(test)]
 mod cwd_shell_wrap_tests {
+    use super::super::launch::*;
     use super::*;
     use crate::features::agent::models::AgentTemplate;
     use crate::features::agent::remote_host::RemoteAgentLaunch;
@@ -974,10 +845,7 @@ mod cwd_shell_wrap_tests {
         // invoking directory, so it must go through the same `cd` wrapper.
         assert_eq!(program, PathBuf::from("/bin/sh"));
         assert!(
-            args.first().map(String::as_str) == Some("-c")
-                && args
-                    .get(1)
-                    .is_some_and(|s| s.starts_with("cd '/vault' && exec ")),
+            args.get(3).is_some_and(|arg| arg == "/vault"),
             "dsh not wrapped: {args:?}"
         );
         assert!(env.is_empty());
@@ -1007,25 +875,33 @@ mod cwd_shell_wrap_tests {
 
     #[test]
     #[cfg(not(windows))]
-    fn shell_quote_wraps_and_escapes_single_quotes() {
-        assert_eq!(shell_quote("hello"), "'hello'");
-        assert_eq!(shell_quote("it's ok"), "'it'\"'\"'s ok'");
-        assert_eq!(shell_quote(""), "''");
-    }
-
-    #[test]
-    #[cfg(not(windows))]
-    fn wrap_unix_builds_sh_cd_exec_script() {
-        let (cmd, args) = wrap_local_command_with_cwd(
-            Path::new("/usr/bin/pi-acp"),
-            &["--foo".to_string(), "bar baz".to_string()],
-            Path::new("/path/with spaces"),
+    fn unix_wrapper_preserves_working_directory_and_literal_arguments() {
+        let root = tempfile::tempdir().unwrap();
+        let cwd = root.path().join("vault ' with spaces");
+        std::fs::create_dir(&cwd).unwrap();
+        let literal = "$(echo wrong) '\" $HOME";
+        let (program, args) = wrap_local_command_with_cwd(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                r#"printf '%s\n' "$PWD" "$1""#.into(),
+                "test".into(),
+                literal.into(),
+            ],
+            &cwd,
         );
-        assert_eq!(cmd, PathBuf::from("/bin/sh"));
-        assert_eq!(args.len(), 2);
-        assert_eq!(args[0], "-c");
-        assert!(args[1]
-            .starts_with("cd '/path/with spaces' && exec '/usr/bin/pi-acp' '--foo' 'bar baz'"));
+        let output = std::process::Command::new(program)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let mut lines = stdout.lines();
+        assert_eq!(
+            Path::new(lines.next().unwrap()).canonicalize().unwrap(),
+            cwd.canonicalize().unwrap()
+        );
+        assert_eq!(lines.next(), Some(literal));
     }
 
     /// #570 policy guard: on Unix every local template is wrapped with a
@@ -1051,10 +927,7 @@ mod cwd_shell_wrap_tests {
 
             assert_eq!(program, PathBuf::from("/bin/sh"), "{}", desc.id);
             assert!(
-                args.first().map(String::as_str) == Some("-c")
-                    && args
-                        .get(1)
-                        .is_some_and(|s| s.contains("cd '/vault' && exec ")),
+                args.get(3).is_some_and(|arg| arg == "/vault"),
                 "{} not wrapped: {args:?}",
                 desc.id
             );
@@ -1078,13 +951,7 @@ mod cwd_shell_wrap_tests {
             Some(Path::new("/vault")),
         );
         assert_eq!(cmd, PathBuf::from("/bin/sh"));
-        assert_eq!(
-            args,
-            vec![
-                "-c".to_string(),
-                "cd '/vault' && exec 'codex-acp' '--flag'".to_string()
-            ]
-        );
+        assert_eq!(&args[3..], ["/vault", "codex-acp", "--flag"]);
 
         // No cwd known: the bare command is kept.
         let (cmd, args) = local_launch_command(&desc, PathBuf::from("codex-acp"), &mut env, None);
