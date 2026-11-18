@@ -49,7 +49,6 @@ import {
 	openTab,
 	openTabNotes,
 	openTranslationTab,
-	persistExcalidrawFile,
 	persistFile,
 	persistTextFile,
 	rehydrateMisclassifiedPaperTabs,
@@ -371,13 +370,6 @@ export function WorkspaceHost() {
 		}),
 		[handleOpenSettings],
 	);
-	const excalidrawProps = useMemo(
-		() => ({
-			onPersistFile: persistExcalidrawFile,
-			onTabPatch: updateTab,
-		}),
-		[],
-	);
 	const textProps = useMemo(
 		() => ({
 			onPersistFile: persistTextFile,
@@ -393,7 +385,6 @@ export function WorkspaceHost() {
 			library: libraryProps,
 			editor: editorProps,
 			pdf: pdfProps,
-			excalidraw: excalidrawProps,
 			text: textProps,
 			onTrashChanged: handleTrashReload,
 			trashReloadSignal,
@@ -403,7 +394,6 @@ export function WorkspaceHost() {
 			libraryProps,
 			editorProps,
 			pdfProps,
-			excalidrawProps,
 			textProps,
 			handleTrashReload,
 			trashReloadSignal,

@@ -29,6 +29,7 @@ import {
 	agentSessionStore,
 	useAgentSessionStoreApi,
 } from "@/lib/agent/agent-session-store";
+import { annotationSnapshotsFromMessage } from "@/lib/agent/annotation-snapshot";
 import {
 	type AgentOption,
 	type AgentPart,
@@ -69,6 +70,8 @@ export const sanitizeChatLines = (raw: ChatLine[]): ChatLine[] =>
 	raw
 		.map((line) => {
 			if (line.kind !== "user") return line;
+			// Keep the appendix quote before the display strip throws it away.
+			const parsed = annotationSnapshotsFromMessage(line.text);
 			const text = stripPromptEnvelopeForDisplay(line.text);
 			const hasVisual = Boolean(line.visualAnnotations?.length);
 			const hasImages = Boolean(line.images?.length);
@@ -77,6 +80,7 @@ export const sanitizeChatLines = (raw: ChatLine[]): ChatLine[] =>
 			return {
 				...line,
 				text: text || "",
+				...(parsed.length > 0 ? { annotationSnapshots: parsed } : {}),
 				...(line.visualAnnotations?.length
 					? { visualAnnotations: line.visualAnnotations }
 					: {}),

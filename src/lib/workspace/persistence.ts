@@ -63,13 +63,12 @@ export function dirtyVaultPaths(root: string): string[] {
 const reseedGuard = new Set<string>();
 
 /** The editors that autosave through the shared persist pipeline. */
-type PersistKind = "markdown" | "excalidraw" | "text";
+type PersistKind = "markdown" | "text";
 
 /** Serialized saves per kind, keyed by normalized absolute path: overlapping
  * editor lifecycles cannot race their disk snapshot checks and writes. */
 const persistQueues: Record<PersistKind, Map<string, Promise<boolean>>> = {
 	markdown: new Map(),
-	excalidraw: new Map(),
 	text: new Map(),
 };
 
@@ -91,9 +90,6 @@ const persistOutcomes: Record<
 			return next;
 		});
 		for (const id of conflicts) promptMarkdownConflict(path, id);
-	},
-	excalidraw: (path, content) => {
-		setTabs((prev) => seedTabs(prev, path, content, "excalidraw"));
 	},
 	text: (path, content) => {
 		setTabs((prev) => seedTabs(prev, path, content, "text"));
@@ -151,8 +147,8 @@ type DiskChangeKind = {
 	/** Open tabs whose editor renders this path (notes: via the paper pairing). */
 	owns: (tab: DocTab, norm: string) => boolean;
 	/** Tab fields holding this editor's in-memory seed / unsaved-edits flag. */
-	seed: "notesSeed" | "markdownSeed" | "excalidrawSeed" | "textSeed";
-	dirty: "notesDirty" | "markdownDirty" | "excalidrawDirty" | "textDirty";
+	seed: "notesSeed" | "markdownSeed" | "textSeed";
+	dirty: "notesDirty" | "markdownDirty" | "textDirty";
 	/** External-write reseed transform (pure: the sink applies it to its tabs). */
 	refresh: (prev: DocTab[], absPath: string, content: string) => DocTab[];
 };
@@ -184,14 +180,6 @@ const diskChangeKinds: DiskChangeKind[] = [
 		dirty: "markdownDirty",
 		refresh: (prev, absPath, content) =>
 			seedTabs(prev, absPath, content, "markdown", true),
-	},
-	{
-		owns: (tab, norm) =>
-			normalizeTabPath(tab.path) === norm && tab.mode === "excalidraw",
-		seed: "excalidrawSeed",
-		dirty: "excalidrawDirty",
-		refresh: (prev, absPath, content) =>
-			seedTabs(prev, absPath, content, "excalidraw", true),
 	},
 	{
 		owns: (tab, norm) =>
@@ -340,9 +328,9 @@ export function markdownDiskConflicts(
 }
 
 /**
- * Shared autosave pipeline for the text-like editors (Markdown / Excalidraw /
- * plain text): per-path serialization, disk-conflict guard, self-write echo
- * registration, then the kind's post-write reseed.
+ * Shared autosave pipeline for the text-like editors (Markdown / plain text):
+ * per-path serialization, disk-conflict guard, self-write echo registration,
+ * then the kind's post-write reseed.
  *
  * The returned promise resolves when the write and seed update finish. Wiki
  * indexing stays on the per-path queue so later saves still wait for it, but
@@ -476,18 +464,6 @@ export function persistFile(
 	tabId: string,
 ): Promise<boolean> {
 	return persistTextLike("markdown", path, md, lastSaved, tabId);
-}
-
-/**
- * Persist a specific `.excalidraw` file to disk. The ExcalidrawViewer calls
- * this with its own fixed path (debounced autosave and unmount flush).
- */
-export function persistExcalidrawFile(
-	path: string,
-	json: string,
-	lastSaved: string,
-): Promise<boolean> {
-	return persistTextLike("excalidraw", path, json, lastSaved);
 }
 
 /**

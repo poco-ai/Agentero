@@ -479,7 +479,6 @@ export async function loadTabResources(
 		let didDownload = false;
 		let imageUrl: string | null = null;
 		let markdownSeed = "";
-		let excalidrawSeed = "";
 
 		switch (viewerModeSpec(mode).resource) {
 			case "pdf": {
@@ -540,16 +539,6 @@ export async function loadTabResources(
 				}
 				break;
 			}
-			case "excalidraw": {
-				try {
-					excalidrawSeed = await readVaultFile(path);
-				} catch {
-					// Leave the canvas empty when the file cannot be read.
-				}
-				// markdownSeed is consumed only by markdown mode; the old loader
-				// read it here too.
-				break;
-			}
 			case "markdown": {
 				if (isTextOpenable(path)) {
 					try {
@@ -585,7 +574,6 @@ export async function loadTabResources(
 			notesPath,
 			notesSeed,
 			markdownSeed,
-			excalidrawSeed,
 			loaded: true,
 			didDownloadAssets: didDownload,
 		};
@@ -626,14 +614,6 @@ export async function loadTabResources(
 				return { ...base, error: "cannotPreview" };
 			}
 			return { ...base, imageUrl };
-		}
-		case "excalidraw": {
-			try {
-				const excalidrawSeed = await readVaultFile(path);
-				return { ...base, excalidrawSeed };
-			} catch (e) {
-				return { ...base, error: errorText(e) };
-			}
 		}
 		case "text": {
 			// CodeMirror plain-text fallback (Papers 外未知/文本扩展名). Unlike the

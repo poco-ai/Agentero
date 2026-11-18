@@ -159,6 +159,11 @@ function zoomReset(): void {
 	if (getSettings().uiScale !== 1) patchSettings({ uiScale: 1 });
 }
 
+function toggleImmersiveReading(): void {
+	if (!uiStore.getState().immersiveReading && !resolveActivePdfHandle()) return;
+	layout()?.toggleImmersiveReading();
+}
+
 /** Title bar wrapper: subscribes to tabs/ui itself so the shell stays still. */
 function AppTitleBar() {
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
@@ -180,6 +185,7 @@ function AppTitleBar() {
 			onToggleSidebar={toggleSidebar}
 			onToggleAgent={toggleChat}
 			onApplyLayoutMode={applyLayoutMode}
+			onToggleImmersive={toggleImmersiveReading}
 			onOpenSettings={openSettingsWindow}
 		/>
 	);
@@ -252,6 +258,7 @@ export default function App() {
 
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
+	const immersiveReading = useUiStore((s) => s.immersiveReading);
 	const isResizingRightRef = useRef(false);
 
 	// Seed the chrome agent icon with the registry default before the Agent panel
@@ -417,22 +424,47 @@ export default function App() {
 		zoomIn,
 		zoomOut,
 		zoomReset,
-		// ⌘. — toggle visual-region annotation for the paper being read.
+		// ⌘. — toggle layout element selection for the paper being read.
 		// Handles live on the PDF body tab; when NOTES is focused (default
 		// split), resolve the sibling paper tab instead of requiring mode=pdf.
-		visualAnnotation: () => {
-			resolveActivePdfHandle()?.toggleVisualAnnotation();
+		layoutElementSelection: () => {
+			resolveActivePdfHandle()?.toggleElementSelection();
 		},
 		// ⌥A — toggle full-text (layout) translation for the paper being read.
 		// Same dual-pane-aware path as the toolbar Languages button.
 		layoutTranslate: () => {
 			resolveActivePdfHandle()?.toggleLayoutTranslate();
 		},
-		// F11 — Windows borderless fullscreen (no-op on other platforms).
+		// F11 — Windows borderless fullscreen. Chrome stays. If immersive
+		// reading is up, leave that instead of stacking a second fullscreen.
 		toggleFullscreen: () => {
+			if (uiStore.getState().immersiveReading) {
+				toggleImmersiveReading();
+				return;
+			}
 			void toggleBorderlessFullscreen();
 		},
+		immersiveReading: toggleImmersiveReading,
 	});
+
+	useEffect(() => {
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.repeat || event.isComposing) return;
+			if (!uiStore.getState().immersiveReading) return;
+			if (event.defaultPrevented) return;
+			const target = event.target;
+			if (
+				target instanceof Element &&
+				target.closest("textarea, [contenteditable='true'], [role='dialog']")
+			) {
+				return;
+			}
+			event.preventDefault();
+			toggleImmersiveReading();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, []);
 
 	useNativeMenuEvents({
 		onSettings: openSettingsWindow,
@@ -451,6 +483,7 @@ export default function App() {
 	// 1:1 onto the saved values. Sub-threshold px (rails dragged shut)
 	// keep the previously remembered width.
 	const commitUserRailPx = (leftPx?: number, rightPx?: number) => {
+		if (uiStore.getState().immersiveReading) return;
 		const ratio = (px?: number) =>
 			px !== undefined && px >= RAIL_RECORD_MIN_PX
 				? px / window.innerWidth
@@ -482,7 +515,7 @@ export default function App() {
 				  macOS title bar (traffic lights row): Tauri Overlay + hiddenTitle.
 				  Height must match trafficLightPosition math in tao (≈32px → h-8).
 				*/}
-					<AppTitleBar />
+					{!immersiveReading && <AppTitleBar />}
 
 					<ErrorBoundary label="workspace">
 						<ResizableGroup
@@ -626,7 +659,7 @@ export default function App() {
 
 					<AppDialogs />
 
-					<BackgroundTasksPanel />
+					{!immersiveReading && <BackgroundTasksPanel />}
 
 					{/* First-run setup wizard (Raycast-style full-window overlay). */}
 					<OnboardingRoot />

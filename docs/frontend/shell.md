@@ -1,5 +1,9 @@
 # 工作台壳
 
+PDF 可从布局菜单、命令面板或 Shift+F11 进入全屏阅读：保存当前侧栏开合与宽度、面板最大化和窗口全屏状态，隐藏标题栏、工作区标签与路径、PDF 工具栏和非必要悬浮入口。页码、缩放、退出控件在指针移动或键盘聚焦时出现，空闲后淡出；聚焦或悬停在控件上时不隐藏。Esc、退出按钮或再次按 Shift+F11 恢复进入前的窗口和布局；系统退出全屏时也结束沉浸状态。临时布局不写入用户偏好。
+
+布局 → 阅读仍是窗口内的侧栏收起和面板最大化。F11 仍只切换 Windows 窗口全屏；沉浸中按 F11 先退出沉浸并恢复进入前的窗口状态，避免维护另一套阅读全屏标记。
+
 ## 布局
 
 - **左栏**：文件树 + Paper Info（选中论文时显示，或在 Library 中悬停某行时预览该论文；切换到非论文文档时自动隐藏；无卡片容器、常驻 collapsible，点标题行即可折叠，高度 200ms 过渡；上边缘可拖拽调整高度，`preserve-pixel-size`；内容区可滚动但不显示滚动条；文件树多选时复用固定高度标题栏显示批量操作，不压缩或遮挡树；arXiv 论文在资源按钮区显示两行外链：首行 arXiv PDF、alphaXiv、魔搭论文解读与知乎提问入口（仅 DOI 标识的论文把 arXiv 卡片换成 `doi.org` DOI 卡片），次行 GitHub（填写 `code_repo` 时）、Hugging Face 论文页（由 arXiv 标识派生）与 OpenReview；标题行右侧显示可复制的 arXiv ID 或 DOI；窄宽度下资源按钮退化为仅图标；元信息修改入口位于 Info 底部）。当前文件属于一个 LaTeX 项目时，这一块换成 项目结构大纲（编译、诊断和日志位于项目内嵌预览顶部的工具栏）。项目根与编译相同：`% !TEX root`、自身的 `\documentclass` / `\begin{document}`、或反向 `\input` / `\include` 找到的根文件；范围是该根文件所在目录，章节子目录、图片和 PDF 都算在内。没找到新根时沿用上一份 TeX，所以查看 PDF 不会收起面板。旁边的笔记不会因为库里另有一份 `thesis/` 而出现面板。编译引擎在标题右侧的设置里（根文件的 `% !TEX program` 优先，否则记住这个项目上次的选择，再否则 XeLaTeX），平时不出现在命令区。实时预览是开关，不改编译引擎。Library 悬停不再覆盖它；离开该项目后 Paper Info 按原规则恢复。Cool Papers / Kimi 解析入口在论文 `NOTES.md` 的 Markdown 工具栏，不在 Paper Info。左右栏共用 `bg-sidebar` 材质，与中间内容区分层。
@@ -67,7 +71,7 @@
 | 快捷键 | 行为 |
 |---|---|
 | `⌘,` | 开/关设置窗口 |
-| `⌘.` | PDF 视觉批注框选（当前论文：焦点在 PDF 或 NOTES 均可，handle 落在 body 标签） |
+| `⌘.` | PDF 版面元素选择开关（当前论文：焦点在 PDF 或 NOTES 均可，handle 落在 body 标签） |
 | `⌘N` | 新窗口 |
 | `⌘W` / `Esc` | 关弹层 → 关 panel → 关窗 |
 | `⇧⌘T` | 重新打开最近关闭的 panel（内存历史，最多 10 条；关论文正文记正文，恢复时连带 NOTES；切 Vault 清空） |
@@ -117,3 +121,11 @@ macOS 原生菜单在启动及设置保存后读取 `shortcutOverrides`，菜单
 - **订阅 Host 事件一律用类型化事件绑定（`src/lib/core/bindings.ts` 的 `events.*`）：组件内 `useTauriEvent(events.x, cb)`，非 UI 模块 `listenEventSafe(events.x, cb)`（`src/lib/core/tauri-events.ts`）**；字符串事件名仅限前端窗口间广播（`workspace:*`、`agent:attach-context` 等）与 iOS bridge client 事件，非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 `toSafeDisposer()`。手写 `let off; void (async () => { off = await listen(...) })(); return () => off?.()` 会在 `listen` resolve 前 dispose 时泄漏监听器 —— StrictMode 每次开发挂载都会命中。
 - **注册全局订阅的 `init*` / `start*` 必须返回 disposer**，并由调用方 effect 返回。
 - 每个 vault 的副作用挂在 `vault:opened` 作用域上，清理写在同一 handler 的 teardown 里，见 [../architecture.md](../architecture.md) 的「生命周期」。
+
+沉浸阅读退出时还会等待原窗口、侧栏与 Dockview 容器尺寸恢复，再恢复各个分栏的尺寸；避免原 PDF / NOTES.md 比例被全屏期间的布局计算覆盖。
+
+从分屏 NOTES.md 进入沉浸阅读时，显式最大化配对的 PDF，而非当前笔记面板；退出时恢复原先激活的面板。
+
+Dockview 的临时最大化事件在沉浸阅读期间不写入「布局 → 阅读」偏好，防止退出或重启后错误地最大化笔记并折叠侧栏。
+
+进入沉浸模式会释放原编辑器焦点，避免隐藏的笔记编辑器吞掉 Esc；笔记依然按原有规则自动保存。

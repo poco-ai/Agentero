@@ -1750,6 +1750,8 @@ export type AppSettings_Deserialize = {
 	soundEnabled?: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode?: string,
+	/**  In-page translate tab: `hover` (default) | `always` | `hidden`. */
+	pdfTranslateTab?: string,
 	libraryColumns?: LibraryColumnPref_Deserialize[],
 	connectorEnabled?: boolean,
 	connectorPort?: number,
@@ -1903,6 +1905,8 @@ export type AppSettings_Serialize = {
 	soundEnabled: boolean,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
 	pdfSpreadMode: string,
+	/**  In-page translate tab: `hover` (default) | `always` | `hidden`. */
+	pdfTranslateTab: string,
 	libraryColumns: LibraryColumnPref_Serialize[],
 	connectorEnabled: boolean,
 	connectorPort: number,

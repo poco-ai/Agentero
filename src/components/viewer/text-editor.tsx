@@ -149,11 +149,11 @@ const AUTOSAVE_DELAY_MS = 800;
 
 /**
  * Plain-text / code editor (CodeMirror 6) for the `text` fallback mode.
- * Same lifecycle contract as ExcalidrawViewer: React props seed the document
- * and signal external reloads (`reloadKey`); live content, dirty state and
- * debounced autosave are owned here and flow out via callbacks. Unlike the
- * Excalidraw viewer a reload swaps the document in place — view, scroll and
- * undo history are not thrown away.
+ * Same lifecycle contract as the document registry's text-like editors: React
+ * props seed the document and signal external reloads (`reloadKey`); live
+ * content, dirty state and debounced autosave are owned here and flow out via
+ * callbacks. A reload swaps the document in place — view, scroll and undo
+ * history are not thrown away.
  */
 export function TextEditor({
 	panelId,

@@ -8,7 +8,10 @@ import type { AgentPanelRefs } from "@/components/agent/hooks/use-agent-panel-co
 import type { SendOptions } from "@/components/agent/hooks/use-agent-send";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import type { ChatLine } from "@/lib/agent/chat-state";
-import { retainTranscriptChips } from "@/lib/agent/composer-inline-tokens";
+import {
+	extractVisualIds,
+	retainTranscriptChips,
+} from "@/lib/agent/composer-inline-tokens";
 
 export type UseAgentMessageEditOptions = {
 	refs: Pick<
@@ -121,11 +124,28 @@ export function useAgentMessageEdit({
 			original?.kind === "user" && original.images?.length
 				? original.images
 				: undefined;
-		// Visual crops were already consumed into marks; re-send as plain images
-		// so ACP still receives the multimodal payload without recreating drafts.
+		// Preserve inline visual references and send each crop once. Older messages
+		// without reference positions retain their plain image attachment path.
+		const visualIds = new Set(
+			extractVisualIds(
+				original?.kind === "user" ? (original.markup ?? "") : "",
+			),
+		);
+		const visualDrafts =
+			original?.kind === "user"
+				? (original.visualAnnotations ?? [])
+						.filter((visual) => visualIds.has(visual.id))
+						.map((visual) => ({
+							...visual,
+							paperPath: visual.paperPath ?? "",
+							rects: [],
+						}))
+				: [];
 		const visualAsImages =
 			original?.kind === "user"
-				? (original.visualAnnotations ?? []).map((item) => item.image)
+				? (original.visualAnnotations ?? [])
+						.filter((item) => !visualIds.has(item.id))
+						.map((item) => item.image)
 				: [];
 		const mergedImages = [
 			...(resendImages ?? []),
@@ -139,6 +159,7 @@ export function useAgentMessageEdit({
 				: text;
 		await send(payload, {
 			baseLines,
+			visualDrafts,
 			selections: original?.kind === "user" ? (original.selections ?? []) : [],
 			...(mergedImages.length ? { images: mergedImages } : {}),
 		});

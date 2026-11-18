@@ -77,7 +77,6 @@
 		"@embedpdf/plugin-tiling": "2.14.4",
 		"@embedpdf/plugin-viewport": "2.14.4",
 		"@embedpdf/plugin-zoom": "2.14.4",
-		"@excalidraw/excalidraw": "^0.18.1",
 		"@flowershow/remark-wiki-link": "^3.4.0",
 		"@fontsource-variable/geist": "^5.2.9",
 		"@glideapps/glide-data-grid": "6.0.4-alpha24",

@@ -44,7 +44,6 @@ export type { DiskChangeSink } from "./persistence";
 export {
 	applyDiskChange,
 	dirtyVaultPaths,
-	persistExcalidrawFile,
 	persistFile,
 	persistTextFile,
 } from "./persistence";

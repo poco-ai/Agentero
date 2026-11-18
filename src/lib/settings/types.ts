@@ -115,6 +115,25 @@ export function isPdfScrollStrategy(v: unknown): v is PdfScrollStrategy {
  */
 export type PdfSpreadMode = "none" | "odd" | "even";
 
+/**
+ * In-page 「翻译页面」 tab. `hover` shows it while the pointer is on the page,
+ * `always` keeps it up, `hidden` leaves translation to the toolbar / shortcut.
+ */
+export type PdfTranslateTabMode = "hover" | "always" | "hidden";
+
+export const PDF_TRANSLATE_TAB_MODES: readonly PdfTranslateTabMode[] = [
+	"hover",
+	"always",
+	"hidden",
+] as const;
+
+export function isPdfTranslateTabMode(v: unknown): v is PdfTranslateTabMode {
+	return (
+		typeof v === "string" &&
+		(PDF_TRANSLATE_TAB_MODES as readonly string[]).includes(v)
+	);
+}
+
 export const PDF_SPREAD_MODES: readonly PdfSpreadMode[] = [
 	"none",
 	"odd",
@@ -204,6 +223,11 @@ export type AppSettings = {
 	 * = two-page spreads (paired from page 1 / after a standalone cover).
 	 */
 	pdfSpreadMode: PdfSpreadMode;
+	/**
+	 * In-page translate tab: `hover` (default) | `always` | `hidden`.
+	 * Hidden keeps the toolbar, command palette, and shortcut.
+	 */
+	pdfTranslateTab: PdfTranslateTabMode;
 	/**
 	 * How NOTES.md is initialized on paper import. `custom` copies the vault
 	 * template `.agentero/templates/NOTES.md`. Default: built-in skeleton.

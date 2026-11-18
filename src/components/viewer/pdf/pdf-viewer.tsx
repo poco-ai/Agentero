@@ -18,7 +18,6 @@ import {
 import {
 	GlobalPointerProvider,
 	InteractionManagerPluginPackage,
-	useInteractionManagerCapability,
 } from "@embedpdf/plugin-interaction-manager/react";
 import {
 	LayoutAnalysisPluginPackage,
@@ -57,6 +56,11 @@ import { PdfLeftToolbar } from "@/components/viewer/pdf/chrome/pdf-left-toolbar"
 import { PdfOutlinePanel } from "@/components/viewer/pdf/chrome/pdf-outline-panel";
 import { PdfReferencesPanel } from "@/components/viewer/pdf/chrome/pdf-references-panel";
 import { PdfToolbar } from "@/components/viewer/pdf/chrome/pdf-toolbar";
+import {
+	anchorFromEmbedSelection,
+	pageElByIndex,
+	selectionBoundsOnScreen,
+} from "@/components/viewer/pdf/coords";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
 import { usePdfActiveAnchors } from "@/components/viewer/pdf/hooks/use-pdf-active-anchors";
 import { usePdfAskThreads } from "@/components/viewer/pdf/hooks/use-pdf-ask-threads";
@@ -67,6 +71,7 @@ import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
 import { usePdfFind } from "@/components/viewer/pdf/hooks/use-pdf-find";
 import { usePdfHighlights } from "@/components/viewer/pdf/hooks/use-pdf-highlights";
+import { usePdfImmersivePosition } from "@/components/viewer/pdf/hooks/use-pdf-immersive-position";
 import { usePdfJumpBack } from "@/components/viewer/pdf/hooks/use-pdf-jump-back";
 import { usePdfLayoutCluster } from "@/components/viewer/pdf/hooks/use-pdf-layout-cluster";
 import { usePdfLinkInk } from "@/components/viewer/pdf/hooks/use-pdf-link-ink";
@@ -83,7 +88,6 @@ import { usePdfPageText } from "@/components/viewer/pdf/hooks/use-pdf-page-text"
 import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-tone";
 import { usePdfPinAnchors } from "@/components/viewer/pdf/hooks/use-pdf-pin-anchors";
 import { usePdfReadingMode } from "@/components/viewer/pdf/hooks/use-pdf-reading-mode";
-import { usePdfRegionFraming } from "@/components/viewer/pdf/hooks/use-pdf-region-framing";
 import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
 import { usePdfSelectionActions } from "@/components/viewer/pdf/hooks/use-pdf-selection-actions";
 import { usePdfSelectionTranslate } from "@/components/viewer/pdf/hooks/use-pdf-selection-translate";
@@ -103,6 +107,7 @@ import {
 	type PdfTextLink,
 } from "@/components/viewer/pdf/layers/citation-links";
 import { COMMENT_RAIL_WIDTH_PX } from "@/components/viewer/pdf/layers/comment-cards-layer";
+import { LayoutElementActions } from "@/components/viewer/pdf/layers/layout-element-actions";
 import { PDF_LINK_ANNOTATION_CONFIG } from "@/components/viewer/pdf/layers/link-annotation";
 import {
 	type PdfPageHandlers,
@@ -111,13 +116,23 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
+import {
+	layoutElementActionStore,
+	setLayoutElementSelection,
+} from "@/components/viewer/pdf/layout-element-action-store";
+import {
+	bindLayoutSentenceGlyphs,
+	holdLayoutSentenceHover,
+	publishLayoutSentenceCatalog,
+	suppressLayoutSentenceHover,
+} from "@/components/viewer/pdf/layout-sentence-hover";
+import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
 import type {
 	PageAnnotationComment,
 	PdfViewerInnerProps,
 	PdfViewerProps,
-	RailEditState,
 	ScreenPoint,
 	SelectionCommentDraft,
 	SelectionMenuState,
@@ -131,7 +146,11 @@ import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { RailPeek } from "@/components/viewer/pdf/viewport/rail-peek";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
-import { useLibraryStore, useSettings } from "@/hooks/use-app-stores";
+import {
+	useLibraryStore,
+	useSettings,
+	useUiStore,
+} from "@/hooks/use-app-stores";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	createSelectionContext,
@@ -164,9 +183,11 @@ import {
 	getPdfAiRuntime,
 	layoutAnalysisStore,
 	layoutDocumentKey,
-	type PdfLayoutRegion,
+	layoutSentenceScope,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
+import { isLayoutElementTextKind } from "@/lib/pdf/layout/labels";
+import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
 import {
 	clearTranslatedLinkSource,
 	publishTranslatedLinkSource,
@@ -182,7 +203,11 @@ import {
 	type ActiveSelectionCard,
 	selectionAnchorKey,
 } from "@/lib/pdf/selection";
-import { isSelectionInsertionRegion } from "@/lib/pdf/selection-appearance";
+import {
+	isSelectionInsertionRegion,
+	mergeTightGlyphRects,
+	unionRectsAll,
+} from "@/lib/pdf/selection-appearance";
 import {
 	tintedTranslateRecords,
 	translateHighlightsByPage as translateHighlightsByPageOf,
@@ -191,6 +216,7 @@ import {
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
 import { loadSettings } from "@/lib/settings";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
+import { layout } from "@/lib/shell/ui-store";
 import { basenameOf, vaultRelativePath } from "@/lib/vault/path";
 import { openLatexTranslationTab } from "@/lib/workspace/actions-latex-translation";
 
@@ -312,8 +338,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 			createPluginRegistration(InteractionManagerPluginPackage),
 			createPluginRegistration(SearchPluginPackage),
 		];
-		if (translationOnly) return core;
-		return [
+		const interactive = [
 			...core,
 			createPluginRegistration(SelectionPluginPackage, {
 				// Text selection is enough for the floating menu. EmbedPDF's built-in
@@ -330,6 +355,11 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				selectAfterCreate: false,
 				deactivateToolAfterCreate: true,
 			}),
+		];
+		// Native translated selection uses annotation/history without a PDF text layer.
+		if (translationOnly) return interactive;
+		return [
+			...interactive,
 			createPluginRegistration(BookmarkPluginPackage),
 			// Experimental: on-device layout (image/table/formula) via ONNX.
 			// Model lives under XDG cache (startup prefetch: ModelScope → HF).
@@ -542,7 +572,6 @@ function PdfViewerInner({
 	usePdfScrollSync(docId);
 	usePdfReadingMode(docId);
 	const { provides: selectionCap } = useSelectionCapability();
-	const { provides: interactionCap } = useInteractionManagerCapability();
 	const { provides: annotationCap } = useAnnotationCapability();
 	const { provides: docCap } = useDocumentManagerCapability();
 	const { provides: bookmarkCap } = useBookmarkCapability();
@@ -820,6 +849,44 @@ function PdfViewerInner({
 	}, [pageTextLinkMap, nativeCitationLinks]);
 
 	const hostRef = useRef<HTMLDivElement>(null);
+	const immersiveReading = useUiStore((s) => s.immersiveReading);
+	const [immersiveChrome, setImmersiveChrome] = useState(true);
+	usePdfImmersivePosition(docId, hostRef, zoomCapRef);
+
+	useEffect(() => {
+		if (!immersiveReading) {
+			setImmersiveChrome(true);
+			return;
+		}
+		const root = hostRef.current;
+		if (!root) return;
+		setImmersiveChrome(true);
+		const hide = () => {
+			if (
+				!root.querySelector(
+					"[data-pdf-chrome]:hover, [data-pdf-chrome]:focus-within",
+				)
+			)
+				setImmersiveChrome(false);
+		};
+		let timer = window.setTimeout(hide, 1800);
+		const show = () => {
+			setImmersiveChrome(true);
+			window.clearTimeout(timer);
+			timer = window.setTimeout(hide, 1800);
+		};
+		root.addEventListener("pointermove", show);
+		root.addEventListener("pointerdown", show);
+		root.addEventListener("focusin", show);
+		root.addEventListener("focusout", show);
+		return () => {
+			window.clearTimeout(timer);
+			root.removeEventListener("pointermove", show);
+			root.removeEventListener("pointerdown", show);
+			root.removeEventListener("focusin", show);
+			root.removeEventListener("focusout", show);
+		};
+	}, [immersiveReading]);
 	usePdfSyncTex({
 		docId,
 		tabId: baseDocId,
@@ -854,10 +921,30 @@ function PdfViewerInner({
 		hostRef,
 		zoomRef,
 		isActive,
+		sideBySide: dualPaneTranslate && !translationPane,
 		paperRelPath,
 		paperAbsPath,
 		isCommentDraftActive: () => selectionCommentEngagedRef.current,
 	});
+
+	useEffect(() => {
+		// Read the capability through the ref. The provides object is replaced
+		// as the document opens; closing over one render left glyph lookup on a
+		// capability that did not yet know the PDF.
+		if (!engine) return;
+		return bindLayoutSentenceGlyphs({
+			docId,
+			engine,
+			getDocument: () => docCapRef.current?.getDocument(docId) ?? null,
+		});
+	}, [docId, engine]);
+
+	useEffect(() => {
+		const root = hostRef.current;
+		if (!root) return;
+		root.toggleAttribute("data-pdf-selecting", isSelecting);
+		if (isSelecting) suppressLayoutSentenceHover();
+	}, [isSelecting]);
 
 	/**
 	 * Session token of the single in-flight PDF agent run. Shared by ask and
@@ -1246,14 +1333,13 @@ function PdfViewerInner({
 		layoutOverlayVisible,
 		layoutRawRegions,
 		layoutDocRegions,
-		hoverableRegionsByPage,
+		selectableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,
 		layoutTaskRef,
 		handleAnalyzeLayout,
 		handleJumpToLayoutRegion,
 		handleRenderLayoutThumb,
-		screenPointForRegion,
 		reflowReady,
 		reflowOutput,
 		exportTranslatedPdf,
@@ -1286,10 +1372,36 @@ function PdfViewerInner({
 		docCapRef,
 		engineRef,
 		scrollRef,
-		hostRef,
 		isRemotePaper,
 		plainViewer,
 	});
+
+	useEffect(() => {
+		const translated = [...layoutTranslateItemsByPage.values()].flat();
+		const translatedIds = new Set(translated.map((item) => item.id));
+		const source = (layoutRawRegions ?? [])
+			.filter(
+				(region) =>
+					isLayoutElementTextKind(region.kind) && !translatedIds.has(region.id),
+			)
+			.map((region) => ({
+				id: region.id,
+				pageIndex: region.pageIndex,
+				bbox: region.bbox,
+				source: region.text ?? "",
+				sentences: splitLayoutSentences(region.text ?? "").map((quote) => ({
+					quote,
+					translated: "",
+				})),
+			}));
+		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
+	}, [docId, layoutTranslateItemsByPage, layoutRawRegions]);
+	// Clear only when the document changes. Declared after the publish effect so
+	// its cleanup runs first and the next publish restores the new document's
+	// pairs. An items-only update must not flash an empty catalog.
+	useEffect(() => {
+		return () => publishLayoutSentenceCatalog(docId, []);
+	}, [docId]);
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
@@ -1510,13 +1622,9 @@ function PdfViewerInner({
 		[suppressLinkPreviews, clearLinkUrlTip, hoverLinkUrl],
 	);
 
-	// ---- Visual marks (draft save, agent turns, existing pins) ----
+	// ---- Existing visual marks ----
 
-	const beginRailEditRef = useRef<(state: RailEditState) => void>(
-		() => undefined,
-	);
 	const {
-		handleVisualDraft,
 		updateVisualComment,
 		handleVisualAddToChatById,
 		deleteVisualTraceById,
@@ -1526,7 +1634,6 @@ function PdfViewerInner({
 		visualTracesRef,
 		setVisualTraces,
 		upsertVisualTrace,
-		beginRailEditRef,
 	});
 
 	const anchorYForHighlight = useCallback(
@@ -1560,7 +1667,6 @@ function PdfViewerInner({
 	closeEditorRef.current = () => {
 		closeRailEdit();
 	};
-	beginRailEditRef.current = beginRailEdit;
 
 	const commentsByPage = useMemo(() => {
 		if (!railEdit) return commentsByPageBase;
@@ -1639,25 +1745,129 @@ function PdfViewerInner({
 		updateHighlightColor,
 	});
 
-	// ---- Region framing (⌘. marquee → crop) ----
+	// ---- Layout element selection ----
 
-	const {
-		regionSelecting,
-		visualCropPending,
-		visualCropRegion,
-		toggleRegionSelect,
-		beginVisualAnnotation,
-		handleVisualRegionSelect,
-	} = usePdfRegionFraming({
+	const elementSelectionEnabled = useStore(
+		layoutElementActionStore,
+		(state) => state.selectionDocumentId === layoutSentenceScope(docId),
+	);
+	const elementSelecting =
+		elementSelectionEnabled && !plainViewer && !isRemotePaper;
+	const toggleElementSelection = useCallback(() => {
+		if (
+			plainViewer ||
+			isRemotePaper ||
+			!engine ||
+			(!elementSelectionEnabled && selectableRegionsByPage.size === 0)
+		)
+			return;
+		closeSelectionMenu();
+		selectionCap?.clear(docId);
+		setLayoutElementSelection(docId, !elementSelectionEnabled);
+	}, [
 		docId,
-		engine,
-		docCap,
-		selectionCap,
-		interactionCap,
-		setSelectionMenu,
-		onVisualDraft: handleVisualDraft,
-		screenPointForRegion,
+		elementSelectionEnabled,
 		plainViewer,
+		isRemotePaper,
+		engine,
+		selectableRegionsByPage,
+		closeSelectionMenu,
+		selectionCap,
+	]);
+
+	useEffect(() => {
+		return () => setLayoutElementSelection(docId, false);
+	}, [docId]);
+
+	useEffect(() => {
+		if (!elementSelecting) return;
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented) return;
+			// The first Escape dismisses an open element menu; the next leaves inspection.
+			if (layoutElementActionStore.getState().action) return;
+			event.preventDefault();
+			closeSelectionMenu();
+			setLayoutElementSelection(docId, false);
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [docId, elementSelecting, closeSelectionMenu]);
+
+	usePdfSentenceInteraction(docId, hostRef, (sentence, event) => {
+		const doc = docCapRef.current?.getDocument(docId);
+		// The document manager can still be opening. Fall back to the rendered
+		// page box so the source pane's double-click is not a no-op.
+		const zoom = zoomRef.current > 0 ? zoomRef.current : 1;
+		const sizeFor = (pageIndex: number) => {
+			const size = doc?.pages[pageIndex]?.size;
+			if (size) return size;
+			const box = pageElByIndex(
+				hostRef.current,
+				pageIndex,
+			)?.getBoundingClientRect();
+			return box && box.width > 0 && box.height > 0
+				? { width: box.width / zoom, height: box.height / zoom }
+				: null;
+		};
+		const pages = [
+			...new Set(sentence.members.map((member) => member.pageIndex)),
+		].flatMap((pageIndex) => {
+			const size = sizeFor(pageIndex);
+			if (!size) return [];
+			const segmentRects = mergeTightGlyphRects(
+				sentence.members
+					.filter((member) => member.pageIndex === pageIndex)
+					.flatMap((member) => member.rects)
+					.map((rect) => ({
+						origin: { x: rect.x * size.width, y: rect.y * size.height },
+						size: {
+							width: rect.w * size.width,
+							height: rect.h * size.height,
+						},
+					})),
+			);
+			const rect = unionRectsAll(segmentRects);
+			return rect ? [{ pageIndex, rect, segmentRects }] : [];
+		});
+		const rects = sentence.members
+			.filter((member) => member.pageIndex === sentence.pageIndex)
+			.flatMap((member) => member.rects);
+		// Page-fraction rects are enough for the toolbar anchor, so a missing
+		// document size only disables highlight creation, not the menu.
+		const anchor =
+			anchorFromEmbedSelection(
+				pages,
+				sentence.quote,
+				sizeFor,
+				"selection",
+				sentence.pageIndex,
+			) ??
+			(rects.length
+				? {
+						page: sentence.pageIndex + 1,
+						rects,
+						quote: sentence.quote,
+						trigger: "selection" as const,
+					}
+				: null);
+		const bounds = selectionBoundsOnScreen(
+			pageElByIndex(hostRef.current, sentence.pageIndex),
+			rects,
+		);
+		if (!anchor || !bounds) return;
+		selectionCap?.clear(docId);
+		holdLayoutSentenceHover(docId);
+		setSelectionMenu({
+			anchor,
+			pages,
+			screen: {
+				x: (bounds.left + bounds.right) / 2,
+				y: bounds.top,
+				top: bounds.top,
+				bottom: bounds.bottom,
+				cursorX: event.clientX,
+			},
+		});
 	});
 
 	// ---- Selection action menu ----
@@ -1738,27 +1948,16 @@ function PdfViewerInner({
 	const selectionCommentKeyValue = selectionCommentKey(selectionMenu);
 
 	useEffect(() => {
-		if (
-			isRemotePaper ||
-			plainViewer ||
-			regionSelecting ||
-			selectionCommentKeyValue
-		) {
+		if (isRemotePaper || plainViewer || selectionCommentKeyValue) {
 			selectionCommentEngagedRef.current = false;
 			setSelectionCommentDraft(null);
 		}
-	}, [isRemotePaper, plainViewer, regionSelecting, selectionCommentKeyValue]);
+	}, [isRemotePaper, plainViewer, selectionCommentKeyValue]);
 
 	const handleMenuNote = useCallback(
 		(shape: PdfTextMarkupKind = "highlight") => {
 			const menu = selectionMenuRef.current;
-			if (
-				!menu?.pages.length ||
-				isRemotePaper ||
-				plainViewer ||
-				regionSelecting
-			)
-				return;
+			if (!menu?.pages.length || isRemotePaper || plainViewer) return;
 			const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
 			selectionCommentEngagedRef.current = true;
 			setSelectionCommentDraft({
@@ -1771,7 +1970,7 @@ function PdfViewerInner({
 			});
 			closeSelectionMenu();
 		},
-		[isRemotePaper, plainViewer, regionSelecting, closeSelectionMenu],
+		[isRemotePaper, plainViewer, closeSelectionMenu],
 	);
 
 	const handleSelectionCommentActiveChange = useCallback((active: boolean) => {
@@ -1867,7 +2066,7 @@ function PdfViewerInner({
 		openThread,
 		deleteVisualTraceById,
 		deleteHighlightAnnotation,
-		toggleRegionSelect,
+		toggleElementSelection,
 		// Dual-pane aware — ⌥A and the toolbar Languages button share this path.
 		toggleLayoutTranslate: handleToggleLayoutTranslateWithDualPane,
 	});
@@ -1928,8 +2127,6 @@ function PdfViewerInner({
 			activeAskAnchor,
 			activeTranslateAnchor: translateCardPlaced ? activeTranslateAnchor : null,
 			activeVisualTrace,
-			visualDraftRegion: null,
-			visualCropRegion,
 			focusedLayoutRegion,
 			focusedLayoutFlash,
 			focusedLayoutFlashToken,
@@ -1953,7 +2150,6 @@ function PdfViewerInner({
 			activeAskAnchor,
 			activeTranslateAnchor,
 			activeVisualTrace,
-			visualCropRegion,
 			focusedLayoutRegion,
 			focusedLayoutFlash,
 			focusedLayoutFlashToken,
@@ -1985,7 +2181,7 @@ function PdfViewerInner({
 			selectionInsertionRegions,
 			selectionStartPageIndex,
 			selectionTextExclusionsByPage,
-			hoverableRegionsByPage,
+			selectableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
 			layoutTranslateItemsByPage:
@@ -2001,7 +2197,7 @@ function PdfViewerInner({
 			glyphRunsByPage,
 		}),
 		[
-			hoverableRegionsByPage,
+			selectableRegionsByPage,
 			rawRegionsByPage,
 			selectionTextExclusionsByPage,
 			selectionInsertionRegions,
@@ -2019,27 +2215,13 @@ function PdfViewerInner({
 
 	const pageMode = useMemo<PdfPageModeSlice>(
 		() => ({
-			regionSelecting,
-			visualCropPending,
-			visualDraftOpen: false,
+			elementSelecting,
 			insetCommentCards,
 			translationOnly,
 			plainViewer,
+			sentencePairing: true,
 		}),
-		[
-			regionSelecting,
-			visualCropPending,
-			translationOnly,
-			plainViewer,
-			insetCommentCards,
-		],
-	);
-
-	const handleLayoutRegionClick = useCallback(
-		(region: PdfLayoutRegion) => {
-			void beginVisualAnnotation(region.pageIndex + 1, region.bbox);
-		},
-		[beginVisualAnnotation],
+		[elementSelecting, translationOnly, plainViewer, insetCommentCards],
 	);
 
 	const handleCopyCommentLink = useCallback(
@@ -2105,8 +2287,6 @@ function PdfViewerInner({
 			onTextLinkActivate: openExternalUrl,
 			onCitationHover: handleLinkHover,
 			onLinkUrlHover: handleLinkUrlHover,
-			onRegionSelect: handleVisualRegionSelect,
-			onLayoutRegionClick: handleLayoutRegionClick,
 			onTogglePageLayoutTranslate: togglePageLayoutTranslate,
 			onDeleteHighlightAnnotation: handleDeleteHighlightAnnotation,
 			onEditHighlightAnnotation: handleEditHighlightAnnotation,
@@ -2131,8 +2311,6 @@ function PdfViewerInner({
 			handleCitationLinkActivate,
 			handleLinkHover,
 			handleLinkUrlHover,
-			handleVisualRegionSelect,
-			handleLayoutRegionClick,
 			togglePageLayoutTranslate,
 			handleDeleteHighlightAnnotation,
 			handleEditHighlightAnnotation,
@@ -2441,6 +2619,9 @@ function PdfViewerInner({
 	const handleZoomSliderChange = useCallback((next: number) => {
 		zoomCapRef.current?.requestZoom(next);
 	}, []);
+	const exitImmersiveReading = useCallback(() => {
+		layout()?.toggleImmersiveReading();
+	}, []);
 	const handleFitWidth = useCallback(() => {
 		const centerReadingSurface = () => {
 			// Horizontal paging uses scrollLeft as its page axis, so fitting a page
@@ -2493,7 +2674,7 @@ function PdfViewerInner({
 			data-pdf-root
 			className="relative flex h-full min-h-0 w-full select-none flex-col"
 		>
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfLeftToolbar
 					canEditBookmarks={bookmarkEditor.canEdit}
 					outline={outline}
@@ -2509,10 +2690,10 @@ function PdfViewerInner({
 					plainViewer={plainViewer}
 				/>
 			)}
-			{!translationOnly && jumpBackTarget && (
+			{!translationOnly && !immersiveReading && jumpBackTarget && (
 				<PdfJumpBackChip onGoBack={goBackToJumpOrigin} />
 			)}
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfOutlinePanel
 					editor={bookmarkEditor}
 					currentPage={currentPage}
@@ -2521,14 +2702,14 @@ function PdfViewerInner({
 					onGoToPage={handleGoToPage}
 				/>
 			)}
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfReferencesPanel
 					vaultPath={vaultPath}
 					paperPath={paperRelPath}
 					showReferences={showReferences}
 				/>
 			)}
-			{!translationOnly && !plainViewer && (
+			{!translationOnly && !plainViewer && !immersiveReading && (
 				<PdfFiguresPanel
 					documentId={docId}
 					paperAbsPath={paperAbsPath}
@@ -2553,13 +2734,13 @@ function PdfViewerInner({
 					onClose={handleCloseFind}
 				/>
 			)}
-			{!translationOnly && !plainViewer && (
+			{!translationOnly && !plainViewer && !immersiveReading && (
 				<PdfToolbar
 					onExportTranslatedPdf={reflowReady ? exportTranslatedPdf : undefined}
-					regionSelecting={regionSelecting}
-					visualCropPending={visualCropPending}
+					elementSelecting={elementSelecting}
+					elementSelectionAvailable={selectableRegionsByPage.size > 0}
 					engine={engine}
-					onToggleRegionSelect={toggleRegionSelect}
+					onToggleElementSelection={toggleElementSelection}
 					layoutTranslateRunning={layoutTranslateRunning}
 					layoutTranslatePreparing={layoutTranslatePreparing}
 					layoutTranslateWaiting={layoutTranslateWaiting}
@@ -2619,9 +2800,9 @@ function PdfViewerInner({
 				<PanDragHandler
 					active={isActive}
 					hostRef={hostRef}
-					allowLeftDrag={!translationOnly && !regionSelecting}
+					allowLeftDrag={!translationOnly}
 				/>
-				{!translationOnly && !plainViewer ? (
+				{!translationOnly && !plainViewer && !immersiveReading ? (
 					<RailPeek
 						hostRef={hostRef}
 						railWidth={COMMENT_RAIL_WIDTH_PX}
@@ -2647,7 +2828,18 @@ function PdfViewerInner({
 				</ZoomGestureWrapper>
 			</DockviewViewport>
 
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && elementSelecting ? (
+				<LayoutElementActions
+					docId={docId}
+					engine={engine}
+					docCap={docCap}
+					paperRelPath={paperRelPath}
+					paperAbsPath={paperAbsPath}
+					translateSelection={translateSelection}
+				/>
+			) : null}
+
+			{!translationOnly && !immersiveReading && (
 				<PdfCardStack
 					selectionMenu={cardSelectionMenu}
 					citationPreview={cardCitationPreview}
@@ -2677,6 +2869,8 @@ function PdfViewerInner({
 					onZoomChange={handleZoomSliderChange}
 					onFitWidth={handleFitWidth}
 					isRemotePaper={isRemotePaper}
+					presented={!immersiveReading || immersiveChrome}
+					onExitImmersive={immersiveReading ? exitImmersiveReading : undefined}
 				/>
 			)}
 		</div>

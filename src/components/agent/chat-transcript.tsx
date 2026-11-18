@@ -18,7 +18,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { AgentThinkingOrb } from "@/components/agent/agent-thinking-orb";
-import { ChatSelectionReferences } from "@/components/agent/chat-selection-references";
 import {
 	ChatAttachedImages,
 	ChatVisualAnnotations,
@@ -72,6 +71,10 @@ import {
 	MessageResponse,
 } from "@/components/agent/message";
 import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
+import {
+	AnnotationMarkerText,
+	LooseSelectionChips,
+} from "@/components/agent/sent-annotation-chip";
 import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
 import {
 	selectionSurfaceProps,
@@ -92,6 +95,10 @@ import { Shimmer } from "@/components/ui/shimmer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveChatLines } from "@/lib/agent/agent-session-store";
 import {
+	annotationSnapshotsForMarkers,
+	formatAnnotationSnapshotsForCopy,
+} from "@/lib/agent/annotation-snapshot";
+import {
 	type AgentPhaseState,
 	isAgentAuthFailure,
 	isChatOnlyAgentTemplate,
@@ -111,6 +118,8 @@ import {
 	toolPartState,
 } from "@/lib/agent/chat-state";
 import {
+	extractSelectionTokens,
+	extractVisualIds,
 	hasTranscriptChips,
 	inlineMarkupToPlain,
 	stripInlineTokens,
@@ -538,6 +547,10 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	if (line.kind === "user") {
 		const visuals = line.visualAnnotations ?? [];
 		const attachedImages = line.images ?? [];
+		const markupVisualIds = new Set(extractVisualIds(line.markup ?? ""));
+		const looseVisuals = visuals.filter(
+			(visual) => !markupVisualIds.has(visual.id),
+		);
 		const chipMarkup =
 			line.markup && hasTranscriptChips(line.markup) ? line.markup : undefined;
 		if (isEditing) {
@@ -550,11 +563,12 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 								markup={chipMarkup}
 								onOpenPath={onOpenSource}
 								chipsOnly
+								visuals={visuals}
 							/>
 						</div>
 					) : null}
-					{visuals.length > 0 ? (
-						<ChatVisualAnnotations annotations={visuals} />
+					{looseVisuals.length > 0 ? (
+						<ChatVisualAnnotations annotations={looseVisuals} />
 					) : null}
 					{attachedImages.length > 0 ? (
 						<ChatAttachedImages images={attachedImages} />
@@ -607,6 +621,22 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 		const userDisplay = stripPromptEnvelopeForDisplay(
 			stripInlineTokens(line.text),
 		);
+		// Local messages retain reference positions; loaded messages use numbered snapshots.
+		const annotationCards = chipMarkup
+			? []
+			: annotationSnapshotsForMarkers(
+					userDisplay,
+					line.text,
+					line.annotationSnapshots,
+				);
+		const markupSelectionIds = new Set(
+			(chipMarkup ? extractSelectionTokens(chipMarkup) : []).map(
+				(selection) => selection.id,
+			),
+		);
+		const looseSelections = (line.selections ?? []).filter(
+			(selection) => !markupSelectionIds.has(selection.id),
+		);
 		// Never render Codex env / Host system envelopes as user bubbles.
 		if (
 			!userDisplay &&
@@ -626,16 +656,16 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 					visualAnnotations: visuals,
 					images: attachedImages,
 				}),
+				formatAnnotationSnapshotsForCopy(annotationCards),
 				selectionsPromptBlock(line.selections ?? []),
 			]
 				.filter(Boolean)
 				.join("\n\n");
 		return (
 			<Message from="user" className="max-w-[85%]">
-				<ChatSelectionReferences selections={line.selections ?? []} />
 				{/* Visual chips above the text bubble (not inside it). */}
-				{visuals.length > 0 ? (
-					<ChatVisualAnnotations annotations={visuals} />
+				{looseVisuals.length > 0 ? (
+					<ChatVisualAnnotations annotations={looseVisuals} />
 				) : null}
 				{/*
 				 * Right-anchored content block. Hover actions float at its
@@ -647,7 +677,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						<ChatAttachedImages images={attachedImages} />
 					) : null}
 					{/* Free-text only: skip empty bubble when the turn is image/visual-only. */}
-					{chipMarkup || userDisplay ? (
+					{chipMarkup || userDisplay || looseSelections.length > 0 ? (
 						<MessageContent
 							className="rounded-2xl px-4 py-2.5"
 							{...selectionSurfaceProps({
@@ -659,12 +689,24 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 							})}
 						>
 							{chipMarkup ? (
-								<InlineChipText markup={chipMarkup} onOpenPath={onOpenSource} />
+								<InlineChipText
+									markup={chipMarkup}
+									visuals={visuals}
+									onOpenPath={onOpenSource}
+								/>
+							) : annotationCards.length > 0 ? (
+								<AnnotationMarkerText
+									text={userDisplay}
+									snapshots={annotationCards}
+								/>
 							) : (
 								<MessageResponse className="text-base leading-relaxed">
 									{userDisplay}
 								</MessageResponse>
 							)}
+							{looseSelections.length > 0 && annotationCards.length === 0 ? (
+								<LooseSelectionChips selections={looseSelections} />
+							) : null}
 						</MessageContent>
 					) : null}
 					{/* Hovers beside the bubble's bottom-left, outside the box. */}

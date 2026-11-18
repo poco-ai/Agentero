@@ -1,5 +1,5 @@
 export const PDF_ZOOM_MIN = 0.5;
-export const PDF_ZOOM_MAX = 3;
+export const PDF_ZOOM_MAX = 4;
 
 /** Parse a user-entered percentage and clamp it to the viewer's zoom range. */
 export function parsePdfZoomPercentage(value: string): number | null {

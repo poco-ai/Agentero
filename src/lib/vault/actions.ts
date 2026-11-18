@@ -105,7 +105,6 @@ import {
 	setActiveTabId,
 } from "@/lib/workspace/store";
 import { basenameOf, saveWorkspaceLayout } from "@/lib/workspace/tabs";
-import { isExcalidrawPath } from "@/lib/workspace/viewer";
 
 /** Drop the open workspace when a restored vault is gone. */
 function resetOpenTabs(): void {
@@ -1137,17 +1136,7 @@ export async function confirmCreate(name: string): Promise<void> {
 				? createResearchTable(researchTableStem(trimmed))
 				: null;
 			if (table) table.fields[0].name = i18n.t("editor:researchTable.name");
-			const initialContent = table
-				? `${JSON.stringify(table, null, 2)}\n`
-				: isExcalidrawPath(trimmed)
-					? JSON.stringify({
-							type: "excalidraw",
-							version: 2,
-							source: "https://excalidraw.com",
-							elements: [],
-							appState: { collaborators: [] },
-						})
-					: "";
+			const initialContent = table ? `${JSON.stringify(table, null, 2)}\n` : "";
 			await writeVaultFile(full, initialContent);
 			await refreshTree(vaultPath);
 			openPath(full);

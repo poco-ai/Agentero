@@ -185,6 +185,11 @@
 	},
 	"copy": "复制",
 	"copied": "已复制",
+	"transcript": {
+		"annotationLabel": "批注 {{n}}",
+		"annotationVisual": "视觉批注",
+		"annotationTranslation": "译文"
+	},
 	"edit": {
 		"action": "编辑",
 		"resend": "重新发送",

@@ -1,4 +1,10 @@
-import { ArrowRight, RefreshCw } from "lucide-react";
+import {
+	ArrowRight,
+	BookOpen,
+	BookOpenCheck,
+	FileInput,
+	RefreshCw,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,7 +33,7 @@ import { isMobileApp, isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
 import { listenOnboardingRequest } from "@/lib/onboarding/api";
 import { patchSettings } from "@/lib/settings/react-store";
-import { setZoteroOpen } from "@/lib/shell/ui-store";
+import { bumpLookupOpenSignal, setZoteroOpen } from "@/lib/shell/ui-store";
 import { createNewVault } from "@/lib/vault/actions";
 import { vaultStore } from "@/lib/vault/store";
 import type { OnboardingStepId } from "./flow";
@@ -70,7 +76,13 @@ export function OnboardingRoot() {
 	const recentVaults = useVaultStore((s) => s.recentVaults);
 	const open = useStore(onboardingStore, (s) => s.open);
 	const forceOpen = useStore(onboardingStore, (s) => s.forceOpen);
-	const [zoteroOfferOpen, setZoteroOfferOpen] = useState(false);
+	const [vaultReady, setVaultReady] = useState(false);
+	const nextAction = useRef<(() => void) | null>(null);
+	const finishVaultSetup = (action?: () => void) => {
+		nextAction.current = action ?? null;
+		setVaultReady(false);
+		patchSettings({ onboardingDone: true });
+	};
 
 	// Settings → main event: force the wizard open on demand.
 	useEffect(() => {
@@ -113,25 +125,29 @@ export function OnboardingRoot() {
 		if (vaultPath) closeOnboarding();
 	}, [vaultPath]);
 
-	if (!open && !zoteroOfferOpen) return null;
+	if (!open && !vaultReady) return null;
 
 	return (
 		<>
 			{open ? (
-				<OnboardingDialog onVaultCreated={() => setZoteroOfferOpen(true)} />
+				<OnboardingDialog onVaultCreated={() => setVaultReady(true)} />
 			) : null}
-			<ZoteroImportOfferDialog
-				open={zoteroOfferOpen}
-				onOpenChange={setZoteroOfferOpen}
+			<VaultReadyDialog
+				open={vaultReady}
+				onOpenChange={(next) => {
+					if (!next) finishVaultSetup();
+				}}
+				onClosed={() => {
+					nextAction.current?.();
+					nextAction.current = null;
+					onboardingStore.setState({ vaultSetupPending: false });
+				}}
+				onImportPaper={() => finishVaultSetup(bumpLookupOpenSignal)}
 				onImport={() => {
-					setZoteroOfferOpen(false);
 					closeOnboarding();
-					setZoteroOpen(true);
+					finishVaultSetup(() => setZoteroOpen(true));
 				}}
-				onLater={() => {
-					setZoteroOfferOpen(false);
-					patchSettings({ onboardingDone: true });
-				}}
+				onLater={() => finishVaultSetup()}
 			/>
 		</>
 	);
@@ -190,10 +206,14 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 	};
 
 	const onCreateVault = () => {
+		if (onboardingStore.getState().vaultSetupPending) return;
+		onboardingStore.setState({ vaultSetupPending: true });
 		void (async () => {
+			const before = vaultStore.getState().vaultPath;
 			await createNewVault();
-			// The vault must exist before the user can choose a Zotero source.
-			if (vaultStore.getState().vaultPath) onVaultCreated();
+			const after = vaultStore.getState().vaultPath;
+			if (after && after !== before) onVaultCreated();
+			else onboardingStore.setState({ vaultSetupPending: false });
 		})();
 	};
 
@@ -333,31 +353,58 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 	);
 }
 
-function ZoteroImportOfferDialog({
+function VaultReadyDialog({
+	onClosed,
 	open,
 	onOpenChange,
+	onImportPaper,
 	onImport,
 	onLater,
 }: {
+	onClosed: () => void;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	onImportPaper: () => void;
 	onImport: () => void;
 	onLater: () => void;
 }) {
 	const { t } = useTranslation("onboarding");
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent
+				className="sm:max-w-lg"
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					onClosed();
+				}}
+			>
 				<DialogHeader>
-					<DialogTitle>{t("vault.zoteroOfferTitle")}</DialogTitle>
-					<DialogDescription>{t("vault.zoteroOfferDesc")}</DialogDescription>
+					<BookOpenCheck className="mb-2 size-8 text-primary" aria-hidden />
+					<DialogTitle>{t("vault.readyTitle")}</DialogTitle>
+					<DialogDescription>{t("vault.readyDesc")}</DialogDescription>
 				</DialogHeader>
+				<div className="grid gap-3 sm:grid-cols-2">
+					<Button
+						variant="outline"
+						className="h-14 justify-start gap-3"
+						onClick={onImportPaper}
+					>
+						<FileInput className="size-4" aria-hidden />
+						{t("vault.importPaper")}
+					</Button>
+					<Button
+						variant="outline"
+						className="h-14 justify-start gap-3"
+						onClick={onImport}
+					>
+						<BookOpen className="size-4" aria-hidden />
+						{t("vault.zotero")}
+					</Button>
+				</div>
 				<DialogFooter>
 					<Button type="button" variant="ghost" onClick={onLater}>
-						{t("vault.zoteroNo")}
-					</Button>
-					<Button type="button" onClick={onImport}>
-						{t("vault.zotero")}
+						{t("vault.explore")}
+						<ArrowRight data-icon="inline-end" />
 					</Button>
 				</DialogFooter>
 			</DialogContent>

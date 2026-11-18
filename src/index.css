@@ -636,6 +636,115 @@
  * browser's link blue. No underline: colorlinks PDFs already mark the link
  * by ink color, and a zero-width border paints nothing on the source page.
  */
+/*
+ * Marks painted on PDF paper. Paper tone (white / sepia / green / dark) is
+ * chosen per paper and is independent of the UI theme, so these tints cannot
+ * follow --primary / --foreground: a dark UI theme turns --primary near-white,
+ * and a near-white selection band or hover wash then vanishes on white paper.
+ * The ink mirrors the page's text ink instead; each rule below applies its own
+ * alpha or layer opacity, so the same contrast holds on inverted dark paper.
+ * Set on the page shell and on translation paragraphs as `data-paper`.
+ */
+[data-paper] {
+	--pdf-paper-ink: oklch(0.21 0.008 260);
+}
+[data-paper="dark"] {
+	--pdf-paper-ink: oklch(0.94 0.006 260);
+}
+/*
+ * Layout-element selection. The frame and chip stay invisible until the
+ * pointer or keyboard focus is on that element, so the page does not keep
+ * every detection box painted. Opacity fades in 160ms. The hit target does
+ * not take pointer events: text selection and links keep them.
+ * Element borders and fills use the paper ink, with separate opacity for the
+ * frame and the text-safe background.
+ */
+.pdf-layout-element-frame,
+.pdf-layout-element-chip {
+	opacity: 0;
+	transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
+}
+[data-layout-element].is-hot > .pdf-layout-element-frame,
+[data-layout-element].is-hot > .pdf-layout-element-chip,
+[data-layout-element]:focus-within > .pdf-layout-element-frame,
+[data-layout-element]:focus-within > .pdf-layout-element-chip {
+	opacity: 1;
+}
+.pdf-layout-element-frame {
+	position: absolute;
+	z-index: 7;
+	box-sizing: border-box;
+	border-radius: 2px;
+	border: 1.5px solid color-mix(in oklch, var(--pdf-paper-ink) 55%, transparent);
+	background: color-mix(in oklch, var(--pdf-paper-ink) 8%, transparent);
+	pointer-events: none;
+}
+.pdf-layout-element-chip {
+	position: absolute;
+	z-index: 8;
+	transform: translateY(calc(-100% - 2px));
+	max-width: min(16rem, 70%);
+	pointer-events: none;
+	border-radius: 0.375rem;
+	border: 1px solid var(--border);
+	background: color-mix(in oklab, var(--background) 95%, transparent);
+	padding: 0.125rem 0.375rem;
+	text-align: left;
+	font-size: var(--text-caption);
+	line-height: 1rem;
+	color: var(--foreground);
+	box-shadow: var(--shadow-raised);
+}
+[data-layout-element].is-hot > .pdf-layout-element-chip,
+[data-layout-element]:focus-within > .pdf-layout-element-chip {
+	pointer-events: auto;
+}
+.pdf-layout-element-chip:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+[data-layout-element].is-hot.has-sentence > .pdf-layout-element-frame,
+[data-layout-element].has-sentence:focus-within > .pdf-layout-element-frame {
+	background: transparent;
+}
+.pdf-layout-sentence-wash {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
+}
+.pdf-layout-sentence-wash.is-on {
+	opacity: var(--pdf-sentence-opacity, 12%);
+}
+.pdf-layout-sentence-wash > span {
+	position: absolute;
+	transform: translateY(-12%);
+	border-radius: 2px;
+	background: var(--pdf-paper-ink);
+}
+.pdf-layout-sentence-wash[data-source-sentence] > span,
+.pdf-live-selection-band[data-source-sentence] {
+	transform: none;
+}
+[data-sentence][data-sentence-hot] {
+	border-radius: 1px;
+	background-color: color-mix(in oklch, var(--pdf-paper-ink) 12%, transparent);
+	transition: background-color 160ms ease;
+}
+.pdf-live-selection-band {
+	transform: translateY(-12%);
+}
+@media (prefers-reduced-motion: reduce) {
+	.pdf-layout-element-frame,
+	.pdf-layout-element-chip,
+	.pdf-layout-sentence-wash,
+	[data-sentence][data-sentence-hot] {
+		transition: none;
+	}
+}
+
 .pdf-translate-selection [data-translated-link] {
 	color: inherit;
 	cursor: pointer;

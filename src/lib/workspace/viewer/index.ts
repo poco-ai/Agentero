@@ -11,11 +11,6 @@ export function isHtmlPath(path: string): boolean {
 	return /\.html?$/i.test(path);
 }
 
-/** Excalidraw whiteboard files. */
-export function isExcalidrawPath(path: string): boolean {
-	return /\.excalidraw$/i.test(path);
-}
-
 /** Common image extensions previewable in the center pane. */
 export function isImagePath(path: string): boolean {
 	return /\.(png|jpe?g|gif|webp|bmp|svg|avif|ico)$/i.test(path);
@@ -101,7 +96,7 @@ export type ViewerModeSpec = {
 	 * DocView's render switch hand-mirrors this field, and the pairing is
 	 * pinned by test/workspace-viewer-modes.test.ts, not structurally.
 	 */
-	props: "editor" | "excalidraw" | "text" | "pdf" | "none";
+	props: "editor" | "text" | "pdf" | "none";
 	/**
 	 * Content the pane renders / how loadTabResources resolves it:
 	 * - "pdf": PDF bytes (local file, blob: URL or remote URL); translation
@@ -110,10 +105,9 @@ export type ViewerModeSpec = {
 	 * - "html": remote paper HTML URL, or a local `.html` file served by
 	 *   `agentero-html` (the loader does not inline the file).
 	 * - "image": `blob:` URL from local image bytes.
-	 * - "excalidraw": whiteboard JSON seed.
 	 * - "text": raw text seed (CodeMirror catch-all).
 	 */
-	resource: "pdf" | "markdown" | "html" | "image" | "excalidraw" | "text";
+	resource: "pdf" | "markdown" | "html" | "image" | "text";
 	/**
 	 * Persisted-session restore override (see initWorkspaceStore). Absent: a
 	 * default placeholder tab that hydrates from disk. Translation panes are
@@ -162,14 +156,6 @@ export const VIEWER_MODE_TABLE = [
 		keepAlive: null,
 		props: "none",
 		resource: "image",
-	},
-	{
-		mode: "excalidraw",
-		matchesPath: isExcalidrawPath,
-		renderer: "always",
-		keepAlive: null,
-		props: "excalidraw",
-		resource: "excalidraw",
 	},
 	{
 		mode: "markdown",

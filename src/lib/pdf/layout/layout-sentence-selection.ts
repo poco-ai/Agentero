@@ -96,7 +96,9 @@ function memberLocateText(
 	return "";
 }
 
-function blockSource(item: TranslationBlockRef): string {
+function blockSource(
+	item: Pick<TranslationBlockRef, "raw" | "reflow" | "source">,
+): string {
 	return normalizeSentenceKey(item.raw || item.reflow?.source || item.source);
 }
 
@@ -255,6 +257,25 @@ export function locateSelectionGlyphs(
 		).at(-1) ??
 		[]
 	);
+}
+
+/** Reuse the source characters already retained by the translated paragraph. */
+export function reflowSentenceGlyphRects(
+	item: Pick<TranslationBlockRef, "reflow" | "raw" | "source"> & {
+		sentences?: readonly { quote: string }[];
+	},
+): Rect[][] {
+	if (!item.reflow || !item.sentences?.length) return [];
+	const parts = item.sentences.map(
+		(sentence) =>
+			memberLocateText(blockSource(item), sentence.quote) ||
+			normalizeSentenceKey(sentence.quote),
+	);
+	return glyphRectsForParts(
+		item.reflow.characters.map(characterGlyph),
+		blockSource(item),
+		parts,
+	).map((rects) => rects ?? []);
 }
 
 /**
@@ -767,13 +788,31 @@ export function sentenceGlyphRects(options: {
 	raw?: string;
 	source: string;
 	runs: readonly { text: string; rect: Rect }[];
+	glyphs?: readonly { text: string; rect: Rect }[];
 	pageWidth: number;
 	pageHeight: number;
 	bbox: { x: number; y: number; w: number; h: number };
 }): PageFractionRect[][] {
 	const { sentences, runs, pageWidth, pageHeight, bbox } = options;
 	const blockText = normalizeSentenceKey(options.raw || options.source);
-	return sentences.map((sentence) => {
+	const parts = sentences.map(
+		(sentence) =>
+			memberLocateText(blockText, sentence.quote) ||
+			normalizeSentenceKey(sentence.quote),
+	);
+	const inside = options.glyphs?.filter((glyph) =>
+		centerInBbox(glyph.rect, bbox, pageWidth, pageHeight),
+	);
+	const exact = inside?.length
+		? glyphRectsForParts(inside, blockText, parts)
+		: [];
+	return sentences.map((sentence, index) => {
+		if (exact[index]?.length) {
+			return exact[index].flatMap((rect) => {
+				const fraction = glyphRectToFraction(rect, pageWidth, pageHeight);
+				return fraction ? [fraction] : [];
+			});
+		}
 		const locateText =
 			memberLocateText(blockText, sentence.quote) ||
 			normalizeSentenceKey(sentence.quote);

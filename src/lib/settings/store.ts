@@ -48,6 +48,7 @@ import {
 	isPaperNoteMode,
 	isPdfScrollStrategy,
 	isPdfSpreadMode,
+	isPdfTranslateTabMode,
 	LIBRARY_COLUMN_KEYS,
 	type LibraryColumnKey,
 	type LibraryColumnPref,
@@ -395,6 +396,9 @@ function normalizePartial(
 	}
 	if (!isPdfSpreadMode(merged.pdfSpreadMode)) {
 		merged.pdfSpreadMode = DEFAULT_SETTINGS.pdfSpreadMode;
+	}
+	if (!isPdfTranslateTabMode(merged.pdfTranslateTab)) {
+		merged.pdfTranslateTab = DEFAULT_SETTINGS.pdfTranslateTab;
 	}
 	merged.libraryColumns = normalizeLibraryColumns(merged.libraryColumns);
 	if (typeof parsed.autoPaperReader !== "boolean") {

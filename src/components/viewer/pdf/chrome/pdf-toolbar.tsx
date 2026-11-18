@@ -38,10 +38,10 @@ import { cn } from "@/lib/core/utils";
 
 type PdfToolbarProps = {
 	onExportTranslatedPdf?: (dual?: boolean) => void;
-	regionSelecting: boolean;
-	visualCropPending: boolean;
+	elementSelecting: boolean;
+	elementSelectionAvailable: boolean;
 	engine: PdfEngine | null;
-	onToggleRegionSelect: () => void;
+	onToggleElementSelection: () => void;
 	layoutTranslateRunning: boolean;
 	/** Final corrected preview is still building after items settled. */
 	layoutTranslatePreparing?: boolean;
@@ -72,13 +72,13 @@ type PdfToolbarProps = {
 	importBusy?: boolean;
 };
 
-/** Top-right toolbar: region select, bulk translate. Always visible. */
+/** Top-right toolbar: element inspection and bulk translate. */
 export const PdfToolbar = memo(function PdfToolbar({
 	onExportTranslatedPdf,
-	regionSelecting,
-	visualCropPending,
+	elementSelecting,
+	elementSelectionAvailable,
 	engine,
-	onToggleRegionSelect,
+	onToggleElementSelection,
 	layoutTranslateRunning,
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
@@ -96,8 +96,8 @@ export const PdfToolbar = memo(function PdfToolbar({
 	importBusy = false,
 }: PdfToolbarProps) {
 	const { t } = useTranslation("viewer");
-	const visualShortcut = useShortcutLabel("visualAnnotation");
 	const translateShortcut = useShortcutLabel("layoutTranslate");
+	const elementShortcut = useShortcutLabel("layoutElementSelection");
 
 	const LONG_PRESS_MS = 300;
 	const longPressTimerRef = useRef<number | null>(null);
@@ -308,28 +308,27 @@ export const PdfToolbar = memo(function PdfToolbar({
 										<Button
 											type="button"
 											size="icon-xs"
-											variant={regionSelecting ? "secondary" : "ghost"}
+											variant={elementSelecting ? "secondary" : "ghost"}
 											className="shrink-0 self-center"
-											aria-label={t("pdfExplain.selectRegion")}
-											aria-pressed={regionSelecting}
-											disabled={visualCropPending || !engine}
-											onClick={onToggleRegionSelect}
+											aria-label={t("figures.selectElements")}
+											aria-pressed={elementSelecting}
+											disabled={
+												!engine ||
+												(!elementSelectionAvailable && !elementSelecting)
+											}
+											onClick={onToggleElementSelection}
 										>
-											<ScanSearch
-												className={cn(
-													"size-3.5",
-													visualCropPending && "animate-pulse",
-												)}
-											/>
+											<ScanSearch className="size-3.5" aria-hidden />
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent side="bottom">
-										{regionSelecting
-											? t("pdfExplain.cancelRegion")
-											: t("pdfExplain.selectRegion")}
-										{/* Inverted tooltip: mute via text-background, not muted-foreground. */}
+										{!elementSelectionAvailable
+											? t("figures.selectionNeedsLayout")
+											: elementSelecting
+												? t("figures.exitElementSelection")
+												: t("figures.selectElements")}
 										<span className="ml-2 text-background/70">
-											{visualShortcut}
+											{elementShortcut}
 										</span>
 									</TooltipContent>
 								</Tooltip>

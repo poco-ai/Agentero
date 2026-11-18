@@ -100,9 +100,10 @@
 		"create": "新建文献库",
 		"createDesc": "先选择一个独立的 Agentero 文件夹。创建完成后，可再选择是否从 Zotero 导入。",
 		"zotero": "从 Zotero 导入",
-		"zoteroOfferTitle": "要从 Zotero 导入吗？",
-		"zoteroOfferDesc": "Agentero 文献库已经创建。接下来可以选择 Zotero 数据目录作为导入来源。",
-		"zoteroNo": "不从 Zotero 导入"
+		"readyTitle": "知识库已准备好",
+		"readyDesc": "先导入一篇论文，打开后会继续介绍阅读工具。也可以先认识工作区。",
+		"importPaper": "导入论文",
+		"explore": "先看看工作区"
 	},
 	"actions": {
 		"start": "开始配置",
@@ -128,8 +129,8 @@
 			"desc": "粘贴 DOI、arXiv ID 或链接，自动抓取元数据、下载 PDF 与 LaTeX 源码。{{magicWandShortcut}} 随时唤起。"
 		},
 		"readPaper": {
-			"title": "阅读并记笔记",
-			"desc": "任意论文旁的闪电按钮会打开分屏：左侧 PDF，右侧 NOTES.md，可直接高亮批注、写入笔记。"
+			"title": "阅读论文",
+			"desc": "在这里阅读原始 PDF。底部保留页码和缩放控件，可以在旁边打开笔记。"
 		},
 		"workspace": {
 			"title": "分屏精读",
@@ -148,11 +149,31 @@
 			"desc": "复用本机已登录的 Agent，无需 API Key。当前论文自动进入上下文，点击建议问题即可一键总结。"
 		},
 		"titlebar": {
-			"title": "开始探索吧",
-			"desc": "设置已完成。{{settingsShortcut}} 打开设置，{{quickOpenShortcut}} 快速跳转。Vault 里已生成教程笔记，就从那里开始。"
+			"title": "工作区控制",
+			"desc": "通过布局菜单调整工作区。{{settingsShortcut}} 打开设置，{{quickOpenShortcut}} 查找文件或论文。"
 		},
 		"next": "下一步",
 		"back": "上一步",
-		"done": "完成"
+		"done": "完成",
+		"notes": {
+			"title": "论文笔记",
+			"desc": "NOTES.md 与 PDF 并排显示，编辑后自动保存为论文文件夹中的 Markdown 文件。"
+		},
+		"annotations": {
+			"title": "高亮与批注",
+			"desc": "选中文字即可高亮或添加批注。长批注在自己的卡片内滚动，不会遮挡附近的笔记。"
+		},
+		"selectionTranslate": {
+			"title": "划词翻译",
+			"desc": "选中段落后，通过划选工具栏翻译。即使隐藏了页面悬浮入口，也能在 PDF 工具栏发起翻译。"
+		},
+		"workspaceNext": {
+			"title": "试试第一篇论文",
+			"desc": "导入 PDF，或按 {{magicWandShortcut}} 粘贴 DOI。打开论文后会继续介绍阅读工具。也可以先打开教程笔记，或到设置中配置 Agent。"
+		},
+		"readingNext": {
+			"title": "开始阅读与整理",
+			"desc": "试着高亮文字、写一条笔记，再用标签筛选论文库。Shift+F11 进入沉浸阅读，Esc 恢复原来的布局。"
+		}
 	}
 }

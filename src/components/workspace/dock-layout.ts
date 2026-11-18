@@ -86,10 +86,10 @@ function resolveReferencePanel(
 
 /**
  * dockview panel renderer per mode, declared in the viewer registry: PDF /
- * Markdown / Excalidraw / plain-text / translation panels use
- * `renderer: 'always'` so inactive sibling tabs keep their React shell
- * mounted (enables the App-level LRU keep-alive); HTML / image stay
- * `onlyWhenVisible` to free DOM when not shown.
+ * Markdown / plain-text / translation panels use `renderer: 'always'` so
+ * inactive sibling tabs keep their React shell mounted (enables the App-level
+ * LRU keep-alive); HTML / image stay `onlyWhenVisible` to free DOM when not
+ * shown.
  */
 function rendererForMode(mode: CenterViewMode): DockviewPanelRenderer {
 	return viewerModeSpec(mode).renderer;

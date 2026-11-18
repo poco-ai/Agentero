@@ -25,7 +25,10 @@ vi.mock("react-i18next", () => ({
 	// The vim key handler pulls in the settings store, which imports `@/i18n`;
 	// keep that module's bootstrap working without loading real resources.
 	initReactI18next: { type: "3rdParty", init() {} },
-	useTranslation: () => ({ t: (key: string) => key }),
+	useTranslation: () => ({
+		t: (key: string) => key,
+		i18n: { language: "en" },
+	}),
 }));
 vi.mock("@/lib/shell/settings-window", () => ({
 	openSettingsWindow: fixture.openSettings,

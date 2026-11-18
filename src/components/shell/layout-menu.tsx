@@ -5,21 +5,29 @@ import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { LayoutMode } from "@/lib/shell/ui-store";
 import { dockHandle } from "@/lib/workspace/dock-registry";
+import { resolveActivePdfHandle } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 type LayoutMenuProps = {
 	value: LayoutMode;
 	onValueChange: (mode: Exclude<LayoutMode, "custom">) => void;
+	onToggleImmersive: () => void;
 };
 
 /** Title-bar menu for the three paper-reading workbench presets. */
-export function LayoutMenu({ value, onValueChange }: LayoutMenuProps) {
+export function LayoutMenu({
+	value,
+	onValueChange,
+	onToggleImmersive,
+}: LayoutMenuProps) {
 	const { t } = useTranslation("app");
 	const [open, setOpen] = useState(false);
 	const closeTimer = useRef<number | undefined>(undefined);
@@ -106,6 +114,13 @@ export function LayoutMenu({ value, onValueChange }: LayoutMenuProps) {
 						{t("titlebar.layoutReading")}
 					</DropdownMenuRadioItem>
 				</DropdownMenuRadioGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					disabled={!resolveActivePdfHandle()}
+					onSelect={onToggleImmersive}
+				>
+					{t("titlebar.layoutImmersive")}
+				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

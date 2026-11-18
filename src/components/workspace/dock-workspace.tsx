@@ -35,6 +35,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import { PaperTitle } from "@/components/paper/paper-title";
 import { MathText } from "@/components/ui/math-text";
 import {
@@ -191,6 +192,7 @@ function useWorkspace(): WorkspaceCtx {
 }
 
 function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
+	const immersiveReading = useStore(uiStore, (s) => s.immersiveReading);
 	const { tabsById, activePanelId, centerProps, keepMountedIds } =
 		useWorkspace();
 	const panelId = props.params.panelId;
@@ -208,7 +210,9 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 	const active = focused || notesActive;
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-			<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
+			{!immersiveReading && (
+				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
+			)}
 			<DocView
 				{...centerProps}
 				tab={tab}
@@ -223,8 +227,10 @@ const components = { pane: WorkspacePane };
 
 /** Restore headers hidden by older single-preview layouts. */
 function syncProjectPreviewHeaders(api: DockviewApi) {
+	const hidden = uiStore.getState().immersiveReading;
 	for (const group of api.groups) {
-		if (group.model.header.hidden) group.model.header.hidden = false;
+		if (group.model.header.hidden !== hidden)
+			group.model.header.hidden = hidden;
 	}
 }
 
@@ -411,6 +417,18 @@ export const DockWorkspace = memo(
 	) {
 		const { t } = useTranslation(["app", "viewer"]);
 		const apiRef = useRef<DockviewApi | null>(null);
+		useEffect(
+			() =>
+				uiStore.subscribe((state, previous) => {
+					if (
+						state.immersiveReading !== previous.immersiveReading &&
+						apiRef.current
+					) {
+						syncProjectPreviewHeaders(apiRef.current);
+					}
+				}),
+			[],
+		);
 		const workspaceRootRef = useRef<HTMLDivElement>(null);
 		// Suspend dockview DnD while a floating selection overlay (toolbar or
 		// ask card) is open — they can sit against the tab strip and a stray
@@ -489,6 +507,7 @@ export const DockWorkspace = memo(
 			}
 			layoutTimerRef.current = window.setTimeout(() => {
 				layoutTimerRef.current = null;
+				if (uiStore.getState().immersiveReading) return;
 				if (syncingRef.current) {
 					// Still mutating — try again after the batch settles.
 					scheduleLayoutSave(api);
@@ -512,7 +531,10 @@ export const DockWorkspace = memo(
 			(api: DockviewApi) => {
 				requestAnimationFrame(() => {
 					syncingRef.current = false;
-					if (uiStore.getState().layoutMode === "reading") {
+					if (
+						uiStore.getState().layoutMode === "reading" ||
+						uiStore.getState().immersiveReading
+					) {
 						if (!api.hasMaximizedGroup()) {
 							const activeId = activePanelIdRef.current ?? api.activePanel?.id;
 							const target =
@@ -727,9 +749,10 @@ export const DockWorkspace = memo(
 				canActivatePanel(panelId) {
 					return Boolean(apiRef.current?.getPanel(panelId));
 				},
-				maximizeActivePanel() {
+				maximizeActivePanel(panelId) {
 					const api = apiRef.current;
-					const activeId = activePanelIdRef.current ?? api?.activePanel?.id;
+					const activeId =
+						panelId ?? activePanelIdRef.current ?? api?.activePanel?.id;
 					const panel =
 						(activeId && api?.getPanel(activeId)) ??
 						api?.panels.find((p) => {
@@ -743,6 +766,60 @@ export const DockWorkspace = memo(
 				},
 				exitMaximizedPanel() {
 					apiRef.current?.exitMaximizedGroup();
+				},
+				captureGroupSizes() {
+					const api = apiRef.current;
+					const root = workspaceRootRef.current;
+					const width = api?.width;
+					const height = api?.height;
+					const sizes = api?.groups.map((group) => ({
+						group,
+						box: group.api.boundingBox,
+					}));
+					let frame = 0;
+					let observer: ResizeObserver | undefined;
+					let listener: { dispose: () => void } | undefined;
+					const dispose = () => {
+						cancelAnimationFrame(frame);
+						observer?.disconnect();
+						listener?.dispose();
+					};
+					const apply = () => {
+						frame = 0;
+						if (
+							!api ||
+							!root?.isConnected ||
+							api.hasMaximizedGroup() ||
+							width == null ||
+							height == null
+						)
+							return;
+						// Native fullscreen, rail expansion and the dock resize each settle
+						// independently. Restore only in the original container geometry.
+						if (
+							Math.abs(api.width - width) > 2 ||
+							Math.abs(api.height - height) > 2
+						)
+							return;
+						dispose();
+						for (const { group, box } of sizes ?? []) {
+							if (box && api.groups.includes(group))
+								group.api.setSize({ width: box.width, height: box.height });
+						}
+					};
+					const schedule = () => {
+						frame ||= requestAnimationFrame(apply);
+					};
+					return {
+						dispose,
+						restore() {
+							if (!api || !root) return;
+							observer = new ResizeObserver(schedule);
+							observer.observe(root);
+							listener = api.onDidLayoutChange(schedule);
+							schedule();
+						},
+					};
 				},
 				isMaximizedPanel() {
 					return apiRef.current?.hasMaximizedGroup() ?? false;
@@ -817,6 +894,7 @@ export const DockWorkspace = memo(
 						publishVisiblePanels(api);
 					}),
 					api.onDidMaximizedGroupChange((event) => {
+						if (uiStore.getState().immersiveReading) return;
 						if (event.isMaximized) {
 							if (uiStore.getState().layoutMode !== "reading") {
 								setLayoutMode("reading");

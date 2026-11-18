@@ -157,6 +157,11 @@ export function translationSourceKey(documentId: string): string | null {
 	return key.endsWith(suffix) ? key.slice(0, -suffix.length) : null;
 }
 
+/** Paper key shared by a source viewer and its `::translation` companion. */
+export function layoutSentenceScope(documentId: string): string {
+	return translationSourceKey(documentId) ?? layoutDocumentKey(documentId);
+}
+
 /**
  * Keep a translation pane's layout result mirrored from its source document.
  *

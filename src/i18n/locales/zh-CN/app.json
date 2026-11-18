@@ -1,5 +1,7 @@
 {
-	"navigator": { "hintTargets": "{{count}} 个键盘目标" },
+	"navigator": {
+		"hintTargets": "{{count}} 个键盘目标"
+	},
 	"labels": {
 		"agent": "Agent",
 		"notes": "笔记",
@@ -55,7 +57,8 @@
 		"tabNextInGroup": "组内下一个标签页",
 		"tabPrevInGroup": "组内上一个标签页",
 		"exportAnnotatedPdf": "导出带批注的 PDF",
-		"wandOpen": "魔棒（按标识符入库）"
+		"wandOpen": "魔棒（按标识符入库）",
+		"immersiveReading": "全屏阅读"
 	},
 	"titlebar": {
 		"showLeftSidebar": "显示左侧边栏",
@@ -77,7 +80,8 @@
 		"menuSettings": "设置…",
 		"menuKeyboardShortcuts": "键盘快捷键",
 		"menuQuickOpen": "快速打开…",
-		"menuCommandPalette": "命令面板…"
+		"menuCommandPalette": "命令面板…",
+		"layoutImmersive": "全屏阅读"
 	},
 	"editor": {
 		"markdownPlaceholder": "在此输入 Markdown……",

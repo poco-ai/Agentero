@@ -1,10 +1,11 @@
 /**
- * Slim dual-pane translation companion. It keeps selection, annotation, and
- * ONNX layout unmounted; find searches the generated translated PDF instead
+ * Dual-pane translation companion. Native text selection shares the reader
+ * annotation actions while PDF text layers and ONNX layout stay unmounted; find searches the generated translated PDF instead
  * of the source text layer.
  */
 
 import type { PdfLinkAnnoObject } from "@embedpdf/models";
+import { useAnnotationCapability } from "@embedpdf/plugin-annotation/react";
 import { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import {
 	GlobalPointerProvider,
@@ -21,16 +22,21 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { PdfCitationPreview } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
 import { PdfLinkUrlTip } from "@/components/viewer/pdf/cards/link-url-tip";
+import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
+import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 import { PdfFindBar } from "@/components/viewer/pdf/chrome/pdf-find-bar";
 import { PdfTranslateProgressChip } from "@/components/viewer/pdf/chrome/pdf-translate-progress";
 import { EMPTY_LAYOUT_REGIONS_BY_PAGE } from "@/components/viewer/pdf/constants";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
 import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations";
+import { usePdfCompanionSelection } from "@/components/viewer/pdf/hooks/use-pdf-companion-selection";
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
 import { usePdfFind } from "@/components/viewer/pdf/hooks/use-pdf-find";
+import { usePdfHighlights } from "@/components/viewer/pdf/hooks/use-pdf-highlights";
 import { usePdfLayoutRegions } from "@/components/viewer/pdf/hooks/use-pdf-layout-regions";
 import { usePdfLayoutTranslate } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { usePdfLinkUrlTip } from "@/components/viewer/pdf/hooks/use-pdf-link-url-tip";
@@ -47,18 +53,23 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
+import { publishLayoutSentenceCatalog } from "@/components/viewer/pdf/layout-sentence-hover";
+import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import type {
 	PdfViewerInnerProps,
 	ScreenPoint,
 } from "@/components/viewer/pdf/types";
+import { ActiveCardScrollSync } from "@/components/viewer/pdf/viewport/active-card-scroll-sync";
 import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-viewport";
 import { KeyboardScrollHandler } from "@/components/viewer/pdf/viewport/keyboard-scroll-handler";
 import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
+import { PdfHistoryKeyHandler } from "@/components/viewer/pdf/viewport/pdf-history-key-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { destinationInPageBox } from "@/lib/pdf/citation-dest-keys";
+import { partitionHighlightPaint } from "@/lib/pdf/highlight/translated-geometry";
 import {
 	mirrorLayoutResultToTranslation,
 	translationSourceKey,
@@ -72,6 +83,7 @@ import {
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
 import { pickPdfSearchDocumentId } from "@/lib/pdf/search-target";
+import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { getTabs } from "@/lib/workspace/store";
 import { findTranslationSourceId } from "@/lib/workspace/tabs";
 
@@ -81,8 +93,6 @@ const EMPTY_MARKS: PdfPageMarksSlice = {
 	activeAskAnchor: null,
 	activeTranslateAnchor: null,
 	activeVisualTrace: null,
-	visualDraftRegion: null,
-	visualCropRegion: null,
 	focusedLayoutRegion: null,
 	focusedLayoutFlash: false,
 	focusedLayoutFlashToken: 0,
@@ -109,8 +119,6 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 	onCitationActivate: NOOP,
 	onTextLinkActivate: NOOP,
 	onCitationHover: NOOP,
-	onRegionSelect: NOOP,
-	onLayoutRegionClick: NOOP,
 	onTogglePageLayoutTranslate: NOOP,
 	onDeleteHighlightAnnotation: NOOP,
 	onEditHighlightAnnotation: NOOP,
@@ -130,9 +138,7 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 };
 
 const PAGE_MODE: PdfPageModeSlice = {
-	regionSelecting: false,
-	visualCropPending: false,
-	visualDraftOpen: false,
+	sentencePairing: true,
 	translationOnly: true,
 };
 
@@ -147,6 +153,8 @@ export function PdfTranslationViewerInner({
 	importIdentifier,
 	isActive = true,
 	onHandle,
+	onHighlightsChange,
+	onOpenSettings,
 }: PdfViewerInnerProps) {
 	usePdfScrollSync(docId);
 	usePdfReadingMode(docId);
@@ -200,6 +208,47 @@ export function PdfTranslationViewerInner({
 		vaultPath,
 		pdfBytes: pdfCacheBytes ?? sourceBytes,
 	});
+
+	useEffect(() => {
+		publishLayoutSentenceCatalog(
+			docId,
+			[...layoutTranslateItemsByPage.values()].flat(),
+		);
+	}, [docId, layoutTranslateItemsByPage]);
+	useEffect(() => {
+		return () => publishLayoutSentenceCatalog(docId, []);
+	}, [docId]);
+	usePdfSentenceInteraction(docId, hostRef);
+	const { provides: annotationCap } = useAnnotationCapability();
+	const onHighlightsChangeRef = useRef(onHighlightsChange);
+	onHighlightsChangeRef.current = onHighlightsChange;
+	const highlights = usePdfHighlights({
+		annotationCap,
+		docCap,
+		docId,
+		paperAbsPath,
+		paperKey,
+		totalPages: docCap?.getDocument(docId)?.pages.length ?? 0,
+		onHighlightsChangeRef,
+	});
+	const selection = usePdfCompanionSelection({
+		docId,
+		hostRef,
+		zoomRef,
+		engineRef,
+		docCapRef,
+		enabled: layoutTranslateActive,
+		isActive,
+		itemsByPage: layoutTranslateItemsByPage,
+		paperRelPath,
+		paperAbsPath,
+		highlights,
+	});
+	const { selectionMenu, actions, ask, translation } = selection;
+	const highlightPaint = useMemo(
+		() => partitionHighlightPaint(highlights.highlights),
+		[highlights.highlights],
+	);
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
@@ -320,13 +369,16 @@ export function PdfTranslationViewerInner({
 			...EMPTY_MARKS,
 			citationLinks: linkSource.citationLinks,
 			textLinks: linkSource.textLinks,
+			translatedHighlightsByPage: highlightPaint.translatedByPage,
+			highlightQuotesByPage: highlightPaint.quotesByPage,
+			selectionCommentDraft: selection.noteDraft,
 		}),
-		[linkSource],
+		[linkSource, highlightPaint, selection.noteDraft],
 	);
 
 	const pageLayout = useMemo<PdfPageLayoutSlice>(
 		() => ({
-			hoverableRegionsByPage: EMPTY_LAYOUT_REGIONS_BY_PAGE,
+			selectableRegionsByPage: EMPTY_LAYOUT_REGIONS_BY_PAGE,
 			rawRegionsByPage,
 			layoutOverlayVisible: false,
 			layoutTranslateItemsByPage,
@@ -452,7 +504,7 @@ export function PdfTranslationViewerInner({
 
 	const handleLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, point?: ScreenPoint | null) => {
-			if (linkPreviewDragActive()) {
+			if (linkPreviewDragActive() || selectionMenu) {
 				clearCitationPreview();
 				clearCrossrefPreview();
 				clearLinkUrlTip();
@@ -467,18 +519,19 @@ export function PdfTranslationViewerInner({
 			clearLinkUrlTip,
 			handleCitationLinkHover,
 			handleCrossrefLinkHover,
+			selectionMenu,
 		],
 	);
 
 	const handleLinkUrlHover = useCallback(
 		(url: string | null, point?: ScreenPoint | null) => {
-			if (linkPreviewDragActive()) {
+			if (linkPreviewDragActive() || selectionMenu) {
 				clearLinkUrlTip();
 				return;
 			}
 			hoverLinkUrl(url, point);
 		},
-		[clearLinkUrlTip, hoverLinkUrl],
+		[clearLinkUrlTip, hoverLinkUrl, selectionMenu],
 	);
 
 	const handleCitationImportOpenChange = useCallback(
@@ -503,6 +556,7 @@ export function PdfTranslationViewerInner({
 		[citationImport, handleCitationImportOpenChange, isRemotePaper],
 	);
 
+	const pageMode = PAGE_MODE;
 	const pageHandlers = useMemo<PdfPageHandlers>(
 		() => ({
 			...EMPTY_HANDLERS,
@@ -511,12 +565,16 @@ export function PdfTranslationViewerInner({
 			onTextLinkActivate: openExternalUrl,
 			onCitationHover: handleLinkHover,
 			onLinkUrlHover: handleLinkUrlHover,
+			onCommitSelectionComment: selection.commitNote,
+			onDismissSelectionComment: selection.dismissNote,
 		}),
 		[
 			togglePageLayoutTranslate,
 			activateCitation,
 			handleLinkHover,
 			handleLinkUrlHover,
+			selection.commitNote,
+			selection.dismissNote,
 		],
 	);
 
@@ -536,7 +594,7 @@ export function PdfTranslationViewerInner({
 				annotationCap={null}
 				marks={pageMarks}
 				layout={pageLayout}
-				mode={PAGE_MODE}
+				mode={pageMode}
 				handlers={pageHandlers}
 			/>
 		),
@@ -556,6 +614,7 @@ export function PdfTranslationViewerInner({
 	return (
 		<div
 			ref={hostRef}
+			data-pdf-root
 			className="relative flex h-full min-h-0 w-full select-none flex-col"
 		>
 			<DockviewViewport
@@ -563,6 +622,15 @@ export function PdfTranslationViewerInner({
 				hostRef={hostRef}
 				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
 			>
+				<ActiveCardScrollSync
+					active={!!selectionMenu}
+					onScroll={selection.rePlaceSelectionMenu}
+				/>
+				<PdfHistoryKeyHandler
+					active={isActive}
+					hostRef={hostRef}
+					onReplay={highlights.replayAnnotationHistory}
+				/>
 				<WheelZoomHandler docId={docId} />
 				<KeyboardScrollHandler
 					documentId={docId}
@@ -609,6 +677,54 @@ export function PdfTranslationViewerInner({
 			{typeof document !== "undefined"
 				? createPortal(
 						<>
+							{selectionMenu ? (
+								<SelectionMenu
+									screen={selectionMenu.screen}
+									selectionText={
+										selectionMenu.copyText ?? selectionMenu.anchor.quote
+									}
+									onHighlight={actions.handleHighlight}
+									onAsk={actions.handleMenuAsk}
+									onAddToChat={actions.handleMenuAddToChat}
+									onTranslate={selection.translateSelection}
+									onCopy={actions.handleMenuCopy}
+									onNote={selection.openNote}
+									showHighlight={
+										!isRemotePaper && selectionMenu.pages.length > 0
+									}
+								/>
+							) : null}
+							{ask.ask ? (
+								<AskPopover
+									thread={ask.ask.thread}
+									screen={ask.ask.screen}
+									streaming={ask.streaming}
+									error={ask.askError}
+									onSend={ask.sendAskQuestion}
+									onResend={ask.resendAskQuestion}
+									onHide={ask.hideAsk}
+									onDelete={ask.deleteAsk}
+									onStop={ask.stopAskStreaming}
+								/>
+							) : null}
+							{translation.translation ? (
+								<TranslateCard
+									screen={translation.translation.screen}
+									sourceText={translation.translation.selection.text}
+									mode={translation.translation.mode}
+									onModeChange={translation.switchMode}
+									result={translation.translation.result}
+									streaming={translation.translation.streaming}
+									error={translation.translation.error}
+									onHide={translation.close}
+									onOpenSettings={
+										onOpenSettings ??
+										(() => {
+											void openSettingsWindow("translate");
+										})
+									}
+								/>
+							) : null}
 							{citationPreview ? (
 								<PdfCitationPreview
 									screen={citationPreview.screen}

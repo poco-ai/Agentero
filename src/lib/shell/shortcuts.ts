@@ -51,12 +51,14 @@ export type ShortcutId =
 	| "zoomIn"
 	| "zoomOut"
 	| "zoomReset"
-	/** ⌘. — start/cancel PDF visual-region annotation (active PDF tab). */
-	| "visualAnnotation"
+	/** ⌘. — toggle PDF layout element selection (active PDF tab). */
+	| "layoutElementSelection"
 	/** ⌥A — toggle PDF full-text (layout) translation (active PDF tab). */
 	| "layoutTranslate"
-	/** F11 — borderless fullscreen (Windows only). */
-	| "toggleFullscreen";
+	/** F11 — borderless fullscreen (Windows only). Does not hide reader chrome. */
+	| "toggleFullscreen"
+	/** Shift+F11 — immersive reading: fullscreen plus hidden chrome. */
+	| "immersiveReading";
 
 export type ShortcutGroup = "App" | "Navigation" | "Vault" | "Editor";
 
@@ -360,9 +362,9 @@ export const SHORTCUTS: ShortcutDef[] = [
 		whenSettingsClosed: true,
 	},
 	{
-		id: "visualAnnotation",
+		id: "layoutElementSelection",
 		group: "App",
-		// ⌘. — toggle PDF visual annotation region select (active PDF tab)
+		// ⌘. — toggle PDF layout element selection (active PDF tab)
 		key: ".",
 		meta: true,
 		whenSettingsClosed: true,
@@ -379,9 +381,19 @@ export const SHORTCUTS: ShortcutDef[] = [
 	{
 		id: "toggleFullscreen",
 		group: "App",
-		// F11 — exclusive (borderless) fullscreen; Windows only
+		// F11 — exclusive (borderless) fullscreen; Windows only.
+		// Window chrome stays. Immersive reading is Shift+F11.
 		key: "F11",
 		platforms: ["windows"],
+	},
+	{
+		id: "immersiveReading",
+		group: "App",
+		// Shift+F11 — fullscreen and hide title bar, rails, and the PDF toolbar.
+		// Esc restores the previous layout. Distinct from F11 and Layout → Reading.
+		key: "F11",
+		shift: true,
+		whenSettingsClosed: true,
 	},
 ];
 
