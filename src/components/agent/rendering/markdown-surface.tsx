@@ -5,9 +5,16 @@ import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import type { ComponentProps } from "react";
 import { memo } from "react";
-import { type ExtraProps, type PluginConfig, Streamdown } from "streamdown";
+import {
+	type AllowedTags,
+	defaultRemarkPlugins,
+	type ExtraProps,
+	type PluginConfig,
+	Streamdown,
+} from "streamdown";
 import { MathCopy } from "@/components/markdown/math-copy";
 import { cn } from "@/lib/core/utils";
+import { remarkHighlightToHtml } from "@/lib/markdown/highlight-to-html";
 import { AgentCitationLink } from "./agent-citation-link";
 import { PlainCodeBlock } from "./plain-code-block";
 import { PlainTable } from "./plain-table";
@@ -24,6 +31,26 @@ const streamdownPlugins: PluginConfig = {
 	math: streamdownMath,
 };
 
+/**
+ * Passing `remarkPlugins` replaces Streamdown's defaults, so keep gfm and
+ * codeMeta ahead of the highlight transformer. Streamdown still appends the
+ * CJK/math remark plugins from `streamdownPlugins` afterwards.
+ */
+const streamdownRemarkPlugins = [
+	...Object.values(defaultRemarkPlugins),
+	remarkHighlightToHtml,
+];
+
+/**
+ * Models write `<u>` / `<mark>` inline HTML, but Streamdown's sanitize schema
+ * has neither tag, so the default pipeline strips the tags and leaves bare text
+ * (#1168). A non-empty `allowedTags` widens that schema and keeps the
+ * raw → sanitize → harden pipeline, so allow the two presentational tags (the
+ * default schema already covers sub/sup/kbd) and keep everything else
+ * sanitized.
+ */
+const streamdownAllowedTags: AllowedTags = { u: [], mark: [] };
+
 function MathSpan({
 	node: _node,
 	...props
@@ -39,9 +66,11 @@ function MathSpan({
 /**
  * Shared Streamdown surface for chat replies and Markdown inside OpenUI Text.
  * Callers prepare the source (citations, math normalization) before rendering;
- * this component only owns the plugin/code/table wiring. Mermaid is intercepted
- * by `MessageResponse`'s code component because `components.code` replaces
- * Streamdown's built-in renderer (and therefore its `renderers` hook).
+ * this component only owns the plugin/code/table wiring. `==highlight==` is
+ * rewritten to `<mark>` by the shared remark transformer, and `<u>` / `<mark>`
+ * in model output render through the sanitized raw-HTML pipeline. Mermaid is
+ * intercepted by `MessageResponse`'s code component because `components.code`
+ * replaces Streamdown's built-in renderer (and therefore its `renderers` hook).
  */
 export const MarkdownSurface = memo(
 	({
@@ -69,6 +98,8 @@ export const MarkdownSurface = memo(
 				}}
 				linkSafety={{ enabled: false }}
 				plugins={streamdownPlugins}
+				allowedTags={streamdownAllowedTags}
+				remarkPlugins={streamdownRemarkPlugins}
 				{...props}
 			>
 				{children}

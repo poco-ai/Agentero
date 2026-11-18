@@ -16,6 +16,7 @@ import {
 import type { AnnotationSnapshot } from "@/lib/agent/annotation-snapshot";
 import type { ChatVisualAnnotation } from "@/lib/agent/chat-state";
 import type { SelectionContext } from "@/lib/agent/selection-store";
+import { remarkHighlightToHtml } from "@/lib/markdown/highlight-to-html";
 
 export function SentAnnotationChip({
 	snapshot,
@@ -112,6 +113,7 @@ export function AnnotationMarkerText({
 			className="text-base leading-relaxed"
 			remarkPlugins={[
 				...Object.values(defaultRemarkPlugins),
+				remarkHighlightToHtml,
 				annotationReferences,
 			]}
 			components={{
