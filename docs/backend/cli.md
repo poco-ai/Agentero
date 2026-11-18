@@ -21,12 +21,12 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 | `mcp serve` | 前台 Streamable HTTP MCP（loopback）。与桌面端共用工具面，不启动 GUI。见 [mcp.md](mcp.md) |
 | `describe` | Agent 自省：策展型 op 目录与单 op 的 input/output/errors/examples（机器契约真源） |
 | `paper` | list/get、tag list/set/add/rm、move、open、download/parse、notes fetch… |
-| `import` | 标识符入库 |
+| `import` | 标识符 / BibTeX / 本地 PDF 入库；`import pdf --layout` 可在入库后顺带跑版面分析 |
 | `discover` | 查询式发现：按关键词/分类/提交日期窗口抓 arXiv 候选，确定性词法排序（headless、无 embedding key） |
 | `feed` | 广场订阅源（RSS / Atom / JSON Feed）：`list` / `add` / `remove` / `refresh` / `items` / `read`；与桌面端共用 `$XDG_DATA_HOME/agentero/feeds.sqlite`，无 Vault 概念 |
 | `export` | 导出 |
 | `doctor` | Vault 结构与 Catalog 诊断；含 wikilink 检查与 aliases / 视觉批注 / catalog 去重修复 |
-| `layout` | 侧栏同构版面索引：`list` / `get`（figure / table / algorithm / formula / section / paragraph） |
+| `layout` | 侧栏同构版面索引：`list` / `get` / `analyze`（figure / table / algorithm / formula / section / paragraph）；`analyze` 用远程 Provider 生成 sidecar |
 | `mark` | 阅读标注：`list` / `get` / `add`（`--quote` 文字锚点或 `--region` 区域锚点）/ `update` / `delete` |
 | `ui` | 桌面工作区/窗口操作：`open`（打开或聚焦文档/文件夹/论文）/ `close`（关闭面板）/ `window`（聚焦原生子窗口）/ `split`（分屏）；均走 `agentero://ui` 深链 + 请求文件 |
 | `translate` | 免费机器翻译纯文本（无需 API Key，不读桌面 settings） |
@@ -52,7 +52,7 @@ agentero describe paper_list --json   # MCP tool 名亦可
 
 ### 版面索引与区域批注（已实现）
 
-侧栏 Figures 同源列表落在 `{paper}/source/layout-index.json`（由桌面版面分析在 merge 后写入；raw 仍为 `source/layout.json`）。
+侧栏 Figures 同源列表落在 `{paper}/source/layout-index.json`（raw 仍为 `source/layout.json`）。这两份 sidecar 可由桌面版面分析在 merge 后写入，也可由 headless CLI 的 `layout analyze` 用远程 Provider 直接生成（[运行版面分析](#运行版面分析layout-analyze)）；两边同 schema，可互相读取。
 
 ```bash
 # 列出图 / 表 / 算法 / 公式 / 章节标题（--kind 可重复，OR）
@@ -80,9 +80,49 @@ Mark id 是 nanoid，字母表含 `-`，约 1/64 的 id 以 `-` 开头。`mark g
 | `section` | 从 `source/layout.json` 枚举章节标题；有明确编号且唯一的章节提供 `anchor` |
 | `paragraph` | 编号章节直接所属的正文块，返回 `anchor`、`sectionAnchor`、`paragraphIndex`、`text`、页码与 bbox |
 
-章节与段落查询只需 `source/layout.json`，其他查询仍需 `layout-index.json`。缺少对应文件时明确返回错误，提示先在 App 运行版面分析。
+章节与段落查询只需 `source/layout.json`，其他查询仍需 `layout-index.json`。缺少对应文件时返回 `layout_raw_missing` / `layout_index_missing`，提示先运行版面分析——桌面 App 或下面的 `agentero layout analyze` 都能生成。
 
 `anchor` 可原样追加到 PDF 路径，例如 `papers/demo/demo.pdf#2.1#p3`。编号先按页码排序；检测到双栏正文的水平间隙且两侧正文在垂直方向重叠时，按通栏块分带，每带先左栏再右栏、栏内从上到下，修正远端解析结果可能存在的 `readingOrder` 左右交错。无双栏证据时保留 `readingOrder`（缺失时用坐标及 id 排序），在置信度筛选前按所属章节计数；子章节独立计数。未编号标题终止上一章节的归属，标题前正文不推测章节。重复编号章节及其段落不提供可用 `anchor`；直接查询歧义锚点返回 `citation_anchor_ambiguous`，不存在返回 `citation_anchor_not_found`。同一解析结果重开保持编号；首版不重建跨页自然段，也不恢复 PDF 替换后的旧锚点。
+
+### 运行版面分析（layout analyze）
+
+无 GUI 的 Vault 可以自己生成版面 sidecar：CLI 读取桌面同一份 `~/.config/agentero/settings.json`，用远程 Provider（Paddle PP-StructureV3 / MinerU）分析论文根目录的 `{paper}/{id}.pdf`，写出与桌面同 schema 的 `source/layout.json` + `source/layout-index.json`。本地 ONNX（PP-DocLayoutV3）跑在 WebView / EmbedPDF 里，仍然只能在桌面 App 使用；`layout.backend` 为 `local` 时请用 `--provider` 显式指定远程引擎。
+
+```bash
+# 有完整缓存则跳过；否则分析整篇
+agentero layout analyze papers/demo --json
+
+# 指定远程 Provider（覆盖 settings 的 layout.backend）
+agentero layout analyze papers/demo --provider mineru --json
+
+# 忽略完整缓存，重新分析
+agentero layout analyze papers/demo --force --json
+
+# 只保留第 1–10 页的区域（Provider 仍处理整份 PDF；sidecar 标记为不完整）
+agentero layout analyze papers/demo --force --pages 1-10 --json
+
+# 临时覆盖 token / 自建 MinerU 端点（不落盘、不回显）
+agentero layout analyze papers/demo --provider mineru \
+  --api-key "$MINERU_TOKEN" --base-url http://10.0.0.5:8080 --self-hosted --json
+```
+
+| 参数 | 说明 |
+|---|---|
+| `<ref>` | 论文路径或 id，与 `layout list` / `layout get` 同一解析规则（path 优先） |
+| `--provider paddle\|mineru` | 覆盖 `settings.json` 的 `layout.backend`；`local` 后端不能 headless 运行 |
+| `--force` | 已有完整缓存也重新分析 |
+| `--pages <RANGE>` | 1-based，支持 `1-10`、`3`、`1-4,7`；必须升序且不重叠 |
+| `--api-key <KEY>` | 临时覆盖 Provider token；默认读 settings 中已存密钥，不回显。headless 机器优先用环境变量 `AGENTERO_LAYOUT_API_KEY`（不进 shell history / argv） |
+| `--base-url <URL>` | 覆盖端点（MinerU 自建 / 中转站） |
+| `--self-hosted` | 把 `--base-url` 当作**自建 MinerU** 部署（仅 MinerU；覆盖 settings 里的 `selfHosted` 开关） |
+
+- **缓存策略**：与桌面 `layoutSidecarBlocksAnalysis` 同源——`source/layout.json` 的 completeness 完整（`processedPages` 覆盖全部页且文字层完整）时直接复用，不调 Provider；`--force` 强制重跑。缺 completeness 的旧 sidecar 视为未知，会重新分析。
+- **`--pages` 语义**：远程 API 不支持只传几页，Provider 始终处理整份 PDF；CLI 只在写盘时保留列出的页，并把 sidecar 故意标记为**不完整**，桌面端打开论文时会再补分析其余页。页码 1-based 且升序、不重叠；空段、0、倒序、乱序都返回 `usage`。它只在真正跑分析时生效——完整缓存命中时请配合 `--force`。
+- **Provider 配置来源**：桌面 设置 →「版面解析」写入的 `layout.backend` 与 `layout.providerConfigs.<paddle|mineru>`（`apiKey` / `baseUrl` / 语言 / 自建开关）。headless 机器可以没有桌面 App，只要把同样的值写进共享 `settings.json`。CLI 只读、不写，日志与输出都不含密钥。自建 MinerU 除了 `--base-url` 还要 `--self-hosted`（或在 settings 里打开该 provider 的「自建部署」开关），否则按官方云 API / 中转站方言请求。
+- **`--json`**：`provider` / `sidecarMode` / `fromCache` / `regionCount` / `indexCount` / `pageCount` / `analyzedPages`（0-based）/ `elapsedMs` / `sidecarPath` / `indexPath`。text 模式打印一行摘要（`analyzed …` 或 `cached …`）加一行 sidecar / index 路径。
+- **错误**：论文根目录没有 `{id}.pdf`（`layout_pdf_missing`）、Provider 未配置或 `layout.backend=local`（`layout_provider_local`）、未知 Provider、页数超出 PDF、请求失败都返回可读错误并带稳定 `error.code`。`import pdf --layout` 里的分析失败不算入库失败。
+
+`import pdf --layout` 在成功入库后，对每篇有本地 PDF 的论文跑同一段分析并复用同一份 settings；单篇失败只追加一行 warning，Provider 未配置时只输出一条提示。`--json` 的 `layout` 数组按论文给出 `{path, ok, provider?, fromCache?, regionCount?, indexCount?, pageCount?, elapsedMs?, error?}`，Provider 未配置时另有 `layoutError`。
 
 ### 文字高亮 / 批注 / 翻译（已实现）
 
@@ -278,9 +318,14 @@ agentero import pdf paper1.pdf paper2.pdf --parent papers/nlp --json
 
 # 跳过元数据识别，直接以文件名派生元数据入库
 agentero import pdf paper.pdf --no-recognize --json
+
+# 入库后顺带跑 headless 版面分析（每篇有本地 PDF 的论文；失败只 warning）
+agentero import pdf paper1.pdf paper2.pdf --layout --json
 ```
 
 支持一次传入多个文件路径；支持相对路径与绝对路径。
+
+`--layout` 复用 `agentero layout analyze` 的同一段实现：Provider 与凭据来自共享 `settings.json`（见 [运行版面分析](#运行版面分析layout-analyze)），单个论文分析失败不会中断其它论文，也不会让入库返回失败。`--json` 结果里 `layout` 数组按论文给出分析结果；没有配置远程 Provider 时只输出一条 warning 并带 `layoutError`，不逐篇报错。
 
 ## 论文与 Tag
 

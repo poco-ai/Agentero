@@ -1,5 +1,8 @@
 //! Tauri command shell for remote layout providers: resolves credentials
-//! from settings and dispatches to the engine registry.
+//! from settings, wraps the Tauri handle as a core [`AppHandle`] for progress
+//! events, and dispatches to the engine registry owned by `agentero_core`.
+//!
+//! [`AppHandle`]: crate::core::app_handle::AppHandle
 
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::features::paper::analyze::layout::hosted::engine::{
@@ -125,7 +128,8 @@ pub async fn layout_remote_analyze_pdf(
         ),
     );
     let ctx = LayoutAnalyzeContext {
-        app: app.clone(),
+        // Progress events reach the WebView through the desktop HostHooks.
+        app: crate::features::host_hooks::wrap(&app),
         credentials,
         args,
     };

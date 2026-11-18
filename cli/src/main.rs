@@ -224,7 +224,8 @@ enum Commands {
         #[command(subcommand)]
         cmd: Option<commands::doctor::DoctorCmd>,
     },
-    /// Sidebar layout index (figures / tables / algorithms / formulas).
+    /// Sidebar layout index (figures / tables / algorithms / formulas):
+    /// list / get cached regions, analyze to generate them headlessly.
     Layout {
         #[command(subcommand)]
         cmd: commands::layout::LayoutCmd,
@@ -448,7 +449,7 @@ async fn run(command: Commands, globals: &GlobalOpts) -> Result<serde_json::Valu
         Commands::Feed { cmd } => commands::feed::run(cmd, globals).await,
         Commands::Export { cmd } => commands::export::run(cmd, globals).await,
         Commands::Doctor { cmd } => commands::doctor::run(cmd, globals),
-        Commands::Layout { cmd } => commands::layout::run(cmd, globals),
+        Commands::Layout { cmd } => commands::layout::run(cmd, globals).await,
         Commands::Mark { cmd } => commands::mark::run(cmd, globals).await,
         Commands::Mcp { cmd } => match cmd {
             McpCmd::Serve(args) => commands::mcp::serve(args, globals).await,

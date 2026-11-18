@@ -38,6 +38,8 @@ which = "7"
 feed-rs = "2.3"
 flate2 = "1.1.9"
 tar = "0.4.46"
+# MinerU result archives (moved hosted layout engine) are zip files.
+zip = { version = "9.1", default-features = false, features = ["deflate"] }
 htmd = "0.5.4"
 dom_smoothie = "0.18"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
@@ -58,7 +60,9 @@ futures-util = "0.3.33"
 fs2 = "0.4"
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt", "fs"] }
+# `test-util` drives the paused clock in the MinerU shared-extract flight test
+# (moved here with the hosted layout engine).
+tokio = { workspace = true, features = ["macros", "rt", "fs", "test-util"] }
 # Unique temp-dir names in `fs::path` tests.
 uuid = { version = "1", features = ["v4"] }
 
