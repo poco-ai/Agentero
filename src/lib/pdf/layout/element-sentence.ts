@@ -115,8 +115,55 @@ export type ElementSentenceHit = {
 export type SentenceItem = {
 	id: string;
 	pageIndex: number;
+	/** Layout box in page fractions. Hover uses it to skip the rest of the page. */
+	bbox?: { x: number; y: number; w: number; h: number };
 	sentences?: readonly Pick<LayoutTranslateSentence, "quote" | "translated">[];
 };
+
+const POINTER_BBOX_PAD = 0.006;
+/** A box this large is the whole page, not a block the pointer is "inside". */
+const TIGHT_PAGE_AREA = 0.85;
+
+/**
+ * Blocks on one page whose box contains the pointer.
+ * A full-page box loses to any tighter block. No containing box falls back
+ * to the whole page so a line that sits just outside its box still hits.
+ */
+export function sentenceItemsUnderPoint<T extends SentenceItem>(
+	items: readonly T[],
+	pageIndex: number,
+	x: number,
+	y: number,
+): T[] {
+	const onPage: T[] = [];
+	const hits: T[] = [];
+	const tight: T[] = [];
+	for (const item of items) {
+		if (item.pageIndex !== pageIndex) continue;
+		onPage.push(item);
+		const box = item.bbox;
+		if (!box || !(box.w > 0) || !(box.h > 0)) {
+			hits.push(item);
+			tight.push(item);
+			continue;
+		}
+		if (
+			!pointInBbox(x, y, {
+				x: box.x - POINTER_BBOX_PAD,
+				y: box.y - POINTER_BBOX_PAD,
+				w: box.w + POINTER_BBOX_PAD * 2,
+				h: box.h + POINTER_BBOX_PAD * 2,
+			})
+		) {
+			continue;
+		}
+		hits.push(item);
+		if (box.w * box.h < TIGHT_PAGE_AREA) tight.push(item);
+	}
+	if (tight.length > 0) return tight;
+	if (hits.length > 0) return hits;
+	return onPage;
+}
 
 export type SentenceLocate =
 	| { status: "sentence"; hit: ElementSentenceHit }
@@ -226,24 +273,25 @@ export function elementSentenceAtPoint(options: {
 	const item =
 		options.items.find((entry) => entry.id === options.regionId) ?? null;
 	if (options.pageIndex != null && !options.span) {
-		const hits = options.items
-			.filter((entry) => entry.pageIndex === options.pageIndex)
-			.flatMap((entry) => {
-				const result = elementSentenceAtPoint({
-					...options,
-					regionId: entry.id,
-					pageIndex: undefined,
-				});
-				return result.status === "sentence" ? [result] : [];
+		const candidates = sentenceItemsUnderPoint(
+			options.items,
+			options.pageIndex,
+			options.x,
+			options.y,
+		);
+		const hits = candidates.flatMap((entry) => {
+			const result = elementSentenceAtPoint({
+				...options,
+				regionId: entry.id,
+				pageIndex: undefined,
 			});
+			return result.status === "sentence" ? [result] : [];
+		});
 		hits.sort(
 			(left, right) => rectArea(left.hit.rects) - rectArea(right.hit.rects),
 		);
 		if (hits[0]) return hits[0];
-		return options.items.some(
-			(entry) =>
-				entry.pageIndex === options.pageIndex && !options.glyphs.has(entry.id),
-		)
+		return candidates.some((entry) => !options.glyphs.has(entry.id))
 			? { status: "pending" }
 			: { status: "element" };
 	}

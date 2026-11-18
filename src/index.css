@@ -654,21 +654,25 @@
 /*
  * Layout-element selection. The frame and chip stay invisible until the
  * pointer or keyboard focus is on that element, so the page does not keep
- * every detection box painted. Opacity fades in 160ms. The hit target does
- * not take pointer events: text selection and links keep them.
+ * every detection box painted. Entering is instant: a 150ms fade never
+ * reaches a visible opacity when the pointer only crosses a block, so the
+ * block looks like it never activated. Leaving fades out in 80ms.
+ * The hit target does not take pointer events: text selection and links
+ * keep them.
  * Element borders and fills use the paper ink, with separate opacity for the
  * frame and the text-safe background.
  */
 .pdf-layout-element-frame,
 .pdf-layout-element-chip {
 	opacity: 0;
-	transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
+	transition: opacity 80ms var(--motion-ease-out);
 }
 [data-layout-element].is-hot > .pdf-layout-element-frame,
 [data-layout-element].is-hot > .pdf-layout-element-chip,
 [data-layout-element]:focus-within > .pdf-layout-element-frame,
 [data-layout-element]:focus-within > .pdf-layout-element-chip {
 	opacity: 1;
+	transition: none;
 }
 .pdf-layout-element-frame {
 	position: absolute;
@@ -713,10 +717,11 @@
 	z-index: 2;
 	pointer-events: none;
 	opacity: 0;
-	transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
+	transition: opacity 80ms var(--motion-ease-out);
 }
 .pdf-layout-sentence-wash.is-on {
 	opacity: var(--pdf-sentence-opacity, 12%);
+	transition: none;
 }
 .pdf-layout-sentence-wash > span {
 	position: absolute;
@@ -731,7 +736,6 @@
 [data-sentence][data-sentence-hot] {
 	border-radius: 1px;
 	background-color: color-mix(in oklch, var(--pdf-paper-ink) 12%, transparent);
-	transition: background-color 160ms ease;
 }
 .pdf-live-selection-band {
 	transform: translateY(-12%);
@@ -739,8 +743,7 @@
 @media (prefers-reduced-motion: reduce) {
 	.pdf-layout-element-frame,
 	.pdf-layout-element-chip,
-	.pdf-layout-sentence-wash,
-	[data-sentence][data-sentence-hot] {
+	.pdf-layout-sentence-wash {
 		transition: none;
 	}
 }

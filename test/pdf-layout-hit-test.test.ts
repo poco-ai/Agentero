@@ -512,6 +512,59 @@ describe("elementSentenceAtPoint", () => {
 		expect(merged[0]?.sentences).toHaveLength(2);
 	});
 
+	it("scans the block under the pointer instead of a smaller box on another block", () => {
+		const pageItems = [
+			{
+				id: "a",
+				pageIndex: 0,
+				bbox: { x: 0.1, y: 0.1, w: 0.4, h: 0.08 },
+				sentences: [{ quote: "Alpha sentence.", translated: "甲" }],
+			},
+			{
+				id: "b",
+				pageIndex: 0,
+				bbox: { x: 0.1, y: 0.4, w: 0.4, h: 0.08 },
+				sentences: [{ quote: "Beta sentence.", translated: "乙" }],
+			},
+		];
+		const pageGlyphs = new Map([
+			["a", [[{ x: 0.12, y: 0.12, w: 0.3, h: 0.04 }]]],
+			["b", [[{ x: 0.12, y: 0.12, w: 0.05, h: 0.02 }]]],
+		]);
+		const located = elementSentenceAtPoint({
+			items: pageItems,
+			glyphs: pageGlyphs,
+			regionId: "",
+			pageIndex: 0,
+			x: 0.14,
+			y: 0.13,
+		});
+		expect(located.status).toBe("sentence");
+		if (located.status !== "sentence") return;
+		expect(located.hit.quote).toBe("Alpha sentence.");
+	});
+
+	it("still hits a sentence whose glyph sits just outside every block box", () => {
+		const located = elementSentenceAtPoint({
+			items: [
+				{
+					id: "a",
+					pageIndex: 0,
+					bbox: { x: 0.1, y: 0.1, w: 0.4, h: 0.05 },
+					sentences: [{ quote: "Alpha sentence.", translated: "甲" }],
+				},
+			],
+			glyphs: new Map([["a", [[{ x: 0.12, y: 0.2, w: 0.3, h: 0.04 }]]]]),
+			regionId: "",
+			pageIndex: 0,
+			x: 0.14,
+			y: 0.21,
+		});
+		expect(located.status).toBe("sentence");
+		if (located.status !== "sentence") return;
+		expect(located.hit.quote).toBe("Alpha sentence.");
+	});
+
 	it("does not invent a sentence from an empty quote", () => {
 		expect(
 			elementSentenceAtPoint({

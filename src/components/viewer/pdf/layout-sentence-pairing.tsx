@@ -27,6 +27,7 @@ import {
 import { sourceSentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
 import { translatedSelectionLineRects } from "@/lib/pdf/layout/visible-selection-rects";
 import { linkPreviewDragActive } from "@/lib/pdf/link-preview-drag";
+import { synctexHoverSupersedes } from "@/lib/tex/synctex-boxes";
 
 function spanFromTarget(
 	target: EventTarget | null,
@@ -89,6 +90,10 @@ export function usePdfSentenceInteraction(
 			const event = pending;
 			pending = null;
 			if (!event) return;
+			if (synctexHoverSupersedes(docId)) {
+				clearLayoutSentenceHover();
+				return;
+			}
 			if (
 				selectionOwns(root, event, origin) ||
 				root.hasAttribute("data-pdf-selecting") ||
@@ -142,6 +147,7 @@ export function usePdfSentenceInteraction(
 		};
 
 		const onDoubleClick = (event: MouseEvent) => {
+			if (synctexHoverSupersedes(docId)) return;
 			if (!doubleClickRef.current || !(event.target instanceof Element)) return;
 			if (
 				event.target.closest("[data-layout-item], [data-pdf-chrome], a, button")
@@ -199,66 +205,18 @@ export function PdfSentenceHighlight({
 		const layer = ref.current;
 		const shell = layer?.parentElement;
 		if (!layer || !shell) return;
-		const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-		let revealFrame = 0;
-		let pending: {
-			key: string;
-			content: DocumentFragment;
-			opacity: string;
-		} | null = null;
 		let paintedKey: string | null = null;
-		let fadingOut = false;
+		let fadeTimer = 0;
 
-		const install = () => {
-			const next = pending;
-			pending = null;
-			fadingOut = false;
-			layer.replaceChildren();
-			paintedKey = next?.key ?? null;
-			if (!next) return;
-			layer.style.setProperty("--pdf-sentence-opacity", next.opacity);
-			layer.append(next.content);
-			if (reducedMotion.matches) {
-				layer.classList.add("is-on");
-				return;
-			}
-			// Commit the hidden style before starting the shared opacity transition.
-			void getComputedStyle(layer).opacity;
-			revealFrame = requestAnimationFrame(() => {
-				revealFrame = 0;
-				layer.classList.add("is-on");
-			});
-		};
-		const transition = (next: typeof pending) => {
-			pending = next;
-			if (revealFrame) cancelAnimationFrame(revealFrame);
-			revealFrame = 0;
-			if (reducedMotion.matches) {
-				layer.classList.remove("is-on");
-				install();
-				return;
-			}
-			if (fadingOut) return;
-			if (
-				!layer.childElementCount ||
-				Number(getComputedStyle(layer).opacity) === 0
-			) {
-				layer.classList.remove("is-on");
-				install();
-				return;
-			}
-			fadingOut = true;
+		const clear = () => {
+			if (paintedKey === null && !layer.classList.contains("is-on")) return;
+			paintedKey = null;
 			layer.classList.remove("is-on");
+			window.clearTimeout(fadeTimer);
+			fadeTimer = window.setTimeout(() => {
+				if (!layer.classList.contains("is-on")) layer.replaceChildren();
+			}, 80);
 		};
-		const onTransitionEnd = (event: TransitionEvent) => {
-			if (
-				event.target === layer &&
-				event.propertyName === "opacity" &&
-				fadingOut
-			)
-				install();
-		};
-		layer.addEventListener("transitionend", onTransitionEnd);
 		const paint = () => {
 			const action = layoutElementActionStore.getState().action;
 			const current = action ? action.sentence : layoutSentenceHover();
@@ -272,7 +230,11 @@ export function PdfSentenceHighlight({
 			// The translated side keeps its native DOM selection tint; the source
 			// PDF has no DOM text, so this layer owns its held sentence band.
 			if (!mine || (!action && !source && selectedDocument === docId)) {
-				transition(null);
+				clear();
+				return;
+			}
+			if (!mine.members.some((member) => member.pageIndex === pageIndex)) {
+				clear();
 				return;
 			}
 			const box = shell.getBoundingClientRect();
@@ -294,8 +256,8 @@ export function PdfSentenceHighlight({
 					mine.members
 						.filter((member) => member.pageIndex === pageIndex)
 						.flatMap((member) => member.rects),
-					box.width,
-					box.height,
+					Math.round(box.width),
+					Math.round(box.height),
 					lines.length ? lines : undefined,
 				))
 					append(rect.x, rect.y, rect.w, rect.h);
@@ -319,18 +281,19 @@ export function PdfSentenceHighlight({
 				}
 			}
 			if (!content.childElementCount) {
-				transition(null);
+				clear();
 				return;
 			}
-			const next = {
-				key: mine.key,
-				content,
-				opacity: selectedDocument ? "28%" : "12%",
-			};
-			if (paintedKey === mine.key && !fadingOut) {
-				layer.replaceChildren(content);
-				layer.style.setProperty("--pdf-sentence-opacity", next.opacity);
-			} else transition(next);
+			// Swap the band in place. Fading the old sentence out before showing
+			// the next one drops every block the pointer crosses during that fade.
+			window.clearTimeout(fadeTimer);
+			paintedKey = mine.key;
+			layer.style.setProperty(
+				"--pdf-sentence-opacity",
+				selectedDocument ? "28%" : "12%",
+			);
+			layer.replaceChildren(content);
+			layer.classList.add("is-on");
 		};
 		const unsubscribe = subscribeLayoutSentenceHover(paint);
 		const unsubscribeAction = layoutElementActionStore.subscribe(paint);
@@ -342,8 +305,7 @@ export function PdfSentenceHighlight({
 			unsubscribe();
 			unsubscribeAction();
 			observer?.disconnect();
-			if (revealFrame) cancelAnimationFrame(revealFrame);
-			layer.removeEventListener("transitionend", onTransitionEnd);
+			window.clearTimeout(fadeTimer);
 		};
 	}, [docId, pageIndex, source]);
 	return (

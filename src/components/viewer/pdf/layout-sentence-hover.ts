@@ -13,8 +13,10 @@ import {
 	mergeSentenceItems,
 	type SentenceFractionRect,
 	type SentenceItem,
+	sentenceItemsUnderPoint,
 	sourceSentenceHoverBands,
 } from "@/lib/pdf/layout/element-sentence";
+import { pointInBbox } from "@/lib/pdf/layout/hit-test";
 import {
 	reflowSentenceGlyphRects,
 	sentenceGlyphRects,
@@ -74,6 +76,7 @@ type CatalogSlot = { scope: string; items: CatalogItem[] };
 let hover: LayoutSentenceHover | null = null;
 let held: LayoutSentenceHover | null = null;
 let lastQuery: PointerQuery | null = null;
+let lastSample: PointerQuery | null = null;
 let suppressed = false;
 const sources = new Map<string, GlyphSource>();
 
@@ -327,11 +330,15 @@ export function publishLayoutSentenceCatalog(
 function glyphsFor(
 	scope: string,
 	pageIndex: number,
+	point?: { x: number; y: number },
 ): Map<string, readonly (readonly SentenceFractionRect[])[]> {
 	const map = new Map<string, readonly (readonly SentenceFractionRect[])[]>();
 	const pageLines = layoutSentenceLineRects(scope, pageIndex);
 	const lines = pageLines.length ? pageLines : EMPTY_LINE_RECTS;
-	for (const item of itemsForScope(scope)) {
+	const items = point
+		? sentenceItemsUnderPoint(itemsForScope(scope), pageIndex, point.x, point.y)
+		: itemsForScope(scope);
+	for (const item of items) {
 		if (item.pageIndex !== pageIndex) continue;
 		const cached = glyphs.get(glyphKey(scope, item));
 		if (!cached) continue;
@@ -662,9 +669,87 @@ function hoveredMembers(query: PointerQuery, hit: ElementSentenceHit) {
 	});
 }
 
-function applyPointer(query: PointerQuery): void {
+/** One text line, in page fractions. A sample that lands just outside still counts. */
+const SENTENCE_LOOKBACK = 0.02;
+
+function pointerInCurrentSentence(query: PointerQuery): boolean {
+	if (!hover || held || suppressed) return false;
+	if (layoutSentenceScope(hover.docId) !== layoutSentenceScope(query.docId)) {
+		return false;
+	}
+	if (query.span) {
+		return hover.members.some(
+			(member) =>
+				member.pageIndex === query.pageIndex &&
+				member.itemId === query.span?.itemId &&
+				member.sentenceIndex === query.span.sentenceIndex,
+		);
+	}
+	if (
+		hover.pageIndex === query.pageIndex &&
+		hover.rects.some((rect) => pointInBbox(query.x, query.y, rect))
+	) {
+		return true;
+	}
+	return hover.members.some(
+		(member) =>
+			member.pageIndex === query.pageIndex &&
+			member.rects.some((rect) => pointInBbox(query.x, query.y, rect)),
+	);
+}
+
+/**
+ * Points within one line back along this move, then the pointer itself.
+ * The caller tries the pointer first. A miss can still light the block the
+ * frame just crossed. Landing on the next block does not replay the ones
+ * in between.
+ */
+function samplesNearPointer(query: PointerQuery): PointerQuery[] {
+	const previous = lastSample;
+	if (
+		query.span ||
+		!previous ||
+		layoutSentenceScope(previous.docId) !== layoutSentenceScope(query.docId) ||
+		previous.pageIndex !== query.pageIndex
+	) {
+		return [query];
+	}
+	const dx = query.x - previous.x;
+	const dy = query.y - previous.y;
+	const dist = Math.hypot(dx, dy);
+	if (dist <= 0.012) return [query];
+	const reach = Math.min(dist, SENTENCE_LOOKBACK);
+	const steps = Math.min(3, Math.ceil(reach / 0.01));
+	const samples: PointerQuery[] = [];
+	for (let step = steps; step >= 1; step--) {
+		const scale = (reach * step) / dist;
+		samples.push({
+			...query,
+			x: query.x - dx * scale,
+			y: query.y - dy * scale,
+			span: null,
+		});
+	}
+	samples.push(query);
+	return samples;
+}
+
+function locateSentence(scope: string, query: PointerQuery) {
+	return elementSentenceAtPoint({
+		items: itemsForScope(scope),
+		glyphs: glyphsFor(scope, query.pageIndex, query.x, query.y),
+		regionId: query.regionId,
+		pageIndex: query.pageIndex,
+		x: query.x,
+		y: query.y,
+		span: query.span,
+	});
+}
+
+function applyPointer(query: PointerQuery, track = false): void {
 	if (held) return;
 	if (suppressed) {
+		lastSample = null;
 		publish(null);
 		return;
 	}
@@ -679,15 +764,25 @@ function applyPointer(query: PointerQuery): void {
 	) {
 		primeLayoutSentenceGlyphs(query.pageIndex, query.docId);
 	}
-	const locate = elementSentenceAtPoint({
-		items: itemsForScope(scope),
-		glyphs: glyphsFor(scope, query.pageIndex),
-		regionId: query.regionId,
-		pageIndex: query.pageIndex,
-		x: query.x,
-		y: query.y,
-		span: query.span,
-	});
+	if (pointerInCurrentSentence(query)) {
+		lastSample = query;
+		return;
+	}
+	const samples = track ? samplesNearPointer(query) : null;
+	lastSample = query;
+	let locate = locateSentence(scope, query);
+	let chosen = query;
+	if (samples && locate.status !== "sentence" && locate.status !== "pending") {
+		for (let index = samples.length - 2; index >= 0; index--) {
+			const sample = samples[index];
+			if (!sample) continue;
+			const result = locateSentence(scope, sample);
+			if (result.status !== "sentence") continue;
+			locate = result;
+			chosen = sample;
+			break;
+		}
+	}
 	if (locate.status === "pending") {
 		primeLayoutSentenceGlyphs(query.pageIndex, query.docId);
 		if (
@@ -708,11 +803,17 @@ function applyPointer(query: PointerQuery): void {
 		publish(null);
 		return;
 	}
-	const members = hoveredMembers(query, locate.hit);
+	const members = hoveredMembers(chosen, locate.hit);
+	const regionId =
+		chosen === query
+			? query.regionId
+			: (locate.hit.members.find(
+					(member) => member.pageIndex === query.pageIndex,
+				)?.itemId ?? query.regionId);
 	publish({
 		...locate.hit,
 		docId: query.docId,
-		regionId: query.regionId,
+		regionId,
 		pageIndex: query.pageIndex,
 		members,
 	});
@@ -741,7 +842,7 @@ subscribeTranslatedLinkSource(() => {
 /** Pointer is choosing a sentence. No-op while a text drag owns the page. */
 export function syncLayoutSentencePointer(query: PointerQuery): void {
 	lastQuery = query;
-	applyPointer(query);
+	applyPointer(query, true);
 }
 
 /** Click / Enter resolves the sentence even if the drag guard had cleared it. */
@@ -780,12 +881,14 @@ export function releaseHeldLayoutSentenceHover(docId: string): void {
 	if (held?.docId !== docId) return;
 	held = null;
 	lastQuery = null;
+	lastSample = null;
 	publish(null);
 }
 
 export function suppressLayoutSentenceHover(): void {
 	suppressed = true;
 	lastQuery = null;
+	lastSample = null;
 	publish(null);
 }
 
@@ -795,5 +898,6 @@ export function releaseLayoutSentenceHover(): void {
 
 export function clearLayoutSentenceHover(): void {
 	lastQuery = null;
+	lastSample = null;
 	publish(null);
 }

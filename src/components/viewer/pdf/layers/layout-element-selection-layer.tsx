@@ -193,6 +193,7 @@ export const LayoutElementSelectionLayer = memo(
 			let pending: PointerEvent | null = null;
 			let hoveredId: string | null = null;
 			let paintedId: string | null = null;
+			let lastClient: { x: number; y: number } | null = null;
 
 			const elementOf = (id: string) =>
 				root.querySelector<HTMLElement>(
@@ -266,7 +267,7 @@ export const LayoutElementSelectionLayer = memo(
 						window.clearTimeout(fadeTimer);
 						fadeTimer = window.setTimeout(() => {
 							if (!wash.classList.contains("is-on")) wash.replaceChildren();
-						}, 160);
+						}, 80);
 					} else {
 						window.clearTimeout(fadeTimer);
 						wash.replaceChildren(
@@ -324,6 +325,39 @@ export const LayoutElementSelectionLayer = memo(
 				);
 			};
 
+			const regionAlongMove = (
+				clientX: number,
+				clientY: number,
+				target: EventTarget | null,
+			) => {
+				const point = fractionOf(clientX, clientY);
+				if (!point) return null;
+				const direct = regionAt(target, point);
+				if (direct) return { region: direct, point };
+				const previous = lastClient;
+				if (!previous) return null;
+				const dx = clientX - previous.x;
+				const dy = clientY - previous.y;
+				const dist = Math.hypot(dx, dy);
+				// Slow moves trust the point under the cursor. A frame that jumps
+				// past a block still activates the block it just crossed.
+				if (dist < 16) return null;
+				const reach = Math.min(dist, 28);
+				const steps = Math.min(3, Math.ceil(reach / 10));
+				for (let step = 1; step <= steps; step++) {
+					const scale = (reach * (step / steps)) / dist;
+					const back = fractionOf(clientX - dx * scale, clientY - dy * scale);
+					if (!back) continue;
+					const found = pickSelectableLayoutRegion(
+						regionsRef.current,
+						back.x,
+						back.y,
+					);
+					if (found) return { region: found, point: back };
+				}
+				return null;
+			};
+
 			const applyHover = () => {
 				raf = 0;
 				const event = pending;
@@ -334,40 +368,44 @@ export const LayoutElementSelectionLayer = memo(
 					target instanceof Element &&
 					target.closest("[data-pdf-chrome], [data-selection-menu]")
 				) {
+					lastClient = null;
 					hoveredId = null;
 					syncHot();
 					clearLayoutSentenceHover();
 					return;
 				}
 				if (textDragOwns(shell, event, origin)) {
+					lastClient = null;
 					hoveredId = null;
 					syncHot();
 					suppressLayoutSentenceHover();
 					return;
 				}
 				releaseLayoutSentenceHover();
-				const point = fractionOf(event.clientX, event.clientY);
-				if (!point) {
+				const located = regionAlongMove(event.clientX, event.clientY, target);
+				lastClient = { x: event.clientX, y: event.clientY };
+				if (!located) {
 					hoveredId = null;
 					syncHot();
 					clearLayoutSentenceHover();
 					return;
 				}
-				const hit = regionAt(target, point);
-				hoveredId = hit?.id ?? null;
+				const { region: hit, point } = located;
+				hoveredId = hit.id;
 				syncHot();
 				if (sentencePairing) return;
-				if (!hit || !isLayoutElementTextKind(hit.kind)) {
+				if (!isLayoutElementTextKind(hit.kind)) {
 					clearLayoutSentenceHover();
 					return;
 				}
+				const span = spanFromTarget(target);
 				syncLayoutSentencePointer({
 					docId,
 					regionId: hit.id,
 					pageIndex,
 					x: point.x,
 					y: point.y,
-					span: spanFromTarget(target),
+					span: span?.itemId === hit.id ? span : null,
 				});
 			};
 
@@ -442,6 +480,7 @@ export const LayoutElementSelectionLayer = memo(
 				if (raf) cancelAnimationFrame(raf);
 				raf = 0;
 				pending = null;
+				lastClient = null;
 				hoveredId = null;
 				syncHot();
 				clearLayoutSentenceHover();
