@@ -8,7 +8,6 @@ Create Vault seeds these when missing. Pick with `$` in Composer.
 | `agentero-cli` | headless `agentero` CLI，含只读双链检查；按平台播种（POSIX `agentero` / Windows `agentero-cli`） |
 | `openui-blocks` | 论文阅读/科研只读 UI 块；由 `scripts/generate-openui-catalog.mjs` 生成 |
 | `vault-normalizer` | 整理现有研究目录并对比迁移前后的双链诊断 |
-| `acdemic-drawing` | 生成学术场景 Excalidraw 图 |
 | `idea-evaluator` | 研究 idea 评审 |
 | `deep-research` | 综述级文献调研 |
 | `research-paper-writing` | 论文写作与审稿前自查 |

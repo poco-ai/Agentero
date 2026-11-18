@@ -44,10 +44,10 @@ export function useAppShortcuts(
 	// Whether the vault file tree was the surface the user last interacted
 	// with. Its clipboard shortcuts (⌘X / ⌘V) may only claim the keystroke on
 	// its own surface: everywhere else the event must fall through so the
-	// platform emits the native cut/paste — the Excalidraw canvas only pastes
-	// clipboard images from a real `paste` event, and preventing the keydown
-	// suppresses it. WebKit does not focus <button> rows on click, so the
-	// keydown target / activeElement is unreliable; track pointer + focus
+	// platform emits the native cut/paste — canvases and other viewers paste
+	// clipboard content only from a real `paste` event, and preventing the
+	// keydown suppresses it. WebKit does not focus <button> rows on click, so
+	// the keydown target / activeElement is unreliable; track pointer + focus
 	// instead.
 	const treeSurfaceActiveRef = useRef(false);
 	useEffect(() => {
@@ -88,8 +88,8 @@ export function useAppShortcuts(
 
 			// File-tree shortcuts only apply on the tree's own surface. Elsewhere
 			// the event must reach the platform so the focused viewer still gets
-			// native cut/paste — Excalidraw pastes clipboard images only from a
-			// real `paste` event, and preventDefault on the keydown suppresses it.
+			// native cut/paste — paste consumers only react to a real `paste`
+			// event, and preventDefault on the keydown suppresses it.
 			if (TREE_SURFACE_SHORTCUTS.has(id) && !treeSurfaceActiveRef.current) {
 				return;
 			}

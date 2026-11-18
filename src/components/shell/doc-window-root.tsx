@@ -32,7 +32,6 @@ import { shouldIgnoreInternalRenameEvent } from "@/lib/wiki/store";
 import {
 	applyDiskChange,
 	compileTexOnManualSave,
-	persistExcalidrawFile,
 	persistFile,
 	persistTextFile,
 } from "@/lib/workspace/actions";
@@ -204,14 +203,6 @@ export function DocWindowRoot() {
 		[],
 	);
 
-	const excalidrawProps = useMemo(
-		() => ({
-			onPersistFile: persistExcalidrawFile,
-			onTabPatch: onTabPatch,
-		}),
-		[onTabPatch],
-	);
-
 	const textProps = useMemo(
 		() => ({
 			onPersistFile: persistTextFile,
@@ -328,7 +319,6 @@ export function DocWindowRoot() {
 						library={LIBRARY_STUB}
 						editor={editorProps}
 						pdf={PDF_STUB}
-						excalidraw={excalidrawProps}
 						text={textProps}
 						onTrashChanged={NOOP_TRASH_CHANGED}
 					/>

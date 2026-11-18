@@ -25,17 +25,10 @@ describe("viewer mode registry", () => {
 			expect(viewerModeSpec(entry.mode)).toBe(entry);
 			expect(["always", "onlyWhenVisible"]).toContain(entry.renderer);
 			expect(["pdf", "editor", null]).toContain(entry.keepAlive);
-			expect(["editor", "excalidraw", "text", "pdf", "none"]).toContain(
-				entry.props,
+			expect(["editor", "text", "pdf", "none"]).toContain(entry.props);
+			expect(["pdf", "markdown", "html", "image", "text"]).toContain(
+				entry.resource,
 			);
-			expect([
-				"pdf",
-				"markdown",
-				"html",
-				"image",
-				"excalidraw",
-				"text",
-			]).toContain(entry.resource);
 		}
 		// Persist whitelist is exactly the registry mode set.
 		for (const mode of [
@@ -44,7 +37,6 @@ describe("viewer mode registry", () => {
 			"html",
 			"image",
 			"translation",
-			"excalidraw",
 			"text",
 		] as const) {
 			expect(isCenterViewMode(mode)).toBe(true);
@@ -79,10 +71,6 @@ describe("viewer mode registry", () => {
 			renderer: "always",
 			keepAlive: "editor",
 		});
-		expect(viewerModeSpec("excalidraw")).toMatchObject({
-			renderer: "always",
-			keepAlive: null,
-		});
 		expect(viewerModeSpec("html")).toMatchObject({
 			renderer: "onlyWhenVisible",
 			keepAlive: null,
@@ -100,7 +88,6 @@ describe("viewer mode registry", () => {
 		expect(viewerModeSpec("text").resource).toBe("text");
 		expect(viewerModeSpec("html").resource).toBe("html");
 		expect(viewerModeSpec("image").resource).toBe("image");
-		expect(viewerModeSpec("excalidraw").resource).toBe("excalidraw");
 	});
 
 	it("pins DocView props domain per mode", () => {
@@ -108,7 +95,6 @@ describe("viewer mode registry", () => {
 		expect(viewerModeSpec("translation").props).toBe("pdf");
 		expect(viewerModeSpec("markdown").props).toBe("editor");
 		expect(viewerModeSpec("text").props).toBe("text");
-		expect(viewerModeSpec("excalidraw").props).toBe("excalidraw");
 		expect(viewerModeSpec("html").props).toBe("none");
 		expect(viewerModeSpec("image").props).toBe("none");
 	});
@@ -134,7 +120,6 @@ describe("viewer mode registry", () => {
 			["/v/page.htm", "html"],
 			["/v/figure.PNG", "image"],
 			["/v/graph.svg", "image"],
-			["/v/board.excalidraw", "excalidraw"],
 			["/v/note.md", "markdown"],
 			["/v/note.mdx", "markdown"],
 			// papers/ domain keeps Markdown even for the text catch-all extension.
@@ -162,7 +147,6 @@ describe("viewer mode registry", () => {
 	it("isViewerPath only claims dedicated viewer extensions (never the papers fallback)", () => {
 		expect(isViewerPath("/v/paper.pdf")).toBe(true);
 		expect(isViewerPath("/v/note.md")).toBe(true);
-		expect(isViewerPath("/v/board.excalidraw")).toBe(true);
 		expect(isViewerPath("/v/notes/data.txt")).toBe(false);
 		// Extension-less paths under papers/ are file-tree directories, not files.
 		expect(isViewerPath("/v/papers/x/org-folder")).toBe(false);

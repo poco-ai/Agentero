@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
 	imageMimeFromPath,
-	isExcalidrawPath,
 	isHtmlPath,
 	isImagePath,
 	isImageViewerSource,
@@ -33,7 +32,6 @@ describe("viewer path helpers", () => {
 		expect(preferredModeForPath("/a/b.pdf")).toBe("pdf");
 		expect(preferredModeForPath("/a/b.html")).toBe("html");
 		expect(preferredModeForPath("/a/b.png")).toBe("image");
-		expect(preferredModeForPath("/a/b.excalidraw")).toBe("excalidraw");
 		expect(preferredModeForPath("/a/b.md")).toBe("markdown");
 		expect(preferredModeForPath(null)).toBe("markdown");
 	});
@@ -63,12 +61,6 @@ describe("viewer path helpers", () => {
 		expect(textLanguageIdForPath("/a/ref.bib")).toBe("bib");
 		expect(textLanguageIdForPath("/a/notes.txt")).toBe(null);
 		expect(textLanguageIdForPath("/a/README")).toBe(null);
-	});
-
-	it("detects excalidraw extensions", () => {
-		expect(isExcalidrawPath("/vault/drawing.excalidraw")).toBe(true);
-		expect(isExcalidrawPath("/vault/drawing.EXCALIDRAW")).toBe(true);
-		expect(isExcalidrawPath("/vault/drawing.json")).toBe(false);
 	});
 
 	it("accepts blob and data URLs as image sources", () => {

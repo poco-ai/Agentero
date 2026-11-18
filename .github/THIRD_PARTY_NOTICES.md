@@ -67,7 +67,6 @@
 | `@embedpdf/plugin-tiling` | 2.14.4 | MIT | https://www.embedpdf.com/docs |
 | `@embedpdf/plugin-viewport` | 2.14.4 | MIT | https://www.embedpdf.com/docs |
 | `@embedpdf/plugin-zoom` | 2.14.4 | MIT | https://www.embedpdf.com/docs |
-| `@excalidraw/excalidraw` | 0.18.1 | MIT | https://github.com/excalidraw/excalidraw/tree/master/packages/excalidraw |
 | `@flowershow/remark-wiki-link` | 3.4.0 | MIT | https://github.com/flowershow/remark-wiki-link#readme |
 | `@fontsource-variable/geist` | 5.2.9 | OFL-1.1 | https://fontsource.org/fonts/geist |
 | `@lezer/highlight` | 1.2.3 | MIT | https://github.com/lezer-parser/highlight |

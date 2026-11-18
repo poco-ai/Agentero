@@ -45,7 +45,7 @@ Library 始终位于所在标签条的第一位：禁止拖动 Library 及包含
 
 ## 纯文本编辑器（CodeMirror 兜底）
 
-`papers/` 之外的文本文件在专用查看器（PDF / HTML / 图片 / Excalidraw / Markdown）都不命中时，落入 CodeMirror 6 纯文本编辑器（`text` 模式），承担「未知格式兜底查看器」的角色；`papers/` 内部保持原 Markdown 行为不变（paper 域文件不降级为原始文本缓冲）。
+`papers/` 之外的文本文件在专用查看器（PDF / HTML / 图片 / Markdown）都不命中时，落入 CodeMirror 6 纯文本编辑器（`text` 模式），承担「未知格式兜底查看器」的角色；`papers/` 内部保持原 Markdown 行为不变（paper 域文件不降级为原始文本缓冲）。
 
 | 项 | 方案 |
 |---|---|
@@ -58,7 +58,7 @@ Library 始终位于所在标签条的第一位：禁止拖动 Library 及包含
 | 文件路径补全 | TeX 路径参数命令（`\input` / `\include` / `\includeonly` / `\includegraphics` / `\includepdf` / `\includesvg` / `\bibliography` / `\addbibresource`，含 `*` 变体与 `[可选参数]`）的 `{}` 内按需列目录：路径相对当前文件目录解析（latexmk 以 .tex 父目录为 cwd），目录项带尾 `/` 置顶、按命令过滤扩展名（`\bibliography` 去掉 `.bib` 后缀），经 Host 树命令 / SFTP 逐级列出（同文件树忽略规则），带 10s 目录缓存；`validFor` 检测目录前缀变化后重新查询 |
 | 换行 | `EditorView.lineWrapping` 全局启用 |
 | 主题 | 底色、行号、当前行、选区、补全弹层走界面 CSS 变量（`--background` / `--foreground` / `--muted` / `--border` / `--popover`），盖过 CodeMirror 自带的 `&light` / `&dark` 实色。语法色从当前主题的 `--primary` 色相用 `oklch(from …)` 推出，浅色/深色各一套明度，注释用 `--muted-foreground`，非法片段用 `--destructive`。`\cite` 等引用命令在语法里是 quote 而不是 keyword，`\includegraphics` / `\footnote` 等被单独切开且没有高亮标签的命令用 `cm-tex-cmd` 补上同一命令色；`\ref` / `\label` 仍用名字色。明暗只切换 `color-scheme`。实现 `text-editor-theme.ts` |
-| 生命周期 | 与 ExcalidrawViewer 同契约：props 播种 + `reloadKey` 信号，内容 / dirty / 800ms 防抖自动保存由编辑器持有，`persistTextFile` 带磁盘冲突守卫与按路径写队列；外部改盘 `reloadKey` bump 后**原地换 doc**（视图、滚动、撤销历史保留，不重挂载） |
+| 生命周期 | 与文档注册表统一契约：props 播种 + `reloadKey` 信号，内容 / dirty / 800ms 防抖自动保存由编辑器持有，`persistTextFile` 带磁盘冲突守卫与按路径写队列；外部改盘 `reloadKey` bump 后**原地换 doc**（视图、滚动、撤销历史保留，不重挂载） |
 | 手动保存 | ⌘S / Ctrl+S：立即 flush 防抖自动保存（跳过等待），成功后触发 `onManualSave`；内容干净时按 ⌘S 仍触发（显式重建），保存被冲突守卫拒绝则不触发。编辑器挂载时经 `registerTextEditorFlusher`（`lib/workspace/text-editor-flush.ts`，lib 层注册表，避免 actions 反向依赖 lazy chunk）注册 flush，卸载自动注销 |
 | 划词工具栏 | 非空选区弹出与 PDF 同款的 `SelectionMenu`（portal 到 body 的 fixed 工具栏），只带 **加入对话（⇧⌘L）**（文字按钮）与 **快速对话（⌘K）**（下拉）：文本文件没有 marks/ 侧车（无高亮/翻译按钮），也**不做选区自动复制**——代码缓冲里选区常是粘贴替换的前奏，静默改写剪贴板会破坏待粘贴内容。拖选在 mouseup 后弹出（同 PDF），键盘选区（⇧ 方向键 / 双击 / ⌘A）即时弹出，滚动时锚点跟随（`coordsAtPos` 客户端坐标）。选区经 `publishSelection`（origin `markdown`，带 1 起始的 `lineFrom` / `lineTo` 行跨度——选区终点恰在行首时不含该行）镜像为 Agent composer 的临时 chip，chip 标签显示 `文件名 7行` / `文件名 12-15行`（行号后缀走 i18n，`composer.selectionChipWithLine(s)`；PDF chip 的 `· p.N` 对应形态），提交 prompt 为 `Selected text from {path} (lines A-B):`；加入对话 = 发布 + `pinActiveSelection` + 打开 Agent 侧栏并折叠选区；快速对话复用 `useSelectionAsk` + `AskPopover`（prompt 走 `buildPlazaAskPrompt` 的 `surface: "text"` 变体）。仅活动面板弹出（keep-alive 的隐藏 pane 不弹）；切走标签即收起工具栏，Ask 线程继续流式。划词工具栏与 Ask 卡都是 portal 到 body 的 fixed 浮层，选到面板顶部一两行时会贴着 dockview tab 条；两者挂载期间经 `src/lib/workspace/selection-overlay.ts` 把工作区 `disableDnd` 置真，暂停 tab / group 拖拽，避免在浮层上起手拖拽误触分栏（#608）。实现：`src/components/viewer/use-text-editor-selection.ts`。**Plate Markdown 笔记**同样写入 `lineFrom` / `lineTo`（`use-selection-context-publish` + 划词工具栏 / ⇧⌘L）：按顶层块 `serializeBlocksAsMarkdown` 前缀行数 + 块内换行偏移，再加 YAML frontmatter 行偏移，使行号与磁盘文件一致；块多选与行内选区均覆盖（#709）。实现：`src/lib/markdown/selection-source-lines.ts` |
 | TeX | 项目主文件识别与显式选择；latexmk 增量 / 强制 / 清理重建、命名配方、输出目录与文件名；按保存或依赖变化自动编译；编译期间保留旧 PDF，成功后恢复阅读位置并刷新所有同路径分屏；源码与 PDF 双向 SyncTeX；整项目补全、大纲和论文库引用插入。问题统一在编辑器底部原有计数 / 悬停列表，日志从 LaTeX 侧栏按钮打开 modal。详见 [latex.md](latex.md) |
@@ -82,10 +82,10 @@ Zen 是虚拟的 Agent 工作面（`agentero:zen`），不走 viewer 模式注�
 | `renderer` | dockview panel renderer（`dock-workspace.tsx`）：`always` 保持未激活 panel 的 React 壳挂载，配合保活 LRU |
 | `keepAlive` | 保活 LRU 池归属（`workspace-host.tsx`）：`pdf` = PDF viewer LRU=2，`editor` = Markdown / 文本编辑器 LRU=4，null = 不保活 |
 | `props` | DocView 的域 props 比较器（`doc-view.tsx`）：按 mode 查表取域，替代原「镜像路由顺序」的手写比较列表 |
-| `resource` | `loadTabResources` 的资源解析策略（`tabs/resources.ts`）：按 mode 取 PDF 字节 / 图片 blob / Markdown / Excalidraw / 文本种子，取代重复的路径谓词判断；pdf 与 translation 共享 `pdf`（translation 由 `createTranslationSplitPane` 克隆源 pane 字节，磁盘刷新 `refreshPdfTab` / `applyDiskChange` 同判据） |
+| `resource` | `loadTabResources` 的资源解析策略（`tabs/resources.ts`）：按 mode 取 PDF 字节 / 图片 blob / Markdown / 文本种子，取代重复的路径谓词判断；pdf 与 translation 共享 `pdf`（translation 由 `createTranslationSplitPane` 克隆源 pane 字节，磁盘刷新 `refreshPdfTab` / `applyDiskChange` 同判据） |
 | `restore` | 持久化会话恢复覆盖（`store.ts`）：translation 面板恢复为「已加载」的 paper 标签且不走磁盘 hydrate，其余为默认占位 |
 
-新增一种文档类型 = 注册表加一条目 + `doc-view.tsx` 加一个渲染分支；复用既有 `resource` 策略时，加载器 / 持久化 / renderer / LRU / props 比较器 / 恢复都不用改。PDF / Plate / CodeMirror / Excalidraw 引擎、选区与持久化模型是本质差异，仍各自独立——注册表只收敛类型层与分发层。表完整性与各字段取值由 `test/workspace-viewer-modes.test.ts` 反漂移钉住（renderer / keepAlive / resource / props 逐项与旧行为等价）。
+新增一种文档类型 = 注册表加一条目 + `doc-view.tsx` 加一个渲染分支；复用既有 `resource` 策略时，加载器 / 持久化 / renderer / LRU / props 比较器 / 恢复都不用改。PDF / Plate / CodeMirror 引擎、选区与持久化模型是本质差异，仍各自独立——注册表只收敛类型层与分发层。表完整性与各字段取值由 `test/workspace-viewer-modes.test.ts` 反漂移钉住（renderer / keepAlive / resource / props 逐项与旧行为等价）。
 
 ## 代码
 

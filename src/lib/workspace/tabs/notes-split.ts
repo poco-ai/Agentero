@@ -233,16 +233,16 @@ export function readingPairCloseIds(tabs: DocTab[], id: string): string[] {
  * to the `{seed, dirty, key}` fields on DocTab plus how own saves differ from
  * external writes, so one generic patch covers the whole reseed/refresh series.
  */
-type SeedKind = "notes" | "markdown" | "excalidraw" | "text";
+type SeedKind = "notes" | "markdown" | "text";
 
 type SeedSpec = {
 	/** Whether this tab's editor renders the path. Notes tabs pair with the
 	 * paper dir: either the NOTES.md tab id or the paper body tab id. */
 	owns: (tab: DocTab, norm: string, absPath: string) => boolean;
 	/** Tab fields holding the in-memory seed / unsaved-edits flag / reload key. */
-	seed: "notesSeed" | "markdownSeed" | "excalidrawSeed" | "textSeed";
-	dirty: "notesDirty" | "markdownDirty" | "excalidrawDirty" | "textDirty";
-	key: "notesKey" | "seedKey" | "excalidrawKey" | "textKey";
+	seed: "notesSeed" | "markdownSeed" | "textSeed";
+	dirty: "notesDirty" | "markdownDirty" | "textDirty";
+	key: "notesKey" | "seedKey" | "textKey";
 	/** Own saves bump the reload key too (editors swap content in place). */
 	bumpOnReseed: boolean;
 	/** Own save with the seed already current keeps the tab identity so
@@ -272,15 +272,6 @@ const SEED_SPECS: Record<SeedKind, SeedSpec> = {
 		dirty: "markdownDirty",
 		key: "seedKey",
 		bumpOnReseed: true,
-		keepIdentityOnReseed: false,
-	},
-	excalidraw: {
-		owns: (tab, norm) =>
-			normalizeTabPath(tab.path) === norm && tab.mode === "excalidraw",
-		seed: "excalidrawSeed",
-		dirty: "excalidrawDirty",
-		key: "excalidrawKey",
-		bumpOnReseed: false,
 		keepIdentityOnReseed: false,
 	},
 	text: {

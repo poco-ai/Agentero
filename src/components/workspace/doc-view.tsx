@@ -50,11 +50,6 @@ const MarkdownEditor = lazy(() =>
 		default: m.MarkdownEditor,
 	})),
 );
-const ExcalidrawViewer = lazy(() =>
-	import("@/components/viewer/excalidraw-viewer").then((m) => ({
-		default: m.ExcalidrawViewer,
-	})),
-);
 
 const TableViewer = lazy(() =>
 	import("@/components/research-table/table-viewer").then((m) => ({
@@ -141,16 +136,6 @@ export type DocViewPdfProps = {
 	) => void;
 };
 
-/** Excalidraw editor props. */
-export type DocViewExcalidrawProps = {
-	onPersistFile: (
-		path: string,
-		json: string,
-		lastSaved: string,
-	) => Promise<boolean>;
-	onTabPatch: (id: string, patch: Partial<DocTab>) => void;
-};
-
 /** Plain-text (CodeMirror) editor props. */
 export type DocViewTextProps = {
 	onPersistFile: (
@@ -179,7 +164,6 @@ export type DocViewProps = {
 	library: DocViewLibraryProps;
 	editor: DocViewEditorProps;
 	pdf: DocViewPdfProps;
-	excalidraw: DocViewExcalidrawProps;
 	text: DocViewTextProps;
 	onTrashChanged: () => void;
 	/** Bump to reload recycle bin after Empty Recycle Bin from the sidebar. */
@@ -276,8 +260,6 @@ function docViewPropsEqual(prev: DocViewProps, next: DocViewProps): boolean {
 	switch (viewerModeSpec(tab.mode).props) {
 		case "editor":
 			return prev.editor === next.editor;
-		case "excalidraw":
-			return prev.excalidraw === next.excalidraw;
 		case "text":
 			return prev.text === next.text;
 		case "pdf":
@@ -296,7 +278,6 @@ const DocumentContent = memo(function DocumentContent({
 	library,
 	editor,
 	pdf,
-	excalidraw,
 	text,
 	onTrashChanged,
 	trashReloadSignal = 0,
@@ -557,28 +538,6 @@ const DocumentContent = memo(function DocumentContent({
 					alt={tab.title}
 					className="h-full w-full"
 				/>
-			</div>
-		);
-	}
-	if (tab.mode === "excalidraw") {
-		if (!active && !keepMounted) return <TabLoadingSkeleton />;
-		return (
-			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-				<Suspense fallback={<TabLoadingSkeleton />}>
-					<ExcalidrawViewer
-						// Stable per-tab key: external disk changes reload in place
-						// via `reloadKey` instead of remounting the whole viewer.
-						key={`excalidraw-${tab.id}`}
-						seed={tab.excalidrawSeed}
-						path={tab.path}
-						reloadKey={tab.excalidrawKey}
-						onPersist={excalidraw.onPersistFile}
-						onDirtyChange={(d) =>
-							excalidraw.onTabPatch(tab.id, { excalidrawDirty: d })
-						}
-						className="h-full w-full"
-					/>
-				</Suspense>
 			</div>
 		);
 	}
