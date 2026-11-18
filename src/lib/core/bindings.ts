@@ -1508,7 +1508,7 @@ export type AgentTemplate = "opencode" |
  *  Docs: https://cursor.com/docs/cli
  */
 "cursor-agent" | 
-/**  Google Antigravity's official ACP server (separate from the retired `agy-acp` adapter). */
+/**  Google Antigravity CLI with native ACP (`agy acp`). */
 "antigravity-acp" | 
 /**
  *  Qoder CLI native ACP (`qodercli --acp`).

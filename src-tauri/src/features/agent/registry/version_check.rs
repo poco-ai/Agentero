@@ -95,8 +95,8 @@ fn version_check_fields(
 }
 
 /// Newest version the silent updater can reach for a template. npm-based
-/// agents use the package dist-tag; Antigravity ships no npm package and is
-/// served by the ACP registry manifest instead.
+/// agents use the package dist-tag; Antigravity (official-installer only, updated
+/// through `agy update`) has no npm source, so its Upgrade button stays hidden.
 fn latest_version_for_template(
     template_id: &str,
     proxy_enabled: bool,

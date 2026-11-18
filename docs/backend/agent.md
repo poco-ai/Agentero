@@ -147,6 +147,13 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   国际版 `QwenWork.app` 内置的也是这份大陆版引擎，因此只装国际版桌面端同样能接入 `qoder-cn`。
 - Antigravity ACP：原生 ACP（`agy acp`）。Google Antigravity CLI（`agy`）原生内置 ACP stdio server。
   直接复用本机 `agy` 的登录凭据（无需写入 `settings.json`），登录命令为 `agy acp --login`。
+  模板 id 仍是 `antigravity-acp`（catalog preset，不再是独立的 ACP server / 适配器）。
+  静默 install 走官方 installer（`https://antigravity.google/cli/install.sh`，Windows 为
+  `irm https://antigravity.google/cli/install.ps1 | iex`）：下载校验后把扁平 `agy` 装进
+  `~/.local/bin`（Windows 为 `%LOCALAPPDATA%\agy\bin`），再由 `agy install` 写 PATH；
+  该 installer 在二进制已存在时是 no-op，所以 update 用 `agy update`，失败再重跑 installer。
+  卸载只删这个二进制和 updater 留下的 `agy.*.old` 备份，保留 `~/.gemini/antigravity-cli`
+  里的登录/会话/设置与 shell rc 的 PATH 行；没有 npm 包，因此不参与 npm 版本探测（无 Upgrade 目标）。
 - ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server server`（桥接无头
   `zcode app-server --stdio`，声明 `session/load` 续聊）。zcode CLI 内置在 ZCode
   桌面应用中、通常不在 PATH 上，适配器会自动发现桌面应用内置 CLI；若装在其他盘符或

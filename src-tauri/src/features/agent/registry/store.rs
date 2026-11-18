@@ -726,7 +726,8 @@ fn migrate_legacy_zcode_agents(state: &mut AgentRegistryState) -> bool {
 }
 
 /// The community `agy-acp` adapter and legacy Gemini CLI template were removed.
-/// The official Antigravity server uses the separate `antigravity-acp` template.
+/// The native Antigravity CLI keeps the `antigravity-acp` template id (it is a
+/// catalog preset, not a separate ACP server), so only the old ids are stripped.
 /// Old registrations may still be on disk; an unknown template fails the whole parse
 /// (`read_state` would fall back to an empty registry, dropping every other
 /// agent), so stale rows are stripped from the raw JSON before deserialization.

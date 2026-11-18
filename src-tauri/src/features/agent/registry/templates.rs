@@ -438,9 +438,12 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             command: "agy".to_string(),
             args: vec!["acp".to_string()],
             detect_command: Some("agy".to_string()),
-            install_hint:
-                "Install the Antigravity CLI (`agy`), then log in with `agy acp --login`  ·  https://antigravity.google"
-                    .to_string(),
+            install_hint: if cfg!(windows) {
+                "irm https://antigravity.google/cli/install.ps1 | iex  ·  then `agy acp --login`  ·  https://antigravity.google/docs/install"
+            } else {
+                "curl -fsSL https://antigravity.google/cli/install.sh | bash  ·  then `agy acp --login`  ·  https://antigravity.google/docs/install"
+            }
+            .to_string(),
             install_command: None,
             login_command: Some("agy acp --login".to_string()),
         },

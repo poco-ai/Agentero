@@ -13,7 +13,7 @@ pub enum AgentTemplate {
     /// Cursor Agent CLI with native ACP (`cursor-agent acp`).
     /// Docs: https://cursor.com/docs/cli
     CursorAgent,
-    /// Google Antigravity's official ACP server (separate from the retired `agy-acp` adapter).
+    /// Google Antigravity CLI with native ACP (`agy acp`).
     AntigravityAcp,
     /// Qoder CLI native ACP (`qodercli --acp`).
     /// Docs: https://docs.qoder.com/en/cli/acp
