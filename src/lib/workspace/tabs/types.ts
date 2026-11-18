@@ -55,6 +55,12 @@ export type DocTab = {
 	seedKey: number;
 	/** Bump to reload the plain-text editor's content in place from `textSeed`. */
 	textKey: number;
+	/**
+	 * Bumped when this panel's edited file is replaced in place (writing project
+	 * source swap) so the plain-text CodeMirror editor remounts instead of
+	 * swapping documents. Renames and disk reloads keep the instance.
+	 */
+	textEpoch: number;
 	/** Bump to reload a local HTML preview after the file changes on disk. */
 	htmlKey: number;
 	/** Bump to reload the NOTES editor's content in place from `notesSeed`. */
@@ -131,6 +137,8 @@ export type PersistedTab = {
 	/** rtex live pane; persists across window reloads instead of reverting to PDF. */
 	texLive?: boolean;
 	texRoot?: string;
+	/** Owning writing project for source files and project assets. */
+	writingRoot?: string;
 };
 
 /**
@@ -154,6 +162,8 @@ export type PanelPersistParams = {
 	/** Live TeX pane state; only set while live. The source association persists in either mode. */
 	texLive?: boolean;
 	texRoot?: string;
+	/** Owning writing project for source files and project assets. */
+	writingRoot?: string;
 	/** Split or translation companion. Never written into `path`. */
 	pane?: TabPaneKind;
 };

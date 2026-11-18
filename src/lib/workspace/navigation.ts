@@ -107,7 +107,9 @@ import {
 	tabIsPaperNoteDocument,
 	tabIsPaperNotes,
 	tabNotesEligible,
+	tabTitleForPath,
 } from "./tabs";
+import { flushTextEditorFor } from "./text-editor-flush";
 import { type CenterViewMode, preferredModeForPath } from "./viewer";
 
 /**
@@ -596,7 +598,11 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 					!isTrashVirtualPath(tab.path) &&
 					!isZenVirtualPath(tab.path),
 			)
-			.map((tab) => ({ path: tab.path, mode: tab.mode })),
+			.map((tab) => ({
+				path: tab.path,
+				mode: tab.mode,
+				...(tab.writingRoot ? { writingRoot: tab.writingRoot } : {}),
+			})),
 	);
 }
 
@@ -604,6 +610,12 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 export function reopenClosedTab(): void {
 	for (let entry = takeClosedTab(); entry; entry = takeClosedTab()) {
 		if (findCanonicalTab(getTabs(), entry.path)) continue;
+		// A writing source reopens inside its project panel; a plain tab would
+		// render a second source/PDF frame for the same project.
+		if (entry.writingRoot) {
+			openWritingSource(entry.path, entry.writingRoot);
+			return;
+		}
 		openTab(entry.path, { preferMode: entry.mode });
 		return;
 	}
@@ -1102,20 +1114,202 @@ registerDecision<{ node: FileNode }>({
 /** File-tree click dispatch: Library / Trash / Plaza / paper dir / org dir / file. */
 const recentWritingFiles = new Map<string, string>();
 let writingSelectionRequest = 0;
+/** Latest source swap request per writing panel; stale loads are dropped. */
+const writingSourceSwaps = new Map<string, number>();
+
 export function rememberWritingSource(path: string, root: string): void {
 	if (/\.tex$/i.test(path)) recentWritingFiles.set(root, path);
 }
 
+/** Last source shown by a writing project, matched case-insensitively. */
+function recentWritingSource(root: string): string | null {
+	const key = normalizeTabPath(root);
+	for (const [project, source] of recentWritingFiles) {
+		if (normalizeTabPath(project) === key) return source;
+	}
+	return null;
+}
+
+/**
+ * The one dock panel that owns a writing project. A legacy session can still
+ * hold several tabs for one root (each was opened as its own source): prefer
+ * the active one, then the tab showing the project's recent source.
+ */
+export function writingPanelForRoot(
+	tabs: readonly DocTab[],
+	root: string,
+): DocTab | null {
+	const key = normalizeTabPath(root);
+	const candidates = tabs.filter(
+		(tab) =>
+			tab.writingRoot &&
+			normalizeTabPath(tab.writingRoot) === key &&
+			isCanonicalView(tab),
+	);
+	if (!candidates.length) return null;
+	const activeId = getActiveTabId();
+	const active = candidates.find((tab) => tab.id === activeId);
+	if (active) return active;
+	const recent = recentWritingSource(root);
+	if (recent) {
+		const recentKey = normalizeTabPath(recent);
+		const matching = candidates.find(
+			(tab) => normalizeTabPath(tab.path) === recentKey,
+		);
+		if (matching) return matching;
+	}
+	return candidates[0] ?? null;
+}
+
+/**
+ * Open a source file of a writing project.
+ *
+ * The project owns one dock panel: an existing project panel swaps its left
+ * source pane in place (the embedded compiled PDF, its page/zoom/scroll and
+ * the source/PDF split stay untouched), a target already open in another tab
+ * is focused, and a different project opens/activates its own panel.
+ *
+ * `restoreSource` is the compiled-PDF entry: it shows the project's recent
+ * source instead of the PDF itself.
+ */
+export function openWritingSource(
+	path: string,
+	root: string,
+	restoreSource = false,
+): void {
+	const target = restoreSource ? (recentWritingSource(root) ?? root) : path;
+	const existing = findCanonicalTab(getTabs(), target);
+	if (existing) {
+		// Existing dedupe: never open the same file twice. Give a tab that
+		// predates project identity its owner so later opens find it.
+		if (
+			!existing.writingRoot ||
+			normalizeTabPath(existing.writingRoot) !== normalizeTabPath(root)
+		) {
+			updateTab(existing.id, { writingRoot: root });
+		}
+		rememberWritingSource(target, root);
+		setTreeSelectedPath(target);
+		cacheActiveTabBeforeDock(existing.id);
+		dockHandle()?.activatePanel(existing.id);
+		return;
+	}
+	const panel = writingPanelForRoot(getTabs(), root);
+	if (panel) {
+		swapWritingSource(panel, target, root);
+		return;
+	}
+	rememberWritingSource(target, root);
+	setTreeSelectedPath(target);
+	openTab(target);
+	const opened = findCanonicalTab(getTabs(), target);
+	if (opened) updateTab(opened.id, { writingRoot: root });
+}
+
+/**
+ * Replace one writing panel's source pane with `target`, keeping the dockview
+ * panel id and `writingRoot` (so `ProjectPdf` keyed by the root does not reload
+ * and the split ratio survives). The outgoing editor flushes first, then
+ * `textEpoch` remounts the source viewer on the new file.
+ */
+function swapWritingSource(panel: DocTab, target: string, root: string): void {
+	const token = (writingSourceSwaps.get(panel.id) ?? 0) + 1;
+	writingSourceSwaps.set(panel.id, token);
+	cacheActiveTabBeforeDock(panel.id);
+	dockHandle()?.activatePanel(panel.id);
+	if (normalizeTabPath(panel.path) === normalizeTabPath(target)) {
+		rememberWritingSource(target, root);
+		setTreeSelectedPath(target);
+		return;
+	}
+	void (async () => {
+		const vaultState = vaultStore.getState();
+		const generation = vaultLoadGeneration();
+		const res = await loadTabResources(
+			target,
+			vaultState.vaultPath,
+			vaultState.tree,
+			vaultState.paperFolders,
+		);
+		if (
+			writingSourceSwaps.get(panel.id) !== token ||
+			vaultLoadGeneration() !== generation ||
+			vaultStore.getState().vaultPath !== vaultState.vaultPath
+		) {
+			return;
+		}
+		const current = getTabs().find((tab) => tab.id === panel.id);
+		if (!current || current.path !== panel.path) return;
+		if (res.error) {
+			notifyError(
+				res.error === "cannotPreview"
+					? i18n.t("app:errors.cannotPreview", { name: basenameOf(target) })
+					: res.error,
+			);
+			return;
+		}
+		// The outgoing editor must not lose its debounced autosave to the
+		// remount below. A refused save (disk conflict) keeps the panel as-is.
+		const markdown = markdownEditorFor(panel.id);
+		if (markdown?.hasPendingSource() && !(await markdown.flushSource())) {
+			return;
+		}
+		if (!(await flushTextEditorFor(panel.path))) return;
+		const latest = getTabs().find((tab) => tab.id === panel.id);
+		if (!latest || latest.path !== panel.path) return;
+		// The outgoing source pane may currently show a project asset (image /
+		// material PDF) holding a viewer source lease; replace releases it.
+		revokeTabMediaSources(latest);
+		updateTab(panel.id, {
+			...patchFromTabResources(res, latest),
+			path: target,
+			title: tabTitleForPath(target),
+			writingRoot: root,
+			// Remount the source viewer on the new file. The dockview panel (and
+			// the compiled-PDF pane inside it) stays mounted.
+			textEpoch: latest.textEpoch + 1,
+			markdownDirty: false,
+			notesDirty: false,
+			textDirty: false,
+		});
+		rememberWritingSource(target, root);
+		setTreeSelectedPath(target);
+	})();
+}
+
+/**
+ * Resolve `path` to its writing project and open it through
+ * {@link openWritingSource}. Falls back to a plain document tab when the path
+ * is not part of a resolvable project (e.g. an unconfigured folder).
+ */
+export async function openWritingSourceAt(path: string): Promise<void> {
+	const vault = getVaultPath();
+	if (!vault || !isWritingPath(vault, path)) {
+		openPath(path);
+		return;
+	}
+	let project: Awaited<ReturnType<typeof resolveWritingTarget>>;
+	try {
+		project = await resolveWritingTarget(vault, path);
+	} catch (error) {
+		notifyError(errorText(error));
+		return;
+	}
+	if (vault !== getVaultPath()) return;
+	if (!project) {
+		openPath(path);
+		return;
+	}
+	openWritingSource(path, project.root, project.compiledPdf);
+}
+
+/** File-tree / project-row entry: open a project source, or restore it from PDF. */
 export function openWritingFile(
 	path: string,
 	root: string,
 	restoreSource = false,
 ): void {
-	const target = restoreSource ? (recentWritingFiles.get(root) ?? root) : path;
-	rememberWritingSource(target, root);
-	openTab(target);
-	const opened = findCanonicalTab(getTabs(), target);
-	if (opened) updateTab(opened.id, { writingRoot: root });
+	openWritingSource(path, root, restoreSource);
 }
 
 export function selectFileNode(node: FileNode): void {

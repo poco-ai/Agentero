@@ -415,8 +415,14 @@ const DocumentContent = memo(function DocumentContent({
 				<Suspense fallback={<TabLoadingSkeleton />}>
 					<MarkdownEditor
 						// Stable per-tab key: external disk changes reload in place via
-						// `reloadKey` instead of remounting the whole editor.
-						key={isNotes ? `notes-center-${tab.id}` : `file-${tab.id}`}
+						// `reloadKey` instead of remounting the whole editor. A source
+						// swap inside a writing project bumps `textEpoch` (new file,
+						// flushed first) so the file path is re-captured.
+						key={
+							isNotes
+								? `notes-center-${tab.id}`
+								: `file-${tab.id}-${tab.textEpoch}`
+						}
 						className="h-full min-h-0"
 						tabId={tab.id}
 						active={active}
@@ -572,8 +578,10 @@ const DocumentContent = memo(function DocumentContent({
 				<Suspense fallback={<TabLoadingSkeleton />}>
 					<TextEditor
 						// Stable per-tab key: external disk changes swap the document
-						// in place via `reloadKey` (view state and scroll survive).
-						key={`text-${tab.id}-${cloud.shared ? (cloud.shared.readOnly ? "cloud-view" : "cloud-edit") : "local"}`}
+						// in place via `reloadKey` (view state, scroll and undo
+						// survive). A writing source swap bumps `textEpoch` instead —
+						// the new file must not inherit the old file's undo history.
+						key={`text-${tab.id}-${tab.textEpoch}-${cloud.shared ? (cloud.shared.readOnly ? "cloud-view" : "cloud-edit") : "local"}`}
 						shared={cloud.shared ?? undefined}
 						panelId={tab.id}
 						hideLintFooter={isWritingSource(tab, vaultPath)}

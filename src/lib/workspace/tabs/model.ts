@@ -256,6 +256,7 @@ export function createPlaceholderTab(
 		seedKey: 0,
 		notesKey: 0,
 		textKey: 0,
+		textEpoch: 0,
 		htmlKey: 0,
 		loaded: false,
 	};

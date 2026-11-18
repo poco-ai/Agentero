@@ -11,6 +11,7 @@
 | 场景 | 行为 |
 |---|---|
 | 打开文档 | 文件树 / Library / 命令面板 → `openTab` → `workspaceRef.openPanel` |
+| 打开写作源码 | 文件树 / 大纲 / PDF ← SyncTeX / 问题列表 / Agent 引用 → `openWritingFile`（`navigateTexSource` / `tryOpenWritingSource`）→ 按 `writingRoot` 找项目面板 → flush 未保存编辑后 `updateTab({ path, textEpoch, writingRoot })` 原位换源码，不新增 tab；目标已在别处打开只聚焦 |
 | CLI 工作区操作 | `agentero ui open/close/window`、`agentero paper open` / `agentero://ui?action=…` → Host `ui:request` → 需要时先切换 Vault → 调用与 UI 相同的 `openPaper` / `openVaultRel` / `closeTabsUnderPath` / 原生窗口打开 |
 | Library 常驻 | 打开 Vault 期间 Library tab 始终在标签条（打开、恢复、清空后由 `ensureLibraryTabPresent` 补齐，并 `openPanel` 放进格子；已有活动文档时带 `inactive`，不抢焦点）：不可关闭——无关闭按钮、中键与右键关闭项禁用、「关闭其他/全部」跳过、⌘W 对其 no-op；仅剩 Library 时 ⌘W 关闭窗口。其它 tab 的固定（pin）能力已移除 |
 | 首篇 paper | PDF/HTML 默认组 + `NOTES.md` 右分屏（阅读默认；通用设置 `autoOpenPaperNotes` 关闭时只开 body，NOTES 仍可 `⌘\` / 右键「打开笔记」手动开） |
@@ -28,7 +29,7 @@
 | 切换笔记 | 已有 Notes 列时，从文件树或链接打开另一篇论文笔记（`papers/**` 下的 Markdown）默认**原位替换**当前 Notes 面板：保留分栏位置与宽度、不新增 tab；目标笔记已在别处打开时只聚焦它（#738） |
 | 关光文档 | 回到常驻的全库 Library panel |
 
-写作项目（`thesis/` 下）的 TeX 源码与编译 PDF 是**同一个 dock panel 内部**的左右分栏（`TexProjectView`），不是 Dockview 分栏：`⌘\` /「打开 PDF」不会为它新增 dock panel，只聚焦该项目面板；它也不参与下方「论文 | 笔记」双列判断，拖拽移动的是整个面板，不改变其它 panel 的并列关系。
+写作项目（`thesis/` 下）是**一个 dock panel**，由项目主文件（`tab.writingRoot`）标识；TeX 源码（`tab.path`，可原位替换）与编译 PDF 是**面板内部**的左右分栏（`TexProjectView`，PDF 为按项目主文件缓存的 `ProjectPdf`），不是 Dockview 分栏。同一项目换源文件只把面板的 `path` 换掉：不新增 tab，`ProjectPdf` 的页码/缩放/滚动与内部比例不变，也不重新编译或重载；源文件已在别处打开的标签只聚焦。不同项目各自一个面板。`⌘\` /「打开 PDF」不会为它新增 dock panel，只聚焦该项目面板；它也不参与下方「论文 | 笔记」双列判断，拖拽移动的是整个面板，不改变其它 panel 的并列关系。
 
 标题栏 Layout 菜单中的窗口布局预设改变当前论文的 Notes 分屏与外层 Agent panel，与左侧 Vault sidebar 解耦：Agent 模式与笔记模式均不强制或更改左侧栏展开/收起状态（开启布局时左侧栏保持原状，开关左侧栏也不退出该布局）。Agent 模式配置 PDF / Agent 栏宽并关闭笔记分屏，笔记模式折叠右侧栏并开启 PDF / Notes 分屏。阅读模式折叠左右栏并最大化**当前 Dockview 活动分组**（`maximizeGroup`），多栏 / 多标签下都只显示当前正文；其它分栏与标签不关闭，退出阅读模式时恢复进入前的布局与侧栏状态（#764）。预设和进入、退出阅读都走 `use-shell-layout.ts` 的 `applyLayoutMode`。
 
@@ -38,7 +39,7 @@ Dockview 保持 7.0.4，以保留当前免费模块提供的 `Ctrl+M` 键盘停�
 
 Library 始终位于所在标签条的第一位：禁止拖动 Library 及包含它的整组，其他标签不能拖到它前面。恢复旧布局、打开文档及布局变化时也会校正顺序，校正不会切换当前活动文档。
 
-布局只存 dockview `toJSON()`；path/mode/title 在 panel params。每个主窗口按窗口标签和当前 Vault 分键保存（`agentero-open-tabs::{label}::{vault}`），所以 ⌘N 新窗口不会带上另一扇窗口的标签。文档窗和功能窗不读写这份布局。旧的全局键 `agentero-open-tabs` 只由主窗口采纳一次，挂到当时打开的 Vault；采纳后的原文仍留在原键。损坏或抽不出标签的布局不会被启动写回删掉；第一次覆盖前把原文留在 `agentero-open-tabs.rollback`。新视图 id 是 `view-` 加随机串，路径在 `params.path`；重命名不改视图 id。旧布局的路径形 id（含 `::pane-N` / `::translation`）仍按原 id 恢复。Tab 条上的论文标题经 `MathText` 渲染内联公式（`$\\pi$` 等）；`panel.api.setTitle` 仍存原始字符串。
+布局只存 dockview `toJSON()`；path/mode/title 在 panel params；写作项目另存 `writingRoot`，恢复时打开该项目并回到上次的源文件（换源只改 `path` 与 `textEpoch`，panel id 不变）。每个主窗口按窗口标签和当前 Vault 分键保存（`agentero-open-tabs::{label}::{vault}`），所以 ⌘N 新窗口不会带上另一扇窗口的标签。文档窗和功能窗不读写这份布局。旧的全局键 `agentero-open-tabs` 只由主窗口采纳一次，挂到当时打开的 Vault；采纳后的原文仍留在原键。损坏或抽不出标签的布局不会被启动写回删掉；第一次覆盖前把原文留在 `agentero-open-tabs.rollback`。新视图 id 是 `view-` 加随机串，路径在 `params.path`；重命名不改视图 id。旧布局的路径形 id（含 `::pane-N` / `::translation`）仍按原 id 恢复。Tab 条上的论文标题经 `MathText` 渲染内联公式（`$\\pi$` 等）；`panel.api.setTitle` 仍存原始字符串。
 
 活动 panel 为 `papers/` 下的论文 PDF 时，其顶部（Dockview 标签条之下、正文之上）显示面包屑路径条 `papers / 论文标题`：论文目录的 catalog id 段替换为 `paperMeta.title`（缺失时回退 tab title），标题经 `MathText`，超宽逐级 `min-w-0 truncate`。文件夹段 **悬停** 弹出其子项候选（论文目录显示 catalog 标题，超过 50 项截断），点击候选经 `selectFileNode` 跳转（论文开 PDF、普通文件夹进 scoped Library、文件直接打开）；**点击文件夹段本身** 进入该文件夹对应的 scoped Library，`papers` 段进入主 Library（`selectLibrary`）。每个论文 PDF panel 各自渲染自己的路径条，与焦点无关（⌘\ 分屏或 NOTES 获得焦点时，PDF 侧仍保留路径条）；非 PDF 论文、HTML 版与虚拟标签（Library / 回收站 / 广场）不显示。实现：`src/components/workspace/paper-path-bar.tsx`。
 

@@ -653,14 +653,15 @@ export function splitActivePane(): void {
 	// TeX editor ⌘\ → open/refresh its compiled PDF as the right split.
 	// Writing projects already render that PDF inside their own panel
 	// (TexProjectView), so a dock-level copy would duplicate the preview and
-	// feed a bogus "paper | notes" column pair to the reading placement.
+	// feed a bogus "paper | notes" column pair to the reading placement. A
+	// cloned writing tab would also duplicate the project panel, whatever
+	// asset its source pane currently shows (md / image / material PDF).
+	if (active.writingRoot) return;
 	if (isTexPath(active.path)) {
-		if (!active.writingRoot) {
-			void openTexPdf(active.path, {
-				referencePanelId: active.id,
-				exitLive: false,
-			});
-		}
+		void openTexPdf(active.path, {
+			referencePanelId: active.id,
+			exitLive: false,
+		});
 		return;
 	}
 
