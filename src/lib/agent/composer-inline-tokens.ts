@@ -358,8 +358,12 @@ export function stripInlineTokens(text: string): string {
 		.trim();
 }
 
-/** @ / $ / / chips that should survive in the sent bubble and the queue. */
-const TRANSCRIPT_CHIP_RE = /\{\{(?:m|s|c):[^}]+\}\}/;
+/**
+ * Chips that should survive in the sent bubble and the queue.
+ * Annotation references stay in the draft so the bubble can redraw them
+ * where they sat at send time. The model prompt still uses `[Annotation N]`.
+ */
+const TRANSCRIPT_CHIP_RE = /\{\{(?:m|s|c|sel|vis):[^}]+\}\}/;
 
 export function hasTranscriptChips(text: string): boolean {
 	return TRANSCRIPT_CHIP_RE.test(text);
@@ -367,7 +371,7 @@ export function hasTranscriptChips(text: string): boolean {
 
 /**
  * Composer draft to store on the user line. Undefined when the draft has no
- * mention / skill / command chip, so plain turns stay a single string.
+ * mention, skill, command, or annotation chip, so plain turns stay a single string.
  */
 export function transcriptMarkup(textRaw: string): string | undefined {
 	return hasTranscriptChips(textRaw) ? textRaw : undefined;

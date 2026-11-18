@@ -21,6 +21,10 @@ const CONTEXT_INSTRUCTION_MARKERS = [
 ] as const;
 
 const SELECTED_TEXT_MARKER = "Selected text from ";
+/**
+ * Send-time annotation appendix. The bubble hides it; history preview reads
+ * the same text via `annotationSnapshotsFromMessage` before this cut.
+ */
 const ANNOTATION_APPENDIX_MARKER = "\n\nAnnotations marked [Annotation ";
 
 /** Strip context-path / selection blocks appended by assembleTurnPrompt. */

@@ -4,6 +4,7 @@ import {
 	annotationOrdinal,
 	proseWithAnnotationMarkers,
 } from "@/lib/agent/annotation-prompt";
+import { annotationSnapshotsForMarkers } from "@/lib/agent/annotation-snapshot";
 import {
 	encodeSelectionToken,
 	encodeVisualToken,
@@ -81,6 +82,44 @@ describe("annotation markers in the turn prompt", () => {
 		expect(stripPromptEnvelopeForDisplay(prompt)).toBe(
 			"这个公式 [Annotation 1] 和图 [Annotation 2] 矛盾吗",
 		);
+	});
+
+	it("reads the appendix quote back without swapping numbers", () => {
+		const web = {
+			...selection,
+			sourcePath: "https://example.org/paper",
+			sourceUrl: "https://example.org/paper",
+			sourceTitle: "Research digest",
+			surface: "feed" as const,
+			lineFrom: undefined,
+			lineTo: undefined,
+			context: { status: "available" as const, translation: "协议译文" },
+		};
+		const raw = `这个公式 ${encodeSelectionToken(web)} 和图 ${encodeVisualToken("mark-1")} 矛盾吗`;
+		const { prompt } = assembleTurnPrompt({
+			text: raw,
+			contextPaths: [],
+			visualDrafts: [visual("mark-1", 3, "crop")],
+			attachedImages: [],
+			isAcpCommand: false,
+			t,
+		});
+		const visible = stripPromptEnvelopeForDisplay(prompt);
+		const cards = annotationSnapshotsForMarkers(visible, prompt);
+		expect(visible).toBe("这个公式 [Annotation 1] 和图 [Annotation 2] 矛盾吗");
+		expect(cards.map((card) => card.n)).toEqual([1, 2]);
+		expect(cards[0]).toMatchObject({
+			kind: "text",
+			quote: "分协议",
+			comment: "看这里",
+			translation: "协议译文",
+		});
+		expect(cards[1]).toMatchObject({
+			kind: "visual",
+			page: 3,
+			comment: "note mark-1",
+		});
+		expect(cards[1]?.comment).not.toContain("分协议");
 	});
 
 	it("numbers a visual before a text selection in document order", () => {

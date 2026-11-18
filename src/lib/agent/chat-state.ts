@@ -5,6 +5,7 @@
 
 import type { ToolUIPart } from "ai";
 import type { TFunction } from "i18next";
+import type { AnnotationSnapshot } from "@/lib/agent/annotation-snapshot";
 import type {
 	AgentListResponse,
 	AgentModelChoice,
@@ -153,6 +154,12 @@ export type ChatLine =
 			/** Local multimodal visual crops sent with this turn (session-local). */
 			visualAnnotations?: ChatVisualAnnotation[];
 			selections?: SelectionContext[];
+			/**
+			 * Send-time annotation text parsed from this message. History keeps
+			 * showing it after the appendix is stripped from `text`. Missing when
+			 * the message never contained a snapshot — do not fill it from live marks.
+			 */
+			annotationSnapshots?: AnnotationSnapshot[];
 			/**
 			 * General composer image attachments (paste / file pick) for this turn.
 			 * Session-local only — not persisted to ACP session history load.

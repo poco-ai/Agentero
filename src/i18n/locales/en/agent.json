@@ -185,6 +185,11 @@
 	},
 	"copy": "Copy",
 	"copied": "Copied",
+	"transcript": {
+		"annotationLabel": "Annotation {{n}}",
+		"annotationVisual": "Visual annotation",
+		"annotationTranslation": "Translation"
+	},
 	"edit": {
 		"action": "Edit",
 		"resend": "Resend",
