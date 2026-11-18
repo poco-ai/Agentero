@@ -29,7 +29,7 @@ const inlineMarks: Partial<Record<MarkdownSourceFormat, InlineMark>> = {
 	underline: { open: "<u>", close: "</u>" },
 	strikethrough: { open: "~~", close: "~~" },
 	code: { open: "`", close: "`" },
-	highlight: { open: "==", close: "==" },
+	highlight: { open: "<mark>", close: "</mark>" },
 };
 
 type LineFormat = {
