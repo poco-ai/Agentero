@@ -39,6 +39,8 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 
 ## 面板行为
 
+- **弹出到功能窗**：主窗口把 Agent 交到新开的功能窗时，只在功能窗开始监听之后发一次 `agent:session-handoff` 快照。聊天行是第一帧；未发送的 composer（文本、mention、图片、视觉引用）、冻结的队列，以及尚未回答的 permission / elicitation / ask-user request id 都在这份 payload 里，因为两个 webview 不共用 localStorage。功能窗应用快照后回 ack，源窗口收到 ack 才把正在跑的 Host 事件改发到功能窗；在那之前事件仍发给源窗口。功能窗已经开着时不发送、也不用这份快照盖掉它。没收到 ack 就不算交接完成。
+
 - **Dsh 重启历史**：官方 ACP 桥仅支持 `session/resume` 时，本机历史从
   Dsh 标准落盘日志只读恢复；后台标题补全和点击历史项共用该路径。已有日志
   完整时可恢复文字、推理、工具记录，标题缺失时回退首条用户消息；  不会再向

@@ -149,7 +149,10 @@ pub async fn warm_agent(
     let mcp_servers = if remote.is_none() {
         app.app_handle()
             .try_state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
-            .and_then(|bridge| bridge.mcp_server(&session_id, app.window_label()))
+            .and_then(|bridge| {
+                let label = app.window_label();
+                bridge.mcp_server(&session_id, &label)
+            })
             .into_iter()
             .collect()
     } else {

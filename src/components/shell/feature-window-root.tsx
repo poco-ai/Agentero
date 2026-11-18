@@ -54,6 +54,7 @@ import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { resolveShortcutId } from "@/lib/shell/shortcuts";
 import { setAgentPanelMounted } from "@/lib/shell/ui-store";
 import {
+	broadcastAgentSessionHandoff,
 	listenAgentSessionHandoff,
 	listenWorkspaceActive,
 	type WorkspaceActiveChangedPayload,
@@ -63,6 +64,7 @@ import { openRecentVault } from "@/lib/vault/actions";
 import { getVaultPath, refreshTree } from "@/lib/vault/store";
 import { rebuildWikiAndNotify } from "@/lib/wiki/store";
 import { openCitation } from "@/lib/workspace/actions";
+import { currentWindowLabel } from "@/lib/workspace/store";
 
 const AgentPanel = lazy(() =>
 	import("@/components/agent/agent-panel").then((m) => ({
@@ -312,20 +314,35 @@ export function FeatureWindowRoot() {
 
 	useEffect(() => {
 		if (view !== "agent") return;
-		const offs = [
-			// First handoff only — later retries must not clobber in-window chat.
-			toSafeDisposer(
-				listenAgentSessionHandoff((payload) => {
-					applyAgentSessionHandoffOnce({
-						sessions: payload.sessions,
-						activeTabId: payload.activeTabId,
-						draftLines: payload.draftLines,
-					});
-				}),
-			),
-		];
+		let dispose = () => {};
+		let cancelled = false;
+		const pending = listenAgentSessionHandoff((payload) => {
+			if (payload.kind !== "snapshot") return;
+			if (payload.targetLabel !== currentWindowLabel()) return;
+			// Once: a second snapshot must not replace a session this window already took.
+			if (!applyAgentSessionHandoffOnce(payload)) return;
+			broadcastAgentSessionHandoff({
+				kind: "ack",
+				deliveryId: payload.deliveryId,
+				sourceLabel: payload.sourceLabel,
+				targetLabel: payload.targetLabel,
+			});
+		}).then((unlisten) => {
+			if (cancelled) {
+				unlisten();
+				return;
+			}
+			dispose = unlisten;
+			// Source sends the single snapshot only after this listen is active.
+			broadcastAgentSessionHandoff({
+				kind: "ready",
+				targetLabel: currentWindowLabel(),
+			});
+		});
+		pending.catch(() => undefined);
 		return () => {
-			for (const off of offs) off();
+			cancelled = true;
+			dispose();
 		};
 	}, [view]);
 

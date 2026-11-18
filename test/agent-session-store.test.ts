@@ -2,16 +2,25 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
 	agentSessionStore,
+	applyAgentSessionHandoff,
+	applyAgentSessionHandoffOnce,
 	EMPTY_CHAT_LINES,
+	resetAgentSessionHandoffApplied,
 } from "@/lib/agent/agent-session-store";
+import {
+	shouldScheduleAgentSessionHandoff,
+	stepHandoffDelivery,
+} from "@/lib/agent/session-handoff";
 
 beforeEach(() => {
+	resetAgentSessionHandoffApplied();
 	agentSessionStore.setState({
 		sessions: [],
 		activeTabId: "draft",
 		hydratingSessionId: null,
 		draftLines: EMPTY_CHAT_LINES,
 		permissionRequest: null,
+		handoff: null,
 		turnRequest: null,
 	});
 });
@@ -201,5 +210,174 @@ describe("hydrateAndActivateSession", () => {
 		const state = agentSessionStore.getState();
 		expect(state.activeTabId).toBe(historyItem.id);
 		expect(state.sessions).toEqual([{ ...historyItem, lines: loadedLines }]);
+	});
+});
+
+describe("applyAgentSessionHandoffOnce", () => {
+	const runningSession = {
+		id: "local-1",
+		agentId: "codex",
+		source: "local" as const,
+		title: "in flight",
+		agentName: "Codex",
+		startedAt: "",
+		lines: [{ id: "u1", kind: "user" as const, text: "hello" }],
+		status: "running" as const,
+		providerSessionId: "provider-1",
+	};
+
+	it("applies the snapshot once and keeps later transcript writes", () => {
+		const first = applyAgentSessionHandoffOnce({
+			sessions: [runningSession],
+			activeTabId: "local-1",
+			draftLines: [],
+			deliveryId: "d1",
+			sourceLabel: "main",
+			targetLabel: "feature-agent",
+			providerSessionId: "provider-1",
+			localSessionId: "local-1",
+			agentId: "codex",
+			running: true,
+			composerText: "unsent",
+			mentions: ["papers/a"],
+			composerSkillIds: ["skill-a"],
+			includeSelectedFile: true,
+			images: [{ data: "YWJj", mimeType: "image/png" }],
+			visualRefs: [],
+			queue: [
+				{
+					id: "q1",
+					text: "next",
+					contextPaths: [],
+					skillIds: [],
+					selections: [],
+					visualDrafts: [],
+				},
+			],
+			permissionRequestId: "perm-1",
+			elicitationRequestId: "elicit-1",
+			askUserRequestId: null,
+			permissionRequest: {
+				requestId: "perm-1",
+				sessionId: "local-1",
+				title: "Read file",
+				paths: ["notes/a.md"],
+				options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+			},
+			elicitationRequest: {
+				requestId: "elicit-1",
+				sessionId: "local-1",
+				message: "Which section?",
+				fields: [],
+			},
+			askUserRequest: null,
+		});
+		expect(first).toBe(true);
+
+		agentSessionStore
+			.getState()
+			.updateSessionLines("local-1", (lines) => [
+				...lines,
+				{ id: "a1", kind: "agent", parts: [], streaming: true },
+			]);
+
+		const second = applyAgentSessionHandoffOnce({
+			sessions: [{ ...runningSession, lines: [], status: "completed" }],
+			activeTabId: "local-1",
+			composerText: "stale",
+			running: false,
+		});
+		expect(second).toBe(false);
+
+		const state = agentSessionStore.getState();
+		expect(state.sessions[0]?.lines.map((line) => line.id)).toEqual([
+			"u1",
+			"a1",
+		]);
+		expect(state.sessions[0]?.status).toBe("running");
+		expect(state.handoff?.running).toBe(true);
+		expect(state.handoff?.composerText).toBe("unsent");
+		expect(state.handoff?.mentions).toEqual(["papers/a"]);
+		expect(state.handoff?.providerSessionId).toBe("provider-1");
+		expect(state.handoff?.localSessionId).toBe("local-1");
+		expect(state.handoff?.queue).toHaveLength(1);
+		expect(state.permissionRequest?.requestId).toBe("perm-1");
+		expect(state.handoff?.elicitationRequestId).toBe("elicit-1");
+		expect(state.handoff?.askUserRequestId).toBeNull();
+		expect("runningSessionIds" in state).toBe(false);
+	});
+
+	it("derives running from the session row, not the payload flag", () => {
+		applyAgentSessionHandoff({
+			sessions: [{ ...runningSession, status: "completed" }],
+			activeTabId: "local-1",
+			running: true,
+		});
+		expect(agentSessionStore.getState().handoff?.running).toBe(false);
+		expect(agentSessionStore.getState().sessions[0]?.status).toBe("completed");
+	});
+});
+
+describe("agent session handoff delivery", () => {
+	it("does not schedule a snapshot onto an agent window that is already open", () => {
+		expect(shouldScheduleAgentSessionHandoff("agent", true)).toBe(false);
+		expect(shouldScheduleAgentSessionHandoff("agent", false)).toBe(true);
+		expect(shouldScheduleAgentSessionHandoff("annotations", false)).toBe(false);
+	});
+
+	it("sends the snapshot once and rebinds only after ack", () => {
+		const expected = {
+			targetLabel: "feature-agent",
+			deliveryId: "d1",
+		};
+		const ready = stepHandoffDelivery(
+			"waiting-ready",
+			{ kind: "ready", targetLabel: "feature-agent" },
+			expected,
+		);
+		expect(ready).toEqual({ phase: "snapshot-sent", effect: "send-snapshot" });
+
+		const readyAgain = stepHandoffDelivery(
+			ready.phase,
+			{ kind: "ready", targetLabel: "feature-agent" },
+			expected,
+		);
+		expect(readyAgain.effect).toBe("none");
+
+		const earlyAck = stepHandoffDelivery(
+			"waiting-ready",
+			{
+				kind: "ack",
+				targetLabel: "feature-agent",
+				sourceLabel: "main",
+				deliveryId: "d1",
+			},
+			expected,
+		);
+		expect(earlyAck).toEqual({ phase: "waiting-ready", effect: "none" });
+
+		const ack = stepHandoffDelivery(
+			"snapshot-sent",
+			{
+				kind: "ack",
+				targetLabel: "feature-agent",
+				sourceLabel: "main",
+				deliveryId: "d1",
+			},
+			expected,
+		);
+		expect(ack).toEqual({ phase: "delivered", effect: "rebind" });
+
+		const ackAgain = stepHandoffDelivery(
+			ack.phase,
+			{
+				kind: "ack",
+				targetLabel: "feature-agent",
+				sourceLabel: "main",
+				deliveryId: "d1",
+			},
+			expected,
+		);
+		expect(ackAgain.effect).toBe("none");
 	});
 });

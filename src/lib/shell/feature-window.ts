@@ -11,6 +11,7 @@
  */
 
 import i18n from "@/i18n";
+import { shouldScheduleAgentSessionHandoff } from "@/lib/agent/session-handoff";
 import { commands } from "@/lib/core/bindings";
 import { notifyError } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
@@ -64,6 +65,7 @@ export async function openFeatureWindow(view: FeatureViewType): Promise<void> {
 		notifyError(i18n.t("app:windows.featureDesktopOnly"));
 		return;
 	}
+	let stopHandoff: (() => void) | undefined;
 	try {
 		const { getActiveTabId, getTabs } = await import("@/lib/workspace/store");
 		const activeId = getActiveTabId();
@@ -73,6 +75,15 @@ export async function openFeatureWindow(view: FeatureViewType): Promise<void> {
 		const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
 		const existed =
 			(await WebviewWindow.getByLabel(featureWindowLabel(view))) != null;
+		// Capture while the main panel is still mounted, and start listening
+		// before the new webview can emit ready. An existing agent window is
+		// not handed a snapshot.
+		if (shouldScheduleAgentSessionHandoff(view, existed)) {
+			const { beginAgentSessionHandoff } = await import(
+				"@/lib/shell/workspace-broadcast"
+			);
+			stopHandoff = await beginAgentSessionHandoff(featureWindowLabel(view));
+		}
 		const res = await commands.featureWindowOpen(
 			view,
 			getVaultPath(),
@@ -81,25 +92,22 @@ export async function openFeatureWindow(view: FeatureViewType): Promise<void> {
 			featureWindowTitle(view),
 		);
 		if (res.status === "error") {
+			stopHandoff?.();
 			notifyError(res.error);
 			return;
 		}
 		await clearMainHostForFeature(view);
 		// Existing feature windows only get focused — re-broadcast so they follow.
-		const { broadcastWorkspaceActive, scheduleAgentSessionHandoffFromMain } =
-			await import("@/lib/shell/workspace-broadcast");
+		const { broadcastWorkspaceActive } = await import(
+			"@/lib/shell/workspace-broadcast"
+		);
 		broadcastWorkspaceActive({
 			path: active?.path ?? null,
 			vaultPath: getVaultPath(),
 			paperTitle: active?.paperMeta?.title ?? null,
 		});
-		// New Agent window only: push the open conversation so the popout
-		// continues the same chat (do not re-handoff on focus — would clobber
-		// in-window progress with a stale main snapshot).
-		if (view === "agent" && !existed) {
-			scheduleAgentSessionHandoffFromMain();
-		}
 	} catch (e) {
+		stopHandoff?.();
 		notifyError(String(e));
 	}
 }

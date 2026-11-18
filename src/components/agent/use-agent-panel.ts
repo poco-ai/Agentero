@@ -5,7 +5,14 @@
  * cross-window session handoff, agent switch, and new conversation.
  * UI lives in sibling components under `src/components/agent/`.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useAgentComposer } from "@/components/agent/hooks/use-agent-composer";
 import { useAgentConfig } from "@/components/agent/hooks/use-agent-config";
@@ -41,11 +48,25 @@ import {
 	errorText,
 	resolveSelected,
 } from "@/lib/agent/chat-state";
-import { removeVisualDraft } from "@/lib/agent/visual-context-store";
+import {
+	composerScopeKey,
+	saveAgentComposerState,
+} from "@/lib/agent/composer-state";
+import { claimInteractiveRequest } from "@/lib/agent/interactive-claims";
+import {
+	removeVisualDraft,
+	seedVisualDraftSession,
+	visualDraftSessionKey,
+} from "@/lib/agent/visual-context-store";
 import { notifyError } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import { toSafeDisposer } from "@/lib/core/tauri-events";
-import { listenAgentSessionHandoff } from "@/lib/shell/workspace-broadcast";
+import {
+	broadcastAgentSessionHandoff,
+	listenAgentSessionHandoff,
+	registerAgentHandoffReaders,
+} from "@/lib/shell/workspace-broadcast";
+import { currentWindowLabel } from "@/lib/workspace/store";
 
 export type UseAgentPanelArgs = Pick<
 	AgentPanelProps,
@@ -194,7 +215,10 @@ export function useAgentPanel({
 		activateSession: activateComposerSession,
 		resetSession: resetComposerSession,
 		setText: setComposerText,
+		setMentionedPaths,
 		setSelectedSkillIds,
+		setIncludeSelectedFile,
+		snapshot: snapshotComposer,
 	} = composerState;
 
 	/** Current paper/file path when included (always-on chip; no dashed + toggle). */
@@ -400,6 +424,7 @@ export function useAgentPanel({
 		messageQueue,
 		removeQueuedMessage,
 		clearMessageQueue,
+		replaceMessageQueue,
 		cancelCurrentRun,
 		answerToolAskUser,
 		recordAskUserAnswers,
@@ -540,44 +565,130 @@ export function useAgentPanel({
 		sessionHistoryRef.current,
 	]);
 
-	// Cross-window handoff: first snapshot only (retries may arrive later).
+	// Publish unsent composer / queue / asks so a popout snapshot can copy them.
+	// localStorage is per webview, so the payload is the copy the feature window gets.
+	const handoffLiveRef = useRef({
+		queue: messageQueue,
+		elicitationRequest,
+		askUserRequest,
+		selectedAgentId,
+	});
+	handoffLiveRef.current = {
+		queue: messageQueue,
+		elicitationRequest,
+		askUserRequest,
+		selectedAgentId,
+	};
 	useEffect(() => {
-		// Handoff seeds the shared rail store of a new Agent feature window.
+		if (!isRailScope) return;
+		registerAgentHandoffReaders({
+			composerText: () => snapshotComposer().text,
+			mentions: () => snapshotComposer().mentionedPaths,
+			skillIds: () => snapshotComposer().selectedSkillIds,
+			includeSelectedFile: () => snapshotComposer().includeSelectedFile,
+			queue: () => handoffLiveRef.current.queue,
+			elicitationRequest: () => handoffLiveRef.current.elicitationRequest,
+			askUserRequest: () => handoffLiveRef.current.askUserRequest,
+			selectedAgentId: () => handoffLiveRef.current.selectedAgentId,
+		});
+	}, [isRailScope, snapshotComposer]);
+
+	// Cross-window handoff. The store write happens once (root or this listener).
+	// This listener does not apply again when the root already accepted the snapshot.
+	useEffect(() => {
 		if (!isRailScope) return;
 		return toSafeDisposer(
 			listenAgentSessionHandoff((payload) => {
-				const applied = applyAgentSessionHandoffOnce({
-					sessions: payload.sessions,
-					activeTabId: payload.activeTabId,
-					draftLines: payload.draftLines,
+				if (payload.kind !== "snapshot") return;
+				// The main window hears its own broadcast. Applying it here would
+				// roll the live rail back to the frozen frame.
+				if (payload.targetLabel !== currentWindowLabel()) return;
+				if (!applyAgentSessionHandoffOnce(payload)) return;
+				broadcastAgentSessionHandoff({
+					kind: "ack",
+					deliveryId: payload.deliveryId,
+					sourceLabel: payload.sourceLabel,
+					targetLabel: payload.targetLabel,
 				});
-				if (!applied) return;
-				const agentId =
-					payload.selectedAgentId ??
-					payload.sessions.find((s) => s.id === payload.activeTabId)?.agentId ??
-					payload.sessions[0]?.agentId ??
-					null;
-				if (agentId) {
-					setSelectedAgentId(agentId);
-					selectedAgentIdRef.current = agentId;
-				}
-				const tabId = payload.activeTabId || "draft";
-				activeTabRef.current = tabId;
-				activeConversationRef.current = tabId === "draft" ? null : tabId;
-				knownSessionIdsRef.current = new Set(
-					(payload.sessions ?? []).map((s) => s.id),
-				);
-				// Composer scope follows session id; force activate after handoff.
-				activateComposerSession(tabId);
 			}),
 		);
+	}, [isRailScope]);
+
+	const handoff = useAgentSessionStore((s) => s.handoff);
+	const handoffConsumedRef = useRef<string | null>(null);
+	useLayoutEffect(() => {
+		if (!isRailScope || !handoff) return;
+		if (handoff.targetLabel !== currentWindowLabel()) return;
+		if (handoffConsumedRef.current === handoff.deliveryId) return;
+		handoffConsumedRef.current = handoff.deliveryId;
+		const tabId = handoff.localSessionId || "draft";
+		const agentId = handoff.agentId;
+		const scopeKey = composerScopeKey(vaultPath, agentId, null);
+		seedVisualDraftSession(
+			visualDraftSessionKey(scopeKey, tabId),
+			handoff.visualRefs,
+		);
+		if (scopeKey) {
+			try {
+				const storage =
+					typeof localStorage === "undefined" ? null : localStorage;
+				if (storage) {
+					saveAgentComposerState(storage, scopeKey, tabId, {
+						text: handoff.composerText,
+						mentionedPaths: handoff.mentions,
+						selectedSkillIds: handoff.composerSkillIds,
+						includeSelectedFile: handoff.includeSelectedFile,
+					});
+				}
+			} catch {
+				// The in-memory composer below still shows the unsent draft.
+			}
+		}
+		if (agentId) {
+			setSelectedAgentId(agentId);
+			selectedAgentIdRef.current = agentId;
+		}
+		// activate reloads this webview's storage (empty until the save above).
+		// Field setters run after it so the snapshot wins that batched update.
+		activateComposerSession(tabId);
+		setComposerText(handoff.composerText);
+		setMentionedPaths(handoff.mentions);
+		setSelectedSkillIds(handoff.composerSkillIds);
+		setIncludeSelectedFile(handoff.includeSelectedFile);
+		replaceMessageQueue(handoff.queue);
+		activeTabRef.current = tabId;
+		activeConversationRef.current = tabId === "draft" ? null : tabId;
+		knownSessionIdsRef.current = new Set(
+			sessionStore.getState().sessions.map((session) => session.id),
+		);
+		if (handoff.permissionRequestId) {
+			claimInteractiveRequest(handoff.permissionRequestId);
+		}
+		if (handoff.elicitationRequest) {
+			claimInteractiveRequest(handoff.elicitationRequest.requestId);
+			setElicitationRequest(handoff.elicitationRequest);
+		}
+		if (handoff.askUserRequest) {
+			claimInteractiveRequest(handoff.askUserRequest.requestId);
+			setAskUserRequest(handoff.askUserRequest);
+		}
 	}, [
-		isRailScope,
 		activateComposerSession,
-		selectedAgentIdRef,
-		knownSessionIdsRef,
-		activeTabRef,
 		activeConversationRef,
+		activeTabRef,
+		handoff,
+		isRailScope,
+		knownSessionIdsRef,
+		replaceMessageQueue,
+		selectedAgentIdRef,
+		sessionStore,
+		setAskUserRequest,
+		setComposerText,
+		setElicitationRequest,
+		setIncludeSelectedFile,
+		setMentionedPaths,
+		setSelectedSkillIds,
+		vaultPath,
 	]);
 
 	const selectAgent = async (opt: AgentOption) => {

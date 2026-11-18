@@ -56,6 +56,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::system::network::commands::doctor_check_network,
             crate::features::system::desktop_apps::commands::desktop_apps_probe,
             crate::features::system::desktop_apps::commands::desktop_app_open,
+            crate::features::agent::commands::agent_rebind_event_window,
             crate::features::agent::commands::agent_cancel_run,
             crate::features::jobs::commands::job_parse_refs_enqueue,
             crate::features::jobs::commands::job_parse_body_enqueue,

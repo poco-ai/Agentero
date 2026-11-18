@@ -207,6 +207,7 @@ export type AgentSend = {
 	messageQueue: QueuedPrompt[];
 	removeQueuedMessage: (id: string) => void;
 	clearMessageQueue: () => void;
+	replaceMessageQueue: (next: QueuedPrompt[]) => void;
 	cancelCurrentRun: () => Promise<void>;
 	answerToolAskUser: (input: {
 		answer: string;
@@ -298,6 +299,11 @@ export function useAgentSend({
 
 	const clearMessageQueue = useCallback(() => {
 		setMessageQueue([]);
+		drainInFlightRef.current = false;
+	}, []);
+
+	const replaceMessageQueue = useCallback((next: QueuedPrompt[]) => {
+		setMessageQueue(next);
 		drainInFlightRef.current = false;
 	}, []);
 
@@ -1292,6 +1298,7 @@ export function useAgentSend({
 		messageQueue,
 		removeQueuedMessage,
 		clearMessageQueue,
+		replaceMessageQueue,
 		cancelCurrentRun,
 		answerToolAskUser,
 		recordAskUserAnswers,

@@ -109,6 +109,12 @@ export const commands = {
 	desktopAppsProbe: () => typedError<ApiResult<DesktopAppStatus_Serialize[]>, string>(__TAURI_INVOKE("desktop_apps_probe")),
 	/**  Launch one installed desktop app (macOS or Windows). */
 	desktopAppOpen: (id: DesktopAppId) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("desktop_app_open", { id })),
+	/**
+	 *  Retarget in-flight agent runs that emit to `source_label` so later events
+	 *  go to `target_label`. The frontend calls this only after the target window
+	 *  acknowledges the session snapshot; until then emitters keep the source label.
+	 */
+	agentRebindEventWindow: (sourceLabel: string, targetLabel: string) => __TAURI_INVOKE<ApiResult<boolean>>("agent_rebind_event_window", { sourceLabel, targetLabel }),
 	/**  Request cooperative cancellation for a currently streaming ACP session. */
 	agentCancelRun: (sessionId: string) => __TAURI_INVOKE<ApiResult<boolean>>("agent_cancel_run", { sessionId }),
 	jobParseRefsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_parse_refs_enqueue", { args })),

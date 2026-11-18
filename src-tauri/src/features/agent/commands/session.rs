@@ -134,6 +134,19 @@ pub async fn agent_load_session(
     }
 }
 
+/// Retarget in-flight agent runs that emit to `source_label` so later events
+/// go to `target_label`. The frontend calls this only after the target window
+/// acknowledges the session snapshot; until then emitters keep the source label.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_rebind_event_window(source_label: String, target_label: String) -> ApiResult<bool> {
+    let rebound = crate::features::agent::runtime::events::rebind_agent_event_window(
+        &source_label,
+        &target_label,
+    );
+    ApiResult::ok(rebound)
+}
+
 /// Request cooperative cancellation for a currently streaming ACP session.
 #[tauri::command]
 #[specta::specta]
