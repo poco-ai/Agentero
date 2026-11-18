@@ -4,6 +4,7 @@ pub mod history;
 pub mod pool;
 pub mod query;
 pub mod run;
+mod tokens;
 pub mod warm;
 
 pub use history::{delete_acp_session, list_acp_sessions, load_acp_session};

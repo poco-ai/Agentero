@@ -5,7 +5,10 @@
 
 use crate::core::blocking::run_blocking;
 use crate::core::error::{map_err, ApiResult};
-use crate::core::usage::{clear_default, record_default, UsageRecord};
+use crate::core::usage::{
+    clear_default, record_default, usage_board, usage_db_path, UsageBoard, UsageBoardQuery,
+    UsageRecord,
+};
 use serde::Deserialize;
 use tauri::AppHandle;
 
@@ -54,6 +57,55 @@ fn forward_to_telemetry(app: &AppHandle, events: &[UsageRecord]) {
 pub struct UsageClearArgs {
     #[serde(default)]
     pub vault: Option<String>,
+}
+
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageBoardArgs {
+    pub vault: String,
+    pub start_day: String,
+    pub end_day: String,
+    pub week_start: String,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn usage_board_query(args: UsageBoardArgs) -> ApiResult<UsageBoard> {
+    run_blocking(move || {
+        let query = UsageBoardQuery {
+            vault: args.vault.clone(),
+            start_day: args.start_day,
+            end_day: args.end_day,
+            week_start: args.week_start,
+        };
+        match usage_board(&usage_db_path(), &query) {
+            Ok(mut board) => {
+                attach_paper_titles(&args.vault, &mut board);
+                ApiResult::ok(board)
+            }
+            Err(e) => map_err(e),
+        }
+    })
+    .await
+}
+
+fn attach_paper_titles(vault: &str, board: &mut UsageBoard) {
+    let vault = vault.trim();
+    if vault.is_empty() || board.papers.is_empty() {
+        return;
+    }
+    let root = std::path::Path::new(vault);
+    for paper in &mut board.papers {
+        let Ok(Some(record)) =
+            crate::features::paper::catalog::papers::get_by_path(root, &paper.path)
+        else {
+            continue;
+        };
+        let title = record.title.trim();
+        if !title.is_empty() {
+            paper.title = Some(title.to_string());
+        }
+    }
 }
 
 #[tauri::command]

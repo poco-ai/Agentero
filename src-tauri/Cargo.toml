@@ -74,7 +74,7 @@ tauri-plugin-fs = { version = "2.5.1", optional = true }
 tauri-plugin-dialog = { version = "2.7.1", optional = true }
 tauri-plugin-deep-link = { version = "2.4.9", optional = true }
 # session/load replay relies on the SDK's notification/response ordering.
-agent-client-protocol = { version = "1.3.0", features = ["unstable_elicitation"], optional = true }
+agent-client-protocol = { version = "1.3.0", features = ["unstable_elicitation", "unstable_end_turn_token_usage"], optional = true }
 tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "macros", "time", "process", "io-util", "net"] }
 # Per-job CancellationToken for the JobCenter cancel path (no global flag state).
 tokio-util = { version = "0.7", default-features = false }

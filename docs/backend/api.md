@@ -2390,6 +2390,14 @@ UI 入口见 `settings_window_open`：Settings 现为独立原生单例窗口，
 - **返回**：写入条数（`number`）。空数组为 `0`。单批上限 200。
 - **说明**：浏览器预览（非 Tauri）前端短路为 `0`。
 
+#### `usage_board_query`（已实现）
+
+当前 Vault 的使用情况，给设置里的看板。只读 `usage_daily`。阅读时长只累加 `paper.session`，不把同一次停留的 `paper.blur` 再加一遍。
+
+- **参数**（`args`）：`{ vault, startDay, endDay, weekStart }`，日期都是本地 `YYYY-MM-DD`。`startDay`–`endDay` 覆盖热力图；`weekStart`–`endDay` 是本周论文和 workflow。
+- **返回** `UsageBoard`：`{ days, papers, workflows, weekPaperCount }`。`days[]` 为 `{ day, readingMs, agentRuns, tokens }`。`papers` 最多 8 篇，标题由 catalog 按路径补上，不写入 usage 库。
+- **说明**：空 `vault` 返回空看板。日期不是 `YYYY-MM-DD` 时失败。
+
 #### `usage_clear`（已实现）
 
 清空事件、日聚合与 memories。指定 `vault` 时只清该库，其它 Vault 保留。

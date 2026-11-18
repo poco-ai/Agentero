@@ -200,7 +200,7 @@ fn project_extra(
                 None
             }
         }),
-        "agent.run" => extra_str("workflow"),
+        "agent.run" | "agent.usage" => extra_str("workflow"),
         k if k.starts_with("translate.") => {
             extra_str("providerFamily").or_else(|| extra_str("provider"))
         }
@@ -221,17 +221,21 @@ fn project_extra(
         matches!(s.as_str(), "ok" | "fail" | "cancel").then_some(s)
     });
     let status = status.filter(|s| s.len() <= MAX_STATUS);
-    let qty = extra_i64(&[
-        "qty",
-        "count",
-        "hits",
-        "region_count",
-        "regionCount",
-        "tagCount",
-        "tag_count",
-        "chars",
-        "installed",
-    ]);
+    let qty = if kind == "agent.usage" {
+        extra_i64(&["totalTokens", "total_tokens"])
+    } else {
+        extra_i64(&[
+            "qty",
+            "count",
+            "hits",
+            "region_count",
+            "regionCount",
+            "tagCount",
+            "tag_count",
+            "chars",
+            "installed",
+        ])
+    };
     (facet, status, qty)
 }
 
@@ -247,7 +251,7 @@ fn upsert_vault(tx: &rusqlite::Transaction<'_>, vault: &str, ts: &str) -> Result
 }
 
 fn upsert_daily(tx: &rusqlite::Transaction<'_>, event: &Normalized) -> Result<(), AppError> {
-    let day = event.ts.get(..10).unwrap_or("1970-01-01");
+    let day = local_day(&event.ts);
     let vault = event.vault.as_deref().unwrap_or("");
     let paper = event
         .paper_path
@@ -285,6 +289,29 @@ fn optional_trimmed(value: &Option<String>, max: usize) -> Option<String> {
 
 fn now_rfc3339() -> String {
     crate::time::now_rfc3339_millis()
+}
+
+/// Calendar day in the machine's local timezone. `usage_daily.day` is what the
+/// activity board draws, so a late-evening session must land on that evening
+/// rather than the UTC date prefix of `ts`.
+fn local_day(ts: &str) -> String {
+    chrono::DateTime::parse_from_rfc3339(ts.trim())
+        .ok()
+        .map(|dt| {
+            dt.with_timezone(&chrono::Local)
+                .format("%Y-%m-%d")
+                .to_string()
+        })
+        .filter(|day| day.len() == 10)
+        .or_else(|| {
+            let prefix = ts.get(..10)?;
+            prefix
+                .as_bytes()
+                .get(4)
+                .is_some_and(|c| *c == b'-')
+                .then(|| prefix.to_string())
+        })
+        .unwrap_or_else(|| "1970-01-01".into())
 }
 
 #[cfg(test)]

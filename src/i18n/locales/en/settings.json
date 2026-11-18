@@ -7,6 +7,7 @@
 	"nav": {
 		"account": "Account and teams",
 		"general": "General",
+		"activity": "Activity",
 		"appearance": "Appearance",
 		"agent": "Agent",
 		"translate": "Translate",
@@ -19,6 +20,53 @@
 		"quickSetup": "Quick setup wizard",
 		"featureTour": "Feature tour",
 		"sync": "Sync"
+	},
+	"activity": {
+		"title": "Activity",
+		"openFailed": "Couldn't open this paper.",
+		"thisWeek": "This week",
+		"workflows": "Agent",
+		"papers": "Longest reads",
+		"metric": {
+			"reading": "Reading",
+			"tokens": "Tokens"
+		},
+		"week": {
+			"reading": "Reading",
+			"papers": "Papers",
+			"agent": "Agent runs",
+			"tokens": "Tokens",
+			"unreported": "Not reported"
+		},
+		"heatmap": {
+			"reading": "Last year",
+			"tokens": "Tokens",
+			"less": "Less",
+			"more": "More",
+			"cell": "{{date}} · {{value}}"
+		},
+		"weekday": {
+			"mon": "Mon",
+			"tue": "Tue",
+			"wed": "Wed",
+			"thu": "Thu",
+			"fri": "Fri",
+			"sat": "Sat",
+			"sun": "Sun"
+		},
+		"duration": {
+			"minutes": "{{count}}m",
+			"hours": "{{count}}h",
+			"hoursMinutes": "{{hours}}h {{minutes}}m"
+		},
+		"workflow": {
+			"free": "Free",
+			"qa": "Q&A",
+			"summary": "Summary",
+			"related_work": "Related work",
+			"paper_reader": "Paper reader",
+			"translate": "Translate"
+		}
 	},
 	"writing": {
 		"uploadMode": "When to upload",

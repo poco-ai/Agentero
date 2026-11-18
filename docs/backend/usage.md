@@ -80,7 +80,7 @@ PRIMARY KEY (day, vault, kind, paper_path, facet)
 
 | 列 | 含义 |
 |---|---|
-| `day` | 本地日期 `YYYY-MM-DD`（取自 `ts` 前 10 位，UTC） |
+| `day` | 本机本地日期 `YYYY-MM-DD`（由 `ts` 转到本地时区，不是 UTC 前 10 位） |
 | `paper_path` | 无论文时退回 `path`，再空则 `''` |
 | `facet` | 无则 `''` |
 | `count` / `dur_ms` / `qty` | 累加 |
@@ -105,7 +105,9 @@ PRIMARY KEY (day, vault, kind, paper_path, facet)
 | `paper.import` | `extra.source` | — | — |
 | `asset.download` | `asset` 或 pdf/tex 布尔 | — | 资源旗标 |
 | `search.query` | — | `hits` | **`q` 仅本地** |
-| `agent.run` | `workflow` | `skillCount` | — |
+| `agent.run` | `workflow` | — | `skillCount` 只留在 extra |
+| `agent.usage` | `workflow` | `totalTokens`（回合增量） | Host 在回合结束时写，不走 `track()` |
+| `activity.view` | — | — | 打开设置里的使用情况 |
 | `translate.*` | `providerFamily` 或 `provider` | `chars` / `regionCount` | — |
 | `layout.analyze` | `trigger` | `region_count` | `backend` |
 | `skill.install` / `skill.use` | `sourceKind` | 安装个数 | `skill_id[]` 仅本地 |
@@ -130,6 +132,7 @@ PRIMARY KEY (day, vault, kind, paper_path, facet)
 | Command | 说明 |
 |---|---|
 | `activity_record_events` | 批量写入（前端缓冲后调用） |
+| `usage_board_query` | 当前 Vault 的日汇总、本周论文与 workflow。阅读只加 `paper.session` |
 | `usage_clear` | 清空全部或指定 vault |
 
 ## CLI
@@ -138,14 +141,16 @@ CLI 不再暴露 `usage` 命令；清除请通过桌面端设置或 Host API 进
 
 ## 前端漏斗
 
-`track(kind, payload)` 是唯一入口。5s / 满 50 条 / 窗口 blur 刷新。同一 `(kind, path, mode)` 1s 去重。
+`track(kind, payload)` 是界面动作的入口。5s / 满 50 条 / 窗口 blur 刷新。没有 `durMs` 的同一 `(kind, path, mode)` 1 秒去重；带时长的阅读片段不去重。
 
-已接线：`paper.open` / `note.open` / `paper.focus|blur|session`、`asset.download`、`paper.import`、`skill.install`、`search.query`、`agent.run`、`paper.tag`、`paper.read`、`vault.open`、`onboarding.complete`。  
-`app.started` / `app.exited` 由 Host `Telemetry::start` / `shutdown` 写入，不走前端 `track()`。
+已接线：`paper.open` / `note.open` / `paper.focus|blur|session`、`asset.download`、`paper.import`、`skill.install`、`search.query`、`agent.run`、`paper.tag`、`paper.read`、`vault.open`、`onboarding.complete`、`activity.view`。  
+`app.started` / `app.exited` 由 Host `Telemetry::start` / `shutdown` 写入。`agent.usage` 由 Host 在 ACP 回合结束时写入。二者都不走前端 `track()`。
+
+阅读计时只在论文正文、译文或笔记面板处于前台时累计。离开这些面板、窗口失焦会结算；回到窗口后从当前论文继续。单段满 30 分钟会记下并重新起算，不会把超出的时间丢掉。看板只把 `paper.session` 的 `dur_ms` 当作阅读时长。
 
 翻译、版面、批注等其余 kind 已登记，漏斗按 [`../development/usage-analytics.md`](../development/usage-analytics.md) 继续接。
 
 ## 隐私
 
 - 本地可含路径与搜索词；不上传。
-- PostHog 仍只走 `core/telemetry` 的匿名启动/退出，本库不直接出站。投影只用 `kind` + `facet` + 桶，不用 `path` / `extra.q`。
+- PostHog 只收白名单投影：`kind`、`facet`、分桶后的时长或 token，不用路径、标题或精确 token 数。见 [telemetry.md](telemetry.md)。

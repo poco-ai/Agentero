@@ -29,6 +29,7 @@ import { startJobCompletionRefresh } from "@/lib/paper/job-refresh";
 import { refreshLibrary } from "@/lib/paper/library-store";
 import { registerLibraryTaskExecutors } from "@/lib/paper/library-tasks";
 import { startPerfRun } from "@/lib/shell/perf-run";
+import { activeReadingPath } from "@/lib/workspace/navigation";
 // Side-effect: register catalog title lookup for JobCenter task subjects.
 import "@/lib/paper/task-label";
 import { registerLayoutTaskExecutor } from "@/lib/pdf/layout/enqueue-paper-layout";
@@ -79,7 +80,7 @@ export function useAppBootstrap(): void {
 
 	useEffect(() => {
 		if (perfActive()) return;
-		return startActivityTracking();
+		return startActivityTracking(activeReadingPath);
 	}, []);
 
 	// Validate the restored local Vault before restoring its tree and tabs, then

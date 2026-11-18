@@ -7,6 +7,7 @@
 	"nav": {
 		"account": "账号与团队",
 		"general": "通用",
+		"activity": "使用情况",
 		"appearance": "外观",
 		"agent": "Agent",
 		"translate": "翻译",
@@ -19,6 +20,53 @@
 		"quickSetup": "快速配置向导",
 		"featureTour": "功能导引",
 		"sync": "同步"
+	},
+	"activity": {
+		"title": "使用情况",
+		"openFailed": "打不开这篇论文",
+		"thisWeek": "本周",
+		"workflows": "Agent",
+		"papers": "读得最久",
+		"metric": {
+			"reading": "阅读",
+			"tokens": "Token"
+		},
+		"week": {
+			"reading": "阅读",
+			"papers": "论文",
+			"agent": "Agent 运行",
+			"tokens": "Token",
+			"unreported": "未报告"
+		},
+		"heatmap": {
+			"reading": "近一年",
+			"tokens": "Token",
+			"less": "少",
+			"more": "多",
+			"cell": "{{date}} · {{value}}"
+		},
+		"weekday": {
+			"mon": "一",
+			"tue": "二",
+			"wed": "三",
+			"thu": "四",
+			"fri": "五",
+			"sat": "六",
+			"sun": "日"
+		},
+		"duration": {
+			"minutes": "{{count}} 分钟",
+			"hours": "{{count}} 小时",
+			"hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟"
+		},
+		"workflow": {
+			"free": "自由对话",
+			"qa": "问答",
+			"summary": "总结",
+			"related_work": "相关工作",
+			"paper_reader": "精读",
+			"translate": "翻译"
+		}
 	},
 	"writing": {
 		"uploadMode": "何时上传",

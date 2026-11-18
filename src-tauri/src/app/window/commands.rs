@@ -218,8 +218,8 @@ pub async fn settings_window_open(
     let mut builder =
         WebviewWindowBuilder::new(&app, SETTINGS_WINDOW_LABEL, WebviewUrl::App(url.into()))
             .title("Settings")
-            .inner_size(720.0, 560.0)
-            .min_inner_size(640.0, 480.0)
+            .inner_size(880.0, 640.0)
+            .min_inner_size(760.0, 520.0)
             .resizable(true);
 
     #[cfg(target_os = "macos")]

@@ -54,6 +54,8 @@ Person 属性：`$set` → `app_version` / `os_name` / `os_version` / `arch` / `
 | `paper.import` | `paper_imported` | `facet`(source 桶) |
 | `search.query` | `search_performed` | `qty`(hits)，**无检索词** |
 | `agent.run` | `agent_run` | `facet`(workflow) |
+| `agent.usage` | `agent_usage` | `facet`(workflow)、`token_bucket`（`<1k` / `1-10k` / `10-100k` / `100k+`），无精确 token |
+| `activity.view` | `activity_viewed` | — |
 | `skill.install` | `skill_installed` | `facet`(sourceKind)、`qty`(count)，**无 skill 名** |
 | `paper.tag` | `paper_tagged` | `facet`(op)、`qty`(tagCount) |
 | `paper.read` | `paper_read_set` | `facet`(via/isRead) |

@@ -104,6 +104,7 @@ import {
 	revokeTabMediaSources,
 	splitPaneIdForPath,
 	tabHasNotesSplit,
+	tabIsPaperNoteDocument,
 	tabIsPaperNotes,
 	tabNotesEligible,
 } from "./tabs";
@@ -196,6 +197,32 @@ export function activatePaperWithNotes(paperTab: DocTab): void {
 	cacheActiveTabBeforeDock(paperTab.id);
 }
 
+/** Paper folder whose body, translation, or notes pane is allowed to count. */
+function readingPathForTab(tab: DocTab | null): string | null {
+	if (!tab) return null;
+	if (
+		isLibraryVirtualPath(tab.path) ||
+		isTrashVirtualPath(tab.path) ||
+		isZenVirtualPath(tab.path) ||
+		isRemoteArxivPath(tab.path) ||
+		isPlazaVirtualPath(tab.path)
+	) {
+		return null;
+	}
+	if (tab.pane === "translation" || isPaperContentTab(tab)) return tab.path;
+	if (tabIsPaperNoteDocument(tab)) {
+		return paperDirFromPath(tab.notesPath ?? tab.path);
+	}
+	return null;
+}
+
+/** Path of the paper currently in front, if the active pane is one of its views. */
+export function activeReadingPath(): string | null {
+	const id = getActiveTabId();
+	if (!id) return null;
+	return readingPathForTab(getTabs().find((tab) => tab.id === id) ?? null);
+}
+
 /**
  * Dockview focus changed: keep paper body and NOTES columns in sync when
  * the user clicks a tab in either column.
@@ -219,15 +246,11 @@ export function handleActivePanelChange(panelId: string | null): void {
 		return;
 	}
 	const tab = activeTab;
-	if (!tab) return;
-	if (
-		!isLibraryVirtualPath(tab.path) &&
-		!isTrashVirtualPath(tab.path) &&
-		!isZenVirtualPath(tab.path) &&
-		!isRemoteArxivPath(tab.path)
-	) {
-		notePaperFocus(tab.path);
+	if (!tab) {
+		notePaperFocus(null);
+		return;
 	}
+	notePaperFocus(readingPathForTab(tab));
 
 	if (isPaperContentTab(tab) && tab.notesPath) {
 		const notesId = findCanonicalTab(getTabs(), tab.notesPath)?.id ?? null;
@@ -418,7 +441,11 @@ export function openTab(
 					timestamp: Date.now(),
 				});
 			}
-			notePaperFocus(path);
+			notePaperFocus(
+				res.kind === "paper" && (res.mode === "pdf" || res.mode === "html")
+					? path
+					: null,
+			);
 		}
 	})();
 }
