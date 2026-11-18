@@ -74,6 +74,7 @@ import {
 } from "@/lib/workspace/notes-split-width";
 import { installResizeGesture } from "@/lib/workspace/resize-gesture";
 import { useSelectionOverlayActive } from "@/lib/workspace/selection-overlay";
+import { getTabs } from "@/lib/workspace/store";
 import { readDraggedVaultPaths } from "@/lib/workspace/tab-dnd";
 import {
 	type DocTab,
@@ -605,6 +606,35 @@ export const DockWorkspace = memo(
 						endSync(api);
 					}
 				},
+				snapshotLayout() {
+					const api = apiRef.current;
+					return api ? api.toJSON() : null;
+				},
+				restoreLayout(layout) {
+					const api = apiRef.current;
+					if (!api) return;
+					const tabs = getTabs();
+					tabsRef.current = tabs;
+					if (layout && typeof layout === "object") {
+						syncingRef.current = true;
+						try {
+							api.fromJSON(layout as Parameters<DockviewApi["fromJSON"]>[0]);
+							reconcileAfterLayoutRestore(api, tabs);
+							endSync(api);
+						} catch {
+							api.clear();
+							syncPanels(api);
+						}
+						return;
+					}
+					syncingRef.current = true;
+					try {
+						api.clear();
+						reconcilePanelMembership(api, tabs);
+					} finally {
+						endSync(api);
+					}
+				},
 				splitPanelRight(tab, referencePanelId) {
 					const api = apiRef.current;
 					if (!api) return;
@@ -735,7 +765,7 @@ export const DockWorkspace = memo(
 					return resolved;
 				},
 			}),
-			[endSync],
+			[endSync, syncPanels],
 		);
 
 		const onReady = useCallback(

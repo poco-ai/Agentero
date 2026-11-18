@@ -33,10 +33,13 @@ export {
 export {
 	extractTabsFromLayout,
 	loadPersistedTabs,
+	loadWindowVaultLayout,
 	panelPersistParams,
 	persistedLayoutIsUnreadable,
 	savePersistedTabs,
+	saveWorkspaceLayout,
 	shouldWritePersistedLayout,
+	workspaceLayoutStorageKey,
 } from "@/lib/workspace/tabs/persist";
 export {
 	loadTabResources,

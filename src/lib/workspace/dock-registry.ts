@@ -29,6 +29,13 @@ export type DockHandle = {
 	 * close the tab a second time.
 	 */
 	removePanel: (panelId: string) => void;
+	/**
+	 * Replace the grid with a saved snapshot, or clear it when the vault has
+	 * no layout. Membership is reconciled against the current tab store.
+	 */
+	restoreLayout: (layout: unknown | null) => void;
+	/** Current dock snapshot, used to flush a vault's layout before switching. */
+	snapshotLayout: () => unknown | null;
 	/** Add a panel as a right split and rebalance visible grid columns. */
 	splitPanelRight: (tab: DocTab, referencePanelId: string | null) => void;
 	/** Replace a panel id after a filesystem move while preserving its group. */

@@ -26,7 +26,7 @@
 ## 欢迎页与多窗口
 
 - 无 Vault：最近路径 MRU、打开 / 创建 / 从 Zotero 迁移。
-- `⌘N` → Host `window_new`（`?fresh=1`）；Vault 与 dock 布局按窗口 session 隔离。
+- `⌘N` → Host `window_new`（`?fresh=1`）。Vault 仍按窗口 session 隔离。dock 布局按窗口标签和当前 Vault 分键保存，新窗口不继承上一扇窗口的标签。
 - **功能单例窗**：`feature_window_open` → `?window=feature&view=…`（`FeatureWindowRoot`）。
 - **文档弹出窗**：文档 tab 右键「移动至新窗口」→ `doc_window_open` → `?window=doc&path=…`（`DocWindowRoot`）；同 path 再开则聚焦。弹出窗自启 per-window Vault watcher，Agent / 外部改盘后按主窗同一套规则就地重载 Markdown / PDF（Markdown 有未存改动则 toast 确认，PDF 重新读入最新字节）；本窗 autosave 会同步本地 seed，避免自写回声误触发重载。
 - 文档窗与功能窗成功打开 Vault 后各自 `vault_hold`（不走主窗的 `vault:opened`），卸载或离开该 Vault 时 `vault_release`。功能窗跟随主窗换库时先释放旧库再持有新库。只有最后一个持有者离开，Host 才释放该 Vault 的全局资源。

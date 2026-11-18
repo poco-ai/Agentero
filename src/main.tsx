@@ -157,7 +157,7 @@ async function boot() {
 		);
 		bootStage("feature-window-module");
 		initVaultStore();
-		initWorkspaceStore();
+		initWorkspaceStore({ restoreLayout: false });
 		ReactDOM.createRoot(root).render(
 			<React.StrictMode>
 				<I18nextProvider i18n={i18n}>
@@ -190,7 +190,7 @@ async function boot() {
 			]);
 		bootStage("doc-window-module");
 		initVaultStore();
-		initWorkspaceStore();
+		initWorkspaceStore({ restoreLayout: false });
 		ReactDOM.createRoot(root).render(
 			<PdfEngineHost>
 				{/* HTML5Backend cannot remount under StrictMode — drag sources go dead. */}

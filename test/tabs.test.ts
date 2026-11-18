@@ -33,6 +33,7 @@ import {
 	findNotesPaneForReplacement,
 	insertPlaceholderTab,
 	loadPersistedTabs,
+	loadWindowVaultLayout,
 	panelPersistParams,
 	paperReadingPlacements,
 	patchFromTabResources,
@@ -44,6 +45,7 @@ import {
 	removeTab,
 	removeTabsUnderPath,
 	savePersistedTabs,
+	saveWorkspaceLayout,
 	seedTabs,
 	shouldWritePersistedLayout,
 	syncTabSeedsForPath,
@@ -53,6 +55,7 @@ import {
 	tabIsPaperNoteDocument,
 	tabIsPaperNotes,
 	tabNotesEligible,
+	workspaceLayoutStorageKey,
 } from "@/lib/workspace/tabs";
 import * as tabResources from "@/lib/workspace/tabs/resources";
 
@@ -746,6 +749,64 @@ describe("tab session persistence", () => {
 			{ id: "/vault/a.md", path: "/vault/a.md", mode: "markdown" },
 		]);
 		expect(persistedLayoutIsUnreadable()).toBe(false);
+	});
+
+	const scopedLayout = (path: string) => ({
+		panels: {
+			[path]: {
+				id: path,
+				params: { panelId: path, path, mode: "markdown" },
+			},
+		},
+	});
+
+	it("keeps two windows from sharing a vault layout", () => {
+		saveWorkspaceLayout("main", "/vault/a", scopedLayout("/vault/a.md"));
+		saveWorkspaceLayout(
+			"agentero-other",
+			"/vault/a",
+			scopedLayout("/vault/b.md"),
+		);
+		expect(loadWindowVaultLayout("main", "/vault/a", false)?.tabs).toEqual([
+			{ id: "/vault/a.md", path: "/vault/a.md", mode: "markdown" },
+		]);
+		expect(
+			loadWindowVaultLayout("agentero-other", "/vault/a", false)?.tabs,
+		).toEqual([{ id: "/vault/b.md", path: "/vault/b.md", mode: "markdown" }]);
+	});
+
+	it("adopts the legacy global layout once, and only for the main window", () => {
+		savePersistedTabs(scopedLayout("/vault/legacy.md"));
+		const legacy = localStorage.getItem("agentero-open-tabs");
+		const adopted = loadWindowVaultLayout("main", "/vault/a", false);
+		expect(adopted?.tabs).toEqual([
+			{ id: "/vault/legacy.md", path: "/vault/legacy.md", mode: "markdown" },
+		]);
+		expect(loadWindowVaultLayout("main", "/vault/b", false)).toBeNull();
+		expect(
+			loadWindowVaultLayout("agentero-other", "/vault/a", false),
+		).toBeNull();
+		expect(loadWindowVaultLayout("main", "/vault/a", true)).toBeNull();
+		saveWorkspaceLayout("main", "/vault/a", scopedLayout("/vault/legacy.md"));
+		expect(localStorage.getItem("agentero-open-tabs")).toBe(legacy);
+		expect(localStorage.getItem("agentero-open-tabs.migrated")).toBe("1");
+		expect(localStorage.getItem("agentero-open-tabs.rollback")).toBe(legacy);
+		loadPersistedTabs();
+		expect(loadWindowVaultLayout("main", "/vault/c", false)).toBeNull();
+		expect(loadWindowVaultLayout("main", "/vault/a/", false)?.tabs).toEqual([
+			{ id: "/vault/legacy.md", path: "/vault/legacy.md", mode: "markdown" },
+		]);
+	});
+
+	it("does not replace a corrupt per-window layout with the legacy key", () => {
+		const raw = "{";
+		const key = workspaceLayoutStorageKey("main", "/vault/a");
+		localStorage.setItem(key, raw);
+		savePersistedTabs(scopedLayout("/vault/legacy.md"));
+		expect(loadWindowVaultLayout("main", "/vault/a", false)).toBeNull();
+		expect(persistedLayoutIsUnreadable()).toBe(true);
+		expect(localStorage.getItem(key)).toBe(raw);
+		expect(shouldWritePersistedLayout(null)).toBe(false);
 	});
 });
 

@@ -57,6 +57,7 @@ import {
 import { registerDockHandle } from "@/lib/workspace/dock-registry";
 import { evictPdfBuffers, nextPdfLru } from "@/lib/workspace/pdf-retention";
 import {
+	currentWindowLabel,
 	setDockLayout,
 	setEditorLru,
 	setPdfLru,
@@ -66,7 +67,7 @@ import {
 } from "@/lib/workspace/store";
 import {
 	applyMarkdownConflictChoice,
-	savePersistedTabs,
+	saveWorkspaceLayout,
 	shouldWritePersistedLayout,
 } from "@/lib/workspace/tabs";
 import { viewerModeSpec } from "@/lib/workspace/viewer";
@@ -274,10 +275,13 @@ export function WorkspaceHost() {
 	}, [vaultPath, hasLibraryTab]);
 
 	// Layout alone is persisted (panels + order + active + path/mode in params).
+	// The key is this window's label plus the open vault, so two main windows
+	// do not overwrite each other.
 	useEffect(() => {
+		if (!vaultPath) return;
 		if (!shouldWritePersistedLayout(dockLayout)) return;
-		savePersistedTabs(dockLayout);
-	}, [dockLayout]);
+		saveWorkspaceLayout(currentWindowLabel(), vaultPath, dockLayout);
+	}, [dockLayout, vaultPath]);
 
 	// Domain callbacks pinned with useCallback so the per-domain prop objects
 	// below keep their identity across host re-renders.
