@@ -806,6 +806,7 @@ export type WarmResult = {
 	agentId: string;
 	ok: boolean;
 	models?: AgentModelsEvent | null;
+	collaboration?: AgentCollaborationEvent | null;
 	usageUsed?: number | null;
 	usageSize?: number | null;
 	error?: string | null;
@@ -993,6 +994,37 @@ export function saveModelPref(agentId: string, modelId: string): void {
 }
 
 const COLLABORATION_PREF_KEY = "agentero-agent-collaboration-pref";
+const COLLABORATION_CATALOG_KEY = "agentero-agent-collaboration-catalog";
+
+export type CachedCollaborationCatalog = {
+	configId: string;
+	currentId: string;
+	modes: AgentModeChoice[];
+};
+
+/** Cached collaboration mode choices per agent. */
+export function loadCollaborationCatalog(
+	agentId: string | null,
+): CachedCollaborationCatalog | null {
+	if (!agentId) return null;
+	const map = readJsonStorage<Record<string, CachedCollaborationCatalog>>(
+		COLLABORATION_CATALOG_KEY,
+		{},
+	);
+	return map[agentId] ?? null;
+}
+
+export function saveCollaborationCatalog(
+	agentId: string,
+	catalog: CachedCollaborationCatalog,
+): void {
+	const map = readJsonStorage<Record<string, CachedCollaborationCatalog>>(
+		COLLABORATION_CATALOG_KEY,
+		{},
+	);
+	map[agentId] = catalog;
+	writeJsonStorage(COLLABORATION_CATALOG_KEY, map);
+}
 
 /** Persist last chosen collaboration mode (default / plan) per agent. */
 export function loadCollaborationPref(agentId: string | null): string | null {

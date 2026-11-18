@@ -706,6 +706,8 @@ pub struct WarmResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub models: Option<AgentModelsEvent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collaboration: Option<AgentCollaborationEvent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_used: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_size: Option<u64>,
