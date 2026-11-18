@@ -316,6 +316,8 @@ prompt，结束后仍受 TTL 与退出清理约束。setup 总预算为 60 秒�
 slot 替换、evict 和 shutdown 均有独立取消 token，不依赖 slot 是否还在池中。
 取用时只有匹配的 setup 正在执行才等待（最多 5 秒），由发布/取消/退出通知唤醒；无匹配任务、
 连接已被其他请求取走或池已关闭时立即走冷启动。并发取用只允许一个请求领取同一连接。
+预热在收到 `session/new` 并应用首选项后立即发布连接；空闲期间的模型和用量通知更新同一份缓存，不依赖固定等待时间。标准模板使用类型化响应，Hermes、OpenCode（含 MiMo）和自定义适配器保留旧模型列表兼容读取。Unix 启动时 cwd、可执行文件和参数作为独立 argv 传递，不插入 shell 源码。
+
 warm 的 `session/new` 在用户发出 prompt 之前只是临时会话：`session/list` 会跳过这些 id。槽位退出、setup 失败，或这条连接改去续聊另一条会话时，若 Agent 声明 `sessionCapabilities.delete` 就 `session/delete`；删不掉的 id 记在本机，重启后仍然不出现在历史里。真正发出 `session/prompt` 后，这条会话才进入历史。前端若 `session/load` 到一份没有正文的旧会话，也会把它从列表里拿掉并记住。用户在历史里删除一条会话时，Host 先把 provider session id 写入 `dismissed-acp-sessions.json`，之后的 `session/list` 会跳过它，并拆掉仍绑着这个 id 的空闲 warm 槽。若这次 initialize 声明了 `sessionCapabilities.delete`，再发 `session/delete`；没声明或 RPC 失败时，Agentero 不再显示，Agent 自己的 transcript 可能还在。
 取消清理最多允许 1 秒，之后无论 RPC 是否响应均丢弃连接，由 SDK 执行进程清理：
 Unix 终止进程组，Windows 仅结束直接子进程。已有残留不会按进程名自动清扫，需确认路径与

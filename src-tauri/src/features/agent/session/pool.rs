@@ -90,8 +90,8 @@ pub(crate) struct PooledSlot {
     /// `initialize` advertised `sessionCapabilities.delete`.
     pub supports_delete: bool,
     /// Cached setup results for `snapshot_warm_result`.
-    pub models: Option<AgentModelsEvent>,
-    pub usage: Option<(u64, u64)>,
+    pub models: Arc<Mutex<Option<AgentModelsEvent>>>,
+    pub usage: Arc<Mutex<Option<(u64, u64)>>>,
 }
 
 impl PooledSlot {
@@ -575,7 +575,9 @@ impl AgentWarmPool {
         if !slot.is_alive() {
             return None;
         }
-        Some((slot.models.clone(), slot.usage))
+        let models = slot.models.lock().ok()?.clone();
+        let usage = *slot.usage.lock().ok()?;
+        Some((models, usage))
     }
 }
 
@@ -781,8 +783,8 @@ mod slot_map_tests {
                     activity,
                     used: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
                     supports_delete: false,
-                    models: None,
-                    usage: None,
+                    models: Default::default(),
+                    usage: Default::default(),
                 });
                 let mut claims = 0;
                 for waiter in waiters {
