@@ -91,7 +91,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 ④ 普通阅读持续提供句子悬停与双栏同句联动；工具栏「选择版面元素」或 ⌘. 开启元素框 / 类别 / 点击动作（默认关闭，再次点击 / Esc 退出）
         │  hit 层用 **post-merge regions**（全 kind；非 Eye 的 rawRegions，也不是侧栏子集）
         │  hover 只画当前元素。文本类有句对时主视觉是当前句浅底（含跨页链），
-        │    合并框（bbox，以及同页 titleBbox / captionBbox）左上方显示可点击的类别标签；边框 / 背景使用主题主色的 55% / 8%
+        │    合并框（bbox，以及同页 titleBbox / captionBbox）左上方显示可点击的类别标签；边框 / 背景使用纸面墨色（`--pdf-paper-ink`）的 55% / 8%
         │  类别标签单击 / Enter 选择整个段落 / 元素；段内单击选择当前句；均可加入对话或翻译，不写 visual mark，不打开批注编辑器；选中句持续高亮到动作菜单关闭
         │  双栏 PDF：左右同一句一起浅亮，不滚动对侧；LaTeX 双栏无句子表面，先只做 PDF
         │  实现：`hit-test.ts`（selectable*）+ `layout-element-selection-layer.tsx`

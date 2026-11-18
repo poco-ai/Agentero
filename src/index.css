@@ -637,12 +637,27 @@
  * by ink color, and a zero-width border paints nothing on the source page.
  */
 /*
+ * Marks painted on PDF paper. Paper tone (white / sepia / green / dark) is
+ * chosen per paper and is independent of the UI theme, so these tints cannot
+ * follow --primary / --foreground: a dark UI theme turns --primary near-white,
+ * and a near-white selection band or hover wash then vanishes on white paper.
+ * The ink mirrors the page's text ink instead; each rule below applies its own
+ * alpha or layer opacity, so the same contrast holds on inverted dark paper.
+ * Set on the page shell and on translation paragraphs as `data-paper`.
+ */
+[data-paper] {
+	--pdf-paper-ink: oklch(0.21 0.008 260);
+}
+[data-paper="dark"] {
+	--pdf-paper-ink: oklch(0.94 0.006 260);
+}
+/*
  * Layout-element selection. The frame and chip stay invisible until the
  * pointer or keyboard focus is on that element, so the page does not keep
  * every detection box painted. Opacity fades in 160ms. The hit target does
  * not take pointer events: text selection and links keep them.
- * Element borders and fills follow the Appearance theme's primary color,
- * with separate opacity for the frame and the text-safe background.
+ * Element borders and fills use the paper ink, with separate opacity for the
+ * frame and the text-safe background.
  */
 .pdf-layout-element-frame,
 .pdf-layout-element-chip {
@@ -660,8 +675,8 @@
 	z-index: 7;
 	box-sizing: border-box;
 	border-radius: 2px;
-	border: 1.5px solid color-mix(in oklch, var(--primary) 55%, transparent);
-	background: color-mix(in oklch, var(--primary) 8%, transparent);
+	border: 1.5px solid color-mix(in oklch, var(--pdf-paper-ink) 55%, transparent);
+	background: color-mix(in oklch, var(--pdf-paper-ink) 8%, transparent);
 	pointer-events: none;
 }
 .pdf-layout-element-chip {
@@ -707,7 +722,7 @@
 	position: absolute;
 	transform: translateY(-12%);
 	border-radius: 2px;
-	background: var(--primary);
+	background: var(--pdf-paper-ink);
 }
 .pdf-layout-sentence-wash[data-source-sentence] > span,
 .pdf-live-selection-band[data-source-sentence] {
@@ -715,7 +730,7 @@
 }
 [data-sentence][data-sentence-hot] {
 	border-radius: 1px;
-	background-color: color-mix(in oklch, var(--primary) 12%, transparent);
+	background-color: color-mix(in oklch, var(--pdf-paper-ink) 12%, transparent);
 	transition: background-color 160ms ease;
 }
 .pdf-live-selection-band {

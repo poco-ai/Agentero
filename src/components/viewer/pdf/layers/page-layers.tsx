@@ -246,11 +246,12 @@ function TranslatedHighlightLayer({
 }
 
 /**
- * Text-selection highlight tint follows the Appearance theme so the
- * underlying glyphs stay legible under the selection. Module-level so every
+ * Text-selection highlight tint follows the paper tone (`--pdf-paper-ink` in
+ * index.css), not the UI theme: a dark UI theme turns `--primary` near-white,
+ * so the band vanished on white / sepia / green paper. Module-level so every
  * page shares one stable value.
  */
-const PDF_TEXT_SELECTION_BACKGROUND = "var(--primary)";
+const PDF_TEXT_SELECTION_BACKGROUND = "var(--pdf-paper-ink)";
 const EMPTY_SELECTION_BANDS: readonly PdfAskNormalizedRect[] = [];
 
 /**
@@ -1301,13 +1302,15 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	}
 
 	// Page shell: matches the finished paper so loading gaps do not flash a
-	// different colour.
+	// different colour. `data-paper` also scopes the paper ink used by
+	// selection / hover tints (`--pdf-paper-ink`).
 	return (
 		<div
 			ref={pageShellRef}
 			data-annotation-pdf={docId}
 			data-annotation-source={annotationSource}
 			data-annotation-page={pageIndex + 1}
+			data-paper={tone}
 			className={cn(
 				"relative overflow-visible rounded-sm ring-1",
 				PDF_PAPER_SHELL_CLASS[tone],
