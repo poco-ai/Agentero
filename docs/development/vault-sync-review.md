@@ -17,6 +17,8 @@
 
 额外验证了两个不适合只用 mock 判断的边界：两个真实 Git 工作树在检出或分叉合并前均拒绝覆盖本地忽略文件；挂载设置页后切换 Vault，旧请求晚到不会覆盖新 Vault 的草稿。本轮一次性用例仅作本地验证，未加入默认测试集。真实 MinIO / WebDAV 端到端测试未运行。
 
+修复后验证：`cargo test -p agentero-core features::sync:: --lib` 最终版本 60 项通过、2 项跳过，另有 6 个一次性 Rust 用例通过后移除；`cargo test -p agentero-cli --test cli_sync` 6 项通过。桌面端 `integration::sync`、`export_typescript_bindings`、`app::events_contract` 分别通过 5、1、9 项；`pnpm typecheck`、`pnpm deps:check` 通过。与 #1065 / #1066 对应的 6 个 PDF 测试文件共 129 项通过。
+
 ## 先核对四个 issue
 
 | Issue | 原报告与当前代码 | 本次判断 |

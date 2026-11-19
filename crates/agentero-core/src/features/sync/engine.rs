@@ -982,8 +982,7 @@ mod tests {
 
     /// An interrupted upload must not be re-sent. The remote manifest still
     /// describes the pre-pass state, so without the pushed log the next pass
-    /// recomputes the same upload list and re-sends every byte — at full cost
-    /// on Nutstore, which ignores `If-None-Match`.
+    /// recomputes the same upload list and re-sends the request bodies.
     #[tokio::test]
     async fn interrupted_upload_resumes_without_resending() {
         let store = MemStore::default();

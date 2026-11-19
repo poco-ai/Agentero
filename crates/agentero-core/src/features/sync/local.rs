@@ -174,8 +174,8 @@ pub(super) fn mark_catalog_dirty(vault: &Path) -> Result<(), AppError> {
 // ---- Pushed-blob log -------------------------------------------------------
 //
 // Blobs a pass uploaded but never got to publish, so the next pass can skip
-// them instead of re-sending every byte to a server that ignores
-// `If-None-Match` (Nutstore). Appended per blob rather than written once at the
+// them instead of re-sending every byte on a conditional PUT. Appended per
+// blob rather than written once at the
 // end: a rate-limit error, a quit or an aborted task must not lose the record.
 // The first line pins the remote store, because skipping an upload a different
 // store never received would publish a manifest referencing missing blobs.
