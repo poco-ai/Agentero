@@ -739,10 +739,16 @@ export const DockWorkspace = memo(
 				activatePanel(panelId, options) {
 					const api = apiRef.current;
 					const panel = api?.getPanel(panelId);
-					if (!panel) return;
+					if (!api || !panel) return;
+					if (
+						options?.skipIfSameGroupAs &&
+						panel.group === api.getPanel(options.skipIfSameGroupAs)?.group
+					) {
+						return;
+					}
 					if (
 						options?.skipSetGroupActive ||
-						(api?.hasMaximizedGroup() && !panel.group.api.isMaximized())
+						(api.hasMaximizedGroup() && !panel.group.api.isMaximized())
 					) {
 						panel.group.model.openPanel(panel, { skipSetGroupActive: true });
 					} else {
@@ -897,6 +903,7 @@ export const DockWorkspace = memo(
 						publishVisiblePanels(api);
 					}),
 					api.onDidMaximizedGroupChange((event) => {
+						if (!syncingRef.current) publishVisiblePanels(api);
 						if (uiStore.getState().immersiveReading) return;
 						if (event.isMaximized) {
 							if (uiStore.getState().layoutMode !== "reading") {

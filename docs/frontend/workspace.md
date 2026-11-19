@@ -19,7 +19,7 @@
 | 同步关闭 | 关闭规范正文时 `readingPairCloseIds` 带上规范 NOTES；关 NOTES 只留正文 |
 | 文件树拖入 | left/right/above/below/within 分屏落点 |
 | 关 panel | 关闭按钮、中键和右键走 `closeTab`。标签条上的 Delete / Backspace 在工作区根用捕获阶段拦住，再走同一个 `closeTab`（只有已注册的 Markdown 源码模式 flush 失败能留下标签）。store 更新后对每个被关掉的 id 调用 `removePanel`。拖拽中的删除仍由 Dockview 吞掉；`onDidRemovePanel` 在非 syncing 时补一次 `closeTab`。焦点由 `onDidActivePanelChange` 写入 |
-| 焦点 | 活动标签由 Dockview 的激活事件写入 store，同步结束时再补发一次。store 不再反向激活面板。Dock 尚未挂载时，打开动作先记下目标 id |
+| 焦点 | 活动标签由 Dockview 的激活事件写入 store，同步结束时再补发一次。论文正文与 NOTES 跨组联动时只切换对侧组内的标签，不转移当前焦点；两者同组则不联动。Dock 尚未挂载时，打开动作先记下目标 id |
 | 循环 | `⌥⌘←/→` 按 `api.panels` **视觉序** |
 | 移至新窗口 | 文档 tab **右键** → **移动至新窗口** → 独立 `doc-*` Webview。目标窗接受内容后才删掉被点的那一个视图，论文 NOTES 留在源窗口；失败、拒绝、超时都留下源视图（Library / Trash / Zen 不移出）。弹出窗自带 Vault watcher，Markdown / PDF 外部改盘就地重载；URL `mode` 参数与主窗口一致参与 PDF 模式保护（探测失败不降级 Markdown） |
 | 复制路径 | 文档 tab **右键** → **复制路径**。剪贴板用 `displayPath`（Windows 去掉 `\\?\` 前缀）。Library / Trash / 广场 / Zen 和 `agentero:` 虚拟路径不显示该项 |
@@ -43,7 +43,9 @@ Library 始终位于所在标签条的第一位：禁止拖动 Library 及包含
 
 活动 panel 为 `papers/` 下的论文 PDF 时，其顶部（Dockview 标签条之下、正文之上）显示面包屑路径条 `papers / 论文标题`：论文目录的 catalog id 段替换为 `paperMeta.title`（缺失时回退 tab title），标题经 `MathText`，超宽逐级 `min-w-0 truncate`。文件夹段 **悬停** 弹出其子项候选（论文目录显示 catalog 标题，超过 50 项截断），点击候选经 `selectFileNode` 跳转（论文开 PDF、普通文件夹进 scoped Library、文件直接打开）；**点击文件夹段本身** 进入该文件夹对应的 scoped Library，`papers` 段进入主 Library（`selectLibrary`）。每个论文 PDF panel 各自渲染自己的路径条，与焦点无关（⌘\ 分屏或 NOTES 获得焦点时，PDF 侧仍保留路径条）；非 PDF 论文、HTML 版与虚拟标签（Library / 回收站 / 广场）不显示。实现：`src/components/workspace/paper-path-bar.tsx`。
 
-启动恢复只 hydrate 每个 Dockview group 当前可见的 panel；隐藏标签在首次切换到前台时再读取资源。 `papers/` 下的占位标签统一等待文件树加载完成后再 hydrate，不按扩展名猜测文件或目录，避免带点的论文 ID（如 `2606.04046`）被误归属到父级分类目录并触发错误的引用解析；其它笔记与虚拟标签可继续加载。恢复出的占位 tab 直接用 params 里的 title 显示（论文名），无需等资源加载；未携带 title 的旧布局回退为文件夹名，激活后由资源加载刷新。PDF 保活 LRU 是 2，当前可见的 PDF 面板另计，本地 PDF `ArrayBuffer` 离开保留集合后释放，避免多标签工作区重启时并发加载全部 PDF 并长期占用 WebContent 内存；重新 hydrate 既有 PDF tab 时只刷新资源，不因一次 PDF 探测失败降级成 Markdown 空编辑器；同一保护（`patchFromTabResources`）覆盖 ⇧⌘T 重开与文档弹出窗。资源侧论文正文只产出 pdf / html（`paperBodyMode`）：探测全空且 catalog bundle / 元数据也落空时先延迟重试一次（启动时 Host catalog 或 fs scope 未就绪的竞态），仍无资源则停在 PDF「暂无论文」空态，绝不渲染空 Markdown 编辑器；paper 文件夹内的子目录按 scoped library 打开，同样不进编辑器。论文目录里的非 PDF 不再预读主 PDF：正文先看 bundle 的 `pdfPath` 或 HTML 是否存在，只有最终资源是 PDF 时才读字节。同一个 `blob:` URL 在最后一个视图关闭时才 revoke。Markdown 编辑器（含 NOTES）与纯文本编辑器同样保活：LRU 是 4，当前可见的编辑器另计，最近使用的编辑器保持挂载，切换标签不再重建 Plate / CodeMirror；离开保留集合的编辑器卸载为占位，切回时重新反序列化，卸载时未落盘的编辑会照常 flush。
+恢复布局只 hydrate 可见 Dockview 分组当前选中的面板；最大化时被隐藏的分组不计入可见集合，首次显示后再读取尚未加载的资源。
+
+`papers/` 下的占位标签统一等待文件树加载完成后再 hydrate，不按扩展名猜测文件或目录，避免带点的论文 ID（如 `2606.04046`）被误归属到父级分类目录并触发错误的引用解析；其它笔记与虚拟标签可继续加载。恢复出的占位 tab 直接用 params 里的 title 显示（论文名），无需等资源加载；未携带 title 的旧布局回退为文件夹名，激活后由资源加载刷新。PDF 保活 LRU 是 2，当前可见的 PDF 面板另计，本地 PDF `ArrayBuffer` 离开保留集合后释放，避免多标签工作区重启时并发加载全部 PDF 并长期占用 WebContent 内存；重新 hydrate 既有 PDF tab 时只刷新资源，不因一次 PDF 探测失败降级成 Markdown 空编辑器；同一保护（`patchFromTabResources`）覆盖 ⇧⌘T 重开与文档弹出窗。资源侧论文正文只产出 pdf / html（`paperBodyMode`）：探测全空且 catalog bundle / 元数据也落空时先延迟重试一次（启动时 Host catalog 或 fs scope 未就绪的竞态），仍无资源则停在 PDF「暂无论文」空态，绝不渲染空 Markdown 编辑器；paper 文件夹内的子目录按 scoped library 打开，同样不进编辑器。论文目录里的非 PDF 不再预读主 PDF：正文先看 bundle 的 `pdfPath` 或 HTML 是否存在，只有最终资源是 PDF 时才读字节。同一个 `blob:` URL 在最后一个视图关闭时才 revoke。Markdown 编辑器（含 NOTES）与纯文本编辑器同样保活：LRU 是 4，当前可见的编辑器另计，最近使用的编辑器保持挂载，切换标签不再重建 Plate / CodeMirror；离开保留集合的编辑器卸载为占位，切回时重新反序列化，卸载时未落盘的编辑会照常 flush。
 
 ## 纯文本编辑器（CodeMirror 兜底）
 
