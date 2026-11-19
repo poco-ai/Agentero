@@ -28,6 +28,10 @@ pub struct SyncMeta {
     pub last_sync_at: Option<String>,
     #[serde(default)]
     pub last_version: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub store_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest_key: Option<String>,
     /// Last failed pass's error message; cleared by the next success.
     /// Surfaced by the CLI `sync status` (the desktop reports it live via
     /// `sync:state` events instead).

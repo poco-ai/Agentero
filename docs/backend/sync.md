@@ -16,7 +16,7 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 | `store.rs` | 后端无关抽象（Strategy）：`RemoteStore` trait 定义后端契约（`ensure_root` / `get` / 条件 `put` / `probe_conditional_writes`，futures 均为 `Send`），`SyncStore` 枚举是唯一的组合点（从配置选择具体客户端并转发）；engine 只依赖 trait，可用内存实现做引擎测试。另含两个客户端共享的 HTTP 工具：`send_with_retries`（幂等操作传输层 3 次重试）、`check` / `etag_of` / `error_chain` |
 | `s3.rs` | 最小 S3 客户端：GET / 条件 PUT（`If-Match` / `If-None-Match`）/ DELETE / ListObjectsV2，reqwest + 手写 SigV4（HMAC-SHA256 自实现，RFC 4231 向量测试）；条件写探测与降级（见下） |
 | `webdav.rs` | 最小 WebDAV 客户端：Basic Auth + GET / 条件 PUT / DELETE / MKCOL / PROPFIND（仅取状态码，无 XML 解析），见下节 |
-| `snapshot.rs` | Vault 扫描 → `Manifest`（relPath → sha256/size/mtime）；`size+mtime` 未变复用 base 哈希；忽略 `.agentero` `.git` `node_modules` `.DS_Store` `*.tmp`；`SyncScope` 与分类谓词（见「同步范围」） |
+| `snapshot.rs` / `scope.rs` | Vault 扫描、范围统计与附件分类；`size+mtime` 未变时复用 base 哈希；统计和各后端共用分类规则（见「同步范围」） |
 | `local.rs` | `.agentero/vault.json`（Vault UUID）、`.agentero/sync/{base,state}.json`（`state.json` 含 `lastError`，上次失败原因，成功即清除）、`.agentero/sync/pushed.jsonl`（已上传未发布的 blob，见「请求预算」）；watcher 忽略 `.agentero/`，无事件回环 |
 | `lock.rs` | 跨进程 pass 锁：`.agentero/sync/lock` 上的 advisory 文件锁（flock / LockFileEx），桌面端、CLI 与 cron 在同一 Vault 上串行化；锁随文件句柄释放，进程崩溃不残留 |
 | `engine.rs` | 三方合并 + 应用 + 发布 + 空转短路 / 断点续传（见下）；`sync_vault_locked` 在进入 pass 前取跨进程锁（冲突时报 `sync_busy` 域码）并把失败写入 `state.json` 的 `lastError`；按 backend 把 Git 分派到 `git.rs`；`test_connection` 同时接受 Vault 路径供 Git 检查仓库状态 |
@@ -45,8 +45,8 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 
 按请求数计费或限额的后端（坚果云 WebDAV 免费版 600 次/30 分钟、付费版 1500 次/30 分钟，且为**账号级**，与官方客户端共享）下，空转 pass 与失败重试的开销才是主要成本。引擎因此在三处收敛，判据均只比 **hash**（不比 mtime，见下）：
 
-- **已是最新**：GET HEAD 后，若 `HEAD.version == state.lastVersion`、本地扫描与 base 内容一致、且 `base.scope == cfg.scope` → 直接返回，**整个 pass 只有 1 次请求**（原先约 11 次：vault.json/HEAD/manifest 三个 GET + 每次上传前的 MKCOL 链 + blob/manifest/HEAD 三个 PUT）。此路径同时跳过 `ensure_remote_identity`——空转 pass 不写远端，无需重新核验身份；任何真正要写的 pass 仍会核验，因此远端 `vault.json` 被外部删除后最迟在下一次有改动的 pass 补回。要求 `lastSyncAt` 非空（有同步历史），首次 pass 必须走完整握手。
-- **无需发布**：合并应用完成后，若 `merged` 与**未过滤的**远端 manifest 内容一致 → 把它连同当前 version 写回本地 base/state 后返回，不发布新 manifest、不推进 HEAD。比 mtime 会误判：每次下载都以新的本地 mtime 落盘，而 `merge` 在双侧 hash 相同时采纳本地条目，于是每台设备都把自己的 mtime 重新发布一遍——两台设备会**永久互相推进 HEAD**，即使无人编辑。空转短路依赖 HEAD 版本稳定，所以这一条是它能在多设备下真正生效的前提。比对用未过滤的远端清单，是为了让「对某分类失明」的设备也能区分「无可补充」与「发布端看不见我的文件」（后者仍需发布）。
+- **已是最新**：GET HEAD 后，若远端标识、HEAD 版本及 manifest 键都与上次成功同步一致，本地扫描和 base 内容相同，且范围选项未改，整个 pass 只有 1 次请求。更换远端时使用新的合并基线。没有 HEAD 的空远端从本地文件开始建立清单。
+- **无需发布**：合并结果与完整远端 manifest 的路径和哈希一致时，更新本地 base/state 并沿用远端版本。这样下载时产生的 mtime 差异不会让设备反复推进 HEAD。每次覆盖或删除本地文件之前，会在网络读取之后复核该文件的内容。
 - **断点续传**：上传循环跳过 `.agentero/sync/pushed.jsonl`（`local.rs`）已记录的 hash。pass 在上传途中失败（限流、退出、断网）时 HEAD 未推进，远端 manifest 仍描述旧状态，下一趟会算出**完全相同**的上传清单——没有这份日志就会把已落地的 blob 全部重传，在忽略 `If-None-Match` 的坚果云上是全额字节重传。日志**逐条追加**（一行一个 sha256），因此进程被杀或 task 被 abort 最多丢最后一条；发布成功（或走「无需发布」）即删除——此后远端 manifest 就是权威。首行以 `#<store id>` 钉住远端 store：`store_id = sha256(cfg.remote_identity())`（后端 + 地址/bucket/prefix + 账号名，**不含密钥**，故可落在 Vault 内），换 store 后旧记录一律失效，否则会发布出引用不存在 blob 的 manifest。顺带也去重了同一 pass 内内容相同的多个路径。
 
 `MemStore`（`engine.rs` 测试内的内存 `RemoteStore`，带请求计数与可注入的 PUT 配额）覆盖这三条：`idle_pass_costs_one_request`、`idle_devices_do_not_ping_pong_head`（含「真实改动仍会发布并被对端拉取」）、`interrupted_upload_resumes_without_resending`；日志本身的追加/去重/换 store 失效在 `local.rs` 测试内。
@@ -55,15 +55,11 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 
 ## 同步范围（Sync Scope）
 
-论文库中体积大且**可再生**的附件可以按设备排除，节省云端空间；笔记、`metadata.json` sidecar、`marks/`、`assets/` 永远同步（小且不可再生）。S3 / WebDAV 在清单合并时对排除路径双向失明。Git 使用同一套开关，但做法是在仓库 `.gitignore` 里维护一段 `# agentero-sync-start` / `# agentero-sync-end` 标记区块，并 `git rm --cached` 取消跟踪（工作区文件保留）。规则随仓库同步，所以是整库一份策略，不是每台设备各看各的。
+范围开关控制论文的 PDF、源码和附件，可减少本机传输和新上传占用的远端空间。笔记、`metadata.json`、`marks/` 和 `assets/` 始终同步。内容寻址后端按设备应用范围。Git 把 `# agentero-sync-start` / `# agentero-sync-end` 区块随仓库版本同步。
 
-- **分类**（`snapshot.rs` `scope_category`，仅识别约定论文布局）：
-  - `pdf` — `papers/<id>/<id>.pdf`（论文根级 PDF；`source/`、`attachments/` 内的 PDF 跟随所在分类）
-  - `source` — `papers/<id>/source/`（LaTeX / e-print）
-  - `attachments` — `papers/<id>/attachments/`（支撑材料）
-- **对称过滤**：同一谓词同时作用于本地扫描、base 与远端 manifest——被过滤的文件「双向失明」：不上传、不下载，也**绝不因缺失而被当作删除**。
-- **manifest 携带 scope**：发布端把自己过滤掉的分类写进 manifest（`scope` 字段，全量同步时省略）。合并时：远端失明的路径不触发 `delete_local`，本地仍可见该分类时以本地条目为准并继续上传，否则携带 base 条目供其他设备可见；本地失明的路径完全惰性（不下载、不传播删除）。
-- **边界**：所有设备都过滤某分类时，该分类条目会从 manifest 消失（blob 仍在，待孤儿 GC）；重新启用后本地仍有文件则自动重新上传，本地没有则需从来源重取。
+- **分类**（`scope.rs`）支持 `papers/` 下任意层级的集合和子类。论文根级 PDF 通过同名目录或 `NOTES.md` / `metadata.json` 识别，并兼容原有一级论文目录中的 PDF。进入论文的 `source/` 或 `attachments/` 后，子树归入对应类别。进入 `assets/` 或 `marks/` 后，文件始终同步。
+- **内容寻址后端**：关闭的类别跳过本地上传、下载和删除，保留远端清单已有条目供其他设备使用。本地 base 只记录本设备参与同步的文件。重新开启后，可从远端下载仍存在的文件。旧版远端 manifest 的 `scope` 字段继续保护曾被过滤而缺失的条目。
+- **Git**：每次同步按实际路径刷新 `.gitignore` 的标记区块，加入仓库根锚定的规则，暂存后移除被排除的索引条目。执行排除操作的设备保留工作区文件，既有 Git 历史仍可访问。
 - **重取**：PDF/TeX 可从 `metadata.json` 的来源字段（arXiv ID / DOI / `pdf_url`）重新下载——`job_download_assets_enqueue`（DownloadAssets 后台任务；库表格右键「从来源下载 PDF」、打开论文时自动补下均走此路径）。库列表的 `has_pdf` 由 `paper_list` 经 CapsCache 投影。
 - **配置**：`SyncBackendConfig.scope`（缺省全量，兼容旧配置）；设置页以「同步范围」小标题分组展示逐类开关（附本地体积 `sync_scope_sizes`），默认全部开启。
 
@@ -85,7 +81,7 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 - **形态**：Vault 根目录就是 Git work tree；远端名固定 `origin`，分支由 `gitBranch` 指定（默认 `main`）。不经过 blob/manifest 引擎，Git 自己保存历史与合并。
 - **要求**：本机安装 Git 并可通过 PATH 找到（桌面 GUI 也走 `resolve_command` 的补充路径）。Vault 不能位于另一个 work tree 内、不能是 bare repo / detached HEAD；已有仓库的当前分支必须与配置一致、已有 `origin` 必须与配置 URL 一致，否则同步报错而不静默改仓库。
 - **忽略**：`.agentero/`、`.DS_Store`、`*.tmp`、`node_modules/` 通过 `.git/info/exclude` 排除，不写进 `.gitignore`；本地或远端已跟踪 `.agentero` 直接报 `git_agentero_tracked`。`catalog.sqlite` 仍可由 sidecar 重建。同步范围关闭的 PDF / `source/` / `attachments/` 写在 `.gitignore` 的标记区块里，已跟踪的用 `git rm --cached` 移出索引，磁盘文件保留。
-- **一次 pass**：按 scope 更新 `.gitignore` 并取消跟踪 → `git status` → 有改动则 `git add -A` + commit（`agentero sync: <RFC3339>`）→ `ls-remote` → 需要时 fetch → `merge origin/<branch>`（允许 unrelated histories）→ push。远端无分支时直接推送；空 Vault 加入已有远端时 `reset --hard` 采纳远端。push 被非 fast-forward 拒绝时重试 fetch/merge/push（最多 3 次）。
+- **一次 pass**：按 scope 更新 `.gitignore` → `git add -A` → 从索引移除排除项 → 提交剩余改动（`agentero sync: <RFC3339>`）→ `ls-remote` → 需要时 fetch → `merge origin/<branch>`（允许 unrelated histories）→ push。远端无分支时直接推送；空 Vault 加入已有远端时 `reset --hard` 采纳远端。push 被非 fast-forward 拒绝时重试 fetch/merge/push（最多 3 次）。
 - **冲突**：使用 Git 原生三方合并；有冲突时收集 `--diff-filter=U` 路径、`git merge --abort` 并返回 `sync_conflict`，**不 push、不 auto-resolve**。本地提交保留，用户用 Git/编辑器解决后再同步。
 - **认证**：不把 token 写入 `sync.json`；使用系统 credential helper / SSH agent。子进程设置 `GIT_TERMINAL_PROMPT=0`、`GCM_INTERACTIVE=never`、`SSH_ASKPASS_REQUIRE=never`（Unix 未自定义 `GIT_SSH_COMMAND` 时加 `ssh -o BatchMode=yes`），非交互环境失败而不是挂起。HTTPS 没有凭据时设置页按 `git_auth_failed` 提示先用 `git credential approve` 或系统凭据助手存 token，SSH 则提示 `ssh-add`。URL 内嵌凭据、`ext::`、`git://` 一律拒绝。非 loopback 的明文 `http://` 默认关闭，设置页「允许明文 HTTP」（`gitAllowInsecureHttp`，CLI `--git-allow-insecure-http true`）打开后才保存，令牌以明文传输，只适合没有 HTTPS 的内网。自签 HTTPS 可填 CA 证书的绝对 PEM 路径（`gitSslCaInfo`，CLI `--git-ssl-ca`），每次 Git 命令带 `-c http.sslCAInfo=<path>`；留空用系统信任库。证书校验失败为 `git_tls_failed`。不提供关闭证书校验的开关。
 - **Windows 进程回收**：每次 Git 命令经 `process::command_output` 先暂停创建、加入独立 Job Object 后恢复运行，避免 Git 启动器派生的 HTTPS / SSH 后代逃逸。命令正常结束、超时（网络命令 600s）或同步任务取消时均关闭 Job，终止该次命令留下的完整进程树；不按进程名清理，不影响其它仓库的 Git。同一守卫也用于写作目录同步、Doctor / 安装器、编译工具和 MCP tunnel。非 Windows 保持原有执行方式。全局 `http.postBuffer` 等用户 Git 配置仍由 Git 自身读取，本修复不会修改；过大的上传缓冲可能放大单次 HTTPS 推送内存占用。

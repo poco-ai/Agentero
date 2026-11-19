@@ -15,8 +15,11 @@ use crate::error::AppError;
 use crate::features::sync::config::SyncBackendConfig;
 use crate::features::sync::engine::{self, Progress, SyncOutcome};
 use crate::features::sync::local::{self, SyncMeta};
-use crate::features::sync::snapshot::{self, SyncScope};
-use std::ffi::OsStr;
+use crate::features::sync::scope;
+use crate::features::sync::snapshot::SyncScope;
+use std::collections::BTreeSet;
+use std::ffi::{OsStr, OsString};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Output, Stdio};
 use std::time::Duration;
@@ -575,25 +578,41 @@ impl Git {
     }
 
     async fn commit_local(&self, scope: &SyncScope) -> Result<Option<DiffCounts>, AppError> {
-        ensure_sync_gitignore(&self.vault, scope)?;
-        self.untrack_excluded(scope).await?;
-        let status = checked(
-            self.run(
-                ["-c", "core.autocrlf=false", "status", "--porcelain", "-z"],
-                LOCAL_TIMEOUT,
-            )
-            .await?,
-            "git status",
-        )?;
-        if status.stdout.is_empty() {
-            return Ok(None);
+        let patterns = if scope.is_all() {
+            BTreeSet::new()
+        } else {
+            // Include files already hidden by the previous managed block.
+            let inventory = checked(
+                self.run(
+                    ["ls-files", "-z", "--cached", "--others", "--", "papers/"],
+                    LOCAL_TIMEOUT,
+                )
+                .await?,
+                "git ls-files",
+            )?;
+            let paths: Vec<_> = listed_paths(&inventory.stdout).collect();
+            scope_ignore_patterns(scope, &paths)
+        };
+        ensure_sync_gitignore(&self.vault, &patterns)?;
+        if scope.is_all() {
+            let status = checked(
+                self.run(
+                    ["-c", "core.autocrlf=false", "status", "--porcelain", "-z"],
+                    LOCAL_TIMEOUT,
+                )
+                .await?,
+                "git status",
+            )?;
+            if status.stdout.is_empty() {
+                return Ok(None);
+            }
         }
-        let before = self.head().await?;
         checked(
             self.run(["-c", "core.autocrlf=false", "add", "-A"], LOCAL_TIMEOUT)
                 .await?,
             "git add",
         )?;
+        self.untrack_excluded(scope).await?;
         let staged = self
             .run(
                 ["-c", "core.autocrlf=false", "diff", "--cached", "--quiet"],
@@ -605,6 +624,7 @@ impl Git {
             Some(1) => {}
             _ => return Err(git_error("git diff --cached", &staged)),
         }
+        let before = self.head().await?;
         let mut args = self.identity_args().await?;
         args.extend([
             "-c".to_string(),
@@ -630,31 +650,46 @@ impl Git {
         Ok(Some(counts))
     }
 
-    /// Drop tracked files the scope excludes. `--cached` leaves the worktree
-    /// copy in place; `.gitignore` then keeps `git add -A` from staging it.
+    /// Remove excluded index entries after staging, even if a nested
+    /// .gitignore negates a managed rule. Leave the working files in place.
     async fn untrack_excluded(&self, scope: &SyncScope) -> Result<(), AppError> {
         if scope.is_all() {
             return Ok(());
         }
         let listed = checked(
-            self.run(["ls-files", "-z"], LOCAL_TIMEOUT).await?,
+            self.run(["ls-files", "-z", "--", "papers/"], LOCAL_TIMEOUT)
+                .await?,
             "git ls-files",
         )?;
-        let paths: Vec<String> = listed
-            .stdout
-            .split(|byte| *byte == 0)
-            .filter(|field| !field.is_empty())
-            .filter_map(|field| String::from_utf8(field.to_vec()).ok())
-            .filter(|rel| snapshot::is_scope_excluded(scope, &rel.replace('\\', "/")))
-            .collect();
-        for chunk in paths.chunks(200) {
-            let mut args: Vec<std::ffi::OsString> = ["rm", "--cached", "--ignore-unmatch", "--"]
-                .into_iter()
-                .map(std::ffi::OsString::from)
-                .collect();
-            args.extend(chunk.iter().map(std::ffi::OsString::from));
-            checked(self.run(args, LOCAL_TIMEOUT).await?, "git rm")?;
+        let paths: Vec<_> = listed_paths(&listed.stdout).collect();
+        let roots = scope::paper_roots(paths.iter().copied());
+        let excluded = paths
+            .into_iter()
+            .filter(|rel| scope::excluded(scope, rel, &roots));
+        let mut entries = Vec::new();
+        for rel in excluded {
+            entries.extend_from_slice(rel.as_bytes());
+            entries.push(0);
         }
+        if entries.is_empty() {
+            return Ok(());
+        }
+        // Keep deep paths off the command line. Windows has a low total
+        // command-line limit even when each individual path is valid.
+        let mut pathspec = tempfile::NamedTempFile::new()?;
+        pathspec.write_all(&entries)?;
+        let mut from_file = OsString::from("--pathspec-from-file=");
+        from_file.push(crate::process::windows_shell_path(pathspec.path()));
+        let args = [
+            OsStr::new("--literal-pathspecs"),
+            OsStr::new("rm"),
+            OsStr::new("--cached"),
+            OsStr::new("-f"),
+            OsStr::new("--ignore-unmatch"),
+            OsStr::new("--pathspec-file-nul"),
+            &from_file,
+        ];
+        checked(self.run(args, LOCAL_TIMEOUT).await?, "git rm")?;
         Ok(())
     }
 
@@ -886,7 +921,7 @@ impl Git {
             &SyncMeta {
                 last_sync_at: Some(now()),
                 last_version: version,
-                last_error: None,
+                ..SyncMeta::default()
             },
         )?;
         engine::refresh_catalog_if_needed(vault, &outcome).await;
@@ -895,30 +930,49 @@ impl Git {
     }
 }
 
-fn scope_ignore_patterns(scope: &SyncScope) -> Vec<&'static str> {
-    let mut lines = Vec::new();
-    if !scope.pdf {
-        lines.push("papers/*/*.pdf");
-    }
-    if !scope.source {
-        lines.push("papers/*/source/");
-    }
-    if !scope.attachments {
-        lines.push("papers/*/attachments/");
-    }
-    lines
+fn listed_paths(output: &[u8]) -> impl Iterator<Item = &str> {
+    output
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty())
+        .filter_map(|field| std::str::from_utf8(field).ok())
 }
 
-/// Rewrite the managed block in `.gitignore`. User rules outside the markers
-/// are kept. An empty scope removes the block; an empty file is deleted.
-fn ensure_sync_gitignore(vault: &Path, scope: &SyncScope) -> Result<(), AppError> {
+fn scope_ignore_patterns(scope: &SyncScope, paths: &[&str]) -> BTreeSet<String> {
+    let roots = scope::paper_roots(paths.iter().copied());
+    paths
+        .iter()
+        .filter_map(|rel| {
+            let (category, anchor) = scope::classify(rel, &roots)?;
+            // Newlines cannot be represented in a line-based gitignore.
+            // untrack_excluded still handles those paths via NUL-delimited input.
+            if category.enabled(scope) || anchor.contains(['\r', '\n']) {
+                return None;
+            }
+            let mut pattern = String::from("/");
+            for ch in anchor.chars() {
+                if matches!(ch, '\\' | '*' | '?' | '[' | ']' | ' ') {
+                    pattern.push('\\');
+                }
+                pattern.push(ch);
+            }
+            if category.is_directory() {
+                pattern.push('/');
+            }
+            Some(pattern)
+        })
+        .collect()
+}
+
+/// Rewrite the managed block in `.gitignore`, preserving user rules outside
+/// the markers. Remove the block when there are no exclusions.
+fn ensure_sync_gitignore(vault: &Path, patterns: &BTreeSet<String>) -> Result<(), AppError> {
     let path = vault.join(".gitignore");
     let existing = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
         Err(error) => return Err(error.into()),
     };
-    let next = sync_gitignore(&existing, scope);
+    let next = sync_gitignore(&existing, patterns);
     if next == existing {
         return Ok(());
     }
@@ -932,7 +986,7 @@ fn ensure_sync_gitignore(vault: &Path, scope: &SyncScope) -> Result<(), AppError
     Ok(())
 }
 
-fn sync_gitignore(existing: &str, scope: &SyncScope) -> String {
+fn sync_gitignore(existing: &str, patterns: &BTreeSet<String>) -> String {
     let mut kept: Vec<&str> = Vec::new();
     let mut skipping = false;
     for line in existing.lines() {
@@ -952,7 +1006,6 @@ fn sync_gitignore(existing: &str, scope: &SyncScope) -> String {
     while kept.last().is_some_and(|line| line.is_empty()) {
         kept.pop();
     }
-    let patterns = scope_ignore_patterns(scope);
     if patterns.is_empty() {
         if kept.is_empty() {
             return String::new();
@@ -1276,14 +1329,22 @@ mod tests {
         let mut scope = SyncScope::all();
         scope.pdf = false;
         scope.source = false;
-        let once = sync_gitignore("*.log\n", &scope);
-        assert_eq!(sync_gitignore(&once, &scope), once);
+        let patterns = scope_ignore_patterns(
+            &scope,
+            &[
+                "papers/group/topic/x/X.PDF",
+                "papers/group/topic/x/source/chapter.tex",
+                "papers/group/topic/x/attachments/extra.pdf",
+            ],
+        );
+        let once = sync_gitignore("*.log\n", &patterns);
+        assert_eq!(sync_gitignore(&once, &patterns), once);
         assert!(once.starts_with("*.log\n\n# agentero-sync-start\n"));
-        assert!(once.contains("papers/*/*.pdf\n"));
-        assert!(once.contains("papers/*/source/\n"));
+        assert!(once.contains("/papers/group/topic/x/X.PDF\n"));
+        assert!(once.contains("/papers/group/topic/x/source/\n"));
         assert!(!once.contains("attachments"));
-        assert_eq!(sync_gitignore(&once, &SyncScope::all()), "*.log\n");
-        assert_eq!(sync_gitignore("", &SyncScope::all()), "");
+        assert_eq!(sync_gitignore(&once, &BTreeSet::new()), "*.log\n");
+        assert_eq!(sync_gitignore("", &BTreeSet::new()), "");
     }
 
     #[tokio::test]
