@@ -16,6 +16,7 @@ import {
 	PopoverTitle,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
 import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { cn } from "@/lib/core/utils";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
@@ -23,6 +24,12 @@ import { openSettingsWindow } from "@/lib/shell/settings-window";
 type PdfTranslatePartialButtonProps = {
 	partial: PdfLayoutTranslatePartial;
 	className?: string;
+	/**
+	 * "inline" joins an existing chrome row (reader toolbar). "tile" draws the
+	 * document-level warning as its own full-height glass chip, for the
+	 * dual-pane translation panel where there is no shared toolbar material.
+	 */
+	appearance?: "inline" | "tile";
 };
 
 type PdfTranslatePartialDialogProps = {
@@ -219,9 +226,11 @@ export const PdfTranslatePartialButton = memo(
 	function PdfTranslatePartialButton({
 		partial,
 		className,
+		appearance = "inline",
 	}: PdfTranslatePartialButtonProps) {
 		const { t } = useTranslation("viewer");
 		const [confirming, setConfirming] = useState(false);
+		const tile = appearance === "tile";
 		const {
 			pendingRequired,
 			translatedCount,
@@ -292,13 +301,18 @@ export const PdfTranslatePartialButton = memo(
 				<PopoverTrigger asChild>
 					<Button
 						type="button"
-						size="icon-xs"
+						size={tile ? "icon-sm" : "icon-xs"}
 						variant="ghost"
 						data-full-text-translate-partial
+						data-pdf-chrome={tile ? "" : undefined}
 						aria-label={label}
 						title={label}
 						className={cn(
-							"bg-transparent text-amber-600 hover:text-amber-700 active:text-amber-700 aria-expanded:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 dark:active:text-amber-300 dark:aria-expanded:text-amber-300",
+							// The standalone tile owns its material, so it keeps the
+							// glass chip and only the icon turns amber; inline it
+							// borrows the toolbar's chip and stays transparent.
+							tile ? PDF_CHROME_CHIP : "bg-transparent",
+							"text-amber-600 hover:text-amber-700 active:text-amber-700 aria-expanded:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 dark:active:text-amber-300 dark:aria-expanded:text-amber-300",
 							className,
 						)}
 					>

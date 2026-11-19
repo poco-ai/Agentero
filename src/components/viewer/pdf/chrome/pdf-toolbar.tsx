@@ -1,13 +1,11 @@
 import type { PdfEngine } from "@embedpdf/models";
 import {
-	Check,
 	Download,
 	Highlighter,
 	Languages,
 	Library,
 	Loader2,
 	ScanSearch,
-	Square,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,11 +23,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
-import {
-	PDF_TRANSLATE_METER_PERCENT,
-	PDF_TRANSLATE_METER_STAGE,
-	PdfTranslateMeterBar,
-} from "@/components/viewer/pdf/chrome/pdf-translate-meter";
+import { PdfTranslateMeterReadout } from "@/components/viewer/pdf/chrome/pdf-translate-meter";
 import { PdfTranslatePartialButton } from "@/components/viewer/pdf/chrome/pdf-translate-partial-button";
 import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
@@ -347,61 +341,19 @@ export const PdfToolbar = memo(function PdfToolbar({
 							    trailing square cancels, so the expanded card is not a
 							    button and does not swallow clicks. */}
 							{meterOpen ? (
-								<>
-									<span className="pointer-events-none absolute inset-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150 motion-reduce:animate-none">
-										<span className="absolute top-0 right-7 bottom-[5px] left-2.5 flex items-center gap-2">
-											{/* String concat, not `cn`: tailwind-merge mistakes
-											    `text-caption` for a text color and drops it. */}
-											<span
-												aria-hidden
-												className={`min-w-0 flex-1 truncate ${PDF_TRANSLATE_METER_STAGE}`}
-											>
-												{meterStage}
-											</span>
-											{meterPagesLabel && !meterRetracting ? (
-												<span
-													aria-hidden
-													className={PDF_TRANSLATE_METER_PERCENT}
-												>
-													{meterPagesLabel}
-												</span>
-											) : null}
-											{!meterIndeterminate && !meterRetracting ? (
-												<span
-													aria-hidden
-													className={PDF_TRANSLATE_METER_PERCENT}
-												>
-													{meterPercent}%
-												</span>
-											) : null}
-										</span>
-										<PdfTranslateMeterBar
-											indeterminate={meterIndeterminate}
-											width={smoothWidth}
-										/>
-									</span>
-									{lingerFull ? (
-										<span className="pointer-events-none absolute top-0 right-0 flex size-6 items-center justify-center text-foreground/70">
-											<Check className="size-3.5" aria-hidden />
-										</span>
-									) : meterRetracting ? null : (
-										<Button
-											type="button"
-											size="icon-xs"
-											variant="ghost"
-											className="absolute top-0 right-0 size-6 text-foreground"
-											aria-label={translateAriaLabel}
-											title={translateAriaLabel}
-											disabled={!engine}
-											onClick={onToggleLayoutTranslate}
-										>
-											<Square
-												className="size-2.5 fill-current opacity-60"
-												aria-hidden
-											/>
-										</Button>
-									)}
-								</>
+								<PdfTranslateMeterReadout
+									stage={meterStage}
+									pagesLabel={meterPagesLabel}
+									percent={meterPercent}
+									indeterminate={meterIndeterminate}
+									width={smoothWidth}
+									retracting={meterRetracting}
+									lingerFull={lingerFull}
+									showStop
+									stopLabel={translateAriaLabel}
+									onStop={onToggleLayoutTranslate}
+									stopDisabled={!engine}
+								/>
 							) : (
 								<Tooltip>
 									<TooltipTrigger asChild>
