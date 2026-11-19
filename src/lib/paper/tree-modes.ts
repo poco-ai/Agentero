@@ -32,6 +32,7 @@ export function isPaperTreeLabelMode(v: unknown): v is PaperTreeLabelMode {
  * - `title` / `author`: catalog fields, missing → folder name
  * - `year-desc` / `year-asc`: publication year; missing year last
  * - `added-desc`: catalog `added_at` newest first; missing last
+ * - `manual`: saved sibling order; new papers follow in display-label order
  *
  * Directories before files. Org folders (non-paper directories) before paper folders.
  * `folder` mode: org folders first by name, then papers by display label.
@@ -43,7 +44,8 @@ export type PaperTreeSortMode =
 	| "author"
 	| "year-desc"
 	| "year-asc"
-	| "added-desc";
+	| "added-desc"
+	| "manual";
 
 export const PAPER_TREE_SORT_MODES: readonly PaperTreeSortMode[] = [
 	"folder",
@@ -52,6 +54,7 @@ export const PAPER_TREE_SORT_MODES: readonly PaperTreeSortMode[] = [
 	"year-desc",
 	"year-asc",
 	"added-desc",
+	"manual",
 ] as const;
 
 export function isPaperTreeSortMode(v: unknown): v is PaperTreeSortMode {

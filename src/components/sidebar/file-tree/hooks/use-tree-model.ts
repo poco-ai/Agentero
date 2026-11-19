@@ -60,6 +60,7 @@ export function useTreeIndex({
 	paperMetaByRelPath,
 	paperTreeLabelMode,
 	paperTreeSortMode,
+	manualRanks,
 	skillLabels,
 }: {
 	nodes: FileNode[];
@@ -68,6 +69,7 @@ export function useTreeIndex({
 	paperMetaByRelPath?: ReadonlyMap<string, PaperMetadata>;
 	paperTreeLabelMode: PaperTreeLabelMode;
 	paperTreeSortMode: PaperTreeSortMode;
+	manualRanks?: ReadonlyMap<string, number>;
 	skillLabels?: ReadonlyMap<string, SkillTreeLabel>;
 }): TreeIndex {
 	const byPath = useMemo(() => {
@@ -106,6 +108,7 @@ export function useTreeIndex({
 			paperMetaByRelPath,
 			relPathForNode,
 			paperTreeLabelMode,
+			manualRanks,
 		);
 		const writing = sorted.filter(
 			(node) => vaultRootFace(vaultPath, node.path) === "thesis",
@@ -127,6 +130,7 @@ export function useTreeIndex({
 		paperMetaByRelPath,
 		relPathForNode,
 		paperTreeLabelMode,
+		manualRanks,
 		skillLabels,
 	]);
 

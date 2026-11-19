@@ -1470,6 +1470,7 @@ fn normalize(s: &mut AppSettings) {
         "year-desc",
         "year-asc",
         "added-desc",
+        "manual",
     ];
     if !SORT_MODES.contains(&s.paper_tree_sort_mode.as_str()) {
         s.paper_tree_sort_mode = default_paper_tree_sort_mode();

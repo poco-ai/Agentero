@@ -43,3 +43,10 @@ export type TreeContextMenu = {
 	x: number;
 	y: number;
 };
+
+export type TreeDropEdge = "before" | "after";
+
+export type TreeDropTarget = {
+	path: string;
+	edge?: TreeDropEdge;
+};

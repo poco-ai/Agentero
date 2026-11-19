@@ -51,6 +51,7 @@ export function sortFileTreeNodes(
 	 * (`folder` mode and name tie-breaks) so order matches what the user sees.
 	 */
 	labelMode: PaperTreeLabelMode = "title-author",
+	manualRanks?: ReadonlyMap<string, number>,
 ): FileNode[] {
 	const relOf = (absPath: string) =>
 		toRelPath
@@ -92,6 +93,15 @@ export function sortFileTreeNodes(
 		// Metadata modes: org folders first (by name), then papers by criterion
 		if (aPaper !== bPaper) return aPaper ? 1 : -1;
 		if (!aPaper && !bPaper) return compareNaturalName(a.name, b.name);
+
+		if (mode === "manual") {
+			const ar = manualRanks?.get(relOf(a.path)) ?? Number.POSITIVE_INFINITY;
+			const br = manualRanks?.get(relOf(b.path)) ?? Number.POSITIVE_INFINITY;
+			return ar === br
+				? compareNaturalName(displayKey(a), displayKey(b)) ||
+						compareNaturalName(a.name, b.name)
+				: ar - br;
+		}
 
 		const am = metaOf(a);
 		const bm = metaOf(b);
@@ -146,6 +156,7 @@ export function sortFileTreeNodes(
 				metaByRelPath,
 				toRelPath,
 				labelMode,
+				manualRanks,
 			),
 		};
 	});

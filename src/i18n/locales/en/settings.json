@@ -159,7 +159,8 @@
 			"author": "Author A–Z",
 			"year-desc": "Year (newest first)",
 			"year-asc": "Year (oldest first)",
-			"added-desc": "Date added (newest first)"
+			"added-desc": "Date added (newest first)",
+			"manual": "Manual (drag to reorder)"
 		},
 		"paperNoteMode": {
 			"label": "Paper note initialization",

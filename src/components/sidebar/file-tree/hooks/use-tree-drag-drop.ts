@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
+	isClientPointInRect,
 	isPhysicalPointInRect,
 	subscribeTauriFileDrop,
 } from "@/lib/agent/tauri-file-drop";
@@ -33,11 +34,20 @@ import {
 } from "@/lib/shell/external-file-drop";
 import type { FileNode } from "@/lib/vault";
 import { isVirtualTreePath } from "../tree-helpers";
-import type { TreeCreateDraft, TreeRenameDraft } from "../types";
+import type {
+	TreeCreateDraft,
+	TreeDropEdge,
+	TreeDropTarget,
+	TreeRenameDraft,
+} from "../types";
+
+function rowEdge(rect: DOMRect, y: number): TreeDropEdge {
+	return y < rect.top + rect.height / 2 ? "before" : "after";
+}
 
 export type TreeDragDrop = {
-	/** Folder row to highlight as the current drop destination. */
-	dropTarget: string | null;
+	/** Folder destination or an insertion edge on a paper row. */
+	dropTarget: TreeDropTarget | null;
 	handleRowDragStart: (path: string, e: ReactDragEvent) => void;
 	handleRowDragOver: (path: string, e: ReactDragEvent) => void;
 	handleRowDrop: (path: string, e: ReactDragEvent) => void;
@@ -51,6 +61,7 @@ export function useTreeDragDrop({
 	renameDraft,
 	pathsForAction,
 	onDropMove,
+	onDropReorder,
 	onDropLocalPdfs,
 }: {
 	byPath: ReadonlyMap<string, FileNode>;
@@ -59,6 +70,11 @@ export function useTreeDragDrop({
 	renameDraft?: TreeRenameDraft | null;
 	pathsForAction: (path: string) => string[];
 	onDropMove?: (paths: string[], targetPath: string) => void;
+	onDropReorder?: (
+		paths: string[],
+		targetPath: string,
+		edge: TreeDropEdge,
+	) => void;
 	onDropLocalPdfs?: (
 		items: Array<{ path: string; sourceName: string }>,
 		parentDir: string,
@@ -66,7 +82,7 @@ export function useTreeDragDrop({
 }): TreeDragDrop {
 	const { t } = useTranslation("sidebar");
 	const [dragging, setDragging] = useState<string[] | null>(null);
-	const [dropTarget, setDropTarget] = useState<string | null>(null);
+	const [dropTarget, setDropTarget] = useState<TreeDropTarget | null>(null);
 	const draggingRef = useRef<string[] | null>(null);
 	const moveClaimedRef = useRef(false);
 	const nativeDropPathsRef = useRef<string[]>([]);
@@ -78,6 +94,32 @@ export function useTreeDragDrop({
 	const dragPathsRef = useRef<string[] | null>(null);
 	const dragPathsExpireRef = useRef(0);
 	draggingRef.current = dragging;
+
+	const highlight = useCallback((path?: string, edge?: TreeDropEdge) => {
+		setDropTarget((current) =>
+			path === current?.path && edge === current?.edge
+				? current
+				: path
+					? { path, edge }
+					: null,
+		);
+	}, []);
+
+	const canReorder = useCallback(
+		(path: string, paths: string[]): boolean => {
+			if (!onDropReorder) return false;
+			const parent = dirnameOf(path);
+			return [path, ...paths].every((candidate) => {
+				const node = byPath.get(candidate);
+				return (
+					node?.kind === "directory" &&
+					dirnameOf(candidate) === parent &&
+					isPaperDirectory(node.path, node.children)
+				);
+			});
+		},
+		[byPath, onDropReorder],
+	);
 
 	/** Org folder under papers/ (not a paper unit, not virtual). */
 	const isPapersOrgFolder = useCallback(
@@ -167,10 +209,12 @@ export function useTreeDragDrop({
 			if (dragging && canDrop(path, dragging)) {
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "move";
-				const highlightPath = dropDirFor(path);
-				if (dropTarget !== highlightPath) {
-					setDropTarget(highlightPath);
-				}
+				if (canReorder(path, dragging))
+					highlight(
+						path,
+						rowEdge(e.currentTarget.getBoundingClientRect(), e.clientY),
+					);
+				else highlight(dropDirFor(path));
 				return;
 			}
 			// OS PDF → import parent (only when not mid vault-move).
@@ -183,15 +227,16 @@ export function useTreeDragDrop({
 				e.preventDefault();
 				e.stopPropagation();
 				e.dataTransfer.dropEffect = "copy";
-				if (dropTarget !== path) setDropTarget(path);
+				highlight(path);
 				return;
 			}
-			if (dropTarget) setDropTarget(null);
+			highlight();
 		},
 		[
 			dragging,
-			dropTarget,
+			highlight,
 			canDrop,
+			canReorder,
 			onDropLocalPdfs,
 			isPapersOrgFolder,
 			dropDirFor,
@@ -199,7 +244,7 @@ export function useTreeDragDrop({
 	);
 
 	const finishVaultMove = useCallback(
-		(paths: string[], targetPath: string) => {
+		(paths: string[], targetPath: string, edge: TreeDropEdge) => {
 			if (moveClaimedRef.current) return;
 			moveClaimedRef.current = true;
 			dragPathsRef.current = null;
@@ -207,14 +252,19 @@ export function useTreeDragDrop({
 			setDragging(null);
 			setDropTarget(null);
 			endVaultFileDrag();
-			if (!onDropMove || !canDrop(targetPath, paths)) return;
+			if (!canDrop(targetPath, paths)) return;
+			if (canReorder(targetPath, paths)) {
+				onDropReorder?.(paths, targetPath, edge);
+				return;
+			}
+			if (!onDropMove) return;
 			const destDir = dropDirFor(targetPath);
 			// Skip items already in the destination folder; moving them would be a no-op.
 			const movingPaths = paths.filter((p) => dirnameOf(p) !== destDir);
 			if (movingPaths.length === 0) return;
 			onDropMove(movingPaths, destDir);
 		},
-		[onDropMove, canDrop, dropDirFor],
+		[onDropMove, onDropReorder, canDrop, canReorder, dropDirFor],
 	);
 
 	const handleRowDrop = useCallback(
@@ -232,7 +282,11 @@ export function useTreeDragDrop({
 						.split(/\r?\n/)
 						.map((line) => line.trim())
 						.filter(Boolean);
-				finishVaultMove(paths, path);
+				finishVaultMove(
+					paths,
+					path,
+					rowEdge(e.currentTarget.getBoundingClientRect(), e.clientY),
+				);
 				return;
 			}
 
@@ -281,18 +335,20 @@ export function useTreeDragDrop({
 	);
 
 	/** Innermost tree row under a native drag position, if any. */
-	const rowPathAtPoint = useCallback(
-		(position: { x: number; y: number }): string | null => {
-			let targetPath: string | null = null;
+	const rowAtPoint = useCallback(
+		(position: { x: number; y: number }): TreeDropTarget | null => {
+			let target: TreeDropTarget | null = null;
 			for (const row of document.querySelectorAll("[data-path]")) {
 				if (!(row instanceof HTMLElement)) continue;
-				if (!isPhysicalPointInRect(position, row.getBoundingClientRect())) {
-					continue;
-				}
-				const next = row.dataset.path;
-				if (next) targetPath = next;
+				const path = row.dataset.path;
+				const rect = row.getBoundingClientRect();
+				if (!path || !isPhysicalPointInRect(position, rect)) continue;
+				const y = isClientPointInRect(position.x, position.y, rect)
+					? position.y
+					: position.y / (window.devicePixelRatio || 1);
+				target = { path, edge: rowEdge(rect, y) };
 			}
-			return targetPath;
+			return target;
 		},
 		[],
 	);
@@ -313,17 +369,16 @@ export function useTreeDragDrop({
 					setDropTarget(null);
 					return false;
 				}
-				const targetPath = rowPathAtPoint(payload.position);
+				const target = rowAtPoint(payload.position);
 				if (payload.type === "enter" || payload.type === "over") {
-					setDropTarget(
-						targetPath && canDrop(targetPath, vaultPaths)
-							? dropDirFor(targetPath)
-							: null,
-					);
+					if (!target || !canDrop(target.path, vaultPaths)) highlight();
+					else if (canReorder(target.path, vaultPaths))
+						highlight(target.path, target.edge);
+					else highlight(dropDirFor(target.path));
 					return false;
 				}
 				if (payload.type !== "drop") return false;
-				if (targetPath) finishVaultMove(vaultPaths, targetPath);
+				if (target?.edge) finishVaultMove(vaultPaths, target.path, target.edge);
 				else {
 					setDragging(null);
 					setDropTarget(null);
@@ -345,15 +400,15 @@ export function useTreeDragDrop({
 			const nativePaths =
 				payload.type === "drop" ? payload.paths : nativeDropPathsRef.current;
 			const pdfs = onDropLocalPdfs ? pdfsFromPaths(nativePaths) : [];
-			const targetPath = rowPathAtPoint(payload.position);
+			const targetPath = rowAtPoint(payload.position)?.path;
 			if (payload.type === "enter" || payload.type === "over") {
-				setDropTarget(
+				highlight(
 					targetPath &&
 						pdfs.length > 0 &&
 						onDropLocalPdfs &&
 						isPapersOrgFolder(targetPath)
 						? targetPath
-						: null,
+						: undefined,
 				);
 				return false;
 			}
@@ -373,9 +428,11 @@ export function useTreeDragDrop({
 		});
 	}, [
 		finishVaultMove,
-		rowPathAtPoint,
+		rowAtPoint,
 		canDrop,
+		canReorder,
 		dropDirFor,
+		highlight,
 		liveDragPaths,
 		onDropLocalPdfs,
 		isPapersOrgFolder,

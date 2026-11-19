@@ -27,6 +27,7 @@ import {
 	FILE_TREE_ROW_STATE,
 } from "@/components/sidebar/tree-row-styles";
 import { cn } from "@/lib/core/utils";
+import type { TreeDropTarget } from "./types";
 
 export type SelectMods = { meta: boolean; ctrl: boolean; shift: boolean };
 
@@ -49,8 +50,8 @@ interface FileTreeContextType {
 	/** Keyboard cursor row: styled like hover, independent from selection. */
 	cursorPath?: string | null;
 	setCursorPath: (path: string | null) => void;
-	/** Drag-and-drop to move: current drop-target row (highlight) + callbacks. */
-	dropTargetPath?: string | null;
+	/** Current folder destination or paper insertion edge. */
+	dropTarget?: TreeDropTarget | null;
 	onRowDragStart?: (path: string, e: DragEvent) => void;
 	onRowDragOver?: (path: string, e: DragEvent) => void;
 	onRowDrop?: (path: string, e: DragEvent) => void;
@@ -83,7 +84,7 @@ export type FileTreeProps = Omit<HTMLAttributes<HTMLDivElement>, "onSelect"> & {
 	onExpandedChange?: (expanded: Set<string>) => void;
 	selectedPaths?: Set<string>;
 	onSelectRow?: (path: string, mods: SelectMods) => void;
-	dropTargetPath?: string | null;
+	dropTarget?: TreeDropTarget | null;
 	onRowDragStart?: (path: string, e: DragEvent) => void;
 	onRowDragOver?: (path: string, e: DragEvent) => void;
 	onRowDrop?: (path: string, e: DragEvent) => void;
@@ -100,7 +101,7 @@ export const FileTree = ({
 	onRenamePath,
 	selectedPaths,
 	onSelectRow,
-	dropTargetPath,
+	dropTarget,
 	onRowDragStart,
 	onRowDragOver,
 	onRowDrop,
@@ -237,7 +238,7 @@ export const FileTree = ({
 			onSelectRow,
 			cursorPath,
 			setCursorPath,
-			dropTargetPath,
+			dropTarget,
 			onRowDragStart,
 			onRowDragOver,
 			onRowDrop,
@@ -254,7 +255,7 @@ export const FileTree = ({
 			selectedPaths,
 			onSelectRow,
 			cursorPath,
-			dropTargetPath,
+			dropTarget,
 			onRowDragStart,
 			onRowDragOver,
 			onRowDrop,
@@ -336,7 +337,12 @@ export function FileTreeDisclosureIcon({
 }
 
 /** Ring shown on the row a drag is currently hovering (valid drop target). */
-const DROP_RING = "ring-1 ring-inset ring-primary bg-accent";
+function dropTargetStyle(path: string, target?: TreeDropTarget | null) {
+	if (target?.path !== path) return undefined;
+	if (target.edge === "before") return "shadow-[inset_0_2px_0_var(--primary)]";
+	if (target.edge === "after") return "shadow-[inset_0_-2px_0_var(--primary)]";
+	return "ring-1 ring-inset ring-primary bg-accent";
+}
 
 /**
  * Flat folder ROW (no nested children) for virtualized rendering: renders the
@@ -374,7 +380,7 @@ export const FileTreeFolderRow = ({
 		onDoubleClickPath,
 		onContextMenuPath,
 		onRenamePath,
-		dropTargetPath,
+		dropTarget,
 		cursorPath,
 		setCursorPath,
 		onRowDragStart,
@@ -396,7 +402,7 @@ export const FileTreeFolderRow = ({
 				FILE_TREE_ROW_STATE,
 				cursorPath === path && !isSelected && FILE_TREE_ROW_CURSOR_STATE,
 				isSelected && FILE_TREE_ROW_SELECTED_STATE,
-				dropTargetPath === path && DROP_RING,
+				dropTargetStyle(path, dropTarget),
 				className,
 			)}
 			style={style}
@@ -516,7 +522,7 @@ export const FileTreeFile = ({
 		onRenamePath,
 		selectedPaths,
 		onSelectRow,
-		dropTargetPath,
+		dropTarget,
 		cursorPath,
 		setCursorPath,
 		onRowDragStart,
@@ -599,7 +605,7 @@ export const FileTreeFile = ({
 					FILE_TREE_ROW_STATE,
 					cursorPath === path && !isSelected && FILE_TREE_ROW_CURSOR_STATE,
 					isSelected && FILE_TREE_ROW_SELECTED_STATE,
-					dropTargetPath === path && DROP_RING,
+					dropTargetStyle(path, dropTarget),
 					className,
 				)}
 				onFocus={() => setCursorPath(path)}

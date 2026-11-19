@@ -159,7 +159,8 @@
 			"author": "作者 A–Z",
 			"year-desc": "年份（新 → 旧）",
 			"year-asc": "年份（旧 → 新）",
-			"added-desc": "添加时间（新 → 旧）"
+			"added-desc": "添加时间（新 → 旧）",
+			"manual": "手动排序（拖动调整）"
 		},
 		"paperNoteMode": {
 			"label": "论文笔记初始化",

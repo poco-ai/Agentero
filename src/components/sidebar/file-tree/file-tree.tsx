@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { FileTree as AiFileTree } from "@/components/sidebar/file-tree/file-tree-primitives";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSettings } from "@/hooks/use-app-stores";
+import { dirnameOf } from "@/lib/core/path";
 import { cn } from "@/lib/core/utils";
 import type {
 	PaperLibraryRow,
@@ -25,6 +26,10 @@ import {
 import type { FileNode } from "@/lib/vault";
 import { useMovePicker } from "./hooks/use-move-picker";
 import { usePaperRowActions } from "./hooks/use-paper-row-actions";
+import {
+	reorderPaperSiblings,
+	usePaperTreeOrder,
+} from "./hooks/use-paper-tree-order";
 import { useSkillLabels } from "./hooks/use-skill-labels";
 import { useTexCompile } from "./hooks/use-tex-compile";
 import { useTreeContextMenu } from "./hooks/use-tree-context-menu";
@@ -45,7 +50,12 @@ import {
 	treeRowIndentStyle,
 } from "./tree-rows";
 import { TreeRowsViewport } from "./tree-rows-viewport";
-import type { TreeCreateDraft, TreeCreateKind, TreeRenameDraft } from "./types";
+import type {
+	TreeCreateDraft,
+	TreeCreateKind,
+	TreeDropEdge,
+	TreeRenameDraft,
+} from "./types";
 import { buildZoteroCollectionReferences } from "./zotero-collection-references";
 
 type FileTreeProps = {
@@ -229,6 +239,7 @@ export const FileTree = memo(
 		const plazaHiddenSources = useSettings((s) => s.plazaHiddenSources);
 		const containerRef = useRef<HTMLDivElement>(null);
 		const skillLabels = useSkillLabels(vaultPath, nodes);
+		const { ranks, save: savePaperOrder } = usePaperTreeOrder(vaultPath);
 		const {
 			byPath,
 			byPathKey,
@@ -242,6 +253,7 @@ export const FileTree = memo(
 			paperMetaByRelPath,
 			paperTreeLabelMode,
 			paperTreeSortMode,
+			manualRanks: paperTreeSortMode === "manual" ? ranks : undefined,
 			skillLabels,
 		});
 		const zoteroCollectionReferences = useMemo(
@@ -309,6 +321,22 @@ export const FileTree = memo(
 			suppressAutoRevealRef: expansion.suppressAutoRevealRef,
 		});
 
+		const reorderPapers = useCallback(
+			(paths: string[], target: string, edge: TreeDropEdge) => {
+				const parent = dirnameOf(target);
+				const siblings = flatRows.flatMap((row) =>
+					row.kind === "node" &&
+					row.paperLeaf &&
+					dirnameOf(row.node.path) === parent
+						? [row.node.path]
+						: [],
+				);
+				const next = reorderPaperSiblings(siblings, paths, target, edge);
+				if (next)
+					savePaperOrder(relPathForNode(parent), next.map(relPathForNode));
+			},
+			[flatRows, relPathForNode, savePaperOrder],
+		);
 		const dragDrop = useTreeDragDrop({
 			byPath,
 			relPathForNode,
@@ -316,6 +344,8 @@ export const FileTree = memo(
 			renameDraft,
 			pathsForAction: selection.pathsForAction,
 			onDropMove,
+			onDropReorder:
+				vaultPath && paperTreeSortMode === "manual" ? reorderPapers : undefined,
 			onDropLocalPdfs,
 		});
 
@@ -492,7 +522,7 @@ export const FileTree = memo(
 								onContextMenuPath={handleContextMenuPath}
 								onRenamePath={handleRenamePath}
 								onSelectRow={selection.handleSelectRow}
-								dropTargetPath={dragDrop.dropTarget}
+								dropTarget={dragDrop.dropTarget}
 								onRowDragStart={dragDrop.handleRowDragStart}
 								onRowDragOver={dragDrop.handleRowDragOver}
 								onRowDrop={dragDrop.handleRowDrop}

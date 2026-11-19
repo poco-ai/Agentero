@@ -76,7 +76,7 @@ Vault 根上的 `.agents/` 与 `AGENTS.md` 合成一行，标题为 Agent（中�
 | 展示 | 说明 |
 |---|---|
 | 标签 | 默认「标题 · 作者」；`paperTreeLabelMode` 可改（展示用，不改磁盘名）。标题中的 `$\\pi$` / `\\(...\\)` 等经 KaTeX 内联渲染（`MathText`） |
-| 排序 | `paperTreeSortMode`：默认 `folder` 模式下组织文件夹始终排在论文文件夹之前，再按显示标签 A–Z；其他模式按标题/作者/年份/添加时间排序 |
+| 排序 | `paperTreeSortMode`：默认 `folder` 模式下组织文件夹始终排在论文文件夹之前，再按显示标签 A–Z；其他模式按标题/作者/年份/添加时间排序。选择「手动排序」后可把论文拖到同一目录中另一篇论文的上边缘或下边缘，移动多选论文时保留它们的相对位置。顺序按资料库保存在本机，新论文排在已排序的论文之后。拖到其他目录仍可移动文件。 |
 | Chevron | 仅当有可见子项时出现：根目录白名单文档 ≥2 个，或 `{paper}/attachments/` 非空。点三角展开/收起子项；点行仍打开论文 |
 | Download | 缺 PDF，或既无 TeX 也无 `PAPER.md`（`source/` 为懒壳时按其 `hasTex` 标记判定）；指向有效普通文件的 PDF 软链接也视为本地 PDF |
 | NotebookPen | 资源齐且 `is_read === false` → paper-reader |
