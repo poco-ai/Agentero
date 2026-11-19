@@ -59,7 +59,7 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 
 - **分类**（`scope.rs`）支持 `papers/` 下任意层级的集合和子类。论文根级 PDF 通过同名目录或 `NOTES.md` / `metadata.json` 识别，并兼容原有一级论文目录中的 PDF。进入论文的 `source/` 或 `attachments/` 后，子树归入对应类别。进入 `assets/` 或 `marks/` 后，文件始终同步。
 - **内容寻址后端**：关闭的类别跳过本地上传、下载和删除，保留远端清单已有条目供其他设备使用。本地 base 只记录本设备参与同步的文件。重新开启后，可从远端下载仍存在的文件。旧版远端 manifest 的 `scope` 字段继续保护曾被过滤而缺失的条目。
-- **Git**：每次同步按实际路径刷新 `.gitignore` 的标记区块，加入仓库根锚定的规则，暂存后移除被排除的索引条目。执行排除操作的设备保留工作区文件，既有 Git 历史仍可访问。
+- **Git**：每次同步按实际路径刷新 `.gitignore` 的标记区块，加入仓库根锚定的规则，暂存后移除被排除的索引条目。执行排除操作的设备保留工作区文件，既有 Git 历史仍可访问。**这不是仅本机生效的过滤器**：排除已跟踪文件会提交删除，其他设备拉取时可能从工作区删除该文件，即使对方的同步范围仍为全量。
 - **重取**：PDF/TeX 可从 `metadata.json` 的来源字段（arXiv ID / DOI / `pdf_url`）重新下载——`job_download_assets_enqueue`（DownloadAssets 后台任务；库表格右键「从来源下载 PDF」、打开论文时自动补下均走此路径）。库列表的 `has_pdf` 由 `paper_list` 经 CapsCache 投影。
 - **配置**：`SyncBackendConfig.scope`（缺省全量，兼容旧配置）；设置页以「同步范围」小标题分组展示逐类开关（附本地体积 `sync_scope_sizes`），默认全部开启。
 
@@ -69,8 +69,8 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 
 - **目录模型**：WebDAV 需显式建目录。PUT 前按需逐级 `MKCOL`（405 = 已存在），已建目录在客户端内缓存，稳态零额外请求；连接测试 `PROPFIND Depth:0` 根目录，404 则连目录一起创建——用户可直接指向一个不存在的目录（如 `https://dav.jianguoyun.com/dav/agentero/`）。坚果云根地址（`https://dav.jianguoyun.com/dav/`）自动展开为专用文件夹 `agentero/`：根集合可列表但拒绝创建文件（PUT 一律 404 ObjectNotFound），而它恰是官方文档给出的地址；展开是纯函数（trim 尾斜杠 + 根地址映射），`normalized()` 与客户端构造共用——新配置回显实际地址，旧配置无需重存即自愈。
 - **连接测试**：PROPFIND 207 / 创建成功即凭据与目录可用；401/403 报凭证错误，不保存配置。随后做一次**无条件试写**（一次性 key，写完即删）：地址写不进去（不可写位置、权限或配额拒绝）在配置阶段就报错并带上目标目录 URL，不再静默保存坏配置、把错误推迟到首次同步。
-- **条件写**：WebDAV 实现差异大，探测针对 `If-Match`（HEAD CAS 的唯一依托）：无条件试写建出一次性 key 后，带过期 etag 再 PUT，412 = 真支持，2xx = 降级为普通 PUT（与 OSS 共用 `conditionalWrites=false` 与降级语义，见上节）；`If-None-Match: *` 不探测——被忽略也无害（blob 内容寻址、manifest key 唯一随机）。实测坚果云忽略 `If-None-Match` 但强制 `If-Match`，即 CAS 原子性完整保留。硬错误（非 2xx/412）直接让连接测试失败；只有探测无结论（如条件头被忽略/拒绝）才按支持处理（fail open——被忽略的头无害，漏掉 CAS 才有害）。`test_connection` 以 `conditionalWrites=true` 构造探测客户端，保证测的是服务器行为而非持久化的旧结论。
-- **无 ETag 的服务器**：`If-Match` 退化为普通 PUT，同降级语义收敛。
+- **条件写**：连接测试先无条件试写一次性 key，再带过期 ETag 写同一 key：412 表示服务器拒绝了这次过期替换，2xx 表示忽略条件并保存 `conditionalWrites=false`，其他错误使测试失败。探测不检查 `If-None-Match: *` 是否能阻止重复创建；即使已存在的 HEAD 可以条件替换，也不要据此认为首次创建 HEAD / `vault.json` 可以并发。`test_connection` 用新客户端重新探测，不沿用旧结论。
+- **无 ETag 的服务器**：已有 HEAD 缺少 ETag 时，WebDAV 客户端实际使用普通 PUT；多设备并发风险同下节。
 - **重试**：与 S3 客户端一致的传输层 3 次重试（幂等操作）。
 - **安全约束同 S3**：`https://` 强制（仅 loopback 放行 http），密码掩码同 `secretKey`。NAS 场景的明文 http 与自签名证书 https 均不可用。
 - **兼容性（实测）**：路径段 percent-encode、请求带尾斜杠集合形式。坚果云特性：MKCOL 对根 `/dav` 返回 403 OperationNotAllowed（按「已存在/受保护」容忍）；根 `/dav` 不允许创建文件（PUT 一律 404 ObjectNotFound，[#681](https://github.com/poco-ai/Agentero/issues/681)），故根地址自动落到 `agentero/` 子文件夹（见「目录模型」）；顶层目录名长度有限制（`sandbox name is too long`）；顶层目录不可经 WebDAV 删除、非空目录删除需先清空子项——`sync_disconnect` 本就不动远端数据，仅测试清理需注意；**请求按账号限频**（免费 600 次/30 分钟、付费 1500 次/30 分钟），空转成本见「空转短路」。Nextcloud / Apache mod_dav 按标准实现工作。
@@ -95,7 +95,7 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 - **连接测试探测**：`sync_configure` 在 ListObjects 之后用一次性 key（`.sync-probe-<uuid>`）带 `If-None-Match: *` 试写并删除；`400 NotImplemented` → `conditionalWrites=false` 持久化到 `sync.json`，探测无结论时按支持处理（fail open）。
 - **命令面**：当前没有独立 `sync_probe`；配置保存即执行连接探测，失败则不保存，成功后设置页按已连接展示。
 - **运行时兜底**：旧配置未探测过时，首个条件 PUT 收到 `400 NotImplemented` 即在客户端内标记并立即以无条件 PUT 重试，同一 pass 内后续写入全部降级。
-- **降级语义**：blobs / manifests 内容寻址或 key 唯一，无条件 PUT 幂等无害；HEAD 指针退化为 GET → PUT，牺牲严格 CAS，靠三方合并与重试收敛（单用户场景最终一致）。设置页对 `conditionalWrites=false` 显示一行小字提示。
+- **降级语义**：内容寻址的 blob 可以重复上传，但共享 HEAD 不能安全地无条件覆盖。**不要让两台设备并发写这种远端，即使使用同一账号**：两次发布都可能返回成功，被覆盖一方下次同步时甚至可能把自己的新增文件当作远端删除。设置页对 `conditionalWrites=false` 显示提示，但不强制单写者。见[并发实验与重构提案](../development/vault-sync-review.md)。
 
 ## 身份与 Catalog 联动
 
@@ -116,7 +116,7 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 
 ## 并发（跨进程）
 
-远端一致性由 CAS `HEAD` 保证（多设备天然串行化）；同一台设备上桌面端与 CLI（或 cron）同时跑 pass 的**本地**写入交错，由 `engine::sync_vault_locked` 入口处的 `.agentero/sync/lock` advisory 文件锁串行化：
+对象存储只有在服务器真正执行相应条件时才能靠 CAS `HEAD` 串行化发布；Git 则依赖分支推送检查。同一台设备上桌面端与 CLI（或 cron）同时跑 pass 的**本地**写入交错，由 `engine::sync_vault_locked` 入口处的 `.agentero/sync/lock` advisory 文件锁串行化。当前解绑不取这把锁并会清理其所在目录，不要在同步中解绑：
 
 - 拿不到锁立即失败，域码 `sync_busy`（CLI 退出码 1，桌面端记入 `sync:state` error）；使用 `fs2` 的平台锁冲突错误码识别占用，避免 Windows 的 `ERROR_LOCK_VIOLATION` 被误报为普通 IO 错误。
 - 正常释放 guard 时显式解锁，再关闭文件句柄，避免复制的句柄（包括 Unix 并发 `fork` / `dup` 继承的描述符）延迟释放同一把锁。进程退出、崩溃或被杀时仍由系统在最后一个相关句柄关闭后释放，无陈旧锁文件清理。
