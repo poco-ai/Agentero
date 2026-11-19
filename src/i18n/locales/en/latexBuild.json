@@ -6,7 +6,7 @@
 	"log": "Build log",
 	"noProblems": "No build problems",
 	"noLog": "Build the project to see its log.",
-	"askAgent": "Ask Agent",
+	"fixWithAgent": "Fix with Agent",
 	"askAgentPrompt": "Fix this in the LaTeX source. Change only what this problem requires.",
 	"copyProblem": "Copy problem",
 	"copyFailed": "Could not copy the problem.",

@@ -6,7 +6,7 @@
 	"log": "编译日志",
 	"noProblems": "没有编译问题",
 	"noLog": "编译项目后显示日志。",
-	"askAgent": "交给 Agent",
+	"fixWithAgent": "用 Agent 修复",
 	"askAgentPrompt": "在 LaTeX 源文件里修掉这个问题，只改和它有关的地方。",
 	"copyProblem": "复制问题",
 	"copyFailed": "无法复制此问题。",

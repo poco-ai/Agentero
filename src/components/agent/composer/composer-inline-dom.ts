@@ -162,6 +162,19 @@ function appendQuoteIcon(chip: HTMLElement) {
 	);
 }
 
+/** Lucide `triangle-alert` glyph for a build-log problem reference. */
+function appendWarningIcon(chip: HTMLElement) {
+	appendLucideIcon(
+		chip,
+		[
+			"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
+			"M12 9v4",
+			"M12 17h.01",
+		],
+		"size-3 shrink-0 text-destructive",
+	);
+}
+
 /** Lucide `image` glyph for an inline visual annotation. */
 function appendImageIcon(chip: HTMLElement) {
 	const ns = "http://www.w3.org/2000/svg";
@@ -724,7 +737,8 @@ export function renderChip(
 			name;
 		const snippet = selectionReferenceSnippet(selection.text) || source;
 		const row = referenceRow(chip);
-		appendQuoteIcon(row);
+		if (selection.surface === "build-log") appendWarningIcon(row);
+		else appendQuoteIcon(row);
 		row.appendChild(referenceLabel(snippet));
 		chip.setAttribute("aria-label", snippet);
 	} else if (part.type === "visual") {

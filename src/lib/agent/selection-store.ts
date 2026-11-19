@@ -28,7 +28,14 @@ export type SelectionContext = {
 	sourceTitle?: string;
 	sourceUrl?: string;
 	/** Rendering surface, independent of the anchor/storage origin. */
-	surface?: "feed" | "web" | "abstract" | "text" | "markdown" | "chat";
+	surface?:
+		| "feed"
+		| "web"
+		| "abstract"
+		| "text"
+		| "markdown"
+		| "chat"
+		| "build-log";
 	origin: SelectionOrigin;
 	/** 1-based PDF page number. */
 	page?: number;

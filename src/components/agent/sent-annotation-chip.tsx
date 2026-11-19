@@ -1,5 +1,5 @@
 /** Read-only annotation references captured on a sent message. */
-import { ImageIcon, Quote } from "lucide-react";
+import { ImageIcon, Quote, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { defaultRemarkPlugins } from "streamdown";
@@ -16,6 +16,7 @@ import {
 import type { AnnotationSnapshot } from "@/lib/agent/annotation-snapshot";
 import type { ChatVisualAnnotation } from "@/lib/agent/chat-state";
 import type { SelectionContext } from "@/lib/agent/selection-store";
+import { cn } from "@/lib/core/utils";
 import { remarkHighlightToHtml } from "@/lib/markdown/highlight-to-html";
 
 export function SentAnnotationChip({
@@ -35,7 +36,8 @@ export function SentAnnotationChip({
 			? t("composer.visualAnnotationPage", { page: snapshot.page })
 			: t("transcript.annotationLabel", { n: snapshot.n }));
 	const visual = snapshot.kind === "visual";
-	const Icon = visual ? ImageIcon : Quote;
+	const buildLog = selection?.surface === "build-log";
+	const Icon = buildLog ? TriangleAlert : visual ? ImageIcon : Quote;
 	return (
 		<HoverCard
 			open={open}
@@ -55,7 +57,10 @@ export function SentAnnotationChip({
 				>
 					<span className="flex max-w-full items-center gap-0.5">
 						<Icon
-							className="size-3 shrink-0 text-muted-foreground"
+							className={cn(
+								"size-3 shrink-0",
+								buildLog ? "text-destructive" : "text-muted-foreground",
+							)}
 							aria-hidden
 						/>
 						<span className="min-w-0 truncate">{label}</span>
