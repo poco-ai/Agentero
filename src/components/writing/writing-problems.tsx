@@ -147,12 +147,12 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 					: "text-muted-foreground";
 
 	// The row being inspected: the last one picked, else the first error, so the
-	// dialog always shows which problem it is looking at (and which one
-	// "Fix with Agent" targets).
+	// dialog always shows which problem it is looking at.
 	const activeRow =
 		rows.find((row) => row.key === selected) ??
 		rows.find((row) => row.severity === "error") ??
 		rows[0];
+	const errorRows = rows.filter((row) => row.severity === "error");
 
 	function askAgent(row: Row) {
 		const detail = row.buildLog?.detail?.trim();
@@ -171,6 +171,33 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 			lineFrom: row.line,
 			lineTo: row.line,
 			comment: t("askAgentPrompt"),
+		});
+		if (!selection) return;
+		pinSelection(selection);
+		presentAgentComposer();
+	}
+
+	function askAgentAll(problems: Row[]) {
+		// One reference for the whole failed build: the count heads the chip,
+		// then every error, then the distinct raw tails as evidence.
+		const details = [
+			...new Set(
+				problems
+					.map((row) => row.buildLog?.detail?.trim())
+					.filter((detail): detail is string => Boolean(detail)),
+			),
+		];
+		const selection = createSelectionContext({
+			text: [
+				t("fixAllSummary", { count: problems.length }),
+				problems.map((row) => `- ${row.message}`).join("\n"),
+				...details,
+			].join("\n\n"),
+			sourcePath: rootFile,
+			origin: "markdown",
+			surface: "build-log",
+			sourceTitle: `${t("log")} · ${basenameOf(rootFile)}`,
+			comment: t("askAgentAllPrompt"),
 		});
 		if (!selection) return;
 		pinSelection(selection);
@@ -280,18 +307,18 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 							{t("log")} · {basenameOf(rootFile)}
 						</DialogTitle>
 						<div className="flex items-center gap-2">
-							{activeRow ? (
+							{errorRows.length > 0 ? (
 								<Button
 									type="button"
 									variant="secondary"
 									size="sm"
 									onClick={() => {
 										setOpen(false);
-										askAgent(activeRow);
+										askAgentAll(errorRows);
 									}}
 								>
 									<MessageSquarePlus className="size-3.5" aria-hidden />
-									{t("fixWithAgent")}
+									{t("fixAllErrors")}
 								</Button>
 							) : null}
 							{snapshot?.status === "running" && snapshot.jobId ? (
@@ -349,14 +376,39 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 								})
 							)}
 						</div>
-						<textarea
-							ref={logRef}
-							readOnly
-							aria-label={t("log")}
-							spellCheck={false}
-							className="min-h-0 min-w-0 flex-1 resize-none overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/40 p-3 font-mono text-xs leading-4 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-							value={logText || t("noLog")}
-						/>
+						<div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+							<textarea
+								ref={logRef}
+								readOnly
+								aria-label={t("log")}
+								spellCheck={false}
+								className="min-h-0 min-w-0 flex-1 resize-none overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/40 p-3 font-mono text-xs leading-4 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								value={logText || t("noLog")}
+							/>
+							{activeRow ? (
+								<div className="flex shrink-0 items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5">
+									<span
+										className="min-w-0 truncate text-xs text-muted-foreground"
+										title={activeRow.message}
+									>
+										{activeRow.message}
+									</span>
+									<Button
+										type="button"
+										variant="secondary"
+										size="sm"
+										className="shrink-0"
+										onClick={() => {
+											setOpen(false);
+											askAgent(activeRow);
+										}}
+									>
+										<MessageSquarePlus className="size-3.5" aria-hidden />
+										{t("fixThisError")}
+									</Button>
+								</div>
+							) : null}
+						</div>
 					</div>
 				</DialogContent>
 			</Dialog>

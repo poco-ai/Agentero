@@ -6,8 +6,11 @@
 	"log": "编译日志",
 	"noProblems": "没有编译问题",
 	"noLog": "编译项目后显示日志。",
-	"fixWithAgent": "用 Agent 修复",
+	"fixAllErrors": "用 Agent 修复所有错误",
+	"fixThisError": "用 Agent 修复此错误",
 	"askAgentPrompt": "在 LaTeX 源文件里修掉这个问题，只改和它有关的地方。",
+	"askAgentAllPrompt": "在 LaTeX 源文件里修掉下面列出的所有错误，只改和这些错误有关的地方。",
+	"fixAllSummary_other": "{{count}} 个编译错误",
 	"copyProblem": "复制问题",
 	"copyFailed": "无法复制此问题。",
 	"requirement": {

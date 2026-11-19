@@ -6,8 +6,12 @@
 	"log": "Build log",
 	"noProblems": "No build problems",
 	"noLog": "Build the project to see its log.",
-	"fixWithAgent": "Fix with Agent",
+	"fixAllErrors": "Fix all errors with Agent",
+	"fixThisError": "Fix this error with Agent",
 	"askAgentPrompt": "Fix this in the LaTeX source. Change only what this problem requires.",
+	"askAgentAllPrompt": "Fix every error listed here in the LaTeX sources. Change only what these errors require.",
+	"fixAllSummary_one": "{{count}} build error",
+	"fixAllSummary_other": "{{count}} build errors",
 	"copyProblem": "Copy problem",
 	"copyFailed": "Could not copy the problem.",
 	"requirement": {
