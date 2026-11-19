@@ -1065,6 +1065,28 @@
 }
 
 /*
+ * PDF viewport: keep both scrollbars painted, unlike the auto-hiding panes.
+ * Dragging the bar is a primary way to move around a zoomed page, and
+ * WKWebView stops treating the scroller as hovered once the pointer is over
+ * its scrollbar (and can miss the repaint of a hover-only thumb), so the
+ * "show while scrolling / hovering" material fades out exactly when the
+ * reader reaches for it. A statically painted thumb stays grabbable;
+ * `overflow: auto` still means no bar renders until the content clips.
+ */
+[data-pdf-viewport] {
+	scrollbar-color: color-mix(in oklch, var(--muted-foreground) 32%, transparent)
+		transparent;
+}
+
+[data-pdf-viewport]::-webkit-scrollbar-thumb {
+	background-color: color-mix(
+		in oklch,
+		var(--muted-foreground) 28%,
+		transparent
+	);
+}
+
+/*
  * CodeMirror's scroller draws a native scrollbar; keep the thumb hidden while
  * idle so the source pane matches the app's auto-hiding pane scrollbars.
  */
