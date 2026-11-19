@@ -624,7 +624,7 @@ export function PdfTranslationViewerInner({
 			<DockviewViewport
 				documentId={docId}
 				hostRef={hostRef}
-				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
+				className="min-h-0 min-w-0 flex-1"
 			>
 				<ActiveCardScrollSync
 					active={!!selectionMenu}

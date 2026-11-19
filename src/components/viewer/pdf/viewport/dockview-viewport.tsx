@@ -239,7 +239,7 @@ export function DockviewViewport({
 		};
 	}, [documentId, viewportPlugin]);
 
-	const { style, ...restProps } = props;
+	const { className, style, ...restProps } = props;
 
 	return (
 		<ViewportElementContext.Provider
@@ -247,6 +247,7 @@ export function DockviewViewport({
 		>
 			<div
 				{...restProps}
+				className={`agentero-scroll-both agentero-scroll-visible ${className ?? ""}`}
 				ref={viewportRef}
 				data-pdf-viewport
 				tabIndex={paginated ? 0 : -1}
