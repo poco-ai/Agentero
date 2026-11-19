@@ -24,6 +24,16 @@
 		"jumpBack": "Jump back",
 		"importToLibrary": "Import to library",
 		"smartHighlight": "Smart highlight",
+		"viewMode": {
+			"label": "Reading view",
+			"original": "Original",
+			"translated": "Translation",
+			"dual": "Compare",
+			"originalHint": "Original (hide translation and stop the task)",
+			"translatedHint": "Translation (in place on the page)",
+			"dualHint": "Compare (source and translation side by side)",
+			"paneUnavailable": "The paper has no local folder, so the translation pane cannot open."
+		},
 		"smartHighlightFailed": "Smart highlight failed",
 		"jevNoReadableText": "PDF text layer is empty or unreadable. Run Parse Body (Tools → Parse PDF body) to OCR the paper first.",
 		"findPlaceholder": "Find in document",

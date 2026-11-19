@@ -42,6 +42,7 @@ import { renameWikiHeadingAction } from "@/lib/wiki/actions";
 import {
 	closePlazaTabs,
 	closeTab,
+	closeTranslationTab,
 	compileTexOnManualSave,
 	ensureLibraryTabPresent,
 	handleActivePanelChange,
@@ -367,6 +368,7 @@ export function WorkspaceHost() {
 			onAsksChange: setTabAsks,
 			onVisualTracesChange: setTabVisualTraces,
 			onOpenTranslationTab: openTranslationTab,
+			onCloseTranslationTab: closeTranslationTab,
 		}),
 		[handleOpenSettings],
 	);

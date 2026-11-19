@@ -24,6 +24,16 @@
 		"jumpBack": "返回跳转前",
 		"importToLibrary": "导入本地库",
 		"smartHighlight": "智能高亮",
+		"viewMode": {
+			"label": "阅读视图",
+			"original": "原文",
+			"translated": "译文",
+			"dual": "对照",
+			"originalHint": "原文（收起译文并停止翻译）",
+			"translatedHint": "译文（在原文页上原地覆盖）",
+			"dualHint": "对照（原文与译文左右并排）",
+			"paneUnavailable": "论文路径缺失，无法打开译文栏。"
+		},
 		"smartHighlightFailed": "智能高亮失败",
 		"jevNoReadableText": "PDF 文本层为空或无法识别。请先在工具栏 → 解析 PDF 正文 里跑一次 OCR。",
 		"findPlaceholder": "在文档中查找",

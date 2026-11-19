@@ -127,13 +127,15 @@ export type DocViewPdfProps = {
 	onVisualTracesChange: (tabId: string, list: PdfVisualSessionTrace[]) => void;
 	/**
 	 * Open a rendered-translation tab split to the right of the current PDF panel.
-	 * Called by the full-document translate button when dual-pane mode is on.
+	 * Called by the reading-view switch when the reader picks 对照.
 	 */
 	onOpenTranslationTab?: (
 		paperTabId: string,
 		paperAbsPath: string | null,
 		paperTitle?: string | null,
 	) => void;
+	/** Close that tab again when the reader leaves 对照. */
+	onCloseTranslationTab?: (paperTabId: string) => void;
 };
 
 /** Plain-text (CodeMirror) editor props. */
@@ -493,6 +495,7 @@ const DocumentContent = memo(function DocumentContent({
 						onAsksChange={handlePdfAsksChange}
 						onVisualTracesChange={handlePdfVisualTracesChange}
 						onOpenTranslationTab={pdf.onOpenTranslationTab}
+						onCloseTranslationTab={pdf.onCloseTranslationTab}
 					/>
 				</Suspense>
 				{tab.texCompiling && <TexCompilingIndicator />}

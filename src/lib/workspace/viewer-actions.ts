@@ -763,6 +763,28 @@ export function openTranslationTab(
 }
 
 /**
+ * Close the rendered-translation pane paired with a paper body. Used by the
+ * reading-view switch when it leaves 对照; the tab is not pushed to ⇧⌘T
+ * history because switching views is not closing a document.
+ */
+export function closeTranslationTab(paperTabId: string): void {
+	const tabs = getTabs();
+	const paperTab =
+		tabs.find((t) => t.id === paperTabId) ??
+		tabs.find((t) => t.id === stripEmbedPdfRevision(paperTabId));
+	if (!paperTab) return;
+	const paperKey = normalizePath(paperTab.path);
+	const pane = tabs.find(
+		(t) => t.pane === "translation" && normalizePath(t.path) === paperKey,
+	);
+	if (!pane) return;
+	closeTab(pane.id, { remember: false });
+	// Closing the comparison pane returns the reader to the paper, not to the
+	// NOTES tab that shared the right column.
+	dockHandle()?.activatePanel(paperTab.id);
+}
+
+/**
  * If `href` carries a PDF citation fragment (`#page=` / `#section=` / …),
  * open via the shared citation jumper. Returns true when handled.
  */

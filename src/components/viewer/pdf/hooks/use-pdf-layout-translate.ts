@@ -149,6 +149,22 @@ export type PdfLayoutTranslate = {
 	layoutTranslatePageCounts: { done: number; total: number } | null;
 	/** Toolbar button: start → stop → retry incomplete / hide or show retained translations. */
 	toggleLayoutTranslate: () => void;
+	/**
+	 * Cache-first document translation start used by the reading-view switch.
+	 * Never stops a running job and never hides painted pages.
+	 */
+	ensureLayoutTranslate: () => void;
+	/**
+	 * Reveal retained translations (clear per-page hides) without starting or
+	 * stopping the job. The reading-view switch calls it when entering 译文.
+	 */
+	showLayoutTranslate: () => void;
+	/**
+	 * Cancel this paper's running/queued full-document translation. Used when
+	 * the reading view returns to 原文 (including a manual translation-tab close),
+	 * so the visible mode and the task state stay in sync.
+	 */
+	cancelLayoutTranslate: () => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
 	togglePageLayoutTranslate: (pageIndex: number) => void;
 	/** Paragraph warning: retry a failed page's blocks without hiding it. */
@@ -510,6 +526,23 @@ export function usePdfLayoutTranslate({
 			prev.status === "waitingLayout" ? { ...prev, status: "idle" } : prev,
 		);
 	}, []);
+
+	/**
+	 * Stop the paper's full-document translation: cancel a layout wait, abort
+	 * local work, and cancel a Host job owned by the dual-pane viewer too. Used
+	 * by 原文 and by the toolbar meter's only stop surface.
+	 */
+	const cancelLayoutTranslate = useCallback(() => {
+		if (layoutTranslateWaitTargetRef.current) cancelWaitingLayout();
+		stopLayoutTranslate();
+		if (!paperRelPath) return;
+		for (const task of backgroundTasksStore.getState().tasks) {
+			if (task.kind !== "layoutTranslate") continue;
+			if (task.status !== "running" && task.status !== "queued") continue;
+			if (!sameRelPaperPath(task.paperPath ?? null, paperRelPath)) continue;
+			cancelTask(task.id);
+		}
+	}, [cancelWaitingLayout, paperRelPath, stopLayoutTranslate]);
 
 	/**
 	 * Queue the job behind layout analysis: ensure a parse is pending, park the
@@ -1491,6 +1524,11 @@ export function usePdfLayoutTranslate({
 	 * make it translate again: completion and full retranslation live on the
 	 * partial entry. Stopping keeps completed text and the next click hides it.
 	 */
+	/** Reading view: entering 译文 should reveal every page again. */
+	const showLayoutTranslate = useCallback(() => {
+		setHiddenPageIndexes(new Set());
+	}, []);
+
 	const toggleLayoutTranslate = useCallback(() => {
 		if (layoutTranslateJob.status === "waitingLayout") {
 			cancelWaitingLayout();
@@ -2018,6 +2056,14 @@ export function usePdfLayoutTranslate({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		/**
+		 * Start (or re-attach to) the cache-first document translation without
+		 * toggling visibility. The reading-view switch uses this when the reader
+		 * explicitly asks for the translated view.
+		 */
+		ensureLayoutTranslate: startLayoutTranslate,
+		showLayoutTranslate,
+		cancelLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
 	};

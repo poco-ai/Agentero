@@ -431,8 +431,8 @@ export default function App() {
 		layoutElementSelection: () => {
 			resolveActivePdfHandle()?.toggleElementSelection();
 		},
-		// ⌥A — toggle full-text (layout) translation for the paper being read.
-		// Same dual-pane-aware path as the toolbar Languages button.
+		// ⌥A — toggle the reading view between 原文 and 译文 for the paper.
+		// 对照 is entered from the toolbar view switch.
 		layoutTranslate: () => {
 			resolveActivePdfHandle()?.toggleLayoutTranslate();
 		},

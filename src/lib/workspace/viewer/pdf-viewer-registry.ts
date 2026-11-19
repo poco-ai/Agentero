@@ -34,7 +34,7 @@ export type PdfViewerHandle = {
 	deleteVisualTrace: (id: string) => void;
 	/** Toggle layout element selection (⌘.). */
 	toggleElementSelection: () => void;
-	/** Toggle full-text (layout) translation (⌥A), dual-pane aware. */
+	/** Toggle the reading view between 原文 and 译文 (⌥A). */
 	toggleLayoutTranslate: () => void;
 	/** Run EmbedPDF layout analysis for figures / tables / formulas. */
 	analyzeLayout: () => void;

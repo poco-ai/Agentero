@@ -212,12 +212,17 @@ import {
 	translateHighlightsByPage as translateHighlightsByPageOf,
 	translateHighlightsFingerprint,
 } from "@/lib/pdf/translate/highlights";
+import {
+	type PdfViewMode,
+	readPdfViewMode,
+	writePdfViewMode,
+} from "@/lib/pdf/view-mode";
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
 import { loadSettings } from "@/lib/settings";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
 import { layout } from "@/lib/shell/ui-store";
-import { basenameOf, vaultRelativePath } from "@/lib/vault/path";
-import { openLatexTranslationTab } from "@/lib/workspace/actions-latex-translation";
+import { normalizePathKey, vaultRelativePath } from "@/lib/vault/path";
+import { workspaceStore } from "@/lib/workspace/store";
 
 export type {
 	PdfViewerHandle,
@@ -553,6 +558,7 @@ function PdfViewerInner({
 	onAsksChange,
 	onVisualTracesChange,
 	onOpenTranslationTab,
+	onCloseTranslationTab,
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
 	const [importBusy, setImportBusy] = useState(false);
@@ -655,9 +661,60 @@ function PdfViewerInner({
 	const autoTranslateSelection = useSettings(
 		(s) => s.translate.autoTranslateSelection,
 	);
-	const displayMode = useSettings((s) => s.translate.displayMode);
-	const dualPaneSource = useSettings((s) => s.translate.dualPaneSource);
-	const dualPaneTranslate = displayMode === "dualPane";
+	// Reading view: 原文 / 译文 / 对照. Only the two single-pane choices persist;
+	// 对照 is derived from the translation tab being open. While it is open the
+	// single-pane underlay is pinned to 原文, so closing the tab falls back to
+	// 原文 — never to a stale 译文.
+	const [singleViewMode, setSingleViewMode] = useState<
+		"original" | "translated"
+	>(() => readPdfViewMode(paperKey));
+	const translationEnsureAtRef = useRef(0);
+	const restoredEnsureDoneRef = useRef(false);
+	/** 对照 → 译文 closes the pane but keeps the running translation. */
+	const paneCloseKeepsJobRef = useRef(false);
+	const paneWasOpenRef = useRef(false);
+	const isWorkspaceDoc = useStore(workspaceStore, (s) =>
+		s.tabs.some((tab) => tab.id === baseDocId),
+	);
+	// Tab paths are absolute paper directories; paperRelPath is vault-relative,
+	// so the pane lookup must use paperAbsPath when it is available.
+	const translationPaneKey = paperAbsPath
+		? normalizePathKey(paperAbsPath)
+		: paperKey
+			? normalizePathKey(paperKey)
+			: null;
+	const translationPaneOpen = useStore(workspaceStore, (s) => {
+		if (!translationPaneKey || !isWorkspaceDoc) return false;
+		return s.tabs.some(
+			(tab) =>
+				tab.pane === "translation" &&
+				normalizePathKey(tab.path) === translationPaneKey,
+		);
+	});
+	const viewMode: PdfViewMode = translationPaneOpen ? "dual" : singleViewMode;
+	const showTranslatedPages = translationPane || viewMode === "translated";
+	// 对照 is a comparison view: the left pane is the original, not 译文. Keep the
+	// stored single-pane view at 原文 while the pane is open so closing the pane
+	// (tab ×, ⇧⌘T cleanup, etc.) lands back on 原文 rather than a stale 译文.
+	useEffect(() => {
+		if (!isWorkspaceDoc || !translationPaneOpen) return;
+		if (singleViewMode === "original") return;
+		setSingleViewMode("original");
+		writePdfViewMode(paperKey, "original");
+	}, [isWorkspaceDoc, translationPaneOpen, singleViewMode, paperKey]);
+	// Re-seed the persisted view and the ensure guards when this mounted viewer
+	// is reused for another paper, and re-arm the one-shot restore when the PDF
+	// is reloaded in place (same paper, new docId / wiped translation job).
+	const viewModePaperRef = useRef<string | null>(null);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is not read here; it re-arms the guards when the same PDF reloads in place.
+	useEffect(() => {
+		if (viewModePaperRef.current !== paperKey) {
+			viewModePaperRef.current = paperKey;
+			setSingleViewMode(readPdfViewMode(paperKey));
+		}
+		translationEnsureAtRef.current = 0;
+		restoredEnsureDoneRef.current = false;
+	}, [paperKey, docId]);
 	const smartHighlightEnabled = useSettings((s) => s.decision.smartHighlight);
 	const paperMeta = useMemo(() => {
 		if (paperMetaProp) return paperMetaProp;
@@ -934,7 +991,7 @@ function PdfViewerInner({
 		hostRef,
 		zoomRef,
 		isActive,
-		sideBySide: dualPaneTranslate && !translationPane,
+		sideBySide: viewMode === "dual" && !translationPane,
 		paperRelPath,
 		paperAbsPath,
 		isCommentDraftActive: () => selectionCommentEngagedRef.current,
@@ -1374,11 +1431,13 @@ function PdfViewerInner({
 		layoutTranslateWaiting,
 		layoutTranslateQueued,
 		layoutTranslateActive,
-		layoutTranslateLabel,
 		layoutTranslatePartial,
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		ensureLayoutTranslate,
+		showLayoutTranslate,
+		cancelLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
 	} = usePdfLayoutCluster({
@@ -1434,8 +1493,7 @@ function PdfViewerInner({
 		docId,
 	);
 	const translationShown =
-		(translationPane || !dualPaneTranslate) &&
-		layoutTranslatePageStateByPage.size > 0;
+		showTranslatedPages && layoutTranslatePageStateByPage.size > 0;
 	const searchDocumentId = pickPdfSearchDocumentId({
 		sourceDocumentId: docId,
 		translatedDocumentId: reflowDisplayDocument?.id,
@@ -1475,7 +1533,11 @@ function PdfViewerInner({
 	}, []);
 
 	usePdfTranslationSelection({
-		enabled: layoutTranslateActive && !translationOnly && !plainViewer,
+		enabled:
+			showTranslatedPages &&
+			layoutTranslateActive &&
+			!translationOnly &&
+			!plainViewer,
 		hostRef,
 		zoomRef,
 		engineRef,
@@ -1489,44 +1551,134 @@ function PdfViewerInner({
 		paperAbsPath,
 	});
 
-	const handleToggleLayoutTranslateWithDualPane = useCallback(() => {
-		if (plainViewer) return;
-		if (displayMode !== "dualPane") {
-			toggleLayoutTranslate();
-			return;
-		}
-		// In dual-pane mode the source pane only opens the right-hand
-		// translation panel. The translation pane itself owns the single
-		// layout-translation job so only one task runs at a time. The receiver
-		// resolves this back to a workspace tab, so pass the revision-stripped
-		// base id (`docId` carries a `::r<n>` buffer suffix).
-		if (dualPaneSource === "pdf") {
-			onOpenTranslationTab?.(
-				baseDocId,
-				paperAbsPath ?? null,
-				paperTitle ?? null,
-			);
-			return;
-		}
-		if (!paperAbsPath) {
-			notifyError(t("pdf.latexTranslation.missingPaperPath"));
-			return;
-		}
-		void openLatexTranslationTab(
-			baseDocId,
-			paperAbsPath,
-			basenameOf(paperAbsPath),
-		);
+	// The view switch owns the single-pane / compare choice. The toolbar's task
+	// surface (the expanding meter) only stops or cancels, never toggles views.
+	const hasAnyTranslation = useMemo(
+		() =>
+			[...layoutTranslateItemsByPage.values()].some((items) =>
+				items.some((item) => Boolean(item.translated?.trim())),
+			),
+		[layoutTranslateItemsByPage],
+	);
+	const ensureLayoutTranslateRef = useRef(ensureLayoutTranslate);
+	ensureLayoutTranslateRef.current = ensureLayoutTranslate;
+
+	const ensureTranslationForReading = useCallback(() => {
+		if (hasAnyTranslation || layoutTranslateRunning) return;
+		if (layoutTranslateWaiting || layoutTranslatePreparing) return;
+		// The toolbar click and the mount effect can race within one tick; the
+		// short window keeps one start while still allowing a later retry.
+		const now = Date.now();
+		if (now - translationEnsureAtRef.current < 1000) return;
+		translationEnsureAtRef.current = now;
+		ensureLayoutTranslateRef.current();
 	}, [
+		hasAnyTranslation,
+		layoutTranslateRunning,
+		layoutTranslateWaiting,
+		layoutTranslatePreparing,
+	]);
+
+	const handleSelectViewMode = useCallback(
+		(next: PdfViewMode) => {
+			if (translationOnly || plainViewer || isRemotePaper) return;
+			if (next === "dual") {
+				if (!onOpenTranslationTab) return;
+				if (!translationPaneOpen) {
+					if (!paperAbsPath) {
+						notifyError(t("pdf.viewMode.paneUnavailable"));
+						return;
+					}
+					// 对照 always sits on the original source pane: leave 译文 first,
+					// then split the translation pane out. Closing that pane later
+					// falls back to this 原文 state.
+					setSingleViewMode("original");
+					writePdfViewMode(paperKey, "original");
+					onOpenTranslationTab?.(baseDocId, paperAbsPath, paperTitle ?? null);
+				}
+				return;
+			}
+			if (next === "original") {
+				// 原文 is the "no translation" mode: close the comparison pane and
+				// kill the running job so the view and the task state agree.
+				paneCloseKeepsJobRef.current = false;
+				if (translationPaneOpen) onCloseTranslationTab?.(baseDocId);
+				setSingleViewMode("original");
+				writePdfViewMode(paperKey, "original");
+				cancelLayoutTranslate();
+				return;
+			}
+			// 译文: close the comparison pane but let the translation keep running
+			// (cached pages show immediately; a running job keeps streaming).
+			if (translationPaneOpen) {
+				paneCloseKeepsJobRef.current = true;
+				onCloseTranslationTab?.(baseDocId);
+			}
+			setSingleViewMode("translated");
+			writePdfViewMode(paperKey, "translated");
+			showLayoutTranslate();
+			ensureTranslationForReading();
+		},
+		[
+			translationOnly,
+			plainViewer,
+			isRemotePaper,
+			translationPaneOpen,
+			paperAbsPath,
+			onOpenTranslationTab,
+			baseDocId,
+			paperTitle,
+			onCloseTranslationTab,
+			paperKey,
+			showLayoutTranslate,
+			cancelLayoutTranslate,
+			ensureTranslationForReading,
+			t,
+		],
+	);
+
+	// Closing the 对照 pane by hand (tab ×, re-open cleanup) means the reader is
+	// back on 原文; that mode has no translation task, so cancel it. The one
+	// exception is 对照 → 译文, which closes the pane but keeps translating.
+	useEffect(() => {
+		const wasOpen = paneWasOpenRef.current;
+		paneWasOpenRef.current = translationPaneOpen;
+		if (!isWorkspaceDoc || !wasOpen || translationPaneOpen) return;
+		const keepJob = paneCloseKeepsJobRef.current;
+		paneCloseKeepsJobRef.current = false;
+		if (keepJob) return;
+		setSingleViewMode("original");
+		writePdfViewMode(paperKey, "original");
+		cancelLayoutTranslate();
+	}, [translationPaneOpen, isWorkspaceDoc, paperKey, cancelLayoutTranslate]);
+
+	// ⌥A toggles the reading view: 原文 ↔ 译文 (leaving 对照 closes its pane).
+	// Stopping a run stays on the meter.
+	const handleToggleTranslationView = useCallback(() => {
+		handleSelectViewMode(viewMode === "original" ? "translated" : "original");
+	}, [handleSelectViewMode, viewMode]);
+
+	// A paper reopened in 译文 has no in-memory translation blocks yet: attach to
+	// the cache-first job once so the switch does not land on a blank layer.
+	useEffect(() => {
+		if (restoredEnsureDoneRef.current) return;
+		if (translationPane || translationOnly || plainViewer || isRemotePaper)
+			return;
+		// Only the active workspace reader auto-attaches: inline wiki embeds and
+		// inactive keep-alive tabs must not start full-document jobs by themselves.
+		if (!isWorkspaceDoc || !isActive) return;
+		if (viewMode !== "translated") return;
+		restoredEnsureDoneRef.current = true;
+		ensureTranslationForReading();
+	}, [
+		translationPane,
+		translationOnly,
 		plainViewer,
-		displayMode,
-		dualPaneSource,
-		toggleLayoutTranslate,
-		onOpenTranslationTab,
-		baseDocId,
-		paperAbsPath,
-		paperTitle,
-		t,
+		isRemotePaper,
+		isWorkspaceDoc,
+		isActive,
+		viewMode,
+		ensureTranslationForReading,
 	]);
 
 	const { smartHighlightBusy, handleSmartHighlight } = usePdfSmartHighlights({
@@ -2107,8 +2259,8 @@ function PdfViewerInner({
 		deleteVisualTraceById,
 		deleteHighlightAnnotation,
 		toggleElementSelection,
-		// Dual-pane aware — ⌥A and the toolbar Languages button share this path.
-		toggleLayoutTranslate: handleToggleLayoutTranslateWithDualPane,
+		// ⌥A toggles 原文 / 译文; 对照 is entered from the toolbar switch.
+		toggleLayoutTranslate: handleToggleTranslationView,
 	});
 
 	const {
@@ -2224,14 +2376,12 @@ function PdfViewerInner({
 			selectableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
-			layoutTranslateItemsByPage:
-				translationPane || !dualPaneTranslate
-					? layoutTranslateItemsByPage
-					: new Map(),
-			layoutTranslatePageStateByPage:
-				translationPane || !dualPaneTranslate
-					? layoutTranslatePageStateByPage
-					: new Map(),
+			layoutTranslateItemsByPage: showTranslatedPages
+				? layoutTranslateItemsByPage
+				: new Map(),
+			layoutTranslatePageStateByPage: showTranslatedPages
+				? layoutTranslatePageStateByPage
+				: new Map(),
 			sentenceRectsByItemId,
 			linkInkByKey,
 			glyphRunsByPage,
@@ -2245,8 +2395,7 @@ function PdfViewerInner({
 			selectionStartPageIndex,
 			layoutTranslateItemsByPage,
 			layoutTranslatePageStateByPage,
-			translationPane,
-			dualPaneTranslate,
+			showTranslatedPages,
 			sentenceRectsByItemId,
 			linkInkByKey,
 			glyphRunsByPage,
@@ -2318,6 +2467,32 @@ function PdfViewerInner({
 		[handleVisualAddToChatById, paperAbsPath, paperRelPath],
 	);
 
+	// Page tags stay available in every view, but they must not toggle a hidden
+	// overlay that is not painted. 原文 first reveals 译文; 对照's source pane has
+	// no overlay at all, so its tags defer to the translation pane.
+	const handleTogglePageTranslate = useCallback(
+		(pageIndex: number) => {
+			if (viewMode === "dual") return;
+			if (viewMode === "original") {
+				setSingleViewMode("translated");
+				writePdfViewMode(paperKey, "translated");
+				showLayoutTranslate();
+				const pageHasTranslation = (
+					layoutTranslateItemsByPage.get(pageIndex) ?? []
+				).some((item) => Boolean(item.translated?.trim()));
+				if (pageHasTranslation) return;
+			}
+			togglePageLayoutTranslate(pageIndex);
+		},
+		[
+			viewMode,
+			paperKey,
+			showLayoutTranslate,
+			layoutTranslateItemsByPage,
+			togglePageLayoutTranslate,
+		],
+	);
+
 	const pageHandlers = useMemo<PdfPageHandlers>(
 		() => ({
 			onOpenPin: handleOpenPin,
@@ -2327,7 +2502,7 @@ function PdfViewerInner({
 			onTextLinkActivate: openExternalUrl,
 			onCitationHover: handleLinkHover,
 			onLinkUrlHover: handleLinkUrlHover,
-			onTogglePageLayoutTranslate: togglePageLayoutTranslate,
+			onTogglePageLayoutTranslate: handleTogglePageTranslate,
 			onRetryPageLayoutTranslate: retryPageLayoutTranslate,
 			onDeleteHighlightAnnotation: handleDeleteHighlightAnnotation,
 			onEditHighlightAnnotation: handleEditHighlightAnnotation,
@@ -2352,7 +2527,7 @@ function PdfViewerInner({
 			handleCitationLinkActivate,
 			handleLinkHover,
 			handleLinkUrlHover,
-			togglePageLayoutTranslate,
+			handleTogglePageTranslate,
 			retryPageLayoutTranslate,
 			handleDeleteHighlightAnnotation,
 			handleEditHighlightAnnotation,
@@ -2776,12 +2951,17 @@ function PdfViewerInner({
 					layoutTranslatePreparing={layoutTranslatePreparing}
 					layoutTranslateWaiting={layoutTranslateWaiting}
 					layoutTranslateQueued={layoutTranslateQueued}
-					layoutTranslateActive={layoutTranslateActive}
-					layoutTranslateLabel={layoutTranslateLabel}
+					viewMode={viewMode}
+					onSelectViewMode={handleSelectViewMode}
+					canCompare={
+						Boolean(onOpenTranslationTab) &&
+						Boolean(paperAbsPath) &&
+						isWorkspaceDoc
+					}
 					layoutTranslatePartial={layoutTranslatePartial}
 					layoutTranslateProgress={layoutTranslateProgress}
 					layoutTranslatePageCounts={layoutTranslatePageCounts}
-					onToggleLayoutTranslate={handleToggleLayoutTranslateWithDualPane}
+					onToggleLayoutTranslate={cancelLayoutTranslate}
 					isRemotePaper={isRemotePaper}
 					onImportToLibrary={handleImportToLibrary}
 					importBusy={importBusy}

@@ -49,6 +49,7 @@ export {
 } from "./persistence";
 export {
 	closeTexLive,
+	closeTranslationTab,
 	compileTexOnManualSave,
 	compileTexOnSave,
 	compileTexProject,
