@@ -632,18 +632,15 @@
 		"cache": {
 			"section": "缓存",
 			"ir": {
-				"label": "缓存重排 IR",
-				"description": "保存抽取出的字符几何，再次打开时无需重新抽取。"
+				"label": "缓存排版"
 			},
 			"final": {
-				"label": "缓存译文 PDF",
-				"description": "保存构建完成的译文 PDF，每篇约 25 MB。"
+				"label": "缓存译文 PDF"
 			},
 			"tip": "关闭开关只停止写入新文件，已有缓存仍会复用。",
 			"reset": "还原默认",
 			"dictionary": {
 				"label": "查词缓存",
-				"description": "查词和语境结果保留 30 天。清除当前知识库缓存，内置词典仍可使用。",
 				"clear": "清除",
 				"clearFailed": "无法清除查词缓存。",
 				"cleared": "已清除"

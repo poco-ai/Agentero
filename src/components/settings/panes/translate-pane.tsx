@@ -638,10 +638,7 @@ export function TranslatePane({
 					</Button>
 				</div>
 				<SettingsGroup>
-					<SettingsRow
-						label={t("translate.cache.dictionary.label")}
-						description={t("translate.cache.dictionary.description")}
-					>
+					<SettingsRow label={t("translate.cache.dictionary.label")}>
 						<Button
 							size="sm"
 							variant="outline"
@@ -662,7 +659,6 @@ export function TranslatePane({
 					</SettingsRow>
 					<SettingsRow
 						label={t("translate.cache.ir.label")}
-						description={t("translate.cache.ir.description")}
 						htmlFor="translate-cache-ir"
 					>
 						<Switch
@@ -673,7 +669,6 @@ export function TranslatePane({
 					</SettingsRow>
 					<SettingsRow
 						label={t("translate.cache.final.label")}
-						description={t("translate.cache.final.description")}
 						htmlFor="translate-cache-final"
 					>
 						<Switch
