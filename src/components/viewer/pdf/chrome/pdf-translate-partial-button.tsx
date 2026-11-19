@@ -23,12 +23,6 @@ import { openSettingsWindow } from "@/lib/shell/settings-window";
 type PdfTranslatePartialButtonProps = {
 	partial: PdfLayoutTranslatePartial;
 	className?: string;
-	/**
-	 * "inline" joins an existing chrome row (reader toolbar). "tile" is the same
-	 * amber icon standing alone in the dual-pane translation panel; neither
-	 * appearance adds a material of its own, so both panes share one style.
-	 */
-	appearance?: "inline" | "tile";
 };
 
 type PdfTranslatePartialDialogProps = {
@@ -225,11 +219,9 @@ export const PdfTranslatePartialButton = memo(
 	function PdfTranslatePartialButton({
 		partial,
 		className,
-		appearance = "inline",
 	}: PdfTranslatePartialButtonProps) {
 		const { t } = useTranslation("viewer");
 		const [confirming, setConfirming] = useState(false);
-		const tile = appearance === "tile";
 		const {
 			pendingRequired,
 			translatedCount,
@@ -300,18 +292,15 @@ export const PdfTranslatePartialButton = memo(
 				<PopoverTrigger asChild>
 					<Button
 						type="button"
-						size={tile ? "icon-sm" : "icon-xs"}
+						size="icon-xs"
 						variant="ghost"
 						data-full-text-translate-partial
-						data-pdf-chrome={tile ? "" : undefined}
 						aria-label={label}
 						title={label}
 						className={cn(
-							// Both appearances sit on the reader's own chrome: only the
-							// icon turns amber, with no extra white tile around it. The
-							// translation pane's left neighbour uses the same treatment.
+							// Join the surrounding chrome row: only the icon turns amber,
+							// with no material of its own.
 							"bg-transparent text-amber-600 hover:text-amber-700 active:text-amber-700 aria-expanded:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 dark:active:text-amber-300 dark:aria-expanded:text-amber-300",
-							tile && "rounded-md",
 							className,
 						)}
 					>

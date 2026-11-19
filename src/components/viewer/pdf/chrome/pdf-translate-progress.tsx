@@ -27,9 +27,9 @@ type PdfTranslateProgressChipProps = {
  * The meter copies the reader toolbar's expanded translate button — the same
  * 11rem readout surface, caption type, inset rail and trailing stop square —
  * so the two panes do not show two dialects of the same progress. The partial
- * warning is a document-level alarm, not a stage of the job: it renders as its
- * own full-height tile beside the meter, so a running job never shrinks it
- * into a capsule or draws the rail underneath it.
+ * warning is a document-level alarm, not a stage of the job; it sits at the
+ * leading edge of the same card, exactly like the reader toolbar keeps it
+ * before the expanding meter.
  */
 export function PdfTranslateProgressChip({
 	layoutTranslateRunning,
@@ -69,21 +69,17 @@ export function PdfTranslateProgressChip({
 
 	return (
 		<div className="pointer-events-none absolute top-2 right-3 z-20 flex select-none items-center gap-1">
-			{showPartial ? (
-				<PdfTranslatePartialButton
-					partial={layoutTranslatePartial}
-					appearance="tile"
-					className="pointer-events-auto shrink-0"
-				/>
-			) : null}
-			{open ? (
-				<div
-					data-pdf-chrome
-					className={cn(
-						"pointer-events-auto flex h-7 items-center rounded-lg p-0.5",
-						PDF_CHROME_CHIP,
-					)}
-				>
+			<div
+				data-pdf-chrome
+				className={cn(
+					"pointer-events-auto flex h-7 items-center gap-0.5 rounded-lg p-0.5",
+					PDF_CHROME_CHIP,
+				)}
+			>
+				{showPartial ? (
+					<PdfTranslatePartialButton partial={layoutTranslatePartial} />
+				) : null}
+				{open ? (
 					<div className="relative h-6 w-44">
 						<PdfTranslateMeterReadout
 							stage={stage}
@@ -98,16 +94,16 @@ export function PdfTranslateProgressChip({
 							onStop={onStop}
 						/>
 					</div>
-					<span
-						role="progressbar"
-						className="sr-only"
-						aria-label={stage}
-						aria-valuemin={0}
-						aria-valuemax={100}
-						aria-valuenow={indeterminate ? undefined : Math.round(ratio * 100)}
-					/>
-				</div>
-			) : null}
+				) : null}
+				<span
+					role="progressbar"
+					className="sr-only"
+					aria-label={stage}
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={indeterminate ? undefined : Math.round(ratio * 100)}
+				/>
+			</div>
 		</div>
 	);
 }
