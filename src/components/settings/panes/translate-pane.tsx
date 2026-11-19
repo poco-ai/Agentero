@@ -103,6 +103,15 @@ const PROBE_LABEL_KEYS = {
 	idle: "translate.provider.probeIdle",
 } as const satisfies Record<ProbeStatus, string>;
 
+/**
+ * API service cards lead with the generic OpenAI-compatible endpoint; the
+ * vendor-specific engines keep their canonical order.
+ */
+const API_SERVICE_PROVIDER_IDS: CommercialTranslateProviderId[] = [
+	"openaiCompatible",
+	...COMMERCIAL_MT_PROVIDER_IDS.filter((id) => id !== "openaiCompatible"),
+];
+
 function ProviderStatusDot({
 	kind,
 	label,
@@ -703,7 +712,7 @@ export function TranslatePane({
 					{t("translate.providerConfig.section")}
 				</SettingsSectionLabel>
 				<div className="grid gap-2">
-					{COMMERCIAL_MT_PROVIDER_IDS.map((id) => {
+					{API_SERVICE_PROVIDER_IDS.map((id) => {
 						const cfg = getProviderConfig(id);
 						const draft = configDrafts[id];
 						const draftKey = draft?.apiKey;
