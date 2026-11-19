@@ -19,6 +19,7 @@ import {
 	useEffect,
 	useMemo,
 	useRef,
+	useState,
 	useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
@@ -247,6 +248,7 @@ export function PdfTranslationViewerInner({
 		highlights,
 	});
 	const { selectionMenu, actions, ask, translation } = selection;
+	const [translationBounds, setTranslationBounds] = useState<DOMRectReadOnly>();
 	const highlightPaint = useMemo(
 		() => partitionHighlightPaint(highlights.highlights),
 		[highlights.highlights],
@@ -684,6 +686,9 @@ export function PdfTranslationViewerInner({
 							{selectionMenu ? (
 								<SelectionMenu
 									screen={selectionMenu.screen}
+									avoidBounds={
+										translation.translation ? translationBounds : undefined
+									}
 									selectionText={
 										selectionMenu.copyText ?? selectionMenu.anchor.quote
 									}
@@ -721,6 +726,9 @@ export function PdfTranslationViewerInner({
 									streaming={translation.translation.streaming}
 									error={translation.translation.error}
 									onHide={translation.close}
+									onBoundsChange={
+										selectionMenu ? setTranslationBounds : undefined
+									}
 									onOpenSettings={
 										onOpenSettings ??
 										(() => {
