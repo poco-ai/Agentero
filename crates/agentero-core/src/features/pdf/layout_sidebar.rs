@@ -350,10 +350,8 @@ fn panels_cluster_together(a: &LayoutRegion, b: &LayoutRegion) -> bool {
         return false;
     }
     let gap = horizontal_gap(&a_box, &b_box);
-    if gap > CLUSTER_PANEL_MAX_HORIZONTAL_GAP && horizontal_overlap_ratio(&a_box, &b_box) <= 0.0 {
-        return false;
-    }
-    true
+    // A large gap only separates stacked panels when they share no column.
+    gap <= CLUSTER_PANEL_MAX_HORIZONTAL_GAP || horizontal_overlap_ratio(&a_box, &b_box) > 0.0
 }
 
 /// Deterministic "best panel" order: largest area, then highest score, then
