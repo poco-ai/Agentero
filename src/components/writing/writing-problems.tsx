@@ -34,6 +34,7 @@ import { basenameOf, normalizePath } from "@/lib/core/path";
 import { cancelTask } from "@/lib/core/tasks";
 import { cn } from "@/lib/core/utils";
 import { type TexBuildSnapshot, texBuildStore } from "@/lib/tex/build-state";
+import { sortBySeverity } from "@/lib/tex/editor-diagnostic";
 import {
 	editorLintStore,
 	pendingEditorLineJump,
@@ -98,8 +99,8 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 		}
 		return rows;
 	}, [bufferVersion, rootFile, t]);
-	const rows = useMemo(
-		() => [
+	const rows = useMemo(() => {
+		const collected: Row[] = [
 			...(lint && normalizePath(lint.path) === key
 				? lint.diagnostics.map((diagnostic) =>
 						editorRow(diagnostic, lint.path, lint.jump),
@@ -117,9 +118,11 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						),
 					]
 				: []),
-		],
-		[compileProblems, key, lint, requirementRows, rootFile, snapshot, t],
-	);
+		];
+		// Errors (red) lead the card and the build-log list; the sort is stable,
+		// so each severity keeps its original order.
+		return sortBySeverity(collected);
+	}, [compileProblems, key, lint, requirementRows, rootFile, snapshot, t]);
 	const counts = { error: 0, warning: 0, info: 0 };
 	for (const row of rows) counts[row.severity] += 1;
 	const shown = (["error", "warning", "info"] as const).filter(
