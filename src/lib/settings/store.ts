@@ -64,13 +64,9 @@ import {
 	isCommercialTranslateProvider,
 	isTranslateProviderId,
 } from "@/lib/translate/services";
-import {
-	DUAL_PANE_SOURCES,
-	type DualPaneSource,
-	TRANSLATION_DISPLAY_MODES,
-	type TranslateSettings,
-	type TranslateTargetLang,
-	type TranslationDisplayMode,
+import type {
+	TranslateSettings,
+	TranslateTargetLang,
 } from "@/lib/translate/types";
 import { isKnownUiTheme } from "@/lib/ui/theme";
 
@@ -751,27 +747,6 @@ function normalizeTranslateSettings(
 	);
 	if (typeof raw.autoTranslateSelection === "boolean") {
 		base.autoTranslateSelection = raw.autoTranslateSelection;
-	}
-	// Migrate legacy dualPaneTranslate boolean to the new displayMode pair.
-	const legacyDualPane = (raw as { dualPaneTranslate?: boolean })
-		.dualPaneTranslate;
-	if (typeof legacyDualPane === "boolean") {
-		base.displayMode = legacyDualPane ? "dualPane" : "overlay";
-		base.dualPaneSource = "pdf";
-	}
-	if (
-		raw.displayMode &&
-		TRANSLATION_DISPLAY_MODES.includes(
-			raw.displayMode as TranslationDisplayMode,
-		)
-	) {
-		base.displayMode = raw.displayMode as TranslationDisplayMode;
-	}
-	if (
-		raw.dualPaneSource &&
-		DUAL_PANE_SOURCES.includes(raw.dualPaneSource as DualPaneSource)
-	) {
-		base.dualPaneSource = raw.dualPaneSource as DualPaneSource;
 	}
 	if (typeof raw.agentId === "string") {
 		base.agentId = raw.agentId.trim();

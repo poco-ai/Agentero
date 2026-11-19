@@ -385,13 +385,6 @@ pub struct TranslateSettings {
     pub provider_configs: HashMap<String, TranslateProviderConfig>,
     #[serde(default)]
     pub auto_translate_selection: bool,
-    /// Deprecated: kept for migration. Use `display_mode` + `dual_pane_source`.
-    #[serde(default)]
-    pub dual_pane_translate: bool,
-    #[serde(default = "default_translate_display_mode")]
-    pub display_mode: String,
-    #[serde(default = "default_translate_dual_pane_source")]
-    pub dual_pane_source: String,
     #[serde(default)]
     pub agent_id: String,
     #[serde(default)]
@@ -439,9 +432,6 @@ impl Default for TranslateSettings {
             source_lang: default_translate_source(),
             provider_configs: HashMap::new(),
             auto_translate_selection: false,
-            dual_pane_translate: false,
-            display_mode: default_translate_display_mode(),
-            dual_pane_source: default_translate_dual_pane_source(),
             agent_id: String::new(),
             model_id: String::new(),
             custom_prompt: String::new(),
@@ -754,12 +744,6 @@ fn default_translate_target() -> String {
 }
 fn default_translate_source() -> String {
     "auto".into()
-}
-fn default_translate_display_mode() -> String {
-    "overlay".into()
-}
-fn default_translate_dual_pane_source() -> String {
-    "pdf".into()
 }
 /// Layout analysis stays on the bundled offline PP-DocLayoutV3 model: it is
 /// free, local, and a cloud backend would bill every PDF for no gain. The

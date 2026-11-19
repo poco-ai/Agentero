@@ -73,12 +73,7 @@
 		"probeIdle": "Not tested yet",
 		"probeProbing": "Testing…",
 		"probeOk": "Works",
-		"probeFail": "Check your key and try again",
-		"displayMode": {
-			"label": "Translation layout",
-			"overlay": "In-place overlay",
-			"dualPane": "Side by side"
-		}
+		"probeFail": "Check your key and try again"
 	},
 	"layout": {
 		"title": "Formula & figure parsing",

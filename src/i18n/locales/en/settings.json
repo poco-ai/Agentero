@@ -629,11 +629,6 @@
 				"label": "Concurrent papers for auto-translation"
 			}
 		},
-		"displayMode": {
-			"label": "Translation display mode",
-			"overlay": "Overlay on original PDF",
-			"dualPane": "Dual pane"
-		},
 		"cache": {
 			"section": "Cache",
 			"ir": {

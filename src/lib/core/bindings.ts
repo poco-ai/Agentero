@@ -5822,10 +5822,6 @@ export type TranslateSettings = {
 	sourceLang?: string,
 	providerConfigs?: { [key in string]: TranslateProviderConfig },
 	autoTranslateSelection?: boolean,
-	/**  Deprecated: kept for migration. Use `display_mode` + `dual_pane_source`. */
-	dualPaneTranslate?: boolean,
-	displayMode?: string,
-	dualPaneSource?: string,
 	agentId?: string,
 	modelId?: string,
 	/**

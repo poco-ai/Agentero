@@ -629,11 +629,6 @@
 				"label": "自动翻译的论文并发数"
 			}
 		},
-		"displayMode": {
-			"label": "翻译显示模式",
-			"overlay": "在原 PDF 上覆盖",
-			"dualPane": "双栏对照"
-		},
 		"cache": {
 			"section": "缓存",
 			"ir": {
