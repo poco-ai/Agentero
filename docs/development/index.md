@@ -13,7 +13,7 @@
 
 | 文档 | 主题 |
 |---|---|
-| [vault-sync-review.md](vault-sync-review.md) | Vault 同步审计与重构提案：五个实测反例，区分 Git 仓库范围与设备范围，规划安全发布、落盘恢复及验收。 |
+| [vault-sync-review.md](vault-sync-review.md) | Vault 同步审计与实施记录：五个反例、修复策略、落盘恢复及验收边界。 |
 | [rfc-scholarly-data-resolution.md](rfc-scholarly-data-resolution.md) | 学术数据解析与补全 RFC：来源编排、身份与字段证据、venue、PwC、机构 PDF 获取边界。**设计稿，待评审** |
 | [usage-analytics.md](usage-analytics.md) | \#239 Activity 总线。P0 存储已落地：XDG `usage.sqlite`（见 [../backend/usage.md](../backend/usage.md)） |
 | [decision-layer.md](decision-layer.md) | 通用决策层：规则 / System One（jEV/Clef）/ LLM 统一为可插拔 provider + routing。**已落地**（见 [../backend/decision.md](../backend/decision.md)），保留为设计记录 |
