@@ -25,6 +25,8 @@ struct VaultIdentity {
 #[serde(rename_all = "camelCase")]
 pub struct SyncMeta {
     #[serde(default)]
+    pub needs_merge: bool,
+    #[serde(default)]
     pub last_sync_at: Option<String>,
     #[serde(default)]
     pub last_version: u64,
@@ -43,7 +45,9 @@ pub struct SyncMeta {
 /// last_version from the last success). Best-effort: a broken state.json
 /// must not mask the sync error itself.
 pub fn record_error(vault: &Path, error: &str) {
-    let mut meta = read_meta(vault);
+    let Ok(mut meta) = read_meta(vault) else {
+        return;
+    };
     meta.last_error = Some(error.to_string());
     let _ = write_meta(vault, &meta);
 }
@@ -52,25 +56,30 @@ fn identity_path(vault: &Path) -> PathBuf {
     vault.join(".agentero").join("vault.json")
 }
 
-fn sync_dir(vault: &Path) -> PathBuf {
+pub(super) fn sync_dir(vault: &Path) -> PathBuf {
     vault.join(".agentero").join("sync")
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), AppError> {
+pub(super) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), AppError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
     crate::fs::json_store(path, value)
 }
 
-fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Option<T> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&raw).ok()
+pub(super) fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<Option<T>, AppError> {
+    match fs::read(path) {
+        Ok(raw) => serde_json::from_slice(&raw)
+            .map(Some)
+            .map_err(|e| AppError::message(format!("invalid {}: {e}", path.display()))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// Durable vault UUID, created on first use.
 pub fn ensure_vault_id(vault: &Path) -> Result<String, AppError> {
-    if let Some(identity) = read_json::<VaultIdentity>(&identity_path(vault)) {
+    if let Some(identity) = read_json::<VaultIdentity>(&identity_path(vault))? {
         if !identity.id.trim().is_empty() {
             return Ok(identity.id);
         }
@@ -94,16 +103,16 @@ pub fn set_vault_id(vault: &Path, id: &str) -> Result<(), AppError> {
     )
 }
 
-pub fn read_base(vault: &Path) -> Manifest {
-    read_json(&sync_dir(vault).join("base.json")).unwrap_or_default()
+pub fn read_base(vault: &Path) -> Result<Manifest, AppError> {
+    Ok(read_json(&sync_dir(vault).join("base.json"))?.unwrap_or_default())
 }
 
 pub fn write_base(vault: &Path, manifest: &Manifest) -> Result<(), AppError> {
     write_json(&sync_dir(vault).join("base.json"), manifest)
 }
 
-pub fn read_meta(vault: &Path) -> SyncMeta {
-    read_json(&sync_dir(vault).join("state.json")).unwrap_or_default()
+pub fn read_meta(vault: &Path) -> Result<SyncMeta, AppError> {
+    Ok(read_json(&sync_dir(vault).join("state.json"))?.unwrap_or_default())
 }
 
 pub fn write_meta(vault: &Path, meta: &SyncMeta) -> Result<(), AppError> {
@@ -111,8 +120,55 @@ pub fn write_meta(vault: &Path, meta: &SyncMeta) -> Result<(), AppError> {
 }
 
 /// Forget local sync state (disconnect). Keeps the vault identity.
-pub fn clear(vault: &Path) {
-    let _ = fs::remove_dir_all(sync_dir(vault));
+pub(super) fn clear(lock: &super::lock::SyncLock) -> Result<(), AppError> {
+    let vault = lock.vault();
+    clear_staged(vault)?;
+    for name in [
+        "base.json",
+        "state.json",
+        "pushed.jsonl",
+        "pending.json",
+        "accepted.json",
+    ] {
+        match fs::remove_file(sync_dir(vault).join(name)) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
+            _ => (),
+        }
+    }
+    Ok(())
+}
+
+const STAGE_PREFIX: &str = "download-";
+
+pub(super) fn stage_file(vault: &Path) -> Result<tempfile::NamedTempFile, AppError> {
+    Ok(tempfile::Builder::new()
+        .prefix(STAGE_PREFIX)
+        .suffix(".tmp")
+        .tempfile_in(sync_dir(vault))?)
+}
+
+pub(super) fn clear_staged(vault: &Path) -> Result<(), AppError> {
+    let dir = sync_dir(vault);
+    fs::create_dir_all(&dir)?;
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.starts_with(STAGE_PREFIX) && name.ends_with(".tmp"))
+            && entry.file_type()?.is_file()
+        {
+            fs::remove_file(entry.path())?;
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn mark_catalog_dirty(vault: &Path) -> Result<(), AppError> {
+    let dir = sync_dir(vault);
+    fs::create_dir_all(&dir)?;
+    fs::write(dir.join("catalog.dirty"), [])?;
+    Ok(())
 }
 
 // ---- Pushed-blob log -------------------------------------------------------
@@ -218,7 +274,12 @@ mod tests {
             std::env::temp_dir().join(format!("agentero-sync-local-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&vault).unwrap();
         record_pushed(&vault, "store-a", "h1");
-        clear(&vault);
+        let lock = super::super::lock::SyncLock::acquire(&vault).unwrap();
+        clear(&lock).unwrap();
+        assert!(super::super::lock::SyncLock::try_acquire(&vault)
+            .unwrap()
+            .is_none());
+        drop(lock);
         assert!(read_pushed(&vault, "store-a").is_empty());
         let _ = fs::remove_dir_all(&vault);
     }

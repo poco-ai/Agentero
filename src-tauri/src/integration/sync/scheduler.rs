@@ -5,7 +5,7 @@
 //! - every `interval_minutes` as a fallback.
 //!
 //! The task re-reads credentials on every pass, so config edits apply
-//! without a restart; toggling auto sync off aborts the task.
+//! without a restart; toggling auto sync off stops scheduling new passes.
 
 use crate::integration::sync::config;
 use notify_debouncer_full::notify::{RecursiveMode, Watcher};
@@ -36,22 +36,22 @@ impl SyncService {
         if !dir.is_dir() {
             return;
         }
-        let handle = tauri::async_runtime::spawn(run_loop(
+        let (stop, stopped) = tokio::sync::oneshot::channel();
+        tauri::async_runtime::spawn(run_loop(
             app.clone(),
             vault_key.to_string(),
             dir,
             cfg.interval_minutes,
+            stopped,
         ));
         if let Ok(mut map) = self.schedulers.lock() {
-            map.insert(vault_key.to_string(), handle);
+            map.insert(vault_key.to_string(), stop);
         }
     }
 
     pub fn stop_scheduler(&self, vault_key: &str) {
         if let Ok(mut map) = self.schedulers.lock() {
-            if let Some(handle) = map.remove(vault_key) {
-                handle.abort();
-            }
+            map.remove(vault_key);
         }
     }
 
@@ -68,7 +68,17 @@ impl SyncService {
     /// rather than race its local base/state files during shutdown.
     pub fn flush_on_exit(&self, app: &AppHandle) {
         let token = tauri::async_runtime::block_on(super::commands::session_bearer(app));
-        for (key, mut cfg) in config::list_all() {
+        for key in config::list_all().into_keys() {
+            let dir = PathBuf::from(&key);
+            if !dir.is_dir() {
+                continue;
+            }
+            let Ok(lock) = agentero_core::features::sync::lock::SyncLock::acquire(&dir) else {
+                continue;
+            };
+            let Some(mut cfg) = config::get(&key) else {
+                continue;
+            };
             if !cfg.auto_sync {
                 continue;
             }
@@ -80,10 +90,6 @@ impl SyncService {
                     target: "agentero::sync",
                     "exit flush {key}: git backend skipped (next pass will push)"
                 );
-                continue;
-            }
-            let dir = PathBuf::from(&key);
-            if !dir.is_dir() {
                 continue;
             }
             if cfg.backend == config::SyncBackendKind::Agentero {
@@ -101,7 +107,7 @@ impl SyncService {
             let result = tauri::async_runtime::block_on(async {
                 tokio::time::timeout(
                     Duration::from_secs(EXIT_FLUSH_TIMEOUT_SECS),
-                    super::engine::sync_vault_locked(&dir, &cfg, &|_, _, _| {}),
+                    super::engine::sync_vault_locked(&lock, &cfg, &|_, _, _| {}),
                 )
                 .await
             });
@@ -120,7 +126,13 @@ impl SyncService {
     }
 }
 
-async fn run_loop(app: AppHandle, vault_key: String, dir: PathBuf, interval_minutes: u32) {
+async fn run_loop(
+    app: AppHandle,
+    vault_key: String,
+    dir: PathBuf,
+    interval_minutes: u32,
+    mut stopped: tokio::sync::oneshot::Receiver<()>,
+) {
     // Change trigger: the debouncer fires once the vault has been quiet for
     // CHANGE_QUIET_SECS, so bursts of edits collapse into a single sync.
     let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
@@ -157,12 +169,10 @@ async fn run_loop(app: AppHandle, vault_key: String, dir: PathBuf, interval_minu
         tokio::time::interval(Duration::from_secs((interval_minutes.max(1) * 60) as u64));
     loop {
         tokio::select! {
+            biased;
+            _ = &mut stopped => break,
             _ = ticker.tick() => {}
-            changed = rx.recv() => {
-                if changed.is_none() {
-                    break;
-                }
-            }
+            Some(()) = rx.recv() => {}
         }
         if let Err(e) = {
             let service = app.state::<SyncService>();
@@ -185,4 +195,4 @@ fn is_ignored_path(path: &std::path::Path) -> bool {
 }
 
 /// Per-vault scheduler handles (part of [`SyncService`]).
-pub type SchedulerMap = HashMap<String, tauri::async_runtime::JoinHandle<()>>;
+pub type SchedulerMap = HashMap<String, tokio::sync::oneshot::Sender<()>>;

@@ -8,6 +8,7 @@ use super::local;
 use super::snapshot;
 use super::SyncService;
 use crate::core::error::{map_err, ApiResult, AppError};
+use agentero_core::features::sync::lock::SyncLock;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, State};
@@ -109,20 +110,21 @@ pub async fn sync_get_status(
     service: State<'_, SyncService>,
 ) -> Result<ApiResult<SyncStatus>, String> {
     let running = service.is_running(args.vault_path.trim());
-    Ok(match vault_dir(&args.vault_path) {
-        Ok(dir) => {
-            let meta = local::read_meta(&dir);
-            let config = config::get(args.vault_path.trim());
-            ApiResult::ok(SyncStatus {
-                configured: config.is_some(),
-                config: config.map(|c| c.masked()),
-                running,
-                last_sync_at: meta.last_sync_at,
-                last_version: meta.last_version,
-            })
-        }
-        Err(e) => map_err(e),
-    })
+    Ok(
+        match vault_dir(&args.vault_path).and_then(|dir| local::read_meta(&dir)) {
+            Ok(meta) => {
+                let config = config::get(args.vault_path.trim());
+                ApiResult::ok(SyncStatus {
+                    configured: config.is_some(),
+                    config: config.map(|c| c.masked()),
+                    running,
+                    last_sync_at: meta.last_sync_at,
+                    last_version: meta.last_version,
+                })
+            }
+            Err(e) => map_err(e),
+        },
+    )
 }
 
 /// Validate + connection-test + persist the S3 binding for a vault.
@@ -136,15 +138,14 @@ pub async fn sync_configure(
     let key = args.vault_path.trim().to_string();
     let inner = async {
         let dir = vault_dir(&args.vault_path)?;
-        let _lock = agentero_core::features::sync::lock::SyncLock::try_acquire(&dir)?
-            .ok_or_else(|| AppError::message("another vault sync is running"))?;
+        let _lock = SyncLock::acquire(&dir)?;
         let mut cfg = args.config.normalized();
         cfg.merge_mask(config::get(&key).as_ref());
         attach_agentero_session(&app, &mut cfg).await;
         cfg.validate()?;
         cfg.conditional_writes = engine::test_connection(&dir, &cfg).await?;
+        let meta = local::read_meta(&dir)?;
         config::set(&key, cfg.clone())?;
-        let meta = local::read_meta(&dir);
         Ok::<_, AppError>(SyncStatus {
             configured: true,
             config: Some(cfg.masked()),
@@ -173,9 +174,8 @@ pub async fn sync_disconnect(
     let key = args.vault_path.trim().to_string();
     let inner = || {
         let dir = vault_dir(&args.vault_path)?;
-        config::remove(&key)?;
-        local::clear(&dir);
-        Ok::<_, AppError>(())
+        let lock = SyncLock::acquire(&dir)?;
+        config::disconnect(&key, &lock)
     };
     Ok(match inner() {
         Ok(()) => {
@@ -195,7 +195,7 @@ pub async fn sync_scope_sizes(
         let dir = vault_dir(&args.vault_path)?;
         tokio::task::spawn_blocking(move || snapshot::scope_sizes(&dir))
             .await
-            .map_err(|e| AppError::message(format!("scope sizes: {e}")))
+            .map_err(|e| AppError::message(format!("scope sizes: {e}")))?
     };
     Ok(match inner.await {
         Ok(sizes) => ApiResult::ok(sizes),
@@ -204,13 +204,14 @@ pub async fn sync_scope_sizes(
 }
 
 /// One full sync pass shared by the `sync_now` command and the auto-sync
-/// scheduler (scan → merge → apply → publish).
+/// scheduler (scan → merge → publish → apply).
 pub async fn perform_sync(
     app: &AppHandle,
     service: &SyncService,
     vault_key: &str,
 ) -> Result<SyncOutcome, AppError> {
     let dir = vault_dir(vault_key)?;
+    let lock = SyncLock::acquire(&dir)?;
     let mut cfg =
         config::get(vault_key).ok_or_else(|| AppError::message("sync is not configured"))?;
     attach_agentero_session(app, &mut cfg).await;
@@ -231,7 +232,8 @@ pub async fn perform_sync(
             },
         );
     };
-    let result = engine::sync_vault_locked(&dir, &cfg, &progress).await;
+    let result = engine::sync_vault_locked(&lock, &cfg, &progress).await;
+    drop(lock);
     // Terminal event consumers immediately re-read status; release first.
     drop(lease);
     match result {

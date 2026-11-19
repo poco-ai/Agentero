@@ -15,6 +15,7 @@ use std::path::Path;
 #[must_use = "keep the guard alive for the entire sync pass"]
 pub struct SyncLock {
     _file: File,
+    vault: std::path::PathBuf,
 }
 
 impl Drop for SyncLock {
@@ -26,16 +27,36 @@ impl Drop for SyncLock {
 }
 
 impl SyncLock {
+    pub fn vault(&self) -> &Path {
+        &self.vault
+    }
+
+    pub fn acquire(vault: &Path) -> Result<Self, crate::error::AppError> {
+        Self::try_acquire(vault)?.ok_or_else(|| {
+            crate::error::AppError::domain(
+                "sync_busy",
+                "another sync is already running for this vault",
+            )
+        })
+    }
+
     /// Try to claim this vault's sync pass. `Ok(None)` when another process
     /// is mid-pass; other IO failures propagate.
     pub fn try_acquire(vault: &Path) -> io::Result<Option<SyncLock>> {
         let dir = vault.join(".agentero").join("sync");
         fs::create_dir_all(&dir)?;
-        let file = File::create(dir.join("lock"))?;
+        let file = File::options()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(dir.join("lock"))?;
         // Use fs2's platform error: Windows ERROR_LOCK_VIOLATION need not map
         // to ErrorKind::WouldBlock in std's decode tables.
         match fs2::FileExt::try_lock_exclusive(&file) {
-            Ok(()) => Ok(Some(SyncLock { _file: file })),
+            Ok(()) => Ok(Some(SyncLock {
+                _file: file,
+                vault: vault.to_owned(),
+            })),
             Err(e) if e.raw_os_error() == fs2::lock_contended_error().raw_os_error() => Ok(None),
             Err(e) => Err(e),
         }

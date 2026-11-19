@@ -5633,11 +5633,7 @@ export type SyncBackendConfig = {
 	 */
 	autoSync?: boolean,
 	intervalMinutes?: number,
-	/**
-	 *  Connection-test probe result: `false` for backends whose PUT rejects
-	 *  or ignores conditional headers (e.g. Aliyun OSS 400 NotImplemented,
-	 *  most WebDAV servers). Sync then degrades to plain PUTs.
-	 */
+	/**  Last conditional-write probe result. Unsafe stores cannot publish. */
 	conditionalWrites?: boolean,
 	/**
 	 *  Which bulky paper assets (PDF / LaTeX source / attachments) take part

@@ -4,13 +4,7 @@
 //! Implements the [`RemoteStore`] contract; retry/error plumbing is shared
 //! in `store.rs`.
 //!
-//! No XML parsing: the connection test only needs PROPFIND's status code and
-//! every object key is our own ASCII-safe layout. Conditional-write support
-//! varies: Nutstore ignores `If-None-Match` but enforces `If-Match` (the
-//! probe targets `If-Match`, so the HEAD CAS stays atomic there); servers
-//! that ignore `If-Match` too degrade to plain PUTs like Aliyun OSS —
-//! content-addressed blobs make that idempotent, and convergence comes from
-//! the engine's merge retries.
+//! Conditional writes are mandatory; never retry as an unconditional PUT.
 
 use crate::error::AppError;
 use crate::features::sync::config::{normalize_webdav_url, SyncBackendConfig};
@@ -19,7 +13,6 @@ use crate::features::sync::store::{
 };
 use crate::http;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 const PROPFIND_BODY: &[u8] = br#"<?xml version="1.0" encoding="utf-8"?>
@@ -33,9 +26,6 @@ pub struct WebdavClient {
     dir: Vec<String>,
     username: String,
     password: String,
-    /// Seeded from the persisted probe result; most WebDAV servers answer
-    /// conditional PUTs with a plain 2xx, which the probe turns into false.
-    conditional_writes: AtomicBool,
     /// Directory paths (decoded, `dav/agentero/blobs`) known to exist this
     /// session — WebDAV needs an explicit MKCOL before the first PUT into
     /// a directory, and the layout only ever uses a handful of them.
@@ -64,14 +54,8 @@ impl WebdavClient {
             dir,
             username: cfg.webdav_username.trim().to_string(),
             password: cfg.webdav_password.clone(),
-            conditional_writes: AtomicBool::new(cfg.conditional_writes),
             known_dirs: Mutex::new(HashSet::new()),
         })
-    }
-
-    /// Whether conditional writes are (still) assumed to work.
-    fn supports_conditional_writes(&self) -> bool {
-        self.conditional_writes.load(Ordering::Relaxed)
     }
 
     /// DELETE an object. 404 counts as success (idempotent cleanup).
@@ -259,80 +243,26 @@ impl RemoteStore for WebdavClient {
         condition: PutCondition,
     ) -> Result<PutOutcome, AppError> {
         self.ensure_parent_dirs(key).await?;
-        let cond = if self.supports_conditional_writes() {
-            match &condition {
-                PutCondition::IfNoneMatch => Some(("If-None-Match", "*".to_string())),
-                // A server that returns no ETag cannot back If-Match; fall
-                // back to a plain PUT (same degraded-CAS semantics).
-                PutCondition::IfMatch(etag) if !etag.is_empty() => Some(("If-Match", etag.clone())),
-                PutCondition::IfMatch(_) => None,
-            }
-        } else {
-            None
-        };
-        let headers: Vec<(&str, String)> = cond.into_iter().collect();
         let resp = self
-            .send(method("PUT")?, &self.url_for(key), &headers, body)
+            .send(
+                method("PUT")?,
+                &self.url_for(key),
+                &[condition.header()?],
+                body,
+            )
             .await?;
-        // With parents ensured, a 409 is a quirky server rejecting the
-        // conditional header — treat it like the standard 412.
-        if resp.status() == reqwest::StatusCode::PRECONDITION_FAILED
-            || resp.status() == reqwest::StatusCode::CONFLICT
-        {
+        if resp.status() == reqwest::StatusCode::PRECONDITION_FAILED {
             return Ok(PutOutcome::PreconditionFailed);
         }
         check(resp, "PUT", key).await?;
         Ok(PutOutcome::Ok)
     }
 
-    /// Probe conditional-write support with a throwaway key. An
-    /// unconditional PUT first proves the configured directory accepts
-    /// writes at all — a failure there is a configuration error (unwritable
-    /// address, rejected credentials) and must surface during
-    /// `sync_configure` instead of silently saving a dead config. The
-    /// second PUT carries `If-Match` pointing at a stale etag: a real 412
-    /// means the server enforces `If-Match` — the one conditional that backs
-    /// the HEAD CAS — while 2xx means it is ignored and sync degrades to
-    /// plain PUTs. `If-None-Match: *` is deliberately not probed: servers
-    /// like Nutstore ignore it, and an ignored create-only header is
-    /// harmless for content-addressed blobs and unique manifest keys.
-    /// Inconclusive *outcomes* still fail open — an ignored header is
-    /// harmless, a missed CAS is not.
-    ///
-    /// Assumes the conditional path is on; `test_connection` builds the
-    /// probe client with `conditional_writes = true` so this measures the
-    /// server rather than echoing a persisted verdict.
     async fn probe_conditional_writes(&self) -> Result<bool, AppError> {
         let key = format!(".sync-probe-{}", uuid::Uuid::new_v4().simple());
-        self.ensure_parent_dirs(&key).await?;
-        // Unconditional create; nothing to clean up when it fails.
-        let resp = self
-            .send(method("PUT")?, &self.url_for(&key), &[], b"probe".to_vec())
-            .await?;
-        check(resp, "PUT", &key)
-            .await
-            .map_err(|e| AppError::message(format!("cannot write to {}: {e}", self.dir_url())))?;
-        let supported = match self
-            .put(
-                &key,
-                b"probe2".to_vec(),
-                PutCondition::IfMatch("\"00000000deadbeef\"".into()),
-            )
-            .await
-        {
-            Ok(PutOutcome::PreconditionFailed) => true,
-            Ok(PutOutcome::Ok) => false,
-            Err(e) => {
-                if let Err(e) = self.delete(&key).await {
-                    log::warn!(target: "agentero::sync", "probe cleanup {key}: {e}");
-                }
-                return Err(e);
-            }
-        };
-        if let Err(e) = self.delete(&key).await {
-            log::warn!(target: "agentero::sync", "probe cleanup {key}: {e}");
-        }
-        Ok(supported)
+        let result = super::store::probe_conditions(self, &key).await;
+        let cleanup = self.delete(&key).await;
+        result.and_then(|supported| cleanup.map(|_| supported))
     }
 }
 
