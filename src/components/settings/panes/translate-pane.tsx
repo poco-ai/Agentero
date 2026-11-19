@@ -489,9 +489,11 @@ export function TranslatePane({
 				</SettingsRow>
 				<SettingsRow
 					label={t("translate.dictionaryMode.label")}
-					description={t(
-						`translate.dictionaryMode.${tr.dictionary.mode}Description`,
-					)}
+					description={
+						tr.dictionary.mode === "auto"
+							? undefined
+							: t(`translate.dictionaryMode.${tr.dictionary.mode}Description`)
+					}
 				>
 					<Select
 						value={tr.dictionary.mode}

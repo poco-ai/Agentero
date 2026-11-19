@@ -724,7 +724,6 @@
 			"auto": "Automatic",
 			"offline-first": "Offline first",
 			"off": "Off",
-			"autoDescription": "Show local definitions, then explain the context with your configured AI service.",
 			"offline-firstDescription": "Use local definitions when available. Only request your service for missing words.",
 			"offDescription": "Translate every selection. You can still open the dictionary from a result card."
 		}

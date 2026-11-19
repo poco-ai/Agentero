@@ -724,7 +724,6 @@
 			"auto": "自动",
 			"offline-first": "离线优先",
 			"off": "关闭",
-			"autoDescription": "先显示本地释义，再由当前 AI 服务解释本文语境。",
 			"offline-firstDescription": "命中本地词典后不请求模型；未收录的词使用当前翻译服务。",
 			"offDescription": "所有选区默认翻译，仍可从结果卡片手动切换到词典。"
 		}
