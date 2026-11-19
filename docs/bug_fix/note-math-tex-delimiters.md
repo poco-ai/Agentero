@@ -28,7 +28,26 @@
 - 引用块里的公式围栏（`> $$` 各行）现在也被 `BLOCK_MATH_FENCE` 识别，`escapeStrayMdxBraces` / `escapeStrayLessThan` 不再把公式里的 `{` / `<` 实体化（否则 KaTeX 会解析失败）。这同时修好了此前就存在的 `> $$…$$` 花括号损坏。
 - 保存时公式按 Plate 的序列化写成规范 `$$` 围栏（单行 `$$x$$` 与 `\[x\]` 都会落盘为三行围栏），不再产生 #1171 里的残缺回写。
 
-已知限制：未闭合的 `\[` 仍是普通文本；4 空格缩进代码块尚未纳入代码区间识别，其中的定界符会被当正文处理；#1171 中已经被旧版本破坏成 `\[\` / `]` 的落盘内容不再匹配定界符，需要重新拉取或手改。
+## 补充：行内 `$…\tag{…}$` 仍然报红
+
+首轮修复后在 #1162 的复测里仍能看到红色公式，输入形态是行内 `$\frac{a}{b} \tag{1.1}$`：
+
+- `\tag` 以及 `align` / `gather` / `equation` / `multline` / `flalign` / `eqnarray` 这些环境在 KaTeX 里只能用于 display 数学，行内公式固定用 `displayMode: false` 渲染，必然报 `\tag works only in display equations` / `{align} can be used only in display mode`。
+- 旧管线在修好之前会把「单独成行的单行 `$$…$$`」解析成行内公式，编辑一次后按行内形式写盘成 `$…\tag{…}$`；这类已经落盘的笔记不会因为只修定界符归一化而恢复。
+
+修复放在 `deserializeMarkdownBody` 反序列化之后（`src/lib/markdown/deserialize-md.ts` 的 `promoteDisplayOnlyInlineEquations`）：
+
+- 扫描顶层段落（以及引用块 / callout 内的段落），把含 display-only TeX 的 `inline_equation` 提升为块级 `equation`；
+- 段落按公式拆成「前文段落 + 块级公式 + 后文段落」，切分处的首尾空白去掉，避免 remark 序列化把边界空格写成 `&#x20;`；被拆分的段落不复制节点 `id`；
+- 覆盖笔记打开、源码切回渲染、外部改盘、粘贴、嵌入、导出与 PDF 批注共用入口；保存后按 `$$\n…\n$$` 围栏落盘，下一次打开稳定；
+- 列表项、标题、表格单元格里的同类行内公式暂不提升（这些容器不能直接放块级公式）。
+
+## 已知限制
+
+- 未闭合的 `\[` 仍是普通文本；
+- 4 空格缩进代码块尚未纳入代码区间识别，其中的定界符会被当正文处理；
+- #1171 中已经被旧版本破坏成 `\[\` / `]` 的落盘内容不再匹配定界符，需要重新拉取或手改；
+- 列表项 / 标题 / 表格单元格里的行内 display-only 公式不会被提升为块级。
 
 ## 回归验证
 
@@ -36,3 +55,4 @@
   - `normalizeNoteMarkdownMath` 的三种定界符、独占一行判定、代码围栏（``` / `~~~` / 行内代码）、`\\[5pt]` 不误改、幂等、blockquote 前缀、CRLF、空定界符；
   - 真实管线（`prepareMarkdownForDeserialize` + `deserializeMarkdownBody`）：单行 `$$…$$` 得到顶层 `equation` 且 `katex.renderToString(…, { displayMode: true })` 接受 `\tag`；`\[…\]` → `equation`；`\(…\)` → `inline_equation`；代码块内的定界符保持字面量；序列化 round-trip 得到 `$$\n…\n$$`。
 - 既有测试：`test/markdown-deserialize.test.ts` 中「`\(...\)` 是普通文本」的断言随行为更新为 `inline_equation`；`test/math-normalize.test.ts`、`test/editor-inline-math.test.ts`、`test/markdown-serialize.test.ts`、`test/title-math.test.ts` 保持通过；前端全量 `pnpm vitest run` 通过。
+- 补充修复验证：`$…\tag{…}$` 单独成段 → 顶层 `equation` 且 display 渲染通过；「前文 + 公式 + 后文」拆成 `p / equation / p`；`align` 等 display-only 环境同样提升；引用块内提升；普通 `$x^2$` 与 `aligned` 保持行内；提升后序列化为 `$$` 围栏且二次打开稳定，切分边界不出现 `&#x20;`。
