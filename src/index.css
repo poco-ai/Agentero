@@ -651,6 +651,18 @@
 [data-paper="dark"] {
 	--pdf-paper-ink: oklch(0.94 0.006 260);
 }
+/* Blend one translucent layer, even where saved translation spans overlap.
+ * Multiply preserves dark glyphs; screen preserves light glyphs on dark paper. */
+.pdf-translation-source-tint {
+	opacity: 0.2;
+	mix-blend-mode: multiply;
+}
+[data-paper="dark"] .pdf-translation-source-tint {
+	mix-blend-mode: screen;
+}
+.pdf-translation-source-tint > div {
+	background: var(--pdf-paper-ink);
+}
 /*
  * Layout-element selection. The frame and chip stay invisible until the
  * pointer or keyboard focus is on that element, so the page does not keep
