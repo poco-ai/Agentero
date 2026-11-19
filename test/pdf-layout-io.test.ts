@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	LAYOUT_TEXT_ORDER_VERSION,
 	layoutSidecarBlocksAnalysis,
 	layoutSidecarNeedsTextLayer,
 	layoutSidecarNeedsViewerReload,
@@ -95,6 +96,7 @@ describe("layout sidecar", () => {
 			source: {
 				mode: "embedpdf-layout",
 				generatedAt: "now",
+				textOrderVersion: LAYOUT_TEXT_ORDER_VERSION,
 				completeness: {
 					pageCount: 1,
 					processedPages: [0],
@@ -120,6 +122,14 @@ describe("layout sidecar", () => {
 			layoutSidecarBlocksAnalysis(false, {
 				...complete,
 				source: { mode: "embedpdf-layout", generatedAt: "old" },
+			}),
+		).toBe(false);
+		// A complete parse with body text from an older reading-order pass only
+		// needs the text-layer walk, so it must not short-circuit analysis.
+		expect(
+			layoutSidecarBlocksAnalysis(false, {
+				...complete,
+				source: { ...complete.source, textOrderVersion: undefined },
 			}),
 		).toBe(false);
 		if (!complete.source.completeness) throw new Error("expected completeness");

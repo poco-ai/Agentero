@@ -104,6 +104,12 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  同一行按字形底边对齐（加粗或更大的字头顶更高，底边仍和邻字对齐），
         │  行内从左往右，再接下一行。抽正文和英文句子对字形共用
         │  `reading-order.ts`
+        │  基线容差按 **em 字号** 而不是盒子高度：个别 PDF 的
+        │  `/FontBBox` 有 3.7 em（Elsevier 的 Type1 子集把 2048/em 的
+        │  数值写进了 1000/em 的 Type1），PDFium 会把 8pt 字报成 29pt 高，
+        │  按盒高算会把相邻三行并成一行、再按 x 排序造成逐词交错。
+        │  sidecar 的 `source.textOrderVersion` 落后时只重走文字层（保留
+        │  `generatedAt`），不重跑版面模型
         │
 ⑥ 工具栏「翻译」icon（元素选择旁）：按阅读顺序批量翻译文字类区域
         │  并发 2；每完成一块立刻盖译文图层（`LayoutTranslateOverlay`）
@@ -195,6 +201,7 @@ type LayoutSidecar = {
     mode: "embedpdf-layout" | "paddle-layout" | "mineru-layout";
     generatedAt: string;
     textLayerExtracted?: boolean; // 文字层整篇已抽过；缺省则打开时再抽一次
+    textOrderVersion?: number; // 正文文字用的阅读顺序版本；落后/缺省只重走文字层
     completeness?: {
       pageCount: number;
       processedPages: number[];

@@ -52,6 +52,7 @@ export function fallbackCharacterGroups(
 					y: c.box.y,
 					width: c.box.w,
 					height: c.box.h,
+					size: c.style.size,
 				}));
 		for (const line of lines) {
 			let group: Character[] = [];

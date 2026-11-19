@@ -99,6 +99,9 @@ export function paragraphFromCharacters(
 		y: c.box.y,
 		width: c.box.w,
 		height: c.box.h,
+		// Some PDFs embed a /FontBBox several em tall; the em size keeps
+		// adjacent lines apart when the glyph box is padded.
+		size: c.style.size,
 	}));
 	if (anchors.length)
 		for (const c of chars.filter((c) => !anchors.includes(c))) {
@@ -375,6 +378,29 @@ export async function extractReflowDocument(
 					| undefined,
 				value = text[index] ?? "";
 			if (!value || /[\r\n]/.test(value)) continue;
+			// Whitespace can be drawn in a different font (some publishers emit
+			// spaces in a fallback face), so its own glyph box has different
+			// metrics and would form a separate "line". Inherit the previous
+			// glyph so the space stays with the text it separates.
+			if (!value.trim() && characters.length) {
+				const previous = characters[characters.length - 1];
+				characters.push({
+					index,
+					text: value,
+					box: {
+						...previous.box,
+						x: previous.box.x + previous.box.w,
+						w: 0,
+					},
+					visualBox: {
+						...previous.visualBox,
+						x: previous.visualBox.x + previous.visualBox.w,
+						w: 0,
+					},
+					style: previous.style,
+				});
+				continue;
+			}
 			if (g)
 				characters.push({
 					index,
@@ -393,21 +419,6 @@ export async function extractReflowDocument(
 					textMatrix: g.textMatrix,
 					textObjectId: g.textObjectId,
 				});
-			else if (value === " " && characters.length) {
-				const previous = characters[characters.length - 1];
-				const box = {
-					...previous.box,
-					x: previous.box.x + previous.box.w,
-					w: 0,
-				};
-				characters.push({
-					index,
-					text: value,
-					box,
-					visualBox: box,
-					style: previous.style,
-				});
-			}
 		}
 		const raster = needsNonPaintingRaster(characters)
 			? await engine.renderPageRaw(doc, page, { scaleFactor: 2 }).toPromise()
@@ -583,6 +594,7 @@ export async function extractReflowDocument(
 				y: c.box.y,
 				width: c.box.w,
 				height: c.box.h,
+				size: c.style.size,
 			}));
 			for (const row of rows) {
 				const ordered = row.items.sort((a, b) => a.box.x - b.box.x);

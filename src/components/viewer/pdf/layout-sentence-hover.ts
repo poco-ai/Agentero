@@ -485,7 +485,7 @@ export function primeLayoutSentenceGlyphs(
 		return;
 	inflight.add(flight);
 	void (async () => {
-		let runs: { text: string; rect: Rect }[] = [];
+		let runs: { text: string; rect: Rect; fontSize?: number }[] = [];
 		try {
 			const pageRuns = await engine
 				.getPageTextRuns(
@@ -496,6 +496,7 @@ export function primeLayoutSentenceGlyphs(
 			runs = (pageRuns?.runs ?? []).map((run) => ({
 				text: run.text ?? "",
 				rect: run.rect,
+				fontSize: run.fontSize,
 			}));
 		} catch {
 			runs = [];
@@ -510,6 +511,7 @@ export function primeLayoutSentenceGlyphs(
 				y: run.rect.origin.y,
 				width: run.rect.size.width,
 				height: run.rect.size.height,
+				size: run.fontSize,
 			}));
 			const text = ordered
 				.map((run) => run.text.trim())
