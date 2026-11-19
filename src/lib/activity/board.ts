@@ -18,7 +18,8 @@ export type BoardRange = {
 	prevEnd: string;
 };
 
-const WEEKS = 53;
+/** Heatmap window: the last six months of whole weeks. */
+const WEEKS = 26;
 
 export function localDay(date: Date): string {
 	const month = String(date.getMonth() + 1).padStart(2, "0");

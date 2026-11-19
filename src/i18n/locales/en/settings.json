@@ -39,7 +39,7 @@
 			"unreported": "Not reported"
 		},
 		"heatmap": {
-			"reading": "Last year",
+			"reading": "Last 6 months",
 			"tokens": "Tokens",
 			"less": "Less",
 			"more": "More",

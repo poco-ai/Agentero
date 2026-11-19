@@ -39,7 +39,7 @@
 			"unreported": "未报告"
 		},
 		"heatmap": {
-			"reading": "近一年",
+			"reading": "近 6 个月",
 			"tokens": "Token",
 			"less": "少",
 			"more": "多",
