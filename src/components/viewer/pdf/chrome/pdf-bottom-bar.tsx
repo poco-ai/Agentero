@@ -209,7 +209,7 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 				) : null}
 				{pageFieldNode}
 				<span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border" />
-				<div className="flex shrink-0 items-center gap-1.5 px-1">
+				<div className="flex shrink-0 items-center gap-1.5 pl-1">
 					<input
 						type="range"
 						min={zoomMinPercent}
@@ -245,51 +245,34 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 						<TooltipContent side="top">{t("pdf.zoomFit")}</TooltipContent>
 					</Tooltip>
 				</div>
+				{/* Fit width, paper tone and element selection are one flat action
+				    group: no dividers between them and no per-button color, so they
+				    read as peers rather than as separate clusters. */}
 				{onExitImmersive ? (
-					<>
-						<span
-							aria-hidden
-							className="mx-0.5 h-3.5 w-px shrink-0 bg-border"
-						/>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									size="icon-xs"
-									variant="ghost"
-									aria-label={t("pdf.exitImmersive")}
-									onClick={onExitImmersive}
-								>
-									<X className="size-3.5" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="top">
-								{t("pdf.exitImmersive")}
-							</TooltipContent>
-						</Tooltip>
-					</>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								size="icon-xs"
+								variant="ghost"
+								aria-label={t("pdf.exitImmersive")}
+								onClick={onExitImmersive}
+							>
+								<X className="size-3.5" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="top">{t("pdf.exitImmersive")}</TooltipContent>
+					</Tooltip>
 				) : (
-					<>
-						<span
-							aria-hidden
-							className="mx-0.5 h-3.5 w-px shrink-0 bg-border"
-						/>
-						{tone}
-					</>
+					tone
 				)}
 				{onToggleElementSelection ? (
-					<>
-						<span
-							aria-hidden
-							className="mx-0.5 h-3.5 w-px shrink-0 bg-border"
-						/>
-						<ElementSelectionButton
-							selecting={elementSelecting}
-							available={elementSelectionAvailable}
-							disabled={elementSelectionDisabled}
-							onToggle={onToggleElementSelection}
-						/>
-					</>
+					<ElementSelectionButton
+						selecting={elementSelecting}
+						available={elementSelectionAvailable}
+						disabled={elementSelectionDisabled}
+						onToggle={onToggleElementSelection}
+					/>
 				) : null}
 			</div>
 		</TooltipProvider>
@@ -331,7 +314,7 @@ function PdfPaperToneButton({
 							type="button"
 							size={size}
 							variant="ghost"
-							className="shrink-0 text-muted-foreground"
+							className="shrink-0"
 							aria-label={t("pdf.paperTone")}
 							title={t("pdf.paperTone")}
 						>
