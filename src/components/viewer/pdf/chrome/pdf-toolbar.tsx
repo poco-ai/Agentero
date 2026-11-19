@@ -5,7 +5,6 @@ import {
 	Languages,
 	Library,
 	Loader2,
-	ScanSearch,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,10 +31,7 @@ import { cn } from "@/lib/core/utils";
 
 type PdfToolbarProps = {
 	onExportTranslatedPdf?: (dual?: boolean) => void;
-	elementSelecting: boolean;
-	elementSelectionAvailable: boolean;
 	engine: PdfEngine | null;
-	onToggleElementSelection: () => void;
 	layoutTranslateRunning: boolean;
 	/** Final corrected preview is still building after items settled. */
 	layoutTranslatePreparing?: boolean;
@@ -69,10 +65,7 @@ type PdfToolbarProps = {
 /** Top-right toolbar: element inspection and bulk translate. */
 export const PdfToolbar = memo(function PdfToolbar({
 	onExportTranslatedPdf,
-	elementSelecting,
-	elementSelectionAvailable,
 	engine,
-	onToggleElementSelection,
 	layoutTranslateRunning,
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
@@ -91,7 +84,6 @@ export const PdfToolbar = memo(function PdfToolbar({
 }: PdfToolbarProps) {
 	const { t } = useTranslation("viewer");
 	const translateShortcut = useShortcutLabel("layoutTranslate");
-	const elementShortcut = useShortcutLabel("layoutElementSelection");
 
 	const LONG_PRESS_MS = 300;
 	const longPressTimerRef = useRef<number | null>(null);
@@ -293,41 +285,6 @@ export const PdfToolbar = memo(function PdfToolbar({
 								{t("pdf.importToLibrary")}
 							</TooltipContent>
 						</Tooltip>
-					) : null}
-					{!isRemotePaper ? (
-						<div className={asideClass} inert={meterOpen}>
-							<div className="min-w-0 overflow-hidden">
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											type="button"
-											size="icon-xs"
-											variant={elementSelecting ? "secondary" : "ghost"}
-											className="shrink-0 self-center"
-											aria-label={t("figures.selectElements")}
-											aria-pressed={elementSelecting}
-											disabled={
-												!engine ||
-												(!elementSelectionAvailable && !elementSelecting)
-											}
-											onClick={onToggleElementSelection}
-										>
-											<ScanSearch className="size-3.5" aria-hidden />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side="bottom">
-										{!elementSelectionAvailable
-											? t("figures.selectionNeedsLayout")
-											: elementSelecting
-												? t("figures.exitElementSelection")
-												: t("figures.selectElements")}
-										<span className="ml-2 text-background/70">
-											{elementShortcut}
-										</span>
-									</TooltipContent>
-								</Tooltip>
-							</div>
-						</div>
 					) : null}
 					{!isRemotePaper ? (
 						<div

@@ -2771,10 +2771,7 @@ function PdfViewerInner({
 			{!translationOnly && !plainViewer && !immersiveReading && (
 				<PdfToolbar
 					onExportTranslatedPdf={reflowReady ? exportTranslatedPdf : undefined}
-					elementSelecting={elementSelecting}
-					elementSelectionAvailable={selectableRegionsByPage.size > 0}
 					engine={engine}
-					onToggleElementSelection={toggleElementSelection}
 					layoutTranslateRunning={layoutTranslateRunning}
 					layoutTranslatePreparing={layoutTranslatePreparing}
 					layoutTranslateWaiting={layoutTranslateWaiting}
@@ -2911,6 +2908,14 @@ function PdfViewerInner({
 					zoomLevel={zoomLevel}
 					onZoomChange={handleZoomSliderChange}
 					onFitWidth={handleFitWidth}
+					elementSelecting={elementSelecting}
+					elementSelectionAvailable={selectableRegionsByPage.size > 0}
+					elementSelectionDisabled={!engine}
+					onToggleElementSelection={
+						plainViewer || immersiveReading || isRemotePaper
+							? undefined
+							: toggleElementSelection
+					}
 					isRemotePaper={isRemotePaper}
 					presented={!immersiveReading || immersiveChrome}
 					onExitImmersive={immersiveReading ? exitImmersiveReading : undefined}
