@@ -579,7 +579,6 @@ export function TranslatePane({
 				</SettingsRow>
 				<SettingsRow
 					label={t("translate.autoImport.label")}
-					description={t("translate.autoImport.description")}
 					htmlFor="translate-auto-import"
 				>
 					<Switch

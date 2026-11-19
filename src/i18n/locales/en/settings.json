@@ -626,7 +626,6 @@
 		},
 		"autoImport": {
 			"label": "Auto-translate after layout analysis",
-			"description": "After import, download, or a layout reparse, runs full-text translation in the background. Reuses cached translations and only requests changed blocks. Uses the current translation service and cache settings.",
 			"concurrency": {
 				"label": "Concurrent papers for auto-translation"
 			}
