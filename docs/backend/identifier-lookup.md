@@ -702,7 +702,7 @@ papers/
 1. `path = {parent_dir}/{id}`（§1.2 + §6.3）。
 2. 写 `NOTES.md` 壳（摘要 blockquote 经 Host 免费 MT **并行竞速** bing / 火山 / 腾讯，取最先成功；单引擎超时 5s；**全失败则不写摘要块**；catalog `abstract` 仍为原文）。
 3. **catalog 事务**：有则写入 `pdf_url` / `html_url`。
-4. 下载按 §1.3：**始终 PDF**（候选：`pdf_url` → arXiv → Crossref 直链 → **Unpaywall OA**）；**arXiv 另解压 LaTeX**。
+4. 下载按 §1.3：**始终 PDF**（候选：`pdf_url` → arXiv → Crossref 直链 → **Unpaywall OA** → **PMC 开放获取副本**）；**arXiv 另解压 LaTeX**。
 5. **不**写默认 `PAPERS.md` / `library.bib`；元数据仅存于 catalog。
 6. 重复：`on_duplicate: skip | open_existing`，**不**覆盖用户 `NOTES.md`。
 

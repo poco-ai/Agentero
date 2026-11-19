@@ -1,6 +1,6 @@
 # 机构代理网关
 
-付费文献 PDF 兜底：当直连、候选链接与 Unpaywall 都未命中时，用**用户自己的学校账号会话**，把目标 URL 重写成学校网关可识别的形式再请求。桌面端与 headless CLI 共用同一份 `settings.json`。
+付费文献 PDF 兜底：当直连、候选链接、Unpaywall 与 PMC 开放获取副本都未命中时，用**用户自己的学校账号会话**，把目标 URL 重写成学校网关可识别的形式再请求。桌面端与 headless CLI 共用同一份 `settings.json`。
 
 代码边界：`crates/agentero-core/src/features/paper/import/institution_proxy/`。应用侧的设置页、登录窗口、文件落盘不放在该模块内。
 

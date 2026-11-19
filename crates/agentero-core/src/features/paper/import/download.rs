@@ -595,6 +595,29 @@ async fn fetch_pdf_assets(
             }
         }
     }
+    // PMC open-access fallback: PMC article pages answer scripted clients with
+    // a proof-of-work page, so fetch the same PDF from NCBI's public bucket.
+    // The bucket is a third party, so the page cookies stay behind.
+    if !ok {
+        if let Err(e) = super::check_task_not_cancelled(progress.task_id()) {
+            out.messages.push(format!("pdf cancelled: {e}"));
+            return out;
+        }
+        if let Some(url) = pmc_oa_pdf_url(doi, &candidates).await {
+            if !candidates.iter().any(|c| c == &url) {
+                ok = try_download_candidates_with_cookies(
+                    paper_dir,
+                    id,
+                    std::slice::from_ref(&url),
+                    &mut out,
+                    None,
+                    progress,
+                )
+                .await;
+                candidates.push(url);
+            }
+        }
+    }
     // Institution proxy fallback (EZProxy/WebVPN): rewrite the DOI target
     // through the user's proxy prefix + session cookie. Only active when the
     // host configured one; uses the user's own institution subscription.
@@ -808,6 +831,30 @@ async fn unpaywall_pdf_url(doi: &str) -> Option<String> {
         .await
         .ok()
         .flatten()
+}
+
+/// Resolve a PMC open-access PDF from a PMC link among the tried candidates
+/// (PubMed metadata and Unpaywall both hand out PMC article links), else from
+/// the DOI.
+async fn pmc_oa_pdf_url(doi: Option<&str>, candidates: &[String]) -> Option<String> {
+    use crate::features::scholar_api::sources::pmc::PmcOaApi;
+    use crate::features::scholar_api::traits::PdfUrlSource;
+    use crate::features::scholar_api::ApiQuery;
+
+    let doi = doi
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| ApiQuery::Doi(s.to_string()));
+    let queries = candidates
+        .iter()
+        .map(|u| ApiQuery::Url(u.clone()))
+        .chain(doi);
+    for query in queries {
+        if let Ok(Some(url)) = PmcOaApi.pdf_url(&query).await {
+            return Some(url);
+        }
+    }
+    None
 }
 
 /// Try each PDF URL in order; write on first success. Returns true when a PDF was saved.
