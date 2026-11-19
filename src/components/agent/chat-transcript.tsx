@@ -71,6 +71,7 @@ import {
 	MessageResponse,
 } from "@/components/agent/message";
 import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
+import { UserMessageResponse } from "@/components/agent/rendering/user-message-response";
 import {
 	AnnotationMarkerText,
 	LooseSelectionChips,
@@ -700,9 +701,9 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 									snapshots={annotationCards}
 								/>
 							) : (
-								<MessageResponse className="text-base leading-relaxed">
+								<UserMessageResponse className="text-base leading-relaxed">
 									{userDisplay}
-								</MessageResponse>
+								</UserMessageResponse>
 							)}
 							{looseSelections.length > 0 && annotationCards.length === 0 ? (
 								<LooseSelectionChips selections={looseSelections} />

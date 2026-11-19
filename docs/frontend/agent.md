@@ -14,6 +14,8 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
   → invoke agent_* + 订阅 agent:* 事件
 ```
 
+侧边栏和 PDF 快速对话的普通用户消息中，独占一行的 Pi Desktop `@…/.pi-desktop/scratch/<session>/pasted/pasted-*.txt` 引用默认显示文件名；展开可查看原路径。仅改变显示，不读取附件，不改写复制或重发的内容。
+
 流式：`agent:stream`（message | thought）→ 完成 / 失败事件。写 NOTES 后统一 Diff（Keep / Revert）。
 
 行内引用标签使用 `secondary` 按钮配套的背景与前景色，不覆盖为 `muted-foreground`，避免 Twitter 等主题下文字与背景同色。订阅正文复用同一渲染器。
