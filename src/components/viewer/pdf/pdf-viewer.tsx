@@ -938,6 +938,16 @@ function PdfViewerInner({
 		paperRelPath,
 		paperAbsPath,
 		isCommentDraftActive: () => selectionCommentEngagedRef.current,
+		// A double-click in element selection opens the element action card; the
+		// instant word/line selection of that same gesture must not open a second
+		// toolbar underneath it (#1175).
+		suppressSelectionMenu: () => {
+			const action = layoutElementActionStore.getState().action;
+			return (
+				action != null &&
+				layoutSentenceScope(action.docId) === layoutSentenceScope(docId)
+			);
+		},
 	});
 
 	useEffect(() => {

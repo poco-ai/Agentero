@@ -149,6 +149,15 @@ export function usePdfSentenceInteraction(
 		const onDoubleClick = (event: MouseEvent) => {
 			if (synctexHoverSupersedes(docId)) return;
 			if (!doubleClickRef.current || !(event.target instanceof Element)) return;
+			// The layout-element action card is the active toolbar for the
+			// element under the pointer. This same double-click must not also
+			// open the sentence selection menu on top of it (#1175).
+			const action = layoutElementActionStore.getState().action;
+			if (
+				action &&
+				layoutSentenceScope(action.docId) === layoutSentenceScope(docId)
+			)
+				return;
 			if (
 				event.target.closest("[data-layout-item], [data-pdf-chrome], a, button")
 			)
