@@ -587,12 +587,12 @@ type PageTranslateTabProps = {
 };
 
 /**
- * In-page translate / hide tab, inside the page's top-left corner.
- *
- * It stays a labelled button, not a status badge: `翻译本页` translates this
- * page, `隐藏本页` hides a page that already shows a translation. While a page
- * works the tab keeps the loading ring and reports the stage (`翻译中` /
- * `排版中`), so the page also knows what it is waiting for.
+ * In-page translate / hide tab: a vertical label column in the page's left
+ * margin, under the floating left toolbar (the toolbar owns the top-left
+ * corner). It stays a labelled button, not a status badge: `翻译本页`
+ * translates this page, `隐藏本页` hides a page that already shows a
+ * translation. While a page works the tab keeps the loading ring and reports
+ * the stage (`翻译中` / `排版中`), so the page also knows what it waits for.
  */
 const PageTranslateTab = memo(function PageTranslateTab({
 	pageIndex,
@@ -643,7 +643,10 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				transform: `translate(${position.x}px, ${position.y}px)`,
 			}}
 			className={cn(
-				"pointer-events-auto absolute top-2 left-2 z-[8] flex h-7 items-center justify-center gap-1.5 rounded-md px-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				// Vertical column, one unit under the top-left toolbar: the
+				// horizontal pill used to sit in the toolbar's corner and collide
+				// with it. The column keeps the label readable below the toolbar.
+				"pointer-events-auto absolute top-11 left-2 z-[8] flex w-7 min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
 				// The running stage reports state on the plain theme surface and
 				// does not recolour on hover. Translate / hide / retry keep the old
 				// hover fill; a page with a visible translation keeps the theme
@@ -667,7 +670,7 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				className={cn("size-3.5 shrink-0", stage && "animate-spin")}
 				aria-hidden="true"
 			/>
-			<span className="whitespace-nowrap font-medium text-caption leading-none">
+			<span className="[writing-mode:vertical-rl] font-medium text-caption leading-none">
 				{text}
 			</span>
 		</button>
