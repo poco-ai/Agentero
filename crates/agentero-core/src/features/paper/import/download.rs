@@ -764,7 +764,7 @@ async fn prepare_arxiv_source_with_progress(
 fn pdf_url_candidates(id: &str, arxiv_id: Option<&str>, pdf_url: Option<&str>) -> Vec<String> {
     let mut out = Vec::new();
     let mut push = |u: String| {
-        let t = u.trim().to_string();
+        let t = clean_pdf_url(&u);
         if !t.is_empty() && !out.iter().any(|x| x == &t) {
             out.push(t);
         }
@@ -794,6 +794,21 @@ fn pdf_url_candidates(id: &str, arxiv_id: Option<&str>, pdf_url: Option<&str>) -
     }
 
     out
+}
+
+/// Drop feed-only cache suffixes from a stored PDF URL.
+///
+/// Papers.cool (and some aggregators) append `||md5=<hash>` — its own cache
+/// key, unrelated to the file bytes — to the link they publish:
+/// `https://aclanthology.org/2026.findings-acl.95.pdf||md5=2afd98b8…`.
+/// The suffix is not part of the resource path, so requesting the URL as-is
+/// returns 404. Strip everything from the first `||` before use.
+fn clean_pdf_url(raw: &str) -> String {
+    raw.split("||")
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 /// Query Unpaywall for a DOI's best open-access PDF location.
