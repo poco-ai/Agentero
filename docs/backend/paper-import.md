@@ -55,10 +55,14 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
 - 补资源：`job_download_assets_enqueue`（DownloadAssets 后台任务；单篇 / Library 批量）。
 - 失败回滚：文件夹创建后，若 PDF 复制 / NOTES 壳 / catalog 写入任一失败，删除刚建的论文文件夹，避免出现树里有、catalog 无的"半篇论文"；资源下载阶段的错误不回滚（壳与 catalog 已落地）。
 - 孤儿文件夹自愈：`DownloadAssets` 后台任务发现盘上论文文件夹缺 catalog 行（历史失败导入的残留）时，按 `metadata.json` sidecar 重建 catalog 行（无 sidecar 退化为文件夹名最小记录）并发 `paper:imported`，Library / 树随之刷新。
-- 网络资源阶段有整篇论文 `3 分钟`截止时间（`PAPER_ASSET_TIMEOUT`），覆盖 PDF
+- 网络资源阶段有整篇论文 `15 分钟`截止时间（`PAPER_ASSET_TIMEOUT`），覆盖 PDF
   fallback、DOI 元数据查询及 arXiv e-print；单个 HTTP
   请求仍使用更短的 reqwest timeout。超时不会回滚已经写入的 paper 壳和 catalog，
   资源错误会保留在导入结果中，后续可再次执行补资源。
+- 大文件并行分块下载：服务端返回 `Accept-Ranges: bytes` 且体积 ≥ 8 MB 时，
+  `http_get_bytes_with_progress` 改用 4 MB Range 分片、最多 6 路并发拉取并按序拼装，
+  单片失败单独重试。实测 arXiv e-print（21.8 MB）单流 33–53 KB/s、并行约 280 KB/s；
+  无 Range 支持或体积较小时仍走单流。
 - Connector 先由 Chrome 上传附件，DOI/arXiv Host 下载作 fallback；附件成功或失败的
   finalizer 先将 paper 移到 latest target，再在稳定路径提交共享正文准备任务，补齐源码后
   决定是否解析 PDF。打开论文 / reconcile 也使用相同规则。

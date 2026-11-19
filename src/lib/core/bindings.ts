@@ -5811,6 +5811,12 @@ export type TranslateProviderConfig = {
 	region?: string,
 	model?: string,
 	extraRequestBody?: string,
+	/**
+	 *  Full-document translation batch concurrency for the OpenAI-compatible
+	 *  path (1–8, default 2). Selection translation and the Agent path stay
+	 *  serial; other providers ignore it.
+	 */
+	concurrency?: number,
 };
 
 export type TranslateSettings = {
@@ -5856,6 +5862,12 @@ export type TranslateSettings = {
 	 *  Seeded into the JobCenter `LayoutTranslate` cap (1–5, default 1).
 	 */
 	autoTranslateImportConcurrency?: number,
+	/**
+	 *  Close the selection translation result on a click elsewhere on the page
+	 *  (default off, matching the long-standing "card stays open" behavior).
+	 *  Scrolling, page turns and viewer toolbars never close it.
+	 */
+	dismissSelectionOnOutsideClick?: boolean,
 };
 
 export type TranslateTextArgs = {

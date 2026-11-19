@@ -178,6 +178,8 @@ export function usePdfReflow(
 		reflowItems,
 		reflowBusy: session.current?.busy ?? false,
 		reflowReady: !running && Boolean(session.current?.ready),
+		/** The last final build failed, so page previews will not arrive. */
+		reflowFinalFailed: session.current?.finalFailed ?? false,
 		/** Finished translated PDF bytes; opened as a display document. */
 		reflowOutput: session.current?.output ?? null,
 		reflowProgress: session.current?.progress ?? 0,

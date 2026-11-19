@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
+import { useSettings } from "@/hooks/use-app-stores";
 import { useTypewriter } from "@/hooks/use-typewriter";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { isDictionaryLookup } from "@/lib/translate/dictionary";
@@ -71,6 +72,11 @@ export function TranslateCard({
 	onModeChange,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
+	// Optional: close the result when the reader clicks elsewhere on the page.
+	// Scrolling and page turns keep it open (see SelectionCard's outside click).
+	const dismissOnOutsideClick = useSettings(
+		(s) => s.translate.dismissSelectionOnOutsideClick,
+	);
 	const mode =
 		requestedMode ??
 		(isDictionaryLookup(sourceText ?? "") ? "dictionary" : "translate");
@@ -220,6 +226,7 @@ export function TranslateCard({
 			ariaLive="polite"
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
+			onOutsideClick={dismissOnOutsideClick ? onHide : undefined}
 			actions={[
 				...(onModeChange && isDictionaryLookup(sourceText ?? "")
 					? [

@@ -2,14 +2,14 @@
 //! probe only — PDF body OCR runs in `paper::analyze::parse::engines`, and this
 //! provider has no layout-analysis capability.
 
-use crate::core::error::AppError;
-use crate::core::http;
+use crate::error::AppError;
 use crate::features::paper::analyze::layout::hosted::engine::{
     HostedLayoutAnalyzer, HostedProviderCredentials, LayoutAnalyzeContext,
 };
 use crate::features::paper::analyze::layout::hosted::{
     LayoutRemoteAnalyzePdfResult, LayoutRemoteProbeArgs, LayoutRemoteProbeResult,
 };
+use crate::http;
 use async_trait::async_trait;
 use std::time::Duration;
 

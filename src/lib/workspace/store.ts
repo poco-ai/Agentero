@@ -25,6 +25,8 @@ import { type CenterViewMode, viewerModeSpec } from "@/lib/workspace/viewer";
 export type ClosedTab = {
 	path: string;
 	mode?: CenterViewMode;
+	/** Owning writing project; reopen goes through the project panel, not a new tab. */
+	writingRoot?: string;
 };
 
 const CLOSED_TAB_HISTORY = 10;
@@ -71,13 +73,17 @@ function withPersistedPane(tab: DocTab, pane: DocTab["pane"]): DocTab {
 
 function tabsFromPersisted(persisted: PersistedTabs): DocTab[] {
 	return persisted.tabs.map((pt) => {
+		const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
+		// Restore the owning writing project up front so every branch below —
+		// including hydration placeholders — keeps the one-panel project identity.
+		if (pt.writingRoot) tab.writingRoot = pt.writingRoot;
 		// Registry-declared restore override. Translation panes stay paper-kind
 		// and keep their view id; `loaded: false` lets hydration read the path.
 		const restore = viewerModeSpec(pt.mode).restore;
 		if (restore) {
 			return withPersistedPane(
 				{
-					...createPlaceholderTab(pt.path, pt.mode, pt.id),
+					...tab,
 					kind: restore.kind,
 					title: pt.title || restore.fallbackTitle,
 					loaded: restore.loaded,
@@ -85,7 +91,6 @@ function tabsFromPersisted(persisted: PersistedTabs): DocTab[] {
 				pt.pane,
 			);
 		}
-		const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
 		if (pt.texRoot) tab.texRoot = pt.texRoot;
 		// Realtime TeX panes have no file seed to hydrate; restore them
 		// loaded so the viewer remounts instead of showing a skeleton.

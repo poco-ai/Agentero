@@ -34,6 +34,10 @@ pub use agentero_mcp::DEFAULT_MCP_PORT;
 /// 1–5; larger values would hammer translation providers and disk).
 pub const MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY: u32 = 5;
 
+/// Upper bound for the OpenAI-compatible full-document translation batch pool
+/// (the settings UI offers 1–8; higher values trigger provider rate limits).
+pub const MAX_TRANSLATE_CONCURRENCY: u32 = 8;
+
 /// Built-in provider id, re-exported so the Host never re-types the literal.
 pub use agentero_core::features::translate::BUILTIN_PROVIDER_ID;
 
@@ -419,6 +423,11 @@ pub struct TranslateSettings {
     /// Seeded into the JobCenter `LayoutTranslate` cap (1–5, default 1).
     #[serde(default = "default_auto_translate_import_concurrency")]
     pub auto_translate_import_concurrency: u32,
+    /// Close the selection translation result on a click elsewhere on the page
+    /// (default off, matching the long-standing "card stays open" behavior).
+    /// Scrolling, page turns and viewer toolbars never close it.
+    #[serde(default)]
+    pub dismiss_selection_on_outside_click: bool,
 }
 
 impl Default for TranslateSettings {
@@ -442,6 +451,7 @@ impl Default for TranslateSettings {
             cache_reflow_final: false,
             auto_translate_import: false,
             auto_translate_import_concurrency: default_auto_translate_import_concurrency(),
+            dismiss_selection_on_outside_click: false,
         }
     }
 }
@@ -464,7 +474,7 @@ impl Default for DictionarySettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslateProviderConfig {
     #[serde(default)]
@@ -477,6 +487,24 @@ pub struct TranslateProviderConfig {
     pub model: String,
     #[serde(default)]
     pub extra_request_body: String,
+    /// Full-document translation batch concurrency for the OpenAI-compatible
+    /// path (1–8, default 2). Selection translation and the Agent path stay
+    /// serial; other providers ignore it.
+    #[serde(default = "default_translate_concurrency")]
+    pub concurrency: u32,
+}
+
+impl Default for TranslateProviderConfig {
+    fn default() -> Self {
+        Self {
+            api_key: String::new(),
+            base_url: String::new(),
+            region: String::new(),
+            model: String::new(),
+            extra_request_body: String::new(),
+            concurrency: default_translate_concurrency(),
+        }
+    }
 }
 
 /// PDF layout-analysis backend selection.
@@ -717,6 +745,9 @@ fn default_batch_import_concurrency() -> u32 {
 }
 fn default_auto_translate_import_concurrency() -> u32 {
     1
+}
+fn default_translate_concurrency() -> u32 {
+    2
 }
 fn default_translate_target() -> String {
     "ui".into()
@@ -1707,6 +1738,9 @@ fn normalize_translate_provider_configs(configs: &mut HashMap<String, TranslateP
         cfg.base_url = cfg.base_url.trim().to_string();
         cfg.region = cfg.region.trim().to_string();
         cfg.model = cfg.model.trim().to_string();
+        if cfg.concurrency < 1 || cfg.concurrency > MAX_TRANSLATE_CONCURRENCY {
+            cfg.concurrency = default_translate_concurrency();
+        }
     }
 }
 

@@ -120,6 +120,7 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 	onTextLinkActivate: NOOP,
 	onCitationHover: NOOP,
 	onTogglePageLayoutTranslate: NOOP,
+	onRetryPageLayoutTranslate: NOOP,
 	onDeleteHighlightAnnotation: NOOP,
 	onEditHighlightAnnotation: NOOP,
 	onChangeHighlightColor: NOOP,
@@ -193,6 +194,7 @@ export function PdfTranslationViewerInner({
 		reflowOutput,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
+		retryPageLayoutTranslate,
 	} = usePdfLayoutTranslate({
 		reflowContext: () => {
 			const engine = engineRef.current,
@@ -561,6 +563,7 @@ export function PdfTranslationViewerInner({
 		() => ({
 			...EMPTY_HANDLERS,
 			onTogglePageLayoutTranslate: togglePageLayoutTranslate,
+			onRetryPageLayoutTranslate: retryPageLayoutTranslate,
 			onCitationActivate: activateCitation,
 			onTextLinkActivate: openExternalUrl,
 			onCitationHover: handleLinkHover,
@@ -570,6 +573,7 @@ export function PdfTranslationViewerInner({
 		}),
 		[
 			togglePageLayoutTranslate,
+			retryPageLayoutTranslate,
 			activateCitation,
 			handleLinkHover,
 			handleLinkUrlHover,

@@ -488,6 +488,8 @@ export type PdfPageHandlers = {
 		clientPoint?: ScreenPoint | null,
 	) => void;
 	onTogglePageLayoutTranslate: (pageIndex: number) => void;
+	/** Paragraph warning: retry a failed page's blocks without hiding it. */
+	onRetryPageLayoutTranslate: (pageIndex: number) => void;
 	/** Delete a highlight annotation directly from its on-page selection menu. */
 	onDeleteHighlightAnnotation: (pageIndex: number, id: string) => void;
 	/** Open the note editor for a highlight from its on-page selection menu. */
@@ -812,7 +814,12 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	}, [activeAskOnPage, pins, translationVisible]);
 	const pageTranslateState = layout.layoutTranslatePageStateByPage.get(
 		pageIndex,
-	) ?? { active: false, running: false, status: undefined };
+	) ?? {
+		active: false,
+		running: false,
+		status: undefined,
+		previewPending: false,
+	};
 	const emphasizedCommentId = hoveredCommentId ?? marks.editingCommentId;
 	const emphasizedComment = emphasizedCommentId
 		? (shownComments.find((c) => c.id === emphasizedCommentId) ?? null)
@@ -1200,6 +1207,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	const translateOverlay =
 		layoutTranslateOnPage &&
 		(translationVisible ||
+			pageTranslateState.status === "error" ||
 			layoutTranslateOnPage.some((item) => item.status === "running")) ? (
 			<LayoutTranslateOverlay
 				items={layoutTranslateOnPage}
@@ -1219,6 +1227,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				sentenceRectsByItemId={layout.sentenceRectsByItemId}
 				links={translateLinkBoxes}
 				glyphRuns={layout.glyphRunsByPage?.get(pageIndex)}
+				awaitingPreview={pageTranslateState.previewPending}
+				onRetryTranslation={handlers.onRetryPageLayoutTranslate}
 				onOpenLink={openTranslatedLink}
 				onHoverLink={hoverTranslatedLink}
 			/>

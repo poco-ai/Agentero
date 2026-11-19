@@ -1,15 +1,23 @@
 /**
  * Markdown → Plate deserialize prep.
  *
- * 1. Preserve extra blank lines that CommonMark would otherwise collapse.
- * 2. Prevent an unclosed block-math fence from consuming the rest of a document.
- * 3. Escape a `<` that MDX would treat as a tag, except the HTML the editor
+ * 1. Normalize TeX math delimiters (`\[…\]` / `\(…\)`, single-line `$$…$$`)
+ *    to the dollar forms `remark-math` parses.
+ * 2. Preserve extra blank lines that CommonMark would otherwise collapse.
+ * 3. Prevent an unclosed block-math fence from consuming the rest of a document.
+ * 4. Escape a `<` that MDX would treat as a tag, except the HTML the editor
  *    actually supports. `remarkMdx` tokenizes every `<name>`, and Plate's
  *    recovery then drops the rest of the document (#533 and the same failure
  *    on placeholder tags such as `<input>` / `<Constraints>`).
  */
 
-const BLOCK_MATH_FENCE = /^ {0,3}\$\$[ \t]*\r?$/;
+import { normalizeNoteMarkdownMath } from "@/lib/markdown/math-normalize";
+
+/**
+ * A standalone block-math fence, including fences inside blockquotes
+ * (`> $$` lines; `fenceDisplayMath` keeps the quote prefix on every line).
+ */
+const BLOCK_MATH_FENCE = /^(?: {0,3}>[ \t]?)* {0,3}\$\$[ \t]*\r?$/;
 const CODE_FENCE = /^ {0,3}(`{3,}|~{3,})/;
 /** Matches Plate's empty-paragraph serialize placeholder. */
 const BLANK_PARAGRAPH_PLACEHOLDER = "\u200B";
@@ -124,9 +132,14 @@ function escapeUnclosedBlockMath(source: string): string {
 }
 
 export function prepareMarkdownForDeserialize(source: string): string {
+	// Normalize math delimiters first: `\[…\]` / `\(…\)` become dollar math and
+	// a standalone single-line `$$…$$` becomes a display fence, so the passes
+	// below protect the rewritten math and the remark-math sniff in
+	// `selectMarkdownRemarkPluginsForDeserialize` sees the canonical `$` shape.
+	const normalized = normalizeNoteMarkdownMath(source);
 	// Cheap applicability guards so a document that cannot contain the pattern
 	// skips the full line scan entirely (the common plain-note case).
-	let out = source;
+	let out = normalized;
 	if (COLLAPSIBLE_BLANK_SEQUENCE.test(out)) {
 		out = preserveExtraBlankLines(out);
 	}

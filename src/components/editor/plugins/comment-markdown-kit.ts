@@ -12,7 +12,6 @@ import {
 	CodeRules,
 	ItalicRules,
 	StrikethroughRules,
-	UnderlineRules,
 } from "@platejs/basic-nodes";
 import {
 	BlockquotePlugin,
@@ -57,7 +56,9 @@ export const CommentMarkdownKit = [
 			ItalicRules.markdown({ variant: "_" }),
 		],
 	}),
-	UnderlinePlugin.configure({ inputRules: [UnderlineRules.markdown()] }),
+	// `__…__` is bold (CommonMark); underline is `<u>` / toolbar / Ctrl+U, so
+	// no underline Markdown input rule is registered here either (#1170).
+	UnderlinePlugin,
 	StrikethroughPlugin.configure({
 		inputRules: [StrikethroughRules.markdown()],
 	}),

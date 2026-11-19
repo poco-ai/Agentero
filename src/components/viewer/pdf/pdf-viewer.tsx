@@ -1370,6 +1370,7 @@ function PdfViewerInner({
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
+		retryPageLayoutTranslate,
 	} = usePdfLayoutCluster({
 		docId,
 		translationPane,
@@ -2317,6 +2318,7 @@ function PdfViewerInner({
 			onCitationHover: handleLinkHover,
 			onLinkUrlHover: handleLinkUrlHover,
 			onTogglePageLayoutTranslate: togglePageLayoutTranslate,
+			onRetryPageLayoutTranslate: retryPageLayoutTranslate,
 			onDeleteHighlightAnnotation: handleDeleteHighlightAnnotation,
 			onEditHighlightAnnotation: handleEditHighlightAnnotation,
 			onChangeHighlightColor: handleChangeHighlightColor,
@@ -2341,6 +2343,7 @@ function PdfViewerInner({
 			handleLinkHover,
 			handleLinkUrlHover,
 			togglePageLayoutTranslate,
+			retryPageLayoutTranslate,
 			handleDeleteHighlightAnnotation,
 			handleEditHighlightAnnotation,
 			handleChangeHighlightColor,

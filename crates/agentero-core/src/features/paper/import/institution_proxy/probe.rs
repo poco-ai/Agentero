@@ -136,10 +136,7 @@ pub async fn fetch_pdf(doi: &str) -> ProxyPdfOutcome {
                                 unreachable!("Auto is resolved before link resolution")
                             }
                         };
-                        let mut mined = pdf_links_from_html(&html, &link_base, &proxy_origin);
-                        // Prefer article-body PDFs (/articles/{id}.pdf) over
-                        // supplementary material (MediaObjects/ESM).
-                        mined.sort_by_key(|l| !(l.contains("/articles/") && l.ends_with(".pdf")));
+                        let mined = pdf_links_from_html(&html, &link_base, &proxy_origin);
                         for link in mined {
                             if !next_targets.contains(&link) {
                                 next_targets.push(link);
@@ -162,11 +159,13 @@ pub async fn fetch_pdf(doi: &str) -> ProxyPdfOutcome {
     out
 }
 
-/// Extract candidate PDF links from a proxied landing page. Absolute links are
+/// Extract candidate PDF links from a proxied landing page. The publisher's
+/// declared `citation_pdf_url` goes first, and supplementary material is
+/// skipped so a supplement is never saved as the paper. Absolute links are
 /// returned as-is; publisher-relative paths are resolved against the proxy
 /// origin so the caller can rewrite them again.
 fn pdf_links_from_html(html: &str, proxy_origin: &str, gateway_origin: &str) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
+    let mut raw = citation_pdf_urls(html);
     for attr in ["href=\"", "src=\""] {
         let mut rest = html;
         while let Some(idx) = rest.find(attr) {
@@ -180,27 +179,82 @@ fn pdf_links_from_html(html: &str, proxy_origin: &str, gateway_origin: &str) -> 
                 || lower.contains("getfulltxt")
                 || lower.contains("/pdf/")
                 || lower.contains("articlepdf");
-            if !looks_like_pdf || link.is_empty() {
-                continue;
+            if looks_like_pdf && !link.is_empty() {
+                raw.push(link);
             }
-            let resolved = if link.starts_with("http") {
-                link.to_string()
-            } else if link.starts_with("/https/") || link.starts_with("/http/") {
-                // Gateway-absolute wengine path — resolve against the gateway
-                // origin, never against the current page's directory.
-                format!("{gateway_origin}{link}")
-            } else if link.starts_with('/') {
-                format!("{proxy_origin}{link}")
-            } else {
-                continue;
-            };
-            if !out.contains(&resolved) {
-                out.push(resolved);
+        }
+    }
+    let mut out: Vec<String> = Vec::new();
+    for link in raw {
+        if is_supplementary(link) {
+            continue;
+        }
+        let resolved = if link.starts_with("http") {
+            link.to_string()
+        } else if link.starts_with("/https/") || link.starts_with("/http/") {
+            // Gateway-absolute wengine path — resolve against the gateway
+            // origin, never against the current page's directory.
+            format!("{gateway_origin}{link}")
+        } else if link.starts_with('/') {
+            format!("{proxy_origin}{link}")
+        } else {
+            continue;
+        };
+        // Atypon hosts differ on which form serves the file: Wiley's
+        // `/doi/pdf/` is an HTML reader and `/doi/pdfdirect/` the PDF, while
+        // RSNA serves the PDF at `/doi/pdf/`. Try both, as-linked first.
+        let direct = resolved
+            .contains("/doi/pdf/")
+            .then(|| resolved.replacen("/doi/pdf/", "/doi/pdfdirect/", 1));
+        for candidate in std::iter::once(resolved).chain(direct) {
+            if !out.contains(&candidate) {
+                out.push(candidate);
             }
         }
     }
     out.truncate(5);
     out
+}
+
+/// `content` of `<meta name="citation_pdf_url" …>` tags (the Highwire /
+/// Google Scholar convention publishers use to declare the article PDF).
+fn citation_pdf_urls(html: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut rest = html;
+    while let Some(idx) = rest.find("<meta") {
+        let tag_rest = &rest[idx..];
+        let end = tag_rest.find('>').unwrap_or(tag_rest.len());
+        let tag = &tag_rest[..end];
+        rest = &tag_rest[end..];
+        if !tag.contains("citation_pdf_url") {
+            continue;
+        }
+        let Some(start) = tag.find("content=\"") else {
+            continue;
+        };
+        let value = &tag[start + "content=\"".len()..];
+        if let Some(url) = value.split('"').next().map(str::trim) {
+            if !url.is_empty() {
+                out.push(url);
+            }
+        }
+    }
+    out
+}
+
+/// Supplementary-material links (Atypon `/doi/suppl/` and
+/// `downloadSupplement`, Springer Nature ESM) are never the article body.
+fn is_supplementary(link: &str) -> bool {
+    let lower = link.to_ascii_lowercase();
+    [
+        "/suppl/",
+        "suppl_file",
+        "downloadsupplement",
+        "/esm/",
+        "moesm",
+    ]
+    .iter()
+    .any(|part| lower.contains(part))
 }
 
 /// One-shot probe of an institution proxy configuration: fetch a known

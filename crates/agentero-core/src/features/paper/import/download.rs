@@ -16,11 +16,13 @@ use crate::features::paper::source::{self, SourceStatus};
 use crate::features::scholar_api::identifiers::{extract_arxiv_id, strip_arxiv_version};
 use crate::http;
 use flate2::read::GzDecoder;
+use futures_util::stream::{self, StreamExt, TryStreamExt};
 use serde::Serialize;
 use std::fs::{self, File};
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tar::Archive;
 
@@ -29,7 +31,22 @@ use tar::Archive;
 /// Individual requests have shorter reqwest timeouts, but an import may try
 /// several PDF fallbacks before fetching the arXiv source. Keep the whole
 /// phase bounded so one paper cannot hold an import task indefinitely.
-pub const PAPER_ASSET_TIMEOUT: Duration = Duration::from_secs(3 * 60);
+///
+/// Large submissions are the norm (a 20 MB e-print takes minutes on a slow
+/// link), so the budget must cover PDF + source with retries; 3 minutes used
+/// to cut every big download off mid-stream.
+pub const PAPER_ASSET_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+/// Artifacts at or above this size download in parallel ranges when the server
+/// advertises `Accept-Ranges: bytes`.
+const PARALLEL_MIN_BYTES: u64 = 8 * 1024 * 1024;
+/// Range size per request. Small enough that one reset costs little, large
+/// enough to keep the per-connection overhead irrelevant.
+const PARALLEL_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
+/// Concurrent range requests. Single streams to arXiv measure 30–100 KB/s
+/// here; six of them aggregate to ~280 KB/s without tripping rate limits.
+const PARALLEL_MAX_WORKERS: usize = 6;
+const PARALLEL_ATTEMPTS: u32 = 3;
 
 #[derive(Debug, Default, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -929,8 +946,31 @@ async fn download_arxiv_source(
     let bare = strip_arxiv_version(arxiv_id);
     // Prefer e-print; /src/ is an alias
     let url = format!("https://arxiv.org/e-print/{arxiv_id}");
-    let bytes =
-        http_get_bytes_with_progress(&url, Duration::from_secs(180), None, progress).await?;
+    // e-print goes through a 301 to /src/<id> and is routinely slow/flaky on
+    // CN networks; a single reset used to fail the whole parse. Retry the
+    // download with backoff before surfacing the error. Large submissions
+    // (10 MB+) need well over the old 180 s budget at ~50 KB/s, so keep a
+    // generous per-attempt timeout.
+    let mut attempts_left = 3_u32;
+    let mut last_error: Option<AppError> = None;
+    let bytes = loop {
+        match http_get_bytes_with_progress(&url, Duration::from_secs(900), None, progress).await {
+            Ok(bytes) => break bytes,
+            Err(error) => {
+                attempts_left = attempts_left.saturating_sub(1);
+                if attempts_left == 0 {
+                    return Err(last_error.unwrap_or(error));
+                }
+                log::warn!(
+                    target: "agentero::import",
+                    "arXiv source download attempt failed ({} retries left): {error}",
+                    attempts_left
+                );
+                last_error = Some(error);
+                tokio::time::sleep(Duration::from_secs(1_u64 << (3 - attempts_left))).await;
+            }
+        }
+    };
     unpack_arxiv_eprint(source_dir, paper_dir, &bare, &bytes)
 }
 
@@ -1167,6 +1207,18 @@ pub(crate) async fn http_get_bytes_with_progress(
         return Err(AppError::message(format!("download HTTP {}", res.status())));
     }
     let total_bytes = res.content_length();
+    // Big artifacts on a lossy link: one TCP stream gets throttled or reset,
+    // and a reset discards every byte already received. arXiv (and most CDNs)
+    // answer `Accept-Ranges: bytes`, so fetch large bodies as parallel ranges —
+    // ~3x faster here, and each chunk retries on its own.
+    if let Some(total) = total_bytes {
+        if total >= PARALLEL_MIN_BYTES && cookies.is_none() && supports_ranges(res.headers()) {
+            drop(res);
+            let bytes = fetch_bytes_parallel(&client, url, total, progress, task_id).await?;
+            progress.finish();
+            return Ok(bytes);
+        }
+    }
     let mut downloaded_bytes = 0_u64;
     let mut bytes = Vec::new();
     while let Some(chunk) = res
@@ -1189,6 +1241,92 @@ pub(crate) async fn http_get_bytes_with_progress(
     // the last chunk: the task bar must reach the final byte count.
     progress.finish();
     Ok(bytes)
+}
+
+fn supports_ranges(headers: &reqwest::header::HeaderMap) -> bool {
+    headers
+        .get(reqwest::header::ACCEPT_RANGES)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("bytes"))
+}
+
+/// Download `total` bytes as parallel ranged requests and reassemble in order.
+async fn fetch_bytes_parallel(
+    client: &reqwest::Client,
+    url: &str,
+    total: u64,
+    progress: StreamProgress<'_, '_>,
+    task_id: Option<&str>,
+) -> Result<Vec<u8>, AppError> {
+    let chunk_count = total.div_ceil(PARALLEL_CHUNK_BYTES);
+    let done = Arc::new(AtomicU64::new(0));
+    let parts: Vec<(u64, Vec<u8>)> = stream::iter(0..chunk_count)
+        .map(|index| {
+            let client = client.clone();
+            let done = Arc::clone(&done);
+            async move {
+                let start = index * PARALLEL_CHUNK_BYTES;
+                let end = (start + PARALLEL_CHUNK_BYTES).min(total) - 1;
+                let bytes = fetch_range(&client, url, start, end, task_id).await?;
+                let landed =
+                    done.fetch_add(bytes.len() as u64, Ordering::Relaxed) + bytes.len() as u64;
+                progress.report(landed, Some(total));
+                Ok::<_, AppError>((index, bytes))
+            }
+        })
+        .buffer_unordered(PARALLEL_MAX_WORKERS)
+        .try_collect()
+        .await?;
+
+    let mut bytes = vec![0_u8; total as usize];
+    for (index, part) in parts {
+        let offset = (index * PARALLEL_CHUNK_BYTES) as usize;
+        let end = offset + part.len();
+        if end > bytes.len() {
+            return Err(AppError::message(
+                "download: ranged response overran the file",
+            ));
+        }
+        bytes[offset..end].copy_from_slice(&part);
+    }
+    Ok(bytes)
+}
+
+async fn fetch_range(
+    client: &reqwest::Client,
+    url: &str,
+    start: u64,
+    end: u64,
+    task_id: Option<&str>,
+) -> Result<Vec<u8>, AppError> {
+    let expected = end - start + 1;
+    let mut last_error = String::new();
+    for attempt in 1..=PARALLEL_ATTEMPTS {
+        if let Some(task_id) = task_id {
+            if super::is_task_cancelled(task_id) {
+                return Err(AppError::message("background task cancelled"));
+            }
+        }
+        let response = client
+            .get(url)
+            .header(reqwest::header::ACCEPT, "application/octet-stream,*/*")
+            .header(reqwest::header::RANGE, format!("bytes={start}-{end}"))
+            .send()
+            .await;
+        match response {
+            Ok(response) if response.status().is_success() => match response.bytes().await {
+                Ok(bytes) if bytes.len() as u64 == expected => return Ok(bytes.to_vec()),
+                Ok(bytes) => {
+                    last_error = format!("range {start}-{end} truncated to {} bytes", bytes.len())
+                }
+                Err(error) => last_error = format!("range {start}-{end} body: {error}"),
+            },
+            Ok(response) => last_error = format!("range {start}-{end} HTTP {}", response.status()),
+            Err(error) => last_error = format!("range {start}-{end}: {error}"),
+        }
+        tokio::time::sleep(Duration::from_millis(500 * u64::from(attempt))).await;
+    }
+    Err(AppError::message(format!("download: {last_error}")))
 }
 
 /// On-demand download of PDF (+ arXiv LaTeX) for an existing paper folder.

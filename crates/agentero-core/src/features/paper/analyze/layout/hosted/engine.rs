@@ -10,10 +10,10 @@
 
 use std::sync::Arc;
 
+use crate::app_handle::AppHandle;
 use async_trait::async_trait;
-use tauri::AppHandle;
 
-use crate::core::error::AppError;
+use crate::error::AppError;
 use crate::features::paper::analyze::layout::hosted::{
     LayoutRemoteAnalyzePdfArgs, LayoutRemoteAnalyzePdfResult, LayoutRemoteProbeArgs,
     LayoutRemoteProbeResult,

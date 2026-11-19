@@ -5,14 +5,12 @@ import {
 	BoldRules,
 	CodeRules,
 	HeadingRules,
-	HighlightRules,
 	HorizontalRuleRules,
 	ItalicRules,
 	MarkComboRules,
 	StrikethroughRules,
 	SubscriptRules,
 	SuperscriptRules,
-	UnderlineRules,
 } from "@platejs/basic-nodes";
 import {
 	BlockquotePlugin,
@@ -107,6 +105,7 @@ import { WikiBlockIdPlugin } from "@/components/editor/plugins/wiki-block-id-plu
 import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
 import { insertBreakAfterHorizontalRule } from "@/lib/markdown/block-selection";
 import { handleCodeBlockDeleteBackward } from "@/lib/markdown/code-block-delete";
+import { highlightInputRule } from "@/lib/markdown/highlight-input-rule";
 import { inlineMathInputRule } from "@/lib/markdown/inline-math-input-rule";
 
 const lowlight = createLowlight(common);
@@ -196,7 +195,7 @@ export const MarkdownEditorKit = [
 			ItalicRules.markdown({ variant: "_" }),
 		],
 	}),
-	UnderlinePlugin.configure({ inputRules: [UnderlineRules.markdown()] }),
+	UnderlinePlugin,
 	StrikethroughPlugin.configure({
 		inputRules: [StrikethroughRules.markdown()],
 	}),
@@ -207,7 +206,7 @@ export const MarkdownEditorKit = [
 	SubscriptPlugin.configure({ inputRules: [SubscriptRules.markdown()] }),
 	SuperscriptPlugin.configure({ inputRules: [SuperscriptRules.markdown()] }),
 	HighlightPlugin.configure({
-		inputRules: [HighlightRules.markdown({ variant: "==" })],
+		inputRules: [highlightInputRule],
 		node: { component: HighlightLeaf },
 	}),
 	KbdPlugin.withComponent(KbdLeaf),

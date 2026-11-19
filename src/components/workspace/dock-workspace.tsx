@@ -942,10 +942,13 @@ export const DockWorkspace = memo(
 		);
 
 		// Title + persist params + renderer channel (mode/path without full membership).
+		// The writing panel keeps its id while its source path changes, so the
+		// path belongs in the key: params must follow a source swap even when
+		// two files share a basename.
 		const metaKey = tabs
 			.map(
 				(t) =>
-					`${t.id}:${t.title}:${t.mode}:${t.texRoot ?? ""}:${t.writingRoot ?? ""}`,
+					`${t.id}:${t.path}:${t.title}:${t.mode}:${t.texRoot ?? ""}:${t.writingRoot ?? ""}`,
 			)
 			.join("|");
 		useEffect(() => {

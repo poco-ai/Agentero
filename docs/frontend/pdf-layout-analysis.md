@@ -171,6 +171,19 @@ LayoutAnalysisPluginPackage: {
 - 每次远程版面分析独立提交，使用唯一 `requestId`；重试不会复用旧版面请求，已取消请求的进度也不会覆盖新任务。取消会通过 `layout_remote_cancel` 终止对应 Host 等待；已提交的云端 batch 仍由服务端处理。
 - 无 paper 目录（拿不到 PDF 字节）或页数未知时自动回退本地 ONNX。
 
+### Headless CLI（`agentero layout analyze`）
+
+无 GUI（服务器 / 纯 CLI Vault）时，远程 Provider 现在可以直接跑：`agentero layout analyze <ref>` 与 `agentero import pdf --layout` 在 Rust 侧复用同一套 Provider 引擎，读取桌面 `settings.json` 的 `layout.backend` / `layout.providerConfigs.*`，写出 `source/layout.json` + `source/layout-index.json`。
+
+- **产物同 schema**：`schemaVersion`、`source.mode`（`paddle-layout` / `mineru-layout`）、`completeness` 与 region 字段与桌面一致；桌面打开论文时直接读缓存，CLI 写出的 index 也能被 `layout list/get`、`mark add --region` 使用。
+- **本地 ONNX 仍是桌面专属**：PP-DocLayoutV3 依赖 WebView / EmbedPDF 渲染栈，CLI 不加载；`layout.backend=local` 时用 `--provider paddle|mineru` 指定远程引擎。
+- **merge 是 Rust 移植但非全量**：联图 panel 聚类、图注 / 表注绑定、按 `formula_number` 合并公式、NMS 去重与 id 规则都已移植（实论文上与桌面侧栏条目、id、标题逐项对齐）。未移植子图注（(a)(b)）吸收、跨页图注、图注被正文覆盖抑制等少数规则，因此个别联图/跨页排版可能少一条标题。桌面端打开论文仍按当前 TS 规则重新 merge 并刷新 `layout-index.json`，不需要重跑模型。
+- **公式列表**：与桌面一致，侧栏只列 merge 后带 `formula_number` 的公式；远程 Provider 不返回编号框时 `layout list --kind formula` 为空，但 `source/layout.json` 仍保留公式区域（`--kind paragraph` / 章节查询不受影响）。
+- **缓存与 `--pages`**：完整 sidecar 直接复用，`--force` 重跑；`--pages` 只在真正跑分析时生效（命中缓存请配 `--force`），只保留指定页并故意写不完整 sidecar，桌面打开时再补全。
+- 命令细节（flag、缓存策略、错误码、`--json` 形状）见 [../backend/cli.md](../backend/cli.md) §运行版面分析。
+
+实现位于 `crates/agentero-core/src/features/pdf/layout_analyze/`（与桌面共享 `paper::analyze::layout::hosted` 的 Provider 引擎）；CLI 入口见 `cli/src/commands/layout.rs` / `import.rs`。
+
 ### Layout sidecar
 
 `{paper}/source/layout.json` 保存 **初步解析结果**：模型标签映射后的 `PdfLayoutRegion[]`，并已尽力补充 caption 文本与 `captionRole`（公式编号文本不解析）。它不保存侧栏最终卡片列表，也不保存缩略图；后续 `mergeCaptionsIntoHosts`、去重和置信度筛选都从该 raw sidecar 重新计算。因此修改联图、公式合并或筛选规则后，不需要重新运行 PP-DocLayoutV3。
@@ -216,7 +229,7 @@ type LayoutSidecar = {
 - 分区：figure（image+chart）→ table → algorithm → formula
 - 字段：`id`（如 `figure-3`）、`stableKey`、`kind`、`section`、`page`（**1-based**）、`pageIndex`、`bbox`（0–1）、`score`、`title?`、`layoutRegionId`
 - 代码：`src/lib/pdf/layout/layout-index.ts`、`writeLayoutIndexFromRaw`（`io.ts`）
-- CLI：`agentero layout list|get`、`agentero mark add --region <id>`（见 [../backend/cli.md](../backend/cli.md)）
+- CLI：`agentero layout analyze`（headless 生成）、`layout list|get`、`agentero mark add --region <id>`（见 [../backend/cli.md](../backend/cli.md)）
 
 缓存只在已知 paper folder 时启用；散落 PDF 没有 `{paper}` 路径，仍使用当前内存流程（也不写 index）。
 

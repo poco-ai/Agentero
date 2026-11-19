@@ -37,6 +37,15 @@ const SELECTION_CARD_DEFAULT_MAX_HEIGHT = 420;
 const SELECTION_CARD_MIN_HEIGHT = 120;
 const RESIZE_MIN_WIDTH = 280;
 const RESIZE_MIN_HEIGHT = 200;
+/** Pointer travel (px) under which a press / release pair counts as a click. */
+const OUTSIDE_CLICK_SLOP = 6;
+/**
+ * Floating chrome that is not the reading page, so an outside click on it must
+ * not dismiss a card: the shared selection toolbar and annotation chips, and
+ * the PDF viewer's own toolbars / pins.
+ */
+const OUTSIDE_CLICK_IGNORE =
+	"[data-selection-ui], [data-annotation-ui], [data-pdf-chrome]";
 
 type SelectionCardAction = {
 	/** Stable identity for actions whose label changes. */
@@ -333,6 +342,12 @@ type SelectionCardProps = {
 	ariaLive?: "polite" | "off";
 	/** Dismiss this card on Escape or pointer interaction outside it. */
 	onDismiss?: () => void;
+	/**
+	 * Call on a completed click outside the card (press + release without a
+	 * drag). Cards that stay open while the reader interacts with the page opt
+	 * in; scrolling, page turns and toolbar buttons never trigger it.
+	 */
+	onOutsideClick?: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	/** Optional footer strip (prompt input, save/cancel). */
@@ -374,6 +389,7 @@ export function SelectionCard({
 	ariaLabel,
 	ariaLive = "off",
 	onDismiss,
+	onOutsideClick,
 	onPointerEnter,
 	onPointerLeave,
 	footer,
@@ -413,6 +429,46 @@ export function SelectionCard({
 	// Suspend dockview drag-and-drop while this card floats over the tab strip
 	// so a stray drag cannot split the layout (#608).
 	useSelectionOverlayGuard();
+	// Cards that stay open while the reader works the page can opt into closing
+	// on a plain click elsewhere. A press that turns into a drag (text selection,
+	// panning, scrollbar dragging) is not a click, and toolbar / selection chrome
+	// is ignored, so scrolling and page turns keep the card open.
+	useEffect(() => {
+		if (!onOutsideClick) return;
+		let press: { x: number; y: number } | null = null;
+		const isOutside = (target: EventTarget | null): boolean => {
+			const root = rootRef.current;
+			if (!root) return false;
+			if (target instanceof Node && root.contains(target)) return false;
+			return !(
+				target instanceof Element && target.closest(OUTSIDE_CLICK_IGNORE)
+			);
+		};
+		const onPointerDown = (event: PointerEvent) => {
+			press = null;
+			if (event.button !== 0 || !isOutside(event.target)) return;
+			press = { x: event.clientX, y: event.clientY };
+		};
+		const onPointerUp = (event: PointerEvent) => {
+			const start = press;
+			press = null;
+			if (!start || event.button !== 0) return;
+			if (
+				Math.hypot(event.clientX - start.x, event.clientY - start.y) >
+				OUTSIDE_CLICK_SLOP
+			) {
+				return;
+			}
+			if (!isOutside(event.target)) return;
+			onOutsideClick();
+		};
+		document.addEventListener("pointerdown", onPointerDown, true);
+		document.addEventListener("pointerup", onPointerUp, true);
+		return () => {
+			document.removeEventListener("pointerdown", onPointerDown, true);
+			document.removeEventListener("pointerup", onPointerUp, true);
+		};
+	}, [onOutsideClick]);
 	// CSS `resize: both` only writes inline width/height and fires no event;
 	// remember a settled drag so the next card of this kind reopens at that
 	// width (height stays content-sized).

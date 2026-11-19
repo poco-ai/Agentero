@@ -170,7 +170,8 @@ export type JobChangedSnapshot = JobSnapshot;
 
 /**
  * Job kinds projected into the background-tasks panel (§7.6). Kinds absent
- * here (pageCount / wikiReindex) stay silent to avoid idle-lane noise.
+ * here (pageCount / wikiReindex / latexCompile) stay silent to avoid idle-lane
+ * noise: a compile reports through the writing PDF bar, never a task row.
  */
 const PROJECTED_JOB_KINDS: ReadonlySet<JobKind> = new Set([
 	"layoutAnalyze",
@@ -185,7 +186,6 @@ const PROJECTED_JOB_KINDS: ReadonlySet<JobKind> = new Set([
 	"citingScan",
 	"libraryIo",
 	"metadataRefresh",
-	"latexCompile",
 	"jevSmartHighlights",
 ]);
 
@@ -277,8 +277,6 @@ function jobPanelTitle(job: JobChangedSnapshot): string {
 			return jobParams(job.params).op === "export"
 				? i18n.t("app:tasks.libraryExport")
 				: i18n.t("app:tasks.libraryImport");
-		case "latexCompile":
-			return i18n.t("app:tasks.latexCompile");
 		case "jevSmartHighlights":
 			return i18n.t("app:tasks.jevSmartHighlights");
 		default:
@@ -301,7 +299,6 @@ type JobParams = {
 	entries?: Array<{ filePath?: string }>;
 	op?: string;
 	papers?: unknown[];
-	texPath?: string;
 };
 
 function jobParams(params: unknown): JobParams {
@@ -420,11 +417,6 @@ function jobPanelDetail(job: JobChangedSnapshot): string | undefined {
 	}
 	// Vault-scope kinds carry no paper target.
 	if (job.kind === "citingScan" || job.kind === "libraryIo") return undefined;
-	// LaTeX rows show the source file name (the tex lives anywhere, not under
-	// papers/, so there is no catalog title to resolve).
-	if (job.kind === "latexCompile") {
-		return jobParams(job.params).texPath?.split(/[\\/]/).pop();
-	}
 	return paperTaskLabel(job.paperPath);
 }
 

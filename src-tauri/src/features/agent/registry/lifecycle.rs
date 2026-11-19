@@ -1823,9 +1823,15 @@ mod tests {
         // The lifecycle owns the install now; there is no extra adapter to fetch.
         assert!(template.install_command.is_none());
         let install = host_install_command("antigravity-acp").expect("antigravity install");
+        // Windows runs the official script through an EncodedCommand payload.
+        let install_script = if cfg!(target_os = "windows") {
+            decode_encoded_commands(&install)
+        } else {
+            install.clone()
+        };
         assert!(
-            install.contains("antigravity.google/cli/install"),
-            "install must fetch the official CLI installer: {install}"
+            install_script.contains("antigravity.google/cli/install"),
+            "install must fetch the official CLI installer: {install_script}"
         );
         let update = host_update_command("antigravity-acp").expect("antigravity update");
         assert!(

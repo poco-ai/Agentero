@@ -1,9 +1,11 @@
+import { translationRetryItems } from "@/lib/pdf/layout/translation-retry";
 import {
 	TRANSLATION_SPINNER_SIZE,
 	translationSpinnerAnchor,
 	translationSpinnerItems,
 } from "@/lib/pdf/layout/translation-spinner";
 import { ReflowPageOverlay } from "./reflow-page-overlay";
+import { TranslationRetryMarker } from "./translation-retry-marker";
 import { TranslationSpinner } from "./translation-spinner";
 /**
  * Progressive translation overlays for layout body-text regions.
@@ -19,6 +21,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/core/utils";
 import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import {
@@ -99,6 +102,16 @@ type LayoutTranslateOverlayProps = {
 	links?: readonly TranslateLinkBox[];
 	/** Source text runs for this page. Keeps grouped citations on their own glyphs. */
 	glyphRuns?: readonly GlyphRun[];
+	/**
+	 * The page's text is translated while its translated raster is still being
+	 * generated. Keeps the paragraph-end spinner up until the preview paints.
+	 */
+	awaitingPreview?: boolean;
+	/**
+	 * Retry a paragraph's page after its translation failed for good. When
+	 * absent, failed blocks render no in-place retry marker.
+	 */
+	onRetryTranslation?: (pageIndex: number) => void;
 	onOpenLink?: (assignment: PreservedLinkAssignment) => void;
 	onHoverLink?: (
 		assignment: PreservedLinkAssignment | null,
@@ -819,9 +832,12 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	sentenceRectsByItemId,
 	links,
 	glyphRuns,
+	awaitingPreview,
+	onRetryTranslation,
 	onOpenLink,
 	onHoverLink,
 }: LayoutTranslateOverlayProps) {
+	const { t } = useTranslation("viewer");
 	const onPage = useMemo(() => {
 		const painted = items
 			.filter(
@@ -899,7 +915,11 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	const displayMatchesPreview =
 		!previewSources ||
 		(reflowDocumentVersion && previewSources.has(reflowDocumentVersion));
-	const spinnerItems = translationSpinnerItems(items, layoutRegions);
+	const spinnerItems = translationSpinnerItems(
+		items,
+		layoutRegions,
+		awaitingPreview,
+	);
 	const spinnerIds = new Set(spinnerItems.map((item) => item.id));
 	const sourceSpinners = spinnerItems
 		.filter((item) => item.reflow || !isLayoutTranslateItemPainted(item))
@@ -915,6 +935,24 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 				tone={tone}
 			/>
 		));
+	// A failed paragraph keeps the source text; the warning takes the spinner's
+	// place at the tail and retries the page, so no toast is needed.
+	const retryMarkers = onRetryTranslation
+		? translationRetryItems(items, layoutRegions).map((item) => (
+				<TranslationRetryMarker
+					key={`layout-retry-${item.id}`}
+					{...translationSpinnerAnchor(
+						item,
+						pageWidthPx,
+						pageHeightPx,
+						glyphRuns,
+					)}
+					tone={tone}
+					label={t("pdf.layoutTranslate.retryPage")}
+					onRetry={() => onRetryTranslation(pageIndex)}
+				/>
+			))
+		: [];
 	if (preview || reflowDocumentId)
 		return (
 			<>
@@ -934,13 +972,21 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 					height={pageHeightPx}
 				/>
 				{sourceSpinners}
+				{retryMarkers}
 			</>
 		);
 
-	if (onPage.length === 0) return <>{sourceSpinners}</>;
+	if (onPage.length === 0)
+		return (
+			<>
+				{sourceSpinners}
+				{retryMarkers}
+			</>
+		);
 	return (
 		<>
 			{sourceSpinners}
+			{retryMarkers}
 			{onPage.map((item) => {
 				const text = item.paintText;
 				const isHeading = isLayoutTranslateHeadingKind(item.kind);

@@ -750,21 +750,26 @@ it("routes shared document failures through partial recovery, not error toasts",
 	}
 });
 
-it("keeps a shared page failure toast with a working translation settings action", async () => {
+it("keeps a shared page failure inline instead of raising an error toast", async () => {
 	setSharedItems("succeeded", errorItem(0, "Translation service unavailable"));
 	const h = await mountHarness({ vaultPath: "/vault" });
 	await h.startPage(0);
-	expect(io.errors.length).toBe(1);
-	expect(io.errors[0]?.[0]).toBe("pdf.layoutTranslate.pageFailed");
-	const options = io.errors[0]?.[1] as { action: { onClick: () => void } };
-	await h.run(() => options.action.onClick());
-	expect(io.openSettings).toEqual(["translate"]);
+	expect(io.errors.length).toBe(0);
+	// The failed block keeps its error state so the paragraph-tail retry
+	// marker can render, and the page tab keeps reporting an incomplete page.
+	expect(
+		h.view.layoutTranslateItemsByPage
+			.get(0)
+			?.some((item) => item.status === "error"),
+	).toBe(true);
+	expect(h.view.layoutTranslatePageStateByPage.get(0)?.status).toBe("error");
 	expect(h.partial.visible).toBe(false);
 });
 
-it("reports shared job-level failures even when translation blocks also failed", async () => {
+it("routes shared job-level failures to the partial entry, not an error toast", async () => {
 	// A job can fail before any snapshot exists, or after publishing items
-	// (cache write / reflow); only an error already on a document item is muted.
+	// (cache write / reflow). Neither case toasts: gaps stay reachable from the
+	// partial entry, and a page failure keeps its inline retry marker.
 	for (const withItems of [false, true]) {
 		setShared(
 			{ ...sharedJob("failed"), error: "Cache write failed" },
@@ -774,10 +779,8 @@ it("reports shared job-level failures even when translation blocks also failed",
 		);
 		const h = await mountHarness({ vaultPath: "/vault" });
 		await h.start();
-		expect(io.errors.length).toBe(1);
-		expect((io.errors[0]?.[1] as { description: string }).description).toBe(
-			"Cache write failed",
-		);
+		expect(io.errors.length).toBe(0);
+		expect(h.view.layoutTranslateStatus).toBe("partial");
 		expect(h.partial.visible).toBe(withItems);
 		await h.unmount();
 		resetIo();
@@ -1256,19 +1259,31 @@ it("hydrates a page from the sidecar without a request", async () => {
 	expect(h.partial.visible).toBe(false);
 });
 
-it("reports a page translation failure as a page failure", async () => {
+it("reports a page translation failure inline instead of as an error toast", async () => {
 	const h = await mountHarness();
 	await h.startPage(0);
+	// The reliability layer settles failed blocks on error instead of throwing,
+	// so the hook sees terminal item errors and must not toast.
 	await h.run(() =>
-		io.runs[0].reject(
-			new Error("Unexpected Tencent Transmart translation response"),
+		io.runs[0].resolve(
+			io.runs[0].items.map((item) => ({
+				...item,
+				status: "error" as const,
+				translated: undefined,
+				error: "Unexpected Tencent Transmart translation response",
+			})),
 		),
 	);
 	await h.flush();
-	expect(io.errors.length).toBe(1);
-	expect(io.errors[0]?.[0]).toBe("pdf.layoutTranslate.pageFailed");
+	expect(io.errors.length).toBe(0);
 	expect(h.view.layoutTranslateStatus).toBe("partial");
 	expect(h.partial.visible).toBe(false);
+	// Retry entry: the page's blocks keep status "error" and the page tab shows
+	// the incomplete state, while tapping the marker retries the same page run.
+	expect(h.view.layoutTranslatePageStateByPage.get(0)?.status).toBe("error");
+	const runsBefore = io.runs.length;
+	await h.togglePage(0);
+	expect(io.runs.length).toBe(runsBefore + 1);
 });
 
 it("keeps a hidden page while another page finishes and restores it from its page tag", async () => {

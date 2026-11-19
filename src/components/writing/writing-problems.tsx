@@ -34,6 +34,7 @@ import { basenameOf, normalizePath } from "@/lib/core/path";
 import { cancelTask } from "@/lib/core/tasks";
 import { cn } from "@/lib/core/utils";
 import { type TexBuildSnapshot, texBuildStore } from "@/lib/tex/build-state";
+import { sortBySeverity } from "@/lib/tex/editor-diagnostic";
 import {
 	editorLintStore,
 	pendingEditorLineJump,
@@ -98,8 +99,8 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 		}
 		return rows;
 	}, [bufferVersion, rootFile, t]);
-	const rows = useMemo(
-		() => [
+	const rows = useMemo(() => {
+		const collected: Row[] = [
 			...(lint && normalizePath(lint.path) === key
 				? lint.diagnostics.map((diagnostic) =>
 						editorRow(diagnostic, lint.path, lint.jump),
@@ -117,14 +118,26 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						),
 					]
 				: []),
-		],
-		[compileProblems, key, lint, requirementRows, rootFile, snapshot, t],
-	);
+		];
+		// Errors (red) lead the card and the build-log list; the sort is stable,
+		// so each severity keeps its original order.
+		return sortBySeverity(collected);
+	}, [compileProblems, key, lint, requirementRows, rootFile, snapshot, t]);
 	const counts = { error: 0, warning: 0, info: 0 };
 	for (const row of rows) counts[row.severity] += 1;
 	const shown = (["error", "warning", "info"] as const).filter(
 		(severity) => counts[severity] > 0,
 	);
+	// Colour the icon itself, not the ghost button: the button's hover / open
+	// state repaints its text to foreground, which would turn a red alert white.
+	const tone =
+		counts.error > 0
+			? "text-destructive"
+			: counts.warning > 0
+				? "text-amber-600 dark:text-amber-500"
+				: counts.info > 0
+					? "text-sky-600 dark:text-sky-500"
+					: "text-muted-foreground";
 
 	function askAgent(row: Row) {
 		const selection = createSelectionContext({
@@ -162,16 +175,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						className={cn(
-							"shrink-0",
-							counts.error > 0
-								? "text-destructive"
-								: counts.warning > 0
-									? "text-amber-600 dark:text-amber-500"
-									: counts.info > 0
-										? "text-sky-600 dark:text-sky-500"
-										: "text-muted-foreground",
-						)}
+						className="shrink-0"
 						aria-label={
 							shown.length
 								? shown
@@ -185,7 +189,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						}
 						title={t("problems")}
 					>
-						<TriangleAlert aria-hidden />
+						<TriangleAlert aria-hidden className={tone} />
 					</Button>
 				</PopoverTrigger>
 				<PopoverContent align="start" className="w-80 gap-1 p-1.5">

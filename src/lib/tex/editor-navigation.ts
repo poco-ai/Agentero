@@ -2,7 +2,7 @@ import type { EditorView } from "@codemirror/view";
 import { normalizePath } from "@/lib/core/path";
 import { joinVaultPath, vaultRelativePath } from "@/lib/vault/path";
 import { vaultStore } from "@/lib/vault/store";
-import { setWritingFile, writingStore } from "@/lib/writing/store";
+import { writingStore } from "@/lib/writing/store";
 
 export type TexSourcePoint = { line: number; column: number };
 export type TexEditorCursor = TexSourcePoint & { path: string };
@@ -151,16 +151,15 @@ export function navigateTexSource(
 	}
 	const request = { line, column };
 	pending.set(key, request);
-	if (writingStore.getState().surface === "writing") {
-		void import("@/lib/writing/store").then(({ setWritingFile }) => {
-			if (pending.get(key) !== request) return;
-			setWritingFile(path);
-		});
-		return;
-	}
-	void import("@/lib/workspace/navigation").then(({ openTab }) => {
+	void import("@/lib/workspace/navigation").then((nav) => {
 		if (pending.get(key) !== request) return;
-		openTab(path, { preferMode: "text" });
+		if (isThesisPath(path)) {
+			// A writing project owns one panel: swap its source pane in place
+			// and let the newly mounted editor consume the pending jump.
+			void nav.openWritingSourceAt(path);
+			return;
+		}
+		nav.openTab(path, { preferMode: "text" });
 		const canonical = [...(editors.get(key) ?? [])].find(
 			(entry) => entry.canonical,
 		);
@@ -173,6 +172,16 @@ export function navigateTexSource(
 
 const WRITING_SOURCE = /\.(?:tex|bib|sty|cls|bst)$/i;
 
+/** Vault-relative `thesis/` membership, separator-agnostic. */
+function isThesisPath(path: string): boolean {
+	const vaultPath = vaultStore.getState().vaultPath;
+	if (!vaultPath) return false;
+	const rel =
+		vaultRelativePath(vaultPath, path) ??
+		path.replace(/\\/g, "/").replace(/^\.\//, "");
+	return rel.replace(/\\/g, "/").toLowerCase().startsWith("thesis/");
+}
+
 function fragmentLine(fragment: string): number | null {
 	const match = fragment.match(/^(?:line=)?L?(\d+)$/i);
 	if (!match) return null;
@@ -181,18 +190,17 @@ function fragmentLine(fragment: string): number | null {
 }
 
 /**
- * Agent citations of a manuscript source open in the writing editor.
+ * Agent citations of a manuscript source open in the writing project panel.
  * Papers and PDFs keep the reading jump.
  */
 export function tryOpenWritingSource(path: string, fragment: string): boolean {
-	const writing = writingStore.getState();
-	if (writing.surface !== "writing") return false;
 	const vaultPath = vaultStore.getState().vaultPath;
 	if (!vaultPath) return false;
 	const rel =
 		vaultRelativePath(vaultPath, path) ??
 		path.replace(/\\/g, "/").replace(/^\.\//, "");
-	if (!rel.toLowerCase().startsWith("thesis/")) return false;
+	if (!rel.replace(/\\/g, "/").toLowerCase().startsWith("thesis/"))
+		return false;
 	if (!WRITING_SOURCE.test(rel) || rel.split("/").includes("..")) return false;
 	const full = joinVaultPath(vaultPath, rel);
 	const line = fragmentLine(fragment);
@@ -200,6 +208,8 @@ export function tryOpenWritingSource(path: string, fragment: string): boolean {
 		navigateTexSource(full, line);
 		return true;
 	}
-	setWritingFile(full);
+	void import("@/lib/workspace/navigation").then(({ openWritingSourceAt }) => {
+		void openWritingSourceAt(full);
+	});
 	return true;
 }

@@ -67,6 +67,7 @@ export function panelPersistParams(tab: DocTab): PanelPersistParams {
 		title: tab.title,
 		...(tab.texLive ? { texLive: true } : {}),
 		...(tab.texRoot ? { texRoot: tab.texRoot } : {}),
+		...(tab.writingRoot ? { writingRoot: tab.writingRoot } : {}),
 		...(tab.pane === "split" || tab.pane === "translation"
 			? { pane: tab.pane }
 			: {}),
@@ -82,6 +83,7 @@ type LayoutPanelState = {
 		title?: string;
 		texLive?: boolean;
 		texRoot?: string;
+		writingRoot?: string;
 		pane?: string;
 	};
 };
@@ -178,6 +180,10 @@ export function extractTabsFromLayout(layout: unknown): {
 			...(typeof panel.params?.texRoot === "string" &&
 			panel.params.texRoot.trim()
 				? { texRoot: panel.params.texRoot }
+				: {}),
+			...(typeof panel.params?.writingRoot === "string" &&
+			panel.params.writingRoot.trim()
+				? { writingRoot: panel.params.writingRoot }
 				: {}),
 		});
 	}

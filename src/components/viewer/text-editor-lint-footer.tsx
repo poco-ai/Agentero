@@ -11,6 +11,7 @@ import type {
 	EditorDiagnostic,
 	LintSeverity,
 } from "@/lib/tex/editor-diagnostic";
+import { LINT_SEVERITY_ORDER } from "@/lib/tex/editor-diagnostic";
 
 /**
  * IDE-style lint status bar for the text editor: per-severity counts
@@ -97,8 +98,6 @@ export const SEVERITY_META: Record<
 	},
 };
 
-const SEVERITY_ORDER: LintSeverity[] = ["error", "warning", "info"];
-
 /** Include the exact location and rule message when sharing findings with an agent. */
 export function formatEditorDiagnostic(
 	diagnostic: EditorDiagnostic,
@@ -136,8 +135,8 @@ export function TextEditorLintFooter({
 	for (const diagnostic of diagnostics) counts[diagnostic.severity] += 1;
 	const shown =
 		chrome === "inline"
-			? SEVERITY_ORDER.filter((severity) => counts[severity] > 0)
-			: SEVERITY_ORDER;
+			? LINT_SEVERITY_ORDER.filter((severity) => counts[severity] > 0)
+			: LINT_SEVERITY_ORDER;
 	if (chrome === "inline" && shown.length === 0) return null;
 	return (
 		<div

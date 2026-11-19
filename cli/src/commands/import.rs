@@ -1,18 +1,21 @@
 //! `agentero import *`
 
+use crate::commands::layout::import_layout_line;
 use crate::error::CliError;
 use crate::output::to_value;
 use crate::resolve::{resolve_vault, GlobalOpts};
 use agentero_core::features::import as paper_import;
 use agentero_core::features::import::{
-    skipped_preparation_line, ImportLocalPdfArgs, LookupImportArgs, NoteShellMode, PaperImportArgs,
+    skipped_preparation_line, ImportLocalPdfArgs, LookupImportArgs, LookupImportResult,
+    NoteShellMode, PaperImportArgs,
 };
+use agentero_core::features::pdf::layout_analyze::{self, AnalyzeLayoutArgs};
 use agentero_core::features::zotero;
 use clap::{Subcommand, ValueHint};
 use serde_json::{json, Value};
 use std::fs;
 use std::io::{self, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Subcommand)]
 pub enum ImportCmd {
@@ -43,6 +46,10 @@ pub enum ImportCmd {
         /// Skip metadata recognition and import with filename-based metadata.
         #[arg(long = "no-recognize")]
         no_recognize: bool,
+        /// Run headless layout analysis (remote provider from settings.json)
+        /// for every imported paper that has a local PDF.
+        #[arg(long = "layout")]
+        layout: bool,
     },
 }
 
@@ -54,7 +61,8 @@ pub async fn run(cmd: ImportCmd, globals: &GlobalOpts) -> Result<Value, CliError
             files,
             parent,
             no_recognize,
-        } => import_pdf(globals, &files, &parent, no_recognize).await,
+            layout,
+        } => import_pdf(globals, &files, &parent, no_recognize, layout).await,
     }
 }
 
@@ -158,6 +166,7 @@ async fn import_pdf(
     files: &[PathBuf],
     parent: &str,
     no_recognize: bool,
+    layout: bool,
 ) -> Result<Value, CliError> {
     let vault = resolve_vault(globals)?;
     let mut file_paths = Vec::with_capacity(files.len());
@@ -188,31 +197,113 @@ async fn import_pdf(
     .await
     .map_err(|e| CliError::import_failed(e.to_string()))?;
 
-    let mut v = to_value(&result)?;
-    if let Some(obj) = v.as_object_mut() {
-        let mut lines = Vec::new();
-        let mut preparation_skipped = Vec::new();
-        for paper in &result.papers {
-            lines.push(format!(
-                "imported {} → {} ({})",
-                paper.id, paper.path, paper.title
-            ));
-            if let Some(line) = skipped_preparation_line(&paper.preparation) {
-                log::info!(target: "agentero::import", "{line}");
-                preparation_skipped.push(line.clone());
-                lines.push(line);
+    let mut lines = Vec::new();
+    let mut preparation_skipped = Vec::new();
+    for paper in &result.papers {
+        lines.push(format!(
+            "imported {} → {} ({})",
+            paper.id, paper.path, paper.title
+        ));
+        if let Some(line) = skipped_preparation_line(&paper.preparation) {
+            log::info!(target: "agentero::import", "{line}");
+            preparation_skipped.push(line.clone());
+            lines.push(line);
+        }
+    }
+    for err in &result.errors {
+        lines.push(format!("error: {err}"));
+    }
+
+    // Layout analysis is best-effort: an import never fails because the
+    // provider is missing or one paper's analysis failed.
+    let mut layout_results: Option<Vec<Value>> = None;
+    let mut layout_error: Option<String> = None;
+    if layout {
+        match analyze_imported_papers(&vault, &result.papers).await {
+            Ok((results, layout_lines)) => {
+                lines.extend(layout_lines);
+                layout_results = Some(results);
+            }
+            Err(message) => {
+                lines.push(format!("warning: {message}"));
+                layout_results = Some(Vec::new());
+                layout_error = Some(message);
             }
         }
-        for err in &result.errors {
-            lines.push(format!("error: {err}"));
-        }
-        if lines.is_empty() {
-            lines.push("no files imported".to_string());
-        }
+    }
+
+    if lines.is_empty() {
+        lines.push("no files imported".to_string());
+    }
+
+    let mut v = to_value(&result)?;
+    if let Some(obj) = v.as_object_mut() {
         if !preparation_skipped.is_empty() {
             obj.insert("preparationSkipped".into(), json!(preparation_skipped));
+        }
+        if let Some(results) = layout_results {
+            obj.insert("layout".into(), json!(results));
+        }
+        if let Some(warning) = layout_error {
+            obj.insert("layoutError".into(), json!(warning));
         }
         obj.insert("lines".into(), json!(lines));
     }
     Ok(v)
+}
+
+/// Run `layout analyze` for every freshly imported paper that has a local PDF.
+///
+/// Returns `(per-paper JSON results, human lines)`. When no remote provider is
+/// configured this is a single `Err(message)` so the caller prints one warning
+/// line instead of one error per paper; individual paper failures only warn.
+async fn analyze_imported_papers(
+    vault: &Path,
+    papers: &[LookupImportResult],
+) -> Result<(Vec<Value>, Vec<String>), String> {
+    // Preflight the shared desktop settings once. `layout.backend = local`
+    // (ONNX in the WebView) and a missing provider card both land here.
+    if let Err(err) = layout_analyze::settings::resolve_provider_settings(None, None, None, None) {
+        return Err(format!(
+            "layout analysis skipped — {err}; configure a remote provider in \
+             Settings → Layout, or run `agentero layout analyze <ref> --provider paddle|mineru`"
+        ));
+    }
+
+    let mut results = Vec::new();
+    let mut lines = Vec::new();
+    for paper in papers {
+        if !paper.pdf {
+            continue;
+        }
+        let args = AnalyzeLayoutArgs::new(vault.to_path_buf(), paper.path.clone());
+        match layout_analyze::analyze_paper_layout(args).await {
+            Ok(outcome) => {
+                results.push(json!({
+                    "path": paper.path,
+                    "ok": true,
+                    "provider": outcome.provider,
+                    "fromCache": outcome.from_cache,
+                    "regionCount": outcome.region_count,
+                    "indexCount": outcome.index_count,
+                    "pageCount": outcome.page_count,
+                    "elapsedMs": outcome.elapsed_ms,
+                }));
+                lines.push(import_layout_line(&paper.path, &outcome));
+            }
+            Err(err) => {
+                let message = err.to_string();
+                results.push(json!({
+                    "path": paper.path,
+                    "ok": false,
+                    "error": message,
+                }));
+                lines.push(format!(
+                    "warning: layout analysis failed for {}: {message}",
+                    paper.path
+                ));
+            }
+        }
+    }
+    Ok((results, lines))
 }
