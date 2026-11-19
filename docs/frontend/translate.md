@@ -248,13 +248,13 @@ TeX 符号字体（`txsys` / `txmi` / `txex`）与 Libertine Math 一并归入�
 - **译文结构校验**：带 reflow IR 的缓存译文在 hydrate 时按当前公式与样式结构重新校验；旧标记缺失、重复或引用不存在的公式/样式时回退 pending，不能把上一版提取结果的占位符带进排版。
 - **开关**：设置 → 翻译 → 缓存 提供两个开关。`cacheReflowIr`（默认开）控制 IR 页缓存；`cacheReflowFinal`（默认关，单篇约 25 MB）控制最终译文 PDF 缓存。开关只控制是否写入新文件：关闭后不再新增缓存，已有文件仍会命中复用，需要释放空间时到「设置 → 关于 → 翻译缓存」清除。
 - **日志**：`pdf.reflow.prepare` 是 prepare 总耗时；`pdf.reflow.prepare.cache`（`phase=read|write`）是缓存 IO，`pdf.reflow.prepare.extract` 是 PDFium 抽取，`pdf.reflow.cache` 记录 `result=hit|miss` 与页数；`pdf.reflow.page` / `pdf.reflow.final` 仍是预览和导出耗时。命中后 prepare 只剩缓存解压与 item 映射，页构建与最终 PDF 仍会按页重算。
-- **构建结果缓存（仅整篇）**：受 `cacheReflowFinal` 开关控制（默认关）；开启后最终译文 PDF 持久化在 `appCacheDir()/reflow-build/<pdf 哈希前缀>-<内容键>.pdf`，**按原样存为可直接打开的 PDF**。键覆盖整篇 IR 内容、全部实际译文、字体字节长度与资源 revision、构建管线版本（`REFLOW_BUILD_PIPELINE_VERSION`，layout/export 输出变化时必须提升）；**键内容规范化**——段落/公式/障碍按 id 排序后参与指纹，页级运行重新合并 items 造成的绘制顺序抖动（内容语义不变）不会导致 miss。命中时 `pdf.reflow.final` 不再重跑 PDFium 去字、公式片段抽取、字体嵌入和 pdf-lib 序列化，读写走 `pdf.reflow.buildCache`（`phase=read|write`、`result=hit|miss`），命中后排版度量在内存中按同一字体重算，逐页渲染照旧。**逐页预览构建不落盘**：每页 PDF 都完整嵌入 CJK 字体对（~20 MB/页），缓存它们会让每篇占用数百 MB，因此页构建仍每次执行（`pdf.reflow.page` 照常出现），只有 final 复用。任何一层校验不符（换 PDF、译文变化、字体更新、管线升级）都按 miss 重建，构建缓存失败从不阻断翻译。单页隐藏 / 恢复会改变译文集合，final 随之 miss 一次属预期；同一篇的 final 按 mtime 只保留最新 2 份，更旧的与早期逐页缓存遗留文件在写入时清扫，磁盘占用约 25–60 MB/篇。
+- **构建结果缓存（仅整篇）**：受 `cacheReflowFinal` 开关控制（默认关）；最终译文以可直接打开的 PDF 存在 `appCacheDir()/reflow-build/<pdf 哈希前缀>-<内容键>.pdf`。键覆盖规范化的整篇 IR、实际译文、字体字节长度和资源 revision、构建管线版本（`REFLOW_BUILD_PIPELINE_VERSION`，输出变化时递增）。命中后只在 Worker 重算度量，不再提取公式、去字、嵌入字体或序列化，预览按原流程渲染。逐页预览不落盘，整篇只保留最新 2 份；写入时清扫旧缓存，读写失败不会阻断翻译。
 
 ### 逐页重排预览（#838）
 
 翻译批次按其中最早段落的页码和页内阅读顺序调度，字符 IR 补提取的回填段落所在批次优先于后面页面的批次，避免前面的页面等待整篇版面块译完后才补齐。沿用原有字符预算组批，保留每批的段落、请求内容与并发、重试机制，不增加翻译请求；跨页批次或并发重试可能让页面交错完成。调度排序不改变排版与持久化使用的条目顺序、sidecar 格式或缓存键。
 
-翻译开始准备字符 IR 时即预取固定字体。某页所有条目结束后，独立串行队列提取单页 PDF，
+某页所有条目结束后，独立串行队列提取单页 PDF，
 仅处理该页的文字删除和公式片段，并以局部字号排版、渲染；其他页仍可继续翻译。
 自动重试期间的 pending/running 条目会阻止该页预览；最终失败/跳过的条目保留原文，
 其 IR 框仍参与避让。停止后的部分结果沿用原有可导出语义。
@@ -262,16 +262,19 @@ TeX 符号字体（`txsys` / `txmi` / `txex`）与 Libertine Math 一并归入�
 预览按页保存，与翻译批次状态分离。只有该页译文、状态、IR 或版面区域变化时才失效，
 其他页的批次不会取消正在构建的页；清空、重试和关闭文档会丢弃过期结果并释放 URL。
 全文结束后执行文档级 common scale 校正和完整 PDF 构建，只重新渲染布局变化的页，
-每页渲染完即显示；全部完成后才开放译文/双语 PDF 导出。导出对话框期间若结果失效，
-不会继续写出旧结果。
+每页渲染完即显示；全部完成后才开放译文/双语 PDF 导出。单页翻译与单页补译不自动写出整本；
+用户确认导出时，才把已译页与未译的原始页组装成完整 PDF，并保留已显示的局部排版。
+导出期间换文档或结果失效时，不继续写出旧结果。
 
 诊断日志包含 `pdf.layout.complete`、`pdf.translate.first-result`、`pdf.translate.complete`，
 以及 `pdf.reflow.prepare`、`pdf.reflow.prepare.cache`、`pdf.reflow.prepare.extract`、`pdf.reflow.cache`、
 `pdf.reflow.buildCache`、`pdf.reflow.fonts/page/final/render` 的 `duration_ms`。首次缓存和热缓存应分开比较。
-页级构建与最终导出复用同一排版、公式和链接处理；保持 `subset: false` 防止 CJK 缺字。
-字体字节与下载 Promise 已缓存，嵌入对象仍属于各自 PDF，不能跨文档直接复用。
+`pdf.reflow.prepareWrite` 单独计时 PDFium 取公式与去字；`pdf.reflow.write` 记录 Worker 排队、布局和 PDF 保存耗时。
+逐页、整篇、增量合并、双语交错与缓存命中后的布局重算共用每 WebView 一个串行写出 Worker。
+取消排队任务会移除请求；取消执行中的任务会终止 Worker，后续任务重建；空闲 30 秒自动释放。
+只嵌入实际绘制过的字体，仍保持 `subset: false` 防止 CJK 缺字。字体字节按需加载，主线程 30 秒未取用则放弃内存缓存。
 
 限制与后续：整篇版面分析及字符 IR 准备仍在首批翻译之前；完整字体嵌入、逐公式裁剪仍有 CPU 开销，
 预览图暂未按可视区域淘汰。预览栅格按 16 MB 位图预算自动降采样，PDFium wasm 分配失败时再以半尺度重试一次；
 这避免长论文在连续渲染几十页后因单页 32 MB 位图耗尽堆内存而拒绝整篇任务。仍需同 PDF、同服务的端到端阶段占比与桌面交互耗时实测，
-据此评估字体写出 Worker、公式缓存及可视页内存预算。
+据此评估公式缓存及可视页内存预算。阶段 A/B 见 [PDF 重排性能](../test/pdf-reflow-performance.md)。

@@ -189,6 +189,7 @@ type LayoutTranslateJobState = {
 	 * and clicking it starts a document run (cache-first) instead.
 	 */
 	scope: "none" | "document" | "page";
+	reflowPageOnly?: boolean;
 	/** True when the job started from (or reused) already translated blocks. */
 	fromCache: boolean;
 	runScope: LayoutTranslateRunScope;
@@ -445,6 +446,7 @@ export function usePdfLayoutTranslate({
 		paperAbsPath,
 		paperKey,
 		pdfBytes,
+		layoutTranslateJob.reflowPageOnly ?? layoutTranslateJob.scope === "page",
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
 	/** Incremented whenever a translation owner changes; stale cache hydrates cannot commit. */
@@ -639,6 +641,7 @@ export function usePdfLayoutTranslate({
 										? "partial"
 										: "done",
 						scope: mode === "document" ? "document" : "page",
+						reflowPageOnly: mode !== "document",
 						items:
 							job.state === "cancelled"
 								? resetRunningTranslateItems(visibleItems)
@@ -680,6 +683,7 @@ export function usePdfLayoutTranslate({
 							setLayoutTranslateJob((prev) => ({
 								...prev,
 								scope: mode === "document" ? "document" : "page",
+								reflowPageOnly: mode !== "document",
 								status:
 									job.state === "cancelled"
 										? "cancelled"
@@ -755,6 +759,7 @@ export function usePdfLayoutTranslate({
 			setLayoutTranslateJob((prev) => ({
 				...prev,
 				scope: "document",
+				reflowPageOnly: false,
 				status: "running",
 			}));
 			void (async () => {
@@ -807,6 +812,7 @@ export function usePdfLayoutTranslate({
 											status:
 												hydration.pendingRequired > 0 ? "partial" : "done",
 											scope: "document",
+											reflowPageOnly: false,
 											items: hydration.items,
 											cacheKey,
 											fromCache: true,
@@ -904,6 +910,7 @@ export function usePdfLayoutTranslate({
 				status: "running",
 				items: pendingItems,
 				scope: "document",
+				reflowPageOnly: false,
 				fromCache: false,
 				runScope: "initial",
 				runScopeIds: seedScopeIds,
@@ -942,6 +949,7 @@ export function usePdfLayoutTranslate({
 						: "done",
 				items: hydration.items,
 				scope: "document",
+				reflowPageOnly: false,
 				fromCache: hydration.fromCache,
 				runScope: "initial",
 				// Include cached blocks in document-wide progress.
@@ -1047,6 +1055,7 @@ export function usePdfLayoutTranslate({
 				...prev,
 				status: "running",
 				scope: prev.scope === "document" ? "document" : "page",
+				reflowPageOnly: true,
 				cacheKey,
 				runScope: "all",
 				runScopeIds: [],
@@ -1322,6 +1331,7 @@ export function usePdfLayoutTranslate({
 			items: seed,
 			cacheKey,
 			runScope: "pending",
+			reflowPageOnly: false,
 			runScopeIds: scopeIds,
 			partialCompletionFailed: false,
 		});
@@ -1436,6 +1446,7 @@ export function usePdfLayoutTranslate({
 			items: seed,
 			cacheKey,
 			runScope: "all",
+			reflowPageOnly: false,
 			runScopeIds: scopeIds,
 			partialCompletionFailed: false,
 		});
@@ -1758,6 +1769,7 @@ export function usePdfLayoutTranslate({
 					status: "done",
 					// Seed the document view from the available cached blocks.
 					scope: "document",
+					reflowPageOnly: false,
 					fromCache: true,
 					runScope: "initial",
 					runScopeIds: seededItems.map((item) => item.id),
@@ -1799,6 +1811,7 @@ export function usePdfLayoutTranslate({
 				status: hydration.pendingRequired > 0 ? "partial" : "done",
 				items: hydration.items,
 				scope: "document",
+				reflowPageOnly: false,
 				fromCache: true,
 				runScope: "initial",
 				runScopeIds: layoutTranslateScopeIds(

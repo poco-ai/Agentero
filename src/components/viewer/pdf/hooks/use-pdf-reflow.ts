@@ -12,8 +12,6 @@ import type {
 import { createReflowBuildCache } from "@/lib/pdf/reflow/build-cache";
 import { ReflowBuildEngine } from "@/lib/pdf/reflow/builder";
 import { createReflowIrCache } from "@/lib/pdf/reflow/cache";
-import { interleaveReflowPdf } from "@/lib/pdf/reflow/export";
-import { loadReflowFonts } from "@/lib/pdf/reflow/fonts";
 import { NO_REGIONS, ReflowPreviewSession } from "@/lib/pdf/reflow/preview";
 import { prepareReflowItems } from "@/lib/pdf/reflow/service";
 import { writeVaultBytes } from "@/lib/vault/fs";
@@ -30,6 +28,7 @@ export function usePdfReflow(
 	paperAbsPath?: string | null,
 	paperKey?: string | null,
 	pdfBytes?: ArrayBuffer | null,
+	pageOnly = false,
 ) {
 	const { t } = useTranslation("viewer");
 	// Cache persistence is user-controlled (Settings → Translate). The ref keeps
@@ -82,7 +81,6 @@ export function usePdfReflow(
 				{ writesEnabled: () => cacheFlags.current.ir },
 			);
 			if (value) return value.prepare(seed, regions, signal, cache);
-			void loadReflowFonts().catch(() => {});
 			return logOp("pdf.reflow.prepare", { items: seed.length }, () =>
 				prepareReflowItems(
 					ctx.engine,
@@ -127,8 +125,8 @@ export function usePdfReflow(
 	// Re-run when the owning session is recreated, even if inputs are unchanged.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: session lifetime dependencies
 	useEffect(() => {
-		session.current?.update(items, regions ?? NO_REGIONS, running);
-	}, [items, regions, running, engine, document, documentKey, t]);
+		session.current?.update(items, regions ?? NO_REGIONS, running, pageOnly);
+	}, [items, regions, running, pageOnly, engine, document, documentKey, t]);
 	const reflowItems = useMemo(() => {
 		// Revision changes when an individual preview is published.
 		void revision;
@@ -138,8 +136,7 @@ export function usePdfReflow(
 	const exportPdf = useCallback(
 		async (dual = false) => {
 			const value = session.current;
-			const output = value?.output;
-			if (!output || !value?.ready || current.current.running) return;
+			if (!value?.ready || current.current.running) return;
 			try {
 				const { save } = await import("@tauri-apps/plugin-dialog");
 				const path = await save({
@@ -149,23 +146,18 @@ export function usePdfReflow(
 				if (
 					path &&
 					session.current === value &&
-					value.output === output &&
 					value.ready &&
 					!current.current.running
 				) {
-					const ctx = current.current.context?.();
-					const bytes =
-						dual && ctx
-							? await interleaveReflowPdf(
-									new Uint8Array(
-										await ctx.engine.saveAsCopy(ctx.document).toPromise(),
-									),
-									output,
-								)
-							: output;
-					await writeVaultBytes(path, bytes);
+					const bytes = await value.exportPdf(
+						current.current.regions ?? NO_REGIONS,
+						dual,
+					);
+					if (bytes && session.current === value && !current.current.running)
+						await writeVaultBytes(path, bytes);
 				}
 			} catch (error) {
+				if (session.current !== value) return;
 				notifyError(t("pdf.layoutTranslate.reflowFailed"), {
 					description: errorText(error),
 				});

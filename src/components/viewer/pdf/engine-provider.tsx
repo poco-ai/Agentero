@@ -2,6 +2,7 @@ import type { PdfEngine } from "@embedpdf/models";
 import {
 	createContext,
 	type ReactNode,
+	useCallback,
 	useContext,
 	useEffect,
 	useState,
@@ -14,13 +15,15 @@ type PdfEngineContextValue = {
 	error: Error | null;
 };
 
-const PdfEngineContext = createContext<PdfEngineContextValue>({
+const PdfEngineContext = createContext<
+	PdfEngineContextValue & { start?: () => void }
+>({
 	engine: null,
 	isLoading: true,
 	error: null,
 });
 
-function useAgenteroPdfEngine(): PdfEngineContextValue {
+function useAgenteroPdfEngine(active: boolean): PdfEngineContextValue {
 	const [state, setState] = useState<PdfEngineContextValue>({
 		engine: null,
 		isLoading: true,
@@ -28,6 +31,7 @@ function useAgenteroPdfEngine(): PdfEngineContextValue {
 	});
 
 	useEffect(() => {
+		if (!active) return;
 		const controller = new AbortController();
 		let current: PdfEngine | null = null;
 
@@ -54,7 +58,7 @@ function useAgenteroPdfEngine(): PdfEngineContextValue {
 			if (current) disposePdfEngine(current);
 			current = null;
 		};
-	}, []);
+	}, [active]);
 
 	return state;
 }
@@ -65,14 +69,19 @@ function useAgenteroPdfEngine(): PdfEngineContextValue {
  * concurrently, so a single engine backs all `<EmbedPDF>` providers.
  */
 export function PdfEngineHost({ children }: { children: ReactNode }) {
-	const { engine, isLoading, error } = useAgenteroPdfEngine();
+	const [active, setActive] = useState(false);
+	const start = useCallback(() => setActive(true), []);
+	const { engine, isLoading, error } = useAgenteroPdfEngine(active);
 	return (
-		<PdfEngineContext.Provider value={{ engine, isLoading, error }}>
+		<PdfEngineContext.Provider value={{ engine, isLoading, error, start }}>
 			{children}
 		</PdfEngineContext.Provider>
 	);
 }
 
 export function usePdfEngineContext(): PdfEngineContextValue {
-	return useContext(PdfEngineContext);
+	const context = useContext(PdfEngineContext);
+	const { start } = context;
+	useEffect(() => start?.(), [start]);
+	return context;
 }

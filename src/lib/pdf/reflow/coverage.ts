@@ -102,33 +102,54 @@ export function characterCoverage(
 /** Rendering observes inherited clipping that PDFium text extraction omits.
  * This is a conservative ink check, not reconstruction of the clipping path.
  */
+function isNonPaintingCandidate(character: Character): boolean {
+	return Boolean(
+		character.text.trim() &&
+			(character.renderMode === 3 ||
+				character.renderMode === 7 ||
+				hasNonUnitTextScale(character)),
+	);
+}
+
+function hasNonUnitTextScale(character: Character): boolean {
+	const matrix = character.textMatrix;
+	return Boolean(
+		matrix && Math.abs(Math.hypot(matrix[0], matrix[1]) - 1) > 0.01,
+	);
+}
+
+export function needsNonPaintingRaster(
+	characters: readonly Character[],
+): boolean {
+	return characters.some(
+		(character) =>
+			character.renderMode !== 3 &&
+			character.renderMode !== 7 &&
+			isNonPaintingCandidate(character),
+	);
+}
+
 export function nonPaintingCharacters(
 	chars: readonly Character[],
-	image: { width: number; height: number; data: Uint8ClampedArray },
+	image: { width: number; height: number; data: Uint8ClampedArray } | null,
 	pageWidth: number,
 	pageHeight: number,
 ): Set<number> {
 	const groups = new Map<number, Character[]>();
 	for (const c of chars)
-		if (
-			c.text.trim() &&
-			(c.renderMode === 3 ||
-				c.renderMode === 7 ||
-				(c.textMatrix &&
-					Math.abs(Math.hypot(c.textMatrix[0], c.textMatrix[1]) - 1) > 0.01))
-		) {
+		if (isNonPaintingCandidate(c)) {
 			const id = c.textObjectId ?? c.index;
 			const g = groups.get(id) ?? [];
 			g.push(c);
 			groups.set(id, g);
 		}
 	const hidden = new Set<number>();
-	const sx = image.width / pageWidth,
-		sy = image.height / pageHeight;
+	const sx = (image?.width ?? 0) / pageWidth,
+		sy = (image?.height ?? 0) / pageHeight;
 	for (const group of groups.values()) {
 		let visible = 0;
 		for (const c of group) {
-			if (c.renderMode === 3 || c.renderMode === 7) continue;
+			if (!image || c.renderMode === 3 || c.renderMode === 7) continue;
 			const b = c.visualBox;
 			let ink = false;
 			for (

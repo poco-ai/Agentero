@@ -14,6 +14,7 @@ import type {
 import {
 	characterCoverage,
 	fallbackCharacterGroups,
+	needsNonPaintingRaster,
 	nonPaintingCharacters,
 	rotatedCharacterIndexes,
 } from "./coverage";
@@ -408,9 +409,9 @@ export async function extractReflowDocument(
 				});
 			}
 		}
-		const raster = await engine
-			.renderPageRaw(doc, page, { scaleFactor: 2 })
-			.toPromise();
+		const raster = needsNonPaintingRaster(characters)
+			? await engine.renderPageRaw(doc, page, { scaleFactor: 2 }).toPromise()
+			: null;
 		const hidden = nonPaintingCharacters(
 			characters,
 			raster,
