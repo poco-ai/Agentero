@@ -84,7 +84,7 @@ DOI 旁有 **刷新** 按钮：按当前 DOI（或 arXiv ID）拉取权威元数
 拖入/魔棒导入 PDF 直接进入后台导入任务，无确认对话框；识别链路（liteparse probe → Zotero recognizer → 标识符解析，见 [../backend/paper-import.md](../backend/paper-import.md)）在导入任务内自动补全：
 
 - 识别成功自动填充 标题/作者/日期/DOI/arXiv ID，文件夹 id 按 arXiv ID → DOI slug → 文件名 slug 自动派生；
-- 识别失败静默回退文件名派生元数据，用户在 Edit Metadata 中修正（DOI 旁刷新按钮拉取权威元数据）。
+- 未匹配或识别失败时保留论文和文件名派生标题，分别提示「未匹配」或「识别失败」。提示中的「修改元信息」打开该论文的表单；稍后也可从论文右键菜单打开，填写 DOI / arXiv 编号后点击「刷新」，或手动编辑。
 
 ## 代码
 

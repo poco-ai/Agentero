@@ -223,7 +223,7 @@ stock PDFium（例如 bblanchon/pdfium-binaries）能 `LoadLibrary`，但缺 for
 - **命中标识符（`ok`）** → 目录经 wiki rename 事务改名为规范 id（`papers/<文件名slug>` → `papers/1706.03762`，含 `{id}.pdf` 改名、catalog path/id 重写、`[[...]]` 链接重写、失败回滚），`meta_source=recognize`，emit `paper:renamed`。
 - **规范 id 已在库中** → 占位条目并入已有条目（PDF 成为对方主 PDF 或进 `attachments/`），删除占位目录/行，emit `paper:renamed`（`outcome=merged`）。
 - **仅命中标题（`title`）** → 只 upsert catalog 元数据，不改目录名。标题开头的 UTF-8 BOM（包括被错误显示为 `ï»¿` 的形式）会在此边界移除。
-- **未命中（`no-match`/`error`）** → `meta_source=local-unresolved`，用户可在 Edit Metadata 手填 DOI/arXiv 并刷新（`paper_resolve_identifier`）。
+- **未命中 / 识别失败**：两者均保留论文与占位元信息（`meta_source=local-unresolved`）。无文字或无可用匹配通过 `params.warning=no_match` 提示；解析器、识别请求或响应失败则将识别任务标为失败，不阻断正文、参考文献与版面后续任务。用户可在「修改元信息」手填 DOI / arXiv 并刷新（`paper_resolve_identifier`）。
 - **arXiv 链整体限流（HTTP 429）**：Zotero Recognizer 常只返回 arXiv id、不带 title；随后 arXiv 兜底链（Atom→S2→alphaXiv）**整条**被限流时（链内已自动 2s 冷却重试一趟）才保留文件名占位标题，并在 `recognizeMetadata` job 的 `params.warning=arxiv_rate_limited` 上让前端 Toast——链内单源 429 会被下一优先级源静默承接，不再触发警告。
 - **用户抢先编辑**：识别完成时若 `meta_source=manual`（Edit-Metadata 手改），识别结果整体放弃；其余来源（含 Connector 兜底的 `zotero-connector` 与未解决的 `local-unresolved`）允许识别结果按字段级合并覆盖非空值。
 

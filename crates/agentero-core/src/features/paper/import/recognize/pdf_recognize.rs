@@ -215,25 +215,13 @@ fn flip_y(page_height: f32, word: &ProbeWord) -> (f32, f32, f32) {
     (y_min, y_max, page_height - word.baseline)
 }
 
-/// Recognize one local PDF. Returns `Ok(None)` when nothing usable came back
-/// (probe failure, no text, no hit) — never blocks the caller's flow.
+/// Recognize one local PDF. No text or no usable hit is `Ok(None)`;
+/// parser, transport and response failures are errors, not misses.
 pub async fn recognize_pdf(
     pdf_path: &Path,
     task_id: Option<&str>,
 ) -> Result<Option<RecognizeHit>, AppError> {
-    let pages = match run_liteparse_probe(pdf_path, task_id).await {
-        Ok(pages) => pages,
-        Err(e)
-            if e.to_string()
-                .contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE) =>
-        {
-            return Err(e)
-        }
-        Err(e) => {
-            log::debug!(target: "agentero::recognize", "probe failed for {}: {e}", pdf_path.display());
-            return Ok(None);
-        }
-    };
+    let pages = run_liteparse_probe(pdf_path, task_id).await?;
     if pages
         .iter()
         .all(|p| p.lines.iter().all(|l| l.words.is_empty()))
@@ -262,29 +250,13 @@ pub async fn recognize_pdf(
         .post(ZOTERO_RECOGNIZER_ENDPOINT)
         .json(&payload)
         .send()
-        .await;
-    let response = match response {
-        Ok(r) => r,
-        Err(e) => {
-            log::debug!(target: "agentero::recognize", "recognizer request failed: {e}");
-            return Ok(None);
-        }
-    };
-    if !response.status().is_success() {
-        log::debug!(
-            target: "agentero::recognize",
-            "recognizer HTTP {}",
-            response.status()
-        );
-        return Ok(None);
-    }
-    let hit: RecognizeHit = match response.json().await {
-        Ok(hit) => hit,
-        Err(e) => {
-            log::debug!(target: "agentero::recognize", "recognizer body decode: {e}");
-            return Ok(None);
-        }
-    };
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|e| AppError::message(format!("recognizer request: {e}")))?;
+    let hit: RecognizeHit = response
+        .json()
+        .await
+        .map_err(|e| AppError::message(format!("recognizer response: {e}")))?;
     if hit.has_identifier()
         || hit
             .title
@@ -456,12 +428,6 @@ pub async fn recognize_and_resolve(
     let hit = match recognize_pdf(pdf_path, task_id).await {
         Ok(Some(hit)) => hit,
         Ok(None) => return PdfIdentProbe::no_match(&file_path),
-        Err(e)
-            if e.to_string()
-                .contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE) =>
-        {
-            return PdfIdentProbe::error(&file_path, e.to_string());
-        }
         Err(e) => return PdfIdentProbe::error(&file_path, e.to_string()),
     };
 

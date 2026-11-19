@@ -244,26 +244,40 @@ fn recognize_metadata_runner(
         // catalog fill follow-ups run against the final path.
         crate::features::paper::discovery::pwc::spawn_enrich(&vault, &final_path);
 
-        // Soft warning for the frontend: arXiv id found, Atom lookup hit 429,
-        // recognizer had no title — keep filename placeholder; Toast via
-        // `job:changed` params (no new lifecycle event).
-        if probe.warning.as_deref() == Some("arxiv_rate_limited")
-            && probe
-                .title
-                .as_deref()
-                .map(str::trim)
-                .filter(|t| !t.is_empty())
-                .is_none()
-        {
-            center
-                .merge_running_job_params(
-                    &snapshot.id,
-                    serde_json::json!({
-                        "warning": "arxiv_rate_limited",
-                        "arxivId": probe.arxiv_id,
-                    }),
+        // Only report an unresolved result if it was applied; a removed paper
+        // or a manual edit made during the probe must not trigger a warning.
+        let applied = outcome.as_ref().is_ok_and(|result| {
+            !matches!(
+                result,
+                crate::features::paper::import::recognize::apply::RecognizeApply::Skipped(_)
+            )
+        });
+        if applied {
+            let warning = if probe.warning.as_deref() == Some("arxiv_rate_limited")
+                && probe
+                    .title
+                    .as_deref()
+                    .is_none_or(|title| title.trim().is_empty())
+            {
+                Some("arxiv_rate_limited")
+            } else if probe.status == "no-match"
+                && crate::features::paper::import::recognize::pdf_recognize::canonical_base_id(
+                    &probe,
                 )
-                .await;
+                .is_none()
+            {
+                Some("no_match")
+            } else {
+                None
+            };
+            if let Some(warning) = warning {
+                center
+                    .merge_running_job_params(
+                        &snapshot.id,
+                        serde_json::json!({ "warning": warning, "arxivId": probe.arxiv_id }),
+                    )
+                    .await;
+            }
         }
 
         let final_caps = cache.caps_for(&vault, &final_path);
@@ -293,6 +307,7 @@ fn recognize_metadata_runner(
         }
 
         match outcome {
+            Ok(_) if applied && probe.status == "error" => RunOutcome::Failed(probe.error),
             Ok(_) => RunOutcome::Succeeded,
             Err(e) => RunOutcome::Failed(Some(e.to_string())),
         }
