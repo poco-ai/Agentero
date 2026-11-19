@@ -2,6 +2,8 @@
 
 「网页」类论文（paper `type === "html"`，有 `html_url` 无本地 PDF）由 `HtmlViewer`（`src/components/viewer/html-viewer.tsx`）以内嵌 iframe 阅读。从 PDF 标签打开的 arXiv HTML 不走下面这条代理，见 [pdf.md](pdf.md)。跨域 iframe 受同源策略约束,父页面拿不到选区——划词工具栏、翻译、Quick chat 全部失效。解法是把页面经内置通用代理加载,并注入一段"桥"脚本进页面上下文(近似浏览器扩展的 content script)。
 
+论文只有网页时可以先用 HTML 阅读。本地补入主 PDF 后，从论文库再次打开该条目会在原标签页切到 PDF，保留笔记分屏。已经提供 PDF 的论文保留手动选择的 HTML 视图。
+
 ## 架构
 
 ```text
