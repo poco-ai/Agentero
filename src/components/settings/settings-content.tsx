@@ -160,8 +160,8 @@ const NAV: {
 }[] = [
 	{ id: "account", icon: UserRound },
 	{ id: "general", icon: SlidersHorizontal },
-	{ id: "activity", icon: ChartColumn },
 	{ id: "appearance", icon: Paintbrush },
+	{ id: "activity", icon: ChartColumn },
 	{ id: "agent", icon: Bot, dividerBefore: true },
 	{ id: "translate", icon: Languages },
 	{ id: "layout", icon: LayoutTemplate },
