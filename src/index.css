@@ -652,6 +652,19 @@
 	--pdf-paper-ink: oklch(0.94 0.006 260);
 }
 /*
+ * In-page translate tab. While the page translates — or its translated page is
+ * still being typeset — the tab keeps a paper-ink tint and the stage label even
+ * when the pointer is elsewhere. It sits on paper, not on app chrome, so it
+ * cannot use --primary: a dark UI theme turns that near-white and the tab then
+ * disappears on white paper. The tint follows the page ink instead, so the same
+ * rule holds on inverted dark paper.
+ */
+.pdf-page-translate-tab[data-stage] {
+	border-color: color-mix(in oklch, var(--pdf-paper-ink) 32%, transparent);
+	background: color-mix(in oklch, var(--pdf-paper-ink) 10%, transparent);
+	color: var(--pdf-paper-ink);
+}
+/*
  * Layout-element selection. The frame and chip stay invisible until the
  * pointer or keyboard focus is on that element, so the page does not keep
  * every detection box painted. Entering is instant: a 150ms fade never

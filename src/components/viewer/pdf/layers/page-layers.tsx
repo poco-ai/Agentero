@@ -123,7 +123,10 @@ import {
 	layoutKindI18nKey,
 	type PdfLayoutRegion,
 } from "@/lib/pdf/layout";
-import type { LayoutTranslatePageState } from "@/lib/pdf/layout/layout-translate-progress";
+import {
+	type LayoutTranslatePageState,
+	layoutTranslatePageStage,
+} from "@/lib/pdf/layout/layout-translate-progress";
 import { translatedTextLinkKey } from "@/lib/pdf/layout/link-ink";
 import { translatedLinkHoverAction } from "@/lib/pdf/layout/translated-link-hover";
 import type {
@@ -580,6 +583,8 @@ type PageTranslateTabProps = {
 	active: boolean;
 	running: boolean;
 	status?: LayoutTranslatePageState["status"];
+	/** Text translated, translated page still being generated (typeset). */
+	previewPending?: boolean;
 	onToggle: (pageIndex: number) => void;
 };
 
@@ -589,11 +594,17 @@ const PageTranslateTab = memo(function PageTranslateTab({
 	active,
 	running,
 	status,
+	previewPending = false,
 	onToggle,
 }: PageTranslateTabProps) {
 	const { t } = useTranslation("viewer");
 	const ref = useRef<HTMLButtonElement>(null);
 	const position = usePageChromePosition(ref);
+	// Translating and typesetting share the loading ring, so the tab keeps a
+	// visible stage label while it runs; the tooltip alone left the in-progress
+	// state hidden until hover.
+	const stage = layoutTranslatePageStage({ running, previewPending });
+	const stageLabel = stage ? t(`pdf.layoutTranslate.pageStage.${stage}`) : null;
 	const label = running
 		? t("pdf.layoutTranslate.pageRunning")
 		: active
@@ -602,6 +613,8 @@ const PageTranslateTab = memo(function PageTranslateTab({
 	const statusLabel = status
 		? t(`pdf.layoutTranslate.pageStatus.${status}`)
 		: null;
+	const ariaLabel =
+		stageLabel ?? (statusLabel ? `${statusLabel}. ${label}` : label);
 	const Icon = status
 		? { pending: Circle, running: Loader2, done: Check, error: CircleAlert }[
 				status
@@ -615,17 +628,19 @@ const PageTranslateTab = memo(function PageTranslateTab({
 			type="button"
 			data-pdf-chrome
 			data-pdf-translate-tab
+			data-stage={stage ?? undefined}
 			style={{
 				visibility: position.visible ? undefined : "hidden",
 				transform: `translate(${position.x}px, ${position.y}px)`,
 			}}
 			className={cn(
-				"pointer-events-auto absolute top-2 left-2 z-[8] flex size-7 items-center justify-center rounded-md text-foreground transition-colors duration-100 hover:bg-muted/80 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				"pointer-events-auto absolute top-2 left-2 z-[8] flex items-center justify-center rounded-md text-foreground transition-colors duration-100 hover:bg-muted/80 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				stage ? "pdf-page-translate-tab h-7 gap-1.5 px-2" : "size-7",
 				PDF_CHROME_CHIP,
-				active && "border-primary/30 bg-primary/10 text-primary",
+				!stage && active && "border-primary/30 bg-primary/10 text-primary",
 			)}
-			aria-label={statusLabel ? `${statusLabel}. ${label}` : label}
-			title={statusLabel ? `${statusLabel}. ${label}` : label}
+			aria-label={ariaLabel}
+			title={ariaLabel}
 			aria-busy={running}
 			aria-pressed={active}
 			onClick={(event) => {
@@ -639,6 +654,11 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				className={cn("size-3.5 shrink-0", running && "animate-spin")}
 				aria-hidden="true"
 			/>
+			{stageLabel ? (
+				<span className="whitespace-nowrap font-medium text-caption leading-none">
+					{stageLabel}
+				</span>
+			) : null}
 		</button>
 	);
 });
@@ -1246,6 +1266,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				active={pageTranslateState.active}
 				running={pageTranslateState.running}
 				status={pageTranslateState.status}
+				previewPending={pageTranslateState.previewPending}
 				onToggle={handlers.onTogglePageLayoutTranslate}
 			/>
 		) : null;

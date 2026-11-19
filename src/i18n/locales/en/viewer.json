@@ -58,6 +58,10 @@
 				"done": "Page translation complete",
 				"error": "Page translation incomplete"
 			},
+			"pageStage": {
+				"translating": "Translating",
+				"typesetting": "Typesetting"
+			},
 			"pageRunning": "Translating this page…",
 			"needLayout": "Run layout analysis first (Figures panel).",
 			"noText": "No extractable text regions to translate.",
