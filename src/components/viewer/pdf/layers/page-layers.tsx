@@ -53,7 +53,6 @@ import {
 	pdfTileDpr,
 } from "@/components/viewer/pdf/constants";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
-import { usePageChromePosition } from "@/components/viewer/pdf/hooks/use-page-chrome-position";
 import { nativeSelectionBelongsToHost } from "@/components/viewer/pdf/host-dom";
 import {
 	AgenteroRenderLayer,
@@ -589,10 +588,12 @@ type PageTranslateTabProps = {
 /**
  * In-page translate / hide tab: a vertical label column in the page's left
  * margin, under the floating left toolbar (the toolbar owns the top-left
- * corner). It stays a labelled button, not a status badge: `翻译本页`
- * translates this page, `隐藏本页` hides a page that already shows a
- * translation. While a page works the tab keeps the loading ring and reports
- * the stage (`翻译中` / `排版中`), so the page also knows what it waits for.
+ * corner). It is pinned to the page, not the viewport: the tab scrolls with
+ * its page and disappears with it instead of being clamped to the visible
+ * edge. It stays a labelled button, not a status badge: `翻译本页` translates
+ * this page, `隐藏本页` hides a page that already shows a translation. While a
+ * page works the tab keeps the loading ring and reports the stage (`翻译中` /
+ * `排版中`), so the page also knows what it waits for.
  */
 const PageTranslateTab = memo(function PageTranslateTab({
 	pageIndex,
@@ -603,8 +604,6 @@ const PageTranslateTab = memo(function PageTranslateTab({
 	onToggle,
 }: PageTranslateTabProps) {
 	const { t } = useTranslation("viewer");
-	const ref = useRef<HTMLButtonElement>(null);
-	const position = usePageChromePosition(ref);
 	const stage = layoutTranslatePageStage({ running, previewPending });
 	const stageLabel = stage ? t(`pdf.layoutTranslate.pageStage.${stage}`) : null;
 	const failed = status === "error";
@@ -634,14 +633,9 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				: Languages;
 	return (
 		<button
-			ref={ref}
 			type="button"
 			data-pdf-chrome
 			data-pdf-translate-tab
-			style={{
-				visibility: position.visible ? undefined : "hidden",
-				transform: `translate(${position.x}px, ${position.y}px)`,
-			}}
 			className={cn(
 				// Vertical column, one unit under the top-left toolbar: the
 				// horizontal pill used to sit in the toolbar's corner and collide
