@@ -128,6 +128,16 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 	const shown = (["error", "warning", "info"] as const).filter(
 		(severity) => counts[severity] > 0,
 	);
+	// Colour the icon itself, not the ghost button: the button's hover / open
+	// state repaints its text to foreground, which would turn a red alert white.
+	const tone =
+		counts.error > 0
+			? "text-destructive"
+			: counts.warning > 0
+				? "text-amber-600 dark:text-amber-500"
+				: counts.info > 0
+					? "text-sky-600 dark:text-sky-500"
+					: "text-muted-foreground";
 
 	function askAgent(row: Row) {
 		const selection = createSelectionContext({
@@ -165,16 +175,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						className={cn(
-							"shrink-0",
-							counts.error > 0
-								? "text-destructive"
-								: counts.warning > 0
-									? "text-amber-600 dark:text-amber-500"
-									: counts.info > 0
-										? "text-sky-600 dark:text-sky-500"
-										: "text-muted-foreground",
-						)}
+						className="shrink-0"
 						aria-label={
 							shown.length
 								? shown
@@ -188,7 +189,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						}
 						title={t("problems")}
 					>
-						<TriangleAlert aria-hidden />
+						<TriangleAlert aria-hidden className={tone} />
 					</Button>
 				</PopoverTrigger>
 				<PopoverContent align="start" className="w-80 gap-1 p-1.5">
