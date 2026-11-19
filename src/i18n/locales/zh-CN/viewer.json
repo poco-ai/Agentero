@@ -49,9 +49,10 @@
 			"hide": "隐藏译文",
 			"show": "查看译文",
 			"translatePage": "翻译本页",
-			"translatePageShort": "翻译页面",
+			"translatePageShort": "翻译本页",
 			"hidePage": "隐藏本页译文",
 			"hidePageShort": "隐藏本页",
+			"retryPageShort": "重译本页",
 			"pageStatus": {
 				"pending": "本页待翻译",
 				"running": "正在翻译本页…",

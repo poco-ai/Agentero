@@ -49,9 +49,10 @@
 			"hide": "Hide translations",
 			"show": "Show translations",
 			"translatePage": "Translate this page",
-			"translatePageShort": "Page",
+			"translatePageShort": "Translate",
 			"hidePage": "Hide this page translation",
 			"hidePageShort": "Hide",
+			"retryPageShort": "Retry",
 			"pageStatus": {
 				"pending": "Page awaiting translation",
 				"running": "Translating this page…",

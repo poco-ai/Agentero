@@ -24,8 +24,6 @@ import { SearchLayer } from "@embedpdf/plugin-search/react";
 import { TilingLayer } from "@embedpdf/plugin-tiling/react";
 import {
 	Bookmark,
-	Check,
-	Circle,
 	CircleAlert,
 	EyeOff,
 	Languages,
@@ -588,7 +586,14 @@ type PageTranslateTabProps = {
 	onToggle: (pageIndex: number) => void;
 };
 
-/** Compact page status and translate / hide action. */
+/**
+ * In-page translate / hide tab, inside the page's top-left corner.
+ *
+ * It stays a labelled button, not a status badge: `翻译本页` translates this
+ * page, `隐藏本页` hides a page that already shows a translation. While a page
+ * works the tab keeps the loading ring and reports the stage (`翻译中` /
+ * `排版中`), so the page also knows what it is waiting for.
+ */
 const PageTranslateTab = memo(function PageTranslateTab({
 	pageIndex,
 	active,
@@ -600,11 +605,16 @@ const PageTranslateTab = memo(function PageTranslateTab({
 	const { t } = useTranslation("viewer");
 	const ref = useRef<HTMLButtonElement>(null);
 	const position = usePageChromePosition(ref);
-	// Translating and typesetting share the loading ring, so the tab keeps a
-	// visible stage label while it runs; the tooltip alone left the in-progress
-	// state hidden until hover.
 	const stage = layoutTranslatePageStage({ running, previewPending });
 	const stageLabel = stage ? t(`pdf.layoutTranslate.pageStage.${stage}`) : null;
+	const failed = status === "error";
+	const text =
+		stageLabel ??
+		(failed
+			? t("pdf.layoutTranslate.retryPageShort")
+			: active
+				? t("pdf.layoutTranslate.hidePageShort")
+				: t("pdf.layoutTranslate.translatePageShort"));
 	const label = running
 		? t("pdf.layoutTranslate.pageRunning")
 		: active
@@ -615,13 +625,13 @@ const PageTranslateTab = memo(function PageTranslateTab({
 		: null;
 	const ariaLabel =
 		stageLabel ?? (statusLabel ? `${statusLabel}. ${label}` : label);
-	const Icon = status
-		? { pending: Circle, running: Loader2, done: Check, error: CircleAlert }[
-				status
-			]
-		: active
-			? EyeOff
-			: Languages;
+	const Icon = stage
+		? Loader2
+		: failed
+			? CircleAlert
+			: active
+				? EyeOff
+				: Languages;
 	return (
 		<button
 			ref={ref}
@@ -633,12 +643,12 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				transform: `translate(${position.x}px, ${position.y}px)`,
 			}}
 			className={cn(
-				"pointer-events-auto absolute top-2 left-2 z-[8] flex items-center justify-center rounded-md text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-				// Running keeps the plain theme surface — the visible-translation
-				// tint is near-white on white paper in a dark theme and hid the
-				// tab until hover — and stays put on hover. Idle and finished
-				// pages keep the old icon square with its hover fill.
-				stage ? "h-7 gap-1.5 px-2" : "size-7 hover:bg-muted/80 active:bg-muted",
+				"pointer-events-auto absolute top-2 left-2 z-[8] flex h-7 items-center justify-center gap-1.5 rounded-md px-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				// The running stage reports state on the plain theme surface and
+				// does not recolour on hover. Translate / hide / retry keep the old
+				// hover fill; a page with a visible translation keeps the theme
+				// primary tint, exactly as before.
+				!stage && "hover:bg-muted/80 active:bg-muted",
 				PDF_CHROME_CHIP,
 				!stage && active && "border-primary/30 bg-primary/10 text-primary",
 			)}
@@ -654,14 +664,12 @@ const PageTranslateTab = memo(function PageTranslateTab({
 			onPointerDown={(event) => event.stopPropagation()}
 		>
 			<Icon
-				className={cn("size-3.5 shrink-0", running && "animate-spin")}
+				className={cn("size-3.5 shrink-0", stage && "animate-spin")}
 				aria-hidden="true"
 			/>
-			{stageLabel ? (
-				<span className="whitespace-nowrap font-medium text-caption leading-none">
-					{stageLabel}
-				</span>
-			) : null}
+			<span className="whitespace-nowrap font-medium text-caption leading-none">
+				{text}
+			</span>
 		</button>
 	);
 });
@@ -1257,13 +1265,15 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			/>
 		) : null;
 
+	// A running page (translating or typesetting) and a failed page keep their
+	// tab without hover; every other state follows the user's tab setting.
+	const pageTranslateTabSticky =
+		pageTranslateState.running || pageTranslateState.status === "error";
 	const pageTranslateTab =
 		!mode.plainViewer &&
 		!immersiveReading &&
 		translateTabMode !== "hidden" &&
-		(translateTabMode === "always" ||
-			pageHovered ||
-			pageTranslateState.status) ? (
+		(translateTabMode === "always" || pageHovered || pageTranslateTabSticky) ? (
 			<PageTranslateTab
 				pageIndex={pageIndex}
 				active={pageTranslateState.active}
