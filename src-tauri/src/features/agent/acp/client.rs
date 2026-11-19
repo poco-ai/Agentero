@@ -1033,8 +1033,8 @@ mod cwd_shell_wrap_tests {
     }
 
     #[cfg(windows)]
-    #[tokio::test]
-    async fn sdk_launch_accepts_windows_drive_env_and_batch_shims() {
+    #[test]
+    fn sdk_launch_accepts_windows_drive_env_and_batch_shims() {
         let dir = tempfile::tempdir().unwrap();
         let batch = dir.path().join("agent shim.cmd");
         std::fs::write(
@@ -1049,13 +1049,21 @@ mod cwd_shell_wrap_tests {
         // Replaying one through windows-spawn rejected the name before launch.
         desc.env.insert("=C:".into(), r"C:\".into());
         let agent = to_acp_agent_local(&desc, None).unwrap();
-        let (_stdin, _stdout, _stderr, mut child) = agent.spawn_process().unwrap();
-        let status = tokio::time::timeout(std::time::Duration::from_secs(5), child.status()).await;
-        if status.is_err() {
-            let _ = child.kill();
-            let _ = child.status().await;
-        }
-        assert!(status.unwrap().unwrap().success());
+        // SDK v5 owns the spawn and keeps `spawn_process` private. Mirror its
+        // launch from the public config so a rejected drive entry or a batch
+        // shim still fails here instead of inside the app (#772).
+        let config = agent.config();
+        let status = std::process::Command::new(config.command())
+            .args(config.arguments())
+            .envs(
+                config
+                    .environment()
+                    .iter()
+                    .map(|(name, value)| (name.as_str(), value.as_str())),
+            )
+            .status()
+            .unwrap();
+        assert!(status.success());
     }
 
     #[test]
