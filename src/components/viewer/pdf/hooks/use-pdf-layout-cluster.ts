@@ -195,6 +195,7 @@ export function usePdfLayoutCluster({
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
+		retryPageLayoutTranslate,
 	} = usePdfLayoutTranslate({
 		reflowContext: () => {
 			const engine = engineRef.current,
@@ -242,5 +243,6 @@ export function usePdfLayoutCluster({
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
+		retryPageLayoutTranslate,
 	};
 }

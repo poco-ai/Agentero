@@ -151,6 +151,8 @@ export type PdfLayoutTranslate = {
 	toggleLayoutTranslate: () => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
 	togglePageLayoutTranslate: (pageIndex: number) => void;
+	/** Paragraph warning: retry a failed page's blocks without hiding it. */
+	retryPageLayoutTranslate: (pageIndex: number) => void;
 };
 
 /** What a queued job should start once layout regions land. */
@@ -1154,16 +1156,35 @@ export function usePdfLayoutTranslate({
 			const pageItems = layoutTranslateJobRef.current.items.filter(
 				(item) => item.pageIndex === pageIndex,
 			);
+			const pagePending =
+				pageItems.length > 0 && hasPendingLayoutTranslateItems(pageItems);
+			const runActive =
+				layoutTranslateJobRef.current.status === "running" ||
+				layoutTranslateQueued;
+			// A failed page's tag is a retry entry, not a visibility toggle: with
+			// nothing running, retranslate its missing blocks even when other
+			// blocks on the page already show a translation.
+			if (!runActive && pagePending) {
+				startPageLayoutTranslate(pageIndex);
+				return;
+			}
 			if (
 				layoutTranslateJobRef.current.status === "running" &&
 				layoutTranslateJobRef.current.scope === "document"
 			) {
-				if (pageItems.some((item) => item.translated?.trim()))
+				// The run owns its failed blocks; retrying one page now would abort
+				// the rest, so only a complete page toggles its visibility.
+				if (!pagePending && pageItems.some((item) => item.translated?.trim()))
 					setHiddenPageIndexes((hidden) => new Set([...hidden, pageIndex]));
 				return;
 			}
 			if (sharedTranslateRef.current) {
 				// Selecting a page never issues the document-wide cancel.
+				if (runActive) {
+					if (!pagePending && pageItems.some((item) => item.translated?.trim()))
+						setHiddenPageIndexes((hidden) => new Set([...hidden, pageIndex]));
+					return;
+				}
 				if (pageItems.some((item) => item.translated?.trim()))
 					setHiddenPageIndexes((hidden) => new Set([...hidden, pageIndex]));
 				else startPageLayoutTranslate(pageIndex);
@@ -1171,10 +1192,6 @@ export function usePdfLayoutTranslate({
 			}
 			if (pageItems.some((item) => item.status === "running")) {
 				stopLayoutTranslate();
-				return;
-			}
-			if (pageItems.length > 0 && hasPendingLayoutTranslateItems(pageItems)) {
-				startPageLayoutTranslate(pageIndex);
 				return;
 			}
 			const pageActive = pageItems.some((item) => item.translated?.trim());
@@ -1186,10 +1203,44 @@ export function usePdfLayoutTranslate({
 		},
 		[
 			hiddenPageIndexes,
+			layoutTranslateQueued,
 			startPageLayoutTranslate,
 			stopLayoutTranslate,
 			cancelWaitingLayout,
 		],
+	);
+
+	/**
+	 * Retry the failed blocks of one page.
+	 *
+	 * The paragraph warning always retranslates: unlike the page-tag toggle it
+	 * never hides a visible translation and never re-attaches to the finished
+	 * document job. A run in flight already owns its retries, so a click then is
+	 * ignored instead of cancelling it.
+	 */
+	const retryPageLayoutTranslate = useCallback(
+		(pageIndex: number) => {
+			const job = layoutTranslateJobRef.current;
+			if (
+				job.status === "running" ||
+				job.status === "waitingLayout" ||
+				layoutTranslateQueued
+			)
+				return;
+			const pageItems = job.items.filter(
+				(item) => item.pageIndex === pageIndex,
+			);
+			if (pageItems.some((item) => item.status === "running")) return;
+			if (hiddenPageIndexes.has(pageIndex)) {
+				setHiddenPageIndexes((hidden) => {
+					const next = new Set(hidden);
+					next.delete(pageIndex);
+					return next;
+				});
+			}
+			startPageLayoutTranslate(pageIndex);
+		},
+		[hiddenPageIndexes, layoutTranslateQueued, startPageLayoutTranslate],
 	);
 
 	/**
@@ -1968,5 +2019,6 @@ export function usePdfLayoutTranslate({
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
+		retryPageLayoutTranslate,
 	};
 }

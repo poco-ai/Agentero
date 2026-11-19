@@ -488,6 +488,8 @@ export type PdfPageHandlers = {
 		clientPoint?: ScreenPoint | null,
 	) => void;
 	onTogglePageLayoutTranslate: (pageIndex: number) => void;
+	/** Paragraph warning: retry a failed page's blocks without hiding it. */
+	onRetryPageLayoutTranslate: (pageIndex: number) => void;
 	/** Delete a highlight annotation directly from its on-page selection menu. */
 	onDeleteHighlightAnnotation: (pageIndex: number, id: string) => void;
 	/** Open the note editor for a highlight from its on-page selection menu. */
@@ -1226,7 +1228,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				links={translateLinkBoxes}
 				glyphRuns={layout.glyphRunsByPage?.get(pageIndex)}
 				awaitingPreview={pageTranslateState.previewPending}
-				onRetryTranslation={handlers.onTogglePageLayoutTranslate}
+				onRetryTranslation={handlers.onRetryPageLayoutTranslate}
 				onOpenLink={openTranslatedLink}
 				onHoverLink={hoverTranslatedLink}
 			/>
