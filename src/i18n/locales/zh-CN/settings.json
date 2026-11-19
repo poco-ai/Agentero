@@ -716,7 +716,6 @@
 		"autoTranslation": {
 			"section": "自动翻译"
 		},
-		"dictionaryIncluded": "已内置离线英汉词典与 AI 术语，无需配置。",
 		"dictionaryMode": {
 			"label": "划词词典",
 			"auto": "自动",

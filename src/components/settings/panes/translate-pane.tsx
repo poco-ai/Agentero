@@ -556,10 +556,6 @@ export function TranslatePane({
 				</SettingsRow>
 			</SettingsGroup>
 
-			<p className="mt-4 text-caption text-muted-foreground">
-				{t("translate.dictionaryIncluded")}
-			</p>
-
 			<SettingsSectionLabel className="mt-4">
 				{t("translate.autoTranslation.section")}
 			</SettingsSectionLabel>

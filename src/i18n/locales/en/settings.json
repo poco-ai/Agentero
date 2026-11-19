@@ -716,7 +716,6 @@
 		"autoTranslation": {
 			"section": "Auto-translate"
 		},
-		"dictionaryIncluded": "Offline English–Chinese dictionary and AI terminology are included. No setup needed.",
 		"dictionaryMode": {
 			"label": "Word lookup",
 			"auto": "Automatic",
