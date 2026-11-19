@@ -1168,7 +1168,7 @@
 		"gitSslCaHint": "自签 HTTPS 服务器的 PEM 文件绝对路径。留空则使用系统信任库。",
 		"gitAuthFailed": "Git 无法登录，同步不会弹出凭据窗口。\n{{detail}}\nHTTPS：先用 `git credential approve` 或系统凭据助手存好 token。SSH：运行 `ssh-add`。",
 		"gitTlsFailed": "Git 拒绝了服务器证书。\n{{detail}}\n自签 HTTPS 请填写 CA 证书路径后再连接。",
-		"noConditionalWrites": "该存储不支持条件（原子）写入，同步已降级为普通上传。单设备使用不受影响；多设备并发修改可能需要多一轮同步才能收敛。",
+		"noConditionalWrites": "此存储未执行条件写入。为防止覆盖其他设备的改动，同步已停止，请选择其他存储。",
 		"saved": "同步已配置",
 		"disconnect": "解绑",
 		"syncNow": "立即同步",
@@ -1200,7 +1200,7 @@
 		"intervalMinutes": "{{count}} 分钟",
 		"scope": "同步范围",
 		"scopeHint": "笔记、元数据与标注永远同步。未勾选的内容不会上传或下载，也不会因过滤而被删除。PDF 与 LaTeX 源码可随时从来源重新下载。",
-		"scopeHintGit": "笔记、元数据与标注永远同步。未勾选的文件会写入 .gitignore，之后不再提交。",
+		"scopeHintGit": "排除项只对新文件生效。Git 已跟踪的文件仍会在各设备之间同步。",
 		"scopePdf": "PDF 文件",
 		"scopeSource": "LaTeX 源码",
 		"scopeAttachments": "支撑材料"

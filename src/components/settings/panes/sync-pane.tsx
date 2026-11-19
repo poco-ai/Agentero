@@ -1,6 +1,6 @@
 import { ChevronRight, CloudUpload, LoaderCircle, Unplug } from "lucide-react";
 import type { ComponentType } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaAws } from "react-icons/fa6";
 import {
@@ -181,7 +181,6 @@ function localVaultChoices(primary: string | null): string[] {
 }
 
 export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
-	const { t } = useTranslation("settings");
 	const [vaults, setVaults] = useState(() => localVaultChoices(vaultPath));
 	const [selectedVault, setSelectedVault] = useState<string | null>(
 		() => localVaultChoices(vaultPath)[0] ?? null,
@@ -207,6 +206,28 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 		isTauri() && selectedVault && !isRemoteVaultHandle(selectedVault)
 			? selectedVault
 			: null;
+	return (
+		<VaultSyncForm
+			key={localVault}
+			localVault={localVault}
+			vaults={vaults}
+			setSelectedVault={setSelectedVault}
+		/>
+	);
+}
+
+function VaultSyncForm({
+	localVault,
+	vaults,
+	setSelectedVault,
+}: {
+	localVault: string | null;
+	vaults: string[];
+	setSelectedVault: (vault: string | null) => void;
+}) {
+	const { t } = useTranslation("settings");
+	const formVersion = useRef(0);
+	const requestId = useRef(0);
 
 	const [status, setStatus] = useState<SyncStatus | null>(null);
 	const [form, setForm] = useState<SyncBackendConfig>(emptySyncConfig());
@@ -237,9 +258,13 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 
 	const refresh = useCallback(async () => {
 		if (!localVault) return;
+		const id = ++requestId.current;
 		const next = await syncGetStatus(localVault);
+		if (id !== requestId.current) return;
 		setStatus(next);
 		setSyncing(next.running);
+		if (formVersion.current !== 0) return;
+		formVersion.current++;
 		if (next.config) {
 			setForm(next.config);
 			// Surface the advanced group when it holds non-default values.
@@ -257,17 +282,11 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 		}
 	}, [localVault]);
 
-	// `refresh` is recreated when the selected Vault changes. Reset first so a
-	// different Vault never inherits the previous one's form values: otherwise
-	// "connect" on an unconfigured Vault would save the old remote.
 	useEffect(() => {
-		setStatus(null);
-		setForm(emptySyncConfig());
-		setSyncError(null);
-		setProgress(null);
-		setScopeSizes(null);
-		setAdvancedOpen(false);
 		void refresh().catch((error) => notifyError(errorMessage(error)));
+		return () => {
+			requestId.current++;
+		};
 	}, [refresh]);
 
 	useEffect(() => {
@@ -327,8 +346,10 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 		);
 	}
 
-	const patch = (partial: Partial<SyncBackendConfig>) =>
+	const patch = (partial: Partial<SyncBackendConfig>) => {
+		formVersion.current++;
 		setForm((prev) => ({ ...prev, ...partial }));
+	};
 
 	const scope = form.scope;
 	const patchScope = (key: keyof SyncBackendConfig["scope"], value: boolean) =>
@@ -365,11 +386,16 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 	};
 
 	const save = async () => {
+		const version = formVersion.current;
 		setSaving(true);
 		try {
 			const next = await syncConfigure(localVault, form);
+			requestId.current++;
 			setStatus(next);
-			if (next.config) setForm(next.config);
+			if (next.config && formVersion.current === version) {
+				formVersion.current++;
+				setForm(next.config);
+			}
 			setSyncError(null);
 			notifySuccess(t("sync.saved"));
 		} catch (error) {
@@ -407,6 +433,8 @@ export function SyncPane({ vaultPath }: { vaultPath: string | null }) {
 	const disconnect = async () => {
 		try {
 			await syncDisconnect(localVault);
+			requestId.current++;
+			formVersion.current++;
 			setStatus(null);
 			setForm(emptySyncConfig());
 			setSyncError(null);
