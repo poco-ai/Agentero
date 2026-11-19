@@ -1,15 +1,21 @@
 import { useDocumentState } from "@embedpdf/core/react";
 import { ignore, PdfErrorCode, type Rotation } from "@embedpdf/models";
+import { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import { useRenderCapability } from "@embedpdf/plugin-render/react";
 import {
 	type CSSProperties,
 	type RefObject,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
-import { pageBitmapCache } from "@/components/viewer/pdf/layers/page-bitmap-cache";
+import {
+	createPageBitmap,
+	type PageBitmap,
+	pageBitmapCache,
+} from "@/components/viewer/pdf/layers/page-bitmap-cache";
 
 type AgenteroRenderLayerProps = {
 	pageRef: RefObject<HTMLDivElement | null>;
@@ -20,6 +26,21 @@ type AgenteroRenderLayerProps = {
 	className?: string;
 	style?: CSSProperties;
 };
+
+export function PdfPageBitmapCacheLifecycle() {
+	const { provides: documents } = useDocumentManagerCapability();
+	useEffect(() => {
+		if (!documents) return;
+		const unsubscribe = documents.onDocumentClosed((id) =>
+			pageBitmapCache.clear(documents, id),
+		);
+		return () => {
+			unsubscribe();
+			pageBitmapCache.clear(documents);
+		};
+	}, [documents]);
+	return null;
+}
 
 export function pdfPageRenderRotation(
 	documentState: ReturnType<typeof useDocumentState>,
@@ -43,13 +64,16 @@ export function AgenteroRenderLayer({
 	style,
 }: AgenteroRenderLayerProps) {
 	const { provides: renderProvides } = useRenderCapability();
+	const { provides: documents } = useDocumentManagerCapability();
 	const documentState = useDocumentState(documentId);
-	const cacheId = `${documentId}:${pageIndex}`;
-	const [imageUrl, setImageUrl] = useState<string | null>(() =>
-		pageBitmapCache.retain(cacheId),
-	);
-	const pinnedId = useRef(cacheId);
-	const retiredRef = useRef<string[]>([]);
+	const [image, setImage] = useState<{
+		scope: object;
+		documentId: string;
+		pageIndex: number;
+		key: string;
+		bitmap: PageBitmap;
+	} | null>(null);
+	const imageRef = useRef<HTMLImageElement>(null);
 	const refreshVersion = useMemo(() => {
 		if (!documentState) return 0;
 		return documentState.pageRefreshVersions[pageIndex] || 0;
@@ -69,30 +93,29 @@ export function AgenteroRenderLayer({
 	// The render plugin throws when the document is still opening (hidden
 	// translation display documents load asynchronously). Wait for the loaded
 	// state; the static per-page preview stays visible until then.
-	const documentLoaded =
-		documentState?.status === "loaded" && Boolean(documentState.document);
+	const loadedDocument =
+		documentState?.status === "loaded" ? documentState.document : null;
 
-	useEffect(() => {
-		const id = `${documentId}:${pageIndex}`;
-		if (pinnedId.current !== id) {
-			pageBitmapCache.release(pinnedId.current);
-			pinnedId.current = id;
-			setImageUrl(pageBitmapCache.retain(id));
-		}
-		return () => {
-			pageBitmapCache.release(id);
-			pinnedId.current = "";
-		};
-	}, [documentId, pageIndex]);
+	useLayoutEffect(() => {
+		const cached =
+			documents && pageBitmapCache.get(documents, documentId, pageIndex);
+		setImage(cached ? { ...cached, pageIndex } : null);
+	}, [documents, documentId, pageIndex]);
 
-	useEffect(() => {
-		const retired = retiredRef.current;
-		if (retired.length === 0) return;
-		retiredRef.current = [];
-		for (const url of retired) {
-			if (url !== imageUrl) URL.revokeObjectURL(url);
-		}
-	}, [imageUrl]);
+	const displayedBitmap =
+		loadedDocument &&
+		image?.scope === documents &&
+		image?.documentId === documentId &&
+		image.pageIndex === pageIndex
+			? image.bitmap
+			: null;
+	useLayoutEffect(() => {
+		const element = imageRef.current;
+		if (!displayedBitmap || !element) return;
+		const { url, release } = displayedBitmap.retain();
+		element.src = url;
+		return release;
+	}, [displayedBitmap]);
 
 	// Scroller mounts buffer pages too. Their CRITICAL full-page renders would
 	// queue ahead of visible HIGH-priority tiles and user-requested crops.
@@ -112,11 +135,22 @@ export function AgenteroRenderLayer({
 	}, [pageRef]);
 
 	const renderKey = `${actualScale}|${actualDpr}|${rotation}|${refreshVersion}`;
+	const displayedKey = displayedBitmap ? image?.key : undefined;
 
 	useEffect(() => {
-		if (!renderProvides || !visible || !documentLoaded) return;
-		const id = `${documentId}:${pageIndex}`;
-		if (pageBitmapCache.matches(id, renderKey)) return;
+		if (
+			!renderProvides ||
+			!documents ||
+			!visible ||
+			!loadedDocument ||
+			displayedKey === renderKey
+		)
+			return;
+		const cached = pageBitmapCache.get(documents, documentId, pageIndex);
+		if (cached?.key === renderKey) {
+			setImage({ ...cached, pageIndex });
+			return;
+		}
 		let settled = false;
 		let cancelled = false;
 		const task = renderProvides.forDocument(documentId).renderPage({
@@ -129,14 +163,16 @@ export function AgenteroRenderLayer({
 		});
 		task.wait((blob) => {
 			settled = true;
-			if (cancelled) return;
-			const url = URL.createObjectURL(blob);
-			retiredRef.current.push(
-				...pageBitmapCache
-					.store(id, url, renderKey)
-					.filter((old) => old !== url),
-			);
-			setImageUrl(url);
+			if (cancelled || documents.getDocument(documentId) !== loadedDocument)
+				return;
+			const next = {
+				scope: documents,
+				documentId,
+				key: renderKey,
+				bitmap: createPageBitmap(blob),
+			};
+			pageBitmapCache.store(next, pageIndex);
+			setImage({ ...next, pageIndex });
 		}, ignore);
 		return () => {
 			cancelled = true;
@@ -153,15 +189,17 @@ export function AgenteroRenderLayer({
 		actualDpr,
 		rotation,
 		renderProvides,
+		documents,
 		renderKey,
+		displayedKey,
 		visible,
-		documentLoaded,
+		loadedDocument,
 	]);
 
-	if (!imageUrl) return null;
+	if (!displayedBitmap) return null;
 	return (
 		<img
-			src={imageUrl}
+			ref={imageRef}
 			alt=""
 			aria-hidden="true"
 			draggable={false}

@@ -103,6 +103,7 @@ import { usePdfVisualMarks } from "@/components/viewer/pdf/hooks/use-pdf-visual-
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
 import { useReflowDisplayDocument } from "@/components/viewer/pdf/hooks/use-reflow-display-document";
 import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
+import { PdfPageBitmapCacheLifecycle } from "@/components/viewer/pdf/layers/agentero-render-layer";
 import {
 	excludeOverlappingPdfTextLinks,
 	type PdfTextLink,
@@ -423,6 +424,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				engine={engine}
 				plugins={plugins}
 			>
+				<PdfPageBitmapCacheLifecycle />
 				<DocumentContent documentId={docId}>
 					{({ isLoaded, isLoading, isError, documentState }) => {
 						if (isError) {
