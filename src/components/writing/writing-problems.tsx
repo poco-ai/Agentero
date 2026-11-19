@@ -14,6 +14,10 @@ import {
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
+import {
+	FILE_TREE_ROW_SELECTED_STATE,
+	FILE_TREE_ROW_STATE,
+} from "@/components/sidebar/tree-row-styles";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -142,9 +146,10 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 					? "text-sky-600 dark:text-sky-500"
 					: "text-muted-foreground";
 
-	// The header action targets the row the user last picked, else the first
-	// error, so "Fix with Agent" works as soon as the dialog opens.
-	const fixRow =
+	// The row being inspected: the last one picked, else the first error, so the
+	// dialog always shows which problem it is looking at (and which one
+	// "Fix with Agent" targets).
+	const activeRow =
 		rows.find((row) => row.key === selected) ??
 		rows.find((row) => row.severity === "error") ??
 		rows[0];
@@ -275,14 +280,14 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 							{t("log")} · {basenameOf(rootFile)}
 						</DialogTitle>
 						<div className="flex items-center gap-2">
-							{fixRow ? (
+							{activeRow ? (
 								<Button
 									type="button"
 									variant="secondary"
 									size="sm"
 									onClick={() => {
 										setOpen(false);
-										askAgent(fixRow);
+										askAgent(activeRow);
 									}}
 								>
 									<MessageSquarePlus className="size-3.5" aria-hidden />
@@ -313,37 +318,33 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 							) : (
 								rows.map((row) => {
 									const { Icon, iconClasses } = SEVERITY_META[row.severity];
+									const active = activeRow?.key === row.key;
 									return (
-										<div
+										<button
 											key={row.key}
+											type="button"
+											aria-current={active ? "true" : undefined}
 											className={cn(
-												"flex items-start gap-1 border-b border-border px-1 py-1 last:border-b-0 hover:bg-muted",
-												selected === row.key && "bg-muted",
+												"flex w-full items-start gap-2 border-b border-border px-2 py-1.5 text-left last:border-b-0",
+												FILE_TREE_ROW_STATE,
+												active && FILE_TREE_ROW_SELECTED_STATE,
 											)}
+											onClick={() => {
+												row.jump();
+												focusLog(row);
+											}}
 										>
-											<button
-												type="button"
-												className="flex min-w-0 flex-1 items-start gap-2 px-1 py-0.5 text-left"
-												onClick={() => {
-													row.jump();
-													focusLog(row);
-												}}
+											<Icon
+												className={cn("mt-0.5 size-3.5 shrink-0", iconClasses)}
+												aria-hidden
+											/>
+											<span
+												className="line-clamp-3 min-w-0 flex-1 break-words text-xs leading-snug"
+												title={row.message}
 											>
-												<Icon
-													className={cn(
-														"mt-0.5 size-3.5 shrink-0",
-														iconClasses,
-													)}
-													aria-hidden
-												/>
-												<span
-													className="line-clamp-3 min-w-0 flex-1 break-words text-xs leading-snug"
-													title={row.message}
-												>
-													{row.message}
-												</span>
-											</button>
-										</div>
+												{row.message}
+											</span>
+										</button>
 									);
 								})
 							)}
