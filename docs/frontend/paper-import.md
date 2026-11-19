@@ -59,7 +59,7 @@
 - 选中的目录随 `importPlazaPaper(request, parentDir)` 传入 lookup / `paper_pwc_import` / `paper_coolpapers_import`；未手动选择时跟随当前树选中的 Papers 文件夹，连续入库记住上一次选择。
 - 点击空白处或 Esc 关闭选择时，该行恢复为可重试的「入库」；选择后行进入「入库中」，完成后显示「已入库」。
 - Host 侧 iframe 会把按钮位置以未缩放的 frame 坐标回传；弹层锚点渲染到 `document.body`，避免 Dockview 的 transform / `contain` 改变 `position: fixed` 的参照系。
-- Papers with Code 的 AI 助手与登录走 Hugging Face OAuth，会离开站点源；嵌入面板既渲染不了对端登录页，也接不住回调。搜索框回车、助手行改走站点的「View all paper results」论文结果页并隐藏助手入口；Chat 链接和登录跳转交给系统浏览器，面板留在原页面（见 [proxy/pwc.rs](../../src-tauri/src/features/paper/discovery/proxy/pwc.rs)）。
+- Papers with Code 的 AI 助手与登录走 Hugging Face OAuth，会离开站点源；嵌入面板既渲染不了对端登录页，也接不住回调。搜索框回车、助手行改走站点的「View all paper results」论文结果页并隐藏助手入口；Chat 链接和登录跳转交给系统浏览器，面板留在原页面（实现见 `src-tauri/src/features/paper/discovery/proxy/pwc.rs`）。
 
 ## Zotero
 
