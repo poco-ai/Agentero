@@ -9,28 +9,32 @@
  * `CLAUDE_CODE_EXECUTABLE` / `CODEX_PATH` (see registry/bundled.rs). A
  * PATH-installed adapter always wins; the bundled tier is an offline fallback.
  *
- * Versions are pinned below (single source of truth, PDFIUM_RELEASE_TAG
- * precedent). Bump when upgrading; the trees move with app releases, so there
- * is no npm-latest check for the bundled tier.
+ * Versions and transitive dependencies are locked in acp-adapters/.
  *
  * Usage:
  *   node scripts/prepare-adapters.mjs           # idempotent
  *   node scripts/prepare-adapters.mjs --force   # restage even if current
  */
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const NPM_BIN = process.platform === "win32" ? "npm" : "npm";
+const inputs = fileURLToPath(new URL("./acp-adapters/", import.meta.url));
+const { dependencies } = JSON.parse(
+	fs.readFileSync(path.join(inputs, "package.json"), "utf8"),
+);
+const lockDigest = createHash("sha256")
+	.update(fs.readFileSync(path.join(inputs, "package-lock.json")))
+	.digest("hex");
 const NPM_OPTS = process.platform === "win32" ? { shell: true } : {};
 
 const ADAPTERS = [
 	{
 		id: "claude-acp",
 		package: "@agentclientprotocol/claude-agent-acp",
-		version: "0.79.0",
 		entry: "node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
 		// claude-agent-acp engines: node >= 22
 		nodeMajor: 22,
@@ -38,14 +42,12 @@ const ADAPTERS = [
 	{
 		id: "codex-acp",
 		package: "@agentclientprotocol/codex-acp",
-		version: "1.12.0",
 		entry: "node_modules/@agentclientprotocol/codex-acp/dist/index.js",
 		nodeMajor: null,
 	},
-];
+].map((adapter) => ({ ...adapter, version: dependencies[adapter.package] }));
 
 // Guards against a stray platform binary sneaking into the trees
-// (real stripped trees measure ~58MB total, largest file ~2MB).
 const MAX_TOTAL_MB = Number(process.env.AGENTERO_ADAPTER_MAX_MB || 80);
 const MAX_FILE_MB = 5;
 const NATIVE_EXT = /\.(node|dylib|dll|so|exe)$/i;
@@ -95,6 +97,7 @@ function isCurrent() {
 	} catch {
 		return false;
 	}
+	if (manifest?.lockDigest !== lockDigest) return false;
 	for (const adapter of ADAPTERS) {
 		const entry = manifest?.adapters?.[adapter.id];
 		if (entry?.version !== adapter.version) return false;
@@ -118,26 +121,16 @@ fs.mkdirSync(outDir, { recursive: true });
 // other lifecycle hooks; --omit=optional drops the platform binary packages.
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agentero-adapters-"));
 try {
-	fs.writeFileSync(
-		path.join(tmp, "package.json"),
-		JSON.stringify(
-			{
-				private: true,
-				dependencies: Object.fromEntries(
-					ADAPTERS.map((a) => [a.package, a.version]),
-				),
-			},
-			null,
-			"\t",
-		),
-	);
+	for (const name of ["package.json", "package-lock.json"]) {
+		fs.copyFileSync(path.join(inputs, name), path.join(tmp, name));
+	}
 	console.log(
-		`[prepare-adapters] npm install (one tree so shared deps dedupe) in ${tmp}`,
+		`[prepare-adapters] npm ci (one tree so shared deps dedupe) in ${tmp}`,
 	);
 	execFileSync(
-		NPM_BIN,
+		"npm",
 		[
-			"install",
+			"ci",
 			"--omit=optional",
 			"--omit=dev",
 			"--ignore-scripts",
@@ -202,7 +195,7 @@ try {
 	fs.rmSync(outDir, { recursive: true, force: true });
 	fs.mkdirSync(outDir, { recursive: true });
 	// One shared tree: both adapters were installed together so common deps
-	// (zod, the ACP sdk) exist once; manifest `entry` paths are relative to
+	// deduplicate where version ranges allow; manifest `entry` paths are relative to
 	// this adapters root.
 	fs.cpSync(path.join(tmp, "node_modules"), path.join(outDir, "node_modules"), {
 		recursive: true,
@@ -227,6 +220,7 @@ try {
 						},
 					]),
 				),
+				lockDigest,
 				totalBytes,
 			},
 			null,

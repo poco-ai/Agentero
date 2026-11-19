@@ -5,13 +5,13 @@ use crate::features::agent::models::{
     AgentStreamKind, AgentToolEvent, AgentUsageEvent,
 };
 use crate::features::agent::runtime::events::AgentEventEmitter;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::schema::MaybeUndefined;
+use agent_client_protocol::v1::schema::{
     AvailableCommandInput, PlanEntryPriority, PlanEntryStatus, SessionConfigKind,
     SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
     SessionConfigSelectOptions, SessionNotification, SessionUpdate, ToolCallContent,
     ToolCallStatus, ToolKind,
 };
-use agent_client_protocol::schema::MaybeUndefined;
 use std::collections::HashSet;
 
 pub(crate) fn stream_from_update(update: &SessionUpdate) -> Option<(String, AgentStreamKind)> {
@@ -27,10 +27,10 @@ pub(crate) fn stream_from_update(update: &SessionUpdate) -> Option<(String, Agen
 }
 
 pub(crate) fn text_from_content_block(
-    block: &agent_client_protocol::schema::v1::ContentBlock,
+    block: &agent_client_protocol::v1::schema::ContentBlock,
 ) -> Option<String> {
     match block {
-        agent_client_protocol::schema::v1::ContentBlock::Text(t) => Some(t.text.clone()),
+        agent_client_protocol::v1::schema::ContentBlock::Text(t) => Some(t.text.clone()),
         _ => None,
     }
 }
@@ -52,14 +52,15 @@ pub(crate) fn is_pi_startup_banner(text: &str) -> bool {
         .is_some_and(|line| line == "---" || line.starts_with("## "))
 }
 
-/// codex-acp, without a negotiated typed notice, turns a Codex `warning` or
-/// `configWarning` into one assistant chunk: `Warning: …\n\n` or
-/// `Config warning: …\n\n`. The chunk is the whole fallback, so it contains a
-/// newline. A model token that only shares the prefix does not.
+/// Recognize only the legacy instruction-budget advisory, not arbitrary assistant warnings.
 pub(crate) fn is_codex_instruction_warning(text: &str) -> bool {
     let body = text.trim();
-    let prefixed = body.starts_with("Warning: ") || body.starts_with("Config warning: ");
-    prefixed && text.contains('\n')
+    body.strip_prefix("Warning: ")
+        .or_else(|| body.strip_prefix("Config warning: "))
+        .is_some_and(|message| {
+            message.starts_with("Combined user instructions use ")
+                && message.contains("project_doc_max_bytes")
+        })
 }
 
 /// Same window as the pi startup banner: Codex message chunks, and only before
@@ -174,7 +175,7 @@ fn dedupe_model_choices(models: Vec<AgentModelChoice>) -> Vec<AgentModelChoice> 
 }
 
 fn collect_choices_from_select(
-    sel: &agent_client_protocol::schema::v1::SessionConfigSelect,
+    sel: &agent_client_protocol::v1::schema::SessionConfigSelect,
 ) -> Vec<AgentModelChoice> {
     let mut models = Vec::new();
     match &sel.options {
@@ -482,7 +483,7 @@ fn is_collaboration_option(opt: &SessionConfigOption) -> bool {
 }
 
 fn collect_mode_choices_from_select(
-    sel: &agent_client_protocol::schema::v1::SessionConfigSelect,
+    sel: &agent_client_protocol::v1::schema::SessionConfigSelect,
 ) -> Vec<AgentModeChoice> {
     let mut modes = Vec::new();
     match &sel.options {
@@ -687,6 +688,26 @@ pub(crate) fn emit_rich_session_update(
     notification: &SessionNotification,
 ) {
     match &notification.update {
+        SessionUpdate::Notice(notice) => {
+            use agent_client_protocol::v1::schema::NoticeSeverity;
+            let phase = match &notice.severity {
+                NoticeSeverity::Error => "notice-error",
+                NoticeSeverity::Warning => "notice-warning",
+                _ => "notice-info",
+            };
+            let detail = match &notice.description {
+                Some(description) => format!("{}\n{}", notice.title, description),
+                None => notice.title.clone(),
+            };
+            let _ = app.emit(
+                "agent:status",
+                AgentStatusEvent {
+                    session_id: session_id.to_owned(),
+                    phase: phase.to_owned(),
+                    detail: Some(detail),
+                },
+            );
+        }
         SessionUpdate::AvailableCommandsUpdate(upd) => {
             let commands = upd
                 .available_commands
@@ -818,7 +839,7 @@ pub(crate) fn emit_rich_session_update(
 /// Returns `Some("2/5")` only for reconnect messages carrying a `n/m` token;
 /// missing meta, unrelated errors, or a missing counter yield `None`.
 pub(crate) fn reconnect_detail(
-    info: &agent_client_protocol::schema::v1::SessionInfoUpdate,
+    info: &agent_client_protocol::v1::schema::SessionInfoUpdate,
 ) -> Option<String> {
     let error = info.meta.as_ref()?.get("error")?.as_str()?.trim();
     if !error.to_ascii_lowercase().starts_with("reconnect") {
@@ -839,7 +860,7 @@ pub(crate) fn reconnect_detail(
 #[cfg(test)]
 mod reconnect_detail_tests {
     use super::reconnect_detail;
-    use agent_client_protocol::schema::v1::SessionInfoUpdate;
+    use agent_client_protocol::v1::schema::SessionInfoUpdate;
 
     fn info_with_meta(error: Option<&str>) -> SessionInfoUpdate {
         let mut info = SessionInfoUpdate::new();
@@ -931,10 +952,10 @@ instructions. The limit applies only to project files.\n\n";
     #[test]
     fn matches_codex_acp_warning_fallback() {
         assert!(is_codex_instruction_warning(BUDGET_WARNING));
-        assert!(is_codex_instruction_warning(
+        assert!(!is_codex_instruction_warning(
             "Config warning: project_doc_max_bytes is unset\n\n"
         ));
-        assert!(is_codex_instruction_warning(
+        assert!(!is_codex_instruction_warning(
             "  Config warning: hooks failed\n\ndetails\n\n"
         ));
     }
@@ -995,7 +1016,7 @@ mod config_option_tests {
         collaboration_from_config_options, effort_from_config_options,
         fast_mode_from_config_options, fast_mode_value_to_set, models_from_config_options,
     };
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
         SessionConfigSelectOption,
     };
@@ -1182,7 +1203,7 @@ mod config_option_tests {
 mod session_models_fallback_tests {
     #[test]
     fn native_opencode_terminal_content_keeps_stdout_and_metadata() {
-        let content: Vec<agent_client_protocol::schema::v1::ToolCallContent> = serde_json::from_value(serde_json::json!([
+        let content: Vec<agent_client_protocol::v1::schema::ToolCallContent> = serde_json::from_value(serde_json::json!([
 			{ "type": "content", "content": { "type": "text", "text": "component_migration_probe" } }
 		])).unwrap();
         let metadata = serde_json::json!({ "metadata": { "status": "completed", "truncated": false, "exit": 0 }});
@@ -1204,7 +1225,7 @@ mod session_models_fallback_tests {
         models_from_config_options, models_from_grok_update, models_from_session_models_value,
         richer_models_event, store_richer_models,
     };
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
     };
 

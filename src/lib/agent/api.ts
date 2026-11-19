@@ -323,7 +323,12 @@ export const CODEX_INSTRUCTION_BUDGET_PHASE = "codex-instruction-budget";
 
 export type AgentStatusEvent = {
 	sessionId: string;
-	phase: AgentTurnPhase;
+	phase:
+		| AgentTurnPhase
+		| typeof CODEX_INSTRUCTION_BUDGET_PHASE
+		| "notice-info"
+		| "notice-warning"
+		| "notice-error";
 	/** e.g. "2/5" attempt counter for reconnecting. */
 	detail?: string | null;
 };

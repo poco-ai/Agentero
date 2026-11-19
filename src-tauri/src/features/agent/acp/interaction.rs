@@ -7,7 +7,7 @@ use crate::features::agent::runtime::events::AgentEventEmitter;
 use crate::features::agent::runtime::gates::{
     AskUserAnswer, AskUserGate, ElicitationAnswer, ElicitationGate, PermissionGate,
 };
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     CreateElicitationRequest, CreateElicitationResponse, ElicitationAcceptAction,
     ElicitationAction, ElicitationContentValue, ElicitationMode, ElicitationPropertySchema,
     ElicitationScope, MultiSelectItems, PermissionOptionKind, RequestPermissionOutcome,
@@ -164,7 +164,7 @@ pub(crate) struct ElicitationFieldView {
     pub(crate) parent_field_id: Option<String>,
 }
 
-fn codex_meta_flag(meta: &Option<agent_client_protocol::schema::v1::Meta>, key: &str) -> bool {
+fn codex_meta_flag(meta: &Option<agent_client_protocol::v1::schema::Meta>, key: &str) -> bool {
     meta.as_ref()
         .and_then(|m| m.get("codex"))
         .and_then(|c| c.get(key))
@@ -173,7 +173,7 @@ fn codex_meta_flag(meta: &Option<agent_client_protocol::schema::v1::Meta>, key: 
 }
 
 fn codex_meta_string(
-    meta: &Option<agent_client_protocol::schema::v1::Meta>,
+    meta: &Option<agent_client_protocol::v1::schema::Meta>,
     key: &str,
 ) -> Option<String> {
     meta.as_ref()
@@ -275,7 +275,9 @@ pub(crate) fn elicitation_fields_from_request(
                     } else {
                         "select".to_string()
                     };
-                    let is_other_answer = codex_meta_flag(&s.meta, "isOtherAnswer")
+                    let is_other_answer = codex_meta_string(&s.meta, "role").as_deref()
+                        == Some("user_note")
+                        || codex_meta_flag(&s.meta, "isOtherAnswer")
                         || codex_meta_flag(&s.meta, "is_other_answer");
                     // codex-acp uses questionId; some adapters use parentFieldId / parentId.
                     let parent_field_id = codex_meta_string(&s.meta, "questionId")

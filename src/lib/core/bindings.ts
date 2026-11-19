@@ -1456,7 +1456,8 @@ export type AgentStatusEvent_Deserialize = {
 	/**
 	 *  `starting` (spawn/connect) | `waiting-model` (prompt sent, no output
 	 *  yet) | `reconnecting` (upstream connection lost, agent retries) |
-	 *  `codex-instruction-budget` (Codex text fallback; the UI shows a
+	 *  `notice-info`, `notice-warning`, `notice-error` (live ACP notices) or
+	 *  `codex-instruction-budget` (legacy Codex text fallback; the UI shows a
 	 *  dismissible notice and does not treat it as a loading phase).
 	 */
 	phase: string,
@@ -1473,7 +1474,8 @@ export type AgentStatusEvent_Serialize = {
 	/**
 	 *  `starting` (spawn/connect) | `waiting-model` (prompt sent, no output
 	 *  yet) | `reconnecting` (upstream connection lost, agent retries) |
-	 *  `codex-instruction-budget` (Codex text fallback; the UI shows a
+	 *  `notice-info`, `notice-warning`, `notice-error` (live ACP notices) or
+	 *  `codex-instruction-budget` (legacy Codex text fallback; the UI shows a
 	 *  dismissible notice and does not treat it as a loading phase).
 	 */
 	phase: string,

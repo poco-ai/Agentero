@@ -1,7 +1,7 @@
 //! Attach one turn's context plan to the ACP prompt and, locally, to stdio MCP.
 
 use crate::core::error::AppError;
-use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
+use agent_client_protocol::v1::schema::{McpServer, McpServerStdio};
 use agentero_core::features::context::{
     facts_from_anchors, grant_path, plan_from_facts, render_prompt_block, resolve_in_vault,
     resume_allowed, session_fingerprint, usage_path, write_grant, ContextExpansion, ContextGrant,
