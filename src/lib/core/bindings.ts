@@ -5859,11 +5859,11 @@ export type TranslateSettings = {
 	 */
 	autoTranslateImportConcurrency?: number,
 	/**
-	 *  Close the selection translation result on a click elsewhere on the page
-	 *  (default off, matching the long-standing "card stays open" behavior).
+	 *  Keep the selection translation result card open after a click elsewhere
+	 *  on the page (default off: a completed click outside the card closes it).
 	 *  Scrolling, page turns and viewer toolbars never close it.
 	 */
-	dismissSelectionOnOutsideClick?: boolean,
+	alwaysShowTranslateCard?: boolean,
 };
 
 export type TranslateTextArgs = {

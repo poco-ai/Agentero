@@ -805,8 +805,8 @@ function normalizeTranslateSettings(
 	) {
 		base.autoTranslateImportConcurrency = raw.autoTranslateImportConcurrency;
 	}
-	if (typeof raw.dismissSelectionOnOutsideClick === "boolean") {
-		base.dismissSelectionOnOutsideClick = raw.dismissSelectionOnOutsideClick;
+	if (typeof raw.alwaysShowTranslateCard === "boolean") {
+		base.alwaysShowTranslateCard = raw.alwaysShowTranslateCard;
 	}
 	return base;
 }

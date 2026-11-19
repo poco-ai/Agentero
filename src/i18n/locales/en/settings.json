@@ -620,9 +620,8 @@
 		"autoSelection": {
 			"label": "Auto-translate PDF selection"
 		},
-		"dismissOnOutsideClick": {
-			"label": "Close selection results on an outside click",
-			"description": "A click outside the translation card closes it. Scrolling, page turns and viewer controls keep it open."
+		"alwaysShowCard": {
+			"label": "Keep the translation card visible"
 		},
 		"autoImport": {
 			"label": "Auto-translate after layout analysis",

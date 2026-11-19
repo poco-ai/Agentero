@@ -72,10 +72,12 @@ export function TranslateCard({
 	onModeChange,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
-	// Optional: close the result when the reader clicks elsewhere on the page.
-	// Scrolling and page turns keep it open (see SelectionCard's outside click).
-	const dismissOnOutsideClick = useSettings(
-		(s) => s.translate.dismissSelectionOnOutsideClick,
+	// A completed click elsewhere on the page dismisses the result (default).
+	// Settings → Translate can keep the card always visible instead; scrolling
+	// and page turns never close it either way (see SelectionCard's outside
+	// click).
+	const alwaysShowCard = useSettings(
+		(s) => s.translate.alwaysShowTranslateCard,
 	);
 	const mode =
 		requestedMode ??
@@ -226,7 +228,7 @@ export function TranslateCard({
 			ariaLive="polite"
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
-			onOutsideClick={dismissOnOutsideClick ? onHide : undefined}
+			onOutsideClick={alwaysShowCard ? undefined : onHide}
 			actions={[
 				...(onModeChange && isDictionaryLookup(sourceText ?? "")
 					? [

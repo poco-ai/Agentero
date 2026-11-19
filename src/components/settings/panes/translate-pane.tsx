@@ -521,15 +521,14 @@ export function TranslatePane({
 					</Select>
 				</SettingsRow>
 				<SettingsRow
-					label={t("translate.dismissOnOutsideClick.label")}
-					description={t("translate.dismissOnOutsideClick.description")}
-					htmlFor="translate-dismiss-outside"
+					label={t("translate.alwaysShowCard.label")}
+					htmlFor="translate-always-show-card"
 				>
 					<Switch
-						id="translate-dismiss-outside"
-						checked={tr.dismissSelectionOnOutsideClick}
+						id="translate-always-show-card"
+						checked={tr.alwaysShowTranslateCard}
 						onCheckedChange={(v) =>
-							patchTranslate({ dismissSelectionOnOutsideClick: v })
+							patchTranslate({ alwaysShowTranslateCard: v })
 						}
 					/>
 				</SettingsRow>

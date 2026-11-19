@@ -620,9 +620,8 @@
 		"autoSelection": {
 			"label": "PDF 划词后自动翻译"
 		},
-		"dismissOnOutsideClick": {
-			"label": "点击其他位置时关闭翻译结果",
-			"description": "点击翻译卡以外的位置即关闭。滚动、翻页和阅读器控件不会关闭。"
+		"alwaysShowCard": {
+			"label": "翻译卡片常显示"
 		},
 		"autoImport": {
 			"label": "版面解析后自动翻译",
