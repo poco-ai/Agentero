@@ -19,6 +19,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 | **Crossref REST API** | `GET https://api.crossref.org/works/{doi}` | DOI → 元数据 / 参考文献 | `features/paper/import/recognize/pdf_recognize.rs`, `features/paper/analyze/refs/online.rs`, `features/paper/catalog/commands.rs` |
 | **OpenAlex REST API** | `GET https://api.openalex.org/works` | 标题搜索兜底（含 `cited_by_count`） | `features/paper/scholar_api/search.rs`（`SourceScope::All` 兜底源） |
 | **Unpaywall** | `GET https://api.unpaywall.org/v2/{doi}` | DOI → 开放获取 PDF | `features/paper/import/download.rs` |
+| **PMC 开放获取副本** | `GET https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/?ids={doi}`、`GET https://pmc-oa-opendata.s3.amazonaws.com/?list-type=2&prefix={pmcid}.` | DOI / PMC 链接 → PMC 开放获取 PDF（NCBI 在 AWS Open Data 的公开桶，不经网页人机验证） | `features/paper/scholar_api/sources/pmc.rs` |
 | **PubMed / NCBI E-utilities** | `GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi` / `efetch.fcgi` | 标题/PMID → 医学/生命科学元数据 | `features/paper/scholar_api/sources/pubmed.rs` |
 | **alphaXiv** | `GET https://api.alphaxiv.org/papers/v3/{id}/preview`、`GET /v1/search/paper?q=` | arXiv 元数据/标题搜索的末位备份源（未文档化匿名 JSON API） | `features/paper/scholar_api/sources/alphaxiv.rs` |
 | **bioRxiv** | `GET https://api.biorxiv.org/details/biorxiv/{doi}` | DOI → 生命科学预印本元数据 | `features/paper/scholar_api/sources/biorxiv.rs` |
@@ -149,7 +150,8 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 
 - arXiv PDF 候选链：`https://arxiv.org/pdf/{id}` → `https://arxiv.org/pdf/{id}.pdf` → `https://export.arxiv.org/pdf/{id}`。
 - arXiv TeX 源码：`https://arxiv.org/e-print/{id}`（`/src/` 为别名）。
-- DOI 论文 PDF：先查 `api.unpaywall.org/v2/{doi}`，再查 Crossref `message.link` 中的 PDF 链接。
+- DOI 论文 PDF：先查 Crossref `message.link` 中的 PDF 链接，再查 `api.unpaywall.org/v2/{doi}`，再查 PMC 开放获取副本，最后走机构代理。
+- PMC 开放获取副本：PMC 文章页 PDF（`pmc.ncbi.nlm.nih.gov/articles/{pmcid}/pdf/`）对脚本返回 JavaScript 工作量证明页，下不到 PDF。已尝试候选里有 PMC 链接时直接取其 PMCID，否则用 DOI 经 NCBI ID Converter 换 PMCID，再从 PMC Article Datasets 公开桶取最新版本的 PDF。作者稿多数没有 PDF，返回空后继续下一步。这一步不带浏览器页面 Cookie。
 
 ### 2.11 PubMed / bioRxiv / medRxiv 元数据兜底
 
@@ -223,7 +225,7 @@ Translator Runtime 约定端点：
 | 在线参考文献 | S2 references | Crossref `reference[]` | 本地 TeX/`.bbl` |
 | 反向引用 | S2 citations | 无 | 无 |
 | 补全 publication | arXiv journal_ref / S2 `publicationVenue` | S2 `DOI:{doi}` → Crossref `container-title` | S2 title search |
-| 下载 PDF | arXiv 直连 | arXiv export / Unpaywall / Crossref link | 无 PDF |
+| 下载 PDF | arXiv 直连 | arXiv export / Crossref link / Unpaywall / PMC 开放获取副本 | 无 PDF |
 | 下载 TeX | arXiv e-print | - | PDF only |
 
 ## 6. 相关文档
