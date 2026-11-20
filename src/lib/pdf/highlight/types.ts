@@ -1,4 +1,4 @@
-/** PDF highlight annotation model. See docs/development/pdf-ask.md */
+/** PDF highlight annotation model. */
 
 import type {
 	PdfHighlightAnnoObject,

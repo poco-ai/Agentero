@@ -33,7 +33,7 @@ pub fn extract_text(
     pages: Option<&[u32]>,
     max_chars: usize,
 ) -> Result<PagesText, AppError> {
-    let lib = liteparse_pdfium::Library::init();
+    let lib = crate::features::pdf::open_library()?;
     let doc = lib
         .load_document_from_bytes(pdf, None)
         .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;

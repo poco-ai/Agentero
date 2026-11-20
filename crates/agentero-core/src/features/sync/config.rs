@@ -46,6 +46,9 @@ pub struct SyncBackendConfig {
     pub access_key: String,
     #[serde(default)]
     pub secret_key: String,
+    /// Temporary S3 credential included in the SigV4 signed headers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_token: Option<String>,
     /// `{endpoint}/{bucket}/key` instead of `{bucket}.{endpoint}/key`.
     /// Path style works with R2 / MinIO / AWS alike, so it is the default.
     #[serde(default = "default_true")]
@@ -227,6 +230,11 @@ impl SyncBackendConfig {
         self.prefix = self.prefix.trim().trim_matches('/').to_string();
         self.access_key = self.access_key.trim().to_string();
         self.secret_key = self.secret_key.trim().to_string();
+        self.session_token = self
+            .session_token
+            .take()
+            .map(|s| s.trim().to_owned())
+            .filter(|s| !s.is_empty());
         self.webdav_url = normalize_webdav_url(&self.webdav_url);
         self.webdav_username = self.webdav_username.trim().to_string();
         self.webdav_password = self.webdav_password.trim().to_string();
@@ -253,6 +261,7 @@ impl SyncBackendConfig {
     pub fn masked(&self) -> Self {
         let mut out = self.clone();
         out.secret_key = mask_secret(&out.secret_key);
+        out.session_token = out.session_token.as_deref().map(mask_secret);
         out.webdav_password = mask_secret(&out.webdav_password);
         out.agentero_token.clear();
         out
@@ -262,6 +271,9 @@ impl SyncBackendConfig {
     pub fn merge_mask(&mut self, previous: Option<&Self>) {
         if is_masked_secret(&self.secret_key) {
             self.secret_key = previous.map(|p| p.secret_key.clone()).unwrap_or_default();
+        }
+        if self.session_token.as_deref().is_some_and(is_masked_secret) {
+            self.session_token = previous.and_then(|p| p.session_token.clone());
         }
         if is_masked_secret(&self.webdav_password) {
             self.webdav_password = previous

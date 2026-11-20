@@ -171,6 +171,8 @@ export type ChatLine =
 			kind: "agent";
 			parts: AgentPart[];
 			sources?: string[];
+			promptOnly?: boolean;
+			artifacts?: AgentResultPayload["artifacts"];
 			streaming?: boolean;
 	  }
 	| { id: string; kind: "error"; text: string }

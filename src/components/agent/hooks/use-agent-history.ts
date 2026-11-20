@@ -773,6 +773,7 @@ export function useAgentHistory({
 						return {
 							id: line.id,
 							kind: "agent" as const,
+							artifacts: line.artifacts,
 							parts,
 							sources:
 								line.sources && line.sources.length > 0

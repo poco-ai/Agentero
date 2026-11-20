@@ -31,6 +31,7 @@ const OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_millis(250);
 pub struct AcpTerminalManager {
     terminals: HashMap<String, Arc<AcpTerminal>>,
     default_cwd: Option<PathBuf>,
+    turn: Option<(String, bool)>,
 }
 
 struct AcpTerminal {
@@ -97,6 +98,7 @@ impl AcpTerminalManager {
         Self {
             terminals: HashMap::new(),
             default_cwd: None,
+            turn: None,
         }
     }
 
@@ -104,7 +106,12 @@ impl AcpTerminalManager {
         Self {
             terminals: HashMap::new(),
             default_cwd: Some(cwd),
+            turn: None,
         }
+    }
+
+    pub(crate) fn bind_turn(&mut self, turn: Option<(String, bool)>) {
+        self.turn = turn;
     }
 
     /// Spawn a command and return its terminal id.
@@ -138,6 +145,12 @@ impl AcpTerminalManager {
         // Agent terminals run user tools (node, git, package managers) inside
         // whatever environment launched Agentero; never leak an AppImage's
         // loader paths into them (#1002).
+        if let Some((token, scoped)) = &self.turn {
+            cmd.env(agentero_core::features::context::TURN_ENV, token);
+            if *scoped {
+                cmd.env(agentero_core::features::context::CLI_GRANT_ENV, token);
+            }
+        }
         cmd.sanitize_appimage_env();
 
         let mut child = cmd

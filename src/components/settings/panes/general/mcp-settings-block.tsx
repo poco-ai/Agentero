@@ -105,7 +105,11 @@ export function McpSettingsBlock({
 	return (
 		<>
 			<SettingsGroup>
-				<SettingsRow label={t("general.mcp.label")} htmlFor="mcp-enabled">
+				<SettingsRow
+					label={t("general.mcp.label")}
+					description={t("general.mcp.scope")}
+					htmlFor="mcp-enabled"
+				>
 					<Switch
 						id="mcp-enabled"
 						checked={settings.mcpEnabled}
@@ -113,19 +117,22 @@ export function McpSettingsBlock({
 						onCheckedChange={(v) => void onToggle(v)}
 					/>
 				</SettingsRow>
-				<SettingsRow
-					label={t("general.mcp.exposeText.label")}
-					htmlFor="mcp-expose-paper-text"
-				>
-					<Switch
-						id="mcp-expose-paper-text"
-						checked={settings.mcpExposePaperText}
-						disabled={disabled}
-						onCheckedChange={(mcpExposePaperText) =>
-							patch({ mcpExposePaperText })
-						}
-					/>
-				</SettingsRow>
+				{(
+					[
+						["mcpExposePaperText", "general.mcp.exposeText.label"],
+						["mcpAllowWrite", "general.mcp.allowWrite"],
+						["mcpAllowOnline", "general.mcp.allowOnline"],
+					] as const
+				).map(([key, label]) => (
+					<SettingsRow key={key} label={t(label)} htmlFor={key}>
+						<Switch
+							id={key}
+							checked={settings[key]}
+							disabled={disabled}
+							onCheckedChange={(value) => patch({ [key]: value })}
+						/>
+					</SettingsRow>
+				))}
 				<SettingsRow
 					label={
 						<>

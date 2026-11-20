@@ -27,7 +27,7 @@ export function runSelectionQuickChat(): boolean {
 
 const addToChatHandlers = new Set<QuickChatHandler>();
 
-/** Register an iframe selection action for shortcuts received by the parent. */
+/** Register a surface-owned Add to chat action. */
 export function registerSelectionAddToChat(next: QuickChatHandler): () => void {
 	addToChatHandlers.add(next);
 	return () => {
@@ -35,7 +35,7 @@ export function registerSelectionAddToChat(next: QuickChatHandler): () => void {
 	};
 }
 
-/** Offer the chord to an armed iframe selection before the global selection action. */
+/** Offer the chord to an armed toolbar before falling back to the live selection. */
 export function runSelectionAddToChat(): boolean {
 	for (const handler of [...addToChatHandlers].reverse()) {
 		if (handler()) return true;

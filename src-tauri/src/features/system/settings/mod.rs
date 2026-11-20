@@ -160,10 +160,15 @@ pub struct AppSettings {
     pub mcp_enabled: bool,
     #[serde(default = "default_mcp_port")]
     pub mcp_port: u16,
-    /// Opt-in: expose paper full text (`paper_text_get`) through the MCP
-    /// server. Default off — external clients only see metadata and NOTES.
+    /// Allow external MCP clients to read complete paper text.
     #[serde(default)]
     pub mcp_expose_paper_text: bool,
+    /// Allow external MCP clients to modify the Vault.
+    #[serde(default)]
+    pub mcp_allow_write: bool,
+    /// Allow external MCP clients to use operations that contact online services.
+    #[serde(default)]
+    pub mcp_allow_online: bool,
     /// OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex) for the built-in
     /// `tunnel-client` supervisor. Empty = never configured.
     #[serde(default)]
@@ -579,6 +584,8 @@ impl Default for AppSettings {
             connector_port: default_connector_port(),
             mcp_enabled: false,
             mcp_expose_paper_text: false,
+            mcp_allow_write: false,
+            mcp_allow_online: false,
             mcp_port: default_mcp_port(),
             mcp_tunnel_id: String::new(),
             mcp_tunnel_api_key: String::new(),
@@ -828,6 +835,17 @@ impl AppSettingsStore {
 
     pub fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    pub(crate) fn mcp_permissions(&self) -> agentero_mcp::Permissions {
+        self.inner
+            .lock()
+            .map(|settings| agentero_mcp::Permissions {
+                write: settings.mcp_allow_write,
+                online: settings.mcp_allow_online,
+                full_text: settings.mcp_expose_paper_text,
+            })
+            .unwrap_or_default()
     }
 
     pub fn get(&self) -> Result<SettingsGetResult, AppError> {

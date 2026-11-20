@@ -8,7 +8,10 @@ import {
 	AgentCatalogRows,
 	RemoteAgentCatalogRow,
 } from "@/components/settings/panes/agent/agent-catalog-rows";
-import { AgentCustomForm } from "@/components/settings/panes/agent/agent-custom-form";
+import {
+	AgentCustomForm,
+	type CustomAgentFormDraft,
+} from "@/components/settings/panes/agent/agent-custom-form";
 import { AgentDefaultBlock } from "@/components/settings/panes/agent/agent-default-block";
 import { AgentEmbeddingBlock } from "@/components/settings/panes/agent/agent-embedding-block";
 import { AgentNodeNotice } from "@/components/settings/panes/agent/agent-node-notice";
@@ -108,18 +111,15 @@ export function AgentPane({
 	} = useAgentUninstall({ scanOnce, onToolLifecycle });
 
 	const handleAddCustom = useCallback(
-		async (draft: {
-			id?: string;
-			name: string;
-			command: string;
-			args: string;
-		}): Promise<boolean> => {
+		async (draft: CustomAgentFormDraft): Promise<boolean> => {
 			if (!isTauri()) return false;
 			setLoading(true);
 			try {
 				const args = draft.args.trim().split(/\s+/).filter(Boolean);
 				await upsertAgent({
 					id: draft.id,
+					supportsShell: draft.supportsShell,
+					env: draft.env,
 					name: draft.name.trim() || draft.command,
 					template: "custom" as AgentTemplate,
 					command: draft.command.trim(),

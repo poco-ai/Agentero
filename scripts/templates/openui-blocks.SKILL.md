@@ -1,6 +1,6 @@
 ---
 name: openui-blocks
-version: 1
+version: 2
 # Bump when the component list or guidance changes; existing Vaults only
 # auto-upgrade a bundled skill when this integer increases.
 description: >-
@@ -29,7 +29,7 @@ when it is enough, especially for a single table.
   `caption` or `detail` for display text. Unrecognized targets stay as text.
 - Never invent a numbered PDF anchor. `#figure=N`, `#table=N`, `#formula=N`,
   `#algorithm=N` and `#section=...` must exist in the paper's layout: check
-  `agentero layout list <paper> --kind <kind> --json`, or read
+  `agentero paper regions <paper> --kind <kind> --json`, or read
   `{paper}/source/layout-index.json` when the CLI is unavailable. Formulas may
   also live as `\tag{N}` in `{paper}/source/layout.json`. Only a matching
   numbered id, title/caption, or `\tag{N}` counts; an unnumbered region of that

@@ -214,6 +214,7 @@ fn descriptor_from_template(
     args: &[String],
 ) -> AgentDescriptor {
     AgentDescriptor {
+        supports_shell: false,
         id: format!("remote-catalog-{template_id}"),
         name: name.to_string(),
         template: template_from_id(template_id),
@@ -244,6 +245,7 @@ mod tests {
 
     fn descriptor() -> crate::features::agent::models::AgentDescriptor {
         crate::features::agent::models::AgentDescriptor {
+            supports_shell: false,
             id: "remote-catalog-opencode".into(),
             name: "OpenCode".into(),
             template: AgentTemplate::Opencode,
