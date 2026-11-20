@@ -212,6 +212,7 @@ dependencies = [
  "log",
  "pulldown-cmark",
  "reqwest 0.12.28",
+ "roxmltree",
  "rusqlite",
  "schemars 1.2.2",
  "serde",

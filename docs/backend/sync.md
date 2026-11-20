@@ -15,7 +15,7 @@ S3 / WebDAV / Agentero Cloud 共用同一套状态化同步协议（内容寻址
 | `config.rs` | `SyncBackendConfig`（`backend: s3 \| webdav \| git` 判别字段，旧 `sync.json` 缺省即 S3）与凭据持久化：XDG `agentero/sync.json`（按 Vault 路径分键，0600）；`secretKey` / `webdavPassword` 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）；`conditionalWrites` 持久化连接测试的条件写探测结果；`webdavUrl` 归一化（trim 尾斜杠 + 坚果云根地址展开，见 WebDAV 节）；Git 的 `gitRemote` / `gitBranch`（Git 不存密钥）；`scope` 同步范围（见下；Git 把排除项写进 `.gitignore`）；`remoteIdentity()` 给出远端 store 标识（后端 + 地址/bucket/prefix + 账号名 + Git 分支，不含密钥），供本地状态在换 store 后判失效 |
 | `store.rs` | 后端无关抽象（Strategy）：`RemoteStore` trait 定义后端契约（`ensure_root` / `get` / 条件 `put` / `probe_conditional_writes`，futures 均为 `Send`），`SyncStore` 枚举是唯一的组合点（从配置选择具体客户端并转发）；engine 只依赖 trait，可用内存实现做引擎测试。另含两个客户端共享的 HTTP 工具：`send_with_retries`（幂等操作传输层 3 次重试）、`check` / `etag_of` / `error_chain` |
 | `s3.rs` | 最小 S3 客户端：GET / 条件 PUT（`If-Match` / `If-None-Match`）/ DELETE / ListObjectsV2，reqwest + 手写 SigV4（HMAC-SHA256 自实现，RFC 4231 向量测试）；强制条件写（见下） |
-| `webdav.rs` | 最小 WebDAV 客户端：Basic Auth + GET / 条件 PUT / DELETE / MKCOL / PROPFIND（仅取状态码，无 XML 解析），见下节 |
+| `webdav.rs` | WebDAV 传输与条件写探测；实验日志模式另用普通 PUT 和 Depth 1 PROPFIND，校验 multistatus XML 与目录完整性。 |
 | `snapshot.rs` / `scope.rs` | Vault 扫描、范围统计与附件分类；`size+mtime` 未变时复用 base 哈希；统计和各后端共用分类规则（见「同步范围」） |
 | `local.rs` | `.agentero/vault.json`（Vault UUID）、`.agentero/sync/{base,state}.json`（`state.json` 含 `lastError`，上次失败原因，成功即清除）、`.agentero/sync/pushed.jsonl`（已上传未发布的 blob，见「请求预算」）；watcher 忽略 `.agentero/`，无事件回环 |
 | `lock.rs` | 跨进程 pass 锁：`.agentero/sync/lock` 上的 advisory 文件锁（flock / LockFileEx），桌面端、CLI 与 cron 在同一 Vault 上串行化；锁随文件句柄释放，进程崩溃不残留 |
@@ -76,6 +76,20 @@ S3 / WebDAV / Agentero Cloud 共用同一套状态化同步协议（内容寻址
 - **兼容性（实测）**：路径段 percent-encode、请求带尾斜杠集合形式。坚果云特性：MKCOL 对根 `/dav` 返回 403 OperationNotAllowed（按「已存在/受保护」容忍）；根 `/dav` 不允许创建文件（PUT 一律 404 ObjectNotFound，[#681](https://github.com/poco-ai/Agentero/issues/681)），故根地址自动落到 `agentero/` 子文件夹（见「目录模型」）；顶层目录名长度有限制（`sandbox name is too long`）；顶层目录不可经 WebDAV 删除、非空目录删除需先清空子项——`sync_disconnect` 本就不动远端数据，仅测试清理需注意；**请求按账号限频**（免费 600 次/30 分钟、付费 1500 次/30 分钟），空转成本见「空转短路」。这些历史互操作记录不是当前服务对条件写的保证，以实际探测为准。
 - **集成测试**：`engine.rs` `two_device_roundtrip_against_webdav`（`#[ignore]`，env `AGENTERO_SYNC_WEBDAV_TEST_URL` / `_USERNAME` / `_PASSWORD`，连接测试 + 发布/加入/编辑/分歧冲突/收敛全流程，镜像 MinIO 测试）。
 
+### 普通上传的 WebDAV 日志原型
+
+在每台测试设备上，用下面的命令绑定同一个专用空目录或加入已经初始化的日志。密码继续使用原有 CLI 凭据渠道。已有格式 1 的远端无法原地转换。初次试用可以复制本地笔记到新的测试 Vault。显式绑定后，CLI、桌面手动同步和调度器走同一个 core 入口。
+
+```bash
+agentero sync configure --vault ~/test-vault --backend webdav --webdav-journal \
+  --webdav-url https://example.com/dav/agentero-test --webdav-username demo
+agentero sync now --vault ~/test-vault
+```
+
+远端 `vault.json` 标记格式 2。文件内容沿用 `blobs/`，每批改动最后写到 `manifests/<哈希首位>/<完整 SHA-256>.json`。每条记录包含本设备已观察到的父版本、添加的文件版本和显式撤销的旧版本。两台设备各自发布后，只需其中一台在线即可合并；并发编辑保留双方内容，删除只撤销操作方已经见过的版本。扫描、内容校验、冲突命名、暂存落盘和 Catalog 刷新沿用现有引擎。本地 `.agentero/sync/webdav-journal.json` 按绑定保存已读记录，以及落盘中断时用于恢复的路径状态。解绑会清除此检查点。
+
+每轮按一级目录枚举，最多 16 个哈希子目录，只下载未缓存的记录。单目录达到 749 个子项、服务端返回不完整的 XML、漏掉已知记录或缺少引用的版本时，本轮停止。首次加入时无法识别服务端静默隐藏的独立记录；后续列出时补收，目录中缺少某项本身不会生成删除。原型尚无分页、历史压缩和旧格式迁移。开启入口只在 CLI。
+
 ## Git 后端
 
 - **形态**：Vault 根目录就是 Git work tree；远端名固定 `origin`，分支由 `gitBranch` 指定（默认 `main`）。不经过 blob/manifest 引擎，Git 自己保存历史与合并。
@@ -92,7 +106,7 @@ S3 / WebDAV / Agentero Cloud 共用同一套状态化同步协议（内容寻址
 
 多设备升级时，先暂停旧客户端的自动同步并备份 Vault，再升级所有写入端。远端格式仍兼容旧版本，但新客户端无法约束旧版本的无条件写入。升级不会找回旧版已传播的删除。
 
-S3 / WebDAV 在绑定时和非空转同步前实测一次性对象：仅创建成功、读出强 ETag、重复创建被拒绝、按当前 ETag 替换成功、按过期 ETag 替换被拒绝。任一条件不成立或探测出错，都不会回退到普通 PUT。`conditionalWrites` 是上次连接测试结果，不是写入授权；既有不兼容端点需迁移至支持条件写的远端。Agentero Cloud 依赖服务端对象 API 的条件写契约，不执行临时对象探测。
+标准 S3 / WebDAV 协议在绑定时和非空转同步前检查一次性对象的创建、强 ETag、重复创建、按当前 ETag 替换以及按过期 ETag 替换。任一条件不成立或探测出错，客户端都会停止发布 HEAD。`conditionalWrites` 保存探测结果。显式启用日志原型的设备将该值设为 false，按本地日志检查点选择格式 2。Agentero Cloud 依赖服务端对象 API 的条件写契约。
 
 - **正常落盘**：文件写入临时区并校验声明大小与 SHA-256；应用时重新核对本地文件，再删除已确认的阻挡项、移除空目录、安装新文件。目录含未跟踪文件或符号链接时拒绝替换，不递归清除。多文件应用并非单个文件系统事务。
 - **进程中断**：`.agentero/sync/pending.json` 保存目标 HEAD 和受影响路径的原始条目；明确成功后改名为 `accepted.json`。丢失成功响应时核对远端 HEAD；能确认采纳时，用已发布清单与当前磁盘重建路径基线，重新合并未落盘变更，再写 `base.json` / `state.json`。

@@ -1156,7 +1156,7 @@
 		"gitSslCaHint": "自签 HTTPS 服务器的 PEM 文件绝对路径。留空则使用系统信任库。",
 		"gitAuthFailed": "Git 无法登录，同步不会弹出凭据窗口。\n{{detail}}\nHTTPS：先用 `git credential approve` 或系统凭据助手存好 token。SSH：运行 `ssh-add`。",
 		"gitTlsFailed": "Git 拒绝了服务器证书。\n{{detail}}\n自签 HTTPS 请填写 CA 证书路径后再连接。",
-		"noConditionalWrites": "此存储未执行条件写入。为防止覆盖其他设备的改动，同步已停止，请选择其他存储。",
+		"noConditionalWrites": "缺少条件写入时，标准同步会停止。WebDAV 可通过 CLI 配置实验日志，使用普通上传。",
 		"saved": "同步已配置",
 		"disconnect": "解绑",
 		"syncNow": "立即同步",

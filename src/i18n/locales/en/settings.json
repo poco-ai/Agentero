@@ -1156,7 +1156,7 @@
 		"gitSslCaHint": "Absolute PEM path for a self-signed HTTPS server. Empty uses the system trust store.",
 		"gitAuthFailed": "Git could not sign in, and sync does not prompt.\n{{detail}}\nHTTPS: store a token first with `git credential approve` or your credential helper. SSH: run `ssh-add`.",
 		"gitTlsFailed": "Git rejected the server certificate.\n{{detail}}\nFor a self-signed server, set the CA certificate path and connect again.",
-		"noConditionalWrites": "Sync is blocked because this storage does not enforce conditional writes. Choose another store to avoid overwriting another device’s changes.",
+		"noConditionalWrites": "Standard sync is blocked without conditional writes. WebDAV can use ordinary uploads with a journal configured through the CLI.",
 		"saved": "Sync configured",
 		"disconnect": "Disconnect",
 		"syncNow": "Sync now",

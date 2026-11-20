@@ -55,6 +55,9 @@ pub enum SyncCmd {
 
 #[derive(Debug, Args)]
 pub struct ConfigureArgs {
+    /// Initialize or join the experimental ordinary-PUT WebDAV journal in a dedicated directory.
+    #[arg(long)]
+    pub webdav_journal: bool,
     /// Backend store: `s3` (default), `webdav`, or `git`.
     #[arg(long = "backend", value_enum, default_value = "s3")]
     pub backend: BackendKind,
@@ -198,7 +201,7 @@ async fn configure(
     args: &ConfigureArgs,
     globals: &GlobalOpts,
 ) -> Result<Value, CliError> {
-    let _lock = SyncLock::acquire(vault)?;
+    let lock = SyncLock::acquire(vault)?;
     let (key, existing) = entry_for(vault);
     let mut cfg = if args.stdin_cfg {
         read_config_stdin()?
@@ -224,7 +227,12 @@ async fn configure(
             ExitCode::Business,
         )
     })?;
-    cfg.conditional_writes = engine::test_connection(vault, &cfg).await?;
+    if args.webdav_journal {
+        engine::configure_webdav_journal(&lock, &cfg).await?;
+        cfg.conditional_writes = false;
+    } else {
+        cfg.conditional_writes = engine::test_connection(vault, &cfg).await?;
+    }
     sync_config::set(&key, cfg.clone())?;
 
     let style = globals.style;
@@ -249,6 +257,10 @@ async fn configure(
             style.key("conditional writes"),
             if cfg.conditional_writes {
                 "yes"
+            } else if args.webdav_journal {
+                "unused (WebDAV journal)"
+            } else if cfg.backend == SyncBackendKind::Webdav {
+                "no (requires a WebDAV journal for sync)"
             } else {
                 "no (sync blocked)"
             }

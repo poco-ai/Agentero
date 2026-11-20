@@ -467,7 +467,7 @@ agentero paper open papers/nlp/attention --json
 
 ## 云同步（`sync`）
 
-无桌面环境（服务器等）下的双向 Vault 同步；与桌面端共用 `agentero-core::features::sync` 引擎与 XDG `sync.json` 绑定。S3/WebDAV 的冲突处理（三方合并 + 冲突副本）、拒绝不可靠的条件写、断点续传与空转短路语义完全一致；Git 后端走独立的 work-tree 同步（原生 merge、冲突 abort），见 [sync.md](sync.md#git)。
+无桌面环境（服务器等）下的双向 Vault 同步。CLI 与桌面端共用 core 引擎与 XDG `sync.json` 绑定。默认 S3/WebDAV 协议要求条件写。普通 WebDAV 可以在专用目录用 `sync configure --backend webdav --webdav-journal` 试用[日志原型](sync.md#普通上传的-webdav-日志原型)。Git 后端使用[工作树同步](sync.md#git)。
 
 ```bash
 # 服务器首次接入已有远端库（vault 从未同步过时自动采纳远端 vaultId 完成加入）
