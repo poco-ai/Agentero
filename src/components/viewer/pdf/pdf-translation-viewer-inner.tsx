@@ -82,6 +82,7 @@ import {
 	mirrorLayoutResultToTranslation,
 	translationSourceKey,
 } from "@/lib/pdf/layout";
+import { isInsideVisualLayoutRegion } from "@/lib/pdf/layout/translatable";
 import {
 	getTranslatedLinkSource,
 	subscribeTranslatedLinkSource,
@@ -225,13 +226,16 @@ export function PdfTranslationViewerInner({
 	});
 
 	useEffect(() => {
+		const rawRegions = layoutRawRegions ?? [];
 		publishLayoutSentencePageAnalysis(
 			docId,
-			(layoutRawRegions ?? []).map((region) => region.pageIndex),
+			rawRegions.map((region) => region.pageIndex),
 		);
 		publishLayoutSentenceCatalog(
 			docId,
-			[...layoutTranslateItemsByPage.values()].flat(),
+			[...layoutTranslateItemsByPage.values()]
+				.flat()
+				.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions)),
 		);
 	}, [docId, layoutTranslateItemsByPage, layoutRawRegions]);
 	useEffect(() => {
