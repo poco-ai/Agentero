@@ -174,7 +174,10 @@ impl ContextSession {
     }
 
     fn locate(&self, query: &EvidenceQuery) -> Result<Located, AppError> {
-        let (path, page, section, region) = parse_locator(query);
+        let (mut path, page, section, region) = parse_locator(query);
+        if path.is_none() && self.grant.allowed.len() == 1 {
+            path = Some(self.grant.allowed[0].path.clone());
+        }
         if let Some(path) = path {
             if let Some(source) = self.source_for(&path) {
                 return match source.kind {
@@ -1681,6 +1684,10 @@ mod tests {
         assert!(blob.contains("We propose the Transformer."));
         assert!(blob.contains("Vaswani"));
         assert!(!blob.contains("FULL-BODY-SENTINEL"));
+        let implicit = session.read(&EvidenceQuery::default(), None).unwrap();
+        assert!(serde_json::to_string(&implicit)
+            .unwrap()
+            .contains("We propose the Transformer."));
         let denied = session.read(
             &EvidenceQuery {
                 paper_path: Some("papers/other".into()),

@@ -46,7 +46,7 @@ struct ContextSearchArgs {
     limit: Option<u32>,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct EvidenceRefArgs {
     #[serde(default)]
@@ -84,11 +84,34 @@ impl From<EvidenceRefArgs> for EvidenceQuery {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ContextReadArgs {
-    evidence_ref: EvidenceRefArgs,
+    /// Object form is preferred. A plain citation string is accepted as a
+    /// compatibility shorthand because some ACP agents pass it that way.
+    /// Optional when this turn's grant holds exactly one source.
+    #[serde(default)]
+    #[schemars(with = "EvidenceRefArgs")]
+    evidence_ref: serde_json::Value,
     /// `metadata` (default), `excerpt`, `section`, `page`, `region`, or `full`.
     /// `full` is explicit and still capped. Do not start there.
     #[serde(default)]
     level: Option<String>,
+}
+
+impl ContextReadArgs {
+    fn evidence_ref(&self) -> Result<EvidenceRefArgs, String> {
+        if self.evidence_ref.is_null() {
+            return Ok(EvidenceRefArgs::default());
+        }
+        if let Some(citation_uri) = self.evidence_ref.as_str() {
+            return Ok(EvidenceRefArgs {
+                citation_uri: Some(citation_uri.trim().to_string()),
+                ..Default::default()
+            });
+        }
+        serde_json::from_value(self.evidence_ref.clone()).map_err(|_| {
+            "evidenceRef must be an object (paperPath, filePath, citationUri, page, section, or regionId) or a citation string"
+                .to_string()
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -174,9 +197,10 @@ impl ContextMcp {
         &self,
         Parameters(args): Parameters<ContextReadArgs>,
     ) -> Result<Json<ToolOut>, CallToolResult> {
+        let evidence_ref = args.evidence_ref().map_err(tool_err)?;
         let read = self
             .session
-            .read(&args.evidence_ref.into(), args.level.as_deref())
+            .read(&evidence_ref.into(), args.level.as_deref())
             .map_err(tool_err)?;
         tool_out(read).map_err(tool_err)
     }
@@ -205,6 +229,8 @@ impl ServerHandler for ContextMcp {
                  It can only see the sources in this turn's grant. \
                  context_search returns short cards. context_read starts at metadata \
                  (title and abstract) and opens a section, page, or region only when needed. \
+                 With exactly one source in this turn's grant, context_read may omit evidenceRef. \
+                 Otherwise pass evidenceRef as an object with paperPath, filePath, or citationUri. \
                  paper_relations lists citation, cited-by, and related cards. \
                  Do not expect a full-text dump. Each card's citationUri jumps back to the source.",
             )
@@ -257,4 +283,33 @@ fn serve(grant: PathBuf) -> Result<(), String> {
             .map_err(|error| format!("context mcp stopped: {error}"))?;
         Ok(())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ContextReadArgs;
+
+    #[test]
+    fn evidence_ref_accepts_object_string_and_omission() {
+        let object: ContextReadArgs = serde_json::from_str(
+            r#"{"evidenceRef":{"paperPath":"papers/attention"},"level":"metadata"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            object.evidence_ref().unwrap().paper_path.as_deref(),
+            Some("papers/attention")
+        );
+
+        let string: ContextReadArgs = serde_json::from_str(
+            r#"{"evidenceRef":"papers/attention/paper.pdf#page=3","level":"page"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            string.evidence_ref().unwrap().citation_uri.as_deref(),
+            Some("papers/attention/paper.pdf#page=3")
+        );
+
+        let omitted: ContextReadArgs = serde_json::from_str(r#"{"level":"metadata"}"#).unwrap();
+        assert!(omitted.evidence_ref().unwrap().paper_path.is_none());
+    }
 }

@@ -150,6 +150,11 @@ impl WarmIdleHooks {
 }
 
 /// Permission decision for a live turn (policy → deny / allow / ask the user).
+///
+/// `agentero-context` is the Host's own session-scoped, read-only research
+/// MCP. Antigravity asks permission for every MCP call even though these tools
+/// cannot write or leave the grant, so auto-allow them under every policy.
+/// Shell / file tools still follow the user's policy.
 pub(crate) async fn decide_permission(
     app: &AgentEventEmitter,
     session_id: &str,
@@ -159,6 +164,9 @@ pub(crate) async fn decide_permission(
     user_wait: Option<&crate::features::agent::session::DelegateUserWait>,
     request: &RequestPermissionRequest,
 ) -> RequestPermissionResponse {
+    if is_agentero_context_tool(request) {
+        return permission_response(request, true);
+    }
     match policy {
         PermissionPolicy::Restricted => permission_response(request, false),
         PermissionPolicy::Auto => permission_response(request, true),
@@ -166,6 +174,25 @@ pub(crate) async fn decide_permission(
             await_user_permission(app, gate, session_id, host, user_wait, request).await
         }
     }
+}
+
+fn is_agentero_context_tool(request: &RequestPermissionRequest) -> bool {
+    request
+        .tool_call
+        .fields
+        .name
+        .as_deref()
+        .is_some_and(|name| {
+            matches!(
+                name,
+                "mcp_agentero-context_context_search"
+                    | "mcp_agentero-context_context_read"
+                    | "mcp_agentero-context_paper_relations"
+                    | "context_search"
+                    | "context_read"
+                    | "paper_relations"
+            )
+        })
 }
 
 /// Shared connection builder for both the cold one-shot path and pooled warm
@@ -302,3 +329,48 @@ macro_rules! agentero_turn_builder {
     }};
 }
 pub(crate) use agentero_turn_builder;
+
+#[cfg(test)]
+mod permission_policy_tests {
+    use super::*;
+    use agent_client_protocol::v1::schema::{
+        PermissionOption, PermissionOptionId, PermissionOptionKind, RequestPermissionOutcome,
+        ToolCallUpdate, ToolCallUpdateFields,
+    };
+
+    fn request(name: Option<&str>) -> RequestPermissionRequest {
+        let fields = ToolCallUpdateFields::new().name(name.map(str::to_string));
+        RequestPermissionRequest::new(
+            "session",
+            ToolCallUpdate::new("tool-call", fields),
+            vec![
+                PermissionOption::new(
+                    "reject-once",
+                    "Reject once",
+                    PermissionOptionKind::RejectOnce,
+                ),
+                PermissionOption::new("allow-once", "Allow once", PermissionOptionKind::AllowOnce),
+            ],
+        )
+    }
+
+    #[test]
+    fn context_tools_are_identified_by_antigravity_and_bare_names() {
+        assert!(is_agentero_context_tool(&request(Some(
+            "mcp_agentero-context_context_read"
+        ))));
+        assert!(is_agentero_context_tool(&request(Some("context_search"))));
+        assert!(!is_agentero_context_tool(&request(Some("run_command"))));
+        assert!(!is_agentero_context_tool(&request(None)));
+    }
+
+    #[test]
+    fn permission_response_selects_allow_once_for_context_tools() {
+        let response = permission_response(&request(Some("context_read")), true);
+        assert!(matches!(
+            response.outcome,
+            RequestPermissionOutcome::Selected(selected)
+                if selected.option_id == PermissionOptionId::new("allow-once")
+        ));
+    }
+}
