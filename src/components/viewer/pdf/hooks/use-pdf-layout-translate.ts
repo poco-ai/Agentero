@@ -342,6 +342,26 @@ function restoreTranslatedItems(
 	});
 }
 
+/**
+ * A translation job for this paper is already running or queued (e.g. 重译整篇
+ * started from 译文, or another window). The 对照 pane must follow it instead
+ * of stopping at its cached sidecar: the reader toolbar no longer shows a
+ * second meter there, so an unfollowed job would run unseen and unstoppable.
+ */
+function hasLiveLayoutTranslateJob(
+	paperRelPath: string | null | undefined,
+): boolean {
+	if (!paperRelPath) return false;
+	return backgroundTasksStore
+		.getState()
+		.tasks.some(
+			(task) =>
+				task.kind === "layoutTranslate" &&
+				(task.status === "running" || task.status === "queued") &&
+				sameRelPaperPath(task.paperPath ?? null, paperRelPath),
+		);
+}
+
 /** One items state update per frame while batches stream in. */
 const LAYOUT_TRANSLATE_PUBLISH_COALESCE_MS = 100;
 
@@ -804,7 +824,13 @@ export function usePdfLayoutTranslate({
 										requireReflowSentencePairs: true,
 									},
 								);
-								if (hydration.fromCache) {
+								// Cached blocks paint immediately, but a live job still has to be
+								// followed: stopping here would leave the pane on the sidecar while
+								// the real job runs. Fall through to `attachSharedTranslate`.
+								if (
+									hydration.fromCache &&
+									!hasLiveLayoutTranslateJob(paperRelPath)
+								) {
 									setCacheOnly(true);
 									setSourcePreparing(false);
 									setLayoutTranslateJob(
@@ -857,6 +883,7 @@ export function usePdfLayoutTranslate({
 		[
 			attachSharedTranslate,
 			paperAbsPath,
+			paperRelPath,
 			layoutRawRegions,
 			docId,
 			prepareReflow,

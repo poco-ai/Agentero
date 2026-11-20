@@ -111,7 +111,8 @@
 			"retranslateConfirmTitle": "重译整篇？",
 			"retranslateConfirmDescription": "将重新请求整篇并覆盖成功返回的译文；失败段落保留旧译文。",
 			"retranslateConfirm": "确认重译",
-			"pagesCount": "已完成 {{done}}/{{total}} 页"
+			"pagesCount": "已完成 {{done}}/{{total}} 页",
+			"pagesGenerated": "已生成 {{done}}/{{total}} 页"
 		},
 		"translation": {
 			"title": "翻译",

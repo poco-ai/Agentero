@@ -22,6 +22,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+import { useStore } from "zustand";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { PdfCitationPreview } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
@@ -72,7 +73,9 @@ import { PdfHistoryKeyHandler } from "@/components/viewer/pdf/viewport/pdf-histo
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
+import { backgroundTasksStore } from "@/lib/core/background-tasks";
 import { openExternalUrl } from "@/lib/core/open-external";
+import { sameRelPaperPath } from "@/lib/core/path";
 import { destinationInPageBox } from "@/lib/pdf/citation-dest-keys";
 import { partitionHighlightPaint } from "@/lib/pdf/highlight/translated-geometry";
 import {
@@ -196,7 +199,10 @@ export function PdfTranslationViewerInner({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		layoutTranslatePartial,
+		reflowReady,
 		reflowOutput,
+		exportTranslatedPdf,
+		ensureLayoutTranslate,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
@@ -319,6 +325,18 @@ export function PdfTranslationViewerInner({
 	layoutTranslateActiveRef.current = layoutTranslateActive;
 	const layoutTranslateRunningRef = useRef(layoutTranslateRunning);
 	layoutTranslateRunningRef.current = layoutTranslateRunning;
+	const ensureLayoutTranslateRef = useRef(ensureLayoutTranslate);
+	ensureLayoutTranslateRef.current = ensureLayoutTranslate;
+	// A shared job for this paper can outlive a 译文 run: switching to 对照 while
+	// 重译整篇 is still working mounts this pane on top of its cached sidecar.
+	const translateJobLive = useStore(backgroundTasksStore, (store) =>
+		store.tasks.some(
+			(task) =>
+				task.kind === "layoutTranslate" &&
+				(task.status === "running" || task.status === "queued") &&
+				sameRelPaperPath(task.paperPath ?? null, paperRelPath),
+		),
+	);
 
 	useEffect(() => {
 		const hasRegions = (layoutRawRegions?.length ?? 0) > 0;
@@ -327,6 +345,16 @@ export function PdfTranslationViewerInner({
 		} else if (hadLayoutRegionsRef.current) {
 			translationAutoStartedRef.current = false;
 			hadLayoutRegionsRef.current = false;
+		}
+		// 对照 puts every progress/stop surface in this pane, so a live job must
+		// be followed even when cached blocks are already painted. The reader
+		// toolbar's meter is hidden there, and the cache hydrate leaves the pane
+		// owning no job. `ensureLayoutTranslate` attaches without stopping or
+		// hiding anything.
+		if (!layoutTranslateRunning && translateJobLive) {
+			ensureLayoutTranslateRef.current();
+			translationAutoStartedRef.current = true;
+			return;
 		}
 		if (translationAutoStartedRef.current) return;
 		if (!hasRegions) {
@@ -360,6 +388,7 @@ export function PdfTranslationViewerInner({
 		layoutRawRegions,
 		layoutTranslateActive,
 		layoutTranslateRunning,
+		translateJobLive,
 		toggleLayoutTranslate,
 	]);
 
@@ -750,6 +779,9 @@ export function PdfTranslationViewerInner({
 				layoutTranslateProgress={layoutTranslateProgress}
 				layoutTranslatePageCounts={layoutTranslatePageCounts}
 				layoutTranslatePartial={layoutTranslatePartial}
+				// 对照 mode hands the export control to this pane: it owns the
+				// generated pages the reader toolbar would otherwise export.
+				onExport={reflowReady ? exportTranslatedPdf : undefined}
 				onStop={toggleLayoutTranslate}
 			/>
 			{typeof document !== "undefined"
