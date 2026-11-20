@@ -4,7 +4,7 @@
  *
  * liteparse dlopens PDFium at runtime. Its build script bakes an absolute path
  * into the binary that only exists on the build machine, so a packaged app on a
- * user machine finds nothing and panics. See docs/backend/paper-import.md.
+ * user machine finds nothing and panics.
  *
  * PDFIUM_RELEASE_TAG must match liteparse-pdfium-sys's build.rs — bump it when
  * upgrading the `liteparse` dependency in crates/agentero-core/Cargo.toml.

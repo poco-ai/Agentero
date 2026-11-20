@@ -330,7 +330,7 @@ pub async fn ensure_paper_assets_with_progress(
         PAPER_ASSET_TIMEOUT,
         ensure_paper_assets_impl(
             paper_dir, vault, paper_path, id, arxiv_id, pdf_url, doi, cookies, cache, progress,
-            true,
+            true, true, true,
         ),
     )
     .await
@@ -369,6 +369,8 @@ pub async fn ensure_paper_assets_with_cookies(
                 task_id: None,
             },
             false,
+            true,
+            true,
         ),
     )
     .await
@@ -405,14 +407,16 @@ async fn ensure_paper_assets_impl(
     cache: Option<&CapsCache>,
     progress: AssetProgressContext<'_>,
     retry_source: bool,
+    include_pdf: bool,
+    include_tex: bool,
 ) -> Result<AssetDownloadResult, AppError> {
     super::check_task_not_cancelled(progress.task_id)?;
     let mut out = AssetDownloadResult::default();
     fs::create_dir_all(paper_dir)?;
 
     let before = probe_paper_caps(paper_dir);
-    let need_pdf = !before.has_pdf();
-    let need_tex = !before.has_tex;
+    let need_pdf = include_pdf && !before.has_pdf();
+    let need_tex = include_tex && !before.has_tex;
     let request = source::asset_request(arxiv_id, pdf_url, None);
     let tex_arxiv_id = request.as_deref();
 
@@ -787,7 +791,7 @@ async fn prepare_arxiv_source_with_progress(
 fn pdf_url_candidates(id: &str, arxiv_id: Option<&str>, pdf_url: Option<&str>) -> Vec<String> {
     let mut out = Vec::new();
     let mut push = |u: String| {
-        let t = u.trim().to_string();
+        let t = clean_pdf_url(&u);
         if !t.is_empty() && !out.iter().any(|x| x == &t) {
             out.push(t);
         }
@@ -817,6 +821,21 @@ fn pdf_url_candidates(id: &str, arxiv_id: Option<&str>, pdf_url: Option<&str>) -
     }
 
     out
+}
+
+/// Drop feed-only cache suffixes from a stored PDF URL.
+///
+/// Papers.cool (and some aggregators) append `||md5=<hash>` — its own cache
+/// key, unrelated to the file bytes — to the link they publish:
+/// `https://aclanthology.org/2026.findings-acl.95.pdf||md5=2afd98b8…`.
+/// The suffix is not part of the resource path, so requesting the URL as-is
+/// returns 404. Strip everything from the first `||` before use.
+fn clean_pdf_url(raw: &str) -> String {
+    raw.split("||")
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 /// Query Unpaywall for a DOI's best open-access PDF location.
@@ -1485,6 +1504,133 @@ fn safe_filename(id: &str, ext: &str) -> String {
         base
     };
     format!("{base}.{ext}")
+}
+
+mod managed;
+
+/// Fetch selected assets in staging, then publish only new or unmodified managed files.
+pub async fn fetch_selected_assets(
+    vault: &Path,
+    paper: &crate::features::catalog::papers::PaperRecord,
+    pdf: bool,
+    tex: bool,
+    retry: bool,
+) -> Result<AssetDownloadResult, AppError> {
+    let (dir, rel) = crate::fs::resolve_paper_dir(vault, &paper.path)?;
+    if !dir.canonicalize()?.starts_with(vault.canonicalize()?) || dir.join("source").is_symlink() {
+        return Err(AppError::domain(
+            "scope_denied",
+            "download destination escapes the paper directory",
+        ));
+    }
+    let before = probe_paper_caps(&dir);
+    if retry && pdf {
+        if let Some(path) = before.pdf_path.as_ref() {
+            managed::guarded(&dir, path)?;
+        }
+    }
+    if retry && tex && before.has_tex {
+        if let Some(tex) = source::read_tex(&dir) {
+            managed::guarded(&dir, &tex.root)?;
+        }
+    }
+    let need_pdf = pdf && (retry || !before.has_pdf());
+    let need_tex = tex && (retry || !before.has_tex);
+    if !need_pdf && !need_tex {
+        return Ok(AssetDownloadResult {
+            pdf: before.has_pdf(),
+            tex: before.has_tex,
+            paper_md: before.has_paper_md,
+            ..Default::default()
+        });
+    }
+    let stage = tempfile::Builder::new()
+        .prefix(".agentero-source-")
+        .tempdir_in(&dir)?;
+    if !need_pdf && need_tex {
+        if let Some(pdf) = before.pdf_path.as_ref() {
+            let dest = stage.path().join(
+                pdf.file_name()
+                    .ok_or_else(|| AppError::message("PDF has no file name"))?,
+            );
+            if fs::hard_link(pdf, &dest).is_err() {
+                fs::copy(pdf, dest)?;
+            }
+        }
+    }
+    let state = dir.join("source").join(source::STATE_FILE);
+    if need_tex && !retry && state.is_file() {
+        fs::create_dir_all(stage.path().join("source"))?;
+        fs::copy(state, stage.path().join("source").join(source::STATE_FILE))?;
+    }
+    let mut result = tokio::time::timeout(
+        PAPER_ASSET_TIMEOUT,
+        ensure_paper_assets_impl(
+            stage.path(),
+            stage.path(),
+            "",
+            &paper.id,
+            source::arxiv_request(paper).as_deref(),
+            paper.pdf_url.as_deref(),
+            paper.doi.as_deref(),
+            None,
+            None,
+            AssetProgressContext {
+                app: None,
+                task_id: None,
+            },
+            retry,
+            need_pdf,
+            need_tex,
+        ),
+    )
+    .await
+    .map_err(|_| AppError::domain("provider_unavailable", "asset download timed out"))??;
+    let _lock = source::lock(&dir, None).await?;
+    let lock_path = vault.join(".agentero").join("asset-publication.lock");
+    if lock_path.is_symlink() {
+        return Err(AppError::domain(
+            "scope_denied",
+            "invalid asset publication lock",
+        ));
+    }
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(lock_path)?;
+    fs2::FileExt::try_lock_exclusive(&lock).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::WouldBlock {
+            AppError::domain("busy", "another process is updating downloaded assets")
+        } else {
+            e.into()
+        }
+    })?;
+    managed::publish(stage.path(), &dir, need_pdf, need_tex)?;
+    if need_tex {
+        if let Some(state) = source::state(stage.path()) {
+            source::record_state(&dir, &state.arxiv_id, state.status, state.error)?;
+        }
+    }
+    source::reconcile_body(vault, &rel)?;
+    let current = probe_paper_caps(&dir);
+    if retry
+        && ((need_pdf && !result.pdf && before.has_pdf())
+            || (need_tex && !result.tex && before.has_tex))
+    {
+        return Err(AppError::domain(
+            "provider_unavailable",
+            format!(
+                "asset refresh failed; existing files were preserved. {}",
+                result.messages.join(", ")
+            ),
+        ));
+    }
+    result.pdf = current.has_pdf();
+    result.tex = current.has_tex;
+    result.paper_md = current.has_paper_md;
+    Ok(result)
 }
 
 #[cfg(test)]

@@ -12,11 +12,11 @@ use crate::features::agent::acp::client::{
     timed_acp_new_session, timed_acp_request, to_acp_agent,
 };
 use crate::features::agent::acp::updates::{
-    emit_session_config_options, models_from_config_options, models_from_session_models_value,
-    richer_models_event, store_richer_models,
+    collaboration_from_config_options, emit_session_config_options, models_from_config_options,
+    models_from_session_models_value, richer_models_event, store_richer_models,
 };
 use crate::features::agent::models::{
-    AgentDescriptor, AgentModelsEvent, AgentTemplate, WarmResult,
+    AgentCollaborationEvent, AgentDescriptor, AgentModelsEvent, AgentTemplate, WarmResult,
 };
 use crate::features::agent::runtime::events::AgentEventEmitter;
 use crate::features::agent::session::config::apply_model_and_collaboration_prefs;
@@ -34,7 +34,6 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::Manager;
 use tokio::sync::watch;
 use uuid::Uuid;
 
@@ -89,6 +88,7 @@ pub async fn warm_agent(
                 agent_id,
                 ok: false,
                 models: None,
+                collaboration: None,
                 usage_used: None,
                 usage_size: None,
                 error: Some(e.to_string()),
@@ -107,17 +107,21 @@ pub async fn warm_agent(
 
     // Healthy pooled slot from an earlier warm: reuse its cached models /
     // usage instead of spawning a second agent process.
-    if let Some((models, usage)) = pool.snapshot_warm_result(&key) {
+    if let Some((models, collaboration, usage)) = pool.snapshot_warm_result(&key) {
         log::debug!(
             target: "agentero::agent",
             "agent={} warm reused pooled slot cwd={}",
             agent_id,
             cwd.display()
         );
+        if let Some(ref collab) = collaboration {
+            let _ = app.emit("agent:collaboration", collab.clone());
+        }
         return WarmResult {
             agent_id,
             ok: true,
             models,
+            collaboration,
             usage_used: usage.map(|(u, _)| u),
             usage_size: usage.map(|(_, s)| s),
             error: None,
@@ -131,6 +135,7 @@ pub async fn warm_agent(
                 agent_id,
                 ok: false,
                 models: None,
+                collaboration: None,
                 usage_used: None,
                 usage_size: None,
                 error: Some(e.to_string()),
@@ -140,6 +145,7 @@ pub async fn warm_agent(
 
     let models_out: Arc<Mutex<Option<crate::features::agent::models::AgentModelsEvent>>> =
         Arc::new(Mutex::new(None));
+    let collaboration_out: Arc<Mutex<Option<AgentCollaborationEvent>>> = Arc::new(Mutex::new(None));
     let usage_out: Arc<Mutex<Option<(u64, u64)>>> = Arc::new(Mutex::new(None));
     let idle = WarmIdleHooks {
         app: app.clone(),
@@ -150,18 +156,7 @@ pub async fn warm_agent(
     };
     let registry = new_registry();
     let terminals = acp_terminals(Some(cwd.clone()));
-    let mcp_servers = if remote.is_none() {
-        app.app_handle()
-            .try_state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
-            .and_then(|bridge| {
-                let label = app.window_label();
-                bridge.mcp_server(&session_id, &label)
-            })
-            .into_iter()
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let mcp_servers = Vec::new();
     let (setup_tx, setup_rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
     let task = pool.start_warm(&key);
     let cancellation = task.cancellation.clone();
@@ -179,6 +174,7 @@ pub async fn warm_agent(
         preferred_model_id,
         preferred_collaboration_mode_id,
         models_out: models_out.clone(),
+        collaboration_out: collaboration_out.clone(),
         usage_out: usage_out.clone(),
         terminals: terminals.clone(),
         registry: registry.clone(),
@@ -221,6 +217,7 @@ pub async fn warm_agent(
             agent_id,
             ok: false,
             models: None,
+            collaboration: None,
             usage_used: None,
             usage_size: None,
             error: Some(WARM_CANCELLED_ERROR.to_string()),
@@ -231,11 +228,13 @@ pub async fn warm_agent(
         Ok(Ok(setup)) => match setup {
             Ok(()) => {
                 let models = models_out.lock().ok().and_then(|g| g.clone());
+                let collaboration = collaboration_out.lock().ok().and_then(|g| g.clone());
                 let usage = usage_out.lock().ok().and_then(|g| *g);
                 WarmResult {
                     agent_id,
                     ok: true,
                     models,
+                    collaboration,
                     usage_used: usage.map(|(u, _)| u),
                     usage_size: usage.map(|(_, s)| s),
                     error: None,
@@ -245,6 +244,7 @@ pub async fn warm_agent(
                 agent_id,
                 ok: false,
                 models: None,
+                collaboration: None,
                 usage_used: None,
                 usage_size: None,
                 error: Some(error),
@@ -254,6 +254,7 @@ pub async fn warm_agent(
             agent_id,
             ok: false,
             models: None,
+            collaboration: None,
             usage_used: None,
             usage_size: None,
             error: Some("warm connection closed before setup finished".to_string()),
@@ -262,6 +263,7 @@ pub async fn warm_agent(
             agent_id,
             ok: false,
             models: None,
+            collaboration: None,
             usage_used: None,
             usage_size: None,
             error: Some(format!(
@@ -287,6 +289,7 @@ struct WarmSetupCtx {
     preferred_model_id: Option<String>,
     preferred_collaboration_mode_id: Option<String>,
     models_out: Arc<Mutex<Option<crate::features::agent::models::AgentModelsEvent>>>,
+    collaboration_out: Arc<Mutex<Option<AgentCollaborationEvent>>>,
     usage_out: Arc<Mutex<Option<(u64, u64)>>>,
     terminals: Arc<tokio::sync::Mutex<crate::features::agent::acp::terminal::AcpTerminalManager>>,
     registry: crate::features::agent::session::handlers::TurnRegistry,
@@ -434,6 +437,13 @@ impl WarmSetupCtx {
         )
         .await;
         emit_session_config_options(&self.app, &self.session_id, &self.agent_id, &config_options);
+        if let Some(ev) =
+            collaboration_from_config_options(&self.session_id, &self.agent_id, &config_options)
+        {
+            if let Ok(mut g) = self.collaboration_out.lock() {
+                *g = Some(ev);
+            }
+        }
         let models_event = richer_models_event(
             models_from_config_options(&self.session_id, &self.agent_id, &config_options),
             legacy_models,
@@ -469,6 +479,7 @@ impl WarmSetupCtx {
             used: used.clone(),
             supports_delete,
             models: self.models_out.clone(),
+            collaboration: self.collaboration_out.clone(),
             usage: self.usage_out.clone(),
         });
         log::debug!(

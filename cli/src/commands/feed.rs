@@ -6,101 +6,17 @@
 //! subscriptions are user-global and never touch the catalog or Vault.
 //!
 //! Typical scheduled pipeline: `feed add <url>` once, then on a timer
-//! `feed refresh --stale` + `feed items --filter unread --json`.
+//! `feed refresh --stale` + `feed item list --state unread --json`.
 
 use crate::error::{CliError, ExitCode};
 use crate::output::to_value;
 use crate::resolve::GlobalOpts;
-use crate::style::{format_table, truncate_chars};
+
 use agentero_core::error::AppError;
 use agentero_core::features::paper::discovery::feeds as feeds_core;
 use agentero_core::features::paper::discovery::feeds::{FeedItem, FeedSub};
-use clap::Subcommand;
+
 use serde_json::{json, Value};
-
-const DEFAULT_LIMIT: u32 = 50;
-const MAX_LIMIT: i64 = 200;
-
-#[derive(Debug, Subcommand)]
-pub enum FeedCmd {
-    /// List subscribed feeds (pinned first, then oldest first).
-    List,
-
-    /// Subscribe to a feed and fetch its first batch.
-    Add {
-        /// RSS / Atom / JSON Feed URL (an HTML page linking to a feed is followed).
-        #[arg(value_hint = clap::ValueHint::Url)]
-        url: String,
-        /// Subscription title (default: the feed's own title).
-        #[arg(long)]
-        title: Option<String>,
-    },
-
-    /// Remove a subscription and its cached items.
-    Remove {
-        /// Subscription id (`feed list`).
-        id: String,
-    },
-
-    /// Fetch feeds now: all, one (`--id`), or only stale (`--stale`).
-    Refresh {
-        /// Only this subscription id (default: all).
-        #[arg(long)]
-        id: Option<String>,
-        /// Skip subscriptions fetched within the last 15 minutes (default off).
-        #[arg(long)]
-        stale: bool,
-    },
-
-    /// List cached feed items, newest first (all subscriptions by default).
-    Items {
-        /// Only this subscription id (default: all).
-        #[arg(long)]
-        subscription: Option<String>,
-        /// Item filter: `all` | `unread` | `paper` | `other` (default `all`).
-        #[arg(
-            long,
-            default_value = "all",
-            value_parser = ["all", "unread", "paper", "other"]
-        )]
-        filter: String,
-        /// Max items to return (1..=200, default 50).
-        #[arg(
-            long,
-            default_value_t = DEFAULT_LIMIT,
-            value_parser = clap::value_parser!(u32).range(1..=MAX_LIMIT)
-        )]
-        limit: u32,
-        /// Include `contentHtml` / `bodyMarkdown` (heavy HTML; off by default).
-        #[arg(long)]
-        full: bool,
-    },
-
-    /// Mark an item read or unread.
-    Read {
-        /// Item id (`feed items`).
-        id: String,
-        /// Mark unread instead of read.
-        #[arg(long)]
-        unread: bool,
-    },
-}
-
-pub async fn run(cmd: FeedCmd, globals: &GlobalOpts) -> Result<Value, CliError> {
-    match cmd {
-        FeedCmd::List => run_list(globals),
-        FeedCmd::Add { url, title } => run_add(globals, &url, title.as_deref()).await,
-        FeedCmd::Remove { id } => run_remove(globals, &id),
-        FeedCmd::Refresh { id, stale } => run_refresh(globals, id.as_deref(), stale).await,
-        FeedCmd::Items {
-            subscription,
-            filter,
-            limit,
-            full,
-        } => run_items(globals, subscription.as_deref(), &filter, limit, full),
-        FeedCmd::Read { id, unread } => run_read(globals, &id, !unread),
-    }
-}
 
 /// Core reports feed failures as i18n keys (`feeds.duplicate`, `feeds.http:404`,
 /// …); map them to stable CLI error codes with self-describing messages.
@@ -163,42 +79,6 @@ fn map_err(err: AppError) -> CliError {
     }
 }
 
-fn run_list(globals: &GlobalOpts) -> Result<Value, CliError> {
-    let data = feeds_core::list().map_err(map_err)?;
-    let lines: Vec<String> = if data.subscriptions.is_empty() {
-        vec![globals.style.dim("(no subscriptions)")]
-    } else {
-        let rows: Vec<Vec<String>> = data
-            .subscriptions
-            .iter()
-            .map(|s| {
-                let title = if s.pinned {
-                    format!("📌 {}", s.title)
-                } else {
-                    s.title.clone()
-                };
-                vec![
-                    s.id.clone(),
-                    truncate_chars(&title, 32),
-                    s.url.clone(),
-                    s.item_count.to_string(),
-                    s.last_error.clone().unwrap_or_default(),
-                ]
-            })
-            .collect();
-        format_table(
-            globals.style,
-            &["ID", "TITLE", "URL", "ITEMS", "ERROR"],
-            &rows,
-        )
-    };
-    let mut out = to_value(&data)?;
-    if let Some(obj) = out.as_object_mut() {
-        obj.insert("lines".into(), json!(lines));
-    }
-    Ok(out)
-}
-
 async fn run_add(globals: &GlobalOpts, url: &str, title: Option<&str>) -> Result<Value, CliError> {
     let sub: FeedSub = feeds_core::add_and_fetch(url.to_string(), title.map(str::to_string))
         .await
@@ -259,70 +139,6 @@ async fn run_refresh(
     Ok(out)
 }
 
-fn run_items(
-    globals: &GlobalOpts,
-    subscription: Option<&str>,
-    filter: &str,
-    limit: u32,
-    full: bool,
-) -> Result<Value, CliError> {
-    if let Some(id) = subscription {
-        let data = feeds_core::list().map_err(map_err)?;
-        if !data.subscriptions.iter().any(|sub| sub.id == id) {
-            return Err(CliError::new(
-                "feed_not_found",
-                "no feed subscription with that id",
-                ExitCode::Business,
-            ));
-        }
-    }
-    let page = feeds_core::items(subscription, filter, limit, None, None).map_err(map_err)?;
-
-    let mut items_json: Vec<Value> = Vec::with_capacity(page.items.len());
-    let mut unread = 0usize;
-    for item in &page.items {
-        if item.read_at.is_none() {
-            unread += 1;
-        }
-        items_json.push(slim_item_value(item, full)?);
-    }
-
-    let lines: Vec<String> = if page.items.is_empty() {
-        vec![globals.style.dim("(no items)")]
-    } else {
-        let rows: Vec<Vec<String>> = page
-            .items
-            .iter()
-            .map(|i| {
-                let title = if i.read_at.is_none() {
-                    format!("● {}", i.title)
-                } else {
-                    i.title.clone()
-                };
-                vec![
-                    i.id.clone(),
-                    i.published_at.clone().unwrap_or_default(),
-                    truncate_chars(&i.subscription_title, 20),
-                    truncate_chars(&title, 56),
-                ]
-            })
-            .collect();
-        let mut out = format_table(
-            globals.style,
-            &["ID", "PUBLISHED", "SOURCE", "TITLE (● = unread)"],
-            &rows,
-        );
-        out.push(
-            globals
-                .style
-                .dim(&format!("{} items · {} unread", page.items.len(), unread)),
-        );
-        out
-    };
-
-    Ok(json!({ "items": items_json, "lines": lines }))
-}
-
 fn run_read(globals: &GlobalOpts, id: &str, read: bool) -> Result<Value, CliError> {
     let item: FeedItem = feeds_core::set_read(id, read).map_err(map_err)?;
     let verb = if read { "read" } else { "unread" };
@@ -344,6 +160,117 @@ fn slim_item_value(item: &FeedItem, full: bool) -> Result<Value, CliError> {
         }
     }
     Ok(v)
+}
+
+pub async fn dispatch(route: &str, a: &Value, g: &GlobalOpts) -> Result<Value, CliError> {
+    use crate::dispatch::{required, string};
+    let receipt = |id: &str, outcome: &str| json!({"changed":true,"preview":false,"items":[{"id":id,"outcome":outcome}]});
+    match route {
+        "feed add" => {
+            let r = run_add(g, required(a, "url")?, string(a, "title")).await?;
+            Ok(json!({"id":r["id"],"title":r["title"],"url":r["url"]}))
+        }
+        "feed remove" => {
+            let id = required(a, "id")?;
+            run_remove(g, id)?;
+            Ok(receipt(id, "removed"))
+        }
+        "feed item mark" => {
+            let id = required(a, "id")?;
+            run_read(g, id, required(a, "state")? == "read")?;
+            Ok(receipt(id, "updated"))
+        }
+        "feed refresh" => {
+            let r = run_refresh(g, string(a, "feed"), a["stale"] == true).await?;
+            let items=r["subscriptions"].as_array().into_iter().flatten()
+                .filter(|s|string(a,"feed").is_none_or(|id|s["id"]==id))
+                .map(|s|json!({"id":s["id"],"outcome":if s["lastError"].is_string(){"failed"}else{"updated"},"message":s["lastError"].as_str().unwrap_or("")})).collect::<Vec<_>>();
+            Ok(json!({"items":items}))
+        }
+        "feed list" => {
+            let r = feeds_core::list().map_err(map_err)?;
+            let items = r
+                .subscriptions
+                .into_iter()
+                .map(|s| json!({"id":s.id,"title":s.title,"url":s.url}))
+                .collect::<Vec<_>>();
+            paginate(items, a)
+        }
+        "feed item list" => {
+            let mut items = Vec::new();
+            let mut before = None;
+            let mut id = None;
+            loop {
+                let page = feeds_core::items(
+                    string(a, "feed"),
+                    string(a, "kind").unwrap_or("all"),
+                    200,
+                    before.as_deref(),
+                    id.as_deref(),
+                )
+                .map_err(map_err)?;
+                let count = page.items.len();
+                for entry in page.items {
+                    before = entry.published_at.clone();
+                    id = Some(entry.id.clone());
+                    let state = if entry.read_at.is_some() {
+                        "read"
+                    } else {
+                        "unread"
+                    };
+                    if string(a, "state").is_some_and(|s| s != state) {
+                        continue;
+                    }
+                    let mut row = json!({"id":entry.id,"feed":entry.subscription_id,"title":entry.title,"url":entry.url.unwrap_or_default(),"state":state,"kind":if entry.paper_url.is_some(){"paper"}else{"other"}});
+                    if a["full"] == true {
+                        row["body"] = json!(entry
+                            .body_markdown
+                            .or(entry.content_html)
+                            .unwrap_or_default());
+                    }
+                    items.push(row)
+                }
+                if count == 200 && before.is_none() {
+                    before = id
+                        .as_deref()
+                        .map(feeds_core::item_sort_time)
+                        .transpose()
+                        .map_err(map_err)?
+                        .flatten();
+                }
+                if count < 200 || before.is_none() {
+                    break;
+                }
+            }
+            paginate(items, a)
+        }
+        _ => Err(CliError::usage("unknown feed operation")),
+    }
+}
+
+fn paginate(items: Vec<Value>, a: &Value) -> Result<Value, CliError> {
+    use agentero_core::features::evidence::content_revision;
+    let mut query = a.clone();
+    query.as_object_mut().unwrap().remove("cursor");
+    let revision = content_revision(&serde_json::to_vec(&(query, &items))?);
+    let offset = match a["cursor"].as_str() {
+        None => 0,
+        Some(c) => c
+            .strip_prefix(&format!("{revision}:"))
+            .and_then(|n| n.parse::<usize>().ok())
+            .filter(|n| *n <= items.len())
+            .ok_or_else(|| {
+                CliError::new(
+                    "stale_cursor",
+                    "feed results changed; start again",
+                    ExitCode::Conflict,
+                )
+            })?,
+    };
+    let end = (offset + a["limit"].as_u64().unwrap_or(50) as usize).min(items.len());
+    Ok(
+        json!({"items":&items[offset..end],"next_cursor":(end<items.len()).then(||format!("{revision}:{end}"))}),
+    )
 }
 
 #[cfg(test)]

@@ -6,9 +6,6 @@
 //! inherits the desktop's keys so a headless vault needs no second config.
 //!
 //! This module is read-only and never logs secrets.
-//!
-//! @see docs/frontend/settings.md
-//! @see docs/backend/cli.md
 
 use crate::error::AppError;
 use serde_json::Value;

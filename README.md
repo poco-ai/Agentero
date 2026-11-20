@@ -2,10 +2,10 @@
   <img src="docs/assets/hero.png" alt="Agentero" width="100%" />
 </p>
 
-<h3 align="center">为人与 Agent 协作而生的一站式科研工作台</h3>
+<h3 align="center">用来找论文、做笔记和跟 Agent 一起读文献的科研工作台</h3>
 
 <p align="center">
-  保留人类舒适的 PDF 阅读习惯，为模型提供纯净的结构化上下文；文献、笔记与交互记录统一沉淀于本地。
+  论文、笔记和对话记录保存在本地。读 PDF 时，可以把选中的原文、图表或笔记发给 Agent 一起分析。
 </p>
 
 <p align="center">
@@ -35,60 +35,58 @@
 
 ## 背景与设计初衷
 
-Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳定，帮助许多科研人员建立了最初的文献归档体系。
+很多人用 Zotero 整理论文。它的文献管理功能成熟，也有丰富的插件。
 
-但在当下日常科研与深度使用各类 Agent 时，传统的文献工具链暴露出一些断点：
+开始用 Agent 一起读论文时，麻烦往往出在几个工具之间。
 
-* **上下文严重分散**：论文存储在 Zotero，笔记记在 Obsidian，与模型的推导和分析留在各个网页对话框中。三者数据彼此隔离，当需要 Agent 结合某篇具体论文与历史笔记进行深入推导时，用户必须反复手动复制粘贴。
-* **文献格式对模型不友好**：人类习惯阅读排版良好的 PDF 文件；但对于模型而言，直接解析双栏排版、跨页表格、复杂数学公式和交叉引用的成本极高，极易产生识别错误与幻觉。结构化 Markdown 与 LaTeX 才是模型容易准确理解的格式。
-* **维护成本较高**：AI 伴读、全文翻译、笔记同步等高频需求，往往需要安装和调试多个社区插件，配置门槛高且在版本升级时容易出现兼容性问题。
-* **批量自动化能力有限**：通过 Deep Research 或自动化检索工具发现的大量文献，目前仍需人工在浏览器中逐篇点击保存，难以顺畅衔接批量研究流。
+* **来回复制资料。** 论文放在 Zotero，笔记写在 Obsidian，讨论留在网页对话里。想请 Agent 对照原文和之前的笔记，经常得在几个应用间复制粘贴。
+* **PDF 里的结构容易读错。** 双栏的阅读顺序、跨页表格和公式都可能解析错。转成 Markdown 和 LaTeX 后，模型更容易读到这些结构。
+* **常用功能要分别配置。** 用 AI 读论文、翻译全文、同步笔记，往往要装几个插件，升级后还要检查能不能继续用。
+* **搜到一批论文后，还要逐篇保存。** 用 Deep Research 或自动化工具找论文很快，但把结果加进自己的论文库常常还得手动操作。
 
-**Agentero 并非旨在替代 Zotero，而是探索一种人与 Agent 协同处理科研上下文的新方式**：
-* **人类负责**：提出研究问题、进行学术价值判断、深度研读与核心结论推导；
-* **Agent 负责**：批量检索筛选、元数据抓取、图表与公式提取、引用关系梳理及基础总结。
+可以继续用 Zotero 整理文献，在 Agentero 里做需要结合原文、笔记和对话的工作。让 Agent 先筛摘要、查论文信息、提取图表和公式、梳理引用或整理要点，自己回到原文细读，判断证据能支持什么结论。
 
 ---
 
 ## 核心功能
 
 ### 1. 结构化阅读与笔记系统
-* **PDF 阅读与批注**：提供大纲导航、整页与宽度自适应、平滑划词、高亮批注与全文检索。
-* **图表与公式提取**：自动解析论文中的数学公式、算法伪代码及表格，生成结构化 Markdown 与 LaTeX 内容，确保 Agent 调用时上下文准确无误。
-* **双向链接笔记**：内置所见即所得 Markdown 编辑器，支持 `[[双链]]` 引用语法、`/` 快捷指令与 LaTeX 实时渲染，笔记与文献建立原生关联。
-* **多模式翻译服务**：支持划词翻译、按页对照翻译与全文翻译，内置可用翻译通道，并支持配置自定义 API Key（BYOK）。
+* **读 PDF 和做批注。** 用目录跳到指定章节，按整页或页宽显示 PDF，也可以划词、高亮、写批注或搜索全文。
+* **提取图表和公式。** 把公式、算法伪代码和表格解析成 Agent 能读取的 Markdown 和 LaTeX。
+* **写能跳回原文的笔记。** 在可视化 Markdown 编辑器里，通过 `[[双链]]` 关联笔记和论文，输入 `/` 查找插入命令，也可以实时预览 LaTeX 公式。
+* **翻译选区、单页或全文。** 可以并排看原文和译文。用内置翻译服务，也可以配置自己的 API Key（BYOK）。
 
 <p align="center">
   <img src="docs/assets/agent.png" alt="PDF 阅读与 Agent 伴读" width="90%" />
   <br/>
-  <sub>分屏阅读与分析：左侧高亮批注，右侧本地 Agent 基于准确的结构化上下文进行答疑与推导</sub>
+  <sub>左栏读原文、做批注，右栏把选中的内容交给 Agent 提问。</sub>
 </p>
 
 <p align="center">
   <img src="docs/assets/translate.png" alt="划词翻译与笔记联动" width="90%" />
   <br/>
-  <sub>划词翻译与实时记录：阅读过程中提取的要点可直接沉淀至本地 Markdown 笔记</sub>
+  <sub>在 PDF 上划词翻译，顺手把读到的要点记进 Markdown 笔记。</sub>
 </p>
 
 ---
 
 ### 2. 开放的 Agent 协议与自动化接口
-* **基于 ACP 协议连接本地 Agent**：底层遵循 Agent Client Protocol，支持连接各类本地运行的 Agent（如 Claude Code、OpenCode、Codex 或本地模型），不绑定特定厂商，上下文完全保留在本地。
-* **内置 MCP (Model Context Protocol)**：可作为 MCP Server 运行，允许 ChatGPT Web、Claude Desktop 等外部客户端直接检索并调用本地文献库作为上下文。
-* **极客 CLI 支持**：内置无头命令行工具，支持通过脚本实现批量导入文献、提取元数据与写入笔记等自动化工作流。
+* **用 ACP 连接 Agent。** 通过 Agent Client Protocol 使用本机上的 Claude Code、OpenCode、Codex 等 Agent，也可以用支持本地模型的 Agent。发送消息时，问题和选入的材料会交给所选 Agent，数据处理方式取决于它的配置。
+* **通过 MCP 访问文献库。** 开启内置的 Model Context Protocol 服务后，可以让 ChatGPT Web、Claude Desktop 等支持 MCP 的客户端查询知识库。不同客户端有各自的连接方式。
+* **用 CLI 批量处理文献。** 在终端或脚本里导入论文、提取元数据或写入笔记。
 
 <p align="center">
   <img src="docs/assets/image.png" alt="内置 MCP 连接" width="90%" />
   <br/>
-  <sub>内置 MCP 协议服务，支持将本地文献库无缝接入各类外部 AI 客户端</sub>
+  <sub>开启 MCP 后，可以把本地文献库接到支持 MCP 的客户端。</sub>
 </p>
 
 ---
 
 ### 3. 学术雷达与文献发现
-* **多渠道抓取**：内置集成 [Cool Papers](https://papers.cool/) 与魔搭社区，支持在软件内直接浏览并一键归档文献；支持学术 RSS 订阅。
-* **个性化推荐**：基于本地已有文献库的内容特征，自动推荐每日 arXiv 的相关最新论文。
-* **引用关系自动梳理**：自动解析文献末尾的参考文献列表，支持一键批量抓取入库；支持获取出版商元数据并追踪后续被引动态。
+* **浏览新论文。** 在应用内浏览 [Cool Papers](https://papers.cool/) 和魔搭社区的论文，或添加 RSS 订阅。看到感兴趣的论文，可以存到自己的库里。
+* **看每天的 arXiv 推荐。** arXiv Daily 参照库里论文的摘要，为当天的新论文排序。
+* **顺着引用找论文。** 从解析出的参考文献里批量选论文入库，可以补齐出版商元数据，也能反过来查有哪些新论文引用了库里的文章。
 
 <p align="center">
   <img src="docs/assets/coolpaper.png" alt="Cool Papers 集成" width="90%" />
@@ -99,9 +97,9 @@ Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳�
 ---
 
 ### 4. 兼容 Zotero 生态与本地透明存储
-* **Zotero 书库无缝迁移**：支持一键导入整个 Zotero 数据库，保留已有标签、笔记与附件；兼容 Zotero 浏览器扩展直接保存网页论文；支持导出 BibTeX / BibLaTeX。
-* **本地文件夹透明管理**：不使用私有数据库或散列混淆目录，所有文献与笔记均以标准文件（PDF、Markdown）保存在本地规范文件夹中，可自由使用外部编辑器读取。
-* **多端同步与远程访问**：支持与 S3 兼容的云存储服务进行同步；支持通过 SSH 隧道访问部署在远程服务器上的文献库。
+* **从 Zotero 迁移和收集论文。** 可以选要导入的条目和附件，保留已有标签和笔记，也可以用 Zotero 浏览器扩展保存网页上的论文。支持导出 BibTeX / BibLaTeX。
+* **文件可以直接打开。** 论文和笔记以 PDF 和 Markdown 保存在知识库文件夹里，用其他工具也能读。论文库的结构化元数据保存在 `.agentero/catalog.sqlite`。
+* **同步或打开远程库。** 可以用 S3 兼容的存储服务同步多台电脑上的知识库，也可以通过 SSH 打开服务器上的知识库。
 
 ---
 
@@ -112,31 +110,31 @@ Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳�
 <br/>
 
 #### 1. 学术 RSS 订阅
-追踪关注的学术博客、实验室主页与前沿动态：
+订阅常看的学术博客和实验室主页，在应用里查看更新。
 <p align="center">
   <img src="docs/assets/rss.png" alt="RSS 订阅" width="85%" />
 </p>
 
 #### 2. Agent 技能（Skill）扩展
-浏览并安装社区提供的科研技能，扩展论文精读与写作分析能力：
+浏览并安装社区提供的 Skill，用来精读论文或辅助写作。
 <p align="center">
   <img src="docs/assets/skill-import.png" alt="Skill 扩展" width="85%" />
 </p>
 
 #### 3. Agent 与连接配置
-通过 ACP 协议管理、升级和切换本地 Agent：
+在同一个设置页管理、升级和切换通过 ACP 连接的 Agent。
 <p align="center">
   <img src="docs/assets/agent-setting.png" alt="Agent 设置" width="85%" />
 </p>
 
 #### 4. S3 兼容云存储同步
-配置私有或商业 S3 存储，实现多设备间知识库同步：
+给几台电脑接上同一个 S3 兼容存储，就可以同步知识库。
 <p align="center">
   <img src="docs/assets/s3-sync.png" alt="S3 同步设置" width="85%" />
 </p>
 
 #### 5. 多套界面主题
-支持亮色/暗色及多种配色风格，支持自适应系统外观设置：
+可以选浅色或深色主题、调整配色，也可以跟随系统外观。
 <p align="center">
   <img src="docs/assets/theme.png" alt="主题配置" width="85%" />
 </p>
@@ -149,7 +147,7 @@ Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳�
 
 ### 桌面客户端安装 (macOS / Windows / Linux)
 
-可前往 **[官网 agentero.app](https://agentero.app/)** 或 **[GitHub Releases](https://github.com/poco-ai/agentero/releases)** 下载适用于各平台的预编译安装包。
+从 **[官网 agentero.app](https://agentero.app/)** 或 **[GitHub Releases](https://github.com/poco-ai/agentero/releases)** 下载与你的电脑匹配的安装包。
 
 #### macOS (Homebrew)
 ```bash
@@ -164,7 +162,7 @@ brew install --cask agentero
 
 ### 命令行工具 (CLI)
 
-如需在终端或通过脚本自动化管理文献：
+想在终端或脚本里管理文献，可以用 Homebrew 安装命令行工具。
 
 ```bash
 brew tap poco-ai/agentero

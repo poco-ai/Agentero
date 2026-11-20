@@ -464,22 +464,67 @@ pub(crate) fn is_fast_option(opt: &SessionConfigOption) -> bool {
 }
 
 fn is_collaboration_option(opt: &SessionConfigOption) -> bool {
-    // Codex codex-acp: id + category "collaboration_mode" (Default / Plan).
-    if matches!(
-        opt.id.0.as_ref(),
-        "collaboration_mode" | "collaboration-mode"
-    ) {
+    let SessionConfigKind::Select(sel) = &opt.kind else {
+        return false;
+    };
+    if is_explicit_model_category(opt) || is_effort_option(opt) || is_fast_option(opt) {
+        return false;
+    }
+
+    let choices = collect_mode_choices_from_select(sel);
+    if choices.is_empty() {
+        return false;
+    }
+
+    // 1. Explicit plan option: any selector offering a "plan" choice (e.g. Codex
+    //    `collaboration_mode`, Antigravity native `mode`).
+    let has_plan = choices
+        .iter()
+        .any(|m| m.id.eq_ignore_ascii_case("plan") || m.name.eq_ignore_ascii_case("plan"));
+    if has_plan {
         return true;
     }
-    match opt.category.as_ref() {
-        Some(SessionConfigOptionCategory::Other(cat)) => {
-            cat == "collaboration_mode" || cat == "collaboration-mode"
-        }
-        _ => {
-            opt.name.eq_ignore_ascii_case("collaboration mode")
-                || opt.name.eq_ignore_ascii_case("collaboration")
+
+    // Pure permission/sandbox selectors (e.g. read-only / agent without plan) are handled
+    // by Agentero's permission system, not surfaced as session/collaboration mode.
+    let is_pure_sandbox = choices.iter().any(|m| {
+        let mid = m.id.to_ascii_lowercase();
+        mid == "read-only" || mid == "read_only" || mid == "readonly"
+    });
+    if is_pure_sandbox {
+        return false;
+    }
+
+    // 2. Vendor collaboration naming (Codex `collaboration_mode`).
+    let id = opt.id.0.to_ascii_lowercase();
+    if id == "collaboration_mode"
+        || id == "collaboration-mode"
+        || id == "session_mode"
+        || id == "session-mode"
+    {
+        return true;
+    }
+    if let Some(SessionConfigOptionCategory::Other(cat)) = opt.category.as_ref() {
+        let cat_lower = cat.to_ascii_lowercase();
+        if cat_lower == "collaboration_mode"
+            || cat_lower == "collaboration-mode"
+            || cat_lower == "session_mode"
+        {
+            return true;
         }
     }
+    let name_lower = opt.name.to_ascii_lowercase();
+    if name_lower == "collaboration mode" || name_lower == "collaboration" {
+        return true;
+    }
+
+    // 3. ACP standard Mode category or id="mode"
+    matches!(
+        opt.category.as_ref(),
+        Some(SessionConfigOptionCategory::Mode)
+    ) || id == "mode"
+        || name_lower == "mode"
+        || name_lower == "session mode"
 }
 
 fn collect_mode_choices_from_select(
@@ -518,7 +563,23 @@ pub(crate) fn collaboration_from_config_options(
     agent_id: &str,
     opts: &[SessionConfigOption],
 ) -> Option<AgentCollaborationEvent> {
-    let opt = opts.iter().find(|opt| is_collaboration_option(opt))?;
+    // When an agent provides multiple mode-like options (e.g. Codex exposes both
+    // permission-sandbox `mode` and workflow `collaboration_mode`), prioritize the
+    // one that explicitly offers a "plan" mode choice.
+    let opt = opts
+        .iter()
+        .filter(|opt| is_collaboration_option(opt))
+        .max_by_key(|opt| {
+            if let SessionConfigKind::Select(sel) = &opt.kind {
+                let choices = collect_mode_choices_from_select(sel);
+                if choices.iter().any(|m| {
+                    m.id.eq_ignore_ascii_case("plan") || m.name.eq_ignore_ascii_case("plan")
+                }) {
+                    return 2;
+                }
+            }
+            1
+        })?;
     let SessionConfigKind::Select(sel) = &opt.kind else {
         return None;
     };
@@ -1073,6 +1134,32 @@ mod config_option_tests {
         assert_eq!(collab.modes.len(), 2);
         assert_eq!(collab.modes[1].id, "plan");
         assert_eq!(collab.modes[1].name, "Plan");
+    }
+
+    #[test]
+    fn extracts_antigravity_mode_with_plan() {
+        let options = vec![SessionConfigOption::select(
+            "mode",
+            "Mode",
+            "default",
+            vec![
+                SessionConfigSelectOption::new("default", "Default"),
+                SessionConfigSelectOption::new("accept-edits", "Accept edits"),
+                SessionConfigSelectOption::new("plan", "Plan")
+                    .description("Plan carefully before executing a task"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::Mode)];
+
+        let collab = collaboration_from_config_options("session", "antigravity", &options)
+            .expect("antigravity mode should be exposed");
+        assert_eq!(collab.config_id, "mode");
+        assert_eq!(collab.current_id, "default");
+        assert_eq!(collab.modes.len(), 3);
+        assert_eq!(collab.modes[0].id, "default");
+        assert_eq!(collab.modes[1].id, "accept-edits");
+        assert_eq!(collab.modes[2].id, "plan");
+        assert_eq!(collab.modes[2].name, "Plan");
     }
 
     #[test]

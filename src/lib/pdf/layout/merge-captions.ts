@@ -23,7 +23,6 @@ export type CaptionPlacement = "below" | "above";
 
 /**
  * Shared geometry thresholds (normalized page coords 0–1).
- * Documented in docs/frontend/pdf-layout-analysis.md §规则清单.
  */
 export const LAYOUT_MERGE = {
 	/** Title width ≥ this → allow several caption-anchored panel groups. */

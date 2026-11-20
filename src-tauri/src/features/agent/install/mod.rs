@@ -1,8 +1,8 @@
 //! Headless CLI discovery, optional GitHub download, PATH install, and uninstall.
 //!
-//! Desktop packages intentionally do **not** ship a multi-MB CLI binary (#285).
+//! The desktop bundle carries an offline CLI for agent turns.
 //! Settings → About installs the **same app version** CLI from GitHub Releases
-//! (or uses a local/dev runnable binary when present). PATH entry is a user-bin
+//! when no local or bundled binary is available. PATH entry is a user-bin
 //! shim; shell rc files are never edited.
 //!
 //! Dev note: the cargo bin is named `agentero-cli` so it never collides with
@@ -22,7 +22,9 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tauri::{AppHandle, Manager, Runtime};
+#[cfg(not(target_os = "macos"))]
+use tauri::Manager;
+use tauri::{AppHandle, Runtime};
 
 pub mod commands;
 
@@ -141,6 +143,7 @@ fn has_pe_magic(path: &Path) -> bool {
 }
 
 /// True when the file looks real and can report a version.
+#[cfg(test)]
 fn is_runnable_cli(path: &Path) -> bool {
     is_plausible_cli_file(path) && read_cli_version(path).is_some()
 }
@@ -168,7 +171,9 @@ pub(crate) fn managed_cli_dir() -> PathBuf {
 }
 
 pub(crate) fn managed_cli_binary() -> PathBuf {
-    managed_cli_dir().join(managed_binary_name())
+    managed_cli_dir()
+        .join(format!("v-{}", app_version()))
+        .join(managed_binary_name())
 }
 
 /// Written when the user uninstalls the CLI, so startup does not install it
@@ -201,130 +206,89 @@ fn set_auto_install_enabled_at(marker: &Path, enabled: bool) -> Result<(), AppEr
     }
 }
 
-/// Drop a CLI archive that finished downloading after the user uninstalled.
-pub(crate) fn discard_managed_download() {
-    let managed = managed_cli_binary();
-    let _ = fs::remove_file(&managed);
-    remove_managed_pdfium();
-    let _ = fs::remove_dir(managed_cli_dir());
-}
-
-/// A same-named file we did not create. Startup must not replace it.
-pub(crate) fn foreign_shim_blocks(shim: &Path, binary: &Path) -> bool {
-    shim.exists() && !is_agentero_shim(shim) && !shim_points_to(shim, Some(binary))
-}
-
-/// Copy the desktop bundle's PDFium next to `cli_bin` when that binary cannot
-/// already see one. Release archives include the library; this covers a local
-/// dev binary and an older archive that shipped only the executable.
-pub(crate) fn ensure_pdfium_beside(cli_bin: &Path) -> Result<(), AppError> {
-    let Ok(app_exe) = std::env::current_exe() else {
-        return Ok(());
-    };
-    let Some(src) =
-        agentero_core::features::paper::analyze::parse::pdfium_donor_for(cli_bin, &app_exe)
-    else {
-        return Ok(());
-    };
-    let Some(dest_dir) = cli_bin.parent() else {
-        return Ok(());
-    };
-    let dest =
-        dest_dir.join(agentero_core::features::paper::analyze::parse::pdfium_library_file_name());
-    fs::copy(&src, &dest).map_err(|error| {
-        AppError::message(format!(
-            "copy PDFium library {} → {}: {error}",
-            src.display(),
-            dest.display()
-        ))
-    })?;
-    Ok(())
-}
-
-/// Drop the PDFium library cached beside the managed CLI binary.
-pub(crate) fn remove_managed_pdfium() {
-    let path = managed_cli_dir()
-        .join(agentero_core::features::paper::analyze::parse::pdfium_library_file_name());
-    if path.is_file() {
-        let _ = fs::remove_file(path);
+/// Delete only our known pair of cached files. A running Windows CLI can keep
+/// an older version open; another install or uninstall can clean it up later.
+pub(crate) fn clean_managed_cache(keep: Option<&Path>) {
+    let root = managed_cli_dir();
+    let library = agentero_core::features::paper::analyze::parse::pdfium_library_file_name();
+    if let Ok(entries) = fs::read_dir(&root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if Some(path.as_path()) == keep
+                || !entry.file_name().to_string_lossy().starts_with("v-")
+                || !entry.file_type().is_ok_and(|t| t.is_dir())
+            {
+                continue;
+            }
+            let _ = fs::remove_file(path.join(managed_binary_name()));
+            let _ = fs::remove_file(path.join(library));
+            let _ = fs::remove_dir(path);
+        }
     }
+    // Previous versions kept their cached pair directly in this directory.
+    let _ = fs::remove_file(root.join(managed_binary_name()));
+    let _ = fs::remove_file(root.join(library));
+    let _ = fs::remove_dir(root);
+}
+
+fn shipped_cli<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    let path = {
+        let _ = app;
+        std::env::current_exe()
+            .ok()?
+            .parent()?
+            .join("agentero-turn")
+    };
+    #[cfg(not(target_os = "macos"))]
+    let path = app
+        .path()
+        .resource_dir()
+        .ok()?
+        .join("cli")
+        .join(BUNDLED_CLI_NAME);
+    is_plausible_cli_file(&path).then_some(path)
+}
+
+pub(crate) fn turn_cli(app: &AppHandle) -> Option<PathBuf> {
+    agentero_core::features::open_request::desktop::active_endpoint()?;
+    shipped_cli(app).or_else(|| {
+        resolve_local_cli(app)
+            .filter(|cli| {
+                cli.version
+                    .as_deref()
+                    .is_some_and(|v| versions_equal(v, &app_version()))
+            })
+            .map(|cli| cli.path)
+    })
 }
 
 pub(crate) fn resolve_local_cli<R: Runtime>(app: &AppHandle<R>) -> Option<ResolvedCli> {
-    // 1) Managed download cache (product path after Install).
-    let managed = managed_cli_binary();
-    if let Some(version) = probe_cli_version(&managed) {
-        return Some(ResolvedCli {
-            path: crate::core::fs::canonicalize_best_effort(&managed),
-            source: "managed",
+    let mut candidates = vec![(managed_cli_binary(), "managed")];
+    if let Some(path) = shipped_cli(app) {
+        candidates.push((path, "bundled"));
+    }
+    #[cfg(debug_assertions)]
+    if let Some(path) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|p| p.join(BUNDLED_CLI_NAME)))
+    {
+        candidates.push((path, "dev"));
+    }
+    candidates.into_iter().find_map(|(path, source)| {
+        let version = probe_cli_version(&path)?;
+        versions_equal(&version, &app_version()).then(|| ResolvedCli {
+            path: crate::core::fs::canonicalize_best_effort(&path),
+            source,
             version: Some(version),
-        });
-    }
-
-    // 2) App bundle / resource / dev target discovery.
-    let mut candidates: Vec<(PathBuf, &'static str)> = Vec::new();
-
-    // `executable_dir` is desktop-only (PathResolver). Mobile never ships the CLI.
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    if let Ok(exe_dir) = app.path().executable_dir() {
-        candidates.push((exe_dir.join(BUNDLED_CLI_NAME), "bundled"));
-        candidates.push((exe_dir.join("binaries").join(BUNDLED_CLI_NAME), "bundled"));
-    }
-    if let Ok(res) = app.path().resource_dir() {
-        candidates.push((res.join(BUNDLED_CLI_NAME), "bundled"));
-        candidates.push((res.join("binaries").join(BUNDLED_CLI_NAME), "bundled"));
-        if let Some(parent) = res.parent() {
-            candidates.push((parent.join("MacOS").join(BUNDLED_CLI_NAME), "bundled"));
-        }
-    }
-
-    // Runtime discovery from the running GUI binary (dev + release).
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push((dir.join(BUNDLED_CLI_NAME), "dev"));
-            for ancestor in dir.ancestors().take(6) {
-                candidates.push((ancestor.join("target/debug").join(BUNDLED_CLI_NAME), "dev"));
-                candidates.push((
-                    ancestor.join("target/release").join(BUNDLED_CLI_NAME),
-                    "dev",
-                ));
-                if ancestor.ends_with("debug") || ancestor.ends_with("release") {
-                    candidates.push((ancestor.join(BUNDLED_CLI_NAME), "dev"));
-                }
-            }
-        }
-    }
-
-    // src-tauri/binaries/agentero-cli-$TRIPLE from prepare-bundled-cli.mjs
-    if let Ok(cwd) = std::env::current_dir() {
-        for ancestor in cwd.ancestors().take(6) {
-            let bin_dir = ancestor.join("src-tauri/binaries");
-            if let Ok(rd) = fs::read_dir(&bin_dir) {
-                for entry in rd.flatten() {
-                    let name = entry.file_name();
-                    let s = name.to_string_lossy();
-                    if s.starts_with("agentero-cli-") {
-                        candidates.push((entry.path(), "dev"));
-                    }
-                }
-            }
-        }
-    }
-
-    for (path, source) in candidates {
-        if let Some(version) = probe_cli_version(&path) {
-            return Some(ResolvedCli {
-                path: crate::core::fs::canonicalize_best_effort(&path),
-                source,
-                version: Some(version),
-            });
-        }
-    }
-    None
+        })
+    })
 }
 
 fn read_cli_version(bin: &Path) -> Option<String> {
-    let output = Command::new(bin).arg("--version").output().ok()?;
+    let mut command = Command::new(bin);
+    agentero_core::process::hide_console_window(&mut command);
+    let output = command.arg("--version").output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -351,7 +315,12 @@ fn read_cli_version(bin: &Path) -> Option<String> {
 
 #[cfg(windows)]
 fn windows_shim_binary_path(binary: &Path) -> String {
-    binary.to_string_lossy().replace("\\\\?\\", "")
+    let text = binary.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{rest}")
+    } else {
+        text.strip_prefix(r"\\?\").unwrap_or(&text).to_owned()
+    }
 }
 
 fn preferred_bin_dir() -> PathBuf {
@@ -435,53 +404,63 @@ fn is_on_path(dir: &Path) -> bool {
 
 /// Whether `shim` is a managed Agentero CLI entry pointing at `target` (or same file).
 fn shim_points_to(shim: &Path, target: Option<&Path>) -> bool {
-    if !shim.exists() {
+    let Some(link) = shim_target(shim) else {
         return false;
-    }
-    let Some(target) = target else {
-        return is_agentero_shim(shim);
     };
-    #[cfg(unix)]
+    let Some(target) = target else {
+        return known_install_target(&link);
+    };
+    let a = crate::core::fs::canonicalize_best_effort(&link);
+    let b = crate::core::fs::canonicalize_best_effort(target);
+    a == b
+}
+
+/// Recognise the exact Windows wrapper emitted by install_shim. A user script
+/// which merely contains the name Agentero must not be removed or replaced.
+fn shim_target(shim: &Path) -> Option<PathBuf> {
+    #[cfg(windows)]
     {
-        if let Ok(link) = fs::read_link(shim) {
-            let resolved = if link.is_absolute() {
-                link
-            } else {
-                shim.parent().unwrap_or_else(|| Path::new(".")).join(link)
-            };
-            let a = crate::core::fs::canonicalize_best_effort(&resolved);
-            let b = crate::core::fs::canonicalize_best_effort(target);
-            return a == b;
+        let contents = fs::read_to_string(shim).ok()?;
+        let mut lines = contents.lines();
+        if lines.next()? != "@echo off" {
+            return None;
         }
+        let target = lines.next()?.strip_prefix('"')?.strip_suffix("\" %*")?;
+        (lines.next().is_none()).then(|| PathBuf::from(target.replace("%%", "%")))
     }
-    if let (Ok(a), Ok(b)) = (shim.canonicalize(), target.canonicalize()) {
-        if a == b {
-            return true;
-        }
+    #[cfg(not(windows))]
+    {
+        let target = fs::read_link(shim).ok()?;
+        Some(shim.parent()?.join(target))
     }
-    is_agentero_shim(shim)
+}
+
+fn known_install_target(path: &Path) -> bool {
+    let root = managed_cli_dir();
+    let cached = path.file_name().is_some_and(|n| n == managed_binary_name())
+        && path.parent().is_some_and(|dir| {
+            dir == root
+                || (dir.parent() == Some(&root)
+                    && dir
+                        .file_name()
+                        .is_some_and(|n| n.to_string_lossy().starts_with("v-")))
+        });
+    // An existing installation can still point into an older application which
+    // was moved or uninstalled. Recognise its directory layout lexically.
+    cached
+        || path.ends_with(Path::new("Contents/Resources/cli").join(BUNDLED_CLI_NAME))
+        || path.ends_with("Contents/MacOS/agentero-turn")
+        || path.ends_with(Path::new("Contents/MacOS").join(BUNDLED_CLI_NAME))
+        || path.ends_with(Path::new("Agentero/cli").join(BUNDLED_CLI_NAME))
+        || path.ends_with(Path::new("agentero/cli").join(BUNDLED_CLI_NAME))
+        || (cfg!(debug_assertions)
+            && ["target/debug", "target/release"]
+                .iter()
+                .any(|dir| path.ends_with(Path::new(dir).join(BUNDLED_CLI_NAME))))
 }
 
 fn is_agentero_shim(shim: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        if let Ok(target) = fs::read_link(shim) {
-            let s = target.to_string_lossy();
-            return s.contains("agentero-cli")
-                || s.contains("Agentero")
-                || s.ends_with("agentero")
-                || s.contains("/cli/agentero");
-        }
-    }
-    #[cfg(windows)]
-    {
-        if let Ok(text) = fs::read_to_string(shim) {
-            return text.contains("agentero-cli")
-                || text.contains("Agentero")
-                || text.contains("agentero.exe");
-        }
-    }
-    false
+    shim_target(shim).is_some_and(|path| known_install_target(&path))
 }
 
 fn download_supported() -> bool {
@@ -501,7 +480,16 @@ pub fn collect_status<R: Runtime>(app: &AppHandle<R>) -> CliInstallStatus {
         .as_deref()
         .map(|v| versions_equal(v, &app_ver))
         .unwrap_or(false);
-    let shim_current = installed && shim_points_to(&shim, cli_path.as_deref()) && version_matches;
+    let managed = managed_cli_binary();
+    let shim_current = installed
+        && source.as_deref() == Some("managed")
+        && version_matches
+        && managed
+            .with_file_name(
+                agentero_core::features::paper::analyze::parse::pdfium_library_file_name(),
+            )
+            .is_file()
+        && shim_points_to(&shim, Some(&managed));
     let bin_dir = preferred_bin_dir();
     let preferred_bin_on_path = is_on_path(&bin_dir);
     let can_install = local.is_some() || download_supported();
@@ -558,6 +546,12 @@ pub fn collect_status<R: Runtime>(app: &AppHandle<R>) -> CliInstallStatus {
     }
 }
 
+pub(crate) fn foreign_shim_blocks(shim: &Path, binary: &Path) -> bool {
+    shim.symlink_metadata().is_ok()
+        && !is_agentero_shim(shim)
+        && !shim_points_to(shim, Some(binary))
+}
+
 pub(crate) fn install_shim(binary: &Path, shim: &Path) -> Result<(), AppError> {
     if !is_plausible_cli_file(binary) {
         return Err(AppError::message(format!(
@@ -574,59 +568,38 @@ pub(crate) fn install_shim(binary: &Path, shim: &Path) -> Result<(), AppError> {
     if let Some(parent) = shim.parent() {
         fs::create_dir_all(parent)?;
     }
-    // Never clobber a user-owned binary/symlink that we did not create.
-    if shim.exists() {
-        if !is_agentero_shim(shim) && !shim_points_to(shim, Some(binary)) {
-            return Err(AppError::message(format!(
-                "refusing to overwrite {}: not an Agentero-managed CLI entry",
-                shim.display()
-            )));
-        }
-        fs::remove_file(shim)?;
+    if foreign_shim_blocks(shim, binary) {
+        return Err(AppError::message(format!(
+            "refusing to overwrite {}: not an Agentero-managed CLI entry",
+            shim.display()
+        )));
     }
+    let dir = shim
+        .parent()
+        .ok_or_else(|| AppError::message("missing shim directory"))?;
     #[cfg(unix)]
     {
-        std::os::unix::fs::symlink(binary, shim).map_err(|e| {
-            AppError::message(format!(
-                "failed to create symlink {} → {}: {e}",
-                shim.display(),
-                binary.display()
-            ))
-        })?;
-        #[allow(clippy::permissions_set_readonly_false)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            if let Ok(meta) = fs::metadata(binary) {
-                let mut perms = meta.permissions();
-                let mode = perms.mode();
-                if mode & 0o111 == 0 {
-                    perms.set_mode(mode | 0o755);
-                    let _ = fs::set_permissions(binary, perms);
-                }
-            }
-        }
-        Ok(())
+        let scratch = tempfile::tempdir_in(dir)?;
+        let link = scratch.path().join("link");
+        std::os::unix::fs::symlink(binary, &link)?;
+        fs::rename(link, shim)?;
     }
     #[cfg(windows)]
     {
-        let body = format!(
+        use std::io::Write;
+        let mut temp = tempfile::NamedTempFile::new_in(dir)?;
+        write!(
+            temp,
             "@echo off\r\n\"{}\" %*\r\n",
-            windows_shim_binary_path(binary).replace('"', "")
-        );
-        fs::write(shim, body)?;
-        Ok(())
+            windows_shim_binary_path(binary).replace('%', "%%")
+        )?;
+        temp.persist(shim).map_err(|e| e.error)?;
     }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let _ = (binary, shim);
-        Err(AppError::message(
-            "CLI install not supported on this platform",
-        ))
-    }
+    Ok(())
 }
 
 pub(crate) fn uninstall_shim(shim: &Path, binary: Option<&Path>) -> Result<bool, AppError> {
-    if !shim.exists() {
+    if shim.symlink_metadata().is_err() {
         return Ok(false);
     }
     if !shim_points_to(shim, binary) && !is_agentero_shim(shim) {
@@ -639,51 +612,69 @@ pub(crate) fn uninstall_shim(shim: &Path, binary: Option<&Path>) -> Result<bool,
     Ok(true)
 }
 
-/// Ensure a same-version CLI binary is available (local or download), return its path.
+/// Replace a cache file only after its complete contents are on disk.
+fn copy_cached_file(source: &Path, dest: &Path) -> Result<(), AppError> {
+    let dir = dest
+        .parent()
+        .ok_or_else(|| AppError::message("missing CLI cache directory"))?;
+    fs::create_dir_all(dir)?;
+    let temp = tempfile::NamedTempFile::new_in(dir)?;
+    fs::copy(source, temp.path())?;
+    temp.persist(dest).map_err(|e| e.error)?;
+    Ok(())
+}
+
+/// A terminal entry always points to the user's cache. Set up both files
+/// before switching the shim, leaving the previous version usable on failure.
 pub(crate) async fn ensure_cli_binary<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<(PathBuf, &'static str), AppError> {
-    let app_ver = app_version();
+    use agentero_core::features::paper::analyze::parse::{
+        bundled_pdfium_dir_for, pdfium_library_file_name,
+    };
+    let dest = managed_cli_binary();
+    let dir = dest.parent().expect("managed CLI has a parent");
+    let lib = dir.join(pdfium_library_file_name());
 
-    // Prefer a local runnable that already matches the app version.
     if let Some(local) = resolve_local_cli(app) {
-        if local
-            .version
-            .as_deref()
-            .map(|v| versions_equal(v, &app_ver))
-            .unwrap_or(false)
-        {
-            return Ok((local.path, "install"));
+        if local.source == "managed" && lib.is_file() {
+            return Ok((dest, "install"));
+        }
+        let library = bundled_pdfium_dir_for(&local.path).or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|exe| bundled_pdfium_dir_for(&exe))
+        });
+        if let Some(library) = library {
+            let source = library.join(pdfium_library_file_name());
+            if source != lib {
+                copy_cached_file(&source, &lib)?;
+            }
+            if local.source != "managed" {
+                copy_cached_file(&local.path, &dest)?;
+            }
+            return Ok((dest, "install"));
         }
     }
-
-    // Download (or re-download) into the managed cache.
     if !download_supported() {
-        // Fall back: if we only have a mismatched local binary, still allow shim install
-        // so devs without a published release can use `pnpm cli:bundle`.
-        if let Some(local) = resolve_local_cli(app) {
-            return Ok((local.path, "install"));
-        }
         return Err(AppError::message(
-            "CLI download is not supported on this platform and no local CLI was found. In dev run `pnpm cli:bundle`.",
+            "no same-version CLI and PDFium are available for this platform",
         ));
     }
-
-    let dest = managed_cli_binary();
-    download_and_extract(&app_ver, &dest).await?;
-    if !is_runnable_cli(&dest) {
-        let _ = fs::remove_file(&dest);
-        return Err(AppError::message(format!(
-            "downloaded CLI does not run (`--version` failed): {}",
-            dest.display()
-        )));
+    fs::create_dir_all(dir)?;
+    let staging = tempfile::tempdir_in(dir)?;
+    let download = staging.path().join(managed_binary_name());
+    let library = staging.path().join(pdfium_library_file_name());
+    download_and_extract(&app_version(), &download).await?;
+    if !probe_cli_version(&download).is_some_and(|v| versions_equal(&v, &app_version()))
+        || !library.is_file()
+    {
+        return Err(AppError::message(
+            "downloaded CLI or PDFium is missing or does not match this app version",
+        ));
     }
-    let got = read_cli_version(&dest).unwrap_or_default();
-    if !versions_equal(&got, &app_ver) {
-        return Err(AppError::message(format!(
-            "downloaded CLI version {got} does not match app {app_ver}"
-        )));
-    }
+    copy_cached_file(&library, &lib)?;
+    copy_cached_file(&download, &dest)?;
     Ok((dest, "download-install"))
 }
 
@@ -794,7 +785,10 @@ mod tests {
     #[test]
     fn install_replaces_managed_symlink_when_version_ok() {
         let dir = test_dir("replace");
-        let bundled_old = dir.join("agentero-cli-old");
+        let bundled_old = dir
+            .join("Agentero.app/Contents/Resources/cli")
+            .join(BUNDLED_CLI_NAME);
+        fs::create_dir_all(bundled_old.parent().unwrap()).unwrap();
         let bundled_new = dir.join(BUNDLED_CLI_NAME);
         let shim = dir.join(SHIM_NAME);
         // Shell scripts that implement --version.

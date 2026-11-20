@@ -476,7 +476,9 @@ pub(crate) fn cancelled_payload(
     AgentResultPayload {
         session_id,
         message_id,
+        prompt_only: false,
         sources: Vec::new(),
+        artifacts: Vec::new(),
         content,
         reasoning: (!reasoning.is_empty()).then_some(reasoning),
         stop_reason: Some("cancelled".to_string()),
@@ -567,6 +569,7 @@ mod cwd_shell_wrap_tests {
     fn descriptor(template: AgentTemplate) -> AgentDescriptor {
         let info = crate::features::agent::registry::templates::template_info(template.as_str());
         AgentDescriptor {
+            supports_shell: false,
             id: template.as_str().into(),
             name: template.as_str().into(),
             command: info

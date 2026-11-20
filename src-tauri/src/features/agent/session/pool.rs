@@ -9,7 +9,7 @@
 //! id stays hidden when it does not.
 
 use crate::features::agent::acp::terminal::AcpTerminalManager;
-use crate::features::agent::models::AgentModelsEvent;
+use crate::features::agent::models::{AgentCollaborationEvent, AgentModelsEvent};
 use crate::features::agent::remote_host::RemoteAgentLaunch;
 use crate::features::agent::session::handlers::TurnRegistry;
 use agent_client_protocol::v1::schema::{SessionConfigOption, SessionId};
@@ -33,7 +33,11 @@ pub(crate) const POOL_IDLE_TTL: Duration = Duration::from_secs(600);
 const POOL_TAKE_WAIT: Duration = Duration::from_secs(5);
 
 /// Cached chat-UI payload a healthy slot can answer `agent_warm` with.
-pub(crate) type WarmSnapshot = (Option<AgentModelsEvent>, Option<(u64, u64)>);
+pub(crate) type WarmSnapshot = (
+    Option<AgentModelsEvent>,
+    Option<AgentCollaborationEvent>,
+    Option<(u64, u64)>,
+);
 
 /// Identity of a pooled connection: same agent, working directory, remote
 /// host and startup variant are interchangeable for reuse purposes.
@@ -91,6 +95,7 @@ pub(crate) struct PooledSlot {
     pub supports_delete: bool,
     /// Cached setup results for `snapshot_warm_result`.
     pub models: Arc<Mutex<Option<AgentModelsEvent>>>,
+    pub collaboration: Arc<Mutex<Option<AgentCollaborationEvent>>>,
     pub usage: Arc<Mutex<Option<(u64, u64)>>>,
 }
 
@@ -576,8 +581,9 @@ impl AgentWarmPool {
             return None;
         }
         let models = slot.models.lock().ok()?.clone();
+        let collaboration = slot.collaboration.lock().ok()?.clone();
         let usage = *slot.usage.lock().ok()?;
-        Some((models, usage))
+        Some((models, collaboration, usage))
     }
 }
 
@@ -784,6 +790,7 @@ mod slot_map_tests {
                     used: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
                     supports_delete: false,
                     models: Default::default(),
+                    collaboration: Default::default(),
                     usage: Default::default(),
                 });
                 let mut claims = 0;

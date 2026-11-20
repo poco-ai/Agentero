@@ -112,6 +112,7 @@ fn codex_descriptor(registry: &AgentRegistry) -> Result<AgentDescriptor, AppErro
     let template = template_info("codex-acp")
         .ok_or_else(|| AppError::message("Codex catalog template is unavailable"))?;
     Ok(AgentDescriptor {
+        supports_shell: false,
         id: "catalog-codex-acp".to_string(),
         name: template.name,
         template: AgentTemplate::CodexAcp,
@@ -852,6 +853,7 @@ mod tests {
 
     fn fake_codex_descriptor() -> AgentDescriptor {
         AgentDescriptor {
+            supports_shell: false,
             id: "catalog-codex-acp".into(),
             name: "Codex".into(),
             template: AgentTemplate::CodexAcp,

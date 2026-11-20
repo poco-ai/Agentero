@@ -1,9 +1,7 @@
 //! Atomic local-disk writes: exclusive sibling temp file + replacement.
 //!
-//! Before `docs/development/refactor-audit-2026-08.md` P2-17, eight features
-//! each open-coded their own "write temp, rename into place" loop (temp
-//! naming / 0o600 permissions in every possible combination). They now share
-//! this module. Failed replacement never falls back to truncating the target.
+//! Keep temp-file creation, permissions, and replacement consistent across
+//! callers. Failed replacement never falls back to truncating the target.
 //!
 //! Contracts preserved from the originals:
 //! - temp files end in `.tmp` by default — `features/sync/snapshot.rs`

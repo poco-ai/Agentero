@@ -25,8 +25,7 @@ pub const SETTINGS_SECTION_REQUESTED_EVENT: &str = "settings:section-requested";
 pub const SETTINGS_VAULT_REQUESTED_EVENT: &str = "settings:vault-requested";
 
 /// Broadcast when a singleton child window closes (or fails to build).
-/// Wire naming follows docs/architecture.md (`domain:event`);
-/// this is a window signal, not a lifecycle fact event.
+/// This window signal uses the `domain:event` convention.
 pub const WINDOW_CLOSED_EVENT: &str = "window:closed";
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -54,7 +53,7 @@ pub fn emit_window_closed(app: &AppHandle, kind: &str, view: Option<&str>) {
 /// applied to the window state before the next one reads it. macOS and Linux
 /// keep plain `set_focus` — their implementations already deminiaturize and
 /// raise the window.
-fn raise_existing_window(window: &tauri::WebviewWindow) {
+pub(crate) fn raise_existing_window(window: &tauri::WebviewWindow) {
     #[cfg(windows)]
     {
         let win = window.clone();

@@ -7,8 +7,6 @@
 //! arXiv id is re-resolved through the authoritative metadata chain. If
 //! unresolved, a conservative scholarly title search can fill metadata before
 //! falling back to the recognizer's own result.
-//!
-//! @see docs/backend/paper-import.md § PDF 元数据识别
 
 use crate::error::AppError;
 use crate::features::paper::catalog::papers::PaperRecord;

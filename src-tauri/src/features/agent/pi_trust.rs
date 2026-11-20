@@ -697,6 +697,7 @@ mod tests {
             fixture.agent_dir.to_string_lossy().into_owned(),
         );
         let mut desc = AgentDescriptor {
+            supports_shell: false,
             id: "catalog-pi".into(),
             name: "Pi".into(),
             template: AgentTemplate::Pi,

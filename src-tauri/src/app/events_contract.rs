@@ -49,7 +49,7 @@ pub struct JobTerminalPayload {
     /// Vault root as passed by the enqueuing caller (`JobSnapshot.vault_id`):
     /// frontend-initiated jobs carry the exact `getVaultPath()` string;
     /// host-internal jobs the Host's (usually canonical) form. Consumers
-    /// must tolerate both spellings; see docs/backend/api.md (`job:completed`).
+    /// must tolerate both spellings, including Windows paths with a `\\?\` prefix.
     pub vault_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub paper_id: Option<String>,
@@ -80,6 +80,12 @@ pub struct VaultOpenRequestEvent(pub agentero_core::features::open_request::Vaul
 #[derive(specta::Type, tauri_specta::Event)]
 #[tauri_specta(event_name = "ui:request")]
 pub struct UiRequestEvent(pub agentero_core::features::open_request::UiRequestPayload);
+
+#[derive(specta::Type, tauri_specta::Event)]
+#[tauri_specta(event_name = "cli:workspace")]
+pub struct WorkspaceCliRequestEvent(
+    pub agentero_core::features::open_request::desktop::WorkspaceRequest,
+);
 
 /// Mirror of the inline `json!({ "message": ... })` in `app::open_request`.
 #[derive(specta::Type, tauri_specta::Event)]
@@ -458,6 +464,7 @@ fn registered_event_names() -> BTreeSet<String> {
         MenuInvokedEvent::NAME,
         VaultOpenRequestEvent::NAME,
         UiRequestEvent::NAME,
+        WorkspaceCliRequestEvent::NAME,
         VaultOpenErrorEvent::NAME,
         WindowClosedEvent::NAME,
         VaultFileChangedEvent::NAME,

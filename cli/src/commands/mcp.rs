@@ -1,119 +1,93 @@
-//! `agentero mcp serve` — foreground Streamable HTTP MCP for one local vault.
-//!
-//! Same tools as the desktop listener (`agentero-mcp`). Loopback only: there
-//! is no authentication. Reach it from another machine with an SSH local
-//! forward, not by binding a public address.
-
-use crate::error::{CliError, ExitCode};
-use crate::resolve::GlobalOpts;
-use agentero_mcp::{McpController, McpHost};
-use clap::Args;
+//! Discover the actual public tools or start their stdio/HTTP server.
+use crate::{
+    error::CliError,
+    resolve::{named_vault, resolve_vault, GlobalOpts},
+};
+use agentero_mcp::{McpController, McpHost, Permissions};
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{io::Read, path::Path, sync::Arc};
 
-#[derive(Debug, Args)]
-pub struct ServeArgs {
-    /// Loopback address. Only 127.0.0.1 and ::1 are accepted.
-    #[arg(long = "listen", value_name = "ADDR", default_value = "127.0.0.1:8765")]
-    pub listen: String,
-    /// Extra vaults `vault_list` may target, besides `--vault`.
-    #[arg(long = "allow-vault", value_name = "PATH")]
-    pub allow_vault: Vec<PathBuf>,
-    /// Send PDF page text to clients. Off unless set.
-    #[arg(long = "expose-paper-text")]
-    pub expose_paper_text: bool,
-    /// Default import parent inside the vault.
-    #[arg(long = "parent", value_name = "DIR", default_value = "papers")]
-    pub parent: String,
-    /// NOTES.md shell for imports: standard, title-only, blank, or custom.
-    #[arg(long = "note-mode", value_name = "MODE", default_value = "standard")]
-    pub note_mode: String,
-}
-
-struct CliHost {
-    expose_paper_text: bool,
-}
-
+struct CliHost(Permissions);
 impl McpHost for CliHost {
-    fn expose_paper_text(&self) -> bool {
-        self.expose_paper_text
+    fn permissions(&self) -> Permissions {
+        self.0
     }
 }
 
-pub async fn serve(args: ServeArgs, globals: &GlobalOpts) -> Result<Value, CliError> {
-    let vault = require_explicit_vault(globals)?;
-    let mut allowed = Vec::with_capacity(args.allow_vault.len());
-    for path in &args.allow_vault {
-        allowed.push(canonical_dir(path)?);
-    }
-
-    let addr = agentero_mcp::parse_loopback_listen(&args.listen)?;
-    let listener = tokio::net::TcpListener::bind(addr).await.map_err(|err| {
-        CliError::new(
-            "mcp_bind",
-            format!("failed to bind {addr}: {err}"),
-            ExitCode::Business,
-        )
-    })?;
-    let bound = listener.local_addr().unwrap_or(addr);
-
-    let ctrl = Arc::new(McpController::new());
-    ctrl.set_host(Arc::new(CliHost {
-        expose_paper_text: args.expose_paper_text,
-    }));
-    ctrl.set_known_vaults(
-        allowed
-            .iter()
-            .map(|path| path.to_string_lossy().into_owned())
-            .collect(),
-    );
-    ctrl.set_vault(Some(vault.to_string_lossy().into_owned()));
-    let parent = args.parent.trim();
-    if !parent.is_empty() {
-        ctrl.set_parent_dir(parent.to_string());
-    }
-    ctrl.set_paper_note_mode(args.note_mode);
-    ctrl.set_translator_url(globals.translator_base_url());
-
-    let url = format!("http://{bound}/mcp");
-    eprintln!("MCP listening on {url}");
-    log::info!(target: "agentero::mcp", "listening on {url}");
-    agentero_mcp::serve_until_signal(Arc::clone(&ctrl), listener).await?;
-    Ok(json!({
-        "url": url,
-        "vault": vault.to_string_lossy(),
-    }))
-}
-
-/// Servers must name a vault. Walk-up from the working directory is for
-/// one-shot commands; a long-running process should not guess.
-fn require_explicit_vault(globals: &GlobalOpts) -> Result<PathBuf, CliError> {
-    if let Some(path) = &globals.vault_flag {
-        return canonical_dir(path);
-    }
-    if let Ok(env) = std::env::var("AGENTERO_VAULT") {
-        let trimmed = env.trim();
-        if !trimmed.is_empty() {
-            return canonical_dir(Path::new(trimmed));
+pub async fn run(op: &str, a: Value, g: &GlobalOpts) -> Result<Value, CliError> {
+    let mut grants = Permissions::default();
+    for grant in a["allow"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+    {
+        match grant {
+            "write" => grants.write = true,
+            "online" => grants.online = true,
+            "full-text" => grants.full_text = true,
+            _ => return Err(CliError::usage("Unknown grant")),
         }
     }
-    Err(CliError::usage(
-        "mcp serve requires --vault or AGENTERO_VAULT",
-    ))
-}
-
-fn canonical_dir(path: &Path) -> Result<PathBuf, CliError> {
-    let abs = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir()?.join(path)
-    };
-    if !abs.is_dir() {
-        return Err(CliError::vault_not_found(format!(
-            "not a directory: {}",
-            abs.display()
-        )));
+    let mut allowed = Vec::new();
+    for p in a["allow_vault"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+    {
+        allowed.push(named_vault(Path::new(p))?.to_string_lossy().into_owned());
     }
-    Ok(agentero_core::fs::canonicalize_best_effort(&abs))
+    if op == "mcp tools" {
+        if g.vault_flag.is_some() {
+            resolve_vault(g)?;
+        }
+        return Ok(json!({"tools":agentero_mcp::tools_list(grants).tools}));
+    }
+    let vault = resolve_vault(g)?;
+    let ctrl = Arc::new(McpController::new());
+    ctrl.set_host(Arc::new(CliHost(grants)));
+    ctrl.set_known_vaults(allowed);
+    ctrl.set_vault(Some(vault.to_string_lossy().into_owned()));
+    ctrl.set_translator_url(g.translator_base_url());
+    let listen = a["listen"].as_str().unwrap_or("127.0.0.1:0");
+    if a["transport"].as_str().unwrap_or("stdio") == "stdio" {
+        if a.get("token_input").is_some() || a.get("listen").is_some() {
+            return Err(CliError::usage("--token-input and --listen require HTTP"));
+        }
+        agentero_mcp::serve_stdio(ctrl).await?;
+        return Ok(Value::Null);
+    }
+    let addr =
+        agentero_mcp::parse_loopback_listen(listen).map_err(|e| CliError::usage(e.to_string()))?;
+    let _private_token_file;
+    let token = match a["token_input"].as_str() {
+        Some("-") => {
+            let mut s = String::new();
+            std::io::stdin().read_to_string(&mut s)?;
+            s.trim().to_owned()
+        }
+        Some(path) => std::fs::read_to_string(path)?.trim().to_owned(),
+        None => {
+            let (value, file) = agentero_mcp::ephemeral_token()?;
+            _private_token_file = file;
+            if !g.quiet {
+                eprintln!(
+                    "MCP bearer token file: {}",
+                    _private_token_file.path().display()
+                );
+            }
+            value
+        }
+    };
+    if token.is_empty() {
+        return Err(CliError::usage("Bearer token cannot be empty"));
+    }
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let url = format!("http://{}/mcp", listener.local_addr()?);
+    if !g.quiet {
+        eprintln!("MCP listening on {url}")
+    }
+    agentero_mcp::serve_until_signal(ctrl, listener, token).await?;
+    Ok(json!({"transport":"http","address":url}))
 }

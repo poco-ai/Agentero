@@ -3,8 +3,6 @@
 //! Priority: online structured references (Semantic Scholar → Crossref) →
 //! local `source/` BibTeX / `.bbl` / inline `thebibliography` fallback.
 //! Results persist to the rebuildable sidecar `{paper}/source/agentero-cite.json`.
-//!
-//! @see docs/backend/citation-parsing.md
 
 pub mod bbl;
 pub mod bib;

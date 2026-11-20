@@ -61,6 +61,10 @@ pub async fn vault_release(
     // No record for `key` returns false — a mismatched release must not drop
     // resources another window still holds. A canonicalize miss leaves the
     // canonical entry for the window-destroyed drain.
+    crate::features::agent::hosted_turn::revoke_window(
+        window.label(),
+        Some(std::path::Path::new(&key)),
+    );
     let last_holder = window.state::<VaultHolders>().release(&key, window.label());
     if last_holder {
         release_vault_resources(&app, std::path::Path::new(&key)).await;

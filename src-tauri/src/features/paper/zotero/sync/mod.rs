@@ -4,8 +4,6 @@
 //!   child notes → NOTES.md, PDF annotations → `marks/annotations.json`.
 //! - Push (offline write, Zotero must be closed): NOTES.md → marked child
 //!   note in `zotero.sqlite`, with mandatory backup and transaction rollback.
-//!
-//! See `docs/backend/identifier-lookup.md` §17.
 
 pub mod commands;
 pub mod link;

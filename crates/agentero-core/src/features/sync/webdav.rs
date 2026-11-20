@@ -4,7 +4,8 @@
 //! Implements the [`RemoteStore`] contract; retry/error plumbing is shared
 //! in `store.rs`.
 //!
-//! Conditional writes are mandatory; never retry as an unconditional PUT.
+//! The HEAD protocol requires conditional writes. The opt-in journal writes
+//! immutable records and blobs with plain PUT in a separate store.
 
 use crate::error::AppError;
 use crate::features::sync::config::{normalize_webdav_url, SyncBackendConfig};
@@ -12,11 +13,15 @@ use crate::features::sync::store::{
     check, etag_of, send_with_retries, PutCondition, PutOutcome, RemoteStore,
 };
 use crate::http;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Mutex;
 
 const PROPFIND_BODY: &[u8] = br#"<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>"#;
+
+// A provider may return 750 rows including the collection itself with no
+// continuation marker. The boundary applies to each directory independently.
+pub(super) const JOURNAL_LIST_LIMIT: usize = 749;
 
 pub struct WebdavClient {
     http: reqwest::Client,
@@ -33,6 +38,97 @@ pub struct WebdavClient {
 }
 
 impl WebdavClient {
+    pub(super) async fn journal_put(&self, key: &str, body: Vec<u8>) -> Result<(), AppError> {
+        self.ensure_parent_dirs(key).await?;
+        let response = self
+            .send(reqwest::Method::PUT, &self.url_for(key), &[], body)
+            .await?;
+        check(response, "PUT", key).await.map(|_| ())
+    }
+
+    /// Only the successful creator of this collection may initialize vault.json.
+    pub(super) async fn create_journal(&self) -> Result<(), AppError> {
+        if !self.list_collection("").await?.is_empty() {
+            return Err(AppError::message(
+                "initialize the WebDAV journal in an empty directory",
+            ));
+        }
+        let url = format!("{}/", self.url_for("manifests"));
+        let response = self.send(method("MKCOL")?, &url, &[], Vec::new()).await?;
+        if response.status() != reqwest::StatusCode::CREATED {
+            return Err(AppError::message(format!(
+                "journal initialization did not acquire the collection ({})",
+                response.status()
+            )));
+        }
+        Ok(())
+    }
+
+    pub(super) async fn list_journal_records(&self) -> Result<BTreeSet<String>, AppError> {
+        let invalid = || AppError::message("unexpected WebDAV journal entry");
+        let mut records = BTreeSet::new();
+        for bucket in self.list_collection("manifests").await? {
+            if bucket.len() != 1 || !bucket.bytes().all(lower_hex) {
+                return Err(invalid());
+            }
+            for name in self.list_collection(&format!("manifests/{bucket}")).await? {
+                let id = name
+                    .strip_suffix(".json")
+                    .filter(|id| {
+                        id.starts_with(&bucket) && id.len() == 64 && id.bytes().all(lower_hex)
+                    })
+                    .ok_or_else(invalid)?;
+                records.insert(id.to_owned());
+            }
+        }
+        Ok(records)
+    }
+
+    pub(super) async fn test_journal(&self) -> Result<(), AppError> {
+        self.list_journal_records().await?;
+        let key = format!(".sync-probe-{}", uuid::Uuid::new_v4().simple());
+        self.journal_put(&key, b"journal".to_vec()).await?;
+        let read = self.get(&key).await;
+        self.delete(&key).await?;
+        if !read?.is_some_and(|(body, _)| body == b"journal") {
+            return Err(AppError::message(
+                "WebDAV journal probe could not read its upload",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(super) async fn journal_record(
+        &self,
+        key: &str,
+        limit: usize,
+    ) -> Result<Vec<u8>, AppError> {
+        let response = self
+            .send(reqwest::Method::GET, &self.url_for(key), &[], Vec::new())
+            .await?;
+        read_limited(check(response, "GET", key).await?, limit).await
+    }
+
+    async fn list_collection(&self, key: &str) -> Result<BTreeSet<String>, AppError> {
+        let url = format!("{}/", self.url_for(key).trim_end_matches('/'));
+        let response = self
+            .send(
+                method("PROPFIND")?,
+                &url,
+                &[("Depth", "1".into())],
+                PROPFIND_BODY.to_vec(),
+            )
+            .await?;
+        if response.status() != reqwest::StatusCode::MULTI_STATUS {
+            return Err(AppError::message(format!(
+                "incomplete WebDAV listing ({})",
+                response.status()
+            )));
+        }
+        let bytes = read_limited(response, 4 * 1024 * 1024).await?;
+        collection_entries(&url, &bytes)
+    }
+
     pub fn new(cfg: &SyncBackendConfig) -> Result<Self, AppError> {
         // `normalized()` only runs on save; re-normalize so configs persisted
         // before the Jianguoyun-root expansion exist are healed on read.
@@ -264,6 +360,100 @@ impl RemoteStore for WebdavClient {
         let cleanup = self.delete(&key).await;
         result.and_then(|supported| cleanup.map(|_| supported))
     }
+}
+
+async fn read_limited(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>, AppError> {
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| AppError::message(e.to_string()))?
+    {
+        if chunk.len() > limit - bytes.len() {
+            return Err(AppError::message("WebDAV journal response too large"));
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
+}
+
+fn lower_hex(b: u8) -> bool {
+    matches!(b, b'0'..=b'9' | b'a'..=b'f')
+}
+
+fn collection_entries(url: &str, bytes: &[u8]) -> Result<BTreeSet<String>, AppError> {
+    let invalid = || AppError::message("incomplete WebDAV directory listing");
+    let document = roxmltree::Document::parse(std::str::from_utf8(bytes).map_err(|_| invalid())?)
+        .map_err(|_| invalid())?;
+    let root = document.root_element();
+    let base = url::Url::parse(url).map_err(|_| invalid())?;
+    let dav = |tag| ("DAV:", tag);
+    if !root.has_tag_name(dav("multistatus")) {
+        return Err(invalid());
+    }
+    let mut names = BTreeSet::new();
+    let mut saw_self = false;
+    for row in root.children().filter(|n| n.is_element()) {
+        if !row.has_tag_name(dav("response")) {
+            return Err(invalid());
+        }
+        let href = row
+            .children()
+            .find(|n| n.has_tag_name(dav("href")))
+            .and_then(|n| n.text())
+            .ok_or_else(invalid)?;
+        let target = base.join(href).map_err(|_| invalid())?;
+        if target.origin() != base.origin()
+            || target.query().is_some()
+            || target.fragment().is_some()
+        {
+            return Err(invalid());
+        }
+        let kind = row
+            .children()
+            .filter(|n| n.has_tag_name(dav("propstat")))
+            .find_map(|stat| {
+                let status = stat
+                    .children()
+                    .find(|n| n.has_tag_name(dav("status")))?
+                    .text()?;
+                if status.split_whitespace().nth(1) != Some("200") {
+                    return None;
+                }
+                stat.children()
+                    .find(|n| n.has_tag_name(dav("prop")))?
+                    .children()
+                    .find(|n| n.has_tag_name(dav("resourcetype")))
+            })
+            .ok_or_else(invalid)?;
+        if target.path().trim_end_matches('/') == base.path().trim_end_matches('/') {
+            if saw_self || !kind.children().any(|n| n.has_tag_name(dav("collection"))) {
+                return Err(invalid());
+            }
+            saw_self = true;
+        } else {
+            let name = target
+                .path()
+                .trim_end_matches('/')
+                .strip_prefix(base.path())
+                .filter(|s| !s.is_empty() && !s.contains('/'))
+                .ok_or_else(invalid)?;
+            if !names.insert(name.to_owned()) {
+                return Err(invalid());
+            }
+        }
+    }
+    // Nutstore can cap a successful multistatus at 750 rows including self.
+    // Without a continuation guarantee this prototype refuses the entire pass.
+    if !saw_self {
+        return Err(invalid());
+    }
+    if names.len() >= JOURNAL_LIST_LIMIT {
+        return Err(AppError::message(
+            "WebDAV directory listing may be truncated at 750 rows",
+        ));
+    }
+    Ok(names)
 }
 
 fn method(name: &str) -> Result<reqwest::Method, AppError> {

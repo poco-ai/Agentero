@@ -363,6 +363,7 @@ impl ReplayBuilder {
             let id = format!("line-{}", out.len() + 1);
             if line.is_user {
                 out.push(AcpHistoryLine {
+                    artifacts: Vec::new(),
                     id,
                     kind: "user".to_string(),
                     text,
@@ -372,6 +373,7 @@ impl ReplayBuilder {
                 });
             } else {
                 out.push(AcpHistoryLine {
+                    artifacts: Vec::new(),
                     id,
                     kind: "agent".to_string(),
                     sources: Vec::new(),

@@ -22,7 +22,7 @@ fn create_vault(dir: &Path) {
         .args(["vault", "create", dir.to_str().unwrap(), "--json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"ok\":true"));
+        .stdout(predicate::str::contains("\"outcome\":\"created\""));
 }
 
 #[test]
@@ -43,8 +43,8 @@ fn sync_status_reports_unconfigured_vault() {
         ])
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("\"configured\":false"))
-        .stdout(predicate::str::contains("\"lastVersion\":0"));
+        .stdout(predicate::str::contains("\"backend\":null"))
+        .stdout(predicate::str::contains("\"last_run\":null"));
 }
 
 #[test]
@@ -56,10 +56,10 @@ fn sync_now_without_binding_fails_with_stable_code() {
     agentero()
         .env("HOME", tmp.path().join(".test-home"))
         .env("XDG_CONFIG_HOME", tmp.path().join(".test-home/.config"))
-        .args(["sync", "now", "--vault", vault.to_str().unwrap(), "--json"])
+        .args(["sync", "run", "--vault", vault.to_str().unwrap(), "--json"])
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("\"code\":\"sync_not_configured\""));
+        .stderr(predicate::str::contains("\"code\":\"sync_not_configured\""));
 }
 
 #[test]
@@ -75,11 +75,10 @@ fn sync_configure_never_prompts_or_leaks_secret_guidance_in_json_mode() {
         .env("XDG_CONFIG_HOME", tmp.path().join(".test-home/.config"))
         .args([
             "sync",
-            "configure",
+            "connect",
+            "s3",
             "--vault",
             vault.to_str().unwrap(),
-            "--backend",
-            "s3",
             "--endpoint",
             "https://example.r2.cloudflarestorage.com",
             "--bucket",
@@ -88,8 +87,8 @@ fn sync_configure_never_prompts_or_leaks_secret_guidance_in_json_mode() {
         ])
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("\"code\":\"sync_config_invalid\""))
-        .stdout(predicate::str::contains("AGENTERO_SYNC_ACCESS_KEY"));
+        .stderr(predicate::str::contains("\"code\":\"sync_config_invalid\""))
+        .stderr(predicate::str::contains("--credentials-input"));
 }
 
 #[test]
@@ -102,24 +101,30 @@ fn sync_configure_rejects_plain_http_endpoint_via_stdin() {
         "backend": "s3",
         "endpoint": "http://minio.example.com",
         "bucket": "b",
-        "accessKey": "a",
-        "secretKey": "s"
+        "access_key": "a",
+        "secret_key": "s"
     }"#;
     let mut cmd = agentero();
     cmd.env("HOME", tmp.path().join(".test-home"))
         .env("XDG_CONFIG_HOME", tmp.path().join(".test-home/.config"))
         .args([
             "sync",
-            "configure",
+            "connect",
+            "s3",
             "--vault",
             vault.to_str().unwrap(),
-            "--stdin",
+            "--endpoint",
+            "http://minio.example.com",
+            "--bucket",
+            "b",
+            "--credentials-input",
+            "-",
             "--json",
         ])
         .write_stdin(cfg)
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("must use https"));
+        .stderr(predicate::str::contains("must use https"));
 }
 
 fn git_available() -> bool {
@@ -154,29 +159,27 @@ fn sync_configure_git_pushes_to_a_local_bare_remote() {
         .env("XDG_CONFIG_HOME", home.join(".config"))
         .args([
             "sync",
-            "configure",
+            "connect",
+            "git",
             "--vault",
             vault.to_str().unwrap(),
-            "--backend",
-            "git",
-            "--git-remote",
             remote.to_str().unwrap(),
-            "--git-branch",
+            "--branch",
             "main",
             "--json",
         ])
         .assert()
         .success()
         .stdout(predicate::str::contains("\"backend\":\"git\""))
-        .stdout(predicate::str::contains("\"configured\":true"));
+        .stdout(predicate::str::contains("\"location\":"));
 
     agentero()
         .env("HOME", &home)
         .env("XDG_CONFIG_HOME", home.join(".config"))
-        .args(["sync", "now", "--vault", vault.to_str().unwrap(), "--json"])
+        .args(["sync", "run", "--vault", vault.to_str().unwrap(), "--json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"ok\":true"));
+        .stdout(predicate::str::contains("\"uploaded\":"));
 
     let tree = std::process::Command::new("git")
         .args([
@@ -208,6 +211,6 @@ fn sync_test_and_disconnect_without_binding_fail_fast() {
             .args(["sync", sub, "--vault", vault.to_str().unwrap(), "--json"])
             .assert()
             .code(1)
-            .stdout(predicate::str::contains("\"code\":\"sync_not_configured\""));
+            .stderr(predicate::str::contains("\"code\":\"sync_not_configured\""));
     }
 }
