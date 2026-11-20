@@ -26,6 +26,7 @@ import {
 	type CSSProperties,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -49,6 +50,8 @@ import {
 	getActiveBackgroundTasks,
 	getBackgroundTasksSnapshot,
 	isFinishedBackgroundTask,
+	nextBackgroundTaskRetirementDelay,
+	retireFinishedBackgroundTasks,
 	setBackgroundTasksExpanded,
 } from "@/lib/core/background-tasks";
 import { MOTION_MS, prefersReducedMotion } from "@/lib/core/motion";
@@ -396,7 +399,7 @@ function ProgressRing({
 		<button
 			type="button"
 			className={cn(
-				"relative flex size-9 items-center justify-center rounded-full bg-background text-foreground shadow-raised ring-1 ring-border transition-[opacity,transform] duration-100 hover:opacity-90 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+				"relative flex size-9 items-center justify-center rounded-full bg-background text-foreground shadow-raised ring-1 ring-border transition-[opacity,transform] duration-100 hover:opacity-90 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 				celebrate && "task-ring-success-pulse",
 			)}
 			aria-label={label}
@@ -679,6 +682,25 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 	useEffect(() => {
 		if (tasks.length === 0 && detailMounted) closeDetail();
 	}, [tasks.length, detailMounted, closeDetail]);
+
+	/**
+	 * Finished rows dismiss themselves after a short visible window; no
+	 * per-task acknowledgement. While the detail list is open they hold still
+	 * so a row cannot vanish under the pointer — the countdown resumes when it
+	 * closes. Layout effect: on remount (e.g. leaving immersive reading) the
+	 * expired rows are dropped before the paused ring can flash back.
+	 */
+	useLayoutEffect(() => {
+		if (detailOpen) return;
+		if (!tasks.some(isFinishedBackgroundTask)) return;
+		retireFinishedBackgroundTasks();
+		const delay = nextBackgroundTaskRetirementDelay();
+		if (delay == null) return;
+		const timer = window.setTimeout(() => {
+			retireFinishedBackgroundTasks();
+		}, delay + 50);
+		return () => window.clearTimeout(timer);
+	}, [tasks, detailOpen]);
 
 	if (tasks.length === 0) return null;
 

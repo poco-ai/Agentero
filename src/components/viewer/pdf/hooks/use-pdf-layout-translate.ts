@@ -1664,8 +1664,8 @@ export function usePdfLayoutTranslate({
 	]);
 
 	// Edge-triggered parse-failure watch while queued: only tasks observed
-	// queued/running during the wait may cancel it — finished rows linger in the
-	// panel store, so a level check would trip on a stale earlier failure.
+	// queued/running during the wait may cancel it — finished rows stay visible
+	// for a short window, so a level check would trip on a stale failure.
 	useEffect(() => {
 		if (layoutTranslateJob.status !== "waitingLayout") return;
 		const fail = () => {
