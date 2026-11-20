@@ -3,9 +3,10 @@
 use super::types::*;
 use super::TOOL_PROFILE;
 use crate::error::AppError;
-use crate::features::paper::capabilities::find_local_pdf;
+use crate::features::evidence;
 use crate::features::paper::catalog::papers::{self, PaperRecord};
 use crate::fs::{normalize_rel, sanitize_vault_rel};
+use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
@@ -373,7 +374,21 @@ fn facts_for_anchor(vault: &Path, anchor: &ContextAnchor) -> Result<Option<Ancho
     {
         return Ok(None);
     }
-    let citation_uri = citation_for(vault, paper.as_ref(), file_path.as_deref(), anchor);
+    let citation_file = anchor
+        .file_path
+        .as_deref()
+        .and_then(|p| vault_rel(vault, p))
+        .filter(|p| {
+            paper
+                .as_ref()
+                .is_none_or(|r| Path::new(p).starts_with(&r.path))
+        });
+    let citation_uri = citation_for(
+        vault,
+        paper.as_ref(),
+        citation_file.as_deref().or(rel.as_deref()),
+        anchor,
+    );
     Ok(Some(AnchorFacts {
         anchor: anchor.clone(),
         paper: paper.as_ref().map(PaperBrief::from_record),
@@ -430,23 +445,62 @@ fn citation_for(
     file_path: Option<&str>,
     anchor: &ContextAnchor,
 ) -> Option<String> {
-    if let Some(paper) = paper {
-        let pdf = find_local_pdf(&vault.join(&paper.path));
-        let pdf_rel = pdf.and_then(|path| {
-            path.strip_prefix(vault)
-                .ok()
-                .map(|rel| rel.to_string_lossy().replace('\\', "/"))
-        });
-        let base = pdf_rel.unwrap_or_else(|| paper.path.clone());
+    let (path, kind, locator) = if let Some(paper) = paper {
         if let Some(page) = anchor.page {
-            return Some(format!("{base}#page={page}"));
+            (paper.path.as_str(), "body", json!({"page": page}))
+        } else if let Some(file) = file_path
+            .filter(|f| vault.join(f).is_file() && !f.to_ascii_lowercase().ends_with(".pdf"))
+        {
+            (
+                file,
+                evidence::source_kind(vault, file).ok()?,
+                text_locator(anchor),
+            )
+        } else if anchor.section.is_some() || anchor.line_from.is_some() {
+            // Logical text may be served by TeX, PAPER.md, or a PDF layout.
+            // Use the locator and underlying source selected by normal reads.
+            let value = evidence::read(
+                vault,
+                evidence::ReadInput {
+                    source: paper.path.clone(),
+                    section: anchor
+                        .section
+                        .clone()
+                        .filter(|_| anchor.line_from.is_none()),
+                    lines: anchor
+                        .line_from
+                        .map(|first| format!("{first}-{}", anchor.line_to.unwrap_or(first))),
+                    max_chars: Some(32),
+                    ..Default::default()
+                },
+                true,
+            )
+            .ok()?;
+            return value["evidence"].as_array()?.first()?["cite"]
+                .as_str()
+                .map(str::to_owned);
+        } else {
+            (paper.path.as_str(), "metadata", json!({}))
         }
-        if let Some(section) = nonempty(anchor.section.as_deref()) {
-            return Some(format!("{base}#section={}", urlencoding::encode(&section)));
-        }
-        return Some(base);
+    } else {
+        let path = file_path.filter(|p| vault.join(p).is_file())?;
+        (
+            path,
+            evidence::source_kind(vault, path).ok()?,
+            text_locator(anchor),
+        )
+    };
+    evidence::current_citation(vault, path, kind, &locator).ok()
+}
+
+fn text_locator(anchor: &ContextAnchor) -> serde_json::Value {
+    if let Some(line) = anchor.line_from {
+        json!({"line_from":line, "line_to":anchor.line_to.unwrap_or(line)})
+    } else if let Some(section) = nonempty(anchor.section.as_deref()) {
+        json!({"section":section})
+    } else {
+        json!({})
     }
-    file_path.map(str::to_string)
 }
 
 #[cfg(test)]

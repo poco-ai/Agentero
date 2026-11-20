@@ -64,6 +64,7 @@ export function agentTemplateById(
 }
 
 export type AgentDescriptor = {
+	supportsShell?: boolean;
 	id: string;
 	name: string;
 	template: AgentTemplate;
@@ -138,6 +139,7 @@ export type AcpHistoryPart =
 	| { type: "plan"; entries: AgentPlanEntry[] };
 
 export type AcpHistoryLine = {
+	artifacts?: PresentedFile[];
 	id: string;
 	kind: "user" | "agent";
 	text: string;
@@ -458,6 +460,7 @@ export async function checkCatalogUpdates(): Promise<CatalogScanResponse> {
 }
 
 export async function upsertAgent(request: {
+	supportsShell?: boolean;
 	id?: string;
 	name: string;
 	template?: AgentTemplate;

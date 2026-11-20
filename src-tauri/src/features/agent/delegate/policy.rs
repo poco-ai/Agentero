@@ -64,15 +64,20 @@ pub fn resolve_target<'a>(
         };
     };
     let bare = explicit.strip_prefix("remote:").unwrap_or(explicit);
-    targets
+    if let Some(target) = targets
         .iter()
-        .find(|target| {
-            target.session_id == bare
-                || target.session_id == explicit
-                || target.handle == explicit
-                || target.destination == explicit
-        })
-        .ok_or_else(|| format!("remote target is not connected: {explicit}"))
+        .find(|t| t.session_id == bare || t.handle == explicit)
+    {
+        return Ok(target);
+    }
+    let mut candidates = targets.iter().filter(|t| t.destination == explicit);
+    match (candidates.next(), candidates.next()) {
+        (Some(target), None) => Ok(target),
+        (Some(_), Some(_)) => Err(format!(
+            "multiple workspaces on {explicit}; select an ID from delegate targets"
+        )),
+        _ => Err(format!("remote target is not connected: {explicit}")),
+    }
 }
 
 pub fn resolve_agent<'a>(
@@ -87,7 +92,10 @@ pub fn resolve_agent<'a>(
         return if agents.len() == 1 {
             Ok(&agents[0])
         } else {
-            Err("agentId is required when more than one agent is registered".into())
+            Err(
+                "use delegate targets and pass --agent ID when more than one agent is registered"
+                    .into(),
+            )
         };
     };
     agents

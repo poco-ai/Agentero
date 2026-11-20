@@ -489,7 +489,13 @@ Agentero 是 ACP **Client**：模型 HTTP **不**经 Host 转发，因此只能�
 
 远程 Vault 时在 **SSH 远端** 启动 Agent。见 [remote.md](remote.md)。远程 agent catalog 的扫描/探测/安装命令属 agent 域（`registry/remote.rs` + `commands/remote.rs`），复用 `agent::models` / `probe_agent` / `templates`；agent 域不直接依赖 `integration::remote`，而是经反转 trait `agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch}`（由 remote 域 `RemoteRegistry` / `RemoteSession` 实现，app 启动时注册为 State）走 SSH。命令壳与 bridge RPC 共用 `agent::service` 门面。
 
-本机 ACP 会话可以通过回合绑定的 CLI 调用 `agentero delegate`。本机 Agent 只能把任务交给已经打开的远程 Vault，以及本机注册表里的 Agent。Host 另起一条 SSH stdio ACP，不进当前聊天流，也不和聊天 warm pool 共用连接。权限固定 Ask。默认等待 10 分钟，上限 30 分钟；超时不杀掉远端进程。`local-sim` 在本机以远端目录为工作目录，供测试。Windows 客户端与远程 Vault 一样不提供这条能力。
+本机 ACP 会话可通过回合绑定的 CLI 委派任务。运行 `agentero delegate targets` 查看已连接的工作区 ID、远程路径及注册的 Agent。使用 `agentero delegate run TARGET --agent ID --input task.md` 提交，立即得到任务 ID。省略 `--agent` 时使用支持委派的默认 Agent，缺少可用默认值时仅在有唯一候选时自动选择。`delegate result JOB --wait 30` 最多等待 300 秒，超时仍可继续查询，`delegate cancel JOB` 取消。独立的 SSH stdio ACP 进程固定使用 Ask 权限。真正的 SSH Vault 依赖 Unix 的 SFTP 客户端；`local-sim` 使用本机目录。
+
+自定义 ACP 适配器在设置中勾选“可以执行本机 shell 命令”后，侧栏和 Zen 为其提供随包 CLI 和短期回合句柄。仅支持提示的适配器和内建知乎使用预取证据。对适配器的这一声明决定是否提供 CLI；shell 的实际执行权限由 adapter 自身控制。
+
+桌面把已呈现文件的相对路径、标题和已使用的出处保存在本机 Agentero 配置目录的 `agent-receipts/`。按 Vault、Agent、provider session 和回合分开存储，删除会话时同步清理。重新加载 provider 历史时优先用回合 ID 对齐；部分 provider 去除宿主提示时，仅对唯一匹配的回答恢复。历史缺少对应回答时不会把文件附在其他消息上。
+
+普通终端的窗口操作和远程委派按当前操作系统用户授权。请求目录位于用户配置目录，Unix 目录权限为 0700，Windows 在创建目录时设置受保护、可继承的所有者与 SYSTEM DACL。配置目录应由该用户持有。受管回合的证据读取、委派和 `app present` 另由宿主校验在途句柄；`app present` 的文件须位于本回合 Vault。
 
 ## 代码
 

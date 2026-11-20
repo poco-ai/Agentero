@@ -489,10 +489,17 @@ async fn base_params(
     })
 }
 
+struct SubmittedJob {
+    target: String,
+    agent: Option<String>,
+    prompt: String,
+    job: String,
+}
+
 /// The desktop owns SSH, credentials and permissions for delegated tasks.
 pub struct DelegateBridge {
     hub: StdMutex<Option<Arc<Hub>>>,
-    requests: Mutex<HashMap<String, (String, String, String)>>,
+    requests: Mutex<HashMap<String, SubmittedJob>>,
 }
 
 impl DelegateBridge {
@@ -540,7 +547,10 @@ impl DelegateBridge {
             };
             let job = match route {
                 "delegate targets" => {
-                    let items = hub.targets().await?.targets.into_iter().map(|target|json!({"id":target.target,"name":target.destination,"available":!target.agents.is_empty()})).collect::<Vec<_>>();
+                    let items = hub.targets().await?.targets.into_iter().map(|target| json!({
+                        "id":target.target, "name":target.destination, "path":target.remote_path,
+                        "local_sim":target.local_sim, "available":!target.agents.is_empty(), "agents":target.agents,
+                    })).collect::<Vec<_>>();
                     return Ok(json!({"items":items}));
                 }
                 "delegate run" => {
@@ -548,31 +558,42 @@ impl DelegateBridge {
                     let prompt = arg("prompt")?;
                     let request_id = args["request_id"].as_str().unwrap_or("").to_owned();
                     let mut requests = self.requests.lock().await;
-                    if let Some((previous_target, previous_prompt, id)) = requests.get(&request_id)
-                    {
-                        if previous_target != target || previous_prompt != prompt {
+                    let explicit = args["agent"].as_str();
+                    if let Some(previous) = requests.get(&request_id) {
+                        if previous.target != target
+                            || previous.prompt != prompt
+                            || previous.agent.as_deref() != explicit
+                        {
                             return Err("idempotency_conflict".into());
                         }
-                        hub.result(id).await?
+                        hub.result(&previous.job).await?
                     } else {
                         let default = hub
                             .app
                             .state::<AgentRegistry>()
                             .resolve_default(None)
                             .ok()
-                            .map(|d| d.id);
+                            .filter(|d| {
+                                !is_builtin_template(&d.template) && !d.command.trim().is_empty()
+                            });
+                        let choice = explicit.or_else(|| default.as_ref().map(|d| d.id.as_str()));
                         let job = hub
                             .delegate(
                                 window,
                                 Some(target.to_string()),
-                                default,
+                                choice.map(str::to_owned),
                                 prompt.to_string(),
                             )
                             .await?;
                         if !request_id.is_empty() {
                             requests.insert(
                                 request_id,
-                                (target.to_owned(), prompt.to_owned(), job.run_id.clone()),
+                                SubmittedJob {
+                                    target: target.to_owned(),
+                                    agent: explicit.map(str::to_owned),
+                                    prompt: prompt.to_owned(),
+                                    job: job.run_id.clone(),
+                                },
                             );
                         }
                         job

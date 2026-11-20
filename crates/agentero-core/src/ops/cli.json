@@ -2579,6 +2579,11 @@
 				"help_en": "Input path, or - to read stdin"
 			},
 			{
+				"name": "agent",
+				"help": "使用 delegate targets 返回的 Agent ID；省略时使用可委派的默认 Agent 或唯一候选",
+				"help_en": "Agent ID from delegate targets (default: eligible default or sole candidate)"
+			},
+			{
 				"name": "request-id",
 				"help": "使用此幂等键重试同一操作；CLI 省略时自动生成",
 				"help_en": "Idempotency key to reuse for retries"

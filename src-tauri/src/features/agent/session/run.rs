@@ -18,8 +18,8 @@ use crate::features::agent::context_turn::{
 };
 use crate::features::agent::hosted_turn::{HostedTurn, TurnLease};
 use crate::features::agent::models::{
-    AgentDescriptor, AgentFailedEvent, AgentResultPayload, AgentStatusEvent, AgentStreamEvent,
-    AgentStreamKind, AgentTemplate, PromptImage,
+    is_builtin_template, AgentDescriptor, AgentFailedEvent, AgentResultPayload, AgentStatusEvent,
+    AgentStreamEvent, AgentStreamKind, AgentTemplate, PromptImage,
 };
 use crate::features::agent::prompt::envelope::build_prompt;
 use crate::features::agent::prompt::skills::{
@@ -247,10 +247,9 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         && !params.is_acp_command
         && params.vault_path.is_some()
         && !params.suppress_transcript
-        && !matches!(
-            params.desc.template,
-            AgentTemplate::Custom | AgentTemplate::Zhihu
-        ) {
+        && !is_builtin_template(&params.desc.template)
+        && (params.desc.template != AgentTemplate::Custom || params.desc.supports_shell)
+    {
         crate::features::cli_install::turn_cli(params.app.app_handle())
     } else {
         None
@@ -287,8 +286,8 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         };
         let instruction = format!(
             "Use the CLI at {}. Keep {binding} set to {} when invoking this executable from an isolated shell. \
-             After writing a requested deliverable under this vault, call `app present FILE`. Keep the handle private.",
-            exe.display(), lease.0.token
+             After writing a requested deliverable under this vault, call `app present FILE`. Keep the handle private.\n{}{}",
+            exe.display(), lease.0.token, super::receipts::MARKER, params.message_id
         );
         full_prompt = insert_context_block(&full_prompt, &instruction);
         Some(lease)
@@ -550,8 +549,11 @@ impl RunOnceContext {
     }
 
     /// Flush buffered stream text, then emit `agent:completed` (ordered after text).
-    fn emit_completed(&self, payload: AgentResultPayload) -> AgentResultPayload {
+    fn emit_completed(&self, mut payload: AgentResultPayload) -> AgentResultPayload {
         self.coalescer.flush();
+        if let Some(turn) = &self.turn {
+            (payload.sources, payload.artifacts) = turn.receipt(&payload.content);
+        }
         if !self.suppress_transcript {
             let _ = self.app.emit("agent:completed", payload.clone());
         }
@@ -728,6 +730,14 @@ impl RunOnceContext {
             if let Ok(mut buf) = self.thought_buf.lock() {
                 buf.clear();
             }
+        }
+        if let Some(turn) = &self.turn {
+            turn.bind_history(
+                &self.agent_id,
+                &session.acp_session_id.to_string(),
+                &self.message_id,
+            )
+            .map_err(|e| PromptPhaseError::pre_prompt(acp_err(e.to_string())))?;
         }
         self.live_stream.store(true, Ordering::SeqCst);
         self.prompt_sent.store(true, Ordering::SeqCst);
@@ -1093,11 +1103,6 @@ impl RunOnceContext {
                 log::warn!(target: "agentero::agent", "remember context fingerprint: {error}");
             }
         }
-        let (sources, artifacts) = self
-            .turn
-            .as_ref()
-            .map(|turn| turn.receipt())
-            .unwrap_or_else(|| (self.prefetched_sources.clone(), Vec::new()));
         let payload = AgentResultPayload {
             session_id: self.session_id.clone(),
             message_id: self.message_id.clone(),
@@ -1109,8 +1114,8 @@ impl RunOnceContext {
             },
             prompt_only: self.context_fingerprint.is_some()
                 && self.turn.as_ref().is_none_or(|turn| turn.grant.is_none()),
-            sources,
-            artifacts,
+            sources: self.prefetched_sources.clone(),
+            artifacts: Vec::new(),
             stop_reason: self.stop_reason.lock().ok().and_then(|g| g.clone()),
             provider_session_id: Some(acp_session_id.to_string()),
         };

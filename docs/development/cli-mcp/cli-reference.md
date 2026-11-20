@@ -2014,13 +2014,14 @@ agentero delegate · 向已连接的远端研究工作区提交任务
 向指定工作区提交远端 Agent 任务
 
 用法
-  agentero delegate run TARGET --input INPUT [--request-id REQUEST-ID]
+  agentero delegate run TARGET --input INPUT [--agent ID] [--request-id REQUEST-ID]
 
 示例
   agentero delegate run gpu-lab --input task.md --request-id job-17
 
 参数与选项
   TARGET    桌面目标引用或 SSH 工作区 ID。前序命令返回的标识符；必填
+  --agent    从 delegate targets 列出的 Agent 中选择。默认使用可委派的默认 Agent 或唯一候选
   --input    输入文件，- 表示标准输入。本机输入文件或 -（stdin）；必填
   --request-id    使用此幂等键重试同一操作；CLI 省略时自动生成。1–80 位无空白请求 ID；可选
 

@@ -1041,6 +1041,12 @@ export async function openEvidenceLocation(
 			if (handle?.revealLine?.(line)) return;
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
+		if (getVaultPath() === vault)
+			notifyError(
+				i18n.t("agent:citation.resolveFailed", {
+					source: `${path}#line=${line}`,
+				}),
+			);
 	} else {
 		const { editorLintStore, pendingEditorLineJump } = await import(
 			"@/lib/tex/editor-lint-bridge"

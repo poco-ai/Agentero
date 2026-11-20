@@ -606,7 +606,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 					return true;
 				}
 				const block = blockAtSourceLine(
-					sourceBlockLines(initialMarkdown),
+					sourceBlockLines(dirtyRef.current ? serialize() : savedRef.current),
 					line,
 				);
 				const node = editor.children[block];
@@ -624,7 +624,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		saveNow,
 		tabId,
 		toggle,
-		initialMarkdown,
+		dirtyRef,
+		savedRef,
+		serialize,
 		source,
 		sourceViewRef,
 		editor,

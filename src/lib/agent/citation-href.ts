@@ -62,7 +62,8 @@ export function cleanCitationHref(href: string): string {
 		.replace(/[\u200B-\u200D\uFEFF]/g, "")
 		// Streamdown's rehype-harden only treats paths starting with `/` `./` `../`
 		// as relative; we may prefix `./` for rendering — strip it before jumps.
-		.replace(/^\.\//, "");
+		.replace(/^\.\//, "")
+		.replace(/^\/(?=agentero:\/\/cite\/)/, "");
 	if (/^[a-z][a-z0-9+.-]*:/i.test(stripped)) return stripped;
 	const hash = stripped.indexOf("#");
 	if (hash < 0) return decodeCitationPiece(stripped);
@@ -178,9 +179,11 @@ export function isCitationStatusLabel(label: string): boolean {
 
 /** A display hint only. Navigation always asks the host to verify the revision. */
 export function evidenceCitationLabel(href: string): string | null {
+	href = cleanCitationHref(href);
 	if (!href.startsWith("agentero://cite/")) return null;
 	try {
-		const payload = href.slice(href.lastIndexOf("/") + 1);
+		const resource = href.split("#", 1)[0];
+		const payload = resource.slice(resource.lastIndexOf("/") + 1);
 		const bytes = Uint8Array.from(
 			atob(payload.replaceAll("-", "+").replaceAll("_", "/")),
 			(ch) => ch.charCodeAt(0),

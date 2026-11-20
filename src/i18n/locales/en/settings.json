@@ -562,6 +562,7 @@
 			}
 		},
 		"form": {
+			"supportsShell": "Can run local shell commands",
 			"defaultName": "Desktop",
 			"name": "Name",
 			"command": "Command",

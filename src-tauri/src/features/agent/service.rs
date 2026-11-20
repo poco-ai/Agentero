@@ -445,7 +445,19 @@ pub async fn load_session(
     }
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
-    load_acp_session(queries, &desc, session_id, cwd, remote_target.as_ref()).await
+    let mut result =
+        load_acp_session(queries, &desc, session_id, cwd, remote_target.as_ref()).await?;
+    if let Some(vault) = vault_path.as_deref().filter(|_| remote_target.is_none()) {
+        if let Err(error) = super::session::receipts::restore(
+            std::path::Path::new(vault),
+            &desc.id,
+            &result.session_id,
+            &mut result.lines,
+        ) {
+            log::warn!(target: "agentero::agent", "restore turn receipts: {error}");
+        }
+    }
+    Ok(result)
 }
 
 /// Service for `agent_delete_session`.
@@ -481,6 +493,9 @@ pub async fn delete_session(
 
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
+    if let Some(vault) = vault_path.as_deref().filter(|_| remote_target.is_none()) {
+        super::session::receipts::forget(std::path::Path::new(vault), &desc.id, &session_id)?;
+    }
     match delete_acp_session(queries, &desc, &session_id, cwd, remote_target.as_ref()).await {
         Ok(true) => Ok(AcpDeleteSessionResult {
             session_id,

@@ -55,6 +55,7 @@ pub fn acquire_endpoint_lease(dir: &Path) -> Result<std::fs::File, AppError> {
     Ok(file)
 }
 
+#[cfg(not(windows))]
 pub fn private_dir(parent: Option<&Path>, prefix: &str) -> Result<tempfile::TempDir, AppError> {
     let mut builder = tempfile::Builder::new();
     builder.prefix(prefix);
@@ -68,6 +69,11 @@ pub fn private_dir(parent: Option<&Path>, prefix: &str) -> Result<tempfile::Temp
         None => builder.tempdir()?,
     })
 }
+
+#[cfg(windows)]
+mod windows_mailbox;
+#[cfg(windows)]
+pub use windows_mailbox::private_dir;
 
 pub fn write_packet<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<(), AppError> {
     let mut file = tempfile::NamedTempFile::new_in(dir)?;

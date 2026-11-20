@@ -569,6 +569,7 @@ mod cwd_shell_wrap_tests {
     fn descriptor(template: AgentTemplate) -> AgentDescriptor {
         let info = crate::features::agent::registry::templates::template_info(template.as_str());
         AgentDescriptor {
+            supports_shell: false,
             id: template.as_str().into(),
             name: template.as_str().into(),
             command: info

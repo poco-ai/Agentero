@@ -1,4 +1,5 @@
 //! Short-lived CLI authority and actual evidence/outputs owned by one desktop turn.
+use super::session::receipts::ReceiptFile;
 use agentero_core::{
     error::AppError,
     features::context::{present_files, ContextGrant, PresentedFile},
@@ -22,6 +23,7 @@ fn denied() -> AppError {
 
 #[derive(Default)]
 struct Usage {
+    history: Option<ReceiptFile>,
     spent: usize,
     sources: Vec<String>,
     artifacts: Vec<PresentedFile>,
@@ -109,23 +111,39 @@ impl HostedTurn {
         }
         Ok(result)
     }
+    pub fn bind_history(&self, agent: &str, session: &str, message: &str) -> Result<(), AppError> {
+        let history = ReceiptFile::new(&self.vault, agent, session, message)?;
+        self.usage.lock().unwrap_or_else(|e| e.into_inner()).history = Some(history);
+        Ok(())
+    }
     pub fn present(&self, args: &Value) -> Result<Value, AppError> {
         let paths: Vec<String> = serde_json::from_value(args["paths"].clone())?;
         let files = present_files(&self.vault, &paths, args["title"].as_str())?;
         let mut usage = self.usage.lock().unwrap_or_else(|e| e.into_inner());
         self.ensure_active()?;
         let mut items = Vec::new();
+        let mut artifacts = usage.artifacts.clone();
         for file in files {
             let preview = file.preview_kind();
             items.push(json!({"path":file.path,"open_ref":file.path,"preview_kind":preview}));
-            if !usage.artifacts.iter().any(|f| f.path == file.path) {
-                usage.artifacts.push(file);
+            if !artifacts.iter().any(|f| f.path == file.path) {
+                artifacts.push(file);
             }
         }
+        let history = usage.history.as_ref().ok_or_else(|| {
+            AppError::domain("turn_unavailable", "the provider session has not started")
+        })?;
+        history.write("", &usage.sources, &artifacts)?;
+        usage.artifacts = artifacts;
         Ok(json!({"items":items}))
     }
-    pub fn receipt(&self) -> (Vec<String>, Vec<PresentedFile>) {
+    pub fn receipt(&self, answer: &str) -> (Vec<String>, Vec<PresentedFile>) {
         let usage = self.usage.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(file) = &usage.history {
+            if let Err(error) = file.write(answer, &usage.sources, &usage.artifacts) {
+                log::warn!(target:"agentero::agent","save turn receipt: {error}");
+            }
+        }
         (usage.sources.clone(), usage.artifacts.clone())
     }
 }

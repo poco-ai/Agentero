@@ -562,6 +562,7 @@
 			}
 		},
 		"form": {
+			"supportsShell": "可以执行本机 shell 命令",
 			"defaultName": "Desktop",
 			"name": "名称",
 			"command": "命令",

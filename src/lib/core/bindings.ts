@@ -934,6 +934,7 @@ export type AcpHistoryLine_Deserialize = {
 	/**  Ordered parts for agent lines (empty for user lines). */
 	parts?: AcpHistoryPart_Deserialize[],
 	sources?: string[],
+	artifacts?: PresentedFile[],
 };
 
 /**  A single history line reconstructed from ACP `session/load` replay. */
@@ -946,6 +947,7 @@ export type AcpHistoryLine_Serialize = {
 	/**  Ordered parts for agent lines (empty for user lines). */
 	parts?: AcpHistoryPart_Serialize[],
 	sources?: string[],
+	artifacts?: PresentedFile[],
 };
 
 /**  Ordered slice of a replayed agent turn (mirrors the frontend `AgentPart`). */
@@ -1176,6 +1178,8 @@ export type AgentCompletedEvent_Serialize = AgentResultPayload_Serialize;
 export type AgentDescriptor = AgentDescriptor_Serialize | AgentDescriptor_Deserialize;
 
 export type AgentDescriptor_Deserialize = {
+	/**  Custom ACP harness can invoke local shell commands. */
+	supportsShell?: boolean,
 	id: string,
 	name: string,
 	template: AgentTemplate,
@@ -1192,6 +1196,8 @@ export type AgentDescriptor_Deserialize = {
 };
 
 export type AgentDescriptor_Serialize = {
+	/**  Custom ACP harness can invoke local shell commands. */
+	supportsShell: boolean,
 	id: string,
 	name: string,
 	template: AgentTemplate,
@@ -6123,6 +6129,8 @@ export type UninstallScopeInfo = {
 export type UpsertAgentRequest = UpsertAgentRequest_Serialize | UpsertAgentRequest_Deserialize;
 
 export type UpsertAgentRequest_Deserialize = {
+	/**  Custom ACP harness can invoke local shell commands. */
+	supportsShell?: boolean,
 	id?: string | null,
 	name: string,
 	template?: AgentTemplate | null,
@@ -6133,6 +6141,8 @@ export type UpsertAgentRequest_Deserialize = {
 };
 
 export type UpsertAgentRequest_Serialize = {
+	/**  Custom ACP harness can invoke local shell commands. */
+	supportsShell: boolean,
 	id?: string | null,
 	name: string,
 	template: AgentTemplate | null,

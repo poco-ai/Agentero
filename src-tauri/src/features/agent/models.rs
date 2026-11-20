@@ -127,6 +127,9 @@ impl AgentTemplate {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentDescriptor {
+    /// Custom ACP harness can invoke local shell commands.
+    #[serde(default)]
+    pub supports_shell: bool,
     pub id: String,
     pub name: String,
     pub template: AgentTemplate,
@@ -361,6 +364,9 @@ pub struct CatalogScanResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpsertAgentRequest {
+    /// Custom ACP harness can invoke local shell commands.
+    #[serde(default)]
+    pub supports_shell: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub name: String,
@@ -843,6 +849,8 @@ pub struct AcpHistoryLine {
     pub parts: Vec<AcpHistoryPart>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub artifacts: Vec<agentero_core::features::context::PresentedFile>,
 }
 
 /// Response for `agent_delete_session`.
