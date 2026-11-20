@@ -11,7 +11,6 @@
 	"pathBar": {
 		"openFolder": "Open folder",
 		"openWith": "Open with",
-		"default": "Default",
 		"openLinks": "Open links"
 	},
 	"commandPalette": {

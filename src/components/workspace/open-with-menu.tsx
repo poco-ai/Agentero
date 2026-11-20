@@ -41,7 +41,6 @@ import {
 	openPaperFolderWith,
 	probeOpenWithApps,
 } from "@/lib/system/open-with";
-import { openFilePathInTerminal } from "@/lib/workspace/file-path-actions";
 
 type OpenWithMenuProps = {
 	/** Paper body path; the Host opens its containing folder. */
@@ -61,13 +60,15 @@ function fileManagerName(): string {
 }
 
 /**
- * Rows before the Host probe resolves (or if it fails). Real application icons
- * arrive with the probe; these generic rows keep the control usable meanwhile.
+ * Icon row before the Host probe resolves (or if it fails). The dropdown only
+ * lists editors; Finder/Terminal ride the file tree's existing shortcuts.
  */
-const FALLBACK_APPS: OpenWithApp[] = [
-	{ id: "finder", name: fileManagerName(), kind: "fileManager", icon: null },
-	{ id: "terminal", name: "Terminal", kind: "terminal", icon: null },
-];
+const FALLBACK_FINDER: OpenWithApp = {
+	id: "finder",
+	name: fileManagerName(),
+	kind: "fileManager",
+	icon: null,
+};
 
 /** One row in the "Open links" section. */
 type LinkRow = {
@@ -104,12 +105,12 @@ function AppIcon({ app }: { app: OpenWithApp }) {
 
 /**
  * macOS-style "Open with" split control for the paper path bar: the Finder
- * half opens the paper folder, the chevron lists the Host's catalog — file
- * manager, installed editors, the preferred terminal — plus every external
- * link card the Paper Info sidebar shows (arXiv, DOI, alphaXiv, ModelScope,
- * 知乎, GitHub, Hugging Face, OpenReview, PDF). Icons are the real
- * application icons extracted by the Host; hand-drawn brand marks are
- * intentionally avoided.
+ * half opens the paper folder, the chevron lists installed editors plus every
+ * external link card the Paper Info sidebar shows (arXiv, DOI, alphaXiv,
+ * ModelScope, 知乎, GitHub, Hugging Face, OpenReview, PDF). Finder and
+ * Terminal are not duplicated here — they keep the file tree's shortcut
+ * actions (⌥⌘R reveal / ⌥⌘T terminal). Icons are the real application icons
+ * extracted by the Host; hand-drawn brand marks are intentionally avoided.
  */
 export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 	const { t } = useTranslation("app");
@@ -142,12 +143,10 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 		void action().catch((error: unknown) => notifyError(errorText(error)));
 	};
 
-	const rows = apps.length > 0 ? apps : FALLBACK_APPS;
-	const defaultApp = rows.find((app) => app.kind === "fileManager") ?? rows[0];
-	const openRow = (app: OpenWithApp) =>
-		app.kind === "terminal"
-			? openFilePathInTerminal(path)
-			: openPaperFolderWith(app.id, path);
+	const editorApps = apps.filter((app) => app.kind === "editor");
+	const defaultApp =
+		apps.find((app) => app.kind === "fileManager") ?? FALLBACK_FINDER;
+	const openEditor = (app: OpenWithApp) => openPaperFolderWith(app.id, path);
 
 	const targets = paperLinkTargets(meta);
 	const links: LinkRow[] = [];
@@ -243,69 +242,68 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 			>
 				<AppIcon app={defaultApp} />
 			</Button>
-			<DropdownMenu
-				onOpenChange={(open) => {
-					if (open) pointerCloseRef.current = false;
-				}}
-			>
-				<DropdownMenuTrigger asChild>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						aria-label={t("pathBar.openWith")}
-						title={t("pathBar.openWith")}
-						className="h-full w-6 rounded-none border-border/80 border-l"
-					>
-						<ChevronDown className="size-3.5" aria-hidden />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent
-					align="end"
-					sideOffset={6}
-					className="w-48"
-					onPointerDown={() => {
-						pointerCloseRef.current = true;
-					}}
-					onPointerDownOutside={() => {
-						pointerCloseRef.current = true;
-					}}
-					onCloseAutoFocus={(event) => {
-						if (!pointerCloseRef.current) return;
-						pointerCloseRef.current = false;
-						event.preventDefault();
+			{editorApps.length > 0 || links.length > 0 ? (
+				<DropdownMenu
+					onOpenChange={(open) => {
+						if (open) pointerCloseRef.current = false;
 					}}
 				>
-					{rows.map((app) => (
-						<DropdownMenuItem
-							key={app.id}
-							onSelect={() => run(() => openRow(app))}
+					<DropdownMenuTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label={t("pathBar.openWith")}
+							title={t("pathBar.openWith")}
+							className="h-full w-6 rounded-none border-border/80 border-l"
 						>
-							<AppIcon app={app} />
-							<span className="min-w-0 flex-1 truncate">{app.name}</span>
-							{app.kind === "fileManager" ? (
-								<span className="text-muted-foreground text-xs">
-									{t("pathBar.default")}
-								</span>
-							) : null}
-						</DropdownMenuItem>
-					))}
-					{links.length > 0 ? (
-						<>
-							<DropdownMenuSeparator />
-							<DropdownMenuLabel className="py-1">
-								{t("pathBar.openLinks")}
-							</DropdownMenuLabel>
-							{links.map((link) => (
-								<DropdownMenuItem key={link.id} onSelect={link.onSelect}>
-									{link.icon}
-									<span className="min-w-0 flex-1 truncate">{link.label}</span>
-								</DropdownMenuItem>
-							))}
-						</>
-					) : null}
-				</DropdownMenuContent>
-			</DropdownMenu>
+							<ChevronDown className="size-3.5" aria-hidden />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
+						align="end"
+						sideOffset={6}
+						className="w-48"
+						onPointerDown={() => {
+							pointerCloseRef.current = true;
+						}}
+						onPointerDownOutside={() => {
+							pointerCloseRef.current = true;
+						}}
+						onCloseAutoFocus={(event) => {
+							if (!pointerCloseRef.current) return;
+							pointerCloseRef.current = false;
+							event.preventDefault();
+						}}
+					>
+						{editorApps.map((app) => (
+							<DropdownMenuItem
+								key={app.id}
+								onSelect={() => run(() => openEditor(app))}
+							>
+								<AppIcon app={app} />
+								<span className="min-w-0 flex-1 truncate">{app.name}</span>
+							</DropdownMenuItem>
+						))}
+						{links.length > 0 ? (
+							<>
+								{editorApps.length > 0 ? <DropdownMenuSeparator /> : null}
+								<DropdownMenuLabel className="py-1">
+									{t("pathBar.openLinks")}
+								</DropdownMenuLabel>
+								{links.map((link) => (
+									<DropdownMenuItem key={link.id} onSelect={link.onSelect}>
+										{link.icon}
+										<span className="min-w-0 flex-1 truncate">
+											{link.label}
+										</span>
+									</DropdownMenuItem>
+								))}
+							</>
+						) : null}
+					</DropdownMenuContent>
+				</DropdownMenu>
+			) : null}
 		</div>
 	);
 }
