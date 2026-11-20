@@ -1,6 +1,6 @@
 # 参与贡献
 
-报告问题时，请附上系统、Agentero 版本、复现步骤和脱敏后的错误提示。较大的功能或架构改动先开 Issue 对齐范围；文档、翻译和小修复可直接提 PR。
+报告问题时，请写明操作系统、Agentero 版本和复现步骤，并附上去掉敏感信息的错误提示。较大的功能或架构改动，请先开 Issue 讨论范围。文档、翻译和小修复可以直接提 PR。
 
 - [报告问题](https://github.com/poco-ai/agentero/issues/new?template=bug_report.yml)
 - [建议功能](https://github.com/poco-ai/agentero/issues/new?template=feature_request.yml)

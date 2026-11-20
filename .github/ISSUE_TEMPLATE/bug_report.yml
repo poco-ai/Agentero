@@ -41,4 +41,4 @@ body:
     id: logs
     attributes:
       label: 日志或截图
-      description: 贴出相关错误或日志片段，先删掉密钥、配对链接和私人路径。
+      description: 可以附上错误提示、截图或相关日志片段。请先删掉密钥、配对链接和私人路径。

@@ -2,24 +2,23 @@
 
 ## Creating a Paper Library
 
+Use the menu in the top-left corner to create or open a Vault before adding papers.
+
 ## Import Methods
 
-Agentero supports several ways to import papers into your Vault.
+Have a paper ID or link? Use the magic wand. If you already have a PDF, drag it into the library.
 
 ### Magic Wand
 
 1. Click the magic-wand button in the sidebar.
-2. Paste a link into the input field. Agentero downloads metadata and the PDF into a new paper folder.
-   - arXiv IDs
-   - DOIs
-   - Website URLs, including blog posts
+2. Paste an arXiv ID, DOI, or URL. Blog links work too. Confirm the import to save any available metadata and PDF.
 
 ### Zotero Connector
 
 The [Zotero Connector](https://www.zotero.org/download/connectors) is Zotero's official browser extension for Chrome, Firefox, Edge, and Safari. Once installed, one click on the extension icon saves the paper or webpage you are reading as an item.
 
-1. Install the extension from [zotero.org/download/connectors](https://www.zotero.org/download/connectors)
-2. Enable **Zotero Connector** in Settings → General.
+1. Install the extension from [zotero.org/download/connectors](https://www.zotero.org/download/connectors).
+2. Enable **Zotero Connector compatibility** in Settings → General.
 3. Close the local Zotero application.
 4. Click the extension icon in your browser to save items to the current Vault.
 
@@ -27,7 +26,7 @@ The [Zotero Connector](https://www.zotero.org/download/connectors) is Zotero's o
 
 To save a webpage you are reading (blog, docs, news, …), pick either way:
 
-- **Magic Wand**: paste the page URL into the magic wand and Agentero fetches the content into a new paper folder.
+- **Magic Wand**: paste the page URL. Agentero tries to save the page content. For some pages it may save only the page details or URL.
 - **Zotero Connector**: click the extension icon while browsing to save the page to the current Vault.
 
 ### Local PDF
