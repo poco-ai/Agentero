@@ -279,7 +279,9 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 	);
 
 	return (
-		<div className="pointer-events-none absolute bottom-3 left-1/2 z-20 max-w-[calc(100%-1rem)] -translate-x-1/2">
+		// Below the left panels (z-20) on purpose: an open outline / references /
+		// figures rail covers the bar instead of reserving a bottom lane for it.
+		<div className="pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-1rem)] -translate-x-1/2">
 			{chrome}
 		</div>
 	);

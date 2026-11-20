@@ -77,6 +77,7 @@ import { usePdfHighlights } from "@/components/viewer/pdf/hooks/use-pdf-highligh
 import { usePdfImmersivePosition } from "@/components/viewer/pdf/hooks/use-pdf-immersive-position";
 import { usePdfJumpBack } from "@/components/viewer/pdf/hooks/use-pdf-jump-back";
 import { usePdfLayoutCluster } from "@/components/viewer/pdf/hooks/use-pdf-layout-cluster";
+import { usePdfLeftPanels } from "@/components/viewer/pdf/hooks/use-pdf-left-panels";
 import { usePdfLinkInk } from "@/components/viewer/pdf/hooks/use-pdf-link-ink";
 import { usePdfLinkUrlTip } from "@/components/viewer/pdf/hooks/use-pdf-link-url-tip";
 import { usePdfMarkActions } from "@/components/viewer/pdf/hooks/use-pdf-mark-actions";
@@ -95,7 +96,6 @@ import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-s
 import { usePdfSelectionActions } from "@/components/viewer/pdf/hooks/use-pdf-selection-actions";
 import { usePdfSelectionTranslate } from "@/components/viewer/pdf/hooks/use-pdf-selection-translate";
 import { useSentenceGlyphRects } from "@/components/viewer/pdf/hooks/use-pdf-sentence-glyph-rects";
-import { usePdfSidebarPanels } from "@/components/viewer/pdf/hooks/use-pdf-sidebar-panels";
 import { usePdfSmartHighlights } from "@/components/viewer/pdf/hooks/use-pdf-smart-highlights";
 import { usePdfSyncTex } from "@/components/viewer/pdf/hooks/use-pdf-synctex";
 import { usePdfTextSelection } from "@/components/viewer/pdf/hooks/use-pdf-text-selection";
@@ -190,6 +190,7 @@ import {
 	layoutAnalysisStore,
 	layoutDocumentKey,
 	layoutSentenceScope,
+	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
 import { isLayoutElementTextKind } from "@/lib/pdf/layout/labels";
@@ -1157,8 +1158,7 @@ function PdfViewerInner({
 	clearAskErrorRef.current = clearAskError;
 	closeAskChromeRef.current = closeAskChrome;
 
-	const { outline, outlineReady, showOutline, toggleOutline } = usePdfOutline({
-		pdfPath,
+	const { outline, outlineReady } = usePdfOutline({
 		bookmarkCap,
 		docId,
 		totalPages,
@@ -1173,15 +1173,14 @@ function PdfViewerInner({
 		ready: outlineReady,
 	});
 
-	const {
-		showReferences,
-		showFigures,
-		hoveredCommentId,
-		setHoveredCommentId,
-		handleToggleOutline,
-		handleToggleReferences,
-		handleToggleFigures,
-	} = usePdfSidebarPanels({ showOutline, toggleOutline });
+	// Outline / references / figures own one left rail. The slot key is the PDF
+	// path (embed id for loose PDFs), so the viewer remount caused by a bookmark
+	// write keeps the panel the reader had open.
+	const { activePanel, openPanel, togglePanel, closePanel } = usePdfLeftPanels(
+		pdfPath ?? docId,
+	);
+	const showOutline = activePanel === "outline";
+	const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
 
 	const bookmarkedPages = useMemo(() => {
 		const pages = new Set<number>();
@@ -2610,7 +2609,6 @@ function PdfViewerInner({
 			handleCopyCommentLink,
 			handleCopyCommentEmbed,
 			handleAddCommentToChat,
-			setHoveredCommentId,
 			handleCommitSelectionComment,
 			handleSelectionCommentActiveChange,
 			handleDismissSelectionComment,
@@ -2679,7 +2677,7 @@ function PdfViewerInner({
 		hostRef,
 		scrollRef,
 		scrollReady,
-		sticky: showOutline || showReferences || showFigures || findOpen,
+		sticky: activePanel !== null || findOpen,
 	});
 
 	// ---- Floating card stack props ----
@@ -2724,9 +2722,9 @@ function PdfViewerInner({
 					children: [],
 				},
 			]);
-			if (!showOutline) handleToggleOutline();
+			if (!showOutline) openPanel("outline");
 		},
-		[t, canBookmark, bookmarkEditor, showOutline, handleToggleOutline],
+		[t, canBookmark, bookmarkEditor, showOutline, openPanel],
 	);
 	const handleBookmarkSelection = useCallback(() => {
 		if (!selectionMenu?.pages.length) return;
@@ -2948,6 +2946,16 @@ function PdfViewerInner({
 		requestFitWidth();
 	}, [pdfScrollStrategy]);
 
+	// A thumbnail jumps to its page and closes the rail: the panel overlays the
+	// reading surface, so leaving it open would cover the figure just jumped to.
+	const handleFiguresJump = useCallback(
+		(region: PdfLayoutRegion) => {
+			handleJumpToLayoutRegion(region);
+			closePanel();
+		},
+		[handleJumpToLayoutRegion, closePanel],
+	);
+
 	return (
 		<div
 			ref={hostRef}
@@ -2958,13 +2966,9 @@ function PdfViewerInner({
 				<PdfLeftToolbar
 					canEditBookmarks={bookmarkEditor.canEdit}
 					outline={outline}
-					showOutline={showOutline}
-					onToggleOutline={handleToggleOutline}
+					activePanel={activePanel}
+					onTogglePanel={togglePanel}
 					paperPath={paperRelPath}
-					showReferences={showReferences}
-					onToggleReferences={handleToggleReferences}
-					showFigures={showFigures}
-					onToggleFigures={handleToggleFigures}
 					visible={leftChromeVisible}
 					isRemotePaper={isRemotePaper}
 					plainViewer={plainViewer}
@@ -2972,34 +2976,6 @@ function PdfViewerInner({
 			)}
 			{!translationOnly && !immersiveReading && jumpBackTarget && (
 				<PdfJumpBackChip onGoBack={goBackToJumpOrigin} />
-			)}
-			{!translationOnly && !immersiveReading && (
-				<PdfOutlinePanel
-					editor={bookmarkEditor}
-					currentPage={currentPage}
-					outline={outline}
-					showOutline={showOutline}
-					onGoToPage={handleGoToPage}
-				/>
-			)}
-			{!translationOnly && !immersiveReading && (
-				<PdfReferencesPanel
-					vaultPath={vaultPath}
-					paperPath={paperRelPath}
-					showReferences={showReferences}
-				/>
-			)}
-			{!translationOnly && !plainViewer && !immersiveReading && (
-				<PdfFiguresPanel
-					documentId={docId}
-					paperAbsPath={paperAbsPath}
-					paperRelPath={paperRelPath}
-					showFigures={showFigures}
-					isRemotePaper={isRemotePaper}
-					onAnalyze={handleAnalyzeLayout}
-					onJump={handleJumpToLayoutRegion}
-					onRenderThumb={handleRenderLayoutThumb}
-				/>
 			)}
 			{!translationOnly && (
 				<PdfFindBar
@@ -3049,15 +3025,17 @@ function PdfViewerInner({
 				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
 				onClickCapture={(event) => {
 					const target = event.target;
-					// Observe the reading surface without swallowing its click. Portaled
-					// menus and page controls keep their own interaction unchanged.
+					// Observe the reading surface without swallowing its click. A
+					// click on the pages dismisses whichever left rail is open (same
+					// for outline / references / figures); portaled menus, cards and
+					// page controls keep their own interaction unchanged.
 					if (
-						showOutline &&
+						activePanel &&
 						target instanceof Element &&
 						event.currentTarget.contains(target) &&
 						!target.closest("[data-pdf-chrome]")
 					)
-						toggleOutline();
+						closePanel();
 				}}
 			>
 				<WheelZoomHandler docId={docId} />
@@ -3172,6 +3150,37 @@ function PdfViewerInner({
 					onExitImmersive={immersiveReading ? exitImmersiveReading : undefined}
 				/>
 			)}
+
+			{/* Left rails paint last: they are full-height overlays, so they cover
+			    the bottom page / zoom bar and the jump-back chip instead of
+			    reserving a lane for them. One slot, so at most one is mounted. */}
+			{!translationOnly && !immersiveReading && activePanel === "outline" && (
+				<PdfOutlinePanel
+					editor={bookmarkEditor}
+					currentPage={currentPage}
+					outline={outline}
+					onGoToPage={handleGoToPage}
+				/>
+			)}
+			{!translationOnly &&
+				!immersiveReading &&
+				activePanel === "references" && (
+					<PdfReferencesPanel vaultPath={vaultPath} paperPath={paperRelPath} />
+				)}
+			{!translationOnly &&
+				!plainViewer &&
+				!immersiveReading &&
+				activePanel === "figures" && (
+					<PdfFiguresPanel
+						documentId={docId}
+						paperAbsPath={paperAbsPath}
+						paperRelPath={paperRelPath}
+						isRemotePaper={isRemotePaper}
+						onAnalyze={handleAnalyzeLayout}
+						onJump={handleFiguresJump}
+						onRenderThumb={handleRenderLayoutThumb}
+					/>
+				)}
 		</div>
 	);
 }

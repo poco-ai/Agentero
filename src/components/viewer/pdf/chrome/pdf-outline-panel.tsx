@@ -24,15 +24,14 @@ type Form = {
 	parent?: string;
 };
 
+/** Outline rail. Mounting is owned by the viewer's single left-panel slot. */
 export function PdfOutlinePanel({
 	outline,
-	showOutline,
 	onGoToPage,
 	editor,
 	currentPage,
 }: {
 	outline: PdfBookmarkObject[];
-	showOutline: boolean;
 	onGoToPage: (page: number) => void;
 	editor: PdfBookmarkEditor;
 	currentPage: number;
@@ -73,60 +72,58 @@ export function PdfOutlinePanel({
 	};
 	return (
 		<>
-			{showOutline && (
-				<aside
-					data-pdf-chrome
-					className={cn("agentero-scroll", PDF_SIDE_PANEL)}
-					aria-label={t("pdf.outline")}
-				>
-					{canEdit && (
-						<div className="absolute top-2 right-2 z-10 flex items-center gap-0.5">
-							{draft?.saving ? (
-								<Loader2
-									className="m-1.5 size-3.5 animate-spin motion-reduce:animate-none"
-									aria-label={t("pdf.bookmarks.saving")}
-								/>
-							) : draft?.failed ? (
-								<Button
-									size="icon-xs"
-									variant="ghost"
-									title={t("pdf.bookmarks.retry")}
-									aria-label={t("pdf.bookmarks.retry")}
-									onClick={() => void save()}
-								>
-									<RotateCw className="size-3.5" />
-								</Button>
-							) : null}
-						</div>
-					)}
-					<div className="px-2">
-						{canEdit ? (
-							<BookmarkEditTree
-								nodes={editor.nodes}
-								onChange={change}
-								onAddChild={(node) => add(node.id)}
-								onRetarget={(node) =>
-									change(
-										updateBookmark(editor.nodes, node.id, (item) => ({
-											...item,
-											pageIndex: currentPage - 1,
-										})),
-									)
-								}
-								onGoToPage={onGoToPage}
-								disabled={Boolean(draft?.saving)}
+			<aside
+				data-pdf-chrome
+				className={cn("agentero-scroll", PDF_SIDE_PANEL)}
+				aria-label={t("pdf.outline")}
+			>
+				{canEdit && (
+					<div className="absolute top-2 right-2 z-10 flex items-center gap-0.5">
+						{draft?.saving ? (
+							<Loader2
+								className="m-1.5 size-3.5 animate-spin motion-reduce:animate-none"
+								aria-label={t("pdf.bookmarks.saving")}
 							/>
-						) : (
-							<OutlineTree nodes={outline} depth={0} onGoToPage={onGoToPage} />
-						)}
-						{(draft?.nodes ?? outline).length === 0 && (
-							<p className="px-2 py-3 text-muted-foreground text-xs">
-								{t("pdf.bookmarks.empty")}
-							</p>
-						)}
+						) : draft?.failed ? (
+							<Button
+								size="icon-xs"
+								variant="ghost"
+								title={t("pdf.bookmarks.retry")}
+								aria-label={t("pdf.bookmarks.retry")}
+								onClick={() => void save()}
+							>
+								<RotateCw className="size-3.5" />
+							</Button>
+						) : null}
 					</div>
-				</aside>
-			)}
+				)}
+				<div className="px-2">
+					{canEdit ? (
+						<BookmarkEditTree
+							nodes={editor.nodes}
+							onChange={change}
+							onAddChild={(node) => add(node.id)}
+							onRetarget={(node) =>
+								change(
+									updateBookmark(editor.nodes, node.id, (item) => ({
+										...item,
+										pageIndex: currentPage - 1,
+									})),
+								)
+							}
+							onGoToPage={onGoToPage}
+							disabled={Boolean(draft?.saving)}
+						/>
+					) : (
+						<OutlineTree nodes={outline} depth={0} onGoToPage={onGoToPage} />
+					)}
+					{(draft?.nodes ?? outline).length === 0 && (
+						<p className="px-2 py-3 text-muted-foreground text-xs">
+							{t("pdf.bookmarks.empty")}
+						</p>
+					)}
+				</div>
+			</aside>
 			<Dialog
 				open={form !== null}
 				onOpenChange={(open) => {
