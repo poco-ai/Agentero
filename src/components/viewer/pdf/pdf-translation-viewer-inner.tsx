@@ -55,7 +55,10 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
-import { publishLayoutSentenceCatalog } from "@/components/viewer/pdf/layout-sentence-hover";
+import {
+	publishLayoutSentenceCatalog,
+	publishLayoutSentencePageAnalysis,
+} from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import type {
 	PdfViewerInnerProps,
@@ -214,13 +217,20 @@ export function PdfTranslationViewerInner({
 	});
 
 	useEffect(() => {
+		publishLayoutSentencePageAnalysis(
+			docId,
+			(layoutRawRegions ?? []).map((region) => region.pageIndex),
+		);
 		publishLayoutSentenceCatalog(
 			docId,
 			[...layoutTranslateItemsByPage.values()].flat(),
 		);
-	}, [docId, layoutTranslateItemsByPage]);
+	}, [docId, layoutTranslateItemsByPage, layoutRawRegions]);
 	useEffect(() => {
-		return () => publishLayoutSentenceCatalog(docId, []);
+		return () => {
+			publishLayoutSentenceCatalog(docId, []);
+			publishLayoutSentencePageAnalysis(docId, []);
+		};
 	}, [docId]);
 	usePdfSentenceInteraction(docId, hostRef);
 	const { provides: annotationCap } = useAnnotationCapability();

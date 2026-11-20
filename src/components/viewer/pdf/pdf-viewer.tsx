@@ -128,6 +128,7 @@ import {
 	bindLayoutSentenceGlyphs,
 	holdLayoutSentenceHover,
 	publishLayoutSentenceCatalog,
+	publishLayoutSentencePageAnalysis,
 	suppressLayoutSentenceHover,
 } from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
@@ -1525,13 +1526,22 @@ function PdfViewerInner({
 					translated: "",
 				})),
 			}));
+		// Analysed pages keep sentence hover on their text regions only; the
+		// whole-page text fallback is reserved for pages without analysis.
+		publishLayoutSentencePageAnalysis(docId, [
+			...(layoutRawRegions ?? []).map((region) => region.pageIndex),
+			...(layoutDocRegions ?? []).map((region) => region.pageIndex),
+		]);
 		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
-	}, [docId, layoutTranslateItemsByPage, layoutRawRegions]);
+	}, [docId, layoutTranslateItemsByPage, layoutRawRegions, layoutDocRegions]);
 	// Clear only when the document changes. Declared after the publish effect so
 	// its cleanup runs first and the next publish restores the new document's
 	// pairs. An items-only update must not flash an empty catalog.
 	useEffect(() => {
-		return () => publishLayoutSentenceCatalog(docId, []);
+		return () => {
+			publishLayoutSentenceCatalog(docId, []);
+			publishLayoutSentencePageAnalysis(docId, []);
+		};
 	}, [docId]);
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
