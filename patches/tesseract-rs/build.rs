@@ -481,6 +481,24 @@ mod build_tesseract {
         }
     }
 
+    /// Whether the installed library is byte-identical to the cached one,
+    /// so a blocked cache copy can fall back to it instead of rebuilding.
+    fn installed_matches_cache(cached: &Path, installed: &Path) -> bool {
+        let Ok(cached_meta) = fs::metadata(cached) else {
+            return false;
+        };
+        let Ok(installed_meta) = fs::metadata(installed) else {
+            return false;
+        };
+        if cached_meta.len() != installed_meta.len() {
+            return false;
+        }
+        match (fs::read(cached), fs::read(installed)) {
+            (Ok(c), Ok(i)) => c == i,
+            _ => false,
+        }
+    }
+
     fn build_or_use_cached<F>(name: &str, cache_dir: &Path, install_dir: &Path, build_fn: F)
     where
         F: FnOnce(),
@@ -523,9 +541,20 @@ mod build_tesseract {
         if cached_path.exists() {
             println!("Using cached {} library", name);
             if let Err(e) = fs::copy(&cached_path, &out_path) {
-                println!("cargo:warning=Failed to copy cached library: {}", e);
-                // If cache copy fails, rebuild
-                build_fn();
+                // Security software can block this unsigned build script's
+                // file writes even though the installed library is already
+                // valid. Rebuild only when the destination cannot serve as
+                // the cached library (missing or different content).
+                if installed_matches_cache(&cached_path, &out_path) {
+                    println!(
+                        "cargo:warning=Cache copy blocked ({}); using identical installed library",
+                        e
+                    );
+                } else {
+                    println!("cargo:warning=Failed to copy cached library: {}", e);
+                    // If cache copy fails, rebuild
+                    build_fn();
+                }
             }
         } else {
             println!("Building {} library", name);
