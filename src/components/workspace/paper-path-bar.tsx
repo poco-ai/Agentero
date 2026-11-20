@@ -22,7 +22,6 @@ import {
 	isUnderPapers,
 	type PaperMetadata,
 } from "@/lib/paper";
-import { arxivUrls } from "@/lib/paper/arxiv";
 import { joinVaultPath, treeFindNode, vaultRelativePath } from "@/lib/vault";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import type { FileNode } from "@/lib/vault/types";
@@ -115,12 +114,7 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 		isTauri() &&
 		!isRemoteVaultHandle(vaultPath) &&
 		!tab.path.startsWith("agentero:");
-	const paperMeta = tab.paperMeta;
-	const pdfUrl = paperMeta?.pdf_url?.trim() || null;
-	const htmlUrl = paperMeta?.html_url?.trim() || tab.htmlUrl || null;
-	const arxivId = paperMeta?.arxiv_id
-		? (arxivUrls(paperMeta.arxiv_id)?.id ?? null)
-		: null;
+	const htmlUrl = tab.paperMeta?.html_url?.trim() || tab.htmlUrl || null;
 
 	return (
 		<div className="flex h-9 min-w-0 shrink-0 items-center gap-2 overflow-hidden border-b border-border/50 px-3 select-none">
@@ -217,9 +211,8 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 			{showOpenWith ? (
 				<OpenWithMenu
 					path={tab.path}
-					pdfUrl={pdfUrl}
+					meta={tab.paperMeta ?? null}
 					htmlUrl={htmlUrl}
-					arxivId={arxivId}
 				/>
 			) : null}
 		</div>
