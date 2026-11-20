@@ -1,0 +1,3495 @@
+{
+	"tools": [
+		{
+			"name": "evidence_search",
+			"title": "在指定材料或整个 Vault 内查找可引用的出处",
+			"description": "在指定材料或整个 Vault 内查找可引用的出处。in 多项取并集，kind 取并集，tag 取交集且仅匹配所属论文。按相关度、来源 ID、位置稳定排序；题录、正文、笔记、表格单元格和 UTF-8 文件均给出处。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"in": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "论文 ID、Vault 相对路径或不透明 cite 引用"
+						},
+						"minItems": 1
+					},
+					"kind": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["metadata", "body", "note", "file", "table"]
+						},
+						"minItems": 1
+					},
+					"tag": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空标签名"
+						},
+						"minItems": 1
+					},
+					"match": {
+						"type": "string",
+						"enum": ["all", "any"],
+						"default": "all"
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 50,
+						"default": 20
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["query"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"cite": {
+									"type": "string"
+								},
+								"source": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["metadata", "body", "note", "file", "table"]
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"excerpt": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"cite",
+								"source",
+								"kind",
+								"locator",
+								"revision",
+								"excerpt"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "evidence_read",
+			"title": "按引用、论文或文件读取有位置的原文",
+			"description": "按引用、论文或文件读取有位置的原文。pages、section、region、quote、lines 互斥。part=layout 需要单页或一个 region；pages 用于 PDF 物理页，保留分页；lines 用于文本。引用自带定位，禁止再传定位器。无定位时，论文给摘要与可读入口，文本文件从首行开始，目录返回子项。body 优先 TeX、PAPER.md、版面，再尝试 PDF 文本；指定页和区域只用有对应坐标的源。原生 PDF 有文本层即可按页读。长内容带续读游标。 cite 可直接来自 evidence_search。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string",
+						"minLength": 1,
+						"description": "论文 ID、Vault 相对路径或不透明 cite 引用"
+					},
+					"part": {
+						"type": "string",
+						"enum": ["auto", "body", "notes", "metadata", "layout"],
+						"default": "auto"
+					},
+					"pages": {
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 2147483647
+						},
+						"minItems": 1,
+						"maxItems": 200,
+						"uniqueItems": true,
+						"description": "从 1 起的物理页码，按页序返回。第 8 页传 [8]。"
+					},
+					"section": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"region": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"quote": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"lines": {
+						"type": "string",
+						"minLength": 1,
+						"description": "1 起闭区间，例 12-24"
+					},
+					"max_chars": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 20000,
+						"default": 4000
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["source"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"not": {
+							"required": ["pages", "section"]
+						}
+					},
+					{
+						"not": {
+							"required": ["pages", "region"]
+						}
+					},
+					{
+						"not": {
+							"required": ["section", "region"]
+						}
+					},
+					{
+						"not": {
+							"required": ["pages", "quote"]
+						}
+					},
+					{
+						"not": {
+							"required": ["section", "quote"]
+						}
+					},
+					{
+						"not": {
+							"required": ["region", "quote"]
+						}
+					},
+					{
+						"not": {
+							"required": ["pages", "lines"]
+						}
+					},
+					{
+						"not": {
+							"required": ["section", "lines"]
+						}
+					},
+					{
+						"not": {
+							"required": ["region", "lines"]
+						}
+					},
+					{
+						"not": {
+							"required": ["quote", "lines"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"part": {
+									"const": "layout"
+								}
+							},
+							"required": ["part"]
+						},
+						"then": {
+							"anyOf": [
+								{
+									"required": ["pages"],
+									"properties": {
+										"pages": {
+											"maxItems": 1
+										}
+									}
+								},
+								{
+									"required": ["region"]
+								}
+							]
+						}
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"text": {
+						"type": "string"
+					},
+					"evidence": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"cite": {
+									"type": "string"
+								},
+								"source": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["metadata", "body", "note", "file", "table"]
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"excerpt": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"cite",
+								"source",
+								"kind",
+								"locator",
+								"revision",
+								"excerpt"
+							],
+							"additionalProperties": false
+						}
+					},
+					"entries": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"path": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"revision": {
+									"type": "string"
+								}
+							},
+							"required": ["path", "kind", "name", "revision"],
+							"additionalProperties": false
+						}
+					},
+					"regions": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"region": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": [
+										"figure",
+										"image",
+										"chart",
+										"table",
+										"algorithm",
+										"formula",
+										"section",
+										"paragraph"
+									]
+								},
+								"page": {
+									"type": "integer"
+								},
+								"box": {
+									"type": "array",
+									"items": {
+										"type": "number"
+									}
+								},
+								"score": {
+									"type": "number"
+								},
+								"cite": {
+									"type": "string"
+								}
+							},
+							"required": ["region", "kind", "page", "box", "score", "cite"],
+							"additionalProperties": false
+						}
+					},
+					"metadata": {
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"path": {
+								"type": "string"
+							},
+							"title": {
+								"type": "string"
+							},
+							"state": {
+								"enum": ["read", "unread"],
+								"type": "string"
+							},
+							"tags": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							"revision": {
+								"type": "string"
+							},
+							"authors": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							"venue": {
+								"type": ["string", "null"]
+							},
+							"date": {
+								"type": ["string", "null"]
+							},
+							"doi": {
+								"type": ["string", "null"]
+							},
+							"arxiv": {
+								"type": ["string", "null"]
+							},
+							"status": {
+								"type": ["string", "null"]
+							},
+							"abstract": {
+								"type": ["string", "null"]
+							},
+							"assets": {
+								"type": "object",
+								"properties": {
+									"pdf": {
+										"type": "string"
+									},
+									"tex": {
+										"type": "string"
+									},
+									"body": {
+										"type": "string"
+									},
+									"notes": {
+										"type": "string"
+									},
+									"marks": {
+										"type": "string"
+									},
+									"folder": {
+										"type": "string"
+									}
+								},
+								"required": ["folder"],
+								"additionalProperties": false
+							}
+						},
+						"required": [
+							"id",
+							"path",
+							"title",
+							"state",
+							"tags",
+							"revision",
+							"authors",
+							"venue",
+							"date",
+							"doi",
+							"arxiv",
+							"status",
+							"abstract",
+							"assets"
+						],
+						"additionalProperties": false
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					},
+					"truncated": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"source",
+					"revision",
+					"evidence",
+					"next_cursor",
+					"truncated"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_list",
+			"title": "按题录筛选馆藏论文",
+			"description": "按题录筛选馆藏论文。query 匹配题名、作者、标识或路径；多个 tag 全部满足。updated/date 降序，title 升序，同值按 ID。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"tag": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空标签名"
+						},
+						"minItems": 1
+					},
+					"state": {
+						"type": "string",
+						"enum": ["read", "unread"]
+					},
+					"status": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"include_internal": {
+						"type": "boolean",
+						"default": false
+					},
+					"sort": {
+						"type": "string",
+						"enum": ["updated", "title", "date"],
+						"default": "updated"
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"state": {
+									"enum": ["read", "unread"],
+									"type": "string"
+								},
+								"tags": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"revision": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "path", "title", "state", "tags", "revision"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_get",
+			"title": "查看一篇论文的元数据、资产与路径",
+			"description": "查看一篇论文的元数据、资产与路径。返回 DOI、arXiv ID、作者、状态、标签和实际存在的 PDF、TeX、正文、笔记、批注位置，路径相对 Vault。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"include_internal": {
+						"type": "boolean",
+						"default": false
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_update",
+			"title": "修改题录字段或阅读状态",
+			"description": "修改题录字段或阅读状态。至少一项修改。author 按输入顺序整体替换；clear 显式清空可空字段，与同字段赋值互斥。title 不可清空。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"title": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"author": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空文本"
+						},
+						"minItems": 1
+					},
+					"venue": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"date": {
+						"type": "string",
+						"minLength": 1,
+						"description": "YYYY、YYYY-MM 或 YYYY-MM-DD"
+					},
+					"doi": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"arxiv": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"state": {
+						"type": "string",
+						"enum": ["read", "unread"]
+					},
+					"status": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"clear": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["authors", "venue", "date", "doi", "arxiv", "status"]
+						},
+						"minItems": 1
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "if_revision"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"anyOf": [
+							{
+								"required": ["title"]
+							},
+							{
+								"required": ["author"]
+							},
+							{
+								"required": ["venue"]
+							},
+							{
+								"required": ["date"]
+							},
+							{
+								"required": ["doi"]
+							},
+							{
+								"required": ["arxiv"]
+							},
+							{
+								"required": ["state"]
+							},
+							{
+								"required": ["status"]
+							},
+							{
+								"required": ["clear"]
+							}
+						]
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_discover",
+			"title": "从 arXiv 检索和排序候选论文",
+			"description": "从 arXiv 检索和排序候选论文。至少一个 keyword 或 category。since≤until，limit≤candidates。hybrid 需要本机配置的 embedding profile；只有已选 Vault 时才去除馆藏项。只查询，不入库。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"keyword": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空文本"
+						},
+						"minItems": 1
+					},
+					"category": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空文本"
+						},
+						"minItems": 1
+					},
+					"match": {
+						"type": "string",
+						"enum": ["all", "any"],
+						"default": "all"
+					},
+					"since": {
+						"type": "string",
+						"minLength": 1,
+						"format": "date",
+						"description": "YYYY-MM-DD"
+					},
+					"until": {
+						"type": "string",
+						"minLength": 1,
+						"format": "date",
+						"description": "YYYY-MM-DD"
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 20
+					},
+					"candidates": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2000,
+						"default": 100
+					},
+					"include_known": {
+						"type": "boolean",
+						"default": false
+					},
+					"rank": {
+						"type": "string",
+						"enum": ["lexical", "hybrid"],
+						"default": "lexical"
+					},
+					"embedding_profile": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"semantic_weight": {
+						"type": "number",
+						"minimum": 0,
+						"maximum": 10,
+						"default": 1
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": [],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"anyOf": [
+							{
+								"required": ["keyword"]
+							},
+							{
+								"required": ["category"]
+							}
+						]
+					},
+					{
+						"if": {
+							"properties": {
+								"rank": {
+									"const": "hybrid"
+								}
+							},
+							"required": ["rank"]
+						},
+						"then": {
+							"required": ["embedding_profile"]
+						}
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"identifier": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"authors": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"abstract": {
+									"type": "string"
+								},
+								"url": {
+									"type": "string"
+								},
+								"score": {
+									"type": "number"
+								}
+							},
+							"required": [
+								"identifier",
+								"title",
+								"authors",
+								"abstract",
+								"url",
+								"score"
+							],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["items"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": true
+			}
+		},
+		{
+			"name": "paper_import",
+			"title": "从 DOI、arXiv 标识或论文 URL 入库",
+			"description": "从 DOI、arXiv 标识或论文 URL 入库。按规范化标识去重，已收录返回 existing；书目信息和可取得的资产分别报告。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"identifier": {
+						"type": "string",
+						"minLength": 1,
+						"description": "DOI、arXiv ID 或论文 URL"
+					},
+					"into": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Vault 相对目录",
+						"default": "papers"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["identifier"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["items"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": true
+			}
+		},
+		{
+			"name": "paper_regions",
+			"title": "列出可直接读取的图、表、公式与文本区域",
+			"description": "列出可直接读取的图、表、公式与文本区域。kind 可重复，按物理页与阅读顺序排列；条目提供 region、cite 与坐标。版面缺失返回 missing_layout。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"kind": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": [
+								"figure",
+								"image",
+								"chart",
+								"table",
+								"algorithm",
+								"formula",
+								"section",
+								"paragraph"
+							]
+						},
+						"minItems": 1
+					},
+					"page": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"min_score": {
+						"type": "number",
+						"minimum": 0,
+						"maximum": 1,
+						"default": 0.3
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"region": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": [
+										"figure",
+										"image",
+										"chart",
+										"table",
+										"algorithm",
+										"formula",
+										"section",
+										"paragraph"
+									]
+								},
+								"page": {
+									"type": "integer"
+								},
+								"box": {
+									"type": "array",
+									"items": {
+										"type": "number"
+									}
+								},
+								"score": {
+									"type": "number"
+								},
+								"cite": {
+									"type": "string"
+								}
+							},
+							"required": ["region", "kind", "page", "box", "score", "cite"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_relations",
+			"title": "查看论文的参考文献及被引关系",
+			"description": "查看论文的参考文献及被引关系。references 来自缓存的参考文献；cited-by 按本地引用缓存反查；related 是参考文献中能匹配到馆藏的子集。返回覆盖范围、匹配依据与缓存状态。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"direction": {
+						"type": "string",
+						"enum": ["references", "cited-by", "related"],
+						"default": "references"
+					},
+					"local_only": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"direction": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"identifier": {
+									"type": ["string", "null"]
+								},
+								"paper": {
+									"type": ["string", "null"]
+								},
+								"match_by": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": [
+								"direction",
+								"title",
+								"identifier",
+								"paper",
+								"match_by"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					},
+					"coverage": {
+						"type": "string"
+					},
+					"cache_state": {
+						"type": "string"
+					}
+				},
+				"required": ["items", "next_cursor", "coverage", "cache_state"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_list",
+			"title": "查看全库标签及论文数量",
+			"description": "查看全库标签及论文数量。按使用数降序、名称升序。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"include_internal": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								},
+								"count": {
+									"type": "integer"
+								},
+								"color": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": ["name", "count", "color"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_add",
+			"title": "给论文增加标签",
+			"description": "给论文增加标签。忽略大小写去重；允许 name:color，颜色写入标签元数据。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空标签名"
+						},
+						"minItems": 1
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "tags"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_remove",
+			"title": "移除指定标签",
+			"description": "移除指定标签。按名称移除，重复调用返回当前集合。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空标签名"
+						},
+						"minItems": 1
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "tags"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_set",
+			"title": "整体替换论文标签",
+			"description": "整体替换论文标签。提供非空标签或 clear，二选一；只操作用户标签。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "非空标签名"
+						},
+						"minItems": 1
+					},
+					"clear": {
+						"type": "boolean",
+						"default": false
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "if_revision"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"oneOf": [
+							{
+								"required": ["tags"],
+								"properties": {
+									"clear": {
+										"const": false
+									}
+								}
+							},
+							{
+								"required": ["clear"],
+								"properties": {
+									"clear": {
+										"const": true
+									}
+								},
+								"not": {
+									"required": ["tags"]
+								}
+							}
+						]
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_note_append",
+			"title": "在论文笔记末尾追加 Markdown",
+			"description": "在论文笔记末尾追加 Markdown。同请求 ID 和相同内容只追加一次。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "1–80 位无空白请求 ID"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					},
+					"content": {
+						"type": "string",
+						"description": "UTF-8 Markdown 正文"
+					}
+				},
+				"required": ["paper", "content", "request_id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"bytes": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "bytes"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_note_replace",
+			"title": "用 Markdown 替换整篇论文笔记",
+			"description": "用 Markdown 替换整篇论文笔记。revision 来自 read part notes；首次创建传 missing。保留锁定实验记录策略。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					},
+					"content": {
+						"type": "string",
+						"description": "UTF-8 Markdown 正文"
+					}
+				},
+				"required": ["paper", "if_revision", "content"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"bytes": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "bytes"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_list",
+			"title": "浏览 Vault 内一个目录",
+			"description": "浏览 Vault 内一个目录。省略 path 从库根开始，只列一层。hidden 含普通隐藏项；管理目录与保留类型的约束始终生效。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Vault 相对目录"
+					},
+					"hidden": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"path": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"revision": {
+									"type": "string"
+								}
+							},
+							"required": ["path", "kind", "name", "revision"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_write",
+			"title": "创建、追加或替换一个 Vault 文件",
+			"description": "创建、追加或替换一个 Vault 文件。create 遇已有文件报冲突；replace 必需 if-revision；append 仅限 UTF-8，需显式提供 request_id。Markdown 只接受 UTF-8。现有表、论文笔记、批注、版面索引与锁定实验记录依各自规则写入；新建表验证结构。创建缺失父目录。 二进制内容使用 base64。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "规范化 Vault 相对路径"
+					},
+					"mode": {
+						"type": "string",
+						"enum": ["create", "append", "replace"],
+						"default": "create"
+					},
+					"encoding": {
+						"type": "string",
+						"enum": ["utf8", "base64"],
+						"default": "utf8"
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "1–80 位无空白请求 ID"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					},
+					"content": {
+						"type": "string",
+						"description": "utf8 为原文，base64 为标准带填充 Base64，最多 2 MiB（解码后）。"
+					}
+				},
+				"required": ["path", "content"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"if": {
+							"properties": {
+								"mode": {
+									"const": "replace"
+								}
+							},
+							"required": ["mode"]
+						},
+						"then": {
+							"required": ["if_revision"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"mode": {
+									"const": "append"
+								}
+							},
+							"required": ["mode"]
+						},
+						"then": {
+							"required": ["request_id"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"mode": {
+									"const": "append"
+								}
+							},
+							"required": ["mode"]
+						},
+						"then": {
+							"properties": {
+								"encoding": {
+									"const": "utf8"
+								}
+							}
+						}
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"bytes": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "bytes"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_move",
+			"title": "移动或重命名文件、目录或整篇论文",
+			"description": "移动或重命名文件、目录或整篇论文。destination 是完整目标路径。普通文件同库移动；论文及其组织目录可跨已授权 Vault，保留论文目录名、更新题录与双链，重名报冲突。dry-run 返回受影响条目。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string",
+						"minLength": 1,
+						"description": "规范化 Vault 相对路径"
+					},
+					"destination": {
+						"type": "string",
+						"minLength": 1,
+						"description": "规范化 Vault 相对路径"
+					},
+					"to_vault": {
+						"type": "string",
+						"description": "授权的目标 Vault ID"
+					},
+					"dry_run": {
+						"type": "boolean",
+						"default": false
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["source", "destination"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"changed": {
+						"type": "boolean"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["changed", "items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_remove",
+			"title": "将文件或目录移入 Vault 回收站",
+			"description": "将文件或目录移入 Vault 回收站。处理论文目录时一并回收题录，返回恢复 ID；同批父子路径先归并。删除前可预览。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paths": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "规范化 Vault 相对路径"
+						},
+						"minItems": 1
+					},
+					"dry_run": {
+						"type": "boolean",
+						"default": false
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paths"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": ["string", "null"]
+								},
+								"path": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "path"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "trash_list",
+			"title": "列出可恢复的回收条目",
+			"description": "列出可恢复的回收条目。按回收时间倒序，显示原始路径。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"removed_at": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "path", "removed_at"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "trash_restore",
+			"title": "将回收的条目与题录恢复到原路径",
+			"description": "将回收的条目与题录恢复到原路径。原路径已被占用时报冲突，保留回收条目。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"changed": {
+						"type": "boolean"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["changed", "items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_list",
+			"title": "列出论文中的高亮、提问、翻译及 Agent 标记",
+			"description": "列出论文中的高亮、提问、翻译及 Agent 标记。按页和位置排序。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"kind": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["highlight", "ask", "translate", "agent-trace"]
+						},
+						"minItems": 1
+					},
+					"page": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"paper": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["highlight", "ask", "translate", "agent-trace"]
+								},
+								"cite": {
+									"type": "string"
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"comment": {
+									"type": ["string", "null"]
+								},
+								"color": {
+									"type": ["string", "null"]
+								},
+								"question": {
+									"type": ["string", "null"]
+								},
+								"translation": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": [
+								"id",
+								"paper",
+								"kind",
+								"cite",
+								"locator",
+								"revision",
+								"comment",
+								"color",
+								"question",
+								"translation"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_get",
+			"title": "查看批注及其原文位置",
+			"description": "查看批注及其原文位置。返回定位、引用、备注、颜色及版本。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"paper": {
+						"type": "string"
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["highlight", "ask", "translate", "agent-trace"]
+					},
+					"cite": {
+						"type": "string"
+					},
+					"locator": {
+						"type": "object",
+						"properties": {
+							"page": {
+								"type": "integer"
+							},
+							"section": {
+								"type": "string"
+							},
+							"region": {
+								"type": "string"
+							},
+							"line_from": {
+								"type": "integer"
+							},
+							"line_to": {
+								"type": "integer"
+							},
+							"row": {
+								"type": "string"
+							},
+							"field": {
+								"type": "string"
+							},
+							"box": {
+								"type": "array",
+								"items": {
+									"type": "number"
+								}
+							},
+							"unit": {
+								"type": "string",
+								"enum": ["normalized"]
+							}
+						},
+						"required": [],
+						"additionalProperties": false
+					},
+					"revision": {
+						"type": "string"
+					},
+					"comment": {
+						"type": ["string", "null"]
+					},
+					"color": {
+						"type": ["string", "null"]
+					},
+					"question": {
+						"type": ["string", "null"]
+					},
+					"translation": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"id",
+					"paper",
+					"kind",
+					"cite",
+					"locator",
+					"revision",
+					"comment",
+					"color",
+					"question",
+					"translation"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_add",
+			"title": "用原句或版面区域创建批注",
+			"description": "用原句或版面区域创建批注。cite、quote、region 三选一；cite 必须定位到该论文。occurrence 与 all-matches 互斥且仅用于 quote；重复匹配返回候选。ask 必需 question；translate 必需 language，可传人工译文，否则使用已配置翻译服务。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"cite": {
+						"type": "string",
+						"minLength": 1,
+						"description": "论文 ID、Vault 相对路径或不透明 cite 引用"
+					},
+					"quote": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"region": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"page": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"occurrence": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"all_matches": {
+						"type": "boolean",
+						"default": false
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["highlight", "ask", "translate"],
+						"default": "highlight"
+					},
+					"comment": {
+						"type": "string",
+						"description": "文本，允许空串"
+					},
+					"question": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"color": {
+						"type": "string",
+						"enum": ["yellow", "green", "blue", "pink", "purple"],
+						"default": "yellow"
+					},
+					"language": {
+						"type": "string",
+						"minLength": 1,
+						"description": "BCP 47 语言标签"
+					},
+					"translation": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "1–80 位无空白请求 ID"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "request_id"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"oneOf": [
+							{
+								"required": ["cite"]
+							},
+							{
+								"required": ["quote"]
+							},
+							{
+								"required": ["region"]
+							}
+						]
+					},
+					{
+						"if": {
+							"properties": {
+								"kind": {
+									"const": "ask"
+								}
+							},
+							"required": ["kind"]
+						},
+						"then": {
+							"required": ["question"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"kind": {
+									"const": "translate"
+								}
+							},
+							"required": ["kind"]
+						},
+						"then": {
+							"required": ["language"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"all_matches": {
+									"const": true
+								}
+							},
+							"required": ["all_matches"]
+						},
+						"then": {
+							"required": ["quote"],
+							"not": {
+								"required": ["occurrence"]
+							}
+						}
+					}
+				],
+				"dependentRequired": {
+					"occurrence": ["quote"]
+				}
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"paper": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["highlight", "ask", "translate", "agent-trace"]
+								},
+								"cite": {
+									"type": "string"
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"comment": {
+									"type": ["string", "null"]
+								},
+								"color": {
+									"type": ["string", "null"]
+								},
+								"question": {
+									"type": ["string", "null"]
+								},
+								"translation": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": [
+								"id",
+								"paper",
+								"kind",
+								"cite",
+								"locator",
+								"revision",
+								"comment",
+								"color",
+								"question",
+								"translation"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": true
+			}
+		},
+		{
+			"name": "annotation_update",
+			"title": "修改批注的备注或颜色",
+			"description": "修改批注的备注或颜色。至少提供 comment 或 color；空 comment 清空备注。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"comment": {
+						"type": "string",
+						"description": "文本，允许空串"
+					},
+					"color": {
+						"type": "string",
+						"enum": ["yellow", "green", "blue", "pink", "purple"]
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "id", "if_revision"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"anyOf": [
+							{
+								"required": ["comment"]
+							},
+							{
+								"required": ["color"]
+							}
+						]
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"paper": {
+						"type": "string"
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["highlight", "ask", "translate", "agent-trace"]
+					},
+					"cite": {
+						"type": "string"
+					},
+					"locator": {
+						"type": "object",
+						"properties": {
+							"page": {
+								"type": "integer"
+							},
+							"section": {
+								"type": "string"
+							},
+							"region": {
+								"type": "string"
+							},
+							"line_from": {
+								"type": "integer"
+							},
+							"line_to": {
+								"type": "integer"
+							},
+							"row": {
+								"type": "string"
+							},
+							"field": {
+								"type": "string"
+							},
+							"box": {
+								"type": "array",
+								"items": {
+									"type": "number"
+								}
+							},
+							"unit": {
+								"type": "string",
+								"enum": ["normalized"]
+							}
+						},
+						"required": [],
+						"additionalProperties": false
+					},
+					"revision": {
+						"type": "string"
+					},
+					"comment": {
+						"type": ["string", "null"]
+					},
+					"color": {
+						"type": ["string", "null"]
+					},
+					"question": {
+						"type": ["string", "null"]
+					},
+					"translation": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"id",
+					"paper",
+					"kind",
+					"cite",
+					"locator",
+					"revision",
+					"comment",
+					"color",
+					"question",
+					"translation"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_remove",
+			"title": "删除一条批注",
+			"description": "删除一条批注。按指定版本删除，旧版本返回冲突。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "唯一论文 ID 或库内论文目录"
+					},
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["paper", "id", "if_revision"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"changed": {
+						"type": "boolean"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["changed", "items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "table_query",
+			"title": "按记录 ID 或字段值查询表格",
+			"description": "按记录 ID 或字段值查询表格。field 与 equals 成对出现。equals 是 JSON 标量，字符串须作为 JSON 字符串传入；结果含 revision、列定义和行。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "规范化 Vault 相对路径"
+					},
+					"row": {
+						"type": "string",
+						"minLength": 1,
+						"description": "前序命令返回的标识符"
+					},
+					"field": {
+						"type": "string",
+						"minLength": 1,
+						"description": "非空文本"
+					},
+					"equals": {
+						"type": ["string", "number", "boolean", "null"]
+					},
+					"archived": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "同一请求返回的不透明游标"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					}
+				},
+				"required": ["path"],
+				"additionalProperties": false,
+				"dependentRequired": {
+					"equals": ["field"],
+					"field": ["equals"]
+				}
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"revision": {
+						"type": "string"
+					},
+					"columns": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								},
+								"type": {
+									"type": "string"
+								}
+							},
+							"required": ["name", "type"],
+							"additionalProperties": false
+						}
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"fields": {
+									"type": "object",
+									"additionalProperties": true
+								},
+								"archived": {
+									"type": "boolean"
+								}
+							},
+							"required": ["id", "fields", "archived"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["revision", "columns", "items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "table_upsert",
+			"title": "按记录 ID 创建或局部更新多行",
+			"description": "按记录 ID 创建或局部更新多行。rows 为行数组，仅修改给出的字段。整批校验并原子提交；相同请求重放返回首次回执。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "规范化 Vault 相对路径"
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "1–80 位无空白请求 ID"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					},
+					"rows": {
+						"type": "array",
+						"minItems": 1,
+						"maxItems": 200,
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"fields": {
+									"type": "object",
+									"minProperties": 1,
+									"additionalProperties": {
+										"type": ["string", "number", "boolean", "null"]
+									}
+								}
+							},
+							"required": ["id", "fields"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["path", "if_revision", "rows", "request_id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"changed_rows": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"changed_cells": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "changed_rows", "changed_cells"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "table_patch",
+			"title": "按记录 ID 和列名更新多个单元格",
+			"description": "按记录 ID 和列名更新多个单元格。cells 为单元格数组；目标行和字段必须存在。重复坐标报错，整批原子提交。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "规范化 Vault 相对路径"
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "上次读取所得不透明版本"
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "1–80 位无空白请求 ID"
+					},
+					"vault": {
+						"type": "string",
+						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+					},
+					"cells": {
+						"type": "array",
+						"minItems": 1,
+						"maxItems": 1000,
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"field": {
+									"type": "string"
+								},
+								"value": {
+									"type": ["string", "number", "boolean", "null"]
+								}
+							},
+							"required": ["id", "field", "value"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["path", "if_revision", "cells", "request_id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"changed_rows": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"changed_cells": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "changed_rows", "changed_cells"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "vault_list",
+			"title": "列出当前调用者可见的 Vault",
+			"description": "列出当前调用者可见的 Vault。终端列已登记的本地库；MCP 只列服务授予的库。返回短 ID、名称及当前库；绝对路径仅在本地终端显示。",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"current": {
+									"type": "boolean"
+								},
+								"path": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "name", "current"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["items"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		}
+	]
+}

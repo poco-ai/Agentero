@@ -13,6 +13,7 @@
 
 | 文档 | 主题 |
 |---|---|
+| [CLI 与 MCP 接口设计](cli-mcp/README.md) | 科研命令与管道、逐级帮助、对外 MCP 工具契约，以及移除会话 MCP 的实施顺序与验收。 |
 | [vault-sync-review.md](vault-sync-review.md) | Vault 同步审计与实施记录：五个反例、修复策略、落盘恢复及验收边界。 |
 | [rfc-scholarly-data-resolution.md](rfc-scholarly-data-resolution.md) | 学术数据解析与补全 RFC：来源编排、身份与字段证据、venue、PwC、机构 PDF 获取边界。**设计稿，待评审** |
 | [usage-analytics.md](usage-analytics.md) | \#239 Activity 总线。P0 存储已落地：XDG `usage.sqlite`（见 [../backend/usage.md](../backend/usage.md)） |
