@@ -55,11 +55,11 @@ import { tryOpenWritingSource } from "@/lib/tex/editor-navigation";
 import { syncTexAfterBuild } from "@/lib/tex/synctex";
 import { isTexLiveRootActive } from "@/lib/tex-live/session";
 import {
+	createVaultFile,
 	ensureLocalFsScope,
 	joinVaultPath,
 	vaultPathExists,
 	vaultRelativePath,
-	writeVaultFile,
 } from "@/lib/vault";
 import { getVaultPath, refreshTree, vaultStore } from "@/lib/vault/store";
 import {
@@ -1220,6 +1220,21 @@ function scheduleAnnotationJump(paperAbs: string, annotationId: string): void {
 	}, 2000);
 }
 
+/**
+ * Whether a wikilink create target is already present. Checks the loaded Vault
+ * tree first (covers remote Vaults) and then the disk.
+ */
+async function wikiCreateTargetExists(rel: string): Promise<boolean> {
+	if (vaultStore.getState().vaultWikiTargetFiles.includes(rel)) return true;
+	const vaultPath = getVaultPath();
+	if (!vaultPath) return false;
+	try {
+		return await vaultPathExists(joinVaultPath(vaultPath, rel));
+	} catch {
+		return false;
+	}
+}
+
 export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 	const vaultPath = getVaultPath();
 	// Invalid PDF anchors fail before opening/restoring an unrelated location.
@@ -1326,6 +1341,14 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 		return;
 	}
 	const createRel = missingNotePath(nav.targetRaw);
+	const full = joinVaultPath(vaultPath, createRel);
+	// The link can point at a note the resolver does not match (a hand-written
+	// name, or one the user already has). Open it instead of creating over it:
+	// overwriting here is exactly the data loss behind issue #1169.
+	if (await wikiCreateTargetExists(createRel)) {
+		openPath(full);
+		return;
+	}
 	const ok = window.confirm(
 		i18n.t("app:confirm.createNote", {
 			target: nav.targetRaw,
@@ -1335,10 +1358,12 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 	if (!ok) return;
 
 	const content = newNoteMarkdown(nav.targetRaw);
-	const full = joinVaultPath(vaultPath, createRel);
-
 	try {
-		await writeVaultFile(full, content);
+		if (!(await createVaultFile(full, content))) {
+			// Another window created it between the check and this write.
+			openPath(full);
+			return;
+		}
 		await rebuildWikiAndNotify(vaultPath);
 		await refreshTree(vaultPath);
 		openPath(full);
