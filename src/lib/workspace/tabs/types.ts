@@ -75,6 +75,8 @@ export type DocTab = {
 	texRoot?: string;
 	/** Owning writing project for source files and project assets. */
 	writingRoot?: string;
+	/** A failed NOTES read must not mount an editor with an empty baseline. */
+	loadError?: string;
 	loaded: boolean;
 };
 

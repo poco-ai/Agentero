@@ -5,7 +5,7 @@ import {
 	isUnderPapers,
 	notesPathForPaper,
 } from "@/lib/paper/paths";
-import { readVaultFile } from "@/lib/vault/fs";
+import { vaultPathExists } from "@/lib/vault/fs";
 import { treeFindNode } from "@/lib/vault/path";
 import type { FileNode } from "@/lib/vault/types";
 
@@ -284,22 +284,13 @@ export function collectPaperFoldersFromTree(
 
 export async function detectPaperDirectory(path: string): Promise<boolean> {
 	if (!isUnderPapers(path) || isPapersRoot(path)) return false;
-	try {
-		await readVaultFile(notesPathForPaper(path));
-		return true;
-	} catch {
-		// Fall through to PAPER.md probe.
-	}
-	// Tree markers treat PAPER.md as a paper marker; align path-only detection
-	// so paper folders without NOTES.md (e.g. freshly imported) still restore.
-	try {
-		await readVaultFile(
-			notesPathForPaper(path).replace(/NOTES\.md$/i, "PAPER.md"),
-		);
-		return true;
-	} catch {
-		return false;
-	}
+	const notesPath = notesPathForPaper(path);
+	return (
+		(await vaultPathExists(notesPath).catch(() => false)) ||
+		vaultPathExists(notesPath.replace(/NOTES\.md$/i, "PAPER.md")).catch(
+			() => false,
+		)
+	);
 }
 
 /**

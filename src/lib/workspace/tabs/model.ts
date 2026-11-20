@@ -320,6 +320,13 @@ export function patchFromTabResources(
 		markdownSeed: res.markdownSeed,
 		textSeed: res.textSeed ?? "",
 		seedKey: 1,
+		loadError:
+			current &&
+			res.mode === "markdown" &&
+			res.notesPath &&
+			normalizePathKey(current.path) === normalizePathKey(res.notesPath)
+				? res.error
+				: undefined,
 		loaded: true,
 	};
 }
