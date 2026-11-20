@@ -28,7 +28,6 @@ import {
 } from "@/lib/shell/commands/menu-contributions";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
 import { vaultRelativePath } from "@/lib/vault";
-import { revealInOsLabelKey } from "@/lib/vault/reveal";
 import type { TreeContextMenu } from "./types";
 
 function fileTreeItemContext(
@@ -88,8 +87,6 @@ export type TreeContextMenuPortalProps = {
 	onCopyPath?: () => void;
 	onCut?: () => void;
 	onPaste?: () => void;
-	onReveal?: () => void;
-	onOpenInTerminal?: () => void;
 	onMove?: () => void;
 	onRename?: () => void;
 	onDelete?: () => void;
@@ -125,8 +122,6 @@ export function TreeContextMenuPortal({
 	onCopyPath,
 	onCut,
 	onPaste,
-	onReveal,
-	onOpenInTerminal,
 	onMove,
 	onRename,
 	onDelete,
@@ -177,13 +172,27 @@ export function TreeContextMenuPortal({
 			)
 		: [];
 
-	const revealLabel = t(revealInOsLabelKey());
-	const revealShortcut = formatShortcutById("revealInFinder");
-	const openInTerminalShortcut = formatShortcutById("openInTerminal");
 	const splitPaneShortcut = formatShortcutById("splitPane");
 	const deleteShortcut = formatShortcutById("deleteTreeItem");
 	const cutShortcut = formatShortcutById("cutTreeItem");
 	const pasteShortcut = formatShortcutById("pasteTreeItem");
+	// Top group: agent context + create/open. Bottom group: metadata, clipboard,
+	// move/rename, delete. Only split them when both sides have rows.
+	const hasTopActions =
+		menuCount === 1 &&
+		(Boolean(onAddToChat) ||
+			Boolean(onNewFile) ||
+			Boolean(onOpenTexPdf) ||
+			(isPaperMenu && Boolean(onOpenNotes)) ||
+			(!isPaperMenu && Boolean(onNewFolder)));
+	const hasBottomActions =
+		(menuCount === 1 && isPaperMenu && Boolean(onEditMeta)) ||
+		Boolean(onCopyPath) ||
+		Boolean(onCut) ||
+		(canPasteAtTarget && Boolean(onPaste)) ||
+		Boolean(onMove) ||
+		(menuCount === 1 && Boolean(onRename)) ||
+		Boolean(onDelete);
 
 	return (
 		<FloatingMenu
@@ -292,23 +301,6 @@ export function TreeContextMenuPortal({
 				))
 			) : (
 				<>
-					{menuCount === 1 && isPaperMenu && onOpenNotes ? (
-						<FloatingMenuItem onClick={onOpenNotes}>
-							<span>{t("fileTree.openNotes")}</span>
-							<FloatingMenuShortcut>{splitPaneShortcut}</FloatingMenuShortcut>
-						</FloatingMenuItem>
-					) : null}
-					{menuCount === 1 && onOpenTexPdf ? (
-						<FloatingMenuItem onClick={onOpenTexPdf}>
-							<span>{t("fileTree.openTexPdf")}</span>
-							<FloatingMenuShortcut>{splitPaneShortcut}</FloatingMenuShortcut>
-						</FloatingMenuItem>
-					) : null}
-					{menuCount === 1 && isPaperMenu && onEditMeta ? (
-						<FloatingMenuItem onClick={onEditMeta}>
-							<span>{t("papersLibrary.rowEditMeta")}</span>
-						</FloatingMenuItem>
-					) : null}
 					{menuCount === 1 && onAddToChat ? (
 						<FloatingMenuItem onClick={onAddToChat}>
 							<span>{t("fileTree.addToChat")}</span>
@@ -322,6 +314,24 @@ export function TreeContextMenuPortal({
 					{menuCount === 1 && onNewFolder && !isPaperMenu ? (
 						<FloatingMenuItem onClick={onNewFolder}>
 							<span>{t("fileTree.newFolder")}</span>
+						</FloatingMenuItem>
+					) : null}
+					{menuCount === 1 && isPaperMenu && onOpenNotes ? (
+						<FloatingMenuItem onClick={onOpenNotes}>
+							<span>{t("fileTree.openNotes")}</span>
+							<FloatingMenuShortcut>{splitPaneShortcut}</FloatingMenuShortcut>
+						</FloatingMenuItem>
+					) : null}
+					{menuCount === 1 && onOpenTexPdf ? (
+						<FloatingMenuItem onClick={onOpenTexPdf}>
+							<span>{t("fileTree.openTexPdf")}</span>
+							<FloatingMenuShortcut>{splitPaneShortcut}</FloatingMenuShortcut>
+						</FloatingMenuItem>
+					) : null}
+					{hasTopActions && hasBottomActions ? <FloatingMenuSeparator /> : null}
+					{menuCount === 1 && isPaperMenu && onEditMeta ? (
+						<FloatingMenuItem onClick={onEditMeta}>
+							<span>{t("papersLibrary.rowEditMeta")}</span>
 						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onCopyPath ? (
@@ -349,20 +359,6 @@ export function TreeContextMenuPortal({
 										})}
 							</span>
 							<FloatingMenuShortcut>{pasteShortcut}</FloatingMenuShortcut>
-						</FloatingMenuItem>
-					) : null}
-					{menuCount === 1 && onReveal ? (
-						<FloatingMenuItem onClick={onReveal}>
-							<span>{revealLabel}</span>
-							<FloatingMenuShortcut>{revealShortcut}</FloatingMenuShortcut>
-						</FloatingMenuItem>
-					) : null}
-					{menuCount === 1 && onOpenInTerminal ? (
-						<FloatingMenuItem onClick={onOpenInTerminal}>
-							<span>{t("fileTree.openInTerminal")}</span>
-							<FloatingMenuShortcut>
-								{openInTerminalShortcut}
-							</FloatingMenuShortcut>
 						</FloatingMenuItem>
 					) : null}
 					{onMove ? (

@@ -36,11 +36,16 @@ import { getPlatformOS } from "@/lib/core/tauri";
 import type { PaperMetadata } from "@/lib/paper";
 import { paperLinkTargets } from "@/lib/paper/external-links";
 import { askPaperOnZhihu } from "@/lib/paper/zhihu-ask";
+import { formatShortcutById } from "@/lib/shell/shortcuts";
 import {
 	type OpenWithApp,
 	openPaperFolderWith,
 	probeOpenWithApps,
 } from "@/lib/system/open-with";
+import {
+	openFilePathInTerminal,
+	revealFilePath,
+} from "@/lib/workspace/file-path-actions";
 
 type OpenWithMenuProps = {
 	/** Paper body path; the Host opens its containing folder. */
@@ -60,15 +65,13 @@ function fileManagerName(): string {
 }
 
 /**
- * Icon row before the Host probe resolves (or if it fails). The dropdown only
- * lists editors; Finder/Terminal ride the file tree's existing shortcuts.
+ * Rows before the Host probe resolves (or if it fails). Real app icons arrive
+ * with the probe; these generic rows keep the control usable meanwhile.
  */
-const FALLBACK_FINDER: OpenWithApp = {
-	id: "finder",
-	name: fileManagerName(),
-	kind: "fileManager",
-	icon: null,
-};
+const FALLBACK_APPS: OpenWithApp[] = [
+	{ id: "finder", name: fileManagerName(), kind: "fileManager", icon: null },
+	{ id: "terminal", name: "Terminal", kind: "terminal", icon: null },
+];
 
 /** One row in the "Open links" section. */
 type LinkRow = {
@@ -105,12 +108,13 @@ function AppIcon({ app }: { app: OpenWithApp }) {
 
 /**
  * macOS-style "Open with" split control for the paper path bar: the Finder
- * half opens the paper folder, the chevron lists installed editors plus every
- * external link card the Paper Info sidebar shows (arXiv, DOI, alphaXiv,
- * ModelScope, 知乎, GitHub, Hugging Face, OpenReview, PDF). Finder and
- * Terminal are not duplicated here — they keep the file tree's shortcut
- * actions (⌥⌘R reveal / ⌥⌘T terminal). Icons are the real application icons
- * extracted by the Host; hand-drawn brand marks are intentionally avoided.
+ * half opens the paper folder, the chevron lists the file manager (reveal in
+ * Finder / Explorer, ⌥⌘R), installed editors, the preferred terminal (⌥⌘T),
+ * and every external link card the Paper Info sidebar shows (arXiv, DOI,
+ * alphaXiv, ModelScope, 知乎, GitHub, Hugging Face, OpenReview, PDF). The file
+ * tree's right-click menu no longer repeats the Finder/Terminal rows, so this
+ * menu shows their shortcuts. Icons are the real application icons extracted
+ * by the Host; hand-drawn brand marks are intentionally avoided.
  */
 export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 	const { t } = useTranslation("app");
@@ -143,10 +147,21 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 		void action().catch((error: unknown) => notifyError(errorText(error)));
 	};
 
-	const editorApps = apps.filter((app) => app.kind === "editor");
-	const defaultApp =
-		apps.find((app) => app.kind === "fileManager") ?? FALLBACK_FINDER;
-	const openEditor = (app: OpenWithApp) => openPaperFolderWith(app.id, path);
+	const rows = apps.length > 0 ? apps : FALLBACK_APPS;
+	const defaultApp = rows.find((app) => app.kind === "fileManager") ?? rows[0];
+	// Finder reveals the paper/source in the file manager (same action and
+	// shortcut as the removed tree row); Terminal reuses the Settings terminal.
+	const openRow = (app: OpenWithApp) => {
+		if (app.kind === "fileManager") return revealFilePath(path);
+		if (app.kind === "terminal") return openFilePathInTerminal(path);
+		return openPaperFolderWith(app.id, path);
+	};
+	const shortcutFor = (app: OpenWithApp) =>
+		app.kind === "fileManager"
+			? formatShortcutById("revealInFinder")
+			: app.kind === "terminal"
+				? formatShortcutById("openInTerminal")
+				: "";
 
 	const targets = paperLinkTargets(meta);
 	const links: LinkRow[] = [];
@@ -242,68 +257,72 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 			>
 				<AppIcon app={defaultApp} />
 			</Button>
-			{editorApps.length > 0 || links.length > 0 ? (
-				<DropdownMenu
-					onOpenChange={(open) => {
-						if (open) pointerCloseRef.current = false;
+			<DropdownMenu
+				onOpenChange={(open) => {
+					if (open) pointerCloseRef.current = false;
+				}}
+			>
+				<DropdownMenuTrigger asChild>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						aria-label={t("pathBar.openWith")}
+						title={t("pathBar.openWith")}
+						className="h-full w-6 rounded-none border-border/80 border-l"
+					>
+						<ChevronDown className="size-3.5" aria-hidden />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					align="end"
+					sideOffset={6}
+					className="w-48"
+					onPointerDown={() => {
+						pointerCloseRef.current = true;
+					}}
+					onPointerDownOutside={() => {
+						pointerCloseRef.current = true;
+					}}
+					onCloseAutoFocus={(event) => {
+						if (!pointerCloseRef.current) return;
+						pointerCloseRef.current = false;
+						event.preventDefault();
 					}}
 				>
-					<DropdownMenuTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							aria-label={t("pathBar.openWith")}
-							title={t("pathBar.openWith")}
-							className="h-full w-6 rounded-none border-border/80 border-l"
-						>
-							<ChevronDown className="size-3.5" aria-hidden />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent
-						align="end"
-						sideOffset={6}
-						className="w-48"
-						onPointerDown={() => {
-							pointerCloseRef.current = true;
-						}}
-						onPointerDownOutside={() => {
-							pointerCloseRef.current = true;
-						}}
-						onCloseAutoFocus={(event) => {
-							if (!pointerCloseRef.current) return;
-							pointerCloseRef.current = false;
-							event.preventDefault();
-						}}
-					>
-						{editorApps.map((app) => (
+					{rows.map((app) => {
+						const shortcut = shortcutFor(app);
+						return (
 							<DropdownMenuItem
 								key={app.id}
-								onSelect={() => run(() => openEditor(app))}
+								onSelect={() => run(() => openRow(app))}
 							>
 								<AppIcon app={app} />
 								<span className="min-w-0 flex-1 truncate">{app.name}</span>
+								{shortcut ? (
+									<span className="ml-auto shrink-0 pl-2 text-muted-foreground text-xs tracking-wide">
+										{shortcut}
+									</span>
+								) : null}
 							</DropdownMenuItem>
-						))}
-						{links.length > 0 ? (
-							<>
-								{editorApps.length > 0 ? <DropdownMenuSeparator /> : null}
-								<DropdownMenuLabel className="py-1">
-									{t("pathBar.openLinks")}
-								</DropdownMenuLabel>
-								{links.map((link) => (
-									<DropdownMenuItem key={link.id} onSelect={link.onSelect}>
-										{link.icon}
-										<span className="min-w-0 flex-1 truncate">
-											{link.label}
-										</span>
-									</DropdownMenuItem>
-								))}
-							</>
-						) : null}
-					</DropdownMenuContent>
-				</DropdownMenu>
-			) : null}
+						);
+					})}
+					{links.length > 0 ? (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuLabel className="py-1">
+								{t("pathBar.openLinks")}
+							</DropdownMenuLabel>
+							{links.map((link) => (
+								<DropdownMenuItem key={link.id} onSelect={link.onSelect}>
+									{link.icon}
+									<span className="min-w-0 flex-1 truncate">{link.label}</span>
+								</DropdownMenuItem>
+							))}
+						</>
+					) : null}
+				</DropdownMenuContent>
+			</DropdownMenu>
 		</div>
 	);
 }
