@@ -1000,11 +1000,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 			pressed={source}
 			disabled={switching}
 			data-markdown-source-toggle=""
-			className="text-muted-foreground"
 			onMouseDown={(event) => event.preventDefault()}
 			onClick={toggle}
 		>
-			{source ? <Eye className="size-3.5" /> : <CodeXml className="size-3.5" />}
+			{source ? <Eye /> : <CodeXml />}
 		</ToolbarButton>
 	) : null;
 	/** Formatting chrome: the toolbar setting or a read-only pane hides it. */
