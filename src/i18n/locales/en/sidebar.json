@@ -259,6 +259,23 @@
 		"importToFolder": "Import to folder",
 		"comingSoonFor": "{{label}} is coming soon.",
 		"modelscope": "ModelScope Papers",
+		"huggingface": "Hugging Face Daily Papers",
+		"huggingfacePage": {
+			"latest": "Latest",
+			"editionDate": "Edition date",
+			"loading": "Loading daily papers…",
+			"loadFailed": "Could not load Hugging Face Daily Papers.",
+			"empty": "No papers for this edition.",
+			"votes_one": "{{count}} vote",
+			"votes_other": "{{count}} votes",
+			"expandAbstract": "Full abstract",
+			"collapseAbstract": "Collapse abstract",
+			"translate": "Translate abstract",
+			"translating": "Translating…",
+			"showOriginal": "Show original abstract",
+			"showTranslation": "Show translation",
+			"importing": "Importing…"
+		},
 		"pwc": {
 			"label": "Papers with Code"
 		},

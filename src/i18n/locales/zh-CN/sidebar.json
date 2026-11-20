@@ -259,6 +259,22 @@
 		"importToFolder": "导入到文件夹",
 		"comingSoonFor": "{{label}} 即将推出。",
 		"modelscope": "ModelScope 论文",
+		"huggingface": "Hugging Face 每日论文",
+		"huggingfacePage": {
+			"latest": "最新",
+			"editionDate": "每日论文日期",
+			"loading": "正在加载每日论文…",
+			"loadFailed": "无法加载 Hugging Face 每日论文。",
+			"empty": "这一天没有论文。",
+			"votes_other": "{{count}} 票",
+			"expandAbstract": "展开摘要",
+			"collapseAbstract": "收起摘要",
+			"translate": "翻译摘要",
+			"translating": "正在翻译…",
+			"showOriginal": "查看原文",
+			"showTranslation": "查看译文",
+			"importing": "入库中…"
+		},
 		"pwc": {
 			"label": "Papers with Code"
 		},
