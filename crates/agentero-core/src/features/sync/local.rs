@@ -129,6 +129,7 @@ pub(super) fn clear(lock: &super::lock::SyncLock) -> Result<(), AppError> {
         "pushed.jsonl",
         "pending.json",
         "accepted.json",
+        "webdav-journal.json",
     ] {
         match fs::remove_file(sync_dir(vault).join(name)) {
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),

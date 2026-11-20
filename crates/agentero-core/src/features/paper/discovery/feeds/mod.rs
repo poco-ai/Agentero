@@ -1,8 +1,6 @@
 //! Plaza RSS / Atom / JSON Feed subscriptions.
 //!
 //! Stored in `$XDG_DATA_HOME/agentero/feeds.sqlite`. Does not write catalog or Vault.
-//!
-//! @see docs/backend/api.md §3.10.4
 
 mod body;
 pub mod parse;
@@ -598,7 +596,7 @@ fn map_item_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<FeedItem> {
         title: row.get(3)?,
         url: row.get(4)?,
         published_at: row.get(5)?,
-        summary_text: row.get(6)?,
+        summary_text: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
         content_html: row.get(7)?,
         paper_url: row.get(8)?,
         imported_at: row.get(9)?,
@@ -778,6 +776,19 @@ pub async fn resolve_body(id: &str) -> Result<FeedItem, AppError> {
             Ok(item_with_body(existing, fallback))
         }
     }
+}
+
+/// Continuation sort key for an undated entry. SQLite sorts these by the time
+/// first seen, while the public entry keeps its publication date unknown.
+pub fn item_sort_time(id: &str) -> Result<Option<String>, AppError> {
+    use rusqlite::OptionalExtension;
+    Ok(ensure_feeds()?
+        .query_row(
+            "SELECT COALESCE(published_at,first_seen_at) FROM items WHERE id=?1",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 pub fn items(

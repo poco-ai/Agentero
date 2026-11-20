@@ -51,3 +51,22 @@ pub async fn agent_resolve_citation(
         Err(e) => Ok(map_err(e)),
     }
 }
+
+/// Resolve a revision-bound research citation for navigation in the active Vault.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_resolve_evidence(
+    vault_path: String,
+    source: String,
+) -> Result<(String, agentero_core::json::JsonValue), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        agentero_core::features::evidence::resolve_citation(
+            std::path::Path::new(&vault_path),
+            &source,
+        )
+        .map(|(path, loc)| (path, agentero_core::json::JsonValue(loc)))
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}

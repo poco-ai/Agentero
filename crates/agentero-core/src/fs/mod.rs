@@ -1,4 +1,4 @@
-//! Vault filesystem abstraction (`docs/development/remote-vault.md`).
+//! Vault filesystem abstraction.
 //!
 //! Local vaults use [`LocalFs`]; remote vaults use SFTP (or a local-sim backend for tests).
 

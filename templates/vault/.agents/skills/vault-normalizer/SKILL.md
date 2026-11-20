@@ -1,6 +1,6 @@
 ---
 name: vault-normalizer
-version: 2
+version: 3
 description: Normalize an existing research directory into an Agentero vault layout. Use when reorganizing files, papers, notes, PDFs, TeX sources, marks, assets, attachments, or legacy Zotero/Obsidian-style folders to match Agentero directory and catalog conventions.
 ---
 
@@ -95,7 +95,7 @@ agentero-vault/
    - Recommend `notes/` for concept notes and literature maps, and `plans/` for plans/TODOs/drafts, but keep existing folder names when preserving them is clearer or safer.
    - Keep Obsidian wikilinks intact.
 7. Rebuild or repair catalog metadata:
-   - Prefer `agentero import id <identifier> --parent <papers/topic> --json` for known DOI/arXiv/URL items.
+   - Prefer `agentero paper import id <identifier> --into <papers/topic> --json` for known DOI/arXiv/URL items.
    - For disk folders that already contain papers, use the app Rescan or CLI catalog commands if available.
    - Do not invent title, authors, year, DOI, or tags; mark unknowns explicitly.
 8. Verify:

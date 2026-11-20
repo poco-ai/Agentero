@@ -19,6 +19,7 @@
     ]
   },
   "bundle": {
+    "externalBin": ["sidecars/agentero-turn"],
     "resources": ["adapters/**/*", "dictionary/*"],
     "macOS": {
       "frameworks": ["pdfium/libpdfium.dylib"]

@@ -1,5 +1,5 @@
-site_name: Agentero 文档
-site_description: Agentero 本地优先 Agent 科研工作台文档
+site_name: Agentero 用户指南
+site_description: 在 Agentero 中发现、阅读和整理论文
 repo_url: https://github.com/poco-ai/agentero
 repo_name: poco-ai/agentero
 edit_uri: edit/main/docs/
@@ -14,8 +14,6 @@ theme:
     accent: grey
   features:
     - navigation.instant
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.tracking
     - navigation.top
     - search.suggest
@@ -23,114 +21,21 @@ theme:
 
 nav:
   - 首页: index.md
-
-  - 架构总览: architecture.md
-
-  - 教程:
-      - 快速上手: usage/index.md
-      - 安装与首次使用: usage/getting-started.md
-      - 导入和管理论文: usage/import-papers.md
-      - 阅读、标注与整理: usage/read-and-organize.md
-      - 接入 Agent: usage/agents.md
-      - 接入 GenericAgent ACP: usage/genericagent-acp.md
-      - 用 MCP 连接外部 Agent: usage/mcp.md
-      - 移动端: usage/mobile.md
-      - 使用 Zotero Connector: usage/zotero.md
-      - 打开远程 Vault: usage/remote-vault.md
-
-  - 前端:
-      - 概览: frontend/index.md
-      - 工作台壳: frontend/shell.md
-      - Dockview 工作区: frontend/workspace.md
-      - 文件树: frontend/vault-tree.md
-      - 论文库 Library: frontend/library.md
-      - 入库 UI: frontend/paper-import.md
-      - Markdown 编辑: frontend/markdown.md
-      - PDF 阅读与划词: frontend/pdf.md
-      - PDF 版面分析（实验）: frontend/pdf-layout-analysis.md
-      - 网页论文阅读与划词: frontend/web-view.md
-      - Agent 面板: frontend/agent.md
-      - 知乎 Agent: frontend/zhihu.md
-      - 移动端: frontend/mobile.md
-      - 双链 UI: frontend/wiki.md
-      - 命令面板: frontend/command-palette.md
-      - 翻译: frontend/translate.md
-      - 设置与主题: frontend/settings.md
-      - 新手引导: frontend/onboarding.md
-      - 组件约定: frontend/components.md
-
-  - 后端:
-      - 概览: backend/index.md
-      - 数据模型: backend/data-model.md
-      - Catalog: backend/catalog.md
-      - Vault FS: backend/vault.md
-      - 论文入库: backend/paper-import.md
-      - Identifier Lookup: backend/identifier-lookup.md
-      - 学术搜索 API 一览: backend/academic-search-apis.md
-      - 参考文献解析: backend/citation-parsing.md
-      - Skill 导入: backend/skill-import.md
-      - Zotero Connector: backend/connector.md
-      - MCP Server: backend/mcp.md
-      - 双链索引: backend/wiki.md
-      - Agent Host: backend/agent.md
-      - 知乎接入: backend/zhihu.md
-      - 远程 Vault: backend/remote.md
-      - 搜索: backend/search.md
-      - 设置: backend/settings.md
-      - 使用记录: backend/usage.md
-      - 翻译: backend/translate.md
-      - 运行日志: backend/logging.md
-      - Vault Doctor: backend/doctor.md
-      - 遥测: backend/telemetry.md
-      - 内置模型服务: backend/builtin-provider.md
-      - 云同步（S3 / WebDAV / Git）: backend/sync.md
-      - CLI: backend/cli.md
-      - API 全表: backend/api.md
-
-  - 开发草稿:
-      - 概览: development/index.md
-      - 使用记录总结 (#239): development/usage-analytics.md
-      - A2A 本机与远端协作: development/A2A.md
-
-  - 测试:
-      - 概览: test/index.md
-      - BBox 标注与教学样例: test/bbox-annotation.md
-      - OmniDocBench bbox 融合评测: test/omnidocbench-bbox.md
-      - 性能测试轨迹: test/performance.md
-      - 发布流程: test/release.md
-      - macOS 签名与公证: test/macos-signing.md
-      - iOS TestFlight: test/ios-testflight.md
-      - 发布前 Checklist: test/release-checklist.md
-
-  - Bug 修复记录:
-      - DeepSeek 正文落入 Thinking: bug_fix/deepseek-thinking-body.md
-      - 输入法组字 Enter 误发送: bug_fix/ime-composition-enter-submit.md
-      - 普通编辑触发全部 Wiki 嵌入闪烁: bug_fix/wiki-embed-unrelated-refresh.md
-      - Markdown 长文阅读卡顿: bug_fix/markdown-read-jank-offscreen-blocks.md
-      - 笔记滚动条拖动卡顿（TOC observer 每 scroll 重建）: bug_fix/toc-scroll-observer-rebuild.md
-      - 远端 ACP PATH / SSH: bug_fix/remote-acp-path-ssh.md
-      - 远程 Vault 文件树懒加载: bug_fix/remote-vault-tree-lazy.md
-      - Codex 历史恢复误用 session id: bug_fix/codex-history-runtime-session-id.md
-      - 导入 PDF 无法生成 PAPER.md: bug_fix/local-pdf-parse-missing-pdfium.md
-      - AppImage 库路径泄漏导致 Node 无法运行: bug_fix/appimage-ld-library-path-leak.md
-      - Windows 启动与问题诊断弹出黑色控制台窗口: bug_fix/windows-console-window-flash.md
-      - "笔记正文 < 比较符截断后续内容（#533）": bug_fix/note-markdown-stray-less-than.md
-      - "笔记正文花括号截断后续内容（MDX 表达式）": bug_fix/note-markdown-mdx-brace-truncation.md
-      - "笔记与 Agent 回复的高亮 / 下划线（#1168 / #1170）": bug_fix/note-markdown-inline-marks.md
-      - "笔记公式定界符不被识别（#1162 / #1171）": bug_fix/note-math-tex-delimiters.md
-      - "macOS 首次精读弹出 Music / iCloud / 文件夹权限（#570）": bug_fix/macos-tcc-folder-prompts.md
-      - "Agent 消息公式 < 被截断（#584）": bug_fix/agent-message-math-less-than.md
-      - Windows ACP 终端 Hermes MSYS2 挂死: bug_fix/hermes-terminal-pending-msys2-hang.md
-      - 任务 runner panic 导致并发槽泄漏: bug_fix/job-runner-panic-slot-leak.md
-      - macOS 主窗口可无限缩小: bug_fix/macos-window-min-size-config-merge.md
-      - "macOS 新建窗口崩溃（AppKit 主线程断言，⌘N 打不开新窗口）": bug_fix/macos-second-window-appkit-crash.md
-      - PDF 引用跳转后被拉回第 1 页: bug_fix/pdf-citation-page-restore-race.md
-      - "Windows PDF 翻页随机跳到首尾页（#539）": bug_fix/pdf-windows-scroll-endpoint-jump.md
-      - Pi ACP 未使用 Vault 工作目录: bug_fix/pi-acp-vault-cwd.md
-      - 左侧文件树偶发黑屏: bug_fix/vault-sidebar-blank-until-scroll.md
+  - 开始使用: usage/getting-started.md
+  - 发现与管理文献: usage/import-papers.md
+  - 阅读、标注与翻译: usage/read-and-organize.md
+  - 和 Agent 做研究: usage/agents.md
+  - 笔记、实验与写作:
+      - 笔记与实验记录: usage/notes-and-tables.md
+      - 写作与引用: usage/writing.md
+  - 工作区与效率: usage/workspace.md
+  - 资料、设备与外部工具: usage/vault.md
+  - 遇到问题: usage/help.md
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - tables
   - toc:
       permalink: true
@@ -139,5 +44,8 @@ markdown_extensions:
 
 plugins:
   - search
+
+extra_css:
+  - assets/help-center.css
 
 strict: true

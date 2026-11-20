@@ -227,12 +227,21 @@ pub async fn accept_run_once(
         let session_for_log = log_session_id.clone();
         let agent_for_log = log_agent_id.clone();
         tauri::async_runtime::spawn(async move {
+            let context = super::context_turn::prepare_context(
+                &session_id,
+                request.vault_path.as_deref(),
+                None,
+                request.context.as_ref(),
+                request.session_id.clone(),
+            );
             crate::features::zhihu::run_once(crate::features::zhihu::ZhihuRunOnce {
                 app: events,
                 session_id,
                 message_id,
                 agent_id: desc.id,
-                prompt: request.prompt,
+                prompt: super::context_turn::insert_context_block(&request.prompt, &context.block),
+                prompt_only: context.fingerprint.is_some(),
+                sources: context.prefetched_sources,
                 resume_session_id: request.session_id,
                 model_id: request.model_id,
                 secret,
@@ -274,16 +283,6 @@ pub async fn accept_run_once(
     let remote_for_spawn = remote_target_early;
     let attach_delegate =
         remote_for_spawn.is_none() && request.workflow.as_deref() != Some("translate");
-    let delegate_mcp = if attach_delegate {
-        window
-            .app_handle()
-            .try_state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
-            .and_then(|bridge| bridge.mcp_server(&session_id, window.label()))
-            .into_iter()
-            .collect()
-    } else {
-        Vec::new()
-    };
     let delegate_hint = if attach_delegate {
         local_delegate_hint(remote_hosts, registry).await
     } else {
@@ -319,7 +318,6 @@ pub async fn accept_run_once(
             warm_pool: Some(warm_pool),
             context: request.context,
             resume_transcript: request.resume_transcript,
-            delegate_mcp,
             delegate_hint,
             suppress_transcript: false,
             permission_host: None,
@@ -447,7 +445,19 @@ pub async fn load_session(
     }
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
-    load_acp_session(queries, &desc, session_id, cwd, remote_target.as_ref()).await
+    let mut result =
+        load_acp_session(queries, &desc, session_id, cwd, remote_target.as_ref()).await?;
+    if let Some(vault) = vault_path.as_deref().filter(|_| remote_target.is_none()) {
+        if let Err(error) = super::session::receipts::restore(
+            std::path::Path::new(vault),
+            &desc.id,
+            &result.session_id,
+            &mut result.lines,
+        ) {
+            log::warn!(target: "agentero::agent", "restore turn receipts: {error}");
+        }
+    }
+    Ok(result)
 }
 
 /// Service for `agent_delete_session`.
@@ -483,6 +493,9 @@ pub async fn delete_session(
 
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
+    if let Some(vault) = vault_path.as_deref().filter(|_| remote_target.is_none()) {
+        super::session::receipts::forget(std::path::Path::new(vault), &desc.id, &session_id)?;
+    }
     match delete_acp_session(queries, &desc, &session_id, cwd, remote_target.as_ref()).await {
         Ok(true) => Ok(AcpDeleteSessionResult {
             session_id,

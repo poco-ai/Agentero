@@ -104,6 +104,8 @@ pub struct ScoreTerm {
 #[serde(rename_all = "camelCase")]
 pub struct DiscoverItem {
     pub arxiv_id: String,
+    #[serde(default)]
+    pub authors: Vec<String>,
     pub title: String,
     #[serde(rename = "abstract")]
     pub abstract_text: String,
@@ -432,6 +434,7 @@ fn score_lexical(papers: Vec<ApiPaper>, terms: &[String]) -> Vec<DiscoverItem> {
 
             DiscoverItem {
                 arxiv_id: paper.identifiers.arxiv_id.unwrap_or_default(),
+                authors: paper.authors,
                 title,
                 abstract_text,
                 url: paper.urls.landing.unwrap_or_default(),

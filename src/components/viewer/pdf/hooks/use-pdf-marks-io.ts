@@ -68,6 +68,18 @@ import { normalizePathKey } from "@/lib/vault/path";
 /** One Agent turn can rewrite several mark files; coalesce the burst. */
 const MARKS_REFRESH_BURST_MS = 200;
 
+/** Unsubmitted conversations only exist in memory. */
+function mergeAskRefresh(
+	current: PdfAskThread[],
+	incoming: PdfAskThread[],
+): PdfAskThread[] {
+	const incomingIds = new Set(incoming.map((thread) => thread.id));
+	const drafts = current.filter(
+		(thread) => !threadHasUserQuestion(thread) && !incomingIds.has(thread.id),
+	);
+	return [...drafts, ...incoming];
+}
+
 /** Preserve live results and pending deletions while accepting other disk edits. */
 export function mergeTranslateRefresh(
 	current: PdfTranslateRecord[],
@@ -193,7 +205,7 @@ export function usePdfMarksIo({
 				listPdfTranslates(paperAbsPath),
 				listPdfVisualTraces(paperAbsPath),
 			]);
-			if (ts.length) setThreads(ts);
+			if (ts.length) setThreads((prev) => mergeAskRefresh(prev, ts));
 			setTranslates((prev) =>
 				mergeTranslateRefresh(
 					prev,
@@ -242,7 +254,7 @@ export function usePdfMarksIo({
 					return;
 				}
 				lastMarksPollRef.current = fingerprint;
-				setThreads(asks);
+				setThreads((prev) => mergeAskRefresh(prev, asks));
 				setVisualTraces((prev) => keepUnsavedVisualDrafts(prev, traces));
 				setTranslates((prev) => {
 					const protectedIds = new Set([

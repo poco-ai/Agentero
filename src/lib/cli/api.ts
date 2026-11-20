@@ -62,8 +62,8 @@ export type CliSyncOutcome = "synced" | "skipped";
 /**
  * Install or re-align the CLI shim with the running app version.
  *
- * The Host downloads and verifies the CLI against the compiled-in app version,
- * so the old process cannot pre-install the next CLI during an app update.
+ * The Host installs its same-version CLI and PDFium into the user cache,
+ * downloading a verified release pair only if local files are unavailable.
  * The fresh app installs on startup unless the CLI already matches or the user
  * explicitly uninstalled it. Never throws; callers can retry a transient
  * release-asset or network failure and surface a final failure with a toast.

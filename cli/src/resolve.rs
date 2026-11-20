@@ -1,7 +1,7 @@
 //! Vault resolution and paper ref resolution.
 
 use crate::config;
-use crate::error::CliError;
+use crate::error::{CliError, ExitCode};
 use crate::output::OutputFormat;
 use crate::style::Style;
 use agentero_core::features::catalog::papers::{self, PaperRecord, PaperRefLookup};
@@ -11,11 +11,11 @@ use std::path::{Path, PathBuf};
 pub struct GlobalOpts {
     pub vault_flag: Option<PathBuf>,
     pub yes: bool,
+    pub no_input: bool,
     pub quiet: bool,
     pub translator_url: Option<String>,
     pub format: OutputFormat,
-    /// Pretty-print JSON (default compact to save agent tokens).
-    pub pretty: bool,
+
     /// Text-mode paint switch (always false for JSON).
     pub style: Style,
 }
@@ -41,22 +41,11 @@ impl GlobalOpts {
     }
 }
 
-/// Resolve vault root per docs/development/cli.md §5.1.
+/// Resolve the vault from `--vault`, then `AGENTERO_VAULT`, then parent directories.
 pub fn resolve_vault(globals: &GlobalOpts) -> Result<PathBuf, CliError> {
     // 1. --vault
     if let Some(p) = &globals.vault_flag {
-        return canonicalize_existing(p).or_else(|_| {
-            // Allow non-existing for create; for other cmds require dir.
-            let abs = absolutize(p)?;
-            if abs.is_dir() {
-                Ok(abs)
-            } else {
-                Err(CliError::vault_not_found(format!(
-                    "vault path is not a directory: {}",
-                    abs.display()
-                )))
-            }
-        });
+        return named_vault(p);
     }
 
     // 2. AGENTERO_VAULT
@@ -64,7 +53,7 @@ pub fn resolve_vault(globals: &GlobalOpts) -> Result<PathBuf, CliError> {
         let t = env.trim();
         if !t.is_empty() {
             let p = PathBuf::from(t);
-            return canonicalize_existing(&p).map_err(|_| {
+            return named_vault(&p).map_err(|_| {
                 CliError::vault_not_found(format!("AGENTERO_VAULT is not a directory: {t}"))
             });
         }
@@ -77,23 +66,10 @@ pub fn resolve_vault(globals: &GlobalOpts) -> Result<PathBuf, CliError> {
         }
     }
 
-    // 4. CLI config default_vault
-    if let Ok(cfg) = config::load() {
-        if let Some(p) = cfg.default_vault {
-            let path = PathBuf::from(p.trim());
-            if !path.as_os_str().is_empty() {
-                return canonicalize_existing(&path).map_err(|_| {
-                    CliError::vault_not_found(format!(
-                        "config default_vault is not a directory: {}",
-                        path.display()
-                    ))
-                });
-            }
-        }
-    }
-
-    Err(CliError::vault_not_found(
-        "could not resolve vault (pass --vault, set AGENTERO_VAULT, or cd into a vault)",
+    Err(CliError::new(
+        "vault_required",
+        "Select a vault with --vault, AGENTERO_VAULT, or cd into the vault directory.",
+        ExitCode::Vault,
     ))
 }
 
@@ -175,4 +151,33 @@ pub fn paper_dir(vault: &Path, path_rel: &str) -> PathBuf {
         p.push(part);
     }
     p
+}
+
+pub fn named_vault(value: &Path) -> Result<PathBuf, CliError> {
+    if value.is_dir() {
+        let p = canonicalize_existing(value)?;
+        if looks_like_vault(&p) {
+            return Ok(p);
+        }
+    }
+    let cfg = config::load()?;
+    let name = value.to_string_lossy();
+    let mut candidates = cfg.known_vaults.iter().filter(|p| {
+        cfg.vault_names.get(*p).map(String::as_str) == Some(&name)
+            || Path::new(p).file_name() == Some(value.as_os_str())
+    });
+    let first = candidates.next().ok_or_else(|| {
+        CliError::vault_not_found(format!(
+            "unknown vault {}; run agentero vault list",
+            value.display()
+        ))
+    })?;
+    if candidates.next().is_some() {
+        return Err(CliError::new(
+            "ambiguous",
+            "multiple vaults have this name; select the absolute path",
+            crate::error::ExitCode::Conflict,
+        ));
+    }
+    canonicalize_existing(Path::new(first))
 }

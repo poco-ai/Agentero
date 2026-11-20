@@ -207,7 +207,7 @@ fn union_rect(chars: &[&PageChar]) -> Option<Rect> {
 /// Returns one entry per page in document order. Pages without a text layer
 /// yield an empty `chars` (never an error); only an unreadable PDF errors.
 pub fn read_pdf_pages(bytes: &[u8]) -> Result<Vec<PageText>, AppError> {
-    let lib = liteparse_pdfium::Library::init();
+    let lib = crate::features::pdf::open_library()?;
     let doc = lib
         .load_document_from_bytes(bytes, None)
         .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;
