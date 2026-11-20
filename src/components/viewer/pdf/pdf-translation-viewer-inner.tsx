@@ -203,6 +203,8 @@ export function PdfTranslationViewerInner({
 		reflowOutput,
 		exportTranslatedPdf,
 		ensureLayoutTranslate,
+		cancelLayoutTranslate,
+		layoutTranslateStatus,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
@@ -329,14 +331,17 @@ export function PdfTranslationViewerInner({
 	ensureLayoutTranslateRef.current = ensureLayoutTranslate;
 	// A shared job for this paper can outlive a 译文 run: switching to 对照 while
 	// 重译整篇 is still working mounts this pane on top of its cached sidecar.
-	const translateJobLive = useStore(backgroundTasksStore, (store) =>
-		store.tasks.some(
+	const liveTranslateJobId = useStore(backgroundTasksStore, (store) => {
+		const task = store.tasks.find(
 			(task) =>
 				task.kind === "layoutTranslate" &&
 				(task.status === "running" || task.status === "queued") &&
 				sameRelPaperPath(task.paperPath ?? null, paperRelPath),
-		),
-	);
+		);
+		return task?.id ?? null;
+	});
+	/** Job this pane already followed; one ensure() per job, never a retry loop. */
+	const followedTranslateJobRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		const hasRegions = (layoutRawRegions?.length ?? 0) > 0;
@@ -347,11 +352,18 @@ export function PdfTranslationViewerInner({
 			hadLayoutRegionsRef.current = false;
 		}
 		// 对照 puts every progress/stop surface in this pane, so a live job must
-		// be followed even when cached blocks are already painted. The reader
-		// toolbar's meter is hidden there, and the cache hydrate leaves the pane
-		// owning no job. `ensureLayoutTranslate` attaches without stopping or
-		// hiding anything.
-		if (!layoutTranslateRunning && translateJobLive) {
+		// be followed even when cached blocks are already painted. Only once per
+		// job: clicking stop flips the local status to "cancelled" before the Host
+		// row leaves "running", and another ensure() would set the status back to
+		// running and undo that stop. `ensureLayoutTranslate` attaches to the
+		// existing job without stopping or hiding anything.
+		if (
+			liveTranslateJobId !== null &&
+			liveTranslateJobId !== followedTranslateJobRef.current &&
+			!layoutTranslateRunning &&
+			layoutTranslateStatus !== "cancelled"
+		) {
+			followedTranslateJobRef.current = liveTranslateJobId;
 			ensureLayoutTranslateRef.current();
 			translationAutoStartedRef.current = true;
 			return;
@@ -388,7 +400,8 @@ export function PdfTranslationViewerInner({
 		layoutRawRegions,
 		layoutTranslateActive,
 		layoutTranslateRunning,
-		translateJobLive,
+		layoutTranslateStatus,
+		liveTranslateJobId,
 		toggleLayoutTranslate,
 	]);
 
@@ -782,7 +795,9 @@ export function PdfTranslationViewerInner({
 				// 对照 mode hands the export control to this pane: it owns the
 				// generated pages the reader toolbar would otherwise export.
 				onExport={reflowReady ? exportTranslatedPdf : undefined}
-				onStop={toggleLayoutTranslate}
+				// Cancel the paper's job outright, like the reader toolbar's stop:
+				// this pane may not have attached yet when the click lands.
+				onStop={cancelLayoutTranslate}
 			/>
 			{typeof document !== "undefined"
 				? createPortal(
