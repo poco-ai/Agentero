@@ -32,6 +32,8 @@ import { PdfFindBar } from "@/components/viewer/pdf/chrome/pdf-find-bar";
 import { PdfTranslateProgressChip } from "@/components/viewer/pdf/chrome/pdf-translate-progress";
 import { EMPTY_LAYOUT_REGIONS_BY_PAGE } from "@/components/viewer/pdf/constants";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
+import { EPHEMERAL_PREVIEW_OPEN_MS } from "@/components/viewer/pdf/floating-hover";
+import { useHoverIntent } from "@/components/viewer/pdf/hooks/use-hover-intent";
 import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations";
 import { usePdfCompanionSelection } from "@/components/viewer/pdf/hooks/use-pdf-companion-selection";
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
@@ -496,31 +498,87 @@ export function PdfTranslationViewerInner({
 	clearCrossrefPreviewRef.current = clearCrossrefPreview;
 	clearLinkUrlTipRef.current = clearLinkUrlTip;
 
+	// Hover intent (#1213): cards open only after the pointer rests on a link;
+	// crossing link text on the way somewhere else must not flash a card.
+	const showLinkPreview = useCallback(
+		(payload: {
+			link: PdfLinkAnnoObject;
+			clientPoint?: ScreenPoint | null;
+		}) => {
+			handleCitationLinkHover(payload.link, payload.clientPoint);
+			handleCrossrefLinkHover(payload.link, payload.clientPoint);
+		},
+		[handleCitationLinkHover, handleCrossrefLinkHover],
+	);
+	const hideLinkPreview = useCallback(() => {
+		handleCitationLinkHover(null);
+		handleCrossrefLinkHover(null);
+	}, [handleCitationLinkHover, handleCrossrefLinkHover]);
+	const linkHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showLinkPreview,
+		onLeave: hideLinkPreview,
+	});
+	const showUrlTip = useCallback(
+		(payload: { url: string; clientPoint: ScreenPoint }) => {
+			hoverLinkUrl(payload.url, payload.clientPoint);
+		},
+		[hoverLinkUrl],
+	);
+	const hideUrlTip = useCallback(() => {
+		hoverLinkUrl(null);
+	}, [hoverLinkUrl]);
+	const urlHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showUrlTip,
+		onLeave: hideUrlTip,
+	});
+
 	useEffect(() => {
 		return subscribeLinkPreviewDrag(() => {
+			linkHoverIntent.cancel();
+			urlHoverIntent.cancel();
 			clearCitationPreviewRef.current();
 			clearCrossrefPreviewRef.current();
 			clearLinkUrlTipRef.current();
 		});
-	}, []);
+	}, [linkHoverIntent, urlHoverIntent]);
+
+	// A pending open must not outlive the document or land on the selection menu.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is the effect trigger.
+	useEffect(() => {
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
+	}, [docId]);
+
+	useEffect(() => {
+		if (!selectionMenu) return;
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
+	}, [selectionMenu, linkHoverIntent, urlHoverIntent]);
 
 	const handleLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, point?: ScreenPoint | null) => {
 			if (linkPreviewDragActive() || selectionMenu) {
+				linkHoverIntent.cancel();
+				urlHoverIntent.cancel();
 				clearCitationPreview();
 				clearCrossrefPreview();
 				clearLinkUrlTip();
 				return;
 			}
-			handleCitationLinkHover(link, point);
-			handleCrossrefLinkHover(link, point);
+			if (!link) {
+				linkHoverIntent.leave();
+				return;
+			}
+			linkHoverIntent.enter({ link, clientPoint: point });
 		},
 		[
 			clearCitationPreview,
 			clearCrossrefPreview,
 			clearLinkUrlTip,
-			handleCitationLinkHover,
-			handleCrossrefLinkHover,
+			linkHoverIntent,
+			urlHoverIntent,
 			selectionMenu,
 		],
 	);
@@ -528,12 +586,18 @@ export function PdfTranslationViewerInner({
 	const handleLinkUrlHover = useCallback(
 		(url: string | null, point?: ScreenPoint | null) => {
 			if (linkPreviewDragActive() || selectionMenu) {
+				urlHoverIntent.cancel();
 				clearLinkUrlTip();
 				return;
 			}
-			hoverLinkUrl(url, point);
+			const trimmed = url?.trim() ?? "";
+			if (!trimmed || !point) {
+				urlHoverIntent.leave();
+				return;
+			}
+			urlHoverIntent.enter({ url: trimmed, clientPoint: point });
 		},
-		[clearLinkUrlTip, hoverLinkUrl, selectionMenu],
+		[clearLinkUrlTip, urlHoverIntent, selectionMenu],
 	);
 
 	const handleCitationImportOpenChange = useCallback(

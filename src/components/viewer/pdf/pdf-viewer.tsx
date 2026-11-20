@@ -63,6 +63,8 @@ import {
 	selectionBoundsOnScreen,
 } from "@/components/viewer/pdf/coords";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
+import { EPHEMERAL_PREVIEW_OPEN_MS } from "@/components/viewer/pdf/floating-hover";
+import { useHoverIntent } from "@/components/viewer/pdf/hooks/use-hover-intent";
 import { usePdfActiveAnchors } from "@/components/viewer/pdf/hooks/use-pdf-active-anchors";
 import { usePdfAskThreads } from "@/components/viewer/pdf/hooks/use-pdf-ask-threads";
 import { usePdfBookmarkEditor } from "@/components/viewer/pdf/hooks/use-pdf-bookmark-editor";
@@ -1353,6 +1355,50 @@ function PdfViewerInner({
 	clearCrossrefPreviewRef.current = clearCrossrefPreview;
 	clearLinkUrlTipRef.current = clearLinkUrlTip;
 
+	// Hover intent (#1213): a card opens only after the pointer has rested on a
+	// link. Crossing dense citation / figure links on the way somewhere else
+	// must not flash a card or start the async crop behind it; leaving cancels
+	// the pending open. Hiding stays with the cards' sticky-hover timers.
+	const showLinkPreview = useCallback(
+		(payload: {
+			link: PdfLinkAnnoObject;
+			clientPoint?: ScreenPoint | null;
+		}) => {
+			handleCitationLinkHover(payload.link, payload.clientPoint);
+			handleCrossrefLinkHover(payload.link, payload.clientPoint);
+		},
+		[handleCitationLinkHover, handleCrossrefLinkHover],
+	);
+	const hideLinkPreview = useCallback(() => {
+		handleCitationLinkHover(null);
+		handleCrossrefLinkHover(null);
+	}, [handleCitationLinkHover, handleCrossrefLinkHover]);
+	const linkHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showLinkPreview,
+		onLeave: hideLinkPreview,
+	});
+	const showUrlTip = useCallback(
+		(payload: { url: string; clientPoint: ScreenPoint }) => {
+			hoverLinkUrl(payload.url, payload.clientPoint);
+		},
+		[hoverLinkUrl],
+	);
+	const hideUrlTip = useCallback(() => {
+		hoverLinkUrl(null);
+	}, [hoverLinkUrl]);
+	const urlHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showUrlTip,
+		onLeave: hideUrlTip,
+	});
+	// A pending open belongs to the document it was started on.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is the effect trigger.
+	useEffect(() => {
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
+	}, [docId]);
+
 	const { askPinAnchors } = usePdfPinAnchors({ threads });
 	// Fingerprint computed only when `translates` changes identity: streamed
 	// chunks replace the array, but hover / page turns re-render the viewer
@@ -1751,19 +1797,31 @@ function PdfViewerInner({
 
 	useEffect(() => {
 		return subscribeLinkPreviewDrag(() => {
+			linkHoverIntent.cancel();
+			urlHoverIntent.cancel();
 			clearCitationPreview();
 			clearCrossrefPreview();
 			clearLinkUrlTip();
 		});
-	}, [clearCitationPreview, clearCrossrefPreview, clearLinkUrlTip]);
+	}, [
+		linkHoverIntent,
+		urlHoverIntent,
+		clearCitationPreview,
+		clearCrossrefPreview,
+		clearLinkUrlTip,
+	]);
 
 	useEffect(() => {
 		if (!suppressLinkPreviews) return;
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
 		clearCitationPreview();
 		clearCrossrefPreview();
 		clearLinkUrlTip();
 	}, [
 		suppressLinkPreviews,
+		linkHoverIntent,
+		urlHoverIntent,
 		clearCitationPreview,
 		clearCrossrefPreview,
 		clearLinkUrlTip,
@@ -1772,33 +1830,44 @@ function PdfViewerInner({
 	const handleLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, clientPoint?: ScreenPoint | null) => {
 			if (suppressLinkPreviews || linkPreviewDragActive()) {
+				linkHoverIntent.cancel();
+				urlHoverIntent.cancel();
 				clearCitationPreview();
 				clearCrossrefPreview();
 				clearLinkUrlTip();
 				return;
 			}
-			handleCitationLinkHover(link, clientPoint);
-			handleCrossrefLinkHover(link, clientPoint);
+			if (!link) {
+				linkHoverIntent.leave();
+				return;
+			}
+			linkHoverIntent.enter({ link, clientPoint });
 		},
 		[
 			suppressLinkPreviews,
+			linkHoverIntent,
+			urlHoverIntent,
 			clearCitationPreview,
 			clearCrossrefPreview,
 			clearLinkUrlTip,
-			handleCitationLinkHover,
-			handleCrossrefLinkHover,
 		],
 	);
 
 	const handleLinkUrlHover = useCallback(
 		(url: string | null, clientPoint?: ScreenPoint | null) => {
 			if (suppressLinkPreviews || linkPreviewDragActive()) {
+				urlHoverIntent.cancel();
 				clearLinkUrlTip();
 				return;
 			}
-			hoverLinkUrl(url, clientPoint);
+			const trimmed = url?.trim() ?? "";
+			if (!trimmed || !clientPoint) {
+				urlHoverIntent.leave();
+				return;
+			}
+			urlHoverIntent.enter({ url: trimmed, clientPoint });
 		},
-		[suppressLinkPreviews, clearLinkUrlTip, hoverLinkUrl],
+		[suppressLinkPreviews, urlHoverIntent, clearLinkUrlTip],
 	);
 
 	// ---- Visual marks ----
