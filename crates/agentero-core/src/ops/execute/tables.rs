@@ -1,5 +1,5 @@
 use super::*;
-use agentero_core::features::research_table as table;
+use crate::features::research_table as table;
 use std::collections::HashSet;
 fn err(e: table::TableError) -> AppError {
     AppError::domain(
@@ -11,12 +11,12 @@ fn err(e: table::TableError) -> AppError {
     )
 }
 pub(super) fn execute(vault: &Path, name: &str, a: &Value, full_text: bool) -> Result<Value> {
-    let normalized = crate::files::relative_path(text(a, "path")?)?;
+    let normalized = files::relative_path(text(a, "path")?)?;
     let path = normalized.as_str();
-    crate::files::reject_segments(path)?;
-    crate::files::reject_managed(path)?;
+    files::reject_segments(path)?;
+    files::reject_managed(path)?;
     let root = vault.canonicalize()?;
-    crate::files::require_canonical(&root, path, &root.join(path).canonicalize()?)?;
+    files::require_canonical(&root, path, &root.join(path).canonicalize()?)?;
     if !full_text && evidence::source_kind(&root, path)? == "body" {
         return Err(AppError::domain(
             "full_text_required",

@@ -550,7 +550,14 @@ pub fn read(vault: &Path, mut input: ReadInput, full_text: bool) -> Result<Value
                     ));
                 }
                 let rev = page_revision(vault, &source)?;
-                let (fragments, mut regions) = physical(vault, &source, &input, part == "layout")?;
+                let (mut fragments, mut regions) =
+                    physical(vault, &source, &input, part == "layout")?;
+                if locator.get("char_from").is_some() {
+                    let [fragment] = fragments.as_mut_slice() else {
+                        return Err(usage("a character span selects one page or region"));
+                    };
+                    *fragment = selected_text(&fragment.text, &input, locator)?;
+                }
                 let mut out = window.render(&source, "body", &rev, fragments)?;
                 if part == "layout" {
                     for r in &mut regions {

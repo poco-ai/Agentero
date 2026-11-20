@@ -1,7 +1,4 @@
-use super::{
-    OpPermission, OpSideEffect, OpSpec, OpStability, OpSurface, CLI_INTERFACE_JSON,
-    MCP_INTERFACE_JSON,
-};
+use super::{OpSpec, OpSurface, CLI_INTERFACE_JSON, MCP_INTERFACE_JSON};
 use serde_json::Value;
 
 pub(super) fn build() -> Vec<OpSpec> {
@@ -18,43 +15,19 @@ pub(super) fn build() -> Vec<OpSpec> {
                     .find(|t| t["name"] == name)
                     .expect("missing MCP tool")
             });
-            let side_effects = match tool {
-                Some(t) if t["annotations"]["readOnlyHint"] == true => OpSideEffect::Read,
-                Some(t) if t["annotations"]["destructiveHint"] == true => OpSideEffect::Destructive,
-                Some(_) => OpSideEffect::Write,
-                None => match path {
-                    "vault list" | "vault info" | "vault check" | "feed list"
-                    | "feed item list" | "app views" | "delegate targets" | "delegate result"
-                    | "sync status" | "mcp tools" | "help" => OpSideEffect::Read,
-                    "file trash purge" | "feed remove" | "sync disconnect" => {
-                        OpSideEffect::Destructive
-                    }
-                    _ => OpSideEffect::Write,
-                },
-            };
-            let permission = match (tool, side_effects) {
-                (None, _) => OpPermission::Unspecified,
-                (_, OpSideEffect::Read) => OpPermission::VaultRead,
-                _ if path.starts_with("paper note ") => OpPermission::VaultNotesWrite,
-                _ if path == "paper update" || path.starts_with("paper tag ") => {
-                    OpPermission::CatalogWrite
-                }
-                _ => OpPermission::VaultWrite,
-            };
             let args = entry["args"].as_array().expect("missing arguments");
             OpSpec {
                 id: path.replace(' ', "."),
                 cli: Some(format!("agentero {path}")),
                 mcp_tool: entry["tool"].as_str().map(str::to_owned),
                 summary: entry["about"].as_str().unwrap_or_default().into(),
-                side_effects,
-                permission,
-                stability: if tool.is_some() && side_effects != OpSideEffect::Destructive {
-                    OpStability::Stable
-                } else {
-                    OpStability::Internal
-                },
-                since: "2".into(),
+                side_effects: serde_json::from_value(entry["sideEffects"].clone())
+                    .expect("missing operation effect"),
+                permission: serde_json::from_value(entry["permission"].clone())
+                    .expect("missing operation permission"),
+                stability: serde_json::from_value(entry["stability"].clone())
+                    .expect("missing operation stability"),
+                requires_online: entry["online"].as_bool().unwrap_or(false),
                 surfaces: if tool.is_some() {
                     vec![OpSurface::Cli, OpSurface::Mcp]
                 } else {
@@ -64,7 +37,6 @@ pub(super) fn build() -> Vec<OpSpec> {
                 requires_confirmation: args.iter().any(|a| a["name"] == "yes"),
                 input: tool.map_or_else(|| entry["args"].clone(), |t| t["inputSchema"].clone()),
                 output: tool.map_or_else(|| entry["result"].clone(), |t| t["outputSchema"].clone()),
-                errors: Vec::new(),
                 examples: entry["example"]
                     .as_str()
                     .map(str::to_owned)

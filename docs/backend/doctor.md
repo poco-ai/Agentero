@@ -74,7 +74,7 @@ Doctor 聚合本地 Vault 的只读完整性检查，并为论文别名、双链
 
 扫描 `papers/**/marks/*.json`（跳过 `annotations.json`）。对 `kind: agent-trace` 或扁平 agent 字段的旧格式给出候选：
 
-- `doctor_apply_visual_marks` / CLI `doctor fix visual-marks`：改写为 `kind: visual` v2，agent 字段嵌套进 `agent` 对象；**保留 id 与 `image.path`**
+- `doctor_apply_visual_marks` / CLI `vault repair annotations --apply`：改写为 `kind: visual` v2，agent 字段嵌套进 `agent` 对象；**保留 id 与 `image.path`**
 - 幂等：已是嵌套 v2 的跳过
 - 脏路径（打开中的 mark）拒绝写入
 

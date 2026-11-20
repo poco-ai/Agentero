@@ -156,8 +156,45 @@ fn help_and_tool_inventory_agree_with_the_command_tree() {
             .success()
             .stdout(predicate::str::contains("Usage:"));
     }
-    let inventory = ok(&v, &["mcp", "tools", "--allow-vault", v.to_str().unwrap()]);
-    assert!(inventory.to_string().contains("evidence_search"));
+    let inventory = ok(
+        &v,
+        &[
+            "mcp",
+            "tools",
+            "--allow-vault",
+            v.to_str().unwrap(),
+            "--allow",
+            "write",
+            "--allow",
+            "online",
+        ],
+    );
+    let tools = inventory["tools"].as_array().unwrap();
+    for command in cmds.iter().filter(|cmd| cmd["tool"].is_string()) {
+        let name = &command["tool"];
+        let schema = &tools.iter().find(|t| &t["name"] == name).unwrap()["inputSchema"];
+        let mut fields = std::collections::HashSet::new();
+        for arg in command["args"].as_array().unwrap() {
+            if arg["binding"]["decode"] == "omit" {
+                continue;
+            }
+            let field = arg["binding"]["field"]
+                .as_str()
+                .map(str::to_owned)
+                .unwrap_or_else(|| arg["name"].as_str().unwrap().replace('-', "_"));
+            assert!(
+                schema["properties"].get(&field).is_some(),
+                "{name} does not accept {field}"
+            );
+            fields.insert(field);
+        }
+        for required in schema["required"].as_array().into_iter().flatten() {
+            assert!(
+                fields.contains(required.as_str().unwrap()),
+                "{name} CLI is missing {required}"
+            );
+        }
+    }
 }
 #[test]
 fn paper_crud_tags_read_state_revisions_and_metadata_sidecar() {

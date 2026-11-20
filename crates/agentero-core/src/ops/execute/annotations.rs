@@ -1,9 +1,9 @@
 //! Read and edit the same annotations and per-mark records as the desktop PDF viewer.
-use agentero_core::error::AppError;
-use agentero_core::features::catalog::papers::PaperRecord;
-use agentero_core::features::import::pdf_parse::run_pdf_locate;
-use agentero_core::features::layout_index::LayoutIndexItem;
-use agentero_core::features::{
+use crate::error::AppError;
+use crate::features::catalog::papers::PaperRecord;
+use crate::features::import::pdf_parse::run_pdf_locate;
+use crate::features::layout_index::LayoutIndexItem;
+use crate::features::{
     evidence, layout_index,
     pdf_locate::{annotations, LocateMatch, LocateRequest, NormRect},
 };
@@ -35,7 +35,7 @@ fn check_child(path: &Path) -> Result<(), AppError> {
     }
 }
 fn managed(vault: &Path, paper: &PaperRecord) -> Result<PathBuf, AppError> {
-    let (dir, _) = agentero_core::fs::resolve_paper_dir(vault, &paper.path)?;
+    let (dir, _) = crate::fs::resolve_paper_dir(vault, &paper.path)?;
     if !dir.canonicalize()?.starts_with(vault.canonicalize()?) {
         return Err(AppError::domain("scope_denied", "paper path escapes vault"));
     }
@@ -134,10 +134,14 @@ pub(crate) async fn execute(
     args: Value,
     full_text: bool,
 ) -> Result<Value, AppError> {
-    let paper = super::paper::resolve_paper(vault, required(&args, "paper")?)?;
+    let paper =
+        crate::features::paper::catalog::papers::resolve_paper(vault, required(&args, "paper")?)?;
     let dir = managed(vault, &paper)?;
     let all = records(&dir)?;
     if name == "annotation_add" {
+        if args["quote"].is_string() && !full_text {
+            return Err(AppError::domain("full_text_required", "Locating a free-form quote requires full-text access. Use a returned excerpt citation or a region."));
+        }
         return add(vault, &dir, &paper, &args, &all, full_text).await;
     }
     let page_revision = evidence::page_revision(vault, &paper.path).ok();
@@ -158,7 +162,7 @@ pub(crate) async fn execute(
             (a["locator"]["page"].as_u64(), a["id"].as_str())
                 .cmp(&(b["locator"]["page"].as_u64(), b["id"].as_str()))
         });
-        return super::operations::paginate(vault, &args, items);
+        return super::paginate(vault, &args, items);
     }
     let key = required(&args, "id")?;
     let raw = all
@@ -201,8 +205,9 @@ pub(crate) async fn execute(
         let mut next = raw;
         next["comment"] = json!(c);
         next["updatedAt"] = json!(annotations::now_iso());
-        agentero_core::fs::atomic_write(&path, &serde_json::to_vec_pretty(&next)?)?;
-        return item(vault, &paper, &next, page_revision.as_deref());
+        crate::fs::atomic_write(&path, &serde_json::to_vec_pretty(&next)?)?;
+        let saved = serde_json::from_slice(&fs::read(path)?)?;
+        return item(vault, &paper, &saved, page_revision.as_deref());
     }
     let next = annotations::load(&dir)
         .into_iter()
@@ -251,14 +256,28 @@ async fn add(
         }
         region = loc["region"].as_str().map(str::to_owned);
         page = loc["page"].as_u64().map(|n| n as u32);
-        if region.is_none() {
-            let input = serde_json::from_value(json!({"source":cite,"max_chars":120}))?;
+        let excerpt = loc["char_from"].is_u64() && loc["char_to"].is_u64();
+        if region.is_none() || (excerpt && full_text) {
+            if !full_text {
+                return Err(AppError::domain(
+                    "full_text_required",
+                    "Use an issued excerpt citation or a public region",
+                ));
+            }
+            let input = serde_json::from_value(
+                json!({"source":cite,"max_chars":if excerpt {260} else {120}}),
+            )?;
             quote = evidence::read(vault, input, full_text)?["text"]
                 .as_str()
                 .map(str::to_owned);
+            if excerpt {
+                // Search spans can name a raw paragraph with no public region anchor.
+                // Locate the issued words on their physical page.
+                region = None;
+            }
         }
     }
-    let pdf = agentero_core::features::paper::capabilities::find_local_pdf(dir)
+    let pdf = crate::features::paper::capabilities::find_local_pdf(dir)
         .ok_or_else(|| AppError::domain("source_not_found", "paper has no local PDF"))?;
     check_child(&pdf)?;
     let (hits, quote, layout) = if let Some(region) = region {
@@ -269,7 +288,9 @@ async fn add(
         let layout = layout_ref_value(&entry);
         (
             vec![region_anchor(&pdf, &entry).await?],
-            entry.title.unwrap_or_else(|| region.clone()),
+            quote
+                .or_else(|| full_text.then_some(entry.title).flatten())
+                .unwrap_or(region),
             Some(layout),
         )
     } else {
@@ -310,7 +331,7 @@ async fn add(
         if let Some(text) = text(a, "translation") {
             Some(text.to_string())
         } else {
-            use agentero_core::features::translate::{translate_text, TranslateTextArgs};
+            use crate::features::translate::{translate_text, TranslateTextArgs};
             Some(
                 translate_text(TranslateTextArgs {
                     text: quote.clone(),
@@ -339,12 +360,12 @@ async fn add(
         None
     };
     let now = annotations::now_iso();
-    let mut written = Vec::new();
+    let mut written_ids = Vec::new();
     fs::create_dir_all(dir.join("marks"))?;
     let mut new_highlights = Vec::new();
     let request_id = required(a, "request_id")?;
     for (ordinal, hit) in hits.into_iter().enumerate() {
-        let digest = super::operations::hash(&serde_json::to_vec(&(
+        let digest = super::hash(&serde_json::to_vec(&(
             paper.id.as_str(),
             request_id,
             ordinal,
@@ -361,8 +382,8 @@ async fn add(
         } else {
             digest[..24].to_owned()
         };
-        if let Some(old) = existing.iter().find(|r| id(r) == Some(&mark_id)) {
-            written.push(old.clone());
+        written_ids.push(mark_id.clone());
+        if existing.iter().any(|r| id(r) == Some(&mark_id)) {
             continue;
         }
         let id = mark_id;
@@ -401,22 +422,29 @@ async fn add(
             ),
         };
         if kind != "highlight" {
-            agentero_core::fs::atomic_write(
-                &record_path(dir, &id)?,
-                &serde_json::to_vec_pretty(&raw)?,
-            )?;
+            crate::fs::atomic_write(&record_path(dir, &id)?, &serde_json::to_vec_pretty(&raw)?)?;
         } else {
-            new_highlights.push(raw.clone());
+            new_highlights.push(raw);
         }
-        written.push(raw);
     }
     if !new_highlights.is_empty() {
         annotations::append(dir, new_highlights)?;
     }
     let page_revision = evidence::page_revision(vault, &paper.path).ok();
-    let items = written
+    // Hash persisted geometry so revisions match a subsequent annotation_get.
+    let saved = records(dir)?;
+    let saved: std::collections::HashMap<_, _> = saved
         .iter()
-        .map(|r| item(vault, paper, r, page_revision.as_deref()))
+        .filter_map(|raw| id(raw).map(|id| (id, raw)))
+        .collect();
+    let items = written_ids
+        .iter()
+        .map(|id| {
+            let raw = saved.get(id.as_str()).ok_or_else(|| {
+                AppError::domain("mark_not_found", "Persisted annotation was removed")
+            })?;
+            item(vault, paper, raw, page_revision.as_deref())
+        })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(json!({"items":items,"next_cursor":null}))
 }

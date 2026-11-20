@@ -1,13 +1,23 @@
 //! Vault operations used by the CLI and the external MCP transports.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+mod annotations;
 mod catalog;
+mod registry;
+pub use registry::{operation, Permissions, ResearchOperation, ToolId};
 mod documents;
 mod tables;
 
-use crate::{McpController, Permissions};
-use agentero_core::fs::atomic_write;
-use agentero_core::{error::AppError, features::evidence};
+use crate::app_handle::AppHandle;
+use crate::features::vault::files;
+use crate::features::{
+    paper::{capabilities::CapsCache, import::PreparationPlan},
+    vault::rename::WikiIndex,
+};
+use crate::fs::atomic_write;
+use crate::{error::AppError, features::evidence};
+use evidence::content_revision as hash;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
+use std::sync::Mutex;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -32,18 +42,10 @@ pub(super) fn strings(a: &Value, k: &str) -> Vec<String> {
 pub(super) fn flag(a: &Value, k: &str) -> bool {
     a[k].as_bool().unwrap_or(false)
 }
-pub(super) fn hash(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
-}
 pub(super) fn revision(path: &Path) -> Result<String> {
-    match fs::File::open(path) {
-        Ok(mut file) => {
-            let mut hasher = Sha256::new();
-            std::io::copy(&mut file, &mut hasher)?;
-            Ok(format!("{:x}", hasher.finalize()))
-        }
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok("missing".into()),
-        Err(err) => Err(err.into()),
+    match evidence::file_revision(path) {
+        Err(AppError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => Ok("missing".into()),
+        other => other,
     }
 }
 pub(super) fn match_revision(actual: &str, a: &Value) -> Result<()> {
@@ -136,11 +138,11 @@ impl Receipt {
             ));
         }
         if let Some(previous) = record["before"].as_str() {
-            let rel = agentero_core::fs::sanitize_vault_rel(text(&record["result"], "path")?)
-                .map_err(usage)?;
+            let rel =
+                crate::fs::sanitize_vault_rel(text(&record["result"], "path")?).map_err(usage)?;
             let root = vault.canonicalize()?;
-            let target = crate::files::contained_write_target(&root, &rel)?;
-            crate::files::require_canonical(&root, &rel, &target)?;
+            let target = files::contained_write_target(&root, &rel)?;
+            files::require_canonical(&root, &rel, &target)?;
             let current = revision(&target)?;
             if current == record["result"]["revision"] {
                 self.save(json!({"result":record["result"]}))?;
@@ -157,78 +159,89 @@ impl Receipt {
     }
 }
 
-// An excerpt-only reader can repeat the exact evidence card they already received. Never
-// reconstruct one from an arbitrary cite: a locator might refer to an entire PDF page.
-impl McpController {
-    fn remember_excerpts(&self, result: &Value) {
-        let mut cards = self.excerpts.lock().unwrap_or_else(|e| e.into_inner());
-        for item in result["items"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|v| v["kind"] == "body")
-        {
-            cards.retain(|card| card["cite"] != item["cite"]);
-            cards.push_back(item.clone());
-            if cards.len() > 256 {
-                cards.pop_front();
-            }
+#[derive(Default)]
+pub struct ImportContext {
+    pub app: Option<AppHandle>,
+    pub caps: Option<CapsCache>,
+}
+
+/// Optional integrations supplied by the desktop host or the local CLI.
+#[async_trait::async_trait]
+pub trait OperationHost: Send + Sync + 'static {
+    fn translator_url(&self) -> Option<String> {
+        None
+    }
+    fn parent_dir(&self) -> String {
+        "papers".into()
+    }
+    fn paper_note_mode(&self) -> String {
+        "standard".into()
+    }
+    fn import_context(&self) -> ImportContext {
+        ImportContext::default()
+    }
+    fn wiki_index(&self, _vault: &Path) -> Option<Arc<Mutex<WikiIndex>>> {
+        None
+    }
+    fn after_import(&self, _vault: &Path, plan: &PreparationPlan) {
+        if let Some(line) = crate::features::paper::import::skipped_preparation_line(plan) {
+            log::info!(target: "agentero::import", "{line}");
         }
     }
+    async fn after_delete(&self, _vault: &Path, _rels: &[String]) {}
+}
 
-    fn read_excerpt(&self, vault: &Path, args: &Value) -> Result<Option<Value>> {
-        let Some(cite) = args["source"]
-            .as_str()
-            .filter(|s| s.starts_with("agentero://cite/"))
-        else {
-            return Ok(None);
-        };
-        if !args
-            .as_object()
-            .unwrap()
-            .keys()
-            .all(|k| matches!(k.as_str(), "source" | "max_chars"))
-        {
-            return Ok(None);
-        }
-        let Some(mut card) = self
-            .excerpts
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .iter()
-            .find(|v| v["cite"] == cite)
-            .cloned()
-        else {
-            return Ok(None);
-        };
-        evidence::resolve_citation(vault, cite)?;
-        let budget = args["max_chars"].as_u64().unwrap_or(u64::MAX);
-        let excerpt = card["excerpt"]
-            .as_str()
-            .unwrap_or("")
-            .chars()
-            .take(usize::try_from(budget).unwrap_or(usize::MAX))
-            .collect::<String>();
-        card["excerpt"] = json!(excerpt);
-        Ok(Some(
-            json!({"source":card["source"],"revision":card["revision"],"text":excerpt,"evidence":[card],"truncated":false,"next_cursor":null}),
-        ))
+pub struct LocalHost {
+    pub translator_url: Option<String>,
+}
+impl OperationHost for LocalHost {
+    fn translator_url(&self) -> Option<String> {
+        self.translator_url.clone()
     }
 }
 
-pub(crate) async fn execute(
-    ctrl: Arc<McpController>,
-    vault: PathBuf,
+pub fn vault_id(path: &Path) -> String {
+    format!(
+        "v-{}",
+        hash(
+            crate::fs::canonicalize_best_effort(path)
+                .to_string_lossy()
+                .as_bytes()
+        )
+    )
+}
+
+pub async fn run_local(
+    vault: &Path,
     name: &str,
     args: Value,
-    p: Permissions,
-    is_write: bool,
+    translator_url: Option<String>,
 ) -> Result<Value> {
-    let name = name.to_owned();
-    // Dropping a protocol request must not release the vault lock while its blocking write is still running.
-    tokio::spawn(async move { dispatch(ctrl, vault, &name, args, p, is_write).await })
+    let op = operation(name, Permissions::all())?;
+    run(
+        Arc::new(LocalHost { translator_url }),
+        vault.to_owned(),
+        op,
+        args,
+        Permissions::all(),
+    )
+    .await
+}
+
+pub async fn run(
+    host: Arc<dyn OperationHost>,
+    vault: PathBuf,
+    op: &'static ResearchOperation,
+    args: Value,
+    p: Permissions,
+) -> Result<Value> {
+    op.authorize(p)?;
+    op.validate_input(&args)?;
+    // Cancellation must not release the vault lock while a blocking write still runs.
+    let output = tokio::spawn(async move { dispatch(host, vault, op, args, p).await })
         .await
-        .map_err(|e| AppError::message(e.to_string()))?
+        .map_err(|e| AppError::message(e.to_string()))??;
+    op.checked_output(output)
 }
 
 fn check_private_store(root: &Path) -> Result<()> {
@@ -256,15 +269,16 @@ fn check_private_store(root: &Path) -> Result<()> {
 }
 
 async fn dispatch(
-    ctrl: Arc<McpController>,
+    host: Arc<dyn OperationHost>,
     vault: PathBuf,
-    name: &str,
+    op: &ResearchOperation,
     args: Value,
     p: Permissions,
-    is_write: bool,
 ) -> Result<Value> {
-    if name == "paper_discover" && vault.as_os_str().is_empty() {
-        return catalog::network(&ctrl, &vault, name, &args).await;
+    use ToolId::*;
+    let name = op.id.as_str();
+    if op.id == PaperDiscover && vault.as_os_str().is_empty() {
+        return catalog::network(host.as_ref(), &vault, name, &args).await;
     }
     let root = vault.canonicalize()?;
     check_private_store(&root)?;
@@ -285,13 +299,10 @@ async fn dispatch(
             "Automatic translation requires the online grant",
         ));
     }
-    if name == "paper_import" || name == "paper_discover" {
-        return catalog::network(&ctrl, &vault, name, &args).await;
-    }
     // Cross-vault changes lock both roots in canonical order, including when two
     // processes move papers in opposite directions at the same time.
     let mut guards = Vec::new();
-    if is_write && !flag(&args, "dry_run") {
+    if op.writes() && !flag(&args, "dry_run") {
         let mut roots = vec![&root];
         roots.extend(destination.as_ref().filter(|p| *p != &root));
         roots.sort();
@@ -320,32 +331,30 @@ async fn dispatch(
     } else {
         None
     };
-    let result = if name.starts_with("annotation_") {
-        crate::annotations::execute(&vault, name, args.clone(), p.full_text).await?
-    } else {
-        let receipt = stored.clone();
-        let name = name.to_string();
-        let args = args.clone();
-        let vault = vault.clone();
-        let ctrl = ctrl.clone();
-        tokio::task::spawn_blocking(move || {
-            match name.as_str() {
-                "evidence_search" => {
-                    let found = evidence::search(&vault, serde_json::from_value(args)?)?;
-                    if !p.full_text {
-                        ctrl.remember_excerpts(&found);
-                    }
-                    Ok(found)
-                }
-                "evidence_read" => {
-                    if !p.full_text {
-                        if let Some(card) = ctrl.read_excerpt(&vault, &args)? {
-                            return Ok(card);
-                        }
-                    }
-                    evidence::read(&vault, serde_json::from_value(args)?, p.full_text)
-                }
-                "paper_relations" => evidence::relations_page(
+    let result = match op.id {
+        PaperDiscover | PaperImport => catalog::network(host.as_ref(), &vault, name, &args).await?,
+        AnnotationList | AnnotationGet | AnnotationAdd | AnnotationUpdate | AnnotationRemove => {
+            #[cfg(not(any(target_os = "ios", target_os = "android")))]
+            {
+                annotations::execute(&vault, name, args.clone(), p.full_text).await?
+            }
+            #[cfg(any(target_os = "ios", target_os = "android"))]
+            {
+                return Err(AppError::domain(
+                    "host_unavailable",
+                    "PDF annotation tools require a desktop host",
+                ));
+            }
+        }
+        id => {
+            let receipt = stored.clone();
+            let args = args.clone();
+            let vault = vault.clone();
+            let host = host.clone();
+            tokio::task::spawn_blocking(move || match id {
+                EvidenceSearch => evidence::search(&vault, serde_json::from_value(args)?),
+                EvidenceRead => evidence::read(&vault, serde_json::from_value(args)?, p.full_text),
+                PaperRelations => evidence::relations_page(
                     &vault,
                     text(&args, "paper")?,
                     args["direction"].as_str().unwrap_or("references"),
@@ -353,27 +362,33 @@ async fn dispatch(
                     args["limit"].as_u64().unwrap_or(50) as usize,
                     args["cursor"].as_str(),
                 ),
-                "vault_list" => {
+                VaultList => {
                     let name = vault.file_name().unwrap_or_default().to_string_lossy();
-                    Ok(json!({"items": [{"id": crate::vault_id(&vault), "name": name, "current": true}]}))
+                    Ok(json!({"items":[{"id":vault_id(&vault),"name":name,"current":true}]}))
                 }
-                op if op.starts_with("table_") => tables::execute(&vault, op, &args, p.full_text),
-                op if op.starts_with("file_") || op.starts_with("trash_") || op.starts_with("paper_note_") => {
-                    documents::execute(&ctrl, &vault, op, &args, receipt.as_ref(), p)
+                TableQuery | TableUpsert | TablePatch => {
+                    tables::execute(&vault, name, &args, p.full_text)
                 }
-                op => catalog::execute(&vault, op, &args),
-            }
-        })
-        .await
-        .map_err(|e| AppError::message(e.to_string()))??
+                FileList | FileWrite | FileMove | FileRemove | TrashList | TrashRestore
+                | PaperNoteAppend | PaperNoteReplace => {
+                    documents::execute(host.as_ref(), &vault, name, &args, receipt.as_ref(), p)
+                }
+                PaperList | PaperGet | PaperUpdate | PaperRegions | PaperTagList | PaperTagAdd
+                | PaperTagRemove | PaperTagSet => catalog::execute(&vault, name, &args),
+                PaperDiscover | PaperImport | AnnotationList | AnnotationGet | AnnotationAdd
+                | AnnotationUpdate | AnnotationRemove => {
+                    unreachable!("asynchronous operation handled above")
+                }
+            })
+            .await
+            .map_err(|e| AppError::message(e.to_string()))??
+        }
     };
     if let Some(receipt) = stored {
         receipt.save(json!({"result":result}))?;
     }
     if name == "file_remove" && !flag(&args, "dry_run") {
-        ctrl.host()
-            .after_delete(&vault, &strings(&args, "paths"))
-            .await;
+        host.after_delete(&vault, &strings(&args, "paths")).await;
     }
     Ok(result)
 }

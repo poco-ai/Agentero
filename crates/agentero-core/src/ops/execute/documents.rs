@@ -1,6 +1,6 @@
 use super::*;
-use crate::{files, notes, paper};
-use agentero_core::features::{
+use crate::features::paper::{catalog::papers as paper, notes};
+use crate::features::{
     paper::catalog,
     vault::{rename::WikiIndex, trash},
 };
@@ -8,7 +8,7 @@ fn move_receipt(path: &str, outcome: &str, preview: bool) -> Value {
     json!({"changed":!preview,"preview":preview,"items":[{"path":path,"outcome":outcome}]})
 }
 pub(super) fn execute(
-    ctrl: &McpController,
+    host: &dyn OperationHost,
     vault: &Path,
     name: &str,
     a: &Value,
@@ -207,11 +207,7 @@ pub(super) fn execute(
                     .0;
                 catalog::migrate_paper_between_vaults(&root, &from, &dst, parent, preview)?;
             } else if !preview {
-                let handle = ctrl
-                    .local_vault()
-                    .ok()
-                    .filter(|p| *p == root)
-                    .and_then(|_| ctrl.host().open_wiki_index());
+                let handle = host.wiki_index(&root);
                 let mut guard = handle
                     .as_ref()
                     .map(|h| h.lock().unwrap_or_else(|e| e.into_inner()));
@@ -222,7 +218,7 @@ pub(super) fn execute(
                     &to,
                     guard.as_deref_mut().unwrap_or(&mut fallback),
                 )?;
-                agentero_core::usage::rename_path_best_effort(&root.to_string_lossy(), &from, &to);
+                crate::usage::rename_path_best_effort(&root.to_string_lossy(), &from, &to);
             }
             Ok(move_receipt(&to, "move", preview))
         }

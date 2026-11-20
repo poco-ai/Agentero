@@ -3,11 +3,45 @@
 		"path": "",
 		"about": "本地科研工作台",
 		"example": "agentero paper list --state unread\nagentero search \"batch size\" --in papers/atlas\nagentero read papers/atlas --page 8",
-		"args": [],
+		"args": [
+			{
+				"name": "vault",
+				"help": "Vault ID 或本地根目录",
+				"help_en": "Vault ID or local root directory"
+			},
+			{
+				"name": "json",
+				"kind": "bool",
+				"help": "输出结构化 JSON",
+				"help_en": "Emit structured JSON"
+			},
+			{
+				"name": "no-input",
+				"kind": "bool",
+				"help": "禁用交互式提示",
+				"help_en": "Disable interactive prompts"
+			},
+			{
+				"name": "quiet",
+				"kind": "bool",
+				"help": "隐藏进度",
+				"help_en": "Suppress progress"
+			},
+			{
+				"name": "color",
+				"default": "auto",
+				"choices": ["auto", "always", "never"],
+				"help": "终端颜色",
+				"help_en": "Terminal colors"
+			}
+		],
 		"about_en": "A local-first research workspace"
 	},
 	{
 		"path": "search",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "在指定材料或整个 Vault 内查找可引用的出处",
 		"example": "agentero search \"batch size\" --in papers/atlas --kind body",
 		"tool": "evidence_search",
@@ -28,6 +62,7 @@
 			},
 			{
 				"name": "plain",
+				"binding": { "decode": "omit" },
 				"help": "每行输出一个可传给 read 的 cite；与 --json 互斥",
 				"kind": "bool",
 				"help_en": "Print one identifier per line"
@@ -73,6 +108,9 @@
 	},
 	{
 		"path": "read",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "按引用、论文或文件读取有位置的原文",
 		"example": "agentero read papers/atlas --page 8\nagentero search \"batch size\" --limit 1 --plain | agentero read -",
 		"tool": "evidence_read",
@@ -80,6 +118,7 @@
 		"args": [
 			{
 				"name": "source",
+				"binding": { "field": "source", "decode": "sourceOrStdin" },
 				"help": "论文 ID、Vault 相对路径或命中的 cite",
 				"positional": true,
 				"required": true,
@@ -94,6 +133,7 @@
 			},
 			{
 				"name": "page",
+				"binding": { "field": "pages", "decode": "pages" },
 				"help": "物理页从 1 起，例 8 或 1-3,7",
 				"help_en": "Physical page selection, for example 1-3,7"
 			},
@@ -145,6 +185,9 @@
 	},
 	{
 		"path": "paper list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "按题录筛选馆藏论文",
 		"example": "agentero paper list --tag survey --state unread",
 		"tool": "paper_list",
@@ -152,6 +195,7 @@
 		"args": [
 			{
 				"name": "plain",
+				"binding": { "decode": "omit" },
 				"help": "每行输出一个论文 ID；与 --json 互斥",
 				"kind": "bool",
 				"help_en": "Print one identifier per line"
@@ -212,6 +256,9 @@
 	},
 	{
 		"path": "paper get",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "查看一篇论文的元数据、资产与路径",
 		"example": "agentero paper get papers/atlas",
 		"tool": "paper_get",
@@ -244,6 +291,10 @@
 	},
 	{
 		"path": "paper import id",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "stable",
+		"online": true,
 		"about": "从 DOI、arXiv 标识或论文 URL 入库",
 		"example": "agentero paper import id 1706.03762",
 		"tool": "paper_import",
@@ -269,6 +320,9 @@
 	},
 	{
 		"path": "paper import pdf",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "从一份或多份本地 PDF 入库",
 		"example": "agentero paper import pdf \"./papers to import/a.pdf\" b.pdf",
 		"result": "Import",
@@ -306,6 +360,9 @@
 	},
 	{
 		"path": "paper import bib",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "从本地参考文献文件或 stdin 批量入库",
 		"example": "agentero paper import bib - < library.bib",
 		"result": "Import",
@@ -337,6 +394,10 @@
 	},
 	{
 		"path": "paper discover",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "stable",
+		"online": true,
 		"about": "从 arXiv 检索和排序候选论文",
 		"example": "agentero paper discover --category cs.CL --keyword retrieval",
 		"tool": "paper_discover",
@@ -423,6 +484,9 @@
 	},
 	{
 		"path": "paper export",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
 		"about": "将选中的题录导出为参考文献",
 		"example": "agentero paper export --tag survey --format bibtex > survey.bib",
 		"result": "Export",
@@ -459,6 +523,9 @@
 	},
 	{
 		"path": "paper update",
+		"sideEffects": "destructive",
+		"permission": "catalog:write",
+		"stability": "internal",
 		"about": "修改题录字段或阅读状态",
 		"example": "agentero paper update papers/atlas --state read --if-revision r7",
 		"tool": "paper_update",
@@ -540,6 +607,9 @@
 	},
 	{
 		"path": "paper tag list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "查看全库标签及论文数量",
 		"example": "agentero paper tag list",
 		"tool": "paper_tag_list",
@@ -572,6 +642,9 @@
 	},
 	{
 		"path": "paper tag add",
+		"sideEffects": "write",
+		"permission": "catalog:write",
+		"stability": "stable",
 		"about": "给论文增加标签",
 		"example": "agentero paper tag add papers/atlas survey retrieval",
 		"tool": "paper_tag_add",
@@ -599,6 +672,9 @@
 	},
 	{
 		"path": "paper tag remove",
+		"sideEffects": "destructive",
+		"permission": "catalog:write",
+		"stability": "internal",
 		"about": "移除指定标签",
 		"example": "agentero paper tag remove papers/atlas survey",
 		"tool": "paper_tag_remove",
@@ -626,6 +702,9 @@
 	},
 	{
 		"path": "paper tag set",
+		"sideEffects": "destructive",
+		"permission": "catalog:write",
+		"stability": "internal",
 		"about": "整体替换论文标签",
 		"example": "agentero paper tag set papers/atlas --clear --if-revision r7",
 		"tool": "paper_tag_set",
@@ -671,6 +750,9 @@
 	},
 	{
 		"path": "paper note append",
+		"sideEffects": "write",
+		"permission": "vault:notes:write",
+		"stability": "stable",
 		"about": "在论文笔记末尾追加 Markdown",
 		"example": "agentero paper note append papers/atlas --input - < notes.md",
 		"tool": "paper_note_append",
@@ -685,6 +767,7 @@
 			},
 			{
 				"name": "input",
+				"binding": { "field": "content", "decode": "textFile" },
 				"help": "输入文件，- 表示标准输入",
 				"required": true,
 				"help_en": "Input path, or - to read stdin"
@@ -701,6 +784,9 @@
 	},
 	{
 		"path": "paper note replace",
+		"sideEffects": "destructive",
+		"permission": "vault:notes:write",
+		"stability": "internal",
 		"about": "用 Markdown 替换整篇论文笔记",
 		"example": "agentero paper note replace papers/atlas --input notes.md --if-revision r8",
 		"tool": "paper_note_replace",
@@ -715,6 +801,7 @@
 			},
 			{
 				"name": "input",
+				"binding": { "field": "content", "decode": "textFile" },
 				"help": "输入文件，- 表示标准输入",
 				"required": true,
 				"help_en": "Input path, or - to read stdin"
@@ -732,6 +819,10 @@
 	},
 	{
 		"path": "paper note fetch",
+		"sideEffects": "write",
+		"permission": "vault:notes:write",
+		"stability": "internal",
+		"online": true,
 		"about": "获取外部论文解读并追加为带来源的笔记",
 		"example": "agentero paper note fetch papers/atlas",
 		"result": "DocChange",
@@ -750,6 +841,9 @@
 	},
 	{
 		"path": "paper relations",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "查看论文的参考文献及被引关系",
 		"example": "agentero paper relations papers/atlas --direction cited-by",
 		"tool": "paper_relations",
@@ -796,6 +890,9 @@
 	},
 	{
 		"path": "paper regions",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "列出可直接读取的图、表、公式与文本区域",
 		"example": "agentero paper regions papers/atlas --kind table --page 8",
 		"tool": "paper_regions",
@@ -862,6 +959,10 @@
 	},
 	{
 		"path": "paper download",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"online": true,
 		"about": "为已收录论文补齐来源文件",
 		"example": "agentero paper download papers/atlas --asset pdf",
 		"result": "Assets",
@@ -893,6 +994,9 @@
 	},
 	{
 		"path": "paper extract",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "将 PDF 文本提取成可搜索的正文",
 		"example": "agentero paper extract papers/atlas",
 		"result": "Assets",
@@ -917,6 +1021,9 @@
 	},
 	{
 		"path": "paper analyze",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "生成 PDF 的页、图表与段落索引",
 		"example": "agentero paper analyze papers/atlas --provider mineru --page 1-4,7",
 		"result": "Assets",
@@ -957,6 +1064,9 @@
 	},
 	{
 		"path": "paper link",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "将同一篇论文列入本库另一个论文目录",
 		"example": "agentero paper link papers/atlas papers/reading",
 		"result": "Receipt",
@@ -982,6 +1092,9 @@
 	},
 	{
 		"path": "paper copy",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "将论文复制到另一个 Vault",
 		"example": "agentero paper copy papers/atlas --to-vault lab",
 		"result": "Receipt",
@@ -1019,6 +1132,9 @@
 	},
 	{
 		"path": "file list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "浏览 Vault 内一个目录",
 		"example": "agentero file list drafts",
 		"tool": "file_list",
@@ -1057,6 +1173,9 @@
 	},
 	{
 		"path": "file write",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "创建、追加或替换一个 Vault 文件",
 		"example": "agentero file write drafts/review.md --input ./review.md",
 		"tool": "file_write",
@@ -1071,6 +1190,7 @@
 			},
 			{
 				"name": "input",
+				"binding": { "field": "content", "decode": "fileContent" },
 				"help": "输入文件，- 表示标准输入",
 				"required": true,
 				"help_en": "Input path, or - to read stdin"
@@ -1106,6 +1226,9 @@
 	},
 	{
 		"path": "file move",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "移动或重命名文件、目录或整篇论文",
 		"example": "agentero file move drafts/review.md drafts/related-work.md --dry-run",
 		"tool": "file_move",
@@ -1143,6 +1266,9 @@
 	},
 	{
 		"path": "file remove",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "将文件或目录移入 Vault 回收站",
 		"example": "agentero file remove drafts/obsolete.md --dry-run",
 		"tool": "file_remove",
@@ -1176,6 +1302,9 @@
 	},
 	{
 		"path": "file trash list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "列出可恢复的回收条目",
 		"example": "agentero file trash list",
 		"tool": "trash_list",
@@ -1202,6 +1331,9 @@
 	},
 	{
 		"path": "file trash restore",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "stable",
 		"about": "将回收的条目与题录恢复到原路径",
 		"example": "agentero file trash restore t12",
 		"tool": "trash_restore",
@@ -1221,6 +1353,9 @@
 	},
 	{
 		"path": "file trash purge",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "永久清除指定回收条目",
 		"example": "agentero file trash purge t12 --dry-run",
 		"result": "Receipt",
@@ -1258,6 +1393,9 @@
 	},
 	{
 		"path": "annotation list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "列出论文中的高亮、提问、翻译及 Agent 标记",
 		"example": "agentero annotation list papers/atlas --page 8",
 		"tool": "annotation_list",
@@ -1306,6 +1444,9 @@
 	},
 	{
 		"path": "annotation get",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "查看批注及其原文位置",
 		"example": "agentero annotation get papers/atlas m3",
 		"tool": "annotation_get",
@@ -1332,6 +1473,9 @@
 	},
 	{
 		"path": "annotation add",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "stable",
 		"about": "用原句或版面区域创建批注",
 		"example": "agentero annotation add papers/atlas --quote \"batch size\" --page 8 --request-id mark-17",
 		"tool": "annotation_add",
@@ -1400,6 +1544,7 @@
 			},
 			{
 				"name": "mark-color",
+				"binding": { "field": "color" },
 				"help": "高亮颜色",
 				"default": "yellow",
 				"choices": ["yellow", "green", "blue", "pink", "purple"],
@@ -1427,6 +1572,9 @@
 	},
 	{
 		"path": "annotation update",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "修改批注的备注或颜色",
 		"example": "agentero annotation update papers/atlas m3 --comment \"核对表 2\" --if-revision r2",
 		"tool": "annotation_update",
@@ -1453,6 +1601,7 @@
 			},
 			{
 				"name": "mark-color",
+				"binding": { "field": "color" },
 				"help": "高亮颜色",
 				"choices": ["yellow", "green", "blue", "pink", "purple"],
 				"help_en": "Highlight palette color"
@@ -1470,6 +1619,9 @@
 	},
 	{
 		"path": "annotation remove",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "删除一条批注",
 		"example": "agentero annotation remove papers/atlas m3 --if-revision r2",
 		"tool": "annotation_remove",
@@ -1509,6 +1661,9 @@
 	},
 	{
 		"path": "table query",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "按记录 ID 或字段值查询表格",
 		"example": "agentero table query experiments/results.table.json --field split --equals '\"test\"'",
 		"tool": "table_query",
@@ -1564,6 +1719,9 @@
 	},
 	{
 		"path": "table upsert",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "按记录 ID 创建或局部更新多行",
 		"example": "agentero table upsert experiments/results.table.json --input rows.json --if-revision 4 --request-id run-21",
 		"tool": "table_upsert",
@@ -1578,6 +1736,7 @@
 			},
 			{
 				"name": "input",
+				"binding": { "field": "rows", "decode": "jsonMember" },
 				"help": "输入文件，- 表示标准输入",
 				"required": true,
 				"help_en": "Input path, or - to read stdin"
@@ -1600,6 +1759,9 @@
 	},
 	{
 		"path": "table patch",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "按记录 ID 和列名更新多个单元格",
 		"example": "agentero table patch experiments/results.table.json --input cells.json --if-revision 5 --request-id fix-21",
 		"tool": "table_patch",
@@ -1614,6 +1776,7 @@
 			},
 			{
 				"name": "input",
+				"binding": { "field": "cells", "decode": "jsonMember" },
 				"help": "输入文件，- 表示标准输入",
 				"required": true,
 				"help_en": "Input path, or - to read stdin"
@@ -1643,6 +1806,9 @@
 	},
 	{
 		"path": "feed list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
 		"about": "列出本机订阅",
 		"example": "agentero feed list",
 		"result": "Feeds",
@@ -1668,6 +1834,10 @@
 	},
 	{
 		"path": "feed add",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"online": true,
 		"about": "订阅 RSS、Atom 或 JSON Feed",
 		"example": "agentero feed add https://export.arxiv.org/rss/cs.CL",
 		"result": "Feed",
@@ -1691,6 +1861,10 @@
 	},
 	{
 		"path": "feed refresh",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"online": true,
 		"about": "更新全部或一个订阅",
 		"example": "agentero feed refresh --stale",
 		"result": "FeedRefresh",
@@ -1720,6 +1894,9 @@
 	},
 	{
 		"path": "feed item list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
 		"about": "筛选缓存的订阅条目",
 		"example": "agentero feed item list --kind paper --state unread",
 		"result": "FeedItems",
@@ -1768,6 +1945,9 @@
 	},
 	{
 		"path": "feed item mark",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "设置订阅条目的已读状态",
 		"example": "agentero feed item mark i3 read",
 		"result": "Receipt",
@@ -1794,6 +1974,9 @@
 	},
 	{
 		"path": "feed remove",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "移除订阅及本机缓存条目",
 		"example": "agentero feed remove f2 --yes",
 		"result": "Receipt",
@@ -1818,6 +2001,10 @@
 	},
 	{
 		"path": "translate",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "internal",
+		"online": true,
 		"about": "翻译一段文本或 stdin 内容",
 		"example": "agentero translate --to zh-CN --input - < abstract.txt",
 		"result": "Translation",
@@ -1864,6 +2051,9 @@
 	},
 	{
 		"path": "vault list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
 		"about": "列出当前调用者可见的 Vault",
 		"example": "agentero vault list",
 		"tool": "vault_list",
@@ -1875,6 +2065,9 @@
 	},
 	{
 		"path": "vault info",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
 		"about": "查看所选库、目录和目录索引状态",
 		"example": "agentero vault info --vault ./lab-papers",
 		"result": "Vault",
@@ -1885,6 +2078,9 @@
 	},
 	{
 		"path": "vault create",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "在本机目录创建并登记一个 Vault",
 		"example": "agentero vault create ./lab-papers",
 		"result": "Vault",
@@ -1908,6 +2104,9 @@
 	},
 	{
 		"path": "vault check",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
 		"about": "诊断库、目录索引、链接与批注",
 		"example": "agentero vault check --area links --under notes",
 		"result": "Health",
@@ -1931,6 +2130,9 @@
 	},
 	{
 		"path": "vault repair",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
 		"about": "预览或执行指定的库修复",
 		"example": "agentero vault repair duplicate-records",
 		"result": "Repair",
@@ -1964,6 +2166,9 @@
 	},
 	{
 		"path": "sync status",
+		"sideEffects": "read",
+		"permission": "sync",
+		"stability": "internal",
 		"about": "查看当前库的同步绑定和上次结果",
 		"example": "agentero sync status",
 		"result": "SyncState",
@@ -1981,6 +2186,10 @@
 	},
 	{
 		"path": "sync connect s3",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
 		"about": "连接 S3 或 R2 兼容存储",
 		"example": "agentero sync connect s3 --bucket research --region us-east-1",
 		"result": "SyncState",
@@ -2026,6 +2235,10 @@
 	},
 	{
 		"path": "sync connect webdav",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
 		"about": "连接 WebDAV 目录",
 		"example": "agentero sync connect webdav https://dav.example.org/research --username lab",
 		"result": "SyncState",
@@ -2067,6 +2280,10 @@
 	},
 	{
 		"path": "sync connect git",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
 		"about": "连接 Git 仓库与分支",
 		"example": "agentero sync connect git git@example.org:lab/vault.git --branch main",
 		"result": "SyncState",
@@ -2109,6 +2326,10 @@
 	},
 	{
 		"path": "sync test",
+		"sideEffects": "read",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
 		"about": "验证绑定的存储及写入能力",
 		"example": "agentero sync test",
 		"result": "SyncTest",
@@ -2119,6 +2340,10 @@
 	},
 	{
 		"path": "sync run",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
 		"about": "执行一次双向同步",
 		"example": "agentero sync run",
 		"result": "SyncRun",
@@ -2129,6 +2354,9 @@
 	},
 	{
 		"path": "sync disconnect",
+		"sideEffects": "destructive",
+		"permission": "sync",
+		"stability": "internal",
 		"about": "解绑当前库并移除本地同步状态",
 		"example": "agentero sync disconnect --yes",
 		"result": "Receipt",
@@ -2153,6 +2381,9 @@
 	},
 	{
 		"path": "app open",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "在桌面打开 Vault、文档、论文或引用",
 		"example": "agentero app open papers/atlas",
 		"result": "View",
@@ -2170,6 +2401,9 @@
 	},
 	{
 		"path": "app views",
+		"sideEffects": "read",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "列出桌面窗口及可定位的视图",
 		"example": "agentero app views --window main",
 		"result": "Views",
@@ -2186,6 +2420,9 @@
 	},
 	{
 		"path": "app split",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "在工作区拆分当前视图或并排打开文档",
 		"example": "agentero app split notes/ideas.md --beside view-123",
 		"result": "View",
@@ -2220,6 +2457,9 @@
 	},
 	{
 		"path": "app close",
+		"sideEffects": "destructive",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "关闭一个桌面视图",
 		"example": "agentero app close view-123 --window main",
 		"result": "Receipt",
@@ -2243,6 +2483,9 @@
 	},
 	{
 		"path": "app window",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "打开或聚焦一个功能窗口",
 		"example": "agentero app window settings",
 		"result": "Window",
@@ -2267,6 +2510,9 @@
 	},
 	{
 		"path": "app present",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "将本回合生成的 Vault 文件放到聊天产物卡片",
 		"example": "agentero app present outputs/comparison.md --title \"实验对照\"",
 		"result": "Artifacts",
@@ -2299,6 +2545,9 @@
 	},
 	{
 		"path": "delegate targets",
+		"sideEffects": "read",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "列出可委派的已连接 SSH 工作区",
 		"example": "agentero delegate targets",
 		"result": "Targets",
@@ -2309,6 +2558,9 @@
 	},
 	{
 		"path": "delegate run",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "向指定工作区提交远端 Agent 任务",
 		"example": "agentero delegate run gpu-lab --input task.md --request-id job-17",
 		"result": "Job",
@@ -2338,6 +2590,9 @@
 	},
 	{
 		"path": "delegate result",
+		"sideEffects": "read",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "读取任务状态及已有结果",
 		"example": "agentero delegate result j9 --wait 30",
 		"result": "Job",
@@ -2365,6 +2620,9 @@
 	},
 	{
 		"path": "delegate cancel",
+		"sideEffects": "destructive",
+		"permission": "desktop",
+		"stability": "internal",
 		"about": "请求取消仍在执行的远端任务",
 		"example": "agentero delegate cancel j9",
 		"result": "Job",
@@ -2390,6 +2648,9 @@
 	},
 	{
 		"path": "mcp serve",
+		"sideEffects": "write",
+		"permission": "none",
+		"stability": "internal",
 		"about": "向客户端启动一个 Agentero MCP 服务",
 		"example": "agentero mcp serve --vault lab --allow full-text",
 		"result": "Server",
@@ -2427,11 +2688,14 @@
 			}
 		],
 		"about_en": "Run an MCP server on stdio or loopback HTTP",
-		"behavior": "所选库为默认库，--allow-vault 可重复追加其它授权库。HTTP 只绑定 loopback，需 token-input 或系统凭据；stdio 只输出协议帧。listen、token-input 仅用于 http。",
+		"behavior": "所选库为默认库，--allow-vault 可重复追加其它授权库。HTTP 只绑定 loopback，默认生成当前进程专用的临时 bearer 凭据，也可以用 --token-input 指定；stdio 只输出协议帧。listen、token-input 仅用于 http。",
 		"returns": "Server · transport, address"
 	},
 	{
 		"path": "mcp tools",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "internal",
 		"about": "查看给定启动配置实际会发布的工具",
 		"example": "agentero mcp tools --vault lab --allow write --json",
 		"result": "Tools",
@@ -2456,6 +2720,9 @@
 	},
 	{
 		"path": "help",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "internal",
 		"about": "查看任意命令的帮助或结构化定义",
 		"example": "agentero help paper import pdf",
 		"result": "Help",

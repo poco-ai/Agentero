@@ -2118,7 +2118,7 @@ agentero mcp · 为外部客户端运行或检查工具服务
   --token-input    HTTP bearer token 文件或 -。本机输入文件或 -（stdin）；可选
 
 行为
-  所选库为默认库，--allow-vault 可重复追加其它授权库。HTTP 只绑定 loopback，需 token-input 或系统凭据；stdio 只输出协议帧。listen、token-input 仅用于 http。
+  所选库为默认库，--allow-vault 可重复追加其它授权库。HTTP 只绑定 loopback，默认生成当前进程专用的临时 bearer 凭据，也可以用 --token-input 指定；stdio 只输出协议帧。listen、token-input 仅用于 http。
 
 结果
   Server · transport, address

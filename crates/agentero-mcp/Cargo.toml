@@ -22,12 +22,10 @@ rmcp = { version = "3.10", default-features = false, features = [
 schemars = "1"
 specta = { version = "2.0.0-rc.22", features = ["derive"] }
 base64 = "0.22"
-sha2 = "0.10"
-fs2 = "0.4"
 uuid = { version = "1", features = ["v4"] }
 subtle = "2"
 tempfile.workspace = true
-jsonschema = { version = "0.33", default-features = false }
+ring = "0.17"
 async-trait = "0.1.91"
 
 [dev-dependencies]

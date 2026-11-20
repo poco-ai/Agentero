@@ -9,14 +9,8 @@ use std::{io::Read, path::Path, sync::Arc};
 
 struct CliHost(Permissions);
 impl McpHost for CliHost {
-    fn allow_write(&self) -> bool {
-        self.0.write
-    }
-    fn allow_online(&self) -> bool {
-        self.0.online
-    }
-    fn expose_paper_text(&self) -> bool {
-        self.0.full_text
+    fn permissions(&self) -> Permissions {
+        self.0
     }
 }
 
@@ -66,6 +60,7 @@ pub async fn run(op: &str, a: Value, g: &GlobalOpts) -> Result<Value, CliError> 
     }
     let addr =
         agentero_mcp::parse_loopback_listen(listen).map_err(|e| CliError::usage(e.to_string()))?;
+    let _private_token_file;
     let token = match a["token_input"].as_str() {
         Some("-") => {
             let mut s = String::new();
@@ -74,11 +69,12 @@ pub async fn run(op: &str, a: Value, g: &GlobalOpts) -> Result<Value, CliError> 
         }
         Some(path) => std::fs::read_to_string(path)?.trim().to_owned(),
         None => {
-            let value = agentero_mcp::default_token()?;
+            let (value, file) = agentero_mcp::ephemeral_token()?;
+            _private_token_file = file;
             if !g.quiet {
                 eprintln!(
                     "MCP bearer token file: {}",
-                    agentero_mcp::default_token_path().display()
+                    _private_token_file.path().display()
                 );
             }
             value

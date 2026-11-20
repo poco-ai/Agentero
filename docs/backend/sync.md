@@ -97,7 +97,7 @@ agentero sync run --vault ~/test-vault
 - **忽略**：`.agentero/`、`.DS_Store`、`*.tmp`、`node_modules/` 通过 `.git/info/exclude` 排除，不写进 `.gitignore`；本地或远端已跟踪 `.agentero` 直接报 `git_agentero_tracked`。`catalog.sqlite` 仍可由 sidecar 重建。同步范围关闭的 PDF / `source/` / `attachments/` 写在 `.gitignore` 的标记区块里，已跟踪文件不因开关而移出索引。
 - **一次 pass**：更新范围规则 → 暂存并提交范围内的改动 → 查询远端分支并按需 fetch → 合并 → push。远端无分支时直接推送；本地没有提交时用 `checkout --no-overwrite-ignore -B` 采纳远端，无共同祖先时走 Git 三方合并。检出或合并前先检查远端路径是否与本地未跟踪且被忽略的文件重叠；重叠则停止，请先备份并移开该文件。push 被非 fast-forward 拒绝时重新获取和合并（最多 3 次 push）。
 - **冲突**：使用 Git 原生三方合并；有冲突时收集 `--diff-filter=U` 路径、`git merge --abort` 并返回 `sync_conflict`，**不 push、不 auto-resolve**。本地提交保留，用户用 Git/编辑器解决后再同步。
-- **认证**：不把 token 写入 `sync.json`；使用系统 credential helper / SSH agent。子进程设置 `GIT_TERMINAL_PROMPT=0`、`GCM_INTERACTIVE=never`、`SSH_ASKPASS_REQUIRE=never`（Unix 未自定义 `GIT_SSH_COMMAND` 时加 `ssh -o BatchMode=yes`），非交互环境失败而不是挂起。HTTPS 没有凭据时设置页按 `git_auth_failed` 提示先用 `git credential approve` 或系统凭据助手存 token，SSH 则提示 `ssh-add`。URL 内嵌凭据、`ext::`、`git://` 一律拒绝。非 loopback 的明文 `http://` 默认关闭，设置页「允许明文 HTTP」（`gitAllowInsecureHttp`，CLI `--git-allow-insecure-http true`）打开后才保存，令牌以明文传输，只适合没有 HTTPS 的内网。自签 HTTPS 可填 CA 证书的绝对 PEM 路径（`gitSslCaInfo`，CLI `--git-ssl-ca`），每次 Git 命令带 `-c http.sslCAInfo=<path>`；留空用系统信任库。证书校验失败为 `git_tls_failed`。不提供关闭证书校验的开关。
+- **认证**：不把 token 写入 `sync.json`；使用系统 credential helper / SSH agent。子进程设置 `GIT_TERMINAL_PROMPT=0`、`GCM_INTERACTIVE=never`、`SSH_ASKPASS_REQUIRE=never`（Unix 未自定义 `GIT_SSH_COMMAND` 时加 `ssh -o BatchMode=yes`），非交互环境失败而不是挂起。HTTPS 没有凭据时设置页按 `git_auth_failed` 提示先用 `git credential approve` 或系统凭据助手存 token，SSH 则提示 `ssh-add`。URL 内嵌凭据、`ext::`、`git://` 一律拒绝。非 loopback 的明文 `http://` 默认关闭，设置页「允许明文 HTTP」（`gitAllowInsecureHttp`，CLI `--allow-insecure-http`）打开后才保存，令牌以明文传输，只适合没有 HTTPS 的内网。自签 HTTPS 可填 CA 证书的绝对 PEM 路径（`gitSslCaInfo`，CLI `--ca-file`），每次 Git 命令带 `-c http.sslCAInfo=<path>`；留空用系统信任库。证书校验失败为 `git_tls_failed`。不提供关闭证书校验的开关。
 - **Windows 进程回收**：每次 Git 命令经 `process::command_output` 先暂停创建、加入独立 Job Object 后恢复运行，避免 Git 启动器派生的 HTTPS / SSH 后代逃逸。命令正常结束、超时（网络命令 600s）或同步任务取消时均关闭 Job，终止该次命令留下的完整进程树；不按进程名清理，不影响其它仓库的 Git。同一守卫也用于写作目录同步、Doctor / 安装器、编译工具和 MCP tunnel。非 Windows 保持原有执行方式。全局 `http.postBuffer` 等用户 Git 配置仍由 Git 自身读取，本修复不会修改；过大的上传缓冲可能放大单次 HTTPS 推送内存占用。
 - **触发**：复用自动同步调度（打开 Vault、静置 30s、定时间隔）。退出 flush 跳过 Git——5s 预算可能中断 commit/push 并留下 `index.lock`，下次启动补推。`.git` 与 `.agentero` 已被 watcher 忽略，不会事件回环。
 - **限制**：不会清理既有 Git 历史，也不节省已跟踪文件的拉取流量；Git LFS、partial clone 和 sparse-checkout 未接入。
@@ -136,7 +136,7 @@ agentero sync run --vault ~/test-vault
 
 - 拿不到锁立即失败，域码 `sync_busy`（CLI 退出码 1，桌面端记入 `sync:state` error）；使用 `fs2` 的平台锁冲突错误码识别占用，避免 Windows 的 `ERROR_LOCK_VIOLATION` 被误报为普通 IO 错误。
 - 正常释放 guard 时显式解锁，再关闭文件句柄，避免复制的句柄（包括 Unix 并发 `fork` / `dup` 继承的描述符）延迟释放同一把锁。进程退出、崩溃或被杀时仍由系统在最后一个相关句柄关闭后释放，无陈旧锁文件清理。
-- 桌面端手动 / 自动 / 退出同步与 CLI `sync now` 均走该入口；`SyncRunLease` 仅叠加进程内 UI 状态（`running`）。
+- 桌面端手动 / 自动 / 退出同步与 CLI `sync run` 均走该入口；`SyncRunLease` 仅叠加进程内 UI 状态（`running`）。
 - 该锁不约束其他编辑器。应用前按路径重新校验本地内容，不将 Vault 锁当作整个文件系统的事务。
 
 ## CLI（headless）

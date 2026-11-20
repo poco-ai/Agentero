@@ -21,6 +21,26 @@ pub fn default_token() -> Result<String, AppError> {
     token_at(&default_token_path())
 }
 
+pub fn ephemeral_token() -> Result<(String, tempfile::NamedTempFile), AppError> {
+    let dir = agentero_core::paths::agentero_config_dir();
+    std::fs::create_dir_all(&dir)?;
+    let mut file = tempfile::Builder::new()
+        .prefix("mcp-")
+        .suffix(".token")
+        .tempfile_in(dir)?;
+    let token = generate_token();
+    writeln!(file, "{token}")?;
+    Ok((token, file))
+}
+
+fn generate_token() -> String {
+    format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    )
+}
+
 pub(super) fn token_at(path: &std::path::Path) -> Result<String, AppError> {
     let read = || -> Result<String, AppError> {
         let token = std::fs::read_to_string(path)?;
@@ -36,11 +56,7 @@ pub(super) fn token_at(path: &std::path::Path) -> Result<String, AppError> {
     let dir = path.parent().expect("token config directory");
     std::fs::create_dir_all(dir)?;
     let mut file = tempfile::NamedTempFile::new_in(dir)?;
-    let token = format!(
-        "{}{}",
-        uuid::Uuid::new_v4().simple(),
-        uuid::Uuid::new_v4().simple()
-    );
+    let token = generate_token();
     writeln!(file, "{token}")?;
     match file.persist_noclobber(path) {
         Ok(_) => Ok(token),
@@ -138,7 +154,7 @@ pub async fn serve(
     let mcp_service = StreamableHttpService::new(
         {
             let ctrl = Arc::clone(&ctrl);
-            move || Ok(ResearchServer(Arc::clone(&ctrl)))
+            move || Ok(ResearchServer::new(Arc::clone(&ctrl)))
         },
         LocalSessionManager::default().into(),
         config,
@@ -147,9 +163,11 @@ pub async fn serve(
         return Err(AppError::message("HTTP bearer token is empty"));
     }
     let token = Arc::new(token);
+    let stateless_key = crate::excerpts::ExcerptKey::new();
     let app = Router::new()
         .nest_service("/mcp", mcp_service)
-        .layer(middleware::from_fn(move |req: Request, next: Next| {
+        .layer(middleware::from_fn(move |mut req: Request, next: Next| {
+            req.extensions_mut().insert(stateless_key.clone());
             let token = token.clone();
             async move {
                 let supplied = req

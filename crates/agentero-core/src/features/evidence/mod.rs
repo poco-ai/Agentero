@@ -179,6 +179,10 @@ pub fn make_citation(
     ))
 }
 fn decode_citation(vault: &Path, uri: &str) -> Result<Citation> {
+    // The protocol layer verifies excerpt proofs. The underlying locator is portable.
+    let uri = uri
+        .split_once("#excerpt=")
+        .map_or(uri, |(source, _)| source);
     let (key, payload) = uri
         .strip_prefix("agentero://cite/")
         .and_then(|s| s.split_once('/'))
@@ -198,26 +202,43 @@ fn decode_citation(vault: &Path, uri: &str) -> Result<Citation> {
     validate_rel(&cite.path)?;
     Ok(cite)
 }
-pub fn resolve_citation(vault: &Path, uri: &str) -> Result<(String, Value)> {
-    let c = decode_citation(vault, uri)?;
-    let path = existing(vault, &c.path)?;
-    let rev = if path.is_file() {
+fn current_revision(vault: &Path, rel: &str, kind: &str, locator: &Value) -> Result<String> {
+    let path = existing(vault, rel)?;
+    Ok(if path.is_file() {
         file_revision(&path)?
-    } else if c.kind == "body"
-        && (c.locator.get("page").is_some() || c.locator.get("region").is_some())
-    {
-        read::page_revision(vault, &c.path)?
-    } else if c.kind == "body" {
+    } else if kind == "body" && (locator.get("page").is_some() || locator.get("region").is_some()) {
+        read::page_revision(vault, rel)?
+    } else if kind == "body" {
         if let Some(tex) = crate::features::paper::source::read_tex(&path) {
             content_revision(tex.text.as_bytes())
         } else {
-            page_revision(vault, &c.path)?
+            page_revision(vault, rel)?
         }
-    } else if let Some(p) = paper(vault, &c.path)? {
+    } else if let Some(p) = paper(vault, rel)? {
         content_revision(&serde_json::to_vec(&p)?)
     } else {
-        read::directory_revision(vault, &c.path)?
-    };
+        read::directory_revision(vault, rel)?
+    })
+}
+
+pub(crate) fn current_citation(
+    vault: &Path,
+    path: &str,
+    kind: &str,
+    locator: &Value,
+) -> Result<String> {
+    make_citation(
+        vault,
+        path,
+        &current_revision(vault, path, kind, locator)?,
+        kind,
+        locator,
+    )
+}
+
+pub fn resolve_citation(vault: &Path, uri: &str) -> Result<(String, Value)> {
+    let c = decode_citation(vault, uri)?;
+    let rev = current_revision(vault, &c.path, &c.kind, &c.locator)?;
     if c.revision != rev {
         return Err(AppError::domain(
             "stale_citation",
@@ -226,7 +247,7 @@ pub fn resolve_citation(vault: &Path, uri: &str) -> Result<(String, Value)> {
     }
     Ok((c.path, c.locator))
 }
-fn file_revision(path: &Path) -> Result<String> {
+pub(crate) fn file_revision(path: &Path) -> Result<String> {
     use std::io::Read;
     let mut f = std::fs::File::open(path)?;
     let mut hash = Sha256::new();

@@ -4,21 +4,20 @@
 //! events, and the ChatGPT tunnel; this crate owns the tool surface and the
 //! listener. Desktop-only side effects go through [`McpHost`].
 
-mod annotations;
-use agentero_core::features::vault::files;
+mod excerpts;
 mod host;
 mod icons;
 mod interface;
-use agentero_core::features::paper::notes;
-mod operations;
-use agentero_core::features::paper::catalog::papers as paper;
 #[cfg(test)]
 mod protocol_tests;
 mod server;
-pub use interface::{execute_local, serve_stdio, tools_list, vault_id, Permissions};
+pub use agentero_core::ops::execute::{vault_id, Permissions};
+pub use interface::{serve_stdio, tools_list};
 
 pub use host::{ImportContext, McpHost, NullHost};
-pub use server::{default_token, default_token_path, parse_loopback_listen, serve_until_signal};
+pub use server::{
+    default_token, default_token_path, ephemeral_token, parse_loopback_listen, serve_until_signal,
+};
 
 use agentero_core::error::AppError;
 use serde::Serialize;
@@ -81,7 +80,6 @@ pub struct McpController {
     inner: Mutex<Inner>,
     running: AtomicBool,
     token_file: PathBuf,
-    excerpts: Mutex<std::collections::VecDeque<serde_json::Value>>,
 }
 
 impl Default for McpController {
@@ -108,7 +106,6 @@ impl McpController {
             }),
             running: AtomicBool::new(false),
             token_file: server::default_token_path(),
-            excerpts: Mutex::default(),
         }
     }
 
@@ -468,6 +465,7 @@ mod tests {
     use super::*;
     use agentero_core::features::paper::catalog::papers::{self, PaperRecord, PaperTag};
     use agentero_core::features::vault;
+    use agentero_core::ops::execute::run_local;
     use tempfile::tempdir;
 
     fn sample_record(path: &str, id: &str, title: &str) -> PaperRecord {
@@ -527,32 +525,38 @@ mod tests {
         std::fs::create_dir_all(vault.join("papers").join("p1")).unwrap();
         papers::upsert_paper(&vault, &rec).unwrap();
 
-        let listed = execute_local(&vault, "paper_list", serde_json::json!({"query":"Hello"}))
-            .await
-            .unwrap();
+        let listed = run_local(
+            &vault,
+            "paper_list",
+            serde_json::json!({"query":"Hello"}),
+            None,
+        )
+        .await
+        .unwrap();
         let items = listed["items"].as_array().unwrap();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0]["id"], "p1");
         assert_eq!(items[0]["title"], "Hello");
         assert!(items[0].get("authors").is_none());
-        let got = execute_local(&vault, "paper_get", serde_json::json!({"paper":"p1"}))
+        let got = run_local(&vault, "paper_get", serde_json::json!({"paper":"p1"}), None)
             .await
             .unwrap();
         assert_eq!(got["title"], "Hello");
         assert_eq!(got["authors"], serde_json::json!(["Ann"]));
         assert_eq!(got["abstract"], "abs");
 
-        execute_local(
+        run_local(
             &vault,
             "paper_note_replace",
             serde_json::json!({"paper":"p1","content":"# n","if_revision":"missing"}),
+            None,
         )
         .await
         .unwrap();
         let text = std::fs::read_to_string(vault.join("papers/p1/NOTES.md")).unwrap();
         assert!(text.contains("# n"), "{text}");
 
-        let escaped = paper::resolve_paper(&vault, "../etc/passwd");
+        let escaped = papers::resolve_paper(&vault, "../etc/passwd");
         assert!(escaped.is_err());
     }
 

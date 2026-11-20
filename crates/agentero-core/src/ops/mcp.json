@@ -2,22 +2,22 @@
 	"tools": [
 		{
 			"name": "evidence_search",
-			"title": "在指定材料或整个 Vault 内查找可引用的出处",
-			"description": "在指定材料或整个 Vault 内查找可引用的出处。in 多项取并集，kind 取并集，tag 取交集且仅匹配所属论文。按相关度、来源 ID、位置稳定排序；题录、正文、笔记、表格单元格和 UTF-8 文件均给出处。",
+			"title": "Search research evidence",
+			"description": "Find citable passages in papers, notes, tables and UTF-8 files. Scopes and kinds form unions; all supplied tags must match the parent paper. Results include the source, locator, revision and citation.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"query": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"in": {
 						"type": "array",
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "论文 ID、Vault 相对路径或不透明 cite 引用"
+							"description": "Paper ID, Vault-relative path or opaque citation URI."
 						},
 						"minItems": 1
 					},
@@ -34,7 +34,7 @@
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空标签名"
+							"description": "Nonempty tag name."
 						},
 						"minItems": 1
 					},
@@ -52,11 +52,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["query"],
@@ -156,15 +156,15 @@
 		},
 		{
 			"name": "evidence_read",
-			"title": "按引用、论文或文件读取有位置的原文",
-			"description": "按引用、论文或文件读取有位置的原文。pages、section、region、quote、lines 互斥。part=layout 需要单页或一个 region；pages 用于 PDF 物理页，保留分页；lines 用于文本。引用自带定位，禁止再传定位器。无定位时，论文给摘要与可读入口，文本文件从首行开始，目录返回子项。body 优先 TeX、PAPER.md、版面，再尝试 PDF 文本；指定页和区域只用有对应坐标的源。原生 PDF 有文本层即可按页读。长内容带续读游标。 cite 可直接来自 evidence_search。",
+			"title": "Read a passage",
+			"description": "Read by citation, paper or Vault path. Choose one of pages, section, region, quote or lines. A citation already selects its location. Layout needs one page or region. An unqualified paper returns metadata. Body reads prefer TeX, Markdown, layout, then native PDF text. Use next_cursor for longer reads. A restricted body citation reopens exactly the issued excerpt.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"source": {
 						"type": "string",
 						"minLength": 1,
-						"description": "论文 ID、Vault 相对路径或不透明 cite 引用"
+						"description": "Paper ID, Vault-relative path or opaque citation URI."
 					},
 					"part": {
 						"type": "string",
@@ -181,27 +181,27 @@
 						"minItems": 1,
 						"maxItems": 200,
 						"uniqueItems": true,
-						"description": "从 1 起的物理页码，按页序返回。第 8 页传 [8]。"
+						"description": "One-based physical page numbers. Use [8] for page eight. Pages are returned in order."
 					},
 					"section": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"region": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"quote": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"lines": {
 						"type": "string",
 						"minLength": 1,
-						"description": "1 起闭区间，例 12-24"
+						"description": "Inclusive one-based line range, e.g. 12-24."
 					},
 					"max_chars": {
 						"type": "integer",
@@ -212,11 +212,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["source"],
@@ -567,22 +567,22 @@
 		},
 		{
 			"name": "paper_list",
-			"title": "按题录筛选馆藏论文",
-			"description": "按题录筛选馆藏论文。query 匹配题名、作者、标识或路径；多个 tag 全部满足。updated/date 降序，title 升序，同值按 ID。",
+			"title": "List papers",
+			"description": "Filter by title, author, identifier, path, tags, reading state and status. All tags must match. Updated and publication dates sort newest first; titles sort ascending.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"query": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"tag": {
 						"type": "array",
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空标签名"
+							"description": "Nonempty tag name."
 						},
 						"minItems": 1
 					},
@@ -593,7 +593,7 @@
 					"status": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"include_internal": {
 						"type": "boolean",
@@ -613,11 +613,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": [],
@@ -673,15 +673,15 @@
 		},
 		{
 			"name": "paper_get",
-			"title": "查看一篇论文的元数据、资产与路径",
-			"description": "查看一篇论文的元数据、资产与路径。返回 DOI、arXiv ID、作者、状态、标签和实际存在的 PDF、TeX、正文、笔记、批注位置，路径相对 Vault。",
+			"title": "Get paper details",
+			"description": "Get metadata, reading state, user tags and the Vault-relative locations of available local assets.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"include_internal": {
 						"type": "boolean",
@@ -689,7 +689,7 @@
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper"],
@@ -796,49 +796,49 @@
 		},
 		{
 			"name": "paper_update",
-			"title": "修改题录字段或阅读状态",
-			"description": "修改题录字段或阅读状态。至少一项修改。author 按输入顺序整体替换；clear 显式清空可空字段，与同字段赋值互斥。title 不可清空。",
+			"title": "Update paper metadata",
+			"description": "Update at least one catalog field or reading-state value. Author names replace the full ordered list. Use clear to remove optional values. Keep a nonempty title.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"title": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"author": {
 						"type": "array",
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空文本"
+							"description": "Nonempty text."
 						},
 						"minItems": 1
 					},
 					"venue": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"date": {
 						"type": "string",
 						"minLength": 1,
-						"description": "YYYY、YYYY-MM 或 YYYY-MM-DD"
+						"description": "YYYY, YYYY-MM or YYYY-MM-DD."
 					},
 					"doi": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"arxiv": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"state": {
 						"type": "string",
@@ -847,7 +847,7 @@
 					"status": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"clear": {
 						"type": "array",
@@ -860,11 +860,11 @@
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "if_revision"],
@@ -1004,8 +1004,8 @@
 		},
 		{
 			"name": "paper_discover",
-			"title": "从 arXiv 检索和排序候选论文",
-			"description": "从 arXiv 检索和排序候选论文。至少一个 keyword 或 category。since≤until，limit≤candidates。hybrid 需要本机配置的 embedding profile；只有已选 Vault 时才去除馆藏项。只查询，不入库。",
+			"title": "Discover papers",
+			"description": "Find arXiv candidates by keyword or category. Limit must fit within the candidate count. Hybrid ranking requires a configured embedding profile. When a Vault is selected, known papers are excluded by default.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
@@ -1014,7 +1014,7 @@
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空文本"
+							"description": "Nonempty text."
 						},
 						"minItems": 1
 					},
@@ -1023,7 +1023,7 @@
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空文本"
+							"description": "Nonempty text."
 						},
 						"minItems": 1
 					},
@@ -1068,7 +1068,7 @@
 					"embedding_profile": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"semantic_weight": {
 						"type": "number",
@@ -1078,7 +1078,7 @@
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": [],
@@ -1162,25 +1162,25 @@
 		},
 		{
 			"name": "paper_import",
-			"title": "从 DOI、arXiv 标识或论文 URL 入库",
-			"description": "从 DOI、arXiv 标识或论文 URL 入库。按规范化标识去重，已收录返回 existing；书目信息和可取得的资产分别报告。",
+			"title": "Import a paper",
+			"description": "Import a DOI, arXiv identifier or supported paper URL. Existing records are deduplicated by identifier. Results distinguish newly created and existing records and report asset status.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"identifier": {
 						"type": "string",
 						"minLength": 1,
-						"description": "DOI、arXiv ID 或论文 URL"
+						"description": "DOI, arXiv ID or supported paper URL."
 					},
 					"into": {
 						"type": "string",
 						"minLength": 1,
-						"description": "Vault 相对目录",
+						"description": "Vault-relative directory.",
 						"default": "papers"
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["identifier"],
@@ -1223,15 +1223,15 @@
 		},
 		{
 			"name": "paper_regions",
-			"title": "列出可直接读取的图、表、公式与文本区域",
-			"description": "列出可直接读取的图、表、公式与文本区域。kind 可重复，按物理页与阅读顺序排列；条目提供 region、cite 与坐标。版面缺失返回 missing_layout。",
+			"title": "List paper regions",
+			"description": "List figures, tables, formulas or text regions with one-based physical pages, coordinates and citations. Filter by kind and page. Missing analysis returns a layout error.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"kind": {
 						"type": "array",
@@ -1270,11 +1270,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper"],
@@ -1339,15 +1339,15 @@
 		},
 		{
 			"name": "paper_relations",
-			"title": "查看论文的参考文献及被引关系",
-			"description": "查看论文的参考文献及被引关系。references 来自缓存的参考文献；cited-by 按本地引用缓存反查；related 是参考文献中能匹配到馆藏的子集。返回覆盖范围、匹配依据与缓存状态。",
+			"title": "Find paper relations",
+			"description": "Inspect cached references, locally observed citations, or references matched to papers in the Vault. Results indicate coverage, match basis and cache state.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"direction": {
 						"type": "string",
@@ -1367,11 +1367,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper"],
@@ -1432,8 +1432,8 @@
 		},
 		{
 			"name": "paper_tag_list",
-			"title": "查看全库标签及论文数量",
-			"description": "查看全库标签及论文数量。按使用数降序、名称升序。",
+			"title": "List paper tags",
+			"description": "List Vault tags and their paper counts, sorted by usage and then name.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
@@ -1450,11 +1450,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": [],
@@ -1497,28 +1497,28 @@
 		},
 		{
 			"name": "paper_tag_add",
-			"title": "给论文增加标签",
-			"description": "给论文增加标签。忽略大小写去重；允许 name:color，颜色写入标签元数据。",
+			"title": "Add paper tags",
+			"description": "Add user tags, ignoring case when deduplicating. Use name:color to set a tag color.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"tags": {
 						"type": "array",
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空标签名"
+							"description": "Nonempty tag name."
 						},
 						"minItems": 1
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "tags"],
@@ -1625,28 +1625,28 @@
 		},
 		{
 			"name": "paper_tag_remove",
-			"title": "移除指定标签",
-			"description": "移除指定标签。按名称移除，重复调用返回当前集合。",
+			"title": "Remove paper tags",
+			"description": "Remove specified tags by name and return the current collection.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"tags": {
 						"type": "array",
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空标签名"
+							"description": "Nonempty tag name."
 						},
 						"minItems": 1
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "tags"],
@@ -1753,22 +1753,22 @@
 		},
 		{
 			"name": "paper_tag_set",
-			"title": "整体替换论文标签",
-			"description": "整体替换论文标签。提供非空标签或 clear，二选一；只操作用户标签。",
+			"title": "Replace paper tags",
+			"description": "Replace all user tags. Provide tags or explicitly clear the collection.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"tags": {
 						"type": "array",
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "非空标签名"
+							"description": "Nonempty tag name."
 						},
 						"minItems": 1
 					},
@@ -1779,11 +1779,11 @@
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "if_revision"],
@@ -1915,30 +1915,30 @@
 		},
 		{
 			"name": "paper_note_append",
-			"title": "在论文笔记末尾追加 Markdown",
-			"description": "在论文笔记末尾追加 Markdown。同请求 ID 和相同内容只追加一次。",
+			"title": "Append a paper note",
+			"description": "Append Markdown to a paper's notes. Retry with the same request ID and content to append exactly once.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"request_id": {
 						"type": "string",
 						"minLength": 1,
 						"maxLength": 80,
 						"pattern": "^\\S+$",
-						"description": "1–80 位无空白请求 ID"
+						"description": "Request ID of 1–80 characters without whitespace."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					},
 					"content": {
 						"type": "string",
-						"description": "UTF-8 Markdown 正文"
+						"description": "UTF-8 Markdown content."
 					}
 				},
 				"required": ["paper", "content", "request_id"],
@@ -1968,28 +1968,28 @@
 		},
 		{
 			"name": "paper_note_replace",
-			"title": "用 Markdown 替换整篇论文笔记",
-			"description": "用 Markdown 替换整篇论文笔记。revision 来自 read part notes；首次创建传 missing。保留锁定实验记录策略。",
+			"title": "Replace a paper note",
+			"description": "Replace the Markdown body of the paper's notes using its observed revision. Use missing to create notes. Locked experiment records remain protected.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					},
 					"content": {
 						"type": "string",
-						"description": "UTF-8 Markdown 正文"
+						"description": "UTF-8 Markdown content."
 					}
 				},
 				"required": ["paper", "if_revision", "content"],
@@ -2019,15 +2019,15 @@
 		},
 		{
 			"name": "file_list",
-			"title": "浏览 Vault 内一个目录",
-			"description": "浏览 Vault 内一个目录。省略 path 从库根开始，只列一层。hidden 含普通隐藏项；管理目录与保留类型的约束始终生效。",
+			"title": "List Vault files",
+			"description": "List one directory level. Omit path for the Vault root. Hidden entries may be included; private and managed paths stay protected.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"path": {
 						"type": "string",
 						"minLength": 1,
-						"description": "Vault 相对目录"
+						"description": "Vault-relative directory."
 					},
 					"hidden": {
 						"type": "boolean",
@@ -2042,11 +2042,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": [],
@@ -2092,15 +2092,15 @@
 		},
 		{
 			"name": "file_write",
-			"title": "创建、追加或替换一个 Vault 文件",
-			"description": "创建、追加或替换一个 Vault 文件。create 遇已有文件报冲突；replace 必需 if-revision；append 仅限 UTF-8，需显式提供 request_id。Markdown 只接受 UTF-8。现有表、论文笔记、批注、版面索引与锁定实验记录依各自规则写入；新建表验证结构。创建缺失父目录。 二进制内容使用 base64。",
+			"title": "Write a Vault file",
+			"description": "Create, append or replace a file. Create requires an unused path, replace requires the current revision, and UTF-8 append requires a request ID. Use standard Base64 for binary data. Use dedicated tools for existing tables and paper notes.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"path": {
 						"type": "string",
 						"minLength": 1,
-						"description": "规范化 Vault 相对路径"
+						"description": "Normalized Vault-relative path."
 					},
 					"mode": {
 						"type": "string",
@@ -2115,22 +2115,22 @@
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"request_id": {
 						"type": "string",
 						"minLength": 1,
 						"maxLength": 80,
 						"pattern": "^\\S+$",
-						"description": "1–80 位无空白请求 ID"
+						"description": "Request ID of 1–80 characters without whitespace."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					},
 					"content": {
 						"type": "string",
-						"description": "utf8 为原文，base64 为标准带填充 Base64，最多 2 MiB（解码后）。"
+						"description": "Plain UTF-8 text or standard padded Base64. Maximum decoded size: 2 MiB."
 					}
 				},
 				"required": ["path", "content"],
@@ -2205,24 +2205,24 @@
 		},
 		{
 			"name": "file_move",
-			"title": "移动或重命名文件、目录或整篇论文",
-			"description": "移动或重命名文件、目录或整篇论文。destination 是完整目标路径。普通文件同库移动；论文及其组织目录可跨已授权 Vault，保留论文目录名、更新题录与双链，重名报冲突。dry-run 返回受影响条目。",
+			"title": "Move a Vault file",
+			"description": "Move or rename a file or folder using its full destination path. Whole papers and their organizational folders can move across authorized Vaults while preserving the folder name. Existing destinations cause a conflict. Use dry_run to preview.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"source": {
 						"type": "string",
 						"minLength": 1,
-						"description": "规范化 Vault 相对路径"
+						"description": "Normalized Vault-relative path."
 					},
 					"destination": {
 						"type": "string",
 						"minLength": 1,
-						"description": "规范化 Vault 相对路径"
+						"description": "Normalized Vault-relative path."
 					},
 					"to_vault": {
 						"type": "string",
-						"description": "授权的目标 Vault ID"
+						"description": "Authorized destination Vault ID."
 					},
 					"dry_run": {
 						"type": "boolean",
@@ -2230,7 +2230,7 @@
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["source", "destination"],
@@ -2279,8 +2279,8 @@
 		},
 		{
 			"name": "file_remove",
-			"title": "将文件或目录移入 Vault 回收站",
-			"description": "将文件或目录移入 Vault 回收站。处理论文目录时一并回收题录，返回恢复 ID；同批父子路径先归并。删除前可预览。",
+			"title": "Move files to trash",
+			"description": "Move files and folders to the Vault trash, including catalog entries under removed paper folders. Returns IDs for restore. Use dry_run to preview.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
@@ -2289,7 +2289,7 @@
 						"items": {
 							"type": "string",
 							"minLength": 1,
-							"description": "规范化 Vault 相对路径"
+							"description": "Normalized Vault-relative path."
 						},
 						"minItems": 1
 					},
@@ -2299,7 +2299,7 @@
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paths"],
@@ -2339,8 +2339,8 @@
 		},
 		{
 			"name": "trash_list",
-			"title": "列出可恢复的回收条目",
-			"description": "列出可恢复的回收条目。按回收时间倒序，显示原始路径。",
+			"title": "List trash entries",
+			"description": "List restorable entries with original paths and removal times, newest first.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
@@ -2353,11 +2353,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": [],
@@ -2400,19 +2400,19 @@
 		},
 		{
 			"name": "trash_restore",
-			"title": "将回收的条目与题录恢复到原路径",
-			"description": "将回收的条目与题录恢复到原路径。原路径已被占用时报冲突，保留回收条目。",
+			"title": "Restore a trash entry",
+			"description": "Restore a trashed entry and its catalog data at the original path. An occupied destination leaves the entry in the trash.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"id": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["id"],
@@ -2461,15 +2461,15 @@
 		},
 		{
 			"name": "annotation_list",
-			"title": "列出论文中的高亮、提问、翻译及 Agent 标记",
-			"description": "列出论文中的高亮、提问、翻译及 Agent 标记。按页和位置排序。",
+			"title": "List paper annotations",
+			"description": "List highlights, questions, translations and agent annotations, optionally filtered by kind or physical page.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"kind": {
 						"type": "array",
@@ -2493,11 +2493,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper"],
@@ -2610,24 +2610,24 @@
 		},
 		{
 			"name": "annotation_get",
-			"title": "查看批注及其原文位置",
-			"description": "查看批注及其原文位置。返回定位、引用、备注、颜色及版本。",
+			"title": "Get an annotation",
+			"description": "Read an annotation, its source location, citation, note, color and revision.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"id": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "id"],
@@ -2727,30 +2727,30 @@
 		},
 		{
 			"name": "annotation_add",
-			"title": "用原句或版面区域创建批注",
-			"description": "用原句或版面区域创建批注。cite、quote、region 三选一；cite 必须定位到该论文。occurrence 与 all-matches 互斥且仅用于 quote；重复匹配返回候选。ask 必需 question；translate 必需 language，可传人工译文，否则使用已配置翻译服务。",
+			"title": "Add an annotation",
+			"description": "Select a citation from this paper, a free-form quote, or a layout region. Free-form quote matching needs full-text access. For a restricted reader, use a returned excerpt citation or region. Use occurrence or all_matches to disambiguate quotes. Ask requires a question. Translate requires a language and either supplied translation text or online access.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"cite": {
 						"type": "string",
 						"minLength": 1,
-						"description": "论文 ID、Vault 相对路径或不透明 cite 引用"
+						"description": "Paper ID, Vault-relative path or opaque citation URI."
 					},
 					"quote": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"region": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"page": {
 						"type": "integer",
@@ -2773,12 +2773,12 @@
 					},
 					"comment": {
 						"type": "string",
-						"description": "文本，允许空串"
+						"description": "Text; an empty string is allowed."
 					},
 					"question": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"color": {
 						"type": "string",
@@ -2788,23 +2788,23 @@
 					"language": {
 						"type": "string",
 						"minLength": 1,
-						"description": "BCP 47 语言标签"
+						"description": "BCP 47 language tag."
 					},
 					"translation": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"request_id": {
 						"type": "string",
 						"minLength": 1,
 						"maxLength": 80,
 						"pattern": "^\\S+$",
-						"description": "1–80 位无空白请求 ID"
+						"description": "Request ID of 1–80 characters without whitespace."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "request_id"],
@@ -2977,24 +2977,24 @@
 		},
 		{
 			"name": "annotation_update",
-			"title": "修改批注的备注或颜色",
-			"description": "修改批注的备注或颜色。至少提供 comment 或 color；空 comment 清空备注。",
+			"title": "Update an annotation",
+			"description": "Update a note or highlight color at the specified revision. An empty comment clears the note.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"id": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"comment": {
 						"type": "string",
-						"description": "文本，允许空串"
+						"description": "Text; an empty string is allowed."
 					},
 					"color": {
 						"type": "string",
@@ -3003,11 +3003,11 @@
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "id", "if_revision"],
@@ -3119,29 +3119,29 @@
 		},
 		{
 			"name": "annotation_remove",
-			"title": "删除一条批注",
-			"description": "删除一条批注。按指定版本删除，旧版本返回冲突。",
+			"title": "Remove an annotation",
+			"description": "Remove the annotation at its observed revision. A stale revision returns a conflict.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"paper": {
 						"type": "string",
 						"minLength": 1,
-						"description": "唯一论文 ID 或库内论文目录"
+						"description": "Unique paper ID or Vault-relative paper directory."
 					},
 					"id": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["paper", "id", "if_revision"],
@@ -3190,25 +3190,25 @@
 		},
 		{
 			"name": "table_query",
-			"title": "按记录 ID 或字段值查询表格",
-			"description": "按记录 ID 或字段值查询表格。field 与 equals 成对出现。equals 是 JSON 标量，字符串须作为 JSON 字符串传入；结果含 revision、列定义和行。",
+			"title": "Query table rows",
+			"description": "Query a record ID or match a field against a JSON scalar. Supply field and equals together. Results include the table revision, columns and matching rows.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"path": {
 						"type": "string",
 						"minLength": 1,
-						"description": "规范化 Vault 相对路径"
+						"description": "Normalized Vault-relative path."
 					},
 					"row": {
 						"type": "string",
 						"minLength": 1,
-						"description": "前序命令返回的标识符"
+						"description": "Identifier returned by a previous operation."
 					},
 					"field": {
 						"type": "string",
 						"minLength": 1,
-						"description": "非空文本"
+						"description": "Nonempty text."
 					},
 					"equals": {
 						"type": ["string", "number", "boolean", "null"]
@@ -3226,11 +3226,11 @@
 					"cursor": {
 						"type": "string",
 						"minLength": 1,
-						"description": "同一请求返回的不透明游标"
+						"description": "Opaque cursor from the same query."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					}
 				},
 				"required": ["path"],
@@ -3297,31 +3297,31 @@
 		},
 		{
 			"name": "table_upsert",
-			"title": "按记录 ID 创建或局部更新多行",
-			"description": "按记录 ID 创建或局部更新多行。rows 为行数组，仅修改给出的字段。整批校验并原子提交；相同请求重放返回首次回执。",
+			"title": "Upsert table rows",
+			"description": "Create or update records by ID. Only supplied fields change. The whole batch is validated and committed atomically. Repeating a request ID with identical input returns the original receipt.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"path": {
 						"type": "string",
 						"minLength": 1,
-						"description": "规范化 Vault 相对路径"
+						"description": "Normalized Vault-relative path."
 					},
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"request_id": {
 						"type": "string",
 						"minLength": 1,
 						"maxLength": 80,
 						"pattern": "^\\S+$",
-						"description": "1–80 位无空白请求 ID"
+						"description": "Request ID of 1–80 characters without whitespace."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					},
 					"rows": {
 						"type": "array",
@@ -3333,7 +3333,7 @@
 								"id": {
 									"type": "string",
 									"minLength": 1,
-									"description": "更新时使用 table_query 返回的行 ID。创建时使用以 ASCII 字母开头的字母数字前缀、连字符和至少四位数字，例如 trial-0003。"
+									"description": "Use an ID returned by table_query to update a row. A new registry ID has an ASCII letter, optional ASCII letters or digits, a hyphen and at least four digits, e.g. trial-0003."
 								},
 								"fields": {
 									"type": "object",
@@ -3381,31 +3381,31 @@
 		},
 		{
 			"name": "table_patch",
-			"title": "按记录 ID 和列名更新多个单元格",
-			"description": "按记录 ID 和列名更新多个单元格。cells 为单元格数组；目标行和字段必须存在。重复坐标报错，整批原子提交。",
+			"title": "Patch table cells",
+			"description": "Set individual cells by record ID and field name. The rows and fields must exist. Duplicate coordinates are rejected. The batch commits atomically.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"path": {
 						"type": "string",
 						"minLength": 1,
-						"description": "规范化 Vault 相对路径"
+						"description": "Normalized Vault-relative path."
 					},
 					"if_revision": {
 						"type": "string",
 						"minLength": 1,
-						"description": "上次读取所得不透明版本"
+						"description": "Opaque revision returned by the previous read."
 					},
 					"request_id": {
 						"type": "string",
 						"minLength": 1,
 						"maxLength": 80,
 						"pattern": "^\\S+$",
-						"description": "1–80 位无空白请求 ID"
+						"description": "Request ID of 1–80 characters without whitespace."
 					},
 					"vault": {
 						"type": "string",
-						"description": "服务授权的 Vault ID；省略使用连接的默认库。"
+						"description": "Authorized Vault ID. Omit to use the default Vault."
 					},
 					"cells": {
 						"type": "array",
@@ -3417,7 +3417,7 @@
 								"id": {
 									"type": "string",
 									"minLength": 1,
-									"description": "使用 table_query 返回的现有行 ID。"
+									"description": "Existing row ID returned by table_query."
 								},
 								"field": {
 									"type": "string"
@@ -3464,8 +3464,8 @@
 		},
 		{
 			"name": "vault_list",
-			"title": "列出当前调用者可见的 Vault",
-			"description": "列出当前调用者可见的 Vault。终端列已登记的本地库；MCP 只列服务授予的库。返回短 ID、名称及当前库；绝对路径仅在本地终端显示。",
+			"title": "List authorized Vaults",
+			"description": "List Vault IDs and names visible to this client and identify the current Vault. Use these IDs to select a Vault in subsequent calls.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {},

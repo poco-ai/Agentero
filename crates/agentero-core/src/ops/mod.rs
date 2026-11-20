@@ -1,9 +1,9 @@
 //! Public research operations, derived from the same manifests as CLI help and MCP discovery.
 mod catalog;
 mod events;
-mod invariants;
+pub mod execute;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::OnceLock;
 
@@ -11,20 +11,18 @@ pub const CLI_INTERFACE_JSON: &str = include_str!("cli.json");
 pub const MCP_INTERFACE_JSON: &str = include_str!("mcp.json");
 
 pub use events::{public_events, PublicEventSpec};
-pub use invariants::{common_invariants_markdown, mcp_invariants_markdown};
 
 /// Side-effect class for an operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum OpSideEffect {
-    None,
     Read,
     Write,
     Destructive,
 }
 
 /// Surfaces that expose this operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum OpSurface {
     Cli,
@@ -32,7 +30,7 @@ pub enum OpSurface {
 }
 
 /// Plugin-contract stability. Only `stable` ids are public.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum OpStability {
     Internal,
@@ -44,10 +42,12 @@ pub enum OpStability {
 ///
 /// Colon forms are the wire values. `vault:notes:write` is only `NOTES.md`,
 /// separate from `vault:write` (`file.write` / `paper.move`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum OpPermission {
-    Unspecified,
+    None,
+    Desktop,
+    Sync,
     #[serde(rename = "vault:read")]
     VaultRead,
     #[serde(rename = "vault:notes:write")]
@@ -58,7 +58,7 @@ pub enum OpPermission {
     VaultWrite,
 }
 
-/// Full operation spec returned by `describe <id>`.
+/// Operation metadata shared by the terminal and protocol adapters.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpSpec {
@@ -71,48 +71,14 @@ pub struct OpSpec {
     pub side_effects: OpSideEffect,
     /// `internal` | `experimental` | `stable`.
     pub stability: OpStability,
-    /// `unspecified` | `vault:read` | `vault:notes:write` | `catalog:write` | `vault:write`.
     pub permission: OpPermission,
-    /// Contract generation: `"1"` for stable/experimental, `"0"` for internal.
-    pub since: String,
+    pub requires_online: bool,
     pub surfaces: Vec<OpSurface>,
     pub supports_dry_run: bool,
     pub requires_confirmation: bool,
     pub input: Value,
     pub output: Value,
-    pub errors: Vec<String>,
     pub examples: Vec<String>,
-}
-
-/// Compact row for `describe` with no argument.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OpSummary {
-    pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cli: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mcp_tool: Option<String>,
-    pub summary: String,
-    pub side_effects: OpSideEffect,
-    pub surfaces: Vec<OpSurface>,
-    pub supports_dry_run: bool,
-    pub requires_confirmation: bool,
-}
-
-impl From<&OpSpec> for OpSummary {
-    fn from(op: &OpSpec) -> Self {
-        Self {
-            id: op.id.clone(),
-            cli: op.cli.clone(),
-            mcp_tool: op.mcp_tool.clone(),
-            summary: op.summary.clone(),
-            side_effects: op.side_effects,
-            surfaces: op.surfaces.clone(),
-            supports_dry_run: op.supports_dry_run,
-            requires_confirmation: op.requires_confirmation,
-        }
-    }
 }
 
 fn catalog() -> &'static [OpSpec] {
@@ -134,34 +100,6 @@ pub fn get(id: &str) -> Option<&'static OpSpec> {
     catalog().iter().find(|op| {
         op.id == id || op.mcp_tool.as_deref() == Some(id) || op.cli.as_deref() == Some(id)
     })
-}
-
-/// Compact list for index describe.
-pub fn summaries() -> Vec<OpSummary> {
-    catalog().iter().map(OpSummary::from).collect()
-}
-
-/// Suggest nearby ids when lookup fails (prefix / substring).
-pub fn suggest(id: &str) -> Vec<&'static str> {
-    let needle = id.trim().to_ascii_lowercase();
-    if needle.is_empty() {
-        return Vec::new();
-    }
-    let mut hits: Vec<&'static str> = catalog()
-        .iter()
-        .filter(|op| {
-            op.id.to_ascii_lowercase().contains(&needle)
-                || op
-                    .mcp_tool
-                    .as_ref()
-                    .is_some_and(|t| t.to_ascii_lowercase().contains(&needle))
-        })
-        .map(|op| op.id.as_str())
-        .collect();
-    hits.sort_unstable();
-    hits.dedup();
-    hits.truncate(8);
-    hits
 }
 
 #[cfg(test)]
@@ -217,13 +155,13 @@ mod tests {
         let stable = serde_json::to_value(get("paper.note.append").unwrap()).unwrap();
         assert_eq!(stable["stability"], "stable");
         assert_eq!(stable["permission"], "vault:notes:write");
-        assert_eq!(stable["since"], "2");
+        assert!(!get("paper.note.append").unwrap().requires_online);
         assert_eq!(stable["sideEffects"], "write");
 
         let internal = serde_json::to_value(get("file.trash.purge").unwrap()).unwrap();
         assert_eq!(internal["stability"], "internal");
-        assert_eq!(internal["permission"], "unspecified");
-        assert_eq!(internal["since"], "2");
+        assert_eq!(internal["permission"], "vault:write");
+        assert!(get("paper_import").unwrap().requires_online);
         assert_eq!(internal["sideEffects"], "destructive");
 
         assert_eq!(

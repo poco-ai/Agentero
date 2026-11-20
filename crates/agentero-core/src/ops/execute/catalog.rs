@@ -1,11 +1,11 @@
 use super::*;
-use crate::paper;
-use agentero_core::features::paper::{
+use crate::features::paper::catalog::papers as paper;
+use crate::features::paper::{
     catalog::papers::{self, PaperMetaPatch, PaperRecord},
     discovery::{discover, embeddings::EmbeddingConfig},
     import::{self, LookupImportArgs, NoteShellMode},
 };
-use agentero_core::features::pdf::layout_index;
+use crate::features::pdf::layout_index;
 
 use evidence::{paper_brief as brief, paper_detail as detail};
 pub(super) fn execute(vault: &Path, name: &str, a: &Value) -> Result<Value> {
@@ -155,36 +155,35 @@ pub(super) fn execute(vault: &Path, name: &str, a: &Value) -> Result<Value> {
     }
 }
 pub(super) async fn network(
-    ctrl: &McpController,
+    host: &dyn OperationHost,
     vault: &Path,
     name: &str,
     a: &Value,
 ) -> Result<Value> {
     if name == "paper_import" {
         let parent =
-            import::normalize_parent_dir(a["into"].as_str().unwrap_or(&ctrl.parent_dir()))?;
-        crate::files::reject_segments(&parent)?;
+            import::normalize_parent_dir(a["into"].as_str().unwrap_or(&host.parent_dir()))?;
+        files::reject_segments(&parent)?;
         let root = vault.canonicalize()?;
         let probe = format!("{parent}/import-target");
-        crate::files::require_canonical(
+        files::require_canonical(
             &root,
             &probe,
-            &crate::files::contained_write_target(&root, &probe)?,
+            &files::contained_write_target(&root, &probe)?,
         )?;
         let args = LookupImportArgs {
             vault_path: vault.to_string_lossy().into_owned(),
             parent_dir: parent,
             text: text(a, "identifier")?.into(),
-            translator_base_url: ctrl.translator_url(),
+            translator_base_url: host.translator_url(),
             task_id: None,
         };
-        let host = ctrl.host();
         let ctx = host.import_context();
         let r = import::import_by_identifier_with_progress(
             args,
             ctx.app.as_ref(),
             ctx.caps.as_ref(),
-            NoteShellMode::parse(&ctrl.paper_note_mode()),
+            NoteShellMode::parse(&host.paper_note_mode()),
         )
         .await?;
         host.after_import(vault, &r.preparation);
@@ -220,15 +219,13 @@ pub(super) async fn network(
     }
     let embeddings = if a["rank"] == "hybrid" {
         let profiles: Value = serde_json::from_reader(
-            fs::File::open(
-                agentero_core::paths::agentero_config_dir().join("embedding-profiles.json"),
-            )
-            .map_err(|_| {
-                AppError::domain(
-                    "profile_not_found",
-                    "Configure embedding-profiles.json in the Agentero config directory",
-                )
-            })?,
+            fs::File::open(crate::paths::agentero_config_dir().join("embedding-profiles.json"))
+                .map_err(|_| {
+                    AppError::domain(
+                        "profile_not_found",
+                        "Configure embedding-profiles.json in the Agentero config directory",
+                    )
+                })?,
         )?;
         let profile = &profiles[text(a, "embedding_profile")?];
         Some(EmbeddingConfig {

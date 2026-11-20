@@ -2476,27 +2476,21 @@ CLI 不再暴露 usage 命令；清除通过桌面端设置 / Host API 操作。
 
 ## 3.x Headless CLI（对照）
 
-> 完整语义见 [`cli.md`](cli.md)。CLI **不**走 Tauri invoke，直接 path 依赖 `agentero_core::features`（无 BYOA、无 tauri）。
+独立 CLI 复用与桌面相同的 Vault、Catalog 和科研数据操作。桌面视图、回合授权与委派通过本机宿主执行。完整用法见 [CLI 参考](cli.md)。
 
-| CLI | Host service / command 锚点 |
+| CLI | 对应操作 |
 |---|---|
-| `open` / `<PATH>` | 深链唤起桌面 App（`agentero://open?path=…`） |
-| `vault create` | `services::vault::create_vault` / `vault_create`（幂等脚手架；缺失根目录仅 `create` 会新建，`vault_ensure` 对缺失路径报错） |
-| `vault list` | CLI 自管解析 + catalog `ensure_catalog` / `schema_version` |
-| `tree` | 磁盘扫描（非 Library 虚拟节点） |
-| `paper list\|get\|paths\|delete\|set-read\|tag list\|set\|add\|rm` | `catalog::papers::*`（含 `set_tags` / `list_all_tags`）/ `paper_*` |
-| `paper list --tag` / `--query` 含 tags | CLI 侧过滤（读 `list_all`）；Host `paper_list` 仍全量 |
-| `paper add` | 同 Vault 目录链接（Catalog 仍一行）/ 跨 Vault 复制文件并写入目标 Catalog |
-| `paper move` | 文件夹 + Catalog 路径同步 |
-| `paper download\|parse` | `lookup::download_paper_assets` / `pdf_parse::parse_paper_body` |
-| `import id\|bib` | `lookup::import_by_identifier` / `import_catalog` |
-| `export bib` | `lookup::export_catalog`（`-o`/`--out` 写文件；全局格式用 `--json`） |
-| `doctor` / `doctor fix` | 聚合诊断与 aliases / visual-marks 修复 |
-| `doctor wiki` | 只读双链语义检查（`WikiIndex`） |
-| `layout list\|get` | `{paper}/source/layout-index.json` |
-| `mark list\|get\|add\|delete` | `{paper}/marks/`（区域锚点优先） |
+| `vault create`、`vault list`、`vault info` | 创建 Vault、查看可用库和当前库信息 |
+| `file list`、`file move`、`file remove`、`file trash` | 浏览、移动、回收和恢复 Vault 资源 |
+| `paper list`、`paper get`、`paper update`、`paper tag` | 筛选论文，读取或修改题录、阅读状态与标签 |
+| `paper link`、`paper copy` | 在库内链接或跨库复制论文 |
+| `paper import id\|pdf\|bib`、`paper export` | 按标识、PDF 或文献文件入库，导出选定题录 |
+| `paper download`、`paper extract`、`paper regions` | 下载论文资产，解析正文，读取版面区域 |
+| `search`、`read`、`paper relations`、`annotation` | 搜索并回读出处，查看引文关系，管理批注 |
+| `vault check`、`vault repair` | 检查库和链接，预览或执行指定的修复 |
+| `app open`、`app views`、`app split`、`app close` | 通过运行中的桌面宿主打开资源或操作视图 |
 
-构建：`cargo build -p agentero-cli` → bin `agentero`。
+本地构建使用 `cargo build -p agentero-cli`，开发二进制为 `target/debug/agentero-cli`。终端安装后的命令名为 `agentero`。运行 `agentero help --json` 可查看当前命令树。
 
 ## 4. 数据模型
 

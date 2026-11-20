@@ -2,7 +2,7 @@ use crate::commands::{
     desktop, doctor, export, feed, import, layout, mcp, paper, sync, translate, vault,
 };
 use crate::error::{CliError, ExitCode};
-use crate::interface::Operation;
+use crate::interface::{Decode, Operation};
 use crate::resolve::{resolve_vault, GlobalOpts};
 use agentero_core::features::evidence;
 use base64::Engine;
@@ -43,70 +43,68 @@ pub(crate) fn input_text(path: &str) -> Result<String, CliError> {
     String::from_utf8(input(path)?).map_err(|_| CliError::usage("expected UTF-8 input"))
 }
 
-fn normalize(op: &str, mut a: Value) -> Result<Value, CliError> {
+fn source_from_stdin() -> Result<Value, CliError> {
+    let body = input_text("-")?;
+    let mut lines = body.lines().filter(|s| !s.is_empty());
+    let source = lines.next().ok_or_else(|| {
+        CliError::new(
+            "source_not_found",
+            "stdin contains no source",
+            ExitCode::Vault,
+        )
+    })?;
+    if lines.next().is_some() {
+        return Err(CliError::new(
+            "expected_one_source",
+            "pass exactly one source; add --limit 1 to the upstream search",
+            ExitCode::Usage,
+        ));
+    }
+    Ok(json!(source))
+}
+
+fn normalize(operation: &Operation, mut a: Value) -> Result<Value, CliError> {
     let values = a.as_object_mut().expect("object parameters");
-    values.remove("plain");
-    if op == "evidence_read" {
-        if values.get("source").and_then(Value::as_str) == Some("-") {
-            let body = input_text("-")?;
-            let mut lines = body.lines().filter(|s| !s.is_empty());
-            let first = lines.next().ok_or_else(|| {
-                CliError::new(
-                    "source_not_found",
-                    "stdin contains no source",
-                    ExitCode::Vault,
-                )
-            })?;
-            if lines.next().is_some() {
-                return Err(CliError::new(
-                    "expected_one_source",
-                    "pass exactly one source; add --limit 1 to the upstream search",
-                    ExitCode::Usage,
-                ));
-            }
-            values.insert("source".into(), json!(first));
-        }
-        if let Some(raw) = values.remove("page") {
-            values.insert(
-                "pages".into(),
-                json!(evidence::parse_pages(raw.as_str().unwrap_or_default())?),
-            );
-        }
-    }
-    if let Some(color) = values.remove("mark_color") {
-        values.insert("color".into(), color);
-    }
-    if let Some(file) = values.remove("input") {
-        let path = file
-            .as_str()
-            .ok_or_else(|| CliError::usage("input must be a path"))?;
-        match op {
-            "file_write" if values.get("encoding").and_then(Value::as_str) == Some("binary") => {
-                let body = input(path)?;
+    for param in &operation.args {
+        let Some(binding) = &param.binding else {
+            continue;
+        };
+        let key = param.name.replace('-', "_");
+        let Some(value) = values.remove(&key) else {
+            continue;
+        };
+        let target = binding.field.unwrap_or(&key);
+        let text = || {
+            value
+                .as_str()
+                .ok_or_else(|| CliError::usage(format!("expected text for {}", param.name)))
+        };
+        let value = match binding.decode {
+            Some(Decode::Omit) => continue,
+            Some(Decode::SourceOrStdin) if value == "-" => source_from_stdin()?,
+            Some(Decode::Pages) => json!(evidence::parse_pages(text()?)?),
+            Some(Decode::FileContent)
+                if values.get("encoding").and_then(Value::as_str) == Some("binary") =>
+            {
                 values.insert("encoding".into(), json!("base64"));
-                values.insert(
-                    "content".into(),
-                    json!(base64::engine::general_purpose::STANDARD.encode(body)),
-                );
+                json!(base64::engine::general_purpose::STANDARD.encode(input(text()?)?))
             }
-            "table_upsert" | "table_patch" => {
-                let payload: Value = serde_json::from_slice(&input(path)?)
+            Some(Decode::FileContent | Decode::TextFile) => json!(input_text(text()?)?),
+            Some(Decode::JsonMember) => {
+                let mut payload: Value = serde_json::from_slice(&input(text()?)?)
                     .map_err(|e| CliError::usage(format!("invalid table input: {e}")))?;
-                let key = if op == "table_upsert" {
-                    "rows"
-                } else {
-                    "cells"
-                };
-                let value = payload.get(key).ok_or_else(|| {
-                    CliError::usage(format!("expected a JSON object containing {key}"))
-                })?;
-                values.insert(key.into(), value.clone());
+                payload
+                    .as_object_mut()
+                    .and_then(|o| o.remove(target))
+                    .ok_or_else(|| {
+                        CliError::usage(format!("expected a JSON object containing {target}"))
+                    })?
             }
-            _ => {
-                values.insert("content".into(), json!(input_text(path)?));
-            }
-        }
+            Some(Decode::SourceOrStdin) | None => value,
+        };
+        values.insert(target.into(), value);
     }
+    let op = operation.tool.expect("shared operation");
     if matches!(
         op,
         "table_upsert" | "table_patch" | "paper_note_append" | "annotation_add"
@@ -133,7 +131,7 @@ pub async fn run(op: &Operation, mut a: Value, g: &GlobalOpts) -> Result<Value, 
                 ));
             }
             let name = op.tool.unwrap();
-            return desktop::run_granted(name, normalize(name, a)?, g).await;
+            return desktop::run_granted(name, normalize(op, a)?, g).await;
         }
         if op.path != "app present" && !op.path.starts_with("delegate ") {
             return Err(CliError::new(
@@ -155,36 +153,57 @@ pub async fn run(op: &Operation, mut a: Value, g: &GlobalOpts) -> Result<Value, 
         } else {
             resolve_vault(g)?
         };
-        let mut normalized = normalize(tool, a)?;
+        let mut normalized = normalize(op, a)?;
         if let Some(target) = string(&normalized, "to_vault") {
             normalized["to_vault"] = json!(crate::resolve::named_vault(Path::new(target))?);
         }
-        return Ok(agentero_mcp::execute_local(&vault, tool, normalized).await?);
+        return Ok(agentero_core::ops::execute::run_local(
+            &vault,
+            tool,
+            normalized,
+            g.translator_base_url(),
+        )
+        .await?);
     }
-    if op.path.starts_with("mcp ") {
-        return mcp::run(op.path, a, g).await;
-    }
-    if op.path.starts_with("app ") || op.path.starts_with("delegate ") {
-        if op.path == "delegate run" && a["request_id"].is_null() {
-            a["request_id"] = json!(uuid::Uuid::new_v4().to_string());
-        }
-        return desktop::run(op.path, a, g).await;
-    }
-    if op.path.starts_with("feed ") {
-        return feed::dispatch(op.path, &a, g).await;
-    }
-    if op.path.starts_with("sync ") {
-        return sync::dispatch(op.path, &a, g).await;
-    }
+    use crate::interface::NativeCommand;
     let p = || required(&a, "paper").map(str::to_owned);
-    match op.path {
-        "vault create" => {
+    match op.native.expect("local command was validated at startup") {
+        NativeCommand::McpServe | NativeCommand::McpTools => mcp::run(op.path, a, g).await,
+        NativeCommand::FeedList
+        | NativeCommand::FeedAdd
+        | NativeCommand::FeedRefresh
+        | NativeCommand::FeedItemList
+        | NativeCommand::FeedItemMark
+        | NativeCommand::FeedRemove => feed::dispatch(op.path, &a, g).await,
+        NativeCommand::SyncStatus
+        | NativeCommand::SyncConnectS3
+        | NativeCommand::SyncConnectWebdav
+        | NativeCommand::SyncConnectGit
+        | NativeCommand::SyncTest
+        | NativeCommand::SyncRun
+        | NativeCommand::SyncDisconnect => sync::dispatch(op.path, &a, g).await,
+        NativeCommand::AppOpen
+        | NativeCommand::AppViews
+        | NativeCommand::AppSplit
+        | NativeCommand::AppClose
+        | NativeCommand::AppWindow
+        | NativeCommand::AppPresent
+        | NativeCommand::DelegateTargets
+        | NativeCommand::DelegateRun
+        | NativeCommand::DelegateResult
+        | NativeCommand::DelegateCancel => {
+            if op.path == "delegate run" && a["request_id"].is_null() {
+                a["request_id"] = json!(uuid::Uuid::new_v4().to_string());
+            }
+            desktop::run(op.path, a, g).await
+        }
+        NativeCommand::VaultCreate => {
             vault::create_new(Path::new(required(&a, "directory")?), string(&a, "name"), g)
         }
-        "vault info" => vault::info(g),
-        "vault check" | "vault repair" => doctor::dispatch(op.path, &a, g),
-        "file trash purge" => purge(&a, g),
-        "translate" => {
+        NativeCommand::VaultInfo => vault::info(g),
+        NativeCommand::VaultCheck | NativeCommand::VaultRepair => doctor::dispatch(op.path, &a, g),
+        NativeCommand::FileTrashPurge => purge(&a, g),
+        NativeCommand::Translate => {
             let body = match (string(&a, "text"), string(&a, "input")) {
                 (Some(t), None) => t.to_string(),
                 (None, Some(i)) => input_text(i)?,
@@ -195,7 +214,7 @@ pub async fn run(op: &Operation, mut a: Value, g: &GlobalOpts) -> Result<Value, 
             let text = translate::run_raw(&body, dest, src, string(&a, "profile")).await?;
             Ok(json!({"text":text,"from":src,"to":dest}))
         }
-        "paper import pdf" => {
+        NativeCommand::PaperImportPdf => {
             import::import_pdf(
                 g,
                 &strings(&a, "inputs")
@@ -208,7 +227,7 @@ pub async fn run(op: &Operation, mut a: Value, g: &GlobalOpts) -> Result<Value, 
             )
             .await
         }
-        "paper import bib" => {
+        NativeCommand::PaperImportBib => {
             import::import_bib(
                 g,
                 required(&a, "input")?,
@@ -217,12 +236,12 @@ pub async fn run(op: &Operation, mut a: Value, g: &GlobalOpts) -> Result<Value, 
             )
             .await
         }
-        "paper export" => export::selected(&a, g).await,
-        "paper note fetch" => paper::fetch_notes(g, &p()?).await,
-        "paper download" => paper::download_selected(&a, g).await,
-        "paper extract" => paper::parse(g, &p()?, a["refresh"] == true).await,
-        "paper analyze" => layout::dispatch(&a, g).await,
-        "paper link" | "paper copy" => {
+        NativeCommand::PaperExport => export::selected(&a, g).await,
+        NativeCommand::PaperNoteFetch => paper::fetch_notes(g, &p()?).await,
+        NativeCommand::PaperDownload => paper::download_selected(&a, g).await,
+        NativeCommand::PaperExtract => paper::parse(g, &p()?, a["refresh"] == true).await,
+        NativeCommand::PaperAnalyze => layout::dispatch(&a, g).await,
+        NativeCommand::PaperLink | NativeCommand::PaperCopy => {
             let dest = agentero_core::fs::sanitize_vault_rel(required(&a, "into")?)
                 .map_err(CliError::usage)?;
             let vault = resolve_vault(g)?;
@@ -237,7 +256,7 @@ pub async fn run(op: &Operation, mut a: Value, g: &GlobalOpts) -> Result<Value, 
             };
             paper::organize(g, &p()?, &target, &dest)
         }
-        _ => Err(CliError::usage(format!("unknown command {}", op.path))),
+        NativeCommand::Help => unreachable!("help is handled before dispatch"),
     }
 }
 

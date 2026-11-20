@@ -78,7 +78,7 @@ impl Matcher {
         }
         score
     }
-    fn excerpt(&self, text: &str) -> String {
+    fn excerpt_span(&self, text: &str) -> (usize, String) {
         // Bound excerpts in characters. Unicode case folding can change byte lengths.
         let lower = text.to_lowercase();
         let folded_byte = self
@@ -100,7 +100,28 @@ impl Matcher {
             .rev()
             .nth(65)
             .map_or(0, |(i, _)| i);
-        text[start..].chars().take(260).collect()
+        (
+            text[..start].chars().count(),
+            text[start..].chars().take(260).collect(),
+        )
+    }
+    fn excerpt(&self, text: &str) -> String {
+        self.excerpt_span(text).1
+    }
+    fn body_card(
+        &self,
+        vault: &Path,
+        source: &str,
+        revision: &str,
+        mut locator: Value,
+        content: &str,
+        offset: usize,
+    ) -> Result<Value> {
+        let (local_start, excerpt) = self.excerpt_span(content);
+        let start = offset + local_start;
+        locator["char_from"] = json!(start);
+        locator["char_to"] = json!(start + excerpt.chars().count());
+        card(vault, source, "body", locator, revision, &excerpt)
     }
 }
 pub fn search(vault: &Path, mut input: SearchInput) -> Result<Value> {
@@ -189,13 +210,13 @@ pub fn search(vault: &Path, mut input: SearchInput) -> Result<Value> {
                     if score > 0 {
                         hits.push((
                             score,
-                            card(
+                            matcher.body_card(
                                 &vault,
                                 &p.path,
-                                "body",
-                                json!({"page":r.page_index+1,"region":r.id}),
                                 &revision,
-                                &matcher.excerpt(body),
+                                json!({"page":r.page_index+1,"region":r.id}),
+                                body,
+                                0,
                             )?,
                         ));
                     }
@@ -215,13 +236,13 @@ pub fn search(vault: &Path, mut input: SearchInput) -> Result<Value> {
                             let rev = revision.get_or_insert_with(|| content_revision(&pdf));
                             hits.push((
                                 score,
-                                card(
+                                matcher.body_card(
                                     &vault,
                                     &p.path,
-                                    "body",
-                                    json!({"page": page.page}),
                                     rev,
-                                    &matcher.excerpt(&page.text),
+                                    json!({"page":page.page}),
+                                    &page.text,
+                                    0,
                                 )?,
                             ));
                         }
@@ -322,23 +343,31 @@ pub fn search(vault: &Path, mut input: SearchInput) -> Result<Value> {
             continue;
         }
         let mut revision = None;
-        for (i, line) in content.lines().enumerate() {
+        let mut char_offset = 0;
+        for (i, raw_line) in content.split_inclusive('\n').enumerate() {
+            let line = raw_line.strip_suffix('\n').unwrap_or(raw_line);
+            let line = line.strip_suffix('\r').unwrap_or(line);
+            let line_start = char_offset;
+            char_offset += raw_line.chars().count();
             let score = matcher.score(line);
             if score == 0 {
                 continue;
             }
             let revision = revision.get_or_insert_with(|| content_revision(content.as_bytes()));
-            hits.push((
-                score,
+            let locator = json!({"line_from":i+1,"line_to":i+1});
+            let hit = if kind == "body" {
+                matcher.body_card(&vault, &rel, revision, locator, line, line_start)?
+            } else {
                 card(
                     &vault,
                     &rel,
                     kind,
-                    json!({"line_from":i+1,"line_to":i+1}),
+                    locator,
                     revision,
                     &matcher.excerpt(line),
-                )?,
-            ));
+                )?
+            };
+            hits.push((score, hit));
         }
     }
     hits.sort_by(|a, b| {

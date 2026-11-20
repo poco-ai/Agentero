@@ -34,6 +34,7 @@ async-trait = "0.1.91"
 specta = { version = "2.0.0-rc.22", features = ["derive", "chrono"] }
 # Search hit DTOs are returned both over Tauri IPC (specta) and MCP (schemars).
 schemars = "1"
+jsonschema = { version = "0.33", default-features = false }
 which = "7"
 # Migrated domain features (import asset unpack, feeds body extraction,
 # wiki/vault walks, citation fingerprints, scholar API queries, …).

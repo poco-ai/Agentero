@@ -1,8 +1,7 @@
 //! Existing protocol regressions, exercised against the published research tool interface.
-use crate::{
-    execute_local, interface::ResearchServer, tools_list, McpController, McpHost, Permissions,
-};
+use crate::{interface::ResearchServer, tools_list, McpController, McpHost, Permissions};
 use agentero_core::features::catalog::papers::{self, PaperRecord};
+use agentero_core::ops::execute::run_local;
 use rmcp::{
     model::{CallToolRequestParams, CallToolResult},
     service::{RoleClient, RunningService},
@@ -13,11 +12,12 @@ use std::{fs, path::Path, sync::Arc};
 
 struct Writer;
 impl McpHost for Writer {
-    fn allow_write(&self) -> bool {
-        true
-    }
-    fn expose_paper_text(&self) -> bool {
-        true
+    fn permissions(&self) -> Permissions {
+        Permissions {
+            write: true,
+            full_text: true,
+            ..Default::default()
+        }
     }
 }
 fn fixture(root: &Path) {
@@ -53,6 +53,20 @@ fn tool_schemas_match_the_grants_and_annotate_read_effects() {
     assert!(basic
         .iter()
         .all(|t| t.annotations.as_ref().and_then(|a| a.read_only_hint) == Some(true)));
+    let online = tools_list(Permissions {
+        online: true,
+        ..Default::default()
+    })
+    .tools;
+    assert_eq!(online.len(), 14);
+    assert!(online.iter().any(|tool| tool.name == "paper_discover"));
+    let writes = tools_list(Permissions {
+        write: true,
+        ..Default::default()
+    })
+    .tools;
+    assert_eq!(writes.len(), 28);
+    assert!(!writes.iter().any(|tool| tool.name == "paper_import"));
     let all = tools_list(Permissions::all()).tools;
     assert_eq!(all.len(), 30);
     for t in all {
@@ -69,7 +83,8 @@ async fn evidence_and_paper_updates_round_trip_over_the_protocol() {
     ctrl.set_vault(Some(vault.path().to_string_lossy().into_owned()));
     let (server_io, client_io) = tokio::io::duplex(65536);
     let backend = ctrl.clone();
-    let task = tokio::spawn(async move { ResearchServer(backend).serve(server_io).await.unwrap() });
+    let task =
+        tokio::spawn(async move { ResearchServer::new(backend).serve(server_io).await.unwrap() });
     let mut client = ().serve(client_io).await.unwrap();
     let mut server = task.await.unwrap();
     let peer = client.peer_info().unwrap();
@@ -264,26 +279,27 @@ async fn row_operations_are_the_only_path_for_existing_research_tables() {
     let vault = tmp.path();
     let path = "lab/results.table.json";
     let create = json!({"path":path,"content":table});
-    let initial = execute_local(vault, "file_write", create).await.unwrap();
-    let replace = execute_local(
+    let initial = run_local(vault, "file_write", create, None).await.unwrap();
+    let replace = run_local(
         vault,
         "file_write",
         json!({"path":path,"content":table,"mode":"replace","if_revision":initial["revision"]}),
+        None,
     )
     .await
     .unwrap_err();
     assert_eq!(replace.code(), "use_table_ops");
-    let rows = execute_local(vault, "table_query", json!({"path":path}))
+    let rows = run_local(vault, "table_query", json!({"path":path}), None)
         .await
         .unwrap();
     assert_eq!(rows["items"].as_array().unwrap().len(), 1);
     let op = json!({"path":path,"if_revision":rows["revision"],"request_id":"update-1","cells":[{"id":"EXP-0001","field":"Capacity","value":5}]});
-    let changed = execute_local(vault, "table_patch", op.clone())
+    let changed = run_local(vault, "table_patch", op.clone(), None)
         .await
         .unwrap();
     assert_eq!(changed["changed_rows"], json!(["EXP-0001"]));
     assert_eq!(
-        execute_local(vault, "table_patch", op.clone())
+        run_local(vault, "table_patch", op.clone(), None)
             .await
             .unwrap(),
         changed
@@ -291,7 +307,7 @@ async fn row_operations_are_the_only_path_for_existing_research_tables() {
     let mut conflict = op;
     conflict["cells"][0]["value"] = json!(6);
     assert_eq!(
-        execute_local(vault, "table_patch", conflict)
+        run_local(vault, "table_patch", conflict, None)
             .await
             .unwrap_err()
             .code(),
@@ -308,9 +324,14 @@ async fn search_stays_inside_the_selected_vault() {
     std::os::unix::fs::symlink(outside.path(), vault.path().join("linked")).unwrap();
     fs::create_dir_all(vault.path().join("draft.pdf")).unwrap();
     fs::write(vault.path().join("draft.pdf/note.md"), "needle inside").unwrap();
-    let result = execute_local(vault.path(), "evidence_search", json!({"query":"needle"}))
-        .await
-        .unwrap();
+    let result = run_local(
+        vault.path(),
+        "evidence_search",
+        json!({"query":"needle"}),
+        None,
+    )
+    .await
+    .unwrap();
     let items = result["items"].as_array().unwrap();
     assert_eq!(items.len(), 1);
     assert_eq!(items[0]["source"], "draft.pdf/note.md");
@@ -334,9 +355,14 @@ fn search_uses_the_blocking_pool_without_stalling_the_runtime() {
     fs::write(vault.path().join("test.md"), "needle test material").unwrap();
     runtime.block_on(async move {
         let search = tokio::spawn(async move {
-            execute_local(vault.path(), "evidence_search", json!({"query":"needle"}))
-                .await
-                .unwrap()
+            run_local(
+                vault.path(),
+                "evidence_search",
+                json!({"query":"needle"}),
+                None,
+            )
+            .await
+            .unwrap()
         });
         tokio::time::sleep(std::time::Duration::from_millis(30)).await;
         let queued = !search.is_finished();

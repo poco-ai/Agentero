@@ -1,125 +1,45 @@
 //! The same catalog drives protocol discovery, argument validation and CLI execution.
-use crate::{operations, McpController};
+use crate::{excerpts::ExcerptKey, vault_id, McpController, Permissions};
 use agentero_core::error::AppError;
+use agentero_core::ops::execute::{self, operation, ToolId};
 use rmcp::model::*;
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::{ErrorData as McpError, ServerHandler, ServiceExt};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
-struct Operation {
-    tool: Tool,
-    input: jsonschema::Validator,
-    output: jsonschema::Validator,
-}
-static OPERATIONS: LazyLock<Vec<Operation>> = LazyLock::new(|| {
+static TOOLS: LazyLock<Vec<Tool>> = LazyLock::new(|| {
     let manifest: Value =
         serde_json::from_str(agentero_core::ops::MCP_INTERFACE_JSON).expect("invalid MCP manifest");
     manifest["tools"]
         .as_array()
         .expect("tools")
         .iter()
-        .map(|entry| Operation {
-            tool: serde_json::from_value(entry.clone()).expect("invalid tool"),
-            output: jsonschema::validator_for(&entry["outputSchema"])
-                .expect("invalid output schema"),
-            input: jsonschema::validator_for(&entry["inputSchema"]).expect("invalid input schema"),
+        .map(|entry| {
+            let mut tool: Tool = serde_json::from_value(entry.clone()).expect("invalid MCP tool");
+            let op = operation(&tool.name, Permissions::all())
+                .expect("MCP tool missing execution policy");
+            let annotations = tool.annotations.get_or_insert_with(Default::default);
+            annotations.read_only_hint = Some(!op.writes());
+            annotations.destructive_hint =
+                Some(op.spec.side_effects == agentero_core::ops::OpSideEffect::Destructive);
+            tool
         })
         .collect()
 });
 
-#[derive(Clone, Copy, Default)]
-pub struct Permissions {
-    pub write: bool,
-    pub online: bool,
-    pub full_text: bool,
-}
-
-impl Permissions {
-    pub fn all() -> Self {
-        Self {
-            write: true,
-            online: true,
-            full_text: true,
-        }
-    }
-    fn permits(self, tool: &Tool) -> bool {
-        (!changes_vault(tool) || self.write)
-            && (self.online || !matches!(tool.name.as_ref(), "paper_discover" | "paper_import"))
-    }
-}
-
-fn changes_vault(tool: &Tool) -> bool {
-    !tool
-        .annotations
-        .as_ref()
-        .and_then(|a| a.read_only_hint)
-        .unwrap_or(false)
-}
-
 pub fn tools_list(permissions: Permissions) -> ListToolsResult {
     let mut result = ListToolsResult::with_all_items(
-        OPERATIONS
+        TOOLS
             .iter()
-            .filter(|op| permissions.permits(&op.tool))
-            .map(|op| op.tool.clone())
+            .filter(|t| operation(&t.name, permissions).is_ok())
+            .cloned()
             .collect(),
     );
     result.ttl_ms = Some(0);
     result.cache_scope = Some(CacheScope::Private);
     result
-}
-
-fn operation(name: &str, permissions: Permissions) -> Result<&'static Operation, AppError> {
-    let op = OPERATIONS
-        .iter()
-        .find(|op| op.tool.name == name)
-        .ok_or_else(|| AppError::domain("unknown_tool", "Unknown Agentero tool"))?;
-    if !permissions.permits(&op.tool) {
-        return Err(AppError::domain(
-            "permission_denied",
-            "This tool requires additional grants",
-        ));
-    }
-    Ok(op)
-}
-
-fn validate(op: &Operation, arguments: &Value) -> Result<(), AppError> {
-    op.input.validate(arguments).map_err(|e| {
-        AppError::domain(
-            "usage",
-            format!(
-                "Invalid {} argument at {} (schema {})",
-                op.tool.name, e.instance_path, e.schema_path
-            ),
-        )
-    })
-}
-
-fn checked_output(op: &Operation, value: Value) -> Result<Value, AppError> {
-    op.output.validate(&value).map_err(|e| {
-        AppError::domain(
-            "invalid_result",
-            format!(
-                "{} produced invalid output at {} (schema {})",
-                op.tool.name, e.instance_path, e.schema_path
-            ),
-        )
-    })?;
-    Ok(value)
-}
-
-pub fn vault_id(path: &Path) -> String {
-    format!(
-        "v-{:x}",
-        Sha256::digest(
-            agentero_core::fs::canonicalize_best_effort(path)
-                .to_string_lossy()
-                .as_bytes()
-        )
-    )
 }
 
 fn resolve_id(ctrl: &McpController, id: Option<&str>) -> Result<PathBuf, AppError> {
@@ -157,73 +77,98 @@ fn resolve_id(ctrl: &McpController, id: Option<&str>) -> Result<PathBuf, AppErro
     }
 }
 
-pub async fn execute_local(vault: &Path, name: &str, args: Value) -> Result<Value, AppError> {
-    let op = operation(name, Permissions::all())?;
-    validate(op, &args)?;
-    let ctrl = Arc::new(McpController::new());
-    ctrl.set_vault(Some(vault.to_string_lossy().into_owned()));
-    checked_output(
-        op,
-        operations::execute(
-            ctrl,
-            vault.to_owned(),
-            name,
-            args,
-            Permissions::all(),
-            changes_vault(&op.tool),
-        )
-        .await?,
-    )
+#[derive(Clone)]
+pub(crate) struct ResearchServer {
+    controller: Arc<McpController>,
+    session_key: ExcerptKey,
 }
 
-#[derive(Clone)]
-pub(crate) struct ResearchServer(pub Arc<McpController>);
-
 impl ResearchServer {
-    fn permissions(&self) -> Permissions {
-        let host = self.0.host();
-        Permissions {
-            write: host.allow_write(),
-            online: host.allow_online(),
-            full_text: host.expose_paper_text(),
+    pub(crate) fn new(controller: Arc<McpController>) -> Self {
+        Self {
+            controller,
+            session_key: ExcerptKey::new(),
         }
+    }
+    fn permissions(&self) -> Permissions {
+        self.controller.host().permissions()
     }
     async fn execute(
         &self,
         name: &str,
         mut args: Value,
-        permissions: Permissions,
+        mut permissions: Permissions,
+        key: &ExcerptKey,
     ) -> Result<Value, AppError> {
         let op = operation(name, permissions)?;
-        validate(op, &args)?;
+        op.validate_input(&args)?;
         if name == "vault_list" {
             let items = self
-                .0
+                .controller
                 .vault_list()
                 .vaults
                 .into_iter()
                 .filter(|v| v.exists)
                 .map(|v| json!({"id":vault_id(Path::new(&v.path)),"name":v.name,"current":v.open}))
                 .collect::<Vec<_>>();
-            return checked_output(op, json!({"items":items}));
+            return op.checked_output(json!({"items":items}));
         }
-        let vault = resolve_id(&self.0, args["vault"].as_str())?;
+        let requested_vault = args["vault"].as_str();
+        let vault = if op.id == ToolId::PaperDiscover && requested_vault.is_none() {
+            self.controller.local_vault().unwrap_or_default()
+        } else {
+            resolve_id(&self.controller, requested_vault)?
+        };
         args.as_object_mut().unwrap().remove("vault");
         if let Some(id) = args["to_vault"].as_str() {
-            args["to_vault"] = json!(resolve_id(&self.0, Some(id))?);
+            args["to_vault"] = json!(resolve_id(&self.controller, Some(id))?);
         }
-        checked_output(
-            op,
-            operations::execute(
-                self.0.clone(),
-                vault,
-                name,
-                args,
-                permissions,
-                changes_vault(&op.tool),
-            )
-            .await?,
-        )
+        let excerpt_only = !permissions.full_text;
+        let mut replay = None;
+        let budget = args["max_chars"].as_u64().unwrap_or(260) as usize;
+        if excerpt_only && op.id == ToolId::EvidenceRead {
+            replay = key.authorize_read(&args)?;
+            permissions.full_text = replay.is_some();
+            if replay.is_some() {
+                args["max_chars"] = json!(260);
+            }
+        } else if excerpt_only && op.id == ToolId::AnnotationAdd {
+            // A signed citation authorizes only the server-issued span. Free text remains protected.
+            permissions.full_text = args["cite"]
+                .as_str()
+                .is_some_and(|cite| key.verified(cite).is_some());
+        }
+        let mut value = execute::run(self.controller.clone(), vault, op, args, permissions).await?;
+        if excerpt_only && op.id == ToolId::EvidenceSearch {
+            key.seal_cards(&mut value)?;
+        }
+        if let Some((cite, fingerprint)) = replay {
+            let text = value["text"].as_str().unwrap_or_default();
+            if fingerprint != ring::digest::digest(&ring::digest::SHA256, text.as_bytes()).as_ref()
+            {
+                return Err(AppError::domain(
+                    "stale_citation",
+                    "The issued excerpt has changed",
+                ));
+            }
+            let excerpt: String = text.chars().take(budget).collect();
+            value["truncated"] = json!(text.len() > excerpt.len());
+            value["text"] = json!(excerpt);
+            value["next_cursor"] = Value::Null;
+            let card = value["evidence"]
+                .as_array_mut()
+                .and_then(|v| v.first_mut())
+                .ok_or_else(|| AppError::domain("stale_citation", "The cited passage changed"))?;
+            if card["cite"].as_str() != cite.split_once("#excerpt=").map(|(base, _)| base) {
+                return Err(AppError::domain(
+                    "stale_citation",
+                    "Source changed while reading the excerpt",
+                ));
+            }
+            card["cite"] = json!(cite);
+            card["excerpt"] = json!(excerpt);
+        }
+        Ok(value)
     }
 }
 
@@ -234,9 +179,8 @@ impl ServerHandler for ResearchServer {
         .with_server_info(Implementation::new("agentero",env!("CARGO_PKG_VERSION")).with_title("Agentero").with_website_url("https://agentero.app").with_icons(crate::icons::server_icons()))
     }
     fn get_tool(&self, name: &str) -> Option<Tool> {
-        operation(name, self.permissions())
-            .ok()
-            .map(|op| op.tool.clone())
+        operation(name, self.permissions()).ok()?;
+        TOOLS.iter().find(|tool| tool.name == name).cloned()
     }
     async fn list_tools(
         &self,
@@ -248,14 +192,21 @@ impl ServerHandler for ResearchServer {
     async fn call_tool(
         &self,
         req: CallToolRequestParams,
-        _ctx: RequestContext<RoleServer>,
+        ctx: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, McpError> {
         let p = self.permissions();
+        let key = ctx
+            .extensions
+            .get::<axum::http::request::Parts>()
+            .filter(|parts| !parts.headers.contains_key("mcp-session-id"))
+            .and_then(|parts| parts.extensions.get::<ExcerptKey>())
+            .unwrap_or(&self.session_key);
         let result = self
             .execute(
                 &req.name,
                 Value::Object(req.arguments.unwrap_or_default()),
                 p,
+                key,
             )
             .await;
         match result {
@@ -309,7 +260,7 @@ impl ServerHandler for ResearchServer {
 }
 
 pub async fn serve_stdio(ctrl: Arc<McpController>) -> Result<(), AppError> {
-    let running = ResearchServer(ctrl)
+    let running = ResearchServer::new(ctrl)
         .serve(rmcp::transport::stdio())
         .await
         .map_err(|e| AppError::message(e.to_string()))?;

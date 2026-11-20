@@ -7,6 +7,8 @@ use std::sync::LazyLock;
 
 #[derive(Deserialize, Serialize)]
 pub struct Operation {
+    #[serde(skip)]
+    pub native: Option<NativeCommand>,
     pub path: &'static str,
     about: String,
     about_en: String,
@@ -15,12 +17,14 @@ pub struct Operation {
     example: String,
     pub tool: Option<&'static str>,
     pub result: Option<&'static str>,
-    args: Vec<Parameter>,
+    pub args: Vec<Parameter>,
 }
 
 #[derive(Deserialize, Serialize)]
-struct Parameter {
-    name: &'static str,
+pub struct Parameter {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub binding: Option<Binding>,
+    pub name: &'static str,
     help: String,
     help_en: String,
     #[serde(default)]
@@ -36,9 +40,84 @@ struct Parameter {
     max: Option<f64>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct Binding {
+    pub field: Option<&'static str>,
+    pub decode: Option<Decode>,
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Decode {
+    Omit,
+    SourceOrStdin,
+    Pages,
+    FileContent,
+    TextFile,
+    JsonMember,
+}
+
+/// Local command names are parsed when the catalog loads. Adding a command requires
+/// an executable match arm in the terminal dispatcher.
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativeCommand {
+    PaperImportPdf,
+    PaperImportBib,
+    PaperExport,
+    PaperNoteFetch,
+    PaperDownload,
+    PaperExtract,
+    PaperAnalyze,
+    PaperLink,
+    PaperCopy,
+    FileTrashPurge,
+    FeedList,
+    FeedAdd,
+    FeedRefresh,
+    FeedItemList,
+    FeedItemMark,
+    FeedRemove,
+    Translate,
+    VaultInfo,
+    VaultCreate,
+    VaultCheck,
+    VaultRepair,
+    SyncStatus,
+    SyncConnectS3,
+    SyncConnectWebdav,
+    SyncConnectGit,
+    SyncTest,
+    SyncRun,
+    SyncDisconnect,
+    AppOpen,
+    AppViews,
+    AppSplit,
+    AppClose,
+    AppWindow,
+    AppPresent,
+    DelegateTargets,
+    DelegateRun,
+    DelegateResult,
+    DelegateCancel,
+    McpServe,
+    McpTools,
+    Help,
+}
+
 pub static OPERATIONS: LazyLock<Vec<Operation>> = LazyLock::new(|| {
-    serde_json::from_str(agentero_core::ops::CLI_INTERFACE_JSON)
-        .expect("valid built-in command catalog")
+    let mut catalog: Vec<Operation> = serde_json::from_str(agentero_core::ops::CLI_INTERFACE_JSON)
+        .expect("valid built-in command catalog");
+    for op in &mut catalog {
+        if op.result.is_some() && op.tool.is_none() {
+            let route = Value::String(op.path.replace(' ', "_"));
+            op.native = Some(
+                serde_json::from_value(route)
+                    .unwrap_or_else(|_| panic!("no CLI handler for {}", op.path)),
+            );
+        }
+    }
+    catalog
 });
 
 pub fn operation(path: &str) -> Option<&'static Operation> {
@@ -71,15 +150,11 @@ fn build(op: &Operation, chinese: bool) -> Command {
         .disable_help_subcommand(true);
     if op.path.is_empty() {
         cmd = cmd.version(env!("CARGO_PKG_VERSION"))
-            .after_long_help(format!("Examples:\n  {}\n\nDocs: https://agentero-docs.poco-ai.com\nFeedback: https://github.com/poco-ai/Agentero/issues",op.example.replace('\n',"\n  ")))
-            .arg(Arg::new("vault").long("vault").global(true).value_name("VAULT").help("Vault ID or local root directory"))
-            .arg(Arg::new("json").long("json").global(true).action(ArgAction::SetTrue).help("Emit structured JSON"))
-            .arg(Arg::new("no-input").long("no-input").global(true).action(ArgAction::SetTrue).help("Disable interactive prompts"))
-            .arg(Arg::new("quiet").long("quiet").global(true).action(ArgAction::SetTrue).help("Suppress progress"))
-            .arg(Arg::new("color").long("color").global(true).value_parser(["auto","always","never"]).default_value("auto").help("Terminal colors"));
+            .after_long_help(format!("Examples:\n  {}\n\nDocs: https://agentero-docs.poco-ai.com\nFeedback: https://github.com/poco-ai/Agentero/issues",op.example.replace('\n',"\n  ")));
     }
     for param in &op.args {
         let mut arg = Arg::new(param.name)
+            .global(op.path.is_empty())
             .help(if chinese {
                 param.help.clone()
             } else {

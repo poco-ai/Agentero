@@ -22,7 +22,7 @@
 1. 打开一个**本地** Vault。
 2. **Settings → General → MCP server** 打开开关。默认地址 `http://127.0.0.1:8765/mcp`；端口旁绿点表示正在监听。
 
-本机 Inspector 连接该 URL 时，设置 `Authorization: Bearer <token>`，token 从 Agentero 配置目录的 `mcp.token` 读取。后面的 Runtime API key 用于连接隧道控制面。桌面服务默认提供只读工具，CLI 可另行授权写操作和在线操作。
+本机 Inspector 连接该 URL 时，设置 `Authorization: Bearer <token>`，token 从 Agentero 配置目录的 `mcp.token` 读取。后面的 Runtime API key 用于连接隧道控制面。桌面服务默认提供查询工具。在同一设置区可分别授权修改 Vault、访问网络及读取论文全文。本机 MCP 和已连接的 Tunnel 共用这些开关，每次调用重新检查。
 
 ## 2. 获取 Runtime API key
 
@@ -134,7 +134,7 @@ tunnel-client run --profile agentero
 1. ChatGPT **Settings → Security and login** 打开 Developer mode。
 2. [Connectors](https://chatgpt.com/#settings/Connectors)（或 [Plugins](https://chatgpt.com/plugins)）点 `+`。
 3. **Connection** 选 **Tunnel**，选列表里的隧道或粘贴 §3 的 `tunnel_id`。
-4. 发现 tools 后，先读 `agentero://vault` 与 `agentero://agent-invariants`，再 `paper_list`（默认只有 id/path/title）。
+4. 发现 tools 后，先读 `agentero://guide`，用 `vault_list` 取得授权库的 ID，再调用 `paper_list`。
 
 官方：[Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)。
 
