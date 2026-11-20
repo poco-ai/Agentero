@@ -733,6 +733,30 @@
 .pdf-live-selection-band[data-source-sentence] {
 	transform: none;
 }
+/*
+ * Sentence hand-off. The incoming bands paint on the frame the pointer moved
+ * (no fade-in that lags the pointer); the outgoing sentence fades out beneath
+ * them, so switching blocks reads as one motion instead of a hard cut. A
+ * sequential fade-out was the old behavior and dropped every block the pointer
+ * crossed while it ran.
+ */
+.pdf-layout-sentence-wash > .pdf-sentence-band {
+	animation: pdf-sentence-band-in var(--motion-duration-micro)
+		var(--motion-ease-out) both;
+}
+.pdf-layout-sentence-wash > .pdf-sentence-band.is-leaving {
+	animation: none;
+	opacity: 0;
+	transition: opacity var(--motion-duration-micro) var(--motion-ease-out);
+}
+@keyframes pdf-sentence-band-in {
+	from {
+		opacity: 0.55;
+	}
+	to {
+		opacity: 1;
+	}
+}
 [data-sentence][data-sentence-hot] {
 	border-radius: 1px;
 	background-color: color-mix(in oklch, var(--pdf-paper-ink) 12%, transparent);
@@ -744,6 +768,12 @@
 	.pdf-layout-element-frame,
 	.pdf-layout-element-chip,
 	.pdf-layout-sentence-wash {
+		transition: none;
+	}
+	.pdf-layout-sentence-wash > .pdf-sentence-band {
+		animation: none;
+	}
+	.pdf-layout-sentence-wash > .pdf-sentence-band.is-leaving {
 		transition: none;
 	}
 }
