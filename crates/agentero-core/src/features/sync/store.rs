@@ -21,12 +21,20 @@ pub enum PutCondition {
     IfNoneMatch,
     /// Replace-only when unchanged (`If-Match: <etag>`).
     IfMatch(String),
+    /// Plain PUT, no precondition. Only the opt-in degraded protocol may use
+    /// it, and only for keys whose safety does not rest on CAS (the HEAD
+    /// publish under the publish lock, and first-contact `vault.json` with
+    /// read-back verification). Content-addressed blobs and unique-key
+    /// manifests keep `IfNoneMatch` even in degraded mode: ignoring servers
+    /// treat it as a plain PUT, enforcing servers save re-uploads.
+    Unconditional,
 }
 
 impl PutCondition {
-    pub(super) fn header(self) -> Result<(&'static str, String), AppError> {
+    pub(super) fn header(self) -> Result<Option<(&'static str, String)>, AppError> {
         match self {
-            Self::IfNoneMatch => Ok(("If-None-Match", "*".into())),
+            Self::Unconditional => Ok(None),
+            Self::IfNoneMatch => Ok(Some(("If-None-Match", "*".into()))),
             Self::IfMatch(tag)
                 if tag
                     .strip_prefix('"')
@@ -37,28 +45,45 @@ impl PutCondition {
                             .all(|byte| byte == 0x21 || (0x23..=0x7e).contains(&byte))
                     }) =>
             {
-                Ok(("If-Match", tag))
+                Ok(Some(("If-Match", tag)))
             }
             Self::IfMatch(_) => Err(AppError::message("remote did not supply a strong ETag")),
         }
     }
 }
 
+/// Outcome of a degraded-mode publish-lock attempt.
+#[derive(Debug, PartialEq, Eq)]
+pub enum LockOutcome {
+    /// This device holds the lock and may publish HEAD.
+    Acquired,
+    /// Another device holds a live lock; back off and retry.
+    Busy,
+    /// The backend has no publish-lock implementation (only WebDAV does in
+    /// phase 1); degraded sync must not run against it.
+    Unsupported,
+}
+
 pub(super) async fn probe_conditions(
     store: &impl RemoteStore,
     key: &str,
 ) -> Result<bool, AppError> {
+    // The safety-critical guarantee is the If-Match CAS on HEAD. Create the
+    // probe object (If-None-Match is honored or ignored — both create it),
+    // then verify a current-etag replace succeeds and a stale-etag replace
+    // is refused. Ignoring If-None-Match alone (Nutstore) is harmless: blobs
+    // are content-addressed and manifest keys are unique random, so the
+    // create-only puts degrade to idempotent plain PUTs without losing CAS.
     if store.put(key, vec![1], PutCondition::IfNoneMatch).await? != PutOutcome::Ok {
         return Ok(false);
     }
     let Some((_, tag)) = store.get(key).await? else {
         return Ok(false);
     };
-    if store.put(key, vec![2], PutCondition::IfNoneMatch).await? != PutOutcome::PreconditionFailed
-        || store
-            .put(key, vec![2], PutCondition::IfMatch(tag.clone()))
-            .await?
-            != PutOutcome::Ok
+    if store
+        .put(key, vec![2], PutCondition::IfMatch(tag.clone()))
+        .await?
+        != PutOutcome::Ok
     {
         return Ok(false);
     }
@@ -94,7 +119,29 @@ pub trait RemoteStore: Send + Sync {
     ) -> impl Future<Output = Result<PutOutcome, AppError>> + Send;
     /// Connection-test probe: whether conditional PUTs actually enforce.
     fn probe_conditional_writes(&self) -> impl Future<Output = Result<bool, AppError>> + Send;
+    /// Degraded-mode publish lock: try to become the sole HEAD publisher.
+    /// Default: unsupported. Only WebDAV implements it (phase 1); the engine
+    /// refuses degraded sync on backends that answer `Unsupported`.
+    fn try_acquire_publish_lock(
+        &self,
+        _device_id: &str,
+    ) -> impl Future<Output = Result<LockOutcome, AppError>> + Send {
+        async { Ok(LockOutcome::Unsupported) }
+    }
+    /// Best-effort release of this device's publish lock. TTL covers crashes;
+    /// a failed release must never fail the pass that already published.
+    fn release_publish_lock(
+        &self,
+        _device_id: &str,
+    ) -> impl Future<Output = Result<(), AppError>> + Send {
+        async { Ok(()) }
+    }
 }
+
+/// How long a publish lock stays valid without a release. The hold window is
+/// only a few requests (re-read HEAD, publish, read back), so no refresh is
+/// needed; a holder that exceeds this aborts its pass instead of publishing.
+pub(crate) const PUBLISH_LOCK_TTL_SECS: i64 = 90;
 
 /// Runtime selection between the compiled-in backends.
 pub enum SyncStore {
@@ -151,6 +198,20 @@ impl RemoteStore for SyncStore {
             Self::S3(c) => c.probe_conditional_writes().await,
             Self::Webdav(c) => c.probe_conditional_writes().await,
             Self::Agentero(c) => c.probe_conditional_writes().await,
+        }
+    }
+
+    async fn try_acquire_publish_lock(&self, device_id: &str) -> Result<LockOutcome, AppError> {
+        match self {
+            Self::Webdav(c) => c.try_acquire_publish_lock(device_id).await,
+            _ => Ok(LockOutcome::Unsupported),
+        }
+    }
+
+    async fn release_publish_lock(&self, device_id: &str) -> Result<(), AppError> {
+        match self {
+            Self::Webdav(c) => c.release_publish_lock(device_id).await,
+            _ => Ok(()),
         }
     }
 }

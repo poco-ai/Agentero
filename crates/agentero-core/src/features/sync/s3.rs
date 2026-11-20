@@ -223,7 +223,7 @@ impl RemoteStore for S3Client {
         condition: PutCondition,
     ) -> Result<PutOutcome, AppError> {
         let resp = self
-            .send("PUT", key, &[], Some(condition.header()?), body)
+            .send("PUT", key, &[], condition.header()?, body)
             .await?;
         if resp.status() == reqwest::StatusCode::PRECONDITION_FAILED {
             return Ok(PutOutcome::PreconditionFailed);

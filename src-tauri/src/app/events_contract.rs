@@ -275,6 +275,8 @@ pub struct SyncStateEvent {
     pub status: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
 }
 
 /// Owned mirror of the private borrowed `SyncProgressEvent` in

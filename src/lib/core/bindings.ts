@@ -667,6 +667,14 @@ export const commands = {
 	syncDisconnect: (args: SyncVaultArgs) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("sync_disconnect", { args })),
 	/**  One full sync pass (manual trigger from the settings pane). */
 	syncNow: (args: SyncVaultArgs) => typedError<ApiResult<SyncOutcome>, string>(__TAURI_INVOKE("sync_now", { args })),
+	/**  Read-only impact preview for the manual-overwrite confirmation dialog. */
+	syncOverwritePreview: (args: SyncOverwriteArgs) => typedError<ApiResult<OverwritePreview>, string>(__TAURI_INVOKE("sync_overwrite_preview", { args })),
+	/**
+	 *  Manual overwrite: `remoteToLocal` mirrors the remote HEAD onto disk
+	 *  (discarding divergent local content); `localToRemote` publishes the local
+	 *  scan as the new HEAD. The UI confirms with a preview before calling this.
+	 */
+	syncOverwrite: (args: SyncOverwriteArgs) => typedError<ApiResult<SyncOutcome>, string>(__TAURI_INVOKE("sync_overwrite", { args })),
 	syncScopeSizes: (args: SyncVaultArgs) => typedError<ApiResult<SyncScopeSizes>, string>(__TAURI_INVOKE("sync_scope_sizes", { args })),
 	/**
 	 *  Used and included bytes for the signed-in personal or team space.
@@ -4351,6 +4359,30 @@ export type OpenInTerminalResult = {
 	cwd: string,
 };
 
+/**
+ *  Which side wins a manual overwrite. `RemoteToLocal` mirrors the remote
+ *  HEAD manifest onto disk (discarding divergent local content);
+ *  `LocalToRemote` publishes the local scan as the new HEAD (superseding
+ *  remote changes).
+ */
+export type OverwriteDirection = "remoteToLocal" | "localToRemote";
+
+/**
+ *  Impact preview for the confirmation dialog. Counts only; computed without
+ *  any local or remote write.
+ */
+export type OverwritePreview = {
+	/**  Local files the remote does not have (force pull deletes them). */
+	willDeleteLocal: number,
+	/**  Remote files force pull downloads or restores over local edits. */
+	willDownload: number,
+	/**  Remote files absent locally (force push drops them from the manifest). */
+	willRemoveRemote: number,
+	/**  Blobs force push uploads (local content the remote lacks). */
+	willUpload: number,
+	remoteVersion: number,
+};
+
 export type PairingRequest = {
 	requestId: string,
 	deviceId: string,
@@ -5665,6 +5697,13 @@ export type SyncBackendConfig_Deserialize = {
 	/**  Last conditional-write probe result. Unsafe stores cannot publish. */
 	conditionalWrites?: boolean,
 	/**
+	 *  Explicit per-device opt-in to the degraded protocol for stores that
+	 *  ignore conditional writes (publish lock + plain HEAD PUT + read-back
+	 *  verification). Off by default; the engine still hard-stops without it.
+	 *  Phase 1: WebDAV only. See `docs/development/sync-degraded-mode.md`.
+	 */
+	allowDegradedSync?: boolean,
+	/**
 	 *  Which bulky paper assets (PDF / LaTeX source / attachments) take part
 	 *  in sync. Notes, sidecars and marks always sync. Default: everything.
 	 */
@@ -5731,6 +5770,13 @@ export type SyncBackendConfig_Serialize = {
 	/**  Last conditional-write probe result. Unsafe stores cannot publish. */
 	conditionalWrites: boolean,
 	/**
+	 *  Explicit per-device opt-in to the degraded protocol for stores that
+	 *  ignore conditional writes (publish lock + plain HEAD PUT + read-back
+	 *  verification). Off by default; the engine still hard-stops without it.
+	 *  Phase 1: WebDAV only. See `docs/development/sync-degraded-mode.md`.
+	 */
+	allowDegradedSync: boolean,
+	/**
 	 *  Which bulky paper assets (PDF / LaTeX source / attachments) take part
 	 *  in sync. Notes, sidecars and marks always sync. Default: everything.
 	 */
@@ -5793,6 +5839,11 @@ export type SyncOutcome = {
 	conflictCopies: string[],
 };
 
+export type SyncOverwriteArgs = {
+	vaultPath: string,
+	direction: OverwriteDirection,
+};
+
 /**  Progress event streamed to the UI while a sync runs. */
 export type SyncProgress = {
 	current: number,
@@ -5846,6 +5897,7 @@ export type SyncStateEvent_Deserialize = {
 	vaultPath: string,
 	status: string,
 	error?: string | null,
+	errorCode?: string | null,
 };
 
 /**
@@ -5856,6 +5908,7 @@ export type SyncStateEvent_Serialize = {
 	vaultPath: string,
 	status: string,
 	error?: string | null,
+	errorCode?: string | null,
 };
 
 export type SyncStatus = SyncStatus_Serialize | SyncStatus_Deserialize;

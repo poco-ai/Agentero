@@ -103,6 +103,31 @@ pub fn set_vault_id(vault: &Path, id: &str) -> Result<(), AppError> {
     )
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeviceIdentity {
+    id: String,
+    created_at: String,
+}
+
+/// Durable per-device UUID for the degraded-mode publish lock, created on
+/// first use. Per vault (not per installation): lock arbitration only needs
+/// identities to be unique among the devices sharing one store.
+pub fn ensure_device_id(vault: &Path) -> Result<String, AppError> {
+    let path = sync_dir(vault).join("device.json");
+    if let Some(identity) = read_json::<DeviceIdentity>(&path)? {
+        if !identity.id.trim().is_empty() {
+            return Ok(identity.id);
+        }
+    }
+    let identity = DeviceIdentity {
+        id: uuid::Uuid::new_v4().simple().to_string(),
+        created_at: crate::time::now_rfc3339_millis(),
+    };
+    write_json(&path, &identity)?;
+    Ok(identity.id)
+}
+
 pub fn read_base(vault: &Path) -> Result<Manifest, AppError> {
     Ok(read_json(&sync_dir(vault).join("base.json"))?.unwrap_or_default())
 }

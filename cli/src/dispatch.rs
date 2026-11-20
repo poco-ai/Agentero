@@ -181,6 +181,7 @@ pub async fn run(op: &Operation, mut a: Value, g: &GlobalOpts) -> Result<Value, 
         | NativeCommand::SyncConnectGit
         | NativeCommand::SyncTest
         | NativeCommand::SyncRun
+        | NativeCommand::SyncOverwrite
         | NativeCommand::SyncDisconnect => sync::dispatch(op.path, &a, g).await,
         NativeCommand::AppOpen
         | NativeCommand::AppViews

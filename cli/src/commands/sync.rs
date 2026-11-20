@@ -29,6 +29,7 @@ pub(crate) enum BackendKind {
     Git,
 }
 
+#[derive(Debug)]
 pub struct ConfigureArgs {
     /// Initialize or join the experimental ordinary-PUT WebDAV journal in a dedicated directory.
     pub webdav_journal: bool,
@@ -55,6 +56,11 @@ pub struct ConfigureArgs {
     pub git_allow_insecure_http: Option<String>,
     /// Absolute PEM CA bundle for a self-signed HTTPS Git remote.
     pub git_ssl_ca_info: Option<String>,
+    /// Opt in to degraded sync for WebDAV stores that ignore conditional writes
+    /// (`true` or `false`): publish lock + plain HEAD PUT. Conflict copies and
+    /// resurrected deletions are possible; every device sharing the store must
+    /// opt in separately.
+    pub allow_degraded_sync: Option<String>,
     /// Bulky asset categories to keep out of sync (comma list of
     /// pdf,source,attachments). Notes, sidecars and marks always sync.
     pub exclude: Vec<String>,
@@ -197,8 +203,10 @@ async fn configure(
                 "yes"
             } else if args.webdav_journal {
                 "unused (WebDAV journal)"
+            } else if cfg.allow_degraded_sync {
+                "no (degraded sync enabled)"
             } else if cfg.backend == SyncBackendKind::Webdav {
-                "no (requires a WebDAV journal for sync)"
+                "no (requires a WebDAV journal or degraded sync)"
             } else {
                 "no (sync blocked)"
             }
@@ -303,6 +311,9 @@ fn assemble_config(
     }
     if let Some(v) = &args.git_allow_insecure_http {
         cfg.git_allow_insecure_http = parse_bool_flag("git-allow-insecure-http", v)?;
+    }
+    if let Some(v) = &args.allow_degraded_sync {
+        cfg.allow_degraded_sync = parse_bool_flag("allow-degraded-sync", v)?;
     }
     if let Some(v) = &args.git_ssl_ca_info {
         cfg.git_ssl_ca_info = v.clone();
@@ -455,6 +466,70 @@ async fn now(vault: &Path, progress_flag: bool, globals: &GlobalOpts) -> Result<
     Ok(v)
 }
 
+async fn overwrite(
+    vault: &Path,
+    direction: engine::OverwriteDirection,
+    progress_flag: bool,
+    globals: &GlobalOpts,
+) -> Result<Value, CliError> {
+    let (_, cfg) = entry_for(vault);
+    let cfg = cfg.ok_or_else(sync_not_configured)?;
+    let preview = engine::overwrite_preview(vault, &cfg, direction).await?;
+    let style = globals.style;
+    let summary = match direction {
+        engine::OverwriteDirection::RemoteToLocal => format!(
+            "remote overwrites local: delete {} local-only file(s), download/restore {} file(s) (remote version {})",
+            preview.will_delete_local, preview.will_download, preview.remote_version
+        ),
+        engine::OverwriteDirection::LocalToRemote => format!(
+            "local overwrites remote: upload {} blob(s), drop {} remote-only file(s) from the manifest (remote version {})",
+            preview.will_upload, preview.will_remove_remote, preview.remote_version
+        ),
+    };
+    eprintln!("{}", style.key(&summary));
+    let message = match direction {
+        engine::OverwriteDirection::RemoteToLocal => {
+            "Apply remote-over-local overwrite? Divergent local files are discarded without copies."
+        }
+        engine::OverwriteDirection::LocalToRemote => {
+            "Apply local-over-remote overwrite? Remote changes are superseded (old manifests stay on the store)."
+        }
+    };
+    if !prompt::confirm(globals, message, false)? {
+        return Err(CliError::needs_confirmation("overwrite cancelled"));
+    }
+    let lock = SyncLock::acquire(vault)?;
+    let show_progress = progress_flag || !matches!(globals.format, OutputFormat::Json);
+    let progress = move |phase: &str, current: usize, total: usize| {
+        if show_progress {
+            eprintln!("sync: {phase} {current}/{total}");
+        }
+    };
+    let outcome = engine::overwrite_locked(&lock, &cfg, direction, &progress).await?;
+    let mut v = serde_json::to_value(&outcome)?;
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert(
+            "direction".into(),
+            json!(match direction {
+                engine::OverwriteDirection::RemoteToLocal => "remoteToLocal",
+                engine::OverwriteDirection::LocalToRemote => "localToRemote",
+            }),
+        );
+        obj.insert("preview".into(), serde_json::to_value(&preview)?);
+        let lines = vec![format!(
+            "{} version={} up={} down={} deleted-local={} removed-remote={}",
+            style.ok("overwritten"),
+            outcome.version,
+            outcome.uploaded,
+            outcome.downloaded,
+            outcome.deleted_local,
+            outcome.removed_remote,
+        )];
+        obj.insert("lines".into(), json!(lines));
+    }
+    Ok(v)
+}
+
 fn disconnect(vault: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
     let lock = SyncLock::acquire(vault)?;
     let (key, cfg) = entry_for(vault);
@@ -506,6 +581,33 @@ pub async fn dispatch(route: &str, a: &Value, g: &GlobalOpts) -> Result<Value, C
                 json!({"changed":true,"preview":false,"items":[{"outcome":"disconnected"}]}),
             );
         }
+        "sync overwrite" => {
+            let direction = match string(a, "direction").as_deref() {
+                Some("remote-to-local") | Some("remoteToLocal") => {
+                    engine::OverwriteDirection::RemoteToLocal
+                }
+                Some("local-to-remote") | Some("localToRemote") => {
+                    engine::OverwriteDirection::LocalToRemote
+                }
+                _ => {
+                    return Err(CliError::usage(
+                        "direction must be remote-to-local or local-to-remote",
+                    ))
+                }
+            };
+            let r = overwrite(&vault, direction, false, g).await?;
+            return Ok(json!({
+                "changed": true,
+                "preview": false,
+                "direction": r["direction"],
+                "version": r["version"],
+                "uploaded": r["uploaded"],
+                "downloaded": r["downloaded"],
+                "deleted_local": r["deletedLocal"],
+                "removed_remote": r["removedRemote"],
+                "impact": r["preview"],
+            }));
+        }
         _ => {}
     }
     let flags = ConfigureArgs {
@@ -526,6 +628,7 @@ pub async fn dispatch(route: &str, a: &Value, g: &GlobalOpts) -> Result<Value, C
         git_branch: string(a, "branch").map(str::to_owned),
         git_allow_insecure_http: a["allow_insecure_http"].as_bool().map(|v| v.to_string()),
         git_ssl_ca_info: string(a, "ca_file").map(str::to_owned),
+        allow_degraded_sync: a["allow_degraded_sync"].as_bool().map(|v| v.to_string()),
         exclude: strings(a, "exclude"),
     };
     let supplied = string(a, "credentials_input")

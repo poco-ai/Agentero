@@ -10,6 +10,11 @@
 //! and the headless CLI (`agentero sync …`), so both sides get the same
 //! merge, conflict and failure-recovery semantics.
 
+/// Wire code for the conditional-write hard stop: the store ignores
+/// `If-Match` / `If-None-Match` and the device has not opted into the
+/// degraded protocol. Localized by the settings pane.
+pub const SYNC_NO_CONDITIONAL_WRITES: &str = "sync_no_conditional_writes";
+
 mod agentero;
 pub mod config;
 pub mod engine;

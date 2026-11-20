@@ -10,7 +10,8 @@
 use crate::error::AppError;
 use crate::features::sync::config::{normalize_webdav_url, SyncBackendConfig};
 use crate::features::sync::store::{
-    check, etag_of, send_with_retries, PutCondition, PutOutcome, RemoteStore,
+    check, etag_of, send_with_retries, LockOutcome, PutCondition, PutOutcome, RemoteStore,
+    PUBLISH_LOCK_TTL_SECS,
 };
 use crate::http;
 use std::collections::{BTreeSet, HashSet};
@@ -22,6 +23,11 @@ const PROPFIND_BODY: &[u8] = br#"<?xml version="1.0" encoding="utf-8"?>
 // A provider may return 750 rows including the collection itself with no
 // continuation marker. The boundary applies to each directory independently.
 pub(super) const JOURNAL_LIST_LIMIT: usize = 749;
+
+/// Lock listing asks for the server clock (`getlastmodified`) so arbitration
+/// never depends on client clock skew.
+const PROPFIND_LOCKS_BODY: &[u8] = br#"<?xml version="1.0" encoding="utf-8"?>
+<d:propfind xmlns:d="DAV:"><d:prop><d:getlastmodified/><d:resourcetype/></d:prop></d:propfind>"#;
 
 pub struct WebdavClient {
     http: reqwest::Client,
@@ -339,13 +345,9 @@ impl RemoteStore for WebdavClient {
         condition: PutCondition,
     ) -> Result<PutOutcome, AppError> {
         self.ensure_parent_dirs(key).await?;
+        let headers: Vec<(&str, String)> = condition.header()?.into_iter().collect();
         let resp = self
-            .send(
-                method("PUT")?,
-                &self.url_for(key),
-                &[condition.header()?],
-                body,
-            )
+            .send(method("PUT")?, &self.url_for(key), &headers, body)
             .await?;
         if resp.status() == reqwest::StatusCode::PRECONDITION_FAILED {
             return Ok(PutOutcome::PreconditionFailed);
@@ -360,6 +362,165 @@ impl RemoteStore for WebdavClient {
         let cleanup = self.delete(&key).await;
         result.and_then(|supported| cleanup.map(|_| supported))
     }
+
+    /// Joplin-style soft lock: PUT this device's lock file, list `locks/`,
+    /// and let deterministic arbitration (oldest live lock wins, ties by
+    /// device id) decide the holder. Only needs PUT + PROPFIND — both work
+    /// on servers that ignore conditional headers (fnOS built-in WebDAV).
+    async fn try_acquire_publish_lock(&self, device_id: &str) -> Result<LockOutcome, AppError> {
+        let key = lock_key(device_id)?;
+        self.ensure_parent_dirs(&key).await?;
+        let body = serde_json::to_vec(&LockInfo {
+            device_id: device_id.to_string(),
+            acquired_at: crate::time::now_rfc3339_millis(),
+        })?;
+        self.put(&key, body, PutCondition::Unconditional).await?;
+        let listed = self.list_locks().await;
+        let candidates = match listed {
+            Ok(c) => c,
+            Err(e) => {
+                // Cannot arbitrate without a listing; leave no lock behind.
+                let _ = self.delete(&key).await;
+                return Err(e);
+            }
+        };
+        let now = chrono::Utc::now().timestamp();
+        match arbitrate_locks(&candidates, now, PUBLISH_LOCK_TTL_SECS) {
+            Some(winner) if winner == device_id => Ok(LockOutcome::Acquired),
+            _ => {
+                let _ = self.delete(&key).await;
+                Ok(LockOutcome::Busy)
+            }
+        }
+    }
+
+    async fn release_publish_lock(&self, device_id: &str) -> Result<(), AppError> {
+        self.delete(&lock_key(device_id)?).await
+    }
+}
+
+/// One lock file's arbitration evidence: device id plus its timestamp in
+/// server-clock seconds (PROPFIND `getlastmodified`), falling back to the
+/// lock content's `acquiredAt` when the server omits the property.
+struct LockCandidate {
+    device_id: String,
+    ts: i64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LockInfo {
+    device_id: String,
+    acquired_at: String,
+}
+
+/// Lock files live at `locks/<deviceId>.json`; the id is a persisted UUID,
+/// but validate anyway so a hostile value cannot escape the directory.
+fn lock_key(device_id: &str) -> Result<String, AppError> {
+    if device_id.is_empty()
+        || device_id.len() > 64
+        || !device_id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    {
+        return Err(AppError::message("invalid sync device id"));
+    }
+    Ok(format!("locks/{device_id}.json"))
+}
+
+/// Deterministic winner among live locks: oldest timestamp first, ties by
+/// lexicographic device id. Expired locks are ignored. Pure so arbitration
+/// is unit-testable without HTTP.
+fn arbitrate_locks(candidates: &[LockCandidate], now: i64, ttl: i64) -> Option<String> {
+    candidates
+        .iter()
+        .filter(|c| now.saturating_sub(c.ts) < ttl && c.ts <= now.saturating_add(ttl))
+        .min_by(|a, b| a.ts.cmp(&b.ts).then_with(|| a.device_id.cmp(&b.device_id)))
+        .map(|c| c.device_id.clone())
+}
+
+impl WebdavClient {
+    /// PROPFIND Depth:1 over `locks/`, reduced to arbitration candidates.
+    async fn list_locks(&self) -> Result<Vec<LockCandidate>, AppError> {
+        let url = format!("{}/", self.url_for("locks"));
+        let resp = self
+            .send(
+                method("PROPFIND")?,
+                &url,
+                &[("Depth", "1".to_string())],
+                PROPFIND_LOCKS_BODY.to_vec(),
+            )
+            .await?;
+        if resp.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(Vec::new());
+        }
+        let resp = check(resp, "PROPFIND", "locks").await?;
+        let xml = resp
+            .text()
+            .await
+            .map_err(|e| AppError::message(format!("PROPFIND locks: {e}")))?;
+        let mut out = Vec::new();
+        let doc = roxmltree::Document::parse(&xml)
+            .map_err(|e| AppError::message(format!("PROPFIND locks: invalid XML: {e}")))?;
+        for response in doc.descendants().filter(|n| n.has_tag_name("response")) {
+            let href = response
+                .children()
+                .find(|n| n.has_tag_name("href"))
+                .and_then(|n| n.text())
+                .unwrap_or_default();
+            // The collection itself and anything but lock files are noise.
+            if href.ends_with('/') {
+                continue;
+            }
+            let name = percent_decode(href.rsplit('/').find(|s| !s.is_empty()).unwrap_or_default());
+            let Some(device_id) = name.strip_suffix(".json") else {
+                continue;
+            };
+            if lock_key(device_id).is_err() {
+                continue;
+            }
+            let mtime = response
+                .descendants()
+                .find(|n| n.has_tag_name("getlastmodified"))
+                .and_then(|n| n.text())
+                .and_then(parse_http_date);
+            let ts = match mtime {
+                Some(ts) => ts,
+                None => {
+                    // Server omits getlastmodified: fall back to the lock's
+                    // own content timestamp (client clock; documented risk).
+                    let key = format!("locks/{name}");
+                    match self.get(&key).await? {
+                        Some((bytes, _)) => serde_json::from_slice::<LockInfo>(&bytes)
+                            .ok()
+                            .and_then(|info| {
+                                chrono::DateTime::parse_from_rfc3339(&info.acquired_at).ok()
+                            })
+                            .map(|dt| dt.timestamp())
+                            .unwrap_or(0),
+                        None => continue,
+                    }
+                }
+            };
+            out.push(LockCandidate {
+                device_id: device_id.to_string(),
+                ts,
+            });
+        }
+        Ok(out)
+    }
+}
+
+/// IMF-fixdate (`Sun, 06 Nov 1994 08:49:37 GMT`) as RFC 4918 requires;
+/// RFC 2822 (`+0000`) as a lenient second chance.
+fn parse_http_date(value: &str) -> Option<i64> {
+    let value = value.trim();
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(value, "%a, %d %b %Y %H:%M:%S GMT") {
+        return Some(dt.and_utc().timestamp());
+    }
+    chrono::DateTime::parse_from_rfc2822(value)
+        .ok()
+        .map(|dt| dt.timestamp())
 }
 
 async fn read_limited(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>, AppError> {

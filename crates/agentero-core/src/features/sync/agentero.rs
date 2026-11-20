@@ -145,14 +145,13 @@ impl RemoteStore for AgenteroClient {
     ) -> Result<PutOutcome, AppError> {
         let id = self.server_id().await?;
         let url = self.object_url(&id, key);
-        let (header, value) = condition.header()?;
+        let condition_header = condition.header()?;
         let resp = send_with_retries(&reqwest::Method::PUT, &url, || {
-            self.auth(
-                self.http
-                    .put(&url)
-                    .body(body.clone())
-                    .header(header, &value),
-            )
+            let mut req = self.http.put(&url).body(body.clone());
+            if let Some((header, value)) = &condition_header {
+                req = req.header(*header, value);
+            }
+            self.auth(req)
         })
         .await?;
         let status = resp.status().as_u16();
