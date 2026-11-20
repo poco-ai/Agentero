@@ -1,6 +1,6 @@
 //! Interactive prompts via `inquire` (Inquirer-style).
 //!
-//! Hard rules (docs/development/cli.md):
+//! Interaction rules:
 //! - Never prompt in `--json` / machine mode.
 //! - Destructive confirms: `-y` auto-approves; non-TTY without `-y` → `needs_confirmation`.
 //! - Prompts only when stdin is a TTY.

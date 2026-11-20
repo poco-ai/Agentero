@@ -6,8 +6,7 @@
  * the *unrotated* content space and keeps `/Rotate` in `page.rotation` — the
  * caller must add both (`(page.rotation + coreDoc.rotation) % 4`) for layout,
  * tiles and raster. Assuming the size already includes `/Rotate` renders
- * those pages portrait with sideways tables; see
- * docs/bug_fix/pdf-rotated-page-shell.md.
+ * those pages portrait with sideways tables.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

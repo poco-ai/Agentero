@@ -3,7 +3,7 @@
 <!--
   Hardened Runtime entitlements for Developer ID / notarized builds
   (outside the Mac App Store). Do NOT enable App Sandbox here — MAS
-  distribution uses a separate profile (see docs/development/macos-signing.md).
+  distribution uses a separate profile.
 -->
 <plist version="1.0">
 <dict>

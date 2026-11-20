@@ -1,7 +1,5 @@
 /**
  * Plaza feed subscriptions — Host IPC + paper import.
- *
- * @see docs/backend/api.md §3.10.4
  */
 
 import { commands, type FeedItem, type FeedSub } from "@/lib/core/bindings";

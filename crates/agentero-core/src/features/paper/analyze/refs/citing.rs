@@ -13,8 +13,6 @@
 //!      citing a 190k-citation classic counts for almost nothing.
 //!   L2 SPECTER2 similarity — centered max-sim against my own papers, with the
 //!      threshold self-calibrated from my own library.
-//!
-//! @see docs/backend/citation-parsing.md
 
 use super::latex;
 use crate::error::AppError;

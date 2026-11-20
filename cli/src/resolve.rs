@@ -41,7 +41,7 @@ impl GlobalOpts {
     }
 }
 
-/// Resolve vault root per docs/development/cli.md §5.1.
+/// Resolve the vault from `--vault`, then `AGENTERO_VAULT`, then parent directories.
 pub fn resolve_vault(globals: &GlobalOpts) -> Result<PathBuf, CliError> {
     // 1. --vault
     if let Some(p) = &globals.vault_flag {

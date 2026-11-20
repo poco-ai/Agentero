@@ -10,7 +10,7 @@ body:
         小范围功能建议请用「功能建议」模板；不确定是否值得做，可以先到讨论区聊。
 
         - 一个 Issue 只讨论一个方案，结论收敛后再动手实现
-        - 定稿后把设计落到 `docs/development/`，实现完成后并入 `docs/frontend/` 或 `docs/backend/`
+        - 在 Issue 中保留决策和对应 PR，长期约束按 AGENTS.md 维护
 
   - type: input
     id: summary

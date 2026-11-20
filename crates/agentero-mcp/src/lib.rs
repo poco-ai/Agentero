@@ -1,6 +1,6 @@
 //! Loopback Streamable HTTP MCP server shared by the desktop app and the CLI.
 //!
-//! See `docs/backend/mcp.md`. The desktop shell keeps settings IPC, status
+//! The desktop shell keeps settings IPC, status
 //! events, and the ChatGPT tunnel; this crate owns the tool surface and the
 //! listener. Desktop-only side effects go through [`McpHost`].
 

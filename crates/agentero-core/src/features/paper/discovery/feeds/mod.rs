@@ -1,8 +1,6 @@
 //! Plaza RSS / Atom / JSON Feed subscriptions.
 //!
 //! Stored in `$XDG_DATA_HOME/agentero/feeds.sqlite`. Does not write catalog or Vault.
-//!
-//! @see docs/backend/api.md §3.10.4
 
 mod body;
 pub mod parse;

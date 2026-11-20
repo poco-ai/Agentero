@@ -1,7 +1,4 @@
 //! Paper import: identifier lookup, Translator, Zotero migrate, local PDF, PAPER.md parse.
-//!
-//! @see docs/backend/identifier-lookup.md
-//! @see docs/backend/paper-import-pipeline.md
 
 pub mod auto_ingest;
 pub mod chat_extract;

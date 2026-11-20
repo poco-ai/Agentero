@@ -9,9 +9,6 @@
 //! A sidecar with an invalid region (missing geometry, unknown kind) is
 //! rejected wholesale by the desktop parser, so this module is deliberately
 //! strict about what it emits.
-//!
-//! @see docs/frontend/pdf-layout-analysis.md
-//! @see docs/backend/cli.md (`agentero layout analyze`)
 
 use serde::{Deserialize, Serialize};
 
