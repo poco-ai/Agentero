@@ -198,7 +198,7 @@ fn fingerprint_of(
     });
     let payload = serde_json::json!({
         "profile": TOOL_PROFILE,
-        "tools": ["context_search", "context_read", "paper_relations"],
+        "commands": ["search", "read", "paper relations"],
         "expansion": expansion,
         "allowed": allowed.iter().map(|source| serde_json::json!({
             "kind": source.kind,
@@ -228,19 +228,19 @@ pub fn render_prompt_block(plan: &ContextPlan) -> String {
     }
     let mut lines = Vec::new();
     match plan.expansion {
-        ContextExpansion::Mcp => {
+        ContextExpansion::Cli => {
             lines.push(
                 "Research context for this turn. This is the minimum evidence: a stable paper ref, title, page or section, and the quoted passage. Do not open the paper file or read the full text first."
                     .to_string(),
             );
             lines.push(
-                "When this is not enough, call the agentero-context tools in order: context_read level metadata (title and abstract), then section, page, or region. context_search returns short evidence cards, not the body. paper_relations returns citation, cited-by, and related cards. Full text is not a default and stays inside the read budget. If those tools are not connected, say that context expansion is unavailable and answer only from the evidence below."
+                "When this is not enough, use the turn-bound Agentero CLI executable: read PAPER for metadata, search QUERY to find evidence, then read the returned cite. Read a section, page or region when you need a particular passage. Use paper relations PAPER for references. The host tracks returned evidence for this turn."
                     .to_string(),
             );
         }
         ContextExpansion::PromptOnly => {
             lines.push(
-                "Research context for this turn. Context expansion is unavailable: this agent has no agentero-context tools and must not assume it can read the vault. Answer only from the evidence below. If it is not enough, say so."
+                "Research context for this turn. Context expansion is unavailable: this agent has no turn-bound CLI and must not assume it can read the vault. Answer only from the evidence below. If it is not enough, say so."
                     .to_string(),
             );
         }
@@ -311,7 +311,7 @@ pub fn render_prompt_block(plan: &ContextPlan) -> String {
             }
             if item.quote_truncated {
                 lines.push(
-                    "The quote above is truncated. context_read level excerpt returns a larger window. Do not guess the rest."
+                    "The quote above is truncated. read SOURCE --quote TEXT returns a larger window. Do not guess the rest."
                         .to_string(),
                 );
             }
@@ -488,7 +488,7 @@ mod tests {
         let plan = plan_from_facts(
             &request(),
             &[paper_fact("scaled dot-product")],
-            ContextExpansion::Mcp,
+            ContextExpansion::Cli,
         );
         let block = render_prompt_block(&plan);
         assert!(block.contains("Paper ref: attention"));
@@ -500,13 +500,13 @@ mod tests {
         assert!(!block.contains("Abstract:"));
         assert!(!block.contains("We propose a new"));
         assert_eq!(plan.allowed.len(), 1);
-        assert_eq!(plan.expansion, ContextExpansion::Mcp);
+        assert_eq!(plan.expansion, ContextExpansion::Cli);
     }
 
     #[test]
     fn fingerprint_ignores_the_quote_and_changes_with_the_grant() {
-        let first = plan_from_facts(&request(), &[paper_fact("one")], ContextExpansion::Mcp);
-        let same = plan_from_facts(&request(), &[paper_fact("two")], ContextExpansion::Mcp);
+        let first = plan_from_facts(&request(), &[paper_fact("one")], ContextExpansion::Cli);
+        let same = plan_from_facts(&request(), &[paper_fact("two")], ContextExpansion::Cli);
         assert_eq!(first.fingerprint, same.fingerprint);
         let mut extra = paper_fact("one");
         extra.paper = Some(PaperBrief {
@@ -517,7 +517,7 @@ mod tests {
         let wider = plan_from_facts(
             &request(),
             &[paper_fact("one"), extra],
-            ContextExpansion::Mcp,
+            ContextExpansion::Cli,
         );
         assert_ne!(first.fingerprint, wider.fingerprint);
         let remote = plan_from_facts(
@@ -544,7 +544,7 @@ mod tests {
             directory_path: None,
             citation_uri: None,
         };
-        let plan = plan_from_facts(&request(), &[quote_only], ContextExpansion::Mcp);
+        let plan = plan_from_facts(&request(), &[quote_only], ContextExpansion::Cli);
         assert!(plan.allowed.is_empty());
         assert_eq!(plan.expansion, ContextExpansion::PromptOnly);
         assert!(render_prompt_block(&plan).contains("orphan quote"));
@@ -573,7 +573,7 @@ mod tests {
                 },
             ],
         };
-        let plan = resolve_in_vault(dir.path(), &request, ContextExpansion::Mcp).unwrap();
+        let plan = resolve_in_vault(dir.path(), &request, ContextExpansion::Cli).unwrap();
         assert!(plan.allowed.iter().any(|source| {
             source.kind == AllowedSourceKind::Directory && source.path == "notes"
         }));

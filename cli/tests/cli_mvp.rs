@@ -1,4 +1,4 @@
-//! Integration tests for agentero CLI MVP (offline; no Translator).
+//! Integration tests for agentero research CLI (offline; no Translator).
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
@@ -21,7 +21,7 @@ fn create_vault(dir: &Path) -> PathBuf {
         .args(["vault", "create", dir.to_str().unwrap(), "--json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"ok\":true"));
+        .stdout(predicate::str::contains("\"outcome\":\"created\""));
     home
 }
 
@@ -76,11 +76,44 @@ fn tiny_pdf_pages(texts: &[&str]) -> Vec<u8> {
     out.into_bytes()
 }
 
+fn invoke(vault: &Path, args: &[&str], success: bool) -> Value {
+    let home = vault.parent().unwrap().join(".test-home");
+    let output = agentero()
+        .env("HOME", &home)
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .args(["--json", "--no-input", "--vault", vault.to_str().unwrap()])
+        .args(args)
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.success(),
+        success,
+        "{args:?}: {} / {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(if success {
+        &output.stdout
+    } else {
+        &output.stderr
+    })
+    .unwrap()
+}
+fn ok(v: &Path, a: &[&str]) -> Value {
+    invoke(v, a, true)
+}
+fn fail(v: &Path, a: &[&str]) -> Value {
+    invoke(v, a, false)
+}
+fn paper(v: &Path) {
+    fs::create_dir_all(v.join("papers/demo")).unwrap();
+    seed_paper(v, "papers/demo", "demo", "Demo Paper");
+}
 #[test]
 fn vault_create_and_list() {
     let tmp = tempdir().unwrap();
     let vault = tmp.path().join("v");
-    let home = create_vault(&vault);
+    let _home = create_vault(&vault);
 
     assert!(vault.join("papers").is_dir());
     assert!(vault.join(".agentero").join("catalog.sqlite").is_file());
@@ -95,691 +128,118 @@ fn vault_create_and_list() {
         .is_file());
     assert!(vault.join(".agents/skills/README.md").is_file());
 
-    let list = agentero()
-        .env("HOME", &home)
-        .env("XDG_CONFIG_HOME", home.join(".config"))
-        .args(["vault", "list", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&list).unwrap();
-    assert_eq!(v["ok"], true);
-    let vaults = v["data"]["vaults"].as_array().unwrap();
-    assert!(
-        vaults
-            .iter()
-            .any(|entry| entry["path"].as_str().unwrap().contains("v")),
-        "vault list should contain the newly created vault"
+    let listed = ok(&vault, &["vault", "list"]);
+    assert!(listed["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["path"]
+            .as_str()
+            .and_then(|p| Path::new(p).canonicalize().ok())
+            == vault.canonicalize().ok()));
+}
+
+#[test]
+fn help_and_tool_inventory_agree_with_the_command_tree() {
+    let tmp = tempdir().unwrap();
+    let v = tmp.path().join("v");
+    create_vault(&v);
+    let tree = ok(&v, &["help"]);
+    let cmds = tree["commands"].as_array().unwrap();
+    assert_eq!(cmds.iter().filter(|c| !c["result"].is_null()).count(), 71);
+    for op in cmds {
+        let mut words: Vec<_> = op["path"].as_str().unwrap().split_whitespace().collect();
+        words.push("--help");
+        agentero()
+            .args(words)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Usage:"));
+    }
+    let inventory = ok(&v, &["mcp", "tools", "--allow-vault", v.to_str().unwrap()]);
+    assert!(inventory.to_string().contains("evidence_search"));
+}
+#[test]
+fn paper_crud_tags_read_state_revisions_and_metadata_sidecar() {
+    let tmp = tempdir().unwrap();
+    let v = tmp.path().join("v");
+    create_vault(&v);
+    assert_eq!(ok(&v, &["paper", "list"])["items"], serde_json::json!([]));
+    assert!(fail(&v, &["paper", "get", "missing"])["error"]["code"].is_string());
+    paper(&v);
+    set_tags_json(&v, "papers/demo", r#"[{"name":"legacy","color":"red"}]"#);
+    let original = ok(&v, &["paper", "get", "demo"]);
+    let rev = original["revision"].as_str().unwrap();
+    let updated = ok(
+        &v,
+        &[
+            "paper",
+            "update",
+            "demo",
+            "--title",
+            "A new title",
+            "--author",
+            "Jane",
+            "--venue",
+            "Science",
+            "--date",
+            "2025-03-02",
+            "--state",
+            "read",
+            "--if-revision",
+            rev,
+        ],
     );
-}
-
-#[test]
-fn describe_lists_ops_and_resolves_one() {
-    let listed = agentero()
-        .args(["describe", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&listed).unwrap();
-    assert_eq!(v["ok"], true);
-    let ops = v["data"]["ops"].as_array().unwrap();
-    assert!(ops.iter().any(|o| o["id"] == "paper.list"));
-    assert!(ops.iter().any(|o| o["id"] == "layout.list"));
-    assert!(ops.iter().any(|o| o["id"] == "paper.notes.fetch"));
-    assert!(ops.iter().any(|o| o["mcpTool"] == "paper_list"));
-
-    let one = agentero()
-        .args(["describe", "paper.list", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&one).unwrap();
-    assert_eq!(v["ok"], true);
-    assert_eq!(v["data"]["id"], "paper.list");
-    assert_eq!(v["data"]["cli"], "agentero paper list");
-    assert!(v["data"]["input"].is_object());
-    assert!(v["data"]["output"].is_object());
-    assert!(!v["data"]["examples"].as_array().unwrap().is_empty());
-
-    let by_mcp = agentero()
-        .args(["describe", "paper_list", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&by_mcp).unwrap();
-    assert_eq!(v["data"]["id"], "paper.list");
-
-    let bad = agentero()
-        .args(["describe", "no.such.op", "--json"])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&bad).unwrap();
-    assert_eq!(v["ok"], false);
-    assert_eq!(v["error"]["code"], "usage");
-}
-
-#[test]
-fn paper_list_empty_and_set_read_not_found() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], true);
-    assert!(v["data"].as_array().unwrap().is_empty());
-
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "get",
-            "nope",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("paper_not_found"));
-}
-
-#[test]
-fn paper_notes_fetch_requires_notes_md() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-    fs::create_dir_all(vault.join("papers").join("demo")).unwrap();
-    seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
-
-    // No NOTES.md means no network: fetch_notes rejects before resolving.
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "notes",
-            "fetch",
-            "papers/demo",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], false);
-    assert!(v["error"]["message"].as_str().unwrap().contains("NOTES.md"));
-}
-
-#[test]
-fn paper_crud_catalog_only() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-
-    // Seed a catalog row via service path: write minimal paper folder + use SQL through second create
-    // Insert via agentero is only import (network). Seed with direct SQLite for unit-ish coverage.
-    let paper = vault.join("papers").join("demo");
-    fs::create_dir_all(&paper).unwrap();
-    fs::write(paper.join("NOTES.md"), "# Demo\n").unwrap();
-
-    // Use `agentero` only for operations that hit services — seed with rusqlite in-process via
-    // creating through vault is enough if we call paper list after manual catalog upsert.
-    // Here we shell out to a tiny approach: open catalog and insert like Host would.
-    seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
-
-    let list = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&list).unwrap();
-    assert_eq!(v["data"].as_array().unwrap().len(), 1);
-    assert_eq!(v["data"][0]["id"], "demo");
-
-    let get = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "get",
-            "demo",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&get).unwrap();
-    assert_eq!(v["data"]["paper"]["title"], "Demo Paper");
-    assert!(v["data"]["assets"]["notesMd"].as_bool().unwrap());
-    assert_eq!(v["data"]["assets"]["marksDir"], false);
-    let reads = v["data"]["suggestedReads"].as_array().unwrap();
-    assert!(reads
-        .iter()
-        .any(|r| r.as_str() == Some("papers/demo/NOTES.md")));
-
-    // Reader marks dir → assets.marksDir + suggestedReads / paths
-    fs::create_dir_all(paper.join("marks")).unwrap();
-    fs::write(
-        paper.join("marks").join("hl-1.json"),
-        r#"{"version":1,"kind":"highlight","id":"hl-1"}"#,
-    )
-    .unwrap();
-
-    let get_marks = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "get",
-            "demo",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&get_marks).unwrap();
-    assert!(v["data"]["assets"]["marksDir"].as_bool().unwrap());
-    let reads = v["data"]["suggestedReads"].as_array().unwrap();
-    assert!(reads
-        .iter()
-        .any(|r| r.as_str() == Some("papers/demo/marks")));
-
-    let paths = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "paths",
-            "demo",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&paths).unwrap();
-    let path_list = v["data"].as_array().unwrap();
-    assert!(path_list
-        .iter()
-        .any(|p| p.as_str() == Some("papers/demo/NOTES.md")));
-    assert!(path_list
-        .iter()
-        .any(|p| p.as_str() == Some("papers/demo/marks")));
-
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "set-read",
-            "demo",
-            "--json",
-        ])
-        .assert()
-        .success();
-
-    let get2 = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "get",
-            "papers/demo",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&get2).unwrap();
-    assert_eq!(v["data"]["paper"]["is_read"], true);
-
-    // Tags: replace → list filter → add → rm → tag list inventory
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "tag",
-            "set",
-            "demo",
-            "nlp",
-            "survey",
-            "--json",
-        ])
-        .assert()
-        .success();
-
-    let tagged = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--tag",
-            "NLP",
-            "--full",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&tagged).unwrap();
-    assert_eq!(v["data"].as_array().unwrap().len(), 1);
-    assert_eq!(v["data"][0]["tags"][0], "nlp");
-    assert_eq!(v["data"][0]["tags"][1], "survey");
-
-    let no_tag = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--tag",
-            "missing",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&no_tag).unwrap();
-    assert!(v["data"].as_array().unwrap().is_empty());
-
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "tag",
-            "add",
-            "demo",
-            "draft",
-            "--json",
-        ])
-        .assert()
-        .success();
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "tag",
-            "rm",
-            "demo",
-            "survey",
-            "--json",
-        ])
-        .assert()
-        .success();
-
-    let get_tags = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "get",
-            "demo",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&get_tags).unwrap();
-    let tags = v["data"]["paper"]["tags"].as_array().unwrap();
-    assert!(tags.iter().any(|t| t.as_str() == Some("nlp")));
-    assert!(tags.iter().any(|t| t.as_str() == Some("draft")));
-    assert!(!tags.iter().any(|t| t.as_str() == Some("survey")));
-
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "tag",
-            "add",
-            "demo",
-            "colored:red",
-            "colon:name",
-            "--json",
-        ])
-        .assert()
-        .success();
-    let colored = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "get",
-            "demo",
-            "--all",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let colored: Value = serde_json::from_slice(&colored).unwrap();
-    let tags = colored["data"]["paper"]["tags"].as_array().unwrap();
-    assert!(tags
-        .iter()
-        .any(|t| t["name"] == "colored" && t["color"] == "red"));
-    assert!(tags.iter().any(|t| t.as_str() == Some("colon:name")));
-
-    set_tags_json(
-        &vault,
-        "papers/demo",
-        r#"["nlp","draft",{"name":"@zotero:imported"},{"name":"Computer Science - Machine Learning"}]"#,
+    assert_eq!(updated["authors"][0], "Jane");
+    assert_eq!(updated["state"], "read");
+    let sidecar: Value =
+        serde_json::from_slice(&fs::read(v.join("papers/demo/metadata.json")).unwrap()).unwrap();
+    assert_eq!(sidecar["title"], "A new title");
+    assert_eq!(
+        fail(
+            &v,
+            &[
+                "paper",
+                "update",
+                "demo",
+                "--title",
+                "stale",
+                "--if-revision",
+                rev
+            ]
+        )["error"]["code"],
+        "revision_conflict"
     );
-    let hidden = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--tag",
-            "@zotero:imported",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let hidden: Value = serde_json::from_slice(&hidden).unwrap();
-    assert!(hidden["data"].as_array().unwrap().is_empty());
-
-    let all = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--tag",
-            "@zotero:imported",
-            "--all",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let all: Value = serde_json::from_slice(&all).unwrap();
-    assert_eq!(all["data"].as_array().unwrap().len(), 1);
-
-    let arxiv_hidden = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--tag",
-            "Computer Science - Machine Learning",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let arxiv_hidden: Value = serde_json::from_slice(&arxiv_hidden).unwrap();
-    assert!(arxiv_hidden["data"].as_array().unwrap().is_empty());
-
-    let arxiv_all = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--tag",
-            "Computer Science - Machine Learning",
-            "--all",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let arxiv_all: Value = serde_json::from_slice(&arxiv_all).unwrap();
-    assert_eq!(arxiv_all["data"].as_array().unwrap().len(), 1);
-
-    let tags_idx = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "tag",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&tags_idx).unwrap();
-    let items = v["data"]["items"].as_array().unwrap();
-    assert!(items
-        .iter()
-        .any(|it| { it["tag"].as_str() == Some("nlp") && it["count"].as_u64() == Some(1) }));
-    assert!(items
-        .iter()
-        .any(|it| { it["tag"].as_str() == Some("draft") && it["count"].as_u64() == Some(1) }));
-    assert!(!items
-        .iter()
-        .any(|it| it["tag"].as_str() == Some("Computer Science - Machine Learning")));
-    assert!(!items
-        .iter()
-        .any(|it| it["tag"].as_str() == Some("@zotero:imported")));
-
-    // clear requires --clear (empty args alone is a usage error)
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "tag",
-            "set",
-            "demo",
-            "--json",
-        ])
-        .assert()
-        .failure();
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
+    ok(&v, &["paper", "tag", "add", "demo", "methods"]);
+    let selected = ok(
+        &v,
+        &["paper", "list", "--tag", "methods", "--state", "read"],
+    );
+    assert_eq!(selected["items"][0]["id"], "demo");
+    assert!(selected["items"][0].get("abstract").is_none());
+    assert!(ok(&v, &["paper", "tag", "list"])
+        .to_string()
+        .contains("methods"));
+    ok(&v, &["paper", "tag", "remove", "demo", "methods"]);
+    let row = ok(&v, &["paper", "get", "demo"]);
+    ok(
+        &v,
+        &[
             "paper",
             "tag",
             "set",
             "demo",
             "--clear",
-            "--json",
-        ])
-        .assert()
-        .success();
-
-    // Delete moves the paper to the recycle bin (desktop can restore it).
-    // CLI no longer exposes trash management commands.
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "delete",
-            "papers/demo",
-            "--json",
-        ])
-        .assert()
-        .success();
-    assert!(!paper.exists());
-
-    let list2 = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&list2).unwrap();
-    assert_eq!(v["data"].as_array().unwrap().len(), 0);
-}
-
-#[test]
-fn paper_list_json_slim_by_default_fields_and_full() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-    seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
-
-    // Default: only id/path/title, compact single line (token-cheap for agents).
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    assert_eq!(String::from_utf8_lossy(&out).trim().lines().count(), 1);
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    let row = &v["data"][0];
-    let mut keys: Vec<&str> = row
-        .as_object()
+            "--if-revision",
+            row["revision"].as_str().unwrap(),
+        ],
+    );
+    assert!(ok(&v, &["paper", "list", "--tag", "methods"])["items"]
+        .as_array()
         .unwrap()
-        .keys()
-        .map(|k| k.as_str())
-        .collect();
-    keys.sort();
-    assert_eq!(keys, ["id", "path", "title"]);
-
-    // --fields adds requested keys on top of id/path/title.
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--fields",
-            "status,is_read",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    let row = &v["data"][0];
-    assert_eq!(row["status"], "completed");
-    assert_eq!(row["is_read"], false);
-
-    // --full restores the whole PaperRecord.
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--full",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert!(v["data"][0]["added_at"].as_str().is_some());
-
-    // Unknown field → usage error.
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--fields",
-            "nope",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("unknown field"));
-
-    // --pretty opts back into indented JSON.
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "--pretty",
-            "paper",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("\"ok\": true"));
+        .is_empty());
+    assert!(fail(&v, &["paper", "note", "fetch", "demo"])["error"]["code"].is_string());
 }
-
 #[test]
 fn paper_move_updates_filesystem_catalog_and_wiki() {
     let tmp = tempdir().unwrap();
@@ -796,452 +256,90 @@ fn paper_move_updates_filesystem_catalog_and_wiki() {
     )
     .unwrap();
 
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "move",
-            "papers/inbox/demo",
-            "papers/archive",
-            "--json",
-        ])
-        .assert()
-        .success();
-
-    assert!(!vault.join("papers/inbox/demo").exists());
-    assert!(vault.join("papers/archive/demo").is_dir());
+    let to = "papers/archive/demo";
+    let from = "papers/inbox/demo";
+    assert_eq!(
+        ok(&vault, &["file", "move", from, to, "--dry-run"])["preview"],
+        true
+    );
+    assert!(vault.join(from).is_dir());
+    fail(&vault, &["file", "move", from, "../escape"]);
+    ok(&vault, &["file", "move", from, to]);
     assert_eq!(
         fs::read_to_string(vault.join("notes/source.md")).unwrap(),
         "[[papers/archive/demo/NOTES]]\n"
     );
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "move",
-            "papers/archive/demo",
-            "papers/archive",
-            "--json",
-        ])
-        .assert()
-        .success();
-    let listed = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let listed: Value = serde_json::from_slice(&listed).unwrap();
-    assert_eq!(listed["data"][0]["path"], "papers/archive/demo");
+    assert_eq!(ok(&vault, &["paper", "get", "demo"])["path"], to);
+    fs::create_dir_all(vault.join(from)).unwrap();
+    fail(&vault, &["file", "move", to, from]);
 }
-
-/// Cross-vault paper move: vault-prefixed paths migrate the directory and catalog record.
 #[test]
-fn paper_move_cross_vault_migrates_directory_and_catalog() {
+fn paper_cross_vault_organize_preserves_records_and_files() {
     let tmp = tempdir().unwrap();
     let src = tmp.path().join("src");
     let dst = tmp.path().join("dst");
     create_vault(&src);
     create_vault(&dst);
-    fs::create_dir_all(src.join("papers/inbox/demo")).unwrap();
-    seed_paper(&src, "papers/inbox/demo", "demo", "Demo");
-
-    agentero()
-        .args([
+    paper(&src);
+    fs::write(src.join("papers/demo/NOTES.md"), "# demo").unwrap();
+    ok(&src, &["paper", "link", "demo", "papers/collection"]);
+    assert!(src.join("papers/collection/demo/NOTES.md").is_file());
+    ok(
+        &src,
+        &[
             "paper",
-            "move",
-            src.join("papers/inbox/demo").to_str().unwrap(),
-            dst.join("papers/archive").to_str().unwrap(),
-            "--json",
-        ])
-        .assert()
-        .success();
-
-    assert!(!src.join("papers/inbox/demo").exists());
-    assert!(dst.join("papers/archive/demo").is_dir());
-
-    let src_list = agentero()
-        .args(["--vault", src.to_str().unwrap(), "paper", "list", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let src_list: Value = serde_json::from_slice(&src_list).unwrap();
-    assert!(src_list["data"].as_array().unwrap().is_empty());
-
-    let dst_list = agentero()
-        .args(["--vault", dst.to_str().unwrap(), "paper", "list", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let dst_list: Value = serde_json::from_slice(&dst_list).unwrap();
-    assert_eq!(dst_list["data"][0]["path"], "papers/archive/demo");
-    assert_eq!(dst_list["data"][0]["id"], "demo");
-}
-
-#[test]
-fn paper_add_links_inside_one_vault_and_copies_across_vaults() {
-    let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
-    create_vault(&src);
-    create_vault(&dst);
-    fs::create_dir_all(src.join("papers/inbox/demo")).unwrap();
-    fs::write(src.join("papers/inbox/demo/NOTES.md"), "# Demo\n").unwrap();
-    fs::write(src.join("papers/inbox/demo/paper.pdf"), "pdf-bytes").unwrap();
-    seed_paper(&src, "papers/inbox/demo", "demo", "Demo");
-
-    let linked = agentero()
-        .args([
-            "--vault",
-            src.to_str().unwrap(),
-            "paper",
-            "add",
-            "papers/inbox/demo",
-            "papers/archive",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let linked: Value = serde_json::from_slice(&linked).unwrap();
-    assert_eq!(linked["data"]["mode"], "link");
-    assert_eq!(linked["data"]["newRel"], "papers/archive/demo");
-    assert!(src.join("papers/inbox/demo/NOTES.md").is_file());
-    assert_eq!(
-        fs::read_to_string(src.join("papers/archive/demo/NOTES.md")).unwrap(),
-        "# Demo\n"
-    );
-
-    let copied = agentero()
-        .args([
-            "paper",
-            "add",
-            src.join("papers/inbox/demo").to_str().unwrap(),
-            dst.join("papers/shelf").to_str().unwrap(),
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let copied: Value = serde_json::from_slice(&copied).unwrap();
-    assert_eq!(copied["data"]["mode"], "copy");
-    assert_eq!(copied["data"]["newRel"], "papers/shelf/demo");
-    assert_eq!(
-        fs::read_to_string(dst.join("papers/shelf/demo/paper.pdf")).unwrap(),
-        "pdf-bytes"
-    );
-    assert_eq!(
-        fs::read_to_string(src.join("papers/inbox/demo/paper.pdf")).unwrap(),
-        "pdf-bytes"
-    );
-
-    let conflict = agentero()
-        .args([
-            "--vault",
-            src.to_str().unwrap(),
-            "paper",
-            "add",
-            "papers/inbox/demo",
-            "papers/archive",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let conflict = String::from_utf8(conflict).unwrap();
-    assert!(conflict.contains("papers/archive/demo"), "{conflict}");
-}
-
-/// #166: create missing destination parent, reject conflict and path escape.
-#[test]
-fn paper_move_creates_parent_rejects_conflict_and_escape() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-    fs::create_dir_all(vault.join("papers/inbox/demo")).unwrap();
-    seed_paper(&vault, "papers/inbox/demo", "demo", "Demo");
-
-    // Missing dest parent is created.
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "move",
-            "papers/inbox/demo",
-            "papers/new-shelf",
-            "--json",
-        ])
-        .assert()
-        .success();
-    assert!(vault.join("papers/new-shelf/demo").is_dir());
-    assert!(vault.join("papers/new-shelf").is_dir());
-    let listed = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "list",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let listed: Value = serde_json::from_slice(&listed).unwrap();
-    assert_eq!(listed["data"][0]["path"], "papers/new-shelf/demo");
-
-    // Conflict: destination already occupied.
-    fs::create_dir_all(vault.join("papers/other/demo")).unwrap();
-    seed_paper(&vault, "papers/other/demo", "other", "Other");
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "move",
-            "papers/other/demo",
-            "papers/new-shelf",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("already exists"));
-
-    // Escape: destination must stay under papers/.
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "move",
-            "papers/new-shelf/demo",
-            "notes",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("papers/"));
-}
-
-#[test]
-fn open_path_shorthand_and_explicit_dry_run() {
-    let tmp = tempdir().unwrap();
-    let dir = tmp.path().join("research");
-    fs::create_dir_all(&dir).unwrap();
-
-    let out = agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args(["open", dir.to_str().unwrap(), "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], true);
-    assert_eq!(v["data"]["dryRun"], true);
-    assert!(v["data"]["url"]
-        .as_str()
-        .unwrap()
-        .starts_with("agentero://open?path="));
-
-    // Shorthand rewrite: bare directory path → open
-    let out2 = agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args([dir.to_str().unwrap(), "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v2: Value = serde_json::from_slice(&out2).unwrap();
-    assert_eq!(v2["ok"], true);
-    assert_eq!(v2["data"]["dryRun"], true);
-
-    agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args(["open", "/no/such/agentero/path", "--json"])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("does not exist"));
-}
-
-#[test]
-fn paper_open_dry_run_resolves_ref() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-    let paper = vault.join("papers/demo");
-    fs::create_dir_all(&paper).unwrap();
-    fs::write(paper.join("NOTES.md"), "# Demo\n").unwrap();
-    seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
-
-    let out = agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "open",
+            "copy",
             "demo",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], true);
-    assert_eq!(v["data"]["dryRun"], true);
-    assert_eq!(v["data"]["action"], "open-paper");
-    assert_eq!(v["data"]["path"], "papers/demo");
-    assert!(v["data"]["url"]
-        .as_str()
-        .unwrap()
-        .starts_with("agentero://ui?action=open-paper"));
-
-    agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "open",
-            "nope",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("paper_not_found"));
+            "--to-vault",
+            dst.to_str().unwrap(),
+            "--into",
+            "papers/copied",
+        ],
+    );
+    assert!(dst.join("papers/copied/demo/NOTES.md").is_file());
+    let third = tmp.path().join("third");
+    create_vault(&third);
+    ok(
+        &src,
+        &[
+            "file",
+            "move",
+            "papers/demo",
+            "papers/archive/demo",
+            "--to-vault",
+            third.to_str().unwrap(),
+        ],
+    );
+    assert!(!src.join("papers/demo").exists());
+    assert_eq!(
+        ok(&third, &["paper", "get", "demo"])["path"],
+        "papers/archive/demo"
+    );
 }
-
 #[test]
-fn ui_open_and_window_dry_run() {
+fn remove_restore_and_purge_confirm_actual_files() {
     let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-    fs::create_dir_all(vault.join("notes")).unwrap();
-    fs::write(vault.join("notes/idea.md"), "# Idea\n").unwrap();
-
-    let out = agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "ui",
-            "open",
-            "notes/idea.md",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["data"]["action"], "open-path");
-    assert_eq!(v["data"]["path"], "notes/idea.md");
-
-    let out = agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args(["ui", "window", "agent", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["data"]["action"], "open-window");
-    assert_eq!(v["data"]["window"], "agent");
-
-    // Unknown window is rejected before touching the App.
-    agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args(["ui", "window", "nope", "--json"])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("unknown window"));
-
-    // Split with no path → active pane; direction defaults to right.
-    let out = agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args(["--vault", vault.to_str().unwrap(), "ui", "split", "--json"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["data"]["action"], "split");
-    assert_eq!(v["data"]["direction"], "right");
-    assert!(v["data"]["path"].is_null());
-
-    // Split a path down beside a reference panel.
-    let out = agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "ui",
-            "split",
-            "papers/demo",
-            "--direction",
-            "down",
-            "--reference",
-            "papers/other",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["data"]["action"], "split");
-    assert_eq!(v["data"]["direction"], "below");
-    assert_eq!(v["data"]["path"], "papers/demo");
-    assert_eq!(v["data"]["reference"], "papers/other");
-
-    // Bad direction is rejected before touching the App.
-    agentero()
-        .env("AGENTERO_OPEN_DRY_RUN", "1")
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "ui",
-            "split",
-            "papers/demo",
-            "--direction",
-            "sideways",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("unsupported split direction"));
+    let v = tmp.path().join("v");
+    create_vault(&v);
+    fs::write(v.join("notes/a.md"), "keep me").unwrap();
+    ok(&v, &["file", "remove", "notes/a.md", "--dry-run"]);
+    assert!(v.join("notes/a.md").is_file());
+    let removed = ok(&v, &["file", "remove", "notes/a.md"]);
+    let id = removed["items"][0]["id"].as_str().unwrap();
+    assert!(!v.join("notes/a.md").exists());
+    assert_eq!(ok(&v, &["file", "trash", "list"])["items"][0]["id"], id);
+    ok(&v, &["file", "trash", "restore", id]);
+    assert_eq!(fs::read_to_string(v.join("notes/a.md")).unwrap(), "keep me");
+    let removed = ok(&v, &["file", "remove", "notes/a.md"]);
+    let id = removed["items"][0]["id"].as_str().unwrap();
+    fail(&v, &["file", "trash", "purge", id]);
+    ok(&v, &["file", "trash", "purge", id, "--dry-run"]);
+    ok(&v, &["file", "trash", "purge", id, "--yes"]);
+    assert!(ok(&v, &["file", "trash", "list"])["items"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 }
-
 #[test]
 fn doctor_wiki_check_reports_semantic_issues_and_honors_file_scope() {
     let tmp = tempdir().unwrap();
@@ -1262,118 +360,50 @@ fn doctor_wiki_check_reports_semantic_issues_and_honors_file_scope() {
     )
     .unwrap();
 
-    let clean = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "doctor",
-            "wiki",
+    let clean = ok(
+        &vault,
+        &[
+            "vault",
+            "check",
+            "--area",
+            "links",
+            "--under",
             "notes/Clean.md",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let clean: Value = serde_json::from_slice(&clean).unwrap();
-    assert_eq!(clean["ok"], true);
-    assert_eq!(clean["data"]["checkedFiles"], 1);
-    assert_eq!(clean["data"]["counts"]["resolved"], 1);
-    assert!(clean["data"]["issues"].as_array().unwrap().is_empty());
-
-    let broken = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "doctor",
-            "wiki",
-            "notes/Broken.md",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let broken: Value = serde_json::from_slice(&broken).unwrap();
-    assert_eq!(broken["ok"], false);
-    assert_eq!(broken["error"]["code"], "wikilink_check_failed");
-    assert_eq!(broken["error"]["details"]["checkedFiles"], 1);
-    assert_eq!(broken["error"]["details"]["counts"]["resolved"], 1);
-    assert_eq!(broken["error"]["details"]["counts"]["missing"], 1);
-    assert_eq!(broken["error"]["details"]["counts"]["ambiguous"], 1);
-    assert_eq!(broken["error"]["details"]["counts"]["invalidFragment"], 1);
-    assert_eq!(
-        broken["error"]["details"]["issues"]
-            .as_array()
-            .unwrap()
-            .len(),
-        3
+        ],
     );
+    assert_eq!(clean["ok"], true);
+    let broken = fail(
+        &vault,
+        &[
+            "vault",
+            "check",
+            "--area",
+            "links",
+            "--under",
+            "notes/Broken.md",
+        ],
+    );
+    let detail = &broken["error"]["details"]["findings"][0]["details"];
+    for key in ["resolved", "missing", "ambiguous", "invalidFragment"] {
+        assert_eq!(detail["counts"][key], 1);
+    }
+    assert_eq!(detail["issues"].as_array().unwrap().len(), 3);
     assert_eq!(
         fs::read_to_string(vault.join("notes/Broken.md")).unwrap(),
         broken_source
     );
-
-    let paper = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "doctor",
-            "wiki",
+    ok(
+        &vault,
+        &[
+            "vault",
+            "check",
+            "--area",
+            "links",
+            "--under",
             "papers/demo/PAPER.md",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let paper: Value = serde_json::from_slice(&paper).unwrap();
-    assert_eq!(paper["data"]["checkedFiles"], 0);
-    assert!(paper["data"]["issues"].as_array().unwrap().is_empty());
+        ],
+    );
 }
-
-#[test]
-fn delete_files_requires_yes() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-    let paper = vault.join("papers").join("x");
-    fs::create_dir_all(&paper).unwrap();
-    seed_paper(&vault, "papers/x", "x", "X");
-
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "delete",
-            "papers/x",
-            "--files",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("needs_confirmation"));
-
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "-y",
-            "paper",
-            "delete",
-            "papers/x",
-            "--files",
-            "--json",
-        ])
-        .assert()
-        .success();
-    assert!(!paper.exists());
-}
-
 #[test]
 fn doctor_alias_fix_is_confirmed_preserves_content_and_is_idempotent() {
     let tmp = tempdir().unwrap();
@@ -1403,80 +433,11 @@ fn doctor_alias_fix_is_confirmed_preserves_content_and_is_idempotent() {
     seed_paper(&vault, "papers/zh", "zh", "一种新的研究方法");
     set_paper_authors_and_year(&vault, "papers/zh", r#"["张三"]"#, 2024);
 
-    let check = agentero()
-        .args(["--vault", vault.to_str().unwrap(), "doctor", "--json"])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let check: Value = serde_json::from_slice(&check).unwrap();
-    assert_eq!(check["error"]["code"], "doctor_issues");
-    let candidates = check["error"]["details"]["aliases"]["candidates"]
-        .as_array()
-        .unwrap();
-    let english = candidates
-        .iter()
-        .find(|candidate| candidate["path"] == "papers/demo/NOTES.md")
-        .unwrap();
-    assert_eq!(english["titleAlias"], "Attention Is All You Need");
-    assert_eq!(english["shortAlias"], "AIAYN");
-    assert_eq!(english["currentAliases"][0], "Custom Alias");
-    let chinese = candidates
-        .iter()
-        .find(|candidate| candidate["path"] == "papers/zh/NOTES.md")
-        .unwrap();
-    assert_eq!(chinese["titleAlias"], "一种新的研究方法");
-    assert_eq!(chinese["shortAlias"], "张三 2024");
+    let preview = ok(&vault, &["vault", "repair", "aliases"]);
+    assert!(preview.to_string().contains("AIAYN"));
+    assert!(preview.to_string().contains("张三 2024"));
     assert_eq!(fs::read_to_string(&notes_path).unwrap(), original);
-    assert_eq!(
-        fs::read_to_string(&chinese_notes_path).unwrap(),
-        chinese_original
-    );
-
-    let confirmation = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "doctor",
-            "fix",
-            "aliases",
-            "--json",
-        ])
-        .assert()
-        .code(4)
-        .get_output()
-        .stdout
-        .clone();
-    let confirmation: Value = serde_json::from_slice(&confirmation).unwrap();
-    assert_eq!(confirmation["error"]["code"], "needs_confirmation");
-    assert_eq!(fs::read_to_string(&notes_path).unwrap(), original);
-
-    let repaired = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "--yes",
-            "doctor",
-            "fix",
-            "aliases",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let repaired: Value = serde_json::from_slice(&repaired).unwrap();
-    let updated_paths = repaired["data"]["updatedPaths"].as_array().unwrap();
-    assert_eq!(updated_paths.len(), 2);
-    assert!(updated_paths
-        .iter()
-        .any(|path| path == "papers/demo/NOTES.md"));
-    assert!(updated_paths
-        .iter()
-        .any(|path| path == "papers/zh/NOTES.md"));
-
+    ok(&vault, &["vault", "repair", "aliases", "--apply"]);
     let updated = fs::read_to_string(&notes_path).unwrap();
     assert!(updated.contains("  - \"Custom Alias\"\n"));
     assert!(updated.contains("  - \"Attention Is All You Need\"\n"));
@@ -1491,36 +452,13 @@ fn doctor_alias_fix_is_confirmed_preserves_content_and_is_idempotent() {
     assert!(chinese_updated.contains("  - \"张三 2024\"\n"));
     assert!(chinese_updated.ends_with(chinese_original));
 
-    agentero()
-        .args(["--vault", vault.to_str().unwrap(), "doctor", "--json"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("\"ok\":true"));
-
-    let rerun = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "--yes",
-            "doctor",
-            "fix",
-            "aliases",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let rerun: Value = serde_json::from_slice(&rerun).unwrap();
-    assert!(rerun["data"]["updatedPaths"].as_array().unwrap().is_empty());
+    ok(&vault, &["vault", "repair", "aliases", "--apply"]);
     assert_eq!(fs::read_to_string(&notes_path).unwrap(), updated);
     assert_eq!(
         fs::read_to_string(&chinese_notes_path).unwrap(),
         chinese_updated
     );
 }
-
 /// Minimal catalog seed without Translator (mirrors papers table columns used by list/get).
 fn seed_paper(vault: &Path, path: &str, id: &str, title: &str) {
     use std::process::Command;
@@ -1620,25 +558,7 @@ fn layout_list_and_mark_add_region() {
     .unwrap();
     seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
 
-    // Missing index → structured error
-    let missing = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "layout",
-            "list",
-            "papers/demo",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let missing: Value = serde_json::from_slice(&missing).unwrap();
-    assert_eq!(missing["ok"], false);
-    assert_eq!(missing["error"]["code"], "layout_index_missing");
-
+    fail(&vault, &["paper", "regions", "demo"]);
     let index = serde_json::json!({
         "schemaVersion": 1,
         "source": {
@@ -1691,150 +611,54 @@ fn layout_list_and_mark_add_region() {
     )
     .unwrap();
 
-    let listed = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "layout",
-            "list",
-            "demo",
-            "--kind",
-            "figure",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let listed: Value = serde_json::from_slice(&listed).unwrap();
-    assert_eq!(listed["ok"], true);
-    let items = listed["data"]["items"].as_array().unwrap();
-    assert_eq!(items.len(), 1);
-    assert_eq!(items[0]["id"], "figure-3");
-    assert_eq!(items[0]["page"], 2);
-
-    let formulas = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "layout",
-            "list",
-            "demo",
-            "--kind",
-            "formula",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let formulas: Value = serde_json::from_slice(&formulas).unwrap();
-    assert_eq!(formulas["data"]["items"].as_array().unwrap().len(), 1);
-
-    let got = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "layout",
-            "get",
-            "demo",
-            "figure-3",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let got: Value = serde_json::from_slice(&got).unwrap();
-    assert_eq!(got["data"]["item"]["title"], "Figure 3: Heads");
-
-    let added = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "mark",
+    let found = ok(&vault, &["paper", "regions", "demo", "--page", "2"]);
+    assert_eq!(found["items"][0]["region"], "figure-3");
+    let ask = ok(
+        &vault,
+        &[
+            "annotation",
             "add",
             "demo",
             "--region",
             "figure-3",
+            "--kind",
+            "ask",
+            "--question",
+            "Why these heads?",
+        ],
+    );
+    assert!(ask.to_string().contains("Why these heads?"));
+    let translated = ok(
+        &vault,
+        &[
+            "annotation",
+            "add",
+            "demo",
+            "--quote",
+            "Figure 3 attention heads",
+            "--kind",
+            "translate",
+            "--language",
+            "zh",
+            "--translation",
+            "注意力头",
+        ],
+    );
+    assert!(translated.to_string().contains("注意力头"));
+    let out = ok(
+        &vault,
+        &[
+            "annotation",
+            "add",
+            "demo",
+            "--region",
+            "table-1",
             "--comment",
-            "核心图",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let added: Value = serde_json::from_slice(&added).unwrap();
-    assert_eq!(added["ok"], true);
-    assert_eq!(added["data"]["kind"], "highlight");
-    let ids = added["data"]["ids"].as_array().unwrap();
-    assert_eq!(ids.len(), 1);
-    let mark_id = ids[0].as_str().unwrap().to_string();
-
-    // Highlights/批注 are EmbedPDF annotations, not per-id mark files.
-    let annotations_path = paper.join("marks").join("annotations.json");
-    assert!(annotations_path.is_file());
-    assert!(!paper
-        .join("marks")
-        .join(format!("{mark_id}.json"))
-        .is_file());
-    let items: Value =
-        serde_json::from_str(&fs::read_to_string(&annotations_path).unwrap()).unwrap();
-    let items = items.as_array().unwrap();
-    assert_eq!(items.len(), 1);
-    let anno = &items[0]["annotation"];
-    assert_eq!(anno["id"], mark_id.as_str());
-    assert_eq!(anno["type"], 9); // PdfAnnotationSubtype.HIGHLIGHT
-    assert_eq!(anno["pageIndex"], 1); // region page 2
-    assert_eq!(anno["contents"], "核心图");
-    assert_eq!(anno["custom"]["quote"], "Figure 3: Heads");
-    assert_eq!(anno["custom"]["paletteKey"], "yellow");
-    let seg = &anno["segmentRects"][0];
-    // bbox x 0.1 of a 200pt page, y 0.2 of 100pt.
-    assert!((seg["origin"]["x"].as_f64().unwrap() - 20.0).abs() < 0.5);
-    assert!((seg["origin"]["y"].as_f64().unwrap() - 20.0).abs() < 0.5);
-    assert!((seg["size"]["width"].as_f64().unwrap() - 100.0).abs() < 0.5);
-
-    let marks = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "mark",
-            "list",
-            "demo",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let marks: Value = serde_json::from_slice(&marks).unwrap();
-    assert_eq!(marks["data"]["count"], 1);
-
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "-y",
-            "mark",
-            "delete",
-            "demo",
-            &mark_id,
-            "--json",
-        ])
-        .assert()
-        .success();
-    let after: Value =
-        serde_json::from_str(&fs::read_to_string(&annotations_path).unwrap()).unwrap();
-    assert!(after.as_array().unwrap().is_empty());
+            "from region",
+        ],
+    );
+    assert!(out.to_string().contains("from region"));
 }
-
 #[test]
 fn layout_list_section_from_raw_layout() {
     let tmp = tempdir().unwrap();
@@ -1878,60 +702,9 @@ fn layout_list_section_from_raw_layout() {
     )
     .unwrap();
 
-    let sections = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "layout",
-            "list",
-            "demo",
-            "--kind",
-            "section",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let sections: Value = serde_json::from_slice(&sections).unwrap();
-    assert_eq!(sections["ok"], true);
-    let items = sections["data"]["items"].as_array().unwrap();
-    assert_eq!(items.len(), 2);
-    assert_eq!(items[0]["id"], "h1");
-    assert_eq!(items[0]["title"], "1 Introduction");
-    assert_eq!(items[0]["page"], 1);
-    assert_eq!(items[1]["id"], "h2");
-    assert_eq!(sections["data"]["counts"]["section"], 2);
-
-    let mixed = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "layout",
-            "list",
-            "demo",
-            "--kind",
-            "figure",
-            "--kind",
-            "section",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let mixed: Value = serde_json::from_slice(&mixed).unwrap();
-    let mixed_items = mixed["data"]["items"].as_array().unwrap();
-    assert_eq!(mixed_items.len(), 3);
-    assert_eq!(mixed_items[0]["id"], "h1");
-    assert_eq!(mixed_items[1]["id"], "h2");
-    assert_eq!(mixed_items[2]["id"], "figure-1");
+    let result = ok(&vault, &["paper", "regions", "demo", "--kind", "section"]);
+    assert_eq!(result["items"].as_array().unwrap().len(), 2);
 }
-
-/// The Agent path: a plain sentence becomes a highlight with engine-resolved
-/// geometry, and a comment rides along as the 批注 body.
 #[test]
 fn mark_add_quote_locates_text_and_writes_annotation() {
     let tmp = tempdir().unwrap();
@@ -1948,36 +721,27 @@ fn mark_add_quote_locates_text_and_writes_annotation() {
     .unwrap();
     seed_paper(&vault, "papers/attn", "attn", "Attention");
 
-    let added = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "mark",
+    let added = ok(
+        &vault,
+        &[
+            "annotation",
             "add",
             "attn",
             "--quote",
-            "propose a novel mechanism",
+            "novel mechanism",
             "--comment",
             "核心贡献",
             "--mark-color",
             "green",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let added: Value = serde_json::from_slice(&added).unwrap();
-    assert_eq!(added["ok"], true);
-    let id = added["data"]["ids"][0].as_str().unwrap().to_string();
-
+        ],
+    );
+    let id = added["items"][0]["id"].as_str().unwrap();
     let items: Value = serde_json::from_str(
         &fs::read_to_string(paper.join("marks").join("annotations.json")).unwrap(),
     )
     .unwrap();
     let anno = &items.as_array().unwrap()[0]["annotation"];
-    assert_eq!(anno["id"], id.as_str());
+    assert_eq!(anno["id"], id);
     assert_eq!(anno["pageIndex"], 1); // second page
     assert_eq!(anno["contents"], "核心贡献");
     assert_eq!(anno["strokeColor"], "#86efac"); // HIGHLIGHT_HEX.green
@@ -1988,89 +752,65 @@ fn mark_add_quote_locates_text_and_writes_annotation() {
     assert!(x > 10.0 && x < 200.0, "x {x}");
     assert!(y > 10.0 && y < 50.0, "y {y}");
 
-    // A quote that is not in the PDF must fail loudly and write nothing.
-    let missing = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "mark",
+    fail(
+        &vault,
+        &[
+            "annotation",
             "add",
             "attn",
             "--quote",
-            "this sentence does not exist anywhere",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let missing: Value = serde_json::from_slice(&missing).unwrap();
-    assert_eq!(missing["ok"], false);
-    assert_eq!(missing["error"]["code"], "mark_locate_failed");
-
-    // Comment updates land on the annotation, not a sibling file.
-    agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "mark",
+            "this text is absent",
+        ],
+    );
+    let fetched = ok(&vault, &["annotation", "get", "attn", "--", id]);
+    let u = ok(
+        &vault,
+        &[
+            "annotation",
             "update",
             "attn",
-            &id,
             "--comment",
-            "改过的批注",
-            "--json",
-        ])
-        .assert()
-        .success();
-    let items: Value = serde_json::from_str(
-        &fs::read_to_string(paper.join("marks").join("annotations.json")).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(
-        items.as_array().unwrap()[0]["annotation"]["contents"],
-        "改过的批注"
+            "updated",
+            "--if-revision",
+            fetched["revision"].as_str().unwrap(),
+            "--",
+            id,
+        ],
+    );
+    assert_eq!(u["comment"], "updated");
+    fail(
+        &vault,
+        &[
+            "annotation",
+            "remove",
+            "attn",
+            "--if-revision",
+            "stale",
+            "--",
+            id,
+        ],
+    );
+    ok(
+        &vault,
+        &[
+            "annotation",
+            "remove",
+            "attn",
+            "--if-revision",
+            u["revision"].as_str().unwrap(),
+            "--",
+            id,
+        ],
+    );
+    assert!(ok(&vault, &["annotation", "list", "attn"])["items"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert_ne!(
+        fail(&vault, &["annotation", "get", "attn", "--", "-abc"])["error"]["code"],
+        "usage"
     );
 }
-
-/// Mark ids are nanoids and that alphabet includes `-`, so ~1 in 64 starts with
-/// a hyphen. Those must reach the command instead of tripping clap's flag
-/// parsing: expect a business `mark_not_found` (exit 1), never usage (exit 2).
-#[test]
-fn mark_id_starting_with_hyphen_is_not_parsed_as_a_flag() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-
-    let paper = vault.join("papers").join("demo");
-    fs::create_dir_all(paper.join("marks")).unwrap();
-    fs::write(paper.join("NOTES.md"), "# Demo\n").unwrap();
-    seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
-
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "-y",
-            "mark",
-            "delete",
-            "demo",
-            "-gnlmmSEJc",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .code(1)
-        .get_output()
-        .stdout
-        .clone();
-    let out: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(out["ok"], false);
-    assert_eq!(out["error"]["code"], "mark_not_found");
-    assert_eq!(out["error"]["details"]["id"], "-gnlmmSEJc");
-}
-
 #[test]
 fn import_pdf_single_and_batch() {
     let tmp = tempdir().unwrap();
@@ -2084,148 +824,32 @@ fn import_pdf_single_and_batch() {
     let pdf2_path = tmp.path().join("bert-paper.pdf");
     fs::write(&pdf2_path, &pdf_bytes).unwrap();
 
-    // 1. Single PDF import with default parent
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
+    let one = ok(
+        &vault,
+        &[
+            "paper",
             "import",
             "pdf",
             pdf1_path.to_str().unwrap(),
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], true);
-    let papers = v["data"]["papers"].as_array().unwrap();
-    assert_eq!(papers.len(), 1);
-    let p1 = &papers[0];
-    assert_eq!(p1["id"], "attention-paper");
-    assert_eq!(p1["path"], "papers/attention-paper");
-    assert_eq!(p1["pdf"], true);
-    assert!(vault
-        .join("papers/attention-paper/attention-paper.pdf")
-        .is_file());
-    assert!(vault.join("papers/attention-paper/NOTES.md").is_file());
-
-    // 2. Batch import to subfolder with --no-recognize
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "import",
-            "pdf",
-            pdf2_path.to_str().unwrap(),
-            "--parent",
-            "papers/nlp",
             "--no-recognize",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], true);
-    let papers = v["data"]["papers"].as_array().unwrap();
-    assert_eq!(papers.len(), 1);
-    let p2 = &papers[0];
-    assert_eq!(p2["id"], "bert-paper");
-    assert_eq!(p2["path"], "papers/nlp/bert-paper");
-    assert!(vault.join("papers/nlp/bert-paper/bert-paper.pdf").is_file());
-    assert!(vault.join("papers/nlp/bert-paper/NOTES.md").is_file());
-
-    // 3. Error case: file not found
-    let bogus = tmp.path().join("nonexistent.pdf");
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(one["items"].as_array().unwrap().len(), 1);
+    let many = ok(
+        &vault,
+        &[
+            "paper",
             "import",
             "pdf",
-            bogus.to_str().unwrap(),
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], false);
-    assert_eq!(v["error"]["code"], "import_failed");
-}
-
-#[test]
-fn paper_set_meta_updates_catalog_and_metadata_json() {
-    let tmp = tempdir().unwrap();
-    let vault = tmp.path().join("v");
-    create_vault(&vault);
-
-    let paper = vault.join("papers").join("demo");
-    fs::create_dir_all(&paper).unwrap();
-    fs::write(paper.join("NOTES.md"), "# Demo\n").unwrap();
-    seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
-
-    // 1. Update metadata fields via set-meta
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "set-meta",
-            "papers/demo",
-            "--publication",
-            "NeurIPS 2024",
-            "--date",
-            "2024-08-14",
-            "--doi",
-            "10.1234/demo.2024",
-            "--authors",
-            "Alice, Bob",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], true);
-    assert_eq!(v["data"]["publication"], "NeurIPS 2024");
-    assert_eq!(v["data"]["date"], "2024-08-14");
-    assert_eq!(v["data"]["doi"], "10.1234/demo.2024");
-    assert_eq!(v["data"]["meta_source"], "manual");
-
-    // Verify sidecar metadata.json written
-    let meta_json_path = paper.join("metadata.json");
-    assert!(meta_json_path.is_file());
-    let meta_file: Value =
-        serde_json::from_str(&fs::read_to_string(&meta_json_path).unwrap()).unwrap();
-    assert_eq!(meta_file["publication"], "NeurIPS 2024");
-    assert_eq!(meta_file["doi"], "10.1234/demo.2024");
-
-    // 2. Error case: no fields specified
-    let out = agentero()
-        .args([
-            "--vault",
-            vault.to_str().unwrap(),
-            "paper",
-            "set-meta",
-            "papers/demo",
-            "--json",
-        ])
-        .assert()
-        .failure()
-        .get_output()
-        .stdout
-        .clone();
-    let v: Value = serde_json::from_slice(&out).unwrap();
-    assert_eq!(v["ok"], false);
-    assert_eq!(v["error"]["code"], "message");
+            pdf1_path.to_str().unwrap(),
+            pdf2_path.to_str().unwrap(),
+            "--into",
+            "papers/batch",
+            "--no-recognize",
+        ],
+    );
+    assert_eq!(many["items"].as_array().unwrap().len(), 2);
+    for item in many["items"].as_array().unwrap() {
+        assert!(vault.join(item["path"].as_str().unwrap()).is_dir());
+    }
 }

@@ -7,6 +7,7 @@ mod context_turn;
 pub mod delegate;
 pub mod doctor;
 pub mod doctor_agents;
+pub(crate) mod hosted_turn;
 pub mod models;
 pub mod pi_trust;
 pub mod prompt;

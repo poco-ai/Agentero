@@ -655,6 +655,9 @@ pub async fn import_local_pdfs(
     let mut papers_out = Vec::new();
     let mut errors = Vec::new();
     for entry in &entries {
+        if task_id.as_deref().is_some_and(is_task_cancelled) {
+            break;
+        }
         match import_one_local_pdf(
             &vault,
             &parent_rel,

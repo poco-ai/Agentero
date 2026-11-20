@@ -5,6 +5,7 @@ import {
 	commands,
 	events,
 	type PiProjectTrustStatus,
+	type PresentedFile,
 	type UpsertAgentRequest_Deserialize,
 } from "@/lib/core/bindings";
 import { callApi, callApiResult } from "@/lib/core/ipc";
@@ -183,6 +184,8 @@ export type AgentResultPayload = {
 	/** ACP agent thought / reasoning text, if the agent emitted thought chunks. */
 	reasoning?: string | null;
 	sources: string[];
+	promptOnly?: boolean;
+	artifacts?: PresentedFile[];
 	stopReason?: string | null;
 	/** Durable ACP provider session id for the next `session/resume`. */
 	providerSessionId?: string | null;

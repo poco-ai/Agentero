@@ -275,6 +275,9 @@ async fn parse_paper_body_inner(
         out.messages.push("skip: local TeX became available".into());
         return out;
     }
+    let body_before = fs::read(paper_dir.join(PAPER_MD))
+        .ok()
+        .map(|bytes| crate::features::evidence::content_revision(&bytes));
     let pdf_stamp = fs::metadata(&pdf_path)
         .ok()
         .map(|m| (m.len(), m.modified().ok()));
@@ -328,6 +331,15 @@ async fn parse_paper_body_inner(
                     crate::features::paper::source::reconcile_body(&vault_owned, &path_owned)
                         .map_err(|e| e.to_string())?;
                     return Ok(None);
+                }
+                let body_now = fs::read(paper_dir_owned.join(PAPER_MD))
+                    .ok()
+                    .map(|bytes| crate::features::evidence::content_revision(&bytes));
+                if body_before != body_now {
+                    return Err(
+                        "PAPER.md changed during extraction; the current contents were preserved"
+                            .into(),
+                    );
                 }
                 write_paper_body_bundle(&paper_dir_owned, &markdown, &assets)?;
                 let catalog_error = update_catalog_body(
@@ -1300,7 +1312,14 @@ fn write_paper_body_bundle(
         fs::write(destination, &asset.bytes).map_err(|e| e.to_string())?;
     }
     crate::fs::atomic_write(&paper_dir.join(PAPER_MD), markdown.as_bytes())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    fs::create_dir_all(paper_dir.join("source")).map_err(|e| e.to_string())?;
+    let revision = crate::features::evidence::content_revision(markdown.as_bytes());
+    crate::fs::atomic_write(
+        &paper_dir.join("source/.paper-md-revision"),
+        revision.as_bytes(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn update_catalog_body(

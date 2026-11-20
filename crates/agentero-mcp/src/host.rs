@@ -11,7 +11,7 @@ use agentero_core::features::vault::rename::WikiIndex;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-/// What `import_id` may use while a host is attached.
+/// What `paper_import` may use while a host is attached.
 ///
 /// `app` carries [`agentero_core::app_handle::HostHooks`] for progress events.
 /// `caps` is the desktop paper-capability cache. Both stay empty on the CLI.
@@ -23,8 +23,16 @@ pub struct ImportContext {
 
 #[async_trait::async_trait]
 pub trait McpHost: Send + Sync + 'static {
-    /// `paper_text_get` is opt-in. Desktop reads settings; CLI reads a flag.
+    /// Paper body expansion is opt-in. Desktop reads settings; CLI reads a flag.
     fn expose_paper_text(&self) -> bool {
+        false
+    }
+
+    fn allow_write(&self) -> bool {
+        false
+    }
+
+    fn allow_online(&self) -> bool {
         false
     }
 

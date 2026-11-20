@@ -81,6 +81,12 @@ pub struct VaultOpenRequestEvent(pub agentero_core::features::open_request::Vaul
 #[tauri_specta(event_name = "ui:request")]
 pub struct UiRequestEvent(pub agentero_core::features::open_request::UiRequestPayload);
 
+#[derive(specta::Type, tauri_specta::Event)]
+#[tauri_specta(event_name = "cli:workspace")]
+pub struct WorkspaceCliRequestEvent(
+    pub agentero_core::features::open_request::desktop::WorkspaceRequest,
+);
+
 /// Mirror of the inline `json!({ "message": ... })` in `app::open_request`.
 #[derive(specta::Type, tauri_specta::Event)]
 #[tauri_specta(event_name = "vault:open-error")]
@@ -458,6 +464,7 @@ fn registered_event_names() -> BTreeSet<String> {
         MenuInvokedEvent::NAME,
         VaultOpenRequestEvent::NAME,
         UiRequestEvent::NAME,
+        WorkspaceCliRequestEvent::NAME,
         VaultOpenErrorEvent::NAME,
         WindowClosedEvent::NAME,
         VaultFileChangedEvent::NAME,

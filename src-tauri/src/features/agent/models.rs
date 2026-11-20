@@ -463,7 +463,7 @@ pub struct RunOnceRequest {
     pub hide_from_chat_history: bool,
     /// Selection, open paper, and @ mentions for this turn.
     /// The host resolver writes the minimum evidence into the prompt and, for a
-    /// local session, attaches the session-scoped `agentero-context` MCP.
+    /// local session, binds the evidence CLI to this turn.
     /// Omit when the turn has no vault anchor.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<agentero_core::features::context::ContextRequest>,
@@ -500,7 +500,11 @@ pub struct AgentResultPayload {
     /// ACP agent thought / reasoning (from AgentThoughtChunk), if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<String>,
+    #[serde(default)]
+    pub prompt_only: bool,
     pub sources: Vec<String>,
+    #[serde(default)]
+    pub artifacts: Vec<agentero_core::features::context::PresentedFile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
     /// Durable ACP provider session id for the next continue

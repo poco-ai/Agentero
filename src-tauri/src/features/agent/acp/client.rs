@@ -476,7 +476,9 @@ pub(crate) fn cancelled_payload(
     AgentResultPayload {
         session_id,
         message_id,
+        prompt_only: false,
         sources: Vec::new(),
+        artifacts: Vec::new(),
         content,
         reasoning: (!reasoning.is_empty()).then_some(reasoning),
         stop_reason: Some("cancelled".to_string()),

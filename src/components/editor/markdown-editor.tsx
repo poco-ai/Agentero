@@ -105,6 +105,10 @@ import {
 	setMarkdownScrollTop,
 } from "@/lib/markdown/scroll-memory";
 import { resolveSelectionSourceLines } from "@/lib/markdown/selection-source-lines";
+import {
+	blockAtSourceLine,
+	sourceBlockLines,
+} from "@/lib/markdown/source-block-lines";
 import { useUiScale } from "@/lib/settings";
 import { formatModShortcut, isFindShortcut } from "@/lib/shell/shortcuts";
 import { readVaultFile } from "@/lib/vault";
@@ -114,7 +118,6 @@ import {
 	findWikiHeadingIndex,
 	hasWikiBlockAnchor,
 } from "@/lib/wiki/navigation";
-
 import { registerMarkdownEditor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
 const MarkdownPlateContent = memo(Editor);
@@ -590,10 +593,42 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		if (!tabId || !canToggleSource) return;
 		return registerMarkdownEditor(tabId, {
 			toggleSource: toggle,
+			revealLine: (line) => {
+				const view = sourceViewRef.current;
+				if (source && view) {
+					const target = view.state.doc.line(
+						Math.min(view.state.doc.lines, Math.max(1, line)),
+					);
+					view.dispatch({
+						selection: { anchor: target.from },
+						scrollIntoView: true,
+					});
+					return true;
+				}
+				const block = blockAtSourceLine(
+					sourceBlockLines(initialMarkdown),
+					line,
+				);
+				const node = editor.children[block];
+				const target = node && editor.api.toDOMNode(node);
+				if (!target) return false;
+				target.scrollIntoView({ block: "center", behavior: scrollBehavior() });
+				return true;
+			},
 			hasPendingSource,
 			flushSource: saveNow,
 		});
-	}, [canToggleSource, hasPendingSource, saveNow, tabId, toggle]);
+	}, [
+		canToggleSource,
+		hasPendingSource,
+		saveNow,
+		tabId,
+		toggle,
+		initialMarkdown,
+		source,
+		sourceViewRef,
+		editor,
+	]);
 	useEffect(() => {
 		if (!active && hasPendingSource()) void saveNow();
 	}, [active, hasPendingSource, saveNow]);

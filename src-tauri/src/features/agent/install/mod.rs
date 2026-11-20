@@ -1,8 +1,8 @@
 //! Headless CLI discovery, optional GitHub download, PATH install, and uninstall.
 //!
-//! Desktop packages intentionally do **not** ship a multi-MB CLI binary (#285).
+//! The desktop bundle carries an offline CLI for agent turns.
 //! Settings → About installs the **same app version** CLI from GitHub Releases
-//! (or uses a local/dev runnable binary when present). PATH entry is a user-bin
+//! when no local or bundled binary is available. PATH entry is a user-bin
 //! shim; shell rc files are never edited.
 //!
 //! Dev note: the cargo bin is named `agentero-cli` so it never collides with
@@ -250,6 +250,29 @@ pub(crate) fn remove_managed_pdfium() {
     }
 }
 
+/// Prefer the executable installed beside this desktop build for scoped turns.
+pub(crate) fn turn_cli(app: &AppHandle) -> Option<PathBuf> {
+    agentero_core::features::open_request::desktop::active_endpoint()?;
+    if let Ok(resources) = app.path().resource_dir() {
+        let bundled = resources.join("cli").join(BUNDLED_CLI_NAME);
+        if is_plausible_cli_file(&bundled) {
+            return Some(bundled);
+        }
+    }
+    let exe = std::env::current_exe().ok()?;
+    let sibling = exe.parent()?.join(BUNDLED_CLI_NAME);
+    if is_plausible_cli_file(&sibling) {
+        return Some(sibling);
+    }
+    resolve_local_cli(app)
+        .filter(|cli| {
+            cli.version
+                .as_ref()
+                .is_some_and(|version| versions_equal(version, &app_version()))
+        })
+        .map(|cli| cli.path)
+}
+
 pub(crate) fn resolve_local_cli<R: Runtime>(app: &AppHandle<R>) -> Option<ResolvedCli> {
     // 1) Managed download cache (product path after Install).
     let managed = managed_cli_binary();
@@ -271,6 +294,7 @@ pub(crate) fn resolve_local_cli<R: Runtime>(app: &AppHandle<R>) -> Option<Resolv
         candidates.push((exe_dir.join("binaries").join(BUNDLED_CLI_NAME), "bundled"));
     }
     if let Ok(res) = app.path().resource_dir() {
+        candidates.push((res.join("cli").join(BUNDLED_CLI_NAME), "bundled"));
         candidates.push((res.join(BUNDLED_CLI_NAME), "bundled"));
         candidates.push((res.join("binaries").join(BUNDLED_CLI_NAME), "bundled"));
         if let Some(parent) = res.parent() {

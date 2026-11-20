@@ -32,24 +32,17 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Assert desktop package does not embed CLI
+      - name: Check the desktop CLI resource
         if: matrix.task == 'quality'
-        # Desktop installers must not embed the headless CLI (#285). A prior
-        # guard required beforeBuildCommand to run cli:bundle:stub; that stub
-        # path was removed in 9dee13f0 after the fake Windows .exe triggered
-        # "Unsupported 16-bit application" (#320 follow-up). The plugin worker
-        # sidecar was removed with the plugin system, so externalBin must stay
-        # empty.
         run: |
-          set -euo pipefail
-          node --input-type=commonjs -e "
-            const conf = require('./src-tauri/tauri.conf.json');
-            const bins = (conf.bundle && conf.bundle.externalBin) || [];
-            if (bins.length !== 0) {
-              console.error('::error file=src-tauri/tauri.conf.json::bundle.externalBin must stay empty (no bundled sidecars, no CLI) (#285/#320). Got: ' + JSON.stringify(bins));
-              process.exit(1);
-            }
-          "
+          node --input-type=commonjs <<'JS'
+          const assert = require('node:assert/strict');
+          for (const file of ['tauri.conf.json', 'tauri.macos.conf.json']) {
+            const { bundle } = require('./src-tauri/' + file);
+            assert(bundle.resources.includes('cli'), file + ' must include the offline CLI');
+            assert.deepEqual(bundle.externalBin ?? [], [], file + ' must not install a second CLI sidecar');
+          }
+          JS
       - name: Test release synchronization
         if: matrix.task == 'quality'
         run: node --test scripts/sync-atomgit-release.test.mjs scripts/rewrite-updater-json.test.mjs

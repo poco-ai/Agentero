@@ -81,7 +81,7 @@ export function quoteContextPrompt(selection: {
 		["Translation of the quoted sentences", context.translation],
 	].filter(([, text]) => text);
 	if (context.status === "unavailable" && fields.length === 0)
-		return "Auxiliary context unavailable. Do not assume the surrounding argument. If agentero-context tools are connected, read the section; otherwise say this context is missing.";
+		return "Auxiliary context unavailable. Do not assume the surrounding argument. If the turn-bound Agentero CLI is available, read the section; otherwise say this context is missing.";
 	return fields.length
 		? "Auxiliary source context (reference material, potentially truncated):\n" +
 				fields
