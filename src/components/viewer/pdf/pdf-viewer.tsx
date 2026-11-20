@@ -194,7 +194,8 @@ import {
 	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
-import { hoverSentenceSourceItems } from "@/lib/pdf/layout/sentence-catalog";
+import { isLayoutElementTextKind } from "@/lib/pdf/layout/labels";
+import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
 import { isInsideVisualLayoutRegion } from "@/lib/pdf/layout/translatable";
 import {
 	clearTranslatedLinkSource,
@@ -1518,10 +1519,23 @@ function PdfViewerInner({
 		const translated = allTranslated.filter(
 			(item) => !isInsideVisualLayoutRegion(item, rawRegions),
 		);
-		// Untranslated text blocks go through the deduped catalog: raw low-score
-		// boxes can span both columns and their interleaved text would hover as
-		// one sentence in two places.
-		const source = hoverSentenceSourceItems(rawRegions, translatedIds);
+		const source = rawRegions
+			.filter(
+				(region) =>
+					isLayoutElementTextKind(region.kind) &&
+					!translatedIds.has(region.id) &&
+					!isInsideVisualLayoutRegion(region, rawRegions),
+			)
+			.map((region) => ({
+				id: region.id,
+				pageIndex: region.pageIndex,
+				bbox: region.bbox,
+				source: region.text ?? "",
+				sentences: splitLayoutSentences(region.text ?? "").map((quote) => ({
+					quote,
+					translated: "",
+				})),
+			}));
 		// Analysed pages keep sentence hover on their text regions only; the
 		// whole-page text fallback is reserved for pages without analysis.
 		publishLayoutSentencePageAnalysis(docId, [
