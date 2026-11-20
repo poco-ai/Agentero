@@ -69,7 +69,7 @@ import {
 	type WikiNavTarget,
 	wikiNavigationDestination,
 } from "@/lib/wiki";
-import { rebuildWikiAndNotify } from "@/lib/wiki/store";
+import { rebuildWikiAndNotify, trackSelfWrittenPath } from "@/lib/wiki/store";
 import {
 	cacheActiveTabBeforeDock,
 	dockHandle,
@@ -1364,6 +1364,9 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 			openPath(full);
 			return;
 		}
+		// Own write: the watcher must not treat it as an external edit and
+		// reseed an open editor from the seed this call just wrote (#1169).
+		trackSelfWrittenPath(full, content);
 		await rebuildWikiAndNotify(vaultPath);
 		await refreshTree(vaultPath);
 		openPath(full);
