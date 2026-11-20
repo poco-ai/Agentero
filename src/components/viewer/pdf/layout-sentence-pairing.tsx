@@ -71,7 +71,11 @@ function selectionOwns(
 	return dx * dx + dy * dy > limit * limit;
 }
 
-/** Sentence hover stays active during reading and element selection. */
+/**
+ * Sentence hover stays active during reading and element selection.
+ * `enabled: false` turns off both the hover wash and the double-click sentence
+ * selection; the writing preview keeps only its SyncTeX line hover.
+ */
 export function usePdfSentenceInteraction(
 	docId: string,
 	hostRef: RefObject<HTMLElement | null>,
@@ -79,10 +83,13 @@ export function usePdfSentenceInteraction(
 		sentence: LayoutSentenceHover,
 		event: MouseEvent,
 	) => void,
+	options?: { enabled?: boolean },
 ): void {
+	const enabled = options?.enabled ?? true;
 	const doubleClickRef = useRef(onSentenceDoubleClick);
 	doubleClickRef.current = onSentenceDoubleClick;
 	useEffect(() => {
+		if (!enabled) return;
 		const root = hostRef.current;
 		if (!root) return;
 		let origin: { x: number; y: number } | null = null;
@@ -197,7 +204,7 @@ export function usePdfSentenceInteraction(
 			const current = layoutSentenceHover();
 			if (current?.docId === docId) clearLayoutSentenceHover();
 		};
-	}, [docId, hostRef]);
+	}, [docId, hostRef, enabled]);
 }
 
 /**

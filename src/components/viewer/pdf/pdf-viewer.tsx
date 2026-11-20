@@ -568,6 +568,9 @@ function PdfViewerInner({
 	onCloseTranslationTab,
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
+	// Writing previews own the hover affordance via SyncTeX; the reader's
+	// sentence wash (and its whole-page text fallback) stays off there.
+	const sentenceHover = syncTexScope !== "writing";
 	const [importBusy, setImportBusy] = useState(false);
 	// Parent often passes inline lambdas; keep latest in refs so data effects
 	// do not re-fire every parent render (was Maximum update depth exceeded).
@@ -1510,6 +1513,11 @@ function PdfViewerInner({
 	});
 
 	useEffect(() => {
+		if (!sentenceHover) {
+			publishLayoutSentenceCatalog(docId, []);
+			publishLayoutSentencePageAnalysis(docId, []);
+			return;
+		}
 		const rawRegions = layoutRawRegions ?? [];
 		const allTranslated = [...layoutTranslateItemsByPage.values()].flat();
 		const translatedIds = new Set(allTranslated.map((item) => item.id));
@@ -1543,7 +1551,13 @@ function PdfViewerInner({
 			...(layoutDocRegions ?? []).map((region) => region.pageIndex),
 		]);
 		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
-	}, [docId, layoutTranslateItemsByPage, layoutRawRegions, layoutDocRegions]);
+	}, [
+		docId,
+		layoutTranslateItemsByPage,
+		layoutRawRegions,
+		layoutDocRegions,
+		sentenceHover,
+	]);
 	// Clear only when the document changes. Declared after the publish effect so
 	// its cleanup runs first and the next publish restores the new document's
 	// pairs. An items-only update must not flash an empty catalog.
@@ -2073,75 +2087,80 @@ function PdfViewerInner({
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [docId, elementSelecting, closeSelectionMenu]);
 
-	usePdfSentenceInteraction(docId, hostRef, (sentence, event) => {
-		const doc = docCapRef.current?.getDocument(docId);
-		// The document manager can still be opening. Fall back to the rendered
-		// page box so the source pane's double-click is not a no-op.
-		const zoom = zoomRef.current > 0 ? zoomRef.current : 1;
-		const sizeFor = (pageIndex: number) => {
-			const size = doc?.pages[pageIndex]?.size;
-			if (size) return size;
-			const box = pageElByIndex(
-				hostRef.current,
-				pageIndex,
-			)?.getBoundingClientRect();
-			return box && box.width > 0 && box.height > 0
-				? { width: box.width / zoom, height: box.height / zoom }
-				: null;
-		};
-		const pages = [
-			...new Set(sentence.members.map((member) => member.pageIndex)),
-		].flatMap((pageIndex) => {
-			const size = sizeFor(pageIndex);
-			if (!size) return [];
-			return formattedSelectionPage(
-				pageIndex,
-				sentence.members
-					.filter((member) => member.pageIndex === pageIndex)
-					.flatMap((member) => member.rects),
-				size,
+	usePdfSentenceInteraction(
+		docId,
+		hostRef,
+		(sentence, event) => {
+			const doc = docCapRef.current?.getDocument(docId);
+			// The document manager can still be opening. Fall back to the rendered
+			// page box so the source pane's double-click is not a no-op.
+			const zoom = zoomRef.current > 0 ? zoomRef.current : 1;
+			const sizeFor = (pageIndex: number) => {
+				const size = doc?.pages[pageIndex]?.size;
+				if (size) return size;
+				const box = pageElByIndex(
+					hostRef.current,
+					pageIndex,
+				)?.getBoundingClientRect();
+				return box && box.width > 0 && box.height > 0
+					? { width: box.width / zoom, height: box.height / zoom }
+					: null;
+			};
+			const pages = [
+				...new Set(sentence.members.map((member) => member.pageIndex)),
+			].flatMap((pageIndex) => {
+				const size = sizeFor(pageIndex);
+				if (!size) return [];
+				return formattedSelectionPage(
+					pageIndex,
+					sentence.members
+						.filter((member) => member.pageIndex === pageIndex)
+						.flatMap((member) => member.rects),
+					size,
+				);
+			});
+			const rects = sentence.members
+				.filter((member) => member.pageIndex === sentence.pageIndex)
+				.flatMap((member) => member.rects);
+			// Page-fraction rects are enough for the toolbar anchor, so a missing
+			// document size only disables highlight creation, not the menu.
+			const anchor =
+				anchorFromEmbedSelection(
+					pages,
+					sentence.quote,
+					sizeFor,
+					"selection",
+					sentence.pageIndex,
+				) ??
+				(rects.length
+					? {
+							page: sentence.pageIndex + 1,
+							rects,
+							quote: sentence.quote,
+							trigger: "selection" as const,
+						}
+					: null);
+			const bounds = selectionBoundsOnScreen(
+				pageElByIndex(hostRef.current, sentence.pageIndex),
+				rects,
 			);
-		});
-		const rects = sentence.members
-			.filter((member) => member.pageIndex === sentence.pageIndex)
-			.flatMap((member) => member.rects);
-		// Page-fraction rects are enough for the toolbar anchor, so a missing
-		// document size only disables highlight creation, not the menu.
-		const anchor =
-			anchorFromEmbedSelection(
+			if (!anchor || !bounds) return;
+			selectionCap?.clear(docId);
+			holdLayoutSentenceHover(docId);
+			setSelectionMenu({
+				anchor,
 				pages,
-				sentence.quote,
-				sizeFor,
-				"selection",
-				sentence.pageIndex,
-			) ??
-			(rects.length
-				? {
-						page: sentence.pageIndex + 1,
-						rects,
-						quote: sentence.quote,
-						trigger: "selection" as const,
-					}
-				: null);
-		const bounds = selectionBoundsOnScreen(
-			pageElByIndex(hostRef.current, sentence.pageIndex),
-			rects,
-		);
-		if (!anchor || !bounds) return;
-		selectionCap?.clear(docId);
-		holdLayoutSentenceHover(docId);
-		setSelectionMenu({
-			anchor,
-			pages,
-			screen: {
-				x: (bounds.left + bounds.right) / 2,
-				y: bounds.top,
-				top: bounds.top,
-				bottom: bounds.bottom,
-				cursorX: event.clientX,
-			},
-		});
-	});
+				screen: {
+					x: (bounds.left + bounds.right) / 2,
+					y: bounds.top,
+					top: bounds.top,
+					bottom: bounds.bottom,
+					cursorX: event.clientX,
+				},
+			});
+		},
+		{ enabled: sentenceHover },
+	);
 
 	// ---- Selection action menu ----
 
@@ -2510,9 +2529,15 @@ function PdfViewerInner({
 			insetCommentCards,
 			translationOnly,
 			plainViewer,
-			sentencePairing: true,
+			sentencePairing: sentenceHover,
 		}),
-		[elementSelecting, translationOnly, plainViewer, insetCommentCards],
+		[
+			elementSelecting,
+			translationOnly,
+			plainViewer,
+			insetCommentCards,
+			sentenceHover,
+		],
 	);
 
 	const handleCopyCommentLink = useCallback(
