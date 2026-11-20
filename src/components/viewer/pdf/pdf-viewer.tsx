@@ -194,8 +194,8 @@ import {
 	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
-import { isLayoutElementTextKind } from "@/lib/pdf/layout/labels";
-import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
+import { hoverSentenceSourceItems } from "@/lib/pdf/layout/sentence-catalog";
+import { isInsideVisualLayoutRegion } from "@/lib/pdf/layout/translatable";
 import {
 	clearTranslatedLinkSource,
 	publishTranslatedLinkSource,
@@ -1509,27 +1509,23 @@ function PdfViewerInner({
 	});
 
 	useEffect(() => {
-		const translated = [...layoutTranslateItemsByPage.values()].flat();
-		const translatedIds = new Set(translated.map((item) => item.id));
-		const source = (layoutRawRegions ?? [])
-			.filter(
-				(region) =>
-					isLayoutElementTextKind(region.kind) && !translatedIds.has(region.id),
-			)
-			.map((region) => ({
-				id: region.id,
-				pageIndex: region.pageIndex,
-				bbox: region.bbox,
-				source: region.text ?? "",
-				sentences: splitLayoutSentences(region.text ?? "").map((quote) => ({
-					quote,
-					translated: "",
-				})),
-			}));
+		const rawRegions = layoutRawRegions ?? [];
+		const allTranslated = [...layoutTranslateItemsByPage.values()].flat();
+		const translatedIds = new Set(allTranslated.map((item) => item.id));
+		// The model also detects the text inside vector figures / tables as prose
+		// blocks. Those runs are part of the graphic, so they never hover as
+		// sentences; the whole element is the hover target instead.
+		const translated = allTranslated.filter(
+			(item) => !isInsideVisualLayoutRegion(item, rawRegions),
+		);
+		// Untranslated text blocks go through the deduped catalog: raw low-score
+		// boxes can span both columns and their interleaved text would hover as
+		// one sentence in two places.
+		const source = hoverSentenceSourceItems(rawRegions, translatedIds);
 		// Analysed pages keep sentence hover on their text regions only; the
 		// whole-page text fallback is reserved for pages without analysis.
 		publishLayoutSentencePageAnalysis(docId, [
-			...(layoutRawRegions ?? []).map((region) => region.pageIndex),
+			...rawRegions.map((region) => region.pageIndex),
 			...(layoutDocRegions ?? []).map((region) => region.pageIndex),
 		]);
 		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
