@@ -162,9 +162,11 @@ export type PdfLayoutTranslate = {
 	/**
 	 * Cancel this paper's running/queued full-document translation. Used when
 	 * the reading view returns to 原文 (including a manual translation-tab close),
-	 * so the visible mode and the task state stay in sync.
+	 * so the visible mode and the task state stay in sync. `stopTypeset` also
+	 * ends local page generation, which is what the meter's stop square needs
+	 * once the Host job has already settled.
 	 */
-	cancelLayoutTranslate: () => void;
+	cancelLayoutTranslate: (options?: { stopTypeset?: boolean }) => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
 	togglePageLayoutTranslate: (pageIndex: number) => void;
 	/** Paragraph warning: retry a failed page's blocks without hiding it. */
@@ -456,6 +458,7 @@ export function usePdfLayoutTranslate({
 		reflowFinalFailed,
 		reflowOutput,
 		reflowPages,
+		cancelReflowBuild,
 		exportTranslatedPdf,
 	} = usePdfReflow(
 		reflowContext,
@@ -469,6 +472,9 @@ export function usePdfLayoutTranslate({
 		layoutTranslateJob.reflowPageOnly ?? layoutTranslateJob.scope === "page",
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
+	/** Aborts the local page-generation build owned by `usePdfReflow`. */
+	const cancelReflowBuildRef = useRef(cancelReflowBuild);
+	cancelReflowBuildRef.current = cancelReflowBuild;
 	/** Incremented whenever a translation owner changes; stale cache hydrates cannot commit. */
 	const layoutTranslateRunEpochRef = useRef(0);
 	/**
@@ -512,7 +518,7 @@ export function usePdfLayoutTranslate({
 	});
 	const parsePendingForPaper = layoutJobPending || layoutUiRunning;
 
-	const stopLayoutTranslate = useCallback(() => {
+	const stopLayoutTranslate = useCallback((stopTypeset = false) => {
 		layoutTranslateRunEpochRef.current += 1;
 		const shared = sharedTranslateRef.current;
 		if (shared) shared.cancelRequested = true;
@@ -533,6 +539,16 @@ export function usePdfLayoutTranslate({
 				partialCompletionFailed: false,
 			};
 		});
+		if (!stopTypeset) return;
+		// The Host job may already be done while the corrected pages are still
+		// generated here; the stop square has to end that local build and close
+		// the meter instead of staying a dead button.
+		cancelReflowBuildRef.current();
+		setLayoutTranslateJob((prev) =>
+			prev.status === "done" || prev.status === "partial"
+				? { ...prev, status: "cancelled" }
+				: prev,
+		);
 	}, []);
 
 	// Translation job and block failures never raise a toast: a document run
@@ -554,17 +570,20 @@ export function usePdfLayoutTranslate({
 	 * local work, and cancel a Host job owned by the dual-pane viewer too. Used
 	 * by 原文 and by the toolbar meter's only stop surface.
 	 */
-	const cancelLayoutTranslate = useCallback(() => {
-		if (layoutTranslateWaitTargetRef.current) cancelWaitingLayout();
-		stopLayoutTranslate();
-		if (!paperRelPath) return;
-		for (const task of backgroundTasksStore.getState().tasks) {
-			if (task.kind !== "layoutTranslate") continue;
-			if (task.status !== "running" && task.status !== "queued") continue;
-			if (!sameRelPaperPath(task.paperPath ?? null, paperRelPath)) continue;
-			cancelTask(task.id);
-		}
-	}, [cancelWaitingLayout, paperRelPath, stopLayoutTranslate]);
+	const cancelLayoutTranslate = useCallback(
+		(options?: { stopTypeset?: boolean }) => {
+			if (layoutTranslateWaitTargetRef.current) cancelWaitingLayout();
+			stopLayoutTranslate(options?.stopTypeset ?? false);
+			if (!paperRelPath) return;
+			for (const task of backgroundTasksStore.getState().tasks) {
+				if (task.kind !== "layoutTranslate") continue;
+				if (task.status !== "running" && task.status !== "queued") continue;
+				if (!sameRelPaperPath(task.paperPath ?? null, paperRelPath)) continue;
+				cancelTask(task.id);
+			}
+		},
+		[cancelWaitingLayout, paperRelPath, stopLayoutTranslate],
+	);
 
 	/**
 	 * Queue the job behind layout analysis: ensure a parse is pending, park the

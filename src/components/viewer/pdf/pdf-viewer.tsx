@@ -1618,6 +1618,13 @@ function PdfViewerInner({
 		paperAbsPath,
 	});
 
+	// The meter's stop square ends the whole visible run: a live Host job, a
+	// queued wait, and — once the job has settled — the local page generation
+	// that is still producing the corrected pages.
+	const stopLayoutTranslateWithTypeset = useCallback(() => {
+		cancelLayoutTranslate({ stopTypeset: true });
+	}, [cancelLayoutTranslate]);
+
 	// The view switch owns the single-pane / compare choice. The toolbar's task
 	// surface (the expanding meter) only stops or cancels, never toggles views.
 	const hasAnyTranslation = useMemo(
@@ -1663,6 +1670,11 @@ function PdfViewerInner({
 					writePdfViewMode(paperKey, "original");
 					onOpenTranslationTab?.(baseDocId, paperAbsPath, paperTitle ?? null);
 				}
+				// 对照 reads the same translation as 译文: validate the cache / start
+				// the shared job from the source pane too, so the split pane always
+				// opens onto a live job or completed cache. The pane's own
+				// auto-start stays as the fallback when the source cannot start it.
+				ensureTranslationForReading();
 				return;
 			}
 			if (next === "original") {
@@ -3028,7 +3040,7 @@ function PdfViewerInner({
 					layoutTranslatePartial={layoutTranslatePartial}
 					layoutTranslateProgress={layoutTranslateProgress}
 					layoutTranslatePageCounts={layoutTranslatePageCounts}
-					onToggleLayoutTranslate={cancelLayoutTranslate}
+					onToggleLayoutTranslate={stopLayoutTranslateWithTypeset}
 					isRemotePaper={isRemotePaper}
 					onImportToLibrary={handleImportToLibrary}
 					importBusy={importBusy}

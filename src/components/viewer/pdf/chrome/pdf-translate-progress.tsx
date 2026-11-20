@@ -67,7 +67,10 @@ export function PdfTranslateProgressChip({
 	});
 	const showPartial = layoutTranslatePartial?.visible;
 	if (!open && !showPartial && !onExport) return null;
-	const cancellable = layoutTranslateRunning || layoutTranslateWaiting;
+	// The stop square belongs to the meter, not to one stage: queued, waiting
+	// and local page generation all have to be cancellable, exactly like the
+	// reader toolbar's meter. The readout still swaps it for the completed check
+	// and hides it while the bar retracts.
 	const stopLabel = layoutTranslateWaiting
 		? t("pdf.layoutTranslate.waiting")
 		: t("pdf.layoutTranslate.stop");
@@ -96,7 +99,7 @@ export function PdfTranslateProgressChip({
 						width={width}
 						retracting={retracting}
 						lingerFull={lingerFull}
-						showStop={cancellable}
+						showStop
 						stopLabel={stopLabel}
 						onStop={onStop}
 					/>

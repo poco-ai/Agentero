@@ -187,6 +187,24 @@ export class ReflowPreviewSession {
 		return this.finalBuildFailed;
 	}
 
+	/**
+	 * Drop in-flight page / final builds without touching published previews or
+	 * the retained export output. Used when the reader stops page generation
+	 * after the translation job already settled: that build is local work, so
+	 * only this session can end it. Same inputs are not enqueued again until
+	 * they change (`attempted` keeps the key).
+	 */
+	cancelBuilds(): void {
+		if (this.disposed) return;
+		if (!this.jobs.size && this.buildIdle === undefined) return;
+		for (const job of this.jobs.values()) job.abort.abort();
+		this.jobs.clear();
+		this.cancelBuildIdle();
+		this.dirty = true;
+		this.notify();
+		this.scheduleBuildIdle();
+	}
+
 	get busy(): boolean {
 		return this.jobs.size > 0;
 	}

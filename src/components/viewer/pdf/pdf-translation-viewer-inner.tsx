@@ -333,6 +333,10 @@ export function PdfTranslationViewerInner({
 	layoutTranslateRunningRef.current = layoutTranslateRunning;
 	const ensureLayoutTranslateRef = useRef(ensureLayoutTranslate);
 	ensureLayoutTranslateRef.current = ensureLayoutTranslate;
+	/** Stop also ends local page generation, not just a Host job. */
+	const handleStopTranslate = useCallback(() => {
+		cancelLayoutTranslate({ stopTypeset: true });
+	}, [cancelLayoutTranslate]);
 	// A shared job for this paper can outlive a 译文 run: switching to 对照 while
 	// 重译整篇 is still working mounts this pane on top of its cached sidecar.
 	const liveTranslateJobId = useStore(backgroundTasksStore, (store) => {
@@ -800,8 +804,9 @@ export function PdfTranslationViewerInner({
 				// generated pages the reader toolbar would otherwise export.
 				onExport={reflowReady ? exportTranslatedPdf : undefined}
 				// Cancel the paper's job outright, like the reader toolbar's stop:
-				// this pane may not have attached yet when the click lands.
-				onStop={cancelLayoutTranslate}
+				// this pane may not have attached yet when the click lands. A settled
+				// job can still be generating pages here, so stop that build too.
+				onStop={handleStopTranslate}
 			/>
 			{typeof document !== "undefined"
 				? createPortal(
