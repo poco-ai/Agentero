@@ -1,8 +1,8 @@
 # Agentero CLI 与 MCP 接口设计
 
-**评审对象是一个全新 CLI 的用户契约。** 终端的名字、参数、退出码及 MCP 工具都可以重新确定。这里的帮助和 schema 是拟实施的设计；试读器只展示帮助。库内的 Markdown/原始文件和 Catalog SQLite 仍分别承担项目定义的持久化职责。
+本文记录 CLI 与 MCP 的设计依据和验收场景。终端用法见 [CLI 使用说明](../../backend/cli.md)，外部客户端配置见 [MCP 使用说明](../../usage/mcp.md)。运行时的命令解析、帮助和工具清单读取同一份[命令目录](../../../crates/agentero-core/src/ops/cli.json)和[工具定义](../../../crates/agentero-core/src/ops/mcp.json)。
 
-[逐级 CLI 帮助](./cli-reference.md) · [MCP 工具表与调用示例](./mcp-reference.md) · [全部工具的机器可读 schema](./mcp-tools.json) · [在终端翻阅帮助](./preview.py)
+[逐级 CLI 帮助](./cli-reference.md) · [MCP 工具表与调用示例](./mcp-reference.md) · [全部工具的机器可读 schema](../../../crates/agentero-core/src/ops/mcp.json) · [在终端翻阅帮助](./preview.py)
 
 ## 从研究者的一次操作开始
 
@@ -24,7 +24,7 @@ agentero search "batch size" --in papers/atlas --limit 1 --plain |
   agentero read - --max-chars 1800
 ```
 
-一个桌面 Agent 同样可以把实际写好的文件交还给用户。`agentero file write outputs/comparison.md --input ./comparison.md` 返回文件版本，随后 `agentero app present outputs/comparison.md` 返回聊天产物卡片。Markdown 和 PDF 按桌面已有查看器预览；没有对应查看器的类型提供打开文件的动作。`app present` 是此次新增提议。普通终端用 `app open` 即可打开同一产物。
+一个桌面 Agent 同样可以把实际写好的文件交还给用户。`agentero file write outputs/comparison.md --input ./comparison.md` 返回文件版本，随后 `agentero app present outputs/comparison.md` 返回聊天产物卡片。Markdown 和 PDF 按桌面已有查看器预览；没有对应查看器的类型提供打开文件的动作。普通终端用 `app open` 即可打开同一产物。
 
 ## 完整命令地图
 
@@ -90,7 +90,7 @@ help
 
 **输入和修改。** 重复的选项按出现顺序收集；示例中的 `--tag a --tag b` 与 `--kind figure --kind table` 的交并规则分别见命令。布尔开关默认关闭。`--input -` 显式读取 stdin，TTY 中没有内容参数不会无限等待。`if_revision` 绑定具体对象，不能把论文题录版本用作 NOTES.md 版本。读缺失笔记返回空内容及 `revision="missing"`，可以据此首次创建。终端单次写入可以省略请求 ID，由 CLI 生成；希望跨进程可靠重试时显式传入。MCP 对需要幂等的追加、批注创建和表格写入要求调用者提供请求 ID。幂等键在库、操作、调用者和目标内校验，先检查同键回执再检查版本，内容变化报 `idempotency_conflict`。单一文件写入以临时文件换名；表格一批全成或全败。跨库移动记录源/目标操作进度，目标验证成功才清理源，重试可收敛。回收站是删除的第一目的地，按回收 ID 恢复或显式永久清除。禁止通过通用文件命令直接改 Catalog、批注/版面索引、已存在的表及锁定实验记录。
 
-**机器输入示例。** `table upsert --input` 读 `{"rows":[{"id":"trial-3","fields":{"split":"test","score":0.9}}]}`，每批 1–200 行。`table patch --input` 读 `{"cells":[{"id":"trial-3","field":"split","value":"test"}]}`，每批 1–1000 格。普通字段值为 JSON 标量。`sync connect s3 --credentials-input` 接受 `{"access_key":"…","secret_key":"…","session_token":"…"}`（session token 可选），WebDAV 接受 `{"password":"…"}`。不提供文件时从系统凭据存储取值，交互终端可以隐藏输入；自动化用受保护的文件或 stdin 注入凭据。`--profile` 与 `--embedding-profile` 选择本机已配置的服务、端点和模型；密钥不出现在参数、帮助示例或结果中。
+**机器输入示例。** `table upsert --input` 读 `{"rows":[{"id":"trial-0003","fields":{"split":"test","score":0.9}}]}`，每批 1–200 行。新增行 ID 使用 ASCII 字母开头的字母数字前缀、连字符和至少四位数字，如 `trial-0003`。更新旧行时直接使用查询结果中的 ID。`table patch --input` 读 `{"cells":[{"id":"trial-0003","field":"split","value":"test"}]}`，每批 1–1000 格。普通字段值为 JSON 标量。`sync connect s3 --credentials-input` 接受 `{"access_key":"…","secret_key":"…","session_token":"…"}`（session token 可选），WebDAV 接受 `{"password":"…"}`。不提供文件时从系统凭据存储取值，交互终端可以隐藏输入；自动化用受保护的文件或 stdin 注入凭据。`--profile` 与 `--embedding-profile` 选择本机已配置的服务、端点和模型；密钥不出现在参数、帮助示例或结果中。
 
 ## 删除 agentero-context 后的执行路径
 
@@ -127,6 +127,6 @@ help
 | 写入被打断 | 批量导入完成首项后发送 SIGINT，凭实际回执或馆藏重新执行；首项不重复、后续项能继续。表格条件写入遇到竞争时返回当前版本，数据仍可读取。 |
 | 删除专用 MCP | 关闭外部 MCP、离线启动桌面，在两个 Zen 会话中分别阅读不同论文。切库或取消后旧句柄失效，来源进入各自的消息。对支持的系统验证随包 CLI 的定位和启动。 |
 
-本分支的帮助试读器只读取参考文档。可以从仓库根目录运行 `python3 docs/development/cli-mcp/preview.py read --help`；真实管道、IPC、SIGINT 和磁盘变化由以上实施验收覆盖。
+文档试读器可以离线浏览设计示例。实际命令请在仓库根目录运行 `cargo run -p agentero-cli -- read --help`。
 
-可复用的源码入口包括 [CLI 入口](../../../cli/src/main.rs)、[MCP 路由](../../../crates/agentero-mcp/src/tools.rs)、[证据服务](../../../crates/agentero-core/src/features/context/service.rs) 与 [SSH 委派边界](../A2A.md)。
+可复用的源码入口包括 [CLI 入口](../../../cli/src/main.rs)、[MCP 路由](../../../crates/agentero-mcp/src/operations/mod.rs)、[证据服务](../../../crates/agentero-core/src/features/evidence/mod.rs) 与 [SSH 委派边界](../A2A.md)。

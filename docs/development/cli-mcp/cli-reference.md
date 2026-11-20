@@ -1206,7 +1206,7 @@ agentero table · 查询研究表，按记录 ID 写行或改单元格
   agentero table upsert PATH --input INPUT --if-revision IF-REVISION [--request-id REQUEST-ID]
 
 示例
-  agentero table upsert experiments/results.table.json --input rows.json --if-revision r4 --request-id run-21
+  agentero table upsert experiments/results.table.json --input rows.json --if-revision 4 --request-id run-21
 
 参数与选项
   PATH    操作的 Vault 相对路径。规范化 Vault 相对路径；必填
@@ -1232,7 +1232,7 @@ agentero table · 查询研究表，按记录 ID 写行或改单元格
   agentero table patch PATH --input INPUT --if-revision IF-REVISION [--request-id REQUEST-ID]
 
 示例
-  agentero table patch experiments/results.table.json --input cells.json --if-revision r5 --request-id fix-21
+  agentero table patch experiments/results.table.json --input cells.json --if-revision 5 --request-id fix-21
 
 参数与选项
   PATH    操作的 Vault 相对路径。规范化 Vault 相对路径；必填
@@ -2114,7 +2114,7 @@ agentero mcp · 为外部客户端运行或检查工具服务
   --transport    stdio 或本机 Streamable HTTP。stdio | http；可选；默认 stdio
   --allow-vault    附加允许访问的 Vault，可重复。已登记库 ID；终端也接受本机 Vault 根目录，可重复；可选
   --allow    追加授予的工具能力，可重复。full-text | write | online，可重复；可选
-  --listen    loopback 地址与端口。loopback 地址和端口，0 由系统分配；可选；默认 127.0.0.1
+  --listen    loopback 地址与端口。loopback 地址和端口，0 由系统分配；可选；默认 127.0.0.1:0
   --token-input    HTTP bearer token 文件或 -。本机输入文件或 -（stdin）；可选
 
 行为

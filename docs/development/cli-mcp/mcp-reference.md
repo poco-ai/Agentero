@@ -4,7 +4,7 @@
 
 ## 发现与调用
 
-- `tools/list` 的完整候选集合见同目录的 [mcp-tools.json](./mcp-tools.json)。每个工具都有真实的 JSON Schema，列明类型、必填项、默认值、范围、输入形状、结果字段和行为注解。下表的星号表示无条件必填；条件必填及跨字段约束查看 schema 和对应 CLI 的行为。HTTP 与 stdio 共享同一套名称、DTO、错误和授权判断。
+- `tools/list` 的完整候选集合见共享的 [MCP manifest](../../../crates/agentero-core/src/ops/mcp.json)。每个工具都有真实的 JSON Schema，列明类型、必填项、默认值、范围、输入形状、结果字段和行为注解。下表的星号表示无条件必填；条件必填及跨字段约束查看 schema 和对应 CLI 的行为。HTTP 与 stdio 共享同一套名称、DTO、错误和授权判断。
 - 有 Vault 的工具接受可选 `vault`，值取自 `vault_list` 返回的 ID。连接只绑一个默认库时可省略；多库未设默认时返回 `vault_required` 和可见库 ID。MCP 不接受服务进程的任意绝对路径。`to_vault` 同样按授权 ID 解析，两端分别校验。
 - 默认发布本库的查询工具，可返回题录、普通笔记、已开放的 Vault 文档、表格和有长度限制的证据摘录。`--allow full-text` 开放论文正文的连续读取、物理页、版面全文及包含正文的结构化区域。`--allow write` 增加写工具。`--allow online` 增加可主动发起网络请求的工具。导入标识需要 write + online；`annotation_add` 的机器翻译分支另需 online，传人工译文可离线。`paper_discover` 需 online，公开的 profile 由管理员预配置。每次实际调用复核授权。
 - 论文的 TeX、PAPER.md、PDF、副本引用、布局缓存和穿过目录链接的路径都按最终资源归属授权。search 默认仅返回有界片段；未授予全文时，整页、区域原文、续读拼接与直接读资产路径受相同的正文预算约束。只读模式中的 `paper_regions` 可列区域元数据。私有管理目录及系统凭据不进入文件 API。服务只返回当前调用者可见的关系目标、路径和引用。
@@ -76,10 +76,10 @@
 一次表格更新先用 `table_query` 读出 `revision`，再提交条件写入。只有首次成功后响应丢失才用原请求 ID 原样重放。若别人已经修改了表，重新查询和计算后的新写入使用新 ID。
 
 ```json
-{"name":"table_patch","arguments":{"path":"experiments/results.table.json","if_revision":"r5","request_id":"fix-21","cells":[{"id":"trial-3","field":"split","value":"test"}]}}
+{"name":"table_patch","arguments":{"path":"experiments/results.table.json","if_revision":"5","request_id":"fix-21","cells":[{"id":"trial-0003","field":"split","value":"test"}]}}
 ```
 
-成功回执形如 `{"path":"experiments/results.table.json","revision":"r6","changed_rows":["trial-3"],"changed_cells":1}`。版本冲突的错误形如 `{"error":{"code":"revision_conflict","message":"表格已被更新","details":{"expected":"r5","actual":"r6"},"hint":"重新查询目标行后提交"}}`。
+成功回执形如 `{"path":"experiments/results.table.json","revision":"6","changed_rows":["trial-0003"],"changed_cells":1}`。版本冲突的错误形如 `{"error":{"code":"revision_conflict","message":"表格已被更新","details":{"expected":"5","actual":"6"},"hint":"重新查询目标行后提交"}}`。
 
 ## 只在 CLI 和相应宿主提供的能力
 
