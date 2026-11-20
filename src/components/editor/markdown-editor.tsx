@@ -57,13 +57,13 @@ import {
 	MarkdownEditorToolbar,
 	MarkdownExportButton,
 	MarkdownFindButton,
-	MarkdownPaperNotesBar,
 	MarkdownPropertiesButton,
 } from "@/components/editor/toolbar/markdown-toolbar";
 import {
 	ToolbarButton,
 	ToolbarSeparator,
 } from "@/components/editor/toolbar/primitives";
+import { ResponsiveFixedToolbar } from "@/components/editor/toolbar/responsive-toolbar";
 import {
 	selectionSurfaceProps,
 	useSelectionSource,
@@ -1064,7 +1064,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 			/>
 			{/* Properties edit the YAML frontmatter; the source view shows the
 			    same frontmatter as raw text, so the popover is rendered mode only. */}
-			{!source ? (
+			{toolbarVisible && !source ? (
 				<>
 					<ToolbarSeparator />
 					{propertiesPanel}
@@ -1105,7 +1105,11 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 					>
 						{toolbarVisible ? (
 							<div data-hint-ignore>
-								<MarkdownPaperNotesBar />
+								{source ? (
+									<MarkdownSourceToolbar viewRef={sourceViewRef} />
+								) : (
+									<MarkdownEditorToolbar />
+								)}
 							</div>
 						) : null}
 						<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -1399,20 +1403,12 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 								</div>
 							) : null}
 						</div>
-						{source ? (
-							<MarkdownSourceToolbar
-								viewRef={sourceViewRef}
-								leading={barLeading}
-								trailing={barTrailing}
-								showActions={toolbarVisible}
-							/>
-						) : (
-							<MarkdownEditorToolbar
-								leading={barLeading}
-								trailing={barTrailing}
-								showActions={toolbarVisible}
-							/>
-						)}
+						<ResponsiveFixedToolbar
+							variant="footer"
+							actions={[]}
+							leading={barLeading}
+							trailing={barTrailing}
+						/>
 						<HeadingRenameDialog
 							open={headingRenameOpen}
 							heading={headingContext}

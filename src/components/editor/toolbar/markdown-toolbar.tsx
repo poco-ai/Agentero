@@ -26,6 +26,7 @@ import {
 	Search,
 	Share,
 	Strikethrough,
+	TextQuote,
 	Underline,
 } from "lucide-react";
 import { KEYS } from "platejs";
@@ -46,7 +47,6 @@ import { useTranslation } from "react-i18next";
 
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
 import { CoolPapersIcon } from "@/components/icons/cool-papers-icon";
-import { QuoteIcon } from "@/components/icons/quote-icon";
 
 import {
 	Popover,
@@ -224,23 +224,16 @@ function FetchKimiNotesButton({ meta }: { meta: PaperMetadata }) {
 }
 
 /**
- * Contextual bar above the editor. All formatting lives in the editor bar
- * below the document, so only actions tied to the current document (fetching
- * Cool Papers notes for a paper NOTES.md) stay at the top.
+ * Contextual action at the right end of the formatting toolbar: fetch Cool
+ * Papers notes for the current paper NOTES.md.
  */
-export function MarkdownPaperNotesBar() {
+export function MarkdownPaperNotesButton() {
 	const meta = useCoolPapersNotesMeta();
 	if (!meta) return null;
-	return (
-		<ResponsiveFixedToolbar
-			variant="header"
-			actions={[]}
-			trailing={<FetchKimiNotesButton meta={meta} />}
-		/>
-	);
+	return <FetchKimiNotesButton meta={meta} />;
 }
 
-/** Export the note as PDF / PNG. Pinned at the left of the editor bar. */
+/** Export the note as PDF / PNG. Pinned at the left of the status row. */
 export function MarkdownExportButton({
 	onExport,
 	onMouseDown,
@@ -262,7 +255,7 @@ export function MarkdownExportButton({
 	);
 }
 
-/** Open find & replace. Pinned at the left of the editor bar. */
+/** Open find & replace. Pinned at the left of the status row. */
 export function MarkdownFindButton({
 	onOpenFind,
 	onMouseDown,
@@ -314,22 +307,10 @@ export function MarkdownPropertiesButton({
 }
 
 /**
- * Formatting actions for the WYSIWYG editor, rendered into the editor bar.
- * Must be rendered inside a `<Plate>` provider (it reads editor state via
- * Plate hooks).
+ * WYSIWYG formatting toolbar above the document. Must be rendered inside a
+ * `<Plate>` provider (it reads editor state via Plate hooks).
  */
-export function MarkdownEditorToolbar({
-	leading,
-	trailing,
-	showActions = true,
-}: {
-	/** Pinned at the left of the bar (source toggle, export, find). */
-	leading?: ReactNode;
-	/** Pinned at the right of the bar (status counts, properties). */
-	trailing?: ReactNode;
-	/** Hide the formatting actions but keep the bar chrome. */
-	showActions?: boolean;
-}) {
+export function MarkdownEditorToolbar() {
 	const { t } = useTranslation("editor");
 	const blockType = useSelectionFragmentProp({
 		defaultValue: KEYS.p,
@@ -342,7 +323,7 @@ export function MarkdownEditorToolbar({
 	const quote = useBlockTypeAction(
 		blockType,
 		KEYS.blockquote,
-		QuoteIcon,
+		TextQuote,
 		t("toolbar.quote"),
 	);
 
@@ -415,10 +396,9 @@ export function MarkdownEditorToolbar({
 
 	return (
 		<ResponsiveFixedToolbar
-			variant="footer"
-			actions={showActions ? actions : []}
-			leading={leading}
-			trailing={trailing}
+			variant="header"
+			actions={actions}
+			trailing={<MarkdownPaperNotesButton />}
 		/>
 	);
 }
