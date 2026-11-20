@@ -12,7 +12,7 @@ use agent_client_protocol::v1::schema::{
     SessionConfigSelectOptions, SessionNotification, SessionUpdate, ToolCallContent,
     ToolCallStatus, ToolKind,
 };
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub(crate) fn stream_from_update(update: &SessionUpdate) -> Option<(String, AgentStreamKind)> {
     match update {
@@ -629,6 +629,154 @@ pub(crate) fn emit_session_config_options(
 /// read/fetch-style tools can carry whole files (MBs) per ToolCallUpdate; the
 /// transcript only renders a preview, so ship a bounded head + marker instead.
 pub(crate) const TOOL_PAYLOAD_MAX_BYTES: usize = 32 * 1024;
+const TOOL_TERMINAL_OUTPUT_MAX_BYTES: usize = TOOL_PAYLOAD_MAX_BYTES / 2;
+
+/// Accumulates Codex terminal output deltas because the webview replaces a
+/// tool's output on every ACP update rather than appending it.
+#[derive(Default)]
+pub(crate) struct ToolOutputAccumulator {
+    outputs: HashMap<String, serde_json::Value>,
+}
+
+impl ToolOutputAccumulator {
+    pub(crate) fn output_for_update(
+        &mut self,
+        tool_call_id: &str,
+        raw_output: Option<serde_json::Value>,
+        content: &[ToolCallContent],
+        meta: Option<&agent_client_protocol::v1::schema::Meta>,
+    ) -> Option<serde_json::Value> {
+        let delta = meta.and_then(|meta| meta.get("terminal_output_delta"));
+        let exit = meta.and_then(|meta| meta.get("terminal_exit"));
+        if delta.is_none() && exit.is_none() {
+            let output = tool_output_payload(raw_output, content);
+            if !self.outputs.contains_key(tool_call_id) {
+                if let Some(output) = output.clone() {
+                    self.outputs.insert(tool_call_id.to_string(), output);
+                }
+            }
+            return output;
+        }
+
+        let output = self
+            .outputs
+            .entry(tool_call_id.to_string())
+            .or_insert_with(|| match tool_output_payload(raw_output, content) {
+                Some(serde_json::Value::Object(output)) => serde_json::Value::Object(output),
+                Some(serde_json::Value::String(stdout)) => {
+                    serde_json::json!({ "stdout": stdout })
+                }
+                Some(raw) => serde_json::json!({ "stdout": "", "rawOutput": raw }),
+                None => serde_json::json!({ "stdout": "" }),
+            });
+        if !output.is_object() {
+            let previous = std::mem::replace(output, serde_json::json!({ "stdout": "" }));
+            if let Some(stdout) = previous.as_str() {
+                output["stdout"] = serde_json::Value::String(stdout.to_string());
+            } else {
+                output["rawOutput"] = previous;
+            }
+        }
+        let object = output
+            .as_object_mut()
+            .expect("tool output accumulator stores objects");
+        if !object.contains_key("stdout") && !object.contains_key("stderr") {
+            object.insert(
+                "stdout".to_string(),
+                serde_json::Value::String(String::new()),
+            );
+        }
+
+        if let Some(data) = delta
+            .and_then(|value| value.get("data").or(Some(value)))
+            .and_then(serde_json::Value::as_str)
+        {
+            let stream = delta
+                .and_then(|value| value.get("stream"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("stdout");
+            let key = if stream.eq_ignore_ascii_case("stderr") {
+                "stderr"
+            } else {
+                "stdout"
+            };
+            let current = object
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            let other_key = if key == "stdout" { "stderr" } else { "stdout" };
+            let other_len = object
+                .get(other_key)
+                .and_then(serde_json::Value::as_str)
+                .map_or(0, str::len);
+            let remaining = TOOL_TERMINAL_OUTPUT_MAX_BYTES
+                .saturating_sub(other_len)
+                .saturating_sub(current.len());
+            let needs_marker = data.len() > remaining;
+            let marker = "\n[output truncated]";
+            let content_budget = if needs_marker {
+                remaining.saturating_sub(marker.len())
+            } else {
+                remaining
+            };
+            let mut end = content_budget.min(data.len());
+            while end > 0 && !data.is_char_boundary(end) {
+                end -= 1;
+            }
+            let mut next = String::with_capacity(current.len() + end + marker.len());
+            next.push_str(current);
+            next.push_str(&data[..end]);
+            if needs_marker && remaining >= marker.len() {
+                next.push_str(marker);
+            }
+            object.insert(key.to_string(), serde_json::Value::String(next));
+        }
+
+        if let Some(exit_code) = exit
+            .and_then(|value| value.get("exit_code").or_else(|| value.get("exitCode")))
+            .and_then(serde_json::Value::as_i64)
+        {
+            object.insert(
+                "exitCode".to_string(),
+                serde_json::Value::Number(exit_code.into()),
+            );
+        }
+        let output = cap_terminal_output(output);
+        if exit.is_some() {
+            self.outputs.remove(tool_call_id);
+        }
+        output
+    }
+}
+
+fn cap_terminal_output(output: &serde_json::Value) -> Option<serde_json::Value> {
+    let mut output = output.clone();
+    if let Some(object) = output.as_object_mut() {
+        let mut remaining = TOOL_TERMINAL_OUTPUT_MAX_BYTES;
+        for key in ["stdout", "stderr"] {
+            let Some(text) = object.get(key).and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            let mut end = remaining.min(text.len());
+            while end > 0 && !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            let marker = "\n[output truncated]";
+            let clipped = if end < text.len() && remaining >= marker.len() {
+                let mut marker_start = end.min(remaining - marker.len());
+                while marker_start > 0 && !text.is_char_boundary(marker_start) {
+                    marker_start -= 1;
+                }
+                format!("{}{}", &text[..marker_start], marker)
+            } else {
+                text[..end].to_string()
+            };
+            remaining = remaining.saturating_sub(clipped.len());
+            object.insert(key.to_string(), serde_json::Value::String(clipped));
+        }
+    }
+    cap_tool_payload(Some(output))
+}
 
 // ACP updates can carry output only in native content blocks. Retain those
 // alongside raw provider metadata; updates need not repeat the initial kind.
@@ -686,6 +834,7 @@ pub(crate) fn emit_rich_session_update(
     session_id: &str,
     agent_id: &str,
     notification: &SessionNotification,
+    tool_outputs: Option<&std::sync::Mutex<ToolOutputAccumulator>>,
 ) {
     match &notification.update {
         SessionUpdate::Notice(notice) => {
@@ -739,6 +888,17 @@ pub(crate) fn emit_rich_session_update(
             emit_session_config_options(app, session_id, agent_id, &upd.config_options);
         }
         SessionUpdate::ToolCall(tc) => {
+            let output = tool_outputs
+                .and_then(|state| state.lock().ok())
+                .and_then(|mut state| {
+                    state.output_for_update(
+                        tc.tool_call_id.to_string().as_str(),
+                        tc.raw_output.clone(),
+                        &tc.content,
+                        tc.meta.as_ref(),
+                    )
+                })
+                .or_else(|| tool_output_payload(tc.raw_output.clone(), &tc.content));
             let _ = app.emit(
                 "agent:tool",
                 AgentToolEvent {
@@ -748,13 +908,29 @@ pub(crate) fn emit_rich_session_update(
                     kind: Some(tool_kind_str(tc.kind).to_string()),
                     status: Some(tool_status_str(tc.status).to_string()),
                     input: cap_tool_payload(tc.raw_input.clone()),
-                    output: tool_output_payload(tc.raw_output.clone(), &tc.content),
+                    output,
                     full: true,
                 },
             );
         }
         SessionUpdate::ToolCallUpdate(upd) => {
             let f = &upd.fields;
+            let output = tool_outputs
+                .and_then(|state| state.lock().ok())
+                .and_then(|mut state| {
+                    state.output_for_update(
+                        upd.tool_call_id.to_string().as_str(),
+                        f.raw_output.clone(),
+                        f.content.as_deref().unwrap_or_default(),
+                        upd.meta.as_ref(),
+                    )
+                })
+                .or_else(|| {
+                    tool_output_payload(
+                        f.raw_output.clone(),
+                        f.content.as_deref().unwrap_or_default(),
+                    )
+                });
             let _ = app.emit(
                 "agent:tool",
                 AgentToolEvent {
@@ -764,10 +940,7 @@ pub(crate) fn emit_rich_session_update(
                     kind: f.kind.map(tool_kind_str).map(str::to_string),
                     status: f.status.map(tool_status_str).map(str::to_string),
                     input: cap_tool_payload(f.raw_input.clone()),
-                    output: tool_output_payload(
-                        f.raw_output.clone(),
-                        f.content.as_deref().unwrap_or_default(),
-                    ),
+                    output,
                     full: false,
                 },
             );

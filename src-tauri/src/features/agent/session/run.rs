@@ -12,6 +12,7 @@ use crate::features::agent::acp::updates::{
     collaboration_from_config_options, effort_from_config_options, emit_rich_session_update,
     emit_session_config_options, fast_mode_value_to_set, is_fast_option, is_pi_startup_banner,
     models_from_config_options, should_drop_codex_instruction_warning, stream_from_update,
+    ToolOutputAccumulator,
 };
 use crate::features::agent::context_turn::{
     insert_context_block, insert_resume_transcript, prepare_context,
@@ -325,6 +326,7 @@ pub(crate) struct RunOnceContext {
     /// leaves this false so an unused warm session stays hidden.
     prompt_sent: Arc<AtomicBool>,
     stop_reason: Arc<Mutex<Option<String>>>,
+    tool_outputs: Arc<Mutex<ToolOutputAccumulator>>,
     /// Terminal capability: headless command execution on behalf of the agent.
     terminals: Arc<tokio::sync::Mutex<AcpTerminalManager>>,
     context_fingerprint: Option<String>,
@@ -374,6 +376,7 @@ impl RunOnceContext {
             live_stream: Arc::new(AtomicBool::new(params.resume_session_id.is_none())),
             prompt_sent: Arc::new(AtomicBool::new(false)),
             stop_reason: Arc::new(Mutex::new(None)),
+            tool_outputs: Arc::new(Mutex::new(ToolOutputAccumulator::default())),
             terminals: acp_terminals(Some(cwd)),
             context_fingerprint: None,
             context_usage: None,
@@ -431,6 +434,7 @@ impl RunOnceContext {
                             &self.session_id,
                             &self.agent_id,
                             notification,
+                            Some(&self.tool_outputs),
                         );
                     }
                     _ => {}
@@ -489,7 +493,13 @@ impl RunOnceContext {
             self.coalescer.flush();
         }
         if !self.suppress_transcript {
-            emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
+            emit_rich_session_update(
+                &self.app,
+                &self.session_id,
+                &self.agent_id,
+                notification,
+                Some(&self.tool_outputs),
+            );
         }
     }
 

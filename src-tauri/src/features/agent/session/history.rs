@@ -4,6 +4,7 @@ use crate::core::error::AppError;
 use crate::features::agent::acp::client::{timed_acp_load_session, timed_acp_request};
 use crate::features::agent::acp::updates::{
     plan_priority_str, plan_status_str, text_from_content_block, tool_kind_str, tool_status_str,
+    ToolOutputAccumulator,
 };
 use crate::features::agent::models::{
     AcpHistoryLine, AcpHistoryPart, AcpHistoryTool, AcpListSessionsResult, AcpLoadSessionResult,
@@ -172,6 +173,7 @@ pub async fn delete_acp_session(
 pub(crate) struct ReplayBuilder {
     lines: Vec<ReplayLine>,
     title: Option<String>,
+    tool_outputs: ToolOutputAccumulator,
 }
 
 struct ReplayLine {
@@ -478,24 +480,38 @@ pub(crate) fn apply_replay_update(builder: &mut ReplayBuilder, update: &SessionU
             }
         }
         SessionUpdate::ToolCall(tc) => {
+            let id = tc.tool_call_id.to_string();
+            let output = builder.tool_outputs.output_for_update(
+                &id,
+                tc.raw_output.clone(),
+                &tc.content,
+                tc.meta.as_ref(),
+            );
             builder.apply_tool(
-                tc.tool_call_id.to_string(),
+                id,
                 Some(tc.title.clone()),
                 Some(tool_kind_str(tc.kind).to_string()),
                 Some(tool_status_str(tc.status).to_string()),
                 tc.raw_input.clone(),
-                tc.raw_output.clone(),
+                output,
             );
         }
         SessionUpdate::ToolCallUpdate(upd) => {
             let f = &upd.fields;
+            let id = upd.tool_call_id.to_string();
+            let output = builder.tool_outputs.output_for_update(
+                &id,
+                f.raw_output.clone(),
+                f.content.as_deref().unwrap_or_default(),
+                upd.meta.as_ref(),
+            );
             builder.apply_tool(
-                upd.tool_call_id.to_string(),
+                id,
                 f.title.clone(),
                 f.kind.map(tool_kind_str).map(str::to_string),
                 f.status.map(tool_status_str).map(str::to_string),
                 f.raw_input.clone(),
-                f.raw_output.clone(),
+                output,
             );
         }
         SessionUpdate::Plan(plan) => {
