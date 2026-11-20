@@ -4,7 +4,7 @@
 
 ## 发现与调用
 
-- `tools/list` 的完整候选集合见共享的 [MCP manifest](../../../crates/agentero-core/src/ops/mcp.json)。每个工具都有真实的 JSON Schema，列明类型、必填项、默认值、范围、输入形状、结果字段和行为注解。下表的星号表示无条件必填；条件必填及跨字段约束查看 schema 和对应 CLI 的行为。HTTP 与 stdio 共享同一套名称、DTO、错误和授权判断。
+- `tools/list` 的完整候选集合见共享的 [MCP manifest](https://github.com/poco-ai/agentero/blob/main/crates/agentero-core/src/ops/mcp.json)。每个工具都有真实的 JSON Schema，列明类型、必填项、默认值、范围、输入形状、结果字段和行为注解。下表的星号表示无条件必填；条件必填及跨字段约束查看 schema 和对应 CLI 的行为。HTTP 与 stdio 共享同一套名称、DTO、错误和授权判断。
 - 有 Vault 的工具接受可选 `vault`，值取自 `vault_list` 返回的 ID。连接只绑一个默认库时可省略；多库未设默认时返回 `vault_required` 和可见库 ID。MCP 不接受服务进程的任意绝对路径。`to_vault` 同样按授权 ID 解析，两端分别校验。
 - 默认发布本库的查询工具，可返回题录、普通笔记、已开放的 Vault 文档、表格和有长度限制的证据摘录。`--allow full-text` 开放论文正文的连续读取、物理页、版面全文及包含正文的结构化区域。`--allow write` 增加写工具。`--allow online` 增加可主动发起网络请求的工具。导入标识需要 write + online；`annotation_add` 的机器翻译分支另需 online，传人工译文可离线。`paper_discover` 需 online，公开的 profile 由管理员预配置。每次实际调用复核授权。
 - 论文的 TeX、PAPER.md、PDF、副本引用、布局缓存和穿过目录链接的路径都按最终资源归属授权。search 默认仅返回有界片段；未授予全文时，整页、区域原文、续读拼接与直接读资产路径受相同的正文预算约束。只读模式中的 `paper_regions` 可列区域元数据。私有管理目录及系统凭据不进入文件 API。服务只返回当前调用者可见的关系目标、路径和引用。

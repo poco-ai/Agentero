@@ -54,4 +54,4 @@ stdio 是默认传输，stdout 专用于 MCP 帧。HTTP 用 `--listen` 指定回
 
 `file_write` 默认创建文件，替换须传现有版本。文本和标准 Base64 的解码大小上限为 2 MiB。`table_query` 返回的行 ID 可直接用于更新，包含尚未分配登记号的旧行。新增行需要如 `trial-0003` 的登记号，前缀以 ASCII 字母开头且只含字母或数字，后缀至少四位数字。已有研究表格用行或单元格操作，论文笔记用专用写工具；系统目录、托管数据、锁定实验数据受到写保护。
 
-参数、枚举、必填条件、输出字段和权限注解见[机器可读工具契约](../../crates/agentero-core/src/ops/mcp.json)。协议与核心回归可运行 `cargo test -p agentero-mcp`。
+参数、枚举、必填条件、输出字段和权限注解见[机器可读工具契约](https://github.com/poco-ai/agentero/blob/main/crates/agentero-core/src/ops/mcp.json)。协议与核心回归可运行 `cargo test -p agentero-mcp`。

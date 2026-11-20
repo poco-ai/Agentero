@@ -6,7 +6,7 @@
 
 ## 命令与帮助
 
-`agentero` 显示根帮助，`agentero paper` 显示该分组的命令。每一级支持 `-h`、`--help` 和 `help <命令路径>`。`agentero help paper note --json` 给出该子树的操作、参数、示例和结果类型。所有帮助页由与命令解析器相同的目录生成。[逐级命令参考](../development/cli-mcp/cli-reference.md) · [机器可读命令目录](../../crates/agentero-core/src/ops/cli.json)
+`agentero` 显示根帮助，`agentero paper` 显示该分组的命令。每一级支持 `-h`、`--help` 和 `help <命令路径>`。`agentero help paper note --json` 给出该子树的操作、参数、示例和结果类型。所有帮助页由与命令解析器相同的目录生成。[逐级命令参考](../development/cli-mcp/cli-reference.md) · [机器可读命令目录](https://github.com/poco-ai/agentero/blob/main/crates/agentero-core/src/ops/cli.json)
 
 | 命令 | 用途 |
 | --- | --- |

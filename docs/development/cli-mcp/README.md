@@ -1,8 +1,8 @@
 # Agentero CLI 与 MCP 接口设计
 
-本文记录 CLI 与 MCP 的设计依据和验收场景。终端用法见 [CLI 使用说明](../../backend/cli.md)，外部客户端配置见 [MCP 使用说明](../../usage/mcp.md)。运行时的命令解析、帮助和工具清单读取同一份[命令目录](../../../crates/agentero-core/src/ops/cli.json)和[工具定义](../../../crates/agentero-core/src/ops/mcp.json)。
+本文记录 CLI 与 MCP 的设计依据和验收场景。终端用法见 [CLI 使用说明](../../backend/cli.md)，外部客户端配置见 [MCP 使用说明](../../usage/mcp.md)。运行时的命令解析、帮助和工具清单读取同一份[命令目录](https://github.com/poco-ai/agentero/blob/main/crates/agentero-core/src/ops/cli.json)和[工具定义](https://github.com/poco-ai/agentero/blob/main/crates/agentero-core/src/ops/mcp.json)。
 
-[逐级 CLI 帮助](./cli-reference.md) · [MCP 工具表与调用示例](./mcp-reference.md) · [全部工具的机器可读 schema](../../../crates/agentero-core/src/ops/mcp.json) · [在终端翻阅帮助](./preview.py)
+[逐级 CLI 帮助](./cli-reference.md) · [MCP 工具表与调用示例](./mcp-reference.md) · [全部工具的机器可读 schema](https://github.com/poco-ai/agentero/blob/main/crates/agentero-core/src/ops/mcp.json) · [在终端翻阅帮助](./preview.py)
 
 ## 从研究者的一次操作开始
 
@@ -129,4 +129,4 @@ help
 
 文档试读器可以离线浏览设计示例。实际命令请在仓库根目录运行 `cargo run -p agentero-cli -- read --help`。
 
-可复用的源码入口包括 [CLI 入口](../../../cli/src/main.rs)、[MCP 路由](../../../crates/agentero-mcp/src/operations/mod.rs)、[证据服务](../../../crates/agentero-core/src/features/evidence/mod.rs) 与 [SSH 委派边界](../A2A.md)。
+可复用的源码入口包括 [CLI 入口](https://github.com/poco-ai/agentero/blob/main/cli/src/main.rs)、[MCP 路由](https://github.com/poco-ai/agentero/blob/main/crates/agentero-mcp/src/operations/mod.rs)、[证据服务](https://github.com/poco-ai/agentero/blob/main/crates/agentero-core/src/features/evidence/mod.rs) 与 [SSH 委派边界](../A2A.md)。
