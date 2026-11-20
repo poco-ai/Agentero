@@ -64,11 +64,19 @@ export function CommentMarkdownEditor({
 					editor.getApi(MarkdownPlugin).markdown.serialize(),
 				),
 			// Radix portals the equation input outside the comment card's DOM.
-			ownsEquationPopover: (target) =>
-				target instanceof Element &&
-				target
-					.closest("[data-equation-editor]")
-					?.getAttribute("data-equation-editor") === editor.id,
+			ownsEquationPopover: (target) => {
+				const element =
+					target instanceof Text
+						? target.parentElement
+						: target instanceof Element
+							? target
+							: null;
+				return (
+					element
+						?.closest("[data-equation-editor]")
+						?.getAttribute("data-equation-editor") === editor.id
+				);
+			},
 			focusEnd: () => {
 				editor.tf.focus({ at: editor.api.end([]) });
 			},

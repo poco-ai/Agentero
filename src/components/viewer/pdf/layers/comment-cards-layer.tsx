@@ -592,7 +592,14 @@ const CommentCard = memo(function CommentCard({
 									// click-away until the editable has focus and focus has
 									// actually left the card.
 									if (!editorFocusedRef.current) return;
-									if (rootRef.current?.contains(document.activeElement)) return;
+									// Focus can already be in the portal without a relatedTarget.
+									const active = document.activeElement;
+									if (
+										rootRef.current?.contains(active) ||
+										editorHandleRef.current?.ownsEquationPopover(active)
+									) {
+										return;
+									}
 									if (cancelledRef.current) return;
 									const text = readDraft();
 									if (item.isNew && !text.trim()) {
@@ -940,6 +947,13 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 								editorHandleRef.current?.ownsEquationPopover(next))
 						)
 							return;
+						const active = document.activeElement;
+						if (
+							rootRef.current?.contains(active) ||
+							editorHandleRef.current?.ownsEquationPopover(active)
+						) {
+							return;
+						}
 						const text = readDraft();
 						if (text.trim()) {
 							commit(text);
