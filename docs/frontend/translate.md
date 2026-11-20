@@ -155,7 +155,7 @@ Settings → **翻译**：
 
 翻译 API 层仅透传已知错误码；错误展示由 `displayTranslateError` 统一本地化。API 层不导入 i18n 初始化模块，避免经 settings / services 形成循环依赖。
 
-OpenAI 兼容服务卡片把「并发数」和「额外参数」收在默认折叠的「高级」里，与 API Key / 端点 / 模型一起在「确定」时保存；额外参数格式错误时会自动展开「高级」并通过 `notifyError` 提示并保留草稿。并发数只影响全文翻译的前端批次池（1–8，默认 2），其它服务商保持固定 2，划词翻译仍是单请求，Agent 继续串行；并发数不写入 `translateServiceKey`，调整它不会让已有译文缓存失效。保留「额外参数」的原有语义：留空采用自动模型适配；填写对象后完全替代自动采样和思考配置，`{}` 不发送附加参数。`model`、`messages`、`stream` 保留给应用控制。probe 与实际翻译传递相同配置；`translateServiceKey` 包含 JSON 指纹，留空保持旧缓存 key。完整规则与最新模型行为见 [OpenAI 兼容翻译配置](../usage/translate-openai-compatible.md#并发数)。
+OpenAI 兼容服务卡片把「并发数」和「额外参数」收在默认折叠的「高级」里，与 API Key / 端点 / 模型一起在「确定」时保存；额外参数格式错误时会自动展开「高级」并通过 `notifyError` 提示并保留草稿。并发数只影响全文翻译的前端批次池（1–8，默认 2），其它服务商保持固定 2，划词翻译仍是单请求，Agent 继续串行；并发数不写入 `translateServiceKey`，调整它不会让已有译文缓存失效。保留「额外参数」的原有语义：留空采用自动模型适配；填写对象后完全替代自动采样和思考配置，`{}` 不发送附加参数。`model`、`messages`、`stream` 保留给应用控制。probe 与实际翻译传递相同配置；`translateServiceKey` 包含 JSON 指纹，留空保持旧缓存 key。模型适配规则见 [Host 翻译文档](../backend/translate.md#model-adaptation)。
 
 `buildTranslateMessages` / `buildTranslatePrompt`（Agent 路径）与 Host `openai_translate_messages`（OpenAI-compatible 路径）共用同一套约束，改一处要同步另一处：
 

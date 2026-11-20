@@ -1,161 +1,46 @@
 # 接入 Agent
 
-Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录，Agentero 负责把当前 Vault 的上下文交给它，并展示结果。Agentero **不**捆绑 Agent，也**不**要求你在应用内填写 Agent 的模型 API Key——Key 由该 Agent CLI 自己持有。
-
-> 与 ACP Agent 无关的另一条通道：官方安装包在构建时打进了内置模型凭证，覆盖翻译、arXiv 每日推荐 embedding 与 PDF 正文 OCR，在设置里选中即可用、无需填 Key。见 [用户指南 §Agent](index.md#agent)。
-
-## 支持方式
-
-通过 [Agent Client Protocol](https://agentclientprotocol.com/)（ACP）接入。常见选项：
-
-- Claude ACP
-- Codex（经 ACP 适配器）
-- Cursor Agent（原生 ACP，`cursor-agent acp`）
-- OpenCode、Qoder、Qoder CN、Grok、Kimi Code、ZCode、MiniMax Code、MiMo Code、CodeBuddy 等兼容 ACP 的 CLI（ZCode 经 `zcode-acp-server` 适配器，复用桌面版登录；Qoder CN 为大陆版 `qodercn --acp`；MiMo Code 为 `mimo acp`，npm 包 `mimocode`；CodeBuddy 为腾讯 CodeBuddy Code，`codebuddy --acp`）
-- [GenericAgent ACP](genericagent-acp.md)
-- 自定义 `command` / `args` / `env`
-
-千问办公 / QwenWork 桌面端在应用包里自带 Qoder CLI（`Contents/Resources/bin/qoderclicn`，国际版与大陆版当前内置的都是大陆版引擎），因此只装桌面端、没装独立 CLI 的机器也能直接接入 Qoder CN：PATH 上找不到 `qodercn` 时，Agentero 用应用包里的那份，PATH 安装始终优先。国际版 Qoder（`qodercli`）不会回退到这份引擎——它连的是大陆服务。桌面端登录状态与独立 CLI 共用（`~/.qoder-cn`），未登录时仍需在终端跑一次 `qodercn login`。
-
-同样的兜底也适用于 ChatGPT（内置 Codex）、WorkBuddy（内置 CodeBuddy）与 Dsh 桌面版（内置 `dsh`）：装了桌面端就不必再单独装 CLI。这类 CLI 的卡片会带「桌面内置」标记，扫一眼就能看出它不是 PATH 安装。
-
-自定义项与内置目录相同：Agentero 在当前 Vault 根目录启动你填写的命令，经标准输入/输出走 ACP。参数按空格拆分。命令本身必须是 ACP 服务（如 `opencode acp`、`grok agent stdio`），或指向一个 ACP bridge（如 `python /绝对路径/bridge.py`）。脚本和解释器请用绝对路径；图形应用的 PATH 往往和终端不一致。设置里新增或编辑自定义 Agent 时会显示同一段说明。
-
-请先按对应 Agent 的官方说明完成安装和登录。
-
-若要把当前 Vault 接到 ChatGPT 或其它 MCP 客户端（不走应用内 ACP 面板），见 [用 MCP 连接外部 Agent](mcp.md)。
-
-### 暂不直接支持的 Agent
-
-以下桌面应用目前**不能**直接作为 Agentero 的内嵌 Agent 使用：
-
-| 应用 | 当前状态 | 说明 |
-|---|---|---|
-| **OpenAI Codex 桌面版** | 不支持 | Agentero 通过 ACP 接入的是 **Codex CLI**（命令行版）+ `@agentclientprotocol/codex-acp` 适配器；独立的 Codex 桌面 App 未暴露可被 Agentero 连接的 ACP/MCP 接口。 |
-| **WorkBuddy（腾讯）** | 通过内置 CLI 接入 | WorkBuddy 桌面端自带 CodeBuddy CLI（`WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy`），Agentero 在 PATH 上没有 `codebuddy` 时直接用它（`codebuddy --acp`）。 |
-
-如果你希望这些应用操作 Vault，可参考：
-
-- **Codex**：安装 Codex CLI 并通过 `codex-acp` 接入（见上表）。`codex-acp` 是 Node 包；Codex 自身的官方安装器只安装 host CLI，不能替代它，所以 Agentero 的 Codex 接入仍需要 Node.js/npm。
-
-  Codex 有 32KB 的指令预算（`project_doc_max_bytes`）。告警里的合计字节会把全局指令（`~/.codex/AGENTS.md`、`~/.codex/AGENTS.override.md`）和 thread 指令也算进去，不一定是当前 Vault 的 `AGENTS.md` 超限。项目文件本身会被截到这个上限，所以合计到 70KB 以上时，先用 `wc -c ~/.codex/AGENTS.md ~/.codex/AGENTS.override.md` 看全局文件，不必因此改 Vault 模板。Agentero 把这类告警显示成可关闭的通知，不放进对话正文。
-
-- **WorkBuddy**：暂无可行接入方式；如 WorkBuddy 后续提供兼容 ACP 的 CLI/bridge，可尝试「自定义 `command` / `args` / `env`」，但未经官方测试。
+连接 Agent 后，你可以在阅读论文时提问、整理资料或修改笔记。Agentero 通过 ACP 连接已安装并登录的 Agent；Agent 的模型账号和 API Key 由 Agent 自己管理。
 
 ## 添加 Agent
 
-1. 打开 **Settings**（`⌘,`）。
-2. 如本机网络需要代理，在 **Settings → General → Network proxy** 配置；该配置同时用于论文、翻译、引用等 Host 请求和 Agent 对话。
-3. 进入 **Agent**。
-4. 查看自动探测结果，或新增自定义 Agent。
-5. 检查可执行文件路径与参数。
-6. 选择默认 Agent。
-7. 发起一次测试对话，确认能访问当前 Vault。
+![Agent 设置中的默认 Agent 和安装状态](../assets/agent-setting.png)
 
-若终端里能跑、应用内探测不到：图形应用的 PATH 可能与 shell 不同，请填写**绝对路径**。远程 Vault 时，Agent 装在**服务器**上，见 [打开远程 Vault](remote-vault.md)。
+1. 按所选 Agent 的官方说明安装并登录。Agentero 支持 Claude ACP、Codex（通过 ACP 适配器）、Cursor Agent、OpenCode 等兼容 ACP 的命令行工具，也可以添加自定义 Agent。
+2. 打开 **设置 → Agent**，查看自动探测结果，或添加自定义 Agent。
+3. 检查命令和参数，选择默认 Agent，然后在 Agent 面板发一条消息测试。
 
-## 卸载 Agent
+部分桌面应用自带 CLI，例如 ChatGPT 自带 Codex、WorkBuddy 自带 CodeBuddy。Agentero 可以通过这些 CLI 接入，设置中会显示「桌面内置」。应用本身并非 ACP Agent。
 
-1. 打开 **Settings → Agent**，在已安装或已注册的 Agent 行点 **Trash** 按钮。
-2. 确认对话框展示该 Agent 的 logo 与将要执行的清理项：
-   - Agentero 静默安装的 npm 全局包（如 `@opencode/cli`、`@anthropic-ai/claude-code`、`@minimax-ai/code`、`@qoder-ai/qodercli`、`@qodercn-ai/qoderclicn` 等）逐个 `npm uninstall -g`；OpenCode 会额外清理旧版 `opencode-ai`。
-   - Agentero 管理的目录（Kimi Code 的 `~/.kimi-code`、dsh 旧方案的遗留 `~/.agentero/dsh-acp`）整体删除。
-  - CodeBuddy 官方脚本安装会删除 `~/.local/bin/codebuddy`（Unix）或 `%USERPROFILE%\AppData\Local\codebuddy\bin`（Windows），保留 `~/.codebuddy` 里的登录和配置。
-   - Qoder CLI 官方脚本安装会删除 `~/.qoder/bin/qodercli`、`~/.qoder/entry`，以及 `~/.local/bin/qodercli` 这个链接（不删除整个 `~/.local/bin`）。
-   - Qoder CN 官方脚本安装会删除 `~/.qoder-cn/bin/qoderclicn`、`~/.qoder-cn/entry`，以及 `~/.local/bin/qoderclicn` 这个链接。
-3. 确认后行内显示卸载进度；npm 卸载失败或命令仍可解析时会明确报错，不会再把失败显示为完成。成功后注册项一并移除，行回到「未安装」状态。
+自定义 Agent 的命令必须是 ACP 服务或 ACP bridge。Agentero 从当前 Vault 根目录启动它；脚本和解释器建议使用绝对路径，因为桌面应用的 PATH 可能与终端不同。GenericAgent 的配置示例见[接入 GenericAgent ACP](genericagent-acp.md)。
 
-清理范围与保留项：
+远程 Vault 使用服务器上安装的 Agent，见[打开远程 Vault](remote-vault.md)。如果想让外部客户端访问 Vault，见 [MCP 指南](mcp.md)。
 
-- **不清理**：Homebrew 安装的 CLI、shell 配置中官方 installer 写入的 PATH 行、Agent 会话历史（包括 `~/.qoder` / `~/.qoder-cn` 里的登录和会话）。除上面列出的 Qoder 系列脚本安装文件外，其它官方脚本安装的 CLI 无法可靠定位，保留。
-- **ZCode**：只清理 `zcode-acp-server` ACP 适配器；ZCode 桌面应用、其登录状态和 `~/.zcode` 数据始终保留。
-- **仅移除注册项**：对没有可管理卸载路径的 Agent（如 Hermes、纯 PATH 探测到的 CLI），对话框会注明只删 Agentero 注册项，磁盘文件不动。
-- **自定义 Agent**：走同一确认对话框，但只移除注册项（自定义 Agent 的二进制由用户自管）。
+## 开始对话
+
+1. 打开一篇论文，再打开右侧 **Agent** 面板。
+2. 输入问题。当前论文默认加入上下文；可移除它，也可以用 `@` 提及文件或从文件树拖入文件。
+3. Agent 修改笔记后，在 Diff 中检查更改，选择保留或撤销。
+
+回复进行时可以继续输入，后续消息会排队发送。**设置 → Agent** 中还可以填写个人偏好提示词，留空则不注入。
+
+## 权限与精读
+
+在 **设置 → Agent** 中选择全局权限模式：受限、每次询问或自动批准。初次使用时可选择每次询问，检查 Agent 请求的操作。
+
+要精读论文，在文件树中点击符合条件的未读论文旁的精读图标，等待后台任务完成后检查 `NOTES.md`。精读需要本地 PDF，以及 TeX、`PAPER.md` 等可读正文。设置中的自动精读默认关闭；开启后，魔棒入库或单篇下载完成时可自动启动，批量导入或批量下载不会逐篇自动精读。精读 Agent 和模型可在设置中单独指定。
 
 ## 使用 Skill
 
-Agentero 的 Skill 是放在 Vault `.agents/skills/<name>/` 下的 prompt 包，含 `SKILL.md` 与可选的 `scripts/`、`references/`、`assets/`。
+Skill 保存在 Vault 的 `.agents/skills/<name>/`，入口是 `SKILL.md`。可以复制 GitHub Skill 链接或 `npx skills add <repo> --skill <name>`，打开魔棒粘贴，在选择窗口确认安装。已安装的 Skill 不会被覆盖。
 
-侧栏把库根的 `AGENTS.md` 和 `.agents/` 收成一行 **Agent**。展开后第一行是 `AGENTS.md`，下面每个技能显示 frontmatter 里的 `name`。单击技能打开它的 `SKILL.md`。磁盘上的路径不变。
-
-Claude Code 只读项目内的 `.claude/skills/`：检测到 `claude` CLI 时，Agentero 会自动创建 `.claude/skills → ../.agents/skills` 链接，无需手动复制，新建/删除 Skill 自动同步。若你在 Vault 里已有自己的 `.claude/skills` 目录，则保持原样、不做链接。
-
-### 安装 Skill
-
-1. 复制 GitHub Skill 链接，或 `npx skills add <repo> --skill <name>` 文本。
-2. 打开魔棒（`⇧⌘I`）并粘贴。
-3. 在弹出的选择窗口中勾选要安装的 Skill；已安装的会标记出来，不会被覆盖。
-4. 确认后 Skill 写入 `.agents/skills/<name>/`，即可在 Agent 工作流中使用。
-
-Skill 来源不受 Agentero 审计，安装第三方 Skill 等于引入外部指令，请自行判断信任度。
-
-### 运行 Skill
-
-在 Agent 面板 Composer 中按 Agent 约定触发：Claude 用 `/skill-id`，其他 Agent 由 `SKILL.md` 自动注入。具体写法见 Skill 自身的 `SKILL.md`。
-
-Pi 只有在信任 Vault 后才会加载项目内的 `.agents/skills` 和 `.pi/*`。未信任时 Pi 面板输入框上方会显示提示；点「信任此 Vault」会写入 `~/.pi/agent/trust.json`，下一条消息起生效。也可以先在 pi 自己的 TUI 里信任该目录：回到 Agentero 后提示会自动消失，下一轮会重新启动 pi 进程并加载 Skill。
-
-## 第一次对话
-
-1. 打开一篇论文（默认 PDF | NOTES 分屏）。
-2. 打开右侧 **Agent** 面板。
-3. 直接提问，或点空状态建议 chips（Summarize、Ask library、Draft Related Work 等）。
-4. 当前论文默认加入上下文（可 X 移除）；也可用 `@` 提及路径，或从文件树拖入。
-5. 运行中仍可继续输入：后续消息进队列，当前回复结束后自动发送。
-6. 若 Agent 改了笔记，在统一 Diff 中选择 Keep 或 Revert。
-
-可选：**个人偏好提示词**（Settings → Agent → `agentPersonalPrompt`）会注入工作流 envelope；留空则不注入。
-
-## 权限模式
-
-Settings → Agent → 全局权限模式（对所有 Agent 生效，非 per-provider YOLO）：
-
-| 模式 | 适合场景 |
-|---|---|
-| 受限（默认） | 限制写入与敏感操作 |
-| 每次询问 | 每个权限请求弹窗确认 |
-| 自动批准 | 已信任 Agent 与 Vault，追求连续效率 |
-
-建议第一次用 **每次询问**，确认行为后再切换。
-
-## 让 Agent 精读论文
-
-前提：本地 PDF，且有 TeX 或 `PAPER.md` 等可读正文。
-
-### 手动精读
-
-1. 文件树中找到资源齐全且未读（`is_read === false`）的论文。
-2. 点击论文行上的 **精读图标**。
-3. 等待左下角后台任务完成。
-4. 打开 `NOTES.md` 检查结果。
-
-### 自动精读
-
-Settings → Agent 开启 **自动精读**（`autoPaperReader`，默认关）。魔棒入库或单篇 Download 资源就绪后可自动启动。**批量**导入 / 批量 Download **不会**连跑精读。
-
-### 选择精读用的模型
-
-Settings → Agent → **精读论文** 可单独指定「精读 Agent」与「精读模型」，与「PDF 划词提问」互不影响。留空则跟随默认 Agent 及其上次在输入区选择的模型；若两者都未确定，精读会使用 Agent CLI 自身的默认模型（例如 OpenCode 的免费 Zen 模型，额度用尽时报 `Free usage limit reached`），此时在该处显式选一个模型即可。
+在 Agent 对话中按所用 Agent 的方式调用 Skill。第三方 Skill 包含外部指令，安装前请判断来源是否可信。Claude Code 检测到后，Agentero 会在没有现有 `.claude/skills` 目录时为它创建指向 Vault Skill 目录的链接；Pi 则需要先信任 Vault 才会加载项目 Skill。
 
 ## 常见问题
 
-### 探测失败
+- **找不到 Agent**：确认命令已安装并登录；终端可用但应用探测不到时，尝试在设置中填写绝对路径。
+- **无法修改笔记**：检查权限模式。远程 Vault 还需要确认 Agent 在服务器上运行，并能访问 Vault。
+- **不希望修改笔记**：使用受限或每次询问模式；收到写入请求时可以拒绝。
+- **精读使用了不想要的模型**：在设置的「精读论文」中指定 Agent 和模型；留空时跟随默认 Agent 及其模型选择。
 
-确认命令已安装、当前用户可在终端执行，并在设置中填正确路径。Node 全局安装时检查全局 bin 是否在应用 PATH 中。
-
-### 能回答但不能写 NOTES.md
-
-检查权限模式与工作目录。远程 Vault 上 Agent 必须以远端 Vault 根为 cwd。
-
-### 不想让 Agent 改笔记
-
-用受限模式，或在每次询问时拒绝写入。写入后可走 Diff 审阅。
-
-### 消息发不出去 / 输入法
-
-中文等输入法组字时按 Enter 不应误发送；刚打开 Agent 侧边栏后立即语音输入时，首段文本也不应被草稿初始化覆盖。若仍异常，请更新到最新版本。
-
-## 下一步
-
-- [阅读、标注与整理](read-and-organize.md)（划词提问与翻译）
-- [打开远程 Vault](remote-vault.md)
+可在设置的 Agent 行中卸载或移除注册项。确认对话框会列出清理范围；自定义 Agent 只移除注册项，其程序由用户管理。

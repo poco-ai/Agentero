@@ -1,30 +1,23 @@
-# Agentero 文档
+# Agentero 用户指南
 
-Agentero 是一个基于 Tauri 2 + React 19 的本地优先科研工作台。
+Agentero 帮你在本地保存论文、阅读 PDF、整理笔记，也可以连接 Agent 辅助研究。论文和笔记保存在你选择的 Vault 文件夹中。
 
 ## 开始使用
 
-- [快速上手](usage/index.md)
-- [安装与首次使用](usage/getting-started.md)
-- [导入和管理论文](usage/import-papers.md)
-- [阅读、标注与整理](usage/read-and-organize.md)
-- [接入 Agent](usage/agents.md)
-- [用 MCP 连接外部 Agent](usage/mcp.md)
-- [使用 Zotero Connector](usage/zotero.md)
+第一次使用？从[安装与创建 Vault](usage/getting-started.md)开始，然后[导入论文](usage/import-papers.md)并[阅读和标注](usage/read-and-organize.md)。
 
-## 按模块阅读
+## 按需要查找
 
-- [架构总览](architecture.md)：整体架构、工作台布局、核心工作流与数据流。
-- [前端文档](frontend/index.md)：工作台、文件树、论文库、Markdown、PDF 与 Agent UI。
-- [后端文档](backend/index.md)：Host、Vault、Catalog、使用记录、导入与 API 契约。
-- [测试与发布](test/index.md)：验证策略和发布前检查。
-- [开发草稿](development/index.md)：尚未实现的设计稿，以及仍要对照实现的设计记录。
+| 我想…… | 查看 |
+|---|---|
+| 连接 Agent，与论文对话 | [接入 Agent](usage/agents.md) |
+| 配置翻译服务或了解内置服务的数据使用 | [翻译设置与数据](usage/translate-openai-compatible.md) |
+| 同步资料、订阅论文或写作 | [同步、发现与写作](usage/more-features.md) |
+| 从浏览器保存论文 | [Zotero Connector](usage/zotero.md) |
+| 连接外部工具 | [MCP](usage/mcp.md) |
+| 打开服务器上的资料 | [远程 Vault](usage/remote-vault.md) |
+| 在 iPhone 上访问资料 | [移动端](usage/mobile.md) |
 
-## 推荐入口
+想了解更多入口，请查看[用户指南目录](usage/index.md)。有其他问题，也可以在 [GitHub Issues](https://github.com/poco-ai/agentero/issues) 中搜索或反馈。
 
-- [魔棒入库与 Identifier Lookup](backend/identifier-lookup.md)
-- [论文入库](backend/paper-import.md)
-- [Catalog](backend/catalog.md)
-- [Agent Host](backend/agent.md)
-- [Dockview 工作区](frontend/workspace.md)
-- [PDF 阅读与划词](frontend/pdf.md)
+开发者可以在 [GitHub 仓库的 docs 目录](https://github.com/poco-ai/agentero/tree/main/docs)查看架构、实现和测试文档。

@@ -27,7 +27,27 @@
 
 ## OpenAI-compatible 额外参数
 
-OpenAI-compatible 的 `TranslateTextArgs.extraRequestBody` 是可选 JSON 对象字符串，持久化在 `settings.translate.providerConfigs.openaiCompatible.extraRequestBody`，由前端 probe / 商用翻译服务显式传递。Host 的 `apply_request_options` 在空白时保留模型默认参数；非空时只保留 `model` / `messages`，再加入用户 JSON，彻底替换所有自动采样和思考配置。`{}` 表示不发送附加参数；嵌套值及 `null` 原样透传。保留 `model` / `messages` / `stream`，出现这些字段或非法 JSON 时在发 HTTP 前报错；错误码 `translate.extra_parameters_invalid` / `translate.extra_parameters_reserved` 由前端本地化。其他 provider 不使用该字段。当前型号规则及官方依据见 [配置说明](../usage/translate-openai-compatible.md#自动模型适配)。
+OpenAI-compatible 的 `TranslateTextArgs.extraRequestBody` 是可选 JSON 对象字符串，持久化在 `settings.translate.providerConfigs.openaiCompatible.extraRequestBody`，由前端 probe / 商用翻译服务显式传递。Host 的 `apply_request_options` 在空白时保留模型默认参数；非空时只保留 `model` / `messages`，再加入用户 JSON，彻底替换所有自动采样和思考配置。`{}` 表示不发送附加参数；嵌套值及 `null` 原样透传。保留 `model` / `messages` / `stream`，出现这些字段或非法 JSON 时在发 HTTP 前报错；错误码 `translate.extra_parameters_invalid` / `translate.extra_parameters_reserved` 由前端本地化。其他 provider 不使用该字段。
+
+<a id="model-adaptation"></a>
+
+### 自动模型适配
+
+模型输入框接受任意模型 ID。以下是留空额外参数时的自动行为（官方资料核对于 2026-11-09）；第三方网关可能使用不同格式，可用额外参数覆盖自动配置。
+
+| 模型 | 自动行为 |
+|---|---|
+| DeepSeek `deepseek-flash`（当前 V4.1）、V4 / V4.1 系列 | `thinking: {"type":"disabled"}` |
+| Kimi K2.5 / K2.6 | 关闭思考；不发送 temperature，遵循服务端固定值 |
+| Kimi K3 / K3.1、MiniMax M3.1-Flash | `reasoning_effort: "low"`，不强行关闭思考，不发送 temperature |
+| GLM-5.3 / GLM-5.3-Flash | `reasoning_effort: "low"`，不强行关闭思考 |
+| GLM-4.5 / 4.6 / 4.7 / 5 / 5.1 / 5.2、MiniMax M3 | 关闭思考；MiniMax M3 不发送 temperature |
+| Qwen3 / 3.5 / 3.6 / 3.7 / 3.8 混合思考型号、qwen-plus / qwen-flash 当前别名 | `enable_thinking: false` |
+| Kimi K2.7 Code、DeepSeek R1、MiniMax M2、QwQ、Qwen 专用 Thinking / Instruct 快照及已知强制思考型号 | 不注入不支持的关闭参数；Kimi K2.7 不发送 temperature |
+
+Qwen Omni 的思考协议不同，不自动注入思考参数。以上不代表所有模型都能关闭思考，也不保证仅支持流式输出的服务可用于当前非流式翻译。旧 `deepseek-chat` 别名仍留给第三方服务解释，官方接入应使用其当前模型 ID。
+
+依据：[DeepSeek 模型](https://api-docs.deepseek.com/quick_start/pricing/)、[DeepSeek 思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)、[Kimi 参数约束](https://platform.kimi.ai/docs/api/models-overview)、[GLM Chat Completions](https://docs.z.ai/api-reference/llm/chat-completion)、[MiniMax OpenAI 兼容接口](https://platform.minimax.io/docs/api-reference/text-openai-api)、[百炼深度思考型号与限制](https://help.aliyun.com/en/model-studio/deep-thinking)。
 
 ## 内置 provider（Hunyuan-MT）
 

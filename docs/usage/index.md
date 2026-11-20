@@ -1,61 +1,26 @@
 # Agentero 用户指南
 
-面向第一次使用 Agentero 的研究者。不需要先了解 Tauri、ACP 或 Catalog；按目标选一篇即可。
+## 从第一篇论文开始
 
-## 核心工作方式
+1. [安装 Agentero，创建或打开 Vault](getting-started.md)。Vault 是保存资料的文件夹。
+2. [导入论文](import-papers.md)，在 Library 中查看和管理。
+3. [阅读 PDF、标注并写笔记](read-and-organize.md)。
 
-1. 用 **Vault**（普通文件夹）保存论文、PDF、Markdown 笔记和阅读标注。
-2. 用 **Library** 浏览论文列表，用文件树访问原始文件。
-3. 用 PDF 阅读器完成高亮、批注、提问和翻译；用 NOTES 整理阅读结果。
-4. 按需连接已安装的 **Agent**（BYOA），在当前 Vault 中总结、问答或整理笔记。
+## 连接 Agent 和其他工具
 
-## 推荐路径
-
-| 你想做什么 | 教程 |
+| 目标 | 指南 |
 |---|---|
-| 第一次使用 | [安装与首次使用](getting-started.md) |
-| 保存 DOI / arXiv / 本地 PDF / 浏览器论文 | [导入和管理论文](import-papers.md) |
-| 读 PDF、高亮、批注、写 NOTES | [阅读、标注与整理](read-and-organize.md) |
-| 接 Claude / Codex 等 ACP Agent | [接入 Agent](agents.md) |
-| 接 GenericAgent ACP | [接入 GenericAgent ACP](genericagent-acp.md) |
-| 配置 OpenAI 兼容翻译 | [配置 OpenAI 兼容翻译](translate-openai-compatible.md) |
-| 把 Vault 接到 ChatGPT / Codex MCP | [用 MCP 连接外部 Agent](mcp.md) |
-| 用 iPhone 连接桌面 Vault | [移动端](mobile.md) |
-| 用浏览器 Zotero Connector 保存 | [使用 Zotero Connector](zotero.md) |
-| 打开服务器上的研究资料库 | [打开远程 Vault](remote-vault.md) |
+| 同步资料、订阅论文或写作 | [同步、发现与写作](more-features.md) |
+| 连接 Claude、Codex 等 Agent | [接入 Agent](agents.md) |
+| 连接 GenericAgent ACP | [接入 GenericAgent ACP](genericagent-acp.md) |
+| 配置自己的翻译接口 | [OpenAI 兼容翻译](translate-openai-compatible.md) |
+| 从浏览器保存论文 | [Zotero Connector](zotero.md) |
+| 让外部 Agent 访问 Vault | [MCP](mcp.md) |
+| 打开远程服务器上的 Vault | [远程 Vault](remote-vault.md) |
+| 用 iPhone 访问桌面 Vault | [移动端](mobile.md) |
 
-## 三个概念
+## 资料存在哪里
 
-### Vault
+Vault 是普通文件夹，包含论文、PDF 和 Markdown 笔记。PDF 标注保存在论文目录的 `marks/` 中，原始 PDF 不会被标注改写。Library 的论文元数据保存在 Vault 内的 `.agentero/catalog.sqlite`。建议定期备份整个 Vault，包括这个数据库。
 
-普通文件夹。`papers/`、`NOTES.md`、PDF、`marks/` 等都在其中；离开 Agentero 仍可用编辑器、终端或 Git 访问。
-
-### Library
-
-根据 catalog 生成的论文列表。排序、标签与元数据来自 `.agentero/catalog.sqlite`；笔记正文以 Vault 内普通文件为准。
-
-### Agent
-
-Agentero **不**捆绑 Agent，也**不**代管 Agent 的模型 API Key。通过 ACP 连接你本机或远程服务器上已安装并登录的 Agent，Key 由该 Agent CLI 自己持有。权限由设置中的全局权限模式控制。
-
-与 Agent 分开的是**内置模型服务**：官方发布的安装包在构建时打进了一套网关凭证，覆盖三条能力——划词与全文**翻译**、arXiv 每日推荐的 **embedding**、无 TeX 时的 PDF **正文 OCR**。在设置里选中「Agentero 内置」即可用，不需要你填 Base URL / API Key / Model。**ACP 对话不走这条通道**，它仍然只连你自己的 Agent。
-
-这三条能力会把相应内容（选区或整篇正文、库内论文标题与摘要、PDF 页面图）发到内置网关；不希望外发时，在设置里把翻译服务换成免费引擎或已登录的 Agent、把 Embedding 来源切到「自定义接口」并留空、把正文解析引擎换回本地即可。
-
-## 使用边界（当前）
-
-- 内置模型服务只在**构建时注入了凭证**的安装包里出现（官方 Release 有）。自己从源码构建或 CI 产物没有该凭证时，设置里的「Agentero 内置」选项隐藏或禁用，翻译回落免费引擎、正文解析回落本地 liteparse、arXiv 每日推荐在没填自定义 embedding 端点时不运行。
-- 桌面平台：macOS 12.0+；Linux 需 Ubuntu **22.04+**（webkit2gtk 4.1）。详见 [安装与首次使用](getting-started.md)。
-- 远程 Vault：macOS / Linux 客户端可用；Windows 客户端暂不支持打开远程 Vault。
-- Zotero Connector 与 Zotero 桌面端不能同时占用本机 `23119` 端口。
-- Connector 支持保存条目与 PDF 附件；网页快照等能力未覆盖。
-- PDF 标注在 `marks/` 中，不改写原始 PDF。
-- 自动精读（paper-reader）默认关闭，需在设置中开启。
-- 文献引用近邻图已可用（References 下方）；Connected Papers 式多跳布局与广场发现流仍在规划中。
-- **Agent 接入**：支持 Claude ACP、Codex CLI（经 `codex-acp` 适配器）、OpenCode 等 ACP CLI；OpenAI Codex 桌面版、WorkBuddy 等桌面应用暂不直接支持。详见 [接入 Agent](agents.md)。
-
-## 开发者文档
-
-若要改代码或理解实现：
-
-- [前端](../frontend/index.md) · [后端](../backend/index.md)
+Agentero 通过 ACP 连接你安装并登录的 Agent，Agent 的模型密钥由对应的 Agent CLI 管理。连接方式和权限设置见[接入 Agent](agents.md)。

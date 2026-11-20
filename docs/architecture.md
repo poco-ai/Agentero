@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # 架构总览
 
 Agentero 基于 Tauri 2 + React 19，本地优先，Vault 文件与 Catalog SQLite 为事实来源。
