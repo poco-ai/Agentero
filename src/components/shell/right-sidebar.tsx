@@ -14,7 +14,7 @@ import {
 } from "@/hooks/use-app-stores";
 import { cn } from "@/lib/core/utils";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
-import { setRightSidebarTab } from "@/lib/shell/ui-store";
+import { setAgentPanelMounted, setRightSidebarTab } from "@/lib/shell/ui-store";
 import { openCitation } from "@/lib/workspace/actions";
 
 // The Agent panel is lazy-loaded: it isn't mounted until the agent sidebar is
@@ -65,39 +65,37 @@ export function RightSidebar() {
 
 	// Singleton feature windows own the surface — do not also host in the rail.
 	const agentInWindow = Boolean(featurePoppedOut.agent);
+	const agentVisible =
+		!agentInWindow && rightSidebarOpen && rightSidebarTab === "agent";
+	useEffect(() => {
+		if (agentVisible) setAgentPanelMounted(true);
+	}, [agentVisible]);
 
 	return (
 		<>
 			{/* Keep AgentPanel alive when switching rail tabs, but never while
 			    the agent singleton window is open. */}
-			{!agentInWindow &&
-				(agentPanelMounted ||
-					(rightSidebarOpen && rightSidebarTab === "agent")) && (
-					<div
-						className={cn(
-							"h-full min-h-0",
-							(!rightSidebarOpen || rightSidebarTab !== "agent") && "hidden",
-						)}
-					>
-						<Suspense fallback={null}>
-							<AgentPanel
-								vaultPath={vaultPath}
-								selectedPath={selectedPath}
-								selectedPaperTitle={selectedPaperTitle}
-								vaultMarkdownPaths={vaultMdFiles}
-								vaultDirectoryPaths={vaultDirPaths}
-								vaultPaperPaths={vaultPaperPaths}
-								paperMetaByRelPath={paperMetaByRelPath}
-								paperTreeLabelMode={paperTreeLabelMode}
-								className="min-h-0 h-full"
-								title={t("labels.agent")}
-								autoFocus={rightSidebarOpen && rightSidebarTab === "agent"}
-								onOpenAgentSettings={onOpenAgentSettings}
-								onOpenSource={handleAgentOpenSource}
-							/>
-						</Suspense>
-					</div>
-				)}
+			{!agentInWindow && (agentPanelMounted || agentVisible) && (
+				<div className={cn("h-full min-h-0", !agentVisible && "hidden")}>
+					<Suspense fallback={null}>
+						<AgentPanel
+							vaultPath={vaultPath}
+							selectedPath={selectedPath}
+							selectedPaperTitle={selectedPaperTitle}
+							vaultMarkdownPaths={vaultMdFiles}
+							vaultDirectoryPaths={vaultDirPaths}
+							vaultPaperPaths={vaultPaperPaths}
+							paperMetaByRelPath={paperMetaByRelPath}
+							paperTreeLabelMode={paperTreeLabelMode}
+							className="min-h-0 h-full"
+							title={t("labels.agent")}
+							autoFocus={agentVisible}
+							onOpenAgentSettings={onOpenAgentSettings}
+							onOpenSource={handleAgentOpenSource}
+						/>
+					</Suspense>
+				</div>
+			)}
 		</>
 	);
 }
