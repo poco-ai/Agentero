@@ -176,6 +176,67 @@ function rectArea(rects: readonly SentenceFractionRect[]): number {
 	return area;
 }
 
+/**
+ * Duplicate detections clip their text at the bbox edge, so the tail of their
+ * sentence list is a cut-off prefix of the real block's list ("… in" where the
+ * full block says "… involves …"). Hover resolves the smallest sentence box,
+ * so such a fragment would beat the real block and light only part of the
+ * sentence. Drop it while resolving the pointer.
+ */
+function foldQuote(text: string): string {
+	return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/** Share of `inner` covered by `outer`. */
+function bboxCoverage(
+	inner: ElementSentenceHit["rects"][number],
+	outer: ElementSentenceHit["rects"][number],
+): number {
+	const area = Math.max(0, inner.w) * Math.max(0, inner.h);
+	if (area <= 0) return 0;
+	const width =
+		Math.min(inner.x + inner.w, outer.x + outer.w) - Math.max(inner.x, outer.x);
+	const height =
+		Math.min(inner.y + inner.h, outer.y + outer.h) - Math.max(inner.y, outer.y);
+	if (width <= 0 || height <= 0) return 0;
+	return (width * height) / area;
+}
+
+function quoteListIsTruncatedPrefix(
+	inner: readonly { quote: string }[],
+	outer: readonly { quote: string }[],
+): boolean {
+	if (inner.length === 0 || inner.length >= outer.length) return false;
+	for (let index = 0; index < inner.length - 1; index++) {
+		if (
+			foldQuote(inner[index]?.quote ?? "") !==
+			foldQuote(outer[index]?.quote ?? "")
+		) {
+			return false;
+		}
+	}
+	const tail = foldQuote(inner.at(-1)?.quote ?? "");
+	const outerTail = foldQuote(outer[inner.length - 1]?.quote ?? "");
+	return tail.length > 0 && outerTail.startsWith(tail);
+}
+
+function isTruncatedDuplicate<T extends SentenceItem>(
+	item: T,
+	items: readonly T[],
+): boolean {
+	const box = item.bbox;
+	if (!box || !(box.w > 0) || !(box.h > 0)) return false;
+	return items.some(
+		(other) =>
+			other !== item &&
+			other.pageIndex === item.pageIndex &&
+			other.bbox != null &&
+			other.bbox.w * other.bbox.h > box.w * box.h &&
+			bboxCoverage(box, other.bbox) >= 0.9 &&
+			quoteListIsTruncatedPrefix(item.sentences ?? [], other.sentences ?? []),
+	);
+}
+
 const sentenceHitBandCache = new WeakMap<
 	readonly (readonly SentenceFractionRect[])[],
 	SentenceFractionRect[][]
@@ -278,7 +339,7 @@ export function elementSentenceAtPoint(options: {
 			options.pageIndex,
 			options.x,
 			options.y,
-		);
+		).filter((entry, _index, list) => !isTruncatedDuplicate(entry, list));
 		const hits = candidates.flatMap((entry) => {
 			const result = elementSentenceAtPoint({
 				...options,
