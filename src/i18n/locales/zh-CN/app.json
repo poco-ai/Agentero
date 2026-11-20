@@ -8,6 +8,12 @@
 		"untitled": "未命名",
 		"remoteArxiv": "远程 arXiv"
 	},
+	"pathBar": {
+		"openFolder": "打开文件夹",
+		"openWith": "打开方式",
+		"default": "默认",
+		"openLinks": "打开链接"
+	},
 	"commandPalette": {
 		"title": "快速打开",
 		"placeholder": "搜索论文、笔记和表格…",

@@ -13,14 +13,18 @@ import {
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { OpenWithMenu } from "@/components/workspace/open-with-menu";
 import { useLibraryStore, useVaultStore } from "@/hooks/use-app-stores";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
+import { isTauri } from "@/lib/core/tauri";
 import {
 	isPaperDirectory,
 	isUnderPapers,
 	type PaperMetadata,
 } from "@/lib/paper";
+import { arxivUrls } from "@/lib/paper/arxiv";
 import { joinVaultPath, treeFindNode, vaultRelativePath } from "@/lib/vault";
+import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import type { FileNode } from "@/lib/vault/types";
 import {
 	openFolderLibrary,
@@ -105,9 +109,22 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 
 	if (!crumbs) return null;
 
+	// The Host can only open local paths, so hide the control for remote vaults
+	// and virtual (`agentero:`) tabs. The breadcrumb truncates; this stays fixed.
+	const showOpenWith =
+		isTauri() &&
+		!isRemoteVaultHandle(vaultPath) &&
+		!tab.path.startsWith("agentero:");
+	const paperMeta = tab.paperMeta;
+	const pdfUrl = paperMeta?.pdf_url?.trim() || null;
+	const htmlUrl = paperMeta?.html_url?.trim() || tab.htmlUrl || null;
+	const arxivId = paperMeta?.arxiv_id
+		? (arxivUrls(paperMeta.arxiv_id)?.id ?? null)
+		: null;
+
 	return (
-		<div className="flex h-9 min-w-0 shrink-0 items-center overflow-hidden border-b border-border/50 px-3 select-none">
-			<Breadcrumb className="w-full min-w-0">
+		<div className="flex h-9 min-w-0 shrink-0 items-center gap-2 overflow-hidden border-b border-border/50 px-3 select-none">
+			<Breadcrumb className="min-w-0 flex-1">
 				<BreadcrumbList className="min-w-0 flex-nowrap gap-1 text-xs">
 					{crumbs.folders.map((folder, index) => {
 						const children = folder.children ?? [];
@@ -197,6 +214,14 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
+			{showOpenWith ? (
+				<OpenWithMenu
+					path={tab.path}
+					pdfUrl={pdfUrl}
+					htmlUrl={htmlUrl}
+					arxivId={arxivId}
+				/>
+			) : null}
 		</div>
 	);
 }

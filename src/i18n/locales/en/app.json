@@ -8,6 +8,12 @@
 		"untitled": "Untitled",
 		"remoteArxiv": "Remote arXiv"
 	},
+	"pathBar": {
+		"openFolder": "Open folder",
+		"openWith": "Open with",
+		"default": "Default",
+		"openLinks": "Open links"
+	},
 	"commandPalette": {
 		"title": "Quick open",
 		"placeholder": "Search papers, notes, and tables…",

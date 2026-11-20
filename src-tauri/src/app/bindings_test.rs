@@ -231,6 +231,8 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::agent::commands::remote_agent_open_install_terminal,
             crate::app::terminal::commands::path_open_in_terminal,
             crate::app::terminal::commands::terminal_apps_probe,
+            crate::app::open_with::commands::path_open_with_apps,
+            crate::app::open_with::commands::path_open_with,
             crate::app::window::commands::window_new,
             crate::app::window::commands::settings_window_open,
             crate::app::window::commands::feature_window_open,

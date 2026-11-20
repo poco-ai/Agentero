@@ -21,6 +21,8 @@ mod workspace_cli;
 pub mod finder_service;
 pub use crate::features::open_request;
 #[cfg(not(target_os = "ios"))]
+pub mod open_with;
+#[cfg(not(target_os = "ios"))]
 pub mod terminal;
 #[cfg(not(target_os = "ios"))]
 pub mod window;
