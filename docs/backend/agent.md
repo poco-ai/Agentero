@@ -5,7 +5,7 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
 ## 协议与运行时
 
 - Crate：`agent-client-protocol` 5.4（稳定 v1 线协议，不启用实验性 v2）。
-- Quick Chat 和侧边栏的论文上下文走同一解析器。本地会话在 `session/new`、`session/resume`、`session/load` 上传入 `agentero-context` stdio MCP；授权指纹变化时不恢复旧会话。见 [context.md](context.md)。
+- Quick Chat 和侧边栏的论文上下文走同一解析器。本机支持 shell 的回合使用随包 CLI 和宿主授权句柄取得证据，授权指纹变化时重新创建会话。见 [context.md](context.md)。
 - ACP `initialize` 在 run / warm / 历史 list / load 四处统一最多等待 30 秒（设置页
   探针同样保留 30 秒总预算），覆盖 BYOA 冷启动。warm 的 `session/new` 为 30 秒；
   `session/load` 独立为 60 秒，覆盖历史浏览与续聊（冷连接及池连接），容纳适配器
@@ -489,7 +489,7 @@ Agentero 是 ACP **Client**：模型 HTTP **不**经 Host 转发，因此只能�
 
 远程 Vault 时在 **SSH 远端** 启动 Agent。见 [remote.md](remote.md)。远程 agent catalog 的扫描/探测/安装命令属 agent 域（`registry/remote.rs` + `commands/remote.rs`），复用 `agent::models` / `probe_agent` / `templates`；agent 域不直接依赖 `integration::remote`，而是经反转 trait `agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch}`（由 remote 域 `RemoteRegistry` / `RemoteSession` 实现，app 启动时注册为 State）走 SSH。命令壳与 bridge RPC 共用 `agent::service` 门面。
 
-本机 ACP 会话（含 warm）另外挂 `agentero-delegate`。本机 Agent 只能把任务交给已经打开的远程 Vault，以及本机注册表里的 Agent。Host 另起一条 SSH stdio ACP，不进当前聊天流，也不和聊天 warm pool 共用连接。权限固定 Ask。默认等待 10 分钟，上限 30 分钟；超时不杀掉远端进程。`local-sim` 在本机以远端目录为工作目录，供测试。Windows 客户端与远程 Vault 一样不提供这条能力。
+本机 ACP 会话可以通过回合绑定的 CLI 调用 `agentero delegate`。本机 Agent 只能把任务交给已经打开的远程 Vault，以及本机注册表里的 Agent。Host 另起一条 SSH stdio ACP，不进当前聊天流，也不和聊天 warm pool 共用连接。权限固定 Ask。默认等待 10 分钟，上限 30 分钟；超时不杀掉远端进程。`local-sim` 在本机以远端目录为工作目录，供测试。Windows 客户端与远程 Vault 一样不提供这条能力。
 
 ## 代码
 

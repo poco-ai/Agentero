@@ -265,7 +265,7 @@ Host 还支持 `__local_sim__` host（本机目录当远端，单测/开发用�
 | Bib/RIS 库导入 | `paper_import` | ✅ Translator → 上传远端 |
 | Zotero 桌面迁移 | `zotero_migrate` | ❌ 仅本地路径 |
 | Zotero Connector | HTTP `saveItems` / `saveAttachment` | ✅ 绑定 `remote:<sessionId>`；stage → SFTP → catalog PUT |
-| CLI import | `agentero import` | ❌ 仅本地 vault 路径 |
+| CLI import | `agentero paper import` | ❌ 仅本地 vault 路径 |
 | 回收站 | `path_trash` / `path_list_trash` / restore / purge | ✅ 经 `trash_bridge` 写远端 `.agentero/.trash/` |
 
 返回的 `paperDir`（远程）为 `remote:<sessionId>/papers/…`。

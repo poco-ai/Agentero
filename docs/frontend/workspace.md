@@ -12,7 +12,7 @@
 |---|---|
 | 打开文档 | 文件树 / Library / 命令面板 → `openTab` → `workspaceRef.openPanel` |
 | 打开写作源码 | 文件树 / 大纲 / PDF ← SyncTeX / 问题列表 / Agent 引用 → `openWritingFile`（`navigateTexSource` / `tryOpenWritingSource`）→ 按 `writingRoot` 找项目面板 → flush 未保存编辑后 `updateTab({ path, textEpoch, writingRoot })` 原位换源码，不新增 tab；目标已在别处打开只聚焦 |
-| CLI 工作区操作 | `agentero ui open/close/window`、`agentero paper open` / `agentero://ui?action=…` → Host `ui:request` → 需要时先切换 Vault → 调用与 UI 相同的 `openPaper` / `openVaultRel` / `closeTabsUnderPath` / 原生窗口打开 |
+| CLI 工作区操作 | `agentero app open/close/views`、`agentero app open` / `agentero://ui?action=…` → Host `ui:request` → 需要时先切换 Vault → 调用与 UI 相同的 `openPaper` / `openVaultRel` / `closeTabsUnderPath` / 原生窗口打开 |
 | Library 常驻 | 打开 Vault 期间 Library tab 始终在标签条（打开、恢复、清空后由 `ensureLibraryTabPresent` 补齐，并 `openPanel` 放进格子；已有活动文档时带 `inactive`，不抢焦点）：不可关闭——无关闭按钮、中键与右键关闭项禁用、「关闭其他/全部」跳过、⌘W 对其 no-op；仅剩 Library 时 ⌘W 关闭窗口。其它 tab 的固定（pin）能力已移除 |
 | 首篇 paper | PDF/HTML 默认组 + `NOTES.md` 右分屏（阅读默认；通用设置 `autoOpenPaperNotes` 关闭时只开 body，NOTES 仍可 `⌘\` / 右键「打开笔记」手动开） |
 | 再开 paper | 标准阅读对由 `readingColumnAnchors` 判定。已是「论文 \| 笔记」左右两栏时，body 固定进左栏、NOTES 固定进右栏（与当前焦点在哪一栏无关，#785）；左栏必须确有论文正文、右栏必须确有 `NOTES.md`，才算阅读双列——TeX 源码 \| PDF 等其它双列不会被误判。其它布局 body 走自由 dock 放置（当前组 / 默认，可再拖分屏），NOTES 优先叠进已有笔记列；body↔NOTES **焦点仍同步** |

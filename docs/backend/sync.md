@@ -81,9 +81,9 @@ S3 / WebDAV / Agentero Cloud 共用同一套状态化同步协议（内容寻址
 在每台测试设备上，用下面的命令绑定同一个专用空目录或加入已经初始化的日志。密码继续使用原有 CLI 凭据渠道。已有格式 1 的远端无法原地转换。初次试用可以复制本地笔记到新的测试 Vault。显式绑定后，CLI、桌面手动同步和调度器走同一个 core 入口。
 
 ```bash
-agentero sync configure --vault ~/test-vault --backend webdav --webdav-journal \
-  --webdav-url https://example.com/dav/agentero-test --webdav-username demo
-agentero sync now --vault ~/test-vault
+agentero --vault ~/test-vault sync connect webdav https://example.com/dav/agentero-test \
+  --journal --username demo
+agentero sync run --vault ~/test-vault
 ```
 
 远端 `vault.json` 标记格式 2。文件内容沿用 `blobs/`，每批改动最后写到 `manifests/<哈希首位>/<完整 SHA-256>.json`。每条记录包含本设备已观察到的父版本、添加的文件版本和显式撤销的旧版本。两台设备各自发布后，只需其中一台在线即可合并；并发编辑保留双方内容，删除只撤销操作方已经见过的版本。扫描、内容校验、冲突命名、暂存落盘和 Catalog 刷新沿用现有引擎。本地 `.agentero/sync/webdav-journal.json` 按绑定保存已读记录，以及落盘中断时用于恢复的路径状态。解绑会清除此检查点。
@@ -145,24 +145,17 @@ agentero sync now --vault ~/test-vault
 
 ```bash
 agentero vault create ~/papers
-AGENTERO_SYNC_ACCESS_KEY=… AGENTERO_SYNC_SECRET_KEY=… \
-  agentero sync configure --vault ~/papers \
-    --backend s3 --endpoint https://<account>.r2.cloudflarestorage.com --bucket papers
-agentero sync now --vault ~/papers --json   # cron / 助理调用，退出码即成败
-agentero sync status --vault ~/papers --json  # lastError 给出上次失败原因
+agentero --vault ~/papers sync connect s3 --endpoint "https://${ACCOUNT_ID}.r2.cloudflarestorage.com" \
+  --bucket papers --credentials-input ./credentials.json
+agentero --vault ~/papers sync test
+agentero --vault ~/papers sync run --json
 
-# Git：Vault 即 work tree；认证走系统 credential helper / SSH agent
-agentero sync configure --vault ~/papers \
-  --backend git --git-remote git@github.com:you/papers.git --git-branch main
-# 内网明文 HTTP（令牌明文传输）与自签 HTTPS：
-# agentero sync configure --vault ~/papers --backend git \
-#   --git-remote http://git.lan/you/papers.git --git-allow-insecure-http true
-# agentero sync configure --vault ~/papers --backend git \
-#   --git-remote https://git.lan/you/papers.git --git-ssl-ca /path/to/ca.pem
-agentero sync now --vault ~/papers --json
+# Git 凭证由系统 credential helper 或 SSH agent 提供
+agentero --vault ~/papers sync connect git git@github.com:you/papers.git --branch main
+agentero --vault ~/papers sync run --json
 ```
 
-凭据安全：secret 不进 argv（flag 只收 endpoint/bucket 等非敏感字段），来源为 `AGENTERO_SYNC_*` 环境变量、TTY 交互（`--json` 下绝不提示）或 `--stdin` JSON；所有输出经 `masked()` 掩码，`remoteIdentity()` 与日志均不含密钥。Git 不接收 secret flag，也不做 TTY 提示；使用系统 Git 凭据。`--exclude` 对三种后端通用；Git 把排除项写进仓库 `.gitignore`。
+S3 和 WebDAV 从系统凭据存储（service 为 `app.agentero.sync`）、本地绑定、交互输入或 `--credentials-input <文件或 ->` 获取密钥。`--json` 与 `--no-input` 禁用提示。面向终端的状态只显示后端、位置与最近同步时间。Git 使用系统凭据。三种后端都支持重复的 `--exclude`；Git 将排除项写入仓库的 `.gitignore`。
 
 ## 安全约束
 

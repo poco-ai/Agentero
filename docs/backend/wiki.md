@@ -25,7 +25,7 @@
 - 嵌入目标解析（供前端 `![[...]]`）
 - 链接感知重命名/移动；标题重命名事务。同 Vault 的 `paper_move` / CLI `paper move` / 本地 Connector 共用 core `catalog/move_paper.rs`，统一调用既有 `run_local_rename_transaction`：索引已热则先重读保存后尚未纳入索引的 Markdown，再规划改写，否则先重建一次；路径比较认同一资料库的规范写法（`\\?\`、`/var` 与 `/private/var`）。保护 dirty paths，再执行移动、改链与 Catalog 提交；失败沿用补偿机制。CLI 使用这次事务更新后的索引，不依赖 UI 再翻一遍库。移动 `*.table.json`，或移动含有该文件的目录时，同一次事务会改写指向旧位置的 `::research-table{path=...}`，并保留单引号或双引号；新路径若不符合表格引用的安全规则，则该条指令保持原样。
 - 索引：`.md` 变更防抖后按路径更新（前端调度 + Host `graph_apply_paths`）
-- 只读语义检查：`WikiIndex::check_links` 按全库、Markdown 文件或目录返回状态计数与问题 occurrence；CLI 暴露为 `agentero doctor wiki [<source>] --json`
+- 只读语义检查：`WikiIndex::check_links` 按全库、Markdown 文件或目录返回状态计数与问题 occurrence；CLI 暴露为 `agentero vault check --area links [<source>] --json`
 
 解析、resolve、嵌入投影、前端导航与显式标题重命名共享“唯一连续后缀”规则。完整路径自然也是自身后缀；不存在或有歧义的 path 保持既有 `invalidFragment` / `ambiguous` 结果，不回退到任意同名叶标题。标题重命名根据已解析的 canonical path 计算后缀在完整路径中的偏移，只改写引用实际包含的被改名段。
 
@@ -41,10 +41,10 @@
 
 ## 只读完整性检查
 
-`agentero doctor wiki` 每次先构建或校验 Wiki snapshot，再从解析后的 occurrence 生成报告。它不会新建缺失目标、替用户选择歧义候选或修改 stale fragment。
+`agentero vault check --area links` 每次先构建或校验 Wiki snapshot，再从解析后的 occurrence 生成报告。它不会新建缺失目标、替用户选择歧义候选或修改 stale fragment。
 
 ```text
-agentero doctor wiki [Vault 相对文件或目录] --json
+agentero vault check --area links [--under Vault相对文件或目录] --json
   → WikiIndex rebuild / cache validation
   → check_links(scope)
   → resolved / missing / ambiguous / invalidFragment

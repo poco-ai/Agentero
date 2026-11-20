@@ -11,7 +11,7 @@
 | Connector | 浏览器扩展 items JSON | `features/connector` → commit |
 | Zotero 迁移 | `zotero.sqlite` + storage | `zotero_scan` / `zotero_migrate` |
 | Library 导入 | Bib/RIS 等 | `paper_import` |
-| CLI | 同库函数 | `agentero import` / `paper …` |
+| CLI | 同库函数 | `agentero paper import` / `paper …` |
 
 路径分配：`import::allocate_paper_path`（盘 + catalog 双查，撞名改写 id）。
 
