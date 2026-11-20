@@ -670,7 +670,10 @@ fn strip_verbatim_prefix(path: &Path) -> PathBuf {
 /// exist on a user machine. The desktop bundle and the CLI archive both ship
 /// the matching run-llama build; these are the places it lands.
 pub fn bundled_pdfium_dir_for(exe: &Path) -> Option<PathBuf> {
-    let exe_dir = exe.parent()?;
+    // macOS may report the PATH shim as current_exe. Its library belongs to
+    // the managed executable, in a separate per-version directory.
+    let resolved = exe.canonicalize().ok();
+    let exe_dir = resolved.as_deref().unwrap_or(exe).parent()?;
     // Standalone archives and the managed terminal cache carry their own pair.
     let mut candidates = vec![exe_dir.to_path_buf()];
     if cfg!(target_os = "macos") && exe_dir.file_name().is_some_and(|name| name == "MacOS") {
@@ -1616,6 +1619,22 @@ mod tests {
         );
         let standalone = root.join("standalone");
         expect(&standalone.join("agentero"), &standalone);
+        #[cfg(unix)]
+        {
+            let binary = standalone.join("agentero");
+            fs::write(&binary, b"executable").unwrap();
+            let bin_dir = root.join("user-bin");
+            fs::create_dir_all(&bin_dir).unwrap();
+            let shim = bin_dir.join("agentero");
+            std::os::unix::fs::symlink(&binary, &shim).unwrap();
+            assert_eq!(
+                bundled_pdfium_dir_for(&shim)
+                    .unwrap()
+                    .canonicalize()
+                    .unwrap(),
+                standalone.canonicalize().unwrap()
+            );
+        }
         #[cfg(target_os = "macos")]
         {
             let contents = root.join("Agentero.app/Contents");
