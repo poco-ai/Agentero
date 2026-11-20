@@ -89,7 +89,7 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
 |---|---|
 | 有 TeX | 优先 TeX；不强制 `PAPER.md` |
 | 无 TeX 有 PDF | 下载后由选定的正文解析引擎生成 `PAPER.md`（默认本地 liteparse 隔离子进程，单次解析限时 120 秒，不受构建是否注入内置 provider key 影响） |
-| 解析失败或超时 | 保留 PDF、`NOTES.md` 与 catalog；`ParseBody` 后台任务返回 `error`，job 标记 `Failed` 并在任务面板展示原因，后续可重新执行 `paper parse` |
+| 解析失败或超时 | 保留 PDF、`NOTES.md` 与 catalog；`ParseBody` 后台任务返回 `error`，job 标记 `Failed` 并在任务面板展示原因，后续可重新执行 `agentero paper extract PAPER` |
 | 质量字段 | catalog `body_source` / `body_quality`（实现以 schema 为准） |
 
 `PAPER.md` 是派生文件，可删可重建；`source/` 与 PDF 才是归档事实来源。
@@ -99,7 +99,7 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
 `ParseBody` 是共享的正文准备入口：先按 catalog 的 arXiv 身份准备有效源码，再考虑已有
 `PAPER.md` 或 PDF 引擎。本地 PDF 识别 / 合并、Connector 附件保存和目录移动完成、Zotero
 迁移、打开论文与全库 reconcile 均走该入口；标识符与 Bib/RIS 的资源下载也使用同一源码准备器。
-CLI `paper parse` 使用相同规则。远程导入保留 staging / 上传路径，复用源码校验与准备；
+CLI `agentero paper extract PAPER` 使用相同规则。远程导入保留 staging / 上传路径，复用源码校验与准备；
 远程 Connector 完成后在工作镜像中准备正文并上传产物。
 
 - 源码与正文是两个判定：有 OCR Markdown 仍可缺原始源码，下载按钮与批量补资源不会因此

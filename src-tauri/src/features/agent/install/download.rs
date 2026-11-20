@@ -27,8 +27,6 @@ pub fn host_triple() -> Option<&'static str> {
     }
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
     {
-        // Not currently built by CI (macos-latest is arm64). Still form a URL so
-        // callers can surface a clear 404 / unsupported message.
         return Some("x86_64-apple-darwin");
     }
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]

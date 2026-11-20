@@ -37,11 +37,12 @@ jobs:
         run: |
           node --input-type=commonjs <<'JS'
           const assert = require('node:assert/strict');
-          for (const file of ['tauri.conf.json', 'tauri.macos.conf.json']) {
-            const { bundle } = require('./src-tauri/' + file);
-            assert(bundle.resources.includes('cli'), file + ' must include the offline CLI');
-            assert.deepEqual(bundle.externalBin ?? [], [], file + ' must not install a second CLI sidecar');
-          }
+          const base = require('./src-tauri/tauri.conf.json').bundle;
+          const mac = require('./src-tauri/tauri.macos.conf.json').bundle;
+          assert(base.resources.includes('cli'));
+          assert.deepEqual(base.externalBin ?? [], []);
+          assert.deepEqual(mac.externalBin, ['sidecars/agentero-turn']);
+          assert(!mac.resources.includes('cli'), 'ship one signed executable');
           JS
       - name: Test release synchronization
         if: matrix.task == 'quality'
@@ -158,6 +159,9 @@ jobs:
           # missing even for clippy/tests that never bundle.
           mkdir -p src-tauri/pdfium
           cp "$RUNNER_TEMP/pdfium/lib/libpdfium.dylib" src-tauri/pdfium/libpdfium.dylib
+      - name: Stage native macOS CLI sidecar for Tauri
+        if: matrix.task != 'cli-tests'
+        run: node scripts/prepare-bundled-cli.mjs
       - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-adapters.mjs

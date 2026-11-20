@@ -9,7 +9,7 @@
 //! @see src/components/viewer/pdf/coords.ts (the 0–1 normalization this matches)
 
 use crate::error::AppError;
-use liteparse_pdfium::{Library, RectF};
+use liteparse_pdfium::RectF;
 use serde::{Deserialize, Serialize};
 
 pub mod annotations;
@@ -300,7 +300,7 @@ fn text_rect_to_norm_rect(
 /// unreadable PDFs (corrupt header, encrypted without a key, …) so callers
 /// can surface the distinction to the user.
 pub fn extract_text_in_pdf(pdf: &[u8]) -> Result<Vec<ExtractedSentence>, AppError> {
-    let lib = Library::init();
+    let lib = crate::features::pdf::open_library()?;
     let doc = lib
         .load_document_from_bytes(pdf, None)
         .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;
@@ -408,7 +408,7 @@ pub fn locate_in_pdf(pdf: &[u8], req: &LocateRequest) -> Result<LocateResult, Ap
         )));
     }
 
-    let lib = Library::init();
+    let lib = crate::features::pdf::open_library()?;
     let doc = lib
         .load_document_from_bytes(pdf, None)
         .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;
@@ -508,7 +508,7 @@ pub fn map_pdf_user_rects(
     pdf: &[u8],
     groups: &[PdfUserRects],
 ) -> Result<Vec<ViewportMarkup>, AppError> {
-    let lib = Library::init();
+    let lib = crate::features::pdf::open_library()?;
     let doc = lib
         .load_document_from_bytes(pdf, None)
         .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;
@@ -840,7 +840,7 @@ mod tests {
     /// PDF user space (bottom-left origin). Only valid for unrotated pages.
     fn text_inside(pdf: &[u8], hit: &LocateMatch, rect_index: usize) -> String {
         let r = hit.rects[rect_index];
-        let lib = Library::init();
+        let lib = crate::features::pdf::open_library().unwrap();
         let doc = lib
             .load_document_from_bytes(pdf, None)
             .expect("open pdf for round trip");

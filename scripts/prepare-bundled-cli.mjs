@@ -43,9 +43,14 @@ if (isMobile) {
 	process.exit(0);
 }
 
-const outDir = path.join(root, "src-tauri", "cli");
+// Tauri signs externalBin executables individually inside Contents/MacOS.
+const mac = triple.endsWith("-apple-darwin");
+const outDir = path.join(root, "src-tauri", mac ? "sidecars" : "cli");
 fs.mkdirSync(outDir, { recursive: true });
-const dest = path.join(outDir, `agentero-cli${ext}`);
+const dest = path.join(
+	outDir,
+	mac ? `agentero-turn-${triple}` : `agentero-cli${ext}`,
+);
 
 const profile = release ? "release" : "debug";
 console.log(

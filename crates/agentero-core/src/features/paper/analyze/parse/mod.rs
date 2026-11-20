@@ -671,15 +671,20 @@ fn strip_verbatim_prefix(path: &Path) -> PathBuf {
 /// the matching run-llama build; these are the places it lands.
 pub fn bundled_pdfium_dir_for(exe: &Path) -> Option<PathBuf> {
     let exe_dir = exe.parent()?;
-    let mut candidates = Vec::new();
-    if cfg!(target_os = "macos") {
+    // Standalone archives and the managed terminal cache carry their own pair.
+    let mut candidates = vec![exe_dir.to_path_buf()];
+    if cfg!(target_os = "macos") && exe_dir.file_name().is_some_and(|name| name == "MacOS") {
         candidates.push(exe_dir.join("../Frameworks"));
+    }
+    // Resource executables ship in cli/ beside the pdfium/ resource directory
+    // on Windows and in the Linux package's /usr/lib/<product>/ tree.
+    if exe_dir.file_name().is_some_and(|name| name == "cli") {
+        candidates.push(exe_dir.join("../pdfium"));
     }
     candidates.push(exe_dir.join("pdfium"));
     // deb / AppImage put bundle resources under /usr/lib/<product>/.
     candidates.push(exe_dir.join("../lib/agentero/pdfium"));
     candidates.push(exe_dir.join("../lib/Agentero/pdfium"));
-    candidates.push(exe_dir.to_path_buf());
 
     let name = pdfium_library_file_name();
     candidates.into_iter().find(|dir| dir.join(name).is_file())
@@ -689,21 +694,6 @@ pub fn bundled_pdfium_dir_for(exe: &Path) -> Option<PathBuf> {
 fn bundled_pdfium_dir() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     bundled_pdfium_dir_for(&exe)
-}
-
-/// Library file to copy beside `cli_bin` when that binary has none of its own
-/// and `app_exe`'s bundle does. `None` when the CLI can already see a library.
-pub fn pdfium_donor_for(cli_bin: &Path, app_exe: &Path) -> Option<PathBuf> {
-    if bundled_pdfium_dir_for(cli_bin).is_some() {
-        return None;
-    }
-    let cli_dir = cli_bin.parent()?;
-    let src_dir = bundled_pdfium_dir_for(app_exe)?;
-    if src_dir == cli_dir {
-        return None;
-    }
-    let src = src_dir.join(pdfium_library_file_name());
-    src.is_file().then_some(src)
 }
 
 /// `PDFIUM_LIB_PATH` to hand the worker, unless the caller already set one.
@@ -755,7 +745,7 @@ fn load_pdfium_file(path: &Path) -> Result<(), String> {
 /// beside the executable, so a leftover bad `PDFIUM_LIB_PATH` does not hide
 /// the bundled file.
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
-fn ensure_pdfium_loaded() -> Result<(), String> {
+pub(crate) fn ensure_pdfium_loaded() -> Result<(), String> {
     let mut tried: Vec<PathBuf> = Vec::new();
     let mut last_error = None;
     for path in pdfium_candidate_files() {
@@ -868,6 +858,7 @@ async fn spawn_pdf_worker_with_dir(
     }
 
     let mut command = tokio::process::Command::new(executable);
+    crate::process::hide_console_window_tokio(&mut command);
     command
         .arg(worker_arg)
         .arg(pdf_path)
@@ -1600,47 +1591,39 @@ mod tests {
     }
 
     #[test]
-    fn pdfium_donor_uses_app_bundle_until_cli_has_its_own() {
-        let root = std::env::temp_dir().join(format!("pdfium-donor-{}", uuid::Uuid::new_v4()));
-        let app_dir = root.join("app");
-        let cli_dir = root.join("cli");
-        fs::create_dir_all(app_dir.join("pdfium")).unwrap();
-        fs::create_dir_all(&cli_dir).unwrap();
+    fn pdfium_resolves_worker_desktop_sidecar_and_standalone_layouts() {
+        let root = std::env::temp_dir().join(format!("pdfium-layout-{}", uuid::Uuid::new_v4()));
         let name = pdfium_library_file_name();
-        let app_lib = app_dir.join("pdfium").join(name);
-        fs::write(&app_lib, b"pdfium").unwrap();
-        let exe_name = if cfg!(windows) {
-            "agentero.exe"
-        } else {
-            "agentero"
+        let expect = |binary: &Path, library_dir: &Path| {
+            fs::create_dir_all(binary.parent().unwrap()).unwrap();
+            fs::create_dir_all(library_dir).unwrap();
+            fs::write(library_dir.join(name), b"pdfium").unwrap();
+            assert_eq!(
+                bundled_pdfium_dir_for(binary)
+                    .unwrap()
+                    .canonicalize()
+                    .unwrap(),
+                library_dir.canonicalize().unwrap()
+            );
         };
-        let app_exe = app_dir.join(exe_name);
-        let cli_exe = cli_dir.join(exe_name);
-        fs::write(&app_exe, b"app").unwrap();
-        fs::write(&cli_exe, b"cli").unwrap();
-
-        assert_eq!(
-            pdfium_donor_for(&cli_exe, &app_exe).as_deref(),
-            Some(app_lib.as_path())
+        let app = root.join("installed");
+        expect(&app.join("gui"), &app.join("pdfium"));
+        expect(&app.join("cli/agentero-cli"), &app.join("pdfium"));
+        let linux = root.join("usr");
+        expect(
+            &linux.join("bin/agentero"),
+            &linux.join("lib/Agentero/pdfium"),
         );
-        assert!(bundled_pdfium_dir_for(&cli_exe).is_none());
-
-        fs::write(cli_dir.join(name), b"own").unwrap();
-        assert!(pdfium_donor_for(&cli_exe, &app_exe).is_none());
-        assert_eq!(
-            bundled_pdfium_dir_for(&cli_exe).as_deref(),
-            Some(cli_dir.as_path())
-        );
-
-        fs::remove_file(cli_dir.join(name)).unwrap();
-        let sub = cli_dir.join("pdfium");
-        fs::create_dir_all(&sub).unwrap();
-        fs::write(sub.join(name), b"sub").unwrap();
-        assert!(pdfium_donor_for(&cli_exe, &app_exe).is_none());
-        assert_eq!(
-            bundled_pdfium_dir_for(&cli_exe).as_deref(),
-            Some(sub.as_path())
-        );
+        let standalone = root.join("standalone");
+        expect(&standalone.join("agentero"), &standalone);
+        #[cfg(target_os = "macos")]
+        {
+            let contents = root.join("Agentero.app/Contents");
+            expect(
+                &contents.join("MacOS/agentero-turn"),
+                &contents.join("Frameworks"),
+            );
+        }
 
         let _ = fs::remove_dir_all(&root);
     }

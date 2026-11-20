@@ -1,6 +1,8 @@
 # Agentero CLI
 
-终端入口是 `agentero`。桌面安装包携带同版本的 `agentero-cli`，供桌面 Agent 直接调用。要从自己的终端使用 `agentero`，可在桌面设置安装 PATH 启动器。开发时用 `cargo run -p agentero-cli -- <命令>`，或直接运行 `cargo build -p agentero-cli` 生成的 `target/debug/agentero-cli`。
+独立归档的入口是 `agentero`。桌面 Agent 直接使用同版本随包程序，可以离线工作。桌面设置安装终端命令时，先将 CLI 与 PDFium 放入用户数据目录 `Agentero/cli/v-<版本>/`，再创建指向这里的启动器（macOS/Linux 为 `agentero`，Windows 为 `agentero-cli`）。桌面正式版启动时会自动对齐终端命令的版本，显式卸载后保留退出选择。移动桌面应用后，终端命令仍能读取 PDF。卸载终端命令会清理受管缓存，桌面继续使用随包程序。
+
+开发时用 `cargo run -p agentero-cli -- <命令>`，或运行 `target/debug/agentero-cli`。macOS 全新 checkout 直接执行桌面 Cargo 检查前，须先用 `node scripts/prepare-bundled-cli.mjs` 暂存本机架构 sidecar；`pnpm tauri dev` 和 `pnpm tauri build` 会连同其他桌面资源自动准备。
 
 ## 命令与帮助
 
