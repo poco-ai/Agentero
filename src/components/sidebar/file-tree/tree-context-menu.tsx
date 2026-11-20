@@ -207,7 +207,7 @@ export function TreeContextMenuPortal({
 							type="button"
 							role="menuitem"
 							disabled={libraryRescanning}
-							className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+							className="flex w-full cursor-default items-center gap-2.5 rounded-[6px] px-2.5 py-[5px] text-left text-[13px] leading-[18px] tracking-[0.005em] outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground active:bg-accent/80 disabled:pointer-events-none disabled:opacity-50"
 							onClick={onRescanLibrary}
 						>
 							<RefreshCw
