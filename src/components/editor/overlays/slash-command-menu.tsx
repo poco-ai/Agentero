@@ -13,7 +13,6 @@ import {
 	ListTodo,
 	type LucideIcon,
 	MessageSquareWarning,
-	Quote,
 	Table2,
 	Workflow,
 } from "lucide-react";
@@ -25,7 +24,9 @@ import {
 	type CompletionMenuController,
 	useCompletionMenu,
 } from "@/components/editor/hooks/use-completion-menu";
+import { QuoteIcon } from "@/components/icons/quote-icon";
 import { ViewportFloating } from "@/components/ui/viewport-floating";
+import { cn } from "@/lib/core/utils";
 import {
 	executeSlashCommand,
 	filterSlashCommands,
@@ -66,7 +67,7 @@ const COMMAND_ICONS: Record<SlashCommandId, LucideIcon> = {
 	bulletedList: List,
 	numberedList: ListOrdered,
 	todoList: ListTodo,
-	quote: Quote,
+	quote: QuoteIcon,
 	codeBlock: Code2,
 	mermaid: Workflow,
 	internalLink: Link2,
@@ -175,7 +176,10 @@ export function SlashCommandMenu({
 								onClick={() => selectCommand(command)}
 							>
 								<Icon
-									className="size-4 shrink-0 text-muted-foreground"
+									className={cn(
+										"shrink-0 text-muted-foreground",
+										command.id === "quote" ? "size-3.5" : "size-4",
+									)}
 									aria-hidden
 								/>
 								<span className="truncate">{t(command.labelKey)}</span>
