@@ -640,7 +640,7 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				// Vertical column, one unit under the top-left toolbar: the
 				// horizontal pill used to sit in the toolbar's corner and collide
 				// with it. The column keeps the label readable below the toolbar.
-				"pointer-events-auto absolute top-11 left-2 z-[8] flex w-7 min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				"pointer-events-auto absolute top-11 left-2 z-[8] flex w-7 min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 				// The running stage reports state on the plain theme surface and
 				// does not recolour on hover. Translate / hide / retry keep the old
 				// hover fill; a page with a visible translation keeps the theme
@@ -1390,7 +1390,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					type="button"
 					data-pdf-chrome
 					className={cn(
-						"absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-sm transition-[color,opacity,transform] duration-150 hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transform-none motion-reduce:transition-none",
+						"absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-sm transition-[color,opacity,transform] duration-150 hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transform-none motion-reduce:transition-none",
 						pageBookmarked
 							? pdfDark
 								? "text-[#ef8791]"

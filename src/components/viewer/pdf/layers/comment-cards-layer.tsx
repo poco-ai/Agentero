@@ -557,9 +557,9 @@ const CommentCard = memo(function CommentCard({
 				className={cn(
 					COMMENT_CARD_SURFACE_CLASS,
 					editing
-						? "bg-background/92 ring-2 ring-ring/50"
+						? "bg-background/92 ring-1 ring-ring"
 						: hovered
-							? "bg-background/92 ring-2 ring-primary/45"
+							? "bg-background/92 ring-1 ring-primary/60"
 							: "",
 				)}
 			>
@@ -640,7 +640,7 @@ const CommentCard = memo(function CommentCard({
 						<div
 							role="button"
 							tabIndex={0}
-							className="block w-full cursor-text text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+							className="block w-full cursor-text text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
 							onClick={(e) => {
 								e.stopPropagation();
 								if ((e.target as Element).closest("a, button")) return;
@@ -892,7 +892,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			data-comment-card
 			className={cn(
 				COMMENT_DRAFT_SURFACE_CLASS,
-				"z-[7] w-56 bg-background/92 ring-2 ring-ring/50",
+				"z-[7] w-56 bg-background/92 ring-1 ring-ring",
 			)}
 			style={{
 				...(inset

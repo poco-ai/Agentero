@@ -30,7 +30,7 @@ export function HelpLabel({ label, help }: { label: ReactNode; help: string }) {
 							"text-muted-foreground outline-none transition-[color,background-color,transform]",
 							"duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)]",
 							"hover:bg-muted hover:text-foreground",
-							"focus-visible:ring-2 focus-visible:ring-ring/50",
+							"focus-visible:ring-1 focus-visible:ring-ring",
 							"active:scale-95",
 						)}
 						aria-label={help}

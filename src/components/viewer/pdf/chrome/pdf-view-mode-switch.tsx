@@ -78,7 +78,7 @@ export const PdfViewModeSwitch = memo(function PdfViewModeSwitch({
 						disabled={disabled || (value === "dual" && dualDisabled)}
 						onClick={() => onSelect(value)}
 						className={cn(
-							"h-5 rounded-[5px] px-1.5 text-caption leading-none font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+							"h-5 rounded-[5px] px-1.5 text-caption leading-none font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
 							selected
 								? "bg-background text-foreground shadow-raised"
 								: "text-muted-foreground hover:text-foreground",

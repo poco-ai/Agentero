@@ -63,7 +63,7 @@ export function BackfillReview({
 		<>
 			<Collapsible defaultOpen={!collapsible}>
 				{collapsible && (
-					<CollapsibleTrigger className="group mt-3 flex w-full items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2 text-xs font-medium tabular-nums outline-none transition-colors hover:bg-muted/60 data-[state=open]:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50">
+					<CollapsibleTrigger className="group mt-3 flex w-full items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2 text-xs font-medium tabular-nums outline-none transition-colors hover:bg-muted/60 data-[state=open]:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring">
 						{selectionLabel}
 						<ChevronDown className="size-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
 					</CollapsibleTrigger>

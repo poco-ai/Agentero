@@ -117,7 +117,7 @@ export function MobileSidebar({
 							type="button"
 							aria-expanded={expandedDevice}
 							className={cn(
-								"flex min-h-20 w-full items-center gap-3 rounded-xl px-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring",
+								"flex min-h-20 w-full items-center gap-3 rounded-xl px-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring",
 								expandedDevice && "rounded-b-none",
 							)}
 							onClick={() => setExpandedDevice((expanded) => !expanded)}
@@ -162,7 +162,7 @@ export function MobileSidebar({
 								<div className="ml-[21px] border-border/70 border-l pt-1 pl-3">
 									<button
 										type="button"
-										className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring"
+										className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring"
 										aria-pressed="true"
 									>
 										<Folder className="size-4 shrink-0 text-muted-foreground" />
@@ -173,7 +173,7 @@ export function MobileSidebar({
 									</button>
 									<button
 										type="button"
-										className="mt-0.5 flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left text-destructive outline-none transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring"
+										className="mt-0.5 flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left text-destructive outline-none transition-colors hover:bg-destructive/10 focus-visible:ring-1 focus-visible:ring-ring"
 										onClick={() => void disconnect()}
 									>
 										<LogOut className="size-4 shrink-0" />

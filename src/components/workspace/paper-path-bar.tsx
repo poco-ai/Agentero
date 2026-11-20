@@ -115,7 +115,7 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 						const segmentButton = (
 							<button
 								type="button"
-								className="flex max-w-40 min-w-0 cursor-pointer items-center gap-1 truncate rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+								className="flex max-w-40 min-w-0 cursor-pointer items-center gap-1 truncate rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
 								onClick={() => {
 									setOpenRel(null);
 									if (isPapers) selectLibrary();

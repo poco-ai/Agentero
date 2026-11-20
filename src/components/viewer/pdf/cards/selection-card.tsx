@@ -803,7 +803,7 @@ export function SelectionCard({
 											className={cn(
 												"inline-flex size-6 shrink-0 cursor-default items-center justify-center rounded-md",
 												"text-muted-foreground transition-colors outline-none",
-												"focus-visible:ring-2 focus-visible:ring-ring/50",
+												"focus-visible:ring-1 focus-visible:ring-ring",
 												a.pressed
 													? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
 													: a.destructive

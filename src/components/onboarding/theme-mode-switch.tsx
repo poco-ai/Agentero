@@ -44,7 +44,7 @@ export function ThemeModeSwitch({
 							setTheme(mode);
 						}}
 						className={cn(
-							"relative z-10 flex size-7 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+							"relative z-10 flex size-7 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
 							selected
 								? "text-foreground"
 								: "text-muted-foreground hover:text-foreground",

@@ -374,7 +374,7 @@ function StreamingActivityRow({
 				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
 			)}
 			onClick={onToggle}
-			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 		>
 			{content}
 		</button>
