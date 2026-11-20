@@ -3,6 +3,7 @@
 import * as ToolbarPrimitive from "@radix-ui/react-toolbar";
 import * as React from "react";
 
+import { Separator } from "@/components/ui/separator";
 import {
 	Tooltip,
 	TooltipContent,
@@ -19,6 +20,20 @@ export function Toolbar({
 			className={cn("relative flex select-none items-center", className)}
 			{...props}
 		/>
+	);
+}
+
+/**
+ * Hairline between toolbar groups. `Separator` stretches along the cross axis,
+ * and a stretched flex item with an explicit height resolves to `flex-start`,
+ * so the rule would sit at the top of the bar. The fixed-height wrapper centers
+ * it instead.
+ */
+export function ToolbarSeparator() {
+	return (
+		<div aria-hidden="true" className="mx-1.5 flex h-5 shrink-0 items-center">
+			<Separator orientation="vertical" />
+		</div>
 	);
 }
 

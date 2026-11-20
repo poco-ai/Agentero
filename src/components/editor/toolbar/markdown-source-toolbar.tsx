@@ -1,4 +1,3 @@
-import { openSearchPanel } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import {
@@ -15,14 +14,12 @@ import {
 	ListTodo,
 	Loader2,
 	type LucideIcon,
-	Quote,
-	Search,
-	Share,
 	Strikethrough,
 	Underline,
 } from "lucide-react";
 import {
 	type MouseEvent as ReactMouseEvent,
+	type ReactNode,
 	type RefObject,
 	useCallback,
 	useMemo,
@@ -31,12 +28,12 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
+import { QuoteIcon } from "@/components/icons/quote-icon";
 import { errorMessage, notifyError } from "@/lib/core/notify";
 import { copyFileToMarkdownAssets, pickImageFiles } from "@/lib/markdown/image";
 import type { MarkdownSourceFormat } from "@/lib/markdown/source-format";
 import { sourceFormatTransaction } from "@/lib/markdown/source-format";
 import { formatModShortcut } from "@/lib/shell/shortcuts";
-import { ToolbarButton } from "./primitives";
 import {
 	ResponsiveFixedToolbar,
 	type ToolbarAction,
@@ -50,17 +47,23 @@ type FormatAction = {
 };
 
 /**
- * Source-mode formatting toolbar. Actions edit the CodeMirror document through
- * the same Markdown commands as the source keymap, so toolbar clicks and
- * shortcuts stay in sync.
+ * Source-mode formatting actions for the editor bar. Actions edit the
+ * CodeMirror document through the same Markdown commands as the source keymap,
+ * so toolbar clicks and shortcuts stay in sync.
  */
 export function MarkdownSourceToolbar({
 	viewRef,
-	onExport,
+	leading,
+	trailing,
+	showActions = true,
 }: {
 	viewRef: RefObject<EditorView | null>;
-	/** Export the current source document as PDF / PNG / Markdown. */
-	onExport?: () => void;
+	/** Pinned at the left of the bar (source toggle, export, find). */
+	leading?: ReactNode;
+	/** Pinned at the right of the bar (status counts, properties). */
+	trailing?: ReactNode;
+	/** Hide the formatting actions but keep the bar chrome. */
+	showActions?: boolean;
 }) {
 	const { t } = useTranslation("editor");
 	const { filePath, onAssetsChanged } = useMarkdownDoc();
@@ -81,11 +84,6 @@ export function MarkdownSourceToolbar({
 	const keepSourceFocus = useCallback((event: ReactMouseEvent) => {
 		event.preventDefault();
 	}, []);
-
-	const openFind = useCallback(() => {
-		const view = viewRef.current;
-		if (view) openSearchPanel(view);
-	}, [viewRef]);
 
 	const insertImage = useCallback(async () => {
 		const view = viewRef.current;
@@ -124,7 +122,7 @@ export function MarkdownSourceToolbar({
 			{ format: "heading1", icon: Heading1, label: t("toolbar.h1"), group: 0 },
 			{ format: "heading2", icon: Heading2, label: t("toolbar.h2"), group: 0 },
 			{ format: "heading3", icon: Heading3, label: t("toolbar.h3"), group: 0 },
-			{ format: "quote", icon: Quote, label: t("toolbar.quote"), group: 0 },
+			{ format: "quote", icon: QuoteIcon, label: t("toolbar.quote"), group: 0 },
 			{ format: "bold", icon: Bold, label: t("toolbar.bold"), group: 1 },
 			{ format: "italic", icon: Italic, label: t("toolbar.italic"), group: 1 },
 			{
@@ -213,30 +211,10 @@ export function MarkdownSourceToolbar({
 
 	return (
 		<ResponsiveFixedToolbar
-			actions={actions}
-			className="rounded-none"
-			trailing={
-				<>
-					{onExport ? (
-						<ToolbarButton
-							tooltip={t("export.toolbar")}
-							aria-label={t("export.toolbar")}
-							onMouseDown={keepSourceFocus}
-							onClick={onExport}
-						>
-							<Share />
-						</ToolbarButton>
-					) : null}
-					<ToolbarButton
-						tooltip={`${t("findReplace.title")} (${formatModShortcut("f")})`}
-						aria-label={t("findReplace.title")}
-						onMouseDown={keepSourceFocus}
-						onClick={openFind}
-					>
-						<Search />
-					</ToolbarButton>
-				</>
-			}
+			variant="footer"
+			actions={showActions ? actions : []}
+			leading={leading}
+			trailing={trailing}
 		/>
 	);
 }

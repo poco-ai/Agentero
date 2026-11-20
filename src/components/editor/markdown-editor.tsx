@@ -1,5 +1,6 @@
 "use client";
 
+import { openSearchPanel } from "@codemirror/search";
 import { ImagePlugin } from "@platejs/media/react";
 import { BlockSelectionPlugin } from "@platejs/selection/react";
 import { TocPlugin } from "@platejs/toc/react";
@@ -11,6 +12,7 @@ import {
 	type KeyboardEvent,
 	lazy,
 	memo,
+	type MouseEvent as ReactMouseEvent,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -31,7 +33,7 @@ import { MarkdownExportSurface } from "@/components/editor/markdown-export-surfa
 import { markdownSourceSurfaceStyle } from "@/components/editor/markdown-source-layout";
 import { BlockDragStateBridge } from "@/components/editor/nodes/block/block-draggable";
 import { ImageElement } from "@/components/editor/nodes/block/image-node";
-import { EditorStatusBar } from "@/components/editor/overlays/editor-status-bar";
+import { EditorStatusInfo } from "@/components/editor/overlays/editor-status-info";
 import { FindReplaceBar } from "@/components/editor/overlays/find-replace-bar";
 import { FrontmatterPanel } from "@/components/editor/overlays/frontmatter-panel";
 import { HeadingRenameDialog } from "@/components/editor/overlays/heading-rename-dialog";
@@ -51,7 +53,17 @@ import { convertBlockquoteMarkerToCallout } from "@/components/editor/plugins/ca
 import { DndKit } from "@/components/editor/plugins/dnd-kit";
 import { MarkdownEditorKit } from "@/components/editor/plugins/markdown-editor-kit";
 import { MarkdownSourceToolbar } from "@/components/editor/toolbar/markdown-source-toolbar";
-import { MarkdownEditorToolbar } from "@/components/editor/toolbar/markdown-toolbar";
+import {
+	MarkdownEditorToolbar,
+	MarkdownExportButton,
+	MarkdownFindButton,
+	MarkdownPaperNotesBar,
+	MarkdownPropertiesButton,
+} from "@/components/editor/toolbar/markdown-toolbar";
+import {
+	ToolbarButton,
+	ToolbarSeparator,
+} from "@/components/editor/toolbar/primitives";
 import {
 	selectionSurfaceProps,
 	useSelectionSource,
@@ -66,11 +78,6 @@ import {
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useLibraryStore, useSettings } from "@/hooks/use-app-stores";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import i18n from "@/i18n";
@@ -987,32 +994,84 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		source ? "editor:source.showRendered" : "editor:source.showSource",
 	);
 	const sourceToggle = canToggleSource ? (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon-xs"
-					aria-label={sourceLabel}
-					aria-pressed={source}
-					data-markdown-source-toggle=""
-					disabled={switching}
-					className="text-muted-foreground hover:text-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
-					onMouseDown={(event) => event.preventDefault()}
-					onClick={toggle}
-				>
-					{source ? (
-						<Eye className="size-3.5" />
-					) : (
-						<CodeXml className="size-3.5" />
-					)}
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>
-				{shortcut ? `${sourceLabel} (${shortcut})` : sourceLabel}
-			</TooltipContent>
-		</Tooltip>
+		<ToolbarButton
+			tooltip={shortcut ? `${sourceLabel} (${shortcut})` : sourceLabel}
+			aria-label={sourceLabel}
+			pressed={source}
+			disabled={switching}
+			data-markdown-source-toggle=""
+			className="text-muted-foreground"
+			onMouseDown={(event) => event.preventDefault()}
+			onClick={toggle}
+		>
+			{source ? <Eye className="size-3.5" /> : <CodeXml className="size-3.5" />}
+		</ToolbarButton>
 	) : null;
+	/** Formatting chrome: the toolbar setting or a read-only pane hides it. */
+	const toolbarVisible = Boolean(showToolbar && !bodyReadOnly);
+	/**
+	 * Source and rendered modes share one bar, so the actions must not move
+	 * when the mode switches. Only the formatting commands behind them differ.
+	 */
+	const keepSourceFocus = useCallback((event: ReactMouseEvent) => {
+		event.preventDefault();
+	}, []);
+	const handleOpenFind = useCallback(() => {
+		if (source) {
+			const view = sourceViewRef.current;
+			if (view) openSearchPanel(view);
+			return;
+		}
+		setFindOpen(true);
+		setFindFocusTick((tick) => tick + 1);
+	}, [source, sourceViewRef]);
+
+	const propertiesPanel = (
+		<MarkdownPropertiesButton>
+			<FrontmatterPanel
+				value={frontmatterYaml}
+				readOnly={bodyReadOnly}
+				onChange={bodyReadOnly ? undefined : handleFrontmatterChange}
+			/>
+		</MarkdownPropertiesButton>
+	);
+	const barLeading =
+		sourceToggle || toolbarVisible ? (
+			<>
+				{sourceToggle}
+				{toolbarVisible ? (
+					<>
+						<ToolbarSeparator />
+						{isTauri() ? (
+							<MarkdownExportButton
+								onExport={openExportDialog}
+								onMouseDown={source ? keepSourceFocus : undefined}
+							/>
+						) : null}
+						<MarkdownFindButton
+							onOpenFind={handleOpenFind}
+							onMouseDown={source ? keepSourceFocus : undefined}
+						/>
+					</>
+				) : null}
+			</>
+		) : null;
+	const barTrailing = (
+		<>
+			<EditorStatusInfo
+				filePath={filePath}
+				vaultPath={wikiNav?.vaultPath ?? null}
+			/>
+			{/* Properties edit the YAML frontmatter; the source view shows the
+			    same frontmatter as raw text, so the popover is rendered mode only. */}
+			{!source ? (
+				<>
+					<ToolbarSeparator />
+					{propertiesPanel}
+				</>
+			) : null}
+		</>
+	);
 	const sourceTypography = {
 		fontSize: editorTypographyStyle?.fontSize,
 		"--cm-content-font": fontFamily || "var(--font-sans)",
@@ -1044,31 +1103,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							className,
 						)}
 					>
-						{showToolbar && !bodyReadOnly ? (
+						{toolbarVisible ? (
 							<div data-hint-ignore>
-								{source ? (
-									<MarkdownSourceToolbar
-										viewRef={sourceViewRef}
-										onExport={isTauri() ? openExportDialog : undefined}
-									/>
-								) : (
-									<MarkdownEditorToolbar
-										onOpenFind={() => {
-											setFindOpen(true);
-											setFindFocusTick((tick) => tick + 1);
-										}}
-										onExport={isTauri() ? openExportDialog : undefined}
-										propertiesPanel={
-											<FrontmatterPanel
-												value={frontmatterYaml}
-												readOnly={bodyReadOnly}
-												onChange={
-													bodyReadOnly ? undefined : handleFrontmatterChange
-												}
-											/>
-										}
-									/>
-								)}
+								<MarkdownPaperNotesBar />
 							</div>
 						) : null}
 						<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -1362,11 +1399,20 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 								</div>
 							) : null}
 						</div>
-						<EditorStatusBar
-							filePath={filePath}
-							vaultPath={wikiNav?.vaultPath ?? null}
-							leading={sourceToggle}
-						/>
+						{source ? (
+							<MarkdownSourceToolbar
+								viewRef={sourceViewRef}
+								leading={barLeading}
+								trailing={barTrailing}
+								showActions={toolbarVisible}
+							/>
+						) : (
+							<MarkdownEditorToolbar
+								leading={barLeading}
+								trailing={barTrailing}
+								showActions={toolbarVisible}
+							/>
+						)}
 						<HeadingRenameDialog
 							open={headingRenameOpen}
 							heading={headingContext}
