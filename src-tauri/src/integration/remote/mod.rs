@@ -1,5 +1,4 @@
 //! Remote vault over SSH/SFTP and remote BYOA helpers.
-//! See `docs/development/remote-vault.md`.
 
 pub mod agent_exec;
 pub mod blob_cache;

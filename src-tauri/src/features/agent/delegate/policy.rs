@@ -2,8 +2,7 @@
 
 use std::time::Duration;
 
-pub const DEFAULT_WAIT: Duration = Duration::from_secs(10 * 60);
-pub const MAX_WAIT: Duration = Duration::from_secs(30 * 60);
+pub const PERMISSION_WAIT: Duration = Duration::from_secs(30 * 60);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentChoice {
@@ -29,15 +28,6 @@ pub fn target_host(target: &TargetChoice) -> String {
     }
 }
 
-/// `None` and `0` use the default. Longer requests are clamped to [`MAX_WAIT`].
-pub fn clamp_wait(requested_ms: Option<u64>) -> Duration {
-    let Some(ms) = requested_ms.filter(|ms| *ms > 0) else {
-        return DEFAULT_WAIT;
-    };
-    let max = u64::try_from(MAX_WAIT.as_millis()).unwrap_or(u64::MAX);
-    Duration::from_millis(ms.min(max))
-}
-
 /// The model cannot widen permission or supply a shell. Unknown keys that
 /// mean either of those are rejected before a run starts.
 pub fn reject_privilege_escalation(value: &serde_json::Value) -> Result<(), &'static str> {
@@ -58,19 +48,6 @@ pub fn reject_privilege_escalation(value: &serde_json::Value) -> Result<(), &'st
     Ok(())
 }
 
-pub fn tokens_match(presented: &str, expected: &str) -> bool {
-    let presented = presented.as_bytes();
-    let expected = expected.as_bytes();
-    if presented.len() != expected.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (left, right) in presented.iter().zip(expected) {
-        diff |= left ^ right;
-    }
-    diff == 0
-}
-
 pub fn resolve_target<'a>(
     explicit: Option<&str>,
     targets: &'a [TargetChoice],
@@ -87,15 +64,20 @@ pub fn resolve_target<'a>(
         };
     };
     let bare = explicit.strip_prefix("remote:").unwrap_or(explicit);
-    targets
+    if let Some(target) = targets
         .iter()
-        .find(|target| {
-            target.session_id == bare
-                || target.session_id == explicit
-                || target.handle == explicit
-                || target.destination == explicit
-        })
-        .ok_or_else(|| format!("remote target is not connected: {explicit}"))
+        .find(|t| t.session_id == bare || t.handle == explicit)
+    {
+        return Ok(target);
+    }
+    let mut candidates = targets.iter().filter(|t| t.destination == explicit);
+    match (candidates.next(), candidates.next()) {
+        (Some(target), None) => Ok(target),
+        (Some(_), Some(_)) => Err(format!(
+            "multiple workspaces on {explicit}; select an ID from delegate targets"
+        )),
+        _ => Err(format!("remote target is not connected: {explicit}")),
+    }
 }
 
 pub fn resolve_agent<'a>(
@@ -110,7 +92,10 @@ pub fn resolve_agent<'a>(
         return if agents.len() == 1 {
             Ok(&agents[0])
         } else {
-            Err("agentId is required when more than one agent is registered".into())
+            Err(
+                "use delegate targets and pass --agent ID when more than one agent is registered"
+                    .into(),
+            )
         };
     };
     agents
@@ -135,7 +120,7 @@ pub fn delegate_hint(targets: &[TargetChoice], agents: &[AgentChoice]) -> Option
         return None;
     }
     let mut lines = vec![
-        "Connected remote vaults. Call the agentero-delegate tools only when the work must run on that machine. Do not invent a shell command.".to_string(),
+        "Connected remote vaults. Use the Agentero CLI delegate targets/run/result/cancel commands when the work must run on that machine. Do not invent a shell command.".to_string(),
     ];
     for target in targets {
         lines.push(format!(
@@ -181,28 +166,12 @@ mod tests {
     }
 
     #[test]
-    fn wait_defaults_and_clamps() {
-        assert_eq!(clamp_wait(None), DEFAULT_WAIT);
-        assert_eq!(clamp_wait(Some(0)), DEFAULT_WAIT);
-        assert_eq!(clamp_wait(Some(1_500)), Duration::from_millis(1_500));
-        assert_eq!(clamp_wait(Some(u64::MAX)), MAX_WAIT);
-    }
-
-    #[test]
     fn privilege_keys_are_rejected() {
         assert!(reject_privilege_escalation(&json!({"prompt": "run"})).is_ok());
         assert!(reject_privilege_escalation(&json!({"autoApprove": true})).is_err());
         assert!(reject_privilege_escalation(&json!({"permissionMode": "auto"})).is_err());
         assert!(reject_privilege_escalation(&json!({"command": "bash"})).is_err());
         assert!(reject_privilege_escalation(&json!([])).is_err());
-    }
-
-    #[test]
-    fn token_compare_checks_every_byte() {
-        assert!(tokens_match("abc", "abc"));
-        assert!(!tokens_match("abc", "abd"));
-        assert!(!tokens_match("abc", "abcd"));
-        assert!(!tokens_match("", "a"));
     }
 
     #[test]

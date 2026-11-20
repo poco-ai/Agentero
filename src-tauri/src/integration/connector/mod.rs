@@ -1,7 +1,7 @@
 //! Zotero Connector–compatible local HTTP server (loopback :23119).
 //!
 //! Official browser extensions POST `/connector/*` here so saves land in the
-//! current Agentero Vault. See `docs/backend/connector.md`.
+//! current Agentero Vault.
 
 mod import;
 mod server;

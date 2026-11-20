@@ -5,8 +5,6 @@
 //! rules, a System One decision model, future LLMs) and returns a typed
 //! [`DecisionOutcome`] that records which provider answered and its confidence
 //! (when it has one).
-//!
-//! @see docs/backend/decision.md
 
 use crate::error::AppError;
 use crate::json::JsonValue;

@@ -6,8 +6,6 @@
 //! code. Reference entries and other projects' repositories are not stored.
 //! A link annotation counts even when its visible text is not the URL.
 
-use std::path::PathBuf;
-
 /// Where a candidate was found. Earlier variants outrank later ones on a tie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Region {
@@ -101,8 +99,7 @@ struct PageText {
 
 /// Repository link for this paper, or `None` when the file has none worth storing.
 pub fn extract_github_repo(pdf: &[u8]) -> Option<GithubRepo> {
-    ensure_pdfium_search_path();
-    let lib = liteparse_pdfium::Library::try_init().ok()?;
+    let lib = super::open_library().ok()?;
     let doc = lib.load_document_from_bytes(pdf, None).ok()?;
     let count = doc.page_count();
     if count < 1 {
@@ -746,39 +743,6 @@ fn valid_repo(repo: &str) -> bool {
     }
     repo.chars()
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
-}
-
-/// Point in-process PDFium at the library shipped beside the app. The worker
-/// already does this; `load_default` otherwise only sees the build machine's
-/// cache path. Mirrors `paper::analyze::parse` candidate dirs.
-fn ensure_pdfium_search_path() {
-    if std::env::var_os("PDFIUM_LIB_PATH").is_some() {
-        return;
-    }
-    if let Some(dir) = bundled_pdfium_dir() {
-        std::env::set_var("PDFIUM_LIB_PATH", dir);
-    }
-}
-
-fn bundled_pdfium_dir() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    let exe_dir = exe.parent()?;
-    let name = if cfg!(target_os = "macos") {
-        "libpdfium.dylib"
-    } else if cfg!(target_os = "windows") {
-        "pdfium.dll"
-    } else {
-        "libpdfium.so"
-    };
-    let mut candidates = Vec::new();
-    if cfg!(target_os = "macos") {
-        candidates.push(exe_dir.join("../Frameworks"));
-    }
-    candidates.push(exe_dir.join("pdfium"));
-    candidates.push(exe_dir.join("../lib/agentero/pdfium"));
-    candidates.push(exe_dir.join("../lib/Agentero/pdfium"));
-    candidates.push(exe_dir.to_path_buf());
-    candidates.into_iter().find(|dir| dir.join(name).is_file())
 }
 
 #[cfg(test)]

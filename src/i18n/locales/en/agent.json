@@ -1,4 +1,5 @@
 {
+	"promptOnlySources": "This agent receives attached evidence in its prompt and cannot request additional sources.",
 	"acpStatus": {
 		"ready": "ACP ready",
 		"failed": "ACP failed",

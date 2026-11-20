@@ -72,6 +72,11 @@ macro_rules! common_commands {
             crate::features::agent::commands::agent_respond_elicitation,
             crate::features::agent::commands::agent_respond_ask_user,
             crate::features::agent::commands::agent_resolve_citation,
+            crate::features::agent::commands::agent_resolve_evidence,
+            #[cfg(not(any(target_os = "android",target_os = "ios")))]
+            crate::app::workspace_cli::workspace_cli_reply,
+            #[cfg(not(any(target_os = "android",target_os = "ios")))]
+            crate::app::workspace_cli::workspace_open_source,
             crate::features::markdown::wiki::commands::graph_get_backlinks,
             crate::features::markdown::wiki::commands::wiki_resolve,
             crate::features::markdown::wiki::commands::wiki_embed_read,

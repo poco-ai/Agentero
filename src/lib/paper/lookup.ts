@@ -2,7 +2,6 @@
  * Magic-wand identifier import via Host `lookup_import`.
  * Always downloads PDF; arXiv also downloads and unpacks LaTeX into `source/`.
  * Translator base URL is the hardcoded official endpoint.
- * @see docs/backend/identifier-lookup.md
  */
 import { open } from "@tauri-apps/plugin-dialog";
 import i18n from "@/i18n";

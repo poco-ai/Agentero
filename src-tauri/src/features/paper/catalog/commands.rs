@@ -144,7 +144,7 @@ pub async fn paper_list(
         let vault = try_vault!(&args.vault_path, op);
         // Projection intentionally differs from `remote_paper_list` (raw
         // `PaperRecord`, no has_pdf probe, no id dedupe) — known drift kept
-        // for wire stability; see `docs/backend/remote.md`.
+        // for wire stability.
         match papers::list_all_unique_by_id(&vault) {
             Ok(rows) => {
                 let out: Vec<_> = rows

@@ -12,6 +12,7 @@ import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
 import { useInstitutionProxyHealth } from "@/hooks/use-institution-proxy-health";
 import { useUiRequest } from "@/hooks/use-ui-request";
 import { useVaultOpenRequest } from "@/hooks/use-vault-open-request";
+import { useWorkspaceCli } from "@/hooks/use-workspace-cli";
 import { applyLocale } from "@/i18n";
 import { startActivityTracking } from "@/lib/activity";
 import { commands } from "@/lib/core/bindings";
@@ -45,6 +46,7 @@ export function useAppBootstrap(): void {
 	useVaultOpenRequest();
 	// CLI / deep-link: agentero paper open / agentero ui … → ui:request
 	useUiRequest();
+	useWorkspaceCli();
 
 	const theme = useSettings((s) => s.theme);
 	const locale = useSettings((s) => s.locale);

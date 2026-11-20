@@ -62,7 +62,8 @@ export function cleanCitationHref(href: string): string {
 		.replace(/[\u200B-\u200D\uFEFF]/g, "")
 		// Streamdown's rehype-harden only treats paths starting with `/` `./` `../`
 		// as relative; we may prefix `./` for rendering — strip it before jumps.
-		.replace(/^\.\//, "");
+		.replace(/^\.\//, "")
+		.replace(/^\/(?=agentero:\/\/cite\/)/, "");
 	if (/^[a-z][a-z0-9+.-]*:/i.test(stripped)) return stripped;
 	const hash = stripped.indexOf("#");
 	if (hash < 0) return decodeCitationPiece(stripped);
@@ -74,6 +75,7 @@ export function cleanCitationHref(href: string): string {
  * `openCitation` (e.g. `papers/a/a.pdf#page=1`).
  */
 export function isAgentCitationHref(href: string): boolean {
+	if (cleanCitationHref(href).startsWith("agentero://cite/")) return true;
 	const { path, fragment } = splitCitationHref(cleanCitationHref(href));
 	if (!path || !fragment) return false;
 	if (/^https?:\/\//i.test(path)) return false;
@@ -175,9 +177,34 @@ export function isCitationStatusLabel(label: string): boolean {
 	return STATUS_LINK_LABELS.has(label.trim().toLowerCase());
 }
 
+/** A display hint only. Navigation always asks the host to verify the revision. */
+export function evidenceCitationLabel(href: string): string | null {
+	href = cleanCitationHref(href);
+	if (!href.startsWith("agentero://cite/")) return null;
+	try {
+		const resource = href.split("#", 1)[0];
+		const payload = resource.slice(resource.lastIndexOf("/") + 1);
+		const bytes = Uint8Array.from(
+			atob(payload.replaceAll("-", "+").replaceAll("_", "/")),
+			(ch) => ch.charCodeAt(0),
+		);
+		const { path, locator } = JSON.parse(new TextDecoder().decode(bytes));
+		if (typeof path !== "string") return null;
+		const key = ["region", "page", "line_from", "section"].find(
+			(k) => locator?.[k] != null,
+		);
+		const fragment = key
+			? "#" + (key === "line_from" ? "line" : key) + "=" + String(locator[key])
+			: "";
+		return path + fragment;
+	} catch {
+		return null;
+	}
+}
+
 /** Human pill label derived from a citation href (basename + fragment). */
 export function citationLabelFromHref(href: string): string {
-	const cleaned = cleanCitationHref(href);
+	const cleaned = evidenceCitationLabel(href) ?? cleanCitationHref(href);
 	if (!cleaned || cleaned === "streamdown:incomplete-link") return cleaned;
 	const { path, fragment } = splitCitationHref(cleaned);
 	const base =

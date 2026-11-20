@@ -20,6 +20,7 @@ mod acp_live {
         args: Vec<String>,
     ) -> AgentDescriptor {
         AgentDescriptor {
+            supports_shell: false,
             id: id.into(),
             name: name.into(),
             template,

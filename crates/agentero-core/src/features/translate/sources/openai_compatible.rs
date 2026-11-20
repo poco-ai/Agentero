@@ -297,9 +297,8 @@ fn model_leaf(model: &str) -> String {
 fn sampling_for_model(model: &str) -> Sampling {
     let leaf = model_leaf(model);
     let full = model.trim().to_ascii_lowercase();
-    // Official API contracts checked 2026-11-09; see the source links in
-    // docs/usage/translate-openai-compatible.md. Forced-thinking models must
-    // be matched before their hybrid families (notably GLM-5.3 vs GLM-5).
+    // Match forced-thinking models before their hybrid families,
+    // notably GLM-5.3 before GLM-5.
     let glm_forced = leaf.starts_with("glm-5.3");
     let minimax_flash = leaf.starts_with("minimax-m3.1-flash");
     let kimi_k3 = leaf == "kimi-k3" || leaf.starts_with("kimi-k3.") || leaf.starts_with("kimi-k3-");

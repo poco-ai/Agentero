@@ -1,6 +1,6 @@
 ---
 name: paper-reader
-version: 11
+version: 12
 description: >-
   用中文清晰阅读和讲解科研论文。用于提炼核心贡献、深入解释方法、分析实验与局限，并在 NOTES.md 中写入中文讲义式笔记。
 ---
@@ -27,7 +27,7 @@ description: >-
 - [格式] 对于文中出现的复杂数学定义，使用 Markdown 的 LaTeX 格式输出，并根据原文来解释表达式中的变量。严格区分两种公式格式：**行内公式**（inline）使用单 dollar 符号 `$...$`，嵌入在正文句子中；**行间公式**（display）使用双 dollar 符号 `$$...$$`，必须独占一行且上下各留一个空行。禁止在行内公式中使用 `$$`，禁止在行间公式中使用单 `$`。变量、短表达式（如 $s_t$、$p>0$）用行内；独立推导、核心公式用行间。
 - [格式] 保留有效的 Obsidian-style wikilinks `[[...]]`；不要编造目标。
 - [格式] 最终交付路径：只把讲义式笔记正文写到 `{paper}/NOTES.md`。
-- [格式] 完成后标记已读：notes 和链接处理完后，始终运行 `agentero paper set-read {paper} --json`。
+- [格式] 完成后标记已读：notes 和链接处理完后，始终运行 `agentero paper update {paper} --state read --if-revision <paper-get-revision> --json`。
 - [格式] Cite sources inline **without wrapping parentheses**. citation **hrefs should target the local PDF**
   `[Section 2.3](papers/<id>/<id>.pdf#section=2.3)`,
   `[Figure 1](papers/<id>/<id>.pdf#figure=1)`,
@@ -37,19 +37,9 @@ description: >-
   `[p.4](papers/Quantum%20Error%20Correcting/<id>/<id>.pdf#page=4)`
   `[p.4](<papers/Quantum Error Correcting/<id>/<id>.pdf#page=4>)`
   For web pages use `[domain](https://...)`.
-  For a specific claim, query `agentero layout list <paper> --kind paragraph --json`
-  (Windows: `agentero-cli`) and copy a returned `anchor` verbatim, for example
-  `[Section 2.1, paragraph 3](papers/<id>/<id>.pdf#2.1#p3)` or
-  `[[papers/<id>/<id>.pdf#2.1#p3|supporting paragraph]]`.
-  Read `text`, `sectionAnchor`, page and bbox to verify the supporting passage.
-  Paragraphs count directly owned body blocks within each section; subsections
-  have separate counters. Never guess an ordinal from candidate/display order.
-  If analysis or a unique anchor is unavailable, report the limit and use a
-  verified page/section reference instead; do not invent a paragraph anchor.
-  Numbered `#figure=` / `#table=` / `#formula=` / `#algorithm=` anchors follow
-  the same rule: verify they exist in the layout
-  (`agentero layout list <paper> --kind ... --json`), never guess a number, and
-  fall back to a verified page/section when the anchor is absent.
+  For a specific claim, search the paper with `agentero search <query> --in <paper> --json`.
+  Verify a hit with `agentero read <cite> --json`. Use `paper regions <paper> --kind paragraph`
+  for region IDs and page coordinates. Only cite a page or region confirmed by the returned evidence.
   Shorthand `#2` / `#2.1` / `#2.1#p3` is only for PDF targets; Markdown
   `#heading`, legacy `#section=` / `#page=`, figures and annotations keep their semantics.
 

@@ -7,8 +7,6 @@
 //! arXiv id is re-resolved through the authoritative metadata chain, and only
 //! when no identifier is found do we fall back to the recognizer's own
 //! title/authors extraction.
-//!
-//! @see docs/backend/paper-import.md § PDF 元数据识别
 
 use crate::error::AppError;
 use crate::features::paper::catalog::papers::PaperRecord;

@@ -48,10 +48,22 @@ pub struct PaperExportResult {
 
 pub async fn export_catalog(args: PaperExportArgs) -> Result<PaperExportResult, AppError> {
     let vault = crate::fs::resolve_vault(&args.vault_path)?;
-    let format = normalize_format(args.format.as_deref().unwrap_or("bibtex"))?;
-    let base = translator_base(args.translator_base_url.as_deref());
-
     let rows = papers::list_all(&vault)?;
+    export_records(
+        &rows,
+        args.format.as_deref().unwrap_or("bibtex"),
+        args.translator_base_url.as_deref(),
+    )
+    .await
+}
+
+pub async fn export_records(
+    rows: &[PaperRecord],
+    format: &str,
+    translator_url: Option<&str>,
+) -> Result<PaperExportResult, AppError> {
+    let format = normalize_format(format)?;
+    let base = translator_base(translator_url);
     if rows.is_empty() {
         return Err(AppError::message("library is empty — nothing to export"));
     }
@@ -116,6 +128,15 @@ pub async fn import_catalog_with_mode(
     app: Option<&AppHandle>,
     note_mode: crate::features::import::NoteShellMode,
 ) -> Result<PaperImportResult, AppError> {
+    import_catalog_cancellable(args, app, note_mode, None).await
+}
+
+pub async fn import_catalog_cancellable(
+    args: PaperImportArgs,
+    app: Option<&AppHandle>,
+    note_mode: crate::features::import::NoteShellMode,
+    task_id: Option<&str>,
+) -> Result<PaperImportResult, AppError> {
     let vault = crate::fs::resolve_vault(&args.vault_path)?;
     let content = args.content.trim();
     if content.is_empty() {
@@ -131,6 +152,9 @@ pub async fn import_catalog_with_mode(
     let mut errors = Vec::new();
 
     for item in items {
+        if task_id.is_some_and(crate::cancel::is_cancelled) {
+            break;
+        }
         match import_one_item(&vault, &parent_rel, &item, app, note_mode).await {
             Ok(Some((path, title))) => {
                 imported += 1;

@@ -1,6 +1,6 @@
 # Agent & Skills
 
-Agentero uses **BYOA** (Bring Your Own Agent): you install and log in to an ACP-compatible agent on your machine, and Agentero passes the current Vault context to it. You do not need to enter a model API key in Agentero.
+Install and sign in to an ACP-compatible agent, then connect it to Agentero. This is also called **BYOA** (Bring Your Own Agent). Agentero sends your question and any material attached to the message to that agent. If you already signed in to the agent, there is no model API key to enter again in Agentero.
 
 ## Agent Panel
 
@@ -10,7 +10,7 @@ When a paper is open, it is added to the Agent context automatically. You can:
 
 - Type a question directly.
 - Use `@` to mention any path in the Vault.
-- Use `/` to invoke a Skill or another slash command.
+- Type `/` to see the commands your agent offers.
 - Drag a file or folder from the file tree into the composer as context.
 - Select text or annotations in the PDF and send them to the Agent.
 
@@ -20,7 +20,7 @@ You can keep typing while the Agent is responding. Later messages are queued and
 
 ### Using Skills
 
-Use `/` in the conversation to invoke a Skill or another slash command.
+Type `$` in the composer and pick an installed Skill from the list.
 
 ### Editing a Skill
 
@@ -47,7 +47,7 @@ Bundled Skills include:
 The paper must have a local PDF and readable text, either TeX or `PAPER.md`:
 
 - **Manual reading**: click the **read icon** on an unread paper row.
-- **Automatic reading**: enable **autoPaperReader** under Settings → Agent. It is disabled by default.
+- **Automatic reading**: enable **Auto paper-reader after import** under Settings → Agent. It is off by default.
 
 The reading result is written to the paper's `NOTES.md`, and the paper is marked as read when the workflow finishes.
 

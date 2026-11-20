@@ -12,8 +12,6 @@
 //!   edited the field by hand (`code_repo_manual`)
 //! - `citation_count` ← `citation_count`
 //! - `summary` ← `tldr`
-//!
-//! @see docs/backend/academic-search-apis.md
 
 use std::path::Path;
 use std::sync::OnceLock;

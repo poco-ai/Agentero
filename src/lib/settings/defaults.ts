@@ -174,6 +174,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	mcpEnabled: false,
 	mcpPort: 8765,
 	mcpExposePaperText: false,
+	mcpAllowWrite: false,
+	mcpAllowOnline: false,
 	mcpTunnelId: "",
 	mcpTunnelApiKey: "",
 	zoteroSyncDir: "",

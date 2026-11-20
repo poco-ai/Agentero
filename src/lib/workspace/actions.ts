@@ -56,6 +56,7 @@ export {
 	isLocalHtmlLink,
 	navigateWiki,
 	openCitation,
+	openEvidenceLocation,
 	openGraphPath,
 	openHtmlPreviewLink,
 	openTexLive,

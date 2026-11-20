@@ -1,537 +1,330 @@
-//! Agentero headless CLI (`agentero`).
-//!
-//! Vault / Catalog machine interface — no BYOA, no paper-reader.
-//! See `docs/development/cli.md`.
-
-mod args_rewrite;
+//! Headless research CLI. The desktop and MCP transports share its data operations.
 mod commands;
 mod config;
+mod dispatch;
 mod error;
+mod interface;
 mod output;
 mod prompt;
 mod resolve;
 mod style;
 
-use clap::builder::styling::{AnsiColor, Effects, Styles};
-use clap::{ColorChoice, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum, ValueHint};
-use error::{CliError, ExitCode};
-use output::{emit_err, emit_ok, OutputFormat};
+use clap::Command;
+use error::CliError;
+use output::OutputFormat;
 use resolve::GlobalOpts;
-use std::path::PathBuf;
-use std::process::ExitCode as StdExitCode;
-use style::Style;
+use serde_json::{json, Value};
+use std::ffi::OsString;
+use std::io::{self, Write};
+use std::process::ExitCode;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum ColorWhen {
-    Auto,
-    Always,
-    Never,
-}
+pub const CLI_TASK_ID: &str = "agentero-cli-task";
 
-impl From<ColorWhen> for style::ColorWhen {
-    fn from(w: ColorWhen) -> Self {
-        match w {
-            ColorWhen::Auto => style::ColorWhen::Auto,
-            ColorWhen::Always => style::ColorWhen::Always,
-            ColorWhen::Never => style::ColorWhen::Never,
-        }
-    }
-}
-
-/// High-contrast help styles so sections / flags / placeholders are easy to scan.
-///
-/// | Part | Color | Examples |
-/// |---|---|---|
-/// | header | magenta + bold + underline | `Commands:`, `Options:` |
-/// | usage | bright white + bold | `Usage:` |
-/// | literal | bright green + bold | `paper`, `--vault`, `list` |
-/// | placeholder | bright yellow | `<PATH>`, `<COMMAND>` |
-/// | valid | bright cyan | `text`, `json`, `auto` |
-/// | error / invalid | bright red + bold | parse errors |
-fn clap_styles() -> Styles {
-    Styles::styled()
-        .header(
-            AnsiColor::BrightMagenta
-                .on_default()
-                .effects(Effects::BOLD | Effects::UNDERLINE),
-        )
-        .usage(AnsiColor::BrightWhite.on_default().effects(Effects::BOLD))
-        .literal(AnsiColor::BrightGreen.on_default().effects(Effects::BOLD))
-        .placeholder(AnsiColor::BrightYellow.on_default())
-        .valid(AnsiColor::BrightCyan.on_default())
-        .invalid(AnsiColor::BrightRed.on_default().effects(Effects::BOLD))
-        .error(AnsiColor::BrightRed.on_default().effects(Effects::BOLD))
-}
-
-/// Peek `--color` before full parse so help itself is styled correctly.
-///
-/// Priority: explicit `--color` → `CLICOLOR_FORCE` → `NO_COLOR` / `CLICOLOR=0` → auto.
-fn peek_color_when() -> ColorWhen {
-    let mut args = std::env::args().skip(1);
-    while let Some(arg) = args.next() {
-        if arg == "--color" {
-            return match args.next().as_deref() {
-                Some("always") => ColorWhen::Always,
-                Some("never") => ColorWhen::Never,
-                Some("auto") | None => ColorWhen::Auto,
-                Some(_) => ColorWhen::Auto,
-            };
-        }
-        if let Some(v) = arg.strip_prefix("--color=") {
-            return match v {
-                "always" => ColorWhen::Always,
-                "never" => ColorWhen::Never,
-                _ => ColorWhen::Auto,
-            };
-        }
-    }
-    // Env only applies when the flag is omitted.
-    if matches!(
-        std::env::var("CLICOLOR_FORCE").as_deref(),
-        Ok(v) if v != "0" && !v.is_empty()
-    ) {
-        return ColorWhen::Always;
-    }
-    if std::env::var_os("NO_COLOR").is_some()
-        || matches!(std::env::var("CLICOLOR").as_deref(), Ok("0"))
+fn help_target(args: &[OsString]) -> Option<Command> {
+    let mut words = args.iter().take_while(|x| x.as_os_str() != "--").peekable();
+    if !words
+        .clone()
+        .any(|x| x.as_os_str() == "-h" || x.as_os_str() == "--help")
     {
-        return ColorWhen::Never;
+        return None;
     }
-    ColorWhen::Auto
-}
-
-fn color_choice(when: ColorWhen) -> ColorChoice {
-    match when {
-        ColorWhen::Auto => ColorChoice::Auto,
-        ColorWhen::Always => ColorChoice::Always,
-        ColorWhen::Never => ColorChoice::Never,
-    }
-}
-
-#[derive(Debug, Parser)]
-#[command(
-    name = "agentero",
-    version,
-    about = "Agentero headless CLI — Vault / Catalog machine interface (no BYOA)",
-    long_about = "Discover, manage, and expose a local Agentero research vault and catalog.\n\
-                  Does not run agents or paper-reader. Prefer --json for scripts and external agents.\n\
-                  Open a vault in the desktop app: `agentero open <PATH>` or `agentero <PATH>`.\n\
-                  Design: docs/backend/cli.md",
-    styles = clap_styles(),
-    propagate_version = true
-)]
-struct Cli {
-    /// Vault root (absolute or relative). Overrides env / walk-up / config.
-    #[arg(
-        short = 'v',
-        long = "vault",
-        global = true,
-        value_name = "PATH",
-        value_hint = ValueHint::DirPath
-    )]
-    vault: Option<PathBuf>,
-
-    /// Emit JSON on stdout (alias for `-o json`).
-    #[arg(long = "json", global = true)]
-    json: bool,
-
-    /// Output format (`text` | `json`). Prefer `--json` for scripts.
-    /// Note: short `-o` is reserved for command-local file outputs (e.g. `export bib -o`).
-    #[arg(long = "output", global = true, value_enum, default_value = "text")]
-    output: OutputFormat,
-
-    /// Pretty-print JSON output (default: compact single line, cheaper for agents).
-    #[arg(long = "pretty", global = true)]
-    pretty: bool,
-
-    /// Quiet success messages (errors still on stderr).
-    #[arg(short = 'q', long = "quiet", global = true)]
-    quiet: bool,
-
-    /// Skip confirmation for destructive ops.
-    #[arg(short = 'y', long = "yes", global = true)]
-    yes: bool,
-
-    /// Override Translator base URL.
-    #[arg(
-        long = "translator-url",
-        global = true,
-        value_name = "URL",
-        value_hint = ValueHint::Url
-    )]
-    translator_url: Option<String>,
-
-    /// Colorize help and text output (`auto` = TTY; `always` / `never` force).
-    #[arg(long = "color", global = true, value_enum, default_value = "auto")]
-    color: ColorWhen,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Debug, Subcommand)]
-enum McpCmd {
-    /// Listen on loopback until Ctrl-C or SIGTERM. Requires --vault or AGENTERO_VAULT.
-    Serve(commands::mcp::ServeArgs),
-}
-
-#[derive(Debug, Subcommand)]
-enum Commands {
-    /// Vault lifecycle: create, resolve, inspect.
-    Vault {
-        #[command(subcommand)]
-        cmd: commands::vault::VaultCmd,
-    },
-    /// Cloud sync (S3/R2, WebDAV): configure, run, inspect — same engine as
-    /// the desktop app, no GUI required.
-    Sync {
-        #[command(subcommand)]
-        cmd: commands::sync::SyncCmd,
-    },
-    /// Introspect curated machine ops (agent schema). Omit id for the full index.
-    Describe {
-        /// Op id (`paper.list`) or MCP tool name (`paper_list`).
-        op: Option<String>,
-    },
-    /// Paper catalog operations.
-    Paper {
-        #[command(subcommand)]
-        cmd: commands::paper::PaperCmd,
-    },
-    /// Import papers into the vault.
-    Import {
-        #[command(subcommand)]
-        cmd: commands::import::ImportCmd,
-    },
-    /// Discover/rank new papers (query-first, vault-free).
-    Discover {
-        #[command(subcommand)]
-        cmd: commands::discover::DiscoverCmd,
-    },
-    /// Plaza feed subscriptions (RSS / Atom / JSON Feed): subscribe, refresh,
-    /// read items — same store as the desktop app, vault-free.
-    Feed {
-        #[command(subcommand)]
-        cmd: commands::feed::FeedCmd,
-    },
-    /// Export catalog data.
-    Export {
-        #[command(subcommand)]
-        cmd: commands::export::ExportCmd,
-    },
-    /// Diagnose Vault structure, Catalog, wikilinks, and paper aliases.
-    Doctor {
-        #[command(subcommand)]
-        cmd: Option<commands::doctor::DoctorCmd>,
-    },
-    /// Sidebar layout index (figures / tables / algorithms / formulas):
-    /// list / get cached regions, analyze to generate them headlessly.
-    Layout {
-        #[command(subcommand)]
-        cmd: commands::layout::LayoutCmd,
-    },
-    /// Reading marks (region-anchored annotations).
-    Mark {
-        #[command(subcommand)]
-        cmd: commands::mark::MarkCmd,
-    },
-    /// Streamable HTTP MCP server for external agents (loopback, no GUI).
-    Mcp {
-        #[command(subcommand)]
-        cmd: McpCmd,
-    },
-    /// Workspace / window management in the desktop App (open/focus/close).
-    Ui {
-        #[command(subcommand)]
-        cmd: commands::ui::UiCmd,
-    },
-    /// Research table rows (`*.table.json`).
-    Table {
-        #[command(subcommand)]
-        cmd: commands::table::TableCmd,
-    },
-    /// Translate text with free machine translation (no API key).
-    Translate {
-        /// Text to translate.
-        text: String,
-        /// Target language (default zh-CN).
-        #[arg(long = "to", value_name = "LANG", default_value = "zh-CN")]
-        to: String,
-        /// Source language (default auto).
-        #[arg(long = "from", value_name = "LANG", default_value = "auto")]
-        from: String,
-        /// Pick one free engine instead of racing the defaults.
-        #[arg(long = "provider", value_name = "ID")]
-        provider: Option<String>,
-    },
-    /// Open a local directory as a Vault in the desktop App.
-    ///
-    /// Shorthand: bare `agentero <PATH>` rewrites to this when `<PATH>` looks like
-    /// a directory path and is not a known subcommand.
-    Open {
-        /// Local directory to open (absolute, relative, or `~`).
-        #[arg(value_hint = ValueHint::DirPath)]
-        path: PathBuf,
-    },
-}
-
-fn init_logging() {
-    // Logs go to stderr so `--json` stdout stays a pure business envelope.
-    // Default is quiet (warn+ only): everyday CLI use should not print op start/end.
-    // Opt in: `RUST_LOG=info agentero …` or `RUST_LOG=agentero::op=info,agentero_lib=debug`.
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
-        .format_timestamp_secs()
-        .try_init();
-}
-
-fn main() -> StdExitCode {
-    if let Some(status) = agentero_core::features::import::pdf_parse::try_run_pdf_parse_worker() {
-        return StdExitCode::from(status as u8);
-    }
-    init_logging();
-
-    // Headless downloads honor the EZProxy/WebVPN gateway + session cookie the
-    // user configured in the desktop app's shared `settings.json` (the CLI has
-    // no settings store of its own).
-    agentero_core::features::paper::import::institution_proxy::load_institution_proxy_from_settings(
-    );
-
-    // `agentero <dir>` → `agentero open <dir>` before clap (subcommand names win).
-    let argv = args_rewrite::rewrite_path_shorthand(std::env::args_os().collect());
-
-    // Apply color choice before parse so `--help` / usage errors use the same styles.
-    let mut cmd = Cli::command()
-        .styles(clap_styles())
-        .color(color_choice(peek_color_when()));
-    let matches = match cmd.try_get_matches_from_mut(argv) {
-        Ok(m) => m,
-        Err(err) => {
-            // clap prints help / usage itself (styled).
-            err.exit();
+    let mut current = interface::root();
+    while let Some(word) = words.next() {
+        let Some(word) = word.to_str() else { continue };
+        if matches!(word, "--vault" | "--color") {
+            words.next();
+            continue;
         }
-    };
-    let cli = match Cli::from_arg_matches(&matches) {
-        Ok(c) => c,
-        Err(err) => err.exit(),
-    };
+        if word.starts_with('-') {
+            continue;
+        }
+        if let Some(child) = current.find_subcommand(word) {
+            current = child.clone()
+        } else if current.has_subcommands() {
+            return None;
+        } else {
+            break;
+        }
+    }
+    Some(current)
+}
 
-    // Honor AGENTERO_OUTPUT when -o / --json not set explicitly via env default later.
-    let format = resolve_format(&cli);
-    // JSON must never carry ANSI; text paints when --color allows + TTY (auto).
-    let style = match format {
-        OutputFormat::Json => Style::new(false),
-        OutputFormat::Text => Style::from_when(cli.color.into()),
+fn display_help(body: impl std::fmt::Display, json: bool) -> ExitCode {
+    match writeln!(io::stdout().lock(), "{body}") {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) if e.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
+        Err(e) => fail(e.into(), json),
+    }
+}
+
+fn main() -> ExitCode {
+    if let Some(status) = agentero_core::features::import::pdf_parse::try_run_pdf_parse_worker() {
+        return ExitCode::from(status as u8);
+    }
+    let argv: Vec<_> = std::env::args_os().skip(1).collect();
+    let json_mode = argv
+        .iter()
+        .take_while(|x| x.as_os_str() != "--")
+        .any(|x| x.as_os_str() == "--json");
+    if let Some(mut cmd) = help_target(&argv) {
+        return display_help(cmd.render_long_help(), json_mode);
+    }
+    let root = interface::root();
+    let matches = match root
+        .clone()
+        .try_get_matches_from(std::iter::once(OsString::from("agentero")).chain(argv))
+    {
+        Ok(m) => m,
+        Err(err) if !err.use_stderr() => {
+            let _ = err.print();
+            return ExitCode::SUCCESS;
+        }
+        Err(err) => return fail(CliError::usage(err.to_string()), json_mode),
     };
-    let globals = GlobalOpts {
-        vault_flag: cli.vault.clone(),
-        yes: cli.yes,
-        quiet: cli.quiet,
-        translator_url: cli.translator_url.clone(),
+    let mut m = &matches;
+    let mut route = Vec::new();
+    while let Some((sub, child)) = m.subcommand() {
+        route.push(sub);
+        m = child;
+    }
+    let path = route.join(" ");
+    let op = interface::operation(&path).expect("registered command");
+    let json = m.get_flag("json");
+    if op.result.is_none() || path == "help" {
+        let target = if path == "help" {
+            m.get_many::<String>("command")
+                .into_iter()
+                .flatten()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+        } else {
+            route
+        };
+        let mut cmd = &root;
+        for word in &target {
+            let Some(child) = cmd.find_subcommand(word) else {
+                return fail(CliError::usage(format!("unknown help topic: {word}")), json);
+            };
+            cmd = child;
+        }
+        if json {
+            let prefix = target.join(" ");
+            let children: Vec<_> = interface::OPERATIONS
+                .iter()
+                .filter(|op| {
+                    prefix.is_empty()
+                        || op.path == prefix
+                        || op.path.starts_with(&format!("{prefix} "))
+                })
+                .collect();
+            return display_help(json!({"path":prefix,"commands":children}), true);
+        } else {
+            return display_help(cmd.clone().render_long_help(), false);
+        }
+    }
+    let args = match interface::arguments(op, m) {
+        Ok(v) => v,
+        Err(e) => return fail(e, json),
+    };
+    let format = if json {
+        OutputFormat::Json
+    } else {
+        OutputFormat::Text
+    };
+    let color = match m.get_one::<String>("color").map(String::as_str) {
+        Some("always") => style::ColorWhen::Always,
+        Some("never") => style::ColorWhen::Never,
+        _ => style::ColorWhen::Auto,
+    };
+    let g = GlobalOpts {
+        vault_flag: m.get_one::<String>("vault").map(Into::into),
+        yes: args["yes"] == true,
+        no_input: m.get_flag("no-input"),
+        quiet: m.get_flag("quiet"),
+        translator_url: None,
         format,
-        pretty: cli.pretty,
-        style,
+        style: if json {
+            style::Style::new(false)
+        } else {
+            style::Style::from_when(color)
+        },
     };
-
-    let cmd_name = command_label(&cli.command);
-    let start = std::time::Instant::now();
-    log::info!(target: "agentero::op", "op start {cmd_name}");
-
-    let rt = match tokio::runtime::Builder::new_multi_thread()
+    if !json && !g.quiet {
+        let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
+            .try_init();
+    }
+    agentero_core::features::import::institution_proxy::load_institution_proxy_from_settings();
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
     {
         Ok(rt) => rt,
-        Err(e) => {
-            log::error!("failed to start async runtime: {e}");
-            eprintln!("failed to start async runtime: {e}");
-            return StdExitCode::from(ExitCode::Business as u8);
-        }
+        Err(e) => return fail(e.into(), json),
     };
-
-    let result = rt.block_on(run(cli.command, &globals));
-    match result {
-        Ok(value) => finish_ok(cmd_name, start, &globals, &value),
-        Err(err) => finish_err(cmd_name, start, &globals, err),
-    }
-}
-
-fn finish_ok(
-    cmd_name: &str,
-    start: std::time::Instant,
-    globals: &GlobalOpts,
-    value: &serde_json::Value,
-) -> StdExitCode {
-    if let Err(e) = emit_ok(globals, value) {
-        log::error!(
-            target: "agentero::op",
-            "op end {cmd_name} ok=false duration_ms={} error={}",
-            start.elapsed().as_millis(),
-            e
-        );
-        eprintln!("{e}");
-        return StdExitCode::from(ExitCode::Business as u8);
-    }
-    log::info!(
-        target: "agentero::op",
-        "op end {cmd_name} ok=true duration_ms={}",
-        start.elapsed().as_millis()
-    );
-    StdExitCode::SUCCESS
-}
-
-fn finish_err(
-    cmd_name: &str,
-    start: std::time::Instant,
-    globals: &GlobalOpts,
-    err: CliError,
-) -> StdExitCode {
-    log::error!(
-        target: "agentero::op",
-        "op end {cmd_name} ok=false duration_ms={} error_code={} error={}",
-        start.elapsed().as_millis(),
-        err.code,
-        err.message
-    );
-    let code = err.exit_code();
-    let _ = emit_err(globals, &err);
-    StdExitCode::from(code as u8)
-}
-
-fn command_label(cmd: &Commands) -> &'static str {
-    match cmd {
-        Commands::Vault { cmd } => match cmd {
-            commands::vault::VaultCmd::Create { .. } => "cli.vault.create",
-            commands::vault::VaultCmd::List => "cli.vault.list",
-        },
-        Commands::Sync { .. } => "cli.sync",
-        Commands::Describe { .. } => "cli.describe",
-        Commands::Paper { .. } => "cli.paper",
-        Commands::Import { .. } => "cli.import",
-        Commands::Discover { .. } => "cli.discover",
-        Commands::Feed { .. } => "cli.feed",
-        Commands::Export { .. } => "cli.export",
-        Commands::Doctor { .. } => "cli.doctor",
-        Commands::Layout { .. } => "cli.layout",
-        Commands::Mark { .. } => "cli.mark",
-        Commands::Mcp { .. } => "cli.mcp",
-        Commands::Ui { .. } => "cli.ui",
-        Commands::Table { .. } => "cli.table",
-        Commands::Translate { .. } => "cli.translate",
-        Commands::Open { .. } => "cli.open",
-    }
-}
-
-fn resolve_format(cli: &Cli) -> OutputFormat {
-    if cli.json {
-        return OutputFormat::Json;
-    }
-    if matches!(cli.output, OutputFormat::Json) {
-        return OutputFormat::Json;
-    }
-    match std::env::var("AGENTERO_OUTPUT")
-        .unwrap_or_default()
-        .to_ascii_lowercase()
-        .as_str()
-    {
-        "json" => OutputFormat::Json,
-        _ => cli.output,
-    }
-}
-
-async fn run(command: Commands, globals: &GlobalOpts) -> Result<serde_json::Value, CliError> {
-    match command {
-        Commands::Vault { cmd } => commands::vault::run(cmd, globals).await,
-        Commands::Sync { cmd } => commands::sync::run(cmd, globals).await,
-        Commands::Describe { op } => commands::describe::run(op.as_deref(), globals),
-        Commands::Paper { cmd } => commands::paper::run(cmd, globals).await,
-        Commands::Import { cmd } => commands::import::run(cmd, globals).await,
-        Commands::Discover { cmd } => commands::discover::run(cmd, globals).await,
-        Commands::Feed { cmd } => commands::feed::run(cmd, globals).await,
-        Commands::Export { cmd } => commands::export::run(cmd, globals).await,
-        Commands::Doctor { cmd } => commands::doctor::run(cmd, globals),
-        Commands::Layout { cmd } => commands::layout::run(cmd, globals).await,
-        Commands::Mark { cmd } => commands::mark::run(cmd, globals).await,
-        Commands::Mcp { cmd } => match cmd {
-            McpCmd::Serve(args) => commands::mcp::serve(args, globals).await,
-        },
-        Commands::Ui { cmd } => commands::ui::run(cmd, globals),
-        Commands::Table { cmd } => commands::table::run(cmd, globals),
-        Commands::Translate {
-            text,
-            to,
-            from,
-            provider,
-        } => commands::translate::run(&text, &to, &from, provider.as_deref(), globals).await,
-        Commands::Open { path } => commands::open::run(&path, globals),
-    }
-}
-
-#[cfg(test)]
-mod ops_contract {
-    use super::Cli;
-    use agentero_core::ops::{self, OpStability, OpSurface};
-    use clap::CommandFactory;
-
-    /// Walks the clap tree from `Cli` in this file (`Commands`) and the
-    /// subcommand enums in `cli/src/commands/`.
-    fn clap_has_path(cmd: &clap::Command, segments: &[&str]) -> bool {
-        let Some((head, rest)) = segments.split_first() else {
-            return true;
-        };
-        match cmd.get_subcommands().find(|sub| sub.get_name() == *head) {
-            Some(sub) => clap_has_path(sub, rest),
-            None => false,
+    let plain = args["plain"] == true;
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let probe = Arc::clone(&cancelled);
+    agentero_core::cancel::install_cancel_probe(move |id| {
+        id == CLI_TASK_ID && probe.load(Ordering::Acquire)
+    });
+    let (interrupted,result)=runtime.block_on(async {
+        let work=dispatch::run(op,args,&g);
+        tokio::pin!(work);
+        if path=="mcp serve"{return (false,Some(work.await))}
+        tokio::select!{
+            output=&mut work=>(false,Some(output)),
+            _=tokio::signal::ctrl_c()=>{
+                cancelled.store(true,Ordering::Release);
+                let finish_write=agentero_core::ops::get(&path.replace(' ',".")).is_some_and(|o|matches!(o.side_effects,agentero_core::ops::OpSideEffect::Write|agentero_core::ops::OpSideEffect::Destructive));
+                let receipt=if finish_write{Some(work.await)}else{None};
+                (true,receipt)
+            }
         }
+    });
+    if interrupted {
+        let details = match result {
+            Some(Ok(receipt)) => json!({"completed":receipt}),
+            Some(Err(err)) => {
+                json!({"cause":{"code":err.code,"message":err.message,"details":err.details}})
+            }
+            None => json!({}),
+        };
+        if json {
+            eprintln!(
+                "{}",
+                json!({"error":{"code":"interrupted","message":"interrupted","details":details,"hint":"Inspect the operation receipt before retrying."}})
+            )
+        } else {
+            eprintln!("Interrupted. {details}")
+        }
+        return ExitCode::from(130);
     }
+    let result = result.expect("completed operation has an outcome");
+    let partial = result.as_ref().is_ok_and(|v| {
+        v["items"]
+            .as_array()
+            .is_some_and(|items| items.iter().any(|i| i["outcome"] == "failed"))
+    });
+    match result {
+        Ok(result) => match print_result(&path, result, json, plain, g.style) {
+            Ok(()) if partial => fail(
+                CliError::message("Some items failed. Retry only the failed items."),
+                json,
+            ),
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) if err.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
+            Err(e) => fail(e.into(), json),
+        },
+        Err(e) => fail(e, json),
+    }
+}
 
-    #[test]
-    fn stable_ops_cli_paths_match_registered_commands() {
-        let root = Cli::command();
-        assert_eq!(root.get_name(), "agentero");
-        for op in ops::all() {
-            if op.stability != OpStability::Stable {
+fn print_result(
+    path: &str,
+    mut data: Value,
+    json_mode: bool,
+    plain: bool,
+    style: style::Style,
+) -> io::Result<()> {
+    if path == "mcp serve" {
+        return Ok(());
+    }
+    let lines = data.as_object_mut().and_then(|obj| obj.remove("lines"));
+    let mut stdout = io::stdout().lock();
+    if json_mode {
+        writeln!(stdout, "{data}")
+    } else if plain {
+        let key = if path == "search" { "cite" } else { "id" };
+        for item in data["items"].as_array().into_iter().flatten() {
+            if let Some(id) = item[key].as_str() {
+                writeln!(stdout, "{id}")?;
+            }
+        }
+        Ok(())
+    } else if let Some(raw) = data["text"].as_str().or_else(|| data["content"].as_str()) {
+        write!(stdout, "{raw}")
+    } else if let Some(lines) = lines.as_ref().and_then(Value::as_array) {
+        for line in lines.iter().filter_map(Value::as_str) {
+            writeln!(stdout, "{line}")?;
+        }
+        Ok(())
+    } else if let Some(items) = data["items"]
+        .as_array()
+        .or_else(|| data["tools"].as_array())
+    {
+        for item in items {
+            let label = ["id", "path", "source", "region", "name", "identifier"]
+                .iter()
+                .find_map(|k| item[k].as_str());
+            let detail = [
+                "title",
+                "excerpt",
+                "outcome",
+                "description",
+                "name",
+                "message",
+            ]
+            .iter()
+            .find_map(|k| item[k].as_str())
+            .unwrap_or("");
+            if let Some(label) = label {
+                write!(stdout, "{}", style.path(label))?;
+                if !detail.is_empty() && detail != label {
+                    write!(stdout, "  {detail}")?;
+                }
+                writeln!(stdout)?;
+                if let Some(cite) = item["cite"].as_str() {
+                    writeln!(stdout, "  {}", style.dim(cite))?;
+                }
+            } else {
+                writeln!(stdout, "{item}")?;
+            }
+        }
+        Ok(())
+    } else if let Some(obj) = data.as_object() {
+        for (key, value) in obj {
+            if value.is_null() {
                 continue;
             }
-            let Some(cli) = op.cli.as_deref() else {
-                assert!(
-                    !op.surfaces.contains(&OpSurface::Cli),
-                    "{} is marked CLI but has no command string",
-                    op.id
-                );
-                continue;
-            };
-            let segments: Vec<&str> = cli.split_whitespace().collect();
-            assert_eq!(
-                segments.first().copied(),
-                Some("agentero"),
-                "{} cli {cli}",
-                op.id
-            );
-            assert!(
-                clap_has_path(&root, &segments[1..]),
-                "{} cli path `{cli}` is not registered in cli/src/main.rs Commands",
-                op.id
-            );
+            write!(stdout, "{}  ", style.bold(key))?;
+            if let Some(text) = value.as_str() {
+                writeln!(stdout, "{text}")?;
+            } else {
+                writeln!(stdout, "{value}")?;
+            }
+        }
+        Ok(())
+    } else {
+        writeln!(stdout, "{data}")
+    }
+}
+
+fn fail(e: CliError, json_mode: bool) -> ExitCode {
+    let hint = match e.code.as_str() {
+        "ambiguous_quote" | "ambiguous_section" | "paper_ambiguous" | "ambiguous" => {
+            "Choose one of the candidates in details and retry with its citation, locator, or path."
+        }
+        "revision_conflict" => "Read the current revision before retrying.",
+        "scope_denied" | "permission_denied" => "Select a source in the authorized scope.",
+        "vault_required" | "vault_not_found" => "Run agentero vault list or specify --vault.",
+        "stale_citation" | "stale_cursor" => "Repeat the original search or listing.",
+        "usage" => "Run the command with --help.",
+        _ => "",
+    };
+    if json_mode {
+        eprintln!(
+            "{}",
+            json!({"error":{"code":e.code,"message":e.message,"details":e.details,"hint":hint}})
+        )
+    } else {
+        eprintln!("{} ({})", e.message, e.code);
+        if !hint.is_empty() {
+            eprintln!("{hint}")
         }
     }
-
-    #[test]
-    fn mcp_serve_is_registered() {
-        let root = Cli::command();
-        assert!(
-            clap_has_path(&root, &["mcp", "serve"]),
-            "agentero mcp serve is not registered"
-        );
-    }
-
-    #[test]
-    fn feed_commands_are_registered() {
-        let root = Cli::command();
-        for sub in ["list", "add", "remove", "refresh", "items", "read"] {
-            assert!(
-                clap_has_path(&root, &["feed", sub]),
-                "agentero feed {sub} is not registered"
-            );
-        }
-    }
+    ExitCode::from(e.exit_code() as u8)
 }
