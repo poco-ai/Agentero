@@ -1,57 +1,35 @@
-# 安装与首次使用
+# 读完第一篇论文
+
+准备一篇本地 PDF。打开论文，给摘要加一条高亮，再写一句阅读笔记。这条路线无需 Zotero、Agent 或模型账号。
 
 ## 安装 Agentero
 
-从 [发布页](https://github.com/poco-ai/agentero/releases)下载适合你的系统和处理器的安装包。首次使用不需要安装 Zotero 或 Agent。
+到 [Agentero 发布页](https://github.com/poco-ai/agentero/releases)下载与你的系统和处理器匹配的桌面安装包。macOS 需要 12 或更新版本。Windows 有 x64 和 ARM64 安装包。Linux 的安装包依赖 WebKitGTK 4.1，Ubuntu 22.04 提供这个版本。
 
-| 系统 | 要求 |
-| --- | --- |
-| macOS | 12.0 或更新版本 |
-| Windows | 选择 x64 或 ARM64 安装包 |
-| Linux | Ubuntu 22.04 或更新版本，需 webkit2gtk 4.1 |
+标题栏有新版本提示时，可查看更新详情，再安装并重启。若应用内更新失败，也可以从发布页下载新版安装包。
 
-macOS 也可以使用 Homebrew 安装：
+## 创建知识库
 
-```bash
-brew tap poco-ai/agentero
-brew install --cask agentero
-```
+首次启动时，可以跟着配置向导选主题、设置网络和翻译服务。暂时没有 Agent 也可以直接开始阅读。
 
-Linux 安装 `.deb` 时如果提示缺少 `libwebkit2gtk-4.1-0`，请升级系统或尝试发布页的 AppImage。
+1. 在向导最后一步点击 **新建文献库**。如果已经进入工作台，点击左上角的知识库名称，选 **创建知识库**。
+2. 选择一个独立的文件夹，方便之后找回或备份。这个文件夹就是知识库（Vault），里面会保存论文、笔记和其他资料。
+3. 已有知识库时，在同一个菜单选 **打开知识库…**，选择它所在的文件夹。
 
-## 创建或打开 Vault
+## 导入并打开一篇论文
 
-Vault 是保存论文、笔记和其他资料的文件夹。
+1. 把准备好的 PDF 拖到论文库，或者点击侧栏顶部的魔棒并选择 **导入 PDF**。
+2. 打开左下角的后台任务，查看条目导入和资源下载进度。
+3. 点击侧栏的 **论文库**，双击论文所在的行打开它。也可以按 `⌘P` 或 `Ctrl+P`，在 **快速打开** 里搜索标题。
 
-1. 启动 Agentero，在欢迎页选择 **Create Vault**。
-2. 选择一个长期保存资料的位置，例如文稿目录中的研究文件夹。
-3. 等待文件树和 Library 加载完成。
+想试试从网上导入时，可以在魔棒中输入 arXiv 编号 `1706.03762` 并点击 **添加**。
 
-已有资料时，选择 **Open Vault** 并打开对应目录。已有 Zotero 文库也可以从欢迎页选择迁移，见[导入和管理论文](import-papers.md#zotero)。
+[![同时打开 PDF 和阅读笔记的工作台](../assets/screenshots/workspace.webp)](../assets/screenshots/workspace.webp)
 
-新建 Vault 中的 `notes/` 包含入门笔记。它们是普通 Markdown 文件，可以编辑或删除；删除后不会自动恢复。
+## 留下第一条高亮和笔记
 
-## 认识工作台
+在 PDF 里拖选一小段文字，点浮动工具栏的色块。松开选区后，页面上会留下一条高亮。有了高亮，再在 **笔记** 标签写一句自己的理解，例如「作者用注意力机制代替了什么？」。这个标签对应论文目录里的 `NOTES.md`。
 
-![工作台中的文件树、论文和 Agent 面板](../assets/agent.png)
+如果正文旁没有笔记，用标题栏的 **布局** 菜单切到笔记布局。
 
-- **左侧文件树**：浏览 Vault，打开 Library 和回收站，使用魔棒导入论文。
-- **中间工作区**：打开论文、PDF 和笔记。打开论文时，默认左侧显示正文，右侧显示 `NOTES.md`。
-- **右侧面板**：按需打开 Agent、批注、References 或 Figures。
-- **左下角任务区**：查看导入、下载等后台任务的进度。
-
-可以用标题栏的 Layout 菜单调整布局。在设置的快捷键页面可以查看和修改按键。
-
-## 数据在哪里
-
-Vault 是普通文件夹，PDF 和 Markdown 笔记可用其他工具打开。论文笔记保存在 `papers/<paper>/NOTES.md`，PDF 标注保存在同一论文目录的 `marks/` 中，不会写入原始 PDF。Library 的论文集合和元数据保存在 `.agentero/catalog.sqlite`；请通过 Agentero 修改元数据，不要手动编辑数据库。
-
-建议定期备份整个 Vault，包括 `.agentero/catalog.sqlite`。如果 PDF 通过软链接放在 Vault 外，还需要单独备份链接目标。
-
-## 遇到问题
-
-**已有论文没有出现在 Library？** 右键文件树中的 `papers/`，选择 **重新扫描 papers/**；空库也可以使用中央的扫描按钮。
-
-**自动更新失败？** 检查网络和设置中的代理，重试更新；也可以从[发布页](https://github.com/poco-ai/agentero/releases)下载最新安装包。
-
-接下来可以[导入论文](import-papers.md)，然后[阅读和标注](read-and-organize.md)。
+继续查看[导入和整理论文](import-papers.md)、[阅读器里的批注和翻译](read-and-organize.md)或[布置工作台和快速查找](workspace.md)。

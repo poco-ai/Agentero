@@ -1,23 +1,49 @@
+---
+hide:
+  - toc
+---
+
 # Agentero 用户指南
 
-Agentero 帮你在本地保存论文、阅读 PDF、整理笔记，也可以连接 Agent 辅助研究。论文和笔记保存在你选择的 Vault 文件夹中。
+把论文、笔记和实验记录放在同一个知识库里。你可以跟踪新文献，边读边查证据，再把阅读和实验结果带进论文草稿。
 
-## 开始使用
+[读完第一篇论文](usage/getting-started.md){ .md-button .md-button--primary }
+[遇到问题](usage/help.md){ .md-button }
 
-第一次使用？从[安装与创建 Vault](usage/getting-started.md)开始，然后[导入论文](usage/import-papers.md)并[阅读和标注](usage/read-and-organize.md)。
+## 四个研究场景
 
-## 按需要查找
+<div class="grid cards home-scenarios" markdown>
 
-| 我想…… | 查看 |
-|---|---|
-| 连接 Agent，与论文对话 | [接入 Agent](usage/agents.md) |
-| 配置翻译服务或了解内置服务的数据使用 | [翻译设置与数据](usage/translate-openai-compatible.md) |
-| 同步资料、订阅论文或写作 | [同步、发现与写作](usage/more-features.md) |
-| 从浏览器保存论文 | [Zotero Connector](usage/zotero.md) |
-| 连接外部工具 | [MCP](usage/mcp.md) |
-| 打开服务器上的资料 | [远程 Vault](usage/remote-vault.md) |
-| 在 iPhone 上访问资料 | [移动端](usage/mobile.md) |
+- ### 持续跟踪一条研究线
 
-想了解更多入口，请查看[用户指南目录](usage/index.md)。有其他问题，也可以在 [GitHub Issues](https://github.com/poco-ai/agentero/issues) 中搜索或反馈。
+    [![演示订阅 Transformer 阅读线中的三篇公开论文](assets/screenshots/discovery.webp)](assets/screenshots/discovery.webp)
 
-开发者可以在 [GitHub 仓库的 docs 目录](https://github.com/poco-ai/agentero/tree/main/docs)查看架构、实现和测试文档。
+    在订阅或 arXiv Daily 看候选，把感兴趣的摘要交给 Agent 比较，再选值得保存的论文。也可以查找近期有哪些新文章引用了库里的论文。
+
+    [发现与管理文献](usage/import-papers.md)
+
+- ### 看懂一张图或一条公式
+
+    [![解析面板选中架构图并定位到论文中的图 1](assets/screenshots/figures.webp)](assets/screenshots/figures.webp)
+
+    从解析面板跳到图、表、算法或公式。遇到交叉引用时可以先预览，跳走后再回到原处。读外文时可把原文和译文并排对照。
+
+    [阅读、标注与翻译](usage/read-and-organize.md)
+
+- ### 让一条笔记能回到证据
+
+    [![左栏的 PDF 高亮与右栏笔记中同一条批注的嵌入卡片](assets/screenshots/evidence.webp)](assets/screenshots/evidence.webp)
+
+    把 PDF 的一条批注嵌进笔记，后来复查时点回原页。需要进一步核对时，可以把原文或裁图带进 Agent 会话。
+
+    [写笔记与实验记录](usage/notes-and-tables.md) · [和 Agent 做研究](usage/agents.md)
+
+- ### 从实验记录走到稿件
+
+    [![阅读报告的 LaTeX 源码与实际编译出的 PDF](assets/screenshots/writing.webp)](assets/screenshots/writing.webp)
+
+    新建实验记录时同时得到一篇笔记和一张表。开始写稿后，从论文库插入引用，在 LaTeX 源码和编译后的 PDF 之间定位。
+
+    [做实验记录](usage/notes-and-tables.md) · [写作与引用](usage/writing.md)
+
+</div>
