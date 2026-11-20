@@ -149,7 +149,7 @@ fn download_assets_runner(
 
 /// Runner for [`JobKind::RecognizeMetadata`]: recognize a just-committed
 /// local PDF import in the background (liteparse probe → Zotero recognizer →
-/// identifier resolution), land the result via `recognize::apply` (metadata
+/// identifier resolution or title search), land the result via `recognize::apply` (metadata
 /// upsert / canonical-id rename / merge into an existing entry), then
 /// orchestrate the PAPER.md + refs + layout follow-ups against the paper's
 /// final path.
@@ -182,19 +182,28 @@ fn recognize_metadata_runner(
         let translator_base =
             crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL.to_string();
 
+        let known_title = match crate::features::paper::catalog::papers::get_by_path(&vault, &path)
+        {
+            Ok(paper) => paper
+                .filter(|paper| paper.meta_source.as_deref() != Some("manual"))
+                .map(|paper| paper.title),
+            Err(e) => return RunOutcome::Failed(Some(e.to_string())),
+        };
         let probe =
             crate::features::paper::import::recognize::pdf_recognize::recognize_and_resolve(
                 &pdf,
                 &translator_base,
                 Some(&task_id),
+                known_title.as_deref(),
             )
             .await;
 
         // Cancelled mid-probe: land nothing; the paper keeps its placeholder.
-        if probe.status == "error"
-            && probe.error.as_deref().is_some_and(|e| {
-                e.contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE)
-            })
+        if crate::features::paper::import::is_task_cancelled(&task_id)
+            || (probe.status == "error"
+                && probe.error.as_deref().is_some_and(|e| {
+                    e.contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE)
+                }))
         {
             return RunOutcome::Cancelled;
         }

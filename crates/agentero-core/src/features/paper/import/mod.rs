@@ -772,7 +772,10 @@ async fn import_one_local_pdf(
 
     let sync_probe = if ctx.recognize_sync && !dialog_meta {
         let translator_base = ctx.translator_base_url.unwrap_or("");
-        let probe = recognize::recognize_and_resolve(&src, translator_base, ctx.task_id).await;
+        let probe =
+            recognize::recognize_and_resolve(&src, translator_base, ctx.task_id, Some(&title))
+                .await;
+        check_task_not_cancelled(ctx.task_id)?;
         if let Some(canon) = recognize::canonical_base_id(&probe) {
             base_id = canon;
         }

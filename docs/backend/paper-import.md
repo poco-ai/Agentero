@@ -214,25 +214,26 @@ stock PDFium（例如 bblanchon/pdfium-binaries）能 `LoadLibrary`，但缺 for
   → Zotero recognizer 服务（POST 词级布局 JSON，非 PDF 文件本身，~50-250ms）
   → 命中 DOI → Translator /search 解析；失败走 DOI 兜底链（Crossref→S2→OpenAlex，错峰投机并发）
   → 命中 arXiv → arXiv 兜底链（export.arxiv.org Atom→S2→alphaXiv，错峰投机并发）
-  → 仅命中 title/authors（无标识符）→ 直接采用识别结果（Zotero 同款兜底）
-  → 任何一步失败静默降级为文件名元数据，绝不影响已完成的导入
+  → 无标识符或标识符解析失败 → 用 Zotero 标题反查；未识别或 Zotero 服务失败时可用占位标题反查
+  → 反查未命中或不明确 → 保留已有的 Zotero 结果；否则保留文件名元数据
 ```
 
 识别结果由 `src-tauri/src/features/paper/import/recognize/apply.rs` 落地：
 
 - **命中标识符（`ok`）** → 目录经 wiki rename 事务改名为规范 id（`papers/<文件名slug>` → `papers/1706.03762`，含 `{id}.pdf` 改名、catalog path/id 重写、`[[...]]` 链接重写、失败回滚），`meta_source=recognize`，emit `paper:renamed`。
-- **规范 id 已在库中** → 占位条目并入已有条目（PDF 成为对方主 PDF 或进 `attachments/`），删除占位目录/行，emit `paper:renamed`（`outcome=merged`）。
-- **仅命中标题（`title`）** → 只 upsert catalog 元数据，不改目录名。标题开头的 UTF-8 BOM（包括被错误显示为 `ï»¿` 的形式）会在此边界移除。
-- **未命中 / 识别失败**：两者均保留论文与占位元信息（`meta_source=local-unresolved`）。无文字或无可用匹配通过 `params.warning=no_match` 提示；解析器、识别请求或响应失败则将识别任务标为失败，不阻断正文、参考文献与版面后续任务。用户可在「修改元信息」手填 DOI / arXiv 并刷新（`paper_resolve_identifier`）。
+- **规范 id 已在库中** → 仅当两条记录共享 DOI 或 arXiv ID、且标识符无冲突时合并（PDF 成为对方主 PDF 或进 `attachments/`），删除占位目录/行，emit `paper:renamed`（`outcome=merged`）。仅目录名碰撞时原地更新元数据。
+- **标题反查**：复用 `scholar_api` 的题名搜索。文件名派生的占位标题要求规范化后完全一致；Zotero 标题可接受相似度 ≥85 且作者或年份吻合的候选。排除已知作者、年份冲突；若可信候选仍指向不同论文，则不自动采用。没有 DOI/arXiv 的可靠结果只更新 catalog，不改目录名。已有标识符但权威解析失败时，反查结果必须与原标识符吻合，只补元数据，不替换标识符。
+- **仅识别出标题（`title`）** → 反查未补全时沿用 Zotero 提供的标题、作者等，不改目录名。标题开头的 UTF-8 BOM（包括被错误显示为 `ï»¿` 的形式）会被移除。
+- **未命中 / 识别失败**：两者均保留论文与占位元信息（`meta_source=local-unresolved`）。没有可用匹配时通过 `params.warning=no_match` 提示；解析器失败，或没有可用结果且识别请求、响应或标题反查全部来源失败时，识别任务标为失败。不阻断正文、参考文献与版面后续任务。用户可在「修改元信息」手填 DOI / arXiv 并刷新（`paper_resolve_identifier`）。
 - **arXiv 链整体限流（HTTP 429）**：Zotero Recognizer 常只返回 arXiv id、不带 title；随后 arXiv 兜底链（Atom→S2→alphaXiv）**整条**被限流时（链内已自动 2s 冷却重试一趟）才保留文件名占位标题，并在 `recognizeMetadata` job 的 `params.warning=arxiv_rate_limited` 上让前端 Toast——链内单源 429 会被下一优先级源静默承接，不再触发警告。
 - **用户抢先编辑**：识别完成时若 `meta_source=manual`（Edit-Metadata 手改），识别结果整体放弃；其余来源（含 Connector 兜底的 `zotero-connector` 与未解决的 `local-unresolved`）允许识别结果按字段级合并覆盖非空值。
 
 时序约定：`paper_commit` 以 `defer_parse_jobs: true` 让返回的 `PreparationPlan` 不含 ParseBody/ParseRefs（commit 不再调用 `HostHooks` spawn）。桌面命令按计划入队；Host 调度器对处于 `RecognizeMetadata` 阶段的论文直接延后/跳过 `ParseBody`、`ParseRefs`、`LayoutAnalyze` 与 `reconcile` 命令，由 RecognizeMetadata runner 在目录名尘埃落定后统一按最终路径编排 PAPER.md / refs / layout，避免改名前抢跑产生重复解析与目录移动冲突。
 
-- 实现：识别链路 `src-tauri/src/features/paper/import/recognize/pdf_recognize.rs`（payload 组装 + HTTP client + `map_crossref_work`）；probe worker 变体在 `pdf_parse/mod.rs`（`--agentero-internal-pdf-recognize-worker`）；job 编排 `import/job_runners.rs::recognize_metadata_runner`。
+- 实现：识别与标题反查在 `crates/agentero-core/src/features/paper/import/recognize/pdf_recognize.rs`；probe worker 在 `crates/agentero-core/src/features/paper/analyze/parse/mod.rs`；job 编排在 `src-tauri/src/features/paper/import/job_runners.rs`。
 - payload 结构复刻 Zotero document-worker `getRecognizerData`：`word = [xMin,yMin,xMax,yMax,fontSize,spaceAfter,baseline,rotation,0,bold,italic,0,fontIndex,text]`，行来自 liteparse 投影行（竖排 arXiv stamp 落到独立行，服务端可重建）。
 - Host 侧 entries 仍支持 `title`/`doi`/`arxivId`/`extra` 覆盖（`meta_source=manual`，走原有同步路径不触发后台识别），供确认对话框/CLI 等调用方使用。
-- 隐私：上传的是前 5 页文本布局 JSON（~200KB），不是 PDF 文件；服务为 Zotero 托管的未公开 API，仅作尽力而为识别，失败无感知。
+- 隐私：Zotero 托管的识别服务接收前 5 页文本布局 JSON 和文件名，不接收 PDF 文件；学术搜索服务只接收选定的查询标题（可能来自文件名），不接收页面文本或本地路径。
 - live 验证：`AGENTERO_RECOGNIZE_LIVE_PDF=<pdf> cargo test -p agentero --lib -- live_recognize --include-ignored --nocapture`。
 
 ## Catalog 相关 command（摘要）
