@@ -1,23 +1,19 @@
-//! Vault-relative text reads and text / Base64 writes for MCP.
-//!
-//! Paper `NOTES.md` stays on `paper_notes_*` (frontmatter). This surface is for
-//! other vault text, such as a LaTeX draft that does not live under `papers/`.
+//! Vault-relative directory traversal, text and Base64 writes, moves and recycling.
 
-use agentero_core::error::AppError;
-use agentero_core::features::paper::catalog::papers;
-use agentero_core::features::research_table;
-use agentero_core::features::vault::rename::{
-    run_local_rename_transaction, WikiIndex, WikiRenameResult,
-};
-use agentero_core::features::vault::trash::{self, DeleteResult};
-use agentero_core::features::vault::tree::should_ignore;
-use agentero_core::fs::{atomic_write, sanitize_vault_rel};
+use crate::error::AppError;
+use crate::features::paper::catalog::papers;
+use crate::features::research_table;
+use crate::features::vault::rename::{run_local_rename_transaction, WikiIndex, WikiRenameResult};
+use crate::features::vault::trash::{self, DeleteResult};
+use crate::features::vault::tree::should_ignore;
+#[cfg(test)]
+use crate::fs::atomic_write;
+use crate::fs::sanitize_vault_rel;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// MCP reads and writes refuse decoded content larger than this.
+/// Maximum decoded bytes for ordinary file writes.
 pub const MAX_TEXT_BYTES: usize = 2 * 1024 * 1024;
 
 const BINARY_EXTS: &[&str] = &[
@@ -33,42 +29,13 @@ pub enum WriteMode {
     Append,
 }
 
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub struct FileEntry {
     pub name: String,
-    /// Vault-relative path using `/`.
     pub path: String,
-    /// `file` or `directory`.
     pub kind: String,
 }
 
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct FileListOut {
-    /// Vault-relative directory that was listed. Empty string is the vault root.
-    pub path: String,
-    pub entries: Vec<FileEntry>,
-    pub truncated: bool,
-}
-
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct FileReadOut {
-    pub path: String,
-    pub content: String,
-    pub bytes: usize,
-}
-
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct FileWriteOut {
-    pub path: String,
-    pub mode: String,
-    pub bytes: usize,
-}
-
-pub fn list_dir(vault: &Path, rel: &str, limit: usize) -> Result<FileListOut, AppError> {
+pub fn list_dir(vault: &Path, rel: &str, hidden: bool) -> Result<Vec<FileEntry>, AppError> {
     let rel = normalize_dir(rel)?;
     reject_segments(&rel)?;
     let root = canonical_root(vault)?;
@@ -77,19 +44,33 @@ pub fn list_dir(vault: &Path, rel: &str, limit: usize) -> Result<FileListOut, Ap
     } else {
         contained_existing(&root, &rel, true)?
     };
+    if dir != root {
+        reject_segments(
+            &dir.strip_prefix(&root)
+                .map_err(|_| AppError::domain("permission_denied", "Invalid directory"))?
+                .to_string_lossy()
+                .replace('\\', "/"),
+        )?;
+    }
     if !dir.is_dir() {
         return Err(AppError::message("path is not a directory"));
     }
 
     let mut entries = Vec::new();
-    let mut truncated = false;
     for entry in fs::read_dir(&dir)? {
         let entry = entry?;
         let name = entry.file_name();
         let Some(name) = name.to_str() else {
             continue;
         };
-        if should_ignore(name) {
+        if should_ignore(name)
+            && !(hidden
+                && name.starts_with('.')
+                && !matches!(
+                    name.to_ascii_lowercase().as_str(),
+                    ".git" | ".agentero" | ".env" | ".ssh" | ".aws" | ".gnupg"
+                ))
+        {
             continue;
         }
         let child_rel = if rel.is_empty() {
@@ -97,6 +78,17 @@ pub fn list_dir(vault: &Path, rel: &str, limit: usize) -> Result<FileListOut, Ap
         } else {
             format!("{rel}/{name}")
         };
+        if entry.file_type()?.is_symlink() {
+            let Ok(target) = entry.path().canonicalize() else {
+                continue;
+            };
+            let Ok(relative) = target.strip_prefix(&root) else {
+                continue;
+            };
+            if reject_segments(&relative.to_string_lossy().replace('\\', "/")).is_err() {
+                continue;
+            }
+        }
         let kind = match entry_kind(&root, &entry.path()) {
             Some(kind) => kind,
             None => continue,
@@ -106,11 +98,6 @@ pub fn list_dir(vault: &Path, rel: &str, limit: usize) -> Result<FileListOut, Ap
             path: child_rel,
             kind: kind.to_string(),
         });
-        if entries.len() > limit {
-            truncated = true;
-            entries.pop();
-            break;
-        }
     }
     entries.sort_by(|a, b| {
         let kind = a.kind.cmp(&b.kind);
@@ -118,109 +105,35 @@ pub fn list_dir(vault: &Path, rel: &str, limit: usize) -> Result<FileListOut, Ap
             a.name
                 .to_ascii_lowercase()
                 .cmp(&b.name.to_ascii_lowercase())
+                .then(a.name.cmp(&b.name))
         } else {
             // `directory` < `file`
             kind
         }
     });
-    Ok(FileListOut {
-        path: rel,
-        entries,
-        truncated,
-    })
+    Ok(entries)
 }
 
-/// Use exactly the text-read path policy, before search reads/traverses entries.
-/// Optional catalog metadata filter (`year` / `publication` / `doi` /
-/// `is_read`) narrows hits to papers whose catalog record matches; hits that
-/// do not map to a catalog paper are dropped when any filter is set.
-pub fn search(
-    vault: &Path,
-    query: String,
-    limit: Option<usize>,
-    year: Option<i32>,
-    publication: Option<String>,
-    doi: Option<String>,
-    is_read: Option<bool>,
-) -> Result<agentero_core::features::markdown::search::VaultSearchResult, AppError> {
-    use agentero_core::features::markdown::search::{vault_search_filtered, VaultSearchArgs};
-    let root = canonical_root(vault)?;
-    vault_search_filtered(
-        VaultSearchArgs {
-            vault_path: root.to_string_lossy().into_owned(),
-            query,
-            limit,
-            year,
-            publication,
-            doi,
-            is_read,
-        },
-        &|path| {
-            let Some(rel) = path.strip_prefix(&root).ok().and_then(Path::to_str) else {
-                return false;
-            };
-            let rel = match sanitize_vault_rel(rel) {
-                Ok(rel) => rel,
-                Err(_) => return false,
-            };
-            let is_dir = path.is_dir();
-            reject_segments(&rel).is_ok()
-                && (is_dir || (reject_managed(&rel).is_ok() && reject_binary_name(&rel).is_ok()))
-                && contained_existing(&root, &rel, is_dir).is_ok()
-        },
-    )
-}
-
-pub fn read_text(vault: &Path, rel: &str) -> Result<FileReadOut, AppError> {
-    let rel = normalize_file(rel)?;
-    reject_segments(&rel)?;
-    reject_managed(&rel)?;
-    reject_binary_name(&rel)?;
-    let root = canonical_root(vault)?;
-    let path = contained_existing(&root, &rel, false)?;
-    let meta = fs::metadata(&path)?;
-    if meta.len() > MAX_TEXT_BYTES as u64 {
-        if is_research_table(&rel) {
-            return Err(AppError::message(format!(
-                "file is {} bytes; MCP reads at most {MAX_TEXT_BYTES} bytes of UTF-8 text; use table_query for research tables",
-                meta.len()
-            )));
-        }
-        return Err(AppError::message(format!(
-            "file is {} bytes; MCP reads at most {MAX_TEXT_BYTES} bytes of UTF-8 text",
-            meta.len()
-        )));
-    }
-    let bytes = fs::read(&path)?;
-    let content = decode_text(&bytes)?;
-    let nbytes = content.len();
-    Ok(FileReadOut {
-        path: rel,
-        content,
-        bytes: nbytes,
-    })
-}
-
-pub fn write_text(
+pub fn prepare_text(
     vault: &Path,
     rel: &str,
     content: &str,
     mode: WriteMode,
-) -> Result<FileWriteOut, AppError> {
+) -> Result<Vec<u8>, AppError> {
     let rel = normalize_file(rel)?;
     reject_binary_name(&rel)?;
     if content.as_bytes().contains(&0) {
         return Err(AppError::message("content is binary"));
     }
-    write_bytes(vault, &rel, content.as_bytes(), mode)
+    prepare_bytes(vault, &rel, content.as_bytes(), mode)
 }
 
-pub fn write_base64(
+pub fn prepare_base64(
     vault: &Path,
     rel: &str,
     content: &str,
     mode: WriteMode,
-) -> Result<FileWriteOut, AppError> {
+) -> Result<Vec<u8>, AppError> {
     if mode == WriteMode::Append {
         return Err(AppError::message(
             "base64 encoding only supports mode=replace",
@@ -235,15 +148,15 @@ pub fn write_base64(
     let bytes = STANDARD
         .decode(content)
         .map_err(|err| AppError::message(format!("content is not valid standard base64: {err}")))?;
-    write_bytes(vault, rel, &bytes, mode)
+    prepare_bytes(vault, rel, &bytes, mode)
 }
 
-fn write_bytes(
+fn prepare_bytes(
     vault: &Path,
     rel: &str,
     content: &[u8],
     mode: WriteMode,
-) -> Result<FileWriteOut, AppError> {
+) -> Result<Vec<u8>, AppError> {
     let rel = normalize_file(rel)?;
     reject_segments(&rel)?;
     reject_managed(&rel)?;
@@ -300,19 +213,7 @@ fn write_bytes(
             next
         }
     };
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    atomic_write(&path, &next)?;
-    let mode_name = match mode {
-        WriteMode::Replace => "replace",
-        WriteMode::Append => "append",
-    };
-    Ok(FileWriteOut {
-        path: rel,
-        mode: mode_name.into(),
-        bytes: next.len(),
-    })
+    Ok(next)
 }
 
 /// Move or rename a vault path, updating resolved wiki links and catalog paper
@@ -344,11 +245,15 @@ pub fn move_entry(
     if !source.exists() {
         return Err(AppError::message("source path not found"));
     }
-    contained_existing(&root, &from, source.is_dir())?;
+    require_canonical(
+        &root,
+        &from,
+        &contained_existing(&root, &from, source.is_dir())?,
+    )?;
     if root.join(&to).exists() {
         return Err(AppError::message("destination path already exists"));
     }
-    contained_write_target(&root, &to)?;
+    require_canonical(&root, &to, &contained_write_target(&root, &to)?)?;
 
     run_local_rename_transaction(&root, index, &from, &to, &[], || {
         papers::move_under_path(&root, &from, &to)
@@ -366,6 +271,11 @@ pub fn delete_paths(
     rels: &[String],
     permanent: bool,
 ) -> Result<DeleteResult, AppError> {
+    let clean = delete_candidates(vault, rels)?;
+    trash::delete_paths(vault, &clean, permanent)
+}
+
+pub fn delete_candidates(vault: &Path, rels: &[String]) -> Result<Vec<String>, AppError> {
     let root = canonical_root(vault)?;
     let mut clean = Vec::new();
     for raw in rels {
@@ -382,13 +292,25 @@ pub fn delete_paths(
         if !path.exists() {
             return Err(AppError::message(format!("path not found: {rel}")));
         }
-        contained_existing(&root, &rel, path.is_dir())?;
+        require_canonical(
+            &root,
+            &rel,
+            &contained_existing(&root, &rel, path.is_dir())?,
+        )?;
         clean.push(rel);
     }
     if clean.is_empty() {
         return Err(AppError::message("paths is required"));
     }
-    trash::delete_paths(&root, &clean, permanent)
+    clean.sort();
+    clean.dedup();
+    let selected = clean.clone();
+    clean.retain(|rel| {
+        !selected
+            .iter()
+            .any(|parent| rel.starts_with(&format!("{parent}/")))
+    });
+    Ok(clean)
 }
 
 fn is_research_table(rel: &str) -> bool {
@@ -400,7 +322,7 @@ fn is_markdown(rel: &str) -> bool {
 }
 
 /// Line scan of the first frontmatter block. No YAML parser.
-fn markdown_experiment_locked(path: &Path) -> Result<bool, AppError> {
+pub fn markdown_experiment_locked(path: &Path) -> Result<bool, AppError> {
     let mut file = fs::File::open(path)?;
     let mut buf = [0u8; 8192];
     let read = std::io::Read::read(&mut file, &mut buf)?;
@@ -462,23 +384,34 @@ fn yaml_top_scalar(line: &str, key: &str) -> Option<String> {
     Some(unquoted.to_string())
 }
 
+pub fn relative_path(raw: &str) -> Result<String, AppError> {
+    let raw = raw.trim();
+    if raw.starts_with(['/', '\\']) || raw.as_bytes().get(1) == Some(&b':') {
+        return Err(AppError::domain(
+            "scope_denied",
+            "Expected a Vault-relative path",
+        ));
+    }
+    sanitize_vault_rel(raw).map_err(|e| AppError::domain("scope_denied", e))
+}
+
 fn normalize_dir(raw: &str) -> Result<String, AppError> {
     let raw = raw.trim();
     if raw.is_empty() || raw == "." {
         return Ok(String::new());
     }
-    sanitize_vault_rel(raw).map_err(AppError::message)
+    relative_path(raw)
 }
 
 fn normalize_file(raw: &str) -> Result<String, AppError> {
-    let rel = sanitize_vault_rel(raw.trim()).map_err(AppError::message)?;
+    let rel = relative_path(raw)?;
     if rel.ends_with('/') {
         return Err(AppError::message("path is a directory"));
     }
     Ok(rel)
 }
 
-fn reject_segments(rel: &str) -> Result<(), AppError> {
+pub fn reject_segments(rel: &str) -> Result<(), AppError> {
     if rel.is_empty() {
         return Ok(());
     }
@@ -495,14 +428,21 @@ fn reject_segments(rel: &str) -> Result<(), AppError> {
 fn reject_notes(rel: &str) -> Result<(), AppError> {
     if rel == "NOTES.md" || rel.ends_with("/NOTES.md") {
         return Err(AppError::message(
-            "use paper_notes_write for NOTES.md (keeps YAML frontmatter)",
+            "use paper_note_replace or paper_note_append for NOTES.md (keeps YAML frontmatter)",
         ));
     }
     Ok(())
 }
 
-fn reject_managed(rel: &str) -> Result<(), AppError> {
-    let managed = rel == "catalog.sqlite"
+pub fn reject_managed(rel: &str) -> Result<(), AppError> {
+    let lower = rel.to_ascii_lowercase();
+    let rel = lower.as_str();
+    let managed = rel.split('/').any(|s| s == "marks")
+        || rel.ends_with("/.agentero-downloads.json")
+        || rel.ends_with("/source/.paper-md-revision")
+        || rel.ends_with("/metadata.json")
+        || rel.ends_with("/source/agentero-cite.json")
+        || rel == "catalog.sqlite"
         || rel.ends_with("/catalog.sqlite")
         || rel == "marks/annotations.json"
         || rel.ends_with("/marks/annotations.json")
@@ -566,7 +506,17 @@ fn contained_existing(root: &Path, rel: &str, dir: bool) -> Result<PathBuf, AppE
     Ok(resolved)
 }
 
-fn contained_write_target(root: &Path, rel: &str) -> Result<PathBuf, AppError> {
+pub fn require_canonical(root: &Path, rel: &str, resolved: &Path) -> Result<(), AppError> {
+    if root.join(rel) != resolved {
+        return Err(AppError::domain(
+            "scope_denied",
+            "Use a canonical Vault path to modify this resource",
+        ));
+    }
+    Ok(())
+}
+
+pub fn contained_write_target(root: &Path, rel: &str) -> Result<PathBuf, AppError> {
     let candidate = root.join(rel);
     let parent = candidate
         .parent()
@@ -654,6 +604,45 @@ fn entry_kind(root: &Path, path: &Path) -> Option<&'static str> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+    fn read_text(vault: &Path, path: &str) -> Result<String, AppError> {
+        use crate::features::evidence;
+        let input = serde_json::from_value(serde_json::json!({"source":path}))?;
+        let out = evidence::read(vault, input, true)?;
+        Ok(out["text"].as_str().unwrap().to_owned())
+    }
+    fn write_prepared(
+        vault: &Path,
+        rel: &str,
+        bytes: Vec<u8>,
+        mode: WriteMode,
+    ) -> Result<serde_json::Value, AppError> {
+        let path = contained_write_target(&canonical_root(vault)?, rel)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        atomic_write(&path, &bytes)?;
+        Ok(
+            serde_json::json!({"path":rel,"mode":match mode{WriteMode::Replace=>"replace",WriteMode::Append=>"append"},"bytes":bytes.len()}),
+        )
+    }
+
+    fn write_text(
+        vault: &Path,
+        rel: &str,
+        content: &str,
+        mode: WriteMode,
+    ) -> Result<serde_json::Value, AppError> {
+        write_prepared(vault, rel, prepare_text(vault, rel, content, mode)?, mode)
+    }
+
+    fn write_base64(
+        vault: &Path,
+        rel: &str,
+        content: &str,
+        mode: WriteMode,
+    ) -> Result<serde_json::Value, AppError> {
+        write_prepared(vault, rel, prepare_base64(vault, rel, content, mode)?, mode)
+    }
 
     #[test]
     fn refuses_locked_experiment_markdown_and_still_writes_normal_markdown() {
@@ -706,7 +695,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            read_text(dir.path(), "notes/plain.md").unwrap().content,
+            read_text(dir.path(), "notes/plain.md").unwrap(),
             "# Plain\n\nEdited\n"
         );
         write_text(
@@ -725,9 +714,9 @@ mod tests {
         for rel in ["assets/图.png", "attachments/data.bin", "data/no-extension"] {
             let out =
                 write_base64(dir.path(), rel, &STANDARD.encode(bytes), WriteMode::Replace).unwrap();
-            assert_eq!(out.path, rel);
-            assert_eq!(out.bytes, bytes.len());
-            assert_eq!(out.mode, "replace");
+            assert_eq!(out["path"], rel);
+            assert_eq!(out["bytes"], bytes.len());
+            assert_eq!(out["mode"], "replace");
             assert_eq!(fs::read(dir.path().join(rel)).unwrap(), bytes);
         }
         write_base64(dir.path(), "assets/图.png", "AQ==", WriteMode::Replace).unwrap();
@@ -831,13 +820,13 @@ mod tests {
             WriteMode::Replace,
         )
         .unwrap();
-        assert_eq!(out.path, "drafts/main.tex");
-        assert_eq!(out.mode, "replace");
+        assert_eq!(out["path"], "drafts/main.tex");
+        assert_eq!(out["mode"], "replace");
         let got = read_text(dir.path(), "drafts/main.tex").unwrap();
-        assert_eq!(got.content, "\\section{A}\n");
+        assert_eq!(got, "\\section{A}\n");
         write_text(dir.path(), "drafts/main.tex", "more\n", WriteMode::Append).unwrap();
         let got = read_text(dir.path(), "drafts/main.tex").unwrap();
-        assert_eq!(got.content, "\\section{A}\nmore\n");
+        assert_eq!(got, "\\section{A}\nmore\n");
     }
 
     #[test]
@@ -846,12 +835,12 @@ mod tests {
         fs::create_dir_all(dir.path().join(".agentero")).unwrap();
         fs::write(dir.path().join(".agentero").join("catalog.sqlite"), b"no").unwrap();
         write_text(dir.path(), "drafts/main.tex", "hi", WriteMode::Replace).unwrap();
-        let listed = list_dir(dir.path(), "", 50).unwrap();
-        let paths: Vec<_> = listed.entries.iter().map(|e| e.path.as_str()).collect();
+        let listed = list_dir(dir.path(), "", false).unwrap();
+        let paths: Vec<_> = listed.iter().map(|e| e.path.as_str()).collect();
         assert_eq!(paths, vec!["drafts"]);
-        let nested = list_dir(dir.path(), "drafts", 50).unwrap();
-        assert_eq!(nested.entries[0].path, "drafts/main.tex");
-        assert_eq!(nested.entries[0].kind, "file");
+        let nested = list_dir(dir.path(), "drafts", false).unwrap();
+        assert_eq!(nested[0].path, "drafts/main.tex");
+        assert_eq!(nested[0].kind, "file");
     }
 
     #[test]
@@ -868,7 +857,7 @@ mod tests {
             WriteMode::Replace,
         )
         .unwrap_err();
-        assert!(err.to_string().contains("paper_notes_write"), "{err}");
+        assert!(err.to_string().contains("paper_note_replace"), "{err}");
         let err = write_text(dir.path(), "drafts/fig.pdf", "%PDF", WriteMode::Replace).unwrap_err();
         assert!(err.to_string().contains("binary"), "{err}");
         write_text(dir.path(), "drafts/main.tex", "a\0b", WriteMode::Replace).unwrap_err();
@@ -902,11 +891,7 @@ mod tests {
         assert!(!dir.path().join("drafts/old.md").exists());
         assert!(dir.path().join("drafts/new.md").exists());
         let source = read_text(dir.path(), "notes/Source.md").unwrap();
-        assert!(
-            source.content.contains("[[drafts/new]]"),
-            "{}",
-            source.content
-        );
+        assert!(source.contains("[[drafts/new]]"), "{}", source);
         assert!(move_entry(dir.path(), "drafts/new.md", "drafts/new.md", &mut index).is_err());
     }
 
@@ -918,15 +903,9 @@ mod tests {
         assert_eq!(out.count, 1);
         assert_eq!(out.paths, vec!["drafts/old.tex"]);
         assert!(!dir.path().join("drafts/old.tex").exists());
-        agentero_core::features::vault::trash::restore_batch(
-            dir.path(),
-            out.batch_id.as_deref().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            read_text(dir.path(), "drafts/old.tex").unwrap().content,
-            "old\n"
-        );
+        crate::features::vault::trash::restore_batch(dir.path(), out.batch_id.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(read_text(dir.path(), "drafts/old.tex").unwrap(), "old\n");
         let gone = delete_paths(dir.path(), &["drafts/old.tex".into()], true).unwrap();
         assert!(gone.permanent);
         assert!(gone.batch_id.is_none());

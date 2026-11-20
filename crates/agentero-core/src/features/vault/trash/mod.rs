@@ -355,9 +355,57 @@ pub fn delete_absent_paper_rows(
 }
 
 fn read_manifest(batch_dir: &Path) -> Result<TrashManifest, AppError> {
-    let raw = fs::read_to_string(batch_dir.join("manifest.json"))
+    let manifest_path = batch_dir.join("manifest.json");
+    if fs::symlink_metadata(batch_dir)?.is_symlink()
+        || fs::symlink_metadata(&manifest_path)?.is_symlink()
+    {
+        return Err(AppError::domain(
+            "scope_denied",
+            "Invalid trash manifest location",
+        ));
+    }
+    let raw = fs::read_to_string(manifest_path)
         .map_err(|_| AppError::message("trash batch not found"))?;
-    serde_json::from_str(&raw).map_err(|e| AppError::message(e.to_string()))
+    let manifest: TrashManifest = serde_json::from_str(&raw)?;
+    validate_batch_id(&manifest.batch_id)?;
+    if batch_dir.file_name().and_then(|s| s.to_str()) != Some(&manifest.batch_id) {
+        return Err(AppError::message("Trash batch ID mismatch"));
+    }
+    for item in &manifest.items {
+        let rel = normalize_rel_separators(&item.rel);
+        if !is_trash_candidate(&rel)
+            || crate::fs::sanitize_vault_rel(&rel).as_deref() != Ok(rel.as_str())
+            || rel.as_bytes().get(1) == Some(&b':')
+        {
+            return Err(AppError::domain(
+                "scope_denied",
+                "Invalid trash destination",
+            ));
+        }
+        if item.stored.is_empty()
+            || item.stored == "."
+            || item.stored == ".."
+            || item.stored.contains(['/', '\\'])
+            || item.stored.as_bytes().get(1) == Some(&b':')
+        {
+            return Err(AppError::domain(
+                "scope_denied",
+                "Invalid trash storage name",
+            ));
+        }
+        for row in &item.catalog_rows {
+            let path = normalize_rel_separators(&row.path);
+            if crate::fs::sanitize_vault_rel(&path).as_deref() != Ok(path.as_str())
+                || !Path::new(&path).starts_with(&rel)
+            {
+                return Err(AppError::domain(
+                    "scope_denied",
+                    "Invalid catalog snapshot path",
+                ));
+            }
+        }
+    }
+    Ok(manifest)
 }
 
 fn write_manifest(batch_dir: &Path, manifest: &TrashManifest) -> Result<(), AppError> {

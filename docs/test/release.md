@@ -71,21 +71,24 @@ Release 中区分两类资产：
 CLI 的 `<rust-host>` 来自发布 runner 上 `rustc -vV` 的 `host` 字段，不由工作流手写映射。例如：
 
 - `aarch64-apple-darwin`：Apple Silicon macOS；
+- `x86_64-apple-darwin`：Intel macOS；
 - `x86_64-unknown-linux-gnu`：x86_64 Linux；
 - `aarch64-unknown-linux-gnu`：ARM64 Linux；
 - `x86_64-pc-windows-msvc`：Windows x64 MSVC；
 - `aarch64-pc-windows-msvc`：Windows ARM64 MSVC。
 
-CLI 压缩包内部包含名为 `agentero`（Windows 为 `agentero.exe`）的可执行文件，以及同级的 PDFium 共享库（`pdfium.dll` / `libpdfium.dylib` / `libpdfium.so`，与 `scripts/prepare-pdfium.mjs` 的 tag 一致）。外部归档名使用 `agentero-cli-` 前缀，避免与桌面安装包混淆。缺少该库时 `paper parse` 无法从 PDF 生成 `PAPER.md`。
+CLI 压缩包内部包含名为 `agentero`（Windows 为 `agentero.exe`）的可执行文件，以及同级的 PDFium 共享库（`pdfium.dll` / `libpdfium.dylib` / `libpdfium.so`，与 `scripts/prepare-pdfium.mjs` 的 tag 一致）。外部归档名使用 `agentero-cli-` 前缀，避免与桌面安装包混淆。`read <论文路径> --page 1` 的进程内读取以及 `paper extract` 的隔离解析进程均使用该库。
 
-桌面安装包 **不** 嵌入真实 CLI（[#285](https://github.com/poco-ai/Agentero/issues/285)）：`externalBin` 为空，安装目录不含任何 `agentero-cli` 文件（历史上 Windows 随包附带的批处理占位 `.exe` 会触发“不支持的 16 位应用程序”系统弹窗，已根除）。用户从 **设置 → 关于 → 安装 CLI** 下载与 App 同版本的上述归档（Host 校验 sibling `.sha256`）。独立 CLI 归档仍须随 Release 上传，供 headless 与应用内安装共用。
+桌面 Agent 离线回合直接调用同一 revision 构建的 CLI。macOS 的签名 sidecar 在 `Contents/MacOS/agentero-turn`，PDFium 在 `Contents/Frameworks`。Windows 和 Linux 将真实可执行文件放在资源目录的 `cli/`，库在同级 `pdfium/`；Linux 的资源根一般在 `/usr/lib/<product>/`。移动端只连接桌面服务。桌面包只携带一份内部 CLI。Settings → About 安装终端命令时，把可执行文件和动态库复制到用户数据目录 `Agentero/cli/v-<version>/`，再更新 PATH 启动器。移动应用后已安装的终端命令仍可用，卸载终端命令后桌面回合仍可用。本地文件缺失时才下载同版本独立归档并校验 SHA-256。[发布检查表](release-checklist.md)
+
+发布工作流在各 runner 上运行包内命令，创建临时 Vault、导入本地 PDF 并按物理页读取已知原文。macOS 检查生成的 .app，Linux 解包 DEB，Windows 静默安装 NSIS；独立归档在临时目录解包后运行相同检查。配置 Developer ID 后，流水线校验 app 与内部 sidecar 的签名及 Hardened Runtime，配置公证后再验证票据。
 
 ### Windows 支持边界
 
 - CI：`windows-latest`（x64）与 `windows-11-arm`（ARM64，公开仓库可用的 GitHub 托管 runner）。
 - 安装包：x64 产出 MSI + NSIS；ARM64 只产出 NSIS（Tauri 的 MSI/WiX 不支持 aarch64），构建参数为 `--target aarch64-pc-windows-msvc --bundles nsis`。安装器本身仍是 x86 程序，由 Windows 11 模拟运行；安装后的应用是原生 ARM64。
 - 原生依赖：PDFium 由 `scripts/prepare-pdfium.mjs` 按 target 选择 `pdfium-win-arm64`；SQLite、leptonica/tesseract 在 ARM64 runner 上用 MSVC ARM64 工具链从源码构建。CI 必须为 `windows-11-arm` 显式设置 `ilammy/msvc-dev-cmd` 的 `arch: arm64`，否则会按 x64 编译 C 依赖。rustls 使用的 AWS-LC 在 aarch64 Windows 上要求 `clang-cl`，runner 镜像自带 LLVM，`aws-lc-sys` 会自动查找；若镜像变更导致查找失败，需要显式提供 `clang-cl`。
-- CLI：同一 Release 上传 `agentero-cli-<version>-aarch64-pc-windows-msvc.zip`，ARM64 桌面端的“安装 CLI”按运行架构选择该归档。
+- CLI：同一 Release 上传 `agentero-cli-<version>-aarch64-pc-windows-msvc.zip`，ARM64 桌面终端安装的联网后备路径按运行架构选择该归档。
 - 用户文档：[`../usage/getting-started.md`](../usage/getting-started.md)（[#1134](https://github.com/poco-ai/Agentero/issues/1134)）。
 
 ### Linux 支持边界

@@ -35,7 +35,7 @@
 
 ### PDF 段落导航
 
-PDF 双链可写为 `[[papers/demo/demo.pdf#2]]`、`[[papers/demo/demo.pdf#2.1]]` 或 `[[papers/demo/demo.pdf#2.1#p3]]`；普通 Markdown PDF 链接也支持这些 fragment。相对路径先按源笔记解析，再交给共享 PDF 定位器。章节和段落锚点从 `agentero layout list` 查询；目标缺失、解析缺失或歧义会提示失败，不跳到其他段落。相同锚点在聊天、链接和双链中使用相同的滚动位置与临时高亮范围。
+PDF 双链可写为 `[[papers/demo/demo.pdf#2]]`、`[[papers/demo/demo.pdf#2.1]]` 或 `[[papers/demo/demo.pdf#2.1#p3]]`；普通 Markdown PDF 链接也支持这些 fragment。相对路径先按源笔记解析，再交给共享 PDF 定位器。章节和段落锚点从 `agentero paper regions` 查询；目标缺失、解析缺失或歧义会提示失败，不跳到其他段落。相同锚点在聊天、链接和双链中使用相同的滚动位置与临时高亮范围。
 
 PDF 嵌入 `![[paper.pdf#2.1]]`、`![[paper.pdf#2.1#p3]]` 及旧式 `![[paper.pdf#section=2.1]]` 复用共享定位器，在查看器布局就绪后定位到章节标题块或段落块，并持续高亮其原始 bbox（不外扩为整章正文）。每个嵌入有独立文档实例和引用高亮，不占用主查看器的临时引用焦点；引用高亮仅是展示状态，不写入批注或 layout 文件。普通重渲染保留手动滚动位置；更换目标、重新挂载或重开笔记会重新定位。目标缺失或歧义沿用嵌入状态提示；定位调用失败时另报 Toast，不展示错误章节。
 

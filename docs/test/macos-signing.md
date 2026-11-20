@@ -156,7 +156,9 @@ pnpm tauri build
 校验产物：
 
 ```bash
-APP=src-tauri/target/release/bundle/macos/Agentero.app
+APP=target/release/bundle/macos/Agentero.app
+codesign --verify --strict --verbose=2 "$APP/Contents/MacOS/agentero-turn"
+codesign --display --verbose=4 "$APP/Contents/MacOS/agentero-turn"   # Developer ID Application / runtime
 codesign --verify --deep --strict --verbose=2 "$APP"
 xcrun stapler validate "$APP"
 spctl --assess --type execute --verbose=4 "$APP"
@@ -171,8 +173,8 @@ pnpm tauri build -- --skip-stapling
 产物一般在：
 
 ```text
-src-tauri/target/release/bundle/macos/Agentero.app
-src-tauri/target/release/bundle/dmg/…
+target/release/bundle/macos/Agentero.app
+target/release/bundle/dmg/…
 ```
 
 ---

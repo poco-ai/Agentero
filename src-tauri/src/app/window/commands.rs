@@ -54,7 +54,7 @@ pub fn emit_window_closed(app: &AppHandle, kind: &str, view: Option<&str>) {
 /// applied to the window state before the next one reads it. macOS and Linux
 /// keep plain `set_focus` — their implementations already deminiaturize and
 /// raise the window.
-fn raise_existing_window(window: &tauri::WebviewWindow) {
+pub(crate) fn raise_existing_window(window: &tauri::WebviewWindow) {
     #[cfg(windows)]
     {
         let win = window.clone();

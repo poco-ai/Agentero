@@ -177,16 +177,16 @@ LayoutAnalysisPluginPackage: {
 - 每次远程版面分析独立提交，使用唯一 `requestId`；重试不会复用旧版面请求，已取消请求的进度也不会覆盖新任务。取消会通过 `layout_remote_cancel` 终止对应 Host 等待；已提交的云端 batch 仍由服务端处理。
 - 无 paper 目录（拿不到 PDF 字节）或页数未知时自动回退本地 ONNX。
 
-### Headless CLI（`agentero layout analyze`）
+### Headless CLI（`agentero paper analyze`）
 
-无 GUI（服务器 / 纯 CLI Vault）时，远程 Provider 现在可以直接跑：`agentero layout analyze <ref>` 与 `agentero import pdf --layout` 在 Rust 侧复用同一套 Provider 引擎，读取桌面 `settings.json` 的 `layout.backend` / `layout.providerConfigs.*`，写出 `source/layout.json` + `source/layout-index.json`。
+无 GUI（服务器 / 纯 CLI Vault）时，远程 Provider 现在可以直接跑：`agentero paper analyze <ref>` 与 `agentero paper import pdf --analyze` 在 Rust 侧复用同一套 Provider 引擎，读取桌面 `settings.json` 的 `layout.backend` / `layout.providerConfigs.*`，写出 `source/layout.json` + `source/layout-index.json`。
 
-- **产物同 schema**：`schemaVersion`、`source.mode`（`paddle-layout` / `mineru-layout`）、`completeness` 与 region 字段与桌面一致；桌面打开论文时直接读缓存，CLI 写出的 index 也能被 `layout list/get`、`mark add --region` 使用。
+- **产物同 schema**：`schemaVersion`、`source.mode`（`paddle-layout` / `mineru-layout`）、`completeness` 与 region 字段与桌面一致；桌面打开论文时直接读缓存，CLI 写出的 index 也能被 `paper regions` 和 `read --region`、`annotation add --region` 使用。
 - **本地 ONNX 仍是桌面专属**：PP-DocLayoutV3 依赖 WebView / EmbedPDF 渲染栈，CLI 不加载；`layout.backend=local` 时用 `--provider paddle|mineru` 指定远程引擎。
 - **merge 是 Rust 移植但非全量**：联图 panel 聚类、图注 / 表注绑定、按 `formula_number` 合并公式、NMS 去重与 id 规则都已移植（实论文上与桌面侧栏条目、id、标题逐项对齐）。未移植子图注（(a)(b)）吸收、跨页图注、图注被正文覆盖抑制等少数规则，因此个别联图/跨页排版可能少一条标题。桌面端打开论文仍按当前 TS 规则重新 merge 并刷新 `layout-index.json`，不需要重跑模型。
-- **公式列表**：与桌面一致，侧栏只列 merge 后带 `formula_number` 的公式；远程 Provider 不返回编号框时 `layout list --kind formula` 为空，但 `source/layout.json` 仍保留公式区域（`--kind paragraph` / 章节查询不受影响）。
-- **缓存与 `--pages`**：完整 sidecar 直接复用，`--force` 重跑；`--pages` 只在真正跑分析时生效（命中缓存请配 `--force`），只保留指定页并故意写不完整 sidecar，桌面打开时再补全。
-- 命令细节（flag、缓存策略、错误码、`--json` 形状）见 [../backend/cli.md](../backend/cli.md) §运行版面分析。
+- **公式列表**：与桌面一致，侧栏只列 merge 后带 `formula_number` 的公式；远程 Provider 不返回编号框时 `paper regions --kind formula` 为空，但 `source/layout.json` 仍保留公式区域（`--kind paragraph` / 章节查询不受影响）。
+- **缓存与 `--page`**：完整 sidecar 直接复用，`--refresh` 重跑；`--page` 只在真正跑分析时生效（命中缓存请配 `--refresh`），只保留指定页并故意写不完整 sidecar，桌面打开时再补全。
+- 命令细节（flag、缓存策略、错误码、`--json` 形状）见 [../backend/cli.md](../backend/cli.md)。
 
 实现位于 `crates/agentero-core/src/features/pdf/layout_analyze/`（与桌面共享 `paper::analyze::layout::hosted` 的 Provider 引擎）；CLI 入口见 `cli/src/commands/layout.rs` / `import.rs`。
 
@@ -236,7 +236,7 @@ type LayoutSidecar = {
 - 分区：figure（image+chart）→ table → algorithm → formula
 - 字段：`id`（如 `figure-3`）、`stableKey`、`kind`、`section`、`page`（**1-based**）、`pageIndex`、`bbox`（0–1）、`score`、`title?`、`layoutRegionId`
 - 代码：`src/lib/pdf/layout/layout-index.ts`、`writeLayoutIndexFromRaw`（`io.ts`）
-- CLI：`agentero layout analyze`（headless 生成）、`layout list|get`、`agentero mark add --region <id>`（见 [../backend/cli.md](../backend/cli.md)）
+- CLI：`agentero paper analyze`（headless 生成）、`paper regions` 和 `read --region`、`agentero annotation add --region <id>`（见 [../backend/cli.md](../backend/cli.md)）
 
 缓存只在已知 paper folder 时启用；散落 PDF 没有 `{paper}` 路径，仍使用当前内存流程（也不写 index）。
 
@@ -418,7 +418,7 @@ type PdfLayoutRegion = {
 
 ## 正文块引用与后续
 
-章节、段落锚点按原始 `layout.json` 枚举，先使用页码与阅读顺序确定归属及编号，再做查询筛选；Figures 侧栏的过滤、去重和排序不参与编号。`layout list --kind paragraph` 返回正文与可用 fragment，查询和导航的规则见 [CLI 文档](../backend/cli.md) 与 [PDF 阅读](pdf.md)。模板的 `paper-reader`、`agentero-cli`（含 Windows）及新 Vault 的 `AGENTS.md` 已加入查询后引用的要求，并更新各自版本；已有用户 `AGENTS.md` 保持创建时写入规则，不覆盖用户内容。
+章节、段落锚点按原始 `layout.json` 枚举，先使用页码与阅读顺序确定归属及编号，再做查询筛选；Figures 侧栏的过滤、去重和排序不参与编号。`paper regions --kind paragraph` 返回正文与可用 fragment，查询和导航的规则见 [CLI 文档](../backend/cli.md) 与 [PDF 阅读](pdf.md)。模板的 `paper-reader`、`agentero-cli`（含 Windows）及新 Vault 的 `AGENTS.md` 已加入查询后引用的要求，并更新各自版本；已有用户 `AGENTS.md` 保持创建时写入规则，不覆盖用户内容。
 
 双栏锚点（#877）：部分 MinerU / Paddle 结果的 `readingOrder` 只有纵坐标顺序，会把右栏标题后紧接的左栏正文误归属。Host 与补全共用一致的几何规则：正文水平区间之间至少 0.01 页宽的间隙、两侧正文垂直重叠，才认定为双栏；宽度超过 0.6 页宽的正文不参与栏间隙检测。通栏块分隔上下带，每带左栏读完再读右栏；无证据或坐标不完整时保留原顺序。读取时修正，不改写用户 sidecar，不需要重跑模型。真实回归样例为 EasySteer（2509.25175）第 3–4 页：`#4.2.1#p1` 对应 “Direct modification…”、`#3.2#p1` 对应 “Learning-based steering…”；同时覆盖下一页跨栏续段。前端补全与 Rust 查询 / citation 使用同一份夹具校验章节归属、段落编号及原始 bbox。前端锚点枚举和阅读顺序模块的共用区域类型放在 `layout/types.ts`，保持模块单向依赖（包括 type-only import），由 `pnpm deps:check` 检查。
 

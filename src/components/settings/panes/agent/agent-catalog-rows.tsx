@@ -10,7 +10,10 @@ import {
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
-import type { CustomAgentFormDraft } from "@/components/settings/panes/agent/agent-custom-form";
+import {
+	type CustomAgentFormDraft,
+	ShellCapability,
+} from "@/components/settings/panes/agent/agent-custom-form";
 import type { UninstallTarget } from "@/components/settings/panes/agent/use-agent-uninstall";
 import {
 	catalogProbeKey,
@@ -439,11 +442,15 @@ function AgentCustomAgentRow({
 	const [formName, setFormName] = useState(agent.name);
 	const [formCommand, setFormCommand] = useState(agent.command);
 	const [formArgs, setFormArgs] = useState(agent.args.join(" "));
+	const [supportsShell, setSupportsShell] = useState(
+		Boolean(agent.supportsShell),
+	);
 
 	const resetForm = () => {
 		setFormName(agent.name);
 		setFormCommand(agent.command);
 		setFormArgs(agent.args.join(" "));
+		setSupportsShell(Boolean(agent.supportsShell));
 	};
 
 	const onCancel = () => {
@@ -454,6 +461,8 @@ function AgentCustomAgentRow({
 	const onSave = async () => {
 		const done = await onSubmit({
 			id: agent.id,
+			supportsShell,
+			env: agent.env,
 			name: formName,
 			command: formCommand,
 			args: formArgs,
@@ -579,6 +588,7 @@ function AgentCustomAgentRow({
 							autoComplete="off"
 						/>
 					</div>
+					<ShellCapability value={supportsShell} onChange={setSupportsShell} />
 					<div className="flex justify-end gap-1.5 pt-1">
 						<Button type="button" variant="ghost" size="sm" onClick={onCancel}>
 							{t("common:cancel")}

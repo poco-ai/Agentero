@@ -5,6 +5,7 @@ import {
 	commands,
 	events,
 	type PiProjectTrustStatus,
+	type PresentedFile,
 	type UpsertAgentRequest_Deserialize,
 } from "@/lib/core/bindings";
 import { callApi, callApiResult } from "@/lib/core/ipc";
@@ -63,6 +64,7 @@ export function agentTemplateById(
 }
 
 export type AgentDescriptor = {
+	supportsShell?: boolean;
 	id: string;
 	name: string;
 	template: AgentTemplate;
@@ -137,6 +139,7 @@ export type AcpHistoryPart =
 	| { type: "plan"; entries: AgentPlanEntry[] };
 
 export type AcpHistoryLine = {
+	artifacts?: PresentedFile[];
 	id: string;
 	kind: "user" | "agent";
 	text: string;
@@ -183,6 +186,8 @@ export type AgentResultPayload = {
 	/** ACP agent thought / reasoning text, if the agent emitted thought chunks. */
 	reasoning?: string | null;
 	sources: string[];
+	promptOnly?: boolean;
+	artifacts?: PresentedFile[];
 	stopReason?: string | null;
 	/** Durable ACP provider session id for the next `session/resume`. */
 	providerSessionId?: string | null;
@@ -455,6 +460,7 @@ export async function checkCatalogUpdates(): Promise<CatalogScanResponse> {
 }
 
 export async function upsertAgent(request: {
+	supportsShell?: boolean;
 	id?: string;
 	name: string;
 	template?: AgentTemplate;

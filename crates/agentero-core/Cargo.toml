@@ -25,6 +25,7 @@ tempfile = { workspace = true }
 thiserror = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks", "multipart", "cookies", "stream"] }
+regex = "1"
 roxmltree = "0.20"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 async-trait = "0.1.91"
@@ -33,6 +34,7 @@ async-trait = "0.1.91"
 specta = { version = "2.0.0-rc.22", features = ["derive", "chrono"] }
 # Search hit DTOs are returned both over Tauri IPC (specta) and MCP (schemars).
 schemars = "1"
+jsonschema = { version = "0.33", default-features = false }
 which = "7"
 # Migrated domain features (import asset unpack, feeds body extraction,
 # wiki/vault walks, citation fingerprints, scholar API queries, …).
@@ -82,4 +84,4 @@ liteparse-pdfium = "1.13"
 # `process::windows_job` owns Git invocation trees, including transport helpers.
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading"] }

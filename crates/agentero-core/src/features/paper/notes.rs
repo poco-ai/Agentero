@@ -1,8 +1,10 @@
 //! `{paper}/NOTES.md` get/write with YAML frontmatter protection.
 
-use agentero_core::error::AppError;
-use agentero_core::features::markdown::frontmatter::split_off_frontmatter;
-use agentero_core::fs::{atomic_write, sanitize_vault_rel};
+use crate::error::AppError;
+use crate::features::markdown::frontmatter::split_off_frontmatter;
+#[cfg(test)]
+use crate::fs::atomic_write;
+use crate::fs::sanitize_vault_rel;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -20,6 +22,7 @@ pub fn notes_abs(vault: &Path, paper_path: &str) -> Result<PathBuf, AppError> {
     Ok(abs)
 }
 
+#[cfg(test)]
 pub fn read_notes(vault: &Path, paper_path: &str) -> Result<String, AppError> {
     let path = notes_abs(vault, paper_path)?;
     if !path.is_file() {
@@ -34,19 +37,16 @@ pub enum WriteMode {
     Append,
 }
 
-pub fn write_notes(
+pub fn prepare_notes(
     vault: &Path,
     paper_path: &str,
     paper_id: &str,
     content: &str,
     mode: WriteMode,
-) -> Result<(), AppError> {
+) -> Result<Vec<u8>, AppError> {
     let path = notes_abs(vault, paper_path)?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
     let existing = if path.is_file() {
-        fs::read_to_string(&path).unwrap_or_default()
+        fs::read_to_string(&path)?
     } else {
         String::new()
     };
@@ -54,7 +54,21 @@ pub fn write_notes(
         WriteMode::Append => append_notes(&existing, paper_id, content),
         WriteMode::Replace => replace_notes(&existing, paper_id, content),
     };
-    atomic_write(&path, next.as_bytes()).map_err(AppError::from)
+    Ok(next.into_bytes())
+}
+
+#[cfg(test)]
+pub fn write_notes(
+    vault: &Path,
+    paper_path: &str,
+    paper_id: &str,
+    content: &str,
+    mode: WriteMode,
+) -> Result<(), AppError> {
+    let bytes = prepare_notes(vault, paper_path, paper_id, content, mode)?;
+    let path = notes_abs(vault, paper_path)?;
+    fs::create_dir_all(path.parent().unwrap())?;
+    Ok(atomic_write(&path, &bytes)?)
 }
 
 fn default_frontmatter(paper_id: &str) -> String {

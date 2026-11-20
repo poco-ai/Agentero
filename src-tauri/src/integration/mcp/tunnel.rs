@@ -154,6 +154,9 @@ fn run_args(
         "env:CONTROL_PLANE_API_KEY".to_string(),
         "--mcp.server-url".to_string(),
         mcp_url.to_string(),
+        "--mcp.extra-headers".to_string(),
+        "Authorization: env:AGENTERO_MCP_AUTHORIZATION".to_string(),
+        "--mcp.oauth-discovery=disabled".to_string(),
         // Ephemeral port: a manually-run tunnel-client on the default 8080
         // must not make this one fail to bind.
         "--health.listen-addr".to_string(),
@@ -370,6 +373,10 @@ impl McpTunnelController {
             proxy.as_deref(),
         );
 
+        let token = match agentero_mcp::default_token() {
+            Ok(value) => value,
+            Err(error) => return self.fail(format!("Read local MCP credential: {error}")),
+        };
         let mut cmd = Command::new(&binary);
         cmd.args(&args)
             .stdin(Stdio::null())
@@ -378,6 +385,7 @@ impl McpTunnelController {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .env("CONTROL_PLANE_API_KEY", &api_key)
+            .env("AGENTERO_MCP_AUTHORIZATION", format!("Bearer {token}"))
             .env("NO_PROXY", "127.0.0.1,localhost")
             .env_remove("HTTP_PROXY")
             .env_remove("HTTPS_PROXY");
@@ -805,6 +813,9 @@ mod tests {
         assert!(joined.contains("--control-plane.tunnel-id"));
         assert!(joined.contains("env:CONTROL_PLANE_API_KEY"));
         assert!(!joined.contains("sk-secret"));
+        assert!(
+            joined.contains("--mcp.extra-headers Authorization: env:AGENTERO_MCP_AUTHORIZATION")
+        );
         assert!(joined.contains("--control-plane.http-proxy env:AGENTERO_TUNNEL_PROXY"));
         assert!(!joined.contains("--http-proxy"));
         assert!(joined.contains("127.0.0.1:0"));

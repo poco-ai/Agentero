@@ -7,11 +7,5 @@ fn main() {
     {
         std::process::exit(status);
     }
-    if let Some(status) = agentero_lib::integration::context_mcp::try_run_context_mcp() {
-        std::process::exit(status);
-    }
-    if let Some(status) = agentero_lib::integration::delegate_mcp::try_run_delegate_mcp() {
-        std::process::exit(status);
-    }
     agentero_lib::run()
 }

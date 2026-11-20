@@ -31,7 +31,7 @@
 | `SettingsRow` / `settingsRowClassName` | Body 行：`text-sm` 常规字重、`min-h-10`、柔和行间分隔 |
 | `HelpLabel` | 可键盘聚焦的 `?` 按钮（Tooltip），按压有微缩反馈 |
 
-通用页由 `panes/general-pane.tsx` 组装；EasyScholar、隐私、Connector 和 MCP 设置区块按职责放在 `panes/general/`。MCP tunnel 与 MCP 开关保留在同一模块，区块各自管理原有状态与事件订阅，页面负责传入设置和保存回调。
+通用页由 `panes/general-pane.tsx` 组装；EasyScholar、隐私、Connector 和 MCP 设置区块按职责放在 `panes/general/`。全文读取、修改 Vault 和访问网络可独立授权，直接连接和 MCP Tunnel 使用相同的设置。MCP tunnel 与 MCP 开关保留在同一模块，区块各自管理原有状态与事件订阅，页面负责传入设置和保存回调。
 
 侧栏（`SettingsContent`）：
 

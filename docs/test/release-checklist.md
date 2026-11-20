@@ -71,7 +71,7 @@ cargo test -p agentero-core -p agentero-cli
 | # | 界面 | 操作 | 预期 | 结果 |
 |---|---|---|---|---|
 | 0.3.1 | 系统 | 安装本次产物并首次启动 | 无崩溃、无白屏；进入**欢迎页**。Linux 在 22.04+ 验收 | ☐ |
-| 0.3.1b | 终端 | 检查产物不含 CLI（macOS：`ls Agentero.app/Contents/MacOS/ | grep agentero-cli`；Windows：安装目录 `dir agentero-cli*`） | 应**无**任何 agentero-cli 文件（不内置真二进制，也不再有占位 stub；#320） | ☐ |
+| 0.3.1b | 终端 | 用安装包中的 CLI 运行 `--version`、导入本地 PDF、执行 `read <论文路径> --page 1`。macOS 用 `Contents/MacOS/agentero-turn`，Windows/Linux 用资源目录中的 `cli/agentero-cli[.exe]` | 版本与 App 相符；返回该物理页正文。macOS 发布签名覆盖 sidecar | ☐ |
 | 0.3.2 | 欢迎页 | 不打开 Vault，空看界面 | 同一行有 Create / Open / Open remote / Migrate from Zotero + Recent 列表；无大段说明文案 | ☐ |
 | 0.3.3 | 设置 → 关于 | 已安装旧版时检查已发布新版，点「安装并重启」 | 有新版提示、下载进度；重启后 About 显示新版本 | ☐ |
 | 0.3.3b | 主窗口 | 应用跨多个 Release 长期驻留后点标题栏「新版本」标签 | 安装的是最新版而非驻留期间缓存的旧版（安装前 re-check；#481） | ☐ |
@@ -236,8 +236,8 @@ cargo test -p agentero-core -p agentero-cli
 | 6.2.2.3 | 访达 | 把 PNG / `.md` 拖到 Library 表 | **无** overlay、不入库 | ☐ |
 | 6.2.2.4 | Linux · Files（Nautilus）+ GNOME / Wayland | 从 Files 把 PDF 分别拖到主窗口 Library、`papers/` 组织夹、阅读器；再检查树内移动和 tab 重排 | PDF 按对应目标目录各导入一次；Library 有 overlay；内部移动和 tab 拖拽正常 | ☐ |
 | 6.2.3 | 同上 | 再导同名冲突 PDF | citekey 带 `-2` / `-3` 等后缀，不互相覆盖 | ☐ |
-| 6.2.4 | 终端 + 应用 | **用安装包装的应用**（非 `tauri dev`），先确认 PDFium 已随包：macOS `ls "/Applications/Agentero.app/Contents/Frameworks/libpdfium.dylib"`，Windows/Linux 查 exe 同级 `pdfium/`。再临时移走构建期缓存 `~/Library/Caches/pdfium-rs`（Linux `~/.cache/pdfium-rs`），导入一个本地 PDF | 仍生成 `PAPER.md`，catalog 写入 `body_source`；测完恢复缓存目录（回归 #303） | ☐ |
-| 6.2.5 | 同上 | 把包内 PDFium 临时改名，再导入一个本地 PDF | 任务面板出现 **失败** 的「解析 PDF 正文」，详情含找不到 PDFium 的真实原因，而不是显示“已完成” | ☐ |
+| 6.2.4 | 安装包 + 终端 | 在已安装的应用内导入本地 PDF，然后在仓库中执行 `node scripts/verify-packaged-cli.mjs <随包 CLI> <随包 PDFium>`。macOS 查 `Contents/Frameworks/libpdfium.dylib`，Windows/Linux 查资源根的 `pdfium/` | GUI 生成 `PAPER.md` 并记录 body_source。CLI 在独立 Vault 按物理页读原文、刷新正文，避免构建缓存掩盖包装错误 | ☐ |
+| 6.2.5 | 临时目录 | 只复制 CLI 到临时目录，在其旁创建同名但无效的 PDFium 文件；用此副本 `read <尚无版面索引的论文> --page 1 --json` | 进程以非零码退出，stderr 返回 `pdfium_unavailable` 与原生加载原因；原安装包仍能解析 | ☐ |
 | 6.2.6 | 设置 → 版面解析 + 左栏·树 | 正文引擎选「Agentero 内置」，导入一篇无 TeX 的 PDF | 生成的 `PAPER.md` 是 OCR 质量正文（catalog `body_source` = `vlm`），**不是**静默退化成本地 liteparse 的纯文本；同时版面后端仍显示 `local`，PP-DocLayoutV3 仍从本地 cache 加载（内置 provider 只是正文引擎，不是版面后端） | ☐ |
 
 ### 6.3 补下载
@@ -462,10 +462,10 @@ agentero --vault /tmp/agentero-cli-vault paper list --json
 | 13.1 | 终端 | `agentero --version` | 版本与发布一致 | ☐ |
 | 13.2 | 终端 | `vault create <空目录>` | 脚手架与 GUI Create 一致（含 catalog） | ☐ |
 | 13.3 | 终端 | `vault list --json` | JSON 可解析；退出码 0 | ☐ |
-| 13.4 | 终端 | `tree`；`paper list --json` | 与 catalog 一致 | ☐ |
+| 13.4 | 终端 | `file list`；`paper list --json` | 与 catalog 一致 | ☐ |
 | 13.5 | 终端 | `paper tag add …`；`list --tag` | 标签生效 | ☐ |
-| 13.6 | 终端 | `import id 1706.03762`（需网） | 入库成功或稳定 `error.code` | ☐ |
-| 13.7 | 终端 | `export bib` | 输出 BibTeX | ☐ |
+| 13.6 | 终端 | `paper import id 1706.03762`（需网） | 入库成功或稳定 `error.code` | ☐ |
+| 13.7 | 终端 | `paper export --format bibtex` | 输出 BibTeX | ☐ |
 | 13.8 | 终端 | `agentero --help` | **无** agent run / paper-reader 类 BYOA 命令 | ☐ |
 
 ---
@@ -499,7 +499,7 @@ agentero --vault /tmp/agentero-cli-vault paper list --json
 | CLI §13 | ☐ | ☐ | ☐ |
 | 外壳右键集成 §0.3.5/0.3.6 | ☐ | N/A | ☐ |
 
-Windows ARM64 首次发版至少跑 §0.3 + §1：运行 `arm64-setup.exe`（x86 安装器由 Windows 11 ARM 模拟执行），确认任务管理器中 `agentero.exe` 为 ARM64，完成一次 PDF 解析；应用内“安装 CLI”应下载 `agentero-cli-<version>-aarch64-pc-windows-msvc.zip` 并成功执行 `agentero-cli --version`。
+Windows ARM64 首次发版至少跑 §0.3 + §1：运行 `arm64-setup.exe`（x86 安装器由 Windows 11 ARM 模拟执行），确认任务管理器中 `agentero.exe` 为 ARM64，完成一次 PDF 解析；断网后在应用内安装 CLI，在新终端执行 `agentero-cli --version`；卸载 PATH 命令后再检查桌面回合仍可运行。
 
 ---
 

@@ -14,10 +14,11 @@ import {
 	TraceLine,
 	TraceTitle,
 } from "@/components/ui/trace";
+import { evidenceCitationLabel } from "@/lib/agent/citation-href";
 import { openCitation } from "@/lib/workspace/actions";
 
 function sourceLabel(source: string): string {
-	const trimmed = source.trim();
+	const trimmed = evidenceCitationLabel(source) ?? source.trim();
 	const hash = trimmed.lastIndexOf("#");
 	const path = hash >= 0 ? trimmed.slice(0, hash) : trimmed;
 	const fragment = hash >= 0 ? trimmed.slice(hash) : "";
@@ -53,8 +54,8 @@ export function ContextSourceLinks({ sources }: { sources: string[] }) {
 								variant="ghost"
 								size="xs"
 								className="h-auto max-w-full justify-start whitespace-normal py-1"
-								title={source}
-								aria-label={source}
+								title={evidenceCitationLabel(source) ?? source}
+								aria-label={sourceLabel(source)}
 								onClick={() => openCitation(source)}
 							>
 								<TraceLine>

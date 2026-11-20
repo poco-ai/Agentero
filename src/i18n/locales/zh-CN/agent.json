@@ -1,4 +1,5 @@
 {
+	"promptOnlySources": "此 Agent 通过提示接收随附证据，无法主动展开更多来源。",
 	"acpStatus": {
 		"ready": "ACP 就绪",
 		"failed": "ACP 失败",

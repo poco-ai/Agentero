@@ -1,22 +1,19 @@
-//! Attach one turn's context plan to the ACP prompt and, locally, to stdio MCP.
+//! Attach one turn's context plan to the ACP prompt and bind its local evidence CLI.
 
-use crate::core::error::AppError;
-use agent_client_protocol::v1::schema::{McpServer, McpServerStdio};
 use agentero_core::features::context::{
-    facts_from_anchors, grant_path, plan_from_facts, render_prompt_block, resolve_in_vault,
-    resume_allowed, session_fingerprint, usage_path, write_grant, ContextExpansion, ContextGrant,
-    ContextPlan, ContextRequest, GRANT_SCHEMA_VERSION, MCP_WORKER_ARG,
+    facts_from_anchors, plan_from_facts, render_prompt_block, resolve_in_vault, resume_allowed,
+    session_fingerprint, ContextExpansion, ContextGrant, ContextRequest, GRANT_SCHEMA_VERSION,
 };
 use std::path::{Path, PathBuf};
 
 /// What `run_once` needs from the context layer. Absent when the turn has no anchors.
 pub(crate) struct PreparedContext {
     pub block: String,
-    pub mcp_servers: Vec<McpServer>,
+    pub grant: Option<ContextGrant>,
+    pub prefetched_sources: Vec<String>,
     pub fingerprint: Option<String>,
-    pub usage_path: Option<PathBuf>,
     pub vault: Option<PathBuf>,
-    /// A warm ACP session was created without this MCP server. Do not reuse it.
+    /// A warm ACP process cannot acquire a new environment. Do not reuse it.
     pub skip_warm_pool: bool,
     pub resume_session_id: Option<String>,
 }
@@ -24,28 +21,28 @@ pub(crate) struct PreparedContext {
 pub(crate) fn prepare_context(
     runtime_session_id: &str,
     vault_path: Option<&str>,
-    remote: bool,
+    cli: Option<&Path>,
     request: Option<&ContextRequest>,
     resume_session_id: Option<String>,
 ) -> PreparedContext {
     let Some(request) = request.filter(|request| !request.anchors.is_empty()) else {
         return PreparedContext {
             block: String::new(),
-            mcp_servers: Vec::new(),
+            grant: None,
+            prefetched_sources: Vec::new(),
             fingerprint: None,
-            usage_path: None,
             vault: None,
             skip_warm_pool: false,
             resume_session_id,
         };
     };
     let vault = vault_path.map(PathBuf::from).filter(|path| path.is_dir());
-    let mut expansion = if remote || vault.is_none() {
+    let expansion = if cli.is_none() || vault.is_none() {
         ContextExpansion::PromptOnly
     } else {
-        ContextExpansion::Mcp
+        ContextExpansion::Cli
     };
-    let mut plan = match vault.as_deref() {
+    let plan = match vault.as_deref() {
         Some(vault) => resolve_in_vault(vault, request, expansion).unwrap_or_else(|error| {
             log::warn!(target: "agentero::agent", "context resolve failed: {error}");
             plan_from_facts(
@@ -60,46 +57,113 @@ pub(crate) fn prepare_context(
             ContextExpansion::PromptOnly,
         ),
     };
-    if plan.expansion == ContextExpansion::PromptOnly {
-        expansion = ContextExpansion::PromptOnly;
-    }
-    let mut mcp_servers = Vec::new();
-    let mut usage = None;
-    if expansion == ContextExpansion::Mcp {
-        if let Some(vault) = vault.as_deref() {
-            match attach_mcp(vault, runtime_session_id, &plan) {
-                Ok((servers, usage_path)) => {
-                    mcp_servers = servers;
-                    usage = Some(usage_path);
-                }
-                Err(error) => {
-                    log::warn!(
-                        target: "agentero::agent",
-                        "context mcp unavailable, prompt-only fallback: {error}"
-                    );
-                    match resolve_in_vault(vault, request, ContextExpansion::PromptOnly) {
-                        Ok(resolved) => plan = resolved,
-                        Err(_) => plan.expansion = ContextExpansion::PromptOnly,
-                    }
-                }
-            }
-        }
-    }
+    let grant = vault
+        .as_ref()
+        .filter(|_| !plan.allowed.is_empty())
+        .map(|vault| ContextGrant {
+            schema_version: GRANT_SCHEMA_VERSION,
+            session_id: runtime_session_id.to_owned(),
+            vault_path: vault.display().to_string(),
+            fingerprint: plan.fingerprint.clone(),
+            allowed: plan.allowed.clone(),
+            budget: plan.budget.clone(),
+            mode: plan.mode,
+        });
     let fingerprint = plan.fingerprint.clone();
     let resume_session_id = match vault.as_deref() {
         Some(vault) => gate_resume(vault, resume_session_id, &fingerprint),
         None => resume_session_id,
     };
-    let block = render_prompt_block(&plan);
+    let mut block = render_prompt_block(&plan);
+    let mut prefetched_sources = Vec::new();
+    let grant = if plan.expansion == ContextExpansion::PromptOnly {
+        if let Some(authority) = &grant {
+            prefetched_sources = prefetch(authority, &plan, &request.question, &mut block);
+        }
+        None
+    } else {
+        grant
+    };
+    if let Some(exe) = cli.filter(|_| grant.is_some()) {
+        block.push_str(&format!(
+            "\nAgentero CLI executable for this turn: {}\n",
+            exe.display()
+        ));
+    }
     PreparedContext {
         block,
-        mcp_servers,
+        grant,
+        prefetched_sources,
         fingerprint: Some(fingerprint),
-        usage_path: usage,
         vault,
-        skip_warm_pool: plan.expansion == ContextExpansion::Mcp,
+        skip_warm_pool: plan.expansion == ContextExpansion::Cli,
         resume_session_id,
     }
+}
+
+/// Include a small amount of real text for prompt-only providers with a local vault.
+fn prefetch(
+    grant: &ContextGrant,
+    plan: &agentero_core::features::context::ContextPlan,
+    question: &str,
+    block: &mut String,
+) -> Vec<String> {
+    use agentero_core::features::evidence::execute_scoped;
+    use serde_json::json;
+    let mut sources = Vec::new();
+    let mut spent = 0;
+    for item in plan.immediate.iter().take(2) {
+        let is_directory = item.directory_path.is_some();
+        let Some(path) = item
+            .file_path
+            .as_ref()
+            .or(item.paper_path.as_ref())
+            .or(item.directory_path.as_ref())
+        else {
+            continue;
+        };
+        let (name, args, cards) = if is_directory {
+            if question.trim().is_empty() {
+                continue;
+            }
+            (
+                "evidence_search",
+                json!({"query":question,"in":[path],"limit":1}),
+                "items",
+            )
+        } else {
+            let mut args = json!({"source":path,"max_chars":grant.budget.card_chars});
+            if let Some(line) = item.line_from {
+                args["lines"] = json!(format!("{line}-{}", item.line_to.unwrap_or(line)));
+            } else if let Some(page) = item.page {
+                args["pages"] = json!([page]);
+            } else if let Some(section) = &item.section {
+                args["section"] = json!(section);
+            }
+            ("evidence_read", args, "evidence")
+        };
+        let Ok((value, cost, _)) = execute_scoped(grant, name, args, spent) else {
+            continue;
+        };
+        spent += cost;
+        if let Some(card) = value[cards].as_array().and_then(|rows| rows.first()) {
+            if let (Some(excerpt), Some(cite)) = (card["excerpt"].as_str(), card["cite"].as_str()) {
+                if excerpt.is_empty() || sources.iter().any(|s| s == cite) {
+                    continue;
+                }
+                let excerpt = excerpt
+                    .chars()
+                    .take(grant.budget.card_chars as usize)
+                    .collect::<String>();
+                block.push_str(&format!(
+                    "\nEvidence from {path} ({cite}):\n> {}\n",
+                    excerpt.replace('\n', "\n> ")
+                ));
+                sources.push(cite.to_owned());
+            }
+        }
+    }
+    sources
 }
 
 fn gate_resume(
@@ -118,34 +182,6 @@ fn gate_resume(
         );
         None
     }
-}
-
-fn attach_mcp(
-    vault: &Path,
-    runtime_session_id: &str,
-    plan: &ContextPlan,
-) -> Result<(Vec<McpServer>, PathBuf), AppError> {
-    let grant_file = grant_path(vault, runtime_session_id);
-    let grant = ContextGrant {
-        schema_version: GRANT_SCHEMA_VERSION,
-        session_id: runtime_session_id.to_string(),
-        vault_path: vault.display().to_string(),
-        fingerprint: plan.fingerprint.clone(),
-        allowed: plan.allowed.clone(),
-        budget: plan.budget.clone(),
-        mode: plan.mode,
-    };
-    write_grant(&grant_file, &grant)?;
-    let exe = std::env::current_exe()
-        .map_err(|error| AppError::message(format!("locate agentero for context mcp: {error}")))?;
-    let stdio = McpServerStdio::new("agentero-context", exe).args(vec![
-        MCP_WORKER_ARG.to_string(),
-        grant_file.display().to_string(),
-    ]);
-    Ok((
-        vec![McpServer::Stdio(stdio)],
-        usage_path(vault, runtime_session_id),
-    ))
 }
 
 /// Insert the evidence block before the human request so chat history still

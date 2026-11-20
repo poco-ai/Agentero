@@ -47,7 +47,7 @@ PDF 阅读器支持：
 - 点击条目跳转到 PDF 对应位置；可开启叠加层查看模型原始框。
 - 普通阅读时，鼠标悬停句子即显示浅底，双栏时对应句子一起亮。点击 PDF 工具栏「选择版面元素」按钮或按 `⌘.` 后，鼠标悬停在已分析的版面元素上会在框左上方显示类别。再次点击按钮或按 Esc 退出模式。正文有句对时，浅底落在当前句上，跨行和跨页的同一句一起亮；图、表、公式仍是整块框。双栏 PDF 对照时左右同一句一起浅亮，对侧不在视口里时不跟着滚。点击左上角类别标签选择整段或整个元素，点击段落内的句子选择当前句，均可加入对话或翻译。这不会写入视觉批注。`⌘.` 与工具栏共用元素选择开关。
 
-原始结果缓存到 `{paper}/source/layout.json`，侧栏索引写入 `{paper}/source/layout-index.json`，可用 CLI `agentero layout list|get` 读取。
+原始结果缓存到 `{paper}/source/layout.json`，侧栏索引写入 `{paper}/source/layout-index.json`，可用 CLI `agentero paper regions` 和 `agentero read --region` 读取。
 
 ## 参考文献（References）
 
