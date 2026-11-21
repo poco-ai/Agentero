@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import {
 	type MouseEvent as ReactMouseEvent,
 	type PointerEvent as ReactPointerEvent,
@@ -30,6 +31,13 @@ import { webViewProxyOrigins, webViewProxyUrl } from "@/lib/web-view/proxy-url";
  * must not move the card sideways under the pointer. */
 const CARD_WIDTH = 320;
 const PAGE_PREVIEW_HEIGHT = 220;
+/**
+ * Layout the framed page at 2× and scale it back down. Most sites switch to a
+ * cramped mobile layout at the card's inner width (~304px); a 608px viewport
+ * shows the desktop page, and the 0.5 scale keeps the same on-screen size while
+ * fitting far more of the page into the preview.
+ */
+const PAGE_PREVIEW_SCALE = 0.5;
 const IMAGE_MAX_HEIGHT = 240;
 const IMAGE_SKELETON_HEIGHT = 180;
 /**
@@ -67,9 +75,9 @@ type PreviewPhase = "idle" | "loading" | "ready" | "failed";
  * failed / timed-out / refused load puts the URL tip back, without an extra
  * error toast.
  *
- * Preview frames are read-only: the iframe is `pointer-events-none` under a
- * click target, so the page cannot take wheel / keyboard / popup interaction;
- * clicking the card opens the URL in the system browser.
+ * The framed page is interactive for reading (wheel scroll, in-page links);
+ * external links are relayed to the system browser and the corner button opens
+ * the original URL. No popups / forms / top navigation are granted.
  */
 export function PdfLinkPreviewCard({
 	url,
@@ -120,6 +128,7 @@ export function PdfLinkPreviewCard({
 		80,
 		Math.min(PAGE_PREVIEW_HEIGHT, maxContentHeight),
 	);
+	const pageWidth = Math.max(120, cardWidth - PREVIEW_CHROME_HEIGHT);
 
 	// Mount under an existing pointer skips pointerenter — re-arm sticky hover.
 	useEffect(() => {
@@ -181,6 +190,10 @@ export function PdfLinkPreviewCard({
 			)
 				return;
 			const message = parseWebBridgeMessage(event.data);
+			if (message?.type === "external") {
+				openExternalUrl(message.url);
+				return;
+			}
 			if (message?.type !== "ready") return;
 			if (frameLoadTimerRef.current != null) {
 				window.clearTimeout(frameLoadTimerRef.current);
@@ -277,12 +290,15 @@ export function PdfLinkPreviewCard({
 			<PreviewArrow placement={placement} left={arrowLeft} />
 			{showPreview && kind === "page" ? (
 				<PagePreview
+					width={pageWidth}
 					height={pageHeight}
 					phase={phase}
 					frameSrc={frameSrc}
 					iframeRef={iframeRef}
 					onFrameLoad={handleFrameLoad}
-					onOpen={handleOpen}
+					onOpenLink={() => {
+						if (httpUrl(url)) openExternalUrl(url);
+					}}
 				/>
 			) : null}
 			{showPreview && kind === "image" ? (
@@ -315,19 +331,21 @@ export function PdfLinkPreviewCard({
 }
 
 function PagePreview({
+	width,
 	height,
 	phase,
 	frameSrc,
 	iframeRef,
 	onFrameLoad,
-	onOpen,
+	onOpenLink,
 }: {
+	width: number;
 	height: number;
 	phase: PreviewPhase;
 	frameSrc: string | null;
 	iframeRef: React.RefObject<HTMLIFrameElement | null>;
 	onFrameLoad: () => void;
-	onOpen: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+	onOpenLink: () => void;
 }) {
 	const { t } = useTranslation("viewer");
 	return (
@@ -340,22 +358,28 @@ function PagePreview({
 					ref={iframeRef}
 					title={t("pdf.linkPreview")}
 					src={frameSrc}
-					// Read-only: no tab stop / programmatic focus, so keys stay in
-					// the PDF reader even if the page tries to focus itself.
+					// Keep the frame out of the tab order (the PDF keeps keyboard
+					// focus until the reader clicks into the preview).
 					tabIndex={-1}
-					inert
-					// Read-only frame: scripts may run, but no popups / forms / top
-					// navigation. `allow-same-origin` keeps the proxy origin so the
-					// bridge `ready` message validates; the proxy itself only serves
-					// allowlisted public hosts.
+					// Interactive preview: scroll and page links work, but no popups
+					// / forms / top navigation. External links are relayed by the
+					// injected bridge to the system browser. `allow-same-origin`
+					// keeps the proxy origin so the bridge messages validate; the
+					// proxy itself only serves allowlisted public hosts.
 					sandbox="allow-scripts allow-same-origin"
 					referrerPolicy="no-referrer"
 					onLoad={onFrameLoad}
 					className={cn(
-						"pointer-events-none absolute inset-0 block h-full w-full border-0 bg-background transition-opacity duration-200",
-						phase === "ready" ? "opacity-100" : "opacity-0",
+						"absolute top-0 left-0 block border-0 bg-background transition-opacity duration-200",
+						phase === "ready" ? "opacity-100" : "pointer-events-none opacity-0",
 					)}
-					style={{ colorScheme: "light dark" }}
+					style={{
+						colorScheme: "light dark",
+						width: width / PAGE_PREVIEW_SCALE,
+						height: height / PAGE_PREVIEW_SCALE,
+						transform: `scale(${PAGE_PREVIEW_SCALE})`,
+						transformOrigin: "top left",
+					}}
 				/>
 			) : null}
 			{phase === "loading" ? (
@@ -364,10 +388,13 @@ function PagePreview({
 			<button
 				type="button"
 				tabIndex={-1}
-				aria-label={t("pdf.linkPreview")}
-				onClick={onOpen}
-				className="absolute inset-0 z-10 cursor-pointer rounded-md border-0 bg-transparent p-0 focus-visible:outline-none"
-			/>
+				aria-label={t("references.openLink")}
+				title={t("references.openLink")}
+				onClick={onOpenLink}
+				className="absolute top-1 right-1 z-20 flex size-6 items-center justify-center rounded-md border border-border/60 bg-background/90 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:text-foreground"
+			>
+				<ArrowUpRight className="size-3.5" aria-hidden />
+			</button>
 		</div>
 	);
 }
