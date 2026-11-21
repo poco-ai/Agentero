@@ -1651,21 +1651,39 @@ function PdfViewerInner({
 	const ensureLayoutTranslateRef = useRef(ensureLayoutTranslate);
 	ensureLayoutTranslateRef.current = ensureLayoutTranslate;
 
-	const ensureTranslationForReading = useCallback(() => {
-		if (hasAnyTranslation || layoutTranslateRunning) return;
-		if (layoutTranslateWaiting || layoutTranslatePreparing) return;
-		// The toolbar click and the mount effect can race within one tick; the
-		// short window keeps one start while still allowing a later retry.
-		const now = Date.now();
-		if (now - translationEnsureAtRef.current < 1000) return;
-		translationEnsureAtRef.current = now;
-		ensureLayoutTranslateRef.current();
-	}, [
-		hasAnyTranslation,
-		layoutTranslateRunning,
-		layoutTranslateWaiting,
-		layoutTranslatePreparing,
-	]);
+	const ensureTranslationForReading = useCallback(
+		(options?: { completePending?: boolean }) => {
+			// A live task already owns the paper. Showing the view is enough.
+			if (
+				layoutTranslateRunning ||
+				layoutTranslateWaiting ||
+				layoutTranslatePreparing ||
+				layoutTranslateQueued
+			) {
+				return;
+			}
+			// Entering 译文 from a user gesture fills gaps after the cache paints.
+			// The 1000ms window stays on restore only, so a gesture is not dropped.
+			if (options?.completePending) {
+				ensureLayoutTranslateRef.current({ completePending: true });
+				return;
+			}
+			if (hasAnyTranslation) return;
+			// The toolbar click and the mount effect can race within one tick; the
+			// short window keeps one start while still allowing a later retry.
+			const now = Date.now();
+			if (now - translationEnsureAtRef.current < 1000) return;
+			translationEnsureAtRef.current = now;
+			ensureLayoutTranslateRef.current();
+		},
+		[
+			hasAnyTranslation,
+			layoutTranslateRunning,
+			layoutTranslateWaiting,
+			layoutTranslatePreparing,
+			layoutTranslateQueued,
+		],
+	);
 
 	const handleSelectViewMode = useCallback(
 		(next: PdfViewMode) => {
@@ -1710,7 +1728,7 @@ function PdfViewerInner({
 			setSingleViewMode("translated");
 			writePdfViewMode(paperKey, "translated");
 			showLayoutTranslate();
-			ensureTranslationForReading();
+			ensureTranslationForReading({ completePending: true });
 		},
 		[
 			translationOnly,
@@ -2607,7 +2625,13 @@ function PdfViewerInner({
 				const pageHasTranslation = (
 					layoutTranslateItemsByPage.get(pageIndex) ?? []
 				).some((item) => Boolean(item.translated?.trim()));
-				if (pageHasTranslation) return;
+				// The tag is entering 译文. A page that already has text reveals
+				// the view and fills the other missing blocks; an untranslated
+				// page still starts that page only.
+				if (pageHasTranslation) {
+					ensureTranslationForReading({ completePending: true });
+					return;
+				}
 			}
 			togglePageLayoutTranslate(pageIndex);
 		},
@@ -2616,6 +2640,7 @@ function PdfViewerInner({
 			paperKey,
 			showLayoutTranslate,
 			layoutTranslateItemsByPage,
+			ensureTranslationForReading,
 			togglePageLayoutTranslate,
 		],
 	);

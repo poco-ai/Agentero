@@ -1411,3 +1411,136 @@ it("queues a page translate behind an in-viewer layout run", async () => {
 	expect(io.runs.length).toBe(1);
 	expect(io.runs[0].items.length).toBe(1); // only the queued page
 });
+
+it("completes pending blocks when a user gesture opens a partial translation", async () => {
+	setTranslateSidecar([entry(0, "译文 0")]);
+	const h = await mountHarness();
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.runs.length).toBe(1);
+	expect(io.runs[0].items[0]).toMatchObject({
+		status: "done",
+		translated: "译文 0",
+	});
+	expect(io.runs[0].items[1]?.status).toBe("running");
+	expect(pageText(h, 0)).toBe("译文 0");
+	expect(h.partial.open).toBe(false);
+	expect(io.errors).toEqual([]);
+	expect(h.view.layoutTranslatePageCounts?.total).toBe(1);
+});
+
+it("hydrates a restored translation without completing pending blocks", async () => {
+	setTranslateSidecar([entry(0, "译文 0")]);
+	const h = await mountHarness();
+	await h.run(() => h.view.ensureLayoutTranslate());
+	await h.flush();
+	expect(io.runs.length).toBe(0);
+	expect(io.observers.length).toBe(0);
+	expect(h.view.layoutTranslateStatus).toBe("partial");
+	expect(pageText(h, 0)).toBe("译文 0");
+	expect(h.partial.visible).toBe(true);
+	expect(h.partial.open).toBe(false);
+});
+
+it("does not enqueue a second completion when the translation view is opened again", async () => {
+	setTranslateSidecar([entry(0, "译文 0")]);
+	const h = await mountHarness();
+	await h.run(() => {
+		h.view.ensureLayoutTranslate({ completePending: true });
+		h.view.ensureLayoutTranslate({ completePending: true });
+	});
+	await h.flush();
+	expect(io.runs.length).toBe(1);
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.runs.length).toBe(1);
+	expect(io.errors).toEqual([]);
+});
+
+it("does not request anything when a gesture opens a complete translation cache", async () => {
+	setTranslateSidecar([entry(0, "译文 0"), entry(1, "译文 1")]);
+	const h = await mountHarness();
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.runs.length).toBe(0);
+	expect(io.observers.length).toBe(0);
+	expect(h.view.layoutTranslateStatus).toBe("done");
+	expect(pageText(h, 0)).toBe("译文 0");
+	expect(pageText(h, 1)).toBe("译文 1");
+});
+
+it("starts a full translation when a gesture opens a paper with no cache", async () => {
+	const h = await mountHarness();
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.runs.length).toBe(1);
+	expect(io.runs[0].items.map((item) => item.translated)).toEqual([
+		undefined,
+		undefined,
+	]);
+});
+
+it("keeps a failed gesture completion on the partial entry without a toast or retry", async () => {
+	setTranslateSidecar([entry(0, "译文 0")]);
+	const h = await mountHarness();
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	await settleRun(h, io.runs[0], [io.runs[0].items[0], errorItem(1)]);
+	expect(io.errors).toEqual([]);
+	expect(h.view.layoutTranslateStatus).toBe("partial");
+	expect(h.partial.visible).toBe(true);
+	expect(h.partial.open).toBe(false);
+	expect(h.partial.completionFailed).toBe(true);
+	expect(pageText(h, 0)).toBe("译文 0");
+	expect(io.runs.length).toBe(1);
+});
+
+it("completes pending blocks even when the translated page is hidden", async () => {
+	setTranslateSidecar([entry(0, "译文 0")]);
+	const h = await mountHarness();
+	await h.run(() => h.view.ensureLayoutTranslate());
+	await h.flush();
+	expect(io.runs.length).toBe(0);
+	await h.toggle();
+	expect(h.view.layoutTranslateItemsByPage.size).toBe(0);
+	expect(h.view.layoutTranslatePendingRequired).toBe(1);
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.runs.length).toBe(1);
+	expect(io.runs[0].items[0]?.translated).toBe("译文 0");
+	expect(io.runs[0].items[1]?.status).toBe("running");
+	expect(pageText(h, 0)).toBe("译文 0");
+	expect(io.errors).toEqual([]);
+});
+
+it("queues one shared pending completion for a gesture and ignores a repeat", async () => {
+	setCachedLayout([region(0), region(1)]);
+	setTranslateSidecar([entry(0, "Cached")]);
+	setSharedItems("running", doneItem(0, "Cached"), runningItem(1));
+	const h = await mountHarness({ vaultPath: "/vault" });
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.runs.length).toBe(0);
+	expect(io.observers.length).toBe(1);
+	expect(io.observers[0]?.purpose).toBe("complete");
+	expect(io.observers[0]?.force).toBe(false);
+	expect(io.observers[0]?.start).toBe(true);
+	expect(pageText(h, 0)).toBe("Cached");
+	expect(h.view.layoutTranslatePageCounts?.total).toBe(1);
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.observers.length).toBe(1);
+	expect(io.errors).toEqual([]);
+});
+
+it("does not join the queue when a gesture opens a complete shared cache", async () => {
+	setCachedLayout([region(0), region(1)]);
+	setTranslateSidecar([entry(0, "Cached 0"), entry(1, "Cached 1")]);
+	const h = await mountHarness({ vaultPath: "/vault" });
+	await h.run(() => h.view.ensureLayoutTranslate({ completePending: true }));
+	await h.flush();
+	expect(io.observers.length).toBe(0);
+	expect(io.runs.length).toBe(0);
+	expect(io.writes.length).toBe(0);
+	expect(h.view.layoutTranslateStatus).toBe("done");
+});

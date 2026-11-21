@@ -207,6 +207,22 @@ it("keeps the warning collapsed until clicked and tracks its expanded state", as
 	expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
 });
 
+it("shows a failed completion on the partial entry without another request", async () => {
+	if (fixture.partial) {
+		fixture.partial = {
+			...fixture.partial,
+			open: true,
+			completionFailed: true,
+		};
+	}
+	await renderPane();
+	expect(document.body.textContent).toContain(
+		"pdf.layoutTranslate.partialStillMissing",
+	);
+	expect(fixture.complete).not.toHaveBeenCalled();
+	expect(document.querySelector("[data-sonner-toaster]")).toBeNull();
+});
+
 it("requires confirmation before the translation pane retranslates everything", async () => {
 	await renderPane();
 	await act(() => action("retranslateAll").click());

@@ -330,6 +330,26 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		]);
 	});
 
+	it("does not add a request when every block is already translated", async () => {
+		const items = [
+			{
+				...item("a", "First standalone paragraph.", 0),
+				status: "done" as const,
+				translated: "第一段。",
+			},
+			{
+				...item("b", "Second standalone paragraph.", 0),
+				status: "done" as const,
+				translated: "第二段。",
+			},
+		];
+
+		const out = await runLayoutRegionTranslate({ items, onUpdate: () => {} });
+
+		expect(runTranslate).not.toHaveBeenCalled();
+		expect(out.map((it) => it.translated)).toEqual(["第一段。", "第二段。"]);
+	});
+
 	it("retries with protection intact when the engine drops a placeholder", async () => {
 		runTranslate
 			.mockResolvedValueOnce("参见 网址 获取细节。")
