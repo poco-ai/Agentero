@@ -142,7 +142,6 @@ export function ReflowPageOverlay({
 						// transparent: one box per character would stack in the seam.
 						// The line band paints the highlight once.
 						data-reflow-selection="true"
-						data-paper={tone}
 						className="pdf-translate-selection pointer-events-auto absolute select-text"
 						onPointerDownCapture={(event) => {
 							if (event.button !== 0) return;

@@ -100,7 +100,6 @@ type LayoutElementSelectionLayerProps = {
 	regions: readonly PdfLayoutRegion[];
 	width: number;
 	height: number;
-	paperDark: boolean;
 	sentencePairing?: boolean;
 };
 
@@ -157,7 +156,6 @@ export const LayoutElementSelectionLayer = memo(
 		regions,
 		width,
 		height,
-		paperDark,
 		sentencePairing = false,
 	}: LayoutElementSelectionLayerProps) {
 		const { t } = useTranslation("viewer");
@@ -213,15 +211,20 @@ export const LayoutElementSelectionLayer = memo(
 			};
 
 			const syncHot = () => {
-				const next = pinnedId() ?? hoveredId;
-				if (next === paintedId) return;
-				if (paintedId) {
-					const previous = elementOf(paintedId);
-					previous?.classList.remove("is-hot");
-					previous?.classList.remove("has-sentence");
+				const pinned = pinnedId();
+				const next = pinned ?? hoveredId;
+				if (next !== paintedId) {
+					if (paintedId) {
+						const previous = elementOf(paintedId);
+						previous?.classList.remove("is-hot", "is-pinned", "has-sentence");
+					}
+					if (next) elementOf(next)?.classList.add("is-hot");
+					paintedId = next;
 				}
-				if (next) elementOf(next)?.classList.add("is-hot");
-				paintedId = next;
+				// The open action pins its block: a heavier frame survives the pointer
+				// leaving, so "hovered" and "this card is about this block" differ.
+				if (next)
+					elementOf(next)?.classList.toggle("is-pinned", pinned === next);
 			};
 
 			let marked: HTMLElement[] = [];
@@ -497,6 +500,10 @@ export const LayoutElementSelectionLayer = memo(
 			});
 			const unsubscribeSentence = subscribeLayoutSentenceHover(paintSentence);
 			paintSentence();
+			// A width/height change re-runs this effect, and its cleanup strips the
+			// hot classes. Re-apply the pinned frame from the store, or an open
+			// card loses its frame on zoom until the pointer moves.
+			syncHot();
 
 			return () => {
 				shell.removeEventListener("pointermove", onMove);
@@ -512,7 +519,7 @@ export const LayoutElementSelectionLayer = memo(
 				if (raf) cancelAnimationFrame(raf);
 				if (paintedId) {
 					const previous = elementOf(paintedId);
-					previous?.classList.remove("is-hot", "has-sentence");
+					previous?.classList.remove("is-hot", "is-pinned", "has-sentence");
 				}
 				const current = layoutSentenceHover();
 				if (current?.docId === docId && current.pageIndex === pageIndex) {
@@ -532,15 +539,10 @@ export const LayoutElementSelectionLayer = memo(
 					ref={washRef}
 					className="pdf-layout-sentence-wash"
 					data-layout-sentence-wash
-					data-paper={paperDark ? "dark" : "light"}
 					style={{ zIndex: 6 }}
 					aria-hidden="true"
 				/>
-				<div
-					ref={rootRef}
-					className="contents"
-					data-paper={paperDark ? "dark" : "light"}
-				>
+				<div ref={rootRef} className="contents">
 					{regions.map((region) => {
 						const boxes = layoutElementBoxes(region);
 						const kindLabel = t(layoutKindI18nKey(region.kind));

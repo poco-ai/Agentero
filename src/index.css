@@ -611,12 +611,7 @@
 .pdf-translate-selection::selection,
 .pdf-translate-selection *::selection {
 	background-color: transparent;
-	color: #18181b;
-}
-.pdf-translate-selection[data-paper="dark"]::selection,
-.pdf-translate-selection[data-paper="dark"] *::selection {
-	background-color: transparent;
-	color: #f4f4f5;
+	color: var(--pdf-paper-ink);
 }
 /*
  * Reflow previews are rasterized translations. Each character is its own
@@ -641,24 +636,89 @@
  * chosen per paper and is independent of the UI theme, so these tints cannot
  * follow --primary / --foreground: a dark UI theme turns --primary near-white,
  * and a near-white selection band or hover wash then vanishes on white paper.
- * The ink mirrors the page's text ink instead; each rule below applies its own
- * alpha or layer opacity, so the same contrast holds on inverted dark paper.
- * Set on the page shell and on translation paragraphs as `data-paper`.
+ * The ink mirrors the page's text ink instead.
+ *
+ * Roles are defined once, here, and components only supply geometry and a
+ * class. They differ by wash density: a transient hover is the lightest of the
+ * three, a pinned ("held") sentence is a denser wash, and a text selection is
+ * the only mark at full band weight. Paragraph-level states also carry an
+ * edge: a layout frame is a hairline on hover and a heavier frame while its
+ * action is pinned. `data-paper` lives on the page shell and descendants
+ * inherit the variables; no child sets the attribute again.
  */
 [data-paper] {
 	--pdf-paper-ink: oklch(0.21 0.008 260);
+	/* Multiply keeps dark glyphs; screen keeps light glyphs on dark paper. */
+	--pdf-mark-blend: multiply;
+	--pdf-mark-hover-fill: color-mix(
+		in oklch,
+		var(--pdf-paper-ink) 8%,
+		transparent
+	);
+	--pdf-mark-hover-alpha: 8%;
+	--pdf-mark-held-alpha: 16%;
+	--pdf-mark-selection-alpha: 28%;
+	--pdf-mark-translated-alpha: 20%;
+	--pdf-mark-frame-edge: color-mix(
+		in oklch,
+		var(--pdf-paper-ink) 55%,
+		transparent
+	);
+	--pdf-mark-frame-fill: color-mix(
+		in oklch,
+		var(--pdf-paper-ink) 6%,
+		transparent
+	);
+	--pdf-mark-pinned-edge: color-mix(
+		in oklch,
+		var(--pdf-paper-ink) 75%,
+		transparent
+	);
+	--pdf-mark-pinned-fill: color-mix(
+		in oklch,
+		var(--pdf-paper-ink) 10%,
+		transparent
+	);
+}
+[data-paper="sepia"] {
+	/* Warm ink on warm paper. */
+	--pdf-paper-ink: oklch(0.24 0.02 70);
+}
+[data-paper="green"] {
+	/* Slightly green-shifted ink on green paper. */
+	--pdf-paper-ink: oklch(0.23 0.015 140);
 }
 [data-paper="dark"] {
 	--pdf-paper-ink: oklch(0.94 0.006 260);
+	--pdf-mark-blend: screen;
 }
-/* Blend one translucent layer, even where saved translation spans overlap.
- * Multiply preserves dark glyphs; screen preserves light glyphs on dark paper. */
+/* A high-contrast preference raises mark weight; it never adds a second hue. */
+@media (prefers-contrast: more) {
+	[data-paper] {
+		--pdf-mark-hover-fill: color-mix(
+			in oklch,
+			var(--pdf-paper-ink) 14%,
+			transparent
+		);
+		--pdf-mark-hover-alpha: 14%;
+		--pdf-mark-held-alpha: 24%;
+		--pdf-mark-selection-alpha: 38%;
+		--pdf-mark-frame-edge: color-mix(
+			in oklch,
+			var(--pdf-paper-ink) 70%,
+			transparent
+		);
+		--pdf-mark-pinned-edge: color-mix(
+			in oklch,
+			var(--pdf-paper-ink) 88%,
+			transparent
+		);
+	}
+}
+/* Blend one translucent layer, even where saved translation spans overlap. */
 .pdf-translation-source-tint {
-	opacity: 0.2;
-	mix-blend-mode: multiply;
-}
-[data-paper="dark"] .pdf-translation-source-tint {
-	mix-blend-mode: screen;
+	opacity: var(--pdf-mark-translated-alpha);
+	mix-blend-mode: var(--pdf-mark-blend);
 }
 .pdf-translation-source-tint > div {
 	background: var(--pdf-paper-ink);
@@ -671,8 +731,9 @@
  * block looks like it never activated. Leaving fades out in 80ms.
  * The hit target does not take pointer events: text selection and links
  * keep them.
- * Element borders and fills use the paper ink, with separate opacity for the
- * frame and the text-safe background.
+ * Hover is a light frame; the element the open action belongs to is pinned and
+ * keeps a heavier edge, so "the pointer is here" and "this card is about this
+ * block" never look the same.
  */
 .pdf-layout-element-frame,
 .pdf-layout-element-chip {
@@ -691,9 +752,14 @@
 	z-index: 7;
 	box-sizing: border-box;
 	border-radius: 2px;
-	border: 1.5px solid color-mix(in oklch, var(--pdf-paper-ink) 55%, transparent);
-	background: color-mix(in oklch, var(--pdf-paper-ink) 8%, transparent);
+	border: 1px solid var(--pdf-mark-frame-edge);
+	background: var(--pdf-mark-frame-fill);
 	pointer-events: none;
+}
+[data-layout-element].is-pinned > .pdf-layout-element-frame {
+	border-width: 2px;
+	border-color: var(--pdf-mark-pinned-edge);
+	background: var(--pdf-mark-pinned-fill);
 }
 .pdf-layout-element-chip {
 	position: absolute;
@@ -732,8 +798,14 @@
 	transition: opacity 80ms var(--motion-ease-out);
 }
 .pdf-layout-sentence-wash.is-on {
-	opacity: var(--pdf-sentence-opacity, 12%);
+	opacity: var(--pdf-mark-hover-alpha);
 	transition: none;
+}
+/* The layer, not each band, carries the alpha: adjacent lines of one sentence
+ * overlap by the hover padding, and per-band fills would double up as a darker
+ * seam between them. */
+.pdf-layout-sentence-wash.is-held.is-on {
+	opacity: var(--pdf-mark-held-alpha);
 }
 .pdf-layout-sentence-wash > span {
 	position: absolute;
@@ -772,10 +844,19 @@
 }
 [data-sentence][data-sentence-hot] {
 	border-radius: 1px;
-	background-color: color-mix(in oklch, var(--pdf-paper-ink) 12%, transparent);
+	background-color: var(--pdf-mark-hover-fill);
+}
+/* Text selection. The layer carries the alpha, not each band, so overlapping
+ * rects inside one drag cannot stack into a darker patch. It is the heaviest
+ * band on the page: hover and held are lighter washes. */
+.pdf-mark-selection-layer {
+	isolation: isolate;
+	opacity: var(--pdf-mark-selection-alpha);
 }
 .pdf-live-selection-band {
 	transform: translateY(-12%);
+	border-radius: 1px;
+	background: var(--pdf-paper-ink);
 }
 @media (prefers-reduced-motion: reduce) {
 	.pdf-layout-element-frame,
@@ -797,6 +878,98 @@
 	text-decoration: none;
 	-webkit-user-select: text;
 	user-select: text;
+}
+
+/*
+ * Citation hit targets on paper. The hover tint is an affordance on the page
+ * itself, so it uses the paper ink: `--primary` is near-white under a dark UI
+ * theme and the hover then disappears on white paper.
+ */
+.pdf-link-hit {
+	border: 0;
+	background: transparent;
+	padding: 0;
+	cursor: pointer;
+}
+.pdf-link-hit:hover {
+	background: color-mix(in oklch, var(--pdf-paper-ink) 10%, transparent);
+}
+
+/*
+ * Citation / figure accents. Amber stays the semantic colour (this is a jump
+ * or a figure, not a selection), but its weight follows the paper tone instead
+ * of the UI theme, so the same mark reads on white and on inverted dark paper.
+ */
+.pdf-mark-citation-region {
+	border: 1px solid color-mix(in oklch, #fbbf24 45%, transparent);
+	background: color-mix(in oklch, #fde68a 20%, transparent);
+}
+[data-paper="dark"] .pdf-mark-citation-region {
+	border-color: color-mix(in oklch, #fbbf24 55%, transparent);
+	background: color-mix(in oklch, #fde68a 14%, transparent);
+}
+.pdf-mark-citation-flash {
+	border: 1px solid color-mix(in oklch, #fbbf24 90%, transparent);
+	background: color-mix(in oklch, #fde68a 55%, transparent);
+	box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.55);
+}
+[data-paper="dark"] .pdf-mark-citation-flash {
+	background: color-mix(in oklch, #fde68a 40%, transparent);
+}
+/* Hairline around a focused layout region; the colour that separates it from
+ * paper depends on the paper, not on `.dark`. */
+.pdf-mark-focus-frame {
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+[data-paper="dark"] .pdf-mark-focus-frame {
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * Visual crop / selection frame. Drawn on paper, so it follows the paper ink;
+ * the double shadow keeps the edge readable on busy figures.
+ */
+.pdf-visual-region-frame {
+	border: 2px solid color-mix(in oklch, var(--pdf-paper-ink) 90%, transparent);
+	background: color-mix(in oklch, var(--pdf-paper-ink) 8%, transparent);
+	outline: 1px solid color-mix(in oklch, var(--pdf-paper-ink) 35%, transparent);
+	box-shadow:
+		inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+		0 0 0 1px rgba(255, 255, 255, 0.55),
+		0 10px 28px rgba(15, 23, 42, 0.16);
+}
+[data-paper="dark"] .pdf-visual-region-frame {
+	background: color-mix(in oklch, var(--pdf-paper-ink) 14%, transparent);
+	box-shadow:
+		inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+		inset 0 0 0 2px rgba(255, 255, 255, 0.18),
+		0 0 0 1px rgba(0, 0, 0, 0.65),
+		0 10px 30px rgba(0, 0, 0, 0.42);
+}
+
+/* In-place translation progress marks, on paper. */
+.pdf-translation-spinner {
+	color: color-mix(in oklch, var(--pdf-paper-ink) 70%, transparent);
+}
+.pdf-translation-retry {
+	color: #d97706;
+}
+[data-paper="dark"] .pdf-translation-retry {
+	color: #fbbf24;
+}
+.pdf-translation-retry:hover {
+	background: color-mix(in oklch, var(--pdf-paper-ink) 10%, transparent);
+}
+
+/*
+ * Search hits. EmbedPDF paints each rect with `mix-blend-mode: multiply` and a
+ * fixed colour, which turns yellow almost black on dark paper. The fills are
+ * translucent instead and blend normally, so a hit reads on every paper tone;
+ * the blend override beats the library's inline style.
+ */
+.pdf-search-hits > div {
+	/* biome-ignore lint/complexity/noImportantStyles: EmbedPDF sets mix-blend-mode inline; a translucent fill needs normal blending. */
+	mix-blend-mode: normal !important;
 }
 
 /*

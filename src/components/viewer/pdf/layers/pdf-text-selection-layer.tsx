@@ -61,7 +61,6 @@ export type PdfTextSelectionLayerProps = {
 	excludedTextRects?: readonly Rect[];
 	documentId: string;
 	pageIndex: number;
-	background: string;
 	/**
 	 * Registering with the selection plugin triggers PDFium `getPageGeometry`
 	 * for this page. That extraction is O(glyphs) and runs in the single worker
@@ -80,7 +79,6 @@ export type PdfTextSelectionLayerProps = {
 export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 	documentId,
 	pageIndex,
-	background,
 	armed,
 	excludedTextRects,
 	insertionRegions,
@@ -239,17 +237,7 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 	return (
 		<div
 			aria-hidden="true"
-			style={{
-				position: "absolute",
-				inset: 0,
-				// Above layout-translate paper (z-3) so the tint stays visible, and
-				// under the translated glyphs (z-6). An opaque block here would
-				// hide the highlight; this tint on top of the glyphs washes them out.
-				zIndex: 5,
-				isolation: "isolate",
-				opacity: 0.28,
-				pointerEvents: "none",
-			}}
+			className="pdf-mark-selection-layer pointer-events-none absolute inset-0 z-[5]"
 		>
 			{effectiveRects.map((rect) => (
 				<div
@@ -262,8 +250,6 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 						top: rect.origin.y * scale,
 						width: rect.size.width * scale,
 						height: rect.size.height * scale,
-						background,
-						borderRadius: 1,
 					}}
 				/>
 			))}

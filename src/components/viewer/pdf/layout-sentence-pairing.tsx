@@ -265,6 +265,7 @@ export function PdfSentenceHighlight({
 		const clear = () => {
 			if (paintedKey === null && !layer.classList.contains("is-on")) return;
 			paintedKey = null;
+			layer.classList.remove("is-held");
 			retireBands(liveBands());
 		};
 		const paint = () => {
@@ -377,10 +378,9 @@ export function PdfSentenceHighlight({
 			window.clearTimeout(hideTimer);
 			hideTimer = 0;
 			paintedKey = mine.key;
-			layer.style.setProperty(
-				"--pdf-sentence-opacity",
-				selectedDocument ? "28%" : "12%",
-			);
+			// A hovered sentence is a light wash, a pinned one a denser wash; the
+			// weights live in index.css so no caller sets an opacity (see there).
+			layer.classList.toggle("is-held", Boolean(selectedDocument));
 			layer.append(content);
 			layer.classList.add("is-on");
 		};
@@ -397,7 +397,7 @@ export function PdfSentenceHighlight({
 			window.clearTimeout(hideTimer);
 			for (const timer of fadeTimers) window.clearTimeout(timer);
 			layer.replaceChildren();
-			layer.classList.remove("is-on");
+			layer.classList.remove("is-on", "is-held");
 		};
 	}, [docId, pageIndex, source]);
 	return (

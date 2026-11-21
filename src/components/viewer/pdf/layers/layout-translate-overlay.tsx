@@ -775,7 +775,6 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 					isHeading && "font-bold",
 				)}
 				data-layout-item={itemId}
-				data-paper={tone}
 				onPointerDownCapture={(event) => {
 					if (event.button !== 0) return;
 					beginLinkPreviewDrag();
@@ -839,7 +838,7 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 					/>
 				)}
 			</p>
-			{running && tail && <TranslationSpinner {...tail} tone={tone} />}
+			{running && tail && <TranslationSpinner {...tail} />}
 		</div>
 	);
 });
@@ -964,7 +963,6 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 					pageHeightPx,
 					glyphRuns,
 				)}
-				tone={tone}
 			/>
 		));
 	// Failed paragraphs keep their source text visible; the marker sits where
@@ -979,7 +977,6 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 						pageHeightPx,
 						glyphRuns,
 					)}
-					tone={tone}
 					label={t("pdf.layoutTranslate.retryPage")}
 					onRetry={() => onRetryTranslation(pageIndex)}
 				/>
@@ -1079,11 +1076,9 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							style={{ ...boxStyle, padding: "1px 2px" }}
 						>
 							<div
-								className={cn(
-									"h-full w-full",
-									tone === "dark" ? "text-zinc-100" : "text-zinc-900",
-								)}
+								className="h-full w-full"
 								style={{
+									color: "var(--pdf-paper-ink)",
 									fontSize,
 									lineHeight: LINE_HEIGHT,
 									fontFamily:
