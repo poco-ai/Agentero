@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	applyLayoutTranslateSidecar,
+	LAYOUT_TRANSLATE_BATCH_CHARS,
+	LAYOUT_TRANSLATE_STREAM_BATCH_CHARS,
 	type LayoutTranslateItem,
 	type LayoutTranslateSidecar,
 	runLayoutRegionTranslate,
@@ -15,6 +17,9 @@ import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
 import { validReflowTranslation } from "@/lib/pdf/reflow/types";
 
 const runTranslate = vi.fn<(...args: unknown[]) => Promise<string>>();
+const settingsState = vi.hoisted(() => ({
+	provider: "tencenttransmart",
+}));
 
 vi.mock("@/lib/translate", () => ({
 	runTranslate: (...args: unknown[]) => runTranslate(...args),
@@ -23,7 +28,7 @@ vi.mock("@/lib/translate", () => ({
 vi.mock("@/lib/settings", () => ({
 	loadSettings: () => ({
 		translate: {
-			provider: "tencenttransmart",
+			provider: settingsState.provider,
 			targetLang: "zh-CN",
 			sourceLang: "auto",
 			providerConfigs: {},
@@ -53,6 +58,7 @@ function item(
 
 describe("runLayoutRegionTranslate paragraph chains", () => {
 	beforeEach(() => {
+		settingsState.provider = "tencenttransmart";
 		runTranslate.mockReset();
 	});
 
@@ -316,13 +322,42 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 			onUpdate: () => {},
 		});
 		expect(runTranslate.mock.calls.length).toBeGreaterThan(1);
-		for (const call of runTranslate.mock.calls)
+		for (const call of runTranslate.mock.calls) {
 			expect((call[0] as { text: string }).text.length).toBeLessThanOrEqual(
-				4500,
+				LAYOUT_TRANSLATE_BATCH_CHARS,
 			);
+			expect(call[1]).toBeUndefined();
+		}
 		expect(out[0]?.translated).toContain("END.");
 		expect(out[0]?.sentences?.[0]?.quote).toBe(source);
 		expect(out[0]?.status).toBe("done");
+	});
+
+	it.each([
+		"openaiCompatible",
+		"indextranslate",
+		"indextranslate2b",
+	])("streams %s batches under the smaller cap", async (provider) => {
+		settingsState.provider = provider;
+		const source = `${"longword ".repeat(800)}END.`;
+		runTranslate.mockImplementation(async (task) =>
+			(task as { text: string }).text.trim(),
+		);
+		const out = await runLayoutRegionTranslate({
+			items: [item("long", source, 0)],
+			onUpdate: () => {},
+		});
+		expect(runTranslate.mock.calls.length).toBeGreaterThan(1);
+		for (const call of runTranslate.mock.calls) {
+			expect((call[0] as { text: string }).text.length).toBeLessThanOrEqual(
+				LAYOUT_TRANSLATE_STREAM_BATCH_CHARS,
+			);
+			expect(call[1]).toEqual(
+				expect.objectContaining({ onDelta: expect.any(Function) }),
+			);
+		}
+		expect(out[0]?.status).toBe("done");
+		expect(out[0]?.translated).toContain("END.");
 	});
 
 	it("numbers each sentence and stores the pair on the block", async () => {

@@ -95,6 +95,31 @@ export const LAYOUT_TRANSLATE_PROVIDER_DOWN_FAILURES = 3;
  */
 export const LAYOUT_TRANSLATE_BATCH_CHARS = 4500;
 
+/**
+ * Streaming batch cap. A stalled block throws away only this much source.
+ * One-shot providers keep {@link LAYOUT_TRANSLATE_BATCH_CHARS} and a 30s
+ * total deadline. Streaming providers send each block through
+ * `translate_text_stream`, timed by silence rather than total duration.
+ */
+export const LAYOUT_TRANSLATE_STREAM_BATCH_CHARS = 2000;
+
+const STREAMING_LAYOUT_TRANSLATE_PROVIDERS = new Set<TranslateProviderId>([
+	"openaiCompatible",
+	"indextranslate",
+	"indextranslate2b",
+]);
+
+/** Character budget for one bulk request. Agent translation stays on the one-shot cap. */
+export function layoutTranslateBatchChars(
+	provider: TranslateProviderId,
+	agent: boolean,
+): number {
+	if (agent || !STREAMING_LAYOUT_TRANSLATE_PROVIDERS.has(provider)) {
+		return LAYOUT_TRANSLATE_BATCH_CHARS;
+	}
+	return LAYOUT_TRANSLATE_STREAM_BATCH_CHARS;
+}
+
 export const LAYOUT_TRANSLATE_SIDECAR_SCHEMA_VERSION = 2;
 export const LAYOUT_TRANSLATE_SIDECAR_FILE = "layout-translate.json";
 
@@ -865,21 +890,19 @@ function batchPayloadLength(batch: readonly TranslateUnit[]): number {
 
 /**
  * Group units (already in reading order) into batches whose combined payload
- * stays under {@link LAYOUT_TRANSLATE_BATCH_CHARS}. Oversized units are kept
- * alone and split by the transport. Batches may span adjacent pages; results are mapped
- * back per unit, so positions are unaffected.
+ * stays under `maxChars`. Oversized units are kept alone and split by the
+ * transport. Batches may span adjacent pages; results are mapped back per
+ * unit, so positions are unaffected.
  */
 export function buildTranslateBatches<T extends TranslateUnit>(
 	units: readonly T[],
+	maxChars = LAYOUT_TRANSLATE_BATCH_CHARS,
 ): T[][] {
 	const batches: T[][] = [];
 	let current: T[] = [];
 	for (const unit of units) {
 		const candidate = [...current, unit];
-		if (
-			current.length > 0 &&
-			batchPayloadLength(candidate) > LAYOUT_TRANSLATE_BATCH_CHARS
-		) {
+		if (current.length > 0 && batchPayloadLength(candidate) > maxChars) {
 			batches.push(current);
 			current = [unit];
 		} else {
@@ -973,6 +996,11 @@ export async function runLayoutRegionTranslate(options: {
 		translateSettings,
 		i18n.language ?? "en",
 	).targetLang;
+	const batchChars = layoutTranslateBatchChars(
+		translateSettings.provider,
+		Boolean(agentOpts),
+	);
+	const streamBatch = batchChars === LAYOUT_TRANSLATE_STREAM_BATCH_CHARS;
 
 	type SentenceSlot = { state: "pending" | "ok" | "fail"; text: string };
 	type ChainJob = {
@@ -1027,7 +1055,7 @@ export async function runLayoutRegionTranslate(options: {
 		a.job.chain.members[0].readingOrder - b.job.chain.members[0].readingOrder;
 	// Keep payloads intact so page priority cannot increase request count.
 	// A batch can straddle late detected blocks and early-page IR backfills.
-	const batches = buildTranslateBatches(units)
+	const batches = buildTranslateBatches(units, batchChars)
 		.map((batch) => ({
 			batch,
 			first: batch.reduce((first, unit) =>
@@ -1060,10 +1088,7 @@ export async function runLayoutRegionTranslate(options: {
 		pageIndex: number | undefined,
 	): Promise<string> => {
 		const parts: string[] = [];
-		for (const chunk of splitTranslationChunks(
-			text,
-			LAYOUT_TRANSLATE_BATCH_CHARS,
-		)) {
+		for (const chunk of splitTranslationChunks(text, batchChars)) {
 			if (signal?.aborted) return "";
 			// The provider was already unreachable; a further request would only
 			// spend another timeout on the same dead endpoint.
@@ -1078,7 +1103,7 @@ export async function runLayoutRegionTranslate(options: {
 							surface: "pdf-layout-bulk",
 						},
 					},
-					agentOpts,
+					streamBatch ? { ...agentOpts, onDelta: () => {} } : agentOpts,
 				);
 			} catch (error) {
 				const message = errorText(error);
@@ -1131,7 +1156,7 @@ export async function runLayoutRegionTranslate(options: {
 			const leading = part.match(/^[\s.,;:!?。；，：！？)\]]*/u)?.[0] ?? "";
 			return [{ index, leading, source: part.slice(leading.length) }];
 		});
-		for (const batch of buildTranslateBatches(prose)) {
+		for (const batch of buildTranslateBatches(prose, batchChars)) {
 			if (signal?.aborted) return "";
 			let segments: string[] | null = null;
 			try {

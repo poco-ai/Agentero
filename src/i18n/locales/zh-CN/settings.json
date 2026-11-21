@@ -613,6 +613,9 @@
 		"errors": {
 			"noBuiltinKey": "当前构建未启用内置翻译。",
 			"unreachable": "无法连接翻译服务，请检查网络，或在翻译设置中更换服务。",
+			"timeout": "翻译超时了，服务有一段时间没有继续输出。请重试这一段。",
+			"incomplete": "译文没写完就被截断了。请重试这一段。",
+			"upstream": "翻译服务返回了错误：{{detail}}",
 			"terminology": "当前服务未能保留专业术语，请切换翻译服务后重试。"
 		},
 		"targetLang": {

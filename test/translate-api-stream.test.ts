@@ -70,4 +70,42 @@ describe("invokeTranslateText streaming dispatch", () => {
 			invokeTranslateText({ ...args, onDelta: () => {} }),
 		).rejects.toThrow("translate.no_builtin_key");
 	});
+
+	it("keeps timeout and truncation codes instead of the host sentence", async () => {
+		host.translateTextStream.mockResolvedValueOnce({
+			ok: false,
+			error: {
+				code: "translate.timeout",
+				message: "OpenAI-compatible timed out waiting for output",
+			},
+		});
+		await expect(
+			invokeTranslateText({ ...args, onDelta: () => {} }),
+		).rejects.toThrow("translate.timeout");
+
+		host.translateTextStream.mockResolvedValueOnce({
+			ok: false,
+			error: {
+				code: "translate.incomplete",
+				message:
+					"OpenAI-compatible translation incomplete (finish_reason=length)",
+			},
+		});
+		await expect(
+			invokeTranslateText({ ...args, onDelta: () => {} }),
+		).rejects.toThrow("translate.incomplete");
+	});
+
+	it("keeps an upstream HTTP message for diagnosis", async () => {
+		host.translateText.mockResolvedValueOnce({
+			ok: false,
+			error: {
+				code: "message",
+				message: "OpenAI-compatible failed (HTTP 502): bad gateway",
+			},
+		});
+		await expect(invokeTranslateText(args)).rejects.toThrow(
+			"OpenAI-compatible failed (HTTP 502): bad gateway",
+		);
+	});
 });

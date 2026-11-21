@@ -1,7 +1,10 @@
 export { ERR_TRANSLATE_NO_BUILTIN_KEY } from "@/lib/translate/api";
 export {
 	displayTranslateError,
+	isTranslateIncomplete,
+	isTranslateTimeout,
 	isTranslateTransportError,
+	isTranslateUpstreamError,
 } from "@/lib/translate/errors";
 export {
 	langsFromSettings,
