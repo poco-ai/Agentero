@@ -27,6 +27,8 @@ use crate::features::paper::discovery::feeds::body::{
 };
 use crate::http;
 
+use super::openreview;
+
 /// Readable article snapshot rendered by the local HTML view.
 pub const WEBPAGE_HTML_FILE: &str = "webpage.html";
 /// Markdown body shared with `PAPER.md` consumers (search / evidence_read).
@@ -74,15 +76,31 @@ pub struct PageSnapshot {
 /// same exchange the feed reader performs for spaces.ac.cn). The
 /// redirect-resolved URL is returned so metadata and `<base href>` use the
 /// canonical final address.
+///
+/// OpenReview gates anonymous readers with Cloudflare Turnstile. Its clearance
+/// cookie is process state captured by the desktop verification window
+/// (#1157), so it is attached here before the first request; a challenge that
+/// still comes back asks the Host for one verification round and replays once.
 pub async fn fetch_page(url: &str) -> Result<FetchedPage, AppError> {
     let url = url.trim();
     if !is_web_url(url) {
         return Err(AppError::message("page.url"));
     }
+    let openreview = openreview::is_openreview_url(url);
     let client = http::browser_client(PAGE_TIMEOUT)?;
-    let mut page = get(&client, url).await?;
+    let mut page = get(&client, url, openreview::cookie_header_for(url).as_deref()).await?;
+    if openreview && is_openreview_challenge(&page) {
+        let _ = openreview::request_auth(Some(url.to_string())).await;
+        page = get(&client, url, openreview::cookie_header_for(url).as_deref()).await?;
+        if is_openreview_challenge(&page) {
+            return Err(AppError::domain(
+                "openreview_auth_required",
+                "OpenReview requires browser verification before it serves the paper page; open Settings → General → OpenReview, complete the check, then retry",
+            ));
+        }
+    }
     if page.status == 403 && http::looks_like_js_challenge(&page.body) {
-        page = get(&client, url).await?;
+        page = get(&client, url, None).await?;
     }
     if !(200..300).contains(&page.status) {
         return Err(AppError::message(format!("page.http:{}", page.status)));
@@ -103,13 +121,28 @@ struct RawPage {
     body: Vec<u8>,
 }
 
-async fn get(client: &reqwest::Client, url: &str) -> Result<RawPage, AppError> {
-    let response = client
-        .get(url)
-        .header(
-            reqwest::header::ACCEPT,
-            "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-        )
+/// OpenReview's bot check: a direct `403` challenge body, or a redirect that
+/// landed on the `/challenge` page (reqwest follows the 307 before we see it).
+fn is_openreview_challenge(page: &RawPage) -> bool {
+    openreview::looks_like_challenge(page.status, &page.body)
+        || Url::parse(&page.final_url)
+            .ok()
+            .is_some_and(|url| url.path().starts_with("/challenge"))
+}
+
+async fn get(
+    client: &reqwest::Client,
+    url: &str,
+    cookie: Option<&str>,
+) -> Result<RawPage, AppError> {
+    let mut request = client.get(url).header(
+        reqwest::header::ACCEPT,
+        "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+    );
+    if let Some(cookie) = cookie.map(str::trim).filter(|value| !value.is_empty()) {
+        request = request.header(reqwest::header::COOKIE, cookie);
+    }
+    let response = request
         .send()
         .await
         .map_err(|e| AppError::message(format!("page.fetch:{e}")))?;
@@ -323,6 +356,32 @@ mod tests {
 <iframe src="https://example.com/embed"></iframe></p>
 </article>
 </body></html>"#;
+
+    #[test]
+    fn openreview_challenge_is_detected_from_redirect_and_body() {
+        let page = |final_url: &str, status: u16, body: &[u8]| RawPage {
+            final_url: final_url.to_string(),
+            status,
+            body: body.to_vec(),
+        };
+        // An anonymous visit is redirected to /challenge; reqwest follows the
+        // 307 so the challenge page itself answers 200.
+        assert!(is_openreview_challenge(&page(
+            "https://openreview.net/challenge?redirect=%2Fforum%3Fid%3Dx",
+            200,
+            b"<html>Verifying your browser</html>"
+        )));
+        assert!(is_openreview_challenge(&page(
+            "https://openreview.net/forum?id=x",
+            403,
+            b"<html>Verifying your browser</html>"
+        )));
+        assert!(!is_openreview_challenge(&page(
+            "https://openreview.net/forum?id=x",
+            200,
+            b"<html>paper page</html>"
+        )));
+    }
 
     #[test]
     fn snapshot_wraps_article_with_base_url_and_strips_active_content() {

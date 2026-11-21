@@ -16,7 +16,10 @@ use crate::features::scholar_api::identifiers::{
 use crate::features::scholar_api::ApiError;
 
 use super::page_snapshot;
-use super::{check_task_not_cancelled, slug_from_stem, PageSnapshotPlan, ResolvedMetadata};
+use super::{
+    check_task_not_cancelled, openreview, slug_from_stem, sources, PageSnapshotPlan,
+    ResolvedMetadata,
+};
 
 /// Meta tags live in the head. Keep the prefix we parse bounded.
 const PARSE_PREFIX_BYTES: usize = 512 * 1024;
@@ -208,13 +211,47 @@ async fn import_webpage(
     let (record, snapshot, mode) = match fetched {
         Ok(page) => {
             let parsed = record_from_html(&page.final_url, &parse_prefix(&page.html));
-            let record = enrich_page_record(parsed, &page.final_url, task_id).await?;
+            let mut record = enrich_page_record(parsed, &page.final_url, task_id).await?;
+            // OpenReview forum pages are paper landing pages (#1157): once the
+            // bot check is passed the HTML carries citation metadata plus the
+            // deterministic PDF URL, so treat the entry as a paper — not a
+            // collected webpage — and let the asset phase download the PDF
+            // through the replayable clearance cookie.
+            if openreview::is_openreview_url(&page.final_url) {
+                if record.pdf_url.is_none() {
+                    record.pdf_url = sources::openreview::pdf_url(&page.final_url);
+                }
+                if record.pdf_url.is_some() {
+                    record.paper_type = PaperKind::Pdf;
+                    record.zotero_item_type = Some("conferencePaper".into());
+                    let notice = format!(
+                        "translator_degraded|{}|openreview|{translator_base}",
+                        failure.token()
+                    );
+                    log::info!(
+                        target: "agentero::lookup",
+                        "imported OpenReview paper without translator url={url} title=\"{}\" pdf={:?}",
+                        record.title,
+                        record.pdf_url
+                    );
+                    return Ok(ResolvedMetadata {
+                        record,
+                        used_translator: false,
+                        notices: vec![notice],
+                        page_snapshot: PageSnapshotPlan::Skip,
+                    });
+                }
+            }
             // One fetch feeds both the metadata and the readable snapshot; the
             // caller writes the files into the paper folder the commit picks.
             let snapshot =
                 page_snapshot::snapshot_from_html(&page.html, &page.final_url, &record.title);
             (record, Some(snapshot), "page")
         }
+        // The OpenReview verification window never produced a working cookie:
+        // fail the import with the actionable reason instead of archiving the
+        // challenge page as the paper.
+        Err(err) if err.code() == "openreview_auth_required" => return Err(err),
         Err(err) => {
             log::warn!(
                 target: "agentero::lookup",
