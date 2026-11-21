@@ -63,12 +63,21 @@ export type SyncBackendConfig = {
 	scope: SyncScope;
 };
 
+export type SyncMirrorStatus = {
+	config: SyncBackendConfig;
+	lastSyncAt?: string;
+	lastVersion: number;
+	lastError?: string;
+};
+
 export type SyncStatus = {
 	configured: boolean;
 	config?: SyncBackendConfig;
 	running: boolean;
 	lastSyncAt?: string;
 	lastVersion: number;
+	/** Read-only mirrors in configuration order. */
+	mirrors: SyncMirrorStatus[];
 };
 
 export type SyncOutcome = {
@@ -151,6 +160,12 @@ function statusFromWire(status: SyncStatus_Serialize): SyncStatus {
 		running: status.running,
 		lastSyncAt: status.lastSyncAt ?? undefined,
 		lastVersion: status.lastVersion,
+		mirrors: (status.mirrors ?? []).map((mirror) => ({
+			config: configFromWire(mirror.config),
+			lastSyncAt: mirror.lastSyncAt ?? undefined,
+			lastVersion: mirror.lastVersion,
+			lastError: mirror.lastError ?? undefined,
+		})),
 	};
 }
 
@@ -199,9 +214,12 @@ export function syncScopeSizes(vaultPath: string): Promise<SyncScopeSizes> {
 export async function syncConfigure(
 	vaultPath: string,
 	config: SyncBackendConfig,
+	mirrors: SyncBackendConfig[] = [],
 ): Promise<SyncStatus> {
 	return statusFromWire(
-		await callApiResult(() => commands.syncConfigure({ vaultPath, config })),
+		await callApiResult(() =>
+			commands.syncConfigure({ vaultPath, config, mirrors }),
+		),
 	);
 }
 

@@ -1,4 +1,11 @@
-import { ChevronRight, CloudUpload, LoaderCircle, Unplug } from "lucide-react";
+import {
+	ChevronRight,
+	CloudUpload,
+	LoaderCircle,
+	Plus,
+	Trash2,
+	Unplug,
+} from "lucide-react";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,6 +67,7 @@ import {
 	isSyncProgressPhase,
 	SYNC_INTERVAL_CHOICES,
 	type SyncBackendConfig,
+	type SyncMirrorStatus,
 	type SyncProgressEvent,
 	type SyncScopeSizes,
 	type SyncStateEvent,
@@ -237,6 +245,8 @@ function VaultSyncForm({
 	const [syncError, setSyncError] = useState<string | null>(null);
 	const [advancedOpen, setAdvancedOpen] = useState(false);
 	const [scopeSizes, setScopeSizes] = useState<SyncScopeSizes | null>(null);
+	const [mirrors, setMirrors] = useState<SyncBackendConfig[]>([]);
+	const [mirrorsDirty, setMirrorsDirty] = useState(false);
 	const [activeOrgId, setActiveOrgId] = useState("");
 	const cloudSubject =
 		form.agenteroSubject === "organization" ? "organization" : "user";
@@ -263,6 +273,12 @@ function VaultSyncForm({
 		if (id !== requestId.current) return;
 		setStatus(next);
 		setSyncing(next.running);
+		if (mirrorsDirty) {
+			// Keep an in-progress mirror edit from being overwritten by a status
+			// refresh (the pane refreshes on every sync:state event).
+		} else {
+			setMirrors(next.mirrors.map((mirror) => mirror.config));
+		}
 		if (formVersion.current !== 0) return;
 		formVersion.current++;
 		if (next.config) {
@@ -280,7 +296,7 @@ function VaultSyncForm({
 			setForm(emptySyncConfig());
 			setAdvancedOpen(false);
 		}
-	}, [localVault]);
+	}, [localVault, mirrorsDirty]);
 
 	useEffect(() => {
 		void refresh().catch((error) => notifyError(errorMessage(error)));
@@ -389,9 +405,11 @@ function VaultSyncForm({
 		const version = formVersion.current;
 		setSaving(true);
 		try {
-			const next = await syncConfigure(localVault, form);
+			const next = await syncConfigure(localVault, form, mirrors);
 			requestId.current++;
 			setStatus(next);
+			setMirrors(next.mirrors.map((mirror) => mirror.config));
+			setMirrorsDirty(false);
 			if (next.config && formVersion.current === version) {
 				formVersion.current++;
 				setForm(next.config);
@@ -487,7 +505,10 @@ function VaultSyncForm({
 			: status?.configured
 				? "bg-emerald-500"
 				: "bg-muted-foreground/35";
-	const configChanged = JSON.stringify(form) !== JSON.stringify(status?.config);
+	const configChanged =
+		JSON.stringify(form) !== JSON.stringify(status?.config) ||
+		JSON.stringify(mirrors) !==
+			JSON.stringify((status?.mirrors ?? []).map((mirror) => mirror.config));
 	const primaryAction =
 		!status?.configured || configChanged ? (
 			<Button
@@ -906,6 +927,15 @@ function VaultSyncForm({
 				</Collapsible>
 			) : null}
 
+			<MirrorSection
+				mirrors={mirrors}
+				statuses={status?.mirrors ?? []}
+				onChange={(next) => {
+					setMirrorsDirty(true);
+					setMirrors(next);
+				}}
+			/>
+
 			<div className="flex items-center gap-2">
 				{status?.configured ? (
 					<Button
@@ -921,5 +951,211 @@ function VaultSyncForm({
 				) : null}
 			</div>
 		</section>
+	);
+}
+
+/** True when two bindings point at the same mirror store (compare like
+ * `remote_identity` does: backend + address + account, never secrets). */
+function sameMirrorTarget(a: SyncBackendConfig, b: SyncBackendConfig): boolean {
+	if (a.backend !== b.backend) return false;
+	if (a.backend === "webdav") {
+		return (
+			a.webdavUrl.trim().replace(/\/+$/, "") ===
+				b.webdavUrl.trim().replace(/\/+$/, "") &&
+			a.webdavUsername.trim() === b.webdavUsername.trim()
+		);
+	}
+	if (a.backend === "git") {
+		return (
+			a.gitRemote.trim() === b.gitRemote.trim() &&
+			a.gitBranch.trim() === b.gitBranch.trim()
+		);
+	}
+	if (a.backend === "s3") {
+		return (
+			a.endpoint.trim() === b.endpoint.trim() &&
+			a.bucket.trim() === b.bucket.trim() &&
+			a.prefix.trim() === b.prefix.trim() &&
+			a.accessKey.trim() === b.accessKey.trim()
+		);
+	}
+	return false;
+}
+
+/** Read-only mirrors: published after each primary pass, never read back. */
+function MirrorSection({
+	mirrors,
+	statuses,
+	onChange,
+}: {
+	mirrors: SyncBackendConfig[];
+	statuses: SyncMirrorStatus[];
+	onChange: (next: SyncBackendConfig[]) => void;
+}) {
+	const { t } = useTranslation("settings");
+	const patch = (index: number, partial: Partial<SyncBackendConfig>) =>
+		onChange(
+			mirrors.map((mirror, i) =>
+				i === index ? { ...mirror, ...partial } : mirror,
+			),
+		);
+
+	const field = (
+		index: number,
+		key: keyof SyncBackendConfig,
+		label: string,
+		type: "text" | "password" = "text",
+		placeholder?: string,
+	) => (
+		<Input
+			key={String(key)}
+			type={type}
+			value={String(mirrors[index][key] ?? "")}
+			onChange={(event) =>
+				patch(index, {
+					[key]: event.target.value,
+				} as Partial<SyncBackendConfig>)
+			}
+			placeholder={placeholder}
+			aria-label={label}
+			className="h-8 text-xs"
+		/>
+	);
+
+	return (
+		<>
+			<SettingsSectionLabel className="mt-4">
+				<HelpLabel label={t("sync.mirrors")} help={t("sync.mirrorsHint")} />
+			</SettingsSectionLabel>
+			<SettingsGroup>
+				{mirrors.map((mirror, index) => {
+					const status = statuses.find((entry) =>
+						sameMirrorTarget(entry.config, mirror),
+					);
+					const dot = status?.lastError
+						? "bg-destructive"
+						: status?.lastSyncAt
+							? "bg-emerald-500"
+							: "bg-muted-foreground/35";
+					const statusLabel = status?.lastError
+						? t("sync.mirrorError")
+						: status?.lastSyncAt
+							? t("sync.mirrorLastPublished", {
+									time: formatLocaleTimestamp(status.lastSyncAt),
+								})
+							: t("sync.mirrorNeverPublished");
+					return (
+						<div
+							// biome-ignore lint/suspicious/noArrayIndexKey: controlled rows, append/remove only
+							key={`${mirror.backend}-${index}`}
+							className="space-y-2 border-border/50 border-t px-3 py-2 first:border-t-0"
+						>
+							<div className="flex flex-wrap items-center gap-2">
+								<Select
+									value={mirror.backend}
+									onValueChange={(value) => {
+										if (
+											value !== "s3" &&
+											value !== "webdav" &&
+											value !== "git"
+										) {
+											return;
+										}
+										patch(index, { ...emptySyncConfig(value) });
+									}}
+								>
+									<SelectTrigger
+										size="sm"
+										className="w-36"
+										aria-label={t("sync.mirrorBackend")}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="webdav">
+											{t("sync.backendWebdav")}
+										</SelectItem>
+										<SelectItem value="git">{t("sync.backendGit")}</SelectItem>
+										<SelectItem value="s3">{t("sync.backendS3")}</SelectItem>
+									</SelectContent>
+								</Select>
+								<span
+									role="status"
+									aria-label={statusLabel}
+									title={status?.lastError ?? statusLabel}
+									className={cn("size-2 rounded-full", dot)}
+								/>
+								<span className="text-muted-foreground text-xs">
+									{t("sync.mirrorReadOnly")}
+								</span>
+								<Button
+									type="button"
+									size="icon"
+									variant="ghost"
+									className="ml-auto"
+									aria-label={t("sync.mirrorRemove")}
+									onClick={() =>
+										onChange(mirrors.filter((_, i) => i !== index))
+									}
+								>
+									<Trash2 className="size-4" />
+								</Button>
+							</div>
+							<div className="grid gap-2 sm:grid-cols-2">
+								{mirror.backend === "webdav" ? (
+									<>
+										{field(
+											index,
+											"webdavUrl",
+											t("sync.serverUrl"),
+											"text",
+											"https://dav.example.com/dav/agentero/",
+										)}
+										{field(index, "webdavUsername", t("sync.username"))}
+										{field(
+											index,
+											"webdavPassword",
+											t("sync.password"),
+											"password",
+										)}
+									</>
+								) : mirror.backend === "git" ? (
+									<>
+										{field(
+											index,
+											"gitRemote",
+											t("sync.gitRemote"),
+											"text",
+											"git@github.com:you/vault.git",
+										)}
+										{field(index, "gitBranch", t("sync.gitBranch"))}
+									</>
+								) : (
+									<>
+										{field(index, "endpoint", t("sync.endpoint"))}
+										{field(index, "bucket", t("sync.bucket"))}
+										{field(index, "prefix", t("sync.prefix"))}
+										{field(index, "accessKey", t("sync.accessKey"))}
+										{field(index, "secretKey", t("sync.secretKey"), "password")}
+									</>
+								)}
+							</div>
+						</div>
+					);
+				})}
+				<div className="px-3 py-2">
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onClick={() => onChange([...mirrors, emptySyncConfig("webdav")])}
+						disabled={mirrors.length >= 3}
+					>
+						<Plus data-icon="inline-start" />
+						{t("sync.mirrorAdd")}
+					</Button>
+				</div>
+			</SettingsGroup>
+		</>
 	);
 }
