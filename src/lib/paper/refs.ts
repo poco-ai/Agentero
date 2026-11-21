@@ -1,8 +1,7 @@
 /**
  * Paper reference (citation) sidecar helpers.
  * Host parses references (online S2/Crossref → local bib/bbl fallback) into
- * the rebuildable `{paper}/source/agentero-cite.json`; see docs/backend/api.md
- * `paper_refs_parse` / `paper_refs_list`.
+ * the rebuildable `{paper}/source/agentero-cite.json`.
  */
 import { commands } from "@/lib/core/bindings";
 import { callApi, callApiResult } from "@/lib/core/ipc";

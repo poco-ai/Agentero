@@ -84,7 +84,7 @@ function TabButton({
 			type="button"
 			onClick={() => onTab(id)}
 			className={cn(
-				"relative flex items-center rounded-lg outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+				"relative flex items-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
 				sidebar
 					? "h-12 w-full gap-3 px-3 text-base"
 					: "size-10 justify-center px-0",

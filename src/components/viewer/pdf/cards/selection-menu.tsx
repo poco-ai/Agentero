@@ -37,6 +37,7 @@ import {
 
 type SelectionMenuProps = {
 	screen: ScreenPoint;
+	avoidBounds?: DOMRectReadOnly;
 	onHighlight?: (color: HighlightColor, shape: PdfTextMarkupKind) => void;
 	onAsk?: () => void;
 	onAddToChat?: () => void;
@@ -53,6 +54,7 @@ type SelectionMenuProps = {
 /** PDF-only extensions composed into the application selection menu. */
 export function SelectionMenu({
 	screen,
+	avoidBounds,
 	onHighlight,
 	onAsk,
 	onAddToChat,
@@ -120,6 +122,7 @@ export function SelectionMenu({
 	return (
 		<SelectionActionMenu
 			screen={screen}
+			avoidBounds={avoidBounds}
 			selectionText={selectionText}
 			onAsk={onAsk}
 			onAddToChat={onAddToChat}

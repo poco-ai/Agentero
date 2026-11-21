@@ -5,6 +5,16 @@ import { isRecord, isRect } from "@/lib/pdf/marks/schema";
 export function parsePdfHighlight(raw: unknown): PdfHighlight | null {
 	if (!isRecord(raw)) return null;
 	if (raw.version !== 1) return null;
+	// These workflows share marks/*.json and can have the same geometry,
+	// quote and timestamps as a legacy highlight. Never migrate them.
+	if (
+		raw.kind === "translate" ||
+		raw.kind === "ask" ||
+		raw.kind === "visual" ||
+		raw.kind === "agent-trace"
+	) {
+		return null;
+	}
 	if (typeof raw.id !== "string" || !raw.id) return null;
 	if (typeof raw.paperPath !== "string") return null;
 	if (typeof raw.createdAt !== "string" || typeof raw.updatedAt !== "string") {

@@ -1,6 +1,6 @@
 //! Download same-version headless CLI archives from GitHub Releases.
 //!
-//! Asset naming matches `.github/workflows/release.yml` / `docs/test/release.md`:
+//! Asset naming matches `.github/workflows/release.yml`:
 //! `agentero-cli-{version}-{rust-host}.{tar.gz|zip}` plus sibling `.sha256`.
 
 use crate::core::error::AppError;

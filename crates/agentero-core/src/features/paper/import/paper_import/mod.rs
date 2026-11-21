@@ -2,8 +2,6 @@
 //! catalog → assets pipeline behind every local import entry (magic wand,
 //! Zotero Connector, local PDF, Bib/RIS). Entries stay thin source adapters
 //! that produce a mapped [`papers::PaperRecord`] and pick policies here.
-//!
-//! @see docs/backend/paper-import-pipeline.md
 
 use crate::app_handle::AppHandle;
 use crate::error::AppError;

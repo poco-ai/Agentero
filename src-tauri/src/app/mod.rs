@@ -21,6 +21,8 @@ mod workspace_cli;
 pub mod finder_service;
 pub use crate::features::open_request;
 #[cfg(not(target_os = "ios"))]
+pub mod open_with;
+#[cfg(not(target_os = "ios"))]
 pub mod terminal;
 #[cfg(not(target_os = "ios"))]
 pub mod window;
@@ -527,8 +529,7 @@ pub fn run() {
                 return;
             }
             // Remaining menu ids are renderer actions: broadcast one
-            // `menu:invoked` event with the action id (naming per
-            // docs/architecture.md).
+            // `menu:invoked` event with the action id.
             let _ = app.emit(
                 crate::app::menu::MENU_INVOKED_EVENT,
                 serde_json::json!({ "action": id }),

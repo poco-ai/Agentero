@@ -4,8 +4,6 @@
 //! that belongs in the prompt, the sources this turn may open, a budget, and a
 //! fingerprint. The turn-bound CLI enforces the grant. The global
 //! Vault MCP is a different permission model and is not reused here.
-//!
-//! See `docs/backend/context.md`.
 
 mod artifacts;
 mod grant;

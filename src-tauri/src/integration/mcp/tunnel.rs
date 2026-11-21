@@ -3,7 +3,7 @@
 //! Spawns and owns a `tunnel-client run` child so the loopback MCP surface is
 //! reachable from ChatGPT without the user keeping a terminal open. The child
 //! lives and dies with Agentero on purpose — same lifetime as the MCP listener
-//! it fronts. See `docs/backend/mcp.md`.
+//! it fronts.
 
 use crate::core::http::effective_proxy_url;
 use crate::core::paths::mcp_tunnel_dir;
@@ -18,7 +18,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 
-/// Event name follows `docs/architecture.md` (one domain, one colon).
+/// Event name follows the `domain:event` convention.
 pub const MCP_TUNNEL_STATUS_EVENT: &str = "mcp:tunnel-status";
 
 pub const TUNNEL_CLIENT_BIN: &str = "tunnel-client";

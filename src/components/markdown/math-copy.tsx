@@ -50,7 +50,7 @@ export function MathCopy({
 			className={cn(
 				"group/math-copy inline-flex min-w-0 max-w-full items-baseline gap-0.5 align-baseline",
 				hasFormula &&
-					"relative rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-primary/15",
+					"relative rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:ring-1 focus-visible:ring-ring active:bg-primary/15",
 				className,
 			)}
 			contentEditable={false}

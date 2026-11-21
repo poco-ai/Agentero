@@ -1,7 +1,4 @@
 //! Paper import: identifier lookup, Translator, Zotero migrate, local PDF, PAPER.md parse.
-//!
-//! @see docs/backend/identifier-lookup.md
-//! @see docs/backend/paper-import-pipeline.md
 
 pub mod auto_ingest;
 pub mod chat_extract;
@@ -775,7 +772,10 @@ async fn import_one_local_pdf(
 
     let sync_probe = if ctx.recognize_sync && !dialog_meta {
         let translator_base = ctx.translator_base_url.unwrap_or("");
-        let probe = recognize::recognize_and_resolve(&src, translator_base, ctx.task_id).await;
+        let probe =
+            recognize::recognize_and_resolve(&src, translator_base, ctx.task_id, Some(&title))
+                .await;
+        check_task_not_cancelled(ctx.task_id)?;
         if let Some(canon) = recognize::canonical_base_id(&probe) {
             base_id = canon;
         }

@@ -71,6 +71,7 @@ import {
 	MessageResponse,
 } from "@/components/agent/message";
 import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
+import { UserMessageResponse } from "@/components/agent/rendering/user-message-response";
 import {
 	AnnotationMarkerText,
 	LooseSelectionChips,
@@ -374,7 +375,7 @@ function StreamingActivityRow({
 				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
 			)}
 			onClick={onToggle}
-			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 		>
 			{content}
 		</button>
@@ -645,9 +646,9 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 									snapshots={annotationCards}
 								/>
 							) : (
-								<MessageResponse className="text-base leading-relaxed">
+								<UserMessageResponse className="text-base leading-relaxed">
 									{userDisplay}
-								</MessageResponse>
+								</UserMessageResponse>
 							)}
 							{looseSelections.length > 0 && annotationCards.length === 0 ? (
 								<LooseSelectionChips selections={looseSelections} />

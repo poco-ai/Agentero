@@ -3,9 +3,6 @@
  *
  * Stars are static snapshots for display only. Clicking a card feeds
  * the GitHub URL into the existing 魔棒 Skill import (`lookupSubmit`).
- *
- * @see docs/frontend/paper-import.md
- * @see docs/backend/skill-import.md
  */
 
 export type SkillThemeId =

@@ -38,6 +38,7 @@ vi.mock("@/components/viewer/pdf/layers/comment-markdown-editor", () => ({
 		handleRef?: {
 			current: {
 				getMarkdown: () => string;
+				ownsEquationPopover: (target: EventTarget | null) => boolean;
 				focusEnd: () => void;
 				blur: () => void;
 			} | null;
@@ -48,6 +49,7 @@ vi.mock("@/components/viewer/pdf/layers/comment-markdown-editor", () => ({
 		useLayoutEffect(() => {
 			handleRef.current = {
 				getMarkdown: () => draftRef.current,
+				ownsEquationPopover: () => false,
 				focusEnd: () => ref.current?.focus(),
 				blur: () => ref.current?.blur(),
 			};

@@ -36,9 +36,6 @@
 //! Subpanel/other captions and cross-page captions stay separate; unattached
 //! captions stay in the merged list (they are not sidebar kinds, so
 //! [`build_index_items`] drops them).
-//!
-//! @see docs/frontend/pdf-layout-analysis.md
-//! @see docs/backend/cli.md (`agentero layout analyze`)
 
 use super::layout_region::{
     CaptionRole, LayoutIndexItem, LayoutIndexSection, LayoutKind, LayoutRegion, Rect,

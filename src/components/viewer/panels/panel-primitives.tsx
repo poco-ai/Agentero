@@ -54,7 +54,7 @@ export function PanelCardButton({
 			role="button"
 			tabIndex={0}
 			className={cn(
-				"block w-full cursor-pointer rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+				"block w-full cursor-pointer rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring",
 				className,
 			)}
 			onClick={onActivate}

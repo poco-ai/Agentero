@@ -651,6 +651,18 @@
 [data-paper="dark"] {
 	--pdf-paper-ink: oklch(0.94 0.006 260);
 }
+/* Blend one translucent layer, even where saved translation spans overlap.
+ * Multiply preserves dark glyphs; screen preserves light glyphs on dark paper. */
+.pdf-translation-source-tint {
+	opacity: 0.2;
+	mix-blend-mode: multiply;
+}
+[data-paper="dark"] .pdf-translation-source-tint {
+	mix-blend-mode: screen;
+}
+.pdf-translation-source-tint > div {
+	background: var(--pdf-paper-ink);
+}
 /*
  * Layout-element selection. The frame and chip stay invisible until the
  * pointer or keyboard focus is on that element, so the page does not keep
@@ -704,8 +716,8 @@
 	pointer-events: auto;
 }
 .pdf-layout-element-chip:focus-visible {
-	outline: 2px solid var(--ring);
-	outline-offset: 2px;
+	outline: 1px solid var(--ring);
+	outline-offset: 1px;
 }
 [data-layout-element].is-hot.has-sentence > .pdf-layout-element-frame,
 [data-layout-element].has-sentence:focus-within > .pdf-layout-element-frame {
@@ -733,6 +745,30 @@
 .pdf-live-selection-band[data-source-sentence] {
 	transform: none;
 }
+/*
+ * Sentence hand-off. The incoming bands paint on the frame the pointer moved
+ * (no fade-in that lags the pointer); the outgoing sentence fades out beneath
+ * them, so switching blocks reads as one motion instead of a hard cut. A
+ * sequential fade-out was the old behavior and dropped every block the pointer
+ * crossed while it ran.
+ */
+.pdf-layout-sentence-wash > .pdf-sentence-band {
+	animation: pdf-sentence-band-in var(--motion-duration-micro)
+		var(--motion-ease-out) both;
+}
+.pdf-layout-sentence-wash > .pdf-sentence-band.is-leaving {
+	animation: none;
+	opacity: 0;
+	transition: opacity var(--motion-duration-micro) var(--motion-ease-out);
+}
+@keyframes pdf-sentence-band-in {
+	from {
+		opacity: 0.55;
+	}
+	to {
+		opacity: 1;
+	}
+}
 [data-sentence][data-sentence-hot] {
 	border-radius: 1px;
 	background-color: color-mix(in oklch, var(--pdf-paper-ink) 12%, transparent);
@@ -744,6 +780,12 @@
 	.pdf-layout-element-frame,
 	.pdf-layout-element-chip,
 	.pdf-layout-sentence-wash {
+		transition: none;
+	}
+	.pdf-layout-sentence-wash > .pdf-sentence-band {
+		animation: none;
+	}
+	.pdf-layout-sentence-wash > .pdf-sentence-band.is-leaving {
 		transition: none;
 	}
 }
@@ -863,7 +905,7 @@
 }
 
 .pdf-zoom-slider:focus-visible {
-	outline: 2px solid color-mix(in oklch, var(--brand) 40%, transparent);
+	outline: 1px solid var(--brand);
 	outline-offset: 2px;
 	border-radius: 999px;
 }
@@ -1046,10 +1088,16 @@
 }
 
 /*
- * Always-visible variant for content clipped by design (translate card):
- * the thumb stays shown so the overflow is discoverable. Must come after the
- * rules above to win at equal specificity; `overflow-y: auto` still means no
- * scrollbar renders until the content actually clips.
+ * Always-visible variant for content clipped by design (translate card) and the
+ * PDF viewport, where dragging the bar is a primary way to move around a zoomed
+ * page: the thumb stays painted so the overflow is discoverable. Must come after
+ * the rules above to win at equal specificity; `overflow: auto` still means no
+ * bar renders until the content actually clips.
+ *
+ * The PDF viewport also needs this on WKWebView, which stops treating the
+ * scroller as hovered once the pointer is over its scrollbar (and can miss the
+ * repaint of a hover-only thumb), so the auto-hiding material fades out exactly
+ * when the reader reaches for it.
  */
 .agentero-scroll-visible {
 	scrollbar-color: color-mix(in oklch, var(--muted-foreground) 32%, transparent)
@@ -1057,28 +1105,6 @@
 }
 
 .agentero-scroll-visible::-webkit-scrollbar-thumb {
-	background-color: color-mix(
-		in oklch,
-		var(--muted-foreground) 28%,
-		transparent
-	);
-}
-
-/*
- * PDF viewport: keep both scrollbars painted, unlike the auto-hiding panes.
- * Dragging the bar is a primary way to move around a zoomed page, and
- * WKWebView stops treating the scroller as hovered once the pointer is over
- * its scrollbar (and can miss the repaint of a hover-only thumb), so the
- * "show while scrolling / hovering" material fades out exactly when the
- * reader reaches for it. A statically painted thumb stays grabbable;
- * `overflow: auto` still means no bar renders until the content clips.
- */
-[data-pdf-viewport] {
-	scrollbar-color: color-mix(in oklch, var(--muted-foreground) 32%, transparent)
-		transparent;
-}
-
-[data-pdf-viewport]::-webkit-scrollbar-thumb {
 	background-color: color-mix(
 		in oklch,
 		var(--muted-foreground) 28%,

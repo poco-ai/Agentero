@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 use std::fmt;
 
-/// Process exit codes (see docs/development/cli.md).
+/// Stable process exit codes. CLI errors report a separate machine-readable code.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitCode {

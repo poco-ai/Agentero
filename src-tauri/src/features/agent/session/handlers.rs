@@ -111,7 +111,13 @@ impl WarmIdleHooks {
             &notification.update,
             SessionUpdate::AvailableCommandsUpdate(_) | SessionUpdate::Notice(_)
         ) {
-            emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
+            emit_rich_session_update(
+                &self.app,
+                &self.session_id,
+                &self.agent_id,
+                notification,
+                None,
+            );
         }
         if let SessionUpdate::ConfigOptionUpdate(upd) = &notification.update {
             // Keep the warm result's catalog in sync with the pushed one so the

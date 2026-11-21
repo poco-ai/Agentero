@@ -4,8 +4,6 @@
 //! build) so a CLI-resolved rect lands where a hand-drawn selection would.
 //! liteparse's layout reconstruction is deliberately not involved here — it
 //! serves `PAPER.md`, not page geometry.
-//!
-//! @see docs/backend/cli.md
 //! @see src/components/viewer/pdf/coords.ts (the 0–1 normalization this matches)
 
 use crate::error::AppError;

@@ -49,7 +49,7 @@ pub struct JobTerminalPayload {
     /// Vault root as passed by the enqueuing caller (`JobSnapshot.vault_id`):
     /// frontend-initiated jobs carry the exact `getVaultPath()` string;
     /// host-internal jobs the Host's (usually canonical) form. Consumers
-    /// must tolerate both spellings; see docs/backend/api.md (`job:completed`).
+    /// must tolerate both spellings, including Windows paths with a `\\?\` prefix.
     pub vault_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub paper_id: Option<String>,

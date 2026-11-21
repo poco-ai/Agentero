@@ -6,8 +6,6 @@
 //! no Host module currently registers [`DecisionSchema`]s or exposes
 //! [`DecisionEngine`] to the frontend; routing/fallback lives here, provider
 //! transport lives in [`providers`].
-//!
-//! @see docs/backend/decision.md
 
 pub mod engine;
 pub mod providers;

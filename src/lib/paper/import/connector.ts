@@ -1,6 +1,5 @@
 /**
  * Zotero Connector–compatible local server control (Host :23119).
- * @see docs/backend/connector.md
  */
 
 import {

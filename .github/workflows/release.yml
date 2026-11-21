@@ -134,7 +134,7 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      # macOS: Developer ID signing + notarytool (see docs/test/macos-signing.md).
+      # macOS: Developer ID signing + notarytool.
       # Without APPLE_CERTIFICATE the build still runs unsigned (existing behavior).
       # Do NOT pass empty APPLE_TEAM_ID/APPLE_ID via the build env — empty strings make
       # Tauri/notarytool fail with "Team ID must be at least 3 characters".
@@ -219,18 +219,18 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # PostHog project API key baked in at compile time (build.rs);
-          # empty/absent secret compiles telemetry out. See docs/backend/telemetry.md.
+          # Empty or absent secret compiles telemetry out.
           AGENTERO_POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
           # Optional. When all four are set, About feedback lands in that
           # PostHog API survey. Absent secrets still build; feedback is sent
-          # as a `feedback submitted` activity event. See docs/backend/telemetry.md.
+          # as a `feedback submitted` activity event.
           AGENTERO_POSTHOG_SURVEY_ID: ${{ secrets.POSTHOG_SURVEY_ID }}
           AGENTERO_POSTHOG_SURVEY_KIND_ID: ${{ secrets.POSTHOG_SURVEY_KIND_ID }}
           AGENTERO_POSTHOG_SURVEY_MESSAGE_ID: ${{ secrets.POSTHOG_SURVEY_MESSAGE_ID }}
           AGENTERO_POSTHOG_SURVEY_CONTACT_ID: ${{ secrets.POSTHOG_SURVEY_CONTACT_ID }}
           # Built-in provider gateway key, baked in at compile time (build.rs);
           # empty/absent secret still builds, but ships without the built-in
-          # provider, so verify it after release. See docs/backend/builtin-provider.md.
+          # provider, so verify it after release.
           AGENTERO_BUILTIN_API_KEY: ${{ secrets.AGENTERO_BUILTIN_API_KEY }}
           # Tauri updater signature, independent from Apple code signing.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

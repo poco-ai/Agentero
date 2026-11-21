@@ -144,7 +144,7 @@ export function HighlightColorStack({
 								aria-pressed={activeColor ? isActive : undefined}
 								className={cn(
 									"absolute top-0 inline-flex items-center justify-center rounded-full outline-none",
-									"focus-visible:ring-2 focus-visible:ring-ring/50",
+									"focus-visible:ring-1 focus-visible:ring-ring",
 									"active:scale-[0.94] motion-reduce:active:scale-100",
 								)}
 								style={{

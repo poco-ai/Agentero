@@ -38,7 +38,7 @@ export function ComposerReasoningEffort({
 							type="button"
 							disabled={disabled}
 							aria-label={t("composer.effort.label")}
-							className="flex h-7 min-w-0 max-w-[40%] shrink-0 items-center gap-1 rounded-md px-1.5 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+							className="flex h-7 min-w-0 max-w-[40%] shrink-0 items-center gap-1 rounded-md px-1.5 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
 						>
 							<span className="truncate">{selected?.name || value}</span>
 							<ChevronDown className="size-3 shrink-0 opacity-70" />

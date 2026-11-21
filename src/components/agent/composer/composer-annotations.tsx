@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -6,27 +6,16 @@ import {
 	placeAnchoredPopover,
 	remToPx,
 } from "@/components/agent/composer/anchored-popover";
-import { AnnotationQuoteBlock } from "@/components/selection/annotation-quote-block";
-import { SelectionSourceButton } from "@/components/selection/selection-source-button";
-import { Button } from "@/components/ui/button";
-import { annotationOrdinal } from "@/lib/agent/annotation-prompt";
+import { extractSelectionTokens } from "@/lib/agent/composer-inline-tokens";
 import {
-	extractSelectionTokens,
-	updateSelectionToken,
-	withoutSelectionTokens,
-} from "@/lib/agent/composer-inline-tokens";
+	normalizeContextPath,
+	paperContextRoot,
+} from "@/lib/agent/context-path-icon";
 import { releaseAnnotationAnchor } from "@/lib/agent/selection-annotations";
+import { selectionLineLabel } from "@/lib/agent/selection-line-label";
 import type { SelectionContext } from "@/lib/agent/selection-store";
-import { lookupHighlightColor } from "@/lib/pdf/annotation-ref";
-import {
-	DEFAULT_HIGHLIGHT_COLOR,
-	type HighlightColor,
-} from "@/lib/pdf/highlight/palette";
+import { cn } from "@/lib/core/utils";
 import { readAnnotationTranslation } from "@/lib/pdf/layout/annotation-translate-display";
-import {
-	outlineLocationLabelForPaper,
-	subscribePaperOutline,
-} from "@/lib/pdf/outline-location";
 
 export type SelectionHoverAnchor = {
 	id: string;
@@ -35,16 +24,20 @@ export type SelectionHoverAnchor = {
 
 export function ComposerAnnotations({
 	value,
-	onChange,
 	hover,
 	onHoverHold,
 	onHoverRelease,
+	labelForPath,
+	paperPaths,
 }: {
 	value: string;
-	onChange: (value: string) => void;
 	hover: SelectionHoverAnchor | null;
 	onHoverHold: () => void;
 	onHoverRelease: () => void;
+	/** Same paper label as the file tree / context chips. */
+	labelForPath: (path: string) => string;
+	/** Vault-relative paper folders, used to split `papers/<dir>/<paper>`. */
+	paperPaths: ReadonlySet<string>;
 }) {
 	const selections = useMemo(() => extractSelectionTokens(value), [value]);
 	const seenIdsRef = useRef<string[]>([]);
@@ -55,32 +48,18 @@ export function ComposerAnnotations({
 		}
 		seenIdsRef.current = ids;
 	}, [selections]);
-	const remove = (id?: string) => {
-		for (const selection of selections)
-			if (!id || selection.id === id) releaseAnnotationAnchor(selection.id);
-		onChange(
-			id
-				? updateSelectionToken(value, id, null)
-				: withoutSelectionTokens(value),
-		);
-	};
 	const hovered = hover
 		? selections.find((selection) => selection.id === hover.id)
 		: undefined;
 	if (!hover || !hovered) return null;
-	const ordinal = annotationOrdinal(value, "selection", hovered.id);
-	const index =
-		ordinal == null
-			? selections.findIndex((selection) => selection.id === hovered.id)
-			: ordinal - 1;
 	return (
 		<SelectionReferenceCard
 			anchor={hover.anchor}
-			index={index}
 			selection={hovered}
+			labelForPath={labelForPath}
+			paperPaths={paperPaths}
 			onHoverHold={onHoverHold}
 			onHoverRelease={onHoverRelease}
-			onRemove={() => remove(hovered.id)}
 		/>
 	);
 }
@@ -94,37 +73,62 @@ export function clientRectMoved(prev: DOMRect, next: DOMRect): boolean {
 	);
 }
 
-function liveSelectionChip(
-	id: string,
-	fallback: HTMLElement,
-): HTMLElement | null {
-	if (fallback.isConnected) return fallback;
-	const found = document.querySelector(
-		`[data-composer-chip="selection"][data-selection-id="${CSS.escape(id)}"]`,
-	);
-	return found instanceof HTMLElement ? found : null;
+/**
+ * Source line above the quote: `Papers / <dirs…> / <paper title>` for a paper
+ * selection, otherwise the chip label (path, plus the line span when known).
+ */
+function selectionSourceLabel(
+	selection: SelectionContext,
+	labelForPath: (path: string) => string,
+	paperPaths: ReadonlySet<string>,
+	t: TFunction<"agent">,
+): string {
+	const rel = normalizeContextPath(selection.sourcePath);
+	const paperRoot = paperContextRoot(rel, paperPaths);
+	if (paperRoot) {
+		const segments = paperRoot.split("/");
+		const folder = segments[segments.length - 1] ?? paperRoot;
+		return [
+			t("composer.referencePaperRoot"),
+			...segments.slice(1, -1),
+			labelForPath(paperRoot) || folder,
+		].join(" / ");
+	}
+	const fallback = selection.sourceTitle || rel || selection.sourcePath;
+	if (selection.lineFrom != null) {
+		return selectionLineLabel(t, selection, fallback) ?? fallback;
+	}
+	return fallback;
 }
 
+/**
+ * Reference card for one text annotation. Apple-style floating material: a
+ * quiet source line, then the quote itself. No ordinal, no locate / delete
+ * actions, no highlight swatch — the card only describes the quotation.
+ */
 function SelectionReferenceCard({
 	anchor,
-	index,
 	selection,
+	labelForPath,
+	paperPaths,
 	onHoverHold,
 	onHoverRelease,
-	onRemove,
 }: {
 	anchor: HTMLElement;
-	index: number;
 	selection: SelectionContext;
+	labelForPath: (path: string) => string;
+	paperPaths: ReadonlySet<string>;
 	onHoverHold: () => void;
 	onHoverRelease: () => void;
-	onRemove: () => void;
 }) {
-	const { t } = useTranslation(["viewer", "common"]);
-	const appearance = useSelectionQuoteAppearance(selection);
+	const { t } = useTranslation("agent");
+	const translation = useSelectionTranslation(selection);
 	const cardRef = useRef<HTMLDivElement>(null);
 	const selectingQuoteRef = useRef(false);
 	const [rect, setRect] = useState(() => anchor.getBoundingClientRect());
+
+	// Selecting the quote is a normal reading gesture: releasing outside the
+	// card must not dismiss it. A click anywhere else still does.
 	useEffect(() => {
 		const onMouseUp = (event: MouseEvent) => {
 			if (!selectingQuoteRef.current) return;
@@ -143,11 +147,7 @@ function SelectionReferenceCard({
 			const card = cardRef.current;
 			if (!card || selectingQuoteRef.current) return;
 			if (event.target instanceof Node && card.contains(event.target)) return;
-			const selection = document.getSelection();
-			const node = selection?.anchorNode;
-			if (selection && !selection.isCollapsed && node && card.contains(node)) {
-				onHoverRelease();
-			}
+			onHoverRelease();
 		};
 		window.addEventListener("mouseup", onMouseUp);
 		window.addEventListener("mousedown", onMouseDown);
@@ -156,19 +156,16 @@ function SelectionReferenceCard({
 			window.removeEventListener("mousedown", onMouseDown);
 		};
 	}, [onHoverRelease]);
-	// Editing the note rewrites the selection token, which replaces the chip
-	// node. Follow the new node instead of closing the card.
+
 	useLayoutEffect(() => {
 		const update = () => {
-			const live = liveSelectionChip(selection.id, anchor);
-			if (!live) {
-				if (document.activeElement?.closest("[data-annotation-ui]")) return;
+			if (!anchor.isConnected) {
 				onHoverRelease();
 				return;
 			}
 			// A new DOMRect is always a new state value. Setting it on every
 			// pass retriggers this effect and overflows React's update depth.
-			const next = live.getBoundingClientRect();
+			const next = anchor.getBoundingClientRect();
 			setRect((prev) => (clientRectMoved(prev, next) ? next : prev));
 		};
 		update();
@@ -178,21 +175,29 @@ function SelectionReferenceCard({
 			window.removeEventListener("scroll", update, true);
 			window.removeEventListener("resize", update);
 		};
+	}, [anchor, onHoverRelease]);
+	useEffect(() => {
+		if (!anchor.isConnected) onHoverRelease();
 	});
-	const placeBelow = rect.top < 220;
+
+	const placeBelow = rect.top < 320;
 	if (typeof document === "undefined") return null;
 	const position = placeAnchoredPopover(rect, {
-		width: remToPx(28),
+		width: remToPx(24),
 		viewportWidth: window.innerWidth,
 		placeBelow,
 	});
+	const source = selectionSourceLabel(selection, labelForPath, paperPaths, t);
+	const page = selection.page
+		? t("composer.visualAnnotationPage", { page: selection.page })
+		: null;
 	return createPortal(
-		// Hover bridge into the card. The note field and delete button own the actions.
-		// biome-ignore lint/a11y/noStaticElementInteractions: pointer bridge so the card stays open between the reference and its actions
+		// Hover bridge into the card; the quote stays selectable.
+		// biome-ignore lint/a11y/noStaticElementInteractions: pointer bridge so the quote can be read and copied between the reference and its card
 		<div
 			ref={cardRef}
 			data-annotation-ui
-			className="fixed z-50 max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-lg bg-popover p-1.5 text-sm text-popover-foreground shadow-overlay ring-1 ring-foreground/10"
+			className="fixed z-50"
 			style={{
 				left: position.left,
 				top: position.top,
@@ -225,113 +230,69 @@ function SelectionReferenceCard({
 				event.preventDefault();
 			}}
 		>
-			<div className="flex items-start gap-2 p-3">
-				<span className="text-muted-foreground">{index + 1}.</span>
-				<div className="min-w-0 flex-1">
-					<div className="mb-2 flex items-center gap-2">
-						<div className="min-w-0 flex-1">
-							<SelectionSourceButton className="mb-0" selection={selection} />
-						</div>
-						<Button
-							type="button"
-							size="icon-sm"
-							variant="ghost"
-							className="shrink-0"
-							aria-label={t("common:remove")}
-							onClick={onRemove}
-						>
-							<Trash2 className="size-4" />
-						</Button>
-					</div>
-					<AnnotationQuoteBlock
-						quote={selection.text}
-						translation={appearance.translation}
-						locationLabel={appearance.locationLabel}
-						color={appearance.color ?? DEFAULT_HIGHLIGHT_COLOR}
-						showSwatch={selection.origin === "pdf"}
-						selectable
-						textClassName="text-[13px]"
-					/>
-				</div>
+			{/* Material arrives from the anchor: fade + scale, no overshoot. */}
+			<div
+				className={cn(
+					"agentero-scroll max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-xl bg-popover/95 p-4 text-popover-foreground shadow-overlay ring-1 ring-foreground/10 backdrop-blur-md",
+					placeBelow ? "origin-top" : "origin-bottom",
+					"motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-150 motion-safe:ease-out motion-reduce:animate-none",
+				)}
+			>
+				<header className="flex items-baseline justify-between gap-3">
+					<p
+						className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground leading-4 tracking-[0.01em]"
+						title={page ? `${source} · ${page}` : source}
+					>
+						{source}
+					</p>
+					{page ? (
+						<span className="shrink-0 text-[11px] text-muted-foreground/70 leading-4 tabular-nums">
+							{page}
+						</span>
+					) : null}
+				</header>
+				<p
+					data-annotation-selectable
+					className="mt-2.5 whitespace-pre-wrap break-words text-[13px] text-foreground leading-[1.6] select-text"
+				>
+					{selection.text}
+				</p>
+				{translation ? (
+					<p className="mt-2.5 whitespace-pre-wrap break-words text-muted-foreground text-xs leading-relaxed select-text">
+						<span className="font-medium">
+							{t("transcript.annotationTranslation")}
+						</span>
+						{": "}
+						{translation}
+					</p>
+				) : null}
 			</div>
 		</div>,
 		document.body,
 	);
 }
 
-function minRectY(rects: SelectionContext["rects"]): number | undefined {
-	if (!rects?.length) return undefined;
-	let min = Number.POSITIVE_INFINITY;
-	for (const rect of rects) {
-		if (Number.isFinite(rect.y)) min = Math.min(min, rect.y);
-	}
-	return Number.isFinite(min) ? min : undefined;
-}
-
-function useSelectionQuoteAppearance(selection: SelectionContext): {
-	color: HighlightColor | null;
-	locationLabel: string | null;
-	translation: string | null;
-} {
+/** Saved translation for the quote, if the paper carries one. */
+function useSelectionTranslation(selection: SelectionContext): string | null {
 	const paperAbs =
 		selection.origin === "pdf" ? (selection.paperAbsPath?.trim() ?? "") : "";
-	const annotationId = selection.id.startsWith("ann-")
-		? selection.id.slice("ann-".length)
-		: undefined;
-	const [locationLabel, setLocationLabel] = useState<string | null>(null);
-	useEffect(() => {
-		if (!paperAbs || selection.page == null) {
-			setLocationLabel(null);
-			return;
-		}
-		const page = selection.page;
-		const read = () => {
-			const y = minRectY(selection.rects);
-			setLocationLabel(
-				outlineLocationLabelForPaper(paperAbs, {
-					page,
-					...(y != null ? { y } : {}),
-				}),
-			);
-		};
-		read();
-		return subscribePaperOutline(paperAbs, read);
-	}, [paperAbs, selection.page, selection.rects]);
-	const requestKey = `${paperAbs}\n${annotationId ?? ""}\n${selection.page ?? ""}\n${selection.text}`;
+	const requestKey = `${paperAbs}\n${selection.text}`;
 	const [loaded, setLoaded] = useState<{
 		key: string;
-		color: HighlightColor;
 		translation: string | null;
 	} | null>(null);
 	useEffect(() => {
 		if (!paperAbs) return;
 		let cancelled = false;
-		void Promise.all([
-			lookupHighlightColor(paperAbs, {
-				id: annotationId,
-				quote: selection.text,
-				page: selection.page,
-			}),
-			readAnnotationTranslation(paperAbs, selection.text),
-		]).then(([color, translation]) => {
-			if (cancelled) return;
-			setLoaded({
-				key: requestKey,
-				color: color ?? DEFAULT_HIGHLIGHT_COLOR,
-				translation,
-			});
-		});
+		void readAnnotationTranslation(paperAbs, selection.text).then(
+			(translation) => {
+				if (cancelled) return;
+				setLoaded({ key: requestKey, translation });
+			},
+		);
 		return () => {
 			cancelled = true;
 		};
-	}, [annotationId, paperAbs, requestKey, selection.page, selection.text]);
-	if (!paperAbs) {
-		return { color: null, locationLabel: null, translation: null };
-	}
-	const ready = loaded?.key === requestKey ? loaded : null;
-	return {
-		color: ready?.color ?? DEFAULT_HIGHLIGHT_COLOR,
-		locationLabel,
-		translation: ready?.translation ?? null,
-	};
+	}, [paperAbs, requestKey, selection.text]);
+	return loaded?.key === requestKey ? loaded.translation : null;
 }

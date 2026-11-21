@@ -119,6 +119,7 @@
 		"selectionChipWithPage": "{{title}}:p.{{page}}",
 		"selectionChipWithLine": "{{title}} line {{from}}",
 		"selectionChipWithLines": "{{title}} lines {{from}}-{{to}}",
+		"referencePaperRoot": "Papers",
 		"visualAnnotation": "Visual annotation",
 		"visualAnnotationPage": "p.{{page}}",
 		"visualAnnotationsTitle": "Visual annotations ({{count}})",

@@ -4,8 +4,6 @@
  * Virtual tree/tab paths only; nothing here ever touches disk. Adding a source
  * is a single {@link PLAZA_SOURCES} entry — the sidebar child row and the
  * center panel both derive from this registry.
- *
- * @see docs/frontend/paper-import.md
  */
 
 import i18n from "@/i18n";

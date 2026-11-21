@@ -1,5 +1,5 @@
 import { AnimatePresence } from "motion/react";
-import { memo, type ReactNode } from "react";
+import { memo, type ReactNode, useState } from "react";
 import { createPortal } from "react-dom";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import {
@@ -143,6 +143,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 	translate,
 	visual,
 }: PdfCardStackProps) {
+	const [translationBounds, setTranslationBounds] = useState<DOMRectReadOnly>();
 	if (typeof document === "undefined") return null;
 
 	return createPortal(
@@ -151,6 +152,9 @@ export const PdfCardStack = memo(function PdfCardStack({
 				<SelectionMenu
 					key={selectionMenuInstanceKey(selectionMenu.state)}
 					screen={selectionMenu.state.screen}
+					avoidBounds={
+						translate.record && cardScreen ? translationBounds : undefined
+					}
 					onHighlight={selectionMenu.onHighlight}
 					onAsk={selectionMenu.onAsk}
 					onAddToChat={selectionMenu.onAddToChat}
@@ -231,6 +235,9 @@ export const PdfCardStack = memo(function PdfCardStack({
 						onTogglePin={translate.onTogglePin}
 						onOpenSettings={translate.onOpenSettings}
 						onHide={translate.onHide}
+						onBoundsChange={
+							selectionMenu.state ? setTranslationBounds : undefined
+						}
 						onPointerEnter={onCardHoverEnter}
 						onPointerLeave={onCardHoverLeave}
 						sourceText={translate.record.quote}

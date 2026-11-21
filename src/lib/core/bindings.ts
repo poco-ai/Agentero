@@ -614,6 +614,18 @@ export const commands = {
 	/**  List known external terminals for the "Open in Terminal" preference. */
 	terminalAppsProbe: () => typedError<ApiResult<TerminalAppStatus[]>, string>(__TAURI_INVOKE("terminal_apps_probe")),
 	/**
+	 *  List the menu rows for the path bar "Open with" control: the system file
+	 *  manager, the editors installed on this machine, and the terminal. Icons are
+	 *  real application icons (PNG data URLs) when the host can extract them.
+	 */
+	pathOpenWithApps: () => typedError<ApiResult<OpenWithApp[]>, string>(__TAURI_INVOKE("path_open_with_apps")),
+	/**
+	 *  Open `path` with a probed row id: `"finder"` (file manager), `"terminal"`
+	 *  (Settings-preferred terminal), or an installed editor. Directories open as
+	 *  themselves; files open their parent directory.
+	 */
+	pathOpenWith: (appId: string, path: string) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("path_open_with", { appId, path })),
+	/**
 	 *  Open a fresh Agentero window without restoring the last vault (`?fresh=1`).
 	 * 
 	 *  `async` is load-bearing: sync command handlers run on the main thread inside
@@ -3765,7 +3777,7 @@ export type JobTerminalPayload_Deserialize = {
 	 *  Vault root as passed by the enqueuing caller (`JobSnapshot.vault_id`):
 	 *  frontend-initiated jobs carry the exact `getVaultPath()` string;
 	 *  host-internal jobs the Host's (usually canonical) form. Consumers
-	 *  must tolerate both spellings; see docs/backend/api.md (`job:completed`).
+	 *  must tolerate both spellings, including Windows paths with a `\\?\` prefix.
 	 */
 	vaultId: string,
 	paperId?: string | null,
@@ -3784,7 +3796,7 @@ export type JobTerminalPayload_Serialize = {
 	 *  Vault root as passed by the enqueuing caller (`JobSnapshot.vault_id`):
 	 *  frontend-initiated jobs carry the exact `getVaultPath()` string;
 	 *  host-internal jobs the Host's (usually canonical) form. Consumers
-	 *  must tolerate both spellings; see docs/backend/api.md (`job:completed`).
+	 *  must tolerate both spellings, including Windows paths with a `\\?\` prefix.
 	 */
 	vaultId: string,
 	paperId?: string | null,
@@ -4350,6 +4362,23 @@ export type OpenInTerminalResult = {
 	/**  Absolute directory opened as the terminal cwd. */
 	cwd: string,
 };
+
+export type OpenWithApp = {
+	/**  Stable id used by `path_open_with`. */
+	id: string,
+	/**  Brand name shown verbatim. */
+	name: string,
+	/**  Grouping/fallback-glyph hint for the menu. */
+	kind: OpenWithKind,
+	/**
+	 *  Real application icon as a PNG data URL; `None` when this platform has
+	 *  no extractable icon and the menu renders a generic glyph instead.
+	 */
+	icon: string | null,
+};
+
+/**  Menu grouping/fallback-glyph hint for one entry. */
+export type OpenWithKind = "fileManager" | "editor" | "terminal";
 
 export type PairingRequest = {
 	requestId: string,

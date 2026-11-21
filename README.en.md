@@ -2,10 +2,10 @@
   <img src="docs/assets/hero.png" alt="Agentero" width="100%" />
 </p>
 
-<h3 align="center">An All-in-One Research Workbench Built for Human–Agent Collaboration</h3>
+<h3 align="center">A research workbench for finding papers, taking notes, and reading with agents</h3>
 
 <p align="center">
-  Keep the PDF reading experience humans love, while giving models clean, structured context; papers, notes, and interaction records all stay on your local machine.
+  Papers, notes, and conversations are stored locally. While reading a PDF, you can send selected passages, figures, or notes to an agent for discussion.
 </p>
 
 <p align="center">
@@ -54,14 +54,14 @@ However, when it comes to daily research and deep use of large language models (
 
 ### 1. Structured Reading & Notes
 * **PDF reading and annotation**: outline navigation, fit-page and fit-width modes, smooth text selection, highlights and annotations, and full-text search.
-* **Figure & formula extraction**: automatically parses math formulas, algorithm pseudocode, and tables into structured Markdown and LaTeX content, ensuring agents receive accurate context when invoked.
+* **Figure & formula extraction**: converts formulas, algorithm pseudocode, and tables into Markdown and LaTeX that agents can read.
 * **Bi-directional linked notes**: a built-in WYSIWYG Markdown editor with `[[wikilinks]]`, `/` slash commands, and live LaTeX rendering, natively linking notes to papers.
 * **Multi-mode translation**: selection-based, side-by-side page-level, and full-text translation, with built-in available channels and support for custom API keys (BYOK).
 
 <p align="center">
   <img src="docs/assets/agent.png" alt="PDF reading with agent assistance" width="90%" />
   <br/>
-  <sub>Split-view reading and analysis: highlights and annotations on the left, a local agent answering and reasoning over accurate structured context on the right</sub>
+  <sub>Read and annotate the paper on the left. Ask an agent about the selected material on the right.</sub>
 </p>
 
 <p align="center">
@@ -73,8 +73,8 @@ However, when it comes to daily research and deep use of large language models (
 ---
 
 ### 2. Open Agent Protocols & Automation Interfaces
-* **Local agents via ACP**: built on the Agent Client Protocol, supports connecting various locally running agents (e.g., Claude Code, OpenCode, Codex, or local models) — no vendor lock-in, with all context kept fully local.
-* **Built-in MCP (Model Context Protocol)**: runs as an MCP server, letting external clients such as ChatGPT Web and Claude Desktop query your local library as context.
+* **Local agents via ACP**: connect to Claude Code, OpenCode, Codex, or agents that support local models. When you send a message, the selected agent receives your question and the material you included. How the data is processed depends on the agent's configuration.
+* **Built-in MCP (Model Context Protocol)**: enable the server to let clients such as ChatGPT Web and Claude Desktop query your library. The connection setup depends on the client.
 * **CLI for hackers**: a built-in headless CLI for scripted workflows such as batch paper import, metadata extraction, and note writing.
 
 <p align="center">
@@ -99,8 +99,8 @@ However, when it comes to daily research and deep use of large language models (
 ---
 
 ### 4. Zotero Compatibility & Transparent Local Storage
-* **Seamless Zotero migration**: import an entire Zotero database in one click, keeping tags, notes, and attachments; works with the Zotero browser extension to save papers from the web; export to BibTeX / BibLaTeX.
-* **Transparent local folders**: no proprietary database or obfuscated directory layout — papers and notes are stored as plain files (PDF, Markdown) in a regular folder structure that any external editor can read.
+* **Zotero migration**: choose which items and attachments to import, with their tags and notes. You can also save papers from the web with the Zotero browser extension or export a bibliography to BibTeX / BibLaTeX.
+* **Local files**: papers and notes are saved as PDF and Markdown files you can open with other tools. The catalog stores structured metadata in `.agentero/catalog.sqlite`.
 * **Multi-device sync & remote access**: sync with any S3-compatible cloud storage; access a library deployed on a remote server over an SSH tunnel.
 
 ---

@@ -1,6 +1,5 @@
 /**
  * Built-in ChatGPT Secure MCP Tunnel control.
- * @see docs/backend/mcp.md
  */
 
 import { commands } from "@/lib/core/bindings";
