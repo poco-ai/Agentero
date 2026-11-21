@@ -490,7 +490,14 @@ fn find_existing_by_identifiers(
             .is_some_and(|doi| super::doi_slug(doi) == meta.id);
     if canonical_id {
         if let Some(existing) = papers::get_by_id(vault, &meta.id)? {
-            return Ok(Some(existing));
+            // The id slug folds `.` `/` and Windows-illegal characters to `_`,
+            // so a row found by id can describe a different paper
+            // (`10.1/a.b` vs `10.1/a_b`). Merge only when the strong
+            // identifiers agree; otherwise fall through to the identifier
+            // lookups (and then to a suffixed folder, which keeps both).
+            if identities_agree(&existing, meta) {
+                return Ok(Some(existing));
+            }
         }
     }
     let lookups: [(&str, Option<&str>); 4] = [
@@ -522,6 +529,49 @@ fn find_existing_by_identifiers(
         }
     }
     Ok(None)
+}
+
+/// True when the two rows can describe the same paper: every strong identifier
+/// both sides carry has to match after normalization. A missing identifier on
+/// either side is not a contradiction (older rows imported from BibTeX or a
+/// local PDF only carry some of them).
+fn identities_agree(existing: &papers::PaperRecord, incoming: &papers::PaperRecord) -> bool {
+    fn agrees(left: Option<&str>, right: Option<&str>) -> bool {
+        match (left, right) {
+            (Some(left), Some(right)) => identifier_key(left) == identifier_key(right),
+            _ => true,
+        }
+    }
+    agrees(existing.doi.as_deref(), incoming.doi.as_deref())
+        && agrees(existing.arxiv_id.as_deref(), incoming.arxiv_id.as_deref())
+}
+
+/// Compare identifiers independent of wrapper prefixes, case and arXiv version.
+fn identifier_key(raw: &str) -> String {
+    let trimmed = raw.trim().to_ascii_lowercase();
+    let bare = trimmed
+        .trim_start_matches("https://doi.org/")
+        .trim_start_matches("http://doi.org/")
+        .trim_start_matches("https://dx.doi.org/")
+        .trim_start_matches("http://dx.doi.org/")
+        .trim_start_matches("doi:")
+        .trim_start_matches("https://arxiv.org/abs/")
+        .trim_start_matches("http://arxiv.org/abs/")
+        .trim_start_matches("arxiv:")
+        .trim();
+    // `2501.00001v2` and `2501.00001` are the same arXiv record.
+    let without_version = match bare.rsplit_once('v') {
+        Some((base, version))
+            if !version.is_empty()
+                && version.chars().all(|c| c.is_ascii_digit())
+                && base.chars().any(|c| c.is_ascii_digit())
+                && !base.contains('/') =>
+        {
+            base
+        }
+        _ => bare,
+    };
+    without_version.to_string()
 }
 
 /// Merge a freshly imported PDF into an existing catalog entry instead of
