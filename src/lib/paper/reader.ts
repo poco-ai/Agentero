@@ -103,6 +103,7 @@ export function buildPaperReaderUserPrompt(
 		`Paper folder (Vault-relative): \`${paperRel}\`.`,
 		"Prefer TeX under source/, else PAPER.md, else local PDF.",
 		`Write structured lecture notes into \`${paperRel}/NOTES.md\`.`,
+		"Embed figures with Markdown image syntax whose src is relative to the paper folder (e.g. `source/figures/fig1.png`); never vault-prefix image srcs.",
 		paperReaderLanguageInstruction(language),
 		"Keep valid [[wikilinks]]. Use inline PDF fragment links or notes wikilinks for citations; do not add a trailing ## Sources block.",
 	].join("\n");
