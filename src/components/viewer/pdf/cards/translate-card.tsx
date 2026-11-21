@@ -42,6 +42,7 @@ type TranslateCardProps = {
 	pinned?: boolean;
 	/** Toggle whether the result is kept with a persistent source marker. */
 	onTogglePin?: () => void;
+	onBoundsChange?: (bounds: DOMRectReadOnly) => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	sourceText?: string;
@@ -65,6 +66,7 @@ export function TranslateCard({
 	onHide,
 	pinned = false,
 	onTogglePin,
+	onBoundsChange,
 	onPointerEnter,
 	onPointerLeave,
 	sourceText,
@@ -226,6 +228,7 @@ export function TranslateCard({
 			headerClassName="pt-2 pb-1.5"
 			title={title}
 			ariaLive="polite"
+			onBoundsChange={onBoundsChange}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
 			onOutsideClick={alwaysShowCard ? undefined : onHide}
