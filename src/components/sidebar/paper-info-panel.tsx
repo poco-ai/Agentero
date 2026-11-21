@@ -50,6 +50,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { useSettings } from "@/hooks/use-app-stores";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -415,6 +416,7 @@ export function PaperInfoPanel({
 	onTagsChange,
 }: PaperInfoPanelProps) {
 	const { t } = useTranslation("sidebar");
+	const easyScholarRanks = useSettings((s) => s.easyScholarRanks);
 	const [open, setOpen] = useState(Boolean(meta));
 	const [contentHeight, setContentHeight] = useState(loadStoredHeight);
 	/** Disable height transition while the user is dragging the resize handle. */
@@ -508,7 +510,7 @@ export function PaperInfoPanel({
 	const huggingFaceUrl = targets.huggingFaceUrl;
 	const codeRepoUrl = targets.codeRepoUrl;
 	const openreviewUrl = targets.openreviewUrl;
-	const venue = meta ? venueInfo(meta) : null;
+	const venue = meta ? venueInfo(meta, easyScholarRanks) : null;
 
 	const copyField = async (text: string | null | undefined, label: string) => {
 		const value = text?.trim();

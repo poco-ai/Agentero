@@ -1,3 +1,4 @@
+import type { EasyScholarRankId } from "@/lib/paper/easy-scholar-ranks";
 import type {
 	PaperTreeLabelMode,
 	PaperTreeSortMode,
@@ -174,6 +175,8 @@ export type AppSettings = {
 	// General
 	/** EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string;
+	/** EasyScholar rank systems shown in the Library/Paper Info (empty = none). */
+	easyScholarRanks: EasyScholarRankId[];
 	/** 知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
 	zhihuAccessSecret: string;
 	/** EZProxy/WebVPN prefix for paywalled PDF fallback ("" disables). */

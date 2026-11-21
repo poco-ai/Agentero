@@ -261,7 +261,23 @@
 			"probeIdle": "未配置",
 			"probeOk": "可用",
 			"probeFail": "不可用",
-			"probeProbing": "检测中…"
+			"probeProbing": "检测中…",
+			"ranksLabel": "显示等级",
+			"ranksPlaceholder": "选择要显示的等级",
+			"ranksReset": "恢复默认",
+			"rankNames": {
+				"if": "IF",
+				"if5": "IF5",
+				"jci": "JCI",
+				"sci": "SCI",
+				"ssci": "SSCI",
+				"eii": "EI 检索",
+				"cssci": "CSSCI",
+				"pku": "北大中文核心",
+				"ccf": "CCF",
+				"fms": "FMS",
+				"utd24": "UTD24"
+			}
 		},
 		"plaza": {
 			"label": "广场"

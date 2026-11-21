@@ -638,6 +638,17 @@ export function GeneralPane({
 				savedKey={settings.easyScholarKey}
 				keyDraft={easyScholarKeyDraft}
 				onKeyDraftChange={setEasyScholarKeyDraft}
+				ranks={settings.easyScholarRanks}
+				onRanksChange={async (next) => {
+					try {
+						await saveSettingsAsync({
+							...settings,
+							easyScholarRanks: next,
+						});
+					} catch (e) {
+						notifyError(errorText(e));
+					}
+				}}
 				onCommitKey={async (value) => {
 					const trimmed = value.trim();
 					const next = await saveSettingsAsync({

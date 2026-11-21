@@ -8,6 +8,10 @@ import {
 import { callApi } from "@/lib/core/ipc";
 import { isTauri } from "@/lib/core/tauri";
 import {
+	DEFAULT_EASY_SCHOLAR_RANKS,
+	normalizeEasyScholarRanks,
+} from "@/lib/paper/easy-scholar-ranks";
+import {
 	isPaperTreeLabelMode,
 	isPaperTreeSortMode,
 } from "@/lib/paper/tree-modes";
@@ -109,6 +113,7 @@ function cloneSettings(s: AppSettings): AppSettings {
 		...s,
 		shortcutOverrides: normalizeShortcutOverrides(s.shortcutOverrides),
 		libraryColumns: s.libraryColumns.map((c) => ({ ...c })),
+		easyScholarRanks: [...s.easyScholarRanks],
 		pdfAsk: { ...s.pdfAsk },
 		paperReader: { ...s.paperReader },
 		embedding: { ...s.embedding },
@@ -360,6 +365,9 @@ function normalizePartial(
 	} else {
 		merged.easyScholarKey = parsed.easyScholarKey.trim();
 	}
+	merged.easyScholarRanks = Array.isArray(parsed.easyScholarRanks)
+		? normalizeEasyScholarRanks(parsed.easyScholarRanks)
+		: [...DEFAULT_EASY_SCHOLAR_RANKS];
 	if (typeof parsed.zhihuAccessSecret !== "string") {
 		merged.zhihuAccessSecret = DEFAULT_SETTINGS.zhihuAccessSecret;
 	} else {

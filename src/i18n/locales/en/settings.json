@@ -261,7 +261,23 @@
 			"probeIdle": "Not configured",
 			"probeOk": "Available",
 			"probeFail": "Unavailable",
-			"probeProbing": "Checking…"
+			"probeProbing": "Checking…",
+			"ranksLabel": "Rank tags",
+			"ranksPlaceholder": "Select rank tags to show",
+			"ranksReset": "Reset",
+			"rankNames": {
+				"if": "IF",
+				"if5": "IF5",
+				"jci": "JCI",
+				"sci": "SCI",
+				"ssci": "SSCI",
+				"eii": "EI",
+				"cssci": "CSSCI",
+				"pku": "PKU Core",
+				"ccf": "CCF",
+				"fms": "FMS",
+				"utd24": "UTD24"
+			}
 		},
 		"plaza": {
 			"label": "Plaza"

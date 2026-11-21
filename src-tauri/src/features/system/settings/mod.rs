@@ -80,6 +80,11 @@ pub struct AppSettings {
     /// EasyScholar key for journal ranking and impact-factor lookups.
     #[serde(default)]
     pub easy_scholar_key: String,
+    /// EasyScholar rank systems the Library table and Paper Info may display,
+    /// in canonical order. Every supported system is on by default; an empty
+    /// list hides the metrics without clearing the stored `#easyscholar:` tags.
+    #[serde(default = "default_easy_scholar_ranks")]
+    pub easy_scholar_ranks: Vec<String>,
     /// 知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。
     #[serde(default)]
     pub zhihu_access_secret: String,
@@ -568,6 +573,7 @@ impl Default for AppSettings {
         Self {
             shortcut_overrides: HashMap::new(),
             easy_scholar_key: String::new(),
+            easy_scholar_ranks: default_easy_scholar_ranks(),
             zhihu_access_secret: String::new(),
             network_proxy_enabled: false,
             network_proxy_url: default_network_proxy_url(),
@@ -640,6 +646,30 @@ fn default_true() -> bool {
 }
 fn default_network_proxy_url() -> String {
     DEFAULT_NETWORK_PROXY_URL.to_string()
+}
+/// Selectable EasyScholar rank-system ids. Keep in sync with the renderer
+/// registry (`src/lib/paper/easy-scholar-ranks.ts`) and the Host tag projection
+/// in `features/paper/scholar_api/sources/easy_scholar.rs`.
+pub const EASY_SCHOLAR_RANK_IDS: &[&str] = &[
+    "if", "if5", "jci", "sci", "ssci", "eii", "cssci", "pku", "ccf", "fms", "utd24",
+];
+fn default_easy_scholar_ranks() -> Vec<String> {
+    EASY_SCHOLAR_RANK_IDS
+        .iter()
+        .map(|id| (*id).to_string())
+        .collect()
+}
+/// Trim, drop unknown ids, and dedupe while keeping the configured order.
+/// An empty input stays empty: the user chose to hide every rank metric.
+fn normalize_easy_scholar_ranks(raw: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for raw_id in raw {
+        let id = raw_id.trim().to_ascii_lowercase();
+        if EASY_SCHOLAR_RANK_IDS.contains(&id.as_str()) && !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
 }
 fn default_decision_provider() -> String {
     "jev".to_string()
@@ -1453,6 +1483,7 @@ fn normalize(s: &mut AppSettings) {
         .to_ascii_lowercase();
     s.mcp_tunnel_api_key = s.mcp_tunnel_api_key.trim().to_string();
     s.easy_scholar_key = s.easy_scholar_key.trim().to_string();
+    s.easy_scholar_ranks = normalize_easy_scholar_ranks(&s.easy_scholar_ranks);
     s.zhihu_access_secret = s.zhihu_access_secret.trim().to_string();
     s.decision.api_key = s.decision.api_key.trim().to_string();
     let provider = s.decision.provider.trim().to_ascii_lowercase();

@@ -1,3 +1,4 @@
+import { DEFAULT_EASY_SCHOLAR_RANKS } from "@/lib/paper/easy-scholar-ranks";
 import { DEFAULT_LAYOUT_SETTINGS } from "@/lib/pdf/layout/settings";
 import type {
 	AppSettings,
@@ -147,6 +148,7 @@ export function clampEditorLineHeight(value: number): number {
 export const DEFAULT_SETTINGS: AppSettings = {
 	shortcutOverrides: {},
 	easyScholarKey: "",
+	easyScholarRanks: [...DEFAULT_EASY_SCHOLAR_RANKS],
 	zhihuAccessSecret: "",
 	institutionProxyPrefix: "",
 	institutionProxyCookie: "",

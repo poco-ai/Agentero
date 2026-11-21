@@ -1755,6 +1755,12 @@ export type AppSettings_Deserialize = {
 	shortcutOverrides?: { [key in string]: ShortcutBinding_Deserialize | null },
 	/**  EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey?: string,
+	/**
+	 *  EasyScholar rank systems the Library table and Paper Info may display,
+	 *  in canonical order. Every supported system is on by default; an empty
+	 *  list hides the metrics without clearing the stored `#easyscholar:` tags.
+	 */
+	easyScholarRanks?: string[],
 	/**  知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
 	zhihuAccessSecret?: string,
 	networkProxyEnabled?: boolean,
@@ -1923,6 +1929,12 @@ export type AppSettings_Serialize = {
 	shortcutOverrides: { [key in string]: ShortcutBinding_Serialize | null },
 	/**  EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string,
+	/**
+	 *  EasyScholar rank systems the Library table and Paper Info may display,
+	 *  in canonical order. Every supported system is on by default; an empty
+	 *  list hides the metrics without clearing the stored `#easyscholar:` tags.
+	 */
+	easyScholarRanks: string[],
 	/**  知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
 	zhihuAccessSecret: string,
 	networkProxyEnabled: boolean,
