@@ -18,6 +18,26 @@ const IOS_KEYCHAIN_SERVICE: &str = "com.poco-ai.agentero.bridge";
 #[cfg(target_os = "ios")]
 const IOS_KEYCHAIN_ACCOUNT: &str = "client-identity-v2";
 
+fn client_config_dir(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        app.path()
+            .app_config_dir()
+            .map(|dir| dir.join("bridge"))
+            .map_err(|error| {
+                AppError::message(format!(
+                    "Could not resolve Bridge config directory: {error}"
+                ))
+            })
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Ok(crate::core::paths::bridge_config_dir())
+    }
+}
+
 /// Long-lived desktop identity. The secret key stays in the local config dir
 /// and is never added to a QR offer or sent to the Relay.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -255,10 +275,10 @@ pub struct BridgeClientIdentityStore {
 }
 
 impl BridgeClientIdentityStore {
-    pub fn at_default_path() -> Self {
-        Self {
-            dir: crate::core::paths::bridge_config_dir(),
-        }
+    pub fn at_app_path(app: &tauri::AppHandle) -> Result<Self, AppError> {
+        Ok(Self {
+            dir: client_config_dir(app)?,
+        })
     }
 
     #[cfg(test)]
@@ -353,10 +373,10 @@ pub struct BridgeClientProfileStore {
 }
 
 impl BridgeClientProfileStore {
-    pub fn at_default_path() -> Self {
-        Self {
-            dir: crate::core::paths::bridge_config_dir(),
-        }
+    pub fn at_app_path(app: &tauri::AppHandle) -> Result<Self, AppError> {
+        Ok(Self {
+            dir: client_config_dir(app)?,
+        })
     }
 
     #[cfg(test)]
