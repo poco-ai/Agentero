@@ -182,6 +182,13 @@ export type AppSettings = {
 	institutionProxyCookie: string;
 	/** Gateway type: "auto" | "ezproxy" | "wengine" | "subdomain". */
 	institutionProxyType: string;
+	/**
+	 * Host-captured OpenReview verification cookie (masked across IPC). The
+	 * download layer attaches it to OpenReview PDF requests.
+	 */
+	openreviewCookie: string;
+	/** Unix seconds when the OpenReview credential expires (0 = unknown). */
+	openreviewCookieExpiresAt: number;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */
 	networkProxyEnabled: boolean;
 	networkProxyUrl: string;

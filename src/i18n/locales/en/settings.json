@@ -242,6 +242,16 @@
 				"bjmu": "Peking University Health Science Center"
 			}
 		},
+		"openreviewAuth": {
+			"label": "OpenReview",
+			"login": "Sign in",
+			"loggingIn": "Waiting…",
+			"statusIdle": "Not verified",
+			"statusWaiting": "Waiting for verification…",
+			"statusOk": "Verified",
+			"statusExpired": "Verification expired",
+			"loginFailed": "Could not open the OpenReview login"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",

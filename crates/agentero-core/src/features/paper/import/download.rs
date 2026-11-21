@@ -9,7 +9,7 @@
 //! - Always try PDF; arXiv IDs also try e-print TeX; caller runs liteparse when
 //!   no TeX is available.
 
-use super::{institution_proxy, AppHandle, PaperDownloadAssetsArgs};
+use super::{institution_proxy, openreview, AppHandle, PaperDownloadAssetsArgs};
 use crate::error::AppError;
 use crate::features::catalog::{papers, probe_paper_caps, CapsCache};
 use crate::features::paper::source::{self, SourceStatus};
@@ -1257,56 +1257,141 @@ pub(crate) async fn http_get_bytes_with_progress(
     super::check_task_not_cancelled(task_id)?;
     // Each attempt counts from zero: PDF falls back across candidate URLs.
     progress.restart();
-    let client = http::client_with(timeout, 10, http::BROWSER_USER_AGENT)?;
-    let mut request = client
-        .get(url)
-        .header("Accept", "application/pdf,application/octet-stream,*/*");
-    if let Some(cookie) = cookies.map(str::trim).filter(|s| !s.is_empty()) {
-        request = request.header(reqwest::header::COOKIE, cookie);
-    }
-    let mut res = request
-        .send()
-        .await
-        .map_err(|e| AppError::message(format!("download: {e}")))?;
-    super::check_task_not_cancelled(task_id)?;
-    if !res.status().is_success() {
-        return Err(AppError::message(format!("download HTTP {}", res.status())));
-    }
-    let total_bytes = res.content_length();
-    // Big artifacts on a lossy link: one TCP stream gets throttled or reset,
-    // and a reset discards every byte already received. arXiv (and most CDNs)
-    // answer `Accept-Ranges: bytes`, so fetch large bodies as parallel ranges —
-    // ~3x faster here, and each chunk retries on its own.
-    if let Some(total) = total_bytes {
-        if total >= PARALLEL_MIN_BYTES && cookies.is_none() && supports_ranges(res.headers()) {
-            drop(res);
-            let bytes = fetch_bytes_parallel(&client, url, total, progress, task_id).await?;
-            progress.finish();
-            return Ok(bytes);
+    let openreview = openreview::is_openreview_url(url);
+    let had_openreview_credential = openreview::openreview_cookie().is_some();
+    // At most one interactive verification round-trip per request: a second
+    // challenge is reported instead of re-opening the window in a loop.
+    let mut verified = false;
+    loop {
+        // OpenReview guard cookies are process state, not page cookies: merge
+        // them in for the matching hosts only.
+        let cookie = if openreview {
+            merge_cookie_header(cookies, openreview::cookie_header_for(url))
+        } else {
+            cookies.map(str::to_string)
+        };
+        let client = http::client_with(timeout, 10, http::BROWSER_USER_AGENT)?;
+        let mut request = client
+            .get(url)
+            .header("Accept", "application/pdf,application/octet-stream,*/*");
+        if let Some(cookie) = cookie.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            request = request.header(reqwest::header::COOKIE, cookie);
         }
-    }
-    let mut downloaded_bytes = 0_u64;
-    let mut bytes = Vec::new();
-    while let Some(chunk) = res
-        .chunk()
-        .await
-        .map_err(|e| AppError::message(format!("download body: {e}")))?
-    {
-        if let Some(task_id) = task_id {
-            if super::is_task_cancelled(task_id) {
-                return Err(AppError::message("background task cancelled"));
+        let mut res = request
+            .send()
+            .await
+            .map_err(|e| AppError::message(format!("download: {e}")))?;
+        super::check_task_not_cancelled(task_id)?;
+        if !res.status().is_success() {
+            let status = res.status();
+            let body = res
+                .bytes()
+                .await
+                .map_err(|e| AppError::message(format!("download body: {e}")))?;
+            // OpenReview serves a Turnstile page to anonymous traffic. Ask the
+            // desktop Host to open its verification window once, then replay
+            // the request with the captured clearance cookie.
+            if openreview && openreview::looks_like_challenge(status.as_u16(), &body) {
+                if verified {
+                    return Err(openreview_challenge_error(had_openreview_credential));
+                }
+                verified = true;
+                super::check_task_not_cancelled(task_id)?;
+                let fresh = openreview::request_auth(Some(url.to_string())).await;
+                if fresh.or_else(openreview::openreview_cookie).is_none() {
+                    return Err(openreview_challenge_error(had_openreview_credential));
+                }
+                progress.restart();
+                continue;
+            }
+            return Err(AppError::message(format!("download HTTP {status}")));
+        }
+        let total_bytes = res.content_length();
+        // Big artifacts on a lossy link: one TCP stream gets throttled or reset,
+        // and a reset discards every byte already received. arXiv (and most CDNs)
+        // answer `Accept-Ranges: bytes`, so fetch large bodies as parallel ranges —
+        // ~3x faster here, and each chunk retries on its own.
+        if let Some(total) = total_bytes {
+            if total >= PARALLEL_MIN_BYTES && cookie.is_none() && supports_ranges(res.headers()) {
+                drop(res);
+                let bytes = fetch_bytes_parallel(&client, url, total, progress, task_id).await?;
+                progress.finish();
+                return Ok(bytes);
             }
         }
-        downloaded_bytes += chunk.len() as u64;
-        bytes.extend_from_slice(&chunk);
-        // Per-chunk emits flood the webview event loop; the aggregator
-        // throttles to percent moves / ≥100ms.
-        progress.report(downloaded_bytes, total_bytes);
+        let mut downloaded_bytes = 0_u64;
+        let mut bytes = Vec::new();
+        while let Some(chunk) = res
+            .chunk()
+            .await
+            .map_err(|e| AppError::message(format!("download body: {e}")))?
+        {
+            if let Some(task_id) = task_id {
+                if super::is_task_cancelled(task_id) {
+                    return Err(AppError::message("background task cancelled"));
+                }
+            }
+            downloaded_bytes += chunk.len() as u64;
+            bytes.extend_from_slice(&chunk);
+            // Per-chunk emits flood the webview event loop; the aggregator
+            // throttles to percent moves / ≥100ms.
+            progress.report(downloaded_bytes, total_bytes);
+        }
+        // Settling always lands an event, even when the throttle just swallowed
+        // the last chunk: the task bar must reach the final byte count.
+        progress.finish();
+        return Ok(bytes);
     }
-    // Settling always lands an event, even when the throttle just swallowed
-    // the last chunk: the task bar must reach the final byte count.
-    progress.finish();
-    Ok(bytes)
+}
+
+/// Merge the page/connector `Cookie` header with the stored OpenReview
+/// credential; explicit pairs win on name collisions.
+fn merge_cookie_header(explicit: Option<&str>, stored: Option<String>) -> Option<String> {
+    let Some(stored) = stored else {
+        return explicit.map(str::to_string);
+    };
+    let Some(explicit) = explicit.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Some(stored);
+    };
+    let mut names: Vec<String> = explicit
+        .split(';')
+        .filter_map(|pair| pair.trim().split_once('='))
+        .map(|(name, _)| name.trim().to_string())
+        .collect();
+    let mut out = explicit.to_string();
+    for pair in stored
+        .split(';')
+        .map(str::trim)
+        .filter(|pair| !pair.is_empty())
+    {
+        let name = pair
+            .split_once('=')
+            .map(|(name, _)| name.trim())
+            .unwrap_or(pair);
+        if names.iter().any(|known| known == name) {
+            continue;
+        }
+        names.push(name.to_string());
+        out.push_str("; ");
+        out.push_str(pair);
+    }
+    Some(out)
+}
+
+/// Readable failure for the OpenReview gate: no valid credential came out of
+/// the verification window (closed early, headless CLI, or expired again).
+fn openreview_challenge_error(had_credential: bool) -> AppError {
+    if had_credential {
+        AppError::domain(
+            "openreview_auth_required",
+            "OpenReview browser verification expired; open Settings → General → OpenReview, verify again, then retry the download",
+        )
+    } else {
+        AppError::domain(
+            "openreview_auth_required",
+            "OpenReview requires browser verification; open Settings → General → OpenReview, complete the check, then retry the download",
+        )
+    }
 }
 
 fn supports_ranges(headers: &reqwest::header::HeaderMap) -> bool {
@@ -1639,6 +1724,25 @@ mod tests {
     use flate2::write::GzEncoder;
     use flate2::Compression;
     use std::io::Write;
+
+    #[test]
+    fn openreview_cookie_merge_keeps_explicit_pairs() {
+        // No stored guard cookie: the explicit header must pass through.
+        assert_eq!(
+            merge_cookie_header(Some("a=1; b=2"), None).as_deref(),
+            Some("a=1; b=2")
+        );
+        // Stored clearance joins the explicit cookie unless the name repeats.
+        assert_eq!(
+            merge_cookie_header(Some("a=1"), Some("a=stale; guard=ok".into())).as_deref(),
+            Some("a=1; guard=ok")
+        );
+        assert_eq!(
+            merge_cookie_header(None, Some("guard=ok".into())).as_deref(),
+            Some("guard=ok")
+        );
+        assert_eq!(merge_cookie_header(None, None), None);
+    }
 
     /// 2000 × 8KB chunks of a 16MB known-size download at the same instant
     /// (time gate never opens) must be capped by percent moves: ≤ ~100 emits

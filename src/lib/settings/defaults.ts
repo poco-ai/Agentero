@@ -151,6 +151,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	institutionProxyPrefix: "",
 	institutionProxyCookie: "",
 	institutionProxyType: "auto",
+	openreviewCookie: "",
+	openreviewCookieExpiresAt: 0,
 	networkProxyEnabled: false,
 	networkProxyUrl: DEFAULT_NETWORK_PROXY_URL,
 	paperTreeLabelMode: "title-author",

@@ -158,6 +158,7 @@ fn main() -> ExitCode {
             .try_init();
     }
     agentero_core::features::import::institution_proxy::load_institution_proxy_from_settings();
+    agentero_core::features::import::openreview::load_openreview_from_settings();
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

@@ -242,6 +242,16 @@
 				"bjmu": "北京大学医学部"
 			}
 		},
+		"openreviewAuth": {
+			"label": "OpenReview",
+			"login": "登录",
+			"loggingIn": "等待验证…",
+			"statusIdle": "未验证",
+			"statusWaiting": "等待验证…",
+			"statusOk": "已验证",
+			"statusExpired": "验证已过期",
+			"loginFailed": "无法打开 OpenReview 登录窗口"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",

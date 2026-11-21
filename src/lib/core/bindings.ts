@@ -58,6 +58,13 @@ export const commands = {
 	 *  Resolves once the login window closes; `true` when a cookie was captured.
 	 */
 	institutionProxyLoginOpen: (prefix: string) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix })),
+	/**
+	 *  Open (or focus) the OpenReview verification window and wait until a
+	 *  captured cookie passes the challenge probe. Resolves when the window closes
+	 *  or a working credential was saved; `true` when it was saved. Async is
+	 *  required when creating a window from WebView2 on Windows.
+	 */
+	openreviewAuthLoginOpen: () => typedError<boolean, string>(__TAURI_INVOKE("openreview_auth_login_open")),
 	builtinProviderStatus: () => __TAURI_INVOKE<ApiResult<BuiltinProviderStatus>>("builtin_provider_status"),
 	decisionGatewayDecide: (request: DecisionGatewayRequest) => __TAURI_INVOKE<ApiResult<DecisionGatewayResponse>>("decision_gateway_decide", { request }),
 	layoutModelStatus: () => __TAURI_INVOKE<ApiResult<LayoutModelStatus>>("layout_model_status"),
@@ -1768,6 +1775,18 @@ export type AppSettings_Deserialize = {
 	 *  `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
 	 */
 	institutionProxyType?: string,
+	/**
+	 *  Cookie captured by the OpenReview verification window (`openreview.*`
+	 *  cookies, notably the short-lived `clearanceToken`). Empty = verified by
+	 *  nobody yet. Redacted to the frontend and attached only to OpenReview
+	 *  hosts by the download layer.
+	 */
+	openreviewCookie?: string,
+	/**
+	 *  Unix seconds when the captured OpenReview credential expires; `0` when
+	 *  the cookie carries no readable expiry. Drives the Settings status dot.
+	 */
+	openreviewCookieExpiresAt?: number,
 	paperTreeLabelMode?: string,
 	paperTreeSortMode?: string,
 	/**
@@ -1924,6 +1943,18 @@ export type AppSettings_Serialize = {
 	 *  `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
 	 */
 	institutionProxyType: string,
+	/**
+	 *  Cookie captured by the OpenReview verification window (`openreview.*`
+	 *  cookies, notably the short-lived `clearanceToken`). Empty = verified by
+	 *  nobody yet. Redacted to the frontend and attached only to OpenReview
+	 *  hosts by the download layer.
+	 */
+	openreviewCookie: string,
+	/**
+	 *  Unix seconds when the captured OpenReview credential expires; `0` when
+	 *  the cookie carries no readable expiry. Drives the Settings status dot.
+	 */
+	openreviewCookieExpiresAt: number,
 	paperTreeLabelMode: string,
 	paperTreeSortMode: string,
 	/**

@@ -376,6 +376,19 @@ function normalizePartial(
 	} else {
 		merged.networkProxyUrl = parsed.networkProxyUrl.trim();
 	}
+	if (typeof parsed.openreviewCookie !== "string") {
+		merged.openreviewCookie = DEFAULT_SETTINGS.openreviewCookie;
+	} else {
+		merged.openreviewCookie = parsed.openreviewCookie.trim();
+	}
+	if (
+		typeof parsed.openreviewCookieExpiresAt !== "number" ||
+		!Number.isFinite(parsed.openreviewCookieExpiresAt) ||
+		parsed.openreviewCookieExpiresAt < 0
+	) {
+		merged.openreviewCookieExpiresAt =
+			DEFAULT_SETTINGS.openreviewCookieExpiresAt;
+	}
 	if (!isPaperTreeLabelMode(merged.paperTreeLabelMode)) {
 		merged.paperTreeLabelMode = DEFAULT_SETTINGS.paperTreeLabelMode;
 	}

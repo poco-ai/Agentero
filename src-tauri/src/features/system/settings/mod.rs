@@ -100,6 +100,16 @@ pub struct AppSettings {
     /// `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
     #[serde(default)]
     pub institution_proxy_type: String,
+    /// Cookie captured by the OpenReview verification window (`openreview.*`
+    /// cookies, notably the short-lived `clearanceToken`). Empty = verified by
+    /// nobody yet. Redacted to the frontend and attached only to OpenReview
+    /// hosts by the download layer.
+    #[serde(default)]
+    pub openreview_cookie: String,
+    /// Unix seconds when the captured OpenReview credential expires; `0` when
+    /// the cookie carries no readable expiry. Drives the Settings status dot.
+    #[serde(default)]
+    pub openreview_cookie_expires_at: i64,
     #[serde(default = "default_paper_tree_label_mode")]
     pub paper_tree_label_mode: String,
     #[serde(default = "default_paper_tree_sort_mode")]
@@ -564,6 +574,8 @@ impl Default for AppSettings {
             institution_proxy_prefix: String::new(),
             institution_proxy_cookie: String::new(),
             institution_proxy_type: "auto".to_string(),
+            openreview_cookie: String::new(),
+            openreview_cookie_expires_at: 0,
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
@@ -1215,6 +1227,45 @@ impl AppSettingsStore {
         Ok(Some(redacted))
     }
 
+    /// Stored OpenReview verification cookie. `None` when the user has not
+    /// completed the browser check yet.
+    pub fn openreview_cookie(&self) -> Option<String> {
+        let guard = self.inner.lock().ok()?;
+        let cookie = guard.openreview_cookie.trim();
+        if cookie.is_empty() || is_translate_api_key_mask(cookie) {
+            None
+        } else {
+            Some(cookie.to_string())
+        }
+    }
+
+    /// Persist the credential captured by the OpenReview verification window
+    /// without overwriting settings another window changed meanwhile. Mirrors
+    /// [`Self::update_institution_proxy_cookie`]: persist, sync the process-wide
+    /// download credential, then notify settings listeners.
+    pub fn update_openreview_auth(
+        &self,
+        cookie: String,
+        expires_at: i64,
+    ) -> Result<Option<AppSettings>, AppError> {
+        let cookie = cookie.trim().to_string();
+        let redacted = {
+            let mut guard = self
+                .inner
+                .lock()
+                .map_err(|_| AppError::message("settings lock poisoned"))?;
+            let mut next = guard.clone();
+            next.openreview_cookie = cookie.clone();
+            next.openreview_cookie_expires_at = expires_at.max(0);
+            persist(&self.path, &next)?;
+            *guard = next.clone();
+            redact_secrets(next)
+        };
+        agentero_core::features::paper::import::openreview::set_openreview_cookie(&cookie);
+        self.notify(&redacted);
+        Ok(Some(redacted))
+    }
+
     /// Resolve the configured EasyScholar key. Returns None when unset or when
     /// the stored value is a UI mask (`*`-only), so probes never send masks.
     pub fn easy_scholar_key(&self) -> Option<String> {
@@ -1327,6 +1378,9 @@ fn redact_secrets(mut settings: AppSettings) -> AppSettings {
     if !settings.decision.api_key.trim().is_empty() {
         settings.decision.api_key = mask_translate_api_key(&settings.decision.api_key);
     }
+    if !settings.openreview_cookie.trim().is_empty() {
+        settings.openreview_cookie = mask_translate_api_key(&settings.openreview_cookie);
+    }
     settings
 }
 
@@ -1365,6 +1419,14 @@ fn merge_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
     }
     if is_translate_api_key_mask(&incoming.decision.api_key) {
         incoming.decision.api_key = previous.decision.api_key.clone();
+    }
+    if is_translate_api_key_mask(&incoming.openreview_cookie) {
+        incoming.openreview_cookie = previous.openreview_cookie.clone();
+        // The expiry travels with the cookie so the status cannot claim a
+        // fresh credential while the old one is still in place.
+        incoming.openreview_cookie_expires_at = previous.openreview_cookie_expires_at;
+    } else if incoming.openreview_cookie.trim().is_empty() {
+        incoming.openreview_cookie_expires_at = 0;
     }
 }
 
@@ -1460,6 +1522,13 @@ fn normalize(s: &mut AppSettings) {
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,
     );
+    s.openreview_cookie = s.openreview_cookie.trim().to_string();
+    s.openreview_cookie_expires_at = if s.openreview_cookie.is_empty() {
+        0
+    } else {
+        s.openreview_cookie_expires_at.max(0)
+    };
+    agentero_core::features::paper::import::openreview::set_openreview_cookie(&s.openreview_cookie);
 
     const LABEL_MODES: &[&str] = &["title-author", "title", "author-year-title", "folder"];
     if !LABEL_MODES.contains(&s.paper_tree_label_mode.as_str()) {
@@ -1774,6 +1843,40 @@ mod tests {
         let (saved, _) = read_file(&store.path);
         assert_eq!(saved.institution_proxy_cookie, "fresh=1");
         assert_eq!(saved.theme, "dark");
+    }
+
+    #[test]
+    fn captured_openreview_cookie_is_masked_but_kept_across_echoes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = AppSettingsStore {
+            inner: Mutex::new(AppSettings {
+                openreview_cookie: "old=1".into(),
+                openreview_cookie_expires_at: 1,
+                theme: "dark".into(),
+                ..AppSettings::default()
+            }),
+            path: dir.path().join("settings.json"),
+            listeners: Mutex::new(Vec::new()),
+        };
+        let snapshot = store
+            .update_openreview_auth("openreview.clearanceToken=fresh".into(), 1_800_000_000)
+            .unwrap()
+            .expect("settings snapshot");
+        // The WebView only sees the mask; the durable file keeps the cookie.
+        assert!(is_translate_api_key_mask(&snapshot.openreview_cookie));
+        assert_eq!(snapshot.openreview_cookie_expires_at, 1_800_000_000);
+        let (saved, _) = read_file(&store.path);
+        assert_eq!(saved.openreview_cookie, "openreview.clearanceToken=fresh");
+        assert_eq!(saved.openreview_cookie_expires_at, 1_800_000_000);
+        assert_eq!(saved.theme, "dark");
+
+        // A later settings write echoes the mask; the real cookie must survive.
+        let mut echoed = saved.clone();
+        echoed.openreview_cookie = mask_translate_api_key("openreview.clearanceToken=fresh");
+        store.set(echoed).unwrap();
+        let (saved, _) = read_file(&store.path);
+        assert_eq!(saved.openreview_cookie, "openreview.clearanceToken=fresh");
+        assert_eq!(saved.openreview_cookie_expires_at, 1_800_000_000);
     }
 
     #[test]

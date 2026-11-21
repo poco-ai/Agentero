@@ -17,6 +17,7 @@ pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_r
 pub mod code_repo;
 pub mod download;
 pub mod institution_proxy;
+pub mod openreview;
 pub mod recognize;
 pub mod search_router;
 pub mod skill;

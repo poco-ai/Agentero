@@ -58,6 +58,7 @@ import { ConnectorSettingsBlock } from "./general/connector-settings-block";
 import { EasyScholarSettingsBlock } from "./general/easy-scholar-settings-block";
 import { FinderIntegrationRow } from "./general/finder-integration-row";
 import { McpSettingsBlock } from "./general/mcp-settings-block";
+import { OpenReviewAuthRow } from "./general/openreview-auth-row";
 import { PrivacySettingsBlock } from "./general/privacy-settings-block";
 import { TerminalAppRow } from "./general/terminal-app-row";
 
@@ -621,6 +622,12 @@ export function GeneralPane({
 					probeStatus={institutionProxyProbeStatus}
 					probeLabel={institutionProxyProbeLabel}
 					probeDetail={institutionProxyResult?.message}
+				/>
+			</SettingsGroup>
+			<SettingsGroup>
+				<OpenReviewAuthRow
+					cookie={settings.openreviewCookie}
+					expiresAt={settings.openreviewCookieExpiresAt}
 				/>
 			</SettingsGroup>
 			<SettingsSectionLabel className="mt-4">
