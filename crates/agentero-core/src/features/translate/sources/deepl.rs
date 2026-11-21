@@ -40,7 +40,7 @@ pub async fn translate_deepl(
         })
         .send()
         .await
-        .map_err(|e| AppError::message(format!("DeepL request failed: {e}")))?;
+        .map_err(|e| super::map_request_error("DeepL", e))?;
     let (status, body) = super::read_body(resp).await?;
     if !status.is_success() {
         return Err(super::http_err(status, &body, "DeepL"));

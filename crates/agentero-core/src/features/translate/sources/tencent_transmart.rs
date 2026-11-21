@@ -39,7 +39,7 @@ pub async fn translate_tencent_transmart(
         .json(&body)
         .send()
         .await
-        .map_err(|e| AppError::message(format!("Tencent Transmart request failed: {e}")))?;
+        .map_err(|e| super::map_request_error("Tencent Transmart", e))?;
     let (status, body) = super::read_body(resp).await?;
     if !status.is_success() {
         return Err(super::http_err(status, &body, "Tencent Transmart"));

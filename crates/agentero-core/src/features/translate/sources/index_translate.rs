@@ -124,30 +124,14 @@ pub async fn translate_index_translate(
         .json(&body)
         .send()
         .await
-        .map_err(|e| AppError::message(format!("Index-Translate request failed: {e}")))?;
+        .map_err(|e| super::map_request_error("Index-Translate", e))?;
     let (status, body) = super::read_body(resp).await?;
     if !status.is_success() {
         return Err(super::http_err(status, &body, "Index-Translate"));
     }
     let v: Value = serde_json::from_str(&body)
         .map_err(|e| AppError::message(format!("Index-Translate parse: {e}")))?;
-    let choice = v
-        .get("choices")
-        .and_then(|x| x.get(0))
-        .ok_or_else(|| AppError::message("Unexpected Index-Translate response"))?;
-    if let Some(reason) = choice.get("finish_reason").and_then(|x| x.as_str()) {
-        if matches!(reason, "length" | "max_tokens" | "content_filter") {
-            return Err(AppError::message(format!(
-                "Index-Translate translation incomplete (finish_reason={reason}); retry with a smaller chunk"
-            )));
-        }
-    }
-    choice
-        .get("message")
-        .and_then(|x| x.get("content"))
-        .and_then(|x| x.as_str())
-        .map(strip_think)
-        .ok_or_else(|| AppError::message("Unexpected Index-Translate response"))
+    super::sse::chat_completion_text("Index-Translate", &v).map(|text| strip_think(&text))
 }
 
 fn chat_body(prompt: &str, stream: bool, model: &str) -> Value {
@@ -162,29 +146,9 @@ fn chat_body(prompt: &str, stream: bool, model: &str) -> Value {
     })
 }
 
-enum SseEvent {
-    Delta(String),
-    Done,
-}
-
-/// One SSE line -> content delta. Chunks without choices or content are skipped.
-fn parse_sse_line(line: &str) -> Option<SseEvent> {
-    let body = line.trim().strip_prefix("data:")?.trim();
-    if body == "[DONE]" {
-        return Some(SseEvent::Done);
-    }
-    let v: Value = serde_json::from_str(body).ok()?;
-    let content = v
-        .get("choices")?
-        .get(0)?
-        .get("delta")?
-        .get("content")?
-        .as_str()?;
-    (!content.is_empty()).then(|| SseEvent::Delta(content.to_string()))
-}
-
-/// Streaming variant: `on_delta` receives each content increment as it arrives;
-/// the full trimmed translation is returned at the end.
+/// Streaming variant. `timeout` is the silence budget, not a total deadline.
+/// `on_delta` receives each content increment; the full translation is returned
+/// at the end. A `length` or filter finish is an error, not the partial text.
 #[allow(clippy::too_many_arguments)]
 pub async fn translate_index_translate_stream(
     text: &str,
@@ -193,45 +157,19 @@ pub async fn translate_index_translate_stream(
     timeout: Duration,
     model: &str,
     glossary: &[GlossaryTerm],
-    mut on_delta: impl FnMut(&str),
+    on_delta: impl FnMut(&str),
 ) -> Result<String, AppError> {
-    use futures_util::StreamExt;
-
     let prompt = build_prompt(text, source, target, glossary)?;
     let url = super::optional_endpoint(None, API_ROOT, "/chat/completions");
-    let client = http::client(timeout)?;
+    let client = http::streaming_client(timeout)?;
     let resp = client
         .post(&url)
         .header("Content-Type", "application/json")
         .json(&chat_body(&prompt, true, model))
         .send()
         .await
-        .map_err(|e| AppError::message(format!("Index-Translate request failed: {e}")))?;
-    if !resp.status().is_success() {
-        let (status, body) = super::read_body(resp).await?;
-        return Err(super::http_err(status, &body, "Index-Translate"));
-    }
-
-    let mut stream = resp.bytes_stream();
-    // Byte buffer: a multi-byte char can straddle two network chunks.
-    let mut buf: Vec<u8> = Vec::new();
-    let mut out = String::new();
-    'read: while let Some(chunk) = stream.next().await {
-        let chunk =
-            chunk.map_err(|e| AppError::message(format!("Index-Translate stream failed: {e}")))?;
-        buf.extend_from_slice(&chunk);
-        while let Some(pos) = buf.iter().position(|b| *b == b'\n') {
-            let line: Vec<u8> = buf.drain(..=pos).collect();
-            match parse_sse_line(&String::from_utf8_lossy(&line)) {
-                Some(SseEvent::Delta(d)) => {
-                    out.push_str(&d);
-                    on_delta(&d);
-                }
-                Some(SseEvent::Done) => break 'read,
-                None => {}
-            }
-        }
-    }
+        .map_err(|e| super::map_request_error("Index-Translate", e))?;
+    let out = super::sse::read_translation_stream(resp, "Index-Translate", on_delta).await?;
     let out = strip_think(&out);
     if out.is_empty() {
         return Err(AppError::message("Empty translation result"));
@@ -251,19 +189,6 @@ mod tests {
         let prompt = build_prompt("The LLM uses KV cache.", "en", "zh-CN", &terms).unwrap();
         assert!(prompt.contains("【硬性要求】专名/术语对照: LLM→大模型、KV cache→KV 缓存"));
         assert!(glossary_constraint(&[]).is_none());
-    }
-
-    #[test]
-    fn sse_lines_yield_deltas_and_done() {
-        let line = r#"data: {"choices":[{"delta":{"content":"你好"}}]}"#;
-        assert!(matches!(parse_sse_line(line), Some(SseEvent::Delta(d)) if d == "你好"));
-        assert!(matches!(
-            parse_sse_line("data: [DONE]"),
-            Some(SseEvent::Done)
-        ));
-        assert!(parse_sse_line(r#"data: {"choices":[]}"#).is_none());
-        assert!(parse_sse_line(r#"data: {"choices":[{"delta":{"role":"assistant"}}]}"#).is_none());
-        assert!(parse_sse_line(": keep-alive").is_none());
     }
 
     #[test]

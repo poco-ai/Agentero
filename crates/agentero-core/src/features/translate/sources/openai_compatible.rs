@@ -447,7 +447,108 @@ pub async fn translate_openai_compatible(
     surrounding: Option<&str>,
     dictionary_reference: Option<&str>,
 ) -> Result<String, AppError> {
-    let key = super::required_api_key("OpenAI-compatible", api_key)?;
+    let (url, key, body) = openai_request_body(
+        text,
+        source,
+        target,
+        api_key,
+        base_url,
+        model,
+        custom_prompt,
+        custom_system,
+        custom_user,
+        extra_request_body,
+        glossary,
+        dictionary,
+        surrounding,
+        dictionary_reference,
+    )?;
+    let client = http::client(timeout)?;
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {key}"))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| super::map_request_error("OpenAI-compatible", e))?;
+    let (status, body) = super::read_body(resp).await?;
+    if !status.is_success() {
+        return Err(super::http_err(status, &body, "OpenAI-compatible"));
+    }
+    let v: Value = serde_json::from_str(&body)
+        .map_err(|e| AppError::message(format!("OpenAI-compatible parse: {e}")))?;
+    super::sse::chat_completion_text("OpenAI-compatible", &v)
+}
+
+/// Streaming variant. `timeout` is the silence budget, not a total deadline.
+/// A `length` or filter finish is an error, not the partial text.
+#[allow(clippy::too_many_arguments)]
+pub async fn translate_openai_compatible_stream(
+    text: &str,
+    source: &str,
+    target: &str,
+    timeout: Duration,
+    api_key: Option<&str>,
+    base_url: Option<&str>,
+    model: Option<&str>,
+    custom_prompt: Option<&str>,
+    custom_system: Option<&str>,
+    custom_user: Option<&str>,
+    extra_request_body: Option<&str>,
+    glossary: &[super::super::GlossaryTerm],
+    dictionary: bool,
+    surrounding: Option<&str>,
+    dictionary_reference: Option<&str>,
+    on_delta: impl FnMut(&str),
+) -> Result<String, AppError> {
+    let (url, key, mut body) = openai_request_body(
+        text,
+        source,
+        target,
+        api_key,
+        base_url,
+        model,
+        custom_prompt,
+        custom_system,
+        custom_user,
+        extra_request_body,
+        glossary,
+        dictionary,
+        surrounding,
+        dictionary_reference,
+    )?;
+    body["stream"] = json!(true);
+    let client = http::streaming_client(timeout)?;
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {key}"))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| super::map_request_error("OpenAI-compatible", e))?;
+    super::sse::read_translation_stream(resp, "OpenAI-compatible", on_delta).await
+}
+
+#[allow(clippy::too_many_arguments)]
+fn openai_request_body(
+    text: &str,
+    source: &str,
+    target: &str,
+    api_key: Option<&str>,
+    base_url: Option<&str>,
+    model: Option<&str>,
+    custom_prompt: Option<&str>,
+    custom_system: Option<&str>,
+    custom_user: Option<&str>,
+    extra_request_body: Option<&str>,
+    glossary: &[super::super::GlossaryTerm],
+    dictionary: bool,
+    surrounding: Option<&str>,
+    dictionary_reference: Option<&str>,
+) -> Result<(String, String, Value), AppError> {
+    let key = super::required_api_key("OpenAI-compatible", api_key)?.to_string();
     let model = model
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -485,38 +586,7 @@ pub async fn translate_openai_compatible(
     }
     let mut body = openai_chat_body(model, &system, &user);
     apply_request_options(&mut body, extra_request_body)?;
-    let client = http::client(timeout)?;
-    let resp = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {key}"))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::message(format!("OpenAI-compatible request failed: {e}")))?;
-    let (status, body) = super::read_body(resp).await?;
-    if !status.is_success() {
-        return Err(super::http_err(status, &body, "OpenAI-compatible"));
-    }
-    let v: Value = serde_json::from_str(&body)
-        .map_err(|e| AppError::message(format!("OpenAI-compatible parse: {e}")))?;
-    let choice = v
-        .get("choices")
-        .and_then(|x| x.get(0))
-        .ok_or_else(|| AppError::message("Unexpected OpenAI-compatible response"))?;
-    if let Some(reason) = choice.get("finish_reason").and_then(|x| x.as_str()) {
-        if matches!(reason, "length" | "max_tokens" | "content_filter") {
-            return Err(AppError::message(format!(
-                "OpenAI-compatible translation incomplete (finish_reason={reason}); retry with a smaller chunk"
-            )));
-        }
-    }
-    choice
-        .get("message")
-        .and_then(|x| x.get("content"))
-        .and_then(|x| x.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| AppError::message("Unexpected OpenAI-compatible response"))
+    Ok((url, key, body))
 }
 
 /// A supplied JSON object replaces all inferred request options. Only the
@@ -557,6 +627,29 @@ fn apply_request_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prepared_chat_body_does_not_force_streaming() {
+        let (_, _, body) = openai_request_body(
+            "hello",
+            "en",
+            "zh-CN",
+            Some("sk-test"),
+            None,
+            Some("deepseek-chat"),
+            None,
+            None,
+            None,
+            None,
+            &[],
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        assert!(body.get("stream").is_none());
+        assert_eq!(body["model"], "deepseek-chat");
+    }
 
     #[test]
     fn extra_parameters_override_defaults_without_deep_merging() {

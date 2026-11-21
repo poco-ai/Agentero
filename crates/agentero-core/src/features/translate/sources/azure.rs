@@ -45,7 +45,7 @@ pub async fn translate_azure(
         .json(&[AzureRequestItem { text }])
         .send()
         .await
-        .map_err(|e| AppError::message(format!("Azure Translator request failed: {e}")))?;
+        .map_err(|e| super::map_request_error("Azure Translator", e))?;
     let (status, body) = super::read_body(resp).await?;
     if !status.is_success() {
         return Err(super::http_err(status, &body, "Azure Translator"));

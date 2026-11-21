@@ -28,6 +28,13 @@ pub const BUILTIN_PROVIDER_ID: &str = "agentero";
 /// Wire marker returned when this build carries no built-in key.
 pub const ERR_NO_BUILTIN_KEY: &str = "translate.no_builtin_key";
 
+/// The provider stopped sending output for the whole inactivity window
+/// (streaming), or the one-shot request hit its total deadline.
+pub const ERR_TRANSLATE_TIMEOUT: &str = "translate.timeout";
+
+/// `finish_reason` was `length` or a filter. The text is not a finished translation.
+pub const ERR_TRANSLATE_INCOMPLETE: &str = "translate.incomplete";
+
 /// Known free MT provider ids.
 pub const FREE_PROVIDERS: &[&str] = &[
     "cnki",
@@ -372,18 +379,21 @@ async fn translate_with_provider(
     Ok(translated)
 }
 
-/// Streaming translation for providers that support it (currently Index-Translate).
+/// Streaming translation for Index-Translate and OpenAI-compatible providers.
 /// `on_delta` receives each increment; the full text is returned at the end.
 /// Returns `Ok(None)` when the provider has no streaming path, so the caller
 /// can fall back to [`translate_text`].
+///
+/// The resolved timeout is an inactivity gap, not a total deadline. One-shot
+/// providers keep the total deadline inside [`translate_text`].
 pub async fn translate_text_stream(
     args: &TranslateTextArgs,
     on_delta: impl FnMut(&str),
 ) -> Result<Option<TranslateTextResult>, AppError> {
     let provider = args.provider.trim().to_ascii_lowercase();
-    let Some(model) = sources::index_translate::model_for_provider(&provider) else {
+    if !provider_streams(&provider) {
         return Ok(None);
-    };
+    }
     let text = args.text.trim();
     if text.is_empty() {
         return Err(AppError::message("Empty text"));
@@ -398,20 +408,50 @@ pub async fn translate_text_stream(
     if target.is_empty() {
         return Err(AppError::message("Missing target language"));
     }
-    let out = sources::index_translate::translate_index_translate_stream(
-        text,
-        &source,
-        &target,
-        resolve_timeout(args.timeout_ms),
-        model,
-        &terminology::effective_glossary(args.glossary.as_deref().unwrap_or(""), text, &target)?,
-        on_delta,
-    )
-    .await?;
+    let glossary =
+        terminology::effective_glossary(args.glossary.as_deref().unwrap_or(""), text, &target)?;
+    let inactivity = resolve_timeout(args.timeout_ms);
+    let out = if let Some(model) = sources::index_translate::model_for_provider(&provider) {
+        sources::index_translate::translate_index_translate_stream(
+            text, &source, &target, inactivity, model, &glossary, on_delta,
+        )
+        .await?
+    } else {
+        sources::openai_compatible::translate_openai_compatible_stream(
+            text,
+            &source,
+            &target,
+            inactivity,
+            args.api_key.as_deref(),
+            args.base_url.as_deref(),
+            args.model.as_deref(),
+            args.custom_prompt.as_deref(),
+            args.custom_system.as_deref(),
+            args.custom_user.as_deref(),
+            args.extra_request_body.as_deref(),
+            &glossary,
+            args.dictionary,
+            args.dictionary_surrounding.as_deref(),
+            args.dictionary_reference.as_deref(),
+            on_delta,
+        )
+        .await?
+    };
+    let out = out.trim().to_string();
+    if out.is_empty() {
+        return Err(AppError::message("Empty translation result"));
+    }
     Ok(Some(TranslateTextResult {
         text: out,
         provider,
     }))
+}
+
+/// Index-Translate and OpenAI-compatible chat providers can stream tokens.
+pub(crate) fn provider_streams(provider: &str) -> bool {
+    let provider = provider.trim().to_ascii_lowercase();
+    provider == "openaicompatible"
+        || sources::index_translate::model_for_provider(&provider).is_some()
 }
 
 pub(crate) fn required_api_key<'a>(
@@ -470,10 +510,51 @@ pub(crate) fn lang_base(code: &str) -> &str {
 }
 
 /// Clamp optional timeout_ms to 1s–30s; default 30s.
+///
+/// One-shot requests use this as a total deadline. Streaming requests use it
+/// as the longest allowed gap with no new bytes.
 pub(crate) fn resolve_timeout(timeout_ms: Option<u32>) -> Duration {
     match timeout_ms {
         Some(ms) => Duration::from_millis(u64::from(ms.clamp(1_000, 30_000))),
         None => Duration::from_secs(30),
+    }
+}
+
+/// `length` and filter stops are unfinished translations.
+pub(crate) fn is_incomplete_finish_reason(reason: &str) -> bool {
+    matches!(
+        reason,
+        "length" | "max_tokens" | "content_filter" | "filter"
+    )
+}
+
+pub(crate) fn reject_incomplete_finish(reason: Option<&str>, label: &str) -> Result<(), AppError> {
+    let Some(reason) = reason else {
+        return Ok(());
+    };
+    if is_incomplete_finish_reason(reason) {
+        return Err(AppError::domain(
+            ERR_TRANSLATE_INCOMPLETE,
+            format!("{label} translation incomplete (finish_reason={reason})"),
+        ));
+    }
+    Ok(())
+}
+
+/// Timeout is its own code. Anything else stays an upstream request failure
+/// and keeps the provider's detail.
+pub(crate) fn map_request_error(label: &str, err: reqwest::Error) -> AppError {
+    failure_from_transport(label, err.is_timeout(), err.to_string())
+}
+
+pub(crate) fn failure_from_transport(label: &str, timed_out: bool, detail: String) -> AppError {
+    if timed_out {
+        AppError::domain(
+            ERR_TRANSLATE_TIMEOUT,
+            format!("{label} timed out waiting for output"),
+        )
+    } else {
+        AppError::message(format!("{label} request failed: {detail}"))
     }
 }
 
@@ -559,6 +640,55 @@ mod tests {
         };
         let out = translate_text_stream(&args, |_| {}).await.unwrap();
         assert!(out.is_none());
+    }
+
+    #[test]
+    fn streaming_providers_are_index_and_openai_compatible() {
+        assert!(provider_streams("indextranslate"));
+        assert!(provider_streams("indextranslate2b"));
+        assert!(provider_streams("OpenAICompatible"));
+        assert!(!provider_streams("tencenttransmart"));
+        assert!(!provider_streams("deepl"));
+        assert!(!provider_streams("agentero"));
+        assert!(!provider_streams("azure"));
+    }
+
+    #[test]
+    fn timeout_and_truncation_are_distinct_from_upstream_errors() {
+        let timeout =
+            failure_from_transport("OpenAI-compatible", true, "error sending request".into());
+        assert_eq!(timeout.code(), ERR_TRANSLATE_TIMEOUT);
+        assert!(timeout.to_string().contains("timed out waiting for output"));
+        assert!(!timeout.to_string().contains("error sending request"));
+
+        let upstream = failure_from_transport(
+            "OpenAI-compatible",
+            false,
+            "error sending request for url (https://example.test): connection reset".into(),
+        );
+        assert_eq!(upstream.code(), "message");
+        assert!(upstream.to_string().contains("request failed"));
+        assert!(upstream.to_string().contains("connection reset"));
+
+        assert!(is_incomplete_finish_reason("length"));
+        assert!(is_incomplete_finish_reason("filter"));
+        assert!(is_incomplete_finish_reason("content_filter"));
+        assert!(is_incomplete_finish_reason("max_tokens"));
+        assert!(!is_incomplete_finish_reason("stop"));
+        let truncated = reject_incomplete_finish(Some("length"), "OpenAI-compatible").unwrap_err();
+        assert_eq!(truncated.code(), ERR_TRANSLATE_INCOMPLETE);
+        assert!(truncated.to_string().contains("finish_reason=length"));
+        assert!(reject_incomplete_finish(Some("stop"), "OpenAI-compatible").is_ok());
+        assert!(reject_incomplete_finish(None, "OpenAI-compatible").is_ok());
+    }
+
+    #[test]
+    fn resolve_timeout_stays_inside_one_to_thirty_seconds() {
+        assert_eq!(resolve_timeout(None), Duration::from_secs(30));
+        assert_eq!(resolve_timeout(Some(500)), Duration::from_secs(1));
+        assert_eq!(resolve_timeout(Some(30_000)), Duration::from_secs(30));
+        assert_eq!(resolve_timeout(Some(90_000)), Duration::from_secs(30));
+        assert_eq!(resolve_timeout(Some(4_000)), Duration::from_secs(4));
     }
 
     #[test]
