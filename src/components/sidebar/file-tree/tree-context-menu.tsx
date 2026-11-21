@@ -1,6 +1,7 @@
 import {
 	ArrowDownToLine,
 	Download,
+	ListChecks,
 	Loader2,
 	Radar,
 	RefreshCw,
@@ -85,6 +86,10 @@ export type TreeContextMenuPortalProps = {
 	onNewFile?: () => void;
 	onNewFolder?: () => void;
 	onCopyPath?: () => void;
+	/** Explicit selection mode is active (hide the entry item). */
+	selectionMode?: boolean;
+	/** Enter “select multiple…” mode with this row checked. */
+	onStartSelectionMode?: () => void;
 	onCut?: () => void;
 	onPaste?: () => void;
 	onMove?: () => void;
@@ -120,6 +125,8 @@ export function TreeContextMenuPortal({
 	onNewFile,
 	onNewFolder,
 	onCopyPath,
+	selectionMode,
+	onStartSelectionMode,
 	onCut,
 	onPaste,
 	onMove,
@@ -337,6 +344,12 @@ export function TreeContextMenuPortal({
 					{menuCount === 1 && onCopyPath ? (
 						<FloatingMenuItem onClick={onCopyPath}>
 							<span>{t("fileTree.copyPath")}</span>
+						</FloatingMenuItem>
+					) : null}
+					{menuCount === 1 && !selectionMode && onStartSelectionMode ? (
+						<FloatingMenuItem onClick={onStartSelectionMode}>
+							<ListChecks className="size-3.5 shrink-0" aria-hidden />
+							<span>{t("fileTree.startSelectMode")}</span>
 						</FloatingMenuItem>
 					) : null}
 					{onCut ? (

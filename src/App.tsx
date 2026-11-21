@@ -380,7 +380,12 @@ export default function App() {
 			openSelectedInTerminal();
 		},
 		deleteTreeItem: () => {
-			deleteSelectedPath();
+			// One owner for ⌘⌫: batch the tree selection when there is one,
+			// otherwise delete the open row. The tree no longer runs its own
+			// Backspace handler, so the same gesture cannot delete twice.
+			const handle = fileTreeHandle();
+			if (handle?.hasSelection()) handle.deleteSelected();
+			else deleteSelectedPath();
 		},
 		collapseTreeCurrent: () => {
 			fileTreeHandle()?.collapseSelected();

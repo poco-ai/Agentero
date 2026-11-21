@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	CheckIcon,
 	ChevronRightIcon,
 	FileIcon,
 	FolderIcon,
@@ -27,6 +28,11 @@ import {
 	FILE_TREE_ROW_STATE,
 } from "@/components/sidebar/tree-row-styles";
 import { cn } from "@/lib/core/utils";
+import {
+	isMacCtrlClick,
+	isTreeSelectModifier,
+	isVirtualTreePath,
+} from "./tree-helpers";
 
 export type SelectMods = { meta: boolean; ctrl: boolean; shift: boolean };
 
@@ -42,8 +48,12 @@ interface FileTreeContextType {
 	 * rename target (virtual nodes), which keeps Enter as row activation.
 	 */
 	onRenamePath?: (path: string) => boolean;
-	/** Multi-selection set (row highlight). No checkboxes — modifier-click only. */
+	/** Multi-selection set (row highlight). */
 	selectedPaths?: Set<string>;
+	/** Explicit selection mode: rows show a fixed checkbox column. */
+	selectionMode?: boolean;
+	/** Enter / Escape inside a row leaves the explicit selection mode. */
+	onExitSelectionMode?: () => void;
 	/** Row click carrying modifier keys (files + modifier-clicked folders). */
 	onSelectRow?: (path: string, mods: SelectMods) => void;
 	/** Keyboard cursor row: styled like hover, independent from selection. */
@@ -83,6 +93,10 @@ export type FileTreeProps = Omit<HTMLAttributes<HTMLDivElement>, "onSelect"> & {
 	onExpandedChange?: (expanded: Set<string>) => void;
 	selectedPaths?: Set<string>;
 	onSelectRow?: (path: string, mods: SelectMods) => void;
+	/** Explicit selection mode: rows show a fixed checkbox column. */
+	selectionMode?: boolean;
+	/** Enter / Escape inside a row leaves the explicit selection mode. */
+	onExitSelectionMode?: () => void;
 	dropTargetPath?: string | null;
 	onRowDragStart?: (path: string, e: DragEvent) => void;
 	onRowDragOver?: (path: string, e: DragEvent) => void;
@@ -100,6 +114,8 @@ export const FileTree = ({
 	onRenamePath,
 	selectedPaths,
 	onSelectRow,
+	selectionMode = false,
+	onExitSelectionMode,
 	dropTargetPath,
 	onRowDragStart,
 	onRowDragOver,
@@ -235,6 +251,8 @@ export const FileTree = ({
 			selectedPath,
 			selectedPaths,
 			onSelectRow,
+			selectionMode,
+			onExitSelectionMode,
 			cursorPath,
 			setCursorPath,
 			dropTargetPath,
@@ -253,6 +271,8 @@ export const FileTree = ({
 			selectedPath,
 			selectedPaths,
 			onSelectRow,
+			selectionMode,
+			onExitSelectionMode,
 			cursorPath,
 			dropTargetPath,
 			onRowDragStart,
@@ -373,6 +393,56 @@ export function FileTreeDisclosureIcon({
 /** Ring shown on the row a drag is currently hovering (valid drop target). */
 const DROP_RING = "ring-1 ring-inset ring-primary bg-accent";
 
+/** Quiet marker for the open document while a selection is active. */
+function TreeOpenMarker() {
+	return (
+		<span
+			aria-hidden
+			style={{
+				position: "absolute",
+				left: 2,
+				top: 6,
+				bottom: 6,
+				width: 2,
+				borderRadius: 2,
+				background: "var(--brand)",
+			}}
+		/>
+	);
+}
+
+/** Fixed leading checkbox in the explicit selection mode (visual only). */
+function TreeSelectionCheckbox({
+	path,
+	selected,
+}: {
+	path: string;
+	selected: boolean;
+}) {
+	return (
+		<span
+			aria-hidden
+			style={{ left: 6 }}
+			className={cn(
+				"pointer-events-none absolute top-1/2 flex size-4 -translate-y-1/2 items-center justify-center rounded-[4px] border border-muted-foreground/70",
+				selected &&
+					"border-transparent bg-sidebar-primary-foreground text-sidebar-primary",
+				isVirtualTreePath(path) && "invisible",
+			)}
+		>
+			{selected ? (
+				<CheckIcon
+					className="size-3"
+					strokeWidth={3}
+					// The selected row forces `[&_svg]` to the inverted foreground;
+					// keep the check readable inside its white box instead.
+					style={{ color: "var(--sidebar-primary)" }}
+				/>
+			) : null}
+		</span>
+	);
+}
+
 /**
  * Flat folder ROW (no nested children) for virtualized rendering: renders the
  * folder button only; its children are separate flattened rows. Reads the same
@@ -405,6 +475,8 @@ export const FileTreeFolderRow = ({
 		togglePath,
 		selectedPath,
 		selectedPaths,
+		selectionMode,
+		onExitSelectionMode,
 		onSelectRow,
 		onDoubleClickPath,
 		onContextMenuPath,
@@ -419,15 +491,18 @@ export const FileTreeFolderRow = ({
 	} = useContext(FileTreeContext);
 	const isExpanded = expandedPaths.has(path);
 	const selCount = selectedPaths?.size ?? 0;
-	const isSelected =
-		selCount > 0 ? (selectedPaths?.has(path) ?? false) : selectedPath === path;
+	const selectionActive = Boolean(selectionMode) || selCount > 0;
+	const isSelected = selectionActive
+		? (selectedPaths?.has(path) ?? false)
+		: selectedPath === path;
+	const showOpenMarker = selectedPath === path && selectionActive;
 	return (
 		<div
 			data-path={path}
 			data-cursor={cursorPath === path ? "true" : undefined}
 			draggable
 			className={cn(
-				"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pl-2.5 pr-4 text-left text-sm font-normal",
+				"group relative flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pr-4 pl-[calc(10px+var(--tree-selection-inset,0px))] text-left text-sm font-normal",
 				FILE_TREE_ROW_STATE,
 				cursorPath === path && !isSelected && FILE_TREE_ROW_CURSOR_STATE,
 				isSelected && FILE_TREE_ROW_SELECTED_STATE,
@@ -440,10 +515,31 @@ export const FileTreeFolderRow = ({
 				// Keep the row focused so Enter can start inline rename right
 				// after a click (WebKit does not focus buttons on click).
 				e.currentTarget.focus();
-				if ((e.metaKey || e.ctrlKey || e.shiftKey) && onSelectRow) {
+				// macOS Ctrl-click is the native context-menu gesture.
+				if (isMacCtrlClick(e)) return;
+				const selectMod = isTreeSelectModifier(e);
+				if (selectionMode) {
+					// Mode: the disclosure chevron still expands; everything else
+					// toggles the row (double-click is a no-op after the first click).
+					if ((e.target as HTMLElement).closest("[data-tree-disclosure]")) {
+						togglePath(path);
+						return;
+					}
+					if (e.detail > 1) {
+						e.preventDefault();
+						return;
+					}
+					onSelectRow?.(path, {
+						meta: selectMod,
+						ctrl: selectMod,
+						shift: e.shiftKey,
+					});
+					return;
+				}
+				if ((selectMod || e.shiftKey) && onSelectRow) {
 					onSelectRow(path, {
-						meta: e.metaKey,
-						ctrl: e.ctrlKey,
+						meta: selectMod,
+						ctrl: selectMod,
 						shift: e.shiftKey,
 					});
 					return;
@@ -466,12 +562,25 @@ export const FileTreeFolderRow = ({
 				});
 			}}
 			onDoubleClick={(e) => {
+				if (selectionMode) return;
 				e.preventDefault();
 				e.stopPropagation();
 				onDoubleClickPath?.(path);
 			}}
 			onKeyDown={(e) => {
 				if (e.target !== e.currentTarget) return;
+				if (selectionMode) {
+					if (e.key !== "Enter" && e.key !== " ") return;
+					e.preventDefault();
+					if (e.key === "Enter") onExitSelectionMode?.();
+					else
+						onSelectRow?.(path, {
+							meta: false,
+							ctrl: false,
+							shift: false,
+						});
+					return;
+				}
 				if (e.key === "Enter" && onRenamePath?.(path)) {
 					e.preventDefault();
 					return;
@@ -491,6 +600,10 @@ export const FileTreeFolderRow = ({
 			role="treeitem"
 			tabIndex={0}
 		>
+			{selectionMode ? (
+				<TreeSelectionCheckbox path={path} selected={isSelected} />
+			) : null}
+			{showOpenMarker ? <TreeOpenMarker /> : null}
 			<span data-tree-disclosure className="inline-flex shrink-0">
 				<FileTreeDisclosureIcon
 					isExpanded={isExpanded}
@@ -550,6 +663,8 @@ export const FileTreeFile = ({
 		onContextMenuPath,
 		onRenamePath,
 		selectedPaths,
+		selectionMode,
+		onExitSelectionMode,
 		onSelectRow,
 		dropTargetPath,
 		cursorPath,
@@ -560,34 +675,55 @@ export const FileTreeFile = ({
 		onRowDragEnd,
 	} = useContext(FileTreeContext);
 	const selCount = selectedPaths?.size ?? 0;
-	const isSelected =
-		selCount > 0 ? (selectedPaths?.has(path) ?? false) : selectedPath === path;
+	const selectionActive = Boolean(selectionMode) || selCount > 0;
+	const isSelected = selectionActive
+		? (selectedPaths?.has(path) ?? false)
+		: selectedPath === path;
+	const showOpenMarker = selectedPath === path && selectionActive;
 
 	const handleClick = useCallback(
 		(e: MouseEvent) => {
 			// Keep the row focused so Enter can start inline rename right after
 			// a click (matches VS Code / Finder tree behavior).
 			(e.currentTarget as HTMLElement).focus();
+			// macOS Ctrl-click is the native context-menu gesture.
+			if (isMacCtrlClick(e)) return;
+			const selectMod = isTreeSelectModifier(e);
+			if (selectionMode) {
+				// Mode: clicking the row toggles it; double-click must not undo
+				// the first click's toggle.
+				if (e.detail > 1) {
+					e.preventDefault();
+					return;
+				}
+				onSelectRow?.(path, {
+					meta: selectMod,
+					ctrl: selectMod,
+					shift: e.shiftKey,
+				});
+				return;
+			}
 			if (onSelectRow) {
 				onSelectRow(path, {
-					meta: e.metaKey,
-					ctrl: e.ctrlKey,
+					meta: selectMod,
+					ctrl: selectMod,
 					shift: e.shiftKey,
 				});
 			} else {
 				onSelect?.(path);
 			}
 		},
-		[onSelect, onSelectRow, path],
+		[onSelect, onSelectRow, path, selectionMode],
 	);
 
 	const handleDoubleClick = useCallback(
 		(e: MouseEvent) => {
+			if (selectionMode) return;
 			e.preventDefault();
 			e.stopPropagation();
 			onDoubleClickPath?.(path);
 		},
-		[onDoubleClickPath, path],
+		[onDoubleClickPath, path, selectionMode],
 	);
 
 	const handleContextMenu = useCallback(
@@ -599,6 +735,18 @@ export const FileTreeFile = ({
 
 	const handleKeyDown = useCallback(
 		(e: KeyboardEvent<HTMLDivElement>) => {
+			if (selectionMode) {
+				if (e.key !== "Enter" && e.key !== " ") return;
+				e.preventDefault();
+				if (e.key === "Enter") onExitSelectionMode?.();
+				else
+					onSelectRow?.(path, {
+						meta: false,
+						ctrl: false,
+						shift: false,
+					});
+				return;
+			}
 			// Enter on a real row starts inline rename (Finder-style); virtual
 			// rows decline and keep Enter as activation.
 			if (e.key === "Enter" && onRenamePath?.(path)) {
@@ -618,7 +766,14 @@ export const FileTreeFile = ({
 				}
 			}
 		},
-		[onRenamePath, onSelect, onSelectRow, path],
+		[
+			onExitSelectionMode,
+			onRenamePath,
+			onSelect,
+			onSelectRow,
+			path,
+			selectionMode,
+		],
 	);
 
 	const fileContextValue = useMemo(() => ({ name, path }), [name, path]);
@@ -630,7 +785,7 @@ export const FileTreeFile = ({
 				data-cursor={cursorPath === path ? "true" : undefined}
 				draggable
 				className={cn(
-					"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pl-2.5 pr-4 text-sm font-normal",
+					"group relative flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pr-4 pl-[calc(10px+var(--tree-selection-inset,0px))] text-sm font-normal",
 					FILE_TREE_ROW_STATE,
 					cursorPath === path && !isSelected && FILE_TREE_ROW_CURSOR_STATE,
 					isSelected && FILE_TREE_ROW_SELECTED_STATE,
@@ -651,6 +806,10 @@ export const FileTreeFile = ({
 				tabIndex={0}
 				{...props}
 			>
+				{selectionMode ? (
+					<TreeSelectionCheckbox path={path} selected={isSelected} />
+				) : null}
+				{showOpenMarker ? <TreeOpenMarker /> : null}
 				{children ?? (
 					<>
 						<FileTreeIcon>

@@ -1,10 +1,13 @@
 import {
+	type CSSProperties,
 	forwardRef,
 	memo,
 	useCallback,
+	useEffect,
 	useImperativeHandle,
 	useMemo,
 	useRef,
+	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { FileTree as AiFileTree } from "@/components/sidebar/file-tree/file-tree-primitives";
@@ -45,6 +48,7 @@ import {
 	treeRowIndentStyle,
 } from "./tree-rows";
 import { TreeRowsViewport } from "./tree-rows-viewport";
+import { TreeSelectionBar } from "./tree-selection-bar";
 import type { TreeCreateDraft, TreeCreateKind, TreeRenameDraft } from "./types";
 import { buildZoteroCollectionReferences } from "./zotero-collection-references";
 
@@ -130,8 +134,8 @@ type FileTreeProps = {
 	onDropMove?: (paths: string[], targetPath: string) => void;
 	onCutPaths?: (paths: string[]) => void;
 	onPasteInto?: (targetPath: string) => void;
-	/** Report the semantic multi-selection count to the fixed sidebar header. */
-	onSelectionChange?: (count: number) => void;
+	/** Report selection count + explicit selection mode to the fixed header. */
+	onSelectionChange?: (count: number, selectionMode: boolean) => void;
 	/** Absolute paths currently staged by Cut (for row dimming). */
 	cutPaths?: string[];
 	/**
@@ -161,8 +165,12 @@ export type FileTreeHandle = {
 	cutSelected: () => void;
 	/** Paste cut items into the currently selected path. */
 	pasteIntoSelected: () => void;
-	/** Clear the transient multi-selection mode. */
+	/** Clear the transient multi-selection (leaves the explicit mode). */
 	clearSelection: () => void;
+	/** Enter / leave the explicit selection mode. */
+	toggleSelectionMode: () => void;
+	/** True while at least one tree row is selected. */
+	hasSelection: () => boolean;
 	/** Open the move picker for the current multi-selection. */
 	moveSelected: (anchor: { x: number; y: number }) => void;
 	/** Move the current multi-selection to the recycle bin. */
@@ -228,6 +236,17 @@ export const FileTree = memo(
 		const plazaEnabled = useSettings((s) => s.plazaEnabled);
 		const plazaHiddenSources = useSettings((s) => s.plazaHiddenSources);
 		const containerRef = useRef<HTMLDivElement>(null);
+		const [treeWidth, setTreeWidth] = useState(0);
+		useEffect(() => {
+			const element = containerRef.current;
+			if (!element) return;
+			const measure = () => setTreeWidth(element.getBoundingClientRect().width);
+			measure();
+			if (typeof ResizeObserver === "undefined") return;
+			const observer = new ResizeObserver(measure);
+			observer.observe(element);
+			return () => observer.disconnect();
+		}, []);
 		const skillLabels = useSkillLabels(vaultPath, nodes);
 		const {
 			byPath,
@@ -273,12 +292,13 @@ export const FileTree = memo(
 		});
 
 		const selection = useTreeSelection({
-			nodes,
+			vaultPath,
 			selectedPath,
 			selectableOrder,
 			byPath,
 			createDraft,
 			renameDraft,
+			containerRef,
 			onSelectFile,
 			onSelectLibrary,
 			onSelectTrash,
@@ -352,6 +372,8 @@ export const FileTree = memo(
 			citingScanBusy,
 			pathsForAction: selection.pathsForAction,
 			prepareContextSelection: selection.prepareContextSelection,
+			selectionMode: selection.selectionMode,
+			onStartSelectionMode: selection.startSelectionForPath,
 			openMovePicker: movePicker.openPicker,
 			onExportLibrary,
 			onRescanLibrary,
@@ -398,6 +420,8 @@ export const FileTree = memo(
 				cutSelected: selection.cutSelected,
 				pasteIntoSelected: selection.pasteIntoSelected,
 				clearSelection: selection.clearSelection,
+				toggleSelectionMode: selection.toggleSelectionMode,
+				hasSelection: () => selection.selected.size > 0,
 				moveSelected,
 				deleteSelected: selection.runBatchDelete,
 			}),
@@ -407,6 +431,8 @@ export const FileTree = memo(
 				selection.cutSelected,
 				selection.pasteIntoSelected,
 				selection.clearSelection,
+				selection.toggleSelectionMode,
+				selection.selected.size,
 				moveSelected,
 				selection.runBatchDelete,
 			],
@@ -445,10 +471,31 @@ export const FileTree = memo(
 					// Scopes the global ⌘X / ⌘V tree shortcuts to this surface
 					// (see use-app-shortcuts) so viewers keep native cut/paste.
 					data-file-tree=""
+					data-tree-selection-mode={selection.selectionMode ? "" : undefined}
+					style={
+						{
+							"--tree-selection-inset": selection.selectionMode
+								? "16px"
+								: "0px",
+						} as CSSProperties
+					}
 					className={cn(
 						"relative flex min-h-0 flex-1 flex-col select-none text-sm",
 						className,
 					)}
+					onPointerDown={(event) => {
+						if (!selection.selectionMode) return;
+						const target = event.target as HTMLElement | null;
+						if (
+							target?.closest(
+								"[data-path], [role='treeitem'], [data-slot='selection-pill'], [data-floating-menu], [role='menu'], button, input, textarea",
+							)
+						) {
+							return;
+						}
+						// Blank space in the tree leaves the explicit selection mode.
+						selection.clearSelection();
+					}}
 				>
 					<MovePickerPopover
 						picker={movePicker}
@@ -457,7 +504,10 @@ export const FileTree = memo(
 					/>
 					<div
 						ref={treeScrollRef}
-						className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]"
+						className={cn(
+							"agentero-scroll min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]",
+							selection.selectionMode && "pb-10",
+						)}
 					>
 						{nodes.length === 0 && !createDraft ? (
 							<>
@@ -470,6 +520,8 @@ export const FileTree = memo(
 									onContextMenuPath={handleContextMenuPath}
 									onRenamePath={handleRenamePath}
 									onSelectRow={selection.handleSelectRow}
+									selectionMode={selection.selectionMode}
+									onExitSelectionMode={selection.clearSelection}
 								>
 									{trashRow}
 									{plazaRows}
@@ -496,6 +548,8 @@ export const FileTree = memo(
 								onRowDragOver={dragDrop.handleRowDragOver}
 								onRowDrop={dragDrop.handleRowDrop}
 								onRowDragEnd={dragDrop.handleRowDragEnd}
+								selectionMode={selection.selectionMode}
+								onExitSelectionMode={selection.clearSelection}
 							>
 								<TreeRowsViewport
 									flatRows={flatRows}
@@ -519,6 +573,16 @@ export const FileTree = memo(
 							</AiFileTree>
 						)}
 					</div>
+					{selection.selectionMode && selection.selected.size > 0 ? (
+						<TreeSelectionBar
+							count={selection.selected.size}
+							compact={treeWidth > 0 && treeWidth < 180}
+							canMove={Boolean(onMoveTo)}
+							onMove={moveSelected}
+							onDelete={selection.runBatchDelete}
+							onDone={selection.clearSelection}
+						/>
+					) : null}
 					{menuProps ? <TreeContextMenuPortal {...menuProps} /> : null}
 				</div>
 			</TooltipProvider>

@@ -144,7 +144,10 @@ function normalizePaperRelPath(path: string | null | undefined): string | null {
 
 export function VaultSidebar() {
 	const fileTreeRef = useRef<FileTreeHandle>(null);
-	const [treeSelectionCount, setTreeSelectionCount] = useState(0);
+	const [treeSelection, setTreeSelection] = useState({
+		count: 0,
+		mode: false,
+	});
 	useEffect(() => {
 		registerFileTreeHandle(fileTreeRef.current);
 		return () => registerFileTreeHandle(null);
@@ -255,37 +258,13 @@ export function VaultSidebar() {
 		() => resolvePapersParentDir(vaultPath, treeSelectedPath, tree),
 		[vaultPath, treeSelectedPath, tree],
 	);
-	const clearTreeSelection = useCallback(
-		() => fileTreeRef.current?.clearSelection(),
+	const onTreeSelectionChange = useCallback(
+		(count: number, mode: boolean) => setTreeSelection({ count, mode }),
 		[],
 	);
-	const moveTreeSelection = useCallback(
-		(anchor: { x: number; y: number }) =>
-			fileTreeRef.current?.moveSelected(anchor),
+	const toggleTreeSelectionMode = useCallback(
+		() => fileTreeRef.current?.toggleSelectionMode(),
 		[],
-	);
-	const deleteTreeSelection = useCallback(
-		() => fileTreeRef.current?.deleteSelected(),
-		[],
-	);
-	const treeSelectionHeader = useMemo(
-		() =>
-			treeSelectionCount > 0
-				? {
-						count: treeSelectionCount,
-						disabled: busy,
-						onClear: clearTreeSelection,
-						onMove: moveTreeSelection,
-						onDelete: deleteTreeSelection,
-					}
-				: undefined,
-		[
-			busy,
-			clearTreeSelection,
-			deleteTreeSelection,
-			moveTreeSelection,
-			treeSelectionCount,
-		],
 	);
 
 	return (
@@ -297,7 +276,8 @@ export function VaultSidebar() {
 							? `${vaultDisplayName(vaultPath)} · ${t("app:vault.remoteBadge")}`
 							: vaultDisplayName(vaultPath)
 					}
-					selection={treeSelectionHeader}
+					selectionMode={treeSelection.mode}
+					onToggleSelectionMode={toggleTreeSelectionMode}
 					lookupParentDir={lookupParentDir}
 					onLookupSubmit={onLookupSubmit}
 					onLookupBatchSubmit={onLookupBatchSubmit}
@@ -340,7 +320,7 @@ export function VaultSidebar() {
 						onDropMove={onDropMove}
 						onCutPaths={cutSelectedPaths}
 						onPasteInto={onPasteInto}
-						onSelectionChange={setTreeSelectionCount}
+						onSelectionChange={onTreeSelectionChange}
 						cutPaths={cutPaths}
 						onDropLocalPdfs={dropLocalPdfs}
 						onSelectFile={selectFileNode}
