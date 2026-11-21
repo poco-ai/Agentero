@@ -164,6 +164,9 @@ fn file_manager_entry() -> OpenWithApp {
 /// The terminal row follows the Settings preference so its name and icon match
 /// the app that `path_open_with` actually launches.
 fn terminal_entry(terminal_preference: &str) -> OpenWithApp {
+    // The preference picker is macOS-only, so the row is generic elsewhere.
+    #[cfg(not(target_os = "macos"))]
+    let _ = terminal_preference;
     #[cfg(target_os = "macos")]
     let (name, icon) = {
         let preferred = match terminal_preference.trim() {
