@@ -517,7 +517,12 @@ const CommentCard = memo(function CommentCard({
 			const current = itemRef.current;
 			if (!current.isNew || cancelledRef.current) return;
 			const target = event.target as Node | null;
-			if (!target || rootRef.current?.contains(target)) return;
+			if (
+				!target ||
+				rootRef.current?.contains(target) ||
+				editorHandleRef.current?.ownsEquationPopover(target)
+			)
+				return;
 			const text = readDraft();
 			if (!text.trim()) {
 				cancelledRef.current = true;
@@ -577,7 +582,8 @@ const CommentCard = memo(function CommentCard({
 									if (
 										next &&
 										(e.currentTarget.contains(next) ||
-											rootRef.current?.contains(next))
+											rootRef.current?.contains(next) ||
+											editorHandleRef.current?.ownsEquationPopover(next))
 									) {
 										return;
 									}
@@ -586,7 +592,14 @@ const CommentCard = memo(function CommentCard({
 									// click-away until the editable has focus and focus has
 									// actually left the card.
 									if (!editorFocusedRef.current) return;
-									if (rootRef.current?.contains(document.activeElement)) return;
+									// Focus can already be in the portal without a relatedTarget.
+									const active = document.activeElement;
+									if (
+										rootRef.current?.contains(active) ||
+										editorHandleRef.current?.ownsEquationPopover(active)
+									) {
+										return;
+									}
 									if (cancelledRef.current) return;
 									const text = readDraft();
 									if (item.isNew && !text.trim()) {
@@ -860,7 +873,11 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 	useEffect(() => {
 		const onPointerDown = (event: PointerEvent) => {
 			const target = event.target;
-			if (!(target instanceof Node) || rootRef.current?.contains(target)) {
+			if (
+				!(target instanceof Node) ||
+				rootRef.current?.contains(target) ||
+				editorHandleRef.current?.ownsEquationPopover(target)
+			) {
 				return;
 			}
 			if ((target as Element).closest?.("[data-pdf-chrome]")) {
@@ -924,7 +941,19 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 					onBlur={(e) => {
 						if (!aliveRef.current || closingRef.current) return;
 						const next = e.relatedTarget as Node | null;
-						if (next && rootRef.current?.contains(next)) return;
+						if (
+							next &&
+							(rootRef.current?.contains(next) ||
+								editorHandleRef.current?.ownsEquationPopover(next))
+						)
+							return;
+						const active = document.activeElement;
+						if (
+							rootRef.current?.contains(active) ||
+							editorHandleRef.current?.ownsEquationPopover(active)
+						) {
+							return;
+						}
 						const text = readDraft();
 						if (text.trim()) {
 							commit(text);
