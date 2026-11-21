@@ -418,7 +418,7 @@ fn local_title(page: &ProbePage) -> Option<String> {
         }
     }
     let best = runs.into_iter().max_by(|a, b| {
-        let score = |run: &Vec<(usize, String, f32)>| {
+        let score = |run: &[(usize, String, f32)]| {
             let size = run.iter().map(|line| line.2).fold(0.0, f32::max);
             let chars: usize = run.iter().map(|line| line.1.chars().count()).sum();
             (size * (chars as f32).sqrt() * 1000.0) as i64
@@ -962,12 +962,13 @@ fn with_local_title(mut probe: PdfIdentProbe, local: &LocalEvidence) -> PdfIdent
         .title
         .as_deref()
         .is_some_and(|title| !title.trim().is_empty());
-    if !has_title {
-        if let Some(title) = local.title.as_deref().filter(|t| !t.trim().is_empty()) {
-            probe.title = Some(title.to_string());
-            probe.status = "title".into();
-            probe.source = "local-pdf".into();
-        }
+    if has_title {
+        return probe;
+    }
+    if let Some(title) = local.title.as_deref().filter(|t| !t.trim().is_empty()) {
+        probe.title = Some(title.to_string());
+        probe.status = "title".into();
+        probe.source = "local-pdf".into();
     }
     probe
 }
