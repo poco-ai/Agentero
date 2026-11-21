@@ -1,6 +1,7 @@
 import { parser } from "@lezer/markdown";
 import { defaultRules, type MdRules } from "@platejs/markdown";
-import { type Descendant, TextApi } from "platejs";
+import { type Descendant, type TEquationElement, TextApi } from "platejs";
+import type { TexDelimiter } from "@/lib/markdown/math-normalize";
 
 const PLACEHOLDER = "\u200B";
 const FENCE_MARKER = /`{3,}|~{3,}/;
@@ -34,6 +35,66 @@ export const paragraphMarkdownRule: NonNullable<MdRules["p"]> = {
 			return serializeParagraph({ ...node, children }, options);
 		}),
 };
+
+type DelimitedEquation = TEquationElement & { texDelimiter?: TexDelimiter };
+
+/** Original TeX delimiter recorded by the note deserializer, if any. */
+function texDelimiter(node: TEquationElement): TexDelimiter | undefined {
+	const { texDelimiter: delimiter } = node as DelimitedEquation;
+	return delimiter === "bracket" || delimiter === "paren"
+		? delimiter
+		: undefined;
+}
+
+function rawTexMarkdown(value: string) {
+	// `\[…\]` / `\(…\)` are not Markdown nodes: hand them to the serializer as
+	// verbatim HTML, which mdast-util-to-markdown copies without escaping.
+	return { type: "html", value };
+}
+
+/**
+ * Serialize `\[…\]` / `\(…\)` formulas with the delimiter they were written
+ * with.
+ *
+ * Plate's Markdown serializer only knows dollar math. Notes round-trip to disk,
+ * so editing a Cool Papers note used to rewrite every imported formula as
+ * `$` / `$$` (and left a broken delimiter when that happened mid-edit) even
+ * though the editor had parsed it correctly (#1171). The deserializer records
+ * the original delimiter on the node; here it is written back. Dollar formulas
+ * and newly created equations keep the default `$` / `$$` form.
+ */
+export const texDelimiterMarkdownRules = {
+	equation: {
+		serialize: (node: TEquationElement) => {
+			const tex = node.texExpression ?? "";
+			const delimiter = texDelimiter(node);
+			if (tex.trim()) {
+				if (delimiter === "bracket") {
+					return rawTexMarkdown(`\\[\n${tex}\n\\]`);
+				}
+				if (delimiter === "paren") {
+					return rawTexMarkdown(`\\(${tex}\\)`);
+				}
+			}
+			return { type: "math", value: tex };
+		},
+	},
+	inline_equation: {
+		serialize: (node: TEquationElement) => {
+			const tex = node.texExpression ?? "";
+			const delimiter = texDelimiter(node);
+			if (tex.trim()) {
+				if (delimiter === "bracket") {
+					return rawTexMarkdown(`\\[${tex}\\]`);
+				}
+				if (delimiter === "paren") {
+					return rawTexMarkdown(`\\(${tex}\\)`);
+				}
+			}
+			return { type: "inlineMath", value: tex };
+		},
+	},
+} as unknown as MdRules;
 
 /** Clean Plate's inline caret placeholders while retaining empty paragraphs. */
 export function stripInlinePlaceholders(markdown: string): string {

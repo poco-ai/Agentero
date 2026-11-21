@@ -1,16 +1,24 @@
 import { MarkdownPlugin } from "@platejs/markdown";
-import type {
-	Descendant,
-	SlateEditor,
-	TElement,
-	TEquationElement,
-	TText,
-	Value,
+import {
+	type Descendant,
+	ElementApi,
+	type SlateEditor,
+	type TElement,
+	type TEquationElement,
+	TextApi,
+	type TText,
+	type Value,
 } from "platejs";
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
 import { prepareMarkdownForDeserialize } from "@/lib/markdown/deserialize";
 import { remarkRecoverInlineHtmlMarks } from "@/lib/markdown/highlight";
+import {
+	hasTexDelimiterMark,
+	readTexDelimiter,
+	stripTexDelimiterMarks,
+	type TexDelimiter,
+} from "@/lib/markdown/math-normalize";
 import {
 	markdownNeedsMdx,
 	selectMarkdownRemarkPluginsForDeserialize,
@@ -33,6 +41,40 @@ const INLINE_DISPLAY_ONLY =
 const BLOCK_CONTAINERS = new Set(["blockquote", "callout"]);
 
 type InlineEquation = TEquationElement & { type: "inline_equation" };
+
+type DelimitedEquation = TEquationElement & { texDelimiter?: TexDelimiter };
+
+/**
+ * Move the invisible `\[…\]` / `\(…\)` marker `normalizeNoteMarkdownMath` left
+ * in the TeX onto the Slate node, so the serializer can write the original
+ * delimiter back instead of silently converting imported formulas to dollar
+ * math (#1171). A marker that did not become math (the normalized shape failed
+ * to parse) is dropped from the text leaf instead of reaching the editor.
+ */
+function adoptTexDelimiters(nodes: Descendant[]): void {
+	for (const node of nodes) {
+		if (TextApi.isText(node)) {
+			if (hasTexDelimiterMark(node.text)) {
+				node.text = stripTexDelimiterMarks(node.text);
+			}
+			continue;
+		}
+		if (!ElementApi.isElement(node)) continue;
+		const element = node as TElement;
+		if (
+			(element.type === "equation" || element.type === "inline_equation") &&
+			typeof (element as DelimitedEquation).texExpression === "string"
+		) {
+			const equation = element as DelimitedEquation;
+			const { tex, delimiter } = readTexDelimiter(equation.texExpression);
+			if (delimiter) {
+				equation.texExpression = tex;
+				equation.texDelimiter = delimiter;
+			}
+		}
+		adoptTexDelimiters(element.children as Descendant[]);
+	}
+}
 
 function isDisplayOnlyInlineEquation(node: Descendant): node is InlineEquation {
 	const element = node as TEquationElement & { type?: string };
@@ -74,9 +116,11 @@ function trimmedRun(run: Descendant[]): Descendant[] {
 }
 
 function equationNode(equation: InlineEquation): TElement {
+	const { texDelimiter } = equation as DelimitedEquation;
 	return {
 		type: "equation",
 		texExpression: equation.texExpression,
+		...(texDelimiter ? { texDelimiter } : {}),
 		children: [{ text: "" }],
 	} as TElement;
 }
@@ -170,6 +214,7 @@ export function deserializeMarkdownBody(
 		},
 	});
 	if (!mdxError || withoutMdx) {
+		adoptTexDelimiters(value);
 		return promoteDisplayOnlyInlineEquations(value);
 	}
 
@@ -185,10 +230,12 @@ export function deserializeMarkdownBody(
 		chars: prepared.length,
 		error: errorText(mdxError),
 	});
-	return promoteDisplayOnlyInlineEquations(
-		editor.getApi(MarkdownPlugin).markdown.deserialize(prepared, {
+	const recovered = editor
+		.getApi(MarkdownPlugin)
+		.markdown.deserialize(prepared, {
 			remarkPlugins: [...remarkPlugins, remarkRecoverInlineHtmlMarks],
 			withoutMdx: true,
-		}),
-	);
+		});
+	adoptTexDelimiters(recovered);
+	return promoteDisplayOnlyInlineEquations(recovered);
 }

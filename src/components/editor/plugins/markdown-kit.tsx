@@ -10,7 +10,10 @@ import { columnsRules } from "@/lib/markdown/columns";
 import { htmlRules } from "@/lib/markdown/html";
 import { imageGroupRules } from "@/lib/markdown/image-group";
 import { MARKDOWN_REMARK_PLUGINS } from "@/lib/markdown/remark-plugins";
-import { paragraphMarkdownRule } from "@/lib/markdown/serialize";
+import {
+	paragraphMarkdownRule,
+	texDelimiterMarkdownRules,
+} from "@/lib/markdown/serialize";
 import { researchTableRules } from "@/lib/research-table/markdown";
 import { wikiLinkRules } from "@/lib/wiki/wikilink-model";
 
@@ -41,6 +44,7 @@ export const MarkdownKit = [
 			remarkPlugins: MARKDOWN_REMARK_PLUGINS,
 			rules: {
 				p: paragraphMarkdownRule,
+				...texDelimiterMarkdownRules,
 				...researchTableRules,
 				...wikiLinkRules,
 				...obsidianCalloutRules,

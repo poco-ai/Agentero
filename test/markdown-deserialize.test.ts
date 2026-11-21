@@ -361,3 +361,32 @@ describe("escapeStrayMdxBraces", () => {
 		expect(warn).toHaveBeenCalled();
 	});
 });
+
+describe("#1171 note TeX delimiters survive an edit", () => {
+	const roundTrip = (source: string) => {
+		const parser = createSlateEditor({ plugins: MarkdownKit });
+		const value = deserializeMarkdownBody(parser, source);
+		return createSlateEditor({ plugins: MarkdownKit, value })
+			.getApi(MarkdownPlugin)
+			.markdown.serialize();
+	};
+
+	it("writes bracket and paren formulas back with their own delimiters", () => {
+		const source = `行内 \\(x^2\\) 后文\n\n\\[\n\\tilde{v}_l) = g\\phi(v)\n\\]\n\n$y$ 仍是美元公式\n`;
+		expect(roundTrip(source)).toBe(source);
+	});
+
+	it("keeps bracket display math inside a blockquote", () => {
+		expect(roundTrip(`> \\[\n> c^2\n> \\]\n`)).toBe(`> \\[\n> c^2\n> \\]\n`);
+	});
+
+	it("leaves delimiters in code literal and never leaks its markers", () => {
+		const source = "```\n\\[x\\]\n```\n\n\\[\ny\n\\]\n";
+		const value = deserializeMarkdownBody(
+			createSlateEditor({ plugins: MarkdownKit }),
+			source,
+		);
+		expect(JSON.stringify(value)).not.toMatch(/[\uE000\uE001]/);
+		expect(roundTrip(source)).toBe(source);
+	});
+});

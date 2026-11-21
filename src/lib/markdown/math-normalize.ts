@@ -353,6 +353,73 @@ function noteLiteralRanges(source: string): NoteRange[] {
 	return ranges;
 }
 
+/** Delimiter a note formula was written with; kept so a save can restore it. */
+export type TexDelimiter = "bracket" | "paren";
+
+/**
+ * Invisible per-formula markers carrying `\[…\]` / `\(…\)` through the parse.
+ *
+ * `remark-math` only understands `$` / `$$`, so this normalization rewrites
+ * the TeX delimiters before deserialize. Without a marker the original
+ * delimiter would be lost and the next save would rewrite the file to dollar
+ * math (#1171); the marker is moved onto the Slate node right after
+ * deserialization and never reaches the editor, KaTeX or disk. Private-use
+ * code points cannot collide with formula content or prose.
+ */
+const TEX_DELIMITER_MARK: Record<TexDelimiter, string> = {
+	bracket: "\uE000",
+	paren: "\uE001",
+};
+
+/** Mark character for `delimiter`, placed just inside the dollar delimiter. */
+export function texDelimiterMarker(delimiter: TexDelimiter): string {
+	return TEX_DELIMITER_MARK[delimiter];
+}
+
+/** Split a deserialized `texExpression` into its TeX and original delimiter. */
+export function readTexDelimiter(tex: string): {
+	tex: string;
+	delimiter?: TexDelimiter;
+} {
+	if (tex.startsWith(TEX_DELIMITER_MARK.bracket)) {
+		return { tex: tex.slice(1), delimiter: "bracket" };
+	}
+	if (tex.startsWith(TEX_DELIMITER_MARK.paren)) {
+		return { tex: tex.slice(1), delimiter: "paren" };
+	}
+	return { tex };
+}
+
+/**
+ * True when a marker survived outside a math node: the normalized shape did not
+ * parse (e.g. an indented, code-block-looking region), so it is visible text
+ * now and the markers must be dropped before the editor or a save sees them.
+ */
+export function hasTexDelimiterMark(text: string): boolean {
+	return (
+		text.includes(TEX_DELIMITER_MARK.bracket) ||
+		text.includes(TEX_DELIMITER_MARK.paren)
+	);
+}
+
+/** Remove leaked markers from text that did not become math. */
+export function stripTexDelimiterMarks(text: string): string {
+	return hasTexDelimiterMark(text) ? text.replace(/[\uE000\uE001]/g, "") : text;
+}
+
+/**
+ * Place the marker at the start of a fence's first body line, after the
+ * blockquote/indent prefix that `fenceDisplayMath` repeats on every line, so
+ * the parsed `texExpression` starts with it.
+ */
+function markFenceFirstLine(fence: string, marker: string): string {
+	const bodyStart = fence.indexOf("\n") + 1;
+	if (bodyStart === 0) return fence;
+	const body = fence.slice(bodyStart);
+	const prefix = /^[ \t]*(?:>[ \t]?)*/.exec(body)?.[0] ?? "";
+	return `${fence.slice(0, bodyStart)}${prefix}${marker}${body.slice(prefix.length)}`;
+}
+
 /**
  * Normalize TeX math delimiters in a note body before Plate deserialization.
  *
@@ -360,7 +427,8 @@ function noteLiteralRanges(source: string): NoteRange[] {
  * pandoc or Cool Papers instead use `\[…\]` (display) and `\(…\)` (inline),
  * which CommonMark silently degrades to plain text, and a single-line
  * `$$…$$` that occupies its own line is parsed as *inline* math, where KaTeX
- * rejects `\tag`. Rewrite those shapes to the canonical dollar forms.
+ * rejects `\tag`. Rewrite those shapes to the canonical dollar forms, keeping
+ * an invisible marker of the original delimiter so saving writes it back.
  *
  * Only the three delimiter shapes are touched. Notes round-trip back to disk,
  * so the agent-only rewrites in `normalizeMarkdownMath` (bare-command
@@ -390,12 +458,15 @@ export function normalizeNoteMarkdownMath(source: string): string {
 			if (range && offset + match.length > range.start) return match;
 			if (bracket !== undefined) {
 				if (!bracket.trim()) return match;
-				return (
-					fenceDisplayMath(whole, offset, match.length, bracket) ??
-					`$$${bracket.trim()}$$`
-				);
+				const marker = texDelimiterMarker("bracket");
+				const fence = fenceDisplayMath(whole, offset, match.length, bracket);
+				return fence
+					? markFenceFirstLine(fence, marker)
+					: `$$${marker}${bracket.trim()}$$`;
 			}
-			if (paren !== undefined) return `$${paren}$`;
+			if (paren !== undefined) {
+				return `$${texDelimiterMarker("paren")}${paren}$`;
+			}
 			if (display !== undefined) {
 				if (!display.trim()) return match;
 				// Already a fenced block: leave it byte-identical (also keeps CRLF
