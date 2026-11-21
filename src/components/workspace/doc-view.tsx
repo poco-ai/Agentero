@@ -344,6 +344,13 @@ const DocumentContent = memo(function DocumentContent({
 		if (!active && !keepMounted) return null;
 		return <TabLoadingSkeleton />;
 	}
+	if (tab.loadError) {
+		return (
+			<p className="text-muted-foreground p-4 text-sm" role="status">
+				{tab.loadError}
+			</p>
+		);
+	}
 	if (tab.kind === "library") {
 		return (
 			<PapersLibrary

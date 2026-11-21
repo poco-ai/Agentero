@@ -37,6 +37,7 @@ import {
 	type FileNode,
 	isTextOpenable,
 	readVaultFile,
+	vaultPathExists,
 } from "@/lib/vault";
 import { basenameOf, normalizePathKey, treeFindNode } from "@/lib/vault/path";
 import { readSeedCached } from "@/lib/vault/seed-cache";
@@ -327,11 +328,6 @@ export async function loadTabResources(
 
 	if (paperDir) {
 		const notesPath = notesPathForPaper(paperDir);
-		// Fallback seed read races with the probes below; resolved last so a
-		// bundle that only arrives on the retry wins over an early failed read.
-		const notesFallback = readSeedCached(notesPath).catch(
-			() => NOTES_PLACEHOLDER,
-		);
 		const openingPaperRoot =
 			normalizePathKey(path) === normalizePathKey(paperDir) ||
 			isPaperDirectory(path, findChildren(tree, path));
@@ -418,8 +414,6 @@ export async function loadTabResources(
 		// references (ParseRefs) as needed. Idempotent — the JobCenter dedupes
 		// jobs, so this is safe even right after a download.
 		reconcilePaperOnOpen(paperDir, vaultPath);
-		const notesSeed = bundle?.notesSeed ?? (await notesFallback);
-
 		if (openingPaperRoot) {
 			// Path or file existence picks PDF vs HTML before any byte read.
 			const mode = paperBodyMode(Boolean(localPdfPath || remotePdf), htmlUrl);
@@ -442,7 +436,7 @@ export async function loadTabResources(
 				htmlUrl,
 				imageUrl: null,
 				notesPath,
-				notesSeed,
+				notesSeed: "",
 				markdownSeed: "",
 				loaded: true,
 				didDownloadAssets: didDownload,
@@ -474,11 +468,14 @@ export async function loadTabResources(
 		// The resource strategy comes from the mode registry (viewer/index.ts).
 		// PDF bytes are read only when this file's resource is pdf.
 		const mode = preferredModeForPath(path);
+		const isNotes = normalizePathKey(path) === normalizePathKey(notesPath);
 		let pdfUrl: string | null = null;
 		let pdfBytes: ArrayBuffer | null = null;
 		let didDownload = false;
 		let imageUrl: string | null = null;
 		let markdownSeed = "";
+		let notesSeed = "";
+		let error: string | undefined;
 
 		switch (viewerModeSpec(mode).resource) {
 			case "pdf": {
@@ -530,7 +527,7 @@ export async function loadTabResources(
 						htmlUrl,
 						imageUrl: null,
 						notesPath,
-						notesSeed,
+						notesSeed: "",
 						markdownSeed: "",
 						loaded: true,
 						didDownloadAssets: false,
@@ -540,7 +537,17 @@ export async function loadTabResources(
 				break;
 			}
 			case "markdown": {
-				if (isTextOpenable(path)) {
+				if (isNotes) {
+					try {
+						notesSeed = await readSeedCached(path);
+					} catch (e) {
+						if (await vaultPathExists(path).catch(() => true)) {
+							error = errorText(e);
+						} else {
+							notesSeed = NOTES_PLACEHOLDER;
+						}
+					}
+				} else if (isTextOpenable(path)) {
 					try {
 						markdownSeed = await readVaultFile(path);
 					} catch {
@@ -564,7 +571,7 @@ export async function loadTabResources(
 
 		return {
 			kind: "file",
-			title: tabTitleForPath(path),
+			title: isNotes ? i18n.t("app:labels.notes") : tabTitleForPath(path),
 			mode,
 			paperMeta: meta,
 			pdfUrl,
@@ -576,6 +583,7 @@ export async function loadTabResources(
 			markdownSeed,
 			loaded: true,
 			didDownloadAssets: didDownload,
+			error,
 		};
 	}
 
