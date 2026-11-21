@@ -6448,7 +6448,7 @@ export type WarmRequest_Deserialize = {
 	 *  Force one `session/set_config_option` for `model_id` even when the agent
 	 *  reports it as current. Set for explicit user picks only (Fix #1087).
 	 */
-	forceModel: boolean,
+	forceModel?: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };
@@ -6462,7 +6462,7 @@ export type WarmRequest_Serialize = {
 	 *  Force one `session/set_config_option` for `model_id` even when the agent
 	 *  reports it as current. Set for explicit user picks only (Fix #1087).
 	 */
-	forceModel?: boolean,
+	forceModel: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };
