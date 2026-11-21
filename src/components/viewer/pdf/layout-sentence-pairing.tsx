@@ -12,6 +12,7 @@ import {
 	clearLayoutSentenceHover,
 	heldLayoutSentenceDocument,
 	type LayoutSentenceHover,
+	layoutSentenceCatalogItems,
 	layoutSentenceHover,
 	layoutSentenceLineRects,
 	releaseLayoutSentenceHover,
@@ -25,7 +26,10 @@ import {
 	LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX,
 	layoutSentenceScope,
 } from "@/lib/pdf/layout";
-import { sourceSentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
+import {
+	companionReflowSentenceBands,
+	sourceSentenceHoverBands,
+} from "@/lib/pdf/layout/element-sentence";
 import { translatedSelectionLineRects } from "@/lib/pdf/layout/visible-selection-rects";
 import { linkPreviewDragActive } from "@/lib/pdf/link-preview-drag";
 import { synctexHoverSupersedes } from "@/lib/tex/synctex-boxes";
@@ -286,9 +290,16 @@ export function PdfSentenceHighlight({
 			const box = shell.getBoundingClientRect();
 			if (!box.width || !box.height) return;
 			const content = document.createDocumentFragment();
-			const append = (x: number, y: number, w: number, h: number) => {
+			const append = (
+				x: number,
+				y: number,
+				w: number,
+				h: number,
+				sourceGeometry = false,
+			) => {
 				const band = document.createElement("span");
 				band.className = "pdf-sentence-band";
+				if (sourceGeometry) band.dataset.sourceGeometry = "";
 				Object.assign(band.style, {
 					left: `${x * 100}%`,
 					top: `${y * 100}%`,
@@ -297,7 +308,7 @@ export function PdfSentenceHighlight({
 				});
 				content.append(band);
 			};
-			if (source) {
+			const appendSourceBands = () => {
 				const lines = layoutSentenceLineRects(docId, pageIndex);
 				for (const rect of sourceSentenceHoverBands(
 					mine.members
@@ -307,7 +318,10 @@ export function PdfSentenceHighlight({
 					Math.round(box.height),
 					lines.length ? lines : undefined,
 				))
-					append(rect.x, rect.y, rect.w, rect.h);
+					append(rect.x, rect.y, rect.w, rect.h, true);
+			};
+			if (source) {
+				appendSourceBands();
 			} else {
 				for (const member of mine.members) {
 					if (member.pageIndex !== pageIndex) continue;
@@ -324,6 +338,23 @@ export function PdfSentenceHighlight({
 								line.height / box.height,
 							);
 						}
+					}
+				}
+				// Reflow not finished, or the block has no sentence spans: the
+				// translation page is still the source PDF, or the placed
+				// translation has no `[data-sentence]` node. Either way a cleared
+				// layer is the bug — paint the placed translation, then the
+				// source glyphs.
+				if (!content.childElementCount) {
+					const placed = companionReflowSentenceBands(
+						layoutSentenceCatalogItems(docId),
+						mine.members,
+						pageIndex,
+					);
+					if (placed?.length) {
+						for (const rect of placed) append(rect.x, rect.y, rect.w, rect.h);
+					} else {
+						appendSourceBands();
 					}
 				}
 			}

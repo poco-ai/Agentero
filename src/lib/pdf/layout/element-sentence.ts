@@ -1,4 +1,8 @@
 import { pointInBbox } from "@/lib/pdf/layout/hit-test";
+import {
+	groupReflowUnitsBySentence,
+	layoutTranslateSentenceNodes,
+} from "@/lib/pdf/layout/layout-sentences";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
 import type { LayoutTranslateSentence } from "@/lib/pdf/layout/types";
 import { mergeClientRectsIntoLines } from "@/lib/pdf/layout/visible-selection-rects";
@@ -93,6 +97,85 @@ export function sourceSentenceHoverBands(
 			h: (lineHeight + padding * 2) / height,
 		}));
 	});
+}
+
+type ReflowHoverUnit = {
+	translatedOffset: number;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	fontSize: number;
+	formula?: unknown;
+};
+
+type ReflowHoverItem = {
+	id: string;
+	bbox: { w: number; h: number };
+	reflow?: { box: { w: number; h: number } };
+	reflowLayout?: { units: readonly ReflowHoverUnit[] };
+	translated?: string;
+	sentences?: readonly { translated: string; display?: string }[];
+};
+
+/**
+ * Translated line bands for one reflowed page, in page fractions.
+ * Returns null when the page is still showing source glyphs. A block whose
+ * pairs do not rebuild the translation contributes its whole placed paragraph.
+ */
+export function companionReflowSentenceBands(
+	items: readonly ReflowHoverItem[],
+	members: readonly {
+		itemId: string;
+		pageIndex: number;
+		sentenceIndex: number;
+	}[],
+	pageIndex: number,
+): SentenceFractionRect[] | null {
+	const rects: SentenceFractionRect[] = [];
+	let sawLayout = false;
+	for (const member of members) {
+		if (member.pageIndex !== pageIndex) continue;
+		const item = items.find((entry) => entry.id === member.itemId);
+		const units = item?.reflowLayout?.units;
+		if (
+			!item?.reflow ||
+			!units?.length ||
+			!(item.bbox.w > 0) ||
+			!(item.bbox.h > 0)
+		)
+			continue;
+		const pageWidth = item.reflow.box.w / item.bbox.w;
+		const pageHeight = item.reflow.box.h / item.bbox.h;
+		if (!(pageWidth > 0) || !(pageHeight > 0)) continue;
+		sawLayout = true;
+		const split = layoutTranslateSentenceNodes(
+			item.translated ?? "",
+			item.sentences,
+		);
+		const groups = groupReflowUnitsBySentence(
+			item.translated ?? "",
+			item.sentences,
+			units,
+		);
+		const chosen = split
+			? groups.filter((group) => group.index === member.sentenceIndex)
+			: groups;
+		for (const group of chosen) {
+			for (const unit of group.units) {
+				if (!(unit.width > 0) || !(unit.height > 0)) continue;
+				const top = unit.y - (unit.formula ? unit.height : unit.fontSize * 0.8);
+				rects.push({
+					x: unit.x / pageWidth,
+					y: top / pageHeight,
+					w: unit.width / pageWidth,
+					h: unit.height / pageHeight,
+				});
+			}
+		}
+	}
+	if (!sawLayout) return null;
+	return sentenceHoverBands(rects);
 }
 
 /** One painted slice of a sentence. Split boxes share `quote`. */

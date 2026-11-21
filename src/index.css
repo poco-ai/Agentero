@@ -742,6 +742,7 @@
 	background: var(--pdf-paper-ink);
 }
 .pdf-layout-sentence-wash[data-source-sentence] > span,
+.pdf-layout-sentence-wash > span[data-source-geometry],
 .pdf-live-selection-band[data-source-sentence] {
 	transform: none;
 }

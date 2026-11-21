@@ -65,6 +65,28 @@ function isProtectedPeriod(text: string, index: number): boolean {
 }
 
 /**
+ * Sentence pairs for a catalog entry. A block translated as one string still
+ * needs quotes, or the translation pane has nothing to light.
+ */
+export function withHoverSentences<
+	T extends {
+		raw?: string;
+		source: string;
+		sentences?: readonly { quote: string; translated: string }[];
+	},
+>(item: T): T {
+	if (item.sentences?.length) return item;
+	const quotes = splitLayoutSentences(
+		item.raw?.trim() ? item.raw : item.source,
+	);
+	if (!quotes.length) return item;
+	return {
+		...item,
+		sentences: quotes.map((quote) => ({ quote, translated: "" })),
+	} as T;
+}
+
+/**
  * Split prose into sentence quotes. Whitespace is collapsed; hyphens stay.
  * A string with no sentence end is returned as one quote.
  */
@@ -183,6 +205,37 @@ export function layoutTranslateSentenceNodes(
 	if (pieces.join("") === trimmed) return { nodes, gap: "" };
 	if (pieces.join(" ") === trimmed) return { nodes, gap: " " };
 	return null;
+}
+
+/**
+ * Place reflow units into the sentence that owns their translation offset.
+ * When the pairs do not rebuild the block, every unit stays in one group.
+ */
+export function groupReflowUnitsBySentence<
+	T extends { translatedOffset: number },
+>(
+	translated: string,
+	sentences: readonly { translated: string; display?: string }[] | undefined,
+	units: readonly T[],
+): { index?: number; units: T[] }[] {
+	const split = layoutTranslateSentenceNodes(translated, sentences);
+	if (!split) return [{ units: [...units] }];
+	let offset = 0;
+	const groups = split.nodes.map((node) => {
+		const start = offset;
+		offset += node.text.length + split.gap.length;
+		return { index: node.index, start, units: [] as T[] };
+	});
+	let current = 0;
+	for (const unit of units) {
+		while (
+			current + 1 < groups.length &&
+			unit.translatedOffset >= (groups[current + 1]?.start ?? offset)
+		)
+			current += 1;
+		groups[current]?.units.push(unit);
+	}
+	return groups;
 }
 
 /**

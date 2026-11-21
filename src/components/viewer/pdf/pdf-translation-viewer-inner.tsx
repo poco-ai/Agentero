@@ -83,7 +83,14 @@ import {
 	mirrorLayoutResultToTranslation,
 	translationSourceKey,
 } from "@/lib/pdf/layout";
-import { isInsideVisualLayoutRegion } from "@/lib/pdf/layout/translatable";
+import {
+	splitLayoutSentences,
+	withHoverSentences,
+} from "@/lib/pdf/layout/layout-sentences";
+import {
+	isInsideVisualLayoutRegion,
+	sentenceHoverTextRegions,
+} from "@/lib/pdf/layout/translatable";
 import {
 	getTranslatedLinkSource,
 	subscribeTranslatedLinkSource,
@@ -232,12 +239,26 @@ export function PdfTranslationViewerInner({
 			docId,
 			rawRegions.map((region) => region.pageIndex),
 		);
-		publishLayoutSentenceCatalog(
-			docId,
-			[...layoutTranslateItemsByPage.values()]
-				.flat()
-				.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions)),
-		);
+		const translated = [...layoutTranslateItemsByPage.values()]
+			.flat()
+			.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions))
+			.map((item) => withHoverSentences(item));
+		const translatedIds = new Set(translated.map((item) => item.id));
+		// Blocks that are not translated yet still occupy the source PDF on
+		// this pane. Publish their sentences so a hover can paint there.
+		const source = sentenceHoverTextRegions(rawRegions)
+			.filter((region) => !translatedIds.has(region.id))
+			.map((region) => ({
+				id: region.id,
+				pageIndex: region.pageIndex,
+				bbox: region.bbox,
+				source: region.text ?? "",
+				sentences: splitLayoutSentences(region.text ?? "").map((quote) => ({
+					quote,
+					translated: "",
+				})),
+			}));
+		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
 	}, [docId, layoutTranslateItemsByPage, layoutRawRegions]);
 	useEffect(() => {
 		return () => {

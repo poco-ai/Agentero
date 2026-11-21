@@ -31,7 +31,7 @@ import {
 	getTranslatedLinkSource,
 	subscribeTranslatedLinkSource,
 } from "@/lib/pdf/layout/translated-link-source";
-import type { Paragraph } from "@/lib/pdf/reflow/types";
+import type { Paragraph, ParagraphLayout } from "@/lib/pdf/reflow/types";
 import {
 	pageSelectionInkRects,
 	selectionGlyphInkRect,
@@ -56,10 +56,19 @@ export type LayoutSentenceHover = Omit<ElementSentenceHit, "members"> & {
 
 type CatalogItem = SentenceItem & {
 	reflow?: Paragraph;
+	reflowLayout?: ParagraphLayout;
 	bbox: { x: number; y: number; w: number; h: number };
 	source: string;
 	raw?: string;
+	translated?: string;
 };
+
+/** Blocks currently published for this paper, including reflow placement. */
+export function layoutSentenceCatalogItems(
+	docId: string,
+): readonly CatalogItem[] {
+	return itemsForScope(layoutSentenceScope(docId));
+}
 
 type GlyphDocument = {
 	pages: { size: { width: number; height: number } }[];

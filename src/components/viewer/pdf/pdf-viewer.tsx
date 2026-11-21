@@ -194,7 +194,10 @@ import {
 	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
-import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
+import {
+	splitLayoutSentences,
+	withHoverSentences,
+} from "@/lib/pdf/layout/layout-sentences";
 import {
 	isInsideVisualLayoutRegion,
 	sentenceHoverTextRegions,
@@ -1526,9 +1529,9 @@ function PdfViewerInner({
 		// The model also detects the text inside vector figures / tables as prose
 		// blocks. Those runs are part of the graphic, so they never hover as
 		// sentences; the whole element is the hover target instead.
-		const translated = allTranslated.filter(
-			(item) => !isInsideVisualLayoutRegion(item, rawRegions),
-		);
+		const translated = allTranslated
+			.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions))
+			.map((item) => withHoverSentences(item));
 		const source = sentenceHoverTextRegions(rawRegions)
 			.filter((region) => !translatedIds.has(region.id))
 			.map((region) => ({
