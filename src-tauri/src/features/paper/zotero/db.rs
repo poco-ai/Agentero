@@ -1670,22 +1670,30 @@ fn collection_leaf_names(collections: &HashMap<i64, Collection>, ids: &[i64]) ->
 }
 
 /// Sanitize a collection name into a single safe folder segment (None to skip).
+///
+/// Windows rejects `: * ? " < > |` and reserved device names with
+/// `ERROR_INVALID_NAME`, so a collection folder has to be portable even though
+/// the library itself lives on one machine.
 fn sanitize_segment(name: &str) -> Option<String> {
     let cleaned: String = name
         .trim()
         .chars()
-        .map(|c| match c {
-            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
-            c if c.is_control() => '_',
-            c => c,
+        .map(|c| {
+            if crate::core::fs::is_windows_illegal(c) {
+                '_'
+            } else {
+                c
+            }
         })
         .collect();
-    let cleaned = cleaned.trim().trim_matches('.').trim().to_string();
+    let cleaned = cleaned.trim_end_matches([' ', '.']).trim();
     if cleaned.is_empty() || cleaned == ".." {
-        None
-    } else {
-        Some(cleaned)
+        return None;
     }
+    if crate::core::fs::is_reserved_device_name(cleaned) {
+        return Some(format!("_{cleaned}"));
+    }
+    Some(cleaned.to_string())
 }
 
 /// One Zotero PDF annotation. `rects` are PDF user space
