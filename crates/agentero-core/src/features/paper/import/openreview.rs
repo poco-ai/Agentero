@@ -87,8 +87,15 @@ fn jwt_expiry(value: &str) -> Option<i64> {
 pub fn credential_expiry(cookie: &str) -> Option<i64> {
     let mut expiry: Option<i64> = None;
     for pair in cookie.split(';') {
-        let Some((_, value)) = pair.trim().split_once('=') else {
+        let pair = pair.trim();
+        if pair.is_empty() {
             continue;
+        }
+        // A cookie pair is `name=value`; a bare JWT is accepted too so callers
+        // can pass a raw credential value.
+        let value = match pair.split_once('=') {
+            Some((_, value)) => value,
+            None => pair,
         };
         let Some(exp) = jwt_expiry(value.trim()) else {
             continue;
