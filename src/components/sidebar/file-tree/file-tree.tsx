@@ -1,5 +1,4 @@
 import {
-	type CSSProperties,
 	forwardRef,
 	memo,
 	useCallback,
@@ -134,8 +133,6 @@ type FileTreeProps = {
 	onDropMove?: (paths: string[], targetPath: string) => void;
 	onCutPaths?: (paths: string[]) => void;
 	onPasteInto?: (targetPath: string) => void;
-	/** Report selection count + explicit selection mode to the fixed header. */
-	onSelectionChange?: (count: number, selectionMode: boolean) => void;
 	/** Absolute paths currently staged by Cut (for row dimming). */
 	cutPaths?: string[];
 	/**
@@ -165,10 +162,8 @@ export type FileTreeHandle = {
 	cutSelected: () => void;
 	/** Paste cut items into the currently selected path. */
 	pasteIntoSelected: () => void;
-	/** Clear the transient multi-selection (leaves the explicit mode). */
+	/** Clear the transient multi-selection. */
 	clearSelection: () => void;
-	/** Enter / leave the explicit selection mode. */
-	toggleSelectionMode: () => void;
 	/** True while at least one tree row is selected. */
 	hasSelection: () => boolean;
 	/** Open the move picker for the current multi-selection. */
@@ -224,7 +219,6 @@ export const FileTree = memo(
 			onDropMove,
 			onCutPaths,
 			onPasteInto,
-			onSelectionChange,
 			cutPaths = [],
 			onDropLocalPdfs,
 			onLoadDirChildren,
@@ -309,7 +303,6 @@ export const FileTree = memo(
 			onDeletePaths,
 			onCutPaths,
 			onPasteInto,
-			onSelectionChange,
 		});
 
 		const handleRenamePath = useCallback(
@@ -372,8 +365,6 @@ export const FileTree = memo(
 			citingScanBusy,
 			pathsForAction: selection.pathsForAction,
 			prepareContextSelection: selection.prepareContextSelection,
-			selectionMode: selection.selectionMode,
-			onStartSelectionMode: selection.startSelectionForPath,
 			openMovePicker: movePicker.openPicker,
 			onExportLibrary,
 			onRescanLibrary,
@@ -423,7 +414,6 @@ export const FileTree = memo(
 				cutSelected: selection.cutSelected,
 				pasteIntoSelected: selection.pasteIntoSelected,
 				clearSelection: selection.clearSelection,
-				toggleSelectionMode: selection.toggleSelectionMode,
 				hasSelection: () => selection.selected.size > 0,
 				moveSelected,
 				deleteSelected: selection.runBatchDelete,
@@ -434,7 +424,6 @@ export const FileTree = memo(
 				selection.cutSelected,
 				selection.pasteIntoSelected,
 				selection.clearSelection,
-				selection.toggleSelectionMode,
 				selection.selected.size,
 				moveSelected,
 				selection.runBatchDelete,
@@ -474,31 +463,10 @@ export const FileTree = memo(
 					// Scopes the global ⌘X / ⌘V tree shortcuts to this surface
 					// (see use-app-shortcuts) so viewers keep native cut/paste.
 					data-file-tree=""
-					data-tree-selection-mode={selection.selectionMode ? "" : undefined}
-					style={
-						{
-							"--tree-selection-inset": selection.selectionMode
-								? "16px"
-								: "0px",
-						} as CSSProperties
-					}
 					className={cn(
 						"relative flex min-h-0 flex-1 flex-col select-none text-sm",
 						className,
 					)}
-					onPointerDown={(event) => {
-						if (!selection.selectionMode) return;
-						const target = event.target as HTMLElement | null;
-						if (
-							target?.closest(
-								"[data-path], [role='treeitem'], [data-slot='selection-pill'], [data-floating-menu], [role='menu'], button, input, textarea",
-							)
-						) {
-							return;
-						}
-						// Blank space in the tree leaves the explicit selection mode.
-						selection.clearSelection();
-					}}
 				>
 					<MovePickerPopover
 						picker={movePicker}
@@ -509,7 +477,7 @@ export const FileTree = memo(
 						ref={treeScrollRef}
 						className={cn(
 							"agentero-scroll min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]",
-							selection.selectionMode && "pb-10",
+							selection.selected.size >= 2 && "pb-10",
 						)}
 					>
 						{nodes.length === 0 && !createDraft ? (
@@ -523,8 +491,6 @@ export const FileTree = memo(
 									onContextMenuPath={handleContextMenuPath}
 									onRenamePath={handleRenamePath}
 									onSelectRow={selection.handleSelectRow}
-									selectionMode={selection.selectionMode}
-									onExitSelectionMode={selection.clearSelection}
 								>
 									{trashRow}
 									{plazaRows}
@@ -551,8 +517,6 @@ export const FileTree = memo(
 								onRowDragOver={dragDrop.handleRowDragOver}
 								onRowDrop={dragDrop.handleRowDrop}
 								onRowDragEnd={dragDrop.handleRowDragEnd}
-								selectionMode={selection.selectionMode}
-								onExitSelectionMode={selection.clearSelection}
 							>
 								<TreeRowsViewport
 									flatRows={flatRows}
@@ -576,7 +540,7 @@ export const FileTree = memo(
 							</AiFileTree>
 						)}
 					</div>
-					{selection.selectionMode && selection.selected.size > 0 ? (
+					{selection.selected.size >= 2 ? (
 						<TreeSelectionBar
 							count={selection.selected.size}
 							compact={treeWidth > 0 && treeWidth < 180}

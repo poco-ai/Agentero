@@ -97,8 +97,6 @@ export function useTreeContextMenu({
 	citingScanBusy,
 	pathsForAction,
 	prepareContextSelection,
-	selectionMode,
-	onStartSelectionMode,
 	openMovePicker,
 	onExportLibrary,
 	onRescanLibrary,
@@ -132,10 +130,6 @@ export function useTreeContextMenu({
 	pathsForAction: (path: string) => string[];
 	/** Right-click keeps an existing group, otherwise makes this the sole target. */
 	prepareContextSelection: (path: string) => void;
-	/** True while the explicit selection mode is active. */
-	selectionMode?: boolean;
-	/** “Select multiple…” menu item: enter the mode with this row checked. */
-	onStartSelectionMode?: (path: string) => void;
 	openMovePicker: (paths: string[], anchor?: { x: number; y: number }) => void;
 	onExportLibrary?: () => void | Promise<void>;
 	onRescanLibrary?: () => void | Promise<void>;
@@ -346,13 +340,6 @@ export function useTreeContextMenu({
 					}
 				: undefined,
 		onCopyPath: () => copyPath(menu.path),
-		selectionMode,
-		onStartSelectionMode: onStartSelectionMode
-			? () => {
-					setMenu(null);
-					onStartSelectionMode(menu.path);
-				}
-			: undefined,
 		onCut:
 			onCutPaths && !targetIsVirtual
 				? () => {

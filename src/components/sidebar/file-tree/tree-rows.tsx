@@ -67,14 +67,10 @@ import {
 	vaultRootFace,
 } from "./tree-helpers";
 
-/**
- * Content inset shared by every row: base padding plus one step per level.
- * `--tree-selection-inset` is set by the tree container while the explicit
- * selection mode reserves its fixed leading checkbox column.
- */
+/** Content inset shared by every row: base padding plus one step per level. */
 export function treeRowIndentStyle(depth: number): CSSProperties {
 	return {
-		paddingLeft: `calc(${TREE_ROW_INSET_PX + depth * TREE_ROW_INDENT_STEP_PX}px + var(--tree-selection-inset, 0px))`,
+		paddingLeft: TREE_ROW_INSET_PX + depth * TREE_ROW_INDENT_STEP_PX,
 	};
 }
 

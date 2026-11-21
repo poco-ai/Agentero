@@ -10,7 +10,6 @@ import {
 	useLayoutEffect,
 	useMemo,
 	useRef,
-	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { registerFileTreeHandle } from "@/components/shell/file-tree-registry";
@@ -144,10 +143,6 @@ function normalizePaperRelPath(path: string | null | undefined): string | null {
 
 export function VaultSidebar() {
 	const fileTreeRef = useRef<FileTreeHandle>(null);
-	const [treeSelection, setTreeSelection] = useState({
-		count: 0,
-		mode: false,
-	});
 	useEffect(() => {
 		registerFileTreeHandle(fileTreeRef.current);
 		return () => registerFileTreeHandle(null);
@@ -258,14 +253,6 @@ export function VaultSidebar() {
 		() => resolvePapersParentDir(vaultPath, treeSelectedPath, tree),
 		[vaultPath, treeSelectedPath, tree],
 	);
-	const onTreeSelectionChange = useCallback(
-		(count: number, mode: boolean) => setTreeSelection({ count, mode }),
-		[],
-	);
-	const toggleTreeSelectionMode = useCallback(
-		() => fileTreeRef.current?.toggleSelectionMode(),
-		[],
-	);
 
 	return (
 		<>
@@ -276,8 +263,6 @@ export function VaultSidebar() {
 							? `${vaultDisplayName(vaultPath)} · ${t("app:vault.remoteBadge")}`
 							: vaultDisplayName(vaultPath)
 					}
-					selectionMode={treeSelection.mode}
-					onToggleSelectionMode={toggleTreeSelectionMode}
 					lookupParentDir={lookupParentDir}
 					onLookupSubmit={onLookupSubmit}
 					onLookupBatchSubmit={onLookupBatchSubmit}
@@ -320,7 +305,6 @@ export function VaultSidebar() {
 						onDropMove={onDropMove}
 						onCutPaths={cutSelectedPaths}
 						onPasteInto={onPasteInto}
-						onSelectionChange={onTreeSelectionChange}
 						cutPaths={cutPaths}
 						onDropLocalPdfs={dropLocalPdfs}
 						onSelectFile={selectFileNode}

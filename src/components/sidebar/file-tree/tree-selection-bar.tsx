@@ -61,7 +61,7 @@ export function TreeSelectionBar({
 						},
 					]}
 					onDismiss={onDone}
-					dismissLabel={t("fileTree.exitSelectMode")}
+					dismissLabel={t("fileTree.clearSelection")}
 				/>
 			</div>
 		</div>
