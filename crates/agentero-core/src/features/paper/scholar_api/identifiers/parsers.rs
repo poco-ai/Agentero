@@ -142,9 +142,39 @@ pub fn regex_pmid(s: &str) -> Option<String> {
     None
 }
 
-/// DOI-safe folder slug: replace `/` and `.` with `_`.
+/// DOI → vault id. The id doubles as the paper folder name and the
+/// `{id}.pdf` file name, so it has to be a legal file name on every platform.
+///
+/// `.` and `/` keep their historical `_` mapping (existing vaults depend on
+/// it). Characters Windows rejects (`:` `*` `?` …) are folded to `_` as well,
+/// but that fold is lossy — `a:b` and `a_b` would share one id, and the catalog
+/// dedupes by id *before* any folder is allocated, so a `-2` folder suffix
+/// cannot repair the merge afterwards. When such a fold happens, a short hash
+/// of the original DOI is appended so distinct DOIs keep distinct ids.
 pub fn doi_slug(doi: &str) -> String {
-    doi.replace(['/', '.'], "_")
+    let raw = doi.trim();
+    let mut slug = String::with_capacity(raw.len() + 9);
+    let mut folded = false;
+    for ch in raw.chars() {
+        match ch {
+            '.' | '/' => slug.push('_'),
+            ch if crate::fs::is_windows_illegal(ch) => {
+                slug.push('_');
+                folded = true;
+            }
+            ch => slug.push(ch),
+        }
+    }
+    if slug.is_empty() {
+        return "untitled".to_string();
+    }
+    if folded {
+        use sha2::{Digest, Sha256};
+        let digest = hex::encode(Sha256::digest(raw.as_bytes()));
+        format!("{slug}-{}", &digest[..8])
+    } else {
+        slug
+    }
 }
 
 pub fn regex_ads(s: &str) -> Option<String> {
