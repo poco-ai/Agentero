@@ -189,7 +189,7 @@ export const SelectionGutter = memo(function SelectionGutter({
 											: "border-border/80 bg-background text-muted-foreground",
 								dimForText &&
 									"bg-background/55 opacity-40 backdrop-blur-[1px] hover:bg-background hover:opacity-100 focus-visible:bg-background focus-visible:opacity-100",
-								isActive && "ring-2 ring-ring ring-offset-1",
+								isActive && "ring-1 ring-ring",
 							)}
 							aria-label={aria}
 							// Match SelectionCard pointer model so pin leave / card

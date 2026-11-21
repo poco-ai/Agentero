@@ -5,8 +5,6 @@
  * and depend only on in-memory React state, so they run synchronously in the
  * WebView instead of round-tripping to the Host. Semantic decisions (jEV/LLM)
  * live in the Rust decision layer but are not currently exposed to the frontend.
- *
- * @see docs/backend/decision.md
  */
 
 /** A deterministic rule: `state -> Some(action)` stops the chain. */

@@ -13,11 +13,11 @@ struct DesktopMcpHost {
 
 #[async_trait::async_trait]
 impl McpHost for DesktopMcpHost {
-    fn expose_paper_text(&self) -> bool {
+    fn permissions(&self) -> agentero_mcp::Permissions {
         self.app
             .try_state::<crate::features::system::settings::AppSettingsStore>()
-            .and_then(|store| store.get().ok())
-            .is_some_and(|got| got.settings.mcp_expose_paper_text)
+            .map(|store| store.mcp_permissions())
+            .unwrap_or_default()
     }
 
     fn import_context(&self) -> ImportContext {

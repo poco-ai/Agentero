@@ -1,4 +1,5 @@
 {
+	"promptOnlySources": "This agent receives attached evidence in its prompt and cannot request additional sources.",
 	"acpStatus": {
 		"ready": "ACP ready",
 		"failed": "ACP failed",
@@ -118,6 +119,7 @@
 		"selectionChipWithPage": "{{title}}:p.{{page}}",
 		"selectionChipWithLine": "{{title}} line {{from}}",
 		"selectionChipWithLines": "{{title}} lines {{from}}-{{to}}",
+		"referencePaperRoot": "Papers",
 		"visualAnnotation": "Visual annotation",
 		"visualAnnotationPage": "p.{{page}}",
 		"visualAnnotationsTitle": "Visual annotations ({{count}})",

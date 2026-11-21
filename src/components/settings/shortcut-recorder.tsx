@@ -140,7 +140,7 @@ export function ShortcutRecorder({
 				size="sm"
 				className={cn(
 					"min-w-20 font-sans tabular-nums tracking-wide",
-					recording && "border-ring bg-muted ring-2 ring-ring/50",
+					recording && "border-ring bg-muted",
 				)}
 				data-shortcut-recording={recording ? "true" : undefined}
 				aria-label={t("keyboard.edit", { command: label })}

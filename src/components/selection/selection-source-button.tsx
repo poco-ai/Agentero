@@ -22,7 +22,7 @@ export function SelectionSourceButton({
 		<button
 			type="button"
 			className={cn(
-				"mb-2 flex max-w-full items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+				"mb-2 flex max-w-full items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 				className,
 			)}
 			title={t("selection.locateSource")}

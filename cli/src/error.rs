@@ -1,49 +1,87 @@
 //! Stable CLI error codes and exit status.
 
-use serde::Serialize;
 use serde_json::{json, Value};
 use std::fmt;
 
-/// Process exit codes (see docs/development/cli.md).
+/// Stable process exit codes. CLI errors report a separate machine-readable code.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitCode {
     Business = 1,
     Usage = 2,
     Vault = 3,
-    NeedsConfirmation = 4,
+    Conflict = 4,
+    NeedsConfirmation = 5,
+    Unavailable = 6,
 }
 
 #[derive(Debug, Clone)]
 pub struct CliError {
-    pub code: &'static str,
+    pub code: String,
     pub message: String,
-    pub details: Value,
+    pub details: Box<Value>,
     pub exit: ExitCode,
 }
 
 impl CliError {
-    pub fn new(code: &'static str, message: impl Into<String>, exit: ExitCode) -> Self {
+    pub fn new(code: &str, message: impl Into<String>, exit: ExitCode) -> Self {
         Self {
-            code,
+            code: code.to_owned(),
             message: message.into(),
-            details: json!({}),
+            details: Box::new(json!({})),
             exit,
         }
     }
 
     pub fn with_details(
-        code: &'static str,
+        code: &str,
         message: impl Into<String>,
         details: Value,
         exit: ExitCode,
     ) -> Self {
         Self {
-            code,
+            code: code.to_owned(),
             message: message.into(),
-            details,
+            details: Box::new(details),
             exit,
         }
+    }
+
+    pub fn domain(code: &str, message: &str, details: Value) -> Self {
+        let exit =
+            match code {
+                "usage" | "invalid_arguments" | "invalid_cursor" | "invalid_pages"
+                | "unknown_tool" => ExitCode::Usage,
+                "not_found"
+                | "vault_required"
+                | "vault_not_found"
+                | "profile_not_found"
+                | "paper_not_found"
+                | "source_not_found"
+                | "missing_layout"
+                | "layout_index_missing"
+                | "asset_missing"
+                | "mark_not_found" => ExitCode::Vault,
+                "revision_conflict"
+                | "already_exists"
+                | "stale_citation"
+                | "stale_cursor"
+                | "ambiguous"
+                | "ambiguous_section"
+                | "ambiguous_quote"
+                | "paper_ambiguous"
+                | "idempotency_conflict" => ExitCode::Conflict,
+                "scope_denied" | "budget_exhausted" | "permission_denied" | "context_scope"
+                | "experiment_locked" | "forbidden" | "full_text_required"
+                | "full_text_disabled" => ExitCode::NeedsConfirmation,
+                "host_unavailable"
+                | "busy"
+                | "rate_limited"
+                | "service_unavailable"
+                | "provider_unavailable" => ExitCode::Unavailable,
+                _ => ExitCode::Business,
+            };
+        Self::with_details(code, message, details, exit)
     }
 
     pub fn exit_code(&self) -> ExitCode {
@@ -58,7 +96,7 @@ impl CliError {
         Self::new(
             "paper_not_found",
             format!("No paper for ref '{ref_}'"),
-            ExitCode::Business,
+            ExitCode::Vault,
         )
     }
 
@@ -73,7 +111,7 @@ impl CliError {
                     .unwrap_or("papers/<shelf>/<id>")
             ),
             json!({ "candidates": candidates }),
-            ExitCode::Business,
+            ExitCode::Conflict,
         )
     }
 
@@ -83,14 +121,6 @@ impl CliError {
 
     pub fn import_failed(msg: impl Into<String>) -> Self {
         Self::new("import_failed", msg, ExitCode::Business)
-    }
-
-    pub fn export_failed(msg: impl Into<String>) -> Self {
-        Self::new("export_failed", msg, ExitCode::Business)
-    }
-
-    pub fn asset_missing(msg: impl Into<String>) -> Self {
-        Self::new("asset_missing", msg, ExitCode::Business)
     }
 
     pub fn message(msg: impl Into<String>) -> Self {
@@ -114,13 +144,17 @@ impl From<agentero_core::error::AppError> for CliError {
     fn from(err: agentero_core::error::AppError) -> Self {
         use agentero_core::error::AppError;
         // Preserve stable domain codes (layout_index_missing, usage, …).
-        if let AppError::Domain { code, message } = &err {
-            let exit = if *code == "usage" {
-                ExitCode::Usage
-            } else {
-                ExitCode::Business
-            };
-            return Self::new(code, message.clone(), exit);
+        if let AppError::Domain {
+            code,
+            message,
+            details,
+        } = &err
+        {
+            return Self::domain(
+                code,
+                message,
+                details.as_deref().cloned().unwrap_or_else(|| json!({})),
+            );
         }
         let msg = err.to_string();
         let lower = msg.to_ascii_lowercase();
@@ -153,6 +187,12 @@ impl From<std::io::Error> for CliError {
     }
 }
 
+impl From<serde_json::Error> for CliError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::new("json", err.to_string(), ExitCode::Business)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,39 +207,5 @@ mod tests {
         let cli = CliError::from(err);
         assert_eq!(cli.code, "message");
         assert_eq!(cli.exit_code(), ExitCode::Business);
-    }
-}
-
-impl From<serde_json::Error> for CliError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::new("json", err.to_string(), ExitCode::Business)
-    }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorBody {
-    pub code: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Value::is_null")]
-    pub details: Value,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JsonFail {
-    pub ok: bool,
-    pub error: ErrorBody,
-}
-
-impl CliError {
-    pub fn to_json_fail(&self) -> JsonFail {
-        JsonFail {
-            ok: false,
-            error: ErrorBody {
-                code: self.code.to_string(),
-                message: self.message.clone(),
-                details: self.details.clone(),
-            },
-        }
     }
 }

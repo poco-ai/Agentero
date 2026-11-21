@@ -1,147 +1,37 @@
 ---
 name: agentero-cli
-version: 20
-description: >-
-  Use the Agentero CLI (bin `agentero`) to create, discover, and inspect a local
-  research vault and catalog—list/get papers, import by id/URL/PDF, update metadata,
-  layout regions, reading marks, download assets, parse PAPER.md, export bib—without BYOA.
-  Prefer --json. Discover unknown flags via `agentero describe`. Use when
-  managing a vault headless, scripting Motif/Agentero, or exploring papers via
-  machine APIs ($agentero-cli / /agentero-cli).
+version: 21
+description: Search and read cited research evidence, work with papers and notes, and manage an Agentero Vault using the local CLI.
 ---
 
 # Agentero CLI
 
-## Role
+Run `agentero help <command> --json` for its arguments and example. Use the executable provided by the desktop host during a managed turn. Standalone commands resolve the Vault from `--vault`, `AGENTERO_VAULT` or the current directory.
 
-You use the **`agentero` CLI** as a stable machine interface to an Agentero vault.
-The CLI is **not** a chat runtime: no BYOA, no ACP, no paper-reader. Reading and
-writing lecture-style `NOTES.md` is **your** job (or use the separate
-`paper-reader` skill / desktop manual read workflow).
+On POSIX, the optional desktop PATH installation exposes `~/.local/bin/agentero`.
 
-## Prerequisites
+## Find and verify evidence
 
-- Binary name: **`agentero`** (POSIX). Desktop: 设置 → 关于 → 安装 CLI writes the
-  `~/.local/bin/agentero` symlink. If missing from PATH, say so and fall back to
-  reading Vault files directly; do not invent catalog rows.
-- Prefer always passing **`--json`** (disables interactive prompts). JSON is a
-  compact single line; `--pretty` pretty-prints for humans (avoid in tool loops).
-- Destructive deletes: pass **`-y` / `--yes`** under `--json` / non-TTY.
-- Vault resolution (first wins): `--vault <path>` → env `AGENTERO_VAULT` → cwd
-  walk-up (`.agentero/catalog.sqlite`). When cwd is already the vault, do **not**
-  start with `vault list`.
-
-## Command discovery
-
-Use `describe` only when you do **not** already know the flags:
-
-```bash
-agentero describe --json              # curated op index
-agentero describe paper.list --json   # one op: input/output/errors/examples
-agentero <group> --help               # human clap help
+```sh
+agentero paper list --state unread --json
+agentero search "batch size" --in papers/atlas --limit 1 --plain | agentero read -
+agentero read papers/atlas --page 2-3,8 --json
+agentero paper regions papers/atlas --kind table --json
+agentero paper relations papers/atlas --direction cited-by --json
 ```
 
-Do **not** invent subcommands. There is no `agentero graph`. Do **not** pair
-`describe` with every `list`/`get` call.
+Each search hit includes a short excerpt, its location, revision and cite. Pass the cite unchanged to `read` to verify the passage. On a stale citation, repeat the search. A scoped desktop turn only opens the material assigned to that turn. Use the initial evidence when expansion is unavailable.
 
-## Hard boundaries
+## Change an object
 
-| Do | Do not |
-|---|---|
-| Call CLI for vault/catalog/import/layout/marks | Spawn coding agents via CLI |
-| Read files at returned paths | Assume CLI wrote full lecture NOTES |
-| Progressive disclosure L0→L4 | Dump entire PDF/TeX into the prompt by default |
-| Skip overwrite of user NOTES on re-import | Force-overwrite without explicit user ask |
-| Use `describe` when flags are unknown | Hand-edit `marks/annotations.json` or `layout-index.json` |
-
-## Progressive disclosure
-
-1. **L0** — `AGENTS.md` (if present; usually already in context)
-2. **L1** — only when discovering the collection: `agentero paper list --json`
-   (default rows: `id/path/title`; add `--fields` / `--full` only if needed)
-3. **L2** — `{paper}/NOTES.md` when the user asks about a known paper
-4. **L2.5** — `agentero layout list <paper>` / `agentero mark *` (CLI writes mark JSON)
-5. **L3** — `{paper}/PAPER.md` (if no TeX)
-6. **L4** — `{paper}/source/**` (TeX preferred when present)
-
-Skip levels you do not need. A known paper path does **not** require `paper list`
-or `vault list` first.
-
-## Task protocols (pick one)
-
-**Known paper path (QA / summary / short claim)** — prefer files; CLI only if you
-need catalog fields the files lack:
-
-```bash
-# optional metadata:
-agentero paper get papers/<shelf>/<id> --json
-# then read NOTES.md → (TeX | PAPER.md) as needed
+```sh
+agentero paper import id 1706.03762 --json
+agentero paper get papers/atlas --json
+agentero read papers/atlas --part notes --json
+agentero paper note append papers/atlas --input ./notes.md --request-id note-atlas-1 --json
+agentero file remove drafts/obsolete.md --dry-run --json
 ```
 
-**Explore / list the collection:**
+For a replacement, pass the revision of the object being changed. Keep the same request ID when retrying the same append or row change after a lost response. Table revisions come from `table query`. Result JSON goes to stdout, diagnostics to stderr. Check the exit status before using a result.
 
-```bash
-agentero paper list --json
-```
-
-**Import / download / parse / tag:**
-
-```bash
-agentero import id <arxiv|doi|url> --json
-agentero import pdf <path...> --json
-agentero paper download papers/<…> --json
-agentero paper parse papers/<…> --json
-agentero paper set-meta papers/<…> --publication "Venue" --json
-agentero paper tag add papers/<…> "label:color" --json
-```
-
-**Layout / marks** — paper path is **required**:
-
-```bash
-agentero layout list papers/<…> --json
-agentero layout list papers/<…> --kind figure --json
-agentero layout list papers/<…> --kind section --kind paragraph --json
-agentero layout get papers/<…> '#2.1#p3' --json
-agentero mark list papers/<…> --json
-```
-
-**After a paper-reader / explicit “mark as read” workflow only:**
-
-```bash
-agentero paper set-read papers/<…> --json
-```
-
-Do **not** run `set-read` after ordinary Q&A or summary that did not finish NOTES.
-
-## JSON contract
-
-- Success: `{ "ok": true, "data": … }` on stdout (compact; `--pretty` indents).
-- Failure: non-zero exit + `{ "ok": false, "error": { "code", "message", "details" } }`.
-- Stdout = result; stderr = progress/diagnostics. Parse `error.code` when retrying.
-
-## Path / id resolution
-
-- Prefer **Vault-relative `path`** (e.g. `papers/nlp/1706.03762`).
-- Bare **id** may hit `paper_ambiguous` when the same id exists under multiple
-  shelves — retry immediately with a `path` from `error.details.candidates`.
-- Prefer path from the user / `@` mention / prior `paper list` row; do not probe
-  with bare id when a path is already known.
-
-## Invariants
-
-- On `mark_locate_failed`, retry with a longer verbatim quote — **never** guess coordinates.
-- For claim-level PDF citations, query `--kind paragraph`, verify the returned `text`,
-  `sectionAnchor`, page and bbox, then append its exact `anchor` to the local PDF path.
-  `#2.1#p3` is the third body block directly owned by Section 2.1; subsections count separately.
-  Never infer paragraph numbers from filtered results. Missing/ambiguous anchors fail;
-  a result without `anchor` is not a usable shorthand citation. Shorthand is PDF-only.
-- On `layout_raw_missing`, ask for desktop layout analysis; do not invent paragraph anchors.
-- On `layout_index_missing`, ask the user to open the paper in Agentero and run Figures analysis — do not invent bboxes.
-- Keep Obsidian wikilinks `[[...]]` when you edit Markdown.
-- Never invent catalog metadata; trust CLI / files.
-- Prefer short tool loops: the fewest CLI/file reads that answer the question.
-
-## Activation notes
-
-Depending on the agent: **Codex** `$agentero-cli`, **Claude** `/agentero-cli`,
-**Pi** `/skill:agentero-cli`, others follow this body directly.
+Inside the desktop chat, `agentero app present outputs/comparison.md` publishes an existing file to the current turn. External MCP clients can discover their available operations via `tools/list`; the local CLI works independently.

@@ -121,6 +121,8 @@ pub struct QueryFieldOut {
 #[serde(rename_all = "camelCase")]
 pub struct QueryRowOut {
     pub id: String,
+    #[serde(skip)]
+    pub public_id: String,
     pub registry_id: Option<String>,
     pub archived: bool,
     pub values: Map<String, Value>,
@@ -164,6 +166,23 @@ pub struct MutationOut {
 /// Used by `file_write` when creating a missing `*.table.json`.
 pub fn validate_table_json(source: &str) -> Result<(), TableError> {
     parse_table(source).map(|_| ())
+}
+
+/// Read active rows from the same table snapshot used for a citation revision.
+pub(crate) fn evidence_rows(source: &str) -> Result<Vec<QueryRowOut>, TableError> {
+    let table = parse_table(source)?;
+    Ok(table
+        .rows
+        .iter()
+        .filter(|row| row.archived_at.is_none())
+        .map(|row| QueryRowOut {
+            public_id: row.public_id.clone(),
+            id: row.id.clone(),
+            registry_id: row.registry_id.clone(),
+            archived: false,
+            values: values_by_name(&table, row),
+        })
+        .collect())
 }
 
 /// Read matching rows in stored order. Does not write.
@@ -245,7 +264,7 @@ fn query_table(table: &Table, filter: &QueryFilter) -> Result<QueryOut, TableErr
             continue;
         }
         if let Some(id) = filter.registry_id.as_deref() {
-            if row.registry_id.as_deref() != Some(id) {
+            if row.public_id != id && row.id != id {
                 continue;
             }
         }
@@ -271,6 +290,7 @@ fn query_table(table: &Table, filter: &QueryFilter) -> Result<QueryOut, TableErr
         .map(|index| {
             let row = &table.rows[index];
             QueryRowOut {
+                public_id: row.public_id.clone(),
                 id: row.id.clone(),
                 registry_id: row.registry_id.clone(),
                 archived: row.archived_at.is_some(),
@@ -908,6 +928,7 @@ mod tests {
         table.next_sequence = Some(1);
         for index in 0..model::MAX_TABLE_ROWS {
             table.rows.push(model::Row {
+                public_id: format!("EXP-{index:04}"),
                 id: format!("r{index}"),
                 values: Map::new(),
                 registry_id: Some(format!("EXP-{index:04}")),

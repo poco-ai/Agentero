@@ -640,7 +640,7 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				// Vertical column, one unit under the top-left toolbar: the
 				// horizontal pill used to sit in the toolbar's corner and collide
 				// with it. The column keeps the label readable below the toolbar.
-				"pointer-events-auto absolute top-11 left-2 z-[8] flex w-7 min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				"pointer-events-auto absolute top-11 left-2 z-[8] flex w-7 min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 				// The running stage reports state on the plain theme surface and
 				// does not recolour on hover. Translate / hide / retry keep the old
 				// hover fill; a page with a visible translation keeps the theme
@@ -1390,7 +1390,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					type="button"
 					data-pdf-chrome
 					className={cn(
-						"absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-sm transition-[color,opacity,transform] duration-150 hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transform-none motion-reduce:transition-none",
+						"absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-sm transition-[color,opacity,transform] duration-150 hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transform-none motion-reduce:transition-none",
 						pageBookmarked
 							? pdfDark
 								? "text-[#ef8791]"
@@ -1596,26 +1596,42 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					pageIndex={pageIndex}
 				/>
 				{/*
-				 * Selection-translate spans stay tinted after the result card
-				 * closes, above the opaque translation paper (z-3) and under
-				 * the glyphs (z-6).
+				 * Paint pinned and active selection translations together, above the
+				 * translation paper (z-3) and below glyphs (z-6). Only the open
+				 * result accepts pointer events so its card can keep hover.
 				 */}
-				{translateHighlightsOnPage.map((item) =>
-					item.id === activeTranslateOnPage?.id
-						? null
-						: item.rects.map((rect) => (
+				{(translateHighlightsOnPage.length > 0 || activeTranslateOnPage) && (
+					<div
+						aria-hidden="true"
+						className="pdf-translation-source-tint pointer-events-none absolute inset-0 z-[4]"
+					>
+						{[
+							...translateHighlightsOnPage.filter(
+								(item) => item.id !== activeTranslateOnPage?.id,
+							),
+							...(activeTranslateOnPage ? [activeTranslateOnPage] : []),
+						].flatMap(({ id, rects }) => {
+							const active = id === activeTranslateOnPage?.id;
+							return rects.map((rect) => (
 								<div
-									key={`tr-hl-${item.id}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
-									className="pointer-events-none absolute z-[4] rounded-[2px] bg-yellow-300/40 dark:bg-yellow-400/35"
+									aria-hidden="true"
+									key={`${id}:${rect.x}:${rect.y}:${rect.w}:${rect.h}`}
+									className={cn(
+										"absolute rounded-[2px]",
+										active && "pointer-events-auto",
+									)}
 									style={{
 										left: `${rect.x * 100}%`,
 										top: `${rect.y * 100}%`,
 										width: `${rect.w * 100}%`,
 										height: `${rect.h * 100}%`,
 									}}
-									aria-hidden="true"
+									onMouseEnter={active ? handlers.onCardHoverEnter : undefined}
+									onMouseLeave={active ? handlers.onCardHoverLeave : undefined}
 								/>
-							)),
+							));
+						})}
+					</div>
 				)}
 				{/*
 				 * Element selection. Frames are pointer-events: none; the layer
@@ -1648,25 +1664,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					onHoverEnter={handlers.onCardHoverEnter}
 					onHoverLeave={handlers.onCardHoverLeave}
 				/>
-				{activeTranslateOnPage
-					? activeTranslateOnPage.rects.map((rect) => (
-							<div
-								key={`${activeTranslateOnPage.id}-source-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
-								className={cn(
-									"pointer-events-auto absolute z-[4] rounded-[2px] bg-yellow-300/40 dark:bg-yellow-400/35",
-								)}
-								style={{
-									left: `${rect.x * 100}%`,
-									top: `${rect.y * 100}%`,
-									width: `${rect.w * 100}%`,
-									height: `${rect.h * 100}%`,
-								}}
-								aria-hidden="true"
-								onMouseEnter={handlers.onCardHoverEnter}
-								onMouseLeave={handlers.onCardHoverLeave}
-							/>
-						))
-					: null}
 				{/* Figures selection outline, or citation yellow flash block. */}
 				{persistentRegion ? (
 					<div

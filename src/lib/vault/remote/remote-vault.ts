@@ -1,6 +1,5 @@
 /**
- * Remote vault client (SSH/SFTP) — Host commands in `commands/remote.rs`.
- * Design: `docs/development/remote-vault.md`
+ * Remote vault client (SSH/SFTP). Host commands live in `src-tauri/src/integration/remote/commands.rs`.
  */
 
 import type { CatalogEntry, ProbeResult } from "@/lib/agent/api-types";

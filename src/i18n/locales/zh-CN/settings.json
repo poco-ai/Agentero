@@ -267,8 +267,11 @@
 			"serverStopped": "Connector 服务已停止。Agentero 每 5 秒自动重试，也可立即重试。"
 		},
 		"mcp": {
+			"allowWrite": "允许客户端修改 Vault",
+			"allowOnline": "允许工具访问网络",
+			"scope": "这些权限适用于本机 MCP 客户端和已连接的隧道。",
 			"exposeText": {
-				"label": "对外暴露论文正文（MCP）"
+				"label": "允许客户端读取论文全文"
 			},
 			"label": "MCP 服务器",
 			"portLabel": "MCP 端口",
@@ -559,6 +562,7 @@
 			}
 		},
 		"form": {
+			"supportsShell": "可以执行本机 shell 命令",
 			"defaultName": "Desktop",
 			"name": "名称",
 			"command": "命令",

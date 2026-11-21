@@ -1,7 +1,7 @@
 /**
  * Right-click menu state for the vault tree: which row is targeted, the derived
- * menu capabilities, and every menu action (reveal, terminal, create, rename,
- * cut/paste, move, delete, library export, empty trash).
+ * menu capabilities, and every menu action (create, rename, cut/paste, move,
+ * delete, library export, empty trash).
  */
 import {
 	type MouseEvent as ReactMouseEvent,
@@ -10,7 +10,6 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { errorText } from "@/lib/core/error";
 import {
 	isPaperDirectory,
 	isPapersRoot,
@@ -30,8 +29,6 @@ import { openTexPdf } from "@/lib/workspace/actions";
 import {
 	addFilePathToChat,
 	copyFilePath,
-	openFilePathInTerminal,
-	revealFilePath,
 } from "@/lib/workspace/file-path-actions";
 import { isTexPath } from "@/lib/workspace/viewer";
 import type { TreeContextMenuPortalProps } from "../tree-context-menu";
@@ -44,7 +41,7 @@ import type {
 } from "../types";
 
 /** Virtual rows and `agentero:` pseudo paths have no OS location. */
-function canRevealPath(path: string): boolean {
+function hasLocalOsPath(path: string): boolean {
 	return Boolean(path) && !path.startsWith("agentero:");
 }
 
@@ -69,8 +66,6 @@ function paperDirectoryCatalogId(
 export type TreeContextMenuState = {
 	/** Non-null while the menu is open — spread onto `TreeContextMenuPortal`. */
 	menuProps: TreeContextMenuPortalProps | null;
-	/** Reveal / open-in-terminal failure shown under the tree. */
-	revealError: string | null;
 	handleContextMenuPath: (path: string, event: ReactMouseEvent) => void;
 };
 
@@ -140,7 +135,6 @@ export function useTreeContextMenu({
 }): TreeContextMenuState {
 	const { t } = useTranslation("sidebar");
 	const [menu, setMenu] = useState<TreeContextMenu | null>(null);
-	const [revealError, setRevealError] = useState<string | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
 	const close = useCallback(() => setMenu(null), []);
@@ -151,7 +145,7 @@ export function useTreeContextMenu({
 			// Real vault paths + virtual Recycle Bin (empty) / Plaza root
 			// (source visibility toggles).
 			if (
-				!canRevealPath(path) &&
+				!hasLocalOsPath(path) &&
 				path !== TRASH_VIRTUAL_PATH &&
 				path !== PLAZA_VIRTUAL_PATH
 			) {
@@ -160,29 +154,10 @@ export function useTreeContextMenu({
 			event.preventDefault();
 			event.stopPropagation();
 			prepareContextSelection(path);
-			setRevealError(null);
 			setMenu({ path, x: event.clientX, y: event.clientY });
 		},
 		[createDraft, renameDraft, prepareContextSelection],
 	);
-
-	const reveal = useCallback((path: string) => {
-		setMenu(null);
-		if (!canRevealPath(path)) return;
-		setRevealError(null);
-		void revealFilePath(path).catch((error) => {
-			setRevealError(errorText(error));
-		});
-	}, []);
-
-	const openTerminal = useCallback((path: string) => {
-		setMenu(null);
-		if (!canRevealPath(path)) return;
-		setRevealError(null);
-		void openFilePathInTerminal(path).catch((error) => {
-			setRevealError(errorText(error));
-		});
-	}, []);
 
 	const copyPath = useCallback((path: string) => {
 		setMenu(null);
@@ -200,7 +175,7 @@ export function useTreeContextMenu({
 	}, []);
 
 	if (!menu) {
-		return { menuProps: null, revealError, handleContextMenuPath };
+		return { menuProps: null, handleContextMenuPath };
 	}
 
 	const targets = pathsForAction(menu.path);
@@ -319,22 +294,6 @@ export function useTreeContextMenu({
 						onStartCreate("file", parent);
 					}
 				: undefined,
-		onNewTable:
-			onStartCreate && vaultPath
-				? () => {
-						const parent = resolveCreateParent(vaultPath, menu.path, nodes);
-						setMenu(null);
-						onStartCreate("table", parent);
-					}
-				: undefined,
-		onNewExperiment:
-			onStartCreate && vaultPath
-				? () => {
-						const parent = resolveCreateParent(vaultPath, menu.path, nodes);
-						setMenu(null);
-						onStartCreate("experiment", parent);
-					}
-				: undefined,
 		onNewFolder:
 			onStartCreate && vaultPath
 				? () => {
@@ -357,8 +316,6 @@ export function useTreeContextMenu({
 					onPasteInto(menu.path);
 				}
 			: undefined,
-		onReveal: () => reveal(menu.path),
-		onOpenInTerminal: () => openTerminal(menu.path),
 		onMove: onMoveTo
 			? () => {
 					const anchor = { x: menu.x, y: menu.y };
@@ -383,5 +340,5 @@ export function useTreeContextMenu({
 				: undefined,
 	};
 
-	return { menuProps, revealError, handleContextMenuPath };
+	return { menuProps, handleContextMenuPath };
 }

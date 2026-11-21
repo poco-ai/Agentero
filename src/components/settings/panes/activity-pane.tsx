@@ -259,7 +259,7 @@ export function ActivityPane({ vaultPath }: { vaultPath?: string | null }) {
 								<li key={paper.path}>
 									<button
 										type="button"
-										className="group flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50"
+										className="group flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-1 focus-visible:ring-ring"
 										onClick={() => {
 											if (!vaultPath) return;
 											void openActivityPaper(
@@ -340,7 +340,7 @@ function MetricSwitch({
 						aria-pressed={selected}
 						onClick={() => onChange(option.value)}
 						className={cn(
-							"relative rounded-[7px] px-2.5 py-1 font-medium text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+							"relative rounded-[7px] px-2.5 py-1 font-medium text-xs outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
 							selected
 								? "text-foreground"
 								: "text-muted-foreground hover:text-foreground",

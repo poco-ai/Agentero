@@ -55,11 +55,11 @@ import { tryOpenWritingSource } from "@/lib/tex/editor-navigation";
 import { syncTexAfterBuild } from "@/lib/tex/synctex";
 import { isTexLiveRootActive } from "@/lib/tex-live/session";
 import {
+	createVaultFile,
 	ensureLocalFsScope,
 	joinVaultPath,
 	vaultPathExists,
 	vaultRelativePath,
-	writeVaultFile,
 } from "@/lib/vault";
 import { getVaultPath, refreshTree, vaultStore } from "@/lib/vault/store";
 import {
@@ -69,12 +69,13 @@ import {
 	type WikiNavTarget,
 	wikiNavigationDestination,
 } from "@/lib/wiki";
-import { rebuildWikiAndNotify } from "@/lib/wiki/store";
+import { rebuildWikiAndNotify, trackSelfWrittenPath } from "@/lib/wiki/store";
 import {
 	cacheActiveTabBeforeDock,
 	dockHandle,
 } from "@/lib/workspace/dock-registry";
 import {
+	currentWindowLabel,
 	getActiveTabId,
 	getTabs,
 	setTabs,
@@ -602,14 +603,36 @@ registerTexAutoBuildRunner(compileTexOnSave);
  * returns to the paper body, so the same editable notes buffer never ends up
  * in two panes. Other documents still get a real duplicate split.
  */
-export function splitActivePane(): void {
-	const id = getActiveTabId();
+export function splitActivePane(placement?: {
+	source: string;
+	beside: string;
+	direction: import("./tabs").SplitDirection;
+}): void {
+	const id = placement?.source ?? getActiveTabId();
 	if (!id) return;
 	const tabs = getTabs();
 	const active = tabs.find((t) => t.id === id);
 	if (!active) return;
 	// Library is the resident singleton — never clone it into a second pane.
 	if (isLibraryVirtualPath(active.path)) return;
+	if (placement) {
+		if (
+			active.writingRoot ||
+			tabIsPaperNoteDocument(active) ||
+			active.kind === "trash" ||
+			active.kind === "zen" ||
+			active.kind === "plaza"
+		)
+			return;
+		const pane = cloneTabForSplit(active, tabs);
+		setTabs((prev) => [...prev, pane]);
+		cacheActiveTabBeforeDock(pane.id);
+		dockHandle()?.openPanel(pane, {
+			direction: placement.direction,
+			referencePanelId: placement.beside,
+		});
+		return;
+	}
 
 	// ⌘\ toggles the paper/NOTES split: an open NOTES companion is retracted
 	// (closed) before touching the maximize state, so collapsing notes does not
@@ -981,6 +1004,59 @@ function citationResolveFailedMessage(source: string): string {
 	}
 }
 
+/** Apply a revision-checked CLI evidence locator to the appropriate viewer. */
+export async function openEvidenceLocation(
+	path: string,
+	locator: import("@/lib/core/bindings").Json,
+): Promise<void> {
+	const loc =
+		locator && typeof locator === "object" && !Array.isArray(locator)
+			? locator
+			: {};
+	const key = [
+		"region",
+		"page",
+		...(typeof loc.line_from === "number" ? [] : ["section"]),
+	].find((k) => loc[k] != null);
+	if (key) {
+		openCitation(path + "#" + key + "=" + encodeURIComponent(String(loc[key])));
+		return;
+	}
+	openVaultRel(path);
+	const line = loc.line_from;
+	const vault = getVaultPath();
+	if (typeof line !== "number" || !vault) return;
+	const abs = joinVaultPath(vault, path);
+	if (/\.(tex|bib|cls|sty|bst)$/i.test(path)) {
+		const { navigateTexSource } = await import("@/lib/tex/editor-navigation");
+		navigateTexSource(abs, line);
+	} else if (/\.(md|mdx|markdown)$/i.test(path)) {
+		const { markdownEditorFor } = await import(
+			"@/lib/workspace/viewer/markdown-editor-registry"
+		);
+		for (let i = 0; i < 60; i++) {
+			if (getVaultPath() !== vault) return;
+			const tab = findCanonicalTab(getTabs(), abs);
+			const handle = markdownEditorFor(tab?.id);
+			if (handle?.revealLine?.(line)) return;
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		if (getVaultPath() === vault)
+			notifyError(
+				i18n.t("agent:citation.resolveFailed", {
+					source: `${path}#line=${line}`,
+				}),
+			);
+	} else {
+		const { editorLintStore, pendingEditorLineJump } = await import(
+			"@/lib/tex/editor-lint-bridge"
+		);
+		const current = editorLintStore.getState().current;
+		if (current?.path === abs) current.jumpToLine(line);
+		else pendingEditorLineJump.setState({ path: abs, line });
+	}
+}
+
 /**
  * Open a citation link from agent output.
  *
@@ -991,6 +1067,31 @@ function citationResolveFailedMessage(source: string): string {
 export function openCitation(source: string): void {
 	const trimmed = rewriteCitationHrefToPdf(cleanCitationHref(source));
 	if (!trimmed) return;
+	if (trimmed.startsWith("agentero://cite/")) {
+		const vault = getVaultPath();
+		if (!vault) {
+			notifyError(i18n.t("app:errors.openVaultForLinks"));
+			return;
+		}
+		if (isTauri() && currentWindowLabel().startsWith("feature-")) {
+			void commands
+				.workspaceOpenSource(vault, trimmed)
+				.then((result) => {
+					if (result.status === "error") notifyError(errorText(result.error));
+				})
+				.catch((err) => notifyError(errorText(err)));
+			return;
+		}
+		void commands
+			.agentResolveEvidence(vault, trimmed)
+			.then((res) => {
+				if (res.status === "error") throw new Error(res.error);
+				if (vault === getVaultPath())
+					return openEvidenceLocation(res.data[0], res.data[1]);
+			})
+			.catch((err) => notifyError(errorText(err)));
+		return;
+	}
 	if (/^https?:\/\//i.test(trimmed)) {
 		openExternalUrl(trimmed);
 		return;
@@ -1119,6 +1220,21 @@ function scheduleAnnotationJump(paperAbs: string, annotationId: string): void {
 	}, 2000);
 }
 
+/**
+ * Whether a wikilink create target is already present. Checks the loaded Vault
+ * tree first (covers remote Vaults) and then the disk.
+ */
+async function wikiCreateTargetExists(rel: string): Promise<boolean> {
+	if (vaultStore.getState().vaultWikiTargetFiles.includes(rel)) return true;
+	const vaultPath = getVaultPath();
+	if (!vaultPath) return false;
+	try {
+		return await vaultPathExists(joinVaultPath(vaultPath, rel));
+	} catch {
+		return false;
+	}
+}
+
 export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 	const vaultPath = getVaultPath();
 	// Invalid PDF anchors fail before opening/restoring an unrelated location.
@@ -1225,6 +1341,14 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 		return;
 	}
 	const createRel = missingNotePath(nav.targetRaw);
+	const full = joinVaultPath(vaultPath, createRel);
+	// The link can point at a note the resolver does not match (a hand-written
+	// name, or one the user already has). Open it instead of creating over it:
+	// overwriting here is exactly the data loss behind issue #1169.
+	if (await wikiCreateTargetExists(createRel)) {
+		openPath(full);
+		return;
+	}
 	const ok = window.confirm(
 		i18n.t("app:confirm.createNote", {
 			target: nav.targetRaw,
@@ -1234,10 +1358,15 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 	if (!ok) return;
 
 	const content = newNoteMarkdown(nav.targetRaw);
-	const full = joinVaultPath(vaultPath, createRel);
-
 	try {
-		await writeVaultFile(full, content);
+		if (!(await createVaultFile(full, content))) {
+			// Another window created it between the check and this write.
+			openPath(full);
+			return;
+		}
+		// Own write: the watcher must not treat it as an external edit and
+		// reseed an open editor from the seed this call just wrote (#1169).
+		trackSelfWrittenPath(full, content);
 		await rebuildWikiAndNotify(vaultPath);
 		await refreshTree(vaultPath);
 		openPath(full);

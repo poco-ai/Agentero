@@ -848,6 +848,8 @@ export function useAgentSessionRuntime({
 						...last,
 						parts,
 						sources: ev.sources,
+						promptOnly: ev.promptOnly,
+						artifacts: ev.artifacts,
 						streaming: false,
 					};
 					return next;

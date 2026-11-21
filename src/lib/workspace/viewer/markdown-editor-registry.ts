@@ -1,6 +1,7 @@
 /** Per-panel handles; two panes for the same file own separate surfaces. */
 type MarkdownEditorHandle = {
 	toggleSource: () => void;
+	revealLine?: (line: number) => boolean;
 	hasPendingSource: () => boolean;
 	flushSource: () => Promise<boolean>;
 };

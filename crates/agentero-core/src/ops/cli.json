@@ -1,0 +1,2747 @@
+[
+	{
+		"path": "",
+		"about": "本地科研工作台",
+		"example": "agentero paper list --state unread\nagentero search \"batch size\" --in papers/atlas\nagentero read papers/atlas --page 8",
+		"args": [
+			{
+				"name": "vault",
+				"help": "Vault ID 或本地根目录",
+				"help_en": "Vault ID or local root directory"
+			},
+			{
+				"name": "json",
+				"kind": "bool",
+				"help": "输出结构化 JSON",
+				"help_en": "Emit structured JSON"
+			},
+			{
+				"name": "no-input",
+				"kind": "bool",
+				"help": "禁用交互式提示",
+				"help_en": "Disable interactive prompts"
+			},
+			{
+				"name": "quiet",
+				"kind": "bool",
+				"help": "隐藏进度",
+				"help_en": "Suppress progress"
+			},
+			{
+				"name": "color",
+				"default": "auto",
+				"choices": ["auto", "always", "never"],
+				"help": "终端颜色",
+				"help_en": "Terminal colors"
+			}
+		],
+		"about_en": "A local-first research workspace"
+	},
+	{
+		"path": "search",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "在指定材料或整个 Vault 内查找可引用的出处",
+		"example": "agentero search \"batch size\" --in papers/atlas --kind body",
+		"tool": "evidence_search",
+		"result": "Sources",
+		"args": [
+			{
+				"name": "query",
+				"help": "检索词或短语",
+				"positional": true,
+				"required": true,
+				"help_en": "Text or keywords to match"
+			},
+			{
+				"name": "in",
+				"help": "只在指定论文、文件或目录内查找",
+				"many": true,
+				"help_en": "Restrict search to this source or folder"
+			},
+			{
+				"name": "plain",
+				"binding": { "decode": "omit" },
+				"help": "每行输出一个可传给 read 的 cite；与 --json 互斥",
+				"kind": "bool",
+				"help_en": "Print one identifier per line"
+			},
+			{
+				"name": "kind",
+				"help": "匹配的材料类别",
+				"many": true,
+				"choices": ["metadata", "body", "note", "file", "table"],
+				"help_en": "Select a resource kind"
+			},
+			{
+				"name": "tag",
+				"help": "标签筛选",
+				"many": true,
+				"help_en": "Filter by a paper tag"
+			},
+			{
+				"name": "match",
+				"help": "多个词的匹配策略",
+				"default": "all",
+				"choices": ["all", "any"],
+				"help_en": "Combine search terms"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "20",
+				"min": 1.0,
+				"max": 50.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "Find citable evidence in your research materials",
+		"behavior": "--in 多项取并集，--kind 取并集，--tag 取交集且仅匹配所属论文。按相关度、来源 ID、位置稳定排序；题录、正文、笔记、表格单元格和 UTF-8 文件均给出处。",
+		"returns": "Sources · items, next_cursor"
+	},
+	{
+		"path": "read",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "按引用、论文或文件读取有位置的原文",
+		"example": "agentero read papers/atlas --page 8\nagentero search \"batch size\" --limit 1 --plain | agentero read -",
+		"tool": "evidence_read",
+		"result": "Passage",
+		"args": [
+			{
+				"name": "source",
+				"binding": { "field": "source", "decode": "sourceOrStdin" },
+				"help": "论文 ID、Vault 相对路径或命中的 cite",
+				"positional": true,
+				"required": true,
+				"help_en": "Source reference, citation or vault-relative path"
+			},
+			{
+				"name": "part",
+				"help": "读取论文的哪个部分或呈现形式",
+				"default": "auto",
+				"choices": ["auto", "body", "notes", "metadata", "layout"],
+				"help_en": "Select the part or representation to read"
+			},
+			{
+				"name": "page",
+				"binding": { "field": "pages", "decode": "pages" },
+				"help": "物理页从 1 起，例 8 或 1-3,7",
+				"help_en": "Physical page selection, for example 1-3,7"
+			},
+			{
+				"name": "section",
+				"help": "章节标题或稳定章节标识；同名时报候选",
+				"help_en": "Select a section by name or ID"
+			},
+			{
+				"name": "region",
+				"help": "版面索引的区域 ID 或锚点",
+				"help_en": "Region ID from paper regions"
+			},
+			{
+				"name": "quote",
+				"help": "要定位的原句；存在歧义时返回候选引用",
+				"help_en": "Exact text to locate"
+			},
+			{
+				"name": "lines",
+				"help": "文本行，从 1 起，含两端",
+				"help_en": "Inclusive one-based line range"
+			},
+			{
+				"name": "max-chars",
+				"help": "本次正文最多返回的 Unicode 字符数",
+				"kind": "integer",
+				"default": "4000",
+				"min": 1.0,
+				"max": 20000.0,
+				"help_en": "Maximum number of Unicode characters"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "Read original material by citation, paper or vault-relative path",
+		"behavior": "page、section、region、quote、lines 互斥。part=layout 需要单页或一个 region。多页正文保留分页，lines 用于文本。引用自带定位，禁止再传定位器。无定位时，论文给摘要与可读入口，文本文件从首行开始，目录返回子项。body 优先 TeX、PAPER.md、版面，再尝试 PDF 文本；指定页和区域只用有对应坐标的源。原生 PDF 有文本层即可按页读。长内容带续读游标。",
+		"returns": "Passage · source, revision, text, evidence, entries, regions, metadata, next_cursor, truncated"
+	},
+	{
+		"path": "paper",
+		"about": "管理题录、导入导出、论文资产与引用关系",
+		"example": "agentero paper list --state unread\nagentero paper import id 1706.03762\nagentero paper relations papers/atlas",
+		"args": [],
+		"about_en": "Manage papers, notes, assets and citation relationships"
+	},
+	{
+		"path": "paper list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "按题录筛选馆藏论文",
+		"example": "agentero paper list --tag survey --state unread",
+		"tool": "paper_list",
+		"result": "Papers",
+		"args": [
+			{
+				"name": "plain",
+				"binding": { "decode": "omit" },
+				"help": "每行输出一个论文 ID；与 --json 互斥",
+				"kind": "bool",
+				"help_en": "Print one identifier per line"
+			},
+			{
+				"name": "query",
+				"help": "在题录中查找的文本",
+				"help_en": "Text or keywords to match"
+			},
+			{
+				"name": "tag",
+				"help": "标签筛选",
+				"many": true,
+				"help_en": "Filter by a paper tag"
+			},
+			{
+				"name": "state",
+				"help": "阅读状态",
+				"choices": ["read", "unread"],
+				"help_en": "Reading state"
+			},
+			{
+				"name": "status",
+				"help": "题录的自定义状态",
+				"help_en": "Catalog status"
+			},
+			{
+				"name": "include-internal",
+				"help": "包括系统生成的标签",
+				"kind": "bool",
+				"help_en": "Include internal tags or fields"
+			},
+			{
+				"name": "sort",
+				"help": "题录排序字段",
+				"default": "updated",
+				"choices": ["updated", "title", "date"],
+				"help_en": "Sort order"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List and filter papers in the catalog",
+		"behavior": "query 匹配题名、作者、标识或路径；多个 tag 全部满足。updated/date 降序，title 升序，同值按 ID。",
+		"returns": "Papers · items, next_cursor"
+	},
+	{
+		"path": "paper get",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "查看一篇论文的元数据、资产与路径",
+		"example": "agentero paper get papers/atlas",
+		"tool": "paper_get",
+		"result": "PaperDetail",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "include-internal",
+				"help": "包括系统生成的标签",
+				"kind": "bool",
+				"help_en": "Include internal tags or fields"
+			}
+		],
+		"about_en": "Inspect a paper, its assets and its current revision",
+		"behavior": "返回 DOI、arXiv ID、作者、状态、标签和实际存在的 PDF、TeX、正文、笔记、批注位置，路径相对 Vault。",
+		"returns": "PaperDetail · id, path, title, state, tags, revision, authors, venue, date, doi, arxiv, status, abstract, assets"
+	},
+	{
+		"path": "paper import",
+		"about": "从外部材料建立论文记录",
+		"example": "agentero paper import id 1706.03762",
+		"args": [],
+		"about_en": "Import papers into the catalog"
+	},
+	{
+		"path": "paper import id",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "stable",
+		"online": true,
+		"about": "从 DOI、arXiv 标识或论文 URL 入库",
+		"example": "agentero paper import id 1706.03762",
+		"tool": "paper_import",
+		"result": "Import",
+		"args": [
+			{
+				"name": "identifier",
+				"help": "需要入库的 DOI、arXiv ID 或论文 URL",
+				"positional": true,
+				"required": true,
+				"help_en": "DOI, arXiv identifier or source URL"
+			},
+			{
+				"name": "into",
+				"help": "目标论文父目录",
+				"default": "papers",
+				"help_en": "Destination collection in the vault"
+			}
+		],
+		"about_en": "Import a paper by DOI, arXiv ID or source URL",
+		"behavior": "按规范化标识去重，已收录返回 existing；书目信息和可取得的资产分别报告。",
+		"returns": "Import · items"
+	},
+	{
+		"path": "paper import pdf",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "从一份或多份本地 PDF 入库",
+		"example": "agentero paper import pdf \"./papers to import/a.pdf\" b.pdf",
+		"result": "Import",
+		"args": [
+			{
+				"name": "inputs",
+				"help": "一个或多个本机 PDF 路径",
+				"positional": true,
+				"many": true,
+				"required": true,
+				"help_en": "One or more local PDF paths"
+			},
+			{
+				"name": "into",
+				"help": "目标论文父目录",
+				"default": "papers",
+				"help_en": "Destination collection in the vault"
+			},
+			{
+				"name": "no-recognize",
+				"help": "跳过 PDF 题录识别",
+				"kind": "bool",
+				"help_en": "Skip online metadata recognition"
+			},
+			{
+				"name": "analyze",
+				"help": "入库后生成版面索引",
+				"kind": "bool",
+				"help_en": "Analyze imported PDF layouts"
+			}
+		],
+		"about_en": "Import one or more local PDF files",
+		"behavior": "按文件报告。默认识别题录，--no-recognize 可跳过；analyze 在入库后做版面分析，失败可针对已入库的论文重做。",
+		"returns": "Import · items"
+	},
+	{
+		"path": "paper import bib",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "从本地参考文献文件或 stdin 批量入库",
+		"example": "agentero paper import bib - < library.bib",
+		"result": "Import",
+		"args": [
+			{
+				"name": "input",
+				"help": "输入文件，- 表示标准输入",
+				"positional": true,
+				"required": true,
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "format",
+				"help": "参考文献格式",
+				"default": "auto",
+				"choices": ["auto", "bibtex", "biblatex", "ris"],
+				"help_en": "Bibliography format"
+			},
+			{
+				"name": "into",
+				"help": "目标论文父目录",
+				"default": "papers",
+				"help_en": "Destination collection in the vault"
+			}
+		],
+		"about_en": "Import a bibliography file",
+		"behavior": "input=- 读 stdin。逐条返回创建、重复或错误，自动识别失败提示显式指定 format。",
+		"returns": "Import · items"
+	},
+	{
+		"path": "paper discover",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "stable",
+		"online": true,
+		"about": "从 arXiv 检索和排序候选论文",
+		"example": "agentero paper discover --category cs.CL --keyword retrieval",
+		"tool": "paper_discover",
+		"result": "Candidates",
+		"args": [
+			{
+				"name": "keyword",
+				"help": "主题检索词，可重复",
+				"many": true,
+				"help_en": "Search keyword"
+			},
+			{
+				"name": "category",
+				"help": "arXiv 学科分类，可重复",
+				"many": true,
+				"help_en": "Research category"
+			},
+			{
+				"name": "match",
+				"help": "多个词的匹配策略",
+				"default": "all",
+				"choices": ["all", "any"],
+				"help_en": "Combine search terms"
+			},
+			{
+				"name": "since",
+				"help": "最早提交日期，含当天",
+				"help_en": "Earliest publication date"
+			},
+			{
+				"name": "until",
+				"help": "最晚提交日期，含当天",
+				"help_en": "Latest publication date"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "20",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "candidates",
+				"help": "排序前最多取多少候选",
+				"kind": "integer",
+				"default": "100",
+				"min": 1.0,
+				"max": 2000.0,
+				"help_en": "Maximum candidate papers to evaluate"
+			},
+			{
+				"name": "include-known",
+				"help": "保留已经入库的候选",
+				"kind": "bool",
+				"help_en": "Include papers already in the current vault"
+			},
+			{
+				"name": "rank",
+				"help": "词法排序或混合语义排序",
+				"default": "lexical",
+				"choices": ["lexical", "hybrid"],
+				"help_en": "Ranking method"
+			},
+			{
+				"name": "embedding-profile",
+				"help": "本机预配置的嵌入服务与模型",
+				"help_en": "Name of a configured embedding profile"
+			},
+			{
+				"name": "semantic-weight",
+				"help": "语义相似度的加权系数，仅 hybrid 使用",
+				"kind": "number",
+				"default": "1",
+				"min": 0.0,
+				"max": 10.0,
+				"help_en": "Weight applied to the semantic ranking"
+			}
+		],
+		"about_en": "Discover papers online with keywords or categories",
+		"behavior": "至少一个 keyword 或 category。since≤until，limit≤candidates。hybrid 需要本机配置的 embedding profile；只有已选 Vault 时才去除馆藏项。只查询，不入库。",
+		"returns": "Candidates · items"
+	},
+	{
+		"path": "paper export",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
+		"about": "将选中的题录导出为参考文献",
+		"example": "agentero paper export --tag survey --format bibtex > survey.bib",
+		"result": "Export",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"many": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "tag",
+				"help": "标签筛选",
+				"many": true,
+				"help_en": "Filter by a paper tag"
+			},
+			{
+				"name": "format",
+				"help": "参考文献格式",
+				"default": "bibtex",
+				"choices": ["bibtex", "biblatex", "ris"],
+				"help_en": "Bibliography format"
+			},
+			{
+				"name": "output",
+				"help": "导出目的地，- 表示标准输出",
+				"default": "-",
+				"help_en": "Output file, or - for stdout"
+			}
+		],
+		"about_en": "Export selected catalog records to a bibliography",
+		"behavior": "不指定筛选导出全库；论文集合与标签筛选取交集。默认写 stdout；已有目标文件报冲突。",
+		"returns": "Export · format, content, path, count"
+	},
+	{
+		"path": "paper update",
+		"sideEffects": "destructive",
+		"permission": "catalog:write",
+		"stability": "internal",
+		"about": "修改题录字段或阅读状态",
+		"example": "agentero paper update papers/atlas --state read --if-revision r7",
+		"tool": "paper_update",
+		"result": "PaperDetail",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "title",
+				"help": "显示名称或题名",
+				"help_en": "Title"
+			},
+			{
+				"name": "author",
+				"help": "作者全名，按顺序重复传入",
+				"many": true,
+				"help_en": "Author name, repeatable"
+			},
+			{
+				"name": "venue",
+				"help": "期刊、会议或出版物",
+				"help_en": "Publication venue"
+			},
+			{
+				"name": "date",
+				"help": "发表日期，可仅含年份或年月",
+				"help_en": "Publication date"
+			},
+			{
+				"name": "doi",
+				"help": "DOI",
+				"help_en": "Digital Object Identifier"
+			},
+			{
+				"name": "arxiv",
+				"help": "arXiv 标识",
+				"help_en": "arXiv identifier"
+			},
+			{
+				"name": "state",
+				"help": "阅读状态",
+				"choices": ["read", "unread"],
+				"help_en": "Reading state"
+			},
+			{
+				"name": "status",
+				"help": "题录的自定义状态",
+				"help_en": "Catalog status"
+			},
+			{
+				"name": "clear",
+				"help": "显式清空指定字段或用户标签集合",
+				"many": true,
+				"choices": ["authors", "venue", "date", "doi", "arxiv", "status"],
+				"help_en": "Clear the selected field or tag set"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"required": true,
+				"help_en": "Required current revision"
+			}
+		],
+		"about_en": "Edit paper metadata or reading state",
+		"behavior": "至少一项修改。author 按输入顺序整体替换；clear 显式清空可空字段，与同字段赋值互斥。title 不可清空。",
+		"returns": "PaperDetail · id, path, title, state, tags, revision, authors, venue, date, doi, arxiv, status, abstract, assets"
+	},
+	{
+		"path": "paper tag",
+		"about": "查看标签词表或编辑一篇论文的标签",
+		"example": "agentero paper tag list",
+		"args": [],
+		"about_en": "Inspect and edit paper tags"
+	},
+	{
+		"path": "paper tag list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "查看全库标签及论文数量",
+		"example": "agentero paper tag list",
+		"tool": "paper_tag_list",
+		"result": "Tags",
+		"args": [
+			{
+				"name": "include-internal",
+				"help": "包括系统生成的标签",
+				"kind": "bool",
+				"help_en": "Include internal tags or fields"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List tags with usage counts",
+		"behavior": "按使用数降序、名称升序。",
+		"returns": "Tags · items, next_cursor"
+	},
+	{
+		"path": "paper tag add",
+		"sideEffects": "write",
+		"permission": "catalog:write",
+		"stability": "stable",
+		"about": "给论文增加标签",
+		"example": "agentero paper tag add papers/atlas survey retrieval",
+		"tool": "paper_tag_add",
+		"result": "PaperDetail",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "tags",
+				"help": "标签名，多个用空格分隔",
+				"positional": true,
+				"many": true,
+				"required": true,
+				"help_en": "User tag names"
+			}
+		],
+		"about_en": "Add tags to a paper",
+		"behavior": "忽略大小写去重；允许 name:color，颜色写入标签元数据。",
+		"returns": "PaperDetail · id, path, title, state, tags, revision, authors, venue, date, doi, arxiv, status, abstract, assets"
+	},
+	{
+		"path": "paper tag remove",
+		"sideEffects": "destructive",
+		"permission": "catalog:write",
+		"stability": "internal",
+		"about": "移除指定标签",
+		"example": "agentero paper tag remove papers/atlas survey",
+		"tool": "paper_tag_remove",
+		"result": "PaperDetail",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "tags",
+				"help": "标签名，多个用空格分隔",
+				"positional": true,
+				"many": true,
+				"required": true,
+				"help_en": "User tag names"
+			}
+		],
+		"about_en": "Remove tags from a paper",
+		"behavior": "按名称移除，重复调用返回当前集合。",
+		"returns": "PaperDetail · id, path, title, state, tags, revision, authors, venue, date, doi, arxiv, status, abstract, assets"
+	},
+	{
+		"path": "paper tag set",
+		"sideEffects": "destructive",
+		"permission": "catalog:write",
+		"stability": "internal",
+		"about": "整体替换论文标签",
+		"example": "agentero paper tag set papers/atlas --clear --if-revision r7",
+		"tool": "paper_tag_set",
+		"result": "PaperDetail",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "tags",
+				"help": "标签名，多个用空格分隔",
+				"positional": true,
+				"many": true,
+				"help_en": "User tag names"
+			},
+			{
+				"name": "clear",
+				"help": "显式清空指定字段或用户标签集合",
+				"kind": "bool",
+				"help_en": "Clear the selected field or tag set"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"required": true,
+				"help_en": "Required current revision"
+			}
+		],
+		"about_en": "Replace the user tags of a paper",
+		"behavior": "提供非空标签或 --clear，二选一；只操作用户标签。",
+		"returns": "PaperDetail · id, path, title, state, tags, revision, authors, venue, date, doi, arxiv, status, abstract, assets"
+	},
+	{
+		"path": "paper note",
+		"about": "编辑论文的关联笔记，读取用 read --part notes",
+		"example": "agentero read papers/atlas --part notes\nagentero paper note append papers/atlas --input notes.md --request-id note-17",
+		"args": [],
+		"about_en": "Read and maintain research notes"
+	},
+	{
+		"path": "paper note append",
+		"sideEffects": "write",
+		"permission": "vault:notes:write",
+		"stability": "stable",
+		"about": "在论文笔记末尾追加 Markdown",
+		"example": "agentero paper note append papers/atlas --input - < notes.md",
+		"tool": "paper_note_append",
+		"result": "DocChange",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "input",
+				"binding": { "field": "content", "decode": "textFile" },
+				"help": "输入文件，- 表示标准输入",
+				"required": true,
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "request-id",
+				"help": "使用此幂等键重试同一操作；CLI 省略时自动生成",
+				"help_en": "Idempotency key to reuse for retries"
+			}
+		],
+		"about_en": "Append text to a paper’s notes",
+		"behavior": "input=- 读 stdin。同请求 ID 和相同内容只追加一次。",
+		"returns": "DocChange · path, revision, bytes"
+	},
+	{
+		"path": "paper note replace",
+		"sideEffects": "destructive",
+		"permission": "vault:notes:write",
+		"stability": "internal",
+		"about": "用 Markdown 替换整篇论文笔记",
+		"example": "agentero paper note replace papers/atlas --input notes.md --if-revision r8",
+		"tool": "paper_note_replace",
+		"result": "DocChange",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "input",
+				"binding": { "field": "content", "decode": "textFile" },
+				"help": "输入文件，- 表示标准输入",
+				"required": true,
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"required": true,
+				"help_en": "Required current revision"
+			}
+		],
+		"about_en": "Replace a paper’s notes at a known revision",
+		"behavior": "revision 来自 read --part notes；首次创建传 missing。保留锁定实验记录策略。",
+		"returns": "DocChange · path, revision, bytes"
+	},
+	{
+		"path": "paper note fetch",
+		"sideEffects": "write",
+		"permission": "vault:notes:write",
+		"stability": "internal",
+		"online": true,
+		"about": "获取外部论文解读并追加为带来源的笔记",
+		"example": "agentero paper note fetch papers/atlas",
+		"result": "DocChange",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			}
+		],
+		"about_en": "Fetch available online notes for a paper",
+		"behavior": "从 Cool Papers 获取并记录来源 URL；同一版本的解读重复获取时跳过。",
+		"returns": "DocChange · path, revision, bytes"
+	},
+	{
+		"path": "paper relations",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "查看论文的参考文献及被引关系",
+		"example": "agentero paper relations papers/atlas --direction cited-by",
+		"tool": "paper_relations",
+		"result": "Relations",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "direction",
+				"help": "引用关系类型",
+				"default": "references",
+				"choices": ["references", "cited-by", "related"],
+				"help_en": "Direction to follow"
+			},
+			{
+				"name": "local-only",
+				"help": "只返回已能定位到馆藏的论文",
+				"kind": "bool",
+				"help_en": "Keep only matches in this vault"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "Explore locally cached citation relationships",
+		"behavior": "references 来自缓存的参考文献；cited-by 按本地引用缓存反查；related 是参考文献中能匹配到馆藏的子集。返回覆盖范围、匹配依据与缓存状态。",
+		"returns": "Relations · items, next_cursor, coverage, cache_state"
+	},
+	{
+		"path": "paper regions",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "列出可直接读取的图、表、公式与文本区域",
+		"example": "agentero paper regions papers/atlas --kind table --page 8",
+		"tool": "paper_regions",
+		"result": "Regions",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "kind",
+				"help": "版面区域类别",
+				"many": true,
+				"choices": [
+					"figure",
+					"image",
+					"chart",
+					"table",
+					"algorithm",
+					"formula",
+					"section",
+					"paragraph"
+				],
+				"help_en": "Select a resource kind"
+			},
+			{
+				"name": "page",
+				"help": "物理页码，从 1 开始；可选",
+				"kind": "integer",
+				"min": 1,
+				"max": 2147483647,
+				"help_en": "Physical page, starting at one"
+			},
+			{
+				"name": "min-score",
+				"help": "区域置信度下限",
+				"kind": "number",
+				"default": "0.3",
+				"min": 0.0,
+				"max": 1.0,
+				"help_en": "Minimum layout confidence"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List figures, tables, sections and other layout regions",
+		"behavior": "kind 可重复，按物理页与阅读顺序排列；条目提供 region、cite 与坐标。版面缺失返回 missing_layout。",
+		"returns": "Regions · items, next_cursor"
+	},
+	{
+		"path": "paper download",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"online": true,
+		"about": "为已收录论文补齐来源文件",
+		"example": "agentero paper download papers/atlas --asset pdf",
+		"result": "Assets",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "asset",
+				"help": "选择要获取的资产",
+				"many": true,
+				"choices": ["pdf", "tex"],
+				"help_en": "Asset to download"
+			},
+			{
+				"name": "refresh",
+				"help": "重新生成或下载受管理的缓存",
+				"kind": "bool",
+				"help_en": "Refresh derived results"
+			}
+		],
+		"about_en": "Download the requested paper assets",
+		"behavior": "默认补所有可取得的缺失资产；refresh 重新获取。只替换 Agentero 管理的下载缓存。",
+		"returns": "Assets · paper, assets"
+	},
+	{
+		"path": "paper extract",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "将 PDF 文本提取成可搜索的正文",
+		"example": "agentero paper extract papers/atlas",
+		"result": "Assets",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "refresh",
+				"help": "重新生成或下载受管理的缓存",
+				"kind": "bool",
+				"help_en": "Refresh derived results"
+			}
+		],
+		"about_en": "Extract a searchable body from a local PDF",
+		"behavior": "生成 PAPER.md；已有有效结果默认复用。已有人工编辑的结果返回冲突。",
+		"returns": "Assets · paper, assets"
+	},
+	{
+		"path": "paper analyze",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "生成 PDF 的页、图表与段落索引",
+		"example": "agentero paper analyze papers/atlas --provider mineru --page 1-4,7",
+		"result": "Assets",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "provider",
+				"help": "指定提供方",
+				"choices": ["paddle", "mineru"],
+				"help_en": "Analysis provider"
+			},
+			{
+				"name": "page",
+				"help": "物理页从 1 起，例 8 或 1-3,7，最多 200 个不同页",
+				"help_en": "Physical page selection, for example 1-3,7"
+			},
+			{
+				"name": "profile",
+				"help": "已配置的服务、端点与认证组合",
+				"help_en": "Name of a locally configured profile"
+			},
+			{
+				"name": "refresh",
+				"help": "重新生成或下载受管理的缓存",
+				"kind": "bool",
+				"help_en": "Refresh derived results"
+			}
+		],
+		"about_en": "Analyze the layout of a local PDF",
+		"behavior": "默认使用配置的服务；profile 选择已配置的 endpoint 与凭据。--page 仅筛选保留的结果，提供方可能收到整个 PDF。",
+		"returns": "Assets · paper, assets"
+	},
+	{
+		"path": "paper link",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "将同一篇论文列入本库另一个论文目录",
+		"example": "agentero paper link papers/atlas papers/reading",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "into",
+				"help": "目标论文父目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Destination collection in the vault"
+			}
+		],
+		"about_en": "Link a paper into another collection in this vault",
+		"behavior": "创建目录链接并保持同一份题录，已存在的相同链接返回原结果。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "paper copy",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "将论文复制到另一个 Vault",
+		"example": "agentero paper copy papers/atlas --to-vault lab",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "to-vault",
+				"help": "目标库；源库由 --vault 或当前目录确定",
+				"required": true,
+				"help_en": "Destination vault ID or directory"
+			},
+			{
+				"name": "into",
+				"help": "目标论文父目录",
+				"default": "papers",
+				"help_en": "Destination collection in the vault"
+			}
+		],
+		"about_en": "Copy a paper and its catalog record to another vault",
+		"behavior": "复制资产并创建目标题录；标识已存在时返回冲突及目标引用。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "file",
+		"about": "浏览与整理 Vault 内的文件、论文目录和回收站",
+		"example": "agentero file list drafts\nagentero file remove drafts/obsolete.md --dry-run",
+		"args": [],
+		"about_en": "Browse and organize vault files"
+	},
+	{
+		"path": "file list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "浏览 Vault 内一个目录",
+		"example": "agentero file list drafts",
+		"tool": "file_list",
+		"result": "Files",
+		"args": [
+			{
+				"name": "path",
+				"help": "操作的 Vault 相对路径",
+				"positional": true,
+				"help_en": "Vault-relative path"
+			},
+			{
+				"name": "hidden",
+				"help": "包括可访问的隐藏项",
+				"kind": "bool",
+				"help_en": "Include hidden entries"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List the children of a vault directory",
+		"behavior": "省略 path 从库根开始，只列一层。hidden 含普通隐藏项；管理目录与保留类型的约束始终生效。",
+		"returns": "Files · items, next_cursor"
+	},
+	{
+		"path": "file write",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "创建、追加或替换一个 Vault 文件",
+		"example": "agentero file write drafts/review.md --input ./review.md",
+		"tool": "file_write",
+		"result": "DocChange",
+		"args": [
+			{
+				"name": "path",
+				"help": "操作的 Vault 相对路径",
+				"positional": true,
+				"required": true,
+				"help_en": "Vault-relative path"
+			},
+			{
+				"name": "input",
+				"binding": { "field": "content", "decode": "fileContent" },
+				"help": "输入文件，- 表示标准输入",
+				"required": true,
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "mode",
+				"help": "创建、追加或整体替换",
+				"default": "create",
+				"choices": ["create", "append", "replace"],
+				"help_en": "Write mode"
+			},
+			{
+				"name": "encoding",
+				"help": "文件内容的编码",
+				"default": "utf8",
+				"choices": ["utf8", "binary"],
+				"help_en": "Input content encoding"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"help_en": "Required current revision"
+			},
+			{
+				"name": "request-id",
+				"help": "使用此幂等键重试同一操作；CLI 省略时自动生成",
+				"help_en": "Idempotency key to reuse for retries"
+			}
+		],
+		"about_en": "Create, replace or append to a vault file",
+		"behavior": "create 遇已有文件报冲突；replace 必需 if-revision；append 仅限 UTF-8，CLI 可自动生成 request-id。Markdown 只接受 UTF-8。现有表、论文笔记、批注、版面索引与锁定实验记录依各自规则写入；新建表验证结构。创建缺失父目录。",
+		"returns": "DocChange · path, revision, bytes"
+	},
+	{
+		"path": "file move",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "移动或重命名文件、目录或整篇论文",
+		"example": "agentero file move drafts/review.md drafts/related-work.md --dry-run",
+		"tool": "file_move",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "source",
+				"help": "现有文件或目录的完整 Vault 相对路径",
+				"positional": true,
+				"required": true,
+				"help_en": "Source reference, citation or vault-relative path"
+			},
+			{
+				"name": "destination",
+				"help": "完整目标路径，含最终文件或目录名",
+				"positional": true,
+				"required": true,
+				"help_en": "Exact destination path in the target vault"
+			},
+			{
+				"name": "to-vault",
+				"help": "目标库；源库由 --vault 或当前目录确定",
+				"help_en": "Destination vault ID or directory"
+			},
+			{
+				"name": "dry-run",
+				"help": "列出预期变更",
+				"kind": "bool",
+				"help_en": "Preview changes without applying them"
+			}
+		],
+		"about_en": "Move a file or paper folder to an exact destination",
+		"behavior": "destination 是完整目标路径。普通文件同库移动；论文及其组织目录可跨已授权 Vault，保留论文目录名、更新题录与双链，重名报冲突。dry-run 返回受影响条目。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "file remove",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "将文件或目录移入 Vault 回收站",
+		"example": "agentero file remove drafts/obsolete.md --dry-run",
+		"tool": "file_remove",
+		"result": "TrashChange",
+		"args": [
+			{
+				"name": "paths",
+				"help": "一个或多个 Vault 相对路径",
+				"positional": true,
+				"many": true,
+				"required": true,
+				"help_en": "One or more vault-relative paths"
+			},
+			{
+				"name": "dry-run",
+				"help": "列出预期变更",
+				"kind": "bool",
+				"help_en": "Preview changes without applying them"
+			}
+		],
+		"about_en": "Move files to the vault trash",
+		"behavior": "处理论文目录时一并回收题录，返回恢复 ID；同批父子路径先归并。删除前可预览。",
+		"returns": "TrashChange · items, preview"
+	},
+	{
+		"path": "file trash",
+		"about": "浏览、恢复或永久清除已回收的条目",
+		"example": "agentero file trash list",
+		"args": [],
+		"about_en": "Inspect and recover deleted files"
+	},
+	{
+		"path": "file trash list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "列出可恢复的回收条目",
+		"example": "agentero file trash list",
+		"tool": "trash_list",
+		"result": "TrashItems",
+		"args": [
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List recoverable trash entries",
+		"behavior": "按回收时间倒序，显示原始路径。",
+		"returns": "TrashItems · items, next_cursor"
+	},
+	{
+		"path": "file trash restore",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "stable",
+		"about": "将回收的条目与题录恢复到原路径",
+		"example": "agentero file trash restore t12",
+		"tool": "trash_restore",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "id",
+				"help": "要操作的记录 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Identifier from the corresponding listing"
+			}
+		],
+		"about_en": "Restore one item to its original path",
+		"behavior": "原路径已被占用时报冲突，保留回收条目。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "file trash purge",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "永久清除指定回收条目",
+		"example": "agentero file trash purge t12 --dry-run",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "id",
+				"help": "要操作的记录 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Identifier from the corresponding listing"
+			},
+			{
+				"name": "dry-run",
+				"help": "列出预期变更",
+				"kind": "bool",
+				"help_en": "Preview changes without applying them"
+			},
+			{
+				"name": "yes",
+				"help": "确认本命令描述的删除或解绑",
+				"kind": "bool",
+				"help_en": "Confirm this operation in non-interactive mode"
+			}
+		],
+		"about_en": "Permanently delete one trash entry",
+		"behavior": "仅接受回收 ID。非交互必须 --yes 或 --dry-run，交互确认显示原路径。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "annotation",
+		"about": "在论文原文上创建和维护批注",
+		"example": "agentero annotation list papers/atlas --page 8",
+		"args": [],
+		"about_en": "Read and maintain PDF annotations"
+	},
+	{
+		"path": "annotation list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "列出论文中的高亮、提问、翻译及 Agent 标记",
+		"example": "agentero annotation list papers/atlas --page 8",
+		"tool": "annotation_list",
+		"result": "Marks",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "kind",
+				"help": "筛选已有批注的类型",
+				"many": true,
+				"choices": ["highlight", "ask", "translate", "agent-trace"],
+				"help_en": "Select a resource kind"
+			},
+			{
+				"name": "page",
+				"help": "物理页码，从 1 开始；可选",
+				"kind": "integer",
+				"min": 1,
+				"max": 2147483647,
+				"help_en": "Physical page, starting at one"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List a paper’s annotations",
+		"behavior": "按页和位置排序。",
+		"returns": "Marks · items, next_cursor"
+	},
+	{
+		"path": "annotation get",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "查看批注及其原文位置",
+		"example": "agentero annotation get papers/atlas m3",
+		"tool": "annotation_get",
+		"result": "Mark",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "id",
+				"help": "要操作的记录 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Identifier from the corresponding listing"
+			}
+		],
+		"about_en": "Inspect a single annotation",
+		"behavior": "返回定位、引用、备注、颜色及版本。",
+		"returns": "Mark · id, paper, kind, cite, locator, revision, comment, color, question, translation"
+	},
+	{
+		"path": "annotation add",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "stable",
+		"about": "用原句或版面区域创建批注",
+		"example": "agentero annotation add papers/atlas --quote \"batch size\" --page 8 --request-id mark-17",
+		"tool": "annotation_add",
+		"result": "Marks",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "cite",
+				"help": "search 或 read 返回的论文出处",
+				"help_en": "Citable source returned by search or read"
+			},
+			{
+				"name": "quote",
+				"help": "要定位的原句；存在歧义时返回候选引用",
+				"help_en": "Exact text to locate"
+			},
+			{
+				"name": "region",
+				"help": "版面索引的区域 ID 或锚点",
+				"help_en": "Region ID from paper regions"
+			},
+			{
+				"name": "page",
+				"help": "物理页码，从 1 开始；可选",
+				"kind": "integer",
+				"min": 1,
+				"max": 2147483647,
+				"help_en": "Physical page, starting at one"
+			},
+			{
+				"name": "occurrence",
+				"help": "原句的第几次命中，从 1 起",
+				"kind": "integer",
+				"min": 1,
+				"max": 2147483647,
+				"help_en": "One-based index of the matching quote"
+			},
+			{
+				"name": "all-matches",
+				"help": "为每一个匹配位置创建批注",
+				"kind": "bool",
+				"help_en": "Annotate all occurrences"
+			},
+			{
+				"name": "kind",
+				"help": "要创建的批注类型",
+				"default": "highlight",
+				"choices": ["highlight", "ask", "translate"],
+				"help_en": "Annotation type"
+			},
+			{
+				"name": "comment",
+				"help": "批注正文；更新时可传空串清空",
+				"help_en": "Annotation comment"
+			},
+			{
+				"name": "question",
+				"help": "提问内容",
+				"help_en": "Research question attached to an ask mark"
+			},
+			{
+				"name": "mark-color",
+				"binding": { "field": "color" },
+				"help": "高亮颜色",
+				"default": "yellow",
+				"choices": ["yellow", "green", "blue", "pink", "purple"],
+				"help_en": "Highlight palette color"
+			},
+			{
+				"name": "language",
+				"help": "翻译批注的目标语言",
+				"help_en": "Translation target language"
+			},
+			{
+				"name": "translation",
+				"help": "直接使用这段人工译文",
+				"help_en": "Previously translated text"
+			},
+			{
+				"name": "request-id",
+				"help": "使用此幂等键重试同一操作；CLI 省略时自动生成",
+				"help_en": "Idempotency key to reuse for retries"
+			}
+		],
+		"about_en": "Annotate a quote, region or citation",
+		"behavior": "cite、quote、region 三选一；cite 必须定位到该论文。occurrence 与 all-matches 互斥且仅用于 quote；重复匹配返回候选。ask 必需 question；translate 必需 language，可传人工译文，否则使用已配置翻译服务。",
+		"returns": "Marks · items, next_cursor"
+	},
+	{
+		"path": "annotation update",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "修改批注的备注或颜色",
+		"example": "agentero annotation update papers/atlas m3 --comment \"核对表 2\" --if-revision r2",
+		"tool": "annotation_update",
+		"result": "Mark",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "id",
+				"help": "要操作的记录 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Identifier from the corresponding listing"
+			},
+			{
+				"name": "comment",
+				"help": "批注正文；更新时可传空串清空",
+				"help_en": "Annotation comment"
+			},
+			{
+				"name": "mark-color",
+				"binding": { "field": "color" },
+				"help": "高亮颜色",
+				"choices": ["yellow", "green", "blue", "pink", "purple"],
+				"help_en": "Highlight palette color"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"required": true,
+				"help_en": "Required current revision"
+			}
+		],
+		"about_en": "Update an annotation at a known revision",
+		"behavior": "至少提供 comment 或 mark-color；空 comment 清空备注。",
+		"returns": "Mark · id, paper, kind, cite, locator, revision, comment, color, question, translation"
+	},
+	{
+		"path": "annotation remove",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "删除一条批注",
+		"example": "agentero annotation remove papers/atlas m3 --if-revision r2",
+		"tool": "annotation_remove",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "paper",
+				"help": "馆藏论文 ID 或库内论文目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Paper ID or vault-relative paper folder"
+			},
+			{
+				"name": "id",
+				"help": "要操作的记录 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Identifier from the corresponding listing"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"required": true,
+				"help_en": "Required current revision"
+			}
+		],
+		"about_en": "Delete an annotation at a known revision",
+		"behavior": "按指定版本删除，旧版本返回冲突。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "table",
+		"about": "查询研究表，按记录 ID 写行或改单元格",
+		"example": "agentero table query experiments/results.table.json --field split --equals '\"test\"'",
+		"args": [],
+		"about_en": "Query and edit research tables"
+	},
+	{
+		"path": "table query",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "按记录 ID 或字段值查询表格",
+		"example": "agentero table query experiments/results.table.json --field split --equals '\"test\"'",
+		"tool": "table_query",
+		"result": "Rows",
+		"args": [
+			{
+				"name": "path",
+				"help": "操作的 Vault 相对路径",
+				"positional": true,
+				"required": true,
+				"help_en": "Vault-relative path"
+			},
+			{
+				"name": "row",
+				"help": "表格记录的固定 ID",
+				"help_en": "Row identifier"
+			},
+			{
+				"name": "field",
+				"help": "列名，与 equals 配合",
+				"help_en": "Table field"
+			},
+			{
+				"name": "equals",
+				"help": "完全相等的 JSON 标量",
+				"kind": "json",
+				"help_en": "Match this JSON value"
+			},
+			{
+				"name": "archived",
+				"help": "包含归档行",
+				"kind": "bool",
+				"help_en": "Include archived records"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "Query table rows and selected fields",
+		"behavior": "field 与 equals 成对出现。equals 是 JSON 标量，字符串须作为 JSON 字符串传入；结果含 revision、列定义和行。",
+		"returns": "Rows · revision, columns, items, next_cursor"
+	},
+	{
+		"path": "table upsert",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "按记录 ID 创建或局部更新多行",
+		"example": "agentero table upsert experiments/results.table.json --input rows.json --if-revision 4 --request-id run-21",
+		"tool": "table_upsert",
+		"result": "TableChange",
+		"args": [
+			{
+				"name": "path",
+				"help": "操作的 Vault 相对路径",
+				"positional": true,
+				"required": true,
+				"help_en": "Vault-relative path"
+			},
+			{
+				"name": "input",
+				"binding": { "field": "rows", "decode": "jsonMember" },
+				"help": "输入文件，- 表示标准输入",
+				"required": true,
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"required": true,
+				"help_en": "Required current revision"
+			},
+			{
+				"name": "request-id",
+				"help": "使用此幂等键重试同一操作；CLI 省略时自动生成",
+				"help_en": "Idempotency key to reuse for retries"
+			}
+		],
+		"about_en": "Insert or update rows by record ID",
+		"behavior": "输入为 rows 数组，仅修改给出的字段。整批校验并原子提交；相同请求重放返回首次回执。",
+		"returns": "TableChange · path, revision, changed_rows, changed_cells"
+	},
+	{
+		"path": "table patch",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "按记录 ID 和列名更新多个单元格",
+		"example": "agentero table patch experiments/results.table.json --input cells.json --if-revision 5 --request-id fix-21",
+		"tool": "table_patch",
+		"result": "TableChange",
+		"args": [
+			{
+				"name": "path",
+				"help": "操作的 Vault 相对路径",
+				"positional": true,
+				"required": true,
+				"help_en": "Vault-relative path"
+			},
+			{
+				"name": "input",
+				"binding": { "field": "cells", "decode": "jsonMember" },
+				"help": "输入文件，- 表示标准输入",
+				"required": true,
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "if-revision",
+				"help": "提交所依据的版本，来自该对象的读取结果",
+				"required": true,
+				"help_en": "Required current revision"
+			},
+			{
+				"name": "request-id",
+				"help": "使用此幂等键重试同一操作；CLI 省略时自动生成",
+				"help_en": "Idempotency key to reuse for retries"
+			}
+		],
+		"about_en": "Apply a batch of cell changes",
+		"behavior": "输入为 cells 数组；目标行和字段必须存在。重复坐标报错，整批原子提交。",
+		"returns": "TableChange · path, revision, changed_rows, changed_cells"
+	},
+	{
+		"path": "feed",
+		"about": "管理订阅和订阅条目的阅读状态",
+		"example": "agentero feed list",
+		"args": [],
+		"about_en": "Manage feed subscriptions and reading state"
+	},
+	{
+		"path": "feed list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
+		"about": "列出本机订阅",
+		"example": "agentero feed list",
+		"result": "Feeds",
+		"args": [
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List feed subscriptions",
+		"behavior": "置顶优先，其次按添加时间。",
+		"returns": "Feeds · items, next_cursor"
+	},
+	{
+		"path": "feed add",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"online": true,
+		"about": "订阅 RSS、Atom 或 JSON Feed",
+		"example": "agentero feed add https://export.arxiv.org/rss/cs.CL",
+		"result": "Feed",
+		"args": [
+			{
+				"name": "url",
+				"help": "订阅源或同步服务地址",
+				"positional": true,
+				"required": true,
+				"help_en": "Feed or WebDAV URL"
+			},
+			{
+				"name": "title",
+				"help": "显示名称或题名",
+				"help_en": "Title"
+			}
+		],
+		"about_en": "Subscribe to an RSS, Atom or JSON feed",
+		"behavior": "支持自动发现 feed；首次拉取后返回订阅 ID。",
+		"returns": "Feed · id, title, url"
+	},
+	{
+		"path": "feed refresh",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"online": true,
+		"about": "更新全部或一个订阅",
+		"example": "agentero feed refresh --stale",
+		"result": "FeedRefresh",
+		"args": [
+			{
+				"name": "feed",
+				"help": "仅处理此订阅 ID",
+				"help_en": "Subscription ID"
+			},
+			{
+				"name": "stale",
+				"help": "仅更新超过 15 分钟的订阅",
+				"kind": "bool",
+				"help_en": "Refresh only stale subscriptions"
+			}
+		],
+		"about_en": "Refresh subscriptions",
+		"behavior": "stale 只更新上次拉取超过 15 分钟的订阅；逐源报告失败。",
+		"returns": "FeedRefresh · items"
+	},
+	{
+		"path": "feed item",
+		"about": "查看或标记已缓存的订阅条目",
+		"example": "agentero feed item list --kind paper --state unread",
+		"args": [],
+		"about_en": "Read and organize feed entries"
+	},
+	{
+		"path": "feed item list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
+		"about": "筛选缓存的订阅条目",
+		"example": "agentero feed item list --kind paper --state unread",
+		"result": "FeedItems",
+		"args": [
+			{
+				"name": "feed",
+				"help": "仅处理此订阅 ID",
+				"help_en": "Subscription ID"
+			},
+			{
+				"name": "state",
+				"help": "阅读状态",
+				"choices": ["read", "unread"],
+				"help_en": "Reading state"
+			},
+			{
+				"name": "kind",
+				"help": "订阅条目类别",
+				"choices": ["paper", "other"],
+				"help_en": "Select a resource kind"
+			},
+			{
+				"name": "full",
+				"help": "带回订阅条目的完整缓存正文",
+				"kind": "bool",
+				"help_en": "Include full entry content"
+			},
+			{
+				"name": "limit",
+				"help": "本次返回的最大条目数",
+				"kind": "integer",
+				"default": "50",
+				"min": 1.0,
+				"max": 200.0,
+				"help_en": "Maximum items to return"
+			},
+			{
+				"name": "cursor",
+				"help": "从上次返回的 next_cursor 继续",
+				"help_en": "Continue using a previously returned cursor"
+			}
+		],
+		"about_en": "List and filter entries across subscriptions",
+		"behavior": "时间倒序；省略筛选返回全部，full 包含源正文。",
+		"returns": "FeedItems · items, next_cursor"
+	},
+	{
+		"path": "feed item mark",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "设置订阅条目的已读状态",
+		"example": "agentero feed item mark i3 read",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "id",
+				"help": "要操作的记录 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Identifier from the corresponding listing"
+			},
+			{
+				"name": "state",
+				"help": "阅读状态",
+				"positional": true,
+				"required": true,
+				"choices": ["read", "unread"],
+				"help_en": "Reading state"
+			}
+		],
+		"about_en": "Change a feed entry’s reading state",
+		"behavior": "只修改本机订阅条目。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "feed remove",
+		"sideEffects": "destructive",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "移除订阅及本机缓存条目",
+		"example": "agentero feed remove f2 --yes",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "id",
+				"help": "要操作的记录 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Identifier from the corresponding listing"
+			},
+			{
+				"name": "yes",
+				"help": "确认本命令描述的删除或解绑",
+				"kind": "bool",
+				"help_en": "Confirm this operation in non-interactive mode"
+			}
+		],
+		"about_en": "Remove a subscription and its cached entries",
+		"behavior": "非交互必须 --yes。保留已经独立导入 Vault 的论文。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "translate",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "internal",
+		"online": true,
+		"about": "翻译一段文本或 stdin 内容",
+		"example": "agentero translate --to zh-CN --input - < abstract.txt",
+		"result": "Translation",
+		"args": [
+			{
+				"name": "text",
+				"help": "待翻译的文本",
+				"positional": true,
+				"help_en": "Text to translate"
+			},
+			{
+				"name": "input",
+				"help": "输入文件，- 表示标准输入",
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "to",
+				"help": "目标语言",
+				"required": true,
+				"help_en": "Target language"
+			},
+			{
+				"name": "from",
+				"help": "源语言；auto 自动识别",
+				"default": "auto",
+				"help_en": "Source language"
+			},
+			{
+				"name": "profile",
+				"help": "已配置的服务、端点与认证组合",
+				"help_en": "Name of a locally configured profile"
+			}
+		],
+		"about_en": "Translate text or UTF-8 input",
+		"behavior": "text 和 --input 二选一。源语言省略时自动识别；--input - 支持管道。输出保留段落顺序。",
+		"returns": "Translation · text, from, to"
+	},
+	{
+		"path": "vault",
+		"about": "创建、选择、检查或修复本地研究库",
+		"example": "agentero vault list",
+		"args": [],
+		"about_en": "Create, inspect and repair research vaults"
+	},
+	{
+		"path": "vault list",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "stable",
+		"about": "列出当前调用者可见的 Vault",
+		"example": "agentero vault list",
+		"tool": "vault_list",
+		"result": "Vaults",
+		"args": [],
+		"about_en": "List known vaults and their paths",
+		"behavior": "终端列已登记的本地库；MCP 只列服务授予的库。返回短 ID、名称及当前库；绝对路径仅在本地终端显示。",
+		"returns": "Vaults · items"
+	},
+	{
+		"path": "vault info",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
+		"about": "查看所选库、目录和目录索引状态",
+		"example": "agentero vault info --vault ./lab-papers",
+		"result": "Vault",
+		"args": [],
+		"about_en": "Inspect the current vault",
+		"behavior": "从当前目录的祖先也可定位库；无法选择时返回可操作的提示。",
+		"returns": "Vault · id, name, current, path, catalog_state, paper_count, outcome"
+	},
+	{
+		"path": "vault create",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "在本机目录创建并登记一个 Vault",
+		"example": "agentero vault create ./lab-papers",
+		"result": "Vault",
+		"args": [
+			{
+				"name": "directory",
+				"help": "要创建的库目录",
+				"positional": true,
+				"required": true,
+				"help_en": "Local directory"
+			},
+			{
+				"name": "name",
+				"help": "库的显示名称",
+				"help_en": "Vault display name"
+			}
+		],
+		"about_en": "Create or reuse a vault in a local directory",
+		"behavior": "目录缺省名称取最后一个路径分量，已存在的 Vault 返回 existing，非空且非 Vault 的目录报冲突。",
+		"returns": "Vault · id, name, current, path, catalog_state, paper_count, outcome"
+	},
+	{
+		"path": "vault check",
+		"sideEffects": "read",
+		"permission": "vault:read",
+		"stability": "internal",
+		"about": "诊断库、目录索引、链接与批注",
+		"example": "agentero vault check --area links --under notes",
+		"result": "Health",
+		"args": [
+			{
+				"name": "area",
+				"help": "要诊断或修复的项目",
+				"many": true,
+				"choices": ["catalog", "links", "aliases", "annotations"],
+				"help_en": "Diagnostic or repair area"
+			},
+			{
+				"name": "under",
+				"help": "只检查该文件或目录中的链接",
+				"help_en": "Restrict the check to a relative path"
+			}
+		],
+		"about_en": "Check the vault for integrity or link issues",
+		"behavior": "无 area 时全部检查；under 只对 links 有效。返回逐项问题与建议操作，发现问题退出 1。",
+		"returns": "Health · ok, findings"
+	},
+	{
+		"path": "vault repair",
+		"sideEffects": "write",
+		"permission": "vault:write",
+		"stability": "internal",
+		"about": "预览或执行指定的库修复",
+		"example": "agentero vault repair duplicate-records",
+		"result": "Repair",
+		"args": [
+			{
+				"name": "area",
+				"help": "要诊断或修复的项目",
+				"positional": true,
+				"required": true,
+				"choices": ["aliases", "annotations", "duplicate-records"],
+				"help_en": "Diagnostic or repair area"
+			},
+			{
+				"name": "apply",
+				"help": "执行已选择类型的修复",
+				"kind": "bool",
+				"help_en": "Apply the previewed repair"
+			}
+		],
+		"about_en": "Preview or apply a selected repair",
+		"behavior": "默认仅列出改动，--apply 才执行；目录去重保留规范记录并报告受影响 ID。",
+		"returns": "Repair · applied, items"
+	},
+	{
+		"path": "sync",
+		"about": "配置并运行 Vault 同步",
+		"example": "agentero sync status",
+		"args": [],
+		"about_en": "Connect a vault to remote storage and synchronize it",
+		"returns": "connect       连接指定类型的同步存储\n  test          验证绑定的存储及写入能力\n  run           执行一次双向同步\n  disconnect    解绑当前库并移除本地同步状态"
+	},
+	{
+		"path": "sync status",
+		"sideEffects": "read",
+		"permission": "sync",
+		"stability": "internal",
+		"about": "查看当前库的同步绑定和上次结果",
+		"example": "agentero sync status",
+		"result": "SyncState",
+		"args": [],
+		"about_en": "Show the vault’s sync backend and last run",
+		"behavior": "敏感字段永不返回。",
+		"returns": "用法\n  agentero sync status"
+	},
+	{
+		"path": "sync connect",
+		"about": "连接指定类型的同步存储",
+		"example": "agentero sync connect s3 --bucket research --region us-east-1",
+		"args": [],
+		"about_en": "Connect and test a storage backend"
+	},
+	{
+		"path": "sync connect s3",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
+		"about": "连接 S3 或 R2 兼容存储",
+		"example": "agentero sync connect s3 --bucket research --region us-east-1",
+		"result": "SyncState",
+		"args": [
+			{
+				"name": "bucket",
+				"help": "S3 兼容桶名",
+				"required": true,
+				"help_en": "S3 bucket name"
+			},
+			{
+				"name": "endpoint",
+				"help": "自定义存储端点；缺省为提供方默认端点",
+				"help_en": "S3-compatible HTTPS endpoint"
+			},
+			{
+				"name": "region",
+				"help": "S3 区域",
+				"default": "us-east-1",
+				"help_en": "S3 region"
+			},
+			{
+				"name": "prefix",
+				"help": "桶内键名前缀",
+				"help_en": "Key prefix within the bucket"
+			},
+			{
+				"name": "exclude",
+				"help": "跳过同步的资产类别",
+				"many": true,
+				"choices": ["pdf", "source", "attachments"],
+				"help_en": "Asset category to exclude from sync"
+			},
+			{
+				"name": "credentials-input",
+				"help": "凭证 JSON 文件或 -，内容不会回显",
+				"help_en": "Credentials JSON file, or - for stdin"
+			}
+		],
+		"about_en": "Connect an S3-compatible bucket",
+		"behavior": "密钥来自凭据存储、隐藏提示或显式 JSON 输入；先测试连接再替换绑定。",
+		"returns": "SyncState · backend, location, last_run"
+	},
+	{
+		"path": "sync connect webdav",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
+		"about": "连接 WebDAV 目录",
+		"example": "agentero sync connect webdav https://dav.example.org/research --username lab",
+		"result": "SyncState",
+		"args": [
+			{
+				"name": "url",
+				"help": "订阅源或同步服务地址",
+				"positional": true,
+				"required": true,
+				"help_en": "Feed or WebDAV URL"
+			},
+			{
+				"name": "username",
+				"help": "WebDAV 用户名",
+				"help_en": "WebDAV account name"
+			},
+			{
+				"name": "journal",
+				"help": "启用独立目录的 WebDAV 日志模式",
+				"kind": "bool",
+				"help_en": "Use the WebDAV journal"
+			},
+			{
+				"name": "exclude",
+				"help": "跳过同步的资产类别",
+				"many": true,
+				"choices": ["pdf", "source", "attachments"],
+				"help_en": "Asset category to exclude from sync"
+			},
+			{
+				"name": "credentials-input",
+				"help": "凭证 JSON 文件或 -，内容不会回显",
+				"help_en": "Credentials JSON file, or - for stdin"
+			}
+		],
+		"about_en": "Connect a WebDAV directory",
+		"behavior": "journal 使用普通 PUT 日志，需独立同步目录，返回协商结果。",
+		"returns": "SyncState · backend, location, last_run"
+	},
+	{
+		"path": "sync connect git",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
+		"about": "连接 Git 仓库与分支",
+		"example": "agentero sync connect git git@example.org:lab/vault.git --branch main",
+		"result": "SyncState",
+		"args": [
+			{
+				"name": "remote",
+				"help": "Git 仓库地址或本机路径",
+				"positional": true,
+				"required": true,
+				"help_en": "Git remote URL or local path"
+			},
+			{
+				"name": "branch",
+				"help": "同步分支",
+				"default": "main",
+				"help_en": "Git branch"
+			},
+			{
+				"name": "ca-file",
+				"help": "PEM CA 文件",
+				"help_en": "Trusted CA certificate file"
+			},
+			{
+				"name": "allow-insecure-http",
+				"help": "允许明文 HTTP Git 远程连接",
+				"kind": "bool",
+				"help_en": "Permit a non-loopback HTTP Git remote"
+			},
+			{
+				"name": "exclude",
+				"help": "跳过同步的资产类别",
+				"many": true,
+				"choices": ["pdf", "source", "attachments"],
+				"help_en": "Asset category to exclude from sync"
+			}
+		],
+		"about_en": "Connect a Git remote",
+		"behavior": "认证使用系统 Git/SSH 凭据；ca-file 是 PEM CA 文件。",
+		"returns": "SyncState · backend, location, last_run"
+	},
+	{
+		"path": "sync test",
+		"sideEffects": "read",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
+		"about": "验证绑定的存储及写入能力",
+		"example": "agentero sync test",
+		"result": "SyncTest",
+		"args": [],
+		"about_en": "Test the active sync connection",
+		"behavior": "可能创建并清理远端探测对象，返回分项结果。",
+		"returns": "SyncTest · ok, checks"
+	},
+	{
+		"path": "sync run",
+		"sideEffects": "write",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
+		"about": "执行一次双向同步",
+		"example": "agentero sync run",
+		"result": "SyncRun",
+		"args": [],
+		"about_en": "Run a bidirectional sync pass",
+		"behavior": "返回上传、下载、冲突副本与可重试项；争用同步锁返回 busy。",
+		"returns": "SyncRun · uploaded, downloaded, conflicts, errors"
+	},
+	{
+		"path": "sync disconnect",
+		"sideEffects": "destructive",
+		"permission": "sync",
+		"stability": "internal",
+		"about": "解绑当前库并移除本地同步状态",
+		"example": "agentero sync disconnect --yes",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "yes",
+				"help": "确认本命令描述的删除或解绑",
+				"kind": "bool",
+				"help_en": "Confirm this operation in non-interactive mode"
+			}
+		],
+		"about_en": "Disconnect the vault from its sync backend",
+		"behavior": "远端对象保留；非交互需要 --yes。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "app",
+		"about": "打开桌面视图、安排分栏、展示回合产物",
+		"example": "agentero app open papers/atlas\nagentero app views",
+		"args": [],
+		"about_en": "Work with desktop views and turn artifacts"
+	},
+	{
+		"path": "app open",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "在桌面打开 Vault、文档、论文或引用",
+		"example": "agentero app open papers/atlas",
+		"result": "View",
+		"args": [
+			{
+				"name": "target",
+				"help": "桌面目标引用或 SSH 工作区 ID",
+				"positional": true,
+				"help_en": "Resource or delegation target"
+			}
+		],
+		"about_en": "Open or focus a resource in the desktop",
+		"behavior": "省略 target 打开所选 Vault。可唤起桌面；已打开正文时聚焦，引用尽量跳到原始位置。",
+		"returns": "View · view, window, path"
+	},
+	{
+		"path": "app views",
+		"sideEffects": "read",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "列出桌面窗口及可定位的视图",
+		"example": "agentero app views --window main",
+		"result": "Views",
+		"args": [
+			{
+				"name": "window",
+				"help": "Tauri 窗口 label",
+				"help_en": "Desktop window label"
+			}
+		],
+		"about_en": "List current desktop views",
+		"behavior": "返回 Tauri 窗口 label、Dockview 视图 ID、路径和活动状态，供 split/close。",
+		"returns": "Views · items"
+	},
+	{
+		"path": "app split",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "在工作区拆分当前视图或并排打开文档",
+		"example": "agentero app split notes/ideas.md --beside view-123",
+		"result": "View",
+		"args": [
+			{
+				"name": "target",
+				"help": "桌面目标引用或 SSH 工作区 ID",
+				"positional": true,
+				"help_en": "Resource or delegation target"
+			},
+			{
+				"name": "beside",
+				"help": "作为分栏基准的视图 ID",
+				"help_en": "Adjacent desktop view ID"
+			},
+			{
+				"name": "direction",
+				"help": "新视图相对基准视图的位置",
+				"default": "right",
+				"choices": ["right", "left", "above", "below", "within"],
+				"help_en": "Direction to follow"
+			},
+			{
+				"name": "window",
+				"help": "Tauri 窗口 label",
+				"help_en": "Desktop window label"
+			}
+		],
+		"about_en": "Split a desktop view beside another view",
+		"behavior": "beside 是源视图 ID；无 target 时拆分源视图，缺省源为活动视图。",
+		"returns": "View · view, window, path"
+	},
+	{
+		"path": "app close",
+		"sideEffects": "destructive",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "关闭一个桌面视图",
+		"example": "agentero app close view-123 --window main",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "view",
+				"help": "Dockview 面板 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Desktop view ID"
+			},
+			{
+				"name": "window",
+				"help": "Tauri 窗口 label",
+				"help_en": "Desktop window label"
+			}
+		],
+		"about_en": "Close an identified desktop view",
+		"behavior": "view 是 Dockview 面板 ID，窗口省略时由宿主定位，遵守现有关闭策略与保存否决。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "app window",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "打开或聚焦一个功能窗口",
+		"example": "agentero app window settings",
+		"result": "Window",
+		"args": [
+			{
+				"name": "feature",
+				"help": "功能窗口类型",
+				"positional": true,
+				"required": true,
+				"choices": ["settings", "agent", "annotations"],
+				"help_en": "Desktop feature window"
+			},
+			{
+				"name": "section",
+				"help": "设置页面标识",
+				"help_en": "Select a section by name or ID"
+			}
+		],
+		"about_en": "Open a desktop feature window",
+		"behavior": "section 仅适用于 settings。",
+		"returns": "Window · window"
+	},
+	{
+		"path": "app present",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "将本回合生成的 Vault 文件放到聊天产物卡片",
+		"example": "agentero app present outputs/comparison.md --title \"实验对照\"",
+		"result": "Artifacts",
+		"args": [
+			{
+				"name": "paths",
+				"help": "一个或多个 Vault 相对路径",
+				"positional": true,
+				"many": true,
+				"required": true,
+				"help_en": "One or more vault-relative paths"
+			},
+			{
+				"name": "title",
+				"help": "显示名称或题名",
+				"help_en": "Title"
+			}
+		],
+		"about_en": "Present files created during the current agent turn",
+		"behavior": "新增的桌面回合能力。文件必须已写入；title 限单文件。返回可打开引用，预览由现有文件查看器按类型决定；需宿主回合绑定。",
+		"returns": "Artifacts · items"
+	},
+	{
+		"path": "delegate",
+		"about": "向已连接的远端研究工作区提交任务",
+		"example": "agentero delegate targets",
+		"args": [],
+		"about_en": "Delegate tasks to research agents",
+		"returns": "cancel        请求取消仍在执行的远端任务"
+	},
+	{
+		"path": "delegate targets",
+		"sideEffects": "read",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "列出可委派的已连接 SSH 工作区",
+		"example": "agentero delegate targets",
+		"result": "Targets",
+		"args": [],
+		"about_en": "List available delegation targets",
+		"behavior": "依赖桌面 SSH 会话与平台支持。",
+		"returns": "Targets · items"
+	},
+	{
+		"path": "delegate run",
+		"sideEffects": "write",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "向指定工作区提交远端 Agent 任务",
+		"example": "agentero delegate run gpu-lab --input task.md --request-id job-17",
+		"result": "Job",
+		"args": [
+			{
+				"name": "target",
+				"help": "桌面目标引用或 SSH 工作区 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Resource or delegation target"
+			},
+			{
+				"name": "input",
+				"help": "输入文件，- 表示标准输入",
+				"required": true,
+				"help_en": "Input path, or - to read stdin"
+			},
+			{
+				"name": "agent",
+				"help": "使用 delegate targets 返回的 Agent ID；省略时使用可委派的默认 Agent 或唯一候选",
+				"help_en": "Agent ID from delegate targets (default: eligible default or sole candidate)"
+			},
+			{
+				"name": "request-id",
+				"help": "使用此幂等键重试同一操作；CLI 省略时自动生成",
+				"help_en": "Idempotency key to reuse for retries"
+			}
+		],
+		"about_en": "Submit a task to a selected target",
+		"behavior": "input 为 UTF-8 任务说明。立即返回任务 ID，执行目录由目标绑定决定。",
+		"returns": "Job · id, state, result"
+	},
+	{
+		"path": "delegate result",
+		"sideEffects": "read",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "读取任务状态及已有结果",
+		"example": "agentero delegate result j9 --wait 30",
+		"result": "Job",
+		"args": [
+			{
+				"name": "job",
+				"help": "远端任务 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Delegated job ID"
+			},
+			{
+				"name": "wait",
+				"help": "最多等待的秒数",
+				"kind": "integer",
+				"default": "0",
+				"min": 0.0,
+				"max": 300.0,
+				"help_en": "Seconds to wait for a result"
+			}
+		],
+		"about_en": "Get or wait for a delegated job’s result",
+		"behavior": "wait 为最长等待秒数；超时返回当前状态。",
+		"returns": "用法\n  agentero delegate result JOB [--wait WAIT]"
+	},
+	{
+		"path": "delegate cancel",
+		"sideEffects": "destructive",
+		"permission": "desktop",
+		"stability": "internal",
+		"about": "请求取消仍在执行的远端任务",
+		"example": "agentero delegate cancel j9",
+		"result": "Job",
+		"args": [
+			{
+				"name": "job",
+				"help": "远端任务 ID",
+				"positional": true,
+				"required": true,
+				"help_en": "Delegated job ID"
+			}
+		],
+		"about_en": "Request cancellation of a delegated job",
+		"behavior": "已经终止的任务返回最终状态；取消与任务完成可能竞态。",
+		"returns": "Job · id, state, result"
+	},
+	{
+		"path": "mcp",
+		"about": "为外部客户端运行或检查工具服务",
+		"example": "agentero mcp tools --json\nagentero mcp serve --vault lab",
+		"args": [],
+		"about_en": "Serve research operations through MCP"
+	},
+	{
+		"path": "mcp serve",
+		"sideEffects": "write",
+		"permission": "none",
+		"stability": "internal",
+		"about": "向客户端启动一个 Agentero MCP 服务",
+		"example": "agentero mcp serve --vault lab --allow full-text",
+		"result": "Server",
+		"args": [
+			{
+				"name": "transport",
+				"help": "stdio 或本机 Streamable HTTP",
+				"default": "stdio",
+				"choices": ["stdio", "http"],
+				"help_en": "MCP transport"
+			},
+			{
+				"name": "allow-vault",
+				"help": "附加允许访问的 Vault，可重复",
+				"many": true,
+				"help_en": "Authorize this vault"
+			},
+			{
+				"name": "allow",
+				"help": "追加授予的工具能力，可重复",
+				"many": true,
+				"choices": ["full-text", "write", "online"],
+				"help_en": "Grant an additional capability"
+			},
+			{
+				"name": "listen",
+				"help": "loopback 地址与端口",
+				"default": "127.0.0.1:0",
+				"help_en": "Loopback address and port"
+			},
+			{
+				"name": "token-input",
+				"help": "HTTP bearer token 文件或 -",
+				"help_en": "Bearer token input file, or - for stdin"
+			}
+		],
+		"about_en": "Run an MCP server on stdio or loopback HTTP",
+		"behavior": "所选库为默认库，--allow-vault 可重复追加其它授权库。HTTP 只绑定 loopback，默认生成当前进程专用的临时 bearer 凭据，也可以用 --token-input 指定；stdio 只输出协议帧。listen、token-input 仅用于 http。",
+		"returns": "Server · transport, address"
+	},
+	{
+		"path": "mcp tools",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "internal",
+		"about": "查看给定启动配置实际会发布的工具",
+		"example": "agentero mcp tools --vault lab --allow write --json",
+		"result": "Tools",
+		"args": [
+			{
+				"name": "allow-vault",
+				"help": "附加允许访问的 Vault，可重复",
+				"many": true,
+				"help_en": "Authorize this vault"
+			},
+			{
+				"name": "allow",
+				"help": "追加授予的工具能力，可重复",
+				"many": true,
+				"choices": ["full-text", "write", "online"],
+				"help_en": "Grant an additional capability"
+			}
+		],
+		"about_en": "Inspect tools and schemas visible with these permissions",
+		"behavior": "使用相同发布规则，--json 返回 tools/list 的 result 对象，含输入输出 schema；无需启动监听。",
+		"returns": "Tools · tools"
+	},
+	{
+		"path": "help",
+		"sideEffects": "read",
+		"permission": "none",
+		"stability": "internal",
+		"about": "查看任意命令的帮助或结构化定义",
+		"example": "agentero help paper import pdf",
+		"result": "Help",
+		"args": [
+			{
+				"name": "command",
+				"help": "从根开始的命令路径，各层用空格分隔",
+				"positional": true,
+				"many": true,
+				"help_en": "Command path to describe"
+			}
+		],
+		"about_en": "Show help for a command path",
+		"behavior": "不带路径显示根帮助，路径可逐级跟进；--json 输出相应子树的参数、互斥组、结果与示例。",
+		"returns": "Help · 命令定义"
+	}
+]

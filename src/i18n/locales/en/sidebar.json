@@ -215,6 +215,9 @@
 		"importPdfMergedMany": "Merged {{count}} PDFs into existing entries",
 		"recognizeMerged": "Matched PDF merged into existing entry: {{id}}",
 		"recognizeArxivRateLimited": "arXiv is rate-limiting metadata lookups ({{id}}). Title/authors were not filled — try Refresh metadata later.",
+		"recognizeNoMatch": "No metadata match for “{{name}}”. The paper was kept.",
+		"recognizeFailed": "Could not recognize metadata for “{{name}}”. The paper was kept.",
+		"recognizePaperUnavailable": "This paper is no longer available at its original location.",
 		"importFailed": "Import failed",
 		"exportFailed": "Export failed",
 		"desktopOnly": "Import/export requires the desktop app.",
@@ -542,6 +545,7 @@
 		"copyFailed": "Could not copy to clipboard",
 		"editMeta": {
 			"title": "Edit metadata",
+			"unresolved": "Metadata is unresolved. Enter a DOI or arXiv ID and select Refresh, or edit the fields manually.",
 			"fieldTitle": "Title",
 			"fieldAuthors": "Authors",
 			"authorsPlaceholder": "One author per line",

@@ -267,8 +267,11 @@
 			"serverStopped": "The Connector service stopped. Agentero retries every 5 seconds. You can also retry now."
 		},
 		"mcp": {
+			"allowWrite": "Allow clients to modify the Vault",
+			"allowOnline": "Allow online tools",
+			"scope": "These permissions apply to local MCP clients and the connected tunnel.",
 			"exposeText": {
-				"label": "Expose paper text (MCP)"
+				"label": "Allow clients to read full papers"
 			},
 			"label": "MCP server",
 			"portLabel": "MCP port",
@@ -559,6 +562,7 @@
 			}
 		},
 		"form": {
+			"supportsShell": "Can run local shell commands",
 			"defaultName": "Desktop",
 			"name": "Name",
 			"command": "Command",

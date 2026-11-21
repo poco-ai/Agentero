@@ -967,7 +967,17 @@ export function rewriteWikilinksForPreview(
 	return out.join("\n");
 }
 
-/** Default path for a missing wikilink (Obsidian-ish: notes/<name>.md). */
+/**
+ * Default path for a missing wikilink (Obsidian-ish: notes/<name>.md).
+ *
+ * The note name is the link text as written, spaces and punctuation included:
+ * `[[foo bar]]` creates `notes/foo bar.md`, which `resolveWikiTarget` (and the
+ * Host resolver) match back to the same link. A slug such as `notes/foo-bar.md`
+ * is never found again from `[[foo bar]]`, so every later click re-entered the
+ * create path and truncated the note (issue #1169). Only characters no
+ * supported filesystem accepts are replaced, and Windows' trailing dot/space
+ * rule is honoured, so creation never silently fails on Windows.
+ */
 export function missingNotePath(targetRaw: string): string {
 	const t = normalizeRelPath(targetRaw.trim());
 	if (!t) return "notes/untitled.md";
@@ -975,12 +985,10 @@ export function missingNotePath(targetRaw: string): string {
 		return /\.(md|mdx|markdown)$/i.test(t) ? t : `${t}.md`;
 	}
 	const stem = t.replace(/\.(md|mdx|markdown)$/i, "");
-	const slug =
-		stem
-			.replace(/[^\w\u4e00-\u9fff.-]+/g, "-")
-			.replace(/^-+|-+$/g, "")
-			.toLowerCase() || "untitled";
-	return `notes/${slug}.md`;
+	const name =
+		stem.replace(/[<>:"/\\|?*\p{Cc}]/gu, "-").replace(/^[. ]+|[. ]+$/g, "") ||
+		"untitled";
+	return `notes/${name}.md`;
 }
 
 /** Seed content for a newly created note. */

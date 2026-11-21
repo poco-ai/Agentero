@@ -26,6 +26,7 @@ pub struct S3Client {
     region: String,
     access_key: String,
     secret_key: String,
+    session_token: Option<String>,
 }
 
 impl S3Client {
@@ -62,6 +63,7 @@ impl S3Client {
             region: cfg.region.clone(),
             access_key: cfg.access_key.clone(),
             secret_key: cfg.secret_key.clone(),
+            session_token: cfg.session_token.clone(),
         })
     }
 
@@ -130,9 +132,17 @@ impl S3Client {
             .collect::<Vec<_>>()
             .join("&");
 
-        let canonical_request = format!(
-            "{method}\n{uri}\n{canonical_query}\nhost:{}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n\nhost;x-amz-content-sha256;x-amz-date\n{payload_hash}",
+        let mut headers = format!(
+            "host:{}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n",
             self.host
+        );
+        let mut signed_headers = String::from("host;x-amz-content-sha256;x-amz-date");
+        if let Some(token) = &self.session_token {
+            headers.push_str(&format!("x-amz-security-token:{token}\n"));
+            signed_headers.push_str(";x-amz-security-token");
+        }
+        let canonical_request = format!(
+            "{method}\n{uri}\n{canonical_query}\n{headers}\n{signed_headers}\n{payload_hash}"
         );
         let scope = format!("{date}/{}/s3/aws4_request", self.region);
         let string_to_sign = format!(
@@ -148,7 +158,7 @@ impl S3Client {
         let k_signing = hmac_sha256(&k_service, b"aws4_request");
         let signature = hex::encode(hmac_sha256(&k_signing, string_to_sign.as_bytes()));
         let authorization = format!(
-            "AWS4-HMAC-SHA256 Credential={}/{scope}, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature={signature}",
+            "AWS4-HMAC-SHA256 Credential={}/{scope}, SignedHeaders={signed_headers}, Signature={signature}",
             self.access_key
         );
 
@@ -170,6 +180,9 @@ impl S3Client {
                 .header("x-amz-date", amz_date.clone())
                 .header("x-amz-content-sha256", payload_hash.clone())
                 .header("authorization", authorization.clone());
+            if let Some(token) = &self.session_token {
+                req = req.header("x-amz-security-token", token);
+            }
             if let Some((name, value)) = &extra {
                 req = req.header(*name, value.clone());
             }

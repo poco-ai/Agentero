@@ -6,11 +6,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        RFC 用于需要评审的设计决策：架构调整、数据模型、接口契约、跨端方案等。
-        小范围功能建议请用「功能建议」模板；不确定是否值得做，可以先到讨论区聊。
+        如果方案涉及架构、数据模型、接口契约或跨端设计，可以用 RFC 请大家一起评审。
+        小范围的改动可以用「功能建议」模板。想先听听大家的意见，也可以到讨论区聊。
 
-        - 一个 Issue 只讨论一个方案，结论收敛后再动手实现
-        - 定稿后把设计落到 `docs/development/`，实现完成后并入 `docs/frontend/` 或 `docs/backend/`
+        - 一个 Issue 只讨论一个方案。达成一致后再动手实现
+        - 在 Issue 中保留决策和对应 PR，长期约束按 AGENTS.md 维护
 
   - type: input
     id: summary
@@ -25,7 +25,7 @@ body:
     id: motivation
     attributes:
       label: 背景与动机
-      description: 现状是什么、痛点在哪、为什么现在要做
+      description: 现在是怎么做的？遇到了什么问题？为什么要现在改？
       placeholder: |
         现状：
         问题：
@@ -37,7 +37,7 @@ body:
     id: goals
     attributes:
       label: 目标与非目标
-      description: 明确边界，非目标同样重要
+      description: 写明这次要解决哪些问题，哪些留待以后再处理
       placeholder: |
         目标：
         - ...
@@ -77,7 +77,7 @@ body:
     id: implementation
     attributes:
       label: 实施与验收
-      description: 阶段拆分、每个阶段的验收标准，以及不引入新依赖的替代做法
+      description: 每一步怎么做、怎么验收？有没有不用新增依赖的做法？
       placeholder: |
         Phase 1：
           - 内容：

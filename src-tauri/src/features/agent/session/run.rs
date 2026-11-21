@@ -16,9 +16,10 @@ use crate::features::agent::acp::updates::{
 use crate::features::agent::context_turn::{
     insert_context_block, insert_resume_transcript, prepare_context,
 };
+use crate::features::agent::hosted_turn::{HostedTurn, TurnLease};
 use crate::features::agent::models::{
-    AgentDescriptor, AgentFailedEvent, AgentResultPayload, AgentStatusEvent, AgentStreamEvent,
-    AgentStreamKind, AgentTemplate, PromptImage,
+    is_builtin_template, AgentDescriptor, AgentFailedEvent, AgentResultPayload, AgentStatusEvent,
+    AgentStreamEvent, AgentStreamKind, AgentTemplate, PromptImage,
 };
 use crate::features::agent::prompt::envelope::build_prompt;
 use crate::features::agent::prompt::skills::{
@@ -82,7 +83,6 @@ pub struct RunOnceParams {
     /// resume `resume_session_id`, so the new session still sees the conversation.
     pub resume_transcript: Option<String>,
     /// Stdio MCP servers attached on a local session, besides research context.
-    pub delegate_mcp: Vec<agent_client_protocol::v1::schema::McpServer>,
     /// Remote-target hint inserted before the user request. Empty when none are connected.
     pub delegate_hint: Option<String>,
     /// Keep the answer in `progress` and do not emit chat transcript events.
@@ -111,9 +111,10 @@ struct RunTurnPrep {
     /// Provider session to continue after the context fingerprint check.
     resume_session_id: Option<String>,
     context_fingerprint: Option<String>,
-    context_usage: Option<PathBuf>,
+    prefetched_sources: Vec<String>,
     context_vault: Option<PathBuf>,
     skip_warm_pool: bool,
+    turn: Option<Arc<TurnLease>>,
 }
 
 /// Everything the connection turn needs beyond the shared state.
@@ -242,11 +243,22 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
             skill_instructions
         )
     };
+    let cli = if params.remote.is_none()
+        && !params.is_acp_command
+        && params.vault_path.is_some()
+        && !params.suppress_transcript
+        && !is_builtin_template(&params.desc.template)
+        && (params.desc.template != AgentTemplate::Custom || params.desc.supports_shell)
+    {
+        crate::features::cli_install::turn_cli(params.app.app_handle())
+    } else {
+        None
+    };
     let prepared = if params.is_acp_command {
         prepare_context(
             &params.session_id,
             None,
-            true,
+            None,
             None,
             params.resume_session_id.clone(),
         )
@@ -254,12 +266,34 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         prepare_context(
             &params.session_id,
             params.vault_path.as_deref(),
-            params.remote.is_some(),
+            cli.as_deref(),
             params.context.as_ref(),
             params.resume_session_id.clone(),
         )
     };
     let mut full_prompt = insert_context_block(&full_prompt, &prepared.block);
+    let turn = if let (Some(exe), Some(vault)) = (cli.as_ref(), params.vault_path.as_deref()) {
+        let lease = HostedTurn::begin(
+            Path::new(vault),
+            params.app.window_binding(),
+            params.cancellation.clone(),
+            prepared.grant,
+        );
+        let binding = if lease.0.grant.is_some() {
+            agentero_core::features::context::CLI_GRANT_ENV
+        } else {
+            agentero_core::features::context::TURN_ENV
+        };
+        let instruction = format!(
+            "Use the CLI at {}. Keep {binding} set to {} when invoking this executable from an isolated shell. \
+             After writing a requested deliverable under this vault, call `app present FILE`. Keep the handle private.\n{}{}",
+            exe.display(), lease.0.token, super::receipts::MARKER, params.message_id
+        );
+        full_prompt = insert_context_block(&full_prompt, &instruction);
+        Some(lease)
+    } else {
+        None
+    };
     if let Some(hint) = params
         .delegate_hint
         .as_deref()
@@ -286,8 +320,7 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
             return Err(error);
         }
     };
-    let mut mcp_servers = prepared.mcp_servers;
-    mcp_servers.extend(params.delegate_mcp.clone());
+    let mcp_servers = Vec::new();
     Ok(RunTurnPrep {
         full_prompt,
         prompt_images,
@@ -295,7 +328,8 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         mcp_servers,
         resume_session_id: prepared.resume_session_id,
         context_fingerprint: prepared.fingerprint,
-        context_usage: prepared.usage_path,
+        prefetched_sources: prepared.prefetched_sources,
+        turn,
         context_vault: prepared.vault,
         skip_warm_pool: prepared.skip_warm_pool,
     })
@@ -328,8 +362,9 @@ pub(crate) struct RunOnceContext {
     /// Terminal capability: headless command execution on behalf of the agent.
     terminals: Arc<tokio::sync::Mutex<AcpTerminalManager>>,
     context_fingerprint: Option<String>,
-    context_usage: Option<PathBuf>,
+    prefetched_sources: Vec<String>,
     context_vault: Option<PathBuf>,
+    turn: Option<Arc<HostedTurn>>,
     suppress_transcript: bool,
     pub(crate) permission_host: Option<String>,
     progress: Option<Arc<Mutex<String>>>,
@@ -376,8 +411,9 @@ impl RunOnceContext {
             stop_reason: Arc::new(Mutex::new(None)),
             terminals: acp_terminals(Some(cwd)),
             context_fingerprint: None,
-            context_usage: None,
+            prefetched_sources: Vec::new(),
             context_vault: None,
+            turn: None,
             suppress_transcript: params.suppress_transcript,
             permission_host: params.permission_host.clone(),
             progress: params.progress.clone(),
@@ -394,7 +430,8 @@ impl RunOnceContext {
 
     fn bind_context(&mut self, prep: &RunTurnPrep) {
         self.context_fingerprint = prep.context_fingerprint.clone();
-        self.context_usage = prep.context_usage.clone();
+        self.prefetched_sources = prep.prefetched_sources.clone();
+        self.turn = prep.turn.as_ref().map(|lease| lease.0.clone());
         self.context_vault = prep.context_vault.clone();
         if prep.resume_session_id.is_none() {
             self.live_stream.store(true, Ordering::SeqCst);
@@ -512,8 +549,11 @@ impl RunOnceContext {
     }
 
     /// Flush buffered stream text, then emit `agent:completed` (ordered after text).
-    fn emit_completed(&self, payload: AgentResultPayload) -> AgentResultPayload {
+    fn emit_completed(&self, mut payload: AgentResultPayload) -> AgentResultPayload {
         self.coalescer.flush();
+        if let Some(turn) = &self.turn {
+            (payload.sources, payload.artifacts) = turn.receipt(&payload.content);
+        }
         if !self.suppress_transcript {
             let _ = self.app.emit("agent:completed", payload.clone());
         }
@@ -690,6 +730,14 @@ impl RunOnceContext {
             if let Ok(mut buf) = self.thought_buf.lock() {
                 buf.clear();
             }
+        }
+        if let Some(turn) = &self.turn {
+            turn.bind_history(
+                &self.agent_id,
+                &session.acp_session_id.to_string(),
+                &self.message_id,
+            )
+            .map_err(|e| PromptPhaseError::pre_prompt(acp_err(e.to_string())))?;
         }
         self.live_stream.store(true, Ordering::SeqCst);
         self.prompt_sent.store(true, Ordering::SeqCst);
@@ -1055,11 +1103,6 @@ impl RunOnceContext {
                 log::warn!(target: "agentero::agent", "remember context fingerprint: {error}");
             }
         }
-        let sources = self
-            .context_usage
-            .as_deref()
-            .map(agentero_core::features::context::read_usage_uris)
-            .unwrap_or_default();
         let payload = AgentResultPayload {
             session_id: self.session_id.clone(),
             message_id: self.message_id.clone(),
@@ -1069,7 +1112,10 @@ impl RunOnceContext {
             } else {
                 Some(reasoning)
             },
-            sources,
+            prompt_only: self.context_fingerprint.is_some()
+                && self.turn.as_ref().is_none_or(|turn| turn.grant.is_none()),
+            sources: self.prefetched_sources.clone(),
+            artifacts: Vec::new(),
             stop_reason: self.stop_reason.lock().ok().and_then(|g| g.clone()),
             provider_session_id: Some(acp_session_id.to_string()),
         };
@@ -1101,6 +1147,11 @@ async fn run_on_pooled(
     let mut cancellation = params.cancellation.clone();
     let mut state =
         RunOnceContext::with_terminals(params, prep.cwd.clone(), slot.terminals.clone());
+    state.terminals.lock().await.bind_turn(
+        prep.turn
+            .as_ref()
+            .map(|t| (t.0.token.clone(), t.0.grant.is_some())),
+    );
     state.bind_context(prep);
 
     let prev = install_turn(
@@ -1248,7 +1299,7 @@ async fn run_on_pooled(
 
 /// One-shot prompt: spawn → initialize → session → prompt → stream events → completed/failed.
 /// A healthy pooled warm connection short-circuits the spawn chain.
-pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppError> {
+pub async fn run_once(mut params: RunOnceParams) -> Result<AgentResultPayload, AppError> {
     // Phase 1 — prompt: skill instructions + template envelope + cwd.
     let prep = prepare_run_turn(&params).await?;
 
@@ -1297,6 +1348,19 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
         }
     }
 
+    if let Some(turn) = &prep.turn {
+        params.desc.env.insert(
+            agentero_core::features::context::TURN_ENV.into(),
+            turn.0.token.clone(),
+        );
+        if turn.0.grant.is_some() {
+            params.desc.env.insert(
+                agentero_core::features::context::CLI_GRANT_ENV.into(),
+                turn.0.token.clone(),
+            );
+        }
+    }
+
     // Phase 2 — spawn the ACP agent process (local, or SSH wrapper for remote).
     let acp = match to_acp_agent(&params.desc, Some(&prep.cwd), params.remote.as_deref()) {
         Ok(agent) => agent,
@@ -1309,6 +1373,11 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
     // Phase 3 — connect, stream one turn, and finalize.
     let warm_pool = params.warm_pool.clone();
     let mut state = RunOnceContext::new(&params, prep.cwd.clone());
+    state.terminals.lock().await.bind_turn(
+        prep.turn
+            .as_ref()
+            .map(|t| (t.0.token.clone(), t.0.grant.is_some())),
+    );
     state.bind_context(&prep);
     let run_result = state.run(acp, params, prep).await;
 
@@ -1461,7 +1530,9 @@ async fn serve_delegate_connection(
                     message_id: state.message_id,
                     content: String::new(),
                     reasoning: None,
+                    prompt_only: false,
                     sources: Vec::new(),
+                    artifacts: Vec::new(),
                     stop_reason: None,
                     provider_session_id: None,
                 })
@@ -1481,7 +1552,6 @@ fn apply_delegate_prompt(base: &mut RunOnceParams, turn: &DelegatePrompt) {
     base.permission_policy = PermissionPolicy::Ask;
     base.is_acp_command = true;
     base.warm_pool = None;
-    base.delegate_mcp.clear();
     base.delegate_hint = None;
 }
 

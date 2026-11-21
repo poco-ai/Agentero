@@ -1,6 +1,7 @@
-import { ChevronDown, MessageSquare, Quote } from "lucide-react";
+import { ChevronDown, MessageSquare } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { QuoteIcon } from "@/components/icons/quote-icon";
 import { Button } from "@/components/ui/button";
 import {
 	Popover,
@@ -64,7 +65,7 @@ export function TextEditorToolbar({
 						className="shrink-0 self-center whitespace-nowrap"
 						onClick={texTools.onCitation}
 					>
-						<Quote className="size-3.5" aria-hidden />
+						<QuoteIcon aria-hidden />
 						{tx("insertCitation")}
 					</Button>
 				) : null}

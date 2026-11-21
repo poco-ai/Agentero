@@ -42,6 +42,7 @@ type TranslateCardProps = {
 	pinned?: boolean;
 	/** Toggle whether the result is kept with a persistent source marker. */
 	onTogglePin?: () => void;
+	onBoundsChange?: (bounds: DOMRectReadOnly) => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	sourceText?: string;
@@ -65,6 +66,7 @@ export function TranslateCard({
 	onHide,
 	pinned = false,
 	onTogglePin,
+	onBoundsChange,
 	onPointerEnter,
 	onPointerLeave,
 	sourceText,
@@ -87,7 +89,14 @@ export function TranslateCard({
 	const typing = streaming || typed.typing;
 	const showLoading = streaming && !showResult;
 	const scrollPortRef = useRef<HTMLDivElement>(null);
-	const stickToBottomRef = useRef(true);
+	/**
+	 * Follow the stream tail only once the reader is at the bottom. Translating
+	 * a long passage must not drag the card away from its beginning, and a
+	 * scroll up mid-stream must win over the next chunk.
+	 */
+	const stickToBottomRef = useRef(false);
+	/** scrollTop we wrote ourselves; its scroll event is not a reader scroll. */
+	const followWriteRef = useRef<number | null>(null);
 	const [copied, setCopied] = useState(false);
 
 	// 根据模式切换标题和 loading 文案
@@ -166,22 +175,36 @@ export function TranslateCard({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: changing modes resets the copy feedback and stream scroll position.
 	useEffect(() => {
 		setCopied(false);
-		stickToBottomRef.current = true;
+		stickToBottomRef.current = false;
+		followWriteRef.current = null;
 	}, [mode]);
 
 	const handleScroll = () => {
 		const el = scrollPortRef.current;
 		if (!el) return;
+		const written = followWriteRef.current;
+		followWriteRef.current = null;
+		// Our own follow write lands at the bottom; a reader scroll up sits above it.
+		if (written != null && el.scrollTop >= written - 1) return;
 		stickToBottomRef.current =
 			el.scrollHeight - el.scrollTop - el.clientHeight < 24;
 	};
 
-	// Follow the stream tail so late chunks stay visible once the card hits its
-	// cap; a manual scroll-up detaches until the next run.
+	// A new run starts at the beginning: the reader may still be reading the
+	// top while later chunks arrive.
+	useEffect(() => {
+		if (!streaming) return;
+		stickToBottomRef.current = false;
+		followWriteRef.current = null;
+	}, [streaming]);
+
+	// Follow the stream tail only when the reader already sits at the bottom;
+	// the card never scrolls itself away from earlier text.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: result is the re-run trigger for new chunks, not a value read inside
 	useEffect(() => {
 		const el = scrollPortRef.current;
 		if (!el || !typing || !stickToBottomRef.current) return;
+		followWriteRef.current = el.scrollHeight;
 		el.scrollTop = el.scrollHeight;
 	}, [result, typed.text, typing]);
 
@@ -226,6 +249,7 @@ export function TranslateCard({
 			headerClassName="pt-2 pb-1.5"
 			title={title}
 			ariaLive="polite"
+			onBoundsChange={onBoundsChange}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
 			onOutsideClick={alwaysShowCard ? undefined : onHide}

@@ -58,7 +58,8 @@ export default defineConfig(async () => ({
 		include: ["test/**/*.test.ts"],
 		server: {
 			deps: {
-				inline: [/@embedpdf\/ai/],
+				// Plate's math package imports KaTeX CSS; Vite must handle it in tests.
+				inline: [/@embedpdf\/ai/, /@platejs\/math/],
 			},
 		},
 	},

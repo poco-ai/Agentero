@@ -211,7 +211,6 @@ export function usePdfViewerHandle({
 				// only when there is no sidecar (or force is set elsewhere).
 				startLayoutAnalysisRef.current({
 					force: false,
-					openFigures: true,
 					showOverlay: true,
 					asBackgroundTask: true,
 					notifyOnError: true,

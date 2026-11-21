@@ -3,7 +3,7 @@
 //! Spawns and owns a `tunnel-client run` child so the loopback MCP surface is
 //! reachable from ChatGPT without the user keeping a terminal open. The child
 //! lives and dies with Agentero on purpose — same lifetime as the MCP listener
-//! it fronts. See `docs/backend/mcp.md`.
+//! it fronts.
 
 use crate::core::http::effective_proxy_url;
 use crate::core::paths::mcp_tunnel_dir;
@@ -18,7 +18,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 
-/// Event name follows `docs/architecture.md` (one domain, one colon).
+/// Event name follows the `domain:event` convention.
 pub const MCP_TUNNEL_STATUS_EVENT: &str = "mcp:tunnel-status";
 
 pub const TUNNEL_CLIENT_BIN: &str = "tunnel-client";
@@ -154,6 +154,9 @@ fn run_args(
         "env:CONTROL_PLANE_API_KEY".to_string(),
         "--mcp.server-url".to_string(),
         mcp_url.to_string(),
+        "--mcp.extra-headers".to_string(),
+        "Authorization: env:AGENTERO_MCP_AUTHORIZATION".to_string(),
+        "--mcp.oauth-discovery=disabled".to_string(),
         // Ephemeral port: a manually-run tunnel-client on the default 8080
         // must not make this one fail to bind.
         "--health.listen-addr".to_string(),
@@ -370,6 +373,10 @@ impl McpTunnelController {
             proxy.as_deref(),
         );
 
+        let token = match agentero_mcp::default_token() {
+            Ok(value) => value,
+            Err(error) => return self.fail(format!("Read local MCP credential: {error}")),
+        };
         let mut cmd = Command::new(&binary);
         cmd.args(&args)
             .stdin(Stdio::null())
@@ -378,6 +385,7 @@ impl McpTunnelController {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .env("CONTROL_PLANE_API_KEY", &api_key)
+            .env("AGENTERO_MCP_AUTHORIZATION", format!("Bearer {token}"))
             .env("NO_PROXY", "127.0.0.1,localhost")
             .env_remove("HTTP_PROXY")
             .env_remove("HTTPS_PROXY");
@@ -805,6 +813,9 @@ mod tests {
         assert!(joined.contains("--control-plane.tunnel-id"));
         assert!(joined.contains("env:CONTROL_PLANE_API_KEY"));
         assert!(!joined.contains("sk-secret"));
+        assert!(
+            joined.contains("--mcp.extra-headers Authorization: env:AGENTERO_MCP_AUTHORIZATION")
+        );
         assert!(joined.contains("--control-plane.http-proxy env:AGENTERO_TUNNEL_PROXY"));
         assert!(!joined.contains("--http-proxy"));
         assert!(joined.contains("127.0.0.1:0"));

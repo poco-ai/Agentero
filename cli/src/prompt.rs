@@ -1,6 +1,6 @@
 //! Interactive prompts via `inquire` (Inquirer-style).
 //!
-//! Hard rules (docs/development/cli.md):
+//! Interaction rules:
 //! - Never prompt in `--json` / machine mode.
 //! - Destructive confirms: `-y` auto-approves; non-TTY without `-y` → `needs_confirmation`.
 //! - Prompts only when stdin is a TTY.
@@ -8,12 +8,12 @@
 use crate::error::CliError;
 use crate::output::OutputFormat;
 use crate::resolve::GlobalOpts;
-use inquire::{Confirm, InquireError, Select, Text};
+use inquire::{Confirm, InquireError, Select};
 use std::io::{stdin, IsTerminal};
 
 /// True when interactive prompts are allowed.
 pub fn allows_interactive(globals: &GlobalOpts) -> bool {
-    !matches!(globals.format, OutputFormat::Json) && stdin().is_terminal()
+    !globals.no_input && !matches!(globals.format, OutputFormat::Json) && stdin().is_terminal()
 }
 
 /// Confirm a yes/no question.
@@ -27,7 +27,7 @@ pub fn confirm(globals: &GlobalOpts, message: &str, default: bool) -> Result<boo
     }
     if !allows_interactive(globals) {
         return Err(CliError::needs_confirmation(format!(
-            "{message} (pass --yes / -y to skip confirmation)"
+            "{message} (pass --yes to skip confirmation)"
         )));
     }
     Confirm::new(message)
@@ -60,26 +60,13 @@ pub fn select_one(
     Ok(Some(choice))
 }
 
-/// Edit a generated value in an interactive terminal.
-pub fn text(globals: &GlobalOpts, message: &str, initial: &str) -> Result<String, CliError> {
-    if !allows_interactive(globals) {
-        return Err(CliError::needs_confirmation(
-            "editing generated aliases requires a TTY (pass --yes / -y to accept defaults)",
-        ));
-    }
-    Text::new(message)
-        .with_initial_value(initial)
-        .prompt()
-        .map_err(map_inquire)
-}
-
 fn map_inquire(err: InquireError) -> CliError {
     match err {
         InquireError::OperationCanceled | InquireError::OperationInterrupted => {
             CliError::needs_confirmation("operation cancelled")
         }
         InquireError::NotTTY => CliError::needs_confirmation(
-            "interactive prompt requires a TTY (pass --yes / -y or use --json)",
+            "interactive prompt requires a TTY (pass --yes or use --json)",
         ),
         other => CliError::message(format!("prompt failed: {other}")),
     }

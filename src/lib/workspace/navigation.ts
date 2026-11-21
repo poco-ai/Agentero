@@ -14,10 +14,12 @@ import { isTauri } from "@/lib/core/tauri";
 import { decideSync, registerDecision } from "@/lib/decision/registry";
 import { lifecycle } from "@/lib/lifecycle";
 import {
+	findLocalPdfPath,
 	isPaperDirectory,
 	isRemoteArxivPath,
 	isUnderPaperAttachments,
 	isUnderPapers,
+	localFileToArrayBuffer,
 	notesPathForPaper,
 	type PaperMetadata,
 	paperDirFromPath,
@@ -325,6 +327,41 @@ async function loadPlaceholderResources(id: string, path: string) {
 	}
 }
 
+const probingPaperPdf = new Set<string>();
+
+/** A repeat open may find a PDF installed after the HTML view was hydrated. */
+async function refreshOpenPaperPdf(tab: DocTab): Promise<void> {
+	if (
+		!tab.loaded ||
+		tab.mode !== "html" ||
+		tab.pdfBytes ||
+		tab.pdfUrl ||
+		isRemoteArxivPath(tab.path) ||
+		probingPaperPdf.has(tab.id)
+	) {
+		return;
+	}
+	probingPaperPdf.add(tab.id);
+	const generation = vaultLoadGeneration();
+	try {
+		const path = await findLocalPdfPath(tab.path);
+		const pdfBytes = path ? await localFileToArrayBuffer(path) : null;
+		if (!pdfBytes?.byteLength || vaultLoadGeneration() !== generation) return;
+		const current = getTabs().find(({ id }) => id === tab.id);
+		if (
+			current?.path === tab.path &&
+			current.kind === "paper" &&
+			current.mode === "html" &&
+			!current.pdfBytes &&
+			!current.pdfUrl
+		) {
+			updateTab(tab.id, { mode: "pdf", pdfBytes });
+		}
+	} finally {
+		probingPaperPdf.delete(tab.id);
+	}
+}
+
 /**
  * Open a document panel. If already open → activate it (and companion NOTES).
  * Otherwise insert a placeholder, place in dockview (stack into the paper
@@ -368,6 +405,7 @@ export function openTab(
 				}
 			}
 			activatePaperWithNotes(existing);
+			if (opts?.preferMode === "pdf") void refreshOpenPaperPdf(existing);
 		} else {
 			cacheActiveTabBeforeDock(id);
 			dockHandle()?.activatePanel(id);

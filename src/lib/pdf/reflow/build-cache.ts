@@ -63,6 +63,12 @@ export type ReflowBuildCacheStore = {
 	 * Existing files are still read when writes are off.
 	 */
 	writesEnabled?: () => boolean;
+	/** Full source and build identity for reusing the last rendered result. */
+	keyForFinal?(
+		document: ReflowDocument,
+		translations: ReadonlyMap<string, string>,
+		fonts: ReflowFontBytes,
+	): Promise<string | null>;
 	readFinal(
 		document: ReflowDocument,
 		translations: ReadonlyMap<string, string>,
@@ -261,6 +267,14 @@ export function createReflowBuildCache(
 
 	return {
 		writesEnabled: canWrite,
+		async keyForFinal(document, translations, fonts) {
+			if (!source.pdfBytes) return null;
+			const [pdf, build] = await Promise.all([
+				pdfSha256(source.pdfBytes),
+				documentFingerprint(document, translations, fonts),
+			]);
+			return `${pdf}-${build}`;
+		},
 		async readFinal(document, translations, fonts) {
 			const fingerprint = await documentFingerprint(
 				document,

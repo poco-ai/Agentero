@@ -32,24 +32,18 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Assert desktop package does not embed CLI
+      - name: Check the desktop CLI resource
         if: matrix.task == 'quality'
-        # Desktop installers must not embed the headless CLI (#285). A prior
-        # guard required beforeBuildCommand to run cli:bundle:stub; that stub
-        # path was removed in 9dee13f0 after the fake Windows .exe triggered
-        # "Unsupported 16-bit application" (#320 follow-up). The plugin worker
-        # sidecar was removed with the plugin system, so externalBin must stay
-        # empty.
         run: |
-          set -euo pipefail
-          node --input-type=commonjs -e "
-            const conf = require('./src-tauri/tauri.conf.json');
-            const bins = (conf.bundle && conf.bundle.externalBin) || [];
-            if (bins.length !== 0) {
-              console.error('::error file=src-tauri/tauri.conf.json::bundle.externalBin must stay empty (no bundled sidecars, no CLI) (#285/#320). Got: ' + JSON.stringify(bins));
-              process.exit(1);
-            }
-          "
+          node --input-type=commonjs <<'JS'
+          const assert = require('node:assert/strict');
+          const base = require('./src-tauri/tauri.conf.json').bundle;
+          const mac = require('./src-tauri/tauri.macos.conf.json').bundle;
+          assert(base.resources.includes('cli'));
+          assert.deepEqual(base.externalBin ?? [], []);
+          assert.deepEqual(mac.externalBin, ['sidecars/agentero-turn']);
+          assert(!mac.resources.includes('cli'), 'ship one signed executable');
+          JS
       - name: Test release synchronization
         if: matrix.task == 'quality'
         run: node --test scripts/sync-atomgit-release.test.mjs scripts/rewrite-updater-json.test.mjs
@@ -165,6 +159,9 @@ jobs:
           # missing even for clippy/tests that never bundle.
           mkdir -p src-tauri/pdfium
           cp "$RUNNER_TEMP/pdfium/lib/libpdfium.dylib" src-tauri/pdfium/libpdfium.dylib
+      - name: Stage native macOS CLI sidecar for Tauri
+        if: matrix.task != 'cli-tests'
+        run: node scripts/prepare-bundled-cli.mjs
       - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-adapters.mjs

@@ -54,9 +54,14 @@ export function PdfTranslateMeterBar({
  * The running readout that fills an expanded meter: stage caption, page count,
  * percentage, cancel square, and rail. The reader toolbar grows it out of the
  * translate button; the dual-pane translation panel mounts it in its own
- * capsule. Sharing the anatomy (fixed 11rem surface, caption typography, rail
- * inset, trailing control) keeps both panes speaking one progress language
- * instead of two near-miss pills. The caller owns a relative, sized container.
+ * capsule. Sharing the anatomy (caption typography, rail inset, trailing
+ * control) keeps both panes speaking one progress language instead of two
+ * near-miss pills.
+ *
+ * The readout is sized by its content. Once the job can report page counts the
+ * caption is dropped: it was always the first thing to truncate (`正…`) and it
+ * only repeated what the count already says. The chip therefore tracks the
+ * numbers instead of holding a fixed width open for a caption nobody can read.
  */
 export function PdfTranslateMeterReadout({
 	stage,
@@ -64,7 +69,7 @@ export function PdfTranslateMeterReadout({
 	percent,
 	indeterminate,
 	width,
-	retracting,
+	retracting = false,
 	lingerFull,
 	showStop,
 	stopLabel,
@@ -76,7 +81,8 @@ export function PdfTranslateMeterReadout({
 	percent: number;
 	indeterminate: boolean;
 	width: MotionValue<string> | string;
-	retracting: boolean;
+	/** Cancelled: fade the numbers while the rail drains, keeping the width. */
+	retracting?: boolean;
 	lingerFull: boolean;
 	/** Only the callers that can actually cancel pass true while running. */
 	showStop: boolean;
@@ -84,49 +90,59 @@ export function PdfTranslateMeterReadout({
 	onStop: () => void;
 	stopDisabled?: boolean;
 }) {
+	// The caption speaks only while there is no page count to speak for it. A
+	// caption next to a count was always the thing that truncated.
+	const caption = pagesLabel ? null : stage;
 	return (
-		<>
-			<span className="pointer-events-none absolute inset-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150 motion-reduce:animate-none">
-				<span className="absolute top-0 right-7 bottom-[5px] left-2.5 flex items-center gap-2">
-					{/* String concat, not `cn`: tailwind-merge mistakes
-					    `text-caption` for a text color and drops it. */}
+		<span className="relative flex h-6 items-center">
+			<span
+				className={cn(
+					"pointer-events-none flex min-w-0 items-center gap-2 pb-0.5 pl-2.5 pr-1 transition-opacity duration-150",
+					// Cancelling: the numbers fade while the rail drains, so the chip
+					// keeps its width for the retract instead of collapsing around it.
+					retracting && "opacity-0",
+				)}
+			>
+				{caption ? (
 					<span
 						aria-hidden
-						className={`min-w-0 flex-1 truncate ${PDF_TRANSLATE_METER_STAGE}`}
+						// String concat, not `cn`: tailwind-merge mistakes
+						// `text-caption` for a text color and drops it.
+						className={`max-w-36 ${PDF_TRANSLATE_METER_STAGE}`}
 					>
-						{stage}
+						{caption}
 					</span>
-					{pagesLabel && !retracting ? (
-						<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
-							{pagesLabel}
-						</span>
-					) : null}
-					{indeterminate || retracting ? null : (
-						<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
-							{percent}%
-						</span>
-					)}
-				</span>
-				<PdfTranslateMeterBar indeterminate={indeterminate} width={width} />
+				) : null}
+				{pagesLabel ? (
+					<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
+						{pagesLabel}
+					</span>
+				) : null}
+				{indeterminate ? null : (
+					<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
+						{percent}%
+					</span>
+				)}
 			</span>
-			{lingerFull ? (
-				<span className="pointer-events-none absolute top-0 right-0 flex size-6 items-center justify-center text-foreground/70">
-					<Check className="size-3.5" aria-hidden />
-				</span>
-			) : retracting || !showStop ? null : (
-				<Button
-					type="button"
-					size="icon-xs"
-					variant="ghost"
-					className="pointer-events-auto absolute top-0 right-0 size-6 text-foreground"
-					aria-label={stopLabel}
-					title={stopLabel}
-					disabled={stopDisabled}
-					onClick={onStop}
-				>
-					<Square className="size-2.5 fill-current opacity-60" aria-hidden />
-				</Button>
-			)}
-		</>
+			<span className="flex size-6 shrink-0 items-center justify-center">
+				{lingerFull ? (
+					<Check className="size-3.5 text-foreground/70" aria-hidden />
+				) : showStop && !retracting ? (
+					<Button
+						type="button"
+						size="icon-xs"
+						variant="ghost"
+						className="size-6 text-foreground"
+						aria-label={stopLabel}
+						title={stopLabel}
+						disabled={stopDisabled}
+						onClick={onStop}
+					>
+						<Square className="size-2.5 fill-current opacity-60" aria-hidden />
+					</Button>
+				) : null}
+			</span>
+			<PdfTranslateMeterBar indeterminate={indeterminate} width={width} />
+		</span>
 	);
 }

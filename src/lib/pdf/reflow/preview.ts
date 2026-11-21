@@ -34,6 +34,7 @@ type Preview = {
 	key: string;
 	sourceKey: string;
 	url: string;
+	blob: Blob;
 	layout: PageLayout;
 	items: LayoutTranslateItem[];
 	/** Output byte versions whose page contains this exact preview. */
@@ -41,6 +42,14 @@ type Preview = {
 };
 type Job = { key: string; abort: AbortController };
 const BUILD_DOCUMENT_IDLE_MS = 5_000;
+
+// Hold at most one warm result per reader window, including its fallback images.
+const RECENT_FINAL_MAX_BYTES = 64 * 1024 * 1024;
+let recentFinal: {
+	key: string;
+	output: ReflowOutput;
+	rasters: ReadonlyMap<number, Blob>;
+} | null = null;
 
 /** Cap the preview raster DPR: 2x is enough for Retina at normal zoom. */
 function previewDpr(): number {
@@ -185,6 +194,24 @@ export class ReflowPreviewSession {
 	/** A failed final build retracts page/paragraph loading until inputs change. */
 	get finalFailed(): boolean {
 		return this.finalBuildFailed;
+	}
+
+	/**
+	 * Drop in-flight page / final builds without touching published previews or
+	 * the retained export output. Used when the reader stops page generation
+	 * after the translation job already settled: that build is local work, so
+	 * only this session can end it. Same inputs are not enqueued again until
+	 * they change (`attempted` keeps the key).
+	 */
+	cancelBuilds(): void {
+		if (this.disposed) return;
+		if (!this.jobs.size && this.buildIdle === undefined) return;
+		for (const job of this.jobs.values()) job.abort.abort();
+		this.jobs.clear();
+		this.cancelBuildIdle();
+		this.dirty = true;
+		this.notify();
+		this.scheduleBuildIdle();
 	}
 
 	get busy(): boolean {
@@ -440,9 +467,10 @@ export class ReflowPreviewSession {
 					this.finalBuildFailed = false;
 					// Unchanged previews also belong to the retained display. A changed
 					// preview belongs only to outputs assembled after it was published.
-					for (const [index, preview] of this.previews) {
-						if (this.inputs.get(index)?.key !== preview.key) continue;
-						preview.outputSources.add(reflowOutputVersion(bytes));
+					const version = reflowOutputVersion(bytes);
+					for (const page of layouts) {
+						if (this.previewMatches(page))
+							this.previews.get(page.index)?.outputSources.add(version);
 					}
 					report(1);
 				};
@@ -450,19 +478,53 @@ export class ReflowPreviewSession {
 					finish(previousOutput, this.outputLayouts);
 					return;
 				}
+				const cacheKey = incremental
+					? null
+					: await this.buildCache
+							?.keyForFinal?.(ir, translations, fonts)
+							.catch(() => null);
+				signal.throwIfAborted();
+				const warm =
+					cacheKey && recentFinal?.key === cacheKey ? recentFinal : null;
 				// Incremental pages retain the previous document's other layouts.
 				// The disk cache describes a full common-scale build, so only full
 				// builds read/write it; partial results stay in this live session.
-				const cached = incremental
-					? null
-					: await this.cachedFinal(ir, translations, fonts, signal);
+				const cached =
+					warm?.output ??
+					(incremental
+						? null
+						: await this.cachedFinal(ir, translations, fonts, signal));
 				if (cached) {
+					if (warm) {
+						for (const page of cached.pages) {
+							const blob = warm.rasters.get(page.index);
+							if (blob) this.setPreview(page, blob, cached.bytes);
+						}
+					}
 					const target = await this.obtainBuild(signal);
-					await this.publish(target.engine, cached, signal, false, (ratio) =>
-						report(0.8 + ratio * 0.19),
-					);
-					finish(cached.bytes, cached.pages);
-					return;
+					let opened = false;
+					try {
+						await this.publish(
+							target.engine,
+							cached,
+							signal,
+							false,
+							undefined,
+							() => {
+								finish(cached.bytes, cached.pages);
+								opened = true;
+							},
+						);
+						if (cacheKey) this.rememberFinal(cacheKey, cached);
+						return;
+					} catch (error) {
+						signal.throwIfAborted();
+						logger.warn("pdf.reflow.buildCache preview failed", {
+							error: errorText(error),
+						});
+						// The display document can still render when only a fallback image failed.
+						if (opened) return;
+					}
 				}
 				const target = await this.obtainBuild(signal);
 				const built = await logOp("pdf.reflow.final", undefined, () =>
@@ -505,15 +567,32 @@ export class ReflowPreviewSession {
 					);
 					finish(bytes, layouts);
 				} else {
-					await this.saveFinal(ir, translations, fonts, built.bytes);
 					await this.publish(target.engine, built, signal, false, (ratio) =>
 						report(0.8 + ratio * 0.19),
 					);
 					finish(built.bytes, built.pages);
+					if (cacheKey) this.rememberFinal(cacheKey, built);
+					await this.saveFinal(ir, translations, fonts, built.bytes);
 				}
 			});
 		}
 		this.notify();
+	}
+
+	private rememberFinal(key: string, output: ReflowOutput): void {
+		let size = output.bytes.byteLength;
+		if (size > RECENT_FINAL_MAX_BYTES) return;
+		const version = reflowOutputVersion(output.bytes);
+		const rasters = new Map<number, Blob>();
+		for (const page of output.pages) {
+			if (!page.paragraphs.length) continue;
+			const preview = this.previews.get(page.index);
+			if (!preview?.outputSources.has(version)) continue;
+			if (size + preview.blob.size > RECENT_FINAL_MAX_BYTES) continue;
+			size += preview.blob.size;
+			rasters.set(page.index, preview.blob);
+		}
+		recentFinal = { key, output, rasters };
 	}
 
 	private async exportBytes(
@@ -747,17 +826,16 @@ export class ReflowPreviewSession {
 		signal: AbortSignal,
 		single: boolean,
 		onProgress?: (ratio: number) => void,
+		onOpened?: () => void,
 	): Promise<void> {
 		signal.throwIfAborted();
 		const changed = built.pages.filter(
-			(page) =>
-				page.paragraphs.length &&
-				(this.previews.get(page.index)?.key !==
-					this.inputs.get(page.index)?.key ||
-					JSON.stringify(this.previews.get(page.index)?.layout) !==
-						JSON.stringify(page)),
+			(page) => page.paragraphs.length && !this.previewMatches(page),
 		);
-		if (!changed.length) return;
+		if (!changed.length) {
+			onOpened?.();
+			return;
+		}
 		const preview = await engine
 			.openDocumentBuffer({
 				id: `reflow-preview-${crypto.randomUUID()}`,
@@ -765,6 +843,8 @@ export class ReflowPreviewSession {
 			})
 			.toPromise();
 		try {
+			signal.throwIfAborted();
+			onOpened?.();
 			for (const [pageIndex, page] of changed.entries()) {
 				signal.throwIfAborted();
 				const blob = await logOp(
@@ -779,25 +859,42 @@ export class ReflowPreviewSession {
 						),
 				);
 				signal.throwIfAborted();
-				const input = this.inputs.get(page.index);
-				if (!input) continue;
-				const previous = this.previews.get(page.index);
-				this.previews.set(page.index, {
-					key: input.key,
-					sourceKey: input.sourceKey,
-					outputSources: new WeakSet(),
-					url: URL.createObjectURL(blob),
-					layout: page,
-					items: input.items,
-				});
-				if (previous) URL.revokeObjectURL(previous.url);
-				this.dirty = true;
+				this.setPreview(page, blob, onOpened ? built.bytes : undefined);
 				this.notify();
 				onProgress?.((pageIndex + 1) / changed.length);
 			}
 		} finally {
 			await engine.closeDocument(preview).toPromise();
 		}
+	}
+
+	private previewMatches(page: PageLayout): boolean {
+		const preview = this.previews.get(page.index);
+		return Boolean(
+			preview &&
+				preview.key === this.inputs.get(page.index)?.key &&
+				(preview.layout === page ||
+					JSON.stringify(preview.layout) === JSON.stringify(page)),
+		);
+	}
+
+	private setPreview(page: PageLayout, blob: Blob, output?: Uint8Array): void {
+		const input = this.inputs.get(page.index);
+		if (!input) return;
+		const previous = this.previews.get(page.index);
+		const outputSources = new WeakSet<ReflowOutputVersion>();
+		if (output) outputSources.add(reflowOutputVersion(output));
+		this.previews.set(page.index, {
+			key: input.key,
+			sourceKey: input.sourceKey,
+			outputSources,
+			url: URL.createObjectURL(blob),
+			blob,
+			layout: page,
+			items: input.items,
+		});
+		if (previous) URL.revokeObjectURL(previous.url);
+		this.dirty = true;
 	}
 
 	private async renderPreview(

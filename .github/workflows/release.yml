@@ -55,19 +55,17 @@ jobs:
             Sideload it directly; the app is a remote client for your desktop Vault.
 
             ## CLI (`agentero`)
-            Headless Vault / Catalog machine interface (no BYOA). **Not embedded** in desktop installers (smaller packages; #285).
-
-            After installing the desktop app:
-            - **All platforms**: Settings → About → **Install CLI** downloads the **same app version** archive from this Release, verifies checksum, and writes a user-bin shim (does not edit shell rc).
-            - Standalone CLI archives below remain available for headless-only machines.
+            Desktop installers include a same-version offline CLI for Agent turns.
+            Settings → About → **Install CLI** copies the executable and PDFium into a versioned user directory and installs a PATH entry. If the local files are unavailable, Settings downloads the matching archive and verifies its SHA-256.
+            Standalone archives below include the command and matching PDFium for headless machines. On Windows the Settings-installed command is `agentero-cli`.
 
             ```bash
             agentero --version
-            agentero open ~/research   # or: agentero ~/research
-            agentero vault list --json
+            agentero vault create ./research
+            agentero --vault ./research paper list --json
             ```
 
-            Source install (slow; pulls desktop Rust deps):
+            Cargo installs the source build as `agentero-cli`. Use the archive above for a self-contained installation with the matching PDFium library.
             ```bash
             cargo install --git https://github.com/${{ github.repository }} --tag ${{ github.ref_name }} --locked --package agentero-cli
             ```
@@ -136,7 +134,7 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      # macOS: Developer ID signing + notarytool (see docs/test/macos-signing.md).
+      # macOS: Developer ID signing + notarytool.
       # Without APPLE_CERTIFICATE the build still runs unsigned (existing behavior).
       # Do NOT pass empty APPLE_TEAM_ID/APPLE_ID via the build env — empty strings make
       # Tauri/notarytool fail with "Team ID must be at least 3 characters".
@@ -144,6 +142,7 @@ jobs:
         if: runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -157,6 +156,17 @@ jobs:
             echo "::warning::APPLE_CERTIFICATE not configured; macOS installer will be unsigned"
             exit 0
           fi
+          # Tauri distinguishes an absent variable from an empty value.
+          # Export the certificate pair only for this macOS job. Use a
+          # multiline-safe environment record for base64 or password values.
+          export_apple() {
+            local key="$1" delimiter
+            delimiter="apple_$(openssl rand -hex 16)"
+            printf '%s<<%s\n%s\n%s\n' "$key" "$delimiter" "${!key}" "$delimiter" >> "$GITHUB_ENV"
+          }
+          export_apple APPLE_CERTIFICATE
+          export_apple APPLE_CERTIFICATE_PASSWORD
+          if [[ -n "${APPLE_SIGNING_IDENTITY:-}" ]]; then export_apple APPLE_SIGNING_IDENTITY; fi
           echo "APPLE_CERTIFICATE present — Tauri will import the .p12 and codesign"
 
           if [[ -n "${APPLE_API_KEY_P8:-}" && -n "${APPLE_API_KEY:-}" ]]; then
@@ -169,6 +179,8 @@ jobs:
             fi
             chmod 600 "$KEY_PATH"
             echo "APPLE_API_KEY_PATH=${KEY_PATH}" >> "$GITHUB_ENV"
+            export_apple APPLE_API_KEY
+            export_apple APPLE_API_ISSUER
             echo "App Store Connect API key written for notarytool"
             if [[ -n "${APPLE_API_ISSUER:-}" && ! "$APPLE_API_ISSUER" =~ ^[0-9a-fA-F-]{36}$ ]]; then
               echo "::warning::APPLE_API_ISSUER does not look like a UUID; Team API keys require Issuer ID format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -207,33 +219,23 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # PostHog project API key baked in at compile time (build.rs);
-          # empty/absent secret compiles telemetry out. See docs/backend/telemetry.md.
+          # Empty or absent secret compiles telemetry out.
           AGENTERO_POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
           # Optional. When all four are set, About feedback lands in that
           # PostHog API survey. Absent secrets still build; feedback is sent
-          # as a `feedback submitted` activity event. See docs/backend/telemetry.md.
+          # as a `feedback submitted` activity event.
           AGENTERO_POSTHOG_SURVEY_ID: ${{ secrets.POSTHOG_SURVEY_ID }}
           AGENTERO_POSTHOG_SURVEY_KIND_ID: ${{ secrets.POSTHOG_SURVEY_KIND_ID }}
           AGENTERO_POSTHOG_SURVEY_MESSAGE_ID: ${{ secrets.POSTHOG_SURVEY_MESSAGE_ID }}
           AGENTERO_POSTHOG_SURVEY_CONTACT_ID: ${{ secrets.POSTHOG_SURVEY_CONTACT_ID }}
           # Built-in provider gateway key, baked in at compile time (build.rs);
           # empty/absent secret still builds, but ships without the built-in
-          # provider, so verify it after release. See docs/backend/builtin-provider.md.
+          # provider, so verify it after release.
           AGENTERO_BUILTIN_API_KEY: ${{ secrets.AGENTERO_BUILTIN_API_KEY }}
           # Tauri updater signature, independent from Apple code signing.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Developer ID Application (.p12 base64) + password — see macos-signing.md
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # Optional if the .p12 contains a single identity, e.g.
-          # "Developer ID Application: Your Name (TEAMID)"
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # Preferred notarization auth (App Store Connect API key)
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          # APPLE_API_KEY_PATH, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID come from
-          # the prepare step via GITHUB_ENV only when non-empty.
+          # The macOS preparation step exports only the selected Apple credentials.
         with:
           # windows-11-arm passes an explicit target + NSIS-only bundle; other
           # entries leave it empty and build for the runner's host.
@@ -248,6 +250,50 @@ jobs:
           uploadUpdaterJson: true
           uploadUpdaterSignatures: true
           updaterJsonPreferNsis: true
+
+      - name: Verify macOS app CLI, PDFium and signing
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        run: |
+          set -euo pipefail
+          APP="$(find target -type d -path '*/release/bundle/macos/Agentero.app' -prune -print -quit)"
+          BIN="$APP/Contents/MacOS/agentero-turn"
+          test ! -f "$APP/Contents/Resources/cli/agentero-cli"
+          node scripts/verify-packaged-cli.mjs "$BIN" "$APP/Contents/Frameworks/libpdfium.dylib"
+          if [[ "$SIGNED" == true ]]; then
+            codesign --verify --strict "$BIN"
+            codesign --verify --deep --strict "$APP"
+            SIGNATURE="$(codesign --display --verbose=4 "$BIN" 2>&1)"
+            grep -F 'Authority=Developer ID Application:' <<< "$SIGNATURE"
+            grep -F 'runtime' <<< "$SIGNATURE"
+            if [[ -n "${APPLE_API_KEY_PATH:-}" || ( -n "${APPLE_ID:-}" && -n "${APPLE_PASSWORD:-}" && -n "${APPLE_TEAM_ID:-}" ) ]]; then
+              xcrun stapler validate "$APP"
+            fi
+          fi
+
+      - name: Verify CLI from installed Linux package
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEB="$(find target -type f -path '*/release/bundle/deb/*.deb' -print -quit)"
+          ROOT="$RUNNER_TEMP/agentero-deb"
+          dpkg-deb -x "$DEB" "$ROOT"
+          BIN="$(find "$ROOT" -type f -path '*/cli/agentero-cli' -print -quit)"
+          node scripts/verify-packaged-cli.mjs "$BIN" "$(dirname "$BIN")/../pdfium/libpdfium.so"
+
+      - name: Verify CLI from installed Windows NSIS package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem target -Recurse -Filter '*-setup.exe' | Where-Object { $_.Directory.Name -eq 'nsis' } | Select-Object -First 1
+          if (!$installer) { throw "Missing NSIS installer" }
+          $root = Join-Path $env:RUNNER_TEMP 'agentero-nsis'
+          $installed = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/D=$root" -PassThru -Wait
+          if ($installed.ExitCode -ne 0) { throw "NSIS exited with $($installed.ExitCode)" }
+          node scripts/verify-packaged-cli.mjs "$root/cli/agentero-cli.exe" "$root/pdfium/pdfium.dll"
 
   # tauri-action writes api.github.com asset URLs into latest.json; anonymous
   # API requests share a 60/hour per-IP quota, so updater downloads 403 behind
@@ -417,6 +463,7 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
+          - platform: macos-15-intel
           - platform: ubuntu-22.04
           - platform: ubuntu-24.04-arm
           - platform: windows-latest
@@ -442,9 +489,8 @@ jobs:
           # dependencies (SQLite, leptonica/tesseract) as the desktop app.
           arch: ${{ matrix.msvc_arch }}
 
-      # agentero-cli path-depends agentero_lib (Tauri), so Linux still needs WebKit link libs.
-      - name: Install Linux dependencies
-        if: startsWith(matrix.platform, 'ubuntu-')
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -453,13 +499,7 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      # tauri.macos.conf.json lists pdfium/libpdfium.dylib under
-      # bundle.macOS.frameworks; tauri-build hard-fails when the file is
-      # missing even when only compiling the headless CLI. Every platform
-      # stages the same library so the CLI archive can ship it beside the
-      # binary — liteparse dlopens PDFium, and the path baked at compile time
-      # is this runner's cache, which does not exist on a user machine.
-      # The staging script owns the release tag and the download fallbacks.
+      # The archive carries the same build of PDFium as the desktop installer.
       - name: Setup Node.js for PDFium staging
         uses: actions/setup-node@v5
         with:
@@ -512,6 +552,16 @@ jobs:
             tar -C "$STAGE" -czf "${OUT_DIR}/${STAGE}.tar.gz" agentero "${PDFIUM_NAME}"
             echo "CLI_ASSET=${OUT_DIR}/${STAGE}.tar.gz" >> "$GITHUB_ENV"
           fi
+          UNPACKED="$RUNNER_TEMP/agentero-standalone"
+          mkdir -p "$UNPACKED"
+          if [[ "${{ runner.os }}" == Windows ]]; then
+            unzip -q "$OUT_DIR/$STAGE.zip" -d "$UNPACKED"
+            BIN="$UNPACKED/agentero.exe"
+          else
+            tar -xzf "$OUT_DIR/$STAGE.tar.gz" -C "$UNPACKED"
+            BIN="$UNPACKED/agentero"
+          fi
+          node scripts/verify-packaged-cli.mjs "$BIN" "$UNPACKED/$PDFIUM_NAME"
           ls -la "$OUT_DIR"
 
       - name: Write SHA256 checksum

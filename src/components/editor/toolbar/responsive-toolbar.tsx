@@ -11,16 +11,22 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/core/utils";
 
 import { fitToolbarActions } from "./fit-actions";
-import { Toolbar, ToolbarButton } from "./primitives";
+import { Toolbar, ToolbarButton, ToolbarSeparator } from "./primitives";
 
 /* shrink-0 in the flex editor column — avoid sticky+z-50 so the bar cannot
  * paint over dockview tab chrome if content height overflows. */
-const fixedBarClassName =
-	"h-9 w-full shrink-0 items-center justify-between rounded-none border-b border-b-border bg-background/95 p-1 backdrop-blur-sm supports-backdrop-blur:bg-background/60";
+const barVariants = {
+	/* Contextual bar above the editor (paper NOTES actions). */
+	header:
+		"h-9 w-full shrink-0 items-center justify-between rounded-none border-b border-b-border bg-background/95 p-1 backdrop-blur-sm supports-backdrop-blur:bg-background/60",
+	/* Editor bar pinned under the document — also the status row, so it is a
+	 * query container for the responsive word/backlink counts. */
+	footer:
+		"@container/statusbar h-9 w-full min-w-0 shrink-0 items-center rounded-none border-t border-t-border bg-background/95 px-1.5 backdrop-blur-sm supports-backdrop-blur:bg-background/60",
+} as const;
 
 export type ToolbarAction = {
 	id: string;
@@ -44,9 +50,7 @@ function ActionButton({
 }) {
 	return (
 		<div className="flex shrink-0 items-center">
-			{showSeparator && (
-				<Separator orientation="vertical" className="mx-1.5 h-5" />
-			)}
+			{showSeparator && <ToolbarSeparator />}
 			<ToolbarButton
 				tooltip={action.label}
 				aria-label={action.label}
@@ -64,16 +68,22 @@ function ActionButton({
 export function ResponsiveFixedToolbar({
 	actions,
 	className,
+	leading,
 	trailing,
+	variant = "header",
 }: {
 	actions: ToolbarAction[];
 	className?: string;
+	/** Pinned at the left end (status row actions); never collapses. */
+	leading?: React.ReactNode;
 	/** Pinned at the right end; never collapses into the overflow menu. */
 	trailing?: React.ReactNode;
+	variant?: keyof typeof barVariants;
 }) {
 	const { t } = useTranslation("editor");
 	const barRef = useRef<HTMLDivElement>(null);
 	const measureRef = useRef<HTMLDivElement>(null);
+	const leadingRef = useRef<HTMLDivElement>(null);
 	const trailingRef = useRef<HTMLDivElement>(null);
 	const [visibleCount, setVisibleCount] = useState(actions.length);
 	const [open, setOpen] = useState(false);
@@ -115,9 +125,14 @@ export function ResponsiveFixedToolbar({
 			const widths = actionsRef.current.map(
 				(_, index) => items[index]?.offsetWidth ?? 0,
 			);
+			const leadingWidth = leadingRef.current?.offsetWidth ?? 0;
 			const trailingWidth = trailingRef.current?.offsetWidth ?? 0;
 			setVisibleCount(
-				fitToolbarActions(widths, inner - trailingWidth, overflowWidth),
+				fitToolbarActions(
+					widths,
+					inner - leadingWidth - trailingWidth,
+					overflowWidth,
+				),
 			);
 		};
 
@@ -130,9 +145,11 @@ export function ResponsiveFixedToolbar({
 
 		const observer = new ResizeObserver(schedule);
 		// Bar: pane/width changes. Measure row: labels or fonts reflow.
-		// Trailing: the pinned cluster can appear after async paper metadata.
+		// Leading/trailing: pinned clusters can appear after async paper
+		// metadata or when the status counts degrade at narrow widths.
 		observer.observe(bar);
 		observer.observe(measure);
+		if (leadingRef.current) observer.observe(leadingRef.current);
 		if (trailingRef.current) observer.observe(trailingRef.current);
 		update();
 
@@ -148,9 +165,21 @@ export function ResponsiveFixedToolbar({
 	return (
 		<Toolbar
 			ref={barRef}
-			className={cn(fixedBarClassName, "overflow-hidden", className)}
+			className={cn(barVariants[variant], "overflow-hidden", className)}
 		>
-			<div className="flex min-w-0 flex-1 items-center overflow-hidden">
+			{leading ? (
+				<div ref={leadingRef} className="flex shrink-0 items-center gap-0.5">
+					{leading}
+					{/* Keep the pinned left cluster visually separate from the
+					    collapsible formatting actions. */}
+					{actions.length > 0 ? <ToolbarSeparator /> : null}
+				</div>
+			) : null}
+
+			<div
+				data-hint-ignore
+				className="flex min-w-0 flex-1 items-center overflow-hidden"
+			>
 				{visible.map((action, index) => (
 					<ActionButton
 						key={action.id}
@@ -166,6 +195,7 @@ export function ResponsiveFixedToolbar({
 				<DropdownMenu open={open} onOpenChange={setOpen}>
 					<DropdownMenuTrigger asChild>
 						<ToolbarButton
+							data-hint-ignore
 							tooltip={t("toolbar.more")}
 							aria-label={t("toolbar.more")}
 						>
@@ -203,10 +233,11 @@ export function ResponsiveFixedToolbar({
 					ref={trailingRef}
 					className="ml-auto flex shrink-0 items-center gap-0.5"
 				>
-					{/* Always rendered: a separator that comes and goes with the
-					    visible count changes the trailing width, which changes the
-					    fit, which changes the visible count. */}
-					<Separator orientation="vertical" className="mx-1.5 h-5" />
+					{/* Always rendered when the bar has content on its left: a
+					    separator that comes and goes with the visible count changes
+					    the trailing width, which changes the fit, which changes the
+					    visible count. */}
+					{leading || actions.length > 0 ? <ToolbarSeparator /> : null}
 					{trailing}
 				</div>
 			) : null}

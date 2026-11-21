@@ -339,40 +339,39 @@ export const FileTree = memo(
 			[cutPaths],
 		);
 
-		const { menuProps, revealError, handleContextMenuPath } =
-			useTreeContextMenu({
-				nodes,
-				vaultPath,
-				paperMetaByRelPath,
-				byPath,
-				cutPaths,
-				cutPathKeys,
-				createDraft,
-				renameDraft,
-				libraryExportBusy,
-				citingScanBusy,
-				pathsForAction: selection.pathsForAction,
-				prepareContextSelection: selection.prepareContextSelection,
-				openMovePicker: movePicker.openPicker,
-				onExportLibrary,
-				onRescanLibrary,
-				libraryRescanning,
-				onDiscoverCiting,
-				onDownloadAllMissing: paperActions.showLibraryDownload
-					? paperActions.downloadAllMissing
-					: undefined,
-				onEmptyTrash,
-				onOpenPaperNotes,
-				onEditPaperMeta,
-				onStartCreate,
-				onStartRename,
-				onDeletePath,
-				onDeletePaths,
-				onCutPaths,
-				onPasteInto,
-				onMoveTo,
-				skillLabels,
-			});
+		const { menuProps, handleContextMenuPath } = useTreeContextMenu({
+			nodes,
+			vaultPath,
+			paperMetaByRelPath,
+			byPath,
+			cutPaths,
+			cutPathKeys,
+			createDraft,
+			renameDraft,
+			libraryExportBusy,
+			citingScanBusy,
+			pathsForAction: selection.pathsForAction,
+			prepareContextSelection: selection.prepareContextSelection,
+			openMovePicker: movePicker.openPicker,
+			onExportLibrary,
+			onRescanLibrary,
+			libraryRescanning,
+			onDiscoverCiting,
+			onDownloadAllMissing: paperActions.showLibraryDownload
+				? paperActions.downloadAllMissing
+				: undefined,
+			onEmptyTrash,
+			onOpenPaperNotes,
+			onEditPaperMeta,
+			onStartCreate,
+			onStartRename,
+			onDeletePath,
+			onDeletePaths,
+			onCutPaths,
+			onPasteInto,
+			onMoveTo,
+			skillLabels,
+		});
 
 		const { collapsePaths, collapseToDefault } = expansion;
 		const collapseSelected = useCallback(() => {
@@ -519,11 +518,6 @@ export const FileTree = memo(
 								/>
 							</AiFileTree>
 						)}
-						{revealError ? (
-							<p className="px-3 py-1 text-destructive text-xs leading-snug">
-								{revealError}
-							</p>
-						) : null}
 					</div>
 					{menuProps ? <TreeContextMenuPortal {...menuProps} /> : null}
 				</div>

@@ -420,10 +420,11 @@ export function AgentComposer(props: AgentComposerProps) {
 						<SeedHandoffImages />
 						<ComposerAnnotations
 							value={composerText}
-							onChange={onComposerTextChange}
 							hover={selectionHover}
 							onHoverHold={holdReferenceHover}
 							onHoverRelease={releaseReferenceHover}
+							labelForPath={props.labelForPath}
+							paperPaths={props.paperPathSet}
 						/>
 						<PromptInputBody>
 							<Popover

@@ -247,7 +247,7 @@ function ZenSessionRowView({
 				type="button"
 				aria-current={row.active ? "true" : undefined}
 				title={label}
-				className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start text-sm outline-none focus-visible:ring-1 focus-visible:ring-brand/80"
+				className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start text-sm outline-none focus-visible:ring-1 focus-visible:ring-brand"
 				onClick={onActivate}
 			>
 				<span className="min-w-0 flex-1 truncate">{label}</span>
@@ -315,7 +315,7 @@ function HarnessSection({
 					type="button"
 					aria-expanded={!collapsed}
 					aria-label={group.name}
-					className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-brand/80"
+					className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-brand"
 					onClick={onToggle}
 				>
 					<FileTreeDisclosureIcon
@@ -339,7 +339,7 @@ function HarnessSection({
 					type="button"
 					aria-label={t("zen.newConversation")}
 					title={t("zen.newConversation")}
-					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-brand/80"
+					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-brand"
 					onClick={onNewSlot}
 				>
 					<Plus className="size-3.5" />

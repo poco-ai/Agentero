@@ -91,6 +91,7 @@ pub(super) struct Field {
 #[derive(Clone, Debug)]
 pub(super) struct Row {
     pub id: String,
+    pub public_id: String,
     pub values: Map<String, Value>,
     pub registry_id: Option<String>,
     pub created_at: Option<String>,
@@ -294,12 +295,16 @@ pub(super) fn update_cells(
     now: &str,
 ) -> Result<Vec<Affected>, TableError> {
     let mut planned = Vec::with_capacity(cells.len());
+    let mut coordinates = std::collections::HashSet::new();
     for cell in cells {
         let index = row_index(table, &cell.registry_id)?;
         if table.rows[index].archived_at.is_some() && !include_archived {
             return Err(TableError::new("archived"));
         }
         let field = find_field(table, &cell.field)?;
+        if !coordinates.insert((index, field.id.as_str())) {
+            return Err(TableError::new("duplicate_cell"));
+        }
         let value = normalize_input(field, &cell.value)?;
         planned.push((index, field.id.clone(), value));
     }
@@ -327,6 +332,7 @@ pub(super) fn upsert_rows(
         }
     }
     let mut creating = Vec::new();
+    let mut existing_rows = std::collections::HashSet::new();
     for (index, row) in rows.iter().enumerate() {
         for (name, value) in &row.values {
             let field = find_field(table, name)?;
@@ -335,6 +341,9 @@ pub(super) fn upsert_rows(
         match row.registry_id.as_deref() {
             Some(id) => match row_index(table, id) {
                 Ok(existing) => {
+                    if !existing_rows.insert(existing) {
+                        return Err(TableError::new("invalid_table"));
+                    }
                     if table.rows[existing].archived_at.is_some() && !include_archived {
                         return Err(TableError::new("archived"));
                     }
@@ -413,7 +422,7 @@ fn next_free(
         let taken = table
             .rows
             .iter()
-            .any(|row| row.registry_id.as_deref() == Some(candidate.as_str()))
+            .any(|row| row.id == candidate || row.public_id == candidate)
             || reserved.contains(candidate.as_str());
         if !taken {
             return Ok(candidate);
@@ -461,6 +470,7 @@ fn new_row(
         id = uuid::Uuid::new_v4().to_string();
     }
     Ok(Row {
+        public_id: registry_id.to_string(),
         id,
         values: stored,
         registry_id: Some(registry_id.to_string()),
@@ -501,7 +511,7 @@ fn snapshot(table: &Table, registry_id: &str) -> Affected {
     match table
         .rows
         .iter()
-        .find(|row| row.registry_id.as_deref() == Some(registry_id))
+        .find(|row| row.public_id == registry_id || row.id == registry_id)
     {
         Some(row) => Affected {
             id: row.id.clone(),
@@ -551,7 +561,7 @@ fn row_index(table: &Table, registry_id: &str) -> Result<usize, TableError> {
     table
         .rows
         .iter()
-        .position(|row| row.registry_id.as_deref() == Some(registry_id))
+        .position(|row| row.public_id == registry_id || row.id == registry_id)
         .ok_or_else(|| TableError::new("unknown_row"))
 }
 
@@ -961,6 +971,21 @@ fn parse_rows(value: &Value, fields: &[Field]) -> Result<Vec<Row>, TableError> {
     {
         return Err(TableError::new("invalid_table"));
     }
+    // Row IDs are unique, but a registry ID may also be another row's raw ID.
+    // Reserve each raw ID for its owner so every published ID can be used again.
+    let raw_ids = rows
+        .iter()
+        .map(|r| r.id.clone())
+        .collect::<std::collections::HashSet<_>>();
+    for row in &mut rows {
+        if let Some(id) = row
+            .registry_id
+            .as_deref()
+            .filter(|id| !raw_ids.contains(*id))
+        {
+            row.public_id = id.to_owned();
+        }
+    }
     Ok(rows)
 }
 
@@ -984,6 +1009,7 @@ fn parse_row(value: &Value, fields: &[Field]) -> Result<Row, TableError> {
         Some(_) => return Err(TableError::new("invalid_table")),
     };
     Ok(Row {
+        public_id: id.to_string(),
         id: id.to_string(),
         values,
         registry_id,

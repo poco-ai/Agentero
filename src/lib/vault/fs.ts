@@ -83,6 +83,51 @@ export async function writeVaultFile(
 	await writeTextFile(path, content);
 }
 
+/**
+ * Create a text file only when `path` is still missing.
+ *
+ * Returns `false` — writing nothing — when the target already exists, so a flow
+ * that derives the path from user input (a wikilink target, a new note) can
+ * never truncate a file that is already there. {@link writeVaultFile}
+ * overwrites by design; that is only correct for content the user already sees.
+ */
+export async function createVaultFile(
+	path: string,
+	content: string,
+): Promise<boolean> {
+	if (!isTauri()) {
+		throw new Error(i18n.t("app:vault.writeDesktopOnly"));
+	}
+
+	const remote = parseRemoteJoinedPath(path);
+	if (remote) {
+		if (!remote.rel) throw new Error("invalid remote path");
+		if (await vaultPathExists(path)) return false;
+		await remoteWriteText(remote.sessionId, remote.rel, content);
+		return true;
+	}
+
+	const { mkdir, writeTextFile } = await import("@tauri-apps/plugin-fs");
+	path = normalizeLocalPath(path);
+	const parent = path.replace(/[\\/][^\\/]+$/, "");
+	if (parent && parent !== path) {
+		try {
+			await mkdir(parent, { recursive: true });
+		} catch {
+			// Parent may already exist
+		}
+	}
+	try {
+		await writeTextFile(path, content, { createNew: true });
+	} catch (error) {
+		// `createNew` refuses an existing file: report that as "already there"
+		// instead of surfacing a raw filesystem error.
+		if (await vaultPathExists(path)) return false;
+		throw error;
+	}
+	return true;
+}
+
 /** Write binary file (creates parent dirs when possible). Used for Markdown `./assets/` images. */
 export async function writeVaultBytes(
 	path: string,
