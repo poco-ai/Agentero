@@ -3,8 +3,9 @@
  *
  * The cut runs on the text-layer string before hyphen healing, so the quote
  * still matches `repre- sentation` in the PDF. Latin `.` `!` `?` end a sentence
- * only before whitespace; `。` `！` `？` end one on their own. Abbreviations and
- * decimals are not sentence ends. Normalization stays a separate step.
+ * only before whitespace; `。` `！` `？` end one on their own. Academic
+ * abbreviations, block-start enumerators, and decimals are not sentence ends.
+ * Normalization stays a separate step.
  */
 
 import {
@@ -39,14 +40,25 @@ function isCloser(ch: string): boolean {
 	);
 }
 
-/** `et al.` / `Fig.` / `e.g.` / `i.e.` / `0.5` — the period is not a sentence end. */
+/**
+ * Academic abbreviations whose period is not a sentence end.
+ * `sec(s)` / `fig(s)` / `tab(s)` / `eq(s)` / `alg(s)` / `ref(s)` / `no(s)` plus
+ * the short forms papers actually print (`thm`, `lem`, `vs`, `e.g.`, …).
+ */
+const PROTECTED_ABBREVIATION =
+	/(?:^|[\s([(])(?:secs?|figs?|tabs?|eqs?|algs?|thm|lem|def|prop|cor|refs?|nos?|vs|dr|prof|cf|approx|e\.g|i\.e|et\s+al)$/i;
+
+/** `1.` / `2.1.` / `A.` at the start of the block, not a sentence end. */
+function isBlockStartEnumerator(before: string): boolean {
+	return /^(?:\d+(?:\.\d+)*|[A-Z])$/.test(before);
+}
+
+/** Abbreviation, block-start enumerator, or decimal — the period stays inside. */
 function isProtectedPeriod(text: string, index: number): boolean {
 	if (text[index] !== ".") return false;
 	const before = text.slice(0, index);
-	if (/(?:^|[\s([(])fig$/i.test(before)) return true;
-	if (/(?:^|[\s([(])et\s+al$/i.test(before)) return true;
-	if (/(?:^|[\s([(])e\.g$/i.test(before)) return true;
-	if (/(?:^|[\s([(])i\.e$/i.test(before)) return true;
+	if (PROTECTED_ABBREVIATION.test(before)) return true;
+	if (isBlockStartEnumerator(before)) return true;
 	const prev = before.at(-1);
 	const next = text[index + 1];
 	return Boolean(prev && next && /\d/.test(prev) && /\d/.test(next));

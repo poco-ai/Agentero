@@ -194,9 +194,11 @@ import {
 	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
-import { isLayoutElementTextKind } from "@/lib/pdf/layout/labels";
 import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
-import { isInsideVisualLayoutRegion } from "@/lib/pdf/layout/translatable";
+import {
+	isInsideVisualLayoutRegion,
+	sentenceHoverTextRegions,
+} from "@/lib/pdf/layout/translatable";
 import {
 	clearTranslatedLinkSource,
 	publishTranslatedLinkSource,
@@ -1527,13 +1529,8 @@ function PdfViewerInner({
 		const translated = allTranslated.filter(
 			(item) => !isInsideVisualLayoutRegion(item, rawRegions),
 		);
-		const source = rawRegions
-			.filter(
-				(region) =>
-					isLayoutElementTextKind(region.kind) &&
-					!translatedIds.has(region.id) &&
-					!isInsideVisualLayoutRegion(region, rawRegions),
-			)
+		const source = sentenceHoverTextRegions(rawRegions)
+			.filter((region) => !translatedIds.has(region.id))
 			.map((region) => ({
 				id: region.id,
 				pageIndex: region.pageIndex,

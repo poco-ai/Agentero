@@ -7,6 +7,7 @@ import {
 	layoutElementQuote,
 } from "@/lib/pdf/layout/element-selection";
 import {
+	dropTruncatedSentencePrefixes,
 	elementSentenceAtPoint,
 	mergeSentenceItems,
 } from "@/lib/pdf/layout/element-sentence";
@@ -22,6 +23,7 @@ import {
 	selectableLayoutRegionsByPage,
 } from "@/lib/pdf/layout/hit-test";
 import { layoutSentenceScope } from "@/lib/pdf/layout/store";
+import { sentenceHoverTextRegions } from "@/lib/pdf/layout/translatable";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
 function region(
@@ -338,6 +340,56 @@ describe("layout hit-test", () => {
 	});
 });
 
+describe("sentenceHoverTextRegions", () => {
+	it("drops a low-score cross-column box and text inside an algorithm", () => {
+		const kept = sentenceHoverTextRegions([
+			region({
+				id: "wide",
+				kind: "text",
+				score: 0.0086,
+				bbox: { x: 0.157, y: 0.466, w: 0.679, h: 0.052 },
+			}),
+			region({
+				id: "left",
+				kind: "text",
+				score: 0.92,
+				bbox: { x: 0.08, y: 0.45, w: 0.36, h: 0.1 },
+			}),
+			region({
+				id: "alg",
+				kind: "algorithm",
+				score: 0.88,
+				bbox: { x: 0.08, y: 0.7, w: 0.84, h: 0.2 },
+			}),
+			region({
+				id: "inner",
+				kind: "text",
+				score: 0.91,
+				bbox: { x: 0.12, y: 0.74, w: 0.3, h: 0.04 },
+			}),
+		]);
+		expect(kept.map((entry) => entry.id)).toEqual(["left"]);
+	});
+
+	it("drops a line box contained by the paragraph it repeats", () => {
+		const kept = sentenceHoverTextRegions([
+			region({
+				id: "para",
+				kind: "text",
+				score: 0.9,
+				bbox: { x: 0.1, y: 0.2, w: 0.35, h: 0.12 },
+			}),
+			region({
+				id: "line",
+				kind: "text",
+				score: 0.8,
+				bbox: { x: 0.1, y: 0.2, w: 0.35, h: 0.02 },
+			}),
+		]);
+		expect(kept.map((entry) => entry.id)).toEqual(["para"]);
+	});
+});
+
 describe("elementSentenceAtPoint", () => {
 	const first = { x: 0.1, y: 0.1, w: 0.4, h: 0.05 };
 	const second = { x: 0.1, y: 0.2, w: 0.3, h: 0.04 };
@@ -563,6 +615,41 @@ describe("elementSentenceAtPoint", () => {
 		expect(located.status).toBe("sentence");
 		if (located.status !== "sentence") return;
 		expect(located.hit.quote).toBe("Alpha sentence.");
+	});
+
+	it("drops a clipped block whose sentences are a prefix of a larger block", () => {
+		const full = "Fetching Unit (Sec. 3.2) that dispatches the calls.";
+		const items = [
+			{
+				id: "line",
+				pageIndex: 0,
+				bbox: { x: 0.1, y: 0.2, w: 0.35, h: 0.02 },
+				sentences: [{ quote: "Fetching Unit (Sec.", translated: "" }],
+			},
+			{
+				id: "para",
+				pageIndex: 0,
+				bbox: { x: 0.1, y: 0.2, w: 0.35, h: 0.08 },
+				sentences: [{ quote: full, translated: "" }],
+			},
+		];
+		expect(dropTruncatedSentencePrefixes(items).map((item) => item.id)).toEqual(
+			["para"],
+		);
+		const located = elementSentenceAtPoint({
+			items,
+			glyphs: new Map([
+				["line", [[{ x: 0.12, y: 0.2, w: 0.2, h: 0.015 }]]],
+				["para", [[{ x: 0.12, y: 0.2, w: 0.3, h: 0.06 }]]],
+			]),
+			regionId: "",
+			pageIndex: 0,
+			x: 0.15,
+			y: 0.205,
+		});
+		expect(located.status).toBe("sentence");
+		if (located.status !== "sentence") return;
+		expect(located.hit.quote).toBe(full);
 	});
 
 	it("does not invent a sentence from an empty quote", () => {

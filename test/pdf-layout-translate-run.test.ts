@@ -804,6 +804,166 @@ describe("protected caption response recovery", () => {
 	});
 });
 
+describe("stale sentence pairs", () => {
+	function sidecar(
+		entries: LayoutTranslateSidecar["items"],
+	): LayoutTranslateSidecar {
+		return {
+			schemaVersion: 2,
+			source: {
+				mode: "pdf-layout-translate",
+				generatedAt: "",
+				providerId: "tencenttransmart",
+				sourceLang: "en",
+				targetLang: "zh-CN",
+				serviceKey: "",
+			},
+			items: entries,
+		};
+	}
+
+	it("drops a reflow cache whose Sec. split no longer matches one sentence", () => {
+		const reflow = paragraphFromCharacters(
+			"p",
+			0,
+			{ x: 0, y: 0, w: 100, h: 20 },
+			[],
+			[],
+			false,
+		);
+		reflow.source = "See Sec. 5.1.";
+		reflow.protectedText = "See Sec. 5.1.";
+		const live = {
+			...item("p", reflow.protectedText, 0),
+			raw: reflow.source,
+			reflow,
+		};
+		const applied = applyLayoutTranslateSidecar(
+			[live],
+			sidecar([
+				{
+					...live,
+					translated: "见第 5.1 节。",
+					sentences: [
+						{
+							quote: "See Sec.",
+							source: "See Sec.",
+							translated: "见第",
+						},
+						{
+							quote: "5.1.",
+							source: "5.1.",
+							translated: "5.1 节。",
+						},
+					],
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(applied[0]).toMatchObject({
+			status: "pending",
+			translated: undefined,
+			sentences: undefined,
+		});
+	});
+
+	it("retranslates a chain whose cached quotes were cut at Sec.", () => {
+		const left = {
+			...item("left", "the agent queries the environment in", 0),
+			raw: "the agent queries the environment in",
+			readingOrder: 0,
+		};
+		const right = {
+			...item("right", "sec. 5.1 today.", 0),
+			raw: "sec. 5.1 today.",
+			readingOrder: 1,
+			bbox: { x: 0.55, y: 0.1, w: 0.35, h: 0.1 },
+		};
+		const quote = "the agent queries the environment in sec. 5.1 today.";
+		const stale = applyLayoutTranslateSidecar(
+			[left, right],
+			sidecar([
+				{
+					...left,
+					translated: "前半。",
+					sentences: [
+						{
+							quote: "the agent queries the environment in sec.",
+							source: "the agent queries the environment in sec.",
+							translated: "前半。",
+						},
+					],
+				},
+				{
+					...right,
+					translated: "今天。",
+					sentences: [
+						{
+							quote: "5.1 today.",
+							source: "5.1 today.",
+							translated: "今天。",
+						},
+					],
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(stale.map((entry) => entry.status)).toEqual(["pending", "pending"]);
+		expect(stale.every((entry) => entry.sentences === undefined)).toBe(true);
+
+		const fresh = applyLayoutTranslateSidecar(
+			[left, right],
+			sidecar([
+				{
+					...left,
+					translated: "智能体在第 5.1 节查询环境。",
+					sentences: [
+						{
+							quote,
+							source: quote,
+							translated: "智能体在第 5.1 节查询环境。",
+							display: "智能体在",
+						},
+					],
+				},
+				{
+					...right,
+					translated: "今天查询。",
+					sentences: [
+						{
+							quote,
+							source: quote,
+							translated: "智能体在第 5.1 节查询环境。",
+							display: "今天查询。",
+						},
+					],
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(fresh.map((entry) => entry.status)).toEqual(["done", "done"]);
+		expect(fresh[0]?.sentences?.[0]?.quote).toBe(quote);
+	});
+
+	it("keeps a chain translation that was stored without sentence pairs", () => {
+		const block = item("solo", "Hello world. Next one.", 0);
+		const applied = applyLayoutTranslateSidecar(
+			[block],
+			sidecar([
+				{
+					...block,
+					translated: "你好。下一句。",
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(applied[0]).toMatchObject({
+			status: "done",
+			translated: "你好。下一句。",
+		});
+	});
+});
+
 // --- translation reliability (merged from pdf-layout-translate-reliable) ---
 
 describe("PDF layout translation reliability", () => {

@@ -486,7 +486,7 @@ export function applyLayoutTranslateSidecar(
 ): LayoutTranslateItem[] {
 	if (!sidecar?.items.length) return items.map((it) => ({ ...it }));
 	const byId = new Map(sidecar.items.map((item) => [item.id, item]));
-	return items.map((item) => {
+	const applied = items.map((item) => {
 		const cached = byId.get(item.id);
 		if (!cached || cached.source !== item.source) return { ...item };
 		if (sidecarTranslationHasPromptEcho(cached)) {
@@ -502,30 +502,16 @@ export function applyLayoutTranslateSidecar(
 			item.reflow &&
 			!validReflowTranslation(item.reflow, cached.translated.trim())
 		)
-			return {
-				...item,
-				status: "pending" as const,
-				translated: undefined,
-				sentences: undefined,
-				error: undefined,
-			};
-		if (options?.requireReflowSentencePairs && item.reflow) {
-			const drafts = draftReflowSentences(item.reflow);
-			if (
-				drafts.length > 1 &&
-				(cached.sentences?.length !== drafts.length ||
-					drafts.some(
-						(draft, index) => draft.quote !== cached.sentences?.[index]?.quote,
-					))
-			) {
-				return {
-					...item,
-					status: "pending",
-					translated: undefined,
-					sentences: undefined,
-					error: undefined,
-				};
-			}
+			return pendingLayoutTranslateItem(item);
+		if (
+			options?.requireReflowSentencePairs &&
+			item.reflow &&
+			reflowSentencePairsStale(
+				draftReflowSentences(item.reflow),
+				cached.sentences,
+			)
+		) {
+			return pendingLayoutTranslateItem(item);
 		}
 		return {
 			...item,
@@ -536,6 +522,81 @@ export function applyLayoutTranslateSidecar(
 			error: undefined,
 		};
 	});
+	if (!options?.requireReflowSentencePairs) return applied;
+	return invalidateStaleChainSentencePairs(applied);
+}
+
+function pendingLayoutTranslateItem(
+	item: LayoutTranslateItem,
+): LayoutTranslateItem {
+	return {
+		...item,
+		status: "pending",
+		translated: undefined,
+		sentences: undefined,
+		error: undefined,
+	};
+}
+
+/**
+ * Sentence cuts changed, or a multi-sentence reflow block was cached without
+ * pairs. A single whole-block translation with no pairs stays cached.
+ */
+function reflowSentencePairsStale(
+	drafts: readonly { quote: string }[],
+	cached: readonly { quote: string }[] | undefined,
+): boolean {
+	const stored = cached ?? [];
+	if (stored.length === 0) return drafts.length > 1;
+	if (drafts.length !== stored.length) return true;
+	return drafts.some((draft, index) => draft.quote !== stored[index]?.quote);
+}
+
+/** Quotes painted across a chain, skipping a sentence repeated on the next box. */
+function cachedChainQuotes(members: readonly LayoutTranslateItem[]): string[] {
+	const quotes: string[] = [];
+	const seen = new Set<string>();
+	for (const member of members) {
+		for (const sentence of member.sentences ?? []) {
+			if (seen.has(sentence.quote)) continue;
+			seen.add(sentence.quote);
+			quotes.push(sentence.quote);
+		}
+	}
+	return quotes;
+}
+
+/**
+ * Chain blocks do not go through the reflow pair check. A cached split that no
+ * longer matches `draftChainSentences` (an abbreviation that used to cut the
+ * sentence, or a clipped quote) is translated again as one chain.
+ */
+function invalidateStaleChainSentencePairs(
+	items: readonly LayoutTranslateItem[],
+): LayoutTranslateItem[] {
+	const stale = new Set<string>();
+	for (const chain of buildLayoutTranslateChains(items)) {
+		if (chain.members.some((member) => member.reflow)) continue;
+		if (chain.members.every((member) => member.status !== "done")) continue;
+		const drafts = draftChainSentences(
+			chain.members.map((member) => ({
+				raw: member.raw,
+				source: member.source,
+				kind: member.kind,
+			})),
+		);
+		const cached = cachedChainQuotes(chain.members);
+		if (cached.length === 0) continue;
+		const mismatch =
+			drafts.length !== cached.length ||
+			drafts.some((draft, index) => draft.quote !== cached[index]);
+		if (!mismatch) continue;
+		for (const member of chain.members) stale.add(member.id);
+	}
+	if (stale.size === 0) return [...items];
+	return items.map((item) =>
+		stale.has(item.id) ? pendingLayoutTranslateItem(item) : item,
+	);
 }
 
 /** Cached translations recovered from `layout-translate.json`, plus what is left. */

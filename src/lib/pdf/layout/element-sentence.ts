@@ -181,6 +181,50 @@ const sentenceHitBandCache = new WeakMap<
 	SentenceFractionRect[][]
 >();
 
+/** Joined quotes of one block, used to spot a bbox that clipped a larger block. */
+export function sentenceListText(item: SentenceItem): string {
+	return (item.sentences ?? [])
+		.map((sentence) => sentence.quote.replace(/\s+/g, " ").trim())
+		.filter(Boolean)
+		.join(" ");
+}
+
+function isStrictSentencePrefix(shorter: string, longer: string): boolean {
+	if (!shorter || shorter.length >= longer.length) return false;
+	if (!longer.startsWith(shorter)) return false;
+	return longer[shorter.length] === " ";
+}
+
+function sentenceBlockArea(item: SentenceItem): number {
+	const box = item.bbox;
+	if (!box || !(box.w > 0) || !(box.h > 0)) return Number.POSITIVE_INFINITY;
+	return box.w * box.h;
+}
+
+/**
+ * Drop a detection whose sentence list is only the start of a larger block.
+ *
+ * A clipped line box is smaller, so the minimum-area hit would light that
+ * fragment and hide the real sentence. The larger block has to contain the
+ * same point; this does not compare blocks the pointer missed.
+ */
+export function dropTruncatedSentencePrefixes<T extends SentenceItem>(
+	items: readonly T[],
+): T[] {
+	const texts = items.map(sentenceListText);
+	return items.filter((item, index) => {
+		const text = texts[index] ?? "";
+		if (!text) return true;
+		const area = sentenceBlockArea(item);
+		return !items.some((other, otherIndex) => {
+			if (otherIndex === index || other.pageIndex !== item.pageIndex)
+				return false;
+			if (!(sentenceBlockArea(other) > area + 1e-12)) return false;
+			return isStrictSentencePrefix(text, texts[otherIndex] ?? "");
+		});
+	});
+}
+
 /** Adjacent lines share a hit boundary at their midpoint; painted boxes stay tight. */
 function sentenceHitBands(
 	bands: readonly (readonly SentenceFractionRect[])[],
@@ -273,11 +317,13 @@ export function elementSentenceAtPoint(options: {
 	const item =
 		options.items.find((entry) => entry.id === options.regionId) ?? null;
 	if (options.pageIndex != null && !options.span) {
-		const candidates = sentenceItemsUnderPoint(
-			options.items,
-			options.pageIndex,
-			options.x,
-			options.y,
+		const candidates = dropTruncatedSentencePrefixes(
+			sentenceItemsUnderPoint(
+				options.items,
+				options.pageIndex,
+				options.x,
+				options.y,
+			),
 		);
 		const hits = candidates.flatMap((entry) => {
 			const result = elementSentenceAtPoint({
