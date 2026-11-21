@@ -104,7 +104,7 @@ fn author_surnames(authors: &[String]) -> HashSet<String> {
         .collect()
 }
 
-fn author_overlap(a: &[String], b: &[String]) -> f64 {
+pub(crate) fn author_overlap(a: &[String], b: &[String]) -> f64 {
     let sa = author_surnames(a);
     let sb = author_surnames(b);
     if sa.is_empty() || sb.is_empty() {
