@@ -245,7 +245,7 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 	);
 
 	return (
-		<div className="flex h-7 shrink-0 items-stretch overflow-hidden rounded-md border border-border/80 bg-background/70">
+		<div className="flex h-7 shrink-0 items-stretch overflow-hidden rounded-md bg-background/70 ring-1 ring-foreground/10">
 			<Button
 				type="button"
 				variant="ghost"
@@ -269,7 +269,7 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 						size="icon-sm"
 						aria-label={t("pathBar.openWith")}
 						title={t("pathBar.openWith")}
-						className="h-full w-6 rounded-none border-border/80 border-l"
+						className="h-full w-6 rounded-none"
 					>
 						<ChevronDown className="size-3.5" aria-hidden />
 					</Button>
