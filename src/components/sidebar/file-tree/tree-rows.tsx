@@ -1,7 +1,6 @@
 import {
 	BookOpen,
 	Bot,
-	ChevronRight,
 	Database,
 	Download,
 	Globe,
@@ -140,16 +139,10 @@ export function PaperTreeRow({
 					onPointerDown={(e) => e.stopPropagation()}
 					onKeyDown={(e) => e.stopPropagation()}
 				>
-					<ScrollText
-						className="size-4 transition-opacity group-hover/attachment:opacity-0 group-focus-visible/attachment:opacity-0"
-						aria-hidden
-					/>
-					<ChevronRight
-						className={cn(
-							"pointer-events-none absolute size-4 opacity-0 transition-[opacity,transform] group-hover/attachment:opacity-100 group-focus-visible/attachment:opacity-100",
-							expanded && "rotate-90",
-						)}
-						aria-hidden
+					<FileTreeDisclosureIcon
+						isExpanded={expanded}
+						revealOn="attachment"
+						icon={<ScrollText className="size-4" aria-hidden />}
 					/>
 				</button>
 			) : (
@@ -417,16 +410,10 @@ function SkillTreeRow({
 						onPointerDown={(e) => e.stopPropagation()}
 						onKeyDown={(e) => e.stopPropagation()}
 					>
-						<Sparkles
-							className="size-4 transition-opacity group-hover/skill:opacity-0 group-focus-visible/skill:opacity-0"
-							aria-hidden
-						/>
-						<ChevronRight
-							className={cn(
-								"pointer-events-none absolute size-4 opacity-0 transition-[opacity,transform] group-hover/skill:opacity-100 group-focus-visible/skill:opacity-100",
-								expanded && "rotate-90",
-							)}
-							aria-hidden
+						<FileTreeDisclosureIcon
+							isExpanded={expanded}
+							revealOn="skill"
+							icon={<Sparkles className="size-4" aria-hidden />}
 						/>
 					</button>
 				) : (
