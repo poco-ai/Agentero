@@ -218,6 +218,7 @@ import {
 	selectionAnchorKey,
 } from "@/lib/pdf/selection";
 import { isSelectionInsertionRegion } from "@/lib/pdf/selection-appearance";
+import { resolveSupplementFigureUrl } from "@/lib/pdf/supplement-figure-url";
 import {
 	tintedTranslateRecords,
 	translateHighlightsByPage as translateHighlightsByPageOf,
@@ -772,21 +773,20 @@ function PdfViewerInner({
 		);
 	}, [paperMeta]);
 	/**
-	 * eLife figure supplements live on the web, not in the PDF. Their link text
-	 * still names the main figure ("Figure 5—figure supplement 1"), so resolve
-	 * the supplement to the publisher's direct image instead of cropping the
-	 * main Figure 5.
+	 * Figure supplements often live on the web, not in the PDF. Link text may
+	 * still name a main figure ("Figure 5—figure supplement 1", "Fig. S1"), so
+	 * resolve the supplement to a publisher permalink/image when the DOI maps
+	 * stably; otherwise the crossref hook suppresses the main-figure crop.
 	 */
 	const supplementFigureUrl = useMemo(() => {
 		if (!paperMeta) return undefined;
-		const articleId =
-			paperMeta.doi?.match(/^10\.7554\/e?life\.(\d+)/i)?.[1] ??
-			(paperMeta.source_url ?? paperMeta.html_url ?? "").match(
-				/elifesciences\.org\/articles\/(\d+)/i,
-			)?.[1];
-		if (!articleId) return undefined;
+		const identity = {
+			doi: paperMeta.doi,
+			source_url: paperMeta.source_url,
+			html_url: paperMeta.html_url,
+		};
 		return (figure: number, supplement: number) =>
-			`https://elifesciences.org/articles/${articleId}/figures#fig${figure}s${supplement}`;
+			resolveSupplementFigureUrl(identity, figure, supplement);
 	}, [paperMeta]);
 	/**
 	 * The supplement URL is shown through the shared external-link preview card;

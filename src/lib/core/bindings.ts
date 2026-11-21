@@ -775,6 +775,18 @@ export const commands = {
 	 */
 	webProxyAllowHost: (args: WebProxyAllowHostArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("web_proxy_allow_host", { args })),
 	/**
+	 *  HEAD `url` without following redirects. When the response names an
+	 *  inline-decodable image (Location `.jpg`/`.png`/… or Content-Type), allowlist
+	 *  that host and return the direct URL for the proxy `<img>` path. TIFF/PDF
+	 *  and unknown targets return `null` so the card stays on the URL tip.
+	 * 
+	 *  Page JS cannot do this: PLOS has no CORS and opaque-redirects hide Location.
+	 *  The proxy also refuses un-allowlisted redirect hops, so the card must point
+	 *  at the corpus URL after this command allowlists it (same idea as eLife's
+	 *  direct CDN rewrite).
+	 */
+	webProxyResolveImage: (args: WebProxyResolveImageArgs) => typedError<ApiResult<WebProxyResolvedImage | null>, string>(__TAURI_INVOKE("web_proxy_resolve_image", { args })),
+	/**
 	 *  Mint a preview token for one HTML file inside a vault this window holds.
 	 * 
 	 *  The token names that file's directory. The `agentero-html` scheme serves
@@ -6504,6 +6516,17 @@ export type WebProxyAllowHostArgs = {
 	/**  Public DNS host the viewer is about to load through the proxy. */
 	host: string,
 };
+
+export type WebProxyResolveImageArgs = {
+	/**
+	 *  Permalink whose redirect / Content-Type may name a direct image asset
+	 *  (e.g. PLOS `/article/file?…&type=supplementary`).
+	 */
+	url: string,
+};
+
+/**  Direct image URL the viewer may load through the proxy after allowlisting. */
+export type WebProxyResolvedImage = { url: string };
 
 export type WebpageSnapshotResult = {
 	/**  Vault-relative paper folder that now holds the snapshot. */

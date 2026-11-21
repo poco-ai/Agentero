@@ -28,12 +28,17 @@ import type { PdfLayoutKind, PdfLayoutRegion } from "@/lib/pdf/layout/types";
 /** Parsed label from a hovered link, e.g. "Figure 1" → { kind: "figure", number: 1 }. */
 export type CrossrefLabel = {
 	kind: CrossrefKind;
-	/** The numeric part of the label ("Figure 1a" → 1). */
+	/**
+	 * Parent figure number for "Figure N—figure supplement M", or the plain
+	 * float number for ordinary labels. Standalone medical/biology supplements
+	 * ("Fig. S1", "Supplementary Figure 1", "S1 Fig") use `number: 0` and put
+	 * the S-index in `supplement`.
+	 */
 	number: number;
 	/**
 	 * Figure supplement number for publisher-style labels such as eLife's
-	 * "Figure 5—figure supplement 1". These targets are usually online-only,
-	 * so a crop of the main figure would be wrong.
+	 * "Figure 5—figure supplement 1" or standalone "Fig. S1". These targets
+	 * are usually online-only, so a crop of the main figure would be wrong.
 	 */
 	supplement?: number;
 };
@@ -106,6 +111,19 @@ export function pickCrossrefRegion(
 const FIGURE_SUPPLEMENT_PATTERN =
 	/\b(?:Figures?|Figs?\.?)\s*(\d+)\s*(?:[—–‐‑-]\s*)?(?:Figure\s+)?Supplement\s*(\d+)/i;
 
+/**
+ * "Supplementary Figure 3" / "Supplemental Fig. 2". Must precede the plain
+ * figure pattern so "Supplementary Figure 3" is not read as main Figure 3.
+ */
+const SUPPLEMENTARY_FIGURE_PATTERN =
+	/\bSupplementa(?:ry|l)\s+(?:Figures?|Figs?\.?)\s*(\d+)/i;
+
+/** "Fig. S1" / "Figure S2" / "Figs S3". */
+const FIGURE_S_PATTERN = /\b(?:Figures?|Figs?\.?)\s*S(\d+)\b/i;
+
+/** PLOS-style "S1 Fig" / "S2 Figure". */
+const S_FIG_PATTERN = /\bS(\d+)\s*(?:Figures?|Figs?\.?)\b/i;
+
 const CROSSREF_LABEL_PATTERNS: {
 	kind: CrossrefKind;
 	regex: RegExp;
@@ -119,26 +137,59 @@ const CROSSREF_LABEL_PATTERNS: {
 	{ kind: "algorithm", regex: /\b(?:Algorithm|Alg\.?)\s*(\d+(?:[a-z])?)\b/i },
 ];
 
+/** Parse a positive integer capture, or null when missing / non-numeric. */
+function parseLabelNumber(raw: string | undefined): number | null {
+	if (raw == null) return null;
+	const number = Number.parseInt(raw, 10);
+	return Number.isNaN(number) ? null : number;
+}
+
+/**
+ * Standalone supplement label ("Fig. S1", "Supplementary Figure 1", "S1 Fig"):
+ * no parent figure, S-index in `supplement`.
+ */
+function standaloneSupplement(supplement: number): CrossrefLabel {
+	return { kind: "figure", number: 0, supplement };
+}
+
 /**
  * Extract a cross-reference label like "Figure 1" / "Table 2" / "Eq. (3)" from
  * the text surrounding a link. Returns null when the text is not a recognized
  * cross-reference label.
  */
 export function extractCrossrefLabel(text: string): CrossrefLabel | null {
-	const supplement = FIGURE_SUPPLEMENT_PATTERN.exec(text);
-	if (supplement) {
-		const number = Number.parseInt(supplement[1] ?? "", 10);
-		const supplementNumber = Number.parseInt(supplement[2] ?? "", 10);
-		if (!Number.isNaN(number) && !Number.isNaN(supplementNumber)) {
+	const parentSupplement = FIGURE_SUPPLEMENT_PATTERN.exec(text);
+	if (parentSupplement) {
+		const number = parseLabelNumber(parentSupplement[1]);
+		const supplementNumber = parseLabelNumber(parentSupplement[2]);
+		if (number != null && supplementNumber != null) {
 			return { kind: "figure", number, supplement: supplementNumber };
 		}
 	}
+
+	const supplementary = SUPPLEMENTARY_FIGURE_PATTERN.exec(text);
+	if (supplementary) {
+		const supplementNumber = parseLabelNumber(supplementary[1]);
+		if (supplementNumber != null) return standaloneSupplement(supplementNumber);
+	}
+
+	const figureS = FIGURE_S_PATTERN.exec(text);
+	if (figureS) {
+		const supplementNumber = parseLabelNumber(figureS[1]);
+		if (supplementNumber != null) return standaloneSupplement(supplementNumber);
+	}
+
+	const sFig = S_FIG_PATTERN.exec(text);
+	if (sFig) {
+		const supplementNumber = parseLabelNumber(sFig[1]);
+		if (supplementNumber != null) return standaloneSupplement(supplementNumber);
+	}
+
 	for (const { kind, regex } of CROSSREF_LABEL_PATTERNS) {
 		const match = regex.exec(text);
 		if (match) {
-			const raw = match[1];
-			const number = Number.parseInt(raw, 10);
-			if (Number.isNaN(number)) continue;
+			const number = parseLabelNumber(match[1]);
+			if (number == null) continue;
 			return { kind, number };
 		}
 	}
@@ -173,6 +224,10 @@ export function pickCrossrefRegionByLabel(
 	pageIndex: number,
 	label: CrossrefLabel,
 ): PdfLayoutRegion | null {
+	// Supplement targets are online-only (or a separate file). Never fall back
+	// to cropping the parent / nearest main figure.
+	if (label.supplement != null) return null;
+
 	const candidates = hoverableLayoutRegionsOnPage(regions, pageIndex).filter(
 		(region) => matchesCrossrefKind(label.kind, region.kind),
 	);
