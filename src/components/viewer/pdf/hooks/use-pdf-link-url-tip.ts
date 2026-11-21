@@ -1,8 +1,9 @@
 /**
- * Hover tip for PDF external links (annotation URI / Launch, and plain-text
- * http(s) / arXiv URLs). Native `title` tooltips truncate long addresses, so
- * the full URL is shown in a wrapping card that stays open when the pointer
- * moves onto it.
+ * Hover state for PDF external links (annotation URI / Launch, and plain-text
+ * http(s) / arXiv URLs): the target URL plus its screen anchor. Native `title`
+ * tooltips truncate long addresses, so `PdfLinkPreviewCard` renders the full
+ * URL — or, when the target is previewable, a compact page / image preview —
+ * in a card that stays open when the pointer moves onto it.
  */
 
 import { useCallback, useState } from "react";

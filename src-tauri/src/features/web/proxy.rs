@@ -231,10 +231,14 @@ fn find_head_open(html: &str) -> Option<usize> {
 /// The `<base>` must precede every URL-bearing node in `<head>` (stylesheets,
 /// preload links) to steer their resolution to the real origin — injecting at
 /// `</head>` the way the 广场 proxies do would leave early links resolving
-/// against the proxy scheme.
-fn inject_document(html: &str, base_url: &str) -> String {
+/// against the proxy scheme. The upstream status rides along for the bridge's
+/// `ready` message: a framed 4xx/5xx error document must not pass as a preview.
+fn inject_document(html: &str, base_url: &str, status: u16) -> String {
     let html = strip_meta_csp(html);
-    let head = format!("<base href=\"{}\">{}", escape_attr(base_url), WEB_BRIDGE);
+    let head = format!(
+        "<base href=\"{}\"><script>window.__agenteroProxyStatus={status};</script>{WEB_BRIDGE}",
+        escape_attr(base_url)
+    );
     match find_head_open(&html) {
         Some(at) => format!("{}{}{}", &html[..at], head, &html[at..]),
         None => format!("{head}{html}"),
@@ -387,7 +391,8 @@ pub fn handle(request: tauri::http::Request<Vec<u8>>, responder: tauri::UriSchem
             let body = if content_type.starts_with("text/html") {
                 match String::from_utf8(bytes.to_vec()) {
                     Ok(text) if looks_like_document(&text) => {
-                        inject_document(&text, &base_url_for(&final_url)).into_bytes()
+                        inject_document(&text, &base_url_for(&final_url), status.as_u16())
+                            .into_bytes()
                     }
                     // XHR fragments go through as-is.
                     _ => bytes.to_vec(),
@@ -459,7 +464,7 @@ mod tests {
     #[test]
     fn injects_base_and_bridge_after_head_open() {
         let html = "<html><head><title>t</title><link rel=\"stylesheet\" href=\"/css/main.css\"></head><body></body></html>";
-        let out = inject_document(html, "https://arxiv.org/abs/1234");
+        let out = inject_document(html, "https://arxiv.org/abs/1234", 404);
         let base = out
             .find("<base href=\"https://arxiv.org/abs/1234\">")
             .expect("base");
@@ -468,6 +473,11 @@ mod tests {
         // Both land before any URL-bearing node (the stylesheet link).
         let link = out.find("<link").expect("link");
         assert!(base < link && bridge < link && title > base);
+        // The upstream status precedes the bridge so `ready` can carry it.
+        let status = out
+            .find("window.__agenteroProxyStatus=404;")
+            .expect("proxy status");
+        assert!(base < status && status < bridge);
         // The document is otherwise untouched.
         assert!(out.contains("</head>"));
         assert!(out.ends_with("</html>"));
@@ -476,7 +486,7 @@ mod tests {
     #[test]
     fn does_not_mistake_header_for_head() {
         let html = "<html><body><header><h1>x</h1></header></body></html>";
-        let out = inject_document(html, "https://example.com/a");
+        let out = inject_document(html, "https://example.com/a", 200);
         // No <head> → prepended wholesale, body content preserved.
         let base = out
             .find("<base href=\"https://example.com/a\">")
@@ -487,7 +497,11 @@ mod tests {
 
     #[test]
     fn escapes_the_base_url() {
-        let out = inject_document("<html><head></head></html>", "https://x.com/a?b=1&c=<\"");
+        let out = inject_document(
+            "<html><head></head></html>",
+            "https://x.com/a?b=1&c=<\"",
+            200,
+        );
         assert!(out.contains("<base href=\"https://x.com/a?b=1&amp;c=&lt;&quot;\">"));
     }
 
@@ -504,7 +518,7 @@ mod tests {
     #[test]
     fn strips_multiline_csp_meta() {
         let html = "<html><head>\n<meta\n  http-equiv=\"Content-Security-Policy\"\n  content=\"default-src 'self'; style-src 'self' 'unsafe-inline'\">\n<link rel=\"stylesheet\" href=\"/app.css\"></head></html>";
-        let out = inject_document(html, "https://x.com/a");
+        let out = inject_document(html, "https://x.com/a", 200);
         assert!(!out.to_ascii_lowercase().contains("content-security-policy"));
         // Everything around the removed tag survives, including the stylesheet.
         assert!(out.contains("<link rel=\"stylesheet\" href=\"/app.css\">"));

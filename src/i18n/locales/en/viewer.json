@@ -13,6 +13,7 @@
 		"outline": "Outline",
 		"linkAria": "PDF link",
 		"linkUrl": "Link address",
+		"linkPreview": "Link preview",
 		"paperTone": "Page background",
 		"paperToneOption": {
 			"white": "White",

@@ -27,7 +27,7 @@ import { useStore } from "zustand";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { PdfCitationPreview } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
-import { PdfLinkUrlTip } from "@/components/viewer/pdf/cards/link-url-tip";
+import { PdfLinkPreviewCard } from "@/components/viewer/pdf/cards/link-preview-card";
 import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
 import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 import { PdfFindBar } from "@/components/viewer/pdf/chrome/pdf-find-bar";
@@ -909,7 +909,8 @@ export function PdfTranslationViewerInner({
 								/>
 							) : null}
 							{linkUrlTip ? (
-								<PdfLinkUrlTip
+								<PdfLinkPreviewCard
+									key={linkUrlTip.url}
 									url={linkUrlTip.url}
 									screen={linkUrlTip.screen}
 									onPointerEnter={markLinkUrlHoverEnter}

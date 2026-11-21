@@ -13,6 +13,7 @@
 		"outline": "目录",
 		"linkAria": "PDF 链接",
 		"linkUrl": "链接地址",
+		"linkPreview": "链接预览",
 		"paperTone": "页面背景",
 		"paperToneOption": {
 			"white": "白纸",

@@ -7,7 +7,7 @@ import {
 	PdfCitationPreview,
 } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
-import { PdfLinkUrlTip } from "@/components/viewer/pdf/cards/link-url-tip";
+import { PdfLinkPreviewCard } from "@/components/viewer/pdf/cards/link-preview-card";
 import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
 import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 import { VisualTraceCard } from "@/components/viewer/pdf/cards/visual-trace-card";
@@ -192,7 +192,8 @@ export const PdfCardStack = memo(function PdfCardStack({
 			) : null}
 
 			{linkUrlTip.state ? (
-				<PdfLinkUrlTip
+				<PdfLinkPreviewCard
+					key={linkUrlTip.state.url}
 					url={linkUrlTip.state.url}
 					screen={linkUrlTip.state.screen}
 					onPointerEnter={linkUrlTip.onHoverEnter}
