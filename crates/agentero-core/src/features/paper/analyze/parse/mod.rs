@@ -863,6 +863,9 @@ async fn spawn_pdf_worker_with_dir(
         .arg(worker_arg)
         .arg(pdf_path)
         .arg(&response_path)
+        // The Host may be launched from Finder with `/` as its cwd; give the
+        // worker its own directory instead of the whole filesystem (#1119).
+        .current_dir(&worker_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(stderr_sink))

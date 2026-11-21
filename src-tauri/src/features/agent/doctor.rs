@@ -1,4 +1,5 @@
 use crate::core::error::AppError;
+use crate::core::process::SpawnInAgentScratchDir;
 use crate::features::agent::acp::client::{
     effective_local_agent_env, resolve_command_in_agent_env,
 };
@@ -130,6 +131,9 @@ fn codex_descriptor(registry: &AgentRegistry) -> Result<AgentDescriptor, AppErro
 
 fn diagnostic_command(path: &Path, args: &[&str]) -> Command {
     let mut command = base_command(path, args);
+    // Agent CLIs scan their startup directory; a Host launched by
+    // LaunchServices has `/`, so never run probes there (#1119).
+    command.spawn_in_agent_scratch_dir();
     crate::core::process::hide_console_window_tokio(&mut command);
     command
 }

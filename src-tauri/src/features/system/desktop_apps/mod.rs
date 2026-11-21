@@ -15,6 +15,7 @@ pub mod commands;
 mod windows;
 
 use crate::core::error::AppError;
+use crate::core::process::SpawnInAgentScratchDir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -334,10 +335,9 @@ fn app_search_dirs() -> Vec<PathBuf> {
 
 #[cfg(target_os = "macos")]
 fn spotlight_find(query: &str) -> Option<PathBuf> {
-    let output = std::process::Command::new("mdfind")
-        .arg(query)
-        .output()
-        .ok()?;
+    let mut command = std::process::Command::new("mdfind");
+    command.arg(query).spawn_in_agent_scratch_dir();
+    let output = command.output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -352,6 +352,7 @@ fn spotlight_find(query: &str) -> Option<PathBuf> {
 #[cfg(target_os = "macos")]
 fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
     let mut command = std::process::Command::new("open");
+    command.spawn_in_agent_scratch_dir();
     match detect_app(spec) {
         Some(path) => {
             command.arg(path);
