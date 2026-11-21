@@ -611,13 +611,28 @@ const DocumentContent = memo(function DocumentContent({
 	}
 	// HTML pages. Do not create their iframe (and therefore do not start a
 	// request) until the panel is actually activated. A `.html` file in the
-	// vault is a local preview; a paper body with `htmlUrl` stays remote.
+	// vault is a local preview; a paper body with `htmlUrl` stays remote, and an
+	// imported webpage prefers its offline snapshot (`htmlArchivePath`).
 	if (!active) return null;
 	if (isHtmlPath(tab.path)) {
 		return (
 			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
 				<LocalHtmlViewer
 					path={tab.path}
+					reloadKey={tab.htmlKey}
+					title={tab.title}
+					className="h-full w-full"
+				/>
+			</div>
+		);
+	}
+	// An imported webpage keeps its offline snapshot beside NOTES.md; prefer it
+	// over the remote page (the Host re-fetches it through Recapture).
+	if (tab.htmlArchivePath) {
+		return (
+			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+				<LocalHtmlViewer
+					path={tab.htmlArchivePath}
 					reloadKey={tab.htmlKey}
 					title={tab.title}
 					className="h-full w-full"

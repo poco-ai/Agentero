@@ -2,7 +2,7 @@
 //!
 //! Stored in `$XDG_DATA_HOME/agentero/feeds.sqlite`. Does not write catalog or Vault.
 
-mod body;
+pub mod body;
 pub mod parse;
 mod schema;
 
@@ -115,15 +115,7 @@ fn http_client() -> Result<reqwest::Client, AppError> {
 /// Keeps a cookie store so JS-challenge sites (403 + Set-Cookie + JS reload,
 /// e.g. the WAF in front of spaces.ac.cn) pass on the retried request.
 fn http_client_browser() -> Result<reqwest::Client, AppError> {
-    http::client_builder()
-        .timeout(Duration::from_secs(FETCH_TIMEOUT_SECS))
-        .user_agent(http::BROWSER_USER_AGENT)
-        .redirect(reqwest::redirect::Policy::limited(
-            http::DEFAULT_REDIRECT_LIMIT,
-        ))
-        .cookie_store(true)
-        .build()
-        .map_err(|e| AppError::message(format!("http client: {e}")))
+    http::browser_client(Duration::from_secs(FETCH_TIMEOUT_SECS))
 }
 
 struct RawFetch {
@@ -685,7 +677,7 @@ async fn fetch_article(url: &str, title: &str) -> Result<FetchedArticle, AppErro
     let mut raw = http_get_accept_with(&client, url, None, None, Some(accept)).await?;
     // Some WAFs answer the first visit with 403 + Set-Cookie + a JS reload
     // stub; a browser follows up with the cookie. Replay that exchange.
-    if raw.status == 403 && looks_like_js_challenge(&raw.body) {
+    if raw.status == 403 && http::looks_like_js_challenge(&raw.body) {
         raw = http_get_accept_with(&client, url, None, None, Some(accept)).await?;
     }
     if !(200..300).contains(&raw.status) {
@@ -712,16 +704,6 @@ async fn fetch_article(url: &str, title: &str) -> Result<FetchedArticle, AppErro
         markdown: ensure_heading(text, title),
         paper_url: None,
     })
-}
-
-/// True when a 403 body is a tiny JS-reload challenge stub rather than a real
-/// error page (e.g. `<script>window.location.href="/"</script>` plus an empty
-/// shell, with the challenge cookie delivered via Set-Cookie).
-fn looks_like_js_challenge(body: &[u8]) -> bool {
-    if body.len() > 8 * 1024 {
-        return false;
-    }
-    String::from_utf8_lossy(body).contains("window.location")
 }
 
 /// Resolve a full article body for the detail page.
@@ -1117,12 +1099,12 @@ mod tests {
     fn js_challenge_detection() {
         let stub =
             b"<html><meta charset=\"utf-8\" /><title></title><div></div></html>\n<script> window.location.href =\"/\"; </script>";
-        assert!(looks_like_js_challenge(stub));
-        assert!(!looks_like_js_challenge(
+        assert!(http::looks_like_js_challenge(stub));
+        assert!(!http::looks_like_js_challenge(
             b"<html><body><h1>Forbidden</h1></body></html>"
         ));
         let mut big = vec![b'x'; 9 * 1024];
         big.extend_from_slice(b"window.location.href=\"/\";");
-        assert!(!looks_like_js_challenge(&big));
+        assert!(!http::looks_like_js_challenge(&big));
     }
 }

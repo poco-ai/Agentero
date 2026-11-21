@@ -282,10 +282,14 @@ export function textLanguageIdForPath(path: string): TextLanguageId | null {
  * resolved, "pdf" shows PdfViewer's honest "no paper" empty state; an empty
  * editor here would be editable-but-broken (its edits have no file to
  * persist to).
+ *
+ * `hasHtmlArchive` keeps an HTML import as HTML when the remote page is gone
+ * but its offline `webpage.html` snapshot is still on disk.
  */
 export function paperBodyMode(
 	hasPdf: boolean,
 	htmlUrl: string | null,
+	hasHtmlArchive = false,
 ): CenterViewMode {
-	return hasPdf ? "pdf" : htmlUrl ? "html" : "pdf";
+	return hasPdf ? "pdf" : htmlUrl || hasHtmlArchive ? "html" : "pdf";
 }

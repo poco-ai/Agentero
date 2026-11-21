@@ -37,6 +37,11 @@ export type DocTab = {
 	/** Local PDF bytes fed straight to the engine (avoids fragile `blob:` fetch). */
 	pdfBytes: ArrayBuffer | null;
 	htmlUrl: string | null;
+	/**
+	 * Absolute `webpage.html` offline snapshot beside the paper's NOTES.md.
+	 * Probed on open, never persisted: restored tabs re-probe on hydrate.
+	 */
+	htmlArchivePath: string | null;
 	/** Local image preview (`blob:`) when mode is image. */
 	imageUrl: string | null;
 	notesPath: string | null;
@@ -116,6 +121,8 @@ export type TabResources = {
 	pdfUrl: string | null;
 	pdfBytes?: ArrayBuffer | null;
 	htmlUrl: string | null;
+	/** Offline webpage snapshot (`<paperDir>/webpage.html`), when one exists. */
+	htmlArchivePath?: string | null;
 	imageUrl: string | null;
 	notesPath: string | null;
 	notesSeed: string;

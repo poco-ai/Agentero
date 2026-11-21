@@ -32,9 +32,10 @@ pub enum CommitStatus {
 pub enum DedupePolicy {
     /// Catalog has a row with the same `id` → `Deduped` (single-item entries).
     ByCatalogId,
-    /// Catalog row shares a canonical id or identifier (arXiv ID, DOI, PMID, ISBN)
-    /// → `Deduped`. With `CopyPdf`, the local PDF is merged into the existing
-    /// folder instead of being discarded (Fix #406).
+    /// Catalog row shares a canonical id or identifier (arXiv ID, DOI, PMID,
+    /// ISBN), or — for a webpage entry — the canonical page URL → `Deduped`.
+    /// With `CopyPdf`, the local PDF is merged into the existing folder instead
+    /// of being discarded (Fix #406).
     ByIdentifiers,
     /// `{parent}/{id}` exists with NOTES.md, or catalog has that path →
     /// `Skipped` (batch Bib/RIS compatibility).
@@ -506,6 +507,20 @@ fn find_existing_by_identifiers(
             return Ok(Some(existing));
         }
     }
+    // A webpage entry has no scholarly identifier: its address is the
+    // identity. Match the canonical page URL so an RSS / context-menu /
+    // pasted-URL re-import lands on the entry it already created instead of
+    // a second folder (and so the snapshot repair below runs).
+    if meta.paper_type == papers::PaperKind::Html {
+        for url in [meta.source_url.as_deref(), meta.html_url.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            if let Some(existing) = papers::find_by_web_url(vault, url)? {
+                return Ok(Some(existing));
+            }
+        }
+    }
     Ok(None)
 }
 
@@ -899,6 +914,71 @@ mod tests {
             row.openreview_url.as_deref(),
             Some("https://openreview.net/forum?id=keep")
         );
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[tokio::test]
+    async fn by_identifiers_dedupes_a_webpage_by_canonical_url() {
+        let vault = tmp_vault("web-url");
+        let mut existing = papers::PaperRecord::local_pdf("Lab-notes".into(), "Lab notes".into());
+        existing.paper_type = papers::PaperKind::Html;
+        existing.source_url = Some("https://example.com/notes/rust".into());
+        existing.html_url = Some("https://example.com/notes/rust".into());
+        papers::upsert_paper(&vault, &existing.at_path("papers/Lab-notes")).unwrap();
+        fs::create_dir_all(vault.join("papers/Lab-notes")).unwrap();
+        fs::write(vault.join("papers/Lab-notes/NOTES.md"), "# Lab notes\n").unwrap();
+
+        // Same page, different title/id spelling, trailing slash + fragment +
+        // tracking parameter: the URL is the identity.
+        let mut incoming =
+            papers::PaperRecord::local_pdf("Different-title".into(), "Different title".into());
+        incoming.paper_type = papers::PaperKind::Html;
+        incoming.source_url = Some("https://example.com/notes/rust/?utm_source=rss#top".into());
+        let res = paper_commit(
+            incoming,
+            PaperCommitOptions {
+                vault: &vault,
+                parent_dir: "papers",
+                dedupe: DedupePolicy::ByIdentifiers,
+                assets: AssetsPolicy::Deferred,
+                translate_abstract: false,
+                note_mode: NoteShellMode::TitleOnly,
+                fresh_timestamps: false,
+                cache: None,
+                app: None,
+                defer_parse_jobs: false,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(res.status, CommitStatus::Deduped);
+        assert_eq!(res.path, "papers/Lab-notes");
+        assert!(!vault.join("papers/Different-title").exists());
+
+        // A different page on the same host is still a different entry.
+        let mut other = papers::PaperRecord::local_pdf("Other".into(), "Other page".into());
+        other.paper_type = papers::PaperKind::Html;
+        other.source_url = Some("https://example.com/notes/other".into());
+        let created = paper_commit(
+            other,
+            PaperCommitOptions {
+                vault: &vault,
+                parent_dir: "papers",
+                dedupe: DedupePolicy::ByIdentifiers,
+                assets: AssetsPolicy::Deferred,
+                translate_abstract: false,
+                note_mode: NoteShellMode::TitleOnly,
+                fresh_timestamps: false,
+                cache: None,
+                app: None,
+                defer_parse_jobs: false,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(created.status, CommitStatus::Created);
 
         let _ = fs::remove_dir_all(&vault);
     }

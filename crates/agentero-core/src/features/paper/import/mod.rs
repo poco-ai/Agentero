@@ -9,6 +9,7 @@ pub mod sources;
 pub use crate::features::paper::analyze::parse as pdf_parse;
 
 pub mod api_mapper;
+pub mod page_snapshot;
 pub mod webpage;
 pub use crate::features::scholar_api::identifiers::doi_slug;
 pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_record};
@@ -56,7 +57,7 @@ pub use pdf_parse::CANCELLED_MESSAGE;
 pub use crate::app_handle::AppHandle;
 use crate::error::AppError;
 use crate::features::catalog::{
-    papers::{self, PaperRecord},
+    papers::{self, PaperKind, PaperRecord},
     CapsCache,
 };
 use crate::features::import::download::{AssetDownloadProgress, JOB_PROGRESS_EVENT};
@@ -344,6 +345,7 @@ pub async fn import_by_identifier_with_progress(
         record: meta,
         used_translator,
         notices,
+        page_snapshot: snapshot_plan,
     } = resolved;
 
     let commit = paper_commit(
@@ -369,6 +371,10 @@ pub async fn import_by_identifier_with_progress(
     )
     .await?;
     check_task_not_cancelled(args.task_id.as_deref())?;
+    // A webpage entry is only "readable offline" once its snapshot exists;
+    // dedupe of an older URL-only entry repairs it here.
+    let snapshot_written =
+        apply_page_snapshot(&vault, &commit.path, &commit.title, snapshot_plan, cache).await;
 
     Ok(LookupImportResult {
         paper_dir: commit.paper_dir,
@@ -379,7 +385,7 @@ pub async fn import_by_identifier_with_progress(
         translator_base_url: base,
         pdf: commit.pdf,
         tex: commit.tex,
-        paper_md: commit.paper_md,
+        paper_md: commit.paper_md || snapshot_written,
         asset_messages: {
             let mut messages = commit.asset_messages;
             messages.extend(notices);
@@ -389,6 +395,36 @@ pub async fn import_by_identifier_with_progress(
         recognize_pending: false,
         preparation: commit.preparation,
     })
+}
+
+/// Re-fetch the readable page snapshot of one webpage entry, replacing
+/// `webpage.html` and `PAPER.md` in its folder.
+///
+/// This is the retry path for entries imported while the origin was
+/// unreachable (a bare URL in the library) or for pages whose body has since
+/// changed. Errors are user-visible: the caller reports them.
+pub async fn recapture_webpage_snapshot(
+    vault: &Path,
+    paper_rel: &str,
+    cache: Option<&CapsCache>,
+) -> Result<u64, AppError> {
+    let record = papers::get_by_path(vault, paper_rel)?
+        .ok_or_else(|| AppError::message("paper not found"))?;
+    if record.paper_type != PaperKind::Html {
+        return Err(AppError::domain(
+            "not_webpage",
+            "only webpage entries store a page snapshot",
+        ));
+    }
+    let url = webpage::page_snapshot_url(&record).ok_or_else(|| {
+        AppError::domain("webpage_url_missing", "webpage entry has no source URL")
+    })?;
+    let bytes =
+        page_snapshot::fetch_and_write(&vault.join(&record.path), &url, &record.title).await?;
+    if let Some(cache) = cache {
+        cache.invalidate(vault, &record.path);
+    }
+    Ok(bytes)
 }
 
 /// Batch import multiple identifiers with deduplication.
@@ -1031,6 +1067,19 @@ pub fn allocate_paper_path(
     }
 }
 
+/// What to do about the readable snapshot of a web page (see
+/// [`page_snapshot`]): the offline `.html` and `PAPER.md` body that make a
+/// collected page a first-class library object.
+pub enum PageSnapshotPlan {
+    /// Not a webpage: nothing to archive.
+    Skip,
+    /// The page was already fetched while resolving the metadata.
+    Ready(page_snapshot::PageSnapshot),
+    /// Fetch this URL once the paper folder exists (Translator produced the
+    /// metadata without the page body; also the re-import repair path).
+    Fetch(String),
+}
+
 /// Metadata resolved for an import, plus whether the Translator Runtime
 /// produced it and any diagnostic notices for the UI.
 pub struct ResolvedMetadata {
@@ -1039,6 +1088,8 @@ pub struct ResolvedMetadata {
     /// Stable tokens such as `translator_degraded|503|1102|page|<host>`.
     /// The desktop shell translates them; they are not raw user copy.
     pub notices: Vec<String>,
+    /// Readable page snapshot to store beside the paper (webpage imports).
+    pub page_snapshot: PageSnapshotPlan,
 }
 
 pub async fn resolve_metadata(
@@ -1052,10 +1103,17 @@ pub async fn resolve_metadata(
     let mut resolved = match translator_fetch(text, translator_base, task_id).await {
         Ok(record) => {
             check_task_not_cancelled(task_id)?;
+            // A webpage item from the Translator has metadata but no body; the
+            // commit fetches the readable snapshot once the folder exists.
+            let plan = match webpage::page_snapshot_url(&record) {
+                Some(url) => PageSnapshotPlan::Fetch(url),
+                None => PageSnapshotPlan::Skip,
+            };
             ResolvedMetadata {
                 record,
                 used_translator: true,
                 notices: Vec::new(),
+                page_snapshot: plan,
             }
         }
         Err(failure) => webpage::recover_metadata(text, translator_base, task_id, failure).await?,
@@ -1066,8 +1124,58 @@ pub async fn resolve_metadata(
         resolved.record.pdf_url = Some(urls.pdf);
         resolved.record.html_url = Some(urls.html);
         resolved.record.source_url = Some(urls.abs);
+        // An arXiv item is a paper, not a collected page.
+        resolved.page_snapshot = PageSnapshotPlan::Skip;
     }
     Ok(resolved)
+}
+
+/// Store the readable snapshot for a committed webpage import.
+///
+/// Best effort by design: a page that cannot be re-fetched must not fail the
+/// import that already created the entry. Existing snapshots are kept on
+/// dedupe (an ordinary re-import is a no-op); the recapture command rewrites
+/// them explicitly. Returns whether a snapshot was written.
+async fn apply_page_snapshot(
+    vault: &Path,
+    paper_rel: &str,
+    title: &str,
+    plan: PageSnapshotPlan,
+    cache: Option<&CapsCache>,
+) -> bool {
+    let dir = vault.join(paper_rel);
+    let outcome = match plan {
+        PageSnapshotPlan::Skip => return false,
+        PageSnapshotPlan::Ready(snapshot) => {
+            if page_snapshot::snapshot_present(&dir) {
+                return false;
+            }
+            page_snapshot::write_snapshot(&dir, &snapshot).map(|_| ())
+        }
+        PageSnapshotPlan::Fetch(url) => {
+            if page_snapshot::snapshot_present(&dir) {
+                return false;
+            }
+            page_snapshot::fetch_and_write(&dir, &url, title)
+                .await
+                .map(|_| ())
+        }
+    };
+    match outcome {
+        Ok(()) => {
+            if let Some(cache) = cache {
+                cache.invalidate(vault, paper_rel);
+            }
+            true
+        }
+        Err(err) => {
+            log::warn!(
+                target: "agentero::lookup",
+                "page snapshot for {paper_rel} failed: {err}"
+            );
+            false
+        }
+    }
 }
 
 async fn translator_fetch(
@@ -1993,6 +2101,79 @@ mod tests {
         fs::write(&path, "user template").unwrap();
         assert!(!seed_notes_template(&vault).unwrap());
         assert_eq!(fs::read_to_string(&path).unwrap(), "user template");
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[tokio::test]
+    async fn page_snapshot_is_written_once_and_never_fails_the_import() {
+        let vault = note_shell_tmp_dir("page-snapshot");
+        let rel = "papers/page";
+        let dir = vault.join(rel);
+        let snapshot = page_snapshot::PageSnapshot {
+            html: "<!doctype html><p>body</p>".into(),
+            markdown: "# Title\n\nbody".into(),
+        };
+
+        let wrote = apply_page_snapshot(
+            &vault,
+            rel,
+            "Title",
+            PageSnapshotPlan::Ready(snapshot.clone()),
+            None,
+        )
+        .await;
+        assert!(wrote);
+        assert!(dir.join(page_snapshot::WEBPAGE_HTML_FILE).is_file());
+        assert!(dir.join(page_snapshot::WEBPAGE_BODY_FILE).is_file());
+
+        // Re-import of an archived page keeps the existing files (no rewrite).
+        fs::write(dir.join(page_snapshot::WEBPAGE_BODY_FILE), "kept").unwrap();
+        let wrote_again = apply_page_snapshot(
+            &vault,
+            rel,
+            "Title",
+            PageSnapshotPlan::Ready(snapshot),
+            None,
+        )
+        .await;
+        assert!(!wrote_again);
+        assert_eq!(
+            fs::read_to_string(dir.join(page_snapshot::WEBPAGE_BODY_FILE)).unwrap(),
+            "kept"
+        );
+
+        // Non-webpage imports do nothing.
+        assert!(!apply_page_snapshot(&vault, rel, "Title", PageSnapshotPlan::Skip, None).await);
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[tokio::test]
+    async fn recapture_rejects_entries_that_have_no_page_snapshot() {
+        let vault = note_shell_tmp_dir("recapture-guard");
+        // A PDF entry has no readable page snapshot to recapture.
+        let mut pdf = papers::PaperRecord::local_pdf("pdf-entry".into(), "PDF entry".into());
+        pdf.source_url = Some("https://example.com/paper.pdf".into());
+        papers::upsert_paper(&vault, &pdf.at_path("papers/pdf-entry")).unwrap();
+        let err = recapture_webpage_snapshot(&vault, "papers/pdf-entry", None)
+            .await
+            .expect_err("PDF entries are rejected");
+        assert_eq!(err.code(), "not_webpage");
+
+        // A webpage without a source address has nothing to fetch.
+        let mut page = papers::PaperRecord::local_pdf("page-entry".into(), "Page entry".into());
+        page.paper_type = PaperKind::Html;
+        papers::upsert_paper(&vault, &page.at_path("papers/page-entry")).unwrap();
+        let err = recapture_webpage_snapshot(&vault, "papers/page-entry", None)
+            .await
+            .expect_err("a page without a URL is rejected");
+        assert_eq!(err.code(), "webpage_url_missing");
+
+        let err = recapture_webpage_snapshot(&vault, "papers/missing", None)
+            .await
+            .expect_err("an unknown path is rejected");
+        assert!(err.to_string().contains("paper not found"));
 
         let _ = fs::remove_dir_all(&vault);
     }

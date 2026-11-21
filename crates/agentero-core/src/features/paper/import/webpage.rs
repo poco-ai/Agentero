@@ -3,25 +3,21 @@
 //! A 503 / Cloudflare 1102 from the translation service used to fail the whole
 //! import whenever the URL had no DOI, arXiv id, or PMID. The page itself is
 //! enough to create an entry: citation metadata for a paper landing page, and
-//! the URL plus title and description for an ordinary page.
-
-use std::time::Duration;
+//! the URL plus title and description for an ordinary page. Plain web pages
+//! also get a readable offline snapshot — see [`super::page_snapshot`].
 
 use crate::error::AppError;
 use crate::features::paper::catalog::papers::{PaperKind, PaperRecord};
 use crate::features::paper::discovery::coolpapers::decode_entities;
 use crate::features::paper::import::api_mapper::{api_paper_to_meta, enrich_remote_urls};
-use crate::features::scholar_api::client;
 use crate::features::scholar_api::identifiers::{
     clean_doi, doi_slug, extract_arxiv_id, fetch_direct_fallback, strip_arxiv_version,
 };
 use crate::features::scholar_api::ApiError;
 
-use super::{check_task_not_cancelled, slug_from_stem, ResolvedMetadata};
+use super::page_snapshot;
+use super::{check_task_not_cancelled, slug_from_stem, PageSnapshotPlan, ResolvedMetadata};
 
-/// How long to wait for the original page. Shorter than the translator's
-/// 60s budget: this path only runs after that service has already failed.
-const PAGE_TIMEOUT: Duration = Duration::from_secs(15);
 /// Meta tags live in the head. Keep the prefix we parse bounded.
 const PARSE_PREFIX_BYTES: usize = 512 * 1024;
 
@@ -166,6 +162,7 @@ pub(crate) async fn recover_metadata(
                 record: api_paper_to_meta(&paper),
                 used_translator: false,
                 notices: Vec::new(),
+                page_snapshot: PageSnapshotPlan::Skip,
             })
         }
         TranslatorMissPlan::Fail => {
@@ -207,18 +204,23 @@ async fn import_webpage(
     failure: &TranslatorFailure,
 ) -> Result<ResolvedMetadata, AppError> {
     check_task_not_cancelled(task_id)?;
-    let (record, mode) = match fetch_page_html(url).await {
-        Ok(html) => {
-            let parsed = record_from_html(url, &html);
-            let record = enrich_page_record(parsed, url, task_id).await?;
-            (record, "page")
+    let fetched = page_snapshot::fetch_page(url).await;
+    let (record, snapshot, mode) = match fetched {
+        Ok(page) => {
+            let parsed = record_from_html(&page.final_url, &parse_prefix(&page.html));
+            let record = enrich_page_record(parsed, &page.final_url, task_id).await?;
+            // One fetch feeds both the metadata and the readable snapshot; the
+            // caller writes the files into the paper folder the commit picks.
+            let snapshot =
+                page_snapshot::snapshot_from_html(&page.html, &page.final_url, &record.title);
+            (record, Some(snapshot), "page")
         }
         Err(err) => {
             log::warn!(
                 target: "agentero::lookup",
                 "web page fetch failed for {url} ({err}); saving the URL without page metadata"
             );
-            (record_from_url(url), "url_only")
+            (record_from_url(url), None, "url_only")
         }
     };
     log::info!(
@@ -235,7 +237,30 @@ async fn import_webpage(
         record,
         used_translator: false,
         notices: vec![notice],
+        page_snapshot: match snapshot {
+            Some(snapshot) => PageSnapshotPlan::Ready(snapshot),
+            // The page was unreachable a moment ago; let re-import / recapture
+            // retry instead of paying a second timeout inside this import.
+            None => PageSnapshotPlan::Skip,
+        },
     })
+}
+
+/// URL whose readable snapshot should be archived for this record, if any.
+///
+/// Only plain web pages (`PaperKind::Html`) get a snapshot: paper landing pages
+/// with a DOI/arXiv id are represented by their PDF/TeX, and the remote copy is
+/// still one click away.
+pub(crate) fn page_snapshot_url(record: &PaperRecord) -> Option<String> {
+    if record.paper_type != PaperKind::Html {
+        return None;
+    }
+    [record.source_url.as_deref(), record.html_url.as_deref()]
+        .into_iter()
+        .flatten()
+        .map(str::trim)
+        .find(|url| is_web_url(url))
+        .map(str::to_string)
 }
 
 /// When the page itself carries a DOI that was not already in the URL, ask
@@ -311,13 +336,6 @@ fn unavailable_error(failure: &TranslatorFailure, translator_base: &str) -> AppE
             failure.summary()
         ),
     )
-}
-
-async fn fetch_page_html(url: &str) -> Result<String, AppError> {
-    let html = client::get_text_with_timeout(url, PAGE_TIMEOUT)
-        .await
-        .map_err(|err| AppError::message(err.to_string()))?;
-    Ok(parse_prefix(&html))
 }
 
 fn parse_prefix(html: &str) -> String {

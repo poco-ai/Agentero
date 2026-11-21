@@ -131,6 +131,8 @@
 		"rowEditMeta": "Edit metadata",
 		"rowRefreshMeta": "Refresh metadata",
 		"rowDownloadPdf": "Download PDF from source",
+		"rowRecaptureWebpage": "Refresh webpage snapshot",
+		"recaptureWebpageDone": "Webpage snapshot refreshed",
 		"noLocalPdf": "No local PDF",
 		"discoverCiting": "Find citing papers",
 		"discoveringCiting": "Scanning citations…",

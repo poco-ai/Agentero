@@ -131,6 +131,8 @@
 		"rowEditMeta": "编辑元数据",
 		"rowRefreshMeta": "刷新元数据",
 		"rowDownloadPdf": "从来源下载 PDF",
+		"rowRecaptureWebpage": "刷新网页快照",
+		"recaptureWebpageDone": "网页快照已刷新",
 		"noLocalPdf": "本地无 PDF",
 		"discoverCiting": "发现引用我的新论文",
 		"discoveringCiting": "正在扫描引用…",

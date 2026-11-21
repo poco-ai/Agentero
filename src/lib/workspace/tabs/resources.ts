@@ -36,10 +36,12 @@ import {
 	ensureLocalFsScope,
 	type FileNode,
 	isTextOpenable,
+	joinVaultPath,
 	readVaultFile,
 	vaultPathExists,
 } from "@/lib/vault";
 import { basenameOf, normalizePathKey, treeFindNode } from "@/lib/vault/path";
+import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { readSeedCached } from "@/lib/vault/seed-cache";
 import { tabTitleForPath } from "@/lib/workspace/tabs/model";
 import {
@@ -370,12 +372,32 @@ export async function loadTabResources(
 			);
 		};
 
+		/**
+		 * Offline snapshot written by an HTML import, beside NOTES.md. Local
+		 * vaults only: remote sessions do not store page snapshots.
+		 */
+		const probeHtmlArchive = async (): Promise<string | null> => {
+			if (!isTauri() || !vaultPath || isRemoteVaultHandle(vaultPath)) {
+				return null;
+			}
+			const archivePath = joinVaultPath(paperDir, "webpage.html");
+			try {
+				return (await vaultPathExists(archivePath)) ? archivePath : null;
+			} catch {
+				return null;
+			}
+		};
+
 		const probeOpenState = async () => {
 			const bundle = await loadPaperOpenBundle(paperDir, vaultPath);
 			const meta =
 				bundle?.paper ?? (await loadPaperMetadata(paperDir, vaultPath));
 			const { pdfUrl: remotePdf, htmlUrl } =
 				paperRemoteAssetsFromMetadata(meta);
+			// The paper body prefers its local snapshot over the remote page.
+			const htmlArchivePath = openingPaperRoot
+				? await probeHtmlArchive()
+				: null;
 			// Existence only — notes, HTML, and other non-PDF tabs must not
 			// pull the main PDF into memory and then drop it. List the
 			// directory only when bundle.pdfPath is absent and this open
@@ -389,7 +411,14 @@ export async function loadTabResources(
 			if (!localPdfPath && needsLocalPdf) {
 				localPdfPath = await findLocalPdfPath(paperDir);
 			}
-			return { bundle, meta, htmlUrl, remotePdf, localPdfPath };
+			return {
+				bundle,
+				meta,
+				htmlUrl,
+				htmlArchivePath,
+				remotePdf,
+				localPdfPath,
+			};
 		};
 
 		let open = await probeOpenState();
@@ -409,14 +438,20 @@ export async function loadTabResources(
 			open = await probeOpenState();
 		}
 
-		const { bundle, meta, htmlUrl, remotePdf, localPdfPath } = open;
+		const { bundle, meta, htmlUrl, htmlArchivePath, remotePdf, localPdfPath } =
+			open;
 		// Open-paper reconcile (§7.4 入口②): backfill PAPER.md (ParseBody) and
 		// references (ParseRefs) as needed. Idempotent — the JobCenter dedupes
 		// jobs, so this is safe even right after a download.
 		reconcilePaperOnOpen(paperDir, vaultPath);
 		if (openingPaperRoot) {
-			// Path or file existence picks PDF vs HTML before any byte read.
-			const mode = paperBodyMode(Boolean(localPdfPath || remotePdf), htmlUrl);
+			// Path or file existence picks PDF vs HTML before any byte read. An
+			// archived snapshot also renders as HTML when the remote URL is gone.
+			const mode = paperBodyMode(
+				Boolean(localPdfPath || remotePdf),
+				htmlUrl,
+				Boolean(htmlArchivePath),
+			);
 			let pdfUrl: string | null = null;
 			let pdfBytes: ArrayBuffer | null = null;
 			let didDownload = false;
@@ -434,6 +469,7 @@ export async function loadTabResources(
 				pdfUrl,
 				pdfBytes,
 				htmlUrl,
+				htmlArchivePath,
 				imageUrl: null,
 				notesPath,
 				notesSeed: "",

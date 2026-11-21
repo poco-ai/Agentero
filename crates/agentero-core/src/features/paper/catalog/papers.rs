@@ -587,6 +587,45 @@ pub fn find_by_identifier(
     })
 }
 
+/// Find the catalog row that already owns a web page URL.
+///
+/// Webpage entries carry no DOI/arXiv/PMID, so a re-import of the same page
+/// (RSS article, context-menu "入库", pasted URL) can only be recognised by
+/// its address. Both `source_url` and `html_url` are compared in
+/// [`canonical_page_url`](crate::features::paper::identity::canonical_page_url)
+/// form so a trailing slash, fragment, tracking parameters, or a canonical
+/// `<link>` spelling still hit the same entry.
+pub fn find_by_web_url(vault_root: &Path, url: &str) -> Result<Option<PaperRecord>, AppError> {
+    use crate::features::paper::identity::canonical_page_url;
+
+    let Some(target) = canonical_page_url(url) else {
+        return Ok(None);
+    };
+    let sql = format!(
+        r#"
+        SELECT {PAPER_COLUMNS}
+        FROM papers
+        WHERE source_url IS NOT NULL OR html_url IS NOT NULL
+        ORDER BY path ASC
+        "#
+    );
+    with_catalog(vault_root, |conn| {
+        let mut stmt = conn.prepare(&sql).map_err(AppError::from)?;
+        let rows = stmt.query_map([], map_row).map_err(AppError::from)?;
+        for row in rows {
+            let row = row.map_err(AppError::from)?;
+            let matches = [row.source_url.as_deref(), row.html_url.as_deref()]
+                .into_iter()
+                .flatten()
+                .any(|candidate| canonical_page_url(candidate).as_deref() == Some(target.as_str()));
+            if matches {
+                return Ok(Some(row));
+            }
+        }
+        Ok(None)
+    })
+}
+
 /// List all papers for library table (newest first).
 pub fn list_all(vault_root: &Path) -> Result<Vec<PaperRecord>, AppError> {
     with_catalog(vault_root, |conn| {

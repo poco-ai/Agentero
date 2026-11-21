@@ -348,6 +348,12 @@ export const commands = {
 	/**  Stage a path-less OS drop (File bytes as base64) into `~/.agentero/import-tmp/`. */
 	paperStageImportFile: (args: StageImportFileArgs) => __TAURI_INVOKE<ApiResult<StageImportFileResult>>("paper_stage_import_file", { args }),
 	/**
+	 *  Re-fetch the readable snapshot (`webpage.html` + `PAPER.md`) of a webpage
+	 *  entry. Backs the library "recapture" action for pages imported while the
+	 *  origin was unreachable or behind a WAF.
+	 */
+	paperRecaptureWebpage: (vaultPath: string, path: string) => typedError<ApiResult<WebpageSnapshotResult>, string>(__TAURI_INVOKE("paper_recapture_webpage", { vaultPath, path })),
+	/**
 	 *  Seed `{vault}/.agentero/templates/NOTES.md` with a starting template for
 	 *  the `custom` paper-note mode. Never overwrites an existing template.
 	 */
@@ -6455,6 +6461,13 @@ export type WarmResult_Serialize = {
 export type WebProxyAllowHostArgs = {
 	/**  Public DNS host the viewer is about to load through the proxy. */
 	host: string,
+};
+
+export type WebpageSnapshotResult = {
+	/**  Vault-relative paper folder that now holds the snapshot. */
+	path: string,
+	/**  Bytes written: `webpage.html` + `PAPER.md`. */
+	bytes: number,
 };
 
 export type WikiApplyExternalRenameArgs = {

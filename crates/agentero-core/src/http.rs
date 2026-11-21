@@ -310,6 +310,31 @@ pub fn client_with(
         .map_err(|e| AppError::message(format!("http client: {e}")))
 }
 
+/// [`client_with`] impersonating a browser with a cookie jar.
+///
+/// Article origins (and the WAFs in front of them) answer bot User-Agents with
+/// 403 + `Set-Cookie` + a JS reload stub; keeping the jar lets the retried
+/// request pass, so callers that fetch a reader-facing page use this client.
+pub fn browser_client(timeout: Duration) -> Result<reqwest::Client, AppError> {
+    client_builder()
+        .timeout(timeout)
+        .user_agent(BROWSER_USER_AGENT)
+        .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
+        .cookie_store(true)
+        .build()
+        .map_err(|e| AppError::message(format!("http client: {e}")))
+}
+
+/// True when a 403 body is a tiny JS-reload challenge stub rather than a real
+/// error page (e.g. `<script>window.location.href="/"</script>` plus an empty
+/// shell, with the challenge cookie delivered via `Set-Cookie`).
+pub fn looks_like_js_challenge(body: &[u8]) -> bool {
+    if body.len() > 8 * 1024 {
+        return false;
+    }
+    String::from_utf8_lossy(body).contains("window.location")
+}
+
 /// First [`ERROR_SNIPPET_CHARS`] chars of an HTTP response body, for embedding
 /// in error messages.
 pub fn http_err_snippet(text: &str) -> String {
