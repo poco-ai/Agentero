@@ -1,6 +1,7 @@
 import { SquareTerminal, Terminal } from "lucide-react";
 import {
 	SiAlacritty,
+	SiGhostty,
 	SiGnometerminal,
 	SiIterm2,
 	SiWezterm,
@@ -33,6 +34,8 @@ export function TerminalAppLogo({
 			return <SiAlacritty className={iconClass} aria-hidden />;
 		case "wezterm":
 			return <SiWezterm className={iconClass} aria-hidden />;
+		case "ghostty":
+			return <SiGhostty className={iconClass} aria-hidden />;
 		// Interactive shells, not emulators.
 		case "powershell":
 		case "cmd":

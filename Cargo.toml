@@ -1,5 +1,5 @@
 [workspace]
-members = ["src-tauri", "cli", "crates/agentero-core", "crates/agentero-mcp", "crates/agentero-plugin-host"]
+members = ["src-tauri", "cli", "crates/agentero-core", "crates/agentero-mcp"]
 exclude = ["patches/tesseract-rs"]
 resolver = "2"
 

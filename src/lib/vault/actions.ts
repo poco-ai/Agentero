@@ -95,15 +95,34 @@ import {
 	dirtyVaultPaths,
 	openPath,
 } from "@/lib/workspace/actions";
+import { dockHandle } from "@/lib/workspace/dock-registry";
 import {
 	clearClosedTabs,
+	clearWorkspace,
+	currentWindowLabel,
+	getTabs,
+	replaceWorkspaceForVault,
 	setActiveTabId,
-	setTabs,
 } from "@/lib/workspace/store";
-import { basenameOf } from "@/lib/workspace/tabs";
-import { isExcalidrawPath } from "@/lib/workspace/viewer";
+import { basenameOf, saveWorkspaceLayout } from "@/lib/workspace/tabs";
+
+/** Drop the open workspace when a restored vault is gone. */
+function resetOpenTabs(): void {
+	const panelIds = getTabs().map((tab) => tab.id);
+	clearWorkspace();
+	const dock = dockHandle();
+	if (dock?.restoreLayout) {
+		dock.restoreLayout(null);
+		return;
+	}
+	for (const panelId of panelIds) dock?.removePanel(panelId);
+}
 
 export async function activateVault(path: string): Promise<void> {
+	// Do not vaultHold here. The main window holds from `vault:opened` and
+	// releases that scope once; a second hold would be dropped by that single
+	// release while the window still had the vault open. Popout windows hold
+	// after this returns.
 	// Tear down previous remote session so work catalogs are flushed.
 	const prev = getVaultPath();
 	if (prev && isRemoteVaultHandle(prev) && prev !== path) {
@@ -116,13 +135,22 @@ export async function activateVault(path: string): Promise<void> {
 	bumpTreeGeneration();
 	setTree([]);
 	setTreeLoading(true);
+	// Flush the live grid onto the vault we are leaving before the store
+	// swaps. The debounced layout save may not have run yet.
+	if (prev && prev !== path) {
+		const live = dockHandle()?.snapshotLayout?.();
+		if (live) saveWorkspaceLayout(currentWindowLabel(), prev, live);
+	}
 	saveVaultPath(path);
 	setVaultPath(path);
 	void import("@/lib/activity").then(({ track }) => {
 		track("vault.open");
 	});
-	setTabs([]);
-	setActiveTabId(null);
+	// Swap to this window's layout for the vault being opened. A new window
+	// has no scoped layout, so it starts empty instead of inheriting another
+	// window's tabs. The active tab comes from that layout.
+	const layout = replaceWorkspaceForVault(path);
+	dockHandle()?.restoreLayout(layout);
 	clearClosedTabs();
 	setTreeSelectedPath(null);
 	setLibraryQuery("");
@@ -881,7 +909,10 @@ export async function confirmRenamePath(
 	nextName: string,
 ): Promise<void> {
 	const vaultPath = getVaultPath();
-	if (!vaultPath) return;
+	if (!vaultPath) {
+		setRenameDraft(null);
+		return;
+	}
 	const trimmed = nextName.trim();
 	if (!isValidVaultEntryName(trimmed)) {
 		notifyError(i18n.t("sidebar:fileTree.invalidName"));
@@ -941,6 +972,11 @@ export async function confirmRenamePath(
 			}),
 		);
 	} catch (error) {
+		// Drop the draft before anything else: leaving it set keeps the inline
+		// editor mounted and blocks every selection, context menu and drop
+		// handler, so the tree never recovers. Restore the row instead and let
+		// the toast explain the failure.
+		setRenameDraft(null);
 		if (createdFolder && folderAbs) {
 			// Do not leave an empty folder behind when the move is rejected.
 			try {
@@ -951,11 +987,17 @@ export async function confirmRenamePath(
 			}
 		}
 		trackInternalRenamePaths(pendingEventPaths, Date.now() + 2000);
+		// The row stays in edit mode until this clears, and selection, context
+		// menus, and drag all refuse to run while a rename draft exists.
+		setRenameDraft(null);
 		notifyError(
 			error instanceof Error
 				? error.message
 				: i18n.t("sidebar:fileTree.renameFailed"),
 		);
+		// The rename field locks itself before this returns. Reject so it can
+		// accept Escape again if it is still mounted.
+		throw error;
 	} finally {
 		setVaultBusy(false);
 	}
@@ -1108,17 +1150,7 @@ export async function confirmCreate(name: string): Promise<void> {
 				? createResearchTable(researchTableStem(trimmed))
 				: null;
 			if (table) table.fields[0].name = i18n.t("editor:researchTable.name");
-			const initialContent = table
-				? `${JSON.stringify(table, null, 2)}\n`
-				: isExcalidrawPath(trimmed)
-					? JSON.stringify({
-							type: "excalidraw",
-							version: 2,
-							source: "https://excalidraw.com",
-							elements: [],
-							appState: { collaborators: [] },
-						})
-					: "";
+			const initialContent = table ? `${JSON.stringify(table, null, 2)}\n` : "";
 			await writeVaultFile(full, initialContent);
 			await refreshTree(vaultPath);
 			openPath(full);
@@ -1203,7 +1235,7 @@ export function validateRestoredVault(): Promise<void> {
 			saveVaultPath(null);
 			setVaultPath(null);
 			setTree([]);
-			setTabs([]);
+			resetOpenTabs();
 			setActiveTabId(null);
 			clearClosedTabs();
 			setTreeSelectedPath(null);

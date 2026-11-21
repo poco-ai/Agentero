@@ -35,6 +35,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import { PaperTitle } from "@/components/paper/paper-title";
 import { MathText } from "@/components/ui/math-text";
 import {
@@ -58,7 +59,7 @@ import { moveDocToWindow } from "@/lib/shell/leaf";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
 import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { TAG_COLOR_IDS, tagSwatchStyle } from "@/lib/ui/tag-colors";
-import { openTexPdf } from "@/lib/workspace/actions";
+import { closeTab, openTexPdf } from "@/lib/workspace/actions";
 import type { DockHandle } from "@/lib/workspace/dock-registry";
 import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag-selection";
 import { installDockviewSashFrameLoop } from "@/lib/workspace/dockview-sash";
@@ -74,18 +75,18 @@ import {
 } from "@/lib/workspace/notes-split-width";
 import { installResizeGesture } from "@/lib/workspace/resize-gesture";
 import { useSelectionOverlayActive } from "@/lib/workspace/selection-overlay";
+import { getTabs } from "@/lib/workspace/store";
 import { readDraggedVaultPaths } from "@/lib/workspace/tab-dnd";
 import {
 	type DocTab,
+	findCanonicalTab,
 	type ReadingColumns,
 	type SplitDirection,
-	tabIdForPath,
 	tabIsPaperNotes,
 	tabNotesEligible,
 } from "@/lib/workspace/tabs";
 import { isTexPath } from "@/lib/workspace/viewer";
 import { pdfHandleFor } from "@/lib/workspace/viewer/pdf-viewer-registry";
-import { createWritingFocus } from "@/lib/workspace/writing-focus";
 
 import {
 	addPanelWithPlacement,
@@ -93,7 +94,6 @@ import {
 	isExternalPathDrag,
 	isInternalDockDrag,
 	readingColumnAnchors,
-	rebalanceGridGroupWidths,
 	reconcileAfterLayoutRestore,
 	reconcilePanelMembership,
 	resolveDropOverlayModel,
@@ -146,7 +146,12 @@ function buildTabContextMenuItem(opts: {
 /** Virtual rows and `agentero:` paths have no filesystem location to copy. */
 function tabPathCopyable(tab: DocTab | null): tab is DocTab {
 	if (!tab?.path) return false;
-	if (tab.kind === "library" || tab.kind === "trash" || tab.kind === "plaza") {
+	if (
+		tab.kind === "library" ||
+		tab.kind === "trash" ||
+		tab.kind === "plaza" ||
+		tab.kind === "zen"
+	) {
 		return false;
 	}
 	if (tab.path.startsWith("agentero:")) return false;
@@ -187,6 +192,7 @@ function useWorkspace(): WorkspaceCtx {
 }
 
 function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
+	const immersiveReading = useStore(uiStore, (s) => s.immersiveReading);
 	const { tabsById, activePanelId, centerProps, keepMountedIds } =
 		useWorkspace();
 	const panelId = props.params.panelId;
@@ -197,14 +203,16 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 	const notesActive =
 		tab.mode === "html" &&
 		tab.notesPath != null &&
-		activePanelId === tabIdForPath(tab.notesPath);
+		activePanelId != null &&
+		findCanonicalTab([...tabsById.values()], tab.notesPath)?.id ===
+			activePanelId;
 	const focused = activePanelId === panelId;
 	const active = focused || notesActive;
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-			{focused ? (
+			{!immersiveReading && (
 				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
-			) : null}
+			)}
 			<DocView
 				{...centerProps}
 				tab={tab}
@@ -219,8 +227,10 @@ const components = { pane: WorkspacePane };
 
 /** Restore headers hidden by older single-preview layouts. */
 function syncProjectPreviewHeaders(api: DockviewApi) {
+	const hidden = uiStore.getState().immersiveReading;
 	for (const group of api.groups) {
-		if (group.model.header.hidden) group.model.header.hidden = false;
+		if (group.model.header.hidden !== hidden)
+			group.model.header.hidden = hidden;
 	}
 }
 
@@ -264,6 +274,7 @@ function WorkspaceTab({
 	return (
 		<DocumentTab
 			{...rest}
+			data-panel-id={api.id}
 			title={
 				tab?.paperMeta ? (
 					<PaperTitle text={title ?? ""} />
@@ -327,6 +338,37 @@ function WorkspaceTab({
 /** Alias preserves layout snapshots that stored tabComponent:"default". */
 const tabComponents = { default: WorkspaceTab };
 
+function isTabStripTextEntry(target: Element): boolean {
+	if (target.closest("input, textarea")) return true;
+	const editable = target.closest("[contenteditable]");
+	return Boolean(
+		editable && editable.getAttribute("contenteditable") !== "false",
+	);
+}
+
+/**
+ * Dockview 7.0.4's tablist closes the focused tab on bubble-phase
+ * Delete/Backspace via `panel.api.close()`, before the save gate can run.
+ * Capture the keys on the workspace root so that listener never sees them.
+ */
+function onWorkspaceTabCloseKey(event: KeyboardEvent): void {
+	if (event.key !== "Delete" && event.key !== "Backspace") return;
+	const target = event.target;
+	if (!(target instanceof Element)) return;
+	if (!target.closest('[role="tablist"]')) return;
+	if (isTabStripTextEntry(target)) return;
+	// Writing-project file tabs reuse the tab strip markup but are not Dockview
+	// panels. Leave their keys alone; only a real panel id goes through closeTab.
+	const panelId = target
+		.closest(".dv-tab")
+		?.querySelector("[data-panel-id]")
+		?.getAttribute("data-panel-id");
+	if (!panelId) return;
+	event.preventDefault();
+	event.stopPropagation();
+	closeTab(panelId);
+}
+
 type DockWorkspaceProps = {
 	tabs: DocTab[];
 	activePanelId: string | null;
@@ -378,6 +420,18 @@ export const DockWorkspace = memo(
 	) {
 		const { t } = useTranslation(["app", "viewer"]);
 		const apiRef = useRef<DockviewApi | null>(null);
+		useEffect(
+			() =>
+				uiStore.subscribe((state, previous) => {
+					if (
+						state.immersiveReading !== previous.immersiveReading &&
+						apiRef.current
+					) {
+						syncProjectPreviewHeaders(apiRef.current);
+					}
+				}),
+			[],
+		);
 		const workspaceRootRef = useRef<HTMLDivElement>(null);
 		// Suspend dockview DnD while a floating selection overlay (toolbar or
 		// ask card) is open — they can sit against the tab strip and a stray
@@ -388,16 +442,6 @@ export const DockWorkspace = memo(
 		const disposablesRef = useRef<{ dispose: () => void }[]>([]);
 		const tabsRef = useRef(tabs);
 		tabsRef.current = tabs;
-		const writingFocus = useRef(createWritingFocus());
-		const vaultRef = useRef(centerProps.vaultPath);
-		vaultRef.current = centerProps.vaultPath;
-		const syncWritingFocus = useCallback((api: DockviewApi) => {
-			writingFocus.current(
-				api,
-				tabsRef.current.find((tab) => tab.id === api.activePanel?.id),
-				vaultRef.current,
-			);
-		}, []);
 		const layoutRef = useRef(layout);
 		layoutRef.current = layout;
 		const onCloseRef = useRef(onClosePanel);
@@ -439,6 +483,14 @@ export const DockWorkspace = memo(
 			};
 		}, []);
 
+		useEffect(() => {
+			const root = workspaceRootRef.current;
+			if (!root) return;
+			root.addEventListener("keydown", onWorkspaceTabCloseKey, true);
+			return () =>
+				root.removeEventListener("keydown", onWorkspaceTabCloseKey, true);
+		}, []);
+
 		const tabGroupColors = useMemo<DockviewTabGroupColorEntry[]>(
 			() =>
 				TAB_GROUP_COLORS.map((id) => ({
@@ -458,6 +510,7 @@ export const DockWorkspace = memo(
 			}
 			layoutTimerRef.current = window.setTimeout(() => {
 				layoutTimerRef.current = null;
+				if (uiStore.getState().immersiveReading) return;
 				if (syncingRef.current) {
 					// Still mutating — try again after the batch settles.
 					scheduleLayoutSave(api);
@@ -481,29 +534,34 @@ export const DockWorkspace = memo(
 			(api: DockviewApi) => {
 				requestAnimationFrame(() => {
 					syncingRef.current = false;
-					syncWritingFocus(api);
 					if (
-						uiStore.getState().layoutMode === "reading" &&
-						!api.hasMaximizedGroup()
+						uiStore.getState().layoutMode === "reading" ||
+						uiStore.getState().immersiveReading
 					) {
-						const activeId = activePanelIdRef.current ?? api.activePanel?.id;
-						const target =
-							(activeId && api.getPanel(activeId)) ??
-							api.panels.find((p) => {
-								const t = tabsRef.current.find((tab) => tab.id === p.id);
-								return t && !tabIsPaperNotes(t);
-							}) ??
-							api.activePanel;
-						if (target) {
-							api.maximizeGroup(target);
+						if (!api.hasMaximizedGroup()) {
+							const activeId = activePanelIdRef.current ?? api.activePanel?.id;
+							const target =
+								(activeId && api.getPanel(activeId)) ??
+								api.panels.find((p) => {
+									const t = tabsRef.current.find((tab) => tab.id === p.id);
+									return t && !tabIsPaperNotes(t);
+								}) ??
+								api.activePanel;
+							if (target) {
+								api.maximizeGroup(target);
+							}
 						}
+					} else if (api.hasMaximizedGroup()) {
+						// Older layouts saved while a writing project auto-maximized
+						// its group must not restore into hidden tab strips.
+						api.exitMaximizedGroup();
 					}
 					onActiveRef.current(api.activePanel?.id ?? null);
 					publishVisiblePanels(api);
 					scheduleLayoutSave(api);
 				});
 			},
-			[publishVisiblePanels, scheduleLayoutSave, syncWritingFocus],
+			[publishVisiblePanels, scheduleLayoutSave],
 		);
 
 		const keepSet = useMemo(() => new Set(keepMountedIds), [keepMountedIds]);
@@ -526,7 +584,7 @@ export const DockWorkspace = memo(
 			[tabsById, activePanelId, centerProps, keepSet],
 		);
 
-		/** Membership only: add missing / remove closed. Placement is imperative. */
+		/** onReady only: add missing / remove stale after restore. */
 		const syncPanels = useCallback(
 			(api: DockviewApi) => {
 				syncingRef.current = true;
@@ -542,12 +600,12 @@ export const DockWorkspace = memo(
 		useImperativeHandle(
 			ref,
 			() => ({
-				openPanel(tab, placement = null) {
+				openPanel(tab, placement = null, options) {
 					const api = apiRef.current;
 					if (!api) return;
 					const existing = api.getPanel(tab.id);
 					if (existing) {
-						existing.api.setActive();
+						if (!options?.inactive) existing.api.setActive();
 						return;
 					}
 					syncingRef.current = true;
@@ -557,8 +615,49 @@ export const DockWorkspace = memo(
 							tabIsPaperNotes(tab) &&
 							Boolean(placement && placement.direction === "within");
 						addPanelWithPlacement(api, tab, placement, {
-							inactive: isBackgroundNote,
+							inactive: Boolean(options?.inactive) || isBackgroundNote,
 						});
+					} finally {
+						endSync(api);
+					}
+				},
+				removePanel(panelId) {
+					const api = apiRef.current;
+					if (!api) return;
+					const panel = api.getPanel(panelId);
+					if (!panel) return;
+					syncingRef.current = true;
+					try {
+						api.removePanel(panel);
+					} finally {
+						endSync(api);
+					}
+				},
+				snapshotLayout() {
+					const api = apiRef.current;
+					return api ? api.toJSON() : null;
+				},
+				restoreLayout(layout) {
+					const api = apiRef.current;
+					if (!api) return;
+					const tabs = getTabs();
+					tabsRef.current = tabs;
+					if (layout && typeof layout === "object") {
+						syncingRef.current = true;
+						try {
+							api.fromJSON(layout as Parameters<DockviewApi["fromJSON"]>[0]);
+							reconcileAfterLayoutRestore(api, tabs);
+							endSync(api);
+						} catch {
+							api.clear();
+							syncPanels(api);
+						}
+						return;
+					}
+					syncingRef.current = true;
+					try {
+						api.clear();
+						reconcilePanelMembership(api, tabs);
 					} finally {
 						endSync(api);
 					}
@@ -569,25 +668,29 @@ export const DockWorkspace = memo(
 					const existing = api.getPanel(tab.id);
 					if (existing) {
 						existing.api.setActive();
-						rebalanceGridGroupWidths(api);
 						return;
 					}
 					syncingRef.current = true;
 					try {
+						// Only split the reference group; leave every other column's
+						// user-adjusted width untouched.
 						addPanelWithPlacement(api, tab, {
 							direction: "right",
 							referencePanelId,
 						});
-						rebalanceGridGroupWidths(api);
 					} finally {
 						endSync(api);
 					}
 				},
 				remapPanel(previousPanelId, tab) {
 					const api = apiRef.current;
-					if (!api || previousPanelId === tab.id) return;
+					if (!api) return;
 					const previous = api.getPanel(previousPanelId);
 					if (!previous) return;
+					if (previousPanelId === tab.id) {
+						applyTabPanelMeta(previous, tab);
+						return;
+					}
 					const activate = api.activePanel?.id === previousPanelId;
 					syncingRef.current = true;
 					try {
@@ -636,10 +739,16 @@ export const DockWorkspace = memo(
 				activatePanel(panelId, options) {
 					const api = apiRef.current;
 					const panel = api?.getPanel(panelId);
-					if (!panel) return;
+					if (!api || !panel) return;
+					if (
+						options?.skipIfSameGroupAs &&
+						panel.group === api.getPanel(options.skipIfSameGroupAs)?.group
+					) {
+						return;
+					}
 					if (
 						options?.skipSetGroupActive ||
-						(api?.hasMaximizedGroup() && !panel.group.api.isMaximized())
+						(api.hasMaximizedGroup() && !panel.group.api.isMaximized())
 					) {
 						panel.group.model.openPanel(panel, { skipSetGroupActive: true });
 					} else {
@@ -649,9 +758,10 @@ export const DockWorkspace = memo(
 				canActivatePanel(panelId) {
 					return Boolean(apiRef.current?.getPanel(panelId));
 				},
-				maximizeActivePanel() {
+				maximizeActivePanel(panelId) {
 					const api = apiRef.current;
-					const activeId = activePanelIdRef.current ?? api?.activePanel?.id;
+					const activeId =
+						panelId ?? activePanelIdRef.current ?? api?.activePanel?.id;
 					const panel =
 						(activeId && api?.getPanel(activeId)) ??
 						api?.panels.find((p) => {
@@ -665,6 +775,60 @@ export const DockWorkspace = memo(
 				},
 				exitMaximizedPanel() {
 					apiRef.current?.exitMaximizedGroup();
+				},
+				captureGroupSizes() {
+					const api = apiRef.current;
+					const root = workspaceRootRef.current;
+					const width = api?.width;
+					const height = api?.height;
+					const sizes = api?.groups.map((group) => ({
+						group,
+						box: group.api.boundingBox,
+					}));
+					let frame = 0;
+					let observer: ResizeObserver | undefined;
+					let listener: { dispose: () => void } | undefined;
+					const dispose = () => {
+						cancelAnimationFrame(frame);
+						observer?.disconnect();
+						listener?.dispose();
+					};
+					const apply = () => {
+						frame = 0;
+						if (
+							!api ||
+							!root?.isConnected ||
+							api.hasMaximizedGroup() ||
+							width == null ||
+							height == null
+						)
+							return;
+						// Native fullscreen, rail expansion and the dock resize each settle
+						// independently. Restore only in the original container geometry.
+						if (
+							Math.abs(api.width - width) > 2 ||
+							Math.abs(api.height - height) > 2
+						)
+							return;
+						dispose();
+						for (const { group, box } of sizes ?? []) {
+							if (box && api.groups.includes(group))
+								group.api.setSize({ width: box.width, height: box.height });
+						}
+					};
+					const schedule = () => {
+						frame ||= requestAnimationFrame(apply);
+					};
+					return {
+						dispose,
+						restore() {
+							if (!api || !root) return;
+							observer = new ResizeObserver(schedule);
+							observer.observe(root);
+							listener = api.onDidLayoutChange(schedule);
+							schedule();
+						},
+					};
 				},
 				isMaximizedPanel() {
 					return apiRef.current?.hasMaximizedGroup() ?? false;
@@ -683,14 +847,17 @@ export const DockWorkspace = memo(
 					const resolved = readingColumnAnchors(
 						api,
 						cachedReadingColumnsRef.current,
+						tabsRef.current,
 					);
 					if (resolved && !api.hasMaximizedGroup()) {
 						cachedReadingColumnsRef.current = resolved;
+					} else if (!resolved) {
+						cachedReadingColumnsRef.current = null;
 					}
 					return resolved;
 				},
 			}),
-			[endSync],
+			[endSync, syncPanels],
 		);
 
 		const onReady = useCallback(
@@ -732,11 +899,12 @@ export const DockWorkspace = memo(
 					}),
 					api.onDidActivePanelChange((ev) => {
 						if (syncingRef.current) return;
-						syncWritingFocus(api);
 						onActiveRef.current(ev.panel?.id ?? null);
 						publishVisiblePanels(api);
 					}),
 					api.onDidMaximizedGroupChange((event) => {
+						if (!syncingRef.current) publishVisiblePanels(api);
+						if (uiStore.getState().immersiveReading) return;
 						if (event.isMaximized) {
 							if (uiStore.getState().layoutMode !== "reading") {
 								setLayoutMode("reading");
@@ -777,29 +945,17 @@ export const DockWorkspace = memo(
 					syncPanels(api);
 				}
 			},
-			[
-				endSync,
-				publishVisiblePanels,
-				scheduleLayoutSave,
-				syncPanels,
-				syncWritingFocus,
-			],
+			[endSync, publishVisiblePanels, scheduleLayoutSave, syncPanels],
 		);
 
-		// Sync membership when panel ids change (not titles).
-		const panelIdsKey = tabs.map((t) => t.id).join("|");
-		useEffect(() => {
-			void panelIdsKey;
-			const api = apiRef.current;
-			if (!api) return;
-			syncPanels(api);
-		}, [panelIdsKey, syncPanels]);
-
 		// Title + persist params + renderer channel (mode/path without full membership).
+		// The writing panel keeps its id while its source path changes, so the
+		// path belongs in the key: params must follow a source swap even when
+		// two files share a basename.
 		const metaKey = tabs
 			.map(
 				(t) =>
-					`${t.id}:${t.title}:${t.mode}:${t.texRoot ?? ""}:${t.writingRoot ?? ""}`,
+					`${t.id}:${t.path}:${t.title}:${t.mode}:${t.texRoot ?? ""}:${t.writingRoot ?? ""}`,
 			)
 			.join("|");
 		useEffect(() => {
@@ -812,22 +968,10 @@ export const DockWorkspace = memo(
 				applyTabPanelMeta(panel, tab);
 			}
 			syncProjectPreviewHeaders(api);
-			syncWritingFocus(api);
 			// Param updates (e.g. resolved title) don't emit onDidLayoutChange;
 			// re-save so the next restore shows titles before hydration (#410).
 			scheduleLayoutSave(api);
-		}, [metaKey, scheduleLayoutSave, syncWritingFocus]);
-
-		// Activate panel when React activePanelId changes (openTab / library).
-		useEffect(() => {
-			const api = apiRef.current;
-			if (!api || !activePanelId || syncingRef.current) return;
-			const panel = api.getPanel(activePanelId);
-			if (panel && api.activePanel?.id !== activePanelId) {
-				panel.api.setActive();
-			}
-			syncWritingFocus(api);
-		}, [activePanelId, syncWritingFocus]);
+		}, [metaKey, scheduleLayoutSave]);
 
 		useEffect(() => {
 			return () => {
@@ -908,7 +1052,7 @@ export const DockWorkspace = memo(
 						"separator",
 					);
 				}
-				if (tab != null && isTexPath(tab.path)) {
+				if (tab != null && isTexPath(tab.path) && !tab.writingRoot) {
 					menu.push(
 						buildTabContextMenuItem({
 							label: t("tabs.openTexPdf"),
@@ -924,13 +1068,14 @@ export const DockWorkspace = memo(
 					tab != null &&
 					tab.kind !== "library" &&
 					tab.kind !== "trash" &&
+					tab.kind !== "zen" &&
 					!isLibraryVirtualPath(tab.path) &&
 					!isTrashVirtualPath(tab.path);
 				if (canMoveToWindow && tab) {
 					menu.push({
 						label: t("tabs.contextMoveToNewWindow"),
 						action: () => {
-							void moveDocToWindow(tab.path, tab.mode);
+							void moveDocToWindow(panel.id);
 						},
 					});
 				}

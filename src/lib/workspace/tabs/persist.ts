@@ -1,20 +1,63 @@
 import { perfActive } from "@/lib/core/perf";
 import {
-	readJsonStorage,
+	readStorageRaw,
 	removeStorageKey,
 	writeJsonStorage,
+	writeStorageRaw,
 } from "@/lib/core/storage";
 import { isRemoteArxivPath } from "@/lib/paper";
-import { tabIdForPath } from "@/lib/workspace/tabs/model";
+import {
+	legacyPaneKindFromId,
+	legacyPathFromPanelId,
+	tabIdForPath,
+} from "@/lib/workspace/tabs/model";
 import type {
 	DocTab,
 	PanelPersistParams,
 	PersistedTab,
 	PersistedTabs,
+	TabPaneKind,
 } from "@/lib/workspace/tabs/types";
 import { isCenterViewMode } from "@/lib/workspace/viewer";
 
 const TABS_STORAGE_KEY = "agentero-open-tabs";
+const TABS_ROLLBACK_KEY = "agentero-open-tabs.rollback";
+/** Set once the main window has its own layout, so the legacy key is not adopted again. */
+const TABS_MIGRATED_KEY = "agentero-open-tabs.migrated";
+
+/**
+ * Last primary-key read was corrupt or yielded no tabs.
+ * A later null layout write must not delete that key.
+ */
+let retainUnreadableLayout = false;
+/** This process already attached the legacy global layout to one vault. */
+let legacyClaimed = false;
+
+export function persistedLayoutIsUnreadable(): boolean {
+	return retainUnreadableLayout;
+}
+
+/**
+ * False when this write would erase a key the last read could not restore.
+ * An empty Dockview snapshot is the same erasure as null: vault switch saves
+ * `toJSON()` of a dock that failed to restore.
+ */
+export function shouldWritePersistedLayout(layout: unknown | null): boolean {
+	if (!retainUnreadableLayout) return true;
+	if (layout == null || typeof layout !== "object" || Array.isArray(layout)) {
+		return false;
+	}
+	const panels = (layout as { panels?: Record<string, unknown> }).panels;
+	return Boolean(panels && Object.keys(panels).length > 0);
+}
+
+/** Copy the primary key's raw text into the rollback key once, before overwrite. */
+function retainPrimaryRawForRollback(): void {
+	if (readStorageRaw(TABS_ROLLBACK_KEY).status !== "missing") return;
+	const current = readStorageRaw(TABS_STORAGE_KEY);
+	if (current.status !== "present") return;
+	writeStorageRaw(TABS_ROLLBACK_KEY, current.raw);
+}
 
 export function panelPersistParams(tab: DocTab): PanelPersistParams {
 	return {
@@ -24,6 +67,10 @@ export function panelPersistParams(tab: DocTab): PanelPersistParams {
 		title: tab.title,
 		...(tab.texLive ? { texLive: true } : {}),
 		...(tab.texRoot ? { texRoot: tab.texRoot } : {}),
+		...(tab.writingRoot ? { writingRoot: tab.writingRoot } : {}),
+		...(tab.pane === "split" || tab.pane === "translation"
+			? { pane: tab.pane }
+			: {}),
 	};
 }
 
@@ -36,8 +83,14 @@ type LayoutPanelState = {
 		title?: string;
 		texLive?: boolean;
 		texRoot?: string;
+		writingRoot?: string;
+		pane?: string;
 	};
 };
+
+function persistedPane(value: string | undefined): TabPaneKind | undefined {
+	return value === "split" || value === "translation" ? value : undefined;
+}
 
 type LayoutLeafData = {
 	id?: string;
@@ -75,7 +128,8 @@ function findActivePanelIdInLayout(layout: {
 
 /**
  * Derive flat panel list + active id from a dockview `toJSON()` snapshot.
- * Prefers `params.path` / `params.mode`; falls back to panel id as path.
+ * Prefers `params.path` / `params.mode`. A missing path may fall back to a
+ * legacy path-shaped panel id. Opaque `view-` ids are not file paths.
  */
 export function extractTabsFromLayout(layout: unknown): {
 	tabs: PersistedTab[];
@@ -95,22 +149,25 @@ export function extractTabsFromLayout(layout: unknown): {
 	const tabs: PersistedTab[] = [];
 	const seen = new Set<string>();
 	for (const [id, panel] of Object.entries(l.panels)) {
-		const path =
-			typeof panel.params?.path === "string" && panel.params.path
-				? panel.params.path
-				: id;
-		if (isRemoteArxivPath(path)) continue;
-		const mode = isCenterViewMode(panel.params?.mode)
-			? panel.params.mode
-			: "markdown";
 		const panelId =
 			typeof panel.params?.panelId === "string" && panel.params.panelId
 				? panel.params.panelId
 				: id;
+		const paramsPath =
+			typeof panel.params?.path === "string" && panel.params.path
+				? panel.params.path
+				: "";
+		const path = paramsPath || legacyPathFromPanelId(panelId) || "";
+		if (!path || isRemoteArxivPath(path)) continue;
+		const mode = isCenterViewMode(panel.params?.mode)
+			? panel.params.mode
+			: "markdown";
 		const title =
 			typeof panel.params?.title === "string" && panel.params.title.trim()
 				? panel.params.title
 				: undefined;
+		const pane =
+			persistedPane(panel.params?.pane) ?? legacyPaneKindFromId(panelId);
 		if (seen.has(panelId)) continue;
 		seen.add(panelId);
 		tabs.push({
@@ -118,10 +175,15 @@ export function extractTabsFromLayout(layout: unknown): {
 			path,
 			mode,
 			title,
+			...(pane ? { pane } : {}),
 			...(panel.params?.texLive === true ? { texLive: true } : {}),
 			...(typeof panel.params?.texRoot === "string" &&
 			panel.params.texRoot.trim()
 				? { texRoot: panel.params.texRoot }
+				: {}),
+			...(typeof panel.params?.writingRoot === "string" &&
+			panel.params.writingRoot.trim()
+				? { writingRoot: panel.params.writingRoot }
 				: {}),
 		});
 	}
@@ -137,51 +199,142 @@ export function extractTabsFromLayout(layout: unknown): {
 	};
 }
 
-/** Read the previously persisted workspace for this window. */
-export function loadPersistedTabs(): PersistedTabs | null {
-	const parsed = readJsonStorage<{
+/** Read one layout key. Does not reset the one-shot legacy claim. */
+function readPersistedKey(key: string): PersistedTabs | null {
+	const stored = readStorageRaw(key);
+	if (stored.status === "missing" || stored.status === "unavailable") {
+		retainUnreadableLayout = false;
+		return null;
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(stored.raw);
+	} catch {
+		retainUnreadableLayout = true;
+		return null;
+	}
+	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+		retainUnreadableLayout = true;
+		return null;
+	}
+
+	const record = parsed as {
 		layout?: unknown | null;
 		/** @deprecated layout-only storage; still accepted for one-shot restore */
 		tabs?: Array<{ path?: string; mode?: string }>;
 		/** @deprecated */
 		activeIndex?: number;
-	} | null>(TABS_STORAGE_KEY, null);
-	if (!parsed || typeof parsed !== "object") return null;
+	};
 
-	// Preferred: layout alone (params carry path/mode).
-	if (parsed.layout != null && typeof parsed.layout === "object") {
-		const extracted = extractTabsFromLayout(parsed.layout);
-		if (!extracted.tabs.length) return null;
+	// Preferred: layout alone (params carry path/mode). An unknown `version`
+	// is ignored when a usable layout or tabs list is still present.
+	if (record.layout != null && typeof record.layout === "object") {
+		const extracted = extractTabsFromLayout(record.layout);
+		if (!extracted.tabs.length) {
+			retainUnreadableLayout = true;
+			return null;
+		}
+		retainUnreadableLayout = false;
 		return {
 			tabs: extracted.tabs,
 			activeId: extracted.activeId,
-			layout: parsed.layout,
+			layout: record.layout,
 		};
 	}
 
 	// Legacy: explicit tabs[] without layout (pre layout-only storage).
-	if (!Array.isArray(parsed.tabs) || !parsed.tabs.length) return null;
+	if (!Array.isArray(record.tabs) || !record.tabs.length) {
+		retainUnreadableLayout = true;
+		return null;
+	}
 	const flat: PersistedTab[] = [];
 	const seen = new Set<string>();
-	for (const pt of parsed.tabs) {
+	for (const pt of record.tabs) {
 		if (!pt || typeof pt.path !== "string" || !pt.path) continue;
 		if (isRemoteArxivPath(pt.path)) continue;
 		const id = tabIdForPath(pt.path);
 		if (seen.has(id)) continue;
 		seen.add(id);
 		flat.push({
+			id,
 			path: pt.path,
 			mode: isCenterViewMode(pt.mode) ? pt.mode : "markdown",
 		});
 	}
-	if (!flat.length) return null;
-	const idx = Math.min(Math.max(0, parsed.activeIndex ?? 0), flat.length - 1);
+	if (!flat.length) {
+		retainUnreadableLayout = true;
+		return null;
+	}
+	retainUnreadableLayout = false;
+	const idx = Math.min(Math.max(0, record.activeIndex ?? 0), flat.length - 1);
 	const activePath = flat[idx]?.path;
 	return {
 		tabs: flat,
 		activeId: activePath ? tabIdForPath(activePath) : null,
 		layout: null,
 	};
+}
+
+/**
+ * Read the legacy global layout key.
+ * Also clears the in-process claim so tests can adopt again after `beforeEach`.
+ */
+export function loadPersistedTabs(): PersistedTabs | null {
+	legacyClaimed = false;
+	return readPersistedKey(TABS_STORAGE_KEY);
+}
+
+/**
+ * localStorage key for one main window and one vault.
+ * Trailing slashes are stripped so `/vault` and `/vault/` share a layout.
+ */
+export function workspaceLayoutStorageKey(
+	label: string,
+	vaultPath: string,
+): string {
+	const vault = vaultPath.replace(/[\\/]+$/, "");
+	return `agentero-open-tabs::${encodeURIComponent(label)}::${encodeURIComponent(vault)}`;
+}
+
+function legacyLayoutPending(): boolean {
+	return readStorageRaw(TABS_MIGRATED_KEY).status === "missing";
+}
+
+function markLegacyLayoutMigrated(): void {
+	if (!legacyLayoutPending()) return;
+	writeStorageRaw(TABS_MIGRATED_KEY, "1");
+}
+
+/**
+ * Layout for this window and vault.
+ * A present scoped key is the only source, even when it cannot be parsed.
+ * The legacy global key is adopted once, by the main window, into the vault
+ * open at that moment. Other windows, and `fresh` windows, start empty.
+ */
+export function loadWindowVaultLayout(
+	label: string,
+	vaultPath: string,
+	fresh: boolean,
+): PersistedTabs | null {
+	const stored = readStorageRaw(workspaceLayoutStorageKey(label, vaultPath));
+	if (stored.status === "unavailable") {
+		retainUnreadableLayout = false;
+		return null;
+	}
+	if (stored.status === "present") {
+		const parsed = readPersistedKey(
+			workspaceLayoutStorageKey(label, vaultPath),
+		);
+		if (parsed && label === "main") markLegacyLayoutMigrated();
+		return parsed;
+	}
+	retainUnreadableLayout = false;
+	if (label !== "main" || fresh || legacyClaimed || !legacyLayoutPending()) {
+		return null;
+	}
+	legacyClaimed = true;
+	return readPersistedKey(TABS_STORAGE_KEY);
 }
 
 /**
@@ -192,6 +345,7 @@ export function savePersistedTabs(layout: unknown | null): void {
 	// A perf run shares WebView storage with the daily app. Do not replace
 	// the user's open tabs, and do not clear them when this process starts empty.
 	if (perfActive()) return;
+	retainPrimaryRawForRollback();
 	if (layout == null || typeof layout !== "object") {
 		removeStorageKey(TABS_STORAGE_KEY);
 		return;
@@ -203,4 +357,32 @@ export function savePersistedTabs(layout: unknown | null): void {
 	}
 	// localStorage may be unavailable; tab restore is best-effort.
 	writeJsonStorage(TABS_STORAGE_KEY, { layout });
+}
+
+/**
+ * Write this window's layout. Never deletes the legacy global key.
+ * The main window's first write marks that key as migrated.
+ */
+export function saveWorkspaceLayout(
+	label: string,
+	vaultPath: string,
+	layout: unknown | null,
+): void {
+	if (perfActive()) return;
+	if (!vaultPath) return;
+	if (!shouldWritePersistedLayout(layout)) return;
+	retainPrimaryRawForRollback();
+	const key = workspaceLayoutStorageKey(label, vaultPath);
+	if (layout == null || typeof layout !== "object") {
+		removeStorageKey(key);
+	} else {
+		const panels = (layout as { panels?: Record<string, unknown> }).panels;
+		if (!panels || !Object.keys(panels).length) {
+			removeStorageKey(key);
+		} else {
+			writeJsonStorage(key, { layout });
+			retainUnreadableLayout = false;
+		}
+	}
+	if (label === "main") markLegacyLayoutMigrated();
 }

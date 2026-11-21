@@ -56,7 +56,7 @@ import {
 	getAgentChromeState,
 } from "@/lib/agent/agent-chrome-store";
 import { listAgents } from "@/lib/agent/api";
-import { focusAgentComposer } from "@/lib/agent/composer-focus";
+import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	listenOpenAgentWithPrompt,
 	setPendingAgentComposerPrompt,
@@ -68,6 +68,7 @@ import {
 import { pinActiveSelection } from "@/lib/agent/selection-store";
 import { closeTopOverlay } from "@/lib/core/overlay-stack";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
+import { cn } from "@/lib/core/utils";
 import { doctorSetDirtyPaths } from "@/lib/doctor/api";
 import {
 	isCommittedRefreshPath,
@@ -159,6 +160,11 @@ function zoomReset(): void {
 	if (getSettings().uiScale !== 1) patchSettings({ uiScale: 1 });
 }
 
+function toggleImmersiveReading(): void {
+	if (!uiStore.getState().immersiveReading && !resolveActivePdfHandle()) return;
+	layout()?.toggleImmersiveReading();
+}
+
 /** Title bar wrapper: subscribes to tabs/ui itself so the shell stays still. */
 function AppTitleBar() {
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
@@ -180,6 +186,7 @@ function AppTitleBar() {
 			onToggleSidebar={toggleSidebar}
 			onToggleAgent={toggleChat}
 			onApplyLayoutMode={applyLayoutMode}
+			onToggleImmersive={toggleImmersiveReading}
 			onOpenSettings={openSettingsWindow}
 		/>
 	);
@@ -252,6 +259,7 @@ export default function App() {
 
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
+	const immersiveReading = useUiStore((s) => s.immersiveReading);
 	const isResizingRightRef = useRef(false);
 
 	// Seed the chrome agent icon with the registry default before the Agent panel
@@ -372,7 +380,12 @@ export default function App() {
 			openSelectedInTerminal();
 		},
 		deleteTreeItem: () => {
-			deleteSelectedPath();
+			// One owner for ⌘⌫: batch the tree selection when there is one,
+			// otherwise delete the open row. The tree no longer runs its own
+			// Backspace handler, so the same gesture cannot delete twice.
+			const handle = fileTreeHandle();
+			if (handle?.hasSelection()) handle.deleteSelected();
+			else deleteSelectedPath();
 		},
 		collapseTreeCurrent: () => {
 			fileTreeHandle()?.collapseSelected();
@@ -396,12 +409,11 @@ export default function App() {
 		quickChat: () => {
 			runSelectionQuickChat();
 		},
-		// Pin a staged selection, open Agent, and focus the composer.
+		// Pin a staged selection, surface the owning chat, and focus its composer.
 		addSelectionToChat: () => {
 			if (runSelectionAddToChat()) return;
 			pinActiveSelection();
-			openRightTab("agent");
-			focusAgentComposer();
+			presentAgentComposer();
 		},
 		focusSidebar: () => layout()?.focusSidebar(),
 		focusEditor: () => layout()?.focusEditorPane(),
@@ -418,22 +430,47 @@ export default function App() {
 		zoomIn,
 		zoomOut,
 		zoomReset,
-		// ⌘. — toggle visual-region annotation for the paper being read.
+		// ⌘. — toggle layout element selection for the paper being read.
 		// Handles live on the PDF body tab; when NOTES is focused (default
 		// split), resolve the sibling paper tab instead of requiring mode=pdf.
-		visualAnnotation: () => {
-			resolveActivePdfHandle()?.toggleVisualAnnotation();
+		layoutElementSelection: () => {
+			resolveActivePdfHandle()?.toggleElementSelection();
 		},
-		// ⌥A — toggle full-text (layout) translation for the paper being read.
-		// Same dual-pane-aware path as the toolbar Languages button.
+		// ⌥A — toggle the reading view between 原文 and 译文 for the paper.
+		// 对照 is entered from the toolbar view switch.
 		layoutTranslate: () => {
 			resolveActivePdfHandle()?.toggleLayoutTranslate();
 		},
-		// F11 — Windows borderless fullscreen (no-op on other platforms).
+		// F11 — Windows borderless fullscreen. Chrome stays. If immersive
+		// reading is up, leave that instead of stacking a second fullscreen.
 		toggleFullscreen: () => {
+			if (uiStore.getState().immersiveReading) {
+				toggleImmersiveReading();
+				return;
+			}
 			void toggleBorderlessFullscreen();
 		},
+		immersiveReading: toggleImmersiveReading,
 	});
+
+	useEffect(() => {
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.repeat || event.isComposing) return;
+			if (!uiStore.getState().immersiveReading) return;
+			if (event.defaultPrevented) return;
+			const target = event.target;
+			if (
+				target instanceof Element &&
+				target.closest("textarea, [contenteditable='true'], [role='dialog']")
+			) {
+				return;
+			}
+			event.preventDefault();
+			toggleImmersiveReading();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, []);
 
 	useNativeMenuEvents({
 		onSettings: openSettingsWindow,
@@ -452,6 +489,7 @@ export default function App() {
 	// 1:1 onto the saved values. Sub-threshold px (rails dragged shut)
 	// keep the previously remembered width.
 	const commitUserRailPx = (leftPx?: number, rightPx?: number) => {
+		if (uiStore.getState().immersiveReading) return;
 		const ratio = (px?: number) =>
 			px !== undefined && px >= RAIL_RECORD_MIN_PX
 				? px / window.innerWidth
@@ -483,7 +521,7 @@ export default function App() {
 				  macOS title bar (traffic lights row): Tauri Overlay + hiddenTitle.
 				  Height must match trafficLightPosition math in tao (≈32px → h-8).
 				*/}
-					<AppTitleBar />
+					{!immersiveReading && <AppTitleBar />}
 
 					<ErrorBoundary label="workspace">
 						<ResizableGroup
@@ -551,17 +589,27 @@ export default function App() {
 										</aside>
 									</ResizablePanel>
 
-									{sidebarCollapsed ? null : (
-										<ResizableHandle
-											onDoubleClick={() => commitRailReset("left")}
-											onPointerDown={() => {
-												isResizingRightRef.current = false;
-											}}
-											onKeyDown={() => {
-												isResizingRightRef.current = false;
-											}}
-										/>
-									)}
+									{/*
+									  Keep the Separator mounted while the rail is collapsed.
+									  Unmounting it as part of the collapse leaves
+									  react-resizable-panels with a stale layout: expand() /
+									  resize() then fail silently and the separator cannot be
+									  dragged again (#1163). Hide it with layout-neutral classes
+									  instead.
+									*/}
+									<ResizableHandle
+										className={cn(
+											sidebarCollapsed && "pointer-events-none w-0 opacity-0",
+										)}
+										disabled={sidebarCollapsed}
+										onDoubleClick={() => commitRailReset("left")}
+										onPointerDown={() => {
+											isResizingRightRef.current = false;
+										}}
+										onKeyDown={() => {
+											isResizingRightRef.current = false;
+										}}
+									/>
 								</Fragment>
 							) : null}
 
@@ -589,18 +637,21 @@ export default function App() {
 								</div>
 							</ResizablePanel>
 
-							{/* Right sidebar: always mounted + collapsible (same as left). */}
-							{rightSidebarOpen ? (
-								<ResizableHandle
-									onDoubleClick={() => commitRailReset("right")}
-									onPointerDown={() => {
-										isResizingRightRef.current = true;
-									}}
-									onKeyDown={() => {
-										isResizingRightRef.current = true;
-									}}
-								/>
-							) : null}
+							{/* Right sidebar: always mounted + collapsible (same as left).
+							    Its Separator stays mounted too (see the left rail above). */}
+							<ResizableHandle
+								className={cn(
+									!rightSidebarOpen && "pointer-events-none w-0 opacity-0",
+								)}
+								disabled={!rightSidebarOpen}
+								onDoubleClick={() => commitRailReset("right")}
+								onPointerDown={() => {
+									isResizingRightRef.current = true;
+								}}
+								onKeyDown={() => {
+									isResizingRightRef.current = true;
+								}}
+							/>
 							<ResizablePanel
 								id="right-sidebar"
 								panelRef={rightSidebarPanelRef}
@@ -627,7 +678,7 @@ export default function App() {
 
 					<AppDialogs />
 
-					<BackgroundTasksPanel />
+					{!immersiveReading && <BackgroundTasksPanel />}
 
 					{/* First-run setup wizard (Raycast-style full-window overlay). */}
 					<OnboardingRoot />

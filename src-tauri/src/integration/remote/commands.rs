@@ -1,4 +1,4 @@
-//! Tauri commands for remote vault (SSH/SFTP) — `docs/development/remote-vault.md`.
+//! Tauri commands for remote vaults over SSH/SFTP.
 //!
 //! Async commands return `Result<ApiResult<T>, String>` so `State` borrows are valid
 //! (same pattern as `agent_probe`).
@@ -301,7 +301,7 @@ pub async fn remote_paper_list(
     // Refresh from the remote authority first, holding the mirror lock
     // through the read (unchanged lock scope). The projection intentionally
     // differs from local `paper_list` (raw rows, no has_pdf probe, no id
-    // dedupe) — known drift kept for wire stability; see docs/backend/remote.md.
+    // dedupe) — known drift kept for wire stability.
     let mut catalog = session.catalog.lock().await;
     if let Err(e) = catalog.refresh(session.fs.clone()).await {
         return Ok(map_err(e));

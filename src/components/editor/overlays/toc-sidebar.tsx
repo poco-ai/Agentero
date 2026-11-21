@@ -201,7 +201,7 @@ export function TocSidebar(props: TocSideBarProps) {
 									index > 0 && depth === 1 && "mt-1.5",
 									"transition-colors duration-150 ease-out",
 									"text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-									"focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+									"focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
 									depth === 1 && "text-foreground/80",
 									active && "text-foreground hover:text-foreground",
 								)}

@@ -140,7 +140,13 @@ pub(crate) async fn apply_probe_result(
         },
     };
     if let Some(target) = existing {
-        return merge_placeholder_into(&ctx, &mut record, target, &path_rel, probe);
+        if probe.matches_canonical_identifiers(&target) {
+            return merge_placeholder_into(&ctx, &mut record, target, &path_rel, probe);
+        }
+        // A user folder or another DOI can produce the same canonical slug.
+        // Keep both entries and only update the placeholder metadata.
+        meta_update_in_place(vault, &mut record, probe, "recognize")?;
+        return Ok(RecognizeApply::MetaUpdated);
     }
 
     // A folder exists at the target without a catalog row (orphan) — never

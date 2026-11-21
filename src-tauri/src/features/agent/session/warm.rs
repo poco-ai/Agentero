@@ -1,6 +1,6 @@
 //! Background ACP warm-up whose connection stays pooled for the next turn.
 //!
-//! Setup (spawn → initialize → session/new → preferences → settle) runs inside
+//! Setup (spawn → initialize → session/new → preferences) runs inside
 //! the connect future; the resulting connection + fresh session are published
 //! to the [`AgentWarmPool`] and kept alive by a keepalive loop until
 //! evicted, closed (EOF) or idle past [`POOL_IDLE_TTL`]. A warm session is
@@ -12,10 +12,12 @@ use crate::features::agent::acp::client::{
     timed_acp_new_session, timed_acp_request, to_acp_agent,
 };
 use crate::features::agent::acp::updates::{
-    emit_session_config_options, models_from_config_options, models_from_session_models_value,
-    richer_models_event, store_richer_models,
+    collaboration_from_config_options, emit_session_config_options, models_from_config_options,
+    models_from_session_models_value, richer_models_event, store_richer_models,
 };
-use crate::features::agent::models::{AgentDescriptor, WarmResult};
+use crate::features::agent::models::{
+    AgentCollaborationEvent, AgentDescriptor, AgentModelsEvent, AgentTemplate, WarmResult,
+};
 use crate::features::agent::runtime::events::AgentEventEmitter;
 use crate::features::agent::session::config::apply_model_and_collaboration_prefs;
 use crate::features::agent::session::handlers::{
@@ -24,13 +26,14 @@ use crate::features::agent::session::handlers::{
 use crate::features::agent::session::pool::{
     pool_key, AgentWarmPool, PoolKey, PooledSlot, POOL_IDLE_TTL,
 };
-use agent_client_protocol::schema::v1::{DeleteSessionRequest, McpServer, NewSessionRequest};
-use agent_client_protocol::{Agent, ConnectionTo, UntypedMessage};
+use agent_client_protocol::v1::schema::{
+    DeleteSessionRequest, McpServer, NewSessionRequest, NewSessionResponse,
+};
+use agent_client_protocol::{v1::ConnectionTo, Agent, UntypedMessage};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::Manager;
 use tokio::sync::watch;
 use uuid::Uuid;
 
@@ -67,11 +70,13 @@ async fn await_setup<T>(
 /// live connection to the pool → emit models/usage (no prompt). Used when Chat
 /// opens so the model selector and context meter are ready before first send,
 /// and so the first (and later) prompts skip the cold spawn chain.
+#[allow(clippy::too_many_arguments)]
 pub async fn warm_agent(
     app: AgentEventEmitter,
     desc: AgentDescriptor,
     vault_path: Option<String>,
     preferred_model_id: Option<String>,
+    force_model: bool,
     preferred_collaboration_mode_id: Option<String>,
     remote: Option<Arc<dyn crate::features::agent::remote_host::RemoteAgentLaunch>>,
     pool: Arc<AgentWarmPool>,
@@ -85,6 +90,7 @@ pub async fn warm_agent(
                 agent_id,
                 ok: false,
                 models: None,
+                collaboration: None,
                 usage_used: None,
                 usage_size: None,
                 error: Some(e.to_string()),
@@ -103,17 +109,21 @@ pub async fn warm_agent(
 
     // Healthy pooled slot from an earlier warm: reuse its cached models /
     // usage instead of spawning a second agent process.
-    if let Some((models, usage)) = pool.snapshot_warm_result(&key) {
+    if let Some((models, collaboration, usage)) = pool.snapshot_warm_result(&key) {
         log::debug!(
             target: "agentero::agent",
             "agent={} warm reused pooled slot cwd={}",
             agent_id,
             cwd.display()
         );
+        if let Some(ref collab) = collaboration {
+            let _ = app.emit("agent:collaboration", collab.clone());
+        }
         return WarmResult {
             agent_id,
             ok: true,
             models,
+            collaboration,
             usage_used: usage.map(|(u, _)| u),
             usage_size: usage.map(|(_, s)| s),
             error: None,
@@ -127,6 +137,7 @@ pub async fn warm_agent(
                 agent_id,
                 ok: false,
                 models: None,
+                collaboration: None,
                 usage_used: None,
                 usage_size: None,
                 error: Some(e.to_string()),
@@ -136,6 +147,7 @@ pub async fn warm_agent(
 
     let models_out: Arc<Mutex<Option<crate::features::agent::models::AgentModelsEvent>>> =
         Arc::new(Mutex::new(None));
+    let collaboration_out: Arc<Mutex<Option<AgentCollaborationEvent>>> = Arc::new(Mutex::new(None));
     let usage_out: Arc<Mutex<Option<(u64, u64)>>> = Arc::new(Mutex::new(None));
     let idle = WarmIdleHooks {
         app: app.clone(),
@@ -146,15 +158,7 @@ pub async fn warm_agent(
     };
     let registry = new_registry();
     let terminals = acp_terminals(Some(cwd.clone()));
-    let mcp_servers = if remote.is_none() {
-        app.app_handle()
-            .try_state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
-            .and_then(|bridge| bridge.mcp_server(&session_id, app.window_label()))
-            .into_iter()
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let mcp_servers = Vec::new();
     let (setup_tx, setup_rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
     let task = pool.start_warm(&key);
     let cancellation = task.cancellation.clone();
@@ -168,9 +172,12 @@ pub async fn warm_agent(
         pool: pool.clone(),
         session_id: session_id.clone(),
         agent_id: agent_id.clone(),
+        template: desc.template,
         preferred_model_id,
+        force_model,
         preferred_collaboration_mode_id,
         models_out: models_out.clone(),
+        collaboration_out: collaboration_out.clone(),
         usage_out: usage_out.clone(),
         terminals: terminals.clone(),
         registry: registry.clone(),
@@ -213,6 +220,7 @@ pub async fn warm_agent(
             agent_id,
             ok: false,
             models: None,
+            collaboration: None,
             usage_used: None,
             usage_size: None,
             error: Some(WARM_CANCELLED_ERROR.to_string()),
@@ -223,11 +231,13 @@ pub async fn warm_agent(
         Ok(Ok(setup)) => match setup {
             Ok(()) => {
                 let models = models_out.lock().ok().and_then(|g| g.clone());
+                let collaboration = collaboration_out.lock().ok().and_then(|g| g.clone());
                 let usage = usage_out.lock().ok().and_then(|g| *g);
                 WarmResult {
                     agent_id,
                     ok: true,
                     models,
+                    collaboration,
                     usage_used: usage.map(|(u, _)| u),
                     usage_size: usage.map(|(_, s)| s),
                     error: None,
@@ -237,6 +247,7 @@ pub async fn warm_agent(
                 agent_id,
                 ok: false,
                 models: None,
+                collaboration: None,
                 usage_used: None,
                 usage_size: None,
                 error: Some(error),
@@ -246,6 +257,7 @@ pub async fn warm_agent(
             agent_id,
             ok: false,
             models: None,
+            collaboration: None,
             usage_used: None,
             usage_size: None,
             error: Some("warm connection closed before setup finished".to_string()),
@@ -254,6 +266,7 @@ pub async fn warm_agent(
             agent_id,
             ok: false,
             models: None,
+            collaboration: None,
             usage_used: None,
             usage_size: None,
             error: Some(format!(
@@ -275,14 +288,19 @@ struct WarmSetupCtx {
     pool: Arc<AgentWarmPool>,
     session_id: String,
     agent_id: String,
+    template: AgentTemplate,
     preferred_model_id: Option<String>,
+    /// Explicit user pick: always send one model `set_config_option` even when
+    /// the agent reports the same current (Fix #1087).
+    force_model: bool,
     preferred_collaboration_mode_id: Option<String>,
     models_out: Arc<Mutex<Option<crate::features::agent::models::AgentModelsEvent>>>,
+    collaboration_out: Arc<Mutex<Option<AgentCollaborationEvent>>>,
     usage_out: Arc<Mutex<Option<(u64, u64)>>>,
     terminals: Arc<tokio::sync::Mutex<crate::features::agent::acp::terminal::AcpTerminalManager>>,
     registry: crate::features::agent::session::handlers::TurnRegistry,
     /// Set once `session/new` returns, so a failed setup can still discard it.
-    created: Mutex<Option<(agent_client_protocol::schema::v1::SessionId, bool)>>,
+    created: Mutex<Option<(agent_client_protocol::v1::schema::SessionId, bool)>>,
     mcp_servers: Vec<McpServer>,
 }
 
@@ -293,7 +311,7 @@ struct WarmSetupCtx {
 /// times out, so `session/list` keeps hiding it.
 pub(crate) async fn discard_unprompted_session(
     connection: &ConnectionTo<Agent>,
-    session_id: &agent_client_protocol::schema::v1::SessionId,
+    session_id: &agent_client_protocol::v1::schema::SessionId,
     supports_delete: bool,
     pool: &AgentWarmPool,
 ) {
@@ -331,11 +349,39 @@ struct KeepaliveCtx {
     activity_rx: watch::Receiver<u64>,
     used: Arc<std::sync::atomic::AtomicBool>,
     supports_delete: bool,
-    acp_session_id: agent_client_protocol::schema::v1::SessionId,
+    acp_session_id: agent_client_protocol::v1::schema::SessionId,
     agent_id: String,
 }
 
 impl WarmSetupCtx {
+    async fn new_session(
+        &self,
+        connection: &ConnectionTo<Agent>,
+        request: NewSessionRequest,
+    ) -> Result<(NewSessionResponse, Option<AgentModelsEvent>), agent_client_protocol::Error> {
+        if matches!(
+            self.template,
+            AgentTemplate::Hermes
+                | AgentTemplate::Opencode
+                | AgentTemplate::MimoCode
+                | AgentTemplate::Custom
+        ) {
+            let raw = timed_acp_new_session(
+                connection
+                    .send_request(UntypedMessage::new("session/new", request)?)
+                    .block_task(),
+            )
+            .await?;
+            let models = models_from_session_models_value(&self.session_id, &self.agent_id, &raw);
+            return Ok((
+                agent_client_protocol::JsonRpcResponse::from_json("session/new", raw)?,
+                models,
+            ));
+        }
+        let response = timed_acp_new_session(connection.send_request(request).block_task()).await?;
+        Ok((response, None))
+    }
+
     async fn setup_and_keepalive(
         self,
         connection: ConnectionTo<Agent>,
@@ -362,7 +408,7 @@ impl WarmSetupCtx {
         }
     }
 
-    /// initialize → session/new → preferences → settle → publish the slot.
+    /// initialize → session/new → preferences → publish the slot.
     async fn setup(
         &self,
         connection: &ConnectionTo<Agent>,
@@ -378,29 +424,9 @@ impl WarmSetupCtx {
         let can_load = init.agent_capabilities.load_session;
         let supports_delete = session_caps.delete.is_some();
 
-        // Send session/new untyped so the raw response survives: the schema drops
-        // hermes-agent's pre-stabilization top-level `models` field on deserialize,
-        // and the typed NewSessionResponse would lose it before we can look.
-        let mut new_session = NewSessionRequest::new(self.cwd.clone());
-        if !self.mcp_servers.is_empty() {
-            new_session = new_session.mcp_servers(self.mcp_servers.clone());
-        }
-        let raw_new_session = timed_acp_new_session(
-            connection
-                .send_request(
-                    UntypedMessage::new("session/new", new_session).map_err(|e| {
-                        agent_client_protocol::Error::internal_error().data(e.to_string())
-                    })?,
-                )
-                .block_task(),
-        )
-        .await?;
-        let new_session: agent_client_protocol::schema::v1::NewSessionResponse =
-            agent_client_protocol::JsonRpcResponse::from_value(
-                "session/new",
-                raw_new_session.clone(),
-            )?;
-
+        let request =
+            NewSessionRequest::new(self.cwd.clone()).mcp_servers(self.mcp_servers.clone());
+        let (new_session, legacy_models) = self.new_session(connection, request).await?;
         let acp_session_id = new_session.session_id;
         self.pool.track_unprompted(&acp_session_id.to_string());
         if let Ok(mut created) = self.created.lock() {
@@ -413,13 +439,21 @@ impl WarmSetupCtx {
             &acp_session_id,
             new_session.config_options.unwrap_or_default(),
             self.preferred_model_id.clone(),
+            self.force_model,
             self.preferred_collaboration_mode_id.clone(),
         )
         .await;
         emit_session_config_options(&self.app, &self.session_id, &self.agent_id, &config_options);
+        if let Some(ev) =
+            collaboration_from_config_options(&self.session_id, &self.agent_id, &config_options)
+        {
+            if let Ok(mut g) = self.collaboration_out.lock() {
+                *g = Some(ev);
+            }
+        }
         let models_event = richer_models_event(
             models_from_config_options(&self.session_id, &self.agent_id, &config_options),
-            models_from_session_models_value(&self.session_id, &self.agent_id, &raw_new_session),
+            legacy_models,
         );
         if let Some(ev) = models_event {
             if let Ok(mut g) = self.models_out.lock() {
@@ -427,10 +461,8 @@ impl WarmSetupCtx {
             }
         }
 
-        // Brief settle so agents can push usage/config updates after session create.
-        tokio::time::sleep(Duration::from_millis(400)).await;
         if self.cancellation.is_cancelled() {
-            return Err(agent_client_protocol::util::internal_error(
+            return Err(crate::features::agent::acp::client::acp_err(
                 WARM_CANCELLED_ERROR,
             ));
         }
@@ -453,8 +485,9 @@ impl WarmSetupCtx {
             activity: activity_tx,
             used: used.clone(),
             supports_delete,
-            models: self.models_out.lock().ok().and_then(|g| g.clone()),
-            usage: self.usage_out.lock().ok().and_then(|g| *g),
+            models: self.models_out.clone(),
+            collaboration: self.collaboration_out.clone(),
+            usage: self.usage_out.clone(),
         });
         log::debug!(
             target: "agentero::agent",

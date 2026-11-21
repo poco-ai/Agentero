@@ -31,6 +31,23 @@ pub fn strip_appimage_library_env(env: &mut std::collections::HashMap<String, St
     }
 }
 
+/// Empty the loader overrides in a child env map that is handed to a spawner
+/// which only adds variables on top of the inherited environment.
+///
+/// Removing a key from a map only stops it being *set*; the parent's value is
+/// still inherited when the spawner (`Command::env`, and
+/// `agent-client-protocol`'s `spawn_process`) never calls `env_clear`. An empty
+/// value overrides the inherited one for both `execve` and the dynamic loader
+/// (#1115).
+pub fn clear_appimage_library_env(env: &mut std::collections::HashMap<String, String>) {
+    if !appimage_marker_present(|key| env.contains_key(key)) {
+        return;
+    }
+    for key in APPIMAGE_LIBRARY_ENV {
+        env.insert(key.to_string(), String::new());
+    }
+}
+
 /// Drop loader overrides before a command inherits the Host environment.
 ///
 /// Implemented for both `std` and `tokio` commands because agents, installers
@@ -58,6 +75,54 @@ impl SanitizeAppImageEnv for tokio::process::Command {
             }
         }
         self
+    }
+}
+
+/// Start a child that is not tied to a Vault in Agentero's private scratch
+/// directory instead of inheriting the Host's process cwd.
+///
+/// macOS attributes privacy (TCC) prompts to the *responsible* process, and a
+/// GUI app started by LaunchServices has `/` as its cwd. Third-party CLIs and
+/// the user's login shell scan their startup directory — from `/` that walks
+/// `$HOME` and trips Music / Desktop / Downloads / other-app-data prompts,
+/// which the user sees as Agentero asking for unrelated permissions (#570).
+///
+/// ACP sessions already change into the Vault before exec; this trait covers
+/// the spawns with no Vault context: availability/version probes, diagnostics,
+/// the login-shell environment snapshot and installers. Keeps the same
+/// [`crate::paths::agent_scratch_dir`] contract (data dir, then an
+/// Agentero-only temp subdirectory) and degrades to the inherited cwd only
+/// when neither location can be created.
+pub trait SpawnInAgentScratchDir {
+    /// Point the child at the private scratch directory when it is available.
+    fn spawn_in_agent_scratch_dir(&mut self) -> &mut Self;
+}
+
+impl SpawnInAgentScratchDir for std::process::Command {
+    fn spawn_in_agent_scratch_dir(&mut self) -> &mut Self {
+        if let Some(dir) = agent_scratch_cwd() {
+            self.current_dir(dir);
+        }
+        self
+    }
+}
+
+impl SpawnInAgentScratchDir for tokio::process::Command {
+    fn spawn_in_agent_scratch_dir(&mut self) -> &mut Self {
+        if let Some(dir) = agent_scratch_cwd() {
+            self.current_dir(dir);
+        }
+        self
+    }
+}
+
+fn agent_scratch_cwd() -> Option<std::path::PathBuf> {
+    match crate::paths::agent_scratch_dir() {
+        Ok(dir) => Some(dir),
+        Err(error) => {
+            log::debug!("agent scratch cwd unavailable, inheriting process cwd: {error}");
+            None
+        }
     }
 }
 
@@ -314,6 +379,37 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn probe_children_run_in_the_private_scratch_dir() {
+        let scratch = agent_scratch_cwd().expect("agent scratch directory");
+        let mut command = std::process::Command::new("/bin/pwd");
+        command.spawn_in_agent_scratch_dir();
+        let output = command.output().expect("run pwd");
+        assert!(output.status.success());
+        let printed = String::from_utf8_lossy(&output.stdout);
+        let printed = std::fs::canonicalize(printed.trim()).expect("canonical child cwd");
+        let expected = std::fs::canonicalize(&scratch).expect("canonical scratch");
+        assert_eq!(printed, expected);
+        // The whole point: never inherit `/` from a LaunchServices launch.
+        assert_ne!(expected, std::path::PathBuf::from("/"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn probe_children_run_in_the_private_scratch_dir() {
+        let scratch = agent_scratch_cwd().expect("agent scratch directory");
+        let mut command = std::process::Command::new("cmd");
+        command.args(["/D", "/C", "cd"]);
+        command.spawn_in_agent_scratch_dir();
+        let output = command.output().expect("run cd");
+        assert!(output.status.success());
+        let printed = String::from_utf8_lossy(&output.stdout);
+        let printed = std::fs::canonicalize(printed.trim()).expect("canonical child cwd");
+        let expected = std::fs::canonicalize(&scratch).expect("canonical scratch");
+        assert_eq!(printed, expected);
+    }
+
     #[test]
     fn strip_appimage_library_env_only_touches_appimage_children() {
         let mut appimage = std::collections::HashMap::from([
@@ -349,5 +445,31 @@ mod tests {
             native.get("LD_PRELOAD").map(String::as_str),
             Some("/opt/lib.so")
         );
+    }
+
+    #[test]
+    fn clear_appimage_library_env_overrides_inherited_values() {
+        let mut appimage = std::collections::HashMap::from([
+            ("APPIMAGE".to_string(), "/tmp/.mount/Agentero".to_string()),
+            (
+                "LD_LIBRARY_PATH".to_string(),
+                "/tmp/.mount/Agentero/usr/lib".to_string(),
+            ),
+        ]);
+        clear_appimage_library_env(&mut appimage);
+        // Empty rather than absent: `Command::env` cannot unset an inherited value.
+        assert_eq!(appimage.get("LD_LIBRARY_PATH"), Some(&String::new()));
+        assert_eq!(appimage.get("LD_PRELOAD"), Some(&String::new()));
+
+        let mut native = std::collections::HashMap::from([(
+            "LD_LIBRARY_PATH".to_string(),
+            "/opt/cuda/lib".to_string(),
+        )]);
+        clear_appimage_library_env(&mut native);
+        assert_eq!(
+            native.get("LD_LIBRARY_PATH").map(String::as_str),
+            Some("/opt/cuda/lib")
+        );
+        assert!(!native.contains_key("LD_PRELOAD"));
     }
 }

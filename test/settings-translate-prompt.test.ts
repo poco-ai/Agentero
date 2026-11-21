@@ -63,3 +63,10 @@ describe("translate prompt settings", () => {
 		expect(settings.customUser).toBe("<<<{{ text }}>>> ");
 	});
 });
+
+it("defaults old or invalid dictionary settings to auto and preserves supported modes", () => {
+	for (const dictionary of [undefined, { mode: "invalid" }])
+		expect(normalize({ dictionary }).dictionary.mode).toBe("auto");
+	for (const mode of ["auto", "offline-first", "off"])
+		expect(normalize({ dictionary: { mode } }).dictionary.mode).toBe(mode);
+});

@@ -239,7 +239,10 @@ export function DockviewViewport({
 		};
 	}, [documentId, viewportPlugin]);
 
-	const { style, ...restProps } = props;
+	// The viewport owns both scroll axes: callers pass layout classes only, and
+	// the always-visible variant keeps both thumbs painted so a zoomed page can
+	// be dragged by its scrollbars.
+	const { className, style, ...restProps } = props;
 
 	return (
 		<ViewportElementContext.Provider
@@ -247,6 +250,7 @@ export function DockviewViewport({
 		>
 			<div
 				{...restProps}
+				className={`agentero-scroll-both agentero-scroll-visible ${className ?? ""}`}
 				ref={viewportRef}
 				data-pdf-viewport
 				tabIndex={paginated ? 0 : -1}

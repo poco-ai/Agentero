@@ -6,6 +6,9 @@
 
 import { type RefObject, useEffect, useMemo, useRef } from "react";
 import { usePanelRef } from "react-resizable-panels";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
+import { isTauri } from "@/lib/core/tauri";
 import {
 	getShellLayoutPrefs,
 	type RailLimits,
@@ -26,10 +29,15 @@ import {
 	setSidebarCollapsedState,
 	uiStore,
 } from "@/lib/shell/ui-store";
+import {
+	readBorderlessFullscreen,
+	setBorderlessFullscreen,
+} from "@/lib/shell/window-fullscreen";
 import { setNotesSplit, toggleNotesSplit } from "@/lib/workspace/actions";
 import { dockHandle } from "@/lib/workspace/dock-registry";
 import { getActiveTabId, getTabs } from "@/lib/workspace/store";
 import { tabHasNotesSplit, tabNotesEligible } from "@/lib/workspace/tabs";
+import { resolveActivePdfTabId } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 const SIDEBAR_DEFAULT_PX = 200;
 const RIGHT_SIDEBAR_DEFAULT_PX = 320;
@@ -334,6 +342,164 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			applyPreset(mode);
 		};
 
+		type ImmersiveSnapshot = {
+			leftCollapsed: boolean;
+			rightOpen: boolean;
+			leftPx: number;
+			rightPx: number;
+			maximized: boolean;
+			activePanelId: string | null;
+			fullscreen: boolean;
+		};
+		let groupSizes: { restore: () => void; dispose: () => void } | undefined;
+		let immersiveSnapshot: ImmersiveSnapshot | null = null;
+		let immersivePhase: "idle" | "entering" | "exiting" = "idle";
+		let exitAfterEnter = false;
+		let stopFullscreenWatch: (() => void) | null = null;
+		let fullscreenWatchEpoch = 0;
+
+		const armFullscreenWatch = async () => {
+			const epoch = ++fullscreenWatchEpoch;
+			stopFullscreenWatch?.();
+			stopFullscreenWatch = null;
+			if (!isTauri()) return;
+			const { getCurrentWindow } = await import("@tauri-apps/api/window");
+			let sawFullscreen = await readBorderlessFullscreen();
+			const unlisten = await getCurrentWindow().onResized(() => {
+				if (!uiStore.getState().immersiveReading || immersivePhase !== "idle") {
+					return;
+				}
+				void readBorderlessFullscreen().then((full) => {
+					if (full) {
+						sawFullscreen = true;
+						return;
+					}
+					if (sawFullscreen) void exitImmersive(false);
+				});
+			});
+			if (
+				epoch !== fullscreenWatchEpoch ||
+				!uiStore.getState().immersiveReading
+			) {
+				unlisten();
+				return;
+			}
+			stopFullscreenWatch = () => {
+				unlisten();
+			};
+		};
+
+		const enterImmersive = async () => {
+			if (uiStore.getState().immersiveReading || immersivePhase !== "idle")
+				return;
+			immersivePhase = "entering";
+			groupSizes?.dispose();
+			groupSizes = dockHandle()?.isMaximizedPanel()
+				? undefined
+				: dockHandle()?.captureGroupSizes?.();
+			const state = uiStore.getState();
+			const fullscreen = await readBorderlessFullscreen();
+			immersiveSnapshot = {
+				leftCollapsed: state.sidebarCollapsed,
+				rightOpen: state.rightSidebarOpen,
+				leftPx: state.sidebarCollapsed
+					? leftWidthPxRef.current
+					: (sidebarPanelRef.current?.getSize().inPixels ??
+						leftWidthPxRef.current),
+				rightPx: state.rightSidebarOpen
+					? (rightSidebarPanelRef.current?.getSize().inPixels ??
+						rightWidthPxRef.current)
+					: rightWidthPxRef.current,
+				maximized: Boolean(dockHandle()?.isMaximizedPanel()),
+				activePanelId: getActiveTabId(),
+				fullscreen,
+			};
+			// A hidden notes editor must not keep consuming Escape in fullscreen.
+			if (document.activeElement instanceof HTMLElement)
+				document.activeElement.blur();
+			// Flag first so the rail setters do not persist the temporary collapse.
+			uiStore.setState({ immersiveReading: true });
+			setLeftCollapsed(true);
+			setRightCollapsed(true);
+			if (!immersiveSnapshot.maximized)
+				dockHandle()?.maximizeActivePanel(resolveActivePdfTabId() ?? undefined);
+			try {
+				if (await setBorderlessFullscreen(true)) await armFullscreenWatch();
+				else exitAfterEnter = true;
+			} catch (error) {
+				notifyError(errorText(error));
+				exitAfterEnter = true;
+			} finally {
+				immersivePhase = "idle";
+				if (exitAfterEnter) {
+					exitAfterEnter = false;
+					await exitImmersive(true);
+				}
+			}
+		};
+
+		const exitImmersive = async (restoreFullscreen: boolean) => {
+			if (!uiStore.getState().immersiveReading) return;
+			if (immersivePhase === "entering") {
+				exitAfterEnter = true;
+				return;
+			}
+			if (immersivePhase === "exiting") return;
+			immersivePhase = "exiting";
+			fullscreenWatchEpoch += 1;
+			stopFullscreenWatch?.();
+			stopFullscreenWatch = null;
+			const snapshot = immersiveSnapshot;
+			immersiveSnapshot = null;
+			if (snapshot) {
+				// The OS may already have left fullscreen (macOS Esc). Don't
+				// push the window back into it on the way out.
+				if (restoreFullscreen) {
+					await setBorderlessFullscreen(snapshot.fullscreen);
+				}
+				if (!snapshot.maximized) {
+					dockHandle()?.exitMaximizedPanel();
+					if (snapshot.activePanelId)
+						dockHandle()?.activatePanel?.(snapshot.activePanelId);
+				}
+				if (snapshot.leftCollapsed) {
+					setLeftCollapsed(true);
+				} else {
+					const panel = sidebarPanelRef.current;
+					try {
+						panel?.expand();
+						panel?.resize(snapshot.leftPx);
+					} catch {
+						// ignore
+					}
+					leftWidthPxRef.current = snapshot.leftPx;
+					setSidebarCollapsedState(false);
+				}
+				if (snapshot.rightOpen) {
+					setRightPx(snapshot.rightPx);
+				} else {
+					setRightCollapsed(true);
+				}
+			}
+			uiStore.setState({ immersiveReading: false });
+			groupSizes?.restore();
+			immersivePhase = "idle";
+		};
+
+		const toggleImmersiveReading = () => {
+			if (uiStore.getState().immersiveReading) void exitImmersive(true);
+			else void enterImmersive();
+		};
+		const dispose = () => {
+			groupSizes?.dispose();
+			groupSizes = undefined;
+			fullscreenWatchEpoch += 1;
+			stopFullscreenWatch?.();
+			stopFullscreenWatch = null;
+			if (immersivePhase === "entering") exitAfterEnter = true;
+			else if (uiStore.getState().immersiveReading) void exitImmersive(true);
+		};
+
 		const focusSidebar = () => {
 			setLeftCollapsed(false);
 			requestAnimationFrame(() => {
@@ -370,6 +536,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			setLeftCollapsed,
 			setRightCollapsed,
 			applyLayoutMode,
+			toggleImmersiveReading,
+			dispose,
 			focusSidebar,
 			focusEditorPane,
 			focusNotesEditor,
@@ -378,7 +546,10 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 
 	useEffect(() => {
 		registerLayoutController(controller);
-		return () => registerLayoutController(null);
+		return () => {
+			controller.dispose();
+			registerLayoutController(null);
+		};
 	}, [controller]);
 
 	useEffect(() => {

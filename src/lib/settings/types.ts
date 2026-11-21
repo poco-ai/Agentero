@@ -1,3 +1,4 @@
+import type { EasyScholarRankId } from "@/lib/paper/easy-scholar-ranks";
 import type {
 	PaperTreeLabelMode,
 	PaperTreeSortMode,
@@ -115,6 +116,25 @@ export function isPdfScrollStrategy(v: unknown): v is PdfScrollStrategy {
  */
 export type PdfSpreadMode = "none" | "odd" | "even";
 
+/**
+ * In-page 「翻译页面」 tab. `hover` shows it while the pointer is on the page,
+ * `always` keeps it up, `hidden` leaves translation to the toolbar / shortcut.
+ */
+export type PdfTranslateTabMode = "hover" | "always" | "hidden";
+
+export const PDF_TRANSLATE_TAB_MODES: readonly PdfTranslateTabMode[] = [
+	"hover",
+	"always",
+	"hidden",
+] as const;
+
+export function isPdfTranslateTabMode(v: unknown): v is PdfTranslateTabMode {
+	return (
+		typeof v === "string" &&
+		(PDF_TRANSLATE_TAB_MODES as readonly string[]).includes(v)
+	);
+}
+
 export const PDF_SPREAD_MODES: readonly PdfSpreadMode[] = [
 	"none",
 	"odd",
@@ -155,6 +175,8 @@ export type AppSettings = {
 	// General
 	/** EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string;
+	/** EasyScholar rank systems shown in the Library/Paper Info (empty = none). */
+	easyScholarRanks: EasyScholarRankId[];
 	/** 知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
 	zhihuAccessSecret: string;
 	/** EZProxy/WebVPN prefix for paywalled PDF fallback ("" disables). */
@@ -163,6 +185,13 @@ export type AppSettings = {
 	institutionProxyCookie: string;
 	/** Gateway type: "auto" | "ezproxy" | "wengine" | "subdomain". */
 	institutionProxyType: string;
+	/**
+	 * Host-captured OpenReview verification cookie (masked across IPC). The
+	 * download layer attaches it to OpenReview PDF requests.
+	 */
+	openreviewCookie: string;
+	/** Unix seconds when the OpenReview credential expires (0 = unknown). */
+	openreviewCookieExpiresAt: number;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */
 	networkProxyEnabled: boolean;
 	networkProxyUrl: string;
@@ -205,6 +234,11 @@ export type AppSettings = {
 	 */
 	pdfSpreadMode: PdfSpreadMode;
 	/**
+	 * In-page translate tab: `hover` (default) | `always` | `hidden`.
+	 * Hidden keeps the toolbar, command palette, and shortcut.
+	 */
+	pdfTranslateTab: PdfTranslateTabMode;
+	/**
 	 * How NOTES.md is initialized on paper import. `custom` copies the vault
 	 * template `.agentero/templates/NOTES.md`. Default: built-in skeleton.
 	 */
@@ -245,6 +279,8 @@ export type AppSettings = {
 	mcpPort: number;
 	/** Opt-in: expose paper full text via MCP paper_text_get. */
 	mcpExposePaperText: boolean;
+	mcpAllowWrite: boolean;
+	mcpAllowOnline: boolean;
 	/**
 	 * OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex). Empty = not configured.
 	 */
@@ -423,6 +459,10 @@ export type DecisionSettings = {
 	model: string;
 	/** Enable the experimental smart-highlight action in the PDF toolbar. */
 	smartHighlight: boolean;
+	/** In-flight smart-highlight batches. One of 1, 2, 4, 16. */
+	smartHighlightConcurrency: number;
+	/** Seconds for one smart-highlight batch, counted from send. */
+	smartHighlightTimeoutSecs: number;
 };
 
 /**

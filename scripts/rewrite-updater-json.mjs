@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Node 24 + gh; no project dependencies required. See docs/test/release.md.
+// Node 24 + gh; no project dependencies required.
 //
 // tauri-action fills latest.json with api.github.com asset URLs. Anonymous API
 // requests share a 60/hour per-IP quota (public repos included), so updater

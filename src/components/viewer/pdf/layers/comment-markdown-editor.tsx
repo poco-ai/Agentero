@@ -1,6 +1,6 @@
 /**
- * In-place WYSIWYG Markdown editor for PDF comment cards. The same
- * MarkdownEditorKit as the note editor, so typing "- " grows a bullet,
+ * In-place WYSIWYG Markdown editor for PDF comment cards. Reuses rules
+ * from the note editor, so typing "- " grows a bullet,
  * **bold** input rules fire, and the mark shortcuts match the editor
  * defaults (⌘B / ⌘I / ⌘U). Commit points serialize back to Markdown.
  */
@@ -17,9 +17,11 @@ import {
 import { Editor } from "@/components/editor/editor-surface";
 import { CommentMarkdownKit } from "@/components/editor/plugins/comment-markdown-kit";
 import { deserializeMarkdownBody } from "@/lib/markdown/deserialize-md";
+import { stripInlinePlaceholders } from "@/lib/markdown/serialize";
 
 export type CommentMarkdownEditorHandle = {
 	getMarkdown: () => string;
+	ownsEquationPopover: (target: EventTarget | null) => boolean;
 	focusEnd: () => void;
 	blur: () => void;
 };
@@ -57,7 +59,24 @@ export function CommentMarkdownEditor({
 	});
 	const handle = useMemo<CommentMarkdownEditorHandle>(
 		() => ({
-			getMarkdown: () => editor.getApi(MarkdownPlugin).markdown.serialize(),
+			getMarkdown: () =>
+				stripInlinePlaceholders(
+					editor.getApi(MarkdownPlugin).markdown.serialize(),
+				),
+			// Radix portals the equation input outside the comment card's DOM.
+			ownsEquationPopover: (target) => {
+				const element =
+					target instanceof Text
+						? target.parentElement
+						: target instanceof Element
+							? target
+							: null;
+				return (
+					element
+						?.closest("[data-equation-editor]")
+						?.getAttribute("data-equation-editor") === editor.id
+				);
+			},
 			focusEnd: () => {
 				editor.tf.focus({ at: editor.api.end([]) });
 			},

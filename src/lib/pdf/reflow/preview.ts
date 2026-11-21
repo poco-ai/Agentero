@@ -1,5 +1,4 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
-import { PDFDocument } from "pdf-lib";
 import { errorText } from "@/lib/core/error";
 import { logger, logOp } from "@/lib/core/logger";
 import type {
@@ -12,12 +11,12 @@ import type { ReflowIrCacheStore } from "./cache";
 import {
 	buildReflowPage,
 	buildReflowPdf,
-	embedReflowFonts,
+	interleaveReflowPdf,
+	layoutReflowPdf,
 	type ReflowOutput,
 	replaceReflowPages,
 } from "./export";
 import { loadReflowFonts, type ReflowFontBytes } from "./fonts";
-import { layoutReflowDocument } from "./layout";
 import {
 	type ReflowOutputVersion,
 	reflowOutputVersion,
@@ -35,22 +34,65 @@ type Preview = {
 	key: string;
 	sourceKey: string;
 	url: string;
+	blob: Blob;
 	layout: PageLayout;
 	items: LayoutTranslateItem[];
 	/** Output byte versions whose page contains this exact preview. */
 	outputSources: WeakSet<ReflowOutputVersion>;
 };
 type Job = { key: string; abort: AbortController };
-/**
- * The dedicated build engine costs ~25–35 MB (PDFium worker + private source
- * copy). Keep it while translation is streaming, drop it once builds settle.
- */
-const BUILD_ENGINE_IDLE_MS = 30_000;
+const BUILD_DOCUMENT_IDLE_MS = 5_000;
+
+// Hold at most one warm result per reader window, including its fallback images.
+const RECENT_FINAL_MAX_BYTES = 64 * 1024 * 1024;
+let recentFinal: {
+	key: string;
+	output: ReflowOutput;
+	rasters: ReadonlyMap<number, Blob>;
+} | null = null;
 
 /** Cap the preview raster DPR: 2x is enough for Retina at normal zoom. */
 function previewDpr(): number {
 	if (typeof window === "undefined") return 1;
 	return Math.min(window.devicePixelRatio || 1, 2);
+}
+
+/**
+ * A4 at 2x scale on a Retina display allocates a 32 MB bitmap. On long papers
+ * those allocations land after dozens of page builds and can exhaust the
+ * PDFium wasm heap. Keep each preview under a fixed budget and let quality
+ * fall back on unusually large pages.
+ */
+const PREVIEW_MAX_BITMAP_BYTES = 16 * 1024 * 1024;
+const PREVIEW_SCALE = 2;
+const PREVIEW_MIN_SCALE = 0.5;
+
+export function previewRasterScale(
+	page: { width: number; height: number },
+	dpr: number,
+): number {
+	const area = Math.max(1, page.width * page.height);
+	const cap = Math.sqrt(PREVIEW_MAX_BITMAP_BYTES / 4 / area);
+	return Math.max(
+		PREVIEW_MIN_SCALE,
+		Math.min(PREVIEW_SCALE, cap / Math.max(1, dpr)),
+	);
+}
+
+export function isRasterAllocationError(error: unknown): boolean {
+	const text = (
+		error &&
+		typeof error === "object" &&
+		"message" in error &&
+		typeof error.message === "string"
+			? error.message
+			: errorText(error)
+	).toLowerCase();
+	return (
+		text.includes("failed to allocate") ||
+		text.includes("out of memory") ||
+		text.includes("total memory usage would exceed")
+	);
 }
 
 const identities = new WeakMap<object, number>();
@@ -102,6 +144,14 @@ export class ReflowPreviewSession {
 	private attempted = new Map<number | "final", string>();
 	private queue: Promise<void> = Promise.resolve();
 	private finalKey = "";
+	private pageOnly = false;
+	private preparing = 0;
+	private lifetime = new AbortController();
+	/**
+	 * Set when the last final build failed. Page previews will not arrive until
+	 * the inputs change, so callers must not wait for them.
+	 */
+	private finalBuildFailed = false;
 	private outputKey = "";
 	private outputInputs = new Map<number, PageInput>();
 	private outputLayouts: PageLayout[] = [];
@@ -127,9 +177,41 @@ export class ReflowPreviewSession {
 
 	/** The retained display may be older while a replacement is building. */
 	get ready(): boolean {
+		if (this.pageOnly) {
+			const translated = [...this.inputs].filter(([, input]) => input.ready);
+			return (
+				translated.length > 0 &&
+				translated.every(
+					([index, input]) => this.previews.get(index)?.key === input.key,
+				)
+			);
+		}
 		return Boolean(
 			this.output && this.finalKey && this.outputKey === this.finalKey,
 		);
+	}
+
+	/** A failed final build retracts page/paragraph loading until inputs change. */
+	get finalFailed(): boolean {
+		return this.finalBuildFailed;
+	}
+
+	/**
+	 * Drop in-flight page / final builds without touching published previews or
+	 * the retained export output. Used when the reader stops page generation
+	 * after the translation job already settled: that build is local work, so
+	 * only this session can end it. Same inputs are not enqueued again until
+	 * they change (`attempted` keeps the key).
+	 */
+	cancelBuilds(): void {
+		if (this.disposed) return;
+		if (!this.jobs.size && this.buildIdle === undefined) return;
+		for (const job of this.jobs.values()) job.abort.abort();
+		this.jobs.clear();
+		this.cancelBuildIdle();
+		this.dirty = true;
+		this.notify();
+		this.scheduleBuildIdle();
 	}
 
 	get busy(): boolean {
@@ -187,8 +269,10 @@ export class ReflowPreviewSession {
 		items: LayoutTranslateItem[],
 		regions: PdfLayoutRegion[],
 		running: boolean,
+		pageOnly = false,
 	): void {
 		if (this.disposed) return;
+		this.pageOnly = pageOnly;
 		const regionsByPage = regionsByPageOf(regions);
 		const groups = new Map<number, LayoutTranslateItem[]>();
 		for (const item of items) {
@@ -202,7 +286,11 @@ export class ReflowPreviewSession {
 					this.inputs.get(index)?.items.map((item) => [item.id, item]),
 				);
 				const previous = new Map(
-					this.outputInputs.get(index)?.items.map((item) => [item.id, item]),
+					(this.pageOnly
+						? (this.previews.get(index)?.items ??
+							this.outputInputs.get(index)?.items)
+						: this.outputInputs.get(index)?.items
+					)?.map((item) => [item.id, item]),
 				);
 				// A retranslation keeps the last successful text visible until a
 				// completed replacement arrives, including after cancellation.
@@ -249,14 +337,16 @@ export class ReflowPreviewSession {
 				] as const;
 			}),
 		);
-		const effectiveItems = [...this.inputs.values()].flatMap(
-			(input) => input.items,
-		);
+		const effectiveItems =
+			!running && !pageOnly
+				? [...this.inputs.values()].flatMap((input) => input.items)
+				: [];
 		const selected = effectiveItems.filter(
-			(i) => i.reflow && i.status === "done" && i.translated?.trim(),
+			(item) =>
+				item.reflow && item.status === "done" && item.translated?.trim(),
 		);
 		const finalKey =
-			!running && selected.length
+			!running && !pageOnly && selected.length
 				? JSON.stringify(
 						[...this.inputs].map(([index, input]) => [index, input.key]),
 					)
@@ -264,6 +354,7 @@ export class ReflowPreviewSession {
 		if (finalKey !== this.finalKey) {
 			this.progress = 0;
 			this.pages = null;
+			this.finalBuildFailed = false;
 			this.dirty = true;
 		}
 		this.finalKey = finalKey;
@@ -293,10 +384,7 @@ export class ReflowPreviewSession {
 			if (index === "final" ? !finalKey : !this.inputs.has(index))
 				this.attempted.delete(index);
 		}
-		if (running) {
-			this.cancelBuildIdle();
-			// The same promise is shared with builders; a failure is reported by the job.
-			void loadReflowFonts().catch(() => {});
+		if (running || pageOnly) {
 			for (const [index, input] of this.inputs) {
 				if (!input.ready || this.previews.get(index)?.key === input.key)
 					continue;
@@ -306,15 +394,13 @@ export class ReflowPreviewSession {
 					const ir = reflowDocumentFromItems(
 						this.document,
 						input.items,
-						regions,
+						regionsByPage.get(index) ?? EMPTY_PAGE_REGIONS,
 					);
 					const translations = new Map(
 						input.items
 							.filter((i) => i.status === "done" && i.translated?.trim())
 							.map((i) => [i.id, i.translated ?? ""]),
 					);
-					// Page builds are never persisted: each one embeds the full
-					// CJK font pair (~20 MB). Only the final document is cached.
 					const target = await this.obtainBuild(signal);
 					const built = await logOp("pdf.reflow.page", { page: index }, () =>
 						buildReflowPage(
@@ -329,6 +415,7 @@ export class ReflowPreviewSession {
 					await this.publish(target.engine, built, signal, true);
 				});
 			}
+			if (!this.jobs.size) this.scheduleBuildIdle();
 		} else if (finalKey) {
 			this.enqueue("final", finalKey, async (signal) => {
 				const report = (
@@ -377,11 +464,13 @@ export class ReflowPreviewSession {
 					this.outputKey = finalKey;
 					this.outputInputs = new Map(this.inputs);
 					this.outputLayouts = layouts;
+					this.finalBuildFailed = false;
 					// Unchanged previews also belong to the retained display. A changed
 					// preview belongs only to outputs assembled after it was published.
-					for (const [index, preview] of this.previews) {
-						if (this.inputs.get(index)?.key !== preview.key) continue;
-						preview.outputSources.add(reflowOutputVersion(bytes));
+					const version = reflowOutputVersion(bytes);
+					for (const page of layouts) {
+						if (this.previewMatches(page))
+							this.previews.get(page.index)?.outputSources.add(version);
 					}
 					report(1);
 				};
@@ -389,18 +478,53 @@ export class ReflowPreviewSession {
 					finish(previousOutput, this.outputLayouts);
 					return;
 				}
+				const cacheKey = incremental
+					? null
+					: await this.buildCache
+							?.keyForFinal?.(ir, translations, fonts)
+							.catch(() => null);
+				signal.throwIfAborted();
+				const warm =
+					cacheKey && recentFinal?.key === cacheKey ? recentFinal : null;
 				// Incremental pages retain the previous document's other layouts.
 				// The disk cache describes a full common-scale build, so only full
 				// builds read/write it; partial results stay in this live session.
-				const cached = incremental
-					? null
-					: await this.cachedFinal(ir, translations, fonts, signal);
+				const cached =
+					warm?.output ??
+					(incremental
+						? null
+						: await this.cachedFinal(ir, translations, fonts, signal));
 				if (cached) {
-					await this.publish(this.engine, cached, signal, false, (ratio) =>
-						report(0.8 + ratio * 0.19),
-					);
-					finish(cached.bytes, cached.pages);
-					return;
+					if (warm) {
+						for (const page of cached.pages) {
+							const blob = warm.rasters.get(page.index);
+							if (blob) this.setPreview(page, blob, cached.bytes);
+						}
+					}
+					const target = await this.obtainBuild(signal);
+					let opened = false;
+					try {
+						await this.publish(
+							target.engine,
+							cached,
+							signal,
+							false,
+							undefined,
+							() => {
+								finish(cached.bytes, cached.pages);
+								opened = true;
+							},
+						);
+						if (cacheKey) this.rememberFinal(cacheKey, cached);
+						return;
+					} catch (error) {
+						signal.throwIfAborted();
+						logger.warn("pdf.reflow.buildCache preview failed", {
+							error: errorText(error),
+						});
+						// The display document can still render when only a fallback image failed.
+						if (opened) return;
+					}
 				}
 				const target = await this.obtainBuild(signal);
 				const built = await logOp("pdf.reflow.final", undefined, () =>
@@ -420,6 +544,7 @@ export class ReflowPreviewSession {
 						previousOutput,
 						built.bytes,
 						changedPages.map((page) => page.index),
+						signal,
 					);
 					signal.throwIfAborted();
 					const changed = new Map(
@@ -442,23 +567,104 @@ export class ReflowPreviewSession {
 					);
 					finish(bytes, layouts);
 				} else {
-					await this.saveFinal(ir, translations, fonts, built.bytes);
 					await this.publish(target.engine, built, signal, false, (ratio) =>
 						report(0.8 + ratio * 0.19),
 					);
 					finish(built.bytes, built.pages);
+					if (cacheKey) this.rememberFinal(cacheKey, built);
+					await this.saveFinal(ir, translations, fonts, built.bytes);
 				}
 			});
 		}
 		this.notify();
 	}
 
+	private rememberFinal(key: string, output: ReflowOutput): void {
+		let size = output.bytes.byteLength;
+		if (size > RECENT_FINAL_MAX_BYTES) return;
+		const version = reflowOutputVersion(output.bytes);
+		const rasters = new Map<number, Blob>();
+		for (const page of output.pages) {
+			if (!page.paragraphs.length) continue;
+			const preview = this.previews.get(page.index);
+			if (!preview?.outputSources.has(version)) continue;
+			if (size + preview.blob.size > RECENT_FINAL_MAX_BYTES) continue;
+			size += preview.blob.size;
+			rasters.set(page.index, preview.blob);
+		}
+		recentFinal = { key, output, rasters };
+	}
+
+	private async exportBytes(
+		regions: PdfLayoutRegion[],
+	): Promise<Uint8Array | null> {
+		if (!this.ready || this.disposed) return null;
+		if (!this.pageOnly) return this.output;
+		const snapshot = this.inputs;
+		const items = [...snapshot.values()].flatMap((input) => input.items);
+		const translations = new Map(
+			items
+				.filter((item) => item.status === "done" && item.translated?.trim())
+				.map((item) => [item.id, item.translated ?? ""]),
+		);
+		const signal = this.lifetime.signal;
+		this.preparing += 1;
+		this.cancelBuildIdle();
+		try {
+			const fonts = await loadReflowFonts();
+			signal.throwIfAborted();
+			const target = await this.obtainBuild(signal);
+			const ir = reflowDocumentFromItems(this.document, items, regions);
+			const built = await logOp(
+				"pdf.reflow.export",
+				{ pages: ir.pages.length },
+				() =>
+					buildReflowPdf(
+						target.engine,
+						target.document,
+						ir,
+						translations,
+						fonts,
+						signal,
+						false,
+					),
+			);
+			return this.pageOnly && this.matchesInputs(snapshot) ? built.bytes : null;
+		} finally {
+			this.preparing -= 1;
+			this.scheduleBuildIdle();
+		}
+	}
+
+	async exportPdf(
+		regions: PdfLayoutRegion[],
+		dual: boolean,
+	): Promise<Uint8Array | null> {
+		const snapshot = this.inputs;
+		const output = await this.exportBytes(regions);
+		if (!output || !this.matchesInputs(snapshot) || !this.ready) return null;
+		if (!dual) return output;
+		const signal = this.lifetime.signal;
+		signal.throwIfAborted();
+		const original = new Uint8Array(
+			await this.engine.saveAsCopy(this.document).toPromise(),
+		);
+		const bytes = await interleaveReflowPdf(original, output, signal);
+		return this.matchesInputs(snapshot) && this.ready ? bytes : null;
+	}
+
+	private matchesInputs(snapshot: Map<number, PageInput>): boolean {
+		return (
+			snapshot.size === this.inputs.size &&
+			[...snapshot].every(
+				([index, input]) => this.inputs.get(index)?.key === input.key,
+			)
+		);
+	}
+
 	/**
 	 * Reuse a previously built final PDF when IR, translations, and fonts are
-	 * unchanged. Layouts are recomputed in memory (cheap) so preview publishing
-	 * works identically to a fresh build. Per-page builds are never cached:
-	 * each embeds the full CJK font pair (~20 MB), which would dwarf the disk
-	 * budget for a marginal win over the one-shot final entry.
+	 * unchanged. Layout metrics are recomputed in the worker for the overlay.
 	 */
 	private async cachedFinal(
 		ir: ReflowDocument,
@@ -485,13 +691,9 @@ export class ReflowPreviewSession {
 			});
 			// Layout metrics are recomputed in memory against the same embedded
 			// fonts, so overlays match the cached render without rebuilding it.
-			const embedded = await embedReflowFonts(
-				await PDFDocument.create(),
-				fonts,
-			);
 			return {
 				bytes,
-				pages: layoutReflowDocument(ir, translations, embedded, true),
+				pages: await layoutReflowPdf(ir, translations, fonts, signal),
 			};
 		} catch (error) {
 			if (signal.aborted) throw error;
@@ -522,7 +724,7 @@ export class ReflowPreviewSession {
 		}).then(() => {});
 	}
 
-	/** Dedicated build engine when available; the viewer pair is the fallback. */
+	/** Background build document when available; the viewer pair is the fallback. */
 	private async obtainBuild(signal: AbortSignal): Promise<ReflowBuildTarget> {
 		if (!this.build) return { engine: this.engine, document: this.document };
 		return this.build.get(signal);
@@ -535,29 +737,43 @@ export class ReflowPreviewSession {
 		signal?: AbortSignal,
 		cache?: ReflowIrCacheStore | null,
 	): Promise<LayoutTranslateItem[]> {
-		void loadReflowFonts().catch(() => {});
+		const activeSignal = signal
+			? AbortSignal.any([signal, this.lifetime.signal])
+			: this.lifetime.signal;
+		this.preparing += 1;
 		this.cancelBuildIdle();
-		const target = this.disposed
-			? { engine: this.engine, document: this.document }
-			: await this.obtainBuild(signal ?? new AbortController().signal);
-		return logOp("pdf.reflow.prepare", { items: seed.length }, () =>
-			prepareReflowItems(
-				target.engine,
-				target.document,
-				seed,
-				regions,
-				signal,
-				cache,
-			),
-		);
+		try {
+			activeSignal.throwIfAborted();
+			return await logOp("pdf.reflow.prepare", { items: seed.length }, () =>
+				prepareReflowItems(
+					this.engine,
+					this.document,
+					seed,
+					regions,
+					activeSignal,
+					cache,
+					() => this.obtainBuild(activeSignal),
+				),
+			);
+		} finally {
+			this.preparing -= 1;
+			this.scheduleBuildIdle();
+		}
 	}
 
 	private scheduleBuildIdle(): void {
-		if (!this.build || this.buildIdle !== undefined) return;
+		if (
+			this.disposed ||
+			this.preparing ||
+			this.jobs.size ||
+			!this.build ||
+			this.buildIdle !== undefined
+		)
+			return;
 		this.buildIdle = setTimeout(() => {
 			this.buildIdle = undefined;
 			this.build?.idle();
-		}, BUILD_ENGINE_IDLE_MS);
+		}, BUILD_DOCUMENT_IDLE_MS);
 	}
 
 	private cancelBuildIdle(): void {
@@ -573,6 +789,7 @@ export class ReflowPreviewSession {
 	): void {
 		if (this.attempted.get(index) === key) return;
 		this.attempted.set(index, key);
+		if (this.pageOnly) this.finalBuildFailed = false;
 		const job = { key, abort: new AbortController() };
 		this.jobs.set(index, job);
 		this.dirty = true;
@@ -586,7 +803,10 @@ export class ReflowPreviewSession {
 				signal.throwIfAborted();
 				await run(signal);
 			} catch (error) {
-				if (!signal.aborted) this.failed(error);
+				if (!signal.aborted) {
+					if (index === "final" || this.pageOnly) this.finalBuildFailed = true;
+					this.failed(error);
+				}
 			} finally {
 				if (this.jobs.get(index) === job) this.jobs.delete(index);
 				if (!this.disposed) {
@@ -606,17 +826,16 @@ export class ReflowPreviewSession {
 		signal: AbortSignal,
 		single: boolean,
 		onProgress?: (ratio: number) => void,
+		onOpened?: () => void,
 	): Promise<void> {
 		signal.throwIfAborted();
 		const changed = built.pages.filter(
-			(page) =>
-				page.paragraphs.length &&
-				(this.previews.get(page.index)?.key !==
-					this.inputs.get(page.index)?.key ||
-					JSON.stringify(this.previews.get(page.index)?.layout) !==
-						JSON.stringify(page)),
+			(page) => page.paragraphs.length && !this.previewMatches(page),
 		);
-		if (!changed.length) return;
+		if (!changed.length) {
+			onOpened?.();
+			return;
+		}
 		const preview = await engine
 			.openDocumentBuffer({
 				id: `reflow-preview-${crypto.randomUUID()}`,
@@ -624,33 +843,23 @@ export class ReflowPreviewSession {
 			})
 			.toPromise();
 		try {
+			signal.throwIfAborted();
+			onOpened?.();
 			for (const [pageIndex, page] of changed.entries()) {
 				signal.throwIfAborted();
 				const blob = await logOp(
 					"pdf.reflow.render",
 					{ page: page.index },
 					() =>
-						engine
-							.renderPage(preview, preview.pages[single ? 0 : page.index], {
-								scaleFactor: 2,
-								dpr: previewDpr(),
-							})
-							.toPromise(),
+						this.renderPreview(
+							engine,
+							preview,
+							preview.pages[single ? 0 : page.index],
+							signal,
+						),
 				);
 				signal.throwIfAborted();
-				const input = this.inputs.get(page.index);
-				if (!input) continue;
-				const previous = this.previews.get(page.index);
-				this.previews.set(page.index, {
-					key: input.key,
-					sourceKey: input.sourceKey,
-					outputSources: new WeakSet(),
-					url: URL.createObjectURL(blob),
-					layout: page,
-					items: input.items,
-				});
-				if (previous) URL.revokeObjectURL(previous.url);
-				this.dirty = true;
+				this.setPreview(page, blob, onOpened ? built.bytes : undefined);
 				this.notify();
 				onProgress?.((pageIndex + 1) / changed.length);
 			}
@@ -659,8 +868,72 @@ export class ReflowPreviewSession {
 		}
 	}
 
+	private previewMatches(page: PageLayout): boolean {
+		const preview = this.previews.get(page.index);
+		return Boolean(
+			preview &&
+				preview.key === this.inputs.get(page.index)?.key &&
+				(preview.layout === page ||
+					JSON.stringify(preview.layout) === JSON.stringify(page)),
+		);
+	}
+
+	private setPreview(page: PageLayout, blob: Blob, output?: Uint8Array): void {
+		const input = this.inputs.get(page.index);
+		if (!input) return;
+		const previous = this.previews.get(page.index);
+		const outputSources = new WeakSet<ReflowOutputVersion>();
+		if (output) outputSources.add(reflowOutputVersion(output));
+		this.previews.set(page.index, {
+			key: input.key,
+			sourceKey: input.sourceKey,
+			outputSources,
+			url: URL.createObjectURL(blob),
+			blob,
+			layout: page,
+			items: input.items,
+		});
+		if (previous) URL.revokeObjectURL(previous.url);
+		this.dirty = true;
+	}
+
+	private async renderPreview(
+		engine: PdfEngine,
+		document: PdfDocumentObject,
+		page: Parameters<PdfEngine["renderPage"]>[1],
+		signal: AbortSignal,
+	): Promise<Blob> {
+		const dpr = previewDpr();
+		const scale = previewRasterScale(page.size, dpr);
+		const attempts = [...new Set([scale, Math.max(0.25, scale / 2)])];
+		for (const [index, scaleFactor] of attempts.entries()) {
+			try {
+				return await engine
+					.renderPage(document, page, { scaleFactor, dpr })
+					.toPromise();
+			} catch (error) {
+				signal.throwIfAborted();
+				if (index === attempts.length - 1 || !isRasterAllocationError(error))
+					throw error;
+				logger.warn("pdf.reflow.render retry", {
+					page: page.index,
+					scaleFactor,
+					error:
+						error &&
+						typeof error === "object" &&
+						"message" in error &&
+						typeof error.message === "string"
+							? error.message
+							: errorText(error),
+				});
+			}
+		}
+		throw new Error("Preview render retry exhausted");
+	}
+
 	dispose(): void {
 		this.disposed = true;
+		this.lifetime.abort();
 		this.cancelBuildIdle();
 		this.build?.dispose();
 		for (const job of this.jobs.values()) job.abort.abort();
@@ -668,6 +941,9 @@ export class ReflowPreviewSession {
 		for (const preview of this.previews.values())
 			URL.revokeObjectURL(preview.url);
 		this.previews.clear();
+		this.inputs.clear();
+		this.outputInputs.clear();
+		this.outputLayouts = [];
 		this.output = null;
 	}
 }

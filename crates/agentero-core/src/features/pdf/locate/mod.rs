@@ -4,12 +4,10 @@
 //! build) so a CLI-resolved rect lands where a hand-drawn selection would.
 //! liteparse's layout reconstruction is deliberately not involved here — it
 //! serves `PAPER.md`, not page geometry.
-//!
-//! @see docs/backend/cli.md
 //! @see src/components/viewer/pdf/coords.ts (the 0–1 normalization this matches)
 
 use crate::error::AppError;
-use liteparse_pdfium::{Library, RectF};
+use liteparse_pdfium::RectF;
 use serde::{Deserialize, Serialize};
 
 pub mod annotations;
@@ -300,7 +298,7 @@ fn text_rect_to_norm_rect(
 /// unreadable PDFs (corrupt header, encrypted without a key, …) so callers
 /// can surface the distinction to the user.
 pub fn extract_text_in_pdf(pdf: &[u8]) -> Result<Vec<ExtractedSentence>, AppError> {
-    let lib = Library::init();
+    let lib = crate::features::pdf::open_library()?;
     let doc = lib
         .load_document_from_bytes(pdf, None)
         .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;
@@ -408,7 +406,7 @@ pub fn locate_in_pdf(pdf: &[u8], req: &LocateRequest) -> Result<LocateResult, Ap
         )));
     }
 
-    let lib = Library::init();
+    let lib = crate::features::pdf::open_library()?;
     let doc = lib
         .load_document_from_bytes(pdf, None)
         .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;
@@ -479,6 +477,96 @@ fn page_size(doc: &liteparse_pdfium::Document<'_>, page_index: i32) -> Option<(f
     let page = doc.page(page_index).ok()?;
     let view_box = page.view_box()?;
     Some(page.viewport_size(&view_box))
+}
+
+/// One page of PDF-user-space rectangles, as Zotero stores them:
+/// `[left, bottom, right, top]`, origin at the page's lower-left.
+#[derive(Debug, Clone)]
+pub struct PdfUserRects {
+    pub page_index: i32,
+    pub rects: Vec<[f32; 4]>,
+}
+
+/// Those rectangles after the same viewport transform the viewer uses
+/// (top-left origin, y down, normalized to the page box).
+#[derive(Debug, Clone)]
+pub struct ViewportMarkup {
+    pub page_width: f32,
+    pub page_height: f32,
+    pub rects: Vec<NormRect>,
+}
+
+/// Map Zotero highlight rectangles into the viewer's page space.
+///
+/// Opens the PDF once. A page that cannot be read comes back with empty
+/// `rects` so the caller can fall back to text search. Rotation and a
+/// MediaBox whose origin is not `(0, 0)` go through PDFium; do not flip Y
+/// by hand.
+pub fn map_pdf_user_rects(
+    pdf: &[u8],
+    groups: &[PdfUserRects],
+) -> Result<Vec<ViewportMarkup>, AppError> {
+    let lib = crate::features::pdf::open_library()?;
+    let doc = lib
+        .load_document_from_bytes(pdf, None)
+        .map_err(|e| AppError::message(format!("open pdf: {e:?}")))?;
+    let page_count = doc.page_count();
+    let mut out = Vec::with_capacity(groups.len());
+    for group in groups {
+        let empty = ViewportMarkup {
+            page_width: 0.0,
+            page_height: 0.0,
+            rects: Vec::new(),
+        };
+        if group.page_index < 0 || group.page_index >= page_count {
+            out.push(empty);
+            continue;
+        }
+        let Ok(page) = doc.page(group.page_index) else {
+            out.push(empty);
+            continue;
+        };
+        let Some(view_box) = page.view_box() else {
+            out.push(empty);
+            continue;
+        };
+        let (page_width, page_height) = page.viewport_size(&view_box);
+        if page_width <= 0.0 || page_height <= 0.0 {
+            out.push(empty);
+            continue;
+        }
+        let mut rects = Vec::new();
+        for raw in &group.rects {
+            let [left, bottom, right, top] = *raw;
+            if right <= left || top <= bottom {
+                continue;
+            }
+            let page_bounds = RectF {
+                left,
+                top,
+                right,
+                bottom,
+            };
+            let v = page.bounds_to_viewport(&view_box, &page_bounds);
+            let w = (v.right - v.left) / page_width;
+            let h = (v.bottom - v.top) / page_height;
+            if w <= 0.0 || h <= 0.0 {
+                continue;
+            }
+            rects.push(NormRect {
+                x: clamp01(v.left / page_width),
+                y: clamp01(v.top / page_height),
+                w: clamp01(w),
+                h: clamp01(h),
+            });
+        }
+        out.push(ViewportMarkup {
+            page_width,
+            page_height,
+            rects,
+        });
+    }
+    Ok(out)
 }
 
 fn locate_in_page(
@@ -573,6 +661,30 @@ fn locate_in_page(
 mod tests {
     use super::*;
     use crate::features::pdf::tiny_pdf;
+
+    #[test]
+    fn maps_zotero_user_space_rects_to_top_left() {
+        // tiny_pdf is MediaBox [0 0 200 100], unrotated.
+        // [left, bottom, right, top] = [20, 50, 80, 70]
+        // viewport y = 100 - 70 = 30, so normalized y = 0.3.
+        let pdf = tiny_pdf("Hello");
+        let mapped = map_pdf_user_rects(
+            &pdf,
+            &[PdfUserRects {
+                page_index: 0,
+                rects: vec![[20.0, 50.0, 80.0, 70.0]],
+            }],
+        )
+        .expect("map");
+        assert_eq!(mapped.len(), 1);
+        assert!((mapped[0].page_width - 200.0).abs() < 0.5);
+        assert!((mapped[0].page_height - 100.0).abs() < 0.5);
+        let r = mapped[0].rects[0];
+        assert!((r.x - 0.1).abs() < 0.02, "x {}", r.x);
+        assert!((r.y - 0.3).abs() < 0.02, "y {}", r.y);
+        assert!((r.w - 0.3).abs() < 0.02, "w {}", r.w);
+        assert!((r.h - 0.2).abs() < 0.02, "h {}", r.h);
+    }
 
     #[test]
     fn folds_whitespace_runs_and_maps_back() {
@@ -726,7 +838,7 @@ mod tests {
     /// PDF user space (bottom-left origin). Only valid for unrotated pages.
     fn text_inside(pdf: &[u8], hit: &LocateMatch, rect_index: usize) -> String {
         let r = hit.rects[rect_index];
-        let lib = Library::init();
+        let lib = crate::features::pdf::open_library().unwrap();
         let doc = lib
             .load_document_from_bytes(pdf, None)
             .expect("open pdf for round trip");

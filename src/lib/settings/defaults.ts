@@ -1,3 +1,4 @@
+import { DEFAULT_EASY_SCHOLAR_RANKS } from "@/lib/paper/easy-scholar-ranks";
 import { DEFAULT_LAYOUT_SETTINGS } from "@/lib/pdf/layout/settings";
 import type {
 	AppSettings,
@@ -32,12 +33,18 @@ export const DEFAULT_EMBEDDING_SETTINGS: EmbeddingSettings = {
 export const DEFAULT_DECISION_BASE_URL = "https://api.typesafe.ai/v1/systemone";
 export const DEFAULT_DECISION_MODEL = "jev-latest";
 
+export const SMART_HIGHLIGHT_CONCURRENCY_CHOICES = [1, 2, 4, 16] as const;
+export const SMART_HIGHLIGHT_TIMEOUT_MIN_SECS = 30;
+export const SMART_HIGHLIGHT_TIMEOUT_MAX_SECS = 600;
+
 export const DEFAULT_DECISION_SETTINGS: DecisionSettings = {
 	provider: "jev",
 	apiKey: "",
 	baseUrl: DEFAULT_DECISION_BASE_URL,
 	model: DEFAULT_DECISION_MODEL,
 	smartHighlight: false,
+	smartHighlightConcurrency: 16,
+	smartHighlightTimeoutSecs: 120,
 };
 
 /** Default OpenAI Decisions endpoint + model. */
@@ -141,10 +148,13 @@ export function clampEditorLineHeight(value: number): number {
 export const DEFAULT_SETTINGS: AppSettings = {
 	shortcutOverrides: {},
 	easyScholarKey: "",
+	easyScholarRanks: [...DEFAULT_EASY_SCHOLAR_RANKS],
 	zhihuAccessSecret: "",
 	institutionProxyPrefix: "",
 	institutionProxyCookie: "",
 	institutionProxyType: "auto",
+	openreviewCookie: "",
+	openreviewCookieExpiresAt: 0,
 	networkProxyEnabled: false,
 	networkProxyUrl: DEFAULT_NETWORK_PROXY_URL,
 	paperTreeLabelMode: "title-author",
@@ -153,10 +163,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	terminalApp: "",
 	pdfScrollStrategy: "vertical",
 	pdfVimKeys: true,
-	vimMode: true,
+	vimMode: false,
 	hintModeEnabled: true,
 	soundEnabled: true,
 	pdfSpreadMode: "none",
+	pdfTranslateTab: "hover",
 	paperNoteMode: "standard",
 	autoOpenPaperNotes: true,
 	autoIngest: true,
@@ -167,6 +178,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	mcpEnabled: false,
 	mcpPort: 8765,
 	mcpExposePaperText: false,
+	mcpAllowWrite: false,
+	mcpAllowOnline: false,
 	mcpTunnelId: "",
 	mcpTunnelApiKey: "",
 	zoteroSyncDir: "",

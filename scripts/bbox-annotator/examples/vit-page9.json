@@ -1,0 +1,56 @@
+{
+	"schemaVersion": 1,
+	"rulesVersion": "1.0.0",
+	"taskId": "assigned-when-packaging",
+	"pdfSha256": "8ce7b83971a14508ca711a27c875c9b6914c4f6767cf3150fb1ca6c07aa056d6",
+	"annotator": "Codex · teaching example (human review pending)",
+	"reviewer": "",
+	"acknowledged": true,
+	"stage": "draft",
+	"updatedAt": "2026-11-15T00:00:00.000Z",
+	"reviewNote": "",
+	"pages": [{ "pageIndex": 8, "state": "done" }],
+	"objects": [
+		{
+			"id": "vit-figure-7",
+			"kind": "figure",
+			"identifier": "Figure 7",
+			"captionStatus": "present",
+			"multipanel": true,
+			"uncertain": false,
+			"note": "One Figure 7, three semantic panels (Left / Center / Right). The left filter montage and central similarity grid each count as one panel, not one panel per tile. Include axis labels, color bar, legend, and internal titles. Caption is separate; the body paragraph below is excluded. Teaching example drawn on arXiv:2010.11929v2 page 9; not independently reviewed benchmark gold.",
+			"regions": [
+				{
+					"id": "vit-fig7-body",
+					"pageIndex": 8,
+					"role": "body",
+					"bbox": { "x": 0.175245, "y": 0.116162, "w": 0.642974, "h": 0.145202 }
+				},
+				{
+					"id": "vit-fig7-left",
+					"pageIndex": 8,
+					"role": "panel",
+					"bbox": { "x": 0.175245, "y": 0.116162, "w": 0.247549, "h": 0.129419 }
+				},
+				{
+					"id": "vit-fig7-center",
+					"pageIndex": 8,
+					"role": "panel",
+					"bbox": { "x": 0.44281, "y": 0.130051, "w": 0.189543, "h": 0.131313 }
+				},
+				{
+					"id": "vit-fig7-right",
+					"pageIndex": 8,
+					"role": "panel",
+					"bbox": { "x": 0.646242, "y": 0.130051, "w": 0.171977, "h": 0.131313 }
+				},
+				{
+					"id": "vit-fig7-caption",
+					"pageIndex": 8,
+					"role": "caption",
+					"bbox": { "x": 0.175245, "y": 0.275884, "w": 0.650327, "h": 0.068813 }
+				}
+			]
+		}
+	]
+}

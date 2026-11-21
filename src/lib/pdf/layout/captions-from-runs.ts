@@ -4,7 +4,7 @@ import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
 type CaptionTextRun = Pick<PdfTextRun, "text" | "rect"> &
-	Partial<Pick<PdfTextRun, "charIndex" | "charCount">>;
+	Partial<Pick<PdfTextRun, "charIndex" | "charCount" | "fontSize">>;
 
 function numberedCaptionKey(text: string): string | null {
 	const table = text.trim().match(/^tab(?:le)?\.?\s*(\d+)\s*[:.|]\s+\S/iu);
@@ -83,6 +83,7 @@ function captionLines(runs: CaptionTextRun[]): Line[] {
 			y: anchor?.rect.origin.y ?? r.rect.origin.y,
 			width: r.rect.size.width,
 			height: anchor?.rect.size.height ?? r.rect.size.height,
+			size: anchor?.fontSize ?? r.fontSize,
 		};
 	})
 		.flatMap((line) => {
@@ -98,7 +99,7 @@ function captionLines(runs: CaptionTextRun[]): Line[] {
 						previous.rect.size.width >
 						Math.max(
 							8,
-							Math.min(run.rect.size.height, previous.rect.size.height),
+							Math.min(run.rect.size.height, previous.rect.size.height) * 0.75,
 						)
 				)
 					groups.push([run]);

@@ -170,3 +170,51 @@ export function fileUiPartsToPromptImages(
 	}
 	return out;
 }
+
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(String(reader.result ?? ""));
+		reader.onerror = () =>
+			reject(reader.error ?? new Error("image read failed"));
+		reader.readAsDataURL(blob);
+	});
+}
+
+/**
+ * Composer attachments are blob URLs until submit. Handoff has to copy the
+ * bytes into the snapshot because the other webview cannot see this one.
+ */
+export async function fileUiPartToPromptImage(file: {
+	url?: string;
+	mediaType?: string;
+}): Promise<PromptImage | null> {
+	const mediaType = file.mediaType?.trim().toLowerCase();
+	if (mediaType && !mediaType.startsWith("image/")) return null;
+	const url = file.url?.trim();
+	if (!url) return null;
+	if (url.startsWith("data:")) return dataUrlToPromptImage(url, mediaType);
+	try {
+		const response = await fetch(url);
+		const blob = await response.blob();
+		const mime = mediaType || blob.type;
+		if (mime && !mime.startsWith("image/")) return null;
+		const dataUrl = await readBlobAsDataUrl(blob);
+		return dataUrlToPromptImage(dataUrl, mime);
+	} catch {
+		return null;
+	}
+}
+
+/** Rebuild a composer attachment from a handoff snapshot image. */
+export function promptImageToFile(image: PromptImage, index = 0): File {
+	const binary = atob(image.data);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i += 1) {
+		bytes[i] = binary.charCodeAt(i);
+	}
+	const subtype = image.mimeType.split("/")[1]?.split("+")[0] || "png";
+	return new File([bytes], `handoff-${index}.${subtype}`, {
+		type: image.mimeType,
+	});
+}

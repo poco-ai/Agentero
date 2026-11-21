@@ -1,7 +1,6 @@
 import {
 	BookOpen,
 	Bot,
-	ChevronRight,
 	Database,
 	Download,
 	Globe,
@@ -25,11 +24,13 @@ import {
 	FileTreeFolderRow,
 	FileTreeIcon,
 	FileTreeName,
-	TREE_ROW_INDENT_STEP_PX,
-	TREE_ROW_INSET_PX,
 	useFileTree,
 } from "@/components/sidebar/file-tree/file-tree-primitives";
 import { TreeRowActionButton } from "@/components/sidebar/tree-row-action-button";
+import {
+	TREE_ROW_INDENT_STEP_PX,
+	TREE_ROW_INSET_PX,
+} from "@/components/sidebar/tree-row-styles";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NewProjectButton } from "@/components/writing/new-project-button";
 import { ProjectSettingsButton } from "@/components/writing/project-settings-button";
@@ -138,16 +139,10 @@ export function PaperTreeRow({
 					onPointerDown={(e) => e.stopPropagation()}
 					onKeyDown={(e) => e.stopPropagation()}
 				>
-					<ScrollText
-						className="size-4 transition-opacity group-hover/attachment:opacity-0 group-focus-visible/attachment:opacity-0"
-						aria-hidden
-					/>
-					<ChevronRight
-						className={cn(
-							"pointer-events-none absolute size-4 opacity-0 transition-[opacity,transform] group-hover/attachment:opacity-100 group-focus-visible/attachment:opacity-100",
-							expanded && "rotate-90",
-						)}
-						aria-hidden
+					<FileTreeDisclosureIcon
+						isExpanded={expanded}
+						revealOn="attachment"
+						icon={<ScrollText className="size-4" aria-hidden />}
 					/>
 				</button>
 			) : (
@@ -288,7 +283,9 @@ export function NodeTreeRow({
 					: {})}
 			>
 				<FileTreeFolderRow
-					openOnLabel={Boolean(project || (rel && lookup.status === "error"))}
+					openOnLabel={Boolean(
+						isAgentRoot || project || (rel && lookup.status === "error"),
+					)}
 					expandOnOpen={Boolean(project)}
 					path={node.path}
 					style={treeRowIndentStyle(depth)}
@@ -413,16 +410,10 @@ function SkillTreeRow({
 						onPointerDown={(e) => e.stopPropagation()}
 						onKeyDown={(e) => e.stopPropagation()}
 					>
-						<Sparkles
-							className="size-4 transition-opacity group-hover/skill:opacity-0 group-focus-visible/skill:opacity-0"
-							aria-hidden
-						/>
-						<ChevronRight
-							className={cn(
-								"pointer-events-none absolute size-4 opacity-0 transition-[opacity,transform] group-hover/skill:opacity-100 group-focus-visible/skill:opacity-100",
-								expanded && "rotate-90",
-							)}
-							aria-hidden
+						<FileTreeDisclosureIcon
+							isExpanded={expanded}
+							revealOn="skill"
+							icon={<Sparkles className="size-4" aria-hidden />}
 						/>
 					</button>
 				) : (

@@ -189,6 +189,11 @@ export function getScrollSyncElement(docId: string): HTMLElement | null {
 	return scrollElements.get(syncKey(docId))?.element ?? null;
 }
 
+/** A gesture's final anchor supersedes the zoom plugin's queued scroll. */
+export function cancelPendingViewportScroll(docId: string): void {
+	scrollElements.get(syncKey(docId))?.cancelPendingScroll();
+}
+
 function isNear(
 	element: HTMLElement,
 	position: { x: number; y: number },

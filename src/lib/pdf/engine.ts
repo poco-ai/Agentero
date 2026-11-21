@@ -69,7 +69,10 @@ export async function createPdfEngine(
 				typeof document === "undefined"
 					? pdfiumWasmUrl
 					: new URL(pdfiumWasmUrl, document.baseURI).href;
-			worker = createPdfiumEngine(wasmUrl, { fontFallback });
+			worker = createPdfiumEngine(wasmUrl, {
+				fontFallback,
+				encoderPoolSize: 1,
+			});
 			await waitWorkerReady(worker as WorkerPdfEngine, signal);
 			return worker;
 		} catch (error) {
@@ -86,7 +89,10 @@ export async function createPdfEngine(
 		"@embedpdf/engines/pdfium-direct-engine"
 	);
 	signal?.throwIfAborted();
-	const engine = await createPdfiumEngine(pdfiumWasmUrl, { fontFallback });
+	const engine = await createPdfiumEngine(pdfiumWasmUrl, {
+		fontFallback,
+		encoderPoolSize: 1,
+	});
 	if (signal?.aborted) {
 		destroyPdfEngine(engine);
 		signal.throwIfAborted();

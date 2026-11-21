@@ -5,13 +5,13 @@
 
 use crate::core::process::SanitizeAppImageEnv;
 use crate::features::agent::registry::discovery::resolve_command;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::util::MatchDispatchFrom;
+use agent_client_protocol::v1::schema::{
     CreateTerminalRequest, CreateTerminalResponse, EnvVariable, KillTerminalRequest,
     KillTerminalResponse, ReleaseTerminalRequest, ReleaseTerminalResponse, TerminalExitStatus,
     TerminalId, TerminalOutputRequest, TerminalOutputResponse, WaitForTerminalExitRequest,
     WaitForTerminalExitResponse,
 };
-use agent_client_protocol::util::MatchDispatchFrom;
 use agent_client_protocol::{Agent, ConnectionTo, Dispatch, HandleDispatchFrom, Handled};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -31,6 +31,7 @@ const OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_millis(250);
 pub struct AcpTerminalManager {
     terminals: HashMap<String, Arc<AcpTerminal>>,
     default_cwd: Option<PathBuf>,
+    turn: Option<(String, bool)>,
 }
 
 struct AcpTerminal {
@@ -97,6 +98,7 @@ impl AcpTerminalManager {
         Self {
             terminals: HashMap::new(),
             default_cwd: None,
+            turn: None,
         }
     }
 
@@ -104,7 +106,12 @@ impl AcpTerminalManager {
         Self {
             terminals: HashMap::new(),
             default_cwd: Some(cwd),
+            turn: None,
         }
+    }
+
+    pub(crate) fn bind_turn(&mut self, turn: Option<(String, bool)>) {
+        self.turn = turn;
     }
 
     /// Spawn a command and return its terminal id.
@@ -138,6 +145,12 @@ impl AcpTerminalManager {
         // Agent terminals run user tools (node, git, package managers) inside
         // whatever environment launched Agentero; never leak an AppImage's
         // loader paths into them (#1002).
+        if let Some((token, scoped)) = &self.turn {
+            cmd.env(agentero_core::features::context::TURN_ENV, token);
+            if *scoped {
+                cmd.env(agentero_core::features::context::CLI_GRANT_ENV, token);
+            }
+        }
         cmd.sanitize_appimage_env();
 
         let mut child = cmd
@@ -641,42 +654,39 @@ mod tests {
         let id = manager.create(request).unwrap().terminal_id;
         let terminal = manager.get(&id).unwrap();
         let host = Client
-            .builder()
+            .v1()
             .with_handler(AcpTerminalHandler::new(Arc::new(Mutex::new(manager))));
-        let run =
-            Agent
-                .builder()
-                .connect_with(host, async move |connection: ConnectionTo<Client>| {
-                    let wait = connection
-                        .send_request(WaitForTerminalExitRequest::new(
-                            "session-dispatch",
-                            id.clone(),
-                        ))
-                        .block_task();
-                    let stop = async {
-                        let output = connection
-                            .send_request(TerminalOutputRequest::new(
-                                "session-dispatch",
-                                id.clone(),
-                            ))
-                            .block_task()
-                            .await?;
-                        assert!(output.exit_status.is_none());
-                        connection
-                            .send_request(KillTerminalRequest::new("session-dispatch", id.clone()))
-                            .block_task()
-                            .await?;
-                        connection
-                            .send_request(ReleaseTerminalRequest::new("session-dispatch", id))
-                            .block_task()
-                            .await?;
-                        Ok::<_, agent_client_protocol::Error>(())
-                    };
-                    let (wait, stop) = tokio::join!(wait, stop);
-                    wait?;
-                    stop?;
-                    Ok(())
-                });
+        let run = Agent.v1().connect_with(
+            host,
+            async move |connection: agent_client_protocol::v1::ConnectionTo<Client>| {
+                let wait = connection
+                    .send_request(WaitForTerminalExitRequest::new(
+                        "session-dispatch",
+                        id.clone(),
+                    ))
+                    .block_task();
+                let stop = async {
+                    let output = connection
+                        .send_request(TerminalOutputRequest::new("session-dispatch", id.clone()))
+                        .block_task()
+                        .await?;
+                    assert!(output.exit_status.is_none());
+                    connection
+                        .send_request(KillTerminalRequest::new("session-dispatch", id.clone()))
+                        .block_task()
+                        .await?;
+                    connection
+                        .send_request(ReleaseTerminalRequest::new("session-dispatch", id))
+                        .block_task()
+                        .await?;
+                    Ok::<_, agent_client_protocol::Error>(())
+                };
+                let (wait, stop) = tokio::join!(wait, stop);
+                wait?;
+                stop?;
+                Ok(())
+            },
+        );
         let result = timeout(Duration::from_secs(5), run).await;
         // Clean up through the controller even if the protocol dispatcher stalls.
         timeout(Duration::from_secs(2), terminal.kill())

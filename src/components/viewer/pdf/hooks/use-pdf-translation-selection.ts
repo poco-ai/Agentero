@@ -14,11 +14,18 @@ import { type RefObject, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	anchorFromEmbedSelection,
-	EMBED_PAGE_ATTR,
 	pageElByIndex,
 	rectBottomCenterScreen,
 } from "@/components/viewer/pdf/coords";
+import {
+	translationPageFrames,
+	useTranslationSelectionBands,
+} from "@/components/viewer/pdf/hooks/use-translation-selection-bands";
 import { clearDomSelectionInside } from "@/components/viewer/pdf/host-dom";
+import {
+	holdLayoutSentenceHover,
+	sentenceForActivation,
+} from "@/components/viewer/pdf/layout-sentence-hover";
 import type { SelectionMenuState } from "@/components/viewer/pdf/types";
 import {
 	selectionFocusRect,
@@ -34,14 +41,10 @@ import {
 	translationSelectionFromHits,
 	translationTextFromRange,
 } from "@/lib/pdf/layout/layout-sentence-selection";
-import {
-	clearTranslationSelectionBands,
-	publishTranslationSelectionBands,
-} from "@/lib/pdf/layout/translation-selection-bands";
+import { clearTranslationSelectionBands } from "@/lib/pdf/layout/translation-selection-bands";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import {
-	mergeClientRectsIntoLines,
-	type PageFrame,
+	translatedSelectionLineRects,
 	visibleMenuPoint,
 	visiblePagesFromClientRects,
 } from "@/lib/pdf/layout/visible-selection-rects";
@@ -73,10 +76,6 @@ export type UsePdfTranslationSelectionOptions = {
 	paperAbsPath: string | null;
 };
 
-function rangeElement(node: Node): Element | null {
-	return node instanceof Element ? node : node.parentElement;
-}
-
 function caretInsideLayoutItem(host: HTMLElement | null): boolean {
 	if (!host) return false;
 	const selection = window.getSelection();
@@ -84,24 +83,6 @@ function caretInsideLayoutItem(host: HTMLElement | null): boolean {
 	if (!node) return false;
 	const el = node instanceof Element ? node : node.parentElement;
 	return Boolean(el && host.contains(el) && el.closest("[data-layout-item]"));
-}
-
-function pageFrames(host: HTMLElement): PageFrame[] {
-	const frames: PageFrame[] = [];
-	for (const el of host.querySelectorAll<HTMLElement>(`[${EMBED_PAGE_ATTR}]`)) {
-		const pageIndex = Number(el.getAttribute(EMBED_PAGE_ATTR));
-		if (!Number.isInteger(pageIndex)) continue;
-		const box = el.getBoundingClientRect();
-		if (box.width <= 0 || box.height <= 0) continue;
-		frames.push({
-			pageIndex,
-			left: box.left,
-			top: box.top,
-			width: box.width,
-			height: box.height,
-		});
-	}
-	return frames;
 }
 
 function hostRange(host: HTMLElement): Range | null {
@@ -224,6 +205,7 @@ export function usePdfTranslationSelection({
 	const langRef = useRef(i18n.language);
 	langRef.current = i18n.language;
 	const genRef = useRef(0);
+	useTranslationSelectionBands(docId, hostRef, enabled);
 
 	useEffect(() => {
 		if (enabled || !menuRef.current?.fromTranslation) return;
@@ -231,10 +213,7 @@ export function usePdfTranslationSelection({
 	}, [enabled, closeSelectionMenu]);
 
 	useEffect(() => {
-		if (!enabled) {
-			clearTranslationSelectionBands(docId);
-			return;
-		}
+		if (!enabled) return;
 		const host = hostRef.current;
 		if (!host) return;
 		let disposed = false;
@@ -242,15 +221,12 @@ export function usePdfTranslationSelection({
 		let pointerDown = false;
 		let releaseDrag: (() => void) | null = null;
 		let releaseFrame = 0;
-		let bandFrame = 0;
 		const inflight = new Set<number>();
 		const reset = () => {
 			genRef.current += 1;
 			pointerDown = false;
 			inflight.clear();
-			if (bandFrame) cancelAnimationFrame(bandFrame);
 			if (releaseFrame) cancelAnimationFrame(releaseFrame);
-			bandFrame = 0;
 			releaseFrame = 0;
 			clearTranslationSelectionBands(docId);
 			releaseDrag?.();
@@ -361,9 +337,9 @@ export function usePdfTranslationSelection({
 						quote: resolved.quote,
 						trigger: "selection" as const,
 					};
-					const frames = pageFrames(root);
+					const frames = translationPageFrames(root);
 					const visiblePages = visiblePagesFromClientRects(
-						mergeClientRectsIntoLines(Array.from(live.getClientRects())),
+						translatedSelectionLineRects(root, live),
 						frames,
 					);
 					const pageEl = pageElByIndex(root, pageIndex);
@@ -452,53 +428,48 @@ export function usePdfTranslationSelection({
 			commit();
 			scheduleReleaseDrag();
 		};
-		// One rectangle per line. Reflow places one absolute box per character
-		// above the raster; painting ::selection on each of those boxes stacks
-		// in the seam. The band covers a reflow drag too.
-		const publishBands = () => {
-			if (!visible) return;
-			const root = hostRef.current;
-			const selection = window.getSelection();
-			if (
-				!root ||
-				!selection ||
-				selection.isCollapsed ||
-				selection.rangeCount === 0
-			) {
-				clearTranslationSelectionBands(docId);
-				return;
-			}
-			const range = selection.getRangeAt(0);
-			const anchor = rangeElement(range.startContainer);
-			const focus = rangeElement(range.endContainer);
-			const inside = (el: Element | null) =>
-				Boolean(el && root.contains(el) && el.closest("[data-layout-item]"));
-			if (!inside(anchor) && !inside(focus)) {
-				clearTranslationSelectionBands(docId);
-				return;
-			}
-			publishTranslationSelectionBands(
-				docId,
-				visiblePagesFromClientRects(
-					mergeClientRectsIntoLines(Array.from(range.getClientRects())),
-					pageFrames(root),
-				),
-			);
-		};
-		const scheduleBands = () => {
-			if (bandFrame) return;
-			bandFrame = requestAnimationFrame(() => {
-				bandFrame = 0;
-				publishBands();
-			});
-		};
 		const onSelectionChange = () => {
 			if (!visible) return;
-			scheduleBands();
 			if (pointerDown) return;
 			commit();
 		};
 
+		const onDoubleClick = (event: MouseEvent) => {
+			const target = event.target instanceof Element ? event.target : null;
+			const sentence = target?.closest("[data-sentence]");
+			if (
+				!sentence ||
+				!host.contains(sentence) ||
+				!sentence.closest("[data-layout-item]")
+			)
+				return;
+			event.preventDefault();
+			event.stopPropagation();
+			const item = sentence.closest<HTMLElement>("[data-layout-item]");
+			const page = sentence.closest<HTMLElement>("[data-embed-pdf-page]");
+			if (item && page) {
+				sentenceForActivation({
+					docId,
+					regionId: item.dataset.layoutItem ?? "",
+					pageIndex: Number(page.getAttribute("data-embed-pdf-page")),
+					x: 0,
+					y: 0,
+					span: {
+						itemId: item.dataset.layoutItem ?? "",
+						sentenceIndex: Number(sentence.getAttribute("data-sentence")),
+					},
+				});
+				holdLayoutSentenceHover(docId);
+			}
+			const range = document.createRange();
+			range.selectNodeContents(sentence);
+			const selection = window.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+			pointerDown = false;
+			commit();
+		};
+		host.addEventListener("dblclick", onDoubleClick, true);
 		host.addEventListener("pointerdown", onPointerDown);
 		host.addEventListener("pointerup", onPointerUp, true);
 		host.addEventListener("pointercancel", onPointerUp, true);
@@ -507,6 +478,7 @@ export function usePdfTranslationSelection({
 			disposed = true;
 			observer?.disconnect();
 			reset();
+			host.removeEventListener("dblclick", onDoubleClick, true);
 			host.removeEventListener("pointerdown", onPointerDown);
 			host.removeEventListener("pointerup", onPointerUp, true);
 			host.removeEventListener("pointercancel", onPointerUp, true);

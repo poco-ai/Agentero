@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dedupeLayoutRegions } from "@/lib/pdf/layout/dedupe";
+import { isFigureLayoutKind } from "@/lib/pdf/layout/labels";
 import {
 	bboxFullyContains,
 	mergeCaptionsIntoHosts,
@@ -31,7 +32,11 @@ function box(
 	};
 }
 const figures = (regions: PdfLayoutRegion[]) =>
-	dedupeLayoutRegions(mergeCaptionsIntoHosts(regions));
+	dedupeLayoutRegions(
+		mergeCaptionsIntoHosts(regions).filter((region) =>
+			isFigureLayoutKind(region.kind),
+		),
+	);
 
 describe("figure aggregation regressions", () => {
 	it("preserves both rows in the right column when the left caption is higher", () => {

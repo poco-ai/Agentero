@@ -184,6 +184,9 @@ impl Telemetry {
             if let Some(qty) = proj.qty {
                 let _ = event.insert_prop("qty", qty);
             }
+            if let Some(bucket) = proj.token_bucket {
+                let _ = event.insert_prop("token_bucket", bucket);
+            }
             if let Some(bucket) = proj.dur_bucket {
                 let _ = event.insert_prop("dur_bucket", bucket);
             }

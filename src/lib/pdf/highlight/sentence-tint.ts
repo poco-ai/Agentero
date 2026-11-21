@@ -8,14 +8,18 @@
 
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 import type { HighlightQuoteTint } from "@/lib/pdf/highlight/translated-geometry";
-import type { PdfHighlightRect } from "@/lib/pdf/highlight/types";
+import type {
+	PdfHighlightRect,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import { sentenceIndexesCoveredByQuote } from "@/lib/pdf/layout/layout-sentences";
 import { isLayoutTranslateItemPainted } from "@/lib/pdf/layout/layout-translate-reliable";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 
-/** Sentence-level tint: the color to paint plus the owning highlight. */
+/** Sentence-level tint: the color and shape to paint plus the owning highlight. */
 export type TranslateSentenceTint = {
 	color: HighlightColor;
+	shape: PdfTextMarkupKind;
 	highlightId: string;
 };
 
@@ -110,7 +114,11 @@ export function sentenceHighlightTints(options: {
 			});
 			for (const index of matchedIndexes) {
 				if (!tints.has(index)) {
-					tints.set(index, { color: quote.color, highlightId: quote.id });
+					tints.set(index, {
+						color: quote.color,
+						shape: quote.shape,
+						highlightId: quote.id,
+					});
 				}
 			}
 		}

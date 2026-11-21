@@ -5,6 +5,8 @@ use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewUrl, WebviewWindowB
 
 use crate::core::log_util::OpTimer;
 
+use super::singleton::create_gate;
+
 // Settings store is only used for macOS traffic-light y scaling.
 #[cfg(target_os = "macos")]
 use crate::features::system::settings::AppSettingsStore;
@@ -25,8 +27,7 @@ pub const SETTINGS_SECTION_REQUESTED_EVENT: &str = "settings:section-requested";
 pub const SETTINGS_VAULT_REQUESTED_EVENT: &str = "settings:vault-requested";
 
 /// Broadcast when a singleton child window closes (or fails to build).
-/// Wire naming follows docs/architecture.md (`domain:event`);
-/// this is a window signal, not a lifecycle fact event.
+/// This window signal uses the `domain:event` convention.
 pub const WINDOW_CLOSED_EVENT: &str = "window:closed";
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -54,7 +55,7 @@ pub fn emit_window_closed(app: &AppHandle, kind: &str, view: Option<&str>) {
 /// applied to the window state before the next one reads it. macOS and Linux
 /// keep plain `set_focus` — their implementations already deminiaturize and
 /// raise the window.
-fn raise_existing_window(window: &tauri::WebviewWindow) {
+pub(crate) fn raise_existing_window(window: &tauri::WebviewWindow) {
     #[cfg(windows)]
     {
         let win = window.clone();
@@ -177,6 +178,10 @@ pub async fn settings_window_open(
     vault_path: Option<String>,
 ) -> Result<(), String> {
     let op = OpTimer::start("settings_window_open");
+    // Hold across the existence check and `build`: the label is only
+    // registered once the window exists, so two overlapping calls would both
+    // pass the check and each build a titled window.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
         if let Some(section) = section {
@@ -218,8 +223,8 @@ pub async fn settings_window_open(
     let mut builder =
         WebviewWindowBuilder::new(&app, SETTINGS_WINDOW_LABEL, WebviewUrl::App(url.into()))
             .title("Settings")
-            .inner_size(720.0, 560.0)
-            .min_inner_size(640.0, 480.0)
+            .inner_size(880.0, 640.0)
+            .min_inner_size(760.0, 520.0)
             .resizable(true);
 
     #[cfg(target_os = "macos")]
@@ -309,6 +314,9 @@ pub async fn feature_window_open(
     let op = OpTimer::start("feature_window_open");
     validate_feature_view(&view)?;
     let label = feature_window_label(&view);
+    // Same create-or-focus race as `settings_window_open`: the label only
+    // exists once the window is built.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(&label) {
         raise_existing_window(&win);
@@ -400,6 +408,8 @@ pub async fn doc_window_open(
         return Err("path is required".into());
     }
     let label = doc_window_label(&path);
+    // Same create-or-focus race as `settings_window_open`.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(&label) {
         raise_existing_window(&win);

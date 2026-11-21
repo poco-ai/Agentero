@@ -11,6 +11,7 @@ import {
 	useSettings,
 	useVaultStore,
 } from "@/hooks/use-app-stores";
+import i18n from "@/i18n";
 import { events } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -21,6 +22,7 @@ import {
 	connectorSetParentDir,
 	connectorSetVault,
 } from "@/lib/paper/import/connector";
+import { connectorStatusError } from "@/lib/paper/import/connector-errors";
 import { scheduleLibraryRefresh } from "@/lib/paper/library-store";
 import { joinVaultPath } from "@/lib/vault";
 import { getVaultPath, scheduleTreeRefresh } from "@/lib/vault/store";
@@ -59,8 +61,12 @@ export function useConnectorSync(): void {
 		if (!isTauri()) return;
 		void connectorSetEnabled(connectorEnabled)
 			.then(async (st) => {
-				if (connectorEnabled && st.lastError) {
-					notifyError(st.lastError);
+				const message = connectorStatusError(
+					st,
+					i18n.getFixedT(null, "settings"),
+				);
+				if (connectorEnabled && message) {
+					notifyError(message);
 				}
 				// After the HTTP server starts, re-bind vault (Host may be unbound).
 				if (connectorEnabled && getVaultPath()) {

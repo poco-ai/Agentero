@@ -1,8 +1,18 @@
 /**
  * Multi-selection (Ctrl/Cmd/Shift click), row activation, and the
  * selection-scoped actions (batch delete, cut, paste).
+ *
+ * Selection is kept across background tree refreshes: on every tree identity
+ * change we reconcile the selected paths against the tree that still exists
+ * (see `byPath`), instead of clearing everything. A vault switch resets it.
  */
-import { useCallback, useEffect, useState } from "react";
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { LIBRARY_VIRTUAL_PATH, TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import {
 	isPlazaVirtualPath,
@@ -33,12 +43,13 @@ export type TreeSelection = {
 };
 
 export function useTreeSelection({
-	nodes,
+	vaultPath,
 	selectedPath,
 	selectableOrder,
 	byPath,
 	createDraft,
 	renameDraft,
+	containerRef,
 	onSelectFile,
 	onSelectLibrary,
 	onSelectTrash,
@@ -49,14 +60,15 @@ export function useTreeSelection({
 	onDeletePaths,
 	onCutPaths,
 	onPasteInto,
-	onSelectionChange,
 }: {
-	nodes: FileNode[];
+	vaultPath: string | null;
 	selectedPath: string | null;
 	selectableOrder: string[];
 	byPath: ReadonlyMap<string, FileNode>;
 	createDraft: TreeCreateDraft | null;
 	renameDraft?: TreeRenameDraft | null;
+	/** Tree surface used to scope keyboard shortcuts to the focused tree. */
+	containerRef?: RefObject<HTMLElement | null>;
 	onSelectFile: (node: FileNode) => void;
 	onSelectLibrary?: () => void;
 	onSelectTrash?: () => void;
@@ -68,26 +80,43 @@ export function useTreeSelection({
 	onDeletePaths?: (paths: string[]) => void | Promise<void>;
 	onCutPaths?: (paths: string[]) => void;
 	onPasteInto?: (targetPath: string) => void;
-	onSelectionChange?: (count: number) => void;
 }): TreeSelection {
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [anchor, setAnchor] = useState<string | null>(null);
-
-	// Reset the multi-selection whenever the tree changes (post delete/move).
-	// biome-ignore lint/correctness/useExhaustiveDependencies: reset on nodes change
-	useEffect(() => {
-		setSelected(new Set());
-		setAnchor(null);
-	}, [nodes]);
+	const previousVaultRef = useRef(vaultPath);
 
 	const clearSelection = useCallback(() => {
 		setSelected(new Set());
 		setAnchor(null);
 	}, []);
 
+	// A vault switch starts a new tree; never carry selection across vaults.
 	useEffect(() => {
-		onSelectionChange?.(selected.size);
-	}, [onSelectionChange, selected.size]);
+		if (previousVaultRef.current === vaultPath) return;
+		previousVaultRef.current = vaultPath;
+		setSelected(new Set());
+		setAnchor(null);
+	}, [vaultPath]);
+
+	// Reconcile after every tree identity change instead of clearing: a
+	// background refresh (watcher / remote sync / lazy children) keeps the
+	// paths that still exist.
+	useEffect(() => {
+		setSelected((prev) => {
+			if (prev.size === 0) return prev;
+			const kept: string[] = [];
+			for (const path of prev) {
+				if (isVirtualTreePath(path)) continue;
+				if (byPath.has(path)) kept.push(path);
+			}
+			const normalized = normalizeTreeSelection(kept);
+			const unchanged =
+				normalized.length === prev.size &&
+				normalized.every((path) => prev.has(path));
+			return unchanged ? prev : new Set(normalized);
+		});
+		setAnchor((prev) => (prev && byPath.has(prev) ? prev : null));
+	}, [byPath]);
 
 	const prepareContextSelection = useCallback(
 		(path: string) => {
@@ -142,6 +171,28 @@ export function useTreeSelection({
 		],
 	);
 
+	const toggleSelected = useCallback(
+		(path: string) => {
+			setSelected((prev) => {
+				const next = new Set(prev);
+				// Fold the current open/anchored row into a fresh multi-selection
+				// so the count matches the highlighted rows.
+				if (
+					next.size === 0 &&
+					anchor &&
+					anchor !== path &&
+					selectableOrder.includes(anchor)
+				) {
+					next.add(anchor);
+				}
+				if (next.has(path)) next.delete(path);
+				else next.add(path);
+				return new Set(normalizeTreeSelection(next));
+			});
+		},
+		[anchor, selectableOrder],
+	);
+
 	const handleSelectRow = useCallback(
 		(path: string, mods: RowClickMods) => {
 			if (createDraft || renameDraft) return;
@@ -151,10 +202,10 @@ export function useTreeSelection({
 				return;
 			}
 			if (mods.shift && anchor) {
-				const a = selectableOrder.indexOf(anchor);
-				const b = selectableOrder.indexOf(path);
-				if (a !== -1 && b !== -1) {
-					const [lo, hi] = a <= b ? [a, b] : [b, a];
+				const from = selectableOrder.indexOf(anchor);
+				const to = selectableOrder.indexOf(path);
+				if (from !== -1 && to !== -1) {
+					const [lo, hi] = from <= to ? [from, to] : [to, from];
 					setSelected(
 						new Set(normalizeTreeSelection(selectableOrder.slice(lo, hi + 1))),
 					);
@@ -162,27 +213,12 @@ export function useTreeSelection({
 				}
 			}
 			if (mods.meta || mods.ctrl) {
-				setSelected((prev) => {
-					const next = new Set(prev);
-					// Fold the current open/anchored row into a fresh multi-selection
-					// so the count matches the highlighted rows.
-					if (
-						next.size === 0 &&
-						anchor &&
-						anchor !== path &&
-						selectableOrder.includes(anchor)
-					) {
-						next.add(anchor);
-					}
-					if (next.has(path)) next.delete(path);
-					else next.add(path);
-					return new Set(normalizeTreeSelection(next));
-				});
+				toggleSelected(path);
 				setAnchor(path);
 				return;
 			}
 			// Plain click: drop any multi-selection and open the row.
-			setSelected(new Set());
+			clearSelection();
 			setAnchor(path);
 			openRow(path);
 		},
@@ -190,18 +226,19 @@ export function useTreeSelection({
 			anchor,
 			clearSelection,
 			createDraft,
-			renameDraft,
 			openRow,
+			renameDraft,
 			selectableOrder,
+			toggleSelected,
 		],
 	);
 
 	const orderedSelected = useCallback(() => {
-		const visible = selectableOrder.filter((p) => selected.has(p));
+		const visible = selectableOrder.filter((path) => selected.has(path));
 		const visibleSet = new Set(visible);
 		return normalizeTreeSelection([
 			...visible,
-			...[...selected].filter((p) => !visibleSet.has(p)),
+			...[...selected].filter((path) => !visibleSet.has(path)),
 		]);
 	}, [selectableOrder, selected]);
 
@@ -236,30 +273,34 @@ export function useTreeSelection({
 		}
 	}, [selectedPath, onPasteInto]);
 
-	// Delete / clear the multi-selection via the keyboard.
+	// Escape clears; Delete is scoped to the tree surface so a focused PDF or
+	// Dockview panel never deletes vault files. The tree no longer owns
+	// ⌘⌫ — App routes that single shortcut to batch delete.
 	useEffect(() => {
 		if (selected.size === 0) return;
-		const onKey = (e: KeyboardEvent) => {
-			const el = e.target as HTMLElement | null;
+		const onKey = (event: KeyboardEvent) => {
+			const el = event.target as HTMLElement | null;
 			if (
 				el &&
 				(el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
 			) {
 				return;
 			}
-			if (e.key === "Escape") {
+			if (event.key === "Escape") {
+				event.preventDefault();
 				clearSelection();
-			} else if (
-				e.key === "Delete" ||
-				(e.key === "Backspace" && (e.metaKey || e.ctrlKey))
-			) {
-				e.preventDefault();
+				return;
+			}
+			const withinTree =
+				containerRef?.current?.contains(document.activeElement) ?? false;
+			if (withinTree && event.key === "Delete") {
+				event.preventDefault();
 				runBatchDelete();
 			}
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [selected.size, clearSelection, runBatchDelete]);
+	}, [clearSelection, containerRef, runBatchDelete, selected.size]);
 
 	return {
 		selected,

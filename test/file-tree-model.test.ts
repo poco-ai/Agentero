@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { resolveTreeHighlightPath } from "@/components/sidebar/file-tree/hooks/use-tree-model";
-import { pathKey } from "@/components/sidebar/file-tree/tree-helpers";
+import {
+	fileTreeDisplayName,
+	normalizeTreeSelection,
+	pathKey,
+	vaultRootFace,
+} from "@/components/sidebar/file-tree/tree-helpers";
 import {
 	buildZoteroCollectionReferences,
 	zoteroCollectionReferenceRelPath,
@@ -107,5 +112,70 @@ describe("Zotero collection references", () => {
 		expect(reference && zoteroCollectionReferenceRelPath(reference)).toBe(
 			"papers/Review/attention",
 		);
+	});
+});
+
+describe("fileTreeDisplayName", () => {
+	it("hides markdown and research-table suffixes", () => {
+		expect(fileTreeDisplayName("注意力消融.md")).toBe("注意力消融");
+		expect(fileTreeDisplayName("注意力消融.table.json")).toBe("注意力消融");
+		expect(fileTreeDisplayName("README.MDX")).toBe("README");
+	});
+
+	it("keeps other filenames intact", () => {
+		expect(fileTreeDisplayName("notes")).toBe("notes");
+		expect(fileTreeDisplayName("catalog.json")).toBe("catalog.json");
+		expect(fileTreeDisplayName("paper.pdf")).toBe("paper.pdf");
+	});
+});
+
+describe("normalizeTreeSelection", () => {
+	it("keeps only top-level semantic targets while preserving order", () => {
+		expect(
+			normalizeTreeSelection([
+				"/vault/papers/nlp/paper-a/attachments/supplement.pdf",
+				"/vault/notes/todo.md",
+				"/vault/papers/nlp/paper-a",
+				"/vault/papers/vision/paper-b",
+			]),
+		).toEqual([
+			"/vault/notes/todo.md",
+			"/vault/papers/nlp/paper-a",
+			"/vault/papers/vision/paper-b",
+		]);
+	});
+
+	it("normalizes Windows separators, case, trailing slashes, and duplicates", () => {
+		expect(
+			normalizeTreeSelection([
+				"C:\\Vault\\Papers\\NLP",
+				"c:/vault/papers/nlp/paper-a",
+				"C:/VAULT/PAPERS/NLP/",
+				"C:/Vault/Papers/NLP-Archive",
+			]),
+		).toEqual(["C:\\Vault\\Papers\\NLP", "C:/Vault/Papers/NLP-Archive"]);
+	});
+});
+
+describe("vaultRootFace", () => {
+	it("labels only the three product folders at the vault root", () => {
+		const vault = "/Users/me/Research";
+		expect(vaultRootFace(vault, `${vault}/notes`)).toBe("notes");
+		expect(vaultRootFace(vault, `${vault}/thesis`)).toBe("thesis");
+		expect(vaultRootFace(vault, `${vault}/data`)).toBe("data");
+		expect(vaultRootFace(vault, `${vault}/Notes`)).toBe("notes");
+		expect(vaultRootFace(vault, `${vault}/papers/notes`)).toBeNull();
+		expect(vaultRootFace(vault, `${vault}/my-notes`)).toBeNull();
+		expect(vaultRootFace(vault, `${vault}/thesis-draft`)).toBeNull();
+	});
+
+	it("accepts Windows and remote vault roots", () => {
+		expect(vaultRootFace("C:\\Research", "C:\\Research\\data")).toBe("data");
+		expect(vaultRootFace("remote:abc", "remote:abc/thesis")).toBe("thesis");
+	});
+
+	it("returns null without a vault", () => {
+		expect(vaultRootFace(null, "/Users/me/Research/notes")).toBeNull();
+		expect(vaultRootFace(undefined, "notes")).toBeNull();
 	});
 });

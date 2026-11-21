@@ -27,12 +27,14 @@ function wheelTargetHarness() {
 		hasListener: () => listeners.has("wheel"),
 		dispatch: (init: {
 			deltaY: number;
+			deltaMode?: number;
 			ctrlKey?: boolean;
 			agenteroPinch?: boolean;
 		}) => {
 			const preventDefault = vi.fn();
 			listeners.get("wheel")?.({
 				deltaY: init.deltaY,
+				deltaMode: init.deltaMode ?? 0,
 				ctrlKey: init.ctrlKey ?? false,
 				metaKey: false,
 				cancelable: true,
@@ -89,6 +91,49 @@ describe("PDF wheel zoom gesture binding", () => {
 			wheelDeltaToZoomRatio(-50),
 			10,
 		);
+	});
+
+	it("keeps a zoom gesture alive through brief gaps between wheel bursts", () => {
+		const harness = wheelTargetHarness();
+		const onZoomStart = vi.fn();
+		const onZoomChange = vi.fn();
+		const onZoomEnd = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart,
+			onZoomChange,
+			onZoomEnd,
+		});
+
+		harness.dispatch({ deltaY: -50, ctrlKey: true });
+		vi.advanceTimersByTime(200);
+		harness.dispatch({ deltaY: -50, ctrlKey: true });
+		expect(onZoomStart).toHaveBeenCalledOnce();
+		expect(onZoomEnd).not.toHaveBeenCalled();
+		expect(onZoomChange).toHaveBeenLastCalledWith(
+			expect.closeTo(wheelDeltaToZoomRatio(-50) ** 2, 10),
+		);
+
+		vi.advanceTimersByTime(399);
+		expect(onZoomEnd).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(1);
+		expect(onZoomEnd).toHaveBeenCalledOnce();
+	});
+
+	it("commits discrete wheel ticks without the touchpad idle delay", () => {
+		const harness = wheelTargetHarness();
+		const onZoomEnd = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart: vi.fn(),
+			onZoomChange: vi.fn(),
+			onZoomEnd,
+		});
+		harness.dispatch({ deltaY: -3, deltaMode: 1, ctrlKey: true });
+		vi.advanceTimersByTime(149);
+		expect(onZoomEnd).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(1);
+		expect(onZoomEnd).toHaveBeenCalledOnce();
 	});
 
 	it("starts non-passive so a cold pinch can cancel platform zoom", () => {
@@ -234,6 +279,13 @@ function gestureTargetHarness() {
 }
 
 describe("PDF wheel zoom WebKit gesture binding", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	it("reports the pinch magnification relative to the gesture start", () => {
 		const harness = gestureTargetHarness();
 		const onZoomStart = vi.fn();
@@ -257,7 +309,51 @@ describe("PDF wheel zoom WebKit gesture binding", () => {
 		expect(onZoomChange).toHaveBeenLastCalledWith(1.5);
 
 		harness.dispatch("gestureend", 1.5);
+		expect(onZoomEnd).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(240);
 		expect(onZoomEnd).toHaveBeenCalledTimes(1);
+	});
+
+	it("continues the same preview when a second pinch follows quickly", () => {
+		const harness = gestureTargetHarness();
+		const onZoomStart = vi.fn();
+		const onZoomChange = vi.fn();
+		const onZoomEnd = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart,
+			onZoomChange,
+			onZoomEnd,
+		});
+		harness.dispatch("gesturestart", 1);
+		harness.dispatch("gesturechange", 1.25);
+		harness.dispatch("gestureend", 1.25);
+		vi.advanceTimersByTime(100);
+		harness.dispatch("gesturestart", 1);
+		harness.dispatch("gesturechange", 1.2);
+		expect(onZoomStart).toHaveBeenCalledOnce();
+		expect(onZoomChange).toHaveBeenLastCalledWith(expect.closeTo(1.5, 8));
+		vi.advanceTimersByTime(240);
+		expect(onZoomEnd).not.toHaveBeenCalled();
+		harness.dispatch("gestureend", 1.2);
+		vi.advanceTimersByTime(240);
+		expect(onZoomEnd).toHaveBeenCalledOnce();
+	});
+
+	it("drops a pending pinch commit when disposed", () => {
+		const harness = gestureTargetHarness();
+		const onZoomEnd = vi.fn();
+		const binding = bindZoomGesture({
+			target: harness.target,
+			onZoomStart: vi.fn(),
+			onZoomChange: vi.fn(),
+			onZoomEnd,
+		});
+		harness.dispatch("gesturestart", 1);
+		harness.dispatch("gestureend", 1);
+		binding.dispose();
+		vi.advanceTimersByTime(300);
+		expect(onZoomEnd).not.toHaveBeenCalled();
 	});
 
 	it("resets the scale baseline when the gesture ends", () => {
@@ -273,6 +369,7 @@ describe("PDF wheel zoom WebKit gesture binding", () => {
 		harness.dispatch("gesturestart", 1);
 		harness.dispatch("gesturechange", 2);
 		harness.dispatch("gestureend", 2);
+		vi.advanceTimersByTime(240);
 		onZoomChange.mockClear();
 
 		// A fresh gesture starts from its own baseline, not the previous 2.

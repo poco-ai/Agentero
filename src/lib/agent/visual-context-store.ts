@@ -116,6 +116,17 @@ function absorbUnboundBucket(key: string): void {
 	movePending("", key);
 }
 
+/** Replace one session's unsent visual drafts (cross-window handoff seed). */
+export function seedVisualDraftSession(
+	key: string,
+	drafts: readonly PdfVisualDraft[],
+): void {
+	commitBucket(
+		key,
+		drafts.length === 0 ? EMPTY_DRAFTS : [...drafts].slice(-MAX_DRAFTS),
+	);
+}
+
 /** Show this session's drafts. Other sessions' buckets stay where they are. */
 export function activateVisualDraftSession(key: string): void {
 	if (key !== "" && visualContextStore.getState().activeKey === "") {

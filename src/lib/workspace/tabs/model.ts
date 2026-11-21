@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+import { isZenVirtualPath, ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import {
 	isLibraryVirtualPath,
 	isTrashVirtualPath,
@@ -7,12 +9,18 @@ import {
 import { isPlazaVirtualPath, plazaTitleForPath } from "@/lib/plaza";
 import { isResearchTablePath, TABLE_SUFFIX } from "@/lib/research-table/model";
 import { basenameOf, normalizePathKey } from "@/lib/vault/path";
-import type { DocTab, TabResources } from "@/lib/workspace/tabs/types";
+import type {
+	DocTab,
+	TabPaneKind,
+	TabResources,
+} from "@/lib/workspace/tabs/types";
 import type { CenterViewMode } from "@/lib/workspace/viewer";
 
 export { basenameOf, normalizePathKey as normalizeTabPath };
 
 export const SPLIT_PANE_ID_MARKER = "::pane-";
+export const TRANSLATION_PANE_ID_MARKER = "::translation";
+const VIEW_ID_PREFIX = "view-";
 
 /** Tab label for a file path. Research tables hide the `.table.json` suffix. */
 export function tabTitleForPath(path: string): string {
@@ -22,49 +30,113 @@ export function tabTitleForPath(path: string): string {
 	return stem || base;
 }
 
+/**
+ * Virtual-path id, and the legacy path-shaped id of a restored panel.
+ * New file and paper views do not use this as their panel id.
+ */
 export function tabIdForPath(path: string): string {
 	if (isLibraryVirtualPath(path)) return LIBRARY_VIRTUAL_PATH;
 	if (isTrashVirtualPath(path)) return TRASH_VIRTUAL_PATH;
+	if (isZenVirtualPath(path)) return ZEN_VIRTUAL_PATH;
 	if (isPlazaVirtualPath(path)) return path;
 	return normalizePathKey(path);
 }
 
+function isStableVirtualPath(path: string): boolean {
+	return (
+		isLibraryVirtualPath(path) ||
+		isTrashVirtualPath(path) ||
+		isZenVirtualPath(path) ||
+		isPlazaVirtualPath(path)
+	);
+}
+
+/** True when `id` is the legacy path-shaped canonical id for `path`. */
 export function isCanonicalTabIdForPath(id: string, path: string): boolean {
 	return id === tabIdForPath(path);
 }
 
-export function splitPaneIdForPath(
-	path: string,
-	existingIds: Iterable<string>,
-): string {
-	const base = tabIdForPath(path);
-	const taken = new Set(existingIds);
-	let index = 2;
-	let id = `${base}${SPLIT_PANE_ID_MARKER}${index}`;
-	while (taken.has(id)) {
-		index += 1;
-		id = `${base}${SPLIT_PANE_ID_MARKER}${index}`;
-	}
-	return id;
+export function isOpaqueViewId(id: string): boolean {
+	return id.startsWith(VIEW_ID_PREFIX);
 }
 
-function remapTabIdForPath(
-	id: string,
-	fromPath: string,
-	toPath: string,
-): string {
-	const fromBase = tabIdForPath(fromPath);
-	const toBase = tabIdForPath(toPath);
-	if (id === fromBase) return toBase;
-	if (id.startsWith(`${fromBase}${SPLIT_PANE_ID_MARKER}`)) {
-		return `${toBase}${id.slice(fromBase.length)}`;
+/** New file / paper view id. Not a filesystem path. */
+export function createViewId(): string {
+	const uuid = globalThis.crypto?.randomUUID?.();
+	if (uuid) return `${VIEW_ID_PREFIX}${uuid}`;
+	return `${VIEW_ID_PREFIX}${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
+/** Old panel ids encode the role. New ids carry it on `pane` instead. */
+export function legacyPaneKindFromId(id: string): TabPaneKind | undefined {
+	if (id.includes(SPLIT_PANE_ID_MARKER)) return "split";
+	if (id.includes(TRANSLATION_PANE_ID_MARKER)) return "translation";
+	return undefined;
+}
+
+/**
+ * Path encoded in a legacy panel id.
+ * Opaque `view-` ids are not paths. `::pane-` / `::translation` are stripped.
+ */
+export function legacyPathFromPanelId(id: string): string | null {
+	if (!id || isOpaqueViewId(id)) return null;
+	const paneAt = id.indexOf(SPLIT_PANE_ID_MARKER);
+	const translationAt = id.indexOf(TRANSLATION_PANE_ID_MARKER);
+	let base = id;
+	if (paneAt >= 0 && (translationAt < 0 || paneAt < translationAt)) {
+		base = id.slice(0, paneAt);
+	} else if (translationAt >= 0) {
+		base = id.slice(0, translationAt);
 	}
-	return toBase;
+	if (!base || isOpaqueViewId(base)) return null;
+	if (
+		isStableVirtualPath(base) ||
+		base.includes("/") ||
+		base.includes("\\") ||
+		/^[A-Za-z]:/.test(base)
+	) {
+		return base;
+	}
+	return null;
+}
+
+export function isCanonicalView(tab: { pane?: TabPaneKind | null }): boolean {
+	return tab.pane !== "split" && tab.pane !== "translation";
+}
+
+/**
+ * Canonical view for a path: not a split copy and not a translation pane.
+ * Virtual paths still resolve through {@link tabIdForPath}.
+ */
+export function findCanonicalTab<
+	T extends { id: string; path: string; pane?: TabPaneKind | null },
+>(tabs: readonly T[], path: string): T | undefined {
+	if (!path) return undefined;
+	if (isStableVirtualPath(path)) {
+		const id = tabIdForPath(path);
+		return tabs.find((tab) => tab.id === id);
+	}
+	const key = normalizePathKey(path);
+	return tabs.find(
+		(tab) => normalizePathKey(tab.path) === key && isCanonicalView(tab),
+	);
+}
+
+/** Allocate an opaque id for a new split copy. The path stays on the tab. */
+export function splitPaneIdForPath(
+	_path: string,
+	existingIds: Iterable<string>,
+): string {
+	const taken = new Set(existingIds);
+	let id = createViewId();
+	while (taken.has(id)) id = createViewId();
+	return id;
 }
 
 /** Rewrite one absolute or Vault-relative path under a moved root. */
 export function remapPathUnder(path: string, from: string, to: string): string {
 	if (isLibraryVirtualPath(path) || isTrashVirtualPath(path)) return path;
+	if (isZenVirtualPath(path)) return path;
 	if (isPlazaVirtualPath(path)) return path;
 	const current = path.replace(/\\/g, "/").replace(/\/+$/, "");
 	const oldRoot = from.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -118,7 +190,6 @@ export function remapTabsUnderPath(
 		}
 		return {
 			...tab,
-			id: remapTabIdForPath(tab.id, tab.path, path),
 			path,
 			notesPath,
 			pdfUrl,
@@ -132,51 +203,61 @@ export function remapTabsUnderPath(
 export function createPlaceholderTab(
 	path: string,
 	preferMode: CenterViewMode = "markdown",
-	id = tabIdForPath(path),
+	id?: string,
 ): DocTab {
 	const isLibrary = isLibraryVirtualPath(path);
 	const isTrash = isTrashVirtualPath(path);
+	const isZen = isZenVirtualPath(path);
 	const isPlaza = isPlazaVirtualPath(path);
+	const resolvedId =
+		id ?? (isStableVirtualPath(path) ? tabIdForPath(path) : createViewId());
+	const legacyPane = legacyPaneKindFromId(resolvedId);
 	return {
-		id,
+		id: resolvedId,
+		...(legacyPane ? { pane: legacyPane } : {}),
 		path: isLibrary
 			? LIBRARY_VIRTUAL_PATH
 			: isTrash
 				? TRASH_VIRTUAL_PATH
-				: path,
+				: isZen
+					? ZEN_VIRTUAL_PATH
+					: path,
 		kind: isLibrary
 			? "library"
 			: isTrash
 				? "trash"
-				: isPlaza
-					? "plaza"
-					: "file",
+				: isZen
+					? "zen"
+					: isPlaza
+						? "plaza"
+						: "file",
 		title: isLibrary
 			? "Library"
 			: isTrash
 				? "Recycle Bin"
-				: isPlaza
-					? plazaTitleForPath(path)
-					: tabTitleForPath(path),
+				: isZen
+					? i18n.t("sidebar:zen.title")
+					: isPlaza
+						? plazaTitleForPath(path)
+						: tabTitleForPath(path),
 		mode: preferMode,
 		paperMeta: null,
 		pdfUrl: null,
 		pdfBytes: null,
 		htmlUrl: null,
+		htmlArchivePath: null,
 		imageUrl: null,
 		notesPath: null,
 		notesSeed: "",
 		markdownSeed: "",
-		excalidrawSeed: "",
 		textSeed: "",
 		markdownDirty: false,
 		notesDirty: false,
-		excalidrawDirty: false,
 		textDirty: false,
 		seedKey: 0,
 		notesKey: 0,
-		excalidrawKey: 0,
 		textKey: 0,
+		textEpoch: 0,
 		htmlKey: 0,
 		loaded: false,
 	};
@@ -218,21 +299,36 @@ export function patchFromTabResources(
 		current?.mode === "pdf" &&
 		res.mode === "markdown" &&
 		(current.kind === "paper" || res.kind === "paper");
+	// A translation view shares the paper path, not the source view id.
+	// Hydration must not turn it into a second body, or reuse a blob lease.
+	const keepTranslation = current?.mode === "translation";
+	const pdfUrl =
+		keepTranslation && res.pdfUrl?.startsWith("blob:") ? null : res.pdfUrl;
 	return {
 		kind: res.kind,
 		title: res.title,
-		mode: keepPdfMode ? "pdf" : res.mode,
+		mode: keepTranslation ? "translation" : keepPdfMode ? "pdf" : res.mode,
 		paperMeta: res.paperMeta,
-		pdfUrl: res.pdfUrl,
-		pdfBytes: res.pdfBytes ?? null,
+		pdfUrl,
+		pdfBytes:
+			keepTranslation && res.pdfBytes
+				? res.pdfBytes.slice(0)
+				: (res.pdfBytes ?? null),
 		htmlUrl: res.htmlUrl,
+		htmlArchivePath: res.htmlArchivePath ?? null,
 		imageUrl: res.imageUrl,
 		notesPath: res.notesPath,
 		notesSeed: res.notesSeed,
 		markdownSeed: res.markdownSeed,
-		excalidrawSeed: res.excalidrawSeed ?? "",
 		textSeed: res.textSeed ?? "",
 		seedKey: 1,
+		loadError:
+			current &&
+			res.mode === "markdown" &&
+			res.notesPath &&
+			normalizePathKey(current.path) === normalizePathKey(res.notesPath)
+				? res.error
+				: undefined,
 		loaded: true,
 	};
 }
@@ -243,11 +339,12 @@ export function insertPlaceholderTab(
 	path: string,
 	preferMode: CenterViewMode = "markdown",
 ): { tabs: DocTab[]; id: string; exists: boolean } {
-	const id = tabIdForPath(path);
-	if (prev.some((t) => t.id === id)) return { tabs: prev, id, exists: true };
+	const existing = findCanonicalTab(prev, path);
+	if (existing) return { tabs: prev, id: existing.id, exists: true };
+	const tab = createPlaceholderTab(path, preferMode);
 	return {
-		tabs: [...prev, createPlaceholderTab(path, preferMode)],
-		id,
+		tabs: [...prev, tab],
+		id: tab.id,
 		exists: false,
 	};
 }
@@ -290,6 +387,15 @@ export function removeTab(
 	const removed = prev[idx] ?? null;
 	const tabs = prev.filter((t) => t.id !== id);
 	return { tabs, removed };
+}
+
+/**
+ * Tab list after moving one view into a document window.
+ * Only `viewId` leaves. A paper body's NOTES companion is a different id
+ * and stays; this must not use `readingPairCloseIds`.
+ */
+export function tabsAfterMovedView(tabs: DocTab[], viewId: string): DocTab[] {
+	return removeTab(tabs, viewId).tabs;
 }
 
 /** Remove every tab at or under `path`; Library/Trash/Plaza virtual tabs are kept. */

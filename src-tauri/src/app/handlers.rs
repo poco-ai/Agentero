@@ -18,10 +18,12 @@ macro_rules! common_commands {
             crate::features::system::settings::commands::institution_proxy_probe,
             crate::features::system::settings::commands::institution_proxy_presets,
             crate::features::system::settings::commands::institution_proxy_login_open,
+            crate::features::system::settings::commands::openreview_auth_login_open,
             crate::features::system::builtin::builtin_provider_status,
             crate::features::decision::commands::decision_gateway_decide,
             crate::features::paper::analyze::layout::model_assets::commands::layout_model_status,
             crate::features::paper::analyze::layout::hosted::commands::layout_remote_analyze_pdf,
+            crate::features::paper::analyze::layout::hosted::commands::layout_remote_cancel,
             crate::features::paper::analyze::layout::hosted::commands::layout_remote_probe,
             crate::features::agent::commands::agent_list_agents,
             crate::features::agent::commands::agent_list_skills,
@@ -40,12 +42,13 @@ macro_rules! common_commands {
             crate::features::system::network::commands::doctor_check_network,
             crate::features::system::desktop_apps::commands::desktop_apps_probe,
             crate::features::system::desktop_apps::commands::desktop_app_open,
+            crate::features::agent::commands::agent_rebind_event_window,
             crate::features::agent::commands::agent_cancel_run,
             crate::features::jobs::commands::job_parse_refs_enqueue,
             crate::features::jobs::commands::job_parse_body_enqueue,
             crate::features::jobs::commands::job_layout_analyze_enqueue,
             crate::features::jobs::commands::job_layout_translate_enqueue,
-            crate::features::jobs::commands::job_layout_translate_claim,
+            crate::features::jobs::commands::job_renderer_claim,
             crate::features::jobs::commands::job_download_assets_enqueue,
             crate::features::jobs::commands::job_import_enqueue,
             crate::features::jobs::commands::job_connector_sync_enqueue,
@@ -70,6 +73,11 @@ macro_rules! common_commands {
             crate::features::agent::commands::agent_respond_elicitation,
             crate::features::agent::commands::agent_respond_ask_user,
             crate::features::agent::commands::agent_resolve_citation,
+            crate::features::agent::commands::agent_resolve_evidence,
+            #[cfg(not(any(target_os = "android",target_os = "ios")))]
+            crate::app::workspace_cli::workspace_cli_reply,
+            #[cfg(not(any(target_os = "android",target_os = "ios")))]
+            crate::app::workspace_cli::workspace_open_source,
             crate::features::markdown::wiki::commands::graph_get_backlinks,
             crate::features::markdown::wiki::commands::wiki_resolve,
             crate::features::markdown::wiki::commands::wiki_embed_read,
@@ -101,6 +109,8 @@ macro_rules! common_commands {
             crate::features::vault::trash::commands::path_purge_item,
             crate::features::vault::trash::commands::path_purge_trash,
             crate::features::translate::commands::translate_text,
+            crate::features::translate::commands::translate_text_stream,
+            crate::features::translate::dictionary::dictionary_lookup,
             crate::features::translate::layout_cache::layout_translate_cache_write,
             crate::features::paper::import::commands::lookup_import_batch,
             crate::features::paper::import::commands::chat_import_extract,
@@ -109,6 +119,7 @@ macro_rules! common_commands {
             crate::features::paper::import::commands::paper_import_local_pdf,
             crate::features::paper::import::commands::paper_resolve_identifier,
             crate::features::paper::import::commands::paper_stage_import_file,
+            crate::features::paper::import::commands::paper_recapture_webpage,
             crate::features::paper::import::commands::notes_template_seed,
             crate::features::paper::zotero::commands::paper_export,
             crate::features::paper::zotero::commands::paper_import,
@@ -144,6 +155,7 @@ macro_rules! common_commands {
             crate::features::markdown::tables::commands::research_table_backlinks,
             crate::core::usage::commands::activity_record_events,
             crate::core::usage::commands::usage_clear,
+            crate::core::usage::commands::usage_board_query,
             crate::app::logging::logs_clear,
             crate::features::paper::discovery::feeds::commands::feeds_list,
             crate::features::paper::discovery::feeds::commands::feeds_add,
@@ -174,26 +186,6 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
     #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         builder.invoke_handler(common_commands![
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_editor_state,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_list,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_inspect,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_install,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_configure,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_remove,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_activate,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_dev_load,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_unload,
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            crate::integration::plugins::plugin_run,
             crate::integration::bridge::commands::bridge_start,
             crate::integration::bridge::commands::bridge_stop,
             crate::integration::bridge::commands::bridge_status,
@@ -239,6 +231,8 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::agent::commands::remote_agent_open_install_terminal,
             crate::app::terminal::commands::path_open_in_terminal,
             crate::app::terminal::commands::terminal_apps_probe,
+            crate::app::open_with::commands::path_open_with_apps,
+            crate::app::open_with::commands::path_open_with,
             crate::app::window::commands::window_new,
             crate::app::window::commands::settings_window_open,
             crate::app::window::commands::feature_window_open,

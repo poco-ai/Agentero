@@ -293,11 +293,9 @@ pub fn ensure_vault(path: &Path, locale: &str) -> Result<CreateVaultResult, AppE
         created.push(".agentero/catalog.sqlite".into());
     }
 
-    let path_str = path
-        .canonicalize()
-        .unwrap_or_else(|_| path.to_path_buf())
-        .to_string_lossy()
-        .to_string();
+    // Expose regular Windows paths when safe; retain extended-only paths.
+    let canonical = crate::fs::canonicalize_best_effort(path);
+    let path_str = dunce::simplified(&canonical).to_string_lossy().into_owned();
 
     // Open the first onboarding note when it is newly created; otherwise AGENTS.md.
     let open_path = onboarding_files
@@ -332,6 +330,28 @@ mod tests {
     use super::*;
     use std::env;
 
+    #[cfg(windows)]
+    #[test]
+    fn verbatim_vault_root_returns_plain_path_and_notes_round_trip() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("新建文件夹 (2)");
+        fs::create_dir(&dir).unwrap();
+        let canonical = dir.canonicalize().unwrap();
+        assert!(canonical.to_string_lossy().starts_with(r"\\?\"));
+
+        let created = create_vault(&canonical, "en").unwrap();
+        assert!(!created.path.starts_with(r"\\?\"));
+        assert_eq!(Path::new(&created.path).canonicalize().unwrap(), canonical);
+        let reopened = ensure_vault(&canonical, "en").unwrap();
+        assert_eq!(reopened.path, created.path);
+
+        let paper = Path::new(&created.path).join("papers/风电齿轮");
+        fs::create_dir_all(&paper).unwrap();
+        let notes = paper.join("NOTES.md");
+        fs::write(&notes, "自动保存内容").unwrap();
+        assert_eq!(fs::read_to_string(&notes).unwrap(), "自动保存内容");
+    }
+
     #[test]
     fn create_vault_scaffolds_dirs_and_catalog() {
         let dir = env::temp_dir().join(format!("agentero-vault-create-{}", std::process::id()));
@@ -339,6 +359,8 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
 
         let r = create_vault(&dir, "en").expect("create");
+        #[cfg(windows)]
+        assert!(!r.path.starts_with(r"\\?\"));
         assert!(dir.join("papers").is_dir());
         assert!(dir.join("notes").is_dir());
         assert!(dir.join("data").is_dir());
@@ -729,6 +751,7 @@ mod tests {
 
 pub mod agent_links;
 pub mod doctor;
+pub mod files;
 pub mod rename;
 pub mod trash;
 pub mod tree;

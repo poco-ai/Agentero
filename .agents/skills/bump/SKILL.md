@@ -29,7 +29,7 @@ description: >-
    Android 不需要手动修改：`tauri android build` 会从 `tauri.conf.json` 的 `version` 重新生成 `src-tauri/gen/android/app/tauri.properties`（gitignored）中的 `versionName` 与 `versionCode`。
 4. 如果 Cargo manifest 版本变化，运行必要的 Cargo 元数据/检查命令并确认 `Cargo.lock` 没有保留旧的本地 package 版本。
 5. 检查版本字段全部等于目标版本，并检查 `agentero --version` 的来源仍然是 CLI package version。
-6. 检查 `AGENTS.md` 和 `docs/test/release.md` 中的发布规则仍与实现一致；只有规则变化时才修改文档，不要伪造版本说明或变更日志。
+6. 核对 `AGENTS.md` 中的发布约束和实际发布流程；规则变化时再更新约束。版本说明和变更日志以实际改动为准。
 7. 运行最小必要验证：`cargo metadata --no-deps --format-version 1`，以及适合当前环境的前端类型检查或构建检查。
 8. 输出修改文件、验证结果和下一步建议。除非用户明确要求，不创建 commit、tag、Release 或 push。
 

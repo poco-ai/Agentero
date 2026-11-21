@@ -15,9 +15,6 @@ fn sanitized_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
     command
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
-type TerminalCommandFactory = fn(&str) -> Command;
-
 /// Resolve folders/files to a cwd; local Windows paths use a shell-compatible form.
 pub fn terminal_cwd_for_path(path: &Path) -> Result<PathBuf, AppError> {
     if path.as_os_str().is_empty() {
@@ -45,28 +42,15 @@ pub fn terminal_cwd_for_path(path: &Path) -> Result<PathBuf, AppError> {
 /// action never fails just because a terminal was uninstalled.
 pub fn open_in_terminal(path: &Path, preferred: &str) -> Result<PathBuf, AppError> {
     let cwd = terminal_cwd_for_path(path)?;
-    let preferred = preferred.trim();
-    if !preferred.is_empty() {
-        log::debug!(
-            target: "agentero::terminal",
-            "opening '{preferred}' at {}",
-            cwd.display()
-        );
-        match presets::launch(preferred, &cwd) {
-            Ok(()) => return Ok(cwd),
-            Err(error) => log::warn!(
-                target: "agentero::terminal",
-                "preferred terminal '{preferred}' unavailable, using system default: {error}"
-            ),
-        }
-    } else {
-        log::debug!(
-            target: "agentero::terminal",
-            "no terminal preference, opening system default at {}",
-            cwd.display()
-        );
-    }
-    open_terminal_at(&cwd)?;
+    log::debug!(
+        target: "agentero::terminal",
+        "opening terminal (preferred: '{}') at {}",
+        preferred.trim(),
+        cwd.display()
+    );
+    // `open_terminal_at` applies the preference itself, so every terminal
+    // launch (including the Agent CLI / login buttons) uses one choice.
+    open_terminal_at(&cwd, preferred)?;
     Ok(cwd)
 }
 
@@ -135,26 +119,34 @@ enum RunMode {
 ///
 /// Used for guided installs (e.g. Claude ACP adapter). The shell never auto-runs without
 /// confirmation. Only trusted Host-side callers should pass commands.
-pub fn open_terminal_confirm_command(command: &str) -> Result<(), AppError> {
-    run_terminal_script(command, &CONFIRM_INSTALL, RunMode::Confirm)
+///
+/// `preferred` is the Settings `terminalApp` id; empty means the system default.
+pub fn open_terminal_confirm_command(command: &str, preferred: &str) -> Result<(), AppError> {
+    run_terminal_script(command, &CONFIRM_INSTALL, RunMode::Confirm, preferred)
 }
 
 /// Same confirm-to-run terminal as [`open_terminal_confirm_command`], worded for
 /// agent CLI OAuth login flows (e.g. `codex login`, `claude auth login`).
-pub fn open_terminal_confirm_login(command: &str) -> Result<(), AppError> {
-    run_terminal_script(command, &CONFIRM_LOGIN, RunMode::Confirm)
+pub fn open_terminal_confirm_login(command: &str, preferred: &str) -> Result<(), AppError> {
+    run_terminal_script(command, &CONFIRM_LOGIN, RunMode::Confirm, preferred)
 }
 
-/// Open a system terminal that immediately launches an installed Agent's
-/// interactive CLI (e.g. `claude`, `codex`).
+/// Open a terminal that immediately launches an installed Agent's interactive
+/// CLI (e.g. `claude`, `codex`).
 ///
 /// No Enter gate: the click is an explicit launch of the user's own installed
-/// CLI, not an unattended installer.
-pub fn open_terminal_agent_cli(command: &str) -> Result<(), AppError> {
-    run_terminal_script(command, &CONFIRM_AGENT_CLI, RunMode::Direct)
+/// CLI, not an unattended installer. `preferred` is the Settings `terminalApp`
+/// id, so the button follows the same choice as "Open in Terminal".
+pub fn open_terminal_agent_cli(command: &str, preferred: &str) -> Result<(), AppError> {
+    run_terminal_script(command, &CONFIRM_AGENT_CLI, RunMode::Direct, preferred)
 }
 
-fn run_terminal_script(command: &str, copy: &ConfirmCopy, mode: RunMode) -> Result<(), AppError> {
+fn run_terminal_script(
+    command: &str,
+    copy: &ConfirmCopy,
+    mode: RunMode,
+    preferred: &str,
+) -> Result<(), AppError> {
     let command = command.trim();
     if command.is_empty() {
         return Err(AppError::message("command is required"));
@@ -166,11 +158,13 @@ fn run_terminal_script(command: &str, copy: &ConfirmCopy, mode: RunMode) -> Resu
 
     #[cfg(windows)]
     {
+        // Windows has one terminal launcher; the preset id is Unix-only.
+        let _ = preferred;
         open_terminal_command_windows(command, copy, mode)
     }
     #[cfg(not(windows))]
     {
-        open_terminal_command_unix(command, copy, mode)
+        open_terminal_command_unix(command, copy, mode, preferred)
     }
 }
 
@@ -182,6 +176,7 @@ fn run_terminal_script(command: &str, copy: &ConfirmCopy, mode: RunMode) -> Resu
 pub fn open_terminal_confirm_remote_install(
     destination: &str,
     install_command: &str,
+    preferred: &str,
 ) -> Result<(), AppError> {
     let destination = destination.trim();
     let install_command = install_command.trim();
@@ -211,13 +206,15 @@ pub fn open_terminal_confirm_remote_install(
 
     #[cfg(windows)]
     {
+        // Windows has one terminal launcher; the preset id is Unix-only.
+        let _ = preferred;
         // Single remote command string so the whole npm line is the -c payload.
         let command = format!("ssh -t {destination} -- \"bash -lc {install_command:?}\"");
         open_terminal_command_windows(&command, &CONFIRM_INSTALL, RunMode::Confirm)
     }
     #[cfg(not(windows))]
     {
-        open_terminal_confirm_remote_install_unix(destination, install_command)
+        open_terminal_confirm_remote_install_unix(destination, install_command, preferred)
     }
 }
 
@@ -225,7 +222,11 @@ pub fn open_terminal_confirm_remote_install(
 fn open_terminal_confirm_remote_install_unix(
     destination: &str,
     install_command: &str,
+    preferred: &str,
 ) -> Result<(), AppError> {
+    // macOS always opens Terminal.app here, so the preset id is unused.
+    #[cfg(target_os = "macos")]
+    let _ = preferred;
     let dir = std::env::temp_dir().join("agentero-install");
     fs::create_dir_all(&dir)
         .map_err(|e| AppError::message(format!("failed to create temp dir: {e}")))?;
@@ -305,30 +306,14 @@ echo "You can close this window."
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         let bash_cmd = format!("bash '{script}'; exec bash");
-        if sanitized_command("xdg-terminal-exec")
-            .args(["bash", "-lc", &bash_cmd])
-            .spawn()
-            .is_ok()
-        {
-            return Ok(());
-        }
-        if let Ok(term) = std::env::var("TERMINAL") {
-            if !term.is_empty()
-                && sanitized_command(&term)
-                    .args(["-e", "bash", "-lc", &bash_cmd])
-                    .spawn()
-                    .is_ok()
-            {
-                return Ok(());
-            }
-        }
-        return Err(AppError::message(
-            "no terminal emulator found (install xdg-terminal-exec or set $TERMINAL)",
-        ));
+        return launch_terminal_command(&bash_cmd, preferred);
     }
 
     #[allow(unreachable_code)]
-    Ok(())
+    {
+        let _ = preferred;
+        Ok(())
+    }
 }
 
 #[cfg(not(windows))]
@@ -336,7 +321,11 @@ fn open_terminal_command_unix(
     command: &str,
     copy: &ConfirmCopy,
     mode: RunMode,
+    preferred: &str,
 ) -> Result<(), AppError> {
+    // macOS always opens Terminal.app here, so the preset id is unused.
+    #[cfg(target_os = "macos")]
+    let _ = preferred;
     let script_path = write_terminal_script_unix(command, copy, mode)?;
     let script = script_path.to_string_lossy().replace('\'', "'\\''");
 
@@ -364,68 +353,72 @@ fn open_terminal_command_unix(
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         let bash_cmd = format!("bash '{script}'; exec bash");
-        if sanitized_command("xdg-terminal-exec")
-            .args(["bash", "-lc", &bash_cmd])
-            .spawn()
-            .is_ok()
-        {
-            return Ok(());
-        }
-        if let Ok(term) = std::env::var("TERMINAL") {
-            if !term.is_empty()
-                && sanitized_command(&term)
-                    .args(["-e", "bash", "-lc", &bash_cmd])
-                    .spawn()
-                    .is_ok()
-            {
-                return Ok(());
-            }
-        }
-        let candidates: &[(&str, TerminalCommandFactory)] = &[
-            ("gnome-terminal", |c| {
-                let mut cmd = sanitized_command("gnome-terminal");
-                cmd.args(["--", "bash", "-lc", c]);
-                cmd
-            }),
-            ("konsole", |c| {
-                let mut cmd = sanitized_command("konsole");
-                cmd.args(["-e", "bash", "-lc", c]);
-                cmd
-            }),
-            ("xfce4-terminal", |c| {
-                let mut cmd = sanitized_command("xfce4-terminal");
-                cmd.args(["-e", &format!("bash -lc {c:?}")]);
-                cmd
-            }),
-            ("alacritty", |c| {
-                let mut cmd = sanitized_command("alacritty");
-                cmd.args(["-e", "bash", "-lc", c]);
-                cmd
-            }),
-            ("kitty", |c| {
-                let mut cmd = sanitized_command("kitty");
-                cmd.args(["bash", "-lc", c]);
-                cmd
-            }),
-            ("x-terminal-emulator", |c| {
-                let mut cmd = sanitized_command("x-terminal-emulator");
-                cmd.args(["-e", "bash", "-lc", c]);
-                cmd
-            }),
-        ];
-        for (bin, build) in candidates {
-            if build(&bash_cmd).spawn().is_ok() {
-                let _ = bin;
-                return Ok(());
-            }
-        }
-        return Err(AppError::message(
-            "no terminal emulator found (install xdg-terminal-exec or set $TERMINAL)",
-        ));
+        return launch_terminal_command(&bash_cmd, preferred);
     }
 
     #[allow(unreachable_code)]
-    Ok(())
+    {
+        let _ = preferred;
+        Ok(())
+    }
+}
+
+/// Launch `command` (an interactive `bash -lc` payload) through the terminal
+/// chosen in Settings, falling back to the system default when it is missing or
+/// the launch fails. Every Linux terminal path shares this order so the Agent
+/// login / CLI buttons behave exactly like "Open in Terminal" (#1116).
+#[cfg(all(unix, not(target_os = "macos")))]
+fn launch_terminal_command(command: &str, preferred: &str) -> Result<(), AppError> {
+    let preferred = preferred.trim();
+    if !preferred.is_empty() {
+        match presets::launch_command(preferred, command) {
+            Ok(()) => return Ok(()),
+            Err(error) => log::warn!(
+                target: "agentero::terminal",
+                "preferred terminal '{preferred}' unavailable, using system default: {error}"
+            ),
+        }
+    }
+
+    // FreeDesktop default terminal launcher (when installed).
+    if sanitized_command("xdg-terminal-exec")
+        .args(["bash", "-lc", command])
+        .spawn()
+        .is_ok()
+    {
+        return Ok(());
+    }
+
+    // $TERMINAL if the user set it.
+    if let Ok(term) = std::env::var("TERMINAL") {
+        if !term.is_empty()
+            && sanitized_command(&term)
+                .args(["-e", "bash", "-lc", command])
+                .spawn()
+                .is_ok()
+        {
+            return Ok(());
+        }
+    }
+
+    for id in presets::installed_ids() {
+        if presets::launch_command(id, command).is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Debian/Ubuntu alternative.
+    if sanitized_command("x-terminal-emulator")
+        .args(["-e", "bash", "-lc", command])
+        .spawn()
+        .is_ok()
+    {
+        return Ok(());
+    }
+
+    Err(AppError::message(
+        "no terminal emulator found (install xdg-terminal-exec or set $TERMINAL)",
+    ))
 }
 
 #[cfg(not(windows))]
@@ -567,7 +560,19 @@ pause\r\n"
 }
 
 #[cfg(target_os = "macos")]
-fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
+fn open_terminal_at(cwd: &Path, preferred: &str) -> Result<(), AppError> {
+    // The Settings preference wins when available; a missing preset degrades
+    // to Terminal.app below instead of failing.
+    let preferred = preferred.trim();
+    if !preferred.is_empty() {
+        match presets::launch(preferred, cwd) {
+            Ok(()) => return Ok(()),
+            Err(error) => log::warn!(
+                target: "agentero::terminal",
+                "preferred terminal '{preferred}' unavailable, using system default: {error}"
+            ),
+        }
+    }
     // Terminal.app is the system default terminal on macOS.
     // `open -a Terminal <dir>` opens a new window with that directory as cwd.
     let status = sanitized_command("open")
@@ -584,7 +589,18 @@ fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
 }
 
 #[cfg(target_os = "windows")]
-fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
+fn open_terminal_at(cwd: &Path, preferred: &str) -> Result<(), AppError> {
+    let preferred = preferred.trim();
+    if !preferred.is_empty() {
+        match presets::launch(preferred, cwd) {
+            Ok(()) => return Ok(()),
+            Err(error) => log::warn!(
+                target: "agentero::terminal",
+                "preferred terminal '{preferred}' unavailable, using system default: {error}"
+            ),
+        }
+    }
+
     // Prefer Windows Terminal when available (often the system default on Win11).
     if sanitized_command("wt.exe")
         .arg("-d")
@@ -620,7 +636,18 @@ fn cmd_terminal_command(cwd: &Path) -> Command {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
+fn open_terminal_at(cwd: &Path, preferred: &str) -> Result<(), AppError> {
+    let preferred = preferred.trim();
+    if !preferred.is_empty() {
+        match presets::launch(preferred, cwd) {
+            Ok(()) => return Ok(()),
+            Err(error) => log::warn!(
+                target: "agentero::terminal",
+                "preferred terminal '{preferred}' unavailable, using system default: {error}"
+            ),
+        }
+    }
+
     // FreeDesktop default terminal launcher (when installed).
     if sanitized_command("xdg-terminal-exec")
         .current_dir(cwd)
@@ -637,22 +664,20 @@ fn open_terminal_at(cwd: &Path) -> Result<(), AppError> {
         }
     }
 
-    // Common desktop terminals.
-    let candidates: &[(&str, &[&str])] = &[
-        ("gnome-terminal", &["--working-directory"]),
-        ("konsole", &["--workdir"]),
-        ("xfce4-terminal", &["--working-directory"]),
+    // Known desktop terminals, in the same order the Settings list uses.
+    for id in presets::installed_ids() {
+        if presets::launch(id, cwd).is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Terminals that are not presets but are common desktop defaults.
+    let extra: &[(&str, &[&str])] = &[
         ("mate-terminal", &["--working-directory"]),
         ("tilix", &["--working-directory"]),
-        ("alacritty", &["--working-directory"]),
-        ("kitty", &["--directory"]),
     ];
-    for (bin, flag) in candidates {
-        let mut cmd = sanitized_command(bin);
-        if flag.len() == 1 {
-            cmd.arg(flag[0]).arg(cwd);
-        }
-        if cmd.spawn().is_ok() {
+    for (bin, flag) in extra {
+        if sanitized_command(bin).arg(flag[0]).arg(cwd).spawn().is_ok() {
             return Ok(());
         }
     }

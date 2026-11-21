@@ -18,7 +18,7 @@ type NameInputProps = {
 	label: string;
 	selectBasename?: boolean;
 	unchangedName?: string;
-	onConfirm: (name: string) => void;
+	onConfirm: (name: string) => void | Promise<void>;
 	onCancel: () => void;
 };
 
@@ -71,7 +71,18 @@ function TreeNameInput({
 			return;
 		}
 		committedRef.current = true;
-		onConfirm(name);
+		let pending: void | Promise<void>;
+		try {
+			pending = onConfirm(name);
+		} catch {
+			committedRef.current = false;
+			return;
+		}
+		// The field locks before the host rename finishes. A rejection means
+		// the row may still be mounted, so Escape, Enter, and blur must work.
+		void Promise.resolve(pending).catch(() => {
+			committedRef.current = false;
+		});
 	}, [value, unchangedName, cancel, onConfirm, t]);
 
 	// Keep the row height fixed so virtualized drafts leave no gap when removed.
@@ -111,8 +122,14 @@ function TreeNameInput({
 						}
 					}}
 					onBlur={() => {
+						const el = inputRef.current;
 						// Let composition updates and Enter/click handlers finish first.
-						requestAnimationFrame(commit);
+						// Unmount also blurs. Skip that one so a failed confirm cannot
+						// submit a second time while the row is leaving edit mode.
+						requestAnimationFrame(() => {
+							if (!el?.isConnected) return;
+							commit();
+						});
 					}}
 					{...compositionProps}
 				/>
@@ -192,7 +209,7 @@ export function TreeRenameInput({
 }: {
 	initialName: string;
 	icon: ReactNode;
-	onConfirm: (name: string) => void;
+	onConfirm: (name: string) => void | Promise<void>;
 	onCancel: () => void;
 }) {
 	const { t } = useTranslation("sidebar");

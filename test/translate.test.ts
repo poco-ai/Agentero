@@ -1,19 +1,21 @@
 import { describe, expect, it } from "vitest";
-
 import { isSecretMask, maskSecret } from "@/lib/core/secret-mask";
 import {
 	buildTranslateMessages,
 	buildTranslatePrompt,
 	COMMERCIAL_MT_PROVIDER_IDS,
-	classifyTranslateQuery,
+	displayTranslateError,
 	FREE_MT_PROVIDER_IDS,
 	getTranslateService,
 	isCommercialProviderConfigured,
 	isCommercialTranslateProvider,
 	isFreeMtProvider,
 	isShortColloquialPrompt,
+	isTranslateIncomplete,
 	isTranslateProviderId,
+	isTranslateTimeout,
 	isTranslateTransportError,
+	isTranslateUpstreamError,
 	langsFromSettings,
 	listSelectableProviders,
 	resolveTargetLangCode,
@@ -25,6 +27,7 @@ import {
 	unknownTranslatePlaceholders,
 } from "@/lib/translate";
 import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
+import { isDictionaryLookup } from "@/lib/translate/dictionary";
 
 describe("translate lang", () => {
 	it("resolves ui target from interface language", () => {
@@ -73,6 +76,42 @@ describe("isTranslateTransportError", () => {
 		).toBe(false);
 		expect(isTranslateTransportError("Empty translation result")).toBe(false);
 		expect(isTranslateTransportError(undefined)).toBe(false);
+		expect(isTranslateTransportError("translate.timeout")).toBe(false);
+		expect(isTranslateTransportError("translate.incomplete")).toBe(false);
+		expect(
+			isTranslateTransportError(
+				"OpenAI-compatible timed out waiting for output",
+			),
+		).toBe(false);
+	});
+});
+
+describe("displayTranslateError", () => {
+	it("distinguishes timeout, truncation, and upstream failures", () => {
+		expect(isTranslateTimeout("translate.timeout")).toBe(true);
+		expect(isTranslateIncomplete("translate.incomplete")).toBe(true);
+		expect(
+			isTranslateUpstreamError(
+				"OpenAI-compatible failed (HTTP 502): bad gateway",
+			),
+		).toBe(true);
+
+		const timeout = displayTranslateError("translate.timeout");
+		const incomplete = displayTranslateError("translate.incomplete");
+		const upstream = displayTranslateError(
+			"OpenAI-compatible failed (HTTP 502): bad gateway",
+		);
+		const unreachable = displayTranslateError(
+			"Tencent Transmart request failed: error sending request for url (https://transmart.qq.com/api/imt)",
+		);
+		expect(timeout).not.toBe(incomplete);
+		expect(timeout).not.toBe(upstream);
+		expect(incomplete).not.toBe(upstream);
+		expect(timeout).not.toBe(unreachable);
+		expect(timeout).toMatch(/timed out|超时/);
+		expect(incomplete).toMatch(/cut off|截断/);
+		expect(upstream).toContain("HTTP 502");
+		expect(unreachable).not.toContain("HTTP 502");
 	});
 });
 
@@ -90,18 +129,18 @@ describe("translate services registry", () => {
 		expect(getTranslateService("agent")?.requireExternalConfig).toBe(true);
 		expect(isTranslateProviderId("deepl")).toBe(true);
 		expect(isCommercialTranslateProvider("deepl")).toBe(true);
-		expect(isFreeMtProvider("deeplx")).toBe(true);
+		expect(isFreeMtProvider("tencenttransmart")).toBe(true);
 		expect(isFreeMtProvider("cnki")).toBe(true);
 		expect(isFreeMtProvider("agent")).toBe(false);
 		expect(isFreeMtProvider("deepl")).toBe(false);
+		expect(isFreeMtProvider("deeplx")).toBe(false);
+		expect(isFreeMtProvider("googleapi")).toBe(false);
 	});
 
 	it("settings list includes free engines, commercial BYOK engines, and agent", () => {
 		const ids = listSelectableProviders().map((s) => s.id);
-		expect(ids).toContain("googleapi");
 		expect(ids).toContain("tencenttransmart");
 		expect(ids).toContain("huoshanweb");
-		expect(ids).toContain("deeplx");
 		expect(ids).toContain("cnki");
 		expect(ids).toContain("deepl");
 		expect(ids).toContain("azure");
@@ -237,28 +276,26 @@ describe("translate prompts", () => {
 		expect(system).not.toContain(text);
 		expect(system).not.toContain("{{targetLang}}");
 		expect(user).toBe(`"""${text}"""`);
-		expect(classifyTranslateQuery(text)).toBe("prose");
+		expect(isDictionaryLookup(text)).toBe(false);
 	});
 
 	it("forbids a clarifying question on a word or short phrase", () => {
-		expect(classifyTranslateQuery("attention")).toBe("word");
-		expect(classifyTranslateQuery("multi-head attention")).toBe("word");
-		expect(classifyTranslateQuery("注意力")).toBe("word");
+		expect(isDictionaryLookup("attention")).toBe(true);
+		expect(isDictionaryLookup("multi-head attention")).toBe(true);
+		expect(isDictionaryLookup("注意力")).toBe(true);
 		expect(
-			classifyTranslateQuery(
+			isDictionaryLookup(
 				"We propose a transformer architecture for sequence transduction.",
 			),
-		).toBe("prose");
+		).toBe(false);
 
 		for (const text of ["attention", "multi-head attention", "注意力"]) {
 			const { system, user } = buildTranslateMessages({
 				text,
 				targetLangName: "Chinese",
 			});
-			expect(system).toContain("compact dictionary gloss");
-			expect(system).toContain(
-				"Do not ask whether the user wants a translation",
-			);
+			expect(system).toContain("research dictionary");
+			expect(system).toContain("Do not ask questions");
 			expect(system).not.toMatch(/你想翻译还是解释/);
 			expect(user).toBe(`"""${text}"""`);
 		}
@@ -277,7 +314,7 @@ describe("translate prompts", () => {
 			page: 3,
 			surface: "pdf-selection",
 		});
-		expect(prompt.startsWith("OUTPUT ONLY THE TRANSLATION.")).toBe(true);
+		expect(prompt.startsWith("OUTPUT ONLY THE DICTIONARY ENTRY.")).toBe(true);
 		expect(prompt.indexOf("SYSTEM:")).toBeLessThan(
 			prompt.indexOf("USER TEXT:"),
 		);
@@ -291,6 +328,7 @@ describe("translate prompts", () => {
 		expect(isShortColloquialPrompt("翻译得自然一点")).toBe(true);
 		const { system, user } = buildTranslateMessages({
 			text: "Hello world",
+			dictionary: false,
 			targetLangName: "Chinese",
 			customPrompt: "Be terse.",
 		});
@@ -329,6 +367,7 @@ describe("translate prompts", () => {
 	it("empty custom prompt matches the built-in prompt", () => {
 		const base = {
 			text: "Hello world",
+			dictionary: false,
 			targetLangName: "Chinese",
 			page: 2,
 			surface: "pdf-selection" as const,
@@ -370,6 +409,7 @@ describe("translate prompts", () => {
 			customPrompt: "legacy preference",
 			customSystem: "Be terse.",
 			customUser: "SRC:\n{{ text }}",
+			dictionary: false,
 		});
 		expect(system).toContain("Be terse.");
 		expect(system).not.toContain("legacy preference");

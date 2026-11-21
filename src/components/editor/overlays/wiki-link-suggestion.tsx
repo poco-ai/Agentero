@@ -63,7 +63,7 @@ import {
 	wikiLinkDraftEditableBounds,
 	wikiLinkToMarkdown,
 } from "@/lib/wiki/wikilink-model";
-import { getActiveTabId, workspaceStore } from "@/lib/workspace/store";
+import { getActiveTabId, getTabs, workspaceStore } from "@/lib/workspace/store";
 
 export type WikiCompletionDraft = {
 	raw: string;
@@ -167,10 +167,14 @@ async function buildAnnotationCandidates(
 	pathHint: string,
 ): Promise<WikiSearchCandidate[]> {
 	if (!paperAbs) return [];
-	const pdfTabId = pdfTabIdForPaper(paperAbs);
+	const pdfTabId = pdfTabIdForPaper(paperAbs, getTabs());
 	const state = annotationsStore.getState();
-	const storeHighlights = state.highlightsByTab[pdfTabId] ?? [];
-	const storeVisuals = state.visualTracesByTab[pdfTabId] ?? [];
+	const storeHighlights = pdfTabId
+		? (state.highlightsByTab[pdfTabId] ?? [])
+		: [];
+	const storeVisuals = pdfTabId
+		? (state.visualTracesByTab[pdfTabId] ?? [])
+		: [];
 	const out: WikiSearchCandidate[] = [];
 
 	if (storeHighlights.length || storeVisuals.length) {

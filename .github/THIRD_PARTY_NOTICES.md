@@ -27,12 +27,12 @@
 | EmbedPDF 运行时与 PDFium WASM | 2.14.4 | MIT（PDFium 部分为 BSD-3-Clause） | PDF 查看器运行时 | https://www.embedpdf.com/ |
 | EmbedPDF 多语言字体 | 1.0.0 | OFL-1.1 | PDF 中日韩等字体回退 | https://www.embedpdf.com/ |
 | Geist Variable | 5.2.9 | OFL-1.1 | 界面字体 | https://fontsource.org/fonts/geist |
-| Claude Agent ACP Adapter | 0.79.0 | Apache-2.0 | 内置 ACP Adapter 离线回退 | https://github.com/agentclientprotocol/claude-agent-acp |
-| Codex ACP Adapter | 1.12.0 | Apache-2.0 | 内置 ACP Adapter 离线回退 | https://github.com/agentclientprotocol/codex-acp |
+| Claude Agent ACP Adapter | 0.108.0 | Apache-2.0 | 内置 ACP Adapter 离线回退 | https://github.com/agentclientprotocol/claude-agent-acp |
+| Codex ACP Adapter | 2.7.0 | Apache-2.0 | 内置 ACP Adapter 离线回退 | https://github.com/agentclientprotocol/codex-acp |
 | realtime-tex（rtex-core / rtex-dl / TeX 支持文件） | 0.0.5 | MIT | LuaLaTeX 实时段落预览 | https://github.com/HenryXiaoYang/realtime-tex |
 | realtime-tex VS Code 预览渲染器（移植） | 0.0.5 | MIT | display list → Canvas 渲染 | https://github.com/HenryXiaoYang/realtime-tex-vsc-plugin |
 
-> 内置的两个 ACP Adapter 是独立的 npm 依赖树，其传递依赖以 MIT / ISC / BSD / Apache-2.0 为主。完整清单见 `scripts/prepare-adapters.mjs` 固定的版本与 `src-tauri/adapters/manifest.json`。
+> 内置的两个 ACP Adapter 是独立的 npm 依赖树，其传递依赖以 MIT / ISC / BSD / Apache-2.0 为主。完整清单见 `scripts/acp-adapters/package-lock.json` 固定的版本与 `src-tauri/adapters/manifest.json`。
 
 ## 3. 前端直接依赖
 
@@ -67,7 +67,6 @@
 | `@embedpdf/plugin-tiling` | 2.14.4 | MIT | https://www.embedpdf.com/docs |
 | `@embedpdf/plugin-viewport` | 2.14.4 | MIT | https://www.embedpdf.com/docs |
 | `@embedpdf/plugin-zoom` | 2.14.4 | MIT | https://www.embedpdf.com/docs |
-| `@excalidraw/excalidraw` | 0.18.1 | MIT | https://github.com/excalidraw/excalidraw/tree/master/packages/excalidraw |
 | `@flowershow/remark-wiki-link` | 3.4.0 | MIT | https://github.com/flowershow/remark-wiki-link#readme |
 | `@fontsource-variable/geist` | 5.2.9 | OFL-1.1 | https://fontsource.org/fonts/geist |
 | `@lezer/highlight` | 1.2.3 | MIT | https://github.com/lezer-parser/highlight |
@@ -158,7 +157,7 @@
 | Crate | 版本 | 许可证 | 上游 |
 | --- | --- | --- | --- |
 | `aes` | 0.8.4 | MIT OR Apache-2.0 | https://github.com/RustCrypto/block-ciphers |
-| `agent-client-protocol` | 1.3.0 | Apache-2.0 | https://github.com/agentclientprotocol/rust-sdk |
+| `agent-client-protocol` | 5.4.0 | Apache-2.0 | https://github.com/agentclientprotocol/rust-sdk |
 | `async-trait` | 0.1.92 | MIT OR Apache-2.0 | https://github.com/dtolnay/async-trait |
 | `axum` | 0.8.9 | MIT | https://github.com/tokio-rs/axum |
 | `base64` | 0.22.1 | MIT OR Apache-2.0 | https://github.com/marshallpierce/rust-base64 |

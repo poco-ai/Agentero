@@ -1,4 +1,9 @@
 import {
+	assessLayoutReadiness,
+	type LayoutCompleteness,
+	parseLayoutCompleteness,
+} from "@/lib/pdf/layout/completeness";
+import {
 	buildLayoutIndexSidecar,
 	LAYOUT_INDEX_FILE,
 	type LayoutIndexItem,
@@ -13,6 +18,12 @@ import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 
 /** Bump when label mapping / stored region semantics change (invalidates cache). */
 export const LAYOUT_SIDECAR_SCHEMA_VERSION = 3;
+/**
+ * Reading-order algorithm that produced the stored body text. Sidecars without
+ * it (or with an older value) only need a PDF text-layer re-walk, not a new
+ * layout analysis: the walk rewrites `text` in place and keeps `generatedAt`.
+ */
+export const LAYOUT_TEXT_ORDER_VERSION = 2;
 export const LAYOUT_SIDECAR_FILE = "layout.json";
 
 /** Producer recorded in `source.mode` — which backend generated the regions. */
@@ -42,6 +53,10 @@ export type PdfLayoutSidecar = {
 		figureCaptionsExtracted?: boolean;
 		/** Rich PDF run styles sampled; old caches need only a text walk. */
 		sourceStylesExtracted?: boolean;
+		/** {@link LAYOUT_TEXT_ORDER_VERSION} of the stored body text walk. */
+		textOrderVersion?: number;
+		/** Verifiable page coverage and content-readiness metadata. */
+		completeness?: LayoutCompleteness;
 	};
 	/** Raw text-enriched model regions, before caption/formula merge. */
 	regions: PdfLayoutRegion[];
@@ -157,6 +172,10 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 		source.sourceStylesExtracted = true;
 	if (raw.source.figureCaptionsExtracted === true)
 		source.figureCaptionsExtracted = true;
+	if (isFiniteNumber(raw.source.textOrderVersion))
+		source.textOrderVersion = raw.source.textOrderVersion;
+	const completeness = parseLayoutCompleteness(raw.source.completeness);
+	if (completeness) source.completeness = completeness;
 	return {
 		schemaVersion: LAYOUT_SIDECAR_SCHEMA_VERSION,
 		source,
@@ -191,15 +210,21 @@ export function layoutSidecarWasReplaced(
 }
 
 /**
- * A non-empty sidecar is a finished parse. `force` is the only way through
- * it: headless analysis used to return here even when the job was enqueued
- * with `force: true`.
+ * A sidecar is reusable only when its page walk proves it complete. `force`
+ * always reparses; legacy / partial caches are audited by headless analysis.
  */
 export function layoutSidecarBlocksAnalysis(
 	force: boolean | undefined,
-	regionCount: number,
+	sidecar: PdfLayoutSidecar,
 ): boolean {
-	return force !== true && regionCount > 0;
+	if (force === true) return false;
+	// Body text from an older reading-order pass is still a valid parse: it only
+	// needs the text-layer walk, so analysis must not be skipped.
+	if (sidecar.source.textOrderVersion !== LAYOUT_TEXT_ORDER_VERSION)
+		return false;
+	const readiness = assessLayoutReadiness(sidecar.source.completeness);
+	if (readiness.status === "ready") return true;
+	return readiness.status === "warning" && !readiness.needsContentRepair;
 }
 
 /** Old sidecars, and reads that did not finish, still need the text layer. */
@@ -209,6 +234,7 @@ export function layoutSidecarNeedsTextLayer(
 	return (
 		sidecar.source.sourceStylesExtracted !== true ||
 		sidecar.source.textLayerExtracted !== true ||
+		sidecar.source.textOrderVersion !== LAYOUT_TEXT_ORDER_VERSION ||
 		(sidecar.source.mode === "mineru-layout" &&
 			sidecar.source.figureCaptionsExtracted !== true)
 	);
@@ -248,17 +274,42 @@ export async function writeLayoutSidecar(
 	paperAbsPath: string | null | undefined,
 	regions: PdfLayoutRegion[],
 	mode: LayoutSidecarMode = "embedpdf-layout",
-	options: { textLayerExtracted?: boolean } = {},
+	options: {
+		textLayerExtracted?: boolean;
+		completeness?: LayoutCompleteness;
+	} = {},
 ): Promise<void> {
 	if (!paperAbsPath) return;
+	if (
+		options.completeness &&
+		assessLayoutReadiness(options.completeness).status === "incomplete"
+	) {
+		const current = await readLayoutSidecar(paperAbsPath);
+		const currentStatus = assessLayoutReadiness(
+			current?.source.completeness,
+		).status;
+		if (
+			current &&
+			current.regions.length > 0 &&
+			(currentStatus === "ready" || currentStatus === "warning")
+		) {
+			// A failed text-layer walk must not replace a trusted parse.
+			return;
+		}
+	}
 	const source: PdfLayoutSidecar["source"] = {
 		mode,
 		generatedAt: new Date().toISOString(),
 	};
-	if (options.textLayerExtracted === true) {
+	if (options.completeness) source.completeness = options.completeness;
+	if (
+		options.completeness?.textLayerComplete === true ||
+		options.textLayerExtracted === true
+	) {
 		source.textLayerExtracted = true;
 		source.figureCaptionsExtracted = true;
 		source.sourceStylesExtracted = true;
+		source.textOrderVersion = LAYOUT_TEXT_ORDER_VERSION;
 	}
 	const sidecar: PdfLayoutSidecar = {
 		schemaVersion: LAYOUT_SIDECAR_SCHEMA_VERSION,
@@ -313,8 +364,9 @@ export function sameLayoutParse(
 export function layoutTextBackfillSidecar(
 	expected: PdfLayoutSidecar,
 	regions: PdfLayoutRegion[],
+	completeness?: LayoutCompleteness,
 ): PdfLayoutSidecar {
-	return {
+	const sidecar: PdfLayoutSidecar = {
 		schemaVersion: LAYOUT_SIDECAR_SCHEMA_VERSION,
 		source: {
 			mode: expected.source.mode,
@@ -322,9 +374,12 @@ export function layoutTextBackfillSidecar(
 			textLayerExtracted: true,
 			figureCaptionsExtracted: true,
 			sourceStylesExtracted: true,
+			textOrderVersion: LAYOUT_TEXT_ORDER_VERSION,
 		},
 		regions,
 	};
+	if (completeness) sidecar.source.completeness = completeness;
+	return sidecar;
 }
 
 /**
@@ -335,11 +390,12 @@ export async function writeLayoutTextBackfill(
 	paperAbsPath: string | null | undefined,
 	expected: PdfLayoutSidecar,
 	regions: PdfLayoutRegion[],
+	completeness?: LayoutCompleteness,
 ): Promise<boolean> {
 	if (!paperAbsPath) return false;
 	const current = await readLayoutSidecar(paperAbsPath);
 	if (!current || !sameLayoutParse(current, expected)) return false;
-	const sidecar = layoutTextBackfillSidecar(expected, regions);
+	const sidecar = layoutTextBackfillSidecar(expected, regions, completeness);
 	await writeVaultFile(
 		layoutSidecarPath(paperAbsPath),
 		`${JSON.stringify(sidecar, null, 2)}\n`,

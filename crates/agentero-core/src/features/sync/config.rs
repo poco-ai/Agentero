@@ -46,6 +46,9 @@ pub struct SyncBackendConfig {
     pub access_key: String,
     #[serde(default)]
     pub secret_key: String,
+    /// Temporary S3 credential included in the SigV4 signed headers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_token: Option<String>,
     /// `{endpoint}/{bucket}/key` instead of `{bucket}.{endpoint}/key`.
     /// Path style works with R2 / MinIO / AWS alike, so it is the default.
     #[serde(default = "default_true")]
@@ -59,13 +62,23 @@ pub struct SyncBackendConfig {
     #[serde(default)]
     pub webdav_password: String,
     /// Git remote URL or local path. Credentials are never stored here; the
-    /// system credential helper / SSH agent is used.
+    /// system credential helper / SSH agent is used. Non-loopback `http://`
+    /// requires [`Self::git_allow_insecure_http`].
     #[serde(default)]
     pub git_remote: String,
     /// Branch to sync. Defaults to `main`; the vault's current branch must
     /// already match when it is an existing repository.
     #[serde(default = "default_git_branch")]
     pub git_branch: String,
+    /// Allow a non-loopback `http://` Git remote. The credential travels in
+    /// cleartext; leave this off unless the server is on a trusted intranet
+    /// and has no HTTPS.
+    #[serde(default)]
+    pub git_allow_insecure_http: bool,
+    /// Absolute path to a PEM CA bundle (`http.sslCAInfo`) for a self-signed
+    /// HTTPS Git remote. Empty uses the system trust store.
+    #[serde(default)]
+    pub git_ssl_ca_info: String,
     /// `user` or `organization`. Official cloud only.
     #[serde(default = "default_agentero_subject")]
     pub agentero_subject: String,
@@ -85,9 +98,7 @@ pub struct SyncBackendConfig {
     pub auto_sync: bool,
     #[serde(default = "default_interval_minutes")]
     pub interval_minutes: u32,
-    /// Connection-test probe result: `false` for backends whose PUT rejects
-    /// or ignores conditional headers (e.g. Aliyun OSS 400 NotImplemented,
-    /// most WebDAV servers). Sync then degrades to plain PUTs.
+    /// Last conditional-write probe result. Unsafe stores cannot publish.
     #[serde(default = "default_true")]
     pub conditional_writes: bool,
     /// Which bulky paper assets (PDF / LaTeX source / attachments) take part
@@ -187,8 +198,9 @@ impl SyncBackendConfig {
                 require_https("server url", &self.webdav_url)
             }
             SyncBackendKind::Git => {
-                validate_git_remote(&self.git_remote)?;
-                validate_branch(&self.git_branch)
+                validate_git_remote(&self.git_remote, self.git_allow_insecure_http)?;
+                validate_branch(&self.git_branch)?;
+                validate_git_ssl_ca(&self.git_ssl_ca_info)
             }
             SyncBackendKind::Agentero => {
                 if self.agentero_subject != "user" && self.agentero_subject != "organization" {
@@ -218,6 +230,11 @@ impl SyncBackendConfig {
         self.prefix = self.prefix.trim().trim_matches('/').to_string();
         self.access_key = self.access_key.trim().to_string();
         self.secret_key = self.secret_key.trim().to_string();
+        self.session_token = self
+            .session_token
+            .take()
+            .map(|s| s.trim().to_owned())
+            .filter(|s| !s.is_empty());
         self.webdav_url = normalize_webdav_url(&self.webdav_url);
         self.webdav_username = self.webdav_username.trim().to_string();
         self.webdav_password = self.webdav_password.trim().to_string();
@@ -226,6 +243,7 @@ impl SyncBackendConfig {
         if self.git_branch.is_empty() {
             self.git_branch = default_git_branch();
         }
+        self.git_ssl_ca_info = self.git_ssl_ca_info.trim().to_string();
         self.agentero_api = self.agentero_api.trim().trim_end_matches('/').to_string();
         self.agentero_subject = self.agentero_subject.trim().to_string();
         if self.agentero_subject.is_empty() {
@@ -233,11 +251,6 @@ impl SyncBackendConfig {
         }
         self.agentero_org_id = self.agentero_org_id.trim().to_string();
         self.agentero_token = self.agentero_token.trim().to_string();
-        if self.backend == SyncBackendKind::Git {
-            // Git is a full-vault mirror; the partial scope filter has no
-            // meaning there (and is hidden in the settings UI).
-            self.scope = SyncScope::all();
-        }
         if !INTERVAL_CHOICES.contains(&self.interval_minutes) {
             self.interval_minutes = default_interval_minutes();
         }
@@ -248,6 +261,7 @@ impl SyncBackendConfig {
     pub fn masked(&self) -> Self {
         let mut out = self.clone();
         out.secret_key = mask_secret(&out.secret_key);
+        out.session_token = out.session_token.as_deref().map(mask_secret);
         out.webdav_password = mask_secret(&out.webdav_password);
         out.agentero_token.clear();
         out
@@ -257,6 +271,9 @@ impl SyncBackendConfig {
     pub fn merge_mask(&mut self, previous: Option<&Self>) {
         if is_masked_secret(&self.secret_key) {
             self.secret_key = previous.map(|p| p.secret_key.clone()).unwrap_or_default();
+        }
+        if self.session_token.as_deref().is_some_and(is_masked_secret) {
+            self.session_token = previous.and_then(|p| p.session_token.clone());
         }
         if is_masked_secret(&self.webdav_password) {
             self.webdav_password = previous
@@ -337,7 +354,11 @@ fn is_loopback_host(host: &str) -> bool {
 
 /// Git remotes cannot carry secrets in `sync.json`. Allow the transports the
 /// system git binary understands without a custom remote helper.
-fn validate_git_remote(raw: &str) -> Result<(), AppError> {
+///
+/// Plain `http` to a non-loopback host is rejected unless
+/// `allow_insecure_http` is set. The token then travels in cleartext, which
+/// is only appropriate for a trusted intranet server.
+fn validate_git_remote(raw: &str, allow_insecure_http: bool) -> Result<(), AppError> {
     let value = raw.trim();
     if value.is_empty() {
         return Err(AppError::message("repository url is required"));
@@ -358,9 +379,10 @@ fn validate_git_remote(raw: &str) -> Result<(), AppError> {
                 }
                 if url.scheme() == "http"
                     && !is_loopback_host(url.host_str().unwrap_or_default())
+                    && !allow_insecure_http
                 {
                     return Err(AppError::message(
-                        "repository url must use https (plain http is only allowed for localhost)",
+                        "repository url must use https (plain http stays off unless explicitly allowed for a trusted intranet; localhost is always allowed)",
                     ));
                 }
                 if !url.username().is_empty() || url.password().is_some() {
@@ -402,6 +424,26 @@ fn validate_git_remote(raw: &str) -> Result<(), AppError> {
     Err(AppError::message(
         "repository url must be an absolute path, file:// URL, https/ssh URL, or git@host:path",
     ))
+}
+
+/// An empty CA path uses the system trust store. A set path must be an
+/// existing absolute file so `http.sslCAInfo` cannot become a git option or
+/// a relative lookup that depends on the work tree.
+fn validate_git_ssl_ca(raw: &str) -> Result<(), AppError> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return Ok(());
+    }
+    if value.starts_with('-') || value.chars().any(char::is_control) {
+        return Err(AppError::message("CA certificate path is invalid"));
+    }
+    let path = Path::new(value);
+    if !path.is_absolute() || !path.is_file() {
+        return Err(AppError::message(
+            "CA certificate path must be an existing absolute file",
+        ));
+    }
+    Ok(())
 }
 
 fn is_scp_like_git_remote(value: &str) -> bool {
@@ -457,23 +499,21 @@ fn config_path() -> PathBuf {
     paths::agentero_config_dir().join("sync.json")
 }
 
-fn read_all() -> HashMap<String, SyncBackendConfig> {
+fn read_all() -> Result<HashMap<String, SyncBackendConfig>, AppError> {
     let path = config_path();
-    let Ok(raw) = fs::read_to_string(&path) else {
-        return HashMap::new();
-    };
-    match serde_json::from_str::<SyncConfigFile>(&raw) {
-        Ok(file) => file.vaults,
-        Err(e) => {
-            log::warn!(target: "agentero::sync", "invalid sync.json: {e}");
-            HashMap::new()
-        }
+    match fs::read(path) {
+        Ok(raw) => Ok(serde_json::from_slice::<SyncConfigFile>(&raw)?.vaults),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
+        Err(e) => Err(e.into()),
     }
 }
 
 /// All configured vaults (used at app start / exit to drive auto sync).
 pub fn list_all() -> HashMap<String, SyncBackendConfig> {
-    read_all()
+    read_all().unwrap_or_else(|e| {
+        log::warn!(target: "agentero::sync", "read sync.json: {e}");
+        HashMap::new()
+    })
 }
 
 fn write_all(vaults: HashMap<String, SyncBackendConfig>) -> Result<(), AppError> {
@@ -490,21 +530,40 @@ fn write_all(vaults: HashMap<String, SyncBackendConfig>) -> Result<(), AppError>
 }
 
 pub fn get(vault_path: &str) -> Option<SyncBackendConfig> {
-    read_all().remove(vault_path)
+    list_all().remove(vault_path)
+}
+
+fn config_lock() -> Result<fs::File, AppError> {
+    let dir = paths::agentero_config_dir();
+    fs::create_dir_all(&dir)?;
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join("sync.lock"))?;
+    fs2::FileExt::lock_exclusive(&file)?;
+    Ok(file)
 }
 
 pub fn set(vault_path: &str, config: SyncBackendConfig) -> Result<(), AppError> {
-    let mut all = read_all();
+    let _lock = config_lock()?;
+    let mut all = read_all()?;
     all.insert(vault_path.to_string(), config);
     write_all(all)
 }
 
-pub fn remove(vault_path: &str) -> Result<(), AppError> {
-    let mut all = read_all();
+fn remove(vault_path: &str) -> Result<(), AppError> {
+    let _lock = config_lock()?;
+    let mut all = read_all()?;
     if all.remove(vault_path).is_some() {
         write_all(all)?;
     }
     Ok(())
+}
+
+pub fn disconnect(vault_key: &str, lock: &super::lock::SyncLock) -> Result<(), AppError> {
+    remove(vault_key)?;
+    super::local::clear(lock)
 }
 
 #[cfg(test)]
@@ -707,6 +766,8 @@ mod tests {
         let cfg = git_config("  https://github.com/u/papers.git  ", "").normalized();
         assert_eq!(cfg.git_remote, "https://github.com/u/papers.git");
         assert_eq!(cfg.git_branch, "main");
+        assert!(!cfg.git_allow_insecure_http);
+        assert!(cfg.git_ssl_ca_info.is_empty());
         assert!(cfg.scope.is_all());
         assert_eq!(
             cfg.remote_identity(),
@@ -819,13 +880,52 @@ mod tests {
     }
 
     #[test]
-    fn git_config_forces_full_scope() {
+    fn git_plain_http_requires_explicit_opt_in() {
+        let mut cfg = git_config("http://git.example.com/papers.git", "main");
+        let err = cfg.validate().unwrap_err().to_string();
+        assert!(
+            err.contains("explicitly allowed"),
+            "expected the intranet opt-in to be named, got {err}"
+        );
+        cfg.git_allow_insecure_http = true;
+        assert!(cfg.validate().is_ok());
+        cfg.git_remote = "http://user:secret@git.example.com/papers.git".into();
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn git_ssl_ca_must_be_an_existing_absolute_file() {
+        let mut cfg = git_config("https://git.example.com/papers.git", "main");
+        cfg.git_ssl_ca_info = "certs/ca.pem".into();
+        assert!(cfg.validate().is_err());
+        cfg.git_ssl_ca_info = "-ca.pem".into();
+        assert!(cfg.validate().is_err());
+
+        let ca = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        cfg.git_ssl_ca_info = format!("  {}  ", ca.display());
+        let cfg = cfg.normalized();
+        assert_eq!(cfg.git_ssl_ca_info, ca.display().to_string());
+        assert!(cfg.validate().is_ok());
+
+        let mut missing = cfg.clone();
+        missing.git_ssl_ca_info = ca
+            .parent()
+            .expect("manifest dir")
+            .join("missing-agentero-ca.pem")
+            .display()
+            .to_string();
+        assert!(missing.validate().is_err());
+    }
+
+    #[test]
+    fn git_config_preserves_partial_scope() {
         let mut cfg = git_config("https://example.com/r.git", "main");
         cfg.scope = SyncScope {
             pdf: false,
-            source: false,
+            source: true,
             attachments: false,
         };
-        assert!(cfg.normalized().scope.is_all());
+        let scope = cfg.scope;
+        assert_eq!(cfg.normalized().scope, scope);
     }
 }

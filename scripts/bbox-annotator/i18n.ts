@@ -1,0 +1,261 @@
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+
+const en = {
+	demoTitle: "Worked example · ViT / Figure 7",
+	demoSubtitle:
+		"One complete annotated page · teaching example, awaiting independent review",
+	step_all: "Complete example",
+	step_body: "1 · Body",
+	step_panel: "2 · Three panels",
+	step_caption: "3 · Caption",
+	step_crop: "4 · Final crop",
+	restoreExample: "Restore example",
+	lesson_all:
+		"One Figure 7 = one body + three semantic panels + one caption. These five annotation boxes describe ONE figure, not five figures.",
+	lesson_body:
+		"Blue: one box around all graphical content, including internal titles, axis labels, color bar and legend. The main caption stays outside this box.",
+	lesson_panel:
+		"Green: three panels, as the caption explicitly says Left / Center / Right. The 28 filter tiles on the left are one montage; the central 7×7 grid is one heatmap. Do not label every tile as a separate panel.",
+	lesson_caption:
+		"Orange: all five caption lines from Figure 7 through details. Do not include the separate paragraph beginning et al., 2019 below it.",
+	lesson_crop:
+		"Dashed black: the derived final crop = body plus same-page caption. Do not draw it again. The white gap between body and caption is expected; surrounding prose and page header stay outside.",
+	app: "BBox annotation lab",
+	offline: "Offline · file handoff",
+	rules: "Annotation rules",
+	language: "中文",
+	annotator: "Annotator",
+	reviewer: "Reviewer",
+	reviewNote: "Review / adjudication note",
+	add: "New object",
+	remove: "Delete object",
+	identifier: "Printed identifier (e.g. Figure 6)",
+	kind: "Object type",
+	figure: "Figure",
+	table: "Table",
+	algorithm: "Algorithm",
+	select: "Select / move",
+	body: "Body",
+	panel: "Panel",
+	caption: "Caption",
+	blocker: "Nearby text / other content",
+	undo: "Undo",
+	redo: "Redo",
+	deleteRegion: "Delete region",
+	zoom: "Zoom",
+	crop: "Show derived crop",
+	showAll: "Show all objects",
+	present: "Caption exists (including another page)",
+	absent: "No caption in the document",
+	multipanel: "Multiple panels (label each panel)",
+	uncertain: "Needs adjudication",
+	note: "Object note / uncertainty / no-caption explanation",
+	pageState: "Page completeness",
+	todo: "Not checked",
+	done: "All targets annotated",
+	empty: "Checked: no targets",
+	import: "Import handoff JSON",
+	draft: "Export draft",
+	submit: "Export for review",
+	approve: "Export reviewed ground truth",
+	submitted: "Submitted",
+	reviewed: "Reviewed",
+	ack: "I have read and will apply rules v1.0.0",
+	close: "Close",
+	regions: "Regions",
+	objects: "Objects",
+	checks: "Submission checks",
+	clear: "Checks passed",
+	drawHint:
+		"Choose an object and region type, then drag a rectangle. Select mode moves boxes; corner handles resize. Escape cancels. Arrow keys move the selected region (Shift = 10×).",
+	startHint:
+		"Create an object first. Annotate the body, individual panels, and caption separately. Every evaluated page must be checked in full.",
+	storageOk: "Draft saved on this browser. Export JSON for backup and handoff.",
+	storageFail: "Browser draft storage unavailable. Export JSON before closing.",
+	imported: "Handoff imported",
+	importFail: "Invalid or incompatible annotation file",
+	taskMismatch:
+		"This file belongs to another PDF, page selection, or rules version",
+	confirmImport:
+		"Replace the current draft with this file? Export a backup first if needed.",
+	confirmDelete: "Delete this object and all its regions?",
+	saved: "JSON exported",
+	needAnnotator: "Enter the annotator name",
+	needRules: "Read and acknowledge the rules",
+	needBody: "Exactly one body box is required",
+	needCaption: "Draw the caption, including on another page if needed",
+	unexpectedCaption: "Caption boxes conflict with no-caption status",
+	needAbsentNote: "Explain why this object has no caption",
+	needPanels: "Draw at least two individual panels",
+	unresolved: "Resolve uncertainty before submission",
+	duplicateId: "Duplicate object or region ID",
+	duplicateNumber: "Duplicate printed identifier for this type",
+	unknownPage: "Unknown or duplicate page record",
+	panelOutside: "Panel must lie inside its body on the same page",
+	pageTodo: "Page {{page}} has not been checked",
+	pageNotEmpty: "Page {{page}} has annotations but is marked empty",
+	needReviewer:
+		"Reviewer must be a different person from the annotator; add a review note",
+	invalidGeometry: "Invalid rectangle coordinates",
+	rulesTitle: "Ground-truth rules · v1.0.0",
+	progress: "{{done}} / {{total}} pages checked",
+	page: "Page {{page}}",
+	noSelection: "No object selected",
+	reference: "Compare another annotation",
+	clearReference: "Hide comparison",
+	referenceHint:
+		"Dashed boxes are a read-only reference. They are never merged automatically. Compare independent work before adjudication.",
+	referenceMismatch:
+		"Comparison imported; inspect differences and record the adjudication in the review note.",
+	rule1:
+		"Scope: annotate every figure, table, and algorithm on each selected page, even when the detector would miss it. Do not annotate display equations in v1. Never mark a page complete after checking only one figure.",
+	rule2:
+		"One object is one independently identified figure/table/algorithm. A multi-panel figure sharing one main caption remains one object; draw each semantic panel separately. Do not combine adjacent independently numbered figures.",
+	rule3:
+		"Body: draw exactly one tight outer box including axes, legends, panel labels and necessary internal titles. Exclude the main caption, nearby prose, page numbers and unrelated objects. Preserve the natural white space inside the figure.",
+	rule4:
+		"Panel: draw one box per semantically independent subfigure, not per decorative primitive. Mark multi-panel and label ALL panels. Panels must fit inside the body. Do not split a paired input/attention example into arbitrary tiny cells; agree on the semantic unit during calibration.",
+	rule5:
+		"Caption: include the whole main caption and its continuation, excluding nearby body prose. Multiple caption fragments are allowed. To link another page, keep the same object selected, change page, and draw a caption there. Never union coordinates across pages.",
+	rule6:
+		"A real uncaptioned object is valid. Select no-caption and explain the evidence after checking neighboring pages. The derived crop combines the body and same-page captions only; remote captions remain separate.",
+	rule7:
+		"Record printed identifiers verbatim; leave genuinely unnumbered objects blank. Nearby text/other-content boxes are optional forbidden regions for diagnosing contamination; do not include legitimate figure legends there.",
+	rule8:
+		"Use uncertainty and a note for ambiguous boundaries or grouping. Do not guess a consensus. An adjudicator resolves the issue before final submission. Do not redefine truth to match the current model or heuristic limits.",
+	rule9:
+		"Workflow: all labelers first independently annotate the same calibration pages. Reconcile disagreements and freeze the rules before splitting the remaining work. Reviewer must be a different person and check every panel and caption. File identities are declarations, not authenticated accounts.",
+	rule10:
+		"Handoff: send this HTML plus your exported JSON. Local browser drafts are only a convenience. Keep each labeler’s independent file; compare the second file using the read-only overlay, then export an adjudicated reviewed copy with a review note. Changing any annotation invalidates the previous review status.",
+};
+const zh: Record<keyof typeof en, string> = {
+	demoTitle: "已标好的示范 · ViT / Figure 7",
+	demoSubtitle: "完整示范一页 · 教学样例，待另一人独立复核",
+	step_all: "看完整答案",
+	step_body: "① 图本体",
+	step_panel: "② 三个子图",
+	step_caption: "③ 主图注",
+	step_crop: "④ 最终裁剪框",
+	restoreExample: "恢复示范答案",
+	lesson_all:
+		"这一页只有一个 Figure 7：1 个图本体框 + 3 个子图框 + 1 个图注框。五个标注框描述的是同一张图，不是五张图。",
+	lesson_body:
+		"蓝框：圈住全部图形内容，包括内部标题、坐标轴、色条和图例。下方 Figure 7 开头的主图注不画进图本体。",
+	lesson_panel:
+		"绿框：图注明确分 Left / Center / Right，所以标成三个语义子图。左边 28 个滤波器小格整体算一个拼图，中央 7×7 小格整体算一个热图，不逐格拆分。",
+	lesson_caption:
+		"橙框：完整圈住从 Figure 7 开始、到 details. 结束的五行图注。更下方以 et al., 2019 开始的独立正文不能收入。",
+	lesson_crop:
+		"黑色虚线：系统自动算出的最终框 = 图本体 + 同页主图注，不必再手画一遍。中间留白可以包含，页眉和下方正文不能包含。",
+	app: "BBox 标注工作台",
+	offline: "离线使用 · 文件交接",
+	rules: "标注规则",
+	language: "English",
+	annotator: "标注员",
+	reviewer: "复核员",
+	reviewNote: "复核 / 仲裁说明",
+	add: "新建对象",
+	remove: "删除对象",
+	identifier: "原文编号（如 Figure 6）",
+	kind: "对象类型",
+	figure: "插图",
+	table: "表格",
+	algorithm: "算法",
+	select: "选择 / 移动",
+	body: "图本体",
+	panel: "子图",
+	caption: "主图注",
+	blocker: "邻近正文 / 其他内容",
+	undo: "撤销",
+	redo: "重做",
+	deleteRegion: "删除选框",
+	zoom: "缩放",
+	crop: "显示最终裁剪框",
+	showAll: "显示所有对象",
+	present: "有图注（包括其他页）",
+	absent: "全文无图注",
+	multipanel: "多子图（须逐个标全）",
+	uncertain: "待仲裁",
+	note: "对象备注 / 争议 / 无图注说明",
+	pageState: "本页完整性",
+	todo: "未检查",
+	done: "本页所有目标已标全",
+	empty: "已检查：本页无目标",
+	import: "导入交接 JSON",
+	draft: "导出草稿",
+	submit: "导出待复核稿",
+	approve: "导出已复核真值",
+	submitted: "待复核",
+	reviewed: "已复核",
+	ack: "我已阅读并遵循 v1.0.0 标注规则",
+	close: "关闭",
+	regions: "选框",
+	objects: "对象",
+	checks: "提交检查",
+	clear: "检查通过",
+	drawHint:
+		"选中对象和框类型后拖动画框。选择模式可移动框，拖动角点可调整大小；Esc 取消。方向键微调选框（Shift 为 10 倍步长）。",
+	startHint:
+		"先新建对象，再分别标图本体、各子图和主图注。每个评估页都必须完整检查。",
+	storageOk: "草稿已保存在当前浏览器。备份与交接请导出 JSON。",
+	storageFail: "浏览器无法保存草稿，关闭前请导出 JSON。",
+	imported: "已导入交接稿",
+	importFail: "标注文件无效或版本不兼容",
+	taskMismatch: "文件的 PDF、评估页或规则版本与当前任务不同",
+	confirmImport: "用此文件替换当前草稿？需要保留时请先导出备份。",
+	confirmDelete: "删除这个对象及其所有选框？",
+	saved: "已导出 JSON",
+	needAnnotator: "请填写标注员",
+	needRules: "请阅读并确认标注规则",
+	needBody: "每个对象必须且只能有一个图本体框",
+	needCaption: "请标出主图注；跨页时到对应页补标",
+	unexpectedCaption: "无图注状态与已标图注框冲突",
+	needAbsentNote: "无图注对象须说明依据",
+	needPanels: "多子图对象须标出至少两个子图",
+	unresolved: "请先仲裁并解除待仲裁状态",
+	duplicateId: "对象或选框 ID 重复",
+	duplicateNumber: "同类对象的原文编号重复",
+	unknownPage: "页记录未知或重复",
+	panelOutside: "子图须位于同页图本体内",
+	pageTodo: "第 {{page}} 页尚未检查",
+	pageNotEmpty: "第 {{page}} 页已有标注，却被标为无目标",
+	needReviewer: "复核员须与标注员不同，且填写复核说明",
+	invalidGeometry: "选框坐标无效",
+	rulesTitle: "真值标注规则 · v1.0.0",
+	progress: "已检查 {{done}} / {{total}} 页",
+	page: "第 {{page}} 页",
+	noSelection: "尚未选择对象",
+	reference: "对照另一份标注",
+	clearReference: "隐藏对照",
+	referenceHint:
+		"虚线框是只读对照，不会自动合并。请先比较独立标注，再进行仲裁。",
+	referenceMismatch: "已加载对照；请检查差异，并在复核说明中记录仲裁结果。",
+	rule1:
+		"范围：所选页面内的插图、表格、算法须全部标出，包括模型可能漏检的对象。v1 不标独立公式。不能只检查某一张图就把整页标为完成。",
+	rule2:
+		"对象：一个独立编号或独立语义的图 / 表 / 算法算一个对象。共用主图注的多子图属于一个对象，各语义子图分别画框。相邻但编号不同的图不能合并。",
+	rule3:
+		"图本体：只画一个贴合可见内容的外框，包含坐标轴、图例、子图标号和必要的内部标题；不含主图注、邻近正文、页码及其他对象。图内部自然留白保留。",
+	rule4:
+		"子图：每个语义独立的子图画一个框，不按装饰元素拆分。多子图须勾选并全部标齐，框位于图本体内。输入图 / 注意力图等成对示例不要任意拆成细碎小格；先在校准标注中约定语义单位。",
+	rule5:
+		"主图注：完整包含主图注及续文，排除相邻正文。允许多片段。跨页时保持同一对象选中，切页后画图注框；不把不同页面的坐标做并集。",
+	rule6:
+		"无图注：真实无图注的对象仍保留，检查相邻页后勾选全文无图注并填写依据。最终裁剪框只合并图本体和同页图注，异页图注独立保存。",
+	rule7:
+		"编号照原文填写；确实无编号可以留空。邻近正文 / 其他内容是用于诊断污染的可选禁止区域，不要把合法图例放入其中。",
+	rule8:
+		"遇到边界或分组歧义，勾选待仲裁并记录问题，不凭猜测制造共识。提交前由仲裁员解决。真值不受当前模型标签、阈值及启发式能力限制。",
+	rule9:
+		"多人流程：先让所有人独立标同一批校准页，统一分歧并冻结规则，再分配剩余页面。复核员须为另一人，逐个检查子图与图注。此离线工具中的人员姓名是自报信息，不提供账号认证。",
+	rule10:
+		"交接：发送此 HTML 与导出的 JSON。浏览器草稿仅方便恢复，不能替代备份。保留每人的独立稿，用只读对照叠加比较后，填写仲裁说明并导出已复核稿。任何编辑都会使原复核状态失效。",
+};
+void i18n.use(initReactI18next).init({
+	resources: { en: { translation: en }, "zh-CN": { translation: zh } },
+	lng: "zh-CN",
+	fallbackLng: "en",
+	interpolation: { escapeValue: false },
+});
+export default i18n;

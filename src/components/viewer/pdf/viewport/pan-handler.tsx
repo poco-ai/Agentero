@@ -34,6 +34,16 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
 	);
 }
 
+/**
+ * PDF chrome (in-page toolbars, selection menus, cards, page tabs) owns right
+ * clicks; only the page itself trades its context menu for right-drag pan.
+ */
+function isPdfChromeTarget(target: EventTarget | null): boolean {
+	return (
+		target instanceof Element && target.closest("[data-pdf-chrome]") !== null
+	);
+}
+
 type PanDragHandlerProps = {
 	/** Gates the focus fallback for the bare Space key; hover claims without it. */
 	active: boolean;
@@ -44,8 +54,8 @@ type PanDragHandlerProps = {
 };
 
 /**
- * Momentary hand tool: middle-button drag always pans, and holding Space arms
- * the left button to behave exactly the same.
+ * Momentary hand tool: middle- and right-button drags always pan, and holding
+ * Space arms the left button to behave exactly the same.
  *
  * Space is a bare key with no modifier, so claiming it needs an ownership rule:
  * the hovered viewer wins (focus usually sits on a tab, the sidebar or the notes
@@ -54,6 +64,10 @@ type PanDragHandlerProps = {
  * always keep their native behavior. The pointer gesture is not gated on
  * ownership at all — a drag starts on whatever viewport the pointer is actually
  * on, which matters in split panes.
+ *
+ * Right-drag shares its button with the context menu: the page gives up that
+ * menu, while PDF chrome (toolbars, selection menus, cards) opts out of the
+ * right drag and keeps it.
  *
  * Must render inside `DockviewViewport` (ViewportElementContext).
  */
@@ -87,6 +101,10 @@ export function PanDragHandler({
 			// links, whose click the held Space has already suspended. Only editors
 			// keep their own pointer behavior.
 			isExcludedTarget: isEditableClipboardTarget,
+			// The right button is also the context menu's button. Chrome keeps that
+			// menu (and its own right-click actions, e.g. flipping a highlight
+			// swatch); the page pans instead.
+			isRightDragExcludedTarget: isPdfChromeTarget,
 			onStateChange: (state) => {
 				viewport.classList.toggle(PANNING_CLASS, state === "panning");
 			},

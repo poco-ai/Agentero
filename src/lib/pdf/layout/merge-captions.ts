@@ -9,7 +9,6 @@ import {
 	isFormulaLayoutKind,
 	isFormulaNumberLayoutKind,
 	isLayoutBodyTextKind,
-	isSidebarLayoutKind,
 	isTableLayoutKind,
 	isTextLayoutKind,
 } from "@/lib/pdf/layout/labels";
@@ -24,7 +23,6 @@ export type CaptionPlacement = "below" | "above";
 
 /**
  * Shared geometry thresholds (normalized page coords 0–1).
- * Documented in docs/frontend/pdf-layout-analysis.md §规则清单.
  */
 export const LAYOUT_MERGE = {
 	/** Title width ≥ this → allow several caption-anchored panel groups. */
@@ -82,6 +80,12 @@ export const LAYOUT_MERGE = {
 	figureTextCover: 0.55,
 	/** Min score for text/header/abstract to veto a figure detection. */
 	figureTextMinScore: 0.3,
+	/** A heading taller than this may be a misclassified diagram, not reliable text evidence. */
+	figureTextMaxHeaderHeight: 0.12,
+	/** Minimum geometric score lead before assigning an unreadable caption to a non-figure host. */
+	captionFamilyMinScoreMargin: 0.2,
+	/** Only explicit numbered captions may attach beside a figure across a small gutter. */
+	sideCaptionMaxGap: 0.1,
 } as const;
 
 /**
@@ -135,6 +139,11 @@ export function figureCoveredByBodyText(
 	for (const t of bodyBlocks) {
 		if (t.pageIndex !== pageIndex) continue;
 		if (!isLayoutBodyTextKind(t.kind)) continue;
+		if (
+			t.kind === "header" &&
+			t.bbox.h > LAYOUT_MERGE.figureTextMaxHeaderHeight
+		)
+			continue;
 		if (t.score < LAYOUT_MERGE.figureTextMinScore) continue;
 		if (bboxCoveredBy(box, t.bbox) >= coverThreshold) return true;
 	}
@@ -152,6 +161,9 @@ export function suppressSpuriousFigureDetections(
 	const bodyBlocks = regions.filter(
 		(r) =>
 			isLayoutBodyTextKind(r.kind) &&
+			!(
+				r.kind === "header" && r.bbox.h > LAYOUT_MERGE.figureTextMaxHeaderHeight
+			) &&
 			r.score >= LAYOUT_MERGE.figureTextMinScore,
 	);
 	if (!bodyBlocks.length) return [...regions];
@@ -278,7 +290,9 @@ export function captionCompatibleWithHost(
 	if (r === "subpanel") return family === "figure";
 	// Unclassified model labels:
 	if (captionKind === "figure_title") return family === "figure";
-	if (captionKind === "header") return true;
+	// A running header or section heading is not a caption merely because it
+	// happens to be near a figure/table. Explicit caption roles above still work.
+	if (captionKind === "header") return false;
 	return false;
 }
 
@@ -430,6 +444,52 @@ export function captionAttachScore(
 	return hOverlap * 2 + 0.2 - Math.abs(gapAbove) * 8;
 }
 
+/** Resolve text-free generic caption detections using competing host families. */
+function resolveMergeCaptionRole(
+	caption: PdfLayoutRegion,
+	regions: readonly PdfLayoutRegion[],
+): PdfLayoutRegion["captionRole"] {
+	const role = resolveCaptionRole(caption);
+	if (
+		caption.kind !== "figure_title" ||
+		caption.title?.trim() ||
+		caption.text?.trim() ||
+		(role !== "figure_main" && role !== "other")
+	)
+		return role;
+	const scores = new Map<LayoutHostFamily, number>();
+	for (const host of regions) {
+		const family = hostFamily(host.kind);
+		if (
+			!family ||
+			host.pageIndex !== caption.pageIndex ||
+			host.score < LAYOUT_SIDEBAR_MIN_SCORE
+		)
+			continue;
+		const score =
+			captionAttachScore(
+				host.bbox,
+				caption.bbox,
+				preferredCaptionPlacement(family),
+			) +
+			host.score * 0.1;
+		if (Number.isFinite(score))
+			scores.set(family, Math.max(scores.get(family) ?? -Infinity, score));
+	}
+	const ranked = [...scores].sort((a, b) => b[1] - a[1]);
+	const best = ranked[0];
+	// Keep the existing figure fallback when host families are ambiguous. Textual
+	// semantics always win; this only repairs the geometry-only generic label.
+	if (
+		!best ||
+		best[0] === "figure" ||
+		(ranked[1] &&
+			best[1] - ranked[1][1] < LAYOUT_MERGE.captionFamilyMinScoreMargin)
+	)
+		return role;
+	return best[0] === "table" ? "table_main" : "algorithm_main";
+}
+
 /**
  * image/chart panels in the vertical band (ceiling → title) and title column.
  *
@@ -538,10 +598,25 @@ export function selectClusterForTitle(
 ): PdfLayoutRegion[] {
 	const ceiling = verticalCeilingForTitle(title, mainFigureCaptions);
 	const fullWidth = title.bbox.w >= LAYOUT_MERGE.fullWidthTitle;
+	const captionText = title.title ?? title.text ?? "";
+	const panelReferences = new Set(
+		[...captionText.matchAll(/\(([a-z])\)|\bpanel\s+([a-z])\b/gi)].map(
+			(match) => (match[1] ?? match[2]).toLowerCase(),
+		),
+	);
 	const candidates = panelsAboveTitle(
 		title,
 		panels.filter((p) => p.score >= LAYOUT_SIDEBAR_MIN_SCORE),
-		{ ceiling, fullWidth },
+		{
+			ceiling,
+			fullWidth,
+			// A numbered caption explicitly referring to several panels can span
+			// a full column. Connectivity still requires a nearby caption seed.
+			maxHeightAbove:
+				figureCaptionKey(captionText) && panelReferences.size >= 2
+					? Number.POSITIVE_INFINITY
+					: undefined,
+		},
 	);
 	const groups = connectedPanelGroups(candidates, blockers);
 	const anchored = groups.filter((group) =>
@@ -573,6 +648,97 @@ export function selectClusterForTitle(
 		}
 	}
 	return best;
+}
+
+/** A numbered caption can wrap into a second column below a multi-row grid.
+ * Require model-caption evidence and two aligned panel rows, not adjacent prose.
+ */
+function joinGridCaptionColumns(
+	captions: PdfLayoutRegion[],
+	panels: PdfLayoutRegion[],
+	blockers: readonly PdfLayoutRegion[],
+): PdfLayoutRegion[] {
+	const used = new Set<string>();
+	const joined = new Map<string, PdfLayoutRegion>();
+	const numbered = captions.filter((c) =>
+		figureCaptionKey(c.title ?? c.text ?? ""),
+	);
+	for (const title of numbered) {
+		if (title.bbox.w >= LAYOUT_MERGE.fullWidthTitle) continue;
+		const candidates = captions.filter((next) => {
+			const gap = next.bbox.x - title.bbox.x - title.bbox.w;
+			return (
+				next.pageIndex === title.pageIndex &&
+				next.kind === "figure_title" &&
+				next.id !== title.id &&
+				!used.has(next.id) &&
+				next.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+				Boolean((next.title ?? next.text)?.trim()) &&
+				resolveCaptionRole(next) === "other" &&
+				gap >= 0 &&
+				gap <= 0.06 &&
+				Math.abs(next.bbox.y - title.bbox.y) <= 0.012 &&
+				next.bbox.h <= 0.2 &&
+				title.bbox.h <= 0.2 &&
+				next.bbox.w / title.bbox.w >= 0.6 &&
+				next.bbox.w / title.bbox.w <= 1.67
+			);
+		});
+		if (candidates.length !== 1) continue;
+		const next = candidates[0];
+		const span = unionBbox(title.bbox, next.bbox);
+		if (span.w < LAYOUT_MERGE.fullWidthTitle) continue;
+		// Another numbered caption in the same strip makes ownership ambiguous.
+		if (
+			numbered.some(
+				(c) =>
+					c.id !== title.id &&
+					c.pageIndex === title.pageIndex &&
+					Math.abs(c.bbox.y - title.bbox.y) <= 0.04 &&
+					horizontalOverlapRatio(c.bbox, span) >= 0.2,
+			)
+		)
+			continue;
+		const grid = { ...title, bbox: span };
+		const group = selectClusterForTitle(grid, panels, numbered, blockers);
+		if (group.length < 4) continue;
+		const ceiling = verticalCeilingForTitle({ ...title, bbox: span }, numbered);
+		const left = panelsAboveTitle(title, group, { fullWidth: true, ceiling });
+		const right = panelsAboveTitle(next, group, { fullWidth: true, ceiling });
+		const rows = left
+			.filter((a) =>
+				right.some((b) => {
+					const gap = b.bbox.x - a.bbox.x - a.bbox.w;
+					return (
+						gap >= -0.01 &&
+						gap <= LAYOUT_MERGE.panelNeighborGap + 1e-9 &&
+						verticalOverlapRatio(a.bbox, b.bbox) >= 0.75 &&
+						Math.abs(a.bbox.h - b.bbox.h) <=
+							Math.max(a.bbox.h, b.bbox.h) * 0.25 &&
+						!hasFigureSeparator(a, b, blockers)
+					);
+				}),
+			)
+			.sort((a, b) => a.bbox.y - b.bbox.y);
+		const distinctRows: PdfLayoutRegion[] = [];
+		for (const row of rows) {
+			const previous = distinctRows.at(-1);
+			if (!previous || row.bbox.y >= previous.bbox.y + previous.bbox.h * 0.7)
+				distinctRows.push(row);
+		}
+		if (distinctRows.length < 2) continue;
+		used.add(next.id);
+		joined.set(title.id, {
+			...title,
+			bbox: span,
+			rect: unionBbox(title.rect, next.rect),
+			title: `${title.title ?? title.text} ${next.title ?? next.text}`,
+			text: `${title.title ?? title.text} ${next.title ?? next.text}`,
+		});
+	}
+	return captions
+		.filter((c) => !used.has(c.id))
+		.map((c) => joined.get(c.id) ?? c);
 }
 
 /** True if outer fully covers inner (title must never stick out of the figure box). */
@@ -904,7 +1070,9 @@ function pairCaptionsOneToOne(
 
 	for (const host of hosts) {
 		const family = hostFamily(host.kind);
-		if (family !== familyFilter) continue;
+		// A host that will be discarded by the sidebar must not consume a caption.
+		if (family !== familyFilter || host.score < LAYOUT_SIDEBAR_MIN_SCORE)
+			continue;
 		for (const caption of captions) {
 			if (caption.pageIndex !== host.pageIndex) continue;
 			const role = resolveCaptionRole(caption);
@@ -921,7 +1089,40 @@ function pairCaptionsOneToOne(
 						? "above"
 						: preferred;
 
-			const spatial = captionAttachScore(host.bbox, caption.bbox, place);
+			let spatial = captionAttachScore(host.bbox, caption.bbox, place);
+			if (
+				!Number.isFinite(spatial) &&
+				family === "figure" &&
+				role === "figure_main" &&
+				figureCaptionKey(caption.title ?? caption.text ?? "")
+			) {
+				const h = host.bbox,
+					c = caption.bbox;
+				const gap = Math.max(c.x - h.x - h.w, h.x - c.x - c.w);
+				const overlap = verticalOverlapRatio(h, c);
+				const gapLeft = Math.min(c.x + c.w, h.x + h.w);
+				const gapRight = Math.max(c.x, h.x);
+				const separated = blockers.some(
+					(block) =>
+						block.pageIndex === host.pageIndex &&
+						block.id !== host.id &&
+						block.id !== caption.id &&
+						block.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+						block.bbox.x >= gapLeft - 0.005 &&
+						block.bbox.x + block.bbox.w <= gapRight + 0.005 &&
+						verticalOverlapRatio(block.bbox, h) >= 0.5,
+				);
+				if (
+					gap >= -0.01 &&
+					gap <= LAYOUT_MERGE.sideCaptionMaxGap + 1e-9 &&
+					!separated &&
+					overlap >= 0.5 &&
+					c.w <= h.w &&
+					c.h <= h.h * 1.25
+				) {
+					spatial = overlap * 2 + 0.2 - Math.max(0, gap) * 8;
+				}
+			}
 			if (!Number.isFinite(spatial)) continue;
 
 			let score = spatial + caption.score * 0.1;
@@ -1118,7 +1319,7 @@ export function mergeFormulasByNumber(
 
 /**
  * A model can confidently call a caption `text` (ViT Figures 6 and 11).
- * Recover only numbered, punctuated caption text (including caption-only pages);
+ * Recover numbered caption starts (including caption-only pages);
  * prose such as "Figure 5 contains ..." remains body text. Keep raw unchanged.
  */
 function recoverFigureCaptionLabels(
@@ -1132,10 +1333,47 @@ function recoverFigureCaptionLabels(
 		)
 			return r;
 		if (!figureCaptionKey(r.text)) return r;
+		// OCR can omit a line and split a caption into two body paragraphs. A
+		// weak caption detection may still locate the whole paragraph correctly:
+		// trust it only when two confident text fragments corroborate its text.
+		const complete = regions.filter((candidate) => {
+			const text = candidate.title ?? candidate.text ?? "";
+			if (
+				candidate.kind !== "figure_title" ||
+				candidate.pageIndex !== r.pageIndex ||
+				candidate.score >= LAYOUT_SIDEBAR_MIN_SCORE ||
+				candidate.bbox.h > 0.2 ||
+				Math.abs(candidate.bbox.y - r.bbox.y) > 0.01 ||
+				Math.abs(candidate.bbox.w - r.bbox.w) > 0.01 ||
+				bboxCoveredBy(r.bbox, candidate.bbox) < 0.95 ||
+				!text.startsWith(`${r.text} `) ||
+				/[.!?。！？]\s*$/.test(r.text ?? "")
+			)
+				return false;
+			const tail = text.slice((r.text?.length ?? 0) + 1);
+			return (
+				/^[a-z]/.test(tail) &&
+				regions.some(
+					(part) =>
+						part.kind === "text" &&
+						part.pageIndex === r.pageIndex &&
+						part.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
+						part.text === tail &&
+						part.bbox.y >= r.bbox.y + r.bbox.h &&
+						part.bbox.y - r.bbox.y - r.bbox.h <= 0.02 &&
+						Math.abs(part.bbox.x - r.bbox.x) <= 0.01 &&
+						bboxCoveredBy(part.bbox, candidate.bbox) >= 0.95,
+				)
+			);
+		});
+		const source = complete.length === 1 ? complete[0] : r;
 		return {
-			...r,
+			...source,
+			id: r.id,
+			score: r.score,
+			readingOrder: r.readingOrder,
 			kind: "figure_title" as const,
-			title: r.text,
+			title: source.title ?? source.text,
 			captionRole: "figure_main" as const,
 		};
 	});
@@ -1148,6 +1386,7 @@ function recoverFigureCaptionLabels(
 			(other, otherIndex) =>
 				otherIndex !== index &&
 				other.kind === "figure_title" &&
+				other.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
 				other.pageIndex === r.pageIndex &&
 				figureCaptionKey(other.title ?? "") === key &&
 				Math.max(
@@ -1271,7 +1510,7 @@ export function mergeCaptionsIntoHosts(
 	// Ensure roles are resolved for merge decisions.
 	const tagged = cleaned.map((r) =>
 		isCaptionLayoutKind(r.kind)
-			? { ...r, captionRole: resolveCaptionRole(r) }
+			? { ...r, captionRole: resolveMergeCaptionRole(r, cleaned) }
 			: r,
 	);
 
@@ -1287,7 +1526,16 @@ export function mergeCaptionsIntoHosts(
 			),
 	);
 	const algorithms = tagged.filter((r) => isAlgorithmLayoutKind(r.kind));
-	const captions = tagged.filter((r) => isCaptionLayoutKind(r.kind));
+	const captions = joinGridCaptionColumns(
+		tagged.filter((r) => isCaptionLayoutKind(r.kind)),
+		figures,
+		tagged.filter(
+			(r) =>
+				isTableLayoutKind(r.kind) ||
+				isAlgorithmLayoutKind(r.kind) ||
+				isLayoutBodyTextKind(r.kind),
+		),
+	);
 	// formula + formula_number only (text no longer used as a formula merge gate).
 	const formulaRelated = tagged.filter(
 		(r) => isFormulaLayoutKind(r.kind) || isFormulaNumberLayoutKind(r.kind),
@@ -1299,8 +1547,7 @@ export function mergeCaptionsIntoHosts(
 			!isAlgorithmLayoutKind(r.kind) &&
 			!isCaptionLayoutKind(r.kind) &&
 			!isFormulaLayoutKind(r.kind) &&
-			!isFormulaNumberLayoutKind(r.kind) &&
-			!isTextLayoutKind(r.kind),
+			!isFormulaNumberLayoutKind(r.kind),
 	);
 
 	const mainFigureTitles = captions.filter(
@@ -1439,8 +1686,41 @@ export function mergeCaptionsIntoHosts(
 	for (const cap of figPairs.values()) usedCaptionIds.add(cap.id);
 
 	const singles: PdfLayoutRegion[] = [];
+	const sidePanelIds = new Set<string>();
+	for (const host of freeFigures) {
+		const cap = figPairs.get(host.id);
+		if (!cap || !figureCaptionKey(cap.title ?? cap.text ?? "")) continue;
+		// Margin captions sit beside the first panel, rather than below the
+		// whole float. Follow aligned neighbours to include the entire figure.
+		if (
+			horizontalOverlapRatio(host.bbox, cap.bbox) >= 0.2 ||
+			verticalOverlapRatio(host.bbox, cap.bbox) < 0.5
+		)
+			continue;
+		const peers = freeFigures.filter(
+			(panel) =>
+				panel.pageIndex === host.pageIndex &&
+				(panel.id === host.id || !figPairs.has(panel.id)) &&
+				verticalOverlapRatio(host.bbox, panel.bbox) >= 0.65 &&
+				Math.abs(host.bbox.y - panel.bbox.y) <= 0.06,
+		);
+		const group = connectedPanelGroups(peers, [
+			...figureBlockers,
+			...mainFigureTitles.filter((c) => c.id !== cap.id),
+		]).find((g) => g.some((p) => p.id === host.id));
+		if (!group || group.length < 2) continue;
+		clustered.push({
+			...mergeCluster(group, cap, [], []),
+			bbox: group.reduce(
+				(bbox, panel) => unionBbox(bbox, panel.bbox),
+				cap.bbox,
+			),
+		});
+		for (const panel of group) sidePanelIds.add(panel.id);
+	}
 	// Missing captions are not evidence that a detected figure is invalid.
 	for (const host of freeFigures) {
+		if (sidePanelIds.has(host.id)) continue;
 		const cap = figPairs.get(host.id);
 		singles.push(cap ? attachCaptionToHost(host, cap) : host);
 	}
@@ -1456,15 +1736,17 @@ export function mergeCaptionsIntoHosts(
 	// ── Phase 5: formulas by equation number (drop unnumbered) ──
 	const numberedFormulas = mergeFormulasByNumber(formulaRelated);
 
-	const hosts = [
-		...clustered,
-		...singles,
-		...others.filter((r) => isSidebarLayoutKind(r.kind)),
-		...numberedFormulas,
-	];
+	const hosts = [...clustered, ...singles, ...numberedFormulas];
 	// Orphans inside 联图 → soft half-width split (title always re-included)
 	// → include same-page titles in full, preserving uncaptioned figures.
-	return requireFigureTitles(
+	const mergedHosts = requireFigureTitles(
 		resolveFigureBboxOverlaps(suppressOrphanFiguresInsideClusters(hosts)),
 	);
+	// Product selection needs every block; gallery consumers filter their own kinds.
+	// Captions absorbed into a host remain part of that host's merged boxes.
+	return [
+		...mergedHosts,
+		...others,
+		...captions.filter((caption) => !usedCaptionIds.has(caption.id)),
+	];
 }

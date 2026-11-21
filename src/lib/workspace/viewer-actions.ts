@@ -37,12 +37,14 @@ import {
 } from "@/lib/pdf/layout";
 import { readLayoutSidecar } from "@/lib/pdf/layout/io";
 import {
+	adoptPdfNavigationKey,
 	beginPdfNavigation,
 	cancelPdfNavigation,
 	completePdfNavigation,
 	type PdfNavigationIntent,
 } from "@/lib/pdf/pending-pdf-page";
 import { registerScrollSyncPair } from "@/lib/pdf/scroll-sync";
+import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import {
 	cancelScheduledTexAutoBuild,
 	registerTexAutoBuildRunner,
@@ -53,11 +55,11 @@ import { tryOpenWritingSource } from "@/lib/tex/editor-navigation";
 import { syncTexAfterBuild } from "@/lib/tex/synctex";
 import { isTexLiveRootActive } from "@/lib/tex-live/session";
 import {
+	createVaultFile,
 	ensureLocalFsScope,
 	joinVaultPath,
 	vaultPathExists,
 	vaultRelativePath,
-	writeVaultFile,
 } from "@/lib/vault";
 import { getVaultPath, refreshTree, vaultStore } from "@/lib/vault/store";
 import {
@@ -67,12 +69,15 @@ import {
 	type WikiNavTarget,
 	wikiNavigationDestination,
 } from "@/lib/wiki";
-import { rebuildWikiAndNotify } from "@/lib/wiki/store";
-import { dockHandle } from "@/lib/workspace/dock-registry";
+import { rebuildWikiAndNotify, trackSelfWrittenPath } from "@/lib/wiki/store";
 import {
+	cacheActiveTabBeforeDock,
+	dockHandle,
+} from "@/lib/workspace/dock-registry";
+import {
+	currentWindowLabel,
 	getActiveTabId,
 	getTabs,
-	setActiveTabId,
 	setTabs,
 	updateTab,
 } from "@/lib/workspace/store";
@@ -83,11 +88,16 @@ import {
 	subscribePdfHandles,
 } from "@/lib/workspace/viewer/pdf-viewer-registry";
 import {
+	isWritingPath,
+	resolveWritingTarget,
+} from "@/lib/writing/project-target";
+import {
 	cloneTabForSplit,
 	closeTab,
 	openPaper,
 	openPath,
 	openTab,
+	openWritingFile,
 } from "./navigation";
 import {
 	basenameOf,
@@ -95,10 +105,12 @@ import {
 	createPlaceholderTab,
 	createTranslationSplitPane,
 	type DocTab,
+	findCanonicalTab,
+	findPaperBodyForNotes,
 	insertPlaceholderTab,
+	isCanonicalView,
 	patchTab,
-	SPLIT_PANE_ID_MARKER,
-	tabIdForPath,
+	tabIsPaperNoteDocument,
 	tabNotesEligible,
 	translationSplitPlacement,
 } from "./tabs";
@@ -111,16 +123,33 @@ import {
 } from "./tex-compile";
 import { isTexPath, preferredModeForPath } from "./viewer";
 
-function texPdfPaneId(pdfPath: string): string {
+function canonicalTabId(path: string): string | null {
+	return findCanonicalTab(getTabs(), path)?.id ?? null;
+}
+
+function texPdfPaneId(pdfPath: string): string | null {
+	const key = normalizePath(pdfPath);
 	const matches = getTabs().filter(
 		(tab) =>
-			tab.mode === "pdf" && normalizePath(tab.path) === normalizePath(pdfPath),
+			tab.mode === "pdf" &&
+			tab.pane !== "translation" &&
+			normalizePath(tab.path) === key,
 	);
 	return (
 		matches.find((tab) => tab.id === getActiveTabId())?.id ??
-		matches.find((tab) => tab.id === tabIdForPath(pdfPath))?.id ??
+		matches.find((tab) => isCanonicalView(tab))?.id ??
 		matches[0]?.id ??
-		tabIdForPath(pdfPath)
+		null
+	);
+}
+
+function editorPanelId(path: string): string | null {
+	const key = normalizePath(path);
+	const matches = getTabs().filter(
+		(tab) => tab.pane !== "translation" && normalizePath(tab.path) === key,
+	);
+	return (
+		matches.find((tab) => isCanonicalView(tab))?.id ?? matches[0]?.id ?? null
 	);
 }
 
@@ -157,6 +186,19 @@ export async function openTexPdf(
 ): Promise<void> {
 	if (!isTexPath(texPath)) return;
 	try {
+		// Writing projects own their preview inside the panel (TexProjectView):
+		// never add a dock PDF panel for them, so opening TeX does not change
+		// how surrounding panels are split or moved.
+		const vault = getVaultPath();
+		if (vault && isWritingPath(vault, texPath)) {
+			const project = await resolveWritingTarget(vault, texPath).catch(
+				() => null,
+			);
+			if (project) {
+				openWritingFile(texPath, project.root);
+				return;
+			}
+		}
 		const root = await resolveTexRoot(texPath);
 		await queueTexBuild(
 			root,
@@ -181,23 +223,15 @@ async function openTexPdfNow(
 	// One in-flight compile at a time (mirrors compileTexFile's guard).
 	if (texCompileStore.getState().compilingPath) return;
 
-	// Locate the reference editor panel (handles ::pane-N clones); open the
+	// Locate the reference editor panel (including a split copy); open the
 	// editor first when it is not on screen so the PDF lands beside it.
-	const canonicalTexId = tabIdForPath(texPath);
-	const refId =
-		opts?.referencePanelId ??
-		getTabs().find(
-			(t) =>
-				t.id === canonicalTexId ||
-				t.id.startsWith(`${canonicalTexId}${SPLIT_PANE_ID_MARKER}`),
-		)?.id ??
-		null;
-	if (!refId) {
+	let referencePanelId = opts?.referencePanelId ?? editorPanelId(texPath);
+	if (!referencePanelId) {
 		// openTab creates the dockview panel synchronously, so the id below
 		// resolves immediately.
 		openTab(texPath, { preferMode: "text" });
+		referencePanelId = canonicalTabId(texPath);
 	}
-	const referencePanelId = refId ?? canonicalTexId;
 
 	// Flush every mounted editor's debounced autosave first (a root compile
 	// must read the latest bytes of all its sections — the saveAll
@@ -223,7 +257,7 @@ async function openTexPdfNow(
 		// Fast path: the PDF is already on disk → open/refresh, no shimmer.
 		const bytes = await localFileToArrayBuffer(pdfPath);
 		if (bytes) {
-			if (getTabs().some((t) => t.id === pdfId)) {
+			if (pdfId && getTabs().some((t) => t.id === pdfId)) {
 				updateTexPdfPanes(pdfPath, {
 					pdfBytes: bytes,
 					loaded: true,
@@ -232,7 +266,7 @@ async function openTexPdfNow(
 					...(keepLive ? {} : { texLive: false }),
 					title: basenameOf(pdfPath),
 				});
-				setActiveTabId(pdfId);
+				cacheActiveTabBeforeDock(pdfId);
 				dockHandle()?.activatePanel(pdfId);
 			} else {
 				openTab(pdfPath, {
@@ -247,14 +281,17 @@ async function openTexPdfNow(
 
 	// Show the PDF pane immediately as a shimmer placeholder, then fill it
 	// once the compile lands.
-	const paneAlreadyOpen = getTabs().some((t) => t.id === pdfId);
-	if (paneAlreadyOpen) {
+	const paneAlreadyOpen = Boolean(
+		pdfId && getTabs().some((t) => t.id === pdfId),
+	);
+	let createdId: string | null = null;
+	if (paneAlreadyOpen && pdfId) {
 		updateTexPdfPanes(pdfPath, {
 			texCompiling: true,
 			texLive: false,
 			texRoot: rootPath,
 		});
-		setActiveTabId(pdfId);
+		cacheActiveTabBeforeDock(pdfId);
 		dockHandle()?.activatePanel(pdfId);
 	} else {
 		// Hand-rolled openTab prefix (placeholder + dock placement) without
@@ -266,11 +303,12 @@ async function openTexPdfNow(
 			pdfPath,
 			"pdf",
 		);
+		createdId = insertedId;
 		const placeholder =
 			nextTabs.find((t) => t.id === insertedId) ??
-			createPlaceholderTab(pdfPath, "pdf");
+			createPlaceholderTab(pdfPath, "pdf", insertedId);
 		setTabs(nextTabs);
-		setActiveTabId(insertedId);
+		cacheActiveTabBeforeDock(insertedId);
 		dockHandle()?.openPanel(placeholder, {
 			direction: "right",
 			referencePanelId,
@@ -288,7 +326,7 @@ async function openTexPdfNow(
 		// on a shimmer forever); just un-flag a pre-existing one so it shows
 		// its previous content again.
 		if (paneAlreadyOpen) updateTexPdfPanes(pdfPath, { texCompiling: false });
-		else closeTab(pdfId, { remember: false });
+		else if (createdId) closeTab(createdId, { remember: false });
 		if (compiled) {
 			// The compile itself succeeded but its output could not be read
 			// back (fs scope / file vanished). Say so — a silent revert behind
@@ -364,28 +402,25 @@ export async function openTexLive(texPath: string): Promise<void> {
 	if (!vaultPath) return;
 
 	const pdfPath = await resolveTexPdfPath(rootPath);
-	const pdfId = tabIdForPath(pdfPath);
-	const editorId = tabIdForPath(texPath);
-	const referencePanelId =
-		getTabs().find(
-			(t) =>
-				t.id === editorId ||
-				t.id.startsWith(`${editorId}${SPLIT_PANE_ID_MARKER}`),
-		)?.id ?? editorId;
-	if (!getTabs().some((t) => t.id === referencePanelId)) {
+	let referencePanelId = editorPanelId(texPath);
+	if (!referencePanelId) {
 		openTab(texPath, { preferMode: "text" });
+		referencePanelId = editorPanelId(texPath);
 	}
 
-	const existing = getTabs().find((t) => t.id === pdfId);
+	const existing = findCanonicalTab(
+		getTabs().filter((tab) => tab.mode === "pdf"),
+		pdfPath,
+	);
 	if (existing) {
-		updateTab(pdfId, {
+		updateTab(existing.id, {
 			texLive: true,
 			texRoot: rootPath,
 			loaded: true,
 			texCompiling: false,
 		});
-		setActiveTabId(pdfId);
-		dockHandle()?.activatePanel(pdfId);
+		cacheActiveTabBeforeDock(existing.id);
+		dockHandle()?.activatePanel(existing.id);
 		return;
 	}
 
@@ -397,9 +432,10 @@ export async function openTexLive(texPath: string): Promise<void> {
 		"pdf",
 	);
 	const placeholder =
-		nextTabs.find((t) => t.id === id) ?? createPlaceholderTab(pdfPath, "pdf");
+		nextTabs.find((t) => t.id === id) ??
+		createPlaceholderTab(pdfPath, "pdf", id);
 	setTabs(nextTabs);
-	setActiveTabId(id);
+	cacheActiveTabBeforeDock(id);
 	dockHandle()?.openPanel(placeholder, {
 		direction: "right",
 		referencePanelId,
@@ -558,17 +594,92 @@ export async function compileTexOnManualSave(path: string): Promise<void> {
 
 registerTexAutoBuildRunner(compileTexOnSave);
 
-/** Obsidian-style Split pane: add a right pane and keep columns evenly sized. */
-export function splitActivePane(): void {
-	const id = getActiveTabId();
+/**
+ * Obsidian-style Split pane (⌘\).
+ *
+ * Paper bodies route to their NOTES companion instead of duplicating the
+ * body: open NOTES to the right when it is closed, or retract (close) the
+ * open NOTES pane so ⌘\ toggles the split. On a NOTES pane the shortcut
+ * returns to the paper body, so the same editable notes buffer never ends up
+ * in two panes. Other documents still get a real duplicate split.
+ */
+export function splitActivePane(placement?: {
+	source: string;
+	beside: string;
+	direction: import("./tabs").SplitDirection;
+}): void {
+	const id = placement?.source ?? getActiveTabId();
 	if (!id) return;
 	const tabs = getTabs();
 	const active = tabs.find((t) => t.id === id);
 	if (!active) return;
 	// Library is the resident singleton — never clone it into a second pane.
 	if (isLibraryVirtualPath(active.path)) return;
+	if (placement) {
+		if (
+			active.writingRoot ||
+			tabIsPaperNoteDocument(active) ||
+			active.kind === "trash" ||
+			active.kind === "zen" ||
+			active.kind === "plaza"
+		)
+			return;
+		const pane = cloneTabForSplit(active, tabs);
+		setTabs((prev) => [...prev, pane]);
+		cacheActiveTabBeforeDock(pane.id);
+		dockHandle()?.openPanel(pane, {
+			direction: placement.direction,
+			referencePanelId: placement.beside,
+		});
+		return;
+	}
+
+	// ⌘\ toggles the paper/NOTES split: an open NOTES companion is retracted
+	// (closed) before touching the maximize state, so collapsing notes does not
+	// also drop the reading layout.
+	if (tabNotesEligible(active) && active.notesPath) {
+		const notesId = findCanonicalTab(tabs, active.notesPath)?.id;
+		if (
+			notesId &&
+			tabs.some((t) => t.id === notesId) &&
+			dockHandle()?.canActivatePanel(notesId) === true
+		) {
+			dockHandle()?.rememberNotesSplitWidth(active.id, notesId);
+			closeTab(notesId, { remember: false });
+			cacheActiveTabBeforeDock(active.id);
+			dockHandle()?.activatePanel(active.id);
+			return;
+		}
+	}
+
+	// A split under a maximized group would land in a hidden group (the new
+	// pane's always-rendered content then paints over the visible one). Leave
+	// the immersive maximize and split in the normal grid instead.
+	if (dockHandle()?.isMaximizedPanel?.()) {
+		dockHandle()?.exitMaximizedPanel?.();
+		if (uiStore.getState().layoutMode === "reading") {
+			const preset = uiStore.getState().lastAppliedPreset;
+			setLayoutMode(preset && preset !== "reading" ? preset : "custom");
+		}
+	}
+
+	// NOTES (or an extra note inside a paper folder) → back to the body.
+	const paperBody = findPaperBodyForNotes(tabs, active);
+	if (paperBody && dockHandle()?.canActivatePanel(paperBody.id)) {
+		cacheActiveTabBeforeDock(paperBody.id);
+		dockHandle()?.activatePanel(paperBody.id);
+		return;
+	}
+	// Orphaned notes pane (body closed): never clone the editable buffer.
+	if (tabIsPaperNoteDocument(active)) return;
 
 	// TeX editor ⌘\ → open/refresh its compiled PDF as the right split.
+	// Writing projects already render that PDF inside their own panel
+	// (TexProjectView), so a dock-level copy would duplicate the preview and
+	// feed a bogus "paper | notes" column pair to the reading placement. A
+	// cloned writing tab would also duplicate the project panel, whatever
+	// asset its source pane currently shows (md / image / material PDF).
+	if (active.writingRoot) return;
 	if (isTexPath(active.path)) {
 		void openTexPdf(active.path, {
 			referencePanelId: active.id,
@@ -577,28 +688,26 @@ export function splitActivePane(): void {
 		return;
 	}
 
-	const notesId = active.notesPath ? tabIdForPath(active.notesPath) : null;
-	const shouldOpenDefaultNotes =
-		tabNotesEligible(active) &&
-		Boolean(active.notesPath) &&
-		notesId != null &&
-		!tabs.some((t) => t.id === notesId);
-
-	if (shouldOpenDefaultNotes) {
+	if (tabNotesEligible(active) && active.notesPath) {
+		const notesId = findCanonicalTab(getTabs(), active.notesPath)?.id;
+		// A restored layout can keep a notes tab in state without a dock panel;
+		// drop it so the split below registers a real, visible panel.
+		if (notesId) setTabs((prev) => prev.filter((t) => t.id !== notesId));
 		const notesPane = createNotesSplitPane(active);
 		if (!notesPane) return;
 		setTabs((prev) =>
 			prev.some((t) => t.id === notesPane.id) ? prev : [...prev, notesPane],
 		);
+		cacheActiveTabBeforeDock(notesPane.id);
 		dockHandle()?.splitPanelRight(notesPane, active.id);
-		setActiveTabId(notesPane.id);
+		dockHandle()?.restoreNotesSplitWidth(active.id, notesPane.id);
 		return;
 	}
 
 	const splitPane = cloneTabForSplit(active, tabs);
 	setTabs((prev) => [...prev, splitPane]);
+	cacheActiveTabBeforeDock(splitPane.id);
 	dockHandle()?.splitPanelRight(splitPane, active.id);
-	setActiveTabId(splitPane.id);
 }
 
 /**
@@ -620,8 +729,9 @@ export function openTranslationTab(
 	if (!paperTab) return;
 	paperTabId = paperTab.id;
 
+	const paperKey = normalizePath(paperAbsPath);
 	const existing = tabs.find(
-		(t) => t.id === `${tabIdForPath(paperAbsPath)}::translation`,
+		(t) => t.pane === "translation" && normalizePath(t.path) === paperKey,
 	);
 	if (existing) {
 		// Restored/reused translation tabs do not pass through the creation path;
@@ -661,9 +771,7 @@ export function openTranslationTab(
 	}
 	setTabs((prev) => [...prev, translationPane]);
 	const notesPath = paperTab.notesPath;
-	const notesPane = notesPath
-		? tabs.find((tab) => tab.id === tabIdForPath(notesPath))
-		: null;
+	const notesPane = notesPath ? findCanonicalTab(tabs, notesPath) : null;
 	if (notesPane) {
 		dockHandle()?.openPanel(translationPane, {
 			direction: "within",
@@ -675,6 +783,28 @@ export function openTranslationTab(
 			translationSplitPlacement(paperTabId, tabs).referencePanelId,
 		);
 	}
+}
+
+/**
+ * Close the rendered-translation pane paired with a paper body. Used by the
+ * reading-view switch when it leaves 对照; the tab is not pushed to ⇧⌘T
+ * history because switching views is not closing a document.
+ */
+export function closeTranslationTab(paperTabId: string): void {
+	const tabs = getTabs();
+	const paperTab =
+		tabs.find((t) => t.id === paperTabId) ??
+		tabs.find((t) => t.id === stripEmbedPdfRevision(paperTabId));
+	if (!paperTab) return;
+	const paperKey = normalizePath(paperTab.path);
+	const pane = tabs.find(
+		(t) => t.pane === "translation" && normalizePath(t.path) === paperKey,
+	);
+	if (!pane) return;
+	closeTab(pane.id, { remember: false });
+	// Closing the comparison pane returns the reader to the paper, not to the
+	// NOTES tab that shared the right column.
+	dockHandle()?.activatePanel(paperTab.id);
 }
 
 /**
@@ -834,9 +964,11 @@ export function openGraphPath(rel: string): void {
 export function scheduleCitationJump(
 	paperAbs: string,
 	target: CitationTarget,
-	intent: PdfNavigationIntent = beginPdfNavigation(tabIdForPath(paperAbs)),
+	intent?: PdfNavigationIntent,
 ): void {
-	completePdfNavigation(intent, {
+	const key = canonicalTabId(paperAbs) ?? normalizePath(paperAbs);
+	const resolved = intent ?? beginPdfNavigation(key);
+	completePdfNavigation(resolved, {
 		page: target.pageIndex + 1,
 		region: {
 			id: target.regionId,
@@ -872,6 +1004,59 @@ function citationResolveFailedMessage(source: string): string {
 	}
 }
 
+/** Apply a revision-checked CLI evidence locator to the appropriate viewer. */
+export async function openEvidenceLocation(
+	path: string,
+	locator: import("@/lib/core/bindings").Json,
+): Promise<void> {
+	const loc =
+		locator && typeof locator === "object" && !Array.isArray(locator)
+			? locator
+			: {};
+	const key = [
+		"region",
+		"page",
+		...(typeof loc.line_from === "number" ? [] : ["section"]),
+	].find((k) => loc[k] != null);
+	if (key) {
+		openCitation(path + "#" + key + "=" + encodeURIComponent(String(loc[key])));
+		return;
+	}
+	openVaultRel(path);
+	const line = loc.line_from;
+	const vault = getVaultPath();
+	if (typeof line !== "number" || !vault) return;
+	const abs = joinVaultPath(vault, path);
+	if (/\.(tex|bib|cls|sty|bst)$/i.test(path)) {
+		const { navigateTexSource } = await import("@/lib/tex/editor-navigation");
+		navigateTexSource(abs, line);
+	} else if (/\.(md|mdx|markdown)$/i.test(path)) {
+		const { markdownEditorFor } = await import(
+			"@/lib/workspace/viewer/markdown-editor-registry"
+		);
+		for (let i = 0; i < 60; i++) {
+			if (getVaultPath() !== vault) return;
+			const tab = findCanonicalTab(getTabs(), abs);
+			const handle = markdownEditorFor(tab?.id);
+			if (handle?.revealLine?.(line)) return;
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		if (getVaultPath() === vault)
+			notifyError(
+				i18n.t("agent:citation.resolveFailed", {
+					source: `${path}#line=${line}`,
+				}),
+			);
+	} else {
+		const { editorLintStore, pendingEditorLineJump } = await import(
+			"@/lib/tex/editor-lint-bridge"
+		);
+		const current = editorLintStore.getState().current;
+		if (current?.path === abs) current.jumpToLine(line);
+		else pendingEditorLineJump.setState({ path: abs, line });
+	}
+}
+
 /**
  * Open a citation link from agent output.
  *
@@ -882,6 +1067,31 @@ function citationResolveFailedMessage(source: string): string {
 export function openCitation(source: string): void {
 	const trimmed = rewriteCitationHrefToPdf(cleanCitationHref(source));
 	if (!trimmed) return;
+	if (trimmed.startsWith("agentero://cite/")) {
+		const vault = getVaultPath();
+		if (!vault) {
+			notifyError(i18n.t("app:errors.openVaultForLinks"));
+			return;
+		}
+		if (isTauri() && currentWindowLabel().startsWith("feature-")) {
+			void commands
+				.workspaceOpenSource(vault, trimmed)
+				.then((result) => {
+					if (result.status === "error") notifyError(errorText(result.error));
+				})
+				.catch((err) => notifyError(errorText(err)));
+			return;
+		}
+		void commands
+			.agentResolveEvidence(vault, trimmed)
+			.then((res) => {
+				if (res.status === "error") throw new Error(res.error);
+				if (vault === getVaultPath())
+					return openEvidenceLocation(res.data[0], res.data[1]);
+			})
+			.catch((err) => notifyError(errorText(err)));
+		return;
+	}
 	if (/^https?:\/\//i.test(trimmed)) {
 		openExternalUrl(trimmed);
 		return;
@@ -928,10 +1138,12 @@ export function openCitation(source: string): void {
 
 	if (!paperAbs) {
 		// Reserve before detection as well: A/B clicks can resolve out of order.
-		const intent = beginPdfNavigation(tabIdForPath(full));
+		let intent = beginPdfNavigation(normalizePath(full));
 		void (async () => {
 			if (await detectPaperDirectory(full)) {
 				openPaper(full);
+				const opened = canonicalTabId(full);
+				if (opened) intent = adoptPdfNavigationKey(intent, opened);
 				void resolvePdfCitation(vaultPath, trimmed)
 					.then((target) => scheduleCitationJump(full, target, intent))
 					.catch((e) => {
@@ -947,8 +1159,9 @@ export function openCitation(source: string): void {
 		return;
 	}
 
-	const intent = beginPdfNavigation(tabIdForPath(paperAbs));
 	openPaper(paperAbs);
+	const opened = canonicalTabId(paperAbs) ?? normalizePath(paperAbs);
+	const intent = beginPdfNavigation(opened);
 	void resolvePdfCitation(vaultPath, trimmed)
 		.then((target) => scheduleCitationJump(paperAbs, target, intent))
 		.catch((e) => {
@@ -962,7 +1175,7 @@ let wikiNavigationIntentId = 0;
 
 /** Wait for the PDF handle registration after openPaper, then jump. */
 function scheduleAnnotationJump(paperAbs: string, annotationId: string): void {
-	const tabId = tabIdForPath(paperAbs);
+	const tabId = canonicalTabId(paperAbs);
 	let unsubscribe: (() => void) | null = null;
 	let timeoutId: number | null = null;
 	let finished = false;
@@ -1007,6 +1220,21 @@ function scheduleAnnotationJump(paperAbs: string, annotationId: string): void {
 	}, 2000);
 }
 
+/**
+ * Whether a wikilink create target is already present. Checks the loaded Vault
+ * tree first (covers remote Vaults) and then the disk.
+ */
+async function wikiCreateTargetExists(rel: string): Promise<boolean> {
+	if (vaultStore.getState().vaultWikiTargetFiles.includes(rel)) return true;
+	const vaultPath = getVaultPath();
+	if (!vaultPath) return false;
+	try {
+		return await vaultPathExists(joinVaultPath(vaultPath, rel));
+	} catch {
+		return false;
+	}
+}
+
 export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 	const vaultPath = getVaultPath();
 	// Invalid PDF anchors fail before opening/restoring an unrelated location.
@@ -1043,14 +1271,16 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 				id: ++wikiNavigationIntentId,
 				fragment: destination.fragment,
 			};
+			const paperId = canonicalTabId(paperAbs);
+			if (!paperId) return;
 			setTabs((previous) =>
-				patchTab(previous, tabIdForPath(paperAbs), {
+				patchTab(previous, paperId, {
 					navigationIntent: intent,
 				}),
 			);
 			if (destination.warning === "invalidFragment") {
 				setTabs((previous) =>
-					patchTab(previous, tabIdForPath(paperAbs), {
+					patchTab(previous, paperId, {
 						navigationIntent: undefined,
 					}),
 				);
@@ -1066,18 +1296,19 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 		}
 
 		openTab(full, { preferMode: preferredModeForPath(full) });
-		if (destination.fragment) {
+		const openedId = canonicalTabId(full);
+		if (destination.fragment && openedId) {
 			const intent = {
 				id: ++wikiNavigationIntentId,
 				fragment: destination.fragment,
 			};
 			setTabs((previous) =>
-				patchTab(previous, tabIdForPath(full), { navigationIntent: intent }),
+				patchTab(previous, openedId, { navigationIntent: intent }),
 			);
 		}
-		if (destination.warning === "invalidFragment") {
+		if (destination.warning === "invalidFragment" && openedId) {
 			setTabs((previous) =>
-				patchTab(previous, tabIdForPath(full), {
+				patchTab(previous, openedId, {
 					navigationIntent: undefined,
 				}),
 			);
@@ -1110,6 +1341,14 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 		return;
 	}
 	const createRel = missingNotePath(nav.targetRaw);
+	const full = joinVaultPath(vaultPath, createRel);
+	// The link can point at a note the resolver does not match (a hand-written
+	// name, or one the user already has). Open it instead of creating over it:
+	// overwriting here is exactly the data loss behind issue #1169.
+	if (await wikiCreateTargetExists(createRel)) {
+		openPath(full);
+		return;
+	}
 	const ok = window.confirm(
 		i18n.t("app:confirm.createNote", {
 			target: nav.targetRaw,
@@ -1119,10 +1358,15 @@ export async function navigateWiki(nav: WikiNavTarget): Promise<void> {
 	if (!ok) return;
 
 	const content = newNoteMarkdown(nav.targetRaw);
-	const full = joinVaultPath(vaultPath, createRel);
-
 	try {
-		await writeVaultFile(full, content);
+		if (!(await createVaultFile(full, content))) {
+			// Another window created it between the check and this write.
+			openPath(full);
+			return;
+		}
+		// Own write: the watcher must not treat it as an external edit and
+		// reseed an open editor from the seed this call just wrote (#1169).
+		trackSelfWrittenPath(full, content);
 		await rebuildWikiAndNotify(vaultPath);
 		await refreshTree(vaultPath);
 		openPath(full);

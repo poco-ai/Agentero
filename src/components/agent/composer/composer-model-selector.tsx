@@ -150,7 +150,7 @@ export function ComposerModelSelector({
 										<TooltipTrigger asChild>
 											<button
 												type="button"
-												className="flex h-7 min-w-0 items-center rounded-sm text-left font-medium outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+												className="flex h-7 min-w-0 items-center rounded-sm text-left font-medium outline-none hover:text-primary focus-visible:ring-1 focus-visible:ring-ring"
 												onClick={() => {
 													setModelQuery("");
 													setPendingLocate(modelId);
@@ -232,7 +232,7 @@ export function ComposerModelSelector({
 										className={cn(
 											highlightedModelId === model.id &&
 												!group.isFavorites &&
-												"ring-2 ring-inset ring-primary/50",
+												"ring-1 ring-inset ring-primary/60",
 											selected &&
 												"bg-accent font-medium text-accent-foreground data-selected:bg-accent",
 										)}

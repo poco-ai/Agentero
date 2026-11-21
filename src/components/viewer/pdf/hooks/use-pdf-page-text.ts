@@ -39,6 +39,7 @@ import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
 import { recoverCaptionsFromRuns } from "@/lib/pdf/layout/captions-from-runs";
+import type { PageTextRect } from "@/lib/pdf/link-text";
 import {
 	type NormalizedRect,
 	normalizePageTextRects,
@@ -71,6 +72,7 @@ export type UsePdfPageTextOptions = {
 };
 
 export type PdfPageText = {
+	pageTextRects: ReadonlyMap<number, readonly PageTextRect[]>;
 	ensureSelectionTextExclusions: (
 		pages: readonly number[],
 	) => Promise<ReadonlyMap<number, readonly Rect[]>>;
@@ -126,6 +128,9 @@ export function usePdfPageText({
 	highlights,
 	visualTraces,
 }: UsePdfPageTextOptions): PdfPageText {
+	const [pageTextRects, setPageTextRects] = useState<
+		ReadonlyMap<number, readonly PageTextRect[]>
+	>(() => new Map());
 	const [pageTextMap, setPageTextMap] = useState(
 		() => new Map<number, NormalizedRect[]>(),
 	);
@@ -189,6 +194,7 @@ export function usePdfPageText({
 				.getPageTextRects(doc, page)
 				.toPromise()
 				.then((rects) => {
+					setPageTextRects((prev) => new Map(prev).set(pageIndex, rects));
 					const captions = recoverCaptionsFromRuns(
 						[],
 						pageIndex,
@@ -273,6 +279,7 @@ export function usePdfPageText({
 	]);
 
 	return {
+		pageTextRects,
 		pageTextMap,
 		pageTextLinkMap,
 		pageTextMapRef,

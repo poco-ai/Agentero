@@ -124,7 +124,7 @@ fn line_context(line: &str) -> Option<String> {
 
 fn trim_bounds(value: &str) -> (usize, usize) {
     let start = value.len() - value.trim_start().len();
-    let end = value.trim_end().len();
+    let end = start + value.trim().len();
     (start, end)
 }
 

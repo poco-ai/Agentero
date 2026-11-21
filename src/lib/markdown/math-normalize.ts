@@ -194,6 +194,39 @@ function numberLabels(result: string): Map<string, number> {
 }
 
 /**
+ * Render a display-math region that occupies a whole line as a multi-line
+ * `$$` fence. Fences on their own lines yield flow math (display mode, needed
+ * for `\tag` / align); a single-line `$$…$$` parses as inline math, which is
+ * the only shape that survives mid-sentence (e.g. inside a blockquote line).
+ * Returns null when the region shares its line with other content.
+ */
+function fenceDisplayMath(
+	whole: string,
+	offset: number,
+	regionLength: number,
+	inner: string,
+): string | null {
+	const lineStart = whole.lastIndexOf("\n", offset - 1) + 1;
+	const lineEndIdx = whole.indexOf("\n", offset + regionLength);
+	const lineEnd = lineEndIdx === -1 ? whole.length : lineEndIdx;
+	const before = whole.slice(lineStart, offset);
+	const after = whole.slice(offset + regionLength, lineEnd);
+	const prefix = /^(\s*(?:>\s?)+|\s*)/.exec(before)?.[1] ?? "";
+	if (before !== prefix || after.trim() !== "") return null;
+	const stripped = inner
+		.split("\n")
+		.map((line) => line.replace(/^(\s*(?:>\s?)+)+\s*/, ""))
+		.join("\n")
+		.trim();
+	// `before` already carries the prefix on the opening fence line.
+	const body = stripped
+		.split("\n")
+		.map((line) => prefix + line)
+		.join("\n");
+	return `$$\n${body}\n${prefix}$$`;
+}
+
+/**
  * Strip `\label`, resolve `\eqref`/`\ref` to display numbers, and inject
  * document-level macro definitions into regions that use them without a
  * local `\newcommand`.
@@ -225,29 +258,10 @@ function rewriteMathRegions(
 				);
 			}
 			if (!display) return `${delim}${inner}${delim}`;
-			// Fences on their own lines yield flow math (display mode, needed for
-			// align); a single-line $$…$$ parses as inline math, which is the only
-			// shape that survives mid-sentence (e.g. inside a blockquote line).
-			const lineStart = whole.lastIndexOf("\n", offset - 1) + 1;
-			const lineEndIdx = whole.indexOf("\n", offset + region.length);
-			const lineEnd = lineEndIdx === -1 ? whole.length : lineEndIdx;
-			const before = whole.slice(lineStart, offset);
-			const after = whole.slice(offset + region.length, lineEnd);
-			const prefix = /^(\s*(?:>\s?)+|\s*)/.exec(before)?.[1] ?? "";
-			if (before !== prefix || after.trim() !== "") {
-				return `$$${inner.trim()}$$`;
-			}
-			const stripped = inner
-				.split("\n")
-				.map((line) => line.replace(/^(\s*(?:>\s?)+)+\s*/, ""))
-				.join("\n")
-				.trim();
-			// `before` already carries the prefix on the opening fence line.
-			const body = stripped
-				.split("\n")
-				.map((line) => prefix + line)
-				.join("\n");
-			return `$$\n${body}\n${prefix}$$`;
+			return (
+				fenceDisplayMath(whole, offset, region.length, inner) ??
+				`$$${inner.trim()}$$`
+			);
 		},
 	);
 }
@@ -282,4 +296,190 @@ export function normalizeMarkdownMath(source: string): string {
 	}
 
 	return rewriteMathRegions(result, defs, numberLabels(result));
+}
+
+/** Opening fence (any info string), quote-prefixed; ` ``` ` or `~~~`. */
+const NOTE_FENCE_OPEN = /^(?:(?: {0,3}>[ \t]?)* {0,3})(`{3,}|~{3,})/;
+/** Closing fence: same character, run length >= the opening one, no info. */
+const NOTE_FENCE_CLOSE = /^(?:(?: {0,3}>[ \t]?)* {0,3})(`{3,}|~{3,})[ \t]*\r?$/;
+/** Inline code span on a single line; the delimiter may be 1+ backticks. */
+const NOTE_INLINE_CODE = /(`+)(.*?)\1/g;
+
+/** Existing dollar math plus TeX-delimited math in a note body. */
+const NOTE_MATH =
+	/(?<!\\)\$\$([\s\S]*?)\$\$|(?<!\\)\$(?:\\\$|[^$\n])+\$|(?<!\\)\\\[([\s\S]*?)\\\]|(?<!\\)\\\(([\s\S]*?)\\\)/g;
+
+type NoteRange = { start: number; end: number };
+
+/**
+ * Offsets of literal code regions: fenced code (``` / `~~~`, quote-prefixed,
+ * closed or running to end) and inline code spans. Delimiter rewrites must
+ * never touch these; rewrite matches are dropped when they overlap a range.
+ *
+ * The closing fence may be longer than the opening run (valid CommonMark) and
+ * may be indented like the opening one.
+ */
+function noteLiteralRanges(source: string): NoteRange[] {
+	const ranges: NoteRange[] = [];
+	let offset = 0;
+	let fence: { character: string; length: number } | null = null;
+	for (const line of source.split("\n")) {
+		const lineStart = offset;
+		const lineEnd = offset + line.length;
+		offset = lineEnd + 1;
+		if (fence) {
+			const close = NOTE_FENCE_CLOSE.exec(line);
+			if (
+				close?.[1] &&
+				close[1][0] === fence.character &&
+				close[1].length >= fence.length
+			) {
+				fence = null;
+			}
+			ranges.push({ start: lineStart, end: lineEnd });
+			continue;
+		}
+		const open = NOTE_FENCE_OPEN.exec(line);
+		if (open?.[1]) {
+			fence = { character: open[1][0], length: open[1].length };
+			ranges.push({ start: lineStart, end: lineEnd });
+			continue;
+		}
+		for (const match of line.matchAll(NOTE_INLINE_CODE)) {
+			const start = lineStart + (match.index ?? 0);
+			ranges.push({ start, end: start + match[0].length });
+		}
+	}
+	return ranges;
+}
+
+/** Delimiter a note formula was written with; kept so a save can restore it. */
+export type TexDelimiter = "bracket" | "paren";
+
+/**
+ * Invisible per-formula markers carrying `\[…\]` / `\(…\)` through the parse.
+ *
+ * `remark-math` only understands `$` / `$$`, so this normalization rewrites
+ * the TeX delimiters before deserialize. Without a marker the original
+ * delimiter would be lost and the next save would rewrite the file to dollar
+ * math (#1171); the marker is moved onto the Slate node right after
+ * deserialization and never reaches the editor, KaTeX or disk. Private-use
+ * code points cannot collide with formula content or prose.
+ */
+const TEX_DELIMITER_MARK: Record<TexDelimiter, string> = {
+	bracket: "\uE000",
+	paren: "\uE001",
+};
+
+/** Mark character for `delimiter`, placed just inside the dollar delimiter. */
+export function texDelimiterMarker(delimiter: TexDelimiter): string {
+	return TEX_DELIMITER_MARK[delimiter];
+}
+
+/** Split a deserialized `texExpression` into its TeX and original delimiter. */
+export function readTexDelimiter(tex: string): {
+	tex: string;
+	delimiter?: TexDelimiter;
+} {
+	if (tex.startsWith(TEX_DELIMITER_MARK.bracket)) {
+		return { tex: tex.slice(1), delimiter: "bracket" };
+	}
+	if (tex.startsWith(TEX_DELIMITER_MARK.paren)) {
+		return { tex: tex.slice(1), delimiter: "paren" };
+	}
+	return { tex };
+}
+
+/**
+ * True when a marker survived outside a math node: the normalized shape did not
+ * parse (e.g. an indented, code-block-looking region), so it is visible text
+ * now and the markers must be dropped before the editor or a save sees them.
+ */
+export function hasTexDelimiterMark(text: string): boolean {
+	return (
+		text.includes(TEX_DELIMITER_MARK.bracket) ||
+		text.includes(TEX_DELIMITER_MARK.paren)
+	);
+}
+
+/** Remove leaked markers from text that did not become math. */
+export function stripTexDelimiterMarks(text: string): string {
+	return hasTexDelimiterMark(text) ? text.replace(/[\uE000\uE001]/g, "") : text;
+}
+
+/**
+ * Place the marker at the start of a fence's first body line, after the
+ * blockquote/indent prefix that `fenceDisplayMath` repeats on every line, so
+ * the parsed `texExpression` starts with it.
+ */
+function markFenceFirstLine(fence: string, marker: string): string {
+	const bodyStart = fence.indexOf("\n") + 1;
+	if (bodyStart === 0) return fence;
+	const body = fence.slice(bodyStart);
+	const prefix = /^[ \t]*(?:>[ \t]?)*/.exec(body)?.[0] ?? "";
+	return `${fence.slice(0, bodyStart)}${prefix}${marker}${body.slice(prefix.length)}`;
+}
+
+/**
+ * Normalize TeX math delimiters in a note body before Plate deserialization.
+ *
+ * `remark-math` only understands `$…$` / `$$…$$`. Notes imported from LLMs,
+ * pandoc or Cool Papers instead use `\[…\]` (display) and `\(…\)` (inline),
+ * which CommonMark silently degrades to plain text, and a single-line
+ * `$$…$$` that occupies its own line is parsed as *inline* math, where KaTeX
+ * rejects `\tag`. Rewrite those shapes to the canonical dollar forms, keeping
+ * an invisible marker of the original delimiter so saving writes it back.
+ *
+ * Only the three delimiter shapes are touched. Notes round-trip back to disk,
+ * so the agent-only rewrites in `normalizeMarkdownMath` (bare-command
+ * wrapping, `\newcommand` expansion, `\label` numbering) must not apply here.
+ */
+export function normalizeNoteMarkdownMath(source: string): string {
+	if (!source?.includes("\\") && !source.includes("$$")) return source;
+	const literal = noteLiteralRanges(source);
+	let literalIndex = 0;
+	return source.replace(
+		NOTE_MATH,
+		(
+			match,
+			display: string | undefined,
+			bracket: string | undefined,
+			paren: string | undefined,
+			offset: number,
+			whole: string,
+		) => {
+			while (
+				literalIndex < literal.length &&
+				(literal[literalIndex]?.end ?? 0) <= offset
+			) {
+				literalIndex += 1;
+			}
+			const range = literal[literalIndex];
+			if (range && offset + match.length > range.start) return match;
+			if (bracket !== undefined) {
+				if (!bracket.trim()) return match;
+				const marker = texDelimiterMarker("bracket");
+				const fence = fenceDisplayMath(whole, offset, match.length, bracket);
+				return fence
+					? markFenceFirstLine(fence, marker)
+					: `$$${marker}${bracket.trim()}$$`;
+			}
+			if (paren !== undefined) {
+				return `$${texDelimiterMarker("paren")}${paren}$`;
+			}
+			if (display !== undefined) {
+				if (!display.trim()) return match;
+				// Already a fenced block: leave it byte-identical (also keeps CRLF
+				// notes untouched) instead of re-emitting the fence.
+				if (/^\$\$[ \t]*\r?\n[\s\S]*\r?\n\$\$$/.test(match)) {
+					return match;
+				}
+				// Mid-sentence `$$…$$` is already parsed as inline math; only a
+				// block that owns its line needs re-fencing, and leaving the rest
+				// byte-identical keeps stray/unpaired `$$` from being rewritten.
+				return fenceDisplayMath(whole, offset, match.length, display) ?? match;
+			}
+			return match;
+		},
+	);
 }

@@ -34,6 +34,10 @@ pub use agentero_mcp::DEFAULT_MCP_PORT;
 /// 1–5; larger values would hammer translation providers and disk).
 pub const MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY: u32 = 5;
 
+/// Upper bound for the OpenAI-compatible full-document translation batch pool
+/// (the settings UI offers 1–8; higher values trigger provider rate limits).
+pub const MAX_TRANSLATE_CONCURRENCY: u32 = 8;
+
 /// Built-in provider id, re-exported so the Host never re-types the literal.
 pub use agentero_core::features::translate::BUILTIN_PROVIDER_ID;
 
@@ -76,6 +80,11 @@ pub struct AppSettings {
     /// EasyScholar key for journal ranking and impact-factor lookups.
     #[serde(default)]
     pub easy_scholar_key: String,
+    /// EasyScholar rank systems the Library table and Paper Info may display,
+    /// in canonical order. Every supported system is on by default; an empty
+    /// list hides the metrics without clearing the stored `#easyscholar:` tags.
+    #[serde(default = "default_easy_scholar_ranks")]
+    pub easy_scholar_ranks: Vec<String>,
     /// 知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。
     #[serde(default)]
     pub zhihu_access_secret: String,
@@ -96,6 +105,16 @@ pub struct AppSettings {
     /// `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
     #[serde(default)]
     pub institution_proxy_type: String,
+    /// Cookie captured by the OpenReview verification window (`openreview.*`
+    /// cookies, notably the short-lived `clearanceToken`). Empty = verified by
+    /// nobody yet. Redacted to the frontend and attached only to OpenReview
+    /// hosts by the download layer.
+    #[serde(default)]
+    pub openreview_cookie: String,
+    /// Unix seconds when the captured OpenReview credential expires; `0` when
+    /// the cookie carries no readable expiry. Drives the Settings status dot.
+    #[serde(default)]
+    pub openreview_cookie_expires_at: i64,
     #[serde(default = "default_paper_tree_label_mode")]
     pub paper_tree_label_mode: String,
     #[serde(default = "default_paper_tree_sort_mode")]
@@ -142,6 +161,9 @@ pub struct AppSettings {
     /// PDF page layout: `none` (single page) | `odd` | `even` (two-page spread).
     #[serde(default = "default_pdf_spread_mode")]
     pub pdf_spread_mode: String,
+    /// In-page translate tab: `hover` (default) | `always` | `hidden`.
+    #[serde(default = "default_pdf_translate_tab")]
+    pub pdf_translate_tab: String,
     #[serde(default = "default_library_columns")]
     pub library_columns: Vec<LibraryColumnPref>,
     #[serde(default)]
@@ -153,10 +175,15 @@ pub struct AppSettings {
     pub mcp_enabled: bool,
     #[serde(default = "default_mcp_port")]
     pub mcp_port: u16,
-    /// Opt-in: expose paper full text (`paper_text_get`) through the MCP
-    /// server. Default off — external clients only see metadata and NOTES.
+    /// Allow external MCP clients to read complete paper text.
     #[serde(default)]
     pub mcp_expose_paper_text: bool,
+    /// Allow external MCP clients to modify the Vault.
+    #[serde(default)]
+    pub mcp_allow_write: bool,
+    /// Allow external MCP clients to use operations that contact online services.
+    #[serde(default)]
+    pub mcp_allow_online: bool,
     /// OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex) for the built-in
     /// `tunnel-client` supervisor. Empty = never configured.
     #[serde(default)]
@@ -303,6 +330,12 @@ pub struct DecisionSettings {
     /// Whether the experimental smart-highlight toolbar action is enabled.
     #[serde(default)]
     pub smart_highlight: bool,
+    /// How many smart-highlight batches may be in flight. One of 1, 2, 4, 16.
+    #[serde(default = "default_smart_highlight_concurrency")]
+    pub smart_highlight_concurrency: u32,
+    /// Seconds for one smart-highlight batch, starting when its request is sent.
+    #[serde(default = "default_smart_highlight_timeout_secs")]
+    pub smart_highlight_timeout_secs: u32,
 }
 
 impl Default for DecisionSettings {
@@ -313,8 +346,22 @@ impl Default for DecisionSettings {
             base_url: default_decision_base_url(),
             model: default_decision_model(),
             smart_highlight: false,
+            smart_highlight_concurrency: default_smart_highlight_concurrency(),
+            smart_highlight_timeout_secs: default_smart_highlight_timeout_secs(),
         }
     }
+}
+
+const SMART_HIGHLIGHT_CONCURRENCY_CHOICES: &[u32] = &[1, 2, 4, 16];
+const SMART_HIGHLIGHT_TIMEOUT_MIN_SECS: u32 = 30;
+const SMART_HIGHLIGHT_TIMEOUT_MAX_SECS: u32 = 600;
+
+fn default_smart_highlight_concurrency() -> u32 {
+    16
+}
+
+fn default_smart_highlight_timeout_secs() -> u32 {
+    120
 }
 
 /// Embedding endpoint: the built-in provider, or a custom OpenAI-compatible
@@ -346,6 +393,8 @@ pub struct LibraryColumnPref {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslateSettings {
+    #[serde(default)]
+    pub dictionary: DictionarySettings,
     #[serde(default = "default_translate_provider")]
     pub provider: String,
     #[serde(default = "default_translate_target")]
@@ -356,13 +405,6 @@ pub struct TranslateSettings {
     pub provider_configs: HashMap<String, TranslateProviderConfig>,
     #[serde(default)]
     pub auto_translate_selection: bool,
-    /// Deprecated: kept for migration. Use `display_mode` + `dual_pane_source`.
-    #[serde(default)]
-    pub dual_pane_translate: bool,
-    #[serde(default = "default_translate_display_mode")]
-    pub display_mode: String,
-    #[serde(default = "default_translate_dual_pane_source")]
-    pub dual_pane_source: String,
     #[serde(default)]
     pub agent_id: String,
     #[serde(default)]
@@ -394,19 +436,22 @@ pub struct TranslateSettings {
     /// Seeded into the JobCenter `LayoutTranslate` cap (1–5, default 1).
     #[serde(default = "default_auto_translate_import_concurrency")]
     pub auto_translate_import_concurrency: u32,
+    /// Keep the selection translation result card open after a click elsewhere
+    /// on the page (default off: a completed click outside the card closes it).
+    /// Scrolling, page turns and viewer toolbars never close it.
+    #[serde(default)]
+    pub always_show_translate_card: bool,
 }
 
 impl Default for TranslateSettings {
     fn default() -> Self {
         Self {
+            dictionary: DictionarySettings::default(),
             provider: default_translate_provider(),
             target_lang: default_translate_target(),
             source_lang: default_translate_source(),
             provider_configs: HashMap::new(),
             auto_translate_selection: false,
-            dual_pane_translate: false,
-            display_mode: default_translate_display_mode(),
-            dual_pane_source: default_translate_dual_pane_source(),
             agent_id: String::new(),
             model_id: String::new(),
             custom_prompt: String::new(),
@@ -416,11 +461,30 @@ impl Default for TranslateSettings {
             cache_reflow_final: false,
             auto_translate_import: false,
             auto_translate_import_concurrency: default_auto_translate_import_concurrency(),
+            always_show_translate_card: false,
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
+pub struct DictionarySettings {
+    #[serde(default = "default_dictionary_mode")]
+    pub mode: String,
+}
+
+fn default_dictionary_mode() -> String {
+    "auto".into()
+}
+
+impl Default for DictionarySettings {
+    fn default() -> Self {
+        Self {
+            mode: default_dictionary_mode(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslateProviderConfig {
     #[serde(default)]
@@ -433,6 +497,24 @@ pub struct TranslateProviderConfig {
     pub model: String,
     #[serde(default)]
     pub extra_request_body: String,
+    /// Full-document translation batch concurrency for the OpenAI-compatible
+    /// path (1–8, default 2). Selection translation and the Agent path stay
+    /// serial; other providers ignore it.
+    #[serde(default = "default_translate_concurrency")]
+    pub concurrency: u32,
+}
+
+impl Default for TranslateProviderConfig {
+    fn default() -> Self {
+        Self {
+            api_key: String::new(),
+            base_url: String::new(),
+            region: String::new(),
+            model: String::new(),
+            extra_request_body: String::new(),
+            concurrency: default_translate_concurrency(),
+        }
+    }
 }
 
 /// PDF layout-analysis backend selection.
@@ -491,12 +573,15 @@ impl Default for AppSettings {
         Self {
             shortcut_overrides: HashMap::new(),
             easy_scholar_key: String::new(),
+            easy_scholar_ranks: default_easy_scholar_ranks(),
             zhihu_access_secret: String::new(),
             network_proxy_enabled: false,
             network_proxy_url: default_network_proxy_url(),
             institution_proxy_prefix: String::new(),
             institution_proxy_cookie: String::new(),
             institution_proxy_type: "auto".to_string(),
+            openreview_cookie: String::new(),
+            openreview_cookie_expires_at: 0,
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
@@ -507,15 +592,18 @@ impl Default for AppSettings {
             terminal_app: String::new(),
             pdf_scroll_strategy: default_pdf_scroll_strategy(),
             pdf_vim_keys: true,
-            vim_mode: true,
+            vim_mode: false,
             hint_mode_enabled: true,
             sound_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
+            pdf_translate_tab: default_pdf_translate_tab(),
             library_columns: default_library_columns(),
             connector_enabled: false,
             connector_port: default_connector_port(),
             mcp_enabled: false,
             mcp_expose_paper_text: false,
+            mcp_allow_write: false,
+            mcp_allow_online: false,
             mcp_port: default_mcp_port(),
             mcp_tunnel_id: String::new(),
             mcp_tunnel_api_key: String::new(),
@@ -559,6 +647,30 @@ fn default_true() -> bool {
 fn default_network_proxy_url() -> String {
     DEFAULT_NETWORK_PROXY_URL.to_string()
 }
+/// Selectable EasyScholar rank-system ids. Keep in sync with the renderer
+/// registry (`src/lib/paper/easy-scholar-ranks.ts`) and the Host tag projection
+/// in `features/paper/scholar_api/sources/easy_scholar.rs`.
+pub const EASY_SCHOLAR_RANK_IDS: &[&str] = &[
+    "if", "if5", "jci", "sci", "ssci", "eii", "cssci", "pku", "ccf", "fms", "utd24",
+];
+fn default_easy_scholar_ranks() -> Vec<String> {
+    EASY_SCHOLAR_RANK_IDS
+        .iter()
+        .map(|id| (*id).to_string())
+        .collect()
+}
+/// Trim, drop unknown ids, and dedupe while keeping the configured order.
+/// An empty input stays empty: the user chose to hide every rank metric.
+fn normalize_easy_scholar_ranks(raw: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for raw_id in raw {
+        let id = raw_id.trim().to_ascii_lowercase();
+        if EASY_SCHOLAR_RANK_IDS.contains(&id.as_str()) && !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
+}
 fn default_decision_provider() -> String {
     "jev".to_string()
 }
@@ -585,6 +697,9 @@ fn default_pdf_scroll_strategy() -> String {
 }
 fn default_pdf_spread_mode() -> String {
     "none".into()
+}
+fn default_pdf_translate_tab() -> String {
+    "hover".into()
 }
 /// Canonical papers-Library column keys, in default order.
 const LIBRARY_COLUMN_KEYS: &[&str] = &[
@@ -656,7 +771,7 @@ fn default_ai_response_language() -> String {
     "auto".into()
 }
 fn default_translate_provider() -> String {
-    "tencenttransmart".into()
+    "indextranslate2b".into()
 }
 fn default_connector_port() -> u16 {
     DEFAULT_CONNECTOR_PORT
@@ -670,17 +785,14 @@ fn default_batch_import_concurrency() -> u32 {
 fn default_auto_translate_import_concurrency() -> u32 {
     1
 }
+fn default_translate_concurrency() -> u32 {
+    2
+}
 fn default_translate_target() -> String {
     "ui".into()
 }
 fn default_translate_source() -> String {
     "auto".into()
-}
-fn default_translate_display_mode() -> String {
-    "overlay".into()
-}
-fn default_translate_dual_pane_source() -> String {
-    "pdf".into()
 }
 /// Layout analysis stays on the bundled offline PP-DocLayoutV3 model: it is
 /// free, local, and a cloud backend would bill every PDF for no gain. The
@@ -765,6 +877,17 @@ impl AppSettingsStore {
 
     pub fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    pub(crate) fn mcp_permissions(&self) -> agentero_mcp::Permissions {
+        self.inner
+            .lock()
+            .map(|settings| agentero_mcp::Permissions {
+                write: settings.mcp_allow_write,
+                online: settings.mcp_allow_online,
+                full_text: settings.mcp_expose_paper_text,
+            })
+            .unwrap_or_default()
     }
 
     pub fn get(&self) -> Result<SettingsGetResult, AppError> {
@@ -1052,6 +1175,20 @@ impl AppSettingsStore {
         })
     }
 
+    /// Smart-highlight concurrency and per-batch timeout, after normalization.
+    pub fn smart_highlight_limits(&self) -> (u32, u32) {
+        let Ok(guard) = self.inner.lock() else {
+            return (
+                default_smart_highlight_concurrency(),
+                default_smart_highlight_timeout_secs(),
+            );
+        };
+        (
+            guard.decision.smart_highlight_concurrency,
+            guard.decision.smart_highlight_timeout_secs,
+        )
+    }
+
     /// Raw `(tunnel_id, api_key)` for the built-in ChatGPT tunnel supervisor.
     /// Returns None unless both are set; a UI mask counts as unset so a
     /// `settings_get` → `settings_set` round-trip never leaks or wipes the key.
@@ -1116,6 +1253,45 @@ impl AppSettingsStore {
                 kind, &prefix, &cookie,
             );
         }
+        self.notify(&redacted);
+        Ok(Some(redacted))
+    }
+
+    /// Stored OpenReview verification cookie. `None` when the user has not
+    /// completed the browser check yet.
+    pub fn openreview_cookie(&self) -> Option<String> {
+        let guard = self.inner.lock().ok()?;
+        let cookie = guard.openreview_cookie.trim();
+        if cookie.is_empty() || is_translate_api_key_mask(cookie) {
+            None
+        } else {
+            Some(cookie.to_string())
+        }
+    }
+
+    /// Persist the credential captured by the OpenReview verification window
+    /// without overwriting settings another window changed meanwhile. Mirrors
+    /// [`Self::update_institution_proxy_cookie`]: persist, sync the process-wide
+    /// download credential, then notify settings listeners.
+    pub fn update_openreview_auth(
+        &self,
+        cookie: String,
+        expires_at: i64,
+    ) -> Result<Option<AppSettings>, AppError> {
+        let cookie = cookie.trim().to_string();
+        let redacted = {
+            let mut guard = self
+                .inner
+                .lock()
+                .map_err(|_| AppError::message("settings lock poisoned"))?;
+            let mut next = guard.clone();
+            next.openreview_cookie = cookie.clone();
+            next.openreview_cookie_expires_at = expires_at.max(0);
+            persist(&self.path, &next)?;
+            *guard = next.clone();
+            redact_secrets(next)
+        };
+        agentero_core::features::paper::import::openreview::set_openreview_cookie(&cookie);
         self.notify(&redacted);
         Ok(Some(redacted))
     }
@@ -1232,6 +1408,9 @@ fn redact_secrets(mut settings: AppSettings) -> AppSettings {
     if !settings.decision.api_key.trim().is_empty() {
         settings.decision.api_key = mask_translate_api_key(&settings.decision.api_key);
     }
+    if !settings.openreview_cookie.trim().is_empty() {
+        settings.openreview_cookie = mask_translate_api_key(&settings.openreview_cookie);
+    }
     settings
 }
 
@@ -1271,6 +1450,14 @@ fn merge_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
     if is_translate_api_key_mask(&incoming.decision.api_key) {
         incoming.decision.api_key = previous.decision.api_key.clone();
     }
+    if is_translate_api_key_mask(&incoming.openreview_cookie) {
+        incoming.openreview_cookie = previous.openreview_cookie.clone();
+        // The expiry travels with the cookie so the status cannot claim a
+        // fresh credential while the old one is still in place.
+        incoming.openreview_cookie_expires_at = previous.openreview_cookie_expires_at;
+    } else if incoming.openreview_cookie.trim().is_empty() {
+        incoming.openreview_cookie_expires_at = 0;
+    }
 }
 
 /// Cap a translate template and drop placeholders other than
@@ -1296,6 +1483,7 @@ fn normalize(s: &mut AppSettings) {
         .to_ascii_lowercase();
     s.mcp_tunnel_api_key = s.mcp_tunnel_api_key.trim().to_string();
     s.easy_scholar_key = s.easy_scholar_key.trim().to_string();
+    s.easy_scholar_ranks = normalize_easy_scholar_ranks(&s.easy_scholar_ranks);
     s.zhihu_access_secret = s.zhihu_access_secret.trim().to_string();
     s.decision.api_key = s.decision.api_key.trim().to_string();
     let provider = s.decision.provider.trim().to_ascii_lowercase();
@@ -1316,8 +1504,21 @@ fn normalize(s: &mut AppSettings) {
     if s.decision.model.is_empty() && s.decision.provider == "jev" {
         s.decision.model = default_decision_model();
     }
+    if !SMART_HIGHLIGHT_CONCURRENCY_CHOICES.contains(&s.decision.smart_highlight_concurrency) {
+        s.decision.smart_highlight_concurrency = default_smart_highlight_concurrency();
+    }
+    s.decision.smart_highlight_timeout_secs = s.decision.smart_highlight_timeout_secs.clamp(
+        SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
+        SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+    );
     if s.batch_import_concurrency < 1 || s.batch_import_concurrency > 10 {
         s.batch_import_concurrency = default_batch_import_concurrency();
+    }
+    if !matches!(
+        s.translate.dictionary.mode.as_str(),
+        "auto" | "offline-first" | "off"
+    ) {
+        s.translate.dictionary.mode = default_dictionary_mode();
     }
     if s.translate.auto_translate_import_concurrency < 1
         || s.translate.auto_translate_import_concurrency > MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY
@@ -1352,6 +1553,13 @@ fn normalize(s: &mut AppSettings) {
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,
     );
+    s.openreview_cookie = s.openreview_cookie.trim().to_string();
+    s.openreview_cookie_expires_at = if s.openreview_cookie.is_empty() {
+        0
+    } else {
+        s.openreview_cookie_expires_at.max(0)
+    };
+    agentero_core::features::paper::import::openreview::set_openreview_cookie(&s.openreview_cookie);
 
     const LABEL_MODES: &[&str] = &["title-author", "title", "author-year-title", "folder"];
     if !LABEL_MODES.contains(&s.paper_tree_label_mode.as_str()) {
@@ -1386,6 +1594,9 @@ fn normalize(s: &mut AppSettings) {
     const PDF_SPREAD_MODES: &[&str] = &["none", "odd", "even"];
     if !PDF_SPREAD_MODES.contains(&s.pdf_spread_mode.as_str()) {
         s.pdf_spread_mode = default_pdf_spread_mode();
+    }
+    if !["hover", "always", "hidden"].contains(&s.pdf_translate_tab.as_str()) {
+        s.pdf_translate_tab = default_pdf_translate_tab();
     }
 
     // Library columns: drop unknown/duplicate keys, append missing ones
@@ -1629,6 +1840,9 @@ fn normalize_translate_provider_configs(configs: &mut HashMap<String, TranslateP
         cfg.base_url = cfg.base_url.trim().to_string();
         cfg.region = cfg.region.trim().to_string();
         cfg.model = cfg.model.trim().to_string();
+        if cfg.concurrency < 1 || cfg.concurrency > MAX_TRANSLATE_CONCURRENCY {
+            cfg.concurrency = default_translate_concurrency();
+        }
     }
 }
 
@@ -1663,6 +1877,40 @@ mod tests {
     }
 
     #[test]
+    fn captured_openreview_cookie_is_masked_but_kept_across_echoes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = AppSettingsStore {
+            inner: Mutex::new(AppSettings {
+                openreview_cookie: "old=1".into(),
+                openreview_cookie_expires_at: 1,
+                theme: "dark".into(),
+                ..AppSettings::default()
+            }),
+            path: dir.path().join("settings.json"),
+            listeners: Mutex::new(Vec::new()),
+        };
+        let snapshot = store
+            .update_openreview_auth("openreview.clearanceToken=fresh".into(), 1_800_000_000)
+            .unwrap()
+            .expect("settings snapshot");
+        // The WebView only sees the mask; the durable file keeps the cookie.
+        assert!(is_translate_api_key_mask(&snapshot.openreview_cookie));
+        assert_eq!(snapshot.openreview_cookie_expires_at, 1_800_000_000);
+        let (saved, _) = read_file(&store.path);
+        assert_eq!(saved.openreview_cookie, "openreview.clearanceToken=fresh");
+        assert_eq!(saved.openreview_cookie_expires_at, 1_800_000_000);
+        assert_eq!(saved.theme, "dark");
+
+        // A later settings write echoes the mask; the real cookie must survive.
+        let mut echoed = saved.clone();
+        echoed.openreview_cookie = mask_translate_api_key("openreview.clearanceToken=fresh");
+        store.set(echoed).unwrap();
+        let (saved, _) = read_file(&store.path);
+        assert_eq!(saved.openreview_cookie, "openreview.clearanceToken=fresh");
+        assert_eq!(saved.openreview_cookie_expires_at, 1_800_000_000);
+    }
+
+    #[test]
     fn roundtrip_defaults() {
         let n = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1678,14 +1926,14 @@ mod tests {
         assert_eq!(loaded.theme, "system");
         assert_eq!(loaded.auto_update_internal_links, "ask");
         assert_eq!(loaded.paper_note_mode, "standard");
-        assert!(loaded.vim_mode);
+        assert!(!loaded.vim_mode);
         assert!(!loaded.onboarding_done);
         assert!(!loaded.feature_tour_done);
         // Persisted wire shape is camelCase: the settings window sends
         // `vimMode` and expects it back, otherwise the switch snaps back on.
         let json: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(json["vimMode"], serde_json::json!(true));
+        assert_eq!(json["vimMode"], serde_json::json!(false));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -1899,7 +2147,7 @@ mod tests {
             commercial_provider_settings_key("openaiCompatible"),
             Some("openaiCompatible")
         );
-        assert_eq!(commercial_provider_settings_key("deeplx"), None);
+        assert_eq!(commercial_provider_settings_key("cnki"), None);
     }
 
     #[test]
@@ -2443,6 +2691,29 @@ mod tests {
     }
 
     #[test]
+    fn smart_highlight_limits_keep_supported_values() {
+        let mut settings = AppSettings::default();
+        assert_eq!(settings.decision.smart_highlight_concurrency, 16);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 120);
+
+        settings.decision.smart_highlight_concurrency = 3;
+        settings.decision.smart_highlight_timeout_secs = 9;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_concurrency, 16);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 30);
+
+        settings.decision.smart_highlight_concurrency = 4;
+        settings.decision.smart_highlight_timeout_secs = 300;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_concurrency, 4);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 300);
+
+        settings.decision.smart_highlight_timeout_secs = 9_000;
+        normalize(&mut settings);
+        assert_eq!(settings.decision.smart_highlight_timeout_secs, 600);
+    }
+
+    #[test]
     fn decision_config_never_returns_masked_key() {
         let store = AppSettingsStore::for_tests(AppSettings {
             decision: DecisionSettings {
@@ -2451,6 +2722,8 @@ mod tests {
                 base_url: "https://jev.test/v1".into(),
                 model: "jev-latest".into(),
                 smart_highlight: false,
+                smart_highlight_concurrency: 16,
+                smart_highlight_timeout_secs: 120,
             },
             ..AppSettings::default()
         });
@@ -2471,6 +2744,8 @@ mod tests {
                 base_url: "https://jev.test/v1".into(),
                 model: "jev-latest".into(),
                 smart_highlight: false,
+                smart_highlight_concurrency: 16,
+                smart_highlight_timeout_secs: 120,
             },
             ..AppSettings::default()
         });
@@ -2484,7 +2759,7 @@ mod tests {
         let path = dir.path().join("settings.json");
         let (s, existed) = read_file(&path);
         assert!(!existed);
-        assert_eq!(s.translate.provider, "tencenttransmart");
+        assert_eq!(s.translate.provider, "indextranslate2b");
         assert_eq!(s.layout.parser_backend, "local");
         assert_eq!(s.layout.backend, "local");
 
@@ -2511,6 +2786,33 @@ mod tests {
     }
 
     #[test]
+    fn dictionary_modes_preserve_settings_and_default_legacy_values() {
+        for (raw, expected) in [
+            (serde_json::json!({}), "auto"),
+            (
+                serde_json::json!({"dictionary": {"mode": "unknown"}}),
+                "auto",
+            ),
+            (
+                serde_json::json!({"dictionary": {"mode": "offline-first"}}),
+                "offline-first",
+            ),
+            (serde_json::json!({"dictionary": {"mode": "off"}}), "off"),
+        ] {
+            let mut app = AppSettings {
+                translate: serde_json::from_value(raw).unwrap(),
+                ..AppSettings::default()
+            };
+            normalize(&mut app);
+            let settings = app.translate;
+            assert_eq!(settings.dictionary.mode, expected);
+            let encoded = serde_json::to_value(&settings).unwrap();
+            let restored: TranslateSettings = serde_json::from_value(encoded).unwrap();
+            assert_eq!(restored, settings);
+        }
+    }
+
+    #[test]
     fn translate_default_survives_settings_roundtrip() {
         for raw in [
             None,
@@ -2524,7 +2826,7 @@ mod tests {
             }
             let (settings, existed) = read_file(&path);
             assert_eq!(existed, raw.is_some());
-            assert_eq!(settings.translate.provider, "tencenttransmart");
+            assert_eq!(settings.translate.provider, "indextranslate2b");
             persist(&path, &settings).unwrap();
             let (reloaded, existed) = read_file(&path);
             assert!(existed);

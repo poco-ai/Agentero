@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { disposeAgentRun, type PromptImage } from "@/lib/agent";
 import { pdfAskContextRequest } from "@/lib/agent/context-request";
+import { notifyError } from "@/lib/core/notify";
 import {
 	createEmptyThread,
 	deletePdfAskThread,
@@ -56,7 +57,11 @@ import {
 	stopAskRun,
 } from "@/lib/pdf/ask/run-turn";
 import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
-import type { PdfAskAnchor, PdfAskThread } from "@/lib/pdf/ask/types";
+import type {
+	PdfAskAnchor,
+	PdfAskNormalizedRect,
+	PdfAskThread,
+} from "@/lib/pdf/ask/types";
 import type { ActiveSelectionCard } from "@/lib/pdf/selection";
 
 export type UsePdfAskThreadsOptions = {
@@ -66,6 +71,10 @@ export type UsePdfAskThreadsOptions = {
 	paperRelPath: string | null;
 	/** Vault root passed to the Agent run as its cwd. */
 	vaultPath: string | null;
+	captureRegion: (
+		pageIndex: number,
+		region: PdfAskNormalizedRect,
+	) => Promise<PromptImage>;
 	/** Persisted ask threads; owned by {@link usePdfMarksIo}. */
 	threadsRef: RefObject<PdfAskThread[]>;
 	setThreads: Dispatch<SetStateAction<PdfAskThread[]>>;
@@ -112,6 +121,7 @@ export function usePdfAskThreads({
 	paperAbsPath,
 	paperRelPath,
 	vaultPath,
+	captureRegion,
 	threadsRef,
 	setThreads,
 	upsertThread,
@@ -128,6 +138,7 @@ export function usePdfAskThreads({
 	const runUnsubsRef = useRef<UnlistenFn[] | null>(null);
 	/** ACP session of the in-flight ask turn (null when idle). */
 	const askSessionRef = useRef<string | null>(null);
+	const pendingCropRef = useRef<symbol | null>(null);
 	/** True once the viewer unmounts; guards runs accepted after teardown. */
 	const runDisposedRef = useRef(false);
 
@@ -189,11 +200,21 @@ export function usePdfAskThreads({
 		[paperAbsPath, setThreads],
 	);
 
-	const closeAskChrome = useCallback((_threadId: string) => {
-		// Non-explicit closes keep a started draft (and its pin/highlight); the
-		// card itself deletes only when the composer was never touched.
-		setAskError(null);
+	const cancelPendingCrop = useCallback(() => {
+		if (!pendingCropRef.current) return;
+		pendingCropRef.current = null;
+		setStreaming(false);
 	}, []);
+
+	const closeAskChrome = useCallback(
+		(_threadId: string) => {
+			// Non-explicit closes keep a started draft (and its pin/highlight); the
+			// card itself deletes only when the composer was never touched.
+			setAskError(null);
+			cancelPendingCrop();
+		},
+		[cancelPendingCrop],
+	);
 
 	const openThread = useCallback(
 		(thread: PdfAskThread) => openCard({ kind: "ask", id: thread.id }),
@@ -235,10 +256,37 @@ export function usePdfAskThreads({
 			agentOpts?: { agentId?: string; modelId?: string },
 			/** When set (edit/resend), replace the transcript from this base instead of appending to full history. */
 			baseMessages?: PdfAskThread["messages"],
-			/** Visual PDF crops attached to this turn. */
-			images?: PromptImage[],
-		) =>
-			runAskTurn({
+		) => {
+			const { anchor } = thread;
+			let images: PromptImage[] | undefined;
+			if (anchor.visualKind) {
+				const region = anchor.rects[0];
+				if (
+					!region ||
+					pendingCropRef.current ||
+					activeCardRef.current?.id !== thread.id
+				)
+					return;
+				const request = Symbol();
+				pendingCropRef.current = request;
+				setAskError(null);
+				setStreaming(true);
+				try {
+					images = [await captureRegion(anchor.page - 1, region)];
+				} catch {
+					if (pendingCropRef.current === request && !runDisposedRef.current) {
+						const message = t("pdfExplain.cropFailed");
+						notifyError(message);
+						setAskError(message);
+						cancelPendingCrop();
+					}
+					return;
+				}
+				if (pendingCropRef.current !== request || runDisposedRef.current)
+					return;
+				pendingCropRef.current = null;
+			}
+			return runAskTurn({
 				thread,
 				question,
 				agent: agentOpts,
@@ -257,8 +305,19 @@ export function usePdfAskThreads({
 				unsubsRef: runUnsubsRef,
 				sessionRef: askSessionRef,
 				activeSessionRef,
-			}),
-		[upsertThread, patchThread, persist, vaultPath, t, activeSessionRef],
+			});
+		},
+		[
+			activeCardRef,
+			captureRegion,
+			cancelPendingCrop,
+			upsertThread,
+			patchThread,
+			persist,
+			vaultPath,
+			t,
+			activeSessionRef,
+		],
 	);
 
 	const resolvePdfAskAgent = useCallback(
@@ -321,6 +380,7 @@ export function usePdfAskThreads({
 
 	/** Cancel the run, clear the chrome, and close the card if it is an ask card. */
 	const dismissAskChrome = useCallback(() => {
+		cancelPendingCrop();
 		cancelAskRun(askSessionRef, activeSessionRef);
 		setStreaming(false);
 		setAskError(null);
@@ -328,7 +388,13 @@ export function usePdfAskThreads({
 			setActiveCard(null);
 			setCardScreen(null);
 		}
-	}, [activeCardRef, setActiveCard, setCardScreen, activeSessionRef]);
+	}, [
+		cancelPendingCrop,
+		activeCardRef,
+		setActiveCard,
+		setCardScreen,
+		activeSessionRef,
+	]);
 
 	const hideAskThread = useCallback(
 		(draft?: string) => {
@@ -373,8 +439,9 @@ export function usePdfAskThreads({
 	}, [removeThread, dismissAskChrome, activeCardRef]);
 
 	const stopAskStreaming = useCallback(() => {
+		cancelPendingCrop();
 		stopAskRun(askSessionRef, activeSessionRef, () => setStreaming(false));
-	}, [activeSessionRef]);
+	}, [activeSessionRef, cancelPendingCrop]);
 
 	return {
 		streaming,

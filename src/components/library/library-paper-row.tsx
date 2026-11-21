@@ -26,7 +26,7 @@ type LibraryPaperRowProps = {
 	heat: ReadingHeatmap | undefined;
 	visibleColumns: LibraryColumnPref[];
 	/** Stable `t` + `onCellCopy` pair shared by all rows (memo friendly). */
-	ctx: Pick<CellCtx, "t" | "onCellCopy">;
+	ctx: Pick<CellCtx, "t" | "onCellCopy" | "easyScholarRanks">;
 	/** Selection mode: draw the leading checkbox cell. */
 	showSelection: boolean;
 	selected: boolean;
@@ -61,6 +61,7 @@ export const LibraryPaperRow = memo(function LibraryPaperRow({
 	const cellCtx: CellCtx = {
 		t: ctx.t,
 		onCellCopy: ctx.onCellCopy,
+		easyScholarRanks: ctx.easyScholarRanks,
 		heat,
 		tags: row.tags,
 	};

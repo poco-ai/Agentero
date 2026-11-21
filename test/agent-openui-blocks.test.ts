@@ -2,6 +2,7 @@ import type { ElementNode } from "@openuidev/lang-core";
 import { describe, expect, it } from "vitest";
 import { agentTextFromParts } from "@/lib/agent/chat-state";
 import { prepareAgentMessageMarkdown } from "@/lib/agent/message-markdown";
+import { blockProps, uiBlockLibrary } from "@/lib/agent/openui/catalog";
 import {
 	BAR_CHART_WIDTH,
 	buildBarChartGeometry,
@@ -26,6 +27,7 @@ import {
 	validateOpenUiShape,
 } from "@/lib/agent/openui/parse";
 import { isOpenUiSourceTarget } from "@/lib/agent/openui/source";
+import snapshot from "./fixtures/openui-catalog.snapshot.json";
 
 const ALL_COMPONENTS = `root = Stack([heading, table, stats, chart, steps, note, row], "md")
 heading = Text("Results", "heading")
@@ -50,13 +52,38 @@ function parseSettled(source: string) {
 	};
 }
 
-describe("OpenUI block parsing", () => {
-	it("keeps the documented signatures aligned with the parser catalog", () => {
-		for (const name of OPENUI_COMPONENT_NAMES) {
-			expect(OPENUI_COMPONENT_SIGNATURES[name]).toContain(name);
+describe("generated OpenUI catalog snapshot", () => {
+	it("matches the checked-in signature snapshot", () => {
+		expect(snapshot.componentCount).toBe(OPENUI_COMPONENT_NAMES.length);
+		expect(snapshot.components).toHaveLength(OPENUI_COMPONENT_NAMES.length);
+
+		for (const component of snapshot.components) {
+			expect(OPENUI_COMPONENT_SIGNATURES).toHaveProperty(
+				component.name,
+				component.signature,
+			);
+			expect(uiBlockLibrary.toSpec().components[component.name]).toMatchObject({
+				signature: component.signature,
+				description: component.description,
+			});
 		}
 	});
 
+	it("keeps names, props and parser signatures in one catalog", () => {
+		expect(OPENUI_COMPONENT_NAMES).toContain("PaperCard");
+		expect(OPENUI_COMPONENT_NAMES).toContain("ClaimList");
+		for (const removed of ["Math", "Code", "Quote", "Divider", "List"]) {
+			expect(OPENUI_COMPONENT_NAMES).not.toContain(removed);
+		}
+		expect(OPENUI_COMPONENT_NAMES).toEqual(Object.keys(blockProps));
+		expect(new Set(OPENUI_COMPONENT_NAMES).size).toBe(
+			OPENUI_COMPONENT_NAMES.length,
+		);
+		expect(uiBlockLibrary.root).toBe("Stack");
+	});
+});
+
+describe("OpenUI block parsing", () => {
 	it("parses the read-only catalog into an element tree", () => {
 		const { resolved } = parseSettled(ALL_COMPONENTS);
 		expect(resolved.view.kind).toBe("ready");

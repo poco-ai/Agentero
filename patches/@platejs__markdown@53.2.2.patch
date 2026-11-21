@@ -1,0 +1,37 @@
+diff --git a/dist/index.js b/dist/index.js
+index 941eb61ebdf3424ef44a2eb73a13960232b39a8a..3f85ab64231c5e85707e9ccb7f08fa23c4819254 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -440,14 +440,28 @@ const hasContent = (node) => {
+ 	}
+ 	return false;
+ };
++/**
++* Two mdx containers can only share one parent when they serialize to the same
++* element. Comparing `type` alone merged every adjacent `mdxJsxTextElement`,
++* so `<mark>a</mark><u>b</u>` saved as `<mark>ab</mark>` and dropped the
++* underline (agentero #1170). Ported from upstream `sameContainer`
++* (udecode/plate convertTextsSerialize): name and attributes must match too.
++*/
++const sameContainer = (last, cur) => {
++	if (last.type !== cur.type) return false;
++	if (last.type !== "mdxJsxTextElement" && last.type !== "mdxJsxFlowElement") return true;
++	if (last.name !== cur.name) return false;
++	return JSON.stringify(last.attributes ?? []) === JSON.stringify(cur.attributes ?? []);
++};
+ const mergeTexts = (nodes) => {
+ 	const res = [];
+ 	for (const cur of nodes) {
+ 		const last = res.at(-1);
+-		if (last && last.type === cur.type) if (last.type === "text") last.value += cur.value;
+-		else if (last.type === "inlineCode") last.value += cur.value;
+-		else last.children = mergeTexts(last.children.concat(cur.children));
+-		else {
++		if (last && sameContainer(last, cur)) {
++			if (last.type === "text") last.value += cur.value;
++			else if (last.type === "inlineCode") last.value += cur.value;
++			else last.children = mergeTexts(last.children.concat(cur.children));
++		} else {
+ 			if (cur.type === "text" && cur.value === "") continue;
+ 			res.push(cur);
+ 		}

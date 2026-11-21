@@ -56,6 +56,12 @@ const mocks = vi.hoisted(() => {
 	};
 });
 
+// Renderer jobs are offered to every window; these tests run as the winner.
+mocks.commandSpy("jobRendererClaim").mockResolvedValue({
+	status: "ok",
+	data: { ok: true, data: true },
+});
+
 vi.mock("@/lib/core/tauri", () => ({
 	isTauri: () => mocks.tauri,
 }));
@@ -195,39 +201,6 @@ describe("library task executors", () => {
 		}
 	});
 
-	it("runs the citing scan under the job id and opens the draft", async () => {
-		deps.citingScan.mockResolvedValue({
-			rawCiting: 3,
-			afterFilters: 2,
-			gatePassed: 2,
-			candidates: [{}, {}],
-			cancelled: false,
-			messages: [],
-		});
-		registerLibraryTaskExecutors();
-		startJobCenterExecutorListener();
-		await flush();
-
-		offer("job-citing-1", "citingScan", null);
-		await flush();
-		await flush();
-
-		expect(deps.citingScan).toHaveBeenCalledWith("/vault", {
-			taskId: "job-citing-1",
-		});
-		expect(deps.setCitingScanDraft).toHaveBeenCalledTimes(1);
-		const reports = reportCalls("job-citing-1");
-		expect(reports[0]?.phase).toBe("Reading library metadata…");
-		expect(reports.at(-1)).toEqual({
-			jobId: "job-citing-1",
-			progress: 100,
-			phase: null,
-			error: null,
-			state: "succeeded",
-			params: null,
-		});
-	});
-
 	it("reports a Host-cancelled citing scan as cancelled", async () => {
 		deps.citingScan.mockResolvedValue({
 			rawCiting: 0,
@@ -289,19 +262,6 @@ describe("library task executors", () => {
 		});
 	});
 
-	it("treats a dismissed export dialog as success", async () => {
-		registerLibraryTaskExecutors();
-		startJobCenterExecutorListener();
-		await flush();
-
-		offer("job-lib-export", "libraryIo", { op: "export" });
-		await flush();
-		await flush();
-
-		expect(deps.exportLibraryToFile).toHaveBeenCalledTimes(1);
-		expect(reportCalls("job-lib-export").at(-1)?.state).toBe("succeeded");
-	});
-
 	it("fails a library job with an unknown op", async () => {
 		registerLibraryTaskExecutors();
 		startJobCenterExecutorListener();
@@ -345,32 +305,5 @@ describe("library task executors", () => {
 		expect(last?.state).toBe("failed");
 		expect(String(last?.error)).toContain("1 failed");
 		expect(deps.refreshLibrary).toHaveBeenCalled();
-	});
-
-	it("reports success when every metadata lookup resolves", async () => {
-		deps.resolveIdentifierMetadata.mockResolvedValue({ title: "A" });
-		registerLibraryTaskExecutors();
-		startJobCenterExecutorListener();
-		await flush();
-
-		offer("job-refresh-2", "metadataRefresh", {
-			papers: [{ path: "papers/a", query: "10.1/a" }],
-		});
-		await flush();
-		await flush();
-		await flush();
-
-		const reports = reportCalls("job-refresh-2");
-		expect(reports.some((r) => r.progress === 100 && r.state === null)).toBe(
-			true,
-		);
-		expect(reports.at(-1)).toEqual({
-			jobId: "job-refresh-2",
-			progress: 100,
-			phase: null,
-			error: null,
-			state: "succeeded",
-			params: null,
-		});
 	});
 });

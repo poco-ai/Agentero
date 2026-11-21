@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { ANNOTATION_APPENDIX_LEAD } from "@/lib/agent/annotation-prompt";
+import {
+	annotationSnapshotsForMarkers,
+	annotationSnapshotsFromMessage,
+} from "@/lib/agent/annotation-snapshot";
 import {
 	displayHistoryTitle,
 	isVisualAnnotationPromptText,
@@ -82,6 +87,79 @@ describe("stripPromptEnvelopeForDisplay — Agentero context blocks", () => {
 			"> some quote",
 		].join("\n");
 		expect(stripPromptEnvelopeForDisplay(prompt)).toBe("Summarize this paper.");
+	});
+});
+
+describe("annotation snapshots from the sent message", () => {
+	const stored = [
+		"You are an assistant working inside a Agentero research Vault.",
+		"",
+		"Annotation 1",
+		"Title: Attention",
+		"Page: 4",
+		"Quoted text:",
+		"> scaled dot-product",
+		"> second line",
+		"User comment on this quote only: read this",
+		"Before quote (excerpt): earlier words",
+		"Translation of the quoted sentences: 点积",
+		"",
+		"User request:",
+		"先看 [Annotation 2]，再看 [Annotation 1]",
+		"",
+		`${ANNOTATION_APPENDIX_LEAD} Address each numbered annotation separately.`,
+		"",
+		"## Annotation 2",
+		"Visual annotation — page 8",
+		"User comment: the figure",
+		"more about the figure",
+	].join("\n");
+
+	it("pairs each marker with that number's send-time snapshot", () => {
+		const visible = stripPromptEnvelopeForDisplay(stored);
+		expect(visible).toBe("先看 [Annotation 2]，再看 [Annotation 1]");
+		const cards = annotationSnapshotsForMarkers(visible, stored);
+		expect(cards.map((card) => card.n)).toEqual([2, 1]);
+		expect(cards[0]).toMatchObject({
+			kind: "visual",
+			page: 8,
+			comment: "the figure\nmore about the figure",
+		});
+		expect(cards[1]).toMatchObject({
+			kind: "text",
+			source: "Attention",
+			page: 4,
+			quote: "scaled dot-product\nsecond line",
+			comment: "read this",
+			translation: "点积",
+		});
+		expect(cards[1]?.quote).not.toContain("the figure");
+		expect(cards[0]?.comment).not.toContain("scaled dot-product");
+	});
+
+	it("keeps a stored snapshot after the appendix has been stripped", () => {
+		const parsed = annotationSnapshotsFromMessage(stored);
+		const visible = stripPromptEnvelopeForDisplay(stored);
+		expect(annotationSnapshotsFromMessage(visible)).toEqual([]);
+		expect(annotationSnapshotsForMarkers(visible, visible, parsed)).toEqual(
+			annotationSnapshotsForMarkers(visible, stored),
+		);
+	});
+
+	it("does not invent a snapshot for a marker with no appendix", () => {
+		const text = "请看 [Annotation 1]";
+		expect(annotationSnapshotsFromMessage(text)).toEqual([]);
+		expect(annotationSnapshotsForMarkers(text, text)).toEqual([]);
+		expect(annotationSnapshotsFromMessage(visualPrompt)).toEqual([]);
+	});
+
+	it("shows one card when the same marker is repeated", () => {
+		const cards = annotationSnapshotsForMarkers(
+			"[Annotation 1] and [Annotation 1]",
+			stored,
+		);
+		expect(cards.map((card) => card.n)).toEqual([1]);
+		expect(cards[0]?.quote).toBe("scaled dot-product\nsecond line");
 	});
 });
 

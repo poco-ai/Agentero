@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/tooltip";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { isSecretMask, maskSecret } from "@/lib/core/secret-mask";
-import { cn } from "@/lib/core/utils";
 import type {
 	AppSettings,
 	CommercialTranslateProviderId,
@@ -106,40 +105,6 @@ export function TranslateStep({
 		onUseDefault();
 	};
 
-	const setDisplayMode = (displayMode: "overlay" | "dualPane") => {
-		if (displayMode === tr.displayMode) return;
-		patch({ translate: { ...tr, displayMode } });
-	};
-
-	const displayModeRow = (
-		<div className="flex items-center justify-between gap-3">
-			<span className="text-muted-foreground text-sm">
-				{t("translate.displayMode.label")}
-			</span>
-			<div className="flex items-center rounded-lg border bg-muted p-0.5">
-				{(["overlay", "dualPane"] as const).map((mode) => {
-					const selected = tr.displayMode === mode;
-					return (
-						<button
-							key={mode}
-							type="button"
-							aria-pressed={selected}
-							onClick={() => setDisplayMode(mode)}
-							className={cn(
-								"rounded-md px-2.5 py-1 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-								selected
-									? "bg-background text-foreground shadow-raised"
-									: "text-muted-foreground hover:text-foreground",
-							)}
-						>
-							{t(`translate.displayMode.${mode}`)}
-						</button>
-					);
-				})}
-			</div>
-		</div>
-	);
-
 	const displayKey =
 		draft.apiKey !== undefined ? draft.apiKey : (stored?.apiKey ?? "");
 	const displayBaseUrl =
@@ -207,7 +172,6 @@ export function TranslateStep({
 						onClick={enterConfigure}
 					/>
 				</div>
-				{displayModeRow}
 			</div>
 		);
 	}
@@ -309,8 +273,6 @@ export function TranslateStep({
 				onChange={(e) => setDraft((d) => ({ ...d, baseUrl: e.target.value }))}
 				className="h-8 font-mono text-xs"
 			/>
-
-			{displayModeRow}
 		</div>
 	);
 }

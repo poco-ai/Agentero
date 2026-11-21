@@ -1,128 +1,80 @@
-//! `agentero layout *` — sidebar-aligned layout index (figures / tables / …).
-
-use crate::error::CliError;
-use crate::output::to_value;
-use crate::resolve::{resolve_paper, resolve_vault, GlobalOpts};
-use crate::style::{format_table, truncate_chars};
-use agentero_core::features::layout_index::{self, LayoutIndexItem};
-use clap::{Subcommand, ValueHint};
+//! Prepare or refresh a paper’s layout analysis.
+use crate::{
+    dispatch::{required, string},
+    error::CliError,
+    resolve::{resolve_paper, resolve_vault, GlobalOpts},
+};
+use agentero_core::features::pdf::layout_analyze::{self, AnalyzeLayoutArgs, AnalyzeLayoutOutcome};
 use serde_json::{json, Value};
 
-#[derive(Debug, Subcommand)]
-pub enum LayoutCmd {
-    /// List sidebar-aligned regions (figure / table / algorithm / formula).
-    List {
-        /// Vault-relative paper path or id.
-        #[arg(value_hint = ValueHint::DirPath)]
-        r#ref: String,
-        /// Filter: figure (image+chart), image, chart, table, algorithm, formula, section, paragraph.
-        /// Repeatable; OR semantics.
-        #[arg(
-            long = "kind",
-            value_name = "KIND",
-            value_parser = ["figure", "image", "chart", "table", "algorithm", "formula", "section", "paragraph"]
-        )]
-        kinds: Vec<String>,
-        /// Minimum score (0–1). Default: index minScore or 0.3.
-        #[arg(long = "min-score", value_name = "N")]
-        min_score: Option<f64>,
-    },
-    /// Get one region by id (CLI id from `layout list`).
-    Get {
-        /// Vault-relative paper path or id.
-        #[arg(value_hint = ValueHint::DirPath)]
-        r#ref: String,
-        /// Region id or exact anchor from layout list (e.g. figure-3 or '#2.1#p3').
-        id: String,
-    },
-}
-
-pub fn run(cmd: LayoutCmd, globals: &GlobalOpts) -> Result<Value, CliError> {
-    match cmd {
-        LayoutCmd::List {
-            r#ref,
-            kinds,
-            min_score,
-        } => list(globals, &r#ref, &kinds, min_score),
-        LayoutCmd::Get { r#ref, id } => get(globals, &r#ref, &id),
-    }
-}
-
-fn list(
-    globals: &GlobalOpts,
-    ref_: &str,
-    kinds: &[String],
-    min_score: Option<f64>,
-) -> Result<Value, CliError> {
-    let vault = resolve_vault(globals)?;
-    let paper = resolve_paper(&vault, ref_, globals)?;
-    let data = layout_index::list_regions(&vault, &paper.path, kinds, min_score)?;
-    let style = globals.style;
-    let table_rows: Vec<Vec<String>> = data
-        .items
-        .iter()
-        .map(|i| {
-            vec![
-                i.id.clone(),
-                i.section.clone(),
-                i.kind.clone(),
-                i.anchor.clone().unwrap_or_default(),
-                i.page.to_string(),
-                format!("{:.0}%", i.score * 100.0),
-                truncate_chars(i.title.as_deref().unwrap_or(""), 48),
-            ]
+pub async fn dispatch(a: &Value, g: &GlobalOpts) -> Result<Value, CliError> {
+    let vault = resolve_vault(g)?;
+    let paper = resolve_paper(&vault, required(a, "paper")?, g)?;
+    let profile = string(a, "profile")
+        .map(|name| {
+            crate::config::load()?
+                .extra
+                .get("layout_profiles")
+                .and_then(|p| p.get(name))
+                .cloned()
+                .ok_or_else(|| CliError::usage(format!("unknown layout profile {name}")))
         })
-        .collect();
-    let lines = if data.items.is_empty() {
-        vec![style.dim("(no layout regions)")]
-    } else {
-        format_table(
-            style,
-            &["ID", "SECTION", "KIND", "ANCHOR", "PAGE", "SCORE", "TITLE"],
-            &table_rows,
-        )
+        .transpose()?;
+    let field = |key: &str| {
+        profile
+            .as_ref()
+            .and_then(|v| v.get(key))
+            .and_then(toml::Value::as_str)
+            .map(str::to_owned)
     };
-
-    let mut out = to_value(&data)?;
-    if let Some(obj) = out.as_object_mut() {
-        obj.insert("lines".into(), json!(lines));
+    let mut options = AnalyzeLayoutArgs::new(vault, paper.path.clone());
+    options.provider = string(a, "provider")
+        .map(str::to_owned)
+        .or_else(|| field("provider"));
+    options.force = a["refresh"] == true;
+    options.pages = string(a, "page")
+        .map(agentero_core::features::evidence::parse_pages)
+        .transpose()?
+        .map(|pages| pages.into_iter().map(|n| n - 1).collect());
+    options.api_key = field("api_key").or_else(|| std::env::var("AGENTERO_LAYOUT_API_KEY").ok());
+    options.base_url = field("base_url");
+    options.self_hosted = profile
+        .as_ref()
+        .and_then(|v| v.get("self_hosted"))
+        .and_then(toml::Value::as_bool);
+    let result = layout_analyze::analyze_paper_layout(options).await?;
+    Ok(
+        json!({"paper":paper.path,"assets":[{"id":"layout","path":result.sidecar_path,"outcome":"available"},{"id":"regions","path":result.index_path,"outcome":"available"}]}),
+    )
+}
+/// One-line human summary of a finished analysis (`cached …` / `analyzed …`).
+pub(crate) fn outcome_headline(paper_path: &str, outcome: &AnalyzeLayoutOutcome) -> String {
+    if outcome.from_cache {
+        format!(
+            "cached {} regions ({} figures)",
+            outcome.region_count, outcome.index_count
+        )
+    } else {
+        format!(
+            "analyzed {paper_path} → {} ({} regions, {} figures, {} pages, {} ms)",
+            outcome.provider,
+            outcome.region_count,
+            outcome.index_count,
+            outcome.page_count,
+            outcome.elapsed_ms
+        )
     }
-    Ok(out)
 }
 
-fn get(globals: &GlobalOpts, ref_: &str, id: &str) -> Result<Value, CliError> {
-    let vault = resolve_vault(globals)?;
-    let paper = resolve_paper(&vault, ref_, globals)?;
-    let data = layout_index::get_region(&vault, &paper.path, id.trim())?;
-    let item = &data.item;
-    let mut lines = vec![format!(
-        "{}  {}  page {}  {}  score {:.0}%",
-        item.id,
-        item.section,
-        item.page,
-        item.kind,
-        item.score * 100.0
-    )];
-    if let Some(t) = &item.title {
-        lines.push(format!("title: {t}"));
+/// One line for the `import pdf --layout` scan: always names the paper (the
+/// cached headline omits it, which is ambiguous in a batch).
+pub(crate) fn import_layout_line(paper_path: &str, outcome: &AnalyzeLayoutOutcome) -> String {
+    if outcome.from_cache {
+        format!(
+            "layout: cached {paper_path} ({} regions, {} figures)",
+            outcome.region_count, outcome.index_count
+        )
+    } else {
+        format!("layout: {}", outcome_headline(paper_path, outcome))
     }
-    lines.push(format!(
-        "bbox: x={:.4} y={:.4} w={:.4} h={:.4}",
-        item.bbox.x, item.bbox.y, item.bbox.w, item.bbox.h
-    ));
-
-    let mut out = to_value(&data)?;
-    if let Some(obj) = out.as_object_mut() {
-        obj.insert("lines".into(), json!(lines));
-    }
-    Ok(out)
-}
-
-/// Shared by `mark add --region`.
-pub fn load_region(
-    vault: &std::path::Path,
-    paper_path: &str,
-    region_id: &str,
-) -> Result<LayoutIndexItem, CliError> {
-    Ok(layout_index::load_region(vault, paper_path, region_id)?)
 }

@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import { createRequire } from "node:module";
 import {
 	PluginRegistry,
 	setDocumentLoaded,
@@ -26,20 +25,15 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-viewport";
 
 const docId = "gutter";
-const gutter = 212;
 
-async function createRegistry(
-	zoomPackage = ZoomPluginPackage,
-	viewportPaddingRight?: number,
-) {
+async function createRegistry() {
 	const registry = new PluginRegistry({} as PdfEngine);
 	registry.registerPlugin(ViewportPluginPackage, { viewportGap: 20 });
 	registry.registerPlugin(ScrollPluginPackage);
 	registry.registerPlugin(RenderPluginPackage);
 	registry.registerPlugin(TilingPluginPackage);
-	registry.registerPlugin(zoomPackage, {
+	registry.registerPlugin(ZoomPluginPackage, {
 		defaultZoomLevel: ZoomMode.FitWidth,
-		viewportPaddingRight,
 	});
 	await registry.initialize();
 	registry.getStore().dispatchToCore(startLoadingDocument(docId));
@@ -158,58 +152,43 @@ it("keeps high-resolution tiles over the whole scrollport after zoom and split r
 	}
 });
 
-it.each([
-	"import",
-	"require",
-])("%s: preserves fit-width, zoom focus, and default zero padding without changing viewport metrics", async (mode) => {
-	const zoomPackage: typeof ZoomPluginPackage =
-		mode === "import"
-			? ZoomPluginPackage
-			: createRequire(import.meta.url)("@embedpdf/plugin-zoom")
-					.ZoomPluginPackage;
-	for (const padding of [undefined, gutter]) {
-		const { registry, viewport, zoom } = await createRegistry(
-			zoomPackage,
-			padding,
-		);
-		try {
-			viewport.setViewportResizeMetrics(docId, {
-				width: 900,
-				clientWidth: 900,
-				height: 800,
-				clientHeight: 800,
-				scrollWidth: 900,
-				scrollHeight: 800,
-				scrollLeft: 0,
-				scrollTop: 0,
-				clientLeft: 0,
-				clientTop: 0,
-			});
-			await vi.advanceTimersByTimeAsync(200);
-			expect(zoom.getState().currentZoomLevel).toBe(padding ? 1.08 : 1.433);
-			const onZoom = vi.fn();
-			zoom.onZoomChange(onZoom);
-			zoom.requestZoom(2);
-			expect(onZoom.mock.lastCall?.[0]).toMatchObject({
-				center: { vx: padding ? 344 : 450, vy: 400 },
-			});
-			expect(onZoom.mock.lastCall?.[0].desiredScrollLeft).toBeCloseTo(
-				padding ? 276 : 170,
-			);
-			zoom.zoomToArea(0, {
-				origin: { x: 0, y: 0 },
-				size: { width: 600, height: 200 },
-			});
-			expect(zoom.getState().currentZoomLevel).toBe(padding ? 1.08 : 1.43);
-			expect(viewport.provides().forDocument(docId).getMetrics()).toMatchObject(
-				{
-					width: 900,
-					clientWidth: 900,
-				},
-			);
-		} finally {
-			await registry.destroy();
-		}
+it("keeps fit-width, zoom focus, and viewport metrics aligned with upstream", async () => {
+	const { registry, viewport, zoom } = await createRegistry();
+	try {
+		viewport.setViewportResizeMetrics(docId, {
+			width: 900,
+			clientWidth: 900,
+			height: 800,
+			clientHeight: 800,
+			scrollWidth: 900,
+			scrollHeight: 800,
+			scrollLeft: 0,
+			scrollTop: 0,
+			clientLeft: 0,
+			clientTop: 0,
+		});
+		await vi.advanceTimersByTimeAsync(200);
+		// FitWidth subtracts only the symmetric viewport gap (2 * 20px); the
+		// reader no longer reserves a comment-rail gutter on the right.
+		expect(zoom.getState().currentZoomLevel).toBe(1.433);
+		const onZoom = vi.fn();
+		zoom.onZoomChange(onZoom);
+		zoom.requestZoom(2);
+		expect(onZoom.mock.lastCall?.[0]).toMatchObject({
+			center: { vx: 450, vy: 400 },
+		});
+		expect(onZoom.mock.lastCall?.[0].desiredScrollLeft).toBeCloseTo(170);
+		zoom.zoomToArea(0, {
+			origin: { x: 0, y: 0 },
+			size: { width: 600, height: 200 },
+		});
+		expect(zoom.getState().currentZoomLevel).toBe(1.43);
+		expect(viewport.provides().forDocument(docId).getMetrics()).toMatchObject({
+			width: 900,
+			clientWidth: 900,
+		});
+	} finally {
+		await registry.destroy();
 	}
 });
 
@@ -228,7 +207,7 @@ it("centers the zoom gesture in the reading box", async () => {
 			disconnect() {}
 		},
 	);
-	const { registry } = await createRegistry(ZoomPluginPackage, gutter);
+	const { registry } = await createRegistry();
 	const container = document.createElement("div");
 	document.body.appendChild(container);
 	const root = createRoot(container);

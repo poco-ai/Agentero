@@ -12,6 +12,7 @@ import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
 import { useInstitutionProxyHealth } from "@/hooks/use-institution-proxy-health";
 import { useUiRequest } from "@/hooks/use-ui-request";
 import { useVaultOpenRequest } from "@/hooks/use-vault-open-request";
+import { useWorkspaceCli } from "@/hooks/use-workspace-cli";
 import { applyLocale } from "@/i18n";
 import { startActivityTracking } from "@/lib/activity";
 import { commands } from "@/lib/core/bindings";
@@ -28,9 +29,8 @@ import { registerImportTaskExecutor } from "@/lib/paper/import/import-tasks";
 import { startJobCompletionRefresh } from "@/lib/paper/job-refresh";
 import { refreshLibrary } from "@/lib/paper/library-store";
 import { registerLibraryTaskExecutors } from "@/lib/paper/library-tasks";
-import { startDevelopmentPlugins } from "@/lib/plugins/development";
-import { pluginsSurfaceEnabled } from "@/lib/plugins/visibility";
 import { startPerfRun } from "@/lib/shell/perf-run";
+import { activeReadingPath } from "@/lib/workspace/navigation";
 // Side-effect: register catalog title lookup for JobCenter task subjects.
 import "@/lib/paper/task-label";
 import { registerLayoutTaskExecutor } from "@/lib/pdf/layout/enqueue-paper-layout";
@@ -46,6 +46,7 @@ export function useAppBootstrap(): void {
 	useVaultOpenRequest();
 	// CLI / deep-link: agentero paper open / agentero ui … → ui:request
 	useUiRequest();
+	useWorkspaceCli();
 
 	const theme = useSettings((s) => s.theme);
 	const locale = useSettings((s) => s.locale);
@@ -81,7 +82,7 @@ export function useAppBootstrap(): void {
 
 	useEffect(() => {
 		if (perfActive()) return;
-		return startActivityTracking();
+		return startActivityTracking(activeReadingPath);
 	}, []);
 
 	// Validate the restored local Vault before restoring its tree and tabs, then
@@ -107,11 +108,6 @@ export function useAppBootstrap(): void {
 			dispose();
 			unregister();
 		};
-	}, []);
-
-	useEffect(() => {
-		if (!pluginsSurfaceEnabled) return;
-		return startDevelopmentPlugins();
 	}, []);
 
 	// Per-vault side effects hang off vault:opened (see lifecycle/register.ts).

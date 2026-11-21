@@ -13,7 +13,6 @@ use crate::features::paper::catalog::papers::{self, PaperRecord};
 use crate::features::paper::catalog::{probe_paper_caps, CapsCache};
 use crate::features::pdf::marks::activity as reading_activity;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
@@ -56,8 +55,6 @@ pub struct PaperOpenBundle {
     pub paper: PaperRecord,
     pub path_rel: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub notes_seed: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub pdf_path: Option<String>,
     pub has_tex: bool,
     pub has_paper_md: bool,
@@ -96,17 +93,9 @@ fn paper_open_bundle_inner(
     let caps = cache
         .map(|c| c.caps_for(vault, &path_rel))
         .unwrap_or_else(|| probe_paper_caps(&paper_dir));
-    let notes_path = paper_dir.join("NOTES.md");
-    let notes_seed = match fs::read_to_string(&notes_path) {
-        Ok(text) => Some(text),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-        Err(e) => return Err(AppError::message(format!("read NOTES.md: {e}"))),
-    };
-
     Ok(PaperOpenBundle {
         paper,
         path_rel,
-        notes_seed,
         pdf_path: caps.pdf_path.map(|path| path.to_string_lossy().to_string()),
         has_tex: caps.has_tex,
         has_paper_md: caps.has_paper_md,
@@ -144,7 +133,7 @@ pub async fn paper_list(
         let vault = try_vault!(&args.vault_path, op);
         // Projection intentionally differs from `remote_paper_list` (raw
         // `PaperRecord`, no has_pdf probe, no id dedupe) — known drift kept
-        // for wire stability; see `docs/backend/remote.md`.
+        // for wire stability.
         match papers::list_all_unique_by_id(&vault) {
             Ok(rows) => {
                 let out: Vec<_> = rows
@@ -217,6 +206,7 @@ pub async fn paper_update_meta(args: PaperUpdateMetaArgs) -> ApiResult<PaperReco
 #[cfg(test)]
 mod open_bundle_tests {
     use super::*;
+    use std::fs;
     use uuid::Uuid;
 
     fn temp_vault(name: &str) -> PathBuf {
@@ -275,12 +265,12 @@ mod open_bundle_tests {
     }
 
     #[test]
-    fn paper_open_bundle_returns_catalog_caps_and_notes() {
+    fn paper_open_bundle_returns_catalog_caps_even_when_notes_are_unreadable() {
         let vault = temp_vault("full");
         let path = "papers/x";
         let paper_dir = vault.join(path);
         fs::create_dir_all(paper_dir.join("source")).expect("create paper dirs");
-        fs::write(paper_dir.join("NOTES.md"), "# Notes\n").expect("write notes");
+        fs::write(paper_dir.join("NOTES.md"), [0xff]).expect("write invalid UTF-8 notes");
         fs::write(paper_dir.join("PAPER.md"), "# Body\n").expect("write paper body");
         let pdf_path = paper_dir.join("x.pdf");
         fs::write(&pdf_path, b"%PDF").expect("write pdf");
@@ -295,7 +285,6 @@ mod open_bundle_tests {
 
         assert_eq!(bundle.path_rel, path);
         assert_eq!(bundle.paper.id, "x");
-        assert_eq!(bundle.notes_seed.as_deref(), Some("# Notes\n"));
         assert_eq!(bundle.pdf_path.as_deref(), Some(pdf_path.to_str().unwrap()));
         assert!(bundle.has_tex);
         assert!(bundle.has_paper_md);
@@ -312,7 +301,6 @@ mod open_bundle_tests {
         let bundle = paper_open_bundle_inner(&vault, path, None).expect("open bundle");
 
         assert_eq!(bundle.paper.id, "y");
-        assert!(bundle.notes_seed.is_none());
         assert!(bundle.pdf_path.is_none());
         assert!(!bundle.has_tex);
         assert!(!bundle.has_paper_md);

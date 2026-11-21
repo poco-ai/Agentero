@@ -14,6 +14,7 @@ import {
 	type AgentSessionRecord,
 	agentSessionStore,
 } from "@/lib/agent/agent-session-store";
+import { ANNOTATION_APPENDIX_LEAD } from "@/lib/agent/annotation-prompt";
 import type { AcpSessionInfo } from "@/lib/agent/api";
 import { encodeMentionToken } from "@/lib/agent/composer-inline-tokens";
 import * as titleCache from "@/lib/agent/history-title-cache";
@@ -110,6 +111,62 @@ describe("sanitizeChatLines", () => {
 			},
 		];
 		expect(sanitizeChatLines(lines)).toHaveLength(0);
+	});
+
+	it("keeps the send-time snapshot after stripping the appendix", () => {
+		const prompt = [
+			"You are an assistant working inside a Agentero research Vault.",
+			"",
+			"Annotation 1",
+			"Title: Attention",
+			"Page: 4",
+			"Quoted text:",
+			"> scaled dot-product",
+			"User comment on this quote only: read this",
+			"",
+			"User request:",
+			"解释 [Annotation 1]",
+			"",
+			`${ANNOTATION_APPENDIX_LEAD} Address each numbered annotation separately.`,
+			"",
+			"## Annotation 2",
+			"Visual annotation — page 8",
+			"User comment: the figure",
+		].join("\n");
+		const out = sanitizeChatLines([{ id: "l1", kind: "user", text: prompt }]);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.kind === "user" && out[0].text).toBe("解释 [Annotation 1]");
+		expect(out[0]?.kind === "user" && out[0].annotationSnapshots).toEqual([
+			expect.objectContaining({
+				n: 1,
+				quote: "scaled dot-product",
+				comment: "read this",
+				page: 4,
+			}),
+			expect.objectContaining({
+				n: 2,
+				kind: "visual",
+				page: 8,
+				comment: "the figure",
+			}),
+		]);
+		const again = sanitizeChatLines(out);
+		expect(again[0]?.kind === "user" && again[0].text).toBe(
+			"解释 [Annotation 1]",
+		);
+		expect(
+			again[0]?.kind === "user" && again[0].annotationSnapshots?.[0]?.quote,
+		).toBe("scaled dot-product");
+	});
+
+	it("leaves a marker with no appendix unchanged", () => {
+		const out = sanitizeChatLines([
+			{ id: "l1", kind: "user", text: "请看 [Annotation 3]" },
+		]);
+		expect(out[0]?.kind === "user" && out[0].text).toBe("请看 [Annotation 3]");
+		expect(
+			out[0]?.kind === "user" && out[0].annotationSnapshots,
+		).toBeUndefined();
 	});
 
 	it("keeps user turns that are visual-only", () => {

@@ -9,11 +9,16 @@
 
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 import { normalizeHighlightColor } from "@/lib/pdf/highlight/palette";
-import type { PdfHighlight, PdfHighlightRect } from "@/lib/pdf/highlight/types";
+import type {
+	PdfHighlight,
+	PdfHighlightRect,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 
 export type TranslatedHighlightPaint = {
 	id: string;
 	color: HighlightColor;
+	shape: PdfTextMarkupKind;
 	rects: PdfHighlightRect[];
 };
 
@@ -26,6 +31,7 @@ export type HighlightQuoteTint = {
 	id: string;
 	quote: string;
 	color: HighlightColor;
+	shape: PdfTextMarkupKind;
 	rects: PdfHighlightRect[];
 };
 
@@ -73,6 +79,7 @@ export function partitionHighlightPaint(highlights: readonly PdfHighlight[]): {
 			const paint: TranslatedHighlightPaint = {
 				id: highlight.id,
 				color: normalizeHighlightColor(highlight.color),
+				shape: highlight.kind,
 				rects: translated,
 			};
 			const list = translatedByPage.get(highlight.page);
@@ -86,6 +93,7 @@ export function partitionHighlightPaint(highlights: readonly PdfHighlight[]): {
 			id: highlight.id,
 			quote,
 			color: normalizeHighlightColor(highlight.color),
+			shape: highlight.kind,
 			rects: highlight.rects,
 		};
 		const list = quotesByPage.get(highlight.page);

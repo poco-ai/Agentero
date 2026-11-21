@@ -1,7 +1,9 @@
-//! MCP server / resource icons (SEP-973).
+//! MCP server icons (SEP-973).
 //!
 //! Loopback + ChatGPT Tunnel cannot rely on a public HTTP favicon, so the app
-//! PNG is embedded as a data URI in `initialize.serverInfo.icons`.
+//! PNG is embedded as a data URI in `initialize.serverInfo.icons`. Resource
+//! lists deliberately carry no icons: there is no dedup or reference mechanism,
+//! so every `resources/list` would resend the same bytes.
 
 use base64::Engine;
 use rmcp::model::Icon;

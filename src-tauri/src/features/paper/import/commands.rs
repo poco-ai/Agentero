@@ -248,6 +248,49 @@ pub struct PaperResolveIdentifierArgs {
     pub text: String,
 }
 
+#[derive(Debug, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct WebpageSnapshotResult {
+    /// Vault-relative paper folder that now holds the snapshot.
+    pub path: String,
+    /// Bytes written: `webpage.html` + `PAPER.md`.
+    pub bytes: u64,
+}
+
+/// Re-fetch the readable snapshot (`webpage.html` + `PAPER.md`) of a webpage
+/// entry. Backs the library "recapture" action for pages imported while the
+/// origin was unreachable or behind a WAF.
+#[tauri::command]
+#[specta::specta]
+pub async fn paper_recapture_webpage(
+    cache: State<'_, CapsCache>,
+    vault_path: String,
+    path: String,
+) -> Result<ApiResult<WebpageSnapshotResult>, String> {
+    let rel = path.trim().replace('\\', "/").trim_matches('/').to_string();
+    let op = OpTimer::start_with(
+        "paper_recapture_webpage",
+        format!("path={}", trunc(&rel, 60)),
+    );
+    let result = if parse_remote_handle(&vault_path).is_some() {
+        Err(AppError::message(
+            "remote vaults do not store page snapshots",
+        ))
+    } else {
+        match resolve_vault(&vault_path) {
+            Ok(vault) => agentero_core::features::paper::import::recapture_webpage_snapshot(
+                &vault,
+                &rel,
+                Some(&cache),
+            )
+            .await
+            .map(|bytes| WebpageSnapshotResult { path: rel, bytes }),
+            Err(err) => Err(err),
+        }
+    };
+    Ok(op.finish_result(result))
+}
+
 /// Resolve an identifier (DOI/arXiv) to metadata without importing — backs
 /// Edit Metadata's identifier refresh. Identifier lookup first (so a DOI /
 /// arXiv id is not sent to title search); S2 `publicationVenue` enriches

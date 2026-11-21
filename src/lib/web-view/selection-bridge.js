@@ -213,6 +213,12 @@
 				if (sel) sel.removeAllRanges();
 			}
 		});
-		post({ type: "ready" });
+		// The proxy records the upstream status on the window; carry it so a
+		// framed 4xx/5xx error document can fall back instead of being shown.
+		const ready = { type: "ready" };
+		if (typeof window.__agenteroProxyStatus === "number") {
+			ready.proxyStatus = window.__agenteroProxyStatus;
+		}
+		post(ready);
 	} catch {}
 })();

@@ -136,6 +136,46 @@ export function parseLatexLog(text: string): LogProblem[] {
 	return problems;
 }
 
+/** Longest headline shown for a failed build; the raw tail stays in the log pane. */
+const HEADLINE_LIMIT = 160;
+
+function clipHeadline(text: string): string {
+	const collapsed = text.replace(/\s+/g, " ").trim();
+	return collapsed.length > HEADLINE_LIMIT
+		? `${collapsed.slice(0, HEADLINE_LIMIT - 1).trimEnd()}…`
+		: collapsed;
+}
+
+/**
+ * One-line headline for a failed build's raw compiler output. The Host keeps
+ * only the tail of the console stream as the job error, so the first failure
+ * line may be gone; prefer the most specific failure line that survived.
+ */
+export function compileFailureHeadline(raw: string): string | null {
+	const lines = raw
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	const find = (pattern: RegExp) => lines.find((line) => pattern.test(line));
+	const headline =
+		lines.find((line) => line.startsWith("! "))?.slice(2) ||
+		lines.find((line) => line.startsWith("ERROR - "))?.slice(8) ||
+		find(/^Repeated entry---line \d+ of file \S+$/)?.replace(
+			/^Repeated entry---line (\d+) of file (\S+)$/,
+			"BibTeX repeated entry — $2:$1",
+		) ||
+		find(/bibtex errors?: see file/i)?.replace(
+			/^.*?bibtex errors?: see file\s+'?([^']+)'?.*$/i,
+			"BibTeX errors — see $1",
+		) ||
+		find(/^(?:Package|Class) \S+ Error:/) ||
+		find(/^Latexmk: Errors, so I did not complete/i)?.replace(
+			/^Latexmk: Errors, so I did not complete.*$/i,
+			"latexmk: build failed",
+		);
+	return headline ? clipHeadline(headline) : null;
+}
+
 const ABSOLUTE = /^(?:\/|[A-Za-z]:\/)/;
 
 /** TeX prints `d:/…` for a root file at `D:\…`; drive paths ignore case. */

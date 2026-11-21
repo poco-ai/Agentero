@@ -45,6 +45,7 @@ import {
 	hasNativeSelectionOutsideHost,
 	isEditableClipboardTarget,
 } from "@/components/viewer/pdf/host-dom";
+import { releaseHeldLayoutSentenceHover } from "@/components/viewer/pdf/layout-sentence-hover";
 import type {
 	ScreenPoint,
 	SelectionMenuState,
@@ -58,6 +59,7 @@ import {
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { translationHitsFromRange } from "@/lib/pdf/layout/layout-sentence-selection";
 import { getLayoutDocumentResult } from "@/lib/pdf/layout/store";
+import { clearTranslationSelectionBands } from "@/lib/pdf/layout/translation-selection-bands";
 import {
 	type PageFrame,
 	visibleMenuPoint,
@@ -212,11 +214,22 @@ export type UsePdfTextSelectionOptions = {
 	zoomRef: RefObject<number>;
 	/** Only the active tab may hijack copy. */
 	isActive: boolean;
+	/**
+	 * The pane is visible beside another PDF viewer (dual-pane translation).
+	 * Side-by-side panes keep selection menus while their tab is not active.
+	 */
+	sideBySide?: boolean;
 	/** Provenance for the published selection (Agent chips / conversation pins). */
 	paperRelPath: string | null;
 	paperAbsPath: string | null;
 	/** Keep toolbar placed while editing a selection note chip. */
 	isCommentDraftActive?: () => boolean;
+	/**
+	 * Another floating toolbar already owns the pointer (the layout-element
+	 * action card). Return true to drop the PDFium word/line selection instead
+	 * of opening a second, identical toolbar underneath it (#1175).
+	 */
+	suppressSelectionMenu?: () => boolean;
 };
 
 export type PdfTextSelection = {
@@ -248,10 +261,25 @@ export function usePdfTextSelection({
 	hostRef,
 	zoomRef,
 	isActive,
+	sideBySide = false,
 	paperRelPath,
 	paperAbsPath,
 	isCommentDraftActive,
+	suppressSelectionMenu,
 }: UsePdfTextSelectionOptions): PdfTextSelection {
+	const [sideBySideVisible, setSideBySideVisible] = useState(true);
+	useEffect(() => {
+		if (!sideBySide) return;
+		const host = hostRef.current;
+		if (!host || typeof IntersectionObserver === "undefined") return;
+		const observer = new IntersectionObserver((entries) => {
+			setSideBySideVisible(Boolean(entries[0]?.isIntersecting));
+		});
+		observer.observe(host);
+		return () => observer.disconnect();
+	}, [hostRef, sideBySide]);
+	/** Selecting in a visible pane must not depend on which tab owns focus. */
+	const interactive = isActive || (sideBySide && sideBySideVisible);
 	const [selectionMenu, setSelectionMenu] = useState<SelectionMenuState | null>(
 		null,
 	);
@@ -283,8 +311,14 @@ export function usePdfTextSelection({
 	// on every viewer render (clearing the live selection each time).
 	const isCommentDraftActiveRef = useRef(isCommentDraftActive);
 	isCommentDraftActiveRef.current = isCommentDraftActive;
+	// Same ref pattern: the predicate is an inline lambda per render, but the
+	// selection subscriptions must stay registered.
+	const suppressSelectionMenuRef = useRef(suppressSelectionMenu);
+	suppressSelectionMenuRef.current = suppressSelectionMenu;
 
 	const closeSelectionMenu = useCallback(() => {
+		releaseHeldLayoutSentenceHover(docId);
+		clearTranslationSelectionBands(docId);
 		selectionEpochRef.current += 1;
 		clearDomSelectionInside(hostRef.current);
 		hostRef.current?.removeAttribute("data-pdf-drag-selection");
@@ -293,12 +327,40 @@ export function usePdfTextSelection({
 		clearActiveSelection("pdf");
 	}, [selectionCap, docId, hostRef]);
 
+	useEffect(() => {
+		if (!selectionMenu) releaseHeldLayoutSentenceHover(docId);
+	}, [selectionMenu, docId]);
+
+	useEffect(() => {
+		if (!selectionMenu) return;
+		const onPointerDown = (event: PointerEvent) => {
+			if (
+				event.target instanceof Element &&
+				event.target.closest(
+					"[data-selection-ui], [data-selection-menu], [data-selection-comment]",
+				)
+			) {
+				return;
+			}
+			closeSelectionMenu();
+		};
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") closeSelectionMenu();
+		};
+		document.addEventListener("pointerdown", onPointerDown, true);
+		window.addEventListener("keydown", onKeyDown, true);
+		return () => {
+			document.removeEventListener("pointerdown", onPointerDown, true);
+			window.removeEventListener("keydown", onKeyDown, true);
+		};
+	}, [selectionMenu, closeSelectionMenu]);
+
 	// Dockview keeps hidden tabs mounted. Drop their selection, including any
 	// pending text extraction, as soon as this viewer loses focus or unmounts.
 	useEffect(() => {
-		if (!isActive) return;
+		if (!interactive) return;
 		return closeSelectionMenu;
-	}, [isActive, closeSelectionMenu]);
+	}, [interactive, closeSelectionMenu]);
 
 	const rePlaceSelectionMenu = useCallback(() => {
 		setSelectionMenu((prev) => {
@@ -332,6 +394,13 @@ export function usePdfTextSelection({
 		if (!host) return;
 		const onPointerDown = (event: PointerEvent) => {
 			if (event.button !== 0) return;
+			if (
+				!(
+					event.target instanceof Element &&
+					event.target.closest("[data-pdf-chrome]")
+				)
+			)
+				releaseHeldLayoutSentenceHover(docId);
 			const element = event.target instanceof Element ? event.target : null;
 			if (
 				element?.closest("[data-embed-pdf-page]") &&
@@ -371,7 +440,7 @@ export function usePdfTextSelection({
 			host.removeAttribute("data-pdf-drag-selection");
 			window.removeEventListener("pointerup", onPointerUp, true);
 		};
-	}, [hostRef]);
+	}, [hostRef, docId]);
 
 	// Source editor took over the writing split: drop the PDFium selection and
 	// its toolbar so only one side stays visibly selected.
@@ -384,7 +453,7 @@ export function usePdfTextSelection({
 
 	// Show the selection action menu when a drag-selection ends.
 	useEffect(() => {
-		if (!isActive || !selectionCap || !docCap) return;
+		if (!interactive || !selectionCap || !docCap) return;
 
 		const scope = selectionCap.forDocument(docId);
 		// A translation drag is a DOM range on top of the English glyphs. Ending
@@ -424,6 +493,15 @@ export function usePdfTextSelection({
 			// The drag flag covers the moment the DOM range is not ready yet.
 			// Leaving the English rects would paint them under the Chinese.
 			if (selectionInsideTranslation() || linkPreviewDragActive()) {
+				setIsSelecting(false);
+				selectionCap.clear(docId);
+				return;
+			}
+			// Element selection mode: the layout-element action card is the active
+			// toolbar. A double-click selects a word/line instantly, which must not
+			// stack a second toolbar underneath the card (#1175). A drag cannot hit
+			// this: its first pointerdown already dismissed the card.
+			if (suppressSelectionMenuRef.current?.()) {
 				setIsSelecting(false);
 				selectionCap.clear(docId);
 				return;
@@ -613,7 +691,7 @@ export function usePdfTextSelection({
 			clearActiveSelection("pdf");
 		};
 	}, [
-		isActive,
+		interactive,
 		selectionCap,
 		docCap,
 		docId,
@@ -627,7 +705,7 @@ export function usePdfTextSelection({
 	// PDFium selections are invisible to the browser: intercept copy so ⌘/Ctrl+C
 	// yields the selected PDF text instead of nothing.
 	useEffect(() => {
-		if (!isActive || !selectionMenu || !selectionCap) return;
+		if (!interactive || !selectionMenu) return;
 		const selectedText = (
 			selectionMenu.copyText ??
 			selectionMenu.anchor.quote ??
@@ -666,11 +744,11 @@ export function usePdfTextSelection({
 			document.removeEventListener("copy", onCopy);
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, [isActive, selectionMenu, selectionCap, hostRef]);
+	}, [interactive, selectionMenu, hostRef]);
 
 	return {
 		selectionStartPageIndex,
-		selectionMenu: isActive ? selectionMenu : null,
+		selectionMenu: interactive ? selectionMenu : null,
 		setSelectionMenu,
 		isSelecting,
 		closeSelectionMenu,

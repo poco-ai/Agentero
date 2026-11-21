@@ -4,6 +4,7 @@ import {
 	type PdfEngine,
 	type PdfHighlightAnnoObject,
 	type PdfLinkAnnoObject,
+	type PdfUnderlineAnnoObject,
 } from "@embedpdf/models";
 import type { AnnotationTransferItem } from "@embedpdf/plugin-annotation";
 import {
@@ -48,6 +49,28 @@ function highlight(
 			contents: "",
 			...overrides,
 		} as PdfHighlightAnnoObject,
+	};
+}
+
+function underline(
+	id: string,
+	overrides: Partial<PdfUnderlineAnnoObject> = {},
+): AnnotationTransferItem {
+	return {
+		annotation: {
+			id,
+			pageIndex: 0,
+			type: PdfAnnotationSubtype.UNDERLINE,
+			rect: { origin: { x: 10, y: 20 }, size: { width: 30, height: 10 } },
+			segmentRects: [
+				{ origin: { x: 10, y: 20 }, size: { width: 30, height: 10 } },
+			],
+			strokeColor: "#fcd34d",
+			color: "#fcd34d",
+			opacity: 1,
+			contents: "",
+			...overrides,
+		} as PdfUnderlineAnnoObject,
 	};
 }
 
@@ -133,8 +156,8 @@ describe("annotation transfer deduplication", () => {
 		const plan = planAnnotationItemImport([saved], [native]);
 
 		expect(plan.imports).toEqual([]);
-		expect(plan.highlightOverrides).toHaveLength(1);
-		expect(plan.highlightOverrides[0]).toMatchObject({
+		expect(plan.annotationOverrides).toHaveLength(1);
+		expect(plan.annotationOverrides[0]).toMatchObject({
 			pageIndex: 0,
 			id: "stable-highlight",
 			patch: {
@@ -142,6 +165,35 @@ describe("annotation transfer deduplication", () => {
 				strokeColor: "#ef4444",
 				color: "#ef4444",
 				custom: { paletteKey: "red", quote: "selection" },
+			},
+		});
+	});
+
+	it("restores saved underline overrides by matching shape, not only id", () => {
+		const native = underline("stable-underline", {
+			strokeColor: "#fcd34d",
+			color: "#fcd34d",
+			custom: { paletteKey: "yellow", quote: "selection" },
+		}).annotation;
+		const saved = underline("stable-underline", {
+			contents: "saved note",
+			strokeColor: "#7dd3fc",
+			color: "#7dd3fc",
+			custom: { paletteKey: "blue", quote: "selection" },
+		});
+
+		const plan = planAnnotationItemImport([saved], [native]);
+
+		expect(plan.imports).toEqual([]);
+		expect(plan.annotationOverrides).toHaveLength(1);
+		expect(plan.annotationOverrides[0]).toMatchObject({
+			pageIndex: 0,
+			id: "stable-underline",
+			patch: {
+				contents: "saved note",
+				strokeColor: "#7dd3fc",
+				color: "#7dd3fc",
+				custom: { paletteKey: "blue", quote: "selection" },
 			},
 		});
 	});
@@ -157,7 +209,7 @@ describe("annotation transfer deduplication", () => {
 		const plan = planAnnotationItemImport([saved], [native]);
 
 		expect(plan.imports).toEqual([]);
-		expect(plan.highlightOverrides).toEqual([]);
+		expect(plan.annotationOverrides).toEqual([]);
 	});
 
 	it("still imports a new highlight while suppressing redundant native links", () => {
@@ -171,7 +223,7 @@ describe("annotation transfer deduplication", () => {
 		);
 
 		expect(plan.imports).toEqual([savedHighlight]);
-		expect(plan.highlightOverrides).toEqual([]);
+		expect(plan.annotationOverrides).toEqual([]);
 	});
 
 	it("updates the real plugin store without appending a duplicate page id", async () => {
@@ -206,7 +258,7 @@ describe("annotation transfer deduplication", () => {
 				scope.getAnnotations().map(({ object }) => object),
 			);
 
-			scope.updateAnnotations(plan.highlightOverrides);
+			scope.updateAnnotations(plan.annotationOverrides);
 
 			const annotations = scope.getAnnotations();
 			expect(annotations).toHaveLength(1);

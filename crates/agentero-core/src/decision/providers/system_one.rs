@@ -71,11 +71,26 @@ impl SystemOneProvider {
     /// transport entry point: the generic [`DecisionProvider`] path and the
     /// smart-highlight stream both call it.
     pub async fn complete(&self, body: Value) -> Result<Value, AppError> {
-        let creds = self.credentials()?;
-        self.post(&creds, body).await
+        self.complete_with_timeout(body, None).await
     }
 
-    async fn post(&self, creds: &SystemOneCredentials, mut body: Value) -> Result<Value, AppError> {
+    /// Like [`Self::complete`], with a timeout that starts when this request
+    /// is sent. `None` keeps the shared client's timeout.
+    pub async fn complete_with_timeout(
+        &self,
+        body: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Value, AppError> {
+        let creds = self.credentials()?;
+        self.post(&creds, body, timeout).await
+    }
+
+    async fn post(
+        &self,
+        creds: &SystemOneCredentials,
+        mut body: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Value, AppError> {
         if creds.api_key.trim().is_empty() {
             return Err(AppError::message(
                 "decision provider API key is not configured",
@@ -102,12 +117,19 @@ impl SystemOneProvider {
             }
         }
 
-        let resp = self
+        let mut request = self
             .client
             .post(&endpoint)
             .header("Authorization", format!("Bearer {}", creds.api_key))
             .header("Content-Type", "application/json")
-            .json(&body)
+            .json(&body);
+        if let Some(timeout) = timeout {
+            // Replaces the client timeout for this call, and only once `send`
+            // runs. A batch still waiting for a concurrency slot has not
+            // started this clock.
+            request = request.timeout(timeout);
+        }
+        let resp = request
             .send()
             .await
             .map_err(|e| AppError::message(format!("decision request failed: {e}")))?;
@@ -150,7 +172,7 @@ impl DecisionProvider for SystemOneProvider {
         };
         let request = config.build_request(call.state);
         let creds = self.credentials()?;
-        let response = self.post(&creds, request.body).await?;
+        let response = self.post(&creds, request.body, None).await?;
 
         let Some(answer) = interpret_answers(&response) else {
             return Ok(None);

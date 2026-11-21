@@ -1,171 +1,240 @@
-/**
- * First-vault feature tour: a short driver.js highlight walkthrough that maps
- * the workspace for new users (sidebar → magic wand → workspace → Agent →
- * title bar). Auto-starts once a vault is open and `featureTourDone` is
- * false; Settings can replay it via a cross-window event.
- */
-
-import { type Driver, driver } from "driver.js";
+/** Two resumable tours: the empty workspace first, then a paper's reading tools. */
+import { type Driver, type DriveStep, driver } from "driver.js";
 import "driver.js/dist/driver.css";
-import type { TFunction } from "i18next";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useStore } from "zustand";
 import { onboardingStore } from "@/components/onboarding/onboarding-store";
 import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
 import { perfActive } from "@/lib/core/perf";
 import { isMobileApp, isTauri } from "@/lib/core/tauri";
 import { listenTourRequest } from "@/lib/onboarding/api";
+import {
+	advanceTourPhase,
+	readTourProgress,
+	resetTourProgress,
+	saveTourProgress,
+	type TourPhase,
+} from "@/lib/onboarding/tour-progress";
 import { patchSettings } from "@/lib/settings/react-store";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
-import { layout } from "@/lib/shell/ui-store";
+import { layout, uiStore } from "@/lib/shell/ui-store";
 import { openRightTab } from "@/lib/shell/ui-window-actions";
+import { setNotesSplit } from "@/lib/workspace/actions";
+import { getActiveTab } from "@/lib/workspace/store";
 
-/** Poll for a lazily-mounted target; resolves false when it never appears. */
-function waitForElement(selector: string, timeoutMs = 2500): Promise<boolean> {
-	return new Promise((resolve) => {
-		if (document.querySelector(selector)) {
-			resolve(true);
-			return;
-		}
-		const started = performance.now();
-		const timer = window.setInterval(() => {
-			if (document.querySelector(selector)) {
-				window.clearInterval(timer);
-				resolve(true);
-			} else if (performance.now() - started > timeoutMs) {
-				window.clearInterval(timer);
-				resolve(false);
-			}
-		}, 50);
-	});
-}
+type TourTarget = {
+	selector?: string;
+	key: string;
+	side?: "left" | "right" | "top" | "bottom";
+};
+const workspaceTargets = [
+	{ selector: "[data-vault-sidebar]", key: "sidebar", side: "right" },
+	{ selector: "[data-library-row]", key: "library", side: "right" },
+	{ selector: "[data-cool-papers]", key: "coolPapers", side: "right" },
+	{ selector: "[data-magic-wand]", key: "magicWand", side: "bottom" },
+	{ selector: ".agentero-dockview", key: "workspace", side: "top" },
+	{ selector: "[data-agent-panel]", key: "agent", side: "left" },
+	{ selector: "[data-titlebar]", key: "titlebar", side: "bottom" },
+	{ selector: undefined, side: undefined, key: "workspaceNext" },
+] as const satisfies readonly TourTarget[];
+const readingTargets = [
+	{ selector: "[data-pdf-root]", key: "readPaper", side: "right" },
+	{ selector: "[data-paper-notes]", key: "notes", side: "left" },
+	{
+		selector: "[data-full-text-translate]",
+		key: "fullTextTranslate",
+		side: "bottom",
+	},
+	{
+		selector: "[data-fetch-cool-papers-notes]",
+		key: "fetchCoolPapersNotes",
+		side: "bottom",
+	},
+	{ selector: "[data-pdf-root]", key: "annotations", side: "right" },
+	{ selector: "[data-pdf-root]", key: "selectionTranslate", side: "right" },
+	{ selector: undefined, side: undefined, key: "readingNext" },
+] as const satisfies readonly TourTarget[];
 
-let activeDriver: Driver | null = null;
-
-/**
- * Start the feature tour. Ensures the highlighted regions are mounted (left
- * rail expanded, Agent panel opened) before driving; steps whose target never
- * appears are dropped.
- */
-async function startTour(t: TFunction<"onboarding">): Promise<void> {
-	activeDriver?.destroy();
-
-	// Targets that may be collapsed/lazy: expand the left rail and mount the
-	// Agent panel so their elements exist before the steps resolve.
-	layout()?.setLeftCollapsed(false);
-	openRightTab("agent");
-
-	const candidates = [
-		{ selector: "[data-vault-sidebar]", key: "sidebar", side: "right" },
-		{ selector: "[data-library-row]", key: "library", side: "right" },
-		{ selector: "[data-cool-papers]", key: "coolPapers", side: "right" },
-		{ selector: "[data-magic-wand]", key: "magicWand", side: "bottom" },
-		{ selector: "[data-read-paper]", key: "readPaper", side: "right" },
-		{ selector: ".agentero-dockview", key: "workspace", side: "top" },
-		{
-			selector: "[data-full-text-translate]",
-			key: "fullTextTranslate",
-			side: "bottom",
-		},
-		{
-			selector: "[data-fetch-cool-papers-notes]",
-			key: "fetchCoolPapersNotes",
-			side: "bottom",
-		},
-		{ selector: "[data-agent-panel]", key: "agent", side: "left" },
-		{ selector: "[data-titlebar]", key: "titlebar", side: "bottom" },
-	] as const;
-
-	const found = await Promise.all(
-		candidates.map((c) => waitForElement(c.selector)),
+function visibleTarget(selector: string): HTMLElement | undefined {
+	return [...document.querySelectorAll<HTMLElement>(selector)].find(
+		(element) => element.getClientRects().length > 0,
 	);
-	const steps = candidates
-		.filter((_, i) => found[i])
-		.map((c) => ({
-			element: c.selector,
-			popover: {
-				title: t(`tour.${c.key}.title`),
-				description: t(`tour.${c.key}.desc`, {
-					magicWandShortcut: formatShortcutById("magicWand"),
-					settingsShortcut: formatShortcutById("settings"),
-					quickOpenShortcut: formatShortcutById("quickOpen"),
-				}),
-				side: c.side,
-				align: "start" as const,
-			},
-		}));
-	if (steps.length === 0) return;
-
-	activeDriver = driver({
-		showProgress: true,
-		smoothScroll: true,
-		allowKeyboardControl: false,
-		// Clicking the dimmed overlay advances instead of quitting (default is
-		// "close", which ends the tour on any stray click); the × button still
-		// skips explicitly.
-		overlayClickBehavior: "nextStep",
-		stagePadding: 4,
-		stageRadius: 8,
-		progressText: "{{current}} / {{total}}",
-		nextBtnText: t("tour.next"),
-		prevBtnText: t("tour.back"),
-		doneBtnText: t("tour.done"),
-		steps,
-		onDestroyed: () => {
-			activeDriver = null;
-			patchSettings({ featureTourDone: true });
-		},
-	});
-	activeDriver.drive();
 }
 
-/** Auto-start on first vault open + replay listener (Settings → main). */
+/** Modal dialogs always own the interaction surface; a tour never wins by z-index. */
+function blocked(): boolean {
+	const onboarding = onboardingStore.getState();
+	const ui = uiStore.getState();
+	return (
+		onboarding.open ||
+		onboarding.vaultSetupPending ||
+		ui.zoteroOpen ||
+		ui.zoteroSyncOpen ||
+		ui.commandOpen ||
+		ui.settingsOpen ||
+		ui.immersiveReading ||
+		[
+			...document.querySelectorAll<HTMLElement>(
+				'[role="dialog"], [role="alertdialog"], [aria-modal="true"]',
+			),
+		].some(
+			(element) =>
+				element.getClientRects().length > 0 &&
+				!element.closest(".driver-popover"),
+		)
+	);
+}
+
 export function useFeatureTour(): void {
 	const { t } = useTranslation("onboarding");
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const featureTourDone = useSettings((s) => s.featureTourDone);
-	const onboardingOpen = useStore(onboardingStore, (s) => s.open);
-	const startedRef = useRef(false);
-
-	const start = useCallback(() => {
-		void startTour(t);
-	}, [t]);
-
-	// Auto-start: first time a vault is active, the tour was never seen, and the
-	// onboarding wizard is closed. Waiting for the wizard to dismiss prevents the
-	// highlight tour from racing with the onboarding overlay.
 	useEffect(() => {
-		if (perfActive()) return;
-		if (!isTauri() || isMobileApp()) return;
-		if (!vaultPath || featureTourDone || startedRef.current || onboardingOpen)
-			return;
-		startedRef.current = true;
-		const timer = window.setTimeout(start, 800);
-		return () => window.clearTimeout(timer);
-	}, [vaultPath, featureTourDone, start, onboardingOpen]);
+		if (!isTauri() || isMobileApp() || perfActive() || !vaultPath) return;
+		let active: Driver | null = null;
+		let disposed = false;
+		let paused = false;
+		let interrupted = false;
+		let complete = featureTourDone;
+		let timer: number | undefined;
+		let prepared: string | null = null;
 
-	// Settings → main event: replay on demand.
-	useEffect(() => {
-		let cancelled = false;
-		let unlisten: (() => void) | undefined;
-		void listenTourRequest(() => {
-			start();
-		}).then((off) => {
-			if (cancelled) off();
-			else unlisten = off;
+		const stop = () => {
+			interrupted = true;
+			active?.destroy();
+			active = null;
+		};
+		const schedule = () => {
+			if (disposed) return;
+			if (
+				active &&
+				(blocked() ||
+					(active.getActiveElement() &&
+						!active.getActiveElement()?.isConnected))
+			)
+				stop();
+			if (active || paused || complete || timer !== undefined) return;
+			timer = window.setTimeout(start, 800);
+		};
+		const start = () => {
+			timer = undefined;
+			if (disposed || paused || complete || active || blocked()) return;
+			const progress = readTourProgress();
+			const phase: TourPhase = progress.workspaceDone ? "reading" : "workspace";
+			if (phase === "reading" && !visibleTarget("[data-pdf-root]")) return;
+			const paper = getActiveTab();
+			const preparation = phase === "reading" ? paper?.notesPath : phase;
+			if (phase === "reading" && !preparation) return;
+			if (prepared !== preparation) {
+				prepared = preparation ?? null;
+				layout()?.setLeftCollapsed(false);
+				if (phase === "workspace") openRightTab("agent");
+				else {
+					setNotesSplit(true);
+				}
+			}
+			const targets = phase === "workspace" ? workspaceTargets : readingTargets;
+			const elements = targets.map((target) =>
+				target.selector ? visibleTarget(target.selector) : undefined,
+			);
+			// No filtering: a missing reading tool defers this phase instead of
+			// permanently claiming the user has seen an unavailable feature.
+			if (targets.some((target, index) => target.selector && !elements[index]))
+				return;
+			if (blocked()) return;
+			let finished = false;
+			const steps: DriveStep[] = targets.map((target, index) => ({
+				element: elements[index],
+				popover: {
+					title: t(`tour.${target.key}.title`),
+					description: t(`tour.${target.key}.desc`, {
+						magicWandShortcut: formatShortcutById("magicWand"),
+						settingsShortcut: formatShortcutById("settings"),
+						quickOpenShortcut: formatShortcutById("quickOpen"),
+					}),
+					side: target.side,
+					align: "start",
+				},
+			}));
+			interrupted = false;
+			active = driver({
+				steps,
+				showProgress: true,
+				animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+				smoothScroll: false,
+				allowKeyboardControl: true,
+				overlayClickBehavior: "close",
+				stagePadding: 4,
+				stageRadius: 8,
+				progressText: "{{current}} / {{total}}",
+				nextBtnText: t("tour.next"),
+				prevBtnText: t("tour.back"),
+				doneBtnText: t("tour.done"),
+				onHighlighted: (_element, _step, { state }) =>
+					saveTourProgress({
+						...readTourProgress(),
+						phase,
+						step: state.activeIndex ?? 0,
+					}),
+				onDoneClick: (_element, _step, { driver: instance }) => {
+					finished = true;
+					const next = advanceTourPhase(readTourProgress(), phase);
+					saveTourProgress(next);
+					if (next.workspaceDone && next.readingDone) {
+						complete = true;
+						patchSettings({ featureTourDone: true });
+					}
+					instance.destroy();
+				},
+				onDestroyed: (_element, _step, { state }) => {
+					if (!finished)
+						saveTourProgress({
+							...readTourProgress(),
+							phase,
+							step: state.activeIndex ?? 0,
+						});
+					active = null;
+					paused = !finished && !interrupted;
+					if (!disposed && !paused) schedule();
+				},
+			});
+			active.drive(
+				progress.phase === phase
+					? Math.min(progress.step, steps.length - 1)
+					: 0,
+			);
+		};
+		const observer = new MutationObserver(schedule);
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+			attributes: true,
+			attributeFilter: ["role", "aria-modal", "data-state"],
 		});
+		const offUi = uiStore.subscribe(schedule);
+		const offOnboarding = onboardingStore.subscribe(schedule);
+		let offReplay: (() => void) | undefined;
+		void listenTourRequest(() => {
+			stop();
+			resetTourProgress();
+			complete = false;
+			paused = false;
+			prepared = null;
+			patchSettings({ featureTourDone: false });
+			schedule();
+		}).then((off) => {
+			if (disposed) off();
+			else offReplay = off;
+		});
+		schedule();
 		return () => {
-			cancelled = true;
-			unlisten?.();
+			disposed = true;
+			window.clearTimeout(timer);
+			observer.disconnect();
+			offUi();
+			offOnboarding();
+			offReplay?.();
+			stop();
 		};
-	}, [start]);
-
-	// Never leave the overlay behind on unmount.
-	useEffect(() => {
-		return () => {
-			activeDriver?.destroy();
-			activeDriver = null;
-		};
-	}, []);
+	}, [vaultPath, featureTourDone, t]);
 }

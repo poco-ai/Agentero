@@ -2,9 +2,9 @@ import i18n from "@/i18n";
 import { isRemoteArxivPath, notesPathForPaper } from "@/lib/paper";
 import {
 	createPlaceholderTab,
-	isCanonicalTabIdForPath,
+	findCanonicalTab,
+	isCanonicalView,
 	normalizeTabPath,
-	tabIdForPath,
 } from "@/lib/workspace/tabs/model";
 import type {
 	DocTab,
@@ -163,8 +163,6 @@ export function createNotesSplitPane(tab: DocTab): DocTab | null {
 		title: i18n.t("app:labels.notes"),
 		paperMeta: tab.paperMeta,
 		notesPath: tab.notesPath,
-		notesSeed: tab.notesSeed,
-		loaded: true,
 	};
 }
 
@@ -174,8 +172,7 @@ export function tabHasNotesSplit(
 	paperTab: DocTab | null,
 ): boolean {
 	if (!paperTab?.notesPath) return false;
-	const notesId = tabIdForPath(paperTab.notesPath);
-	return tabs.some((t) => t.id === notesId);
+	return findCanonicalTab(tabs, paperTab.notesPath) != null;
 }
 
 /**
@@ -187,9 +184,32 @@ export function findReadingCompanion(
 	tab: DocTab | null,
 ): DocTab | null {
 	if (!tab || !isPaperContentTab(tab) || !tab.notesPath) return null;
-	if (!isCanonicalTabIdForPath(tab.id, tab.path)) return null;
-	const notesId = tabIdForPath(tab.notesPath);
-	return tabs.find((t) => t.id === notesId) ?? null;
+	if (!isCanonicalView(tab)) return null;
+	return findCanonicalTab(tabs, tab.notesPath) ?? null;
+}
+
+/**
+ * Paper body owning an open NOTES-family tab: canonical `NOTES.md` or any
+ * extra note inside the paper folder (both carry the paper's `notesPath`).
+ * Used to route ⌘\ on a notes pane back to the body instead of cloning the
+ * editable notes buffer into a second pane.
+ */
+export function findPaperBodyForNotes(
+	tabs: DocTab[],
+	notesTab: DocTab | null,
+): DocTab | null {
+	if (!notesTab || !tabIsPaperNoteDocument(notesTab)) return null;
+	const notesPath = notesTab.notesPath ?? notesTab.path;
+	const norm = normalizeTabPath(notesPath);
+	const matches = (t: DocTab) =>
+		isPaperContentTab(t) &&
+		Boolean(t.notesPath) &&
+		normalizeTabPath(t.notesPath ?? "") === norm;
+	return (
+		tabs.find((t) => matches(t) && isCanonicalView(t)) ??
+		tabs.find((t) => matches(t)) ??
+		null
+	);
 }
 
 /**
@@ -209,16 +229,16 @@ export function readingPairCloseIds(tabs: DocTab[], id: string): string[] {
  * to the `{seed, dirty, key}` fields on DocTab plus how own saves differ from
  * external writes, so one generic patch covers the whole reseed/refresh series.
  */
-type SeedKind = "notes" | "markdown" | "excalidraw" | "text";
+type SeedKind = "notes" | "markdown" | "text";
 
 type SeedSpec = {
 	/** Whether this tab's editor renders the path. Notes tabs pair with the
 	 * paper dir: either the NOTES.md tab id or the paper body tab id. */
 	owns: (tab: DocTab, norm: string, absPath: string) => boolean;
 	/** Tab fields holding the in-memory seed / unsaved-edits flag / reload key. */
-	seed: "notesSeed" | "markdownSeed" | "excalidrawSeed" | "textSeed";
-	dirty: "notesDirty" | "markdownDirty" | "excalidrawDirty" | "textDirty";
-	key: "notesKey" | "seedKey" | "excalidrawKey" | "textKey";
+	seed: "notesSeed" | "markdownSeed" | "textSeed";
+	dirty: "notesDirty" | "markdownDirty" | "textDirty";
+	key: "notesKey" | "seedKey" | "textKey";
 	/** Own saves bump the reload key too (editors swap content in place). */
 	bumpOnReseed: boolean;
 	/** Own save with the seed already current keeps the tab identity so
@@ -228,14 +248,15 @@ type SeedSpec = {
 
 const SEED_SPECS: Record<SeedKind, SeedSpec> = {
 	notes: {
-		owns: (tab, _norm, absPath) =>
-			tab.id === tabIdForPath(absPath) ||
-			tab.id === tabIdForPath(notesPathForPaper(absPath)) ||
-			Boolean(
-				tab.notesPath &&
-					normalizeTabPath(tab.notesPath) ===
-						normalizeTabPath(notesPathForPaper(absPath)),
-			),
+		owns: (tab, _norm, absPath) => {
+			const paper = normalizeTabPath(absPath);
+			const notes = normalizeTabPath(notesPathForPaper(absPath));
+			if (tab.notesPath && normalizeTabPath(tab.notesPath) === notes) {
+				return true;
+			}
+			const path = normalizeTabPath(tab.path);
+			return path === paper || path === notes;
+		},
 		seed: "notesSeed",
 		dirty: "notesDirty",
 		key: "notesKey",
@@ -248,15 +269,6 @@ const SEED_SPECS: Record<SeedKind, SeedSpec> = {
 		dirty: "markdownDirty",
 		key: "seedKey",
 		bumpOnReseed: true,
-		keepIdentityOnReseed: false,
-	},
-	excalidraw: {
-		owns: (tab, norm) =>
-			normalizeTabPath(tab.path) === norm && tab.mode === "excalidraw",
-		seed: "excalidrawSeed",
-		dirty: "excalidrawDirty",
-		key: "excalidrawKey",
-		bumpOnReseed: false,
 		keepIdentityOnReseed: false,
 	},
 	text: {

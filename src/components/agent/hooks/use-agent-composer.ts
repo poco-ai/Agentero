@@ -17,6 +17,7 @@ import {
 } from "react";
 import type { ComposerInlineInputHandle } from "@/components/agent/composer/composer-inline-input";
 import type { AgentPanelRefs } from "@/components/agent/hooks/use-agent-panel-context";
+import { useChatInputTarget } from "@/components/agent/hooks/use-chat-input-target";
 import { usePlazaMentionSource } from "@/components/agent/hooks/use-plaza-mention-source";
 import {
 	useSelectionStore,
@@ -24,6 +25,7 @@ import {
 } from "@/hooks/use-app-stores";
 import type { useSessionComposerState } from "@/hooks/use-session-composer-state";
 import type { AgentSkill } from "@/lib/agent";
+import { useAgentSessionScope } from "@/lib/agent/agent-session-store";
 import type { ChatLine } from "@/lib/agent/chat-state";
 import {
 	appendMissingInlineTokens,
@@ -171,6 +173,8 @@ export type AgentComposer = {
 	composerInputRef: RefObject<ComposerInlineInputHandle | null>;
 };
 
+const EMPTY_VISUAL_DRAFTS: PdfVisualDraft[] = [];
+
 export function useAgentComposer({
 	refs: {
 		promptHistoryAppliedRef,
@@ -208,6 +212,11 @@ export function useAgentComposer({
 	activeTabIsRunning,
 	cancelCurrentRun,
 }: UseAgentComposerOptions): AgentComposer {
+	const { scopeId } = useAgentSessionScope();
+	// PDF visual drafts follow the rail composer only.
+	const railScope = scopeId === null;
+	/** Pinned selections / Add to chat / seeds go to the visible chat surface. */
+	const inputTarget = useChatInputTarget();
 	const [composerMenuDismissed, setComposerMenuDismissed] = useState(false);
 	const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
 	const [skillActiveIndex, setSkillActiveIndex] = useState(0);
@@ -215,6 +224,7 @@ export function useAgentComposer({
 
 	// Doctor / Settings may seed the composer via a cross-window event.
 	useEffect(() => {
+		if (!inputTarget) return;
 		const apply = (text: string) => {
 			const next = text.trim();
 			if (!next) return;
@@ -224,7 +234,7 @@ export function useAgentComposer({
 		const pending = takePendingAgentComposerPrompt();
 		if (pending) apply(pending);
 		return subscribePendingAgentComposerPrompt(apply);
-	}, [setComposerText]);
+	}, [inputTarget, setComposerText]);
 
 	/** Same paper label mode as the file tree (settings); title fallback if meta missing. */
 	const currentFileLabel = useMemo(() => {
@@ -256,6 +266,8 @@ export function useAgentComposer({
 
 	// Only explicitly pinned selections (Add to chat / ⇧⌘L) enter the draft.
 	// Live drag-selection stays in the store until pinActiveSelection freezes it.
+	// Every mounted surface observes the pins; only the input target inserts them
+	// (and removes them from the store) — so exactly one composer consumes each.
 	const pinnedSelections = useSelectionStore((s) => s.pinned);
 
 	// Pin quotes at the caret the composer last reported. Appending at the
@@ -263,6 +275,8 @@ export function useAgentComposer({
 	// paints the reference on its own line.
 	const prevPinnedRef = useRef<SelectionContext[]>([]);
 	useEffect(() => {
+		// Not the visible chat surface: leave the pin for the owner to consume.
+		if (!inputTarget) return;
 		const prev = prevPinnedRef.current;
 		const inserted: SelectionContext[] = [];
 		for (const sel of pinnedSelections) {
@@ -300,21 +314,24 @@ export function useAgentComposer({
 			}
 		}
 		prevPinnedRef.current = pinnedSelections;
-	}, [pinnedSelections, setComposerText]);
+	}, [inputTarget, pinnedSelections, setComposerText]);
 
-	const visualDrafts = useVisualContextStore((s) => s.drafts);
+	const railVisualDrafts = useVisualContextStore((s) => s.drafts);
+	const visualDrafts = railScope ? railVisualDrafts : EMPTY_VISUAL_DRAFTS;
 	const visualSyncRef = useRef<VisualMarkerBaseline | null>(null);
 	// Keep this session's visual drafts and inline markers in step.
 	// Switching sessions shows that session's own bucket; it does not delete
 	// or rewrite another session's unsent block. An explicit add inserts into
 	// the composer that is open.
 	useEffect(() => {
+		if (!railScope) return;
 		const liveIdentity = composerIdentity();
 		const liveText = snapshotComposer().text;
 		if (
 			liveText !== composerText ||
 			liveIdentity.sessionId !== sessionId ||
-			liveIdentity.scopeKey !== composerScopeKey(vaultPath, selectedAgentId)
+			liveIdentity.scopeKey !==
+				composerScopeKey(vaultPath, selectedAgentId, scopeId)
 		) {
 			return;
 		}
@@ -372,6 +389,8 @@ export function useAgentComposer({
 	}, [
 		composerIdentity,
 		composerText,
+		railScope,
+		scopeId,
 		selectedAgentId,
 		sessionId,
 		setComposerText,
@@ -646,17 +665,22 @@ export function useAgentComposer({
 	// Handles same-window (module pub/sub) and the singleton feature window
 	// (Tauri event). Consumes one pending batch on mount.
 	useEffect(() => {
+		if (!inputTarget) return;
+		const consume = (paths: string[]) => {
+			// Clear the stash so another surface switching target later cannot
+			// re-attach a batch this composer already took.
+			takePendingAgentContextPaths();
+			attachContextPaths(paths);
+		};
 		const pending = takePendingAgentContextPaths();
 		if (pending) attachContextPaths(pending);
-		const unsubscribe = subscribePendingAgentContextPaths(attachContextPaths);
-		const unlisten = toSafeDisposer(
-			listenAgentAttachContext(attachContextPaths),
-		);
+		const unsubscribe = subscribePendingAgentContextPaths(consume);
+		const unlisten = toSafeDisposer(listenAgentAttachContext(consume));
 		return () => {
 			unsubscribe();
 			unlisten();
 		};
-	}, [attachContextPaths]);
+	}, [attachContextPaths, inputTarget]);
 
 	/**
 	 * Drag from file tree sets `text/plain` vault paths (newline-separated).

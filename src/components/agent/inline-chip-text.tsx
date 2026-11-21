@@ -1,9 +1,16 @@
 /**
- * Sent-message view of composer @ / $ / / chips.
+ * Sent-message view of composer chips and annotation snapshots.
  * The ACP body is plain text; this redraws the chips from the stored draft.
  */
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
+import { SENT_MESSAGE_CHIP_CLASS } from "@/components/agent/reference-chip-style";
+import {
+	SentAnnotationChip,
+	selectionSnapshot,
+} from "@/components/agent/sent-annotation-chip";
+import { planAnnotationRefs } from "@/lib/agent/annotation-prompt";
+import type { ChatVisualAnnotation } from "@/lib/agent/chat-state";
 import {
 	commandInvocationLabel,
 	commandPrefix,
@@ -13,9 +20,6 @@ import {
 } from "@/lib/agent/composer-inline-tokens";
 import { isPlazaMentionPath } from "@/lib/agent/plaza-mention";
 import { cn } from "@/lib/core/utils";
-
-const CHIP_CLASS =
-	"mx-0.5 inline-flex max-w-[12rem] min-w-0 shrink-0 items-center gap-0.5 rounded-md border border-border/80 bg-muted/40 px-1 align-middle text-[0.8125em] leading-[1.25] text-foreground";
 
 function ChipShell({
 	label,
@@ -30,7 +34,11 @@ function ChipShell({
 }) {
 	if (!onOpen) {
 		return (
-			<span data-composer-chip="true" className={CHIP_CLASS} title={title}>
+			<span
+				data-composer-chip="true"
+				className={SENT_MESSAGE_CHIP_CLASS}
+				title={title}
+			>
 				{prefix}
 				<span className="min-w-0 truncate">{label}</span>
 			</span>
@@ -40,7 +48,7 @@ function ChipShell({
 		<button
 			type="button"
 			data-composer-chip="true"
-			className={cn(CHIP_CLASS, "cursor-pointer hover:bg-muted")}
+			className={cn(SENT_MESSAGE_CHIP_CLASS, "cursor-pointer hover:bg-muted")}
 			title={title}
 			onClick={onOpen}
 		>
@@ -53,14 +61,26 @@ function ChipShell({
 export function InlineChipText({
 	markup,
 	onOpenPath,
+	visuals = [],
 	chipsOnly = false,
 }: {
 	markup: string;
 	onOpenPath?: (path: string) => void;
+	/** Send-time crops, used to label `{{vis}}` chips. */
+	visuals?: readonly ChatVisualAnnotation[];
 	/** Edit box: chips only, the textarea holds the prose. */
 	chipsOnly?: boolean;
 }) {
 	const parts = parseInlineTokenParts(markup);
+	const ordinals = new Map(
+		planAnnotationRefs(markup).map((ref) => [
+			ref.kind === "selection"
+				? `selection:${ref.selection.id}`
+				: `visual:${ref.id}`,
+			ref.n,
+		]),
+	);
+	const visualsById = new Map(visuals.map((item) => [item.id, item]));
 	const nodes: ReactNode[] = [];
 	parts.forEach((part, index) => {
 		const key = `${part.type}-${index}`;
@@ -113,6 +133,36 @@ export function InlineChipText({
 							{commandPrefix(part.name)}
 						</span>
 					}
+				/>,
+			);
+			return;
+		}
+		if (part.type === "selection") {
+			nodes.push(
+				<SentAnnotationChip
+					key={key}
+					selection={part.selection}
+					snapshot={selectionSnapshot(
+						part.selection,
+						ordinals.get(`selection:${part.selection.id}`) ?? index + 1,
+					)}
+				/>,
+			);
+			return;
+		}
+		if (part.type === "visual") {
+			const visual = visualsById.get(part.id);
+			nodes.push(
+				<SentAnnotationChip
+					key={key}
+					snapshot={{
+						n: ordinals.get(`visual:${part.id}`) ?? index + 1,
+						kind: "visual",
+						page: visual?.page,
+						comment: visual?.comment,
+						source: visual?.paperPath,
+					}}
+					image={visual?.image}
 				/>,
 			);
 		}

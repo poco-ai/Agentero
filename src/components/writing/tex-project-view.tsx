@@ -1,5 +1,5 @@
 /** Source and compiled output share one workspace panel; neither can join a notes group alone. */
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
 	ResizableGroup,
 	ResizableHandle,
@@ -10,7 +10,6 @@ import {
 	WritingSelectionGroupContext,
 } from "@/components/writing/writing-selection-group";
 import { useTexRoot } from "@/hooks/use-tex-root";
-import { showTexProblemsView } from "@/lib/workspace/tex-compile";
 import { WritingCloudBuildPreview } from "./writing-cloud-build";
 import {
 	useWritingCloudContext,
@@ -40,12 +39,6 @@ export function TexProjectView({
 	const [cloud, setCloud] = useState(false);
 	const [splitPosition, setSplitPosition] = useState(58);
 	const selectionGroup = useMemo(createWritingSelectionGroup, []);
-	// While focused, the problems button in the PDF bar reports failed
-	// compiles of this root, so they do not also raise a toast.
-	useEffect(
-		() => (active ? showTexProblemsView(root) : undefined),
-		[active, root],
-	);
 	return (
 		<WritingSelectionGroupContext.Provider value={selectionGroup}>
 			<WritingCloudProvider vault={vaultPath} root={root}>

@@ -3,6 +3,13 @@ export function normalizeSlashes(path: string): string {
 	return path.replace(/\\/g, "/");
 }
 
+/** Normalize Windows absolute paths for filesystem IO, preserving extended prefixes. */
+export function normalizeLocalPath(path: string): string {
+	return /^(?:[a-z]:[\\/]|\\\\|\/\/\?\/)/i.test(path)
+		? path.replace(/\//g, "\\")
+		: path;
+}
+
 /** User-facing local path; keep extended paths unchanged for filesystem IO. */
 export function displayPath(path: string): string {
 	return path
@@ -61,6 +68,7 @@ export function dirnameOf(path: string): string {
  */
 export function joinPath(parent: string, name: string): string {
 	if (!parent) return name;
+	parent = normalizeLocalPath(parent);
 	// Prefer backslash when the parent already looks Windows-native.
 	const useBackslash = parent.includes("\\");
 	const sep = useBackslash ? "\\" : "/";

@@ -36,6 +36,11 @@ type UiStore = {
 	/** Last layout preset selected from the title-bar menu. */
 	layoutMode: LayoutMode;
 	/**
+	 * Session-only immersive reading. Hides chrome and owns the window
+	 * fullscreen flag until Esc. Not the same as the Reading layout preset.
+	 */
+	immersiveReading: boolean;
+	/**
 	 * Preset whose width slot a manual drag commits into. Sticky: dragging
 	 * inside a preset still updates that preset's remembered widths even
 	 * though `layoutMode` itself flips to "custom".
@@ -74,6 +79,7 @@ type UiStore = {
 export const uiStore = createStore<UiStore>(() => ({
 	sidebarCollapsed: false,
 	layoutMode: "custom",
+	immersiveReading: false,
 	lastAppliedPreset: null,
 	rightSidebarOpen: false,
 	rightSidebarTab: "agent",
@@ -94,7 +100,11 @@ export function setSidebarCollapsedState(collapsed: boolean): void {
 	const prev = uiStore.getState().sidebarCollapsed;
 	uiStore.setState({ sidebarCollapsed: collapsed });
 	// Persist the left sidebar's state unless temporarily collapsed by Reading mode.
-	if (prev !== collapsed && uiStore.getState().layoutMode !== "reading") {
+	if (
+		prev !== collapsed &&
+		uiStore.getState().layoutMode !== "reading" &&
+		!uiStore.getState().immersiveReading
+	) {
 		saveCustomRails({
 			leftCollapsed: collapsed,
 			rightOpen: uiStore.getState().rightSidebarOpen,
@@ -125,7 +135,11 @@ export function setLastAppliedPreset(mode: LayoutPresetMode): void {
 export function setRightSidebarOpenState(open: boolean): void {
 	const prev = uiStore.getState().rightSidebarOpen;
 	uiStore.setState({ rightSidebarOpen: open });
-	if (prev !== open && uiStore.getState().layoutMode === "custom") {
+	if (
+		prev !== open &&
+		uiStore.getState().layoutMode === "custom" &&
+		!uiStore.getState().immersiveReading
+	) {
 		saveCustomRails({
 			leftCollapsed: uiStore.getState().sidebarCollapsed,
 			rightOpen: open,
@@ -266,6 +280,8 @@ export type LayoutController = {
 		opts?: { focusAgent?: boolean },
 	) => void;
 	applyLayoutMode: (mode: Exclude<LayoutMode, "custom">) => void;
+	/** Fullscreen plus hidden chrome. A second call restores the snapshot. */
+	toggleImmersiveReading: () => void;
 	/** Expand the left rail and move focus into it. */
 	focusSidebar: () => void;
 	focusEditorPane: () => void;
@@ -283,6 +299,7 @@ export function layout(): LayoutController | null {
 }
 
 export function toggleSidebar(): void {
+	if (uiStore.getState().immersiveReading) return;
 	const { sidebarCollapsed } = uiStore.getState();
 	layout()?.setLeftCollapsed(!sidebarCollapsed);
 }

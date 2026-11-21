@@ -1,4 +1,4 @@
-/** PDF selection-ask thread model. See docs/development/pdf-ask.md */
+/** PDF selection-ask thread model. */
 
 export type PdfAskTrigger = "selection" | "dblclick" | "dwell" | "region";
 

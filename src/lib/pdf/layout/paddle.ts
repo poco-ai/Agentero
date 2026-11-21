@@ -65,6 +65,13 @@ export async function invokeLayoutRemoteAnalyzePdf(args: {
 	)) as LayoutRemoteAnalyzePdfResult;
 }
 
+/** Stop waiting for one whole-PDF layout job after the caller aborts it. */
+export async function invokeLayoutRemoteCancel(
+	requestId: string,
+): Promise<boolean> {
+	return callApi(() => commands.layoutRemoteCancel(requestId));
+}
+
 /**
  * Connectivity probe through the Host (no WebView CORS, honors the app
  * proxy): submits a tiny OCR job; a returned jobId means endpoint + token

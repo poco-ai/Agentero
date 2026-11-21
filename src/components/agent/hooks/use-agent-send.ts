@@ -34,14 +34,16 @@ import {
 	isChatOnlyAgentTemplate,
 	loadModelPref,
 	loadReasoningEffortPref,
+	markModelPicked,
 	type PromptImage,
 	runOnce,
+	takeModelPickForce,
 } from "@/lib/agent";
 import {
 	type AgentTurnRequest,
-	agentSessionStore,
 	isActiveTabRunning,
 	useAgentSessionStore,
+	useAgentSessionStoreApi,
 } from "@/lib/agent/agent-session-store";
 import {
 	planAnnotationRefs,
@@ -207,6 +209,7 @@ export type AgentSend = {
 	messageQueue: QueuedPrompt[];
 	removeQueuedMessage: (id: string) => void;
 	clearMessageQueue: () => void;
+	replaceMessageQueue: (next: QueuedPrompt[]) => void;
 	cancelCurrentRun: () => Promise<void>;
 	answerToolAskUser: (input: {
 		answer: string;
@@ -284,6 +287,7 @@ export function useAgentSend({
 	},
 }: UseAgentSendOptions): AgentSend {
 	// Store-direct values (single source of truth for the transcript).
+	const sessionStore = useAgentSessionStoreApi();
 	const setLines = useAgentSessionStore((s) => s.setLines);
 	const setSessionHistory = useAgentSessionStore((s) => s.setSessions);
 	const setActiveTabId = useAgentSessionStore((s) => s.setActiveTabId);
@@ -297,6 +301,11 @@ export function useAgentSend({
 
 	const clearMessageQueue = useCallback(() => {
 		setMessageQueue([]);
+		drainInFlightRef.current = false;
+	}, []);
+
+	const replaceMessageQueue = useCallback((next: QueuedPrompt[]) => {
+		setMessageQueue(next);
 		drainInFlightRef.current = false;
 	}, []);
 
@@ -443,7 +452,7 @@ export function useAgentSend({
 	};
 
 	/** Assemble and dispatch the runOnce request for a resolved turn. */
-	const startTurn = (turn: {
+	const startTurn = async (turn: {
 		agentId: string;
 		resumeSessionId: string | undefined;
 		prompt: string;
@@ -456,35 +465,48 @@ export function useAgentSend({
 		skillIds: string[];
 		context: ReturnType<typeof sidebarContextRequest>;
 		resumeTranscript?: string;
-	}) =>
-		runOnce({
-			agentId: turn.agentId,
-			sessionId: turn.resumeSessionId,
-			prompt: turn.prompt,
-			isAcpCommand: turn.isAcpCommand,
-			images: turn.images,
-			vaultPath: vaultPath ?? undefined,
-			workflow: turn.workflow ?? "free",
-			target: turn.workflowTarget,
-			modelId: turn.modelId,
-			collaborationModeId:
-				collaborationModeId &&
-				collaborationOptions.some((mode) => mode.id === collaborationModeId)
-					? collaborationModeId
-					: undefined,
-			reasoningEffort:
-				turn.preferredEffort === null
-					? undefined
-					: turn.agentId === selected?.id
-						? (reasoningEffort ?? turn.preferredEffort)
-						: turn.preferredEffort,
-			preferHighestReasoningEffort: turn.preferredEffort === null,
-			fastMode: fastAvailable ? fastEnabled : undefined,
-			skillIds: turn.skillIds,
-			permissionMode: loadSettings().agentPermissionMode,
-			context: turn.context ?? undefined,
-			resumeTranscript: turn.resumeTranscript,
-		});
+	}) => {
+		// The explicit pick is a one-shot. Re-arm it when dispatch fails so a
+		// retried turn still forces the set instead of deduping against the
+		// adapter's possibly-wrong current (#1087).
+		const forceModel = takeModelPickForce(turn.agentId, turn.modelId);
+		try {
+			return await runOnce({
+				agentId: turn.agentId,
+				sessionId: turn.resumeSessionId,
+				prompt: turn.prompt,
+				isAcpCommand: turn.isAcpCommand,
+				images: turn.images,
+				vaultPath: vaultPath ?? undefined,
+				workflow: turn.workflow ?? "free",
+				target: turn.workflowTarget,
+				modelId: turn.modelId,
+				forceModel,
+				collaborationModeId:
+					collaborationModeId &&
+					collaborationOptions.some((mode) => mode.id === collaborationModeId)
+						? collaborationModeId
+						: undefined,
+				reasoningEffort:
+					turn.preferredEffort === null
+						? undefined
+						: turn.agentId === selected?.id
+							? (reasoningEffort ?? turn.preferredEffort)
+							: turn.preferredEffort,
+				preferHighestReasoningEffort: turn.preferredEffort === null,
+				fastMode: fastAvailable ? fastEnabled : undefined,
+				skillIds: turn.skillIds,
+				permissionMode: loadSettings().agentPermissionMode,
+				context: turn.context ?? undefined,
+				resumeTranscript: turn.resumeTranscript,
+			});
+		} catch (error) {
+			if (forceModel && turn.modelId) {
+				markModelPicked(turn.agentId, turn.modelId);
+			}
+			throw error;
+		}
+	};
 
 	/**
 	 * Pin binding for a session opened from a visual mark. Composer reference
@@ -1034,7 +1056,7 @@ export function useAgentSend({
 		}) => {
 			const toolCallId = input.toolCallId?.trim();
 			if (!toolCallId) return;
-			agentSessionStore.getState().updateSessionLines(input.sessionId, (prev) =>
+			sessionStore.getState().updateSessionLines(input.sessionId, (prev) =>
 				applyToolToLines(prev, {
 					id: toolCallId,
 					...(input.cancelled ? {} : { status: "completed" }),
@@ -1046,7 +1068,7 @@ export function useAgentSend({
 				}),
 			);
 		},
-		[],
+		[sessionStore],
 	);
 
 	const removeQueuedMessage = useCallback((id: string) => {
@@ -1118,7 +1140,7 @@ export function useAgentSend({
 	useEffect(() => {
 		const handler = async (req: AgentTurnRequest): Promise<boolean> => {
 			const ctx = externalTurnCtxRef.current;
-			const store = agentSessionStore.getState();
+			const store = sessionStore.getState();
 			let existing = req.visualTraceId
 				? store.findByVisualTraceId(req.visualTraceId)
 				: undefined;
@@ -1207,7 +1229,7 @@ export function useAgentSend({
 			}
 			setHistoryOpen(false);
 			// Keep ref in sync before send (upsert may not have flushed React yet).
-			sessionHistoryRef.current = agentSessionStore.getState().sessions;
+			sessionHistoryRef.current = sessionStore.getState().sessions;
 			return sendRef.current(req.text, {
 				visualDrafts: req.visualDrafts,
 				images: req.images,
@@ -1220,9 +1242,9 @@ export function useAgentSend({
 				...(req.modelId ? { modelId: req.modelId } : {}),
 			});
 		};
-		agentSessionStore.getState().registerSendHandler(handler);
+		sessionStore.getState().registerSendHandler(handler);
 		return () => {
-			agentSessionStore.getState().registerSendHandler(null);
+			sessionStore.getState().registerSendHandler(null);
 		};
 		// Register once — handler reads sendRef / externalTurnCtxRef for latest.
 		// Stable store setters only; handler body uses refs for everything else.
@@ -1235,6 +1257,7 @@ export function useAgentSend({
 		activeTabRef,
 		selectedAgentIdRef,
 		sessionHistoryRef,
+		sessionStore,
 	]);
 
 	/**
@@ -1290,6 +1313,7 @@ export function useAgentSend({
 		messageQueue,
 		removeQueuedMessage,
 		clearMessageQueue,
+		replaceMessageQueue,
 		cancelCurrentRun,
 		answerToolAskUser,
 		recordAskUserAnswers,

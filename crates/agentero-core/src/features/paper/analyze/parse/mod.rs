@@ -1,7 +1,4 @@
 //! Local PDF → `PAPER.md` via liteparse (no TeX papers).
-//!
-//! @see docs/backend/data-model.md § PAPER.md
-//! @see docs/backend/api.md `job_parse_body_enqueue`
 
 use crate::error::AppError;
 use crate::features::catalog::{papers, probe_paper_caps, CapsCache};
@@ -275,6 +272,9 @@ async fn parse_paper_body_inner(
         out.messages.push("skip: local TeX became available".into());
         return out;
     }
+    let body_before = fs::read(paper_dir.join(PAPER_MD))
+        .ok()
+        .map(|bytes| crate::features::evidence::content_revision(&bytes));
     let pdf_stamp = fs::metadata(&pdf_path)
         .ok()
         .map(|m| (m.len(), m.modified().ok()));
@@ -328,6 +328,15 @@ async fn parse_paper_body_inner(
                     crate::features::paper::source::reconcile_body(&vault_owned, &path_owned)
                         .map_err(|e| e.to_string())?;
                     return Ok(None);
+                }
+                let body_now = fs::read(paper_dir_owned.join(PAPER_MD))
+                    .ok()
+                    .map(|bytes| crate::features::evidence::content_revision(&bytes));
+                if body_before != body_now {
+                    return Err(
+                        "PAPER.md changed during extraction; the current contents were preserved"
+                            .into(),
+                    );
                 }
                 write_paper_body_bundle(&paper_dir_owned, &markdown, &assets)?;
                 let catalog_error = update_catalog_body(
@@ -540,6 +549,16 @@ pub fn try_run_pdf_parse_worker() -> Option<i32> {
         Err(_) => return Some(2),
     };
 
+    // Load PDFium before liteparse. `Library::init` panics (exit 101) and
+    // discards the loader's path/symbol error, so a missing or stock DLL looks
+    // like "LibraryUnavailable" with no way to tell which file was tried.
+    if let Err(message) = ensure_pdfium_loaded() {
+        return write_pdf_worker_json(
+            &request.response_path,
+            &serde_json::json!({ "status": "err", "message": message }),
+        );
+    }
+
     let response = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -594,10 +613,15 @@ pub fn try_run_pdf_parse_worker() -> Option<i32> {
         }),
     };
 
-    let result = serde_json::to_vec(&response)
+    write_pdf_worker_json(&request.response_path, &response)
+}
+
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn write_pdf_worker_json(response_path: &Path, response: &serde_json::Value) -> Option<i32> {
+    let result = serde_json::to_vec(response)
         .map_err(|error| AppError::message(format!("serialize PDF parse result: {error}")))
         .and_then(|bytes| {
-            fs::write(&request.response_path, bytes)
+            fs::write(response_path, bytes)
                 .map_err(|error| AppError::message(format!("write PDF parse result: {error}")))
         });
     Some(if result.is_ok() { 0 } else { 1 })
@@ -608,39 +632,68 @@ pub fn try_run_pdf_parse_worker() -> Option<i32> {
     None
 }
 
-#[cfg(not(any(target_os = "ios", target_os = "android")))]
-fn pdfium_lib_name() -> &'static str {
-    if cfg!(target_os = "macos") {
-        "libpdfium.dylib"
-    } else if cfg!(target_os = "windows") {
+/// Shared-library file name liteparse `dlopen`s on this platform.
+pub fn pdfium_library_file_name() -> &'static str {
+    if cfg!(target_os = "windows") {
         "pdfium.dll"
+    } else if cfg!(target_os = "macos") {
+        "libpdfium.dylib"
     } else {
         "libpdfium.so"
     }
 }
 
-/// Directory holding the PDFium shared library shipped with the installed app.
+/// `LoadLibraryW` / `dlopen` reject the `\\?\` prefix `current_exe` sometimes
+/// returns. Callers that hand the path to the loader should use this form.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn strip_verbatim_prefix(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let text = path.to_string_lossy();
+        if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{rest}"));
+        }
+        if let Some(rest) = text.strip_prefix(r"\\?\") {
+            return PathBuf::from(rest);
+        }
+    }
+    path.to_path_buf()
+}
+
+/// Directory holding the PDFium shared library shipped next to `exe`.
 ///
 /// liteparse `dlopen`s PDFium and `liteparse-pdfium-sys`'s build script bakes
 /// the build machine's download cache path into the binary, which does not
-/// exist on a user machine. `scripts/prepare-pdfium.mjs` stages the library
-/// into the bundle instead; these are the places it lands.
-#[cfg(not(any(target_os = "ios", target_os = "android")))]
-fn bundled_pdfium_dir() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    let exe_dir = exe.parent()?;
-    let mut candidates = Vec::new();
-    if cfg!(target_os = "macos") {
+/// exist on a user machine. The desktop bundle and the CLI archive both ship
+/// the matching run-llama build; these are the places it lands.
+pub fn bundled_pdfium_dir_for(exe: &Path) -> Option<PathBuf> {
+    // macOS may report the PATH shim as current_exe. Its library belongs to
+    // the managed executable, in a separate per-version directory.
+    let resolved = exe.canonicalize().ok();
+    let exe_dir = resolved.as_deref().unwrap_or(exe).parent()?;
+    // Standalone archives and the managed terminal cache carry their own pair.
+    let mut candidates = vec![exe_dir.to_path_buf()];
+    if cfg!(target_os = "macos") && exe_dir.file_name().is_some_and(|name| name == "MacOS") {
         candidates.push(exe_dir.join("../Frameworks"));
+    }
+    // Resource executables ship in cli/ beside the pdfium/ resource directory
+    // on Windows and in the Linux package's /usr/lib/<product>/ tree.
+    if exe_dir.file_name().is_some_and(|name| name == "cli") {
+        candidates.push(exe_dir.join("../pdfium"));
     }
     candidates.push(exe_dir.join("pdfium"));
     // deb / AppImage put bundle resources under /usr/lib/<product>/.
     candidates.push(exe_dir.join("../lib/agentero/pdfium"));
     candidates.push(exe_dir.join("../lib/Agentero/pdfium"));
-    candidates.push(exe_dir.to_path_buf());
 
-    let name = pdfium_lib_name();
+    let name = pdfium_library_file_name();
     candidates.into_iter().find(|dir| dir.join(name).is_file())
+}
+
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn bundled_pdfium_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    bundled_pdfium_dir_for(&exe)
 }
 
 /// `PDFIUM_LIB_PATH` to hand the worker, unless the caller already set one.
@@ -649,7 +702,72 @@ fn pdfium_lib_path_override() -> Option<PathBuf> {
     if std::env::var_os(PDFIUM_LIB_PATH_ENV).is_some() {
         return None;
     }
-    bundled_pdfium_dir()
+    bundled_pdfium_dir().map(|dir| strip_verbatim_prefix(&dir))
+}
+
+/// Files a worker should try before liteparse's own search: an explicit
+/// `PDFIUM_LIB_PATH`, then the library shipped next to this executable.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn pdfium_candidate_files() -> Vec<PathBuf> {
+    let name = pdfium_library_file_name();
+    let mut out = Vec::new();
+    if let Some(dir) = std::env::var_os(PDFIUM_LIB_PATH_ENV) {
+        let path = PathBuf::from(dir).join(name);
+        if path.is_file() {
+            out.push(path);
+        }
+    }
+    if let Some(dir) = bundled_pdfium_dir() {
+        let path = dir.join(name);
+        if path.is_file() {
+            out.push(path);
+        }
+    }
+    out
+}
+
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn load_pdfium_file(path: &Path) -> Result<(), String> {
+    let path = strip_verbatim_prefix(path);
+    liteparse_pdfium::pdfium_sys::dynamic::load(&path).map_err(|error| {
+        format!(
+            "{error}. Agentero needs the run-llama/pdfium-binaries build matched to liteparse ({})",
+            pdfium_library_file_name()
+        )
+    })
+}
+
+/// Load PDFium in this process so a later `Library::init` does not panic.
+///
+/// A stock PDFium DLL (for example bblanchon/pdfium-binaries) can `LoadLibrary`
+/// and still miss fork symbols. That used to surface only as
+/// `LibraryUnavailable`. Try the caller's path first, then the library shipped
+/// beside the executable, so a leftover bad `PDFIUM_LIB_PATH` does not hide
+/// the bundled file.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+pub(crate) fn ensure_pdfium_loaded() -> Result<(), String> {
+    let mut tried: Vec<PathBuf> = Vec::new();
+    let mut last_error = None;
+    for path in pdfium_candidate_files() {
+        let normalized = strip_verbatim_prefix(&path);
+        if tried.iter().any(|seen| seen == &normalized) {
+            continue;
+        }
+        tried.push(normalized.clone());
+        match load_pdfium_file(&normalized) {
+            Ok(()) => return Ok(()),
+            Err(error) => last_error = Some(error),
+        }
+    }
+    if tried.is_empty() {
+        return liteparse_pdfium::pdfium_sys::dynamic::load_default().map_err(|error| {
+            format!(
+                "{error}. Place {} next to the agentero executable",
+                pdfium_library_file_name()
+            )
+        });
+    }
+    Err(last_error.unwrap_or_else(|| "failed to load pdfium shared library".to_string()))
 }
 
 /// Tail of the worker's stderr, so a panic that never reaches the response file
@@ -740,10 +858,14 @@ async fn spawn_pdf_worker_with_dir(
     }
 
     let mut command = tokio::process::Command::new(executable);
+    crate::process::hide_console_window_tokio(&mut command);
     command
         .arg(worker_arg)
         .arg(pdf_path)
         .arg(&response_path)
+        // The Host may be launched from Finder with `/` as its cwd; give the
+        // worker its own directory instead of the whole filesystem (#1119).
+        .current_dir(&worker_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(stderr_sink))
@@ -1184,7 +1306,14 @@ fn write_paper_body_bundle(
         fs::write(destination, &asset.bytes).map_err(|e| e.to_string())?;
     }
     crate::fs::atomic_write(&paper_dir.join(PAPER_MD), markdown.as_bytes())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    fs::create_dir_all(paper_dir.join("source")).map_err(|e| e.to_string())?;
+    let revision = crate::features::evidence::content_revision(markdown.as_bytes());
+    crate::fs::atomic_write(
+        &paper_dir.join("source/.paper-md-revision"),
+        revision.as_bytes(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn update_catalog_body(
@@ -1462,5 +1591,59 @@ mod tests {
 
         crate::cancel::testing::finish(&task_id);
         assert_eq!(result.unwrap_err().to_string(), "background task cancelled");
+    }
+
+    #[test]
+    fn pdfium_resolves_worker_desktop_sidecar_and_standalone_layouts() {
+        let root = std::env::temp_dir().join(format!("pdfium-layout-{}", uuid::Uuid::new_v4()));
+        let name = pdfium_library_file_name();
+        let expect = |binary: &Path, library_dir: &Path| {
+            fs::create_dir_all(binary.parent().unwrap()).unwrap();
+            fs::create_dir_all(library_dir).unwrap();
+            fs::write(library_dir.join(name), b"pdfium").unwrap();
+            assert_eq!(
+                bundled_pdfium_dir_for(binary)
+                    .unwrap()
+                    .canonicalize()
+                    .unwrap(),
+                library_dir.canonicalize().unwrap()
+            );
+        };
+        let app = root.join("installed");
+        expect(&app.join("gui"), &app.join("pdfium"));
+        expect(&app.join("cli/agentero-cli"), &app.join("pdfium"));
+        let linux = root.join("usr");
+        expect(
+            &linux.join("bin/agentero"),
+            &linux.join("lib/Agentero/pdfium"),
+        );
+        let standalone = root.join("standalone");
+        expect(&standalone.join("agentero"), &standalone);
+        #[cfg(unix)]
+        {
+            let binary = standalone.join("agentero");
+            fs::write(&binary, b"executable").unwrap();
+            let bin_dir = root.join("user-bin");
+            fs::create_dir_all(&bin_dir).unwrap();
+            let shim = bin_dir.join("agentero");
+            std::os::unix::fs::symlink(&binary, &shim).unwrap();
+            assert_eq!(
+                bundled_pdfium_dir_for(&shim)
+                    .unwrap()
+                    .canonicalize()
+                    .unwrap(),
+                standalone.canonicalize().unwrap()
+            );
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let contents = root.join("Agentero.app/Contents");
+            expect(
+                &contents.join("MacOS/agentero-turn"),
+                &contents.join("Frameworks"),
+            );
+        }
+
+        let _ = fs::remove_dir_all(&root);
     }
 }

@@ -6,6 +6,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useAgentSessionScope } from "@/lib/agent/agent-session-store";
 import {
 	type AgentComposerState,
 	clearSubmittedComposerState,
@@ -15,9 +16,9 @@ import {
 	saveAgentComposerState,
 } from "@/lib/agent/composer-state";
 import {
-	activateVisualDraftSession,
-	clearVisualDraftSession,
-	rebindVisualDraftSession,
+	activateVisualDraftSession as activateRailVisualDraftSession,
+	clearVisualDraftSession as clearRailVisualDraftSession,
+	rebindVisualDraftSession as rebindRailVisualDraftSession,
 	visualDraftSessionKey,
 } from "@/lib/agent/visual-context-store";
 
@@ -68,13 +69,28 @@ export type SessionComposerStateApi = AgentComposerState & {
 	composerIdentity: () => ComposerIdentity;
 };
 
+function noopVisualDraftSession(..._keys: string[]): void {}
+
 export function useSessionComposerState({
 	vaultPath,
 	agentId,
 	sessionId,
 	defaultIncludeSelectedFile,
 }: SessionComposerStateOptions): SessionComposerStateApi {
-	const scopeKey = composerScopeKey(vaultPath, agentId);
+	const { scopeId } = useAgentSessionScope();
+	// PDF visual drafts follow the rail composer only; other chat surfaces
+	// (Zen slots) must not move the app-wide active draft bucket.
+	const railScope = scopeId === null;
+	const activateVisualDraftSession = railScope
+		? activateRailVisualDraftSession
+		: noopVisualDraftSession;
+	const clearVisualDraftSession = railScope
+		? clearRailVisualDraftSession
+		: noopVisualDraftSession;
+	const rebindVisualDraftSession = railScope
+		? rebindRailVisualDraftSession
+		: noopVisualDraftSession;
+	const scopeKey = composerScopeKey(vaultPath, agentId, scopeId);
 	const defaultIncludeSelectedFileRef = useRef(defaultIncludeSelectedFile);
 	defaultIncludeSelectedFileRef.current = defaultIncludeSelectedFile;
 	const identityRef = useRef<ComposerIdentity>({ scopeKey, sessionId });
@@ -177,7 +193,7 @@ export function useSessionComposerState({
 			stateRef.current = next;
 			setState(next);
 		},
-		[readState],
+		[activateVisualDraftSession, readState],
 	);
 
 	const resetSession = useCallback(
@@ -195,7 +211,7 @@ export function useSessionComposerState({
 			activateVisualDraftSession(sessionKey);
 			commitState(emptyComposerState(defaultIncludeSelectedFileRef.current));
 		},
-		[commitState],
+		[activateVisualDraftSession, clearVisualDraftSession, commitState],
 	);
 
 	const rebindSession = useCallback(
@@ -226,7 +242,7 @@ export function useSessionComposerState({
 			};
 			commitState(next);
 		},
-		[commitState],
+		[commitState, rebindVisualDraftSession],
 	);
 
 	const migrateSession = useCallback(
@@ -269,7 +285,14 @@ export function useSessionComposerState({
 		const next = readState(nextIdentity);
 		stateRef.current = next;
 		setState(next);
-	}, [commitState, readState, scopeKey, sessionId]);
+	}, [
+		activateVisualDraftSession,
+		commitState,
+		readState,
+		rebindVisualDraftSession,
+		scopeKey,
+		sessionId,
+	]);
 
 	return {
 		...state,

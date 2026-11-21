@@ -2,7 +2,9 @@
 //! per-page markdown carried in the JSONL result.
 
 use crate::core::error::AppError;
-use crate::features::paper::analyze::layout::hosted::paddle::run_paddle_ocr_job;
+use crate::features::paper::analyze::layout::hosted::paddle::{
+    run_paddle_ocr_job, PaddleJobPurpose,
+};
 use crate::features::paper::analyze::parse::engines::{
     BodyParseCtx, BodyParseEngine, BodyParseOutcome,
 };
@@ -44,6 +46,7 @@ impl BodyParseEngine for PaddleBodyEngine {
             file_name,
             "application/pdf",
             model,
+            PaddleJobPurpose::BodyParse,
             &|_, _, _| {},
             &|| ctx.is_cancelled(),
         )
@@ -173,6 +176,7 @@ mod tests {
             "live-test.pdf".to_string(),
             "application/pdf",
             &model,
+            PaddleJobPurpose::BodyParse,
             &|phase, extracted, total| println!("progress: {phase} {extracted:?}/{total:?}"),
             &|| false,
         )

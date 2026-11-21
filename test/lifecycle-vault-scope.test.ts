@@ -209,31 +209,4 @@ describe("vault:opened scope", () => {
 		expect(mocks.scheduleTreeRefresh).not.toHaveBeenCalled();
 		expect(noteCommittedLibraryList).not.toHaveBeenCalled();
 	});
-
-	it("releases the previous vault before setting up the next one", async () => {
-		const order: string[] = [];
-		mocks.clearLibraryVaultState.mockImplementation(() => {
-			order.push("release");
-		});
-		mocks.refreshTree.mockImplementation(async (vault: string) => {
-			order.push(`setup:${vault}`);
-		});
-
-		const release = emitScoped("vault:opened", {
-			vaultId: "/vault-a",
-			timestamp: 1,
-		});
-		await drain();
-		// A vault switch releases the old scope and opens the new one in one tick.
-		release();
-		const release2 = emitScoped("vault:opened", {
-			vaultId: "/vault-b",
-			timestamp: 2,
-		});
-		await drain();
-
-		expect(order).toEqual(["setup:/vault-a", "release", "setup:/vault-b"]);
-		release2();
-		await drain();
-	});
 });

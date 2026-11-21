@@ -233,23 +233,71 @@ describe("PDF drag-to-pan gesture", () => {
 		expect(states).toEqual(["panning"]);
 	});
 
-	it("ignores the right button and touch pointers", () => {
+	it("pans with the right button, except on chrome that keeps its context menu", () => {
 		const harness = panTargetHarness();
-		const { states } = bind(harness, true);
+		const states: string[] = [];
+		const chrome = new EventTarget();
+		bindPanDragGesture({
+			target: harness.target,
+			isLeftDragArmed: () => false,
+			isExcludedTarget: () => false,
+			isRightDragExcludedTarget: (target) => target === chrome,
+			onStateChange: (state) => states.push(state),
+		});
 
-		const right = harness.dispatch("pointerdown", {
+		const down = harness.dispatch("pointerdown", {
 			button: 2,
 			pointerId: 2,
+			clientX: 40,
+			clientY: 50,
 		});
-		expect(right.defaultPrevented).toBe(false);
+		expect(down.defaultPrevented).toBe(true);
+		harness.dispatch("pointermove", {
+			pointerId: 2,
+			clientX: 10,
+			clientY: 20,
+		});
+		expect(harness.scroll()).toEqual({ left: 130, top: 230 });
+		// This right press owns the page's context menu (WebKit fires it while the
+		// button is still down), so no native menu interrupts the pan.
+		const menu = harness.dispatch("contextmenu", { button: 2 });
+		expect(menu.defaultPrevented).toBe(true);
+		harness.dispatch("pointerup", { pointerId: 2 });
+		expect(states).toEqual(["panning", "idle"]);
+
+		// WebView2 dispatches the menu only after the release; that press still
+		// owns it, so the next contextmenu is suppressed as well.
+		harness.dispatch("pointerdown", {
+			button: 2,
+			pointerId: 5,
+			clientX: 40,
+			clientY: 100,
+		});
+		harness.dispatch("pointerup", { pointerId: 5 });
+		const lateMenu = harness.dispatch("contextmenu", { button: 2 });
+		expect(lateMenu.defaultPrevented).toBe(true);
+		expect(states).toEqual(["panning", "idle", "panning", "idle"]);
+
+		// Chrome opts out of the right drag and keeps its own right click, e.g.
+		// right-clicking a highlight swatch to flip its shape.
+		const chromeDown = harness.dispatch(
+			"pointerdown",
+			{ button: 2, pointerId: 3 },
+			chrome,
+		);
+		expect(chromeDown.defaultPrevented).toBe(false);
+		harness.dispatch("pointermove", { pointerId: 3, clientX: 0, clientY: 0 });
+		expect(harness.scroll()).toEqual({ left: 130, top: 230 });
+		const chromeMenu = harness.dispatch("contextmenu", { button: 2 }, chrome);
+		expect(chromeMenu.defaultPrevented).toBe(false);
 
 		const touch = harness.dispatch("pointerdown", {
 			button: 1,
-			pointerId: 3,
+			pointerId: 4,
 			pointerType: "touch",
 		});
 		expect(touch.defaultPrevented).toBe(false);
-		expect(states).toEqual([]);
+		expect(states).toEqual(["panning", "idle", "panning", "idle"]);
 	});
 
 	it("ignores a second pointer while a drag is in flight", () => {
@@ -278,7 +326,7 @@ describe("PDF drag-to-pan gesture", () => {
 		expect(harness.scroll()).toEqual({ left: 100, top: 200 });
 	});
 
-	it("suppresses the compatibility mousedown behind the middle button", () => {
+	it("suppresses the compatibility mousedown behind the middle and right buttons", () => {
 		const harness = panTargetHarness();
 		bind(harness);
 
@@ -286,6 +334,13 @@ describe("PDF drag-to-pan gesture", () => {
 		const middle = harness.dispatch("mousedown", { button: 1 });
 		expect(middle.defaultPrevented).toBe(true);
 		expect(middle.stopPropagationCalls).toBe(1);
+		harness.dispatch("pointerup", { pointerId: 2 });
+
+		harness.dispatch("pointerdown", { button: 2, pointerId: 3 });
+		const right = harness.dispatch("mousedown", { button: 2 });
+		expect(right.defaultPrevented).toBe(true);
+		expect(right.stopPropagationCalls).toBe(1);
+		harness.dispatch("pointerup", { pointerId: 3 });
 
 		const left = harness.dispatch("mousedown", { button: 0 });
 		expect(left.defaultPrevented).toBe(false);
@@ -371,7 +426,7 @@ describe("PDF drag-to-pan gesture", () => {
 		});
 		binding.cancel();
 		expect(states).toEqual(["panning", "idle"]);
-		expect(harness.listenerCount()).toBe(5);
+		expect(harness.listenerCount()).toBe(6);
 
 		harness.dispatch("pointermove", {
 			pointerId: 6,
@@ -404,7 +459,7 @@ describe("PDF drag-to-pan gesture", () => {
 			clientX: 10,
 			clientY: 10,
 		});
-		expect(harness.listenerCount()).toBe(5);
+		expect(harness.listenerCount()).toBe(6);
 
 		binding.dispose();
 		expect(states).toEqual(["panning", "idle"]);

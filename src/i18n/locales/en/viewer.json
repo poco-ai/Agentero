@@ -13,6 +13,7 @@
 		"outline": "Outline",
 		"linkAria": "PDF link",
 		"linkUrl": "Link address",
+		"linkPreview": "Link preview",
 		"paperTone": "Page background",
 		"paperToneOption": {
 			"white": "White",
@@ -24,6 +25,16 @@
 		"jumpBack": "Jump back",
 		"importToLibrary": "Import to library",
 		"smartHighlight": "Smart highlight",
+		"viewMode": {
+			"label": "Reading view",
+			"original": "Original",
+			"translated": "Translation",
+			"dual": "Compare",
+			"originalHint": "Original (hide translation and stop the task)",
+			"translatedHint": "Translation (in place on the page)",
+			"dualHint": "Compare (source and translation side by side)",
+			"paneUnavailable": "The paper has no local folder, so the translation pane cannot open."
+		},
 		"smartHighlightFailed": "Smart highlight failed",
 		"jevNoReadableText": "PDF text layer is empty or unreadable. Run Parse Body (Tools → Parse PDF body) to OCR the paper first.",
 		"findPlaceholder": "Find in document",
@@ -49,14 +60,25 @@
 			"hide": "Hide translations",
 			"show": "Show translations",
 			"translatePage": "Translate this page",
-			"translatePageShort": "Page",
+			"translatePageShort": "Translate",
 			"hidePage": "Hide this page translation",
 			"hidePageShort": "Hide",
+			"retryPageShort": "Retry",
+			"pageStatus": {
+				"pending": "Page awaiting translation",
+				"running": "Translating this page…",
+				"done": "Page translation complete",
+				"error": "Page translation incomplete"
+			},
+			"pageStage": {
+				"translating": "Translating",
+				"typesetting": "Typesetting"
+			},
 			"pageRunning": "Translating this page…",
 			"needLayout": "Run layout analysis first (Figures panel).",
 			"noText": "No extractable text regions to translate.",
 			"failed": "Full-text translate failed",
-			"pageFailed": "Page translation failed",
+			"retryPage": "Retry this page's translation",
 			"exportDualPdf": "Export bilingual PDF",
 			"exportPdf": "Export translated PDF",
 			"reflowFailed": "PDF typesetting failed",
@@ -78,6 +100,11 @@
 			"partialStillMissing": "The last attempt left {{count}} blocks untranslated.",
 			"partialPagesSingle": "p{{page}}",
 			"partialPagesRange": "p{{start}}–p{{end}}",
+			"layoutWarningTitle": "Layout results incomplete",
+			"layoutWarningButton": "Layout incomplete · {{count}}",
+			"layoutWarningSummary": "Layout analysis incomplete: no translatable body text was found on {{pages}}. {{translated}}/{{total}} pages translated.",
+			"reparseAndTranslate": "Reparse and translate",
+			"openLayoutSettings": "Open layout settings",
 			"completeMissing": "Translate {{count}} missing",
 			"retranslateAll": "Retranslate all",
 			"close": "Close",
@@ -85,7 +112,8 @@
 			"retranslateConfirmTitle": "Retranslate all?",
 			"retranslateConfirmDescription": "This requests every block again and replaces translations that succeed. Blocks that fail keep their previous translation.",
 			"retranslateConfirm": "Retranslate",
-			"pagesCount": "{{done}}/{{total}} pages"
+			"pagesCount": "Completed {{done}}/{{total}} pages",
+			"pagesGenerated": "Generated {{done}}/{{total}} pages"
 		},
 		"translation": {
 			"title": "Translation",
@@ -119,7 +147,8 @@
 			"saving": "Saving bookmarks…",
 			"retry": "Retry saving",
 			"discard": "Discard unsaved edits"
-		}
+		},
+		"exitImmersive": "Exit immersive reading"
 	},
 	"pdfAsk": {
 		"dialogLabel": "Ask about selection",
@@ -141,11 +170,7 @@
 		"openInPrompt": "Please explain the following quoted passage from this paper."
 	},
 	"pdfExplain": {
-		"selectRegion": "Add visual annotation",
-		"cancelRegion": "Cancel region selection",
-		"regionSelectionLabel": "Select a visual region on page {{page}}",
 		"cropFailed": "Could not capture the selected PDF region.",
-		"cropping": "Capturing region…",
 		"annotationPreviewAlt": "Cropped region from page {{page}}",
 		"visualAnnotation": "Visual annotation",
 		"addToSidebarChat": "Add to sidebar chat",
@@ -191,6 +216,10 @@
 		"importFailed": "Failed to import reference",
 		"openLink": "Open link",
 		"previewLabel": "Reference preview",
+		"previewImport": "Import",
+		"expandPreview": "Expand full reference details",
+		"citationCount_one": "{{count}} citation",
+		"citationCount_other": "{{count}} citations",
 		"importToFolder": "Import to folder",
 		"newFolder": "New folder",
 		"newFolderHint": "papers/subfolder",
@@ -206,6 +235,9 @@
 		"kindReference": "Reference"
 	},
 	"figures": {
+		"selectElements": "Select layout elements",
+		"exitElementSelection": "Exit element selection (Esc)",
+		"selectionNeedsLayout": "Run layout analysis to select elements",
 		"title": "Analysis",
 		"panelAria": "Figures, tables, algorithms, and formulas of this paper",
 		"noPaper": "Open a paper PDF to list figures, tables, algorithms, and formulas.",
@@ -217,6 +249,7 @@
 		"forceReanalyze": "Force layout re-analysis",
 		"forceReanalyzeTitle": "Re-run layout analysis?",
 		"forceReanalyzeBody": "The saved layout for this paper will be replaced. Figures, tables, and formulas are detected again from the paper PDF.",
+		"forceReanalyzeTranslate": "Auto-translate after layout analysis is on, so a background translation is queued when this reparse succeeds. Cached translations are reused and only changed blocks are requested.",
 		"forceReanalyzeConfirm": "Re-run",
 		"forceReanalyzeMissingPdf": "The paper PDF is not in the paper folder yet.",
 		"forceReanalyzeFailed": "Could not re-run layout analysis",
@@ -224,8 +257,9 @@
 		"queued": "Waiting to analyze layout…",
 		"progressPages": "{{page}} / {{total}} pages",
 		"progressPct": "{{pct}}%",
-		"clickAnnotateAria": "Annotate this {{kind}}",
-		"clickAnnotateHint": "Click to annotate",
+		"selectElementAria": "Select {{kind}}",
+		"selectElementAriaPreview": "Select {{kind}}: {{preview}}",
+		"captionOnPage": "Caption on page {{page}}",
 		"sectionFigures": "Figures",
 		"sectionTables": "Tables",
 		"sectionAlgorithms": "Algorithms",
@@ -256,7 +290,13 @@
 	},
 	"selection": {
 		"menuLabel": "Selection actions",
-		"colorGroupLabel": "Highlight colors",
+		"colorGroupLabel": "Annotation colors",
+		"shapeHighlight": "Highlight",
+		"shapeUnderline": "Underline",
+		"shapeSwitchHint": {
+			"toHighlight": "Right-click a color to switch back to highlight",
+			"toUnderline": "Right-click a color to switch to underline"
+		},
 		"color": {
 			"yellow": "Yellow",
 			"green": "Green",
@@ -268,16 +308,19 @@
 		"copy": "Copy",
 		"copyFailed": "Could not copy the selection.",
 		"note": "Annotate",
-		"chatActions": "Chat actions",
+		"bookmark": "Bookmark",
+		"moreActions": "More actions",
 		"quickChat": "Quick chat",
 		"addToChat": "Add to chat",
 		"translate": "Translate",
-		"removeHighlight": "Remove highlight",
-		"highlightMenuLabel": "Highlight actions",
+		"removeHighlight": "Delete annotation",
+		"highlightMenuLabel": "Annotation actions",
 		"editComment": "Edit note",
 		"translateTitle": "Translation",
+		"dictionaryTitle": "Dictionary",
 		"translateCopyFailed": "Could not copy the translation.",
 		"translating": "Translating…",
+		"lookingUp": "Looking up…",
 		"translateHide": "Close card",
 		"translatePin": "Pin",
 		"translateUnpin": "Unpin",
@@ -285,12 +328,18 @@
 		"translatePinAria": "Open translation: {{preview}}",
 		"translateNoAgent": "No available Agent for translation. Configure one in Settings → Agent.",
 		"translateOpenSettings": "Open translation settings",
+		"switchToTranslate": "Translate selection",
+		"switchToDictionary": "Look up word",
+		"dictionaryPaperDef": "Definition in paper",
 		"annotationCount_one": "{{count}} annotation",
 		"annotationCount_other": "{{count}} annotations",
 		"locateSource": "Show in source",
 		"chatSource": "Chat message",
 		"sourcePage": "Page {{page}}",
-		"sourceUnavailable": "The source is unavailable, changed, or matches more than one location. The original quote is preserved."
+		"sourceUnavailable": "The source is unavailable, changed, or matches more than one location. The original quote is preserved.",
+		"dictionaryContext": "In context · AI",
+		"dictionaryAiEngineeringSource": "AI Engineering",
+		"switchToTranslation": "Translate selection"
 	},
 	"html": {
 		"empty": "No paper available.",

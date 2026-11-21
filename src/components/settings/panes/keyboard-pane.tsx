@@ -255,6 +255,14 @@ export function KeyboardPane({
 				/>
 			</div>
 			<SettingsGroup>
+				<SettingsRow label={t("keyboard.vimMode")} htmlFor="vim-mode">
+					<Switch
+						id="vim-mode"
+						aria-checked={settings.vimMode}
+						checked={settings.vimMode}
+						onCheckedChange={(checked) => patch({ vimMode: checked })}
+					/>
+				</SettingsRow>
 				<SettingsRow
 					label={t("shortcuts:hintModeEnabled")}
 					htmlFor="hint-mode-enabled"

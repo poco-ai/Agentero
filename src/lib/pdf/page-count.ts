@@ -10,7 +10,7 @@ import { RenderPluginPackage } from "@embedpdf/plugin-render";
 import { nanoid } from "nanoid";
 
 import { findLocalPdfPath, localFileToArrayBuffer } from "@/lib/paper";
-import { getHeadlessPdfEngine } from "@/lib/pdf/layout/headless-analyze";
+import { acquireBackgroundPdfEngine } from "@/lib/pdf/background-engine";
 
 /**
  * Get PDF page count for a paper folder.
@@ -26,7 +26,7 @@ export async function getPdfPageCount(
 		const buffer = await localFileToArrayBuffer(pdfPath);
 		if (!buffer) return null;
 
-		const engine = await getHeadlessPdfEngine();
+		const { engine, release } = await acquireBackgroundPdfEngine();
 		const documentId = `page-count-${nanoid()}`;
 		const registry = new PluginRegistry(engine);
 		let docCap: DocumentManagerCapability | null = null;
@@ -68,6 +68,7 @@ export async function getPdfPageCount(
 			} catch {
 				// Cleanup must not replace a page count or the null failure result.
 			}
+			release();
 		}
 	} catch {
 		return null;

@@ -401,6 +401,13 @@ export function LayoutPane({
 								</SelectItem>
 							</SelectContent>
 						</Select>
+						{dialogMode === "reparse" &&
+						settings.translate.autoTranslateImport &&
+						scope !== "paper" ? (
+							<p className="pt-1 text-muted-foreground text-xs">
+								{t("layout.clearResults.dialog.reparseTranslate")}
+							</p>
+						) : null}
 					</div>
 
 					<DialogFooter className="gap-2 sm:gap-0">

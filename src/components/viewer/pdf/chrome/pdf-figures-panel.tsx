@@ -15,7 +15,6 @@ type PdfFiguresPanelProps = {
 	documentId: string;
 	paperAbsPath?: string | null;
 	paperRelPath?: string | null;
-	showFigures: boolean;
 	analyzing?: boolean;
 	/** Remote arXiv papers have no local PDF sidecar to replace. */
 	isRemotePaper?: boolean;
@@ -28,20 +27,18 @@ type PdfFiguresPanelProps = {
 };
 
 /** Left-side layout analysis panel. The overlay Eye toggle sits top-right,
- *  sharing the left toolbar's row. */
+ *  sharing the left toolbar's row. Mounting is owned by the viewer's panel
+ *  slot. */
 export const PdfFiguresPanel = memo(function PdfFiguresPanel({
 	documentId,
 	paperAbsPath,
 	paperRelPath,
-	showFigures,
 	analyzing,
 	isRemotePaper = false,
 	onAnalyze,
 	onJump,
 	onRenderThumb,
 }: PdfFiguresPanelProps) {
-	if (!showFigures) return null;
-
 	return (
 		<aside data-pdf-chrome className={cn("overflow-hidden", PDF_SIDE_PANEL)}>
 			{/* Same row as the left toolbar (top-2 / h-7), right-aligned chips.

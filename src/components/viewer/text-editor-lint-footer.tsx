@@ -11,6 +11,7 @@ import type {
 	EditorDiagnostic,
 	LintSeverity,
 } from "@/lib/tex/editor-diagnostic";
+import { LINT_SEVERITY_ORDER } from "@/lib/tex/editor-diagnostic";
 
 /**
  * IDE-style lint status bar for the text editor: per-severity counts
@@ -97,8 +98,6 @@ export const SEVERITY_META: Record<
 	},
 };
 
-const SEVERITY_ORDER: LintSeverity[] = ["error", "warning", "info"];
-
 /** Include the exact location and rule message when sharing findings with an agent. */
 export function formatEditorDiagnostic(
 	diagnostic: EditorDiagnostic,
@@ -136,8 +135,8 @@ export function TextEditorLintFooter({
 	for (const diagnostic of diagnostics) counts[diagnostic.severity] += 1;
 	const shown =
 		chrome === "inline"
-			? SEVERITY_ORDER.filter((severity) => counts[severity] > 0)
-			: SEVERITY_ORDER;
+			? LINT_SEVERITY_ORDER.filter((severity) => counts[severity] > 0)
+			: LINT_SEVERITY_ORDER;
 	if (chrome === "inline" && shown.length === 0) return null;
 	return (
 		<div
@@ -237,7 +236,7 @@ export function TextEditorLintFooter({
 									</button>
 									<button
 										type="button"
-										className="absolute right-1 top-1 flex size-6 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/diagnostic:opacity-100 group-focus-within/diagnostic:opacity-100 [@media(hover:none)]:opacity-100"
+										className="pointer-events-none absolute right-1 top-1 flex size-6 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/diagnostic:pointer-events-auto group-hover/diagnostic:opacity-100 group-focus-within/diagnostic:pointer-events-auto group-focus-within/diagnostic:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
 										aria-label={tb("copyProblem")}
 										title={tb("copyProblem")}
 										onClick={async () => {

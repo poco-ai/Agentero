@@ -1,4 +1,7 @@
-import type { LayoutTranslateItemStatus } from "@/lib/pdf/layout/types";
+import type {
+	LayoutTranslateItem,
+	LayoutTranslateItemStatus,
+} from "@/lib/pdf/layout/types";
 
 /**
  * Share of a translation job that has already settled.
@@ -124,4 +127,111 @@ export function layoutTranslateDisplayRatio(
 	if (cacheOnly) return previewPending ? Math.min(0.99, built) : 1;
 	const typeset = previewPending ? Math.min(0.99, built) : 1;
 	return Math.min(previewPending ? 0.99 : 1, text.ratio * 0.7 + typeset * 0.3);
+}
+
+/** No page is waiting for its translated page. */
+const NO_PAGES: ReadonlySet<number> = new Set();
+
+/**
+ * Pages whose text is fully translated while their translated page (the reflow
+ * preview) has not been painted yet.
+ *
+ * `items` must be the session-decorated items: `ReflowPreviewSession.decorate`
+ * attaches `reflowPreview` to every block on a page once that page's preview is
+ * published. `previewExpected` is the caller's gate — a cancelled run or a
+ * failed final build must retract the loading state instead of leaving it up
+ * forever.
+ */
+export function layoutTranslatePagesAwaitingPreview(
+	items: readonly LayoutTranslateItem[],
+	previewExpected: boolean,
+): ReadonlySet<number> {
+	if (!previewExpected) return NO_PAGES;
+	const pages = new Map<
+		number,
+		{ translated: boolean; reflow: boolean; preview: boolean }
+	>();
+	for (const item of items) {
+		const page = pages.get(item.pageIndex) ?? {
+			translated: false,
+			reflow: false,
+			preview: false,
+		};
+		if (item.status === "done" && item.translated?.trim()) {
+			page.translated = true;
+			if (item.reflow) page.reflow = true;
+		}
+		if (item.reflowPreview) page.preview = true;
+		pages.set(item.pageIndex, page);
+	}
+	const awaiting = new Set<number>();
+	for (const [pageIndex, page] of pages) {
+		// One finished paragraph is enough: until the page raster lands every
+		// block on that page still shows source text and waits for the same paint.
+		if (page.translated && page.reflow && !page.preview)
+			awaiting.add(pageIndex);
+	}
+	return awaiting;
+}
+
+/** Visible page status; failed blocks keep a page out of the completed state. */
+export type LayoutTranslatePageState = {
+	active: boolean;
+	running: boolean;
+	status: "pending" | "running" | "done" | "error";
+	/** Text is translated but this page's translated page has not painted yet. */
+	previewPending: boolean;
+};
+
+export function layoutTranslatePageStates(
+	items: readonly LayoutTranslateItem[],
+	hiddenPages: ReadonlySet<number>,
+	awaitingPreviewPages: ReadonlySet<number> = NO_PAGES,
+): ReadonlyMap<number, LayoutTranslatePageState> {
+	const states = new Map<number, LayoutTranslatePageState>();
+	for (const item of items) {
+		if (hiddenPages.has(item.pageIndex) || item.status === "skipped") continue;
+		const status =
+			item.status === "done" && !item.translated?.trim()
+				? "pending"
+				: item.status;
+		const state = states.get(item.pageIndex);
+		const rank = { done: 0, pending: 1, error: 2, running: 3 };
+		states.set(item.pageIndex, {
+			active: Boolean(
+				state?.active || item.status === "running" || item.translated?.trim(),
+			),
+			running: Boolean(state?.running || item.status === "running"),
+			status:
+				state && rank[state.status] > rank[status] ? state.status : status,
+			previewPending: false,
+		});
+	}
+	for (const [pageIndex, state] of states) {
+		if (!awaitingPreviewPages.has(pageIndex)) continue;
+		state.previewPending = true;
+		// The source page is still on screen: keep the loading icon instead of
+		// reporting a completion the reader cannot see yet.
+		if (state.status === "done") {
+			state.running = true;
+			state.status = "running";
+		}
+	}
+	return states;
+}
+
+/**
+ * Stage the in-page translate tab reports while a page is still working.
+ *
+ * `previewPending` means the page's text is translated and its translated page
+ * is still being generated (typeset); the tab separates that wait from the
+ * translation wait so a reader can tell what the remaining loading ring is for.
+ */
+export type LayoutTranslatePageStage = "translating" | "typesetting";
+
+export function layoutTranslatePageStage(
+	state: Pick<LayoutTranslatePageState, "running" | "previewPending">,
+): LayoutTranslatePageStage | null {
+	if (!state.running) return null;
+	return state.previewPending ? "typesetting" : "translating";
 }

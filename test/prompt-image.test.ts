@@ -4,8 +4,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	dataUrlToPromptImage,
 	fileUiPartsToPromptImages,
+	fileUiPartToPromptImage,
 	imagePathsFromDataTransfer,
 	isImageFile,
+	promptImageToFile,
 } from "@/lib/agent/prompt-image";
 import { isPhysicalPointInRect } from "@/lib/agent/tauri-file-drop";
 import {
@@ -39,6 +41,19 @@ describe("dataUrlToPromptImage", () => {
 
 	it("rejects bare base64 without data: prefix", () => {
 		expect(dataUrlToPromptImage("YWJj")).toBeNull();
+	});
+
+	it("round-trips a data-url attachment through a handoff file", async () => {
+		const image = await fileUiPartToPromptImage({
+			url: "data:image/png;base64,YWJj",
+			mediaType: "image/png",
+		});
+		expect(image).toEqual({ data: "YWJj", mimeType: "image/png" });
+		const file = promptImageToFile(
+			image ?? { data: "", mimeType: "image/png" },
+		);
+		expect(file.type).toBe("image/png");
+		expect(file.size).toBe(3);
 	});
 
 	it("prefers the data URL mime over a hint", () => {

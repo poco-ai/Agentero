@@ -27,7 +27,7 @@ pub struct TerminalAppStatus {
     pub installed: bool,
 }
 
-struct Preset {
+pub(crate) struct Preset {
     id: &'static str,
     name: &'static str,
 }
@@ -64,8 +64,12 @@ const PRESETS: &[Preset] = &[
     },
 ];
 
+/// Linux desktop terminals, in the order the system-default fallback tries them.
+///
+/// Shared by the Settings probe and `app::terminal` so a terminal the user can
+/// pick is always one the fallback can also launch (#1116).
 #[cfg(all(unix, not(target_os = "macos")))]
-const PRESETS: &[Preset] = &[
+pub(crate) const PRESETS: &[Preset] = &[
     Preset {
         id: "gnome-terminal",
         name: "GNOME Terminal",
@@ -90,6 +94,10 @@ const PRESETS: &[Preset] = &[
         id: "wezterm",
         name: "WezTerm",
     },
+    Preset {
+        id: "ghostty",
+        name: "Ghostty",
+    },
 ];
 
 /// Probe every preset on this platform. `mdfind` lookups make this blocking.
@@ -102,6 +110,47 @@ pub fn probe() -> Vec<TerminalAppStatus> {
             installed: is_installed(preset.id),
         })
         .collect()
+}
+
+/// Ids installed on this machine, in system-default fallback order.
+#[cfg(all(unix, not(target_os = "macos")))]
+pub(crate) fn installed_ids() -> impl Iterator<Item = &'static str> {
+    PRESETS
+        .iter()
+        .filter(|preset| is_installed(preset.id))
+        .map(|preset| preset.id)
+}
+
+/// Launch `id` so it runs an interactive `bash -lc <command>` instead of the
+/// login shell. Unknown or unsupported presets return an error so the caller
+/// can try the next candidate.
+#[cfg(all(unix, not(target_os = "macos")))]
+pub(crate) fn launch_command(id: &str, command: &str) -> Result<(), AppError> {
+    if !PRESETS.iter().any(|preset| preset.id == id) {
+        return Err(unknown_terminal(id));
+    }
+    let mut cmd = sanitized_command(id);
+    match id {
+        "gnome-terminal" => {
+            cmd.args(["--", "bash", "-lc", command]);
+        }
+        "konsole" | "alacritty" | "ghostty" => {
+            cmd.args(["-e", "bash", "-lc", command]);
+        }
+        "xfce4-terminal" => {
+            cmd.args(["-e", &format!("bash -lc {command:?}")]);
+        }
+        "kitty" => {
+            cmd.args(["bash", "-lc", command]);
+        }
+        "wezterm" => {
+            cmd.args(["start", "--", "bash", "-lc", command]);
+        }
+        _ => return Err(unknown_terminal(id)),
+    }
+    cmd.spawn()
+        .map(|_| ())
+        .map_err(|e| AppError::message(format!("failed to open terminal: {e}")))
 }
 
 /// Launch `id` with `cwd`. Unknown or missing presets return an error so the
@@ -318,6 +367,9 @@ fn launch_installed(id: &str, cwd: &Path) -> Result<(), AppError> {
         "wezterm" => {
             command.args(["start", "--cwd"]).arg(cwd);
         }
+        "ghostty" => {
+            command.arg(format!("--working-directory={}", cwd.display()));
+        }
         _ => return Err(unknown_terminal(id)),
     }
     spawn(command)
@@ -353,6 +405,13 @@ mod tests {
     fn unknown_launch_fails_so_callers_can_fall_back() {
         let cwd = std::env::temp_dir();
         assert!(launch("definitely-not-a-terminal", &cwd).is_err());
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    #[test]
+    fn command_launch_rejects_unknown_presets() {
+        let error = launch_command("definitely-not-a-terminal", "true").unwrap_err();
+        assert!(error.to_string().contains("unknown terminal app"));
     }
 
     #[cfg(target_os = "macos")]

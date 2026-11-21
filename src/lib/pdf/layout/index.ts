@@ -14,8 +14,13 @@ export {
 	layoutKindHex,
 } from "@/lib/pdf/layout/colors";
 export {
+	formatLayoutPageRanges,
+	type LayoutCompletenessWarning,
+} from "@/lib/pdf/layout/completeness";
+export {
 	LAYOUT_HINT_MIN_REGION_H_PX,
 	LAYOUT_HINT_MIN_REGION_W_PX,
+	LAYOUT_SELECT_MIN_AREA,
 	LAYOUT_SIDEBAR_MIN_SCORE,
 } from "@/lib/pdf/layout/constants";
 export {
@@ -24,6 +29,24 @@ export {
 	type DedupeLayoutOptions,
 	dedupeLayoutRegions,
 } from "@/lib/pdf/layout/dedupe";
+export {
+	type LayoutElementBox,
+	type LayoutElementBoxKey,
+	layoutElementBoxes,
+	layoutElementCaptionPage,
+	layoutElementNeedsCrop,
+	layoutElementPreview,
+	layoutElementQuote,
+} from "@/lib/pdf/layout/element-selection";
+export {
+	type ElementSentenceHit,
+	type ElementSentenceMember,
+	elementSentenceAtPoint,
+	mergeSentenceItems,
+	type SentenceFractionRect,
+	type SentenceItem,
+	type SentenceLocate,
+} from "@/lib/pdf/layout/element-sentence";
 export {
 	enqueuePaperLayoutAnalysis,
 	forcePaperLayoutAnalysis,
@@ -44,8 +67,12 @@ export {
 	hoverableLayoutRegionsByPage,
 	hoverableLayoutRegionsOnPage,
 	pickLayoutRegionAtPoint,
+	pickSelectableLayoutRegion,
 	pointInBbox,
 	rawLayoutRegionsByPage,
+	rectsIntersect,
+	selectableLayoutRegions,
+	selectableLayoutRegionsByPage,
 } from "@/lib/pdf/layout/hit-test";
 export {
 	LAYOUT_SIDECAR_FILE,
@@ -70,8 +97,10 @@ export {
 	isFormulaLayoutKind,
 	isFormulaNumberLayoutKind,
 	isLayoutBodyTextKind,
+	isLayoutElementTextKind,
 	isLayoutTranslatableKind,
 	isLayoutTranslateHeadingKind,
+	isLayoutVisualKind,
 	isSidebarLayoutKind,
 	isTableLayoutKind,
 	isTextLayoutKind,
@@ -107,7 +136,6 @@ export {
 	type LayoutTranslateJobStatus,
 	type LayoutTranslateRunScope,
 	layoutTranslatePendingPageRange,
-	listTranslatableLayoutRegions,
 	persistLayoutTranslateSidecarBestEffort,
 	readLayoutTranslateSidecar,
 	runLayoutRegionTranslate,
@@ -176,7 +204,6 @@ export {
 export {
 	CITATION_FOCUS_FLASH_MS,
 	clearLayoutDocumentResult,
-	expandFocusBboxForOverlay,
 	type FocusedLayoutSnapshot,
 	type FocusedLayoutState,
 	getLayoutDocumentResult,
@@ -184,6 +211,7 @@ export {
 	layoutDocumentKey,
 	layoutKindFromCitationFragment,
 	layoutKindFromRegionId,
+	layoutSentenceScope,
 	mirrorLayoutResultToTranslation,
 	normalizeLayoutPaperKey,
 	setFocusedLayoutRegion,
@@ -202,6 +230,15 @@ export {
 	resolveCaptionRole,
 	textFromRunsInBbox,
 } from "@/lib/pdf/layout/title-text";
+export {
+	isInsideVisualLayoutRegion,
+	listTranslatableLayoutRegions,
+} from "@/lib/pdf/layout/translatable";
+export {
+	isInsidePreservedRegion,
+	type LayoutPreserveReason,
+	preservedLayoutRegions,
+} from "@/lib/pdf/layout/translation-exclusions";
 export type {
 	LayoutAnalysisUiStatus,
 	PdfLayoutDocumentResult,

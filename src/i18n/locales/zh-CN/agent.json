@@ -1,4 +1,5 @@
 {
+	"promptOnlySources": "此 Agent 通过提示接收随附证据，无法主动展开更多来源。",
 	"acpStatus": {
 		"ready": "ACP 就绪",
 		"failed": "ACP 失败",
@@ -39,6 +40,10 @@
 		"action": "信任此 Vault",
 		"dismiss": "关闭提示"
 	},
+	"codexInstructionBudget": {
+		"title": "Codex 指令预算告警",
+		"description": "32KB 限制会把全局指令（~/.codex/AGENTS.md）和 thread 指令也算进去，不一定是当前 Vault 的 AGENTS.md 超限。"
+	},
 	"switchAgent": "切换 ACP Agent",
 	"configBar": {
 		"label": "模型与会话选项"
@@ -72,6 +77,12 @@
 			"cancelled": "已中止",
 			"failed": "失败"
 		}
+	},
+	"zen": {
+		"title": "Zen",
+		"newConversation": "新会话",
+		"untitled": "新对话",
+		"close": "关闭对话"
 	},
 	"tabs": {
 		"new": "新建会话"
@@ -108,6 +119,7 @@
 		"selectionChipWithPage": "{{title}}:{{page}}页",
 		"selectionChipWithLine": "{{title}} {{from}}行",
 		"selectionChipWithLines": "{{title}} {{from}}-{{to}}行",
+		"referencePaperRoot": "Papers",
 		"visualAnnotation": "视觉批注",
 		"visualAnnotationPage": "第{{page}}页",
 		"visualAnnotationsTitle": "视觉批注（{{count}}）",
@@ -179,6 +191,11 @@
 	},
 	"copy": "复制",
 	"copied": "已复制",
+	"transcript": {
+		"annotationLabel": "批注 {{n}}",
+		"annotationVisual": "视觉批注",
+		"annotationTranslation": "译文"
+	},
 	"edit": {
 		"action": "编辑",
 		"resend": "重新发送",

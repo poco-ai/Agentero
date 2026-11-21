@@ -51,6 +51,9 @@ function Harness() {
 		paperAbsPath: null,
 		paperRelPath: "papers/x",
 		vaultPath: null,
+		captureRegion: async () => {
+			throw new Error("Text threads do not capture a PDF region");
+		},
 		threadsRef,
 		setThreads,
 		upsertThread,

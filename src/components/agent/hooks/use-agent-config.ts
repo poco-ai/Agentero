@@ -26,12 +26,15 @@ import {
 	type CatalogScanResponse,
 	listAgentSkills,
 	listAgents,
+	loadCollaborationCatalog,
 	loadCollaborationPref,
 	loadModelCatalog,
 	loadModelFavorites,
 	loadModelPref,
 	loadReasoningEffortPref,
+	markModelPicked,
 	resolveReasoningEffort,
+	saveCollaborationCatalog,
 	saveCollaborationPref,
 	saveModelCatalog,
 	saveModelFavorites,
@@ -223,7 +226,12 @@ export function useAgentConfig({
 	);
 
 	const applyCollaborationEvent = useCallback(
-		(ev: { agentId: string; currentId: string; modes: AgentModeChoice[] }) => {
+		(ev: {
+			agentId: string;
+			configId?: string;
+			currentId: string;
+			modes: AgentModeChoice[];
+		}) => {
 			const cur = selectedAgentIdRef.current;
 			if (cur && cur !== ev.agentId) return;
 			if (!ev.modes.length) {
@@ -242,6 +250,11 @@ export function useAgentConfig({
 					return prevId;
 				}
 				return validPref || current || ev.modes[0]?.id || null;
+			});
+			saveCollaborationCatalog(ev.agentId, {
+				configId: ev.configId ?? "collaboration_mode",
+				currentId: ev.currentId,
+				modes: ev.modes,
 			});
 		},
 		[selectedAgentIdRef],
@@ -335,8 +348,24 @@ export function useAgentConfig({
 			setUsageBySession({});
 			return;
 		}
-		setCollaborationOptions([]);
-		setCollaborationModeId(loadCollaborationPref(selectedAgentId));
+		const collabCatalog = loadCollaborationCatalog(selectedAgentId);
+		const collabPref = loadCollaborationPref(selectedAgentId);
+		if (collabCatalog?.modes?.length) {
+			setCollaborationOptions(collabCatalog.modes);
+			const validPref =
+				collabPref && collabCatalog.modes.some((mode) => mode.id === collabPref)
+					? collabPref
+					: null;
+			setCollaborationModeId(
+				validPref ||
+					collabCatalog.currentId ||
+					collabCatalog.modes[0]?.id ||
+					null,
+			);
+		} else {
+			setCollaborationOptions([]);
+			setCollaborationModeId(collabPref);
+		}
 		setEffortOptions([]);
 		setReasoningEffort(loadReasoningEffortPref(selectedAgentId));
 		setFastAvailable(false);
@@ -375,6 +404,8 @@ export function useAgentConfig({
 			agentId: string;
 			vaultPath: string | null;
 			modelId?: string;
+			/** Re-apply `modelId` even when ACP reports it as the current model. */
+			forceModel?: boolean;
 			collaborationModeId?: string;
 			generation: number;
 			/** Apply models/usage only when still the intended warm target. */
@@ -392,12 +423,14 @@ export function useAgentConfig({
 					agentId: args.agentId,
 					vaultPath: args.vaultPath ?? undefined,
 					modelId: args.modelId,
+					forceModel: args.forceModel,
 					collaborationModeId: args.collaborationModeId,
 				});
 				if (args.generation !== warmGenRef.current || !args.stillValid()) {
 					return;
 				}
 				if (result.models) applyModelsEvent(result.models);
+				if (result.collaboration) applyCollaborationEvent(result.collaboration);
 				if (
 					result.usageUsed != null &&
 					result.usageSize != null &&
@@ -414,7 +447,7 @@ export function useAgentConfig({
 				}
 			}
 		},
-		[applyModelsEvent],
+		[applyModelsEvent, applyCollaborationEvent],
 	);
 
 	// When Chat opens (or agent/vault changes), warm ACP in the background for models/context.
@@ -512,12 +545,16 @@ export function useAgentConfig({
 	const pickModel = (id: string) => {
 		const next = id.trim();
 		if (!next) return;
-		if (next === modelId) return;
+		// Re-picking the model shown in the UI is still meaningful: the adapter
+		// may report a current model that differs from the one in effect (Claude
+		// ACP's reported current ignores `settings.env.ANTHROPIC_MODEL`), so the
+		// switch must be re-sent instead of deduplicated against the display.
 		// Free-form / third-party ids may not be in the advertised catalog yet.
 		setModels((prev) => ensureModelsInclude(prev, [next]));
 		setModelId(next);
 		if (!selectedAgentId) return;
 		saveModelPref(selectedAgentId, next);
+		markModelPicked(selectedAgentId, next);
 		if (!isTauri() || !agentListenersReady) return;
 
 		const agentId = selectedAgentId;
@@ -531,6 +568,7 @@ export function useAgentConfig({
 			agentId,
 			vaultPath: requestVaultPath,
 			modelId: next,
+			forceModel: true,
 			collaborationModeId:
 				loadCollaborationPref(agentId) ?? collaborationModeId ?? undefined,
 			generation,

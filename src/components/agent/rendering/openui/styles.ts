@@ -71,11 +71,11 @@ export const EMPTY_STATE_CLASS =
 
 /** Text link that opens a vault path or PDF fragment from a block. */
 export const SOURCE_LINK_CLASS =
-	"inline-flex w-fit items-center gap-0.5 rounded-md text-xs font-medium text-primary underline-offset-2 outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-ring/50";
+	"inline-flex w-fit items-center gap-0.5 rounded-md text-xs font-medium text-primary underline-offset-2 outline-none transition-colors hover:underline focus-visible:ring-1 focus-visible:ring-ring";
 
 /** Whole-row link used by Outline and SourceList. */
 export const ROW_LINK_CLASS =
-	"outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50";
+	"outline-none transition-colors hover:bg-muted/50 focus-visible:ring-1 focus-visible:ring-ring";
 
 /** Base shape shared by Badge / TagList / PaperCard tags. */
 export const PILL_CLASS = "h-5 shrink-0 rounded-md px-1.5 text-[11px]";

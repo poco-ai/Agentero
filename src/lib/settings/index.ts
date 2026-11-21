@@ -53,6 +53,7 @@ export type {
 	PaperNoteMode,
 	PdfScrollStrategy,
 	PdfSpreadMode,
+	PdfTranslateTabMode,
 	ThemePreference,
 	TranslateProviderConfig,
 	TranslateProviderId,
@@ -64,4 +65,5 @@ export {
 	PAPER_NOTE_MODES,
 	PDF_SCROLL_STRATEGIES,
 	PDF_SPREAD_MODES,
+	PDF_TRANSLATE_TAB_MODES,
 } from "@/lib/settings/types";

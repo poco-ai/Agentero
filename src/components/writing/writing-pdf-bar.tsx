@@ -444,6 +444,7 @@ export function WritingPdfBar({
 								? t("writing.syncTo", { repo: github.label })
 								: t("writing.sync")
 					}
+					aria-busy={syncing || undefined}
 					disabled={syncing}
 					onClick={syncProject}
 				>
@@ -452,7 +453,25 @@ export function WritingPdfBar({
 					) : (
 						<CloudUpload aria-hidden />
 					)}
-					{syncing ? t("writing.syncing") : t("writing.sync")}
+					{/*
+					 * Both labels occupy one grid cell so the button keeps the
+					 * wider "Uploading…" width while idle. Resizing the label
+					 * during the disabled/spinner animation lets WebKit keep the
+					 * previous text painted at its old x for a frame, which reads
+					 * as "UploadUpload" ghosting.
+					 */}
+					<span className="inline-grid">
+						<span
+							className={cn("col-start-1 row-start-1", syncing && "invisible")}
+						>
+							{t("writing.sync")}
+						</span>
+						<span
+							className={cn("col-start-1 row-start-1", !syncing && "invisible")}
+						>
+							{t("writing.syncing")}
+						</span>
+					</span>
 				</Button>
 			)}
 		</div>

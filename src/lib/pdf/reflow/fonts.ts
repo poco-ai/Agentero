@@ -3,8 +3,11 @@ import { logOp } from "@/lib/core/logger";
 import { readVaultBytes, writeVaultBytes } from "@/lib/vault/fs";
 import type { FontKey } from "./types";
 export type ReflowFontBytes = Record<FontKey, Uint8Array>;
-/** Same OFL font assets across platforms; hashes pin content independently of hosting. */
-const revision = "1eeeec2a63b05fe6fe7a1f45f0955a8fa98793c4";
+/**
+ * Same OFL font assets across platforms, mirrored on ModelScope; the dataset
+ * revision pins the upstream commit while the hashes pin the content.
+ */
+const revision = "b956e9333a4e53ed9753c296877af6c7074d7b23";
 const assets: Record<FontKey, [string, string]> = {
 	regular: [
 		"NotoSerif-Regular.ttf",
@@ -38,9 +41,11 @@ async function sha256(bytes: Uint8Array): Promise<string> {
 	).join("");
 }
 let pending: Promise<ReflowFontBytes> | undefined;
+let idle: ReturnType<typeof setTimeout> | undefined;
+
 export function loadReflowFonts(): Promise<ReflowFontBytes> {
-	if (pending) return pending;
-	pending = logOp("pdf.reflow.fonts", undefined, async () => {
+	clearTimeout(idle);
+	pending ??= logOp("pdf.reflow.fonts", undefined, async () => {
 		const root = await join(await appCacheDir(), "pdf-fonts", revision);
 		const entries = await Promise.all(
 			(Object.entries(assets) as [FontKey, [string, string]][]).map(
@@ -53,7 +58,7 @@ export function loadReflowFonts(): Promise<ReflowFontBytes> {
 						/* Missing cache: fetch a pinned public font. */
 					}
 					const response = await fetch(
-						`https://raw.githubusercontent.com/funstory-ai/BabelDOC-Assets/${revision}/fonts/${name}`,
+						`https://www.modelscope.cn/datasets/awwaawwa/BabelDOCAssets/resolve/${revision}/fonts/${name}`,
 						{ credentials: "omit", signal: AbortSignal.timeout(60_000) },
 					);
 					if (!response.ok)
@@ -73,5 +78,16 @@ export function loadReflowFonts(): Promise<ReflowFontBytes> {
 		pending = undefined;
 		throw error;
 	});
+	const current = pending;
+	void current.then(
+		() => {
+			if (pending !== current) return;
+			clearTimeout(idle);
+			idle = setTimeout(() => {
+				pending = undefined;
+			}, 30_000);
+		},
+		() => {},
+	);
 	return pending;
 }

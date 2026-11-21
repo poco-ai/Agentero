@@ -7,6 +7,7 @@ mod context_turn;
 pub mod delegate;
 pub mod doctor;
 pub mod doctor_agents;
+pub(crate) mod hosted_turn;
 pub mod models;
 pub mod pi_trust;
 pub mod prompt;
@@ -27,5 +28,5 @@ pub use runtime::{
 };
 pub use session::{
     delete_acp_session, list_acp_sessions, load_acp_session, new_ids, run_once, warm_agent,
-    AgentWarmPool, RunOnceParams,
+    AgentQueryPool, AgentWarmPool, RunOnceParams,
 };

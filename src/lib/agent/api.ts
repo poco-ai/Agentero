@@ -5,6 +5,7 @@ import {
 	commands,
 	events,
 	type PiProjectTrustStatus,
+	type PresentedFile,
 	type UpsertAgentRequest_Deserialize,
 } from "@/lib/core/bindings";
 import { callApi, callApiResult } from "@/lib/core/ipc";
@@ -63,6 +64,7 @@ export function agentTemplateById(
 }
 
 export type AgentDescriptor = {
+	supportsShell?: boolean;
 	id: string;
 	name: string;
 	template: AgentTemplate;
@@ -137,6 +139,7 @@ export type AcpHistoryPart =
 	| { type: "plan"; entries: AgentPlanEntry[] };
 
 export type AcpHistoryLine = {
+	artifacts?: PresentedFile[];
 	id: string;
 	kind: "user" | "agent";
 	text: string;
@@ -183,6 +186,8 @@ export type AgentResultPayload = {
 	/** ACP agent thought / reasoning text, if the agent emitted thought chunks. */
 	reasoning?: string | null;
 	sources: string[];
+	promptOnly?: boolean;
+	artifacts?: PresentedFile[];
 	stopReason?: string | null;
 	/** Durable ACP provider session id for the next `session/resume`. */
 	providerSessionId?: string | null;
@@ -314,9 +319,21 @@ export type AgentFailedEvent = {
 /** Loading phase of a turn: before spawn, waiting for first model output, or upstream reconnect. */
 export type AgentTurnPhase = "starting" | "waiting-model" | "reconnecting";
 
+/**
+ * Non-loading `agent:status` phase. Codex instruction warnings use it so the
+ * panel can show a dismissible toast without writing the warning into the
+ * assistant message.
+ */
+export const CODEX_INSTRUCTION_BUDGET_PHASE = "codex-instruction-budget";
+
 export type AgentStatusEvent = {
 	sessionId: string;
-	phase: AgentTurnPhase;
+	phase:
+		| AgentTurnPhase
+		| typeof CODEX_INSTRUCTION_BUDGET_PHASE
+		| "notice-info"
+		| "notice-warning"
+		| "notice-error";
 	/** e.g. "2/5" attempt counter for reconnecting. */
 	detail?: string | null;
 };
@@ -443,6 +460,7 @@ export async function checkCatalogUpdates(): Promise<CatalogScanResponse> {
 }
 
 export async function upsertAgent(request: {
+	supportsShell?: boolean;
 	id?: string;
 	name: string;
 	template?: AgentTemplate;
@@ -586,6 +604,44 @@ export async function runPartialUninstall(
 	);
 }
 
+/**
+ * Explicit model picks from this webview that the next ACP warm / turn must
+ * apply even when the adapter reports the same model as current. Claude ACP
+ * reports `currentModelId` from its own model settings while Claude Code runs
+ * `settings.env.ANTHROPIC_MODEL`, so the reported current can disagree with the
+ * model actually in effect; skipping the "redundant" `set_config_option` then
+ * leaves the UI showing a model the process never switched to (Fix #1087).
+ * One-shot per agent: consumed by the matching warm / turn. Per-webview only
+ * (module state, survives re-renders, not reloads).
+ */
+const pendingModelPicks = new Map<string, string>();
+
+/** Record that the user explicitly picked `modelId` for `agentId`. */
+export function markModelPicked(agentId: string, modelId: string): void {
+	const agent = agentId.trim();
+	const model = modelId.trim();
+	if (!agent || !model) return;
+	pendingModelPicks.set(agent, model);
+}
+
+/**
+ * Consume the pending explicit pick. Returns true only when the turn targets
+ * exactly the picked agent + model, and clears it so later turns go back to the
+ * normal "skip when already current" path. A non-matching turn leaves the pick
+ * pending for the turn that actually uses it.
+ */
+export function takeModelPickForce(
+	agentId: string | null | undefined,
+	modelId: string | null | undefined,
+): boolean {
+	const agent = agentId?.trim();
+	const model = modelId?.trim();
+	if (!agent || !model) return false;
+	if (pendingModelPicks.get(agent) !== model) return false;
+	pendingModelPicks.delete(agent);
+	return true;
+}
+
 export async function runOnce(request: {
 	agentId?: string;
 	/** Durable provider conversation id; Codex uses its native thread id. */
@@ -599,6 +655,11 @@ export async function runOnce(request: {
 	target?: string;
 	/** ACP model config value id (from agent:models). */
 	modelId?: string;
+	/**
+	 * Re-apply `modelId` even when the adapter reports it as the current model,
+	 * so an explicit pick is never deduplicated away.
+	 */
+	forceModel?: boolean;
 	/** Collaboration mode id (from agent:collaboration), e.g. default / plan. */
 	collaborationModeId?: string;
 	/** ACP reasoning-effort value id (from agent:effort). */
@@ -666,6 +727,7 @@ export async function runOnce(request: {
 				workflow: request.workflow,
 				target: request.target,
 				modelId: request.modelId,
+				forceModel: request.forceModel ?? false,
 				collaborationModeId: request.collaborationModeId,
 				reasoningEffort: request.reasoningEffort,
 				preferHighestReasoningEffort:
@@ -794,6 +856,7 @@ export type WarmResult = {
 	agentId: string;
 	ok: boolean;
 	models?: AgentModelsEvent | null;
+	collaboration?: AgentCollaborationEvent | null;
 	usageUsed?: number | null;
 	usageSize?: number | null;
 	error?: string | null;
@@ -836,6 +899,8 @@ export async function warmAgent(request: {
 	agentId?: string;
 	vaultPath?: string;
 	modelId?: string;
+	/** Re-apply `modelId` even when the adapter reports it as current. */
+	forceModel?: boolean;
 	collaborationModeId?: string;
 }): Promise<WarmResult> {
 	return callApiResult(
@@ -844,6 +909,7 @@ export async function warmAgent(request: {
 				agentId: request.agentId,
 				vaultPath: request.vaultPath,
 				modelId: request.modelId,
+				forceModel: request.forceModel ?? false,
 				collaborationModeId: request.collaborationModeId,
 			}),
 		AGENT_CALL_OPTS,
@@ -981,6 +1047,37 @@ export function saveModelPref(agentId: string, modelId: string): void {
 }
 
 const COLLABORATION_PREF_KEY = "agentero-agent-collaboration-pref";
+const COLLABORATION_CATALOG_KEY = "agentero-agent-collaboration-catalog";
+
+export type CachedCollaborationCatalog = {
+	configId: string;
+	currentId: string;
+	modes: AgentModeChoice[];
+};
+
+/** Cached collaboration mode choices per agent. */
+export function loadCollaborationCatalog(
+	agentId: string | null,
+): CachedCollaborationCatalog | null {
+	if (!agentId) return null;
+	const map = readJsonStorage<Record<string, CachedCollaborationCatalog>>(
+		COLLABORATION_CATALOG_KEY,
+		{},
+	);
+	return map[agentId] ?? null;
+}
+
+export function saveCollaborationCatalog(
+	agentId: string,
+	catalog: CachedCollaborationCatalog,
+): void {
+	const map = readJsonStorage<Record<string, CachedCollaborationCatalog>>(
+		COLLABORATION_CATALOG_KEY,
+		{},
+	);
+	map[agentId] = catalog;
+	writeJsonStorage(COLLABORATION_CATALOG_KEY, map);
+}
 
 /** Persist last chosen collaboration mode (default / plan) per agent. */
 export function loadCollaborationPref(agentId: string | null): string | null {

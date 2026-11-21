@@ -13,17 +13,19 @@ import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
  */
 
 import type { FormattedSelection } from "@embedpdf/plugin-selection/react";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { addSelectionToChat } from "@/components/selection/add-selection-to-chat";
 import { useSelectionQuickChat } from "@/components/selection/use-selection-quick-chat";
 import type { SelectionMenuState } from "@/components/viewer/pdf/types";
+import { registerSelectionAddToChat } from "@/lib/agent/selection-quick-chat";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import type { PdfAskAnchor } from "@/lib/pdf/ask/types";
 import {
 	DEFAULT_HIGHLIGHT_COLOR,
 	type HighlightColor,
 } from "@/lib/pdf/highlight/palette";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
 
 export type UsePdfSelectionActionsOptions = {
@@ -37,6 +39,7 @@ export type UsePdfSelectionActionsOptions = {
 		color: HighlightColor,
 		quote: string,
 		translatedPages?: readonly VisibleSelectionPage[],
+		shape?: PdfTextMarkupKind,
 	) => { pageIndex: number; id: string }[];
 	/** Write the note body onto a freshly created highlight. */
 	updateHighlightComment: (
@@ -54,7 +57,7 @@ export type UsePdfSelectionActionsOptions = {
 };
 
 export type PdfSelectionActions = {
-	handleHighlight: (color: HighlightColor) => void;
+	handleHighlight: (color: HighlightColor, shape: PdfTextMarkupKind) => void;
 	/**
 	 * Create a highlight + comment from a snapped selection draft. Used by the
 	 * right-rail editor so typing can survive EmbedPDF clearing the live selection.
@@ -63,12 +66,13 @@ export type PdfSelectionActions = {
 		draft: {
 			pages: FormattedSelection[];
 			quote: string;
+			shape?: PdfTextMarkupKind;
 			visiblePages?: readonly VisibleSelectionPage[];
 		},
 		comment: string,
 	) => void;
 	handleMenuAsk: () => void;
-	handleMenuAddToChat: () => void;
+	handleMenuAddToChat: () => boolean;
 	handleMenuTranslate: () => void;
 	/** Copies without a success toast. False when there is nothing to copy or the write fails. */
 	handleMenuCopy: () => Promise<boolean>;
@@ -94,7 +98,7 @@ export function usePdfSelectionActions({
 	selectionMenuRef.current = selectionMenu;
 
 	const handleHighlight = useCallback(
-		(color: HighlightColor) => {
+		(color: HighlightColor, shape: PdfTextMarkupKind) => {
 			const menu = selectionMenuRef.current;
 			if (!menu?.pages.length) return;
 			createHighlights(
@@ -102,6 +106,7 @@ export function usePdfSelectionActions({
 				color,
 				menu.anchor.quote ?? "",
 				menu.visiblePages,
+				shape,
 			);
 			closeSelectionMenu();
 		},
@@ -113,6 +118,7 @@ export function usePdfSelectionActions({
 			draft: {
 				pages: FormattedSelection[];
 				quote: string;
+				shape?: PdfTextMarkupKind;
 				visiblePages?: readonly VisibleSelectionPage[];
 			},
 			comment: string,
@@ -125,6 +131,7 @@ export function usePdfSelectionActions({
 					DEFAULT_HIGHLIGHT_COLOR,
 					draft.quote,
 					draft.visiblePages,
+					draft.shape,
 				);
 				const first = created[0];
 				closeSelectionMenu();
@@ -160,12 +167,12 @@ export function usePdfSelectionActions({
 
 	const handleMenuAddToChat = useCallback(() => {
 		const menu = selectionMenuRef.current;
-		if (!menu) return;
+		if (!menu) return false;
 		const anchor = menu.anchor;
 		const quote = anchor.quote?.trim();
 		const paired = menu.pairedTranslation;
 		closeSelectionMenu();
-		if (!quote) return;
+		if (!quote) return false;
 		const regions =
 			layoutAnalysisStore.getState().byDocument[docId]?.regions ?? [];
 		const matches = regions.filter(
@@ -190,7 +197,13 @@ export function usePdfSelectionActions({
 			rects: anchor.rects,
 			paperAbsPath: paperAbsPath ?? undefined,
 		});
+		return true;
 	}, [closeSelectionMenu, docId, paperRelPath, paperAbsPath]);
+
+	useEffect(
+		() => registerSelectionAddToChat(handleMenuAddToChat),
+		[handleMenuAddToChat],
+	);
 
 	const handleMenuTranslate = useCallback(() => {
 		const menu = selectionMenuRef.current;

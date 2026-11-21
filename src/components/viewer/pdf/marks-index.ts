@@ -80,6 +80,7 @@ export function buildMarksIndex({
 			comment,
 			color: normalizeHighlightColor(highlight.color),
 			kind: "highlight",
+			shape: highlight.kind,
 			...(highlight.translatedRects?.length
 				? { translatedRects: highlight.translatedRects }
 				: {}),

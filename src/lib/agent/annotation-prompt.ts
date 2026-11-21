@@ -2,6 +2,8 @@
  * Composer references become one numbered series in document order.
  * The user sentence keeps `[Annotation N]` where the block sat; the same
  * number heads the appendix entry and, for a visual crop, the image list.
+ * History preview parses this appendix back out (`annotation-snapshot.ts`).
+ * Keep the lead sentence and `## Annotation N` sections stable.
  */
 import {
 	decodeSelectionTokenPayload,

@@ -40,7 +40,7 @@ const REFLOW_BUILD_CACHE_VERSION = 1;
  * + fonts (the built bytes are reused verbatim, so layout.ts or export.ts
  * changes must invalidate old entries even when the IR schema is unchanged).
  */
-const REFLOW_BUILD_PIPELINE_VERSION = 1;
+const REFLOW_BUILD_PIPELINE_VERSION = 3;
 /**
  * Translation state churns with every page-level hide/restore, so one paper
  * can legitimately produce several distinct finals in a row. Keep the newest
@@ -63,6 +63,12 @@ export type ReflowBuildCacheStore = {
 	 * Existing files are still read when writes are off.
 	 */
 	writesEnabled?: () => boolean;
+	/** Full source and build identity for reusing the last rendered result. */
+	keyForFinal?(
+		document: ReflowDocument,
+		translations: ReadonlyMap<string, string>,
+		fonts: ReflowFontBytes,
+	): Promise<string | null>;
 	readFinal(
 		document: ReflowDocument,
 		translations: ReadonlyMap<string, string>,
@@ -261,6 +267,14 @@ export function createReflowBuildCache(
 
 	return {
 		writesEnabled: canWrite,
+		async keyForFinal(document, translations, fonts) {
+			if (!source.pdfBytes) return null;
+			const [pdf, build] = await Promise.all([
+				pdfSha256(source.pdfBytes),
+				documentFingerprint(document, translations, fonts),
+			]);
+			return `${pdf}-${build}`;
+		},
 		async readFinal(document, translations, fonts) {
 			const fingerprint = await documentFingerprint(
 				document,

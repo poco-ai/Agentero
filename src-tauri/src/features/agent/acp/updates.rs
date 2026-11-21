@@ -5,14 +5,14 @@ use crate::features::agent::models::{
     AgentStreamKind, AgentToolEvent, AgentUsageEvent,
 };
 use crate::features::agent::runtime::events::AgentEventEmitter;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::schema::MaybeUndefined;
+use agent_client_protocol::v1::schema::{
     AvailableCommandInput, PlanEntryPriority, PlanEntryStatus, SessionConfigKind,
     SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
     SessionConfigSelectOptions, SessionNotification, SessionUpdate, ToolCallContent,
     ToolCallStatus, ToolKind,
 };
-use agent_client_protocol::schema::MaybeUndefined;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub(crate) fn stream_from_update(update: &SessionUpdate) -> Option<(String, AgentStreamKind)> {
     match update {
@@ -27,10 +27,10 @@ pub(crate) fn stream_from_update(update: &SessionUpdate) -> Option<(String, Agen
 }
 
 pub(crate) fn text_from_content_block(
-    block: &agent_client_protocol::schema::v1::ContentBlock,
+    block: &agent_client_protocol::v1::schema::ContentBlock,
 ) -> Option<String> {
     match block {
-        agent_client_protocol::schema::v1::ContentBlock::Text(t) => Some(t.text.clone()),
+        agent_client_protocol::v1::schema::ContentBlock::Text(t) => Some(t.text.clone()),
         _ => None,
     }
 }
@@ -50,6 +50,31 @@ pub(crate) fn is_pi_startup_banner(text: &str) -> bool {
         .map(str::trim)
         .find(|line| !line.is_empty())
         .is_some_and(|line| line == "---" || line.starts_with("## "))
+}
+
+/// Recognize only the legacy instruction-budget advisory, not arbitrary assistant warnings.
+pub(crate) fn is_codex_instruction_warning(text: &str) -> bool {
+    let body = text.trim();
+    body.strip_prefix("Warning: ")
+        .or_else(|| body.strip_prefix("Config warning: "))
+        .is_some_and(|message| {
+            message.starts_with("Combined user instructions use ")
+                && message.contains("project_doc_max_bytes")
+        })
+}
+
+/// Same window as the pi startup banner: Codex message chunks, and only before
+/// this turn has any assistant text.
+pub(crate) fn should_drop_codex_instruction_warning(
+    is_codex: bool,
+    kind: AgentStreamKind,
+    chunk: &str,
+    content_empty: bool,
+) -> bool {
+    is_codex
+        && kind == AgentStreamKind::Message
+        && content_empty
+        && is_codex_instruction_warning(chunk)
 }
 
 pub(crate) fn tool_status_str(s: ToolCallStatus) -> &'static str {
@@ -150,7 +175,7 @@ fn dedupe_model_choices(models: Vec<AgentModelChoice>) -> Vec<AgentModelChoice> 
 }
 
 fn collect_choices_from_select(
-    sel: &agent_client_protocol::schema::v1::SessionConfigSelect,
+    sel: &agent_client_protocol::v1::schema::SessionConfigSelect,
 ) -> Vec<AgentModelChoice> {
     let mut models = Vec::new();
     match &sel.options {
@@ -207,17 +232,33 @@ pub(crate) fn richer_models_event(
 ) -> Option<AgentModelsEvent> {
     match (config, raw) {
         (Some(config), Some(raw)) => {
-            if raw.models.len() > config.models.len() {
+            let use_raw = raw.models.len() > config.models.len();
+            // Size picks the catalog, but either payload may be the only one
+            // that reports a current model (legacy `models` objects omit it).
+            // Keep a reported current instead of letting the richer list blank
+            // it, and never fabricate one (#1087).
+            let current_id = if use_raw && !raw.current_id.is_empty() {
+                raw.current_id.clone()
+            } else if !config.current_id.is_empty() {
+                config.current_id.clone()
+            } else {
+                raw.current_id.clone()
+            };
+            if use_raw {
                 log::debug!(
                     target: "agentero::agent",
-                    "agent={} using raw session models over config options: raw={} config={}",
+                    "agent={} using raw session models over config options: raw={} config={} current={}",
                     raw.agent_id,
                     raw.models.len(),
-                    config.models.len()
+                    config.models.len(),
+                    current_id
                 );
-                Some(raw)
+                Some(AgentModelsEvent { current_id, ..raw })
             } else {
-                Some(config)
+                Some(AgentModelsEvent {
+                    current_id,
+                    ..config
+                })
             }
         }
         (Some(config), None) => Some(config),
@@ -339,11 +380,9 @@ fn models_from_models_object(
             },
         );
     }
-    let current_id = if current_id.is_empty() {
-        models[0].id.clone()
-    } else {
-        current_id
-    };
+    // A missing current stays unknown (empty) instead of borrowing the first
+    // catalog entry: a fabricated current makes callers skip the model switch
+    // that would really apply the user's pick (#1087).
 
     Some(AgentModelsEvent {
         session_id: session_id.to_string(),
@@ -439,26 +478,71 @@ pub(crate) fn is_fast_option(opt: &SessionConfigOption) -> bool {
 }
 
 fn is_collaboration_option(opt: &SessionConfigOption) -> bool {
-    // Codex codex-acp: id + category "collaboration_mode" (Default / Plan).
-    if matches!(
-        opt.id.0.as_ref(),
-        "collaboration_mode" | "collaboration-mode"
-    ) {
+    let SessionConfigKind::Select(sel) = &opt.kind else {
+        return false;
+    };
+    if is_explicit_model_category(opt) || is_effort_option(opt) || is_fast_option(opt) {
+        return false;
+    }
+
+    let choices = collect_mode_choices_from_select(sel);
+    if choices.is_empty() {
+        return false;
+    }
+
+    // 1. Explicit plan option: any selector offering a "plan" choice (e.g. Codex
+    //    `collaboration_mode`, Antigravity native `mode`).
+    let has_plan = choices
+        .iter()
+        .any(|m| m.id.eq_ignore_ascii_case("plan") || m.name.eq_ignore_ascii_case("plan"));
+    if has_plan {
         return true;
     }
-    match opt.category.as_ref() {
-        Some(SessionConfigOptionCategory::Other(cat)) => {
-            cat == "collaboration_mode" || cat == "collaboration-mode"
-        }
-        _ => {
-            opt.name.eq_ignore_ascii_case("collaboration mode")
-                || opt.name.eq_ignore_ascii_case("collaboration")
+
+    // Pure permission/sandbox selectors (e.g. read-only / agent without plan) are handled
+    // by Agentero's permission system, not surfaced as session/collaboration mode.
+    let is_pure_sandbox = choices.iter().any(|m| {
+        let mid = m.id.to_ascii_lowercase();
+        mid == "read-only" || mid == "read_only" || mid == "readonly"
+    });
+    if is_pure_sandbox {
+        return false;
+    }
+
+    // 2. Vendor collaboration naming (Codex `collaboration_mode`).
+    let id = opt.id.0.to_ascii_lowercase();
+    if id == "collaboration_mode"
+        || id == "collaboration-mode"
+        || id == "session_mode"
+        || id == "session-mode"
+    {
+        return true;
+    }
+    if let Some(SessionConfigOptionCategory::Other(cat)) = opt.category.as_ref() {
+        let cat_lower = cat.to_ascii_lowercase();
+        if cat_lower == "collaboration_mode"
+            || cat_lower == "collaboration-mode"
+            || cat_lower == "session_mode"
+        {
+            return true;
         }
     }
+    let name_lower = opt.name.to_ascii_lowercase();
+    if name_lower == "collaboration mode" || name_lower == "collaboration" {
+        return true;
+    }
+
+    // 3. ACP standard Mode category or id="mode"
+    matches!(
+        opt.category.as_ref(),
+        Some(SessionConfigOptionCategory::Mode)
+    ) || id == "mode"
+        || name_lower == "mode"
+        || name_lower == "session mode"
 }
 
 fn collect_mode_choices_from_select(
-    sel: &agent_client_protocol::schema::v1::SessionConfigSelect,
+    sel: &agent_client_protocol::v1::schema::SessionConfigSelect,
 ) -> Vec<AgentModeChoice> {
     let mut modes = Vec::new();
     match &sel.options {
@@ -493,7 +577,23 @@ pub(crate) fn collaboration_from_config_options(
     agent_id: &str,
     opts: &[SessionConfigOption],
 ) -> Option<AgentCollaborationEvent> {
-    let opt = opts.iter().find(|opt| is_collaboration_option(opt))?;
+    // When an agent provides multiple mode-like options (e.g. Codex exposes both
+    // permission-sandbox `mode` and workflow `collaboration_mode`), prioritize the
+    // one that explicitly offers a "plan" mode choice.
+    let opt = opts
+        .iter()
+        .filter(|opt| is_collaboration_option(opt))
+        .max_by_key(|opt| {
+            if let SessionConfigKind::Select(sel) = &opt.kind {
+                let choices = collect_mode_choices_from_select(sel);
+                if choices.iter().any(|m| {
+                    m.id.eq_ignore_ascii_case("plan") || m.name.eq_ignore_ascii_case("plan")
+                }) {
+                    return 2;
+                }
+            }
+            1
+        })?;
     let SessionConfigKind::Select(sel) = &opt.kind else {
         return None;
     };
@@ -604,6 +704,154 @@ pub(crate) fn emit_session_config_options(
 /// read/fetch-style tools can carry whole files (MBs) per ToolCallUpdate; the
 /// transcript only renders a preview, so ship a bounded head + marker instead.
 pub(crate) const TOOL_PAYLOAD_MAX_BYTES: usize = 32 * 1024;
+const TOOL_TERMINAL_OUTPUT_MAX_BYTES: usize = TOOL_PAYLOAD_MAX_BYTES / 2;
+
+/// Accumulates Codex terminal output deltas because the webview replaces a
+/// tool's output on every ACP update rather than appending it.
+#[derive(Default)]
+pub(crate) struct ToolOutputAccumulator {
+    outputs: HashMap<String, serde_json::Value>,
+}
+
+impl ToolOutputAccumulator {
+    pub(crate) fn output_for_update(
+        &mut self,
+        tool_call_id: &str,
+        raw_output: Option<serde_json::Value>,
+        content: &[ToolCallContent],
+        meta: Option<&agent_client_protocol::v1::schema::Meta>,
+    ) -> Option<serde_json::Value> {
+        let delta = meta.and_then(|meta| meta.get("terminal_output_delta"));
+        let exit = meta.and_then(|meta| meta.get("terminal_exit"));
+        if delta.is_none() && exit.is_none() {
+            let output = tool_output_payload(raw_output, content);
+            if !self.outputs.contains_key(tool_call_id) {
+                if let Some(output) = output.clone() {
+                    self.outputs.insert(tool_call_id.to_string(), output);
+                }
+            }
+            return output;
+        }
+
+        let output = self
+            .outputs
+            .entry(tool_call_id.to_string())
+            .or_insert_with(|| match tool_output_payload(raw_output, content) {
+                Some(serde_json::Value::Object(output)) => serde_json::Value::Object(output),
+                Some(serde_json::Value::String(stdout)) => {
+                    serde_json::json!({ "stdout": stdout })
+                }
+                Some(raw) => serde_json::json!({ "stdout": "", "rawOutput": raw }),
+                None => serde_json::json!({ "stdout": "" }),
+            });
+        if !output.is_object() {
+            let previous = std::mem::replace(output, serde_json::json!({ "stdout": "" }));
+            if let Some(stdout) = previous.as_str() {
+                output["stdout"] = serde_json::Value::String(stdout.to_string());
+            } else {
+                output["rawOutput"] = previous;
+            }
+        }
+        let object = output
+            .as_object_mut()
+            .expect("tool output accumulator stores objects");
+        if !object.contains_key("stdout") && !object.contains_key("stderr") {
+            object.insert(
+                "stdout".to_string(),
+                serde_json::Value::String(String::new()),
+            );
+        }
+
+        if let Some(data) = delta
+            .and_then(|value| value.get("data").or(Some(value)))
+            .and_then(serde_json::Value::as_str)
+        {
+            let stream = delta
+                .and_then(|value| value.get("stream"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("stdout");
+            let key = if stream.eq_ignore_ascii_case("stderr") {
+                "stderr"
+            } else {
+                "stdout"
+            };
+            let current = object
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            let other_key = if key == "stdout" { "stderr" } else { "stdout" };
+            let other_len = object
+                .get(other_key)
+                .and_then(serde_json::Value::as_str)
+                .map_or(0, str::len);
+            let remaining = TOOL_TERMINAL_OUTPUT_MAX_BYTES
+                .saturating_sub(other_len)
+                .saturating_sub(current.len());
+            let needs_marker = data.len() > remaining;
+            let marker = "\n[output truncated]";
+            let content_budget = if needs_marker {
+                remaining.saturating_sub(marker.len())
+            } else {
+                remaining
+            };
+            let mut end = content_budget.min(data.len());
+            while end > 0 && !data.is_char_boundary(end) {
+                end -= 1;
+            }
+            let mut next = String::with_capacity(current.len() + end + marker.len());
+            next.push_str(current);
+            next.push_str(&data[..end]);
+            if needs_marker && remaining >= marker.len() {
+                next.push_str(marker);
+            }
+            object.insert(key.to_string(), serde_json::Value::String(next));
+        }
+
+        if let Some(exit_code) = exit
+            .and_then(|value| value.get("exit_code").or_else(|| value.get("exitCode")))
+            .and_then(serde_json::Value::as_i64)
+        {
+            object.insert(
+                "exitCode".to_string(),
+                serde_json::Value::Number(exit_code.into()),
+            );
+        }
+        let output = cap_terminal_output(output);
+        if exit.is_some() {
+            self.outputs.remove(tool_call_id);
+        }
+        output
+    }
+}
+
+fn cap_terminal_output(output: &serde_json::Value) -> Option<serde_json::Value> {
+    let mut output = output.clone();
+    if let Some(object) = output.as_object_mut() {
+        let mut remaining = TOOL_TERMINAL_OUTPUT_MAX_BYTES;
+        for key in ["stdout", "stderr"] {
+            let Some(text) = object.get(key).and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            let mut end = remaining.min(text.len());
+            while end > 0 && !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            let marker = "\n[output truncated]";
+            let clipped = if end < text.len() && remaining >= marker.len() {
+                let mut marker_start = end.min(remaining - marker.len());
+                while marker_start > 0 && !text.is_char_boundary(marker_start) {
+                    marker_start -= 1;
+                }
+                format!("{}{}", &text[..marker_start], marker)
+            } else {
+                text[..end].to_string()
+            };
+            remaining = remaining.saturating_sub(clipped.len());
+            object.insert(key.to_string(), serde_json::Value::String(clipped));
+        }
+    }
+    cap_tool_payload(Some(output))
+}
 
 // ACP updates can carry output only in native content blocks. Retain those
 // alongside raw provider metadata; updates need not repeat the initial kind.
@@ -661,8 +909,29 @@ pub(crate) fn emit_rich_session_update(
     session_id: &str,
     agent_id: &str,
     notification: &SessionNotification,
+    tool_outputs: Option<&std::sync::Mutex<ToolOutputAccumulator>>,
 ) {
     match &notification.update {
+        SessionUpdate::Notice(notice) => {
+            use agent_client_protocol::v1::schema::NoticeSeverity;
+            let phase = match &notice.severity {
+                NoticeSeverity::Error => "notice-error",
+                NoticeSeverity::Warning => "notice-warning",
+                _ => "notice-info",
+            };
+            let detail = match &notice.description {
+                Some(description) => format!("{}\n{}", notice.title, description),
+                None => notice.title.clone(),
+            };
+            let _ = app.emit(
+                "agent:status",
+                AgentStatusEvent {
+                    session_id: session_id.to_owned(),
+                    phase: phase.to_owned(),
+                    detail: Some(detail),
+                },
+            );
+        }
         SessionUpdate::AvailableCommandsUpdate(upd) => {
             let commands = upd
                 .available_commands
@@ -694,6 +963,17 @@ pub(crate) fn emit_rich_session_update(
             emit_session_config_options(app, session_id, agent_id, &upd.config_options);
         }
         SessionUpdate::ToolCall(tc) => {
+            let output = tool_outputs
+                .and_then(|state| state.lock().ok())
+                .and_then(|mut state| {
+                    state.output_for_update(
+                        tc.tool_call_id.to_string().as_str(),
+                        tc.raw_output.clone(),
+                        &tc.content,
+                        tc.meta.as_ref(),
+                    )
+                })
+                .or_else(|| tool_output_payload(tc.raw_output.clone(), &tc.content));
             let _ = app.emit(
                 "agent:tool",
                 AgentToolEvent {
@@ -703,13 +983,29 @@ pub(crate) fn emit_rich_session_update(
                     kind: Some(tool_kind_str(tc.kind).to_string()),
                     status: Some(tool_status_str(tc.status).to_string()),
                     input: cap_tool_payload(tc.raw_input.clone()),
-                    output: tool_output_payload(tc.raw_output.clone(), &tc.content),
+                    output,
                     full: true,
                 },
             );
         }
         SessionUpdate::ToolCallUpdate(upd) => {
             let f = &upd.fields;
+            let output = tool_outputs
+                .and_then(|state| state.lock().ok())
+                .and_then(|mut state| {
+                    state.output_for_update(
+                        upd.tool_call_id.to_string().as_str(),
+                        f.raw_output.clone(),
+                        f.content.as_deref().unwrap_or_default(),
+                        upd.meta.as_ref(),
+                    )
+                })
+                .or_else(|| {
+                    tool_output_payload(
+                        f.raw_output.clone(),
+                        f.content.as_deref().unwrap_or_default(),
+                    )
+                });
             let _ = app.emit(
                 "agent:tool",
                 AgentToolEvent {
@@ -719,10 +1015,7 @@ pub(crate) fn emit_rich_session_update(
                     kind: f.kind.map(tool_kind_str).map(str::to_string),
                     status: f.status.map(tool_status_str).map(str::to_string),
                     input: cap_tool_payload(f.raw_input.clone()),
-                    output: tool_output_payload(
-                        f.raw_output.clone(),
-                        f.content.as_deref().unwrap_or_default(),
-                    ),
+                    output,
                     full: false,
                 },
             );
@@ -794,7 +1087,7 @@ pub(crate) fn emit_rich_session_update(
 /// Returns `Some("2/5")` only for reconnect messages carrying a `n/m` token;
 /// missing meta, unrelated errors, or a missing counter yield `None`.
 pub(crate) fn reconnect_detail(
-    info: &agent_client_protocol::schema::v1::SessionInfoUpdate,
+    info: &agent_client_protocol::v1::schema::SessionInfoUpdate,
 ) -> Option<String> {
     let error = info.meta.as_ref()?.get("error")?.as_str()?.trim();
     if !error.to_ascii_lowercase().starts_with("reconnect") {
@@ -815,7 +1108,7 @@ pub(crate) fn reconnect_detail(
 #[cfg(test)]
 mod reconnect_detail_tests {
     use super::reconnect_detail;
-    use agent_client_protocol::schema::v1::SessionInfoUpdate;
+    use agent_client_protocol::v1::schema::SessionInfoUpdate;
 
     fn info_with_meta(error: Option<&str>) -> SessionInfoUpdate {
         let mut info = SessionInfoUpdate::new();
@@ -895,12 +1188,83 @@ mod pi_startup_banner_tests {
 }
 
 #[cfg(test)]
+mod codex_instruction_warning_tests {
+    use super::{is_codex_instruction_warning, should_drop_codex_instruction_warning};
+    use crate::features::agent::models::AgentStreamKind;
+
+    const BUDGET_WARNING: &str =
+        "Warning: Combined user instructions use 72713 bytes, above the 32768-byte\n\
+project_doc_max_bytes setting. The total includes global and thread\n\
+instructions. The limit applies only to project files.\n\n";
+
+    #[test]
+    fn matches_codex_acp_warning_fallback() {
+        assert!(is_codex_instruction_warning(BUDGET_WARNING));
+        assert!(!is_codex_instruction_warning(
+            "Config warning: project_doc_max_bytes is unset\n\n"
+        ));
+        assert!(!is_codex_instruction_warning(
+            "  Config warning: hooks failed\n\ndetails\n\n"
+        ));
+    }
+
+    #[test]
+    fn rejects_model_text_that_only_shares_the_prefix() {
+        assert!(!is_codex_instruction_warning(""));
+        assert!(!is_codex_instruction_warning(
+            "Warning: the derivation assumes a closed system."
+        ));
+        assert!(!is_codex_instruction_warning("warning: lower case\n\n"));
+        assert!(!is_codex_instruction_warning(
+            "Config warning:missing-space\n\n"
+        ));
+        assert!(!is_codex_instruction_warning(
+            "Hello.\nWarning: Combined user instructions use 1 bytes\n\n"
+        ));
+    }
+
+    #[test]
+    fn drops_only_an_early_codex_message_chunk() {
+        assert!(should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Message,
+            BUDGET_WARNING,
+            true,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            false,
+            AgentStreamKind::Message,
+            BUDGET_WARNING,
+            true,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Thought,
+            BUDGET_WARNING,
+            true,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Message,
+            BUDGET_WARNING,
+            false,
+        ));
+        assert!(!should_drop_codex_instruction_warning(
+            true,
+            AgentStreamKind::Message,
+            "Warning: the derivation assumes a closed system.",
+            true,
+        ));
+    }
+}
+
+#[cfg(test)]
 mod config_option_tests {
     use super::{
         collaboration_from_config_options, effort_from_config_options,
         fast_mode_from_config_options, fast_mode_value_to_set, models_from_config_options,
     };
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
         SessionConfigSelectOption,
     };
@@ -957,6 +1321,32 @@ mod config_option_tests {
         assert_eq!(collab.modes.len(), 2);
         assert_eq!(collab.modes[1].id, "plan");
         assert_eq!(collab.modes[1].name, "Plan");
+    }
+
+    #[test]
+    fn extracts_antigravity_mode_with_plan() {
+        let options = vec![SessionConfigOption::select(
+            "mode",
+            "Mode",
+            "default",
+            vec![
+                SessionConfigSelectOption::new("default", "Default"),
+                SessionConfigSelectOption::new("accept-edits", "Accept edits"),
+                SessionConfigSelectOption::new("plan", "Plan")
+                    .description("Plan carefully before executing a task"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::Mode)];
+
+        let collab = collaboration_from_config_options("session", "antigravity", &options)
+            .expect("antigravity mode should be exposed");
+        assert_eq!(collab.config_id, "mode");
+        assert_eq!(collab.current_id, "default");
+        assert_eq!(collab.modes.len(), 3);
+        assert_eq!(collab.modes[0].id, "default");
+        assert_eq!(collab.modes[1].id, "accept-edits");
+        assert_eq!(collab.modes[2].id, "plan");
+        assert_eq!(collab.modes[2].name, "Plan");
     }
 
     #[test]
@@ -1087,7 +1477,7 @@ mod config_option_tests {
 mod session_models_fallback_tests {
     #[test]
     fn native_opencode_terminal_content_keeps_stdout_and_metadata() {
-        let content: Vec<agent_client_protocol::schema::v1::ToolCallContent> = serde_json::from_value(serde_json::json!([
+        let content: Vec<agent_client_protocol::v1::schema::ToolCallContent> = serde_json::from_value(serde_json::json!([
 			{ "type": "content", "content": { "type": "text", "text": "component_migration_probe" } }
 		])).unwrap();
         let metadata = serde_json::json!({ "metadata": { "status": "completed", "truncated": false, "exit": 0 }});
@@ -1109,7 +1499,7 @@ mod session_models_fallback_tests {
         models_from_config_options, models_from_grok_update, models_from_session_models_value,
         richer_models_event, store_richer_models,
     };
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
     };
 
@@ -1264,7 +1654,7 @@ mod session_models_fallback_tests {
     }
 
     #[test]
-    fn defaults_current_to_first_model_when_absent() {
+    fn leaves_current_unknown_when_absent() {
         let value = serde_json::json!({
             "sessionId": "sess-1",
             "models": {
@@ -1275,7 +1665,54 @@ mod session_models_fallback_tests {
         });
 
         let ev = models_from_session_models_value("sess-1", "hermes", &value).expect("models");
-        assert_eq!(ev.current_id, "moa:default");
+        // Never borrow models[0]: a fabricated current makes the switch a no-op.
+        assert_eq!(ev.current_id, "");
+    }
+
+    #[test]
+    fn richer_models_event_keeps_a_reported_current_from_the_other_source() {
+        use crate::features::agent::models::{AgentModelChoice, AgentModelsEvent};
+
+        let event = |ids: &[&str], current: &str| AgentModelsEvent {
+            session_id: "sess-1".into(),
+            agent_id: "opencode".into(),
+            config_id: "model".into(),
+            current_id: current.into(),
+            models: ids
+                .iter()
+                .map(|id| AgentModelChoice {
+                    id: id.to_string(),
+                    name: id.to_string(),
+                    group: None,
+                })
+                .collect(),
+        };
+
+        // Richer raw catalog omits current; keep the config-reported one.
+        let merged = richer_models_event(
+            Some(event(&["moa:default"], "moa:default")),
+            Some(event(&["moa:default", "gateway:custom"], "")),
+        )
+        .expect("models");
+        assert_eq!(merged.models.len(), 2);
+        assert_eq!(merged.current_id, "moa:default");
+
+        // Richer config catalog has no current; keep the raw-reported one.
+        let merged = richer_models_event(
+            Some(event(&["moa:default", "gateway:custom"], "")),
+            Some(event(&["moa:default"], "moa:default")),
+        )
+        .expect("models");
+        assert_eq!(merged.models.len(), 2);
+        assert_eq!(merged.current_id, "moa:default");
+
+        // Neither reports one: stay unknown.
+        let merged = richer_models_event(
+            Some(event(&["moa:default"], "")),
+            Some(event(&["moa:default", "gateway:custom"], "")),
+        )
+        .expect("models");
+        assert_eq!(merged.current_id, "");
     }
 
     #[test]

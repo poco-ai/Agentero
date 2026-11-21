@@ -81,7 +81,7 @@ export function NewProjectForm({
 			<button
 				type="button"
 				onClick={() => setOpen(true)}
-				className="text-muted-foreground hover:text-foreground flex h-7 w-full items-center rounded-md px-2 text-left text-xs outline-none hover:bg-sidebar-accent/80 focus-visible:ring-1 focus-visible:ring-ring/60"
+				className="text-muted-foreground hover:text-foreground flex h-7 w-full items-center rounded-md px-2 text-left text-xs outline-none hover:bg-sidebar-accent/80 focus-visible:ring-1 focus-visible:ring-ring"
 			>
 				{t("writing.newProject")}
 			</button>

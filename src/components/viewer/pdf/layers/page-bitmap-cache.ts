@@ -1,90 +1,94 @@
-/**
- * Last base-coat bitmap for a PDF page.
- *
- * The scroller unmounts pages that leave the buffer, and a zoom starts a new
- * raster before the old one can stay on screen. Without this cache the page
- * renders nothing until PDFium returns, which is the blank flash during a
- * fast scroll. Slots stay pinned while a page layer is mounted so eviction
- * cannot revoke a blob the screen is still showing.
- */
-
 const DEFAULT_PAGE_BITMAP_LIMIT = 24;
+const DEFAULT_PAGE_BITMAP_BYTES = 32 * 1024 * 1024;
 
-type Slot = {
-	url: string;
-	pins: number;
+export type PageBitmap = ReturnType<typeof createPageBitmap>;
+
+export function createPageBitmap(blob: Blob) {
+	let url: string | undefined;
+	let users = 0;
+	return {
+		size: blob.size,
+		retain() {
+			url ??= URL.createObjectURL(blob);
+			const source = url;
+			users += 1;
+			return {
+				url: source,
+				release() {
+					if (--users !== 0) return;
+					URL.revokeObjectURL(source);
+					url = undefined;
+				},
+			};
+		},
+	};
+}
+
+type Entry = {
+	scope: object;
+	documentId: string;
 	key: string;
+	bitmap: PageBitmap;
 };
 
-export type PageBitmapCache = {
-	/** Pin `id` and return its bitmap, if one is already stored. */
-	retain(id: string): string | null;
-	release(id: string): void;
-	/** True when `id` already shows a bitmap produced for `key`. */
-	matches(id: string, key: string): boolean;
-	/**
-	 * Remember `url` for `id` at `key`. The returned blob URLs are no longer
-	 * referenced by the cache; the caller revokes them after the replacement
-	 * has painted.
-	 */
-	store(id: string, url: string, key: string): string[];
-};
+type Slot = { entry: Entry; release: () => void };
 
+/** LRU for reusable base coats. Mounted images keep an independent lease. */
 export function createPageBitmapCache(
 	limit = DEFAULT_PAGE_BITMAP_LIMIT,
-): PageBitmapCache {
+	byteLimit = DEFAULT_PAGE_BITMAP_BYTES,
+) {
 	const slots = new Map<string, Slot>();
+	const scopeIds = new WeakMap<object, number>();
+	let nextScopeId = 0;
+	let bytes = 0;
 
-	function touch(id: string, slot: Slot) {
-		slots.delete(id);
-		slots.set(id, slot);
+	function idFor(scope: object, documentId: string, pageIndex: number): string {
+		let scopeId = scopeIds.get(scope);
+		if (scopeId === undefined) {
+			scopeId = ++nextScopeId;
+			scopeIds.set(scope, scopeId);
+		}
+		return `${scopeId}:${documentId}:${pageIndex}`;
 	}
 
-	function evict(): string[] {
-		const dropped: string[] = [];
-		for (const [id, slot] of slots) {
-			if (slots.size <= limit) break;
-			if (slot.pins > 0 || !slot.url) continue;
-			slots.delete(id);
-			dropped.push(slot.url);
-		}
-		return dropped;
+	function remove(id: string, slot: Slot): void {
+		slots.delete(id);
+		bytes -= slot.entry.bitmap.size;
+		slot.release();
 	}
 
 	return {
-		retain(id) {
-			const existing = slots.get(id);
-			if (!existing) {
-				slots.set(id, { url: "", pins: 1, key: "" });
-				return null;
-			}
-			existing.pins += 1;
-			touch(id, existing);
-			return existing.url || null;
-		},
-		release(id) {
+		get(scope: object, documentId: string, pageIndex: number) {
+			const id = idFor(scope, documentId, pageIndex);
 			const slot = slots.get(id);
-			if (!slot) return;
-			slot.pins = Math.max(0, slot.pins - 1);
-			if (slot.pins === 0 && !slot.url) slots.delete(id);
+			if (!slot) return undefined;
+			slots.delete(id);
+			slots.set(id, slot);
+			return slot.entry;
 		},
-		matches(id, key) {
-			const slot = slots.get(id);
-			return Boolean(slot?.url && slot.key === key);
-		},
-		store(id, url, key) {
-			const existing = slots.get(id);
-			const retired: string[] = [];
-			if (existing) {
-				if (existing.url && existing.url !== url) retired.push(existing.url);
-				existing.url = url;
-				existing.key = key;
-				touch(id, existing);
-			} else {
-				slots.set(id, { url, pins: 0, key });
+		store(entry: Entry, pageIndex: number): void {
+			if (entry.bitmap.size > byteLimit) return;
+			const id = idFor(entry.scope, entry.documentId, pageIndex);
+			const { release } = entry.bitmap.retain();
+			const previous = slots.get(id);
+			if (previous) remove(id, previous);
+			slots.set(id, { entry, release });
+			bytes += entry.bitmap.size;
+			for (const [oldId, oldest] of slots) {
+				if (slots.size <= limit && bytes <= byteLimit) break;
+				remove(oldId, oldest);
 			}
-			retired.push(...evict());
-			return retired;
+		},
+		clear(scope: object, documentId?: string): void {
+			for (const [id, slot] of slots) {
+				if (
+					slot.entry.scope === scope &&
+					(documentId === undefined || slot.entry.documentId === documentId)
+				) {
+					remove(id, slot);
+				}
+			}
 		},
 	};
 }
