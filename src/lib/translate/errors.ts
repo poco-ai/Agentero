@@ -3,6 +3,7 @@ import {
 	ERR_TRANSLATE_EXTRA_INVALID,
 	ERR_TRANSLATE_EXTRA_RESERVED,
 	ERR_TRANSLATE_INCOMPLETE,
+	ERR_TRANSLATE_INDEX_PROMPT_ECHO,
 	ERR_TRANSLATE_NO_BUILTIN_KEY,
 	ERR_TRANSLATE_TERMINOLOGY,
 	ERR_TRANSLATE_TIMEOUT,
@@ -92,6 +93,8 @@ export function displayTranslateError(error: string): string {
 		return i18n.t("settings:translate.errors.timeout");
 	if (isTranslateIncomplete(error))
 		return i18n.t("settings:translate.errors.incomplete");
+	if (error.includes(ERR_TRANSLATE_INDEX_PROMPT_ECHO))
+		return i18n.t("settings:translate.errors.indexPromptEcho");
 	// A dead endpoint surfaces as a reqwest/TLS string users cannot act on.
 	if (isTranslateTransportError(error))
 		return i18n.t("settings:translate.errors.unreachable");

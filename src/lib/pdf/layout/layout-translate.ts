@@ -10,6 +10,11 @@ import { errorText } from "@/lib/core/error";
 import { callApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
+import {
+	ERR_TRANSLATE_INDEX_PROMPT_ECHO,
+	isIndexPromptEchoError,
+	translationContainsIndexPromptEcho,
+} from "@/lib/pdf/layout/index-translate-echo";
 import { parseBbox } from "@/lib/pdf/layout/layout-index";
 import {
 	draftChainSentences,
@@ -422,13 +427,18 @@ export function parseLayoutTranslateSidecar(
 		serviceKey === expectedKey?.legacyServiceKey
 			? PREVIOUS_TERMINOLOGY_REVISION
 			: undefined;
-	const items = raw.items.map((value) => {
+	const parsed = raw.items.map((value) => {
 		const item = parseLayoutTranslateSidecarItem(value);
 		if (item && !item.terminologyRevision && legacyRevision)
 			item.terminologyRevision = legacyRevision;
 		return item;
 	});
-	if (items.some((item) => !item)) return null;
+	if (parsed.some((item) => !item)) return null;
+	// A prompt echo is one bad block, not a corrupt file. Drop it so the next
+	// run translates that block again and keeps every other cached block.
+	const items = (parsed as LayoutTranslateSidecarItem[]).filter(
+		(item) => !sidecarTranslationHasPromptEcho(item),
+	);
 	return {
 		schemaVersion: LAYOUT_TRANSLATE_SIDECAR_SCHEMA_VERSION,
 		source: {
@@ -439,8 +449,21 @@ export function parseLayoutTranslateSidecar(
 			targetLang,
 			serviceKey,
 		},
-		items: items as LayoutTranslateSidecarItem[],
+		items,
 	};
+}
+
+function sidecarTranslationHasPromptEcho(item: {
+	translated: string;
+	sentences?: readonly { translated: string; display?: string }[];
+}): boolean {
+	if (translationContainsIndexPromptEcho(item.translated)) return true;
+	return (item.sentences ?? []).some(
+		(sentence) =>
+			translationContainsIndexPromptEcho(sentence.translated) ||
+			(sentence.display != null &&
+				translationContainsIndexPromptEcho(sentence.display)),
+	);
 }
 
 export async function readLayoutTranslateSidecar(
@@ -466,6 +489,15 @@ export function applyLayoutTranslateSidecar(
 	return items.map((item) => {
 		const cached = byId.get(item.id);
 		if (!cached || cached.source !== item.source) return { ...item };
+		if (sidecarTranslationHasPromptEcho(cached)) {
+			return {
+				...item,
+				status: "pending" as const,
+				translated: undefined,
+				sentences: undefined,
+				error: undefined,
+			};
+		}
 		if (
 			item.reflow &&
 			!validReflowTranslation(item.reflow, cached.translated.trim())
@@ -579,7 +611,15 @@ export async function writeLayoutTranslateSidecar(
 ): Promise<void> {
 	if (!paperAbsPath) return;
 	const done = items
-		.filter((item) => item.status === "done" && item.translated?.trim())
+		.filter(
+			(item) =>
+				item.status === "done" &&
+				Boolean(item.translated?.trim()) &&
+				!sidecarTranslationHasPromptEcho({
+					translated: item.translated ?? "",
+					sentences: item.sentences,
+				}),
+		)
 		.map((item): LayoutTranslateSidecarItem => {
 			const written: LayoutTranslateSidecarItem = {
 				id: item.id,
@@ -1121,6 +1161,11 @@ export async function runLayoutRegionTranslate(options: {
 			}
 			transportFailures = 0;
 			if (!translated.trim()) throw new Error("Empty translation result");
+			// The Host strips an Index-Translate echo before returning. A reply
+			// that still contains the prompt is a failed block, not text to store.
+			if (translationContainsIndexPromptEcho(translated)) {
+				throw new Error(ERR_TRANSLATE_INDEX_PROMPT_ECHO);
+			}
 			parts.push(translated.trim());
 		}
 		return joinTranslatedDisplays(parts, targetLang);
@@ -1167,7 +1212,11 @@ export async function runLayoutRegionTranslate(options: {
 				segments = parseNumberedTranslation(result, batch.length);
 			} catch (error) {
 				if (signal?.aborted) return "";
-				if (batch.length === 1 || !isMissingTranslationResponse(error))
+				if (
+					batch.length === 1 ||
+					(!isMissingTranslationResponse(error) &&
+						!isIndexPromptEchoError(error))
+				)
 					throw error;
 			}
 			for (const [index, part] of batch.entries()) {
@@ -1357,7 +1406,10 @@ export async function runLayoutRegionTranslate(options: {
 				pageOf(batch[0] as SentenceUnit),
 			);
 		} catch (error) {
-			if (!batch.some((unit) => canRecoverProtectedResponse(unit, error)))
+			if (
+				!isIndexPromptEchoError(error) &&
+				!batch.some((unit) => canRecoverProtectedResponse(unit, error))
+			)
 				throw error;
 			await translateIndividually(batch);
 			return;

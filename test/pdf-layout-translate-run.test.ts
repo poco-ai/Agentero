@@ -228,6 +228,53 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		expect(out[0]?.translated).toContain("ends here.");
 	});
 
+	it("leaves a prompt echo untranslated instead of storing it", async () => {
+		runTranslate.mockResolvedValue(
+			"噪声功率可估计为 【约束要求】 只输出译文，不要有任何额外说明。",
+		);
+		const [out] = await runLayoutRegionTranslate({
+			items: [item("a", "We can estimate the noise power as", 0)],
+			onUpdate: () => {},
+		});
+		expect(out).toMatchObject({
+			status: "error",
+			translated: undefined,
+			sentences: undefined,
+		});
+		expect(out?.error).toContain("translate.index_prompt_echo");
+		expect(runTranslate).toHaveBeenCalledTimes(1);
+	});
+
+	it("translates each paragraph when a numbered reply echoes the prompt", async () => {
+		runTranslate
+			.mockResolvedValueOnce("[[1]] 甲\n\n【约束要求】\n只输出译文")
+			.mockResolvedValueOnce("第一段。")
+			.mockResolvedValueOnce("第二段。");
+		const out = await runLayoutRegionTranslate({
+			items: [
+				item("a", "First standalone paragraph.", 0),
+				item("b", "Second standalone paragraph.", 0),
+			],
+			onUpdate: () => {},
+		});
+		expect(runTranslate).toHaveBeenCalledTimes(3);
+		expect(out.map((entry) => entry.status)).toEqual(["done", "done"]);
+		expect(out.map((entry) => entry.translated)).toEqual([
+			"第一段。",
+			"第二段。",
+		]);
+	});
+
+	it("does not repeat a prompt-echo failure on the public retry path", async () => {
+		runTranslate.mockResolvedValue("【源文】\nWe can estimate\n\n只输出译文");
+		const [out] = await runPublicLayoutTranslate({
+			items: [item("a", "We can estimate the noise power as", 0)],
+			onUpdate: () => {},
+		});
+		expect(runTranslate).toHaveBeenCalledTimes(1);
+		expect(out).toMatchObject({ status: "error", translated: undefined });
+	});
+
 	it("sends a cross-page paragraph as one request and splits the result back", async () => {
 		runTranslate.mockResolvedValue("智能体查询环境。随后它更新自己的策略。");
 		const items = [

@@ -18,6 +18,7 @@ import {
 	type LayoutTranslateCacheKey,
 	type LayoutTranslateItem,
 	type LayoutTranslateItemStatus,
+	type LayoutTranslateSidecar,
 	layoutRegionSourceText,
 	layoutTranslatePendingPageRange,
 	listTranslatableLayoutRegions,
@@ -1244,6 +1245,119 @@ describe("layout translate sidecar cache", () => {
 		]);
 		const applied = applyLayoutTranslateSidecar([item("a")], sidecar);
 		expect(applied[0]?.sentences).toEqual(sidecar?.items[0]?.sentences);
+	});
+
+	it("drops an echoed block and keeps the rest of the sidecar", () => {
+		const echo =
+			"噪声功率可估计为\n\n【约束要求】\n只输出译文，不要有任何额外说明。";
+		const sidecar = parseLayoutTranslateSidecar(
+			{
+				schemaVersion: 2,
+				source: {
+					mode: "pdf-layout-translate",
+					generatedAt: "2026-08-10T00:00:00.000Z",
+					providerId: "tencenttransmart",
+					sourceLang: "auto",
+					targetLang: "zh-CN",
+					serviceKey: "tencenttransmart",
+				},
+				items: [
+					{
+						id: "a",
+						pageIndex: 0,
+						bbox: { x: 0.1, y: 0.1, w: 0.5, h: 0.05 },
+						kind: "text",
+						readingOrder: 0,
+						source: "source a",
+						translated: "甲",
+					},
+					{
+						id: "b",
+						pageIndex: 0,
+						bbox: { x: 0.1, y: 0.2, w: 0.5, h: 0.05 },
+						kind: "text",
+						readingOrder: 1,
+						source: "source b",
+						translated: echo,
+					},
+					{
+						id: "c",
+						pageIndex: 0,
+						bbox: { x: 0.1, y: 0.3, w: 0.5, h: 0.05 },
+						kind: "text",
+						readingOrder: 2,
+						source: "source c",
+						translated: "丙",
+						sentences: [
+							{
+								quote: "Hello.",
+								source: "Hello.",
+								translated: "你好【源文】Hello",
+							},
+						],
+					},
+				],
+			},
+			key,
+		);
+		expect(sidecar?.items.map((item) => item.id)).toEqual(["a"]);
+		const applied = applyLayoutTranslateSidecar(
+			[item("a"), item("b"), item("c")],
+			sidecar,
+		);
+		expect(applied[0]).toMatchObject({ status: "done", translated: "甲" });
+		expect(applied[1]?.status).toBe("pending");
+		expect(applied[1]?.translated).toBeUndefined();
+		expect(applied[2]?.status).toBe("pending");
+		expect(applied[2]?.translated).toBeUndefined();
+		const echoed: LayoutTranslateSidecar = {
+			schemaVersion: 2,
+			source: {
+				mode: "pdf-layout-translate",
+				generatedAt: "",
+				providerId: "tencenttransmart",
+				sourceLang: "auto",
+				targetLang: "zh-CN",
+				serviceKey: "tencenttransmart",
+			},
+			items: [
+				{
+					id: "b",
+					pageIndex: 0,
+					bbox: { x: 0.1, y: 0.2, w: 0.5, h: 0.05 },
+					kind: "text",
+					readingOrder: 1,
+					source: "source b",
+					translated: echo,
+				},
+			],
+		};
+		const direct = applyLayoutTranslateSidecar([item("b")], echoed);
+		expect(direct[0]?.status).toBe("pending");
+		expect(direct[0]?.translated).toBeUndefined();
+		expect(direct[0]?.sentences).toBeUndefined();
+		const hydration = hydrateLayoutTranslateItems(
+			[item("a"), item("b"), item("c")],
+			sidecar,
+		);
+		expect(hydration.fromCache).toBe(true);
+		expect(hydration.pendingRequired).toBe(2);
+	});
+
+	it("does not write a prompt echo back into the sidecar", async () => {
+		const vault = await import("@/lib/vault");
+		vi.mocked(vault.writeVaultFile).mockReset();
+		await writeLayoutTranslateSidecar("/paper", key, [
+			{ ...item("a"), status: "done", translated: "甲" },
+			{
+				...item("b"),
+				status: "done",
+				translated: "乙\n\n【约束要求】\n只输出译文",
+			},
+		]);
+		const body = vi.mocked(vault.writeVaultFile).mock.calls[0]?.[1] as string;
+		const parsed = JSON.parse(body) as { items: { id: string }[] };
+		expect(parsed.items.map((entry) => entry.id)).toEqual(["a"]);
 	});
 
 	it("writes schema 2 and omits display when it equals the sentence", async () => {

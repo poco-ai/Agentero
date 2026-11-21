@@ -56,6 +56,36 @@ describe("parseAnnotationTranslateSidecar", () => {
 			parseAnnotationTranslateSidecar({ schemaVersion: 3, items: [] }),
 		).toBe(null);
 	});
+
+	it("drops a block whose translation echoes the Index-Translate prompt", () => {
+		const parsed = parseAnnotationTranslateSidecar({
+			schemaVersion: 2,
+			source: { targetLang: "zh-CN" },
+			items: [
+				{
+					source: "We can estimate the noise power as",
+					translated:
+						"噪声功率可估计为\n\n【约束要求】\n只输出译文，不要有任何额外说明。",
+				},
+				{ source: "Beta follows.", translated: "乙。" },
+			],
+		});
+		expect(parsed?.items).toEqual([
+			{ source: "Beta follows.", translated: "乙。" },
+		]);
+		expect(
+			annotationTranslationForQuote({
+				sidecar: parsed,
+				quote: "We can estimate the noise power as",
+			}),
+		).toBeNull();
+		expect(
+			annotationTranslationForQuote({
+				sidecar: parsed,
+				quote: "Beta follows.",
+			}),
+		).toBe("乙。");
+	});
 });
 
 describe("annotationTranslationForQuote", () => {

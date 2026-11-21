@@ -4,6 +4,7 @@
  * source text, styles and sentence anchors.
  */
 import { errorText } from "@/lib/core/error";
+import { isIndexPromptEchoError } from "@/lib/pdf/layout/index-translate-echo";
 import { runLayoutRegionTranslate as runCoreLayoutRegionTranslate } from "@/lib/pdf/layout/layout-translate";
 import { splitTranslationChunks } from "@/lib/pdf/layout/translation-chunks";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
@@ -146,8 +147,14 @@ export async function runLayoutRegionTranslate(options: {
 		// Every block failed without the endpoint answering once: skip the
 		// retry rounds rather than replay the same doomed requests.
 		if (providerUnreachable(items)) break;
+		// A prompt echo already had its one retry on the stronger Index-Translate
+		// tier inside that request. Repeating the same block here would only
+		// spend another timeout on a reply that still fails validation.
 		const failed = items
-			.filter((item) => item.status === "error")
+			.filter(
+				(item) =>
+					item.status === "error" && !isIndexPromptEchoError(item.error),
+			)
 			.map((item) => ({
 				...item,
 				status: "pending" as const,

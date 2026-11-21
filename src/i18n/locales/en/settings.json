@@ -616,7 +616,8 @@
 			"timeout": "Translation timed out because the service stopped sending output. Retry this block.",
 			"incomplete": "The translation was cut off before it finished. Retry this block.",
 			"upstream": "The translation service returned an error: {{detail}}",
-			"terminology": "This service could not preserve the terminology. Choose another translation service and retry."
+			"terminology": "This service could not preserve the terminology. Choose another translation service and retry.",
+			"indexPromptEcho": "The translation included the prompt. The original text was kept for that passage."
 		},
 		"targetLang": {
 			"label": "Target language",

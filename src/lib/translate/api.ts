@@ -13,6 +13,7 @@ export const ERR_TRANSLATE_EXTRA_RESERVED =
 export const ERR_TRANSLATE_TIMEOUT = "translate.timeout";
 /** Model stopped on length or a content filter. The text is unfinished. */
 export const ERR_TRANSLATE_INCOMPLETE = "translate.incomplete";
+export const ERR_TRANSLATE_INDEX_PROMPT_ECHO = "translate.index_prompt_echo";
 
 /**
  * Host MT command via the generated typed binding (tauri-specta pilot).
@@ -88,7 +89,8 @@ export async function invokeTranslateText(args: {
 				code === ERR_TRANSLATE_EXTRA_INVALID ||
 				code === ERR_TRANSLATE_EXTRA_RESERVED ||
 				code === ERR_TRANSLATE_TIMEOUT ||
-				code === ERR_TRANSLATE_INCOMPLETE
+				code === ERR_TRANSLATE_INCOMPLETE ||
+				code === ERR_TRANSLATE_INDEX_PROMPT_ECHO
 				? code
 				: (res.error?.message ?? "translate failed"),
 		);
