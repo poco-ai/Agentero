@@ -282,7 +282,7 @@ export type BibliographyEntry = {
 
 function bibliographyArxivId(raw: string): string | null {
 	const markers =
-		/(?:^|[\s([{])(?:https?:\/\/arxiv\.org\/(?:abs|pdf|html)\/|arxiv:)\s*([^\s<>\])}?#]+)/gi;
+		/(?:^|[\s([{])(?:https?:\/\/arxiv\.org\/(?:abs|pdf|html)\/|arxiv:|CoRR,\s*abs\/)\s*([^\s<>\])}?#]+)/gi;
 	for (const match of raw.matchAll(markers)) {
 		const id = normalizeArxivId(match[1].replace(/[.,;:]+$/, ""));
 		if (id) return id;
