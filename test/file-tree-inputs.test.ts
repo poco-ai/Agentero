@@ -235,6 +235,78 @@ describe.each<Mode>([
 	});
 });
 
+it("accepts Escape after a rename confirmation fails", async () => {
+	const { input, onConfirm, onCancel } = await mount("rename");
+	onConfirm.mockRejectedValueOnce(new Error("busy"));
+	await type(input, "new-name");
+	await key(input, "Enter");
+	await act(async () => {
+		await Promise.resolve();
+	});
+	await key(input, "Escape");
+	expect(onCancel).toHaveBeenCalledOnce();
+	expect(onConfirm).toHaveBeenCalledOnce();
+});
+
+it("submits a rename again after the previous confirmation fails", async () => {
+	const { input, onConfirm } = await mount("rename");
+	onConfirm.mockRejectedValueOnce(new Error("busy"));
+	await type(input, "new-name");
+	await key(input, "Enter");
+	await act(async () => {
+		await Promise.resolve();
+	});
+	await key(input, "Enter");
+	expect(onConfirm).toHaveBeenCalledTimes(2);
+	expect(onConfirm).toHaveBeenLastCalledWith("new-name");
+});
+
+it("commits on blur again after a rename confirmation fails", async () => {
+	const { input, onConfirm } = await mount("rename");
+	onConfirm.mockRejectedValueOnce(new Error("busy"));
+	await type(input, "new-name");
+	await key(input, "Enter");
+	await act(async () => {
+		await Promise.resolve();
+	});
+	await act(() => {
+		input.blur();
+	});
+	await finishGrace();
+	expect(onConfirm).toHaveBeenCalledTimes(2);
+	expect(onConfirm).toHaveBeenLastCalledWith("new-name");
+});
+
+it("does not confirm a failed rename again when the field unmounts", async () => {
+	const onConfirm = vi.fn();
+	function Fixture() {
+		const [open, setOpen] = useState(true);
+		if (!open) return null;
+		return createElement(TreeRenameInput, {
+			initialName: "old.md",
+			icon: null,
+			onConfirm: (name) => {
+				setOpen(false);
+				onConfirm(name);
+				return Promise.reject(new Error("busy"));
+			},
+			onCancel: () => {},
+		});
+	}
+	await act(() => {
+		root.render(createElement(Fixture));
+	});
+	const input = document.querySelector("input");
+	if (!(input instanceof HTMLInputElement)) {
+		throw new Error("Missing name input");
+	}
+	await type(input, "new-name");
+	await key(input, "Enter");
+	await finishGrace();
+	expect(onConfirm).toHaveBeenCalledOnce();
+	expect(document.querySelector("input")).toBeNull();
+});
+
 it("preserves initial selection and unchanged-name behavior", async () => {
 	const { input, onConfirm, onCancel } = await mount("rename");
 	expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);

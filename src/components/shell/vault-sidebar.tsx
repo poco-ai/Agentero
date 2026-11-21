@@ -121,7 +121,7 @@ const onMigrateZotero = () => setZoteroOpen(true);
 const onSyncZotero = () => setZoteroSyncOpen(true);
 const onConfirmCreate = (name: string) => void confirmCreate(name);
 const onConfirmRename = (path: string, name: string) =>
-	void confirmRenamePath(path, name);
+	confirmRenamePath(path, name);
 const onCancelRename = () => cancelRenamePath();
 const onDeletePath = (path: string) => void trashPathsAndNotify([path]);
 const onDeletePaths = (paths: string[]) => void trashPathsAndNotify(paths);
