@@ -36,6 +36,7 @@ import {
 	openInChatGPT,
 	openInClaude,
 } from "@/components/agent/open-in-chat";
+import { UserMessageResponse } from "@/components/agent/rendering/user-message-response";
 import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
@@ -467,6 +468,8 @@ export function AskPopover({
 							);
 						}
 						const from = m.role === "user" ? "user" : "assistant";
+						const Response =
+							from === "user" ? UserMessageResponse : MessageResponse;
 						const isEmptyAssistant =
 							from === "assistant" && !m.content.trim() && streaming;
 
@@ -547,7 +550,7 @@ export function AskPopover({
 									) : m.content.trim() ? (
 										// Avoid live markdown reflow thrash while streaming;
 										// animate only the latest assistant turn.
-										<MessageResponse
+										<Response
 											className="[&_.katex]:inline-block [&_.katex]:max-w-full [&_.katex]:overflow-x-auto [&_.katex]:overflow-y-hidden [&_.katex]:align-middle"
 											isAnimating={
 												streaming &&
@@ -557,7 +560,7 @@ export function AskPopover({
 											enableOpenUiBlocks={from === "assistant"}
 										>
 											{m.content}
-										</MessageResponse>
+										</Response>
 									) : null}
 									{from === "assistant" && m.sources?.length ? (
 										<ContextSourceLinks

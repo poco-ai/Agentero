@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Node 24 + gh; no project dependencies required. See docs/test/release.md.
+// Node 24 + gh; no project dependencies required.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";

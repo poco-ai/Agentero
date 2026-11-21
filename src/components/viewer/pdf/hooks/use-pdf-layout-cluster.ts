@@ -127,7 +127,6 @@ export function usePdfLayoutCluster({
 		if (isRemotePaper || plainViewer) return;
 		startLayoutAnalysisRef.current({
 			force: false,
-			openFigures: true,
 			showOverlay: true,
 			asBackgroundTask: true,
 			notifyOnError: true,
@@ -194,6 +193,9 @@ export function usePdfLayoutCluster({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		ensureLayoutTranslate,
+		showLayoutTranslate,
+		cancelLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
 	} = usePdfLayoutTranslate({
@@ -242,6 +244,9 @@ export function usePdfLayoutCluster({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		ensureLayoutTranslate,
+		showLayoutTranslate,
+		cancelLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
 	};

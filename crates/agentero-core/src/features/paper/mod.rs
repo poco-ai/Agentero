@@ -7,6 +7,7 @@ pub mod catalog;
 pub mod discovery;
 pub mod identity;
 pub mod import;
+pub mod notes;
 pub mod scholar_api;
 pub mod source;
 pub(crate) mod util;

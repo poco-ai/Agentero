@@ -22,6 +22,7 @@ import {
 	useWindowVaultHold,
 	vaultPathsMatch,
 } from "@/hooks/use-window-vault-hold";
+import { useWorkspaceCli } from "@/hooks/use-workspace-cli";
 import { isMacOS } from "@/lib/core/tauri";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { refreshLibrary } from "@/lib/paper/library-store";
@@ -100,6 +101,7 @@ export function DocWindowRoot() {
 	const readyRef = useRef(false);
 	const errorRef = useRef<string | null>(null);
 	tabRef.current = tab;
+	useWorkspaceCli(tabRef);
 	readyRef.current = ready;
 	errorRef.current = error;
 	useNativeSelectAllGuard();

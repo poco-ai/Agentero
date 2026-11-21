@@ -475,6 +475,26 @@ pub enum PaperRefLookup {
     NotFound,
 }
 
+pub fn resolve_paper(vault: &Path, ref_: &str) -> Result<PaperRecord, AppError> {
+    let reference = ref_.trim();
+    match lookup_paper_ref(vault, reference)? {
+        PaperRefLookup::Found(record) => Ok(*record),
+        PaperRefLookup::NotFound => Err(AppError::domain(
+            "source_not_found",
+            format!("paper not found: {reference}"),
+        )),
+        PaperRefLookup::Ambiguous(paths) => Err(AppError::domain(
+            "paper_ambiguous",
+            format!(
+                "paper id '{reference}' is ambiguous ({} matches): {}",
+                paths.len(),
+                paths.join(", ")
+            ),
+        )
+        .with_details(serde_json::json!({"candidates":paths}))),
+    }
+}
+
 /// Whether `reference` should be treated as a vault-relative path rather than
 /// a logical paper id.
 pub fn looks_like_path(reference: &str) -> bool {
@@ -1318,12 +1338,31 @@ pub fn update_meta(
     path: &str,
     patch: &PaperMetaPatch,
 ) -> Result<PaperRecord, AppError> {
+    update_meta_checked(vault_root, path, patch, None, None, |_| Ok(()))
+}
+
+/// Check the caller's expected record inside the same write transaction as all edits.
+pub fn update_meta_checked(
+    vault_root: &Path,
+    path: &str,
+    patch: &PaperMetaPatch,
+    is_read: Option<bool>,
+    status: Option<&str>,
+    check: impl FnOnce(&PaperRecord) -> Result<(), AppError>,
+) -> Result<PaperRecord, AppError> {
     let mut old_title = String::new();
     let mut title_changed = false;
     let updated = mutate_paper_inner(
         vault_root,
         path,
         |row| {
+            check(row)?;
+            if let Some(is_read) = is_read {
+                row.is_read = is_read;
+            }
+            if let Some(status) = status {
+                row.status = status.trim().to_owned();
+            }
             fn norm(value: &str) -> Option<String> {
                 let trimmed = value.trim();
                 (!trimmed.is_empty()).then(|| trimmed.to_string())
@@ -1457,7 +1496,17 @@ pub fn set_user_tags(
     path: &str,
     tags: &[PaperTag],
 ) -> Result<PaperRecord, AppError> {
+    set_user_tags_checked(vault_root, path, tags, |_| Ok(()))
+}
+
+pub fn set_user_tags_checked(
+    vault_root: &Path,
+    path: &str,
+    tags: &[PaperTag],
+    check: impl FnOnce(&PaperRecord) -> Result<(), AppError>,
+) -> Result<PaperRecord, AppError> {
     mutate_paper(vault_root, path, |row| {
+        check(row)?;
         let mut next: Vec<PaperTag> = row
             .tags
             .iter()

@@ -160,10 +160,15 @@ pub struct AppSettings {
     pub mcp_enabled: bool,
     #[serde(default = "default_mcp_port")]
     pub mcp_port: u16,
-    /// Opt-in: expose paper full text (`paper_text_get`) through the MCP
-    /// server. Default off — external clients only see metadata and NOTES.
+    /// Allow external MCP clients to read complete paper text.
     #[serde(default)]
     pub mcp_expose_paper_text: bool,
+    /// Allow external MCP clients to modify the Vault.
+    #[serde(default)]
+    pub mcp_allow_write: bool,
+    /// Allow external MCP clients to use operations that contact online services.
+    #[serde(default)]
+    pub mcp_allow_online: bool,
     /// OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex) for the built-in
     /// `tunnel-client` supervisor. Empty = never configured.
     #[serde(default)]
@@ -385,13 +390,6 @@ pub struct TranslateSettings {
     pub provider_configs: HashMap<String, TranslateProviderConfig>,
     #[serde(default)]
     pub auto_translate_selection: bool,
-    /// Deprecated: kept for migration. Use `display_mode` + `dual_pane_source`.
-    #[serde(default)]
-    pub dual_pane_translate: bool,
-    #[serde(default = "default_translate_display_mode")]
-    pub display_mode: String,
-    #[serde(default = "default_translate_dual_pane_source")]
-    pub dual_pane_source: String,
     #[serde(default)]
     pub agent_id: String,
     #[serde(default)]
@@ -423,11 +421,11 @@ pub struct TranslateSettings {
     /// Seeded into the JobCenter `LayoutTranslate` cap (1–5, default 1).
     #[serde(default = "default_auto_translate_import_concurrency")]
     pub auto_translate_import_concurrency: u32,
-    /// Close the selection translation result on a click elsewhere on the page
-    /// (default off, matching the long-standing "card stays open" behavior).
+    /// Keep the selection translation result card open after a click elsewhere
+    /// on the page (default off: a completed click outside the card closes it).
     /// Scrolling, page turns and viewer toolbars never close it.
     #[serde(default)]
-    pub dismiss_selection_on_outside_click: bool,
+    pub always_show_translate_card: bool,
 }
 
 impl Default for TranslateSettings {
@@ -439,9 +437,6 @@ impl Default for TranslateSettings {
             source_lang: default_translate_source(),
             provider_configs: HashMap::new(),
             auto_translate_selection: false,
-            dual_pane_translate: false,
-            display_mode: default_translate_display_mode(),
-            dual_pane_source: default_translate_dual_pane_source(),
             agent_id: String::new(),
             model_id: String::new(),
             custom_prompt: String::new(),
@@ -451,7 +446,7 @@ impl Default for TranslateSettings {
             cache_reflow_final: false,
             auto_translate_import: false,
             auto_translate_import_concurrency: default_auto_translate_import_concurrency(),
-            dismiss_selection_on_outside_click: false,
+            always_show_translate_card: false,
         }
     }
 }
@@ -589,6 +584,8 @@ impl Default for AppSettings {
             connector_port: default_connector_port(),
             mcp_enabled: false,
             mcp_expose_paper_text: false,
+            mcp_allow_write: false,
+            mcp_allow_online: false,
             mcp_port: default_mcp_port(),
             mcp_tunnel_id: String::new(),
             mcp_tunnel_api_key: String::new(),
@@ -755,12 +752,6 @@ fn default_translate_target() -> String {
 fn default_translate_source() -> String {
     "auto".into()
 }
-fn default_translate_display_mode() -> String {
-    "overlay".into()
-}
-fn default_translate_dual_pane_source() -> String {
-    "pdf".into()
-}
 /// Layout analysis stays on the bundled offline PP-DocLayoutV3 model: it is
 /// free, local, and a cloud backend would bill every PDF for no gain. The
 /// built-in provider is a *parser* (body-text) backend only.
@@ -844,6 +835,17 @@ impl AppSettingsStore {
 
     pub fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    pub(crate) fn mcp_permissions(&self) -> agentero_mcp::Permissions {
+        self.inner
+            .lock()
+            .map(|settings| agentero_mcp::Permissions {
+                write: settings.mcp_allow_write,
+                online: settings.mcp_allow_online,
+                full_text: settings.mcp_expose_paper_text,
+            })
+            .unwrap_or_default()
     }
 
     pub fn get(&self) -> Result<SettingsGetResult, AppError> {

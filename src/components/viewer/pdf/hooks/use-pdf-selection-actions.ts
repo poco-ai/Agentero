@@ -13,11 +13,12 @@ import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
  */
 
 import type { FormattedSelection } from "@embedpdf/plugin-selection/react";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { addSelectionToChat } from "@/components/selection/add-selection-to-chat";
 import { useSelectionQuickChat } from "@/components/selection/use-selection-quick-chat";
 import type { SelectionMenuState } from "@/components/viewer/pdf/types";
+import { registerSelectionAddToChat } from "@/lib/agent/selection-quick-chat";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import type { PdfAskAnchor } from "@/lib/pdf/ask/types";
 import {
@@ -71,7 +72,7 @@ export type PdfSelectionActions = {
 		comment: string,
 	) => void;
 	handleMenuAsk: () => void;
-	handleMenuAddToChat: () => void;
+	handleMenuAddToChat: () => boolean;
 	handleMenuTranslate: () => void;
 	/** Copies without a success toast. False when there is nothing to copy or the write fails. */
 	handleMenuCopy: () => Promise<boolean>;
@@ -166,12 +167,12 @@ export function usePdfSelectionActions({
 
 	const handleMenuAddToChat = useCallback(() => {
 		const menu = selectionMenuRef.current;
-		if (!menu) return;
+		if (!menu) return false;
 		const anchor = menu.anchor;
 		const quote = anchor.quote?.trim();
 		const paired = menu.pairedTranslation;
 		closeSelectionMenu();
-		if (!quote) return;
+		if (!quote) return false;
 		const regions =
 			layoutAnalysisStore.getState().byDocument[docId]?.regions ?? [];
 		const matches = regions.filter(
@@ -196,7 +197,13 @@ export function usePdfSelectionActions({
 			rects: anchor.rects,
 			paperAbsPath: paperAbsPath ?? undefined,
 		});
+		return true;
 	}, [closeSelectionMenu, docId, paperRelPath, paperAbsPath]);
+
+	useEffect(
+		() => registerSelectionAddToChat(handleMenuAddToChat),
+		[handleMenuAddToChat],
+	);
 
 	const handleMenuTranslate = useCallback(() => {
 		const menu = selectionMenuRef.current;

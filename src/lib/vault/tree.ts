@@ -78,7 +78,7 @@ const LAZY_PAPER_DIR_NAME = "source";
 
 /**
  * App-owned rebuildable sidecars written inside a paper's `source/` bucket
- * (reference sidecar + PDF layout sidecars, see `docs/backend/api.md`). They
+ * (reference sidecar and PDF layout sidecars). They
  * are never user content, so the tree blinds itself to them — mirrors the Host
  * rule in `crates/agentero-core/src/features/vault/tree.rs` (#747).
  */

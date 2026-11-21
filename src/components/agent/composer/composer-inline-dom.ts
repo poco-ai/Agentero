@@ -116,13 +116,14 @@ function appendLucideIcon(
 	chip: HTMLElement,
 	paths: string[],
 	className: string,
+	strokeWidth = 2,
 ) {
 	const ns = "http://www.w3.org/2000/svg";
 	const svg = document.createElementNS(ns, "svg");
 	svg.setAttribute("viewBox", "0 0 24 24");
 	svg.setAttribute("fill", "none");
 	svg.setAttribute("stroke", "currentColor");
-	svg.setAttribute("stroke-width", "2");
+	svg.setAttribute("stroke-width", String(strokeWidth));
 	svg.setAttribute("stroke-linecap", "round");
 	svg.setAttribute("stroke-linejoin", "round");
 	svg.setAttribute("class", className);
@@ -150,7 +151,11 @@ function appendSkillIcon(chip: HTMLElement) {
 	);
 }
 
-/** Lucide `quote` glyph for an inline selection / block reference. */
+/**
+ * Lucide `quote` glyph for an inline selection / block reference. Both marks
+ * are outlined, so it is drawn with the same lighter stroke as the React
+ * `QuoteIcon` to keep the chip from reading heavier than the rest of the row.
+ */
 function appendQuoteIcon(chip: HTMLElement) {
 	appendLucideIcon(
 		chip,
@@ -159,6 +164,20 @@ function appendQuoteIcon(chip: HTMLElement) {
 			"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z",
 		],
 		"size-3 shrink-0 text-muted-foreground",
+		1.8,
+	);
+}
+
+/** Lucide `triangle-alert` glyph for a build-log problem reference. */
+function appendWarningIcon(chip: HTMLElement) {
+	appendLucideIcon(
+		chip,
+		[
+			"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
+			"M12 9v4",
+			"M12 17h.01",
+		],
+		"size-3 shrink-0 text-destructive",
 	);
 }
 
@@ -724,7 +743,8 @@ export function renderChip(
 			name;
 		const snippet = selectionReferenceSnippet(selection.text) || source;
 		const row = referenceRow(chip);
-		appendQuoteIcon(row);
+		if (selection.surface === "build-log") appendWarningIcon(row);
+		else appendQuoteIcon(row);
 		row.appendChild(referenceLabel(snippet));
 		chip.setAttribute("aria-label", snippet);
 	} else if (part.type === "visual") {

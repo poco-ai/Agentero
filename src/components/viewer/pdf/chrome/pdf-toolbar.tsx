@@ -1,23 +1,8 @@
 import type { PdfEngine } from "@embedpdf/models";
-import {
-	Check,
-	Download,
-	Highlighter,
-	Languages,
-	Library,
-	Loader2,
-	ScanSearch,
-	Square,
-} from "lucide-react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Highlighter, Library, Loader2 } from "lucide-react";
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
 	Tooltip,
 	TooltipContent,
@@ -25,31 +10,29 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
-import {
-	PDF_TRANSLATE_METER_PERCENT,
-	PDF_TRANSLATE_METER_STAGE,
-	PdfTranslateMeterBar,
-} from "@/components/viewer/pdf/chrome/pdf-translate-meter";
+import { PdfTranslateExportButton } from "@/components/viewer/pdf/chrome/pdf-translate-export-button";
+import { PdfTranslateMeterReadout } from "@/components/viewer/pdf/chrome/pdf-translate-meter";
 import { PdfTranslatePartialButton } from "@/components/viewer/pdf/chrome/pdf-translate-partial-button";
+import { PdfViewModeSwitch } from "@/components/viewer/pdf/chrome/pdf-view-mode-switch";
 import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
-import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { cn } from "@/lib/core/utils";
+import type { PdfViewMode } from "@/lib/pdf/view-mode";
 
 type PdfToolbarProps = {
 	onExportTranslatedPdf?: (dual?: boolean) => void;
-	elementSelecting: boolean;
-	elementSelectionAvailable: boolean;
 	engine: PdfEngine | null;
-	onToggleElementSelection: () => void;
 	layoutTranslateRunning: boolean;
 	/** Final corrected preview is still building after items settled. */
 	layoutTranslatePreparing?: boolean;
 	/** Queued behind layout analysis; plain click cancels the wait. */
 	layoutTranslateWaiting?: boolean;
 	layoutTranslateQueued?: boolean;
-	layoutTranslateActive: boolean;
-	layoutTranslateLabel: string;
+	/** Current reading view; dual means the translation pane is open beside. */
+	viewMode: PdfViewMode;
+	onSelectViewMode: (mode: PdfViewMode) => void;
+	/** False on surfaces without a workspace pane (inline embeds). */
+	canCompare?: boolean;
 	/** Partial-translation entry; hidden while the meter is running. */
 	layoutTranslatePartial?: PdfLayoutTranslatePartial | null;
 	/**
@@ -72,19 +55,17 @@ type PdfToolbarProps = {
 	importBusy?: boolean;
 };
 
-/** Top-right toolbar: element inspection and bulk translate. */
+/** Top-right toolbar: reading view switch, bulk translate and smart highlight. */
 export const PdfToolbar = memo(function PdfToolbar({
 	onExportTranslatedPdf,
-	elementSelecting,
-	elementSelectionAvailable,
 	engine,
-	onToggleElementSelection,
 	layoutTranslateRunning,
 	layoutTranslatePreparing = false,
 	layoutTranslateWaiting = false,
 	layoutTranslateQueued = false,
-	layoutTranslateActive,
-	layoutTranslateLabel,
+	viewMode,
+	onSelectViewMode,
+	canCompare = true,
 	layoutTranslatePartial = null,
 	layoutTranslateProgress = null,
 	layoutTranslatePageCounts = null,
@@ -96,93 +77,13 @@ export const PdfToolbar = memo(function PdfToolbar({
 	importBusy = false,
 }: PdfToolbarProps) {
 	const { t } = useTranslation("viewer");
-	const translateShortcut = useShortcutLabel("layoutTranslate");
-	const elementShortcut = useShortcutLabel("layoutElementSelection");
-
-	const LONG_PRESS_MS = 300;
-	const longPressTimerRef = useRef<number | null>(null);
-	const longPressTriggeredRef = useRef(false);
-	const suppressNextClickRef = useRef(false);
-	const [longPressing, setLongPressing] = useState(false);
-
-	const clearLongPressTimer = useCallback(() => {
-		if (longPressTimerRef.current != null) {
-			clearTimeout(longPressTimerRef.current);
-			longPressTimerRef.current = null;
-		}
-	}, []);
-
-	useEffect(() => clearLongPressTimer, [clearLongPressTimer]);
-
-	const handleTranslatePointerDown = useCallback(
-		(event: React.PointerEvent<HTMLButtonElement>) => {
-			if (event.button !== 0) return;
-			if (layoutTranslateActive || layoutTranslateRunning) return;
-			if (layoutTranslateWaiting) return;
-			setLongPressing(true);
-			longPressTriggeredRef.current = false;
-			suppressNextClickRef.current = false;
-			longPressTimerRef.current = window.setTimeout(() => {
-				longPressTriggeredRef.current = true;
-				suppressNextClickRef.current = true;
-				setLongPressing(true);
-				onToggleLayoutTranslate();
-			}, LONG_PRESS_MS);
-		},
-		[
-			layoutTranslateActive,
-			layoutTranslateRunning,
-			layoutTranslateWaiting,
-			onToggleLayoutTranslate,
-		],
-	);
-
-	const handleTranslatePointerUp = useCallback(
-		(event: React.PointerEvent<HTMLButtonElement>) => {
-			clearLongPressTimer();
-			setLongPressing(false);
-			if (event.button !== 0) return;
-			if (!longPressTriggeredRef.current) return;
-			longPressTriggeredRef.current = false;
-			if (layoutTranslateActive || layoutTranslateRunning) {
-				onToggleLayoutTranslate();
-			}
-		},
-		[
-			clearLongPressTimer,
-			layoutTranslateActive,
-			layoutTranslateRunning,
-			onToggleLayoutTranslate,
-		],
-	);
-
-	const handleTranslatePointerLeave = useCallback(() => {
-		clearLongPressTimer();
-		setLongPressing(false);
-		if (!longPressTriggeredRef.current) return;
-		longPressTriggeredRef.current = false;
-		suppressNextClickRef.current = true;
-		if (layoutTranslateActive || layoutTranslateRunning) {
-			onToggleLayoutTranslate();
-		}
-	}, [
-		clearLongPressTimer,
-		layoutTranslateActive,
-		layoutTranslateRunning,
-		onToggleLayoutTranslate,
-	]);
-
-	const handleTranslateClick = useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
-			if (suppressNextClickRef.current) {
-				event.preventDefault();
-				suppressNextClickRef.current = false;
-				return;
-			}
-			onToggleLayoutTranslate();
-		},
-		[onToggleLayoutTranslate],
-	);
+	// 原文 has no translation task, so none of its progress / failure / export
+	// surfaces belong there. They appear only in 译文 and 对照.
+	const translationView = viewMode !== "original";
+	// 对照 splits the translation pane out beside the reader, and that pane owns
+	// the job: its capsule shows the stage, the page count and the export menu.
+	// Keeping a second meter here restarted at 0% beside the pane's real one.
+	const jobChrome = translationView && viewMode !== "dual";
 
 	const translateMeter = useTranslateMeter({
 		layoutTranslateRunning,
@@ -193,7 +94,6 @@ export const PdfToolbar = memo(function PdfToolbar({
 		layoutTranslatePageCounts,
 	});
 	const {
-		busy: translateBusy,
 		open: meterOpen,
 		indeterminate: meterIndeterminate,
 		retracting: meterRetracting,
@@ -204,21 +104,21 @@ export const PdfToolbar = memo(function PdfToolbar({
 		width: smoothWidth,
 		lingerFull,
 	} = translateMeter;
-	const translateAriaLabel = translateBusy
-		? layoutTranslateWaiting
-			? t("pdf.layoutTranslate.waiting")
-			: t("pdf.layoutTranslate.stop")
-		: layoutTranslateLabel;
+	// The meter is the only task surface left in the toolbar: stop / cancel.
+	const translateAriaLabel = layoutTranslateWaiting
+		? t("pdf.layoutTranslate.waiting")
+		: t("pdf.layoutTranslate.stop");
+	const meterActive = meterOpen && jobChrome;
 	const asideClass = cn(
 		"grid min-w-0 transition-[grid-template-columns,opacity] duration-300 ease-out motion-reduce:transition-none",
-		meterOpen
+		meterActive
 			? "pointer-events-none grid-cols-[0fr] opacity-0"
 			: "grid-cols-[1fr] opacity-100",
 	);
 
 	return (
 		<div className="pointer-events-none absolute top-2 right-3 z-20 flex origin-top-right items-center gap-1">
-			{meterOpen ? (
+			{meterOpen && jobChrome ? (
 				<span
 					role="progressbar"
 					className="sr-only"
@@ -234,45 +134,21 @@ export const PdfToolbar = memo(function PdfToolbar({
 				<div
 					data-pdf-chrome
 					className={cn(
-						"pointer-events-auto flex h-7 select-none items-center rounded-lg p-0.5",
-						meterOpen ? "gap-0" : "gap-0.5",
+						"pointer-events-auto flex h-7 select-none items-center gap-0.5 rounded-lg p-0.5",
 						PDF_CHROME_CHIP,
 					)}
 				>
 					{/* Partial-translation warning sits first: it is a document-level
 					    state, so it stays put when the translate button expands. */}
-					{!isRemotePaper && layoutTranslatePartial?.visible ? (
+					{jobChrome && !isRemotePaper && layoutTranslatePartial?.visible ? (
 						<div className="shrink-0">
 							<PdfTranslatePartialButton partial={layoutTranslatePartial} />
 						</div>
 					) : null}
-					{onExportTranslatedPdf ? (
-						<div className={asideClass} inert={meterOpen}>
+					{jobChrome && onExportTranslatedPdf ? (
+						<div className={asideClass} inert={meterActive}>
 							<div className="min-w-0 overflow-hidden">
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button
-											type="button"
-											size="icon-xs"
-											variant="ghost"
-											aria-label={t("pdf.layoutTranslate.exportPdf")}
-										>
-											<Download className="size-3.5" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent>
-										<DropdownMenuItem
-											onSelect={() => onExportTranslatedPdf(false)}
-										>
-											{t("pdf.layoutTranslate.exportPdf")}
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onSelect={() => onExportTranslatedPdf(true)}
-										>
-											{t("pdf.layoutTranslate.exportDualPdf")}
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
+								<PdfTranslateExportButton onExport={onExportTranslatedPdf} />
 							</div>
 						</div>
 					) : null}
@@ -300,147 +176,54 @@ export const PdfToolbar = memo(function PdfToolbar({
 							</TooltipContent>
 						</Tooltip>
 					) : null}
-					{!isRemotePaper ? (
-						<div className={asideClass} inert={meterOpen}>
+					{jobChrome && !isRemotePaper ? (
+						/* Progress sits left of the view switch so the reader can still
+						   change views while the translation runs. The running surface is
+						   a readout, not a control: only the trailing square cancels. */
+						<div
+							data-translate-meter
+							inert={!meterOpen}
+							className={cn(
+								"grid min-w-0 shrink-0 transition-[grid-template-columns,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+								meterOpen
+									? "grid-cols-[1fr] opacity-100"
+									: "pointer-events-none grid-cols-[0fr] opacity-0",
+							)}
+						>
 							<div className="min-w-0 overflow-hidden">
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											type="button"
-											size="icon-xs"
-											variant={elementSelecting ? "secondary" : "ghost"}
-											className="shrink-0 self-center"
-											aria-label={t("figures.selectElements")}
-											aria-pressed={elementSelecting}
-											disabled={
-												!engine ||
-												(!elementSelectionAvailable && !elementSelecting)
-											}
-											onClick={onToggleElementSelection}
-										>
-											<ScanSearch className="size-3.5" aria-hidden />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side="bottom">
-										{!elementSelectionAvailable
-											? t("figures.selectionNeedsLayout")
-											: elementSelecting
-												? t("figures.exitElementSelection")
-												: t("figures.selectElements")}
-										<span className="ml-2 text-background/70">
-											{elementShortcut}
-										</span>
-									</TooltipContent>
-								</Tooltip>
+								{/* Stays mounted while collapsed so the grid track can
+								    animate both ways; `inert` keeps it untabbable. */}
+								<PdfTranslateMeterReadout
+									stage={meterStage}
+									pagesLabel={meterPagesLabel}
+									percent={meterPercent}
+									indeterminate={meterIndeterminate}
+									width={smoothWidth}
+									retracting={meterRetracting}
+									lingerFull={lingerFull}
+									showStop
+									stopLabel={translateAriaLabel}
+									onStop={onToggleLayoutTranslate}
+									stopDisabled={!engine}
+								/>
 							</div>
 						</div>
 					) : null}
 					{!isRemotePaper ? (
 						<div
 							data-full-text-translate
-							className={cn(
-								"relative flex h-6 shrink-0 items-center justify-end overflow-hidden transition-[width,border-radius,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-								meterOpen ? "w-44 rounded-lg" : "w-6",
-							)}
+							className="relative flex h-6 shrink-0 items-center"
 						>
-							{/* The running surface is a readout, not a control: only the
-							    trailing square cancels, so the expanded card is not a
-							    button and does not swallow clicks. */}
-							{meterOpen ? (
-								<>
-									<span className="pointer-events-none absolute inset-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150 motion-reduce:animate-none">
-										<span className="absolute top-0 right-7 bottom-[5px] left-2.5 flex items-center gap-2">
-											{/* String concat, not `cn`: tailwind-merge mistakes
-											    `text-caption` for a text color and drops it. */}
-											<span
-												aria-hidden
-												className={`min-w-0 flex-1 truncate ${PDF_TRANSLATE_METER_STAGE}`}
-											>
-												{meterStage}
-											</span>
-											{meterPagesLabel && !meterRetracting ? (
-												<span
-													aria-hidden
-													className={PDF_TRANSLATE_METER_PERCENT}
-												>
-													{meterPagesLabel}
-												</span>
-											) : null}
-											{!meterIndeterminate && !meterRetracting ? (
-												<span
-													aria-hidden
-													className={PDF_TRANSLATE_METER_PERCENT}
-												>
-													{meterPercent}%
-												</span>
-											) : null}
-										</span>
-										<PdfTranslateMeterBar
-											indeterminate={meterIndeterminate}
-											width={smoothWidth}
-										/>
-									</span>
-									{lingerFull ? (
-										<span className="pointer-events-none absolute top-0 right-0 flex size-6 items-center justify-center text-foreground/70">
-											<Check className="size-3.5" aria-hidden />
-										</span>
-									) : meterRetracting ? null : (
-										<Button
-											type="button"
-											size="icon-xs"
-											variant="ghost"
-											className="absolute top-0 right-0 size-6 text-foreground"
-											aria-label={translateAriaLabel}
-											title={translateAriaLabel}
-											disabled={!engine}
-											onClick={onToggleLayoutTranslate}
-										>
-											<Square
-												className="size-2.5 fill-current opacity-60"
-												aria-hidden
-											/>
-										</Button>
-									)}
-								</>
-							) : (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											type="button"
-											size="icon-xs"
-											variant={
-												layoutTranslateActive || longPressing
-													? "secondary"
-													: "ghost"
-											}
-											className="size-6"
-											aria-label={translateAriaLabel}
-											aria-pressed={
-												layoutTranslateActive || layoutTranslateWaiting
-											}
-											disabled={!engine}
-											onPointerDown={handleTranslatePointerDown}
-											onPointerUp={handleTranslatePointerUp}
-											onPointerLeave={handleTranslatePointerLeave}
-											onPointerCancel={handleTranslatePointerLeave}
-											onClick={handleTranslateClick}
-										>
-											<Languages className="size-3.5" aria-hidden />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side="bottom">
-										{translateAriaLabel}
-										{/* Inverted tooltip: mute via text-background, not muted-foreground. */}
-										<span className="ml-2 text-background/70">
-											{translateShortcut}
-										</span>
-									</TooltipContent>
-								</Tooltip>
-							)}
+							<PdfViewModeSwitch
+								mode={viewMode}
+								onSelect={onSelectViewMode}
+								disabled={!engine}
+								dualDisabled={!canCompare}
+							/>
 						</div>
 					) : null}
 					{!isRemotePaper && onSmartHighlight ? (
-						<div className={asideClass} inert={meterOpen}>
+						<div className={asideClass} inert={meterActive}>
 							<div className="min-w-0 overflow-hidden">
 								<Tooltip>
 									<TooltipTrigger asChild>

@@ -219,3 +219,19 @@ export function layoutTranslatePageStates(
 	}
 	return states;
 }
+
+/**
+ * Stage the in-page translate tab reports while a page is still working.
+ *
+ * `previewPending` means the page's text is translated and its translated page
+ * is still being generated (typeset); the tab separates that wait from the
+ * translation wait so a reader can tell what the remaining loading ring is for.
+ */
+export type LayoutTranslatePageStage = "translating" | "typesetting";
+
+export function layoutTranslatePageStage(
+	state: Pick<LayoutTranslatePageState, "running" | "previewPending">,
+): LayoutTranslatePageStage | null {
+	if (!state.running) return null;
+	return state.previewPending ? "typesetting" : "translating";
+}

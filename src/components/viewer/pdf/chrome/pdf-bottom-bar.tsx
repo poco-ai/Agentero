@@ -9,6 +9,7 @@ import type { RefObject } from "react";
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SiArxiv } from "react-icons/si";
+import { LayoutElementSelectIcon } from "@/components/icons/layout-element-select-icon";
 import { Button } from "@/components/ui/button";
 import {
 	Popover,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
 import { useSettings } from "@/hooks/use-app-stores";
+import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { cn } from "@/lib/core/utils";
 import {
 	PDF_PAPER_SWATCH_CLASS,
@@ -54,6 +56,14 @@ type PdfBottomBarProps = {
 	onZoomChange: (zoom: number) => void;
 	/** Fit the page width to the reading area. */
 	onFitWidth: () => void;
+	/**
+	 * Layout element selection. The host omits the toggle on surfaces that hide
+	 * the full PDF chrome (plain embeds, immersive reading, remote papers).
+	 */
+	elementSelecting?: boolean;
+	elementSelectionAvailable?: boolean;
+	elementSelectionDisabled?: boolean;
+	onToggleElementSelection?: () => void;
 	/** True for remote arXiv papers with no local sidecar. */
 	isRemotePaper?: boolean;
 	/** Immersive reading: show an exit control and drop the tone picker. */
@@ -62,7 +72,7 @@ type PdfBottomBarProps = {
 	presented?: boolean;
 };
 
-/** Bottom bar: page nav + zoom slider + PDF paper tone. */
+/** Bottom bar: page nav, zoom slider, paper tone and element selection. */
 export const PdfBottomBar = memo(function PdfBottomBar({
 	totalPages,
 	currentPage,
@@ -76,6 +86,10 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 	zoomLevel,
 	onZoomChange,
 	onFitWidth,
+	elementSelecting = false,
+	elementSelectionAvailable = false,
+	elementSelectionDisabled = false,
+	onToggleElementSelection,
 	isRemotePaper = false,
 	onExitImmersive,
 	presented = true,
@@ -195,7 +209,7 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 				) : null}
 				{pageFieldNode}
 				<span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border" />
-				<div className="flex shrink-0 items-center gap-1.5 px-1">
+				<div className="flex shrink-0 items-center gap-1.5 pl-1">
 					<input
 						type="range"
 						min={zoomMinPercent}
@@ -231,44 +245,43 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 						<TooltipContent side="top">{t("pdf.zoomFit")}</TooltipContent>
 					</Tooltip>
 				</div>
+				{/* Fit width, paper tone and element selection are one flat action
+				    group: no dividers between them and no per-button color, so they
+				    read as peers rather than as separate clusters. */}
 				{onExitImmersive ? (
-					<>
-						<span
-							aria-hidden
-							className="mx-0.5 h-3.5 w-px shrink-0 bg-border"
-						/>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									size="icon-xs"
-									variant="ghost"
-									aria-label={t("pdf.exitImmersive")}
-									onClick={onExitImmersive}
-								>
-									<X className="size-3.5" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="top">
-								{t("pdf.exitImmersive")}
-							</TooltipContent>
-						</Tooltip>
-					</>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								size="icon-xs"
+								variant="ghost"
+								aria-label={t("pdf.exitImmersive")}
+								onClick={onExitImmersive}
+							>
+								<X className="size-3.5" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="top">{t("pdf.exitImmersive")}</TooltipContent>
+					</Tooltip>
 				) : (
-					<>
-						<span
-							aria-hidden
-							className="mx-0.5 h-3.5 w-px shrink-0 bg-border"
-						/>
-						{tone}
-					</>
+					tone
 				)}
+				{onToggleElementSelection ? (
+					<ElementSelectionButton
+						selecting={elementSelecting}
+						available={elementSelectionAvailable}
+						disabled={elementSelectionDisabled}
+						onToggle={onToggleElementSelection}
+					/>
+				) : null}
 			</div>
 		</TooltipProvider>
 	);
 
 	return (
-		<div className="pointer-events-none absolute bottom-3 left-1/2 z-20 max-w-[calc(100%-1rem)] -translate-x-1/2">
+		// Below the left panels (z-20) on purpose: an open outline / references /
+		// figures rail covers the bar instead of reserving a bottom lane for it.
+		<div className="pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-1rem)] -translate-x-1/2">
 			{chrome}
 		</div>
 	);
@@ -303,7 +316,7 @@ function PdfPaperToneButton({
 							type="button"
 							size={size}
 							variant="ghost"
-							className="shrink-0 text-muted-foreground"
+							className="shrink-0"
 							aria-label={t("pdf.paperTone")}
 							title={t("pdf.paperTone")}
 						>
@@ -345,5 +358,52 @@ function PdfPaperToneButton({
 				})}
 			</PopoverContent>
 		</Popover>
+	);
+}
+
+/**
+ * Layout element selection lives at the far right of the bottom bar: it acts on
+ * the page surface above, not on the chrome cluster in the top-right corner.
+ */
+function ElementSelectionButton({
+	selecting,
+	available,
+	disabled,
+	onToggle,
+}: {
+	selecting: boolean;
+	available: boolean;
+	disabled: boolean;
+	onToggle: () => void;
+}) {
+	const { t } = useTranslation("viewer");
+	const shortcut = useShortcutLabel("layoutElementSelection");
+	const label = !available
+		? t("figures.selectionNeedsLayout")
+		: selecting
+			? t("figures.exitElementSelection")
+			: t("figures.selectElements");
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button
+					type="button"
+					size="icon-xs"
+					variant={selecting ? "secondary" : "ghost"}
+					className="shrink-0 self-center"
+					aria-label={t("figures.selectElements")}
+					aria-pressed={selecting}
+					disabled={disabled || (!available && !selecting)}
+					onClick={onToggle}
+				>
+					<LayoutElementSelectIcon className="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent side="top">
+				{label}
+				<span className="ml-2 text-background/70">{shortcut}</span>
+			</TooltipContent>
+		</Tooltip>
 	);
 }

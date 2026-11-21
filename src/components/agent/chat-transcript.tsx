@@ -71,6 +71,7 @@ import {
 	MessageResponse,
 } from "@/components/agent/message";
 import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
+import { UserMessageResponse } from "@/components/agent/rendering/user-message-response";
 import {
 	AnnotationMarkerText,
 	LooseSelectionChips,
@@ -114,7 +115,6 @@ import {
 	streamingLabel,
 	suggestionItems,
 	type ToolAskUserRecord,
-	type ToolUiState,
 	toolPartState,
 } from "@/lib/agent/chat-state";
 import {
@@ -128,6 +128,9 @@ import { stripPromptEnvelopeForDisplay } from "@/lib/agent/prompt-display";
 import { selectionNavigationStore } from "@/lib/agent/selection-navigation-state";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
 import { terminalToolData } from "@/lib/agent/terminal-tool";
+import { commands } from "@/lib/core/bindings";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper";
 import { workspaceStore } from "@/lib/workspace/store";
@@ -372,7 +375,7 @@ function StreamingActivityRow({
 				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
 			)}
 			onClick={onToggle}
-			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 		>
 			{content}
 		</button>
@@ -450,63 +453,6 @@ function CopyAction({ getText }: { getText: () => string }) {
  * references stable, and every other prop is either a primitive or the
  * identity-stable handlers object.
  */
-function delegateField(value: unknown, key: string): string {
-	if (typeof value === "string") {
-		try {
-			return delegateField(JSON.parse(value), key);
-		} catch {
-			return "";
-		}
-	}
-	if (typeof value === "object" && value !== null && key in value) {
-		const field = (value as Record<string, unknown>)[key];
-		return typeof field === "string" ? field : "";
-	}
-	return "";
-}
-
-function delegateToolTitle(
-	tool: ToolUiState,
-	t: (
-		key:
-			| "delegate.targets"
-			| "delegate.result"
-			| "delegate.cancel"
-			| "delegate.run"
-			| "delegate.status.running"
-			| "delegate.status.completed"
-			| "delegate.status.failed"
-			| "delegate.status.cancelled",
-		options?: Record<string, string>,
-	) => string,
-): string | null {
-	const name = `${tool.kind} ${tool.title}`;
-	if (!name.includes("remote_")) return null;
-	if (name.includes("remote_targets")) return t("delegate.targets");
-	if (name.includes("remote_delegate_cancel")) return t("delegate.cancel");
-	if (name.includes("remote_delegate_result")) return t("delegate.result");
-	if (!name.includes("remote_delegate")) return null;
-	const host =
-		delegateField(tool.output, "destination") ||
-		delegateField(tool.input, "target") ||
-		"…";
-	const agent =
-		delegateField(tool.output, "agentId") ||
-		delegateField(tool.input, "agentId") ||
-		"…";
-	const status =
-		delegateField(tool.output, "status") ||
-		(tool.status === "failed" ? "failed" : "running");
-	const statusLabel =
-		status === "completed"
-			? t("delegate.status.completed")
-			: status === "failed"
-				? t("delegate.status.failed")
-				: status === "cancelled"
-					? t("delegate.status.cancelled")
-					: t("delegate.status.running");
-	return t("delegate.run", { host, agent, status: statusLabel });
-}
 
 const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	line,
@@ -700,9 +646,9 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 									snapshots={annotationCards}
 								/>
 							) : (
-								<MessageResponse className="text-base leading-relaxed">
+								<UserMessageResponse className="text-base leading-relaxed">
 									{userDisplay}
-								</MessageResponse>
+								</UserMessageResponse>
 							)}
 							{looseSelections.length > 0 && annotationCards.length === 0 ? (
 								<LooseSelectionChips selections={looseSelections} />
@@ -875,11 +821,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						<ToolHeader
 							className={insideProcess ? "px-2 py-1.5" : undefined}
 							swapIconOnHover={insideProcess}
-							title={
-								delegateToolTitle(tool, t) ||
-								tool.title ||
-								t("tool.defaultTitle")
-							}
+							title={tool.title || t("tool.defaultTitle")}
 							type={`tool-${tool.kind}`}
 							state={state}
 						/>
@@ -991,6 +933,31 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 							parts.map((part, index) => renderAgentPart(part, index, false))
 						)}
 					</MessageContent>
+					{!line.streaming &&
+						line.artifacts?.map((file) => (
+							<button
+								key={file.path}
+								type="button"
+								className="block rounded-md border px-3 py-2 text-left text-sm hover:bg-muted"
+								title={file.path}
+								onClick={() => {
+									void commands
+										.workspaceOpenSource(file.vault, file.path)
+										.then((result) => {
+											if (result.status === "error")
+												notifyError(errorText(result.error));
+										})
+										.catch((error) => notifyError(errorText(error)));
+								}}
+							>
+								{file.title || file.path}
+							</button>
+						))}
+					{!line.streaming && line.promptOnly ? (
+						<p className="px-1 text-xs text-muted-foreground">
+							{t("promptOnlySources")}
+						</p>
+					) : null}
 					{!line.streaming && line.sources?.length ? (
 						<div className="px-1">
 							<ContextSourceLinks sources={line.sources} />

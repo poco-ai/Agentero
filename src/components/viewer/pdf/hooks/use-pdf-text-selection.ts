@@ -224,6 +224,12 @@ export type UsePdfTextSelectionOptions = {
 	paperAbsPath: string | null;
 	/** Keep toolbar placed while editing a selection note chip. */
 	isCommentDraftActive?: () => boolean;
+	/**
+	 * Another floating toolbar already owns the pointer (the layout-element
+	 * action card). Return true to drop the PDFium word/line selection instead
+	 * of opening a second, identical toolbar underneath it (#1175).
+	 */
+	suppressSelectionMenu?: () => boolean;
 };
 
 export type PdfTextSelection = {
@@ -259,6 +265,7 @@ export function usePdfTextSelection({
 	paperRelPath,
 	paperAbsPath,
 	isCommentDraftActive,
+	suppressSelectionMenu,
 }: UsePdfTextSelectionOptions): PdfTextSelection {
 	const [sideBySideVisible, setSideBySideVisible] = useState(true);
 	useEffect(() => {
@@ -304,6 +311,10 @@ export function usePdfTextSelection({
 	// on every viewer render (clearing the live selection each time).
 	const isCommentDraftActiveRef = useRef(isCommentDraftActive);
 	isCommentDraftActiveRef.current = isCommentDraftActive;
+	// Same ref pattern: the predicate is an inline lambda per render, but the
+	// selection subscriptions must stay registered.
+	const suppressSelectionMenuRef = useRef(suppressSelectionMenu);
+	suppressSelectionMenuRef.current = suppressSelectionMenu;
 
 	const closeSelectionMenu = useCallback(() => {
 		releaseHeldLayoutSentenceHover(docId);
@@ -482,6 +493,15 @@ export function usePdfTextSelection({
 			// The drag flag covers the moment the DOM range is not ready yet.
 			// Leaving the English rects would paint them under the Chinese.
 			if (selectionInsideTranslation() || linkPreviewDragActive()) {
+				setIsSelecting(false);
+				selectionCap.clear(docId);
+				return;
+			}
+			// Element selection mode: the layout-element action card is the active
+			// toolbar. A double-click selects a word/line instantly, which must not
+			// stack a second toolbar underneath the card (#1175). A drag cannot hit
+			// this: its first pointerdown already dismissed the card.
+			if (suppressSelectionMenuRef.current?.()) {
 				setIsSelecting(false);
 				selectionCap.clear(docId);
 				return;

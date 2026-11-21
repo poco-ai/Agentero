@@ -83,6 +83,22 @@ export function isLayoutElementTextKind(kind: PdfLayoutKind): boolean {
 }
 
 /**
+ * Regions drawn as a crop: figures, charts, tables, algorithms and formulas.
+ * Text runs the model found inside one of these belong to the graphic itself,
+ * not to the prose, so they never become hover sentences.
+ */
+export function isLayoutVisualKind(kind: PdfLayoutKind): boolean {
+	return (
+		kind === "image" ||
+		kind === "chart" ||
+		kind === "table" ||
+		kind === "algorithm" ||
+		kind === "formula" ||
+		kind === "formula_number"
+	);
+}
+
+/**
  * Regions whose PDF text layer we extract for body / abstract / headers.
  * Algorithms are never bulk-translated (see listTranslatableLayoutRegions).
  */

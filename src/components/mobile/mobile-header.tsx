@@ -32,7 +32,7 @@ export function MobileHeader({
 					{onBrandClick ? (
 						<button
 							type="button"
-							className="rounded-md outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring active:opacity-70"
+							className="rounded-md outline-none transition-opacity focus-visible:ring-1 focus-visible:ring-ring active:opacity-70"
 							aria-label={brandButtonLabel}
 							onClick={onBrandClick}
 						>

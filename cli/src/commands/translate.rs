@@ -1,86 +1,58 @@
-//! `agentero translate` — free machine translation for scripts and Agents.
-//!
-//! Deliberately free-MT only: the CLI config (`~/.config/agentero/config.toml`)
-//! is isolated from GUI settings, so commercial BYOK keys are not available here.
-//!
-//! @see docs/backend/cli.md
-
-use crate::error::CliError;
-use crate::resolve::GlobalOpts;
-use agentero_core::features::translate::{
-    free_mt_to_zh, translate_text, TranslateTextArgs, FREE_PROVIDERS,
+//! Translate a text using a local provider profile.
+use crate::{
+    config,
+    error::{CliError, ExitCode},
 };
-use serde_json::{json, Value};
-
-/// zh targets go through the parallel free-engine race; everything else uses a
-/// single provider.
-fn is_zh(target: &str) -> bool {
-    let t = target.trim().to_ascii_lowercase();
-    t == "zh" || t.starts_with("zh-") || t.starts_with("zh_")
-}
+use agentero_core::features::translate::{free_mt_to_zh, translate_text, TranslateTextArgs};
+use serde_json::json;
 
 pub async fn run_raw(
     text: &str,
     target: &str,
     source: &str,
-    provider: Option<&str>,
+    profile: Option<&str>,
 ) -> Result<String, CliError> {
-    let text = text.trim();
-    if text.is_empty() {
+    if text.trim().is_empty() {
         return Err(CliError::usage("nothing to translate"));
     }
-    if let Some(id) = provider {
-        if !FREE_PROVIDERS.contains(&id) {
-            return Err(CliError::usage(format!(
-                "--provider must be a free engine ({}); commercial keys live in the desktop app",
-                FREE_PROVIDERS.join("|")
-            )));
+    let mut args = json!({"text":text,"sourceLang":source,"targetLang":target});
+    if let Some(name) = profile {
+        let cfg = config::load()?;
+        let profile = cfg
+            .extra
+            .get("translation_profiles")
+            .and_then(|profiles| profiles.get(name))
+            .ok_or_else(|| CliError::usage(format!("unknown translation profile {name}")))?;
+        for (field, wire) in [
+            ("provider", "provider"),
+            ("base_url", "baseUrl"),
+            ("model", "model"),
+            ("api_key", "apiKey"),
+            ("region", "region"),
+        ] {
+            if let Some(value) = profile.get(field).and_then(toml::Value::as_str) {
+                args[wire] = json!(value);
+            }
         }
-    }
-
-    match (provider, is_zh(target)) {
-        (None, true) => free_mt_to_zh(text)
-            .await
-            .ok_or_else(|| CliError::message("all free translation engines failed")),
-        (chosen, _) => {
-            let result = translate_text(TranslateTextArgs {
-                glossary: None,
-                dictionary: false,
-                dictionary_surrounding: None,
-                dictionary_reference: None,
-                text: text.to_string(),
-                source_lang: source.to_string(),
-                target_lang: target.to_string(),
-                provider: chosen.unwrap_or("tencenttransmart").to_string(),
-                api_key: None,
-                base_url: None,
-                region: None,
-                model: None,
-                extra_request_body: None,
-                custom_prompt: None,
-                custom_system: None,
-                custom_user: None,
-                timeout_ms: None,
-            })
-            .await
-            .map_err(|e| CliError::message(e.to_string()))?;
-            Ok(result.text)
+        if args["provider"].is_null() {
+            return Err(CliError::usage("translation profile requires provider"));
         }
+    } else if source == "auto"
+        && matches!(
+            target.to_ascii_lowercase().as_str(),
+            "zh" | "zh-cn" | "zh-hans"
+        )
+    {
+        return free_mt_to_zh(text).await.ok_or_else(|| {
+            CliError::new(
+                "provider_unavailable",
+                "translation providers are unavailable",
+                ExitCode::Unavailable,
+            )
+        });
+    } else {
+        args["provider"] = json!("tencenttransmart");
     }
-}
-
-pub async fn run(
-    text: &str,
-    target: &str,
-    source: &str,
-    provider: Option<&str>,
-    _globals: &GlobalOpts,
-) -> Result<Value, CliError> {
-    let translated = run_raw(text, target, source, provider).await?;
-    Ok(json!({
-        "text": translated,
-        "sourceLang": source,
-        "targetLang": target,
-        "lines": [translated.clone()],
-    }))
+    let request: TranslateTextArgs = serde_json::from_value(args)?;
+    Ok(translate_text(request).await?.text)
 }

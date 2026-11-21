@@ -97,14 +97,16 @@ export type PdfViewerProps = {
 	/** Called whenever visual agent-trace marks change (for the annotations panel) */
 	onVisualTracesChange?: (traces: PdfVisualSessionTrace[]) => void;
 	/**
-	 * Open a rendered-translation workspace tab split to the right.
-	 * Used when Settings → Translate → dualPaneTranslate is enabled.
+	 * Open a rendered-translation workspace tab split to the right. The reading
+	 * view switch calls this when the reader picks 对照.
 	 */
 	onOpenTranslationTab?: (
 		paperTabId: string,
 		paperAbsPath: string | null,
 		paperTitle?: string | null,
 	) => void;
+	/** Close the paired translation tab when the reader leaves 对照. */
+	onCloseTranslationTab?: (paperTabId: string) => void;
 	/**
 	 * Workspace active tab. Dock may keep inactive PDFs mounted (`keepMounted`);
 	 * only the active viewer should refresh marks/ (expensive base64 JSON list).

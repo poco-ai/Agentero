@@ -195,7 +195,7 @@ function AppearancePaneInner({
 									className={cn(
 										"group h-[7.25rem] min-w-0 rounded-lg border p-1 text-left outline-none",
 										"transition-[border-color,box-shadow,transform,background-color] duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)]",
-										"hover:border-primary/55 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+										"hover:border-primary/55 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
 										"active:scale-[0.98]",
 										selected
 											? "border-primary/80 bg-primary/5 ring-1 ring-primary/35"

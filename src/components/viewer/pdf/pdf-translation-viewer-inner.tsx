@@ -19,9 +19,11 @@ import {
 	useEffect,
 	useMemo,
 	useRef,
+	useState,
 	useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+import { useStore } from "zustand";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { PdfCitationPreview } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
@@ -32,6 +34,8 @@ import { PdfFindBar } from "@/components/viewer/pdf/chrome/pdf-find-bar";
 import { PdfTranslateProgressChip } from "@/components/viewer/pdf/chrome/pdf-translate-progress";
 import { EMPTY_LAYOUT_REGIONS_BY_PAGE } from "@/components/viewer/pdf/constants";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
+import { EPHEMERAL_PREVIEW_OPEN_MS } from "@/components/viewer/pdf/floating-hover";
+import { useHoverIntent } from "@/components/viewer/pdf/hooks/use-hover-intent";
 import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations";
 import { usePdfCompanionSelection } from "@/components/viewer/pdf/hooks/use-pdf-companion-selection";
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
@@ -53,7 +57,10 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
-import { publishLayoutSentenceCatalog } from "@/components/viewer/pdf/layout-sentence-hover";
+import {
+	publishLayoutSentenceCatalog,
+	publishLayoutSentencePageAnalysis,
+} from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import type {
 	PdfViewerInnerProps,
@@ -67,13 +74,16 @@ import { PdfHistoryKeyHandler } from "@/components/viewer/pdf/viewport/pdf-histo
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
+import { backgroundTasksStore } from "@/lib/core/background-tasks";
 import { openExternalUrl } from "@/lib/core/open-external";
+import { sameRelPaperPath } from "@/lib/core/path";
 import { destinationInPageBox } from "@/lib/pdf/citation-dest-keys";
 import { partitionHighlightPaint } from "@/lib/pdf/highlight/translated-geometry";
 import {
 	mirrorLayoutResultToTranslation,
 	translationSourceKey,
 } from "@/lib/pdf/layout";
+import { isInsideVisualLayoutRegion } from "@/lib/pdf/layout/translatable";
 import {
 	getTranslatedLinkSource,
 	subscribeTranslatedLinkSource,
@@ -191,7 +201,12 @@ export function PdfTranslationViewerInner({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		layoutTranslatePartial,
+		reflowReady,
 		reflowOutput,
+		exportTranslatedPdf,
+		ensureLayoutTranslate,
+		cancelLayoutTranslate,
+		layoutTranslateStatus,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
@@ -212,13 +227,23 @@ export function PdfTranslationViewerInner({
 	});
 
 	useEffect(() => {
+		const rawRegions = layoutRawRegions ?? [];
+		publishLayoutSentencePageAnalysis(
+			docId,
+			rawRegions.map((region) => region.pageIndex),
+		);
 		publishLayoutSentenceCatalog(
 			docId,
-			[...layoutTranslateItemsByPage.values()].flat(),
+			[...layoutTranslateItemsByPage.values()]
+				.flat()
+				.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions)),
 		);
-	}, [docId, layoutTranslateItemsByPage]);
+	}, [docId, layoutTranslateItemsByPage, layoutRawRegions]);
 	useEffect(() => {
-		return () => publishLayoutSentenceCatalog(docId, []);
+		return () => {
+			publishLayoutSentenceCatalog(docId, []);
+			publishLayoutSentencePageAnalysis(docId, []);
+		};
 	}, [docId]);
 	usePdfSentenceInteraction(docId, hostRef);
 	const { provides: annotationCap } = useAnnotationCapability();
@@ -247,6 +272,7 @@ export function PdfTranslationViewerInner({
 		highlights,
 	});
 	const { selectionMenu, actions, ask, translation } = selection;
+	const [translationBounds, setTranslationBounds] = useState<DOMRectReadOnly>();
 	const highlightPaint = useMemo(
 		() => partitionHighlightPaint(highlights.highlights),
 		[highlights.highlights],
@@ -307,6 +333,25 @@ export function PdfTranslationViewerInner({
 	layoutTranslateActiveRef.current = layoutTranslateActive;
 	const layoutTranslateRunningRef = useRef(layoutTranslateRunning);
 	layoutTranslateRunningRef.current = layoutTranslateRunning;
+	const ensureLayoutTranslateRef = useRef(ensureLayoutTranslate);
+	ensureLayoutTranslateRef.current = ensureLayoutTranslate;
+	/** Stop also ends local page generation, not just a Host job. */
+	const handleStopTranslate = useCallback(() => {
+		cancelLayoutTranslate({ stopTypeset: true });
+	}, [cancelLayoutTranslate]);
+	// A shared job for this paper can outlive a 译文 run: switching to 对照 while
+	// 重译整篇 is still working mounts this pane on top of its cached sidecar.
+	const liveTranslateJobId = useStore(backgroundTasksStore, (store) => {
+		const task = store.tasks.find(
+			(task) =>
+				task.kind === "layoutTranslate" &&
+				(task.status === "running" || task.status === "queued") &&
+				sameRelPaperPath(task.paperPath ?? null, paperRelPath),
+		);
+		return task?.id ?? null;
+	});
+	/** Job this pane already followed; one ensure() per job, never a retry loop. */
+	const followedTranslateJobRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		const hasRegions = (layoutRawRegions?.length ?? 0) > 0;
@@ -315,6 +360,23 @@ export function PdfTranslationViewerInner({
 		} else if (hadLayoutRegionsRef.current) {
 			translationAutoStartedRef.current = false;
 			hadLayoutRegionsRef.current = false;
+		}
+		// 对照 puts every progress/stop surface in this pane, so a live job must
+		// be followed even when cached blocks are already painted. Only once per
+		// job: clicking stop flips the local status to "cancelled" before the Host
+		// row leaves "running", and another ensure() would set the status back to
+		// running and undo that stop. `ensureLayoutTranslate` attaches to the
+		// existing job without stopping or hiding anything.
+		if (
+			liveTranslateJobId !== null &&
+			liveTranslateJobId !== followedTranslateJobRef.current &&
+			!layoutTranslateRunning &&
+			layoutTranslateStatus !== "cancelled"
+		) {
+			followedTranslateJobRef.current = liveTranslateJobId;
+			ensureLayoutTranslateRef.current();
+			translationAutoStartedRef.current = true;
+			return;
 		}
 		if (translationAutoStartedRef.current) return;
 		if (!hasRegions) {
@@ -348,6 +410,8 @@ export function PdfTranslationViewerInner({
 		layoutRawRegions,
 		layoutTranslateActive,
 		layoutTranslateRunning,
+		layoutTranslateStatus,
+		liveTranslateJobId,
 		toggleLayoutTranslate,
 	]);
 
@@ -496,31 +560,87 @@ export function PdfTranslationViewerInner({
 	clearCrossrefPreviewRef.current = clearCrossrefPreview;
 	clearLinkUrlTipRef.current = clearLinkUrlTip;
 
+	// Hover intent (#1213): cards open only after the pointer rests on a link;
+	// crossing link text on the way somewhere else must not flash a card.
+	const showLinkPreview = useCallback(
+		(payload: {
+			link: PdfLinkAnnoObject;
+			clientPoint?: ScreenPoint | null;
+		}) => {
+			handleCitationLinkHover(payload.link, payload.clientPoint);
+			handleCrossrefLinkHover(payload.link, payload.clientPoint);
+		},
+		[handleCitationLinkHover, handleCrossrefLinkHover],
+	);
+	const hideLinkPreview = useCallback(() => {
+		handleCitationLinkHover(null);
+		handleCrossrefLinkHover(null);
+	}, [handleCitationLinkHover, handleCrossrefLinkHover]);
+	const linkHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showLinkPreview,
+		onLeave: hideLinkPreview,
+	});
+	const showUrlTip = useCallback(
+		(payload: { url: string; clientPoint: ScreenPoint }) => {
+			hoverLinkUrl(payload.url, payload.clientPoint);
+		},
+		[hoverLinkUrl],
+	);
+	const hideUrlTip = useCallback(() => {
+		hoverLinkUrl(null);
+	}, [hoverLinkUrl]);
+	const urlHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showUrlTip,
+		onLeave: hideUrlTip,
+	});
+
 	useEffect(() => {
 		return subscribeLinkPreviewDrag(() => {
+			linkHoverIntent.cancel();
+			urlHoverIntent.cancel();
 			clearCitationPreviewRef.current();
 			clearCrossrefPreviewRef.current();
 			clearLinkUrlTipRef.current();
 		});
-	}, []);
+	}, [linkHoverIntent, urlHoverIntent]);
+
+	// A pending open must not outlive the document or land on the selection menu.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is the effect trigger.
+	useEffect(() => {
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
+	}, [docId]);
+
+	useEffect(() => {
+		if (!selectionMenu) return;
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
+	}, [selectionMenu, linkHoverIntent, urlHoverIntent]);
 
 	const handleLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, point?: ScreenPoint | null) => {
 			if (linkPreviewDragActive() || selectionMenu) {
+				linkHoverIntent.cancel();
+				urlHoverIntent.cancel();
 				clearCitationPreview();
 				clearCrossrefPreview();
 				clearLinkUrlTip();
 				return;
 			}
-			handleCitationLinkHover(link, point);
-			handleCrossrefLinkHover(link, point);
+			if (!link) {
+				linkHoverIntent.leave();
+				return;
+			}
+			linkHoverIntent.enter({ link, clientPoint: point });
 		},
 		[
 			clearCitationPreview,
 			clearCrossrefPreview,
 			clearLinkUrlTip,
-			handleCitationLinkHover,
-			handleCrossrefLinkHover,
+			linkHoverIntent,
+			urlHoverIntent,
 			selectionMenu,
 		],
 	);
@@ -528,12 +648,18 @@ export function PdfTranslationViewerInner({
 	const handleLinkUrlHover = useCallback(
 		(url: string | null, point?: ScreenPoint | null) => {
 			if (linkPreviewDragActive() || selectionMenu) {
+				urlHoverIntent.cancel();
 				clearLinkUrlTip();
 				return;
 			}
-			hoverLinkUrl(url, point);
+			const trimmed = url?.trim() ?? "";
+			if (!trimmed || !point) {
+				urlHoverIntent.leave();
+				return;
+			}
+			urlHoverIntent.enter({ url: trimmed, clientPoint: point });
 		},
-		[clearLinkUrlTip, hoverLinkUrl, selectionMenu],
+		[clearLinkUrlTip, urlHoverIntent, selectionMenu],
 	);
 
 	const handleCitationImportOpenChange = useCallback(
@@ -624,7 +750,7 @@ export function PdfTranslationViewerInner({
 			<DockviewViewport
 				documentId={docId}
 				hostRef={hostRef}
-				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
+				className="min-h-0 min-w-0 flex-1"
 			>
 				<ActiveCardScrollSync
 					active={!!selectionMenu}
@@ -676,7 +802,13 @@ export function PdfTranslationViewerInner({
 				layoutTranslateProgress={layoutTranslateProgress}
 				layoutTranslatePageCounts={layoutTranslatePageCounts}
 				layoutTranslatePartial={layoutTranslatePartial}
-				onStop={toggleLayoutTranslate}
+				// 对照 mode hands the export control to this pane: it owns the
+				// generated pages the reader toolbar would otherwise export.
+				onExport={reflowReady ? exportTranslatedPdf : undefined}
+				// Cancel the paper's job outright, like the reader toolbar's stop:
+				// this pane may not have attached yet when the click lands. A settled
+				// job can still be generating pages here, so stop that build too.
+				onStop={handleStopTranslate}
 			/>
 			{typeof document !== "undefined"
 				? createPortal(
@@ -684,6 +816,9 @@ export function PdfTranslationViewerInner({
 							{selectionMenu ? (
 								<SelectionMenu
 									screen={selectionMenu.screen}
+									avoidBounds={
+										translation.translation ? translationBounds : undefined
+									}
 									selectionText={
 										selectionMenu.copyText ?? selectionMenu.anchor.quote
 									}
@@ -721,6 +856,9 @@ export function PdfTranslationViewerInner({
 									streaming={translation.translation.streaming}
 									error={translation.translation.error}
 									onHide={translation.close}
+									onBoundsChange={
+										selectionMenu ? setTranslationBounds : undefined
+									}
 									onOpenSettings={
 										onOpenSettings ??
 										(() => {

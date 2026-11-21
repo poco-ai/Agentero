@@ -15,7 +15,7 @@ use crate::features::agent::session::query::AgentQueryPool;
 #[path = "dsh_history.rs"]
 mod dsh_history;
 
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     DeleteSessionRequest, ListSessionsRequest, LoadSessionRequest, SessionId, SessionUpdate,
 };
 use std::collections::HashSet;
@@ -209,7 +209,7 @@ fn is_synthetic_replay_placeholder(text: &str) -> bool {
 }
 
 pub(crate) fn chunk_msg_id(
-    chunk: &agent_client_protocol::schema::v1::ContentChunk,
+    chunk: &agent_client_protocol::v1::schema::ContentChunk,
 ) -> Option<String> {
     chunk.message_id.as_ref().map(|m| m.0.to_string())
 }
@@ -363,6 +363,7 @@ impl ReplayBuilder {
             let id = format!("line-{}", out.len() + 1);
             if line.is_user {
                 out.push(AcpHistoryLine {
+                    artifacts: Vec::new(),
                     id,
                     kind: "user".to_string(),
                     text,
@@ -372,6 +373,7 @@ impl ReplayBuilder {
                 });
             } else {
                 out.push(AcpHistoryLine {
+                    artifacts: Vec::new(),
                     id,
                     kind: "agent".to_string(),
                     sources: Vec::new(),
@@ -538,7 +540,7 @@ mod replay_builder_tests {
 
     #[tokio::test(start_paused = true)]
     async fn load_response_waits_for_all_replay_notification_handlers() {
-        use agent_client_protocol::schema::v1::{
+        use agent_client_protocol::v1::schema::{
             ContentChunk, LoadSessionRequest, LoadSessionResponse, SessionNotification,
             SessionUpdate,
         };
@@ -547,7 +549,7 @@ mod replay_builder_tests {
 
         let replay = Arc::new(Mutex::new(ReplayBuilder::default()));
         let notifications = replay.clone();
-        let agent = Agent.builder().on_receive_request(
+        let agent = Agent.v1().on_receive_request(
             async |request: LoadSessionRequest, responder, connection| {
                 for text in ["first", "second"] {
                     connection.send_notification(SessionNotification::new(
@@ -561,7 +563,7 @@ mod replay_builder_tests {
             agent_client_protocol::on_receive_request!(),
         );
         Client
-            .builder()
+            .v1()
             .on_receive_notification(
                 async move |notification: SessionNotification, _connection| {
                     // Even asynchronously handled replay must finish before the

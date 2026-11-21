@@ -442,6 +442,25 @@ let projectionSubscription: (() => void) | null = null;
 const wiredJobCancels = new Set<string>();
 
 /**
+ * Settled JobCenter job ids. Finished rows dismiss themselves shortly after
+ * they settle, so the row alone can no longer guard against a late
+ * `job:changed` replaying a queued/running state (which would leave a ghost
+ * row that never finishes). Job ids are unique, so remembering terminals is
+ * safe; the set is bounded and cleared when the projection stops.
+ */
+const finishedJobIds = new Set<string>();
+const MAX_FINISHED_JOB_IDS = 256;
+
+function rememberFinishedJob(id: string): void {
+	if (finishedJobIds.has(id)) return;
+	finishedJobIds.add(id);
+	if (finishedJobIds.size > MAX_FINISHED_JOB_IDS) {
+		const oldest = finishedJobIds.values().next().value;
+		if (oldest !== undefined) finishedJobIds.delete(oldest);
+	}
+}
+
+/**
  * Single global `job:changed` → background-tasks-panel projection (§7.6).
  * Mirrors projected JobCenter jobs into the task store keyed by job id, and
  * routes panel cancellation to `job_cancel`.
@@ -476,6 +495,7 @@ export function startJobTaskProjection(): void {
 export function stopJobTaskProjection(): void {
 	projectionSubscription?.();
 	projectionSubscription = null;
+	finishedJobIds.clear();
 }
 
 export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
@@ -489,12 +509,13 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 	switch (job.state) {
 		case "queued":
 		case "running": {
+			// A late event must not revive a row that already settled (Cancel
+			// looked like a no-op, and the real JobCenter slot leak stayed
+			// hidden). Rows are dropped after a short window, hence the id set.
+			if (finishedJobIds.has(job.id)) return;
 			const existing = getBackgroundTasksSnapshot().tasks.find(
 				(task) => task.id === job.id,
 			);
-			// A late progress event must not revive a row the user already
-			// cancelled (or that already completed). That made Cancel look
-			// like a no-op and hid the real JobCenter slot leak.
 			if (existing && isFinishedBackgroundTask(existing)) {
 				return;
 			}
@@ -542,6 +563,7 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 		}
 		case "succeeded":
 		case "skipped":
+			rememberFinishedJob(job.id);
 			completeBackgroundTask(
 				job.id,
 				joinTaskDetail(resolveTaskSubject(job.id), status ?? detail),
@@ -550,11 +572,13 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 			releaseJobCancellation(job.id);
 			return;
 		case "failed":
+			rememberFinishedJob(job.id);
 			failBackgroundTask(job.id, job.error?.trim() || title);
 			clearTaskSubject(job.id);
 			releaseJobCancellation(job.id);
 			return;
 		case "cancelled":
+			rememberFinishedJob(job.id);
 			cancelBackgroundTask(job.id);
 			clearTaskSubject(job.id);
 			releaseJobCancellation(job.id);

@@ -68,6 +68,11 @@ export type BackgroundTask = {
 	error?: string;
 	createdAt: number;
 	updatedAt: number;
+	/**
+	 * When the row reached a terminal state. Finished rows dismiss themselves
+	 * after a short visible window instead of waiting for a manual clear.
+	 */
+	finishedAt?: number;
 };
 
 type Store = {
@@ -174,8 +179,21 @@ function uid(): string {
 	return `task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Finished rows stay until the user clears them or a newer task pushes them out. */
+/** Upper bound on rows; finished rows normally auto-dismiss before they pile up. */
 const MAX_HISTORY = 12;
+
+/**
+ * How long a finished row stays visible before it dismisses itself. The ring
+ * shows the completion state for the same window, then the whole HUD goes away
+ * once no rows are left — no per-task acknowledgement.
+ */
+export const FINISHED_TASK_VISIBLE_MS = 6000;
+
+/**
+ * Failures linger longer than successes: the row is the only place that keeps
+ * the error text and the jump into the analysis / translate settings.
+ */
+export const FAILED_TASK_VISIBLE_MS = 15000;
 
 export function startBackgroundTask(input: {
 	kind: BackgroundTaskKind;
@@ -240,23 +258,38 @@ export function updateBackgroundTask(
 		absoluteProgress?: boolean;
 	},
 ): void {
-	const tasks = store().tasks.map((t) =>
-		t.id === id && (t.status !== "cancelled" || patch.status === "cancelled")
-			? {
-					...t,
-					...patch,
-					progress:
-						patch.progress === undefined
-							? t.progress
-							: opts?.absoluteProgress ||
-									typeof patch.progress !== "number" ||
-									t.progress == null
-								? patch.progress
-								: Math.max(t.progress, patch.progress),
-					updatedAt: Date.now(),
-				}
-			: t,
-	);
+	const tasks = store().tasks.map((t) => {
+		if (
+			t.id !== id ||
+			(t.status === "cancelled" && patch.status !== "cancelled")
+		) {
+			return t;
+		}
+		const now = Date.now();
+		const next: BackgroundTask = {
+			...t,
+			...patch,
+			progress:
+				patch.progress === undefined
+					? t.progress
+					: opts?.absoluteProgress ||
+							typeof patch.progress !== "number" ||
+							t.progress == null
+						? patch.progress
+						: Math.max(t.progress, patch.progress),
+			updatedAt: now,
+		};
+		// Stamp once on the transition into a terminal state; later patches
+		// (late progress events) must not push the dismissal window forward.
+		if (
+			next.status !== t.status &&
+			next.finishedAt == null &&
+			isFinishedBackgroundTask(next)
+		) {
+			next.finishedAt = now;
+		}
+		return next;
+	});
 	setStore({ ...store(), tasks });
 }
 
@@ -331,4 +364,51 @@ const FINISHED_STATUSES: ReadonlySet<BackgroundTaskStatus> = new Set([
 
 export function isFinishedBackgroundTask(task: BackgroundTask): boolean {
 	return FINISHED_STATUSES.has(task.status);
+}
+
+/** When a finished row should dismiss itself; null while it is still active. */
+function finishedTaskDismissAt(task: BackgroundTask): number | null {
+	if (!isFinishedBackgroundTask(task)) return null;
+	const visibleMs =
+		task.status === "failed"
+			? FAILED_TASK_VISIBLE_MS
+			: FINISHED_TASK_VISIBLE_MS;
+	return (task.finishedAt ?? task.updatedAt) + visibleMs;
+}
+
+/**
+ * Milliseconds until the next finished row expires, or null when nothing is
+ * waiting to dismiss. The panel arms one timer from this instead of polling.
+ */
+export function nextBackgroundTaskRetirementDelay(
+	now = Date.now(),
+): number | null {
+	let delay: number | null = null;
+	for (const task of store().tasks) {
+		const at = finishedTaskDismissAt(task);
+		if (at == null) continue;
+		const remaining = at - now;
+		if (remaining <= 0) return 0;
+		if (delay == null || remaining < delay) delay = remaining;
+	}
+	return delay;
+}
+
+/**
+ * Drop finished rows whose visible window has elapsed. Driven by the panel
+ * (it owns the timer) so the store stays timer-free; once the last row goes,
+ * the task HUD disappears entirely.
+ */
+export function retireFinishedBackgroundTasks(now = Date.now()): void {
+	const current = store().tasks;
+	const tasks = current.filter((task) => {
+		const at = finishedTaskDismissAt(task);
+		return at == null || at > now;
+	});
+	if (tasks.length === current.length) return;
+	setStore({
+		...store(),
+		tasks,
+		expanded: tasks.length > 0 ? store().expanded : false,
+	});
 }

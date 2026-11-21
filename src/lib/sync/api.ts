@@ -1,6 +1,6 @@
 /**
  * Vault cloud sync (S3-compatible / WebDAV) — Host command wrappers.
- * Design: docs/backend/sync.md
+ * Host implementation: `src-tauri/src/integration/sync/commands.rs`.
  */
 
 import {

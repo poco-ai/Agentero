@@ -11,6 +11,13 @@ export type ReadingBox = {
 	y: number;
 	width: number;
 	height: number;
+	/**
+	 * Nominal em size (font size) when the caller knows it. Some PDFs embed a
+	 * `/FontBBox` several em tall (broken subset metrics), so PDFium reports a
+	 * 8pt glyph with a 29pt box while the real line pitch is 10pt. When this is
+	 * set the baseline tolerance follows it instead of the padded box height.
+	 */
+	size?: number;
 };
 
 export type ReadingLine<T> = {
@@ -21,6 +28,11 @@ export type ReadingLine<T> = {
 
 function boxBottom(box: ReadingBox): number {
 	return box.y + box.height;
+}
+
+/** Box height unless the caller supplied the real em size. */
+function toleranceHeight(box: ReadingBox): number {
+	return box.size !== undefined && box.size > 0 ? box.size : box.height;
 }
 
 /** Descenders and bold boxes shift the bottom by a fraction of the line, not a full line gap. */
@@ -54,7 +66,7 @@ export function groupReadingLines<T>(
 	items: readonly T[],
 	boxOf: (item: T) => ReadingBox,
 ): ReadingLine<T>[] {
-	type Bucket = { items: T[]; bottoms: number[]; heights: number[] };
+	type Bucket = { items: T[]; bottoms: number[]; tolerances: number[] };
 	const buckets: Bucket[] = [];
 	const ordered = items.slice().sort((a, b) => {
 		const left = boxOf(a);
@@ -68,7 +80,10 @@ export function groupReadingLines<T>(
 		let bestDistance = Number.POSITIVE_INFINITY;
 		for (const bucket of buckets) {
 			const distance = Math.abs(bottom - medianSorted(bucket.bottoms));
-			const limit = baselineTolerance(box.height, medianSorted(bucket.heights));
+			const limit = baselineTolerance(
+				toleranceHeight(box),
+				medianSorted(bucket.tolerances),
+			);
 			if (distance <= limit && distance < bestDistance) {
 				best = bucket;
 				bestDistance = distance;
@@ -77,12 +92,12 @@ export function groupReadingLines<T>(
 		if (best) {
 			best.items.push(item);
 			insertSorted(best.bottoms, bottom);
-			insertSorted(best.heights, box.height);
+			insertSorted(best.tolerances, toleranceHeight(box));
 		} else {
 			buckets.push({
 				items: [item],
 				bottoms: [bottom],
-				heights: [box.height],
+				tolerances: [toleranceHeight(box)],
 			});
 		}
 	}

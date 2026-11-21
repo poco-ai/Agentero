@@ -24,6 +24,16 @@
 		"jumpBack": "返回跳转前",
 		"importToLibrary": "导入本地库",
 		"smartHighlight": "智能高亮",
+		"viewMode": {
+			"label": "阅读视图",
+			"original": "原文",
+			"translated": "译文",
+			"dual": "对照",
+			"originalHint": "原文（收起译文并停止翻译）",
+			"translatedHint": "译文（在原文页上原地覆盖）",
+			"dualHint": "对照（原文与译文左右并排）",
+			"paneUnavailable": "论文路径缺失，无法打开译文栏。"
+		},
 		"smartHighlightFailed": "智能高亮失败",
 		"jevNoReadableText": "PDF 文本层为空或无法识别。请先在工具栏 → 解析 PDF 正文 里跑一次 OCR。",
 		"findPlaceholder": "在文档中查找",
@@ -49,14 +59,19 @@
 			"hide": "隐藏译文",
 			"show": "查看译文",
 			"translatePage": "翻译本页",
-			"translatePageShort": "翻译页面",
+			"translatePageShort": "翻译本页",
 			"hidePage": "隐藏本页译文",
 			"hidePageShort": "隐藏本页",
+			"retryPageShort": "重译本页",
 			"pageStatus": {
 				"pending": "本页待翻译",
 				"running": "正在翻译本页…",
 				"done": "本页翻译完成",
 				"error": "本页翻译未完成"
+			},
+			"pageStage": {
+				"translating": "翻译中",
+				"typesetting": "排版中"
 			},
 			"pageRunning": "正在翻译本页…",
 			"needLayout": "请先运行版面分析（Figures 面板）。",
@@ -96,7 +111,8 @@
 			"retranslateConfirmTitle": "重译整篇？",
 			"retranslateConfirmDescription": "将重新请求整篇并覆盖成功返回的译文；失败段落保留旧译文。",
 			"retranslateConfirm": "确认重译",
-			"pagesCount": "已完成 {{done}}/{{total}} 页"
+			"pagesCount": "已完成 {{done}}/{{total}} 页",
+			"pagesGenerated": "已生成 {{done}}/{{total}} 页"
 		},
 		"translation": {
 			"title": "翻译",

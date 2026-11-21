@@ -63,7 +63,7 @@ const WikiAttachmentEmbed = lazy(async () => {
 });
 
 const EMBED_HEADER_ACTION_CLASS =
-	"inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-muted-foreground text-xs hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+	"inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-muted-foreground text-xs hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 type EmbedLoadState =
 	| { kind: "loading" }

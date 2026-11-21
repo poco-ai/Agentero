@@ -38,9 +38,11 @@ async function sha256(bytes: Uint8Array): Promise<string> {
 	).join("");
 }
 let pending: Promise<ReflowFontBytes> | undefined;
+let idle: ReturnType<typeof setTimeout> | undefined;
+
 export function loadReflowFonts(): Promise<ReflowFontBytes> {
-	if (pending) return pending;
-	pending = logOp("pdf.reflow.fonts", undefined, async () => {
+	clearTimeout(idle);
+	pending ??= logOp("pdf.reflow.fonts", undefined, async () => {
 		const root = await join(await appCacheDir(), "pdf-fonts", revision);
 		const entries = await Promise.all(
 			(Object.entries(assets) as [FontKey, [string, string]][]).map(
@@ -73,5 +75,16 @@ export function loadReflowFonts(): Promise<ReflowFontBytes> {
 		pending = undefined;
 		throw error;
 	});
+	const current = pending;
+	void current.then(
+		() => {
+			if (pending !== current) return;
+			clearTimeout(idle);
+			idle = setTimeout(() => {
+				pending = undefined;
+			}, 30_000);
+		},
+		() => {},
+	);
 	return pending;
 }

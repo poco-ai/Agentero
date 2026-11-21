@@ -11,7 +11,7 @@
  * Viewers subscribe to this execution; opening a translation never restarts it.
  */
 
-import type { PdfDocumentObject } from "@embedpdf/models";
+import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import { commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
@@ -25,14 +25,12 @@ import {
 	findCanonicalPaperPdfPath,
 	localFileToArrayBuffer,
 } from "@/lib/paper/media";
+import { withBackgroundPdfDocument } from "@/lib/pdf/background-engine";
 import {
 	assessLayoutReadiness,
 	type LayoutCompletenessWarning,
 } from "@/lib/pdf/layout/completeness";
-import {
-	analyzePaperLayoutHeadless,
-	getHeadlessPdfEngine,
-} from "@/lib/pdf/layout/headless-analyze";
+import { analyzePaperLayoutHeadless } from "@/lib/pdf/layout/headless-analyze";
 import { readLayoutSidecar } from "@/lib/pdf/layout/io";
 import {
 	currentLayoutTranslateCacheKey,
@@ -244,13 +242,17 @@ export async function translatePaperLayoutHeadless(opts: {
 	signal?.throwIfAborted();
 
 	const seedItems = toLayoutTranslateItems(regions);
-	const engine = await getHeadlessPdfEngine();
 	const documentId = `headless-layout-translate-${opts.jobId}`;
-	const doc: PdfDocumentObject = await engine
-		.openDocumentBuffer({ id: documentId, content: pdfBytes.slice(0) })
-		.toPromise();
-	try {
-		report({ progress: 2 });
+	const withDocument = <T>(
+		run: (engine: PdfEngine, doc: PdfDocumentObject) => Promise<T>,
+	) =>
+		withBackgroundPdfDocument(
+			{ id: documentId, content: pdfBytes.slice(0) },
+			signal,
+			run,
+		);
+	report({ progress: 2 });
+	const prepared = await withDocument((engine, doc) => {
 		const irCache = createReflowIrCache(
 			{
 				paperKey: opts.paperKey,
@@ -261,7 +263,7 @@ export async function translatePaperLayoutHeadless(opts: {
 			},
 			{ writesEnabled: () => loadSettings().translate.cacheReflowIr },
 		);
-		const prepared = await prepareReflowItems(
+		return prepareReflowItems(
 			engine,
 			doc,
 			seedItems,
@@ -269,83 +271,85 @@ export async function translatePaperLayoutHeadless(opts: {
 			signal,
 			irCache,
 		);
-		signal?.throwIfAborted();
-		const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
-			requireReflowSentencePairs: true,
-		});
-		const total = hydration.items.length;
-		const previous = new Map(
-			hydration.items
-				.filter((item) => item.translated?.trim())
-				.map((item) => [item.id, item]),
-		);
-		if (opts.force)
-			hydration.items = hydration.items.map((item) => ({
-				...item,
-				status: "pending",
-				error: undefined,
-			}));
-		opts.onItems?.(cacheKey, hydration.items, layoutReady);
-		if (!opts.force && hydration.pendingRequired === 0) {
-			// Complete sidecar: the job is a no-op, no rewrite and no PDF build.
-			report({ progress: 100 });
-			return skipped("complete cache", total, 0);
-		}
+	});
+	signal?.throwIfAborted();
+	const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
+		requireReflowSentencePairs: true,
+	});
+	const total = hydration.items.length;
+	const previous = new Map(
+		hydration.items
+			.filter((item) => item.translated?.trim())
+			.map((item) => [item.id, item]),
+	);
+	if (opts.force)
+		hydration.items = hydration.items.map((item) => ({
+			...item,
+			status: "pending",
+			error: undefined,
+		}));
+	opts.onItems?.(cacheKey, hydration.items, layoutReady);
+	if (!opts.force && hydration.pendingRequired === 0) {
+		// Complete sidecar: the job is a no-op, no rewrite and no PDF build.
+		report({ progress: 100 });
+		return skipped("complete cache", total, 0);
+	}
 
-		report({ progress: 5 });
-		let reported = 5;
-		const items = await runLayoutRegionTranslate({
-			items: hydration.items,
-			signal,
-			paperKey: opts.paperKey,
-			vaultPath: opts.vaultPath,
-			onUpdate: (next) => {
-				opts.onItems?.(cacheKey, next, layoutReady);
-				// Persist completed blocks for crash recovery while viewers
-				// consume the shared in-memory progress.
-				persistLayoutTranslateSidecarBestEffort(
-					opts.paperAbsPath,
-					cacheKey,
-					next,
-					{ preserveExisting: true },
-				);
-				const done = countTranslated(next);
-				const percent = 5 + Math.floor((85 * done) / Math.max(1, total));
-				if (percent <= reported) return;
-				reported = percent;
-				report({ progress: percent });
-			},
-		});
+	report({ progress: 5 });
+	let reported = 5;
+	const items = await runLayoutRegionTranslate({
+		items: hydration.items,
+		signal,
+		paperKey: opts.paperKey,
+		vaultPath: opts.vaultPath,
+		onUpdate: (next) => {
+			opts.onItems?.(cacheKey, next, layoutReady);
+			// Persist completed blocks for crash recovery while viewers
+			// consume the shared in-memory progress.
+			persistLayoutTranslateSidecarBestEffort(
+				opts.paperAbsPath,
+				cacheKey,
+				next,
+				{ preserveExisting: true },
+			);
+			const done = countTranslated(next);
+			const percent = 5 + Math.floor((85 * done) / Math.max(1, total));
+			if (percent <= reported) return;
+			reported = percent;
+			report({ progress: percent });
+		},
+	});
 
-		const firstError = items.find(
-			(item) => item.status === "error" && item.error,
-		);
-		// Retain successful prior text when an explicit retranslation fails.
-		for (let i = 0; i < items.length; i++) {
-			const old = previous.get(items[i].id);
-			if (old && !items[i].translated?.trim()) items[i] = old;
-		}
-		const translated = countTranslated(items);
-		const pending = total - translated;
-		opts.onItems?.(cacheKey, items, layoutReady);
-		await flushLayoutTranslateSidecar(opts.paperAbsPath, cacheKey, items, {
-			preserveExisting: true,
-		});
+	const firstError = items.find(
+		(item) => item.status === "error" && item.error,
+	);
+	// Retain successful prior text when an explicit retranslation fails.
+	for (let i = 0; i < items.length; i++) {
+		const old = previous.get(items[i].id);
+		if (old && !items[i].translated?.trim()) items[i] = old;
+	}
+	const translated = countTranslated(items);
+	const pending = total - translated;
+	opts.onItems?.(cacheKey, items, layoutReady);
+	await flushLayoutTranslateSidecar(opts.paperAbsPath, cacheKey, items, {
+		preserveExisting: true,
+	});
 
-		logger.info("pdf.translate.headless", {
-			result: "written",
-			paper: opts.paperKey,
-			path: layoutTranslateSidecarPath(opts.paperAbsPath),
-			translated,
-			total,
-		});
+	logger.info("pdf.translate.headless", {
+		result: "written",
+		paper: opts.paperKey,
+		path: layoutTranslateSidecarPath(opts.paperAbsPath),
+		translated,
+		total,
+	});
 
-		if (
-			!signal?.aborted &&
-			loadSettings().translate.cacheReflowFinal &&
-			translated > 0
-		) {
-			await buildFinalCache({
+	if (
+		!signal?.aborted &&
+		loadSettings().translate.cacheReflowFinal &&
+		translated > 0
+	) {
+		await withDocument((engine, doc) =>
+			buildFinalCache({
 				engine,
 				doc,
 				items,
@@ -355,25 +359,20 @@ export async function translatePaperLayoutHeadless(opts: {
 				paperAbsPath: opts.paperAbsPath,
 				signal,
 				report,
-			});
-		}
-
-		return {
-			skipped: false,
-			translated,
-			total,
-			pending,
-			error:
-				translated === 0 && firstError?.error
-					? displayTranslateError(firstError.error)
-					: undefined,
-		};
-	} finally {
-		await engine
-			.closeDocument(doc)
-			.toPromise()
-			.catch(() => undefined);
+			}),
+		);
 	}
+
+	return {
+		skipped: false,
+		translated,
+		total,
+		pending,
+		error:
+			translated === 0 && firstError?.error
+				? displayTranslateError(firstError.error)
+				: undefined,
+	};
 }
 
 function countTranslated(items: readonly LayoutTranslateItem[]): number {
@@ -387,7 +386,7 @@ function countTranslated(items: readonly LayoutTranslateItem[]): number {
  * viewer uses. Best effort: a failed build only slows the next open down.
  */
 async function buildFinalCache(opts: {
-	engine: Awaited<ReturnType<typeof getHeadlessPdfEngine>>;
+	engine: PdfEngine;
 	doc: PdfDocumentObject;
 	items: readonly LayoutTranslateItem[];
 	regions: readonly PdfLayoutRegion[];

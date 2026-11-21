@@ -101,7 +101,7 @@ const PAPER_MARKER_DIRS: &[&str] = &["source", "assets", "marks"];
 const LAZY_PAPER_DIR: &str = "source";
 
 /// App-owned rebuildable sidecars written inside a paper's `source/` bucket
-/// (reference sidecar + PDF layout sidecars, see `docs/backend/api.md`). They
+/// (reference sidecar and PDF layout sidecars). They
 /// are never user content, so the tree blinds itself to them: a paper's
 /// internals stay clean even for folders the tree does not classify as paper
 /// units — papers kept outside `papers/`, copied in, or left behind by a

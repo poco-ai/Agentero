@@ -311,6 +311,12 @@ export const FileTreeName = ({
  * sidebar pattern used by Notion: the item identity is visible at rest, and
  * the same-sized expand/collapse affordance appears in its place when
  * targeted.
+ *
+ * The swap is instant on purpose. Cross-fading the two glyphs keeps both in
+ * the same slot as separate opacity layers; in WKWebView (Tauri macOS) the
+ * fading-out icon's dirty region can be missed inside these virtualized rows,
+ * leaving half of the folder glyph under the chevron until the next repaint.
+ * Only the chevron's expand/collapse rotation stays animated.
  */
 export function FileTreeDisclosureIcon({
 	isExpanded,
@@ -321,12 +327,12 @@ export function FileTreeDisclosureIcon({
 }) {
 	return (
 		<span className="relative flex size-4 shrink-0 items-center justify-center">
-			<span className="transition-opacity duration-100 group-hover:opacity-0 group-focus-visible:opacity-0">
+			<span className="group-hover:invisible group-focus-visible:invisible">
 				{icon}
 			</span>
 			<ChevronRightIcon
 				className={cn(
-					"pointer-events-none absolute size-4 text-muted-foreground opacity-0 transition-[opacity,transform] duration-100 group-hover:opacity-100 group-focus-visible:opacity-100",
+					"pointer-events-none absolute size-4 text-muted-foreground invisible transition-transform duration-100 group-hover:visible group-focus-visible:visible",
 					isExpanded && "rotate-90",
 				)}
 				aria-hidden

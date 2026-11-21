@@ -1,0 +1,27 @@
+.md-typeset:has(.home-scenarios) > h1 {
+	color: var(--md-default-fg-color);
+	font-weight: 650;
+}
+
+.md-typeset .home-scenarios > ul {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.md-typeset .home-scenarios h3 {
+	margin-top: 0;
+}
+
+.md-typeset .home-scenarios img {
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: contain;
+	background: var(--md-code-bg-color);
+	border-radius: 0.35rem;
+}
+
+@media (max-width: 52em) {
+	.md-typeset .home-scenarios > ul {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

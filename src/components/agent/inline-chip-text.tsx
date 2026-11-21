@@ -4,6 +4,7 @@
  */
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
+import { SENT_MESSAGE_CHIP_CLASS } from "@/components/agent/reference-chip-style";
 import {
 	SentAnnotationChip,
 	selectionSnapshot,
@@ -20,9 +21,6 @@ import {
 import { isPlazaMentionPath } from "@/lib/agent/plaza-mention";
 import { cn } from "@/lib/core/utils";
 
-const CHIP_CLASS =
-	"mx-0.5 inline-flex max-w-[12rem] min-w-0 shrink-0 items-center gap-0.5 rounded-md border border-border/80 bg-muted/40 px-1 align-middle text-[0.8125em] leading-[1.25] text-foreground";
-
 function ChipShell({
 	label,
 	title,
@@ -36,7 +34,11 @@ function ChipShell({
 }) {
 	if (!onOpen) {
 		return (
-			<span data-composer-chip="true" className={CHIP_CLASS} title={title}>
+			<span
+				data-composer-chip="true"
+				className={SENT_MESSAGE_CHIP_CLASS}
+				title={title}
+			>
 				{prefix}
 				<span className="min-w-0 truncate">{label}</span>
 			</span>
@@ -46,7 +48,7 @@ function ChipShell({
 		<button
 			type="button"
 			data-composer-chip="true"
-			className={cn(CHIP_CLASS, "cursor-pointer hover:bg-muted")}
+			className={cn(SENT_MESSAGE_CHIP_CLASS, "cursor-pointer hover:bg-muted")}
 			title={title}
 			onClick={onOpen}
 		>

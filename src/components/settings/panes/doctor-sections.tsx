@@ -249,7 +249,7 @@ export function WikiLinkDiff({
 								aria-label={newTextAriaLabel}
 								value={newText}
 								onChange={(event) => onNewTextChange(event.currentTarget.value)}
-								className="mx-0.5 h-6 min-w-[4rem] max-w-[min(100%,28rem)] border-0 bg-emerald-500/20 px-1.5 py-0 font-mono text-emerald-800 text-xs shadow-none focus-visible:border-0 focus-visible:ring-1 focus-visible:ring-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-300"
+								className="mx-0.5 h-6 min-w-[4rem] max-w-[min(100%,28rem)] border-0 bg-emerald-500/20 px-1.5 py-0 font-mono text-emerald-800 text-xs shadow-none focus-visible:border-0 focus-visible:ring-1 focus-visible:ring-emerald-500 dark:bg-emerald-500/25 dark:text-emerald-300"
 								style={{
 									// Prefer content width for CJK; still allow growth.
 									width: `min(28rem, max(4rem, ${Math.ceil(measureMonoText(newText) + 16)}px))`,

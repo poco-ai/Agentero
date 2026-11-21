@@ -149,6 +149,24 @@ export type PdfLayoutTranslate = {
 	layoutTranslatePageCounts: { done: number; total: number } | null;
 	/** Toolbar button: start → stop → retry incomplete / hide or show retained translations. */
 	toggleLayoutTranslate: () => void;
+	/**
+	 * Cache-first document translation start used by the reading-view switch.
+	 * Never stops a running job and never hides painted pages.
+	 */
+	ensureLayoutTranslate: () => void;
+	/**
+	 * Reveal retained translations (clear per-page hides) without starting or
+	 * stopping the job. The reading-view switch calls it when entering 译文.
+	 */
+	showLayoutTranslate: () => void;
+	/**
+	 * Cancel this paper's running/queued full-document translation. Used when
+	 * the reading view returns to 原文 (including a manual translation-tab close),
+	 * so the visible mode and the task state stay in sync. `stopTypeset` also
+	 * ends local page generation, which is what the meter's stop square needs
+	 * once the Host job has already settled.
+	 */
+	cancelLayoutTranslate: (options?: { stopTypeset?: boolean }) => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
 	togglePageLayoutTranslate: (pageIndex: number) => void;
 	/** Paragraph warning: retry a failed page's blocks without hiding it. */
@@ -173,6 +191,7 @@ type LayoutTranslateJobState = {
 	 * and clicking it starts a document run (cache-first) instead.
 	 */
 	scope: "none" | "document" | "page";
+	reflowPageOnly?: boolean;
 	/** True when the job started from (or reused) already translated blocks. */
 	fromCache: boolean;
 	runScope: LayoutTranslateRunScope;
@@ -325,6 +344,26 @@ function restoreTranslatedItems(
 	});
 }
 
+/**
+ * A translation job for this paper is already running or queued (e.g. 重译整篇
+ * started from 译文, or another window). The 对照 pane must follow it instead
+ * of stopping at its cached sidecar: the reader toolbar no longer shows a
+ * second meter there, so an unfollowed job would run unseen and unstoppable.
+ */
+function hasLiveLayoutTranslateJob(
+	paperRelPath: string | null | undefined,
+): boolean {
+	if (!paperRelPath) return false;
+	return backgroundTasksStore
+		.getState()
+		.tasks.some(
+			(task) =>
+				task.kind === "layoutTranslate" &&
+				(task.status === "running" || task.status === "queued") &&
+				sameRelPaperPath(task.paperPath ?? null, paperRelPath),
+		);
+}
+
 /** One items state update per frame while batches stream in. */
 const LAYOUT_TRANSLATE_PUBLISH_COALESCE_MS = 100;
 
@@ -419,6 +458,7 @@ export function usePdfLayoutTranslate({
 		reflowFinalFailed,
 		reflowOutput,
 		reflowPages,
+		cancelReflowBuild,
 		exportTranslatedPdf,
 	} = usePdfReflow(
 		reflowContext,
@@ -429,8 +469,12 @@ export function usePdfLayoutTranslate({
 		paperAbsPath,
 		paperKey,
 		pdfBytes,
+		layoutTranslateJob.reflowPageOnly ?? layoutTranslateJob.scope === "page",
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
+	/** Aborts the local page-generation build owned by `usePdfReflow`. */
+	const cancelReflowBuildRef = useRef(cancelReflowBuild);
+	cancelReflowBuildRef.current = cancelReflowBuild;
 	/** Incremented whenever a translation owner changes; stale cache hydrates cannot commit. */
 	const layoutTranslateRunEpochRef = useRef(0);
 	/**
@@ -474,7 +518,7 @@ export function usePdfLayoutTranslate({
 	});
 	const parsePendingForPaper = layoutJobPending || layoutUiRunning;
 
-	const stopLayoutTranslate = useCallback(() => {
+	const stopLayoutTranslate = useCallback((stopTypeset = false) => {
 		layoutTranslateRunEpochRef.current += 1;
 		const shared = sharedTranslateRef.current;
 		if (shared) shared.cancelRequested = true;
@@ -495,6 +539,16 @@ export function usePdfLayoutTranslate({
 				partialCompletionFailed: false,
 			};
 		});
+		if (!stopTypeset) return;
+		// The Host job may already be done while the corrected pages are still
+		// generated here; the stop square has to end that local build and close
+		// the meter instead of staying a dead button.
+		cancelReflowBuildRef.current();
+		setLayoutTranslateJob((prev) =>
+			prev.status === "done" || prev.status === "partial"
+				? { ...prev, status: "cancelled" }
+				: prev,
+		);
 	}, []);
 
 	// Translation job and block failures never raise a toast: a document run
@@ -510,6 +564,26 @@ export function usePdfLayoutTranslate({
 			prev.status === "waitingLayout" ? { ...prev, status: "idle" } : prev,
 		);
 	}, []);
+
+	/**
+	 * Stop the paper's full-document translation: cancel a layout wait, abort
+	 * local work, and cancel a Host job owned by the dual-pane viewer too. Used
+	 * by 原文 and by the toolbar meter's only stop surface.
+	 */
+	const cancelLayoutTranslate = useCallback(
+		(options?: { stopTypeset?: boolean }) => {
+			if (layoutTranslateWaitTargetRef.current) cancelWaitingLayout();
+			stopLayoutTranslate(options?.stopTypeset ?? false);
+			if (!paperRelPath) return;
+			for (const task of backgroundTasksStore.getState().tasks) {
+				if (task.kind !== "layoutTranslate") continue;
+				if (task.status !== "running" && task.status !== "queued") continue;
+				if (!sameRelPaperPath(task.paperPath ?? null, paperRelPath)) continue;
+				cancelTask(task.id);
+			}
+		},
+		[cancelWaitingLayout, paperRelPath, stopLayoutTranslate],
+	);
 
 	/**
 	 * Queue the job behind layout analysis: ensure a parse is pending, park the
@@ -606,6 +680,7 @@ export function usePdfLayoutTranslate({
 										? "partial"
 										: "done",
 						scope: mode === "document" ? "document" : "page",
+						reflowPageOnly: mode !== "document",
 						items:
 							job.state === "cancelled"
 								? resetRunningTranslateItems(visibleItems)
@@ -647,6 +722,7 @@ export function usePdfLayoutTranslate({
 							setLayoutTranslateJob((prev) => ({
 								...prev,
 								scope: mode === "document" ? "document" : "page",
+								reflowPageOnly: mode !== "document",
 								status:
 									job.state === "cancelled"
 										? "cancelled"
@@ -722,6 +798,7 @@ export function usePdfLayoutTranslate({
 			setLayoutTranslateJob((prev) => ({
 				...prev,
 				scope: "document",
+				reflowPageOnly: false,
 				status: "running",
 			}));
 			void (async () => {
@@ -766,7 +843,13 @@ export function usePdfLayoutTranslate({
 										requireReflowSentencePairs: true,
 									},
 								);
-								if (hydration.fromCache) {
+								// Cached blocks paint immediately, but a live job still has to be
+								// followed: stopping here would leave the pane on the sidecar while
+								// the real job runs. Fall through to `attachSharedTranslate`.
+								if (
+									hydration.fromCache &&
+									!hasLiveLayoutTranslateJob(paperRelPath)
+								) {
 									setCacheOnly(true);
 									setSourcePreparing(false);
 									setLayoutTranslateJob(
@@ -774,6 +857,7 @@ export function usePdfLayoutTranslate({
 											status:
 												hydration.pendingRequired > 0 ? "partial" : "done",
 											scope: "document",
+											reflowPageOnly: false,
 											items: hydration.items,
 											cacheKey,
 											fromCache: true,
@@ -818,6 +902,7 @@ export function usePdfLayoutTranslate({
 		[
 			attachSharedTranslate,
 			paperAbsPath,
+			paperRelPath,
 			layoutRawRegions,
 			docId,
 			prepareReflow,
@@ -871,6 +956,7 @@ export function usePdfLayoutTranslate({
 				status: "running",
 				items: pendingItems,
 				scope: "document",
+				reflowPageOnly: false,
 				fromCache: false,
 				runScope: "initial",
 				runScopeIds: seedScopeIds,
@@ -909,6 +995,7 @@ export function usePdfLayoutTranslate({
 						: "done",
 				items: hydration.items,
 				scope: "document",
+				reflowPageOnly: false,
 				fromCache: hydration.fromCache,
 				runScope: "initial",
 				// Include cached blocks in document-wide progress.
@@ -1014,6 +1101,7 @@ export function usePdfLayoutTranslate({
 				...prev,
 				status: "running",
 				scope: prev.scope === "document" ? "document" : "page",
+				reflowPageOnly: true,
 				cacheKey,
 				runScope: "all",
 				runScopeIds: [],
@@ -1289,6 +1377,7 @@ export function usePdfLayoutTranslate({
 			items: seed,
 			cacheKey,
 			runScope: "pending",
+			reflowPageOnly: false,
 			runScopeIds: scopeIds,
 			partialCompletionFailed: false,
 		});
@@ -1403,6 +1492,7 @@ export function usePdfLayoutTranslate({
 			items: seed,
 			cacheKey,
 			runScope: "all",
+			reflowPageOnly: false,
 			runScopeIds: scopeIds,
 			partialCompletionFailed: false,
 		});
@@ -1491,6 +1581,11 @@ export function usePdfLayoutTranslate({
 	 * make it translate again: completion and full retranslation live on the
 	 * partial entry. Stopping keeps completed text and the next click hides it.
 	 */
+	/** Reading view: entering 译文 should reveal every page again. */
+	const showLayoutTranslate = useCallback(() => {
+		setHiddenPageIndexes(new Set());
+	}, []);
+
 	const toggleLayoutTranslate = useCallback(() => {
 		if (layoutTranslateJob.status === "waitingLayout") {
 			cancelWaitingLayout();
@@ -1615,8 +1710,8 @@ export function usePdfLayoutTranslate({
 	]);
 
 	// Edge-triggered parse-failure watch while queued: only tasks observed
-	// queued/running during the wait may cancel it — finished rows linger in the
-	// panel store, so a level check would trip on a stale earlier failure.
+	// queued/running during the wait may cancel it — finished rows stay visible
+	// for a short window, so a level check would trip on a stale failure.
 	useEffect(() => {
 		if (layoutTranslateJob.status !== "waitingLayout") return;
 		const fail = () => {
@@ -1720,6 +1815,7 @@ export function usePdfLayoutTranslate({
 					status: "done",
 					// Seed the document view from the available cached blocks.
 					scope: "document",
+					reflowPageOnly: false,
 					fromCache: true,
 					runScope: "initial",
 					runScopeIds: seededItems.map((item) => item.id),
@@ -1761,6 +1857,7 @@ export function usePdfLayoutTranslate({
 				status: hydration.pendingRequired > 0 ? "partial" : "done",
 				items: hydration.items,
 				scope: "document",
+				reflowPageOnly: false,
 				fromCache: true,
 				runScope: "initial",
 				runScopeIds: layoutTranslateScopeIds(
@@ -2018,6 +2115,14 @@ export function usePdfLayoutTranslate({
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		/**
+		 * Start (or re-attach to) the cache-first document translation without
+		 * toggling visibility. The reading-view switch uses this when the reader
+		 * explicitly asks for the translated view.
+		 */
+		ensureLayoutTranslate: startLayoutTranslate,
+		showLayoutTranslate,
+		cancelLayoutTranslate,
 		togglePageLayoutTranslate,
 		retryPageLayoutTranslate,
 	};

@@ -69,6 +69,8 @@ export type SelectionActionMenuProps = {
 			bottom: number;
 		};
 	};
+	/** Bounds of the translation card opened alongside this toolbar, if any. */
+	avoidBounds?: DOMRectReadOnly;
 	onAsk?: () => void;
 	onAddToChat?: () => void;
 	onTranslate?: () => void;
@@ -90,6 +92,8 @@ export type SelectionActionMenuProps = {
 };
 
 const EDGE = 12;
+const SELECTION_GAP = 10;
+const CARD_GAP = 8;
 const COPIED_FLASH_MS = 1500;
 
 /**
@@ -154,6 +158,7 @@ function SelectionCopyButton({
 /** Shared selection actions and measured placement; viewers supply extension slots. */
 export function SelectionActionMenu({
 	screen,
+	avoidBounds,
 	onAsk,
 	onAddToChat,
 	onTranslate,
@@ -274,7 +279,11 @@ export function SelectionActionMenu({
 			// Center the collapsed bar on the gesture endpoint, not the selection
 			// center; legacy anchors keep the palette/action divider fixed.
 			const anchorX = screen.cursorX ?? screen.x;
-			const right = clamp(
+			const rightLimit = Math.max(
+				EDGE,
+				window.innerWidth - reservedWidth - EDGE,
+			);
+			let right = clamp(
 				window.innerWidth -
 					anchorX -
 					(screen.cursorX != null
@@ -283,7 +292,7 @@ export function SelectionActionMenu({
 							? rect.right - (divider.left + divider.width / 2)
 							: rect.width / 2),
 				EDGE,
-				Math.max(EDGE, window.innerWidth - reservedWidth - EDGE),
+				rightLimit,
 			);
 			const topLimit = Math.max(EDGE, window.innerHeight - rect.height - EDGE);
 			let top: number;
@@ -296,15 +305,15 @@ export function SelectionActionMenu({
 				screen.selectionBounds?.bottom !== undefined;
 			// Legacy anchors have no selection side: keep preferring above.
 			if (screen.side === undefined && !hasSelectionBounds) {
-				const above = screen.y - rect.height - 10;
+				const above = screen.y - rect.height - SELECTION_GAP;
 				const overContent = above < EDGE;
 				top = clamp(overContent ? screen.y + 18 : above, EDGE, topLimit);
 				dimmed = overContent || top !== above;
 			} else {
 				// Follow the last cursor: downward drags open below, upward above.
 				// Flip only when the preferred side has no room, then clamp.
-				const above = boundsTop - rect.height - 10;
-				const below = boundsBottom + 10;
+				const above = boundsTop - rect.height - SELECTION_GAP;
+				const below = boundsBottom + SELECTION_GAP;
 				const aboveFits = above >= EDGE && above <= topLimit;
 				const belowFits = below >= EDGE && below <= topLimit;
 				const preferBelow = screen.side === "below";
@@ -315,6 +324,35 @@ export function SelectionActionMenu({
 				const chosenTop = preferredFits || !flipFits ? preferredTop : flipTop;
 				top = clamp(chosenTop, EDGE, topLimit);
 				dimmed = chosenTop !== preferredTop || top !== chosenTop;
+			}
+			const rightEdge = window.innerWidth - right;
+			if (
+				avoidBounds &&
+				rightEdge > avoidBounds.left - CARD_GAP &&
+				rightEdge - reservedWidth < avoidBounds.right + CARD_GAP
+			) {
+				const aboveCard = avoidBounds.top - CARD_GAP - rect.height;
+				const belowCard = avoidBounds.bottom + CARD_GAP;
+				if (top > aboveCard && top < belowCard) {
+					const oppositeSide =
+						top < boundsTop
+							? boundsBottom + SELECTION_GAP
+							: boundsTop - SELECTION_GAP - rect.height;
+					const clearTop = [oppositeSide, aboveCard, belowCard].find(
+						(y) =>
+							y >= EDGE && y <= topLimit && (y <= aboveCard || y >= belowCard),
+					);
+					if (clearTop !== undefined) {
+						top = clearTop;
+						dimmed ||= top < boundsBottom && top + rect.height > boundsTop;
+					} else {
+						const clearRight = [
+							window.innerWidth - avoidBounds.left + CARD_GAP,
+							window.innerWidth - avoidBounds.right - CARD_GAP - reservedWidth,
+						].find((x) => x >= EDGE && x <= rightLimit);
+						if (clearRight !== undefined) right = clearRight;
+					}
+				}
 			}
 			setPosition((prev) =>
 				prev?.right === right && prev.top === top && prev.dimmed === dimmed
@@ -339,6 +377,7 @@ export function SelectionActionMenu({
 		screen.bottom,
 		screen.selectionBounds?.top,
 		screen.selectionBounds?.bottom,
+		avoidBounds,
 		anchorRef,
 		expandingRef,
 		expandedWidth,

@@ -23,8 +23,11 @@ vi.mock("@/lib/paper", () => ({
 	findLocalPdfPath: findPdf,
 	localFileToArrayBuffer: readPdf,
 }));
-vi.mock("@/lib/pdf/layout/headless-analyze", () => ({
-	getHeadlessPdfEngine: getEngine,
+vi.mock("@/lib/pdf/background-engine", () => ({
+	acquireBackgroundPdfEngine: async () => ({
+		engine: await getEngine(),
+		release: () => {},
+	}),
 }));
 
 function resolved<T>(value: T) {

@@ -1,7 +1,7 @@
 {
 	"name": "agentero",
 	"private": true,
-	"version": "0.16.2",
+	"version": "0.17.0",
 	"type": "module",
 	"packageManager": "pnpm@11.5.3",
 	"scripts": {
@@ -186,7 +186,7 @@
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
 		"@vitejs/plugin-react": "^4.6.0",
-		"csv-parse": "6.1.0",
+		"csv-parse": "7.0.3",
 		"dependency-cruiser": "^18.1.0",
 		"happy-dom": "^21.0.4",
 		"husky": "^9.1.7",

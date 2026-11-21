@@ -24,8 +24,6 @@ import { SearchLayer } from "@embedpdf/plugin-search/react";
 import { TilingLayer } from "@embedpdf/plugin-tiling/react";
 import {
 	Bookmark,
-	Check,
-	Circle,
 	CircleAlert,
 	EyeOff,
 	Languages,
@@ -55,7 +53,6 @@ import {
 	pdfTileDpr,
 } from "@/components/viewer/pdf/constants";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
-import { usePageChromePosition } from "@/components/viewer/pdf/hooks/use-page-chrome-position";
 import { nativeSelectionBelongsToHost } from "@/components/viewer/pdf/host-dom";
 import {
 	AgenteroRenderLayer,
@@ -123,7 +120,10 @@ import {
 	layoutKindI18nKey,
 	type PdfLayoutRegion,
 } from "@/lib/pdf/layout";
-import type { LayoutTranslatePageState } from "@/lib/pdf/layout/layout-translate-progress";
+import {
+	type LayoutTranslatePageState,
+	layoutTranslatePageStage,
+} from "@/lib/pdf/layout/layout-translate-progress";
 import { translatedTextLinkKey } from "@/lib/pdf/layout/link-ink";
 import { translatedLinkHoverAction } from "@/lib/pdf/layout/translated-link-hover";
 import type {
@@ -580,20 +580,40 @@ type PageTranslateTabProps = {
 	active: boolean;
 	running: boolean;
 	status?: LayoutTranslatePageState["status"];
+	/** Text translated, translated page still being generated (typeset). */
+	previewPending?: boolean;
 	onToggle: (pageIndex: number) => void;
 };
 
-/** Compact page status and translate / hide action. */
+/**
+ * In-page translate / hide tab: a vertical label column in the page's left
+ * margin, under the floating left toolbar (the toolbar owns the top-left
+ * corner). It is pinned to the page, not the viewport: the tab scrolls with
+ * its page and disappears with it instead of being clamped to the visible
+ * edge. It stays a labelled button, not a status badge: `翻译本页` translates
+ * this page, `隐藏本页` hides a page that already shows a translation. While a
+ * page works the tab keeps the loading ring and reports the stage (`翻译中` /
+ * `排版中`), so the page also knows what it waits for.
+ */
 const PageTranslateTab = memo(function PageTranslateTab({
 	pageIndex,
 	active,
 	running,
 	status,
+	previewPending = false,
 	onToggle,
 }: PageTranslateTabProps) {
 	const { t } = useTranslation("viewer");
-	const ref = useRef<HTMLButtonElement>(null);
-	const position = usePageChromePosition(ref);
+	const stage = layoutTranslatePageStage({ running, previewPending });
+	const stageLabel = stage ? t(`pdf.layoutTranslate.pageStage.${stage}`) : null;
+	const failed = status === "error";
+	const text =
+		stageLabel ??
+		(failed
+			? t("pdf.layoutTranslate.retryPageShort")
+			: active
+				? t("pdf.layoutTranslate.hidePageShort")
+				: t("pdf.layoutTranslate.translatePageShort"));
 	const label = running
 		? t("pdf.layoutTranslate.pageRunning")
 		: active
@@ -602,30 +622,35 @@ const PageTranslateTab = memo(function PageTranslateTab({
 	const statusLabel = status
 		? t(`pdf.layoutTranslate.pageStatus.${status}`)
 		: null;
-	const Icon = status
-		? { pending: Circle, running: Loader2, done: Check, error: CircleAlert }[
-				status
-			]
-		: active
-			? EyeOff
-			: Languages;
+	const ariaLabel =
+		stageLabel ?? (statusLabel ? `${statusLabel}. ${label}` : label);
+	const Icon = stage
+		? Loader2
+		: failed
+			? CircleAlert
+			: active
+				? EyeOff
+				: Languages;
 	return (
 		<button
-			ref={ref}
 			type="button"
 			data-pdf-chrome
 			data-pdf-translate-tab
-			style={{
-				visibility: position.visible ? undefined : "hidden",
-				transform: `translate(${position.x}px, ${position.y}px)`,
-			}}
 			className={cn(
-				"pointer-events-auto absolute top-2 left-2 z-[8] flex size-7 items-center justify-center rounded-md text-foreground transition-colors duration-100 hover:bg-muted/80 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+				// Vertical column, one unit under the top-left toolbar: the
+				// horizontal pill used to sit in the toolbar's corner and collide
+				// with it. The column keeps the label readable below the toolbar.
+				"pointer-events-auto absolute top-11 left-2 z-[8] flex w-7 min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				// The running stage reports state on the plain theme surface and
+				// does not recolour on hover. Translate / hide / retry keep the old
+				// hover fill; a page with a visible translation keeps the theme
+				// primary tint, exactly as before.
+				!stage && "hover:bg-muted/80 active:bg-muted",
 				PDF_CHROME_CHIP,
-				active && "border-primary/30 bg-primary/10 text-primary",
+				!stage && active && "border-primary/30 bg-primary/10 text-primary",
 			)}
-			aria-label={statusLabel ? `${statusLabel}. ${label}` : label}
-			title={statusLabel ? `${statusLabel}. ${label}` : label}
+			aria-label={ariaLabel}
+			title={ariaLabel}
 			aria-busy={running}
 			aria-pressed={active}
 			onClick={(event) => {
@@ -636,9 +661,12 @@ const PageTranslateTab = memo(function PageTranslateTab({
 			onPointerDown={(event) => event.stopPropagation()}
 		>
 			<Icon
-				className={cn("size-3.5 shrink-0", running && "animate-spin")}
+				className={cn("size-3.5 shrink-0", stage && "animate-spin")}
 				aria-hidden="true"
 			/>
+			<span className="[writing-mode:vertical-rl] font-medium text-caption leading-none">
+				{text}
+			</span>
 		</button>
 	);
 });
@@ -1234,18 +1262,21 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			/>
 		) : null;
 
+	// A running page (translating or typesetting) and a failed page keep their
+	// tab without hover; every other state follows the user's tab setting.
+	const pageTranslateTabSticky =
+		pageTranslateState.running || pageTranslateState.status === "error";
 	const pageTranslateTab =
 		!mode.plainViewer &&
 		!immersiveReading &&
 		translateTabMode !== "hidden" &&
-		(translateTabMode === "always" ||
-			pageHovered ||
-			pageTranslateState.status) ? (
+		(translateTabMode === "always" || pageHovered || pageTranslateTabSticky) ? (
 			<PageTranslateTab
 				pageIndex={pageIndex}
 				active={pageTranslateState.active}
 				running={pageTranslateState.running}
 				status={pageTranslateState.status}
+				previewPending={pageTranslateState.previewPending}
 				onToggle={handlers.onTogglePageLayoutTranslate}
 			/>
 		) : null;
@@ -1359,7 +1390,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					type="button"
 					data-pdf-chrome
 					className={cn(
-						"absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-sm transition-[color,opacity,transform] duration-150 hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transform-none motion-reduce:transition-none",
+						"absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-sm transition-[color,opacity,transform] duration-150 hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transform-none motion-reduce:transition-none",
 						pageBookmarked
 							? pdfDark
 								? "text-[#ef8791]"
@@ -1565,26 +1596,42 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					pageIndex={pageIndex}
 				/>
 				{/*
-				 * Selection-translate spans stay tinted after the result card
-				 * closes, above the opaque translation paper (z-3) and under
-				 * the glyphs (z-6).
+				 * Paint pinned and active selection translations together, above the
+				 * translation paper (z-3) and below glyphs (z-6). Only the open
+				 * result accepts pointer events so its card can keep hover.
 				 */}
-				{translateHighlightsOnPage.map((item) =>
-					item.id === activeTranslateOnPage?.id
-						? null
-						: item.rects.map((rect) => (
+				{(translateHighlightsOnPage.length > 0 || activeTranslateOnPage) && (
+					<div
+						aria-hidden="true"
+						className="pdf-translation-source-tint pointer-events-none absolute inset-0 z-[4]"
+					>
+						{[
+							...translateHighlightsOnPage.filter(
+								(item) => item.id !== activeTranslateOnPage?.id,
+							),
+							...(activeTranslateOnPage ? [activeTranslateOnPage] : []),
+						].flatMap(({ id, rects }) => {
+							const active = id === activeTranslateOnPage?.id;
+							return rects.map((rect) => (
 								<div
-									key={`tr-hl-${item.id}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
-									className="pointer-events-none absolute z-[4] rounded-[2px] bg-yellow-300/40 dark:bg-yellow-400/35"
+									aria-hidden="true"
+									key={`${id}:${rect.x}:${rect.y}:${rect.w}:${rect.h}`}
+									className={cn(
+										"absolute rounded-[2px]",
+										active && "pointer-events-auto",
+									)}
 									style={{
 										left: `${rect.x * 100}%`,
 										top: `${rect.y * 100}%`,
 										width: `${rect.w * 100}%`,
 										height: `${rect.h * 100}%`,
 									}}
-									aria-hidden="true"
+									onMouseEnter={active ? handlers.onCardHoverEnter : undefined}
+									onMouseLeave={active ? handlers.onCardHoverLeave : undefined}
 								/>
-							)),
+							));
+						})}
+					</div>
 				)}
 				{/*
 				 * Element selection. Frames are pointer-events: none; the layer
@@ -1617,25 +1664,6 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					onHoverEnter={handlers.onCardHoverEnter}
 					onHoverLeave={handlers.onCardHoverLeave}
 				/>
-				{activeTranslateOnPage
-					? activeTranslateOnPage.rects.map((rect) => (
-							<div
-								key={`${activeTranslateOnPage.id}-source-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
-								className={cn(
-									"pointer-events-auto absolute z-[4] rounded-[2px] bg-yellow-300/40 dark:bg-yellow-400/35",
-								)}
-								style={{
-									left: `${rect.x * 100}%`,
-									top: `${rect.y * 100}%`,
-									width: `${rect.w * 100}%`,
-									height: `${rect.h * 100}%`,
-								}}
-								aria-hidden="true"
-								onMouseEnter={handlers.onCardHoverEnter}
-								onMouseLeave={handlers.onCardHoverLeave}
-							/>
-						))
-					: null}
 				{/* Figures selection outline, or citation yellow flash block. */}
 				{persistentRegion ? (
 					<div

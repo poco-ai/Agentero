@@ -187,10 +187,12 @@ function completeSplitHits(
 function characterGlyph({
 	text,
 	visualBox: { x, y, w, h },
+	style,
 }: Character): TextPiece {
 	return {
 		text,
 		rect: { origin: { x, y }, size: { width: w, height: h } },
+		size: style.size,
 	};
 }
 
@@ -491,7 +493,7 @@ export function translationHitsFromRange(
 	return hits;
 }
 
-type TextPiece = { text: string; rect: Rect };
+type TextPiece = { text: string; rect: Rect; size?: number };
 
 type PieceRef = { piece: number; offset: number };
 
@@ -517,6 +519,7 @@ function pieceReadingBox(piece: TextPiece): ReadingBox {
 		y: piece.rect.origin.y,
 		width: piece.rect.size.width,
 		height: piece.rect.size.height,
+		size: piece.size,
 	};
 }
 

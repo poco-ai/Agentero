@@ -20,6 +20,7 @@ import {
 	suppressLayoutSentenceHover,
 	syncLayoutSentencePointer,
 } from "@/components/viewer/pdf/layout-sentence-hover";
+import { MOTION_MS, prefersReducedMotion } from "@/lib/core/motion";
 import {
 	LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX,
 	layoutSentenceScope,
@@ -28,6 +29,9 @@ import { sourceSentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
 import { translatedSelectionLineRects } from "@/lib/pdf/layout/visible-selection-rects";
 import { linkPreviewDragActive } from "@/lib/pdf/link-preview-drag";
 import { synctexHoverSupersedes } from "@/lib/tex/synctex-boxes";
+
+/** Kept in sync with `--motion-duration-micro` in index.css. */
+const SENTENCE_BAND_FADE_MS = MOTION_MS.micro;
 
 function spanFromTarget(
 	target: EventTarget | null,
@@ -67,7 +71,11 @@ function selectionOwns(
 	return dx * dx + dy * dy > limit * limit;
 }
 
-/** Sentence hover stays active during reading and element selection. */
+/**
+ * Sentence hover stays active during reading and element selection.
+ * `enabled: false` turns off both the hover wash and the double-click sentence
+ * selection; the writing preview keeps only its SyncTeX line hover.
+ */
 export function usePdfSentenceInteraction(
 	docId: string,
 	hostRef: RefObject<HTMLElement | null>,
@@ -75,10 +83,13 @@ export function usePdfSentenceInteraction(
 		sentence: LayoutSentenceHover,
 		event: MouseEvent,
 	) => void,
+	options?: { enabled?: boolean },
 ): void {
+	const enabled = options?.enabled ?? true;
 	const doubleClickRef = useRef(onSentenceDoubleClick);
 	doubleClickRef.current = onSentenceDoubleClick;
 	useEffect(() => {
+		if (!enabled) return;
 		const root = hostRef.current;
 		if (!root) return;
 		let origin: { x: number; y: number } | null = null;
@@ -149,6 +160,15 @@ export function usePdfSentenceInteraction(
 		const onDoubleClick = (event: MouseEvent) => {
 			if (synctexHoverSupersedes(docId)) return;
 			if (!doubleClickRef.current || !(event.target instanceof Element)) return;
+			// The layout-element action card is the active toolbar for the
+			// element under the pointer. This same double-click must not also
+			// open the sentence selection menu on top of it (#1175).
+			const action = layoutElementActionStore.getState().action;
+			if (
+				action &&
+				layoutSentenceScope(action.docId) === layoutSentenceScope(docId)
+			)
+				return;
 			if (
 				event.target.closest("[data-layout-item], [data-pdf-chrome], a, button")
 			)
@@ -184,7 +204,7 @@ export function usePdfSentenceInteraction(
 			const current = layoutSentenceHover();
 			if (current?.docId === docId) clearLayoutSentenceHover();
 		};
-	}, [docId, hostRef]);
+	}, [docId, hostRef, enabled]);
 }
 
 /**
@@ -206,16 +226,42 @@ export function PdfSentenceHighlight({
 		const shell = layer?.parentElement;
 		if (!layer || !shell) return;
 		let paintedKey: string | null = null;
-		let fadeTimer = 0;
+		let hideTimer = 0;
+		const fadeTimers = new Set<number>();
+
+		/** Bands of the current sentence; `is-leaving` ones are already fading. */
+		const liveBands = () =>
+			Array.from(layer.children).filter(
+				(node): node is HTMLElement =>
+					node instanceof HTMLElement && !node.classList.contains("is-leaving"),
+			);
+
+		/** Fade the previous sentence out under the new one, never delaying it. */
+		const retireBands = (nodes: readonly HTMLElement[]) => {
+			if (nodes.length > 0) {
+				if (prefersReducedMotion()) {
+					for (const node of nodes) node.remove();
+				} else {
+					for (const node of nodes) node.classList.add("is-leaving");
+					const timer = window.setTimeout(() => {
+						fadeTimers.delete(timer);
+						for (const node of nodes) node.remove();
+					}, SENTENCE_BAND_FADE_MS);
+					fadeTimers.add(timer);
+				}
+			}
+			window.clearTimeout(hideTimer);
+			hideTimer = window.setTimeout(() => {
+				hideTimer = 0;
+				if (liveBands().length > 0) return;
+				layer.classList.remove("is-on");
+			}, SENTENCE_BAND_FADE_MS);
+		};
 
 		const clear = () => {
 			if (paintedKey === null && !layer.classList.contains("is-on")) return;
 			paintedKey = null;
-			layer.classList.remove("is-on");
-			window.clearTimeout(fadeTimer);
-			fadeTimer = window.setTimeout(() => {
-				if (!layer.classList.contains("is-on")) layer.replaceChildren();
-			}, 80);
+			retireBands(liveBands());
 		};
 		const paint = () => {
 			const action = layoutElementActionStore.getState().action;
@@ -242,6 +288,7 @@ export function PdfSentenceHighlight({
 			const content = document.createDocumentFragment();
 			const append = (x: number, y: number, w: number, h: number) => {
 				const band = document.createElement("span");
+				band.className = "pdf-sentence-band";
 				Object.assign(band.style, {
 					left: `${x * 100}%`,
 					top: `${y * 100}%`,
@@ -284,15 +331,26 @@ export function PdfSentenceHighlight({
 				clear();
 				return;
 			}
-			// Swap the band in place. Fading the old sentence out before showing
-			// the next one drops every block the pointer crosses during that fade.
-			window.clearTimeout(fadeTimer);
+			// Crossfade: the new sentence paints on the same frame under the
+			// pointer, while the previous one fades out beneath it. Fading the old
+			// one out *before* showing the next dropped every block the pointer
+			// crossed during that fade.
+			const sameSentence = paintedKey === mine.key;
+			const previous = liveBands();
+			if (sameSentence) {
+				// Zoom / resize on the same sentence: replace without a fade.
+				for (const node of previous) node.remove();
+			} else {
+				retireBands(previous);
+			}
+			window.clearTimeout(hideTimer);
+			hideTimer = 0;
 			paintedKey = mine.key;
 			layer.style.setProperty(
 				"--pdf-sentence-opacity",
 				selectedDocument ? "28%" : "12%",
 			);
-			layer.replaceChildren(content);
+			layer.append(content);
 			layer.classList.add("is-on");
 		};
 		const unsubscribe = subscribeLayoutSentenceHover(paint);
@@ -305,7 +363,10 @@ export function PdfSentenceHighlight({
 			unsubscribe();
 			unsubscribeAction();
 			observer?.disconnect();
-			window.clearTimeout(fadeTimer);
+			window.clearTimeout(hideTimer);
+			for (const timer of fadeTimers) window.clearTimeout(timer);
+			layer.replaceChildren();
+			layer.classList.remove("is-on");
 		};
 	}, [docId, pageIndex, source]);
 	return (

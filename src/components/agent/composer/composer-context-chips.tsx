@@ -297,7 +297,7 @@ function VisualReferenceCardBody({
 					<>
 						<button
 							type="button"
-							className="mt-2 block w-full cursor-zoom-in rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							className="mt-2 block w-full cursor-zoom-in rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 							title={zoomLabel}
 							aria-label={zoomLabel}
 							onClick={() => onZoomOpenChange(true)}

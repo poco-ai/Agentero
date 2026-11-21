@@ -6,7 +6,7 @@ mod acp_live {
     use crate::features::agent::registry::discovery::resolve_command;
     use crate::features::agent::registry::templates::{catalog_templates, interactive_cli};
     use crate::features::agent::AgentRegistry;
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         PermissionOption, PermissionOptionId, PermissionOptionKind, RequestPermissionOutcome,
         RequestPermissionRequest, ToolCallUpdate, ToolCallUpdateFields,
     };
@@ -20,6 +20,7 @@ mod acp_live {
         args: Vec<String>,
     ) -> AgentDescriptor {
         AgentDescriptor {
+            supports_shell: false,
             id: id.into(),
             name: name.into(),
             template,

@@ -18,6 +18,12 @@ import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 
 /** Bump when label mapping / stored region semantics change (invalidates cache). */
 export const LAYOUT_SIDECAR_SCHEMA_VERSION = 3;
+/**
+ * Reading-order algorithm that produced the stored body text. Sidecars without
+ * it (or with an older value) only need a PDF text-layer re-walk, not a new
+ * layout analysis: the walk rewrites `text` in place and keeps `generatedAt`.
+ */
+export const LAYOUT_TEXT_ORDER_VERSION = 2;
 export const LAYOUT_SIDECAR_FILE = "layout.json";
 
 /** Producer recorded in `source.mode` — which backend generated the regions. */
@@ -47,6 +53,8 @@ export type PdfLayoutSidecar = {
 		figureCaptionsExtracted?: boolean;
 		/** Rich PDF run styles sampled; old caches need only a text walk. */
 		sourceStylesExtracted?: boolean;
+		/** {@link LAYOUT_TEXT_ORDER_VERSION} of the stored body text walk. */
+		textOrderVersion?: number;
 		/** Verifiable page coverage and content-readiness metadata. */
 		completeness?: LayoutCompleteness;
 	};
@@ -164,6 +172,8 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 		source.sourceStylesExtracted = true;
 	if (raw.source.figureCaptionsExtracted === true)
 		source.figureCaptionsExtracted = true;
+	if (isFiniteNumber(raw.source.textOrderVersion))
+		source.textOrderVersion = raw.source.textOrderVersion;
 	const completeness = parseLayoutCompleteness(raw.source.completeness);
 	if (completeness) source.completeness = completeness;
 	return {
@@ -208,6 +218,10 @@ export function layoutSidecarBlocksAnalysis(
 	sidecar: PdfLayoutSidecar,
 ): boolean {
 	if (force === true) return false;
+	// Body text from an older reading-order pass is still a valid parse: it only
+	// needs the text-layer walk, so analysis must not be skipped.
+	if (sidecar.source.textOrderVersion !== LAYOUT_TEXT_ORDER_VERSION)
+		return false;
 	const readiness = assessLayoutReadiness(sidecar.source.completeness);
 	if (readiness.status === "ready") return true;
 	return readiness.status === "warning" && !readiness.needsContentRepair;
@@ -220,6 +234,7 @@ export function layoutSidecarNeedsTextLayer(
 	return (
 		sidecar.source.sourceStylesExtracted !== true ||
 		sidecar.source.textLayerExtracted !== true ||
+		sidecar.source.textOrderVersion !== LAYOUT_TEXT_ORDER_VERSION ||
 		(sidecar.source.mode === "mineru-layout" &&
 			sidecar.source.figureCaptionsExtracted !== true)
 	);
@@ -294,6 +309,7 @@ export async function writeLayoutSidecar(
 		source.textLayerExtracted = true;
 		source.figureCaptionsExtracted = true;
 		source.sourceStylesExtracted = true;
+		source.textOrderVersion = LAYOUT_TEXT_ORDER_VERSION;
 	}
 	const sidecar: PdfLayoutSidecar = {
 		schemaVersion: LAYOUT_SIDECAR_SCHEMA_VERSION,
@@ -358,6 +374,7 @@ export function layoutTextBackfillSidecar(
 			textLayerExtracted: true,
 			figureCaptionsExtracted: true,
 			sourceStylesExtracted: true,
+			textOrderVersion: LAYOUT_TEXT_ORDER_VERSION,
 		},
 		regions,
 	};

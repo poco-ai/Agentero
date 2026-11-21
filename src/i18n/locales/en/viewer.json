@@ -24,6 +24,16 @@
 		"jumpBack": "Jump back",
 		"importToLibrary": "Import to library",
 		"smartHighlight": "Smart highlight",
+		"viewMode": {
+			"label": "Reading view",
+			"original": "Original",
+			"translated": "Translation",
+			"dual": "Compare",
+			"originalHint": "Original (hide translation and stop the task)",
+			"translatedHint": "Translation (in place on the page)",
+			"dualHint": "Compare (source and translation side by side)",
+			"paneUnavailable": "The paper has no local folder, so the translation pane cannot open."
+		},
 		"smartHighlightFailed": "Smart highlight failed",
 		"jevNoReadableText": "PDF text layer is empty or unreadable. Run Parse Body (Tools → Parse PDF body) to OCR the paper first.",
 		"findPlaceholder": "Find in document",
@@ -49,14 +59,19 @@
 			"hide": "Hide translations",
 			"show": "Show translations",
 			"translatePage": "Translate this page",
-			"translatePageShort": "Page",
+			"translatePageShort": "Translate",
 			"hidePage": "Hide this page translation",
 			"hidePageShort": "Hide",
+			"retryPageShort": "Retry",
 			"pageStatus": {
 				"pending": "Page awaiting translation",
 				"running": "Translating this page…",
 				"done": "Page translation complete",
 				"error": "Page translation incomplete"
+			},
+			"pageStage": {
+				"translating": "Translating",
+				"typesetting": "Typesetting"
 			},
 			"pageRunning": "Translating this page…",
 			"needLayout": "Run layout analysis first (Figures panel).",
@@ -96,7 +111,8 @@
 			"retranslateConfirmTitle": "Retranslate all?",
 			"retranslateConfirmDescription": "This requests every block again and replaces translations that succeed. Blocks that fail keep their previous translation.",
 			"retranslateConfirm": "Retranslate",
-			"pagesCount": "Completed {{done}}/{{total}} pages"
+			"pagesCount": "Completed {{done}}/{{total}} pages",
+			"pagesGenerated": "Generated {{done}}/{{total}} pages"
 		},
 		"translation": {
 			"title": "Translation",

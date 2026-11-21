@@ -298,6 +298,8 @@ export const PdfTranslatePartialButton = memo(
 						aria-label={label}
 						title={label}
 						className={cn(
+							// Join the surrounding chrome row: only the icon turns amber,
+							// with no material of its own.
 							"bg-transparent text-amber-600 hover:text-amber-700 active:text-amber-700 aria-expanded:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 dark:active:text-amber-300 dark:aria-expanded:text-amber-300",
 							className,
 						)}

@@ -1,4 +1,5 @@
 {
+	"promptOnlySources": "此 Agent 通过提示接收随附证据，无法主动展开更多来源。",
 	"acpStatus": {
 		"ready": "ACP 就绪",
 		"failed": "ACP 失败",
@@ -118,6 +119,7 @@
 		"selectionChipWithPage": "{{title}}:{{page}}页",
 		"selectionChipWithLine": "{{title}} {{from}}行",
 		"selectionChipWithLines": "{{title}} {{from}}-{{to}}行",
+		"referencePaperRoot": "Papers",
 		"visualAnnotation": "视觉批注",
 		"visualAnnotationPage": "第{{page}}页",
 		"visualAnnotationsTitle": "视觉批注（{{count}}）",

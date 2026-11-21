@@ -127,6 +127,9 @@ impl AgentTemplate {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentDescriptor {
+    /// Custom ACP harness can invoke local shell commands.
+    #[serde(default)]
+    pub supports_shell: bool,
     pub id: String,
     pub name: String,
     pub template: AgentTemplate,
@@ -361,6 +364,9 @@ pub struct CatalogScanResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpsertAgentRequest {
+    /// Custom ACP harness can invoke local shell commands.
+    #[serde(default)]
+    pub supports_shell: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub name: String,
@@ -463,7 +469,7 @@ pub struct RunOnceRequest {
     pub hide_from_chat_history: bool,
     /// Selection, open paper, and @ mentions for this turn.
     /// The host resolver writes the minimum evidence into the prompt and, for a
-    /// local session, attaches the session-scoped `agentero-context` MCP.
+    /// local session, binds the evidence CLI to this turn.
     /// Omit when the turn has no vault anchor.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<agentero_core::features::context::ContextRequest>,
@@ -500,7 +506,11 @@ pub struct AgentResultPayload {
     /// ACP agent thought / reasoning (from AgentThoughtChunk), if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<String>,
+    #[serde(default)]
+    pub prompt_only: bool,
     pub sources: Vec<String>,
+    #[serde(default)]
+    pub artifacts: Vec<agentero_core::features::context::PresentedFile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
     /// Durable ACP provider session id for the next continue
@@ -706,6 +716,8 @@ pub struct WarmResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub models: Option<AgentModelsEvent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collaboration: Option<AgentCollaborationEvent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_used: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_size: Option<u64>,
@@ -728,7 +740,8 @@ pub struct AgentStatusEvent {
     pub session_id: String,
     /// `starting` (spawn/connect) | `waiting-model` (prompt sent, no output
     /// yet) | `reconnecting` (upstream connection lost, agent retries) |
-    /// `codex-instruction-budget` (Codex text fallback; the UI shows a
+    /// `notice-info`, `notice-warning`, `notice-error` (live ACP notices) or
+    /// `codex-instruction-budget` (legacy Codex text fallback; the UI shows a
     /// dismissible notice and does not treat it as a loading phase).
     pub phase: String,
     /// Optional context, e.g. the reconnect attempt counter (`2/5`).
@@ -836,6 +849,8 @@ pub struct AcpHistoryLine {
     pub parts: Vec<AcpHistoryPart>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub artifacts: Vec<agentero_core::features::context::PresentedFile>,
 }
 
 /// Response for `agent_delete_session`.

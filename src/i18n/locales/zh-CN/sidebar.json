@@ -215,6 +215,9 @@
 		"importPdfMergedMany": "已将 {{count}} 个 PDF 合入已有条目",
 		"recognizeMerged": "识别后的 PDF 已合入已有条目：{{id}}",
 		"recognizeArxivRateLimited": "arXiv 接口限流（{{id}}），未能补全标题/作者。请稍后再点「刷新元数据」。",
+		"recognizeNoMatch": "未匹配到「{{name}}」的元信息，论文已保留。",
+		"recognizeFailed": "「{{name}}」的元信息识别失败，论文已保留。",
+		"recognizePaperUnavailable": "无法在原位置找到这篇论文。",
 		"importFailed": "导入失败",
 		"exportFailed": "导出失败",
 		"desktopOnly": "导入/导出需要桌面应用。",
@@ -541,6 +544,7 @@
 		"copyFailed": "无法复制到剪贴板",
 		"editMeta": {
 			"title": "修改元信息",
+			"unresolved": "元信息尚未补全。可填写 DOI 或 arXiv 编号后点击「刷新」，也可手动编辑。",
 			"fieldTitle": "标题",
 			"fieldAuthors": "作者",
 			"authorsPlaceholder": "每行一位作者",

@@ -7,8 +7,8 @@ use crate::features::agent::doctor::{diagnose_claude_auth, diagnose_codex_auth, 
 use crate::features::agent::models::{
     AcpSessionCapabilities, AgentDescriptor, AgentTemplate, ProbeResult,
 };
-use agent_client_protocol::schema::v1::RequestPermissionRequest;
-use agent_client_protocol::{Agent, ConnectionTo};
+use agent_client_protocol::v1::schema::RequestPermissionRequest;
+use agent_client_protocol::{v1::ConnectionTo, Agent};
 use std::sync::{Arc, Mutex};
 
 /// Spawn agent, initialize ACP, report agent info. Does not send a user prompt.

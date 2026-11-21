@@ -51,6 +51,7 @@ function runReadingBox(run: PdfTextRun): ReadingBox {
 		y: run.rect.origin.y,
 		width: run.rect.size.width,
 		height: run.rect.size.height,
+		size: run.fontSize,
 	};
 }
 

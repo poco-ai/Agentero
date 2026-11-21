@@ -1,5 +1,5 @@
 /**
- * Application logger (see `docs/development/logging.md`).
+ * Application logger.
  *
  * Tauri: `@tauri-apps/plugin-log` → Host stdout + LogDir (+ Webview in dev).
  * Plain browser / tests: `console.*` fallback.

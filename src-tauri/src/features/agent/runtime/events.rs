@@ -63,6 +63,10 @@ impl AgentEventEmitter {
         }
     }
 
+    pub(crate) fn window_binding(&self) -> Arc<RwLock<String>> {
+        self.window_label.clone()
+    }
+
     pub fn window_label(&self) -> String {
         read_label(&self.window_label)
     }

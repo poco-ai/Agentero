@@ -259,8 +259,10 @@ export function handleActivePanelChange(panelId: string | null): void {
 		if (!notesId) return;
 		readingSync = true;
 		try {
-			dockHandle()?.activatePanel(notesId, { skipSetGroupActive: true });
-			dockHandle()?.activatePanel(panelId);
+			dockHandle()?.activatePanel(notesId, {
+				skipSetGroupActive: true,
+				skipIfSameGroupAs: panelId,
+			});
 			if (
 				uiStore.getState().layoutMode === "reading" &&
 				!dockHandle()?.isMaximizedPanel()
@@ -284,14 +286,10 @@ export function handleActivePanelChange(panelId: string | null): void {
 				t.notesPath &&
 				normalizeTabPath(t.notesPath) === notesKey,
 		);
-		if (!companion) return;
-		readingSync = true;
-		try {
-			dockHandle()?.activatePanel(companion.id);
-			dockHandle()?.activatePanel(panelId);
-		} finally {
-			queueMicrotask(() => {
-				readingSync = false;
+		if (companion) {
+			dockHandle()?.activatePanel(companion.id, {
+				skipSetGroupActive: true,
+				skipIfSameGroupAs: panelId,
 			});
 		}
 	}

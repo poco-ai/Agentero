@@ -432,15 +432,15 @@ it("releases the build engine once the queue drains", async () => {
 		// Drain the serial queue with microtasks only; fake timers never fire.
 		for (let i = 0; i < 50 && session.busy; i++) await Promise.resolve();
 		expect(provider.idle).not.toHaveBeenCalled();
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(5_000);
 		expect(provider.idle).toHaveBeenCalledTimes(1);
-		// Restarting a translation cancels a pending release; a settled queue
-		// schedules a fresh one.
+		// A settled queue releases its private source even if the translation
+		// remains active without generating additional work.
 		session.update([item(1)], [], true);
 		for (let i = 0; i < 50 && session.busy; i++) await Promise.resolve();
 		session.update([item(1)], [], true);
-		vi.advanceTimersByTime(30_000);
-		expect(provider.idle).toHaveBeenCalledTimes(1);
+		vi.advanceTimersByTime(5_000);
+		expect(provider.idle).toHaveBeenCalledTimes(2);
 	} finally {
 		vi.useRealTimers();
 	}
@@ -463,7 +463,7 @@ it("keeps the build engine alive when a rebuild starts before the idle deadline"
 	try {
 		session.update([item(0)], [], false);
 		for (let i = 0; i < 50 && session.busy; i++) await Promise.resolve();
-		// The first build finished; the release deadline is armed (30s).
+		// The first build finished; the release deadline is armed (5s).
 		const gate = deferred<ReflowOutput>();
 		vi.mocked(buildReflowPdf).mockImplementationOnce(
 			async (_engine, _doc, ir) => {
@@ -477,7 +477,7 @@ it("keeps the build engine alive when a rebuild starts before the idle deadline"
 		session.update([{ ...item(0), translated: "changed" }], [], false);
 		for (let i = 0; i < 200 && session.busy !== true; i++)
 			await Promise.resolve();
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(5_000);
 		expect(provider.idle).not.toHaveBeenCalled();
 		expect(session.busy).toBe(true);
 		const ir = vi.mocked(buildReflowPdf).mock.calls.at(-1)?.[2];
@@ -486,7 +486,7 @@ it("keeps the build engine alive when a rebuild starts before the idle deadline"
 		for (let i = 0; i < 200 && session.busy; i++) await Promise.resolve();
 		expect(session.busy).toBe(false);
 		// Once the queue drains again the deadline is re-armed and fires.
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(5_000);
 		expect(provider.idle).toHaveBeenCalledTimes(1);
 	} finally {
 		vi.useRealTimers();
@@ -530,6 +530,7 @@ it("keeps other pages and the old display while completing only one page", async
 		output,
 		new Uint8Array([1, 2]),
 		[1],
+		expect.any(AbortSignal),
 	);
 	expect(session.ready).toBe(true);
 	const decorated = session.decorate(completed);
@@ -665,6 +666,7 @@ it("keeps unfinished retranslation pages when the run is cancelled", async () =>
 		output,
 		expect.any(Uint8Array),
 		[0],
+		expect.any(AbortSignal),
 	);
 });
 

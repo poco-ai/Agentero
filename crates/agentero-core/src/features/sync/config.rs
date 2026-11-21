@@ -46,6 +46,9 @@ pub struct SyncBackendConfig {
     pub access_key: String,
     #[serde(default)]
     pub secret_key: String,
+    /// Temporary S3 credential included in the SigV4 signed headers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_token: Option<String>,
     /// `{endpoint}/{bucket}/key` instead of `{bucket}.{endpoint}/key`.
     /// Path style works with R2 / MinIO / AWS alike, so it is the default.
     #[serde(default = "default_true")]
@@ -95,9 +98,7 @@ pub struct SyncBackendConfig {
     pub auto_sync: bool,
     #[serde(default = "default_interval_minutes")]
     pub interval_minutes: u32,
-    /// Connection-test probe result: `false` for backends whose PUT rejects
-    /// or ignores conditional headers (e.g. Aliyun OSS 400 NotImplemented,
-    /// most WebDAV servers). Sync then degrades to plain PUTs.
+    /// Last conditional-write probe result. Unsafe stores cannot publish.
     #[serde(default = "default_true")]
     pub conditional_writes: bool,
     /// Which bulky paper assets (PDF / LaTeX source / attachments) take part
@@ -229,6 +230,11 @@ impl SyncBackendConfig {
         self.prefix = self.prefix.trim().trim_matches('/').to_string();
         self.access_key = self.access_key.trim().to_string();
         self.secret_key = self.secret_key.trim().to_string();
+        self.session_token = self
+            .session_token
+            .take()
+            .map(|s| s.trim().to_owned())
+            .filter(|s| !s.is_empty());
         self.webdav_url = normalize_webdav_url(&self.webdav_url);
         self.webdav_username = self.webdav_username.trim().to_string();
         self.webdav_password = self.webdav_password.trim().to_string();
@@ -255,6 +261,7 @@ impl SyncBackendConfig {
     pub fn masked(&self) -> Self {
         let mut out = self.clone();
         out.secret_key = mask_secret(&out.secret_key);
+        out.session_token = out.session_token.as_deref().map(mask_secret);
         out.webdav_password = mask_secret(&out.webdav_password);
         out.agentero_token.clear();
         out
@@ -264,6 +271,9 @@ impl SyncBackendConfig {
     pub fn merge_mask(&mut self, previous: Option<&Self>) {
         if is_masked_secret(&self.secret_key) {
             self.secret_key = previous.map(|p| p.secret_key.clone()).unwrap_or_default();
+        }
+        if self.session_token.as_deref().is_some_and(is_masked_secret) {
+            self.session_token = previous.and_then(|p| p.session_token.clone());
         }
         if is_masked_secret(&self.webdav_password) {
             self.webdav_password = previous
@@ -489,23 +499,21 @@ fn config_path() -> PathBuf {
     paths::agentero_config_dir().join("sync.json")
 }
 
-fn read_all() -> HashMap<String, SyncBackendConfig> {
+fn read_all() -> Result<HashMap<String, SyncBackendConfig>, AppError> {
     let path = config_path();
-    let Ok(raw) = fs::read_to_string(&path) else {
-        return HashMap::new();
-    };
-    match serde_json::from_str::<SyncConfigFile>(&raw) {
-        Ok(file) => file.vaults,
-        Err(e) => {
-            log::warn!(target: "agentero::sync", "invalid sync.json: {e}");
-            HashMap::new()
-        }
+    match fs::read(path) {
+        Ok(raw) => Ok(serde_json::from_slice::<SyncConfigFile>(&raw)?.vaults),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
+        Err(e) => Err(e.into()),
     }
 }
 
 /// All configured vaults (used at app start / exit to drive auto sync).
 pub fn list_all() -> HashMap<String, SyncBackendConfig> {
-    read_all()
+    read_all().unwrap_or_else(|e| {
+        log::warn!(target: "agentero::sync", "read sync.json: {e}");
+        HashMap::new()
+    })
 }
 
 fn write_all(vaults: HashMap<String, SyncBackendConfig>) -> Result<(), AppError> {
@@ -522,21 +530,40 @@ fn write_all(vaults: HashMap<String, SyncBackendConfig>) -> Result<(), AppError>
 }
 
 pub fn get(vault_path: &str) -> Option<SyncBackendConfig> {
-    read_all().remove(vault_path)
+    list_all().remove(vault_path)
+}
+
+fn config_lock() -> Result<fs::File, AppError> {
+    let dir = paths::agentero_config_dir();
+    fs::create_dir_all(&dir)?;
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join("sync.lock"))?;
+    fs2::FileExt::lock_exclusive(&file)?;
+    Ok(file)
 }
 
 pub fn set(vault_path: &str, config: SyncBackendConfig) -> Result<(), AppError> {
-    let mut all = read_all();
+    let _lock = config_lock()?;
+    let mut all = read_all()?;
     all.insert(vault_path.to_string(), config);
     write_all(all)
 }
 
-pub fn remove(vault_path: &str) -> Result<(), AppError> {
-    let mut all = read_all();
+fn remove(vault_path: &str) -> Result<(), AppError> {
+    let _lock = config_lock()?;
+    let mut all = read_all()?;
     if all.remove(vault_path).is_some() {
         write_all(all)?;
     }
     Ok(())
+}
+
+pub fn disconnect(vault_key: &str, lock: &super::lock::SyncLock) -> Result<(), AppError> {
+    remove(vault_key)?;
+    super::local::clear(lock)
 }
 
 #[cfg(test)]

@@ -1,7 +1,4 @@
 //! Paper import: identifier lookup, Translator, Zotero migrate, local PDF, PAPER.md parse.
-//!
-//! @see docs/backend/identifier-lookup.md
-//! @see docs/backend/paper-import-pipeline.md
 
 pub mod auto_ingest;
 pub mod chat_extract;
@@ -655,6 +652,9 @@ pub async fn import_local_pdfs(
     let mut papers_out = Vec::new();
     let mut errors = Vec::new();
     for entry in &entries {
+        if task_id.as_deref().is_some_and(is_task_cancelled) {
+            break;
+        }
         match import_one_local_pdf(
             &vault,
             &parent_rel,
@@ -772,7 +772,10 @@ async fn import_one_local_pdf(
 
     let sync_probe = if ctx.recognize_sync && !dialog_meta {
         let translator_base = ctx.translator_base_url.unwrap_or("");
-        let probe = recognize::recognize_and_resolve(&src, translator_base, ctx.task_id).await;
+        let probe =
+            recognize::recognize_and_resolve(&src, translator_base, ctx.task_id, Some(&title))
+                .await;
+        check_task_not_cancelled(ctx.task_id)?;
         if let Some(canon) = recognize::canonical_base_id(&probe) {
             base_id = canon;
         }

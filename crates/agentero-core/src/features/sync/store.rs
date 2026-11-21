@@ -23,6 +23,51 @@ pub enum PutCondition {
     IfMatch(String),
 }
 
+impl PutCondition {
+    pub(super) fn header(self) -> Result<(&'static str, String), AppError> {
+        match self {
+            Self::IfNoneMatch => Ok(("If-None-Match", "*".into())),
+            Self::IfMatch(tag)
+                if tag
+                    .strip_prefix('"')
+                    .and_then(|value| value.strip_suffix('"'))
+                    .is_some_and(|opaque| {
+                        opaque
+                            .bytes()
+                            .all(|byte| byte == 0x21 || (0x23..=0x7e).contains(&byte))
+                    }) =>
+            {
+                Ok(("If-Match", tag))
+            }
+            Self::IfMatch(_) => Err(AppError::message("remote did not supply a strong ETag")),
+        }
+    }
+}
+
+pub(super) async fn probe_conditions(
+    store: &impl RemoteStore,
+    key: &str,
+) -> Result<bool, AppError> {
+    if store.put(key, vec![1], PutCondition::IfNoneMatch).await? != PutOutcome::Ok {
+        return Ok(false);
+    }
+    let Some((_, tag)) = store.get(key).await? else {
+        return Ok(false);
+    };
+    if store.put(key, vec![2], PutCondition::IfNoneMatch).await? != PutOutcome::PreconditionFailed
+        || store
+            .put(key, vec![2], PutCondition::IfMatch(tag.clone()))
+            .await?
+            != PutOutcome::Ok
+    {
+        return Ok(false);
+    }
+    Ok(
+        store.put(key, vec![3], PutCondition::IfMatch(tag)).await?
+            == PutOutcome::PreconditionFailed,
+    )
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum PutOutcome {
     Ok,
@@ -115,11 +160,8 @@ impl RemoteStore for SyncStore {
 // One retry loop and one error formatter, so a backend client only decides
 // how to build its authenticated request.
 
-/// Send one request with transport-layer retries. Sync operations are
-/// idempotent (content-addressed blobs, CAS'd HEAD, 404-tolerant DELETE), so
-/// transient transport errors — stale pooled connections, momentary port
-/// blips — are retried instead of failing the whole pass. `build` must
-/// produce a fresh request per attempt (headers/body are moved in).
+/// Never replay a conditional PUT after a transport error: a lost success
+/// response followed by a 412 is not evidence that another writer won.
 pub(crate) async fn send_with_retries(
     method: &reqwest::Method,
     url: &str,
@@ -132,7 +174,7 @@ pub(crate) async fn send_with_retries(
         }
         match build().send().await {
             Ok(resp) => return Ok(resp),
-            Err(e) if e.is_connect() || e.is_request() => {
+            Err(e) if method != reqwest::Method::PUT && (e.is_connect() || e.is_request()) => {
                 log::warn!(
                     target: "agentero::sync",
                     "{method} {url} attempt {}: {e}",

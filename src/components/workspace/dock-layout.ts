@@ -319,6 +319,6 @@ export function reconcileAfterLayoutRestore(
 
 export function visiblePanelIds(api: DockviewApi): string[] {
 	return api.groups.flatMap((group) =>
-		group.activePanel ? [group.activePanel.id] : [],
+		group.api.isVisible && group.activePanel ? [group.activePanel.id] : [],
 	);
 }

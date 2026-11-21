@@ -10,6 +10,7 @@ import {
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -107,6 +108,7 @@ export function EditPaperMetaDialog({
 }) {
 	const { t } = useTranslation("sidebar");
 	const open = paper !== null;
+	const unresolved = paper?.meta_source === "local-unresolved";
 	const [initial, setInitial] = useState<Draft | null>(null);
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [moreOpen, setMoreOpen] = useState(false);
@@ -218,10 +220,15 @@ export function EditPaperMetaDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
 				className="flex! max-h-[75vh] min-h-0 flex-col gap-3 overflow-hidden sm:max-w-lg"
-				aria-describedby={undefined}
+				aria-describedby={unresolved ? "edit-meta-unresolved" : undefined}
 			>
 				<DialogHeader className="shrink-0">
 					<DialogTitle>{t("paperInfo.editMeta.title")}</DialogTitle>
+					{unresolved && (
+						<DialogDescription id="edit-meta-unresolved">
+							{t("paperInfo.editMeta.unresolved")}
+						</DialogDescription>
+					)}
 				</DialogHeader>
 
 				<div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
