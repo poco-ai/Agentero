@@ -408,6 +408,8 @@ pub async fn doc_window_open(
         return Err("path is required".into());
     }
     let label = doc_window_label(&path);
+    // Same create-or-focus race as `settings_window_open`.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(&label) {
         raise_existing_window(&win);
