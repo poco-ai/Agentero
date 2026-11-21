@@ -151,7 +151,7 @@ export async function ensureSettingsLoaded(): Promise<AppSettings> {
 					const legacy = readLegacyLocalStorage();
 					if (legacy) {
 						next = normalizeSettings(legacy);
-						await persistToHost(next);
+						await queueSave(next);
 					}
 				}
 				// Drop dual-source: file is authoritative after first load.
@@ -182,9 +182,31 @@ export function saveSettings(settings: AppSettings): void {
 	const next = normalizeSettings(settings);
 	applyExternalSettings(next);
 	if (!isTauri()) return;
-	void persistToHost(next).catch((e) => {
+	void queueSave(next).catch((e) => {
 		console.warn("[settings] save failed", e);
 	});
+}
+
+/**
+ * Host writes run one at a time.
+ *
+ * `settings_set` is `async` so the WebView2 UI thread never blocks on the
+ * `settings.json` write and the subscriber fan-out. Async means two saves can
+ * overlap, and each one persists a whole snapshot: without a queue an older
+ * snapshot can win the race and drop the user's newest edit. Chaining keeps the
+ * old synchronous ordering without blocking the UI thread.
+ */
+let saveQueue: Promise<unknown> = Promise.resolve();
+let enqueuedSaves = 0;
+
+function queueSave(settings: AppSettings): Promise<AppSettings> {
+	const token = ++enqueuedSaves;
+	const run = saveQueue.then(() => persistToHost(settings, token));
+	saveQueue = run.then(
+		() => undefined,
+		() => undefined,
+	);
+	return run;
 }
 
 type SettingsListener = (settings: AppSettings) => void;
@@ -252,15 +274,21 @@ export async function saveSettingsAsync(
 	const next = normalizeSettings(settings);
 	applyExternalSettings(next);
 	if (!isTauri()) return loadSettings();
-	return persistToHost(next);
+	return queueSave(next);
 }
 
-async function persistToHost(settings: AppSettings): Promise<AppSettings> {
+async function persistToHost(
+	settings: AppSettings,
+	token: number,
+): Promise<AppSettings> {
 	const res = await callApi(() => commands.settingsSet(settings), {
 		fallback: "settings_set failed",
 	});
-	setCache(normalizeSettings(fromSettingsWire(res)));
-	return loadSettings();
+	const next = normalizeSettings(fromSettingsWire(res));
+	// A newer save is already queued: its optimistic snapshot is the current
+	// truth, so this response must not roll the cache back to an older value.
+	if (token === enqueuedSaves) setCache(next);
+	return token === enqueuedSaves ? loadSettings() : next;
 }
 
 function readLegacyLocalStorage(): AppSettings | null {
