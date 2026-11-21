@@ -15,6 +15,7 @@ pub mod commands;
 mod windows;
 
 use crate::core::error::AppError;
+#[cfg(target_os = "macos")]
 use crate::core::process::SpawnInAgentScratchDir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
