@@ -7043,6 +7043,19 @@ export type ZoteroMigrateArgs = {
 	migrateAnnotations?: boolean,
 };
 
+/**
+ *  One item the migration could not import, with enough context to find it in
+ *  Zotero again and to explain the failure.
+ */
+export type ZoteroMigrateFailure = {
+	/**  Zotero itemID (the item's own id, or the note's itemID for standalone notes). */
+	itemId: number,
+	title: string,
+	/**  DOI as stored in Zotero (`DOI` field), when the item has one. */
+	doi: string | null,
+	message: string,
+};
+
 export type ZoteroMigrateResult = {
 	imported: number,
 	skipped: number,
@@ -7067,7 +7080,12 @@ export type ZoteroMigrateResult = {
 	/**  Orphan catalog rows removed before import (paper folder gone from disk). */
 	pruned: number,
 	paths: string[],
-	errors: string[],
+	/**
+	 *  Per-item failures. `message` is the Host error text; `title` / `doi` let
+	 *  the UI (and the log) point at the exact Zotero entry instead of a bare
+	 *  count.
+	 */
+	failures: ZoteroMigrateFailure[],
 };
 
 export type ZoteroScan = ZoteroScan_Serialize | ZoteroScan_Deserialize;

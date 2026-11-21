@@ -114,6 +114,19 @@ pub struct ZoteroMigrateArgs {
     pub migrate_annotations: bool,
 }
 
+/// One item the migration could not import, with enough context to find it in
+/// Zotero again and to explain the failure.
+#[derive(Debug, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ZoteroMigrateFailure {
+    /// Zotero itemID (the item's own id, or the note's itemID for standalone notes).
+    pub item_id: i64,
+    pub title: String,
+    /// DOI as stored in Zotero (`DOI` field), when the item has one.
+    pub doi: Option<String>,
+    pub message: String,
+}
+
 #[derive(Debug, Default, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ZoteroMigrateResult {
@@ -136,7 +149,10 @@ pub struct ZoteroMigrateResult {
     /// Orphan catalog rows removed before import (paper folder gone from disk).
     pub pruned: usize,
     pub paths: Vec<String>,
-    pub errors: Vec<String>,
+    /// Per-item failures. `message` is the Host error text; `title` / `doi` let
+    /// the UI (and the log) point at the exact Zotero entry instead of a bare
+    /// count.
+    pub failures: Vec<ZoteroMigrateFailure>,
 }
 
 /// One regular Zotero item, reconstructed as a Zotero API JSON object plus the
@@ -403,7 +419,7 @@ pub async fn migrate_zotero(
                     out.merged_duplicates += 1;
                 }
             }
-            Err(e) => out.errors.push(e.to_string()),
+            Err(e) => out.failures.push(failure_for_item(&item, e.to_string())),
         }
     }
 
@@ -428,7 +444,20 @@ pub async fn migrate_zotero(
                     out.standalone_notes += 1;
                 }
                 Ok(StandaloneNoteWrite::Skipped) => {}
-                Err(e) => out.errors.push(e.to_string()),
+                Err(e) => {
+                    let title = note.title.clone().unwrap_or_else(|| "Untitled note".into());
+                    log::warn!(
+                        target: "agentero::op",
+                        "zotero migrate note failed item_id={} title={title:?} error={e}",
+                        note.item_id
+                    );
+                    out.failures.push(ZoteroMigrateFailure {
+                        item_id: note.item_id,
+                        title,
+                        doi: None,
+                        message: e.to_string(),
+                    });
+                }
             }
         }
     }
@@ -635,6 +664,37 @@ async fn migrate_one(
         },
         false,
     ))
+}
+
+/// Build a per-item failure record and write it to the Host log, so a failed
+/// migration can be diagnosed from `agentero.log` instead of a bare count.
+fn failure_for_item(item: &ReadItem, message: String) -> ZoteroMigrateFailure {
+    let title = item
+        .json
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let doi = item
+        .json
+        .get("DOI")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|doi| !doi.is_empty())
+        .map(str::to_string);
+    log::warn!(
+        target: "agentero::op",
+        "zotero migrate item failed item_id={} doi={} title={:?} error={message}",
+        item.item_id,
+        doi.as_deref().unwrap_or("-"),
+        title
+    );
+    ZoteroMigrateFailure {
+        item_id: item.item_id,
+        title,
+        doi,
+        message,
+    }
 }
 
 /// New vault-relative path when an existing paper sits outside its collection
