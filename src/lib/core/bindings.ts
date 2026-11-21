@@ -311,7 +311,8 @@ export const commands = {
 	/**
 	 *  Streaming translate: pushes each increment through `on_delta`, then returns
 	 *  the final text. Providers without a streaming path fall back to one-shot
-	 *  translation (no deltas, final text only).
+	 *  translation (no deltas, final text only). Streaming calls are timed by
+	 *  silence, not by a total deadline.
 	 */
 	translateTextStream: (args: TranslateTextArgs, onDelta: Channel<string>) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text_stream", { args, onDelta }),
 	dictionaryLookup: (text: string, targetLang: string) => __TAURI_INVOKE<ApiResult<DictionaryEntry[]>>("dictionary_lookup", { text, targetLang }),
