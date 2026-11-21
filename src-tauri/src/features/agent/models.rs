@@ -433,6 +433,10 @@ pub struct RunOnceRequest {
     /// Preferred model id from ACP session config (category: model). Applied after session/new.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    /// Force one `session/set_config_option` for `model_id` even when the agent
+    /// reports it as current. Set for explicit user picks only (Fix #1087).
+    #[serde(default)]
+    pub force_model: bool,
     /// Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub collaboration_mode_id: Option<String>,
@@ -689,6 +693,9 @@ pub struct AgentModelsEvent {
     pub agent_id: String,
     /// ACP config option id for the model selector.
     pub config_id: String,
+    /// Model the agent reports as active. Empty means the agent did not report
+    /// one; never invent it from the catalog — upstream agents can misreport
+    /// `current` (see #1087), and callers treat empty as "unknown, always set".
     pub current_id: String,
     pub models: Vec<AgentModelChoice>,
 }
@@ -703,6 +710,10 @@ pub struct WarmRequest {
     pub vault_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    /// Force one `session/set_config_option` for `model_id` even when the agent
+    /// reports it as current. Set for explicit user picks only (Fix #1087).
+    #[serde(default)]
+    pub force_model: bool,
     /// Preferred collaboration mode (`collaboration_mode`: default / plan).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub collaboration_mode_id: Option<String>,

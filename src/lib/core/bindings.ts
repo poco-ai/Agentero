@@ -1356,6 +1356,11 @@ export type AgentModelsEvent_Deserialize = {
 	agentId: string,
 	/**  ACP config option id for the model selector. */
 	configId: string,
+	/**
+	 *  Model the agent reports as active. Empty means the agent did not report
+	 *  one; never invent it from the catalog — upstream agents can misreport
+	 *  `current` (see #1087), and callers treat empty as "unknown, always set".
+	 */
 	currentId: string,
 	models: AgentModelChoice_Deserialize[],
 };
@@ -1366,6 +1371,11 @@ export type AgentModelsEvent_Serialize = {
 	agentId: string,
 	/**  ACP config option id for the model selector. */
 	configId: string,
+	/**
+	 *  Model the agent reports as active. Empty means the agent did not report
+	 *  one; never invent it from the catalog — upstream agents can misreport
+	 *  `current` (see #1087), and callers treat empty as "unknown, always set".
+	 */
 	currentId: string,
 	models: AgentModelChoice_Serialize[],
 };
@@ -5357,6 +5367,11 @@ export type RunOnceRequest_Deserialize = {
 	target?: string | null,
 	/**  Preferred model id from ACP session config (category: model). Applied after session/new. */
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel?: boolean,
 	/**  Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan. */
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
@@ -5424,6 +5439,11 @@ export type RunOnceRequest_Serialize = {
 	target?: string | null,
 	/**  Preferred model id from ACP session config (category: model). Applied after session/new. */
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel: boolean,
 	/**  Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan. */
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
@@ -6382,6 +6402,11 @@ export type WarmRequest_Deserialize = {
 	agentId?: string | null,
 	vaultPath?: string | null,
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };
@@ -6391,6 +6416,11 @@ export type WarmRequest_Serialize = {
 	agentId?: string | null,
 	vaultPath?: string | null,
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel?: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };

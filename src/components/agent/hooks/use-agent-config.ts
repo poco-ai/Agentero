@@ -32,6 +32,7 @@ import {
 	loadModelFavorites,
 	loadModelPref,
 	loadReasoningEffortPref,
+	markModelPicked,
 	resolveReasoningEffort,
 	saveCollaborationCatalog,
 	saveCollaborationPref,
@@ -403,6 +404,8 @@ export function useAgentConfig({
 			agentId: string;
 			vaultPath: string | null;
 			modelId?: string;
+			/** Re-apply `modelId` even when ACP reports it as the current model. */
+			forceModel?: boolean;
 			collaborationModeId?: string;
 			generation: number;
 			/** Apply models/usage only when still the intended warm target. */
@@ -420,6 +423,7 @@ export function useAgentConfig({
 					agentId: args.agentId,
 					vaultPath: args.vaultPath ?? undefined,
 					modelId: args.modelId,
+					forceModel: args.forceModel,
 					collaborationModeId: args.collaborationModeId,
 				});
 				if (args.generation !== warmGenRef.current || !args.stillValid()) {
@@ -541,12 +545,16 @@ export function useAgentConfig({
 	const pickModel = (id: string) => {
 		const next = id.trim();
 		if (!next) return;
-		if (next === modelId) return;
+		// Re-picking the model shown in the UI is still meaningful: the adapter
+		// may report a current model that differs from the one in effect (Claude
+		// ACP's reported current ignores `settings.env.ANTHROPIC_MODEL`), so the
+		// switch must be re-sent instead of deduplicated against the display.
 		// Free-form / third-party ids may not be in the advertised catalog yet.
 		setModels((prev) => ensureModelsInclude(prev, [next]));
 		setModelId(next);
 		if (!selectedAgentId) return;
 		saveModelPref(selectedAgentId, next);
+		markModelPicked(selectedAgentId, next);
 		if (!isTauri() || !agentListenersReady) return;
 
 		const agentId = selectedAgentId;
@@ -560,6 +568,7 @@ export function useAgentConfig({
 			agentId,
 			vaultPath: requestVaultPath,
 			modelId: next,
+			forceModel: true,
 			collaborationModeId:
 				loadCollaborationPref(agentId) ?? collaborationModeId ?? undefined,
 			generation,

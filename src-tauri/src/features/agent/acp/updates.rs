@@ -232,17 +232,33 @@ pub(crate) fn richer_models_event(
 ) -> Option<AgentModelsEvent> {
     match (config, raw) {
         (Some(config), Some(raw)) => {
-            if raw.models.len() > config.models.len() {
+            let use_raw = raw.models.len() > config.models.len();
+            // Size picks the catalog, but either payload may be the only one
+            // that reports a current model (legacy `models` objects omit it).
+            // Keep a reported current instead of letting the richer list blank
+            // it, and never fabricate one (#1087).
+            let current_id = if use_raw && !raw.current_id.is_empty() {
+                raw.current_id.clone()
+            } else if !config.current_id.is_empty() {
+                config.current_id.clone()
+            } else {
+                raw.current_id.clone()
+            };
+            if use_raw {
                 log::debug!(
                     target: "agentero::agent",
-                    "agent={} using raw session models over config options: raw={} config={}",
+                    "agent={} using raw session models over config options: raw={} config={} current={}",
                     raw.agent_id,
                     raw.models.len(),
-                    config.models.len()
+                    config.models.len(),
+                    current_id
                 );
-                Some(raw)
+                Some(AgentModelsEvent { current_id, ..raw })
             } else {
-                Some(config)
+                Some(AgentModelsEvent {
+                    current_id,
+                    ..config
+                })
             }
         }
         (Some(config), None) => Some(config),
@@ -364,11 +380,9 @@ fn models_from_models_object(
             },
         );
     }
-    let current_id = if current_id.is_empty() {
-        models[0].id.clone()
-    } else {
-        current_id
-    };
+    // A missing current stays unknown (empty) instead of borrowing the first
+    // catalog entry: a fabricated current makes callers skip the model switch
+    // that would really apply the user's pick (#1087).
 
     Some(AgentModelsEvent {
         session_id: session_id.to_string(),
@@ -1640,7 +1654,7 @@ mod session_models_fallback_tests {
     }
 
     #[test]
-    fn defaults_current_to_first_model_when_absent() {
+    fn leaves_current_unknown_when_absent() {
         let value = serde_json::json!({
             "sessionId": "sess-1",
             "models": {
@@ -1651,7 +1665,54 @@ mod session_models_fallback_tests {
         });
 
         let ev = models_from_session_models_value("sess-1", "hermes", &value).expect("models");
-        assert_eq!(ev.current_id, "moa:default");
+        // Never borrow models[0]: a fabricated current makes the switch a no-op.
+        assert_eq!(ev.current_id, "");
+    }
+
+    #[test]
+    fn richer_models_event_keeps_a_reported_current_from_the_other_source() {
+        use crate::features::agent::models::{AgentModelChoice, AgentModelsEvent};
+
+        let event = |ids: &[&str], current: &str| AgentModelsEvent {
+            session_id: "sess-1".into(),
+            agent_id: "opencode".into(),
+            config_id: "model".into(),
+            current_id: current.into(),
+            models: ids
+                .iter()
+                .map(|id| AgentModelChoice {
+                    id: id.to_string(),
+                    name: id.to_string(),
+                    group: None,
+                })
+                .collect(),
+        };
+
+        // Richer raw catalog omits current; keep the config-reported one.
+        let merged = richer_models_event(
+            Some(event(&["moa:default"], "moa:default")),
+            Some(event(&["moa:default", "gateway:custom"], "")),
+        )
+        .expect("models");
+        assert_eq!(merged.models.len(), 2);
+        assert_eq!(merged.current_id, "moa:default");
+
+        // Richer config catalog has no current; keep the raw-reported one.
+        let merged = richer_models_event(
+            Some(event(&["moa:default", "gateway:custom"], "")),
+            Some(event(&["moa:default"], "moa:default")),
+        )
+        .expect("models");
+        assert_eq!(merged.models.len(), 2);
+        assert_eq!(merged.current_id, "moa:default");
+
+        // Neither reports one: stay unknown.
+        let merged = richer_models_event(
+            Some(event(&["moa:default"], "")),
+            Some(event(&["moa:default", "gateway:custom"], "")),
+        )
+        .expect("models");
+        assert_eq!(merged.current_id, "");
     }
 
     #[test]
