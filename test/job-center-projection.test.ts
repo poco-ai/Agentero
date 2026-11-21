@@ -77,6 +77,12 @@ const mocks = vi.hoisted(() => {
 	};
 });
 
+// Renderer jobs are offered to every window; these tests run as the winner.
+mocks.commandSpy("jobRendererClaim").mockResolvedValue({
+	status: "ok",
+	data: { ok: true, data: true },
+});
+
 vi.mock("@/lib/core/tauri", () => ({
 	isTauri: () => mocks.tauri,
 }));
@@ -331,6 +337,42 @@ describe("job task projection", () => {
 		await flush();
 		await flush();
 		expect(mocks.bindingFor("jobChanged").listeners).toHaveLength(0);
+	});
+
+	it("runs an offered job only in the window that wins the renderer claim", async () => {
+		mocks.tauri = true;
+		const executor = vi.fn(async () => undefined);
+		registerTaskExecutor("layoutAnalyze", executor);
+		startJobCenterExecutorListener();
+		await flush();
+
+		const offer = (jobId: string, paperPath: string) => ({
+			jobId,
+			kind: "layoutAnalyze" as const,
+			vaultPath: "/vault",
+			paperPath,
+			force: false,
+			params: null,
+		});
+
+		// This window wins the claim → the executor runs once.
+		mocks.emit("jobOffer", offer("job-claim-win", "papers/a"));
+		await flush();
+		expect(executor).toHaveBeenCalledTimes(1);
+		expect(executor.mock.calls[0]?.[0]).toMatchObject({
+			jobId: "job-claim-win",
+		});
+
+		// Another window already owns the job → skip it without reporting;
+		// `job:changed` still projects the owned job in this window's panel.
+		mocks.commandSpy("jobRendererClaim").mockResolvedValueOnce({
+			status: "ok",
+			data: { ok: true, data: false },
+		});
+		mocks.emit("jobOffer", offer("job-claim-lose", "papers/b"));
+		await flush();
+		expect(executor).toHaveBeenCalledTimes(1);
+		expect(mocks.commandSpy("jobReport")).not.toHaveBeenCalled();
 	});
 
 	it("projects an import job from its params and keeps the reported status text", () => {

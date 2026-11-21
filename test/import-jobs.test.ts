@@ -57,6 +57,12 @@ const mocks = vi.hoisted(() => {
 	};
 });
 
+// Renderer jobs are offered to every window; these tests run as the winner.
+mocks.commandSpy("jobRendererClaim").mockResolvedValue({
+	status: "ok",
+	data: { ok: true, data: true },
+});
+
 vi.mock("@/lib/core/tauri", () => ({
 	isTauri: () => mocks.tauri,
 }));

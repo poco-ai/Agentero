@@ -761,21 +761,22 @@ mod layout_translate_tests {
 
 #[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
-pub struct JobLayoutTranslateClaimArgs {
+pub struct JobRendererClaimArgs {
     pub job_id: String,
 }
 
+/// Claim a running renderer-executed job for the calling window. Rust
+/// broadcasts every `job:offer` to all windows; only the first claimer runs
+/// the frontend executor, so uploads / cloud calls happen once per job.
 #[tauri::command]
 #[specta::specta]
-pub async fn job_layout_translate_claim(
+pub async fn job_renderer_claim(
     window: tauri::WebviewWindow,
     center: State<'_, JobCenter>,
-    args: JobLayoutTranslateClaimArgs,
+    args: JobRendererClaimArgs,
 ) -> Result<ApiResult<bool>, String> {
     Ok(ApiResult::ok(
-        center
-            .claim_layout_translate(&args.job_id, window.label())
-            .await,
+        center.claim_renderer(&args.job_id, window.label()).await,
     ))
 }
 

@@ -128,7 +128,12 @@ export const commands = {
 	jobLayoutAnalyzeEnqueue: (args: JobLayoutAnalyzeEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
 	/**  Request a document translation through the same queue used by imports. */
 	jobLayoutTranslateEnqueue: (args: JobLayoutTranslateEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_translate_enqueue", { args })),
-	jobLayoutTranslateClaim: (args: JobLayoutTranslateClaimArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_layout_translate_claim", { args })),
+	/**
+	 *  Claim a running renderer-executed job for the calling window. Rust
+	 *  broadcasts every `job:offer` to all windows; only the first claimer runs
+	 *  the frontend executor, so uploads / cloud calls happen once per job.
+	 */
+	jobRendererClaim: (args: JobRendererClaimArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_renderer_claim", { args })),
 	jobDownloadAssetsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_download_assets_enqueue", { args })),
 	/**
 	 *  Enqueue a renderer-orchestrated import (magic wand / local PDF / plaza /
@@ -3663,10 +3668,6 @@ export type JobLayoutAnalyzeEnqueueArgs = {
 	autoTranslate?: boolean,
 };
 
-export type JobLayoutTranslateClaimArgs = {
-	jobId: string,
-};
-
 export type JobLayoutTranslateEnqueueArgs = {
 	vaultPath: string,
 	path: string,
@@ -3732,6 +3733,10 @@ export type JobProgressEvent_Serialize = AssetDownloadProgress_Serialize;
 export type JobReconcilePaperArgs = {
 	vaultPath: string,
 	path: string,
+};
+
+export type JobRendererClaimArgs = {
+	jobId: string,
 };
 
 export type JobReorderArgs = {

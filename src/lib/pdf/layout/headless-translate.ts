@@ -12,9 +12,7 @@
  */
 
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
-import { commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
-import { callApiResult } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import {
 	registerTaskExecutor,
@@ -96,8 +94,6 @@ async function runLayoutTranslateExecutor(
 		return;
 	}
 
-	if (!(await callApiResult(() => commands.jobLayoutTranslateClaim({ jobId }))))
-		return;
 	const paperAbsPath = joinVaultPath(vaultPath, paperPath);
 	const publisher = createTranslationPublisher(report, jobId);
 

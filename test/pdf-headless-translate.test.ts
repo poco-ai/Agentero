@@ -1,9 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import type { TaskExecutorContext } from "@/lib/core/tasks";
-import {
-	registerLayoutTranslateTaskExecutor,
-	translatePaperLayoutHeadless,
-} from "@/lib/pdf/layout/headless-translate";
+import { translatePaperLayoutHeadless } from "@/lib/pdf/layout/headless-translate";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 
 const mocks = vi.hoisted(() => ({
@@ -11,22 +7,12 @@ const mocks = vi.hoisted(() => ({
 	run: vi.fn(),
 	flush: vi.fn(),
 	progress: vi.fn(),
-	claim: vi.fn(),
-	executor: null as ((ctx: TaskExecutorContext) => Promise<void>) | null,
 	open: vi.fn(),
 	close: vi.fn(),
 	layoutCompleteness: null as unknown,
 }));
-vi.mock("@/lib/core/bindings", () => ({
-	commands: { jobLayoutTranslateClaim: mocks.claim },
-}));
-vi.mock("@/lib/core/ipc", () => ({
-	callApiResult: (fn: () => Promise<unknown>) => fn(),
-}));
 vi.mock("@/lib/core/tasks", () => ({
-	registerTaskExecutor: (_kind: string, executor: typeof mocks.executor) => {
-		mocks.executor = executor;
-	},
+	registerTaskExecutor: vi.fn(),
 }));
 vi.mock("@/lib/pdf/engine", () => ({
 	createPdfEngine: async () => ({
@@ -125,7 +111,6 @@ beforeEach(() => {
 	};
 	mocks.open.mockReset().mockResolvedValue({ id: "doc", pageCount: 2 });
 	mocks.close.mockReset().mockResolvedValue(undefined);
-	mocks.claim.mockReset().mockResolvedValue(true);
 	mocks.flush.mockReset().mockResolvedValue(undefined);
 	mocks.progress.mockReset();
 	mocks.run.mockReset().mockImplementation(async ({ items, onUpdate }) => {
@@ -218,26 +203,4 @@ it("an explicit retranslation keeps prior successful text when a block fails", a
 			(item: LayoutTranslateItem) => item.translated,
 		),
 	).toEqual(["Cached 0", "Cached 1"]);
-});
-
-it("only the Host-selected window executes a broadcast translation offer", async () => {
-	registerLayoutTranslateTaskExecutor();
-	mocks.claim.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-	const ctx = {
-		jobId: "owned-job",
-		vaultPath: "/vault",
-		paperPath: "papers/a",
-		force: false,
-		signal: new AbortController().signal,
-		report: vi.fn().mockResolvedValue(undefined),
-	} as unknown as TaskExecutorContext;
-	await mocks.executor?.(ctx);
-	await mocks.executor?.(ctx);
-	expect(mocks.open).toHaveBeenCalledTimes(1);
-	expect(mocks.run).toHaveBeenCalledTimes(1);
-	const reports = vi.mocked(ctx.report).mock.calls.map(([report]) => report);
-	const terminal = reports.findIndex((report) => report.state === "succeeded");
-	const progress = reports.findIndex((report) => report.params);
-	expect(progress).toBeGreaterThanOrEqual(0);
-	expect(terminal).toBeGreaterThan(progress);
 });

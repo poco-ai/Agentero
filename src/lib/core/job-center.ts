@@ -61,11 +61,13 @@ export function registerJobExecutor(
 }
 
 /**
- * Run one offer, at most once per job id. A throwing executor is reported as
- * `failed` so Rust frees the kind's concurrency slot now instead of waiting out
- * its report timeout.
+ * Run one offer, at most once per job id. Every window receives the broadcast
+ * `job:offer`; Rust hands the job to the first window that claims it, so the
+ * losing windows return before touching the executor. A throwing executor is
+ * reported as `failed` so Rust frees the kind's concurrency slot now instead
+ * of waiting out its report timeout.
  */
-function dispatchJobOffer(offer: JobOfferPayload): void {
+async function dispatchJobOffer(offer: JobOfferPayload): Promise<void> {
 	const executor = executors.get(offer.kind);
 	if (!executor) {
 		logger.warn("no executor registered for job offer", {
@@ -76,23 +78,43 @@ function dispatchJobOffer(offer: JobOfferPayload): void {
 	}
 	if (inFlightOffers.has(offer.jobId)) return;
 	inFlightOffers.add(offer.jobId);
-	void executor(offer)
-		.catch(async (error) => {
-			const message = errorText(error);
-			logger.error("job executor failed", {
-				kind: offer.kind,
-				jobId: offer.jobId,
-				error: message,
-			});
-			await jobReport({
-				jobId: offer.jobId,
-				state: "failed",
-				error: message,
-			}).catch(() => undefined);
-		})
-		.finally(() => {
-			inFlightOffers.delete(offer.jobId);
+	try {
+		if (!(await claimJobOffer(offer.jobId))) return;
+		await executor(offer);
+	} catch (error) {
+		const message = errorText(error);
+		logger.error("job executor failed", {
+			kind: offer.kind,
+			jobId: offer.jobId,
+			error: message,
 		});
+		await jobReport({
+			jobId: offer.jobId,
+			state: "failed",
+			error: message,
+		}).catch(() => undefined);
+	} finally {
+		inFlightOffers.delete(offer.jobId);
+	}
+}
+
+/**
+ * Ask Rust whether this window owns the offered job. The claim IPC failing
+ * fails open (runs the executor here): an RPC error must never strand a
+ * running job until the renderer report timeout.
+ */
+async function claimJobOffer(jobId: string): Promise<boolean> {
+	try {
+		return (
+			(await callApiResult(() => commands.jobRendererClaim({ jobId }))) === true
+		);
+	} catch (error) {
+		logger.warn("renderer job claim failed; running unclaimed", {
+			jobId,
+			error: errorText(error),
+		});
+		return true;
+	}
 }
 
 /**
@@ -107,7 +129,7 @@ async function claimRunningJobOffers(): Promise<void> {
 		});
 		for (const job of jobs ?? []) {
 			if (job.state !== "running" || !executors.has(job.kind)) continue;
-			dispatchJobOffer({
+			void dispatchJobOffer({
 				jobId: job.id,
 				kind: job.kind,
 				vaultPath: job.vaultPath,
@@ -128,7 +150,7 @@ export function startJobCenterExecutorListener(): void {
 	if (isTauri()) {
 		offerSubscription = toSafeDisposer(
 			events.jobOffer.listen((event) => {
-				dispatchJobOffer(event.payload);
+				void dispatchJobOffer(event.payload);
 			}),
 		);
 	} else {
