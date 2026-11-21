@@ -192,6 +192,104 @@ fn proxy_client() -> &'static reqwest::Client {
     })
 }
 
+/// Client for a top-level HTML document. It keeps a cookie jar because the
+/// upstream WAF in front of some article sites answers the first visit with
+/// `403` + `Set-Cookie` + a JS reload stub and lets the retried request pass
+/// (the snapshot fetcher replays the same exchange in `agentero-core`).
+fn document_client() -> Result<reqwest::Client, String> {
+    crate::core::http::client_builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .user_agent(crate::core::http::BROWSER_USER_AGENT)
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= crate::core::http::DEFAULT_REDIRECT_LIMIT {
+                return attempt.error("too many redirects");
+            }
+            match attempt.url().host_str() {
+                Some(host) if allowlist::is_allowed(host) => attempt.follow(),
+                _ => attempt.error("agentero-web: redirect target not allowed"),
+            }
+        }))
+        .cookie_store(true)
+        .build()
+        .map_err(|e| e.to_string())
+}
+
+/// One upstream answer, normalized so both fetch paths share the HTML handling.
+struct Upstream {
+    status: StatusCode,
+    content_type: String,
+    final_url: String,
+    bytes: Vec<u8>,
+}
+
+/// A frame navigation asks for an HTML document; subresources and XHR
+/// fragments do not need the browser-cookie exchange.
+fn wants_document(method: &reqwest::Method, headers: &tauri::http::HeaderMap) -> bool {
+    if *method != reqwest::Method::GET {
+        return false;
+    }
+    match headers
+        .get(reqwest::header::ACCEPT)
+        .and_then(|value| value.to_str().ok())
+    {
+        Some(accept) => accept.contains("text/html"),
+        // WebView navigations always send Accept; a missing one still means
+        // "render this as a page" rather than "load a subresource".
+        None => true,
+    }
+}
+
+async fn upstream_from(response: reqwest::Response) -> Result<Upstream, String> {
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("application/octet-stream")
+        .to_string();
+    let final_url = response.url().to_string();
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?.to_vec();
+    Ok(Upstream {
+        status,
+        content_type,
+        final_url,
+        bytes,
+    })
+}
+
+/// GET a top-level document like a browser, replaying one JS-challenge
+/// exchange so a WAF-protected article renders instead of its stub.
+async fn document_get(url: &str, headers: &tauri::http::HeaderMap) -> Result<Upstream, String> {
+    let client = document_client()?;
+    let mut outgoing = client.get(url).header(
+        reqwest::header::USER_AGENT,
+        crate::core::http::BROWSER_USER_AGENT,
+    );
+    for (name, value) in headers.iter() {
+        if crate::features::paper::discovery::proxy::is_forwardable(name.as_str()) {
+            outgoing = outgoing.header(name.as_str(), value.as_bytes());
+        }
+    }
+    let first = upstream_from(outgoing.send().await.map_err(|e| e.to_string())?).await?;
+    if first.status == StatusCode::FORBIDDEN
+        && crate::core::http::looks_like_js_challenge(&first.bytes)
+    {
+        let retry = client
+            .get(url)
+            .header(
+                reqwest::header::USER_AGENT,
+                crate::core::http::BROWSER_USER_AGENT,
+            )
+            .header(
+                reqwest::header::ACCEPT,
+                "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+            );
+        let retry = retry.send().await.map_err(|e| e.to_string())?;
+        return upstream_from(retry).await;
+    }
+    Ok(first)
+}
+
 fn response(status: StatusCode, content_type: &str, body: Vec<u8>) -> Response<Vec<u8>> {
     Response::builder()
         .status(status)
@@ -358,49 +456,42 @@ pub fn handle(request: tauri::http::Request<Vec<u8>>, responder: tauri::UriSchem
 
     tauri::async_runtime::spawn(async move {
         let result = async {
-            let client = proxy_client();
             let method = reqwest::Method::from_bytes(parts.method.as_str().as_bytes())
                 .unwrap_or(reqwest::Method::GET);
-            let mut outgoing = client.request(method, url).header(
-                reqwest::header::USER_AGENT,
-                // Sites routinely refuse non-browser agents; the feeds fetcher
-                // impersonates a browser for the same reason.
-                crate::core::http::BROWSER_USER_AGENT,
-            );
-            for (name, value) in parts.headers.iter() {
-                if crate::features::paper::discovery::proxy::is_forwardable(name.as_str()) {
-                    outgoing = outgoing.header(name.as_str(), value.as_bytes());
+            let upstream = if wants_document(&method, &parts.headers) {
+                document_get(&url, &parts.headers).await?
+            } else {
+                let client = proxy_client();
+                let mut outgoing = client.request(method, url);
+                for (name, value) in parts.headers.iter() {
+                    if crate::features::paper::discovery::proxy::is_forwardable(name.as_str()) {
+                        outgoing = outgoing.header(name.as_str(), value.as_bytes());
+                    }
                 }
-            }
-            if !body.is_empty() {
-                outgoing = outgoing.body(body);
-            }
-            let remote = outgoing.send().await.map_err(|e| e.to_string())?;
-            let status =
-                StatusCode::from_u16(remote.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
-            let content_type = remote
-                .headers()
-                .get(reqwest::header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .unwrap_or("application/octet-stream")
-                .to_string();
+                if !body.is_empty() {
+                    outgoing = outgoing.body(body);
+                }
+                upstream_from(outgoing.send().await.map_err(|e| e.to_string())?).await?
+            };
+            let content_type = upstream.content_type.clone();
             // The final URL after any redirects is what the document should
             // resolve its relative links against.
-            let final_url = remote.url().to_string();
-            let bytes = remote.bytes().await.map_err(|e| e.to_string())?;
             let body = if content_type.starts_with("text/html") {
-                match String::from_utf8(bytes.to_vec()) {
-                    Ok(text) if looks_like_document(&text) => {
-                        inject_document(&text, &base_url_for(&final_url), status.as_u16())
-                            .into_bytes()
-                    }
+                match String::from_utf8(upstream.bytes) {
+                    Ok(text) if looks_like_document(&text) => inject_document(
+                        &text,
+                        &base_url_for(&upstream.final_url),
+                        upstream.status.as_u16(),
+                    )
+                    .into_bytes(),
                     // XHR fragments go through as-is.
-                    _ => bytes.to_vec(),
+                    Ok(text) => text.into_bytes(),
+                    Err(error) => error.into_bytes(),
                 }
             } else {
-                bytes.to_vec()
+                upstream.bytes
             };
-            Ok::<_, String>((status, content_type, body))
+            Ok::<_, String>((upstream.status, content_type, body))
         }
         .await;
 
@@ -590,5 +681,31 @@ mod tests {
     fn bridge_honors_host_messages() {
         assert!(WEB_BRIDGE.contains("agentero-web-host"));
         assert!(WEB_BRIDGE.contains("clearSelection"));
+    }
+
+    #[test]
+    fn document_requests_are_get_navigations() {
+        let mut headers = tauri::http::HeaderMap::new();
+        headers.insert(
+            reqwest::header::ACCEPT,
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                .parse()
+                .expect("accept"),
+        );
+        assert!(wants_document(&reqwest::Method::GET, &headers));
+        assert!(!wants_document(&reqwest::Method::POST, &headers));
+
+        let mut json = tauri::http::HeaderMap::new();
+        json.insert(
+            reqwest::header::ACCEPT,
+            "application/json".parse().expect("accept"),
+        );
+        assert!(!wants_document(&reqwest::Method::GET, &json));
+
+        // A WebView navigation without Accept is still a page request.
+        assert!(wants_document(
+            &reqwest::Method::GET,
+            &tauri::http::HeaderMap::new()
+        ));
     }
 }
