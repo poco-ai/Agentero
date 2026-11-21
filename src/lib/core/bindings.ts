@@ -4590,7 +4590,6 @@ export type PaperOpenBundleArgs = {
 export type PaperOpenBundle_Deserialize = {
 	paper: PaperRecord_Deserialize,
 	pathRel: string,
-	notesSeed: string | null,
 	pdfPath: string | null,
 	hasTex: boolean,
 	hasPaperMd: boolean,
@@ -4599,7 +4598,6 @@ export type PaperOpenBundle_Deserialize = {
 export type PaperOpenBundle_Serialize = {
 	paper: PaperRecord_Serialize,
 	pathRel: string,
-	notesSeed?: string | null,
 	pdfPath?: string | null,
 	hasTex: boolean,
 	hasPaperMd: boolean,

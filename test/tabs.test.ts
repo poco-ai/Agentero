@@ -929,7 +929,7 @@ describe("tab session persistence", () => {
 });
 
 describe("flat workspace helpers", () => {
-	it("createNotesSplitPane reuses notesSeed", () => {
+	it("createNotesSplitPane waits for its own notes load", () => {
 		const tab = makeTab("/vault/p", {
 			kind: "paper",
 			mode: "pdf",
@@ -938,7 +938,7 @@ describe("flat workspace helpers", () => {
 			paperMeta: { path: "p", title: "P" } as DocTab["paperMeta"],
 		});
 		const pane = createNotesSplitPane(tab);
-		expect(pane?.notesSeed).toBe("# hi");
+		expect(pane).toMatchObject({ loaded: false, notesSeed: "" });
 		expect(pane?.path).toBe("/vault/p/NOTES.md");
 		expect(pane?.title).toBe("Notes");
 	});
@@ -948,14 +948,12 @@ describe("flat workspace helpers", () => {
 			kind: "paper",
 			mode: "pdf",
 			notesPath: "/vault/p/NOTES.md",
-			notesSeed: "# hi",
 			paperMeta: null,
 		});
 		const pane = createNotesSplitPane(tab);
 		expect(pane).not.toBeNull();
 		expect(pane?.paperMeta).toBeNull();
 		expect(pane?.path).toBe("/vault/p/NOTES.md");
-		expect(pane?.notesSeed).toBe("# hi");
 	});
 
 	it("tabIsPaperNotes recognizes a paper root or NOTES.md without catalog metadata", () => {
