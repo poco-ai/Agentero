@@ -13,6 +13,13 @@
 
 export type LinkPreviewKind = "page" | "image" | "none";
 
+/** What the hover card should load, and from which URL. */
+export type LinkPreviewTarget = {
+	kind: LinkPreviewKind;
+	/** Resolved URL: a direct image for figure permalinks, else the link target. */
+	url: string;
+};
+
 /** Inline image formats; `.tif/.tiff/.heic` deliberately fall back to the tip. */
 const IMAGE_EXTENSIONS = new Set([
 	"png",
@@ -84,6 +91,26 @@ function looksLikePdfPath(pathname: string): boolean {
 		.some((segment) => segment === "pdf" || segment === "pdfs");
 }
 
+/**
+ * eLife figure permalinks (`/articles/<id>/figures#fig4s1`) are HTML pages that
+ * show a single figure; the proxy cannot fetch them (eLife answers non-browser
+ * clients with a challenge), but the same figure is a direct CDN JPG. Prefer
+ * the image so a figure-supplement link previews as its actual figure.
+ */
+function elifeFigureImage(url: URL): string | null {
+	if (!/(^|\.)elifesciences\.org$/i.test(url.hostname)) return null;
+	const article = url.pathname.match(/^\/articles\/(\d+)(?:\/figures)?\/?$/i);
+	if (!article) return null;
+	const anchor = decodeURIComponent(url.hash.replace(/^#/, ""));
+	const figure = anchor.match(/^fig(\d+)(?:s(\d+))?$/i);
+	if (!figure) return null;
+	const id = article[1];
+	const name = figure[2]
+		? `fig${figure[1]}-figsupp${figure[2]}`
+		: `fig${figure[1]}`;
+	return `https://cdn.elifesciences.org/articles/${id}/elife-${id}-${name}-v1.jpg`;
+}
+
 /** Which hover card an external link should open, from its URL alone. */
 export function classifyLinkPreview(raw: string): LinkPreviewKind {
 	const url = httpUrl(raw);
@@ -99,4 +126,16 @@ export function classifyLinkPreview(raw: string): LinkPreviewKind {
 	)
 		return "none";
 	return "page";
+}
+
+/**
+ * Resolve the hover card target. Most links keep their URL; eLife figure
+ * permalinks resolve to the directly hosted figure image.
+ */
+export function resolveLinkPreviewTarget(raw: string): LinkPreviewTarget {
+	const url = httpUrl(raw);
+	if (!url) return { kind: "none", url: raw.trim() };
+	const image = elifeFigureImage(url);
+	if (image) return { kind: "image", url: image };
+	return { kind: classifyLinkPreview(raw), url: url.href };
 }

@@ -71,6 +71,7 @@ import {
 } from "@/lib/pdf/citation-dest-keys";
 import { schedulePdfDestMapsBuild } from "@/lib/pdf/citation-dest-map";
 import {
+	type CrossrefLabel,
 	extractCrossrefLabel,
 	pickCrossrefRegion,
 	pickCrossrefRegionByLabel,
@@ -129,6 +130,15 @@ export type UsePdfCrossrefPreviewOptions = {
 	 * in which case usePdfCitations renders its rich card and crossref preview stands down.
 	 */
 	hasCitationMatch?: (link: PdfLinkAnnoObject) => boolean;
+	/**
+	 * Resolve an online-only figure supplement (eLife "Figure 5—figure
+	 * supplement 1") to its direct image URL, when the paper identity allows.
+	 * Return null when unknown — the crossref crop is then suppressed instead
+	 * of silently showing the main figure.
+	 */
+	supplementImageUrl?: (figure: number, supplement: number) => string | null;
+	/** Show the resolved supplement image in the external link preview card. */
+	onSupplementPreview?: (url: string, clientPoint?: ScreenPoint | null) => void;
 };
 
 export type PdfCrossrefPreview = {
@@ -155,11 +165,17 @@ export function usePdfCrossrefPreview({
 	docCapRef,
 	onPreviewShow,
 	hasCitationMatch,
+	supplementImageUrl,
+	onSupplementPreview,
 }: UsePdfCrossrefPreviewOptions): PdfCrossrefPreview {
 	const onPreviewShowRef = useRef(onPreviewShow);
 	onPreviewShowRef.current = onPreviewShow;
 	const hasCitationMatchRef = useRef(hasCitationMatch);
 	hasCitationMatchRef.current = hasCitationMatch;
+	const supplementImageUrlRef = useRef(supplementImageUrl);
+	supplementImageUrlRef.current = supplementImageUrl;
+	const onSupplementPreviewRef = useRef(onSupplementPreview);
+	onSupplementPreviewRef.current = onSupplementPreview;
 	const [crossrefPreview, setCrossrefPreview] =
 		useState<CrossrefPreviewState | null>(null);
 	const hideCrossrefPreview = useCallback(() => setCrossrefPreview(null), []);
@@ -385,6 +401,24 @@ export function usePdfCrossrefPreview({
 	);
 
 	/**
+	 * A figure-supplement label never names the main figure: the supplement
+	 * lives online (or in a separate file), so the main figure's crop would be
+	 * wrong. Resolve it to the publisher's image when possible; otherwise show
+	 * no crop at all.
+	 */
+	const trySupplementPreview = useCallback(
+		(label: CrossrefLabel, clientPoint?: ScreenPoint | null): boolean => {
+			if (label.supplement == null) return false;
+			const url =
+				supplementImageUrlRef.current?.(label.number, label.supplement) ?? null;
+			clearCrossrefPreview();
+			if (url) onSupplementPreviewRef.current?.(url, clientPoint ?? null);
+			return true;
+		},
+		[clearCrossrefPreview],
+	);
+
+	/**
 	 * Crop the bibliography entry (or `[8–12]` range of entries) a citation
 	 * link jumps to. `requireEntry` (text-recognized citations) shows nothing
 	 * unless the destination really has entry `entryIndex` / an entry of the
@@ -478,6 +512,7 @@ export function usePdfCrossrefPreview({
 			// The complete text label takes precedence over a subpanel anchor.
 			if (reference?.label) {
 				const label = reference.label;
+				if (trySupplementPreview(label, clientPoint)) return;
 				const named = layoutRegions.find((r) => {
 					const parsed = extractCrossrefLabel(r.title ?? "");
 					return parsed?.kind === label.kind && parsed.number === label.number;
@@ -543,6 +578,7 @@ export function usePdfCrossrefPreview({
 				link.rect,
 			);
 			if (linkLabel) {
+				if (trySupplementPreview(linkLabel, clientPoint)) return;
 				const region = pickCrossrefRegionByLabel(
 					regions,
 					destination.pageIndex,
@@ -568,6 +604,7 @@ export function usePdfCrossrefPreview({
 				if (labels && labels.length === 1) {
 					const label = labels[0];
 					if (label) {
+						if (trySupplementPreview(label, clientPoint)) return;
 						const region = pickCrossrefRegionByLabel(
 							regions,
 							destination.pageIndex,
@@ -609,6 +646,7 @@ export function usePdfCrossrefPreview({
 					.then((rects) => {
 						if (renderTokenRef.current !== token) return;
 						const label = extractCrossrefLabel(linkLabelText(rects, link.rect));
+						if (label && trySupplementPreview(label, clientPoint)) return;
 						if (label && (!kinds || kinds.includes(label.kind))) {
 							const region = pickCrossrefRegionByLabel(
 								regions,
@@ -711,6 +749,7 @@ export function usePdfCrossrefPreview({
 			showPreview,
 			showDestinationCrop,
 			pageTextRects,
+			trySupplementPreview,
 		],
 	);
 

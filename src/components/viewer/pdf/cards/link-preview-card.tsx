@@ -23,7 +23,7 @@ import { commands } from "@/lib/core/bindings";
 import { callApiResult } from "@/lib/core/ipc";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
-import { classifyLinkPreview, httpUrl } from "@/lib/pdf/link-preview";
+import { httpUrl, resolveLinkPreviewTarget } from "@/lib/pdf/link-preview";
 import { PDF_PAPER_SHELL_CLASS } from "@/lib/pdf/page-theme";
 import { webViewProxyOrigins, webViewProxyUrl } from "@/lib/web-view/proxy-url";
 
@@ -96,7 +96,8 @@ export function PdfLinkPreviewCard({
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const frameLoadTimerRef = useRef<number | null>(null);
 	const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
-	const kind = useMemo(() => classifyLinkPreview(url), [url]);
+	const previewTarget = useMemo(() => resolveLinkPreviewTarget(url), [url]);
+	const kind = previewTarget.kind;
 	const [phase, setPhase] = useState<PreviewPhase>("idle");
 	const [frameSrc, setFrameSrc] = useState<string | null>(null);
 	const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -141,14 +142,14 @@ export function PdfLinkPreviewCard({
 	// frame / image at the proxy. Only one card exists at a time, and leaving
 	// the card unmounts it (timer + request cleanup below).
 	const beginPreview = useCallback(async () => {
-		const target = httpUrl(url);
-		if (!target) {
+		const resolved = httpUrl(previewTarget.url);
+		if (!resolved) {
 			setPhase("failed");
 			return;
 		}
 		let proxied: string;
 		try {
-			proxied = webViewProxyUrl(target.href);
+			proxied = webViewProxyUrl(resolved.href);
 		} catch {
 			setPhase("failed");
 			return;
@@ -156,7 +157,7 @@ export function PdfLinkPreviewCard({
 		setPhase("loading");
 		try {
 			const accepted = await callApiResult(() =>
-				commands.webProxyAllowHost({ host: target.hostname }),
+				commands.webProxyAllowHost({ host: resolved.hostname }),
 			);
 			if (!accepted) {
 				setPhase("failed");
@@ -167,7 +168,7 @@ export function PdfLinkPreviewCard({
 		} catch {
 			setPhase("failed");
 		}
-	}, [kind, url]);
+	}, [kind, previewTarget.url]);
 
 	useEffect(() => {
 		if (kind === "none") return;

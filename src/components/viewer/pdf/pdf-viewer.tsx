@@ -771,6 +771,37 @@ function PdfViewerInner({
 			undefined
 		);
 	}, [paperMeta]);
+	/**
+	 * eLife figure supplements live on the web, not in the PDF. Their link text
+	 * still names the main figure ("Figure 5—figure supplement 1"), so resolve
+	 * the supplement to the publisher's direct image instead of cropping the
+	 * main Figure 5.
+	 */
+	const supplementFigureUrl = useMemo(() => {
+		if (!paperMeta) return undefined;
+		const articleId =
+			paperMeta.doi?.match(/^10\.7554\/e?life\.(\d+)/i)?.[1] ??
+			(paperMeta.source_url ?? paperMeta.html_url ?? "").match(
+				/elifesciences\.org\/articles\/(\d+)/i,
+			)?.[1];
+		if (!articleId) return undefined;
+		return (figure: number, supplement: number) =>
+			`https://elifesciences.org/articles/${articleId}/figures#fig${figure}s${supplement}`;
+	}, [paperMeta]);
+	/**
+	 * The supplement URL is shown through the shared external-link preview card;
+	 * its hook is created below the cross-reference preview, so route through a
+	 * ref (same pattern as the sibling `clear*Ref` callbacks).
+	 */
+	const showSupplementUrlRef = useRef<
+		(url: string, clientPoint?: ScreenPoint | null) => void
+	>(() => {});
+	const showSupplementUrl = useCallback(
+		(url: string, clientPoint?: ScreenPoint | null) => {
+			showSupplementUrlRef.current(url, clientPoint ?? null);
+		},
+		[],
+	);
 
 	const handleImportToLibrary = useCallback(async () => {
 		if (!importIdentifier || importBusy) return;
@@ -1350,6 +1381,8 @@ function PdfViewerInner({
 			clearLinkUrlTipRef.current();
 		},
 		hasCitationMatch,
+		supplementImageUrl: supplementFigureUrl,
+		onSupplementPreview: showSupplementUrl,
 	});
 
 	const {
@@ -1363,6 +1396,7 @@ function PdfViewerInner({
 	clearCitationPreviewRef.current = clearCitationPreview;
 	clearCrossrefPreviewRef.current = clearCrossrefPreview;
 	clearLinkUrlTipRef.current = clearLinkUrlTip;
+	showSupplementUrlRef.current = hoverLinkUrl;
 
 	// Hover intent (#1213): a card opens only after the pointer has rested on a
 	// link. Crossing dense citation / figure links on the way somewhere else
