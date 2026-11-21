@@ -9,17 +9,16 @@
 //! The desktop Host owns the interactive part: its verification window
 //! captures the cookie and stores it through the settings store, which calls
 //! [`set_openreview_cookie`]. Downloads then attach it for OpenReview hosts.
-//! Because the credential is short-lived, the Host also installs an
-//! [`install_auth_requester`] hook; a challenged request asks the Host to
-//! re-open the window once and retries with the fresh cookie.
+//! Because the credential is short-lived, a challenged request asks the Host
+//! (through [`super::web_verify`]) to re-open the window once and retries with
+//! the fresh cookie.
 //!
 //! Keep this module free of Tauri/window code so the headless CLI can load the
 //! same credential from `settings.json` and skip the challenge while it is
 //! still valid.
 
 use base64::Engine;
-use futures_util::future::BoxFuture;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// OpenReview's registrable host; subdomains (`api2.…`) share the cookie jar.
@@ -42,12 +41,7 @@ pub struct OpenReviewCredential {
     pub expires_at: Option<i64>,
 }
 
-/// Async host hook: opens the verification window for `target` (the URL that
-/// was challenged, when known) and resolves to a captured cookie on success.
-type AuthRequester = dyn Fn(Option<String>) -> BoxFuture<'static, Option<String>> + Send + Sync;
-
 static CREDENTIAL: RwLock<Option<OpenReviewCredential>> = RwLock::new(None);
-static AUTH_REQUESTER: RwLock<Option<Arc<AuthRequester>>> = RwLock::new(None);
 
 /// True when `url` belongs to OpenReview (main site or an API subdomain).
 pub fn is_openreview_url(url: &str) -> bool {
@@ -232,30 +226,6 @@ pub async fn probe_openreview_auth(cookie: &str) -> Result<(), String> {
     } else {
         Ok(())
     }
-}
-
-/// Install (or replace) the host hook that opens the verification window.
-pub fn install_auth_requester(
-    requester: impl Fn(Option<String>) -> BoxFuture<'static, Option<String>> + Send + Sync + 'static,
-) {
-    if let Ok(mut slot) = AUTH_REQUESTER.write() {
-        *slot = Some(Arc::new(requester));
-    }
-}
-
-/// Whether a host hook is installed (no window exists in the headless CLI).
-pub fn has_auth_requester() -> bool {
-    AUTH_REQUESTER
-        .read()
-        .map(|slot| slot.is_some())
-        .unwrap_or(false)
-}
-
-/// Ask the host for a fresh credential; `None` when no host hook is installed
-/// or the user did not complete the verification.
-pub(crate) async fn request_auth(target: Option<String>) -> Option<String> {
-    let requester = AUTH_REQUESTER.read().ok().and_then(|slot| slot.clone())?;
-    requester(target).await
 }
 
 #[cfg(test)]

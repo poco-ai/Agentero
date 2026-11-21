@@ -248,10 +248,17 @@ async fn import_webpage(
                 page_snapshot::snapshot_from_html(&page.html, &page.final_url, &record.title);
             (record, Some(snapshot), "page")
         }
-        // The OpenReview verification window never produced a working cookie:
-        // fail the import with the actionable reason instead of archiving the
-        // challenge page as the paper.
-        Err(err) if err.code() == "openreview_auth_required" => return Err(err),
+        // The verification window never produced a working cookie: fail the
+        // import with the actionable reason instead of archiving the challenge
+        // page as the paper.
+        Err(err)
+            if matches!(
+                err.code(),
+                "openreview_auth_required" | "site_verification_required"
+            ) =>
+        {
+            return Err(err)
+        }
         Err(err) => {
             log::warn!(
                 target: "agentero::lookup",

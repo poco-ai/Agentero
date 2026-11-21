@@ -21,6 +21,7 @@ pub mod openreview;
 pub mod recognize;
 pub mod search_router;
 pub mod skill;
+pub mod web_verify;
 
 pub use crate::features::paper::capabilities::{has_local_pdf, has_local_tex};
 pub use download::{

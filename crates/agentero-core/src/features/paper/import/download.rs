@@ -9,7 +9,7 @@
 //! - Always try PDF; arXiv IDs also try e-print TeX; caller runs liteparse when
 //!   no TeX is available.
 
-use super::{institution_proxy, openreview, AppHandle, PaperDownloadAssetsArgs};
+use super::{institution_proxy, openreview, web_verify, AppHandle, PaperDownloadAssetsArgs};
 use crate::error::AppError;
 use crate::features::catalog::{papers, probe_paper_caps, CapsCache};
 use crate::features::paper::source::{self, SourceStatus};
@@ -1257,19 +1257,18 @@ pub(crate) async fn http_get_bytes_with_progress(
     super::check_task_not_cancelled(task_id)?;
     // Each attempt counts from zero: PDF falls back across candidate URLs.
     progress.restart();
-    let openreview = openreview::is_openreview_url(url);
-    let had_openreview_credential = openreview::openreview_cookie().is_some();
+    let had_credential = openreview::cookie_header_for(url).is_some()
+        || web_verify::cookie_header_for(url).is_some();
     // At most one interactive verification round-trip per request: a second
     // challenge is reported instead of re-opening the window in a loop.
     let mut verified = false;
     loop {
-        // OpenReview guard cookies are process state, not page cookies: merge
-        // them in for the matching hosts only.
-        let cookie = if openreview {
-            merge_cookie_header(cookies, openreview::cookie_header_for(url))
-        } else {
-            cookies.map(str::to_string)
-        };
+        // Verification cookies are process state, not page cookies: merge them
+        // in for the matching hosts only (OpenReview keeps its own durable
+        // credential; every other site keeps it for this session).
+        let stored =
+            openreview::cookie_header_for(url).or_else(|| web_verify::cookie_header_for(url));
+        let cookie = merge_cookie_header(cookies, stored);
         let client = http::client_with(timeout, 10, http::BROWSER_USER_AGENT)?;
         let mut request = client
             .get(url)
@@ -1284,22 +1283,25 @@ pub(crate) async fn http_get_bytes_with_progress(
         super::check_task_not_cancelled(task_id)?;
         if !res.status().is_success() {
             let status = res.status();
+            let headers = res.headers().clone();
             let body = res
                 .bytes()
                 .await
                 .map_err(|e| AppError::message(format!("download body: {e}")))?;
-            // OpenReview serves a Turnstile page to anonymous traffic. Ask the
-            // desktop Host to open its verification window once, then replay
-            // the request with the captured clearance cookie.
-            if openreview && openreview::looks_like_challenge(status.as_u16(), &body) {
+            // Cloudflare / Turnstile answer scripted clients with an
+            // interactive wall. Ask the desktop Host to open its verification
+            // window on this URL once, then replay the request with the
+            // captured clearance cookie.
+            let challenged = openreview::looks_like_challenge(status.as_u16(), &body)
+                || web_verify::challenge_detected(status.as_u16(), &headers, &body);
+            if challenged {
                 if verified {
-                    return Err(openreview_challenge_error(had_openreview_credential));
+                    return Err(verification_error(url, had_credential));
                 }
                 verified = true;
                 super::check_task_not_cancelled(task_id)?;
-                let fresh = openreview::request_auth(Some(url.to_string())).await;
-                if fresh.or_else(openreview::openreview_cookie).is_none() {
-                    return Err(openreview_challenge_error(had_openreview_credential));
+                if web_verify::request_auth(url.to_string()).await.is_none() {
+                    return Err(verification_error(url, had_credential));
                 }
                 progress.restart();
                 continue;
@@ -1378,18 +1380,31 @@ fn merge_cookie_header(explicit: Option<&str>, stored: Option<String>) -> Option
     Some(out)
 }
 
-/// Readable failure for the OpenReview gate: no valid credential came out of
-/// the verification window (closed early, headless CLI, or expired again).
-fn openreview_challenge_error(had_credential: bool) -> AppError {
+/// Readable failure for a verification wall: no valid cookie came out of the
+/// verification window (closed early, headless CLI, or expired again).
+fn verification_error(url: &str, had_credential: bool) -> AppError {
+    if openreview::is_openreview_url(url) {
+        return if had_credential {
+            AppError::domain(
+                "openreview_auth_required",
+                "OpenReview browser verification expired; open Settings → General → OpenReview, verify again, then retry the download",
+            )
+        } else {
+            AppError::domain(
+                "openreview_auth_required",
+                "OpenReview requires browser verification; open Settings → General → OpenReview, complete the check, then retry the download",
+            )
+        };
+    }
     if had_credential {
         AppError::domain(
-            "openreview_auth_required",
-            "OpenReview browser verification expired; open Settings → General → OpenReview, verify again, then retry the download",
+            "site_verification_required",
+            "The site's browser verification expired; retry the download and complete the verification window",
         )
     } else {
         AppError::domain(
-            "openreview_auth_required",
-            "OpenReview requires browser verification; open Settings → General → OpenReview, complete the check, then retry the download",
+            "site_verification_required",
+            "The site requires browser verification; retry the download and complete the verification window",
         )
     }
 }

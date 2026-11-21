@@ -370,11 +370,12 @@ pub fn run() {
             settings.network_proxy_enabled,
             &settings.network_proxy_url,
         )?;
-        // A PDF request that hits OpenReview's Turnstile gate asks this hook to
-        // open the verification window (#1157). Mobile has no such window, and
-        // the CLI has no Host at all; both report the gate as a readable error.
+        // A page fetch or PDF download that hits an interactive verification
+        // wall (OpenReview Turnstile, Cloudflare) asks this hook to open the
+        // blocked URL in a window (#1157). Mobile has no such window, and the
+        // CLI has no Host at all; both report the wall as a readable error.
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        crate::features::system::settings::commands::install_openreview_auth_hook(
+        crate::features::system::settings::commands::install_web_verification_hook(
             app.handle().clone(),
         );
         #[cfg(not(any(target_os = "ios", target_os = "android")))]

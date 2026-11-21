@@ -28,6 +28,7 @@ use crate::features::paper::discovery::feeds::body::{
 use crate::http;
 
 use super::openreview;
+use super::web_verify;
 
 /// Readable article snapshot rendered by the local HTML view.
 pub const WEBPAGE_HTML_FILE: &str = "webpage.html";
@@ -77,26 +78,23 @@ pub struct PageSnapshot {
 /// redirect-resolved URL is returned so metadata and `<base href>` use the
 /// canonical final address.
 ///
-/// OpenReview gates anonymous readers with Cloudflare Turnstile. Its clearance
-/// cookie is process state captured by the desktop verification window
-/// (#1157), so it is attached here before the first request; a challenge that
-/// still comes back asks the Host for one verification round and replays once.
+/// Sites behind an interactive wall (OpenReview's Turnstile, Cloudflare's
+/// `Just a moment…`) hand anonymous readers a challenge page instead of the
+/// article. A cookie captured by the desktop verification window is attached
+/// here before the first request; a challenge that still comes back asks the
+/// Host to verify (a popup on this exact URL) and replays once.
 pub async fn fetch_page(url: &str) -> Result<FetchedPage, AppError> {
     let url = url.trim();
     if !is_web_url(url) {
         return Err(AppError::message("page.url"));
     }
-    let openreview = openreview::is_openreview_url(url);
     let client = http::browser_client(PAGE_TIMEOUT)?;
-    let mut page = get(&client, url, openreview::cookie_header_for(url).as_deref()).await?;
-    if openreview && is_openreview_challenge(&page) {
-        let _ = openreview::request_auth(Some(url.to_string())).await;
-        page = get(&client, url, openreview::cookie_header_for(url).as_deref()).await?;
-        if is_openreview_challenge(&page) {
-            return Err(AppError::domain(
-                "openreview_auth_required",
-                "OpenReview requires browser verification before it serves the paper page; open Settings → General → OpenReview, complete the check, then retry",
-            ));
+    let mut page = get(&client, url, stored_cookie(url).as_deref()).await?;
+    if verification_wall(&page) {
+        let _ = web_verify::request_auth(url.to_string()).await;
+        page = get(&client, url, stored_cookie(url).as_deref()).await?;
+        if verification_wall(&page) {
+            return Err(verification_error(url));
         }
     }
     if page.status == 403 && http::looks_like_js_challenge(&page.body) {
@@ -118,16 +116,39 @@ pub async fn fetch_page(url: &str) -> Result<FetchedPage, AppError> {
 struct RawPage {
     final_url: String,
     status: u16,
+    headers: reqwest::header::HeaderMap,
     body: Vec<u8>,
 }
 
-/// OpenReview's bot check: a direct `403` challenge body, or a redirect that
-/// landed on the `/challenge` page (reqwest follows the 307 before we see it).
-fn is_openreview_challenge(page: &RawPage) -> bool {
+/// Process cookie for `url`: the durable OpenReview credential first, then any
+/// session credential captured for another site.
+fn stored_cookie(url: &str) -> Option<String> {
+    openreview::cookie_header_for(url).or_else(|| web_verify::cookie_header_for(url))
+}
+
+/// Whether the page is a verification wall: a Cloudflare/Turnstile challenge
+/// body, OpenReview's `403`, or a redirect that landed on `/challenge`
+/// (reqwest follows the 307 before we see it).
+fn verification_wall(page: &RawPage) -> bool {
     openreview::looks_like_challenge(page.status, &page.body)
-        || Url::parse(&page.final_url)
+        || web_verify::challenge_detected(page.status, &page.headers, &page.body)
+        || (Url::parse(&page.final_url)
             .ok()
-            .is_some_and(|url| url.path().starts_with("/challenge"))
+            .is_some_and(|url| url.path().starts_with("/challenge")))
+}
+
+fn verification_error(url: &str) -> AppError {
+    if openreview::is_openreview_url(url) {
+        AppError::domain(
+            "openreview_auth_required",
+            "OpenReview requires browser verification before it serves the paper page; open Settings → General → OpenReview, complete the check, then retry",
+        )
+    } else {
+        AppError::domain(
+            "site_verification_required",
+            "The site requires browser verification before it serves the page; retry the import and complete the verification window",
+        )
+    }
 }
 
 async fn get(
@@ -148,6 +169,7 @@ async fn get(
         .map_err(|e| AppError::message(format!("page.fetch:{e}")))?;
     let final_url = response.url().to_string();
     let status = response.status().as_u16();
+    let headers = response.headers().clone();
     let body = response
         .bytes()
         .await
@@ -158,6 +180,7 @@ async fn get(
     Ok(RawPage {
         final_url,
         status,
+        headers,
         body: body.to_vec(),
     })
 }
@@ -362,21 +385,22 @@ mod tests {
         let page = |final_url: &str, status: u16, body: &[u8]| RawPage {
             final_url: final_url.to_string(),
             status,
+            headers: reqwest::header::HeaderMap::new(),
             body: body.to_vec(),
         };
         // An anonymous visit is redirected to /challenge; reqwest follows the
         // 307 so the challenge page itself answers 200.
-        assert!(is_openreview_challenge(&page(
+        assert!(verification_wall(&page(
             "https://openreview.net/challenge?redirect=%2Fforum%3Fid%3Dx",
             200,
             b"<html>Verifying your browser</html>"
         )));
-        assert!(is_openreview_challenge(&page(
+        assert!(verification_wall(&page(
             "https://openreview.net/forum?id=x",
             403,
             b"<html>Verifying your browser</html>"
         )));
-        assert!(!is_openreview_challenge(&page(
+        assert!(!verification_wall(&page(
             "https://openreview.net/forum?id=x",
             200,
             b"<html>paper page</html>"

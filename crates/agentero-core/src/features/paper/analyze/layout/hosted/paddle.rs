@@ -231,6 +231,7 @@ fn layout_optional_payload() -> String {
 }
 
 /// Submit one OCR job (multipart file upload) and return the job id.
+#[allow(clippy::too_many_arguments)]
 async fn submit_job(
     client: &reqwest::Client,
     jobs_url: &str,
@@ -296,6 +297,7 @@ fn resolve_cloud_target(api_key: Option<&str>) -> Result<(String, String), AppEr
 /// the `optionalPayload`: body parsing keeps the full markdown pipeline, while
 /// layout analysis disables the sub-pipelines it never reads (#1153). Returns
 /// the raw JSONL text plus the job-level `dataInfo` (rendered page sizes).
+#[allow(clippy::too_many_arguments)]
 pub async fn run_paddle_ocr_job(
     api_key: Option<&str>,
     file_bytes: Vec<u8>,

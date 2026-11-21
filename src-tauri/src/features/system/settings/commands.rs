@@ -8,19 +8,23 @@
 use crate::core::error::{map_err, ApiResult};
 use crate::features::system::settings::{AppSettings, AppSettingsStore, SettingsGetResult};
 use agentero_core::features::paper::import::institution_proxy::InstitutionProxyPreset;
-use agentero_core::features::paper::import::openreview;
+use agentero_core::features::paper::import::{openreview, web_verify};
 use futures_util::future::BoxFuture;
 use tauri::{AppHandle, Emitter, Manager, State, Url, WebviewUrl, WebviewWindowBuilder};
 
 const PROXY_LOGIN_WINDOW: &str = "institution-proxy-login";
-const OPENREVIEW_LOGIN_WINDOW: &str = "openreview-login";
-const OPENREVIEW_ORIGIN: &str = "https://openreview.net/";
+/// One window serves every site's verification wall: it is re-navigated when a
+/// different site asks for verification while it is open.
+const VERIFICATION_WINDOW: &str = "site-verification";
+/// OpenReview challenge gate. It covers both paths past the check: anonymous
+/// visitors solve the Turnstile widget, account holders take "Sign in".
+const OPENREVIEW_CHALLENGE_URL: &str = "https://openreview.net/challenge?redirect=%2F";
 /// How often the verification window's cookie jar is polled.
-const OPENREVIEW_POLL: std::time::Duration = std::time::Duration::from_secs(2);
+const VERIFICATION_POLL: std::time::Duration = std::time::Duration::from_secs(2);
 /// Budget for a verification window opened by a download that hit the bot
 /// challenge: a background import must not hang on an ignored window for the
 /// whole asset-download budget.
-const OPENREVIEW_AUTO_VERIFY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+const VERIFICATION_AUTO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
 fn proxy_gateway_url(prefix: &str) -> Result<Url, String> {
     let url = Url::parse(prefix.trim()).map_err(|e| e.to_string())?;
@@ -121,55 +125,44 @@ async fn monitor_institution_login(app: AppHandle, prefix: String) -> bool {
     }
 }
 
-/// Challenge URL that covers both ways past OpenReview's bot check: anonymous
-/// visitors solve the Turnstile widget, signed-in users take the "Sign in"
-/// link. Verification lands on the challenged paper's forum page.
-fn openreview_challenge_url(target: Option<&str>) -> Url {
-    let redirect = target
-        .and_then(openreview_forum_page)
-        .unwrap_or_else(|| OPENREVIEW_ORIGIN.to_string());
-    let challenge = format!(
-        "https://openreview.net/challenge?redirect={}",
-        urlencoding::encode(&redirect)
-    );
-    Url::parse(&challenge).unwrap_or_else(|_| Url::parse(OPENREVIEW_ORIGIN).expect("origin parses"))
+/// URL to show in the verification window. An automatic request shows the very
+/// page that was blocked — the wall is answered on that page, and the user sees
+/// what they are waiting for. The Settings button opens OpenReview's challenge
+/// gate (no target URL): it covers anonymous Turnstile plus account sign-in.
+fn verification_url(target: Option<&str>) -> Url {
+    if let Some(url) = target.and_then(|value| Url::parse(value).ok()) {
+        if matches!(url.scheme(), "http" | "https") && url.host_str().is_some() {
+            return url;
+        }
+    }
+    Url::parse(OPENREVIEW_CHALLENGE_URL).expect("constant challenge URL parses")
 }
 
-/// Readable OpenReview page for a challenged request: the paper's forum page
-/// for `/pdf?id=…` / `/attachment?id=…`, the page itself for a forum URL, or
-/// the site root when the target is not a page the window can show.
-fn openreview_forum_page(target: &str) -> Option<String> {
-    let url = Url::parse(target).ok()?;
-    if !url.host_str().is_some_and(openreview::is_openreview_host) {
-        return None;
-    }
-    if url.path().starts_with("/forum") {
-        return Some(url.to_string());
-    }
-    let id = url
-        .query_pairs()
-        .find(|(key, _)| key == "id")
-        .map(|(_, value)| value.into_owned())?;
-    Some(format!(
-        "https://openreview.net/forum?id={}",
-        urlencoding::encode(&id)
-    ))
+fn is_openreview_url(url: &Url) -> bool {
+    url.host_str().is_some_and(openreview::is_openreview_host)
 }
 
-/// Sendable `Cookie` header from the verification window's jar: OpenReview
-/// cookies only (the window also visits Cloudflare and analytics hosts),
-/// without expired entries. Analytics ids are dropped instead of persisting
-/// tracking state in `settings.json`.
-fn openreview_cookie_header(cookies: &[tauri::webview::Cookie<'static>]) -> String {
+/// Captured cookies that belong to the verified `host` (subdomains included);
+/// expired entries and analytics ids are dropped.
+fn site_cookie_header(cookies: &[tauri::webview::Cookie<'static>], host: &str) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|elapsed| elapsed.as_secs() as i64)
         .unwrap_or_default();
+    let host = host.trim().trim_end_matches('.').to_ascii_lowercase();
     cookies
         .iter()
         .filter(|cookie| {
-            let domain = cookie.domain().unwrap_or_default().trim_start_matches('.');
-            if !openreview::is_openreview_host(domain) {
+            let domain = cookie
+                .domain()
+                .unwrap_or_default()
+                .trim_matches('.')
+                .to_ascii_lowercase();
+            if domain.is_empty()
+                || !(domain == host
+                    || host.ends_with(&format!(".{domain}"))
+                    || domain.ends_with(&format!(".{host}")))
+            {
                 return false;
             }
             let name = cookie.name();
@@ -188,106 +181,141 @@ fn openreview_cookie_header(cookies: &[tauri::webview::Cookie<'static>]) -> Stri
         .join("; ")
 }
 
-/// Open (or focus) the OpenReview verification window and wait until a
-/// captured cookie passes the challenge probe. Resolves when the window closes
-/// or a working credential was saved; `true` when it was saved. Async is
-/// required when creating a window from WebView2 on Windows.
+/// Whether the captured cookies get past the site's wall: OpenReview has a
+/// cheap forum probe; other sites are probed at the exact URL that was blocked
+/// (response headers plus a bounded body prefix only, so a PDF probe does not
+/// download the file).
+async fn verify_cookie(url: &Url, cookie: &str) -> bool {
+    if is_openreview_url(url) {
+        return openreview::probe_openreview_auth(cookie).await.is_ok();
+    }
+    web_verify::probe_cookie(url.as_str(), cookie).await
+}
+
+/// Open (or focus) the verification window for the Settings button: no target
+/// URL, so it opens OpenReview's challenge gate and waits until a captured
+/// cookie passes the probe (or the window is closed).
 #[tauri::command]
 #[specta::specta]
 pub async fn openreview_auth_login_open(app: AppHandle) -> Result<bool, String> {
-    Ok(openreview_verify_window(app, None, None).await)
+    Ok(verify_window(app, None, None).await)
 }
 
-/// Shared entry for the Settings button and the download challenge hook.
-/// `timeout` bounds the wait for the automatic (background-import) case; the
-/// manual command waits until the user closes the window.
-async fn openreview_verify_window(
+/// Shared entry for the Settings button and the challenge hook. `target` is
+/// the blocked URL (automatic case); `timeout` bounds the automatic wait so a
+/// background import never hangs on an ignored window. Async is required when
+/// creating a window from WebView2 on Windows.
+async fn verify_window(
     app: AppHandle,
     target: Option<String>,
     timeout: Option<std::time::Duration>,
 ) -> bool {
-    let login_url = openreview_challenge_url(target.as_deref());
-    if let Some(window) = app.get_webview_window(OPENREVIEW_LOGIN_WINDOW) {
-        // Never reload a window the user is already working in: concurrent
-        // challenged downloads share one verification flow, and navigation
-        // mid-challenge would restart the Turnstile widget.
+    let window_url = verification_url(target.as_deref());
+    let Some(host) = window_url.host_str().map(str::to_string) else {
+        return false;
+    };
+    if let Some(window) = app.get_webview_window(VERIFICATION_WINDOW) {
+        // Never reload the same site mid-challenge: concurrent challenged
+        // requests share one verification flow and a navigation would restart
+        // the Turnstile widget. A different site replaces the flow.
+        let same_site = window
+            .url()
+            .ok()
+            .and_then(|current| current.host_str().map(|current| current == host.as_str()))
+            .unwrap_or(false);
+        if !same_site {
+            let _ = window.navigate(window_url.clone());
+        }
         let _ = window.set_focus();
     } else {
         let created = WebviewWindowBuilder::new(
             &app,
-            OPENREVIEW_LOGIN_WINDOW,
-            WebviewUrl::External(login_url),
+            VERIFICATION_WINDOW,
+            WebviewUrl::External(window_url.clone()),
         )
-        .title("OpenReview")
+        .title(host)
         .inner_size(1000.0, 750.0)
         .build();
         // A concurrent caller may have created the label first; that window
         // is still usable.
-        if created.is_err() && app.get_webview_window(OPENREVIEW_LOGIN_WINDOW).is_none() {
+        if created.is_err() && app.get_webview_window(VERIFICATION_WINDOW).is_none() {
             return false;
         }
     }
-    monitor_openreview_login(app, timeout).await
+    monitor_verification(app, window_url, timeout).await
 }
 
-async fn monitor_openreview_login(app: AppHandle, timeout: Option<std::time::Duration>) -> bool {
+async fn monitor_verification(
+    app: AppHandle,
+    target: Url,
+    timeout: Option<std::time::Duration>,
+) -> bool {
     use std::time::Instant;
 
+    let Some(host) = target.host_str().map(str::to_string) else {
+        return false;
+    };
     let started = Instant::now();
     let mut last_probe: Option<String> = None;
-    let mut interval = tokio::time::interval(OPENREVIEW_POLL);
+    let mut interval = tokio::time::interval(VERIFICATION_POLL);
     loop {
         interval.tick().await;
         if timeout.is_some_and(|limit| started.elapsed() > limit) {
-            if let Some(window) = app.get_webview_window(OPENREVIEW_LOGIN_WINDOW) {
+            if let Some(window) = app.get_webview_window(VERIFICATION_WINDOW) {
                 let _ = window.close();
             }
             return false;
         }
-        let Some(window) = app.get_webview_window(OPENREVIEW_LOGIN_WINDOW) else {
+        let Some(window) = app.get_webview_window(VERIFICATION_WINDOW) else {
             return false;
         };
         let cookies = match tauri::async_runtime::spawn_blocking(move || window.cookies()).await {
             Ok(Ok(cookies)) => cookies,
             _ => continue,
         };
-        let cookie = openreview_cookie_header(&cookies);
+        let cookie = site_cookie_header(&cookies, &host);
         if cookie.is_empty() || last_probe.as_deref() == Some(cookie.as_str()) {
             continue;
         }
         last_probe = Some(cookie.clone());
-        // The challenge page itself sets unrelated cookies; only a probe that
-        // reaches OpenReview without the Turnstile page proves the credential.
-        if openreview::probe_openreview_auth(&cookie).await.is_err() {
+        // Interstitials set unrelated cookies of their own; only a probe that
+        // reaches the site's content proves the credential.
+        if !verify_cookie(&target, &cookie).await {
             continue;
         }
-        let expires_at = openreview::credential_expiry(&cookie).unwrap_or(0);
-        let store = app.state::<AppSettingsStore>();
-        let Ok(Some(settings)) = store.update_openreview_auth(cookie, expires_at) else {
-            continue;
-        };
-        let _ = app.emit("settings:changed", settings);
-        if let Some(window) = app.get_webview_window(OPENREVIEW_LOGIN_WINDOW) {
+        // The same captured cookie has to be visible to the download and
+        // page-snapshot layers, and every opened window: the session map holds
+        // it for any site, and OpenReview keeps its durable Settings row.
+        web_verify::set_site_cookie(target.as_str(), &cookie);
+        if is_openreview_url(&target) {
+            let expires_at = openreview::credential_expiry(&cookie).unwrap_or(0);
+            let store = app.state::<AppSettingsStore>();
+            let Ok(Some(settings)) = store.update_openreview_auth(cookie, expires_at) else {
+                continue;
+            };
+            let _ = app.emit("settings:changed", settings);
+        }
+        if let Some(window) = app.get_webview_window(VERIFICATION_WINDOW) {
             let _ = window.close();
         }
         return true;
     }
 }
 
-/// Install the core download hook: a PDF request that hits OpenReview's bot
-/// challenge opens this verification window (bounded by
-/// [`OPENREVIEW_AUTO_VERIFY_TIMEOUT`]), then the request retries once with the
-/// captured cookie. Without this hook (headless CLI) the download fails with a
-/// readable "verification required" reason.
-pub fn install_openreview_auth_hook(app: AppHandle) {
-    openreview::install_auth_requester(move |target| -> BoxFuture<'static, Option<String>> {
+/// Install the core verification hook: a download or page fetch that hits an
+/// interactive wall opens the verification window on that URL (bounded by
+/// [`VERIFICATION_AUTO_TIMEOUT`]), and the request retries once with the
+/// captured cookie. Without a Host (headless CLI) the operation fails with a
+/// readable "verification required" reason instead.
+pub fn install_web_verification_hook(app: AppHandle) {
+    web_verify::install_auth_requester(move |url| -> BoxFuture<'static, Option<String>> {
         let app = app.clone();
         Box::pin(async move {
-            let _ =
-                openreview_verify_window(app, target, Some(OPENREVIEW_AUTO_VERIFY_TIMEOUT)).await;
+            let target = Some(url.clone());
+            let _ = verify_window(app, target, Some(VERIFICATION_AUTO_TIMEOUT)).await;
             // A concurrent waiter may have completed the same window; the
             // stored credential is the shared outcome either way.
-            openreview::openreview_cookie()
+            openreview::cookie_header_for(&url).or_else(|| web_verify::cookie_header_for(&url))
         })
     });
 }
