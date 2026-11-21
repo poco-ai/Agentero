@@ -4,6 +4,7 @@ import {
 	ChevronRight,
 	CloudUpload,
 	LoaderCircle,
+	TriangleAlert,
 	Unplug,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -501,7 +502,10 @@ function VaultSyncForm({
 		if (!overwriteDialog) return;
 		setOverwriting(true);
 		try {
-			const outcome = await syncOverwrite(localVault, overwriteDialog.direction);
+			const outcome = await syncOverwrite(
+				localVault,
+				overwriteDialog.direction,
+			);
 			setOverwriteDialog(null);
 			setSyncError(null);
 			notifySuccess(
@@ -655,53 +659,6 @@ function VaultSyncForm({
 				</Select>
 			</div>
 
-			{status?.configured && !isGit && !form.conditionalWrites ? (
-				<div className="mb-3 space-y-2.5 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3.5">
-					<p className="text-muted-foreground text-xs">
-						{t("sync.noConditionalWrites")}
-					</p>
-					<div className="flex items-center justify-between gap-3">
-						<span className="text-sm">{t("sync.allowDegradedSync")}</span>
-						<Switch
-							checked={form.allowDegradedSync}
-							onCheckedChange={(value) => patch({ allowDegradedSync: value })}
-							disabled={syncing || saving}
-							aria-label={t("sync.allowDegradedSync")}
-						/>
-					</div>
-					{form.allowDegradedSync ? (
-						<p className="text-muted-foreground text-xs">
-							{t("sync.degradedSyncRisk")}
-						</p>
-					) : null}
-				</div>
-			) : null}
-
-			{status?.configured && !isGit && !configChanged ? (
-				<div className="mb-3 flex flex-wrap gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						disabled={syncing || saving}
-						onClick={() => void openOverwrite("remoteToLocal")}
-					>
-						<ArrowDownToLine data-icon="inline-start" />
-						{t("sync.overwritePull")}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						disabled={syncing || saving}
-						onClick={() => void openOverwrite("localToRemote")}
-					>
-						<ArrowUpFromLine data-icon="inline-start" />
-						{t("sync.overwritePush")}
-					</Button>
-				</div>
-			) : null}
-
 			<div className="mb-3 flex flex-wrap items-center gap-2">
 				<span id="sync-backend-label" className="text-muted-foreground text-xs">
 					{t("sync.backend")}
@@ -853,19 +810,80 @@ function VaultSyncForm({
 					</SettingsRow>
 				</SettingsGroup>
 			) : isWebdav ? (
-				<SettingsGroup>
-					<SettingsRow label={t("sync.serverUrl")} htmlFor="sync-webdavUrl">
-						{field("webdavUrl", {
-							placeholder: "https://dav.jianguoyun.com/dav/agentero",
-						})}
-					</SettingsRow>
-					<SettingsRow label={t("sync.username")} htmlFor="sync-webdavUsername">
-						{field("webdavUsername")}
-					</SettingsRow>
-					<SettingsRow label={t("sync.password")} htmlFor="sync-webdavPassword">
-						{field("webdavPassword", { type: "password" })}
-					</SettingsRow>
-				</SettingsGroup>
+				<>
+					{status?.configured && !form.conditionalWrites ? (
+						<div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-xs">
+							<TriangleAlert
+								className="size-4 shrink-0 text-amber-600 dark:text-amber-500"
+								aria-hidden
+							/>
+							<span>{t("sync.noConditionalWritesShort")}</span>
+						</div>
+					) : null}
+					<SettingsGroup>
+						<SettingsRow label={t("sync.serverUrl")} htmlFor="sync-webdavUrl">
+							{field("webdavUrl", {
+								placeholder: "https://dav.jianguoyun.com/dav/agentero",
+							})}
+						</SettingsRow>
+						<SettingsRow
+							label={t("sync.username")}
+							htmlFor="sync-webdavUsername"
+						>
+							{field("webdavUsername")}
+						</SettingsRow>
+						<SettingsRow
+							label={t("sync.password")}
+							htmlFor="sync-webdavPassword"
+						>
+							{field("webdavPassword", { type: "password" })}
+						</SettingsRow>
+						{status?.configured && !form.conditionalWrites ? (
+							<SettingsRow
+								label={
+									<HelpLabel
+										label={t("sync.allowDegradedSync")}
+										help={t("sync.degradedSyncRisk")}
+									/>
+								}
+								htmlFor="sync-allowDegradedSync"
+							>
+								<Switch
+									id="sync-allowDegradedSync"
+									checked={form.allowDegradedSync}
+									onCheckedChange={(value) =>
+										patch({ allowDegradedSync: value })
+									}
+									disabled={syncing || saving}
+								/>
+							</SettingsRow>
+						) : null}
+						{status?.configured && !configChanged ? (
+							<div className="flex flex-wrap items-center gap-2 px-3.5 py-2.5">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={syncing || saving}
+									onClick={() => void openOverwrite("remoteToLocal")}
+								>
+									<ArrowDownToLine data-icon="inline-start" />
+									{t("sync.overwritePull")}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={syncing || saving}
+									onClick={() => void openOverwrite("localToRemote")}
+								>
+									<ArrowUpFromLine data-icon="inline-start" />
+									{t("sync.overwritePush")}
+								</Button>
+							</div>
+						) : null}
+					</SettingsGroup>
+				</>
 			) : (
 				<SettingsGroup>
 					<SettingsRow label={t("sync.endpoint")} htmlFor="sync-endpoint">
@@ -1082,7 +1100,10 @@ function VaultSyncForm({
 							disabled={overwriting}
 						>
 							{overwriting ? (
-								<LoaderCircle data-icon="inline-start" className="animate-spin" />
+								<LoaderCircle
+									data-icon="inline-start"
+									className="animate-spin"
+								/>
 							) : null}
 							{t("sync.overwriteConfirm")}
 						</Button>
