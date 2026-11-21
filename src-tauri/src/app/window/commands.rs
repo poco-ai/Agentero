@@ -314,6 +314,9 @@ pub async fn feature_window_open(
     let op = OpTimer::start("feature_window_open");
     validate_feature_view(&view)?;
     let label = feature_window_label(&view);
+    // Same create-or-focus race as `settings_window_open`: the label only
+    // exists once the window is built.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(&label) {
         raise_existing_window(&win);
