@@ -28,6 +28,7 @@
 		"expandChildren": "显示笔记与附件",
 		"collapseChildren": "隐藏笔记与附件",
 		"readPaper": "精读论文并写入笔记",
+		"rereadPaper": "重新精读",
 		"readDesktopOnly": "精读需要桌面应用。",
 		"readFailed": "无法启动精读。",
 		"readMarkFailed": "标记已读失败。",

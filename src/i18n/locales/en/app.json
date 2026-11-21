@@ -284,6 +284,8 @@
 		"paperReadMarking": "Marking as read…",
 		"paperReadDone": "Read complete",
 		"paperReadFailed": "Paper reading failed",
+		"paperReadNoNotes": "Paper reading wrote no notes; kept unread — try again",
+		"paperReadGarbled": "Notes look garbled; kept unread — retry or switch agent / model",
 		"connector": "Saving Connector attachment",
 		"connectorComplete": "Connector attachment ready",
 		"connectorFailed": "Connector attachment failed"

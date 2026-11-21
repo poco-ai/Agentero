@@ -14,6 +14,7 @@ import {
 	isPaperDirectory,
 	isPapersRoot,
 	type PaperMetadata,
+	paperNeedsAssetDownload,
 } from "@/lib/paper";
 import { TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import { PLAZA_SOURCES, PLAZA_VIRTUAL_PATH } from "@/lib/plaza";
@@ -63,6 +64,20 @@ function paperDirectoryCatalogId(
 	return id || undefined;
 }
 
+/** Catalog metadata for a paper-directory row, if loaded. */
+function paperDirectoryMeta(
+	isPaperMenu: boolean,
+	vaultPath: string | null,
+	menuPath: string,
+	paperMetaByRelPath: ReadonlyMap<string, PaperMetadata> | undefined,
+): PaperMetadata | undefined {
+	if (!isPaperMenu || !vaultPath || !paperMetaByRelPath) return undefined;
+	const rel = vaultRelativePath(vaultPath, menuPath);
+	if (!rel) return undefined;
+	const key = rel.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+	return paperMetaByRelPath.get(key);
+}
+
 export type TreeContextMenuState = {
 	/** Non-null while the menu is open — spread onto `TreeContextMenuPortal`. */
 	menuProps: TreeContextMenuPortalProps | null;
@@ -93,6 +108,7 @@ export function useTreeContextMenu({
 	onEmptyTrash,
 	onOpenPaperNotes,
 	onEditPaperMeta,
+	onRereadPaper,
 	onStartCreate,
 	onStartRename,
 	onDeletePath,
@@ -130,6 +146,8 @@ export function useTreeContextMenu({
 	onEmptyTrash?: () => void | Promise<void>;
 	onOpenPaperNotes?: (paperDir: string) => void;
 	onEditPaperMeta?: (paperDir: string) => void;
+	/** Paper row: restart paper-reader even when already marked read (#958). */
+	onRereadPaper?: (paperNode: FileNode) => void | Promise<void>;
 	onStartCreate?: (kind: TreeCreateKind, parentPath: string) => void;
 	onStartRename?: (path: string) => void;
 	onDeletePath?: (path: string) => void | Promise<void>;
@@ -283,6 +301,25 @@ export function useTreeContextMenu({
 				? () => {
 						setMenu(null);
 						onEditPaperMeta(menu.path);
+					}
+				: undefined,
+		onRereadPaper:
+			isPaperMenu &&
+			menuNode &&
+			menuNode.kind === "directory" &&
+			onRereadPaper &&
+			!paperNeedsAssetDownload(
+				menuNode,
+				paperDirectoryMeta(
+					isPaperMenu,
+					vaultPath,
+					menu.path,
+					paperMetaByRelPath,
+				),
+			)
+				? () => {
+						setMenu(null);
+						void onRereadPaper(menuNode);
 					}
 				: undefined,
 		onAddToChat:

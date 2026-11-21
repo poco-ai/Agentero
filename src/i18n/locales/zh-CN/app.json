@@ -284,6 +284,8 @@
 		"paperReadMarking": "正在标记为已读…",
 		"paperReadDone": "精读完成",
 		"paperReadFailed": "精读失败",
+		"paperReadNoNotes": "精读未写入笔记，已保持未读，可重试",
+		"paperReadGarbled": "精读结果疑似乱码，已保持未读；可重试或更换 Agent / 模型",
 		"connector": "正在保存 Connector 附件",
 		"connectorComplete": "Connector 附件已就绪",
 		"connectorFailed": "Connector 附件失败"

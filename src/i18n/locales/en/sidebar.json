@@ -28,6 +28,7 @@
 		"expandChildren": "Show notes and attachments",
 		"collapseChildren": "Hide notes and attachments",
 		"readPaper": "Read paper and write notes",
+		"rereadPaper": "Read again",
 		"readDesktopOnly": "Paper reading requires the desktop app.",
 		"readFailed": "Failed to start paper reading.",
 		"readMarkFailed": "Failed to mark paper as read.",

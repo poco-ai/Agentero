@@ -385,6 +385,9 @@ export const FileTree = memo(
 			onEmptyTrash,
 			onOpenPaperNotes,
 			onEditPaperMeta,
+			// Context-menu re-read works for already-read papers too (#958);
+			// same row action, so its busy/concurrency guards apply.
+			onRereadPaper: onReadPaper ? paperActions.readPaper : undefined,
 			onStartCreate,
 			onStartRename,
 			onDeletePath,

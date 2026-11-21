@@ -81,6 +81,8 @@ export type TreeContextMenuPortalProps = {
 	onOpenTexPdf?: () => void;
 	/** Paper row: open the catalog metadata editor. */
 	onEditMeta?: () => void;
+	/** Paper row with complete assets: rerun paper-reader (#958). */
+	onRereadPaper?: () => void;
 	/** Add the right-clicked file/paper to the Agent chat as a context chip. */
 	onAddToChat?: () => void;
 	onNewFile?: () => void;
@@ -121,6 +123,7 @@ export function TreeContextMenuPortal({
 	onOpenNotes,
 	onOpenTexPdf,
 	onEditMeta,
+	onRereadPaper,
 	onAddToChat,
 	onNewFile,
 	onNewFolder,
@@ -339,6 +342,11 @@ export function TreeContextMenuPortal({
 					{menuCount === 1 && isPaperMenu && onEditMeta ? (
 						<FloatingMenuItem onClick={onEditMeta}>
 							<span>{t("papersLibrary.rowEditMeta")}</span>
+						</FloatingMenuItem>
+					) : null}
+					{menuCount === 1 && isPaperMenu && onRereadPaper ? (
+						<FloatingMenuItem onClick={onRereadPaper}>
+							<span>{t("fileTree.rereadPaper")}</span>
 						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onCopyPath ? (
