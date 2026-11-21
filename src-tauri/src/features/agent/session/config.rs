@@ -9,11 +9,11 @@ use crate::features::agent::acp::client::timed_acp_request;
 use crate::features::agent::acp::updates::{
     collaboration_from_config_options, models_from_config_options,
 };
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     SessionConfigId, SessionConfigOption, SessionConfigOptionValue, SessionId,
     SetSessionConfigOptionRequest,
 };
-use agent_client_protocol::{Agent, ConnectionTo};
+use agent_client_protocol::{v1::ConnectionTo, Agent};
 
 /// User-selected session preferences applied after the session opens.
 #[derive(Debug, Clone, Default)]

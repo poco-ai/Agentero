@@ -1,6 +1,5 @@
 /**
  * Loopback MCP server control (Host :8765 by default).
- * @see docs/backend/mcp.md
  */
 
 import { commands } from "@/lib/core/bindings";

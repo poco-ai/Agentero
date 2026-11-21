@@ -18,8 +18,7 @@
 //! Local ONNX (PP-DocLayoutV3) analysis needs the WebView renderer and stays
 //! desktop-only; `--provider` selects a remote engine explicitly.
 //!
-//! @see docs/frontend/pdf-layout-analysis.md
-//! @see docs/backend/cli.md
+//! CLI options: `agentero layout analyze --help`.
 
 use crate::error::AppError;
 use crate::features::paper::analyze::layout::hosted::engine::{

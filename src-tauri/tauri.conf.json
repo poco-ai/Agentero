@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Agentero",
-  "version": "0.16.2",
+  "version": "0.17.0",
   "identifier": "com.poco-ai.agentero",
   "build": {
-    "beforeDevCommand": "pnpm dictionary:stage && pnpm pdfium:stage && pnpm adapters:stage && pnpm dev",
+    "beforeDevCommand": "pnpm cli:bundle && pnpm dictionary:stage && pnpm pdfium:stage && pnpm adapters:stage && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm dictionary:stage && pnpm pdfium:stage && pnpm adapters:stage && pnpm build",
+    "beforeBuildCommand": "pnpm cli:bundle:release && pnpm dictionary:stage && pnpm pdfium:stage && pnpm adapters:stage && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -59,6 +59,7 @@
     "category": "Productivity",
     "externalBin": [],
     "resources": [
+      "cli",
       "pdfium/*",
       "adapters/**/*",
       "rtex/tex/**/*",

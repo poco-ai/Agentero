@@ -6,7 +6,11 @@ pub enum AppError {
     Message(String),
 
     #[error("{message}")]
-    Domain { code: &'static str, message: String },
+    Domain {
+        code: &'static str,
+        message: String,
+        details: Option<Box<serde_json::Value>>,
+    },
 
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
@@ -34,6 +38,25 @@ impl AppError {
         Self::Domain {
             code,
             message: message.into(),
+            details: None,
+        }
+    }
+
+    pub fn with_details(self, value: serde_json::Value) -> Self {
+        match self {
+            Self::Domain { code, message, .. } => Self::Domain {
+                code,
+                message,
+                details: Some(Box::new(value)),
+            },
+            other => other,
+        }
+    }
+
+    pub fn details(&self) -> Option<&serde_json::Value> {
+        match self {
+            Self::Domain { details, .. } => details.as_deref(),
+            _ => None,
         }
     }
 
@@ -81,7 +104,7 @@ impl<T: Serialize> ApiResult<T> {
             error: Some(ErrorBody {
                 code: err.code().to_string(),
                 message: err.to_string(),
-                details: None,
+                details: err.details().cloned(),
             }),
         }
     }

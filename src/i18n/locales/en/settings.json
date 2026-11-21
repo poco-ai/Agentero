@@ -267,8 +267,11 @@
 			"serverStopped": "The Connector service stopped. Agentero retries every 5 seconds. You can also retry now."
 		},
 		"mcp": {
+			"allowWrite": "Allow clients to modify the Vault",
+			"allowOnline": "Allow online tools",
+			"scope": "These permissions apply to local MCP clients and the connected tunnel.",
 			"exposeText": {
-				"label": "Expose paper text (MCP)"
+				"label": "Allow clients to read full papers"
 			},
 			"label": "MCP server",
 			"portLabel": "MCP port",
@@ -559,6 +562,7 @@
 			}
 		},
 		"form": {
+			"supportsShell": "Can run local shell commands",
 			"defaultName": "Desktop",
 			"name": "Name",
 			"command": "Command",
@@ -620,37 +624,27 @@
 		"autoSelection": {
 			"label": "Auto-translate PDF selection"
 		},
-		"dismissOnOutsideClick": {
-			"label": "Close selection results on an outside click",
-			"description": "A click outside the translation card closes it. Scrolling, page turns and viewer controls keep it open."
+		"alwaysShowCard": {
+			"label": "Keep the translation card visible"
 		},
 		"autoImport": {
 			"label": "Auto-translate after layout analysis",
-			"description": "After import, download, or a layout reparse, runs full-text translation in the background. Reuses cached translations and only requests changed blocks. Uses the current translation service and cache settings.",
 			"concurrency": {
 				"label": "Concurrent papers for auto-translation"
 			}
 		},
-		"displayMode": {
-			"label": "Translation display mode",
-			"overlay": "Overlay on original PDF",
-			"dualPane": "Dual pane"
-		},
 		"cache": {
 			"section": "Cache",
 			"ir": {
-				"label": "Cache reflow IR",
-				"description": "Saves extracted character geometry so reopening a paper skips extraction."
+				"label": "Cache typesetting"
 			},
 			"final": {
-				"label": "Cache translated PDF",
-				"description": "Saves the built translated PDF. Each paper takes about 25 MB."
+				"label": "Cache translated PDF"
 			},
 			"tip": "Turning a switch off only stops new writes; existing entries keep being reused.",
 			"reset": "Restore defaults",
 			"dictionary": {
 				"label": "Word lookup cache",
-				"description": "Completed word and context results are reused for 30 days. Clear for the current Vault; bundled dictionaries stay available.",
 				"clear": "Clear",
 				"clearFailed": "Could not clear the word lookup cache.",
 				"cleared": "Cleared"
@@ -718,13 +712,11 @@
 		"autoTranslation": {
 			"section": "Auto-translate"
 		},
-		"dictionaryIncluded": "Offline English–Chinese dictionary and AI terminology are included. No setup needed.",
 		"dictionaryMode": {
 			"label": "Word lookup",
 			"auto": "Automatic",
 			"offline-first": "Offline first",
 			"off": "Off",
-			"autoDescription": "Show local definitions, then explain the context with your configured AI service.",
 			"offline-firstDescription": "Use local definitions when available. Only request your service for missing words.",
 			"offDescription": "Translate every selection. You can still open the dictionary from a result card."
 		}
@@ -1168,7 +1160,7 @@
 		"gitSslCaHint": "Absolute PEM path for a self-signed HTTPS server. Empty uses the system trust store.",
 		"gitAuthFailed": "Git could not sign in, and sync does not prompt.\n{{detail}}\nHTTPS: store a token first with `git credential approve` or your credential helper. SSH: run `ssh-add`.",
 		"gitTlsFailed": "Git rejected the server certificate.\n{{detail}}\nFor a self-signed server, set the CA certificate path and connect again.",
-		"noConditionalWrites": "This storage doesn't support conditional (atomic) writes, so sync falls back to plain uploads. Fine for single-device use; concurrent edits from multiple devices may need an extra sync round to converge.",
+		"noConditionalWrites": "Standard sync is blocked without conditional writes. WebDAV can use ordinary uploads with a journal configured through the CLI.",
 		"saved": "Sync configured",
 		"disconnect": "Disconnect",
 		"syncNow": "Sync now",
@@ -1200,7 +1192,7 @@
 		"intervalMinutes": "{{count}} min",
 		"scope": "Sync scope",
 		"scopeHint": "Notes, metadata and highlights always sync. Unselected content is neither uploaded nor downloaded — and is never deleted because of the filter. PDFs and LaTeX sources can be re-downloaded from their source at any time.",
-		"scopeHintGit": "Notes, metadata and highlights always sync. Unselected files are written to .gitignore and left out of new commits.",
+		"scopeHintGit": "Exclusions apply to new files only. Files already tracked by Git continue to sync across devices.",
 		"scopePdf": "PDFs",
 		"scopeSource": "LaTeX sources",
 		"scopeAttachments": "Attachments"

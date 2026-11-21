@@ -11,9 +11,6 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	sourceLang: "auto",
 	providerConfigs: {},
 	autoTranslateSelection: false,
-	dualPaneTranslate: false,
-	displayMode: "overlay",
-	dualPaneSource: "pdf",
 	agentId: "",
 	modelId: "",
 	customPrompt: "",
@@ -23,7 +20,7 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	cacheReflowFinal: false,
 	autoTranslateImport: false,
 	autoTranslateImportConcurrency: 1,
-	dismissSelectionOnOutsideClick: false,
+	alwaysShowTranslateCard: false,
 };
 
 /**

@@ -4,8 +4,6 @@
 //! crate (`agentero_lib::features::lifecycle`) because they depend on the
 //! JobCenter; the paper fact events live here and reach the frontend through
 //! the [`crate::app_handle::HostHooks`] emit callback.
-//!
-//! @see docs/architecture.md
 
 use crate::app_handle::AppHandle;
 use serde::Serialize;

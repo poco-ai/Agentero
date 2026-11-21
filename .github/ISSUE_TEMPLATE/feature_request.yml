@@ -6,8 +6,8 @@ body:
     id: problem
     attributes:
       label: 问题或场景
-      description: 请描述你当前遇到的问题或使用场景
-      placeholder: 例如：在管理大量论文时，无法快速按标签筛选未读文献
+      description: 你当时想做什么？遇到了什么困难？
+      placeholder: 比如我想找某个标签下还没读的论文，现在只能逐条翻找。
     validations:
       required: true
 
@@ -15,8 +15,8 @@ body:
     id: solution
     attributes:
       label: 期望的解决方案
-      description: 你希望以什么方式解决这个问题
-      placeholder: 例如：在 Library 表头增加一个未读筛选器，支持按标签+阅读状态组合筛选
+      description: 你希望 Agentero 怎么做？
+      placeholder: 比如在论文库表头加一个「未读」筛选，可以和标签一起选。
     validations:
       required: true
 
@@ -24,7 +24,7 @@ body:
     id: alternatives
     attributes:
       label: 替代方案
-      description: 你有没有考虑过其他替代方案
+      description: 你还试过或考虑过哪些做法？
 
   - type: textarea
     id: additional

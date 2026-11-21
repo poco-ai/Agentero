@@ -45,7 +45,7 @@ function matchesKey(ranges: TRange[]): string {
 /** Query typing settles before the document is walked and re-decorated. */
 const FIND_DEBOUNCE_MS = 150;
 
-/** All six bar buttons are the same ghost icon button with a bottom tooltip. */
+/** All six bar buttons are the same ghost icon button with a top tooltip. */
 function IconAction({
 	label,
 	icon,
@@ -74,7 +74,7 @@ function IconAction({
 					{icon}
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent side="bottom">{label}</TooltipContent>
+			<TooltipContent side="top">{label}</TooltipContent>
 		</Tooltip>
 	);
 }
@@ -214,7 +214,7 @@ export function FindReplaceBar({
 		<TooltipProvider delayDuration={200}>
 			{/** biome-ignore lint/a11y/noStaticElementInteractions: keyboard shortcuts for the contained inputs */}
 			<div
-				className="absolute top-2 right-4 z-30 rounded-lg border border-border/80 bg-background/95 p-1 shadow-overlay backdrop-blur-sm"
+				className="absolute bottom-2 left-3 z-30 rounded-lg border border-border/80 bg-background/95 p-1 shadow-overlay backdrop-blur-sm"
 				onKeyDown={handleBarKeyDown}
 			>
 				<div className="flex items-center gap-1">

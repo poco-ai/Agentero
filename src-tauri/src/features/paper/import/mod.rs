@@ -4,9 +4,6 @@
 //! and is glob-re-exported here; this module keeps the desktop-only shells:
 //! Tauri commands, JobCenter runners, remote-import ops, deferred metadata
 //! recognition, and the settings-backed parser config refresh.
-//!
-//! @see docs/backend/identifier-lookup.md
-//! @see docs/backend/paper-import-pipeline.md
 
 pub use agentero_core::features::paper::import::*;
 

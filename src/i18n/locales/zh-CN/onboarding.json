@@ -73,12 +73,7 @@
 		"probeIdle": "尚未测试",
 		"probeProbing": "测试中…",
 		"probeOk": "可用",
-		"probeFail": "请检查你的 Key 后重试",
-		"displayMode": {
-			"label": "翻译显示方式",
-			"overlay": "原地覆盖",
-			"dualPane": "双栏对照"
-		}
+		"probeFail": "请检查你的 Key 后重试"
 	},
 	"layout": {
 		"title": "公式和图表解析配置",
@@ -137,8 +132,8 @@
 			"desc": "打开任意论文即可分屏：左侧 PDF，右侧 NOTES.md。划词可高亮、批注、翻译或提问。"
 		},
 		"fullTextTranslate": {
-			"title": "全文翻译",
-			"desc": "PDF 工具栏可一键翻译整篇论文。翻译一次后，既可以在原文上对照查看，也可以打开 side-by-side 译文面板。"
+			"title": "翻译视图",
+			"desc": "PDF 工具栏的「译文 / 对照」可以直接翻译整篇论文：译文覆盖在原页面上，对照则并排显示原文与译文。"
 		},
 		"fetchCoolPapersNotes": {
 			"title": "Cool Paper 笔记",

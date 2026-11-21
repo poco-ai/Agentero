@@ -2,7 +2,6 @@
 //!
 //! Authoritative store for paper set + structured metadata; the tauri-free
 //! body lives in `agentero_core::features::paper::catalog`.
-//! See `docs/backend/catalog.md`.
 
 pub use agentero_core::features::paper::catalog::*;
 

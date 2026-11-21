@@ -42,6 +42,7 @@ type TranslateCardProps = {
 	pinned?: boolean;
 	/** Toggle whether the result is kept with a persistent source marker. */
 	onTogglePin?: () => void;
+	onBoundsChange?: (bounds: DOMRectReadOnly) => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	sourceText?: string;
@@ -65,6 +66,7 @@ export function TranslateCard({
 	onHide,
 	pinned = false,
 	onTogglePin,
+	onBoundsChange,
 	onPointerEnter,
 	onPointerLeave,
 	sourceText,
@@ -72,10 +74,12 @@ export function TranslateCard({
 	onModeChange,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
-	// Optional: close the result when the reader clicks elsewhere on the page.
-	// Scrolling and page turns keep it open (see SelectionCard's outside click).
-	const dismissOnOutsideClick = useSettings(
-		(s) => s.translate.dismissSelectionOnOutsideClick,
+	// A completed click elsewhere on the page dismisses the result (default).
+	// Settings → Translate can keep the card always visible instead; scrolling
+	// and page turns never close it either way (see SelectionCard's outside
+	// click).
+	const alwaysShowCard = useSettings(
+		(s) => s.translate.alwaysShowTranslateCard,
 	);
 	const mode =
 		requestedMode ??
@@ -224,9 +228,10 @@ export function TranslateCard({
 			headerClassName="pt-2 pb-1.5"
 			title={title}
 			ariaLive="polite"
+			onBoundsChange={onBoundsChange}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
-			onOutsideClick={dismissOnOutsideClick ? onHide : undefined}
+			onOutsideClick={alwaysShowCard ? undefined : onHide}
 			actions={[
 				...(onModeChange && isDictionaryLookup(sourceText ?? "")
 					? [

@@ -172,6 +172,7 @@ impl AgentRegistry {
         });
 
         let descriptor = AgentDescriptor {
+            supports_shell: req.supports_shell,
             id: id.clone(),
             name: req.name.trim().to_string(),
             template,
@@ -251,6 +252,7 @@ impl AgentRegistry {
                 }
 
                 let agent = self.upsert(UpsertAgentRequest {
+                    supports_shell: false,
                     id: Some(existing.id.clone()),
                     name: info.name,
                     template: Some(template_from_id(template_id)),
@@ -264,6 +266,7 @@ impl AgentRegistry {
         }
 
         let agent = self.upsert(UpsertAgentRequest {
+            supports_shell: false,
             id: Some(format!("catalog-{template_id}")),
             name: info.name,
             template: Some(template_from_id(template_id)),
@@ -625,6 +628,7 @@ fn migrate_catalog_env_defaults(state: &mut AgentRegistryState) -> bool {
 /// 内置「知乎」Agent 的 descriptor：Host 内建，无外部命令，始终可用。
 fn builtin_agent_descriptor() -> AgentDescriptor {
     AgentDescriptor {
+        supports_shell: false,
         id: ZHIHU_AGENT_ID.to_string(),
         name: "知乎".to_string(),
         template: AgentTemplate::Zhihu,
@@ -1104,6 +1108,7 @@ mod tests {
         let mut env = HashMap::new();
         env.insert("CODEX_PATH".to_string(), "/usr/local/bin/codex".to_string());
         AgentDescriptor {
+            supports_shell: false,
             id: "catalog-codex-acp".to_string(),
             name: "Codex".to_string(),
             template: AgentTemplate::CodexAcp,
@@ -1138,6 +1143,7 @@ mod tests {
     fn migrates_legacy_grok_npx_launcher_to_native_cli() {
         let mut state = AgentRegistryState {
             agents: vec![AgentDescriptor {
+                supports_shell: false,
                 id: "catalog-grok-build".to_string(),
                 name: "Grok Build".to_string(),
                 template: AgentTemplate::GrokBuild,
@@ -1173,6 +1179,7 @@ mod tests {
     fn migrates_legacy_zcode_bare_launcher_to_acp_server() {
         let mut state = AgentRegistryState {
             agents: vec![AgentDescriptor {
+                supports_shell: false,
                 id: "catalog-zcode".to_string(),
                 name: "ZCode".to_string(),
                 template: AgentTemplate::Zcode,
@@ -1296,6 +1303,7 @@ mod tests {
     #[test]
     fn apply_user_agent_sets_env_for_codex() {
         let mut agent = AgentDescriptor {
+            supports_shell: false,
             id: "c".into(),
             name: "Codex".into(),
             template: AgentTemplate::CodexAcp,
@@ -1328,6 +1336,7 @@ mod tests {
     #[test]
     fn proxy_injection_adds_loopback_no_proxy() {
         let mut agent = AgentDescriptor {
+            supports_shell: false,
             id: "oc".into(),
             name: "OpenCode".into(),
             template: AgentTemplate::Opencode,
@@ -1368,6 +1377,7 @@ mod tests {
     #[test]
     fn proxy_disabled_clears_injected_vars_but_keeps_user_no_proxy() {
         let mut agent = AgentDescriptor {
+            supports_shell: false,
             id: "oc2".into(),
             name: "OpenCode".into(),
             template: AgentTemplate::Opencode,
@@ -1463,6 +1473,7 @@ mod tests {
 
         fn desc(name: &str, template: AgentTemplate) -> AgentDescriptor {
             AgentDescriptor {
+                supports_shell: false,
                 id: name.to_string(),
                 name: name.to_string(),
                 template,
@@ -1499,6 +1510,7 @@ mod tests {
     #[test]
     fn apply_user_agent_sets_anthropic_headers_for_claude() {
         let mut agent = AgentDescriptor {
+            supports_shell: false,
             id: "cc".into(),
             name: "Claude".into(),
             template: AgentTemplate::ClaudeAcp,

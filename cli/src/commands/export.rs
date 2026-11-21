@@ -1,89 +1,64 @@
-//! `agentero export *`
-
-use crate::error::CliError;
-use crate::output::to_value;
-use crate::resolve::{resolve_vault, GlobalOpts};
-use agentero_core::features::zotero::{self, PaperExportArgs};
-use clap::{Subcommand, ValueHint};
+//! Export selected catalog records using the shared Zotero translator.
+use crate::dispatch::{required, string, strings};
+use crate::error::{CliError, ExitCode};
+use crate::resolve::{resolve_paper, resolve_vault, GlobalOpts};
+use agentero_core::features::{catalog::papers, zotero};
 use serde_json::{json, Value};
-use std::fs;
-use std::io::{self, Write};
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::Path;
 
-#[derive(Debug, Subcommand)]
-pub enum ExportCmd {
-    /// Export catalog via Translator (default BibTeX).
-    Bib {
-        /// Translator format (bibtex, biblatex, ris, …).
-        #[arg(long = "format", default_value = "bibtex")]
-        format: String,
-        /// Output file, or `-` for stdout (default `-`).
-        /// Uses `-o` / `--out` so it does not clash with global `--output` (format).
-        #[arg(
-            short = 'o',
-            long = "out",
-            default_value = "-",
-            value_name = "FILE",
-            value_hint = ValueHint::FilePath
-        )]
-        out: PathBuf,
-    },
-}
-
-pub async fn run(cmd: ExportCmd, globals: &GlobalOpts) -> Result<Value, CliError> {
-    match cmd {
-        ExportCmd::Bib { format, out } => export_bib(globals, &format, &out).await,
-    }
-}
-
-async fn export_bib(globals: &GlobalOpts, format: &str, out: &PathBuf) -> Result<Value, CliError> {
-    let vault = resolve_vault(globals)?;
-    let result = zotero::export_catalog(PaperExportArgs {
-        vault_path: vault.to_string_lossy().to_string(),
-        format: Some(format.to_string()),
-        translator_base_url: globals.translator_base_url(),
-    })
-    .await
-    .map_err(|e| CliError::export_failed(e.to_string()))?;
-
-    let written_to = if out.as_os_str() == "-" {
-        // When writing content to stdout, JSON mode would collide — write content to stdout
-        // only in text mode without --json; in JSON mode put content in data.
-        if matches!(globals.format, crate::output::OutputFormat::Json) {
-            // content stays in JSON data
-            "-".to_string()
-        } else {
-            io::stdout().write_all(result.content.as_bytes())?;
-            if !result.content.ends_with('\n') {
-                let _ = io::stdout().write_all(b"\n");
-            }
-            "-".to_string()
-        }
+pub async fn selected(a: &Value, g: &GlobalOpts) -> Result<Value, CliError> {
+    let vault = resolve_vault(g)?;
+    let sources = strings(a, "paper");
+    let tags = strings(a, "tag");
+    let mut rows = if sources.is_empty() {
+        papers::list_all(&vault)?
     } else {
-        if let Some(parent) = out.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
+        let mut selected = Vec::new();
+        for source in sources {
+            let paper = resolve_paper(&vault, &source, g)?;
+            if !selected
+                .iter()
+                .any(|r: &papers::PaperRecord| r.path == paper.path)
+            {
+                selected.push(paper)
             }
         }
-        fs::write(out, &result.content)?;
-        out.display().to_string()
+        selected
     };
-
-    let mut v = to_value(&result)?;
-    if let Some(obj) = v.as_object_mut() {
-        // In JSON mode keep content; when written to file still include content for scripts.
-        obj.insert("writtenTo".into(), json!(written_to));
-        obj.insert(
-            "lines".into(),
-            json!([format!(
-                "exported {} entries as {} → {}",
-                result.count, result.format, written_to
-            )]),
-        );
-        // Avoid dumping huge bib twice in text mode (already wrote content to stdout).
-        if matches!(globals.format, crate::output::OutputFormat::Text) && out.as_os_str() == "-" {
-            obj.insert("content".into(), json!("(written to stdout)"));
-        }
+    rows.retain(|row| {
+        tags.iter()
+            .all(|tag| row.tags.iter().any(|t| t.name.eq_ignore_ascii_case(tag)))
+    });
+    let format = required(a, "format")?;
+    let content = if rows.is_empty() {
+        String::new()
+    } else {
+        zotero::io::export_records(&rows, format, g.translator_base_url().as_deref())
+            .await?
+            .content
+    };
+    let output = string(a, "output").unwrap_or("-");
+    if output == "-" {
+        return Ok(json!({"format":format,"count":rows.len(),"content":content}));
     }
-    Ok(v)
+    let path = Path::new(output);
+    let mut temporary = tempfile::NamedTempFile::new_in(
+        path.parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new(".")),
+    )?;
+    temporary.write_all(content.as_bytes())?;
+    temporary.persist_noclobber(path).map_err(|e| {
+        if e.error.kind() == std::io::ErrorKind::AlreadyExists {
+            CliError::new(
+                "already_exists",
+                "output file already exists",
+                ExitCode::Conflict,
+            )
+        } else {
+            CliError::from(e.error)
+        }
+    })?;
+    Ok(json!({"format":format,"count":rows.len(),"path":output}))
 }

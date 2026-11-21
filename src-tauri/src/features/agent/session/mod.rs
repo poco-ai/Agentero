@@ -3,6 +3,7 @@ pub mod handlers;
 pub mod history;
 pub mod pool;
 pub mod query;
+pub(crate) mod receipts;
 pub mod run;
 mod tokens;
 pub mod warm;

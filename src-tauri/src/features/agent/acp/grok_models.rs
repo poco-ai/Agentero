@@ -43,7 +43,7 @@ impl JsonRpcMessage for GrokModelsUpdate {
         UntypedMessage::new(self.method(), self)
     }
 
-    fn parse_message(method: &str, params: &impl Serialize) -> Result<Self, Error> {
+    fn parse_message(method: &str, params: &serde_json::Value) -> Result<Self, Error> {
         if !Self::matches_method(method) {
             return Err(Error::method_not_found());
         }

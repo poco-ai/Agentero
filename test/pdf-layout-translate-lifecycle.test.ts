@@ -12,6 +12,7 @@ import {
 } from "@/lib/core/background-tasks";
 import type { JobSnapshot } from "@/lib/core/bindings";
 import type { PdfLayoutSidecar } from "@/lib/pdf/layout/io";
+import { LAYOUT_TEXT_ORDER_VERSION } from "@/lib/pdf/layout/io";
 import type { LayoutTranslateSidecar } from "@/lib/pdf/layout/layout-translate";
 import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
 import type { TranslationSnapshot } from "@/lib/pdf/layout/translation-job";
@@ -258,6 +259,7 @@ function setCachedLayout(regions: PdfLayoutRegion[], notifyPath?: string) {
 			generatedAt: "cached",
 			textLayerExtracted: true,
 			sourceStylesExtracted: true,
+			textOrderVersion: LAYOUT_TEXT_ORDER_VERSION,
 			completeness: {
 				pageCount,
 				processedPages: Array.from({ length: pageCount }, (_, i) => i),

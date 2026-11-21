@@ -72,6 +72,11 @@ macro_rules! common_commands {
             crate::features::agent::commands::agent_respond_elicitation,
             crate::features::agent::commands::agent_respond_ask_user,
             crate::features::agent::commands::agent_resolve_citation,
+            crate::features::agent::commands::agent_resolve_evidence,
+            #[cfg(not(any(target_os = "android",target_os = "ios")))]
+            crate::app::workspace_cli::workspace_cli_reply,
+            #[cfg(not(any(target_os = "android",target_os = "ios")))]
+            crate::app::workspace_cli::workspace_open_source,
             crate::features::markdown::wiki::commands::graph_get_backlinks,
             crate::features::markdown::wiki::commands::wiki_resolve,
             crate::features::markdown::wiki::commands::wiki_embed_read,
@@ -224,6 +229,8 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::agent::commands::remote_agent_open_install_terminal,
             crate::app::terminal::commands::path_open_in_terminal,
             crate::app::terminal::commands::terminal_apps_probe,
+            crate::app::open_with::commands::path_open_with_apps,
+            crate::app::open_with::commands::path_open_with,
             crate::app::window::commands::window_new,
             crate::app::window::commands::settings_window_open,
             crate::app::window::commands::feature_window_open,

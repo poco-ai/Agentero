@@ -2,7 +2,7 @@
  * Typed Tauri command helpers over the generated specta bindings
  * (`src/lib/core/bindings.ts`).
  *
- * Two Host envelope shapes exist (docs/backend/api.md §2.6):
+ * Two Host envelope shapes exist:
  * 1. `ApiResult<T>` — the promise never rejects on host errors; `ok` selects
  *    `data` vs `error` ({@link callApi}).
  * 2. `Result<ApiResult<T>, String>` — specta wraps the IPC-level string error

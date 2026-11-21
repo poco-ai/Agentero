@@ -3,11 +3,7 @@
 //! Implements the [`RemoteStore`] contract; retry/error plumbing is shared
 //! in `store.rs`.
 //!
-//! Hand-rolled on reqwest + sha2 to avoid the AWS SDK dependency tree. The
-//! sync protocol prefers `If-Match` / `If-None-Match` PUTs (S3, R2 and MinIO
-//! all support them); backends that reject conditional writes with 400
-//! NotImplemented (e.g. Aliyun OSS PutObject) are detected and degraded to
-//! plain PUTs, trading strict concurrency safety for availability.
+//! Conditional writes are mandatory; never retry as an unconditional PUT.
 
 use crate::error::AppError;
 use crate::features::sync::config::SyncBackendConfig;
@@ -17,7 +13,6 @@ use crate::features::sync::store::{
 use crate::http;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct S3Client {
     http: reqwest::Client,
@@ -31,9 +26,7 @@ pub struct S3Client {
     region: String,
     access_key: String,
     secret_key: String,
-    /// Seeded from the persisted probe result; flipped off at runtime when a
-    /// conditional PUT comes back 400 NotImplemented.
-    conditional_writes: AtomicBool,
+    session_token: Option<String>,
 }
 
 impl S3Client {
@@ -70,13 +63,8 @@ impl S3Client {
             region: cfg.region.clone(),
             access_key: cfg.access_key.clone(),
             secret_key: cfg.secret_key.clone(),
-            conditional_writes: AtomicBool::new(cfg.conditional_writes),
+            session_token: cfg.session_token.clone(),
         })
-    }
-
-    /// Whether conditional writes are (still) assumed to work.
-    fn supports_conditional_writes(&self) -> bool {
-        self.conditional_writes.load(Ordering::Relaxed)
     }
 
     /// DELETE an object. 404 counts as success (idempotent cleanup).
@@ -144,9 +132,17 @@ impl S3Client {
             .collect::<Vec<_>>()
             .join("&");
 
-        let canonical_request = format!(
-            "{method}\n{uri}\n{canonical_query}\nhost:{}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n\nhost;x-amz-content-sha256;x-amz-date\n{payload_hash}",
+        let mut headers = format!(
+            "host:{}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n",
             self.host
+        );
+        let mut signed_headers = String::from("host;x-amz-content-sha256;x-amz-date");
+        if let Some(token) = &self.session_token {
+            headers.push_str(&format!("x-amz-security-token:{token}\n"));
+            signed_headers.push_str(";x-amz-security-token");
+        }
+        let canonical_request = format!(
+            "{method}\n{uri}\n{canonical_query}\n{headers}\n{signed_headers}\n{payload_hash}"
         );
         let scope = format!("{date}/{}/s3/aws4_request", self.region);
         let string_to_sign = format!(
@@ -162,7 +158,7 @@ impl S3Client {
         let k_signing = hmac_sha256(&k_service, b"aws4_request");
         let signature = hex::encode(hmac_sha256(&k_signing, string_to_sign.as_bytes()));
         let authorization = format!(
-            "AWS4-HMAC-SHA256 Credential={}/{scope}, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature={signature}",
+            "AWS4-HMAC-SHA256 Credential={}/{scope}, SignedHeaders={signed_headers}, Signature={signature}",
             self.access_key
         );
 
@@ -184,6 +180,9 @@ impl S3Client {
                 .header("x-amz-date", amz_date.clone())
                 .header("x-amz-content-sha256", payload_hash.clone())
                 .header("authorization", authorization.clone());
+            if let Some(token) = &self.session_token {
+                req = req.header("x-amz-security-token", token);
+            }
             if let Some((name, value)) = &extra {
                 req = req.header(*name, value.clone());
             }
@@ -223,99 +222,22 @@ impl RemoteStore for S3Client {
         body: Vec<u8>,
         condition: PutCondition,
     ) -> Result<PutOutcome, AppError> {
-        let cond = if self.supports_conditional_writes() {
-            match &condition {
-                PutCondition::IfNoneMatch => Some(("If-None-Match", "*".to_string())),
-                PutCondition::IfMatch(etag) => Some(("If-Match", etag.clone())),
-            }
-        } else {
-            None
-        };
         let resp = self
-            .send(
-                "PUT",
-                key,
-                &[],
-                cond.as_ref().map(|(n, v)| (*n, v.clone())),
-                body.clone(),
-            )
+            .send("PUT", key, &[], Some(condition.header()?), body)
             .await?;
-        if resp.status() == reqwest::StatusCode::PRECONDITION_FAILED
-            || resp.status() == reqwest::StatusCode::CONFLICT
-        {
+        if resp.status() == reqwest::StatusCode::PRECONDITION_FAILED {
             return Ok(PutOutcome::PreconditionFailed);
-        }
-        if cond.is_some() && resp.status() == reqwest::StatusCode::BAD_REQUEST {
-            let detail: String = resp
-                .text()
-                .await
-                .unwrap_or_default()
-                .chars()
-                .take(300)
-                .collect();
-            if is_not_implemented(&detail) {
-                // Backend (e.g. Aliyun OSS) does not implement conditional
-                // writes: remember it for this client and retry as a plain
-                // PUT. Blobs/manifests are content-addressed (idempotent);
-                // the HEAD CAS degrades to GET → PUT, converging via the
-                // engine's merge retries instead of atomic swap.
-                log::warn!(
-                    target: "agentero::sync",
-                    "PUT {key}: backend lacks conditional writes; degrading to plain PUT"
-                );
-                self.conditional_writes.store(false, Ordering::Relaxed);
-                let resp = self.send("PUT", key, &[], None, body).await?;
-                check(resp, "PUT", key).await?;
-                return Ok(PutOutcome::Ok);
-            }
-            return Err(AppError::message(format!("PUT {key}: 400 {detail}")));
         }
         check(resp, "PUT", key).await?;
         Ok(PutOutcome::Ok)
     }
 
-    /// Probe conditional-write support with a throwaway key before the first
-    /// real sync: PUT it with `If-None-Match: *`, then clean up. `Ok(false)`
-    /// when the backend answers 400 NotImplemented; unexpected answers fail
-    /// open (the runtime fallback in `put` still catches them).
     async fn probe_conditional_writes(&self) -> Result<bool, AppError> {
         let key = format!(".sync-probe-{}", uuid::Uuid::new_v4().simple());
-        let resp = self
-            .send(
-                "PUT",
-                &key,
-                &[],
-                Some(("If-None-Match", "*".to_string())),
-                Vec::new(),
-            )
-            .await?;
-        let status = resp.status();
-        if status.is_success() {
-            if let Err(e) = self.delete(&key).await {
-                log::warn!(target: "agentero::sync", "probe cleanup {key}: {e}");
-            }
-            return Ok(true);
-        }
-        if status == reqwest::StatusCode::BAD_REQUEST {
-            let detail = resp.text().await.unwrap_or_default();
-            if is_not_implemented(&detail) {
-                return Ok(false);
-            }
-        }
-        log::warn!(
-            target: "agentero::sync",
-            "conditional-write probe inconclusive ({status}); assuming supported"
-        );
-        Ok(true)
+        let result = super::store::probe_conditions(self, &key).await;
+        let cleanup = self.delete(&key).await;
+        result.and_then(|supported| cleanup.map(|_| supported))
     }
-}
-
-/// OSS-style rejection of conditional headers: `400` with
-/// `<Code>NotImplemented</Code>`. These PUTs carry no extra headers besides
-/// the conditional one, so any NotImplemented implicates it; degrading on a
-/// false positive is harmless (plain PUTs still work).
-fn is_not_implemented(body: &str) -> bool {
-    body.contains("NotImplemented")
 }
 
 /// AWS canonical URI encoding (unreserved chars pass through).
@@ -385,16 +307,5 @@ mod tests {
     fn uri_encode_escapes_reserved() {
         assert_eq!(uri_encode("a-b_c.d~e"), "a-b_c.d~e");
         assert_eq!(uri_encode("a b/c"), "a%20b%2Fc");
-    }
-
-    #[test]
-    fn is_not_implemented_matches_oss_body() {
-        let oss = r#"<Error><Code>NotImplemented</Code>
-            <Message>A header you provided implies functionality that is not implemented.</Message>
-            <Header>If-None-Match</Header></Error>"#;
-        assert!(is_not_implemented(oss));
-        assert!(!is_not_implemented(
-            "<Error><Code>AccessDenied</Code></Error>"
-        ));
     }
 }

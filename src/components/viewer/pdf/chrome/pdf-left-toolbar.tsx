@@ -14,18 +14,16 @@ import {
 	PDF_CHROME_VIS_HIDE,
 	PDF_CHROME_VIS_SHOW,
 } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
+import type { PdfLeftPanel } from "@/components/viewer/pdf/hooks/use-pdf-left-panels";
 import { cn } from "@/lib/core/utils";
 
 type PdfLeftToolbarProps = {
 	outline: PdfBookmarkObject[];
 	canEditBookmarks?: boolean;
-	showOutline: boolean;
-	onToggleOutline: () => void;
+	/** Which left rail is open; the buttons reflect one shared slot. */
+	activePanel: PdfLeftPanel | null;
+	onTogglePanel: (panel: PdfLeftPanel) => void;
 	paperPath: string | null;
-	showReferences: boolean;
-	onToggleReferences: () => void;
-	showFigures: boolean;
-	onToggleFigures: () => void;
 	analyzing?: boolean;
 	/** Auto show/hide driven by scroll + pointer proximity (issue #400). */
 	visible: boolean;
@@ -41,13 +39,9 @@ type PdfLeftToolbarProps = {
 export function PdfLeftToolbar({
 	outline,
 	canEditBookmarks = false,
-	showOutline,
-	onToggleOutline,
+	activePanel,
+	onTogglePanel,
 	paperPath,
-	showReferences,
-	onToggleReferences,
-	showFigures,
-	onToggleFigures,
 	analyzing,
 	visible,
 	isRemotePaper = false,
@@ -79,10 +73,10 @@ export function PdfLeftToolbar({
 								<Button
 									type="button"
 									size="icon-xs"
-									variant={showOutline ? "secondary" : "ghost"}
+									variant={activePanel === "outline" ? "secondary" : "ghost"}
 									aria-label={t("pdf.outline")}
-									aria-pressed={showOutline}
-									onClick={onToggleOutline}
+									aria-pressed={activePanel === "outline"}
+									onClick={() => onTogglePanel("outline")}
 								>
 									<List className="size-3.5" />
 								</Button>
@@ -96,10 +90,10 @@ export function PdfLeftToolbar({
 								<Button
 									type="button"
 									size="icon-xs"
-									variant={showReferences ? "secondary" : "ghost"}
+									variant={activePanel === "references" ? "secondary" : "ghost"}
 									aria-label={t("references.title")}
-									aria-pressed={showReferences}
-									onClick={onToggleReferences}
+									aria-pressed={activePanel === "references"}
+									onClick={() => onTogglePanel("references")}
 								>
 									<BookMarked className="size-3.5" />
 								</Button>
@@ -115,11 +109,11 @@ export function PdfLeftToolbar({
 								<Button
 									type="button"
 									size="icon-xs"
-									variant={showFigures ? "secondary" : "ghost"}
+									variant={activePanel === "figures" ? "secondary" : "ghost"}
 									aria-label={t("figures.title")}
-									aria-pressed={showFigures}
+									aria-pressed={activePanel === "figures"}
 									disabled={analyzing || isRemotePaper}
-									onClick={onToggleFigures}
+									onClick={() => onTogglePanel("figures")}
 								>
 									<Boxes className="size-3.5" />
 								</Button>

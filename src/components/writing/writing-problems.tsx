@@ -14,6 +14,10 @@ import {
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
+import {
+	FILE_TREE_ROW_SELECTED_STATE,
+	FILE_TREE_ROW_STATE,
+} from "@/components/sidebar/tree-row-styles";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -41,6 +45,7 @@ import {
 } from "@/lib/tex/editor-lint-bridge";
 import { navigateTexSource } from "@/lib/tex/editor-navigation";
 import {
+	compileFailureHeadline,
 	type LogProblem,
 	parseLatexLog,
 	resolveLogProblemPath,
@@ -61,6 +66,8 @@ type Row = {
 	logLine: number | null;
 	sourcePath: string;
 	line?: number;
+	/** From the build log: pin the Agent reference as a build-log quote. */
+	buildLog?: { detail?: string };
 	jump: () => void;
 };
 
@@ -139,14 +146,58 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 					? "text-sky-600 dark:text-sky-500"
 					: "text-muted-foreground";
 
+	// The row being inspected: the last one picked, else the first error, so the
+	// dialog always shows which problem it is looking at.
+	const activeRow =
+		rows.find((row) => row.key === selected) ??
+		rows.find((row) => row.severity === "error") ??
+		rows[0];
+	const errorRows = rows.filter((row) => row.severity === "error");
+
 	function askAgent(row: Row) {
+		const detail = row.buildLog?.detail?.trim();
 		const selection = createSelectionContext({
-			text: row.message,
+			// The headline stays first so chips and the sent message read as a
+			// summary; the raw tail rides along as the Agent's evidence.
+			text: detail ? `${row.message}\n\n${detail}` : row.message,
 			sourcePath: row.sourcePath,
 			origin: "markdown",
+			...(row.buildLog
+				? {
+						surface: "build-log" as const,
+						sourceTitle: `${t("log")} · ${basenameOf(rootFile)}`,
+					}
+				: {}),
 			lineFrom: row.line,
 			lineTo: row.line,
 			comment: t("askAgentPrompt"),
+		});
+		if (!selection) return;
+		pinSelection(selection);
+		presentAgentComposer();
+	}
+
+	function askAgentAll(problems: Row[]) {
+		// One reference for the whole failed build: the count heads the chip,
+		// then every error, then the distinct raw tails as evidence.
+		const details = [
+			...new Set(
+				problems
+					.map((row) => row.buildLog?.detail?.trim())
+					.filter((detail): detail is string => Boolean(detail)),
+			),
+		];
+		const selection = createSelectionContext({
+			text: [
+				t("fixAllSummary", { count: problems.length }),
+				problems.map((row) => `- ${row.message}`).join("\n"),
+				...details,
+			].join("\n\n"),
+			sourcePath: rootFile,
+			origin: "markdown",
+			surface: "build-log",
+			sourceTitle: `${t("log")} · ${basenameOf(rootFile)}`,
+			comment: t("askAgentAllPrompt"),
 		});
 		if (!selection) return;
 		pinSelection(selection);
@@ -203,7 +254,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 							return (
 								<div
 									key={row.key}
-									className="group/row relative flex items-start gap-1 rounded px-1 py-1 hover:bg-muted"
+									className="flex items-start gap-1 rounded px-1 py-1 hover:bg-muted"
 								>
 									<button
 										type="button"
@@ -217,23 +268,17 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 											className={cn("mt-0.5 size-3.5 shrink-0", iconClasses)}
 											aria-hidden
 										/>
-										<span className="min-w-0 flex-1 text-xs leading-snug">
+										<span
+											className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-snug"
+											title={row.message}
+										>
 											{row.message}
 										</span>
 										{row.where ? (
-											<span className="min-w-6 shrink-0 text-right font-mono text-[0.65rem] text-muted-foreground group-hover/row:invisible group-has-[:focus-visible]/row:invisible [@media(hover:none)]:invisible">
+											<span className="min-w-6 shrink-0 text-right font-mono text-[0.65rem] text-muted-foreground">
 												{row.where}
 											</span>
 										) : null}
-									</button>
-									<button
-										type="button"
-										aria-label={t("askAgent")}
-										title={t("askAgent")}
-										className="pointer-events-none absolute top-1 right-1 flex size-6 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity duration-100 hover:bg-background hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-has-[:focus-visible]/row:pointer-events-auto group-has-[:focus-visible]/row:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
-										onClick={() => askAgent(row)}
-									>
-										<MessageSquarePlus className="size-4" aria-hidden />
 									</button>
 								</div>
 							);
@@ -261,19 +306,35 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						<DialogTitle>
 							{t("log")} · {basenameOf(rootFile)}
 						</DialogTitle>
-						{snapshot?.status === "running" && snapshot.jobId ? (
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									if (snapshot.jobId) cancelTask(snapshot.jobId);
-								}}
-							>
-								<Square className="size-3.5" aria-hidden />
-								{t("stop")}
-							</Button>
-						) : null}
+						<div className="flex items-center gap-2">
+							{errorRows.length > 0 ? (
+								<Button
+									type="button"
+									variant="secondary"
+									size="sm"
+									onClick={() => {
+										setOpen(false);
+										askAgentAll(errorRows);
+									}}
+								>
+									<MessageSquarePlus className="size-3.5" aria-hidden />
+									{t("fixAllErrors")}
+								</Button>
+							) : null}
+							{snapshot?.status === "running" && snapshot.jobId ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={() => {
+										if (snapshot.jobId) cancelTask(snapshot.jobId);
+									}}
+								>
+									<Square className="size-3.5" aria-hidden />
+									{t("stop")}
+								</Button>
+							) : null}
+						</div>
 					</div>
 					<div className="flex min-h-0 flex-1 gap-3">
 						<div className="flex w-72 shrink-0 flex-col overflow-auto rounded-md border border-border">
@@ -284,55 +345,70 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 							) : (
 								rows.map((row) => {
 									const { Icon, iconClasses } = SEVERITY_META[row.severity];
+									const active = activeRow?.key === row.key;
 									return (
-										<div
+										<button
 											key={row.key}
+											type="button"
+											aria-current={active ? "true" : undefined}
 											className={cn(
-												"group/row relative flex items-start gap-1 border-b border-border px-1 py-1 last:border-b-0 hover:bg-muted",
-												selected === row.key && "bg-muted",
+												"flex w-full items-start gap-2 border-b border-border px-2 py-1.5 text-left last:border-b-0",
+												FILE_TREE_ROW_STATE,
+												active && FILE_TREE_ROW_SELECTED_STATE,
 											)}
+											onClick={() => {
+												row.jump();
+												focusLog(row);
+											}}
 										>
-											<button
-												type="button"
-												className="flex min-w-0 flex-1 items-start gap-2 px-1 py-0.5 pr-7 text-left"
-												onClick={() => {
-													row.jump();
-													focusLog(row);
-												}}
+											<Icon
+												className={cn("mt-0.5 size-3.5 shrink-0", iconClasses)}
+												aria-hidden
+											/>
+											<span
+												className="line-clamp-3 min-w-0 flex-1 break-words text-xs leading-snug"
+												title={row.message}
 											>
-												<Icon
-													className={cn(
-														"mt-0.5 size-3.5 shrink-0",
-														iconClasses,
-													)}
-													aria-hidden
-												/>
-												<span className="min-w-0 flex-1 text-xs leading-snug">
-													{row.message}
-												</span>
-											</button>
-											<button
-												type="button"
-												aria-label={t("askAgent")}
-												title={t("askAgent")}
-												className="pointer-events-none absolute top-1 right-1 flex size-6 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity duration-100 hover:bg-background hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-has-[:focus-visible]/row:pointer-events-auto group-has-[:focus-visible]/row:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
-												onClick={() => askAgent(row)}
-											>
-												<MessageSquarePlus className="size-4" aria-hidden />
-											</button>
-										</div>
+												{row.message}
+											</span>
+										</button>
 									);
 								})
 							)}
 						</div>
-						<textarea
-							ref={logRef}
-							readOnly
-							aria-label={t("log")}
-							spellCheck={false}
-							className="min-h-0 min-w-0 flex-1 resize-none overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/40 p-3 font-mono text-xs leading-4 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-							value={logText || t("noLog")}
-						/>
+						<div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+							<textarea
+								ref={logRef}
+								readOnly
+								aria-label={t("log")}
+								spellCheck={false}
+								className="min-h-0 min-w-0 flex-1 resize-none overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/40 p-3 font-mono text-xs leading-4 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								value={logText || t("noLog")}
+							/>
+							{activeRow ? (
+								<div className="flex shrink-0 items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5">
+									<span
+										className="min-w-0 truncate text-xs text-muted-foreground"
+										title={activeRow.message}
+									>
+										{activeRow.message}
+									</span>
+									<Button
+										type="button"
+										variant="secondary"
+										size="sm"
+										className="shrink-0"
+										onClick={() => {
+											setOpen(false);
+											askAgent(activeRow);
+										}}
+									>
+										<MessageSquarePlus className="size-3.5" aria-hidden />
+										{t("fixThisError")}
+									</Button>
+								</div>
+							) : null}
+						</div>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -363,9 +439,13 @@ function buildFailureRow(
 	rootFile: string,
 	fallback: string,
 ): Row {
-	const message =
-		snapshot.diagnostics.find((item) => item.severity === "error")?.message ||
-		fallback;
+	// The Host reports the console tail, not a single message: keep it as the
+	// Agent's evidence but show a one-line headline in the list.
+	const detail = snapshot.diagnostics.find(
+		(item) => item.severity === "error",
+	)?.message;
+	const headline = detail ? compileFailureHeadline(detail) : null;
+	const message = headline ?? fallback;
 	return {
 		key: `build:${message}`,
 		severity: "error",
@@ -374,6 +454,7 @@ function buildFailureRow(
 		logLine: null,
 		sourcePath: rootFile,
 		jump: () => {},
+		buildLog: detail ? { detail } : {},
 	};
 }
 
@@ -419,6 +500,7 @@ function compileRow(problem: LogProblem, rootFile: string): Row {
 		logLine: problem.logLine,
 		sourcePath: resolveLogProblemPath(rootFile, problem.file),
 		line: problem.line,
+		buildLog: {},
 		jump: () => jumpToCompileProblem(rootFile, problem),
 	};
 }

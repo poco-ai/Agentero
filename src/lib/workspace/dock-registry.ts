@@ -47,12 +47,12 @@ export type DockHandle = {
 	/** Active panel id of every visible dock group (one per column). */
 	visiblePanelIds: () => string[];
 	/**
-	 * Activate an existing panel by id. When `skipSetGroupActive` is true, sets
-	 * the active panel within its group without activating the group itself.
+	 * Activate an existing panel by id. `skipSetGroupActive` leaves the group
+	 * focus alone; `skipIfSameGroupAs` avoids replacing another panel in that group.
 	 */
 	activatePanel: (
 		panelId: string,
-		options?: { skipSetGroupActive?: boolean },
+		options?: { skipSetGroupActive?: boolean; skipIfSameGroupAs?: string },
 	) => void;
 	/**
 	 * True when `activatePanel` can actually bring the panel to a visible

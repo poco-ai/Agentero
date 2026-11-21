@@ -4,30 +4,35 @@
 //! The recognizer request shape mirrors Zotero's
 //! `PDFWorker.getRecognizerData` JSON: the first pages' word geometry, not the
 //! PDF bytes themselves. Recognition results are treated as leads: a DOI /
-//! arXiv id is re-resolved through the authoritative metadata chain, and only
-//! when no identifier is found do we fall back to the recognizer's own
-//! title/authors extraction.
-//!
-//! @see docs/backend/paper-import.md § PDF 元数据识别
+//! arXiv id is re-resolved through the authoritative metadata chain. If
+//! unresolved, a conservative scholarly title search can fill metadata before
+//! falling back to the recognizer's own result.
 
 use crate::error::AppError;
 use crate::features::paper::catalog::papers::PaperRecord;
 use crate::features::paper::import::api_mapper::api_paper_to_meta;
 use crate::features::paper::import::pdf_parse::{run_liteparse_probe, ProbePage, ProbeWord};
 use crate::features::paper::import::resolve_metadata;
-use crate::features::paper::import::{doi_slug, slug_from_stem};
-use crate::features::paper::scholar_api::identifiers::fetch_arxiv_metadata;
+use crate::features::paper::import::{
+    check_task_not_cancelled, doi_slug, slug_from_stem, CANCELLED_MESSAGE,
+};
+use crate::features::paper::scholar_api::identifiers::{extract_arxiv_id, fetch_arxiv_metadata};
+use crate::features::paper::scholar_api::scoring::{
+    author_overlap, title_similarity, title_similarity_key,
+};
+use crate::features::paper::scholar_api::search::{search_papers_by_title, SourceScope};
+use crate::features::paper::scholar_api::{ApiError, ApiPaper};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::time::Duration;
 
 /// Zotero's hosted recognizer endpoint. Undocumented and unsuitable as a
-/// hard dependency: every failure here degrades silently to filename-based
-/// metadata.
+/// hard dependency: the import keeps its local record when recognition fails.
 pub const ZOTERO_RECOGNIZER_ENDPOINT: &str = "https://services.zotero.org/recognizer/recognize";
 
 const RECOGNIZE_TIMEOUT: Duration = Duration::from_secs(30);
+const RECOGNIZER_SERVICE_ERROR: &str = "recognizer_service_error";
 
 /// Subset of the recognizer response we consume. Missing fields stay `None`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -77,6 +82,12 @@ impl RecognizeHit {
         self.doi.as_deref().is_some_and(nonempty)
             || self.arxiv.as_deref().is_some_and(nonempty)
             || self.isbn.as_deref().is_some_and(nonempty)
+    }
+
+    fn publication_year(&self) -> Option<i32> {
+        self.year
+            .as_deref()
+            .and_then(|y| y.trim().chars().take(4).collect::<String>().parse().ok())
     }
 
     pub fn author_names(&self) -> Vec<String> {
@@ -215,25 +226,13 @@ fn flip_y(page_height: f32, word: &ProbeWord) -> (f32, f32, f32) {
     (y_min, y_max, page_height - word.baseline)
 }
 
-/// Recognize one local PDF. Returns `Ok(None)` when nothing usable came back
-/// (probe failure, no text, no hit) — never blocks the caller's flow.
+/// Recognize one local PDF. No text or no usable hit is `Ok(None)`;
+/// parser, transport and response failures are errors, not misses.
 pub async fn recognize_pdf(
     pdf_path: &Path,
     task_id: Option<&str>,
 ) -> Result<Option<RecognizeHit>, AppError> {
-    let pages = match run_liteparse_probe(pdf_path, task_id).await {
-        Ok(pages) => pages,
-        Err(e)
-            if e.to_string()
-                .contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE) =>
-        {
-            return Err(e)
-        }
-        Err(e) => {
-            log::debug!(target: "agentero::recognize", "probe failed for {}: {e}", pdf_path.display());
-            return Ok(None);
-        }
-    };
+    let pages = run_liteparse_probe(pdf_path, task_id).await?;
     if pages
         .iter()
         .all(|p| p.lines.iter().all(|l| l.words.is_empty()))
@@ -262,29 +261,17 @@ pub async fn recognize_pdf(
         .post(ZOTERO_RECOGNIZER_ENDPOINT)
         .json(&payload)
         .send()
-        .await;
-    let response = match response {
-        Ok(r) => r,
-        Err(e) => {
-            log::debug!(target: "agentero::recognize", "recognizer request failed: {e}");
-            return Ok(None);
-        }
-    };
-    if !response.status().is_success() {
-        log::debug!(
-            target: "agentero::recognize",
-            "recognizer HTTP {}",
-            response.status()
-        );
-        return Ok(None);
-    }
-    let hit: RecognizeHit = match response.json().await {
-        Ok(hit) => hit,
-        Err(e) => {
-            log::debug!(target: "agentero::recognize", "recognizer body decode: {e}");
-            return Ok(None);
-        }
-    };
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|e| {
+            AppError::domain(RECOGNIZER_SERVICE_ERROR, format!("recognizer request: {e}"))
+        })?;
+    let hit: RecognizeHit = response.json().await.map_err(|e| {
+        AppError::domain(
+            RECOGNIZER_SERVICE_ERROR,
+            format!("recognizer response: {e}"),
+        )
+    })?;
     if hit.has_identifier()
         || hit
             .title
@@ -338,6 +325,18 @@ pub struct PdfIdentProbe {
 }
 
 impl PdfIdentProbe {
+    /// A matching folder slug alone does not prove the target is the same work.
+    pub fn matches_canonical_identifiers(&self, record: &PaperRecord) -> bool {
+        let arxiv = self.arxiv_id.as_deref().and_then(extract_arxiv_id);
+        let other_arxiv = record.arxiv_id.as_deref().and_then(extract_arxiv_id);
+        same_work_ids(
+            self.doi.as_deref(),
+            arxiv.as_deref(),
+            record.doi.as_deref(),
+            other_arxiv.as_deref(),
+        )
+    }
+
     pub fn from_meta(file_path: &str, meta: &PaperRecord, source: &str) -> Self {
         Self {
             file_path: file_path.to_string(),
@@ -444,25 +443,57 @@ pub fn apply_probe_fields(record: &mut PaperRecord, probe: &PdfIdentProbe, meta_
     record.updated_at = crate::time::now_rfc3339_millis();
 }
 
-/// Full recognition pipeline for one PDF:
-/// probe → recognizer → (identifier resolution | title fallback).
-/// Cancellation propagates; every other failure degrades to a status row.
+/// Probe → recognizer → identifier resolution or a conservative title lookup.
+/// `known_title` is treated as a filename-derived hint, not as PDF evidence.
 pub async fn recognize_and_resolve(
     pdf_path: &Path,
     translator_base: &str,
     task_id: Option<&str>,
+    known_title: Option<&str>,
 ) -> PdfIdentProbe {
-    let file_path = pdf_path.to_string_lossy().to_string();
-    let hit = match recognize_pdf(pdf_path, task_id).await {
+    let file_path = pdf_path.to_string_lossy();
+    if check_task_not_cancelled(task_id).is_err() {
+        return PdfIdentProbe::error(&file_path, CANCELLED_MESSAGE.into());
+    }
+    let probe =
+        recognize_and_resolve_inner(pdf_path, &file_path, translator_base, task_id, known_title)
+            .await;
+    if check_task_not_cancelled(task_id).is_err() {
+        return PdfIdentProbe::error(&file_path, CANCELLED_MESSAGE.into());
+    }
+    probe
+}
+
+async fn recognize_and_resolve_inner(
+    pdf_path: &Path,
+    file_path: &str,
+    translator_base: &str,
+    task_id: Option<&str>,
+    known_title: Option<&str>,
+) -> PdfIdentProbe {
+    let recognized = recognize_pdf(pdf_path, task_id).await;
+    if check_task_not_cancelled(task_id).is_err() {
+        return PdfIdentProbe::error(file_path, CANCELLED_MESSAGE.into());
+    }
+    let hit = match recognized {
         Ok(Some(hit)) => hit,
-        Ok(None) => return PdfIdentProbe::no_match(&file_path),
-        Err(e)
-            if e.to_string()
-                .contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE) =>
-        {
-            return PdfIdentProbe::error(&file_path, e.to_string());
+        Ok(None) => {
+            return lookup_title(
+                known_title,
+                None,
+                PdfIdentProbe::no_match(file_path),
+                task_id,
+            )
+            .await;
         }
-        Err(e) => return PdfIdentProbe::error(&file_path, e.to_string()),
+        Err(e) => {
+            let fallback = PdfIdentProbe::error(file_path, e.to_string());
+            return if e.code() == RECOGNIZER_SERVICE_ERROR {
+                lookup_title(known_title, None, fallback, task_id).await
+            } else {
+                fallback
+            };
+        }
     };
 
     // Identifier hits are leads: re-resolve against authoritative sources.
@@ -474,14 +505,13 @@ pub async fn recognize_and_resolve(
                 } else {
                     "crossref"
                 };
-                return PdfIdentProbe::from_meta(&file_path, &resolved.record, source);
+                return PdfIdentProbe::from_meta(file_path, &resolved.record, source);
             }
             Err(e) => {
                 log::debug!(target: "agentero::recognize", "doi {doi} resolve failed: {e}");
-                // Fall through to arXiv / title fallback with the DOI kept.
-                let mut probe = title_fallback(&file_path, &hit);
+                let mut probe = title_fallback(file_path, &hit);
                 probe.doi = Some(doi.to_string());
-                return probe;
+                return lookup_recognizer_title(&hit, probe, task_id).await;
             }
         }
     }
@@ -495,26 +525,213 @@ pub async fn recognize_and_resolve(
             // The chain names whichever source actually answered (arxiv / s2
             // / alphaxiv), so meta_source reflects the failover.
             Ok(meta) => {
-                return PdfIdentProbe::from_meta(
-                    &file_path,
-                    &api_paper_to_meta(&meta),
-                    meta.source,
-                );
+                return PdfIdentProbe::from_meta(file_path, &api_paper_to_meta(&meta), meta.source);
             }
             Err(e) => {
                 log::debug!(target: "agentero::recognize", "arXiv {arxiv} resolve failed: {e}");
-                let mut probe = title_fallback(&file_path, &hit);
+                let mut probe = title_fallback(file_path, &hit);
                 probe.arxiv_id = Some(arxiv.to_string());
                 // The chain only reports rate limiting after its internal
                 // retry pass, so this warning means every source throttled.
                 if e.code() == "rate_limited" {
                     probe.warning = Some("arxiv_rate_limited".into());
                 }
-                return probe;
+                return lookup_recognizer_title(&hit, probe, task_id).await;
             }
         }
     }
-    title_fallback(&file_path, &hit)
+    let fallback = title_fallback(file_path, &hit);
+    if hit.has_identifier() {
+        return fallback; // ISBN-only hits still use Zotero's original metadata.
+    }
+    lookup_recognizer_title(&hit, fallback, task_id).await
+}
+
+async fn lookup_recognizer_title(
+    hit: &RecognizeHit,
+    fallback: PdfIdentProbe,
+    task_id: Option<&str>,
+) -> PdfIdentProbe {
+    let title = hit.title.as_deref().and_then(clean_recognizer_title);
+    lookup_title(title.as_deref(), Some(hit), fallback, task_id).await
+}
+
+async fn lookup_title(
+    title: Option<&str>,
+    hit: Option<&RecognizeHit>,
+    fallback: PdfIdentProbe,
+    task_id: Option<&str>,
+) -> PdfIdentProbe {
+    let Some(title) = title.and_then(searchable_title) else {
+        return fallback;
+    };
+    if check_task_not_cancelled(task_id).is_err() {
+        return PdfIdentProbe::error(&fallback.file_path, CANCELLED_MESSAGE.into());
+    }
+    let result = search_papers_by_title(title, SourceScope::All, 5).await;
+    title_lookup_result(title, hit, fallback, result)
+}
+
+fn title_lookup_result(
+    title: &str,
+    hit: Option<&RecognizeHit>,
+    fallback: PdfIdentProbe,
+    result: Result<Vec<ApiPaper>, ApiError>,
+) -> PdfIdentProbe {
+    let has_identifier = canonical_base_id(&fallback).is_some();
+    match result {
+        Ok(papers) => select_title_match(title, hit, papers)
+            .and_then(|paper| {
+                let meta = api_paper_to_meta(&paper);
+                if has_identifier && !fallback.matches_canonical_identifiers(&meta) {
+                    return None;
+                }
+                let mut probe = PdfIdentProbe::from_meta(&fallback.file_path, &meta, paper.source);
+                if has_identifier {
+                    // Title search may enrich a known identifier, but cannot change
+                    // which identifier anchors the existing recognition result.
+                    probe.doi.clone_from(&fallback.doi);
+                    probe.arxiv_id.clone_from(&fallback.arxiv_id);
+                }
+                Some(probe)
+            })
+            .unwrap_or(fallback),
+        Err(e)
+            if !has_identifier
+                && fallback.status == "no-match"
+                && !matches!(e, ApiError::NotFound) =>
+        {
+            PdfIdentProbe::error(&fallback.file_path, format!("scholarly title lookup: {e}"))
+        }
+        Err(_) => fallback,
+    }
+}
+
+fn searchable_title(title: &str) -> Option<&str> {
+    let title = title.trim();
+    let key = title_similarity_key(title);
+    if key.chars().filter(|c| c.is_alphabetic()).take(8).count() < 8
+        || (key.is_ascii()
+            && key
+                .split_whitespace()
+                .filter(|word| word.chars().any(char::is_alphabetic))
+                .take(2)
+                .count()
+                < 2)
+        || uuid::Uuid::parse_str(title).is_ok()
+        || key.split_whitespace().all(|word| {
+            matches!(
+                word,
+                "paper" | "untitled" | "document" | "download" | "pdf" | "copy"
+            ) || word.chars().all(|c| c.is_numeric())
+        })
+    {
+        return None;
+    }
+    Some(title)
+}
+
+fn select_title_match(
+    title: &str,
+    hit: Option<&RecognizeHit>,
+    papers: Vec<ApiPaper>,
+) -> Option<ApiPaper> {
+    let query = title_similarity_key(title);
+    let authors = hit.map(RecognizeHit::author_names).unwrap_or_default();
+    let year = hit.and_then(RecognizeHit::publication_year);
+    let mut candidates: Vec<_> = papers
+        .into_iter()
+        .filter_map(|mut paper| {
+            let key = title_similarity_key(&paper.title);
+            let author_match = author_overlap(&authors, &paper.authors) >= 0.30;
+            let year_match = year.zip(paper.year).map(|(a, b)| a.abs_diff(b) <= 1);
+            if (!authors.is_empty() && !paper.authors.is_empty() && !author_match)
+                || year_match == Some(false)
+                || (key != query
+                    && (!(author_match || year_match == Some(true))
+                        || title_similarity(&query, &key) < 85))
+            {
+                return None;
+            }
+            paper.identifiers.doi = paper.identifiers.doi.as_deref().and_then(scholarly_doi);
+            paper.identifiers.arxiv_id = paper
+                .identifiers
+                .arxiv_id
+                .as_deref()
+                .and_then(extract_arxiv_id);
+            Some((key, paper))
+        })
+        .collect();
+
+    // A record with both identifiers can link the DOI and arXiv records.
+    // Inspect raw results: fuzzy fusion can hide real identifier conflicts.
+    candidates.sort_by_key(|(key, p)| {
+        std::cmp::Reverse((
+            usize::from(p.identifiers.doi.is_some())
+                + usize::from(p.identifiers.arxiv_id.is_some()),
+            key == &query,
+            !p.authors.is_empty() && p.year.is_some(),
+        ))
+    });
+    let mut candidates = candidates.into_iter();
+    let (best_key, best) = candidates.next()?;
+    let ids = &best.identifiers;
+    let has_id = ids.doi.is_some() || ids.arxiv_id.is_some();
+    if !has_id && (best.authors.is_empty() || best.year.is_none()) {
+        return None;
+    }
+    for (key, paper) in candidates {
+        let other = &paper.identifiers;
+        if has_id && (other.doi.is_some() || other.arxiv_id.is_some()) {
+            if !same_work_ids(
+                ids.doi.as_deref(),
+                ids.arxiv_id.as_deref(),
+                other.doi.as_deref(),
+                other.arxiv_id.as_deref(),
+            ) {
+                return None;
+            }
+        } else if key != best_key
+            || paper.year.is_none()
+            || paper.year != best.year
+            || author_overlap(&paper.authors, &best.authors) < 0.30
+        {
+            return None;
+        }
+    }
+    Some(best)
+}
+
+// Title search results can cause a local rename. Use bare, path-safe DOI
+// values; DOI punctuation remains significant when comparing identities.
+fn scholarly_doi(doi: &str) -> Option<String> {
+    let (prefix, suffix) = doi.trim().split_once('/')?;
+    let registrant = prefix.strip_prefix("10.")?;
+    (!registrant.is_empty()
+        && registrant.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+        && !suffix.is_empty()
+        && suffix.chars().all(|c| {
+            !c.is_control()
+                && !c.is_whitespace()
+                && !matches!(c, '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')
+        }))
+    .then(|| doi.trim().to_string())
+}
+
+fn same_work_ids(
+    doi: Option<&str>,
+    arxiv: Option<&str>,
+    other_doi: Option<&str>,
+    other_arxiv: Option<&str>,
+) -> bool {
+    let doi = doi
+        .filter(|d| nonempty(d))
+        .zip(other_doi.filter(|d| nonempty(d)))
+        .map(|(a, b)| a.trim().eq_ignore_ascii_case(b.trim()));
+    let arxiv = arxiv
+        .zip(other_arxiv)
+        .map(|(a, b)| a.eq_ignore_ascii_case(b));
+    doi != Some(false) && arxiv != Some(false) && (doi == Some(true) || arxiv == Some(true))
 }
 
 /// Recognizer-provided title/authors without identifiers (Zotero's fallback).
@@ -546,16 +763,12 @@ pub fn meta_from_recognize(hit: &RecognizeHit, fallback_id: &str) -> PaperRecord
         .as_deref()
         .and_then(clean_recognizer_title)
         .unwrap_or_else(|| "Untitled".to_string());
-    let year = hit
-        .year
-        .as_deref()
-        .and_then(|y| y.trim().chars().take(4).collect::<String>().parse().ok());
     let mut meta = PaperRecord::local_pdf(
         crate::features::paper::import::slug_from_stem(fallback_id),
         title,
     );
     meta.authors = authors;
-    meta.year = year;
+    meta.year = hit.publication_year();
     meta.language = hit.language.clone().filter(|l| nonempty(l));
     meta.publication = hit.container.clone().filter(|c| nonempty(c));
     meta.publisher = hit.publisher.clone().filter(|p| nonempty(p));

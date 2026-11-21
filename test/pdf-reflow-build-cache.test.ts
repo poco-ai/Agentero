@@ -1,5 +1,4 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
-import type { PDFFont } from "pdf-lib";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import type { ReflowBuildCacheStore } from "@/lib/pdf/reflow/build-cache";
@@ -69,23 +68,6 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 	}),
 }));
 
-const metric = {
-	widthOfTextAtSize: (text: string, size: number) =>
-		Array.from(text).reduce(
-			(n, c) => n + (/[\u4e00-\u9fff，。]/u.test(c) ? size : size * 0.5),
-			0,
-		),
-	heightAtSize: (size: number) => size,
-	encodeText: () => ({}),
-} as unknown as PDFFont;
-const embeddedFonts = {
-	regular: metric,
-	bold: metric,
-	italic: metric,
-	boldItalic: metric,
-	cjk: metric,
-	cjkBold: metric,
-};
 const fontBytes = {
 	regular: new Uint8Array([1]),
 	bold: new Uint8Array([2]),
@@ -104,7 +86,9 @@ const buildPdf = vi.hoisted(() => ({ fn: vi.fn() }));
 vi.mock("@/lib/pdf/reflow/export", () => ({
 	buildReflowPage: pageBuild.fn,
 	buildReflowPdf: buildPdf.fn,
-	embedReflowFonts: vi.fn(async () => embeddedFonts),
+	layoutReflowPdf: vi.fn(async (ir: Parameters<typeof layoutsFrom>[0]) =>
+		layoutsFrom(ir),
+	),
 }));
 
 function layoutsFrom(ir: {

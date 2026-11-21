@@ -62,15 +62,10 @@ const CUE_GAP_MS = 1500;
 const GLOBAL_GAP_MS = 300;
 
 let ctx: AudioContext | null = null;
+let audioOperation = Promise.resolve();
+let activeTones = 0;
 const lastByCue = new Map<SoundCue, number>();
 let lastAny = 0;
-
-function ensureContext(): AudioContext | null {
-	if (ctx) return ctx;
-	if (typeof window === "undefined" || !("AudioContext" in window)) return null;
-	ctx = new AudioContext();
-	return ctx;
-}
 
 function emit(context: AudioContext, cue: Cue): void {
 	const start = context.currentTime + 0.01;
@@ -86,45 +81,60 @@ function emit(context: AudioContext, cue: Cue): void {
 		osc.connect(gain).connect(context.destination);
 		osc.start(noteStart);
 		osc.stop(noteStart + cue.length + 0.02);
+		activeTones++;
+		osc.onended = () => {
+			if (--activeTones === 0) {
+				audioOperation = audioOperation
+					.then(() => (activeTones === 0 ? context.suspend() : undefined))
+					.catch(() => undefined);
+			}
+		};
 	}
 }
 
 /** Play one cue; silent no-op when sounds are off, throttled or not unlocked. */
 export function playCue(cue: SoundCue): void {
-	if (!getSettings().soundEnabled) return;
-	const now = Date.now();
-	if (now - (lastByCue.get(cue) ?? 0) < CUE_GAP_MS) return;
-	if (now - lastAny < GLOBAL_GAP_MS) return;
-	const context = ensureContext();
+	const context = ctx;
 	if (!context) return;
-	if (context.state === "running") {
-		fire(context, cue, now);
-		return;
-	}
-	// Webviews start the context suspended. Resume and play only if it really
-	// unlocked, so a Host-driven cue never plays late, after the user's click.
-	void context
-		.resume()
-		.then(() => {
-			if (context.state === "running") fire(context, cue, now);
+	// Serialize device transitions so a cue can resume even as the previous one goes idle.
+	audioOperation = audioOperation
+		.then(async () => {
+			const now = Date.now();
+			if (now - (lastByCue.get(cue) ?? 0) < CUE_GAP_MS) return;
+			if (now - lastAny < GLOBAL_GAP_MS || !getSettings().soundEnabled) return;
+			try {
+				if (context.state !== "running") await context.resume();
+				if (context.state !== "running" || !getSettings().soundEnabled) return;
+				emit(context, CUES[cue]);
+				lastByCue.set(cue, now);
+				lastAny = now;
+			} finally {
+				if (activeTones === 0 && context.state === "running") {
+					await context.suspend();
+				}
+			}
 		})
 		.catch(() => undefined);
 }
 
-function fire(context: AudioContext, cue: SoundCue, now: number): void {
-	emit(context, CUES[cue]);
-	lastByCue.set(cue, now);
-	lastAny = now;
-}
-
 // Prime on the first user gesture so Host-driven cues (agent turn ended,
 // permission requested) can play without a click of their own.
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && "AudioContext" in window) {
 	const unlock = () => {
-		void ensureContext()?.resume();
-		window.removeEventListener("pointerdown", unlock, true);
+		if (
+			!getSettings().soundEnabled ||
+			navigator.userActivation?.isActive === false
+		)
+			return;
+		const context = new AudioContext();
+		ctx = context;
+		audioOperation = context
+			.resume()
+			.then(() => context.suspend())
+			.catch(() => undefined);
+		window.removeEventListener("click", unlock, true);
 		window.removeEventListener("keydown", unlock, true);
 	};
-	window.addEventListener("pointerdown", unlock, true);
+	window.addEventListener("click", unlock, true);
 	window.addEventListener("keydown", unlock, true);
 }

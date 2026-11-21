@@ -5,7 +5,6 @@
  */
 
 import { PluginRegistry } from "@embedpdf/core";
-import type { PdfEngine } from "@embedpdf/models";
 import { AiManagerPluginPackage } from "@embedpdf/plugin-ai-manager";
 import type { DocumentManagerCapability } from "@embedpdf/plugin-document-manager";
 import { DocumentManagerPluginPackage } from "@embedpdf/plugin-document-manager";
@@ -17,7 +16,7 @@ import { RenderPluginPackage } from "@embedpdf/plugin-render";
 import { errorText } from "@/lib/core/error";
 
 import { findCanonicalPaperPdfPath, localFileToArrayBuffer } from "@/lib/paper";
-import { createPdfEngine } from "@/lib/pdf/engine";
+import { acquireBackgroundPdfEngine } from "@/lib/pdf/background-engine";
 import { getPdfAiRuntime } from "@/lib/pdf/layout/ai-runtime";
 import {
 	assessLayoutReadiness,
@@ -35,24 +34,6 @@ import {
 	runDocumentLayoutAnalysis,
 } from "@/lib/pdf/layout/run-analysis";
 import { clearLayoutDocumentResult } from "@/lib/pdf/layout/store";
-
-let analysisEngine: PdfEngine | null = null;
-let analysisEnginePromise: Promise<PdfEngine> | null = null;
-
-export async function getHeadlessPdfEngine(): Promise<PdfEngine> {
-	if (analysisEngine) return analysisEngine;
-	if (analysisEnginePromise) return analysisEnginePromise;
-	const pending = createPdfEngine().then((engine) => {
-		analysisEngine = engine;
-		return engine;
-	});
-	analysisEnginePromise = pending;
-	try {
-		return await pending;
-	} finally {
-		if (analysisEnginePromise === pending) analysisEnginePromise = null;
-	}
-}
 
 export type HeadlessLayoutResult = {
 	fromCache: boolean;
@@ -118,23 +99,22 @@ export async function analyzePaperLayoutHeadless(opts: {
 	}
 	if (opts.signal?.aborted) throw new Error("cancelled");
 
-	const engine = await getHeadlessPdfEngine();
+	const { engine, release } = await acquireBackgroundPdfEngine(opts.signal);
 	const documentId =
 		opts.documentId ?? `headless-layout-${Date.now().toString(36)}`;
 	const registry = new PluginRegistry(engine);
-	registry.registerPlugin(DocumentManagerPluginPackage, {});
-	registry.registerPlugin(RenderPluginPackage);
-	registry.registerPlugin(AiManagerPluginPackage, {
-		runtime: getPdfAiRuntime(),
-	});
-	registry.registerPlugin(LayoutAnalysisPluginPackage, {
-		layoutThreshold: 0.3,
-		tableStructure: false,
-		autoAnalyze: false,
-		renderScale: 2,
-	});
-
 	try {
+		registry.registerPlugin(DocumentManagerPluginPackage, {});
+		registry.registerPlugin(RenderPluginPackage);
+		registry.registerPlugin(AiManagerPluginPackage, {
+			runtime: getPdfAiRuntime(),
+		});
+		registry.registerPlugin(LayoutAnalysisPluginPackage, {
+			layoutThreshold: 0.3,
+			tableStructure: false,
+			autoAnalyze: false,
+			renderScale: 2,
+		});
 		await registry.initialize();
 		await registry.pluginsReady();
 		if (opts.signal?.aborted) throw new Error("cancelled");
@@ -311,5 +291,6 @@ export async function analyzePaperLayoutHeadless(opts: {
 			// ignore
 		}
 		clearLayoutDocumentResult(documentId);
+		release();
 	}
 }

@@ -392,7 +392,7 @@ const MermaidViewport = forwardRef<MermaidViewportHandle, MermaidViewportProps>(
 			<div
 				ref={containerRef}
 				className={cn(
-					"relative touch-none select-none overflow-hidden bg-background focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+					"relative touch-none select-none overflow-hidden bg-background focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-ring",
 					dragging ? "cursor-grabbing" : "cursor-grab",
 					className,
 				)}

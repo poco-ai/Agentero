@@ -103,6 +103,15 @@ const PROBE_LABEL_KEYS = {
 	idle: "translate.provider.probeIdle",
 } as const satisfies Record<ProbeStatus, string>;
 
+/**
+ * API service cards lead with the generic OpenAI-compatible endpoint; the
+ * vendor-specific engines keep their canonical order.
+ */
+const API_SERVICE_PROVIDER_IDS: CommercialTranslateProviderId[] = [
+	"openaiCompatible",
+	...COMMERCIAL_MT_PROVIDER_IDS.filter((id) => id !== "openaiCompatible"),
+];
+
 function ProviderStatusDot({
 	kind,
 	label,
@@ -489,9 +498,11 @@ export function TranslatePane({
 				</SettingsRow>
 				<SettingsRow
 					label={t("translate.dictionaryMode.label")}
-					description={t(
-						`translate.dictionaryMode.${tr.dictionary.mode}Description`,
-					)}
+					description={
+						tr.dictionary.mode === "auto"
+							? undefined
+							: t(`translate.dictionaryMode.${tr.dictionary.mode}Description`)
+					}
 				>
 					<Select
 						value={tr.dictionary.mode}
@@ -519,45 +530,18 @@ export function TranslatePane({
 					</Select>
 				</SettingsRow>
 				<SettingsRow
-					label={t("translate.dismissOnOutsideClick.label")}
-					description={t("translate.dismissOnOutsideClick.description")}
-					htmlFor="translate-dismiss-outside"
+					label={t("translate.alwaysShowCard.label")}
+					htmlFor="translate-always-show-card"
 				>
 					<Switch
-						id="translate-dismiss-outside"
-						checked={tr.dismissSelectionOnOutsideClick}
+						id="translate-always-show-card"
+						checked={tr.alwaysShowTranslateCard}
 						onCheckedChange={(v) =>
-							patchTranslate({ dismissSelectionOnOutsideClick: v })
+							patchTranslate({ alwaysShowTranslateCard: v })
 						}
 					/>
 				</SettingsRow>
-				<SettingsRow label={t("translate.displayMode.label")}>
-					<Select
-						value={tr.displayMode}
-						onValueChange={(v) =>
-							patchTranslate({
-								displayMode: v === "dualPane" ? "dualPane" : "overlay",
-							})
-						}
-					>
-						<SelectTrigger size="sm" className="min-w-[160px] max-w-[220px]">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="overlay">
-								{t("translate.displayMode.overlay")}
-							</SelectItem>
-							<SelectItem value="dualPane">
-								{t("translate.displayMode.dualPane")}
-							</SelectItem>
-						</SelectContent>
-					</Select>
-				</SettingsRow>
 			</SettingsGroup>
-
-			<p className="mt-4 text-caption text-muted-foreground">
-				{t("translate.dictionaryIncluded")}
-			</p>
 
 			<SettingsSectionLabel className="mt-4">
 				{t("translate.autoTranslation.section")}
@@ -577,7 +561,6 @@ export function TranslatePane({
 				</SettingsRow>
 				<SettingsRow
 					label={t("translate.autoImport.label")}
-					description={t("translate.autoImport.description")}
 					htmlFor="translate-auto-import"
 				>
 					<Switch
@@ -623,7 +606,7 @@ export function TranslatePane({
 									<button
 										type="button"
 										aria-label={t("translate.cache.tip")}
-										className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+										className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
 									>
 										<Info className="size-3.5" aria-hidden />
 									</button>
@@ -655,10 +638,7 @@ export function TranslatePane({
 					</Button>
 				</div>
 				<SettingsGroup>
-					<SettingsRow
-						label={t("translate.cache.dictionary.label")}
-						description={t("translate.cache.dictionary.description")}
-					>
+					<SettingsRow label={t("translate.cache.dictionary.label")}>
 						<Button
 							size="sm"
 							variant="outline"
@@ -679,7 +659,6 @@ export function TranslatePane({
 					</SettingsRow>
 					<SettingsRow
 						label={t("translate.cache.ir.label")}
-						description={t("translate.cache.ir.description")}
 						htmlFor="translate-cache-ir"
 					>
 						<Switch
@@ -690,7 +669,6 @@ export function TranslatePane({
 					</SettingsRow>
 					<SettingsRow
 						label={t("translate.cache.final.label")}
-						description={t("translate.cache.final.description")}
 						htmlFor="translate-cache-final"
 					>
 						<Switch
@@ -707,7 +685,7 @@ export function TranslatePane({
 					{t("translate.providerConfig.section")}
 				</SettingsSectionLabel>
 				<div className="grid gap-2">
-					{COMMERCIAL_MT_PROVIDER_IDS.map((id) => {
+					{API_SERVICE_PROVIDER_IDS.map((id) => {
 						const cfg = getProviderConfig(id);
 						const draft = configDrafts[id];
 						const draftKey = draft?.apiKey;

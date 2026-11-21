@@ -26,7 +26,7 @@ export function ChoiceCard({
 			aria-pressed={selected === undefined ? undefined : selected}
 			onClick={onClick}
 			className={cn(
-				"relative flex flex-col items-center justify-center gap-2.5 rounded-xl border bg-background p-5 text-center outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+				"relative flex flex-col items-center justify-center gap-2.5 rounded-xl border bg-background p-5 text-center outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
 				selected
 					? "border-primary ring-1 ring-primary/30 hover:border-primary"
 					: recommended

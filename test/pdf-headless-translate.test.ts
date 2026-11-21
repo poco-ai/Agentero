@@ -28,11 +28,15 @@ vi.mock("@/lib/core/tasks", () => ({
 		mocks.executor = executor;
 	},
 }));
-vi.mock("@/lib/pdf/layout/headless-analyze", () => ({
-	getHeadlessPdfEngine: async () => ({
+vi.mock("@/lib/pdf/engine", () => ({
+	createPdfEngine: async () => ({
 		openDocumentBuffer: () => ({ toPromise: mocks.open }),
 		closeDocument: () => ({ toPromise: mocks.close }),
 	}),
+	disposePdfEngine: vi.fn(),
+}));
+vi.mock("@/lib/pdf/layout/headless-analyze", () => ({
+	analyzePaperLayoutHeadless: vi.fn(),
 }));
 vi.mock("@/lib/paper/media", () => ({
 	findCanonicalPaperPdfPath: async () => "/vault/papers/a/a.pdf",

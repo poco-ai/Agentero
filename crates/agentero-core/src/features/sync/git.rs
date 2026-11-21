@@ -105,7 +105,7 @@ pub async fn test_connection(vault: &Path, cfg: &SyncBackendConfig) -> Result<()
 
 /// One full pass. The cross-process lock and `lastError` bookkeeping stay in
 /// `engine::sync_vault_locked`, shared with the S3/WebDAV backends.
-pub async fn sync_vault(
+pub(super) async fn sync_vault(
     vault: &Path,
     cfg: &SyncBackendConfig,
     progress: Progress<'_>,
@@ -119,6 +119,7 @@ pub async fn sync_vault(
     })
     .await
     .map_err(|e| AppError::message(format!("sidecar projection task: {e}")))??;
+    engine::refresh_catalog_if_needed(vault)?;
     progress("scan", 0, 0);
     git.ensure_repo(cfg).await?;
     let committed = git.commit_local(&cfg.scope).await?;
@@ -612,7 +613,7 @@ impl Git {
                 .await?,
             "git add",
         )?;
-        self.untrack_excluded(scope).await?;
+        self.unstage_new_exclusions(scope).await?;
         let staged = self
             .run(
                 ["-c", "core.autocrlf=false", "diff", "--cached", "--quiet"],
@@ -652,7 +653,7 @@ impl Git {
 
     /// Remove excluded index entries after staging, even if a nested
     /// .gitignore negates a managed rule. Leave the working files in place.
-    async fn untrack_excluded(&self, scope: &SyncScope) -> Result<(), AppError> {
+    async fn unstage_new_exclusions(&self, scope: &SyncScope) -> Result<(), AppError> {
         if scope.is_all() {
             return Ok(());
         }
@@ -663,9 +664,25 @@ impl Git {
         )?;
         let paths: Vec<_> = listed_paths(&listed.stdout).collect();
         let roots = scope::paper_roots(paths.iter().copied());
-        let excluded = paths
-            .into_iter()
-            .filter(|rel| scope::excluded(scope, rel, &roots));
+        let additions = checked(
+            self.run(
+                [
+                    "diff",
+                    "--cached",
+                    "--no-renames",
+                    "--diff-filter=A",
+                    "--name-only",
+                    "-z",
+                    "--",
+                    "papers/",
+                ],
+                LOCAL_TIMEOUT,
+            )
+            .await?,
+            "git diff",
+        )?;
+        let excluded =
+            listed_paths(&additions.stdout).filter(|rel| scope::excluded(scope, rel, &roots));
         let mut entries = Vec::new();
         for rel in excluded {
             entries.extend_from_slice(rel.as_bytes());
@@ -798,8 +815,76 @@ impl Git {
         Err(git_error("git fetch", &out))
     }
 
+    async fn prepare_checkout(&self, refname: &str) -> Result<(), AppError> {
+        let ignored = checked(
+            self.run(
+                [
+                    "ls-files",
+                    "-z",
+                    "--others",
+                    "--ignored",
+                    "--exclude-standard",
+                    "--",
+                    ".",
+                    ":(top,exclude).agentero",
+                ],
+                LOCAL_TIMEOUT,
+            )
+            .await?,
+            "git ls-files",
+        )?;
+        if !ignored.stdout.is_empty() {
+            let remote = checked(
+                self.run(["ls-tree", "-rz", "--name-only", refname], LOCAL_TIMEOUT)
+                    .await?,
+                "git ls-tree",
+            )?;
+            let fold_case = self
+                .config_value("core.ignorecase")
+                .await?
+                .eq_ignore_ascii_case("true");
+            let normalize = |path: &[u8]| {
+                if fold_case {
+                    path.to_ascii_lowercase()
+                } else {
+                    path.to_vec()
+                }
+            };
+            let protected: BTreeSet<_> = ignored
+                .stdout
+                .split(|&byte| byte == 0)
+                .filter(|path| !path.is_empty())
+                .map(normalize)
+                .collect();
+            for path in remote
+                .stdout
+                .split(|&byte| byte == 0)
+                .filter(|path| !path.is_empty())
+            {
+                let key = normalize(path);
+                let mut directory = key.clone();
+                directory.push(b'/');
+                let parent_blocked = key
+                    .iter()
+                    .enumerate()
+                    .any(|(index, &byte)| byte == b'/' && protected.contains(&key[..index]));
+                if protected.contains(&key)
+                    || parent_blocked
+                    || protected
+                        .range(directory.clone()..)
+                        .next()
+                        .is_some_and(|file| file.starts_with(&directory))
+                {
+                    return Err(AppError::domain("sync_conflict", format!("remote path {} overlaps an ignored local file; move it outside the vault before syncing", String::from_utf8_lossy(path))));
+                }
+            }
+        }
+        local::mark_catalog_dirty(&self.vault)
+    }
+
     async fn merge_remote(&self, cfg: &SyncBackendConfig) -> Result<DiffCounts, AppError> {
         let refname = format!("refs/remotes/origin/{}", cfg.git_branch);
+        self.prepare_checkout(&refname).await?;
         let before = self.head().await?;
         let mut args = self.identity_args().await?;
         args.extend([
@@ -808,6 +893,7 @@ impl Git {
             "-c".to_string(),
             "core.autocrlf=false".to_string(),
             "merge".to_string(),
+            "--no-overwrite-ignore".to_string(),
             "--ff".to_string(),
             "--no-edit".to_string(),
             "--allow-unrelated-histories".to_string(),
@@ -870,13 +956,22 @@ impl Git {
 
     async fn adopt_remote(&self, cfg: &SyncBackendConfig) -> Result<usize, AppError> {
         let refname = format!("refs/remotes/origin/{}", cfg.git_branch);
+        self.prepare_checkout(&refname).await?;
         checked(
             self.run(
-                ["-c", "core.autocrlf=false", "reset", "--hard", &refname],
+                [
+                    "-c",
+                    "core.autocrlf=false",
+                    "checkout",
+                    "--no-overwrite-ignore",
+                    "-B",
+                    &cfg.git_branch,
+                    &refname,
+                ],
                 LOCAL_TIMEOUT,
             )
             .await?,
-            "git reset",
+            "git checkout",
         )?;
         let upstream = format!("origin/{}", cfg.git_branch);
         let _ = self.run(["branch", "-u", &upstream], LOCAL_TIMEOUT).await;
@@ -924,7 +1019,7 @@ impl Git {
                 ..SyncMeta::default()
             },
         )?;
-        engine::refresh_catalog_if_needed(vault, &outcome).await;
+        engine::refresh_catalog_if_needed(vault)?;
         outcome.version = version;
         Ok(outcome)
     }
@@ -944,7 +1039,7 @@ fn scope_ignore_patterns(scope: &SyncScope, paths: &[&str]) -> BTreeSet<String> 
         .filter_map(|rel| {
             let (category, anchor) = scope::classify(rel, &roots)?;
             // Newlines cannot be represented in a line-based gitignore.
-            // untrack_excluded still handles those paths via NUL-delimited input.
+            // Staged additions are also checked via NUL-delimited input.
             if category.enabled(scope) || anchor.contains(['\r', '\n']) {
                 return None;
             }

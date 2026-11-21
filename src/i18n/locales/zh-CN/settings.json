@@ -267,8 +267,11 @@
 			"serverStopped": "Connector 服务已停止。Agentero 每 5 秒自动重试，也可立即重试。"
 		},
 		"mcp": {
+			"allowWrite": "允许客户端修改 Vault",
+			"allowOnline": "允许工具访问网络",
+			"scope": "这些权限适用于本机 MCP 客户端和已连接的隧道。",
 			"exposeText": {
-				"label": "对外暴露论文正文（MCP）"
+				"label": "允许客户端读取论文全文"
 			},
 			"label": "MCP 服务器",
 			"portLabel": "MCP 端口",
@@ -559,6 +562,7 @@
 			}
 		},
 		"form": {
+			"supportsShell": "可以执行本机 shell 命令",
 			"defaultName": "Desktop",
 			"name": "名称",
 			"command": "命令",
@@ -620,37 +624,27 @@
 		"autoSelection": {
 			"label": "PDF 划词后自动翻译"
 		},
-		"dismissOnOutsideClick": {
-			"label": "点击其他位置时关闭翻译结果",
-			"description": "点击翻译卡以外的位置即关闭。滚动、翻页和阅读器控件不会关闭。"
+		"alwaysShowCard": {
+			"label": "翻译卡片常显示"
 		},
 		"autoImport": {
 			"label": "版面解析后自动翻译",
-			"description": "导入、下载或重新解析版面完成后，在后台翻译全文。已有译文按缓存复用，只补译变化的块，并使用当前翻译服务和缓存设置。",
 			"concurrency": {
 				"label": "自动翻译的论文并发数"
 			}
 		},
-		"displayMode": {
-			"label": "翻译显示模式",
-			"overlay": "在原 PDF 上覆盖",
-			"dualPane": "双栏对照"
-		},
 		"cache": {
 			"section": "缓存",
 			"ir": {
-				"label": "缓存重排 IR",
-				"description": "保存抽取出的字符几何，再次打开时无需重新抽取。"
+				"label": "缓存排版"
 			},
 			"final": {
-				"label": "缓存译文 PDF",
-				"description": "保存构建完成的译文 PDF，每篇约 25 MB。"
+				"label": "缓存译文 PDF"
 			},
 			"tip": "关闭开关只停止写入新文件，已有缓存仍会复用。",
 			"reset": "还原默认",
 			"dictionary": {
 				"label": "查词缓存",
-				"description": "查词和语境结果保留 30 天。清除当前知识库缓存，内置词典仍可使用。",
 				"clear": "清除",
 				"clearFailed": "无法清除查词缓存。",
 				"cleared": "已清除"
@@ -718,13 +712,11 @@
 		"autoTranslation": {
 			"section": "自动翻译"
 		},
-		"dictionaryIncluded": "已内置离线英汉词典与 AI 术语，无需配置。",
 		"dictionaryMode": {
 			"label": "划词词典",
 			"auto": "自动",
 			"offline-first": "离线优先",
 			"off": "关闭",
-			"autoDescription": "先显示本地释义，再由当前 AI 服务解释本文语境。",
 			"offline-firstDescription": "命中本地词典后不请求模型；未收录的词使用当前翻译服务。",
 			"offDescription": "所有选区默认翻译，仍可从结果卡片手动切换到词典。"
 		}
@@ -1168,7 +1160,7 @@
 		"gitSslCaHint": "自签 HTTPS 服务器的 PEM 文件绝对路径。留空则使用系统信任库。",
 		"gitAuthFailed": "Git 无法登录，同步不会弹出凭据窗口。\n{{detail}}\nHTTPS：先用 `git credential approve` 或系统凭据助手存好 token。SSH：运行 `ssh-add`。",
 		"gitTlsFailed": "Git 拒绝了服务器证书。\n{{detail}}\n自签 HTTPS 请填写 CA 证书路径后再连接。",
-		"noConditionalWrites": "该存储不支持条件（原子）写入，同步已降级为普通上传。单设备使用不受影响；多设备并发修改可能需要多一轮同步才能收敛。",
+		"noConditionalWrites": "缺少条件写入时，标准同步会停止。WebDAV 可通过 CLI 配置实验日志，使用普通上传。",
 		"saved": "同步已配置",
 		"disconnect": "解绑",
 		"syncNow": "立即同步",
@@ -1200,7 +1192,7 @@
 		"intervalMinutes": "{{count}} 分钟",
 		"scope": "同步范围",
 		"scopeHint": "笔记、元数据与标注永远同步。未勾选的内容不会上传或下载，也不会因过滤而被删除。PDF 与 LaTeX 源码可随时从来源重新下载。",
-		"scopeHintGit": "笔记、元数据与标注永远同步。未勾选的文件会写入 .gitignore，之后不再提交。",
+		"scopeHintGit": "排除项只对新文件生效。Git 已跟踪的文件仍会在各设备之间同步。",
 		"scopePdf": "PDF 文件",
 		"scopeSource": "LaTeX 源码",
 		"scopeAttachments": "支撑材料"

@@ -3,9 +3,10 @@
 use super::types::*;
 use super::TOOL_PROFILE;
 use crate::error::AppError;
-use crate::features::paper::capabilities::find_local_pdf;
+use crate::features::evidence;
 use crate::features::paper::catalog::papers::{self, PaperRecord};
 use crate::fs::{normalize_rel, sanitize_vault_rel};
+use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
@@ -198,7 +199,7 @@ fn fingerprint_of(
     });
     let payload = serde_json::json!({
         "profile": TOOL_PROFILE,
-        "tools": ["context_search", "context_read", "paper_relations"],
+        "commands": ["search", "read", "paper relations"],
         "expansion": expansion,
         "allowed": allowed.iter().map(|source| serde_json::json!({
             "kind": source.kind,
@@ -228,19 +229,19 @@ pub fn render_prompt_block(plan: &ContextPlan) -> String {
     }
     let mut lines = Vec::new();
     match plan.expansion {
-        ContextExpansion::Mcp => {
+        ContextExpansion::Cli => {
             lines.push(
                 "Research context for this turn. This is the minimum evidence: a stable paper ref, title, page or section, and the quoted passage. Do not open the paper file or read the full text first."
                     .to_string(),
             );
             lines.push(
-                "When this is not enough, call the agentero-context tools in order: context_read level metadata (title and abstract), then section, page, or region. context_search returns short evidence cards, not the body. paper_relations returns citation, cited-by, and related cards. Full text is not a default and stays inside the read budget. If those tools are not connected, say that context expansion is unavailable and answer only from the evidence below."
+                "When this is not enough, use the turn-bound Agentero CLI executable: read PAPER for metadata, search QUERY to find evidence, then read the returned cite. Read a section, page or region when you need a particular passage. Use paper relations PAPER for references. The host tracks returned evidence for this turn."
                     .to_string(),
             );
         }
         ContextExpansion::PromptOnly => {
             lines.push(
-                "Research context for this turn. Context expansion is unavailable: this agent has no agentero-context tools and must not assume it can read the vault. Answer only from the evidence below. If it is not enough, say so."
+                "Research context for this turn. Context expansion is unavailable: this agent has no turn-bound CLI and must not assume it can read the vault. Answer only from the evidence below. If it is not enough, say so."
                     .to_string(),
             );
         }
@@ -311,7 +312,7 @@ pub fn render_prompt_block(plan: &ContextPlan) -> String {
             }
             if item.quote_truncated {
                 lines.push(
-                    "The quote above is truncated. context_read level excerpt returns a larger window. Do not guess the rest."
+                    "The quote above is truncated. read SOURCE --quote TEXT returns a larger window. Do not guess the rest."
                         .to_string(),
                 );
             }
@@ -373,7 +374,21 @@ fn facts_for_anchor(vault: &Path, anchor: &ContextAnchor) -> Result<Option<Ancho
     {
         return Ok(None);
     }
-    let citation_uri = citation_for(vault, paper.as_ref(), file_path.as_deref(), anchor);
+    let citation_file = anchor
+        .file_path
+        .as_deref()
+        .and_then(|p| vault_rel(vault, p))
+        .filter(|p| {
+            paper
+                .as_ref()
+                .is_none_or(|r| Path::new(p).starts_with(&r.path))
+        });
+    let citation_uri = citation_for(
+        vault,
+        paper.as_ref(),
+        citation_file.as_deref().or(rel.as_deref()),
+        anchor,
+    );
     Ok(Some(AnchorFacts {
         anchor: anchor.clone(),
         paper: paper.as_ref().map(PaperBrief::from_record),
@@ -430,23 +445,62 @@ fn citation_for(
     file_path: Option<&str>,
     anchor: &ContextAnchor,
 ) -> Option<String> {
-    if let Some(paper) = paper {
-        let pdf = find_local_pdf(&vault.join(&paper.path));
-        let pdf_rel = pdf.and_then(|path| {
-            path.strip_prefix(vault)
-                .ok()
-                .map(|rel| rel.to_string_lossy().replace('\\', "/"))
-        });
-        let base = pdf_rel.unwrap_or_else(|| paper.path.clone());
+    let (path, kind, locator) = if let Some(paper) = paper {
         if let Some(page) = anchor.page {
-            return Some(format!("{base}#page={page}"));
+            (paper.path.as_str(), "body", json!({"page": page}))
+        } else if let Some(file) = file_path
+            .filter(|f| vault.join(f).is_file() && !f.to_ascii_lowercase().ends_with(".pdf"))
+        {
+            (
+                file,
+                evidence::source_kind(vault, file).ok()?,
+                text_locator(anchor),
+            )
+        } else if anchor.section.is_some() || anchor.line_from.is_some() {
+            // Logical text may be served by TeX, PAPER.md, or a PDF layout.
+            // Use the locator and underlying source selected by normal reads.
+            let value = evidence::read(
+                vault,
+                evidence::ReadInput {
+                    source: paper.path.clone(),
+                    section: anchor
+                        .section
+                        .clone()
+                        .filter(|_| anchor.line_from.is_none()),
+                    lines: anchor
+                        .line_from
+                        .map(|first| format!("{first}-{}", anchor.line_to.unwrap_or(first))),
+                    max_chars: Some(32),
+                    ..Default::default()
+                },
+                true,
+            )
+            .ok()?;
+            return value["evidence"].as_array()?.first()?["cite"]
+                .as_str()
+                .map(str::to_owned);
+        } else {
+            (paper.path.as_str(), "metadata", json!({}))
         }
-        if let Some(section) = nonempty(anchor.section.as_deref()) {
-            return Some(format!("{base}#section={}", urlencoding::encode(&section)));
-        }
-        return Some(base);
+    } else {
+        let path = file_path.filter(|p| vault.join(p).is_file())?;
+        (
+            path,
+            evidence::source_kind(vault, path).ok()?,
+            text_locator(anchor),
+        )
+    };
+    evidence::current_citation(vault, path, kind, &locator).ok()
+}
+
+fn text_locator(anchor: &ContextAnchor) -> serde_json::Value {
+    if let Some(line) = anchor.line_from {
+        json!({"line_from":line, "line_to":anchor.line_to.unwrap_or(line)})
+    } else if let Some(section) = nonempty(anchor.section.as_deref()) {
+        json!({"section":section})
+    } else {
+        json!({})
     }
-    file_path.map(str::to_string)
 }
 
 #[cfg(test)]
@@ -488,7 +542,7 @@ mod tests {
         let plan = plan_from_facts(
             &request(),
             &[paper_fact("scaled dot-product")],
-            ContextExpansion::Mcp,
+            ContextExpansion::Cli,
         );
         let block = render_prompt_block(&plan);
         assert!(block.contains("Paper ref: attention"));
@@ -500,13 +554,13 @@ mod tests {
         assert!(!block.contains("Abstract:"));
         assert!(!block.contains("We propose a new"));
         assert_eq!(plan.allowed.len(), 1);
-        assert_eq!(plan.expansion, ContextExpansion::Mcp);
+        assert_eq!(plan.expansion, ContextExpansion::Cli);
     }
 
     #[test]
     fn fingerprint_ignores_the_quote_and_changes_with_the_grant() {
-        let first = plan_from_facts(&request(), &[paper_fact("one")], ContextExpansion::Mcp);
-        let same = plan_from_facts(&request(), &[paper_fact("two")], ContextExpansion::Mcp);
+        let first = plan_from_facts(&request(), &[paper_fact("one")], ContextExpansion::Cli);
+        let same = plan_from_facts(&request(), &[paper_fact("two")], ContextExpansion::Cli);
         assert_eq!(first.fingerprint, same.fingerprint);
         let mut extra = paper_fact("one");
         extra.paper = Some(PaperBrief {
@@ -517,7 +571,7 @@ mod tests {
         let wider = plan_from_facts(
             &request(),
             &[paper_fact("one"), extra],
-            ContextExpansion::Mcp,
+            ContextExpansion::Cli,
         );
         assert_ne!(first.fingerprint, wider.fingerprint);
         let remote = plan_from_facts(
@@ -544,7 +598,7 @@ mod tests {
             directory_path: None,
             citation_uri: None,
         };
-        let plan = plan_from_facts(&request(), &[quote_only], ContextExpansion::Mcp);
+        let plan = plan_from_facts(&request(), &[quote_only], ContextExpansion::Cli);
         assert!(plan.allowed.is_empty());
         assert_eq!(plan.expansion, ContextExpansion::PromptOnly);
         assert!(render_prompt_block(&plan).contains("orphan quote"));
@@ -573,7 +627,7 @@ mod tests {
                 },
             ],
         };
-        let plan = resolve_in_vault(dir.path(), &request, ContextExpansion::Mcp).unwrap();
+        let plan = resolve_in_vault(dir.path(), &request, ContextExpansion::Cli).unwrap();
         assert!(plan.allowed.iter().any(|source| {
             source.kind == AllowedSourceKind::Directory && source.path == "notes"
         }));

@@ -53,7 +53,7 @@ export type ShortcutId =
 	| "zoomReset"
 	/** ⌘. — toggle PDF layout element selection (active PDF tab). */
 	| "layoutElementSelection"
-	/** ⌥A — toggle PDF full-text (layout) translation (active PDF tab). */
+	/** ⌥A — toggle the PDF reading view between 原文 and 译文. */
 	| "layoutTranslate"
 	/** F11 — borderless fullscreen (Windows only). Does not hide reader chrome. */
 	| "toggleFullscreen"
@@ -372,7 +372,7 @@ export const SHORTCUTS: ShortcutDef[] = [
 	{
 		id: "layoutTranslate",
 		group: "App",
-		// ⌥A — toggle PDF full-text (layout) translation (active PDF tab).
+		// ⌥A — toggle the PDF reading view between 原文 and 译文.
 		// Immersive Translate convention; guard text fields (⌥A types "å").
 		key: "a",
 		alt: true,

@@ -1,21 +1,23 @@
 //! Loopback Streamable HTTP MCP server shared by the desktop app and the CLI.
 //!
-//! See `docs/backend/mcp.md`. The desktop shell keeps settings IPC, status
+//! The desktop shell keeps settings IPC, status
 //! events, and the ChatGPT tunnel; this crate owns the tool surface and the
 //! listener. Desktop-only side effects go through [`McpHost`].
 
-mod files;
+mod excerpts;
 mod host;
 mod icons;
-mod layout;
-mod notes;
-mod paper;
-mod resources;
+mod interface;
+#[cfg(test)]
+mod protocol_tests;
 mod server;
-mod tools;
+pub use agentero_core::ops::execute::{vault_id, Permissions};
+pub use interface::{serve_stdio, tools_list};
 
 pub use host::{ImportContext, McpHost, NullHost};
-pub use server::{parse_loopback_listen, serve_until_signal};
+pub use server::{
+    default_token, default_token_path, ephemeral_token, parse_loopback_listen, serve_until_signal,
+};
 
 use agentero_core::error::AppError;
 use serde::Serialize;
@@ -25,7 +27,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
 
 pub const MCP_STATUS_EVENT: &str = "mcp:status";
-/// Default loopback port. Desktop settings and `agentero mcp serve` share it.
+/// Default desktop loopback port.
 pub const DEFAULT_MCP_PORT: u16 = 8765;
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -42,7 +44,7 @@ pub struct McpStatus {
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VaultEntry {
-    /// Absolute local vault path. Pass this as the `vault` tool argument.
+    /// Local path used by the host to derive a public Vault ID.
     pub path: String,
     pub name: String,
     pub exists: bool,
@@ -77,6 +79,7 @@ struct Inner {
 pub struct McpController {
     inner: Mutex<Inner>,
     running: AtomicBool,
+    token_file: PathBuf,
 }
 
 impl Default for McpController {
@@ -102,6 +105,7 @@ impl McpController {
                 host: Arc::new(NullHost),
             }),
             running: AtomicBool::new(false),
+            token_file: server::default_token_path(),
         }
     }
 
@@ -365,6 +369,7 @@ impl McpController {
             g.port
         };
         self.stop_server_internal();
+        let token = server::token_at(&self.token_file)?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         let listener =
             tokio::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], port)))
@@ -382,7 +387,7 @@ impl McpController {
         let ctrl = Arc::clone(self);
         let ctrl_serve = Arc::clone(&ctrl);
         tokio::spawn(async move {
-            if let Err(e) = server::serve(listener, shutdown_rx, ctrl_serve).await {
+            if let Err(e) = server::serve(listener, shutdown_rx, ctrl_serve, token).await {
                 if let Ok(mut g) = ctrl.inner.lock() {
                     g.listening = false;
                     g.last_error = Some(e.to_string());
@@ -458,9 +463,9 @@ fn remember_vault(list: &mut Vec<String>, path: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::notes::WriteMode;
     use agentero_core::features::paper::catalog::papers::{self, PaperRecord, PaperTag};
     use agentero_core::features::vault;
+    use agentero_core::ops::execute::run_local;
     use tempfile::tempdir;
 
     fn sample_record(path: &str, id: &str, title: &str) -> PaperRecord {
@@ -511,8 +516,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn list_and_get_and_notes() {
+    #[tokio::test]
+    async fn list_and_get_and_notes() {
         let dir = tempdir().unwrap();
         let vault = dir.path().join("v");
         vault::create_vault(&vault, "en").unwrap();
@@ -520,32 +525,46 @@ mod tests {
         std::fs::create_dir_all(vault.join("papers").join("p1")).unwrap();
         papers::upsert_paper(&vault, &rec).unwrap();
 
-        let items = paper::list_papers(&vault, Some("Hello"), &[], false, 50, &[], false).unwrap();
+        let listed = run_local(
+            &vault,
+            "paper_list",
+            serde_json::json!({"query":"Hello"}),
+            None,
+        )
+        .await
+        .unwrap();
+        let items = listed["items"].as_array().unwrap();
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].id, "p1");
-        assert_eq!(items[0].title, "Hello");
-        assert!(items[0].authors.is_none(), "default list is slim");
+        assert_eq!(items[0]["id"], "p1");
+        assert_eq!(items[0]["title"], "Hello");
+        assert!(items[0].get("authors").is_none());
+        let got = run_local(&vault, "paper_get", serde_json::json!({"paper":"p1"}), None)
+            .await
+            .unwrap();
+        assert_eq!(got["title"], "Hello");
+        assert_eq!(got["authors"], serde_json::json!(["Ann"]));
+        assert_eq!(got["abstract"], "abs");
 
-        let full = paper::list_papers(&vault, None, &[], false, 50, &[], true).unwrap();
-        assert_eq!(full[0].authors.as_ref().unwrap(), &vec!["Ann".to_string()]);
-
-        let got = paper::get_paper(&vault, "p1").unwrap();
-        assert_eq!(got.title, "Hello");
-        assert_eq!(got.abstract_text.as_deref(), Some("abs"));
-
-        notes::write_notes(&vault, "papers/p1", "p1", "# n", WriteMode::Replace).unwrap();
-        let text = notes::read_notes(&vault, "papers/p1").unwrap();
+        run_local(
+            &vault,
+            "paper_note_replace",
+            serde_json::json!({"paper":"p1","content":"# n","if_revision":"missing"}),
+            None,
+        )
+        .await
+        .unwrap();
+        let text = std::fs::read_to_string(vault.join("papers/p1/NOTES.md")).unwrap();
         assert!(text.contains("# n"), "{text}");
 
-        let escaped = paper::resolve_paper(&vault, "../etc/passwd");
+        let escaped = papers::resolve_paper(&vault, "../etc/passwd");
         assert!(escaped.is_err());
     }
 
     #[test]
-    fn resource_markdown_without_vault() {
+    fn vault_discovery_without_an_open_vault() {
         let ctrl = McpController::new();
-        let md = resources::vault_markdown(&ctrl);
-        assert!(md.contains("No local vault"), "{md}");
+        assert!(ctrl.vault_list().vaults.is_empty());
+        assert!(ctrl.local_vault().is_err());
     }
 
     #[test]
@@ -584,7 +603,11 @@ mod tests {
 
     #[tokio::test]
     async fn enable_listens_disable_stops() {
-        let ctrl = Arc::new(McpController::new());
+        let dir = tempdir().unwrap();
+        let ctrl = Arc::new(McpController {
+            token_file: dir.path().join("token"),
+            ..McpController::new()
+        });
         // Bind an ephemeral port first so the test does not collide.
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();

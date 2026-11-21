@@ -216,7 +216,7 @@ importers:
         version: 53.1.3(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@platejs/markdown':
         specifier: ^53.2.2
-        version: 53.2.2(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.8.3)
+        version: 53.2.2(patch_hash=f1ae34d7476675192ce8d5fd52f23e0ebf781334386b1ccd6bb16231492828ef)(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.8.3)
       '@platejs/math':
         specifier: ^53.0.0
         version: 53.0.0(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -489,8 +489,8 @@ importers:
         specifier: ^4.6.0
         version: 4.7.0(vite@7.3.7(@types/node@26.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0))
       csv-parse:
-        specifier: 6.1.0
-        version: 6.1.0
+        specifier: 7.0.3
+        version: 7.0.3
       dependency-cruiser:
         specifier: ^18.1.0
         version: 18.1.0
@@ -3720,8 +3720,8 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
-  csv-parse@6.1.0:
-    resolution: {integrity: sha512-CEE+jwpgLn+MmtCpVcPtiCZpVtB6Z2OKPTr34pycYYoL7sxdOkXDdQ4lRiw6ioC0q6BLqhc6cKweCVvral8yhw==}
+  csv-parse@7.0.3:
+    resolution: {integrity: sha512-YFd3QM/yo17vH91L1IOZuvl09zM0zEEtdfTcOCKWcMdM++MNaQSyp09slXyFCLaPXvHstQFx/xC8myiFHSMUvw==}
 
   cytoscape-cose-bilkent@4.1.0:
     resolution: {integrity: sha512-wgQlVIUJF13Quxiv5e1gstZ08rnZj2XaLHGoFMYXz7SkNfCDOOteKBE6SYRfA9WxxI/iBc3ajfDoc6hb/MRAHQ==}
@@ -7764,7 +7764,7 @@ snapshots:
       react-compiler-runtime: 1.0.0(react@19.2.7)
       react-dom: 19.2.7(react@19.2.7)
 
-  '@platejs/markdown@53.2.2(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.8.3)':
+  '@platejs/markdown@53.2.2(patch_hash=f1ae34d7476675192ce8d5fd52f23e0ebf781334386b1ccd6bb16231492828ef)(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.8.3)':
     dependencies:
       '@platejs/date': 53.0.0(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       lodash: 4.18.1
@@ -9756,7 +9756,7 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  csv-parse@6.1.0: {}
+  csv-parse@7.0.3: {}
 
   cytoscape-cose-bilkent@4.1.0(cytoscape@3.34.0):
     dependencies:

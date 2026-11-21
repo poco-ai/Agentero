@@ -2,6 +2,7 @@ import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import {
 	isAlgorithmLayoutKind,
 	isLayoutTranslatableKind,
+	isLayoutVisualKind,
 } from "@/lib/pdf/layout/labels";
 import { normalizeLayoutSourceText } from "@/lib/pdf/layout/layout-translate-source";
 import { bboxCoveredBy } from "@/lib/pdf/layout/merge-captions";
@@ -25,6 +26,26 @@ export function isInsideAlgorithmRegion(
 	for (const alg of algorithms) {
 		if (alg.pageIndex !== region.pageIndex) continue;
 		if (bboxCoveredBy(region.bbox, alg.bbox) >= coverage) return true;
+	}
+	return false;
+}
+
+/**
+ * True when most of `region` sits inside a figure / chart / table / algorithm /
+ * formula crop. The model often detects the text inside a vector figure as
+ * separate prose blocks; those runs are part of the graphic, so they are not
+ * hover sentences (the whole element is selected instead).
+ */
+export function isInsideVisualLayoutRegion(
+	region: Pick<PdfLayoutRegion, "pageIndex" | "bbox">,
+	regions: readonly PdfLayoutRegion[],
+	coverage = 0.45,
+): boolean {
+	for (const candidate of regions) {
+		if (candidate.pageIndex !== region.pageIndex) continue;
+		if (!(candidate.score >= LAYOUT_SIDEBAR_MIN_SCORE)) continue;
+		if (!isLayoutVisualKind(candidate.kind)) continue;
+		if (bboxCoveredBy(region.bbox, candidate.bbox) >= coverage) return true;
 	}
 	return false;
 }

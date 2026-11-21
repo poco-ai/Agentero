@@ -1,4 +1,4 @@
-//! Catalog checkout / checkin for remote vaults (`docs/backend/remote.md`).
+//! Catalog checkout and checkin for remote vaults.
 //!
 //! SQLite cannot open over SFTP; Host keeps an ephemeral work copy and push-after-write.
 

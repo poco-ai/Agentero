@@ -73,12 +73,7 @@
 		"probeIdle": "Not tested yet",
 		"probeProbing": "Testing…",
 		"probeOk": "Works",
-		"probeFail": "Check your key and try again",
-		"displayMode": {
-			"label": "Translation layout",
-			"overlay": "In-place overlay",
-			"dualPane": "Side by side"
-		}
+		"probeFail": "Check your key and try again"
 	},
 	"layout": {
 		"title": "Formula & figure parsing",
@@ -137,8 +132,8 @@
 			"desc": "Open any paper to split the view: PDF on the left, NOTES.md on the right. Select text to highlight, annotate, translate or ask questions."
 		},
 		"fullTextTranslate": {
-			"title": "Full-text translation",
-			"desc": "The PDF toolbar can translate the whole paper at once. Run it once, then browse the translation inline or open it side-by-side."
+			"title": "Translation view",
+			"desc": "Translation / Compare on the PDF toolbar translates the whole paper: Translation overlays it on the page, Compare shows source and translation side by side."
 		},
 		"fetchCoolPapersNotes": {
 			"title": "Cool Paper notes",

@@ -49,12 +49,14 @@ export {
 } from "./persistence";
 export {
 	closeTexLive,
+	closeTranslationTab,
 	compileTexOnManualSave,
 	compileTexOnSave,
 	compileTexProject,
 	isLocalHtmlLink,
 	navigateWiki,
 	openCitation,
+	openEvidenceLocation,
 	openGraphPath,
 	openHtmlPreviewLink,
 	openTexLive,

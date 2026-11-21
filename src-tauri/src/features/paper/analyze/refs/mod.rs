@@ -4,8 +4,6 @@
 //! `agentero_core::features::paper::analyze::refs`; this module bridges it and
 //! keeps the desktop-only JobCenter integration (runner registration, job
 //! spawn, Tauri commands).
-//!
-//! @see docs/backend/citation-parsing.md
 
 pub use agentero_core::features::paper::analyze::refs::*;
 

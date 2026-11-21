@@ -43,7 +43,9 @@ pub struct FileEntry {
 /// path that happens to share one of these names (e.g. `notes/blobs/`)
 /// silently stops syncing — edits stay local, nothing propagates or deletes.
 pub fn is_ignored_name(name: &str) -> bool {
-    matches!(name, ".agentero" | ".git" | "node_modules" | ".DS_Store")
+    name.eq_ignore_ascii_case(".agentero")
+        || name.eq_ignore_ascii_case(".git")
+        || matches!(name, "node_modules" | ".DS_Store")
         || name.ends_with(".tmp")
         || crate::features::vault::tree::is_sync_store_artifact(name)
 }
@@ -93,15 +95,22 @@ pub struct SyncScopeSizes {
     pub attachments: u64,
 }
 
-pub fn scope_sizes(vault: &Path) -> SyncScopeSizes {
-    let files: Vec<_> = vault_files(&vault.join("papers"), "papers/")
-        .flatten()
-        .collect();
+pub fn scope_sizes(vault: &Path) -> Result<SyncScopeSizes, AppError> {
+    let papers = vault.join("papers");
+    if !papers.try_exists()? {
+        return Ok(SyncScopeSizes::default());
+    }
+    let files = vault_files(&papers, "papers/")
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| AppError::message(e.to_string()))?;
     let roots = scope::paper_roots(files.iter().map(|(rel, _)| rel.as_str()));
     let mut sizes = SyncScopeSizes::default();
     for (rel, file) in &files {
         if let Some((category, _)) = scope::classify(rel, &roots) {
-            let size = file.metadata().map_or(0, |meta| meta.len());
+            let size = file
+                .metadata()
+                .map_err(|e| AppError::message(e.to_string()))?
+                .len();
             match category {
                 Category::Pdf => sizes.pdf += size,
                 Category::Source => sizes.source += size,
@@ -109,13 +118,13 @@ pub fn scope_sizes(vault: &Path) -> SyncScopeSizes {
             }
         }
     }
-    sizes
+    Ok(sizes)
 }
 
 fn vault_files<'a>(
     root: &'a Path,
     prefix: &'a str,
-) -> impl Iterator<Item = Result<(String, walkdir::DirEntry), walkdir::Error>> + 'a {
+) -> impl Iterator<Item = Result<(String, walkdir::DirEntry), AppError>> + 'a {
     walkdir::WalkDir::new(root)
         .follow_links(false)
         .follow_root_links(false)
@@ -123,11 +132,18 @@ fn vault_files<'a>(
         .filter_entry(|e| e.depth() == 0 || !is_ignored_name(&e.file_name().to_string_lossy()))
         .filter_map(move |entry| match entry {
             Ok(entry) if entry.depth() > 0 && entry.file_type().is_file() => {
-                let rel = entry.path().strip_prefix(root).ok()?.to_str()?;
-                Some(Ok((format!("{prefix}{}", rel.replace('\\', "/")), entry)))
+                let path = entry.path().strip_prefix(root).expect("vault descendant");
+                let rel = path
+                    .to_str()
+                    .filter(|rel| cfg!(windows) || !rel.contains('\\'))
+                    .ok_or_else(|| {
+                        AppError::message(format!("unsupported sync path: {}", path.display()))
+                    })
+                    .map(|rel| format!("{prefix}{}", rel.replace(std::path::MAIN_SEPARATOR, "/")));
+                Some(rel.map(|rel| (rel, entry)))
             }
             Ok(_) => None,
-            Err(error) => Some(Err(error)),
+            Err(error) => Some(Err(AppError::message(error.to_string()))),
         })
 }
 
@@ -142,7 +158,7 @@ pub fn scan_vault(
     let files = vault_files(vault, "")
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| AppError::message(format!("scan vault: {e}")))?;
-    let roots = if scope.pdf {
+    let roots = if scope.is_all() {
         Default::default()
     } else {
         scope::paper_roots(files.iter().map(|(rel, _)| rel.as_str()))

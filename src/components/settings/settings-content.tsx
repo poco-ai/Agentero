@@ -432,7 +432,7 @@ export function SettingsContent({
 										className={cn(
 											"flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none",
 											"transition-[color,background-color,transform,opacity] duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)]",
-											"focus-visible:ring-2 focus-visible:ring-sidebar-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar",
+											"focus-visible:ring-1 focus-visible:ring-sidebar-ring",
 											"active:scale-[0.98]",
 											active
 												? "font-medium text-sidebar-primary-foreground"

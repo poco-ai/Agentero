@@ -4,8 +4,6 @@
 //! and are re-exported here so `crate::features::lifecycle::X` paths stay
 //! stable. This file keeps the desktop job events, which depend on the
 //! JobCenter snapshot types.
-//!
-//! @see docs/architecture.md
 
 pub use agentero_core::features::lifecycle::*;
 
@@ -32,7 +30,7 @@ struct JobEventPayload {
     /// consumers can filter by active vault. Host-internal jobs (watcher /
     /// recognize) carry the Host's own form, usually canonical — on Windows
     /// that includes the `\\?\` prefix, so comparisons must tolerate both
-    /// spellings (see `docs/backend/api.md`, `job:completed`).
+    /// spellings.
     vault_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     paper_id: Option<String>,

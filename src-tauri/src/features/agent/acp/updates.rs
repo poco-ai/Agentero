@@ -5,13 +5,13 @@ use crate::features::agent::models::{
     AgentStreamKind, AgentToolEvent, AgentUsageEvent,
 };
 use crate::features::agent::runtime::events::AgentEventEmitter;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::schema::MaybeUndefined;
+use agent_client_protocol::v1::schema::{
     AvailableCommandInput, PlanEntryPriority, PlanEntryStatus, SessionConfigKind,
     SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
     SessionConfigSelectOptions, SessionNotification, SessionUpdate, ToolCallContent,
     ToolCallStatus, ToolKind,
 };
-use agent_client_protocol::schema::MaybeUndefined;
 use std::collections::HashSet;
 
 pub(crate) fn stream_from_update(update: &SessionUpdate) -> Option<(String, AgentStreamKind)> {
@@ -27,10 +27,10 @@ pub(crate) fn stream_from_update(update: &SessionUpdate) -> Option<(String, Agen
 }
 
 pub(crate) fn text_from_content_block(
-    block: &agent_client_protocol::schema::v1::ContentBlock,
+    block: &agent_client_protocol::v1::schema::ContentBlock,
 ) -> Option<String> {
     match block {
-        agent_client_protocol::schema::v1::ContentBlock::Text(t) => Some(t.text.clone()),
+        agent_client_protocol::v1::schema::ContentBlock::Text(t) => Some(t.text.clone()),
         _ => None,
     }
 }
@@ -52,14 +52,15 @@ pub(crate) fn is_pi_startup_banner(text: &str) -> bool {
         .is_some_and(|line| line == "---" || line.starts_with("## "))
 }
 
-/// codex-acp, without a negotiated typed notice, turns a Codex `warning` or
-/// `configWarning` into one assistant chunk: `Warning: …\n\n` or
-/// `Config warning: …\n\n`. The chunk is the whole fallback, so it contains a
-/// newline. A model token that only shares the prefix does not.
+/// Recognize only the legacy instruction-budget advisory, not arbitrary assistant warnings.
 pub(crate) fn is_codex_instruction_warning(text: &str) -> bool {
     let body = text.trim();
-    let prefixed = body.starts_with("Warning: ") || body.starts_with("Config warning: ");
-    prefixed && text.contains('\n')
+    body.strip_prefix("Warning: ")
+        .or_else(|| body.strip_prefix("Config warning: "))
+        .is_some_and(|message| {
+            message.starts_with("Combined user instructions use ")
+                && message.contains("project_doc_max_bytes")
+        })
 }
 
 /// Same window as the pi startup banner: Codex message chunks, and only before
@@ -174,7 +175,7 @@ fn dedupe_model_choices(models: Vec<AgentModelChoice>) -> Vec<AgentModelChoice> 
 }
 
 fn collect_choices_from_select(
-    sel: &agent_client_protocol::schema::v1::SessionConfigSelect,
+    sel: &agent_client_protocol::v1::schema::SessionConfigSelect,
 ) -> Vec<AgentModelChoice> {
     let mut models = Vec::new();
     match &sel.options {
@@ -463,26 +464,71 @@ pub(crate) fn is_fast_option(opt: &SessionConfigOption) -> bool {
 }
 
 fn is_collaboration_option(opt: &SessionConfigOption) -> bool {
-    // Codex codex-acp: id + category "collaboration_mode" (Default / Plan).
-    if matches!(
-        opt.id.0.as_ref(),
-        "collaboration_mode" | "collaboration-mode"
-    ) {
+    let SessionConfigKind::Select(sel) = &opt.kind else {
+        return false;
+    };
+    if is_explicit_model_category(opt) || is_effort_option(opt) || is_fast_option(opt) {
+        return false;
+    }
+
+    let choices = collect_mode_choices_from_select(sel);
+    if choices.is_empty() {
+        return false;
+    }
+
+    // 1. Explicit plan option: any selector offering a "plan" choice (e.g. Codex
+    //    `collaboration_mode`, Antigravity native `mode`).
+    let has_plan = choices
+        .iter()
+        .any(|m| m.id.eq_ignore_ascii_case("plan") || m.name.eq_ignore_ascii_case("plan"));
+    if has_plan {
         return true;
     }
-    match opt.category.as_ref() {
-        Some(SessionConfigOptionCategory::Other(cat)) => {
-            cat == "collaboration_mode" || cat == "collaboration-mode"
-        }
-        _ => {
-            opt.name.eq_ignore_ascii_case("collaboration mode")
-                || opt.name.eq_ignore_ascii_case("collaboration")
+
+    // Pure permission/sandbox selectors (e.g. read-only / agent without plan) are handled
+    // by Agentero's permission system, not surfaced as session/collaboration mode.
+    let is_pure_sandbox = choices.iter().any(|m| {
+        let mid = m.id.to_ascii_lowercase();
+        mid == "read-only" || mid == "read_only" || mid == "readonly"
+    });
+    if is_pure_sandbox {
+        return false;
+    }
+
+    // 2. Vendor collaboration naming (Codex `collaboration_mode`).
+    let id = opt.id.0.to_ascii_lowercase();
+    if id == "collaboration_mode"
+        || id == "collaboration-mode"
+        || id == "session_mode"
+        || id == "session-mode"
+    {
+        return true;
+    }
+    if let Some(SessionConfigOptionCategory::Other(cat)) = opt.category.as_ref() {
+        let cat_lower = cat.to_ascii_lowercase();
+        if cat_lower == "collaboration_mode"
+            || cat_lower == "collaboration-mode"
+            || cat_lower == "session_mode"
+        {
+            return true;
         }
     }
+    let name_lower = opt.name.to_ascii_lowercase();
+    if name_lower == "collaboration mode" || name_lower == "collaboration" {
+        return true;
+    }
+
+    // 3. ACP standard Mode category or id="mode"
+    matches!(
+        opt.category.as_ref(),
+        Some(SessionConfigOptionCategory::Mode)
+    ) || id == "mode"
+        || name_lower == "mode"
+        || name_lower == "session mode"
 }
 
 fn collect_mode_choices_from_select(
-    sel: &agent_client_protocol::schema::v1::SessionConfigSelect,
+    sel: &agent_client_protocol::v1::schema::SessionConfigSelect,
 ) -> Vec<AgentModeChoice> {
     let mut modes = Vec::new();
     match &sel.options {
@@ -517,7 +563,23 @@ pub(crate) fn collaboration_from_config_options(
     agent_id: &str,
     opts: &[SessionConfigOption],
 ) -> Option<AgentCollaborationEvent> {
-    let opt = opts.iter().find(|opt| is_collaboration_option(opt))?;
+    // When an agent provides multiple mode-like options (e.g. Codex exposes both
+    // permission-sandbox `mode` and workflow `collaboration_mode`), prioritize the
+    // one that explicitly offers a "plan" mode choice.
+    let opt = opts
+        .iter()
+        .filter(|opt| is_collaboration_option(opt))
+        .max_by_key(|opt| {
+            if let SessionConfigKind::Select(sel) = &opt.kind {
+                let choices = collect_mode_choices_from_select(sel);
+                if choices.iter().any(|m| {
+                    m.id.eq_ignore_ascii_case("plan") || m.name.eq_ignore_ascii_case("plan")
+                }) {
+                    return 2;
+                }
+            }
+            1
+        })?;
     let SessionConfigKind::Select(sel) = &opt.kind else {
         return None;
     };
@@ -687,6 +749,26 @@ pub(crate) fn emit_rich_session_update(
     notification: &SessionNotification,
 ) {
     match &notification.update {
+        SessionUpdate::Notice(notice) => {
+            use agent_client_protocol::v1::schema::NoticeSeverity;
+            let phase = match &notice.severity {
+                NoticeSeverity::Error => "notice-error",
+                NoticeSeverity::Warning => "notice-warning",
+                _ => "notice-info",
+            };
+            let detail = match &notice.description {
+                Some(description) => format!("{}\n{}", notice.title, description),
+                None => notice.title.clone(),
+            };
+            let _ = app.emit(
+                "agent:status",
+                AgentStatusEvent {
+                    session_id: session_id.to_owned(),
+                    phase: phase.to_owned(),
+                    detail: Some(detail),
+                },
+            );
+        }
         SessionUpdate::AvailableCommandsUpdate(upd) => {
             let commands = upd
                 .available_commands
@@ -818,7 +900,7 @@ pub(crate) fn emit_rich_session_update(
 /// Returns `Some("2/5")` only for reconnect messages carrying a `n/m` token;
 /// missing meta, unrelated errors, or a missing counter yield `None`.
 pub(crate) fn reconnect_detail(
-    info: &agent_client_protocol::schema::v1::SessionInfoUpdate,
+    info: &agent_client_protocol::v1::schema::SessionInfoUpdate,
 ) -> Option<String> {
     let error = info.meta.as_ref()?.get("error")?.as_str()?.trim();
     if !error.to_ascii_lowercase().starts_with("reconnect") {
@@ -839,7 +921,7 @@ pub(crate) fn reconnect_detail(
 #[cfg(test)]
 mod reconnect_detail_tests {
     use super::reconnect_detail;
-    use agent_client_protocol::schema::v1::SessionInfoUpdate;
+    use agent_client_protocol::v1::schema::SessionInfoUpdate;
 
     fn info_with_meta(error: Option<&str>) -> SessionInfoUpdate {
         let mut info = SessionInfoUpdate::new();
@@ -931,10 +1013,10 @@ instructions. The limit applies only to project files.\n\n";
     #[test]
     fn matches_codex_acp_warning_fallback() {
         assert!(is_codex_instruction_warning(BUDGET_WARNING));
-        assert!(is_codex_instruction_warning(
+        assert!(!is_codex_instruction_warning(
             "Config warning: project_doc_max_bytes is unset\n\n"
         ));
-        assert!(is_codex_instruction_warning(
+        assert!(!is_codex_instruction_warning(
             "  Config warning: hooks failed\n\ndetails\n\n"
         ));
     }
@@ -995,7 +1077,7 @@ mod config_option_tests {
         collaboration_from_config_options, effort_from_config_options,
         fast_mode_from_config_options, fast_mode_value_to_set, models_from_config_options,
     };
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
         SessionConfigSelectOption,
     };
@@ -1052,6 +1134,32 @@ mod config_option_tests {
         assert_eq!(collab.modes.len(), 2);
         assert_eq!(collab.modes[1].id, "plan");
         assert_eq!(collab.modes[1].name, "Plan");
+    }
+
+    #[test]
+    fn extracts_antigravity_mode_with_plan() {
+        let options = vec![SessionConfigOption::select(
+            "mode",
+            "Mode",
+            "default",
+            vec![
+                SessionConfigSelectOption::new("default", "Default"),
+                SessionConfigSelectOption::new("accept-edits", "Accept edits"),
+                SessionConfigSelectOption::new("plan", "Plan")
+                    .description("Plan carefully before executing a task"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::Mode)];
+
+        let collab = collaboration_from_config_options("session", "antigravity", &options)
+            .expect("antigravity mode should be exposed");
+        assert_eq!(collab.config_id, "mode");
+        assert_eq!(collab.current_id, "default");
+        assert_eq!(collab.modes.len(), 3);
+        assert_eq!(collab.modes[0].id, "default");
+        assert_eq!(collab.modes[1].id, "accept-edits");
+        assert_eq!(collab.modes[2].id, "plan");
+        assert_eq!(collab.modes[2].name, "Plan");
     }
 
     #[test]
@@ -1182,7 +1290,7 @@ mod config_option_tests {
 mod session_models_fallback_tests {
     #[test]
     fn native_opencode_terminal_content_keeps_stdout_and_metadata() {
-        let content: Vec<agent_client_protocol::schema::v1::ToolCallContent> = serde_json::from_value(serde_json::json!([
+        let content: Vec<agent_client_protocol::v1::schema::ToolCallContent> = serde_json::from_value(serde_json::json!([
 			{ "type": "content", "content": { "type": "text", "text": "component_migration_probe" } }
 		])).unwrap();
         let metadata = serde_json::json!({ "metadata": { "status": "completed", "truncated": false, "exit": 0 }});
@@ -1204,7 +1312,7 @@ mod session_models_fallback_tests {
         models_from_config_options, models_from_grok_update, models_from_session_models_value,
         richer_models_event, store_richer_models,
     };
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
     };
 

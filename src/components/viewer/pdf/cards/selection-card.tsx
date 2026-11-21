@@ -4,6 +4,7 @@ import { Dialog } from "radix-ui";
 import {
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
+	useCallback,
 	useEffect,
 	useLayoutEffect,
 	useRef,
@@ -348,6 +349,8 @@ type SelectionCardProps = {
 	 * in; scrolling, page turns and toolbar buttons never trigger it.
 	 */
 	onOutsideClick?: () => void;
+	/** Report the rendered rectangle when the card moves or resizes. */
+	onBoundsChange?: (bounds: DOMRectReadOnly) => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	/** Optional footer strip (prompt input, save/cancel). */
@@ -390,6 +393,7 @@ export function SelectionCard({
 	ariaLive = "off",
 	onDismiss,
 	onOutsideClick,
+	onBoundsChange,
 	onPointerEnter,
 	onPointerLeave,
 	footer,
@@ -620,6 +624,19 @@ export function SelectionCard({
 						boundTop,
 						Math.max(boundTop, boundBottom - SELECTION_CARD_MIN_HEIGHT),
 					);
+	const reportBounds = useCallback(() => {
+		const card = rootRef.current;
+		if (card) onBoundsChange?.(card.getBoundingClientRect());
+	}, [onBoundsChange]);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: left and top can move the card without a resize.
+	useLayoutEffect(reportBounds, [reportBounds, left, top]);
+	useLayoutEffect(() => {
+		const card = rootRef.current;
+		if (!onBoundsChange || !card) return;
+		const observer = new ResizeObserver(reportBounds);
+		observer.observe(card);
+		return () => observer.disconnect();
+	}, [onBoundsChange, reportBounds]);
 	const maxHeight = track
 		? Math.min(
 				track.maxHeight,
@@ -803,7 +820,7 @@ export function SelectionCard({
 											className={cn(
 												"inline-flex size-6 shrink-0 cursor-default items-center justify-center rounded-md",
 												"text-muted-foreground transition-colors outline-none",
-												"focus-visible:ring-2 focus-visible:ring-ring/50",
+												"focus-visible:ring-1 focus-visible:ring-ring",
 												a.pressed
 													? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
 													: a.destructive

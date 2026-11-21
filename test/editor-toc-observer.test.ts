@@ -1,8 +1,7 @@
 // @vitest-environment happy-dom
 
 /**
- * Regression guard for the `@platejs/toc` scroll cost (see
- * `docs/bug_fix/toc-scroll-observer-rebuild.md`).
+ * Regression guard for the `@platejs/toc` scroll cost.
  *
  * Upstream rebuilt the heading `IntersectionObserver` on every scroll event:
  * `useContentController` bumped a `status` state, and `useContentObserver` had

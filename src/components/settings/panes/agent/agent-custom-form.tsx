@@ -3,12 +3,15 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isTauri } from "@/lib/core/tauri";
 
 export type CustomAgentFormDraft = {
 	id?: string;
+	supportsShell: boolean;
+	env?: Record<string, string>;
 	name: string;
 	command: string;
 	args: string;
@@ -29,17 +32,20 @@ export function AgentCustomForm({
 	const [adding, setAdding] = useState(false);
 	const [formName, setFormName] = useState(() => t("agent.form.defaultName"));
 	const [formCommand, setFormCommand] = useState("");
+	const [supportsShell, setSupportsShell] = useState(false);
 	const [formArgs, setFormArgs] = useState("");
 
 	const onAddCustom = async () => {
 		const done = await onSubmit({
 			id: undefined,
+			supportsShell,
 			name: formName,
 			command: formCommand,
 			args: formArgs,
 		});
 		if (done) {
 			setAdding(false);
+			setSupportsShell(false);
 			setFormCommand("");
 			setFormArgs("");
 		}
@@ -115,6 +121,7 @@ export function AgentCustomForm({
 							autoComplete="off"
 						/>
 					</div>
+					<ShellCapability value={supportsShell} onChange={setSupportsShell} />
 					<div className="flex justify-end gap-1.5 pt-1">
 						<Button
 							type="button"
@@ -136,5 +143,24 @@ export function AgentCustomForm({
 				</div>
 			) : null}
 		</>
+	);
+}
+
+export function ShellCapability({
+	value,
+	onChange,
+}: {
+	value: boolean;
+	onChange: (value: boolean) => void;
+}) {
+	const { t } = useTranslation("settings");
+	return (
+		<Label>
+			<Checkbox
+				checked={value}
+				onCheckedChange={(checked) => onChange(checked === true)}
+			/>
+			{t("agent.form.supportsShell")}
+		</Label>
 	);
 }
