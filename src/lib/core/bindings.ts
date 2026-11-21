@@ -59,10 +59,9 @@ export const commands = {
 	 */
 	institutionProxyLoginOpen: (prefix: string) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix })),
 	/**
-	 *  Open (or focus) the OpenReview verification window and wait until a
-	 *  captured cookie passes the challenge probe. Resolves when the window closes
-	 *  or a working credential was saved; `true` when it was saved. Async is
-	 *  required when creating a window from WebView2 on Windows.
+	 *  Open (or focus) the verification window for the Settings button: no target
+	 *  URL, so it opens OpenReview's challenge gate and waits until a captured
+	 *  cookie passes the probe (or the window is closed).
 	 */
 	openreviewAuthLoginOpen: () => typedError<boolean, string>(__TAURI_INVOKE("openreview_auth_login_open")),
 	builtinProviderStatus: () => __TAURI_INVOKE<ApiResult<BuiltinProviderStatus>>("builtin_provider_status"),

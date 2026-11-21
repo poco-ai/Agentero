@@ -33,6 +33,86 @@ pub(super) fn home(env: &HashMap<String, String>, cwd: &Path) -> Result<PathBuf,
     })
 }
 
+/// Session roots to search, in order: the released default plus any root
+/// relocation declared by a `session-persistence-jsonl` entry in a home or
+/// profile patch layer. Dsh lets a profile move the session store
+/// (`config.root`), and its ACP bridge does not replay history, so the reader
+/// has to follow the same relocation.
+fn session_roots(home: &Path) -> Vec<PathBuf> {
+    let mut roots = vec![home.join("sessions")];
+    let mut layers = vec![home.join("cordis.patch.yml"), home.join("cordis.yml")];
+    if let Ok(entries) = fs::read_dir(home.join("profiles")) {
+        let mut profiles: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+            .map(|entry| entry.path())
+            .collect();
+        profiles.sort();
+        for profile in profiles {
+            layers.push(profile.join("cordis.patch.yml"));
+            layers.push(profile.join("cordis.yml"));
+        }
+    }
+    for layer in layers {
+        let Ok(text) = fs::read_to_string(&layer) else {
+            continue;
+        };
+        let Some(root) = declared_session_root(&text).and_then(|raw| resolve_root(&raw, home))
+        else {
+            continue;
+        };
+        if !roots.contains(&root) {
+            roots.push(root);
+        }
+    }
+    roots
+}
+
+/// Tolerant scan for the `root:` scalar of the session persistence entry.
+/// Patch layers are hand-written YAML and may carry `!!js` tags that a full
+/// parser rejects; only that one plain scalar is read here.
+fn declared_session_root(text: &str) -> Option<String> {
+    const MARKER: &str = "session-persistence-jsonl";
+    let mut entries: Vec<Vec<&str>> = Vec::new();
+    for line in text.lines() {
+        if line.starts_with("- ") || entries.is_empty() {
+            entries.push(Vec::new());
+        }
+        if let Some(entry) = entries.last_mut() {
+            entry.push(line);
+        }
+    }
+    entries.into_iter().find_map(|entry| {
+        if !entry.iter().any(|line| line.contains(MARKER)) {
+            return None;
+        }
+        entry.iter().find_map(|line| {
+            line.trim()
+                .strip_prefix("root:")
+                .map(|value| value.trim().to_string())
+        })
+    })
+}
+
+fn resolve_root(raw: &str, home: &Path) -> Option<PathBuf> {
+    let raw = raw.trim().trim_matches(['\'', '"']).trim();
+    if raw.is_empty() || raw.starts_with("!!") {
+        return None;
+    }
+    if raw == "~" {
+        return dirs::home_dir();
+    }
+    if let Some(rest) = raw.strip_prefix("~/").or_else(|| raw.strip_prefix("~\\")) {
+        return dirs::home_dir().map(|home| home.join(rest));
+    }
+    let path = PathBuf::from(raw);
+    Some(if path.is_absolute() {
+        path
+    } else {
+        home.join(path)
+    })
+}
+
 /// The provider's released layout is sessions/<project>/<uuid>/session[.vN].jsonl[.zstd].
 /// Scan only the project level; cwd and UUID are checked against the log header.
 pub(super) fn load(home: &Path, sid: &str, cwd: &Path) -> Result<AcpLoadSessionResult, String> {
@@ -41,8 +121,27 @@ pub(super) fn load(home: &Path, sid: &str, cwd: &Path) -> Result<AcpLoadSessionR
     if sid.len() != 36 {
         return Err("Dsh history: invalid session id".into());
     }
-    let projects = fs::read_dir(home.join("sessions"))
-        .map_err(|e| format!("Dsh history: cannot read session storage: {e}"))?;
+    let roots = session_roots(home);
+    let mut failure: Option<String> = None;
+    for root in roots.iter().filter(|root| root.is_dir()) {
+        match load_in_root(root, sid, cwd) {
+            Ok(history) => return Ok(history),
+            Err(error) => failure = failure.or(Some(error)),
+        }
+    }
+    Err(failure.unwrap_or_else(|| {
+        let roots = roots
+            .iter()
+            .map(|root| root.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("Dsh history: session log not found under {roots}; check the agent's DSH_HOME and custom persistence configuration")
+    }))
+}
+
+fn load_in_root(root: &Path, sid: &str, cwd: &Path) -> Result<AcpLoadSessionResult, String> {
+    let projects =
+        fs::read_dir(root).map_err(|e| format!("Dsh history: cannot read session storage: {e}"))?;
     for project in projects {
         let project = project.map_err(|e| format!("Dsh history: {e}"))?;
         if !project.file_type().is_ok_and(|kind| kind.is_dir()) {
@@ -68,7 +167,10 @@ pub(super) fn load(home: &Path, sid: &str, cwd: &Path) -> Result<AcpLoadSessionR
         }
         return read_log(&path, version, sid, cwd);
     }
-    Err("Dsh history: session log not found under DSH_HOME/sessions; check the agent's DSH_HOME and custom persistence configuration".into())
+    Err(format!(
+        "Dsh history: session log not found under {}",
+        root.display()
+    ))
 }
 
 fn log_version(name: &str) -> Option<u64> {
@@ -234,10 +336,14 @@ mod tests {
     const SID: &str = "455181d7-12ab-4567-8901-0123456789ab";
 
     fn fixture(dir: &Path, version: u64, compressed: bool) -> PathBuf {
-        let folder = dir.join("sessions/project").join(SID);
+        fixture_at(&dir.join("sessions"), dir, version, compressed)
+    }
+
+    fn fixture_at(root: &Path, cwd: &Path, version: u64, compressed: bool) -> PathBuf {
+        let folder = root.join("project").join(SID);
         fs::create_dir_all(&folder).unwrap();
         let events = [
-            json!({"type":"session","version":version,"id":SID,"cwd":dir.to_string_lossy()}),
+            json!({"type":"session","version":version,"id":SID,"cwd":cwd.to_string_lossy()}),
             json!({"seq":0,"type":"user/message","data":{"id":"u1","source":{"kind":"user"},"content":[{"type":"text","text":"first question"}]}}),
             json!({"seq":1,"type":"user/message","data":{"id":"ctx","source":{"kind":"plugin"},"content":[{"type":"text","text":"hidden context"}]}}),
             json!({"seq":2,"type":"assistant/message","data":{"message":{"id":"a1","content":[{"type":"reasoning","text":"thinking"},{"type":"text","text":"first answer"}]}}}),
@@ -323,6 +429,66 @@ mod tests {
         assert_eq!(home(&env, dir.path()).unwrap(), dir.path().join("other"));
         env.insert("DSH_HOME".into(), "relative".into());
         assert_eq!(home(&env, dir.path()).unwrap(), dir.path().join("relative"));
+    }
+
+    #[test]
+    fn follows_a_session_root_relocated_by_a_profile_patch_layer() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = home.path().join("profiles/acp");
+        fs::create_dir_all(&profile).unwrap();
+        fs::write(
+            profile.join("cordis.patch.yml"),
+            concat!(
+                "- id: hmr\n  disabled: !!js '!ctx.get(''x'')'\n",
+                "- id: session-persistence-jsonl\n",
+                "  name: '@deepseek-ai/dsh-session-persistence-jsonl'\n",
+                "  config:\n    root: 'relocated'\n",
+            ),
+        )
+        .unwrap();
+        fixture_at(&home.path().join("relocated"), home.path(), 4, true);
+        let history = load(home.path(), SID, home.path()).unwrap();
+        assert_eq!(history.title.as_deref(), Some("my conversation"));
+        assert_eq!(history.lines.len(), 4);
+    }
+
+    #[test]
+    fn keeps_the_released_root_and_ignores_unreadable_declarations() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = home.path().join("profiles/web");
+        fs::create_dir_all(&profile).unwrap();
+        fs::write(
+            profile.join("cordis.yml"),
+            "- id: session-persistence-jsonl\n  config:\n    root: !!js process.env.DSH_SESSIONS\n",
+        )
+        .unwrap();
+        assert_eq!(
+            session_roots(home.path()),
+            vec![home.path().join("sessions")]
+        );
+        fixture(home.path(), 4, false);
+        assert!(load(home.path(), SID, home.path()).is_ok());
+    }
+
+    #[test]
+    fn resolves_declared_roots_like_the_provider_does() {
+        let home = Path::new("dsh-home");
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(
+            resolve_root("'sessions-acp'", home),
+            Some(home.join("sessions-acp"))
+        );
+        assert_eq!(
+            resolve_root("\" sessions-acp \"", home),
+            Some(home.join("sessions-acp"))
+        );
+        assert_eq!(
+            resolve_root(&dir.path().to_string_lossy(), home),
+            Some(dir.path().to_path_buf())
+        );
+        assert_eq!(declared_session_root("[]"), None);
+        assert_eq!(resolve_root("!!js process.env.X", home), None);
+        assert_eq!(resolve_root("", home), None);
     }
 
     /// Supply an isolated DSH_HOME with a prepared ACP profile and a transcript
