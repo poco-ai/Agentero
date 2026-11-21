@@ -972,6 +972,11 @@ export async function confirmRenamePath(
 			}),
 		);
 	} catch (error) {
+		// Drop the draft before anything else: leaving it set keeps the inline
+		// editor mounted and blocks every selection, context menu and drop
+		// handler, so the tree never recovers. Restore the row instead and let
+		// the toast explain the failure.
+		setRenameDraft(null);
 		if (createdFolder && folderAbs) {
 			// Do not leave an empty folder behind when the move is rejected.
 			try {
