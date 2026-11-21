@@ -4,8 +4,8 @@ import type {
 } from "@/lib/translate/types";
 
 export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
-	/** Prefer Tencent Transmart: current no-key default with better availability. */
-	provider: "tencenttransmart",
+	/** Prefer Bilibili Translate 2B: free, no-key and fast for short passages. */
+	provider: "indextranslate2b",
 	dictionary: { mode: "auto" },
 	targetLang: "ui",
 	sourceLang: "auto",

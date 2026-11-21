@@ -771,7 +771,7 @@ fn default_ai_response_language() -> String {
     "auto".into()
 }
 fn default_translate_provider() -> String {
-    "tencenttransmart".into()
+    "indextranslate2b".into()
 }
 fn default_connector_port() -> u16 {
     DEFAULT_CONNECTOR_PORT
@@ -2759,7 +2759,7 @@ mod tests {
         let path = dir.path().join("settings.json");
         let (s, existed) = read_file(&path);
         assert!(!existed);
-        assert_eq!(s.translate.provider, "tencenttransmart");
+        assert_eq!(s.translate.provider, "indextranslate2b");
         assert_eq!(s.layout.parser_backend, "local");
         assert_eq!(s.layout.backend, "local");
 
@@ -2826,7 +2826,7 @@ mod tests {
             }
             let (settings, existed) = read_file(&path);
             assert_eq!(existed, raw.is_some());
-            assert_eq!(settings.translate.provider, "tencenttransmart");
+            assert_eq!(settings.translate.provider, "indextranslate2b");
             persist(&path, &settings).unwrap();
             let (reloaded, existed) = read_file(&path);
             assert!(existed);
