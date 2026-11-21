@@ -3079,7 +3079,7 @@ function PdfViewerInner({
 			<DockviewViewport
 				documentId={docId}
 				hostRef={hostRef}
-				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
+				className="min-h-0 min-w-0 flex-1"
 				onClickCapture={(event) => {
 					const target = event.target;
 					// Observe the reading surface without swallowing its click. A
