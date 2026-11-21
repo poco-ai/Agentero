@@ -12,6 +12,7 @@
  */
 
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
+import i18n from "@/i18n";
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
 import {
@@ -51,6 +52,7 @@ import { createReflowBuildCache } from "@/lib/pdf/reflow/build-cache";
 import { createReflowIrCache } from "@/lib/pdf/reflow/cache";
 import { buildReflowPdf } from "@/lib/pdf/reflow/export";
 import { loadReflowFonts } from "@/lib/pdf/reflow/fonts";
+import { FormulaPdfCallStalledError } from "@/lib/pdf/reflow/formula-engine";
 import {
 	prepareReflowItems,
 	reflowDocumentFromItems,
@@ -135,7 +137,10 @@ async function runLayoutTranslateExecutor(
 		});
 		await report({
 			state: "failed",
-			error: displayTranslateError(errorText(error)),
+			error:
+				error instanceof FormulaPdfCallStalledError
+					? i18n.t("app:tasks.layoutTranslateFormulaStalled")
+					: displayTranslateError(errorText(error)),
 		});
 	} finally {
 		await publisher.flush();
@@ -379,7 +384,8 @@ function countTranslated(items: readonly LayoutTranslateItem[]): number {
 
 /**
  * Build and persist the translated PDF through the same content-keyed cache the
- * viewer uses. Best effort: a failed build only slows the next open down.
+ * viewer uses. A stalled formula call fails the task. Other build failures stay
+ * best-effort: the sidecar is already written, and the next open rebuilds the PDF.
  */
 async function buildFinalCache(opts: {
 	engine: PdfEngine;
@@ -433,7 +439,9 @@ async function buildFinalCache(opts: {
 	try {
 		await run();
 	} catch (error) {
-		if (opts.signal?.aborted) throw error;
+		if (opts.signal?.aborted || error instanceof FormulaPdfCallStalledError) {
+			throw error;
+		}
 		logger.warn("layout translate final PDF failed", {
 			paperAbsPath: opts.paperAbsPath,
 			error: errorText(error),

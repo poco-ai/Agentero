@@ -258,6 +258,7 @@
 		"layoutAnalysis": "Parse figures, tables, and text",
 		"layoutTranslate": "Translate full text",
 		"layoutTranslateComplete": "Complete translation",
+		"layoutTranslateFormulaStalled": "Formula preparation stalled",
 		"pdfParse": "Parse PDF body",
 		"parseRefs": "Parse references",
 		"openLayoutSettings": "Open analysis settings",
