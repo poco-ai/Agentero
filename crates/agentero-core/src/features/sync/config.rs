@@ -492,35 +492,168 @@ fn validate_branch(raw: &str) -> Result<(), AppError> {
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct SyncConfigFile {
     #[serde(default)]
-    vaults: HashMap<String, SyncBackendConfig>,
+    vaults: HashMap<String, serde_json::Value>,
+}
+
+/// One vault's sync binding: exactly one authoritative backend plus optional
+/// read-only mirrors.
+///
+/// Mirrors are publish-only: a pass pushes the vault's local state to them and
+/// never merges their content back. Two bidirectional backends would each hold
+/// their own merge base and fight over deletions, so the authority is singular
+/// by construction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VaultSyncConfig {
+    pub primary: SyncBackendConfig,
+    pub mirrors: Vec<SyncBackendConfig>,
+}
+
+impl VaultSyncConfig {
+    pub fn new(primary: SyncBackendConfig) -> Self {
+        Self {
+            primary,
+            mirrors: Vec::new(),
+        }
+    }
+
+    /// Validate the primary and every mirror. Mirrors may not be the official
+    /// cloud: its login session is bound to the primary binding.
+    pub fn validate(&self) -> Result<(), AppError> {
+        self.primary.validate()?;
+        for mirror in &self.mirrors {
+            if mirror.backend == SyncBackendKind::Agentero {
+                return Err(AppError::message(
+                    "Agentero cloud cannot be a mirror backend",
+                ));
+            }
+            mirror.validate()?;
+        }
+        Ok(())
+    }
+
+    pub fn auto_sync(&self) -> bool {
+        self.primary.auto_sync
+    }
+
+    pub fn interval_minutes(&self) -> u32 {
+        self.primary.interval_minutes
+    }
+
+    /// True when a mirror points at the same remote as the primary (or another
+    /// mirror). Rejected on save: publishing one store twice would race itself.
+    pub fn duplicate_remote(&self) -> Option<&SyncBackendConfig> {
+        let mut seen = vec![backend_identity(&self.primary)];
+        for mirror in &self.mirrors {
+            let id = backend_identity(mirror);
+            if seen.contains(&id) {
+                return Some(mirror);
+            }
+            seen.push(id);
+        }
+        None
+    }
+
+    /// Masked copy for the WebView: primary plus each mirror.
+    pub fn masked(&self) -> Self {
+        Self {
+            primary: self.primary.masked(),
+            mirrors: self.mirrors.iter().map(SyncBackendConfig::masked).collect(),
+        }
+    }
+
+    /// Restore masked secrets from the previous binding, position by position.
+    pub fn merge_mask(&mut self, previous: Option<&Self>) {
+        let Some(previous) = previous else {
+            return;
+        };
+        self.primary.merge_mask(Some(&previous.primary));
+        let previous_by_id: HashMap<String, &SyncBackendConfig> = previous
+            .mirrors
+            .iter()
+            .map(|cfg| (backend_identity(cfg), cfg))
+            .collect();
+        for mirror in &mut self.mirrors {
+            mirror.merge_mask(previous_by_id.get(&backend_identity(mirror)).copied());
+        }
+    }
+}
+
+/// Stable id of one backend binding: derived from [`SyncBackendConfig::remote_identity`],
+/// which carries no secret. Doubles as the mirror state-directory name.
+pub fn backend_identity(cfg: &SyncBackendConfig) -> String {
+    crate::features::sync::snapshot::hash_bytes(cfg.remote_identity().as_bytes())
+}
+
+fn parse_vault(value: serde_json::Value) -> Result<VaultSyncConfig, AppError> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Multi {
+        primary: SyncBackendConfig,
+        #[serde(default)]
+        mirrors: Vec<SyncBackendConfig>,
+    }
+    if value.get("primary").is_some() {
+        let multi: Multi = serde_json::from_value(value)
+            .map_err(|e| AppError::message(format!("invalid sync binding: {e}")))?;
+        Ok(VaultSyncConfig {
+            primary: multi.primary,
+            mirrors: multi.mirrors,
+        })
+    } else {
+        let primary: SyncBackendConfig = serde_json::from_value(value)
+            .map_err(|e| AppError::message(format!("invalid sync binding: {e}")))?;
+        Ok(VaultSyncConfig::new(primary))
+    }
+}
+
+/// Serialize one binding: the legacy single-backend shape while there are no
+/// mirrors, so an older build can still read the file.
+fn vault_to_value(cfg: &VaultSyncConfig) -> Result<serde_json::Value, AppError> {
+    if cfg.mirrors.is_empty() {
+        return Ok(serde_json::to_value(&cfg.primary)?);
+    }
+    Ok(serde_json::json!({
+        "primary": cfg.primary,
+        "mirrors": cfg.mirrors,
+    }))
 }
 
 fn config_path() -> PathBuf {
     paths::agentero_config_dir().join("sync.json")
 }
 
-fn read_all() -> Result<HashMap<String, SyncBackendConfig>, AppError> {
+fn read_all() -> Result<HashMap<String, VaultSyncConfig>, AppError> {
     let path = config_path();
     match fs::read(path) {
-        Ok(raw) => Ok(serde_json::from_slice::<SyncConfigFile>(&raw)?.vaults),
+        Ok(raw) => {
+            let file: SyncConfigFile = serde_json::from_slice(&raw)?;
+            file.vaults
+                .into_iter()
+                .map(|(key, value)| parse_vault(value).map(|cfg| (key, cfg)))
+                .collect()
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
         Err(e) => Err(e.into()),
     }
 }
 
 /// All configured vaults (used at app start / exit to drive auto sync).
-pub fn list_all() -> HashMap<String, SyncBackendConfig> {
+pub fn list_all() -> HashMap<String, VaultSyncConfig> {
     read_all().unwrap_or_else(|e| {
         log::warn!(target: "agentero::sync", "read sync.json: {e}");
         HashMap::new()
     })
 }
 
-fn write_all(vaults: HashMap<String, SyncBackendConfig>) -> Result<(), AppError> {
+fn write_all(vaults: HashMap<String, VaultSyncConfig>) -> Result<(), AppError> {
     let path = config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
+    let vaults = vaults
+        .into_iter()
+        .map(|(key, cfg)| vault_to_value(&cfg).map(|value| (key, value)))
+        .collect::<Result<HashMap<_, _>, AppError>>()?;
     // Owner-only (0o600 on Unix): this file holds S3 credentials.
     crate::fs::json_store_with(
         &path,
@@ -529,7 +662,7 @@ fn write_all(vaults: HashMap<String, SyncBackendConfig>) -> Result<(), AppError>
     )
 }
 
-pub fn get(vault_path: &str) -> Option<SyncBackendConfig> {
+pub fn get(vault_path: &str) -> Option<VaultSyncConfig> {
     list_all().remove(vault_path)
 }
 
@@ -545,7 +678,7 @@ fn config_lock() -> Result<fs::File, AppError> {
     Ok(file)
 }
 
-pub fn set(vault_path: &str, config: SyncBackendConfig) -> Result<(), AppError> {
+pub fn set(vault_path: &str, config: VaultSyncConfig) -> Result<(), AppError> {
     let _lock = config_lock()?;
     let mut all = read_all()?;
     all.insert(vault_path.to_string(), config);

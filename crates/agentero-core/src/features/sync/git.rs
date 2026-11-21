@@ -215,6 +215,70 @@ pub(super) async fn sync_vault(
     git.finish(vault, outcome).await
 }
 
+/// Publish-only Git mirror: commit the local tree and push it, never pull.
+///
+/// A mirror branch is assumed to be written only by this vault, so a rejected
+/// push is recorded as a failure instead of merging foreign commits into the
+/// vault. The primary stays the only side that pulls and merges.
+pub(super) async fn publish_mirror(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+    progress: Progress<'_>,
+) -> Result<SyncOutcome, AppError> {
+    cfg.validate()?;
+    let git = Git::new(vault, cfg)?;
+
+    let projection_root = vault.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        crate::features::paper::catalog::sidecar::flush_pending(&projection_root)
+    })
+    .await
+    .map_err(|e| AppError::message(format!("sidecar projection task: {e}")))??;
+    engine::refresh_catalog_if_needed(vault)?;
+
+    progress("scan", 0, 0);
+    git.ensure_repo(cfg).await?;
+    let committed = git.commit_local(&cfg.scope).await?;
+    let mut outcome = SyncOutcome::default();
+    if let Some(counts) = &committed {
+        outcome.uploaded = counts.changed;
+        outcome.removed_remote = counts.deleted;
+    }
+
+    progress("finalize", 0, 0);
+    let local_head = git
+        .head()
+        .await?
+        .ok_or_else(|| AppError::message("mirror commit did not produce a HEAD"))?;
+    let remote_tip = git.ls_remote_branch(cfg).await?;
+    if remote_tip.as_deref() != Some(local_head.as_str()) {
+        match git.push(cfg).await? {
+            PushOutcome::Pushed => {}
+            PushOutcome::Rejected => {
+                return Err(AppError::domain(
+                    "git_push_failed",
+                    "the mirror branch moved outside this vault; point the mirror at an empty branch",
+                ));
+            }
+        }
+    }
+
+    let store_id = crate::features::sync::config::backend_identity(cfg);
+    let version = git.commit_count().await?;
+    local::write_meta_at(
+        &local::mirror_dir(vault, &store_id),
+        &SyncMeta {
+            last_sync_at: Some(now()),
+            last_version: version,
+            store_id: Some(store_id),
+            ..SyncMeta::default()
+        },
+    )?;
+    engine::refresh_catalog_if_needed(vault)?;
+    outcome.version = version;
+    Ok(outcome)
+}
+
 impl Git {
     fn new(vault: &Path, cfg: &SyncBackendConfig) -> Result<Self, AppError> {
         let exe = crate::process::resolve_command("git").ok_or_else(|| {

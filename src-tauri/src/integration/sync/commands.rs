@@ -24,6 +24,22 @@ pub struct SyncVaultArgs {
 pub struct SyncConfigureArgs {
     pub vault_path: String,
     pub config: SyncBackendConfig,
+    /// Read-only mirrors published after the primary pass. The primary stays
+    /// the only backend that pulls and merges.
+    #[serde(default)]
+    pub mirrors: Vec<SyncBackendConfig>,
+}
+
+/// One read-only mirror and its last pass result.
+#[derive(Debug, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncMirrorStatus {
+    pub config: SyncBackendConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_sync_at: Option<String>,
+    pub last_version: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug, Serialize, specta::Type)]
@@ -36,6 +52,9 @@ pub struct SyncStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_sync_at: Option<String>,
     pub last_version: u64,
+    /// Mirrors in configuration order; empty for a single-backend binding.
+    #[serde(default)]
+    pub mirrors: Vec<SyncMirrorStatus>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -110,21 +129,47 @@ pub async fn sync_get_status(
     service: State<'_, SyncService>,
 ) -> Result<ApiResult<SyncStatus>, String> {
     let running = service.is_running(args.vault_path.trim());
-    Ok(
-        match vault_dir(&args.vault_path).and_then(|dir| local::read_meta(&dir)) {
-            Ok(meta) => {
-                let config = config::get(args.vault_path.trim());
-                ApiResult::ok(SyncStatus {
-                    configured: config.is_some(),
-                    config: config.map(|c| c.masked()),
-                    running,
-                    last_sync_at: meta.last_sync_at,
-                    last_version: meta.last_version,
-                })
+    let dir = match vault_dir(&args.vault_path) {
+        Ok(dir) => dir,
+        Err(e) => return Ok(map_err(e)),
+    };
+    let meta = match local::read_meta(&dir) {
+        Ok(meta) => meta,
+        Err(e) => return Ok(map_err(e)),
+    };
+    let config = config::get(args.vault_path.trim());
+    let mirrors = config
+        .as_ref()
+        .map(|binding| mirror_statuses(&dir, binding))
+        .unwrap_or_default();
+    Ok(ApiResult::ok(SyncStatus {
+        configured: config.is_some(),
+        config: config.map(|binding| binding.primary.masked()),
+        running,
+        last_sync_at: meta.last_sync_at,
+        last_version: meta.last_version,
+        mirrors,
+    }))
+}
+
+/// Per-mirror status in configuration order.
+fn mirror_statuses(
+    dir: &std::path::Path,
+    binding: &config::VaultSyncConfig,
+) -> Vec<SyncMirrorStatus> {
+    binding
+        .mirrors
+        .iter()
+        .map(|mirror| {
+            let state = engine::mirror_state(dir, mirror);
+            SyncMirrorStatus {
+                config: mirror.masked(),
+                last_sync_at: state.last_sync_at,
+                last_version: state.last_version,
+                last_error: state.last_error,
             }
-            Err(e) => map_err(e),
-        },
-    )
+        })
+        .collect()
 }
 
 /// Validate + connection-test + persist the S3 binding for a vault.
@@ -139,19 +184,39 @@ pub async fn sync_configure(
     let inner = async {
         let dir = vault_dir(&args.vault_path)?;
         let _lock = SyncLock::acquire(&dir)?;
-        let mut cfg = args.config.normalized();
-        cfg.merge_mask(config::get(&key).as_ref());
-        attach_agentero_session(&app, &mut cfg).await;
-        cfg.validate()?;
-        cfg.conditional_writes = engine::test_connection(&dir, &cfg).await?;
+        let mut binding = config::VaultSyncConfig {
+            primary: args.config.normalized(),
+            mirrors: args
+                .mirrors
+                .into_iter()
+                .map(SyncBackendConfig::normalized)
+                .collect(),
+        };
+        binding.merge_mask(config::get(&key).as_ref());
+        attach_agentero_session(&app, &mut binding.primary).await;
+        binding.validate()?;
+        if binding.duplicate_remote().is_some() {
+            return Err(AppError::message(
+                "the same remote is configured twice; each backend needs its own store",
+            ));
+        }
+        binding.primary.conditional_writes =
+            engine::test_connection(&dir, &binding.primary).await?;
+        for mirror in &mut binding.mirrors {
+            // A mirror needs the same conditional writes for its HEAD CAS; a
+            // Git mirror validates the repository and branch instead.
+            mirror.conditional_writes = engine::test_connection(&dir, mirror).await?;
+        }
         let meta = local::read_meta(&dir)?;
-        config::set(&key, cfg.clone())?;
+        config::set(&key, binding.clone())?;
+        let mirrors = mirror_statuses(&dir, &binding);
         Ok::<_, AppError>(SyncStatus {
             configured: true,
-            config: Some(cfg.masked()),
+            config: Some(binding.primary.masked()),
             running: false,
             last_sync_at: meta.last_sync_at,
             last_version: meta.last_version,
+            mirrors,
         })
     };
     let result = inner.await;
@@ -212,9 +277,9 @@ pub async fn perform_sync(
 ) -> Result<SyncOutcome, AppError> {
     let dir = vault_dir(vault_key)?;
     let lock = SyncLock::acquire(&dir)?;
-    let mut cfg =
+    let mut binding =
         config::get(vault_key).ok_or_else(|| AppError::message("sync is not configured"))?;
-    attach_agentero_session(app, &mut cfg).await;
+    attach_agentero_session(app, &mut binding.primary).await;
     let lease = service
         .try_begin(vault_key)
         .ok_or_else(|| AppError::message("sync already running"))?;
@@ -232,7 +297,7 @@ pub async fn perform_sync(
             },
         );
     };
-    let result = engine::sync_vault_locked(&lock, &cfg, &progress).await;
+    let result = engine::sync_all_locked(&lock, &binding, &progress).await;
     drop(lock);
     // Terminal event consumers immediately re-read status; release first.
     drop(lease);

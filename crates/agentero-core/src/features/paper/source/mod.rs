@@ -144,13 +144,14 @@ pub fn automatic_download_allowed(vault: &Path) -> bool {
 
 fn download_allowed_in(
     vault: &Path,
-    configs: HashMap<String, crate::features::sync::config::SyncBackendConfig>,
+    configs: HashMap<String, crate::features::sync::config::VaultSyncConfig>,
 ) -> bool {
     let canonical = crate::fs::canonicalize_best_effort(vault);
     configs
         .into_iter()
         .find(|(path, _)| crate::fs::canonicalize_best_effort(Path::new(path)) == canonical)
-        .is_none_or(|(_, config)| config.scope.source)
+        // The primary decides what is part of sync; a mirror never changes that.
+        .is_none_or(|(_, binding)| binding.primary.scope.source)
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, specta::Type)]
@@ -549,8 +550,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut config = crate::features::sync::config::SyncBackendConfig::default();
         config.scope.source = false;
-        let configs =
-            HashMap::from([(dir.path().join(".").to_string_lossy().into_owned(), config)]);
+        let configs = HashMap::from([(
+            dir.path().join(".").to_string_lossy().into_owned(),
+            crate::features::sync::config::VaultSyncConfig::new(config),
+        )]);
         assert!(!download_allowed_in(
             &fs::canonicalize(dir.path()).unwrap(),
             configs

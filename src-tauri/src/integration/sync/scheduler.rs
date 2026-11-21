@@ -1,6 +1,6 @@
 //! Background auto sync: one task per configured vault that syncs
 //!
-//! - once when the scheduler starts (≈ vault open / app start),
+//! - once when the scheduler starts (鈮?vault open / app start),
 //! - after the vault has been quiet for 30s following a change,
 //! - every `interval_minutes` as a fallback.
 //!
@@ -29,7 +29,7 @@ impl SyncService {
         let Some(cfg) = config::get(vault_key) else {
             return;
         };
-        if !cfg.auto_sync {
+        if !cfg.auto_sync() {
             return;
         }
         let dir = PathBuf::from(vault_key);
@@ -41,7 +41,7 @@ impl SyncService {
             app.clone(),
             vault_key.to_string(),
             dir,
-            cfg.interval_minutes,
+            cfg.interval_minutes(),
             stopped,
         ));
         if let Ok(mut map) = self.schedulers.lock() {
@@ -79,25 +79,25 @@ impl SyncService {
             let Some(mut cfg) = config::get(&key) else {
                 continue;
             };
-            if !cfg.auto_sync {
+            if !cfg.auto_sync() {
                 continue;
             }
             // Git commits/pushes can exceed the 5s exit budget; interrupting
             // one may leave index.lock behind. The next launch or interval
             // picks the work up instead.
-            if cfg.backend == config::SyncBackendKind::Git {
+            if cfg.primary.backend == config::SyncBackendKind::Git {
                 log::info!(
                     target: "agentero::sync",
                     "exit flush {key}: git backend skipped (next pass will push)"
                 );
                 continue;
             }
-            if cfg.backend == config::SyncBackendKind::Agentero {
-                if cfg.agentero_api.trim().is_empty() {
-                    cfg.agentero_api = super::commands::account_api_origin();
+            if cfg.primary.backend == config::SyncBackendKind::Agentero {
+                if cfg.primary.agentero_api.trim().is_empty() {
+                    cfg.primary.agentero_api = super::commands::account_api_origin();
                 }
                 if let Some(token) = token.clone() {
-                    cfg.agentero_token = token;
+                    cfg.primary.agentero_token = token;
                 }
             }
             let Some(_lease) = self.try_begin(&key) else {
@@ -107,7 +107,7 @@ impl SyncService {
             let result = tauri::async_runtime::block_on(async {
                 tokio::time::timeout(
                     Duration::from_secs(EXIT_FLUSH_TIMEOUT_SECS),
-                    super::engine::sync_vault_locked(&lock, &cfg, &|_, _, _| {}),
+                    super::engine::sync_vault_locked(&lock, &cfg.primary, &|_, _, _| {}),
                 )
                 .await
             });

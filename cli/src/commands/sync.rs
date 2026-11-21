@@ -12,7 +12,7 @@ use crate::output::OutputFormat;
 use crate::prompt;
 use crate::resolve::{resolve_vault, GlobalOpts};
 use agentero_core::features::sync::config::{
-    self as sync_config, SyncBackendConfig, SyncBackendKind,
+    self as sync_config, SyncBackendConfig, SyncBackendKind, VaultSyncConfig,
 };
 use agentero_core::features::sync::lock::SyncLock;
 use agentero_core::features::sync::snapshot::SyncScope;
@@ -64,18 +64,25 @@ pub struct ConfigureArgs {
 /// entries by the path string its frontend passed, which can differ in
 /// normalization from CLI resolution (symlinks, `/private` on macOS). Match
 /// by canonical path so both sides keep sharing one entry.
-fn entry_for(dir: &Path) -> (String, Option<SyncBackendConfig>) {
+fn binding_for(dir: &Path) -> (String, Option<VaultSyncConfig>) {
     let key = dir.to_string_lossy().to_string();
-    if let Some(cfg) = sync_config::get(&key) {
-        return (key, Some(cfg));
+    if let Some(binding) = sync_config::get(&key) {
+        return (key, Some(binding));
     }
     let want = agentero_core::fs::canonicalize_best_effort(dir);
-    for (stored, cfg) in sync_config::list_all() {
+    for (stored, binding) in sync_config::list_all() {
         if agentero_core::fs::canonicalize_best_effort(Path::new(&stored)) == want {
-            return (stored, Some(cfg));
+            return (stored, Some(binding));
         }
     }
     (key, None)
+}
+
+/// Primary backend of the vault binding; the CLI drives the authoritative side
+/// (mirrors are published by whichever pass runs, see `sync now`).
+fn entry_for(dir: &Path) -> (String, Option<SyncBackendConfig>) {
+    let (key, binding) = binding_for(dir);
+    (key, binding.map(|binding| binding.primary))
 }
 
 fn sync_not_configured() -> CliError {
@@ -171,7 +178,7 @@ async fn configure(
     } else {
         cfg.conditional_writes = engine::test_connection(vault, &cfg).await?;
     }
-    sync_config::set(&key, cfg.clone())?;
+    sync_config::set(&key, VaultSyncConfig::new(cfg.clone()))?;
 
     let style = globals.style;
     let mut v = json!({
@@ -423,8 +430,8 @@ async fn test(vault: &Path) -> Result<Value, CliError> {
 
 async fn now(vault: &Path, progress_flag: bool, globals: &GlobalOpts) -> Result<Value, CliError> {
     let lock = SyncLock::acquire(vault)?;
-    let (_, cfg) = entry_for(vault);
-    let cfg = cfg.ok_or_else(sync_not_configured)?;
+    let (_, binding) = binding_for(vault);
+    let binding = binding.ok_or_else(sync_not_configured)?;
 
     let show_progress =
         !globals.quiet && (progress_flag || !matches!(globals.format, OutputFormat::Json));
@@ -434,7 +441,7 @@ async fn now(vault: &Path, progress_flag: bool, globals: &GlobalOpts) -> Result<
         }
     };
 
-    let outcome = engine::sync_vault_locked(&lock, &cfg, &progress).await?;
+    let outcome = engine::sync_all_locked(&lock, &binding, &progress).await?;
     let style = globals.style;
     let mut v = serde_json::to_value(&outcome)?;
     if let Some(obj) = v.as_object_mut() {
