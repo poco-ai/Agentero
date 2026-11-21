@@ -475,6 +475,26 @@ pub enum PaperRefLookup {
     NotFound,
 }
 
+pub fn resolve_paper(vault: &Path, ref_: &str) -> Result<PaperRecord, AppError> {
+    let reference = ref_.trim();
+    match lookup_paper_ref(vault, reference)? {
+        PaperRefLookup::Found(record) => Ok(*record),
+        PaperRefLookup::NotFound => Err(AppError::domain(
+            "source_not_found",
+            format!("paper not found: {reference}"),
+        )),
+        PaperRefLookup::Ambiguous(paths) => Err(AppError::domain(
+            "paper_ambiguous",
+            format!(
+                "paper id '{reference}' is ambiguous ({} matches): {}",
+                paths.len(),
+                paths.join(", ")
+            ),
+        )
+        .with_details(serde_json::json!({"candidates":paths}))),
+    }
+}
+
 /// Whether `reference` should be treated as a vault-relative path rather than
 /// a logical paper id.
 pub fn looks_like_path(reference: &str) -> bool {
@@ -564,6 +584,45 @@ pub fn find_by_identifier(
             .optional()
             .map_err(AppError::from)?;
         Ok(row)
+    })
+}
+
+/// Find the catalog row that already owns a web page URL.
+///
+/// Webpage entries carry no DOI/arXiv/PMID, so a re-import of the same page
+/// (RSS article, context-menu "入库", pasted URL) can only be recognised by
+/// its address. Both `source_url` and `html_url` are compared in
+/// [`canonical_page_url`](crate::features::paper::identity::canonical_page_url)
+/// form so a trailing slash, fragment, tracking parameters, or a canonical
+/// `<link>` spelling still hit the same entry.
+pub fn find_by_web_url(vault_root: &Path, url: &str) -> Result<Option<PaperRecord>, AppError> {
+    use crate::features::paper::identity::canonical_page_url;
+
+    let Some(target) = canonical_page_url(url) else {
+        return Ok(None);
+    };
+    let sql = format!(
+        r#"
+        SELECT {PAPER_COLUMNS}
+        FROM papers
+        WHERE source_url IS NOT NULL OR html_url IS NOT NULL
+        ORDER BY path ASC
+        "#
+    );
+    with_catalog(vault_root, |conn| {
+        let mut stmt = conn.prepare(&sql).map_err(AppError::from)?;
+        let rows = stmt.query_map([], map_row).map_err(AppError::from)?;
+        for row in rows {
+            let row = row.map_err(AppError::from)?;
+            let matches = [row.source_url.as_deref(), row.html_url.as_deref()]
+                .into_iter()
+                .flatten()
+                .any(|candidate| canonical_page_url(candidate).as_deref() == Some(target.as_str()));
+            if matches {
+                return Ok(Some(row));
+            }
+        }
+        Ok(None)
     })
 }
 
@@ -1318,12 +1377,31 @@ pub fn update_meta(
     path: &str,
     patch: &PaperMetaPatch,
 ) -> Result<PaperRecord, AppError> {
+    update_meta_checked(vault_root, path, patch, None, None, |_| Ok(()))
+}
+
+/// Check the caller's expected record inside the same write transaction as all edits.
+pub fn update_meta_checked(
+    vault_root: &Path,
+    path: &str,
+    patch: &PaperMetaPatch,
+    is_read: Option<bool>,
+    status: Option<&str>,
+    check: impl FnOnce(&PaperRecord) -> Result<(), AppError>,
+) -> Result<PaperRecord, AppError> {
     let mut old_title = String::new();
     let mut title_changed = false;
     let updated = mutate_paper_inner(
         vault_root,
         path,
         |row| {
+            check(row)?;
+            if let Some(is_read) = is_read {
+                row.is_read = is_read;
+            }
+            if let Some(status) = status {
+                row.status = status.trim().to_owned();
+            }
             fn norm(value: &str) -> Option<String> {
                 let trimmed = value.trim();
                 (!trimmed.is_empty()).then(|| trimmed.to_string())
@@ -1457,7 +1535,17 @@ pub fn set_user_tags(
     path: &str,
     tags: &[PaperTag],
 ) -> Result<PaperRecord, AppError> {
+    set_user_tags_checked(vault_root, path, tags, |_| Ok(()))
+}
+
+pub fn set_user_tags_checked(
+    vault_root: &Path,
+    path: &str,
+    tags: &[PaperTag],
+    check: impl FnOnce(&PaperRecord) -> Result<(), AppError>,
+) -> Result<PaperRecord, AppError> {
     mutate_paper(vault_root, path, |row| {
+        check(row)?;
         let mut next: Vec<PaperTag> = row
             .tags
             .iter()

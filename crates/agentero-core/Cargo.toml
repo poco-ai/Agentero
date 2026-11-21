@@ -2,7 +2,7 @@
 name = "agentero-core"
 # Keep in lockstep with the `agentero` / `agentero-cli` versions: `core::http`
 # bakes `CARGO_PKG_VERSION` into the product User-Agent string.
-version = "0.15.5"
+version = "0.17.0"
 edition = "2021"
 description = "Tauri-independent foundations of Agentero (errors, fs, http, paths, sqlite, usage log)"
 authors = ["you"]
@@ -19,11 +19,14 @@ serde_json = { workspace = true }
 # `macros` for join!/select! in import assets, parse and title_search.
 tokio = { workspace = true, features = ["fs", "rt", "sync", "process", "io-util", "time", "macros"] }
 dirs = { workspace = true }
+dunce = "1.0.5"
 log = { workspace = true }
 tempfile = { workspace = true }
 thiserror = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks", "multipart", "cookies"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "socks", "multipart", "cookies", "stream"] }
+regex = "1"
+roxmltree = "0.20"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 async-trait = "0.1.91"
 # `error::ApiResult` and `features::translate` models derive `specta::Type`
@@ -31,12 +34,15 @@ async-trait = "0.1.91"
 specta = { version = "2.0.0-rc.22", features = ["derive", "chrono"] }
 # Search hit DTOs are returned both over Tauri IPC (specta) and MCP (schemars).
 schemars = "1"
+jsonschema = { version = "0.33", default-features = false }
 which = "7"
 # Migrated domain features (import asset unpack, feeds body extraction,
 # wiki/vault walks, citation fingerprints, scholar API queries, …).
 feed-rs = "2.3"
 flate2 = "1.1.9"
 tar = "0.4.46"
+# MinerU result archives (moved hosted layout engine) are zip files.
+zip = { version = "9.1", default-features = false, features = ["deflate"] }
 htmd = "0.5.4"
 dom_smoothie = "0.18"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
@@ -57,7 +63,9 @@ futures-util = "0.3.33"
 fs2 = "0.4"
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt", "fs"] }
+# `test-util` drives the paused clock in the MinerU shared-extract flight test
+# (moved here with the hosted layout engine).
+tokio = { workspace = true, features = ["macros", "rt", "fs", "test-util"] }
 # Unique temp-dir names in `fs::path` tests.
 uuid = { version = "1", features = ["v4"] }
 
@@ -76,4 +84,4 @@ liteparse-pdfium = "1.13"
 # `process::windows_job` owns Git invocation trees, including transport helpers.
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading"] }

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/hover-card";
 import {
 	citationLabelFromHref,
+	evidenceCitationLabel,
 	isCitationStatusLabel,
 	rewriteCitationHrefToPdf,
 } from "@/lib/agent/citation-href";
@@ -128,7 +129,7 @@ export function AgentCitationLink({
 					onClick={handleClick}
 					className="break-all text-xs text-muted-foreground hover:text-foreground"
 				>
-					{resolvedHref}
+					{evidenceCitationLabel(resolvedHref) ?? resolvedHref}
 				</a>
 			</HoverCardContent>
 		</HoverCard>

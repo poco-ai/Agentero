@@ -13,8 +13,12 @@ use std::path::{Path, PathBuf};
 
 /// `PdfAnnotationSubtype.HIGHLIGHT` from `@embedpdf/models`.
 const HIGHLIGHT_SUBTYPE: u8 = 9;
+/// `PdfAnnotationSubtype.UNDERLINE` from `@embedpdf/models`.
+const UNDERLINE_SUBTYPE: u8 = 10;
 /// `HIGHLIGHT_OPACITY` from `src/lib/pdf/highlight/palette.ts`.
 const HIGHLIGHT_OPACITY: f32 = 0.4;
+/// Underlines are a stroke, not a translucent fill. Matches `migrate-marks.ts`.
+const UNDERLINE_OPACITY: f32 = 1.0;
 
 /// `HIGHLIGHT_HEX` from `src/lib/pdf/highlight/palette.ts`. Drifting from that
 /// table makes CLI highlights render in a color the picker cannot round-trip.
@@ -165,32 +169,75 @@ pub fn highlight_item(
 ) -> Result<Value, AppError> {
     let hex = highlight_hex(color)
         .ok_or_else(|| AppError::message(format!("unknown highlight color '{color}'")))?;
-    let segments: Vec<Value> = hit
-        .rects
-        .iter()
-        .map(|r| point_rect(r, hit.page_width, hit.page_height))
-        .collect();
-    let bounds = union_rect(&hit.rects).unwrap_or(NormRect {
+    let rects = if hit.rects.is_empty() {
+        vec![NormRect {
+            x: 0.0,
+            y: 0.0,
+            w: 1.0,
+            h: 1.0,
+        }]
+    } else {
+        hit.rects.clone()
+    };
+    Ok(text_markup_item(
+        id,
+        hit.page.saturating_sub(1),
+        &rects,
+        hit.page_width,
+        hit.page_height,
+        false,
+        quote,
+        hex,
+        color,
+        comment,
+        created_iso,
+    ))
+}
+
+/// Highlight or underline in the viewer's transfer format.
+///
+/// `stroke_hex` is what gets painted. `palette_key` is one of the desktop
+/// swatch names so the color picker can round-trip a Zotero color that is
+/// only near a swatch.
+#[allow(clippy::too_many_arguments)]
+pub fn text_markup_item(
+    id: &str,
+    page_index: u32,
+    rects: &[NormRect],
+    page_width: f32,
+    page_height: f32,
+    underline: bool,
+    quote: &str,
+    stroke_hex: &str,
+    palette_key: &str,
+    comment: Option<&str>,
+    created_iso: &str,
+) -> Value {
+    let bounds = union_rect(rects).unwrap_or(NormRect {
         x: 0.0,
         y: 0.0,
         w: 1.0,
         h: 1.0,
     });
+    let segments: Vec<Value> = rects
+        .iter()
+        .map(|r| point_rect(r, page_width, page_height))
+        .collect();
     let mut anno = json!({
-        "type": HIGHLIGHT_SUBTYPE,
+        "type": if underline { UNDERLINE_SUBTYPE } else { HIGHLIGHT_SUBTYPE },
         "id": id,
-        "pageIndex": hit.page.saturating_sub(1),
-        "rect": point_rect(&bounds, hit.page_width, hit.page_height),
+        "pageIndex": page_index,
+        "rect": point_rect(&bounds, page_width, page_height),
         "segmentRects": segments,
-        "strokeColor": hex,
-        "opacity": HIGHLIGHT_OPACITY,
+        "strokeColor": stroke_hex,
+        "opacity": if underline { UNDERLINE_OPACITY } else { HIGHLIGHT_OPACITY },
         "created": created_iso,
-        "custom": { "app": "agentero", "paletteKey": color, "quote": quote },
+        "custom": { "app": "agentero", "paletteKey": palette_key, "quote": quote },
     });
     if let Some(text) = comment.map(str::trim).filter(|s| !s.is_empty()) {
         anno["contents"] = json!(text);
     }
-    Ok(json!({ "annotation": anno }))
+    json!({ "annotation": anno })
 }
 
 fn point_rect(r: &NormRect, page_width: f32, page_height: f32) -> Value {

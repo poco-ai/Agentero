@@ -5,8 +5,7 @@
  * cluster — never the width of the row that the returned count feeds into
  * (e.g. the flex-1 action container). A count derived from the layout it
  * produces re-triggers the ResizeObserver that produced it, so the buttons
- * collapse and expand forever while the pointer sits still
- * (see `docs/frontend/markdown.md`).
+ * collapse and expand forever while the pointer sits still.
  *
  * Room for the overflow trigger is reserved only when something is actually
  * hidden, so a toolbar that fits everything keeps the full width.

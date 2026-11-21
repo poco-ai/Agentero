@@ -6,7 +6,7 @@ mod acp_live {
     use crate::features::agent::registry::discovery::resolve_command;
     use crate::features::agent::registry::templates::{catalog_templates, interactive_cli};
     use crate::features::agent::AgentRegistry;
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         PermissionOption, PermissionOptionId, PermissionOptionKind, RequestPermissionOutcome,
         RequestPermissionRequest, ToolCallUpdate, ToolCallUpdateFields,
     };
@@ -20,6 +20,7 @@ mod acp_live {
         args: Vec<String>,
     ) -> AgentDescriptor {
         AgentDescriptor {
+            supports_shell: false,
             id: id.into(),
             name: name.into(),
             template,
@@ -333,7 +334,9 @@ mod acp_live {
         let vault = std::env::current_dir().expect("cwd");
         let cwd =
             crate::features::agent::acp::client::agent_spawn_cwd(None, vault.to_str()).unwrap();
-        let result = list_acp_sessions(&d, cwd.clone(), None, None)
+        let queries =
+            std::sync::Arc::new(crate::features::agent::session::query::AgentQueryPool::new());
+        let result = list_acp_sessions(&queries, &d, cwd.clone(), None, None)
             .await
             .expect("session/list must succeed");
         assert!(result.supported, "codex-acp advertises session.list");

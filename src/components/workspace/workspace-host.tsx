@@ -42,6 +42,7 @@ import { renameWikiHeadingAction } from "@/lib/wiki/actions";
 import {
 	closePlazaTabs,
 	closeTab,
+	closeTranslationTab,
 	compileTexOnManualSave,
 	ensureLibraryTabPresent,
 	handleActivePanelChange,
@@ -49,7 +50,6 @@ import {
 	openTab,
 	openTabNotes,
 	openTranslationTab,
-	persistExcalidrawFile,
 	persistFile,
 	persistTextFile,
 	rehydrateMisclassifiedPaperTabs,
@@ -57,6 +57,7 @@ import {
 import { registerDockHandle } from "@/lib/workspace/dock-registry";
 import { evictPdfBuffers, nextPdfLru } from "@/lib/workspace/pdf-retention";
 import {
+	currentWindowLabel,
 	setDockLayout,
 	setEditorLru,
 	setPdfLru,
@@ -66,7 +67,8 @@ import {
 } from "@/lib/workspace/store";
 import {
 	applyMarkdownConflictChoice,
-	savePersistedTabs,
+	saveWorkspaceLayout,
+	shouldWritePersistedLayout,
 } from "@/lib/workspace/tabs";
 import { viewerModeSpec } from "@/lib/workspace/viewer";
 
@@ -273,9 +275,13 @@ export function WorkspaceHost() {
 	}, [vaultPath, hasLibraryTab]);
 
 	// Layout alone is persisted (panels + order + active + path/mode in params).
+	// The key is this window's label plus the open vault, so two main windows
+	// do not overwrite each other.
 	useEffect(() => {
-		savePersistedTabs(dockLayout);
-	}, [dockLayout]);
+		if (!vaultPath) return;
+		if (!shouldWritePersistedLayout(dockLayout)) return;
+		saveWorkspaceLayout(currentWindowLabel(), vaultPath, dockLayout);
+	}, [dockLayout, vaultPath]);
 
 	// Domain callbacks pinned with useCallback so the per-domain prop objects
 	// below keep their identity across host re-renders.
@@ -362,15 +368,9 @@ export function WorkspaceHost() {
 			onAsksChange: setTabAsks,
 			onVisualTracesChange: setTabVisualTraces,
 			onOpenTranslationTab: openTranslationTab,
+			onCloseTranslationTab: closeTranslationTab,
 		}),
 		[handleOpenSettings],
-	);
-	const excalidrawProps = useMemo(
-		() => ({
-			onPersistFile: persistExcalidrawFile,
-			onTabPatch: updateTab,
-		}),
-		[],
 	);
 	const textProps = useMemo(
 		() => ({
@@ -387,7 +387,6 @@ export function WorkspaceHost() {
 			library: libraryProps,
 			editor: editorProps,
 			pdf: pdfProps,
-			excalidraw: excalidrawProps,
 			text: textProps,
 			onTrashChanged: handleTrashReload,
 			trashReloadSignal,
@@ -397,7 +396,6 @@ export function WorkspaceHost() {
 			libraryProps,
 			editorProps,
 			pdfProps,
-			excalidrawProps,
 			textProps,
 			handleTrashReload,
 			trashReloadSignal,

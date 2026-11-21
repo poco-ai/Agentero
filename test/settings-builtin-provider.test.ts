@@ -71,13 +71,13 @@ describe("built-in provider id", () => {
 		// hides the dot when `builtin_provider_status` reports unavailable).
 		expect("agentero" in result).toBe(true);
 		expect(result.agentero).toBe(false);
-		expect(result.google).toBe(false);
+		expect(result.tencenttransmart).toBe(false);
 	});
 });
 
 describe("defaults (browser-dev, no Host key)", () => {
 	it("keeps translate provider and parser backend off the built-in", () => {
-		expect(DEFAULT_TRANSLATE_SETTINGS.provider).toBe("tencenttransmart");
+		expect(DEFAULT_TRANSLATE_SETTINGS.provider).toBe("indextranslate2b");
 		expect(DEFAULT_LAYOUT_SETTINGS.backend).toBe("local");
 		expect(DEFAULT_LAYOUT_SETTINGS.parserBackend).toBe("local");
 	});

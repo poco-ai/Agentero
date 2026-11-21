@@ -9,13 +9,13 @@ import { FileText, Folder, FolderOpen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
+import { FileTreeDisclosureIcon } from "@/components/sidebar/file-tree/file-tree-primitives";
 import {
 	FILE_TREE_ROW_SELECTED_STATE,
 	FILE_TREE_ROW_STATE,
-	FileTreeDisclosureIcon,
 	TREE_ROW_INDENT_STEP_PX,
 	TREE_ROW_INSET_PX,
-} from "@/components/sidebar/file-tree/file-tree-primitives";
+} from "@/components/sidebar/tree-row-styles";
 import { Button } from "@/components/ui/button";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import {

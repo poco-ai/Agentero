@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { remarkObsidianCallout } from "@/lib/markdown/callout";
 import { remarkColumns } from "@/lib/markdown/columns";
+import { remarkHighlightMark } from "@/lib/markdown/highlight";
 import { remarkPreserveHtml } from "@/lib/markdown/html";
 import { remarkImageGroup } from "@/lib/markdown/image-group";
 import { remarkResearchTable } from "@/lib/research-table/markdown";
@@ -18,6 +19,7 @@ import { remarkWikiLinkLiteralPaths } from "@/lib/wiki/wikilink-model";
 export const MARKDOWN_REMARK_PLUGINS = [
 	remarkMath,
 	remarkGfm,
+	remarkHighlightMark,
 	[wikiLink, { aliasDivider: "|" }],
 	// After flowershow: keep vault `_` paths literal (no `\_` on save).
 	remarkWikiLinkLiteralPaths,
@@ -62,6 +64,10 @@ export function selectMarkdownRemarkPluginsForDeserialize(
 	const plugins: unknown[] = [];
 	if (hasMath) plugins.push(remarkMath);
 	plugins.push(remarkGfm);
+	// `==文字==` highlight (#1168/#1170). Skipped for documents without `==`:
+	// the scanner is a cheap text-node walk, but the guard keeps plain notes on
+	// the same minimal pipeline.
+	if (source.includes("==")) plugins.push(remarkHighlightMark);
 	if (hasWiki) {
 		plugins.push([wikiLink, { aliasDivider: "|" }]);
 		plugins.push(remarkWikiLinkLiteralPaths);

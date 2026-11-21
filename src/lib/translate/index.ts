@@ -1,7 +1,10 @@
 export { ERR_TRANSLATE_NO_BUILTIN_KEY } from "@/lib/translate/api";
 export {
 	displayTranslateError,
+	isTranslateIncomplete,
+	isTranslateTimeout,
 	isTranslateTransportError,
+	isTranslateUpstreamError,
 } from "@/lib/translate/errors";
 export {
 	langsFromSettings,
@@ -23,7 +26,6 @@ export type { TranslateTemplateIssue } from "@/lib/translate/prompt";
 export {
 	buildTranslateMessages,
 	buildTranslatePrompt,
-	classifyTranslateQuery,
 	DEFAULT_TRANSLATE_PROMPT_TEMPLATE,
 	fillTranslateTextPlaceholder,
 	hasNumberedMarkers,

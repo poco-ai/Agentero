@@ -66,14 +66,13 @@ import {
 	persistTextFile,
 } from "@/lib/workspace/actions";
 import { workspaceStore } from "@/lib/workspace/store";
-import { createPlaceholderTab, tabIdForPath } from "@/lib/workspace/tabs";
+import { createPlaceholderTab } from "@/lib/workspace/tabs";
 import { texCompileStore } from "@/lib/workspace/tex-compile";
 import { texPdfPath } from "@/lib/workspace/viewer";
 
 const VAULT = "/Users/philfan/l/paper";
 const TEX_PATH = `${VAULT}/plans/a.tex`;
 const PDF_PATH = texPdfPath(TEX_PATH);
-const PDF_ID = tabIdForPath(PDF_PATH);
 // Disk snapshot returned by readVaultFile; passed as `lastSaved` so the
 // conflict guard sees an unchanged file and lets the save through.
 const SEED = "seed-on-disk";
@@ -95,7 +94,7 @@ function seedPdfPane(): ArrayBuffer {
 }
 
 function pdfTab() {
-	return workspaceStore.getState().tabs.find((t) => t.id === PDF_ID);
+	return workspaceStore.getState().tabs.find((tab) => tab.path === PDF_PATH);
 }
 
 beforeEach(() => {

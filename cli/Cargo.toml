@@ -1,6 +1,6 @@
 [package]
 name = "agentero-cli"
-version = "0.15.5"
+version = "0.17.0"
 edition = "2021"
 description = "Headless Agentero CLI for Vault / Catalog (no BYOA)"
 authors = ["you"]
@@ -27,8 +27,12 @@ tempfile = { workspace = true }
 toml = "0.8"
 # Interactive prompts (TTY only; skipped under --json / non-TTY)
 inquire = "0.7"
+keyring = "4.2"
 log = { workspace = true }
 env_logger = "0.11"
+
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 assert_cmd = "2"

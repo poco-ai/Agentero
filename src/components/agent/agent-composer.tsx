@@ -37,11 +37,16 @@ import {
 	PromptInputBody,
 	PromptInputFooter,
 	PromptInputTools,
+	usePromptInputAttachments,
 } from "@/components/agent/composer/prompt-input";
 import { useComposerFileDrag } from "@/components/agent/hooks/use-composer-file-drag";
 import type { QueuedPrompt } from "@/components/agent/types";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import type { AgentSkill, PromptImage } from "@/lib/agent";
+import {
+	useAgentSessionScope,
+	useAgentSessionStore,
+} from "@/lib/agent/agent-session-store";
 import { annotationOrdinal } from "@/lib/agent/annotation-prompt";
 import {
 	extractMentionPaths,
@@ -53,16 +58,61 @@ import {
 	COMPOSER_IMAGE_MAX_BYTES,
 	COMPOSER_IMAGE_MAX_FILES,
 	fileUiPartsToPromptImages,
+	fileUiPartToPromptImage,
+	promptImageToFile,
 } from "@/lib/agent/prompt-image";
 import type { AcpCommand } from "@/lib/agent/slash-commands";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
+import { registerAgentHandoffReaders } from "@/lib/shell/workspace-broadcast";
+
+/** Copies live attachments into the handoff snapshot (blob URLs die with this webview). */
+function PublishHandoffImages() {
+	const attachments = usePromptInputAttachments();
+	const { scopeId } = useAgentSessionScope();
+	const filesRef = useRef(attachments.files);
+	filesRef.current = attachments.files;
+	useEffect(() => {
+		if (scopeId !== null) return;
+		registerAgentHandoffReaders({
+			images: async () => {
+				const images: PromptImage[] = [];
+				for (const file of filesRef.current) {
+					const image = await fileUiPartToPromptImage(file);
+					if (image) images.push(image);
+				}
+				return images;
+			},
+		});
+	}, [scopeId]);
+	return null;
+}
+
+/** Restores snapshot images into this webview's composer. */
+function SeedHandoffImages() {
+	const attachments = usePromptInputAttachments();
+	const { scopeId } = useAgentSessionScope();
+	const images = useAgentSessionStore((s) => s.handoff?.images);
+	const deliveryId = useAgentSessionStore((s) => s.handoff?.deliveryId);
+	const seededRef = useRef<string | null>(null);
+	useEffect(() => {
+		if (scopeId !== null || !deliveryId || !images?.length) return;
+		if (seededRef.current === deliveryId) return;
+		seededRef.current = deliveryId;
+		attachments.add(
+			images.map((image, index) => promptImageToFile(image, index)),
+		);
+	}, [attachments, deliveryId, images, scopeId]);
+	return null;
+}
 
 export type AgentComposerProps = {
 	autoFocus: boolean;
 	heightPx?: number;
 	compact?: boolean;
+	/** Full-page surface: extra horizontal inset around the input shell. */
+	wide?: boolean;
 	activeTabIsRunning: boolean;
 	switching: boolean;
 	submitting: boolean;
@@ -121,6 +171,7 @@ export function AgentComposer(props: AgentComposerProps) {
 		autoFocus,
 		heightPx,
 		compact = false,
+		wide = false,
 		activeTabIsRunning,
 		switching,
 		submitting,
@@ -261,7 +312,8 @@ export function AgentComposer(props: AgentComposerProps) {
 				// Keep the same horizontal inset and bottom gap in both modes so
 				// the InputGroup width / distance to the panel bottom do not jump
 				// when crossing the compact height threshold.
-				"flex shrink-0 flex-col border-t bg-muted/10 px-3 pb-3",
+				"flex shrink-0 flex-col border-t bg-muted/10 pb-3",
+				wide ? "px-5 lg:px-10" : "px-3",
 				compact ? "gap-1 pt-2" : "gap-2 pt-3",
 			)}
 		>
@@ -364,12 +416,15 @@ export function AgentComposer(props: AgentComposerProps) {
 							await onSubmit(composerText, images.length ? images : undefined);
 						}}
 					>
+						<PublishHandoffImages />
+						<SeedHandoffImages />
 						<ComposerAnnotations
 							value={composerText}
-							onChange={onComposerTextChange}
 							hover={selectionHover}
 							onHoverHold={holdReferenceHover}
 							onHoverRelease={releaseReferenceHover}
+							labelForPath={props.labelForPath}
+							paperPaths={props.paperPathSet}
 						/>
 						<PromptInputBody>
 							<Popover

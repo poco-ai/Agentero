@@ -1,7 +1,7 @@
 export type SettingsSection =
 	| "account"
-	| "plugins"
 	| "general"
+	| "activity"
 	| "appearance"
 	| "agent"
 	| "translate"

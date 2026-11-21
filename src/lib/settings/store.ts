@@ -8,6 +8,10 @@ import {
 import { callApi } from "@/lib/core/ipc";
 import { isTauri } from "@/lib/core/tauri";
 import {
+	DEFAULT_EASY_SCHOLAR_RANKS,
+	normalizeEasyScholarRanks,
+} from "@/lib/paper/easy-scholar-ranks";
+import {
 	isPaperTreeLabelMode,
 	isPaperTreeSortMode,
 } from "@/lib/paper/tree-modes";
@@ -30,6 +34,9 @@ import {
 	DEFAULT_PAPER_READER_SETTINGS,
 	DEFAULT_PDF_ASK_SETTINGS,
 	DEFAULT_SETTINGS,
+	SMART_HIGHLIGHT_CONCURRENCY_CHOICES,
+	SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+	SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
 	snapUiScale,
 } from "@/lib/settings/defaults";
 import { normalizeFontFamilyValue } from "@/lib/settings/fonts";
@@ -45,25 +52,25 @@ import {
 	isPaperNoteMode,
 	isPdfScrollStrategy,
 	isPdfSpreadMode,
+	isPdfTranslateTabMode,
 	LIBRARY_COLUMN_KEYS,
 	type LibraryColumnKey,
 	type LibraryColumnPref,
 	type PaperReaderSettings,
 	type PdfAskSettings,
 } from "@/lib/settings/types";
-import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
+import {
+	DEFAULT_TRANSLATE_SETTINGS,
+	normalizeTranslateConcurrency,
+} from "@/lib/translate/defaults";
 import { stripUnknownTranslatePlaceholders } from "@/lib/translate/prompt";
 import {
 	isCommercialTranslateProvider,
 	isTranslateProviderId,
 } from "@/lib/translate/services";
-import {
-	DUAL_PANE_SOURCES,
-	type DualPaneSource,
-	TRANSLATION_DISPLAY_MODES,
-	type TranslateSettings,
-	type TranslateTargetLang,
-	type TranslationDisplayMode,
+import type {
+	TranslateSettings,
+	TranslateTargetLang,
 } from "@/lib/translate/types";
 import { isKnownUiTheme } from "@/lib/ui/theme";
 
@@ -106,6 +113,7 @@ function cloneSettings(s: AppSettings): AppSettings {
 		...s,
 		shortcutOverrides: normalizeShortcutOverrides(s.shortcutOverrides),
 		libraryColumns: s.libraryColumns.map((c) => ({ ...c })),
+		easyScholarRanks: [...s.easyScholarRanks],
 		pdfAsk: { ...s.pdfAsk },
 		paperReader: { ...s.paperReader },
 		embedding: { ...s.embedding },
@@ -148,7 +156,7 @@ export async function ensureSettingsLoaded(): Promise<AppSettings> {
 					const legacy = readLegacyLocalStorage();
 					if (legacy) {
 						next = normalizeSettings(legacy);
-						await persistToHost(next);
+						await queueSave(next);
 					}
 				}
 				// Drop dual-source: file is authoritative after first load.
@@ -179,9 +187,31 @@ export function saveSettings(settings: AppSettings): void {
 	const next = normalizeSettings(settings);
 	applyExternalSettings(next);
 	if (!isTauri()) return;
-	void persistToHost(next).catch((e) => {
+	void queueSave(next).catch((e) => {
 		console.warn("[settings] save failed", e);
 	});
+}
+
+/**
+ * Host writes run one at a time.
+ *
+ * `settings_set` is `async` so the WebView2 UI thread never blocks on the
+ * `settings.json` write and the subscriber fan-out. Async means two saves can
+ * overlap, and each one persists a whole snapshot: without a queue an older
+ * snapshot can win the race and drop the user's newest edit. Chaining keeps the
+ * old synchronous ordering without blocking the UI thread.
+ */
+let saveQueue: Promise<unknown> = Promise.resolve();
+let enqueuedSaves = 0;
+
+function queueSave(settings: AppSettings): Promise<AppSettings> {
+	const token = ++enqueuedSaves;
+	const run = saveQueue.then(() => persistToHost(settings, token));
+	saveQueue = run.then(
+		() => undefined,
+		() => undefined,
+	);
+	return run;
 }
 
 type SettingsListener = (settings: AppSettings) => void;
@@ -249,15 +279,21 @@ export async function saveSettingsAsync(
 	const next = normalizeSettings(settings);
 	applyExternalSettings(next);
 	if (!isTauri()) return loadSettings();
-	return persistToHost(next);
+	return queueSave(next);
 }
 
-async function persistToHost(settings: AppSettings): Promise<AppSettings> {
+async function persistToHost(
+	settings: AppSettings,
+	token: number,
+): Promise<AppSettings> {
 	const res = await callApi(() => commands.settingsSet(settings), {
 		fallback: "settings_set failed",
 	});
-	setCache(normalizeSettings(fromSettingsWire(res)));
-	return loadSettings();
+	const next = normalizeSettings(fromSettingsWire(res));
+	// A newer save is already queued: its optimistic snapshot is the current
+	// truth, so this response must not roll the cache back to an older value.
+	if (token === enqueuedSaves) setCache(next);
+	return token === enqueuedSaves ? loadSettings() : next;
 }
 
 function readLegacyLocalStorage(): AppSettings | null {
@@ -329,6 +365,9 @@ function normalizePartial(
 	} else {
 		merged.easyScholarKey = parsed.easyScholarKey.trim();
 	}
+	merged.easyScholarRanks = Array.isArray(parsed.easyScholarRanks)
+		? normalizeEasyScholarRanks(parsed.easyScholarRanks)
+		: [...DEFAULT_EASY_SCHOLAR_RANKS];
 	if (typeof parsed.zhihuAccessSecret !== "string") {
 		merged.zhihuAccessSecret = DEFAULT_SETTINGS.zhihuAccessSecret;
 	} else {
@@ -344,6 +383,19 @@ function normalizePartial(
 		merged.networkProxyUrl = DEFAULT_SETTINGS.networkProxyUrl;
 	} else {
 		merged.networkProxyUrl = parsed.networkProxyUrl.trim();
+	}
+	if (typeof parsed.openreviewCookie !== "string") {
+		merged.openreviewCookie = DEFAULT_SETTINGS.openreviewCookie;
+	} else {
+		merged.openreviewCookie = parsed.openreviewCookie.trim();
+	}
+	if (
+		typeof parsed.openreviewCookieExpiresAt !== "number" ||
+		!Number.isFinite(parsed.openreviewCookieExpiresAt) ||
+		parsed.openreviewCookieExpiresAt < 0
+	) {
+		merged.openreviewCookieExpiresAt =
+			DEFAULT_SETTINGS.openreviewCookieExpiresAt;
 	}
 	if (!isPaperTreeLabelMode(merged.paperTreeLabelMode)) {
 		merged.paperTreeLabelMode = DEFAULT_SETTINGS.paperTreeLabelMode;
@@ -392,6 +444,9 @@ function normalizePartial(
 	}
 	if (!isPdfSpreadMode(merged.pdfSpreadMode)) {
 		merged.pdfSpreadMode = DEFAULT_SETTINGS.pdfSpreadMode;
+	}
+	if (!isPdfTranslateTabMode(merged.pdfTranslateTab)) {
+		merged.pdfTranslateTab = DEFAULT_SETTINGS.pdfTranslateTab;
 	}
 	merged.libraryColumns = normalizeLibraryColumns(merged.libraryColumns);
 	if (typeof parsed.autoPaperReader !== "boolean") {
@@ -555,6 +610,26 @@ function normalizeDecisionSettings(raw: unknown): DecisionSettings {
 	if (typeof partial.smartHighlight === "boolean") {
 		base.smartHighlight = partial.smartHighlight;
 	}
+	if (
+		typeof partial.smartHighlightConcurrency === "number" &&
+		(SMART_HIGHLIGHT_CONCURRENCY_CHOICES as readonly number[]).includes(
+			partial.smartHighlightConcurrency,
+		)
+	) {
+		base.smartHighlightConcurrency = partial.smartHighlightConcurrency;
+	}
+	if (
+		typeof partial.smartHighlightTimeoutSecs === "number" &&
+		Number.isFinite(partial.smartHighlightTimeoutSecs)
+	) {
+		base.smartHighlightTimeoutSecs = Math.min(
+			SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+			Math.max(
+				SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
+				Math.round(partial.smartHighlightTimeoutSecs),
+			),
+		);
+	}
 	const preset = DECISION_PROVIDER_PRESETS[base.provider];
 	const baseUrl =
 		typeof partial.baseUrl === "string"
@@ -705,6 +780,14 @@ function normalizeTranslateSettings(
 	if (raw.targetLang && isTranslateTargetLang(raw.targetLang)) {
 		base.targetLang = raw.targetLang;
 	}
+	const dictionaryMode = raw.dictionary?.mode;
+	if (
+		dictionaryMode === "auto" ||
+		dictionaryMode === "offline-first" ||
+		dictionaryMode === "off"
+	) {
+		base.dictionary = { mode: dictionaryMode };
+	}
 	if (raw.sourceLang === "auto") {
 		base.sourceLang = "auto";
 	}
@@ -713,27 +796,6 @@ function normalizeTranslateSettings(
 	);
 	if (typeof raw.autoTranslateSelection === "boolean") {
 		base.autoTranslateSelection = raw.autoTranslateSelection;
-	}
-	// Migrate legacy dualPaneTranslate boolean to the new displayMode pair.
-	const legacyDualPane = (raw as { dualPaneTranslate?: boolean })
-		.dualPaneTranslate;
-	if (typeof legacyDualPane === "boolean") {
-		base.displayMode = legacyDualPane ? "dualPane" : "overlay";
-		base.dualPaneSource = "pdf";
-	}
-	if (
-		raw.displayMode &&
-		TRANSLATION_DISPLAY_MODES.includes(
-			raw.displayMode as TranslationDisplayMode,
-		)
-	) {
-		base.displayMode = raw.displayMode as TranslationDisplayMode;
-	}
-	if (
-		raw.dualPaneSource &&
-		DUAL_PANE_SOURCES.includes(raw.dualPaneSource as DualPaneSource)
-	) {
-		base.dualPaneSource = raw.dualPaneSource as DualPaneSource;
 	}
 	if (typeof raw.agentId === "string") {
 		base.agentId = raw.agentId.trim();
@@ -767,6 +829,9 @@ function normalizeTranslateSettings(
 	) {
 		base.autoTranslateImportConcurrency = raw.autoTranslateImportConcurrency;
 	}
+	if (typeof raw.alwaysShowTranslateCard === "boolean") {
+		base.alwaysShowTranslateCard = raw.alwaysShowTranslateCard;
+	}
 	return base;
 }
 
@@ -789,6 +854,7 @@ function normalizeTranslateProviderConfigs(
 			region?: unknown;
 			model?: unknown;
 			extraRequestBody?: unknown;
+			concurrency?: unknown;
 		};
 		out[id] = {
 			apiKey: typeof cfg.apiKey === "string" ? cfg.apiKey.trim() : "",
@@ -802,6 +868,7 @@ function normalizeTranslateProviderConfigs(
 				typeof cfg.extraRequestBody === "string"
 					? cfg.extraRequestBody.trim()
 					: "",
+			concurrency: normalizeTranslateConcurrency(cfg.concurrency),
 		};
 	}
 	return out;

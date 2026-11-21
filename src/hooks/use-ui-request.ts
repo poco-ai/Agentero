@@ -17,8 +17,8 @@ import { listenEventSafe } from "@/lib/core/tauri-events";
 import { openLocalVaultPath } from "@/lib/vault/actions";
 import { joinVaultPath } from "@/lib/vault/path";
 import { vaultStore } from "@/lib/vault/store";
-import { getActiveTabId } from "@/lib/workspace/store";
-import { type SplitDirection, tabIdForPath } from "@/lib/workspace/tabs";
+import { getActiveTabId, getTabs } from "@/lib/workspace/store";
+import { findCanonicalTab, type SplitDirection } from "@/lib/workspace/tabs";
 
 const SPLIT_DIRECTIONS: readonly SplitDirection[] = [
 	"left",
@@ -115,8 +115,11 @@ async function dispatch(payload: UiRequestPayload): Promise<void> {
 				return;
 			}
 			const reference = payload.reference?.trim();
+			const referencePath = reference
+				? joinVaultPath(vaultPath, reference)
+				: "";
 			const referencePanelId = reference
-				? tabIdForPath(joinVaultPath(vaultPath, reference))
+				? (findCanonicalTab(getTabs(), referencePath)?.id ?? null)
 				: getActiveTabId();
 			openTab(joinVaultPath(vaultPath, rel), {
 				placement: {

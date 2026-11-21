@@ -11,14 +11,16 @@ use crate::features::agent::acp::terminal::AcpTerminalManager;
 use crate::features::agent::acp::updates::{
     collaboration_from_config_options, effort_from_config_options, emit_rich_session_update,
     emit_session_config_options, fast_mode_value_to_set, is_fast_option, is_pi_startup_banner,
-    models_from_config_options, stream_from_update,
+    models_from_config_options, should_drop_codex_instruction_warning, stream_from_update,
+    ToolOutputAccumulator,
 };
 use crate::features::agent::context_turn::{
     insert_context_block, insert_resume_transcript, prepare_context,
 };
+use crate::features::agent::hosted_turn::{HostedTurn, TurnLease};
 use crate::features::agent::models::{
-    AgentDescriptor, AgentFailedEvent, AgentResultPayload, AgentStatusEvent, AgentStreamEvent,
-    AgentStreamKind, AgentTemplate, PromptImage,
+    is_builtin_template, AgentDescriptor, AgentFailedEvent, AgentResultPayload, AgentStatusEvent,
+    AgentStreamEvent, AgentStreamKind, AgentTemplate, PromptImage,
 };
 use crate::features::agent::prompt::envelope::build_prompt;
 use crate::features::agent::prompt::skills::{
@@ -27,18 +29,18 @@ use crate::features::agent::prompt::skills::{
 use crate::features::agent::runtime::events::AgentEventEmitter;
 use crate::features::agent::runtime::gates::{AskUserGate, ElicitationGate, PermissionGate};
 use crate::features::agent::runtime::stream::{StreamCoalescer, STREAM_COALESCE_WINDOW};
-use crate::features::agent::session::config::RunPreferences;
+use crate::features::agent::session::config::{apply_model_preference, ModelApply, RunPreferences};
 use crate::features::agent::session::handlers::{
     agentero_turn_builder, clear_turn, install_turn, new_registry, ActiveTurn, TurnRegistry,
 };
 use crate::features::agent::session::pool::{pool_key, AgentWarmPool, PooledSlot};
 use crate::features::agent::session::warm::discard_unprompted_session;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     CancelNotification, ContentBlock, ImageContent, LoadSessionRequest, NewSessionRequest,
     PromptRequest, ResumeSessionRequest, SessionConfigId, SessionConfigOptionValue, SessionId,
     SessionNotification, SessionUpdate, SetSessionConfigOptionRequest, TextContent,
 };
-use agent_client_protocol::{Agent, ConnectionTo};
+use agent_client_protocol::{v1::ConnectionTo, Agent};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -60,6 +62,9 @@ pub struct RunOnceParams {
     pub target: Option<String>,
     pub vault_path: Option<String>,
     pub preferred_model_id: Option<String>,
+    /// Explicit user pick: send one `set_config_option` even when the agent
+    /// reports the same model as current (Fix #1087).
+    pub force_model: bool,
     pub preferred_collaboration_mode_id: Option<String>,
     pub preferred_reasoning_effort: Option<String>,
     pub prefer_highest_reasoning_effort: bool,
@@ -82,7 +87,6 @@ pub struct RunOnceParams {
     /// resume `resume_session_id`, so the new session still sees the conversation.
     pub resume_transcript: Option<String>,
     /// Stdio MCP servers attached on a local session, besides research context.
-    pub delegate_mcp: Vec<agent_client_protocol::schema::v1::McpServer>,
     /// Remote-target hint inserted before the user request. Empty when none are connected.
     pub delegate_hint: Option<String>,
     /// Keep the answer in `progress` and do not emit chat transcript events.
@@ -107,13 +111,14 @@ struct RunTurnPrep {
     full_prompt: String,
     prompt_images: Vec<PromptImage>,
     cwd: PathBuf,
-    mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+    mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     /// Provider session to continue after the context fingerprint check.
     resume_session_id: Option<String>,
     context_fingerprint: Option<String>,
-    context_usage: Option<PathBuf>,
+    prefetched_sources: Vec<String>,
     context_vault: Option<PathBuf>,
     skip_warm_pool: bool,
+    turn: Option<Arc<TurnLease>>,
 }
 
 /// Everything the connection turn needs beyond the shared state.
@@ -123,7 +128,7 @@ struct RunTurnInput {
     cwd: PathBuf,
     /// Provider session id to continue (resume/load) instead of `session/new`.
     resume_session_id: Option<String>,
-    mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+    mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     preferences: RunPreferences,
 }
 
@@ -131,7 +136,7 @@ struct RunTurnInput {
 #[derive(Clone)]
 struct ConnectedSession {
     acp_session_id: SessionId,
-    config_options: Vec<agent_client_protocol::schema::v1::SessionConfigOption>,
+    config_options: Vec<agent_client_protocol::v1::schema::SessionConfigOption>,
     /// Resolved provider resume id when continuing an earlier session
     /// (drives the history-replay buffer clear before the prompt).
     resume_id: Option<String>,
@@ -242,11 +247,22 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
             skill_instructions
         )
     };
+    let cli = if params.remote.is_none()
+        && !params.is_acp_command
+        && params.vault_path.is_some()
+        && !params.suppress_transcript
+        && !is_builtin_template(&params.desc.template)
+        && (params.desc.template != AgentTemplate::Custom || params.desc.supports_shell)
+    {
+        crate::features::cli_install::turn_cli(params.app.app_handle())
+    } else {
+        None
+    };
     let prepared = if params.is_acp_command {
         prepare_context(
             &params.session_id,
             None,
-            true,
+            None,
             None,
             params.resume_session_id.clone(),
         )
@@ -254,12 +270,34 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         prepare_context(
             &params.session_id,
             params.vault_path.as_deref(),
-            params.remote.is_some(),
+            cli.as_deref(),
             params.context.as_ref(),
             params.resume_session_id.clone(),
         )
     };
     let mut full_prompt = insert_context_block(&full_prompt, &prepared.block);
+    let turn = if let (Some(exe), Some(vault)) = (cli.as_ref(), params.vault_path.as_deref()) {
+        let lease = HostedTurn::begin(
+            Path::new(vault),
+            params.app.window_binding(),
+            params.cancellation.clone(),
+            prepared.grant,
+        );
+        let binding = if lease.0.grant.is_some() {
+            agentero_core::features::context::CLI_GRANT_ENV
+        } else {
+            agentero_core::features::context::TURN_ENV
+        };
+        let instruction = format!(
+            "Use the CLI at {}. Keep {binding} set to {} when invoking this executable from an isolated shell. \
+             After writing a requested deliverable under this vault, call `app present FILE`. Keep the handle private.\n{}{}",
+            exe.display(), lease.0.token, super::receipts::MARKER, params.message_id
+        );
+        full_prompt = insert_context_block(&full_prompt, &instruction);
+        Some(lease)
+    } else {
+        None
+    };
     if let Some(hint) = params
         .delegate_hint
         .as_deref()
@@ -286,8 +324,7 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
             return Err(error);
         }
     };
-    let mut mcp_servers = prepared.mcp_servers;
-    mcp_servers.extend(params.delegate_mcp.clone());
+    let mcp_servers = Vec::new();
     Ok(RunTurnPrep {
         full_prompt,
         prompt_images,
@@ -295,7 +332,8 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         mcp_servers,
         resume_session_id: prepared.resume_session_id,
         context_fingerprint: prepared.fingerprint,
-        context_usage: prepared.usage_path,
+        prefetched_sources: prepared.prefetched_sources,
+        turn,
         context_vault: prepared.vault,
         skip_warm_pool: prepared.skip_warm_pool,
     })
@@ -311,6 +349,9 @@ pub(crate) struct RunOnceContext {
     agent_id: String,
     /// pi-acp forwards a CLI startup banner that must be dropped from the stream.
     is_pi: bool,
+    /// codex-acp forwards instruction warnings as assistant text when the
+    /// client has not negotiated a typed notice.
+    is_codex: bool,
     content_buf: Arc<Mutex<String>>,
     thought_buf: Arc<Mutex<String>>,
     coalescer: StreamCoalescer,
@@ -322,15 +363,20 @@ pub(crate) struct RunOnceContext {
     /// leaves this false so an unused warm session stays hidden.
     prompt_sent: Arc<AtomicBool>,
     stop_reason: Arc<Mutex<Option<String>>>,
+    tool_outputs: Arc<Mutex<ToolOutputAccumulator>>,
     /// Terminal capability: headless command execution on behalf of the agent.
     terminals: Arc<tokio::sync::Mutex<AcpTerminalManager>>,
     context_fingerprint: Option<String>,
-    context_usage: Option<PathBuf>,
+    prefetched_sources: Vec<String>,
     context_vault: Option<PathBuf>,
+    turn: Option<Arc<HostedTurn>>,
     suppress_transcript: bool,
     pub(crate) permission_host: Option<String>,
     progress: Option<Arc<Mutex<String>>>,
     pub(crate) user_wait: Option<Arc<DelegateUserWait>>,
+    workflow: String,
+    vault_path: Option<String>,
+    target: Option<String>,
 }
 
 impl RunOnceContext {
@@ -361,26 +407,37 @@ impl RunOnceContext {
             message_id: params.message_id.clone(),
             agent_id: params.desc.id.clone(),
             is_pi: matches!(params.desc.template, AgentTemplate::Pi),
+            is_codex: matches!(params.desc.template, AgentTemplate::CodexAcp),
             content_buf: Arc::new(Mutex::new(String::new())),
             thought_buf: Arc::new(Mutex::new(String::new())),
             coalescer,
             live_stream: Arc::new(AtomicBool::new(params.resume_session_id.is_none())),
             prompt_sent: Arc::new(AtomicBool::new(false)),
             stop_reason: Arc::new(Mutex::new(None)),
+            tool_outputs: Arc::new(Mutex::new(ToolOutputAccumulator::default())),
             terminals: acp_terminals(Some(cwd)),
             context_fingerprint: None,
-            context_usage: None,
+            prefetched_sources: Vec::new(),
             context_vault: None,
+            turn: None,
             suppress_transcript: params.suppress_transcript,
             permission_host: params.permission_host.clone(),
             progress: params.progress.clone(),
             user_wait: params.user_wait.clone(),
+            workflow: params
+                .workflow
+                .clone()
+                .filter(|workflow| !workflow.trim().is_empty())
+                .unwrap_or_else(|| "free".to_string()),
+            vault_path: params.vault_path.clone(),
+            target: params.target.clone(),
         }
     }
 
     fn bind_context(&mut self, prep: &RunTurnPrep) {
         self.context_fingerprint = prep.context_fingerprint.clone();
-        self.context_usage = prep.context_usage.clone();
+        self.prefetched_sources = prep.prefetched_sources.clone();
+        self.turn = prep.turn.as_ref().map(|lease| lease.0.clone());
         self.context_vault = prep.context_vault.clone();
         if prep.resume_session_id.is_none() {
             self.live_stream.store(true, Ordering::SeqCst);
@@ -410,12 +467,14 @@ impl RunOnceContext {
                     SessionUpdate::AvailableCommandsUpdate(_)
                     | SessionUpdate::ConfigOptionUpdate(_)
                     | SessionUpdate::UsageUpdate(_)
+                    | SessionUpdate::Notice(_)
                     | SessionUpdate::SessionInfoUpdate(_) => {
                         emit_rich_session_update(
                             &self.app,
                             &self.session_id,
                             &self.agent_id,
                             notification,
+                            Some(&self.tool_outputs),
                         );
                     }
                     _ => {}
@@ -424,14 +483,29 @@ impl RunOnceContext {
             return;
         }
         if let Some((chunk, kind)) = stream_from_update(&notification.update) {
+            let content_empty = self
+                .content_buf
+                .lock()
+                .is_ok_and(|buffer| buffer.is_empty());
             let drop_banner = self.is_pi
                 && matches!(kind, AgentStreamKind::Message)
                 && is_pi_startup_banner(&chunk)
-                && self
-                    .content_buf
-                    .lock()
-                    .is_ok_and(|buffer| buffer.is_empty());
-            if !drop_banner {
+                && content_empty;
+            let drop_codex_warning =
+                should_drop_codex_instruction_warning(self.is_codex, kind, &chunk, content_empty);
+            if drop_codex_warning {
+                log::info!(
+                    target: "agentero::agent",
+                    "codex instruction warning kept out of the transcript: {chunk}"
+                );
+                if !self.suppress_transcript {
+                    let _ = self.app.emit(
+                        "agent:status",
+                        AgentStatusEvent::codex_instruction_budget(self.session_id.as_str()),
+                    );
+                }
+            }
+            if !drop_banner && !drop_codex_warning {
                 match kind {
                     AgentStreamKind::Message => {
                         if let Ok(mut buf) = self.content_buf.lock() {
@@ -459,7 +533,13 @@ impl RunOnceContext {
             self.coalescer.flush();
         }
         if !self.suppress_transcript {
-            emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
+            emit_rich_session_update(
+                &self.app,
+                &self.session_id,
+                &self.agent_id,
+                notification,
+                Some(&self.tool_outputs),
+            );
         }
     }
 
@@ -482,8 +562,11 @@ impl RunOnceContext {
     }
 
     /// Flush buffered stream text, then emit `agent:completed` (ordered after text).
-    fn emit_completed(&self, payload: AgentResultPayload) -> AgentResultPayload {
+    fn emit_completed(&self, mut payload: AgentResultPayload) -> AgentResultPayload {
         self.coalescer.flush();
+        if let Some(turn) = &self.turn {
+            (payload.sources, payload.artifacts) = turn.receipt(&payload.content);
+        }
         if !self.suppress_transcript {
             let _ = self.app.emit("agent:completed", payload.clone());
         }
@@ -517,6 +600,7 @@ impl RunOnceContext {
             ask_user_gate,
             cancellation,
             preferred_model_id,
+            force_model,
             preferred_collaboration_mode_id,
             preferred_reasoning_effort,
             prefer_highest_reasoning_effort,
@@ -533,6 +617,7 @@ impl RunOnceContext {
             preferences: RunPreferences::for_workflow(
                 workflow.as_deref(),
                 preferred_model_id,
+                force_model,
                 preferred_collaboration_mode_id,
                 preferred_reasoning_effort,
                 prefer_highest_reasoning_effort,
@@ -661,6 +746,14 @@ impl RunOnceContext {
                 buf.clear();
             }
         }
+        if let Some(turn) = &self.turn {
+            turn.bind_history(
+                &self.agent_id,
+                &session.acp_session_id.to_string(),
+                &self.message_id,
+            )
+            .map_err(|e| PromptPhaseError::pre_prompt(acp_err(e.to_string())))?;
+        }
         self.live_stream.store(true, Ordering::SeqCst);
         self.prompt_sent.store(true, Ordering::SeqCst);
 
@@ -707,6 +800,16 @@ impl RunOnceContext {
         if let Ok(mut s) = self.stop_reason.lock() {
             *s = Some(format!("{:?}", prompt_response.stop_reason));
         }
+        if let Some(usage) = prompt_response.usage.as_ref() {
+            super::tokens::record_turn_tokens(
+                self.app.app_handle(),
+                &self.session_id,
+                self.vault_path.as_deref(),
+                self.target.as_deref(),
+                &self.workflow,
+                usage.total_tokens,
+            );
+        }
 
         Ok(self.finalize(&session_id))
     }
@@ -719,7 +822,7 @@ impl RunOnceContext {
         cancellation: &mut watch::Receiver<bool>,
         resume_session_id: Option<String>,
         cwd: &Path,
-        mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+        mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     ) -> Result<TurnPhase<ConnectedSession>, agent_client_protocol::Error> {
         let init = tokio::select! {
             result = timed_acp_initialize(
@@ -807,7 +910,7 @@ impl RunOnceContext {
         rid: &str,
         cwd: &Path,
         can_resume: bool,
-        mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
+        mcp_servers: Vec<agent_client_protocol::v1::schema::McpServer>,
     ) -> Result<TurnPhase<ConnectedSession>, agent_client_protocol::Error> {
         if can_resume {
             let resp = tokio::select! {
@@ -863,10 +966,10 @@ impl RunOnceContext {
         connection: &ConnectionTo<Agent>,
         cancellation: &mut watch::Receiver<bool>,
         acp_session_id: &SessionId,
-        mut config_options: Vec<agent_client_protocol::schema::v1::SessionConfigOption>,
+        mut config_options: Vec<agent_client_protocol::v1::schema::SessionConfigOption>,
         prefs: &RunPreferences,
     ) -> Result<
-        TurnPhase<Vec<agent_client_protocol::schema::v1::SessionConfigOption>>,
+        TurnPhase<Vec<agent_client_protocol::v1::schema::SessionConfigOption>>,
         agent_client_protocol::Error,
     > {
         macro_rules! return_cancelled {
@@ -883,37 +986,21 @@ impl RunOnceContext {
             // complete response before resolving the remaining preferences.
             // Also attempt custom / third-party model ids not in the advertised catalog
             // (gateway models, cc-switch, free-form provider ids).
-            if let Some(pref) = prefs.model_id.clone() {
-                if pref != ev.current_id {
-                    let listed = ev.models.iter().any(|m| m.id == pref);
-                    let response = tokio::select! {
-                        result = timed_acp_request(
-                            "set model",
-                            connection
-                                .send_request(SetSessionConfigOptionRequest::new(
-                                    acp_session_id.clone(),
-                                    SessionConfigId::new(ev.config_id.as_str()),
-                                    SessionConfigOptionValue::value_id(pref.clone()),
-                                ))
-                                .block_task(),
-                        ) => result,
-                        () = wait_for_cancellation(&mut *cancellation) => return_cancelled!(),
-                    };
-                    match response {
-                        Ok(response) => {
-                            config_options = response.config_options;
-                        }
-                        Err(e) => {
-                            log::debug!(
-                                target: "agentero::agent",
-                                "agent={} set model failed (listed={}): pref={} err={}",
-                                self.agent_id,
-                                listed,
-                                pref,
-                                e
-                            );
-                        }
-                    }
+            if let Some(pref) = prefs.model_id.as_deref() {
+                match apply_model_preference(
+                    connection,
+                    &self.agent_id,
+                    acp_session_id,
+                    &ev,
+                    pref,
+                    prefs.force_model,
+                    Some(&mut *cancellation),
+                )
+                .await
+                {
+                    ModelApply::Updated(options) => config_options = options,
+                    ModelApply::Unchanged => {}
+                    ModelApply::Cancelled => return_cancelled!(),
                 }
             }
         }
@@ -1015,11 +1102,6 @@ impl RunOnceContext {
                 log::warn!(target: "agentero::agent", "remember context fingerprint: {error}");
             }
         }
-        let sources = self
-            .context_usage
-            .as_deref()
-            .map(agentero_core::features::context::read_usage_uris)
-            .unwrap_or_default();
         let payload = AgentResultPayload {
             session_id: self.session_id.clone(),
             message_id: self.message_id.clone(),
@@ -1029,7 +1111,10 @@ impl RunOnceContext {
             } else {
                 Some(reasoning)
             },
-            sources,
+            prompt_only: self.context_fingerprint.is_some()
+                && self.turn.as_ref().is_none_or(|turn| turn.grant.is_none()),
+            sources: self.prefetched_sources.clone(),
+            artifacts: Vec::new(),
             stop_reason: self.stop_reason.lock().ok().and_then(|g| g.clone()),
             provider_session_id: Some(acp_session_id.to_string()),
         };
@@ -1061,6 +1146,11 @@ async fn run_on_pooled(
     let mut cancellation = params.cancellation.clone();
     let mut state =
         RunOnceContext::with_terminals(params, prep.cwd.clone(), slot.terminals.clone());
+    state.terminals.lock().await.bind_turn(
+        prep.turn
+            .as_ref()
+            .map(|t| (t.0.token.clone(), t.0.grant.is_some())),
+    );
     state.bind_context(prep);
 
     let prev = install_turn(
@@ -1158,6 +1248,7 @@ async fn run_on_pooled(
     let preferences = RunPreferences::for_workflow(
         params.workflow.as_deref(),
         params.preferred_model_id.clone(),
+        params.force_model,
         params.preferred_collaboration_mode_id.clone(),
         params.preferred_reasoning_effort.clone(),
         params.prefer_highest_reasoning_effort,
@@ -1208,7 +1299,7 @@ async fn run_on_pooled(
 
 /// One-shot prompt: spawn → initialize → session → prompt → stream events → completed/failed.
 /// A healthy pooled warm connection short-circuits the spawn chain.
-pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppError> {
+pub async fn run_once(mut params: RunOnceParams) -> Result<AgentResultPayload, AppError> {
     // Phase 1 — prompt: skill instructions + template envelope + cwd.
     let prep = prepare_run_turn(&params).await?;
 
@@ -1257,6 +1348,19 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
         }
     }
 
+    if let Some(turn) = &prep.turn {
+        params.desc.env.insert(
+            agentero_core::features::context::TURN_ENV.into(),
+            turn.0.token.clone(),
+        );
+        if turn.0.grant.is_some() {
+            params.desc.env.insert(
+                agentero_core::features::context::CLI_GRANT_ENV.into(),
+                turn.0.token.clone(),
+            );
+        }
+    }
+
     // Phase 2 — spawn the ACP agent process (local, or SSH wrapper for remote).
     let acp = match to_acp_agent(&params.desc, Some(&prep.cwd), params.remote.as_deref()) {
         Ok(agent) => agent,
@@ -1269,6 +1373,11 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
     // Phase 3 — connect, stream one turn, and finalize.
     let warm_pool = params.warm_pool.clone();
     let mut state = RunOnceContext::new(&params, prep.cwd.clone());
+    state.terminals.lock().await.bind_turn(
+        prep.turn
+            .as_ref()
+            .map(|t| (t.0.token.clone(), t.0.grant.is_some())),
+    );
     state.bind_context(&prep);
     let run_result = state.run(acp, params, prep).await;
 
@@ -1343,7 +1452,7 @@ async fn serve_delegate_connection(
     };
     let state = RunOnceContext::new(&base, prep.cwd.clone());
     let registry = new_registry();
-    let preferences = RunPreferences::for_workflow(None, None, None, None, false, None);
+    let preferences = RunPreferences::for_workflow(None, None, false, None, None, false, None);
     let params = base.clone();
     let result = agentero_turn_builder!(state.terminals.clone(), registry.clone(), None)
         .connect_with(acp, {
@@ -1421,7 +1530,9 @@ async fn serve_delegate_connection(
                     message_id: state.message_id,
                     content: String::new(),
                     reasoning: None,
+                    prompt_only: false,
                     sources: Vec::new(),
+                    artifacts: Vec::new(),
                     stop_reason: None,
                     provider_session_id: None,
                 })
@@ -1441,7 +1552,6 @@ fn apply_delegate_prompt(base: &mut RunOnceParams, turn: &DelegatePrompt) {
     base.permission_policy = PermissionPolicy::Ask;
     base.is_acp_command = true;
     base.warm_pool = None;
-    base.delegate_mcp.clear();
     base.delegate_hint = None;
 }
 

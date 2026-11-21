@@ -1,5 +1,6 @@
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import { useScrollCapability } from "@embedpdf/plugin-scroll/react";
+import { listen } from "@tauri-apps/api/event";
 import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { EMBED_PAGE_ATTR, pageElByIndex } from "@/components/viewer/pdf/coords";
 import i18n from "@/i18n";
@@ -7,8 +8,16 @@ import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import type { PdfNavigationRegion } from "@/lib/pdf/pending-pdf-page";
 import { navigateTexSource } from "@/lib/tex/editor-navigation";
-import { syncTexBackward } from "@/lib/tex/host";
+import { type LatexCompileResult, syncTexBackward } from "@/lib/tex/host";
 import { registerTexPdfViewer } from "@/lib/tex/synctex";
+import {
+	indexSyncTexBoxes,
+	readSyncTexBoxes,
+	type SyncTexBox,
+	samePdfPath,
+	setSyncTexHover,
+	syncTexBoxAtPoint,
+} from "@/lib/tex/synctex-boxes";
 import {
 	syncTexClickPoint,
 	syncTexHighlightBox,
@@ -172,4 +181,138 @@ export function usePdfSyncTex(options: {
 			host.removeEventListener("click", click, true);
 		};
 	}, [docId, pdfPath, rootPath, hostRef, syncBackward, pagePoint]);
+
+	const boxesRef = useRef<ReadonlyMap<number, readonly SyncTexBox[]>>(
+		new Map(),
+	);
+	useEffect(() => {
+		if (scope !== "writing" || !pdfPath) return;
+		let cancelled = false;
+		const load = () => {
+			setSyncTexHover(docId, "loading");
+			void readSyncTexBoxes(pdfPath)
+				.then((boxes) => {
+					if (cancelled) return;
+					boxesRef.current = indexSyncTexBoxes(boxes);
+					setSyncTexHover(docId, boxes.length > 0 ? "ready" : "absent");
+				})
+				.catch(() => {
+					if (cancelled) return;
+					boxesRef.current = new Map();
+					setSyncTexHover(docId, "absent");
+				});
+		};
+		load();
+		let unlisten: (() => void) | undefined;
+		void listen<LatexCompileResult>("compile:finished", ({ payload }) => {
+			if (samePdfPath(payload.pdfPath, pdfPath)) load();
+		}).then(
+			(off) => {
+				if (cancelled) off();
+				else unlisten = off;
+			},
+			() => undefined,
+		);
+		return () => {
+			cancelled = true;
+			unlisten?.();
+			boxesRef.current = new Map();
+			setSyncTexHover(docId, null);
+		};
+	}, [docId, pdfPath, scope]);
+
+	useEffect(() => {
+		const host = hostRef.current;
+		if (!host || scope !== "writing" || !pdfPath) return;
+		let raf = 0;
+		let pending: PointerEvent | null = null;
+		const hoverLayer = (page: HTMLElement) => {
+			let layer = page.querySelector<HTMLElement>(
+				":scope > [data-synctex-hover]",
+			);
+			if (!layer) {
+				layer = document.createElement("div");
+				layer.dataset.synctexHover = "";
+				layer.dataset.sourceSentence = "";
+				// Hover weight and shape come from the paper-mark tokens.
+				layer.className = "pdf-layout-sentence-wash is-on";
+				layer.style.zIndex = "6";
+				layer.setAttribute("aria-hidden", "true");
+				layer.append(document.createElement("span"));
+				page.append(layer);
+			}
+			return layer;
+		};
+		const clear = () => {
+			for (const node of host.querySelectorAll("[data-synctex-hover]"))
+				node.remove();
+		};
+		const apply = () => {
+			raf = 0;
+			const event = pending;
+			pending = null;
+			if (!event) return;
+			if (
+				event.buttons !== 0 ||
+				host.hasAttribute("data-pdf-selecting") ||
+				(event.target instanceof Element &&
+					event.target.closest("[data-pdf-chrome], [data-selection-menu]"))
+			) {
+				clear();
+				return;
+			}
+			const page =
+				event.target instanceof Element
+					? event.target.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`)
+					: null;
+			const index = Number(page?.getAttribute(EMBED_PAGE_ATTR));
+			if (!page || !host.contains(page) || !Number.isInteger(index)) {
+				clear();
+				return;
+			}
+			const point = pagePoint(index, page, {
+				x: event.clientX,
+				y: event.clientY,
+			});
+			const size =
+				latest.current.docCapRef.current?.getDocument(docId)?.pages[index]
+					?.size;
+			const hit =
+				point && size
+					? syncTexBoxAtPoint(boxesRef.current, index + 1, point.x, point.y)
+					: null;
+			if (!hit || !size || size.width <= 0 || size.height <= 0) {
+				clear();
+				return;
+			}
+			for (const node of host.querySelectorAll("[data-synctex-hover]")) {
+				if (node.parentElement !== page) node.remove();
+			}
+			const span = hoverLayer(page).firstElementChild;
+			if (!(span instanceof HTMLElement)) return;
+			span.style.left = `${(hit.x / size.width) * 100}%`;
+			span.style.top = `${(hit.y / size.height) * 100}%`;
+			span.style.width = `${(hit.w / size.width) * 100}%`;
+			span.style.height = `${(hit.h / size.height) * 100}%`;
+		};
+		const onMove = (event: PointerEvent) => {
+			pending = event;
+			if (raf) return;
+			raf = requestAnimationFrame(apply);
+		};
+		const onLeave = () => {
+			if (raf) cancelAnimationFrame(raf);
+			raf = 0;
+			pending = null;
+			clear();
+		};
+		host.addEventListener("pointermove", onMove, true);
+		host.addEventListener("pointerleave", onLeave);
+		return () => {
+			if (raf) cancelAnimationFrame(raf);
+			host.removeEventListener("pointermove", onMove, true);
+			host.removeEventListener("pointerleave", onLeave);
+			clear();
+		};
+	}, [docId, hostRef, pagePoint, pdfPath, scope]);
 }

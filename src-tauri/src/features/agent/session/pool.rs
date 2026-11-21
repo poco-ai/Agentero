@@ -9,11 +9,11 @@
 //! id stays hidden when it does not.
 
 use crate::features::agent::acp::terminal::AcpTerminalManager;
-use crate::features::agent::models::AgentModelsEvent;
+use crate::features::agent::models::{AgentCollaborationEvent, AgentModelsEvent};
 use crate::features::agent::remote_host::RemoteAgentLaunch;
 use crate::features::agent::session::handlers::TurnRegistry;
-use agent_client_protocol::schema::v1::{SessionConfigOption, SessionId};
-use agent_client_protocol::{Agent, ConnectionTo};
+use agent_client_protocol::v1::schema::{SessionConfigOption, SessionId};
+use agent_client_protocol::{v1::ConnectionTo, Agent};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,7 +33,11 @@ pub(crate) const POOL_IDLE_TTL: Duration = Duration::from_secs(600);
 const POOL_TAKE_WAIT: Duration = Duration::from_secs(5);
 
 /// Cached chat-UI payload a healthy slot can answer `agent_warm` with.
-pub(crate) type WarmSnapshot = (Option<AgentModelsEvent>, Option<(u64, u64)>);
+pub(crate) type WarmSnapshot = (
+    Option<AgentModelsEvent>,
+    Option<AgentCollaborationEvent>,
+    Option<(u64, u64)>,
+);
 
 /// Identity of a pooled connection: same agent, working directory, remote
 /// host and startup variant are interchangeable for reuse purposes.
@@ -90,8 +94,9 @@ pub(crate) struct PooledSlot {
     /// `initialize` advertised `sessionCapabilities.delete`.
     pub supports_delete: bool,
     /// Cached setup results for `snapshot_warm_result`.
-    pub models: Option<AgentModelsEvent>,
-    pub usage: Option<(u64, u64)>,
+    pub models: Arc<Mutex<Option<AgentModelsEvent>>>,
+    pub collaboration: Arc<Mutex<Option<AgentCollaborationEvent>>>,
+    pub usage: Arc<Mutex<Option<(u64, u64)>>>,
 }
 
 impl PooledSlot {
@@ -575,7 +580,10 @@ impl AgentWarmPool {
         if !slot.is_alive() {
             return None;
         }
-        Some((slot.models.clone(), slot.usage))
+        let models = slot.models.lock().ok()?.clone();
+        let collaboration = slot.collaboration.lock().ok()?.clone();
+        let usage = *slot.usage.lock().ok()?;
+        Some((models, collaboration, usage))
     }
 }
 
@@ -749,7 +757,8 @@ mod slot_map_tests {
     #[tokio::test(start_paused = true)]
     async fn publication_wakes_all_waiters_but_only_one_can_claim_the_slot() {
         agent_client_protocol::Client
-            .connect_with(agent_client_protocol::Agent.builder(), async |connection| {
+            .v1()
+            .connect_with(agent_client_protocol::Agent.v1(), async |connection| {
                 let pool = std::sync::Arc::new(super::AgentWarmPool::new());
                 let wanted = key("codex", "/vault-a");
                 let warm = pool.start_warm(&wanted);
@@ -780,8 +789,9 @@ mod slot_map_tests {
                     activity,
                     used: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
                     supports_delete: false,
-                    models: None,
-                    usage: None,
+                    models: Default::default(),
+                    collaboration: Default::default(),
+                    usage: Default::default(),
                 });
                 let mut claims = 0;
                 for waiter in waiters {

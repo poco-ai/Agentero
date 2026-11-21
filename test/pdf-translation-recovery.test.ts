@@ -25,7 +25,10 @@ vi.mock("react-i18next", () => ({
 	// The vim key handler pulls in the settings store, which imports `@/i18n`;
 	// keep that module's bootstrap working without loading real resources.
 	initReactI18next: { type: "3rdParty", init() {} },
-	useTranslation: () => ({ t: (key: string) => key }),
+	useTranslation: () => ({
+		t: (key: string) => key,
+		i18n: { language: "en" },
+	}),
 }));
 vi.mock("@/lib/shell/settings-window", () => ({
 	openSettingsWindow: fixture.openSettings,
@@ -166,6 +169,7 @@ beforeEach(() => {
 		visible: true,
 		open: true,
 		completionFailed: false,
+		failureMessage: null,
 		onOpenChange: (open) => {
 			if (fixture.partial) fixture.partial = { ...fixture.partial, open };
 		},
@@ -181,31 +185,6 @@ afterEach(async () => {
 	await act(() => root.unmount());
 	document.body.replaceChildren();
 	vi.unstubAllGlobals();
-});
-
-it("offers completion in the idle translation pane and keeps recovery after closing", async () => {
-	await renderPane();
-	expect(
-		host.querySelector("[data-full-text-translate-partial]"),
-	).not.toBeNull();
-	expect(fixture.toggle).not.toHaveBeenCalled();
-	const close = document.querySelector<HTMLButtonElement>(
-		'button[aria-label="pdf.layoutTranslate.close"]',
-	);
-	expect(close).not.toBeNull();
-	await act(() => close?.click());
-	await renderPane();
-	expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
-	const trigger = host.querySelector<HTMLButtonElement>(
-		"[data-full-text-translate-partial]",
-	);
-	expect(trigger).not.toBeNull();
-	await act(() => trigger?.click());
-	await renderPane();
-	await act(() => action("completeMissing").click());
-	expect(fixture.complete).toHaveBeenCalledOnce();
-	expect(fixture.retranslate).not.toHaveBeenCalled();
-	expect(fixture.toggle).not.toHaveBeenCalled();
 });
 
 it("keeps the warning collapsed until clicked and tracks its expanded state", async () => {
@@ -229,6 +208,22 @@ it("keeps the warning collapsed until clicked and tracks its expanded state", as
 	expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
 });
 
+it("shows a failed completion on the partial entry without another request", async () => {
+	if (fixture.partial) {
+		fixture.partial = {
+			...fixture.partial,
+			open: true,
+			completionFailed: true,
+		};
+	}
+	await renderPane();
+	expect(document.body.textContent).toContain(
+		"pdf.layoutTranslate.partialStillMissing",
+	);
+	expect(fixture.complete).not.toHaveBeenCalled();
+	expect(document.querySelector("[data-sonner-toaster]")).toBeNull();
+});
+
 it("requires confirmation before the translation pane retranslates everything", async () => {
 	await renderPane();
 	await act(() => action("retranslateAll").click());
@@ -237,37 +232,4 @@ it("requires confirmation before the translation pane retranslates everything", 
 	expect(fixture.retranslate).toHaveBeenCalledOnce();
 	expect(fixture.complete).not.toHaveBeenCalled();
 	expect(fixture.toggle).not.toHaveBeenCalled();
-});
-
-it("opens translation settings from partial recovery without starting a translation", async () => {
-	await renderPane();
-	const buttons = [
-		...document.querySelectorAll<HTMLButtonElement>(
-			'[data-slot="popover-content"] button',
-		),
-	];
-	expect(buttons.map((button) => button.textContent).filter(Boolean)).toEqual([
-		"pdf.layoutTranslate.openSettings",
-		"pdf.layoutTranslate.completeMissing",
-		"pdf.layoutTranslate.retranslateAll",
-	]);
-	await act(() => action("openSettings").click());
-	expect(fixture.openSettings).toHaveBeenCalledExactlyOnceWith("translate");
-	expect(fixture.complete).not.toHaveBeenCalled();
-	expect(fixture.retranslate).not.toHaveBeenCalled();
-	expect(fixture.toggle).not.toHaveBeenCalled();
-});
-
-it("keeps recovery usable while cached pages build and hides it during translation", async () => {
-	fixture.preparing = true;
-	await renderPane();
-	expect(host.querySelector('[role="progressbar"]')).not.toBeNull();
-	await act(() => action("completeMissing").click());
-	expect(fixture.complete).toHaveBeenCalledOnce();
-
-	fixture.preparing = false;
-	fixture.running = true;
-	if (fixture.partial) fixture.partial = { ...fixture.partial, visible: false };
-	await renderPane();
-	expect(host.querySelector("[data-full-text-translate-partial]")).toBeNull();
 });

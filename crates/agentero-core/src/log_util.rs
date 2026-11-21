@@ -1,4 +1,4 @@
-//! Operation start/end logging helpers (see `docs/development/logging.md`).
+//! Operation start/end logging helpers.
 
 use crate::error::{map_err, ApiResult, AppError};
 use crate::perf;

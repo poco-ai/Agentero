@@ -1,5 +1,5 @@
 import { AnimatePresence } from "motion/react";
-import { memo, type ReactNode } from "react";
+import { memo, type ReactNode, useState } from "react";
 import { createPortal } from "react-dom";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import {
@@ -7,7 +7,7 @@ import {
 	PdfCitationPreview,
 } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
-import { PdfLinkUrlTip } from "@/components/viewer/pdf/cards/link-url-tip";
+import { PdfLinkPreviewCard } from "@/components/viewer/pdf/cards/link-preview-card";
 import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
 import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 import { VisualTraceCard } from "@/components/viewer/pdf/cards/visual-trace-card";
@@ -21,19 +21,21 @@ import type {
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import type { PdfAskThread } from "@/lib/pdf/ask";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
+import type { SelectionTranslateMode } from "@/lib/translate/types";
 
 type PdfCardStackProps = {
 	selectionMenu: {
 		state: SelectionMenuState | null;
-		onHighlight: (color: HighlightColor) => void;
+		onHighlight: (color: HighlightColor, shape: PdfTextMarkupKind) => void;
 		onAsk: () => void;
 		onAddToChat: () => void;
 		onTranslate: () => void;
 		onCopy?: () => Promise<boolean>;
 		onBookmark?: () => void;
-		onNote?: () => void;
+		onNote?: (shape: PdfTextMarkupKind) => void;
 		/** Hide highlight / translate (no marks/ to persist into); keep Ask. */
 		showHighlight?: boolean;
 		showTranslate?: boolean;
@@ -77,6 +79,7 @@ type PdfCardStackProps = {
 	};
 	translate: {
 		record: PdfTranslateRecord | null;
+		onModeChange?: (mode: SelectionTranslateMode) => void;
 		streaming: boolean;
 		error: string | null;
 		onOpenSettings: () => void;
@@ -140,6 +143,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 	translate,
 	visual,
 }: PdfCardStackProps) {
+	const [translationBounds, setTranslationBounds] = useState<DOMRectReadOnly>();
 	if (typeof document === "undefined") return null;
 
 	return createPortal(
@@ -148,6 +152,9 @@ export const PdfCardStack = memo(function PdfCardStack({
 				<SelectionMenu
 					key={selectionMenuInstanceKey(selectionMenu.state)}
 					screen={selectionMenu.state.screen}
+					avoidBounds={
+						translate.record && cardScreen ? translationBounds : undefined
+					}
 					onHighlight={selectionMenu.onHighlight}
 					onAsk={selectionMenu.onAsk}
 					onAddToChat={selectionMenu.onAddToChat}
@@ -157,6 +164,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 					onNote={selectionMenu.onNote}
 					showHighlight={selectionMenu.showHighlight}
 					showTranslate={selectionMenu.showTranslate}
+					selectionText={selectionMenu.state.anchor.quote}
 					contributionContext={selectionMenu.contributionContext}
 				/>
 			) : null}
@@ -184,7 +192,8 @@ export const PdfCardStack = memo(function PdfCardStack({
 			) : null}
 
 			{linkUrlTip.state ? (
-				<PdfLinkUrlTip
+				<PdfLinkPreviewCard
+					key={linkUrlTip.state.url}
 					url={linkUrlTip.state.url}
 					screen={linkUrlTip.state.screen}
 					onPointerEnter={linkUrlTip.onHoverEnter}
@@ -227,8 +236,14 @@ export const PdfCardStack = memo(function PdfCardStack({
 						onTogglePin={translate.onTogglePin}
 						onOpenSettings={translate.onOpenSettings}
 						onHide={translate.onHide}
+						onBoundsChange={
+							selectionMenu.state ? setTranslationBounds : undefined
+						}
 						onPointerEnter={onCardHoverEnter}
 						onPointerLeave={onCardHoverLeave}
+						sourceText={translate.record.quote}
+						mode={translate.record.mode}
+						onModeChange={translate.onModeChange}
 					/>
 				</PageClip>
 			) : null}

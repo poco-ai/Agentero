@@ -79,7 +79,10 @@ export function ComposerQueue({
 										<QueueItemIndicator />
 										<QueueItemContent title={queueLabel}>
 											{chipMarkup ? (
-												<InlineChipText markup={chipMarkup} />
+												<InlineChipText
+													markup={chipMarkup}
+													visuals={item.visualDrafts}
+												/>
 											) : (
 												queueLabel
 											)}

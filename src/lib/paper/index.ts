@@ -44,6 +44,7 @@ export {
 	localFileToArrayBuffer,
 	localImageToViewerSource,
 	paperRemoteAssetsFromMetadata,
+	retainViewerSource,
 	revokePdfViewerSource,
 } from "@/lib/paper/media";
 export {

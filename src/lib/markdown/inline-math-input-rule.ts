@@ -33,18 +33,61 @@ function isEscapedDelimiter(editor: SlateEditor, point: Point) {
 	return backslashCount % 2 === 1;
 }
 
+type DelimitedInlineContext = Parameters<typeof matchDelimitedInline>[0];
+type DelimitedInlineOptions = Parameters<typeof matchDelimitedInline>[1];
+
 /**
- * Converts unescaped `$expression$` while allowing either delimiter next to
- * text. Keep the caret in the following text node so typing can continue.
+ * Plate counts the matched text in UTF-16 code units but moves back by
+ * grapheme. Use offsets so astral or combining characters cannot delete
+ * the text before the opening delimiter.
+ */
+function matchInlineEquation(
+	context: DelimitedInlineContext,
+	options: DelimitedInlineOptions,
+) {
+	const match = matchDelimitedInline(context, options);
+	const focus = context.editor.selection?.anchor;
+	if (!match || !focus) return;
+	const anchor = context.editor.api.before(focus, {
+		distance: match.content.length + options.open.length,
+		unit: "offset",
+	});
+	if (!anchor) return;
+	return { ...match, deleteRange: { anchor, focus } };
+}
+
+/**
+ * Converts unescaped `$expression$` and `\(expression\)` while allowing
+ * delimiters next to text. Leave the caret in the following text node.
  */
 export const inlineMathInputRule = defineInputRule({
 	target: "insertText",
 	enabled: ({ editor }) => !isLiteralTextContext(editor),
 	priority: 100,
-	trigger: "$",
+	trigger: ["$", ")"],
 	resolve: (context) => {
-		if (context.text !== "$" || context.options?.at) return;
+		if (context.options?.at) return;
 		const closingPoint = context.editor.selection?.anchor;
+		if (context.text === ")") {
+			// The backslash of the closing delimiter is already in the editor;
+			// the input rule runs before the final ")" is inserted.
+			if (!closingPoint || !isEscapedDelimiter(context.editor, closingPoint))
+				return;
+			const match = matchInlineEquation(context, {
+				open: "\\(",
+				requireClosingDelimiter: false,
+			});
+			if (
+				!match ||
+				isEscapedDelimiter(context.editor, match.deleteRange.anchor)
+			)
+				return;
+			const content = match.content.slice(0, -1);
+			if (content && content.trim() === content)
+				return { ...match, content, kind: "equation" as const };
+			return;
+		}
+		if (context.text !== "$") return;
 		if (closingPoint && isEscapedDelimiter(context.editor, closingPoint)) {
 			const escapeStart = context.editor.api.before(closingPoint, {
 				distance: 1,
@@ -61,7 +104,7 @@ export const inlineMathInputRule = defineInputRule({
 			};
 		}
 
-		const match = matchDelimitedInline(context, {
+		const match = matchInlineEquation(context, {
 			followRe: INLINE_FOLLOW_RE,
 			open: "$",
 			requireClosingDelimiter: false,

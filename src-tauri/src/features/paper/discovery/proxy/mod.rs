@@ -60,6 +60,39 @@ pub fn looks_like_document(body: &str) -> bool {
     head.starts_with("<!doctype") || head.starts_with("<html")
 }
 
+/// A tiny document for a navigation the embedded frame cannot finish.
+///
+/// Serving the source same-origin means only its own paths are proxied; a
+/// redirect to another origin (Papers with Code hands sign-in to Hugging Face
+/// OAuth) is fetched by the proxy and rendered here as an unstyled third-party
+/// page, and the frame stays stuck on it. Hand the URL to the system browser —
+/// where the flow works — and step the panel back to the page that started it.
+pub fn handoff_to_browser(url: &str) -> Response<Vec<u8>> {
+    // JSON string escaping keeps the URL from ending the string or the script;
+    // `</` is escaped too so a crafted URL cannot close the script element.
+    let url = serde_json::to_string(url)
+        .unwrap_or_else(|_| "\"\"".to_string())
+        .replace("</", "<\\/");
+    let html = format!(
+        concat!(
+            "<!doctype html><meta charset=\"utf-8\"><script>(function(){{",
+            // Only the panel frame talks to the app; a nested same-origin frame
+            // (unreadable parent when cross-origin) is left alone.
+            "try{{if(parent!==window&&parent.location.href)return;}}catch(e){{}}",
+            "try{{parent.postMessage({{source:\"agentero-plaza\",external:{url}}},\"*\");}}catch(e){{}}",
+            "if(history.length>1){{history.back();}}else{{location.replace(\"/\");}}",
+            "}})();</script>"
+        ),
+        url = url
+    );
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-store")
+        .body(html.into_bytes())
+        .expect("valid handoff response")
+}
+
 pub fn handle(
     site: &'static SiteProxy,
     request: tauri::http::Request<Vec<u8>>,

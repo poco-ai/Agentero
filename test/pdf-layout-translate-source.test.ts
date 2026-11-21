@@ -243,6 +243,32 @@ describe("inline token masking", () => {
 		expect(restored.text).toBe(source);
 	});
 
+	it.each([
+		"Therefore, $5-x⟪F0⟫$.",
+		"We have $$a⟪F0⟫b⟪F1⟫c$$.",
+		String.raw`Use \(x⟪F0⟫=2\) here.`,
+		"⟪S0⟫Use $x⟪F0⟫$ and [1].⟪/S0⟫",
+		"See $x_{[1]}=⟪F0⟫$ and [paper](https://example.org/$x$).",
+	])("round-trips nested protected content without nested placeholders: %s", (source) => {
+		const masked = maskInlineTokens(source);
+		for (const token of masked.tokens)
+			expect(token.original).not.toMatch(/⟦\d+⟧/u);
+		expect(restoreInlineTokens(masked.text, masked.tokens)).toEqual({
+			text: source,
+			missing: 0,
+		});
+	});
+
+	it("protects inline math after display math without absorbing the prose", () => {
+		const source = "$$6y-9x⟪F0⟫a.$$Since we know $6y-9x⟪F1⟫b$, we have";
+		const masked = maskInlineTokens(source);
+		expect(masked.text).toBe("⟦0⟧Since we know ⟦1⟧, we have");
+		expect(restoreInlineTokens(masked.text, masked.tokens)).toEqual({
+			text: source,
+			missing: 0,
+		});
+	});
+
 	it("tolerates padded placeholders and reports dropped ones", () => {
 		const masked = maskInlineTokens("value $x$ and $y$");
 		const [first, second] = masked.tokens;

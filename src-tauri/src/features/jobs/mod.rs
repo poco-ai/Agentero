@@ -1,4 +1,5 @@
 pub mod commands;
+mod layout_readiness;
 
 use crate::core::error::AppError;
 use crate::core::fs::canonicalize_best_effort;
@@ -813,6 +814,7 @@ impl JobCenter {
         lane: JobLane,
         force: bool,
         dependency: JobId,
+        params: Option<serde_json::Value>,
     ) -> JobSnapshot {
         self.enqueue_core_with_deps(
             JobKind::LayoutTranslate,
@@ -821,17 +823,16 @@ impl JobCenter {
             lane,
             force,
             None,
-            None,
+            params,
             vec![dependency],
             DepPolicy::AllSucceeded,
         )
         .await
     }
 
-    /// Import / download pipeline: queue layout analysis and, when
-    /// `auto_translate` is set, the dependent background translation. Shared
-    /// by the `job_layout_analyze_enqueue` command and the import runners so
-    /// every import entry point queues the same pair.
+    /// Queue layout analysis and, when `auto_translate` is set, the dependent
+    /// background translation. Shared by import / download, manual reparse,
+    /// and bulk reparse so those entries queue the same pair.
     ///
     /// A dedupe hit returns the already-active layout job and does not retarget
     /// an existing translation job's dependency; the translation stays queued
@@ -857,6 +858,7 @@ impl JobCenter {
                     lane,
                     force,
                     JobId(layout.id.clone()),
+                    None,
                 )
                 .await,
             )
@@ -1191,13 +1193,15 @@ impl JobCenter {
         snapshots
     }
 
-    /// Broadcast translation offers execute in one window. A WebView reload
-    /// may reclaim its own work; other windows subscribe to the same job.
-    pub async fn claim_layout_translate(&self, job_id: &str, window: &str) -> bool {
+    /// Broadcast renderer offers execute in one window: every window gets the
+    /// `job:offer`, the first claim wins and the losers follow `job:changed`.
+    /// A WebView reload may reclaim its own work; other windows get `false`.
+    /// Ownership is released when the job reaches a terminal state.
+    pub async fn claim_renderer(&self, job_id: &str, window: &str) -> bool {
         let mut inner = self.inner.lock().await;
         let id = JobId(job_id.to_string());
         if !inner.jobs.get(&id).is_some_and(|job| {
-            job.kind == JobKind::LayoutTranslate && job.state == JobState::Running
+            job.kind.exec_host() == ExecHost::Renderer && job.state == JobState::Running
         }) {
             return false;
         }
@@ -3655,7 +3659,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn layout_translate_executes_in_one_window_and_keeps_terminal_snapshot() {
+    async fn renderer_claim_executes_in_one_window_and_keeps_terminal_snapshot() {
         let center = JobCenter::new();
         let job = center
             .enqueue_core(
@@ -3668,14 +3672,14 @@ mod tests {
                 None,
             )
             .await;
-        assert!(!center.claim_layout_translate(&job.id, "a").await);
+        assert!(!center.claim_renderer(&job.id, "a").await);
         assert!(matches!(
             center.try_start(&job.id).await,
             StartOutcome::Started(..)
         ));
-        assert!(center.claim_layout_translate(&job.id, "a").await);
-        assert!(!center.claim_layout_translate(&job.id, "b").await);
-        assert!(center.claim_layout_translate(&job.id, "a").await);
+        assert!(center.claim_renderer(&job.id, "a").await);
+        assert!(!center.claim_renderer(&job.id, "b").await);
+        assert!(center.claim_renderer(&job.id, "a").await);
         center.merge_running_job_params(&job.id, serde_json::json!({"layoutTranslate": {"items": [{"id": "block", "translated": "result"}]}})).await;
         let result = center
             .job_report(&job.id, Some(100.0), None, None, Some(JobState::Succeeded))
@@ -3685,7 +3689,29 @@ mod tests {
             result.params.unwrap()["layoutTranslate"]["items"][0]["translated"],
             "result"
         );
-        assert!(!center.claim_layout_translate(&job.id, "a").await);
+        assert!(!center.claim_renderer(&job.id, "a").await);
+    }
+
+    #[tokio::test]
+    async fn renderer_claim_rejects_host_executed_jobs() {
+        let center = JobCenter::new();
+        let job = center
+            .enqueue_core(
+                JobKind::ParseRefs,
+                vault("parse-refs-owner"),
+                "papers/a",
+                JobLane::Normal,
+                false,
+                None,
+                None,
+            )
+            .await;
+        assert!(matches!(
+            center.try_start(&job.id).await,
+            StartOutcome::Started(..)
+        ));
+        // Rust runs this kind itself; a renderer must never claim it.
+        assert!(!center.claim_renderer(&job.id, "a").await);
     }
 
     #[tokio::test]

@@ -57,16 +57,15 @@ pub async fn vault_release(
     let key = holder_key(&path).await;
 
     // Window-level scope: other windows may still hold this vault open, so the
-    // global release below only runs for the last holder. With no entry on
-    // record (e.g. a window that missed its `vault_hold`, or a canonicalize
-    // fallback for an already-deleted directory) `release` deliberately still
-    // returns `true` — the single-window compatibility fallback in
-    // `VaultHolders::release`.
+    // global release below only runs when this call drops the last holder.
+    // No record for `key` returns false — a mismatched release must not drop
+    // resources another window still holds. A canonicalize miss leaves the
+    // canonical entry for the window-destroyed drain.
+    crate::features::agent::hosted_turn::revoke_window(
+        window.label(),
+        Some(std::path::Path::new(&key)),
+    );
     let last_holder = window.state::<VaultHolders>().release(&key, window.label());
-    #[cfg(not(any(target_os = "ios", target_os = "android")))]
-    window
-        .state::<crate::integration::plugins::PluginManager>()
-        .unload(window.label(), None, Some(std::path::Path::new(&key)));
     if last_holder {
         release_vault_resources(&app, std::path::Path::new(&key)).await;
     }

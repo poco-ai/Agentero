@@ -51,12 +51,14 @@ export type ShortcutId =
 	| "zoomIn"
 	| "zoomOut"
 	| "zoomReset"
-	/** ⌘. — start/cancel PDF visual-region annotation (active PDF tab). */
-	| "visualAnnotation"
-	/** ⌥A — toggle PDF full-text (layout) translation (active PDF tab). */
+	/** ⌘. — toggle PDF layout element selection (active PDF tab). */
+	| "layoutElementSelection"
+	/** ⌥A — toggle the PDF reading view between 原文 and 译文. */
 	| "layoutTranslate"
-	/** F11 — borderless fullscreen (Windows only). */
-	| "toggleFullscreen";
+	/** F11 — borderless fullscreen (Windows only). Does not hide reader chrome. */
+	| "toggleFullscreen"
+	/** Shift+F11 — immersive reading: fullscreen plus hidden chrome. */
+	| "immersiveReading";
 
 export type ShortcutGroup = "App" | "Navigation" | "Vault" | "Editor";
 
@@ -360,9 +362,9 @@ export const SHORTCUTS: ShortcutDef[] = [
 		whenSettingsClosed: true,
 	},
 	{
-		id: "visualAnnotation",
+		id: "layoutElementSelection",
 		group: "App",
-		// ⌘. — toggle PDF visual annotation region select (active PDF tab)
+		// ⌘. — toggle PDF layout element selection (active PDF tab)
 		key: ".",
 		meta: true,
 		whenSettingsClosed: true,
@@ -370,7 +372,7 @@ export const SHORTCUTS: ShortcutDef[] = [
 	{
 		id: "layoutTranslate",
 		group: "App",
-		// ⌥A — toggle PDF full-text (layout) translation (active PDF tab).
+		// ⌥A — toggle the PDF reading view between 原文 and 译文.
 		// Immersive Translate convention; guard text fields (⌥A types "å").
 		key: "a",
 		alt: true,
@@ -379,9 +381,19 @@ export const SHORTCUTS: ShortcutDef[] = [
 	{
 		id: "toggleFullscreen",
 		group: "App",
-		// F11 — exclusive (borderless) fullscreen; Windows only
+		// F11 — exclusive (borderless) fullscreen; Windows only.
+		// Window chrome stays. Immersive reading is Shift+F11.
 		key: "F11",
 		platforms: ["windows"],
+	},
+	{
+		id: "immersiveReading",
+		group: "App",
+		// Shift+F11 — fullscreen and hide title bar, rails, and the PDF toolbar.
+		// Esc restores the previous layout. Distinct from F11 and Layout → Reading.
+		key: "F11",
+		shift: true,
+		whenSettingsClosed: true,
 	},
 ];
 
@@ -517,12 +529,14 @@ export function matchShortcut(
 ): boolean {
 	const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
 	const defKey = def.key.length === 1 ? def.key.toLowerCase() : def.key;
-	// macOS composes ⌥+letter into a single character (⌥A → "å"), so event.key
-	// never equals the def letter. Option letter shortcuts fall back to the
-	// physical key (event.code), which stays stable across layouts.
+	// macOS composes ⌥+letter/digit into a single character (⌥A → "å",
+	// ⌥1 → "¡"), so event.key never equals the def key. Option shortcuts fall
+	// back to the physical key (event.code), which stays stable across layouts.
 	const physicalKey = /^Key[A-Z]$/.test(event.code)
 		? event.code.slice(3).toLowerCase()
-		: null;
+		: /^Digit[0-9]$/.test(event.code)
+			? event.code.slice(5)
+			: null;
 	if (
 		key !== defKey &&
 		event.key !== def.key &&
@@ -557,6 +571,21 @@ export function matchShortcut(
 	if (wantShift !== event.shiftKey) return false;
 
 	return true;
+}
+
+/**
+ * Does a space-separated `aria-keyshortcuts` value contain this exact token?
+ * Bare toolbar hints use the key itself as the token (the modifier variants,
+ * such as `Alt+1`, are resolved separately with {@link matchShortcut}).
+ */
+export function matchesAriaShortcut(
+	value: string | null,
+	key: string,
+): boolean {
+	if (!value) return false;
+	return value
+		.split(/\s+/)
+		.some((token) => token.toLowerCase() === key.toLowerCase());
 }
 
 export function resolveShortcutId(

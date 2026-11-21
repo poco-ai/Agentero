@@ -37,6 +37,11 @@
 	"modelSelector": {
 		"label": "Model Selector"
 	},
+	"formula": {
+		"copyLatex": "Copy LaTeX",
+		"copied": "LaTeX copied",
+		"copyFailed": "Could not copy LaTeX."
+	},
 	"plan": {
 		"toggle": "Toggle plan",
 		"status": {

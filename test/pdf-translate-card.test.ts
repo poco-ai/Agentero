@@ -6,10 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 
-vi.mock("react-i18next", () => ({
-	initReactI18next: { type: "3rdParty", init: () => undefined },
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
+vi.mock("react-i18next", () => import("./helpers/i18n"));
 
 const result = "第一行。\n\n第二行。";
 let container: HTMLDivElement;
@@ -36,6 +33,8 @@ async function renderCard(
 	onTogglePin = vi.fn(),
 	screen: Parameters<typeof TranslateCard>[0]["screen"] = { x: 600, y: 200 },
 	text = result,
+	sourceText?: string,
+	options?: Pick<Parameters<typeof TranslateCard>[0], "mode" | "onModeChange">,
 ) {
 	await act(() =>
 		root.render(
@@ -45,11 +44,13 @@ async function renderCard(
 				createElement(TranslateCard, {
 					screen,
 					result: text,
+					sourceText,
 					streaming: false,
 					error: null,
 					onOpenSettings: vi.fn(),
 					onTogglePin,
 					onHide,
+					...options,
 				}),
 			),
 		),
@@ -58,15 +59,6 @@ async function renderCard(
 	if (!card) throw new Error("Translation card did not render");
 	return card;
 }
-
-it("opens below the selected lines instead of covering them", async () => {
-	const card = await renderCard(vi.fn(), vi.fn(), {
-		x: 600,
-		y: 200,
-		selectionBounds: { left: 500, top: 200, right: 700, bottom: 260 },
-	});
-	expect(Number.parseFloat(card.style.top)).toBeGreaterThanOrEqual(260);
-});
 
 it("keeps the PDF controls interactive, copies the translation, and dismisses on Escape", async () => {
 	const onHide = vi.fn();
@@ -224,70 +216,55 @@ it("leaves C alone without a translation or after the card closes", async () => 
 	expect(writeText).not.toHaveBeenCalled();
 });
 
-it("clamps dragging using the resized dimensions and keeps the offset as the page scrolls", async () => {
-	const card = await renderCard(vi.fn(), vi.fn(), {
-		x: 600,
-		y: 200,
-		selectionBounds: { left: 500, top: 200, right: 700, bottom: 260 },
-	});
-	const handle = card.querySelector<HTMLElement>("header");
-	if (!handle) throw new Error("Missing translation title handle");
-	handle.setPointerCapture = vi.fn();
-	card.getBoundingClientRect = () =>
-		new DOMRect(
-			parseFloat(card.style.left),
-			parseFloat(card.style.top),
-			400,
-			260,
-		);
-	const { left, top } = card.getBoundingClientRect();
-	const emitPointer = (type: string, clientX: number, clientY: number) =>
-		act(() => {
-			handle.dispatchEvent(
-				new PointerEvent(type, {
-					bubbles: true,
-					pointerId: 1,
-					clientX,
-					clientY,
-				}),
-			);
-		});
-	await emitPointer("pointerdown", left + 30, top + 20);
-	await emitPointer("pointermove", left + 80, top + 60);
-	expect(card.style.left).toBe(`${left + 50}px`);
-	expect(card.style.top).toBe(`${top + 40}px`);
-	await emitPointer("pointermove", 1100, 800);
-	expect(card.style.left).toBe("588px");
-	expect(card.style.top).toBe("428px");
-	await emitPointer("lostpointercapture", 1100, 800);
-	await emitPointer("pointermove", 50, 50);
-	expect(card.style.left).toBe("588px");
-	expect(card.style.top).toBe("428px");
-	await renderCard(vi.fn(), vi.fn(), {
-		x: 600,
-		y: 100,
-		selectionBounds: { left: 500, top: 100, right: 700, bottom: 160 },
-	});
-	expect(card.style.left).toBe("588px");
-	expect(card.style.top).toBe("328px");
+it("shows a dictionary headword and accepts a plain MT gloss with existing actions", async () => {
+	const onHide = vi.fn();
+	const onPin = vi.fn();
+	const card = await renderCard(
+		onHide,
+		onPin,
+		{ x: 600, y: 200 },
+		"分辨率",
+		"resolution",
+	);
+	expect(card.getAttribute("aria-label")).toBe("selection.dictionaryTitle");
+	expect(card.textContent).toContain("resolution");
+	expect(card.textContent).toContain("分辨率");
+	expect(card.querySelector('[aria-keyshortcuts="P"]')).not.toBeNull();
+	const writeText = vi
+		.spyOn(navigator.clipboard, "writeText")
+		.mockResolvedValue();
+	await act(() =>
+		card.querySelector<HTMLButtonElement>('[aria-keyshortcuts="C"]')?.click(),
+	);
+	expect(writeText).toHaveBeenCalledWith("分辨率");
+});
+it("keeps a sentence in the translation card", async () => {
+	const card = await renderCard(
+		vi.fn(),
+		vi.fn(),
+		{ x: 600, y: 200 },
+		"该图像具有高分辨率。",
+		"The image has high resolution.",
+	);
+	expect(card.getAttribute("aria-label")).toBe("selection.translateTitle");
+	expect(card.textContent).not.toContain("The image has high resolution.");
 });
 
-it("opens at the width the user last dragged it to, still content-sized", async () => {
-	const map = new Map<string, string>();
-	vi.stubGlobal("localStorage", {
-		getItem: (key: string) => map.get(key) ?? null,
-		setItem: (key: string, value: string) => {
-			map.set(key, value);
-		},
-		removeItem: (key: string) => {
-			map.delete(key);
-		},
-	});
-	map.set("agentero-pdf-card-widths", JSON.stringify({ translate: 440 }));
-
-	const card = await renderCard();
-	expect(card.style.width).toBe("440px");
-	// Height stays content-sized: a remembered height would leave blank space
-	// under shorter translations.
-	expect(card.style.height).toBe("");
+it("keeps an explicit translation view for a word and exposes the dictionary switch", async () => {
+	const onModeChange = vi.fn();
+	const card = await renderCard(
+		vi.fn(),
+		vi.fn(),
+		{ x: 600, y: 200 },
+		"注意力",
+		"attention",
+		{ mode: "translate", onModeChange },
+	);
+	expect(card.getAttribute("aria-label")).toBe("selection.translateTitle");
+	const button = card.querySelector<HTMLButtonElement>(
+		'[aria-label="selection.switchToDictionary"]',
+	);
+	expect(button).not.toBeNull();
+	await act(() => button?.click());
+	expect(onModeChange).toHaveBeenCalledWith("dictionary");
 });

@@ -2,6 +2,7 @@ pub mod ask_user;
 pub mod client;
 pub mod grok_models;
 pub mod interaction;
+mod launch;
 pub mod probe;
 pub mod terminal;
 pub mod updates;

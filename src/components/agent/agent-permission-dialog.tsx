@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,15 +44,32 @@ export function AgentPermissionDialog({
 	onDismiss: () => void;
 }) {
 	const { t } = useTranslation("agent");
+	/**
+	 * Token for this mount. Teardown marks it dead before a deferred close runs,
+	 * including StrictMode's extra unmount, so that is not a user deny.
+	 */
+	const aliveRef = useRef<{ alive: boolean } | null>(null);
+	useLayoutEffect(() => {
+		const token = { alive: true };
+		aliveRef.current = token;
+		return () => {
+			token.alive = false;
+		};
+	}, []);
 
 	return (
 		<Dialog
 			open={permissionRequest !== null}
 			onOpenChange={(open) => {
-				if (!open && permissionRequest) {
-					void respondPermission(permissionRequest.requestId, null);
+				if (open || !permissionRequest) return;
+				const requestId = permissionRequest.requestId;
+				const token = aliveRef.current;
+				// Child cleanup can report close before this layout cleanup runs.
+				queueMicrotask(() => {
+					if (!token?.alive) return;
+					void respondPermission(requestId, null);
 					onDismiss();
-				}
+				});
 			}}
 		>
 			<DialogContent className="max-w-md">

@@ -1,15 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	applyLayoutTranslateSidecar,
+	LAYOUT_TRANSLATE_BATCH_CHARS,
+	LAYOUT_TRANSLATE_STREAM_BATCH_CHARS,
 	type LayoutTranslateItem,
 	type LayoutTranslateSidecar,
 	runLayoutRegionTranslate,
 } from "@/lib/pdf/layout/layout-translate";
-import { runLayoutRegionTranslate as runPublicLayoutTranslate } from "@/lib/pdf/layout/layout-translate-reliable";
+import {
+	isLayoutTranslateItemPainted,
+	LAYOUT_TRANSLATE_MAX_CHARS,
+	runLayoutRegionTranslate as runPublicLayoutTranslate,
+	splitLongLayoutTranslateSource,
+} from "@/lib/pdf/layout/layout-translate-reliable";
 import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
 import { validReflowTranslation } from "@/lib/pdf/reflow/types";
 
 const runTranslate = vi.fn<(...args: unknown[]) => Promise<string>>();
+const settingsState = vi.hoisted(() => ({
+	provider: "tencenttransmart",
+}));
 
 vi.mock("@/lib/translate", () => ({
 	runTranslate: (...args: unknown[]) => runTranslate(...args),
@@ -18,7 +28,7 @@ vi.mock("@/lib/translate", () => ({
 vi.mock("@/lib/settings", () => ({
 	loadSettings: () => ({
 		translate: {
-			provider: "googleapi",
+			provider: settingsState.provider,
 			targetLang: "zh-CN",
 			sourceLang: "auto",
 			providerConfigs: {},
@@ -48,6 +58,7 @@ function item(
 
 describe("runLayoutRegionTranslate paragraph chains", () => {
 	beforeEach(() => {
+		settingsState.provider = "tencenttransmart";
 		runTranslate.mockReset();
 	});
 
@@ -99,7 +110,7 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 			source: {
 				mode: "pdf-layout-translate",
 				generatedAt: "",
-				providerId: "googleapi",
+				providerId: "tencenttransmart",
 				sourceLang: "en",
 				targetLang: "zh-CN",
 				serviceKey: "",
@@ -133,6 +144,42 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 				requireReflowSentencePairs: true,
 			})[0],
 		).toMatchObject({ status: "done", sentences: translated.sentences });
+	});
+
+	it("translates printed LaTeX containing a reflow formula token", async () => {
+		const reflow = paragraphFromCharacters(
+			"p",
+			42,
+			{ x: 0, y: 0, w: 100, h: 40 },
+			[],
+			[],
+			false,
+		);
+		reflow.source = "Therefore, $5-x>0$.";
+		reflow.protectedText = "Therefore, $5-x⟪F0⟫$.";
+		reflow.formulas = [
+			{
+				id: "0",
+				text: ">0",
+				box: { x: 0, y: 0, w: 5, h: 5 },
+				characterIndexes: [],
+				baselineOffset: 0,
+			},
+		];
+		runTranslate.mockResolvedValueOnce("因此，⟦0⟧。");
+		const [translated] = await runLayoutRegionTranslate({
+			items: [
+				{ ...item("p", reflow.protectedText, 42), raw: reflow.source, reflow },
+			],
+			onUpdate: () => {},
+		});
+		expect(translated.status).toBe("done");
+		expect(translated.translated).toBe("因此，$5-x⟪F0⟫$。");
+		expect(translated.sentences).toHaveLength(1);
+		expect(validReflowTranslation(reflow, translated.translated ?? "")).toBe(
+			true,
+		);
+		expect(runTranslate).toHaveBeenCalledTimes(1);
 	});
 
 	it("publishes valid batch results before a different paragraph finishes retrying", async () => {
@@ -179,6 +226,53 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		expect(out[0]?.sourceStyle).toEqual(sourceStyle);
 		expect(out[0]?.sentences?.[0]?.quote).toBe(raw);
 		expect(out[0]?.translated).toContain("ends here.");
+	});
+
+	it("leaves a prompt echo untranslated instead of storing it", async () => {
+		runTranslate.mockResolvedValue(
+			"噪声功率可估计为 【约束要求】 只输出译文，不要有任何额外说明。",
+		);
+		const [out] = await runLayoutRegionTranslate({
+			items: [item("a", "We can estimate the noise power as", 0)],
+			onUpdate: () => {},
+		});
+		expect(out).toMatchObject({
+			status: "error",
+			translated: undefined,
+			sentences: undefined,
+		});
+		expect(out?.error).toContain("translate.index_prompt_echo");
+		expect(runTranslate).toHaveBeenCalledTimes(1);
+	});
+
+	it("translates each paragraph when a numbered reply echoes the prompt", async () => {
+		runTranslate
+			.mockResolvedValueOnce("[[1]] 甲\n\n【约束要求】\n只输出译文")
+			.mockResolvedValueOnce("第一段。")
+			.mockResolvedValueOnce("第二段。");
+		const out = await runLayoutRegionTranslate({
+			items: [
+				item("a", "First standalone paragraph.", 0),
+				item("b", "Second standalone paragraph.", 0),
+			],
+			onUpdate: () => {},
+		});
+		expect(runTranslate).toHaveBeenCalledTimes(3);
+		expect(out.map((entry) => entry.status)).toEqual(["done", "done"]);
+		expect(out.map((entry) => entry.translated)).toEqual([
+			"第一段。",
+			"第二段。",
+		]);
+	});
+
+	it("does not repeat a prompt-echo failure on the public retry path", async () => {
+		runTranslate.mockResolvedValue("【源文】\nWe can estimate\n\n只输出译文");
+		const [out] = await runPublicLayoutTranslate({
+			items: [item("a", "We can estimate the noise power as", 0)],
+			onUpdate: () => {},
+		});
+		expect(runTranslate).toHaveBeenCalledTimes(1);
+		expect(out).toMatchObject({ status: "error", translated: undefined });
 	});
 
 	it("sends a cross-page paragraph as one request and splits the result back", async () => {
@@ -236,6 +330,26 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		]);
 	});
 
+	it("does not add a request when every block is already translated", async () => {
+		const items = [
+			{
+				...item("a", "First standalone paragraph.", 0),
+				status: "done" as const,
+				translated: "第一段。",
+			},
+			{
+				...item("b", "Second standalone paragraph.", 0),
+				status: "done" as const,
+				translated: "第二段。",
+			},
+		];
+
+		const out = await runLayoutRegionTranslate({ items, onUpdate: () => {} });
+
+		expect(runTranslate).not.toHaveBeenCalled();
+		expect(out.map((it) => it.translated)).toEqual(["第一段。", "第二段。"]);
+	});
+
 	it("retries with protection intact when the engine drops a placeholder", async () => {
 		runTranslate
 			.mockResolvedValueOnce("参见 网址 获取细节。")
@@ -275,13 +389,42 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 			onUpdate: () => {},
 		});
 		expect(runTranslate.mock.calls.length).toBeGreaterThan(1);
-		for (const call of runTranslate.mock.calls)
+		for (const call of runTranslate.mock.calls) {
 			expect((call[0] as { text: string }).text.length).toBeLessThanOrEqual(
-				4500,
+				LAYOUT_TRANSLATE_BATCH_CHARS,
 			);
+			expect(call[1]).toBeUndefined();
+		}
 		expect(out[0]?.translated).toContain("END.");
 		expect(out[0]?.sentences?.[0]?.quote).toBe(source);
 		expect(out[0]?.status).toBe("done");
+	});
+
+	it.each([
+		"openaiCompatible",
+		"indextranslate",
+		"indextranslate2b",
+	])("streams %s batches under the smaller cap", async (provider) => {
+		settingsState.provider = provider;
+		const source = `${"longword ".repeat(800)}END.`;
+		runTranslate.mockImplementation(async (task) =>
+			(task as { text: string }).text.trim(),
+		);
+		const out = await runLayoutRegionTranslate({
+			items: [item("long", source, 0)],
+			onUpdate: () => {},
+		});
+		expect(runTranslate.mock.calls.length).toBeGreaterThan(1);
+		for (const call of runTranslate.mock.calls) {
+			expect((call[0] as { text: string }).text.length).toBeLessThanOrEqual(
+				LAYOUT_TRANSLATE_STREAM_BATCH_CHARS,
+			);
+			expect(call[1]).toEqual(
+				expect.objectContaining({ onDelta: expect.any(Function) }),
+			);
+		}
+		expect(out[0]?.status).toBe("done");
+		expect(out[0]?.translated).toContain("END.");
 	});
 
 	it("numbers each sentence and stores the pair on the block", async () => {
@@ -658,5 +801,224 @@ describe("protected caption response recovery", () => {
 		expect(out.status).toBe("done");
 		expect(requests()).toHaveLength(1);
 		expect(out.reflowFallback).toBeUndefined();
+	});
+});
+
+describe("stale sentence pairs", () => {
+	function sidecar(
+		entries: LayoutTranslateSidecar["items"],
+	): LayoutTranslateSidecar {
+		return {
+			schemaVersion: 2,
+			source: {
+				mode: "pdf-layout-translate",
+				generatedAt: "",
+				providerId: "tencenttransmart",
+				sourceLang: "en",
+				targetLang: "zh-CN",
+				serviceKey: "",
+			},
+			items: entries,
+		};
+	}
+
+	it("drops a reflow cache whose Sec. split no longer matches one sentence", () => {
+		const reflow = paragraphFromCharacters(
+			"p",
+			0,
+			{ x: 0, y: 0, w: 100, h: 20 },
+			[],
+			[],
+			false,
+		);
+		reflow.source = "See Sec. 5.1.";
+		reflow.protectedText = "See Sec. 5.1.";
+		const live = {
+			...item("p", reflow.protectedText, 0),
+			raw: reflow.source,
+			reflow,
+		};
+		const applied = applyLayoutTranslateSidecar(
+			[live],
+			sidecar([
+				{
+					...live,
+					translated: "见第 5.1 节。",
+					sentences: [
+						{
+							quote: "See Sec.",
+							source: "See Sec.",
+							translated: "见第",
+						},
+						{
+							quote: "5.1.",
+							source: "5.1.",
+							translated: "5.1 节。",
+						},
+					],
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(applied[0]).toMatchObject({
+			status: "pending",
+			translated: undefined,
+			sentences: undefined,
+		});
+	});
+
+	it("retranslates a chain whose cached quotes were cut at Sec.", () => {
+		const left = {
+			...item("left", "the agent queries the environment in", 0),
+			raw: "the agent queries the environment in",
+			readingOrder: 0,
+		};
+		const right = {
+			...item("right", "sec. 5.1 today.", 0),
+			raw: "sec. 5.1 today.",
+			readingOrder: 1,
+			bbox: { x: 0.55, y: 0.1, w: 0.35, h: 0.1 },
+		};
+		const quote = "the agent queries the environment in sec. 5.1 today.";
+		const stale = applyLayoutTranslateSidecar(
+			[left, right],
+			sidecar([
+				{
+					...left,
+					translated: "前半。",
+					sentences: [
+						{
+							quote: "the agent queries the environment in sec.",
+							source: "the agent queries the environment in sec.",
+							translated: "前半。",
+						},
+					],
+				},
+				{
+					...right,
+					translated: "今天。",
+					sentences: [
+						{
+							quote: "5.1 today.",
+							source: "5.1 today.",
+							translated: "今天。",
+						},
+					],
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(stale.map((entry) => entry.status)).toEqual(["pending", "pending"]);
+		expect(stale.every((entry) => entry.sentences === undefined)).toBe(true);
+
+		const fresh = applyLayoutTranslateSidecar(
+			[left, right],
+			sidecar([
+				{
+					...left,
+					translated: "智能体在第 5.1 节查询环境。",
+					sentences: [
+						{
+							quote,
+							source: quote,
+							translated: "智能体在第 5.1 节查询环境。",
+							display: "智能体在",
+						},
+					],
+				},
+				{
+					...right,
+					translated: "今天查询。",
+					sentences: [
+						{
+							quote,
+							source: quote,
+							translated: "智能体在第 5.1 节查询环境。",
+							display: "今天查询。",
+						},
+					],
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(fresh.map((entry) => entry.status)).toEqual(["done", "done"]);
+		expect(fresh[0]?.sentences?.[0]?.quote).toBe(quote);
+	});
+
+	it("keeps a chain translation that was stored without sentence pairs", () => {
+		const block = item("solo", "Hello world. Next one.", 0);
+		const applied = applyLayoutTranslateSidecar(
+			[block],
+			sidecar([
+				{
+					...block,
+					translated: "你好。下一句。",
+				},
+			]),
+			{ requireReflowSentencePairs: true },
+		);
+		expect(applied[0]).toMatchObject({
+			status: "done",
+			translated: "你好。下一句。",
+		});
+	});
+});
+
+// --- translation reliability (merged from pdf-layout-translate-reliable) ---
+
+describe("PDF layout translation reliability", () => {
+	it("keeps oversized source instead of truncating it", () => {
+		const sentences = Array.from(
+			{ length: 80 },
+			(_, index) =>
+				`Sentence ${index} carries source text that must survive splitting.`,
+		);
+		const source = sentences.join(" ");
+		const chunks = splitLongLayoutTranslateSource(source);
+
+		expect(chunks.length).toBeGreaterThan(1);
+		expect(
+			chunks.every((chunk) => chunk.length <= LAYOUT_TRANSLATE_MAX_CHARS),
+		).toBe(true);
+		expect(chunks.join(" ")).toBe(source);
+	});
+
+	it("hard-splits unbroken text without losing characters", () => {
+		const source = "x".repeat(LAYOUT_TRANSLATE_MAX_CHARS * 2 + 137);
+		const chunks = splitLongLayoutTranslateSource(source);
+
+		expect(chunks.map((chunk) => chunk.length)).toEqual([
+			LAYOUT_TRANSLATE_MAX_CHARS,
+			LAYOUT_TRANSLATE_MAX_CHARS,
+			137,
+		]);
+		expect(chunks.join("")).toBe(source);
+	});
+});
+
+describe("isLayoutTranslateItemPainted", () => {
+	it("paints completed or retained translations and keeps source visible while waiting", () => {
+		expect(
+			isLayoutTranslateItemPainted({ status: "done", translated: "已翻译" }),
+		).toBe(true);
+		expect(isLayoutTranslateItemPainted({ status: "running" })).toBe(false);
+		expect(
+			isLayoutTranslateItemPainted({ status: "running", translated: "旧译文" }),
+		).toBe(true);
+	});
+
+	it("returns true for error items only when partial translation exists", () => {
+		expect(
+			isLayoutTranslateItemPainted({ status: "error", translated: "部分译文" }),
+		).toBe(true);
+		expect(isLayoutTranslateItemPainted({ status: "error" })).toBe(false);
+		expect(
+			isLayoutTranslateItemPainted({ status: "error", translated: "" }),
+		).toBe(false);
+	});
+
+	it("returns false for pending or skipped items", () => {
+		expect(isLayoutTranslateItemPainted({ status: "pending" })).toBe(false);
+		expect(isLayoutTranslateItemPainted({ status: "skipped" })).toBe(false);
 	});
 });

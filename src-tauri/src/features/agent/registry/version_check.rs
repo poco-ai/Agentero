@@ -4,7 +4,7 @@
 //! known — not merely because the binary is installed. Network checks stay out
 //! of synchronous `scan_catalog` (Doctor / chat switcher also call that path).
 
-use crate::core::process::SanitizeAppImageEnv;
+use crate::core::process::{SanitizeAppImageEnv, SpawnInAgentScratchDir};
 use crate::features::agent::models::CatalogScanResponse;
 use crate::features::agent::registry::discovery::resolve_command;
 use crate::features::agent::registry::templates::template_info;
@@ -95,8 +95,8 @@ fn version_check_fields(
 }
 
 /// Newest version the silent updater can reach for a template. npm-based
-/// agents use the package dist-tag; Antigravity ships no npm package and is
-/// served by the ACP registry manifest instead.
+/// agents use the package dist-tag; Antigravity (official-installer only, updated
+/// through `agy update`) has no npm source, so its Upgrade button stays hidden.
 fn latest_version_for_template(
     template_id: &str,
     proxy_enabled: bool,
@@ -116,6 +116,7 @@ fn read_installed_version(template_id: &str) -> Option<String> {
 
     let mut cmd = Command::new(&path);
     cmd.arg("--version");
+    cmd.spawn_in_agent_scratch_dir();
     cmd.sanitize_appimage_env();
     crate::core::process::hide_console_window(&mut cmd);
     let output = cmd.output().ok()?;

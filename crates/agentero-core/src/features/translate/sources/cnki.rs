@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::sync::{Mutex, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
-use super::{http_err, lang_base, read_body};
+use super::{http_err, lang_base, map_request_error, read_body};
 
 /// Soft cap per CNKI request (characters); longer input is sentence-chunked.
 const CNKI_MAX_CHARS: usize = 800;
@@ -185,6 +185,7 @@ async fn cnki_send(request: reqwest::RequestBuilder) -> Result<reqwest::Response
         };
         match call.send().await {
             Ok(resp) => return Ok(resp),
+            Err(e) if e.is_timeout() => return Err(map_request_error("CNKI", e)),
             Err(e) => last_err = describe_reqwest_error(&e),
         }
     }
@@ -279,8 +280,7 @@ async fn cnki_token(client: &reqwest::Client, timeout: Duration) -> Result<Strin
             .get("https://dict.cnki.net/fyzs-front-api/getToken")
             .timeout(timeout),
     )
-    .await
-    .map_err(|e| AppError::message(format!("CNKI token request failed: {e}")))?;
+    .await?;
     let (status, body) = read_body(resp).await?;
     if !status.is_success() {
         return Err(http_err(status, &body, "CNKI token"));

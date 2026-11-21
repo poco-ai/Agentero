@@ -1,4 +1,4 @@
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, LoaderCircle, Volume2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { memo, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import {
 	SettingsRow,
 	SettingsSectionLabel,
 } from "@/components/settings/settings-layout";
+import { Button } from "@/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -29,9 +30,16 @@ import {
 	EDITOR_LINE_HEIGHT_MIN,
 	EDITOR_LINE_HEIGHT_STEP,
 	MARKDOWN_MAX_WIDTH_PRESETS,
+	PDF_SCROLL_STRATEGIES,
+	PDF_SPREAD_MODES,
+	PDF_TRANSLATE_TAB_MODES,
+	type PdfScrollStrategy,
+	type PdfSpreadMode,
+	type PdfTranslateTabMode,
 	WIKI_EMBED_FONT_SIZE_MAX,
 	WIKI_EMBED_FONT_SIZE_MIN,
 } from "@/lib/settings";
+import { playCue } from "@/lib/ui/sound";
 import { applyUiTheme } from "@/lib/ui/theme";
 
 export type AppearancePaneProps = {
@@ -39,6 +47,7 @@ export type AppearancePaneProps = {
 	uiTheme: string;
 	locale: LocalePreference;
 	uiScale: number;
+	soundEnabled: boolean;
 	editorFontSize: number;
 	interfaceFontFamily: string;
 	textFontFamily: string;
@@ -47,6 +56,12 @@ export type AppearancePaneProps = {
 	showEditorToolbar: boolean;
 	wikiEmbedFontSize: number;
 	markdownMaxWidth: number;
+	plazaEnabled: boolean;
+	pdfScrollStrategy: PdfScrollStrategy;
+	pdfVimKeys: boolean;
+	pdfSpreadMode: PdfSpreadMode;
+	pdfTranslateTab: PdfTranslateTabMode;
+	vimMode: boolean;
 	patch: (p: Partial<AppSettings>) => void;
 };
 
@@ -55,6 +70,7 @@ function AppearancePaneInner({
 	uiTheme,
 	locale,
 	uiScale,
+	soundEnabled,
 	editorFontSize,
 	interfaceFontFamily,
 	textFontFamily,
@@ -63,6 +79,12 @@ function AppearancePaneInner({
 	showEditorToolbar,
 	wikiEmbedFontSize,
 	markdownMaxWidth,
+	plazaEnabled,
+	pdfScrollStrategy,
+	pdfVimKeys,
+	pdfSpreadMode,
+	pdfTranslateTab,
+	vimMode,
 	patch,
 }: AppearancePaneProps) {
 	const { t } = useTranslation("settings");
@@ -191,7 +213,7 @@ function AppearancePaneInner({
 									className={cn(
 										"group h-[7.25rem] min-w-0 rounded-lg border p-1 text-left outline-none",
 										"transition-[border-color,box-shadow,transform,background-color] duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)]",
-										"hover:border-primary/55 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+										"hover:border-primary/55 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
 										"active:scale-[0.98]",
 										selected
 											? "border-primary/80 bg-primary/5 ring-1 ring-primary/35"
@@ -297,6 +319,38 @@ function AppearancePaneInner({
 							})}
 						</span>
 					</div>
+				</SettingsRow>
+				<SettingsRow
+					label={t("appearance.sound.label")}
+					htmlFor="sound-enabled"
+				>
+					<div className="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
+							aria-label={t("appearance.sound.preview")}
+							disabled={!soundEnabled}
+							onClick={() => playCue("done")}
+						>
+							<Volume2 />
+						</Button>
+						<Switch
+							id="sound-enabled"
+							checked={soundEnabled}
+							onCheckedChange={(checked) => patch({ soundEnabled: checked })}
+						/>
+					</div>
+				</SettingsRow>
+				<SettingsRow
+					label={t("appearance.plaza.label")}
+					htmlFor="plaza-enabled"
+				>
+					<Switch
+						id="plaza-enabled"
+						checked={plazaEnabled}
+						onCheckedChange={(checked) => patch({ plazaEnabled: checked })}
+					/>
 				</SettingsRow>
 			</SettingsGroup>
 
@@ -452,6 +506,84 @@ function AppearancePaneInner({
 						checked={showEditorToolbar}
 						onCheckedChange={(v) => patch({ showEditorToolbar: v })}
 					/>
+				</SettingsRow>
+			</SettingsGroup>
+
+			<SettingsSectionLabel className="mt-4">
+				{t("appearance.sections.pdf")}
+			</SettingsSectionLabel>
+			<SettingsGroup>
+				<SettingsRow label={t("appearance.pdfScrollStrategy.label")}>
+					<Select
+						value={pdfScrollStrategy}
+						onValueChange={(value) =>
+							patch({ pdfScrollStrategy: value as PdfScrollStrategy })
+						}
+					>
+						<SelectTrigger size="sm" className="min-w-[180px] max-w-[240px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{PDF_SCROLL_STRATEGIES.map((strategy) => (
+								<SelectItem key={strategy} value={strategy}>
+									{t(`appearance.pdfScrollStrategy.${strategy}`)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</SettingsRow>
+				<SettingsRow
+					label={t("appearance.pdfVimKeys.label")}
+					htmlFor="pdf-vim-keys"
+					description={
+						vimMode ? undefined : t("appearance.pdfVimKeys.requiresVimMode")
+					}
+				>
+					<Switch
+						id="pdf-vim-keys"
+						disabled={!vimMode}
+						checked={pdfVimKeys}
+						onCheckedChange={(checked) => patch({ pdfVimKeys: checked })}
+					/>
+				</SettingsRow>
+				<SettingsRow label={t("appearance.pdfSpreadMode.label")}>
+					<Select
+						disabled={pdfScrollStrategy === "paginated"}
+						value={pdfScrollStrategy === "paginated" ? "none" : pdfSpreadMode}
+						onValueChange={(value) =>
+							patch({ pdfSpreadMode: value as PdfSpreadMode })
+						}
+					>
+						<SelectTrigger size="sm" className="min-w-[180px] max-w-[240px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{PDF_SPREAD_MODES.map((mode) => (
+								<SelectItem key={mode} value={mode}>
+									{t(`appearance.pdfSpreadMode.${mode}`)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</SettingsRow>
+				<SettingsRow label={t("appearance.pdfTranslateTab.label")}>
+					<Select
+						value={pdfTranslateTab}
+						onValueChange={(value) =>
+							patch({ pdfTranslateTab: value as PdfTranslateTabMode })
+						}
+					>
+						<SelectTrigger size="sm" className="min-w-[180px] max-w-[240px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{PDF_TRANSLATE_TAB_MODES.map((mode) => (
+								<SelectItem key={mode} value={mode}>
+									{t(`appearance.pdfTranslateTab.${mode}`)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</SettingsRow>
 			</SettingsGroup>
 		</>

@@ -1,6 +1,6 @@
 ---
 name: paper-reader
-version: 11
+version: 13
 description: >-
   用中文清晰阅读和讲解科研论文。用于提炼核心贡献、深入解释方法、分析实验与局限，并在 NOTES.md 中写入中文讲义式笔记。
 ---
@@ -20,14 +20,14 @@ description: >-
 - [关键] 严禁输出任何"好的"、"我明白了"等解释性废话，接收文本后直接输出结构化的论文研读报告。
 - [关键] 遇到论文中未明确说明的细节（如具体的训练超参数、硬件型号等），必须回答"Not explicitly specified in text"，严禁依靠大模型幻觉编造数据。
 - [关键] 强聚焦问题与创新：必须明确指出该论文解决了领域内的什么顽疾，以及它凭什么能超越 Baseline。
-- [关键] 必须重点关注论文中的配图，尽可能在论文的论述和配图的描绘间建立对应关系，并在输出中贴上原文配图来配合讲解。在输出中合适的位置插入论文的关键配图，具体方式为使用 Markdown 图片格式，格式为 `![Figure X: 图片标题或简要描述](path/to/image.png)`，并从 tex 文件中获取图片路径。**对于 PDF 格式的图片**，必须先使用 `pdftoppm -jpeg -r 200 -singlefile <input>.pdf <output>` 将其转换为 JPEG 格式（保存到原 PDF 所在目录，文件名不变仅改扩展名），然后在 Markdown 中引用转换后的 `.jpg` 文件。
+- [关键] 必须重点关注论文中的配图，尽可能在论文的论述和配图的描绘间建立对应关系，并在输出中贴上原文配图来配合讲解。在输出中合适的位置插入论文的关键配图，具体方式为使用 Markdown 图片格式，格式为 `![Figure X: 图片标题或简要描述](path/to/image.png)`，并从 tex 文件中获取图片路径。**图片 src 必须写成相对论文文件夹（即 NOTES.md 所在目录）的路径**，例如 `source/figures/fig1.png`；严禁加 vault 前缀（`papers/<id>/source/...` 会导致编辑器解析失败）。**对于 PDF 格式的图片**，必须先使用 `pdftoppm -jpeg -r 200 -singlefile <input>.pdf <output>` 将其转换为 JPEG 格式（保存到原 PDF 所在目录，文件名不变仅改扩展名），然后在 Markdown 中引用转换后的 `.jpg` 文件。
 - [关键] 输出内容的详略必须和论文叙述的详略一致。对于作者重点呈现的创新点详细阐述，对于论文中较简略的部分不花大篇输出。
 - [关键] **自适应分析**：严禁生搬硬套某一类论文的分析模板。
 - [格式] 行文语言采用中文，各种术语直接保持用英文，是否简写与论文保持一致。不要中英混杂到难以阅读的程度。
 - [格式] 对于文中出现的复杂数学定义，使用 Markdown 的 LaTeX 格式输出，并根据原文来解释表达式中的变量。严格区分两种公式格式：**行内公式**（inline）使用单 dollar 符号 `$...$`，嵌入在正文句子中；**行间公式**（display）使用双 dollar 符号 `$$...$$`，必须独占一行且上下各留一个空行。禁止在行内公式中使用 `$$`，禁止在行间公式中使用单 `$`。变量、短表达式（如 $s_t$、$p>0$）用行内；独立推导、核心公式用行间。
 - [格式] 保留有效的 Obsidian-style wikilinks `[[...]]`；不要编造目标。
 - [格式] 最终交付路径：只把讲义式笔记正文写到 `{paper}/NOTES.md`。
-- [格式] 完成后标记已读：notes 和链接处理完后，始终运行 `agentero paper set-read {paper} --json`。
+- [格式] 完成后标记已读：notes 和链接处理完后，先重读 `{paper}/NOTES.md` 确认中文正文完整（没有成串 `?` 或乱码）；确认无误才运行 `agentero paper update {paper} --state read --if-revision <paper-get-revision> --json`。若发现乱码或内容缺失，不要标记已读，直接报告写入失败。
 - [格式] Cite sources inline **without wrapping parentheses**. citation **hrefs should target the local PDF**
   `[Section 2.3](papers/<id>/<id>.pdf#section=2.3)`,
   `[Figure 1](papers/<id>/<id>.pdf#figure=1)`,
@@ -37,19 +37,9 @@ description: >-
   `[p.4](papers/Quantum%20Error%20Correcting/<id>/<id>.pdf#page=4)`
   `[p.4](<papers/Quantum Error Correcting/<id>/<id>.pdf#page=4>)`
   For web pages use `[domain](https://...)`.
-  For a specific claim, query `agentero layout list <paper> --kind paragraph --json`
-  (Windows: `agentero-cli`) and copy a returned `anchor` verbatim, for example
-  `[Section 2.1, paragraph 3](papers/<id>/<id>.pdf#2.1#p3)` or
-  `[[papers/<id>/<id>.pdf#2.1#p3|supporting paragraph]]`.
-  Read `text`, `sectionAnchor`, page and bbox to verify the supporting passage.
-  Paragraphs count directly owned body blocks within each section; subsections
-  have separate counters. Never guess an ordinal from candidate/display order.
-  If analysis or a unique anchor is unavailable, report the limit and use a
-  verified page/section reference instead; do not invent a paragraph anchor.
-  Numbered `#figure=` / `#table=` / `#formula=` / `#algorithm=` anchors follow
-  the same rule: verify they exist in the layout
-  (`agentero layout list <paper> --kind ... --json`), never guess a number, and
-  fall back to a verified page/section when the anchor is absent.
+  For a specific claim, search the paper with `agentero search <query> --in <paper> --json`.
+  Verify a hit with `agentero read <cite> --json`. Use `paper regions <paper> --kind paragraph`
+  for region IDs and page coordinates. Only cite a page or region confirmed by the returned evidence.
   Shorthand `#2` / `#2.1` / `#2.1#p3` is only for PDF targets; Markdown
   `#heading`, legacy `#section=` / `#page=`, figures and annotations keep their semantics.
 

@@ -30,6 +30,12 @@ export type CrossrefLabel = {
 	kind: CrossrefKind;
 	/** The numeric part of the label ("Figure 1a" → 1). */
 	number: number;
+	/**
+	 * Figure supplement number for publisher-style labels such as eLife's
+	 * "Figure 5—figure supplement 1". These targets are usually online-only,
+	 * so a crop of the main figure would be wrong.
+	 */
+	supplement?: number;
 };
 
 /** Whether a layout region is a valid target for a cross-reference kind. */
@@ -93,11 +99,18 @@ export function pickCrossrefRegion(
 	);
 }
 
+/**
+ * "Figure 5—figure supplement 1" (eLife). Must be tested before the plain
+ * figure pattern, which would otherwise label it "Figure 5".
+ */
+const FIGURE_SUPPLEMENT_PATTERN =
+	/\b(?:Figures?|Figs?\.?)\s*(\d+)\s*(?:[—–‐‑-]\s*)?(?:Figure\s+)?Supplement\s*(\d+)/i;
+
 const CROSSREF_LABEL_PATTERNS: {
 	kind: CrossrefKind;
 	regex: RegExp;
 }[] = [
-	{ kind: "figure", regex: /\b(?:Figure|Fig\.?)\s*(\d+(?:[a-z])?)\b/i },
+	{ kind: "figure", regex: /\b(?:Figures?|Figs?\.?)\s*(\d+(?:[a-z])?)\b/i },
 	{ kind: "table", regex: /\b(?:Table|Tbl\.?)\s*(\d+(?:[a-z])?)\b/i },
 	{
 		kind: "equation",
@@ -112,6 +125,14 @@ const CROSSREF_LABEL_PATTERNS: {
  * cross-reference label.
  */
 export function extractCrossrefLabel(text: string): CrossrefLabel | null {
+	const supplement = FIGURE_SUPPLEMENT_PATTERN.exec(text);
+	if (supplement) {
+		const number = Number.parseInt(supplement[1] ?? "", 10);
+		const supplementNumber = Number.parseInt(supplement[2] ?? "", 10);
+		if (!Number.isNaN(number) && !Number.isNaN(supplementNumber)) {
+			return { kind: "figure", number, supplement: supplementNumber };
+		}
+	}
 	for (const { kind, regex } of CROSSREF_LABEL_PATTERNS) {
 		const match = regex.exec(text);
 		if (match) {
@@ -160,9 +181,13 @@ export function pickCrossrefRegionByLabel(
 
 	const prefixes = labelTitlePrefixes(label);
 	for (const prefix of prefixes) {
-		const match = candidates.find((region) =>
-			region.title?.toLowerCase().startsWith(prefix.toLowerCase()),
-		);
+		const match = candidates.find((region) => {
+			const title = region.title?.toLowerCase();
+			return (
+				title?.startsWith(prefix.toLowerCase()) &&
+				!/\d/.test(title.slice(prefix.length, prefix.length + 1))
+			);
+		});
 		if (match) return match;
 	}
 

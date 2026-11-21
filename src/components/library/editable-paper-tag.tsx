@@ -46,7 +46,7 @@ export function EditablePaperTag({
 					<button
 						type="button"
 						disabled={disabled || busy}
-						className="rounded cursor-pointer hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+						className="rounded cursor-pointer hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
 						aria-label={t("paperInfo.editTagColor", { tag: tag.name })}
 						title={t("paperInfo.tagColor")}
 						onClick={(event) => event.stopPropagation()}

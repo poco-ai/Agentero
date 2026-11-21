@@ -11,6 +11,14 @@
 /** Grace period so the pointer can travel from a link / pin into its card. */
 export const EPHEMERAL_PREVIEW_HIDE_MS = 400;
 
+/**
+ * Dwell before a link hover card opens. The pointer must rest on a citation /
+ * cross-reference / external-URL hit target this long, so sweeping across
+ * dense link text on the way somewhere else cannot flash a card (or start the
+ * async crop behind it). See `useHoverIntent`.
+ */
+export const EPHEMERAL_PREVIEW_OPEN_MS = 300;
+
 /** How long a pin-attached card survives after leaving every hover surface. */
 export const CARD_HOVER_HIDE_MS = 700;
 

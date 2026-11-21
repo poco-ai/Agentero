@@ -22,7 +22,7 @@ use crate::features::agent::models::{AgentModelsEvent, AgentUsageEvent};
 use crate::features::agent::runtime::events::AgentEventEmitter;
 use crate::features::agent::runtime::gates::{AskUserGate, ElicitationGate, PermissionGate};
 use crate::features::agent::session::run::RunOnceContext;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     RequestPermissionRequest, RequestPermissionResponse, SessionNotification, SessionUpdate,
 };
 use std::sync::{Arc, Mutex};
@@ -107,8 +107,17 @@ impl WarmIdleHooks {
                 },
             );
         }
-        if let SessionUpdate::AvailableCommandsUpdate(_) = &notification.update {
-            emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
+        if matches!(
+            &notification.update,
+            SessionUpdate::AvailableCommandsUpdate(_) | SessionUpdate::Notice(_)
+        ) {
+            emit_rich_session_update(
+                &self.app,
+                &self.session_id,
+                &self.agent_id,
+                notification,
+                None,
+            );
         }
         if let SessionUpdate::ConfigOptionUpdate(upd) = &notification.update {
             // Keep the warm result's catalog in sync with the pushed one so the
@@ -178,7 +187,7 @@ macro_rules! agentero_turn_builder {
                 {
                     let registry = registry.clone();
                     let idle = idle.clone();
-                    async move |notification: agent_client_protocol::schema::v1::SessionNotification, _cx| {
+                    async move |notification: agent_client_protocol::v1::schema::SessionNotification, _cx| {
                         match $crate::features::agent::session::handlers::snapshot_turn(&registry)
                         {
                             Some(turn) => {
@@ -225,7 +234,7 @@ macro_rules! agentero_turn_builder {
             .on_receive_request(
                 {
                     let registry = registry.clone();
-                    async move |request: agent_client_protocol::schema::v1::RequestPermissionRequest, responder, _cx| {
+                    async move |request: agent_client_protocol::v1::schema::RequestPermissionRequest, responder, _cx| {
                         let response = match $crate::features::agent::session::handlers::snapshot_turn(&registry) {
                             Some(turn) => {
                                 $crate::features::agent::session::handlers::decide_permission(
@@ -251,7 +260,7 @@ macro_rules! agentero_turn_builder {
             .on_receive_request(
                 {
                     let registry = registry.clone();
-                    async move |request: agent_client_protocol::schema::v1::CreateElicitationRequest, responder, _cx| {
+                    async move |request: agent_client_protocol::v1::schema::CreateElicitationRequest, responder, _cx| {
                         let response = match $crate::features::agent::session::handlers::snapshot_turn(&registry) {
                             Some(turn) => {
                                 $crate::features::agent::acp::interaction::await_user_elicitation(
@@ -263,8 +272,8 @@ macro_rules! agentero_turn_builder {
                                 .await
                             }
                             None => {
-                                agent_client_protocol::schema::v1::CreateElicitationResponse::new(
-                                    agent_client_protocol::schema::v1::ElicitationAction::Cancel,
+                                agent_client_protocol::v1::schema::CreateElicitationResponse::new(
+                                    agent_client_protocol::v1::schema::ElicitationAction::Cancel,
                                 )
                             }
                         };

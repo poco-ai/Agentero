@@ -29,7 +29,7 @@ export function TexLiveStatusDot({ rootPath }: { rootPath: string }) {
 				<button
 					type="button"
 					aria-label={label}
-					className="flex h-6 w-3 shrink-0 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					className="flex h-6 w-3 shrink-0 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 					onPointerDown={(event) => event.stopPropagation()}
 					onClick={(event) => event.stopPropagation()}
 				>

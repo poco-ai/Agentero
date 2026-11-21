@@ -270,8 +270,28 @@ fn loopback_bypass() -> Option<reqwest::NoProxy> {
 
 /// Standard Host HTTP client: [`USER_AGENT`], the configured proxy, `timeout`,
 /// and at most [`DEFAULT_REDIRECT_LIMIT`] redirects.
+///
+/// `timeout` is a total deadline from connect until the body finishes. A
+/// response that keeps producing bytes past that deadline is cut off. Streaming
+/// callers use [`streaming_client`] instead.
 pub fn client(timeout: Duration) -> Result<reqwest::Client, AppError> {
     client_with(timeout, DEFAULT_REDIRECT_LIMIT, USER_AGENT)
+}
+
+/// Client for a body that may outlive a one-shot deadline.
+///
+/// `idle` bounds connect and each read. The read budget resets after every
+/// successful read, so a stream that keeps producing output is not cut off
+/// just because the whole request has been open for a while. Silence longer
+/// than `idle` still fails.
+pub fn streaming_client(idle: Duration) -> Result<reqwest::Client, AppError> {
+    client_builder()
+        .connect_timeout(idle)
+        .read_timeout(idle)
+        .user_agent(USER_AGENT)
+        .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
+        .build()
+        .map_err(|e| AppError::message(format!("http client: {e}")))
 }
 
 /// [`client`] with an explicit redirect cap and User-Agent — for deeper
@@ -288,6 +308,31 @@ pub fn client_with(
         .redirect(reqwest::redirect::Policy::limited(redirect_limit))
         .build()
         .map_err(|e| AppError::message(format!("http client: {e}")))
+}
+
+/// [`client_with`] impersonating a browser with a cookie jar.
+///
+/// Article origins (and the WAFs in front of them) answer bot User-Agents with
+/// 403 + `Set-Cookie` + a JS reload stub; keeping the jar lets the retried
+/// request pass, so callers that fetch a reader-facing page use this client.
+pub fn browser_client(timeout: Duration) -> Result<reqwest::Client, AppError> {
+    client_builder()
+        .timeout(timeout)
+        .user_agent(BROWSER_USER_AGENT)
+        .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
+        .cookie_store(true)
+        .build()
+        .map_err(|e| AppError::message(format!("http client: {e}")))
+}
+
+/// True when a 403 body is a tiny JS-reload challenge stub rather than a real
+/// error page (e.g. `<script>window.location.href="/"</script>` plus an empty
+/// shell, with the challenge cookie delivered via `Set-Cookie`).
+pub fn looks_like_js_challenge(body: &[u8]) -> bool {
+    if body.len() > 8 * 1024 {
+        return false;
+    }
+    String::from_utf8_lossy(body).contains("window.location")
 }
 
 /// First [`ERROR_SNIPPET_CHARS`] chars of an HTTP response body, for embedding
@@ -458,5 +503,78 @@ mod tests {
         assert!(!is_direct_github_api_url(
             "https://codeload.github.com/o/r/tar.gz/main"
         ));
+    }
+
+    fn chunked_headers(stream: &mut std::net::TcpStream) {
+        use std::io::Write;
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n")
+            .unwrap();
+        stream.flush().unwrap();
+    }
+
+    fn write_chunk(stream: &mut std::net::TcpStream, data: &[u8]) {
+        use std::io::Write;
+        write!(stream, "{:x}\r\n", data.len()).unwrap();
+        stream.write_all(data).unwrap();
+        stream.write_all(b"\r\n").unwrap();
+        stream.flush().unwrap();
+    }
+
+    fn read_request(stream: &mut std::net::TcpStream) {
+        use std::io::Read;
+        let mut buf = [0u8; 1024];
+        let _ = stream.read(&mut buf);
+    }
+
+    /// A quiet body dies on the read budget. A body that keeps arriving may
+    /// outlive that same budget.
+    #[tokio::test]
+    async fn streaming_client_bounds_silence_not_total_duration() {
+        let silent = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let silent_port = silent.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = silent.accept() {
+                read_request(&mut stream);
+                chunked_headers(&mut stream);
+                std::thread::sleep(Duration::from_millis(900));
+            }
+        });
+        let idle = Duration::from_millis(300);
+        let client = streaming_client(idle).unwrap();
+        let err = client
+            .get(format!("http://127.0.0.1:{silent_port}/quiet"))
+            .send()
+            .await
+            .expect("headers arrive before the body goes quiet")
+            .bytes()
+            .await
+            .unwrap_err();
+        assert!(err.is_timeout(), "{err}");
+
+        let live = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let live_port = live.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = live.accept() {
+                read_request(&mut stream);
+                chunked_headers(&mut stream);
+                for _ in 0..6 {
+                    std::thread::sleep(Duration::from_millis(120));
+                    write_chunk(&mut stream, b"x");
+                }
+                write_chunk(&mut stream, b"");
+            }
+        });
+        let started = Instant::now();
+        let body = client
+            .get(format!("http://127.0.0.1:{live_port}/dribble"))
+            .send()
+            .await
+            .unwrap()
+            .bytes()
+            .await
+            .expect("bytes that keep arriving must outlive one idle window");
+        assert_eq!(&body[..], b"xxxxxx");
+        assert!(started.elapsed() > idle);
     }
 }

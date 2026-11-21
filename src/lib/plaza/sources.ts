@@ -4,8 +4,6 @@
  * Virtual tree/tab paths only; nothing here ever touches disk. Adding a source
  * is a single {@link PLAZA_SOURCES} entry — the sidebar child row and the
  * center panel both derive from this registry.
- *
- * @see docs/frontend/paper-import.md
  */
 
 import i18n from "@/i18n";
@@ -21,6 +19,7 @@ export const PLAZA_VIRTUAL_PATH = "agentero:plaza";
 export type PlazaSourceIcon =
 	| "coolPapers"
 	| "modelScope"
+	| "huggingFace"
 	| "conference"
 	| "sparkles"
 	| "rss"
@@ -40,7 +39,7 @@ export type PlazaSource = {
 	/** Minimum virtual viewport for a fixed desktop layout; other sites reflow normally. */
 	desktopWidth?: number;
 	/** Native plaza panel (not an iframe). */
-	panel?: "skills" | "feeds" | "arxivRec" | "ccfDeadlines";
+	panel?: "skills" | "feeds" | "arxivRec" | "ccfDeadlines" | "huggingface";
 	/**
 	 * Host proxy scheme origin used for embedding. A cross-origin frame cannot
 	 * retarget the site's `target="_blank"` links or report its navigations, so
@@ -82,6 +81,15 @@ export const PLAZA_SOURCES: readonly PlazaSource[] = [
 		desktopWidth: 1280,
 		embedOrigin: () => schemeOrigin("agentero-modelscope"),
 		icon: "modelScope",
+	},
+	{
+		id: "huggingface",
+		path: sourcePath("huggingface"),
+		label: "Hugging Face Daily Papers",
+		url: "https://huggingface.co/papers",
+		embedOrigin: null,
+		panel: "huggingface",
+		icon: "huggingFace",
 	},
 	{
 		id: "papers-with-code",
@@ -161,6 +169,8 @@ export function plazaSourceLabel(source: PlazaSource): string {
 			return i18n.t("sidebar:plaza.skills.title");
 		case "modelscope":
 			return i18n.t("sidebar:plaza.modelscope");
+		case "huggingface":
+			return i18n.t("sidebar:plaza.huggingface");
 		case "papers-with-code":
 			return i18n.t("sidebar:plaza.pwc.label");
 		case "feeds":

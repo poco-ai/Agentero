@@ -38,6 +38,9 @@ import { saveSettingsAsync } from "@/lib/settings";
 import {
 	DECISION_PROVIDER_PRESETS,
 	DEFAULT_DECISION_BASE_URL,
+	SMART_HIGHLIGHT_CONCURRENCY_CHOICES,
+	SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+	SMART_HIGHLIGHT_TIMEOUT_MIN_SECS,
 } from "@/lib/settings/defaults";
 import {
 	type AppSettings,
@@ -46,6 +49,15 @@ import {
 	type DecisionSettings,
 } from "@/lib/settings/types";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
+
+function clampHighlightTimeout(raw: string, fallback: number): number {
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed)) return fallback;
+	return Math.min(
+		SMART_HIGHLIGHT_TIMEOUT_MAX_SECS,
+		Math.max(SMART_HIGHLIGHT_TIMEOUT_MIN_SECS, Math.round(parsed)),
+	);
+}
 
 /** Provider-specific endpoint hint; the URL itself is not translated. */
 function baseUrlPlaceholder(provider: DecisionProviderId): string {
@@ -70,6 +82,7 @@ export function ExperimentalPane({
 	const configured = decision.apiKey.trim().length > 0;
 	const [probeStatus, setProbeStatus] = useState<ProbeStatus>("idle");
 	const [draft, setDraft] = useState<Partial<DecisionSettings>>({});
+	const [timeoutDraft, setTimeoutDraft] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 
 	const provider = draft.provider ?? decision.provider;
@@ -101,7 +114,27 @@ export function ExperimentalPane({
 		}));
 	}, []);
 
+	const commitTimeout = useCallback(
+		(raw: string) => {
+			const next = clampHighlightTimeout(
+				raw,
+				decision.smartHighlightTimeoutSecs,
+			);
+			setTimeoutDraft(null);
+			if (next !== decision.smartHighlightTimeoutSecs) {
+				patch({
+					decision: { ...decision, smartHighlightTimeoutSecs: next },
+				});
+			}
+		},
+		[decision, patch],
+	);
+
 	const handleConfirm = useCallback(async () => {
+		const timeoutSecs = clampHighlightTimeout(
+			timeoutDraft ?? String(decision.smartHighlightTimeoutSecs),
+			decision.smartHighlightTimeoutSecs,
+		);
 		const nextSettings: AppSettings = {
 			...settings,
 			decision: {
@@ -110,6 +143,8 @@ export function ExperimentalPane({
 				baseUrl: (draft.baseUrl ?? decision.baseUrl).trim(),
 				model: (draft.model ?? decision.model).trim(),
 				smartHighlight: decision.smartHighlight,
+				smartHighlightConcurrency: decision.smartHighlightConcurrency,
+				smartHighlightTimeoutSecs: timeoutSecs,
 			},
 		};
 
@@ -118,6 +153,7 @@ export function ExperimentalPane({
 			const saved = await saveSettingsAsync(nextSettings);
 			patch({ decision: saved.decision });
 			setDraft({});
+			setTimeoutDraft(null);
 
 			if (!saved.decision.apiKey) {
 				setProbeStatus("idle");
@@ -137,7 +173,7 @@ export function ExperimentalPane({
 		} finally {
 			setBusy(false);
 		}
-	}, [decision, draft, patch, provider, settings]);
+	}, [decision, draft, patch, provider, settings, timeoutDraft]);
 
 	const statusLabel = configured
 		? t(`experimental.decision.probeStatus.${probeStatus}`)
@@ -158,6 +194,54 @@ export function ExperimentalPane({
 						onCheckedChange={(v) =>
 							patch({ decision: { ...decision, smartHighlight: v } })
 						}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={t("experimental.decision.concurrency.label")}
+					description={t("experimental.decision.concurrency.description")}
+					htmlFor="decision-smart-highlight-concurrency"
+				>
+					<Select
+						value={String(decision.smartHighlightConcurrency)}
+						onValueChange={(value) =>
+							patch({
+								decision: {
+									...decision,
+									smartHighlightConcurrency: Number(value),
+								},
+							})
+						}
+					>
+						<SelectTrigger
+							id="decision-smart-highlight-concurrency"
+							size="sm"
+							className="h-8 w-24"
+						>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{SMART_HIGHLIGHT_CONCURRENCY_CHOICES.map((choice) => (
+								<SelectItem key={choice} value={String(choice)}>
+									{choice}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</SettingsRow>
+				<SettingsRow
+					label={t("experimental.decision.timeout.label")}
+					description={t("experimental.decision.timeout.description")}
+					htmlFor="decision-smart-highlight-timeout"
+				>
+					<Input
+						id="decision-smart-highlight-timeout"
+						type="number"
+						min={SMART_HIGHLIGHT_TIMEOUT_MIN_SECS}
+						max={SMART_HIGHLIGHT_TIMEOUT_MAX_SECS}
+						className="h-8 w-24"
+						value={timeoutDraft ?? String(decision.smartHighlightTimeoutSecs)}
+						onChange={(e) => setTimeoutDraft(e.target.value)}
+						onBlur={(e) => commitTimeout(e.currentTarget.value)}
 					/>
 				</SettingsRow>
 			</SettingsGroup>

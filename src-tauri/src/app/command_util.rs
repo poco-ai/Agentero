@@ -1,7 +1,7 @@
 //! Shared preflight helpers and macros for `#[tauri::command]` shells.
 //!
 //! Commands report failures as resolved promises carrying an `ApiResult`
-//! error object — never a rejected IPC `Err` (§2.5, `docs/backend/api.md`) —
+//! error object — never a rejected IPC `Err` —
 //! so every preflight repeats the same early-return `match` on
 //! `map_err`. These macros expand to exactly the hand-written shape (IPC
 //! error semantics unchanged) and stay await-compatible inside async command

@@ -1,7 +1,6 @@
 import type { PdfDocumentObject } from "@embedpdf/models";
 import type { ScrollScope } from "@embedpdf/plugin-scroll";
 import {
-	expandFocusBboxForOverlay,
 	layoutKindFromRegionId,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
@@ -15,9 +14,7 @@ export function scrollToPdfRegion(
 	options?: { embedded?: boolean },
 ): void {
 	const kind = region.kind ?? layoutKindFromRegionId(region.id);
-	const bbox = options?.embedded
-		? region.bbox
-		: expandFocusBboxForOverlay(region.bbox, kind);
+	const bbox = region.bbox;
 	const size = document?.pages[region.pageIndex]?.size;
 	scroll.scrollToPage({
 		pageNumber: region.pageIndex + 1,

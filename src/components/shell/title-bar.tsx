@@ -1,5 +1,5 @@
 import { PanelLeft, Settings } from "lucide-react";
-import { memo } from "react";
+import { memo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
 import { LayoutMenu } from "@/components/shell/layout-menu";
@@ -7,12 +7,6 @@ import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import { UpdateIndicator } from "@/components/shell/update-indicator";
 import { WindowHeader } from "@/components/shell/window-header";
 import { Button } from "@/components/ui/button";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -43,6 +37,7 @@ type TitleBarProps = {
 	onToggleSidebar: () => void;
 	onToggleAgent: () => void;
 	onApplyLayoutMode: (mode: Exclude<LayoutMode, "custom">) => void;
+	onToggleImmersive: () => void;
 	onOpenSettings: () => void;
 };
 
@@ -59,6 +54,7 @@ export const TitleBar = memo(function TitleBar({
 	onToggleSidebar,
 	onToggleAgent,
 	onApplyLayoutMode,
+	onToggleImmersive,
 	onOpenSettings,
 }: TitleBarProps) {
 	const { t } = useTranslation(["app"]);
@@ -68,6 +64,14 @@ export const TitleBar = memo(function TitleBar({
 	const QUICK_OPEN_SHORTCUT = useShortcutLabel("quickOpen");
 	const COMMAND_PALETTE_SHORTCUT = useShortcutLabel("commandPalette");
 	const agentTemplate = useAgentChromeStore((s) => s.template);
+	const [agentWindowMenuOpen, setAgentWindowMenuOpen] = useState(false);
+	// Right-click opens the menu. Left-click on the same trigger asks Radix to
+	// open it too; only a gesture we just marked may do that.
+	const agentWindowMenuOpenedAt = useRef(0);
+	const openAgentWindowMenu = () => {
+		agentWindowMenuOpenedAt.current = performance.now();
+		setAgentWindowMenuOpen(true);
+	};
 
 	return (
 		<WindowHeader>
@@ -113,11 +117,33 @@ export const TitleBar = memo(function TitleBar({
 				<div className="min-w-0 flex-1 self-stretch" data-tauri-drag-region />
 				<div className="flex shrink-0 items-center gap-0.5 pr-2">
 					<UpdateIndicator />
-					<LayoutMenu value={layoutMode} onValueChange={onApplyLayoutMode} />
-					<ContextMenu>
+					<LayoutMenu
+						value={layoutMode}
+						onValueChange={onApplyLayoutMode}
+						onToggleImmersive={onToggleImmersive}
+					/>
+					{/*
+					 * Left click toggles the rail. Right click opens this menu.
+					 * A cursor-anchored context menu is clipped against the right
+					 * edge on Windows, and WebView2 often never emits contextmenu
+					 * here, so the right button opens a menu anchored to the button.
+					 */}
+					<DropdownMenu
+						open={agentWindowMenuOpen}
+						onOpenChange={(next) => {
+							if (
+								next &&
+								performance.now() - agentWindowMenuOpenedAt.current > 500
+							) {
+								return;
+							}
+							if (!next) agentWindowMenuOpenedAt.current = 0;
+							setAgentWindowMenuOpen(next);
+						}}
+					>
 						<Tooltip>
 							<TooltipTrigger asChild>
-								<ContextMenuTrigger asChild>
+								<DropdownMenuTrigger asChild>
 									<Button
 										type="button"
 										variant="ghost"
@@ -134,7 +160,20 @@ export const TitleBar = memo(function TitleBar({
 										className={cn(
 											rightSidebarOpen && "bg-muted text-foreground",
 										)}
-										onClick={onToggleAgent}
+										onPointerDown={(event) => {
+											if (event.button !== 2) return;
+											event.stopPropagation();
+											openAgentWindowMenu();
+										}}
+										onContextMenu={(event) => {
+											event.preventDefault();
+											openAgentWindowMenu();
+										}}
+										onClick={(event) => {
+											event.preventDefault();
+											if (agentWindowMenuOpen) return;
+											onToggleAgent();
+										}}
 									>
 										<AgentLogo
 											template={agentTemplate}
@@ -143,7 +182,7 @@ export const TitleBar = memo(function TitleBar({
 											plain
 										/>
 									</Button>
-								</ContextMenuTrigger>
+								</DropdownMenuTrigger>
 							</TooltipTrigger>
 							<TooltipContent side="bottom">
 								{rightSidebarOpen
@@ -155,16 +194,24 @@ export const TitleBar = memo(function TitleBar({
 										})}
 							</TooltipContent>
 						</Tooltip>
-						<ContextMenuContent>
-							<ContextMenuItem
+						<DropdownMenuContent
+							align="end"
+							className="min-w-40"
+							onInteractOutside={(event) => {
+								if (performance.now() - agentWindowMenuOpenedAt.current < 400) {
+									event.preventDefault();
+								}
+							}}
+						>
+							<DropdownMenuItem
 								onSelect={() => {
 									void moveFeatureToWindow("agent");
 								}}
 							>
 								{t("tabs.contextMoveToNewWindow")}
-							</ContextMenuItem>
-						</ContextMenuContent>
-					</ContextMenu>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 					{/*
 				  Windows / Linux have no native menu bar, so the gear doubles as a
 				  compact app menu: settings entries plus the palette actions that

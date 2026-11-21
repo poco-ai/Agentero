@@ -6,6 +6,7 @@
  * import components — see .dependency-cruiser.cjs).
  */
 
+import { setActiveTabId } from "@/lib/workspace/store";
 import type {
 	DocTab,
 	OpenPlacement,
@@ -13,8 +14,28 @@ import type {
 } from "@/lib/workspace/tabs";
 
 export type DockHandle = {
-	/** Add (or activate) a panel with optional split placement. */
-	openPanel: (tab: DocTab, placement?: OpenPlacement) => void;
+	/**
+	 * Add (or activate) a panel with optional split placement.
+	 * `{ inactive: true }` inserts a missing panel without taking focus, and
+	 * leaves an existing panel unfocused. The default still activates it.
+	 */
+	openPanel: (
+		tab: DocTab,
+		placement?: OpenPlacement,
+		options?: { inactive?: boolean },
+	) => void;
+	/**
+	 * Remove one panel. Sets the dock sync flag so `onDidRemovePanel` does not
+	 * close the tab a second time.
+	 */
+	removePanel: (panelId: string) => void;
+	/**
+	 * Replace the grid with a saved snapshot, or clear it when the vault has
+	 * no layout. Membership is reconciled against the current tab store.
+	 */
+	restoreLayout: (layout: unknown | null) => void;
+	/** Current dock snapshot, used to flush a vault's layout before switching. */
+	snapshotLayout: () => unknown | null;
 	/** Add a panel as a right split and rebalance visible grid columns. */
 	splitPanelRight: (tab: DocTab, referencePanelId: string | null) => void;
 	/** Replace a panel id after a filesystem move while preserving its group. */
@@ -26,12 +47,12 @@ export type DockHandle = {
 	/** Active panel id of every visible dock group (one per column). */
 	visiblePanelIds: () => string[];
 	/**
-	 * Activate an existing panel by id. When `skipSetGroupActive` is true, sets
-	 * the active panel within its group without activating the group itself.
+	 * Activate an existing panel by id. `skipSetGroupActive` leaves the group
+	 * focus alone; `skipIfSameGroupAs` avoids replacing another panel in that group.
 	 */
 	activatePanel: (
 		panelId: string,
-		options?: { skipSetGroupActive?: boolean },
+		options?: { skipSetGroupActive?: boolean; skipIfSameGroupAs?: string },
 	) => void;
 	/**
 	 * True when `activatePanel` can actually bring the panel to a visible
@@ -40,9 +61,11 @@ export type DockHandle = {
 	 */
 	canActivatePanel: (panelId: string) => boolean;
 	/** Maximize the active group (other splits hidden, layout preserved). */
-	maximizeActivePanel: () => boolean;
+	maximizeActivePanel: (panelId?: string) => boolean;
 	/** Restore the grid behind any maximized group. */
 	exitMaximizedPanel: () => void;
+	/** Capture the current grid sizes for a temporary fullscreen round-trip. */
+	captureGroupSizes: () => { restore: () => void; dispose: () => void };
 	/** True while a dock group is maximized. */
 	isMaximizedPanel: () => boolean;
 	/** Remember / restore the shared two-column PDF / Notes proportion. */
@@ -63,4 +86,13 @@ export function registerDockHandle(next: DockHandle | null): void {
 
 export function dockHandle(): DockHandle | null {
 	return handle;
+}
+
+/**
+ * Remember focus only until Dockview is mounted. After registration, activation
+ * goes through the handle and `handleActivePanelChange` publishes the result.
+ */
+export function cacheActiveTabBeforeDock(panelId: string): void {
+	if (handle) return;
+	setActiveTabId(panelId);
 }

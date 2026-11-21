@@ -9,6 +9,7 @@ import {
 	customPropertiesStore,
 	propertyType,
 } from "@/lib/paper/custom-properties-store";
+import type { EasyScholarRankId } from "@/lib/paper/easy-scholar-ranks";
 import { publicationDateSortKey } from "@/lib/paper/publication-date";
 import type { ReadingHeatmap } from "@/lib/paper/reading-heatmap";
 import {
@@ -206,6 +207,8 @@ export type CellCtx = {
 	onCellCopy: (text: string | null | undefined, label: string) => void;
 	heat: ReadingHeatmap | undefined;
 	tags: PaperTag[];
+	/** EasyScholar rank systems enabled in settings (display filter). */
+	easyScholarRanks: readonly EasyScholarRankId[];
 };
 
 export type ColumnDef = {

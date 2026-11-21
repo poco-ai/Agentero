@@ -5,22 +5,28 @@
  * old tabsRef/activeTabIdRef mirrors in App.
  */
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createStore } from "zustand/vanilla";
 import { perfActive } from "@/lib/core/perf";
 import { isTauri } from "@/lib/core/tauri";
+import { isFreshWindow } from "@/lib/vault/session";
+import { getVaultPath } from "@/lib/vault/store";
 import {
 	createPlaceholderTab,
 	type DocTab,
-	loadPersistedTabs,
+	loadWindowVaultLayout,
 	patchTab,
 	seedTabs,
 } from "@/lib/workspace/tabs";
+import type { PersistedTabs } from "@/lib/workspace/tabs/types";
 import { type CenterViewMode, viewerModeSpec } from "@/lib/workspace/viewer";
 
 /** Closed panel remembered for ⇧⌘T (reopen), newest last. */
 export type ClosedTab = {
 	path: string;
 	mode?: CenterViewMode;
+	/** Owning writing project; reopen goes through the project panel, not a new tab. */
+	writingRoot?: string;
 };
 
 const CLOSED_TAB_HISTORY = 10;
@@ -50,51 +56,122 @@ export const workspaceStore = createStore<WorkspaceStore>(() => ({
 
 let initialized = false;
 
-/**
- * Seed open panels + layout from localStorage before first paint so
- * DockWorkspace onReady can fromJSON before any membership sync.
- */
-export function initWorkspaceStore(): void {
-	if (initialized) return;
-	initialized = true;
-	if (!isTauri() || perfActive()) return;
-	const persisted = loadPersistedTabs();
-	if (!persisted?.tabs.length) return;
-	workspaceStore.setState({
-		tabs: persisted.tabs.map((pt) => {
-			// Registry-declared restore override (translation panes are clones of
-			// a source paper pane: loaded paper-kind tabs, never hydrated from disk).
-			const restore = viewerModeSpec(pt.mode).restore;
-			if (restore) {
-				return {
-					...createPlaceholderTab(pt.path, pt.mode, pt.id),
+/** Tauri window label. Tests and non-Tauri callers share the primary label. */
+export function currentWindowLabel(): string {
+	if (!isTauri()) return "main";
+	try {
+		return getCurrentWindow().label || "main";
+	} catch {
+		return "main";
+	}
+}
+
+function withPersistedPane(tab: DocTab, pane: DocTab["pane"]): DocTab {
+	if (pane !== "split" && pane !== "translation") return tab;
+	return tab.pane === pane ? tab : { ...tab, pane };
+}
+
+function tabsFromPersisted(persisted: PersistedTabs): DocTab[] {
+	return persisted.tabs.map((pt) => {
+		const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
+		// Restore the owning writing project up front so every branch below —
+		// including hydration placeholders — keeps the one-panel project identity.
+		if (pt.writingRoot) tab.writingRoot = pt.writingRoot;
+		// Registry-declared restore override. Translation panes stay paper-kind
+		// and keep their view id; `loaded: false` lets hydration read the path.
+		const restore = viewerModeSpec(pt.mode).restore;
+		if (restore) {
+			return withPersistedPane(
+				{
+					...tab,
 					kind: restore.kind,
 					title: pt.title || restore.fallbackTitle,
 					loaded: restore.loaded,
-				};
-			}
-			const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
-			if (pt.texRoot) tab.texRoot = pt.texRoot;
-			// Realtime TeX panes have no file seed to hydrate; restore them
-			// loaded so the viewer remounts instead of showing a skeleton.
-			if (pt.texLive) {
-				return {
+				},
+				pt.pane,
+			);
+		}
+		if (pt.texRoot) tab.texRoot = pt.texRoot;
+		// Realtime TeX panes have no file seed to hydrate; restore them
+		// loaded so the viewer remounts instead of showing a skeleton.
+		if (pt.texLive) {
+			return withPersistedPane(
+				{
 					...tab,
 					loaded: true,
 					texLive: true,
 					texRoot: pt.texRoot,
-				};
-			}
-			// Real-path placeholders default to the folder basename; prefer the
-			// persisted title so strips show paper names before hydration.
-			if (pt.title && tab.kind === "file") {
-				return { ...tab, title: pt.title };
-			}
-			return tab;
-		}),
+				},
+				pt.pane,
+			);
+		}
+		// Real-path placeholders default to the folder basename; prefer the
+		// persisted title so strips show paper names before hydration.
+		if (pt.title && tab.kind === "file") {
+			return withPersistedPane({ ...tab, title: pt.title }, pt.pane);
+		}
+		return withPersistedPane(tab, pt.pane);
+	});
+}
+
+function applyPersistedWorkspace(persisted: PersistedTabs | null): void {
+	if (!persisted?.tabs.length) {
+		workspaceStore.setState({
+			tabs: [],
+			activeTabId: null,
+			dockLayout: null,
+		});
+		return;
+	}
+	workspaceStore.setState({
+		tabs: tabsFromPersisted(persisted),
 		activeTabId: persisted.activeId ?? null,
 		dockLayout: persisted.layout ?? null,
 	});
+}
+
+/** Drop open panels and the saved snapshot without reading storage. */
+export function clearWorkspace(): void {
+	applyPersistedWorkspace(null);
+}
+
+/**
+ * Replace open panels with the layout saved for this window and vault.
+ * Returns the dock snapshot the caller should apply when the dock is mounted.
+ * Outside Tauri the workspace is cleared and nothing is read.
+ */
+export function replaceWorkspaceForVault(vaultPath: string): unknown | null {
+	if (!isTauri()) {
+		applyPersistedWorkspace(null);
+		return null;
+	}
+	const persisted = loadWindowVaultLayout(
+		currentWindowLabel(),
+		vaultPath,
+		isFreshWindow(),
+	);
+	applyPersistedWorkspace(persisted);
+	return persisted?.layout ?? null;
+}
+
+/**
+ * Seed open panels + layout from localStorage before first paint so
+ * DockWorkspace onReady can fromJSON before any membership sync.
+ * Document and feature windows pass `restoreLayout: false` — they do not
+ * own this window's dock session.
+ */
+export function initWorkspaceStore(options?: {
+	restoreLayout?: boolean;
+}): void {
+	if (initialized) return;
+	initialized = true;
+	if (options?.restoreLayout === false) return;
+	if (!isTauri() || perfActive()) return;
+	const vaultPath = getVaultPath();
+	if (!vaultPath) return;
+	applyPersistedWorkspace(
+		loadWindowVaultLayout(currentWindowLabel(), vaultPath, isFreshWindow()),
+	);
 }
 
 export function getTabs(): DocTab[] {

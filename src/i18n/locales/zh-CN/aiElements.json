@@ -36,6 +36,11 @@
 	"modelSelector": {
 		"label": "模型选择器"
 	},
+	"formula": {
+		"copyLatex": "复制 LaTeX",
+		"copied": "已复制 LaTeX",
+		"copyFailed": "复制 LaTeX 失败。"
+	},
 	"plan": {
 		"toggle": "切换计划",
 		"status": {

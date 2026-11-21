@@ -1,5 +1,6 @@
 import {
 	Bot,
+	ChartColumn,
 	CloudUpload,
 	Compass,
 	FlaskConical,
@@ -8,7 +9,6 @@ import {
 	Languages,
 	LayoutTemplate,
 	Paintbrush,
-	Puzzle,
 	SlidersHorizontal,
 	Smartphone,
 	Stethoscope,
@@ -42,7 +42,6 @@ import {
 	broadcastOnboardingRequest,
 	broadcastTourRequest,
 } from "@/lib/onboarding/api";
-import { pluginsSurfaceEnabled } from "@/lib/plugins/visibility";
 import type { AppSettings } from "@/lib/settings";
 import { closeSettingsWindow } from "@/lib/shell/settings-window";
 import {
@@ -58,8 +57,8 @@ import {
 // pay for a chunk — a lazy default pane would just move the stall after render.
 const PANE_LOADERS = {
 	account: () => import("@/components/settings/panes/account-pane"),
-	plugins: () => import("@/components/settings/panes/plugins-pane"),
 	general: () => import("@/components/settings/panes/general-pane"),
+	activity: () => import("@/components/settings/panes/activity-pane"),
 	appearance: () => import("@/components/settings/panes/appearance-pane"),
 	agent: () => import("@/components/settings/panes/agent-pane"),
 	translate: () => import("@/components/settings/panes/translate-pane"),
@@ -78,7 +77,6 @@ const PANE_LOADERS = {
  * cached, so the matching `lazy()` below resolves without a second request.
  */
 function sectionVisible(id: SettingsSection): boolean {
-	if (!pluginsSurfaceEnabled && id === "plugins") return false;
 	if (!accountSurfaceEnabled && id === "account") return false;
 	return true;
 }
@@ -94,14 +92,16 @@ export function preloadSettingsPane(section: string): Promise<unknown> {
 
 // memo(): visited panes stay mounted across section switches; without this
 // every switch re-rendered ALL mounted panes (agent pane is ~1.5k lines).
-const PluginsPane = memo(
-	lazy(() => PANE_LOADERS.plugins().then((m) => ({ default: m.PluginsPane }))),
-);
 const AccountPane = memo(
 	lazy(() => PANE_LOADERS.account().then((m) => ({ default: m.AccountPane }))),
 );
 const GeneralPane = memo(
 	lazy(() => PANE_LOADERS.general().then((m) => ({ default: m.GeneralPane }))),
+);
+const ActivityPane = memo(
+	lazy(() =>
+		PANE_LOADERS.activity().then((m) => ({ default: m.ActivityPane })),
+	),
 );
 const AppearancePane = memo(
 	lazy(() =>
@@ -161,12 +161,12 @@ const NAV: {
 	{ id: "account", icon: UserRound },
 	{ id: "general", icon: SlidersHorizontal },
 	{ id: "appearance", icon: Paintbrush },
+	{ id: "activity", icon: ChartColumn },
 	{ id: "agent", icon: Bot, dividerBefore: true },
 	{ id: "translate", icon: Languages },
 	{ id: "layout", icon: LayoutTemplate },
 	{ id: "remote-access", icon: Smartphone },
 	{ id: "sync", icon: CloudUpload },
-	{ id: "plugins", icon: Puzzle },
 	{ id: "experimental", icon: FlaskConical },
 	{ id: "doctor", icon: Stethoscope, dividerBefore: true },
 	{ id: "keyboard", icon: Keyboard },
@@ -432,7 +432,7 @@ export function SettingsContent({
 										className={cn(
 											"flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none",
 											"transition-[color,background-color,transform,opacity] duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)]",
-											"focus-visible:ring-2 focus-visible:ring-sidebar-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar",
+											"focus-visible:ring-1 focus-visible:ring-sidebar-ring",
 											"active:scale-[0.98]",
 											active
 												? "font-medium text-sidebar-primary-foreground"
@@ -514,6 +514,17 @@ export function SettingsContent({
 							</Suspense>
 						</div>
 					)}
+					{visitedSections.includes("activity") && (
+						<div
+							data-settings-pane
+							data-active={activeSection === "activity" ? "true" : "false"}
+							hidden={activeSection !== "activity"}
+						>
+							<Suspense fallback={<PaneFallback />}>
+								<ActivityPane vaultPath={vaultPath} />
+							</Suspense>
+						</div>
+					)}
 					{visitedSections.includes("appearance") && (
 						<div
 							data-settings-pane
@@ -526,6 +537,7 @@ export function SettingsContent({
 									uiTheme={settings.uiTheme}
 									locale={settings.locale}
 									uiScale={settings.uiScale}
+									soundEnabled={settings.soundEnabled}
 									editorFontSize={settings.editorFontSize}
 									interfaceFontFamily={settings.interfaceFontFamily}
 									textFontFamily={settings.textFontFamily}
@@ -534,6 +546,12 @@ export function SettingsContent({
 									showEditorToolbar={settings.showEditorToolbar}
 									wikiEmbedFontSize={settings.wikiEmbedFontSize}
 									markdownMaxWidth={settings.markdownMaxWidth}
+									plazaEnabled={settings.plazaEnabled}
+									pdfScrollStrategy={settings.pdfScrollStrategy}
+									pdfVimKeys={settings.pdfVimKeys}
+									pdfSpreadMode={settings.pdfSpreadMode}
+									pdfTranslateTab={settings.pdfTranslateTab}
+									vimMode={settings.vimMode}
 									patch={patch}
 								/>
 							</Suspense>
@@ -571,6 +589,7 @@ export function SettingsContent({
 							<Suspense fallback={<PaneFallback />}>
 								<TranslatePane
 									settings={settings}
+									vaultPath={vaultPath}
 									patch={patch}
 									onOpenAgentSettings={() => onSectionChange("agent")}
 								/>
@@ -638,17 +657,6 @@ export function SettingsContent({
 						>
 							<Suspense fallback={<PaneFallback />}>
 								<SyncPane vaultPath={vaultPath} />
-							</Suspense>
-						</div>
-					)}
-					{pluginsSurfaceEnabled && visitedSections.includes("plugins") && (
-						<div
-							data-settings-pane
-							data-active={activeSection === "plugins" ? "true" : "false"}
-							hidden={activeSection !== "plugins"}
-						>
-							<Suspense fallback={<PaneFallback />}>
-								<PluginsPane vaultPath={vaultPath} />
 							</Suspense>
 						</div>
 					)}

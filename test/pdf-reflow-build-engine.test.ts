@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReflowBuildEngine } from "@/lib/pdf/reflow/builder";
 
 const createEngine = vi.fn<() => Promise<PdfEngine>>();
-const disposeEngine = vi.fn<(engine: PdfEngine) => void>();
-vi.mock("@/lib/pdf/engine", () => ({
-	createPdfEngine: () => createEngine(),
-	disposePdfEngine: (engine: PdfEngine) => disposeEngine(engine),
+const releaseEngine = vi.fn();
+vi.mock("@/lib/pdf/background-engine", () => ({
+	acquireBackgroundPdfEngine: async () => ({
+		engine: await createEngine(),
+		release: releaseEngine,
+	}),
 }));
 
 function doc(id: string): PdfDocumentObject {
@@ -39,7 +41,7 @@ function engine(options: { worker?: boolean } = {}): PdfEngine {
 
 beforeEach(() => {
 	createEngine.mockReset();
-	disposeEngine.mockReset();
+	releaseEngine.mockReset();
 });
 
 describe("ReflowBuildEngine", () => {
@@ -62,7 +64,7 @@ describe("ReflowBuildEngine", () => {
 		expect(createEngine).toHaveBeenCalledTimes(1);
 	});
 
-	it("idle() releases the dedicated engine and never the shared one", async () => {
+	it("idle() closes the private document and releases its background engine lease", async () => {
 		const shared = engine();
 		const dedicated = engine();
 		createEngine.mockResolvedValue(dedicated);
@@ -73,9 +75,8 @@ describe("ReflowBuildEngine", () => {
 		await builder.get();
 		builder.idle();
 		expect(dedicated.closeDocument).toHaveBeenCalledTimes(1);
-		expect(disposeEngine).toHaveBeenCalledWith(dedicated);
-		expect(disposeEngine).not.toHaveBeenCalledWith(shared);
-		// The next build respawns a fresh engine.
+		expect(releaseEngine).toHaveBeenCalledTimes(1);
+		expect(shared.closeDocument).not.toHaveBeenCalled();
 		const next = engine();
 		createEngine.mockResolvedValue(next);
 		const target = await builder.get();
@@ -96,7 +97,7 @@ describe("ReflowBuildEngine", () => {
 		expect(createEngine).not.toHaveBeenCalled();
 		// Teardown must never dispose the shared viewer engine.
 		builder.dispose();
-		expect(disposeEngine).not.toHaveBeenCalledWith(shared);
+		expect(releaseEngine).not.toHaveBeenCalled();
 	});
 
 	it("rejects a direct (non-worker) engine instead of running builds on the main thread", async () => {
@@ -107,7 +108,7 @@ describe("ReflowBuildEngine", () => {
 			document: doc("src"),
 		});
 		await expect(builder.get()).resolves.toMatchObject({ engine: shared });
-		expect(disposeEngine).toHaveBeenCalledTimes(1);
+		expect(releaseEngine).toHaveBeenCalledTimes(1);
 	});
 
 	it("cleans up a spawn that resolves after dispose", async () => {
@@ -117,23 +118,21 @@ describe("ReflowBuildEngine", () => {
 		const pendingDoc = new Promise<PdfDocumentObject>(
 			(resolve) => (openResolve = resolve),
 		);
+		const open = vi.fn(() => ({ toPromise: () => pendingDoc }));
 		createEngine.mockResolvedValue({
 			...dedicated,
-			openDocumentBuffer: vi.fn(() => ({ toPromise: () => pendingDoc })),
+			openDocumentBuffer: open,
 		} as unknown as PdfEngine);
 		const builder = new ReflowBuildEngine({
 			engine: shared,
 			document: doc("src"),
 		});
 		const pending = builder.get();
+		await vi.waitFor(() => expect(open).toHaveBeenCalled());
 		builder.dispose();
 		openResolve(doc("late"));
 		await expect(pending).resolves.toMatchObject({ engine: shared });
 		expect(dedicated.closeDocument).toHaveBeenCalledTimes(1);
-		// The spread copy differs by identity; assert on the spawned instance.
-		expect(disposeEngine).toHaveBeenCalledTimes(1);
-		expect(disposeEngine).toHaveBeenCalledWith(
-			await createEngine.mock.results[0].value,
-		);
+		expect(releaseEngine).toHaveBeenCalledTimes(1);
 	});
 });

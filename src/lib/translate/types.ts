@@ -10,12 +10,11 @@
  */
 export type FreeTranslateProviderId =
 	| "agentero"
-	| "google"
-	| "googleapi"
-	| "deeplx"
 	| "cnki"
 	| "huoshanweb"
-	| "tencenttransmart";
+	| "tencenttransmart"
+	| "indextranslate"
+	| "indextranslate2b";
 
 /** Commercial BYOK engines called directly by the Tauri Host. */
 export type CommercialTranslateProviderId =
@@ -34,7 +33,11 @@ export type TranslateTargetLang = "ui" | "en" | "zh-CN";
 
 export type TranslateSourceLang = "auto";
 
+export type DictionaryMode = "auto" | "offline-first" | "off";
+export type SelectionTranslateMode = "dictionary" | "translate";
+
 export type TranslateSettings = {
+	dictionary: { mode: DictionaryMode };
 	/** App-wide default provider. */
 	provider: TranslateProviderId;
 	targetLang: TranslateTargetLang;
@@ -47,24 +50,6 @@ export type TranslateSettings = {
 	>;
 	/** PDF consumer: auto-run translate after selection (default off). */
 	autoTranslateSelection: boolean;
-	/**
-	 * Open a secondary window with the rendered full-document translation so the
-	 * original PDF stays on the left and the translation stays on the right.
-	 * @deprecated Use `displayMode` instead; kept for migration.
-	 */
-	dualPaneTranslate: boolean;
-	/**
-	 * How full-document translation is displayed.
-	 * - `overlay`: in-place translation layer over the source PDF.
-	 * - `dualPane`: side-by-side source + translation panes.
-	 */
-	displayMode: TranslationDisplayMode;
-	/**
-	 * Which source drives the left pane when `displayMode === "dualPane"`.
-	 * - `pdf`: the rendered PDF.
-	 * - `latex`: the arXiv LaTeX source.
-	 */
-	dualPaneSource: DualPaneSource;
 	/**
 	 * Agent seat for provider === "agent".
 	 * Empty = follow registry defaultId.
@@ -113,6 +98,12 @@ export type TranslateSettings = {
 	 * once (1–5, default 1). Seeded into the JobCenter `layoutTranslate` cap.
 	 */
 	autoTranslateImportConcurrency: number;
+	/**
+	 * Keep the selection translation result card open when the reader clicks
+	 * elsewhere on the page (default off: a click outside the card closes it).
+	 * Scrolling, page turns and viewer toolbars never close it.
+	 */
+	alwaysShowTranslateCard: boolean;
 };
 
 export type TranslateProviderConfig = {
@@ -125,6 +116,12 @@ export type TranslateProviderConfig = {
 	model: string;
 	/** JSON object replacing automatic request options; blank uses model defaults. */
 	extraRequestBody?: string;
+	/**
+	 * Full-document translation batch concurrency (1–8, default 2) for the
+	 * OpenAI-compatible path. Other providers ignore it; selection translation
+	 * and the Agent path stay serial. Not part of the translation cache key.
+	 */
+	concurrency: number;
 };
 
 export type TranslateServiceType = "sentence" | "word";
@@ -142,14 +139,21 @@ export type TranslateTask = {
 		quote?: string;
 		/** e.g. "pdf-selection" */
 		surface?: string;
+		dictionary?: boolean;
+		dictionarySurrounding?: string;
+		dictionaryReference?: string;
 	};
 };
 
 export type TranslateRunOptions = {
+	/** Resolved terminology constraint for this source text. */
+	glossary?: string;
 	/** Override settings.provider for this call. */
 	providerId?: TranslateProviderId;
 	/** Current BYOK provider config, resolved from settings. */
 	providerConfig?: TranslateProviderConfig;
+	/** Streaming increments, for providers that stream (Bilibili Translate). */
+	onDelta?: (chunk: string) => void;
 	/**
 	 * Agent path: custom prompt override; defaults to
 	 * settings.translate.customPrompt (set by `runTranslate`).
@@ -183,12 +187,11 @@ export type TranslateService = {
 /** Ordered list for settings UI (free engines). */
 export const FREE_MT_PROVIDER_IDS: FreeTranslateProviderId[] = [
 	"agentero",
+	"indextranslate",
+	"indextranslate2b",
 	"tencenttransmart",
 	"huoshanweb",
-	"deeplx",
 	"cnki",
-	"googleapi",
-	"google",
 ];
 
 /** Ordered list for settings UI (commercial BYOK engines). */
@@ -226,18 +229,3 @@ export const COMMERCIAL_MT_DOCS_URLS: Record<
 		"https://console.cloud.google.com/apis/library/translate.googleapis.com",
 	openaiCompatible: "https://platform.openai.com/api-keys",
 };
-
-/** How full-document translation is rendered. */
-export type TranslationDisplayMode = "overlay" | "dualPane";
-
-/** Canonical display modes in UI order. */
-export const TRANSLATION_DISPLAY_MODES: TranslationDisplayMode[] = [
-	"overlay",
-	"dualPane",
-];
-
-/** Source pane type for dual-pane full-document translation. */
-export type DualPaneSource = "pdf" | "latex";
-
-/** Canonical dual-pane source values in UI order. */
-export const DUAL_PANE_SOURCES: DualPaneSource[] = ["pdf", "latex"];

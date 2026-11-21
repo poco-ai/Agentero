@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	LAYOUT_TEXT_ORDER_VERSION,
 	layoutSidecarBlocksAnalysis,
 	layoutSidecarNeedsTextLayer,
 	layoutSidecarNeedsViewerReload,
@@ -90,11 +91,71 @@ describe("layout sidecar", () => {
 	});
 
 	it("keeps a non-empty sidecar unless the caller forces a new parse", () => {
-		expect(layoutSidecarBlocksAnalysis(false, 3)).toBe(true);
-		expect(layoutSidecarBlocksAnalysis(undefined, 3)).toBe(true);
-		expect(layoutSidecarBlocksAnalysis(true, 3)).toBe(false);
-		expect(layoutSidecarBlocksAnalysis(true, 0)).toBe(false);
-		expect(layoutSidecarBlocksAnalysis(false, 0)).toBe(false);
+		const complete: PdfLayoutSidecar = {
+			schemaVersion: 3,
+			source: {
+				mode: "embedpdf-layout",
+				generatedAt: "now",
+				textOrderVersion: LAYOUT_TEXT_ORDER_VERSION,
+				completeness: {
+					pageCount: 1,
+					processedPages: [0],
+					textLayerComplete: true,
+					pageStats: [
+						{
+							pageIndex: 0,
+							regionCount: 1,
+							textChars: 100,
+							translatableRegionCount: 1,
+						},
+					],
+					warnings: [],
+					contentRepairAttempted: false,
+				},
+			},
+			regions: [region()],
+		};
+		expect(layoutSidecarBlocksAnalysis(false, complete)).toBe(true);
+		expect(layoutSidecarBlocksAnalysis(undefined, complete)).toBe(true);
+		expect(layoutSidecarBlocksAnalysis(true, complete)).toBe(false);
+		expect(
+			layoutSidecarBlocksAnalysis(false, {
+				...complete,
+				source: { mode: "embedpdf-layout", generatedAt: "old" },
+			}),
+		).toBe(false);
+		// A complete parse with body text from an older reading-order pass only
+		// needs the text-layer walk, so it must not short-circuit analysis.
+		expect(
+			layoutSidecarBlocksAnalysis(false, {
+				...complete,
+				source: { ...complete.source, textOrderVersion: undefined },
+			}),
+		).toBe(false);
+		if (!complete.source.completeness) throw new Error("expected completeness");
+		const warning = {
+			...complete,
+			source: {
+				...complete.source,
+				completeness: {
+					...complete.source.completeness,
+					warnings: [{ code: "content-gap" as const, pages: [0] }],
+				},
+			},
+		};
+		expect(layoutSidecarBlocksAnalysis(false, warning)).toBe(false);
+		expect(
+			layoutSidecarBlocksAnalysis(false, {
+				...warning,
+				source: {
+					...warning.source,
+					completeness: {
+						...warning.source.completeness,
+						contentRepairAttempted: true,
+					},
+				},
+			}),
+		).toBe(true);
 	});
 
 	it("stores under the paper source folder", () => {
@@ -208,6 +269,40 @@ describe("layout sidecar", () => {
 				regions: [{ ...stale.regions[0], bbox: { x: 0, y: 0, w: 1, h: 1 } }],
 			}),
 		).toBe(false);
+	});
+
+	it("round-trips page completeness metadata", () => {
+		const sidecar = parseLayoutSidecar({
+			schemaVersion: 3,
+			source: {
+				mode: "paddle-layout",
+				generatedAt: "now",
+				completeness: {
+					pageCount: 1,
+					processedPages: [0],
+					textLayerComplete: true,
+					pageStats: [
+						{
+							pageIndex: 0,
+							regionCount: 1,
+							textChars: 321,
+							translatableRegionCount: 1,
+							excludedTextChars: 0,
+							visualArea: 0,
+						},
+					],
+					warnings: [{ code: "content-gap", pages: [0] }],
+					contentRepairAttempted: true,
+				},
+			},
+			regions: [region()],
+		});
+		expect(sidecar?.source.completeness).toMatchObject({
+			pageCount: 1,
+			textLayerComplete: true,
+			contentRepairAttempted: true,
+			warnings: [{ code: "content-gap", pages: [0] }],
+		});
 	});
 
 	it("rejects stale schema or malformed regions", () => {

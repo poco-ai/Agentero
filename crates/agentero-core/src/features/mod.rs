@@ -5,6 +5,7 @@
 //! CLI and migrated code; the desktop Host calls the semantic paths directly.
 
 pub mod context;
+pub mod evidence;
 pub mod lifecycle;
 pub mod markdown;
 pub mod open_request;

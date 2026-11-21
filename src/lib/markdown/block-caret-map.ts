@@ -266,6 +266,10 @@ function linkDestinationEnd(line: string, open: number): number {
 	return findClosingParen(line, open + 1);
 }
 
+/** Inline HTML marks `@platejs/markdown` writes for marks with no Markdown
+ * spelling; their tags are formatting, not content. */
+const INLINE_HTML_MARK_TAGS = new Set(["u", "mark", "sub", "sup", "kbd"]);
+
 /**
  * Scan one line of Markdown into visible text, recording the source offset of
  * every emitted character. Returns false when the line contains syntax this
@@ -441,6 +445,16 @@ function scanInline(line: string, base: number, builder: Builder): boolean {
 		}
 
 		if (char === "<") {
+			// The editor persists inline marks as bare HTML tags (`<mark>`,
+			// `<u>`, ...). They format the run and emit no visible characters,
+			// so skip them instead of projecting the tag text.
+			const tag = /^<(\/?)([a-zA-Z][a-zA-Z0-9-]*)(?:\s[^<>]*)?\/?>/.exec(
+				line.slice(index),
+			);
+			if (tag && INLINE_HTML_MARK_TAGS.has(tag[2].toLowerCase())) {
+				index += tag[0].length;
+				continue;
+			}
 			const match = /^<([^<>\n]+)>/.exec(line.slice(index));
 			if (match) {
 				const inner = match[1];

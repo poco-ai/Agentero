@@ -9,10 +9,12 @@ import { ensureLibraryTabFirst } from "@/lib/workspace/library-tab-position";
 import { isSplitDragPayload } from "@/lib/workspace/tab-dnd";
 import {
 	type DocTab,
+	isPaperContentTab,
 	type OpenPlacement,
 	panelPersistParams,
 	type ReadingColumns,
 	type SplitDirection,
+	tabIsPaperNotes,
 } from "@/lib/workspace/tabs";
 import { type CenterViewMode, viewerModeSpec } from "@/lib/workspace/viewer";
 
@@ -84,10 +86,10 @@ function resolveReferencePanel(
 
 /**
  * dockview panel renderer per mode, declared in the viewer registry: PDF /
- * Markdown / Excalidraw / plain-text / translation panels use
- * `renderer: 'always'` so inactive sibling tabs keep their React shell
- * mounted (enables the App-level LRU keep-alive); HTML / image stay
- * `onlyWhenVisible` to free DOM when not shown.
+ * Markdown / plain-text / translation panels use `renderer: 'always'` so
+ * inactive sibling tabs keep their React shell mounted (enables the App-level
+ * LRU keep-alive); HTML / image stay `onlyWhenVisible` to free DOM when not
+ * shown.
  */
 function rendererForMode(mode: CenterViewMode): DockviewPanelRenderer {
 	return viewerModeSpec(mode).renderer;
@@ -108,6 +110,13 @@ export function addPanelWithPlacement(
 ): IDockviewPanel {
 	const referencePanel = resolveReferencePanel(api, placement);
 	const direction = placement?.direction ?? "within";
+	// Splitting a maximized group leaves the new group hidden. With
+	// `renderer: "always"` its content is still mounted in the render overlay,
+	// so it can paint over the maximized pane like a floating window. Exit the
+	// maximize first; reading mode re-maximizes after the split.
+	if (direction !== "within" && api.hasMaximizedGroup()) {
+		api.exitMaximizedGroup();
+	}
 	return api.addPanel({
 		id: tab.id,
 		component: "pane",
@@ -133,11 +142,29 @@ export function addPanelWithPlacement(
  * Anchors of the standard two-column reading layout: exactly two side-by-side
  * grid groups. Actions use them to keep new papers on the left and NOTES on the
  * right instead of following whichever group happens to hold focus.
+ *
+ * With `tabs`, the pair must also carry the reading roles (paper body on the
+ * left, paper NOTES on the right). Otherwise a TeX source | PDF split — or any
+ * arbitrary two-column layout — would be mistaken for "paper | notes" and new
+ * papers/notes would stack into the wrong columns.
  */
 export function readingColumnAnchors(
 	api: DockviewApi,
 	cached?: ReadingColumns | null,
+	tabs?: readonly DocTab[],
 ): ReadingColumns | null {
+	const tabsById = tabs?.length
+		? new Map(tabs.map((tab) => [tab.id, tab]))
+		: null;
+	const tabFor = (id: string) => tabsById?.get(id) ?? null;
+	const groupHasTab = (
+		group: { panels: ReadonlyArray<{ id: string }> },
+		match: (tab: DocTab | null) => boolean,
+	) => !tabsById || group.panels.some((panel) => match(tabFor(panel.id)));
+	const columnsMatchReadingRoles = (leftId: string, rightId: string) =>
+		!tabsById ||
+		(isPaperContentTab(tabFor(leftId)) && tabIsPaperNotes(tabFor(rightId)));
+
 	const groups = api.groups.filter(
 		(group) => group.api.location.type === "grid" && group.panels.length > 0,
 	);
@@ -156,8 +183,18 @@ export function readingColumnAnchors(
 	) {
 		const left = a.left < b.left ? first : second;
 		const right = left === first ? second : first;
-		const leftAnchor = left.panels[0];
-		const rightAnchor = right.panels[0];
+		if (
+			!groupHasTab(left, isPaperContentTab) ||
+			!groupHasTab(right, tabIsPaperNotes)
+		) {
+			return null;
+		}
+		const leftAnchor =
+			left.panels.find((panel) => isPaperContentTab(tabFor(panel.id))) ??
+			left.panels[0];
+		const rightAnchor =
+			right.panels.find((panel) => tabIsPaperNotes(tabFor(panel.id))) ??
+			right.panels[0];
 		if (!leftAnchor || !rightAnchor) return null;
 		return { leftAnchorId: leftAnchor.id, rightAnchorId: rightAnchor.id };
 	}
@@ -166,6 +203,9 @@ export function readingColumnAnchors(
 	// If exactly two groups remain and we have cached reading columns whose panels
 	// belong to these two groups, keep using the remembered left and right anchors.
 	if (api.hasMaximizedGroup() && cached) {
+		if (!columnsMatchReadingRoles(cached.leftAnchorId, cached.rightAnchorId)) {
+			return null;
+		}
 		const firstHasLeft = first.panels.some((p) => p.id === cached.leftAnchorId);
 		const secondHasRight = second.panels.some(
 			(p) => p.id === cached.rightAnchorId,
@@ -279,6 +319,6 @@ export function reconcileAfterLayoutRestore(
 
 export function visiblePanelIds(api: DockviewApi): string[] {
 	return api.groups.flatMap((group) =>
-		group.activePanel ? [group.activePanel.id] : [],
+		group.api.isVisible && group.activePanel ? [group.activePanel.id] : [],
 	);
 }

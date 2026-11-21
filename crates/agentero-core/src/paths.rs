@@ -3,7 +3,7 @@
 //!
 //! | Kind | Env | Default (Unix) | Contents |
 //! |------|-----|----------------|----------|
-//! | config | `$XDG_CONFIG_HOME` | `~/.config` | `agentero/settings.json`, `agents.json`, `plugins.json` |
+//! | config | `$XDG_CONFIG_HOME` | `~/.config` | `agentero/settings.json`, `agents.json` |
 //! | cache | `$XDG_CACHE_HOME` | `~/.cache` | remote work mirrors, PDF blobs |
 //! | data | `$XDG_DATA_HOME` | `~/.local/share` | `usage.sqlite` (device-local activity), `feeds.sqlite` |
 //! | state | `$XDG_STATE_HOME` | `~/.local/state` | reserved |
@@ -99,13 +99,6 @@ pub fn mcp_tunnel_dir() -> PathBuf {
 /// App settings file: `…/agentero/settings.json`.
 pub fn settings_path() -> PathBuf {
     agentero_config_dir().join("settings.json")
-}
-
-/// Plugin manifest: `…/agentero/plugins.json`, beside [`settings_path`].
-///
-/// Load and store live in [`crate::plugins`]. Nothing reads this file at startup.
-pub fn plugins_path() -> PathBuf {
-    agentero_config_dir().join("plugins.json")
 }
 
 /// Agent registry file: `…/agentero/agents.json`.
@@ -225,16 +218,10 @@ mod tests {
     }
 
     #[test]
-    fn settings_agents_and_plugins_share_config_dir() {
+    fn settings_and_agents_share_config_dir() {
         let settings = settings_path();
         let agents = agents_path();
-        let plugins = plugins_path();
         assert_eq!(settings.parent(), agents.parent());
-        assert_eq!(settings.parent(), plugins.parent());
-        assert_eq!(
-            plugins.file_name().and_then(|s| s.to_str()),
-            Some("plugins.json")
-        );
     }
 
     #[test]

@@ -1,10 +1,17 @@
 {
-	"navigator": { "hintTargets": "{{count}} 个键盘目标" },
+	"navigator": {
+		"hintTargets": "{{count}} 个键盘目标"
+	},
 	"labels": {
 		"agent": "Agent",
 		"notes": "笔记",
 		"untitled": "未命名",
 		"remoteArxiv": "远程 arXiv"
+	},
+	"pathBar": {
+		"openFolder": "打开文件夹",
+		"openWith": "打开方式",
+		"openLinks": "打开链接"
 	},
 	"commandPalette": {
 		"title": "快速打开",
@@ -56,8 +63,7 @@
 		"tabPrevInGroup": "组内上一个标签页",
 		"exportAnnotatedPdf": "导出带批注的 PDF",
 		"wandOpen": "魔棒（按标识符入库）",
-		"pluginsLoadDevelopment": "加载开发插件…",
-		"pluginsUnloadDevelopment": "卸载开发插件"
+		"immersiveReading": "全屏阅读"
 	},
 	"titlebar": {
 		"showLeftSidebar": "显示左侧边栏",
@@ -79,7 +85,8 @@
 		"menuSettings": "设置…",
 		"menuKeyboardShortcuts": "键盘快捷键",
 		"menuQuickOpen": "快速打开…",
-		"menuCommandPalette": "命令面板…"
+		"menuCommandPalette": "命令面板…",
+		"layoutImmersive": "全屏阅读"
 	},
 	"editor": {
 		"markdownPlaceholder": "在此输入 Markdown……",
@@ -133,6 +140,8 @@
 		"docUnsupported": "论文库与回收站不能在新窗口中打开。",
 		"featureDesktopOnly": "功能窗口需要桌面应用。",
 		"docDesktopOnly": "文档窗口需要桌面应用。",
+		"moveUnsaved": "文档窗口有未保存的修改，此标签仍留在当前窗口。",
+		"moveFailed": "文档未能在新窗口打开，此标签仍留在当前窗口。",
 		"titleAgent": "Agent",
 		"titleAnnotations": "批注",
 		"titleDocument": "文档"
@@ -248,6 +257,13 @@
 		"layoutModelDetail": "魔搭 → HuggingFace · PP-DocLayoutV3",
 		"layoutAnalysis": "解析插图、表格、文字",
 		"layoutTranslate": "翻译全文",
+		"layoutTranslateComplete": "补全译文",
+		"layoutTranslatePrepareItems": "准备条目",
+		"layoutTranslateRun": "翻译",
+		"layoutTranslateFormulas": "准备公式",
+		"layoutTranslateWritePdf": "写 PDF",
+		"layoutTranslatePartial": "已译 {{translated}}/{{total}}，仍有 {{pending}} 段未完成",
+		"layoutTranslateFormulaStalled": "公式准备已停滞",
 		"pdfParse": "解析 PDF 正文",
 		"parseRefs": "解析参考文献",
 		"openLayoutSettings": "打开解析设置",
@@ -274,6 +290,8 @@
 		"paperReadMarking": "正在标记为已读…",
 		"paperReadDone": "精读完成",
 		"paperReadFailed": "精读失败",
+		"paperReadNoNotes": "精读未写入笔记，已保持未读，可重试",
+		"paperReadGarbled": "精读结果疑似乱码，已保持未读；可重试或更换 Agent / 模型",
 		"connector": "正在保存 Connector 附件",
 		"connectorComplete": "Connector 附件已就绪",
 		"connectorFailed": "Connector 附件失败"
@@ -290,12 +308,5 @@
 			"description": "如果访问受限，可在设置中配置代理后重试。",
 			"openSettings": "打开网络设置"
 		}
-	},
-	"plugins": {
-		"chooseDirectory": "加载插件 — 允许读取当前 Vault",
-		"failed": "插件操作失败",
-		"loaded": "开发插件已加载",
-		"commandTitle": "{{title}}",
-		"suspended": "{{name}} 连续失败，已停止运行。可在设置中重新启用。"
 	}
 }

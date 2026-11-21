@@ -5,11 +5,14 @@ type OnboardingState = {
 	forceOpen: boolean;
 	/** Whether the wizard overlay is currently visible. */
 	open: boolean;
+	/** Covers directory creation and the post-create import choice, even after the wizard closes. */
+	vaultSetupPending: boolean;
 };
 
 export const onboardingStore = createStore<OnboardingState>(() => ({
 	forceOpen: false,
 	open: false,
+	vaultSetupPending: false,
 }));
 
 /** Open the wizard (fresh install auto-show, or Settings replay). */

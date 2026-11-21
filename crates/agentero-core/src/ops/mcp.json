@@ -1,0 +1,3511 @@
+{
+	"tools": [
+		{
+			"name": "evidence_search",
+			"title": "Search research evidence",
+			"description": "Find citable passages in papers, notes, tables and UTF-8 files. Scopes and kinds form unions; all supplied tags must match the parent paper. Results include the source, locator, revision and citation.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"in": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Paper ID, Vault-relative path or opaque citation URI."
+						},
+						"minItems": 1
+					},
+					"kind": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["metadata", "body", "note", "file", "table"]
+						},
+						"minItems": 1
+					},
+					"tag": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty tag name."
+						},
+						"minItems": 1
+					},
+					"match": {
+						"type": "string",
+						"enum": ["all", "any"],
+						"default": "all"
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 50,
+						"default": 20
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["query"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"cite": {
+									"type": "string"
+								},
+								"source": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["metadata", "body", "note", "file", "table"]
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"char_from": { "type": "integer", "minimum": 0 },
+										"char_to": { "type": "integer", "minimum": 0 },
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"excerpt": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"cite",
+								"source",
+								"kind",
+								"locator",
+								"revision",
+								"excerpt"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "evidence_read",
+			"title": "Read a passage",
+			"description": "Read by citation, paper or Vault path. Choose one of pages, section, region, quote or lines. A citation already selects its location. Layout needs one page or region. An unqualified paper returns metadata. Body reads prefer TeX, Markdown, layout, then native PDF text. Use next_cursor for longer reads. A restricted body citation reopens exactly the issued excerpt.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Paper ID, Vault-relative path or opaque citation URI."
+					},
+					"part": {
+						"type": "string",
+						"enum": ["auto", "body", "notes", "metadata", "layout"],
+						"default": "auto"
+					},
+					"pages": {
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 2147483647
+						},
+						"minItems": 1,
+						"maxItems": 200,
+						"uniqueItems": true,
+						"description": "One-based physical page numbers. Use [8] for page eight. Pages are returned in order."
+					},
+					"section": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"region": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"quote": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"lines": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Inclusive one-based line range, e.g. 12-24."
+					},
+					"max_chars": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 20000,
+						"default": 4000
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["source"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"not": {
+							"required": ["pages", "section"]
+						}
+					},
+					{
+						"not": {
+							"required": ["pages", "region"]
+						}
+					},
+					{
+						"not": {
+							"required": ["section", "region"]
+						}
+					},
+					{
+						"not": {
+							"required": ["pages", "quote"]
+						}
+					},
+					{
+						"not": {
+							"required": ["section", "quote"]
+						}
+					},
+					{
+						"not": {
+							"required": ["region", "quote"]
+						}
+					},
+					{
+						"not": {
+							"required": ["pages", "lines"]
+						}
+					},
+					{
+						"not": {
+							"required": ["section", "lines"]
+						}
+					},
+					{
+						"not": {
+							"required": ["region", "lines"]
+						}
+					},
+					{
+						"not": {
+							"required": ["quote", "lines"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"part": {
+									"const": "layout"
+								}
+							},
+							"required": ["part"]
+						},
+						"then": {
+							"anyOf": [
+								{
+									"required": ["pages"],
+									"properties": {
+										"pages": {
+											"maxItems": 1
+										}
+									}
+								},
+								{
+									"required": ["region"]
+								}
+							]
+						}
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"text": {
+						"type": "string"
+					},
+					"evidence": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"cite": {
+									"type": "string"
+								},
+								"source": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["metadata", "body", "note", "file", "table"]
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"char_from": { "type": "integer", "minimum": 0 },
+										"char_to": { "type": "integer", "minimum": 0 },
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"excerpt": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"cite",
+								"source",
+								"kind",
+								"locator",
+								"revision",
+								"excerpt"
+							],
+							"additionalProperties": false
+						}
+					},
+					"entries": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"path": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"revision": {
+									"type": "string"
+								}
+							},
+							"required": ["path", "kind", "name", "revision"],
+							"additionalProperties": false
+						}
+					},
+					"regions": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"region": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": [
+										"figure",
+										"image",
+										"chart",
+										"table",
+										"algorithm",
+										"formula",
+										"section",
+										"paragraph"
+									]
+								},
+								"page": {
+									"type": "integer"
+								},
+								"box": {
+									"type": "array",
+									"items": {
+										"type": "number"
+									}
+								},
+								"score": {
+									"type": "number"
+								},
+								"cite": {
+									"type": "string"
+								}
+							},
+							"required": ["region", "kind", "page", "box", "score", "cite"],
+							"additionalProperties": false
+						}
+					},
+					"metadata": {
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"path": {
+								"type": "string"
+							},
+							"title": {
+								"type": "string"
+							},
+							"state": {
+								"enum": ["read", "unread"],
+								"type": "string"
+							},
+							"tags": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							"revision": {
+								"type": "string"
+							},
+							"authors": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							"venue": {
+								"type": ["string", "null"]
+							},
+							"date": {
+								"type": ["string", "null"]
+							},
+							"doi": {
+								"type": ["string", "null"]
+							},
+							"arxiv": {
+								"type": ["string", "null"]
+							},
+							"status": {
+								"type": ["string", "null"]
+							},
+							"abstract": {
+								"type": ["string", "null"]
+							},
+							"assets": {
+								"type": "object",
+								"properties": {
+									"pdf": {
+										"type": "string"
+									},
+									"tex": {
+										"type": "string"
+									},
+									"body": {
+										"type": "string"
+									},
+									"notes": {
+										"type": "string"
+									},
+									"marks": {
+										"type": "string"
+									},
+									"folder": {
+										"type": "string"
+									}
+								},
+								"required": ["folder"],
+								"additionalProperties": false
+							}
+						},
+						"required": [
+							"id",
+							"path",
+							"title",
+							"state",
+							"tags",
+							"revision",
+							"authors",
+							"venue",
+							"date",
+							"doi",
+							"arxiv",
+							"status",
+							"abstract",
+							"assets"
+						],
+						"additionalProperties": false
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					},
+					"truncated": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"source",
+					"revision",
+					"evidence",
+					"next_cursor",
+					"truncated"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_list",
+			"title": "List papers",
+			"description": "Filter by title, author, identifier, path, tags, reading state and status. All tags must match. Updated and publication dates sort newest first; titles sort ascending.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"tag": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty tag name."
+						},
+						"minItems": 1
+					},
+					"state": {
+						"type": "string",
+						"enum": ["read", "unread"]
+					},
+					"status": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"include_internal": {
+						"type": "boolean",
+						"default": false
+					},
+					"sort": {
+						"type": "string",
+						"enum": ["updated", "title", "date"],
+						"default": "updated"
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"state": {
+									"enum": ["read", "unread"],
+									"type": "string"
+								},
+								"tags": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"revision": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "path", "title", "state", "tags", "revision"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_get",
+			"title": "Get paper details",
+			"description": "Get metadata, reading state, user tags and the Vault-relative locations of available local assets.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"include_internal": {
+						"type": "boolean",
+						"default": false
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_update",
+			"title": "Update paper metadata",
+			"description": "Update at least one catalog field or reading-state value. Author names replace the full ordered list. Use clear to remove optional values. Keep a nonempty title.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"title": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"author": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty text."
+						},
+						"minItems": 1
+					},
+					"venue": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"date": {
+						"type": "string",
+						"minLength": 1,
+						"description": "YYYY, YYYY-MM or YYYY-MM-DD."
+					},
+					"doi": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"arxiv": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"state": {
+						"type": "string",
+						"enum": ["read", "unread"]
+					},
+					"status": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"clear": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["authors", "venue", "date", "doi", "arxiv", "status"]
+						},
+						"minItems": 1
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "if_revision"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"anyOf": [
+							{
+								"required": ["title"]
+							},
+							{
+								"required": ["author"]
+							},
+							{
+								"required": ["venue"]
+							},
+							{
+								"required": ["date"]
+							},
+							{
+								"required": ["doi"]
+							},
+							{
+								"required": ["arxiv"]
+							},
+							{
+								"required": ["state"]
+							},
+							{
+								"required": ["status"]
+							},
+							{
+								"required": ["clear"]
+							}
+						]
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_discover",
+			"title": "Discover papers",
+			"description": "Find arXiv candidates by keyword or category. Limit must fit within the candidate count. Hybrid ranking requires a configured embedding profile. When a Vault is selected, known papers are excluded by default.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"keyword": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty text."
+						},
+						"minItems": 1
+					},
+					"category": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty text."
+						},
+						"minItems": 1
+					},
+					"match": {
+						"type": "string",
+						"enum": ["all", "any"],
+						"default": "all"
+					},
+					"since": {
+						"type": "string",
+						"minLength": 1,
+						"format": "date",
+						"description": "YYYY-MM-DD"
+					},
+					"until": {
+						"type": "string",
+						"minLength": 1,
+						"format": "date",
+						"description": "YYYY-MM-DD"
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 20
+					},
+					"candidates": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2000,
+						"default": 100
+					},
+					"include_known": {
+						"type": "boolean",
+						"default": false
+					},
+					"rank": {
+						"type": "string",
+						"enum": ["lexical", "hybrid"],
+						"default": "lexical"
+					},
+					"embedding_profile": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"semantic_weight": {
+						"type": "number",
+						"minimum": 0,
+						"maximum": 10,
+						"default": 1
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": [],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"anyOf": [
+							{
+								"required": ["keyword"]
+							},
+							{
+								"required": ["category"]
+							}
+						]
+					},
+					{
+						"if": {
+							"properties": {
+								"rank": {
+									"const": "hybrid"
+								}
+							},
+							"required": ["rank"]
+						},
+						"then": {
+							"required": ["embedding_profile"]
+						}
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"identifier": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"authors": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"abstract": {
+									"type": "string"
+								},
+								"url": {
+									"type": "string"
+								},
+								"score": {
+									"type": "number"
+								}
+							},
+							"required": [
+								"identifier",
+								"title",
+								"authors",
+								"abstract",
+								"url",
+								"score"
+							],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["items"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": true
+			}
+		},
+		{
+			"name": "paper_import",
+			"title": "Import a paper",
+			"description": "Import a DOI, arXiv identifier or supported paper URL. Existing records are deduplicated by identifier. Results distinguish newly created and existing records and report asset status.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"identifier": {
+						"type": "string",
+						"minLength": 1,
+						"description": "DOI, arXiv ID or supported paper URL."
+					},
+					"into": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Vault-relative directory.",
+						"default": "papers"
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["identifier"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["items"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": true
+			}
+		},
+		{
+			"name": "paper_regions",
+			"title": "List paper regions",
+			"description": "List figures, tables, formulas or text regions with one-based physical pages, coordinates and citations. Filter by kind and page. Missing analysis returns a layout error.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"kind": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": [
+								"figure",
+								"image",
+								"chart",
+								"table",
+								"algorithm",
+								"formula",
+								"section",
+								"paragraph"
+							]
+						},
+						"minItems": 1
+					},
+					"page": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"min_score": {
+						"type": "number",
+						"minimum": 0,
+						"maximum": 1,
+						"default": 0.3
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"region": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": [
+										"figure",
+										"image",
+										"chart",
+										"table",
+										"algorithm",
+										"formula",
+										"section",
+										"paragraph"
+									]
+								},
+								"page": {
+									"type": "integer"
+								},
+								"box": {
+									"type": "array",
+									"items": {
+										"type": "number"
+									}
+								},
+								"score": {
+									"type": "number"
+								},
+								"cite": {
+									"type": "string"
+								}
+							},
+							"required": ["region", "kind", "page", "box", "score", "cite"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_relations",
+			"title": "Find paper relations",
+			"description": "Inspect cached references, locally observed citations, or references matched to papers in the Vault. Results indicate coverage, match basis and cache state.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"direction": {
+						"type": "string",
+						"enum": ["references", "cited-by", "related"],
+						"default": "references"
+					},
+					"local_only": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"direction": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"identifier": {
+									"type": ["string", "null"]
+								},
+								"paper": {
+									"type": ["string", "null"]
+								},
+								"match_by": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": [
+								"direction",
+								"title",
+								"identifier",
+								"paper",
+								"match_by"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					},
+					"coverage": {
+						"type": "string"
+					},
+					"cache_state": {
+						"type": "string"
+					}
+				},
+				"required": ["items", "next_cursor", "coverage", "cache_state"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_list",
+			"title": "List paper tags",
+			"description": "List Vault tags and their paper counts, sorted by usage and then name.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"include_internal": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								},
+								"count": {
+									"type": "integer"
+								},
+								"color": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": ["name", "count", "color"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_add",
+			"title": "Add paper tags",
+			"description": "Add user tags, ignoring case when deduplicating. Use name:color to set a tag color.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty tag name."
+						},
+						"minItems": 1
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "tags"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_remove",
+			"title": "Remove paper tags",
+			"description": "Remove specified tags by name and return the current collection.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty tag name."
+						},
+						"minItems": 1
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "tags"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_tag_set",
+			"title": "Replace paper tags",
+			"description": "Replace all user tags. Provide tags or explicitly clear the collection.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Nonempty tag name."
+						},
+						"minItems": 1
+					},
+					"clear": {
+						"type": "boolean",
+						"default": false
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "if_revision"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"oneOf": [
+							{
+								"required": ["tags"],
+								"properties": {
+									"clear": {
+										"const": false
+									}
+								}
+							},
+							{
+								"required": ["clear"],
+								"properties": {
+									"clear": {
+										"const": true
+									}
+								},
+								"not": {
+									"required": ["tags"]
+								}
+							}
+						]
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"state": {
+						"enum": ["read", "unread"],
+						"type": "string"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"revision": {
+						"type": "string"
+					},
+					"authors": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"venue": {
+						"type": ["string", "null"]
+					},
+					"date": {
+						"type": ["string", "null"]
+					},
+					"doi": {
+						"type": ["string", "null"]
+					},
+					"arxiv": {
+						"type": ["string", "null"]
+					},
+					"status": {
+						"type": ["string", "null"]
+					},
+					"abstract": {
+						"type": ["string", "null"]
+					},
+					"assets": {
+						"type": "object",
+						"properties": {
+							"pdf": {
+								"type": "string"
+							},
+							"tex": {
+								"type": "string"
+							},
+							"body": {
+								"type": "string"
+							},
+							"notes": {
+								"type": "string"
+							},
+							"marks": {
+								"type": "string"
+							},
+							"folder": {
+								"type": "string"
+							}
+						},
+						"required": ["folder"],
+						"additionalProperties": false
+					}
+				},
+				"required": [
+					"id",
+					"path",
+					"title",
+					"state",
+					"tags",
+					"revision",
+					"authors",
+					"venue",
+					"date",
+					"doi",
+					"arxiv",
+					"status",
+					"abstract",
+					"assets"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_note_append",
+			"title": "Append a paper note",
+			"description": "Append Markdown to a paper's notes. Retry with the same request ID and content to append exactly once.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "Request ID of 1–80 characters without whitespace."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					},
+					"content": {
+						"type": "string",
+						"description": "UTF-8 Markdown content."
+					}
+				},
+				"required": ["paper", "content", "request_id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"bytes": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "bytes"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "paper_note_replace",
+			"title": "Replace a paper note",
+			"description": "Replace the Markdown body of the paper's notes using its observed revision. Use missing to create notes. Locked experiment records remain protected.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					},
+					"content": {
+						"type": "string",
+						"description": "UTF-8 Markdown content."
+					}
+				},
+				"required": ["paper", "if_revision", "content"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"bytes": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "bytes"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_list",
+			"title": "List Vault files",
+			"description": "List one directory level. Omit path for the Vault root. Hidden entries may be included; private and managed paths stay protected.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Vault-relative directory."
+					},
+					"hidden": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"path": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"revision": {
+									"type": "string"
+								}
+							},
+							"required": ["path", "kind", "name", "revision"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_write",
+			"title": "Write a Vault file",
+			"description": "Create, append or replace a file. Create requires an unused path, replace requires the current revision, and UTF-8 append requires a request ID. Use standard Base64 for binary data. Use dedicated tools for existing tables and paper notes.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Normalized Vault-relative path."
+					},
+					"mode": {
+						"type": "string",
+						"enum": ["create", "append", "replace"],
+						"default": "create"
+					},
+					"encoding": {
+						"type": "string",
+						"enum": ["utf8", "base64"],
+						"default": "utf8"
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "Request ID of 1–80 characters without whitespace."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					},
+					"content": {
+						"type": "string",
+						"description": "Plain UTF-8 text or standard padded Base64. Maximum decoded size: 2 MiB."
+					}
+				},
+				"required": ["path", "content"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"if": {
+							"properties": {
+								"mode": {
+									"const": "replace"
+								}
+							},
+							"required": ["mode"]
+						},
+						"then": {
+							"required": ["if_revision"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"mode": {
+									"const": "append"
+								}
+							},
+							"required": ["mode"]
+						},
+						"then": {
+							"required": ["request_id"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"mode": {
+									"const": "append"
+								}
+							},
+							"required": ["mode"]
+						},
+						"then": {
+							"properties": {
+								"encoding": {
+									"const": "utf8"
+								}
+							}
+						}
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"bytes": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "bytes"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_move",
+			"title": "Move a Vault file",
+			"description": "Move or rename a file or folder using its full destination path. Whole papers and their organizational folders can move across authorized Vaults while preserving the folder name. Existing destinations cause a conflict. Use dry_run to preview.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Normalized Vault-relative path."
+					},
+					"destination": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Normalized Vault-relative path."
+					},
+					"to_vault": {
+						"type": "string",
+						"description": "Authorized destination Vault ID."
+					},
+					"dry_run": {
+						"type": "boolean",
+						"default": false
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["source", "destination"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"changed": {
+						"type": "boolean"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["changed", "items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "file_remove",
+			"title": "Move files to trash",
+			"description": "Move files and folders to the Vault trash, including catalog entries under removed paper folders. Returns IDs for restore. Use dry_run to preview.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paths": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Normalized Vault-relative path."
+						},
+						"minItems": 1
+					},
+					"dry_run": {
+						"type": "boolean",
+						"default": false
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paths"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": ["string", "null"]
+								},
+								"path": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "path"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "trash_list",
+			"title": "List trash entries",
+			"description": "List restorable entries with original paths and removal times, newest first.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"removed_at": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "path", "removed_at"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "trash_restore",
+			"title": "Restore a trash entry",
+			"description": "Restore a trashed entry and its catalog data at the original path. An occupied destination leaves the entry in the trash.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"changed": {
+						"type": "boolean"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["changed", "items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_list",
+			"title": "List paper annotations",
+			"description": "List highlights, questions, translations and agent annotations, optionally filtered by kind or physical page.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"kind": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["highlight", "ask", "translate", "agent-trace"]
+						},
+						"minItems": 1
+					},
+					"page": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"paper": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["highlight", "ask", "translate", "agent-trace"]
+								},
+								"cite": {
+									"type": "string"
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"char_from": { "type": "integer", "minimum": 0 },
+										"char_to": { "type": "integer", "minimum": 0 },
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"comment": {
+									"type": ["string", "null"]
+								},
+								"color": {
+									"type": ["string", "null"]
+								},
+								"question": {
+									"type": ["string", "null"]
+								},
+								"translation": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": [
+								"id",
+								"paper",
+								"kind",
+								"cite",
+								"locator",
+								"revision",
+								"comment",
+								"color",
+								"question",
+								"translation"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_get",
+			"title": "Get an annotation",
+			"description": "Read an annotation, its source location, citation, note, color and revision.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"paper": {
+						"type": "string"
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["highlight", "ask", "translate", "agent-trace"]
+					},
+					"cite": {
+						"type": "string"
+					},
+					"locator": {
+						"type": "object",
+						"properties": {
+							"page": {
+								"type": "integer"
+							},
+							"section": {
+								"type": "string"
+							},
+							"region": {
+								"type": "string"
+							},
+							"char_from": { "type": "integer", "minimum": 0 },
+							"char_to": { "type": "integer", "minimum": 0 },
+							"line_from": {
+								"type": "integer"
+							},
+							"line_to": {
+								"type": "integer"
+							},
+							"row": {
+								"type": "string"
+							},
+							"field": {
+								"type": "string"
+							},
+							"box": {
+								"type": "array",
+								"items": {
+									"type": "number"
+								}
+							},
+							"unit": {
+								"type": "string",
+								"enum": ["normalized"]
+							}
+						},
+						"required": [],
+						"additionalProperties": false
+					},
+					"revision": {
+						"type": "string"
+					},
+					"comment": {
+						"type": ["string", "null"]
+					},
+					"color": {
+						"type": ["string", "null"]
+					},
+					"question": {
+						"type": ["string", "null"]
+					},
+					"translation": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"id",
+					"paper",
+					"kind",
+					"cite",
+					"locator",
+					"revision",
+					"comment",
+					"color",
+					"question",
+					"translation"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_add",
+			"title": "Add an annotation",
+			"description": "Select a citation from this paper, a free-form quote, or a layout region. Free-form quote matching needs full-text access. For a restricted reader, use a returned excerpt citation or region. Use occurrence or all_matches to disambiguate quotes. Ask requires a question. Translate requires a language and either supplied translation text or online access.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"cite": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Paper ID, Vault-relative path or opaque citation URI."
+					},
+					"quote": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"region": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"page": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"occurrence": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647
+					},
+					"all_matches": {
+						"type": "boolean",
+						"default": false
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["highlight", "ask", "translate"],
+						"default": "highlight"
+					},
+					"comment": {
+						"type": "string",
+						"description": "Text; an empty string is allowed."
+					},
+					"question": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"color": {
+						"type": "string",
+						"enum": ["yellow", "green", "blue", "pink", "purple"],
+						"default": "yellow"
+					},
+					"language": {
+						"type": "string",
+						"minLength": 1,
+						"description": "BCP 47 language tag."
+					},
+					"translation": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "Request ID of 1–80 characters without whitespace."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "request_id"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"oneOf": [
+							{
+								"required": ["cite"]
+							},
+							{
+								"required": ["quote"]
+							},
+							{
+								"required": ["region"]
+							}
+						]
+					},
+					{
+						"if": {
+							"properties": {
+								"kind": {
+									"const": "ask"
+								}
+							},
+							"required": ["kind"]
+						},
+						"then": {
+							"required": ["question"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"kind": {
+									"const": "translate"
+								}
+							},
+							"required": ["kind"]
+						},
+						"then": {
+							"required": ["language"]
+						}
+					},
+					{
+						"if": {
+							"properties": {
+								"all_matches": {
+									"const": true
+								}
+							},
+							"required": ["all_matches"]
+						},
+						"then": {
+							"required": ["quote"],
+							"not": {
+								"required": ["occurrence"]
+							}
+						}
+					}
+				],
+				"dependentRequired": {
+					"occurrence": ["quote"]
+				}
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"paper": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["highlight", "ask", "translate", "agent-trace"]
+								},
+								"cite": {
+									"type": "string"
+								},
+								"locator": {
+									"type": "object",
+									"properties": {
+										"page": {
+											"type": "integer"
+										},
+										"section": {
+											"type": "string"
+										},
+										"region": {
+											"type": "string"
+										},
+										"char_from": { "type": "integer", "minimum": 0 },
+										"char_to": { "type": "integer", "minimum": 0 },
+										"line_from": {
+											"type": "integer"
+										},
+										"line_to": {
+											"type": "integer"
+										},
+										"row": {
+											"type": "string"
+										},
+										"field": {
+											"type": "string"
+										},
+										"box": {
+											"type": "array",
+											"items": {
+												"type": "number"
+											}
+										},
+										"unit": {
+											"type": "string",
+											"enum": ["normalized"]
+										}
+									},
+									"required": [],
+									"additionalProperties": false
+								},
+								"revision": {
+									"type": "string"
+								},
+								"comment": {
+									"type": ["string", "null"]
+								},
+								"color": {
+									"type": ["string", "null"]
+								},
+								"question": {
+									"type": ["string", "null"]
+								},
+								"translation": {
+									"type": ["string", "null"]
+								}
+							},
+							"required": [
+								"id",
+								"paper",
+								"kind",
+								"cite",
+								"locator",
+								"revision",
+								"comment",
+								"color",
+								"question",
+								"translation"
+							],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": false,
+				"openWorldHint": true
+			}
+		},
+		{
+			"name": "annotation_update",
+			"title": "Update an annotation",
+			"description": "Update a note or highlight color at the specified revision. An empty comment clears the note.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"comment": {
+						"type": "string",
+						"description": "Text; an empty string is allowed."
+					},
+					"color": {
+						"type": "string",
+						"enum": ["yellow", "green", "blue", "pink", "purple"]
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "id", "if_revision"],
+				"additionalProperties": false,
+				"allOf": [
+					{
+						"anyOf": [
+							{
+								"required": ["comment"]
+							},
+							{
+								"required": ["color"]
+							}
+						]
+					}
+				]
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"paper": {
+						"type": "string"
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["highlight", "ask", "translate", "agent-trace"]
+					},
+					"cite": {
+						"type": "string"
+					},
+					"locator": {
+						"type": "object",
+						"properties": {
+							"page": {
+								"type": "integer"
+							},
+							"section": {
+								"type": "string"
+							},
+							"region": {
+								"type": "string"
+							},
+							"char_from": { "type": "integer", "minimum": 0 },
+							"char_to": { "type": "integer", "minimum": 0 },
+							"line_from": {
+								"type": "integer"
+							},
+							"line_to": {
+								"type": "integer"
+							},
+							"row": {
+								"type": "string"
+							},
+							"field": {
+								"type": "string"
+							},
+							"box": {
+								"type": "array",
+								"items": {
+									"type": "number"
+								}
+							},
+							"unit": {
+								"type": "string",
+								"enum": ["normalized"]
+							}
+						},
+						"required": [],
+						"additionalProperties": false
+					},
+					"revision": {
+						"type": "string"
+					},
+					"comment": {
+						"type": ["string", "null"]
+					},
+					"color": {
+						"type": ["string", "null"]
+					},
+					"question": {
+						"type": ["string", "null"]
+					},
+					"translation": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"id",
+					"paper",
+					"kind",
+					"cite",
+					"locator",
+					"revision",
+					"comment",
+					"color",
+					"question",
+					"translation"
+				],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "annotation_remove",
+			"title": "Remove an annotation",
+			"description": "Remove the annotation at its observed revision. A stale revision returns a conflict.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paper": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Unique paper ID or Vault-relative paper directory."
+					},
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["paper", "id", "if_revision"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"changed": {
+						"type": "boolean"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								},
+								"outcome": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["outcome"],
+							"additionalProperties": false
+						}
+					},
+					"preview": {
+						"type": "boolean"
+					}
+				},
+				"required": ["changed", "items", "preview"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "table_query",
+			"title": "Query table rows",
+			"description": "Query a record ID or match a field against a JSON scalar. Supply field and equals together. Results include the table revision, columns and matching rows.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Normalized Vault-relative path."
+					},
+					"row": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Identifier returned by a previous operation."
+					},
+					"field": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Nonempty text."
+					},
+					"equals": {
+						"type": ["string", "number", "boolean", "null"]
+					},
+					"archived": {
+						"type": "boolean",
+						"default": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque cursor from the same query."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					}
+				},
+				"required": ["path"],
+				"additionalProperties": false,
+				"dependentRequired": {
+					"equals": ["field"],
+					"field": ["equals"]
+				}
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"revision": {
+						"type": "string"
+					},
+					"columns": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								},
+								"type": {
+									"type": "string"
+								}
+							},
+							"required": ["name", "type"],
+							"additionalProperties": false
+						}
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"fields": {
+									"type": "object",
+									"additionalProperties": true
+								},
+								"archived": {
+									"type": "boolean"
+								}
+							},
+							"required": ["id", "fields", "archived"],
+							"additionalProperties": false
+						}
+					},
+					"next_cursor": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["revision", "columns", "items", "next_cursor"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "table_upsert",
+			"title": "Upsert table rows",
+			"description": "Create or update records by ID. Only supplied fields change. The whole batch is validated and committed atomically. Repeating a request ID with identical input returns the original receipt.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Normalized Vault-relative path."
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "Request ID of 1–80 characters without whitespace."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					},
+					"rows": {
+						"type": "array",
+						"minItems": 1,
+						"maxItems": 200,
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string",
+									"minLength": 1,
+									"description": "Use an ID returned by table_query to update a row. A new registry ID has an ASCII letter, optional ASCII letters or digits, a hyphen and at least four digits, e.g. trial-0003."
+								},
+								"fields": {
+									"type": "object",
+									"minProperties": 1,
+									"additionalProperties": {
+										"type": ["string", "number", "boolean", "null"]
+									}
+								}
+							},
+							"required": ["id", "fields"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["path", "if_revision", "rows", "request_id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"changed_rows": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"changed_cells": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "changed_rows", "changed_cells"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "table_patch",
+			"title": "Patch table cells",
+			"description": "Set individual cells by record ID and field name. The rows and fields must exist. Duplicate coordinates are rejected. The batch commits atomically.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Normalized Vault-relative path."
+					},
+					"if_revision": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Opaque revision returned by the previous read."
+					},
+					"request_id": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 80,
+						"pattern": "^\\S+$",
+						"description": "Request ID of 1–80 characters without whitespace."
+					},
+					"vault": {
+						"type": "string",
+						"description": "Authorized Vault ID. Omit to use the default Vault."
+					},
+					"cells": {
+						"type": "array",
+						"minItems": 1,
+						"maxItems": 1000,
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string",
+									"minLength": 1,
+									"description": "Existing row ID returned by table_query."
+								},
+								"field": {
+									"type": "string"
+								},
+								"value": {
+									"type": ["string", "number", "boolean", "null"]
+								}
+							},
+							"required": ["id", "field", "value"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["path", "if_revision", "cells", "request_id"],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"revision": {
+						"type": "string"
+					},
+					"changed_rows": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"changed_cells": {
+						"type": "integer"
+					}
+				},
+				"required": ["path", "revision", "changed_rows", "changed_cells"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": false,
+				"destructiveHint": true,
+				"openWorldHint": false
+			}
+		},
+		{
+			"name": "vault_list",
+			"title": "List authorized Vaults",
+			"description": "List Vault IDs and names visible to this client and identify the current Vault. Use these IDs to select a Vault in subsequent calls.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"required": [],
+				"additionalProperties": false
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"current": {
+									"type": "boolean"
+								},
+								"path": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "name", "current"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["items"],
+				"additionalProperties": false
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"openWorldHint": false
+			}
+		}
+	]
+}

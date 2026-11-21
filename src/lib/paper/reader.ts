@@ -34,8 +34,41 @@ import { paperTaskLabel } from "@/lib/paper/task-label";
 import { loadSettings } from "@/lib/settings";
 import { resolveTranslateAgent } from "@/lib/translate";
 import { joinVaultPath } from "@/lib/vault";
+import { readVaultFile } from "@/lib/vault/fs";
 
 const PAPER_READER_SKILL_ID = "paper-reader";
+
+/** Reason a finished paper-reader run still failed its notes (#958). */
+export type PaperReaderNotesProblem = "missing" | "unchanged" | "garbled";
+
+/**
+ * Gate the "mark read" step on what the run actually produced.
+ *
+ * Agents can end their session "completed" after writing garbage (Windows
+ * code-page writes turn CJK into `?`) or after writing nothing at all (the
+ * NOTES.md is still the import shell). Treating either as success hid the read
+ * button with no way back (#958), so the workflow refuses to mark and stays
+ * retryable instead.
+ */
+export function paperReaderNotesProblem(input: {
+	before: string | null;
+	after: string | null;
+	/** Chinese body was requested (locale-driven, same rule as the prompt). */
+	expectChinese: boolean;
+}): PaperReaderNotesProblem | null {
+	const { before, after, expectChinese } = input;
+	if (after == null || !after.trim()) return "missing";
+	if (after === before) return "unchanged";
+	if (after.includes("�")) return "garbled";
+	if (expectChinese) {
+		const cjk = (after.match(/[一-鿿]/g) ?? []).length;
+		// Chinese prose lost to '?' substitution keeps section structure but
+		// leaves zero CJK behind and long '?' clusters where sentences were.
+		const questionRuns = (after.match(/\?{3,}/g) ?? []).length;
+		if (cjk === 0 && questionRuns >= 3) return "garbled";
+	}
+	return null;
+}
 
 /** Prevent concurrent reads of the same paper (auto + manual). */
 const inflightReads = new Set<string>();
@@ -70,6 +103,7 @@ export function buildPaperReaderUserPrompt(
 		`Paper folder (Vault-relative): \`${paperRel}\`.`,
 		"Prefer TeX under source/, else PAPER.md, else local PDF.",
 		`Write structured lecture notes into \`${paperRel}/NOTES.md\`.`,
+		"Embed figures with Markdown image syntax whose src is relative to the paper folder (e.g. `source/figures/fig1.png`); never vault-prefix image srcs.",
 		paperReaderLanguageInstruction(language),
 		"Keep valid [[wikilinks]]. Use inline PDF fragment links or notes wikilinks for citations; do not add a trailing ## Sources block.",
 	].join("\n");
@@ -203,6 +237,15 @@ export async function runPaperReaderWorkflow(opts: {
 	inflightReads.add(paperRel);
 
 	try {
+		const paperAbs = joinVaultPath(opts.vaultRoot, paperRel);
+		const notesAbs = joinVaultPath(opts.vaultRoot, `${paperRel}/NOTES.md`);
+		// Snapshot before the run: an unchanged NOTES.md means the agent never
+		// wrote anything; prior read state is restored if it self-marked.
+		const notesBefore = await readVaultFile(notesAbs).catch(() => null);
+		const wasRead =
+			(await loadPaperMetadata(paperAbs, opts.vaultRoot).catch(() => null))
+				?.is_read === true;
+
 		await runLocalActivity(
 			{
 				kind: "paperRead",
@@ -238,6 +281,32 @@ export async function runPaperReaderWorkflow(opts: {
 
 				setDetail(i18n.t("app:tasks.paperReadRunning"));
 				await waitForAgentSession(accepted.sessionId, id);
+
+				// Completed ≠ useful: verify NOTES.md actually changed and is not
+				// mojibake before flipping the catalog read state (#958).
+				const notesAfter = await readVaultFile(notesAbs).catch(() => null);
+				const expectChinese = (i18n.language || "en")
+					.toLowerCase()
+					.startsWith("zh");
+				const problem = paperReaderNotesProblem({
+					before: notesBefore,
+					after: notesAfter,
+					expectChinese,
+				});
+				if (problem) {
+					if (!wasRead) {
+						// The agent may already have self-marked read via the CLI;
+						// restore the unread state so the retry button comes back.
+						await setPaperIsRead(opts.vaultRoot, paperRel, false).catch(
+							() => undefined,
+						);
+					}
+					throw new Error(
+						problem === "garbled"
+							? i18n.t("app:tasks.paperReadGarbled")
+							: i18n.t("app:tasks.paperReadNoNotes"),
+					);
+				}
 
 				setDetail(i18n.t("app:tasks.paperReadMarking"));
 				await setPaperIsRead(opts.vaultRoot, paperRel, true);

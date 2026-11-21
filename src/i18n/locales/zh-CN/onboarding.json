@@ -6,7 +6,6 @@
 		"welcome": "欢迎",
 		"theme": "外观",
 		"proxy": "网络",
-		"node": "Node.js",
 		"agent": "Agent",
 		"translate": "翻译",
 		"layout": "公式和图表解析配置",
@@ -28,22 +27,6 @@
 		"urlLabel": "代理地址",
 		"enabledLabel": "启用网络代理",
 		"probe": "探测"
-	},
-	"node": {
-		"title": "准备 Node.js",
-		"desc": "Node.js 与 npm 是 ACP 适配器和部分 AI 助手一键安装的运行环境。",
-		"checking": "正在检查 Node.js 与 npm…",
-		"ready": "Node.js 已就绪",
-		"readyDesc": "Node.js 与 npm 已安装，可以直接继续。",
-		"missingTitle": "需要安装 Node.js",
-		"missingDesc": "安装 Node.js（自带 npm）后，Agent 适配器和 npm 安装才能正常运行。",
-		"install": "安装 Node.js",
-		"installing": "安装中…",
-		"installHint": "使用系统包管理器安装，可能需要几分钟。没有 winget 或 Homebrew 时，请从 nodejs.org 下载安装包，装好后重新检查。",
-		"download": "从 nodejs.org 下载",
-		"installed": "已安装",
-		"missing": "未安装",
-		"recheck": "重新检查"
 	},
 	"agent": {
 		"title": "选一个 AI 助手",
@@ -90,12 +73,7 @@
 		"probeIdle": "尚未测试",
 		"probeProbing": "测试中…",
 		"probeOk": "可用",
-		"probeFail": "请检查你的 Key 后重试",
-		"displayMode": {
-			"label": "翻译显示方式",
-			"overlay": "原地覆盖",
-			"dualPane": "双栏对照"
-		}
+		"probeFail": "请检查你的 Key 后重试"
 	},
 	"layout": {
 		"title": "公式和图表解析配置",
@@ -117,9 +95,10 @@
 		"create": "新建文献库",
 		"createDesc": "先选择一个独立的 Agentero 文件夹。创建完成后，可再选择是否从 Zotero 导入。",
 		"zotero": "从 Zotero 导入",
-		"zoteroOfferTitle": "要从 Zotero 导入吗？",
-		"zoteroOfferDesc": "Agentero 文献库已经创建。接下来可以选择 Zotero 数据目录作为导入来源。",
-		"zoteroNo": "不从 Zotero 导入"
+		"readyTitle": "知识库已准备好",
+		"readyDesc": "先导入一篇论文，打开后会继续介绍阅读工具。也可以先认识工作区。",
+		"importPaper": "导入论文",
+		"explore": "先看看工作区"
 	},
 	"actions": {
 		"start": "开始配置",
@@ -145,16 +124,16 @@
 			"desc": "粘贴 DOI、arXiv ID 或链接，自动抓取元数据、下载 PDF 与 LaTeX 源码。{{magicWandShortcut}} 随时唤起。"
 		},
 		"readPaper": {
-			"title": "阅读并记笔记",
-			"desc": "任意论文旁的闪电按钮会打开分屏：左侧 PDF，右侧 NOTES.md，可直接高亮批注、写入笔记。"
+			"title": "阅读论文",
+			"desc": "在这里阅读原始 PDF。底部保留页码和缩放控件，可以在旁边打开笔记。"
 		},
 		"workspace": {
 			"title": "分屏精读",
 			"desc": "打开任意论文即可分屏：左侧 PDF，右侧 NOTES.md。划词可高亮、批注、翻译或提问。"
 		},
 		"fullTextTranslate": {
-			"title": "全文翻译",
-			"desc": "PDF 工具栏可一键翻译整篇论文。翻译一次后，既可以在原文上对照查看，也可以打开 side-by-side 译文面板。"
+			"title": "翻译视图",
+			"desc": "PDF 工具栏的「译文 / 对照」可以直接翻译整篇论文：译文覆盖在原页面上，对照则并排显示原文与译文。"
 		},
 		"fetchCoolPapersNotes": {
 			"title": "Cool Paper 笔记",
@@ -165,11 +144,31 @@
 			"desc": "复用本机已登录的 Agent，无需 API Key。当前论文自动进入上下文，点击建议问题即可一键总结。"
 		},
 		"titlebar": {
-			"title": "开始探索吧",
-			"desc": "设置已完成。{{settingsShortcut}} 打开设置，{{quickOpenShortcut}} 快速跳转。Vault 里已生成教程笔记，就从那里开始。"
+			"title": "工作区控制",
+			"desc": "通过布局菜单调整工作区。{{settingsShortcut}} 打开设置，{{quickOpenShortcut}} 查找文件或论文。"
 		},
 		"next": "下一步",
 		"back": "上一步",
-		"done": "完成"
+		"done": "完成",
+		"notes": {
+			"title": "论文笔记",
+			"desc": "NOTES.md 与 PDF 并排显示，编辑后自动保存为论文文件夹中的 Markdown 文件。"
+		},
+		"annotations": {
+			"title": "高亮与批注",
+			"desc": "选中文字即可高亮或添加批注。长批注在自己的卡片内滚动，不会遮挡附近的笔记。"
+		},
+		"selectionTranslate": {
+			"title": "划词翻译",
+			"desc": "选中段落后，通过划选工具栏翻译。即使隐藏了页面悬浮入口，也能在 PDF 工具栏发起翻译。"
+		},
+		"workspaceNext": {
+			"title": "试试第一篇论文",
+			"desc": "导入 PDF，或按 {{magicWandShortcut}} 粘贴 DOI。打开论文后会继续介绍阅读工具。也可以先打开教程笔记，或到设置中配置 Agent。"
+		},
+		"readingNext": {
+			"title": "开始阅读与整理",
+			"desc": "试着高亮文字、写一条笔记，再用标签筛选论文库。Shift+F11 进入沉浸阅读，Esc 恢复原来的布局。"
+		}
 	}
 }

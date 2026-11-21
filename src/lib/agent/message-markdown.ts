@@ -33,6 +33,10 @@ function hardenSafeVaultDestination(href: string): string {
 
 export function prefixVaultMarkdownHrefs(text: string): string {
 	return text
+		.replace(
+			/\]\(<?(agentero:\/\/cite\/[a-f0-9]+\/[A-Za-z0-9_-]+(?:#excerpt=[A-Za-z0-9_-]+)?)>?\)/g,
+			"](./$1)",
+		)
 		.replace(ANGLE_VAULT_HREF, (_full, href: string) => {
 			return `](${hardenSafeVaultDestination(href)})`;
 		})

@@ -160,7 +160,7 @@ export function BookmarkEditTree({
 									<TooltipTrigger asChild>
 										<button
 											type="button"
-											className="min-w-0 flex-1 truncate rounded px-1 py-1 text-left text-sm focus-visible:ring-2 focus-visible:ring-ring"
+											className="min-w-0 flex-1 truncate rounded px-1 py-1 text-left text-sm focus-visible:ring-1 focus-visible:ring-ring"
 											aria-keyshortcuts={isMacOS() ? "Enter F2" : "F2"}
 											onKeyDown={(event) => {
 												if (

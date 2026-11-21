@@ -274,6 +274,51 @@ export function resolveMarkdownImageAbs(
 	return abs || null;
 }
 
+/**
+ * Ordered candidate absolute paths for displaying a Markdown image.
+ *
+ * 1. Note-relative join (`resolveMarkdownImageAbs`) — Obsidian-style links.
+ * 2. Vault-root join for `papers/…`-shaped urls — the paper-reader skill cites
+ *    figures vault-relative (`papers/<id>/source/figures/x.png`) while NOTES.md
+ *    lives at `papers/<id>/NOTES.md`; the note-relative join double-prefixes and
+ *    misses, so the vault root is the fallback (#958).
+ *
+ * Callers try candidates in order and use the first that reads successfully.
+ */
+export function resolveMarkdownImageCandidates(
+	mdFilePath: string,
+	url: string,
+	vaultRoot?: string | null,
+): string[] {
+	const primary = resolveMarkdownImageAbs(mdFilePath, url);
+	const candidates = primary ? [primary] : [];
+	const fallback = vaultRootedImageFallback(url, vaultRoot);
+	if (fallback && !candidates.includes(fallback)) candidates.push(fallback);
+	return candidates;
+}
+
+/** Vault-root join for agent-emitted `papers/…` image urls; null otherwise. */
+function vaultRootedImageFallback(
+	url: string,
+	vaultRoot?: string | null,
+): string | null {
+	const raw = url?.trim();
+	if (!raw || !vaultRoot?.trim()) return null;
+	if (isRemoteOrInlineImageUrl(raw)) return null;
+	let rel = raw.replace(/\\/g, "/");
+	if (rel.startsWith("./")) rel = rel.slice(2);
+	while (rel.startsWith("/")) rel = rel.slice(1);
+	if (!rel || rel.split("/").includes("..")) return null;
+	// Only the paper-reader convention (`papers/<id>/…`); anything else stays a
+	// plain note-relative link and must not leak to arbitrary vault-root paths.
+	if (!/^papers\//i.test(rel)) return null;
+	const root = vaultRoot.replace(/[/\\]+$/, "");
+	return rel
+		.split("/")
+		.filter(Boolean)
+		.reduce((abs, part) => joinFilePath(abs, part), root);
+}
+
 /** Sanitize a single file name segment (no path traversal). */
 export function sanitizeAssetFileName(name: string): string {
 	const base = name.replace(/\\/g, "/").split("/").pop()?.trim() ?? "";

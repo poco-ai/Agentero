@@ -40,6 +40,96 @@ index 6dfadc59ff5d15638af259e9144f1280dbe5371c..2f1fc877faf0bd745750219050a4228d
          return _this;
      }
      Object.defineProperty(Droptarget.prototype, "disabled", {
+diff --git a/dist/cjs/dockview/components/titlebar/tabsContainer.js b/dist/cjs/dockview/components/titlebar/tabsContainer.js
+index fc86b4df69c9da5a4c8c554a61865dd8bec38b84..f2be10b353b0aa5d09e5daf2fe92c57a53f990b9 100644
+--- a/dist/cjs/dockview/components/titlebar/tabsContainer.js
++++ b/dist/cjs/dockview/components/titlebar/tabsContainer.js
+@@ -48,6 +48,7 @@ var TabsContainer = /** @class */ (function (_super) {
+         _this._overflowTabs = [];
+         _this._overflowTabGroups = [];
+         _this._dropdownDisposable = new lifecycle_1.MutableDisposable();
++        _this._overflowPopoverContent = null;
+         _this._onDrop = new events_1.Emitter();
+         _this.onDrop = _this._onDrop.event;
+         _this._onGroupDragStart = new events_1.Emitter();
+@@ -78,6 +79,11 @@ var TabsContainer = /** @class */ (function (_super) {
+             _this.tabs.showTabsOverflowControl =
+                 !accessor.options.disableTabsOverflowList;
+         }), _this.tabs.onOverflowTabsChange(function (event) {
++            // The snapshot is also recomputed on strip scroll / overflow
++            // changes, which can leave an open popover listing tabs the header
++            // is now showing. Dismiss it; the next open rebuilds from the
++            // freshly refreshed snapshot.
++            _this.closeOverflowPopover();
+             _this.toggleDropdown(event);
+         }), _this.tabs, _this._onWillShowOverlay, _this._onDrop, _this._onGroupDragStart, _this.voidContainer, _this.voidContainer.onDragStart(function (event) {
+             _this._onGroupDragStart.fire({
+@@ -139,6 +145,20 @@ var TabsContainer = /** @class */ (function (_super) {
+                 });
+             }
+         }));
++        // `this.group.model` is assigned only after this container has been
++        // constructed, so defer the subscriptions to the end of the current
++        // task. The overflow dropdown is built once from a snapshot of the tab
++        // strip and is not updated afterwards: dismiss an open popover and
++        // refresh that snapshot whenever the owning group's tabs or tab groups
++        // change, so the list cannot keep showing tabs that were closed, moved,
++        // renamed or are now visible in the header.
++        queueMicrotask(function () {
++            if (_this.isDisposed) {
++                return;
++            }
++            var groupModel = _this.group.model;
++            _this.addDisposables(groupModel.onDidAddPanel(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidRemovePanel(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidPanelTitleChange(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidCreateTabGroup(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidDestroyTabGroup(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidAddPanelToTabGroup(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidRemovePanelFromTabGroup(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidTabGroupChange(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidTabGroupCollapsedChange(function () { return _this.handleOverflowTabSetChange(); }), groupModel.onDidActivePanelChange(function () { return _this.closeOverflowPopover(); }));
++        });
+         return _this;
+     }
+     Object.defineProperty(TabsContainer.prototype, "onTabDragStart", {
+@@ -314,6 +334,14 @@ var TabsContainer = /** @class */ (function (_super) {
+             var el = document.createElement('div');
+             el.style.overflow = 'auto';
+             el.className = 'dv-tabs-overflow-container';
++            // The overflow snapshot is only refreshed on overflow or scroll
++            // changes, so tabs may have been added or closed since it was last
++            // built. Recompute it before listing so the rows (and the count
++            // badge updated by the resulting overflow event) match the header.
++            _this.tabs.toggleDropdown({ reset: false });
++            if (_this._overflowTabs.length === 0) {
++                return;
++            }
+             // Build lookup: panelId → tabGroup for overflow groups
+             var overflowGroupSet = new Set(_this._overflowTabGroups);
+             var allTabGroups = _this.group.model.getTabGroups();
+@@ -441,8 +469,29 @@ var TabsContainer = /** @class */ (function (_super) {
+                     ? "calc(".concat(relativeParent.style.zIndex, " * 2)")
+                     : undefined,
+             });
++            _this._overflowPopoverContent = el;
+         }));
+     };
++    TabsContainer.prototype.closeOverflowPopover = function () {
++        var content = this._overflowPopoverContent;
++        if (!content) {
++            return;
++        }
++        this._overflowPopoverContent = null;
++        if (content.isConnected) {
++            this.accessor.getPopupServiceForGroup(this.group).close();
++        }
++    };
++    TabsContainer.prototype.handleOverflowTabSetChange = function () {
++        this.closeOverflowPopover();
++        // The control is only rendered while the strip overflows. Refresh its
++        // snapshot so the count badge and the next popover match the current
++        // tabs; `toggleDropdown` also removes the control when nothing
++        // overflows any more.
++        if (this.dropdownPart) {
++            this.tabs.toggleDropdown({ reset: false });
++        }
++    };
+     TabsContainer.prototype.updateDragAndDropState = function () {
+         this.tabs.updateDragAndDropState();
+         this.voidContainer.updateDragAndDropState();
 diff --git a/dist/esm/dnd/dnd.js b/dist/esm/dnd/dnd.js
 index 39e6a127dab997545f5082f5e3207db653a39cbc..3dffe7bf5795e2cf28373da5947e05d6c662729d 100644
 --- a/dist/esm/dnd/dnd.js
@@ -88,8 +178,98 @@ index 545c4a761271ee7d70dde6e680947f95097e20c1..493b5e1a0668ab7748f95e38a7e8774d
      }
      setTargetZones(acceptedTargetZones) {
          this._acceptedTargetZonesSet = new Set(acceptedTargetZones);
+diff --git a/dist/esm/dockview/components/titlebar/tabsContainer.js b/dist/esm/dockview/components/titlebar/tabsContainer.js
+index eb22fffb3a2482d27dfb4cc99abbbbef93e43d8a..1c40a378d2ce88c12132a16525b9d08ee7b829e9 100644
+--- a/dist/esm/dockview/components/titlebar/tabsContainer.js
++++ b/dist/esm/dockview/components/titlebar/tabsContainer.js
+@@ -53,6 +53,7 @@ export class TabsContainer extends CompositeDisposable {
+         this._overflowTabs = [];
+         this._overflowTabGroups = [];
+         this._dropdownDisposable = new MutableDisposable();
++        this._overflowPopoverContent = null;
+         this._onDrop = new Emitter();
+         this.onDrop = this._onDrop.event;
+         this._onGroupDragStart = new Emitter();
+@@ -83,6 +84,11 @@ export class TabsContainer extends CompositeDisposable {
+             this.tabs.showTabsOverflowControl =
+                 !accessor.options.disableTabsOverflowList;
+         }), this.tabs.onOverflowTabsChange((event) => {
++            // The snapshot is also recomputed on strip scroll / overflow
++            // changes, which can leave an open popover listing tabs the header
++            // is now showing. Dismiss it; the next open rebuilds from the
++            // freshly refreshed snapshot.
++            this.closeOverflowPopover();
+             this.toggleDropdown(event);
+         }), this.tabs, this._onWillShowOverlay, this._onDrop, this._onGroupDragStart, this.voidContainer, this.voidContainer.onDragStart((event) => {
+             this._onGroupDragStart.fire({
+@@ -144,6 +150,20 @@ export class TabsContainer extends CompositeDisposable {
+                 });
+             }
+         }));
++        // `this.group.model` is assigned only after this container has been
++        // constructed, so defer the subscriptions to the end of the current
++        // task. The overflow dropdown is built once from a snapshot of the tab
++        // strip and is not updated afterwards: dismiss an open popover and
++        // refresh that snapshot whenever the owning group's tabs or tab groups
++        // change, so the list cannot keep showing tabs that were closed, moved,
++        // renamed or are now visible in the header.
++        queueMicrotask(() => {
++            if (this.isDisposed) {
++                return;
++            }
++            const groupModel = this.group.model;
++            this.addDisposables(groupModel.onDidAddPanel(() => this.handleOverflowTabSetChange()), groupModel.onDidRemovePanel(() => this.handleOverflowTabSetChange()), groupModel.onDidPanelTitleChange(() => this.handleOverflowTabSetChange()), groupModel.onDidCreateTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidDestroyTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidAddPanelToTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidRemovePanelFromTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidTabGroupChange(() => this.handleOverflowTabSetChange()), groupModel.onDidTabGroupCollapsedChange(() => this.handleOverflowTabSetChange()), groupModel.onDidActivePanelChange(() => this.closeOverflowPopover()));
++        });
+     }
+     show() {
+         if (!this.hidden) {
+@@ -256,6 +276,14 @@ export class TabsContainer extends CompositeDisposable {
+             const el = document.createElement('div');
+             el.style.overflow = 'auto';
+             el.className = 'dv-tabs-overflow-container';
++            // The overflow snapshot is only refreshed on overflow or scroll
++            // changes, so tabs may have been added or closed since it was last
++            // built. Recompute it before listing so the rows (and the count
++            // badge updated by the resulting overflow event) match the header.
++            this.tabs.toggleDropdown({ reset: false });
++            if (this._overflowTabs.length === 0) {
++                return;
++            }
+             // Build lookup: panelId → tabGroup for overflow groups
+             const overflowGroupSet = new Set(this._overflowTabGroups);
+             const allTabGroups = this.group.model.getTabGroups();
+@@ -344,8 +372,29 @@ export class TabsContainer extends CompositeDisposable {
+                     ? `calc(${relativeParent.style.zIndex} * 2)`
+                     : undefined,
+             });
++            this._overflowPopoverContent = el;
+         }));
+     }
++    closeOverflowPopover() {
++        const content = this._overflowPopoverContent;
++        if (!content) {
++            return;
++        }
++        this._overflowPopoverContent = null;
++        if (content.isConnected) {
++            this.accessor.getPopupServiceForGroup(this.group).close();
++        }
++    }
++    handleOverflowTabSetChange() {
++        this.closeOverflowPopover();
++        // The control is only rendered while the strip overflows. Refresh its
++        // snapshot so the count badge and the next popover match the current
++        // tabs; `toggleDropdown` also removes the control when nothing
++        // overflows any more.
++        if (this.dropdownPart) {
++            this.tabs.toggleDropdown({ reset: false });
++        }
++    }
+     updateDragAndDropState() {
+         this.tabs.updateDragAndDropState();
+         this.voidContainer.updateDragAndDropState();
 diff --git a/dist/package/main.cjs.js b/dist/package/main.cjs.js
-index 4f8826a38527ee47e4e48e5b4f55746a1500afdb..42a6d9bf50779eb4d8b1203f2fe659e161dcebd1 100644
+index 4f8826a38527ee47e4e48e5b4f55746a1500afdb..1544addc337dff770c1e6f377bbf1abef5271c4f 100644
 --- a/dist/package/main.cjs.js
 +++ b/dist/package/main.cjs.js
 @@ -4050,7 +4050,7 @@ class DragAndDropObserver extends CompositeDisposable {
@@ -126,8 +306,94 @@ index 4f8826a38527ee47e4e48e5b4f55746a1500afdb..42a6d9bf50779eb4d8b1203f2fe659e1
      }
      setTargetZones(acceptedTargetZones) {
          this._acceptedTargetZonesSet = new Set(acceptedTargetZones);
+@@ -9748,6 +9747,7 @@ class TabsContainer extends CompositeDisposable {
+         this._overflowTabs = [];
+         this._overflowTabGroups = [];
+         this._dropdownDisposable = new MutableDisposable();
++        this._overflowPopoverContent = null;
+         this._onDrop = new Emitter();
+         this.onDrop = this._onDrop.event;
+         this._onGroupDragStart = new Emitter();
+@@ -9778,6 +9778,11 @@ class TabsContainer extends CompositeDisposable {
+             this.tabs.showTabsOverflowControl =
+                 !accessor.options.disableTabsOverflowList;
+         }), this.tabs.onOverflowTabsChange((event) => {
++            // The snapshot is also recomputed on strip scroll / overflow
++            // changes, which can leave an open popover listing tabs the header
++            // is now showing. Dismiss it; the next open rebuilds from the
++            // freshly refreshed snapshot.
++            this.closeOverflowPopover();
+             this.toggleDropdown(event);
+         }), this.tabs, this._onWillShowOverlay, this._onDrop, this._onGroupDragStart, this.voidContainer, this.voidContainer.onDragStart((event) => {
+             this._onGroupDragStart.fire({
+@@ -9839,6 +9844,20 @@ class TabsContainer extends CompositeDisposable {
+                 });
+             }
+         }));
++        // `this.group.model` is assigned only after this container has been
++        // constructed, so defer the subscriptions to the end of the current
++        // task. The overflow dropdown is built once from a snapshot of the tab
++        // strip and is not updated afterwards: dismiss an open popover and
++        // refresh that snapshot whenever the owning group's tabs or tab groups
++        // change, so the list cannot keep showing tabs that were closed, moved,
++        // renamed or are now visible in the header.
++        queueMicrotask(() => {
++            if (this.isDisposed) {
++                return;
++            }
++            const groupModel = this.group.model;
++            this.addDisposables(groupModel.onDidAddPanel(() => this.handleOverflowTabSetChange()), groupModel.onDidRemovePanel(() => this.handleOverflowTabSetChange()), groupModel.onDidPanelTitleChange(() => this.handleOverflowTabSetChange()), groupModel.onDidCreateTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidDestroyTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidAddPanelToTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidRemovePanelFromTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidTabGroupChange(() => this.handleOverflowTabSetChange()), groupModel.onDidTabGroupCollapsedChange(() => this.handleOverflowTabSetChange()), groupModel.onDidActivePanelChange(() => this.closeOverflowPopover()));
++        });
+     }
+     show() {
+         if (!this.hidden) {
+@@ -9951,6 +9970,14 @@ class TabsContainer extends CompositeDisposable {
+             const el = document.createElement('div');
+             el.style.overflow = 'auto';
+             el.className = 'dv-tabs-overflow-container';
++            // The overflow snapshot is only refreshed on overflow or scroll
++            // changes, so tabs may have been added or closed since it was last
++            // built. Recompute it before listing so the rows (and the count
++            // badge updated by the resulting overflow event) match the header.
++            this.tabs.toggleDropdown({ reset: false });
++            if (this._overflowTabs.length === 0) {
++                return;
++            }
+             // Build lookup: panelId → tabGroup for overflow groups
+             const overflowGroupSet = new Set(this._overflowTabGroups);
+             const allTabGroups = this.group.model.getTabGroups();
+@@ -10039,8 +10066,29 @@ class TabsContainer extends CompositeDisposable {
+                     ? `calc(${relativeParent.style.zIndex} * 2)`
+                     : undefined,
+             });
++            this._overflowPopoverContent = el;
+         }));
+     }
++    closeOverflowPopover() {
++        const content = this._overflowPopoverContent;
++        if (!content) {
++            return;
++        }
++        this._overflowPopoverContent = null;
++        if (content.isConnected) {
++            this.accessor.getPopupServiceForGroup(this.group).close();
++        }
++    }
++    handleOverflowTabSetChange() {
++        this.closeOverflowPopover();
++        // The control is only rendered while the strip overflows. Refresh its
++        // snapshot so the count badge and the next popover match the current
++        // tabs; `toggleDropdown` also removes the control when nothing
++        // overflows any more.
++        if (this.dropdownPart) {
++            this.tabs.toggleDropdown({ reset: false });
++        }
++    }
+     updateDragAndDropState() {
+         this.tabs.updateDragAndDropState();
+         this.voidContainer.updateDragAndDropState();
 diff --git a/dist/package/main.esm.mjs b/dist/package/main.esm.mjs
-index 99dd087bf8f1c74cf20a0cd650b4acac2bd84cc1..a273b7b179d6f0189c092de69729c8e6ddcd5299 100644
+index 99dd087bf8f1c74cf20a0cd650b4acac2bd84cc1..4a3e482969f6c9f8503f45a81571543fa4217dee 100644
 --- a/dist/package/main.esm.mjs
 +++ b/dist/package/main.esm.mjs
 @@ -4046,7 +4046,7 @@ class DragAndDropObserver extends CompositeDisposable {
@@ -164,3 +430,89 @@ index 99dd087bf8f1c74cf20a0cd650b4acac2bd84cc1..a273b7b179d6f0189c092de69729c8e6
      }
      setTargetZones(acceptedTargetZones) {
          this._acceptedTargetZonesSet = new Set(acceptedTargetZones);
+@@ -9744,6 +9743,7 @@ class TabsContainer extends CompositeDisposable {
+         this._overflowTabs = [];
+         this._overflowTabGroups = [];
+         this._dropdownDisposable = new MutableDisposable();
++        this._overflowPopoverContent = null;
+         this._onDrop = new Emitter();
+         this.onDrop = this._onDrop.event;
+         this._onGroupDragStart = new Emitter();
+@@ -9774,6 +9774,11 @@ class TabsContainer extends CompositeDisposable {
+             this.tabs.showTabsOverflowControl =
+                 !accessor.options.disableTabsOverflowList;
+         }), this.tabs.onOverflowTabsChange((event) => {
++            // The snapshot is also recomputed on strip scroll / overflow
++            // changes, which can leave an open popover listing tabs the header
++            // is now showing. Dismiss it; the next open rebuilds from the
++            // freshly refreshed snapshot.
++            this.closeOverflowPopover();
+             this.toggleDropdown(event);
+         }), this.tabs, this._onWillShowOverlay, this._onDrop, this._onGroupDragStart, this.voidContainer, this.voidContainer.onDragStart((event) => {
+             this._onGroupDragStart.fire({
+@@ -9835,6 +9840,20 @@ class TabsContainer extends CompositeDisposable {
+                 });
+             }
+         }));
++        // `this.group.model` is assigned only after this container has been
++        // constructed, so defer the subscriptions to the end of the current
++        // task. The overflow dropdown is built once from a snapshot of the tab
++        // strip and is not updated afterwards: dismiss an open popover and
++        // refresh that snapshot whenever the owning group's tabs or tab groups
++        // change, so the list cannot keep showing tabs that were closed, moved,
++        // renamed or are now visible in the header.
++        queueMicrotask(() => {
++            if (this.isDisposed) {
++                return;
++            }
++            const groupModel = this.group.model;
++            this.addDisposables(groupModel.onDidAddPanel(() => this.handleOverflowTabSetChange()), groupModel.onDidRemovePanel(() => this.handleOverflowTabSetChange()), groupModel.onDidPanelTitleChange(() => this.handleOverflowTabSetChange()), groupModel.onDidCreateTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidDestroyTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidAddPanelToTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidRemovePanelFromTabGroup(() => this.handleOverflowTabSetChange()), groupModel.onDidTabGroupChange(() => this.handleOverflowTabSetChange()), groupModel.onDidTabGroupCollapsedChange(() => this.handleOverflowTabSetChange()), groupModel.onDidActivePanelChange(() => this.closeOverflowPopover()));
++        });
+     }
+     show() {
+         if (!this.hidden) {
+@@ -9947,6 +9966,14 @@ class TabsContainer extends CompositeDisposable {
+             const el = document.createElement('div');
+             el.style.overflow = 'auto';
+             el.className = 'dv-tabs-overflow-container';
++            // The overflow snapshot is only refreshed on overflow or scroll
++            // changes, so tabs may have been added or closed since it was last
++            // built. Recompute it before listing so the rows (and the count
++            // badge updated by the resulting overflow event) match the header.
++            this.tabs.toggleDropdown({ reset: false });
++            if (this._overflowTabs.length === 0) {
++                return;
++            }
+             // Build lookup: panelId → tabGroup for overflow groups
+             const overflowGroupSet = new Set(this._overflowTabGroups);
+             const allTabGroups = this.group.model.getTabGroups();
+@@ -10035,8 +10062,29 @@ class TabsContainer extends CompositeDisposable {
+                     ? `calc(${relativeParent.style.zIndex} * 2)`
+                     : undefined,
+             });
++            this._overflowPopoverContent = el;
+         }));
+     }
++    closeOverflowPopover() {
++        const content = this._overflowPopoverContent;
++        if (!content) {
++            return;
++        }
++        this._overflowPopoverContent = null;
++        if (content.isConnected) {
++            this.accessor.getPopupServiceForGroup(this.group).close();
++        }
++    }
++    handleOverflowTabSetChange() {
++        this.closeOverflowPopover();
++        // The control is only rendered while the strip overflows. Refresh its
++        // snapshot so the count badge and the next popover match the current
++        // tabs; `toggleDropdown` also removes the control when nothing
++        // overflows any more.
++        if (this.dropdownPart) {
++            this.tabs.toggleDropdown({ reset: false });
++        }
++    }
+     updateDragAndDropState() {
+         this.tabs.updateDragAndDropState();
+         this.voidContainer.updateDragAndDropState();

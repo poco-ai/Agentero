@@ -18,7 +18,7 @@ import type { PdfAskNormalizedRect } from "@/lib/pdf/ask";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
 import type { PdfLayoutKind } from "@/lib/pdf/layout";
 import { getVaultPath, vaultStore } from "@/lib/vault/store";
-import { getActiveTab } from "@/lib/workspace/store";
+import { getActiveTab, getTabs } from "@/lib/workspace/store";
 
 /** Imperative surface consumed through the pdf viewer registry. */
 export type PdfViewerHandle = {
@@ -32,9 +32,9 @@ export type PdfViewerHandle = {
 	/** Jump to a visual agent-trace pin and open its preview card. */
 	scrollToVisualTrace: (id: string) => void;
 	deleteVisualTrace: (id: string) => void;
-	/** Toggle visual-region annotation mode (⌘.). */
-	toggleVisualAnnotation: () => void;
-	/** Toggle full-text (layout) translation (⌥A), dual-pane aware. */
+	/** Toggle layout element selection (⌘.). */
+	toggleElementSelection: () => void;
+	/** Toggle the reading view between 原文 and 译文 (⌥A). */
 	toggleLayoutTranslate: () => void;
 	/** Run EmbedPDF layout analysis for figures / tables / formulas. */
 	analyzeLayout: () => void;
@@ -94,7 +94,7 @@ export function pdfHandleFor(tabId: string | null): PdfViewerHandle | null {
  * is visible — callers must not require `activeTab.mode === "pdf"`.
  * Same fallback pattern as the annotations side panel.
  */
-export function resolveActivePdfHandle(): PdfViewerHandle | null {
+export function resolveActivePdfTabId(): string | null {
 	const active = getActiveTab();
 	const candidates: string[] = [];
 
@@ -108,13 +108,17 @@ export function resolveActivePdfHandle(): PdfViewerHandle | null {
 		vaultStore.getState().paperFolders,
 	);
 	if (paperAbs) {
-		const bodyId = pdfTabIdForPaper(paperAbs);
-		if (!candidates.includes(bodyId)) candidates.push(bodyId);
+		const bodyId = pdfTabIdForPaper(paperAbs, getTabs());
+		if (bodyId && !candidates.includes(bodyId)) candidates.push(bodyId);
 	}
 
 	for (const id of candidates) {
-		const handle = handles.get(id);
-		if (handle) return handle;
+		if (handles.has(id)) return id;
 	}
 	return null;
+}
+
+export function resolveActivePdfHandle(): PdfViewerHandle | null {
+	const id = resolveActivePdfTabId();
+	return id ? (handles.get(id) ?? null) : null;
 }

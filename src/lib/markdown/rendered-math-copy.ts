@@ -1,6 +1,9 @@
-/** KaTeX keeps the original TeX source in this hidden annotation node. */
-const KATEX_SELECTOR = ".katex";
-const KATEX_ANNOTATION = 'annotation[encoding="application/x-tex"]';
+import { copyTextToClipboard } from "@/lib/core/clipboard";
+import {
+	RENDERED_MATH_SELECTOR,
+	renderedMathSource,
+} from "@/lib/markdown/rendered-math";
+
 /** Temporary marker copied into the selection fragment to preserve display mode. */
 const COPY_DISPLAY_ATTR = "data-agentero-copy-display";
 
@@ -42,12 +45,6 @@ const BLOCK_TAGS = new Set([
 	"UL",
 ]);
 
-function katexTex(node: Element): string | null {
-	const annotation = node.querySelector(KATEX_ANNOTATION);
-	const tex = annotation?.textContent?.trim();
-	return tex ? tex : null;
-}
-
 function isDisplayMath(node: Element): boolean {
 	return (
 		node.classList.contains("katex-display") ||
@@ -69,11 +66,18 @@ function appendPlainText(node: Node, out: string[]): void {
 	}
 	if (node.nodeType !== Node.ELEMENT_NODE) return;
 	const element = node as Element;
+	if (
+		element.hasAttribute("data-math-copy-ui") ||
+		element.hasAttribute("data-slate-zero-width")
+	)
+		return;
 	if (element.tagName === "BR") {
 		out.push("\n");
 		return;
 	}
-	const block = BLOCK_TAGS.has(element.tagName);
+	const block =
+		BLOCK_TAGS.has(element.tagName) &&
+		!element.hasAttribute("data-slate-inline");
 	if (block) out.push("\n");
 	for (const child of Array.from(element.childNodes)) {
 		appendPlainText(child, out);
@@ -95,7 +99,7 @@ function expandRangeToMath(
 	doc: Document,
 ): { range: Range; hits: Element[] } {
 	const expanded = range.cloneRange();
-	const hits = Array.from(doc.querySelectorAll(KATEX_SELECTOR)).filter(
+	const hits = Array.from(doc.querySelectorAll(RENDERED_MATH_SELECTOR)).filter(
 		(katex) => range.intersectsNode(katex),
 	);
 	for (const katex of hits) {
@@ -139,12 +143,14 @@ export function renderedMathClipboardText(
 	} finally {
 		for (const katex of expanded.hits) katex.removeAttribute(COPY_DISPLAY_ATTR);
 	}
-	const katexNodes = Array.from(fragment.querySelectorAll(KATEX_SELECTOR));
+	const katexNodes = Array.from(
+		fragment.querySelectorAll(RENDERED_MATH_SELECTOR),
+	);
 	if (katexNodes.length === 0) return null;
 
 	let replaced = 0;
 	for (const katex of katexNodes) {
-		const tex = katexTex(katex);
+		const tex = renderedMathSource(katex);
 		if (!tex) continue;
 		const replacement = isDisplayMath(katex)
 			? `\n$$\n${tex}\n$$\n`
@@ -184,14 +190,89 @@ function markedSelectionRange(): Range | null {
 
 let installed = false;
 
+function installMathClickCopy(doc: Document): void {
+	let pointer: { id: number; x: number; y: number; moved: boolean } | null =
+		null;
+	doc.addEventListener(
+		"pointerdown",
+		(event) => {
+			pointer = {
+				id: event.pointerId,
+				x: event.clientX,
+				y: event.clientY,
+				moved: false,
+			};
+		},
+		true,
+	);
+	doc.addEventListener(
+		"pointermove",
+		(event) => {
+			if (
+				pointer &&
+				pointer.id === event.pointerId &&
+				Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 5
+			) {
+				pointer.moved = true;
+			}
+		},
+		true,
+	);
+	const cancel = () => {
+		if (pointer) pointer.moved = true;
+	};
+	doc.addEventListener("pointercancel", cancel, true);
+	doc.addEventListener("dragstart", cancel, true);
+	doc.addEventListener("scroll", cancel, true);
+	const timers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+	doc.addEventListener("click", async (event) => {
+		const dragged = pointer?.moved;
+		pointer = null;
+		if (
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			(event.detail > 0 && dragged)
+		)
+			return;
+		const target = event.target instanceof Element ? event.target : null;
+		const wrapper = target?.closest<HTMLElement>("[data-math-copy]");
+		if (!target || !wrapper) return;
+		const button = target.closest("[data-math-copy-button]");
+		const formula = wrapper.hasAttribute("data-math-copy-formula");
+		if (
+			!button &&
+			(!doc.getSelection()?.isCollapsed ||
+				(!formula && !target.closest(RENDERED_MATH_SELECTOR)))
+		)
+			return;
+		const tex = wrapper.dataset.mathCopyTex ?? renderedMathSource(wrapper);
+		if (!tex?.trim()) return;
+		const copied = await copyTextToClipboard(tex, {
+			errorMessage: wrapper.dataset.mathCopyError,
+		});
+		if (!copied || !wrapper.isConnected) return;
+		clearTimeout(timers.get(wrapper));
+		wrapper.setAttribute("data-math-copied", "");
+		const status = wrapper.querySelector("[data-math-copy-status]");
+		if (status) status.textContent = wrapper.dataset.mathCopySuccess ?? "";
+		timers.set(
+			wrapper,
+			setTimeout(() => {
+				wrapper.removeAttribute("data-math-copied");
+				if (status) status.textContent = "";
+			}, 1200),
+		);
+	});
+}
+
 /**
- * Install a document-level capture listener so copying a text selection inside
- * any `[data-markdown-copy]` rendered-Markdown surface keeps formulas as
- * Markdown source. Idempotent; callers mount it once from `MessageContent`.
+ * Delegate formula clicks and preserve Markdown when copying selections inside
+ * `[data-markdown-copy]` surfaces. Idempotent across messages and math controls.
  */
 export function installRenderedMathCopy(): void {
 	if (installed || typeof document === "undefined") return;
 	installed = true;
+	installMathClickCopy(document);
 	document.addEventListener(
 		"copy",
 		(event) => {

@@ -13,6 +13,7 @@
 		"outline": "目录",
 		"linkAria": "PDF 链接",
 		"linkUrl": "链接地址",
+		"linkPreview": "链接预览",
 		"paperTone": "页面背景",
 		"paperToneOption": {
 			"white": "白纸",
@@ -24,6 +25,16 @@
 		"jumpBack": "返回跳转前",
 		"importToLibrary": "导入本地库",
 		"smartHighlight": "智能高亮",
+		"viewMode": {
+			"label": "阅读视图",
+			"original": "原文",
+			"translated": "译文",
+			"dual": "对照",
+			"originalHint": "原文（收起译文并停止翻译）",
+			"translatedHint": "译文（在原文页上原地覆盖）",
+			"dualHint": "对照（原文与译文左右并排）",
+			"paneUnavailable": "论文路径缺失，无法打开译文栏。"
+		},
 		"smartHighlightFailed": "智能高亮失败",
 		"jevNoReadableText": "PDF 文本层为空或无法识别。请先在工具栏 → 解析 PDF 正文 里跑一次 OCR。",
 		"findPlaceholder": "在文档中查找",
@@ -49,14 +60,25 @@
 			"hide": "隐藏译文",
 			"show": "查看译文",
 			"translatePage": "翻译本页",
-			"translatePageShort": "翻译页面",
+			"translatePageShort": "翻译本页",
 			"hidePage": "隐藏本页译文",
 			"hidePageShort": "隐藏本页",
+			"retryPageShort": "重译本页",
+			"pageStatus": {
+				"pending": "本页待翻译",
+				"running": "正在翻译本页…",
+				"done": "本页翻译完成",
+				"error": "本页翻译未完成"
+			},
+			"pageStage": {
+				"translating": "翻译中",
+				"typesetting": "排版中"
+			},
 			"pageRunning": "正在翻译本页…",
 			"needLayout": "请先运行版面分析（Figures 面板）。",
 			"noText": "没有可提取文字的版面区域可翻译。",
 			"failed": "全文翻译失败",
-			"pageFailed": "本页翻译失败",
+			"retryPage": "重试本页翻译",
 			"exportDualPdf": "导出双语 PDF",
 			"exportPdf": "导出翻译 PDF",
 			"reflowFailed": "PDF 排版失败",
@@ -78,6 +100,11 @@
 			"partialStillMissing": "上次补全后仍有 {{count}} 段未译。",
 			"partialPagesSingle": "第 {{page}} 页",
 			"partialPagesRange": "第 {{start}}–{{end}} 页",
+			"layoutWarningTitle": "版面解析不完整",
+			"layoutWarningButton": "版面结果不完整 · {{count}} 页",
+			"layoutWarningSummary": "版面解析不完整：第 {{pages}} 页未检测到可译正文。已翻译 {{translated}}/{{total}} 页。",
+			"reparseAndTranslate": "重新解析并翻译",
+			"openLayoutSettings": "打开版面解析",
 			"completeMissing": "补全 {{count}} 段",
 			"retranslateAll": "重译整篇",
 			"close": "关闭",
@@ -85,7 +112,8 @@
 			"retranslateConfirmTitle": "重译整篇？",
 			"retranslateConfirmDescription": "将重新请求整篇并覆盖成功返回的译文；失败段落保留旧译文。",
 			"retranslateConfirm": "确认重译",
-			"pagesCount": "{{done}}/{{total}} 页"
+			"pagesCount": "已完成 {{done}}/{{total}} 页",
+			"pagesGenerated": "已生成 {{done}}/{{total}} 页"
 		},
 		"translation": {
 			"title": "翻译",
@@ -119,7 +147,8 @@
 			"saving": "正在保存书签…",
 			"retry": "重试保存",
 			"discard": "放弃未保存修改"
-		}
+		},
+		"exitImmersive": "退出全屏阅读"
 	},
 	"pdfAsk": {
 		"dialogLabel": "划词提问",
@@ -141,11 +170,7 @@
 		"openInPrompt": "请讲解以下论文选段："
 	},
 	"pdfExplain": {
-		"selectRegion": "添加视觉批注",
-		"cancelRegion": "取消区域选择",
-		"regionSelectionLabel": "选择第 {{page}} 页的图片区域",
 		"cropFailed": "无法截取所选 PDF 区域。",
-		"cropping": "正在截取区域…",
 		"annotationPreviewAlt": "第 {{page}} 页裁剪区域",
 		"visualAnnotation": "视觉批注",
 		"addToSidebarChat": "加入侧边栏对话",
@@ -191,6 +216,9 @@
 		"importFailed": "导入参考文献失败",
 		"openLink": "打开链接",
 		"previewLabel": "引用预览",
+		"previewImport": "导入",
+		"expandPreview": "展开完整参考文献信息",
+		"citationCount_other": "被引 {{count}} 次",
 		"importToFolder": "导入到文件夹",
 		"newFolder": "新建文件夹",
 		"newFolderHint": "papers/子文件夹",
@@ -206,6 +234,9 @@
 		"kindReference": "参考文献"
 	},
 	"figures": {
+		"selectElements": "选择版面元素",
+		"exitElementSelection": "退出元素选择（Esc）",
+		"selectionNeedsLayout": "完成版面分析后可选择元素",
 		"title": "解析",
 		"panelAria": "本论文的插图、表格、算法与公式",
 		"noPaper": "打开论文 PDF 以列出插图、表格、算法与公式。",
@@ -217,6 +248,7 @@
 		"forceReanalyze": "强制重新解析版面",
 		"forceReanalyzeTitle": "重新解析版面？",
 		"forceReanalyzeBody": "将替换这篇论文已保存的版面结果，并从论文 PDF 重新检测插图、表格与公式。",
+		"forceReanalyzeTranslate": "已开启版面解析后自动翻译，完成后会把翻译加入后台队列。已有译文会复用，只补译变化的内容。",
 		"forceReanalyzeConfirm": "重新解析",
 		"forceReanalyzeMissingPdf": "论文目录里还没有论文 PDF。",
 		"forceReanalyzeFailed": "无法重新解析版面",
@@ -224,8 +256,9 @@
 		"queued": "版面分析排队中…",
 		"progressPages": "{{page}} / {{total}} 页",
 		"progressPct": "{{pct}}%",
-		"clickAnnotateAria": "批注此{{kind}}",
-		"clickAnnotateHint": "单击进行批注",
+		"selectElementAria": "选择{{kind}}",
+		"selectElementAriaPreview": "选择{{kind}}：{{preview}}",
+		"captionOnPage": "图注在第 {{page}} 页",
 		"sectionFigures": "插图",
 		"sectionTables": "表格",
 		"sectionAlgorithms": "算法",
@@ -256,7 +289,13 @@
 	},
 	"selection": {
 		"menuLabel": "选区操作",
-		"colorGroupLabel": "高亮颜色",
+		"colorGroupLabel": "标注颜色",
+		"shapeHighlight": "高亮",
+		"shapeUnderline": "下划线",
+		"shapeSwitchHint": {
+			"toHighlight": "右键色块切换回高亮",
+			"toUnderline": "右键色块切换为下划线"
+		},
 		"color": {
 			"yellow": "黄色",
 			"green": "绿色",
@@ -268,16 +307,19 @@
 		"copy": "复制",
 		"copyFailed": "无法复制选中的文本。",
 		"note": "批注",
-		"chatActions": "对话操作",
+		"bookmark": "书签",
+		"moreActions": "更多操作",
 		"quickChat": "快速对话",
 		"addToChat": "加入对话",
 		"translate": "翻译",
-		"removeHighlight": "删除高亮",
-		"highlightMenuLabel": "高亮操作",
+		"removeHighlight": "删除标注",
+		"highlightMenuLabel": "标注操作",
 		"editComment": "编辑批注",
 		"translateTitle": "翻译",
+		"dictionaryTitle": "词典",
 		"translateCopyFailed": "无法复制译文。",
 		"translating": "翻译中…",
+		"lookingUp": "查询中…",
 		"translateHide": "关闭卡片",
 		"translatePin": "钉住",
 		"translateUnpin": "取消钉住",
@@ -285,11 +327,17 @@
 		"translatePinAria": "打开翻译：{{preview}}",
 		"translateNoAgent": "没有可用的 Agent 进行翻译，请先在设置 → Agent 中配置。",
 		"translateOpenSettings": "打开翻译设置",
+		"switchToTranslate": "翻译选区",
+		"switchToDictionary": "查看词典",
+		"dictionaryPaperDef": "文中定义",
 		"annotationCount": "{{count}} 条批注",
 		"locateSource": "定位原文",
 		"chatSource": "聊天消息",
 		"sourcePage": "第 {{page}} 页",
-		"sourceUnavailable": "来源暂不可用，或原文已改动、存在多处匹配。引用原文仍保留在批注中。"
+		"sourceUnavailable": "来源暂不可用，或原文已改动、存在多处匹配。引用原文仍保留在批注中。",
+		"dictionaryContext": "本文语境 · AI",
+		"dictionaryAiEngineeringSource": "AI Engineering",
+		"switchToTranslation": "翻译选区"
 	},
 	"html": {
 		"empty": "暂无论文。",

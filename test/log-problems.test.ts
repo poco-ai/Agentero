@@ -152,6 +152,6 @@ describe("latex log problem paths", () => {
 		).toBe(slashed);
 		expect(
 			resolveLogProblemPath(slashed, "e:/Vault/thesis/note/sections/intro.tex"),
-		).toBe("//?/E:/Vault/thesis/note/sections/intro.tex");
+		).toBe("\\\\?\\E:\\Vault\\thesis\\note\\sections\\intro.tex");
 	});
 });

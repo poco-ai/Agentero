@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readingColumnAnchors } from "@/components/workspace/dock-layout";
+import { ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import * as tauri from "@/lib/core/tauri";
+import { REMOTE_ARXIV_PREFIX } from "@/lib/paper";
 import * as paperApi from "@/lib/paper/api";
 import { LIBRARY_VIRTUAL_PATH } from "@/lib/paper/api";
 import { paperMetaChange } from "@/lib/paper/library-actions";
@@ -28,20 +30,25 @@ import {
 	createPlaceholderTab,
 	type DocTab,
 	extractTabsFromLayout,
+	findCanonicalTab,
 	findNotesPaneForReplacement,
 	insertPlaceholderTab,
 	loadPersistedTabs,
+	loadWindowVaultLayout,
 	panelPersistParams,
 	paperReadingPlacements,
 	patchFromTabResources,
 	patchTab,
+	persistedLayoutIsUnreadable,
 	readingPairCloseIds,
 	remapPathUnder,
 	remapTabsUnderPath,
 	removeTab,
 	removeTabsUnderPath,
 	savePersistedTabs,
+	saveWorkspaceLayout,
 	seedTabs,
+	shouldWritePersistedLayout,
 	syncTabSeedsForPath,
 	type TabResources,
 	tabHasNotesSplit,
@@ -49,11 +56,16 @@ import {
 	tabIsPaperNoteDocument,
 	tabIsPaperNotes,
 	tabNotesEligible,
+	tabsAfterMovedView,
+	workspaceLayoutStorageKey,
 } from "@/lib/workspace/tabs";
 import * as tabResources from "@/lib/workspace/tabs/resources";
 
 function makeTab(path: string, overrides: Partial<DocTab> = {}): DocTab {
-	return { ...createPlaceholderTab(path), ...overrides };
+	return {
+		...createPlaceholderTab(path, overrides.mode, overrides.id ?? path),
+		...overrides,
+	};
 }
 
 function makeResources(overrides: Partial<TabResources> = {}): TabResources {
@@ -75,9 +87,12 @@ function makeResources(overrides: Partial<TabResources> = {}): TabResources {
 }
 
 describe("createPlaceholderTab", () => {
-	it("builds an unloaded placeholder from a normalized id", () => {
+	it("builds an unloaded file tab with an opaque id and the original path", () => {
 		const tab = createPlaceholderTab("/vault/a.md", "pdf");
-		expect(tab.id).toBe("/vault/a.md");
+		expect(tab.id.startsWith("view-")).toBe(true);
+		expect(tab.id).not.toBe("/vault/a.md");
+		expect(tab.id).not.toBe(tabIdForPath("/vault/a.md"));
+		expect(tab.path).toBe("/vault/a.md");
 		expect(tab.kind).toBe("file");
 		expect(tab.title).toBe("a.md");
 		expect(tab.mode).toBe("pdf");
@@ -99,9 +114,35 @@ describe("createPlaceholderTab", () => {
 	it("special-cases the Library virtual path", () => {
 		const tab = createPlaceholderTab(LIBRARY_VIRTUAL_PATH);
 		expect(tab.path).toBe(LIBRARY_VIRTUAL_PATH);
+		expect(tab.id).toBe(LIBRARY_VIRTUAL_PATH);
 		expect(tab.kind).toBe("library");
 		expect(tab.title).toBe("Library");
 		expect(tab.mode).toBe("markdown");
+	});
+
+	it("special-cases the Zen virtual path", () => {
+		expect(tabIdForPath(ZEN_VIRTUAL_PATH)).toBe(ZEN_VIRTUAL_PATH);
+		const tab = createPlaceholderTab(ZEN_VIRTUAL_PATH);
+		expect(tab.path).toBe(ZEN_VIRTUAL_PATH);
+		expect(tab.id).toBe(ZEN_VIRTUAL_PATH);
+		expect(tab.kind).toBe("zen");
+		expect(tab.mode).toBe("markdown");
+		expect(tab.loaded).toBe(false);
+	});
+
+	it("keeps a restored path id and finds the canonical view, not the split", () => {
+		const canonical = createPlaceholderTab("/vault/a.md", "markdown");
+		const split = createPlaceholderTab(
+			"/vault/a.md",
+			"markdown",
+			"/vault/a.md::pane-2",
+		);
+		expect(split.id).toBe("/vault/a.md::pane-2");
+		expect(split.path).toBe("/vault/a.md");
+		expect(split.pane).toBe("split");
+		expect(findCanonicalTab([split, canonical], "/Vault/A.md")?.id).toBe(
+			canonical.id,
+		);
 	});
 });
 
@@ -140,8 +181,11 @@ describe("insertPlaceholderTab", () => {
 	it("appends a new tab", () => {
 		const { tabs, id, exists } = insertPlaceholderTab([], "/vault/a.md");
 		expect(exists).toBe(false);
-		expect(id).toBe("/vault/a.md");
+		expect(id.startsWith("view-")).toBe(true);
+		expect(id).not.toBe("/vault/a.md");
 		expect(tabs).toHaveLength(1);
+		expect(tabs[0]?.path).toBe("/vault/a.md");
+		expect(tabs[0]?.id).toBe(id);
 	});
 
 	it("dedupes by id and returns the original array", () => {
@@ -208,6 +252,27 @@ describe("patchFromTabResources", () => {
 			htmlUrl: "https://arxiv.org/html/2508.05004",
 		});
 		expect(patchFromTabResources(htmlFallback, placeholder).mode).toBe("html");
+	});
+
+	it("keeps translation mode and copies pdf bytes when the paper path reloads", () => {
+		const bytes = new Uint8Array([1, 2, 3]).buffer;
+		const res = makeResources({
+			mode: "pdf",
+			pdfUrl: "blob:source",
+			pdfBytes: bytes,
+			notesPath: "/vault/papers/a/NOTES.md",
+		});
+		const pane = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "translation",
+			pane: "translation",
+		});
+		const patch = patchFromTabResources(res, pane);
+		expect(patch.mode).toBe("translation");
+		expect(patch.pdfUrl).toBeNull();
+		expect(patch.pdfBytes).toBeInstanceOf(ArrayBuffer);
+		expect(patch.pdfBytes).not.toBe(bytes);
+		expect(patch.notesPath).toBe("/vault/papers/a/NOTES.md");
 	});
 
 	it("passes resource fields through", () => {
@@ -293,7 +358,8 @@ describe("remapTabsUnderPath", () => {
 			"papers/nlp",
 			"papers/archive/nlp",
 		);
-		expect(next[0]?.id).toBe("/vault/papers/archive/nlp/paper");
+		expect(next[0]?.id).toBe(start[0]?.id);
+		expect(next[0]?.path).toBe("/vault/papers/archive/nlp/paper");
 		expect(next[0]?.notesPath).toBe("/vault/papers/archive/nlp/paper/NOTES.md");
 		expect(next[0]?.paperMeta?.path).toBe("papers/archive/nlp/paper");
 		expect(next[1]).toBe(start[1]);
@@ -305,6 +371,27 @@ describe("remapTabsUnderPath", () => {
 		);
 		expect(remapPathUnder("/vault/c.md", "/vault/a", "/vault/b")).toBe(
 			"/vault/c.md",
+		);
+	});
+
+	it("keeps both view ids when a split file moves", () => {
+		const canonical = makeTab("/vault/notes/a.md", { id: "view-a" });
+		const split = makeTab("/vault/notes/a.md", { id: "view-b", pane: "split" });
+		const next = remapTabsUnderPath(
+			[canonical, split],
+			"/vault/notes",
+			"/vault/archive/notes",
+			"notes",
+			"archive/notes",
+		);
+		expect(next.map((tab) => tab.id)).toEqual(["view-a", "view-b"]);
+		expect(next.map((tab) => tab.path)).toEqual([
+			"/vault/archive/notes/a.md",
+			"/vault/archive/notes/a.md",
+		]);
+		expect(next[1]?.pane).toBe("split");
+		expect(findCanonicalTab(next, "/vault/archive/notes/a.md")?.id).toBe(
+			"view-a",
 		);
 	});
 });
@@ -446,6 +533,7 @@ describe("extractTabsFromLayout", () => {
 				id: "/vault/a.md::pane-2",
 				path: "/vault/a.md",
 				mode: "markdown",
+				pane: "split",
 			},
 		]);
 		expect(extracted.activeId).toBe("/vault/a.md::pane-2");
@@ -461,6 +549,45 @@ describe("extractTabsFromLayout", () => {
 		expect(extracted.tabs).toEqual([
 			{ id: "/vault/x.md", path: "/vault/x.md", mode: "markdown" },
 		]);
+	});
+
+	it("keeps legacy split and translation ids and reads path from params or the id", () => {
+		const extracted = extractTabsFromLayout({
+			panels: {
+				"/vault/a.md::pane-2": { id: "/vault/a.md::pane-2" },
+				"/vault/a.md::translation": {
+					id: "/vault/a.md::translation",
+					params: {
+						panelId: "/vault/a.md::translation",
+						path: "/vault/papers/a",
+						mode: "translation",
+					},
+				},
+			},
+		});
+		expect(extracted.tabs).toEqual([
+			{
+				id: "/vault/a.md::pane-2",
+				path: "/vault/a.md",
+				mode: "markdown",
+				pane: "split",
+			},
+			{
+				id: "/vault/a.md::translation",
+				path: "/vault/papers/a",
+				mode: "translation",
+				pane: "translation",
+			},
+		]);
+	});
+
+	it("does not treat an opaque view id as a filesystem path", () => {
+		const extracted = extractTabsFromLayout({
+			panels: {
+				"view-abc": { id: "view-abc", params: { panelId: "view-abc" } },
+			},
+		});
+		expect(extracted.tabs).toEqual([]);
 	});
 
 	it("carries persisted titles for restore before hydration (#410)", () => {
@@ -555,6 +682,8 @@ describe("tab session persistence", () => {
 				removeItem: (k: string) => store.delete(k),
 			},
 		});
+		// Missing key clears the module-level unreadable flag between cases.
+		loadPersistedTabs();
 	});
 
 	it("round-trips layout-only storage", () => {
@@ -611,8 +740,8 @@ describe("tab session persistence", () => {
 		);
 		const loaded = loadPersistedTabs();
 		expect(loaded?.tabs).toEqual([
-			{ path: "/vault/a.md", mode: "markdown" },
-			{ path: "/vault/b.md", mode: "pdf" },
+			{ id: "/vault/a.md", path: "/vault/a.md", mode: "markdown" },
+			{ id: "/vault/b.md", path: "/vault/b.md", mode: "pdf" },
 		]);
 		expect(loaded?.activeId).toBe("/vault/b.md");
 		expect(loaded?.layout).toBeNull();
@@ -636,10 +765,171 @@ describe("tab session persistence", () => {
 		savePersistedTabs({ panels: {} });
 		expect(loadPersistedTabs()).toBeNull();
 	});
+
+	it("keeps corrupt layout text and refuses a null writeback", () => {
+		const corrupt = '{"panels": not-json';
+		localStorage.setItem("agentero-open-tabs", corrupt);
+		expect(loadPersistedTabs()).toBeNull();
+		expect(persistedLayoutIsUnreadable()).toBe(true);
+		expect(localStorage.getItem("agentero-open-tabs")).toBe(corrupt);
+		expect(shouldWritePersistedLayout(null)).toBe(false);
+		expect(shouldWritePersistedLayout({ panels: { "/vault/a.md": {} } })).toBe(
+			true,
+		);
+	});
+
+	it("copies unreadable layout text to the rollback key once", () => {
+		const corrupt = '{"panels": not-json';
+		localStorage.setItem("agentero-open-tabs", corrupt);
+		expect(loadPersistedTabs()).toBeNull();
+
+		savePersistedTabs({
+			panels: {
+				"/vault/a.md": {
+					id: "/vault/a.md",
+					params: {
+						panelId: "/vault/a.md",
+						path: "/vault/a.md",
+						mode: "markdown",
+					},
+				},
+			},
+		});
+		expect(localStorage.getItem("agentero-open-tabs.rollback")).toBe(corrupt);
+
+		savePersistedTabs({
+			panels: {
+				"/vault/b.md": {
+					id: "/vault/b.md",
+					params: {
+						panelId: "/vault/b.md",
+						path: "/vault/b.md",
+						mode: "pdf",
+					},
+				},
+			},
+		});
+		expect(localStorage.getItem("agentero-open-tabs.rollback")).toBe(corrupt);
+		expect(localStorage.getItem("agentero-open-tabs")).toContain("/vault/b.md");
+	});
+
+	it("does not drop a layout whose panels are only remote arXiv paths", () => {
+		const remotePath = `${REMOTE_ARXIV_PREFIX}2401.00001`;
+		const raw = JSON.stringify({
+			layout: {
+				panels: {
+					[remotePath]: {
+						id: remotePath,
+						params: {
+							panelId: remotePath,
+							path: remotePath,
+							mode: "pdf",
+						},
+					},
+				},
+			},
+		});
+		localStorage.setItem("agentero-open-tabs", raw);
+		expect(loadPersistedTabs()).toBeNull();
+		expect(persistedLayoutIsUnreadable()).toBe(true);
+		expect(localStorage.getItem("agentero-open-tabs")).toBe(raw);
+		expect(shouldWritePersistedLayout(null)).toBe(false);
+	});
+
+	it("still restores a usable layout that carries an unknown version", () => {
+		localStorage.setItem(
+			"agentero-open-tabs",
+			JSON.stringify({
+				version: 99,
+				layout: {
+					panels: {
+						"/vault/a.md": {
+							id: "/vault/a.md",
+							params: {
+								panelId: "/vault/a.md",
+								path: "/vault/a.md",
+								mode: "markdown",
+							},
+						},
+					},
+				},
+			}),
+		);
+		const loaded = loadPersistedTabs();
+		expect(loaded?.tabs).toEqual([
+			{ id: "/vault/a.md", path: "/vault/a.md", mode: "markdown" },
+		]);
+		expect(persistedLayoutIsUnreadable()).toBe(false);
+	});
+
+	const scopedLayout = (path: string) => ({
+		panels: {
+			[path]: {
+				id: path,
+				params: { panelId: path, path, mode: "markdown" },
+			},
+		},
+	});
+
+	it("keeps two windows from sharing a vault layout", () => {
+		saveWorkspaceLayout("main", "/vault/a", scopedLayout("/vault/a.md"));
+		saveWorkspaceLayout(
+			"agentero-other",
+			"/vault/a",
+			scopedLayout("/vault/b.md"),
+		);
+		expect(loadWindowVaultLayout("main", "/vault/a", false)?.tabs).toEqual([
+			{ id: "/vault/a.md", path: "/vault/a.md", mode: "markdown" },
+		]);
+		expect(
+			loadWindowVaultLayout("agentero-other", "/vault/a", false)?.tabs,
+		).toEqual([{ id: "/vault/b.md", path: "/vault/b.md", mode: "markdown" }]);
+	});
+
+	it("adopts the legacy global layout once, and only for the main window", () => {
+		savePersistedTabs(scopedLayout("/vault/legacy.md"));
+		const legacy = localStorage.getItem("agentero-open-tabs");
+		const adopted = loadWindowVaultLayout("main", "/vault/a", false);
+		expect(adopted?.tabs).toEqual([
+			{ id: "/vault/legacy.md", path: "/vault/legacy.md", mode: "markdown" },
+		]);
+		expect(loadWindowVaultLayout("main", "/vault/b", false)).toBeNull();
+		expect(
+			loadWindowVaultLayout("agentero-other", "/vault/a", false),
+		).toBeNull();
+		expect(loadWindowVaultLayout("main", "/vault/a", true)).toBeNull();
+		saveWorkspaceLayout("main", "/vault/a", scopedLayout("/vault/legacy.md"));
+		expect(localStorage.getItem("agentero-open-tabs")).toBe(legacy);
+		expect(localStorage.getItem("agentero-open-tabs.migrated")).toBe("1");
+		expect(localStorage.getItem("agentero-open-tabs.rollback")).toBe(legacy);
+		loadPersistedTabs();
+		expect(loadWindowVaultLayout("main", "/vault/c", false)).toBeNull();
+		expect(loadWindowVaultLayout("main", "/vault/a/", false)?.tabs).toEqual([
+			{ id: "/vault/legacy.md", path: "/vault/legacy.md", mode: "markdown" },
+		]);
+	});
+
+	it("does not replace a corrupt per-window layout with the legacy key", () => {
+		const raw = "{";
+		const key = workspaceLayoutStorageKey("main", "/vault/a");
+		localStorage.setItem(key, raw);
+		savePersistedTabs(scopedLayout("/vault/legacy.md"));
+		expect(loadWindowVaultLayout("main", "/vault/a", false)).toBeNull();
+		expect(persistedLayoutIsUnreadable()).toBe(true);
+		expect(localStorage.getItem(key)).toBe(raw);
+		expect(shouldWritePersistedLayout(null)).toBe(false);
+		expect(shouldWritePersistedLayout({ panels: {} })).toBe(false);
+		saveWorkspaceLayout("main", "/vault/a", { panels: {} });
+		expect(localStorage.getItem(key)).toBe(raw);
+		saveWorkspaceLayout("main", "/vault/a", scopedLayout("/vault/kept.md"));
+		expect(persistedLayoutIsUnreadable()).toBe(false);
+		saveWorkspaceLayout("main", "/vault/a", { panels: {} });
+		expect(localStorage.getItem(key)).toBeNull();
+	});
 });
 
 describe("flat workspace helpers", () => {
-	it("createNotesSplitPane reuses notesSeed", () => {
+	it("createNotesSplitPane waits for its own notes load", () => {
 		const tab = makeTab("/vault/p", {
 			kind: "paper",
 			mode: "pdf",
@@ -648,7 +938,7 @@ describe("flat workspace helpers", () => {
 			paperMeta: { path: "p", title: "P" } as DocTab["paperMeta"],
 		});
 		const pane = createNotesSplitPane(tab);
-		expect(pane?.notesSeed).toBe("# hi");
+		expect(pane).toMatchObject({ loaded: false, notesSeed: "" });
 		expect(pane?.path).toBe("/vault/p/NOTES.md");
 		expect(pane?.title).toBe("Notes");
 	});
@@ -658,14 +948,12 @@ describe("flat workspace helpers", () => {
 			kind: "paper",
 			mode: "pdf",
 			notesPath: "/vault/p/NOTES.md",
-			notesSeed: "# hi",
 			paperMeta: null,
 		});
 		const pane = createNotesSplitPane(tab);
 		expect(pane).not.toBeNull();
 		expect(pane?.paperMeta).toBeNull();
 		expect(pane?.path).toBe("/vault/p/NOTES.md");
-		expect(pane?.notesSeed).toBe("# hi");
 	});
 
 	it("tabIsPaperNotes recognizes a paper root or NOTES.md without catalog metadata", () => {
@@ -822,6 +1110,33 @@ describe("flat workspace helpers", () => {
 		expect(readingPairCloseIds(open, notes.id)).toEqual([notes.id]);
 		expect(readingPairCloseIds([paper], paper.id)).toEqual([paper.id]);
 		expect(readingPairCloseIds([notes], notes.id)).toEqual([notes.id]);
+		const splitBody = { ...paper, id: "view-split", pane: "split" as const };
+		expect(readingPairCloseIds([splitBody, notes], splitBody.id)).toEqual([
+			splitBody.id,
+		]);
+	});
+
+	it("moving a view removes only that id and leaves NOTES", () => {
+		const paper = makeTab("/vault/p", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/p/NOTES.md",
+			paperMeta: { path: "p", title: "P" } as DocTab["paperMeta"],
+		});
+		const notes = createNotesSplitPane(paper);
+		expect(notes).not.toBeNull();
+		if (!notes) return;
+		const open = [paper, notes];
+		expect(readingPairCloseIds(open, paper.id)).toContain(notes.id);
+		expect(tabsAfterMovedView(open, paper.id).map((tab) => tab.id)).toEqual([
+			notes.id,
+		]);
+		const splitBody = { ...paper, id: "view-split", pane: "split" as const };
+		expect(
+			tabsAfterMovedView([splitBody, notes, paper], splitBody.id).map(
+				(tab) => tab.id,
+			),
+		).toEqual([notes.id, paper.id]);
 	});
 
 	it("closeTab never closes the resident Library tab", () => {
@@ -966,7 +1281,6 @@ describe("Notes layout actions", () => {
 		const notes = createNotesSplitPane(paper);
 		if (!notes) throw new Error("Missing notes fixture");
 		const nextNotesPath = "/vault/papers/b/NOTES.md";
-		const nextNotesId = tabIdForPath(nextNotesPath);
 		const handle = {
 			openPanel: vi.fn(),
 			remapPanel: vi.fn(),
@@ -989,15 +1303,19 @@ describe("Notes layout actions", () => {
 			openPath(nextNotesPath);
 
 			expect(handle.openPanel).not.toHaveBeenCalled();
-			expect(handle.remapPanel).toHaveBeenCalledExactlyOnceWith(
-				notes.id,
-				expect.objectContaining({ id: nextNotesId }),
-			);
-			expect(handle.activatePanel).toHaveBeenCalledWith(nextNotesId);
+			expect(handle.remapPanel).toHaveBeenCalledOnce();
+			const replacement = handle.remapPanel.mock.calls[0]?.[1] as DocTab;
+			expect(replacement.path).toBe(nextNotesPath);
+			expect(replacement.id.startsWith("view-")).toBe(true);
+			expect(replacement.id).not.toBe(notes.id);
+			expect(replacement.id).not.toBe(tabIdForPath(nextNotesPath));
+			expect(handle.activatePanel).toHaveBeenCalledWith(replacement.id);
 			expect(getTabs().map((t) => t.id)).not.toContain(notes.id);
-			expect(getTabs().map((t) => t.id)).toContain(nextNotesId);
+			expect(getTabs().map((t) => t.id)).toContain(replacement.id);
 			await vi.waitFor(() =>
-				expect(getTabs().find((t) => t.id === nextNotesId)?.loaded).toBe(true),
+				expect(getTabs().find((t) => t.id === replacement.id)?.loaded).toBe(
+					true,
+				),
 			);
 			expect(load).toHaveBeenCalledOnce();
 		} finally {
@@ -1016,6 +1334,7 @@ describe("Notes layout actions", () => {
 		if (!notes) throw new Error("Missing notes fixture");
 		const handle = {
 			openPanel: vi.fn(),
+			removePanel: vi.fn(),
 			rememberNotesSplitWidth: vi.fn(),
 			restoreNotesSplitWidth: vi.fn(),
 			readingColumns: vi.fn(() => null),
@@ -1035,9 +1354,13 @@ describe("Notes layout actions", () => {
 			setActiveTabId(paper.id);
 			setNotesSplit(true, { preserveLayoutMode: true });
 			expect(handle.openPanel).toHaveBeenCalled();
+			const reopened = handle.openPanel.mock.calls.at(-1)?.[0] as DocTab;
+			expect(reopened.path).toBe(notes.path);
+			expect(reopened.id.startsWith("view-")).toBe(true);
+			expect(reopened.id).not.toBe(notes.id);
 			expect(handle.restoreNotesSplitWidth).toHaveBeenCalledWith(
 				paper.id,
-				notes.id,
+				reopened.id,
 			);
 		} finally {
 			registerDockHandle(null);
@@ -1084,9 +1407,12 @@ describe("Notes layout actions", () => {
 			await vi.waitFor(() => expect(handle.openPanel).toHaveBeenCalledTimes(2));
 			expect(handle.openPanel).toHaveBeenNthCalledWith(
 				2,
-				expect.objectContaining({ id: tabIdForPath(nextNotesPath) }),
+				expect.objectContaining({ path: nextNotesPath }),
 				{ direction: "within", referencePanelId: notes.id },
 			);
+			const openedNotes = handle.openPanel.mock.calls[1]?.[0] as DocTab;
+			expect(openedNotes.id.startsWith("view-")).toBe(true);
+			expect(openedNotes.id).not.toBe(tabIdForPath(nextNotesPath));
 			expect(load).toHaveBeenCalledOnce();
 		} finally {
 			registerDockHandle(null);

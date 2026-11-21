@@ -17,18 +17,20 @@ import { cn } from "@/lib/core/utils";
 import {
 	formatMarkdownImageSyntax,
 	isRemoteOrInlineImageUrl,
-	resolveMarkdownImageAbs,
+	resolveMarkdownImageCandidates,
 } from "@/lib/markdown/image";
 import {
 	acquireImageSource,
 	releaseImageSource,
 } from "@/lib/markdown/image-source-cache";
+import { useWikiNav } from "@/lib/wiki/nav-context";
 import { imageMimeFromPath } from "@/lib/workspace/viewer";
 
 export function ImageElement(props: PlateElementProps<TImageElement>) {
 	const url = props.element.url ?? "";
 	const alt = (props.element as { alt?: string }).alt ?? "";
 	const { filePath } = useMarkdownDoc();
+	const wikiNav = useWikiNav();
 	const exportMode = useMarkdownExportMode();
 	const imageGroup = useImageGroup();
 	const selected = useSelected();
@@ -45,6 +47,12 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 	useEffect(() => {
 		if (!inView) return;
 		let cancelled = false;
+		// Every acquireImageSource call below owns one ref recorded here;
+		// cleanup releases exactly those (misses are released immediately).
+		const held: string[] = [];
+		const releaseHeld = () => {
+			for (const abs of held) releaseImageSource(abs, imageMimeFromPath(abs));
+		};
 
 		if (!url) {
 			setSrc("");
@@ -56,24 +64,36 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 			setFailed(false);
 			return;
 		}
-		const abs = filePath ? resolveMarkdownImageAbs(filePath, url) : null;
-		if (!abs) {
+		const candidates = filePath
+			? resolveMarkdownImageCandidates(filePath, url, wikiNav?.vaultPath)
+			: [];
+		if (candidates.length === 0) {
 			setSrc("");
 			setFailed(true);
 			return;
 		}
-		const mime = imageMimeFromPath(abs);
 		setFailed(false);
-		void acquireImageSource(abs, mime).then((resolved) => {
-			if (cancelled) return;
+		void (async () => {
+			let resolved: string | null = null;
+			for (const abs of candidates) {
+				held.push(abs);
+				const candidate = await acquireImageSource(abs, imageMimeFromPath(abs));
+				if (cancelled) return; // cleanup releases `held`
+				if (candidate) {
+					resolved = candidate;
+					break;
+				}
+				releaseImageSource(abs, imageMimeFromPath(abs));
+				held.pop();
+			}
 			setSrc(resolved ?? "");
 			setFailed(!resolved);
-		});
+		})();
 		return () => {
 			cancelled = true;
-			releaseImageSource(abs, mime);
+			releaseHeld();
 		};
-	}, [inView, url, filePath]);
+	}, [inView, url, filePath, wikiNav?.vaultPath]);
 
 	const sourceText = formatMarkdownImageSyntax(alt, url);
 

@@ -28,6 +28,7 @@
 		"expandChildren": "显示笔记与附件",
 		"collapseChildren": "隐藏笔记与附件",
 		"readPaper": "精读论文并写入笔记",
+		"rereadPaper": "重新精读",
 		"readDesktopOnly": "精读需要桌面应用。",
 		"readFailed": "无法启动精读。",
 		"readMarkFailed": "标记已读失败。",
@@ -121,6 +122,9 @@
 		"loadFailed": "加载回收站失败。",
 		"purgeFailed": "永久删除失败。"
 	},
+	"zen": {
+		"title": "Zen"
+	},
 	"papersLibrary": {
 		"title": "论文库",
 		"loading": "正在加载论文…",
@@ -128,6 +132,8 @@
 		"rowEditMeta": "编辑元数据",
 		"rowRefreshMeta": "刷新元数据",
 		"rowDownloadPdf": "从来源下载 PDF",
+		"rowRecaptureWebpage": "刷新网页快照",
+		"recaptureWebpageDone": "网页快照已刷新",
 		"noLocalPdf": "本地无 PDF",
 		"discoverCiting": "发现引用我的新论文",
 		"discoveringCiting": "正在扫描引用…",
@@ -212,6 +218,9 @@
 		"importPdfMergedMany": "已将 {{count}} 个 PDF 合入已有条目",
 		"recognizeMerged": "识别后的 PDF 已合入已有条目：{{id}}",
 		"recognizeArxivRateLimited": "arXiv 接口限流（{{id}}），未能补全标题/作者。请稍后再点「刷新元数据」。",
+		"recognizeNoMatch": "未匹配到「{{name}}」的元信息，论文已保留。",
+		"recognizeFailed": "「{{name}}」的元信息识别失败，论文已保留。",
+		"recognizePaperUnavailable": "无法在原位置找到这篇论文。",
 		"importFailed": "导入失败",
 		"exportFailed": "导出失败",
 		"desktopOnly": "导入/导出需要桌面应用。",
@@ -256,6 +265,22 @@
 		"importToFolder": "导入到文件夹",
 		"comingSoonFor": "{{label}} 即将推出。",
 		"modelscope": "ModelScope 论文",
+		"huggingface": "Hugging Face 每日论文",
+		"huggingfacePage": {
+			"latest": "最新",
+			"editionDate": "每日论文日期",
+			"loading": "正在加载每日论文…",
+			"loadFailed": "无法加载 Hugging Face 每日论文。",
+			"empty": "这一天没有论文。",
+			"votes_other": "{{count}} 票",
+			"expandAbstract": "展开摘要",
+			"collapseAbstract": "收起摘要",
+			"translate": "翻译摘要",
+			"translating": "正在翻译…",
+			"showOriginal": "查看原文",
+			"showTranslation": "查看译文",
+			"importing": "入库中…"
+		},
 		"pwc": {
 			"label": "Papers with Code"
 		},
@@ -523,7 +548,9 @@
 		"tagColorDefault": "默认（无颜色）",
 		"tagsDesktopOnly": "编辑标签需要桌面应用。",
 		"tagsSaveFailed": "保存标签失败。",
-		"pdf": "arXiv",
+		"pdf": "PDF",
+		"arxiv": "arXiv",
+		"doi": "DOI",
 		"modelscopeInterpretation": "魔搭解读",
 		"alphaXiv": "alphaXiv",
 		"codeRepo": "GitHub",
@@ -536,6 +563,7 @@
 		"copyFailed": "无法复制到剪贴板",
 		"editMeta": {
 			"title": "修改元信息",
+			"unresolved": "元信息尚未补全。可填写 DOI 或 arXiv 编号后点击「刷新」，也可手动编辑。",
 			"fieldTitle": "标题",
 			"fieldAuthors": "作者",
 			"authorsPlaceholder": "每行一位作者",

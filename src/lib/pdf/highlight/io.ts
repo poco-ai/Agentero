@@ -1,6 +1,10 @@
 import { nanoid } from "nanoid";
 import { parsePdfHighlight } from "@/lib/pdf/highlight/schema";
-import type { PdfHighlight, PdfHighlightRect } from "@/lib/pdf/highlight/types";
+import type {
+	PdfHighlight,
+	PdfHighlightRect,
+	PdfTextMarkupKind,
+} from "@/lib/pdf/highlight/types";
 import { createMarkStore } from "@/lib/pdf/marks/io";
 
 /**
@@ -24,6 +28,7 @@ export function createHighlight(input: {
 	page: number;
 	rects: PdfHighlightRect[];
 	quote: string;
+	kind?: PdfTextMarkupKind;
 	color?: string;
 	comment?: string;
 	id?: string;
@@ -31,7 +36,7 @@ export function createHighlight(input: {
 	const now = new Date().toISOString();
 	const highlight: PdfHighlight = {
 		version: 1,
-		kind: "highlight",
+		kind: input.kind ?? "highlight",
 		id: input.id ?? newHighlightId(),
 		paperPath: input.paperPath,
 		createdAt: now,

@@ -36,8 +36,8 @@ import { isTauri } from "@/lib/core/tauri";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import { deletePdfAskThread, type PdfAskThread } from "@/lib/pdf/ask";
 import {
-	isHighlightObject,
 	isLiveAnnotation,
+	isTextMarkupObject,
 } from "@/lib/pdf/highlight/annotation-store";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
 import { setFocusedLayoutRegion } from "@/lib/pdf/layout";
@@ -87,7 +87,7 @@ export type UsePdfViewerHandleOptions = {
 	deleteVisualTraceById: (id: string) => void;
 	/** Highlight deletion coordinated with any in-flight commit for the same uid. */
 	deleteHighlightAnnotation: (pageIndex: number, id: string) => void;
-	toggleRegionSelect: () => void;
+	toggleElementSelection: () => void;
 	/** Dual-pane-aware full-text translate toggle; parent callback — kept in a ref. */
 	toggleLayoutTranslate: () => void;
 };
@@ -112,7 +112,7 @@ export function usePdfViewerHandle({
 	openThread,
 	deleteVisualTraceById,
 	deleteHighlightAnnotation,
-	toggleRegionSelect,
+	toggleElementSelection,
 	toggleLayoutTranslate,
 }: UsePdfViewerHandleOptions): void {
 	const { t } = useTranslation("viewer");
@@ -124,6 +124,8 @@ export function usePdfViewerHandle({
 	// latest callback so the handle object never needs re-registering.
 	const toggleLayoutTranslateRef = useRef(toggleLayoutTranslate);
 	toggleLayoutTranslateRef.current = toggleLayoutTranslate;
+	const toggleElementSelectionRef = useRef(toggleElementSelection);
+	toggleElementSelectionRef.current = toggleElementSelection;
 	const defaultExportNameRef = useRef(defaultExportName);
 	defaultExportNameRef.current = defaultExportName;
 
@@ -137,7 +139,7 @@ export function usePdfViewerHandle({
 				const tracked = annotationCap?.forDocument(docId).getAnnotationById(id);
 				if (!tracked || !isLiveAnnotation(tracked)) return;
 				const obj = tracked.object;
-				if (!isHighlightObject(obj)) return;
+				if (!isTextMarkupObject(obj)) return;
 				// Instant: smooth jumps across distant pages feel like slow render.
 				scrollRef.current?.scrollToPage({
 					pageNumber: obj.pageIndex + 1,
@@ -148,7 +150,7 @@ export function usePdfViewerHandle({
 			editComment: (id) => openEditorForAnnotation(id),
 			deleteHighlight: (id) => {
 				const tracked = annotationCap?.forDocument(docId).getAnnotationById(id);
-				if (tracked && isHighlightObject(tracked.object)) {
+				if (tracked && isTextMarkupObject(tracked.object)) {
 					deleteHighlightAnnotation(tracked.object.pageIndex, id);
 				}
 			},
@@ -202,14 +204,13 @@ export function usePdfViewerHandle({
 			deleteVisualTrace: (id) => {
 				deleteVisualTraceById(id);
 			},
-			toggleVisualAnnotation: toggleRegionSelect,
+			toggleElementSelection: () => toggleElementSelectionRef.current(),
 			toggleLayoutTranslate: () => toggleLayoutTranslateRef.current(),
 			analyzeLayout: () => {
 				// Prefer source/layout.json → merge → sidebar. Full ONNX (PDF→JSON)
 				// only when there is no sidecar (or force is set elsewhere).
 				startLayoutAnalysisRef.current({
 					force: false,
-					openFigures: true,
 					showOverlay: true,
 					asBackgroundTask: true,
 					notifyOnError: true,
@@ -295,6 +296,5 @@ export function usePdfViewerHandle({
 		openThread,
 		deleteVisualTraceById,
 		deleteHighlightAnnotation,
-		toggleRegionSelect,
 	]);
 }

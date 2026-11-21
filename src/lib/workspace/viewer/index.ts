@@ -11,11 +11,6 @@ export function isHtmlPath(path: string): boolean {
 	return /\.html?$/i.test(path);
 }
 
-/** Excalidraw whiteboard files. */
-export function isExcalidrawPath(path: string): boolean {
-	return /\.excalidraw$/i.test(path);
-}
-
 /** Common image extensions previewable in the center pane. */
 export function isImagePath(path: string): boolean {
 	return /\.(png|jpe?g|gif|webp|bmp|svg|avif|ico)$/i.test(path);
@@ -101,7 +96,7 @@ export type ViewerModeSpec = {
 	 * DocView's render switch hand-mirrors this field, and the pairing is
 	 * pinned by test/workspace-viewer-modes.test.ts, not structurally.
 	 */
-	props: "editor" | "excalidraw" | "text" | "pdf" | "none";
+	props: "editor" | "text" | "pdf" | "none";
 	/**
 	 * Content the pane renders / how loadTabResources resolves it:
 	 * - "pdf": PDF bytes (local file, blob: URL or remote URL); translation
@@ -110,22 +105,20 @@ export type ViewerModeSpec = {
 	 * - "html": remote paper HTML URL, or a local `.html` file served by
 	 *   `agentero-html` (the loader does not inline the file).
 	 * - "image": `blob:` URL from local image bytes.
-	 * - "excalidraw": whiteboard JSON seed.
 	 * - "text": raw text seed (CodeMirror catch-all).
 	 */
-	resource: "pdf" | "markdown" | "html" | "image" | "excalidraw" | "text";
+	resource: "pdf" | "markdown" | "html" | "image" | "text";
 	/**
 	 * Persisted-session restore override (see initWorkspaceStore). Absent: a
-	 * default placeholder tab that hydrates from disk. Translation panes are
-	 * clones of a source paper pane: they restore as loaded paper-kind tabs
-	 * and never pass through loadTabResources.
+	 * default placeholder tab that hydrates from disk. Translation panes keep
+	 * paper kind and their own view id; bytes still come from the paper path.
 	 */
 	restore?: {
 		/** Tab kind assigned to the restored placeholder. */
 		kind: "paper";
 		/** Title shown before hydration when the persisted entry has none. */
 		fallbackTitle: string;
-		/** Restored tabs are already loaded — hydration must skip them. */
+		/** False so `hydratePlaceholderTabs` reads the paper path again. */
 		loaded: boolean;
 	};
 };
@@ -164,14 +157,6 @@ export const VIEWER_MODE_TABLE = [
 		resource: "image",
 	},
 	{
-		mode: "excalidraw",
-		matchesPath: isExcalidrawPath,
-		renderer: "always",
-		keepAlive: null,
-		props: "excalidraw",
-		resource: "excalidraw",
-	},
-	{
 		mode: "markdown",
 		matchesPath: isMarkdownPath,
 		renderer: "always",
@@ -188,7 +173,7 @@ export const VIEWER_MODE_TABLE = [
 		keepAlive: null,
 		props: "pdf",
 		resource: "pdf",
-		restore: { kind: "paper", fallbackTitle: "Translation", loaded: true },
+		restore: { kind: "paper", fallbackTitle: "Translation", loaded: false },
 	},
 	{
 		// CodeMirror catch-all for files no dedicated viewer claims.
@@ -297,10 +282,14 @@ export function textLanguageIdForPath(path: string): TextLanguageId | null {
  * resolved, "pdf" shows PdfViewer's honest "no paper" empty state; an empty
  * editor here would be editable-but-broken (its edits have no file to
  * persist to).
+ *
+ * `hasHtmlArchive` keeps an HTML import as HTML when the remote page is gone
+ * but its offline `webpage.html` snapshot is still on disk.
  */
 export function paperBodyMode(
 	hasPdf: boolean,
 	htmlUrl: string | null,
+	hasHtmlArchive = false,
 ): CenterViewMode {
-	return hasPdf ? "pdf" : htmlUrl ? "html" : "pdf";
+	return hasPdf ? "pdf" : htmlUrl || hasHtmlArchive ? "html" : "pdf";
 }

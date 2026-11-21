@@ -1,7 +1,6 @@
 //! Vault paper catalog: `.agentero/catalog.sqlite`.
 //!
 //! Authoritative store for paper set + structured metadata.
-//! See `docs/backend/catalog.md`.
 
 pub mod add_paper;
 pub mod copy_paper;
@@ -175,6 +174,7 @@ pub fn migrate_paper_between_vaults(
     from_rel: &str,
     to_vault: &Path,
     to_parent_rel: &str,
+    preview: bool,
 ) -> Result<String, AppError> {
     if !catalog_db_path(from_vault).is_file() {
         return Err(AppError::message(format!(
@@ -212,35 +212,109 @@ pub fn migrate_paper_between_vaults(
         dest_parent
     };
 
-    let Some(record) = papers::get_by_path(from_vault, &from)? else {
-        return Err(AppError::message(format!("paper not found: {from}")));
-    };
-
-    let base = from.rsplit('/').next().unwrap_or(&from).to_string();
+    let base = from.rsplit('/').next().unwrap_or(&from);
     let to = format!("{to_parent}/{base}");
-
     let from_abs = from_vault.join(&from);
     let to_abs = to_vault.join(&to);
+    if !from_abs.is_dir() {
+        return Err(AppError::domain(
+            "source_not_found",
+            "Source paper folder not found",
+        ));
+    }
     if to_abs.exists() {
-        return Err(AppError::message(format!("target already exists: {to}")));
+        return Err(AppError::domain(
+            "already_exists",
+            format!("Target already exists: {to}"),
+        ));
     }
 
-    let dst_papers = papers::list_all(to_vault)?;
-    if dst_papers.iter().any(|p| p.id == record.id) {
-        return Err(AppError::message(format!(
-            "destination vault already has paper id '{}'",
-            record.id
-        )));
+    // Stage both catalog changes on one connection. A failed constraint or preview
+    // leaves both catalogs and the filesystem intact. Copy every catalog column,
+    // including internal flags that are deliberately absent from PaperRecord.
+    let mut conn = if preview {
+        rusqlite::Connection::open_with_flags(
+            catalog_db_path(to_vault),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?
+    } else {
+        drop(ensure_catalog(from_vault)?);
+        ensure_catalog(to_vault)?
+    };
+    conn.execute(
+        "ATTACH DATABASE ?1 AS origin",
+        [catalog_db_path(from_vault).to_string_lossy().as_ref()],
+    )?;
+    let behavior = if preview {
+        rusqlite::TransactionBehavior::Deferred
+    } else {
+        rusqlite::TransactionBehavior::Immediate
+    };
+    let tx = conn.transaction_with_behavior(behavior)?;
+    let pattern = crate::sqlite::descendant_path_pattern(&from);
+    let exists: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM origin.papers WHERE path=?1 OR path LIKE ?2 ESCAPE '!')",
+        rusqlite::params![from, pattern],
+        |r| r.get(0),
+    )?;
+    if !exists {
+        return Err(AppError::domain(
+            "source_not_found",
+            format!("Paper not found: {from}"),
+        ));
     }
-
+    tx.execute("CREATE TEMP TABLE transfer_rows AS SELECT * FROM origin.papers WHERE path=?1 OR path LIKE ?2 ESCAPE '!'",rusqlite::params![from,pattern])?;
+    let duplicate: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM transfer_rows INNER JOIN main.papers USING(id))",
+        [],
+        |r| r.get(0),
+    )?;
+    if duplicate {
+        return Err(AppError::domain(
+            "already_exists",
+            "Destination already contains a paper with the same ID",
+        ));
+    }
+    tx.execute(
+        "UPDATE transfer_rows SET path=?2 || substr(path,length(?1)+1), updated_at=?3",
+        rusqlite::params![from, to, crate::time::now_rfc3339_millis()],
+    )?;
+    if preview {
+        let taken: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM transfer_rows INNER JOIN main.papers USING(path))",
+            [],
+            |r| r.get(0),
+        )?;
+        if taken {
+            return Err(AppError::domain(
+                "already_exists",
+                "Destination contains an existing catalog path",
+            ));
+        }
+        return Ok(to);
+    }
+    // Source and destination are migrated to the same schema by ensure_catalog.
+    tx.execute("INSERT INTO main.papers SELECT * FROM transfer_rows", [])?;
+    tx.execute("INSERT INTO main.pdf_page_counts(path,page_count) SELECT ?3 || substr(path,length(?1)+1),page_count FROM origin.pdf_page_counts WHERE path=?1 OR path LIKE ?2 ESCAPE '!'",rusqlite::params![from,pattern,to])?;
+    tx.execute(
+        "DELETE FROM origin.pdf_page_counts WHERE path=?1 OR path LIKE ?2 ESCAPE '!'",
+        rusqlite::params![from, pattern],
+    )?;
+    tx.execute(
+        "DELETE FROM origin.papers WHERE path=?1 OR path LIKE ?2 ESCAPE '!'",
+        rusqlite::params![from, pattern],
+    )?;
     move_dir_all(&from_abs, &to_abs)?;
-    papers::delete_under_path(from_vault, &from)?;
-
-    let mut new_record = record;
-    new_record.path = to.clone();
-    new_record.updated_at = crate::time::now_rfc3339_millis();
-    papers::upsert_paper(to_vault, &new_record)?;
-
+    if let Err(error) = tx.commit() {
+        move_dir_all(&to_abs, &from_abs).map_err(|rollback| {
+            AppError::domain(
+                "recovery_required",
+                format!("Catalog commit failed ({error}); restore {to} to {from}: {rollback}"),
+            )
+        })?;
+        return Err(error.into());
+    }
+    sidecar::retry_pending(to_vault, &conn, None);
     Ok(to)
 }
 
@@ -250,19 +324,38 @@ fn move_dir_all(src: &Path, dst: &Path) -> Result<(), AppError> {
     if let Some(parent) = dst.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    if std::fs::rename(src, dst).is_ok() {
-        return Ok(());
+    match std::fs::rename(src, dst) {
+        Ok(()) => return Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::CrossesDevices => {}
+        Err(e) => return Err(e.into()),
     }
+    let staging = tempfile::Builder::new()
+        .prefix(".agentero-move-")
+        .tempdir_in(
+            src.parent()
+                .ok_or_else(|| AppError::message("Missing source parent"))?,
+        )?;
+    let original = staging.path().join("paper");
+    std::fs::rename(src, &original)?;
     let created_target = !dst.exists();
-    if let Err(error) = copy_dir_all(src, dst) {
+    if let Err(error) = copy_dir_all(&original, dst) {
         // Never leave a half-copied target behind: it would block the retry
         // with "target already exists" while the source is still intact.
         if created_target {
             let _ = std::fs::remove_dir_all(dst);
         }
+        if let Err(restore) = std::fs::rename(&original, src) {
+            let backup = staging.keep();
+            return Err(AppError::domain(
+                "recovery_required",
+                format!(
+                    "Copy failed ({error}); restore backup {}: {restore}",
+                    backup.display()
+                ),
+            ));
+        }
         return Err(error);
     }
-    std::fs::remove_dir_all(src)?;
     Ok(())
 }
 
@@ -274,10 +367,8 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), AppError> {
         )));
     }
     std::fs::create_dir_all(dst)?;
-    for entry in walkdir::WalkDir::new(src)
-        .into_iter()
-        .filter_map(Result::ok)
-    {
+    for entry in walkdir::WalkDir::new(src) {
+        let entry = entry.map_err(|e| AppError::message(e.to_string()))?;
         let rel = entry
             .path()
             .strip_prefix(src)
@@ -299,12 +390,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), AppError> {
             }
             #[cfg(not(unix))]
             {
-                let link_target = std::fs::read_link(entry.path())?;
-                if link_target.is_dir() {
-                    std::fs::create_dir(target)?;
-                } else {
-                    std::fs::copy(entry.path(), &target)?;
-                }
+                return Err(AppError::domain("unsupported_link","Cannot migrate a paper containing symbolic links across volumes on this platform"));
             }
         }
     }

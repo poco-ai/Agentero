@@ -12,6 +12,8 @@ export const ACTIVITY_KINDS = [
 	"paper.import",
 	"search.query",
 	"agent.run",
+	"agent.usage",
+	"activity.view",
 	"translate.selection",
 	"translate.layout",
 	"layout.analyze",

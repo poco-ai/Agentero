@@ -5,6 +5,7 @@
 
 import type { ToolUIPart } from "ai";
 import type { TFunction } from "i18next";
+import type { AnnotationSnapshot } from "@/lib/agent/annotation-snapshot";
 import type {
 	AgentListResponse,
 	AgentModelChoice,
@@ -154,6 +155,12 @@ export type ChatLine =
 			visualAnnotations?: ChatVisualAnnotation[];
 			selections?: SelectionContext[];
 			/**
+			 * Send-time annotation text parsed from this message. History keeps
+			 * showing it after the appendix is stripped from `text`. Missing when
+			 * the message never contained a snapshot — do not fill it from live marks.
+			 */
+			annotationSnapshots?: AnnotationSnapshot[];
+			/**
 			 * General composer image attachments (paste / file pick) for this turn.
 			 * Session-local only — not persisted to ACP session history load.
 			 */
@@ -164,6 +171,8 @@ export type ChatLine =
 			kind: "agent";
 			parts: AgentPart[];
 			sources?: string[];
+			promptOnly?: boolean;
+			artifacts?: AgentResultPayload["artifacts"];
 			streaming?: boolean;
 	  }
 	| { id: string; kind: "error"; text: string }
@@ -932,12 +941,8 @@ export function questionsFromElicitationFields(
 	// Pass 1: explicit parent (meta or __other id).
 	for (const field of fields) {
 		if (!isTextishElicitationField(field) && !field.isOtherAnswer) continue;
-		const parentFromMeta =
-			field.isOtherAnswer && field.parentFieldId?.trim()
-				? field.parentFieldId.trim()
-				: field.parentFieldId?.trim() || null;
-		const parentFromId = parseOtherFieldParentId(field.id);
-		const parentId = parentFromMeta || parentFromId;
+		const parentId =
+			field.parentFieldId?.trim() || parseOtherFieldParentId(field.id);
 		if (!parentId) continue;
 		// Prefer first companion per parent; ignore extras.
 		if (otherByParent.has(parentId)) continue;

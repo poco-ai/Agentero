@@ -18,7 +18,6 @@ import {
 import {
 	GlobalPointerProvider,
 	InteractionManagerPluginPackage,
-	useInteractionManagerCapability,
 } from "@embedpdf/plugin-interaction-manager/react";
 import {
 	LayoutAnalysisPluginPackage,
@@ -57,7 +56,15 @@ import { PdfLeftToolbar } from "@/components/viewer/pdf/chrome/pdf-left-toolbar"
 import { PdfOutlinePanel } from "@/components/viewer/pdf/chrome/pdf-outline-panel";
 import { PdfReferencesPanel } from "@/components/viewer/pdf/chrome/pdf-references-panel";
 import { PdfToolbar } from "@/components/viewer/pdf/chrome/pdf-toolbar";
+import {
+	anchorFromEmbedSelection,
+	formattedSelectionPage,
+	pageElByIndex,
+	selectionBoundsOnScreen,
+} from "@/components/viewer/pdf/coords";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
+import { EPHEMERAL_PREVIEW_OPEN_MS } from "@/components/viewer/pdf/floating-hover";
+import { useHoverIntent } from "@/components/viewer/pdf/hooks/use-hover-intent";
 import { usePdfActiveAnchors } from "@/components/viewer/pdf/hooks/use-pdf-active-anchors";
 import { usePdfAskThreads } from "@/components/viewer/pdf/hooks/use-pdf-ask-threads";
 import { usePdfBookmarkEditor } from "@/components/viewer/pdf/hooks/use-pdf-bookmark-editor";
@@ -67,8 +74,10 @@ import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
 import { usePdfFind } from "@/components/viewer/pdf/hooks/use-pdf-find";
 import { usePdfHighlights } from "@/components/viewer/pdf/hooks/use-pdf-highlights";
+import { usePdfImmersivePosition } from "@/components/viewer/pdf/hooks/use-pdf-immersive-position";
 import { usePdfJumpBack } from "@/components/viewer/pdf/hooks/use-pdf-jump-back";
 import { usePdfLayoutCluster } from "@/components/viewer/pdf/hooks/use-pdf-layout-cluster";
+import { usePdfLeftPanels } from "@/components/viewer/pdf/hooks/use-pdf-left-panels";
 import { usePdfLinkInk } from "@/components/viewer/pdf/hooks/use-pdf-link-ink";
 import { usePdfLinkUrlTip } from "@/components/viewer/pdf/hooks/use-pdf-link-url-tip";
 import { usePdfMarkActions } from "@/components/viewer/pdf/hooks/use-pdf-mark-actions";
@@ -83,12 +92,10 @@ import { usePdfPageText } from "@/components/viewer/pdf/hooks/use-pdf-page-text"
 import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-tone";
 import { usePdfPinAnchors } from "@/components/viewer/pdf/hooks/use-pdf-pin-anchors";
 import { usePdfReadingMode } from "@/components/viewer/pdf/hooks/use-pdf-reading-mode";
-import { usePdfRegionFraming } from "@/components/viewer/pdf/hooks/use-pdf-region-framing";
 import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
 import { usePdfSelectionActions } from "@/components/viewer/pdf/hooks/use-pdf-selection-actions";
 import { usePdfSelectionTranslate } from "@/components/viewer/pdf/hooks/use-pdf-selection-translate";
 import { useSentenceGlyphRects } from "@/components/viewer/pdf/hooks/use-pdf-sentence-glyph-rects";
-import { usePdfSidebarPanels } from "@/components/viewer/pdf/hooks/use-pdf-sidebar-panels";
 import { usePdfSmartHighlights } from "@/components/viewer/pdf/hooks/use-pdf-smart-highlights";
 import { usePdfSyncTex } from "@/components/viewer/pdf/hooks/use-pdf-synctex";
 import { usePdfTextSelection } from "@/components/viewer/pdf/hooks/use-pdf-text-selection";
@@ -98,11 +105,13 @@ import { usePdfVisualMarks } from "@/components/viewer/pdf/hooks/use-pdf-visual-
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
 import { useReflowDisplayDocument } from "@/components/viewer/pdf/hooks/use-reflow-display-document";
 import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
+import { PdfPageBitmapCacheLifecycle } from "@/components/viewer/pdf/layers/agentero-render-layer";
 import {
 	excludeOverlappingPdfTextLinks,
 	type PdfTextLink,
 } from "@/components/viewer/pdf/layers/citation-links";
 import { COMMENT_RAIL_WIDTH_PX } from "@/components/viewer/pdf/layers/comment-cards-layer";
+import { LayoutElementActions } from "@/components/viewer/pdf/layers/layout-element-actions";
 import { PDF_LINK_ANNOTATION_CONFIG } from "@/components/viewer/pdf/layers/link-annotation";
 import {
 	type PdfPageHandlers,
@@ -111,13 +120,25 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
+import {
+	layoutElementActionStore,
+	setLayoutElementSelection,
+} from "@/components/viewer/pdf/layout-element-action-store";
+import {
+	bindLayoutSentenceGlyphs,
+	holdLayoutSentenceHover,
+	publishLayoutSentenceCatalog,
+	publishLayoutSentencePageAnalysis,
+	suppressLayoutSentenceHover,
+} from "@/components/viewer/pdf/layout-sentence-hover";
+import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
+import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
 import type {
 	PageAnnotationComment,
 	PdfViewerInnerProps,
 	PdfViewerProps,
-	RailEditState,
 	ScreenPoint,
 	SelectionCommentDraft,
 	SelectionMenuState,
@@ -129,8 +150,13 @@ import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
 import { PdfHistoryKeyHandler } from "@/components/viewer/pdf/viewport/pdf-history-key-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { PdfVimKeyHandler } from "@/components/viewer/pdf/viewport/pdf-vim-key-handler";
+import { RailPeek } from "@/components/viewer/pdf/viewport/rail-peek";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
-import { useLibraryStore, useSettings } from "@/hooks/use-app-stores";
+import {
+	useLibraryStore,
+	useSettings,
+	useUiStore,
+} from "@/hooks/use-app-stores";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	createSelectionContext,
@@ -149,6 +175,7 @@ import {
 	annotationWikilinkMarkdown,
 	wikiTargetForPaper,
 } from "@/lib/pdf/annotation-ref";
+import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 import { bookmarkPageIndex } from "@/lib/pdf/bookmark";
 import {
 	type EditableBookmark,
@@ -158,13 +185,23 @@ import { embedPdfDocumentId } from "@/lib/pdf/document-id";
 import { PdfHistoryPluginPackage } from "@/lib/pdf/highlight/history";
 import { HIGHLIGHT_HEX_LIST } from "@/lib/pdf/highlight/palette";
 import { partitionHighlightPaint } from "@/lib/pdf/highlight/translated-geometry";
+import type { PdfTextMarkupKind } from "@/lib/pdf/highlight/types";
 import {
 	getPdfAiRuntime,
 	layoutAnalysisStore,
 	layoutDocumentKey,
+	layoutSentenceScope,
 	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
+import {
+	splitLayoutSentences,
+	withHoverSentences,
+} from "@/lib/pdf/layout/layout-sentences";
+import {
+	isInsideVisualLayoutRegion,
+	sentenceHoverTextRegions,
+} from "@/lib/pdf/layout/translatable";
 import {
 	clearTranslatedLinkSource,
 	publishTranslatedLinkSource,
@@ -175,6 +212,7 @@ import {
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
+import { pickPdfSearchDocumentId } from "@/lib/pdf/search-target";
 import {
 	type ActiveSelectionCard,
 	selectionAnchorKey,
@@ -185,11 +223,17 @@ import {
 	translateHighlightsByPage as translateHighlightsByPageOf,
 	translateHighlightsFingerprint,
 } from "@/lib/pdf/translate/highlights";
+import {
+	type PdfViewMode,
+	readPdfViewMode,
+	writePdfViewMode,
+} from "@/lib/pdf/view-mode";
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
 import { loadSettings } from "@/lib/settings";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
-import { basenameOf, vaultRelativePath } from "@/lib/vault/path";
-import { openLatexTranslationTab } from "@/lib/workspace/actions-latex-translation";
+import { layout } from "@/lib/shell/ui-store";
+import { normalizePathKey, vaultRelativePath } from "@/lib/vault/path";
+import { workspaceStore } from "@/lib/workspace/store";
 
 export type {
 	PdfViewerHandle,
@@ -254,19 +298,15 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 	const effectiveSourceBytes = pdfBuffer ?? sourceBytes;
 
 	const translationOnly = Boolean(props.translationOnly);
-	const rightGutter =
-		translationOnly || props.plainViewer || props.reserveCommentRail === false
-			? 0
-			: COMMENT_RAIL_WIDTH_PX;
 	const plugins = useMemo(() => {
 		if (!source && !effectiveSourceBytes) return null;
 		// Prefer bytes (no fetch step); fall back to a URL (remote https).
 		const initialDocument = effectiveSourceBytes
 			? { buffer: effectiveSourceBytes, documentId: docId, name: docId }
 			: { url: source as string, documentId: docId, name: docId };
-		// Translation pane only needs raster + scroll/zoom. Skipping selection /
-		// annotation / search / ONNX layout avoids a second full viewer tax when
-		// dual-pane translation opens beside the source.
+		// Translation pane only needs raster + scroll/zoom + search. Skipping
+		// selection, annotation, and ONNX layout avoids a second full viewer tax
+		// when dual-pane translation opens beside the source.
 		//
 		// Reading mode is a snapshot at registration so the first layout already
 		// matches the stored preference (no vertical→horizontal flash); later
@@ -302,19 +342,18 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				// Skip PNG encoding for opaque page rasters; crops explicitly use PNG.
 				defaultImageType: "image/bmp",
 			}),
-			// Bound each non-preemptible PDFium render without lowering pixel density.
-			// Measured tradeoff: docs/test/pdf-tiling-performance.md.
+			// Smaller tiles bound non-preemptible PDFium renders on heavy pages
+			// without lowering pixel density.
 			createPluginRegistration(TilingPluginPackage, { tileSize: 512 }),
 			createPluginRegistration(ZoomPluginPackage, {
 				defaultZoomLevel: ZoomMode.FitWidth,
-				viewportPaddingRight: rightGutter,
 				minZoom: PDF_ZOOM_MIN,
 				maxZoom: PDF_ZOOM_MAX,
 			}),
 			createPluginRegistration(InteractionManagerPluginPackage),
+			createPluginRegistration(SearchPluginPackage),
 		];
-		if (translationOnly) return core;
-		return [
+		const interactive = [
 			...core,
 			createPluginRegistration(SelectionPluginPackage, {
 				// Text selection is enough for the floating menu. EmbedPDF's built-in
@@ -331,7 +370,11 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				selectAfterCreate: false,
 				deactivateToolAfterCreate: true,
 			}),
-			createPluginRegistration(SearchPluginPackage),
+		];
+		// Native translated selection uses annotation/history without a PDF text layer.
+		if (translationOnly) return interactive;
+		return [
+			...interactive,
 			createPluginRegistration(BookmarkPluginPackage),
 			// Experimental: on-device layout (image/table/formula) via ONNX.
 			// Model lives under XDG cache (startup prefetch: ModelScope → HF).
@@ -346,7 +389,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				renderScale: 2,
 			}),
 		];
-	}, [source, effectiveSourceBytes, docId, translationOnly, rightGutter]);
+	}, [source, effectiveSourceBytes, docId, translationOnly]);
 
 	const hostClass = cn(
 		"relative flex h-full min-h-0 flex-col bg-muted/40",
@@ -391,6 +434,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				engine={engine}
 				plugins={plugins}
 			>
+				<PdfPageBitmapCacheLifecycle />
 				<DocumentContent documentId={docId}>
 					{({ isLoaded, isLoading, isError, documentState }) => {
 						if (isError) {
@@ -500,7 +544,7 @@ function PdfViewerInner({
 	baseDocId,
 	embeddedTarget,
 	embeddedTargetRequest,
-	reserveCommentRail = true,
+	insetCommentCards = false,
 	rememberReadingPosition = true,
 	sourceBytes = null,
 	paperAbsPath = null,
@@ -526,12 +570,12 @@ function PdfViewerInner({
 	onAsksChange,
 	onVisualTracesChange,
 	onOpenTranslationTab,
+	onCloseTranslationTab,
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
-	const rightGutter =
-		translationOnly || plainViewer || !reserveCommentRail
-			? 0
-			: COMMENT_RAIL_WIDTH_PX;
+	// Writing previews own the hover affordance via SyncTeX; the reader's
+	// sentence wash (and its whole-page text fallback) stays off there.
+	const sentenceHover = syncTexScope !== "writing";
 	const [importBusy, setImportBusy] = useState(false);
 	// Parent often passes inline lambdas; keep latest in refs so data effects
 	// do not re-fire every parent render (was Maximum update depth exceeded).
@@ -548,10 +592,8 @@ function PdfViewerInner({
 	usePdfScrollSync(docId);
 	usePdfReadingMode(docId);
 	const { provides: selectionCap } = useSelectionCapability();
-	const { provides: interactionCap } = useInteractionManagerCapability();
 	const { provides: annotationCap } = useAnnotationCapability();
 	const { provides: docCap } = useDocumentManagerCapability();
-	const { state: searchState, provides: search } = useSearch(docId);
 	const { provides: bookmarkCap } = useBookmarkCapability();
 	const { provides: layoutCap } = useLayoutAnalysisCapability();
 
@@ -581,6 +623,20 @@ function PdfViewerInner({
 	engineRef.current = engine;
 	const docCapRef = useRef(docCap);
 	docCapRef.current = docCap;
+	const captureRegion = useCallback(
+		async (pageIndex: number, region: PdfAskNormalizedRect) => {
+			const engine = engineRef.current;
+			const document = docCapRef.current?.getDocument(docId);
+			if (!engine || !document) throw new Error(t("pdfExplain.cropFailed"));
+			return renderPdfRegionPromptImage({
+				engine,
+				document,
+				pageIndex,
+				region,
+			});
+		},
+		[docId, t],
+	);
 
 	const currentPage = scrollState.currentPage || 1;
 	const totalPages = scrollState.totalPages || 0;
@@ -616,12 +672,64 @@ function PdfViewerInner({
 
 	// Catalog title + link for the ask card's external "open in chat" query.
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
+	const pdfScrollStrategy = useSettings((s) => s.pdfScrollStrategy);
 	const autoTranslateSelection = useSettings(
 		(s) => s.translate.autoTranslateSelection,
 	);
-	const displayMode = useSettings((s) => s.translate.displayMode);
-	const dualPaneSource = useSettings((s) => s.translate.dualPaneSource);
-	const dualPaneTranslate = displayMode === "dualPane";
+	// Reading view: 原文 / 译文 / 对照. Only the two single-pane choices persist;
+	// 对照 is derived from the translation tab being open. While it is open the
+	// single-pane underlay is pinned to 原文, so closing the tab falls back to
+	// 原文 — never to a stale 译文.
+	const [singleViewMode, setSingleViewMode] = useState<
+		"original" | "translated"
+	>(() => readPdfViewMode(paperKey));
+	const translationEnsureAtRef = useRef(0);
+	const restoredEnsureDoneRef = useRef(false);
+	/** 对照 → 译文 closes the pane but keeps the running translation. */
+	const paneCloseKeepsJobRef = useRef(false);
+	const paneWasOpenRef = useRef(false);
+	const isWorkspaceDoc = useStore(workspaceStore, (s) =>
+		s.tabs.some((tab) => tab.id === baseDocId),
+	);
+	// Tab paths are absolute paper directories; paperRelPath is vault-relative,
+	// so the pane lookup must use paperAbsPath when it is available.
+	const translationPaneKey = paperAbsPath
+		? normalizePathKey(paperAbsPath)
+		: paperKey
+			? normalizePathKey(paperKey)
+			: null;
+	const translationPaneOpen = useStore(workspaceStore, (s) => {
+		if (!translationPaneKey || !isWorkspaceDoc) return false;
+		return s.tabs.some(
+			(tab) =>
+				tab.pane === "translation" &&
+				normalizePathKey(tab.path) === translationPaneKey,
+		);
+	});
+	const viewMode: PdfViewMode = translationPaneOpen ? "dual" : singleViewMode;
+	const showTranslatedPages = translationPane || viewMode === "translated";
+	// 对照 is a comparison view: the left pane is the original, not 译文. Keep the
+	// stored single-pane view at 原文 while the pane is open so closing the pane
+	// (tab ×, ⇧⌘T cleanup, etc.) lands back on 原文 rather than a stale 译文.
+	useEffect(() => {
+		if (!isWorkspaceDoc || !translationPaneOpen) return;
+		if (singleViewMode === "original") return;
+		setSingleViewMode("original");
+		writePdfViewMode(paperKey, "original");
+	}, [isWorkspaceDoc, translationPaneOpen, singleViewMode, paperKey]);
+	// Re-seed the persisted view and the ensure guards when this mounted viewer
+	// is reused for another paper, and re-arm the one-shot restore when the PDF
+	// is reloaded in place (same paper, new docId / wiped translation job).
+	const viewModePaperRef = useRef<string | null>(null);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is not read here; it re-arms the guards when the same PDF reloads in place.
+	useEffect(() => {
+		if (viewModePaperRef.current !== paperKey) {
+			viewModePaperRef.current = paperKey;
+			setSingleViewMode(readPdfViewMode(paperKey));
+		}
+		translationEnsureAtRef.current = 0;
+		restoredEnsureDoneRef.current = false;
+	}, [paperKey, docId]);
 	const smartHighlightEnabled = useSettings((s) => s.decision.smartHighlight);
 	const paperMeta = useMemo(() => {
 		if (paperMetaProp) return paperMetaProp;
@@ -663,6 +771,37 @@ function PdfViewerInner({
 			undefined
 		);
 	}, [paperMeta]);
+	/**
+	 * eLife figure supplements live on the web, not in the PDF. Their link text
+	 * still names the main figure ("Figure 5—figure supplement 1"), so resolve
+	 * the supplement to the publisher's direct image instead of cropping the
+	 * main Figure 5.
+	 */
+	const supplementFigureUrl = useMemo(() => {
+		if (!paperMeta) return undefined;
+		const articleId =
+			paperMeta.doi?.match(/^10\.7554\/e?life\.(\d+)/i)?.[1] ??
+			(paperMeta.source_url ?? paperMeta.html_url ?? "").match(
+				/elifesciences\.org\/articles\/(\d+)/i,
+			)?.[1];
+		if (!articleId) return undefined;
+		return (figure: number, supplement: number) =>
+			`https://elifesciences.org/articles/${articleId}/figures#fig${figure}s${supplement}`;
+	}, [paperMeta]);
+	/**
+	 * The supplement URL is shown through the shared external-link preview card;
+	 * its hook is created below the cross-reference preview, so route through a
+	 * ref (same pattern as the sibling `clear*Ref` callbacks).
+	 */
+	const showSupplementUrlRef = useRef<
+		(url: string, clientPoint?: ScreenPoint | null) => void
+	>(() => {});
+	const showSupplementUrl = useCallback(
+		(url: string, clientPoint?: ScreenPoint | null) => {
+			showSupplementUrlRef.current(url, clientPoint ?? null);
+		},
+		[],
+	);
 
 	const handleImportToLibrary = useCallback(async () => {
 		if (!importIdentifier || importBusy) return;
@@ -718,7 +857,7 @@ function PdfViewerInner({
 		highlights,
 		highlightsRef,
 		highlightAnchors,
-		citationLinks,
+		citationLinks: nativeCitationLinks,
 		createHighlights,
 		updateHighlightComment,
 		updateHighlightColor,
@@ -775,6 +914,7 @@ function PdfViewerInner({
 	 */
 	const {
 		pageTextMap,
+		pageTextRects,
 		pageTextLinkMap,
 		pageTextMapRef,
 		selectionTextExclusionsByPage,
@@ -805,7 +945,7 @@ function PdfViewerInner({
 		for (const [pageIndex, links] of pageTextLinkMap) {
 			const filtered = excludeOverlappingPdfTextLinks(
 				links,
-				citationLinks.get(pageIndex) ?? [],
+				nativeCitationLinks.get(pageIndex) ?? [],
 			);
 			const prevLinks = prev?.get(pageIndex);
 			if (
@@ -822,9 +962,47 @@ function PdfViewerInner({
 		if (!changed && prev) return prev;
 		textLinksRef.current = next;
 		return next;
-	}, [pageTextLinkMap, citationLinks]);
+	}, [pageTextLinkMap, nativeCitationLinks]);
 
 	const hostRef = useRef<HTMLDivElement>(null);
+	const immersiveReading = useUiStore((s) => s.immersiveReading);
+	const [immersiveChrome, setImmersiveChrome] = useState(true);
+	usePdfImmersivePosition(docId, hostRef, zoomCapRef);
+
+	useEffect(() => {
+		if (!immersiveReading) {
+			setImmersiveChrome(true);
+			return;
+		}
+		const root = hostRef.current;
+		if (!root) return;
+		setImmersiveChrome(true);
+		const hide = () => {
+			if (
+				!root.querySelector(
+					"[data-pdf-chrome]:hover, [data-pdf-chrome]:focus-within",
+				)
+			)
+				setImmersiveChrome(false);
+		};
+		let timer = window.setTimeout(hide, 1800);
+		const show = () => {
+			setImmersiveChrome(true);
+			window.clearTimeout(timer);
+			timer = window.setTimeout(hide, 1800);
+		};
+		root.addEventListener("pointermove", show);
+		root.addEventListener("pointerdown", show);
+		root.addEventListener("focusin", show);
+		root.addEventListener("focusout", show);
+		return () => {
+			window.clearTimeout(timer);
+			root.removeEventListener("pointermove", show);
+			root.removeEventListener("pointerdown", show);
+			root.removeEventListener("focusin", show);
+			root.removeEventListener("focusout", show);
+		};
+	}, [immersiveReading]);
 	usePdfSyncTex({
 		docId,
 		tabId: baseDocId,
@@ -859,10 +1037,40 @@ function PdfViewerInner({
 		hostRef,
 		zoomRef,
 		isActive,
+		sideBySide: viewMode === "dual" && !translationPane,
 		paperRelPath,
 		paperAbsPath,
 		isCommentDraftActive: () => selectionCommentEngagedRef.current,
+		// A double-click in element selection opens the element action card; the
+		// instant word/line selection of that same gesture must not open a second
+		// toolbar underneath it (#1175).
+		suppressSelectionMenu: () => {
+			const action = layoutElementActionStore.getState().action;
+			return (
+				action != null &&
+				layoutSentenceScope(action.docId) === layoutSentenceScope(docId)
+			);
+		},
 	});
+
+	useEffect(() => {
+		// Read the capability through the ref. The provides object is replaced
+		// as the document opens; closing over one render left glyph lookup on a
+		// capability that did not yet know the PDF.
+		if (!engine) return;
+		return bindLayoutSentenceGlyphs({
+			docId,
+			engine,
+			getDocument: () => docCapRef.current?.getDocument(docId) ?? null,
+		});
+	}, [docId, engine]);
+
+	useEffect(() => {
+		const root = hostRef.current;
+		if (!root) return;
+		root.toggleAttribute("data-pdf-selecting", isSelecting);
+		if (isSelecting) suppressLayoutSentenceHover();
+	}, [isSelecting]);
 
 	/**
 	 * Session token of the single in-flight PDF agent run. Shared by ask and
@@ -943,6 +1151,7 @@ function PdfViewerInner({
 		clearTranslateError,
 		stopTranslateSession: stopTranslateSessionImpl,
 	} = usePdfSelectionTranslate({
+		docId,
 		isActive,
 		paperAbsPath,
 		paperRelPath,
@@ -977,6 +1186,7 @@ function PdfViewerInner({
 		paperAbsPath,
 		paperRelPath,
 		vaultPath,
+		captureRegion,
 		threadsRef,
 		setThreads,
 		upsertThread,
@@ -989,38 +1199,7 @@ function PdfViewerInner({
 	clearAskErrorRef.current = clearAskError;
 	closeAskChromeRef.current = closeAskChrome;
 
-	const {
-		findOpen,
-		findQuery,
-		setFindQuery,
-		findInputRef,
-		findTotal,
-		findActiveIndex,
-		findNext,
-		findPrev,
-		closeFind,
-	} = usePdfFind({ hostRef, search, searchState, scroll });
-
-	// Same latest-ref pattern as navigation: findNext / findPrev / closeFind
-	// are re-created per render but the find bar only needs stable identities.
-	const findNextRef = useRef(findNext);
-	findNextRef.current = findNext;
-	const handleFindNext = useCallback(() => {
-		findNextRef.current();
-	}, []);
-	const findPrevRef = useRef(findPrev);
-	findPrevRef.current = findPrev;
-	const handleFindPrev = useCallback(() => {
-		findPrevRef.current();
-	}, []);
-	const closeFindRef = useRef(closeFind);
-	closeFindRef.current = closeFind;
-	const handleCloseFind = useCallback(() => {
-		closeFindRef.current();
-	}, []);
-
-	const { outline, outlineReady, showOutline, toggleOutline } = usePdfOutline({
-		pdfPath,
+	const { outline, outlineReady } = usePdfOutline({
 		bookmarkCap,
 		docId,
 		totalPages,
@@ -1035,15 +1214,14 @@ function PdfViewerInner({
 		ready: outlineReady,
 	});
 
-	const {
-		showReferences,
-		showFigures,
-		hoveredCommentId,
-		setHoveredCommentId,
-		handleToggleOutline,
-		handleToggleReferences,
-		handleToggleFigures,
-	} = usePdfSidebarPanels({ showOutline, toggleOutline });
+	// Outline / references / figures own one left rail. The slot key is the PDF
+	// path (embed id for loose PDFs), so the viewer remount caused by a bookmark
+	// write keeps the panel the reader had open.
+	const { activePanel, openPanel, togglePanel, closePanel } = usePdfLeftPanels(
+		pdfPath ?? docId,
+	);
+	const showOutline = activePanel === "outline";
+	const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
 
 	const bookmarkedPages = useMemo(() => {
 		const pages = new Set<number>();
@@ -1141,6 +1319,7 @@ function PdfViewerInner({
 
 	const {
 		citationPreview,
+		citationLinks,
 		scheduleCitationHide,
 		markCitationHoverEnter,
 		clearCitationPreview,
@@ -1150,6 +1329,10 @@ function PdfViewerInner({
 		citationImport,
 		pageOrigins,
 	} = usePdfCitations({
+		pageTextRects,
+		nativeCitationLinks,
+		engineRef,
+		docCapRef,
 		docId,
 		annotationCap,
 		hostRef,
@@ -1198,6 +1381,8 @@ function PdfViewerInner({
 			clearLinkUrlTipRef.current();
 		},
 		hasCitationMatch,
+		supplementImageUrl: supplementFigureUrl,
+		onSupplementPreview: showSupplementUrl,
 	});
 
 	const {
@@ -1211,6 +1396,51 @@ function PdfViewerInner({
 	clearCitationPreviewRef.current = clearCitationPreview;
 	clearCrossrefPreviewRef.current = clearCrossrefPreview;
 	clearLinkUrlTipRef.current = clearLinkUrlTip;
+	showSupplementUrlRef.current = hoverLinkUrl;
+
+	// Hover intent (#1213): a card opens only after the pointer has rested on a
+	// link. Crossing dense citation / figure links on the way somewhere else
+	// must not flash a card or start the async crop behind it; leaving cancels
+	// the pending open. Hiding stays with the cards' sticky-hover timers.
+	const showLinkPreview = useCallback(
+		(payload: {
+			link: PdfLinkAnnoObject;
+			clientPoint?: ScreenPoint | null;
+		}) => {
+			handleCitationLinkHover(payload.link, payload.clientPoint);
+			handleCrossrefLinkHover(payload.link, payload.clientPoint);
+		},
+		[handleCitationLinkHover, handleCrossrefLinkHover],
+	);
+	const hideLinkPreview = useCallback(() => {
+		handleCitationLinkHover(null);
+		handleCrossrefLinkHover(null);
+	}, [handleCitationLinkHover, handleCrossrefLinkHover]);
+	const linkHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showLinkPreview,
+		onLeave: hideLinkPreview,
+	});
+	const showUrlTip = useCallback(
+		(payload: { url: string; clientPoint: ScreenPoint }) => {
+			hoverLinkUrl(payload.url, payload.clientPoint);
+		},
+		[hoverLinkUrl],
+	);
+	const hideUrlTip = useCallback(() => {
+		hoverLinkUrl(null);
+	}, [hoverLinkUrl]);
+	const urlHoverIntent = useHoverIntent({
+		delayMs: EPHEMERAL_PREVIEW_OPEN_MS,
+		onOpen: showUrlTip,
+		onLeave: hideUrlTip,
+	});
+	// A pending open belongs to the document it was started on.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: docId is the effect trigger.
+	useEffect(() => {
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
+	}, [docId]);
 
 	const { askPinAnchors } = usePdfPinAnchors({ threads });
 	// Fingerprint computed only when `translates` changes identity: streamed
@@ -1275,14 +1505,13 @@ function PdfViewerInner({
 		layoutOverlayVisible,
 		layoutRawRegions,
 		layoutDocRegions,
-		hoverableRegionsByPage,
+		selectableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,
 		layoutTaskRef,
 		handleAnalyzeLayout,
 		handleJumpToLayoutRegion,
 		handleRenderLayoutThumb,
-		screenPointForRegion,
 		reflowReady,
 		reflowOutput,
 		exportTranslatedPdf,
@@ -1293,12 +1522,15 @@ function PdfViewerInner({
 		layoutTranslateWaiting,
 		layoutTranslateQueued,
 		layoutTranslateActive,
-		layoutTranslateLabel,
 		layoutTranslatePartial,
 		layoutTranslateProgress,
 		layoutTranslatePageCounts,
 		toggleLayoutTranslate,
+		ensureLayoutTranslate,
+		showLayoutTranslate,
+		cancelLayoutTranslate,
 		togglePageLayoutTranslate,
+		retryPageLayoutTranslate,
 	} = usePdfLayoutCluster({
 		docId,
 		translationPane,
@@ -1315,19 +1547,112 @@ function PdfViewerInner({
 		docCapRef,
 		engineRef,
 		scrollRef,
-		hostRef,
 		isRemotePaper,
 		plainViewer,
 	});
+
+	useEffect(() => {
+		if (!sentenceHover) {
+			publishLayoutSentenceCatalog(docId, []);
+			publishLayoutSentencePageAnalysis(docId, []);
+			return;
+		}
+		const rawRegions = layoutRawRegions ?? [];
+		const allTranslated = [...layoutTranslateItemsByPage.values()].flat();
+		const translatedIds = new Set(allTranslated.map((item) => item.id));
+		// The model also detects the text inside vector figures / tables as prose
+		// blocks. Those runs are part of the graphic, so they never hover as
+		// sentences; the whole element is the hover target instead.
+		const translated = allTranslated
+			.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions))
+			.map((item) => withHoverSentences(item));
+		const source = sentenceHoverTextRegions(rawRegions)
+			.filter((region) => !translatedIds.has(region.id))
+			.map((region) => ({
+				id: region.id,
+				pageIndex: region.pageIndex,
+				bbox: region.bbox,
+				source: region.text ?? "",
+				sentences: splitLayoutSentences(region.text ?? "").map((quote) => ({
+					quote,
+					translated: "",
+				})),
+			}));
+		// Analysed pages keep sentence hover on their text regions only; the
+		// whole-page text fallback is reserved for pages without analysis.
+		publishLayoutSentencePageAnalysis(docId, [
+			...rawRegions.map((region) => region.pageIndex),
+			...(layoutDocRegions ?? []).map((region) => region.pageIndex),
+		]);
+		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
+	}, [
+		docId,
+		layoutTranslateItemsByPage,
+		layoutRawRegions,
+		layoutDocRegions,
+		sentenceHover,
+	]);
+	// Clear only when the document changes. Declared after the publish effect so
+	// its cleanup runs first and the next publish restores the new document's
+	// pairs. An items-only update must not flash an empty catalog.
+	useEffect(() => {
+		return () => {
+			publishLayoutSentenceCatalog(docId, []);
+			publishLayoutSentencePageAnalysis(docId, []);
+		};
+	}, [docId]);
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
 		reflowOutput,
 		docId,
 	);
+	const translationShown =
+		showTranslatedPages && layoutTranslatePageStateByPage.size > 0;
+	const searchDocumentId = pickPdfSearchDocumentId({
+		sourceDocumentId: docId,
+		translatedDocumentId: reflowDisplayDocument?.id,
+		translationVisible: translationShown,
+	});
+	const { state: searchState, provides: search } = useSearch(searchDocumentId);
+	const searchScale = searchDocumentId === docId ? undefined : zoomLevel;
+
+	const {
+		findOpen,
+		findQuery,
+		setFindQuery,
+		findInputRef,
+		findTotal,
+		findActiveIndex,
+		findNext,
+		findPrev,
+		closeFind,
+	} = usePdfFind({ hostRef, search, searchState, scroll });
+
+	// Same latest-ref pattern as navigation: findNext / findPrev / closeFind
+	// are re-created per render but the find bar only needs stable identities.
+	const findNextRef = useRef(findNext);
+	findNextRef.current = findNext;
+	const handleFindNext = useCallback(() => {
+		findNextRef.current();
+	}, []);
+	const findPrevRef = useRef(findPrev);
+	findPrevRef.current = findPrev;
+	const handleFindPrev = useCallback(() => {
+		findPrevRef.current();
+	}, []);
+	const closeFindRef = useRef(closeFind);
+	closeFindRef.current = closeFind;
+	const handleCloseFind = useCallback(() => {
+		closeFindRef.current();
+	}, []);
 
 	usePdfTranslationSelection({
-		enabled: layoutTranslateActive && !translationOnly && !plainViewer,
+		enabled:
+			showTranslatedPages &&
+			layoutTranslateActive &&
+			!translationOnly &&
+			!plainViewer,
 		hostRef,
 		zoomRef,
 		engineRef,
@@ -1341,44 +1666,164 @@ function PdfViewerInner({
 		paperAbsPath,
 	});
 
-	const handleToggleLayoutTranslateWithDualPane = useCallback(() => {
-		if (plainViewer) return;
-		if (displayMode !== "dualPane") {
-			toggleLayoutTranslate();
-			return;
-		}
-		// In dual-pane mode the source pane only opens the right-hand
-		// translation panel. The translation pane itself owns the single
-		// layout-translation job so only one task runs at a time. The receiver
-		// resolves this back to a workspace tab, so pass the revision-stripped
-		// base id (`docId` carries a `::r<n>` buffer suffix).
-		if (dualPaneSource === "pdf") {
-			onOpenTranslationTab?.(
-				baseDocId,
-				paperAbsPath ?? null,
-				paperTitle ?? null,
-			);
-			return;
-		}
-		if (!paperAbsPath) {
-			notifyError(t("pdf.latexTranslation.missingPaperPath"));
-			return;
-		}
-		void openLatexTranslationTab(
-			baseDocId,
+	// The meter's stop square ends the whole visible run: a live Host job, a
+	// queued wait, and — once the job has settled — the local page generation
+	// that is still producing the corrected pages.
+	const stopLayoutTranslateWithTypeset = useCallback(() => {
+		cancelLayoutTranslate({ stopTypeset: true });
+	}, [cancelLayoutTranslate]);
+
+	// The view switch owns the single-pane / compare choice. The toolbar's task
+	// surface (the expanding meter) only stops or cancels, never toggles views.
+	const hasAnyTranslation = useMemo(
+		() =>
+			[...layoutTranslateItemsByPage.values()].some((items) =>
+				items.some((item) => Boolean(item.translated?.trim())),
+			),
+		[layoutTranslateItemsByPage],
+	);
+	const ensureLayoutTranslateRef = useRef(ensureLayoutTranslate);
+	ensureLayoutTranslateRef.current = ensureLayoutTranslate;
+
+	const ensureTranslationForReading = useCallback(
+		(options?: { completePending?: boolean }) => {
+			// A live task already owns the paper. Showing the view is enough.
+			if (
+				layoutTranslateRunning ||
+				layoutTranslateWaiting ||
+				layoutTranslatePreparing ||
+				layoutTranslateQueued
+			) {
+				return;
+			}
+			// Entering 译文 from a user gesture fills gaps after the cache paints.
+			// The 1000ms window stays on restore only, so a gesture is not dropped.
+			if (options?.completePending) {
+				ensureLayoutTranslateRef.current({ completePending: true });
+				return;
+			}
+			if (hasAnyTranslation) return;
+			// The toolbar click and the mount effect can race within one tick; the
+			// short window keeps one start while still allowing a later retry.
+			const now = Date.now();
+			if (now - translationEnsureAtRef.current < 1000) return;
+			translationEnsureAtRef.current = now;
+			ensureLayoutTranslateRef.current();
+		},
+		[
+			hasAnyTranslation,
+			layoutTranslateRunning,
+			layoutTranslateWaiting,
+			layoutTranslatePreparing,
+			layoutTranslateQueued,
+		],
+	);
+
+	const handleSelectViewMode = useCallback(
+		(next: PdfViewMode) => {
+			if (translationOnly || plainViewer || isRemotePaper) return;
+			if (next === "dual") {
+				if (!onOpenTranslationTab) return;
+				if (!translationPaneOpen) {
+					if (!paperAbsPath) {
+						notifyError(t("pdf.viewMode.paneUnavailable"));
+						return;
+					}
+					// 对照 always sits on the original source pane: leave 译文 first,
+					// then split the translation pane out. Closing that pane later
+					// falls back to this 原文 state.
+					setSingleViewMode("original");
+					writePdfViewMode(paperKey, "original");
+					onOpenTranslationTab?.(baseDocId, paperAbsPath, paperTitle ?? null);
+				}
+				// 对照 reads the same translation as 译文: validate the cache / start
+				// the shared job from the source pane too, so the split pane always
+				// opens onto a live job or completed cache. The pane's own
+				// auto-start stays as the fallback when the source cannot start it.
+				ensureTranslationForReading();
+				return;
+			}
+			if (next === "original") {
+				// 原文 is the "no translation" mode: close the comparison pane and
+				// kill the running job so the view and the task state agree.
+				paneCloseKeepsJobRef.current = false;
+				if (translationPaneOpen) onCloseTranslationTab?.(baseDocId);
+				setSingleViewMode("original");
+				writePdfViewMode(paperKey, "original");
+				cancelLayoutTranslate();
+				return;
+			}
+			// 译文: close the comparison pane but let the translation keep running
+			// (cached pages show immediately; a running job keeps streaming).
+			if (translationPaneOpen) {
+				paneCloseKeepsJobRef.current = true;
+				onCloseTranslationTab?.(baseDocId);
+			}
+			setSingleViewMode("translated");
+			writePdfViewMode(paperKey, "translated");
+			showLayoutTranslate();
+			ensureTranslationForReading({ completePending: true });
+		},
+		[
+			translationOnly,
+			plainViewer,
+			isRemotePaper,
+			translationPaneOpen,
 			paperAbsPath,
-			basenameOf(paperAbsPath),
-		);
+			onOpenTranslationTab,
+			baseDocId,
+			paperTitle,
+			onCloseTranslationTab,
+			paperKey,
+			showLayoutTranslate,
+			cancelLayoutTranslate,
+			ensureTranslationForReading,
+			t,
+		],
+	);
+
+	// Closing the 对照 pane by hand (tab ×, re-open cleanup) means the reader is
+	// back on 原文; that mode has no translation task, so cancel it. The one
+	// exception is 对照 → 译文, which closes the pane but keeps translating.
+	useEffect(() => {
+		const wasOpen = paneWasOpenRef.current;
+		paneWasOpenRef.current = translationPaneOpen;
+		if (!isWorkspaceDoc || !wasOpen || translationPaneOpen) return;
+		const keepJob = paneCloseKeepsJobRef.current;
+		paneCloseKeepsJobRef.current = false;
+		if (keepJob) return;
+		setSingleViewMode("original");
+		writePdfViewMode(paperKey, "original");
+		cancelLayoutTranslate();
+	}, [translationPaneOpen, isWorkspaceDoc, paperKey, cancelLayoutTranslate]);
+
+	// ⌥A toggles the reading view: 原文 ↔ 译文 (leaving 对照 closes its pane).
+	// Stopping a run stays on the meter.
+	const handleToggleTranslationView = useCallback(() => {
+		handleSelectViewMode(viewMode === "original" ? "translated" : "original");
+	}, [handleSelectViewMode, viewMode]);
+
+	// A paper reopened in 译文 has no in-memory translation blocks yet: attach to
+	// the cache-first job once so the switch does not land on a blank layer.
+	useEffect(() => {
+		if (restoredEnsureDoneRef.current) return;
+		if (translationPane || translationOnly || plainViewer || isRemotePaper)
+			return;
+		// Only the active workspace reader auto-attaches: inline wiki embeds and
+		// inactive keep-alive tabs must not start full-document jobs by themselves.
+		if (!isWorkspaceDoc || !isActive) return;
+		if (viewMode !== "translated") return;
+		restoredEnsureDoneRef.current = true;
+		ensureTranslationForReading();
 	}, [
+		translationPane,
+		translationOnly,
 		plainViewer,
-		displayMode,
-		dualPaneSource,
-		toggleLayoutTranslate,
-		onOpenTranslationTab,
-		baseDocId,
-		paperAbsPath,
-		paperTitle,
-		t,
+		isRemotePaper,
+		isWorkspaceDoc,
+		isActive,
+		viewMode,
+		ensureTranslationForReading,
 	]);
 
 	const { smartHighlightBusy, handleSmartHighlight } = usePdfSmartHighlights({
@@ -1449,19 +1894,31 @@ function PdfViewerInner({
 
 	useEffect(() => {
 		return subscribeLinkPreviewDrag(() => {
+			linkHoverIntent.cancel();
+			urlHoverIntent.cancel();
 			clearCitationPreview();
 			clearCrossrefPreview();
 			clearLinkUrlTip();
 		});
-	}, [clearCitationPreview, clearCrossrefPreview, clearLinkUrlTip]);
+	}, [
+		linkHoverIntent,
+		urlHoverIntent,
+		clearCitationPreview,
+		clearCrossrefPreview,
+		clearLinkUrlTip,
+	]);
 
 	useEffect(() => {
 		if (!suppressLinkPreviews) return;
+		linkHoverIntent.cancel();
+		urlHoverIntent.cancel();
 		clearCitationPreview();
 		clearCrossrefPreview();
 		clearLinkUrlTip();
 	}, [
 		suppressLinkPreviews,
+		linkHoverIntent,
+		urlHoverIntent,
 		clearCitationPreview,
 		clearCrossrefPreview,
 		clearLinkUrlTip,
@@ -1470,42 +1927,50 @@ function PdfViewerInner({
 	const handleLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, clientPoint?: ScreenPoint | null) => {
 			if (suppressLinkPreviews || linkPreviewDragActive()) {
+				linkHoverIntent.cancel();
+				urlHoverIntent.cancel();
 				clearCitationPreview();
 				clearCrossrefPreview();
 				clearLinkUrlTip();
 				return;
 			}
-			handleCitationLinkHover(link, clientPoint);
-			handleCrossrefLinkHover(link, clientPoint);
+			if (!link) {
+				linkHoverIntent.leave();
+				return;
+			}
+			linkHoverIntent.enter({ link, clientPoint });
 		},
 		[
 			suppressLinkPreviews,
+			linkHoverIntent,
+			urlHoverIntent,
 			clearCitationPreview,
 			clearCrossrefPreview,
 			clearLinkUrlTip,
-			handleCitationLinkHover,
-			handleCrossrefLinkHover,
 		],
 	);
 
 	const handleLinkUrlHover = useCallback(
 		(url: string | null, clientPoint?: ScreenPoint | null) => {
 			if (suppressLinkPreviews || linkPreviewDragActive()) {
+				urlHoverIntent.cancel();
 				clearLinkUrlTip();
 				return;
 			}
-			hoverLinkUrl(url, clientPoint);
+			const trimmed = url?.trim() ?? "";
+			if (!trimmed || !clientPoint) {
+				urlHoverIntent.leave();
+				return;
+			}
+			urlHoverIntent.enter({ url: trimmed, clientPoint });
 		},
-		[suppressLinkPreviews, clearLinkUrlTip, hoverLinkUrl],
+		[suppressLinkPreviews, urlHoverIntent, clearLinkUrlTip],
 	);
 
-	// ---- Visual marks (draft save, agent turns, existing pins) ----
+	// ---- Visual marks ----
 
-	const beginRailEditRef = useRef<(state: RailEditState) => void>(
-		() => undefined,
-	);
 	const {
-		handleVisualDraft,
+		saveVisualNote,
 		updateVisualComment,
 		handleVisualAddToChatById,
 		deleteVisualTraceById,
@@ -1515,7 +1980,6 @@ function PdfViewerInner({
 		visualTracesRef,
 		setVisualTraces,
 		upsertVisualTrace,
-		beginRailEditRef,
 	});
 
 	const anchorYForHighlight = useCallback(
@@ -1549,7 +2013,6 @@ function PdfViewerInner({
 	closeEditorRef.current = () => {
 		closeRailEdit();
 	};
-	beginRailEditRef.current = beginRailEdit;
 
 	const commentsByPage = useMemo(() => {
 		if (!railEdit) return commentsByPageBase;
@@ -1602,6 +2065,11 @@ function PdfViewerInner({
 	const hoveredCommentPage = hoveredCommentId
 		? (commentPageById.get(hoveredCommentId) ?? 0)
 		: 0;
+	/** Drives the right-edge peek: only pan when this page has cards to show. */
+	const hasCommentsOnPage = useCallback(
+		(pageNumber: number) => (commentsByPage.get(pageNumber)?.length ?? 0) > 0,
+		[commentsByPage],
+	);
 
 	const {
 		handleOpenPin,
@@ -1623,26 +2091,128 @@ function PdfViewerInner({
 		updateHighlightColor,
 	});
 
-	// ---- Region framing (⌘. marquee → crop) ----
+	// ---- Layout element selection ----
 
-	const {
-		regionSelecting,
-		visualCropPending,
-		visualCropRegion,
-		toggleRegionSelect,
-		beginVisualAnnotation,
-		handleVisualRegionSelect,
-	} = usePdfRegionFraming({
+	const elementSelectionEnabled = useStore(
+		layoutElementActionStore,
+		(state) => state.selectionDocumentId === layoutSentenceScope(docId),
+	);
+	const elementSelecting =
+		elementSelectionEnabled && !plainViewer && !isRemotePaper;
+	const toggleElementSelection = useCallback(() => {
+		if (
+			plainViewer ||
+			isRemotePaper ||
+			!engine ||
+			(!elementSelectionEnabled && selectableRegionsByPage.size === 0)
+		)
+			return;
+		closeSelectionMenu();
+		selectionCap?.clear(docId);
+		setLayoutElementSelection(docId, !elementSelectionEnabled);
+	}, [
 		docId,
-		engine,
-		docCap,
-		selectionCap,
-		interactionCap,
-		setSelectionMenu,
-		onVisualDraft: handleVisualDraft,
-		screenPointForRegion,
+		elementSelectionEnabled,
 		plainViewer,
-	});
+		isRemotePaper,
+		engine,
+		selectableRegionsByPage,
+		closeSelectionMenu,
+		selectionCap,
+	]);
+
+	useEffect(() => {
+		return () => setLayoutElementSelection(docId, false);
+	}, [docId]);
+
+	useEffect(() => {
+		if (!elementSelecting) return;
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented) return;
+			// The first Escape dismisses an open element menu; the next leaves inspection.
+			if (layoutElementActionStore.getState().action) return;
+			event.preventDefault();
+			closeSelectionMenu();
+			setLayoutElementSelection(docId, false);
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [docId, elementSelecting, closeSelectionMenu]);
+
+	usePdfSentenceInteraction(
+		docId,
+		hostRef,
+		(sentence, event) => {
+			const doc = docCapRef.current?.getDocument(docId);
+			// The document manager can still be opening. Fall back to the rendered
+			// page box so the source pane's double-click is not a no-op.
+			const zoom = zoomRef.current > 0 ? zoomRef.current : 1;
+			const sizeFor = (pageIndex: number) => {
+				const size = doc?.pages[pageIndex]?.size;
+				if (size) return size;
+				const box = pageElByIndex(
+					hostRef.current,
+					pageIndex,
+				)?.getBoundingClientRect();
+				return box && box.width > 0 && box.height > 0
+					? { width: box.width / zoom, height: box.height / zoom }
+					: null;
+			};
+			const pages = [
+				...new Set(sentence.members.map((member) => member.pageIndex)),
+			].flatMap((pageIndex) => {
+				const size = sizeFor(pageIndex);
+				if (!size) return [];
+				return formattedSelectionPage(
+					pageIndex,
+					sentence.members
+						.filter((member) => member.pageIndex === pageIndex)
+						.flatMap((member) => member.rects),
+					size,
+				);
+			});
+			const rects = sentence.members
+				.filter((member) => member.pageIndex === sentence.pageIndex)
+				.flatMap((member) => member.rects);
+			// Page-fraction rects are enough for the toolbar anchor, so a missing
+			// document size only disables highlight creation, not the menu.
+			const anchor =
+				anchorFromEmbedSelection(
+					pages,
+					sentence.quote,
+					sizeFor,
+					"selection",
+					sentence.pageIndex,
+				) ??
+				(rects.length
+					? {
+							page: sentence.pageIndex + 1,
+							rects,
+							quote: sentence.quote,
+							trigger: "selection" as const,
+						}
+					: null);
+			const bounds = selectionBoundsOnScreen(
+				pageElByIndex(hostRef.current, sentence.pageIndex),
+				rects,
+			);
+			if (!anchor || !bounds) return;
+			selectionCap?.clear(docId);
+			holdLayoutSentenceHover(docId);
+			setSelectionMenu({
+				anchor,
+				pages,
+				screen: {
+					x: (bounds.left + bounds.right) / 2,
+					y: bounds.top,
+					top: bounds.top,
+					bottom: bounds.bottom,
+					cursorX: event.clientX,
+				},
+			});
+		},
+		{ enabled: sentenceHover },
+	);
 
 	// ---- Selection action menu ----
 
@@ -1722,32 +2292,34 @@ function PdfViewerInner({
 	const selectionCommentKeyValue = selectionCommentKey(selectionMenu);
 
 	useEffect(() => {
-		if (
-			isRemotePaper ||
-			plainViewer ||
-			regionSelecting ||
-			selectionCommentKeyValue
-		) {
+		if (isRemotePaper || plainViewer || selectionCommentKeyValue) {
 			selectionCommentEngagedRef.current = false;
 			setSelectionCommentDraft(null);
 		}
-	}, [isRemotePaper, plainViewer, regionSelecting, selectionCommentKeyValue]);
+	}, [isRemotePaper, plainViewer, selectionCommentKeyValue]);
 
-	const handleMenuNote = useCallback(() => {
-		const menu = selectionMenuRef.current;
-		if (!menu?.pages.length || isRemotePaper || plainViewer || regionSelecting)
-			return;
-		const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
+	const beginSelectionComment = useCallback((draft: SelectionCommentDraft) => {
 		selectionCommentEngagedRef.current = true;
-		setSelectionCommentDraft({
-			page: visible?.page ?? menu.anchor.page,
-			anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
-			quote: menu.anchor.quote ?? "",
-			pages: menu.pages,
-			visiblePages: menu.visiblePages,
-		});
-		closeSelectionMenu();
-	}, [isRemotePaper, plainViewer, regionSelecting, closeSelectionMenu]);
+		setSelectionCommentDraft(draft);
+	}, []);
+
+	const handleMenuNote = useCallback(
+		(shape: PdfTextMarkupKind = "highlight") => {
+			const menu = selectionMenuRef.current;
+			if (!menu?.pages.length || isRemotePaper || plainViewer) return;
+			const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
+			beginSelectionComment({
+				page: visible?.page ?? menu.anchor.page,
+				anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
+				quote: menu.anchor.quote ?? "",
+				shape,
+				pages: menu.pages,
+				visiblePages: menu.visiblePages,
+			});
+			closeSelectionMenu();
+		},
+		[isRemotePaper, plainViewer, beginSelectionComment, closeSelectionMenu],
+	);
 
 	const handleSelectionCommentActiveChange = useCallback((active: boolean) => {
 		selectionCommentEngagedRef.current = active;
@@ -1766,17 +2338,35 @@ function PdfViewerInner({
 			selectionCommentDraftRef.current = null;
 			setSelectionCommentDraft(null);
 			closeSelectionMenu();
-			if (!draft?.pages.length) return;
+			if (!draft) return;
+			if (draft.visualRegion) {
+				const region = draft.visualRegion;
+				void captureRegion(draft.page - 1, region).then(
+					(image) =>
+						saveVisualNote(draft.page, region, comment, image).catch((error) =>
+							notifyError(errorText(error)),
+						),
+					() => notifyError(t("pdfExplain.cropFailed")),
+				);
+				return;
+			}
 			handleCommitSelectionNote(
 				{
 					pages: draft.pages,
 					quote: draft.quote,
+					shape: draft.shape,
 					visiblePages: draft.visiblePages,
 				},
 				comment,
 			);
 		},
-		[handleCommitSelectionNote, closeSelectionMenu],
+		[
+			captureRegion,
+			saveVisualNote,
+			handleCommitSelectionNote,
+			closeSelectionMenu,
+			t,
+		],
 	);
 
 	// ---- In-PDF highlight selection menu ----
@@ -1841,9 +2431,9 @@ function PdfViewerInner({
 		openThread,
 		deleteVisualTraceById,
 		deleteHighlightAnnotation,
-		toggleRegionSelect,
-		// Dual-pane aware — ⌥A and the toolbar Languages button share this path.
-		toggleLayoutTranslate: handleToggleLayoutTranslateWithDualPane,
+		toggleElementSelection,
+		// ⌥A toggles 原文 / 译文; 对照 is entered from the toolbar switch.
+		toggleLayoutTranslate: handleToggleTranslationView,
 	});
 
 	const {
@@ -1902,8 +2492,6 @@ function PdfViewerInner({
 			activeAskAnchor,
 			activeTranslateAnchor: translateCardPlaced ? activeTranslateAnchor : null,
 			activeVisualTrace,
-			visualDraftRegion: null,
-			visualCropRegion,
 			focusedLayoutRegion,
 			focusedLayoutFlash,
 			focusedLayoutFlashToken,
@@ -1927,7 +2515,6 @@ function PdfViewerInner({
 			activeAskAnchor,
 			activeTranslateAnchor,
 			activeVisualTrace,
-			visualCropRegion,
 			focusedLayoutRegion,
 			focusedLayoutFlash,
 			focusedLayoutFlashToken,
@@ -1959,23 +2546,21 @@ function PdfViewerInner({
 			selectionInsertionRegions,
 			selectionStartPageIndex,
 			selectionTextExclusionsByPage,
-			hoverableRegionsByPage,
+			selectableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
-			layoutTranslateItemsByPage:
-				translationPane || !dualPaneTranslate
-					? layoutTranslateItemsByPage
-					: new Map(),
-			layoutTranslatePageStateByPage:
-				translationPane || !dualPaneTranslate
-					? layoutTranslatePageStateByPage
-					: new Map(),
+			layoutTranslateItemsByPage: showTranslatedPages
+				? layoutTranslateItemsByPage
+				: new Map(),
+			layoutTranslatePageStateByPage: showTranslatedPages
+				? layoutTranslatePageStateByPage
+				: new Map(),
 			sentenceRectsByItemId,
 			linkInkByKey,
 			glyphRunsByPage,
 		}),
 		[
-			hoverableRegionsByPage,
+			selectableRegionsByPage,
 			rawRegionsByPage,
 			selectionTextExclusionsByPage,
 			selectionInsertionRegions,
@@ -1983,8 +2568,7 @@ function PdfViewerInner({
 			selectionStartPageIndex,
 			layoutTranslateItemsByPage,
 			layoutTranslatePageStateByPage,
-			translationPane,
-			dualPaneTranslate,
+			showTranslatedPages,
 			sentenceRectsByItemId,
 			linkInkByKey,
 			glyphRunsByPage,
@@ -1993,27 +2577,19 @@ function PdfViewerInner({
 
 	const pageMode = useMemo<PdfPageModeSlice>(
 		() => ({
-			regionSelecting,
-			visualCropPending,
-			visualDraftOpen: false,
-			insetCommentCards: !reserveCommentRail,
+			elementSelecting,
+			insetCommentCards,
 			translationOnly,
 			plainViewer,
+			sentencePairing: sentenceHover,
 		}),
 		[
-			regionSelecting,
-			visualCropPending,
+			elementSelecting,
 			translationOnly,
 			plainViewer,
-			reserveCommentRail,
+			insetCommentCards,
+			sentenceHover,
 		],
-	);
-
-	const handleLayoutRegionClick = useCallback(
-		(region: PdfLayoutRegion) => {
-			void beginVisualAnnotation(region.pageIndex + 1, region.bbox);
-		},
-		[beginVisualAnnotation],
 	);
 
 	const handleCopyCommentLink = useCallback(
@@ -2070,6 +2646,39 @@ function PdfViewerInner({
 		[handleVisualAddToChatById, paperAbsPath, paperRelPath],
 	);
 
+	// Page tags stay available in every view, but they must not toggle a hidden
+	// overlay that is not painted. 原文 first reveals 译文; 对照's source pane has
+	// no overlay at all, so its tags defer to the translation pane.
+	const handleTogglePageTranslate = useCallback(
+		(pageIndex: number) => {
+			if (viewMode === "dual") return;
+			if (viewMode === "original") {
+				setSingleViewMode("translated");
+				writePdfViewMode(paperKey, "translated");
+				showLayoutTranslate();
+				const pageHasTranslation = (
+					layoutTranslateItemsByPage.get(pageIndex) ?? []
+				).some((item) => Boolean(item.translated?.trim()));
+				// The tag is entering 译文. A page that already has text reveals
+				// the view and fills the other missing blocks; an untranslated
+				// page still starts that page only.
+				if (pageHasTranslation) {
+					ensureTranslationForReading({ completePending: true });
+					return;
+				}
+			}
+			togglePageLayoutTranslate(pageIndex);
+		},
+		[
+			viewMode,
+			paperKey,
+			showLayoutTranslate,
+			layoutTranslateItemsByPage,
+			ensureTranslationForReading,
+			togglePageLayoutTranslate,
+		],
+	);
+
 	const pageHandlers = useMemo<PdfPageHandlers>(
 		() => ({
 			onOpenPin: handleOpenPin,
@@ -2079,9 +2688,8 @@ function PdfViewerInner({
 			onTextLinkActivate: openExternalUrl,
 			onCitationHover: handleLinkHover,
 			onLinkUrlHover: handleLinkUrlHover,
-			onRegionSelect: handleVisualRegionSelect,
-			onLayoutRegionClick: handleLayoutRegionClick,
-			onTogglePageLayoutTranslate: togglePageLayoutTranslate,
+			onTogglePageLayoutTranslate: handleTogglePageTranslate,
+			onRetryPageLayoutTranslate: retryPageLayoutTranslate,
 			onDeleteHighlightAnnotation: handleDeleteHighlightAnnotation,
 			onEditHighlightAnnotation: handleEditHighlightAnnotation,
 			onChangeHighlightColor: handleChangeHighlightColor,
@@ -2105,9 +2713,8 @@ function PdfViewerInner({
 			handleCitationLinkActivate,
 			handleLinkHover,
 			handleLinkUrlHover,
-			handleVisualRegionSelect,
-			handleLayoutRegionClick,
-			togglePageLayoutTranslate,
+			handleTogglePageTranslate,
+			retryPageLayoutTranslate,
 			handleDeleteHighlightAnnotation,
 			handleEditHighlightAnnotation,
 			handleChangeHighlightColor,
@@ -2118,7 +2725,6 @@ function PdfViewerInner({
 			handleCopyCommentLink,
 			handleCopyCommentEmbed,
 			handleAddCommentToChat,
-			setHoveredCommentId,
 			handleCommitSelectionComment,
 			handleSelectionCommentActiveChange,
 			handleDismissSelectionComment,
@@ -2141,6 +2747,8 @@ function PdfViewerInner({
 				pageIndex={pageIndex}
 				reflowDocumentId={reflowDisplayDocument?.id}
 				reflowDocumentVersion={reflowDisplayDocument?.version}
+				searchDocumentId={searchDocumentId}
+				searchScale={searchScale}
 				width={rotatedWidth || width}
 				height={rotatedHeight || height}
 				tone={pdfTone}
@@ -2161,6 +2769,8 @@ function PdfViewerInner({
 			docId,
 			paperRelPath,
 			paperAbsPath,
+			searchDocumentId,
+			searchScale,
 			pdfTone,
 			zoomRef,
 			annotationCap,
@@ -2183,7 +2793,7 @@ function PdfViewerInner({
 		hostRef,
 		scrollRef,
 		scrollReady,
-		sticky: showOutline || showReferences || showFigures || findOpen,
+		sticky: activePanel !== null || findOpen,
 	});
 
 	// ---- Floating card stack props ----
@@ -2212,39 +2822,34 @@ function PdfViewerInner({
 				: undefined,
 		[citationImport, handleCitationImportOpenChange, isRemotePaper],
 	);
+	const canBookmark = bookmarkEditor.canEdit && !bookmarkEditor.draft?.saving;
+	const bookmarkSelection = useCallback(
+		(page: number, quote: string) => {
+			if (!canBookmark) return;
+			const title = quote.replace(/\s+/g, " ").trim();
+			bookmarkEditor.begin();
+			bookmarkEditor.change([
+				...bookmarkEditor.nodes,
+				{
+					id: crypto.randomUUID(),
+					origin: null,
+					title: title || t("pdf.bookmarks.defaultTitle", { page }),
+					pageIndex: page - 1,
+					children: [],
+				},
+			]);
+			if (!showOutline) openPanel("outline");
+		},
+		[t, canBookmark, bookmarkEditor, showOutline, openPanel],
+	);
 	const handleBookmarkSelection = useCallback(() => {
-		if (
-			!selectionMenu?.pages.length ||
-			!bookmarkEditor.canEdit ||
-			bookmarkEditor.draft?.saving
-		)
-			return;
-		const title = (selectionMenu.anchor.quote ?? selectionMenu.copyText ?? "")
-			.replace(/\s+/g, " ")
-			.trim();
-		bookmarkEditor.begin();
-		bookmarkEditor.change([
-			...bookmarkEditor.nodes,
-			{
-				id: crypto.randomUUID(),
-				origin: null,
-				title:
-					title ||
-					t("pdf.bookmarks.defaultTitle", { page: selectionMenu.anchor.page }),
-				pageIndex: selectionMenu.anchor.page - 1,
-				children: [],
-			},
-		]);
-		if (!showOutline) handleToggleOutline();
+		if (!selectionMenu?.pages.length) return;
+		bookmarkSelection(
+			selectionMenu.anchor.page,
+			selectionMenu.anchor.quote ?? selectionMenu.copyText ?? "",
+		);
 		closeSelectionMenu();
-	}, [
-		t,
-		selectionMenu,
-		bookmarkEditor,
-		showOutline,
-		handleToggleOutline,
-		closeSelectionMenu,
-	]);
+	}, [selectionMenu, bookmarkSelection, closeSelectionMenu]);
 	const contributionPaperId = paperMeta?.id?.trim() || undefined;
 	const canMarkSelection =
 		!isRemotePaper && !plainViewer && Boolean(selectionMenu?.pages.length);
@@ -2258,9 +2863,7 @@ function PdfViewerInner({
 			onTranslate: handleMenuTranslate,
 			onCopy: handleMenuCopy,
 			onBookmark:
-				bookmarkEditor.canEdit &&
-				!bookmarkEditor.draft?.saving &&
-				selectionMenu?.pages.length
+				canBookmark && selectionMenu?.pages.length
 					? handleBookmarkSelection
 					: undefined,
 			showHighlight: canMarkSelection,
@@ -2284,8 +2887,7 @@ function PdfViewerInner({
 			handleMenuAddToChat,
 			handleMenuTranslate,
 			handleMenuCopy,
-			bookmarkEditor.canEdit,
-			bookmarkEditor.draft?.saving,
+			canBookmark,
 			handleBookmarkSelection,
 			isRemotePaper,
 			vaultPath,
@@ -2353,9 +2955,29 @@ function PdfViewerInner({
 	const handleToggleTranslatePin = useCallback(() => {
 		if (activeTranslate) toggleTranslatePin(activeTranslate);
 	}, [activeTranslate, toggleTranslatePin]);
+
+	const handleTranslateModeChange = useCallback(
+		(mode: "dictionary" | "translate") => {
+			if (activeTranslate?.quote)
+				translateSelection(
+					{
+						page: activeTranslate.page,
+						rects: activeTranslate.rects,
+						selectionPages: activeTranslate.selectionPages,
+						quote: activeTranslate.quote,
+						trigger: "selection",
+					},
+					mode,
+					activeTranslate,
+				);
+		},
+		[activeTranslate, translateSelection],
+	);
+
 	const cardTranslate = useMemo(
 		() => ({
 			record: isActive ? activeTranslate : null,
+			onModeChange: handleTranslateModeChange,
 			streaming: translateStreaming,
 			error: translateError,
 			onOpenSettings: openTranslateSettings,
@@ -2373,6 +2995,7 @@ function PdfViewerInner({
 			openTranslateSettings,
 			paperAbsPath,
 			handleToggleTranslatePin,
+			handleTranslateModeChange,
 			hideActiveCard,
 		],
 	);
@@ -2390,7 +3013,20 @@ function PdfViewerInner({
 	const handleZoomSliderChange = useCallback((next: number) => {
 		zoomCapRef.current?.requestZoom(next);
 	}, []);
+	const exitImmersiveReading = useCallback(() => {
+		layout()?.toggleImmersiveReading();
+	}, []);
 	const handleFitWidth = useCallback(() => {
+		const centerReadingSurface = () => {
+			// Horizontal paging uses scrollLeft as its page axis, so fitting a page
+			// must not recenter it like a vertical spread.
+			if (pdfScrollStrategy === "horizontal") return;
+			const viewport = hostRef.current?.querySelector<HTMLElement>(
+				"[data-pdf-viewport]",
+			);
+			if (viewport && viewport.scrollLeft !== 0) viewport.scrollLeft = 0;
+		};
+
 		const requestFitWidth = (retry = false) => {
 			const capability = zoomCapRef.current;
 			if (!capability) {
@@ -2407,7 +3043,13 @@ function PdfViewerInner({
 				// once on the next frame after ResizeObserver has committed them.
 				if (!retry) {
 					window.requestAnimationFrame(() => requestFitWidth(true));
+					return;
 				}
+				// The zoom plugin derives its scroll from the pre-fit viewport, and
+				// off-page comment cards add horizontal room that lets a peeked rail
+				// survive the fit. Its scroll request lands next frame; recenter
+				// after it so the page fills the whole reading width, centered.
+				window.requestAnimationFrame(centerReadingSurface);
 			} catch {
 				// The document scope can be recreated while a PDF buffer is reloading.
 				// Give the next render a chance to expose a fresh capability.
@@ -2418,7 +3060,17 @@ function PdfViewerInner({
 		};
 
 		requestFitWidth();
-	}, []);
+	}, [pdfScrollStrategy]);
+
+	// A thumbnail jumps to its page and closes the rail: the panel overlays the
+	// reading surface, so leaving it open would cover the figure just jumped to.
+	const handleFiguresJump = useCallback(
+		(region: PdfLayoutRegion) => {
+			handleJumpToLayoutRegion(region);
+			closePanel();
+		},
+		[handleJumpToLayoutRegion, closePanel],
+	);
 
 	return (
 		<div
@@ -2426,52 +3078,20 @@ function PdfViewerInner({
 			data-pdf-root
 			className="relative flex h-full min-h-0 w-full select-none flex-col"
 		>
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && (
 				<PdfLeftToolbar
 					canEditBookmarks={bookmarkEditor.canEdit}
 					outline={outline}
-					showOutline={showOutline}
-					onToggleOutline={handleToggleOutline}
+					activePanel={activePanel}
+					onTogglePanel={togglePanel}
 					paperPath={paperRelPath}
-					showReferences={showReferences}
-					onToggleReferences={handleToggleReferences}
-					showFigures={showFigures}
-					onToggleFigures={handleToggleFigures}
 					visible={leftChromeVisible}
 					isRemotePaper={isRemotePaper}
 					plainViewer={plainViewer}
 				/>
 			)}
-			{!translationOnly && jumpBackTarget && (
+			{!translationOnly && !immersiveReading && jumpBackTarget && (
 				<PdfJumpBackChip onGoBack={goBackToJumpOrigin} />
-			)}
-			{!translationOnly && (
-				<PdfOutlinePanel
-					editor={bookmarkEditor}
-					currentPage={currentPage}
-					outline={outline}
-					showOutline={showOutline}
-					onGoToPage={handleGoToPage}
-				/>
-			)}
-			{!translationOnly && (
-				<PdfReferencesPanel
-					vaultPath={vaultPath}
-					paperPath={paperRelPath}
-					showReferences={showReferences}
-				/>
-			)}
-			{!translationOnly && !plainViewer && (
-				<PdfFiguresPanel
-					documentId={docId}
-					paperAbsPath={paperAbsPath}
-					paperRelPath={paperRelPath}
-					showFigures={showFigures}
-					isRemotePaper={isRemotePaper}
-					onAnalyze={handleAnalyzeLayout}
-					onJump={handleJumpToLayoutRegion}
-					onRenderThumb={handleRenderLayoutThumb}
-				/>
 			)}
 			{!translationOnly && (
 				<PdfFindBar
@@ -2486,23 +3106,25 @@ function PdfViewerInner({
 					onClose={handleCloseFind}
 				/>
 			)}
-			{!translationOnly && !plainViewer && (
+			{!translationOnly && !plainViewer && !immersiveReading && (
 				<PdfToolbar
 					onExportTranslatedPdf={reflowReady ? exportTranslatedPdf : undefined}
-					regionSelecting={regionSelecting}
-					visualCropPending={visualCropPending}
 					engine={engine}
-					onToggleRegionSelect={toggleRegionSelect}
 					layoutTranslateRunning={layoutTranslateRunning}
 					layoutTranslatePreparing={layoutTranslatePreparing}
 					layoutTranslateWaiting={layoutTranslateWaiting}
 					layoutTranslateQueued={layoutTranslateQueued}
-					layoutTranslateActive={layoutTranslateActive}
-					layoutTranslateLabel={layoutTranslateLabel}
+					viewMode={viewMode}
+					onSelectViewMode={handleSelectViewMode}
+					canCompare={
+						Boolean(onOpenTranslationTab) &&
+						Boolean(paperAbsPath) &&
+						isWorkspaceDoc
+					}
 					layoutTranslatePartial={layoutTranslatePartial}
 					layoutTranslateProgress={layoutTranslateProgress}
 					layoutTranslatePageCounts={layoutTranslatePageCounts}
-					onToggleLayoutTranslate={handleToggleLayoutTranslateWithDualPane}
+					onToggleLayoutTranslate={stopLayoutTranslateWithTypeset}
 					isRemotePaper={isRemotePaper}
 					onImportToLibrary={handleImportToLibrary}
 					importBusy={importBusy}
@@ -2516,19 +3138,20 @@ function PdfViewerInner({
 			<DockviewViewport
 				documentId={docId}
 				hostRef={hostRef}
-				rightGutter={rightGutter}
-				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
+				className="min-h-0 min-w-0 flex-1"
 				onClickCapture={(event) => {
 					const target = event.target;
-					// Observe the reading surface without swallowing its click. Portaled
-					// menus and page controls keep their own interaction unchanged.
+					// Observe the reading surface without swallowing its click. A
+					// click on the pages dismisses whichever left rail is open (same
+					// for outline / references / figures); portaled menus, cards and
+					// page controls keep their own interaction unchanged.
 					if (
-						showOutline &&
+						activePanel &&
 						target instanceof Element &&
 						event.currentTarget.contains(target) &&
 						!target.closest("[data-pdf-chrome]")
 					)
-						toggleOutline();
+						closePanel();
 				}}
 			>
 				<WheelZoomHandler docId={docId} />
@@ -2553,8 +3176,21 @@ function PdfViewerInner({
 				<PanDragHandler
 					active={isActive}
 					hostRef={hostRef}
-					allowLeftDrag={!translationOnly && !regionSelecting}
+					allowLeftDrag={!translationOnly}
 				/>
+				{!translationOnly && !plainViewer && !immersiveReading ? (
+					<RailPeek
+						hostRef={hostRef}
+						railWidth={COMMENT_RAIL_WIDTH_PX}
+						hasCommentsOnPage={hasCommentsOnPage}
+						hoveredCommentId={hoveredCommentId}
+						revealPage={
+							selectionCommentDraft?.page ??
+							(railEdit ? railEdit.pageIndex + 1 : null)
+						}
+						holdOpen={Boolean(railEdit || selectionCommentDraft)}
+					/>
+				) : null}
 				<ActiveCardScrollSync
 					active={Boolean(activeCard) || Boolean(selectionMenu)}
 					onScroll={rePlaceFloatingOnScroll}
@@ -2571,7 +3207,24 @@ function PdfViewerInner({
 				</ZoomGestureWrapper>
 			</DockviewViewport>
 
-			{!translationOnly && (
+			{!translationOnly && !immersiveReading && elementSelecting ? (
+				<LayoutElementActions
+					docId={docId}
+					docCap={docCap}
+					paperRelPath={paperRelPath}
+					paperAbsPath={paperAbsPath}
+					captureRegion={captureRegion}
+					onHighlight={(pages, color, quote, shape) =>
+						createHighlights(pages, color, quote, undefined, shape)
+					}
+					onNote={beginSelectionComment}
+					onAsk={startFromAnchor}
+					onBookmark={canBookmark ? bookmarkSelection : undefined}
+					translateSelection={translateSelection}
+				/>
+			) : null}
+
+			{!translationOnly && !immersiveReading && (
 				<PdfCardStack
 					selectionMenu={cardSelectionMenu}
 					citationPreview={cardCitationPreview}
@@ -2600,9 +3253,50 @@ function PdfViewerInner({
 					zoomLevel={zoomLevel}
 					onZoomChange={handleZoomSliderChange}
 					onFitWidth={handleFitWidth}
+					elementSelecting={elementSelecting}
+					elementSelectionAvailable={selectableRegionsByPage.size > 0}
+					elementSelectionDisabled={!engine}
+					onToggleElementSelection={
+						plainViewer || immersiveReading || isRemotePaper
+							? undefined
+							: toggleElementSelection
+					}
 					isRemotePaper={isRemotePaper}
+					presented={!immersiveReading || immersiveChrome}
+					onExitImmersive={immersiveReading ? exitImmersiveReading : undefined}
 				/>
 			)}
+
+			{/* Left rails paint last: they are full-height overlays, so they cover
+			    the bottom page / zoom bar and the jump-back chip instead of
+			    reserving a lane for them. One slot, so at most one is mounted. */}
+			{!translationOnly && !immersiveReading && activePanel === "outline" && (
+				<PdfOutlinePanel
+					editor={bookmarkEditor}
+					currentPage={currentPage}
+					outline={outline}
+					onGoToPage={handleGoToPage}
+				/>
+			)}
+			{!translationOnly &&
+				!immersiveReading &&
+				activePanel === "references" && (
+					<PdfReferencesPanel vaultPath={vaultPath} paperPath={paperRelPath} />
+				)}
+			{!translationOnly &&
+				!plainViewer &&
+				!immersiveReading &&
+				activePanel === "figures" && (
+					<PdfFiguresPanel
+						documentId={docId}
+						paperAbsPath={paperAbsPath}
+						paperRelPath={paperRelPath}
+						isRemotePaper={isRemotePaper}
+						onAnalyze={handleAnalyzeLayout}
+						onJump={handleFiguresJump}
+						onRenderThumb={handleRenderLayoutThumb}
+					/>
+				)}
 		</div>
 	);
 }

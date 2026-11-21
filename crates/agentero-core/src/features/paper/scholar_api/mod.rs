@@ -181,6 +181,9 @@ impl From<ApiError> for AppError {
             ApiError::RateLimited => AppError::domain("rate_limited", "rate limited"),
             ApiError::Cancelled => AppError::domain("cancelled", "cancelled"),
             ApiError::NotFound => AppError::domain("not_found", "not found"),
+            ApiError::Network(message) => {
+                AppError::domain("service_unavailable", format!("network: {message}"))
+            }
             ApiError::Unavailable(err) => AppError::domain("service_unavailable", err.to_string()),
             other => AppError::message(other.to_string()),
         }

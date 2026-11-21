@@ -21,14 +21,15 @@ import {
 	useMemo,
 	useState,
 } from "react";
-import { TREE_ROW_TEXT_STATE } from "@/components/sidebar/tree-row-styles";
+import {
+	FILE_TREE_ROW_CURSOR_STATE,
+	FILE_TREE_ROW_SELECTED_STATE,
+	FILE_TREE_ROW_STATE,
+} from "@/components/sidebar/tree-row-styles";
 import { cn } from "@/lib/core/utils";
+import { isMacCtrlClick, isTreeSelectModifier } from "./tree-helpers";
 
 export type SelectMods = { meta: boolean; ctrl: boolean; shift: boolean };
-
-/** Content inset shared by every row: base padding plus one step per level. */
-export const TREE_ROW_INSET_PX = 10;
-export const TREE_ROW_INDENT_STEP_PX = 12;
 
 interface FileTreeContextType {
 	expandedPaths: Set<string>;
@@ -307,26 +308,61 @@ export const FileTreeName = ({
 );
 
 /**
+ * Hover group that reveals the disclosure chevron. Folder rows reveal it from
+ * the row itself; rows whose disclosure is a nested button scope it to that
+ * button's own named group (`attachment`, `skill`).
+ *
+ * Both class sets are written out so Tailwind can see them.
+ */
+const DISCLOSURE_REVEAL = {
+	row: {
+		hide: "group-hover:invisible group-focus-visible:invisible",
+		show: "group-hover:visible group-focus-visible:visible",
+	},
+	attachment: {
+		hide: "group-hover/attachment:invisible group-focus-visible/attachment:invisible",
+		show: "group-hover/attachment:visible group-focus-visible/attachment:visible",
+	},
+	skill: {
+		hide: "group-hover/skill:invisible group-focus-visible/skill:invisible",
+		show: "group-hover/skill:visible group-focus-visible/skill:visible",
+	},
+} as const;
+
+export type DisclosureReveal = keyof typeof DISCLOSURE_REVEAL;
+
+/**
  * Keep the disclosure affordance in the row icon slot. This mirrors the
  * sidebar pattern used by Notion: the item identity is visible at rest, and
  * the same-sized expand/collapse affordance appears in its place when
  * targeted.
+ *
+ * The swap is instant on purpose. Cross-fading the two glyphs keeps both in
+ * the same slot as separate opacity layers; in WKWebView (Tauri macOS) the
+ * fading-out icon's dirty region can be missed inside these virtualized rows,
+ * leaving half of the folder glyph under the chevron until the next repaint.
+ * Only the chevron's expand/collapse rotation stays animated, so every
+ * disclosure slot renders through this component — paper attachments and
+ * skill rows included.
  */
 export function FileTreeDisclosureIcon({
 	isExpanded,
 	icon,
+	revealOn = "row",
 }: {
 	isExpanded: boolean;
 	icon: ReactNode;
+	/** Named hover group whose target paints the chevron. */
+	revealOn?: DisclosureReveal;
 }) {
+	const reveal = DISCLOSURE_REVEAL[revealOn];
 	return (
 		<span className="relative flex size-4 shrink-0 items-center justify-center">
-			<span className="transition-opacity duration-100 group-hover:opacity-0 group-focus-visible:opacity-0">
-				{icon}
-			</span>
+			<span className={reveal.hide}>{icon}</span>
 			<ChevronRightIcon
 				className={cn(
-					"pointer-events-none absolute size-4 text-muted-foreground opacity-0 transition-[opacity,transform] duration-100 group-hover:opacity-100 group-focus-visible:opacity-100",
+					"pointer-events-none absolute size-4 text-muted-foreground invisible transition-transform duration-100",
+					reveal.show,
 					isExpanded && "rotate-90",
 				)}
 				aria-hidden
@@ -337,13 +373,6 @@ export function FileTreeDisclosureIcon({
 
 /** Ring shown on the row a drag is currently hovering (valid drop target). */
 const DROP_RING = "ring-1 ring-inset ring-primary bg-accent";
-/** Row interaction states shared by the reading tree and the writing sidebar. */
-export const FILE_TREE_ROW_STATE = `${TREE_ROW_TEXT_STATE} transition-colors duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)] hover:bg-sidebar-accent/80 active:not-has-[[data-tex-compile]:active]:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/80`;
-export const FILE_TREE_ROW_SELECTED_STATE =
-	"bg-sidebar-primary/75 text-sidebar-primary-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-primary/75 active:not-has-[[data-tex-compile]:active]:bg-sidebar-primary/75 [&_svg]:text-sidebar-primary-foreground/90";
-/** `j/k` cursor: exactly the hover material, not the selected (opened) row. */
-export const FILE_TREE_ROW_CURSOR_STATE =
-	"bg-sidebar-accent/80 text-foreground";
 
 /**
  * Flat folder ROW (no nested children) for virtualized rendering: renders the
@@ -412,10 +441,13 @@ export const FileTreeFolderRow = ({
 				// Keep the row focused so Enter can start inline rename right
 				// after a click (WebKit does not focus buttons on click).
 				e.currentTarget.focus();
-				if ((e.metaKey || e.ctrlKey || e.shiftKey) && onSelectRow) {
+				// macOS Ctrl-click is the native context-menu gesture.
+				if (isMacCtrlClick(e)) return;
+				const selectMod = isTreeSelectModifier(e);
+				if ((selectMod || e.shiftKey) && onSelectRow) {
 					onSelectRow(path, {
-						meta: e.metaKey,
-						ctrl: e.ctrlKey,
+						meta: selectMod,
+						ctrl: selectMod,
 						shift: e.shiftKey,
 					});
 					return;
@@ -540,10 +572,13 @@ export const FileTreeFile = ({
 			// Keep the row focused so Enter can start inline rename right after
 			// a click (matches VS Code / Finder tree behavior).
 			(e.currentTarget as HTMLElement).focus();
+			// macOS Ctrl-click is the native context-menu gesture.
+			if (isMacCtrlClick(e)) return;
+			const selectMod = isTreeSelectModifier(e);
 			if (onSelectRow) {
 				onSelectRow(path, {
-					meta: e.metaKey,
-					ctrl: e.ctrlKey,
+					meta: selectMod,
+					ctrl: selectMod,
 					shift: e.shiftKey,
 				});
 			} else {

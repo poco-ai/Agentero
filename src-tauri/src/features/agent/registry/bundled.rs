@@ -13,7 +13,7 @@
 //! `manifest.json` + one shared `node_modules/` tree whose entry paths the
 //! manifest records relative to the root.
 
-use crate::core::process::SanitizeAppImageEnv;
+use crate::core::process::{SanitizeAppImageEnv, SpawnInAgentScratchDir};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -137,6 +137,7 @@ pub fn bundled_adapter(template_id: &str) -> Option<BundledAdapter> {
 fn node_major_of(node: &Path) -> Option<u32> {
     let mut command = std::process::Command::new(node);
     command.arg("--version");
+    command.spawn_in_agent_scratch_dir();
     command.sanitize_appimage_env();
     crate::core::process::hide_console_window(&mut command);
     let output = command.output().ok()?;

@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { scheduleIdle } from "@/lib/core/idle";
@@ -35,9 +36,12 @@ import {
 	ensureLocalFsScope,
 	type FileNode,
 	isTextOpenable,
+	joinVaultPath,
 	readVaultFile,
+	vaultPathExists,
 } from "@/lib/vault";
 import { basenameOf, normalizePathKey, treeFindNode } from "@/lib/vault/path";
+import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { readSeedCached } from "@/lib/vault/seed-cache";
 import { tabTitleForPath } from "@/lib/workspace/tabs/model";
 import {
@@ -55,6 +59,14 @@ import {
 
 function findChildren(nodes: FileNode[], path: string): FileNode[] | undefined {
 	return treeFindNode(nodes, path)?.children;
+}
+
+function samePdfPath(
+	a: string | null | undefined,
+	b: string | null | undefined,
+): boolean {
+	if (!a || !b) return false;
+	return normalizePathKey(a) === normalizePathKey(b);
 }
 
 const pdfAutoDownloadTried = new Set<string>();
@@ -84,24 +96,39 @@ function reconcilePaperOnOpen(
 }
 
 /**
- * PDF for a paper tab: local file (blob:) → auto-download if missing → remote pdf_url.
+ * PDF for a paper tab: local file → auto-download if missing → remote pdf_url.
  * Avoids Tauri asset:// which PDF.js cannot XHR ("Unexpected server response (0)").
+ *
+ * `alreadyRead` reuses a buffer this load already took for the same path so a
+ * second `localFileToArrayBuffer` does not run. `skipLocalSearch` is set when
+ * the caller already listed the paper directory and found no PDF.
  */
 async function resolvePaperPdfSource(
 	paperDir: string,
 	vaultPath: string | null,
 	meta: PaperMetadata | null,
 	remotePdf: string | null,
+	alreadyRead?: { path: string; bytes: ArrayBuffer | null } | null,
+	skipLocalSearch = false,
 ): Promise<{
 	pdfUrl: string | null;
 	pdfBytes: ArrayBuffer | null;
 	didDownload: boolean;
 }> {
-	const localPath = await findLocalPdfPath(paperDir);
-	if (localPath) {
-		const bytes = await localFileToArrayBuffer(localPath);
-		if (bytes) return { pdfUrl: null, pdfBytes: bytes, didDownload: false };
-		return { pdfUrl: remotePdf, pdfBytes: null, didDownload: false };
+	const reused = (path: string): ArrayBuffer | null | undefined => {
+		if (!alreadyRead || !samePdfPath(alreadyRead.path, path)) return undefined;
+		return alreadyRead.bytes;
+	};
+
+	if (!skipLocalSearch) {
+		const localPath = await findLocalPdfPath(paperDir);
+		if (localPath) {
+			const cached = reused(localPath);
+			const bytes =
+				cached !== undefined ? cached : await localFileToArrayBuffer(localPath);
+			if (bytes) return { pdfUrl: null, pdfBytes: bytes, didDownload: false };
+			return { pdfUrl: remotePdf, pdfBytes: null, didDownload: false };
+		}
 	}
 
 	if (!isTauri() || !vaultPath || !canAttemptPdfDownload(meta, remotePdf)) {
@@ -172,6 +199,22 @@ export async function loadTabResources(
 		return {
 			kind: "library",
 			title: "Library",
+			mode: "markdown",
+			paperMeta: null,
+			pdfUrl: null,
+			htmlUrl: null,
+			imageUrl: null,
+			notesPath: null,
+			notesSeed: "",
+			markdownSeed: "",
+			loaded: true,
+		};
+	}
+	// Zen is a virtual Agent workspace: no filesystem probe.
+	if (isZenVirtualPath(path)) {
+		return {
+			kind: "zen",
+			title: i18n.t("sidebar:zen.title"),
 			mode: "markdown",
 			paperMeta: null,
 			pdfUrl: null,
@@ -287,35 +330,95 @@ export async function loadTabResources(
 
 	if (paperDir) {
 		const notesPath = notesPathForPaper(paperDir);
-		// Fallback seed read races with the probes below; resolved last so a
-		// bundle that only arrives on the retry wins over an early failed read.
-		const notesFallback = readSeedCached(notesPath).catch(
-			() => NOTES_PLACEHOLDER,
-		);
+		const openingPaperRoot =
+			normalizePathKey(path) === normalizePathKey(paperDir) ||
+			isPaperDirectory(path, findChildren(tree, path));
+		// Bytes already taken for one path during this load. A later read of
+		// the same path (bundle pdfPath vs the clicked file) reuses them.
+		let readPdf: { path: string; bytes: ArrayBuffer | null } | null = null;
+		const readLocalPdfOnce = async (
+			absPath: string,
+		): Promise<ArrayBuffer | null> => {
+			if (readPdf && samePdfPath(readPdf.path, absPath)) return readPdf.bytes;
+			const bytes = await localFileToArrayBuffer(absPath);
+			readPdf = { path: absPath, bytes };
+			return bytes;
+		};
+		const loadPaperPdf = async (
+			localPdfPath: string | null,
+			remotePdf: string | null,
+			pdfMeta: PaperMetadata | null,
+		) => {
+			if (localPdfPath) {
+				const bytes = await readLocalPdfOnce(localPdfPath);
+				if (bytes) {
+					return {
+						pdfUrl: null as string | null,
+						pdfBytes: bytes,
+						didDownload: false,
+					};
+				}
+			}
+			// No bytes yet. Search again only when a path was reported: a stale
+			// bundle path may have vanished and still need a download. A probe
+			// that already listed an empty directory skips that second listing.
+			return resolvePaperPdfSource(
+				paperDir,
+				vaultPath,
+				pdfMeta,
+				remotePdf,
+				readPdf,
+				localPdfPath === null,
+			);
+		};
+
+		/**
+		 * Offline snapshot written by an HTML import, beside NOTES.md. Local
+		 * vaults only: remote sessions do not store page snapshots.
+		 */
+		const probeHtmlArchive = async (): Promise<string | null> => {
+			if (!isTauri() || !vaultPath || isRemoteVaultHandle(vaultPath)) {
+				return null;
+			}
+			const archivePath = joinVaultPath(paperDir, "webpage.html");
+			try {
+				return (await vaultPathExists(archivePath)) ? archivePath : null;
+			} catch {
+				return null;
+			}
+		};
+
 		const probeOpenState = async () => {
 			const bundle = await loadPaperOpenBundle(paperDir, vaultPath);
 			const meta =
 				bundle?.paper ?? (await loadPaperMetadata(paperDir, vaultPath));
 			const { pdfUrl: remotePdf, htmlUrl } =
 				paperRemoteAssetsFromMetadata(meta);
-			let paperPdf: string | null = null;
-			let paperBytes: ArrayBuffer | null = null;
-			let didDownload = false;
-			if (bundle?.pdfPath) {
-				paperBytes = await localFileToArrayBuffer(bundle.pdfPath);
+			// The paper body prefers its local snapshot over the remote page.
+			const htmlArchivePath = openingPaperRoot
+				? await probeHtmlArchive()
+				: null;
+			// Existence only — notes, HTML, and other non-PDF tabs must not
+			// pull the main PDF into memory and then drop it. List the
+			// directory only when bundle.pdfPath is absent and this open
+			// still has to tell PDF from HTML, read a PDF, or decide the retry.
+			let localPdfPath = bundle?.pdfPath ?? null;
+			const needsLocalPdf =
+				openingPaperRoot ||
+				(!openingPaperRoot &&
+					viewerModeSpec(preferredModeForPath(path)).resource === "pdf") ||
+				(!remotePdf && !htmlUrl && (!bundle || !meta));
+			if (!localPdfPath && needsLocalPdf) {
+				localPdfPath = await findLocalPdfPath(paperDir);
 			}
-			if (!paperBytes) {
-				const resolved = await resolvePaperPdfSource(
-					paperDir,
-					vaultPath,
-					meta,
-					remotePdf,
-				);
-				paperPdf = resolved.pdfUrl;
-				paperBytes = resolved.pdfBytes;
-				didDownload = resolved.didDownload;
-			}
-			return { bundle, meta, htmlUrl, paperPdf, paperBytes, didDownload };
+			return {
+				bundle,
+				meta,
+				htmlUrl,
+				htmlArchivePath,
+				remotePdf,
+				localPdfPath,
+			};
 		};
 
 		let open = await probeOpenState();
@@ -324,8 +427,8 @@ export async function loadTabResources(
 		// (fs scope / catalog not ready yet). Hydration runs exactly once, so a
 		// miss here would stick; one delayed re-probe heals the tab instead.
 		if (
-			!open.paperPdf &&
-			!open.paperBytes &&
+			!open.remotePdf &&
+			!open.localPdfPath &&
 			!open.htmlUrl &&
 			(!open.bundle || !open.meta) &&
 			isTauri() &&
@@ -335,30 +438,41 @@ export async function loadTabResources(
 			open = await probeOpenState();
 		}
 
-		const { bundle, meta, htmlUrl, paperPdf, paperBytes, didDownload } = open;
+		const { bundle, meta, htmlUrl, htmlArchivePath, remotePdf, localPdfPath } =
+			open;
 		// Open-paper reconcile (§7.4 入口②): backfill PAPER.md (ParseBody) and
 		// references (ParseRefs) as needed. Idempotent — the JobCenter dedupes
 		// jobs, so this is safe even right after a download.
 		reconcilePaperOnOpen(paperDir, vaultPath);
-		const notesSeed = bundle?.notesSeed ?? (await notesFallback);
-
-		const openingPaperRoot =
-			normalizePathKey(path) === normalizePathKey(paperDir) ||
-			isPaperDirectory(path, findChildren(tree, path));
-
 		if (openingPaperRoot) {
-			const mode = paperBodyMode(Boolean(paperPdf || paperBytes), htmlUrl);
+			// Path or file existence picks PDF vs HTML before any byte read. An
+			// archived snapshot also renders as HTML when the remote URL is gone.
+			const mode = paperBodyMode(
+				Boolean(localPdfPath || remotePdf),
+				htmlUrl,
+				Boolean(htmlArchivePath),
+			);
+			let pdfUrl: string | null = null;
+			let pdfBytes: ArrayBuffer | null = null;
+			let didDownload = false;
+			if (viewerModeSpec(mode).resource === "pdf") {
+				const loaded = await loadPaperPdf(localPdfPath, remotePdf, meta);
+				pdfUrl = loaded.pdfUrl;
+				pdfBytes = loaded.pdfBytes;
+				didDownload = loaded.didDownload;
+			}
 			return {
 				kind: "paper",
 				title: meta?.title || basenameOf(paperDir),
 				mode,
 				paperMeta: meta,
-				pdfUrl: paperPdf,
-				pdfBytes: paperBytes,
+				pdfUrl,
+				pdfBytes,
 				htmlUrl,
+				htmlArchivePath,
 				imageUrl: null,
 				notesPath,
-				notesSeed,
+				notesSeed: "",
 				markdownSeed: "",
 				loaded: true,
 				didDownloadAssets: didDownload,
@@ -388,20 +502,48 @@ export async function loadTabResources(
 
 		// A file inside a paper folder (e.g. NOTES.md, a nested PDF, or figure).
 		// The resource strategy comes from the mode registry (viewer/index.ts).
+		// PDF bytes are read only when this file's resource is pdf.
 		const mode = preferredModeForPath(path);
-		let pdfUrl = paperPdf;
-		let pdfBytes = paperBytes;
+		const isNotes = normalizePathKey(path) === normalizePathKey(notesPath);
+		let pdfUrl: string | null = null;
+		let pdfBytes: ArrayBuffer | null = null;
+		let didDownload = false;
 		let imageUrl: string | null = null;
 		let markdownSeed = "";
-		let excalidrawSeed = "";
+		let notesSeed = "";
+		let error: string | undefined;
 
 		switch (viewerModeSpec(mode).resource) {
 			case "pdf": {
 				// Prefer the exact file the user clicked (may differ from canonical {id}.pdf).
-				const exact = await localFileToArrayBuffer(path);
+				// When it is bundle.pdfPath, read that path once — readLocalPdfOnce
+				// returns the buffer if this load already took it.
+				const bundlePath = bundle?.pdfPath ?? null;
+				if (bundlePath && samePdfPath(path, bundlePath)) {
+					const loaded = await loadPaperPdf(bundlePath, remotePdf, meta);
+					pdfUrl = loaded.pdfUrl;
+					pdfBytes = loaded.pdfBytes;
+					didDownload = loaded.didDownload;
+					break;
+				}
+				const exact = await readLocalPdfOnce(path);
 				if (exact) {
 					pdfBytes = exact;
 					pdfUrl = null;
+					break;
+				}
+				if (localPdfPath && !samePdfPath(localPdfPath, path)) {
+					const loaded = await loadPaperPdf(localPdfPath, remotePdf, meta);
+					pdfUrl = loaded.pdfUrl;
+					pdfBytes = loaded.pdfBytes;
+					didDownload = loaded.didDownload;
+				} else if (!localPdfPath) {
+					const loaded = await loadPaperPdf(null, remotePdf, meta);
+					pdfUrl = loaded.pdfUrl;
+					pdfBytes = loaded.pdfBytes;
+					didDownload = loaded.didDownload;
+				} else {
+					pdfUrl = remotePdf;
 				}
 				break;
 			}
@@ -416,32 +558,32 @@ export async function loadTabResources(
 						title: basenameOf(path),
 						mode: "image",
 						paperMeta: meta,
-						pdfUrl: paperPdf,
-						pdfBytes: paperBytes,
+						pdfUrl: null,
+						pdfBytes: null,
 						htmlUrl,
 						imageUrl: null,
 						notesPath,
-						notesSeed,
+						notesSeed: "",
 						markdownSeed: "",
 						loaded: true,
-						didDownloadAssets: didDownload,
+						didDownloadAssets: false,
 						error: "cannotPreview",
 					};
 				}
 				break;
 			}
-			case "excalidraw": {
-				try {
-					excalidrawSeed = await readVaultFile(path);
-				} catch {
-					// Leave the canvas empty when the file cannot be read.
-				}
-				// markdownSeed is consumed only by markdown mode; the old loader
-				// read it here too.
-				break;
-			}
 			case "markdown": {
-				if (isTextOpenable(path)) {
+				if (isNotes) {
+					try {
+						notesSeed = await readSeedCached(path);
+					} catch (e) {
+						if (await vaultPathExists(path).catch(() => true)) {
+							error = errorText(e);
+						} else {
+							notesSeed = NOTES_PLACEHOLDER;
+						}
+					}
+				} else if (isTextOpenable(path)) {
 					try {
 						markdownSeed = await readVaultFile(path);
 					} catch {
@@ -465,7 +607,7 @@ export async function loadTabResources(
 
 		return {
 			kind: "file",
-			title: tabTitleForPath(path),
+			title: isNotes ? i18n.t("app:labels.notes") : tabTitleForPath(path),
 			mode,
 			paperMeta: meta,
 			pdfUrl,
@@ -475,9 +617,9 @@ export async function loadTabResources(
 			notesPath,
 			notesSeed,
 			markdownSeed,
-			excalidrawSeed,
 			loaded: true,
 			didDownloadAssets: didDownload,
+			error,
 		};
 	}
 
@@ -516,14 +658,6 @@ export async function loadTabResources(
 				return { ...base, error: "cannotPreview" };
 			}
 			return { ...base, imageUrl };
-		}
-		case "excalidraw": {
-			try {
-				const excalidrawSeed = await readVaultFile(path);
-				return { ...base, excalidrawSeed };
-			} catch (e) {
-				return { ...base, error: errorText(e) };
-			}
 		}
 		case "text": {
 			// CodeMirror plain-text fallback (Papers 外未知/文本扩展名). Unlike the

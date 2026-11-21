@@ -35,46 +35,39 @@ function placeholderFor(index: number): string {
 
 const MASK_PATTERNS: RegExp[] = [
 	/⟪(?:F|\/?S)\d+⟫/gu,
-	// Display / inline TeX math (present when the source came from LaTeX).
-	/\$\$[^$]{1,400}\$\$/g,
-	/\$[^$\n]{1,200}\$/g,
-	/\\\((?:[^\\]|\\[^)]){1,200}?\\\)/g,
+	// Consume display and inline forms together so a closing $$ cannot start
+	// an inline match across the prose before the next formula.
+	/\$\$[^$]{1,400}\$\$|\$[^$\n]{1,200}\$|\\\((?:[^\\]|\\[^)]){1,200}?\\\)/g,
 	// LaTeX commands with or without a braced argument.
 	/\\[A-Za-z]+(?:\{[^{}]{0,120}\})?/g,
 	// Links and identifiers.
-	/https?:\/\/[^\s、，。]+/g,
 	/\bdoi:\s*10\.\d{4,9}\/\S+/gi,
 	/\b10\.\d{4,9}\/[^\s、，。]+/g,
 ];
 
 export function maskInlineTokens(text: string): MaskedText {
-	const tokens: MaskedToken[] = [];
-	const spans = findPreservedLinkSpans(text);
-	const placeholders = spans.map((_, index) => placeholderFor(index));
-	spans.forEach((span, index) => {
-		const placeholder = placeholders[index];
-		if (!placeholder) return;
-		tokens.push({ placeholder, original: span.text });
-	});
-	let masked = text;
-	for (let index = spans.length - 1; index >= 0; index--) {
-		const span = spans[index];
-		const placeholder = placeholders[index];
-		if (!span || !placeholder) continue;
-		masked = masked.slice(0, span.start) + placeholder + masked.slice(span.end);
-	}
+	// Match against the original source only. An enclosing TeX expression or
+	// Markdown link owns its inner formula/citation markers as one atomic span.
+	const spans: { start: number; end: number }[] = findPreservedLinkSpans(text);
 	for (const pattern of MASK_PATTERNS) {
-		masked = masked.replace(
+		for (const match of text.matchAll(
 			new RegExp(pattern.source, pattern.flags),
-			(hit) => {
-				// Already-masked spans must not be re-wrapped by a later pattern.
-				if (/^⟦\d+⟧$/.test(hit)) return hit;
-				const placeholder = placeholderFor(tokens.length);
-				tokens.push({ placeholder, original: hit });
-				return placeholder;
-			},
-		);
+		)) {
+			spans.push({ start: match.index, end: match.index + match[0].length });
+		}
 	}
+	spans.sort((a, b) => a.start - b.start || b.end - a.end);
+	const tokens: MaskedToken[] = [];
+	let masked = "";
+	let cursor = 0;
+	for (const span of spans) {
+		if (span.start < cursor) continue;
+		const placeholder = placeholderFor(tokens.length);
+		tokens.push({ placeholder, original: text.slice(span.start, span.end) });
+		masked += text.slice(cursor, span.start) + placeholder;
+		cursor = span.end;
+	}
+	masked += text.slice(cursor);
 	return { text: masked, tokens };
 }
 

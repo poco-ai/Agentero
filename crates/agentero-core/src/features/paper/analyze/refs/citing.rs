@@ -13,8 +13,6 @@
 //!      citing a 190k-citation classic counts for almost nothing.
 //!   L2 SPECTER2 similarity — centered max-sim against my own papers, with the
 //!      threshold self-calibrated from my own library.
-//!
-//! @see docs/backend/citation-parsing.md
 
 use super::latex;
 use crate::error::AppError;
@@ -187,7 +185,7 @@ fn cache_path(vault: &Path) -> PathBuf {
 }
 
 /// One paper that cites a library seed, as last stored by `library_citing_scan`.
-/// No network. An empty list means this paper has no cached citing page.
+/// Loaded from the local scan cache.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CachedCitingCard {
@@ -199,22 +197,22 @@ pub struct CachedCitingCard {
 }
 
 /// Citing papers recorded for `paper_path` in `.agentero/citing-scan.json`.
-pub fn cached_citing_of(vault: &Path, paper_path: &str) -> Vec<CachedCitingCard> {
+pub fn cached_citing_of(vault: &Path, paper_path: &str) -> Option<Vec<CachedCitingCard>> {
     let path = crate::fs::normalize_rel_separators(paper_path);
     let cache = load_cache(vault);
-    let Some(seed) = cache.seeds.get(&path) else {
-        return Vec::new();
-    };
-    seed.citing
-        .iter()
-        .map(|row| CachedCitingCard {
-            title: row.title.clone(),
-            date: row.date.clone(),
-            doi: row.doi.clone(),
-            arxiv_id: row.arxiv_id.clone(),
-            citation_count: row.citation_count,
-        })
-        .collect()
+    let seed = cache.seeds.get(&path)?;
+    Some(
+        seed.citing
+            .iter()
+            .map(|row| CachedCitingCard {
+                title: row.title.clone(),
+                date: row.date.clone(),
+                doi: row.doi.clone(),
+                arxiv_id: row.arxiv_id.clone(),
+                citation_count: row.citation_count,
+            })
+            .collect(),
+    )
 }
 
 fn load_cache(vault: &Path) -> CitingScanCache {

@@ -14,6 +14,9 @@ pub struct ActivityProjection {
     pub status: Option<String>,
     pub qty: Option<i64>,
     pub dur_bucket: Option<&'static str>,
+    /// Coarse token total. Set only for `agent.usage`; `qty` stays empty so
+    /// the exact count never leaves the machine.
+    pub token_bucket: Option<&'static str>,
 }
 
 /// Map a local activity record to its PostHog projection, or `None` when the
@@ -28,6 +31,8 @@ pub fn telemetry_projection(raw: &UsageRecord) -> Option<ActivityProjection> {
         "paper.import" => "paper_imported",
         "search.query" => "search_performed",
         "agent.run" => "agent_run",
+        "agent.usage" => "agent_usage",
+        "activity.view" => "activity_viewed",
         "skill.install" => "skill_installed",
         "paper.tag" => "paper_tagged",
         "paper.read" => "paper_read_set",
@@ -38,13 +43,31 @@ pub fn telemetry_projection(raw: &UsageRecord) -> Option<ActivityProjection> {
     let dur_bucket = (normalized.kind == "paper.session")
         .then(|| normalized.dur_ms.map(bucket_duration))
         .flatten();
+    let (qty, token_bucket) = if normalized.kind == "agent.usage" {
+        (None, normalized.qty.map(bucket_tokens))
+    } else {
+        (normalized.qty, None)
+    };
     Some(ActivityProjection {
         name,
         facet: normalized.facet,
         status: normalized.status,
-        qty: normalized.qty,
+        qty,
         dur_bucket,
+        token_bucket,
     })
+}
+
+fn bucket_tokens(qty: i64) -> &'static str {
+    if qty < 1_000 {
+        "<1k"
+    } else if qty < 10_000 {
+        "1-10k"
+    } else if qty < 100_000 {
+        "10-100k"
+    } else {
+        "100k+"
+    }
 }
 
 fn bucket_duration(ms: i64) -> &'static str {

@@ -1,10 +1,17 @@
 {
-	"navigator": { "hintTargets": "{{count}} keyboard targets" },
+	"navigator": {
+		"hintTargets": "{{count}} keyboard targets"
+	},
 	"labels": {
 		"agent": "Agent",
 		"notes": "Notes",
 		"untitled": "Untitled",
 		"remoteArxiv": "Remote arXiv"
+	},
+	"pathBar": {
+		"openFolder": "Open folder",
+		"openWith": "Open with",
+		"openLinks": "Open links"
 	},
 	"commandPalette": {
 		"title": "Quick open",
@@ -56,8 +63,7 @@
 		"tabPrevInGroup": "Previous Tab in Group",
 		"exportAnnotatedPdf": "Export Annotated PDF",
 		"wandOpen": "Magic Wand (Import by ID)",
-		"pluginsLoadDevelopment": "Load development plugin…",
-		"pluginsUnloadDevelopment": "Unload development plugins"
+		"immersiveReading": "Immersive reading"
 	},
 	"titlebar": {
 		"showLeftSidebar": "Show left sidebar",
@@ -79,7 +85,8 @@
 		"menuSettings": "Settings…",
 		"menuKeyboardShortcuts": "Keyboard Shortcuts",
 		"menuQuickOpen": "Quick Open…",
-		"menuCommandPalette": "Command Palette…"
+		"menuCommandPalette": "Command Palette…",
+		"layoutImmersive": "Immersive reading"
 	},
 	"editor": {
 		"markdownPlaceholder": "Type Markdown here...",
@@ -133,6 +140,8 @@
 		"docUnsupported": "Library and Trash cannot be opened in a new window.",
 		"featureDesktopOnly": "Feature windows require the desktop app.",
 		"docDesktopOnly": "Document windows require the desktop app.",
+		"moveUnsaved": "This document window has unsaved changes, so the tab stayed open.",
+		"moveFailed": "The document did not open in the new window, so the tab stayed open.",
 		"titleAgent": "Agent",
 		"titleAnnotations": "Annotations",
 		"titleDocument": "Document"
@@ -248,6 +257,13 @@
 		"layoutModelDetail": "ModelScope → HuggingFace · PP-DocLayoutV3",
 		"layoutAnalysis": "Parse figures, tables, and text",
 		"layoutTranslate": "Translate full text",
+		"layoutTranslateComplete": "Complete translation",
+		"layoutTranslatePrepareItems": "Preparing items",
+		"layoutTranslateRun": "Translating",
+		"layoutTranslateFormulas": "Preparing formulas",
+		"layoutTranslateWritePdf": "Writing PDF",
+		"layoutTranslatePartial": "{{translated}}/{{total}} translated, {{pending}} still missing",
+		"layoutTranslateFormulaStalled": "Formula preparation stalled",
 		"pdfParse": "Parse PDF body",
 		"parseRefs": "Parse references",
 		"openLayoutSettings": "Open analysis settings",
@@ -274,6 +290,8 @@
 		"paperReadMarking": "Marking as read…",
 		"paperReadDone": "Read complete",
 		"paperReadFailed": "Paper reading failed",
+		"paperReadNoNotes": "Paper reading wrote no notes; kept unread — try again",
+		"paperReadGarbled": "Notes look garbled; kept unread — retry or switch agent / model",
 		"connector": "Saving Connector attachment",
 		"connectorComplete": "Connector attachment ready",
 		"connectorFailed": "Connector attachment failed"
@@ -290,12 +308,5 @@
 			"description": "If access is restricted, configure a proxy in settings and try again.",
 			"openSettings": "Open network settings"
 		}
-	},
-	"plugins": {
-		"chooseDirectory": "Load plugin — allow reading the current vault",
-		"failed": "Plugin operation failed",
-		"loaded": "Development plugin loaded",
-		"commandTitle": "{{title}}",
-		"suspended": "{{name}} was stopped after repeated failures. Re-enable it in Settings."
 	}
 }

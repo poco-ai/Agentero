@@ -1,23 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { createPageBitmapCache } from "@/components/viewer/pdf/layers/page-bitmap-cache";
+import {
+	createPageBitmap,
+	createPageBitmapCache,
+} from "@/components/viewer/pdf/layers/page-bitmap-cache";
+
+const scope = {};
+const documentId = "test";
+
+function bitmap(size: number, key = "normal") {
+	return {
+		scope,
+		documentId,
+		key,
+		bitmap: createPageBitmap(new Blob([new Uint8Array(size)])),
+	};
+}
 
 describe("page bitmap cache", () => {
-	it("keeps a pinned bitmap when newer pages exceed the limit", () => {
+	it("keeps a recently read bitmap when newer pages exceed the limit", () => {
 		const cache = createPageBitmapCache(2);
-		expect(cache.retain("p1")).toBeNull();
-		expect(cache.store("p1", "blob:1", "s1")).toEqual([]);
-		expect(cache.store("p2", "blob:2", "s1")).toEqual([]);
-		expect(cache.store("p3", "blob:3", "s1")).toEqual(["blob:2"]);
-		expect(cache.retain("p1")).toBe("blob:1");
-		expect(cache.matches("p1", "s1")).toBe(true);
-		expect(cache.matches("p1", "s2")).toBe(false);
+		const first = bitmap(1);
+		cache.store(first, 0);
+		cache.store(bitmap(1), 1);
+		expect(cache.get(scope, documentId, 0)).toBe(first);
+		cache.store(bitmap(1), 2);
+		expect(cache.get(scope, documentId, 1)).toBeUndefined();
+		expect(cache.get(scope, documentId, 0)).toBe(first);
+		cache.clear(scope);
 	});
 
-	it("returns the replaced bitmap and drops an unpinned page", () => {
-		const cache = createPageBitmapCache(1);
-		cache.store("p1", "blob:old", "s1");
-		expect(cache.store("p1", "blob:new", "s2")).toEqual(["blob:old"]);
-		cache.release("missing");
-		expect(cache.store("p2", "blob:2", "s1")).toEqual(["blob:new"]);
+	it("returns the replacement and accounts for only its size", () => {
+		const cache = createPageBitmapCache(2, 4);
+		const updated = bitmap(2, "zoomed");
+		cache.store(bitmap(3), 0);
+		cache.store(updated, 0);
+		cache.store(bitmap(2), 1);
+		expect(cache.get(scope, documentId, 0)).toBe(updated);
+		expect(cache.get(scope, documentId, 1)).toBeDefined();
+		cache.clear(scope);
 	});
 });

@@ -6,7 +6,7 @@ describe("seededSkillIdsFromCreated", () => {
 		const ids = seededSkillIdsFromCreated([
 			"papers/",
 			".agents/skills/README.md",
-			".agents/skills/acdemic-drawing/SKILL.md",
+			".agents/skills/agentero-cli/SKILL.md",
 			".agents/skills/deep-research/SKILL.md",
 			".agents/skills/deep-research/LICENSE",
 			".agents/skills/deep-research/references/quality-gates.md",
@@ -16,7 +16,7 @@ describe("seededSkillIdsFromCreated", () => {
 			".agents/skills/research-paper-writing/references/method.md",
 		]);
 		expect(ids).toEqual([
-			"acdemic-drawing",
+			"agentero-cli",
 			"deep-research",
 			"idea-evaluator",
 			"paper-reader",

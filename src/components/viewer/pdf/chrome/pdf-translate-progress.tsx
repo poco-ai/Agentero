@@ -1,12 +1,7 @@
-import { Check, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
-import {
-	PDF_TRANSLATE_METER_PERCENT,
-	PDF_TRANSLATE_METER_STAGE,
-	PdfTranslateMeterBar,
-} from "@/components/viewer/pdf/chrome/pdf-translate-meter";
+import { PdfTranslateExportButton } from "@/components/viewer/pdf/chrome/pdf-translate-export-button";
+import { PdfTranslateMeterReadout } from "@/components/viewer/pdf/chrome/pdf-translate-meter";
 import { PdfTranslatePartialButton } from "@/components/viewer/pdf/chrome/pdf-translate-partial-button";
 import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
@@ -21,14 +16,24 @@ type PdfTranslateProgressChipProps = {
 	/** Pages done ÷ pages in the current stage, when the stage has a count. */
 	layoutTranslatePageCounts?: { done: number; total: number } | null;
 	layoutTranslatePartial?: PdfLayoutTranslatePartial | null;
+	/** Mount the export menu only when the generated pages are ready. */
+	onExport?: (dual?: boolean) => void;
 	onStop: () => void;
 };
 
 /**
- * Floating full-text translation meter for the dual-pane translation panel.
- * The panel owns the job but hides the source toolbar, so this keeps the same
- * stage / percentage feedback visible while the translation runs, and the
- * shared recovery actions available after a partial run or cache hydrate.
+ * The translation pane's chrome: the job's stage / page count / stop square and
+ * the export menu, all in one capsule.
+ *
+ * 对照 mode splits this pane out beside the reader, so the pane owns the job
+ * chrome there: the reader toolbar hides its meter and its export instead of
+ * running a second progress surface that starts over at 0%. The readout is the
+ * same component the toolbar grows in 译文, so both modes read one progress
+ * language — and the export menu is literally the same control.
+ *
+ * The partial warning is a document-level alarm, not a stage of the job; it
+ * sits at the leading edge of the same card, exactly like the reader toolbar
+ * keeps it before the meter.
  */
 export function PdfTranslateProgressChip({
 	layoutTranslateRunning,
@@ -38,6 +43,7 @@ export function PdfTranslateProgressChip({
 	layoutTranslateProgress = null,
 	layoutTranslatePageCounts = null,
 	layoutTranslatePartial = null,
+	onExport,
 	onStop,
 }: PdfTranslateProgressChipProps) {
 	const { t } = useTranslation("viewer");
@@ -60,30 +66,45 @@ export function PdfTranslateProgressChip({
 		layoutTranslatePageCounts,
 	});
 	const showPartial = layoutTranslatePartial?.visible;
-	if (!open && !showPartial) return null;
-	const cancellable = layoutTranslateRunning || layoutTranslateWaiting;
+	if (!open && !showPartial && !onExport) return null;
+	// The stop square belongs to the meter, not to one stage: queued, waiting
+	// and local page generation all have to be cancellable, exactly like the
+	// reader toolbar's meter. The readout still swaps it for the completed check
+	// and hides it while the bar retracts.
 	const stopLabel = layoutTranslateWaiting
 		? t("pdf.layoutTranslate.waiting")
 		: t("pdf.layoutTranslate.stop");
 
 	return (
-		<div
-			data-pdf-chrome
-			className={cn(
-				"pointer-events-none absolute top-2 right-3 z-20 flex h-7 select-none items-center gap-1.5 rounded-lg",
-				open ? "pl-2.5" : "pl-0.5",
-				!open || cancellable || lingerFull ? "pr-0.5" : "pr-2.5",
-				PDF_CHROME_CHIP,
-			)}
-		>
-			{showPartial ? (
-				<PdfTranslatePartialButton
-					partial={layoutTranslatePartial}
-					className="pointer-events-auto shrink-0"
-				/>
-			) : null}
-			{open ? (
-				<>
+		<div className="pointer-events-none absolute top-2 right-3 z-20 flex select-none items-center gap-1">
+			<div
+				data-pdf-chrome
+				className={cn(
+					"pointer-events-auto flex h-7 items-center gap-0.5 rounded-lg p-0.5",
+					PDF_CHROME_CHIP,
+				)}
+			>
+				{showPartial ? (
+					<div className="shrink-0">
+						<PdfTranslatePartialButton partial={layoutTranslatePartial} />
+					</div>
+				) : null}
+				{onExport ? <PdfTranslateExportButton onExport={onExport} /> : null}
+				{open ? (
+					<PdfTranslateMeterReadout
+						stage={stage}
+						pagesLabel={pagesLabel}
+						percent={percent}
+						indeterminate={indeterminate}
+						width={width}
+						retracting={retracting}
+						lingerFull={lingerFull}
+						showStop
+						stopLabel={stopLabel}
+						onStop={onStop}
+					/>
+				) : null}
+				{open ? (
 					<span
 						role="progressbar"
 						className="sr-only"
@@ -92,40 +113,8 @@ export function PdfTranslateProgressChip({
 						aria-valuemax={100}
 						aria-valuenow={indeterminate ? undefined : Math.round(ratio * 100)}
 					/>
-					<span aria-hidden className={PDF_TRANSLATE_METER_STAGE}>
-						{stage}
-					</span>
-					{pagesLabel && !retracting ? (
-						<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
-							{pagesLabel}
-						</span>
-					) : null}
-					{indeterminate || retracting ? null : (
-						<span aria-hidden className={PDF_TRANSLATE_METER_PERCENT}>
-							{percent}%
-						</span>
-					)}
-					{cancellable ? (
-						<Button
-							type="button"
-							size="icon-xs"
-							variant="ghost"
-							className="pointer-events-auto text-foreground"
-							aria-label={stopLabel}
-							title={stopLabel}
-							onClick={onStop}
-						>
-							<Square
-								className="size-2.5 fill-current opacity-60"
-								aria-hidden
-							/>
-						</Button>
-					) : lingerFull ? (
-						<Check className="size-3.5 text-foreground/70" aria-hidden />
-					) : null}
-					<PdfTranslateMeterBar indeterminate={indeterminate} width={width} />
-				</>
-			) : null}
+				) : null}
+			</div>
 		</div>
 	);
 }

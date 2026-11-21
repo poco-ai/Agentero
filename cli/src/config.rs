@@ -15,6 +15,8 @@ pub struct CliConfig {
     pub translator_base_url: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub known_vaults: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub vault_names: std::collections::BTreeMap<String, String>,
     /// Preserve fields written by newer CLI versions when migrating or saving.
     #[serde(flatten)]
     pub extra: std::collections::BTreeMap<String, toml::Value>,

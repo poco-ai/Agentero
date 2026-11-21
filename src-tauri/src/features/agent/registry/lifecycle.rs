@@ -4,7 +4,7 @@
 //! npm fallback; login-shell PATH for GUI apps; no `curl | bash` pipes).
 //! Scoped to Motif catalog templates.
 
-use crate::core::process::SanitizeAppImageEnv;
+use crate::core::process::{SanitizeAppImageEnv, SpawnInAgentScratchDir};
 use crate::features::agent::registry::discovery::{login_shell_env, path_entries, resolve_command};
 use crate::features::agent::registry::templates::{
     kimi_launcher_dir, template_info, zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND,
@@ -75,6 +75,7 @@ pub const LIFECYCLE_TEMPLATES: &[&str] = &[
     "claude-acp",
     "codex-acp",
     "cursor-agent",
+    "antigravity-acp",
     "hermes",
     "qodercli",
     "qoder-cn",
@@ -220,6 +221,19 @@ const CODEBUDDY_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https
 #[cfg(target_os = "windows")]
 const CODEBUDDY_INSTALL_WINDOWS_SCRIPT: &str =
     "irm https://copilot.tencent.com/cli/install.ps1 | iex";
+
+/// Antigravity CLI official installer. It stages a flat native `agy` binary in
+/// `~/.local/bin` (Windows: `%LOCALAPPDATA%\agy\bin`), verifies its SHA-512 and
+/// then lets `agy install` wire the shell / PATH. Same download-then-exec shape
+/// as the other official installers, never `curl | bash`.
+///
+/// Re-running it while the binary exists is an explicit no-op ("The Antigravity
+/// CLI automatically self-updates"), so update has to go through `agy update`.
+#[cfg(not(target_os = "windows"))]
+const ANTIGRAVITY_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://antigravity.google/cli/install.sh -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
+#[cfg(target_os = "windows")]
+const ANTIGRAVITY_INSTALL_WINDOWS_SCRIPT: &str =
+    "irm https://antigravity.google/cli/install.ps1 | iex";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolLifecycleAction {
@@ -380,6 +394,8 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
         // bridge npm package, so uninstall must never imply that it removed
         // the user's desktop app or login data.
         "zcode" => (Vec::new(), vec![zcode_acp]),
+        // Official installer only: there is no npm package (and no managed
+        // adapter directory) to reverse; the binary lives in `agent_dirs`.
         "antigravity-acp" => (Vec::new(), Vec::new()),
         // hermes: official-script-only install, nothing we can reverse.
         _ => return None,
@@ -387,6 +403,13 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
     let (agent_dirs, acp_dirs): (Vec<String>, Vec<String>) = match template_id {
         "cursor-agent" => (
             cursor_managed_install_paths()
+                .into_iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            Vec::new(),
+        ),
+        "antigravity-acp" => (
+            antigravity_managed_install_paths()
                 .into_iter()
                 .map(|path| path.display().to_string())
                 .collect(),
@@ -538,6 +561,56 @@ fn cursor_managed_install_paths() -> Vec<std::path::PathBuf> {
     paths
 }
 
+/// Official Antigravity CLI layout: a single flat `agy` binary in
+/// `~/.local/bin` on Unix, `%LOCALAPPDATA%\agy\bin\agy.exe` on Windows. The
+/// shared `bin` dir stays, and so do `~/.gemini/antigravity-cli` (auth,
+/// sessions, settings) and the shell rc PATH lines `agy install` wrote.
+fn antigravity_managed_install_paths() -> Vec<std::path::PathBuf> {
+    antigravity_binary_path().into_iter().collect()
+}
+
+/// `agy` binary the official installer / updater wrote.
+fn antigravity_binary_path() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        let local = std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from)?;
+        Some(local.join("agy").join("bin").join("agy.exe"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var_os("HOME").map(std::path::PathBuf::from)?;
+        Some(home.join(".local").join("bin").join("agy"))
+    }
+}
+
+/// `agy update` swaps in a new binary and parks the previous one beside it as
+/// `agy.<unix-nanos>.old`, so a removed CLI must also drop those backups —
+/// otherwise uninstall leaves a ~200 MB copy behind.
+fn remove_antigravity_update_backups() -> Result<(), String> {
+    let Some(binary) = antigravity_binary_path() else {
+        return Ok(());
+    };
+    let Some(dir) = binary.parent() else {
+        return Ok(());
+    };
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(err) => return Err(format!("failed to inspect {}: {err}", dir.display())),
+    };
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("failed to inspect {}: {err}", dir.display()))?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if name.starts_with("agy.") && name.ends_with(".old") {
+            remove_managed_path(&entry.path())?;
+        }
+    }
+    Ok(())
+}
+
 /// Remove one managed uninstall path. A symlink is unlinked and not followed,
 /// so `~/.local/bin/qodercli` goes away even after its target is already gone,
 /// and the shared `~/.local/bin` directory stays.
@@ -605,6 +678,11 @@ pub fn run_partial_template_uninstall(
     }
     for dir in &payload.dirs {
         remove_managed_path(std::path::Path::new(dir))?;
+    }
+    if template_id == "antigravity-acp"
+        && matches!(scope, UninstallScope::Agent | UninstallScope::All)
+    {
+        remove_antigravity_update_backups()?;
     }
     #[cfg(windows)]
     if template_id == "dsh"
@@ -824,6 +902,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
             "claude-acp" => Ok(CLAUDE_NPM_INSTALL_COMMAND.to_string()),
             "codex-acp" => Ok(CODEX_HOST_INSTALL_COMMAND.to_string()),
             "cursor-agent" => Ok(cursor_install_windows_command()),
+            "antigravity-acp" => Ok(antigravity_install_windows_command()),
             "opencode" => Ok(OPENCODE_NPM_INSTALL_COMMAND.to_string()),
             "hermes" => Ok(hermes_install_windows_command()),
             "qodercli" => Ok(chain_or(
@@ -863,6 +942,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
             "claude-acp" => Ok(chain_or(CLAUDE_INSTALL_UNIX, CLAUDE_NPM_INSTALL_COMMAND)),
             "codex-acp" => Ok(CODEX_HOST_INSTALL_COMMAND.to_string()),
             "cursor-agent" => Ok(CURSOR_INSTALL_UNIX.to_string()),
+            "antigravity-acp" => Ok(ANTIGRAVITY_INSTALL_UNIX.to_string()),
             "opencode" => Ok(chain_or(
                 OPENCODE_INSTALL_UNIX,
                 OPENCODE_NPM_INSTALL_COMMAND,
@@ -924,6 +1004,22 @@ fn host_update_command(template_id: &str) -> Result<String, String> {
             #[cfg(not(target_os = "windows"))]
             {
                 Ok(chain_or("cursor-agent update", CURSOR_INSTALL_UNIX))
+            }
+        }
+        // The official installer is a no-op while `agy` exists (the CLI
+        // self-updates in the background), so refresh through `agy update` and
+        // only fall back to the installer when the binary is gone.
+        "antigravity-acp" => {
+            #[cfg(target_os = "windows")]
+            {
+                Ok(chain_or(
+                    "agy update",
+                    &antigravity_install_windows_command(),
+                ))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Ok(chain_or("agy update", ANTIGRAVITY_INSTALL_UNIX))
             }
         }
         "pi" => {
@@ -1155,6 +1251,14 @@ fn cursor_install_windows_command() -> String {
     )
 }
 
+#[cfg(target_os = "windows")]
+fn antigravity_install_windows_command() -> String {
+    format!(
+        "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}",
+        powershell_encoded_command(ANTIGRAVITY_INSTALL_WINDOWS_SCRIPT)
+    )
+}
+
 /// Manual one-click install text for Settings (copyable). Matches backend install chains.
 pub fn manual_install_commands_text() -> String {
     #[cfg(target_os = "windows")]
@@ -1294,6 +1398,9 @@ fn run_tool_lifecycle_silently(
         let script = format!("set -e\nset -o pipefail\n{command_line}\n");
         let mut cmd = Command::new("bash");
         cmd.arg("-c").arg(script);
+        // Installers run user tooling; keep them out of the Host's
+        // LaunchServices cwd (#1119).
+        cmd.spawn_in_agent_scratch_dir();
         apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
         apply_npm_cache_env(&mut cmd, effective_npm_cache_dir().as_deref());
         if let Some(prefix) = npm_prefix {
@@ -1340,6 +1447,7 @@ fn run_tool_lifecycle_silently(
             .arg("/C")
             .arg(&bat_file)
             .env("PATH", merged_path);
+        cmd.spawn_in_agent_scratch_dir();
         cmd.sanitize_appimage_env();
         crate::core::process::hide_console_window(&mut cmd);
         apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
@@ -1710,14 +1818,38 @@ mod tests {
     }
 
     #[test]
-    fn antigravity_has_no_lifecycle_support() {
-        assert!(!supports_lifecycle("antigravity-acp"));
+    fn antigravity_install_uses_the_official_cli_installer() {
+        assert!(supports_lifecycle("antigravity-acp"));
         let template = template_info("antigravity-acp").expect("antigravity template");
         assert_eq!(template.command, "agy");
         assert_eq!(template.args, vec!["acp"]);
         assert_eq!(template.detect_command.as_deref(), Some("agy"));
+        // The lifecycle owns the install now; there is no extra adapter to fetch.
         assert!(template.install_command.is_none());
-        assert!(host_install_command("antigravity-acp").is_err());
+        let install = host_install_command("antigravity-acp").expect("antigravity install");
+        // Windows runs the official script through an EncodedCommand payload.
+        let install_script = if cfg!(target_os = "windows") {
+            decode_encoded_commands(&install)
+        } else {
+            install.clone()
+        };
+        assert!(
+            install_script.contains("antigravity.google/cli/install"),
+            "install must fetch the official CLI installer: {install_script}"
+        );
+        let update = host_update_command("antigravity-acp").expect("antigravity update");
+        assert!(
+            update.contains("agy update"),
+            "update must use the built-in self-update: {update}"
+        );
+        let uninstall = uninstall_info("antigravity-acp").expect("antigravity uninstall");
+        let all = uninstall.for_scope(UninstallScope::All);
+        assert!(all.npm_commands.is_empty(), "no npm package to uninstall");
+        assert!(
+            all.dirs.iter().any(|dir| dir.contains("agy")),
+            "uninstall must remove the agy binary: {:?}",
+            all.dirs
+        );
     }
 
     #[test]

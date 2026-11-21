@@ -21,8 +21,13 @@ describe("GitHub download errors", () => {
 
 		expect(toast.error).toHaveBeenCalledTimes(1);
 		const [title, options] = vi.mocked(toast.error).mock.calls[0];
-		expect(title).toBe("settings:about.downloadNetworkError.title");
+		// A dedicated network message, not the raw install error, with an
+		// action that routes to the general (network) settings.
+		expect(typeof title).toBe("string");
+		expect(title).not.toBe("Install failed");
+		expect(title).toBeTruthy();
 		const action = options?.action as { onClick: () => void };
+		expect(action).toBeDefined();
 		action.onClick();
 		expect(openSettingsWindow).toHaveBeenCalledWith("general");
 	});

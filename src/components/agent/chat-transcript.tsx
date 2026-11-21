@@ -18,7 +18,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { AgentThinkingOrb } from "@/components/agent/agent-thinking-orb";
-import { ChatSelectionReferences } from "@/components/agent/chat-selection-references";
 import {
 	ChatAttachedImages,
 	ChatVisualAnnotations,
@@ -72,6 +71,11 @@ import {
 	MessageResponse,
 } from "@/components/agent/message";
 import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
+import { UserMessageResponse } from "@/components/agent/rendering/user-message-response";
+import {
+	AnnotationMarkerText,
+	LooseSelectionChips,
+} from "@/components/agent/sent-annotation-chip";
 import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
 import {
 	selectionSurfaceProps,
@@ -92,6 +96,10 @@ import { Shimmer } from "@/components/ui/shimmer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveChatLines } from "@/lib/agent/agent-session-store";
 import {
+	annotationSnapshotsForMarkers,
+	formatAnnotationSnapshotsForCopy,
+} from "@/lib/agent/annotation-snapshot";
+import {
 	type AgentPhaseState,
 	isAgentAuthFailure,
 	isChatOnlyAgentTemplate,
@@ -107,10 +115,11 @@ import {
 	streamingLabel,
 	suggestionItems,
 	type ToolAskUserRecord,
-	type ToolUiState,
 	toolPartState,
 } from "@/lib/agent/chat-state";
 import {
+	extractSelectionTokens,
+	extractVisualIds,
 	hasTranscriptChips,
 	inlineMarkupToPlain,
 	stripInlineTokens,
@@ -119,6 +128,9 @@ import { stripPromptEnvelopeForDisplay } from "@/lib/agent/prompt-display";
 import { selectionNavigationStore } from "@/lib/agent/selection-navigation-state";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
 import { terminalToolData } from "@/lib/agent/terminal-tool";
+import { commands } from "@/lib/core/bindings";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper";
 import { workspaceStore } from "@/lib/workspace/store";
@@ -363,7 +375,7 @@ function StreamingActivityRow({
 				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
 			)}
 			onClick={onToggle}
-			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 		>
 			{content}
 		</button>
@@ -441,63 +453,6 @@ function CopyAction({ getText }: { getText: () => string }) {
  * references stable, and every other prop is either a primitive or the
  * identity-stable handlers object.
  */
-function delegateField(value: unknown, key: string): string {
-	if (typeof value === "string") {
-		try {
-			return delegateField(JSON.parse(value), key);
-		} catch {
-			return "";
-		}
-	}
-	if (typeof value === "object" && value !== null && key in value) {
-		const field = (value as Record<string, unknown>)[key];
-		return typeof field === "string" ? field : "";
-	}
-	return "";
-}
-
-function delegateToolTitle(
-	tool: ToolUiState,
-	t: (
-		key:
-			| "delegate.targets"
-			| "delegate.result"
-			| "delegate.cancel"
-			| "delegate.run"
-			| "delegate.status.running"
-			| "delegate.status.completed"
-			| "delegate.status.failed"
-			| "delegate.status.cancelled",
-		options?: Record<string, string>,
-	) => string,
-): string | null {
-	const name = `${tool.kind} ${tool.title}`;
-	if (!name.includes("remote_")) return null;
-	if (name.includes("remote_targets")) return t("delegate.targets");
-	if (name.includes("remote_delegate_cancel")) return t("delegate.cancel");
-	if (name.includes("remote_delegate_result")) return t("delegate.result");
-	if (!name.includes("remote_delegate")) return null;
-	const host =
-		delegateField(tool.output, "destination") ||
-		delegateField(tool.input, "target") ||
-		"…";
-	const agent =
-		delegateField(tool.output, "agentId") ||
-		delegateField(tool.input, "agentId") ||
-		"…";
-	const status =
-		delegateField(tool.output, "status") ||
-		(tool.status === "failed" ? "failed" : "running");
-	const statusLabel =
-		status === "completed"
-			? t("delegate.status.completed")
-			: status === "failed"
-				? t("delegate.status.failed")
-				: status === "cancelled"
-					? t("delegate.status.cancelled")
-					: t("delegate.status.running");
-	return t("delegate.run", { host, agent, status: statusLabel });
-}
 
 const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	line,
@@ -538,6 +493,10 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	if (line.kind === "user") {
 		const visuals = line.visualAnnotations ?? [];
 		const attachedImages = line.images ?? [];
+		const markupVisualIds = new Set(extractVisualIds(line.markup ?? ""));
+		const looseVisuals = visuals.filter(
+			(visual) => !markupVisualIds.has(visual.id),
+		);
 		const chipMarkup =
 			line.markup && hasTranscriptChips(line.markup) ? line.markup : undefined;
 		if (isEditing) {
@@ -550,11 +509,12 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 								markup={chipMarkup}
 								onOpenPath={onOpenSource}
 								chipsOnly
+								visuals={visuals}
 							/>
 						</div>
 					) : null}
-					{visuals.length > 0 ? (
-						<ChatVisualAnnotations annotations={visuals} />
+					{looseVisuals.length > 0 ? (
+						<ChatVisualAnnotations annotations={looseVisuals} />
 					) : null}
 					{attachedImages.length > 0 ? (
 						<ChatAttachedImages images={attachedImages} />
@@ -607,6 +567,22 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 		const userDisplay = stripPromptEnvelopeForDisplay(
 			stripInlineTokens(line.text),
 		);
+		// Local messages retain reference positions; loaded messages use numbered snapshots.
+		const annotationCards = chipMarkup
+			? []
+			: annotationSnapshotsForMarkers(
+					userDisplay,
+					line.text,
+					line.annotationSnapshots,
+				);
+		const markupSelectionIds = new Set(
+			(chipMarkup ? extractSelectionTokens(chipMarkup) : []).map(
+				(selection) => selection.id,
+			),
+		);
+		const looseSelections = (line.selections ?? []).filter(
+			(selection) => !markupSelectionIds.has(selection.id),
+		);
 		// Never render Codex env / Host system envelopes as user bubbles.
 		if (
 			!userDisplay &&
@@ -626,16 +602,16 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 					visualAnnotations: visuals,
 					images: attachedImages,
 				}),
+				formatAnnotationSnapshotsForCopy(annotationCards),
 				selectionsPromptBlock(line.selections ?? []),
 			]
 				.filter(Boolean)
 				.join("\n\n");
 		return (
 			<Message from="user" className="max-w-[85%]">
-				<ChatSelectionReferences selections={line.selections ?? []} />
 				{/* Visual chips above the text bubble (not inside it). */}
-				{visuals.length > 0 ? (
-					<ChatVisualAnnotations annotations={visuals} />
+				{looseVisuals.length > 0 ? (
+					<ChatVisualAnnotations annotations={looseVisuals} />
 				) : null}
 				{/*
 				 * Right-anchored content block. Hover actions float at its
@@ -647,7 +623,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						<ChatAttachedImages images={attachedImages} />
 					) : null}
 					{/* Free-text only: skip empty bubble when the turn is image/visual-only. */}
-					{chipMarkup || userDisplay ? (
+					{chipMarkup || userDisplay || looseSelections.length > 0 ? (
 						<MessageContent
 							className="rounded-2xl px-4 py-2.5"
 							{...selectionSurfaceProps({
@@ -659,12 +635,24 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 							})}
 						>
 							{chipMarkup ? (
-								<InlineChipText markup={chipMarkup} onOpenPath={onOpenSource} />
+								<InlineChipText
+									markup={chipMarkup}
+									visuals={visuals}
+									onOpenPath={onOpenSource}
+								/>
+							) : annotationCards.length > 0 ? (
+								<AnnotationMarkerText
+									text={userDisplay}
+									snapshots={annotationCards}
+								/>
 							) : (
-								<MessageResponse className="text-base leading-relaxed">
+								<UserMessageResponse className="text-base leading-relaxed">
 									{userDisplay}
-								</MessageResponse>
+								</UserMessageResponse>
 							)}
+							{looseSelections.length > 0 && annotationCards.length === 0 ? (
+								<LooseSelectionChips selections={looseSelections} />
+							) : null}
 						</MessageContent>
 					) : null}
 					{/* Hovers beside the bubble's bottom-left, outside the box. */}
@@ -833,11 +821,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						<ToolHeader
 							className={insideProcess ? "px-2 py-1.5" : undefined}
 							swapIconOnHover={insideProcess}
-							title={
-								delegateToolTitle(tool, t) ||
-								tool.title ||
-								t("tool.defaultTitle")
-							}
+							title={tool.title || t("tool.defaultTitle")}
 							type={`tool-${tool.kind}`}
 							state={state}
 						/>
@@ -949,6 +933,31 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 							parts.map((part, index) => renderAgentPart(part, index, false))
 						)}
 					</MessageContent>
+					{!line.streaming &&
+						line.artifacts?.map((file) => (
+							<button
+								key={file.path}
+								type="button"
+								className="block rounded-md border px-3 py-2 text-left text-sm hover:bg-muted"
+								title={file.path}
+								onClick={() => {
+									void commands
+										.workspaceOpenSource(file.vault, file.path)
+										.then((result) => {
+											if (result.status === "error")
+												notifyError(errorText(result.error));
+										})
+										.catch((error) => notifyError(errorText(error)));
+								}}
+							>
+								{file.title || file.path}
+							</button>
+						))}
+					{!line.streaming && line.promptOnly ? (
+						<p className="px-1 text-xs text-muted-foreground">
+							{t("promptOnlySources")}
+						</p>
+					) : null}
 					{!line.streaming && line.sources?.length ? (
 						<div className="px-1">
 							<ContextSourceLinks sources={line.sources} />
@@ -1157,7 +1166,9 @@ function TranscriptBody({
 export const ChatTranscript = memo(function ChatTranscript({
 	activeTabId,
 	hydratingSessionId,
+	restoring = false,
 	compact = false,
+	wide = false,
 	forceVirtualize = false,
 	activeTabIsRunning,
 	submitting,
@@ -1180,7 +1191,11 @@ export const ChatTranscript = memo(function ChatTranscript({
 }: {
 	activeTabId: string;
 	hydratingSessionId: string | null;
+	/** A queued history row: shimmer until hydration takes over. */
+	restoring?: boolean;
 	compact?: boolean;
+	/** Full-page surface: extra horizontal inset for the message column. */
+	wide?: boolean;
 	/** Storybook / tests: windowed rendering even below the line threshold. */
 	forceVirtualize?: boolean;
 	activeTabIsRunning: boolean;
@@ -1215,7 +1230,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	// re-rendered the whole shell (composer, config bar, switcher) per frame.
 	const lines = useActiveChatLines();
 	const restoringHistorySession =
-		hydratingSessionId === activeTabId && lines.length === 0;
+		restoring || (hydratingSessionId === activeTabId && lines.length === 0);
 	// Chat-only built-ins (Zhihu) replace the generic suggestions with their own
 	// empty state.
 	const zhihuEmpty = isChatOnlyAgentTemplate(agentTemplate);
@@ -1299,6 +1314,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	return (
 		<Conversation className="min-h-0 flex-1">
 			<ConversationContent
+				className={wide ? "px-5 lg:px-10" : undefined}
 				scrollClassName={
 					compact
 						? "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -1324,7 +1340,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 							>
 								{zhihuEmpty ? (
 									<ZhihuDiscussions paper={paper} />
-								) : (
+								) : activeTabId === "draft" || activeTabIsRunning ? (
 									<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
 										{activeTabIsRunning ? (
 											<Shimmer className="text-center text-sm">
@@ -1347,7 +1363,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 											})
 										)}
 									</div>
-								)}
+								) : null}
 							</ConversationEmptyState>
 						</MessageScrollerItem>
 					</MessageScrollerContent>

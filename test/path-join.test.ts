@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { displayPath, joinPath } from "@/lib/core/path";
+import { displayPath, joinPath, normalizeLocalPath } from "@/lib/core/path";
+import { notesPathForPaper } from "@/lib/paper/paths";
 import { joinVaultPath, planVaultRename } from "@/lib/vault";
 
 describe("displayPath", () => {
@@ -128,5 +129,38 @@ describe("joinVaultPath", () => {
 		expect(
 			joinVaultPath("C:\\Users\\me\\vault", "notes/zh-CN/02 Agent 与 Skill.md"),
 		).toBe("C:\\Users\\me\\vault\\notes\\zh-CN\\02 Agent 与 Skill.md");
+	});
+});
+
+describe("Windows paper notes paths", () => {
+	it.each([
+		[
+			String.raw`\\?\D:\新建文件夹 (2)\papers\风电齿轮`,
+			String.raw`\\?\D:\新建文件夹 (2)\papers\风电齿轮\NOTES.md`,
+		],
+		[
+			String.raw`\\?\D:\vault/papers/a/`,
+			String.raw`\\?\D:\vault\papers\a\NOTES.md`,
+		],
+		["//?/D:/vault/papers/a", String.raw`\\?\D:\vault\papers\a\NOTES.md`],
+		[
+			String.raw`\\?\UNC\server\share\papers\a` + "\\",
+			String.raw`\\?\UNC\server\share\papers\a\NOTES.md`,
+		],
+		["D:/vault/papers/a", String.raw`D:\vault\papers\a\NOTES.md`],
+		["/vault/papers/a/", "/vault/papers/a/NOTES.md"],
+		["remote:session/papers/a", "remote:session/papers/a/NOTES.md"],
+	])("joins notes under %s", (parent, expected) => {
+		expect(notesPathForPaper(parent)).toBe(expected);
+	});
+
+	it("repairs persisted mixed extended paths without stripping the prefix", () => {
+		expect(normalizeLocalPath(String.raw`\\?\D:\vault\papers\a/NOTES.md`)).toBe(
+			String.raw`\\?\D:\vault\papers\a\NOTES.md`,
+		);
+		expect(normalizeLocalPath("remote:session/notes/a.md")).toBe(
+			"remote:session/notes/a.md",
+		);
+		expect(normalizeLocalPath("/vault/notes/a.md")).toBe("/vault/notes/a.md");
 	});
 });

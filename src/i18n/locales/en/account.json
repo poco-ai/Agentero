@@ -17,7 +17,9 @@
 		"signInRequired": "Sign in to see your cloud sync capacity.",
 		"notIncluded": "The current plan does not include cloud sync."
 	},
-	"common": { "cancel": "Cancel" },
+	"common": {
+		"cancel": "Cancel"
+	},
 	"org": {
 		"transferOwnership": "Transfer ownership",
 		"transferDescription": "Transfer team ownership to {{name}}? You will become a team administrator.",
@@ -30,5 +32,38 @@
 		"frozen": "This team is frozen. Contact a platform administrator.",
 		"owner": "Transfer ownership before leaving the team.",
 		"storage": "The system credential store is unavailable. Unlock it or allow access, then retry."
+	},
+	"capabilities": {
+		"signInRequired": "Sign in to your Agentero account to translate.",
+		"pending": "Translation is still processing. Retry to retrieve the same operation.",
+		"title": "Cloud services",
+		"account": "Billing account",
+		"personal": "Personal account",
+		"description": "Allow translation, OCR and embeddings to use this account’s Credit beyond their free allowances. Hosted translation uses your personal account. Existing tasks finish normally.",
+		"translation": "Translation",
+		"ocr": "PDF OCR",
+		"embedding": "Embeddings",
+		"remaining": "Free remaining: {{count}}",
+		"overage": "Use Credit for overage",
+		"manage": "View Credit",
+		"ocrHint": "Extract text and scanned pages to Markdown. Maximum 32 MiB and 500 pages. Your document is uploaded to the selected account.",
+		"pdf": "PDF file",
+		"fileLimit": "Choose a PDF up to 32 MiB",
+		"estimate": "Estimate usage",
+		"quote": "{{pages}} OCR pages · {{free}} free · up to {{credit}} Credit",
+		"start": "Start / recover operation",
+		"result": "Extracted Markdown",
+		"charged": "Charged: {{credit}} Credit",
+		"newDocument": "New document",
+		"status": {
+			"queued": "Queued",
+			"running": "Processing",
+			"reconciling": "Reconciling usage",
+			"succeeded": "Completed",
+			"partial": "Partially completed",
+			"failed": "Failed",
+			"cancelled": "Cancelled"
+		},
+		"help": "About allowances"
 	}
 }

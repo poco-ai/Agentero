@@ -227,7 +227,7 @@ export function AgenteroTabGroupChip({ tabGroup }: IDockviewTabGroupChipProps) {
 					<input
 						ref={inputRef}
 						type="text"
-						className="dv-tab-group-chip-rename-input border-0 bg-transparent px-0.5 py-0 text-[length:inherit] font-[inherit] text-inherit outline-none ring-1 ring-ring/60 rounded-sm"
+						className="dv-tab-group-chip-rename-input border-0 bg-transparent px-0.5 py-0 text-[length:inherit] font-[inherit] text-inherit outline-none ring-1 ring-ring rounded-sm"
 						style={{ width: inputWidth }}
 						value={draft}
 						aria-label={t("tabs.tabGroupRenameAria")}

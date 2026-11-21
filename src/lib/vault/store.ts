@@ -235,6 +235,11 @@ export function bumpTreeGeneration(): void {
 	treeRefreshPaths.clear();
 }
 
+/** Current `treeLoadGeneration`. Not a separate counter. */
+export function vaultLoadGeneration(): number {
+	return treeLoadGeneration;
+}
+
 export async function refreshTree(
 	path: string,
 	{ quiet = false }: { quiet?: boolean } = {},

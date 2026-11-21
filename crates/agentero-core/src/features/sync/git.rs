@@ -15,8 +15,11 @@ use crate::error::AppError;
 use crate::features::sync::config::SyncBackendConfig;
 use crate::features::sync::engine::{self, Progress, SyncOutcome};
 use crate::features::sync::local::{self, SyncMeta};
-use crate::features::sync::snapshot::{self, SyncScope};
-use std::ffi::OsStr;
+use crate::features::sync::scope;
+use crate::features::sync::snapshot::SyncScope;
+use std::collections::BTreeSet;
+use std::ffi::{OsStr, OsString};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Output, Stdio};
 use std::time::Duration;
@@ -51,6 +54,8 @@ const SYNC_IGNORE_END: &str = "# agentero-sync-end";
 struct Git {
     exe: PathBuf,
     vault: PathBuf,
+    /// Absolute PEM path passed as `http.sslCAInfo` on every command.
+    http_ssl_ca_info: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -72,7 +77,7 @@ enum PushOutcome {
 /// repository. Used by `sync_configure` (and the CLI `sync test`).
 pub async fn test_connection(vault: &Path, cfg: &SyncBackendConfig) -> Result<(), AppError> {
     cfg.validate()?;
-    let git = Git::new(vault)?;
+    let git = Git::new(vault, cfg)?;
     if let Some(repo) = git.inspect_repo().await? {
         if repo.branch != cfg.git_branch {
             return Err(AppError::domain(
@@ -100,13 +105,13 @@ pub async fn test_connection(vault: &Path, cfg: &SyncBackendConfig) -> Result<()
 
 /// One full pass. The cross-process lock and `lastError` bookkeeping stay in
 /// `engine::sync_vault_locked`, shared with the S3/WebDAV backends.
-pub async fn sync_vault(
+pub(super) async fn sync_vault(
     vault: &Path,
     cfg: &SyncBackendConfig,
     progress: Progress<'_>,
 ) -> Result<SyncOutcome, AppError> {
     cfg.validate()?;
-    let git = Git::new(vault)?;
+    let git = Git::new(vault, cfg)?;
 
     let projection_root = vault.to_path_buf();
     tokio::task::spawn_blocking(move || {
@@ -114,6 +119,7 @@ pub async fn sync_vault(
     })
     .await
     .map_err(|e| AppError::message(format!("sidecar projection task: {e}")))??;
+    engine::refresh_catalog_if_needed(vault)?;
     progress("scan", 0, 0);
     git.ensure_repo(cfg).await?;
     let committed = git.commit_local(&cfg.scope).await?;
@@ -210,18 +216,29 @@ pub async fn sync_vault(
 }
 
 impl Git {
-    fn new(vault: &Path) -> Result<Self, AppError> {
+    fn new(vault: &Path, cfg: &SyncBackendConfig) -> Result<Self, AppError> {
         let exe = crate::process::resolve_command("git").ok_or_else(|| {
             AppError::domain(
                 "git_unavailable",
                 "Git is not installed or not on PATH; install Git and retry",
             )
         })?;
+        let ca = cfg.git_ssl_ca_info.trim();
+        let http_ssl_ca_info = if ca.is_empty() {
+            None
+        } else {
+            Some(
+                crate::process::windows_shell_path(Path::new(ca))
+                    .to_string_lossy()
+                    .into_owned(),
+            )
+        };
         Ok(Self {
             exe,
             // Git for Windows handles plain drive paths better than the
             // extended-length `\\?\` prefix (#181).
             vault: crate::process::windows_shell_path(vault),
+            http_ssl_ca_info,
         })
     }
 
@@ -230,11 +247,13 @@ impl Git {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        let args: Vec<std::ffi::OsString> = args
+        let user_args: Vec<std::ffi::OsString> = args
             .into_iter()
             .map(|arg| arg.as_ref().to_os_string())
             .collect();
-        let label = args
+        let mut argv = http_ssl_ca_args(self.http_ssl_ca_info.as_deref());
+        argv.extend(user_args);
+        let label = argv
             .iter()
             .map(|arg| arg.to_string_lossy())
             .collect::<Vec<_>>()
@@ -242,7 +261,7 @@ impl Git {
         let mut command = Command::new(&self.exe);
         command
             .current_dir(&self.vault)
-            .args(&args)
+            .args(&argv)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -560,25 +579,41 @@ impl Git {
     }
 
     async fn commit_local(&self, scope: &SyncScope) -> Result<Option<DiffCounts>, AppError> {
-        ensure_sync_gitignore(&self.vault, scope)?;
-        self.untrack_excluded(scope).await?;
-        let status = checked(
-            self.run(
-                ["-c", "core.autocrlf=false", "status", "--porcelain", "-z"],
-                LOCAL_TIMEOUT,
-            )
-            .await?,
-            "git status",
-        )?;
-        if status.stdout.is_empty() {
-            return Ok(None);
+        let patterns = if scope.is_all() {
+            BTreeSet::new()
+        } else {
+            // Include files already hidden by the previous managed block.
+            let inventory = checked(
+                self.run(
+                    ["ls-files", "-z", "--cached", "--others", "--", "papers/"],
+                    LOCAL_TIMEOUT,
+                )
+                .await?,
+                "git ls-files",
+            )?;
+            let paths: Vec<_> = listed_paths(&inventory.stdout).collect();
+            scope_ignore_patterns(scope, &paths)
+        };
+        ensure_sync_gitignore(&self.vault, &patterns)?;
+        if scope.is_all() {
+            let status = checked(
+                self.run(
+                    ["-c", "core.autocrlf=false", "status", "--porcelain", "-z"],
+                    LOCAL_TIMEOUT,
+                )
+                .await?,
+                "git status",
+            )?;
+            if status.stdout.is_empty() {
+                return Ok(None);
+            }
         }
-        let before = self.head().await?;
         checked(
             self.run(["-c", "core.autocrlf=false", "add", "-A"], LOCAL_TIMEOUT)
                 .await?,
             "git add",
         )?;
+        self.unstage_new_exclusions(scope).await?;
         let staged = self
             .run(
                 ["-c", "core.autocrlf=false", "diff", "--cached", "--quiet"],
@@ -590,6 +625,7 @@ impl Git {
             Some(1) => {}
             _ => return Err(git_error("git diff --cached", &staged)),
         }
+        let before = self.head().await?;
         let mut args = self.identity_args().await?;
         args.extend([
             "-c".to_string(),
@@ -615,31 +651,62 @@ impl Git {
         Ok(Some(counts))
     }
 
-    /// Drop tracked files the scope excludes. `--cached` leaves the worktree
-    /// copy in place; `.gitignore` then keeps `git add -A` from staging it.
-    async fn untrack_excluded(&self, scope: &SyncScope) -> Result<(), AppError> {
+    /// Remove excluded index entries after staging, even if a nested
+    /// .gitignore negates a managed rule. Leave the working files in place.
+    async fn unstage_new_exclusions(&self, scope: &SyncScope) -> Result<(), AppError> {
         if scope.is_all() {
             return Ok(());
         }
         let listed = checked(
-            self.run(["ls-files", "-z"], LOCAL_TIMEOUT).await?,
+            self.run(["ls-files", "-z", "--", "papers/"], LOCAL_TIMEOUT)
+                .await?,
             "git ls-files",
         )?;
-        let paths: Vec<String> = listed
-            .stdout
-            .split(|byte| *byte == 0)
-            .filter(|field| !field.is_empty())
-            .filter_map(|field| String::from_utf8(field.to_vec()).ok())
-            .filter(|rel| snapshot::is_scope_excluded(scope, &rel.replace('\\', "/")))
-            .collect();
-        for chunk in paths.chunks(200) {
-            let mut args: Vec<std::ffi::OsString> = ["rm", "--cached", "--ignore-unmatch", "--"]
-                .into_iter()
-                .map(std::ffi::OsString::from)
-                .collect();
-            args.extend(chunk.iter().map(std::ffi::OsString::from));
-            checked(self.run(args, LOCAL_TIMEOUT).await?, "git rm")?;
+        let paths: Vec<_> = listed_paths(&listed.stdout).collect();
+        let roots = scope::paper_roots(paths.iter().copied());
+        let additions = checked(
+            self.run(
+                [
+                    "diff",
+                    "--cached",
+                    "--no-renames",
+                    "--diff-filter=A",
+                    "--name-only",
+                    "-z",
+                    "--",
+                    "papers/",
+                ],
+                LOCAL_TIMEOUT,
+            )
+            .await?,
+            "git diff",
+        )?;
+        let excluded =
+            listed_paths(&additions.stdout).filter(|rel| scope::excluded(scope, rel, &roots));
+        let mut entries = Vec::new();
+        for rel in excluded {
+            entries.extend_from_slice(rel.as_bytes());
+            entries.push(0);
         }
+        if entries.is_empty() {
+            return Ok(());
+        }
+        // Keep deep paths off the command line. Windows has a low total
+        // command-line limit even when each individual path is valid.
+        let mut pathspec = tempfile::NamedTempFile::new()?;
+        pathspec.write_all(&entries)?;
+        let mut from_file = OsString::from("--pathspec-from-file=");
+        from_file.push(crate::process::windows_shell_path(pathspec.path()));
+        let args = [
+            OsStr::new("--literal-pathspecs"),
+            OsStr::new("rm"),
+            OsStr::new("--cached"),
+            OsStr::new("-f"),
+            OsStr::new("--ignore-unmatch"),
+            OsStr::new("--pathspec-file-nul"),
+            &from_file,
+        ];
+        checked(self.run(args, LOCAL_TIMEOUT).await?, "git rm")?;
         Ok(())
     }
 
@@ -748,8 +815,76 @@ impl Git {
         Err(git_error("git fetch", &out))
     }
 
+    async fn prepare_checkout(&self, refname: &str) -> Result<(), AppError> {
+        let ignored = checked(
+            self.run(
+                [
+                    "ls-files",
+                    "-z",
+                    "--others",
+                    "--ignored",
+                    "--exclude-standard",
+                    "--",
+                    ".",
+                    ":(top,exclude).agentero",
+                ],
+                LOCAL_TIMEOUT,
+            )
+            .await?,
+            "git ls-files",
+        )?;
+        if !ignored.stdout.is_empty() {
+            let remote = checked(
+                self.run(["ls-tree", "-rz", "--name-only", refname], LOCAL_TIMEOUT)
+                    .await?,
+                "git ls-tree",
+            )?;
+            let fold_case = self
+                .config_value("core.ignorecase")
+                .await?
+                .eq_ignore_ascii_case("true");
+            let normalize = |path: &[u8]| {
+                if fold_case {
+                    path.to_ascii_lowercase()
+                } else {
+                    path.to_vec()
+                }
+            };
+            let protected: BTreeSet<_> = ignored
+                .stdout
+                .split(|&byte| byte == 0)
+                .filter(|path| !path.is_empty())
+                .map(normalize)
+                .collect();
+            for path in remote
+                .stdout
+                .split(|&byte| byte == 0)
+                .filter(|path| !path.is_empty())
+            {
+                let key = normalize(path);
+                let mut directory = key.clone();
+                directory.push(b'/');
+                let parent_blocked = key
+                    .iter()
+                    .enumerate()
+                    .any(|(index, &byte)| byte == b'/' && protected.contains(&key[..index]));
+                if protected.contains(&key)
+                    || parent_blocked
+                    || protected
+                        .range(directory.clone()..)
+                        .next()
+                        .is_some_and(|file| file.starts_with(&directory))
+                {
+                    return Err(AppError::domain("sync_conflict", format!("remote path {} overlaps an ignored local file; move it outside the vault before syncing", String::from_utf8_lossy(path))));
+                }
+            }
+        }
+        local::mark_catalog_dirty(&self.vault)
+    }
+
     async fn merge_remote(&self, cfg: &SyncBackendConfig) -> Result<DiffCounts, AppError> {
         let refname = format!("refs/remotes/origin/{}", cfg.git_branch);
+        self.prepare_checkout(&refname).await?;
         let before = self.head().await?;
         let mut args = self.identity_args().await?;
         args.extend([
@@ -758,6 +893,7 @@ impl Git {
             "-c".to_string(),
             "core.autocrlf=false".to_string(),
             "merge".to_string(),
+            "--no-overwrite-ignore".to_string(),
             "--ff".to_string(),
             "--no-edit".to_string(),
             "--allow-unrelated-histories".to_string(),
@@ -820,13 +956,22 @@ impl Git {
 
     async fn adopt_remote(&self, cfg: &SyncBackendConfig) -> Result<usize, AppError> {
         let refname = format!("refs/remotes/origin/{}", cfg.git_branch);
+        self.prepare_checkout(&refname).await?;
         checked(
             self.run(
-                ["-c", "core.autocrlf=false", "reset", "--hard", &refname],
+                [
+                    "-c",
+                    "core.autocrlf=false",
+                    "checkout",
+                    "--no-overwrite-ignore",
+                    "-B",
+                    &cfg.git_branch,
+                    &refname,
+                ],
                 LOCAL_TIMEOUT,
             )
             .await?,
-            "git reset",
+            "git checkout",
         )?;
         let upstream = format!("origin/{}", cfg.git_branch);
         let _ = self.run(["branch", "-u", &upstream], LOCAL_TIMEOUT).await;
@@ -871,39 +1016,58 @@ impl Git {
             &SyncMeta {
                 last_sync_at: Some(now()),
                 last_version: version,
-                last_error: None,
+                ..SyncMeta::default()
             },
         )?;
-        engine::refresh_catalog_if_needed(vault, &outcome).await;
+        engine::refresh_catalog_if_needed(vault)?;
         outcome.version = version;
         Ok(outcome)
     }
 }
 
-fn scope_ignore_patterns(scope: &SyncScope) -> Vec<&'static str> {
-    let mut lines = Vec::new();
-    if !scope.pdf {
-        lines.push("papers/*/*.pdf");
-    }
-    if !scope.source {
-        lines.push("papers/*/source/");
-    }
-    if !scope.attachments {
-        lines.push("papers/*/attachments/");
-    }
-    lines
+fn listed_paths(output: &[u8]) -> impl Iterator<Item = &str> {
+    output
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty())
+        .filter_map(|field| std::str::from_utf8(field).ok())
 }
 
-/// Rewrite the managed block in `.gitignore`. User rules outside the markers
-/// are kept. An empty scope removes the block; an empty file is deleted.
-fn ensure_sync_gitignore(vault: &Path, scope: &SyncScope) -> Result<(), AppError> {
+fn scope_ignore_patterns(scope: &SyncScope, paths: &[&str]) -> BTreeSet<String> {
+    let roots = scope::paper_roots(paths.iter().copied());
+    paths
+        .iter()
+        .filter_map(|rel| {
+            let (category, anchor) = scope::classify(rel, &roots)?;
+            // Newlines cannot be represented in a line-based gitignore.
+            // Staged additions are also checked via NUL-delimited input.
+            if category.enabled(scope) || anchor.contains(['\r', '\n']) {
+                return None;
+            }
+            let mut pattern = String::from("/");
+            for ch in anchor.chars() {
+                if matches!(ch, '\\' | '*' | '?' | '[' | ']' | ' ') {
+                    pattern.push('\\');
+                }
+                pattern.push(ch);
+            }
+            if category.is_directory() {
+                pattern.push('/');
+            }
+            Some(pattern)
+        })
+        .collect()
+}
+
+/// Rewrite the managed block in `.gitignore`, preserving user rules outside
+/// the markers. Remove the block when there are no exclusions.
+fn ensure_sync_gitignore(vault: &Path, patterns: &BTreeSet<String>) -> Result<(), AppError> {
     let path = vault.join(".gitignore");
     let existing = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
         Err(error) => return Err(error.into()),
     };
-    let next = sync_gitignore(&existing, scope);
+    let next = sync_gitignore(&existing, patterns);
     if next == existing {
         return Ok(());
     }
@@ -917,7 +1081,7 @@ fn ensure_sync_gitignore(vault: &Path, scope: &SyncScope) -> Result<(), AppError
     Ok(())
 }
 
-fn sync_gitignore(existing: &str, scope: &SyncScope) -> String {
+fn sync_gitignore(existing: &str, patterns: &BTreeSet<String>) -> String {
     let mut kept: Vec<&str> = Vec::new();
     let mut skipping = false;
     for line in existing.lines() {
@@ -937,7 +1101,6 @@ fn sync_gitignore(existing: &str, scope: &SyncScope) -> String {
     while kept.last().is_some_and(|line| line.is_empty()) {
         kept.pop();
     }
-    let patterns = scope_ignore_patterns(scope);
     if patterns.is_empty() {
         if kept.is_empty() {
             return String::new();
@@ -1000,9 +1163,22 @@ fn classify_git_error(stderr: &str) -> &'static str {
         || lower.contains("host key verification failed")
     {
         "git_auth_failed"
+    } else if lower.contains("ssl") || lower.contains("certificate") || lower.contains("tls") {
+        "git_tls_failed"
     } else {
         "git_failed"
     }
+}
+
+/// `git -c http.sslCAInfo=<path>` before the subcommand. Empty means the
+/// system trust store. Never passes `http.sslVerify=false`.
+fn http_ssl_ca_args(ca: Option<&str>) -> Vec<std::ffi::OsString> {
+    let Some(ca) = ca.map(str::trim).filter(|ca| !ca.is_empty()) else {
+        return Vec::new();
+    };
+    let mut setting = std::ffi::OsString::from("http.sslCAInfo=");
+    setting.push(ca);
+    vec!["-c".into(), setting]
 }
 
 fn is_push_race(text: &str) -> bool {
@@ -1061,6 +1237,35 @@ fn now() -> String {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn classifies_auth_and_tls_failures() {
+        assert_eq!(
+            classify_git_error("fatal: Authentication failed for 'https://example.com/'"),
+            "git_auth_failed"
+        );
+        assert_eq!(
+            classify_git_error(
+                "fatal: could not read Username for 'https://example.com': terminal prompts disabled"
+            ),
+            "git_auth_failed"
+        );
+        assert_eq!(
+            classify_git_error("SSL certificate problem: self-signed certificate"),
+            "git_tls_failed"
+        );
+        assert_eq!(classify_git_error("nothing to commit"), "git_failed");
+    }
+
+    #[test]
+    fn ssl_ca_args_are_a_single_config_assignment() {
+        assert!(http_ssl_ca_args(None).is_empty());
+        assert!(http_ssl_ca_args(Some("  ")).is_empty());
+        let args = http_ssl_ca_args(Some(r"C:\certs\lan ca.pem"));
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0], "-c");
+        assert_eq!(args[1], r"http.sslCAInfo=C:\certs\lan ca.pem");
+    }
 
     fn git_exe() -> Option<PathBuf> {
         crate::process::resolve_command("git")
@@ -1219,14 +1424,22 @@ mod tests {
         let mut scope = SyncScope::all();
         scope.pdf = false;
         scope.source = false;
-        let once = sync_gitignore("*.log\n", &scope);
-        assert_eq!(sync_gitignore(&once, &scope), once);
+        let patterns = scope_ignore_patterns(
+            &scope,
+            &[
+                "papers/group/topic/x/X.PDF",
+                "papers/group/topic/x/source/chapter.tex",
+                "papers/group/topic/x/attachments/extra.pdf",
+            ],
+        );
+        let once = sync_gitignore("*.log\n", &patterns);
+        assert_eq!(sync_gitignore(&once, &patterns), once);
         assert!(once.starts_with("*.log\n\n# agentero-sync-start\n"));
-        assert!(once.contains("papers/*/*.pdf\n"));
-        assert!(once.contains("papers/*/source/\n"));
+        assert!(once.contains("/papers/group/topic/x/X.PDF\n"));
+        assert!(once.contains("/papers/group/topic/x/source/\n"));
         assert!(!once.contains("attachments"));
-        assert_eq!(sync_gitignore(&once, &SyncScope::all()), "*.log\n");
-        assert_eq!(sync_gitignore("", &SyncScope::all()), "");
+        assert_eq!(sync_gitignore(&once, &BTreeSet::new()), "*.log\n");
+        assert_eq!(sync_gitignore("", &BTreeSet::new()), "");
     }
 
     #[tokio::test]

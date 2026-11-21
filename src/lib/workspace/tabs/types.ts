@@ -2,15 +2,30 @@ import type { PaperMetadata } from "@/lib/paper";
 import type { LinkFragment } from "@/lib/wiki";
 import type { CenterViewMode } from "@/lib/workspace/viewer";
 
-export type DocTabKind = "library" | "trash" | "plaza" | "paper" | "file";
+export type DocTabKind =
+	| "library"
+	| "trash"
+	| "plaza"
+	| "zen"
+	| "paper"
+	| "file";
+
+/** Extra view of a path. Absent means the canonical view. Not a filesystem path. */
+export type TabPaneKind = "split" | "translation";
 
 /**
  * One open document panel in the center Dockview workspace.
  * All open documents are peers — layout/split is owned by dockview, not by nesting.
  */
 export type DocTab = {
-	/** Stable id derived from the normalized path (dedupe). */
+	/**
+	 * Opaque view id (`view-…`) for file and paper panels. Library, Trash, Zen,
+	 * and Plaza keep their virtual path ids. Restored layouts keep their old
+	 * path-shaped ids instead of rewriting them.
+	 */
 	id: string;
+	/** Split copy or translation companion. Absent on the canonical view. */
+	pane?: TabPaneKind;
 	/** Absolute path, or a virtual path (Library / Recycle Bin / Plaza). */
 	path: string;
 	kind: DocTabKind;
@@ -22,6 +37,11 @@ export type DocTab = {
 	/** Local PDF bytes fed straight to the engine (avoids fragile `blob:` fetch). */
 	pdfBytes: ArrayBuffer | null;
 	htmlUrl: string | null;
+	/**
+	 * Absolute `webpage.html` offline snapshot beside the paper's NOTES.md.
+	 * Probed on open, never persisted: restored tabs re-probe on hydrate.
+	 */
+	htmlArchivePath: string | null;
 	/** Local image preview (`blob:`) when mode is image. */
 	imageUrl: string | null;
 	notesPath: string | null;
@@ -29,22 +49,23 @@ export type DocTab = {
 	notesSeed: string;
 	/** Seed content for a plain-file Markdown editor. */
 	markdownSeed: string;
-	/** Seed content for an Excalidraw whiteboard file. */
-	excalidrawSeed: string;
 	/** Seed content for the plain-text (CodeMirror) editor. */
 	textSeed: string;
 	markdownDirty: boolean;
 	notesDirty: boolean;
 	/** A sibling Markdown editor saved over this panel's baseline; retain its draft. */
 	markdownConflict?: boolean;
-	excalidrawDirty: boolean;
 	textDirty: boolean;
 	/** Bump to reload the center Markdown editor's content in place from `markdownSeed`. */
 	seedKey: number;
-	/** Bump to reload the Excalidraw editor's content in place from `excalidrawSeed`. */
-	excalidrawKey: number;
 	/** Bump to reload the plain-text editor's content in place from `textSeed`. */
 	textKey: number;
+	/**
+	 * Bumped when this panel's edited file is replaced in place (writing project
+	 * source swap) so the plain-text CodeMirror editor remounts instead of
+	 * swapping documents. Renames and disk reloads keep the instance.
+	 */
+	textEpoch: number;
 	/** Bump to reload a local HTML preview after the file changes on disk. */
 	htmlKey: number;
 	/** Bump to reload the NOTES editor's content in place from `notesSeed`. */
@@ -59,6 +80,8 @@ export type DocTab = {
 	texRoot?: string;
 	/** Owning writing project for source files and project assets. */
 	writingRoot?: string;
+	/** A failed NOTES read must not mount an editor with an empty baseline. */
+	loadError?: string;
 	loaded: boolean;
 };
 
@@ -98,11 +121,12 @@ export type TabResources = {
 	pdfUrl: string | null;
 	pdfBytes?: ArrayBuffer | null;
 	htmlUrl: string | null;
+	/** Offline webpage snapshot (`<paperDir>/webpage.html`), when one exists. */
+	htmlArchivePath?: string | null;
 	imageUrl: string | null;
 	notesPath: string | null;
 	notesSeed: string;
 	markdownSeed: string;
-	excalidrawSeed?: string;
 	textSeed?: string;
 	loaded: true;
 	/** Non-fatal message to surface (e.g. unpreviewable file). */
@@ -115,11 +139,15 @@ export type PersistedTab = {
 	id?: string;
 	path: string;
 	mode: CenterViewMode;
+	/** Split or translation companion. Absent on the canonical view. */
+	pane?: TabPaneKind;
 	/** Last resolved display title (paper metadata title); shown before hydration. */
 	title?: string;
 	/** rtex live pane; persists across window reloads instead of reverting to PDF. */
 	texLive?: boolean;
 	texRoot?: string;
+	/** Owning writing project for source files and project assets. */
+	writingRoot?: string;
 };
 
 /**
@@ -129,7 +157,7 @@ export type PersistedTab = {
 export type PersistedTabs = {
 	tabs: PersistedTab[];
 	activeId: string | null;
-	/** Global dockview grid snapshot (panel ids = path-derived tab ids). */
+	/** Global dockview grid snapshot (panel ids are view ids, not file paths). */
 	layout: unknown | null;
 };
 
@@ -143,6 +171,10 @@ export type PanelPersistParams = {
 	/** Live TeX pane state; only set while live. The source association persists in either mode. */
 	texLive?: boolean;
 	texRoot?: string;
+	/** Owning writing project for source files and project assets. */
+	writingRoot?: string;
+	/** Split or translation companion. Never written into `path`. */
+	pane?: TabPaneKind;
 };
 
 export const NOTES_PLACEHOLDER =

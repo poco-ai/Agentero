@@ -1,5 +1,5 @@
 #[cfg(not(windows))]
-use super::SanitizeAppImageEnv;
+use super::{SanitizeAppImageEnv, SpawnInAgentScratchDir};
 use crate::install_dirs;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -271,6 +271,9 @@ fn read_login_shell_env() -> Option<HashMap<String, String>> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
     let mut command = std::process::Command::new(&shell);
     command.args(["-lic", "env -0"]);
+    // Interactive startup files may scan their cwd; never let them start at
+    // the LaunchServices `/` (#1119).
+    command.spawn_in_agent_scratch_dir();
     // Snapshot the user's shell environment, not the AppImage mount paths the
     // runtime injected into this process (#1002).
     command.sanitize_appimage_env();

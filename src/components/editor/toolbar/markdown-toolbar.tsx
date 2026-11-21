@@ -23,10 +23,10 @@ import {
 	ListTree,
 	Loader2,
 	type LucideIcon,
-	Quote,
 	Search,
 	Share,
 	Strikethrough,
+	TextQuote,
 	Underline,
 } from "lucide-react";
 import { KEYS } from "platejs";
@@ -36,7 +36,13 @@ import {
 	useMarkToolbarButton,
 	useSelectionFragmentProp,
 } from "platejs/react";
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import {
+	type MouseEventHandler,
+	type ReactNode,
+	useCallback,
+	useMemo,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
@@ -52,6 +58,7 @@ import { errorMessage, notifyError } from "@/lib/core/notify";
 import { copyFileToMarkdownAssets, pickImageFiles } from "@/lib/markdown/image";
 import { hasTextSelection } from "@/lib/markdown/input-context";
 import { fetchCoolPapersNotes } from "@/lib/paper/coolpapers";
+import type { PaperMetadata } from "@/lib/paper/types";
 import { formatModShortcut } from "@/lib/shell/shortcuts";
 import { paperRelFromNotes } from "@/lib/vault";
 import { useWikiNav } from "@/lib/wiki/nav-context";
@@ -176,27 +183,28 @@ function useImageAction(label: string): ToolbarAction {
 }
 
 /** Cool Papers Kimi notes — only on a paper NOTES.md that is in the catalog. */
-function FetchKimiNotesButton() {
-	const { t } = useTranslation("editor");
+function useCoolPapersNotesMeta(): PaperMetadata | null {
 	const { filePath } = useMarkdownDoc();
 	const vaultPath = useWikiNav()?.vaultPath ?? null;
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
-	const [busy, setBusy] = useState(false);
 
-	const meta = useMemo(() => {
+	return useMemo(() => {
 		if (!filePath || !vaultPath) return null;
 		if (!/NOTES\.md$/i.test(filePath.replace(/\\/g, "/"))) return null;
 		const rel = paperRelFromNotes(filePath, vaultPath);
 		return (rel && paperMetaByRelPath.get(rel)) || null;
 	}, [filePath, vaultPath, paperMetaByRelPath]);
+}
+
+function FetchKimiNotesButton({ meta }: { meta: PaperMetadata }) {
+	const { t } = useTranslation("editor");
+	const [busy, setBusy] = useState(false);
 
 	const onClick = useCallback(() => {
-		if (!meta || busy) return;
+		if (busy) return;
 		setBusy(true);
 		void fetchCoolPapersNotes(meta).finally(() => setBusy(false));
 	}, [busy, meta]);
-
-	if (!meta) return null;
 
 	return (
 		<ToolbarButton
@@ -216,21 +224,93 @@ function FetchKimiNotesButton() {
 }
 
 /**
- * WYSIWYG formatting toolbar for the Markdown/notes editor. Must be rendered
- * inside a `<Plate>` provider (it reads editor state via Plate hooks).
+ * Contextual action at the right end of the formatting toolbar: fetch Cool
+ * Papers notes for the current paper NOTES.md.
  */
-export function MarkdownEditorToolbar({
-	onOpenFind,
+export function MarkdownPaperNotesButton() {
+	const meta = useCoolPapersNotesMeta();
+	if (!meta) return null;
+	return <FetchKimiNotesButton meta={meta} />;
+}
+
+/** Export the note as PDF / PNG. Pinned at the left of the status row. */
+export function MarkdownExportButton({
 	onExport,
-	propertiesPanel,
+	onMouseDown,
 }: {
-	/** Show the Search button at the right end; opens the find & replace bar. */
-	onOpenFind?: () => void;
-	/** Export the current note as PDF / PNG. */
-	onExport?: () => void;
-	/** Content rendered in the Properties toolbar popover. */
-	propertiesPanel?: ReactNode;
+	onExport: () => void;
+	onMouseDown?: MouseEventHandler<HTMLButtonElement>;
 }) {
+	const { t } = useTranslation("editor");
+	return (
+		<ToolbarButton
+			data-hint-ignore
+			tooltip={t("export.toolbar")}
+			aria-label={t("export.toolbar")}
+			onMouseDown={onMouseDown}
+			onClick={onExport}
+		>
+			<Share />
+		</ToolbarButton>
+	);
+}
+
+/** Open find & replace. Pinned at the left of the status row. */
+export function MarkdownFindButton({
+	onOpenFind,
+	onMouseDown,
+}: {
+	onOpenFind: () => void;
+	onMouseDown?: MouseEventHandler<HTMLButtonElement>;
+}) {
+	const { t } = useTranslation("editor");
+	return (
+		<ToolbarButton
+			data-hint-ignore
+			tooltip={`${t("findReplace.title")} (${formatModShortcut("f")})`}
+			aria-label={t("findReplace.title")}
+			onMouseDown={onMouseDown}
+			onClick={onOpenFind}
+		>
+			<Search />
+		</ToolbarButton>
+	);
+}
+
+/** Properties popover for the YAML frontmatter. Pinned at the right end. */
+export function MarkdownPropertiesButton({
+	children,
+}: {
+	children: ReactNode;
+}) {
+	const { t } = useTranslation("editor");
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<ToolbarButton
+					data-hint-ignore
+					tooltip={t("toolbar.properties")}
+					aria-label={t("toolbar.properties")}
+				>
+					<ListTree />
+				</ToolbarButton>
+			</PopoverTrigger>
+			<PopoverContent
+				side="top"
+				align="end"
+				className="w-[min(30rem,calc(100vw-1rem))] p-2.5"
+			>
+				{children}
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+/**
+ * WYSIWYG formatting toolbar above the document. Must be rendered inside a
+ * `<Plate>` provider (it reads editor state via Plate hooks).
+ */
+export function MarkdownEditorToolbar() {
 	const { t } = useTranslation("editor");
 	const blockType = useSelectionFragmentProp({
 		defaultValue: KEYS.p,
@@ -243,7 +323,7 @@ export function MarkdownEditorToolbar({
 	const quote = useBlockTypeAction(
 		blockType,
 		KEYS.blockquote,
-		Quote,
+		TextQuote,
 		t("toolbar.quote"),
 	);
 
@@ -316,49 +396,9 @@ export function MarkdownEditorToolbar({
 
 	return (
 		<ResponsiveFixedToolbar
+			variant="header"
 			actions={actions}
-			className="rounded-none"
-			trailing={
-				<>
-					{propertiesPanel ? (
-						<Popover>
-							<PopoverTrigger asChild>
-								<ToolbarButton
-									tooltip={t("toolbar.properties")}
-									aria-label={t("toolbar.properties")}
-								>
-									<ListTree />
-								</ToolbarButton>
-							</PopoverTrigger>
-							<PopoverContent
-								align="end"
-								className="w-[min(30rem,calc(100vw-1rem))] p-2.5"
-							>
-								{propertiesPanel}
-							</PopoverContent>
-						</Popover>
-					) : null}
-					<FetchKimiNotesButton />
-					{onExport ? (
-						<ToolbarButton
-							tooltip={t("export.toolbar")}
-							aria-label={t("export.toolbar")}
-							onClick={onExport}
-						>
-							<Share />
-						</ToolbarButton>
-					) : null}
-					{onOpenFind ? (
-						<ToolbarButton
-							tooltip={`${t("findReplace.title")} (${formatModShortcut("f")})`}
-							aria-label={t("findReplace.title")}
-							onClick={onOpenFind}
-						>
-							<Search />
-						</ToolbarButton>
-					) : null}
-				</>
-			}
+			trailing={<MarkdownPaperNotesButton />}
 		/>
 	);
 }

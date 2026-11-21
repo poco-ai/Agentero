@@ -5,12 +5,16 @@
  * work. The translation sidecar already makes a restart cheap for text, but
  * the character geometry still had to be rebuilt from scratch. This cache
  * stores only the source `ReflowDocument` pages (never translations) under the
- * app cache directory, keyed by PDF bytes + `layout.json` bytes + the exact
- * page inputs + the IR schema/algorithm versions.
+ * app cache directory. A page hits when the cache format, IR schema, and
+ * algorithm versions match, together with the paper, the PDF bytes, and that
+ * page's item and region fingerprints. `layout.json` timestamps, JSON
+ * formatting, and fields extraction does not read are not part of the key.
  *
  * One file per page keeps page-only and full-document runs independent. Every
  * file carries its full key in the header; a mismatch, corrupt gzip stream, or
- * unreadable page simply falls back to a fresh extract.
+ * unreadable page simply falls back to a fresh extract. Older files for a page
+ * are removed only after the new file has been renamed into place. The
+ * per-paper cap still drops leftovers that replacement did not reach.
  */
 
 import { appCacheDir, join } from "@tauri-apps/api/path";
@@ -26,18 +30,15 @@ import {
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
-import { layoutSidecarPath } from "@/lib/pdf/layout/io";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
-import { readVaultBytes } from "@/lib/vault/fs";
 import {
 	gunzipBytes,
 	gzipBytes,
 	paperSlug,
 	pdfSha256,
-	sha256Bytes,
 	sha256Text,
 } from "./cache-utils";
 import {
@@ -53,14 +54,18 @@ import {
 } from "./types";
 
 export const REFLOW_IR_CACHE_FORMAT = "agentero.reflow-ir";
-/** Bump when this file's header/filename contract changes. */
-export const REFLOW_IR_CACHE_FORMAT_VERSION = 1;
+/**
+ * Bump when this file's header or filename contract changes. Version 2 drops
+ * the whole-`layout.json` byte hash; preservation text lives in the page
+ * region fingerprint instead. Old files miss the key check and are re-extracted.
+ */
+export const REFLOW_IR_CACHE_FORMAT_VERSION = 2;
 /**
  * Bump whenever extraction, paragraph grouping, formula detection, or coverage
  * changes the IR for the same PDF and layout, even if the persisted shape stays
  * compatible. Old cache files then fail the key check and are re-extracted.
  */
-export const REFLOW_IR_ALGORITHM_VERSION = 2;
+export const REFLOW_IR_ALGORITHM_VERSION = 6;
 const CACHE_DIR = "reflow-ir";
 /** Bound stale-key accumulation; the app cache directory may also be cleared by the OS. */
 const MAX_FILES_PER_PAPER = 96;
@@ -98,7 +103,6 @@ export type ReflowIrPageHeader = {
 	key: string;
 	paperKey: string;
 	pdfSha256: string;
-	layoutSha256: string;
 	pageIndex: number;
 	itemsSha256: string;
 	regionsSha256: string;
@@ -109,7 +113,6 @@ type CacheBase = {
 	paperKey: string;
 	dir: string;
 	pdfSha256: string;
-	layoutSha256: string;
 };
 type PageIdentity = {
 	pageIndex: number;
@@ -121,9 +124,8 @@ type PageIdentity = {
 const boxParts = (box: Box) => [box.x, box.y, box.w, box.h];
 
 /**
- * Fingerprint only what extraction reads. Item status/translation and region
- * text change during a run and must not churn the key; their geometry and
- * classification do.
+ * Fingerprint only what extraction reads from each item. Status, source, and
+ * translated text change during a run and must not churn the key.
  */
 function itemsFingerprint(items: readonly LayoutTranslateItem[]): string {
 	return JSON.stringify(
@@ -137,6 +139,12 @@ function itemsFingerprint(items: readonly LayoutTranslateItem[]): string {
 	);
 }
 
+/**
+ * Fields `extractReflowDocument` and `preservedLayoutRegions` actually read.
+ * Text, title, caption role, and source font size decide whether a reference,
+ * running header, or paper title is kept out of the IR. Bold, italic, caption
+ * boxes, and sidecar metadata such as `generatedAt` do not.
+ */
 function regionsFingerprint(regions: readonly PdfLayoutRegion[]): string {
 	return JSON.stringify(
 		regions.map((region) => [
@@ -148,6 +156,10 @@ function regionsFingerprint(regions: readonly PdfLayoutRegion[]): string {
 			region.readingOrder,
 			...boxParts(region.rect),
 			...boxParts(region.bbox),
+			region.text ?? null,
+			region.title ?? null,
+			region.captionRole ?? null,
+			region.sourceStyle?.fontSize ?? null,
 		]),
 	);
 }
@@ -164,7 +176,6 @@ function pageCacheKey(
 		`algorithm=${REFLOW_IR_ALGORITHM_VERSION}`,
 		`paper=${base.paperKey}`,
 		`pdf=${base.pdfSha256}`,
-		`layout=${base.layoutSha256}`,
 		`page=${pageIndex}`,
 		`items=${itemsSha256}`,
 		`regions=${regionsSha256}`,
@@ -187,18 +198,15 @@ async function resolveBase(
 	source: ReflowIrCacheSource,
 ): Promise<CacheBase | null> {
 	const paperKey = source.paperKey?.trim();
-	const paperAbsPath = source.paperAbsPath?.trim();
-	if (!isTauri() || !paperKey || !paperAbsPath || !source.pdfBytes) return null;
-	let layoutBytes: Uint8Array;
-	try {
-		layoutBytes = await readVaultBytes(layoutSidecarPath(paperAbsPath));
-	} catch {
-		// No usable layout sidecar means there is no stable key to cache under.
+	if (
+		!isTauri() ||
+		!paperKey ||
+		!source.paperAbsPath?.trim() ||
+		!source.pdfBytes
+	)
 		return null;
-	}
-	const [pdfHash, layoutHash, paperHash] = await Promise.all([
+	const [pdfHash, paperHash] = await Promise.all([
 		pdfSha256(source.pdfBytes),
-		sha256Bytes(layoutBytes),
 		sha256Text(paperKey),
 	]);
 	return {
@@ -210,7 +218,6 @@ async function resolveBase(
 			`${paperSlug(paperKey)}-${paperHash.slice(0, 12)}`,
 		),
 		pdfSha256: pdfHash,
-		layoutSha256: layoutHash,
 	};
 }
 
@@ -270,7 +277,6 @@ export function createReflowIrCache(
 					key,
 					paperKey: cacheBase.paperKey,
 					pdfSha256: cacheBase.pdfSha256,
-					layoutSha256: cacheBase.layoutSha256,
 					pageIndex,
 					itemsSha256,
 					regionsSha256,
@@ -340,6 +346,9 @@ export function createReflowIrCache(
 							await remove(temp).catch(() => {});
 							throw error;
 						}
+						// The previous file is still the readable cache until rename
+						// returns. Only then drop other keys for this page.
+						await removeStalePageFiles(target.identity);
 					} catch (error) {
 						logger.warn("pdf.reflow.cache write failed", {
 							page: target.page.index,
@@ -352,6 +361,29 @@ export function createReflowIrCache(
 			if (cacheBase) await pruneCacheDir(cacheBase.dir);
 		},
 	};
+}
+
+async function removeStalePageFiles(identity: PageIdentity): Promise<void> {
+	const current = identity.filePath.slice(
+		Math.max(
+			identity.filePath.lastIndexOf("/"),
+			identity.filePath.lastIndexOf("\\"),
+		) + 1,
+	);
+	// `1-` must not match `10-`.
+	const prefix = `${identity.pageIndex}-`;
+	try {
+		const entries = await readDir(identity.dir);
+		await Promise.all(
+			entries.map(async (entry) => {
+				if (!entry.isFile || !entry.name.endsWith(".json.gz")) return;
+				if (!entry.name.startsWith(prefix) || entry.name === current) return;
+				await remove(await join(identity.dir, entry.name)).catch(() => {});
+			}),
+		);
+	} catch {
+		// Same-page cleanup must not fail a translation.
+	}
 }
 
 async function pruneCacheDir(directory: string): Promise<void> {
@@ -419,7 +451,6 @@ function sameHeader(a: ReflowIrPageHeader, b: ReflowIrPageHeader): boolean {
 		a.key === b.key &&
 		a.paperKey === b.paperKey &&
 		a.pdfSha256 === b.pdfSha256 &&
-		a.layoutSha256 === b.layoutSha256 &&
 		a.pageIndex === b.pageIndex &&
 		a.itemsSha256 === b.itemsSha256 &&
 		a.regionsSha256 === b.regionsSha256
@@ -581,6 +612,13 @@ function parseReflowPage(value: unknown): ReflowPage | null {
 	const page = value as unknown as ReflowPage;
 	if (page.paragraphs.some((paragraph) => paragraph.pageIndex !== page.index))
 		return null;
+	const characters = new Set<number>();
+	for (const paragraph of page.paragraphs) {
+		for (const character of paragraph.characters) {
+			if (characters.has(character.index)) return null;
+			characters.add(character.index);
+		}
+	}
 	return page;
 }
 
@@ -599,7 +637,6 @@ function parsePageHeader(
 		"key",
 		"paperKey",
 		"pdfSha256",
-		"layoutSha256",
 		"itemsSha256",
 		"regionsSha256",
 	] as const)

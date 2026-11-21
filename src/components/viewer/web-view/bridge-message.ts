@@ -36,7 +36,11 @@ export type WebBridgeMessage =
 			cursorX?: number;
 	  }
 	| { type: "scroll" }
-	| { type: "ready" }
+	| {
+			type: "ready";
+			/** Upstream HTTP status recorded by the `agentero-web` proxy. */
+			proxyStatus?: number;
+	  }
 	| { type: "escape" }
 	| { type: "shortcut"; event: WebBridgeKeyEvent }
 	| { type: "external"; url: string };
@@ -78,8 +82,12 @@ export function parseWebBridgeMessage(data: unknown): WebBridgeMessage | null {
 				cursorX,
 			};
 		}
-		case "ready":
-			return { type: "ready" };
+		case "ready": {
+			const proxyStatus = data.proxyStatus;
+			return typeof proxyStatus === "number"
+				? { type: "ready", proxyStatus }
+				: { type: "ready" };
+		}
 		case "scroll":
 			return { type: "scroll" };
 		case "escape":

@@ -38,7 +38,7 @@ export function ThemeStep({
 								void applyUiTheme(item.name);
 							}}
 							className={cn(
-								"group relative h-12 min-w-0 rounded-lg border p-1 text-left outline-none transition-colors hover:border-primary/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+								"group relative h-12 min-w-0 rounded-lg border p-1 text-left outline-none transition-colors hover:border-primary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
 								selected ? "border-primary/70" : "border-border/70",
 							)}
 						>

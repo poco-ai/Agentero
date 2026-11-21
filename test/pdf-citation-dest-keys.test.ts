@@ -5,7 +5,7 @@ import type { PdfLinkAnnoObject } from "@embedpdf/models";
 import { PdfAnnotationSubtype } from "@embedpdf/models";
 import { init } from "@embedpdf/pdfium";
 import type { PDFArray, PDFContext } from "pdf-lib";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	acsCrossrefParser,
 	buildCitationDestKeyMap,
@@ -22,15 +22,22 @@ import {
 	linkRectKey,
 	matchCitationLinkKey,
 	matchCrossrefLinkLabel,
+	type PdfDestMaps,
 	springerCitationParser,
 	springerCrossrefParser,
 	xyzCoordResolver,
 } from "@/lib/pdf/citation-dest-keys";
 import {
+	clearCitationDestKeyMapCache,
+	getPdfDestMapsCached,
+} from "@/lib/pdf/citation-dest-map";
+import {
+	type CrossrefLabel,
 	extractCrossrefLabel,
 	pickCrossrefRegionByLabel,
 } from "@/lib/pdf/crossref-resolve";
 import { mergeCaptionsIntoHosts } from "@/lib/pdf/layout/merge-captions";
+import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
 /**
  * Real-PDF fixtures live outside the repo, so these cases are opt-in: point
@@ -929,5 +936,150 @@ describe("crossref label extraction", () => {
 	it("returns null for non-crossref text", () => {
 		expect(extractCrossrefLabel("see Section 1")).toBeNull();
 		expect(extractCrossrefLabel("hello world")).toBeNull();
+	});
+});
+
+// --- crossref region resolution (merged from pdf-crossref-resolve) ---
+
+function requireLabel(text: string): CrossrefLabel {
+	const label = extractCrossrefLabel(text);
+	if (!label) throw new Error(`expected label from "${text}"`);
+	return label;
+}
+
+function region(
+	pageIndex: number,
+	kind: PdfLayoutRegion["kind"],
+	bbox: PdfLayoutRegion["bbox"],
+	title?: string,
+	id = "r",
+): PdfLayoutRegion {
+	return { pageIndex, kind, bbox, score: 1, id, title };
+}
+
+describe("pickCrossrefRegionByLabel", () => {
+	it("matches a figure by caption title", () => {
+		const regions = [
+			region(0, "image", { x: 0, y: 0, w: 1, h: 0.4 }, "Figure 1. caption"),
+			region(0, "image", { x: 0, y: 0.5, w: 1, h: 0.4 }, "Figure 2. caption"),
+		];
+		const matched = pickCrossrefRegionByLabel(
+			regions,
+			0,
+			requireLabel("Figure 2"),
+		);
+		expect(matched?.title).toBe("Figure 2. caption");
+	});
+
+	it("returns the only candidate when there is no title", () => {
+		const regions = [region(1, "table", { x: 0, y: 0.2, w: 1, h: 0.3 })];
+		const matched = pickCrossrefRegionByLabel(
+			regions,
+			1,
+			requireLabel("Table 1"),
+		);
+		expect(matched?.kind).toBe("table");
+	});
+
+	it("falls back to the largest candidate for figures without titles", () => {
+		const regions = [
+			region(0, "chart", { x: 0, y: 0, w: 0.4, h: 0.2 }),
+			region(0, "chart", { x: 0, y: 0.5, w: 0.8, h: 0.3 }),
+		];
+		const matched = pickCrossrefRegionByLabel(
+			regions,
+			0,
+			requireLabel("Fig. 1"),
+		);
+		expect(matched?.bbox).toEqual({ x: 0, y: 0.5, w: 0.8, h: 0.3 });
+	});
+
+	it("orders equations top-to-bottom when titles are unavailable", () => {
+		const regions = [
+			region(0, "formula", { x: 0, y: 0.7, w: 0.8, h: 0.05 }),
+			region(0, "formula", { x: 0, y: 0.5, w: 0.8, h: 0.05 }),
+			region(0, "formula", { x: 0, y: 0.6, w: 0.8, h: 0.05 }),
+		];
+		const matched = pickCrossrefRegionByLabel(
+			regions,
+			0,
+			requireLabel("Eq. (2)"),
+		);
+		// Top-to-bottom: eq1 at y=0.5, eq2 at y=0.6, eq3 at y=0.7.
+		expect(matched?.bbox.y).toBe(0.6);
+	});
+});
+
+// --- dest maps cache (merged from pdf-citation-dest-map) ---
+
+/** Build a maps object with just the cite index populated. */
+function citeMaps(entries: [string, string][]): PdfDestMaps {
+	return {
+		cites: new Map(entries),
+		crossrefs: new Map(),
+		crossrefKinds: new Map(),
+		crossrefLabels: new Map(),
+		crossrefLinks: [],
+		citationLinks: [],
+		pageOrigins: [],
+		otherNamedLinks: [],
+	};
+}
+
+describe("pdf dest maps cache", () => {
+	beforeEach(() => {
+		clearCitationDestKeyMapCache();
+	});
+
+	it("parses once and serves the second request from cache", async () => {
+		const maps = citeMaps([["3:100.0", "smith2020"]]);
+		const parse = vi.fn().mockResolvedValue(maps);
+
+		const first = await getPdfDestMapsCached(
+			"/vault/papers/p1/p1.pdf:1234",
+			"viewer-bytes",
+			parse,
+		);
+		const second = await getPdfDestMapsCached(
+			"/vault/papers/p1/p1.pdf:1234",
+			"viewer-bytes",
+			parse,
+		);
+
+		expect(parse).toHaveBeenCalledTimes(1);
+		expect(second).toBe(first);
+		expect(second.cites.get("3:100.0")).toBe("smith2020");
+	});
+
+	it("dedupes concurrent requests for the same PDF", async () => {
+		const parse = vi.fn().mockResolvedValue(citeMaps([]));
+		const [a, b] = await Promise.all([
+			getPdfDestMapsCached("k:1", "disk", parse),
+			getPdfDestMapsCached("k:1", "disk", parse),
+		]);
+		expect(parse).toHaveBeenCalledTimes(1);
+		expect(b).toBe(a);
+	});
+
+	it("keys by pdf path + size, so a different PDF parses again", async () => {
+		const parse = vi.fn().mockResolvedValue(citeMaps([]));
+		await getPdfDestMapsCached("/a.pdf:10", "disk", parse);
+		await getPdfDestMapsCached("/a.pdf:20", "disk", parse);
+		await getPdfDestMapsCached("/b.pdf:10", "disk", parse);
+		expect(parse).toHaveBeenCalledTimes(3);
+	});
+
+	it("does not cache failures, allowing a retry", async () => {
+		const parse = vi
+			.fn()
+			.mockRejectedValueOnce(new Error("boom"))
+			.mockResolvedValueOnce(citeMaps([["0:0.0", "ok"]]));
+
+		await expect(getPdfDestMapsCached("k:2", "disk", parse)).rejects.toThrow(
+			"boom",
+		);
+		const retried = await getPdfDestMapsCached("k:2", "disk", parse);
+		expect(parse).toHaveBeenCalledTimes(2);
+		expect(retried.cites.get("0:0.0")).toBe("ok");
 	});
 });

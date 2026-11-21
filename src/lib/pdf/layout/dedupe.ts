@@ -1,4 +1,4 @@
-import { layoutDedupeGroup } from "@/lib/pdf/layout/labels";
+import { isFigureLayoutKind, layoutDedupeGroup } from "@/lib/pdf/layout/labels";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
 /** Intersection-over-union for normalized bboxes. */
@@ -47,11 +47,37 @@ export type DedupeLayoutOptions = {
 	minScore?: number;
 	/** IoU threshold for same-kind NMS. Default 0.45. */
 	iouThreshold?: number;
-	/** If smaller box is this covered by larger same-kind, drop smaller. Default 0.85. */
+	/** Containment threshold for same-kind suppression. Default 0.85. */
 	containmentThreshold?: number;
 	/** Drop boxes smaller than this fraction of page area. Default 0.002 (0.2%). */
 	minArea?: number;
 };
+
+/** Comparable-confidence whole figures should not be erased by nested fragments. */
+function preferCompleteFigure(
+	outer: PdfLayoutRegion,
+	inner: PdfLayoutRegion,
+	containment: number,
+): boolean {
+	if (
+		!isFigureLayoutKind(outer.kind) ||
+		!isFigureLayoutKind(inner.kind) ||
+		outer.titleBbox ||
+		inner.titleBbox ||
+		outer.captionBbox ||
+		inner.captionBbox ||
+		outer.title ||
+		inner.title
+	)
+		return false;
+	const ratio = (outer.bbox.w * outer.bbox.h) / (inner.bbox.w * inner.bbox.h);
+	return (
+		ratio >= 1.4 &&
+		ratio <= 4 &&
+		outer.score >= inner.score * 0.75 &&
+		bboxContainment(outer.bbox, inner.bbox) >= containment
+	);
+}
 
 /**
  * Keep figure/table/algorithm regions unique:
@@ -94,7 +120,16 @@ export function dedupeLayoutRegions(
 		const selected: PdfLayoutRegion[] = [];
 		for (const cand of sorted) {
 			let suppressed = false;
+			const replaced = new Set<string>();
 			for (const prev of selected) {
+				if (preferCompleteFigure(cand, prev, containmentThreshold)) {
+					replaced.add(prev.id);
+					continue;
+				}
+				if (preferCompleteFigure(prev, cand, containmentThreshold)) {
+					suppressed = true;
+					break;
+				}
 				const iou = bboxIoU(cand.bbox, prev.bbox);
 				if (iou >= iouThreshold) {
 					suppressed = true;
@@ -106,7 +141,11 @@ export function dedupeLayoutRegions(
 					break;
 				}
 			}
-			if (!suppressed) selected.push(cand);
+			if (!suppressed) {
+				for (let i = selected.length - 1; i >= 0; i--)
+					if (replaced.has(selected[i].id)) selected.splice(i, 1);
+				selected.push(cand);
+			}
 		}
 		kept.push(...selected);
 	}

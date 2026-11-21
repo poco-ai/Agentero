@@ -4,7 +4,7 @@ import {
 	useSpring,
 	useTransform,
 } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Keep the completed meter visible briefly before collapsing. */
@@ -108,18 +108,39 @@ export function useTranslateMeter({
 	useMotionValueEvent(smoothPercent, "change", (value) =>
 		setPercent(Math.round(value)),
 	);
-	useEffect(() => {
-		const target = open && !indeterminate ? ratio * 100 : 0;
-		if (complete || reduceMotion || !open || indeterminate)
+	/**
+	 * The two reading modes mount the meter independently (译文 in the reader
+	 * toolbar, 对照 in the translation pane), and each subscribes to the same
+	 * shared job. The first numeric target is taken as-is instead of springing
+	 * from zero: a fresh run starts near 0 so the jump is invisible, while a
+	 * meter opened mid-run lands on the ratio the other mode already showed
+	 * instead of replaying 0→N and looking like a restart.
+	 */
+	const numericRef = useRef(false);
+	// Layout effect: a meter mounted mid-run must land on the shared ratio in
+	// the same paint instead of flashing 0% for one frame.
+	useLayoutEffect(() => {
+		const numeric = open && !indeterminate;
+		const target = numeric ? ratio * 100 : 0;
+		const firstNumeric = numeric && !numericRef.current;
+		numericRef.current = numeric;
+		if (complete || reduceMotion || !open || indeterminate || firstNumeric)
 			smoothPercent.jump(target);
 		else smoothPercent.set(target);
 	}, [open, indeterminate, ratio, complete, reduceMotion, smoothPercent]);
 
+	// The caption no longer explains which stage the count belongs to, so the
+	// label has to: 排版 owns the generated pages, 翻译 the translated ones.
 	const pagesLabel = layoutTranslatePageCounts
-		? t("pdf.layoutTranslate.pagesCount", {
-				done: layoutTranslatePageCounts.done,
-				total: layoutTranslatePageCounts.total,
-			})
+		? t(
+				layoutTranslatePreparing
+					? "pdf.layoutTranslate.pagesGenerated"
+					: "pdf.layoutTranslate.pagesCount",
+				{
+					done: layoutTranslatePageCounts.done,
+					total: layoutTranslatePageCounts.total,
+				},
+			)
 		: null;
 	const stage = lingerFull
 		? t("pdf.layoutTranslate.phaseDone")

@@ -3,8 +3,8 @@ import { errorText } from "@/lib/core/error";
 import { logger, logOp } from "@/lib/core/logger";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import {
-	isInsideReferenceRegion,
-	isReferenceLayoutRegion,
+	isInsidePreservedRegion,
+	preservedLayoutRegions,
 } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
@@ -13,6 +13,7 @@ import type {
 import type { ReflowIrCacheStore } from "./cache";
 import { extractReflowDocument } from "./extract";
 import {
+	type Paragraph,
 	REFLOW_IR_SCHEMA_VERSION,
 	type ReflowDocument,
 	type ReflowPage,
@@ -63,6 +64,7 @@ export async function prepareReflowItems(
 	regions: readonly PdfLayoutRegion[],
 	signal?: AbortSignal,
 	cache?: ReflowIrCacheStore | null,
+	build?: () => Promise<{ engine: PdfEngine; document: PdfDocumentObject }>,
 ): Promise<LayoutTranslateItem[]> {
 	const pageIndexes = [...new Set(items.map((item) => item.pageIndex))];
 	// The Settings switch gates new writes only; files written earlier stay
@@ -75,6 +77,7 @@ export async function prepareReflowItems(
 				() => readCachedPages(cache, pageIndexes),
 			)
 		: new Map<number, ReflowPage>();
+	signal?.throwIfAborted();
 	if (cache)
 		logger.info("pdf.reflow.cache", {
 			result:
@@ -100,7 +103,17 @@ export async function prepareReflowItems(
 		const extracted = await logOp(
 			"pdf.reflow.prepare.extract",
 			{ pages: new Set(missing.map((item) => item.pageIndex)).size },
-			() => extractReflowDocument(engine, doc, missing, regions, signal),
+			async () => {
+				const target = build ? await build() : { engine, document: doc };
+				signal?.throwIfAborted();
+				return extractReflowDocument(
+					target.engine,
+					target.document,
+					missing,
+					regions,
+					signal,
+				);
+			},
 		);
 		for (const page of extracted.pages) pages.set(page.index, page);
 		if (writeCache && !signal?.aborted)
@@ -114,12 +127,10 @@ export async function prepareReflowItems(
 		version: REFLOW_IR_SCHEMA_VERSION,
 		pages: [...pages.values()].sort((a, b) => a.index - b.index),
 	});
-	const references = regions.filter(
-		(region) =>
-			region.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
-			isReferenceLayoutRegion(region),
+	const preserved = preservedLayoutRegions(regions);
+	return prepared.filter(
+		(item) => !isInsidePreservedRegion(item, regions, preserved),
 	);
-	return prepared.filter((item) => !isInsideReferenceRegion(item, references));
 }
 
 function preparedItemsFromDocument(
@@ -187,25 +198,42 @@ export function reflowDocumentFromItems(
 	items: readonly LayoutTranslateItem[],
 	regions: readonly PdfLayoutRegion[],
 ): ReflowDocument {
+	const paragraphsByPage = new Map<number, Paragraph[]>();
+	const paragraphIds = new Set<string>();
+	for (const item of items) {
+		if (!item.reflow) continue;
+		paragraphIds.add(item.id);
+		const paragraphs = paragraphsByPage.get(item.pageIndex) ?? [];
+		paragraphs.push(item.reflow);
+		paragraphsByPage.set(item.pageIndex, paragraphs);
+	}
+	const obstaclesByPage = new Map<number, PdfLayoutRegion["rect"][]>();
+	for (const region of regions) {
+		if (
+			!paragraphsByPage.has(region.pageIndex) ||
+			!(region.score >= LAYOUT_SIDEBAR_MIN_SCORE) ||
+			paragraphIds.has(region.id)
+		)
+			continue;
+		const obstacles = obstaclesByPage.get(region.pageIndex) ?? [];
+		obstacles.push(region.rect);
+		obstaclesByPage.set(region.pageIndex, obstacles);
+	}
 	return {
 		version: REFLOW_IR_SCHEMA_VERSION,
-		pages: doc.pages
-			.map((page) => ({
-				index: page.index,
-				width: page.size.width,
-				height: page.size.height,
-				paragraphs: items
-					.filter((i) => i.pageIndex === page.index && i.reflow)
-					.flatMap((i) => (i.reflow ? [i.reflow] : [])),
-				obstacles: regions
-					.filter(
-						(r) =>
-							r.pageIndex === page.index &&
-							r.score >= LAYOUT_SIDEBAR_MIN_SCORE &&
-							!items.some((i) => i.id === r.id && i.reflow),
-					)
-					.map((r) => r.rect),
-			}))
-			.filter((page) => page.paragraphs.length > 0),
+		pages: doc.pages.flatMap((page) => {
+			const paragraphs = paragraphsByPage.get(page.index);
+			return paragraphs
+				? [
+						{
+							index: page.index,
+							width: page.size.width,
+							height: page.size.height,
+							paragraphs,
+							obstacles: obstaclesByPage.get(page.index) ?? [],
+						},
+					]
+				: [];
+		}),
 	};
 }

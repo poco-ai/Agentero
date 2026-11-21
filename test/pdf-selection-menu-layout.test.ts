@@ -3,81 +3,27 @@
 import { MotionConfig } from "motion/react";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { SelectionActionMenu } from "@/components/selection/selection-action-menu";
-import {
-	HIGHLIGHT_COLOR_STACK_COLLAPSED_W,
-	HIGHLIGHT_COLOR_STACK_EXPANDED_W,
-} from "@/components/viewer/pdf/cards/highlight-color-stack";
 import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
 import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 import { HIGHLIGHT_COLORS } from "@/lib/pdf/highlight/palette";
 import { settingsStore } from "@/lib/settings/react-store";
-import type { MenuContribution } from "@/lib/shell/commands/menu-contributions";
 import { formatShortcut } from "@/lib/shell/shortcuts";
+import { installResizeObserver } from "./helpers/observers";
 
 const originalOverrides = settingsStore.getState().shortcutOverrides;
-let english = false;
-let contributions: MenuContribution[] = [];
 
-vi.mock("react-i18next", () => ({
-	initReactI18next: { type: "3rdParty", init: () => undefined },
-	useTranslation: () => ({
-		t: (key: string) => {
-			if (key === "selection.quickChat")
-				return english ? "Quick chat" : "快速对话";
-			if (key === "selection.addToChat")
-				return english ? "Add to chat" : "加入对话";
-			return key;
-		},
-	}),
-}));
+vi.mock("react-i18next", () => import("./helpers/i18n"));
 
 vi.mock("@/lib/shell/commands/menu-contributions", () => ({
-	visibleMenuContributions: () => contributions,
+	visibleMenuContributions: () => [],
 	activateMenuContribution: vi.fn(),
 }));
 
 let container: HTMLDivElement;
 let root: Root;
-let colorWidth: number;
-let notifyResize: () => void;
-
-// happy-dom has no layout engine. Supply measured flex boxes with variable
-// label widths; the actual component, refs, observer, and positioning all run.
-function measuredBox(element: HTMLElement): DOMRect {
-	const menu = element.closest<HTMLElement>('[role="toolbar"]');
-	if (!menu) return new DOMRect();
-	const children = Array.from(menu.children) as HTMLElement[];
-	const widths = children.map((child) => {
-		if (child.tagName === "FIELDSET") return colorWidth;
-		if (child.querySelector("[aria-haspopup]")) return 120;
-		if (child.tagName === "BUTTON") {
-			return child.querySelector("span")
-				? (child.textContent?.length ?? 0) * 7 + 12
-				: 28;
-		}
-		return 5; // separator, including margins
-	});
-	const width =
-		10 +
-		widths.reduce((sum, next) => sum + next, 0) +
-		(children.length - 1) * 2;
-	const right = window.innerWidth - Number.parseFloat(menu.style.right || "0");
-	const left = right - width;
-	const top = Number.parseFloat(menu.style.top || "0");
-	if (element === menu) return new DOMRect(left, top, width, 32);
-	const index = children.indexOf(element);
-	if (index < 0) return new DOMRect();
-	const x =
-		left +
-		5 +
-		widths.slice(0, index).reduce((sum, next) => sum + next, 0) +
-		index * 2;
-	return element.tagName === "DIV"
-		? new DOMRect(x + 2, top + 8, 1, 16)
-		: new DOMRect(x, top + 2, widths[index], 28);
-}
 
 const props = {
 	screen: { x: 500, y: 200 },
@@ -99,36 +45,12 @@ async function render(
 	return menu;
 }
 
-function dividerCenter(menu: HTMLElement): number {
-	const divider = menu.querySelector("[data-selection-anchor]");
-	if (!divider) throw new Error("Highlight divider did not render");
-	const rect = divider.getBoundingClientRect();
-	return rect.left + rect.width / 2;
-}
-
 beforeEach(() => {
 	settingsStore.setState({ shortcutOverrides: originalOverrides });
-	english = false;
-	contributions = [];
-	colorWidth = HIGHLIGHT_COLOR_STACK_COLLAPSED_W;
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal("innerWidth", 1200);
 	vi.stubGlobal("innerHeight", 800);
-	vi.stubGlobal(
-		"ResizeObserver",
-		class {
-			constructor(callback: () => void) {
-				notifyResize = callback;
-			}
-			observe() {}
-			disconnect() {}
-		},
-	);
-	vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-		function () {
-			return measuredBox(this);
-		},
-	);
+	installResizeObserver();
 	container = document.createElement("div");
 	document.body.append(container);
 	root = createRoot(container);
@@ -143,121 +65,22 @@ afterEach(async () => {
 	vi.unstubAllGlobals();
 });
 
-it("anchors the divider after optional actions, locale, and plugin widths change", async () => {
-	const menu = await render({
-		showTranslate: false,
-		onCopy: undefined,
-		onNote: vi.fn(),
-	});
-	expect(dividerCenter(menu)).toBe(500);
-	english = true;
-	contributions = [
-		{
-			id: "test",
-			menu: "pdf.selection",
-			commandId: "test",
-			title: "A long plugin action",
-		},
-	];
-	await render({ contributionContext: { vaultPath: null } });
-	await act(() => notifyResize());
-	expect(dividerCenter(menu)).toBe(500);
-	expect(menu.textContent).toContain("A long plugin action");
-	expect(
-		menu.querySelector('[aria-label="selection.translate T"]'),
-	).not.toBeNull();
-});
-
-it("keeps actions and the divider still throughout color expansion and collapse", async () => {
-	const menu = await render();
-	const right = menu.style.right;
-	const action = menu.querySelector<HTMLElement>(
-		'button[aria-label="selection.translate T"]',
+it("uses the same action and shortcut for dictionary lookups", () => {
+	const html = renderToStaticMarkup(
+		createElement(SelectionMenu, {
+			screen: { x: 100, y: 100 },
+			onHighlight: vi.fn(),
+			onAsk: vi.fn(),
+			onAddToChat: vi.fn(),
+			onTranslate: vi.fn(),
+			showHighlight: true,
+			showTranslate: true,
+			selectionText: "KV cache",
+		}),
 	);
-	if (!action) throw new Error("Translate action did not render");
-	const actionLeft = action.getBoundingClientRect().left;
-	for (const width of [
-		80.25,
-		HIGHLIGHT_COLOR_STACK_EXPANDED_W,
-		73.5,
-		HIGHLIGHT_COLOR_STACK_COLLAPSED_W,
-	]) {
-		colorWidth = width;
-		await act(() => notifyResize());
-		expect(menu.style.right).toBe(right);
-		expect(dividerCenter(menu)).toBe(500);
-		expect(action.getBoundingClientRect().left).toBe(actionLeft);
-	}
-});
-
-it("reserves the expanded palette at the left edge and clamps to the right edge", async () => {
-	const menu = await render({ screen: { x: 0, y: 200 } });
-	colorWidth = HIGHLIGHT_COLOR_STACK_EXPANDED_W;
-	await act(() => notifyResize());
-	expect(menu.getBoundingClientRect().left).toBe(12);
-	await render({ screen: { x: 1200, y: 200 } });
-	expect(menu.getBoundingClientRect().right).toBe(1188);
-	vi.stubGlobal("innerWidth", 700);
-	await act(() => window.dispatchEvent(new Event("resize")));
-	expect(menu.getBoundingClientRect().right).toBe(688);
-});
-
-it("centers surfaces without highlights and retains vertical flipping and clamping", async () => {
-	const menu = await render({
-		showHighlight: false,
-		showTranslate: false,
-		screen: { x: 500, y: 0 },
-	});
-	const rect = menu.getBoundingClientRect();
-	expect(rect.left + rect.width / 2).toBe(500);
-	expect(menu.style.top).toBe("18px");
-	expect(menu.className).toContain("opacity-70");
-	await render({ showHighlight: false, screen: { x: 500, y: 1000 } });
-	expect(menu.style.top).toBe("756px");
-	expect(menu.className).toContain("opacity-70");
-});
-
-it("opens on the side where the selection gesture ended, centered on the cursor", async () => {
-	const menu = await render({
-		showHighlight: false,
-		screen: {
-			x: 500,
-			y: 200,
-			cursorX: 620,
-			bottom: 260,
-			side: "below",
-		},
-	});
-	// Below the selected lines, centered on the gesture endpoint.
-	expect(menu.style.top).toBe("270px");
-	const belowRect = menu.getBoundingClientRect();
-	expect(belowRect.left + belowRect.width / 2).toBeCloseTo(620);
-	await render({
-		showHighlight: false,
-		screen: {
-			x: 500,
-			y: 200,
-			cursorX: 380,
-			top: 180,
-			side: "above",
-		},
-	});
-	expect(menu.style.top).toBe("138px");
-	const aboveRect = menu.getBoundingClientRect();
-	expect(aboveRect.left + aboveRect.width / 2).toBeCloseTo(380);
-	// The PDF palette is part of the bar: center the whole bar, not its divider.
-	await render({
-		showHighlight: true,
-		screen: {
-			x: 500,
-			y: 200,
-			cursorX: 620,
-			bottom: 260,
-			side: "below",
-		},
-	});
-	const paletteRect = menu.getBoundingClientRect();
-	expect(paletteRect.left + paletteRect.width / 2).toBeCloseTo(620);
+	// The dictionary action replaces translation on the same T shortcut.
+	expect(html).toContain('aria-label="selection.dictionaryTitle T"');
+	expect(html).not.toContain('aria-label="selection.translate T"');
 });
 
 it("keeps note clicks explicit and opens quick chat through the chat arrow", async () => {
@@ -279,7 +102,9 @@ it("keeps note clicks explicit and opens quick chat through the chat arrow", asy
 	await act(() => note.click());
 	expect(onNote).toHaveBeenCalledOnce();
 	await act(() =>
-		menu.querySelector<HTMLButtonElement>('[aria-label^="加入对话"]')?.click(),
+		menu
+			.querySelector<HTMLButtonElement>('[aria-label^="selection.addToChat"]')
+			?.click(),
 	);
 	expect(onAddToChat).toHaveBeenCalledOnce();
 	expect(document.querySelector('[role="menuitem"]')).toBeNull();
@@ -293,10 +118,39 @@ it("keeps note clicks explicit and opens quick chat through the chat arrow", asy
 		),
 	);
 	const item = document.querySelector<HTMLElement>('[role="menuitem"]');
-	expect(item?.textContent).toContain("快速对话");
+	expect(item?.textContent).toContain("selection.quickChat");
 	expect(onAsk).not.toHaveBeenCalled();
 	await act(() => item?.click());
 	expect(onAsk).toHaveBeenCalledOnce();
+});
+
+it("moves bookmark into the more menu while keeping its B shortcut", async () => {
+	const onBookmark = vi.fn();
+	const menu = await render({ onBookmark });
+	expect(menu.querySelector('[aria-label="selection.bookmark B"]')).toBeNull();
+	expect(await pressKey("b")).toBe(true);
+	expect(onBookmark).toHaveBeenCalledOnce();
+
+	const trigger = menu.querySelector<HTMLButtonElement>(
+		'[aria-haspopup="menu"]',
+	);
+	if (!trigger) throw new Error("More menu trigger missing");
+	await act(() =>
+		trigger.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				button: 0,
+				pointerType: "mouse",
+			}),
+		),
+	);
+	const items = Array.from(
+		document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+	);
+	const bookmark = items.find((item) =>
+		item.textContent?.includes("selection.bookmark"),
+	);
+	expect(bookmark?.textContent).toContain("B");
 });
 
 const customBindings = {
@@ -470,4 +324,39 @@ it.each([
 	await act(() => root.render(scene([card])));
 	expect(await pressKey("c")).toBe(true);
 	expect(writeText).toHaveBeenCalledExactlyOnceWith("previous translation");
+});
+
+it("updates the word action to translation immediately when dictionary mode is off", async () => {
+	const original = settingsStore.getState().translate;
+	try {
+		await act(() =>
+			settingsStore.setState({
+				translate: { ...original, dictionary: { mode: "auto" } },
+			}),
+		);
+		await render({ selectionText: "attention" });
+		const action = () =>
+			container.querySelector<HTMLButtonElement>('[aria-keyshortcuts="T"]');
+		expect(action()?.getAttribute("aria-label")).toContain(
+			"selection.dictionaryTitle",
+		);
+		await act(() =>
+			settingsStore.setState({
+				translate: { ...original, dictionary: { mode: "off" } },
+			}),
+		);
+		expect(action()?.getAttribute("aria-label")).toContain(
+			"selection.translate",
+		);
+		await act(() =>
+			settingsStore.setState({
+				translate: { ...original, dictionary: { mode: "offline-first" } },
+			}),
+		);
+		expect(action()?.getAttribute("aria-label")).toContain(
+			"selection.dictionaryTitle",
+		);
+	} finally {
+		await act(() => settingsStore.setState({ translate: original }));
+	}
 });

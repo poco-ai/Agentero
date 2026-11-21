@@ -1,9 +1,9 @@
 import { type CSSProperties, type RefObject, useRef } from "react";
 import { AgenteroRenderLayer } from "@/components/viewer/pdf/layers/agentero-render-layer";
 import { cn } from "@/lib/core/utils";
-import { highlightFill } from "@/lib/pdf/highlight/palette";
+import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
-import { layoutTranslateSentenceNodes } from "@/lib/pdf/layout/layout-sentences";
+import { groupReflowUnitsBySentence } from "@/lib/pdf/layout/layout-sentences";
 import {
 	assignPreservedLinks,
 	type GlyphRun,
@@ -27,27 +27,11 @@ function reflowSentenceGroups(
 	item: LayoutTranslateItem,
 	units: PlacedUnit[],
 ): { index?: number; units: PlacedUnit[] }[] {
-	const split = layoutTranslateSentenceNodes(
+	return groupReflowUnitsBySentence(
 		item.translated ?? "",
 		item.sentences,
+		units,
 	);
-	if (!split) return [{ units }];
-	let offset = 0;
-	const groups = split.nodes.map((node) => {
-		const start = offset;
-		offset += node.text.length + split.gap.length;
-		return { index: node.index, start, units: [] as PlacedUnit[] };
-	});
-	let current = 0;
-	for (const unit of units) {
-		while (
-			current + 1 < groups.length &&
-			unit.translatedOffset >= groups[current + 1].start
-		)
-			current++;
-		groups[current].units.push(unit);
-	}
-	return groups;
 }
 
 /** The PDF raster and transparent selection geometry share the export layout. */
@@ -200,9 +184,14 @@ export function ReflowPageOverlay({
 											whiteSpace: "pre",
 											color: "transparent",
 											textDecoration: "none",
-											backgroundColor: tint
-												? highlightFill(tint.color)
-												: undefined,
+											...(tint
+												? tint.shape === "underline"
+													? {
+															borderBottom: `2px solid ${HIGHLIGHT_HEX[tint.color]}`,
+															boxSizing: "border-box" as const,
+														}
+													: { backgroundColor: highlightFill(tint.color) }
+												: null),
 										};
 										const key = `${u.x}-${u.y}-${u.text}`;
 										return assignment ? (
