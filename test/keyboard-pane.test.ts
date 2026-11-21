@@ -158,8 +158,17 @@ describe("editable keyboard settings", () => {
 	});
 
 	it("toggles element hints without touching shortcut overrides", async () => {
+		const vim = container.querySelector(
+			"#vim-mode",
+		) as HTMLButtonElement | null;
+		if (!vim) throw new Error("Missing Vim mode switch");
+		expect(vim.getAttribute("aria-checked")).toBe("false");
+		await click(vim);
+		expect(saveSettings).toHaveBeenLastCalledWith(
+			expect.objectContaining({ vimMode: true }),
+		);
 		const hint = container.querySelector(
-			'[role="switch"]',
+			"#hint-mode-enabled",
 		) as HTMLButtonElement | null;
 		if (!hint) throw new Error("Missing element hint switch");
 		expect(hint.getAttribute("aria-checked")).toBe("true");

@@ -163,7 +163,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	terminalApp: "",
 	pdfScrollStrategy: "vertical",
 	pdfVimKeys: true,
-	vimMode: true,
+	vimMode: false,
 	hintModeEnabled: true,
 	soundEnabled: true,
 	pdfSpreadMode: "none",
