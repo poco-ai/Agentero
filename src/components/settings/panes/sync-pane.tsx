@@ -69,6 +69,7 @@ import type { ApiError } from "@/lib/core/ipc";
 import { errorMessage, notifyError, notifySuccess } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { displayPath } from "@/lib/core/path";
+import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 import { isTauri } from "@/lib/core/tauri";
 import { toSafeDisposer } from "@/lib/core/tauri-events";
 import { cn } from "@/lib/core/utils";
@@ -187,6 +188,10 @@ const BACKEND_OPTIONS = [
 	{ value: "git", labelKey: "sync.backendGit" },
 ] as const;
 
+/** Dismissing the conditional-writes notice is a permanent, device-local choice. */
+const DEGRADED_NOTICE_DISMISSED_KEY =
+	"agentero.sync.degradedNoticeDismissed.v1";
+
 /** Local Vaults this pane can edit: the opener plus the shared MRU list. */
 function localVaultChoices(primary: string | null): string[] {
 	const out: string[] = [];
@@ -257,7 +262,9 @@ function VaultSyncForm({
 	const [progress, setProgress] = useState<SyncProgressEvent | null>(null);
 	const [syncError, setSyncError] = useState<string | null>(null);
 	const [advancedOpen, setAdvancedOpen] = useState(false);
-	const [degradedNoticeDismissed, setDegradedNoticeDismissed] = useState(false);
+	const [degradedNoticeDismissed, setDegradedNoticeDismissed] = useState(() =>
+		readJsonStorage<boolean>(DEGRADED_NOTICE_DISMISSED_KEY, false),
+	);
 	const [overwriteDialog, setOverwriteDialog] = useState<{
 		direction: SyncOverwriteDirection;
 		preview: SyncOverwritePreview;
@@ -828,7 +835,10 @@ function VaultSyncForm({
 								type="button"
 								className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
 								aria-label={t("sync.dismissNotice")}
-								onClick={() => setDegradedNoticeDismissed(true)}
+								onClick={() => {
+									writeJsonStorage(DEGRADED_NOTICE_DISMISSED_KEY, true);
+									setDegradedNoticeDismissed(true);
+								}}
 							>
 								<X className="size-3.5" aria-hidden />
 							</button>
