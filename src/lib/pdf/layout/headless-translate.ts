@@ -119,12 +119,7 @@ async function runLayoutTranslateExecutor(
 			await report({ state: "failed", error: result.error });
 			return;
 		}
-		await report({
-			progress: 100,
-			phase:
-				result.pending > 0 ? `${result.translated}/${result.total}` : undefined,
-			state: "succeeded",
-		});
+		await report({ progress: 100, state: "succeeded" });
 	} catch (error) {
 		if (signal.aborted || isCancelledError(error)) {
 			await report({ state: "cancelled" });
@@ -252,7 +247,10 @@ export async function translatePaperLayoutHeadless(opts: {
 			signal,
 			run,
 		);
-	report({ progress: 2 });
+	report({
+		progress: 2,
+		phase: i18n.t("app:tasks.layoutTranslatePrepareItems"),
+	});
 	const prepared = await withDocument((engine, doc) => {
 		const irCache = createReflowIrCache(
 			{
@@ -296,7 +294,10 @@ export async function translatePaperLayoutHeadless(opts: {
 		return skipped("complete cache", total, 0);
 	}
 
-	report({ progress: 5 });
+	report({
+		progress: 5,
+		phase: i18n.t("app:tasks.layoutTranslateRun"),
+	});
 	let reported = 5;
 	const items = await runLayoutRegionTranslate({
 		items: hydration.items,
@@ -369,9 +370,17 @@ export async function translatePaperLayoutHeadless(opts: {
 		translated,
 		total,
 		pending,
+		// A complete cache returns earlier with pendingRequired === 0.
+		// Written sidecar blocks stay; a partial run is not success.
 		error:
-			translated === 0 && firstError?.error
-				? displayTranslateError(firstError.error)
+			pending > 0
+				? translated === 0 && firstError?.error
+					? displayTranslateError(firstError.error)
+					: i18n.t("app:tasks.layoutTranslatePartial", {
+							translated,
+							total,
+							pending,
+						})
 				: undefined,
 	};
 }
@@ -419,6 +428,8 @@ async function buildFinalCache(opts: {
 			logger.info("pdf.translate.headless", { result: "pdf-cache-hit" });
 			return;
 		}
+		let writingPdf = false;
+		opts.report({ phase: i18n.t("app:tasks.layoutTranslateFormulas") });
 		const built = await buildReflowPdf(
 			opts.engine,
 			opts.doc,
@@ -427,7 +438,17 @@ async function buildFinalCache(opts: {
 			fonts,
 			opts.signal,
 			true,
-			(ratio) => opts.report({ progress: 90 + Math.round(9 * ratio) }),
+			(ratio) => {
+				if (!writingPdf && ratio >= 0.6) {
+					writingPdf = true;
+					opts.report({
+						progress: 90 + Math.round(9 * ratio),
+						phase: i18n.t("app:tasks.layoutTranslateWritePdf"),
+					});
+					return;
+				}
+				opts.report({ progress: 90 + Math.round(9 * ratio) });
+			},
 		);
 		opts.signal?.throwIfAborted();
 		await cache.writeFinal(ir, translations, fonts, built.bytes);
