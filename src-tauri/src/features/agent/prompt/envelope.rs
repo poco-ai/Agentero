@@ -62,7 +62,7 @@ pub fn build_prompt(
     };
 
     let system = format!(
-        "{system}{}{}{}",
+        "{system} {VAULT_BOUNDARY}{}{}{}",
         language_directive(response_language),
         personal_preference_directive(personal_prompt),
         ui_blocks_guidance()
@@ -85,6 +85,20 @@ fn ui_blocks_guidance() -> String {
 
 /// Marker Host always inserts before the real user text in `build_prompt`.
 pub const USER_REQUEST_MARKER: &str = "User request:\n";
+
+/// Host safety invariant for every interactive turn: reads stay inside the Vault.
+///
+/// macOS attributes privacy (TCC) prompts to the responsible app, so an agent
+/// shell command that scans `$HOME` (or Desktop / Downloads / another app's
+/// folder) surfaces as Agentero asking for unrelated permissions — Music,
+/// iCloud, app data (#570, #1119). ACP sessions already start in the Vault and
+/// reads are Vault-relative by policy; this states the boundary where agents
+/// look for their working directory, so it also covers vaults created before
+/// the rule reached `AGENTS.md`.
+pub const VAULT_BOUNDARY: &str = "Stay inside the Vault: use Vault-relative paths and never scan \
+                                   `$HOME`, Desktop, Downloads, or other apps' folders — macOS \
+                                   attributes those reads to Agentero and prompts the user for \
+                                   unrelated permissions.";
 
 /// Codex injects a separate user turn with only this block; never show it in Chat.
 fn strip_environment_context_blocks(text: &str) -> String {
@@ -269,6 +283,39 @@ mod tests {
         assert!(!p.contains("Cite sources inline"));
         assert!(!p.contains("[Section 2.3](papers/<id>/<id>.pdf#section=2.3)"));
         assert!(!p.contains("progressive disclosure: AGENTS.md →"));
+    }
+
+    #[test]
+    fn every_interactive_workflow_keeps_reads_inside_the_vault() {
+        // #1119: agents that resolved their workspace from `$HOME` made macOS
+        // attribute folder / media-library prompts to Agentero even though the
+        // task only asked to read one paper. The boundary is a Host invariant,
+        // not CLI policy, so it ships with the turn envelope for old vaults too.
+        for workflow in ["free", "qa", "summary", "related_work", "paper_reader"] {
+            let p = build_prompt(
+                Some(workflow),
+                "Read this paper and summarize it",
+                Some("papers/x"),
+                SkillMentionStyle::InjectedOnly,
+                &[],
+                None,
+                None,
+            );
+            assert!(
+                p.contains(VAULT_BOUNDARY),
+                "{workflow} must state the boundary"
+            );
+        }
+        let translate = build_prompt(
+            Some("translate"),
+            "Translate this",
+            None,
+            SkillMentionStyle::InjectedOnly,
+            &[],
+            None,
+            None,
+        );
+        assert!(!translate.contains(VAULT_BOUNDARY));
     }
 
     #[test]
@@ -476,7 +523,8 @@ mod tests {
         );
         let expected = format!(
             "You are an assistant working inside a Agentero research Vault (cwd is the vault root). \
-             Follow vault AGENTS.md.\n\n{}\n\nUser request:\nHello",
+             Follow vault AGENTS.md. {}\n\n{}\n\nUser request:\nHello",
+            VAULT_BOUNDARY,
             UI_BLOCKS_GUIDANCE.trim()
         );
         assert_eq!(p, expected);

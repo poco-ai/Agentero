@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 ---
 
 # AGENTS.md
@@ -73,6 +73,10 @@ For a paper folder, use the richest available source in this order:
 
 ## Rules
 
+- Stay inside the Vault. Use Vault-relative paths and never scan `$HOME`, `Desktop`,
+  `Downloads`, `/Applications`, or other apps' folders (`find ~`, `mdfind`, `ls ~`).
+  macOS attributes those reads to Agentero and shows the user unrelated permission
+  prompts. When a path is unclear, ask or work from `papers/` and the `agentero` CLI.
 - Do not invent facts, numbers, citations, or experimental conclusions. Mark uncertainty.
 - Keep `[[wikilinks]]` and `![[embeds]]` as written; preserve ` ```mermaid ` fences.
 - Never overwrite user notes without an explicit draft + confirmation path.
