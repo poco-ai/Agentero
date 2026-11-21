@@ -169,6 +169,7 @@ beforeEach(() => {
 		visible: true,
 		open: true,
 		completionFailed: false,
+		failureMessage: null,
 		onOpenChange: (open) => {
 			if (fixture.partial) fixture.partial = { ...fixture.partial, open };
 		},

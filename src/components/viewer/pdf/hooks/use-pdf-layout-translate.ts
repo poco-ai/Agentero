@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
+import i18n from "@/i18n";
 import { backgroundTasksStore } from "@/lib/core/background-tasks";
 import type { JobSnapshot } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
@@ -98,6 +99,11 @@ export type PdfLayoutTranslatePartial = {
 	open: boolean;
 	/** A completion / retranslate attempt already ran and gaps remain. */
 	completionFailed: boolean;
+	/**
+	 * Host failure that the partial summary does not already say, such as a
+	 * stalled formula call. Null when there is nothing extra to show.
+	 */
+	failureMessage: string | null;
 	/** Localized, 1-based page ranges with no layout text result. */
 	layoutWarningPages: string | null;
 	layoutWarningCount: number;
@@ -458,6 +464,9 @@ export function usePdfLayoutTranslate({
 		(job: LayoutTranslateJobState) => void
 	>(() => {});
 	const [partialDialogOpen, setPartialDialogOpen] = useState(false);
+	const [layoutTranslateFailure, setLayoutTranslateFailure] = useState<
+		string | null
+	>(null);
 	// Visibility must not discard the translation or invalidate its reflow preview.
 	const [hiddenPageIndexes, setHiddenPageIndexes] = useState<
 		ReadonlySet<number>
@@ -737,6 +746,11 @@ export function usePdfLayoutTranslate({
 						if (ac.signal.aborted) return;
 						shared.jobId = job.id;
 						setLayoutTranslateQueued(job.state === "queued");
+						setLayoutTranslateFailure((prev) => {
+							const next =
+								job.state === "failed" ? job.error?.trim() || null : null;
+							return prev === next ? prev : next;
+						});
 						if (!snapshot) {
 							setSourcePreparing(
 								job.state === "running" || job.state === "queued",
@@ -1757,6 +1771,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
 		setSourcePreparing(false);
+		setLayoutTranslateFailure(null);
 		setHiddenPageIndexes(new Set());
 		layoutTranslateWaitTargetRef.current = null;
 		completePendingAfterLayoutRef.current = false;
@@ -2144,10 +2159,29 @@ export function usePdfLayoutTranslate({
 	// Keep the entry available while gaps remain, including during page building;
 	// only an in-flight translation or layout wait temporarily hides it.
 	// Page-only gaps remain recoverable from their page tag.
+	// A host failure whose text repeats the partial summary stays on that summary.
+	const layoutTranslateFailureDetail = useMemo(() => {
+		if (!layoutTranslateFailure) return null;
+		if (layoutTranslatePendingRequired <= 0) return layoutTranslateFailure;
+		const echoed = i18n.t("app:tasks.layoutTranslatePartial", {
+			translated: Math.max(
+				0,
+				layoutTranslateJob.items.length - layoutTranslatePendingRequired,
+			),
+			total: layoutTranslateJob.items.length,
+			pending: layoutTranslatePendingRequired,
+		});
+		return layoutTranslateFailure === echoed ? null : layoutTranslateFailure;
+	}, [
+		layoutTranslateFailure,
+		layoutTranslatePendingRequired,
+		layoutTranslateJob.items.length,
+	]);
 	const layoutTranslatePartialVisible =
 		layoutTranslateJob.scope === "document" &&
 		(layoutTranslatePendingRequired > 0 ||
-			layoutTranslateJob.layoutWarnings.length > 0) &&
+			layoutTranslateJob.layoutWarnings.length > 0 ||
+			Boolean(layoutTranslateFailureDetail)) &&
 		!layoutTranslateRunning &&
 		!layoutTranslateWaiting;
 
@@ -2188,6 +2222,7 @@ export function usePdfLayoutTranslate({
 			visible: layoutTranslatePartialVisible,
 			open: partialDialogOpen,
 			completionFailed: layoutTranslateJob.partialCompletionFailed,
+			failureMessage: layoutTranslateFailureDetail,
 			layoutWarningPages: layoutWarningPages || null,
 			layoutWarningCount: layoutWarningPageCount,
 			layoutPageCount: layoutTranslateJob.layoutPageCount,
@@ -2209,6 +2244,7 @@ export function usePdfLayoutTranslate({
 			layoutTranslatePartialVisible,
 			partialDialogOpen,
 			layoutTranslateJob.partialCompletionFailed,
+			layoutTranslateFailureDetail,
 			completeMissingLayoutTranslate,
 			retranslateAllLayoutTranslate,
 			reparseAndTranslateLayout,

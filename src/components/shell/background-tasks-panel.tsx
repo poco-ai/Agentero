@@ -250,25 +250,6 @@ function TaskRow({ task }: { task: BackgroundTask }) {
 						</TooltipContent>
 					</Tooltip>
 				) : null}
-				{task.status === "failed" && task.kind === "layoutTranslate" ? (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-xs"
-								className="size-6 shrink-0"
-								aria-label={t("tasks.openTranslateSettings")}
-								onClick={() => openSettingsWindow("translate")}
-							>
-								<Settings className="size-3.5" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="left">
-							{t("tasks.openTranslateSettings")}
-						</TooltipContent>
-					</Tooltip>
-				) : null}
 			</div>
 			{showBar &&
 			task.status !== "completed" &&
@@ -587,6 +568,12 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 		const act = [...active].sort((a, b) => a.queueIndex - b.queueIndex);
 		const done = tasks
 			.filter(isFinishedBackgroundTask)
+			// Layout-translate failures stay on the PDF warning button and its
+			// popover. The corner list keeps the running row, not the error.
+			.filter(
+				(task) =>
+					!(task.kind === "layoutTranslate" && task.status === "failed"),
+			)
 			.sort((a, b) => b.updatedAt - a.updatedAt)
 			.slice(0, 6);
 		return [...act, ...done];
@@ -619,33 +606,25 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 		// Headless layout / parse jobs have no viewer toast of their own — surface
 		// a top-right error with a jump to the analysis settings.
 		const failedTasks = getBackgroundTasksSnapshot().tasks;
-		for (const id of fresh) {
+		// A failed full-text translation is the PDF warning button and popover,
+		// not a toast and not a corner row.
+		const surfaced = fresh.flatMap((id) => {
 			const task = failedTasks.find((item) => item.id === id);
-			if (!task) continue;
-			if (JOB_LAYOUT_TOAST_KINDS.has(task.kind)) {
-				notifyError(task.title, {
-					description: task.error?.trim() || undefined,
-					id: `layout-failed-${id}`,
-					action: {
-						label: t("tasks.openLayoutSettings"),
-						onClick: () => openSettingsWindow("layout"),
-					},
-				});
-				continue;
-			}
-			// Background import translation fails without a viewer: surface the
-			// provider / settings error here instead of only the panel row.
-			if (task.kind === "layoutTranslate") {
-				notifyError(task.title, {
-					description: task.error?.trim() || undefined,
-					id: `translate-failed-${id}`,
-					action: {
-						label: t("tasks.openTranslateSettings"),
-						onClick: () => openSettingsWindow("translate"),
-					},
-				});
-			}
+			if (!task || task.kind === "layoutTranslate") return [];
+			return [task];
+		});
+		for (const task of surfaced) {
+			if (!JOB_LAYOUT_TOAST_KINDS.has(task.kind)) continue;
+			notifyError(task.title, {
+				description: task.error?.trim() || undefined,
+				id: `layout-failed-${task.id}`,
+				action: {
+					label: t("tasks.openLayoutSettings"),
+					onClick: () => openSettingsWindow("layout"),
+				},
+			});
 		}
+		if (surfaced.length === 0) return;
 
 		openDetail();
 		if (errorCollapseTimerRef.current) {
