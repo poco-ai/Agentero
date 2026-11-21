@@ -177,13 +177,16 @@ pub async fn list_system_fonts() -> ApiResult<Vec<String>> {
 /// Domain side effects are not wired here: they run as
 /// [`AppSettingsStore::subscribe`] listeners registered by the app assembly
 /// (see `app/mod.rs`), fired inside `store.set` with the redacted snapshot.
+///
+/// `async` is deliberate. A synchronous `#[tauri::command]` runs inside the
+/// WebView2 interface-thread IPC callback, and this path rewrites
+/// `settings.json` and fans out to every subscriber on each edit. Keep the
+/// `AppHandle` argument rather than `State<'_, _>`: an async command cannot
+/// borrow the invoke context.
 #[tauri::command]
 #[specta::specta]
-pub fn settings_set(
-    app: AppHandle,
-    store: State<'_, AppSettingsStore>,
-    settings: AppSettings,
-) -> ApiResult<AppSettings> {
+pub async fn settings_set(app: AppHandle, settings: AppSettings) -> ApiResult<AppSettings> {
+    let store = app.state::<AppSettingsStore>();
     if let Err(e) = crate::core::http::configure_proxy(
         settings.network_proxy_enabled,
         &settings.network_proxy_url,

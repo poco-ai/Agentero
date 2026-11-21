@@ -12,6 +12,12 @@ export const commands = {
 	 *  Domain side effects are not wired here: they run as
 	 *  [`AppSettingsStore::subscribe`] listeners registered by the app assembly
 	 *  (see `app/mod.rs`), fired inside `store.set` with the redacted snapshot.
+	 * 
+	 *  `async` is deliberate. A synchronous `#[tauri::command]` runs inside the
+	 *  WebView2 interface-thread IPC callback, and this path rewrites
+	 *  `settings.json` and fans out to every subscriber on each edit. Keep the
+	 *  `AppHandle` argument rather than `State<'_, _>`: an async command cannot
+	 *  borrow the invoke context.
 	 */
 	settingsSet: (settings: AppSettings_Deserialize) => __TAURI_INVOKE<ApiResult<AppSettings_Serialize>>("settings_set", { settings }),
 	/**
