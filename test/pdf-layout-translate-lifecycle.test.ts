@@ -768,25 +768,44 @@ it("keeps a shared page failure inline instead of raising an error toast", async
 	expect(h.partial.visible).toBe(false);
 });
 
-it("routes shared job-level failures to the partial entry, not an error toast", async () => {
-	// A job can fail before any snapshot exists, or after publishing items
-	// (cache write / reflow). Neither case toasts: gaps stay reachable from the
-	// partial entry, and a page failure keeps its inline retry marker.
-	for (const withItems of [false, true]) {
-		setShared(
-			{ ...sharedJob("failed"), error: "Cache write failed" },
-			withItems
-				? sharedSnapshot([errorItem(0, "Translation service unavailable")])
-				: null,
-		);
-		const h = await mountHarness({ vaultPath: "/vault" });
-		await h.start();
-		expect(io.errors.length).toBe(0);
-		expect(h.view.layoutTranslateStatus).toBe("partial");
-		expect(h.partial.visible).toBe(withItems);
-		await h.unmount();
-		resetIo();
-	}
+it.each([
+	{
+		stage: "before publishing items",
+		items: null,
+		status: "partial",
+		pending: 0,
+	},
+	{
+		stage: "with missing translations",
+		items: [errorItem(0, "Translation service unavailable")],
+		status: "partial",
+		pending: 1,
+	},
+	{
+		stage: "after translating every item",
+		items: [doneItem(0, "Saved translation")],
+		status: "done",
+		pending: 0,
+	},
+])("shows shared job failures on the warning button $stage", async ({
+	items,
+	status,
+	pending,
+}) => {
+	const message = "Cache write failed";
+	setShared(
+		{ ...sharedJob("failed"), error: message },
+		items ? sharedSnapshot(items) : null,
+	);
+	const h = await mountHarness({ vaultPath: "/vault" });
+	await h.start();
+	expect(io.errors).toHaveLength(0);
+	expect(h.view.layoutTranslateStatus).toBe(status);
+	expect(h.partial).toMatchObject({
+		visible: true,
+		failureMessage: message,
+		pendingRequired: pending,
+	});
 });
 
 it("resets a shared retranslation's progress after the previous run completed", async () => {

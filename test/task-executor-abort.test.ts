@@ -111,6 +111,10 @@ describe("task executor abort", () => {
 	});
 
 	it("aborts when the host marks the job failed and drops a late success", async () => {
+		mocks.commandSpy("jobRendererClaim").mockResolvedValueOnce({
+			status: "ok",
+			data: { ok: true, data: true },
+		});
 		let finished = false;
 		registerTaskExecutor("layoutAnalyze", async (ctx) => {
 			await new Promise<void>((resolve) => {
@@ -124,7 +128,6 @@ describe("task executor abort", () => {
 			finished = true;
 		});
 		startJobCenterExecutorListener();
-		await flush();
 
 		mocks.emit("jobOffer", {
 			jobId: "job-failed",
@@ -134,7 +137,9 @@ describe("task executor abort", () => {
 			force: false,
 			params: null,
 		});
-		await flush();
+		await vi.waitFor(() =>
+			expect(mocks.bindingFor("jobChanged").listeners).toHaveLength(1),
+		);
 		mocks.emit("jobChanged", {
 			job: { id: "job-failed", state: "failed" },
 		});
