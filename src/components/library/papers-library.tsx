@@ -9,7 +9,14 @@
  * Reading heat: title text background as a left→right spine (doc start→end).
  */
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Check, ListFilter, RefreshCw } from "lucide-react";
+import {
+	Check,
+	FileUp,
+	FolderPlus,
+	ListFilter,
+	RefreshCw,
+	Upload,
+} from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +29,10 @@ import { LibraryCardView } from "@/components/library/library-card-view";
 import { resolveColumnWidths } from "@/components/library/library-column-widths";
 import { getColumnMeta } from "@/components/library/library-columns";
 import { LibraryCopyDialog } from "@/components/library/library-copy-dialog";
+import {
+	type LibraryFolderDraft,
+	LibraryFolderNameDialog,
+} from "@/components/library/library-folder-name-dialog";
 import {
 	libraryChildFolders,
 	paperIsInLibraryFolder,
@@ -51,6 +62,10 @@ import {
 } from "@/components/library/library-view-toolbar";
 import { Button } from "@/components/ui/button";
 import {
+	ContextMenuItem,
+	ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
@@ -59,6 +74,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+	useLibraryStore,
 	useSettings,
 	useVaultStore,
 	useWritingStore,
@@ -66,12 +82,15 @@ import {
 import { useDebouncedCallback } from "@/hooks/use-debounce";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { broadcastAgentAttachContext } from "@/lib/agent/context-attach";
+import { isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
 import type { PaperLibraryRow, PaperMetadata } from "@/lib/paper";
-import { filterPapersByScope } from "@/lib/paper/api";
+import { filterPapersByScope, libraryDropParentDir } from "@/lib/paper/api";
 import { loadCustomProperties } from "@/lib/paper/custom-properties-store";
+import { importLocalPdf } from "@/lib/paper/import-actions";
 import {
 	copyLibraryPapersTo,
+	libraryImport,
 	refreshPaperMetadata,
 	syncLibraryPublication,
 } from "@/lib/paper/library-actions";
@@ -791,6 +810,47 @@ export function PapersLibrary({
 
 	const initialLoad = Boolean(loading) && papers.length === 0;
 	const empty = rows.length === 0 && folders.length === 0;
+	const parentDir = libraryDropParentDir(scopePath);
+	const ioBusy = useLibraryStore((state) => state.ioBusy);
+	const [folderDraft, setFolderDraft] = useState<LibraryFolderDraft | null>(
+		null,
+	);
+	const backgroundItems =
+		vaultPath && isTauri() ? (
+			<>
+				<ContextMenuItem
+					onSelect={() =>
+						setFolderDraft({
+							kind: "create",
+							vaultPath,
+							parentPath: joinVaultPath(vaultPath, parentDir),
+						})
+					}
+				>
+					<FolderPlus className="size-3.5" />
+					{t("fileTree.newFolder")}
+				</ContextMenuItem>
+				{canEditMeta ? (
+					<>
+						<ContextMenuSeparator />
+						<ContextMenuItem
+							disabled={Boolean(ioBusy)}
+							onSelect={() => void importLocalPdf({ parentDir, vaultPath })}
+						>
+							<FileUp className="size-3.5" />
+							{t("papersLibrary.importPdf")}
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={Boolean(ioBusy)}
+							onSelect={() => void libraryImport(parentDir)}
+						>
+							<Upload className="size-3.5" />
+							{t("papersLibrary.import")}
+						</ContextMenuItem>
+					</>
+				) : null}
+			</>
+		) : null;
 	let body: ReactNode;
 	{
 		const cards = showCards ? (
@@ -819,6 +879,17 @@ export function PapersLibrary({
 						selectionActive={selectionActive}
 						onSelect={selectRow}
 						onNavigateFolder={handleNavigateFolder}
+						onRenameFolder={
+							vaultPath && canEditMeta && isTauri()
+								? (path, name) =>
+										setFolderDraft({ kind: "rename", vaultPath, path, name })
+								: undefined
+						}
+						onDeleteFolder={
+							vaultPath && isTauri()
+								? (path) => void trashPathsAndNotify([path])
+								: undefined
+						}
 						onPaperClick={handleCardClick}
 					/>
 				) : null}
@@ -1120,12 +1191,19 @@ export function PapersLibrary({
 				onDeletePapers={deletePapers}
 				onClearSelection={clearSelection}
 				onPrepareContext={prepareContext}
+				backgroundItems={backgroundItems}
 				t={t}
 			>
 				<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
 					{body}
 				</div>
 			</LibraryRowMenu>
+			{active && folderDraft && folderDraft.vaultPath === vaultPath ? (
+				<LibraryFolderNameDialog
+					draft={folderDraft}
+					onClose={() => setFolderDraft(null)}
+				/>
+			) : null}
 		</LibraryPdfDropSurface>
 	);
 }

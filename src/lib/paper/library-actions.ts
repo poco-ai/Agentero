@@ -139,7 +139,7 @@ export async function libraryExport(): Promise<void> {
 	}
 }
 
-export async function libraryImport(): Promise<void> {
+export async function libraryImport(parentDir?: string): Promise<void> {
 	const vaultPath = getVaultPath();
 	if (!vaultPath || libraryStore.getState().ioBusy) return;
 	setLibraryIoBusy("import");
@@ -148,7 +148,7 @@ export async function libraryImport(): Promise<void> {
 			kind: "libraryIo",
 			vaultPath,
 			path: "",
-			params: { op: "import" },
+			params: { op: "import", parentDir: parentDir ?? null },
 		});
 	} catch (e) {
 		notifyError(errorText(e));

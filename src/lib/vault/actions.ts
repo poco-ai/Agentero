@@ -1115,6 +1115,26 @@ export function cancelCreate(): void {
 	setCreateDraft(null);
 }
 
+export async function createVaultFolder(
+	vaultPath: string,
+	parentPath: string,
+	name: string,
+): Promise<string> {
+	const trimmed = name.trim();
+	if (!isValidVaultEntryName(trimmed)) {
+		throw new Error(i18n.t("sidebar:fileTree.invalidName"));
+	}
+	const path = joinVaultPath(parentPath, trimmed);
+	if (await vaultPathExists(path)) {
+		throw new Error(
+			i18n.t("sidebar:fileTree.alreadyExists", { name: trimmed }),
+		);
+	}
+	await createVaultDirectory(path);
+	await refreshTree(vaultPath);
+	return path;
+}
+
 export async function confirmCreate(name: string): Promise<void> {
 	const { createDraft } = vaultStore.getState();
 	const vaultPath = getVaultPath();
@@ -1138,27 +1158,30 @@ export async function confirmCreate(name: string): Promise<void> {
 			await writeExperimentPair(vaultPath, createDraft.parentPath, trimmed);
 			return;
 		}
+		if (kind === "folder") {
+			const path = await createVaultFolder(
+				vaultPath,
+				createDraft.parentPath,
+				trimmed,
+			);
+			setTreeSelectedPath(path);
+			return;
+		}
 		// Use vault-aware exists: local FS plugin cannot see `remote:<id>/…`.
 		if (await vaultPathExists(full)) {
 			notifyError(i18n.t("sidebar:fileTree.alreadyExists", { name: trimmed }));
 			return;
 		}
-		if (kind !== "folder") {
-			const { createResearchTable, isResearchTablePath, researchTableStem } =
-				await import("@/lib/research-table/model");
-			const table = isResearchTablePath(trimmed)
-				? createResearchTable(researchTableStem(trimmed))
-				: null;
-			if (table) table.fields[0].name = i18n.t("editor:researchTable.name");
-			const initialContent = table ? `${JSON.stringify(table, null, 2)}\n` : "";
-			await writeVaultFile(full, initialContent);
-			await refreshTree(vaultPath);
-			openPath(full);
-		} else {
-			await createVaultDirectory(full);
-			await refreshTree(vaultPath);
-			setTreeSelectedPath(full);
-		}
+		const { createResearchTable, isResearchTablePath, researchTableStem } =
+			await import("@/lib/research-table/model");
+		const table = isResearchTablePath(trimmed)
+			? createResearchTable(researchTableStem(trimmed))
+			: null;
+		if (table) table.fields[0].name = i18n.t("editor:researchTable.name");
+		const initialContent = table ? `${JSON.stringify(table, null, 2)}\n` : "";
+		await writeVaultFile(full, initialContent);
+		await refreshTree(vaultPath);
+		openPath(full);
 	} catch (e) {
 		notifyError(errorText(e));
 	} finally {

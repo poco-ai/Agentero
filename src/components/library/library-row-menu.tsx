@@ -1,7 +1,8 @@
 /**
  * One context menu for the library content area.
  *
- * Right-click a paper for single or batch actions.
+ * Right-click a paper for single or batch actions, or the background for
+ * actions scoped to the current folder.
  */
 import {
 	BookOpen,
@@ -114,16 +115,21 @@ export type LibraryRowMenuProps = {
 	/** Right-click preparation: select the row unless it is already selected. */
 	onPrepareContext: (key: string) => void;
 	t: CellT;
+	backgroundItems?: ReactNode;
 	children: ReactNode;
 };
 
 const PaperMenuContext = createContext<{
-	props: Omit<LibraryRowMenuProps, "children" | "onPrepareContext">;
+	props: Omit<
+		LibraryRowMenuProps,
+		"backgroundItems" | "children" | "onPrepareContext"
+	>;
 	recapturingKeys: ReadonlySet<string>;
 	onRecaptureWebpage: (paper: PaperMetadata) => void;
 } | null>(null);
 
 export function LibraryRowMenu({
+	backgroundItems,
 	onPrepareContext,
 	children,
 	...props
@@ -150,7 +156,14 @@ export function LibraryRowMenu({
 		const target = Number.isFinite(index) ? rows[index] : undefined;
 		if (!target) {
 			setTargetKey(null);
-			event.preventDefault();
+			if (
+				!backgroundItems ||
+				element.closest(
+					"[data-library-card], thead, button, a, input, textarea, [role='menu']",
+				)
+			) {
+				event.preventDefault();
+			}
 			return;
 		}
 		const key = paperSelectionKey(target.paper);
@@ -192,7 +205,9 @@ export function LibraryRowMenu({
 				<ContextMenuContent className="w-52">
 					{targetRow ? (
 						<LibraryPaperMenuItems row={targetRow} mode="context" />
-					) : null}
+					) : (
+						backgroundItems
+					)}
 				</ContextMenuContent>
 			</ContextMenu>
 		</PaperMenuContext.Provider>

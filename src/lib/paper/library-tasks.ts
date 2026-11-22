@@ -85,10 +85,11 @@ async function runCitingScanJob(ctx: TaskExecutorContext): Promise<void> {
 }
 
 async function runLibraryIoJob(ctx: TaskExecutorContext): Promise<void> {
-	const op =
+	const params =
 		ctx.params && typeof ctx.params === "object"
-			? (ctx.params as { op?: unknown }).op
-			: undefined;
+			? (ctx.params as { op?: unknown; parentDir?: unknown })
+			: null;
+	const op = params?.op;
 	if (op === "export") {
 		// A dismissed save dialog resolves to null: soft cancel, job succeeds.
 		await exportLibraryToFile({
@@ -100,7 +101,10 @@ async function runLibraryIoJob(ctx: TaskExecutorContext): Promise<void> {
 	if (op === "import") {
 		const r = await importLibraryFromFile({
 			vaultPath: ctx.vaultPath,
-			parentDir: currentLookupParentDir(),
+			parentDir:
+				typeof params?.parentDir === "string"
+					? params.parentDir
+					: currentLookupParentDir(),
 		});
 		if (!r) return;
 		await reportTaskPhase(

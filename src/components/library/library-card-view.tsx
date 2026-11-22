@@ -5,6 +5,8 @@ import {
 	Folder,
 	FolderOpen,
 	MessageSquarePlus,
+	Pencil,
+	Trash2,
 } from "lucide-react";
 import {
 	type MouseEvent,
@@ -285,6 +287,8 @@ export function LibraryCardView({
 	selectionActive,
 	onSelect,
 	onNavigateFolder,
+	onRenameFolder,
+	onDeleteFolder,
 	onPaperClick,
 }: {
 	folders: LibraryFolder[];
@@ -295,6 +299,8 @@ export function LibraryCardView({
 	selectionActive: boolean;
 	onSelect: SelectCard;
 	onNavigateFolder?: (path: string) => void;
+	onRenameFolder?: (absPath: string, name: string) => void;
+	onDeleteFolder?: (absPath: string) => void;
 	onPaperClick: (
 		event: MouseEvent<HTMLButtonElement>,
 		paper: PaperMetadata,
@@ -413,6 +419,26 @@ export function LibraryCardView({
 													>
 														<FolderOpen className="size-3.5" />
 														{t(revealInOsLabelKey())}
+													</DropdownMenuItem>
+												) : null}
+												{onRenameFolder || onDeleteFolder ? (
+													<DropdownMenuSeparator />
+												) : null}
+												{onRenameFolder ? (
+													<DropdownMenuItem
+														onSelect={() => onRenameFolder(absPath, name)}
+													>
+														<Pencil className="size-3.5" />
+														{t("fileTree.rename")}
+													</DropdownMenuItem>
+												) : null}
+												{onDeleteFolder ? (
+													<DropdownMenuItem
+														variant="destructive"
+														onSelect={() => onDeleteFolder(absPath)}
+													>
+														<Trash2 className="size-3.5" />
+														{t("fileTree.delete")}
 													</DropdownMenuItem>
 												) : null}
 											</>

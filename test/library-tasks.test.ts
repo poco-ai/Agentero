@@ -231,7 +231,10 @@ describe("library task executors", () => {
 		expect(reports.some((r) => r.state === "succeeded")).toBe(false);
 	});
 
-	it("imports a bibliography file, refreshes, and warns on partial errors", async () => {
+	it.each([
+		[undefined, "papers"],
+		["papers/reading", "papers/reading"],
+	])("imports a bibliography with destination %s, refreshes, and warns on partial errors", async (parentDir, expectedParentDir) => {
 		deps.importLibraryFromFile.mockResolvedValue({
 			imported: 2,
 			errors: ["bad entry"],
@@ -240,12 +243,15 @@ describe("library task executors", () => {
 		startJobCenterExecutorListener();
 		await flush();
 
-		offer("job-lib-import", "libraryIo", { op: "import" });
+		offer("job-lib-import", "libraryIo", { op: "import", parentDir });
 		await flush();
 		await flush();
 
 		expect(deps.importLibraryFromFile).toHaveBeenCalledWith(
-			expect.objectContaining({ vaultPath: "/vault", parentDir: "papers" }),
+			expect.objectContaining({
+				vaultPath: "/vault",
+				parentDir: expectedParentDir,
+			}),
 		);
 		expect(refreshTree).toHaveBeenCalledWith("/vault");
 		expect(deps.refreshLibrary).toHaveBeenCalledTimes(1);

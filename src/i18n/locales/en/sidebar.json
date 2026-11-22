@@ -131,6 +131,7 @@
 		"cardView": "Card view",
 		"cardActions": "More actions for {{title}}",
 		"folderPath": "Library folder path",
+		"folderName": "Folder name",
 		"folders": "Folders",
 		"papers": "Papers",
 		"folderPaperCount_one": "{{count, number}} paper",

@@ -131,6 +131,7 @@
 		"cardView": "卡片视图",
 		"cardActions": "{{title}}的更多操作",
 		"folderPath": "论文库目录路径",
+		"folderName": "文件夹名称",
 		"folders": "文件夹",
 		"papers": "论文",
 		"folderPaperCount": "{{count, number}} 篇论文",
