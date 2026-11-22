@@ -163,9 +163,9 @@ const APPS: &[AppSpec] = &[
         names: &["DeepSeek Harness"],
         bundle_ids: &[],
         // Dsh Desktop has no Linux build (deepseek.com/download ships only
-        // .dmg and .exe), so the row is always reported as unsupported there.
-        // Run the CLI instead: `npm i -g @deepseek-ai/dsh` gives the Agent its
-        // native ACP profile (`dsh --profile acp`).
+        // .dmg and .exe), so Linux reports the row as unsupported. Run the CLI
+        // instead: `npm i -g @deepseek-ai/dsh` gives the Agent its native ACP
+        // profile (`dsh --profile acp`).
         #[cfg(target_os = "linux")]
         linux: None,
         #[cfg(windows)]
