@@ -2,6 +2,14 @@
 	"schemaVersion": 1,
 	"releases": [
 		{
+			"tag": "v0.18.1",
+			"releaseDate": "2026-11-23",
+			"summary": {
+				"zh-CN": "### 新功能\n\n- 论文库默认显示卡片，可预览 PDF 首页、管理文件夹和批量处理论文。已保存的表格视图偏好会保留。\n- 知识库可配置最多三个单向备份镜像，镜像端的改动不会同步回本地。\n- 不支持条件写入的 WebDAV 服务器可开启降级同步。共享该存储的每台设备都需单独开启；降级后仍可能产生冲突副本，已删除的文件也可能重新出现。WebDAV 另支持双向手动覆盖，确认前可预览受影响的文件数量。\n- 更新提示可查看对应版本的双语说明，设置中也可以浏览历史更新。\n- 机构代理新增北京大学 WPN 预设；访问学位论文全文仍需北大统一身份认证。\n\n### 改进\n\n- 界面缩放可输入 50%–200%，按回车或离开输入框后生效。\n- 打开 Agent 侧栏时更快显示面板，论文库、阅读器、写作和设置在加载时保留占位。\n\n### 修复\n\n- 对照阅读时，双击译文可选中整句，即使焦点仍在原文栏。\n- 修复中国知网 Wengine 代理地址编码，以及 Git 备份镜像无法发布到指定分支的问题。",
+				"en": "### Features\n\n- The paper library opens in card view by default, with PDF first-page previews, folder management, and batch actions. Saved table-view preferences are preserved.\n- Configure up to three one-way vault backup mirrors. Changes made on a mirror are never synced back.\n- Opt in to degraded sync on WebDAV servers without conditional writes. Each device sharing the store must enable it separately; conflict copies may still be created, and deleted files may reappear. WebDAV also supports manual overwrite in either direction, with a preview of affected file counts before confirmation.\n- Read bilingual notes for the available update and browse past releases in Settings.\n- Use the new Peking University WPN proxy preset. Full-text dissertations still require PKU unified authentication.\n\n### Improvements\n\n- Enter an interface scale from 50% to 200% and apply it by pressing Enter or leaving the field.\n- The Agent panel opens sooner, and the library, reader, writing, and settings views keep placeholders while loading.\n\n### Fixes\n\n- Double-click a translated sentence in side-by-side view to select it in full, even when the source pane still has focus.\n- Fixed CNKI Wengine proxy address encoding and Git backup mirrors failing to publish to the configured branch."
+			}
+		},
+		{
 			"tag": "v0.17.0",
 			"releaseDate": "2026-11-19",
 			"summary": {
