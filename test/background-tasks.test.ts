@@ -52,35 +52,38 @@ describe("background task download progress", () => {
 	});
 
 	it("dismisses a finished task after its visible window", () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		const firstFinishedAt = Date.now();
 		const done = startBackgroundTask({
 			kind: "layoutAnalyze",
 			title: "parse",
 		});
 		completeBackgroundTask(done);
+		const secondFinishedAt = firstFinishedAt + 1;
+		vi.setSystemTime(secondFinishedAt);
 		const alsoDone = startBackgroundTask({ kind: "import", title: "import" });
 		completeBackgroundTask(alsoDone);
-		const finishedAt = task(done)?.finishedAt;
-		expect(finishedAt).toBeTypeOf("number");
 
 		// Still visible inside the window (the ring's green check).
-		retireFinishedBackgroundTasks((finishedAt as number) + 1000);
+		retireFinishedBackgroundTasks(firstFinishedAt + 1000);
 		expect(task(done)).toBeDefined();
 		expect(task(alsoDone)).toBeDefined();
 
 		// Past the window the rows go away without any acknowledgement.
-		retireFinishedBackgroundTasks(
-			(finishedAt as number) + FINISHED_TASK_VISIBLE_MS,
-		);
+		retireFinishedBackgroundTasks(firstFinishedAt + FINISHED_TASK_VISIBLE_MS);
 		expect(task(done)).toBeUndefined();
+		expect(task(alsoDone)).toBeDefined();
+		retireFinishedBackgroundTasks(secondFinishedAt + FINISHED_TASK_VISIBLE_MS);
 		expect(task(alsoDone)).toBeUndefined();
 	});
 
 	it("keeps a failed row visible longer than a completed one", () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		const finishedAt = Date.now();
 		const done = startBackgroundTask({ kind: "parseRefs", title: "refs" });
 		completeBackgroundTask(done);
 		const failed = startBackgroundTask({ kind: "parseBody", title: "body" });
 		failBackgroundTask(failed, "boom");
-		const finishedAt = task(failed)?.finishedAt as number;
 
 		// A success is gone after its window, but the error stays readable.
 		retireFinishedBackgroundTasks(finishedAt + FINISHED_TASK_VISIBLE_MS);
