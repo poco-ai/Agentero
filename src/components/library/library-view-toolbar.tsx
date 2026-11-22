@@ -20,6 +20,9 @@ import { cn } from "@/lib/core/utils";
 
 export type LibraryViewMode = "table" | "cards";
 
+const crumbClass =
+	"inline-flex h-7 items-center gap-1.5 border border-transparent px-1.5 text-sm font-medium text-foreground";
+
 const viewModes = [
 	{ mode: "table", icon: Table2, label: "papersLibrary.tableView" },
 	{ mode: "cards", icon: LayoutGrid, label: "papersLibrary.cardView" },
@@ -59,7 +62,7 @@ export function LibraryViewToolbar({
 							{index > 0 ? <BreadcrumbSeparator className="shrink-0" /> : null}
 							<BreadcrumbItem>
 								{index === crumbs.length - 1 ? (
-									<BreadcrumbPage className="flex h-7 items-center gap-1.5 px-1.5 font-medium">
+									<BreadcrumbPage className={crumbClass}>
 										{index === 0 ? (
 											<LibraryBig className="size-3.5" aria-hidden />
 										) : null}
@@ -72,7 +75,7 @@ export function LibraryViewToolbar({
 										type="button"
 										variant="ghost"
 										size="sm"
-										className="px-1.5 text-muted-foreground"
+										className={crumbClass}
 										title={name}
 										onClick={() => onNavigateFolder?.(path)}
 									>

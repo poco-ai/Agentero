@@ -1,10 +1,7 @@
 /**
- * One context menu for the whole library table.
+ * One context menu for the library content area.
  *
- * A plain right-click shows the single-row actions; right-clicking a row that
- * is part of a multi-selection shows the batch actions. One shared menu (not
- * one per row) keeps the batch logic in a single place and avoids re-rendering
- * every visible row while a marquee drag changes the selection each frame.
+ * Right-click a paper for single or batch actions.
  */
 import {
 	BookOpen,
@@ -19,7 +16,7 @@ import {
 	X,
 } from "lucide-react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import {
 	type CellT,
 	isMissingLocalPdf,
@@ -34,6 +31,11 @@ import {
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { notifyError } from "@/lib/core/notify";
 import type { PaperLibraryRow, PaperMetadata } from "@/lib/paper";
 import {
@@ -58,10 +60,14 @@ function LibraryRowMenuContributions({
 	vaultPath,
 	relPath,
 	paperId,
+	Item,
+	Separator,
 }: {
 	vaultPath: string | null;
 	relPath: string | undefined;
 	paperId: string | undefined;
+	Item: typeof ContextMenuItem | typeof DropdownMenuItem;
+	Separator: typeof ContextMenuSeparator | typeof DropdownMenuSeparator;
 }) {
 	const menuContext: MenuContext = { vaultPath };
 	if (relPath) menuContext.relPath = relPath;
@@ -70,16 +76,16 @@ function LibraryRowMenuContributions({
 	if (items.length === 0) return null;
 	return (
 		<>
-			<ContextMenuSeparator />
+			<Separator />
 			{items.map((item) => (
-				<ContextMenuItem
+				<Item
 					key={item.id}
 					onSelect={() => {
 						activateMenuContribution(item, menuContext);
 					}}
 				>
 					{item.title}
-				</ContextMenuItem>
+				</Item>
 			))}
 		</>
 	);
@@ -108,25 +114,21 @@ export type LibraryRowMenuProps = {
 	/** Right-click preparation: select the row unless it is already selected. */
 	onPrepareContext: (key: string) => void;
 	t: CellT;
-	/** The table body or card grid the menu is anchored to. */
 	children: ReactNode;
 };
 
+const PaperMenuContext = createContext<{
+	props: Omit<LibraryRowMenuProps, "children" | "onPrepareContext">;
+	recapturingKeys: ReadonlySet<string>;
+	onRecaptureWebpage: (paper: PaperMetadata) => void;
+} | null>(null);
+
 export function LibraryRowMenu({
-	rows,
-	vaultPath,
-	canEditMeta,
-	selectedKeys,
-	onOpenPaper,
-	onRefreshMetadata,
-	onAddToChat,
-	onCopyPapers,
-	onDeletePapers,
-	onClearSelection,
 	onPrepareContext,
-	t,
 	children,
+	...props
 }: LibraryRowMenuProps) {
+	const { rows, vaultPath } = props;
 	/** Row the menu was opened on; null until the first right-click. */
 	const [targetKey, setTargetKey] = useState<string | null>(null);
 	/** Papers whose webpage snapshot is being re-fetched (row busy). */
@@ -135,13 +137,20 @@ export function LibraryRowMenu({
 	);
 
 	const onContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
-		const row = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+		if (event.defaultPrevented) return;
+		if (!event.currentTarget.contains(event.target as Node)) {
+			event.preventDefault();
+			return;
+		}
+		const element = event.target as Element;
+		const row = element.closest<HTMLElement>(
 			"[data-library-paper][data-index]",
 		);
 		const index = row ? Number(row.dataset.index) : Number.NaN;
 		const target = Number.isFinite(index) ? rows[index] : undefined;
 		if (!target) {
 			setTargetKey(null);
+			event.preventDefault();
 			return;
 		}
 		const key = paperSelectionKey(target.paper);
@@ -152,17 +161,6 @@ export function LibraryRowMenu({
 	const targetRow = targetKey
 		? (rows.find((row) => paperSelectionKey(row.paper) === targetKey) ?? null)
 		: null;
-
-	const selectedRows: PaperRow[] = targetKey
-		? rows.filter((row) => selectedKeys.has(paperSelectionKey(row.paper)))
-		: [];
-	const bulk = selectedRows.length > 1 && Boolean(targetRow);
-
-	const downloadMissing = () => {
-		for (const row of selectedRows) {
-			if (isMissingLocalPdf(row.paper)) void downloadLibraryPaper(row.paper);
-		}
-	};
 
 	const recaptureWebpage = (paper: PaperMetadata) => {
 		const key = paperSelectionKey(paper);
@@ -178,166 +176,158 @@ export function LibraryRowMenu({
 	};
 
 	return (
-		<ContextMenu
-			onOpenChange={(next) => {
-				// Drop the target on close: the table re-renders on every marquee
-				// frame, and a stale target would re-scan all rows each time.
-				if (!next) setTargetKey(null);
-			}}
+		<PaperMenuContext.Provider
+			value={{ props, recapturingKeys, onRecaptureWebpage: recaptureWebpage }}
 		>
-			<ContextMenuTrigger asChild onContextMenu={onContextMenu}>
-				{children}
-			</ContextMenuTrigger>
-			<ContextMenuContent className="w-52">
-				{bulk ? (
-					<>
-						<ContextMenuLabel>
-							{t("papersLibrary.selection.count", {
-								count: selectedRows.length,
-							})}
-						</ContextMenuLabel>
-						<ContextMenuItem
-							disabled={selectedRows.length === 0}
-							onSelect={() => onAddToChat(selectedRows.map((row) => row.paper))}
-						>
-							<MessageSquarePlus className="size-3.5" />
-							{t("fileTree.addToChat")}
-						</ContextMenuItem>
-						<ContextMenuItem
-							disabled={selectedRows.length === 0}
-							onSelect={() =>
-								onCopyPapers(selectedRows.map((row) => row.paper))
-							}
-						>
-							<Copy className="size-3.5" />
-							{t("papersLibrary.copy.action")}
-						</ContextMenuItem>
-						{canEditMeta &&
-						selectedRows.some((row) => isMissingLocalPdf(row.paper)) ? (
-							<ContextMenuItem onSelect={downloadMissing}>
-								<Download className="size-3.5" />
-								{t("papersLibrary.rowDownloadPdf")}
-							</ContextMenuItem>
-						) : null}
-						<ContextMenuSeparator />
-						<ContextMenuItem
-							className="text-destructive focus:text-destructive"
-							disabled={selectedRows.length === 0}
-							onSelect={() =>
-								onDeletePapers(selectedRows.map((row) => row.paper))
-							}
-						>
-							<Trash2 className="size-3.5" />
-							{t("papersLibrary.selection.delete", {
-								count: selectedRows.length,
-							})}
-						</ContextMenuItem>
-						<ContextMenuItem onSelect={onClearSelection}>
-							<X className="size-3.5" />
-							{t("papersLibrary.selection.clear")}
-						</ContextMenuItem>
-					</>
-				) : targetRow ? (
-					<SingleRowMenu
-						row={targetRow}
-						vaultPath={vaultPath}
-						canEditMeta={canEditMeta}
-						recapturing={Boolean(targetKey && recapturingKeys.has(targetKey))}
-						onRecaptureWebpage={recaptureWebpage}
-						onOpenPaper={onOpenPaper}
-						onRefreshMetadata={onRefreshMetadata}
-						onAddToChat={onAddToChat}
-						onCopyPapers={onCopyPapers}
-						onDeletePapers={onDeletePapers}
-						t={t}
-					/>
-				) : null}
-			</ContextMenuContent>
-		</ContextMenu>
+			<ContextMenu
+				onOpenChange={(next) => {
+					// Drop the target on close: the table re-renders on every marquee
+					// frame, and a stale target would re-scan all rows each time.
+					if (!next) setTargetKey(null);
+				}}
+			>
+				<ContextMenuTrigger asChild onContextMenu={onContextMenu}>
+					{children}
+				</ContextMenuTrigger>
+				<ContextMenuContent className="w-52">
+					{targetRow ? (
+						<LibraryPaperMenuItems row={targetRow} mode="context" />
+					) : null}
+				</ContextMenuContent>
+			</ContextMenu>
+		</PaperMenuContext.Provider>
 	);
 }
 
-/** Actions for one paper (the pre-multi-select menu, unchanged). */
-function SingleRowMenu({
+export function LibraryPaperMenuItems({
 	row,
-	vaultPath,
-	canEditMeta,
-	recapturing,
-	onRecaptureWebpage,
-	onOpenPaper,
-	onRefreshMetadata,
-	onAddToChat,
-	onCopyPapers,
-	onDeletePapers,
-	t,
+	mode,
 }: {
 	row: PaperRow;
-	vaultPath: string | null;
-	canEditMeta: boolean;
-	/** This row's webpage snapshot is being re-fetched. */
-	recapturing: boolean;
-	onRecaptureWebpage: (paper: PaperMetadata) => void;
-	onOpenPaper: (paper: PaperMetadata) => void;
-	onRefreshMetadata?: (paper: PaperMetadata) => void;
-	onAddToChat: (papers: PaperLibraryRow[]) => void;
-	onCopyPapers: (papers: PaperLibraryRow[]) => void;
-	onDeletePapers: (papers: PaperLibraryRow[]) => void;
-	t: CellT;
+	mode: "context" | "dropdown";
 }) {
+	const menu = useContext(PaperMenuContext);
+	if (!menu) return null;
+	const { props, recapturingKeys, onRecaptureWebpage } = menu;
+	const {
+		rows,
+		vaultPath,
+		canEditMeta,
+		selectedKeys,
+		onOpenPaper,
+		onRefreshMetadata,
+		onAddToChat,
+		onCopyPapers,
+		onDeletePapers,
+		onClearSelection,
+		t,
+	} = props;
+	const Item = mode === "dropdown" ? DropdownMenuItem : ContextMenuItem;
+	const Separator =
+		mode === "dropdown" ? DropdownMenuSeparator : ContextMenuSeparator;
+	const Label = mode === "dropdown" ? DropdownMenuLabel : ContextMenuLabel;
+	const key = paperSelectionKey(row.paper);
+	const selectedRows =
+		selectedKeys.size > 1 && selectedKeys.has(key)
+			? rows.filter(({ paper }) => selectedKeys.has(paperSelectionKey(paper)))
+			: [];
+	if (selectedRows.length > 1 && selectedRows.length === selectedKeys.size) {
+		const selectedPapers = selectedRows.map(({ paper }) => paper);
+		const missing = selectedPapers.filter(isMissingLocalPdf);
+		return (
+			<>
+				<Label>
+					{t("papersLibrary.selection.count", {
+						count: selectedRows.length,
+					})}
+				</Label>
+				<Item onSelect={() => onAddToChat(selectedPapers)}>
+					<MessageSquarePlus className="size-3.5" />
+					{t("fileTree.addToChat")}
+				</Item>
+				<Item onSelect={() => onCopyPapers(selectedPapers)}>
+					<Copy className="size-3.5" />
+					{t("papersLibrary.copy.action")}
+				</Item>
+				{canEditMeta && missing.length > 0 ? (
+					<Item
+						onSelect={() => {
+							for (const paper of missing) void downloadLibraryPaper(paper);
+						}}
+					>
+						<Download className="size-3.5" />
+						{t("papersLibrary.rowDownloadPdf")}
+					</Item>
+				) : null}
+				<Separator />
+				<Item
+					className="text-destructive focus:text-destructive"
+					onSelect={() => onDeletePapers(selectedPapers)}
+				>
+					<Trash2 className="size-3.5" />
+					{t("papersLibrary.selection.delete", {
+						count: selectedRows.length,
+					})}
+				</Item>
+				<Item onSelect={onClearSelection}>
+					<X className="size-3.5" />
+					{t("papersLibrary.selection.clear")}
+				</Item>
+			</>
+		);
+	}
+	const recapturing = recapturingKeys.has(key);
 	const p = row.paper;
 	const absPath = paperAbsPath(p, vaultPath);
 	return (
 		<>
-			<ContextMenuItem onSelect={() => onOpenPaper(p)}>
+			<Item onSelect={() => onOpenPaper(p)}>
 				<BookOpen className="size-3.5" />
 				{t("papersLibrary.rowOpen")}
-			</ContextMenuItem>
+			</Item>
 			{canEditMeta && isMissingLocalPdf(p) ? (
-				<ContextMenuItem onSelect={() => void downloadLibraryPaper(p)}>
+				<Item onSelect={() => void downloadLibraryPaper(p)}>
 					<Download className="size-3.5" />
 					{t("papersLibrary.rowDownloadPdf")}
-				</ContextMenuItem>
+				</Item>
 			) : null}
 			{canEditMeta ? (
-				<ContextMenuItem onSelect={() => setEditMetaDraft(p)}>
+				<Item onSelect={() => setEditMetaDraft(p)}>
 					<Pencil className="size-3.5" />
 					{t("papersLibrary.rowEditMeta")}
-				</ContextMenuItem>
+				</Item>
 			) : null}
 			{canEditMeta &&
 			onRefreshMetadata &&
 			(p.doi?.trim() || p.arxiv_id?.trim() || p.title?.trim()) ? (
-				<ContextMenuItem onSelect={() => void onRefreshMetadata?.(p)}>
+				<Item onSelect={() => void onRefreshMetadata?.(p)}>
 					<RefreshCw className="size-3.5" />
 					{t("papersLibrary.rowRefreshMeta")}
-				</ContextMenuItem>
+				</Item>
 			) : null}
 			{canEditMeta && p.type === "html" ? (
-				<ContextMenuItem
-					disabled={recapturing}
-					onSelect={() => onRecaptureWebpage(p)}
-				>
+				<Item disabled={recapturing} onSelect={() => onRecaptureWebpage(p)}>
 					{recapturing ? (
 						<Loader2 className="size-3.5 animate-spin" />
 					) : (
 						<RefreshCw className="size-3.5" />
 					)}
 					{t("papersLibrary.rowRecaptureWebpage")}
-				</ContextMenuItem>
+				</Item>
 			) : null}
 			{absPath ? (
 				<>
-					<ContextMenuSeparator />
-					<ContextMenuItem onSelect={() => onAddToChat([p])}>
+					<Separator />
+					<Item onSelect={() => onAddToChat([p])}>
 						<MessageSquarePlus className="size-3.5" />
 						{t("fileTree.addToChat")}
-					</ContextMenuItem>
-					<ContextMenuItem onSelect={() => onCopyPapers([p])}>
+					</Item>
+					<Item onSelect={() => onCopyPapers([p])}>
 						<Copy className="size-3.5" />
 						{t("papersLibrary.copy.action")}
-					</ContextMenuItem>
+					</Item>
 					{canEditMeta ? (
-						<ContextMenuItem
+						<Item
 							onSelect={() => {
 								void revealInFileManager(absPath).catch(() =>
 									notifyError(t("fileTree.revealFailed")),
@@ -346,18 +336,20 @@ function SingleRowMenu({
 						>
 							<FolderOpen className="size-3.5" />
 							{t(revealInOsLabelKey())}
-						</ContextMenuItem>
+						</Item>
 					) : null}
-					<ContextMenuItem
+					<Item
 						className="text-destructive focus:text-destructive"
 						onSelect={() => onDeletePapers([p])}
 					>
 						<Trash2 className="size-3.5" />
 						{t("fileTree.delete")}
-					</ContextMenuItem>
+					</Item>
 				</>
 			) : null}
 			<LibraryRowMenuContributions
+				Item={Item}
+				Separator={Separator}
 				vaultPath={vaultPath}
 				relPath={p.path || undefined}
 				paperId={p.id || undefined}

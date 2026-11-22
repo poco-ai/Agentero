@@ -39,7 +39,10 @@ import {
 	type SortKey,
 	toggleColumnVisibility,
 } from "@/components/library/library-row-utils";
-import { paperSelectionKey } from "@/components/library/library-selection";
+import {
+	folderSelectionKey,
+	paperSelectionKey,
+} from "@/components/library/library-selection";
 import { LibrarySelectionBar } from "@/components/library/library-selection-bar";
 import { LibraryTableHeader } from "@/components/library/library-table-header";
 import {
@@ -417,8 +420,11 @@ export function PapersLibrary({
 
 	/** Visible row order (sorted + filtered) — the universe selection lives in. */
 	const order = useMemo(
-		() => rows.map((row) => paperSelectionKey(row.paper)),
-		[rows],
+		() => [
+			...folders.map(({ path }) => folderSelectionKey(path)),
+			...rows.map((row) => paperSelectionKey(row.paper)),
+		],
+		[folders, rows],
 	);
 	const {
 		keys: selectedKeys,
@@ -613,6 +619,25 @@ export function PapersLibrary({
 		[absPathsForPapers],
 	);
 
+	const collectSelectedPaths = useCallback(() => {
+		const paths = absPathsForPapers(collectSelectedPapers());
+		if (vaultPath) {
+			for (const { path } of folders) {
+				if (selectedKeysRef.current.has(folderSelectionKey(path))) {
+					paths.push(joinVaultPath(vaultPath, path));
+				}
+			}
+		}
+		return paths;
+	}, [absPathsForPapers, collectSelectedPapers, folders, vaultPath]);
+
+	const deleteSelectedItems = useCallback(() => {
+		const paths = collectSelectedPaths();
+		if (!paths.length) return;
+		void trashPathsAndNotify(paths);
+		clearSelection();
+	}, [clearSelection, collectSelectedPaths]);
+
 	/** Papers pending "copy to folder" (dialog open while non-null). */
 	const [copyPapers, setCopyPapers] = useState<PaperLibraryRow[] | null>(null);
 	const openCopyDialog = useCallback((papers: PaperLibraryRow[]) => {
@@ -751,7 +776,7 @@ export function PapersLibrary({
 				selectedCountRef.current > 0
 			) {
 				event.preventDefault();
-				deletePapers(collectSelectedPapers());
+				deleteSelectedItems();
 			}
 		};
 		window.addEventListener("keydown", onKeyDown);
@@ -759,32 +784,13 @@ export function PapersLibrary({
 	}, [
 		active,
 		clearSelection,
-		collectSelectedPapers,
-		deletePapers,
+		deleteSelectedItems,
 		marqueeIsDragging,
 		selectAll,
 	]);
 
 	const initialLoad = Boolean(loading) && papers.length === 0;
 	const empty = rows.length === 0 && folders.length === 0;
-	const wrapPapers = (children: ReactNode) => (
-		<LibraryRowMenu
-			rows={rows}
-			vaultPath={vaultPath}
-			canEditMeta={canEditMeta}
-			selectedKeys={selectedKeys}
-			onOpenPaper={openPaperFromRow}
-			onRefreshMetadata={handleRefreshPaperMetadata}
-			onAddToChat={addPapersToChat}
-			onCopyPapers={openCopyDialog}
-			onDeletePapers={deletePapers}
-			onClearSelection={clearSelection}
-			onPrepareContext={prepareContext}
-			t={t}
-		>
-			{children}
-		</LibraryRowMenu>
-	);
 	let body: ReactNode;
 	{
 		const cards = showCards ? (
@@ -807,12 +813,13 @@ export function PapersLibrary({
 					<LibraryCardView
 						folders={folders}
 						rows={rows}
-						vaultPath={visible ? vaultPath : null}
+						vaultPath={vaultPath}
+						visible={visible}
 						selectedKeys={selectedKeys}
 						selectionActive={selectionActive}
+						onSelect={selectRow}
 						onNavigateFolder={handleNavigateFolder}
 						onPaperClick={handleCardClick}
-						wrapPapers={wrapPapers}
 					/>
 				) : null}
 			</div>
@@ -885,8 +892,6 @@ export function PapersLibrary({
 						someSelected={someSelected}
 						onToggleAll={handleToggleAll}
 					/>
-					{/* One shared menu for the whole body: single-row actions, or
-						    batch actions when the right-clicked row is selected. */}
 					{initialLoad ? (
 						<tbody aria-hidden="true">
 							{LIBRARY_SKELETON_ROW_KEYS.map((key, rowIndex) => (
@@ -911,54 +916,48 @@ export function PapersLibrary({
 							))}
 						</tbody>
 					) : (
-						wrapPapers(
-							<tbody
-								key={reorderKey}
-								className="animate-in fade-in-0 duration-150"
-							>
-								{paddingTop > 0 ? (
-									<tr aria-hidden className="pointer-events-none">
-										<td
-											colSpan={
-												visibleColumns.length + (selectionActive ? 2 : 1)
-											}
-											style={{ height: paddingTop }}
-										/>
-									</tr>
-								) : null}
-								{virtualRows.map((vr) => {
-									const row = rows[vr.index];
-									const p = row.paper;
-									return (
-										<LibraryPaperRow
-											key={p.path ?? p.id}
-											index={vr.index}
-											row={row}
-											heat={heatmaps.get(heatmapCacheKey(p))}
-											visibleColumns={visibleColumns}
-											ctx={cellCtx}
-											showSelection={selectionActive}
-											selected={selectedKeys.has(paperSelectionKey(p))}
-											onToggleSelected={handleToggleSelected}
-											onRowClick={handleRowClick}
-											onHoverPaper={handleHoverPaper}
-											onLeavePaper={previewPaper.cancel}
-											measureRef={rowVirtualizer.measureElement}
-										/>
-									);
-								})}
-								{paddingBottom > 0 ? (
-									<tr aria-hidden className="pointer-events-none">
-										<td
-											colSpan={
-												visibleColumns.length + (selectionActive ? 2 : 1)
-											}
-											style={{ height: paddingBottom }}
-										/>
-									</tr>
-								) : null}
-							</tbody>,
-						)
+						<tbody
+							key={reorderKey}
+							className="animate-in fade-in-0 duration-150"
+						>
+							{paddingTop > 0 ? (
+								<tr aria-hidden className="pointer-events-none">
+									<td
+										colSpan={visibleColumns.length + (selectionActive ? 2 : 1)}
+										style={{ height: paddingTop }}
+									/>
+								</tr>
+							) : null}
+							{virtualRows.map((vr) => {
+								const row = rows[vr.index];
+								const p = row.paper;
+								return (
+									<LibraryPaperRow
+										key={p.path ?? p.id}
+										index={vr.index}
+										row={row}
+										heat={heatmaps.get(heatmapCacheKey(p))}
+										visibleColumns={visibleColumns}
+										ctx={cellCtx}
+										showSelection={selectionActive}
+										selected={selectedKeys.has(paperSelectionKey(p))}
+										onToggleSelected={handleToggleSelected}
+										onRowClick={handleRowClick}
+										onHoverPaper={handleHoverPaper}
+										onLeavePaper={previewPaper.cancel}
+										measureRef={rowVirtualizer.measureElement}
+									/>
+								);
+							})}
+							{paddingBottom > 0 ? (
+								<tr aria-hidden className="pointer-events-none">
+									<td
+										colSpan={visibleColumns.length + (selectionActive ? 2 : 1)}
+										style={{ height: paddingBottom }}
+									/>
+								</tr>
+							) : null}
+						</tbody>
 					)}
 				</table>
 				{/* Marquee box: positioned in scroll-content coordinates so it
@@ -994,8 +993,13 @@ export function PapersLibrary({
 				{cards ?? table}
 				<LibrarySelectionBar
 					count={selectedCount}
-					onAddToChat={() => addPapersToChat(collectSelectedPapers())}
-					onDelete={() => deletePapers(collectSelectedPapers())}
+					onAddToChat={() => {
+						const paths = collectSelectedPaths();
+						if (!paths.length) return;
+						broadcastAgentAttachContext(paths);
+						presentAgentComposer();
+					}}
+					onDelete={deleteSelectedItems}
 					onClear={clearSelection}
 				/>
 				<LibraryCopyDialog
@@ -1104,7 +1108,24 @@ export function PapersLibrary({
 					</DropdownMenu>
 				) : null}
 			</LibraryViewToolbar>
-			{body}
+			<LibraryRowMenu
+				rows={rows}
+				vaultPath={vaultPath}
+				canEditMeta={canEditMeta}
+				selectedKeys={selectedKeys}
+				onOpenPaper={openPaperFromRow}
+				onRefreshMetadata={handleRefreshPaperMetadata}
+				onAddToChat={addPapersToChat}
+				onCopyPapers={openCopyDialog}
+				onDeletePapers={deletePapers}
+				onClearSelection={clearSelection}
+				onPrepareContext={prepareContext}
+				t={t}
+			>
+				<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+					{body}
+				</div>
+			</LibraryRowMenu>
 		</LibraryPdfDropSurface>
 	);
 }

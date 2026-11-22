@@ -13,6 +13,10 @@ export function paperSelectionKey(
 	return paper.path || paper.id;
 }
 
+export function folderSelectionKey(path: string): string {
+	return `folder:${path}`;
+}
+
 /** One row's vertical band in viewport pixels. */
 export type RowBand = { key: string; top: number; bottom: number };
 

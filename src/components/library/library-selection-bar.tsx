@@ -22,7 +22,7 @@ export function LibrarySelectionBar({
 	if (count === 0) return null;
 	const countLabel = t("papersLibrary.selection.count", { count });
 	return (
-		<div className="pointer-events-none absolute inset-x-0 bottom-2 z-30 flex justify-center px-3">
+		<div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-3">
 			<SelectionPill
 				countLabel={countLabel}
 				ariaLabel={countLabel}

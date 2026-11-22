@@ -13,6 +13,15 @@ import {
 } from "@/lib/vault/path";
 import type { FileNode } from "@/lib/vault/types";
 
+export type LibraryFolder = {
+	name: string;
+	path: string;
+	paperCount: number;
+	previews: { path: string; revision: string }[];
+};
+
+const MAX_FOLDER_PREVIEWS = 3;
+
 export function libraryBreadcrumbs(scopePath: string | null) {
 	const segments = (resolveLibraryScopePath(scopePath) ?? "papers").split("/");
 	return segments.slice(1).map((name, index) => ({
@@ -41,7 +50,7 @@ export function libraryChildFolders(
 	const scope = scopePath ?? "papers";
 	const scopeKey = normalizeLibraryScope(scope);
 	const papers = new Set<string>();
-	const folders = new Map<string, { name: string; path: string }>();
+	const folders = new Map<string, LibraryFolder>();
 	for (const paper of scopedPapers) {
 		if (!paper.path) continue;
 		const path = normalizeRelPath(paper.path);
@@ -51,7 +60,19 @@ export function libraryChildFolders(
 		const name = path.slice(scopeKey.length + 1).split("/")[0];
 		if (name && dirnameOf(key) !== scopeKey) {
 			const parent = `${scope}/${name}`;
-			folders.set(normalizeLibraryScope(parent), { name, path: parent });
+			const folderKey = normalizeLibraryScope(parent);
+			let folder = folders.get(folderKey);
+			if (!folder) {
+				folder = { name, path: parent, paperCount: 0, previews: [] };
+				folders.set(folderKey, folder);
+			}
+			folder.paperCount += 1;
+			if (
+				paper.has_pdf !== false &&
+				folder.previews.length < MAX_FOLDER_PREVIEWS
+			) {
+				folder.previews.push({ path, revision: paper.updated_at });
+			}
 		}
 	}
 	const node = treeFindNode(tree, joinVaultPath(vaultPath, scope));
@@ -64,7 +85,13 @@ export function libraryChildFolders(
 			folders.delete(key);
 			continue;
 		}
-		folders.set(key, { name: basenameOf(path), path });
+		const folder = folders.get(key);
+		folders.set(key, {
+			name: basenameOf(path),
+			path,
+			paperCount: folder?.paperCount ?? 0,
+			previews: folder?.previews ?? [],
+		});
 	}
 	return [...folders.values()]
 		.filter(({ path }) => !papers.has(normalizeLibraryScope(path)))
