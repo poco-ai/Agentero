@@ -512,9 +512,8 @@ export function PaperInfoPanel({
 	const codeRepoUrl = targets.codeRepoUrl;
 	const openreviewUrl = targets.openreviewUrl;
 	const showPdf =
-		targets.pdfUrl &&
-		((!targets.arxivUrl && !targets.doiUrl) ||
-			(openreviewUrl && targets.pdfUrl !== targets.arxivUrl));
+		(!targets.arxivUrl && !targets.doiUrl) ||
+		(openreviewUrl && targets.pdfUrl !== targets.arxivUrl);
 	const venue = meta ? venueInfo(meta, easyScholarRanks) : null;
 
 	const copyField = async (text: string | null | undefined, label: string) => {

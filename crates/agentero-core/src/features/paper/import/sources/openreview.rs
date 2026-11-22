@@ -73,6 +73,80 @@ pub(crate) fn url_only_record(id: &str, forum: Url) -> PaperRecord {
     record
 }
 
+/// Include older placeholders created before the metadata source was recorded.
+pub(crate) fn is_stub(record: &PaperRecord, id: &str) -> bool {
+    record.meta_source.as_deref() != Some("manual")
+        && (record.title.trim().is_empty()
+            || record.title.trim().eq_ignore_ascii_case("OpenReview")
+            || record
+                .title
+                .trim()
+                .eq_ignore_ascii_case(&format!("OpenReview {id}"))
+            || is_verification_title(&record.title))
+}
+
+pub(crate) fn record_forum(paper: &PaperRecord) -> Option<(String, Url)> {
+    [
+        paper.source_url.as_deref(),
+        paper.openreview_url.as_deref(),
+        paper.html_url.as_deref(),
+        paper.pdf_url.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(forum_url)
+}
+
+fn note_metadata(json: &serde_json::Value, id: &str, forum: Url) -> Option<PaperRecord> {
+    let note = json
+        .get("notes")?
+        .as_array()?
+        .iter()
+        .find(|note| note["id"].as_str() == Some(id) && note["forum"].as_str() == Some(id))?;
+    let content = note.get("content")?;
+    let field = |key: &str| {
+        let field = content.get(key)?;
+        Some(field.get("value").unwrap_or(field))
+    };
+    let string = |key: &str| {
+        field(key)?
+            .as_str()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    };
+    let title = string("title")?;
+    if is_verification_title(title) {
+        return None;
+    }
+    let mut record = url_only_record(id, forum);
+    record.title = title.to_owned();
+    record.authors = field("authors")
+        .and_then(|value| value.as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|value| value.as_str().map(str::trim))
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect();
+    record.abstract_text = string("abstract").map(str::to_owned);
+    record.publication = string("venue").map(str::to_owned);
+    record.year = string("venueid").and_then(|venue| {
+        venue.split('/').find_map(|part| {
+            (part.len() == 4)
+                .then(|| part.parse::<i32>().ok())
+                .flatten()
+        })
+    });
+    record.doi = string("doi").map(str::to_owned);
+    record.meta_source = Some("openreview_api".into());
+    Some(record)
+}
+
+pub(crate) async fn lookup_metadata(id: &str, forum: &Url) -> Option<PaperRecord> {
+    let json = super::super::openreview::submission(id).await?;
+    note_metadata(&json, id, forum.clone())
+}
+
 /// Attachment URL for a catalog row, including older rows that only have a forum link.
 pub fn paper_pdf_url(paper: &PaperRecord) -> Option<String> {
     if let Some(url) = paper
@@ -125,6 +199,20 @@ pub(crate) async fn matching_arxiv_id(paper: &PaperRecord) -> Option<String> {
     });
     let id = ids.next()?;
     ids.all(|other| other == id).then_some(id)
+}
+
+pub(crate) fn save_matched_arxiv_id(vault: &std::path::Path, paper: &PaperRecord, id: String) {
+    use crate::features::catalog::papers;
+    let _ = papers::mutate_paper(vault, &paper.path, |current| {
+        if current.source_url == paper.source_url
+            && current.title == paper.title
+            && current.authors == paper.authors
+            && current.arxiv_id.is_none()
+        {
+            current.arxiv_id = Some(id);
+        }
+        Ok(())
+    });
 }
 
 #[cfg(test)]

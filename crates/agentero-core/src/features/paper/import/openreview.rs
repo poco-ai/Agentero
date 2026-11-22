@@ -134,6 +134,51 @@ async fn send_with_account(request: reqwest::RequestBuilder) -> Option<reqwest::
     Some(response)
 }
 
+/// Read one submission through the official API. The session that can
+/// download an attachment can also supply its bibliographic fields.
+pub(crate) async fn submission(id: &str) -> Option<serde_json::Value> {
+    let url = format!("{API_ORIGIN}/notes");
+    let client = crate::http::client_builder()
+        .timeout(Duration::from_secs(10))
+        .user_agent(crate::http::BROWSER_USER_AGENT)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .ok()?;
+    let request = client
+        .get(&url)
+        .query(&[("id", id)])
+        .header(reqwest::header::ACCEPT, "application/json");
+    if let Some(response) = send_with_account(request.try_clone()?).await {
+        if response.status().is_success() {
+            if let Ok(json) = response.json().await {
+                return Some(json);
+            }
+        }
+    }
+    if let Some(cookie) = cookie_header_for(&url) {
+        if let Ok(response) = request.header(reqwest::header::COOKIE, cookie).send().await {
+            if response.status().is_success() {
+                if let Ok(json) = response.json().await {
+                    return Some(json);
+                }
+            }
+        }
+    }
+    // The public search API supports exact note IDs, even when the forum and
+    // direct note endpoints require authentication. Only query the submission.
+    client
+        .post(format!("{API_ORIGIN}/notes/search"))
+        .json(&serde_json::json!({ "ids": [id], "source": "forum", "limit": 1 }))
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .json()
+        .await
+        .ok()
+}
+
 pub async fn probe_account_pdf(url: &str) -> bool {
     let Some(mut response) = account_pdf_response(url, PROBE_TIMEOUT).await else {
         return false;

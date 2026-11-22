@@ -375,22 +375,37 @@ pub async fn import_by_identifier_with_progress(
     )
     .await?;
     check_task_not_cancelled(args.task_id.as_deref())?;
-    if commit.status == paper_import::CommitStatus::Deduped
-        && commit.pdf
-        && sources::openreview::forum_url(text).is_some()
-    {
-        webpage::fill_openreview_metadata(&vault, &commit.path).await;
+    let is_openreview = sources::openreview::forum_url(text).is_some();
+    if commit.status == paper_import::CommitStatus::Deduped && commit.pdf && is_openreview {
+        let pdf = crate::features::paper::capabilities::probe_paper_caps(&vault.join(&commit.path))
+            .pdf_path;
+        webpage::fill_openreview_metadata(
+            &vault,
+            &commit.path,
+            pdf.as_deref(),
+            args.task_id.as_deref(),
+        )
+        .await;
     }
     // A webpage entry is only "readable offline" once its snapshot exists;
     // dedupe of an older URL-only entry repairs it here.
     let snapshot_written =
         apply_page_snapshot(&vault, &commit.path, &commit.title, snapshot_plan, cache).await;
 
+    let title = if is_openreview {
+        papers::get_by_path(&vault, &commit.path)
+            .ok()
+            .flatten()
+            .map(|paper| paper.title)
+            .unwrap_or(commit.title)
+    } else {
+        commit.title
+    };
     Ok(LookupImportResult {
         paper_dir: commit.paper_dir,
         path: commit.path,
         id: commit.id,
-        title: commit.title,
+        title,
         used_translator,
         translator_base_url: base,
         pdf: commit.pdf,
@@ -1109,6 +1124,19 @@ pub async fn resolve_metadata(
     translator_base: &str,
     task_id: Option<&str>,
 ) -> Result<ResolvedMetadata, AppError> {
+    let openreview_forum = sources::openreview::forum_url(text);
+    if let Some((id, forum)) = &openreview_forum {
+        check_task_not_cancelled(task_id)?;
+        if let Some(record) = sources::openreview::lookup_metadata(id, forum).await {
+            check_task_not_cancelled(task_id)?;
+            return Ok(ResolvedMetadata {
+                record,
+                used_translator: false,
+                notices: Vec::new(),
+                page_snapshot: PageSnapshotPlan::Skip,
+            });
+        }
+    }
     // Prefer Translator Runtime. A failure is not fatal for a web URL: the
     // identifier chains run next, and a page with no DOI / arXiv / PMID is
     // imported from the page itself.
@@ -1130,9 +1158,9 @@ pub async fn resolve_metadata(
         }
         Err(failure) => webpage::recover_metadata(text, translator_base, task_id, failure).await?,
     };
-    if let Some((id, forum)) = sources::openreview::forum_url(text) {
+    if let Some((id, forum)) = openreview_forum {
         // A successful Translator response may describe the gate or label a forum as a webpage.
-        if sources::openreview::is_verification_title(&resolved.record.title) {
+        if sources::openreview::is_stub(&resolved.record, &id) {
             resolved.record = sources::openreview::url_only_record(&id, forum);
             resolved.used_translator = false;
         } else {

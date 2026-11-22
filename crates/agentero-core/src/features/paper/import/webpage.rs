@@ -253,27 +253,21 @@ async fn import_webpage(
                 page_snapshot::snapshot_from_html(&page.html, &page.final_url, &record.title);
             (record, Some(snapshot), "page")
         }
-        Err(_) if forum.is_some() => {
-            let (id, forum) = forum.expect("OpenReview paper URL checked above");
-            return Ok(ResolvedMetadata {
-                record: sources::openreview::url_only_record(&id, forum),
-                used_translator: false,
-                notices: Vec::new(),
-                page_snapshot: PageSnapshotPlan::Skip,
-            });
-        }
-        // The verification window never produced a working cookie: fail the
-        // import with the actionable reason instead of archiving the challenge
-        // page as the paper.
-        Err(err)
+        Err(err) => {
+            if let Some((id, forum)) = forum {
+                return Ok(ResolvedMetadata {
+                    record: sources::openreview::url_only_record(&id, forum),
+                    used_translator: false,
+                    notices: Vec::new(),
+                    page_snapshot: PageSnapshotPlan::Skip,
+                });
+            }
             if matches!(
                 err.code(),
                 "openreview_auth_required" | "site_verification_required"
-            ) =>
-        {
-            return Err(err)
-        }
-        Err(err) => {
+            ) {
+                return Err(err);
+            }
             log::warn!(
                 target: "agentero::lookup",
                 "web page fetch failed for {url} ({err}); saving the URL without page metadata"
@@ -321,75 +315,92 @@ pub(crate) fn page_snapshot_url(record: &PaperRecord) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Fill bibliographic fields and verified preprint links on an OpenReview entry.
-pub(crate) async fn fill_openreview_metadata(vault: &std::path::Path, path: &str) {
-    let Ok(Some(mut record)) = papers::get_by_path(vault, path) else {
-        return;
-    };
-    let Some(url) = record
-        .source_url
-        .as_deref()
-        .and_then(sources::openreview::forum_url)
-        .map(|(_, url)| url)
-    else {
-        return;
-    };
-    if is_openreview_stub(&record) {
-        let Ok(page) = page_snapshot::fetch_page_with_verification(url.as_str(), false).await
-        else {
-            return;
-        };
-        let meta = record_from_html(&page.final_url, &parse_prefix(&page.html));
-        if meta.authors.is_empty()
-            || meta.title.trim().is_empty()
-            || sources::openreview::is_verification_title(&meta.title)
-        {
-            return;
-        }
-        let original = record.source_url.as_deref();
-        let Ok(updated) = papers::mutate_paper(vault, path, |current| {
-            if is_openreview_stub(current) && current.source_url.as_deref() == original {
-                current.title = meta.title;
-                current.authors = meta.authors;
-                current.abstract_text = meta.abstract_text;
-                current.year = meta.year;
-                current.date = meta.date;
-                current.publication = meta.publication;
-                current.doi = meta.doi;
-                current.arxiv_id = meta.arxiv_id;
-                current.meta_source = Some("webpage".into());
-            }
-            Ok(())
-        }) else {
-            return;
-        };
-        record = updated;
+/// Repair an OpenReview placeholder in place, including URL-only entries
+/// created by previous versions. Never replace a manual title or its source.
+pub(crate) async fn repair_openreview_bibliography(
+    vault: &std::path::Path,
+    path: &str,
+    pdf: Option<&std::path::Path>,
+    task_id: Option<&str>,
+) -> Option<PaperRecord> {
+    let record = papers::get_by_path(vault, path).ok().flatten()?;
+    let (id, forum) = sources::openreview::record_forum(&record)?;
+    if !sources::openreview::is_stub(&record, &id) || check_task_not_cancelled(task_id).is_err() {
+        return Some(record);
     }
 
+    let mut meta = sources::openreview::lookup_metadata(&id, &forum).await;
+    if meta.is_none() {
+        if let Ok(page) = page_snapshot::fetch_page_with_verification(forum.as_str(), false).await {
+            let candidate = record_from_html(&page.final_url, &parse_prefix(&page.html));
+            if !candidate.authors.is_empty() && !sources::openreview::is_stub(&candidate, &id) {
+                meta = Some(candidate);
+            }
+        }
+    }
+    if meta.is_none() {
+        if let Some(pdf) = pdf {
+            if let Some(title) =
+                super::recognize::pdf_recognize::first_page_title(pdf, task_id).await
+            {
+                let mut local = sources::openreview::url_only_record(&id, forum.clone());
+                local.title = title;
+                local.meta_source = Some("pdf_title".into());
+                if !sources::openreview::is_stub(&local, &id) {
+                    meta = Some(local);
+                }
+            }
+        }
+    }
+    let Some(meta) = meta else {
+        return Some(record);
+    };
+    if check_task_not_cancelled(task_id).is_err() {
+        return Some(record);
+    }
+
+    papers::mutate_paper(vault, path, |current| {
+        if sources::openreview::record_forum(current)
+            .as_ref()
+            .map(|(_, url)| url)
+            == Some(&forum)
+            && sources::openreview::is_stub(current, &id)
+        {
+            current.title = meta.title;
+            if !meta.authors.is_empty() {
+                current.authors = meta.authors;
+            }
+            current.abstract_text = meta.abstract_text.or(current.abstract_text.take());
+            current.year = meta.year.or(current.year);
+            current.date = meta.date.or(current.date.take());
+            current.publication = meta.publication.or(current.publication.take());
+            current.doi = current.doi.take().or(meta.doi);
+            current.arxiv_id = current.arxiv_id.take().or(meta.arxiv_id);
+            current.meta_source = meta.meta_source.or_else(|| Some("webpage".into()));
+        }
+        Ok(())
+    })
+    .ok()
+    .or(Some(record))
+}
+
+/// Enrich a downloaded OpenReview entry and preserve the published PDF.
+pub(crate) async fn fill_openreview_metadata(
+    vault: &std::path::Path,
+    path: &str,
+    pdf: Option<&std::path::Path>,
+    task_id: Option<&str>,
+) {
+    let Some(record) = repair_openreview_bibliography(vault, path, pdf, task_id).await else {
+        return;
+    };
+    if check_task_not_cancelled(task_id).is_err() {
+        return;
+    }
     let Some(id) = sources::openreview::matching_arxiv_id(&record).await else {
         return;
     };
-    let _ = papers::mutate_paper(vault, path, |current| {
-        if current.source_url == record.source_url
-            && current.title == record.title
-            && current.authors == record.authors
-            && current.arxiv_id.is_none()
-        {
-            current.arxiv_id = Some(id);
-        }
-        Ok(())
-    });
-}
-
-fn is_openreview_stub(record: &PaperRecord) -> bool {
-    record.meta_source.as_deref() == Some("openreview_url")
-        || (record.meta_source.as_deref() != Some("manual")
-            && sources::openreview::is_verification_title(&record.title)
-            && record
-                .source_url
-                .as_deref()
-                .and_then(sources::openreview::forum_url)
-                .is_some())
+    sources::openreview::save_matched_arxiv_id(vault, &record, id);
 }
 
 async fn enrich_page_record(

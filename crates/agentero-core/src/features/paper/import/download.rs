@@ -428,7 +428,6 @@ pub async fn ensure_paper_assets_with_cookies(
 
 #[derive(Debug, Default)]
 struct PdfAssetResult {
-    ok: bool,
     messages: Vec<String>,
     openreview_issue: Option<OpenReviewPdfIssue>,
 }
@@ -488,7 +487,6 @@ async fn ensure_paper_assets_impl(
     let pdf_task = async {
         if !need_pdf {
             return PdfAssetResult {
-                ok: true,
                 messages: vec!["pdf already present".into()],
                 ..Default::default()
             };
@@ -574,8 +572,24 @@ async fn ensure_paper_assets_impl(
         source::reconcile_body(vault, paper_path)?;
     }
     if after.has_pdf() && !paper_path.is_empty() {
-        if need_pdf && pdf_url.is_some_and(openreview::is_openreview_url) {
-            super::webpage::fill_openreview_metadata(vault, paper_path).await;
+        if pdf_url.is_some_and(openreview::is_openreview_url) {
+            if need_pdf {
+                super::webpage::fill_openreview_metadata(
+                    vault,
+                    paper_path,
+                    after.pdf_path.as_deref(),
+                    progress.task_id,
+                )
+                .await;
+            } else {
+                super::webpage::repair_openreview_bibliography(
+                    vault,
+                    paper_path,
+                    after.pdf_path.as_deref(),
+                    progress.task_id,
+                )
+                .await;
+            }
         }
         super::code_repo::fill_code_repo_from_pdf(vault, paper_path).await;
     }
@@ -600,7 +614,9 @@ async fn fetch_pdf_assets(
 ) -> PdfAssetResult {
     let interactive = !pdf_url.is_some_and(openreview::is_openreview_url);
     let mut out = PdfAssetResult::default();
-    let mut candidates = pdf_url_candidates(id, arxiv_id, pdf_url);
+    let from_openreview = !interactive;
+    let mut candidates =
+        pdf_url_candidates(id, if from_openreview { None } else { arxiv_id }, pdf_url);
     let mut ok = try_download_candidates_with_cookies(
         paper_dir,
         id,
@@ -611,15 +627,22 @@ async fn fetch_pdf_assets(
         interactive,
     )
     .await;
-    // OpenReview submissions may lack a DOI. Resolve official ICLR copies
-    // from the catalog entry, using the same lookup for new and existing papers.
-    if !ok
-        && !paper_path.is_empty()
-        && pdf_url.is_some_and(openreview::is_openreview_url)
-        && super::check_task_not_cancelled(progress.task_id()).is_ok()
-    {
-        if let Ok(Some(paper)) = papers::get_by_path(vault, paper_path) {
-            if let Some(url) = super::sources::iclr::proceedings_pdf_url(&paper).await {
+    // Prefer the published edition over a matched preprint. Both are public
+    // sources, so the OpenReview credential stays on the original request.
+    if !ok && from_openreview && super::check_task_not_cancelled(progress.task_id()).is_ok() {
+        let paper = if paper_path.is_empty() {
+            None
+        } else {
+            super::webpage::repair_openreview_bibliography(
+                vault,
+                paper_path,
+                None,
+                progress.task_id(),
+            )
+            .await
+        };
+        if let Some(paper) = &paper {
+            if let Some(url) = super::sources::iclr::proceedings_pdf_url(paper).await {
                 ok = try_download_candidates_with_cookies(
                     paper_dir,
                     id,
@@ -627,10 +650,30 @@ async fn fetch_pdf_assets(
                     &mut out,
                     None,
                     progress,
-                    interactive,
+                    false,
                 )
                 .await;
                 candidates.push(url);
+            }
+        }
+        if !ok && super::check_task_not_cancelled(progress.task_id()).is_ok() {
+            let matched = match (arxiv_id, &paper) {
+                (None, Some(paper)) => super::sources::openreview::matching_arxiv_id(paper).await,
+                _ => None,
+            };
+            if let Some(arxiv) = arxiv_id.or(matched.as_deref()) {
+                let extra: Vec<_> = pdf_url_candidates(id, Some(arxiv), None)
+                    .into_iter()
+                    .filter(|url| !candidates.contains(url))
+                    .collect();
+                ok = try_download_candidates_with_cookies(
+                    paper_dir, id, &extra, &mut out, None, progress, false,
+                )
+                .await;
+                candidates.extend(extra);
+                if let (true, Some(paper), Some(id)) = (ok, &paper, matched) {
+                    super::sources::openreview::save_matched_arxiv_id(vault, paper, id);
+                }
             }
         }
     }
@@ -748,7 +791,6 @@ async fn fetch_pdf_assets(
     if !ok && candidates.is_empty() {
         out.messages.push("pdf: no url".into());
     }
-    out.ok = ok;
     if ok {
         out.openreview_issue = None;
     }
@@ -987,8 +1029,6 @@ async fn try_download_candidates_with_cookies(
         // PDF lives next to NOTES.md, not under source/
         match download_pdf_with_cookies(paper_dir, id, url, cookies, progress, interactive).await {
             Ok(()) => {
-                out.ok = true;
-                out.openreview_issue = None;
                 out.messages.push(format!("pdf ok ({url})"));
                 return true;
             }

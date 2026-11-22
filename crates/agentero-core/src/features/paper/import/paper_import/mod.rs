@@ -403,7 +403,7 @@ fn backfill_existing_metadata(
 
     if incoming.paper_type == papers::PaperKind::Pdf {
         let forum = super::sources::openreview::forum_url;
-        if let Some((_, incoming_forum)) = incoming.source_url.as_deref().and_then(forum) {
+        if let Some((id, incoming_forum)) = incoming.source_url.as_deref().and_then(forum) {
             let existing_forum = [existing.source_url.as_deref(), existing.html_url.as_deref()]
                 .into_iter()
                 .flatten()
@@ -416,8 +416,8 @@ fn backfill_existing_metadata(
                     }
                     changed = true;
                 }
-                if existing.meta_source.as_deref() != Some("manual")
-                    && super::sources::openreview::is_verification_title(&existing.title)
+                if super::sources::openreview::is_stub(existing, &id)
+                    && !super::sources::openreview::is_stub(incoming, &id)
                 {
                     existing.title = incoming.title.clone();
                     existing.meta_source = incoming.meta_source.clone();
