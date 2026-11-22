@@ -169,6 +169,14 @@ export function isPaperNoteMode(v: unknown): v is PaperNoteMode {
 	);
 }
 
+/** AlphaXiv API key (masked across IPC) and the profile from the last check. */
+export type AlphaXivSettings = {
+	apiKey: string;
+	username: string;
+	email: string;
+	realName: string;
+};
+
 export type AppSettings = {
 	/** Null disables a command; absent ids use their default shortcut. */
 	shortcutOverrides: ShortcutOverrides;
@@ -192,6 +200,12 @@ export type AppSettings = {
 	openreviewCookie: string;
 	/** Unix seconds when the OpenReview credential expires (0 = unknown). */
 	openreviewCookieExpiresAt: number;
+	/**
+	 * AlphaXiv API key plus the profile from the last successful key check.
+	 * The key is masked across IPC. A plaintext key in a generic settings
+	 * save is ignored; the Host stores one only after `GET /users/v3`.
+	 */
+	alphaxiv: AlphaXivSettings;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */
 	networkProxyEnabled: boolean;
 	networkProxyUrl: string;

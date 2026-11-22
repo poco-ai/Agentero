@@ -695,6 +695,23 @@ export const commands = {
 	 *  is `Send` and keeps streaming from the blocking pool.
 	 */
 	zoteroSync: (args: ZoteroSyncArgs, onProgress: Channel<SyncProgress>) => __TAURI_INVOKE<ApiResult<ZoteroSyncResult>>("zotero_sync", { args, onProgress }),
+	/**
+	 *  Check an AlphaXiv API key with `GET /users/v3` without saving it.
+	 *  An empty value or a mask rechecks the key already stored in Host settings.
+	 */
+	alphaxivTestKey: (apiKey: string) => __TAURI_INVOKE<ApiResult<AlphaXivAccount>>("alphaxiv_test_key", { apiKey }),
+	/**
+	 *  Validate a pasted AlphaXiv API key with `GET /users/v3`, then store it.
+	 *  The returned settings snapshot masks the key. A failed check stores nothing.
+	 */
+	alphaxivSaveKey: (apiKey: string) => __TAURI_INVOKE<ApiResult<AlphaXivSaveResult_Serialize>>("alphaxiv_save_key", { apiKey }),
+	/**  Remove the stored AlphaXiv API key and the saved profile. */
+	alphaxivClearKey: () => __TAURI_INVOKE<ApiResult<AppSettings_Serialize>>("alphaxiv_clear_key"),
+	/**
+	 *  List the signed-in user's AlphaXiv folders. Each folder already includes
+	 *  its papers. Uses the stored key only.
+	 */
+	alphaxivListFolders: () => __TAURI_INVOKE<ApiResult<AlphaXivFolder[]>>("alphaxiv_list_folders"),
 	/**  Current sync binding + last-pass info for the settings pane. */
 	syncGetStatus: (args: SyncVaultArgs) => typedError<ApiResult<SyncStatus_Serialize>, string>(__TAURI_INVOKE("sync_get_status", { args })),
 	/**  Validate + connection-test + persist the S3 binding for a vault. */
@@ -1741,6 +1758,86 @@ export type AliasRepairResult = {
 	updatedPaths: string[],
 };
 
+/**  Account fields safe to show in Settings. No credential. */
+export type AlphaXivAccount = {
+	username: string,
+	email: string,
+	realName: string,
+	/**  `realName`, else `username`, else `email`, else `"AlphaXiv"`. */
+	label: string,
+};
+
+/**  One library folder. `papers` is the list the folder payload already included. */
+export type AlphaXivFolder = {
+	id: string,
+	name: string,
+	folderType: string,
+	order: number,
+	parentId: string,
+	sharingStatus: string,
+	papers: AlphaXivFolderPaper[],
+	paperCount: number,
+};
+
+/**  One paper inside a folder payload. */
+export type AlphaXivFolderPaper = {
+	paperGroupId: string,
+	universalPaperId: string,
+	canonicalId: string,
+	paperVersionId: string,
+	title: string,
+	paperAbstract: string,
+	topics: string[],
+	authors: string[],
+	/**
+	 *  Original `addedAt` string, or the decimal timestamp when that is all
+	 *  the payload has. Empty when absent.
+	 */
+	addedAt: string,
+	/**  Bare public arXiv id (`1706.03762`). Empty for private uploads. */
+	arxivId: string,
+	importable: boolean,
+	/**  [`SKIP_REASON_PRIVATE`] when `importable` is false, otherwise empty. */
+	skipReason: string,
+	/**  `https://pdfs.assets.alphaxiv.org/{canonical}.pdf` for a public paper. */
+	pdfUrl: string,
+};
+
+/**
+ *  Settings snapshot after a successful key save, plus the account that
+ *  `GET /users/v3` returned. `settings.alphaxiv.apiKey` is masked.
+ */
+export type AlphaXivSaveResult = AlphaXivSaveResult_Serialize | AlphaXivSaveResult_Deserialize;
+
+/**
+ *  Settings snapshot after a successful key save, plus the account that
+ *  `GET /users/v3` returned. `settings.alphaxiv.apiKey` is masked.
+ */
+export type AlphaXivSaveResult_Deserialize = {
+	settings: AppSettings_Deserialize,
+	account: AlphaXivAccount,
+};
+
+/**
+ *  Settings snapshot after a successful key save, plus the account that
+ *  `GET /users/v3` returned. `settings.alphaxiv.apiKey` is masked.
+ */
+export type AlphaXivSaveResult_Serialize = {
+	settings: AppSettings_Serialize,
+	account: AlphaXivAccount,
+};
+
+/**
+ *  AlphaXiv credential kept in Host settings. `api_key` is a secret.
+ *  The profile fields are the last successful `GET /users/v3` result.
+ */
+export type AlphaXivSettings = {
+	apiKey?: string,
+	username?: string,
+	email?: string,
+	realName?: string,
+};
+
 export type ApiResult<T> = {
 	ok: boolean,
 	data: T | null,
@@ -1792,6 +1889,13 @@ export type AppSettings_Deserialize = {
 	 *  the cookie carries no readable expiry. Drives the Settings status dot.
 	 */
 	openreviewCookieExpiresAt?: number,
+	/**
+	 *  AlphaXiv API key plus the profile from the last successful key check.
+	 *  The key is masked across IPC. A plaintext key in `settings_set` is
+	 *  ignored; only [`AppSettingsStore::update_alphaxiv_auth`] stores one,
+	 *  after `GET /users/v3` succeeds.
+	 */
+	alphaxiv?: AlphaXivSettings,
 	paperTreeLabelMode?: string,
 	paperTreeSortMode?: string,
 	/**
@@ -1966,6 +2070,13 @@ export type AppSettings_Serialize = {
 	 *  the cookie carries no readable expiry. Drives the Settings status dot.
 	 */
 	openreviewCookieExpiresAt: number,
+	/**
+	 *  AlphaXiv API key plus the profile from the last successful key check.
+	 *  The key is masked across IPC. A plaintext key in `settings_set` is
+	 *  ignored; only [`AppSettingsStore::update_alphaxiv_auth`] stores one,
+	 *  after `GET /users/v3` succeeds.
+	 */
+	alphaxiv: AlphaXivSettings,
 	paperTreeLabelMode: string,
 	paperTreeSortMode: string,
 	/**

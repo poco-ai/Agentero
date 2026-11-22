@@ -73,6 +73,21 @@ pub fn mask_translate_api_key(key: &str) -> String {
     }
 }
 
+/// AlphaXiv credential kept in Host settings. `api_key` is a secret.
+/// The profile fields are the last successful `GET /users/v3` result.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AlphaXivSettings {
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub email: String,
+    #[serde(default)]
+    pub real_name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -117,6 +132,12 @@ pub struct AppSettings {
     /// the cookie carries no readable expiry. Drives the Settings status dot.
     #[serde(default)]
     pub openreview_cookie_expires_at: i64,
+    /// AlphaXiv API key plus the profile from the last successful key check.
+    /// The key is masked across IPC. A plaintext key in `settings_set` is
+    /// ignored; only [`AppSettingsStore::update_alphaxiv_auth`] stores one,
+    /// after `GET /users/v3` succeeds.
+    #[serde(default)]
+    pub alphaxiv: AlphaXivSettings,
     #[serde(default = "default_paper_tree_label_mode")]
     pub paper_tree_label_mode: String,
     #[serde(default = "default_paper_tree_sort_mode")]
@@ -584,6 +605,7 @@ impl Default for AppSettings {
             institution_proxy_type: "auto".to_string(),
             openreview_cookie: String::new(),
             openreview_cookie_expires_at: 0,
+            alphaxiv: AlphaXivSettings::default(),
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
@@ -1299,6 +1321,69 @@ impl AppSettingsStore {
         Ok(Some(redacted))
     }
 
+    /// Stored AlphaXiv API key. `None` when unset or when the value is still
+    /// a UI mask, so a probe never sends `*`.
+    pub fn alphaxiv_api_key(&self) -> Option<String> {
+        let guard = self.inner.lock().ok()?;
+        let key = guard.alphaxiv.api_key.trim();
+        if key.is_empty() || is_translate_api_key_mask(key) {
+            None
+        } else {
+            Some(key.to_string())
+        }
+    }
+
+    /// Persist a key that already passed `GET /users/v3`, plus the profile
+    /// fields that call returned. The snapshot echoed to the WebView is masked.
+    pub fn update_alphaxiv_auth(
+        &self,
+        api_key: String,
+        username: String,
+        email: String,
+        real_name: String,
+    ) -> Result<AppSettings, AppError> {
+        let api_key = api_key.trim().to_string();
+        if api_key.is_empty() || is_translate_api_key_mask(&api_key) {
+            return Err(AppError::domain(
+                "alphaxiv_key_missing",
+                "AlphaXiv API key is not set",
+            ));
+        }
+        let redacted = {
+            let mut guard = self
+                .inner
+                .lock()
+                .map_err(|_| AppError::message("settings lock poisoned"))?;
+            let mut next = guard.clone();
+            next.alphaxiv.api_key = api_key;
+            next.alphaxiv.username = username.trim().to_string();
+            next.alphaxiv.email = email.trim().to_string();
+            next.alphaxiv.real_name = real_name.trim().to_string();
+            persist(&self.path, &next)?;
+            *guard = next.clone();
+            redact_secrets(next)
+        };
+        self.notify(&redacted);
+        Ok(redacted)
+    }
+
+    /// Drop the AlphaXiv key and the saved profile.
+    pub fn clear_alphaxiv_auth(&self) -> Result<AppSettings, AppError> {
+        let redacted = {
+            let mut guard = self
+                .inner
+                .lock()
+                .map_err(|_| AppError::message("settings lock poisoned"))?;
+            let mut next = guard.clone();
+            next.alphaxiv = AlphaXivSettings::default();
+            persist(&self.path, &next)?;
+            *guard = next.clone();
+            redact_secrets(next)
+        };
+        self.notify(&redacted);
+        Ok(redacted)
+    }
+
     /// Resolve the configured EasyScholar key. Returns None when unset or when
     /// the stored value is a UI mask (`*`-only), so probes never send masks.
     pub fn easy_scholar_key(&self) -> Option<String> {
@@ -1414,6 +1499,9 @@ fn redact_secrets(mut settings: AppSettings) -> AppSettings {
     if !settings.openreview_cookie.trim().is_empty() {
         settings.openreview_cookie = mask_translate_api_key(&settings.openreview_cookie);
     }
+    if !settings.alphaxiv.api_key.trim().is_empty() {
+        settings.alphaxiv.api_key = mask_translate_api_key(&settings.alphaxiv.api_key);
+    }
     settings
 }
 
@@ -1460,6 +1548,23 @@ fn merge_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
         incoming.openreview_cookie_expires_at = previous.openreview_cookie_expires_at;
     } else if incoming.openreview_cookie.trim().is_empty() {
         incoming.openreview_cookie_expires_at = 0;
+    }
+    // Plaintext never lands through `settings_set`. The validated write path
+    // is `update_alphaxiv_auth`. An empty key is an explicit disconnect.
+    if is_translate_api_key_mask(&incoming.alphaxiv.api_key) {
+        incoming.alphaxiv.api_key = previous.alphaxiv.api_key.clone();
+        if incoming.alphaxiv.username.is_empty()
+            && incoming.alphaxiv.email.is_empty()
+            && incoming.alphaxiv.real_name.is_empty()
+        {
+            incoming.alphaxiv.username = previous.alphaxiv.username.clone();
+            incoming.alphaxiv.email = previous.alphaxiv.email.clone();
+            incoming.alphaxiv.real_name = previous.alphaxiv.real_name.clone();
+        }
+    } else if incoming.alphaxiv.api_key.trim().is_empty() {
+        incoming.alphaxiv = AlphaXivSettings::default();
+    } else {
+        incoming.alphaxiv.api_key = previous.alphaxiv.api_key.clone();
     }
 }
 
@@ -1556,6 +1661,15 @@ fn normalize(s: &mut AppSettings) {
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,
     );
+    s.alphaxiv.api_key = s.alphaxiv.api_key.trim().to_string();
+    s.alphaxiv.username = s.alphaxiv.username.trim().to_string();
+    s.alphaxiv.email = s.alphaxiv.email.trim().to_string();
+    s.alphaxiv.real_name = s.alphaxiv.real_name.trim().to_string();
+    if s.alphaxiv.api_key.is_empty() {
+        s.alphaxiv.username.clear();
+        s.alphaxiv.email.clear();
+        s.alphaxiv.real_name.clear();
+    }
     s.openreview_cookie = agentero_core::features::paper::import::openreview::verification_cookies(
         &s.openreview_cookie,
     );
