@@ -47,12 +47,14 @@ import {
 	ensureLibraryTabPresent,
 	handleActivePanelChange,
 	hydratePlaceholderTabs,
+	openFolderLibrary,
 	openTab,
 	openTabNotes,
 	openTranslationTab,
 	persistFile,
 	persistTextFile,
 	rehydrateMisclassifiedPaperTabs,
+	selectLibrary,
 } from "@/lib/workspace/actions";
 import { registerDockHandle } from "@/lib/workspace/dock-registry";
 import { evictPdfBuffers, nextPdfLru } from "@/lib/workspace/pdf-retention";
@@ -286,6 +288,13 @@ export function WorkspaceHost() {
 	// Domain callbacks pinned with useCallback so the per-domain prop objects
 	// below keep their identity across host re-renders.
 	const handleRescan = useCallback(() => void rescanLibraryPapers(), []);
+	const handleNavigateLibraryFolder = useCallback(
+		(path: string | null) => {
+			if (!path) selectLibrary();
+			else if (vaultPath) openFolderLibrary(joinVaultPath(vaultPath, path));
+		},
+		[vaultPath],
+	);
 	const handleAssetsChanged = useCallback(() => {
 		if (vaultPath) void refreshTree(vaultPath);
 	}, [vaultPath]);
@@ -309,6 +318,7 @@ export function WorkspaceHost() {
 			query: libraryQuery,
 			onQueryChange: setLibraryQuery,
 			scopePath: libraryScopePath,
+			onNavigateFolder: handleNavigateLibraryFolder,
 			columns: libraryColumns,
 			onColumnsChange: handleLibraryColumnsChange,
 			rescanning,
@@ -320,6 +330,7 @@ export function WorkspaceHost() {
 			libraryLoading,
 			libraryQuery,
 			libraryScopePath,
+			handleNavigateLibraryFolder,
 			libraryColumns,
 			rescanning,
 			handleRescan,

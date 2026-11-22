@@ -92,7 +92,7 @@ function paperAbsPath(paper: PaperMetadata, vaultPath: string | null) {
 }
 
 export type LibraryRowMenuProps = {
-	/** Rows in table order (the menu resolves `data-index` against it). */
+	/** Visible papers in display order (the menu resolves `data-index` against it). */
 	rows: PaperRow[];
 	vaultPath: string | null;
 	canEditMeta: boolean;
@@ -108,7 +108,7 @@ export type LibraryRowMenuProps = {
 	/** Right-click preparation: select the row unless it is already selected. */
 	onPrepareContext: (key: string) => void;
 	t: CellT;
-	/** The `<tbody>` the menu is anchored to. */
+	/** The table body or card grid the menu is anchored to. */
 	children: ReactNode;
 };
 
@@ -136,7 +136,7 @@ export function LibraryRowMenu({
 
 	const onContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
 		const row = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-			"tr[data-index]",
+			"[data-library-paper][data-index]",
 		);
 		const index = row ? Number(row.dataset.index) : Number.NaN;
 		const target = Number.isFinite(index) ? rows[index] : undefined;

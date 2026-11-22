@@ -127,6 +127,11 @@
 	},
 	"papersLibrary": {
 		"title": "论文库",
+		"tableView": "表格视图",
+		"cardView": "卡片视图",
+		"folderPath": "论文库目录路径",
+		"folders": "文件夹",
+		"addedOn": "添加于{{date}}",
 		"loading": "正在加载论文…",
 		"rowOpen": "打开",
 		"rowEditMeta": "编辑元数据",

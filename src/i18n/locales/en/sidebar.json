@@ -127,6 +127,11 @@
 	},
 	"papersLibrary": {
 		"title": "Library",
+		"tableView": "Table view",
+		"cardView": "Card view",
+		"folderPath": "Library folder path",
+		"folders": "Folders",
+		"addedOn": "Added {{date}}",
 		"loading": "Loading papers…",
 		"rowOpen": "Open",
 		"rowEditMeta": "Edit metadata",

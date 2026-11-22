@@ -82,6 +82,7 @@ export type DocViewLibraryProps = {
 	onQueryChange: (query: string) => void;
 	/** Vault-relative folder scope; null = full library. */
 	scopePath: string | null;
+	onNavigateFolder?: (path: string | null) => void;
 	columns: LibraryColumnPref[];
 	onColumnsChange: (columns: LibraryColumnPref[]) => void;
 	rescanning: boolean;
@@ -406,10 +407,12 @@ const DocumentContent = memo(function DocumentContent({
 				papers={library.papers}
 				vaultPath={vaultPath}
 				active={active}
+				visible={active || keepMounted}
 				loading={library.loading}
 				query={library.query}
 				onQueryChange={library.onQueryChange}
 				scopePath={library.scopePath}
+				onNavigateFolder={library.onNavigateFolder}
 				columns={library.columns}
 				onColumnsChange={library.onColumnsChange}
 				onOpenPaper={library.onOpenPaper}

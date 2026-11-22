@@ -67,6 +67,7 @@ export const LibraryPaperRow = memo(function LibraryPaperRow({
 	};
 	return (
 		<tr
+			data-library-paper
 			data-index={index}
 			data-selected={selected ? "" : undefined}
 			ref={measureRef}
