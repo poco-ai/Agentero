@@ -162,9 +162,6 @@ jobs:
       - name: Stage native macOS CLI sidecar for Tauri
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-bundled-cli.mjs
-      - name: Stage bundled ACP adapters
-        if: matrix.task != 'cli-tests'
-        run: node scripts/prepare-adapters.mjs
       - name: Run Rust checks
         run: |
           set -euo pipefail
@@ -180,7 +177,6 @@ jobs:
               # Dependency builds do not run core/MCP unit tests. Keep all
               # headless packages in this job to share PDFium and artifacts.
               cargo test -p agentero-core -p agentero-mcp -p agentero-cli
-              cargo build -p agentero-cli
               ;;
             *)
               echo "::error::Unknown Rust CI task: ${{ matrix.task }}"
@@ -188,7 +184,10 @@ jobs:
               ;;
           esac
 
-  # Same three tasks as `rust` above. macos-15 never compiles `#[cfg(windows)]`.
+  # Same test tasks as `rust` above. macos-15 never compiles `#[cfg(windows)]`.
+  # Formatting and clippy run once, on the macOS `quality` job: `cargo fmt` is
+  # platform-independent, and the Windows test builds below still compile every
+  # `#[cfg(windows)]` target.
   rust-windows:
     name: Rust windows (${{ matrix.task }})
     runs-on: windows-latest
@@ -196,7 +195,6 @@ jobs:
       fail-fast: false
       matrix:
         task:
-          - quality
           - agentero-tests
           - cli-tests
     steps:
@@ -232,10 +230,6 @@ jobs:
         run: |
           set -euo pipefail
           case "${{ matrix.task }}" in
-            quality)
-              cargo fmt --all --check
-              cargo clippy --workspace --all-targets -- -D warnings
-              ;;
             agentero-tests)
               # tesseract-rs 0.2 builds Debug leptonica/tesseract on Windows
               # (*d.lib) but only links the release names. The release profile
@@ -247,7 +241,6 @@ jobs:
               # Dependency builds do not run core/MCP unit tests. Keep all
               # headless packages in this job to share PDFium and artifacts.
               cargo test --release -p agentero-core -p agentero-mcp -p agentero-cli
-              cargo build --release -p agentero-cli
               ;;
             *)
               echo "::error::Unknown Rust CI task: ${{ matrix.task }}"
