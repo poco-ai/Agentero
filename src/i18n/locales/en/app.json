@@ -283,6 +283,7 @@
 		"openLayoutSettings": "Open analysis settings",
 		"openTranslateSettings": "Open translation settings",
 		"latexCompile": "Compile LaTeX",
+		"agentWarm": "Prepare Agent",
 		"jevSmartHighlights": "jEV smart highlights",
 		"downloadBytes": "{{phase}} · {{downloaded}} / {{total}}",
 		"downloadBytesUnknown": "{{phase}} · {{downloaded}}",

@@ -312,12 +312,13 @@ export function toggleSidebar(): void {
 }
 
 /**
- * Expand the right rail on `tab` (main window only). Callers must have already
- * ruled out an open singleton feature window for this tab.
+ * Expand the right rail on `tab` (main window only). The heavy Agent panel
+ * mounts on a later frame from the rail view, so this call does not wait on
+ * it. Callers that already know a singleton feature window is open must not
+ * use this.
  */
 export function openRightTabInRail(tab: RightSidebarTab): void {
 	setRightSidebarTab(tab);
-	if (tab === "agent") setAgentPanelMounted(true);
 	if (!uiStore.getState().rightSidebarOpen) {
 		layout()?.setRightCollapsed(false, { focusAgent: tab === "agent" });
 	}

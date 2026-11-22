@@ -17,6 +17,7 @@ import type {
 	AgentPanelRefs,
 	AgentPanelT,
 } from "@/components/agent/hooks/use-agent-panel-context";
+import i18n from "@/i18n";
 import {
 	type AgentEffortChoice,
 	type AgentListResponse,
@@ -53,6 +54,10 @@ import {
 	mergeModelChoices,
 } from "@/lib/agent/chat-state";
 import type { AcpCommand } from "@/lib/agent/slash-commands";
+import {
+	completeBackgroundTask,
+	startBackgroundTask,
+} from "@/lib/core/background-tasks";
 import { isTauri } from "@/lib/core/tauri";
 import { lifecycle } from "@/lib/lifecycle";
 
@@ -463,9 +468,16 @@ export function useAgentConfig({
 		// Supersede any in-flight warm immediately (its results are dropped)…
 		const gen = ++warmGenRef.current;
 		let cancelled = false;
-		// …but debounce the spawn itself: warm_agent cannot be cancelled, so a
-		// rapid agent/vault switch must not start one ACP process per change.
+		// Debounce the spawn: warm_agent cannot be cancelled, so a rapid
+		// agent/vault switch must not start one ACP process per change.
+		// The row is the background-task HUD entry for this warm. It starts
+		// with the spawn, including when the rail is still closed.
 		const timer = setTimeout(() => {
+			const taskId = startBackgroundTask({
+				kind: "agentWarm",
+				title: i18n.t("app:tasks.agentWarm"),
+				icon: "plug",
+			});
 			const agentId = selectedAgentId;
 			const requestVaultPath = vaultPath;
 			void runWarmAgent({
@@ -478,6 +490,8 @@ export function useAgentConfig({
 					!cancelled &&
 					selectedAgentIdRef.current === agentId &&
 					vaultPathRef.current === requestVaultPath,
+			}).finally(() => {
+				completeBackgroundTask(taskId);
 			});
 		}, WARM_SPAWN_DEBOUNCE_MS);
 		return () => {
