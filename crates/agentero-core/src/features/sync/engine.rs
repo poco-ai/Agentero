@@ -353,8 +353,7 @@ async fn run_sync<S: RemoteStore>(
                     Some(etag) => PutCondition::IfMatch(etag),
                     None => PutCondition::IfNoneMatch,
                 };
-                client.put(HEAD_KEY, head_bytes, condition).await?
-                    == PutOutcome::PreconditionFailed
+                client.put(HEAD_KEY, head_bytes, condition).await? == PutOutcome::PreconditionFailed
             };
             if lost_race {
                 recovery::discard(vault)?;
@@ -380,7 +379,7 @@ async fn run_sync<S: RemoteStore>(
     ))
 }
 
-    async fn scan_local(
+async fn scan_local(
     vault: &Path,
     cache: Manifest,
     scope: SyncScope,
@@ -530,23 +529,10 @@ async fn force_pull<S: RemoteStore>(
     let prepared = prepare_local(vault, client, &plan, &scanned, progress).await?;
     let mut outcome = SyncOutcome::default();
     recovery::save(
-        vault,
-        &store_id,
-        &head_ptr,
-        &cfg.scope,
-        &plan,
-        &scanned,
-        true,
+        vault, &store_id, &head_ptr, &cfg.scope, &plan, &scanned, true,
     )?;
     prepared.apply(vault, &plan, &scanned, &mut outcome)?;
-    record_sync(
-        vault,
-        &store_id,
-        &head_ptr,
-        &cfg.scope,
-        plan.merged,
-        false,
-    )?;
+    record_sync(vault, &store_id, &head_ptr, &cfg.scope, plan.merged, false)?;
     recovery::finish(vault)?;
     local::clear_pushed(vault);
     refresh_catalog_if_needed(vault)?;
@@ -640,8 +626,7 @@ async fn force_push<S: RemoteStore>(
                 Some((_, etag)) => PutCondition::IfMatch(etag.clone()),
                 None => PutCondition::IfNoneMatch,
             };
-            client.put(HEAD_KEY, head_bytes, condition).await?
-                == PutOutcome::PreconditionFailed
+            client.put(HEAD_KEY, head_bytes, condition).await? == PutOutcome::PreconditionFailed
         };
         if lost_race {
             continue;
@@ -650,7 +635,14 @@ async fn force_push<S: RemoteStore>(
             .keys()
             .filter(|path| !merged.contains_key(*path))
             .count();
-        record_sync(vault, &store_id, &next_head, &cfg.scope, merged.clone(), false)?;
+        record_sync(
+            vault,
+            &store_id,
+            &next_head,
+            &cfg.scope,
+            merged.clone(),
+            false,
+        )?;
         local::clear_pushed(vault);
         outcome.version = new_version;
         return Ok(outcome);
@@ -693,9 +685,7 @@ async fn publish_head_locked<S: RemoteStore>(
                 None => None,
             };
             let unchanged = match (&current, expected_head) {
-                (Some(a), Some(b)) => {
-                    a.version == b.version && a.manifest_key == b.manifest_key
-                }
+                (Some(a), Some(b)) => a.version == b.version && a.manifest_key == b.manifest_key,
                 (None, None) => true,
                 _ => false,
             };
@@ -787,7 +777,10 @@ fn plan_remote_mirror(
     // Scope-excluded categories stay inert: never downloaded, never deleted.
     let visible_remote = visible_files(remote_files.clone(), sync_scope);
     for (path, entry) in &visible_remote {
-        if local_files.get(path).is_some_and(|local| local.hash == entry.hash) {
+        if local_files
+            .get(path)
+            .is_some_and(|local| local.hash == entry.hash)
+        {
             continue;
         }
         plan.downloads.push((path.clone(), entry.clone()));
@@ -802,7 +795,6 @@ fn plan_remote_mirror(
     plan.downloads.sort_by(|a, b| a.0.cmp(&b.0));
     plan
 }
-
 
 /// Read-only scan for the overwrite preview: never flushes pending sidecars
 /// or refreshes the catalog.

@@ -305,8 +305,8 @@ pub async fn sync_overwrite_preview(
     let key = args.vault_path.trim().to_string();
     let inner = async {
         let dir = vault_dir(&key)?;
-        let mut cfg = config::get(&key)
-            .ok_or_else(|| AppError::message("sync is not configured"))?;
+        let mut cfg =
+            config::get(&key).ok_or_else(|| AppError::message("sync is not configured"))?;
         attach_agentero_session(&app, &mut cfg).await;
         engine::overwrite_preview(&dir, &cfg, args.direction).await
     };
@@ -335,8 +335,8 @@ pub async fn sync_overwrite(
     );
     let inner = async {
         let dir = vault_dir(&vault_key)?;
-        let mut cfg = config::get(&vault_key)
-            .ok_or_else(|| AppError::message("sync is not configured"))?;
+        let mut cfg =
+            config::get(&vault_key).ok_or_else(|| AppError::message("sync is not configured"))?;
         attach_agentero_session(&app, &mut cfg).await;
         let lease = service
             .try_begin(&vault_key)
@@ -376,10 +376,7 @@ pub async fn sync_overwrite(
         Ok(outcome) => {
             op.finish_ok_extra(format!(
                 "version={} up={} down={} deletedLocal={}",
-                outcome.version,
-                outcome.uploaded,
-                outcome.downloaded,
-                outcome.deleted_local
+                outcome.version, outcome.uploaded, outcome.downloaded, outcome.deleted_local
             ));
             Ok(ApiResult::ok(outcome))
         }
