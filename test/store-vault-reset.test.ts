@@ -135,6 +135,7 @@ describe("vault-scoped store clears", () => {
 		uiStore.setState({
 			skillImportDraft: [] as never,
 			zoteroOpen: true,
+			alphaxivOpen: true,
 			zoteroSyncOpen: true,
 			commandOpen: true,
 			// Must all survive.
@@ -152,6 +153,7 @@ describe("vault-scoped store clears", () => {
 		const s = uiStore.getState();
 		expect(s.skillImportDraft).toBeNull();
 		expect(s.zoteroOpen).toBe(false);
+		expect(s.alphaxivOpen).toBe(false);
 		expect(s.zoteroSyncOpen).toBe(false);
 		expect(s.commandOpen).toBe(false);
 

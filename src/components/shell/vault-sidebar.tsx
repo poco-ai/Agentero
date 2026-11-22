@@ -53,7 +53,11 @@ import {
 	readPaper,
 	rescanLibraryPapers,
 } from "@/lib/paper/library-actions";
-import { setZoteroOpen, setZoteroSyncOpen } from "@/lib/shell/ui-store";
+import {
+	setAlphaXivOpen,
+	setZoteroOpen,
+	setZoteroSyncOpen,
+} from "@/lib/shell/ui-store";
 import {
 	joinVaultPath,
 	treeFindNode,
@@ -117,6 +121,7 @@ const onOpenRemoteVaultClick = (args: {
 	remotePath: string;
 }) => void openRemoteVault(args);
 const onMigrateZotero = () => setZoteroOpen(true);
+const onImportAlphaXiv = () => setAlphaXivOpen(true);
 const onSyncZotero = () => setZoteroSyncOpen(true);
 const onConfirmCreate = (name: string) => void confirmCreate(name);
 const onConfirmRename = (path: string, name: string) =>
@@ -281,6 +286,7 @@ export function VaultSidebar() {
 					onCreateVault={onCreateVaultClick}
 					onOpenRemoteVault={onOpenRemoteVaultClick}
 					onMigrateZotero={onMigrateZotero}
+					onImportAlphaXiv={onImportAlphaXiv}
 					onSyncZotero={onSyncZotero}
 				/>
 			</div>

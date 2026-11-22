@@ -502,9 +502,14 @@ export type LookupBatchQueue = {
 };
 
 /** Queue the confirmed checklist as ONE batch import job (batch dedupe +
- * n/total progress) and return at enqueue time. */
+ * n/total progress) and return at enqueue time.
+ * `onComplete` receives the batch result after the job finishes, including
+ * the layout and asset follow-up. */
 export async function enqueueLookupBatch(
 	texts: string[],
+	opts: {
+		onComplete?: (result: LookupBatchAddResult) => void | Promise<void>;
+	} = {},
 ): Promise<LookupBatchQueue | null> {
 	const vaultPath = getVaultPath();
 	if (!vaultPath) throw new Error(i18n.t("sidebar:lookup.needsVault"));
@@ -519,7 +524,10 @@ export async function enqueueLookupBatch(
 	});
 	return {
 		jobId: job.id,
-		settled: awaitTaskSettled(job).then(() => undefined),
+		settled: awaitTaskSettled(job).then(async () => {
+			const result = lookupResults.get(job.id);
+			if (result) await opts.onComplete?.(result);
+		}),
 	};
 }
 
