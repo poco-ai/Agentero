@@ -218,6 +218,8 @@
 		"previewLabel": "引用预览",
 		"previewImport": "导入",
 		"expandPreview": "展开完整参考文献信息",
+		"collapsePreview": "收起参考文献信息",
+		"remainingAuthors_other": "其余 {{count}} 位作者",
 		"citationCount_other": "被引 {{count}} 次",
 		"importToFolder": "导入到文件夹",
 		"newFolder": "新建文件夹",
