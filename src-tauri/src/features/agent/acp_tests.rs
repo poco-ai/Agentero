@@ -319,11 +319,12 @@ mod acp_live {
     /// by cwd inside each page, so the Host must walk the cursor rather than show
     /// only the first page.
     #[tokio::test]
+    #[ignore = "requires a working local codex-acp adapter and session history"]
     async fn codex_acp_session_list_walks_cursor_pages() {
-        if resolve_command("codex-acp").is_none() {
-            eprintln!("skip: codex-acp not on PATH");
-            return;
-        }
+        assert!(
+            resolve_command("codex-acp").is_some(),
+            "codex-acp not found"
+        );
         let d = desc(
             "test-codex-acp",
             "Codex",
