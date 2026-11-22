@@ -10,6 +10,14 @@
 			}
 		},
 		{
+			"tag": "v0.18.0",
+			"releaseDate": "2026-11-22",
+			"summary": {
+				"zh-CN": "### 新功能\n\n- 桌面 Agent、CLI 和 MCP 共用论文、笔记、批注和表格操作。CLI 命令、MCP 工具和资源已调整，已有调用需要迁移。MCP 默认只读，写入、联网和读取全文需分别授权。\n- 广场新增 Hugging Face 每日论文，论文库支持从 AlphaXiv 批量导入。导入遇到 OpenReview 或 Cloudflare 验证时，可在桌面弹窗中完成验证。\n- PDF 支持外链悬停预览；Linux 可识别已安装的桌面应用并复用其自带 CLI。\n\n### 改进\n\n- 对照阅读时，悬停原文句子会高亮对应译文。重新打开全文译文时可复用排版，新安装默认使用哔哩哔哩 Translate 2B。\n\n### 修复\n\n- 修复全文翻译中断、译文提示词回显及 PDF 批注公式显示问题。笔记加载失败时仍可阅读正文。",
+				"en": "### Features\n\n- Desktop agents, the CLI, and MCP share operations for papers, notes, annotations, and tables. Existing callers need to migrate to the reorganized CLI commands, MCP tools, and resources. MCP is read-only by default; writes, network access, and full-text reads require separate grants.\n- Plaza adds Hugging Face Daily Papers, and the library supports bulk imports from AlphaXiv. Complete OpenReview or Cloudflare verification in a desktop popup when an import requires it.\n- Preview external links on PDF hover. On Linux, Agentero detects installed desktop apps and can reuse their bundled CLIs.\n\n### Improvements\n\n- Hover over a source sentence in side-by-side view to highlight the matching translation. Reopen full-document translations without repeating layout when the previous layout is available. New installations default to Bilibili Translate 2B.\n\n### Fixes\n\n- Fixed interruptions and prompt echoes in full-document translation, and formula rendering in PDF annotations. The paper stays readable if its notes fail to load."
+			}
+		},
+		{
 			"tag": "v0.17.0",
 			"releaseDate": "2026-11-19",
 			"summary": {
