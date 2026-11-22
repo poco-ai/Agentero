@@ -1,6 +1,7 @@
 //! Registry / catalog / lifecycle Tauri commands.
 
 use super::AgentUserAgentResponse;
+use crate::core::blocking::run_blocking;
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::features::agent::models::{
     AgentListResponse, AgentOnly, AgentSkill, CatalogScanResponse, ProbeResult, UpsertAgentRequest,
@@ -9,15 +10,18 @@ use crate::features::agent::remote_host::RemoteAgentHosts;
 use crate::features::agent::service::{self, emit_registry_changed};
 use crate::features::agent::{list_agent_skills, probe_agent, AgentRegistry};
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 #[tauri::command]
 #[specta::specta]
-pub fn agent_list_agents(registry: State<'_, AgentRegistry>) -> ApiResult<AgentListResponse> {
-    match service::list_agents(registry.inner()) {
-        Ok(s) => ApiResult::ok(s),
-        Err(e) => map_err(e),
-    }
+pub async fn agent_list_agents(app: AppHandle) -> ApiResult<AgentListResponse> {
+    run_blocking(
+        move || match service::list_agents(&app.state::<AgentRegistry>()) {
+            Ok(s) => ApiResult::ok(s),
+            Err(e) => map_err(e),
+        },
+    )
+    .await
 }
 
 #[tauri::command]
@@ -45,11 +49,14 @@ pub async fn agent_list_skills(
 
 #[tauri::command]
 #[specta::specta]
-pub fn agent_scan_catalog(registry: State<'_, AgentRegistry>) -> ApiResult<CatalogScanResponse> {
-    match service::scan_catalog(registry.inner()) {
-        Ok(s) => ApiResult::ok(s),
-        Err(e) => map_err(e),
-    }
+pub async fn agent_scan_catalog(app: AppHandle) -> ApiResult<CatalogScanResponse> {
+    run_blocking(
+        move || match service::scan_catalog(&app.state::<AgentRegistry>()) {
+            Ok(s) => ApiResult::ok(s),
+            Err(e) => map_err(e),
+        },
+    )
+    .await
 }
 
 /// Scan catalog and compare installed CLI versions against silent-update
