@@ -52,9 +52,7 @@ pub struct WebProxyResolvedImage {
 /// Path extension helpers shared with the unit tests below.
 mod image_target {
     /// Inline `<img>` extensions (not TIFF/PDF).
-    const INLINE_EXTS: &[&str] = &[
-        "png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg",
-    ];
+    const INLINE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg"];
     const INLINE_TYPES: &[&str] = &[
         "image/jpeg",
         "image/jpg",

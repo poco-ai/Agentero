@@ -6526,7 +6526,9 @@ export type WebProxyResolveImageArgs = {
 };
 
 /**  Direct image URL the viewer may load through the proxy after allowlisting. */
-export type WebProxyResolvedImage = { url: string };
+export type WebProxyResolvedImage = {
+	url: string,
+};
 
 export type WebpageSnapshotResult = {
 	/**  Vault-relative paper folder that now holds the snapshot. */
