@@ -582,7 +582,7 @@ pub async fn dispatch(route: &str, a: &Value, g: &GlobalOpts) -> Result<Value, C
             );
         }
         "sync overwrite" => {
-            let direction = match string(a, "direction").as_deref() {
+            let direction = match string(a, "direction") {
                 Some("remote-to-local") | Some("remoteToLocal") => {
                     engine::OverwriteDirection::RemoteToLocal
                 }
