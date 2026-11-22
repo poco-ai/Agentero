@@ -272,7 +272,7 @@ pub(crate) fn dsh_cli_dir() -> Option<PathBuf> {
     dsh_cli_dir_for_executable(&executable)
 }
 
-#[cfg(any(windows, all(test, not(target_os = "linux"))))]
+#[cfg(windows)]
 fn dsh_cli_dir_for_executable(executable: &std::path::Path) -> Option<PathBuf> {
     if !executable.is_file() {
         return None;
