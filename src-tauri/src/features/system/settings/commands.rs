@@ -75,6 +75,7 @@ pub async fn institution_proxy_login_open(app: AppHandle, prefix: String) -> Res
     let title = login_url.host_str().unwrap_or_default().to_string();
     let label = proxy_login_window_label(kind, &prefix);
     if let Some(window) = app.get_webview_window(&label) {
+        #[cfg(desktop)]
         window.unminimize().map_err(|e| e.to_string())?;
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
