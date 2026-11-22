@@ -29,6 +29,7 @@ export {
 	openTab,
 	openTabNotes,
 	openZenWorkspace,
+	refreshOpenPaperPdf,
 	rehydrateMisclassifiedPaperTabs,
 	remapMovedWorkspacePaths,
 	reopenClosedTab,

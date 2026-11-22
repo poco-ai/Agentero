@@ -19,6 +19,7 @@ import {
 	isRemoteArxivPath,
 	isUnderPaperAttachments,
 	isUnderPapers,
+	loadPaperMetadata,
 	localFileToArrayBuffer,
 	notesPathForPaper,
 	type PaperMetadata,
@@ -327,39 +328,71 @@ async function loadPlaceholderResources(id: string, path: string) {
 	}
 }
 
-const probingPaperPdf = new Set<string>();
+const probingPaperPdf = new Map<string, Promise<void>>();
 
-/** A repeat open may find a PDF installed after the HTML view was hydrated. */
-async function refreshOpenPaperPdf(tab: DocTab): Promise<void> {
+function canRefreshOpenPaperPdf(tab: DocTab): boolean {
+	return (
+		tab.kind === "paper" &&
+		tab.loaded &&
+		!tab.pdfBytes &&
+		((tab.mode === "pdf" && !tab.pdfUrl?.startsWith("blob:")) ||
+			(tab.mode === "html" && !tab.pdfUrl))
+	);
+}
+
+/** Switch open readers to the local PDF after a download or a repeat open. */
+export async function refreshOpenPaperPdf(paperDir: string): Promise<void> {
+	const vaultPath = getVaultPath();
 	if (
-		!tab.loaded ||
-		tab.mode !== "html" ||
-		tab.pdfBytes ||
-		tab.pdfUrl ||
-		isRemoteArxivPath(tab.path) ||
-		probingPaperPdf.has(tab.id)
+		!vaultPath ||
+		isRemoteArxivPath(paperDir) ||
+		!getTabs().some(canRefreshOpenPaperPdf)
 	) {
 		return;
 	}
-	probingPaperPdf.add(tab.id);
 	const generation = vaultLoadGeneration();
-	try {
-		const path = await findLocalPdfPath(tab.path);
-		const pdfBytes = path ? await localFileToArrayBuffer(path) : null;
-		if (!pdfBytes?.byteLength || vaultLoadGeneration() !== generation) return;
-		const current = getTabs().find(({ id }) => id === tab.id);
-		if (
-			current?.path === tab.path &&
-			current.kind === "paper" &&
-			current.mode === "html" &&
-			!current.pdfBytes &&
-			!current.pdfUrl
-		) {
-			updateTab(tab.id, { mode: "pdf", pdfBytes });
-		}
-	} finally {
-		probingPaperPdf.delete(tab.id);
+	const key = normalizeTabPath(paperDir);
+	const matches = (tab: DocTab) =>
+		canRefreshOpenPaperPdf(tab) && normalizeTabPath(tab.path) === key;
+	const stillInVault = () =>
+		getVaultPath() === vaultPath && vaultLoadGeneration() === generation;
+
+	// Assets may arrive while a click is probing the old directory. Wait
+	// for that probe, then check again if the reader still lacks local bytes.
+	const pending = probingPaperPdf.get(key);
+	if (pending) await pending;
+	if (!stillInVault() || probingPaperPdf.has(key) || !getTabs().some(matches)) {
+		return;
 	}
+
+	const probe = (async () => {
+		const path = await findLocalPdfPath(paperDir);
+		if (!path || !stillInVault()) return;
+		const [pdfBytes, meta] = await Promise.all([
+			localFileToArrayBuffer(path),
+			loadPaperMetadata(paperDir, vaultPath),
+		]);
+		if (!pdfBytes?.byteLength || !stillInVault()) return;
+
+		setTabs((tabs) =>
+			tabs.map((tab) =>
+				matches(tab)
+					? {
+							...tab,
+							mode: "pdf",
+							pdfUrl: null,
+							pdfBytes,
+							paperMeta: meta ?? tab.paperMeta,
+							title: meta?.title || tab.title,
+						}
+					: tab,
+			),
+		);
+	})().finally(() => {
+		probingPaperPdf.delete(key);
+	});
+	probingPaperPdf.set(key, probe);
+	await probe;
 }
 
 /**
@@ -405,7 +438,7 @@ export function openTab(
 				}
 			}
 			activatePaperWithNotes(existing);
-			if (opts?.preferMode === "pdf") void refreshOpenPaperPdf(existing);
+			if (opts?.preferMode === "pdf") void refreshOpenPaperPdf(existing.path);
 		} else {
 			cacheActiveTabBeforeDock(id);
 			dockHandle()?.activatePanel(id);
