@@ -1814,20 +1814,10 @@ fn normalize(s: &mut AppSettings) {
         // Snap to 0.1 steps to match the frontend slider.
         s.editor_line_height = (s.editor_line_height * 10.0).round() / 10.0;
     }
-    const UI_SCALE_PRESETS: &[f64] = &[0.8, 0.9, 1.0, 1.25, 1.5];
     if !s.ui_scale.is_finite() {
         s.ui_scale = default_ui_scale();
     } else {
-        let mut closest = UI_SCALE_PRESETS[0];
-        let mut best = f64::INFINITY;
-        for &preset in UI_SCALE_PRESETS {
-            let d = (preset - s.ui_scale).abs();
-            if d < best {
-                best = d;
-                closest = preset;
-            }
-        }
-        s.ui_scale = closest;
+        s.ui_scale = (s.ui_scale.clamp(0.5, 2.0) * 100.0).round() / 100.0;
     }
     const PERMS: &[&str] = &["restricted", "ask", "auto"];
     if !PERMS.contains(&s.agent_permission_mode.as_str()) {

@@ -92,11 +92,18 @@ export const DEFAULT_TRANSLATOR_BASE_URL =
 	"https://translation-server.agentero.app";
 export const DEFAULT_NETWORK_PROXY_URL = "http://127.0.0.1:7890";
 
-/**
- * Discrete UI scale presets exposed in Settings. Keyboard shortcuts and the
- * settings UI move between these values instead of using a continuous slider.
- */
-export const UI_SCALE_PRESETS = [0.8, 0.9, 1, 1.25, 1.5] as const;
+export const DEFAULT_UI_SCALE = 1;
+const UI_SCALE_MIN = 0.5;
+const UI_SCALE_MAX = 2;
+export const UI_SCALE_PRESETS = [
+	UI_SCALE_MIN,
+	0.8,
+	0.9,
+	DEFAULT_UI_SCALE,
+	1.25,
+	1.5,
+	UI_SCALE_MAX,
+] as const;
 
 /** Markdown editor line-height slider bounds (unitless). */
 export const EDITOR_LINE_HEIGHT_MIN = 1.4;
@@ -203,7 +210,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	textFontFamily: "",
 	monoFontFamily: "",
 	editorLineHeight: DEFAULT_EDITOR_LINE_HEIGHT,
-	uiScale: 1,
+	uiScale: DEFAULT_UI_SCALE,
 	showEditorToolbar: true,
 	wikiEmbedFontSize: DEFAULT_WIKI_EMBED_FONT_SIZE,
 	markdownMaxWidth: DEFAULT_MARKDOWN_MAX_WIDTH,
@@ -220,7 +227,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	decision: { ...DEFAULT_DECISION_SETTINGS },
 };
 
-/** Snap an arbitrary scale value to the closest supported preset. */
+export function clampUiScale(value: number): number {
+	if (!Number.isFinite(value)) return DEFAULT_UI_SCALE;
+	const bounded = Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, value));
+	return Math.round(bounded * 100) / 100;
+}
+
+/** Snap a legacy toolbar scale to the closest preset. */
 export function snapUiScale(value: number): number {
 	if (!Number.isFinite(value)) return DEFAULT_SETTINGS.uiScale;
 	let closest: number = UI_SCALE_PRESETS[0];

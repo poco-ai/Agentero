@@ -352,7 +352,7 @@
 		},
 		"uiScale": {
 			"label": "Interface scale",
-			"value": "{{percent}}%"
+			"reset": "Restore default scale"
 		},
 		"sound": {
 			"label": "In-app sounds",

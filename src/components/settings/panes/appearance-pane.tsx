@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, Volume2 } from "lucide-react";
+import { Check, LoaderCircle, RotateCcw, Volume2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { memo, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import {
 	SettingsSectionLabel,
 } from "@/components/settings/settings-layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -18,7 +19,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useThemePreviews } from "@/hooks/use-theme-previews";
+import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { cn } from "@/lib/core/utils";
 import type {
 	AppSettings,
@@ -26,6 +33,8 @@ import type {
 	ThemePreference,
 } from "@/lib/settings";
 import {
+	clampUiScale,
+	DEFAULT_UI_SCALE,
 	EDITOR_LINE_HEIGHT_MAX,
 	EDITOR_LINE_HEIGHT_MIN,
 	EDITOR_LINE_HEIGHT_STEP,
@@ -137,18 +146,20 @@ function AppearancePaneInner({
 		return () => clearTimeout(id);
 	}, [lineHeight, editorLineHeight, patch]);
 
-	const [scale, setScale] = useState(uiScale);
-	useEffect(() => {
-		setScale(uiScale);
-	}, [uiScale]);
+	const [scaleDraft, setScaleDraft] = useState<string | null>(null);
 
-	useEffect(() => {
-		if (scale === uiScale) return;
-		const id = setTimeout(() => {
-			patch({ uiScale: scale });
-		}, 150);
-		return () => clearTimeout(id);
-	}, [scale, uiScale, patch]);
+	const applyScale = (next: number) => {
+		setScaleDraft(null);
+		if (next !== uiScale) patch({ uiScale: next });
+	};
+
+	const commitScale = (value: string) => {
+		const input = value.trim();
+		const percent = /^-?\d+%?$/.test(input) ? Number.parseInt(input, 10) : NaN;
+		applyScale(
+			Number.isFinite(percent) ? clampUiScale(percent / 100) : uiScale,
+		);
+	};
 
 	const setThemePref = (next: ThemePreference) => {
 		patch({ theme: next });
@@ -296,27 +307,44 @@ function AppearancePaneInner({
 					</Select>
 				</SettingsRow>
 				<SettingsRow label={t("appearance.uiScale.label")} htmlFor={uiScaleId}>
-					<div className="flex items-center gap-2">
-						<input
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								aria-label={t("appearance.uiScale.reset")}
+								onMouseDown={(event) => {
+									if (scaleDraft !== null) event.preventDefault();
+								}}
+								onClick={() => applyScale(DEFAULT_UI_SCALE)}
+							>
+								<RotateCcw aria-hidden />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>{t("appearance.uiScale.reset")}</TooltipContent>
+					</Tooltip>
+					<div className="relative w-20">
+						<Input
 							id={uiScaleId}
-							type="range"
-							min={80}
-							max={150}
-							step={1}
-							value={Math.round(scale * 100)}
-							onChange={(e) => setScale(Number(e.target.value) / 100)}
-							aria-valuemin={80}
-							aria-valuemax={150}
-							aria-valuenow={Math.round(scale * 100)}
-							aria-valuetext={t("appearance.uiScale.value", {
-								percent: Math.round(scale * 100),
-							})}
-							className="w-28 accent-primary"
+							type="text"
+							inputMode="numeric"
+							value={scaleDraft ?? String(Math.round(uiScale * 100))}
+							onChange={(event) => setScaleDraft(event.target.value)}
+							onBlur={(event) => commitScale(event.currentTarget.value)}
+							onKeyDown={(event) => {
+								if (event.key !== "Enter" || isImeKeyboardEvent(event)) return;
+								event.preventDefault();
+								event.currentTarget.blur();
+							}}
+							aria-describedby={`${uiScaleId}-unit`}
+							className="pr-7 text-right tabular-nums"
 						/>
-						<span className="w-12 text-right text-muted-foreground text-xs tabular-nums">
-							{t("appearance.uiScale.value", {
-								percent: Math.round(scale * 100),
-							})}
+						<span
+							id={`${uiScaleId}-unit`}
+							className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-muted-foreground text-xs"
+						>
+							%
 						</span>
 					</div>
 				</SettingsRow>

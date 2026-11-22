@@ -375,7 +375,7 @@ export type AppSettings = {
 	/**
 	 * Global UI scale multiplier. Affects font-size, spacing, and the title bar,
 	 * so toolbar buttons grow together with the rest of the interface.
-	 * Must be one of {@link UI_SCALE_PRESETS}; default 1.0 (100%).
+	 * Range 0.5–2.0 in whole-percent steps; default 1.0 (100%).
 	 */
 	uiScale: number;
 	/** Show the WYSIWYG formatting toolbar above Markdown/notes editors. */

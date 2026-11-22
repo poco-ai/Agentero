@@ -352,7 +352,7 @@
 		},
 		"uiScale": {
 			"label": "界面缩放",
-			"value": "{{percent}}%"
+			"reset": "恢复默认缩放"
 		},
 		"sound": {
 			"label": "应用内提示音",

@@ -27,6 +27,7 @@ import {
 import {
 	clampEditorLineHeight,
 	clampMarkdownMaxWidth,
+	clampUiScale,
 	clampWikiEmbedFontSize,
 	DECISION_PROVIDER_PRESETS,
 	DEFAULT_DECISION_SETTINGS,
@@ -560,7 +561,7 @@ function normalizePartial(
 			merged.uiScale = DEFAULT_SETTINGS.uiScale;
 		}
 	} else {
-		merged.uiScale = snapUiScale(merged.uiScale);
+		merged.uiScale = clampUiScale(merged.uiScale);
 	}
 	if (
 		merged.locale !== "system" &&
