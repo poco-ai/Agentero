@@ -14,6 +14,7 @@ import {
 	citationRefNumber,
 	citationSidecarKeysForDest,
 	destinationInPageBox,
+	elifeCrossrefParser,
 	expandCitationLinkCluster,
 	fitHCoordResolver,
 	fitRCoordResolver,
@@ -675,6 +676,29 @@ describe("citationRefNumber", () => {
 	it("leaves short bibN names (not ACM Bib0001) unparsed in sidecar keys", () => {
 		expect(citationSidecarKeysForDest("bib1")).toEqual(["bib1"]);
 		expect(citationSidecarKeysForDest("bib2")).toEqual(["bib2"]);
+	});
+});
+
+describe("elifeCrossrefParser", () => {
+	it("parses eLife figNsM destinations as parent + supplement", () => {
+		expect(elifeCrossrefParser("fig5s1")).toEqual({
+			kind: "figure",
+			number: 5,
+			supplement: 1,
+		});
+		expect(elifeCrossrefParser("Fig2s3")).toEqual({
+			kind: "figure",
+			number: 2,
+			supplement: 3,
+		});
+		expect(elifeCrossrefParser("fig5")).toBeNull();
+		expect(elifeCrossrefParser("fig5a")).toBeNull();
+		expect(elifeCrossrefParser("mk:figS1")).toBeNull();
+	});
+
+	it("does not let Springer claim eLife supplement destinations", () => {
+		expect(springerCrossrefParser("fig5s1")).toBeNull();
+		expect(elifeCrossrefParser("fig5s1")?.supplement).toBe(1);
 	});
 });
 
