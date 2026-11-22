@@ -2,7 +2,7 @@
  * Select AlphaXiv library papers, then import them through the identifier pipeline.
  */
 
-import { Check, Import, Loader2, X } from "lucide-react";
+import { Check, Import, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlphaXivFolderIcon } from "@/components/dialogs/alphaxiv-folder-icon";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLibraryStore } from "@/hooks/use-app-stores";
 import { useOverlayRegistration } from "@/hooks/use-overlay-registration";
 import i18n from "@/i18n";
@@ -165,6 +166,58 @@ function paperLine(paper: AlphaXivFolderPaper): string {
 
 function isKeyMissing(error: unknown): boolean {
 	return (error as ApiError | undefined)?.code === "alphaxiv_key_missing";
+}
+
+const FOLDER_SKELETON_WIDTHS = ["70%", "52%", "84%", "46%", "64%", "40%"];
+const PAPER_SKELETON_WIDTHS = ["88%", "72%", "94%", "61%", "80%", "68%"];
+
+/** Same two-pane geometry as the loaded library, so the dialog does not grow in. */
+function AlphaXivImportSkeleton({ label }: { label: string }) {
+	return (
+		<div aria-busy="true" role="status">
+			<p className="sr-only">{label}</p>
+			<div className="grid min-h-0 gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+				<div className="h-80 space-y-0.5 rounded-md border p-1">
+					{FOLDER_SKELETON_WIDTHS.map((width) => (
+						<div
+							key={width}
+							aria-hidden="true"
+							className="flex h-8 items-center gap-2 px-2"
+						>
+							<Skeleton className="library-shimmer size-3.5 shrink-0 rounded-sm" />
+							<Skeleton className="library-shimmer h-3.5" style={{ width }} />
+							<Skeleton className="library-shimmer ml-auto h-3 w-4 shrink-0" />
+						</div>
+					))}
+				</div>
+				<div className="flex min-h-0 flex-col gap-2">
+					<div className="flex items-center gap-2" aria-hidden="true">
+						<Skeleton className="library-shimmer h-8 min-w-0 flex-1" />
+						<Skeleton className="library-shimmer h-8 w-14 shrink-0" />
+						<Skeleton className="library-shimmer h-8 w-14 shrink-0" />
+					</div>
+					<div className="h-72 space-y-0.5 rounded-md border p-1.5">
+						{PAPER_SKELETON_WIDTHS.map((width) => (
+							<div
+								key={width}
+								aria-hidden="true"
+								className="flex items-start gap-2 px-1.5 py-1"
+							>
+								<Skeleton className="library-shimmer mt-0.5 size-4 shrink-0 rounded-[4px]" />
+								<div className="min-w-0 flex-1 space-y-1.5">
+									<Skeleton
+										className="library-shimmer h-3.5"
+										style={{ width }}
+									/>
+									<Skeleton className="library-shimmer h-3 w-1/2" />
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 }
 
 export function AlphaXivImportDialog({
@@ -350,10 +403,7 @@ export function AlphaXivImportDialog({
 							{t("alphaxivImport.needsKey")}
 						</p>
 					) : loading ? (
-						<p className="flex items-center gap-2 py-2 text-muted-foreground text-sm">
-							<Loader2 className="size-3.5 animate-spin" />
-							{t("alphaxivImport.loading")}
-						</p>
+						<AlphaXivImportSkeleton label={t("alphaxivImport.loading")} />
 					) : error && folders.length === 0 ? (
 						<div className="space-y-3 py-2">
 							<p className="text-destructive text-sm">{error}</p>
@@ -371,7 +421,7 @@ export function AlphaXivImportDialog({
 							{t("alphaxivImport.emptyFolders")}
 						</p>
 					) : (
-						<div className="grid min-h-0 gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+						<div className="grid min-h-0 animate-in gap-3 fade-in-0 duration-200 sm:grid-cols-[12rem_minmax(0,1fr)]">
 							<ScrollArea className="h-80 rounded-md border">
 								<div className="space-y-0.5 p-1">
 									{nodes.map((node) => (
@@ -500,23 +550,33 @@ export function AlphaXivImportDialog({
 				</div>
 
 				<DialogFooter className="sm:justify-between">
-					{needsKey || loading || folders.length === 0 ? (
+					{needsKey || (!loading && folders.length === 0) ? (
 						<span />
 					) : (
 						<label
 							htmlFor="alphaxiv-tag-folders"
-							className="flex items-center gap-2 text-sm"
+							className={
+								loading
+									? "pointer-events-none flex items-center gap-2 text-sm"
+									: "flex items-center gap-2 text-sm"
+							}
 						>
 							<Checkbox
 								id="alphaxiv-tag-folders"
 								checked={tagFolders}
+								disabled={loading}
 								onCheckedChange={(value) => setTagFolders(value === true)}
 							/>
 							{t("alphaxivImport.tagFolders")}
 						</label>
 					)}
 					<div className="ml-auto flex items-center gap-2">
-						{folders.length > 0 ? (
+						{loading ? (
+							<Skeleton
+								aria-hidden="true"
+								className="library-shimmer h-3 w-14"
+							/>
+						) : folders.length > 0 ? (
 							<span className="text-muted-foreground text-xs">
 								{t("alphaxivImport.selectedCount", { count: plan.length })}
 							</span>
