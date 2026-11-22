@@ -47,5 +47,15 @@
 		"kind": "subdomain",
 		"protocolVerifiedAt": "2026-11-09",
 		"subscriptionVerified": false
+	},
+	{
+		"id": "pku",
+		"prefix": "https://wpn.pku.edu.cn",
+		"kind": "wengine",
+		"subscriptionVerified": false,
+		"campusProbe": {
+			"url": "https://clab.pku.edu.cn/",
+			"bodyMarker": "PKU CLab"
+		}
 	}
 ]

@@ -208,6 +208,10 @@
 			"probeOk": "Available",
 			"probeFail": "Unavailable",
 			"probeProbing": "Testing…",
+			"probeScope": {
+				"campusPage": "Campus page access verified",
+				"pdf": "Publisher PDF access verified ({{bytes}} bytes, {{kind}})"
+			},
 			"presetsLabel": "Common institutions",
 			"presets": {
 				"zju": "Zhejiang University",
@@ -216,7 +220,8 @@
 				"neu": "Northeastern University",
 				"tsinghua": "Tsinghua University",
 				"fudan": "Fudan University",
-				"bjmu": "Peking University Health Science Center"
+				"bjmu": "Peking University Health Science Center",
+				"pku": "Peking University"
 			}
 		},
 		"openreviewAuth": {

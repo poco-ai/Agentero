@@ -5,6 +5,8 @@
 //! it is not a claim that the institution's subscription can fetch a given
 //! publisher PDF. Real-account PDF verification is tracked in #848.
 
+use super::kind::InstitutionProxyKind;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -26,11 +28,46 @@ pub struct InstitutionProxyPreset {
 
 const PRESETS_JSON: &str = include_str!("presets.json");
 
+#[derive(Deserialize)]
+struct PresetEntry {
+    #[serde(flatten)]
+    preset: InstitutionProxyPreset,
+    #[serde(rename = "campusProbe")]
+    campus_probe: Option<CampusProbe>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct CampusProbe {
+    pub(super) url: String,
+    pub(super) body_marker: String,
+}
+
+fn entries() -> Vec<PresetEntry> {
+    serde_json::from_str(PRESETS_JSON).unwrap_or_default()
+}
+
 /// Parse the embedded registry. The unit test below keeps malformed data from
 /// reaching the UI; callers still get an empty list instead of a panic if a
 /// release somehow ships broken JSON.
 pub fn presets() -> Vec<InstitutionProxyPreset> {
-    serde_json::from_str(PRESETS_JSON).unwrap_or_default()
+    entries().into_iter().map(|entry| entry.preset).collect()
+}
+
+/// Only the configured gateway receives the credential for its campus probe.
+pub(super) fn campus_probe(kind: InstitutionProxyKind, prefix: &str) -> Option<CampusProbe> {
+    if !matches!(
+        kind,
+        InstitutionProxyKind::Wengine | InstitutionProxyKind::Auto
+    ) {
+        return None;
+    }
+    let gateway = Url::parse(prefix).ok()?;
+    entries().into_iter().find_map(|entry| {
+        let probe = entry.campus_probe?;
+        (entry.preset.kind == "wengine" && Url::parse(&entry.preset.prefix).ok()? == gateway)
+            .then_some(probe)
+    })
 }
 
 #[cfg(test)]

@@ -40,12 +40,8 @@ export const commands = {
 	 *  rejects the key (non-200 / non-200 code).
 	 */
 	easyScholarProbe: () => __TAURI_INVOKE<ApiResult<boolean>>("easy_scholar_probe"),
-	/**
-	 *  Probe the configured institution proxy (EZProxy/WebVPN) by fetching a
-	 *  known paywalled DOI through the rewrite and checking the response is a
-	 *  PDF. Returns a short human-readable result for the settings UI.
-	 */
-	institutionProxyProbe: () => __TAURI_INVOKE<ApiResult<string>>("institution_proxy_probe"),
+	/**  Verify access to the preset's campus page or the default publisher PDF. */
+	institutionProxyProbe: () => __TAURI_INVOKE<ApiResult<InstitutionProxyProbe>>("institution_proxy_probe"),
 	/**
 	 *  Built-in institution gateway presets for the settings quick-fill menu.
 	 *  The registry lives in `agentero-core/.../institution_proxy/presets.json`;
@@ -3713,6 +3709,14 @@ export type InstitutionProxyPreset = {
 	/**  True only after an authorized account downloaded a paywalled PDF. */
 	subscriptionVerified?: boolean,
 };
+
+export type InstitutionProxyProbe = {
+	scope: InstitutionProxyProbeScope,
+	kind: string,
+	bytes: number,
+};
+
+export type InstitutionProxyProbeScope = "campusPage" | "pdf";
 
 /**
  *  A parsed explicit Vault-local link. Markdown remains the source of truth; this

@@ -8,12 +8,13 @@
 use super::openreview_account;
 use crate::core::error::{map_err, ApiResult};
 use crate::features::system::settings::{AppSettings, AppSettingsStore, SettingsGetResult};
-use agentero_core::features::paper::import::institution_proxy::InstitutionProxyPreset;
+use agentero_core::features::paper::import::institution_proxy::{
+    probe_institution_proxy, InstitutionProxyKind, InstitutionProxyPreset, InstitutionProxyProbe,
+};
 use agentero_core::features::paper::import::{openreview, web_verify};
 use futures_util::future::BoxFuture;
 use tauri::{AppHandle, Emitter, Manager, State, Url, WebviewUrl, WebviewWindowBuilder};
 
-const PROXY_LOGIN_WINDOW: &str = "institution-proxy-login";
 const OPENREVIEW_ACCOUNT_WINDOW: &str = "openreview-account-login";
 const OPENREVIEW_LOGIN_URL: &str = "https://openreview.net/login";
 /// One window serves every site's verification wall: it is re-navigated when a
@@ -28,6 +29,13 @@ const VERIFICATION_POLL: std::time::Duration = std::time::Duration::from_secs(2)
 /// challenge: a background import must not hang on an ignored window for the
 /// whole asset-download budget.
 const VERIFICATION_AUTO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
+fn proxy_login_window_label(kind: InstitutionProxyKind, prefix: &str) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    format!("{kind:?}:{prefix}").hash(&mut hash);
+    format!("institution-proxy-login-{:x}", hash.finish())
+}
 
 fn proxy_gateway_url(prefix: &str) -> Result<Url, String> {
     let url = Url::parse(prefix.trim()).map_err(|e| e.to_string())?;
@@ -47,83 +55,101 @@ fn proxy_gateway_url(prefix: &str) -> Result<Url, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn institution_proxy_login_open(app: AppHandle, prefix: String) -> Result<bool, String> {
+    let prefix = prefix.trim().trim_end_matches('/').to_string();
     let url = proxy_gateway_url(&prefix)?;
-    let login_url = if prefix.trim_end().ends_with('=') {
+    let Some((kind, saved_prefix, _)) = app.state::<AppSettingsStore>().institution_proxy() else {
+        return Err("institution proxy is not configured".into());
+    };
+    if saved_prefix != prefix {
+        return Err("institution proxy setting changed; reopen the login window".into());
+    }
+    let login_url = if prefix.ends_with('=') {
         proxy_gateway_url(&format!(
             "{}{}",
-            prefix.trim(),
+            prefix,
             urlencoding::encode("https://doi.org/10.1038/nature12373")
         ))?
     } else {
-        url
+        url.clone()
     };
     let title = login_url.host_str().unwrap_or_default().to_string();
-    if let Some(window) = app.get_webview_window(PROXY_LOGIN_WINDOW) {
-        window.navigate(login_url).map_err(|e| e.to_string())?;
+    let label = proxy_login_window_label(kind, &prefix);
+    if let Some(window) = app.get_webview_window(&label) {
+        window.unminimize().map_err(|e| e.to_string())?;
+        window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
-    } else {
-        WebviewWindowBuilder::new(&app, PROXY_LOGIN_WINDOW, WebviewUrl::External(login_url))
-            .title(title)
-            .inner_size(1000.0, 750.0)
-            .build()
-            .map_err(|e| e.to_string())?;
+        return Ok(false);
     }
-    Ok(monitor_institution_login(app, prefix.trim().to_string()).await)
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(login_url))
+        .title(title)
+        .inner_size(1000.0, 750.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(monitor_institution_login(app, window, kind, prefix, url).await)
 }
 
-async fn monitor_institution_login(app: AppHandle, prefix: String) -> bool {
-    use agentero_core::features::paper::import::institution_proxy::probe_institution_proxy;
-    use std::time::Duration;
+async fn monitor_institution_login(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    kind: InstitutionProxyKind,
+    prefix: String,
+    cookie_url: Url,
+) -> bool {
+    use std::time::{Duration, Instant};
 
-    let gateway_url = match proxy_gateway_url(&prefix) {
-        Ok(url) => url,
-        Err(_) => return false,
-    };
-    let mut last_cookie = app
-        .state::<AppSettingsStore>()
-        .institution_proxy()
-        .map(|(_, _, cookie)| cookie)
-        .unwrap_or_default();
+    let mut last_cookie = String::new();
+    let mut last_attempt = None;
     let mut interval = tokio::time::interval(Duration::from_secs(2));
     loop {
         interval.tick().await;
-        let Some(window) = app.get_webview_window(PROXY_LOGIN_WINDOW) else {
+        let store = app.state::<AppSettingsStore>();
+        if !store
+            .institution_proxy()
+            .is_some_and(|(saved_kind, saved_prefix, _)| {
+                saved_kind == kind && saved_prefix == prefix
+            })
+        {
+            let _ = window.close();
             return false;
-        };
-        let url = gateway_url.clone();
-        let cookie =
-            match tauri::async_runtime::spawn_blocking(move || window.cookies_for_url(url)).await {
-                Ok(Ok(cookies)) => cookies
+        }
+        let url = cookie_url.clone();
+        let login_window = window.clone();
+        let captured = tauri::async_runtime::spawn_blocking(move || {
+            login_window.url().ok()?;
+            Some(
+                login_window
+                    .cookies_for_url(url)
+                    .ok()?
                     .into_iter()
                     .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
                     .collect::<Vec<_>>()
                     .join("; "),
-                _ => continue,
-            };
-        if cookie.is_empty() || cookie == last_cookie {
-            continue;
-        }
-        let store = app.state::<AppSettingsStore>();
-        let Some((kind, saved_prefix, _)) = store.institution_proxy() else {
-            continue;
+            )
+        })
+        .await;
+        let Ok(Some(cookie)) = captured else {
+            return false;
         };
-        if saved_prefix != prefix {
+        if cookie.is_empty()
+            || cookie == last_cookie
+                && last_attempt.is_some_and(|at: Instant| at.elapsed() < Duration::from_secs(10))
+        {
             continue;
         }
         last_cookie = cookie.clone();
+        last_attempt = Some(Instant::now());
         if probe_institution_proxy(kind, &prefix, &cookie)
             .await
             .is_err()
         {
             continue;
         }
-        let Ok(Some(settings)) = store.update_institution_proxy_cookie(&prefix, cookie) else {
+        let Ok(Some(settings)) = store.update_institution_proxy_cookie(kind, &prefix, cookie)
+        else {
             continue;
         };
         let _ = app.emit("settings:changed", settings);
-        if let Some(window) = app.get_webview_window(PROXY_LOGIN_WINDOW) {
-            let _ = window.close();
-        }
+        let _ = window.close();
         return true;
     }
 }
@@ -490,24 +516,18 @@ pub fn institution_proxy_presets() -> ApiResult<Vec<InstitutionProxyPreset>> {
     ApiResult::ok(agentero_core::features::paper::import::institution_proxy::presets())
 }
 
-/// Probe the configured institution proxy (EZProxy/WebVPN) by fetching a
-/// known paywalled DOI through the rewrite and checking the response is a
-/// PDF. Returns a short human-readable result for the settings UI.
+/// Verify access to the preset's campus page or the default publisher PDF.
 #[tauri::command]
 #[specta::specta]
-pub async fn institution_proxy_probe(app: AppHandle) -> ApiResult<String> {
+pub async fn institution_proxy_probe(app: AppHandle) -> ApiResult<InstitutionProxyProbe> {
     let store = app.state::<AppSettingsStore>();
     let Some((kind, prefix, cookie)) = store.institution_proxy() else {
         return ApiResult::err(agentero_core::error::AppError::message(
             "prefix not configured",
         ));
     };
-    match agentero_core::features::paper::import::institution_proxy::probe_institution_proxy(
-        kind, &prefix, &cookie,
-    )
-    .await
-    {
-        Ok((kind, n)) => ApiResult::ok(format!("ok ({n} bytes, {})", kind.as_str())),
+    match probe_institution_proxy(kind, &prefix, &cookie).await {
+        Ok(probe) => ApiResult::ok(probe),
         Err(e) => ApiResult::err(agentero_core::error::AppError::domain(
             if e.contains("authentication required") || e.contains("HTTP 401") {
                 "institution_proxy_auth_required"

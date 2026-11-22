@@ -4,8 +4,11 @@
 
 use super::detect::resolve_institution_proxy_kind;
 use super::kind::{institution_proxy, InstitutionProxyConf, InstitutionProxyKind};
+use super::registry::{campus_probe, CampusProbe};
 use super::rewrite::{ezproxy_rewrite, is_subdomain_mapped, subdomain_rewrite, wengine_rewrite};
-use super::session::{fetch_bytes_checked_with_url, fetch_bytes_checked_with_url_seeded};
+use super::session::{
+    fetch_bytes_checked_with_url, fetch_bytes_checked_with_url_seeded, fetch_bytes_same_origin,
+};
 
 /// Result of the paywalled-PDF fallback. The caller owns file persistence.
 #[derive(Debug, Default)]
@@ -19,9 +22,17 @@ pub struct ProxyPdfOutcome {
 /// Try to fetch a paywalled PDF through the configured gateway (or a direct
 /// connection when none is configured). Uses the user's own institution
 /// subscription and session cookie.
-pub async fn fetch_pdf(doi: &str) -> ProxyPdfOutcome {
+pub async fn fetch_pdf(doi: Option<&str>, pdf_url: Option<&str>) -> ProxyPdfOutcome {
     let mut out = ProxyPdfOutcome::default();
     let mut conf = institution_proxy().unwrap_or_else(InstitutionProxyConf::direct);
+    let mut targets = Vec::new();
+    if conf.kind != InstitutionProxyKind::Direct {
+        targets.extend(pdf_url.map(str::to_owned));
+    }
+    targets.extend(doi.map(|doi| format!("https://doi.org/{doi}")));
+    if targets.is_empty() {
+        return out;
+    }
     if conf.kind == InstitutionProxyKind::Auto {
         let Some(kind) =
             resolve_institution_proxy_kind(conf.kind, &conf.prefix, &conf.cookie).await
@@ -43,7 +54,9 @@ pub async fn fetch_pdf(doi: &str) -> ProxyPdfOutcome {
         .next()
         .unwrap_or(&conf.prefix)
         .to_string();
-    let mut targets = vec![format!("https://doi.org/{doi}")];
+    let gateway_origin = reqwest::Url::parse(&proxy_origin)
+        .ok()
+        .map(|url| url.origin());
 
     for _hop in 0..2 {
         let mut next_targets: Vec<String> = Vec::new();
@@ -53,7 +66,9 @@ pub async fn fetch_pdf(doi: &str) -> ProxyPdfOutcome {
                 InstitutionProxyKind::Auto => unreachable!("Auto is resolved above"),
                 InstitutionProxyKind::EzProxy => ezproxy_rewrite(&conf.prefix, target),
                 InstitutionProxyKind::Wengine => {
-                    if target.starts_with(&proxy_origin) {
+                    if reqwest::Url::parse(target)
+                        .is_ok_and(|url| Some(url.origin()) == gateway_origin)
+                    {
                         // Already a gateway-shaped URL (mined from a landed
                         // page); rewriting it again would re-encode the host.
                         target.clone()
@@ -257,19 +272,33 @@ fn is_supplementary(link: &str) -> bool {
     .any(|part| lower.contains(part))
 }
 
-/// One-shot probe of an institution proxy configuration: fetch a known
-/// paywalled DOI through the rewrite and check the response is a PDF.
-/// Returns the resolved gateway kind and byte count on success. Backs the
-/// settings "test connection" and also classifies `Auto` prefixes.
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum InstitutionProxyProbeScope {
+    CampusPage,
+    Pdf,
+}
+
+#[derive(serde::Serialize, specta::Type)]
+pub struct InstitutionProxyProbe {
+    pub scope: InstitutionProxyProbeScope,
+    pub kind: &'static str,
+    pub bytes: usize,
+}
+
+/// Verify the configured campus page or, by default, a publisher PDF.
 pub async fn probe_institution_proxy(
     kind: InstitutionProxyKind,
     prefix: &str,
     cookie: &str,
-) -> Result<(InstitutionProxyKind, usize), String> {
+) -> Result<InstitutionProxyProbe, String> {
     const PROBE_DOI: &str = "10.1038/nature12373";
     let prefix = prefix.trim().trim_end_matches('/');
     if prefix.is_empty() {
         return Err("proxy prefix is empty".into());
+    }
+    if let Some(probe) = campus_probe(kind, prefix) {
+        return probe_campus_page(prefix, cookie, &probe).await;
     }
     let kind = resolve_institution_proxy_kind(kind, prefix, cookie)
         .await
@@ -312,9 +341,54 @@ pub async fn probe_institution_proxy(
     let (bytes, final_url) =
         fetch_bytes_checked_with_url_seeded(&rewritten, cookie.trim(), &seeds).await?;
     if bytes.len() >= 4 && &bytes[..4] == b"%PDF" {
-        return Ok((kind, bytes.len()));
+        return Ok(InstitutionProxyProbe {
+            scope: InstitutionProxyProbeScope::Pdf,
+            kind: kind.as_str(),
+            bytes: bytes.len(),
+        });
     }
-    let login_redirect = reqwest::Url::parse(&final_url).is_ok_and(|url| {
+    if is_login_url(&final_url) {
+        return Err("authentication required: gateway redirected to login".into());
+    }
+    Err("response was HTML, not a PDF (institution may not subscribe to this journal)".into())
+}
+
+async fn probe_campus_page(
+    prefix: &str,
+    cookie: &str,
+    probe: &CampusProbe,
+) -> Result<InstitutionProxyProbe, String> {
+    if cookie.trim().is_empty() {
+        return Err("authentication required: institution proxy cookie is missing".into());
+    }
+    let url: reqwest::Url = wengine_rewrite(prefix, &probe.url)
+        .and_then(|rewritten| rewritten.parse().ok())
+        .ok_or_else(|| "could not rewrite the campus probe URL".to_string())?;
+    let (bytes, final_url) = fetch_bytes_same_origin(&url, cookie).await?;
+    if is_login_url(&final_url) {
+        return Err("authentication required: gateway redirected to login".into());
+    }
+    if !matches_campus_page(&url, &final_url, &bytes, &probe.body_marker) {
+        return Err("gateway did not return the expected campus page".into());
+    }
+    Ok(InstitutionProxyProbe {
+        scope: InstitutionProxyProbeScope::CampusPage,
+        kind: InstitutionProxyKind::Wengine.as_str(),
+        bytes: bytes.len(),
+    })
+}
+
+fn matches_campus_page(url: &reqwest::Url, final_url: &str, body: &[u8], marker: &str) -> bool {
+    reqwest::Url::parse(final_url).is_ok_and(|final_url| {
+        final_url.origin() == url.origin()
+            && final_url.path().trim_end_matches('/') == url.path().trim_end_matches('/')
+            && !marker.is_empty()
+            && std::str::from_utf8(body).is_ok_and(|html| html.contains(marker))
+    })
+}
+
+fn is_login_url(final_url: &str) -> bool {
+    reqwest::Url::parse(final_url).is_ok_and(|url| {
         let path = url.path().to_ascii_lowercase();
         let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
         [
@@ -330,11 +404,7 @@ pub async fn probe_institution_proxy(
             || ["login.", "sso.", "cas.", "passport."]
                 .iter()
                 .any(|part| host.starts_with(part))
-    });
-    if login_redirect {
-        return Err("authentication required: gateway redirected to login".into());
-    }
-    Err("response was HTML, not a PDF (institution may not subscribe to this journal)".into())
+    })
 }
 
 #[cfg(test)]
