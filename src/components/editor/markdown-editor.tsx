@@ -1397,7 +1397,11 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 									className="pointer-events-none absolute inset-0 space-y-4 bg-background px-10 pt-6"
 								>
 									<Skeleton className="h-5 w-2/5" />
+									<Skeleton className="h-3 w-full" />
+									<Skeleton className="h-3 w-11/12" />
 									<Skeleton className="h-3 w-4/5" />
+									<Skeleton className="mt-4 h-3 w-full" />
+									<Skeleton className="h-3 w-5/6" />
 									<Skeleton className="h-3 w-3/5" />
 								</div>
 							) : null}

@@ -283,6 +283,7 @@
 		"openLayoutSettings": "打开解析设置",
 		"openTranslateSettings": "打开翻译设置",
 		"latexCompile": "编译 LaTeX",
+		"agentWarm": "准备 Agent",
 		"jevSmartHighlights": "jEV 智能高亮",
 		"downloadBytes": "{{phase}} · {{downloaded}} / {{total}}",
 		"downloadBytesUnknown": "{{phase}} · {{downloaded}}",

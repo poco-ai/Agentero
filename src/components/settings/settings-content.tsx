@@ -35,6 +35,7 @@ import type {
 	SettingsSection,
 } from "@/components/settings/types";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { scrollBehavior } from "@/lib/core/motion";
 import { cn } from "@/lib/core/utils";
@@ -173,9 +174,19 @@ const NAV: {
 	{ id: "about", icon: Info },
 ];
 
-/** Reserves height while a pane chunk loads so the window does not jump. */
+/** Visible stand-in while a pane chunk is still evaluating. */
 function PaneFallback() {
-	return <div className="h-64" aria-hidden />;
+	const { t } = useTranslation("common");
+	return (
+		<div className="flex flex-col gap-4" role="status" aria-busy="true">
+			<span className="sr-only">{t("loading")}</span>
+			<Skeleton className="h-6 w-40" />
+			<Skeleton className="h-10 w-full" />
+			<Skeleton className="h-10 w-full" />
+			<Skeleton className="h-10 w-4/5" />
+			<Skeleton className="h-24 w-full" />
+		</div>
+	);
 }
 
 type SettingsContentProps = {
@@ -332,6 +343,7 @@ export function SettingsContent({
 
 	const selectSection = useCallback(
 		(id: SettingsSection) => {
+			void preloadSettingsPane(id);
 			onSectionChange(id);
 		},
 		[onSectionChange],
@@ -439,6 +451,12 @@ export function SettingsContent({
 												: "text-sidebar-foreground/90 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
 										)}
 										onClick={() => selectSection(item.id)}
+										onPointerEnter={() => {
+											void preloadSettingsPane(item.id);
+										}}
+										onFocus={() => {
+											void preloadSettingsPane(item.id);
+										}}
 										onKeyDown={(event) => onNavItemKeyDown(event, item.id)}
 									>
 										<Icon
@@ -623,7 +641,7 @@ export function SettingsContent({
 							</Suspense>
 						</div>
 					)}
-					{activeSection === "keyboard" && (
+					{visitedSections.includes("keyboard") && (
 						<div
 							data-settings-pane
 							data-active={activeSection === "keyboard" ? "true" : "false"}

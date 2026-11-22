@@ -17,7 +17,8 @@ export type LocalActivityKind =
 	| "paperRead"
 	| "zoteroMigrate"
 	| "layoutRun"
-	| "nodeInstall";
+	| "nodeInstall"
+	| "agentWarm";
 
 /** Panel row identity: a projected JobCenter kind, or a local activity. */
 export type BackgroundTaskKind = JobKind | LocalActivityKind;

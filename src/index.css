@@ -60,15 +60,49 @@
 	animation: citation-focus-flash 1.6s ease-out forwards;
 }
 
+/*
+ * Recessive skeleton gleam. The bar keeps its own background (so a placeholder
+ * can sit on a muted bubble); the highlight travels on top and stays slow.
+ */
 .library-shimmer {
-	background: linear-gradient(
-		110deg,
-		var(--muted) 35%,
-		color-mix(in oklab, var(--muted) 72%, var(--muted-foreground)) 50%,
-		var(--muted) 65%
+	position: relative;
+	overflow: hidden;
+}
+
+.library-shimmer::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background-image: linear-gradient(
+		100deg,
+		transparent 38%,
+		color-mix(in oklab, var(--foreground) 10%, transparent) 50%,
+		transparent 62%
 	);
 	background-size: 200% 100%;
 	animation: library-shimmer 1.8s ease-in-out infinite;
+	pointer-events: none;
+}
+
+@keyframes content-arrive {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+/* Opacity only: scaling the arriving surface shifts layout around it. */
+.content-arrive {
+	animation: content-arrive var(--motion-duration-normal) var(--motion-ease-out)
+		both;
+}
+
+/* Ease each turn instead of a constant linear spin. */
+.animate-spin {
+	animation-duration: 800ms;
+	animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes star-twinkle {
@@ -198,6 +232,14 @@
 		animation-duration: 1s;
 		animation-iteration-count: infinite;
 	}
+	/*
+	 * These shorthands are more specific than the universal rule above, so
+	 * name them or the gleam and the arrival fade keep running.
+	 */
+	.library-shimmer::after,
+	.content-arrive {
+		animation: none;
+	}
 	.star-twinkle {
 		animation: none;
 		color: oklch(0.82 0.19 95);
@@ -252,23 +294,6 @@
 	}
 }
 
-/* Settings pane enter: short opacity cross-fade (respects reduced-motion). */
-@keyframes settings-pane-in {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-[data-settings-pane][data-active="true"] {
-	animation: settings-pane-in var(--motion-duration-fast) var(--motion-ease-out);
-}
-@media (prefers-reduced-motion: reduce) {
-	[data-settings-pane][data-active="true"] {
-		animation: none;
-	}
-}
 @media (prefers-contrast: more) {
 	[data-settings-sidebar] {
 		border-right-color: var(--sidebar-border);

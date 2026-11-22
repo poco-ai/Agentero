@@ -90,9 +90,9 @@ export function OpenReviewAuthRow({
 
 	return (
 		<SettingsRow
+			className="px-3"
 			label={
 				<span className="inline-flex items-center gap-1.5">
-					{t("general.openreviewAuth.label")}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ProbeDot
@@ -103,6 +103,7 @@ export function OpenReviewAuthRow({
 						</TooltipTrigger>
 						<TooltipContent>{statusLabel}</TooltipContent>
 					</Tooltip>
+					{t("general.openreviewAuth.label")}
 				</span>
 			}
 		>

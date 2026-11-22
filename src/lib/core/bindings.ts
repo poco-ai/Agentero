@@ -934,6 +934,7 @@ export const events = {
 	settingsChanged: makeEvent<SettingsChangedEvent_Deserialize>("settings:changed"),
 	settingsSectionRequested: makeEvent<SettingsSectionRequestedEvent>("settings:section-requested"),
 	settingsVaultRequested: makeEvent<SettingsVaultRequestedEvent>("settings:vault-requested"),
+	syncMirror: makeEvent<SyncMirrorEvent_Deserialize>("sync:mirror"),
 	syncProgress: makeEvent<SyncProgressEvent>("sync:progress"),
 	syncState: makeEvent<SyncStateEvent_Deserialize>("sync:state"),
 	uiRequest: makeEvent<UiRequestEvent_Deserialize>("ui:request"),
@@ -6058,11 +6059,21 @@ export type SyncConfigureArgs = SyncConfigureArgs_Serialize | SyncConfigureArgs_
 export type SyncConfigureArgs_Deserialize = {
 	vaultPath: string,
 	config: SyncBackendConfig_Deserialize,
+	/**
+	 *  Read-only mirrors published after the primary pass. The primary stays
+	 *  the only backend that pulls and merges.
+	 */
+	mirrors?: SyncBackendConfig_Deserialize[],
 };
 
 export type SyncConfigureArgs_Serialize = {
 	vaultPath: string,
 	config: SyncBackendConfig_Serialize,
+	/**
+	 *  Read-only mirrors published after the primary pass. The primary stays
+	 *  the only backend that pulls and merges.
+	 */
+	mirrors: SyncBackendConfig_Serialize[],
 };
 
 /**
@@ -6073,6 +6084,59 @@ export type SyncConflict = {
 	paperPath: string,
 	title: string,
 	reason: string,
+};
+
+/**
+ *  Owned mirror of the private borrowed `SyncMirrorEvent` in
+ *  `integration::sync::commands` (`started` / `published` / `error` per mirror).
+ */
+export type SyncMirrorEvent = SyncMirrorEvent_Serialize | SyncMirrorEvent_Deserialize;
+
+/**
+ *  Owned mirror of the private borrowed `SyncMirrorEvent` in
+ *  `integration::sync::commands` (`started` / `published` / `error` per mirror).
+ */
+export type SyncMirrorEvent_Deserialize = {
+	vaultPath: string,
+	/**  Zero-based position in the vault's mirror list. */
+	index: number,
+	identity: string,
+	backend: string,
+	status: string,
+	error?: string | null,
+};
+
+/**
+ *  Owned mirror of the private borrowed `SyncMirrorEvent` in
+ *  `integration::sync::commands` (`started` / `published` / `error` per mirror).
+ */
+export type SyncMirrorEvent_Serialize = {
+	vaultPath: string,
+	/**  Zero-based position in the vault's mirror list. */
+	index: number,
+	identity: string,
+	backend: string,
+	status: string,
+	error?: string | null,
+};
+
+/**  One read-only mirror and its last pass result. */
+export type SyncMirrorStatus = SyncMirrorStatus_Serialize | SyncMirrorStatus_Deserialize;
+
+/**  One read-only mirror and its last pass result. */
+export type SyncMirrorStatus_Deserialize = {
+	config: SyncBackendConfig_Deserialize,
+	lastSyncAt: string | null,
+	lastVersion: number,
+	lastError: string | null,
+};
+
+/**  One read-only mirror and its last pass result. */
+export type SyncMirrorStatus_Serialize = {
+	config: SyncBackendConfig_Serialize,
+	lastSyncAt?: string | null,
+	lastVersion: number,
+	lastError?: string | null,
 };
 
 export type SyncOutcome = {
@@ -6164,6 +6228,8 @@ export type SyncStatus_Deserialize = {
 	running: boolean,
 	lastSyncAt: string | null,
 	lastVersion: number,
+	/**  Mirrors in configuration order; empty for a single-backend binding. */
+	mirrors?: SyncMirrorStatus_Deserialize[],
 };
 
 export type SyncStatus_Serialize = {
@@ -6172,6 +6238,8 @@ export type SyncStatus_Serialize = {
 	running: boolean,
 	lastSyncAt?: string | null,
 	lastVersion: number,
+	/**  Mirrors in configuration order; empty for a single-backend binding. */
+	mirrors: SyncMirrorStatus_Serialize[],
 };
 
 export type SyncTexLocation = {

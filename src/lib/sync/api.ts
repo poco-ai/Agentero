@@ -6,6 +6,7 @@
 import {
 	commands,
 	type SyncBackendConfig as SyncBackendConfigWire,
+	type SyncMirrorEvent_Deserialize,
 	type SyncStateEvent_Deserialize,
 	type SyncStatus_Serialize,
 } from "@/lib/core/bindings";
@@ -66,12 +67,21 @@ export type SyncBackendConfig = {
 	scope: SyncScope;
 };
 
+export type SyncMirrorStatus = {
+	config: SyncBackendConfig;
+	lastSyncAt?: string;
+	lastVersion: number;
+	lastError?: string;
+};
+
 export type SyncStatus = {
 	configured: boolean;
 	config?: SyncBackendConfig;
 	running: boolean;
 	lastSyncAt?: string;
 	lastVersion: number;
+	/** Read-only mirrors in configuration order. */
+	mirrors: SyncMirrorStatus[];
 };
 
 export type SyncOutcome = {
@@ -85,6 +95,15 @@ export type SyncOutcome = {
 
 /** `sync:state` payload comes straight from the generated wire contract. */
 export type SyncStateEvent = SyncStateEvent_Deserialize;
+
+/** `sync:mirror` payload: one event per mirror pass (started → published | error). */
+export type SyncMirrorEvent = SyncMirrorEvent_Deserialize;
+
+export type SyncMirrorPhase = "started" | "published" | "error";
+
+export function isSyncMirrorPhase(value: string): value is SyncMirrorPhase {
+	return value === "started" || value === "published" || value === "error";
+}
 
 /** `sync:progress` phases; the wire payload types `phase` as a plain string. */
 export type SyncPhase = "scan" | "pull" | "download" | "upload" | "finalize";
@@ -155,6 +174,12 @@ function statusFromWire(status: SyncStatus_Serialize): SyncStatus {
 		running: status.running,
 		lastSyncAt: status.lastSyncAt ?? undefined,
 		lastVersion: status.lastVersion,
+		mirrors: (status.mirrors ?? []).map((mirror) => ({
+			config: configFromWire(mirror.config),
+			lastSyncAt: mirror.lastSyncAt ?? undefined,
+			lastVersion: mirror.lastVersion,
+			lastError: mirror.lastError ?? undefined,
+		})),
 	};
 }
 
@@ -204,9 +229,12 @@ export function syncScopeSizes(vaultPath: string): Promise<SyncScopeSizes> {
 export async function syncConfigure(
 	vaultPath: string,
 	config: SyncBackendConfig,
+	mirrors: SyncBackendConfig[] = [],
 ): Promise<SyncStatus> {
 	return statusFromWire(
-		await callApiResult(() => commands.syncConfigure({ vaultPath, config })),
+		await callApiResult(() =>
+			commands.syncConfigure({ vaultPath, config, mirrors }),
+		),
 	);
 }
 

@@ -23,7 +23,7 @@
 //! manifest can vouch for until `HEAD` moves.
 
 use crate::error::AppError;
-use crate::features::sync::config::{SyncBackendConfig, SyncBackendKind};
+use crate::features::sync::config::{self, SyncBackendConfig, SyncBackendKind};
 use crate::features::sync::local::{self, SyncMeta};
 use crate::features::sync::scope;
 use crate::features::sync::snapshot::{self, FileEntry, Manifest, SyncScope};
@@ -1241,6 +1241,304 @@ fn conflict_name(path: &str, hash: &str, index: u64) -> String {
     match path.rsplit_once('.') {
         Some((stem, ext)) => format!("{stem} (conflict {stamp}).{ext}"),
         None => format!("{path} (conflict {stamp})"),
+    }
+}
+
+// ---- Read-only mirrors -----------------------------------------------------
+//
+// A mirror is an output target, never an input: a pass publishes the vault's
+// local state and never merges the mirror's manifest back. Two bidirectional
+// backends would each carry their own merge base and fight over deletions, so
+// the authoritative side stays singular by construction.
+
+/// Test a mirror binding. Unlike [`test_connection`], the primary's rules do
+/// not apply: a Git mirror branch is only a push target (the vault's own branch
+/// and `origin` stay untouched), and object-store mirrors just need a usable
+/// root with conditional writes for the HEAD CAS.
+pub async fn test_mirror_connection(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+) -> Result<bool, AppError> {
+    crate::features::sync::ensure_vault_sync_available(vault)?;
+    if cfg.backend == SyncBackendKind::Git {
+        crate::features::sync::git::test_mirror_connection(vault, cfg).await?;
+        return Ok(true);
+    }
+    let client = SyncStore::new(cfg, vault)?;
+    client.ensure_root().await?;
+    client.probe_conditional_writes().await
+}
+
+/// One pass that publishes `cfg` as a read-only mirror of `vault`.
+///
+/// The remote layout matches the primary's, so another Agentero can still open
+/// the mirror as a normal store; this device just never reads it back.
+pub async fn publish_mirror(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+    progress: Progress<'_>,
+) -> Result<SyncOutcome, AppError> {
+    crate::features::sync::ensure_vault_sync_available(vault)?;
+    if cfg.backend == SyncBackendKind::Git {
+        return crate::features::sync::git::publish_mirror(vault, cfg, progress).await;
+    }
+    let client = SyncStore::new(cfg, vault)?;
+    client.ensure_root().await?;
+    run_mirror(vault, cfg, &client, progress).await
+}
+
+async fn run_mirror<S: RemoteStore>(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+    client: &S,
+    progress: Progress<'_>,
+) -> Result<SyncOutcome, AppError> {
+    let store_id = config::backend_identity(cfg);
+    let state_dir = local::mirror_dir(vault, &store_id);
+    progress("scan", 0, 0);
+    let base = local::read_base_at(&state_dir)?;
+    // The base doubles as the scan cache: unchanged files keep their mtime/hash.
+    let files = visible_files(
+        scan_local(vault, base.clone(), cfg.scope).await?,
+        &cfg.scope,
+    );
+    validate_tree(&files)?;
+    let mut outcome = SyncOutcome::default();
+    // Idle pass: the last published manifest still matches the local tree, so
+    // nothing is uploaded and no request is made.
+    if base.version > 0 && same_content(&files, &base.files) {
+        outcome.version = base.version;
+        return Ok(outcome);
+    }
+    ensure_mirror_identity(vault, client).await?;
+
+    for _ in 0..MAX_CAS_RETRIES {
+        progress("pull", 0, 0);
+        let head = client.get(HEAD_KEY).await?;
+        let (head_ptr, head_etag) = match &head {
+            Some((bytes, etag)) => (
+                Some(serde_json::from_slice::<HeadPointer>(bytes)?),
+                Some(etag.clone()),
+            ),
+            None => (None, None),
+        };
+        // What the mirror can already have. Without a HEAD (fresh, wiped, or
+        // hand-edited mirror) nothing can be assumed and everything is re-sent.
+        let known: HashSet<&str> = if head_ptr.is_some() {
+            base.files
+                .values()
+                .map(|entry| entry.hash.as_str())
+                .collect()
+        } else {
+            HashSet::new()
+        };
+        let mut uploaded = 0;
+        let total = files.len();
+        for (i, (rel, entry)) in files.iter().enumerate() {
+            if known.contains(entry.hash.as_str()) {
+                continue;
+            }
+            progress("upload", i + 1, total);
+            match client
+                .put(
+                    &blob_key(&entry.hash),
+                    read_blob(vault, rel, entry)?,
+                    PutCondition::IfNoneMatch,
+                )
+                .await?
+            {
+                PutOutcome::Ok => uploaded += 1,
+                // Already present (a previous pass uploaded it before publishing).
+                PutOutcome::PreconditionFailed => {}
+            }
+        }
+        outcome.uploaded += uploaded;
+
+        progress("finalize", 0, 0);
+        let new_version = head_ptr
+            .as_ref()
+            .map_or(0, |pointer| pointer.version)
+            .checked_add(1)
+            .ok_or_else(|| AppError::message("sync version exhausted"))?;
+        let manifest_key = format!(
+            "manifests/{new_version:010}-{}.json.gz",
+            &uuid::Uuid::new_v4().simple().to_string()[..8]
+        );
+        // Keep the scope the mirror was first published with; changing the
+        // primary's scope must not silently reinterpret an existing mirror.
+        let scope = head_ptr.as_ref().map_or(cfg.scope, |_| base.scope);
+        let manifest = Manifest {
+            version: new_version,
+            files: files.clone(),
+            scope,
+        };
+        validate_manifest(&manifest)?;
+        if client
+            .put(
+                &manifest_key,
+                gzip(&serde_json::to_vec(&manifest)?)?,
+                PutCondition::IfNoneMatch,
+            )
+            .await?
+            != PutOutcome::Ok
+        {
+            continue;
+        }
+        let next_head = HeadPointer {
+            version: new_version,
+            manifest_key,
+            updated_at: now(),
+        };
+        let condition = match head_etag {
+            Some(etag) => PutCondition::IfMatch(etag),
+            None => PutCondition::IfNoneMatch,
+        };
+        if client
+            .put(HEAD_KEY, serde_json::to_vec(&next_head)?, condition)
+            .await?
+            == PutOutcome::PreconditionFailed
+        {
+            continue;
+        }
+        local::write_base_at(
+            &state_dir,
+            &Manifest {
+                version: next_head.version,
+                files: visible_files(files.clone(), &scope),
+                scope,
+            },
+        )?;
+        local::write_meta_at(
+            &state_dir,
+            &SyncMeta {
+                needs_merge: false,
+                last_sync_at: Some(now()),
+                last_version: next_head.version,
+                store_id: Some(store_id.clone()),
+                manifest_key: Some(next_head.manifest_key.clone()),
+                last_error: None,
+            },
+        )?;
+        outcome.removed_remote = base
+            .files
+            .keys()
+            .filter(|path| !files.contains_key(*path))
+            .count();
+        outcome.version = next_head.version;
+        return Ok(outcome);
+    }
+    Err(AppError::message(
+        "mirror contention: too many concurrent updates, try again",
+    ))
+}
+
+/// Bind a mirror store to this vault. A mirror that already holds another
+/// vault's id is refused instead of being overwritten: pointing two vaults at
+/// one mirror would make the second pass silently erase the first one.
+async fn ensure_mirror_identity<S: RemoteStore>(vault: &Path, client: &S) -> Result<(), AppError> {
+    let vault_id = local::ensure_vault_id(vault)?;
+    match client.get(VAULT_KEY).await? {
+        Some((bytes, _)) => {
+            let info: RemoteVaultInfo = serde_json::from_slice(&bytes)
+                .map_err(|_| AppError::message("mirror store is not an Agentero sync store"))?;
+            if info.format_version > FORMAT_VERSION {
+                return Err(AppError::message(
+                    "mirror sync store uses a newer format; update the app",
+                ));
+            }
+            if info.vault_id != vault_id {
+                return Err(AppError::message(
+                    "mirror store belongs to a different vault; pick an empty prefix",
+                ));
+            }
+        }
+        None => {
+            client
+                .put(
+                    VAULT_KEY,
+                    serde_json::to_vec(&RemoteVaultInfo {
+                        vault_id,
+                        format_version: FORMAT_VERSION,
+                        encryption: "none".into(),
+                    })?,
+                    PutCondition::IfNoneMatch,
+                )
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Per-mirror pass state. Progress phases stay vault-level (both passes share
+/// them), so the host gets one event per mirror instead of a phase stream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MirrorPhase {
+    Started,
+    Published,
+    Failed,
+}
+
+/// Called once per mirror pass: `(index, mirror, phase, error)`.
+pub type MirrorWatch<'a> =
+    &'a (dyn Fn(usize, &SyncBackendConfig, MirrorPhase, Option<&str>) + Send + Sync);
+
+/// One pass under the vault lock: the authoritative primary, then every
+/// configured mirror in order.
+///
+/// A mirror failure never fails the pass — the primary already succeeded and
+/// the mirror records its own `lastError` for the next attempt. A primary
+/// failure stops before the mirrors, because publishing a half-applied local
+/// tree would only spread it.
+pub async fn sync_all_locked(
+    lock: &super::lock::SyncLock,
+    cfg: &config::VaultSyncConfig,
+    progress: Progress<'_>,
+    watch: Option<MirrorWatch<'_>>,
+) -> Result<SyncOutcome, AppError> {
+    let outcome = sync_vault_locked(lock, &cfg.primary, progress).await?;
+    let vault = lock.vault();
+    for (index, mirror) in cfg.mirrors.iter().enumerate() {
+        // Scope is a whole-vault policy: a mirror always publishes exactly what
+        // the primary does, so a stale mirror binding cannot shrink the copy.
+        let mut mirror_cfg = mirror.clone();
+        mirror_cfg.scope = cfg.primary.scope;
+        if let Some(watch) = watch {
+            watch(index, &mirror_cfg, MirrorPhase::Started, None);
+        }
+        if let Err(error) = publish_mirror(vault, &mirror_cfg, progress).await {
+            let state_dir = local::mirror_dir(vault, &config::backend_identity(&mirror_cfg));
+            let message = error.to_string();
+            local::record_error_at(&state_dir, &message);
+            log::warn!(
+                target: "agentero::sync",
+                "mirror pass failed backend={:?}: {error}",
+                mirror.backend
+            );
+            if let Some(watch) = watch {
+                watch(index, &mirror_cfg, MirrorPhase::Failed, Some(&message));
+            }
+        } else if let Some(watch) = watch {
+            watch(index, &mirror_cfg, MirrorPhase::Published, None);
+        }
+    }
+    Ok(outcome)
+}
+
+/// Last pass result for one mirror (settings pane / CLI status).
+#[derive(Debug, Default, Clone)]
+pub struct MirrorState {
+    pub last_sync_at: Option<String>,
+    pub last_version: u64,
+    pub last_error: Option<String>,
+}
+
+pub fn mirror_state(vault: &Path, cfg: &SyncBackendConfig) -> MirrorState {
+    let dir = local::mirror_dir(vault, &config::backend_identity(cfg));
+    let meta = local::read_meta_at(&dir).unwrap_or_default();
+    MirrorState {
+        last_sync_at: meta.last_sync_at,
+        last_version: meta.last_version,
+        last_error: meta.last_error,
     }
 }
 

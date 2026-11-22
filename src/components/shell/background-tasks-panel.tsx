@@ -81,6 +81,7 @@ const KIND_ICONS: Partial<Record<BackgroundTaskKind, BackgroundTaskIcon>> = {
 	latexCompile: "fileCode",
 	paperRead: "read",
 	nodeInstall: "download",
+	agentWarm: "plug",
 };
 
 function taskIcon(task: BackgroundTask | undefined): BackgroundTaskIcon {

@@ -291,6 +291,22 @@ pub struct SyncProgressEvent {
     pub total: usize,
 }
 
+/// Owned mirror of the private borrowed `SyncMirrorEvent` in
+/// `integration::sync::commands` (`started` / `published` / `error` per mirror).
+#[derive(serde::Serialize, specta::Type, tauri_specta::Event)]
+#[serde(rename_all = "camelCase")]
+#[tauri_specta(event_name = "sync:mirror")]
+pub struct SyncMirrorEvent {
+    pub vault_path: String,
+    /// Zero-based position in the vault's mirror list.
+    pub index: usize,
+    pub identity: String,
+    pub backend: String,
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 /// Owned mirror of the private core `PaperEventPayload` envelope
 /// (`paper:imported` / `paper:assets-ready`).
 #[derive(serde::Serialize, specta::Type)]
@@ -504,6 +520,7 @@ fn registered_event_names() -> BTreeSet<String> {
         McpTunnelStatusEvent::NAME,
         SyncStateEvent::NAME,
         SyncProgressEvent::NAME,
+        SyncMirrorEvent::NAME,
         PaperImportedEvent::NAME,
         PaperAssetsReadyEvent::NAME,
         PaperRenamedEventPayload::NAME,

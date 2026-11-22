@@ -129,19 +129,52 @@ pub fn ensure_device_id(vault: &Path) -> Result<String, AppError> {
 }
 
 pub fn read_base(vault: &Path) -> Result<Manifest, AppError> {
-    Ok(read_json(&sync_dir(vault).join("base.json"))?.unwrap_or_default())
+    read_base_at(&sync_dir(vault))
 }
 
 pub fn write_base(vault: &Path, manifest: &Manifest) -> Result<(), AppError> {
-    write_json(&sync_dir(vault).join("base.json"), manifest)
+    write_base_at(&sync_dir(vault), manifest)
 }
 
 pub fn read_meta(vault: &Path) -> Result<SyncMeta, AppError> {
-    Ok(read_json(&sync_dir(vault).join("state.json"))?.unwrap_or_default())
+    read_meta_at(&sync_dir(vault))
 }
 
 pub fn write_meta(vault: &Path, meta: &SyncMeta) -> Result<(), AppError> {
-    write_json(&sync_dir(vault).join("state.json"), meta)
+    write_meta_at(&sync_dir(vault), meta)
+}
+
+/// State directory of one mirror. The primary keeps its files directly in
+/// [`sync_dir`] (existing vaults need no migration); mirrors are namespaced by
+/// backend id so their base/state can never be read as the primary's.
+pub(super) fn mirror_dir(vault: &Path, backend_id: &str) -> PathBuf {
+    sync_dir(vault).join("mirrors").join(backend_id)
+}
+
+pub(super) fn read_base_at(dir: &Path) -> Result<Manifest, AppError> {
+    Ok(read_json(&dir.join("base.json"))?.unwrap_or_default())
+}
+
+pub(super) fn write_base_at(dir: &Path, manifest: &Manifest) -> Result<(), AppError> {
+    write_json(&dir.join("base.json"), manifest)
+}
+
+pub(super) fn read_meta_at(dir: &Path) -> Result<SyncMeta, AppError> {
+    Ok(read_json(&dir.join("state.json"))?.unwrap_or_default())
+}
+
+pub(super) fn write_meta_at(dir: &Path, meta: &SyncMeta) -> Result<(), AppError> {
+    write_json(&dir.join("state.json"), meta)
+}
+
+/// Record a failed mirror pass in that mirror's own state file, so one failing
+/// mirror cannot overwrite the primary's `lastError` (or another mirror's).
+pub(super) fn record_error_at(dir: &Path, error: &str) {
+    let Ok(mut meta) = read_meta_at(dir) else {
+        return;
+    };
+    meta.last_error = Some(error.to_string());
+    let _ = write_meta_at(dir, &meta);
 }
 
 /// Forget local sync state (disconnect). Keeps the vault identity.
@@ -160,6 +193,11 @@ pub(super) fn clear(lock: &super::lock::SyncLock) -> Result<(), AppError> {
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
             _ => (),
         }
+    }
+    // Mirror state lives in nested directories; the primary's files are flat.
+    match fs::remove_dir_all(sync_dir(vault).join("mirrors")) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
+        _ => (),
     }
     Ok(())
 }

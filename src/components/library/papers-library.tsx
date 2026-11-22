@@ -38,6 +38,7 @@ import { paperSelectionKey } from "@/components/library/library-selection";
 import { LibrarySelectionBar } from "@/components/library/library-selection-bar";
 import { LibraryTableHeader } from "@/components/library/library-table-header";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings, useWritingStore } from "@/hooks/use-app-stores";
 import { useDebouncedCallback } from "@/hooks/use-debounce";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
@@ -105,6 +106,17 @@ const HEADER_SCROLL_IDLE_MS = 450;
 const SELECTION_COL_REM = 2;
 /** Trailing custom-property "add column" cell width (rem). */
 const ACTIONS_COL_REM = 2.25;
+/** Placeholder rows before the catalog's first paint. Not a fake total. */
+const LIBRARY_SKELETON_ROW_KEYS = [
+	"s1",
+	"s2",
+	"s3",
+	"s4",
+	"s5",
+	"s6",
+	"s7",
+	"s8",
+] as const;
 
 /** Radix dialog/menu/popover is open → app-level shortcuts must not fight it. */
 function blockingOverlayOpen(): boolean {
@@ -660,14 +672,9 @@ export function PapersLibrary({
 	const filtering = normalizedQuery.length > 0 || tagFilterSet.size > 0;
 	const tagFilterActive = tagFilterSet.size > 0;
 
+	const initialLoad = Boolean(loading) && papers.length === 0;
 	let body: ReactNode;
-	if (loading) {
-		body = (
-			<div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground text-sm">
-				{t("papersLibrary.loading")}
-			</div>
-		);
-	} else {
+	{
 		const empty = rows.length === 0;
 		body = (
 			<>
@@ -675,13 +682,19 @@ export function PapersLibrary({
 				{/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape clears the selection from the keyboard */}
 				<div
 					ref={setScrollEl}
+					aria-busy={loading || undefined}
 					onPointerDown={onMarqueePointerDown}
 					onClick={handleScrollAreaClick}
 					className={cn(
 						"agentero-scroll-both relative min-w-0",
-						empty ? "h-auto" : "min-h-0 flex-1",
+						empty && !initialLoad ? "h-auto" : "min-h-0 flex-1",
 					)}
 				>
+					{initialLoad ? (
+						<p className="sr-only" role="status">
+							{t("papersLibrary.loading")}
+						</p>
+					) : null}
 					{/* Fixed weights keep the table stable while content and rows change. */}
 					<table
 						className="table-fixed border-collapse text-left text-sm"
@@ -734,68 +747,95 @@ export function PapersLibrary({
 						/>
 						{/* One shared menu for the whole body: single-row actions, or
 						    batch actions when the right-clicked row is selected. */}
-						<LibraryRowMenu
-							rows={rows}
-							vaultPath={vaultPath}
-							canEditMeta={canEditMeta}
-							selectedKeys={selectedKeys}
-							onOpenPaper={openPaperFromRow}
-							onRefreshMetadata={handleRefreshPaperMetadata}
-							onAddToChat={addPapersToChat}
-							onCopyPapers={openCopyDialog}
-							onDeletePapers={deletePapers}
-							onClearSelection={clearSelection}
-							onPrepareContext={prepareContext}
-							t={t}
-						>
-							{/* key={reorderKey} remounts the tbody to replay the fade animation. */}
-							<tbody
-								key={reorderKey}
-								className="animate-in fade-in-0 duration-150"
-							>
-								{paddingTop > 0 ? (
-									<tr aria-hidden className="pointer-events-none">
-										<td
-											colSpan={
-												visibleColumns.length + (selectionActive ? 2 : 1)
-											}
-											style={{ height: paddingTop }}
-										/>
+						{initialLoad ? (
+							<tbody aria-hidden="true">
+								{LIBRARY_SKELETON_ROW_KEYS.map((key, rowIndex) => (
+									<tr key={key} className="border-border/40 border-b">
+										{selectionActive ? (
+											<td className="w-8 min-w-8 p-0" />
+										) : null}
+										{visibleColumns.map((col, colIndex) => (
+											<td key={col.key} className="px-3 py-2.5">
+												<Skeleton
+													className={cn(
+														"h-3",
+														colIndex === 0
+															? rowIndex % 3 === 0
+																? "w-3/5"
+																: "w-2/3"
+															: "w-12",
+													)}
+												/>
+											</td>
+										))}
+										<td className="w-9 min-w-9 p-0" />
 									</tr>
-								) : null}
-								{virtualRows.map((vr) => {
-									const row = rows[vr.index];
-									const p = row.paper;
-									return (
-										<LibraryPaperRow
-											key={p.path ?? p.id}
-											index={vr.index}
-											row={row}
-											heat={heatmaps.get(heatmapCacheKey(p))}
-											visibleColumns={visibleColumns}
-											ctx={cellCtx}
-											showSelection={selectionActive}
-											selected={selectedKeys.has(paperSelectionKey(p))}
-											onToggleSelected={handleToggleSelected}
-											onRowClick={handleRowClick}
-											onHoverPaper={handleHoverPaper}
-											onLeavePaper={previewPaper.cancel}
-											measureRef={rowVirtualizer.measureElement}
-										/>
-									);
-								})}
-								{paddingBottom > 0 ? (
-									<tr aria-hidden className="pointer-events-none">
-										<td
-											colSpan={
-												visibleColumns.length + (selectionActive ? 2 : 1)
-											}
-											style={{ height: paddingBottom }}
-										/>
-									</tr>
-								) : null}
+								))}
 							</tbody>
-						</LibraryRowMenu>
+						) : (
+							<LibraryRowMenu
+								rows={rows}
+								vaultPath={vaultPath}
+								canEditMeta={canEditMeta}
+								selectedKeys={selectedKeys}
+								onOpenPaper={openPaperFromRow}
+								onRefreshMetadata={handleRefreshPaperMetadata}
+								onAddToChat={addPapersToChat}
+								onCopyPapers={openCopyDialog}
+								onDeletePapers={deletePapers}
+								onClearSelection={clearSelection}
+								onPrepareContext={prepareContext}
+								t={t}
+							>
+								{/* key={reorderKey} remounts the tbody to replay the fade animation. */}
+								<tbody
+									key={reorderKey}
+									className="animate-in fade-in-0 duration-150"
+								>
+									{paddingTop > 0 ? (
+										<tr aria-hidden className="pointer-events-none">
+											<td
+												colSpan={
+													visibleColumns.length + (selectionActive ? 2 : 1)
+												}
+												style={{ height: paddingTop }}
+											/>
+										</tr>
+									) : null}
+									{virtualRows.map((vr) => {
+										const row = rows[vr.index];
+										const p = row.paper;
+										return (
+											<LibraryPaperRow
+												key={p.path ?? p.id}
+												index={vr.index}
+												row={row}
+												heat={heatmaps.get(heatmapCacheKey(p))}
+												visibleColumns={visibleColumns}
+												ctx={cellCtx}
+												showSelection={selectionActive}
+												selected={selectedKeys.has(paperSelectionKey(p))}
+												onToggleSelected={handleToggleSelected}
+												onRowClick={handleRowClick}
+												onHoverPaper={handleHoverPaper}
+												onLeavePaper={previewPaper.cancel}
+												measureRef={rowVirtualizer.measureElement}
+											/>
+										);
+									})}
+									{paddingBottom > 0 ? (
+										<tr aria-hidden className="pointer-events-none">
+											<td
+												colSpan={
+													visibleColumns.length + (selectionActive ? 2 : 1)
+												}
+												style={{ height: paddingBottom }}
+											/>
+										</tr>
+									) : null}
+								</tbody>
+							</LibraryRowMenu>
+						)}
 					</table>
 					{/* Marquee box: positioned in scroll-content coordinates so it
 					    stays glued to the rows while the list auto-scrolls. */}
@@ -804,7 +844,7 @@ export function PapersLibrary({
 						aria-hidden
 						className="pointer-events-none absolute z-20 hidden rounded-[3px] border border-primary/50 bg-primary/10"
 					/>
-					{!empty ? (
+					{!empty && !initialLoad ? (
 						<p className="sticky left-0 border-border/40 border-t px-3 py-2 text-muted-foreground text-xs tracking-wide">
 							{selectedCount > 0
 								? t("papersLibrary.selection.countWithTotal", {
@@ -839,7 +879,7 @@ export function PapersLibrary({
 					}}
 					onConfirm={confirmCopy}
 				/>
-				{empty ? (
+				{empty && !initialLoad ? (
 					<div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
 						<p className="font-medium text-sm">
 							{filtering
