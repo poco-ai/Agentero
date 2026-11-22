@@ -11,11 +11,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/core/utils";
 
 export type LibraryViewMode = "table" | "cards";
@@ -109,26 +104,22 @@ export function LibraryViewToolbar({
 				{children}
 				<div className="flex shrink-0 items-center rounded-lg border border-border/60 bg-muted/50 p-0.5">
 					{viewModes.map(({ mode: value, icon: Icon, label }) => (
-						<Tooltip key={value}>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-xs"
-									aria-label={t(label)}
-									aria-pressed={value === mode}
-									className={cn(
-										value === mode
-											? "bg-background shadow-xs hover:bg-background"
-											: "text-muted-foreground",
-									)}
-									onClick={() => onModeChange(value)}
-								>
-									<Icon className="size-3.5" aria-hidden />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">{t(label)}</TooltipContent>
-						</Tooltip>
+						<Button
+							key={value}
+							type="button"
+							variant="ghost"
+							size="xs"
+							aria-pressed={value === mode}
+							className={cn(
+								value === mode
+									? "bg-background shadow-xs hover:bg-background"
+									: "text-muted-foreground",
+							)}
+							onClick={() => onModeChange(value)}
+						>
+							<Icon className="size-3.5" aria-hidden />
+							{t(label)}
+						</Button>
 					))}
 				</div>
 			</div>
