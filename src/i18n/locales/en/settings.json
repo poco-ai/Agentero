@@ -245,8 +245,7 @@
 			"statusProbing": "Testing…",
 			"testFailed": "AlphaXiv connection failed",
 			"clearFailed": "Could not disconnect AlphaXiv",
-			"keyHelp": "Create a key under AlphaXiv Settings. If that page has no key option, email contact@alphaxiv.org.",
-			"openKeyPage": "API key help"
+			"openKeyPage": "Get a key"
 		},
 		"easyScholar": {
 			"section": "EasyScholar",

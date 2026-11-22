@@ -61,7 +61,7 @@
 
 ## 从 AlphaXiv 导入
 
-在 **设置 → 通用 → 集成** 粘贴 AlphaXiv 的 API key，点 **测试连接**。连接成功后会显示账号。如果 AlphaXiv 的设置页没有创建密钥的入口，可以发邮件给 contact@alphaxiv.org 申请。
+在 **设置 → 通用 → 集成** 粘贴 AlphaXiv 的 API key，点 **测试连接**。密钥在 [AlphaXiv API keys](https://www.alphaxiv.org/settings/api-keys) 创建。
 
 打开左上角的知识库菜单，选 **从 AlphaXiv 导入**。对话框按文件夹列出论文。勾选要入库的论文后点 **导入**。已经在论文库里的条目默认不勾选，再次导入会命中已有条目，不会再建一份。默认把所在文件夹的名字写成这篇论文的标签，导入前可以取消。
 

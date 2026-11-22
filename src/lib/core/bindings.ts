@@ -696,12 +696,12 @@ export const commands = {
 	 */
 	zoteroSync: (args: ZoteroSyncArgs, onProgress: Channel<SyncProgress>) => __TAURI_INVOKE<ApiResult<ZoteroSyncResult>>("zotero_sync", { args, onProgress }),
 	/**
-	 *  Check an AlphaXiv API key with `GET /users/v3` without saving it.
+	 *  Check an AlphaXiv API key with `GET /folders/v3` without saving it.
 	 *  An empty value or a mask rechecks the key already stored in Host settings.
 	 */
 	alphaxivTestKey: (apiKey: string) => __TAURI_INVOKE<ApiResult<AlphaXivAccount>>("alphaxiv_test_key", { apiKey }),
 	/**
-	 *  Validate a pasted AlphaXiv API key with `GET /users/v3`, then store it.
+	 *  Validate a pasted AlphaXiv API key with `GET /folders/v3`, then store it.
 	 *  The returned settings snapshot masks the key. A failed check stores nothing.
 	 */
 	alphaxivSaveKey: (apiKey: string) => __TAURI_INVOKE<ApiResult<AlphaXivSaveResult_Serialize>>("alphaxiv_save_key", { apiKey }),
@@ -1804,14 +1804,14 @@ export type AlphaXivFolderPaper = {
 };
 
 /**
- *  Settings snapshot after a successful key save, plus the account that
- *  `GET /users/v3` returned. `settings.alphaxiv.apiKey` is masked.
+ *  Settings snapshot after a successful key save. `settings.alphaxiv.apiKey`
+ *  is masked. `account` has no profile: API keys cannot read `GET /users/v3`.
  */
 export type AlphaXivSaveResult = AlphaXivSaveResult_Serialize | AlphaXivSaveResult_Deserialize;
 
 /**
- *  Settings snapshot after a successful key save, plus the account that
- *  `GET /users/v3` returned. `settings.alphaxiv.apiKey` is masked.
+ *  Settings snapshot after a successful key save. `settings.alphaxiv.apiKey`
+ *  is masked. `account` has no profile: API keys cannot read `GET /users/v3`.
  */
 export type AlphaXivSaveResult_Deserialize = {
 	settings: AppSettings_Deserialize,
@@ -1819,8 +1819,8 @@ export type AlphaXivSaveResult_Deserialize = {
 };
 
 /**
- *  Settings snapshot after a successful key save, plus the account that
- *  `GET /users/v3` returned. `settings.alphaxiv.apiKey` is masked.
+ *  Settings snapshot after a successful key save. `settings.alphaxiv.apiKey`
+ *  is masked. `account` has no profile: API keys cannot read `GET /users/v3`.
  */
 export type AlphaXivSaveResult_Serialize = {
 	settings: AppSettings_Serialize,
@@ -1829,7 +1829,7 @@ export type AlphaXivSaveResult_Serialize = {
 
 /**
  *  AlphaXiv credential kept in Host settings. `api_key` is a secret.
- *  The profile fields are the last successful `GET /users/v3` result.
+ *  Profile fields stay empty: API keys cannot read `GET /users/v3`.
  */
 export type AlphaXivSettings = {
 	apiKey?: string,
@@ -1890,10 +1890,9 @@ export type AppSettings_Deserialize = {
 	 */
 	openreviewCookieExpiresAt?: number,
 	/**
-	 *  AlphaXiv API key plus the profile from the last successful key check.
-	 *  The key is masked across IPC. A plaintext key in `settings_set` is
-	 *  ignored; only [`AppSettingsStore::update_alphaxiv_auth`] stores one,
-	 *  after `GET /users/v3` succeeds.
+	 *  AlphaXiv API key. The key is masked across IPC. A plaintext key in
+	 *  `settings_set` is ignored; only [`AppSettingsStore::update_alphaxiv_auth`]
+	 *  stores one, after `GET /folders/v3` succeeds. Profile fields stay empty.
 	 */
 	alphaxiv?: AlphaXivSettings,
 	paperTreeLabelMode?: string,
@@ -2071,10 +2070,9 @@ export type AppSettings_Serialize = {
 	 */
 	openreviewCookieExpiresAt: number,
 	/**
-	 *  AlphaXiv API key plus the profile from the last successful key check.
-	 *  The key is masked across IPC. A plaintext key in `settings_set` is
-	 *  ignored; only [`AppSettingsStore::update_alphaxiv_auth`] stores one,
-	 *  after `GET /users/v3` succeeds.
+	 *  AlphaXiv API key. The key is masked across IPC. A plaintext key in
+	 *  `settings_set` is ignored; only [`AppSettingsStore::update_alphaxiv_auth`]
+	 *  stores one, after `GET /folders/v3` succeeds. Profile fields stay empty.
 	 */
 	alphaxiv: AlphaXivSettings,
 	paperTreeLabelMode: string,

@@ -245,8 +245,7 @@
 			"statusProbing": "测试中…",
 			"testFailed": "AlphaXiv 连接失败",
 			"clearFailed": "无法断开 AlphaXiv",
-			"keyHelp": "在 AlphaXiv 的设置里创建密钥。如果页面没有创建入口，可发邮件给 contact@alphaxiv.org。",
-			"openKeyPage": "密钥说明"
+			"openKeyPage": "获取密钥"
 		},
 		"easyScholar": {
 			"section": "EasyScholar",

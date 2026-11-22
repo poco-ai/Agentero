@@ -27,14 +27,14 @@ import { applyExternalSettings } from "@/lib/settings/store";
 import type { AlphaXivSettings } from "@/lib/settings/types";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 
-const ALPHA_XIV_KEY_DOCS = "https://www.alphaxiv.org/docs/mcp";
+const ALPHA_XIV_KEY_PAGE = "https://www.alphaxiv.org/settings/api-keys";
 
 function profileLabel(profile: AlphaXivSettings): string {
 	return profile.realName || profile.username || profile.email;
 }
 
 /**
- * Paste an AlphaXiv API key, check it with `GET /users/v3`, and disconnect.
+ * Paste an AlphaXiv API key, check it with `GET /folders/v3`, and disconnect.
  * A new paste is saved only after the check succeeds. The input shows the
  * Host mask, never the stored key.
  */
@@ -45,14 +45,14 @@ export function AlphaXivAuthCard({ alphaxiv }: { alphaxiv: AlphaXivSettings }) {
 	const [draft, setDraft] = useState(savedKey);
 	const [pending, setPending] = useState<"test" | "clear" | null>(null);
 	const [probe, setProbe] = useState<ProbeStatus>(
-		hasSecret(savedKey) && storedLabel ? "ok" : "idle",
+		hasSecret(savedKey) ? "ok" : "idle",
 	);
 	const [probedLabel, setProbedLabel] = useState<string | null>(null);
 
 	useEffect(() => {
 		setDraft(savedKey);
 		setProbedLabel(null);
-		if (!hasSecret(savedKey)) setProbe("idle");
+		setProbe(hasSecret(savedKey) ? "ok" : "idle");
 	}, [savedKey]);
 
 	const label = probedLabel || storedLabel;
@@ -153,6 +153,16 @@ export function AlphaXivAuthCard({ alphaxiv }: { alphaxiv: AlphaXivSettings }) {
 							<p className="min-w-0 truncate font-medium text-sm">
 								{t("general.alphaxiv.label")}
 							</p>
+							<Button
+								type="button"
+								variant="link"
+								size="xs"
+								className="-ml-1.5 h-auto shrink-0 px-1.5 text-primary"
+								onClick={() => void openExternalUrl(ALPHA_XIV_KEY_PAGE)}
+							>
+								<ExternalLink data-icon="inline-start" className="size-3" />
+								{t("general.alphaxiv.openKeyPage")}
+							</Button>
 							{label ? (
 								<p className="min-w-0 truncate text-muted-foreground text-xs">
 									{label}
@@ -209,19 +219,6 @@ export function AlphaXivAuthCard({ alphaxiv }: { alphaxiv: AlphaXivSettings }) {
 							}}
 						/>
 					</ProviderFieldRow>
-					<p className="text-muted-foreground text-xs leading-relaxed">
-						{t("general.alphaxiv.keyHelp")}{" "}
-						<Button
-							type="button"
-							variant="link"
-							size="xs"
-							className="h-auto px-0 text-xs"
-							onClick={() => openExternalUrl(ALPHA_XIV_KEY_DOCS)}
-						>
-							<ExternalLink data-icon="inline-start" className="size-3" />
-							{t("general.alphaxiv.openKeyPage")}
-						</Button>
-					</p>
 				</div>
 			</ProviderCard>
 		</div>

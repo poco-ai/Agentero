@@ -74,7 +74,7 @@ pub fn mask_translate_api_key(key: &str) -> String {
 }
 
 /// AlphaXiv credential kept in Host settings. `api_key` is a secret.
-/// The profile fields are the last successful `GET /users/v3` result.
+/// Profile fields stay empty: API keys cannot read `GET /users/v3`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AlphaXivSettings {
@@ -132,10 +132,9 @@ pub struct AppSettings {
     /// the cookie carries no readable expiry. Drives the Settings status dot.
     #[serde(default)]
     pub openreview_cookie_expires_at: i64,
-    /// AlphaXiv API key plus the profile from the last successful key check.
-    /// The key is masked across IPC. A plaintext key in `settings_set` is
-    /// ignored; only [`AppSettingsStore::update_alphaxiv_auth`] stores one,
-    /// after `GET /users/v3` succeeds.
+    /// AlphaXiv API key. The key is masked across IPC. A plaintext key in
+    /// `settings_set` is ignored; only [`AppSettingsStore::update_alphaxiv_auth`]
+    /// stores one, after `GET /folders/v3` succeeds. Profile fields stay empty.
     #[serde(default)]
     pub alphaxiv: AlphaXivSettings,
     #[serde(default = "default_paper_tree_label_mode")]
@@ -1333,8 +1332,9 @@ impl AppSettingsStore {
         }
     }
 
-    /// Persist a key that already passed `GET /users/v3`, plus the profile
-    /// fields that call returned. The snapshot echoed to the WebView is masked.
+    /// Persist a key that already passed `GET /folders/v3`. That response has
+    /// no account, so the profile fields are stored as given. The snapshot
+    /// echoed to the WebView is masked.
     pub fn update_alphaxiv_auth(
         &self,
         api_key: String,

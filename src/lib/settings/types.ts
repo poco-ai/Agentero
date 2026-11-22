@@ -201,9 +201,10 @@ export type AppSettings = {
 	/** Unix seconds when the OpenReview credential expires (0 = unknown). */
 	openreviewCookieExpiresAt: number;
 	/**
-	 * AlphaXiv API key plus the profile from the last successful key check.
-	 * The key is masked across IPC. A plaintext key in a generic settings
-	 * save is ignored; the Host stores one only after `GET /users/v3`.
+	 * AlphaXiv API key. The key is masked across IPC. A plaintext key in a
+	 * generic settings save is ignored; the Host stores one only after
+	 * `GET /folders/v3`. Profile fields stay empty because API keys cannot
+	 * read `GET /users/v3`.
 	 */
 	alphaxiv: AlphaXivSettings;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */

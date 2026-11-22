@@ -8,8 +8,8 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::core::error::ApiResult;
 use crate::features::system::settings::{is_translate_api_key_mask, AppSettings, AppSettingsStore};
 
-/// Settings snapshot after a successful key save, plus the account that
-/// `GET /users/v3` returned. `settings.alphaxiv.apiKey` is masked.
+/// Settings snapshot after a successful key save. `settings.alphaxiv.apiKey`
+/// is masked. `account` has no profile: API keys cannot read `GET /users/v3`.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AlphaXivSaveResult {
@@ -31,7 +31,7 @@ fn emit_settings(app: &AppHandle, settings: &AppSettings) {
     let _ = app.emit("settings:changed", settings);
 }
 
-/// Check an AlphaXiv API key with `GET /users/v3` without saving it.
+/// Check an AlphaXiv API key with `GET /folders/v3` without saving it.
 /// An empty value or a mask rechecks the key already stored in Host settings.
 #[tauri::command]
 #[specta::specta]
@@ -47,7 +47,7 @@ pub async fn alphaxiv_test_key(app: AppHandle, api_key: String) -> ApiResult<Alp
     }
 }
 
-/// Validate a pasted AlphaXiv API key with `GET /users/v3`, then store it.
+/// Validate a pasted AlphaXiv API key with `GET /folders/v3`, then store it.
 /// The returned settings snapshot masks the key. A failed check stores nothing.
 #[tauri::command]
 #[specta::specta]

@@ -1,8 +1,9 @@
 //! Authenticated alphaXiv library client.
 //!
-//! v1 talks to two read endpoints on `https://api.alphaxiv.org`:
-//! `GET /users/v3` (validate a pasted API key and read the account) and
-//! `GET /folders/v3` (folders, each already carrying its `papers` array).
+//! v1 talks to `https://api.alphaxiv.org` with `GET /folders/v3` only.
+//! That call both checks a pasted API key and lists folders (each already
+//! carrying its `papers` array). An empty list is still a successful check.
+//! `GET /users/v3` rejects a valid API key with HTTP 403, so it is not used.
 //! Write routes (`add-papers`, `remove-papers`) are intentionally absent.
 //!
 //! The API key is sent only as `Authorization: Bearer <key>` and is never
@@ -107,14 +108,25 @@ fn authorization_value(api_key: &str) -> Result<String, AppError> {
     Ok(format!("Bearer {}", normalize_api_key(api_key)?))
 }
 
-/// `GET /users/v3`. A 2xx object is a successful key check.
+/// Prove a pasted API key with `GET /folders/v3`.
+///
+/// A valid API key is rejected by `GET /users/v3` with HTTP 403
+/// (`API keys cannot access this endpoint`). An invalid key on the folder
+/// route is HTTP 401. The folder payload has no account fields, so the
+/// returned profile is empty. An empty folder list still counts as success.
 pub async fn fetch_account(api_key: &str) -> Result<AlphaXivAccount, AppError> {
-    let value = get_json("/users/v3", api_key).await?;
-    parse_account(&value).ok_or_else(|| {
-        AppError::domain(
+    let value = get_json("/folders/v3", api_key).await?;
+    if !value.is_array() {
+        return Err(AppError::domain(
             "alphaxiv_parse",
-            "AlphaXiv profile response was not recognized",
-        )
+            "AlphaXiv folders response was not a list",
+        ));
+    }
+    Ok(AlphaXivAccount {
+        username: String::new(),
+        email: String::new(),
+        real_name: String::new(),
+        label: String::new(),
     })
 }
 
@@ -158,8 +170,16 @@ fn network_error(err: &reqwest::Error) -> AppError {
 }
 
 fn status_error(status: u16) -> AppError {
-    if status == 401 || status == 403 {
+    // 401 is an invalid or missing key. 403 on a profile route means the key
+    // is accepted but that route refuses API keys, so it must not use the
+    // same message.
+    if status == 401 {
         AppError::domain("alphaxiv_auth_failed", "AlphaXiv rejected the API key")
+    } else if status == 403 {
+        AppError::domain(
+            "alphaxiv_auth_failed",
+            "AlphaXiv refused access to this endpoint",
+        )
     } else {
         AppError::domain(
             "alphaxiv_http",
