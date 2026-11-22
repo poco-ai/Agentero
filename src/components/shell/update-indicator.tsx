@@ -1,16 +1,15 @@
-import { Download, ExternalLink, LoaderCircle } from "lucide-react";
+import { Download, FileText, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { openChangelog } from "@/components/shell/changelog-host";
 import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import {
-	getUpdateReleaseUrl,
 	getUpdateSnapshot,
 	installAvailableUpdate,
 	subscribeUpdate,
@@ -99,25 +98,29 @@ export function UpdateIndicator() {
 				</TooltipTrigger>
 				<TooltipContent side="bottom">{tooltip}</TooltipContent>
 			</Tooltip>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button variant="ghost" size="icon-xs" asChild>
-						<a
-							href={getUpdateReleaseUrl(update.availableVersion)}
+			{update.availableVersion && (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon-xs"
 							aria-label={t("about.update.releaseNotes")}
-							onClick={(event) => {
-								event.preventDefault();
-								openExternalUrl(event.currentTarget.href);
+							onClick={() => {
+								if (update.availableVersion)
+									openChangelog({
+										kind: "release",
+										version: update.availableVersion,
+									});
 							}}
 						>
-							<ExternalLink aria-hidden />
-						</a>
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent side="bottom">
-					{t("about.update.releaseNotes")}
-				</TooltipContent>
-			</Tooltip>
+							<FileText aria-hidden />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent side="bottom">
+						{t("about.update.releaseNotes")}
+					</TooltipContent>
+				</Tooltip>
+			)}
 		</div>
 	);
 }

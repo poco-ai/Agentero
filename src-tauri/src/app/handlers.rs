@@ -276,6 +276,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::app::open_request::commands::ui_request_take_pending,
             #[cfg(not(any(target_os = "ios", target_os = "android")))]
             crate::features::system::updater::app_update_check,
+            crate::features::system::updater::app_changelog,
             crate::features::cli_install::commands::cli_install_status,
             crate::features::cli_install::commands::cli_install_command,
             crate::features::cli_install::commands::cli_uninstall_command,

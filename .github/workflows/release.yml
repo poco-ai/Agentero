@@ -21,6 +21,14 @@ jobs:
     needs: checks
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        if: ${{ !contains(github.ref_name, '-') }}
+        uses: actions/checkout@v5
+
+      - name: Validate the bundled changelog
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: node scripts/validate-release-changelog.mjs "$GITHUB_REF_NAME"
+
       - name: Verify updater signing configuration
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -43,6 +51,8 @@ jobs:
           name: Agentero ${{ github.ref_name }}
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+          files: ${{ !contains(github.ref_name, '-') && 'src/lib/update/changelog.json' || '' }}
+          fail_on_unmatched_files: true
           body: |
             Installers and CLI for Agentero ${{ github.ref_name }}.
 

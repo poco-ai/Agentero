@@ -4,8 +4,8 @@ import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import {
 	ArrowRight,
 	Download,
-	ExternalLink,
 	FolderOpen,
+	History,
 	Info,
 	Languages,
 	LoaderCircle,
@@ -24,6 +24,7 @@ import {
 	SettingsGroup,
 	SettingsRow,
 } from "@/components/settings/settings-layout";
+import { openChangelog } from "@/components/shell/changelog-host";
 import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
@@ -54,7 +55,6 @@ import {
 import { notifyReleaseDownloadError } from "@/lib/settings/download-error";
 import {
 	checkForUpdate,
-	getUpdateReleaseUrl,
 	getUpdateSnapshot,
 	installAvailableUpdate,
 	subscribeUpdate,
@@ -290,14 +290,28 @@ export function AboutPane() {
 			<PageTitle
 				title={t("about.title")}
 				actions={
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => openExternalUrl(GITHUB_REPO_URL)}
-					>
-						<Star data-icon="inline-start" className="star-twinkle" />
-						{t("about.starGithub")}
-					</Button>
+					<>
+						{!isMobileApp() && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() =>
+									openChangelog({ kind: "history", currentVersion: version })
+								}
+							>
+								<History data-icon="inline-start" aria-hidden />
+								{t("about.update.history")}
+							</Button>
+						)}
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => openExternalUrl(GITHUB_REPO_URL)}
+						>
+							<Star data-icon="inline-start" className="star-twinkle" />
+							{t("about.starGithub")}
+						</Button>
+					</>
 				}
 			/>
 			<SettingsGroup>
@@ -326,19 +340,20 @@ export function AboutPane() {
 							)}
 						</div>
 					</div>
-					<div className="flex shrink-0 items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						{update.availableVersion && (
-							<Button variant="link" size="sm" asChild>
-								<a
-									href={getUpdateReleaseUrl(update.availableVersion)}
-									onClick={(event) => {
-										event.preventDefault();
-										openExternalUrl(event.currentTarget.href);
-									}}
-								>
-									{t("about.update.releaseNotes")}
-									<ExternalLink data-icon="inline-end" />
-								</a>
+							<Button
+								variant="link"
+								size="sm"
+								onClick={() => {
+									if (update.availableVersion)
+										openChangelog({
+											kind: "release",
+											version: update.availableVersion,
+										});
+								}}
+							>
+								{t("about.update.releaseNotes")}
 							</Button>
 						)}
 						{update.phase === "available" ? (
@@ -366,11 +381,6 @@ export function AboutPane() {
 						)}
 					</div>
 				</div>
-				{update.phase === "available" && update.notes?.trim() ? (
-					<div className="border-t px-3.5 py-2.5 text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap">
-						{update.notes.trim()}
-					</div>
-				) : null}
 			</SettingsGroup>
 			{showFeedback ? <AboutFeedback /> : null}
 			{isTauri() ? (

@@ -2,13 +2,16 @@ import { ThemeProvider } from "next-themes";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
+import {
+	ChangelogHost,
+	openChangelog,
+} from "@/components/shell/changelog-host";
 import { HintModeProvider } from "@/components/shell/hint-mode-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { errorText } from "@/lib/core/error";
 import { initLogger, logger } from "@/lib/core/logger";
 import { notifyError, notifyReminder } from "@/lib/core/notify";
-import { openExternalUrl } from "@/lib/core/open-external";
 import { initPaintOptimizations } from "@/lib/core/paint-perf";
 import { perfActive, perfEmit } from "@/lib/core/perf";
 import { initAutoHideScrollbars } from "@/lib/core/scrollbars";
@@ -24,11 +27,7 @@ import { initSettingsStore } from "@/lib/settings/react-store";
 import { applyNativeWindowTheme } from "@/lib/shell/native-window-theme";
 import { initShellLayoutFromPrefs } from "@/lib/shell/ui-store";
 import { applyUiTheme } from "@/lib/ui/theme";
-import {
-	checkForUpdate,
-	getUpdateReleaseUrl,
-	installAvailableUpdate,
-} from "@/lib/update";
+import { checkForUpdate, installAvailableUpdate } from "@/lib/update";
 import { initVaultStore } from "@/lib/vault/store";
 import { initWorkspaceStore } from "@/lib/workspace/store";
 import i18n, { applyLocale } from "./i18n";
@@ -134,6 +133,7 @@ async function boot() {
 							<HintModeProvider>
 								<SettingsNativeRoot />
 							</HintModeProvider>
+							<ChangelogHost />
 							{/* Global error / notice stack (top-right); use notifyError from @/lib/notify */}
 							<Toaster />
 						</TooltipProvider>
@@ -247,6 +247,7 @@ async function boot() {
 						<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
 							<TooltipProvider delayDuration={300}>
 								<App />
+								<ChangelogHost />
 								<SelectionChatPopover />
 								{/* Global error / notice stack (top-right); use notifyError from @/lib/notify */}
 								<Toaster />
@@ -271,22 +272,27 @@ async function boot() {
 
 /** A single main window owns the background update notification. */
 async function checkForStartupUpdate(): Promise<void> {
-	if (!isTauri()) return;
+	if (!isTauri() || isMobileApp()) return;
 	try {
 		const { getCurrentWindow } = await import("@tauri-apps/api/window");
 		if (getCurrentWindow().label !== "main") return;
+		if (!import.meta.env.DEV) {
+			void import("@/lib/update/changelog").then(({ refreshChangelog }) =>
+				refreshChangelog(),
+			);
+		}
 		const update = await checkForUpdate({ retryOnTimeout: true });
-		if (update.phase !== "available" || !update.availableVersion) return;
+		const version = update.availableVersion;
+		if (update.phase !== "available" || !version) return;
 		notifyReminder(
 			i18n.t("settings:about.update.toastTitle", {
-				version: update.availableVersion,
+				version,
 			}),
 			{
 				id: "app-update-available",
 				description: i18n.t("settings:about.update.toastDescription"),
 				dismissLabel: i18n.t("settings:about.update.releaseNotes"),
-				onDismiss: () =>
-					openExternalUrl(getUpdateReleaseUrl(update.availableVersion)),
+				onDismiss: () => openChangelog({ kind: "release", version }),
 				actionLabel: i18n.t("settings:about.update.downloadInstall"),
 				onAction: () => {
 					void installAvailableUpdate();

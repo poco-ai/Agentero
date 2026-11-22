@@ -10,6 +10,10 @@ export type UpdatePhase =
 
 export type UpdateOperation = "check" | "install";
 
+export type ChangelogView =
+	| { kind: "release"; version: string }
+	| { kind: "history"; currentVersion?: string };
+
 export type UpdateSnapshot = {
 	phase: UpdatePhase;
 	currentVersion?: string;

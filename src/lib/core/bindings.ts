@@ -766,6 +766,10 @@ export const commands = {
 	version: string,
 	body: string | null,
 } | null, string>(__TAURI_INVOKE("app_update_check", { proxy, retryOnTimeout })),
+	appChangelog: (request: ChangelogRequest) => typedError<{
+	schemaVersion: number,
+	releases: ChangelogRelease[],
+} | null, string>(__TAURI_INVOKE("app_changelog", { request })),
 	cliInstallStatus: () => __TAURI_INVOKE<ApiResult<CliInstallStatus>>("cli_install_status"),
 	cliInstallCommand: (automatic: boolean | null) => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command", { automatic }),
 	cliUninstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_uninstall_command"),
@@ -2635,6 +2639,24 @@ export type CatalogUpdatePropertyArgs_Deserialize = {
 export type CatalogUpdatePropertyArgs_Serialize = {
 	vaultPath: string,
 	property: CustomProperty_Serialize,
+};
+
+export type Changelog = {
+	schemaVersion: number,
+	releases: ChangelogRelease[],
+};
+
+export type ChangelogRelease = {
+	tag: string,
+	releaseDate: string,
+	summary: ChangelogSummary | null,
+};
+
+export type ChangelogRequest = "cached" | "refresh" | "force";
+
+export type ChangelogSummary = {
+	en: string,
+	"zh-CN": string,
 };
 
 export type ChatImportExtractArgs = {

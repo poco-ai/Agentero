@@ -3,9 +3,9 @@ name: release
 description: >-
   Ship an Agentero release: bump the version, commit and push it, create and
   push the release tag, monitor the release workflow, repair real failures,
-  rerun capacity failures, and write bilingual release notes to the Draft
-  Release. Use when the user asks to bump, tag, push, watch CI, or complete an
-  Agentero release. Notes-only and dry-run requests remain available.
+  rerun capacity failures, verify the bundled changelog asset, and write bilingual
+  notes to the Draft Release. Use when the user asks to bump, tag, push, watch CI,
+  or complete an Agentero release. Notes-only and dry-run requests remain available.
 ---
 
 # Agentero Release
@@ -20,8 +20,9 @@ When the user names a version and asks to ship it:
 
 1. Follow `.agents/skills/bump/SKILL.md` for the version change and
    `.agents/skills/commit/SKILL.md` for the dedicated
-   `chore(release): bump version to <version>` commit. Stop if unrelated work is
-   present.
+   `chore(release): bump version to <version>` commit. For a stable release, include
+   the reviewed bilingual changelog entry and its planned date in that commit.
+   Stop if unrelated work is present.
 2. Push the release branch, then create and push the annotated tag `v<version>`
    on that version commit. The tag without `v` must match every version field.
 3. Never move or overwrite a remote tag that GitHub Actions has already observed
@@ -39,7 +40,8 @@ When the user names a version and asks to ship it:
    push the correction, then create and push a new release tag for the corrected
    commit. Continue from that run. Do not rewrite the previously observed tag.
 8. After the required Release workflow succeeds, verify the expected Draft assets,
-   then write the notes below. Leave the Release unpublished.
+   including the stable changelog as described below, and write the full bilingual
+   notes. Leave the Release unpublished.
 
 ## Watch workflow progress
 
@@ -198,6 +200,14 @@ After drafting the notes, write them directly to the Draft GitHub Release.
 Do not publish the Draft. Publishing with
 `gh release edit "<tag>" --draft=false` requires explicit approval after the
 final body and assets have been reviewed.
+
+## Verify the in-app changelog
+
+The bump commit holds the stable release's planned `releaseDate` and both Markdown summaries in `src/lib/update/changelog.json`. Review those summaries and the full Release body for agreement on the facts. The body keeps the source links and attribution required above.
+
+Release CI validates the first changelog entry against the tag and uploads the file from that commit unchanged. The desktop build embeds the same source. Before asking for publication approval, download the draft asset and compare it byte for byte with `src/lib/update/changelog.json` at the tag. If it is missing or differs, keep the Release in draft and check the CI run; don't generate a replacement from the Release body or move the tag. Pre-releases neither add a stable history entry nor upload the stable changelog asset.
+
+After approved publication, confirm the anonymous GitHub latest-asset URL serves the new changelog. `Sync release to AtomGit` copies the attachment with the other assets; check that workflow separately. Leave the Tauri `latest.json` updater manifest unchanged.
 
 ## Dry run
 
