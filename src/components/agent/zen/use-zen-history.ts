@@ -30,6 +30,8 @@ import { lifecycle } from "@/lib/lifecycle";
 export type ZenHarnessHistory = {
 	agent: AgentDescriptor;
 	sessions: AcpSessionInfo[];
+	/** The harness is known; its history query is still in flight. */
+	loading: boolean;
 };
 
 export type ZenHarnessHistoryState = {
@@ -90,20 +92,26 @@ export function useZenHarnessHistory(
 	const [sections, setSections] = useState<ZenHarnessHistory[]>([]);
 	const [loading, setLoading] = useState(false);
 	const defaultIdRef = useRef<string | null>(null);
+	/** Agents in the latest registry; late results for removed agents are dropped. */
+	const knownAgentsRef = useRef<Set<string>>(new Set());
 	const generationRef = useRef(0);
 	const refreshRef = useRef<Promise<void> | null>(null);
 	/** A second request arrived while a refresh was running (e.g. install). */
 	const rerunRef = useRef(false);
 
+	/** Replace one harness's rows (and loading flag) in place. */
 	const publish = useCallback(
-		(agent: AgentDescriptor, sessions: AcpSessionInfo[]) => {
+		(agent: AgentDescriptor, sessions: AcpSessionInfo[], loading: boolean) => {
+			if (!knownAgentsRef.current.has(agent.id)) return;
 			const visible = visibleSessions(agent.id, sessions);
 			setSections((prev) => {
-				const next = prev.filter((section) => section.agent.id !== agent.id);
-				if (visible.length > 0) next.push({ agent, sessions: visible });
-				next.sort((a, b) =>
-					byDefaultThenName(defaultIdRef.current)(a.agent, b.agent),
+				const index = prev.findIndex(
+					(section) => section.agent.id === agent.id,
 				);
+				const section = { agent, sessions: visible, loading };
+				if (index === -1) return [...prev, section];
+				const next = [...prev];
+				next[index] = section;
 				return next;
 			});
 		},
@@ -127,28 +135,30 @@ export function useZenHarnessHistory(
 				const agents = registry.agents
 					.filter((agent) => agent.available)
 					.sort(byDefaultThenName(registry.defaultId));
-				// Paint cached history before touching any harness process, so the
-				// sidebar is populated on the first frame instead of after a fan-out.
-				setSections((prev) => {
-					const previous = new Map(
-						prev.map((section) => [section.agent.id, section.sessions]),
-					);
-					return agents
-						.map((agent) => ({
-							agent,
-							sessions: visibleSessions(
-								agent.id,
-								cachedHarnessHistory(vaultPath, agent.id)?.sessions ??
-									previous.get(agent.id) ??
-									[],
-							),
-						}))
-						.filter((section) => section.sessions.length > 0);
-				});
+				knownAgentsRef.current = new Set(agents.map((agent) => agent.id));
 				const stale = agents.filter(
 					(agent) =>
 						!isHarnessHistoryFresh(cachedHarnessHistory(vaultPath, agent.id)),
 				);
+				const staleIds = new Set(stale.map((agent) => agent.id));
+				// Publish every harness immediately — the registry is one cheap call —
+				// and let each harness fill in its own rows. The sidebar must not
+				// depend on the slowest ACP start to show which agents exist.
+				setSections((prev) => {
+					const previous = new Map(
+						prev.map((section) => [section.agent.id, section.sessions]),
+					);
+					return agents.map((agent) => ({
+						agent,
+						sessions: visibleSessions(
+							agent.id,
+							cachedHarnessHistory(vaultPath, agent.id)?.sessions ??
+								previous.get(agent.id) ??
+								[],
+						),
+						loading: staleIds.has(agent.id),
+					}));
+				});
 				await runLimited(stale, LOAD_CONCURRENCY, async (agent) => {
 					try {
 						const entry = await fetchHarnessHistory({
@@ -156,11 +166,20 @@ export function useZenHarnessHistory(
 							agentId: agent.id,
 						});
 						if (generation === generationRef.current) {
-							publish(agent, entry.sessions);
+							publish(agent, entry.sessions, false);
 						}
 					} catch {
 						// A harness that needs login or dies must not blank the list;
-						// keep whatever was cached and try again on the next refresh.
+						// keep any cached rows and clear its spinner.
+						if (generation === generationRef.current) {
+							setSections((prev) =>
+								prev.map((section) =>
+									section.agent.id === agent.id
+										? { ...section, loading: false }
+										: section,
+								),
+							);
+						}
 					}
 				});
 			} catch {

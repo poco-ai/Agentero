@@ -11,7 +11,7 @@
  * Virtual tab path / slot store live in `lib/agent/zen-path.ts` and
  * `lib/agent/zen-store.ts`.
  */
-import { Plus, Waves, X } from "lucide-react";
+import { Loader2, Plus, Waves, X } from "lucide-react";
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
@@ -140,6 +140,8 @@ type HarnessGroup = {
 	agentId: string | null;
 	name: string;
 	template: string | null;
+	/** This harness's ACP history query is still running. */
+	loading: boolean;
 	rows: ZenSessionRow[];
 };
 
@@ -328,6 +330,12 @@ function HarnessSection({
 					<span className="min-w-0 flex-1 truncate font-medium text-xs">
 						{group.name}
 					</span>
+					{group.loading ? (
+						<Loader2
+							className="size-3 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none"
+							aria-hidden
+						/>
+					) : null}
 					{collapsed && running ? (
 						<span
 							role="img"
@@ -384,7 +392,7 @@ export function ZenView({ active }: { active: boolean }) {
 			const key = agentId ?? UNKNOWN_HARNESS;
 			let group = map.get(key);
 			if (!group) {
-				group = { key, agentId, name, template, rows: [] };
+				group = { key, agentId, name, template, loading: false, rows: [] };
 				map.set(key, group);
 			}
 			return group;
@@ -392,7 +400,12 @@ export function ZenView({ active }: { active: boolean }) {
 
 		const slotById = new Map(slots.map((slot) => [slot.id, slot]));
 		for (const section of historySections) {
-			ensure(section.agent.id, section.agent.name, section.agent.template);
+			const group = ensure(
+				section.agent.id,
+				section.agent.name,
+				section.agent.template,
+			);
+			group.loading = section.loading;
 		}
 		for (const row of openRows) {
 			const slot = slotById.get(row.slotId);
@@ -445,7 +458,9 @@ export function ZenView({ active }: { active: boolean }) {
 		}
 
 		for (const group of map.values()) group.rows.sort(sortRows);
-		return [...map.values()].filter((group) => group.rows.length > 0);
+		// Harnesses show up as soon as the registry answers, even before their
+		// sessions arrive, so the list never grows one header at a time.
+		return [...map.values()];
 	}, [historySections, slots, openRows, activeSlotId, t]);
 
 	const newSlotFor = (group: HarnessGroup | null) => {
