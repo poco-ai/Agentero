@@ -36,6 +36,7 @@ import { DEFAULT_LIBRARY_COLUMNS } from "@/lib/settings";
 
 const ROW_HEIGHT = 52;
 const ROW_TOP = 40;
+const VIEW_MODE_KEY = "agentero-library-view-mode";
 
 function paper(id: string, title: string): PaperLibraryRow {
 	return {
@@ -92,6 +93,11 @@ async function rightClick(row: Element, clientY: number) {
 }
 
 beforeEach(async () => {
+	const storage = new Map([[VIEW_MODE_KEY, "table"]]);
+	vi.stubGlobal("localStorage", {
+		getItem: (key: string) => storage.get(key) ?? null,
+		setItem: (key: string, value: string) => storage.set(key, value),
+	});
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal(
 		"ResizeObserver",

@@ -197,11 +197,11 @@ export function PapersLibrary({
 	const t = tRaw as unknown as CellT;
 	const [mode, setMode] = useState<LibraryViewMode>(() => {
 		try {
-			return localStorage.getItem(VIEW_MODE_KEY) === "cards"
-				? "cards"
-				: "table";
+			return localStorage.getItem(VIEW_MODE_KEY) === "table"
+				? "table"
+				: "cards";
 		} catch {
-			return "table";
+			return "cards";
 		}
 	});
 	const showCards = mode === "cards";
