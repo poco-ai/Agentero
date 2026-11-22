@@ -415,16 +415,14 @@ pub struct SyncOverwriteArgs {
 #[tauri::command]
 #[specta::specta]
 pub async fn sync_overwrite_preview(
-    app: AppHandle,
     args: SyncOverwriteArgs,
 ) -> Result<ApiResult<engine::OverwritePreview>, String> {
     let key = args.vault_path.trim().to_string();
     let inner = async {
         let dir = vault_dir(&key)?;
-        let mut cfg =
+        let binding =
             config::get(&key).ok_or_else(|| AppError::message("sync is not configured"))?;
-        attach_agentero_session(&app, &mut cfg).await;
-        engine::overwrite_preview(&dir, &cfg, args.direction).await
+        engine::overwrite_preview(&dir, &binding.primary, args.direction).await
     };
     Ok(match inner.await {
         Ok(preview) => ApiResult::ok(preview),
@@ -451,9 +449,9 @@ pub async fn sync_overwrite(
     );
     let inner = async {
         let dir = vault_dir(&vault_key)?;
-        let mut cfg =
+        let lock = SyncLock::acquire(&dir)?;
+        let binding =
             config::get(&vault_key).ok_or_else(|| AppError::message("sync is not configured"))?;
-        attach_agentero_session(&app, &mut cfg).await;
         let lease = service
             .try_begin(&vault_key)
             .ok_or_else(|| AppError::message("sync already running"))?;
@@ -471,8 +469,8 @@ pub async fn sync_overwrite(
                 },
             );
         };
-        let lock = SyncLock::acquire(&dir)?;
-        let result = engine::overwrite_locked(&lock, &cfg, args.direction, &progress).await;
+        let result =
+            engine::overwrite_locked(&lock, &binding.primary, args.direction, &progress).await;
         drop(lock);
         // Terminal event consumers immediately re-read status; release first.
         drop(lease);

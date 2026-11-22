@@ -401,15 +401,18 @@ pub async fn overwrite_preview(
     direction: OverwriteDirection,
 ) -> Result<OverwritePreview, AppError> {
     crate::features::sync::ensure_vault_sync_available(vault)?;
-    if cfg.backend == SyncBackendKind::Git {
+    ensure_webdav_overwrite(cfg)?;
+    let client = SyncStore::new(cfg, vault)?;
+    overwrite_preview_with(vault, cfg, &client, direction).await
+}
+
+fn ensure_webdav_overwrite(cfg: &SyncBackendConfig) -> Result<(), AppError> {
+    if cfg.backend != SyncBackendKind::Webdav {
         return Err(AppError::message(
-            "git sync does not support manual overwrite; use git itself",
+            "manual overwrite is only supported for WebDAV sync",
         ));
     }
-    let mut cfg = cfg.clone();
-    crate::features::sync::config::hydrate_agentero(&mut cfg);
-    let client = SyncStore::new(&cfg, vault)?;
-    overwrite_preview_with(vault, &cfg, &client, direction).await
+    Ok(())
 }
 
 async fn overwrite_preview_with<S: RemoteStore>(
@@ -473,22 +476,16 @@ pub async fn overwrite_locked(
     let vault = lock.vault();
     let result = async {
         crate::features::sync::ensure_vault_sync_available(vault)?;
-        if cfg.backend == SyncBackendKind::Git {
-            return Err(AppError::message(
-                "git sync does not support manual overwrite; use git itself",
-            ));
-        }
+        ensure_webdav_overwrite(cfg)?;
         if recovery::unfinished(vault)? {
             return Err(AppError::message(
                 "unfinished object sync; restore its binding or disconnect explicitly",
             ));
         }
-        let mut cfg = cfg.clone();
-        crate::features::sync::config::hydrate_agentero(&mut cfg);
-        let client = SyncStore::new(&cfg, vault)?;
+        let client = SyncStore::new(cfg, vault)?;
         match direction {
-            OverwriteDirection::RemoteToLocal => force_pull(vault, &cfg, &client, progress).await,
-            OverwriteDirection::LocalToRemote => force_push(vault, &cfg, &client, progress).await,
+            OverwriteDirection::RemoteToLocal => force_pull(vault, cfg, &client, progress).await,
+            OverwriteDirection::LocalToRemote => force_push(vault, cfg, &client, progress).await,
         }
     }
     .await;
