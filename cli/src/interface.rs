@@ -89,6 +89,7 @@ pub enum NativeCommand {
     SyncConnectGit,
     SyncTest,
     SyncRun,
+    SyncOverwrite,
     SyncDisconnect,
     AppOpen,
     AppViews,

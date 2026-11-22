@@ -1,10 +1,14 @@
 import {
+	ArrowDownToLine,
+	ArrowUpFromLine,
 	ChevronRight,
 	CloudUpload,
 	LoaderCircle,
 	Plus,
 	Trash2,
+	TriangleAlert,
 	Unplug,
+	X,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,6 +41,14 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -59,6 +71,7 @@ import type { ApiError } from "@/lib/core/ipc";
 import { errorMessage, notifyError, notifySuccess } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { displayPath } from "@/lib/core/path";
+import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 import { isTauri } from "@/lib/core/tauri";
 import { toSafeDisposer } from "@/lib/core/tauri-events";
 import { cn } from "@/lib/core/utils";
@@ -69,6 +82,8 @@ import {
 	SYNC_INTERVAL_CHOICES,
 	type SyncBackendConfig,
 	type SyncMirrorStatus,
+	type SyncOverwriteDirection,
+	type SyncOverwritePreview,
 	type SyncProgressEvent,
 	type SyncScopeSizes,
 	type SyncStateEvent,
@@ -77,6 +92,8 @@ import {
 	syncDisconnect,
 	syncGetStatus,
 	syncNow,
+	syncOverwrite,
+	syncOverwritePreview,
 	syncScopeSizes,
 } from "@/lib/sync/api";
 import { vaultDisplayName } from "@/lib/vault/path";
@@ -175,6 +192,10 @@ const BACKEND_OPTIONS = [
 	{ value: "git", labelKey: "sync.backendGit" },
 ] as const;
 
+/** Dismissing the conditional-writes notice is a permanent, device-local choice. */
+const DEGRADED_NOTICE_DISMISSED_KEY =
+	"agentero.sync.degradedNoticeDismissed.v1";
+
 /** Local Vaults this pane can edit: the opener plus the shared MRU list. */
 function localVaultChoices(primary: string | null): string[] {
 	const out: string[] = [];
@@ -245,6 +266,14 @@ function VaultSyncForm({
 	const [progress, setProgress] = useState<SyncProgressEvent | null>(null);
 	const [syncError, setSyncError] = useState<string | null>(null);
 	const [advancedOpen, setAdvancedOpen] = useState(false);
+	const [degradedNoticeDismissed, setDegradedNoticeDismissed] = useState(() =>
+		readJsonStorage<boolean>(DEGRADED_NOTICE_DISMISSED_KEY, false),
+	);
+	const [overwriteDialog, setOverwriteDialog] = useState<{
+		direction: SyncOverwriteDirection;
+		preview: SyncOverwritePreview;
+	} | null>(null);
+	const [overwriting, setOverwriting] = useState(false);
 	const [scopeSizes, setScopeSizes] = useState<SyncScopeSizes | null>(null);
 	const [mirrors, setMirrors] = useState<SyncBackendConfig[]>([]);
 	const [mirrorsDirty, setMirrorsDirty] = useState(false);
@@ -332,6 +361,21 @@ function VaultSyncForm({
 						setMirrorLive({});
 						void refresh().catch(() => undefined);
 					}
+					if (payload.status === "error") {
+						const detail = payload.error ?? t("sync.statusError");
+						notifyError(
+							payload.errorCode === "sync_no_conditional_writes"
+								? t("sync.noConditionalWrites")
+								: detail,
+							{
+								id: `sync:${localVault}`,
+								description:
+									payload.errorCode === "sync_no_conditional_writes"
+										? detail
+										: undefined,
+							},
+						);
+					}
 				}),
 			),
 			toSafeDisposer(
@@ -418,6 +462,11 @@ function VaultSyncForm({
 	const reportSyncError = (error: unknown) => {
 		const detail = errorMessage(error);
 		const code = error instanceof Error ? (error as ApiError).code : undefined;
+		if (code === "sync_no_conditional_writes") {
+			setSyncError(detail);
+			notifyError(t("sync.noConditionalWrites"), { description: detail });
+			return;
+		}
 		const message =
 			code === "git_auth_failed"
 				? t("sync.gitAuthFailed", { detail })
@@ -486,6 +535,41 @@ function VaultSyncForm({
 			void refresh().catch(() => undefined);
 		} catch (error) {
 			reportSyncError(error);
+		}
+	};
+
+	const openOverwrite = async (direction: SyncOverwriteDirection) => {
+		try {
+			const preview = await syncOverwritePreview(localVault, direction);
+			setOverwriteDialog({ direction, preview });
+		} catch (error) {
+			reportSyncError(error);
+		}
+	};
+
+	const confirmOverwrite = async () => {
+		if (!overwriteDialog) return;
+		setOverwriting(true);
+		try {
+			const outcome = await syncOverwrite(
+				localVault,
+				overwriteDialog.direction,
+			);
+			setOverwriteDialog(null);
+			setSyncError(null);
+			notifySuccess(
+				t("sync.overwriteDone", {
+					version: outcome.version,
+					up: outcome.uploaded,
+					down: outcome.downloaded,
+					deleted: outcome.deletedLocal,
+				}),
+			);
+		} catch (error) {
+			reportSyncError(error);
+		} finally {
+			setOverwriting(false);
+			void refresh().catch(() => undefined);
 		}
 	};
 
@@ -626,12 +710,6 @@ function VaultSyncForm({
 					</SelectContent>
 				</Select>
 			</div>
-
-			{status?.configured && !isGit && !form.conditionalWrites ? (
-				<p className="mb-3 text-muted-foreground text-xs">
-					{t("sync.noConditionalWrites")}
-				</p>
-			) : null}
 
 			<div className="mb-3 flex flex-wrap items-center gap-2">
 				<span id="sync-backend-label" className="text-muted-foreground text-xs">
@@ -784,19 +862,95 @@ function VaultSyncForm({
 					</SettingsRow>
 				</SettingsGroup>
 			) : isWebdav ? (
-				<SettingsGroup>
-					<SettingsRow label={t("sync.serverUrl")} htmlFor="sync-webdavUrl">
-						{field("webdavUrl", {
-							placeholder: "https://dav.jianguoyun.com/dav/agentero",
-						})}
-					</SettingsRow>
-					<SettingsRow label={t("sync.username")} htmlFor="sync-webdavUsername">
-						{field("webdavUsername")}
-					</SettingsRow>
-					<SettingsRow label={t("sync.password")} htmlFor="sync-webdavPassword">
-						{field("webdavPassword", { type: "password" })}
-					</SettingsRow>
-				</SettingsGroup>
+				<>
+					{status?.configured &&
+					!form.conditionalWrites &&
+					!degradedNoticeDismissed ? (
+						<div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-xs">
+							<TriangleAlert
+								className="size-4 shrink-0 text-amber-600 dark:text-amber-500"
+								aria-hidden
+							/>
+							<span className="min-w-0 flex-1">
+								{t("sync.noConditionalWritesShort")}
+							</span>
+							<button
+								type="button"
+								className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+								aria-label={t("sync.dismissNotice")}
+								onClick={() => {
+									writeJsonStorage(DEGRADED_NOTICE_DISMISSED_KEY, true);
+									setDegradedNoticeDismissed(true);
+								}}
+							>
+								<X className="size-3.5" aria-hidden />
+							</button>
+						</div>
+					) : null}
+					<SettingsGroup>
+						<SettingsRow label={t("sync.serverUrl")} htmlFor="sync-webdavUrl">
+							{field("webdavUrl", {
+								placeholder: "https://dav.jianguoyun.com/dav/agentero",
+							})}
+						</SettingsRow>
+						<SettingsRow
+							label={t("sync.username")}
+							htmlFor="sync-webdavUsername"
+						>
+							{field("webdavUsername")}
+						</SettingsRow>
+						<SettingsRow
+							label={t("sync.password")}
+							htmlFor="sync-webdavPassword"
+						>
+							{field("webdavPassword", { type: "password" })}
+						</SettingsRow>
+						{status?.configured && !form.conditionalWrites ? (
+							<SettingsRow
+								label={
+									<HelpLabel
+										label={t("sync.allowDegradedSync")}
+										help={t("sync.degradedSyncRisk")}
+									/>
+								}
+								htmlFor="sync-allowDegradedSync"
+							>
+								<Switch
+									id="sync-allowDegradedSync"
+									checked={form.allowDegradedSync}
+									onCheckedChange={(value) =>
+										patch({ allowDegradedSync: value })
+									}
+									disabled={syncing || saving}
+								/>
+							</SettingsRow>
+						) : null}
+						{status?.configured && !configChanged ? (
+							<div className="flex flex-wrap items-center gap-2 px-3.5 py-2.5">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={syncing || saving}
+									onClick={() => void openOverwrite("remoteToLocal")}
+								>
+									<ArrowDownToLine data-icon="inline-start" />
+									{t("sync.overwritePull")}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={syncing || saving}
+									onClick={() => void openOverwrite("localToRemote")}
+								>
+									<ArrowUpFromLine data-icon="inline-start" />
+									{t("sync.overwritePush")}
+								</Button>
+							</div>
+						) : null}
+					</SettingsGroup>
+				</>
 			) : (
 				<SettingsGroup>
 					<SettingsRow label={t("sync.endpoint")} htmlFor="sync-endpoint">
@@ -978,6 +1132,61 @@ function VaultSyncForm({
 					</Button>
 				) : null}
 			</div>
+			<Dialog
+				open={overwriteDialog !== null}
+				onOpenChange={(open) => {
+					if (!open && !overwriting) setOverwriteDialog(null);
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>
+							{overwriteDialog?.direction === "remoteToLocal"
+								? t("sync.overwritePullTitle")
+								: t("sync.overwritePushTitle")}
+						</DialogTitle>
+						<DialogDescription>
+							{overwriteDialog?.direction === "remoteToLocal"
+								? t("sync.overwritePullBody", {
+										delete: overwriteDialog.preview.willDeleteLocal,
+										download: overwriteDialog.preview.willDownload,
+										version: overwriteDialog.preview.remoteVersion,
+									})
+								: overwriteDialog
+									? t("sync.overwritePushBody", {
+											upload: overwriteDialog.preview.willUpload,
+											remove: overwriteDialog.preview.willRemoveRemote,
+											version: overwriteDialog.preview.remoteVersion,
+										})
+									: null}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setOverwriteDialog(null)}
+							disabled={overwriting}
+						>
+							{t("sync.cancel")}
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={() => void confirmOverwrite()}
+							disabled={overwriting}
+						>
+							{overwriting ? (
+								<LoaderCircle
+									data-icon="inline-start"
+									className="animate-spin"
+								/>
+							) : null}
+							{t("sync.overwriteConfirm")}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</section>
 	);
 }

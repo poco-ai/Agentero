@@ -250,6 +250,8 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::integration::sync::commands::sync_configure,
             crate::integration::sync::commands::sync_disconnect,
             crate::integration::sync::commands::sync_now,
+            crate::integration::sync::commands::sync_overwrite_preview,
+            crate::integration::sync::commands::sync_overwrite,
             crate::integration::sync::commands::sync_scope_sizes,
             crate::integration::sync::commands::sync_cloud_usage,
             crate::features::vault::watcher::commands::fs_watch_start,

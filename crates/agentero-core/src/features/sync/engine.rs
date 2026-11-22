@@ -5,13 +5,12 @@
 //!
 //! ```text
 //! vault.json                  { vaultId, formatVersion, encryption }
-//! HEAD                        { version, manifestKey, updatedAt }   ← CAS
+//! HEAD                        { version, manifestKey, updatedAt }   闂?CAS
 //! manifests/<v>-<nonce>.json.gz
 //! blobs/<aa>/<sha256>         gzip(file content)
 //! ```
 //!
-//! One pass = scan → three-way merge against the last synced manifest →
-//! stage verified bytes → upload blobs and manifest → CAS `HEAD` → apply locally. A lost CAS re-runs the merge against the winner's manifest.
+//! One pass = scan 闂?three-way merge against the last synced manifest 闂?//! stage verified bytes 闂?upload blobs and manifest 闂?CAS `HEAD` 闂?apply locally. A lost CAS re-runs the merge against the winner's manifest.
 //!
 //! Passes that would change nothing stop early: an up-to-date vault returns
 //! after the single `HEAD` read, and a pass whose merged manifest matches the
@@ -77,7 +76,7 @@ pub struct SyncOutcome {
     pub conflict_copies: Vec<String>,
 }
 
-/// `(phase, current, total)` — totals of 0 mean indeterminate.
+/// `(phase, current, total)` 闂?totals of 0 mean indeterminate.
 pub type Progress<'a> = &'a (dyn Fn(&str, usize, usize) + Send + Sync);
 
 /// Test the configured endpoint and its conditional-write semantics.
@@ -186,6 +185,9 @@ async fn run_sync<S: RemoteStore>(
     let local_files = scan_local(vault, scan_cache, cfg.scope).await?;
 
     let mut outcome = SyncOutcome::default();
+    // Opt-in degraded protocol (WebDAV only, phase 1): resolved from the live
+    // probe on the first attempt, then stable across CAS retries.
+    let mut degraded = false;
     for attempt in 0..MAX_CAS_RETRIES {
         progress("pull", 0, 0);
         let head = client.get(HEAD_KEY).await?;
@@ -215,7 +217,7 @@ async fn run_sync<S: RemoteStore>(
             // Up to date: HEAD still points at the manifest this vault last
             // agreed on, no local file changed content since, and this
             // device is using the same scope as before. One request
-            // instead of a full pull/merge/publish pass — backends meter
+            // instead of a full pull/merge/publish pass 闂?backends meter
             // requests per account (Nutstore allows 600 per 30 min on a free
             // plan), so the steady state has to be cheap. Sync history is
             // required because a first pass must establish the remote
@@ -242,10 +244,8 @@ async fn run_sync<S: RemoteStore>(
                 }
                 return Ok(outcome);
             }
-            if !client.probe_conditional_writes().await? {
-                return Err(AppError::message("remote does not enforce conditional writes; sync stopped without changing vault files"));
-            }
-            ensure_remote_identity(vault, client).await?;
+            degraded = resolve_degraded(cfg, client).await?;
+            ensure_remote_identity(vault, client, degraded).await?;
             // A new or reset store has no baseline against which it could
             // have deleted local files. Start by publishing the local scan.
             if head_ptr.is_none() {
@@ -253,8 +253,12 @@ async fn run_sync<S: RemoteStore>(
             }
         }
 
-        if let Some(tag) = &head_etag {
-            PutCondition::IfMatch(tag.clone()).header()?;
+        // Conditional publication needs a usable strong ETag; the degraded
+        // protocol takes the publish lock instead and ignores ETags entirely.
+        if !degraded {
+            if let Some(tag) = &head_etag {
+                PutCondition::IfMatch(tag.clone()).header()?;
+            }
         }
         // Keep the authoritative remote manifest intact. A device that skips
         // an asset carries its remote entry forward without transferring it.
@@ -332,10 +336,7 @@ async fn run_sync<S: RemoteStore>(
                 manifest_key,
                 updated_at: now(),
             };
-            let condition = match head_etag {
-                Some(etag) => PutCondition::IfMatch(etag),
-                None => PutCondition::IfNoneMatch,
-            };
+            let head_bytes = serde_json::to_vec(&next_head)?;
             recovery::save(
                 vault,
                 &store_id,
@@ -345,11 +346,16 @@ async fn run_sync<S: RemoteStore>(
                 &local_files,
                 false,
             )?;
-            if client
-                .put(HEAD_KEY, serde_json::to_vec(&next_head)?, condition)
-                .await?
-                == PutOutcome::PreconditionFailed
-            {
+            let lost_race = if degraded {
+                !publish_head_locked(vault, client, &head_bytes, head_ptr.as_ref()).await?
+            } else {
+                let condition = match head_etag {
+                    Some(etag) => PutCondition::IfMatch(etag),
+                    None => PutCondition::IfNoneMatch,
+                };
+                client.put(HEAD_KEY, head_bytes, condition).await? == PutOutcome::PreconditionFailed
+            };
+            if lost_race {
                 recovery::discard(vault)?;
                 continue;
             }
@@ -386,6 +392,418 @@ async fn scan_local(
     })
     .await
     .map_err(|e| AppError::message(format!("scan task: {e}")))?
+}
+
+/// Read-only impact preview for both overwrite directions.
+pub async fn overwrite_preview(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+    direction: OverwriteDirection,
+) -> Result<OverwritePreview, AppError> {
+    crate::features::sync::ensure_vault_sync_available(vault)?;
+    ensure_webdav_overwrite(cfg)?;
+    let client = SyncStore::new(cfg, vault)?;
+    overwrite_preview_with(vault, cfg, &client, direction).await
+}
+
+fn ensure_webdav_overwrite(cfg: &SyncBackendConfig) -> Result<(), AppError> {
+    if cfg.backend != SyncBackendKind::Webdav {
+        return Err(AppError::message(
+            "manual overwrite is only supported for WebDAV sync",
+        ));
+    }
+    Ok(())
+}
+
+async fn overwrite_preview_with<S: RemoteStore>(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+    client: &S,
+    direction: OverwriteDirection,
+) -> Result<OverwritePreview, AppError> {
+    let local_files = visible_files(scan_local_read_only(vault, cfg.scope).await?, &cfg.scope);
+    let head = client.get(HEAD_KEY).await?;
+    let head_ptr = match &head {
+        Some((bytes, _)) => Some(serde_json::from_slice::<HeadPointer>(bytes)?),
+        None => None,
+    };
+    if direction == OverwriteDirection::RemoteToLocal && head_ptr.is_none() {
+        return Err(AppError::domain(
+            "sync_remote_history_missing",
+            "Remote sync history is missing; local files were left untouched",
+        ));
+    }
+    let remote_manifest = match &head_ptr {
+        Some(ptr) => Some(load_manifest(client, ptr).await?),
+        None => None,
+    };
+    let empty = BTreeMap::new();
+    let remote_files = remote_manifest.as_ref().map_or(&empty, |m| &m.files);
+    let mut preview = OverwritePreview {
+        remote_version: head_ptr.as_ref().map_or(0, |p| p.version),
+        ..Default::default()
+    };
+    match direction {
+        OverwriteDirection::RemoteToLocal => {
+            let plan = plan_remote_mirror(&local_files, remote_files, &cfg.scope);
+            preview.will_delete_local = plan.delete_local.len();
+            preview.will_download = plan.downloads.len();
+        }
+        OverwriteDirection::LocalToRemote => {
+            let remote_hashes: HashSet<&str> =
+                remote_files.values().map(|e| e.hash.as_str()).collect();
+            preview.will_upload = local_files
+                .values()
+                .filter(|e| !remote_hashes.contains(e.hash.as_str()))
+                .count();
+            preview.will_remove_remote = remote_files
+                .keys()
+                .filter(|path| !local_files.contains_key(*path))
+                .count();
+        }
+    }
+    Ok(preview)
+}
+
+/// Manual overwrite under the caller's SyncLock; failures are recorded into
+/// `last_error` exactly like an ordinary pass.
+pub async fn overwrite_locked(
+    lock: &super::lock::SyncLock,
+    cfg: &SyncBackendConfig,
+    direction: OverwriteDirection,
+    progress: Progress<'_>,
+) -> Result<SyncOutcome, AppError> {
+    let vault = lock.vault();
+    let result = async {
+        crate::features::sync::ensure_vault_sync_available(vault)?;
+        ensure_webdav_overwrite(cfg)?;
+        if recovery::unfinished(vault)? {
+            return Err(AppError::message(
+                "unfinished object sync; restore its binding or disconnect explicitly",
+            ));
+        }
+        let client = SyncStore::new(cfg, vault)?;
+        match direction {
+            OverwriteDirection::RemoteToLocal => force_pull(vault, cfg, &client, progress).await,
+            OverwriteDirection::LocalToRemote => force_push(vault, cfg, &client, progress).await,
+        }
+    }
+    .await;
+    match result {
+        Ok(outcome) => Ok(outcome),
+        Err(e) => {
+            local::record_error(vault, &e.to_string());
+            Err(e)
+        }
+    }
+}
+
+/// Remote overwrites local: mirror the remote HEAD manifest onto disk and
+/// adopt it as the base. No new version is published. Divergent local
+/// content is discarded by explicit user choice (confirmation dialog upstream).
+async fn force_pull<S: RemoteStore>(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+    client: &S,
+    progress: Progress<'_>,
+) -> Result<SyncOutcome, AppError> {
+    let store_id = snapshot::hash_bytes(cfg.remote_identity().as_bytes());
+    local::clear_staged(vault)?;
+    ensure_remote_identity(vault, client, false).await?;
+    progress("pull", 0, 0);
+    let Some((head_bytes, _)) = client.get(HEAD_KEY).await? else {
+        return Err(AppError::domain(
+            "sync_remote_history_missing",
+            "Remote sync history is missing; local files were left untouched",
+        ));
+    };
+    let head_ptr: HeadPointer = serde_json::from_slice(&head_bytes)?;
+    let remote_manifest = load_manifest(client, &head_ptr).await?;
+    let scanned = scan_local(vault, Manifest::default(), cfg.scope).await?;
+    let local_files = visible_files(scanned.clone(), &cfg.scope);
+    let plan = plan_remote_mirror(&local_files, &remote_manifest.files, &cfg.scope);
+    validate_tree(&plan.merged)?;
+    let prepared = prepare_local(vault, client, &plan, &scanned, progress).await?;
+    let mut outcome = SyncOutcome::default();
+    recovery::save(
+        vault, &store_id, &head_ptr, &cfg.scope, &plan, &scanned, true,
+    )?;
+    prepared.apply(vault, &plan, &scanned, &mut outcome)?;
+    record_sync(vault, &store_id, &head_ptr, &cfg.scope, plan.merged, false)?;
+    recovery::finish(vault)?;
+    local::clear_pushed(vault);
+    refresh_catalog_if_needed(vault)?;
+    outcome.version = head_ptr.version;
+    Ok(outcome)
+}
+
+/// Local overwrites remote: publish the local scan as HEAD version + 1.
+/// Remote-only entries drop out of the manifest; peers infer the deletions
+/// through their ordinary three-way merge. Old manifests and blobs stay on
+/// the store, so the superseded remote state remains recoverable until GC.
+/// No local mutation happens, hence no staged apply or recovery journal.
+async fn force_push<S: RemoteStore>(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+    client: &S,
+    progress: Progress<'_>,
+) -> Result<SyncOutcome, AppError> {
+    let store_id = snapshot::hash_bytes(cfg.remote_identity().as_bytes());
+    local::clear_staged(vault)?;
+    let degraded = resolve_degraded(cfg, client).await?;
+    ensure_remote_identity(vault, client, degraded).await?;
+    let scanned = scan_local(vault, Manifest::default(), cfg.scope).await?;
+    let merged = visible_files(scanned, &cfg.scope);
+    validate_tree(&merged)?;
+    let plan = MergePlan {
+        merged: merged.clone(),
+        ..Default::default()
+    };
+    let mut outcome = SyncOutcome::default();
+    let empty = BTreeMap::new();
+    for attempt in 0..MAX_CAS_RETRIES {
+        if attempt > 0 {
+            progress("pull", 0, 0);
+        }
+        let head = client.get(HEAD_KEY).await?;
+        let head_ptr = match &head {
+            Some((bytes, _)) => Some(serde_json::from_slice::<HeadPointer>(bytes)?),
+            None => None,
+        };
+        let remote_manifest = match &head_ptr {
+            Some(ptr) => Some(load_manifest(client, ptr).await?),
+            None => None,
+        };
+        let remote_files = remote_manifest.as_ref().map_or(&empty, |m| &m.files);
+        let remote_scope = remote_manifest
+            .as_ref()
+            .map(|m| m.scope)
+            .unwrap_or_default();
+        outcome.uploaded += plan
+            .upload_missing(vault, &store_id, client, remote_files, progress)
+            .await?;
+        let new_version = head_ptr
+            .as_ref()
+            .map_or(0, |p| p.version)
+            .checked_add(1)
+            .ok_or_else(|| AppError::message("sync version exhausted"))?;
+        let manifest_key = format!(
+            "manifests/{new_version:010}-{}.json.gz",
+            &uuid::Uuid::new_v4().simple().to_string()[..8]
+        );
+        let next_head = HeadPointer {
+            version: new_version,
+            manifest_key: manifest_key.clone(),
+            updated_at: now(),
+        };
+        let manifest = Manifest {
+            version: new_version,
+            files: merged.clone(),
+            // Keep the remote's scope declaration; this pass has no new
+            // exclusions to announce beyond what the store already carries.
+            scope: remote_scope,
+        };
+        validate_manifest(&manifest)?;
+        if client
+            .put(
+                &manifest_key,
+                gzip(&serde_json::to_vec(&manifest)?)?,
+                PutCondition::IfNoneMatch,
+            )
+            .await?
+            != PutOutcome::Ok
+        {
+            continue;
+        }
+        let head_bytes = serde_json::to_vec(&next_head)?;
+        let lost_race = if degraded {
+            !publish_head_locked(vault, client, &head_bytes, head_ptr.as_ref()).await?
+        } else {
+            let condition = match &head {
+                Some((_, etag)) => PutCondition::IfMatch(etag.clone()),
+                None => PutCondition::IfNoneMatch,
+            };
+            client.put(HEAD_KEY, head_bytes, condition).await? == PutOutcome::PreconditionFailed
+        };
+        if lost_race {
+            continue;
+        }
+        outcome.removed_remote = remote_files
+            .keys()
+            .filter(|path| !merged.contains_key(*path))
+            .count();
+        record_sync(
+            vault,
+            &store_id,
+            &next_head,
+            &cfg.scope,
+            merged.clone(),
+            false,
+        )?;
+        local::clear_pushed(vault);
+        outcome.version = new_version;
+        return Ok(outcome);
+    }
+    Err(AppError::message(
+        "sync contention: too many concurrent updates, try again",
+    ))
+}
+
+/// Degraded-mode HEAD publication: acquire the publish lock, re-read HEAD
+/// (a changed pointer rebases like a lost CAS), plain-PUT, read back, release.
+/// `Ok(false)` means "lost the race or could not hold the lock" 闂?the caller
+/// rebases and retries; transport failures propagate as errors.
+async fn publish_head_locked<S: RemoteStore>(
+    vault: &Path,
+    client: &S,
+    head_bytes: &[u8],
+    expected_head: Option<&HeadPointer>,
+) -> Result<bool, AppError> {
+    use crate::features::sync::store::LockOutcome;
+    let device_id = local::ensure_device_id(vault)?;
+    for attempt in 0..MAX_CAS_RETRIES {
+        if attempt > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(300 * attempt as u64)).await;
+        }
+        match client.try_acquire_publish_lock(&device_id).await? {
+            LockOutcome::Acquired => {}
+            LockOutcome::Busy => continue,
+            LockOutcome::Unsupported => {
+                return Err(AppError::message(
+                    "degraded sync requires the WebDAV backend",
+                ));
+            }
+        }
+        let acquired = std::time::Instant::now();
+        let result = async {
+            let head = client.get(HEAD_KEY).await?;
+            let current = match &head {
+                Some((bytes, _)) => Some(serde_json::from_slice::<HeadPointer>(bytes)?),
+                None => None,
+            };
+            let unchanged = match (&current, expected_head) {
+                (Some(a), Some(b)) => a.version == b.version && a.manifest_key == b.manifest_key,
+                (None, None) => true,
+                _ => false,
+            };
+            if !unchanged {
+                return Ok(false);
+            }
+            // The lock's server timestamp predates arbitration round-trips;
+            // abort with half the TTL as margin so an expired lock can never
+            // reach the publication (Joplin rule: own lock expired 闂?cancel).
+            if acquired.elapsed().as_secs() >= (super::store::PUBLISH_LOCK_TTL_SECS as u64) / 2 {
+                return Ok(false);
+            }
+            client
+                .put(HEAD_KEY, head_bytes.to_vec(), PutCondition::Unconditional)
+                .await?;
+            // Best-effort detection of a concurrent publisher that slipped
+            // through arbitration; a mismatch rebases like a lost CAS.
+            match client.get(HEAD_KEY).await? {
+                Some((bytes, _)) if bytes == head_bytes => Ok(true),
+                _ => Ok(false),
+            }
+        }
+        .await;
+        let _ = client.release_publish_lock(&device_id).await;
+        return result;
+    }
+    Ok(false)
+}
+
+/// Which side wins a manual overwrite. `RemoteToLocal` mirrors the remote
+/// HEAD manifest onto disk (discarding divergent local content);
+/// `LocalToRemote` publishes the local scan as the new HEAD (superseding
+/// remote changes).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum OverwriteDirection {
+    RemoteToLocal,
+    LocalToRemote,
+}
+
+/// Impact preview for the confirmation dialog. Counts only; computed without
+/// any local or remote write.
+#[derive(Debug, Default, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OverwritePreview {
+    /// Local files the remote does not have (force pull deletes them).
+    pub will_delete_local: usize,
+    /// Remote files force pull downloads or restores over local edits.
+    pub will_download: usize,
+    /// Remote files absent locally (force push drops them from the manifest).
+    pub will_remove_remote: usize,
+    /// Blobs force push uploads (local content the remote lacks).
+    pub will_upload: usize,
+    pub remote_version: u64,
+}
+
+/// Resolve the degraded protocol from a live probe: supported store 闂?false;
+/// ignoring store + per-device opt-in on WebDAV 闂?true; otherwise the
+/// localized hard stop. Phase 1 keeps degraded sync WebDAV-only.
+async fn resolve_degraded<S: RemoteStore>(
+    cfg: &SyncBackendConfig,
+    client: &S,
+) -> Result<bool, AppError> {
+    if client.probe_conditional_writes().await? {
+        return Ok(false);
+    }
+    if cfg.allow_degraded_sync && cfg.backend == SyncBackendKind::Webdav {
+        return Ok(true);
+    }
+    Err(AppError::domain(
+        super::SYNC_NO_CONDITIONAL_WRITES,
+        "remote does not enforce conditional writes; sync stopped without changing vault files",
+    ))
+}
+
+/// Force-pull plan: remote membership wins wholesale within the sync scope.
+/// Divergent local bytes are discarded (no conflict copies 闂?the user chose
+/// overwrite). `delete_local` is sorted because the staged apply resolves
+/// directory replacements with a binary search.
+fn plan_remote_mirror(
+    local_files: &BTreeMap<String, FileEntry>,
+    remote_files: &BTreeMap<String, FileEntry>,
+    sync_scope: &SyncScope,
+) -> MergePlan {
+    let mut plan = MergePlan {
+        merged: remote_files.clone(),
+        ..Default::default()
+    };
+    // Scope-excluded categories stay inert: never downloaded, never deleted.
+    let visible_remote = visible_files(remote_files.clone(), sync_scope);
+    for (path, entry) in &visible_remote {
+        if local_files
+            .get(path)
+            .is_some_and(|local| local.hash == entry.hash)
+        {
+            continue;
+        }
+        plan.downloads.push((path.clone(), entry.clone()));
+    }
+    for path in local_files.keys() {
+        if !remote_files.contains_key(path) {
+            plan.delete_local.push(path.clone());
+        }
+    }
+    plan.delete_local.sort();
+    plan.delete_local.dedup();
+    plan.downloads.sort_by(|a, b| a.0.cmp(&b.0));
+    plan
+}
+
+/// Read-only scan for the overwrite preview: never flushes pending sidecars
+/// or refreshes the catalog.
+async fn scan_local_read_only(
+    vault: &Path,
+    scope: SyncScope,
+) -> Result<BTreeMap<String, FileEntry>, AppError> {
+    let dir = vault.to_owned();
+    let cache = local::read_base(vault)?;
+    tokio::task::spawn_blocking(move || snapshot::scan_vault(&dir, &cache, &scope))
+        .await
+        .map_err(|e| AppError::message(format!("scan task: {e}")))?
 }
 
 fn record_sync(
@@ -444,6 +862,7 @@ async fn load_manifest(client: &impl RemoteStore, ptr: &HeadPointer) -> Result<M
 async fn ensure_remote_identity<S: RemoteStore>(
     vault: &Path,
     client: &S,
+    degraded: bool,
 ) -> Result<String, AppError> {
     let vault_id = local::ensure_vault_id(vault)?;
     match client.get(VAULT_KEY).await? {
@@ -474,7 +893,32 @@ async fn ensure_remote_identity<S: RemoteStore>(
                 format_version: FORMAT_VERSION,
                 encryption: "none".into(),
             };
-            // Lost create race → re-verify against the winner.
+            // Lost create race 闂?re-verify against the winner.
+            if degraded {
+                // No create-if-absent guarantee on this store: plain PUT, then
+                // read back so a foreign vault id is detected instead of
+                // silently adopted.
+                client
+                    .put(
+                        VAULT_KEY,
+                        serde_json::to_vec_pretty(&info)?,
+                        PutCondition::Unconditional,
+                    )
+                    .await?;
+                let Some((bytes, _)) = client.get(VAULT_KEY).await? else {
+                    return Err(AppError::message(
+                        "remote vault.json vanished after creation",
+                    ));
+                };
+                let stored: RemoteVaultInfo = serde_json::from_slice(&bytes)
+                    .map_err(|_| AppError::message("remote vault.json is not a sync store"))?;
+                if stored.vault_id != vault_id {
+                    return Err(AppError::message(
+                        "remote sync store belongs to a different vault",
+                    ));
+                }
+                return Ok(vault_id);
+            }
             match client
                 .put(
                     VAULT_KEY,
@@ -483,9 +927,26 @@ async fn ensure_remote_identity<S: RemoteStore>(
                 )
                 .await?
             {
-                PutOutcome::Ok => Ok(vault_id),
+                PutOutcome::Ok => {
+                    // Stores that ignore If-None-Match (Nutstore) let two
+                    // concurrent creators both succeed; read back so a foreign
+                    // vault id is detected instead of silently adopted.
+                    let Some((bytes, _)) = client.get(VAULT_KEY).await? else {
+                        return Err(AppError::message(
+                            "remote vault.json vanished after creation",
+                        ));
+                    };
+                    let stored: RemoteVaultInfo = serde_json::from_slice(&bytes)
+                        .map_err(|_| AppError::message("remote vault.json is not a sync store"))?;
+                    if stored.vault_id != vault_id {
+                        return Err(AppError::message(
+                            "remote sync store belongs to a different vault",
+                        ));
+                    }
+                    Ok(vault_id)
+                }
                 PutOutcome::PreconditionFailed => {
-                    Box::pin(ensure_remote_identity(vault, client)).await
+                    Box::pin(ensure_remote_identity(vault, client, degraded)).await
                 }
             }
         }
@@ -546,7 +1007,7 @@ struct MergePlan {
     merged: BTreeMap<String, FileEntry>,
     downloads: Vec<(String, FileEntry)>,
     delete_local: Vec<String>,
-    /// `(original rel, conflict-copy rel)` — copy the local file aside before
+    /// `(original rel, conflict-copy rel)` 闂?copy the local file aside before
     /// the remote version overwrites it.
     preserve_local: Vec<(String, String)>,
     conflict_copies: Vec<String>,
@@ -576,6 +1037,9 @@ impl MergePlan {
             if pushed.contains(&entry.hash) {
                 continue;
             }
+            // A preserved conflict copy is staged by `prepare_local` and applied only
+            // after publication, so upload from the original file it is taken
+            // from; `read_blob` verifies the content hash either way.
             let source = self
                 .preserve_local
                 .iter()
@@ -711,7 +1175,7 @@ fn merge(
                         plan.merged.insert(path.clone(), le.clone());
                     }
                 }
-                // Delete vs modify → keep the modification.
+                // Delete vs modify 闂?keep the modification.
                 (Some(le), None) => {
                     plan.merged.insert(path.clone(), le.clone());
                 }
@@ -1129,7 +1593,7 @@ mod tests {
         revisions: AtomicUsize,
         gets: AtomicUsize,
         puts: AtomicUsize,
-        /// PUTs allowed before the store starts refusing — models a rate limit
+        /// PUTs allowed before the store starts refusing 闂?models a rate limit
         /// landing partway through a pass.
         put_budget: AtomicUsize,
     }
@@ -1629,7 +2093,7 @@ mod tests {
             .unwrap()
             .contains("edited on B"));
 
-        // Divergent edits on both → conflict copy, then both converge.
+        // Divergent edits on both 闂?conflict copy, then both converge.
         fs::write(a.join("papers/x/NOTES.md"), "# x\nA version\n").unwrap();
         fs::write(b.join("papers/x/NOTES.md"), "# x\nB version\n").unwrap();
         sync_vault(&a, &cfg, noop).await.expect("sync A divergent");
@@ -1662,6 +2126,10 @@ mod tests {
     /// Nutstore caps top-level folder name length, so keep it short); clean
     /// it up afterwards by deleting the directory (Nutstore requires deleting
     /// files before their parent collection).
+    ///
+    /// Set `AGENTERO_SYNC_WEBDAV_TEST_DEGRADED=1` to opt into the degraded
+    /// protocol (required for servers that ignore conditional headers, e.g.
+    /// fnOS built-in WebDAV; the probe result is printed either way).
     #[tokio::test]
     #[ignore = "requires a live WebDAV server (see doc comment)"]
     async fn two_device_roundtrip_against_webdav() {
@@ -1690,6 +2158,9 @@ mod tests {
             .await
             .expect("webdav test_connection");
         cfg.conditional_writes = probed;
+        cfg.allow_degraded_sync = std::env::var("AGENTERO_SYNC_WEBDAV_TEST_DEGRADED")
+            .map(|v| v == "1")
+            .unwrap_or(false);
         eprintln!("webdav conditional writes: {probed}");
 
         let noop: &(dyn Fn(&str, usize, usize) + Send + Sync) = &|_, _, _| {};
@@ -1721,7 +2192,7 @@ mod tests {
             .unwrap()
             .contains("edited on B"));
 
-        // Divergent edits on both → conflict copy, then both converge.
+        // Divergent edits on both 闂?conflict copy, then both converge.
         fs::write(a.join("papers/x/NOTES.md"), "# x\nA version\n").unwrap();
         fs::write(b.join("papers/x/NOTES.md"), "# x\nB version\n").unwrap();
         sync_vault(&a, &cfg, noop).await.expect("sync A divergent");

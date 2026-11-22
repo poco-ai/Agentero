@@ -146,7 +146,7 @@ fn help_and_tool_inventory_agree_with_the_command_tree() {
     create_vault(&v);
     let tree = ok(&v, &["help"]);
     let cmds = tree["commands"].as_array().unwrap();
-    assert_eq!(cmds.iter().filter(|c| !c["result"].is_null()).count(), 71);
+    assert_eq!(cmds.iter().filter(|c| !c["result"].is_null()).count(), 72);
     for op in cmds {
         let mut words: Vec<_> = op["path"].as_str().unwrap().split_whitespace().collect();
         words.push("--help");

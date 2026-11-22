@@ -101,6 +101,12 @@ pub struct SyncBackendConfig {
     /// Last conditional-write probe result. Unsafe stores cannot publish.
     #[serde(default = "default_true")]
     pub conditional_writes: bool,
+    /// Explicit per-device opt-in to the degraded protocol for stores that
+    /// ignore conditional writes (publish lock + plain HEAD PUT + read-back
+    /// verification). Off by default; the engine still hard-stops without it.
+    /// Phase 1: WebDAV only. See `docs/development/sync-degraded-mode.md`.
+    #[serde(default)]
+    pub allow_degraded_sync: bool,
     /// Which bulky paper assets (PDF / LaTeX source / attachments) take part
     /// in sync. Notes, sidecars and marks always sync. Default: everything.
     #[serde(default)]

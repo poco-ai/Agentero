@@ -2262,6 +2262,12 @@
 				"help_en": "Use the WebDAV journal"
 			},
 			{
+				"name": "allow-degraded-sync",
+				"help": "允许在不支持条件写入的 WebDAV 上使用发布锁降级同步",
+				"kind": "bool",
+				"help_en": "Allow lock-guarded degraded sync on a WebDAV store without conditional writes"
+			},
+			{
 				"name": "exclude",
 				"help": "跳过同步的资产类别",
 				"many": true,
@@ -2376,6 +2382,35 @@
 		],
 		"about_en": "Disconnect the vault from its sync backend",
 		"behavior": "远端对象保留；非交互需要 --yes。",
+		"returns": "Receipt · changed, items, preview"
+	},
+	{
+		"path": "sync overwrite",
+		"sideEffects": "destructive",
+		"permission": "sync",
+		"stability": "internal",
+		"online": true,
+		"about": "强制一侧覆盖另一侧：远端覆盖本地，或本地覆盖远端",
+		"example": "agentero sync overwrite local-to-remote",
+		"result": "Receipt",
+		"args": [
+			{
+				"name": "direction",
+				"help": "哪一侧胜出",
+				"positional": true,
+				"required": true,
+				"choices": ["remote-to-local", "local-to-remote"],
+				"help_en": "Winning side"
+			},
+			{
+				"name": "yes",
+				"help": "确认本命令描述的删除或解绑",
+				"kind": "bool",
+				"help_en": "Confirm this operation in non-interactive mode"
+			}
+		],
+		"about_en": "Force the remote or the local side to win",
+		"behavior": "先计算影响预览再确认。remote-to-local 直接丢弃本地分歧内容；local-to-remote 发布本地全量为新 HEAD，旧清单保留在远端，GC 前可恢复。",
 		"returns": "Receipt · changed, items, preview"
 	},
 	{

@@ -66,6 +66,7 @@ const io = vi.hoisted(() => ({
 	publishedLayouts: [] as PdfLayoutDocumentResult[],
 	layoutWrites: new Set<(path: string) => void>(),
 	cachedLayout: null as PdfLayoutSidecar | null,
+	cachedLayoutReadGate: null as Deferred | null,
 	translateSidecar: null as LayoutTranslateSidecar | null,
 	sharedJob: null as JobSnapshot | null,
 	sharedSnapshot: null as TranslationSnapshot | null,
@@ -162,10 +163,9 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/pdf/layout/io", async (importOriginal) => ({
 	...(await importOriginal<object>()),
-	// Real sidecar reads are file IO: settle on a macrotask so a cancel landing
-	// in the same tick still wins the race.
 	readLayoutSidecar: async () => {
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		if (io.cachedLayoutReadGate) await io.cachedLayoutReadGate.promise;
+		else await new Promise((resolve) => setTimeout(resolve, 0));
 		return io.cachedLayout;
 	},
 	subscribeLayoutSidecarWrite: (listener: (path: string) => void) => {
@@ -347,6 +347,7 @@ function resetIo() {
 		list.length = 0;
 	io.layoutWrites.clear();
 	io.cachedLayout = null;
+	io.cachedLayoutReadGate = null;
 	io.translateSidecar = null;
 	io.sharedJob = null;
 	io.sharedSnapshot = null;
@@ -1087,9 +1088,14 @@ it("loads the layout when a headless parse writes it without a viewer file event
 
 it("does not load a cached layout after the wait has been cancelled", async () => {
 	setCachedLayout([region(0)]);
+	const readGate = deferred();
+	io.cachedLayoutReadGate = readGate;
 	const h = await mountHarness({ layoutRawRegions: [] });
 	await h.toggle();
-	await h.toggle(); // cancel the wait
+	expect(h.view.layoutTranslateWaiting).toBe(true);
+	await h.toggle();
+	expect(h.view.layoutTranslateWaiting).toBe(false);
+	await h.run(() => readGate.resolve());
 	await h.flush();
 	expect(io.publishedLayouts.length).toBe(0);
 	expect(io.runs.length).toBe(0);
