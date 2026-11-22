@@ -481,7 +481,9 @@
 			"qwenwork": "QwenWork",
 			"workbuddy": "WorkBuddy",
 			"dsh-desktop": "Dsh Desktop",
-			"bundledCli": "Bundled CLI — connectable"
+			"bundledCli": "Bundled CLI — connectable",
+			"unsupported": "No Linux version",
+			"unsupportedHint": "Dsh Desktop is not available on Linux — install the dsh CLI with `npm i -g @deepseek-ai/dsh` to use it as an Agent."
 		},
 		"zcodeDesktopPathHint": "If ZCode is not found, set ZCODE_BIN to its zcode.cjs path. This supports any drive and nested install folder.",
 		"defaultAgent": {

@@ -7,14 +7,18 @@
 //! understands why and can still launch it.
 //!
 //! Detection is best-effort and local-only: app bundles / Spotlight on macOS,
-//! registered installations and executable files on Windows. No account/cache
-//! directories are used. Other platforms await their own installation probes.
+//! registered installations and executable files on Windows, and desktop
+//! entries / Flatpak / Snap / scheme handlers on Linux. No account/cache
+//! directories are used.
 
 pub mod commands;
+#[cfg(target_os = "linux")]
+mod linux;
 #[cfg(windows)]
 mod windows;
 
 use crate::core::error::AppError;
+#[cfg(target_os = "macos")]
 use crate::core::process::SpawnInAgentScratchDir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -29,12 +33,16 @@ pub enum DesktopAppId {
     DshDesktop,
 }
 
-/// Detection result: macOS bundle or Windows executable path when known.
+/// Detection result: the installed executable (or macOS bundle) path when known.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DesktopAppStatus {
     pub id: DesktopAppId,
     pub installed: bool,
+    /// True when the vendor ships no build for this platform, so the row can
+    /// never become installed here.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub unsupported: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
 }
@@ -47,6 +55,10 @@ struct AppSpec {
     /// Known macOS bundle identifiers, for apps moved out of `/Applications`.
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     bundle_ids: &'static [&'static str],
+    /// `None` when the vendor ships no Linux build, so the row can never
+    /// report an installation there.
+    #[cfg(target_os = "linux")]
+    linux: Option<linux::LinuxSpec>,
     #[cfg(windows)]
     windows: windows::WinSpec,
 }
@@ -59,6 +71,21 @@ const APPS: &[AppSpec] = &[
         // build ships as `ChatGPT Classic.app` (com.openai.chat).
         names: &["ChatGPT", "ChatGPT Classic"],
         bundle_ids: &["com.openai.codex", "com.openai.chat"],
+        // The official `.deb` registers `chatgpt.desktop` (`Exec=chatgpt`, a
+        // `codex-launcher` shim) with the payload in `/usr/lib/chatgpt`, and
+        // ships `resources/codex` (verified 2026-11-22: 26.1117.41037,
+        // `codex-cli 0.171.0-alpha.13` on aarch64). Community Flatpak / Snap
+        // registrations share the ids and names below.
+        #[cfg(target_os = "linux")]
+        linux: Some(linux::LinuxSpec {
+            desktop_names: &["ChatGPT", "chatgpt"],
+            display_name: "ChatGPT",
+            app_ids: &["com.openai.chatgpt", "com.openai.codex"],
+            snap_names: &["chatgpt"],
+            protocols: &[],
+            // `resources/codex`, resolved by `linux::bundled_cli`.
+            bundled_cli: Some(("", &["codex"])),
+        }),
         #[cfg(windows)]
         windows: windows::WinSpec {
             uninstall_names: &["ChatGPT", "ChatGPT Classic"],
@@ -75,6 +102,20 @@ const APPS: &[AppSpec] = &[
         // 千问办公 (China) is `QwenWorkCN.app` (cn.qwenwork.desktop.mac).
         names: &["QwenWork", "QwenWorkCN", "千问办公"],
         bundle_ids: &["com.qwenwork.desktop.mac", "cn.qwenwork.desktop.mac"],
+        // Verified 2026-11-22 against `qwenworkcn-linux-arm64.deb` 1.3.1: the
+        // payload is `/opt/apps/QwenWorkCN`, the desktop entry is
+        // `qwen-work-cn.desktop` (`Name=千问办公`), and the CN engine ships as
+        // `resources/bin/qoderclicn` 1.1.59 (`--acp` initialize reports
+        // "Qoder CLI CN").
+        #[cfg(target_os = "linux")]
+        linux: Some(linux::LinuxSpec {
+            desktop_names: &["qwen-work-cn", "qwenwork-cn", "QwenWorkCN"],
+            display_name: "千问办公",
+            app_ids: &["cn.qwenwork.desktop", "com.qwenwork.desktop"],
+            snap_names: &["qwenwork"],
+            protocols: &["qwenwork-cn"],
+            bundled_cli: Some(("bin", &["qoderclicn", "qodercli", "qodercn"])),
+        }),
         #[cfg(windows)]
         windows: windows::WinSpec {
             uninstall_names: &["千问办公", "QwenWork", "QwenWorkCN"],
@@ -88,6 +129,24 @@ const APPS: &[AppSpec] = &[
         id: DesktopAppId::Workbuddy,
         names: &["WorkBuddy AI", "WorkBuddy"],
         bundle_ids: &[],
+        // Verified 2026-11-22 against `workbuddy` 5.6.2 (arm64 deb): installed
+        // in `/opt/WorkBuddy`, entry `workbuddy.desktop`, engine
+        // `resources/app.asar.unpacked/cli/bin/codebuddy` (a Node launcher; it
+        // boots with `resources/runtime/node/bin/node`, which
+        // `linux::bundled_cli_dirs` adds to the child PATH). `--acp`
+        // initialize answers with its auth methods.
+        #[cfg(target_os = "linux")]
+        linux: Some(linux::LinuxSpec {
+            desktop_names: &["workbuddy", "WorkBuddy"],
+            display_name: "WorkBuddy",
+            app_ids: &["com.tencent.workbuddy"],
+            snap_names: &["workbuddy"],
+            protocols: &["workbuddy"],
+            bundled_cli: Some((
+                "app.asar.unpacked/cli/bin",
+                &["codebuddy", "codebuddy-code", "cbc"],
+            )),
+        }),
         #[cfg(windows)]
         windows: windows::WinSpec {
             uninstall_names: &["WorkBuddy", "WorkBuddy AI"],
@@ -103,6 +162,12 @@ const APPS: &[AppSpec] = &[
         // the CLI's native ACP profile (`dsh --profile acp`).
         names: &["DeepSeek Harness"],
         bundle_ids: &[],
+        // Dsh Desktop has no Linux build (deepseek.com/download ships only
+        // .dmg and .exe), so the row is always reported as unsupported there.
+        // Run the CLI instead: `npm i -g @deepseek-ai/dsh` gives the Agent its
+        // native ACP profile (`dsh --profile acp`).
+        #[cfg(target_os = "linux")]
+        linux: None,
         #[cfg(windows)]
         windows: windows::WinSpec {
             uninstall_names: &["DeepSeek Harness"],
@@ -123,10 +188,22 @@ pub fn probe_desktop_apps() -> Vec<DesktopAppStatus> {
             DesktopAppStatus {
                 id: spec.id,
                 installed: path.is_some(),
+                unsupported: !supported_on_this_platform(spec),
                 path: path.map(|p| p.to_string_lossy().into_owned()),
             }
         })
         .collect()
+}
+
+/// Whether the vendor ships a desktop build for this Host's platform.
+#[cfg(target_os = "linux")]
+fn supported_on_this_platform(spec: &AppSpec) -> bool {
+    spec.linux.is_some()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn supported_on_this_platform(_spec: &AppSpec) -> bool {
+    true
 }
 
 /// Windows Dsh ships a CLI launcher beside its runtime. Reuse the native
@@ -140,7 +217,7 @@ pub(crate) fn dsh_cli_dir() -> Option<PathBuf> {
     dsh_cli_dir_for_executable(&executable)
 }
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, all(test, not(target_os = "linux"))))]
 fn dsh_cli_dir_for_executable(executable: &std::path::Path) -> Option<PathBuf> {
     if !executable.is_file() {
         return None;
@@ -193,6 +270,20 @@ pub(crate) fn windows_cli_dirs() -> Vec<PathBuf> {
     paths
 }
 
+#[cfg(target_os = "linux")]
+pub(crate) fn linux_cli_dirs() -> Vec<PathBuf> {
+    APPS.iter()
+        .flat_map(|spec| {
+            linux::bundled_cli_dirs(spec, &["codex", "qodercn", "qodercli", "codebuddy", "cbc"])
+        })
+        .fold(Vec::new(), |mut dirs, dir| {
+            if !dirs.contains(&dir) {
+                dirs.push(dir);
+            }
+            dirs
+        })
+}
+
 /// CLI engine a known desktop app ships inside its own bundle.
 ///
 /// Agentero never drives these GUIs over ACP; it reuses the CLI the installer
@@ -211,6 +302,8 @@ pub(crate) fn windows_cli_dirs() -> Vec<PathBuf> {
 ///
 /// Returns `None` for commands no known desktop app bundles.
 pub(crate) fn bundled_cli(command: &str) -> Option<PathBuf> {
+    // Standalone runtimes only: never run a GUI executable as a Node
+    // substitute.
     #[cfg(windows)]
     if command == "node" {
         return windows_node_dirs()
@@ -218,9 +311,20 @@ pub(crate) fn bundled_cli(command: &str) -> Option<PathBuf> {
             .find_map(|dir| bundled_cli_in(&dir, &["node"]));
     }
     let (app, directory, candidates) = bundled_cli_spec(command)?;
-    let detected = detect_app(APPS.iter().find(|spec| spec.id == app)?)?;
-    let resources = app_resources_dir(&detected)?;
-    bundled_cli_in(&resources.join(directory), candidates)
+    let spec = APPS.iter().find(|spec| spec.id == app)?;
+    #[cfg(target_os = "linux")]
+    {
+        // The Linux payload sits in a per-install tree (`/opt`, Flatpak, Snap),
+        // not next to a known bundle name, so resolve it through the install
+        // probe instead of the Windows/macOS resources layout.
+        let _ = (directory, candidates);
+        linux::bundled_cli(spec, command)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let resources = app_resources_dir(&detect_app(spec)?)?;
+        bundled_cli_in(&resources.join(directory), candidates)
+    }
 }
 
 /// `(app id, bin directory under Resources, candidate binary names)`.
@@ -233,7 +337,10 @@ fn bundled_cli_spec(
     command: &str,
 ) -> Option<(DesktopAppId, &'static str, &'static [&'static str])> {
     match command {
-        #[cfg(windows)]
+        // The Windows installer keeps `codex` at the payload root; the Linux
+        // `.deb` puts it at `resources/codex`, which `linux::bundled_cli`
+        // resolves through the install probe.
+        #[cfg(any(windows, target_os = "linux"))]
         "codex" => Some((DesktopAppId::Chatgpt, "", &["codex"])),
         "qodercn" | "qoderclicn" => {
             Some((DesktopAppId::Qwenwork, "bin", &["qoderclicn", "qodercn"]))
@@ -244,6 +351,10 @@ fn bundled_cli_spec(
             "app.asar.unpacked/cli/bin",
             &["codebuddy", "cbc"],
         )),
+        // Dsh Desktop's launcher lives beside its runtime; the launcher itself
+        // loads the ASAR payload, so the GUI binary is never handed to ACP.
+        #[cfg(any(windows, target_os = "macos"))]
+        "dsh" => Some((DesktopAppId::DshDesktop, "runtime/cli/bin", &["dsh"])),
         _ => None,
     }
 }
@@ -253,6 +364,7 @@ fn bundled_cli_spec(
 /// Reuses the shared executable validation (`resolve_command_in_paths`) so a
 /// leftover data file with the right name cannot report a usable engine, and
 /// Windows picks up its PATHEXT/shim rules (`qoderclicn.exe`, …) for free.
+#[cfg_attr(target_os = "linux", allow(dead_code))]
 fn bundled_cli_in(directory: &std::path::Path, candidates: &[&str]) -> Option<PathBuf> {
     let directory = std::path::PathBuf::from(directory);
     candidates.iter().find_map(|name| {
@@ -264,6 +376,7 @@ fn bundled_cli_in(directory: &std::path::Path, candidates: &[&str]) -> Option<Pa
 }
 
 /// macOS detects the `.app` bundle; Windows detects the GUI executable.
+#[cfg_attr(target_os = "linux", allow(dead_code))]
 fn app_resources_dir(detected: &std::path::Path) -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
@@ -383,15 +496,25 @@ fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
     windows::open(spec)
 }
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(target_os = "linux")]
+fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
+    linux::detect(spec).map(|app| app.executable)
+}
+
+#[cfg(target_os = "linux")]
+fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
+    linux::open(spec)
+}
+
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 fn detect_app(_spec: &AppSpec) -> Option<PathBuf> {
     None
 }
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 fn open_resolved(_spec: &AppSpec) -> Result<(), AppError> {
     Err(AppError::message(
-        "desktop app detection is only available on macOS and Windows for now",
+        "desktop app detection is only available on macOS, Windows and Linux",
     ))
 }
 
@@ -399,21 +522,21 @@ fn open_resolved(_spec: &AppSpec) -> Result<(), AppError> {
 mod tests {
     use super::*;
 
+    /// Dsh Desktop ships only on macOS and Windows. Linux must report it as
+    /// unsupported and must never reuse a desktop CLI for it.
     #[test]
-    fn dsh_cli_requires_a_complete_desktop_installation() {
-        let fixture = tempfile::tempdir().unwrap();
-        let executable = fixture
-            .path()
-            .join("安装目录 with spaces/DeepSeek Harness.exe");
-        let resources = executable.parent().unwrap().join("resources");
-        let directory = resources.join("runtime/cli/bin");
-        std::fs::create_dir_all(&directory).unwrap();
-        assert!(dsh_cli_dir_for_executable(&executable).is_none());
-        std::fs::write(&executable, b"MZ fixture").unwrap();
-        std::fs::write(resources.join("app.asar"), b"fixture").unwrap();
-        assert!(dsh_cli_dir_for_executable(&executable).is_none());
-        std::fs::write(directory.join("dsh.cmd"), b"@echo off").unwrap();
-        assert_eq!(dsh_cli_dir_for_executable(&executable), Some(directory));
+    fn dsh_desktop_is_unsupported_on_linux_only() {
+        assert_eq!(
+            bundled_cli_spec("dsh").is_some(),
+            cfg!(any(windows, target_os = "macos"))
+        );
+        let dsh = APPS
+            .iter()
+            .find(|spec| spec.id == DesktopAppId::DshDesktop)
+            .expect("dsh spec");
+        assert_eq!(supported_on_this_platform(dsh), !cfg!(target_os = "linux"));
+        #[cfg(target_os = "linux")]
+        assert!(dsh.linux.is_none(), "no Linux build to probe");
     }
 
     #[test]
@@ -444,7 +567,27 @@ mod tests {
         let (_, _, intl_names) = bundled_cli_spec("qodercli").unwrap();
         assert!(!cn_names.contains(&"qodercli"));
         assert!(!intl_names.contains(&"qoderclicn"));
-        assert_eq!(bundled_cli_spec("codex").is_some(), cfg!(windows));
+        assert_eq!(
+            bundled_cli_spec("codex").is_some(),
+            cfg!(any(windows, target_os = "linux"))
+        );
+
+        #[cfg(target_os = "linux")]
+        {
+            let qwen = APPS
+                .iter()
+                .find(|spec| spec.id == DesktopAppId::Qwenwork)
+                .unwrap();
+            assert!(qwen
+                .linux
+                .as_ref()
+                .unwrap()
+                .bundled_cli
+                .unwrap()
+                .1
+                .contains(&"qoderclicn"));
+            assert!(supported_on_this_platform(qwen));
+        }
     }
 
     #[cfg(unix)]

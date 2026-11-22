@@ -44,7 +44,7 @@ fn extra_path_dirs() -> Vec<PathBuf> {
         dirs.push(PathBuf::from("/usr/bin"));
         dirs.push(PathBuf::from("/bin"));
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     dirs.extend(super::desktop_cli::path_dirs());
     dirs
 }

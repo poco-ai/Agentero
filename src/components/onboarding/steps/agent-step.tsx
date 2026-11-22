@@ -398,6 +398,7 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 					<ul className="grid grid-cols-4 auto-rows-fr gap-3">
 						{DESKTOP_APP_IDS.map((id) => {
 							const installed = desktopApps[id]?.installed ?? false;
+							const unsupported = desktopApps[id]?.unsupported ?? false;
 							return (
 								<li key={id}>
 									<div
@@ -413,7 +414,9 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 											{t(`agent.desktopApps.${id}`)}
 										</p>
 										<p className="w-full text-caption text-muted-foreground leading-tight">
-											{t("agent.desktopApps.bundledCli")}
+											{unsupported
+												? t("agent.desktopApps.unsupported")
+												: t("agent.desktopApps.bundledCli")}
 										</p>
 									</div>
 								</li>

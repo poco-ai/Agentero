@@ -481,7 +481,9 @@
 			"qwenwork": "千问办公",
 			"workbuddy": "WorkBuddy",
 			"dsh-desktop": "Dsh 桌面版",
-			"bundledCli": "自带 CLI，可接入"
+			"bundledCli": "自带 CLI，可接入",
+			"unsupported": "暂无 Linux 版",
+			"unsupportedHint": "Dsh 桌面版暂无 Linux 版本——可用 `npm i -g @deepseek-ai/dsh` 安装 dsh CLI 作为 Agent 使用。"
 		},
 		"zcodeDesktopPathHint": "若未找到 ZCode，请将 ZCODE_BIN 设为其 zcode.cjs 路径；支持任意盘符及多层目录安装。",
 		"defaultAgent": {

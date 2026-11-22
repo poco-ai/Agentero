@@ -120,7 +120,7 @@ export const commands = {
 	doctorCheckNetwork: () => typedError<ApiResult<NetworkDoctorReport_Serialize>, string>(__TAURI_INVOKE("doctor_check_network")),
 	/**  List which known desktop apps are installed on this machine. */
 	desktopAppsProbe: () => typedError<ApiResult<DesktopAppStatus_Serialize[]>, string>(__TAURI_INVOKE("desktop_apps_probe")),
-	/**  Launch one installed desktop app (macOS or Windows). */
+	/**  Launch one installed desktop app (macOS, Windows or Linux). */
 	desktopAppOpen: (id: DesktopAppId) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("desktop_app_open", { id })),
 	/**
 	 *  Retarget in-flight agent runs that emit to `source_label` so later events
@@ -3036,20 +3036,30 @@ export type DepPolicy = "allSettled" | "allSucceeded";
 /**  Stable id the frontend keys rows and brand logos on. */
 export type DesktopAppId = "chatgpt" | "qwenwork" | "workbuddy" | "dsh-desktop";
 
-/**  Detection result: macOS bundle or Windows executable path when known. */
+/**  Detection result: the installed executable (or macOS bundle) path when known. */
 export type DesktopAppStatus = DesktopAppStatus_Serialize | DesktopAppStatus_Deserialize;
 
-/**  Detection result: macOS bundle or Windows executable path when known. */
+/**  Detection result: the installed executable (or macOS bundle) path when known. */
 export type DesktopAppStatus_Deserialize = {
 	id: DesktopAppId,
 	installed: boolean,
+	/**
+	 *  True when the vendor ships no build for this platform, so the row can
+	 *  never become installed here.
+	 */
+	unsupported: boolean,
 	path: string | null,
 };
 
-/**  Detection result: macOS bundle or Windows executable path when known. */
+/**  Detection result: the installed executable (or macOS bundle) path when known. */
 export type DesktopAppStatus_Serialize = {
 	id: DesktopAppId,
 	installed: boolean,
+	/**
+	 *  True when the vendor ships no build for this platform, so the row can
+	 *  never become installed here.
+	 */
+	unsupported?: boolean,
 	path?: string | null,
 };
 

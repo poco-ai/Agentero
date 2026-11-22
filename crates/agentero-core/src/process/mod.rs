@@ -1,4 +1,4 @@
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 mod desktop_cli;
 pub mod discover;
 #[cfg(windows)]
