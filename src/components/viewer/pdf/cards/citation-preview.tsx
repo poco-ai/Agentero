@@ -35,6 +35,7 @@ const CARD_WIDTH = 300;
 const CARD_ESTIMATED_HEIGHT = 110;
 /** Cap stacked range previews so a wide `1-30` cluster stays usable. */
 const LIST_MAX_HEIGHT = 280;
+const AUTHOR_PREVIEW_COUNT = 3;
 
 export type CitationPreviewImportMenu = {
 	folders: string[];
@@ -69,13 +70,13 @@ function CitationPreviewRow({
 	importMenu,
 	showDivider,
 	expanded,
-	onExpand,
+	onToggle,
 }: {
 	citation: Citation;
 	importMenu?: CitationPreviewImportMenu;
 	showDivider: boolean;
 	expanded: boolean;
-	onExpand: () => void;
+	onToggle: () => void;
 }) {
 	const { t } = useTranslation("viewer");
 	const vaultPath = useVaultStore((state) => state.vaultPath);
@@ -230,7 +231,23 @@ function CitationPreviewRow({
 			>
 				{expanded ? (
 					<div className="space-y-2 pt-2 text-caption leading-relaxed text-muted-foreground">
-						{m.authors?.length ? <p>{m.authors.join(", ")}</p> : null}
+						{m.authors?.length ? (
+							<div>
+								<p>{m.authors.slice(0, AUTHOR_PREVIEW_COUNT).join(", ")}</p>
+								{m.authors.length > AUTHOR_PREVIEW_COUNT && (
+									<details>
+										<summary className="w-fit cursor-pointer rounded text-primary focus-visible:outline focus-visible:outline-ring">
+											{t("references.remainingAuthors", {
+												count: m.authors.length - AUTHOR_PREVIEW_COUNT,
+											})}
+										</summary>
+										<p className="mt-1 max-h-24 overflow-y-auto overscroll-contain">
+											{m.authors.slice(AUTHOR_PREVIEW_COUNT).join(", ")}
+										</p>
+									</details>
+								)}
+							</div>
+						) : null}
 						{m.venue || m.year ? (
 							<p>{[m.venue, m.year].filter(Boolean).join(" · ")}</p>
 						) : null}
@@ -292,19 +309,24 @@ function CitationPreviewRow({
 					</div>
 				) : null}
 			</motion.div>
-			{expandable && !expanded ? (
+			{(expandable || expanded) && (
 				<button
 					type="button"
 					className="mt-1 flex min-h-6 w-full items-center justify-center rounded text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline focus-visible:outline-ring"
-					aria-label={t("references.expandPreview")}
-					aria-expanded={false}
-					onPointerEnter={onExpand}
-					onFocus={onExpand}
-					onClick={onExpand}
+					aria-label={t(
+						expanded
+							? "references.collapsePreview"
+							: "references.expandPreview",
+					)}
+					aria-expanded={expanded}
+					onClick={onToggle}
 				>
-					<ChevronDown className="size-3.5" aria-hidden />
+					<ChevronDown
+						className={cn("size-3.5", expanded && "rotate-180")}
+						aria-hidden
+					/>
 				</button>
-			) : null}
+			)}
 		</div>
 	);
 }
@@ -451,7 +473,9 @@ export function PdfCitationPreview({
 							importMenu={importMenu}
 							showDivider={index > 0}
 							expanded={expandedId === citation.id}
-							onExpand={() => setExpandedId(citation.id)}
+							onToggle={() =>
+								setExpandedId(expandedId === citation.id ? null : citation.id)
+							}
 						/>
 					))}
 				</div>
