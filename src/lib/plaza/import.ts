@@ -22,6 +22,7 @@ import { enqueueTaskSettled, type TaskExecutorContext } from "@/lib/core/tasks";
 import { lookupSubmit } from "@/lib/paper/import-actions";
 import { currentLookupParentDir } from "@/lib/paper/library-actions";
 import { refreshLibrary } from "@/lib/paper/library-store";
+import { notifyOpenReviewDownloadIssue } from "@/lib/paper/openreview-download";
 import { getVaultPath, refreshTree } from "@/lib/vault/store";
 
 export type PlazaImportRequest = {
@@ -194,7 +195,15 @@ export async function runPlazaImportJob(
 		if (result.pdf) notifySuccess(i18n.t("app:plazaImport.imported", { name }));
 		// The unit is in the library; only the PDF is missing. Say so instead of
 		// reporting a clean success the user would later find untrue.
-		else notifyWarning(i18n.t("app:plazaImport.importedNoPdf", { name }));
+		else if (result.openreviewPdfIssue) {
+			notifyOpenReviewDownloadIssue(
+				vaultPath,
+				result.path,
+				result.openreviewPdfIssue,
+			);
+		} else {
+			notifyWarning(i18n.t("app:plazaImport.importedNoPdf", { name }));
+		}
 		return;
 	}
 	notifyWarning(

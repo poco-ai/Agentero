@@ -133,6 +133,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::paper::import::commands::paper_resolve_identifier,
             crate::features::paper::import::commands::paper_stage_import_file,
             crate::features::paper::import::commands::paper_recapture_webpage,
+            crate::features::paper::import::commands::paper_verify_openreview_pdf,
             crate::features::paper::import::commands::notes_template_seed,
             crate::features::paper::zotero::commands::paper_export,
             crate::features::paper::zotero::commands::paper_import,

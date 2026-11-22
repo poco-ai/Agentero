@@ -43,7 +43,7 @@
 
 [![演示论文库的标题、作者、日期、标签和标识符列](../assets/screenshots/library.webp)](../assets/screenshots/library.webp)
 
-导入后发现论文信息不对，可以用条目菜单编辑或刷新元数据。只有书目信息时，可以试试 **从来源下载 PDF**。缺 PDF 或源码时，也可以打开 **下载论文资源** 查看可用的文件。OpenReview（ICLR / ICML / NeurIPS / COLM / TMLR 等）的 PDF 需要先过站点的浏览器验证：下载被挡时会出现 OpenReview 验证窗口，也可以通过 **设置 → 通用 → 集成 → OpenReview** 手动打开，一次验证后会短暂保存凭据。要把书目带到其他工具，在论文库菜单选 **导出论文库**，就会生成 BibTeX。备份论文和笔记时请复制[整份知识库](vault.md)。
+导入后发现论文信息不对，可以用条目菜单编辑或刷新元数据。只有书目信息时，可以试试 **从来源下载 PDF**。缺 PDF 或源码时，也可以打开 **下载论文资源** 查看可用的文件。下载 OpenReview 论文时，Agentero 会先尝试原站 PDF 和可用的公开副本。如果 OpenReview 要求验证，点击 **验证并继续下载**，通过后会给原条目补上 PDF。也可以通过 **设置 → 通用 → 集成 → OpenReview** 提前验证。只有 OpenReview 链接且书目页也需要验证时，条目会先显示 OpenReview 编号，PDF 下载后再尝试补齐书目。要把书目带到其他工具，在论文库菜单选 **导出论文库**，就会生成 BibTeX。备份论文和笔记时请复制[整份知识库](vault.md)。
 
 <a id="zotero"></a>
 

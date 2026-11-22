@@ -178,10 +178,9 @@ pub fn load_openreview_from_settings() -> bool {
     openreview_cookie().is_some()
 }
 
-/// True when a `403` body is OpenReview's bot-challenge gate rather than a
-/// genuine permission error.
+/// Recognize an OpenReview browser challenge or explicit sign-in prompt.
 pub fn looks_like_challenge(status: u16, body: &[u8]) -> bool {
-    if status != 403 {
+    if status != 403 && status != 401 {
         return false;
     }
     let body = String::from_utf8_lossy(body);
@@ -189,6 +188,7 @@ pub fn looks_like_challenge(status: u16, body: &[u8]) -> bool {
         || body.contains("Verifying your browser")
         || body.contains("challenges.cloudflare.com/turnstile")
         || body.contains("cf-turnstile")
+        || body.contains("Please check that you are logged in to OpenReview")
 }
 
 /// Verify that `cookie` gets past the challenge gate.
@@ -282,6 +282,10 @@ mod tests {
             403,
             br#"{"error":{"code":"ChallengeRequiredError"}}"#
         ));
+        let login_prompt = b"<h1>Error 403</h1><p>Access to this page is restricted.
+            Please check that you are logged in to OpenReview and try again.</p>";
+        assert!(looks_like_challenge(403, login_prompt));
+        assert!(looks_like_challenge(401, login_prompt));
         assert!(!looks_like_challenge(403, b"<html>Forbidden</html>"));
         assert!(!looks_like_challenge(200, challenge));
         assert!(!looks_like_challenge(404, b"<html>Not Found</html>"));

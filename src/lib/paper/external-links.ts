@@ -8,7 +8,7 @@
 
 import { normalizeDoi } from "@/lib/bibtex";
 import type { PaperMetadata } from "@/lib/paper";
-import { arxivUrls } from "@/lib/paper/arxiv";
+import { arxivUrls, isArxivHostedUrl } from "@/lib/paper/arxiv";
 
 /** `github.com/x/y` form is common when pasted; bare hosts need a scheme. */
 export function repoHref(value: string): string {
@@ -32,13 +32,37 @@ export function openreviewHref(
 	}
 }
 
+/** Recover the forum link from a paper's OpenReview landing page or PDF. */
+export function openReviewSourceHref(value?: string | null): string | null {
+	const href = openreviewHref(value);
+	if (!href) return null;
+	const url = new URL(href);
+	if (
+		url.protocol !== "https:" ||
+		(url.hostname !== "openreview.net" &&
+			!url.hostname.endsWith(".openreview.net"))
+	)
+		return null;
+	const id = url.searchParams.get("id");
+	if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) return null;
+	if (
+		!["/forum", "/pdf", "/attachment", "/notes/edits/attachment"].includes(
+			url.pathname,
+		)
+	) {
+		return null;
+	}
+	return `https://openreview.net/forum?id=${id}`;
+}
+
 export type PaperLinkTargets = {
 	/** Normalized arXiv id, when known. */
 	arxivId: string | null;
 	/** Normalized DOI, when known. */
 	doi: string | null;
-	/** arXiv chip target: the paper PDF URL wins when present. */
+	/** arXiv chip target: prefer the stored PDF when arXiv hosts it. */
 	arxivUrl: string | null;
+	htmlUrl: string | null;
 	doiUrl: string | null;
 	pdfUrl: string | null;
 	alphaXivUrl: string | null;
@@ -51,16 +75,23 @@ export type PaperLinkTargets = {
 export function paperLinkTargets(
 	meta: PaperMetadata | null | undefined,
 ): PaperLinkTargets {
-	const arxivId = meta?.arxiv_id
-		? (arxivUrls(meta.arxiv_id)?.id ?? null)
-		: null;
+	const arxiv = meta?.arxiv_id ? arxivUrls(meta.arxiv_id) : null;
+	const arxivId = arxiv?.id ?? null;
+	const html = openReviewSourceHref(meta?.html_url)
+		? null
+		: openreviewHref(meta?.html_url);
 	const doi = normalizeDoi(meta?.doi ?? undefined);
 	const pdfUrl = meta?.pdf_url?.trim() || null;
 	const codeRepo = meta?.code_repo?.trim();
 	return {
 		arxivId,
 		doi,
-		arxivUrl: arxivId ? (pdfUrl ?? arxivUrls(arxivId)?.pdf ?? null) : null,
+		arxivUrl: arxiv
+			? pdfUrl && isArxivHostedUrl(pdfUrl)
+				? pdfUrl
+				: arxiv.pdf
+			: null,
+		htmlUrl: html ?? arxiv?.html ?? null,
 		doiUrl: doi ? `https://doi.org/${doi}` : null,
 		pdfUrl,
 		alphaXivUrl: arxivId ? `https://www.alphaxiv.org/abs/${arxivId}` : null,
@@ -69,6 +100,10 @@ export function paperLinkTargets(
 			: null,
 		huggingFaceUrl: arxivId ? `https://huggingface.co/papers/${arxivId}` : null,
 		codeRepoUrl: codeRepo ? repoHref(codeRepo) : null,
-		openreviewUrl: openreviewHref(meta?.openreview_url),
+		openreviewUrl:
+			openreviewHref(meta?.openreview_url) ??
+			openReviewSourceHref(meta?.source_url) ??
+			openReviewSourceHref(meta?.html_url) ??
+			openReviewSourceHref(meta?.pdf_url),
 	};
 }

@@ -228,6 +228,20 @@
 		"alreadyInNotes": "NOTES.md 中已有该解析，未重复写入",
 		"appended": "Cool Papers 解析已追加到 NOTES.md"
 	},
+	"openreviewDownload": {
+		"verificationRequired": "OpenReview 需要浏览器验证或登录",
+		"rateLimited": "OpenReview 限制了 PDF 下载，请稍后重试。",
+		"network": "无法连接 OpenReview，请检查网络后重试。",
+		"unavailable": "这篇 OpenReview 论文暂无可用的 PDF 下载来源。",
+		"downloadFailed": "无法从 OpenReview 下载 PDF。",
+		"signInHint": "{{paper}}。如果 OpenReview 提示登录，请在验证窗口内完成登录。",
+		"verifyAndDownload": "验证并继续下载",
+		"openSettings": "OpenReview 设置",
+		"verificationIncomplete": "OpenReview 验证未完成",
+		"missingBrowserLink": "这篇论文没有可打开的 OpenReview 链接。",
+		"openInBrowser": "在默认浏览器打开",
+		"attachDownloadedPdf": "可在浏览器下载 PDF，再导入知识库。"
+	},
 	"plazaImport": {
 		"taskTitle": "导入到论文库",
 		"failed": "导入失败",

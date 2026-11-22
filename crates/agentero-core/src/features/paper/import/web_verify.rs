@@ -129,6 +129,15 @@ pub fn challenge_detected(status: u16, headers: &HeaderMap, body: &[u8]) -> bool
 /// the wall. Reads only a bounded prefix, so validating a PDF URL does not
 /// download the file.
 pub async fn probe_cookie(url: &str, cookie: &str) -> bool {
+    probe_with_cookie(url, cookie, false).await
+}
+
+/// Check the actual attachment before closing the OpenReview verification window.
+pub async fn probe_pdf_cookie(url: &str, cookie: &str) -> bool {
+    probe_with_cookie(url, cookie, true).await
+}
+
+async fn probe_with_cookie(url: &str, cookie: &str, require_pdf: bool) -> bool {
     let cookie = cookie.trim();
     if cookie.is_empty() {
         return false;
@@ -150,28 +159,39 @@ pub async fn probe_cookie(url: &str, cookie: &str) -> bool {
     };
     let status = response.status().as_u16();
     let headers = response.headers().clone();
-    if status >= 400 {
+    if !response.status().is_success() || challenge_detected(status, &headers, &[]) {
         return false;
     }
-    if headers.get(CONTENT_TYPE).is_some_and(|value| {
-        value
-            .to_str()
-            .is_ok_and(|v| v.to_ascii_lowercase().contains("application/pdf"))
-    }) {
+    if !require_pdf
+        && headers.get(CONTENT_TYPE).is_some_and(|value| {
+            value
+                .to_str()
+                .is_ok_and(|v| v.to_ascii_lowercase().contains("application/pdf"))
+        })
+    {
         return true;
     }
     let mut body = Vec::new();
     let mut stream = response;
-    while body.len() < PROBE_PREFIX_BYTES {
+    let limit = if require_pdf {
+        b"%PDF-".len()
+    } else {
+        PROBE_PREFIX_BYTES
+    };
+    while body.len() < limit {
         match stream.chunk().await {
             Ok(Some(chunk)) => {
-                let room = PROBE_PREFIX_BYTES - body.len();
+                let room = limit - body.len();
                 body.extend_from_slice(&chunk[..chunk.len().min(room)]);
             }
             _ => break,
         }
     }
-    !challenge_detected(status, &headers, &body)
+    if require_pdf {
+        body.starts_with(b"%PDF-")
+    } else {
+        !challenge_detected(status, &headers, &body)
+    }
 }
 
 /// Install (or replace) the host hook that opens the verification window.

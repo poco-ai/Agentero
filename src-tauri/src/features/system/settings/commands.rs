@@ -181,12 +181,13 @@ fn site_cookie_header(cookies: &[tauri::webview::Cookie<'static>], host: &str) -
         .join("; ")
 }
 
-/// Whether the captured cookies get past the site's wall: OpenReview has a
-/// cheap forum probe; other sites are probed at the exact URL that was blocked
-/// (response headers plus a bounded body prefix only, so a PDF probe does not
-/// download the file).
-async fn verify_cookie(url: &Url, cookie: &str) -> bool {
-    if is_openreview_url(url) {
+/// Probe the blocked URL with a bounded response prefix. The Settings
+/// entry has no target PDF, so it uses OpenReview's public forum probe.
+async fn verify_cookie(url: &Url, cookie: &str, require_pdf: bool) -> bool {
+    if require_pdf {
+        return web_verify::probe_pdf_cookie(url.as_str(), cookie).await;
+    }
+    if is_openreview_url(url) && url.path() == "/challenge" {
         return openreview::probe_openreview_auth(cookie).await.is_ok();
     }
     web_verify::probe_cookie(url.as_str(), cookie).await
@@ -198,7 +199,19 @@ async fn verify_cookie(url: &Url, cookie: &str) -> bool {
 #[tauri::command]
 #[specta::specta]
 pub async fn openreview_auth_login_open(app: AppHandle) -> Result<bool, String> {
-    Ok(verify_window(app, None, None).await)
+    Ok(verify_window(app, None, None, false).await)
+}
+
+/// Verify a download URL selected from the paper catalog.
+pub(crate) async fn verify_openreview_pdf(app: AppHandle, url: Url) -> bool {
+    static INTERACTIVE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _guard = INTERACTIVE.lock().await;
+    if let Some(cookie) = openreview::cookie_header_for(url.as_str()) {
+        if verify_cookie(&url, &cookie, true).await {
+            return true;
+        }
+    }
+    verify_window(app, Some(url.into()), Some(VERIFICATION_AUTO_TIMEOUT), true).await
 }
 
 /// Shared entry for the Settings button and the challenge hook. `target` is
@@ -209,8 +222,16 @@ async fn verify_window(
     app: AppHandle,
     target: Option<String>,
     timeout: Option<std::time::Duration>,
+    require_pdf: bool,
 ) -> bool {
-    let window_url = verification_url(target.as_deref());
+    let target = verification_url(target.as_deref());
+    // API attachment endpoints return JSON when challenged. The verification
+    // window must navigate to the site's HTML challenge page in that case.
+    let window_url = if require_pdf {
+        verification_url(None)
+    } else {
+        target.clone()
+    };
     let Some(host) = window_url.host_str().map(str::to_string) else {
         return false;
     };
@@ -242,13 +263,14 @@ async fn verify_window(
             return false;
         }
     }
-    monitor_verification(app, window_url, timeout).await
+    monitor_verification(app, target, timeout, require_pdf).await
 }
 
 async fn monitor_verification(
     app: AppHandle,
     target: Url,
     timeout: Option<std::time::Duration>,
+    require_pdf: bool,
 ) -> bool {
     use std::time::Instant;
 
@@ -280,7 +302,7 @@ async fn monitor_verification(
         last_probe = Some(cookie.clone());
         // Interstitials set unrelated cookies of their own; only a probe that
         // reaches the site's content proves the credential.
-        if !verify_cookie(&target, &cookie).await {
+        if !verify_cookie(&target, &cookie, require_pdf).await {
             continue;
         }
         // The same captured cookie has to be visible to the download and
@@ -312,7 +334,7 @@ pub fn install_web_verification_hook(app: AppHandle) {
         let app = app.clone();
         Box::pin(async move {
             let target = Some(url.clone());
-            let _ = verify_window(app, target, Some(VERIFICATION_AUTO_TIMEOUT)).await;
+            let _ = verify_window(app, target, Some(VERIFICATION_AUTO_TIMEOUT), false).await;
             // A concurrent waiter may have completed the same window; the
             // stored credential is the shared outcome either way.
             openreview::cookie_header_for(&url).or_else(|| web_verify::cookie_header_for(&url))

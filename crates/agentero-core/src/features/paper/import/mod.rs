@@ -27,7 +27,7 @@ pub use crate::features::paper::capabilities::{has_local_pdf, has_local_tex};
 pub use download::{
     download_paper_assets, download_paper_assets_with_progress, ensure_paper_assets,
     ensure_paper_assets_with_cookies, ensure_paper_assets_with_progress, AssetDownloadResult,
-    AssetProgressContext,
+    AssetProgressContext, OpenReviewPdfIssue,
 };
 // Stable top-level API for the desktop connector (`integration/connector`):
 // commit pipeline entry point + policies. Consumers must not reach into the
@@ -257,6 +257,8 @@ pub struct LookupImportResult {
     /// Download / parse messages (for UI warnings).
     #[serde(default)]
     pub asset_messages: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub openreview_pdf_issue: Option<OpenReviewPdfIssue>,
     /// `Deduped` when the paper already existed and (for local PDFs) the PDF
     /// was merged into the existing entry instead of creating a duplicate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -373,6 +375,12 @@ pub async fn import_by_identifier_with_progress(
     )
     .await?;
     check_task_not_cancelled(args.task_id.as_deref())?;
+    if commit.status == paper_import::CommitStatus::Deduped
+        && commit.pdf
+        && sources::openreview::forum_url(text).is_some()
+    {
+        webpage::fill_openreview_metadata(&vault, &commit.path).await;
+    }
     // A webpage entry is only "readable offline" once its snapshot exists;
     // dedupe of an older URL-only entry repairs it here.
     let snapshot_written =
@@ -393,6 +401,7 @@ pub async fn import_by_identifier_with_progress(
             messages.extend(notices);
             messages
         },
+        openreview_pdf_issue: commit.openreview_pdf_issue,
         status: Some(commit.status),
         recognize_pending: false,
         preparation: commit.preparation,
@@ -961,6 +970,7 @@ async fn import_one_local_pdf(
         tex: commit.tex,
         paper_md: commit.paper_md,
         asset_messages: commit.asset_messages,
+        openreview_pdf_issue: commit.openreview_pdf_issue,
         status: Some(commit.status),
         recognize_pending,
         preparation,
@@ -1120,7 +1130,23 @@ pub async fn resolve_metadata(
         }
         Err(failure) => webpage::recover_metadata(text, translator_base, task_id, failure).await?,
     };
-    if let Some(request) = crate::features::scholar_api::identifiers::extract_arxiv_request(text) {
+    if let Some((id, forum)) = sources::openreview::forum_url(text) {
+        // A successful Translator response may describe the gate or label a forum as a webpage.
+        if sources::openreview::is_verification_title(&resolved.record.title) {
+            resolved.record = sources::openreview::url_only_record(&id, forum);
+            resolved.used_translator = false;
+        } else {
+            resolved.record.paper_type = PaperKind::Pdf;
+            if resolved.record.zotero_item_type.as_deref() == Some("webpage") {
+                resolved.record.zotero_item_type = Some("conferencePaper".into());
+            }
+            resolved.record.pdf_url = sources::openreview::pdf_url(forum.as_str());
+            resolved.record.source_url = Some(forum.into());
+        }
+        resolved.page_snapshot = PageSnapshotPlan::Skip;
+    } else if let Some(request) =
+        crate::features::scholar_api::identifiers::extract_arxiv_request(text)
+    {
         resolved.record.arxiv_id = Some(strip_arxiv_version(&request));
         let urls = crate::features::scholar_api::urls::arxiv_canonical_urls(&request);
         resolved.record.pdf_url = Some(urls.pdf);

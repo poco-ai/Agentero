@@ -84,18 +84,25 @@ pub struct PageSnapshot {
 /// here before the first request; a challenge that still comes back asks the
 /// Host to verify (a popup on this exact URL) and replays once.
 pub async fn fetch_page(url: &str) -> Result<FetchedPage, AppError> {
+    fetch_page_with_verification(url, true).await
+}
+
+pub(crate) async fn fetch_page_with_verification(
+    url: &str,
+    interactive: bool,
+) -> Result<FetchedPage, AppError> {
     let url = url.trim();
     if !is_web_url(url) {
         return Err(AppError::message("page.url"));
     }
     let client = http::browser_client(PAGE_TIMEOUT)?;
     let mut page = get(&client, url, stored_cookie(url).as_deref()).await?;
-    if verification_wall(&page) {
+    if interactive && verification_wall(&page) {
         let _ = web_verify::request_auth(url.to_string()).await;
         page = get(&client, url, stored_cookie(url).as_deref()).await?;
-        if verification_wall(&page) {
-            return Err(verification_error(url));
-        }
+    }
+    if verification_wall(&page) {
+        return Err(verification_error(url));
     }
     if page.status == 403 && http::looks_like_js_challenge(&page.body) {
         page = get(&client, url, None).await?;

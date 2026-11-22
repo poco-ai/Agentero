@@ -248,6 +248,16 @@ const LIFECYCLE_PHASES: ReadonlySet<string> = new Set([
 	"dependency failed",
 ]);
 
+export function jobFailureMessage(job: JobChangedSnapshot): string | undefined {
+	const error = job.error?.trim();
+	if (error && job.kind === "downloadAssets" && job.phase) {
+		return i18n.t(`app:openreviewDownload.${job.phase}`, {
+			defaultValue: error,
+		});
+	}
+	return error || undefined;
+}
+
 /**
  * The job's status text: executors report their localized phase (the legacy
  * `setDetail`), which the row shows while running and keeps once settled.
@@ -595,7 +605,7 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 			return;
 		case "failed":
 			rememberFinishedJob(job.id);
-			failBackgroundTask(job.id, job.error?.trim() || title);
+			failBackgroundTask(job.id, jobFailureMessage(job) || title);
 			clearTaskSubject(job.id);
 			releaseJobCancellation(job.id);
 			return;

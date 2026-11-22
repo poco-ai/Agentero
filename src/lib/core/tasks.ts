@@ -34,6 +34,7 @@ import {
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
 import {
+	jobFailureMessage,
 	jobReport,
 	registerJobExecutor,
 	requestJobCancel,
@@ -348,12 +349,19 @@ export async function enqueueTaskSettled(spec: TaskSpec): Promise<JobSnapshot> {
 	return awaitTaskSettled(await enqueueTask(spec));
 }
 
+export class JobFailedError extends Error {
+	constructor(readonly job: JobSnapshot) {
+		super(jobFailureMessage(job) || i18n.t("app:tasks.failed"));
+		this.name = "JobFailedError";
+	}
+}
+
 /** Settle an already-enqueued job (for callers that need the job id first). */
 export async function awaitTaskSettled(job: JobSnapshot): Promise<JobSnapshot> {
 	const terminal = await terminalSnapshot(job);
 	if (terminal.state === "cancelled") throw new BackgroundTaskCancelledError();
 	if (terminal.state === "failed") {
-		throw new Error(terminal.error?.trim() || i18n.t("app:tasks.failed"));
+		throw new JobFailedError(terminal);
 	}
 	return terminal;
 }

@@ -359,6 +359,8 @@ export const commands = {
 	 *  origin was unreachable or behind a WAF.
 	 */
 	paperRecaptureWebpage: (vaultPath: string, path: string) => typedError<ApiResult<WebpageSnapshotResult>, string>(__TAURI_INVOKE("paper_recapture_webpage", { vaultPath, path })),
+	/**  Verify access to a PDF on the catalog entry the user chose to retry. */
+	paperVerifyOpenreviewPdf: (vaultPath: string, path: string) => typedError<OpenReviewPdfVerification, string>(__TAURI_INVOKE("paper_verify_openreview_pdf", { vaultPath, path })),
 	/**
 	 *  Seed `{vault}/.agentero/templates/NOTES.md` with a starting template for
 	 *  the `custom` paper-note mode. Never overwrites an existing template.
@@ -4257,6 +4259,7 @@ export type LookupImportResult_Deserialize = {
 	paperMd?: boolean,
 	/**  Download / parse messages (for UI warnings). */
 	assetMessages?: string[],
+	openreviewPdfIssue: OpenReviewPdfIssue | null,
 	/**
 	 *  `Deduped` when the paper already existed and (for local PDFs) the PDF
 	 *  was merged into the existing entry instead of creating a duplicate.
@@ -4286,6 +4289,7 @@ export type LookupImportResult_Serialize = {
 	paperMd: boolean,
 	/**  Download / parse messages (for UI warnings). */
 	assetMessages: string[],
+	openreviewPdfIssue?: OpenReviewPdfIssue | null,
 	/**
 	 *  `Deduped` when the paper already existed and (for local PDFs) the PDF
 	 *  was merged into the existing entry instead of creating a duplicate.
@@ -4433,6 +4437,14 @@ export type OpenInTerminalResult = {
 	cwd: string,
 };
 
+/**  Why the OpenReview PDF is still missing after trying available sources. */
+export type OpenReviewPdfIssue = "verificationRequired" | "rateLimited" | "network" | "unavailable" | "downloadFailed";
+
+export type OpenReviewPdfVerification = {
+	verified: boolean,
+	url: string,
+};
+
 export type OpenWithApp = {
 	/**  Stable id used by `path_open_with`. */
 	id: string,
@@ -4482,6 +4494,7 @@ export type PaperCommitResult = {
 	tex: boolean,
 	paperMd: boolean,
 	assetMessages: string[],
+	openreviewPdfIssue: OpenReviewPdfIssue | null,
 	/**  True when assets are still downloading in the background (`Deferred`). */
 	assetsPending: boolean,
 };

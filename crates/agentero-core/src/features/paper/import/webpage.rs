@@ -7,7 +7,7 @@
 //! also get a readable offline snapshot — see [`super::page_snapshot`].
 
 use crate::error::AppError;
-use crate::features::paper::catalog::papers::{PaperKind, PaperRecord};
+use crate::features::paper::catalog::papers::{self, PaperKind, PaperRecord};
 use crate::features::paper::discovery::coolpapers::decode_entities;
 use crate::features::paper::import::api_mapper::{api_paper_to_meta, enrich_remote_urls};
 use crate::features::scholar_api::identifiers::{
@@ -207,7 +207,9 @@ async fn import_webpage(
     failure: &TranslatorFailure,
 ) -> Result<ResolvedMetadata, AppError> {
     check_task_not_cancelled(task_id)?;
-    let fetched = page_snapshot::fetch_page(url).await;
+    let forum = sources::openreview::forum_url(url);
+    let page_url = forum.as_ref().map_or(url, |(_, url)| url.as_str());
+    let fetched = page_snapshot::fetch_page_with_verification(page_url, forum.is_none()).await;
     let (record, snapshot, mode) = match fetched {
         Ok(page) => {
             let parsed = record_from_html(&page.final_url, &parse_prefix(&page.html));
@@ -222,6 +224,9 @@ async fn import_webpage(
                     record.pdf_url = sources::openreview::pdf_url(&page.final_url);
                 }
                 if record.pdf_url.is_some() {
+                    if let Some((_, forum)) = forum.as_ref() {
+                        record.source_url = Some(forum.to_string());
+                    }
                     record.paper_type = PaperKind::Pdf;
                     record.zotero_item_type = Some("conferencePaper".into());
                     let notice = format!(
@@ -247,6 +252,15 @@ async fn import_webpage(
             let snapshot =
                 page_snapshot::snapshot_from_html(&page.html, &page.final_url, &record.title);
             (record, Some(snapshot), "page")
+        }
+        Err(_) if forum.is_some() => {
+            let (id, forum) = forum.expect("OpenReview paper URL checked above");
+            return Ok(ResolvedMetadata {
+                record: sources::openreview::url_only_record(&id, forum),
+                used_translator: false,
+                notices: Vec::new(),
+                page_snapshot: PageSnapshotPlan::Skip,
+            });
         }
         // The verification window never produced a working cookie: fail the
         // import with the actionable reason instead of archiving the challenge
@@ -307,8 +321,77 @@ pub(crate) fn page_snapshot_url(record: &PaperRecord) -> Option<String> {
         .map(str::to_string)
 }
 
-/// When the page itself carries a DOI that was not already in the URL, ask
-/// the direct-connect chain once. A chain failure keeps the page metadata.
+/// Fill bibliographic fields and verified preprint links on an OpenReview entry.
+pub(crate) async fn fill_openreview_metadata(vault: &std::path::Path, path: &str) {
+    let Ok(Some(mut record)) = papers::get_by_path(vault, path) else {
+        return;
+    };
+    let Some(url) = record
+        .source_url
+        .as_deref()
+        .and_then(sources::openreview::forum_url)
+        .map(|(_, url)| url)
+    else {
+        return;
+    };
+    if is_openreview_stub(&record) {
+        let Ok(page) = page_snapshot::fetch_page_with_verification(url.as_str(), false).await
+        else {
+            return;
+        };
+        let meta = record_from_html(&page.final_url, &parse_prefix(&page.html));
+        if meta.authors.is_empty()
+            || meta.title.trim().is_empty()
+            || sources::openreview::is_verification_title(&meta.title)
+        {
+            return;
+        }
+        let original = record.source_url.as_deref();
+        let Ok(updated) = papers::mutate_paper(vault, path, |current| {
+            if is_openreview_stub(current) && current.source_url.as_deref() == original {
+                current.title = meta.title;
+                current.authors = meta.authors;
+                current.abstract_text = meta.abstract_text;
+                current.year = meta.year;
+                current.date = meta.date;
+                current.publication = meta.publication;
+                current.doi = meta.doi;
+                current.arxiv_id = meta.arxiv_id;
+                current.meta_source = Some("webpage".into());
+            }
+            Ok(())
+        }) else {
+            return;
+        };
+        record = updated;
+    }
+
+    let Some(id) = sources::openreview::matching_arxiv_id(&record).await else {
+        return;
+    };
+    let _ = papers::mutate_paper(vault, path, |current| {
+        if current.source_url == record.source_url
+            && current.title == record.title
+            && current.authors == record.authors
+            && current.arxiv_id.is_none()
+        {
+            current.arxiv_id = Some(id);
+        }
+        Ok(())
+    });
+}
+
+fn is_openreview_stub(record: &PaperRecord) -> bool {
+    record.meta_source.as_deref() == Some("openreview_url")
+        || (record.meta_source.as_deref() != Some("manual")
+            && sources::openreview::is_verification_title(&record.title)
+            && record
+                .source_url
+                .as_deref()
+                .and_then(sources::openreview::forum_url)
+                .is_some())
+}
+
 async fn enrich_page_record(
     page: PaperRecord,
     page_url: &str,
