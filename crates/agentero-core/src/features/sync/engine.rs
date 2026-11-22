@@ -1002,6 +1002,19 @@ async fn ensure_mirror_identity<S: RemoteStore>(vault: &Path, client: &S) -> Res
     Ok(())
 }
 
+/// Per-mirror pass state. Progress phases stay vault-level (both passes share
+/// them), so the host gets one event per mirror instead of a phase stream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MirrorPhase {
+    Started,
+    Published,
+    Failed,
+}
+
+/// Called once per mirror pass: `(index, mirror, phase, error)`.
+pub type MirrorWatch<'a> =
+    &'a (dyn Fn(usize, &SyncBackendConfig, MirrorPhase, Option<&str>) + Send + Sync);
+
 /// One pass under the vault lock: the authoritative primary, then every
 /// configured mirror in order.
 ///
@@ -1013,22 +1026,32 @@ pub async fn sync_all_locked(
     lock: &super::lock::SyncLock,
     cfg: &config::VaultSyncConfig,
     progress: Progress<'_>,
+    watch: Option<MirrorWatch<'_>>,
 ) -> Result<SyncOutcome, AppError> {
     let outcome = sync_vault_locked(lock, &cfg.primary, progress).await?;
     let vault = lock.vault();
-    for mirror in &cfg.mirrors {
+    for (index, mirror) in cfg.mirrors.iter().enumerate() {
         // Scope is a whole-vault policy: a mirror always publishes exactly what
         // the primary does, so a stale mirror binding cannot shrink the copy.
         let mut mirror_cfg = mirror.clone();
         mirror_cfg.scope = cfg.primary.scope;
+        if let Some(watch) = watch {
+            watch(index, &mirror_cfg, MirrorPhase::Started, None);
+        }
         if let Err(error) = publish_mirror(vault, &mirror_cfg, progress).await {
             let state_dir = local::mirror_dir(vault, &config::backend_identity(&mirror_cfg));
-            local::record_error_at(&state_dir, &error.to_string());
+            let message = error.to_string();
+            local::record_error_at(&state_dir, &message);
             log::warn!(
                 target: "agentero::sync",
                 "mirror pass failed backend={:?}: {error}",
                 mirror.backend
             );
+            if let Some(watch) = watch {
+                watch(index, &mirror_cfg, MirrorPhase::Failed, Some(&message));
+            }
+        } else if let Some(watch) = watch {
+            watch(index, &mirror_cfg, MirrorPhase::Published, None);
         }
     }
     Ok(outcome)

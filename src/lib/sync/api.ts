@@ -6,6 +6,7 @@
 import {
 	commands,
 	type SyncBackendConfig as SyncBackendConfigWire,
+	type SyncMirrorEvent_Deserialize,
 	type SyncStateEvent_Deserialize,
 	type SyncStatus_Serialize,
 } from "@/lib/core/bindings";
@@ -91,6 +92,15 @@ export type SyncOutcome = {
 
 /** `sync:state` payload comes straight from the generated wire contract. */
 export type SyncStateEvent = SyncStateEvent_Deserialize;
+
+/** `sync:mirror` payload: one event per mirror pass (started → published | error). */
+export type SyncMirrorEvent = SyncMirrorEvent_Deserialize;
+
+export type SyncMirrorPhase = "started" | "published" | "error";
+
+export function isSyncMirrorPhase(value: string): value is SyncMirrorPhase {
+	return value === "started" || value === "published" || value === "error";
+}
 
 /** `sync:progress` phases; the wire payload types `phase` as a plain string. */
 export type SyncPhase = "scan" | "pull" | "download" | "upload" | "finalize";

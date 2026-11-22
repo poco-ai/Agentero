@@ -75,6 +75,33 @@ struct SyncProgressEvent<'a> {
     total: usize,
 }
 
+/// Per-mirror pass state. Progress phases stay vault-level, so a mirror run is
+/// reported as one `started` → `published` | `error` pair instead.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncMirrorEvent<'a> {
+    vault_path: &'a str,
+    /// Zero-based position in the vault's mirror list (matches
+    /// `SyncStatus.mirrors[]` while the saved binding is unchanged).
+    index: usize,
+    /// `SyncBackendConfig::remote_identity` — matches `SyncStatus.mirrors[].config`.
+    identity: &'a str,
+    backend: &'a str,
+    /// `started` | `published` | `error`.
+    status: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<&'a str>,
+}
+
+fn backend_label(backend: config::SyncBackendKind) -> &'static str {
+    match backend {
+        config::SyncBackendKind::S3 => "s3",
+        config::SyncBackendKind::Webdav => "webdav",
+        config::SyncBackendKind::Git => "git",
+        config::SyncBackendKind::Agentero => "agentero",
+    }
+}
+
 pub fn account_api_origin() -> String {
     let local = cfg!(debug_assertions) && option_env!("AGENTERO_LOCAL_AUTH") == Some("1");
     if local {
@@ -298,7 +325,30 @@ pub async fn perform_sync(
             },
         );
     };
-    let result = engine::sync_all_locked(&lock, &binding, &progress).await;
+    let mirror_app = app.clone();
+    let mirror_key = vault_key.to_string();
+    let mirror_watch = move |index: usize,
+                             mirror: &config::SyncBackendConfig,
+                             phase: engine::MirrorPhase,
+                             error: Option<&str>| {
+        let status = match phase {
+            engine::MirrorPhase::Started => "started",
+            engine::MirrorPhase::Published => "published",
+            engine::MirrorPhase::Failed => "error",
+        };
+        let _ = mirror_app.emit(
+            "sync:mirror",
+            SyncMirrorEvent {
+                vault_path: &mirror_key,
+                index,
+                identity: &mirror.remote_identity(),
+                backend: backend_label(mirror.backend),
+                status,
+                error,
+            },
+        );
+    };
+    let result = engine::sync_all_locked(&lock, &binding, &progress, Some(&mirror_watch)).await;
     drop(lock);
     // Terminal event consumers immediately re-read status; release first.
     drop(lease);
@@ -468,9 +518,10 @@ fn emit_state(app: &AppHandle, vault_path: &str, status: &str, error: Option<Str
 /// type-bound.
 #[cfg(test)]
 mod events_contract_shape_tests {
-    use super::{SyncProgressEvent, SyncStateEvent};
+    use super::{SyncMirrorEvent, SyncProgressEvent, SyncStateEvent};
     use crate::app::events_contract::{
-        SyncProgressEvent as MirrorSyncProgress, SyncStateEvent as MirrorSyncState,
+        SyncMirrorEvent as MirrorSyncMirror, SyncProgressEvent as MirrorSyncProgress,
+        SyncStateEvent as MirrorSyncState,
     };
 
     #[test]
@@ -529,5 +580,51 @@ mod events_contract_shape_tests {
         fn eq_type<T>(_: &T, _: &T) {}
         eq_type(&real.current, &mirror.current);
         eq_type(&real.total, &mirror.total);
+    }
+
+    #[test]
+    fn sync_mirror_mirror_matches_emit_payload_shape() {
+        let real = SyncMirrorEvent {
+            vault_path: "/vault",
+            index: 0,
+            identity: "git|git@example.com:me/vault.git|main",
+            backend: "git",
+            status: "error",
+            error: Some("push rejected"),
+        };
+        let mirror = MirrorSyncMirror {
+            vault_path: "/vault".to_string(),
+            index: 0,
+            identity: "git|git@example.com:me/vault.git|main".to_string(),
+            backend: "git".to_string(),
+            status: "error".to_string(),
+            error: Some("push rejected".to_string()),
+        };
+        assert_eq!(
+            serde_json::to_value(&real).unwrap(),
+            serde_json::to_value(&mirror).unwrap(),
+            "SyncMirrorEvent mirror drifted from the emitted payload"
+        );
+        let real_none = SyncMirrorEvent {
+            vault_path: "/vault",
+            index: 0,
+            identity: "git|git@example.com:me/vault.git|main",
+            backend: "git",
+            status: "published",
+            error: None,
+        };
+        let mirror_none = MirrorSyncMirror {
+            vault_path: "/vault".to_string(),
+            index: 0,
+            identity: "git|git@example.com:me/vault.git|main".to_string(),
+            backend: "git".to_string(),
+            status: "published".to_string(),
+            error: None,
+        };
+        assert_eq!(
+            serde_json::to_value(&real_none).unwrap(),
+            serde_json::to_value(&mirror_none).unwrap(),
+            "SyncMirrorEvent mirror drifted from the emitted payload (None variant)"
+        );
     }
 }

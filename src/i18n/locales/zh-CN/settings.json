@@ -1191,6 +1191,7 @@
 		"mirrorNeverPublished": "尚未发布",
 		"mirrorLastPublished": "上次发布于 {{time}}",
 		"mirrorError": "上次发布失败",
+		"mirrorPublishing": "正在发布…",
 		"backendLocked": "切换存储后端前请先解绑。",
 		"serverUrl": "服务器地址",
 		"username": "用户名",

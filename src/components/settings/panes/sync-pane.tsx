@@ -64,6 +64,7 @@ import { toSafeDisposer } from "@/lib/core/tauri-events";
 import { cn } from "@/lib/core/utils";
 import {
 	emptySyncConfig,
+	isSyncMirrorPhase,
 	isSyncProgressPhase,
 	SYNC_INTERVAL_CHOICES,
 	type SyncBackendConfig,
@@ -247,6 +248,14 @@ function VaultSyncForm({
 	const [scopeSizes, setScopeSizes] = useState<SyncScopeSizes | null>(null);
 	const [mirrors, setMirrors] = useState<SyncBackendConfig[]>([]);
 	const [mirrorsDirty, setMirrorsDirty] = useState(false);
+	// Live per-mirror state from `sync:mirror`, replaced by the persisted
+	// `lastSyncAt` / `lastError` on the next status refresh.
+	const [mirrorLive, setMirrorLive] = useState<
+		Record<
+			number,
+			{ status: "started" | "published" | "error"; error?: string }
+		>
+	>({});
 	const [activeOrgId, setActiveOrgId] = useState("");
 	const cloudSubject =
 		form.agenteroSubject === "organization" ? "organization" : "user";
@@ -320,6 +329,7 @@ function VaultSyncForm({
 					);
 					if (payload.status !== "syncing") {
 						setProgress(null);
+						setMirrorLive({});
 						void refresh().catch(() => undefined);
 					}
 				}),
@@ -329,6 +339,23 @@ function VaultSyncForm({
 					const { vaultPath, phase, current, total } = event.payload;
 					if (vaultPath === localVault && isSyncProgressPhase(phase)) {
 						setProgress({ vaultPath, phase, current, total });
+					}
+				}),
+			),
+			toSafeDisposer(
+				events.syncMirror.listen((event) => {
+					const payload = event.payload;
+					if (payload.vaultPath !== localVault) return;
+					if (!isSyncMirrorPhase(payload.status)) return;
+					setMirrorLive((prev) => ({
+						...prev,
+						[payload.index]: {
+							status: payload.status as "started" | "published" | "error",
+							error: payload.error ?? undefined,
+						},
+					}));
+					if (payload.status !== "started") {
+						void refresh().catch(() => undefined);
 					}
 				}),
 			),
@@ -930,6 +957,7 @@ function VaultSyncForm({
 			<MirrorSection
 				mirrors={mirrors}
 				statuses={status?.mirrors ?? []}
+				live={mirrorLive}
 				onChange={(next) => {
 					setMirrorsDirty(true);
 					setMirrors(next);
@@ -986,10 +1014,15 @@ function sameMirrorTarget(a: SyncBackendConfig, b: SyncBackendConfig): boolean {
 function MirrorSection({
 	mirrors,
 	statuses,
+	live,
 	onChange,
 }: {
 	mirrors: SyncBackendConfig[];
 	statuses: SyncMirrorStatus[];
+	live: Record<
+		number,
+		{ status: "started" | "published" | "error"; error?: string }
+	>;
 	onChange: (next: SyncBackendConfig[]) => void;
 }) {
 	const { t } = useTranslation("settings");
@@ -1032,18 +1065,32 @@ function MirrorSection({
 					const status = statuses.find((entry) =>
 						sameMirrorTarget(entry.config, mirror),
 					);
-					const dot = status?.lastError
-						? "bg-destructive"
-						: status?.lastSyncAt
-							? "bg-emerald-500"
-							: "bg-muted-foreground/35";
-					const statusLabel = status?.lastError
-						? t("sync.mirrorError")
-						: status?.lastSyncAt
-							? t("sync.mirrorLastPublished", {
-									time: formatLocaleTimestamp(status.lastSyncAt),
-								})
-							: t("sync.mirrorNeverPublished");
+					const liveState = live[index];
+					const liveStatus = liveState?.status;
+					const dot =
+						liveStatus === "error" || status?.lastError
+							? "bg-destructive"
+							: liveStatus === "started"
+								? "bg-sky-500"
+								: liveStatus === "published" || status?.lastSyncAt
+									? "bg-emerald-500"
+									: "bg-muted-foreground/35";
+					const statusLabel =
+						liveStatus === "started"
+							? t("sync.mirrorPublishing")
+							: liveStatus === "error"
+								? (liveState?.error ?? t("sync.mirrorError"))
+								: status?.lastError
+									? t("sync.mirrorError")
+									: status?.lastSyncAt
+										? t("sync.mirrorLastPublished", {
+												time: formatLocaleTimestamp(status.lastSyncAt),
+											})
+										: t("sync.mirrorNeverPublished");
+					const statusTitle =
+						liveStatus === "error"
+							? (liveState?.error ?? statusLabel)
+							: (status?.lastError ?? statusLabel);
 					return (
 						<div
 							// biome-ignore lint/suspicious/noArrayIndexKey: controlled rows, append/remove only
@@ -1082,7 +1129,7 @@ function MirrorSection({
 								<span
 									role="status"
 									aria-label={statusLabel}
-									title={status?.lastError ?? statusLabel}
+									title={statusTitle}
 									className={cn("size-2 rounded-full", dot)}
 								/>
 								<span className="text-muted-foreground text-xs">

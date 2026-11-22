@@ -926,6 +926,7 @@ export const events = {
 	settingsChanged: makeEvent<SettingsChangedEvent_Deserialize>("settings:changed"),
 	settingsSectionRequested: makeEvent<SettingsSectionRequestedEvent>("settings:section-requested"),
 	settingsVaultRequested: makeEvent<SettingsVaultRequestedEvent>("settings:vault-requested"),
+	syncMirror: makeEvent<SyncMirrorEvent_Deserialize>("sync:mirror"),
 	syncProgress: makeEvent<SyncProgressEvent>("sync:progress"),
 	syncState: makeEvent<SyncStateEvent_Deserialize>("sync:state"),
 	uiRequest: makeEvent<UiRequestEvent_Deserialize>("ui:request"),
@@ -6036,6 +6037,40 @@ export type SyncConflict = {
 	paperPath: string,
 	title: string,
 	reason: string,
+};
+
+/**
+ *  Owned mirror of the private borrowed `SyncMirrorEvent` in
+ *  `integration::sync::commands` (`started` / `published` / `error` per mirror).
+ */
+export type SyncMirrorEvent = SyncMirrorEvent_Serialize | SyncMirrorEvent_Deserialize;
+
+/**
+ *  Owned mirror of the private borrowed `SyncMirrorEvent` in
+ *  `integration::sync::commands` (`started` / `published` / `error` per mirror).
+ */
+export type SyncMirrorEvent_Deserialize = {
+	vaultPath: string,
+	/**  Zero-based position in the vault's mirror list. */
+	index: number,
+	identity: string,
+	backend: string,
+	status: string,
+	error?: string | null,
+};
+
+/**
+ *  Owned mirror of the private borrowed `SyncMirrorEvent` in
+ *  `integration::sync::commands` (`started` / `published` / `error` per mirror).
+ */
+export type SyncMirrorEvent_Serialize = {
+	vaultPath: string,
+	/**  Zero-based position in the vault's mirror list. */
+	index: number,
+	identity: string,
+	backend: string,
+	status: string,
+	error?: string | null,
 };
 
 /**  One read-only mirror and its last pass result. */

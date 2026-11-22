@@ -1191,6 +1191,7 @@
 		"mirrorNeverPublished": "Not published yet",
 		"mirrorLastPublished": "Last published {{time}}",
 		"mirrorError": "Last publish failed",
+		"mirrorPublishing": "Publishing…",
 		"backendLocked": "Disconnect before switching the storage backend.",
 		"serverUrl": "Server URL",
 		"username": "Username",

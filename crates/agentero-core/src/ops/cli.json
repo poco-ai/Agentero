@@ -2345,11 +2345,17 @@
 		"stability": "internal",
 		"online": true,
 		"about": "执行一次双向同步",
-		"example": "agentero sync run",
+		"example": "agentero sync run --backend all",
 		"result": "SyncRun",
-		"args": [],
+		"args": [
+			{
+				"name": "backend",
+				"help": "只运行指定后端：all（默认，主后端加全部镜像）、primary，或镜像序号 1..N",
+				"help_en": "Run one backend only: all (default: primary plus every mirror), primary, or a mirror index 1..N"
+			}
+		],
 		"about_en": "Run a bidirectional sync pass",
-		"behavior": "返回上传、下载、冲突副本与可重试项；争用同步锁返回 busy。",
+		"behavior": "返回上传、下载、冲突副本与可重试项；争用同步锁返回 busy。默认按主后端加每个镜像串行执行，--backend 只跑其中一个。",
 		"returns": "SyncRun · uploaded, downloaded, conflicts, errors"
 	},
 	{

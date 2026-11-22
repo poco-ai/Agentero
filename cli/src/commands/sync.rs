@@ -93,10 +93,52 @@ fn sync_not_configured() -> CliError {
     )
 }
 
+/// Short backend name used by all CLI JSON payloads.
+fn backend_label(backend: SyncBackendKind) -> &'static str {
+    match backend {
+        SyncBackendKind::S3 => "s3",
+        SyncBackendKind::Webdav => "webdav",
+        SyncBackendKind::Git => "git",
+        SyncBackendKind::Agentero => "agentero",
+    }
+}
+
+/// Human-readable remote of one binding (never contains a secret).
+fn location_of(cfg: &SyncBackendConfig) -> String {
+    match cfg.backend {
+        SyncBackendKind::S3 => format!("{}/{}", cfg.endpoint, cfg.bucket),
+        SyncBackendKind::Webdav => cfg.webdav_url.clone(),
+        SyncBackendKind::Git => cfg.git_remote.clone(),
+        SyncBackendKind::Agentero => cfg.agentero_api.clone(),
+    }
+}
+
 fn status(vault: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
     let (key, cfg) = entry_for(vault);
+    let binding = binding_for(vault).1;
     let meta = local::read_meta(vault)?;
     let style = globals.style;
+
+    // Mirrors are read-only copies; they have their own state and errors.
+    let mirrors: Vec<Value> = binding
+        .as_ref()
+        .map(|binding| {
+            binding
+                .mirrors
+                .iter()
+                .map(|mirror| {
+                    let state = engine::mirror_state(vault, mirror);
+                    json!({
+                        "backend": backend_label(mirror.backend),
+                        "location": location_of(mirror),
+                        "lastSyncAt": state.last_sync_at,
+                        "lastVersion": state.last_version,
+                        "lastError": state.last_error,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
 
     let mut v = json!({
         "vault": key,
@@ -104,6 +146,7 @@ fn status(vault: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
         "lastSyncAt": meta.last_sync_at,
         "lastVersion": meta.last_version,
         "lastError": meta.last_error,
+        "mirrors": mirrors,
     });
 
     let mut lines = Vec::new();
@@ -143,6 +186,22 @@ fn status(vault: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
     }
     if let (Some(obj), Some(cfg)) = (v.as_object_mut(), cfg) {
         obj.insert("config".into(), serde_json::to_value(cfg.masked())?);
+    }
+    if let Some(binding) = &binding {
+        for (index, mirror) in binding.mirrors.iter().enumerate() {
+            let state = engine::mirror_state(vault, mirror);
+            let target = format!("{} {}", backend_label(mirror.backend), location_of(mirror));
+            let detail = match (&state.last_error, &state.last_sync_at) {
+                (Some(error), _) => format!("{} ({})", style.error_label("failed"), error),
+                (None, Some(at)) => format!("{} v{}", style.dim(at), state.last_version),
+                (None, None) => style.dim("never published").to_string(),
+            };
+            lines.push(format!(
+                "{} {} {target} — {detail}",
+                style.key("mirror"),
+                index + 1
+            ));
+        }
     }
     if let Some(obj) = v.as_object_mut() {
         obj.insert("lines".into(), json!(lines));
@@ -428,7 +487,12 @@ async fn test(vault: &Path) -> Result<Value, CliError> {
     }))
 }
 
-async fn now(vault: &Path, progress_flag: bool, globals: &GlobalOpts) -> Result<Value, CliError> {
+async fn now(
+    vault: &Path,
+    selection: Option<&str>,
+    progress_flag: bool,
+    globals: &GlobalOpts,
+) -> Result<Value, CliError> {
     let lock = SyncLock::acquire(vault)?;
     let (_, binding) = binding_for(vault);
     let binding = binding.ok_or_else(sync_not_configured)?;
@@ -441,7 +505,23 @@ async fn now(vault: &Path, progress_flag: bool, globals: &GlobalOpts) -> Result<
         }
     };
 
-    let outcome = engine::sync_all_locked(&lock, &binding, &progress).await?;
+    let outcome = match selection.map(str::trim).filter(|s| !s.is_empty()) {
+        None | Some("all") => engine::sync_all_locked(&lock, &binding, &progress, None).await?,
+        Some("primary") => engine::sync_vault_locked(&lock, &binding.primary, &progress).await?,
+        Some(value) => {
+            let index = value
+                .parse::<usize>()
+                .ok()
+                .filter(|n| *n >= 1 && *n <= binding.mirrors.len())
+                .ok_or_else(|| {
+                    CliError::usage(format!(
+                        "unknown backend '{value}' (use all, primary, or a mirror index 1..{})",
+                        binding.mirrors.len()
+                    ))
+                })?;
+            engine::publish_mirror(vault, &binding.mirrors[index - 1], &progress).await?
+        }
+    };
     let style = globals.style;
     let mut v = serde_json::to_value(&outcome)?;
     if let Some(obj) = v.as_object_mut() {
@@ -486,14 +566,14 @@ pub async fn dispatch(route: &str, a: &Value, g: &GlobalOpts) -> Result<Value, C
         let (_, cfg) = entry_for(&vault);
         let (backend, location) = cfg
             .as_ref()
-            .map(|c| match c.backend {
-                SyncBackendKind::S3 => ("s3".to_string(), format!("{}/{}", c.endpoint, c.bucket)),
-                SyncBackendKind::Git => ("git".to_string(), c.git_remote.clone()),
-                SyncBackendKind::Webdav => ("webdav".to_string(), c.webdav_url.clone()),
-                SyncBackendKind::Agentero => ("agentero".to_string(), c.agentero_api.clone()),
-            })
+            .map(|c| (backend_label(c.backend).to_string(), location_of(c)))
             .unzip();
-        Ok(json!({"backend":backend,"location":location,"last_run":value["lastSyncAt"]}))
+        Ok(json!({
+            "backend": backend,
+            "location": location,
+            "last_run": value["lastSyncAt"],
+            "mirrors": value["mirrors"],
+        }))
     };
     match route {
         "sync status" => return state(),
@@ -502,7 +582,8 @@ pub async fn dispatch(route: &str, a: &Value, g: &GlobalOpts) -> Result<Value, C
             return Ok(json!({"ok":true,"checks":[{"outcome":"passed","id":"connection"}]}));
         }
         "sync run" => {
-            let r = now(&vault, false, g).await?;
+            let selected = a.get("backend").and_then(|v| v.as_str());
+            let r = now(&vault, selected, false, g).await?;
             return Ok(
                 json!({"uploaded":r["uploaded"],"downloaded":r["downloaded"],"conflicts":r["conflictCopies"],"errors":[]}),
             );

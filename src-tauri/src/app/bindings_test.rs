@@ -364,6 +364,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::app::events_contract::McpTunnelStatusEvent,
             crate::app::events_contract::SyncStateEvent,
             crate::app::events_contract::SyncProgressEvent,
+            crate::app::events_contract::SyncMirrorEvent,
             crate::app::events_contract::PaperImportedEvent,
             crate::app::events_contract::PaperAssetsReadyEvent,
             crate::app::events_contract::PaperRenamedEventPayload,
