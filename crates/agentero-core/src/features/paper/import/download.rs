@@ -1390,7 +1390,8 @@ pub(crate) async fn http_get_bytes_with_progress(
     // At most one interactive verification round-trip per request: a second
     // challenge is reported instead of re-opening the window in a loop.
     let mut verified = false;
-    loop {
+    let mut try_account = is_openreview;
+    'attempt: loop {
         // Verification cookies are process state, not page cookies: merge them
         // in for the matching hosts only (OpenReview keeps its own durable
         // credential; every other site keeps it for this session).
@@ -1404,10 +1405,22 @@ pub(crate) async fn http_get_bytes_with_progress(
         if let Some(cookie) = cookie.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
             request = request.header(reqwest::header::COOKIE, cookie);
         }
-        let mut res = request
-            .send()
-            .await
-            .map_err(|e| AppError::domain("download_network", format!("download: {e}")))?;
+        let account = if std::mem::take(&mut try_account) {
+            openreview::account_pdf_response(url, timeout).await
+        } else {
+            None
+        };
+        let used_account = account.is_some();
+        let mut res = match account {
+            Some(response) => response,
+            None => {
+                super::check_task_not_cancelled(task_id)?;
+                request
+                    .send()
+                    .await
+                    .map_err(|e| AppError::domain("download_network", format!("download: {e}")))?
+            }
+        };
         super::check_task_not_cancelled(task_id)?;
         if is_openreview
             && ((openreview::is_openreview_url(res.url().as_str())
@@ -1456,7 +1469,11 @@ pub(crate) async fn http_get_bytes_with_progress(
         // answer `Accept-Ranges: bytes`, so fetch large bodies as parallel ranges —
         // ~3x faster here, and each chunk retries on its own.
         if let Some(total) = total_bytes {
-            if total >= PARALLEL_MIN_BYTES && cookie.is_none() && supports_ranges(res.headers()) {
+            if total >= PARALLEL_MIN_BYTES
+                && !used_account
+                && cookie.is_none()
+                && supports_ranges(res.headers())
+            {
                 drop(res);
                 let bytes = fetch_bytes_parallel(&client, url, total, progress, task_id).await?;
                 progress.finish();
@@ -1465,11 +1482,21 @@ pub(crate) async fn http_get_bytes_with_progress(
         }
         let mut downloaded_bytes = 0_u64;
         let mut bytes = Vec::new();
-        while let Some(chunk) = res
-            .chunk()
-            .await
-            .map_err(|e| AppError::domain("download_network", format!("download body: {e}")))?
-        {
+        loop {
+            let chunk = match res.chunk().await {
+                Ok(Some(chunk)) => chunk,
+                Ok(None) => break,
+                Err(_) if used_account => {
+                    progress.restart();
+                    continue 'attempt;
+                }
+                Err(error) => {
+                    return Err(AppError::domain(
+                        "download_network",
+                        format!("download body: {error}"),
+                    ));
+                }
+            };
             if let Some(task_id) = task_id {
                 if super::is_task_cancelled(task_id) {
                     return Err(AppError::message("background task cancelled"));
@@ -1480,6 +1507,10 @@ pub(crate) async fn http_get_bytes_with_progress(
             // Per-chunk emits flood the webview event loop; the aggregator
             // throttles to percent moves / ≥100ms.
             progress.report(downloaded_bytes, total_bytes);
+        }
+        if used_account && !bytes.starts_with(b"%PDF") {
+            progress.restart();
+            continue;
         }
         // Settling always lands an event, even when the throttle just swallowed
         // the last chunk: the task bar must reach the final byte count.

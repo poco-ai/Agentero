@@ -27,7 +27,9 @@ export function openReviewPdfIssue(
 	return issues.find((issue) => issue === phase);
 }
 
-export function isOpenReviewDownloadFailure(error: unknown): boolean {
+export function isOpenReviewDownloadFailure(
+	error: unknown,
+): error is JobFailedError {
 	return (
 		error instanceof JobFailedError &&
 		error.job.kind === "downloadAssets" &&
@@ -75,49 +77,41 @@ export function notifyOpenReviewDownloadIssue(
 	issue: OpenReviewPdfIssue,
 ): void {
 	const id = `openreview:${vaultPath}:${path}`;
-	const verify = async () => {
+	const retry = async (verifyFirst: boolean) => {
 		if (getVaultPath() !== vaultPath || verifying.has(id)) return;
 		verifying.add(id);
 		try {
-			const { verified, url } = await callResult(() =>
-				commands.paperVerifyOpenreviewPdf(vaultPath, path),
-			);
-			if (getVaultPath() !== vaultPath) return;
-			if (verified) {
+			const verification = verifyFirst
+				? await callResult(() =>
+						commands.paperVerifyOpenreviewPdf(vaultPath, path),
+					)
+				: null;
+			if (verification && getVaultPath() !== vaultPath) return;
+			if (!verification || verification.verified) {
 				try {
 					await enqueueTaskSettled({ kind: "downloadAssets", vaultPath, path });
 					return;
 				} catch (error) {
 					if (!isOpenReviewDownloadFailure(error)) throw error;
-					if (
-						!(error instanceof JobFailedError) ||
-						error.job.phase !== "verificationRequired"
-					)
+					if (!verification || error.job.phase !== "verificationRequired")
 						return;
 				}
 			}
-			notifyReminder(i18n.t("app:openreviewDownload.verificationIncomplete"), {
-				id,
-				description: i18n.t("app:openreviewDownload.attachDownloadedPdf"),
-				actionLabel: i18n.t("app:openreviewDownload.verifyAndDownload"),
-				onAction: () => void verify(),
-				dismissLabel: i18n.t("app:openreviewDownload.openInBrowser"),
-				onDismiss: () => openExternalUrl(url),
-			});
+			if (verification) {
+				notifyReminder(
+					i18n.t("app:openreviewDownload.verificationIncomplete"),
+					{
+						id,
+						description: i18n.t("app:openreviewDownload.attachDownloadedPdf"),
+						actionLabel: i18n.t("app:openreviewDownload.verifyAndDownload"),
+						onAction: () => void retry(true),
+						dismissLabel: i18n.t("app:openreviewDownload.openInBrowser"),
+						onDismiss: () => openExternalUrl(verification.url),
+					},
+				);
+			}
 		} catch (error) {
 			notifyError(errorText(error), { id });
-		} finally {
-			verifying.delete(id);
-		}
-	};
-	const retry = async () => {
-		if (getVaultPath() !== vaultPath || verifying.has(id)) return;
-		verifying.add(id);
-		try {
-			await enqueueTaskSettled({ kind: "downloadAssets", vaultPath, path });
-		} catch (error) {
-			if (!isOpenReviewDownloadFailure(error))
-				notifyError(errorText(error), { id });
 		} finally {
 			verifying.delete(id);
 		}
@@ -131,7 +125,7 @@ export function notifyOpenReviewDownloadIssue(
 		actionLabel: needsVerification
 			? i18n.t("app:openreviewDownload.verifyAndDownload")
 			: i18n.t("common:tryAgain"),
-		onAction: () => void (needsVerification ? verify() : retry()),
+		onAction: () => void retry(needsVerification),
 		dismissLabel: needsVerification
 			? i18n.t("app:openreviewDownload.openSettings")
 			: i18n.t("app:openreviewDownload.openInBrowser"),

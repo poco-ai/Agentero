@@ -116,6 +116,7 @@ dependencies = [
  "hayagriva",
  "hex",
  "htmd",
+ "keyring",
  "log",
  "notify-debouncer-full",
  "objc2-app-kit",

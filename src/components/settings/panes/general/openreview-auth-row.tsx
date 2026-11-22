@@ -1,5 +1,5 @@
 import { LogIn } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ProbeDot } from "@/components/settings/provider-card";
 import { SettingsRow } from "@/components/settings/settings-layout";
@@ -17,14 +17,6 @@ import { hasSecret } from "@/lib/core/secret-mask";
 import { isTauri } from "@/lib/core/tauri";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 
-/**
- * OpenReview verification for PDF downloads (#1157).
- *
- * The Host opens a dedicated webview on the Turnstile challenge; clearing it
- * (or signing in) captures the clearance cookie, which the download layer then
- * replays. The cookie is IP-bound and short-lived, so the only durable UI state
- * is "verified / expired" plus a button that reopens the window.
- */
 export function OpenReviewAuthRow({
 	cookie,
 	expiresAt,
@@ -36,29 +28,57 @@ export function OpenReviewAuthRow({
 }) {
 	const { t } = useTranslation("settings");
 	const [pending, setPending] = useState(false);
-	const configured = hasSecret(cookie);
-	const expired = configured && expiresAt > 0 && Date.now() / 1000 >= expiresAt;
+	const [accountExpiry, setAccountExpiry] = useState<number | null>(null);
+	useEffect(() => {
+		if (!isTauri()) return;
+		let active = true;
+		const refresh = () => {
+			void commands
+				.openreviewAccountExpiry()
+				.then((expiry) => {
+					if (active) setAccountExpiry(expiry);
+				})
+				.catch(() => undefined);
+		};
+		refresh();
+		window.addEventListener("focus", refresh);
+		return () => {
+			active = false;
+			window.removeEventListener("focus", refresh);
+		};
+	}, []);
+	const now = Date.now() / 1000;
+	const hasAccount = accountExpiry !== null;
+	const signedIn = hasAccount && accountExpiry > now;
+	const hasVerification = hasSecret(cookie);
+	const verified = hasVerification && (expiresAt <= 0 || expiresAt > now);
+	const configured = hasAccount || hasVerification;
 	const status: ProbeStatus = pending
 		? "probing"
-		: !configured
-			? "idle"
-			: expired
+		: signedIn || verified
+			? "ok"
+			: configured
 				? "fail"
-				: "ok";
+				: "idle";
 	const statusLabel = t(
 		pending
 			? "general.openreviewAuth.statusWaiting"
-			: !configured
-				? "general.openreviewAuth.statusIdle"
-				: expired
-					? "general.openreviewAuth.statusExpired"
-					: "general.openreviewAuth.statusOk",
+			: signedIn
+				? "general.openreviewAuth.statusSignedIn"
+				: verified
+					? "general.openreviewAuth.statusOk"
+					: hasAccount
+						? "general.openreviewAuth.statusSessionExpired"
+						: hasVerification
+							? "general.openreviewAuth.statusExpired"
+							: "general.openreviewAuth.statusIdle",
 	);
 
 	const login = useCallback(async () => {
 		setPending(true);
 		try {
 			await callResult(() => commands.openreviewAuthLoginOpen());
+			setAccountExpiry(await commands.openreviewAccountExpiry());
 		} catch (error) {
 			notifyError(t("general.openreviewAuth.loginFailed"), {
 				description: errorText(error),

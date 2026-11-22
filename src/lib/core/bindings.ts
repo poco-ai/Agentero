@@ -58,12 +58,10 @@ export const commands = {
 	 *  Resolves once the login window closes; `true` when a cookie was captured.
 	 */
 	institutionProxyLoginOpen: (prefix: string) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix })),
-	/**
-	 *  Open (or focus) the verification window for the Settings button: no target
-	 *  URL, so it opens OpenReview's challenge gate and waits until a captured
-	 *  cookie passes the probe (or the window is closed).
-	 */
+	/**  Use the official sign-in page, including any MFA required by the account. */
 	openreviewAuthLoginOpen: () => typedError<boolean, string>(__TAURI_INVOKE("openreview_auth_login_open")),
+	/**  Return the expiry of the account session for the Settings indicator. */
+	openreviewAccountExpiry: () => __TAURI_INVOKE<number | null>("openreview_account_expiry"),
 	builtinProviderStatus: () => __TAURI_INVOKE<ApiResult<BuiltinProviderStatus>>("builtin_provider_status"),
 	decisionGatewayDecide: (request: DecisionGatewayRequest) => __TAURI_INVOKE<ApiResult<DecisionGatewayResponse>>("decision_gateway_decide", { request }),
 	layoutModelStatus: () => __TAURI_INVOKE<ApiResult<LayoutModelStatus>>("layout_model_status"),

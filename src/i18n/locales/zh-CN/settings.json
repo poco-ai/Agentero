@@ -222,12 +222,14 @@
 		"openreviewAuth": {
 			"label": "OpenReview",
 			"login": "登录",
-			"loggingIn": "等待验证…",
-			"statusIdle": "未验证",
-			"statusWaiting": "等待验证…",
-			"statusOk": "已验证",
+			"loggingIn": "等待登录…",
+			"statusIdle": "未登录",
+			"statusWaiting": "等待登录…",
+			"statusOk": "浏览器已验证",
+			"statusSignedIn": "已登录",
+			"statusSessionExpired": "登录已过期",
 			"statusExpired": "验证已过期",
-			"loginFailed": "无法打开 OpenReview 登录窗口"
+			"loginFailed": "OpenReview 登录失败"
 		},
 		"easyScholar": {
 			"section": "EasyScholar",

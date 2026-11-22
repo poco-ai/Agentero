@@ -20,6 +20,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+mod openreview_account;
+
 pub const DEFAULT_NETWORK_PROXY_URL: &str = "http://127.0.0.1:7890";
 /// Default System One endpoint (TypeSafe jEV). Clef/OpenAI presets override it.
 pub const DEFAULT_DECISION_BASE_URL: &str = "https://api.typesafe.ai/v1/systemone";
@@ -1278,7 +1280,8 @@ impl AppSettingsStore {
         cookie: String,
         expires_at: i64,
     ) -> Result<Option<AppSettings>, AppError> {
-        let cookie = cookie.trim().to_string();
+        let cookie =
+            agentero_core::features::paper::import::openreview::verification_cookies(&cookie);
         let redacted = {
             let mut guard = self
                 .inner
@@ -1553,7 +1556,9 @@ fn normalize(s: &mut AppSettings) {
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,
     );
-    s.openreview_cookie = s.openreview_cookie.trim().to_string();
+    s.openreview_cookie = agentero_core::features::paper::import::openreview::verification_cookies(
+        &s.openreview_cookie,
+    );
     s.openreview_cookie_expires_at = if s.openreview_cookie.is_empty() {
         0
     } else {
