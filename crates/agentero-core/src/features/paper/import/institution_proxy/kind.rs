@@ -12,7 +12,7 @@ pub enum InstitutionProxyKind {
     /// Standard EZProxy query passthrough (`/login?url={encoded target}`).
     EzProxy,
     /// wengine WebVPN path rewriting (`/https/{encrypted-host}/{path}`), used
-    /// by several CN universities (ZJU etc.). Hosts are AES-128-CTR encrypted
+    /// by several CN universities (ZJU etc.). Hosts are AES-128-CFB encrypted
     /// with the fixed public `wrdvpnisthebest!` key and prefixed with the IV.
     Wengine,
     /// Astraeus-style subdomain mapping: the target host and port become a

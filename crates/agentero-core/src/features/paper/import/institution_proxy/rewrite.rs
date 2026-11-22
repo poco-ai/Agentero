@@ -1,29 +1,21 @@
 //! Pure URL rewrites for the supported gateway shapes. No network or state.
 
-/// AES-128-CTR encrypt `host` with the public wengine key/IV and hex-encode
+/// AES-128-CFB encrypt `host` with the public wengine key/IV and hex-encode
 /// with the IV prefixed in plaintext, matching the gateway's URL form
-/// (`/https/{hex(wrdvpnisthebest!)}{hex(ct)}/`). Verified against a live ZJU
-/// WebVPN deployment (sample: www.cnki.net).
+/// (`/https/{hex(wrdvpnisthebest!)}{hex(ct)}/`).
 pub(crate) fn wengine_host(host: &str) -> String {
     use aes::cipher::{BlockEncrypt, KeyInit};
     const KEY_IV: &[u8; 16] = b"wrdvpnisthebest!";
     let cipher = aes::Aes128::new_from_slice(KEY_IV).expect("fixed 16-byte key");
-    let mut counter = *KEY_IV;
-    let mut block = aes::Block::default();
+    let mut block = aes::Block::from(*KEY_IV);
     let mut out = Vec::with_capacity(host.len());
     for chunk in host.as_bytes().chunks(16) {
-        block.copy_from_slice(&counter);
         cipher.encrypt_block(&mut block);
-        for (i, byte) in chunk.iter().enumerate() {
-            out.push(byte ^ block[i]);
+        for (encrypted, byte) in block.iter_mut().zip(chunk) {
+            *encrypted ^= *byte;
         }
-        // big-endian increment of the full 128-bit counter
-        for b in counter.iter_mut().rev() {
-            *b = b.wrapping_add(1);
-            if *b != 0 {
-                break;
-            }
-        }
+        // The ciphertext block is the input for the next round.
+        out.extend_from_slice(&block[..chunk.len()]);
     }
     let mut hexed = String::with_capacity(32 + out.len() * 2);
     for b in KEY_IV.iter().chain(out.iter()) {
@@ -119,11 +111,14 @@ mod tests {
 
     #[test]
     fn wengine_host_matches_live_samples() {
-        // Captured from a live ZJU WebVPN deployment (2026-10): the gateway
-        // URL for www.cnki.net.
+        // ZJU's CNKI link fits in one AES block. PKU's thesis site needs feedback.
         assert_eq!(
             wengine_host("www.cnki.net"),
             "77726476706e69737468656265737421e7e056d2243e635930068cb8"
+        );
+        assert_eq!(
+            wengine_host("thesis.lib.pku.edu.cn"),
+            "77726476706e69737468656265737421e4ff448f2e23265c770ac7bc93406d30740851657d"
         );
     }
 
