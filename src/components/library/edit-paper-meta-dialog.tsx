@@ -239,6 +239,7 @@ export function EditPaperMetaDialog({
 						</Label>
 						<Textarea
 							id="edit-meta-authors"
+							className="max-h-32 overflow-y-auto"
 							value={draft.authors}
 							onChange={(e) => set("authors", e.target.value)}
 							placeholder={t("paperInfo.editMeta.authorsPlaceholder")}
