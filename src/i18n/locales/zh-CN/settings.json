@@ -208,6 +208,10 @@
 			"probeOk": "可用",
 			"probeFail": "不可用",
 			"probeProbing": "检测中…",
+			"probeScope": {
+				"campusPage": "已验证校内页面访问",
+				"pdf": "已验证出版商 PDF 访问（{{bytes}} 字节，{{kind}}）"
+			},
 			"presetsLabel": "常见院校",
 			"presets": {
 				"zju": "浙江大学",
@@ -216,7 +220,8 @@
 				"neu": "东北大学",
 				"tsinghua": "清华大学",
 				"fudan": "复旦大学",
-				"bjmu": "北京大学医学部"
+				"bjmu": "北京大学医学部",
+				"pku": "北京大学"
 			}
 		},
 		"openreviewAuth": {

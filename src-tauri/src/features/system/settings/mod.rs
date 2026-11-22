@@ -928,21 +928,15 @@ impl AppSettingsStore {
     }
 
     pub fn set(&self, mut settings: AppSettings) -> Result<AppSettings, AppError> {
-        {
-            let previous = self
-                .inner
-                .lock()
-                .map_err(|_| AppError::message("settings lock poisoned"))?;
-            merge_secrets(&mut settings, &previous);
-        }
-        normalize(&mut settings);
-        persist(&self.path, &settings)?;
-        // Never echo raw API keys back to the WebView / settings:changed.
         let redacted = {
             let mut guard = self
                 .inner
                 .lock()
                 .map_err(|_| AppError::message("settings lock poisoned"))?;
+            merge_secrets(&mut settings, &guard);
+            normalize(&mut settings);
+            persist(&self.path, &settings)?;
+            // Never echo raw credentials back to the WebView / settings:changed.
             *guard = settings.clone();
             redact_secrets(settings)
         };
@@ -1254,15 +1248,19 @@ impl AppSettingsStore {
     /// overwriting unrelated settings changed by another window meanwhile.
     pub fn update_institution_proxy_cookie(
         &self,
+        kind: agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind,
         prefix: &str,
         cookie: String,
     ) -> Result<Option<AppSettings>, AppError> {
+        use agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind;
         let redacted = {
             let mut guard = self
                 .inner
                 .lock()
                 .map_err(|_| AppError::message("settings lock poisoned"))?;
-            if guard.institution_proxy_prefix.trim() != prefix.trim() {
+            if guard.institution_proxy_prefix.trim() != prefix.trim()
+                || InstitutionProxyKind::from_setting(&guard.institution_proxy_type) != kind
+            {
                 return Ok(None);
             }
             let mut next = guard.clone();
@@ -1471,6 +1469,10 @@ pub fn layout_provider_settings_key(provider: &str) -> Option<&'static str> {
 
 /// Replace non-empty secrets with same-length `*` masks.
 fn redact_secrets(mut settings: AppSettings) -> AppSettings {
+    if !settings.institution_proxy_cookie.trim().is_empty() {
+        settings.institution_proxy_cookie =
+            mask_translate_api_key(&settings.institution_proxy_cookie);
+    }
     for cfg in settings.translate.provider_configs.values_mut() {
         if !cfg.api_key.trim().is_empty() {
             cfg.api_key = mask_translate_api_key(&cfg.api_key);
@@ -1507,6 +1509,25 @@ fn redact_secrets(mut settings: AppSettings) -> AppSettings {
 
 /// Apply incoming configs while preserving secrets when the UI sends the mask.
 fn merge_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
+    use agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind;
+
+    let same_proxy = InstitutionProxyKind::from_setting(&incoming.institution_proxy_type)
+        == InstitutionProxyKind::from_setting(&previous.institution_proxy_type)
+        && incoming
+            .institution_proxy_prefix
+            .trim()
+            .trim_end_matches('/')
+            == previous
+                .institution_proxy_prefix
+                .trim()
+                .trim_end_matches('/');
+    if is_translate_api_key_mask(&incoming.institution_proxy_cookie) {
+        incoming.institution_proxy_cookie = if same_proxy {
+            previous.institution_proxy_cookie.clone()
+        } else {
+            String::new()
+        };
+    }
     for (id, cfg) in incoming.translate.provider_configs.iter_mut() {
         if is_translate_api_key_mask(&cfg.api_key) {
             if let Some(prev) = previous.translate.provider_configs.get(id) {
@@ -1972,9 +1993,12 @@ mod tests {
 
     #[test]
     fn captured_proxy_cookie_updates_only_matching_gateway() {
+        use agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::EzProxy;
+
         let dir = tempfile::tempdir().unwrap();
         let store = AppSettingsStore {
             inner: Mutex::new(AppSettings {
+                institution_proxy_type: "ezproxy".into(),
                 institution_proxy_prefix: "https://vpn.example.edu".into(),
                 institution_proxy_cookie: "old=1".into(),
                 theme: "dark".into(),
@@ -1984,12 +2008,18 @@ mod tests {
             listeners: Mutex::new(Vec::new()),
         };
         assert!(store
-            .update_institution_proxy_cookie("https://other.example.edu", "wrong=1".into())
+            .update_institution_proxy_cookie(EzProxy, "https://other.example.edu", "wrong=1".into())
             .unwrap()
             .is_none());
-        store
-            .update_institution_proxy_cookie("https://vpn.example.edu", "fresh=1".into())
+        assert!(store.update_institution_proxy_cookie(
+            agentero_core::features::paper::import::institution_proxy::InstitutionProxyKind::Wengine,
+            "https://vpn.example.edu", "wrong=1".into()
+        ).unwrap().is_none());
+        let redacted = store
+            .update_institution_proxy_cookie(EzProxy, "https://vpn.example.edu", "fresh=1".into())
+            .unwrap()
             .unwrap();
+        assert_eq!(redacted.institution_proxy_cookie, "*******");
         let (saved, _) = read_file(&store.path);
         assert_eq!(saved.institution_proxy_cookie, "fresh=1");
         assert_eq!(saved.theme, "dark");

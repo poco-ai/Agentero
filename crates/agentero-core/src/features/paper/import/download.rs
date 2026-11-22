@@ -757,34 +757,30 @@ async fn fetch_pdf_assets(
             }
         }
     }
-    // Institution proxy fallback (EZProxy/WebVPN): rewrite the DOI target
-    // through the user's proxy prefix + session cookie. Only active when the
-    // host configured one; uses the user's own institution subscription.
+    // Institution proxy fallback (EZProxy/WebVPN): try the known PDF URL and
+    // the DOI through the user's proxy prefix and session cookie.
     if !ok {
         if let Err(e) = super::check_task_not_cancelled(progress.task_id()) {
             out.messages.push(format!("pdf cancelled: {e}"));
             return out;
         }
-        if let Some(doi) = doi.map(str::trim).filter(|s| !s.is_empty()) {
-            // Direct connection first: on campus networks the institution IP
-            // carries the subscription, so this needs zero configuration.
-            // Falls back to the configured gateway (if any) when it fails.
-            let outcome = institution_proxy::fetch_pdf(doi).await;
-            out.messages.extend(outcome.messages);
-            if let Some(bytes) = outcome.bytes {
-                let name = safe_filename(id, "pdf");
-                match fs::write(paper_dir.join(name), &bytes) {
-                    Ok(()) => {
-                        if let Some(source) = outcome.source {
-                            out.messages
-                                .push(format!("pdf ok via institution proxy ({source})"));
-                        }
-                        ok = true;
+        let doi = doi.map(str::trim).filter(|s| !s.is_empty());
+        let outcome =
+            institution_proxy::fetch_pdf(doi, candidates.first().map(String::as_str)).await;
+        out.messages.extend(outcome.messages);
+        if let Some(bytes) = outcome.bytes {
+            let name = safe_filename(id, "pdf");
+            match fs::write(paper_dir.join(name), &bytes) {
+                Ok(()) => {
+                    if let Some(source) = outcome.source {
+                        out.messages
+                            .push(format!("pdf ok via institution proxy ({source})"));
                     }
-                    Err(e) => out
-                        .messages
-                        .push(format!("institution proxy write failed: {e}")),
+                    ok = true;
                 }
+                Err(e) => out
+                    .messages
+                    .push(format!("institution proxy write failed: {e}")),
             }
         }
     }

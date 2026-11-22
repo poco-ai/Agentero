@@ -25,6 +25,38 @@ pub(crate) async fn fetch_bytes_checked_with_url_seeded(
     cookie: &str,
     seed_urls: &[&str],
 ) -> Result<(Vec<u8>, String), String> {
+    fetch_with_redirects(
+        url,
+        cookie,
+        seed_urls,
+        reqwest::redirect::Policy::limited(10),
+    )
+    .await
+}
+
+/// Keep a campus probe and its cookie on the configured gateway origin.
+pub(super) async fn fetch_bytes_same_origin(
+    url: &reqwest::Url,
+    cookie: &str,
+) -> Result<(Vec<u8>, String), String> {
+    let origin = url.origin();
+    let limit = reqwest::redirect::Policy::limited(10);
+    let redirects = reqwest::redirect::Policy::custom(move |attempt| {
+        if attempt.url().origin() == origin {
+            limit.redirect(attempt)
+        } else {
+            attempt.stop()
+        }
+    });
+    fetch_with_redirects(url.as_str(), cookie, &[], redirects).await
+}
+
+async fn fetch_with_redirects(
+    url: &str,
+    cookie: &str,
+    seed_urls: &[&str],
+    redirects: reqwest::redirect::Policy,
+) -> Result<(Vec<u8>, String), String> {
     let cookie = cookie.trim();
     // Cookie store on: publisher bot checks (e.g. nature.com) accept the
     // request once the landing page's cookies ride along, which also makes
@@ -32,7 +64,7 @@ pub(crate) async fn fetch_bytes_checked_with_url_seeded(
     let mut builder = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .user_agent(http::BROWSER_USER_AGENT)
-        .redirect(reqwest::redirect::Policy::limited(10));
+        .redirect(redirects);
     let jar = if seed_urls.is_empty() {
         builder = builder.cookie_store(true);
         None

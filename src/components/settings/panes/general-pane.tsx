@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	type InstitutionProxyPresetOption,
@@ -26,7 +26,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { commands } from "@/lib/core/bindings";
+import { commands, type InstitutionProxyProbe } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApi, callResult } from "@/lib/core/ipc";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
@@ -85,41 +85,77 @@ export function GeneralPane({
 	>([]);
 	const [institutionProxyTesting, setInstitutionProxyTesting] = useState(false);
 	const [institutionProxyResult, setInstitutionProxyResult] = useState<
-		{ status: "ok" | "fail"; message: string } | undefined
+		| { status: "ok"; probe: InstitutionProxyProbe }
+		| { status: "fail"; message: string }
+		| undefined
 	>(undefined);
+	const proxySettingsDraft = useCallback(() => {
+		const prefix = institutionProxyPrefixDraft.trim().replace(/\/+$/, "");
+		return {
+			institutionProxyPrefix: prefix,
+			institutionProxyCookie:
+				prefix === settings.institutionProxyPrefix ||
+				institutionProxyCookieDraft !== settings.institutionProxyCookie
+					? institutionProxyCookieDraft.trim()
+					: "",
+		};
+	}, [
+		institutionProxyPrefixDraft,
+		institutionProxyCookieDraft,
+		settings.institutionProxyPrefix,
+		settings.institutionProxyCookie,
+	]);
 	const commitInstitutionProxy = useCallback(() => {
-		patch({
-			institutionProxyPrefix: institutionProxyPrefixDraft.trim(),
-			institutionProxyCookie: institutionProxyCookieDraft.trim(),
-		});
-	}, [institutionProxyPrefixDraft, institutionProxyCookieDraft, patch]);
+		const next = proxySettingsDraft();
+		if (next.institutionProxyPrefix !== settings.institutionProxyPrefix) {
+			setInstitutionProxyResult(undefined);
+		}
+		patch(next);
+	}, [proxySettingsDraft, patch, settings.institutionProxyPrefix]);
+	const proxyConfigKey = JSON.stringify([
+		settings.institutionProxyType,
+		settings.institutionProxyPrefix,
+		settings.institutionProxyCookie,
+	]);
+	const proxyProbeGeneration = useRef({ configKey: proxyConfigKey });
+	useEffect(() => {
+		proxyProbeGeneration.current = { configKey: proxyConfigKey };
+		setInstitutionProxyResult(undefined);
+		setInstitutionProxyTesting(false);
+	}, [proxyConfigKey]);
 	const testInstitutionProxy = useCallback(async () => {
+		const generation = { configKey: proxyProbeGeneration.current.configKey };
+		proxyProbeGeneration.current = generation;
 		setInstitutionProxyTesting(true);
 		setInstitutionProxyResult(undefined);
 		try {
 			const result = await commands.institutionProxyProbe();
+			if (generation !== proxyProbeGeneration.current) return;
 			setInstitutionProxyResult(
-				result.ok
-					? { status: "ok", message: result.data ?? "" }
+				result.ok && result.data
+					? { status: "ok", probe: result.data }
 					: { status: "fail", message: result.error?.message ?? "failed" },
 			);
 			if (result.error?.code === "institution_proxy_auth_required") {
 				notifyError(t("general.institutionProxy.cookieExpired"));
 			}
 		} catch (error) {
+			if (generation !== proxyProbeGeneration.current) return;
 			setInstitutionProxyResult({
 				status: "fail",
 				message: error instanceof Error ? error.message : "failed",
 			});
 		} finally {
-			setInstitutionProxyTesting(false);
+			if (generation === proxyProbeGeneration.current)
+				setInstitutionProxyTesting(false);
 		}
 	}, [t]);
 	const openInstitutionLogin = useCallback(async () => {
-		commitInstitutionProxy();
 		try {
+			const pending = proxySettingsDraft();
+			await saveSettingsAsync({ ...settings, ...pending });
 			const captured = await callResult(() =>
-				commands.institutionProxyLoginOpen(institutionProxyPrefixDraft),
+				commands.institutionProxyLoginOpen(pending.institutionProxyPrefix),
 			);
 			if (captured) void testInstitutionProxy();
 		} catch (error) {
@@ -127,12 +163,7 @@ export function GeneralPane({
 				description: errorText(error),
 			});
 		}
-	}, [
-		commitInstitutionProxy,
-		institutionProxyPrefixDraft,
-		t,
-		testInstitutionProxy,
-	]);
+	}, [proxySettingsDraft, settings, t, testInstitutionProxy]);
 	useEffect(() => {
 		if (!isTauri()) return;
 		let cancelled = false;
@@ -155,13 +186,21 @@ export function GeneralPane({
 	}, [t]);
 	const selectInstitutionProxyPreset = useCallback(
 		(preset: InstitutionProxyPresetOption) => {
+			const changed =
+				preset.prefix !== settings.institutionProxyPrefix ||
+				preset.kind !== settings.institutionProxyType;
 			setInstitutionProxyPrefixDraft(preset.prefix);
+			if (changed) {
+				setInstitutionProxyCookieDraft("");
+				setInstitutionProxyResult(undefined);
+			}
 			patch({
 				institutionProxyPrefix: preset.prefix,
 				institutionProxyType: preset.kind,
+				institutionProxyCookie: changed ? "" : settings.institutionProxyCookie,
 			});
 		},
-		[patch],
+		[patch, settings],
 	);
 	const institutionProxyProbeStatus: ProbeStatus = institutionProxyTesting
 		? "probing"
@@ -175,6 +214,13 @@ export function GeneralPane({
 					? "general.institutionProxy.probeFail"
 					: "general.institutionProxy.probeIdle",
 	);
+	const institutionProxyProbeDetail =
+		institutionProxyResult?.status === "ok"
+			? t(
+					`general.institutionProxy.probeScope.${institutionProxyResult.probe.scope}`,
+					institutionProxyResult.probe,
+				)
+			: institutionProxyResult?.message;
 	const institutionProxyTypeRow = (
 		<SettingsRow
 			label={t("general.institutionProxy.typeLabel")}
@@ -183,7 +229,7 @@ export function GeneralPane({
 			<Select
 				value={settings.institutionProxyType}
 				onValueChange={(institutionProxyType) =>
-					patch({ institutionProxyType })
+					patch({ institutionProxyType, institutionProxyCookie: "" })
 				}
 			>
 				<SelectTrigger
@@ -238,13 +284,12 @@ export function GeneralPane({
 
 	useEffect(() => {
 		setProxyUrlDraft(settings.networkProxyUrl);
+	}, [settings.networkProxyUrl]);
+
+	useEffect(() => {
 		setInstitutionProxyPrefixDraft(settings.institutionProxyPrefix);
 		setInstitutionProxyCookieDraft(settings.institutionProxyCookie);
-	}, [
-		settings.networkProxyUrl,
-		settings.institutionProxyPrefix,
-		settings.institutionProxyCookie,
-	]);
+	}, [settings.institutionProxyPrefix, settings.institutionProxyCookie]);
 
 	useEffect(() => {
 		setEasyScholarKeyDraft(settings.easyScholarKey);
@@ -488,7 +533,7 @@ export function GeneralPane({
 					testing={institutionProxyTesting}
 					probeStatus={institutionProxyProbeStatus}
 					probeLabel={institutionProxyProbeLabel}
-					probeDetail={institutionProxyResult?.message}
+					probeDetail={institutionProxyProbeDetail}
 				/>
 			</SettingsGroup>
 			<SettingsSectionLabel className="mt-4">
