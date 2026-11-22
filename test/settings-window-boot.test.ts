@@ -7,8 +7,8 @@ import type { AppSettings } from "@/lib/settings/types";
  * the real `main.tsx`): the boot must hydrate the shared settings store from
  * the Host before anything in that window can persist a patch. Guards the
  * quick-setup regression where a patch sent the module-default snapshot and
- * wiped the Host settings file. Only the Tauri IPC boundary and React
- * rendering are mocked; `lib/settings` + `react-store` are the real modules.
+ * wiped the Host settings file. The test uses the real settings store and
+ * boot sequence, with stubs for the desktop bridge and unloaded presentation.
  */
 
 const h = vi.hoisted(() => ({
@@ -49,6 +49,13 @@ vi.mock("@tauri-apps/api/event", () => ({
 	once: () => Promise.resolve(() => {}),
 	emit: () => Promise.resolve(),
 }));
+vi.mock("@tauri-apps/plugin-log", () => ({
+	attachConsole: () => Promise.resolve(() => {}),
+	debug: () => Promise.resolve(),
+	info: () => Promise.resolve(),
+	warn: () => Promise.resolve(),
+	error: () => Promise.resolve(),
+}));
 
 const createRootMock = () => ({
 	render: (...args: unknown[]) => h.renders.push(args),
@@ -57,6 +64,13 @@ vi.mock("react-dom/client", () => ({
 	createRoot: createRootMock,
 	default: { createRoot: createRootMock },
 }));
+vi.mock("@/components/settings/settings-native-root", () => ({
+	SettingsNativeRoot: () => null,
+}));
+vi.mock("@/components/settings/settings-content", () => ({
+	preloadSettingsPane: () => Promise.resolve(),
+}));
+vi.mock("../src/index.css", () => ({}));
 
 // Node test env has no webview globals; main.tsx reads location/window at
 // module scope and touches document during boot.
