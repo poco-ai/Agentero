@@ -784,6 +784,24 @@ fn conflict_name(path: &str, hash: &str, index: u64) -> String {
 // backends would each carry their own merge base and fight over deletions, so
 // the authoritative side stays singular by construction.
 
+/// Test a mirror binding. Unlike [`test_connection`], the primary's rules do
+/// not apply: a Git mirror branch is only a push target (the vault's own branch
+/// and `origin` stay untouched), and object-store mirrors just need a usable
+/// root with conditional writes for the HEAD CAS.
+pub async fn test_mirror_connection(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+) -> Result<bool, AppError> {
+    crate::features::sync::ensure_vault_sync_available(vault)?;
+    if cfg.backend == SyncBackendKind::Git {
+        crate::features::sync::git::test_mirror_connection(vault, cfg).await?;
+        return Ok(true);
+    }
+    let client = SyncStore::new(cfg, vault)?;
+    client.ensure_root().await?;
+    client.probe_conditional_writes().await
+}
+
 /// One pass that publishes `cfg` as a read-only mirror of `vault`.
 ///
 /// The remote layout matches the primary's, so another Agentero can still open

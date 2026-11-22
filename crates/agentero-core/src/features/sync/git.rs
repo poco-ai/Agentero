@@ -215,6 +215,28 @@ pub(super) async fn sync_vault(
     git.finish(vault, outcome).await
 }
 
+/// Validate a mirror's remote without applying the primary's rules.
+///
+/// A mirror branch is only a push target: the vault's local branch and its
+/// `origin` do not have to match it, so the probe is "the remote answers".
+pub(super) async fn test_mirror_connection(
+    vault: &Path,
+    cfg: &SyncBackendConfig,
+) -> Result<(), AppError> {
+    cfg.validate()?;
+    let git = Git::new(vault, cfg)?;
+    let pattern = format!("refs/heads/{}", cfg.git_branch.trim());
+    checked(
+        git.run(
+            ["ls-remote", cfg.git_remote.trim(), &pattern],
+            NETWORK_TIMEOUT,
+        )
+        .await?,
+        "git ls-remote",
+    )?;
+    Ok(())
+}
+
 /// Publish-only Git mirror: commit the local tree and push it, never pull.
 ///
 /// A mirror branch is assumed to be written only by this vault, so a rejected
@@ -237,7 +259,7 @@ pub(super) async fn publish_mirror(
     engine::refresh_catalog_if_needed(vault)?;
 
     progress("scan", 0, 0);
-    git.ensure_repo(cfg).await?;
+    git.ensure_mirror_work_tree(cfg).await?;
     let committed = git.commit_local(&cfg.scope).await?;
     let mut outcome = SyncOutcome::default();
     if let Some(counts) = &committed {
@@ -250,9 +272,11 @@ pub(super) async fn publish_mirror(
         .head()
         .await?
         .ok_or_else(|| AppError::message("mirror commit did not produce a HEAD"))?;
-    let remote_tip = git.ls_remote_branch(cfg).await?;
+    let remote = cfg.git_remote.trim();
+    let branch = cfg.git_branch.trim();
+    let remote_tip = git.ls_remote_any(remote, branch).await?;
     if remote_tip.as_deref() != Some(local_head.as_str()) {
-        match git.push(cfg).await? {
+        match git.push_to(remote, branch).await? {
             PushOutcome::Pushed => {}
             PushOutcome::Rejected => {
                 return Err(AppError::domain(
@@ -430,6 +454,61 @@ impl Git {
         } else {
             Ok(0)
         }
+    }
+
+    /// Local work tree for a mirror pass.
+    ///
+    /// The vault is committed and pushed to the mirror remote, but that remote
+    /// is not `origin`: neither the local branch name nor the origin check of
+    /// [`Self::ensure_repo`] applies, and the mirror branch only has to be the
+    /// push target.
+    async fn ensure_mirror_work_tree(&self, cfg: &SyncBackendConfig) -> Result<(), AppError> {
+        if self.inspect_repo().await?.is_none() {
+            checked(self.run(["init"], LOCAL_TIMEOUT).await?, "git init")?;
+            let head_ref = format!("refs/heads/{}", cfg.git_branch);
+            checked(
+                self.run(["symbolic-ref", "HEAD", &head_ref], LOCAL_TIMEOUT)
+                    .await?,
+                "git symbolic-ref",
+            )?;
+        }
+        self.ensure_no_operation().await?;
+        self.ensure_exclude().await?;
+        self.ensure_agentero_untracked().await?;
+        Ok(())
+    }
+
+    /// Push `HEAD` to an explicit remote (the mirror is not `origin`).
+    async fn push_to(&self, remote: &str, branch: &str) -> Result<PushOutcome, AppError> {
+        let refspec = format!("HEAD:refs/heads/{branch}");
+        let out = self
+            .run(
+                ["-c", "core.autocrlf=false", "push", remote, &refspec],
+                NETWORK_TIMEOUT,
+            )
+            .await?;
+        if out.status.success() {
+            return Ok(PushOutcome::Pushed);
+        }
+        let text = stderr_text(&out);
+        if is_push_race(&text) {
+            return Ok(PushOutcome::Rejected);
+        }
+        Err(git_error("git push", &out))
+    }
+
+    /// Tip of `branch` on an explicit remote, or `None` when it does not exist.
+    async fn ls_remote_any(&self, remote: &str, branch: &str) -> Result<Option<String>, AppError> {
+        let pattern = format!("refs/heads/{branch}");
+        let out = checked(
+            self.run(["ls-remote", remote, &pattern], NETWORK_TIMEOUT)
+                .await?,
+            "git ls-remote",
+        )?;
+        Ok(stdout_text(&out)
+            .split_whitespace()
+            .next()
+            .map(str::to_string))
     }
 
     async fn ensure_repo(&self, cfg: &SyncBackendConfig) -> Result<(), AppError> {

@@ -203,9 +203,10 @@ pub async fn sync_configure(
         binding.primary.conditional_writes =
             engine::test_connection(&dir, &binding.primary).await?;
         for mirror in &mut binding.mirrors {
-            // A mirror needs the same conditional writes for its HEAD CAS; a
-            // Git mirror validates the repository and branch instead.
-            mirror.conditional_writes = engine::test_connection(&dir, mirror).await?;
+            // Mirrors only need a reachable target: a Git mirror branch is a
+            // push target, not the vault's own branch, and object stores need
+            // conditional writes for the HEAD CAS.
+            mirror.conditional_writes = engine::test_mirror_connection(&dir, mirror).await?;
         }
         let meta = local::read_meta(&dir)?;
         config::set(&key, binding.clone())?;
