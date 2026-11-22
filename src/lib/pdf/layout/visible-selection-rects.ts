@@ -143,6 +143,36 @@ export function translatedSelectionLineRects(
 	);
 }
 
+export function translatedSentenceAtPoint(
+	target: Element,
+	x: number,
+	y: number,
+): HTMLElement | null {
+	const sentence = target.closest<HTMLElement>("[data-sentence]");
+	if (sentence?.closest("[data-layout-item]")) return sentence;
+	const block = target.closest<HTMLElement>("[data-reflow-selection]");
+	if (!block) return null;
+	const range = document.createRange();
+	const lines = (node: HTMLElement) => {
+		range.selectNodeContents(node);
+		return mergeClientRectsIntoLines(Array.from(range.getClientRects()));
+	};
+	const fullLines = lines(block);
+	const containsPoint = (rect: ClientRectLike) =>
+		x >= rect.left &&
+		x <= rect.left + rect.width &&
+		y >= rect.top &&
+		y <= rect.top + rect.height;
+	const spans = block.querySelectorAll<HTMLElement>("[data-sentence]");
+	if (!spans.length) return fullLines.some(containsPoint) ? block : null;
+	for (const span of spans) {
+		if (fullLineSelectionRects(lines(span), fullLines).some(containsPoint)) {
+			return span;
+		}
+	}
+	return null;
+}
+
 /**
  * Reflow gives every character the font's full height, which is taller than
  * the gap to the next baseline. Each line stays its own band, but the two

@@ -14,6 +14,7 @@ import { type RefObject, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	anchorFromEmbedSelection,
+	EMBED_PAGE_ATTR,
 	pageElByIndex,
 	rectBottomCenterScreen,
 } from "@/components/viewer/pdf/coords";
@@ -45,6 +46,7 @@ import { clearTranslationSelectionBands } from "@/lib/pdf/layout/translation-sel
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import {
 	translatedSelectionLineRects,
+	translatedSentenceAtPoint,
 	visibleMenuPoint,
 	visiblePagesFromClientRects,
 } from "@/lib/pdf/layout/visible-selection-rects";
@@ -435,28 +437,34 @@ export function usePdfTranslationSelection({
 		};
 
 		const onDoubleClick = (event: MouseEvent) => {
-			const target = event.target instanceof Element ? event.target : null;
-			const sentence = target?.closest("[data-sentence]");
+			const target = event.target;
 			if (
-				!sentence ||
-				!host.contains(sentence) ||
-				!sentence.closest("[data-layout-item]")
+				!visible ||
+				!(target instanceof Element) ||
+				target.closest("[data-pdf-chrome], [data-selection-menu]")
 			)
 				return;
+			const sentence = translatedSentenceAtPoint(
+				target,
+				event.clientX,
+				event.clientY,
+			);
+			if (!sentence || !host.contains(sentence)) return;
 			event.preventDefault();
 			event.stopPropagation();
 			const item = sentence.closest<HTMLElement>("[data-layout-item]");
-			const page = sentence.closest<HTMLElement>("[data-embed-pdf-page]");
-			if (item && page) {
+			const page = sentence.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`);
+			const index = sentence.getAttribute("data-sentence");
+			if (item && page && index !== null) {
 				sentenceForActivation({
 					docId,
 					regionId: item.dataset.layoutItem ?? "",
-					pageIndex: Number(page.getAttribute("data-embed-pdf-page")),
+					pageIndex: Number(page.getAttribute(EMBED_PAGE_ATTR)),
 					x: 0,
 					y: 0,
 					span: {
 						itemId: item.dataset.layoutItem ?? "",
-						sentenceIndex: Number(sentence.getAttribute("data-sentence")),
+						sentenceIndex: Number(index),
 					},
 				});
 				holdLayoutSentenceHover(docId);

@@ -70,6 +70,7 @@ export function usePdfCompanionSelection({
 		hostRef,
 		zoomRef,
 		isActive,
+		sideBySide: true,
 		paperRelPath,
 		paperAbsPath,
 	});
