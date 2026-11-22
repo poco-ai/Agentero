@@ -24,6 +24,7 @@ import {
 	type AgentModelChoice,
 	type AgentSkill,
 	type CatalogScanResponse,
+	invalidateCatalogScan,
 	listAgentSkills,
 	listAgents,
 	loadCollaborationCatalog,
@@ -40,7 +41,7 @@ import {
 	saveModelFavorites,
 	saveModelPref,
 	saveReasoningEffortPref,
-	scanCatalog,
+	scanCatalogCached,
 	warmAgent,
 } from "@/lib/agent";
 import {
@@ -127,7 +128,7 @@ export type AgentConfig = {
 		efforts: AgentEffortChoice[];
 	}) => void;
 	applyFastModeEvent: (ev: { agentId: string; enabled: boolean }) => void;
-	refresh: () => Promise<void>;
+	refresh: (opts?: { forceCatalog?: boolean }) => Promise<void>;
 	selectedModelName: string | null;
 	groupedModels: {
 		id: string;
@@ -290,25 +291,29 @@ export function useAgentConfig({
 		[selectedAgentIdRef],
 	);
 
-	const refresh = useCallback(async () => {
-		if (!isTauri()) return;
-		try {
-			// Scan first: scanCatalog now auto-registers catalog agents that are
-			// on PATH but not yet persisted, so listAgents() returns them without
-			// requiring the user to open Settings first.
-			const scan = await scanCatalog();
-			const [list, discoveredSkills] = await Promise.all([
-				listAgents(),
-				listAgentSkills(vaultPath ?? undefined).catch(() => []),
-			]);
-			setRegistry(list);
-			setCatalog(scan);
-			setSkills(discoveredSkills);
-			setSelectedAgentId((prev) => prev ?? list.defaultId);
-		} catch (e) {
-			setLines((prev) => [...prev, errorChatLine(errorText(e))]);
-		}
-	}, [vaultPath, setLines, setSelectedAgentId]);
+	const refresh = useCallback(
+		async (opts?: { forceCatalog?: boolean }) => {
+			if (!isTauri()) return;
+			try {
+				// Scan first: the catalog scan auto-registers agents that are on PATH
+				// but not yet persisted, so listAgents() returns them without
+				// requiring the user to open Settings first. Mounts reuse the app-start
+				// scan; user-visible waits (CLI login, agent switch) force a fresh one.
+				const scan = await scanCatalogCached({ force: opts?.forceCatalog });
+				const [list, discoveredSkills] = await Promise.all([
+					listAgents(),
+					listAgentSkills(vaultPath ?? undefined).catch(() => []),
+				]);
+				setRegistry(list);
+				setCatalog(scan);
+				setSkills(discoveredSkills);
+				setSelectedAgentId((prev) => prev ?? list.defaultId);
+			} catch (e) {
+				setLines((prev) => [...prev, errorChatLine(errorText(e))]);
+			}
+		},
+		[vaultPath, setLines, setSelectedAgentId],
+	);
 
 	useEffect(() => {
 		void refresh();
@@ -321,6 +326,8 @@ export function useAgentConfig({
 		const off = lifecycle.on("agent:registry-changed", () => {
 			window.clearTimeout(timer);
 			timer = window.setTimeout(() => {
+				// Probes/installs write the registry, so the shared scan is stale.
+				invalidateCatalogScan();
 				void refresh();
 			}, 150);
 		});

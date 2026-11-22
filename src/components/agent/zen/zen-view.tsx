@@ -36,6 +36,7 @@ import type { AcpSessionInfo } from "@/lib/agent/api";
 import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
+import { invalidateHarnessHistory } from "@/lib/agent/session-history-cache";
 import {
 	useZenStore,
 	type ZenHistoryItem,
@@ -368,7 +369,8 @@ export function ZenView({ active }: { active: boolean }) {
 	const slots = useZenStore((s) => s.slots);
 	const activeSlotId = useZenStore((s) => s.activeSlotId);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
-	const { sections: historySections } = useZenHarnessHistory(vaultPath, active);
+	const { sections: historySections, refresh: refreshHistory } =
+		useZenHarnessHistory(vaultPath, active);
 	const openRows = useOpenZenRows(slots);
 	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -521,7 +523,16 @@ export function ZenView({ active }: { active: boolean }) {
 			zenStore.getState().removeSlot(row.slotId);
 			return;
 		}
+		const slot = zenStore
+			.getState()
+			.slots.find((candidate) => candidate.id === row.slotId);
 		zenStore.getState().closeSlotSession(row.slotId, row.sessionId);
+		// The harness still owns the session; re-read just this harness so the
+		// row shows up under its history instead of vanishing.
+		if (slot?.agent.id) {
+			invalidateHarnessHistory(slot.agent.id);
+			void refreshHistory();
+		}
 	};
 
 	return (

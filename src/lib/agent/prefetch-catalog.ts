@@ -4,7 +4,11 @@
  * Runs independently of the Agent sidebar (which is lazy-mounted). Host emits
  * `agent:registry-changed` after each probe so a later-mounted panel refreshes.
  */
-import { probeCatalogAgent, scanCatalog } from "@/lib/agent/api";
+import { probeCatalogAgent } from "@/lib/agent/api";
+import {
+	invalidateCatalogScan,
+	scanCatalogCached,
+} from "@/lib/agent/catalog-scan";
 import { isTauri } from "@/lib/core/tauri";
 
 let started = false;
@@ -18,7 +22,7 @@ export function prefetchAgentCatalog(): void {
 	started = true;
 	void (async () => {
 		try {
-			const scan = await scanCatalog();
+			const scan = await scanCatalogCached();
 			const candidates = scan.entries.filter(
 				(e) =>
 					e.acpCommandAvailable &&
@@ -30,6 +34,9 @@ export function prefetchAgentCatalog(): void {
 					probeCatalogAgent(entry.templateId).catch(() => null),
 				),
 			);
+			// Probe results landed after the scan above; do not let the first panel
+			// mount reuse pre-probe statuses.
+			invalidateCatalogScan();
 		} catch {
 			// Background warm-up; Settings / Doctor / panel scan remain authoritative.
 		}

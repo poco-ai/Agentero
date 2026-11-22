@@ -1,4 +1,5 @@
 export * from "@/lib/agent/api";
+export * from "@/lib/agent/catalog-scan";
 export * from "@/lib/agent/chat-state";
 export * from "@/lib/agent/composer-state";
 export * from "@/lib/agent/context-path-icon";
