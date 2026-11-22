@@ -47,6 +47,7 @@ import {
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { PdfBottomBar } from "@/components/viewer/pdf/chrome/pdf-bottom-bar";
 import { PdfCardStack } from "@/components/viewer/pdf/chrome/pdf-card-stack";
 import { PdfFiguresPanel } from "@/components/viewer/pdf/chrome/pdf-figures-panel";
@@ -420,9 +421,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 	if (engineLoading || !engine || !plugins) {
 		return (
 			<div id="agentero-pdf-host" className={hostClass}>
-				<p className="p-6 text-center text-muted-foreground text-sm">
-					{t("pdf.loading")}
-				</p>
+				<PageSkeleton label={t("pdf.loading")} />
 			</div>
 		);
 	}
@@ -454,9 +453,11 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 							);
 						}
 						if (!isLoaded) {
-							return (
+							return isLoading ? (
+								<PageSkeleton label={t("pdf.loading")} />
+							) : (
 								<p className="p-6 text-center text-muted-foreground text-sm">
-									{isLoading ? t("pdf.loading") : t("pdf.empty")}
+									{t("pdf.empty")}
 								</p>
 							);
 						}
@@ -3076,7 +3077,7 @@ function PdfViewerInner({
 		<div
 			ref={hostRef}
 			data-pdf-root
-			className="relative flex h-full min-h-0 w-full select-none flex-col"
+			className="content-arrive relative flex h-full min-h-0 w-full select-none flex-col"
 		>
 			{!translationOnly && !immersiveReading && (
 				<PdfLeftToolbar
