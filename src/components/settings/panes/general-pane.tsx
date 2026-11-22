@@ -48,6 +48,7 @@ import {
 import { DEFAULT_NETWORK_PROXY_URL } from "@/lib/settings/defaults";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 import { notesTemplateSeed } from "@/lib/vault/note-template";
+import { AlphaXivAuthCard } from "./general/alphaxiv-auth-card";
 import { ConnectorSettingsBlock } from "./general/connector-settings-block";
 import { EasyScholarSettingsBlock } from "./general/easy-scholar-settings-block";
 import { FinderIntegrationRow } from "./general/finder-integration-row";
@@ -518,6 +519,7 @@ export function GeneralPane({
 					setEasyScholarKeyDraft(next.easyScholarKey);
 				}}
 			/>
+			<AlphaXivAuthCard alphaxiv={settings.alphaxiv} />
 			<SettingsGroup>
 				<OpenReviewAuthRow
 					cookie={settings.openreviewCookie}

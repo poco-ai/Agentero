@@ -231,6 +231,23 @@
 			"statusExpired": "Verification expired",
 			"loginFailed": "OpenReview sign-in failed"
 		},
+		"alphaxiv": {
+			"label": "AlphaXiv",
+			"keyLabel": "API key",
+			"placeholder": "Paste an AlphaXiv API key",
+			"test": "Test connection",
+			"testing": "Testing…",
+			"disconnect": "Disconnect",
+			"disconnecting": "Disconnecting…",
+			"statusIdle": "Not connected",
+			"statusOk": "Connected",
+			"statusFail": "Could not connect",
+			"statusProbing": "Testing…",
+			"testFailed": "AlphaXiv connection failed",
+			"clearFailed": "Could not disconnect AlphaXiv",
+			"keyHelp": "Create a key under AlphaXiv Settings. If that page has no key option, email contact@alphaxiv.org.",
+			"openKeyPage": "API key help"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",

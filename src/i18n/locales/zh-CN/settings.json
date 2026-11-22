@@ -231,6 +231,23 @@
 			"statusExpired": "验证已过期",
 			"loginFailed": "OpenReview 登录失败"
 		},
+		"alphaxiv": {
+			"label": "AlphaXiv",
+			"keyLabel": "API 密钥",
+			"placeholder": "粘贴 AlphaXiv API 密钥",
+			"test": "测试连接",
+			"testing": "测试中…",
+			"disconnect": "断开",
+			"disconnecting": "断开中…",
+			"statusIdle": "未连接",
+			"statusOk": "已连接",
+			"statusFail": "无法连接",
+			"statusProbing": "测试中…",
+			"testFailed": "AlphaXiv 连接失败",
+			"clearFailed": "无法断开 AlphaXiv",
+			"keyHelp": "在 AlphaXiv 的设置里创建密钥。如果页面没有创建入口，可发邮件给 contact@alphaxiv.org。",
+			"openKeyPage": "密钥说明"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",
