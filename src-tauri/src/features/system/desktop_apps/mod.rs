@@ -21,7 +21,10 @@ use crate::core::error::AppError;
 #[cfg(target_os = "macos")]
 use crate::core::process::SpawnInAgentScratchDir;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 /// Stable id the frontend keys rows and brand logos on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
@@ -179,12 +182,64 @@ const APPS: &[AppSpec] = &[
     },
 ];
 
-/// Probe every known desktop app. Cheap enough for the settings pane; still
-/// call it off the UI thread because Spotlight lookups spawn `mdfind`.
+/// Detection results are cached briefly: Spotlight lookups spawn `mdfind` and
+/// the agent catalog re-probes every template on each scan. A short TTL keeps
+/// repeated scans cheap while still noticing an app installed mid-session; an
+/// installer also calls [`invalidate_detect_cache`].
+const DETECT_TTL: Duration = Duration::from_secs(60);
+
+type DetectCache = HashMap<DesktopAppId, (Instant, Option<PathBuf>)>;
+static DETECT_CACHE: OnceLock<Mutex<DetectCache>> = OnceLock::new();
+
+fn detect_cache() -> &'static Mutex<DetectCache> {
+    DETECT_CACHE.get_or_init(Default::default)
+}
+
+/// Forget cached detections (call after installing or removing an app).
+pub fn invalidate_detect_cache() {
+    if let Some(cache) = DETECT_CACHE.get() {
+        cache
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clear();
+    }
+}
+
+/// Cached [`detect_app_uncached`]. Negative results matter most: a missing app
+/// costs two `mdfind` spawns per lookup, and the catalog asks several times
+/// per scan.
+fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
+    if let Some((probed_at, path)) = detect_cache()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(&spec.id)
+    {
+        if probed_at.elapsed() < DETECT_TTL {
+            return path.clone();
+        }
+    }
+    detect_app_fresh(spec)
+}
+
+/// Detect one app now and refresh its cache entry. Settings probes with this so
+/// a user who just installed an app sees it immediately; catalog scans use the
+/// cached [`detect_app`] and stay cheap.
+fn detect_app_fresh(spec: &AppSpec) -> Option<PathBuf> {
+    let path = detect_app_uncached(spec);
+    detect_cache()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .insert(spec.id, (Instant::now(), path.clone()));
+    path
+}
+
+/// Probe every known desktop app from scratch. Settings owns this surface, so
+/// it must not serve a stale TTL entry; the call still spawns `mdfind`, hence
+/// the command keeps it on the blocking pool.
 pub fn probe_desktop_apps() -> Vec<DesktopAppStatus> {
     APPS.iter()
         .map(|spec| {
-            let path = detect_app(spec);
+            let path = detect_app_fresh(spec);
             DesktopAppStatus {
                 id: spec.id,
                 installed: path.is_some(),
@@ -404,7 +459,7 @@ pub fn open_desktop_app(id: DesktopAppId) -> Result<(), AppError> {
 }
 
 #[cfg(target_os = "macos")]
-fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
+fn detect_app_uncached(spec: &AppSpec) -> Option<PathBuf> {
     detect_macos_app(spec.names, spec.bundle_ids)
 }
 
@@ -487,7 +542,7 @@ fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
 }
 
 #[cfg(windows)]
-fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
+fn detect_app_uncached(spec: &AppSpec) -> Option<PathBuf> {
     windows::detect(spec).map(|app| app.path)
 }
 
@@ -497,7 +552,7 @@ fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
 }
 
 #[cfg(target_os = "linux")]
-fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
+fn detect_app_uncached(spec: &AppSpec) -> Option<PathBuf> {
     linux::detect(spec).map(|app| app.executable)
 }
 
@@ -507,7 +562,7 @@ fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
 }
 
 #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
-fn detect_app(_spec: &AppSpec) -> Option<PathBuf> {
+fn detect_app_uncached(_spec: &AppSpec) -> Option<PathBuf> {
     None
 }
 

@@ -1432,6 +1432,10 @@ fn run_tool_lifecycle_silently(
         cmd.sanitize_appimage_env();
         let output = run_command_with_cancellation(cmd, app, task_id, phase);
         crate::core::process::discover::invalidate_login_shell_env();
+        // Vendor CLIs, Node, and the desktop apps that bundle them may all have
+        // changed; drop the cached probes so the next catalog scan re-detects.
+        crate::features::agent::registry::bundled::invalidate_probe_cache();
+        crate::features::system::desktop_apps::invalidate_detect_cache();
         let output = output.map_err(format_lifecycle_process_error)?;
         check_lifecycle_cancelled(task_id)?;
         finish_lifecycle_output(&output)
@@ -1457,6 +1461,8 @@ fn run_tool_lifecycle_silently(
         }
         let output = run_command_with_cancellation(cmd, app, task_id, phase);
         let _ = fs::remove_file(&bat_file);
+        crate::features::agent::registry::bundled::invalidate_probe_cache();
+        crate::features::system::desktop_apps::invalidate_detect_cache();
         check_lifecycle_cancelled(task_id)?;
         finish_lifecycle_output(&output.map_err(format_lifecycle_process_error)?)
     }
