@@ -41,7 +41,7 @@ pub fn bridge_stop(controller: State<'_, BridgeController>) -> ApiResult<()> {
     }
 }
 
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 #[tauri::command]
 #[specta::specta]
 pub fn bridge_status(controller: State<'_, BridgeController>) -> ApiResult<BridgeStatus> {

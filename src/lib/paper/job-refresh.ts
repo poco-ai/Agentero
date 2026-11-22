@@ -28,6 +28,10 @@ import { listenEventSafe } from "@/lib/core/tauri-events";
 import { noteCommittedLibraryList } from "@/lib/lifecycle/refresh-wave";
 import { libraryStore, setEditMetaDraft } from "@/lib/paper/library-store";
 import { loadPaperMetadata } from "@/lib/paper/load-meta";
+import {
+	notifyOpenReviewDownloadIssue,
+	openReviewPdfIssue,
+} from "@/lib/paper/openreview-download";
 import { getVaultPath } from "@/lib/vault/store";
 
 const REFRESH_ON_KINDS: ReadonlySet<JobKind> = new Set([
@@ -105,6 +109,22 @@ export function startJobCompletionRefresh(): () => void {
 		if (!REFRESH_ON_KINDS.has(job.kind)) return;
 		if (!isTerminalJobState(job.state)) return;
 		if (job.kind === "recognizeMetadata") notifyRecognitionOutcome(job);
+		const issue =
+			job.kind === "downloadAssets" && job.state === "failed"
+				? openReviewPdfIssue(job.phase)
+				: undefined;
+		if (issue && job.paperPath) {
+			const vault = getVaultPath();
+			if (
+				vault &&
+				[job.vaultId, job.vaultPath].some(
+					(value) =>
+						normalizePath(displayPath(value)) ===
+						normalizePath(displayPath(vault)),
+				)
+			)
+				notifyOpenReviewDownloadIssue(vault, job.paperPath, issue);
+		}
 		noteCommittedLibraryList();
 	});
 }

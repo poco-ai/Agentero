@@ -61,6 +61,7 @@ mod tests {
             tex: false,
             paper_md: false,
             asset_messages: Vec::new(),
+            openreview_pdf_issue: None,
             assets_pending: false,
             preparation: PreparationPlan {
                 vault_rel: "papers/x".into(),

@@ -106,6 +106,7 @@ pub async fn import_by_identifier_remote(
             messages.extend(notices);
             messages
         },
+        openreview_pdf_issue: None,
         status: None,
         recognize_pending: false,
         preparation: PreparationPlan::default(),
@@ -359,6 +360,7 @@ async fn import_one_local_pdf_remote(
         tex: commit.tex,
         paper_md: commit.paper_md,
         asset_messages: commit.asset_messages,
+        openreview_pdf_issue: None,
         status: None,
         recognize_pending: false,
         preparation: PreparationPlan::default(),

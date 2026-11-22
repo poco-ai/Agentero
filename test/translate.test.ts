@@ -149,8 +149,8 @@ describe("translate services registry", () => {
 		expect(ids).toContain("agent");
 	});
 
-	it("defaults to tencent transmart", () => {
-		expect(DEFAULT_TRANSLATE_SETTINGS.provider).toBe("tencenttransmart");
+	it("defaults to Bilibili Translate 2B", () => {
+		expect(DEFAULT_TRANSLATE_SETTINGS.provider).toBe("indextranslate2b");
 		expect(DEFAULT_TRANSLATE_SETTINGS.agentId).toBe("");
 		expect(DEFAULT_TRANSLATE_SETTINGS.modelId).toBe("");
 	});

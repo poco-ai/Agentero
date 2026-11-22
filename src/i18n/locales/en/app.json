@@ -228,6 +228,20 @@
 		"alreadyInNotes": "NOTES.md already contains this analysis; nothing was appended",
 		"appended": "Cool Papers analysis appended to NOTES.md"
 	},
+	"openreviewDownload": {
+		"verificationRequired": "OpenReview requires browser verification or sign-in",
+		"rateLimited": "OpenReview is limiting PDF downloads. Try again later.",
+		"network": "Could not reach OpenReview. Check your connection and try again.",
+		"unavailable": "No accessible PDF was found for this OpenReview paper.",
+		"downloadFailed": "Could not download the PDF from OpenReview.",
+		"signInHint": "{{paper}}. If OpenReview asks you to sign in, do so in the verification window.",
+		"verifyAndDownload": "Verify and continue download",
+		"openSettings": "OpenReview settings",
+		"verificationIncomplete": "OpenReview verification did not complete",
+		"missingBrowserLink": "No OpenReview link is available for this paper.",
+		"openInBrowser": "Open in default browser",
+		"attachDownloadedPdf": "Download the PDF in your browser and import it into your vault."
+	},
 	"plazaImport": {
 		"taskTitle": "Import into library",
 		"failed": "Import failed",

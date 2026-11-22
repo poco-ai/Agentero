@@ -1600,7 +1600,7 @@ pub fn set_body_source(
     })
 }
 
-fn mutate_paper(
+pub(crate) fn mutate_paper(
     vault_root: &Path,
     path: &str,
     patch: impl FnOnce(&mut PaperRecord) -> Result<(), AppError>,

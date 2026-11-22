@@ -43,6 +43,7 @@ import {
 	formatLookupError,
 	lookupDegradedWarning,
 } from "@/lib/paper/lookup-diagnostics";
+import { notifyOpenReviewDownloadIssue } from "@/lib/paper/openreview-download";
 import { enqueuePaperLayoutAnalysis } from "@/lib/pdf/layout";
 import { getSettings } from "@/lib/settings/react-store";
 import {
@@ -346,6 +347,15 @@ async function finishImportedPapers(
 	sourceInput: string,
 ): Promise<void> {
 	for (const paper of result.imported) {
+		if (paper.openreviewPdfIssue) {
+			notifyOpenReviewDownloadIssue(
+				vaultPath,
+				paper.path,
+				paper.openreviewPdfIssue,
+			);
+		}
+	}
+	for (const paper of result.imported) {
 		const rel = (paper.path || "")
 			.replace(/\\/g, "/")
 			.replace(/^\/+|\/+$/g, "");
@@ -410,6 +420,7 @@ async function finishImportedPapers(
 	// of the frontend tree walk; the runner is idempotent and backfills
 	// PAPER.md + layout.
 	const newPaths = result.imported
+		.filter((paper) => !paper.openreviewPdfIssue)
 		.map((r) => (r.path || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""))
 		.filter(Boolean);
 	if (newPaths.length === 0) return;

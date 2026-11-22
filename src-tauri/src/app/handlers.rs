@@ -1,9 +1,9 @@
-//! Command registration shared between desktop and iOS.
+//! Command registration shared between desktop and mobile.
 //!
-//! Desktop-only commands are listed once via `$($desktop:path),*` so the iOS
-//! branch does not duplicate the common list.
+//! Desktop-only commands are listed once so mobile targets do not
+//! duplicate the common list.
 
-/// Commands available on every platform (including iOS).
+/// Commands available on every platform (including iOS and Android).
 /// Desktop-only extras are appended by the caller; `$extra` stays a raw token
 /// stream so individual entries can carry `#[cfg(...)]` (e.g. features that
 /// need the desktop PDFium stack and are absent on mobile targets).
@@ -19,6 +19,7 @@ macro_rules! common_commands {
             crate::features::system::settings::commands::institution_proxy_presets,
             crate::features::system::settings::commands::institution_proxy_login_open,
             crate::features::system::settings::commands::openreview_auth_login_open,
+            crate::features::system::settings::commands::openreview_account_expiry,
             crate::features::system::builtin::builtin_provider_status,
             crate::features::decision::commands::decision_gateway_decide,
             crate::features::paper::analyze::layout::model_assets::commands::layout_model_status,
@@ -120,6 +121,7 @@ macro_rules! common_commands {
             crate::features::paper::import::commands::paper_resolve_identifier,
             crate::features::paper::import::commands::paper_stage_import_file,
             crate::features::paper::import::commands::paper_recapture_webpage,
+            crate::features::paper::import::commands::paper_verify_openreview_pdf,
             crate::features::paper::import::commands::notes_template_seed,
             crate::features::paper::zotero::commands::paper_export,
             crate::features::paper::zotero::commands::paper_import,
@@ -183,7 +185,7 @@ macro_rules! common_commands {
 
 /// Attach the platform-appropriate invoke handler to the builder.
 pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         builder.invoke_handler(common_commands![
             crate::integration::bridge::commands::bridge_start,
@@ -325,7 +327,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::jev::commands::jev_probe_health,
         ])
     }
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         builder.invoke_handler(common_commands![
             crate::integration::bridge::client_commands::bridge_connect,

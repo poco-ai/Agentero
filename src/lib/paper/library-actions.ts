@@ -41,6 +41,7 @@ import {
 	setLibraryPapers,
 	setLibraryRescanning,
 } from "@/lib/paper/library-store";
+import { isOpenReviewDownloadFailure } from "@/lib/paper/openreview-download";
 import {
 	maybeAutoRunPaperReader,
 	paperAssetsReadyForReader,
@@ -234,7 +235,7 @@ export async function downloadPaperAssetsAction(node: FileNode): Promise<void> {
 				});
 		}
 	} catch (e) {
-		notifyError(errorText(e));
+		if (!isOpenReviewDownloadFailure(e)) notifyError(errorText(e));
 	}
 }
 
@@ -300,7 +301,7 @@ export async function downloadLibraryPaper(
 	try {
 		await runPaperAssetsDownload(vaultPath, rel);
 	} catch (e) {
-		notifyError(errorText(e));
+		if (!isOpenReviewDownloadFailure(e)) notifyError(errorText(e));
 	}
 }
 

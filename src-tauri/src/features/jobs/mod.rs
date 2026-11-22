@@ -261,6 +261,8 @@ pub enum RunOutcome {
     Succeeded,
     /// `Failed`, phase "failed", with the reported error (if any).
     Failed(Option<String>),
+    /// A failure with a phase that identifies an actionable result.
+    FailedWithPhase { phase: &'static str, error: String },
     /// `Cancelled`, phase "cancelled" (renderer-executed jobs only).
     Cancelled,
 }
@@ -1523,6 +1525,10 @@ impl JobCenter {
                 }
                 RunOutcome::Failed(error) => {
                     self.finish(&job_id, JobState::Failed, None, Some("failed"), error)
+                        .await
+                }
+                RunOutcome::FailedWithPhase { phase, error } => {
+                    self.finish(&job_id, JobState::Failed, None, Some(phase), Some(error))
                         .await
                 }
                 RunOutcome::Cancelled => {

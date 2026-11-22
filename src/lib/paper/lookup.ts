@@ -8,6 +8,7 @@ import i18n from "@/i18n";
 import {
 	commands,
 	type LookupImportResult_Serialize,
+	type OpenReviewPdfIssue,
 	type SkillDiscovery,
 	type SkillImportResult,
 } from "@/lib/core/bindings";
@@ -28,6 +29,7 @@ export type LookupAddResult = {
 	tex?: boolean;
 	paperMd?: boolean;
 	assetMessages?: string[];
+	openreviewPdfIssue?: OpenReviewPdfIssue;
 	/** `deduped` = paper already existed (a local PDF was merged into it). */
 	status?: "created" | "deduped" | "skipped";
 	/** Placeholder metadata committed; a RecognizeMetadata job resolves the
@@ -112,6 +114,7 @@ function toLookupAddResult(d: LookupImportResult_Serialize): LookupAddResult {
 		tex: d.tex,
 		paperMd: d.paperMd,
 		assetMessages: d.assetMessages,
+		openreviewPdfIssue: d.openreviewPdfIssue ?? undefined,
 		status: d.status ?? undefined,
 		recognizePending: d.recognizePending,
 	};

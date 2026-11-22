@@ -223,11 +223,13 @@
 			"label": "OpenReview",
 			"login": "Sign in",
 			"loggingIn": "Waiting…",
-			"statusIdle": "Not verified",
-			"statusWaiting": "Waiting for verification…",
-			"statusOk": "Verified",
+			"statusIdle": "Not signed in",
+			"statusWaiting": "Waiting for sign-in…",
+			"statusOk": "Browser verified",
+			"statusSignedIn": "Signed in",
+			"statusSessionExpired": "Sign-in expired",
 			"statusExpired": "Verification expired",
-			"loginFailed": "Could not open the OpenReview login"
+			"loginFailed": "OpenReview sign-in failed"
 		},
 		"easyScholar": {
 			"section": "EasyScholar",

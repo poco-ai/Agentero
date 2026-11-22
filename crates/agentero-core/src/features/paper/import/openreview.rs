@@ -18,7 +18,8 @@
 //! still valid.
 
 use base64::Engine;
-use std::sync::RwLock;
+use futures_util::future::BoxFuture;
+use std::sync::{OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// OpenReview's registrable host; subdomains (`api2.…`) share the cookie jar.
@@ -31,17 +32,198 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Redirect budget for the probe (forum → challenge is a single hop).
 const PROBE_REDIRECTS: usize = 5;
 
-/// Captured verification cookie plus the expiry read out of its JWT, if any.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OpenReviewCredential {
-    /// Ready-to-send `Cookie` header value (`name=value; …`).
-    pub cookie: String,
-    /// Unix seconds from the credential JWT's `exp`; `None` for browser-session
-    /// cookies without a readable expiry.
-    pub expires_at: Option<i64>,
+static CREDENTIAL: RwLock<Option<String>> = RwLock::new(None);
+
+pub const ACCESS_COOKIE: &str = "openreview.accessToken";
+pub const REFRESH_COOKIE: &str = "openreview.refreshToken";
+const API_ORIGIN: &str = "https://api2.openreview.net";
+
+type AccessTokenProvider = fn(Option<String>) -> BoxFuture<'static, Option<String>>;
+static ACCESS_TOKEN_PROVIDER: OnceLock<AccessTokenProvider> = OnceLock::new();
+
+pub fn install_access_token_provider(provider: AccessTokenProvider) {
+    let _ = ACCESS_TOKEN_PROVIDER.set(provider);
 }
 
-static CREDENTIAL: RwLock<Option<OpenReviewCredential>> = RwLock::new(None);
+/// Account tokens and the remaining browser cookies have different lifetimes
+/// and storage. Drop account cookies from the settings-backed verification jar.
+pub fn verification_cookies(cookie: &str) -> String {
+    cookie
+        .split(';')
+        .map(str::trim)
+        .filter(|pair| {
+            pair.split_once('=').is_some_and(|(name, _)| {
+                !matches!(
+                    name.trim(),
+                    ACCESS_COOKIE | REFRESH_COOKIE | "openreview.user"
+                )
+            })
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+fn account_pdf_url(raw: &str) -> Option<reqwest::Url> {
+    let mut url = reqwest::Url::parse(raw).ok()?;
+    if url.scheme() != "https"
+        || url.port().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || !matches!(
+            url.host_str(),
+            Some("openreview.net" | "api2.openreview.net" | "api.openreview.net")
+        )
+        || !(matches!(
+            url.path(),
+            "/pdf" | "/attachment" | "/notes/edits/attachment"
+        ) || url.path().starts_with("/pdf/"))
+    {
+        return None;
+    }
+    if url.host_str() == Some("openreview.net") {
+        url.set_host(Some("api2.openreview.net")).ok()?;
+    }
+    url.set_fragment(None);
+    Some(url)
+}
+
+/// Try the official attachment API with the signed-in account first.
+/// A rejected or unavailable account falls back to the regular download chain.
+pub(crate) async fn account_pdf_response(
+    raw_url: &str,
+    timeout: Duration,
+) -> Option<reqwest::Response> {
+    let url = account_pdf_url(raw_url)?;
+    let client = crate::http::client_builder()
+        .timeout(timeout)
+        .user_agent(crate::http::BROWSER_USER_AGENT)
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            // Reqwest strips Authorization on cross-host redirects. Also stop
+            // before any redirect that would downgrade the HTTPS connection.
+            if attempt.url().scheme() != "https" || attempt.previous().len() >= 5 {
+                attempt.stop()
+            } else {
+                attempt.follow()
+            }
+        }))
+        .build()
+        .ok()?;
+    let request = client.get(url).header(
+        reqwest::header::ACCEPT,
+        "application/pdf,application/octet-stream",
+    );
+    let response = send_with_account(request).await?;
+    let binary = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_none_or(|mime| {
+            mime.starts_with("application/pdf") || mime.starts_with("application/octet-stream")
+        });
+    (response.status().is_success() && binary).then_some(response)
+}
+
+async fn send_with_account(request: reqwest::RequestBuilder) -> Option<reqwest::Response> {
+    let provider = ACCESS_TOKEN_PROVIDER.get()?;
+    let token = provider(None).await?;
+    let response = request.try_clone()?.bearer_auth(&token).send().await.ok()?;
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        let refreshed = provider(Some(token)).await?;
+        return request.bearer_auth(refreshed).send().await.ok();
+    }
+    Some(response)
+}
+
+/// Read one submission through the official API. The session that can
+/// download an attachment can also supply its bibliographic fields.
+pub(crate) async fn submission(id: &str) -> Option<serde_json::Value> {
+    let url = format!("{API_ORIGIN}/notes");
+    let client = crate::http::client_builder()
+        .timeout(Duration::from_secs(10))
+        .user_agent(crate::http::BROWSER_USER_AGENT)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .ok()?;
+    let request = client
+        .get(&url)
+        .query(&[("id", id)])
+        .header(reqwest::header::ACCEPT, "application/json");
+    if let Some(response) = send_with_account(request.try_clone()?).await {
+        if response.status().is_success() {
+            if let Ok(json) = response.json().await {
+                return Some(json);
+            }
+        }
+    }
+    if let Some(cookie) = cookie_header_for(&url) {
+        if let Ok(response) = request.header(reqwest::header::COOKIE, cookie).send().await {
+            if response.status().is_success() {
+                if let Ok(json) = response.json().await {
+                    return Some(json);
+                }
+            }
+        }
+    }
+    // The public search API supports exact note IDs, even when the forum and
+    // direct note endpoints require authentication. Only query the submission.
+    client
+        .post(format!("{API_ORIGIN}/notes/search"))
+        .json(&serde_json::json!({ "ids": [id], "source": "forum", "limit": 1 }))
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .json()
+        .await
+        .ok()
+}
+
+pub async fn probe_account_pdf(url: &str) -> bool {
+    let Some(mut response) = account_pdf_response(url, PROBE_TIMEOUT).await else {
+        return false;
+    };
+    let mut prefix = Vec::new();
+    while prefix.len() < 4 {
+        let Ok(Some(bytes)) = response.chunk().await else {
+            return false;
+        };
+        prefix.extend_from_slice(&bytes[..bytes.len().min(4 - prefix.len())]);
+    }
+    prefix == b"%PDF"
+}
+
+/// Refresh via the same API used by OpenReview's website. The refresh cookie
+/// only goes to this one endpoint, and any rotated refresh token is retained.
+pub async fn refresh_account(refresh: &str) -> Option<(String, Option<String>)> {
+    let client = crate::http::client_builder()
+        .timeout(PROBE_TIMEOUT)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .ok()?;
+    let response = client
+        .post(format!("{API_ORIGIN}/refreshToken"))
+        .header(
+            reqwest::header::COOKIE,
+            format!("{REFRESH_COOKIE}={refresh}"),
+        )
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?;
+    let rotated = response.cookies().find_map(|cookie| {
+        (cookie.name() == REFRESH_COOKIE && !cookie.value().is_empty())
+            .then(|| cookie.value().to_owned())
+    });
+    #[derive(serde::Deserialize)]
+    struct RefreshResponse {
+        token: String,
+    }
+    let refreshed = response.json::<RefreshResponse>().await.ok()?;
+    Some((refreshed.token, rotated))
+}
 
 /// True when `url` belongs to OpenReview (main site or an API subdomain).
 pub fn is_openreview_url(url: &str) -> bool {
@@ -61,7 +243,7 @@ pub fn is_openreview_host(host: &str) -> bool {
 }
 
 /// Unix expiry encoded in a JWT value (`header.payload.signature`).
-fn jwt_expiry(value: &str) -> Option<i64> {
+pub fn jwt_expiry(value: &str) -> Option<i64> {
     let mut parts = value.split('.');
     parts.next()?;
     let payload = parts.next()?.trim();
@@ -73,41 +255,18 @@ fn jwt_expiry(value: &str) -> Option<i64> {
     json.get("exp").and_then(serde_json::Value::as_i64)
 }
 
-/// Latest `exp` found among the JWT-valued cookies of a `Cookie` header.
-///
-/// The clearance token is the usual carrier, but a signed-in browser session
-/// may also arrive as a JWT; taking the maximum keeps the status honest when
-/// both are present.
+/// Latest JWT expiry in the cookie header. Accepts a bare JWT as well.
 pub fn credential_expiry(cookie: &str) -> Option<i64> {
-    let mut expiry: Option<i64> = None;
-    for pair in cookie.split(';') {
-        let pair = pair.trim();
-        if pair.is_empty() {
-            continue;
-        }
-        // A cookie pair is `name=value`; a bare JWT is accepted too so callers
-        // can pass a raw credential value.
-        let value = match pair.split_once('=') {
-            Some((_, value)) => value,
-            None => pair,
-        };
-        let Some(exp) = jwt_expiry(value.trim()) else {
-            continue;
-        };
-        expiry = Some(expiry.map_or(exp, |current| current.max(exp)));
-    }
-    expiry
+    cookie
+        .split(';')
+        .filter_map(|pair| {
+            let value = pair.split_once('=').map_or(pair, |(_, value)| value);
+            jwt_expiry(value.trim())
+        })
+        .max()
 }
 
-/// Whether the credential's own expiry has passed (browser-session cookies
-/// without an `exp` stay "unknown", not expired).
-pub fn credential_expired(credential: &OpenReviewCredential) -> bool {
-    credential
-        .expires_at
-        .is_some_and(|expiry| expiry <= now_unix())
-}
-
-fn now_unix() -> i64 {
+pub fn now_unix() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| elapsed.as_secs() as i64)
@@ -119,32 +278,17 @@ fn now_unix() -> i64 {
 pub fn set_openreview_cookie(cookie: &str) {
     // Header values reject control characters; captured cookies occasionally
     // carry stray CR/LF/TAB when pasted, and the settings file is plain JSON.
-    let cookie: String = cookie
-        .trim()
+    let cookie: String = verification_cookies(cookie)
         .chars()
         .filter(|c| !matches!(c, '\r' | '\n' | '\t'))
         .collect();
-    let next = if cookie.is_empty() {
-        None
-    } else {
-        let expires_at = credential_expiry(&cookie);
-        Some(OpenReviewCredential { cookie, expires_at })
-    };
     if let Ok(mut slot) = CREDENTIAL.write() {
-        *slot = next;
+        *slot = (!cookie.is_empty()).then_some(cookie);
     }
 }
 
-/// The captured credential, if any state is configured.
-pub fn openreview_credential() -> Option<OpenReviewCredential> {
+fn openreview_cookie() -> Option<String> {
     CREDENTIAL.read().ok().and_then(|slot| slot.clone())
-}
-
-/// The captured cookie header value, if any.
-pub fn openreview_cookie() -> Option<String> {
-    openreview_credential()
-        .map(|credential| credential.cookie)
-        .filter(|cookie| !cookie.is_empty())
 }
 
 /// Cookie header to attach to `url`; only OpenReview hosts receive it.
@@ -178,10 +322,9 @@ pub fn load_openreview_from_settings() -> bool {
     openreview_cookie().is_some()
 }
 
-/// True when a `403` body is OpenReview's bot-challenge gate rather than a
-/// genuine permission error.
+/// Recognize an OpenReview browser challenge or explicit sign-in prompt.
 pub fn looks_like_challenge(status: u16, body: &[u8]) -> bool {
-    if status != 403 {
+    if status != 403 && status != 401 {
         return false;
     }
     let body = String::from_utf8_lossy(body);
@@ -189,6 +332,7 @@ pub fn looks_like_challenge(status: u16, body: &[u8]) -> bool {
         || body.contains("Verifying your browser")
         || body.contains("challenges.cloudflare.com/turnstile")
         || body.contains("cf-turnstile")
+        || body.contains("Please check that you are logged in to OpenReview")
 }
 
 /// Verify that `cookie` gets past the challenge gate.
@@ -265,12 +409,6 @@ mod tests {
         // Non-JWT and unsigned values carry no readable expiry.
         assert_eq!(credential_expiry("_ga=GA1.1.1"), None);
         assert_eq!(credential_expiry("openreview.clearanceToken=boom"), None);
-        // An expired credential is recognised without a network request.
-        let credential = OpenReviewCredential {
-            cookie: "openreview.clearanceToken=x".into(),
-            expires_at: Some(1),
-        };
-        assert!(credential_expired(&credential));
     }
 
     #[test]
@@ -282,6 +420,10 @@ mod tests {
             403,
             br#"{"error":{"code":"ChallengeRequiredError"}}"#
         ));
+        let login_prompt = b"<h1>Error 403</h1><p>Access to this page is restricted.
+            Please check that you are logged in to OpenReview and try again.</p>";
+        assert!(looks_like_challenge(403, login_prompt));
+        assert!(looks_like_challenge(401, login_prompt));
         assert!(!looks_like_challenge(403, b"<html>Forbidden</html>"));
         assert!(!looks_like_challenge(200, challenge));
         assert!(!looks_like_challenge(404, b"<html>Not Found</html>"));

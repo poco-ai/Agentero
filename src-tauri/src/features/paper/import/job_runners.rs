@@ -140,6 +140,12 @@ fn download_assets_runner(
                     // background translation (settings gate inside).
                     crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &path);
                 }
+                if let Some(issue) = downloaded.openreview_pdf_issue {
+                    return RunOutcome::FailedWithPhase {
+                        phase: issue.phase(),
+                        error: issue.message().into(),
+                    };
+                }
                 RunOutcome::Succeeded
             }
             Err(e) => RunOutcome::Failed(Some(e.to_string())),

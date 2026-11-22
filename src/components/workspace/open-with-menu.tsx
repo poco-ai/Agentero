@@ -34,7 +34,10 @@ import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { getPlatformOS } from "@/lib/core/tauri";
 import type { PaperMetadata } from "@/lib/paper";
-import { paperLinkTargets } from "@/lib/paper/external-links";
+import {
+	openReviewSourceHref,
+	paperLinkTargets,
+} from "@/lib/paper/external-links";
 import { askPaperOnZhihu } from "@/lib/paper/zhihu-ask";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
 import {
@@ -180,7 +183,7 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 		"html",
 		"HTML",
 		<FileCode2 className="size-4 shrink-0 text-[#E34F26]" aria-hidden />,
-		htmlUrl,
+		targets.htmlUrl ?? (openReviewSourceHref(htmlUrl) ? null : htmlUrl),
 	);
 	pushLink(
 		"arxiv",
@@ -199,7 +202,11 @@ export function OpenWithMenu({ path, meta, htmlUrl }: OpenWithMenuProps) {
 		"pdf",
 		tSidebar("paperInfo.pdf"),
 		<FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />,
-		targets.arxivUrl || targets.doiUrl ? null : targets.pdfUrl,
+		targets.openreviewUrl && targets.pdfUrl !== targets.arxivUrl
+			? targets.pdfUrl
+			: targets.arxivUrl || targets.doiUrl
+				? null
+				: targets.pdfUrl,
 	);
 	pushLink(
 		"alphaxiv",

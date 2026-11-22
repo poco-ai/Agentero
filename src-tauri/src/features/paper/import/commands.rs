@@ -19,6 +19,52 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tauri::State;
 
+#[derive(serde::Serialize, specta::Type)]
+pub struct OpenReviewPdfVerification {
+    pub verified: bool,
+    pub url: String,
+}
+
+/// Verify access to a PDF on the catalog entry the user chose to retry.
+#[tauri::command]
+#[specta::specta]
+pub async fn paper_verify_openreview_pdf(
+    app: tauri::AppHandle,
+    vault_path: String,
+    path: String,
+) -> Result<OpenReviewPdfVerification, String> {
+    let url = tauri::async_runtime::spawn_blocking(move || {
+        let vault = resolve_vault(&vault_path).map_err(|error| error.to_string())?;
+        let paper = crate::features::paper::catalog::papers::get_by_path(&vault, &path)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "Paper not found in the vault".to_string())?;
+        agentero_core::features::paper::import::sources::openreview::paper_pdf_url(&paper)
+            .ok_or_else(|| "This paper has no OpenReview PDF URL".to_string())
+            .and_then(|url| tauri::Url::parse(&url).map_err(|error| error.to_string()))
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    let verified =
+        crate::features::system::settings::commands::verify_openreview_pdf(app, url.clone()).await;
+    let browser_url = if url.host_str() == Some("openreview.net") {
+        url.into()
+    } else if let Some((_, id)) = url
+        .query_pairs()
+        .find(|(key, value)| key == "id" && !value.is_empty())
+    {
+        let mut pdf =
+            tauri::Url::parse("https://openreview.net/pdf").expect("static OpenReview PDF URL");
+        pdf.query_pairs_mut().append_pair("id", &id);
+        pdf.into()
+    } else {
+        "https://openreview.net/".into()
+    };
+    Ok(OpenReviewPdfVerification {
+        verified,
+        url: browser_url,
+    })
+}
+
 /// Batch resolve identifiers and write papers into vault.
 /// Deduplicates within the batch and against existing catalog entries.
 #[tauri::command]

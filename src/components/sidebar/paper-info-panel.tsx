@@ -3,6 +3,7 @@ import {
 	Calendar,
 	ChevronRight,
 	ExternalLink,
+	FileCode2,
 	Library,
 	Loader2,
 	Pencil,
@@ -510,6 +511,9 @@ export function PaperInfoPanel({
 	const huggingFaceUrl = targets.huggingFaceUrl;
 	const codeRepoUrl = targets.codeRepoUrl;
 	const openreviewUrl = targets.openreviewUrl;
+	const showPdf =
+		(!targets.arxivUrl && !targets.doiUrl) ||
+		(openreviewUrl && targets.pdfUrl !== targets.arxivUrl);
 	const venue = meta ? venueInfo(meta, easyScholarRanks) : null;
 
 	const copyField = async (text: string | null | undefined, label: string) => {
@@ -711,7 +715,12 @@ export function PaperInfoPanel({
 								/>
 							</MetaRow>
 							<div className="@container/paper-links flex flex-col gap-1.5 px-3 pt-1.5">
-								<div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
+								<div
+									className={cn(
+										"flex items-center gap-1.5",
+										openreviewUrl ? "flex-wrap" : "flex-nowrap overflow-hidden",
+									)}
+								>
 									{targets.arxivUrl ? (
 										<LinkChip
 											href={targets.arxivUrl}
@@ -723,7 +732,8 @@ export function PaperInfoPanel({
 												/>
 											}
 										/>
-									) : targets.doiUrl ? (
+									) : null}
+									{targets.doiUrl ? (
 										<LinkChip
 											href={targets.doiUrl}
 											label={t("paperInfo.doi")}
@@ -734,7 +744,8 @@ export function PaperInfoPanel({
 												/>
 											}
 										/>
-									) : targets.pdfUrl ? (
+									) : null}
+									{showPdf && targets.pdfUrl ? (
 										<LinkChip
 											href={targets.pdfUrl}
 											label={t("paperInfo.pdf")}
@@ -821,8 +832,30 @@ export function PaperInfoPanel({
 										</PopoverContent>
 									</Popover>
 								</div>
-								{codeRepoUrl || huggingFaceUrl || openreviewUrl ? (
-									<div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
+								{codeRepoUrl ||
+								huggingFaceUrl ||
+								openreviewUrl ||
+								targets.htmlUrl ? (
+									<div
+										className={cn(
+											"flex items-center gap-1.5",
+											openreviewUrl
+												? "flex-wrap"
+												: "flex-nowrap overflow-hidden",
+										)}
+									>
+										{targets.htmlUrl ? (
+											<ServiceLinkChip
+												href={targets.htmlUrl}
+												label="HTML"
+												icon={
+													<FileCode2
+														className="size-3.5 shrink-0"
+														aria-hidden
+													/>
+												}
+											/>
+										) : null}
 										{codeRepoUrl ? (
 											<ServiceLinkChip
 												href={codeRepoUrl}

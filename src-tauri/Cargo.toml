@@ -32,6 +32,7 @@ desktop = [
   "dep:tauri-plugin-dialog",
   "dep:tauri-plugin-fs",
   "dep:tauri-plugin-log",
+  "dep:keyring",
   "dep:fern",
   "dep:tauri-plugin-opener",
   "dep:tauri-plugin-updater",
@@ -93,6 +94,7 @@ dirs = { workspace = true }
 which = "7"
 semver = "1"
 rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+keyring = { version = "4.2", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls", "socks", "multipart", "cookies"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 flate2 = "1.1.9"

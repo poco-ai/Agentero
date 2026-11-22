@@ -58,13 +58,10 @@ export const commands = {
 	 *  Resolves once the login window closes; `true` when a cookie was captured.
 	 */
 	institutionProxyLoginOpen: (prefix: string) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix })),
-	/**
-	 *  Open (or focus) the OpenReview verification window and wait until a
-	 *  captured cookie passes the challenge probe. Resolves when the window closes
-	 *  or a working credential was saved; `true` when it was saved. Async is
-	 *  required when creating a window from WebView2 on Windows.
-	 */
+	/**  Use the official sign-in page, including any MFA required by the account. */
 	openreviewAuthLoginOpen: () => typedError<boolean, string>(__TAURI_INVOKE("openreview_auth_login_open")),
+	/**  Return the expiry of the account session for the Settings indicator. */
+	openreviewAccountExpiry: () => __TAURI_INVOKE<number | null>("openreview_account_expiry"),
 	builtinProviderStatus: () => __TAURI_INVOKE<ApiResult<BuiltinProviderStatus>>("builtin_provider_status"),
 	decisionGatewayDecide: (request: DecisionGatewayRequest) => __TAURI_INVOKE<ApiResult<DecisionGatewayResponse>>("decision_gateway_decide", { request }),
 	layoutModelStatus: () => __TAURI_INVOKE<ApiResult<LayoutModelStatus>>("layout_model_status"),
@@ -360,6 +357,8 @@ export const commands = {
 	 *  origin was unreachable or behind a WAF.
 	 */
 	paperRecaptureWebpage: (vaultPath: string, path: string) => typedError<ApiResult<WebpageSnapshotResult>, string>(__TAURI_INVOKE("paper_recapture_webpage", { vaultPath, path })),
+	/**  Verify access to a PDF on the catalog entry the user chose to retry. */
+	paperVerifyOpenreviewPdf: (vaultPath: string, path: string) => typedError<OpenReviewPdfVerification, string>(__TAURI_INVOKE("paper_verify_openreview_pdf", { vaultPath, path })),
 	/**
 	 *  Seed `{vault}/.agentero/templates/NOTES.md` with a starting template for
 	 *  the `custom` paper-note mode. Never overwrites an existing template.
@@ -4268,6 +4267,7 @@ export type LookupImportResult_Deserialize = {
 	paperMd?: boolean,
 	/**  Download / parse messages (for UI warnings). */
 	assetMessages?: string[],
+	openreviewPdfIssue: OpenReviewPdfIssue | null,
 	/**
 	 *  `Deduped` when the paper already existed and (for local PDFs) the PDF
 	 *  was merged into the existing entry instead of creating a duplicate.
@@ -4297,6 +4297,7 @@ export type LookupImportResult_Serialize = {
 	paperMd: boolean,
 	/**  Download / parse messages (for UI warnings). */
 	assetMessages: string[],
+	openreviewPdfIssue?: OpenReviewPdfIssue | null,
 	/**
 	 *  `Deduped` when the paper already existed and (for local PDFs) the PDF
 	 *  was merged into the existing entry instead of creating a duplicate.
@@ -4444,6 +4445,14 @@ export type OpenInTerminalResult = {
 	cwd: string,
 };
 
+/**  Why the OpenReview PDF is still missing after trying available sources. */
+export type OpenReviewPdfIssue = "verificationRequired" | "rateLimited" | "network" | "unavailable" | "downloadFailed";
+
+export type OpenReviewPdfVerification = {
+	verified: boolean,
+	url: string,
+};
+
 export type OpenWithApp = {
 	/**  Stable id used by `path_open_with`. */
 	id: string,
@@ -4493,6 +4502,7 @@ export type PaperCommitResult = {
 	tex: boolean,
 	paperMd: boolean,
 	assetMessages: string[],
+	openreviewPdfIssue: OpenReviewPdfIssue | null,
 	/**  True when assets are still downloading in the background (`Deferred`). */
 	assetsPending: boolean,
 };
@@ -7054,6 +7064,19 @@ export type ZoteroMigrateArgs = {
 	migrateAnnotations?: boolean,
 };
 
+/**
+ *  One item the migration could not import, with enough context to find it in
+ *  Zotero again and to explain the failure.
+ */
+export type ZoteroMigrateFailure = {
+	/**  Zotero itemID (the item's own id, or the note's itemID for standalone notes). */
+	itemId: number,
+	title: string,
+	/**  DOI as stored in Zotero (`DOI` field), when the item has one. */
+	doi: string | null,
+	message: string,
+};
+
 export type ZoteroMigrateResult = {
 	imported: number,
 	skipped: number,
@@ -7078,7 +7101,12 @@ export type ZoteroMigrateResult = {
 	/**  Orphan catalog rows removed before import (paper folder gone from disk). */
 	pruned: number,
 	paths: string[],
-	errors: string[],
+	/**
+	 *  Per-item failures. `message` is the Host error text; `title` / `doi` let
+	 *  the UI (and the log) point at the exact Zotero entry instead of a bare
+	 *  count.
+	 */
+	failures: ZoteroMigrateFailure[],
 };
 
 export type ZoteroScan = ZoteroScan_Serialize | ZoteroScan_Deserialize;

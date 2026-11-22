@@ -568,6 +568,12 @@ fn flip_y(page_height: f32, word: &ProbeWord) -> (f32, f32, f32) {
     (y_min, y_max, page_height - word.baseline)
 }
 
+/// Read the visible title on the first page without calling a recognition service.
+pub(crate) async fn first_page_title(pdf: &Path, task_id: Option<&str>) -> Option<String> {
+    let pages = run_liteparse_probe(pdf, task_id).await.ok()?;
+    pages.first().and_then(local_title)
+}
+
 /// Recognize one local PDF. No text or no usable hit is `Ok(None)`;
 /// parser, transport and response failures are errors, not misses.
 pub async fn recognize_pdf(

@@ -5,6 +5,7 @@
 //! refresh, jobs layout cap) subscribe via [`AppSettingsStore::subscribe`]
 //! at app assembly, so this feature imports no other domain.
 
+use super::openreview_account;
 use crate::core::error::{map_err, ApiResult};
 use crate::features::system::settings::{AppSettings, AppSettingsStore, SettingsGetResult};
 use agentero_core::features::paper::import::institution_proxy::InstitutionProxyPreset;
@@ -13,6 +14,8 @@ use futures_util::future::BoxFuture;
 use tauri::{AppHandle, Emitter, Manager, State, Url, WebviewUrl, WebviewWindowBuilder};
 
 const PROXY_LOGIN_WINDOW: &str = "institution-proxy-login";
+const OPENREVIEW_ACCOUNT_WINDOW: &str = "openreview-account-login";
+const OPENREVIEW_LOGIN_URL: &str = "https://openreview.net/login";
 /// One window serves every site's verification wall: it is re-navigated when a
 /// different site asks for verification while it is open.
 const VERIFICATION_WINDOW: &str = "site-verification";
@@ -127,8 +130,7 @@ async fn monitor_institution_login(app: AppHandle, prefix: String) -> bool {
 
 /// URL to show in the verification window. An automatic request shows the very
 /// page that was blocked — the wall is answered on that page, and the user sees
-/// what they are waiting for. The Settings button opens OpenReview's challenge
-/// gate (no target URL): it covers anonymous Turnstile plus account sign-in.
+/// what they are waiting for. With no target, open OpenReview's challenge gate.
 fn verification_url(target: Option<&str>) -> Url {
     if let Some(url) = target.and_then(|value| Url::parse(value).ok()) {
         if matches!(url.scheme(), "http" | "https") && url.host_str().is_some() {
@@ -181,24 +183,66 @@ fn site_cookie_header(cookies: &[tauri::webview::Cookie<'static>], host: &str) -
         .join("; ")
 }
 
-/// Whether the captured cookies get past the site's wall: OpenReview has a
-/// cheap forum probe; other sites are probed at the exact URL that was blocked
-/// (response headers plus a bounded body prefix only, so a PDF probe does not
-/// download the file).
-async fn verify_cookie(url: &Url, cookie: &str) -> bool {
-    if is_openreview_url(url) {
+/// Probe the blocked URL with a bounded response prefix. OpenReview's
+/// challenge page uses a public forum probe when there is no target PDF.
+async fn verify_cookie(url: &Url, cookie: &str, require_pdf: bool) -> bool {
+    if require_pdf {
+        return web_verify::probe_pdf_cookie(url.as_str(), cookie).await;
+    }
+    if is_openreview_url(url) && url.path() == "/challenge" {
         return openreview::probe_openreview_auth(cookie).await.is_ok();
     }
     web_verify::probe_cookie(url.as_str(), cookie).await
 }
 
-/// Open (or focus) the verification window for the Settings button: no target
-/// URL, so it opens OpenReview's challenge gate and waits until a captured
-/// cookie passes the probe (or the window is closed).
+/// Use the official sign-in page, including any MFA required by the account.
 #[tauri::command]
 #[specta::specta]
 pub async fn openreview_auth_login_open(app: AppHandle) -> Result<bool, String> {
-    Ok(verify_window(app, None, None).await)
+    let url = Url::parse(OPENREVIEW_LOGIN_URL).expect("constant login URL");
+    if !open_verification_window(&app, OPENREVIEW_ACCOUNT_WINDOW, &url) {
+        return Err("Could not open the OpenReview login window".into());
+    }
+    let mut interval = tokio::time::interval(VERIFICATION_POLL);
+    loop {
+        interval.tick().await;
+        let Some(window) = app.get_webview_window(OPENREVIEW_ACCOUNT_WINDOW) else {
+            return Ok(false);
+        };
+        let cookies = match tauri::async_runtime::spawn_blocking(move || window.cookies()).await {
+            Ok(Ok(cookies)) => cookies,
+            _ => continue,
+        };
+        let result = openreview_account::capture(&cookies).await;
+        if result != Ok(false) {
+            if let Some(window) = app.get_webview_window(OPENREVIEW_ACCOUNT_WINDOW) {
+                let _ = window.close();
+            }
+            return result;
+        }
+    }
+}
+
+/// Return the expiry of the account session for the Settings indicator.
+#[tauri::command]
+#[specta::specta]
+pub async fn openreview_account_expiry() -> Option<i64> {
+    openreview_account::session_expiry().await
+}
+
+/// Verify a download URL selected from the paper catalog.
+pub(crate) async fn verify_openreview_pdf(app: AppHandle, url: Url) -> bool {
+    static INTERACTIVE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _guard = INTERACTIVE.lock().await;
+    if openreview::probe_account_pdf(url.as_str()).await {
+        return true;
+    }
+    if let Some(cookie) = openreview::cookie_header_for(url.as_str()) {
+        if verify_cookie(&url, &cookie, true).await {
+            return true;
+        }
+    }
+    verify_window(app, Some(url.into()), Some(VERIFICATION_AUTO_TIMEOUT), true).await
 }
 
 /// Shared entry for the Settings button and the challenge hook. `target` is
@@ -209,46 +253,50 @@ async fn verify_window(
     app: AppHandle,
     target: Option<String>,
     timeout: Option<std::time::Duration>,
+    require_pdf: bool,
 ) -> bool {
-    let window_url = verification_url(target.as_deref());
-    let Some(host) = window_url.host_str().map(str::to_string) else {
+    let target = verification_url(target.as_deref());
+    // API attachment endpoints return JSON when challenged. The verification
+    // window must navigate to the site's HTML challenge page in that case.
+    let window_url = if require_pdf {
+        verification_url(None)
+    } else {
+        target.clone()
+    };
+    if !open_verification_window(&app, VERIFICATION_WINDOW, &window_url) {
+        return false;
+    }
+    monitor_verification(app, target, timeout, require_pdf).await
+}
+
+fn open_verification_window(app: &AppHandle, label: &str, url: &Url) -> bool {
+    let Some(host) = url.host_str() else {
         return false;
     };
-    if let Some(window) = app.get_webview_window(VERIFICATION_WINDOW) {
-        // Never reload the same site mid-challenge: concurrent challenged
-        // requests share one verification flow and a navigation would restart
-        // the Turnstile widget. A different site replaces the flow.
+    if let Some(window) = app.get_webview_window(label) {
+        // Do not reload another request's verification on the same site.
         let same_site = window
             .url()
-            .ok()
-            .and_then(|current| current.host_str().map(|current| current == host.as_str()))
-            .unwrap_or(false);
+            .is_ok_and(|current| current.host_str() == Some(host));
         if !same_site {
-            let _ = window.navigate(window_url.clone());
+            let _ = window.navigate(url.clone());
         }
         let _ = window.set_focus();
-    } else {
-        let created = WebviewWindowBuilder::new(
-            &app,
-            VERIFICATION_WINDOW,
-            WebviewUrl::External(window_url.clone()),
-        )
+        return true;
+    }
+    WebviewWindowBuilder::new(app, label, WebviewUrl::External(url.clone()))
         .title(host)
         .inner_size(1000.0, 750.0)
-        .build();
-        // A concurrent caller may have created the label first; that window
-        // is still usable.
-        if created.is_err() && app.get_webview_window(VERIFICATION_WINDOW).is_none() {
-            return false;
-        }
-    }
-    monitor_verification(app, window_url, timeout).await
+        .build()
+        .is_ok()
+        || app.get_webview_window(label).is_some()
 }
 
 async fn monitor_verification(
     app: AppHandle,
     target: Url,
     timeout: Option<std::time::Duration>,
+    require_pdf: bool,
 ) -> bool {
     use std::time::Instant;
 
@@ -257,6 +305,7 @@ async fn monitor_verification(
     };
     let started = Instant::now();
     let mut last_probe: Option<String> = None;
+    let mut last_account: Option<String> = None;
     let mut interval = tokio::time::interval(VERIFICATION_POLL);
     loop {
         interval.tick().await;
@@ -273,21 +322,40 @@ async fn monitor_verification(
             Ok(Ok(cookies)) => cookies,
             _ => continue,
         };
-        let cookie = site_cookie_header(&cookies, &host);
+        let is_openreview = is_openreview_url(&target);
+        if is_openreview && require_pdf {
+            if let Some(access) = openreview_account::access_cookie(&cookies) {
+                if last_account.as_deref() != Some(access) {
+                    last_account = Some(access.to_owned());
+                    if openreview_account::capture(&cookies).await == Ok(true)
+                        && openreview::probe_account_pdf(target.as_str()).await
+                    {
+                        if let Some(window) = app.get_webview_window(VERIFICATION_WINDOW) {
+                            let _ = window.close();
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        let mut cookie = site_cookie_header(&cookies, &host);
+        if is_openreview {
+            cookie = openreview::verification_cookies(&cookie);
+        }
         if cookie.is_empty() || last_probe.as_deref() == Some(cookie.as_str()) {
             continue;
         }
         last_probe = Some(cookie.clone());
         // Interstitials set unrelated cookies of their own; only a probe that
         // reaches the site's content proves the credential.
-        if !verify_cookie(&target, &cookie).await {
+        if !verify_cookie(&target, &cookie, require_pdf).await {
             continue;
         }
         // The same captured cookie has to be visible to the download and
         // page-snapshot layers, and every opened window: the session map holds
         // it for any site, and OpenReview keeps its durable Settings row.
         web_verify::set_site_cookie(target.as_str(), &cookie);
-        if is_openreview_url(&target) {
+        if is_openreview {
             let expires_at = openreview::credential_expiry(&cookie).unwrap_or(0);
             let store = app.state::<AppSettingsStore>();
             let Ok(Some(settings)) = store.update_openreview_auth(cookie, expires_at) else {
@@ -308,11 +376,12 @@ async fn monitor_verification(
 /// captured cookie. Without a Host (headless CLI) the operation fails with a
 /// readable "verification required" reason instead.
 pub fn install_web_verification_hook(app: AppHandle) {
+    openreview::install_access_token_provider(openreview_account::access_token);
     web_verify::install_auth_requester(move |url| -> BoxFuture<'static, Option<String>> {
         let app = app.clone();
         Box::pin(async move {
             let target = Some(url.clone());
-            let _ = verify_window(app, target, Some(VERIFICATION_AUTO_TIMEOUT)).await;
+            let _ = verify_window(app, target, Some(VERIFICATION_AUTO_TIMEOUT), false).await;
             // A concurrent waiter may have completed the same window; the
             // stored credential is the shared outcome either way.
             openreview::cookie_header_for(&url).or_else(|| web_verify::cookie_header_for(&url))
