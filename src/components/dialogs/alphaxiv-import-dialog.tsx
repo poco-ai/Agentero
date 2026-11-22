@@ -2,9 +2,11 @@
  * Select AlphaXiv library papers, then import them through the identifier pipeline.
  */
 
-import { Bookmark, Import, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Check, Import, Loader2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlphaXivFolderIcon } from "@/components/dialogs/alphaxiv-folder-icon";
+import { AlphaXivIcon } from "@/components/icons/paper-service-icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -29,7 +31,6 @@ import { isTauri } from "@/lib/core/tauri";
 import {
 	type AlphaXivImportPlanItem,
 	type AlphaXivImportSource,
-	type AlphaXivImportSummary,
 	alphaXivPaperId,
 	alphaXivRowKey,
 	arxivMatchKey,
@@ -90,6 +91,14 @@ function rowKey(
 	return alphaXivRowKey(folderId, paperId(paper, index));
 }
 
+function alreadyInLibrary(
+	paper: AlphaXivFolderPaper,
+	inVault: ReadonlySet<string>,
+): boolean {
+	const key = arxivMatchKey(paper.arxivId);
+	return key.length > 0 && inVault.has(key);
+}
+
 function defaultSelected(
 	folders: readonly AlphaXivFolder[],
 	inVault: ReadonlySet<string>,
@@ -97,25 +106,42 @@ function defaultSelected(
 	const selected = new Set<string>();
 	for (const folder of folders) {
 		folder.papers.forEach((paper, index) => {
-			if (!paper.importable) return;
-			const key = arxivMatchKey(paper.arxivId);
-			if (!key || inVault.has(key)) return;
+			if (!paper.importable || alreadyInLibrary(paper, inVault)) return;
 			selected.add(rowKey(folder.id, paper, index));
 		});
 	}
 	return selected;
 }
 
+function folderTitle(folder: AlphaXivFolder, language: string): string {
+	const translate = i18n.getFixedT(language, "sidebar");
+	switch (folder.folderType.trim()) {
+		case "default-publications":
+			return translate("alphaxivImport.folders.default-publications");
+		case "default-to-read":
+			return translate("alphaxivImport.folders.default-to-read");
+		case "default-reading":
+			return translate("alphaxivImport.folders.default-reading");
+		case "default-completed":
+			return translate("alphaxivImport.folders.default-completed");
+		default: {
+			const name = folder.name.trim();
+			return name || translate("alphaxivImport.untitledFolder");
+		}
+	}
+}
+
 function selectedSources(
 	folders: readonly AlphaXivFolder[],
 	selected: ReadonlySet<string>,
+	language: string,
 ): AlphaXivImportSource[] {
 	const rows: AlphaXivImportSource[] = [];
 	for (const folder of folders) {
 		folder.papers.forEach((paper, index) => {
 			if (!selected.has(rowKey(folder.id, paper, index))) return;
 			rows.push({
-				folderName: folder.name,
+				folderName: folderTitle(folder, language),
 				arxivId: paper.arxivId,
 				pdfUrl: paper.pdfUrl,
 				title: paper.title,
@@ -152,7 +178,7 @@ export function AlphaXivImportDialog({
 	vaultPath: string | null;
 	onDone: () => void;
 }) {
-	const { t } = useTranslation("sidebar");
+	const { t, i18n: translation } = useTranslation("sidebar");
 	const libraryPapers = useLibraryStore((s) => s.papers);
 	const inVault = useMemo(
 		() => libraryArxivIds(libraryPapers),
@@ -162,16 +188,15 @@ export function AlphaXivImportDialog({
 	const [loading, setLoading] = useState(false);
 	const [needsKey, setNeedsKey] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [busy, setBusy] = useState(false);
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
 	const [tagFolders, setTagFolders] = useState(true);
-	const [summary, setSummary] = useState<AlphaXivImportSummary | null>(null);
 	const [reloadToken, setReloadToken] = useState(0);
+	const importStarted = useRef(false);
 
 	useOverlayRegistration("alphaxiv-import", open, () => {
-		if (!busy) onOpenChange(false);
+		onOpenChange(false);
 	});
 
 	useEffect(() => {
@@ -180,7 +205,6 @@ export function AlphaXivImportDialog({
 		let cancelled = false;
 		setFolders([]);
 		setError(null);
-		setSummary(null);
 		setNeedsKey(false);
 		setQuery("");
 		setTagFolders(true);
@@ -253,12 +277,14 @@ export function AlphaXivImportDialog({
 			});
 	}, [active, query]);
 	const plan: AlphaXivImportPlanItem[] = useMemo(
-		() => planAlphaXivImport(selectedSources(folders, selected)),
-		[folders, selected],
+		() =>
+			planAlphaXivImport(
+				selectedSources(folders, selected, translation.language),
+			),
+		[folders, selected, translation.language],
 	);
 
 	const handleOpenChange = (next: boolean) => {
-		if (!next && busy) return;
 		onOpenChange(next);
 	};
 
@@ -275,7 +301,7 @@ export function AlphaXivImportDialog({
 		setSelected((prev) => {
 			const next = new Set(prev);
 			folder.papers.forEach((paper, index) => {
-				if (!paper.importable) return;
+				if (!paper.importable || alreadyInLibrary(paper, inVault)) return;
 				const key = rowKey(folder.id, paper, index);
 				if (on) next.add(key);
 				else next.delete(key);
@@ -284,22 +310,25 @@ export function AlphaXivImportDialog({
 		});
 	};
 
-	const runImport = async () => {
-		if (!vaultPath || busy || plan.length === 0) return;
-		setBusy(true);
-		setError(null);
-		try {
-			const result = await importAlphaXivPlan(plan, { tagFolders });
-			setSummary(result);
-			onDone();
-			if (result.revealDir) openPaper(result.revealDir);
-		} catch (importError) {
-			const message = errorText(importError);
-			setError(message);
-			notifyError(message);
-		} finally {
-			setBusy(false);
-		}
+	const runImport = () => {
+		if (!vaultPath || plan.length === 0 || importStarted.current) return;
+		importStarted.current = true;
+		const items = plan;
+		const withTags = tagFolders;
+		// The lookup job shows in the bottom-left task panel, so the dialog
+		// does not stay open for a summary.
+		onOpenChange(false);
+		void importAlphaXivPlan(items, { tagFolders: withTags })
+			.then((result) => {
+				onDone();
+				if (result.revealDir) openPaper(result.revealDir);
+			})
+			.catch((importError: unknown) => {
+				notifyError(errorText(importError));
+			})
+			.finally(() => {
+				importStarted.current = false;
+			});
 	};
 
 	return (
@@ -310,61 +339,16 @@ export function AlphaXivImportDialog({
 			>
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
-						<Bookmark className="size-4" />
+						<AlphaXivIcon className="size-4 shrink-0 text-[#B33131]" />
 						{t("alphaxivImport.title")}
 					</DialogTitle>
 				</DialogHeader>
 
 				<div className="min-h-0 flex-1 overflow-y-auto">
-					{summary ? (
-						<div className="space-y-2 py-1 text-sm">
-							<p className="font-medium">{t("alphaxivImport.summaryTitle")}</p>
-							<ul className="space-y-1 text-muted-foreground">
-								<li>
-									{t("alphaxivImport.summaryImported", {
-										count: summary.imported,
-									})}
-								</li>
-								<li>
-									{t("alphaxivImport.summarySkipped", {
-										count: summary.skippedExisting,
-									})}
-								</li>
-								<li>
-									{t("alphaxivImport.summaryFailed", {
-										count: summary.failed,
-									})}
-								</li>
-							</ul>
-							{summary.failures.length > 0 ? (
-								<ul className="max-h-40 space-y-1 overflow-y-auto text-xs">
-									{summary.failures.map((failure) => (
-										<li key={`${failure.title}-${failure.message}`}>
-											<span className="text-foreground">{failure.title}</span>
-											{failure.message ? (
-												<span className="mt-0.5 block text-muted-foreground">
-													{failure.message}
-												</span>
-											) : null}
-										</li>
-									))}
-								</ul>
-							) : null}
-						</div>
-					) : needsKey ? (
-						<div className="space-y-3 py-2">
-							<p className="text-muted-foreground text-sm">
-								{t("alphaxivImport.needsKey")}
-							</p>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => openSettingsWindow("general")}
-							>
-								{t("alphaxivImport.openSettings")}
-							</Button>
-						</div>
+					{needsKey ? (
+						<p className="py-2 text-muted-foreground text-sm">
+							{t("alphaxivImport.needsKey")}
+						</p>
 					) : loading ? (
 						<p className="flex items-center gap-2 py-2 text-muted-foreground text-sm">
 							<Loader2 className="size-3.5 animate-spin" />
@@ -402,8 +386,13 @@ export function AlphaXivImportDialog({
 											style={{ paddingLeft: `${8 + node.depth * 12}px` }}
 											onClick={() => setActiveFolderId(node.folder.id)}
 										>
+											<AlphaXivFolderIcon
+												icon={node.folder.icon}
+												color={node.folder.color}
+												folderType={node.folder.folderType}
+											/>
 											<span className="min-w-0 flex-1 truncate">
-												{node.folder.name || t("alphaxivImport.untitledFolder")}
+												{folderTitle(node.folder, translation.language)}
 											</span>
 											<span className="shrink-0 text-muted-foreground text-xs">
 												{node.folder.paperCount}
@@ -418,14 +407,13 @@ export function AlphaXivImportDialog({
 										value={query}
 										onChange={(event) => setQuery(event.target.value)}
 										placeholder={t("alphaxivImport.searchPlaceholder")}
-										disabled={busy}
 										className="h-8"
 									/>
 									<Button
 										type="button"
 										variant="ghost"
 										size="sm"
-										disabled={busy || !active}
+										disabled={!active}
 										onClick={() => active && setFolderSelected(active, true)}
 									>
 										{t("alphaxivImport.selectAll")}
@@ -434,14 +422,14 @@ export function AlphaXivImportDialog({
 										type="button"
 										variant="ghost"
 										size="sm"
-										disabled={busy || !active}
+										disabled={!active}
 										onClick={() => active && setFolderSelected(active, false)}
 									>
 										{t("alphaxivImport.selectNone")}
 									</Button>
 								</div>
-								<ScrollArea className="h-72 rounded-md border">
-									<div className="space-y-0.5 p-1.5">
+								<ScrollArea className="h-72 rounded-md border [&_[data-slot=scroll-area-viewport]>div]:block!">
+									<div className="w-full min-w-0 space-y-0.5 p-1.5">
 										{visiblePapers.length === 0 ? (
 											<p className="px-1.5 py-2 text-muted-foreground text-xs">
 												{t("alphaxivImport.emptyPapers")}
@@ -457,33 +445,46 @@ export function AlphaXivImportDialog({
 												return (
 													<div
 														key={key}
-														className="flex items-start gap-2 rounded px-1.5 py-1 hover:bg-accent/60"
+														className="flex w-full min-w-0 items-start gap-2 rounded px-1.5 py-1 hover:bg-accent/60"
 													>
-														{paper.importable ? (
+														{paper.importable && !inLibrary ? (
 															<Checkbox
 																className="mt-0.5"
 																checked={selected.has(key)}
-																disabled={busy}
 																onCheckedChange={() => togglePaper(key)}
 															/>
+														) : paper.importable ? (
+															<span
+																aria-disabled="true"
+																className="mt-0.5 flex size-4 shrink-0 cursor-not-allowed items-center justify-center rounded-[4px] border border-input text-blue-700 opacity-50 dark:text-blue-400"
+															>
+																<Check className="size-3" />
+															</span>
 														) : (
-															<span className="mt-0.5 size-4 shrink-0" />
+															<span
+																aria-disabled="true"
+																className="mt-0.5 flex size-4 shrink-0 cursor-not-allowed items-center justify-center rounded-[4px] border border-input text-muted-foreground opacity-50"
+															>
+																<X className="size-3" />
+															</span>
 														)}
 														<div className="min-w-0 flex-1">
-															<p className="truncate text-sm">
-																{paper.title || paper.arxivId || key}
-															</p>
+															<div className="flex min-w-0 items-center gap-2">
+																<p className="min-w-0 flex-1 truncate text-sm">
+																	{paper.title || paper.arxivId || key}
+																</p>
+																{inLibrary ? (
+																	<span className="shrink-0 whitespace-nowrap rounded bg-muted px-1 py-0.5 text-caption text-muted-foreground">
+																		{t("alphaxivImport.alreadyInVault")}
+																	</span>
+																) : null}
+															</div>
 															<p className="truncate text-muted-foreground text-xs">
 																{paper.importable
 																	? paperLine(paper)
 																	: t("alphaxivImport.privateReason")}
 															</p>
 														</div>
-														{inLibrary ? (
-															<span className="shrink-0 rounded bg-muted px-1 py-0.5 text-caption text-muted-foreground">
-																{t("alphaxivImport.alreadyInVault")}
-															</span>
-														) : null}
 													</div>
 												);
 											})
@@ -493,13 +494,13 @@ export function AlphaXivImportDialog({
 							</div>
 						</div>
 					)}
-					{error && folders.length > 0 && !summary ? (
+					{error && folders.length > 0 ? (
 						<p className="mt-2 text-destructive text-xs">{error}</p>
 					) : null}
 				</div>
 
 				<DialogFooter className="sm:justify-between">
-					{summary || needsKey || loading || folders.length === 0 ? (
+					{needsKey || loading || folders.length === 0 ? (
 						<span />
 					) : (
 						<label
@@ -509,55 +510,53 @@ export function AlphaXivImportDialog({
 							<Checkbox
 								id="alphaxiv-tag-folders"
 								checked={tagFolders}
-								disabled={busy}
 								onCheckedChange={(value) => setTagFolders(value === true)}
 							/>
 							{t("alphaxivImport.tagFolders")}
 						</label>
 					)}
-					<div className="flex items-center gap-2">
-						{!summary && folders.length > 0 ? (
+					<div className="ml-auto flex items-center gap-2">
+						{folders.length > 0 ? (
 							<span className="text-muted-foreground text-xs">
 								{t("alphaxivImport.selectedCount", { count: plan.length })}
 							</span>
 						) : null}
-						{summary ? (
-							<Button type="button" onClick={() => handleOpenChange(false)}>
-								{t("alphaxivImport.done")}
-							</Button>
-						) : needsKey ? (
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => setReloadToken((n) => n + 1)}
-							>
-								{t("alphaxivImport.retry")}
-							</Button>
+						{needsKey ? (
+							<>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => openSettingsWindow("general")}
+								>
+									{t("alphaxivImport.openSettings")}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => setReloadToken((n) => n + 1)}
+								>
+									{t("alphaxivImport.retry")}
+								</Button>
+							</>
 						) : (
 							<>
 								<Button
 									type="button"
 									variant="ghost"
 									onClick={() => handleOpenChange(false)}
-									disabled={busy}
 								>
 									{t("alphaxivImport.cancel")}
 								</Button>
 								<Button
 									type="button"
 									className="gap-1.5"
-									disabled={busy || plan.length === 0 || !vaultPath}
-									onClick={() => void runImport()}
+									disabled={plan.length === 0 || !vaultPath}
+									onClick={runImport}
 								>
-									{busy ? (
-										<Loader2 className="size-3.5 animate-spin" />
-									) : (
-										<Import className="size-3.5" />
-									)}
-									{busy
-										? t("alphaxivImport.importing", { count: plan.length })
-										: t("alphaxivImport.import")}
+									<Import className="size-3.5" />
+									{t("alphaxivImport.import")}
 								</Button>
 							</>
 						)}

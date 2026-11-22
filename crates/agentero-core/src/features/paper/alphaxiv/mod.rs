@@ -70,6 +70,11 @@ pub struct AlphaXivFolder {
     pub order: i64,
     pub parent_id: String,
     pub sharing_status: String,
+    /// Lucide icon name from the folder appearance (`cpu`). Empty when AlphaXiv
+    /// leaves the mark to the client and sends `icon: null`.
+    pub icon: String,
+    /// Appearance palette name (`red`, `orange`, …). Empty when unset.
+    pub color: String,
     pub papers: Vec<AlphaXivFolderPaper>,
     pub paper_count: u32,
 }
@@ -299,6 +304,8 @@ fn parse_folder(value: &Value) -> Option<AlphaXivFolder> {
         order: json_i64(value, &["order"]),
         parent_id: string_field(value, &["parentId", "parent_id", "parentFolderId"]),
         sharing_status: string_field(value, &["sharingStatus", "sharing_status"]),
+        icon: string_field(value, &["icon"]),
+        color: string_field(value, &["color", "colour"]),
         papers,
         paper_count,
     })

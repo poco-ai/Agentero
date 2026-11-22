@@ -448,6 +448,12 @@
 		"emptyFolders": "This account has no folders.",
 		"emptyPapers": "This folder has no papers.",
 		"untitledFolder": "Untitled folder",
+		"folders": {
+			"default-publications": "My publications",
+			"default-to-read": "Want to read",
+			"default-reading": "Reading",
+			"default-completed": "Completed"
+		},
 		"searchPlaceholder": "Search title…",
 		"selectAll": "Select all",
 		"selectNone": "Clear",

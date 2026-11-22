@@ -4,7 +4,6 @@
  */
 
 import {
-	Bookmark,
 	Check,
 	ChevronsUpDown,
 	FileUp,
@@ -24,6 +23,7 @@ import {
 	type OpenRemoteVaultArgs,
 	RemoteVaultDialog,
 } from "@/components/dialogs/remote-vault-dialog";
+import { AlphaXivIcon } from "@/components/icons/paper-service-icons";
 import { PaneHeader } from "@/components/shell/pane-header";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -686,6 +686,17 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 							{onMigrateZotero || onImportAlphaXiv || onSyncZotero ? (
 								<DropdownMenuSeparator />
 							) : null}
+							{onImportAlphaXiv ? (
+								<DropdownMenuItem
+									disabled={actionsDisabled}
+									onSelect={() => {
+										requestAnimationFrame(() => onImportAlphaXiv());
+									}}
+								>
+									<AlphaXivIcon className="size-3.5 shrink-0 text-[#B33131]" />
+									{t("alphaxivImport.button")}
+								</DropdownMenuItem>
+							) : null}
 							{onMigrateZotero ? (
 								<DropdownMenuItem
 									disabled={actionsDisabled}
@@ -695,17 +706,6 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 								>
 									<SiZotero className="size-3.5 text-[#CC2936]" />
 									{t("zoteroMigrate.button")}
-								</DropdownMenuItem>
-							) : null}
-							{onImportAlphaXiv ? (
-								<DropdownMenuItem
-									disabled={actionsDisabled}
-									onSelect={() => {
-										requestAnimationFrame(() => onImportAlphaXiv());
-									}}
-								>
-									<Bookmark className="size-3.5" />
-									{t("alphaxivImport.button")}
 								</DropdownMenuItem>
 							) : null}
 							{onSyncZotero ? (

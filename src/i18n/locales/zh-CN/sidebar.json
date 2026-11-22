@@ -447,6 +447,12 @@
 		"emptyFolders": "这个账号还没有文件夹。",
 		"emptyPapers": "这个文件夹里没有论文。",
 		"untitledFolder": "未命名文件夹",
+		"folders": {
+			"default-publications": "我的论文",
+			"default-to-read": "待读",
+			"default-reading": "在读",
+			"default-completed": "已读"
+		},
 		"searchPlaceholder": "搜索标题…",
 		"selectAll": "全选本文件夹",
 		"selectNone": "清空本文件夹",

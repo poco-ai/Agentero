@@ -1775,6 +1775,13 @@ export type AlphaXivFolder = {
 	order: number,
 	parentId: string,
 	sharingStatus: string,
+	/**
+	 *  Lucide icon name from the folder appearance (`cpu`). Empty when AlphaXiv
+	 *  leaves the mark to the client and sends `icon: null`.
+	 */
+	icon: string,
+	/**  Appearance palette name (`red`, `orange`, …). Empty when unset. */
+	color: string,
 	papers: AlphaXivFolderPaper[],
 	paperCount: number,
 };
