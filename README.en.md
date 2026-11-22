@@ -160,6 +160,29 @@ brew install --cask agentero
 
 > **Note for Linux users**: Ubuntu 22.04+ is required (`webkit2gtk 4.1`). See the [installation docs](docs/usage/getting-started.md) for details.
 
+#### Linux: blank window or sluggish UI
+
+If the window stays blank, or scrolling and typing feel laggy, WebKitGTK may be running without hardware acceleration. Check whether these variables are set:
+
+```bash
+grep -rn "WEBKIT_\|GDK_BACKEND" ~/.zshrc ~/.bashrc ~/.profile /etc/environment 2>/dev/null
+grep -rn "WEBKIT_" ~/.local/share/applications/ 2>/dev/null
+```
+
+If so, replace `WEBKIT_DISABLE_DMABUF_RENDERER=1` with the following, which keeps hardware compositing and only bypasses the failing buffer path:
+
+```bash
+export WEBKIT_DMABUF_RENDERER_FORCE_SHM=1
+```
+
+When launching from a desktop icon, `.zshrc` has no effect; update the launcher as well:
+
+```ini
+Exec=env WEBKIT_DMABUF_RENDERER_FORCE_SHM=1 /usr/bin/agentero %U
+```
+
+> On WebKitGTK 2.52+ these variables disable hardware compositing and threaded scrolling together, forcing full-window CPU repaints and sustained high CPU usage.
+
 ---
 
 ### Command-line tool (CLI)

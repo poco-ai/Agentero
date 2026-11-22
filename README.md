@@ -158,6 +158,29 @@ brew install --cask agentero
 
 > **Linux 用户须知**：系统环境要求 Ubuntu 22.04+（依赖 `webkit2gtk 4.1`），详细依赖说明请参考 [安装文档](docs/usage/getting-started.md)。
 
+#### Linux 白屏 / 界面卡顿
+
+如果你的界面一片空白，或者滚动、输入明显卡顿，可能是 WebKitGTK 的渲染降级。请先检查环境里有没有下面这两个变量：
+
+```bash
+grep -rn "WEBKIT_\|GDK_BACKEND" ~/.zshrc ~/.bashrc ~/.profile /etc/environment 2>/dev/null
+grep -rn "WEBKIT_" ~/.local/share/applications/ 2>/dev/null
+```
+
+如果有，把 `WEBKIT_DISABLE_DMABUF_RENDERER=1` 换成下面的设置即可（它保留硬件加速，只绕开出问题的缓冲区通道）：
+
+```bash
+export WEBKIT_DMABUF_RENDERER_FORCE_SHM=1
+```
+
+从桌面图标启动时，`.zshrc` 不会生效，需要同步修改启动器：
+
+```ini
+Exec=env WEBKIT_DMABUF_RENDERER_FORCE_SHM=1 /usr/bin/agentero %U
+```
+
+> 这两个变量在 WebKitGTK 2.52+ 上会让硬件合成和线程化滚动一起失效，导致整个窗口退回 CPU 重绘，CPU 占用会持续偏高。
+
 ---
 
 ### 命令行工具 (CLI)
