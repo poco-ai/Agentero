@@ -166,7 +166,7 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 					type="button"
 					tabIndex={-1}
 					aria-label={label}
-					className="absolute z-[2] cursor-pointer rounded-[2px] border-0 bg-transparent p-0 hover:bg-primary/10"
+					className="pdf-link-hit absolute z-[2] cursor-pointer rounded-[2px] p-0"
 					style={{
 						left: `${(link.rect.origin.x / pageWidthPt) * 100}%`,
 						top: `${(link.rect.origin.y / pageHeightPt) * 100}%`,
@@ -208,7 +208,7 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 					tabIndex={-1}
 					aria-label={link.url}
 					data-url={link.url}
-					className="absolute z-[2] cursor-pointer rounded-[2px] border-0 bg-transparent p-0 hover:bg-primary/10"
+					className="pdf-link-hit absolute z-[2] cursor-pointer rounded-[2px] p-0"
 					style={{
 						left: `${(link.rect.origin.x / pageWidthPt) * 100}%`,
 						top: `${(link.rect.origin.y / pageHeightPt) * 100}%`,

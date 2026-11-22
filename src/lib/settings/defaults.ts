@@ -1,3 +1,4 @@
+import { DEFAULT_EASY_SCHOLAR_RANKS } from "@/lib/paper/easy-scholar-ranks";
 import { DEFAULT_LAYOUT_SETTINGS } from "@/lib/pdf/layout/settings";
 import type {
 	AppSettings,
@@ -147,10 +148,19 @@ export function clampEditorLineHeight(value: number): number {
 export const DEFAULT_SETTINGS: AppSettings = {
 	shortcutOverrides: {},
 	easyScholarKey: "",
+	easyScholarRanks: [...DEFAULT_EASY_SCHOLAR_RANKS],
 	zhihuAccessSecret: "",
 	institutionProxyPrefix: "",
 	institutionProxyCookie: "",
 	institutionProxyType: "auto",
+	openreviewCookie: "",
+	openreviewCookieExpiresAt: 0,
+	alphaxiv: {
+		apiKey: "",
+		username: "",
+		email: "",
+		realName: "",
+	},
 	networkProxyEnabled: false,
 	networkProxyUrl: DEFAULT_NETWORK_PROXY_URL,
 	paperTreeLabelMode: "title-author",
@@ -159,7 +169,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	terminalApp: "",
 	pdfScrollStrategy: "vertical",
 	pdfVimKeys: true,
-	vimMode: true,
+	vimMode: false,
 	hintModeEnabled: true,
 	soundEnabled: true,
 	pdfSpreadMode: "none",

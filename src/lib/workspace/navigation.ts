@@ -14,10 +14,13 @@ import { isTauri } from "@/lib/core/tauri";
 import { decideSync, registerDecision } from "@/lib/decision/registry";
 import { lifecycle } from "@/lib/lifecycle";
 import {
+	findLocalPdfPath,
 	isPaperDirectory,
 	isRemoteArxivPath,
 	isUnderPaperAttachments,
 	isUnderPapers,
+	loadPaperMetadata,
+	localFileToArrayBuffer,
 	notesPathForPaper,
 	type PaperMetadata,
 	paperDirFromPath,
@@ -295,6 +298,103 @@ export function handleActivePanelChange(panelId: string | null): void {
 	}
 }
 
+const placeholderLoads = new Map<string, { path: string }>();
+
+async function loadPlaceholderResources(id: string, path: string) {
+	const load = { path };
+	placeholderLoads.set(id, load);
+	const { vaultPath, tree, paperFolders } = vaultStore.getState();
+	const generation = vaultLoadGeneration();
+	try {
+		const tab = getTabs().find((tab) => tab.id === id);
+		// A moved companion already knows its owner before the tree catches up.
+		const folders =
+			tab?.notesPath === path
+				? [path.replace(/[\\/]NOTES\.md$/i, "")]
+				: paperFolders;
+		const res = await loadTabResources(path, vaultPath, tree, folders);
+		const current = getTabs().find((tab) => tab.id === id);
+		if (
+			current?.path !== path ||
+			placeholderLoads.get(id) !== load ||
+			getVaultPath() !== vaultPath ||
+			vaultLoadGeneration() !== generation
+		) {
+			return;
+		}
+		return { res, current };
+	} finally {
+		if (placeholderLoads.get(id) === load) placeholderLoads.delete(id);
+	}
+}
+
+const probingPaperPdf = new Map<string, Promise<void>>();
+
+function canRefreshOpenPaperPdf(tab: DocTab): boolean {
+	return (
+		tab.kind === "paper" &&
+		tab.loaded &&
+		!tab.pdfBytes &&
+		((tab.mode === "pdf" && !tab.pdfUrl?.startsWith("blob:")) ||
+			(tab.mode === "html" && !tab.pdfUrl))
+	);
+}
+
+/** Switch open readers to the local PDF after a download or a repeat open. */
+export async function refreshOpenPaperPdf(paperDir: string): Promise<void> {
+	const vaultPath = getVaultPath();
+	if (
+		!vaultPath ||
+		isRemoteArxivPath(paperDir) ||
+		!getTabs().some(canRefreshOpenPaperPdf)
+	) {
+		return;
+	}
+	const generation = vaultLoadGeneration();
+	const key = normalizeTabPath(paperDir);
+	const matches = (tab: DocTab) =>
+		canRefreshOpenPaperPdf(tab) && normalizeTabPath(tab.path) === key;
+	const stillInVault = () =>
+		getVaultPath() === vaultPath && vaultLoadGeneration() === generation;
+
+	// Assets may arrive while a click is probing the old directory. Wait
+	// for that probe, then check again if the reader still lacks local bytes.
+	const pending = probingPaperPdf.get(key);
+	if (pending) await pending;
+	if (!stillInVault() || probingPaperPdf.has(key) || !getTabs().some(matches)) {
+		return;
+	}
+
+	const probe = (async () => {
+		const path = await findLocalPdfPath(paperDir);
+		if (!path || !stillInVault()) return;
+		const [pdfBytes, meta] = await Promise.all([
+			localFileToArrayBuffer(path),
+			loadPaperMetadata(paperDir, vaultPath),
+		]);
+		if (!pdfBytes?.byteLength || !stillInVault()) return;
+
+		setTabs((tabs) =>
+			tabs.map((tab) =>
+				matches(tab)
+					? {
+							...tab,
+							mode: "pdf",
+							pdfUrl: null,
+							pdfBytes,
+							paperMeta: meta ?? tab.paperMeta,
+							title: meta?.title || tab.title,
+						}
+					: tab,
+			),
+		);
+	})().finally(() => {
+		probingPaperPdf.delete(key);
+	});
+	probingPaperPdf.set(key, probe);
+	await probe;
+}
+
 /**
  * Open a document panel. If already open → activate it (and companion NOTES).
  * Otherwise insert a placeholder, place in dockview (stack into the paper
@@ -338,6 +438,7 @@ export function openTab(
 				}
 			}
 			activatePaperWithNotes(existing);
+			if (opts?.preferMode === "pdf") void refreshOpenPaperPdf(existing.path);
 		} else {
 			cacheActiveTabBeforeDock(id);
 			dockHandle()?.activatePanel(id);
@@ -381,6 +482,7 @@ export function openTab(
 				columns: readingColumns(),
 			}).paper);
 
+	const resources = loadPlaceholderResources(insertedId, path);
 	setTabs(nextTabs);
 	cacheActiveTabBeforeDock(insertedId);
 	if (replaced) {
@@ -391,15 +493,9 @@ export function openTab(
 	}
 
 	void (async () => {
-		const vaultState = vaultStore.getState();
-		const generation = vaultLoadGeneration();
-		const res = await loadTabResources(
-			path,
-			vaultState.vaultPath,
-			vaultState.tree,
-			vaultState.paperFolders,
-		);
-		if (vaultLoadGeneration() !== generation) return;
+		const result = await resources;
+		if (!result) return;
+		const { res } = result;
 		if (res.error) {
 			notifyError(
 				res.error === "cannotPreview"
@@ -676,6 +772,13 @@ export function remapMovedWorkspacePaths(
 	});
 	if (annotationMoves.length) remapTabAnnotations(annotationMoves);
 	setTabs(remappedTabs);
+	const movedLoads = remappedTabs
+		.filter(
+			(tab, index) =>
+				tab.path !== previousTabs[index]?.path && placeholderLoads.has(tab.id),
+		)
+		.map((tab) => tab.id);
+	if (movedLoads.length) hydratePlaceholderTabs(movedLoads);
 	setTreeSelectedPath((path) =>
 		path ? remapPathUnder(path, fromAbs, toAbs) : path,
 	);
@@ -929,8 +1032,6 @@ export function ensureLibraryTabPresent(): void {
 	showLibraryPanel(library, Boolean(getActiveTabId()));
 }
 
-const placeholderLoads = new Set<string>();
-
 /** Load resources for restored panels only when their dock group exposes them. */
 export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 	if (!isTauri() || !getVaultPath()) return;
@@ -943,56 +1044,40 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 		// texCompiling panes are owned by the compile flow (openTexPdf fills
 		// them itself); hydrating here would race the compile and swap the
 		// shimmer for a cannotPreview error within milliseconds.
-		if (!tab || tab.loaded || tab.texCompiling || placeholderLoads.has(id)) {
+		if (
+			!tab ||
+			tab.loaded ||
+			tab.texCompiling ||
+			placeholderLoads.get(id)?.path === tab.path
+		) {
 			continue;
 		}
 		// Paper ownership needs the tree: dotted folder names (e.g. arXiv IDs)
 		// otherwise look like files and resolve to their parent org folder.
 		if (vaultStore.getState().treeLoading && isUnderPapers(tab.path)) continue;
-		placeholderLoads.add(id);
 		void (async () => {
-			const vaultState = vaultStore.getState();
-			const generation = vaultLoadGeneration();
-			try {
-				const res = await loadTabResources(
-					tab.path,
-					vaultState.vaultPath,
-					vaultState.tree,
-					vaultState.paperFolders,
+			const result = await loadPlaceholderResources(id, tab.path);
+			if (!result) return;
+			const { res, current } = result;
+			if (res.error) {
+				notifyError(
+					res.error === "cannotPreview"
+						? i18n.t("app:errors.cannotPreview", {
+								name: basenameOf(tab.path),
+							})
+						: res.error,
 				);
-				const current = getTabs().find((candidate) => candidate.id === id);
-				if (
-					!current ||
-					current.path !== tab.path ||
-					vaultStore.getState().vaultPath !== vaultState.vaultPath ||
-					vaultLoadGeneration() !== generation
-				) {
-					return;
-				}
-				if (res.error) {
-					notifyError(
-						res.error === "cannotPreview"
-							? i18n.t("app:errors.cannotPreview", {
-									name: basenameOf(tab.path),
-								})
-							: res.error,
-					);
-				}
-				const patch = patchFromTabResources(res, current);
-				updateTab(id, patch);
-				// A restored paper body hydrates after its NOTES panel was
-				// pruned from the layout — open the companion now, otherwise
-				// the first click shows the PDF without notes beside it.
-				if (
-					res.kind === "paper" &&
-					(patch.mode === "pdf" || patch.mode === "html") &&
-					res.notesPath &&
-					loadSettings().autoOpenPaperNotes
-				) {
-					openNotesForPaper(id, patch, tab.path);
-				}
-			} finally {
-				placeholderLoads.delete(id);
+			}
+			const patch = patchFromTabResources(res, current);
+			updateTab(id, patch);
+			// The saved layout may have no companion for this paper.
+			if (
+				res.kind === "paper" &&
+				(patch.mode === "pdf" || patch.mode === "html") &&
+				res.notesPath &&
+				loadSettings().autoOpenPaperNotes
+			) {
+				openNotesForPaper(id, patch, tab.path);
 			}
 		})();
 	}
@@ -1395,8 +1480,8 @@ function selectFileNodeNormally(node: FileNode): void {
 
 /**
  * Synchronize open workspace tabs when a paper has been recognized and renamed.
- * Reloads the paper's metadata, canonical PDF path, and updated NOTES.md content,
- * bumping editor reload keys and updating dockview panel titles.
+ * Refreshes the paper's metadata and PDF, and reloads NOTES through the
+ * separate disk-change path so a pending note cannot hold up the body.
  */
 export async function syncRenamedPaperTabs(
 	vaultId: string,
@@ -1431,21 +1516,11 @@ export async function syncRenamedPaperTabs(
 				pdfUrl: res.pdfUrl ?? tab.pdfUrl,
 				pdfBytes: res.pdfBytes ?? tab.pdfBytes,
 				notesPath,
-				notesSeed: res.notesSeed,
-				notesKey: tab.notesKey + 1,
 			});
-		} else if (
-			(tab.notesPath && normalizeTabPath(tab.notesPath) === notesKey) ||
-			tabPath === notesKey
-		) {
+		} else if (tabPath === notesKey) {
 			updateTab(tab.id, {
-				notesSeed: res.notesSeed,
-				markdownSeed: res.notesSeed,
-				notesKey: tab.notesKey + 1,
-				seedKey: tab.seedKey + 1,
 				paperMeta: res.paperMeta ?? tab.paperMeta,
 				notesPath,
-				path: notesPath,
 			});
 		}
 	}

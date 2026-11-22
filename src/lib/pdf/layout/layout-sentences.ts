@@ -3,8 +3,9 @@
  *
  * The cut runs on the text-layer string before hyphen healing, so the quote
  * still matches `repre- sentation` in the PDF. Latin `.` `!` `?` end a sentence
- * only before whitespace; `。` `！` `？` end one on their own. Abbreviations and
- * decimals are not sentence ends. Normalization stays a separate step.
+ * only before whitespace; `。` `！` `？` end one on their own. Academic
+ * abbreviations, block-start enumerators, and decimals are not sentence ends.
+ * Normalization stays a separate step.
  */
 
 import {
@@ -39,17 +40,50 @@ function isCloser(ch: string): boolean {
 	);
 }
 
-/** `et al.` / `Fig.` / `e.g.` / `i.e.` / `0.5` — the period is not a sentence end. */
+/**
+ * Academic abbreviations whose period is not a sentence end.
+ * `sec(s)` / `fig(s)` / `tab(s)` / `eq(s)` / `alg(s)` / `ref(s)` / `no(s)` plus
+ * the short forms papers actually print (`thm`, `lem`, `vs`, `e.g.`, …).
+ */
+const PROTECTED_ABBREVIATION =
+	/(?:^|[\s([(])(?:secs?|figs?|tabs?|eqs?|algs?|thm|lem|def|prop|cor|refs?|nos?|vs|dr|prof|cf|approx|e\.g|i\.e|et\s+al)$/i;
+
+/** `1.` / `2.1.` / `A.` at the start of the block, not a sentence end. */
+function isBlockStartEnumerator(before: string): boolean {
+	return /^(?:\d+(?:\.\d+)*|[A-Z])$/.test(before);
+}
+
+/** Abbreviation, block-start enumerator, or decimal — the period stays inside. */
 function isProtectedPeriod(text: string, index: number): boolean {
 	if (text[index] !== ".") return false;
 	const before = text.slice(0, index);
-	if (/(?:^|[\s([(])fig$/i.test(before)) return true;
-	if (/(?:^|[\s([(])et\s+al$/i.test(before)) return true;
-	if (/(?:^|[\s([(])e\.g$/i.test(before)) return true;
-	if (/(?:^|[\s([(])i\.e$/i.test(before)) return true;
+	if (PROTECTED_ABBREVIATION.test(before)) return true;
+	if (isBlockStartEnumerator(before)) return true;
 	const prev = before.at(-1);
 	const next = text[index + 1];
 	return Boolean(prev && next && /\d/.test(prev) && /\d/.test(next));
+}
+
+/**
+ * Sentence pairs for a catalog entry. A block translated as one string still
+ * needs quotes, or the translation pane has nothing to light.
+ */
+export function withHoverSentences<
+	T extends {
+		raw?: string;
+		source: string;
+		sentences?: readonly { quote: string; translated: string }[];
+	},
+>(item: T): T {
+	if (item.sentences?.length) return item;
+	const quotes = splitLayoutSentences(
+		item.raw?.trim() ? item.raw : item.source,
+	);
+	if (!quotes.length) return item;
+	return {
+		...item,
+		sentences: quotes.map((quote) => ({ quote, translated: "" })),
+	} as T;
 }
 
 /**
@@ -171,6 +205,37 @@ export function layoutTranslateSentenceNodes(
 	if (pieces.join("") === trimmed) return { nodes, gap: "" };
 	if (pieces.join(" ") === trimmed) return { nodes, gap: " " };
 	return null;
+}
+
+/**
+ * Place reflow units into the sentence that owns their translation offset.
+ * When the pairs do not rebuild the block, every unit stays in one group.
+ */
+export function groupReflowUnitsBySentence<
+	T extends { translatedOffset: number },
+>(
+	translated: string,
+	sentences: readonly { translated: string; display?: string }[] | undefined,
+	units: readonly T[],
+): { index?: number; units: T[] }[] {
+	const split = layoutTranslateSentenceNodes(translated, sentences);
+	if (!split) return [{ units: [...units] }];
+	let offset = 0;
+	const groups = split.nodes.map((node) => {
+		const start = offset;
+		offset += node.text.length + split.gap.length;
+		return { index: node.index, start, units: [] as T[] };
+	});
+	let current = 0;
+	for (const unit of units) {
+		while (
+			current + 1 < groups.length &&
+			unit.translatedOffset >= (groups[current + 1]?.start ?? offset)
+		)
+			current += 1;
+		groups[current]?.units.push(unit);
+	}
+	return groups;
 }
 
 /**

@@ -34,8 +34,10 @@ import {
 	isChatOnlyAgentTemplate,
 	loadModelPref,
 	loadReasoningEffortPref,
+	markModelPicked,
 	type PromptImage,
 	runOnce,
+	takeModelPickForce,
 } from "@/lib/agent";
 import {
 	type AgentTurnRequest,
@@ -450,7 +452,7 @@ export function useAgentSend({
 	};
 
 	/** Assemble and dispatch the runOnce request for a resolved turn. */
-	const startTurn = (turn: {
+	const startTurn = async (turn: {
 		agentId: string;
 		resumeSessionId: string | undefined;
 		prompt: string;
@@ -463,35 +465,48 @@ export function useAgentSend({
 		skillIds: string[];
 		context: ReturnType<typeof sidebarContextRequest>;
 		resumeTranscript?: string;
-	}) =>
-		runOnce({
-			agentId: turn.agentId,
-			sessionId: turn.resumeSessionId,
-			prompt: turn.prompt,
-			isAcpCommand: turn.isAcpCommand,
-			images: turn.images,
-			vaultPath: vaultPath ?? undefined,
-			workflow: turn.workflow ?? "free",
-			target: turn.workflowTarget,
-			modelId: turn.modelId,
-			collaborationModeId:
-				collaborationModeId &&
-				collaborationOptions.some((mode) => mode.id === collaborationModeId)
-					? collaborationModeId
-					: undefined,
-			reasoningEffort:
-				turn.preferredEffort === null
-					? undefined
-					: turn.agentId === selected?.id
-						? (reasoningEffort ?? turn.preferredEffort)
-						: turn.preferredEffort,
-			preferHighestReasoningEffort: turn.preferredEffort === null,
-			fastMode: fastAvailable ? fastEnabled : undefined,
-			skillIds: turn.skillIds,
-			permissionMode: loadSettings().agentPermissionMode,
-			context: turn.context ?? undefined,
-			resumeTranscript: turn.resumeTranscript,
-		});
+	}) => {
+		// The explicit pick is a one-shot. Re-arm it when dispatch fails so a
+		// retried turn still forces the set instead of deduping against the
+		// adapter's possibly-wrong current (#1087).
+		const forceModel = takeModelPickForce(turn.agentId, turn.modelId);
+		try {
+			return await runOnce({
+				agentId: turn.agentId,
+				sessionId: turn.resumeSessionId,
+				prompt: turn.prompt,
+				isAcpCommand: turn.isAcpCommand,
+				images: turn.images,
+				vaultPath: vaultPath ?? undefined,
+				workflow: turn.workflow ?? "free",
+				target: turn.workflowTarget,
+				modelId: turn.modelId,
+				forceModel,
+				collaborationModeId:
+					collaborationModeId &&
+					collaborationOptions.some((mode) => mode.id === collaborationModeId)
+						? collaborationModeId
+						: undefined,
+				reasoningEffort:
+					turn.preferredEffort === null
+						? undefined
+						: turn.agentId === selected?.id
+							? (reasoningEffort ?? turn.preferredEffort)
+							: turn.preferredEffort,
+				preferHighestReasoningEffort: turn.preferredEffort === null,
+				fastMode: fastAvailable ? fastEnabled : undefined,
+				skillIds: turn.skillIds,
+				permissionMode: loadSettings().agentPermissionMode,
+				context: turn.context ?? undefined,
+				resumeTranscript: turn.resumeTranscript,
+			});
+		} catch (error) {
+			if (forceModel && turn.modelId) {
+				markModelPicked(turn.agentId, turn.modelId);
+			}
+			throw error;
+		}
+	};
 
 	/**
 	 * Pin binding for a session opened from a visual mark. Composer reference

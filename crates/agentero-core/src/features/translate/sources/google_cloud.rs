@@ -44,7 +44,7 @@ pub async fn translate_google_cloud(
         })
         .send()
         .await
-        .map_err(|e| AppError::message(format!("Google Cloud Translate request failed: {e}")))?;
+        .map_err(|e| super::map_request_error("Google Cloud Translate", e))?;
     let (status, body) = super::read_body(resp).await?;
     if !status.is_success() {
         return Err(super::http_err(status, &body, "Google Cloud Translate"));

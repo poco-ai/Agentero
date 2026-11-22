@@ -8,6 +8,10 @@ import {
 import { callApi } from "@/lib/core/ipc";
 import { isTauri } from "@/lib/core/tauri";
 import {
+	DEFAULT_EASY_SCHOLAR_RANKS,
+	normalizeEasyScholarRanks,
+} from "@/lib/paper/easy-scholar-ranks";
+import {
 	isPaperTreeLabelMode,
 	isPaperTreeSortMode,
 } from "@/lib/paper/tree-modes";
@@ -38,6 +42,7 @@ import {
 import { normalizeFontFamilyValue } from "@/lib/settings/fonts";
 import { normalizeShortcutOverrides } from "@/lib/settings/shortcut-bindings";
 import {
+	type AlphaXivSettings,
 	type AppSettings,
 	DEFAULT_LIBRARY_COLUMNS,
 	type DecisionSettings,
@@ -100,6 +105,7 @@ let cache: AppSettings = {
 	embedding: { ...DEFAULT_EMBEDDING_SETTINGS },
 	dismissedReminders: [],
 	decision: { ...DEFAULT_DECISION_SETTINGS },
+	alphaxiv: { ...DEFAULT_SETTINGS.alphaxiv },
 };
 let loaded = false;
 let loadPromise: Promise<AppSettings> | null = null;
@@ -109,6 +115,7 @@ function cloneSettings(s: AppSettings): AppSettings {
 		...s,
 		shortcutOverrides: normalizeShortcutOverrides(s.shortcutOverrides),
 		libraryColumns: s.libraryColumns.map((c) => ({ ...c })),
+		easyScholarRanks: [...s.easyScholarRanks],
 		pdfAsk: { ...s.pdfAsk },
 		paperReader: { ...s.paperReader },
 		embedding: { ...s.embedding },
@@ -116,6 +123,7 @@ function cloneSettings(s: AppSettings): AppSettings {
 		layout: { ...s.layout, providerConfigs: { ...s.layout.providerConfigs } },
 		dismissedReminders: [...s.dismissedReminders],
 		decision: { ...s.decision },
+		alphaxiv: { ...s.alphaxiv },
 	};
 }
 
@@ -151,7 +159,7 @@ export async function ensureSettingsLoaded(): Promise<AppSettings> {
 					const legacy = readLegacyLocalStorage();
 					if (legacy) {
 						next = normalizeSettings(legacy);
-						await persistToHost(next);
+						await queueSave(next);
 					}
 				}
 				// Drop dual-source: file is authoritative after first load.
@@ -182,9 +190,31 @@ export function saveSettings(settings: AppSettings): void {
 	const next = normalizeSettings(settings);
 	applyExternalSettings(next);
 	if (!isTauri()) return;
-	void persistToHost(next).catch((e) => {
+	void queueSave(next).catch((e) => {
 		console.warn("[settings] save failed", e);
 	});
+}
+
+/**
+ * Host writes run one at a time.
+ *
+ * `settings_set` is `async` so the WebView2 UI thread never blocks on the
+ * `settings.json` write and the subscriber fan-out. Async means two saves can
+ * overlap, and each one persists a whole snapshot: without a queue an older
+ * snapshot can win the race and drop the user's newest edit. Chaining keeps the
+ * old synchronous ordering without blocking the UI thread.
+ */
+let saveQueue: Promise<unknown> = Promise.resolve();
+let enqueuedSaves = 0;
+
+function queueSave(settings: AppSettings): Promise<AppSettings> {
+	const token = ++enqueuedSaves;
+	const run = saveQueue.then(() => persistToHost(settings, token));
+	saveQueue = run.then(
+		() => undefined,
+		() => undefined,
+	);
+	return run;
 }
 
 type SettingsListener = (settings: AppSettings) => void;
@@ -252,15 +282,21 @@ export async function saveSettingsAsync(
 	const next = normalizeSettings(settings);
 	applyExternalSettings(next);
 	if (!isTauri()) return loadSettings();
-	return persistToHost(next);
+	return queueSave(next);
 }
 
-async function persistToHost(settings: AppSettings): Promise<AppSettings> {
+async function persistToHost(
+	settings: AppSettings,
+	token: number,
+): Promise<AppSettings> {
 	const res = await callApi(() => commands.settingsSet(settings), {
 		fallback: "settings_set failed",
 	});
-	setCache(normalizeSettings(fromSettingsWire(res)));
-	return loadSettings();
+	const next = normalizeSettings(fromSettingsWire(res));
+	// A newer save is already queued: its optimistic snapshot is the current
+	// truth, so this response must not roll the cache back to an older value.
+	if (token === enqueuedSaves) setCache(next);
+	return token === enqueuedSaves ? loadSettings() : next;
 }
 
 function readLegacyLocalStorage(): AppSettings | null {
@@ -289,6 +325,27 @@ function clearLegacyLocalStorage(): void {
 	} catch {
 		// ignore
 	}
+}
+
+function normalizeAlphaXiv(raw: unknown): AlphaXivSettings {
+	const empty: AlphaXivSettings = {
+		apiKey: "",
+		username: "",
+		email: "",
+		realName: "",
+	};
+	if (!raw || typeof raw !== "object") return empty;
+	const record = raw as Record<string, unknown>;
+	const text = (key: string) =>
+		typeof record[key] === "string" ? record[key].trim() : "";
+	const apiKey = text("apiKey");
+	if (!apiKey) return empty;
+	return {
+		apiKey,
+		username: text("username"),
+		email: text("email"),
+		realName: text("realName"),
+	};
 }
 
 function normalizeSettings(raw: AppSettings): AppSettings {
@@ -332,6 +389,9 @@ function normalizePartial(
 	} else {
 		merged.easyScholarKey = parsed.easyScholarKey.trim();
 	}
+	merged.easyScholarRanks = Array.isArray(parsed.easyScholarRanks)
+		? normalizeEasyScholarRanks(parsed.easyScholarRanks)
+		: [...DEFAULT_EASY_SCHOLAR_RANKS];
 	if (typeof parsed.zhihuAccessSecret !== "string") {
 		merged.zhihuAccessSecret = DEFAULT_SETTINGS.zhihuAccessSecret;
 	} else {
@@ -347,6 +407,20 @@ function normalizePartial(
 		merged.networkProxyUrl = DEFAULT_SETTINGS.networkProxyUrl;
 	} else {
 		merged.networkProxyUrl = parsed.networkProxyUrl.trim();
+	}
+	merged.alphaxiv = normalizeAlphaXiv(parsed.alphaxiv);
+	if (typeof parsed.openreviewCookie !== "string") {
+		merged.openreviewCookie = DEFAULT_SETTINGS.openreviewCookie;
+	} else {
+		merged.openreviewCookie = parsed.openreviewCookie.trim();
+	}
+	if (
+		typeof parsed.openreviewCookieExpiresAt !== "number" ||
+		!Number.isFinite(parsed.openreviewCookieExpiresAt) ||
+		parsed.openreviewCookieExpiresAt < 0
+	) {
+		merged.openreviewCookieExpiresAt =
+			DEFAULT_SETTINGS.openreviewCookieExpiresAt;
 	}
 	if (!isPaperTreeLabelMode(merged.paperTreeLabelMode)) {
 		merged.paperTreeLabelMode = DEFAULT_SETTINGS.paperTreeLabelMode;

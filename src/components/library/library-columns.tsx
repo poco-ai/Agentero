@@ -120,7 +120,7 @@ const VENUE_STATUS_CLASS: Record<VenueStatus, string> = {
 
 /** One cell for publication / submission / preprint + EasyScholar metrics. */
 function VenueCell({ paper, ctx }: { paper: PaperLibraryRow; ctx: CellCtx }) {
-	const info = venueInfo(paper);
+	const info = venueInfo(paper, ctx.easyScholarRanks);
 	if (info.status === "none" || !info.name) {
 		return (
 			<td className="min-w-0 max-w-0 overflow-hidden px-3 py-2.5 text-muted-foreground text-xs">

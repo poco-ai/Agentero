@@ -38,7 +38,6 @@ export function paperCatalogPath(
 export type PaperOpenBundle = {
 	paper: PaperMetadata;
 	pathRel: string;
-	notesSeed?: string;
 	pdfPath?: string;
 	hasTex: boolean;
 	hasPaperMd: boolean;
@@ -71,7 +70,6 @@ export async function loadPaperOpenBundle(
 		return {
 			paper,
 			pathRel: data.pathRel,
-			notesSeed: data.notesSeed ?? undefined,
 			pdfPath: data.pdfPath ?? undefined,
 			hasTex: data.hasTex,
 			hasPaperMd: data.hasPaperMd,

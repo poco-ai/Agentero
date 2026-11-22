@@ -1,4 +1,5 @@
 import { toVaultRelative } from "@/lib/core/path";
+import { getPlatformOS } from "@/lib/core/tauri";
 import {
 	isPaperDirectory,
 	isPapersRoot,
@@ -19,6 +20,22 @@ import { isZoteroCollectionReferencePath } from "./zotero-collection-references"
 
 /** Case-insensitive tree-path key (same normalization as vault path keys). */
 export const pathKey = normalizePathKey;
+
+/**
+ * Platform-correct multi-select modifier: ⌘ on macOS, Ctrl on Windows/Linux.
+ * macOS Ctrl-click is the system context-menu gesture and must not select.
+ */
+export function isTreeSelectModifier(event: {
+	metaKey: boolean;
+	ctrlKey: boolean;
+}): boolean {
+	return getPlatformOS() === "macos" ? event.metaKey : event.ctrlKey;
+}
+
+/** macOS Ctrl-click opens the native context menu instead of selecting. */
+export function isMacCtrlClick(event: { ctrlKey: boolean }): boolean {
+	return getPlatformOS() === "macos" && event.ctrlKey;
+}
 
 /**
  * Product folders at the vault root. The sidebar shows an icon and a

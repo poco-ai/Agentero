@@ -2,6 +2,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import {
 	BookOpen,
 	CheckCircle2,
+	ChevronDown,
 	FolderOpen,
 	Import,
 	Loader2,
@@ -18,6 +19,11 @@ import {
 } from "@/components/dialogs/zotero-dialog-shared";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	Dialog,
 	DialogContent,
@@ -137,6 +143,7 @@ export function ZoteroMigrateDialog({
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [result, setResult] = useState<ZoteroMigrateResult | null>(null);
+	const [showFailures, setShowFailures] = useState(false);
 
 	useOverlayRegistration("zotero-migrate", open, () => onOpenChange(false));
 
@@ -436,11 +443,52 @@ export function ZoteroMigrateDialog({
 										})}
 									</li>
 								) : null}
-								{result.errors.length > 0 ? (
+								{result.failures.length > 0 ? (
 									<li className="text-destructive">
-										{t("sidebar:zoteroMigrate.summaryErrors", {
-											count: result.errors.length,
-										})}
+										<Collapsible
+											open={showFailures}
+											onOpenChange={setShowFailures}
+										>
+											<CollapsibleTrigger asChild>
+												<button
+													type="button"
+													className="inline-flex items-center gap-1 underline-offset-2 hover:underline"
+												>
+													{t("sidebar:zoteroMigrate.summaryErrors", {
+														count: result.failures.length,
+													})}
+													<ChevronDown
+														className={
+															showFailures
+																? "size-3.5 rotate-180 transition-transform"
+																: "size-3.5 transition-transform"
+														}
+													/>
+												</button>
+											</CollapsibleTrigger>
+											<CollapsibleContent asChild>
+												<ul className="mt-1 max-h-56 space-y-1.5 overflow-y-auto pr-1">
+													{result.failures.map((failure) => (
+														<li
+															key={`${failure.itemId}-${failure.message}`}
+															className="text-muted-foreground text-xs"
+														>
+															<span className="text-foreground">
+																{failure.title ||
+																	failure.doi ||
+																	String(failure.itemId)}
+															</span>
+															{failure.doi && failure.title ? (
+																<span className="ml-1 font-mono text-[11px]">
+																	{failure.doi}
+																</span>
+															) : null}
+															<span className="block">{failure.message}</span>
+														</li>
+													))}
+												</ul>
+											</CollapsibleContent>
+										</Collapsible>
 									</li>
 								) : null}
 							</ul>

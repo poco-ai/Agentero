@@ -1,6 +1,6 @@
 /** Real PDFium regression fixtures; generated PDFs stay outside the repository. */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PdfiumNative } from "@embedpdf/engines/pdfium";
 import { init } from "@embedpdf/pdfium";
@@ -13,10 +13,35 @@ import {
 	PDFString,
 	StandardFonts,
 } from "pdf-lib";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { buildReflowPage, buildReflowPdf } from "@/lib/pdf/reflow/export";
 import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
 import type { Character, ReflowDocument } from "@/lib/pdf/reflow/types";
+
+/**
+ * Formula fragments open a second PDFium engine. Vitest turns
+ * `pdfium.wasm?url` into a filesystem path, and Node's fetch rejects that.
+ * Serve the file so the real redact path still runs.
+ */
+const nativeFetch = globalThis.fetch.bind(globalThis);
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+	const url =
+		typeof input === "string"
+			? input
+			: input instanceof URL
+				? input.href
+				: input.url;
+	if (url.includes("pdfium.wasm") && !/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+		const path = existsSync(url)
+			? url
+			: resolve(process.cwd(), url.replace(/^\//, ""));
+		return new Response(readFileSync(path));
+	}
+	return nativeFetch(input, init);
+}) as typeof fetch;
+afterAll(() => {
+	globalThis.fetch = nativeFetch;
+});
 
 const fontPath = process.env.AGENTERO_REFLOW_FONT;
 const outputDir = process.env.AGENTERO_REFLOW_CROP_OUTPUT;

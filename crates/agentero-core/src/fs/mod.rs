@@ -4,6 +4,7 @@
 
 mod dir_link;
 mod local;
+mod name;
 mod path;
 mod store;
 
@@ -13,6 +14,7 @@ pub use dir_link::{
 };
 
 pub use local::LocalFs;
+pub use name::{is_reserved_device_name, is_windows_illegal, safe_file_stem};
 pub use path::{
     canonicalize_best_effort, ensure_vault_dir, join_remote, normalize_rel, normalize_rel_lexical,
     normalize_rel_separators, path_escapes_root, resolve_paper_dir, resolve_vault,

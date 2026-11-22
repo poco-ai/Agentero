@@ -55,6 +55,7 @@ import {
 	trackInternalRenamePaths,
 } from "@/lib/wiki/store";
 import {
+	refreshOpenPaperPdf,
 	remapMovedWorkspacePaths,
 	syncRenamedPaperTabs,
 } from "@/lib/workspace/actions";
@@ -176,9 +177,9 @@ export function registerLifecycleHandlers(): () => void {
 			const folder = path?.trim() || (paperId ? `papers/${paperId}` : "");
 			// Re-list the parent so the paper row's hasTex/needsSource flags
 			// are replaced too; refreshing only source/ leaves them stale.
-			scheduleTreeRefresh(
-				folder ? [joinVaultPath(vaultId, folder)] : undefined,
-			);
+			const abs = folder ? joinVaultPath(vaultId, folder) : null;
+			scheduleTreeRefresh(abs ? [abs] : undefined);
+			if (abs) void refreshOpenPaperPdf(abs);
 			noteCommittedLibraryList();
 		}),
 		lifecycle.on("paper:renamed", (event) => {

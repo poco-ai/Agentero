@@ -261,6 +261,8 @@ pub enum RunOutcome {
     Succeeded,
     /// `Failed`, phase "failed", with the reported error (if any).
     Failed(Option<String>),
+    /// A failure with a phase that identifies an actionable result.
+    FailedWithPhase { phase: &'static str, error: String },
     /// `Cancelled`, phase "cancelled" (renderer-executed jobs only).
     Cancelled,
 }
@@ -1193,13 +1195,15 @@ impl JobCenter {
         snapshots
     }
 
-    /// Broadcast translation offers execute in one window. A WebView reload
-    /// may reclaim its own work; other windows subscribe to the same job.
-    pub async fn claim_layout_translate(&self, job_id: &str, window: &str) -> bool {
+    /// Broadcast renderer offers execute in one window: every window gets the
+    /// `job:offer`, the first claim wins and the losers follow `job:changed`.
+    /// A WebView reload may reclaim its own work; other windows get `false`.
+    /// Ownership is released when the job reaches a terminal state.
+    pub async fn claim_renderer(&self, job_id: &str, window: &str) -> bool {
         let mut inner = self.inner.lock().await;
         let id = JobId(job_id.to_string());
         if !inner.jobs.get(&id).is_some_and(|job| {
-            job.kind == JobKind::LayoutTranslate && job.state == JobState::Running
+            job.kind.exec_host() == ExecHost::Renderer && job.state == JobState::Running
         }) {
             return false;
         }
@@ -1521,6 +1525,10 @@ impl JobCenter {
                 }
                 RunOutcome::Failed(error) => {
                     self.finish(&job_id, JobState::Failed, None, Some("failed"), error)
+                        .await
+                }
+                RunOutcome::FailedWithPhase { phase, error } => {
+                    self.finish(&job_id, JobState::Failed, None, Some(phase), Some(error))
                         .await
                 }
                 RunOutcome::Cancelled => {
@@ -3657,7 +3665,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn layout_translate_executes_in_one_window_and_keeps_terminal_snapshot() {
+    async fn renderer_claim_executes_in_one_window_and_keeps_terminal_snapshot() {
         let center = JobCenter::new();
         let job = center
             .enqueue_core(
@@ -3670,14 +3678,14 @@ mod tests {
                 None,
             )
             .await;
-        assert!(!center.claim_layout_translate(&job.id, "a").await);
+        assert!(!center.claim_renderer(&job.id, "a").await);
         assert!(matches!(
             center.try_start(&job.id).await,
             StartOutcome::Started(..)
         ));
-        assert!(center.claim_layout_translate(&job.id, "a").await);
-        assert!(!center.claim_layout_translate(&job.id, "b").await);
-        assert!(center.claim_layout_translate(&job.id, "a").await);
+        assert!(center.claim_renderer(&job.id, "a").await);
+        assert!(!center.claim_renderer(&job.id, "b").await);
+        assert!(center.claim_renderer(&job.id, "a").await);
         center.merge_running_job_params(&job.id, serde_json::json!({"layoutTranslate": {"items": [{"id": "block", "translated": "result"}]}})).await;
         let result = center
             .job_report(&job.id, Some(100.0), None, None, Some(JobState::Succeeded))
@@ -3687,7 +3695,29 @@ mod tests {
             result.params.unwrap()["layoutTranslate"]["items"][0]["translated"],
             "result"
         );
-        assert!(!center.claim_layout_translate(&job.id, "a").await);
+        assert!(!center.claim_renderer(&job.id, "a").await);
+    }
+
+    #[tokio::test]
+    async fn renderer_claim_rejects_host_executed_jobs() {
+        let center = JobCenter::new();
+        let job = center
+            .enqueue_core(
+                JobKind::ParseRefs,
+                vault("parse-refs-owner"),
+                "papers/a",
+                JobLane::Normal,
+                false,
+                None,
+                None,
+            )
+            .await;
+        assert!(matches!(
+            center.try_start(&job.id).await,
+            StartOutcome::Started(..)
+        ));
+        // Rust runs this kind itself; a renderer must never claim it.
+        assert!(!center.claim_renderer(&job.id, "a").await);
     }
 
     #[tokio::test]

@@ -3,6 +3,7 @@ import {
 	Calendar,
 	ChevronRight,
 	ExternalLink,
+	FileCode2,
 	Library,
 	Loader2,
 	Pencil,
@@ -29,6 +30,10 @@ import {
 	SiModelscope,
 	SiZhihu,
 } from "react-icons/si";
+import {
+	AlphaXivIcon,
+	OpenReviewIcon,
+} from "@/components/icons/paper-service-icons";
 import { EditablePaperTag } from "@/components/library/editable-paper-tag";
 import { PaperTagRemoveButton } from "@/components/library/paper-tag-chip";
 import { TagColorPalette } from "@/components/library/tag-color-palette";
@@ -46,7 +51,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { normalizeDoi } from "@/lib/bibtex";
+import { useSettings } from "@/hooks/use-app-stores";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -54,7 +59,7 @@ import { openExternalUrl } from "@/lib/core/open-external";
 import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper";
-import { arxivUrls } from "@/lib/paper/arxiv";
+import { paperLinkTargets } from "@/lib/paper/external-links";
 import { setEditMetaDraft } from "@/lib/paper/library-store";
 import { publicationDateText } from "@/lib/paper/publication-date";
 import {
@@ -66,10 +71,15 @@ import {
 	withPaperTagColor,
 } from "@/lib/paper/tags";
 import { venueInfo } from "@/lib/paper/venue-info";
+import {
+	buildPaperZhihuDraft,
+	copyPaperZhihuDraft,
+	type ZhihuDraft,
+} from "@/lib/paper/zhihu-ask";
 import { type TagColorId, tagSwatchStyle } from "@/lib/ui/tag-colors";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { getVaultPath } from "@/lib/vault/store";
-import { buildZhihuQuestionDraft, ZHIHU_HOME_URL } from "@/lib/zhihu";
+import { ZHIHU_HOME_URL } from "@/lib/zhihu";
 
 type PaperInfoPanelProps = {
 	meta: PaperMetadata | null;
@@ -77,9 +87,6 @@ type PaperInfoPanelProps = {
 	/** Persist tags to catalog. Required for editing. */
 	onTagsChange?: (tags: PaperTag[]) => Promise<void> | void;
 };
-
-/** Host-built Zhihu question draft (mirrors `ZhihuQuestionDraft`). */
-type ZhihuDraft = { title: string; body: string };
 
 function MetaRow({
 	icon: Icon,
@@ -167,54 +174,6 @@ function LinkChip({
 				aria-hidden
 			/>
 		</a>
-	);
-}
-
-function AlphaXivIcon({ className }: { className?: string }) {
-	return (
-		<svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-			<title>alphaXiv</title>
-			<path
-				d="M2.8 10.2 8 5c1.3-1.3 3.5-1.2 4.7.2l3 3.3"
-				stroke="currentColor"
-				strokeWidth="3.1"
-				strokeLinecap="square"
-				strokeLinejoin="miter"
-			/>
-			<path
-				d="M12.2 8.4 7.7 13c-1.2 1.2-1.2 3.1 0 4.3 1.2 1.2 3.2 1.1 4.3-.1L21 8.1"
-				stroke="currentColor"
-				strokeWidth="3.1"
-				strokeLinecap="square"
-				strokeLinejoin="miter"
-			/>
-			<path
-				d="m16.9 14.2 4.2 4.2"
-				stroke="currentColor"
-				strokeWidth="3.1"
-				strokeLinecap="square"
-			/>
-		</svg>
-	);
-}
-
-function OpenReviewIcon({ className }: { className?: string }) {
-	return (
-		<svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-			<title>OpenReview</title>
-			<rect width="24" height="24" rx="5" fill="#8C1B13" />
-			<text
-				x="12"
-				y="18.2"
-				textAnchor="middle"
-				fill="#FFFFFF"
-				fontFamily="Helvetica, Arial, sans-serif"
-				fontWeight="700"
-				fontSize="20"
-			>
-				O
-			</text>
-		</svg>
 	);
 }
 
@@ -436,26 +395,6 @@ function TagsEditor({
 	);
 }
 
-/** `github.com/x/y` form is common when pasted; bare hosts need a scheme. */
-function repoHref(value: string) {
-	return /^https?:\/\//i.test(value) ? value : `https://${value}`;
-}
-
-function openreviewHref(value: string | null | undefined): string | null {
-	const trimmed = value?.trim();
-	if (!trimmed) return null;
-	try {
-		const url = new URL(
-			/^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`,
-		);
-		return url.protocol === "https:" || url.protocol === "http:"
-			? url.href
-			: null;
-	} catch {
-		return null;
-	}
-}
-
 const HEIGHT_STORAGE_KEY = "agentero.paperInfoHeight";
 const MIN_CONTENT_HEIGHT = 120;
 const DEFAULT_CONTENT_HEIGHT = 320;
@@ -478,6 +417,7 @@ export function PaperInfoPanel({
 	onTagsChange,
 }: PaperInfoPanelProps) {
 	const { t } = useTranslation("sidebar");
+	const easyScholarRanks = useSettings((s) => s.easyScholarRanks);
 	const [open, setOpen] = useState(Boolean(meta));
 	const [contentHeight, setContentHeight] = useState(loadStoredHeight);
 	/** Disable height transition while the user is dragging the resize handle. */
@@ -559,24 +499,22 @@ export function PaperInfoPanel({
 	const vaultPath = getVaultPath();
 	const canEditMeta =
 		Boolean(meta) && !!vaultPath && !isRemoteVaultHandle(vaultPath);
-	const arxivId = meta?.arxiv_id ? arxivUrls(meta.arxiv_id)?.id : null;
+	const targets = paperLinkTargets(meta);
+	const arxivId = targets.arxivId;
 	/** DOI-identified paper (no arXiv id): link the DOI instead of the arXiv page. */
-	const doi = arxivId ? null : normalizeDoi(meta?.doi ?? undefined);
+	const doi = arxivId ? null : targets.doi;
 	/** Identifier shown next to the panel heading. */
 	const paperId = arxivId ?? doi;
 	const paperIdLabel = arxivId ? t("paperInfo.arxivId") : t("paperInfo.doi");
-	const modelScopeUrl = arxivId
-		? `https://modelscope.cn/papers/${arxivId}/overview`
-		: null;
-	const alphaXivUrl = arxivId
-		? `https://www.alphaxiv.org/abs/${arxivId}`
-		: null;
-	const huggingFaceUrl = arxivId
-		? `https://huggingface.co/papers/${arxivId}`
-		: null;
-	const codeRepo = meta?.code_repo?.trim() || null;
-	const openreviewUrl = openreviewHref(meta?.openreview_url);
-	const venue = meta ? venueInfo(meta) : null;
+	const modelScopeUrl = targets.modelScopeUrl;
+	const alphaXivUrl = targets.alphaXivUrl;
+	const huggingFaceUrl = targets.huggingFaceUrl;
+	const codeRepoUrl = targets.codeRepoUrl;
+	const openreviewUrl = targets.openreviewUrl;
+	const showPdf =
+		(!targets.arxivUrl && !targets.doiUrl) ||
+		(openreviewUrl && targets.pdfUrl !== targets.arxivUrl);
+	const venue = meta ? venueInfo(meta, easyScholarRanks) : null;
 
 	const copyField = async (text: string | null | undefined, label: string) => {
 		const value = text?.trim();
@@ -597,31 +535,14 @@ export function PaperInfoPanel({
 	 * Zhihu. A desktop app cannot fill Zhihu's ask modal, so the draft lands on
 	 * the clipboard for the user to paste.
 	 */
-	const copyZhihuDraft = async (draft: ZhihuDraft) => {
-		await copyTextToClipboard(`${draft.title}\n\n${draft.body}`, {
-			successMessage: t("paperInfo.zhihuAskCopied"),
-			errorMessage: t("paperInfo.copyFailed"),
-			successNotify: { duration: 5000, id: "zhihu-ask-copied" },
-		});
-	};
-
 	const askOnZhihu = async () => {
 		if (!meta || zhihuBusy) return;
 		setZhihuBusy(true);
 		try {
-			const draft = await buildZhihuQuestionDraft({
-				title: meta.title ?? "",
-				authors: meta.authors ?? [],
-				venue: meta.publication ?? "",
-				year: meta.year != null ? String(meta.year) : "",
-				doi: meta.doi ?? "",
-				arxivId: meta.arxiv_id ?? "",
-				url: meta.html_url ?? meta.source_url ?? "",
-				abstractText: meta.abstract ?? "",
-			});
+			const draft = await buildPaperZhihuDraft(meta);
 			setZhihuDraft(draft);
 			setZhihuDraftOpen(true);
-			await copyZhihuDraft(draft);
+			await copyPaperZhihuDraft(draft);
 			openExternalUrl(ZHIHU_HOME_URL);
 		} catch (e) {
 			notifyError(errorText(e));
@@ -794,10 +715,15 @@ export function PaperInfoPanel({
 								/>
 							</MetaRow>
 							<div className="@container/paper-links flex flex-col gap-1.5 px-3 pt-1.5">
-								<div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
-									{arxivId ? (
+								<div
+									className={cn(
+										"flex items-center gap-1.5",
+										openreviewUrl ? "flex-wrap" : "flex-nowrap overflow-hidden",
+									)}
+								>
+									{targets.arxivUrl ? (
 										<LinkChip
-											href={meta.pdf_url ?? `https://arxiv.org/pdf/${arxivId}`}
+											href={targets.arxivUrl}
 											label={t("paperInfo.arxiv")}
 											icon={
 												<SiArxiv
@@ -806,9 +732,10 @@ export function PaperInfoPanel({
 												/>
 											}
 										/>
-									) : doi ? (
+									) : null}
+									{targets.doiUrl ? (
 										<LinkChip
-											href={`https://doi.org/${doi}`}
+											href={targets.doiUrl}
 											label={t("paperInfo.doi")}
 											icon={
 												<SiDoi
@@ -817,8 +744,12 @@ export function PaperInfoPanel({
 												/>
 											}
 										/>
-									) : meta.pdf_url ? (
-										<LinkChip href={meta.pdf_url} label={t("paperInfo.pdf")} />
+									) : null}
+									{showPdf && targets.pdfUrl ? (
+										<LinkChip
+											href={targets.pdfUrl}
+											label={t("paperInfo.pdf")}
+										/>
 									) : null}
 									{alphaXivUrl ? (
 										<ServiceLinkChip
@@ -889,7 +820,9 @@ export function PaperInfoPanel({
 															type="button"
 															variant="outline"
 															size="xs"
-															onClick={() => void copyZhihuDraft(zhihuDraft)}
+															onClick={() =>
+																void copyPaperZhihuDraft(zhihuDraft)
+															}
 														>
 															{t("paperInfo.zhihuDraftCopy")}
 														</Button>
@@ -899,11 +832,33 @@ export function PaperInfoPanel({
 										</PopoverContent>
 									</Popover>
 								</div>
-								{codeRepo || huggingFaceUrl || openreviewUrl ? (
-									<div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
-										{codeRepo ? (
+								{codeRepoUrl ||
+								huggingFaceUrl ||
+								openreviewUrl ||
+								targets.htmlUrl ? (
+									<div
+										className={cn(
+											"flex items-center gap-1.5",
+											openreviewUrl
+												? "flex-wrap"
+												: "flex-nowrap overflow-hidden",
+										)}
+									>
+										{targets.htmlUrl ? (
 											<ServiceLinkChip
-												href={repoHref(codeRepo)}
+												href={targets.htmlUrl}
+												label="HTML"
+												icon={
+													<FileCode2
+														className="size-3.5 shrink-0"
+														aria-hidden
+													/>
+												}
+											/>
+										) : null}
+										{codeRepoUrl ? (
+											<ServiceLinkChip
+												href={codeRepoUrl}
 												label={t("paperInfo.codeRepo")}
 												icon={
 													<SiGithub className="size-3.5 shrink-0" aria-hidden />

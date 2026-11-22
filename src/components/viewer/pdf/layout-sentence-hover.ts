@@ -31,7 +31,7 @@ import {
 	getTranslatedLinkSource,
 	subscribeTranslatedLinkSource,
 } from "@/lib/pdf/layout/translated-link-source";
-import type { Paragraph } from "@/lib/pdf/reflow/types";
+import type { Paragraph, ParagraphLayout } from "@/lib/pdf/reflow/types";
 import {
 	pageSelectionInkRects,
 	selectionGlyphInkRect,
@@ -56,10 +56,19 @@ export type LayoutSentenceHover = Omit<ElementSentenceHit, "members"> & {
 
 type CatalogItem = SentenceItem & {
 	reflow?: Paragraph;
+	reflowLayout?: ParagraphLayout;
 	bbox: { x: number; y: number; w: number; h: number };
 	source: string;
 	raw?: string;
+	translated?: string;
 };
+
+/** Blocks currently published for this paper, including reflow placement. */
+export function layoutSentenceCatalogItems(
+	docId: string,
+): readonly CatalogItem[] {
+	return itemsForScope(layoutSentenceScope(docId));
+}
 
 type GlyphDocument = {
 	pages: { size: { width: number; height: number } }[];
@@ -90,6 +99,13 @@ let suppressed = false;
 const sources = new Map<string, GlyphSource>();
 
 const slots = new Map<string, CatalogSlot>();
+/**
+ * Pages that already have layout-analysis regions, keyed per publishing pane.
+ * The whole-page text-run fallback exists for PDFs that were never analysed;
+ * on an analysed page it would turn the text inside a figure / table /
+ * algorithm box into sentences and wash the graphic on hover.
+ */
+const analysedPages = new Map<string, { scope: string; pages: Set<number> }>();
 const sourcePages = new Map<string, Map<number, CatalogItem>>();
 const sourceInk = new Map<string, Map<number, SentenceFractionRect[]>>();
 const sourceGlyphs = new Map<
@@ -140,6 +156,60 @@ function scopeStillPublished(scope: string): boolean {
 		if (slot.scope === scope) return true;
 	}
 	return false;
+}
+
+/** Whether this paper's layout analysis already covers the page. */
+function pageIsAnalysed(scope: string, pageIndex: number): boolean {
+	for (const slot of analysedPages.values()) {
+		if (slot.scope === scope && slot.pages.has(pageIndex)) return true;
+	}
+	return false;
+}
+
+/** Drop the whole-page text fallback for pages that just got analysis. */
+function dropPageFallbacks(scope: string, pages: ReadonlySet<number>): boolean {
+	let changed = false;
+	const pageItems = sourcePages.get(scope);
+	for (const pageIndex of pages) {
+		if (pageItems?.delete(pageIndex)) changed = true;
+		const prefix = `${scope}:source-page-${pageIndex}:`;
+		for (const key of glyphs.keys()) {
+			if (!key.startsWith(prefix)) continue;
+			glyphs.delete(key);
+			changed = true;
+		}
+	}
+	if (changed) invalidateCatalog(scope);
+	return changed;
+}
+
+/**
+ * Layout analysis published its regions for `docId`.
+ * Pages in this list no longer receive synthesized whole-page sentences.
+ */
+export function publishLayoutSentencePageAnalysis(
+	docId: string,
+	pages: readonly number[] | null | undefined,
+): void {
+	const scope = layoutSentenceScope(docId);
+	const next = new Set(pages ?? []);
+	if (next.size === 0) {
+		analysedPages.delete(docId);
+		return;
+	}
+	analysedPages.set(docId, { scope, pages: next });
+	if (!dropPageFallbacks(scope, next)) return;
+	// Force a fresh locate: the pointer may still sit on a sentence drawn from
+	// the fallback, and a normal resolve would short-circuit on it.
+	if (!held) hover = null;
+	notify();
+	if (
+		lastQuery &&
+		!suppressed &&
+		layoutSentenceScope(lastQuery.docId) === scope
+	) {
+		applyPointer(lastQuery);
+	}
 }
 
 function itemsForScope(scope: string): CatalogItem[] {
@@ -475,6 +545,10 @@ export function primeLayoutSentenceGlyphs(
 		sourceGlyphs.get(scope)?.has(pageIndex)
 	)
 		return;
+	// An analysed page never invents whole-page sentences. Figures, tables and
+	// algorithms have no text-like regions of their own, so the fallback would
+	// pick up their inner text runs and wash the graphic under the pointer.
+	if (items.length === 0 && pageIsAnalysed(scope, pageIndex)) return;
 	const captured = scopeGeneration(scope);
 	const flight = `${scope}:${pageIndex}:${captured}`;
 	if (inflight.has(flight)) return;
@@ -505,7 +579,7 @@ export function primeLayoutSentenceGlyphs(
 			return;
 		}
 
-		if (!items.length && runs.length) {
+		if (!items.length && runs.length && !pageIsAnalysed(scope, pageIndex)) {
 			const ordered = orderByReadingLine(runs, (run) => ({
 				x: run.rect.origin.x,
 				y: run.rect.origin.y,

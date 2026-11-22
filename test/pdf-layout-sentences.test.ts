@@ -69,6 +69,46 @@ describe("splitLayoutSentences", () => {
 			"Then left.",
 		]);
 	});
+
+	it("keeps academic abbreviations and block-start enumerators intact", () => {
+		expect(
+			splitLayoutSentences(
+				"The bound is discussed in Sec. 5.1 and Appendix A. Next.",
+			),
+		).toEqual(["The bound is discussed in Sec. 5.1 and Appendix A.", "Next."]);
+		expect(
+			splitLayoutSentences(
+				"Fetching Unit (Sec. 3.2) that dispatches the function calls in parallel; (iii) an Executor (Sec. 3.3) that executes the dispatched tasks using the associated functions.",
+			),
+		).toEqual([
+			"Fetching Unit (Sec. 3.2) that dispatches the function calls in parallel; (iii) an Executor (Sec. 3.3) that executes the dispatched tasks using the associated functions.",
+		]);
+		expect(
+			splitLayoutSentences("Eq. (1) holds vs. the baseline. Next."),
+		).toEqual(["Eq. (1) holds vs. the baseline.", "Next."]);
+		expect(splitLayoutSentences("See Tab. 2 and Figs. 3-4. Next.")).toEqual([
+			"See Tab. 2 and Figs. 3-4.",
+			"Next.",
+		]);
+		expect(splitLayoutSentences("Cf. Lem. 1 and Thm. 2. Next.")).toEqual([
+			"Cf. Lem. 1 and Thm. 2.",
+			"Next.",
+		]);
+		expect(
+			splitLayoutSentences("Dr. Ada and Prof. Lin, approx. No. 4. Next."),
+		).toEqual(["Dr. Ada and Prof. Lin, approx. No. 4.", "Next."]);
+		expect(splitLayoutSentences("1. The method starts here. Next.")).toEqual([
+			"1. The method starts here.",
+			"Next.",
+		]);
+		expect(splitLayoutSentences("2.1. Methods are described. Done.")).toEqual([
+			"2.1. Methods are described.",
+			"Done.",
+		]);
+		expect(
+			splitLayoutSentences("A. The appendix holds the proof. Next."),
+		).toEqual(["A. The appendix holds the proof.", "Next."]);
+	});
 });
 
 describe("joinMemberQuotes", () => {

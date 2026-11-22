@@ -70,11 +70,13 @@ async fn await_setup<T>(
 /// live connection to the pool → emit models/usage (no prompt). Used when Chat
 /// opens so the model selector and context meter are ready before first send,
 /// and so the first (and later) prompts skip the cold spawn chain.
+#[allow(clippy::too_many_arguments)]
 pub async fn warm_agent(
     app: AgentEventEmitter,
     desc: AgentDescriptor,
     vault_path: Option<String>,
     preferred_model_id: Option<String>,
+    force_model: bool,
     preferred_collaboration_mode_id: Option<String>,
     remote: Option<Arc<dyn crate::features::agent::remote_host::RemoteAgentLaunch>>,
     pool: Arc<AgentWarmPool>,
@@ -172,6 +174,7 @@ pub async fn warm_agent(
         agent_id: agent_id.clone(),
         template: desc.template,
         preferred_model_id,
+        force_model,
         preferred_collaboration_mode_id,
         models_out: models_out.clone(),
         collaboration_out: collaboration_out.clone(),
@@ -287,6 +290,9 @@ struct WarmSetupCtx {
     agent_id: String,
     template: AgentTemplate,
     preferred_model_id: Option<String>,
+    /// Explicit user pick: always send one model `set_config_option` even when
+    /// the agent reports the same current (Fix #1087).
+    force_model: bool,
     preferred_collaboration_mode_id: Option<String>,
     models_out: Arc<Mutex<Option<crate::features::agent::models::AgentModelsEvent>>>,
     collaboration_out: Arc<Mutex<Option<AgentCollaborationEvent>>>,
@@ -433,6 +439,7 @@ impl WarmSetupCtx {
             &acp_session_id,
             new_session.config_options.unwrap_or_default(),
             self.preferred_model_id.clone(),
+            self.force_model,
             self.preferred_collaboration_mode_id.clone(),
         )
         .await;

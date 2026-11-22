@@ -909,7 +909,10 @@ export async function confirmRenamePath(
 	nextName: string,
 ): Promise<void> {
 	const vaultPath = getVaultPath();
-	if (!vaultPath) return;
+	if (!vaultPath) {
+		setRenameDraft(null);
+		return;
+	}
 	const trimmed = nextName.trim();
 	if (!isValidVaultEntryName(trimmed)) {
 		notifyError(i18n.t("sidebar:fileTree.invalidName"));
@@ -969,6 +972,11 @@ export async function confirmRenamePath(
 			}),
 		);
 	} catch (error) {
+		// Drop the draft before anything else: leaving it set keeps the inline
+		// editor mounted and blocks every selection, context menu and drop
+		// handler, so the tree never recovers. Restore the row instead and let
+		// the toast explain the failure.
+		setRenameDraft(null);
 		if (createdFolder && folderAbs) {
 			// Do not leave an empty folder behind when the move is rejected.
 			try {
@@ -979,11 +987,17 @@ export async function confirmRenamePath(
 			}
 		}
 		trackInternalRenamePaths(pendingEventPaths, Date.now() + 2000);
+		// The row stays in edit mode until this clears, and selection, context
+		// menus, and drag all refuse to run while a rename draft exists.
+		setRenameDraft(null);
 		notifyError(
 			error instanceof Error
 				? error.message
 				: i18n.t("sidebar:fileTree.renameFailed"),
 		);
+		// The rename field locks itself before this returns. Reject so it can
+		// accept Escape again if it is still mounted.
+		throw error;
 	} finally {
 		setVaultBusy(false);
 	}

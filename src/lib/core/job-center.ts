@@ -61,11 +61,13 @@ export function registerJobExecutor(
 }
 
 /**
- * Run one offer, at most once per job id. A throwing executor is reported as
- * `failed` so Rust frees the kind's concurrency slot now instead of waiting out
- * its report timeout.
+ * Run one offer, at most once per job id. Every window receives the broadcast
+ * `job:offer`; Rust hands the job to the first window that claims it, so the
+ * losing windows return before touching the executor. A throwing executor is
+ * reported as `failed` so Rust frees the kind's concurrency slot now instead
+ * of waiting out its report timeout.
  */
-function dispatchJobOffer(offer: JobOfferPayload): void {
+async function dispatchJobOffer(offer: JobOfferPayload): Promise<void> {
 	const executor = executors.get(offer.kind);
 	if (!executor) {
 		logger.warn("no executor registered for job offer", {
@@ -76,23 +78,43 @@ function dispatchJobOffer(offer: JobOfferPayload): void {
 	}
 	if (inFlightOffers.has(offer.jobId)) return;
 	inFlightOffers.add(offer.jobId);
-	void executor(offer)
-		.catch(async (error) => {
-			const message = errorText(error);
-			logger.error("job executor failed", {
-				kind: offer.kind,
-				jobId: offer.jobId,
-				error: message,
-			});
-			await jobReport({
-				jobId: offer.jobId,
-				state: "failed",
-				error: message,
-			}).catch(() => undefined);
-		})
-		.finally(() => {
-			inFlightOffers.delete(offer.jobId);
+	try {
+		if (!(await claimJobOffer(offer.jobId))) return;
+		await executor(offer);
+	} catch (error) {
+		const message = errorText(error);
+		logger.error("job executor failed", {
+			kind: offer.kind,
+			jobId: offer.jobId,
+			error: message,
 		});
+		await jobReport({
+			jobId: offer.jobId,
+			state: "failed",
+			error: message,
+		}).catch(() => undefined);
+	} finally {
+		inFlightOffers.delete(offer.jobId);
+	}
+}
+
+/**
+ * Ask Rust whether this window owns the offered job. The claim IPC failing
+ * fails open (runs the executor here): an RPC error must never strand a
+ * running job until the renderer report timeout.
+ */
+async function claimJobOffer(jobId: string): Promise<boolean> {
+	try {
+		return (
+			(await callApiResult(() => commands.jobRendererClaim({ jobId }))) === true
+		);
+	} catch (error) {
+		logger.warn("renderer job claim failed; running unclaimed", {
+			jobId,
+			error: errorText(error),
+		});
+		return true;
+	}
 }
 
 /**
@@ -107,7 +129,7 @@ async function claimRunningJobOffers(): Promise<void> {
 		});
 		for (const job of jobs ?? []) {
 			if (job.state !== "running" || !executors.has(job.kind)) continue;
-			dispatchJobOffer({
+			void dispatchJobOffer({
 				jobId: job.id,
 				kind: job.kind,
 				vaultPath: job.vaultPath,
@@ -128,7 +150,7 @@ export function startJobCenterExecutorListener(): void {
 	if (isTauri()) {
 		offerSubscription = toSafeDisposer(
 			events.jobOffer.listen((event) => {
-				dispatchJobOffer(event.payload);
+				void dispatchJobOffer(event.payload);
 			}),
 		);
 	} else {
@@ -225,6 +247,16 @@ const LIFECYCLE_PHASES: ReadonlySet<string> = new Set([
 	"cancelled",
 	"dependency failed",
 ]);
+
+export function jobFailureMessage(job: JobChangedSnapshot): string | undefined {
+	const error = job.error?.trim();
+	if (error && job.kind === "downloadAssets" && job.phase) {
+		return i18n.t(`app:openreviewDownload.${job.phase}`, {
+			defaultValue: error,
+		});
+	}
+	return error || undefined;
+}
 
 /**
  * The job's status text: executors report their localized phase (the legacy
@@ -442,6 +474,25 @@ let projectionSubscription: (() => void) | null = null;
 const wiredJobCancels = new Set<string>();
 
 /**
+ * Settled JobCenter job ids. Finished rows dismiss themselves shortly after
+ * they settle, so the row alone can no longer guard against a late
+ * `job:changed` replaying a queued/running state (which would leave a ghost
+ * row that never finishes). Job ids are unique, so remembering terminals is
+ * safe; the set is bounded and cleared when the projection stops.
+ */
+const finishedJobIds = new Set<string>();
+const MAX_FINISHED_JOB_IDS = 256;
+
+function rememberFinishedJob(id: string): void {
+	if (finishedJobIds.has(id)) return;
+	finishedJobIds.add(id);
+	if (finishedJobIds.size > MAX_FINISHED_JOB_IDS) {
+		const oldest = finishedJobIds.values().next().value;
+		if (oldest !== undefined) finishedJobIds.delete(oldest);
+	}
+}
+
+/**
  * Single global `job:changed` → background-tasks-panel projection (§7.6).
  * Mirrors projected JobCenter jobs into the task store keyed by job id, and
  * routes panel cancellation to `job_cancel`.
@@ -476,6 +527,7 @@ export function startJobTaskProjection(): void {
 export function stopJobTaskProjection(): void {
 	projectionSubscription?.();
 	projectionSubscription = null;
+	finishedJobIds.clear();
 }
 
 export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
@@ -489,12 +541,13 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 	switch (job.state) {
 		case "queued":
 		case "running": {
+			// A late event must not revive a row that already settled (Cancel
+			// looked like a no-op, and the real JobCenter slot leak stayed
+			// hidden). Rows are dropped after a short window, hence the id set.
+			if (finishedJobIds.has(job.id)) return;
 			const existing = getBackgroundTasksSnapshot().tasks.find(
 				(task) => task.id === job.id,
 			);
-			// A late progress event must not revive a row the user already
-			// cancelled (or that already completed). That made Cancel look
-			// like a no-op and hid the real JobCenter slot leak.
 			if (existing && isFinishedBackgroundTask(existing)) {
 				return;
 			}
@@ -542,6 +595,7 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 		}
 		case "succeeded":
 		case "skipped":
+			rememberFinishedJob(job.id);
 			completeBackgroundTask(
 				job.id,
 				joinTaskDetail(resolveTaskSubject(job.id), status ?? detail),
@@ -550,11 +604,13 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 			releaseJobCancellation(job.id);
 			return;
 		case "failed":
-			failBackgroundTask(job.id, job.error?.trim() || title);
+			rememberFinishedJob(job.id);
+			failBackgroundTask(job.id, jobFailureMessage(job) || title);
 			clearTaskSubject(job.id);
 			releaseJobCancellation(job.id);
 			return;
 		case "cancelled":
+			rememberFinishedJob(job.id);
 			cancelBackgroundTask(job.id);
 			clearTaskSubject(job.id);
 			releaseJobCancellation(job.id);

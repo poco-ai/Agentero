@@ -69,6 +69,7 @@ function blocked(): boolean {
 		onboarding.open ||
 		onboarding.vaultSetupPending ||
 		ui.zoteroOpen ||
+		ui.alphaxivOpen ||
 		ui.zoteroSyncOpen ||
 		ui.commandOpen ||
 		ui.settingsOpen ||

@@ -1,7 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/core/utils";
 import { TRANSLATION_SPINNER_SIZE } from "@/lib/pdf/layout/translation-spinner";
-import type { PdfPaperTone } from "@/lib/pdf/page-theme";
 
 /**
  * In-place retry for a paragraph whose translation failed after the
@@ -17,14 +16,12 @@ export function TranslationRetryMarker({
 	x,
 	y,
 	size,
-	tone,
 	label,
 	onRetry,
 }: {
 	x: number;
 	y: number;
 	size: number;
-	tone: PdfPaperTone;
 	label: string;
 	onRetry: () => void;
 }) {
@@ -38,8 +35,7 @@ export function TranslationRetryMarker({
 			aria-label={label}
 			title={label}
 			className={cn(
-				"pointer-events-auto absolute z-[8] flex cursor-pointer items-center justify-center rounded-full transition-colors duration-100 hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-				tone === "dark" ? "text-amber-400" : "text-amber-600",
+				"pdf-translation-retry pointer-events-auto absolute z-[8] flex cursor-pointer items-center justify-center rounded-full transition-colors duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 			)}
 			style={{ left: x - offset, top: y - offset, width: hit, height: hit }}
 			onClick={(event) => {

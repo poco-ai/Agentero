@@ -118,13 +118,10 @@
 		"title": "通用",
 		"sections": {
 			"papers": "论文库",
-			"pdf": "PDF 阅读",
-			"plaza": "广场",
 			"system": "系统",
 			"network": "网络",
 			"integrations": "集成",
-			"mcp": "MCP",
-			"keyboard": "键盘"
+			"mcp": "MCP"
 		},
 		"terminalApp": {
 			"label": "终端打开方式",
@@ -185,26 +182,6 @@
 			"ask": "询问",
 			"always": "始终（安全时）"
 		},
-		"pdfScrollStrategy": {
-			"label": "PDF 翻页模式",
-			"vertical": "纵向",
-			"horizontal": "横向",
-			"paginated": "逐页切换"
-		},
-		"pdfVimKeys": {
-			"label": "启用 PDF Vim 按键（j/k/h/l）",
-			"requiresVimMode": "需要先开启 Vim 模式"
-		},
-		"vimMode": {
-			"label": "Vim 模式",
-			"description": "开启后文件树、下拉列表和 PDF 阅读器支持 j/k/h/l 导航，F 元素提示也随此开关。关闭后只保留普通输入与方向键。"
-		},
-		"pdfSpreadMode": {
-			"label": "PDF 页面版式",
-			"none": "单页",
-			"odd": "双页（从第 1 页配对）",
-			"even": "双页（封面单独）"
-		},
 		"batchImportConcurrency": {
 			"label": "后台任务并发数",
 			"value": "同时 {{value}} 个"
@@ -242,6 +219,34 @@
 				"bjmu": "北京大学医学部"
 			}
 		},
+		"openreviewAuth": {
+			"label": "OpenReview",
+			"login": "登录",
+			"loggingIn": "等待登录…",
+			"statusIdle": "未登录",
+			"statusWaiting": "等待登录…",
+			"statusOk": "浏览器已验证",
+			"statusSignedIn": "已登录",
+			"statusSessionExpired": "登录已过期",
+			"statusExpired": "验证已过期",
+			"loginFailed": "OpenReview 登录失败"
+		},
+		"alphaxiv": {
+			"label": "AlphaXiv",
+			"keyLabel": "API 密钥",
+			"placeholder": "粘贴 AlphaXiv API 密钥",
+			"test": "测试连接",
+			"testing": "测试中…",
+			"disconnect": "断开",
+			"disconnecting": "断开中…",
+			"statusIdle": "未连接",
+			"statusOk": "已连接",
+			"statusFail": "无法连接",
+			"statusProbing": "测试中…",
+			"testFailed": "AlphaXiv 连接失败",
+			"clearFailed": "无法断开 AlphaXiv",
+			"openKeyPage": "获取密钥"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",
@@ -251,10 +256,23 @@
 			"probeIdle": "未配置",
 			"probeOk": "可用",
 			"probeFail": "不可用",
-			"probeProbing": "检测中…"
-		},
-		"plaza": {
-			"label": "广场"
+			"probeProbing": "检测中…",
+			"ranksLabel": "显示等级",
+			"ranksPlaceholder": "选择要显示的等级",
+			"ranksReset": "恢复默认",
+			"rankNames": {
+				"if": "IF",
+				"if5": "IF5",
+				"jci": "JCI",
+				"sci": "SCI",
+				"ssci": "SSCI",
+				"eii": "EI 检索",
+				"cssci": "CSSCI",
+				"pku": "北大中文核心",
+				"ccf": "CCF",
+				"fms": "FMS",
+				"utd24": "UTD24"
+			}
 		},
 		"connector": {
 			"label": "兼容 Zotero Connector",
@@ -269,7 +287,6 @@
 		"mcp": {
 			"allowWrite": "允许客户端修改 Vault",
 			"allowOnline": "允许工具访问网络",
-			"scope": "这些权限适用于本机 MCP 客户端和已连接的隧道。",
 			"exposeText": {
 				"label": "允许客户端读取论文全文"
 			},
@@ -307,13 +324,6 @@
 				"action": "清除",
 				"done": "已清除使用记录"
 			}
-		},
-		"pdfTranslateTab": {
-			"label": "翻译入口",
-			"description": "按钮停在页面一角，尺寸不随 PDF 缩放。隐藏后仍可用顶部工具栏和翻译快捷键。",
-			"hover": "悬停显示",
-			"always": "始终显示",
-			"hidden": "隐藏"
 		}
 	},
 	"appearance": {
@@ -341,8 +351,35 @@
 		},
 		"sound": {
 			"label": "应用内提示音",
-			"description": "Agent 需要你处理，或回合、PDF 排版翻译结束或失败时播放轻提示音",
 			"preview": "试听"
+		},
+		"sections": {
+			"pdf": "PDF 阅读"
+		},
+		"plaza": {
+			"label": "广场"
+		},
+		"pdfScrollStrategy": {
+			"label": "PDF 翻页模式",
+			"vertical": "纵向",
+			"horizontal": "横向",
+			"paginated": "逐页切换"
+		},
+		"pdfVimKeys": {
+			"label": "启用 PDF Vim 按键（j/k/h/l）",
+			"requiresVimMode": "需要先开启 Vim 模式"
+		},
+		"pdfSpreadMode": {
+			"label": "PDF 页面版式",
+			"none": "单页",
+			"odd": "双页（从第 1 页配对）",
+			"even": "双页（封面单独）"
+		},
+		"pdfTranslateTab": {
+			"label": "PDF 左上角翻译本页入口",
+			"hover": "悬停显示",
+			"always": "始终显示",
+			"hidden": "隐藏"
 		},
 		"fonts": {
 			"section": "字体",
@@ -462,7 +499,9 @@
 			"qwenwork": "千问办公",
 			"workbuddy": "WorkBuddy",
 			"dsh-desktop": "Dsh 桌面版",
-			"bundledCli": "自带 CLI，可接入"
+			"bundledCli": "自带 CLI，可接入",
+			"unsupported": "暂无 Linux 版",
+			"unsupportedHint": "Dsh 桌面版暂无 Linux 版本——可用 `npm i -g @deepseek-ai/dsh` 安装 dsh CLI 作为 Agent 使用。"
 		},
 		"zcodeDesktopPathHint": "若未找到 ZCode，请将 ZCODE_BIN 设为其 zcode.cjs 路径；支持任意盘符及多层目录安装。",
 		"defaultAgent": {
@@ -613,7 +652,11 @@
 		"errors": {
 			"noBuiltinKey": "当前构建未启用内置翻译。",
 			"unreachable": "无法连接翻译服务，请检查网络，或在翻译设置中更换服务。",
-			"terminology": "当前服务未能保留专业术语，请切换翻译服务后重试。"
+			"timeout": "翻译超时了，服务有一段时间没有继续输出。请重试这一段。",
+			"incomplete": "译文没写完就被截断了。请重试这一段。",
+			"upstream": "翻译服务返回了错误：{{detail}}",
+			"terminology": "当前服务未能保留专业术语，请切换翻译服务后重试。",
+			"indexPromptEcho": "译文里出现了提示词，这段已保留原文。"
 		},
 		"targetLang": {
 			"label": "目标语言",
@@ -1021,6 +1064,7 @@
 	},
 	"keyboard": {
 		"title": "快捷键",
+		"vimMode": "Vim 模式",
 		"edit": "修改「{{command}}」快捷键",
 		"clear": "取消「{{command}}」快捷键绑定",
 		"clearHint": "取消该快捷键绑定",

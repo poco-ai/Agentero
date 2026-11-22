@@ -40,6 +40,7 @@ export function makeCommercialMtService(
 				region: cfg?.region,
 				model: cfg?.model,
 				extraRequestBody: cfg?.extraRequestBody,
+				onDelta: opts.onDelta,
 			});
 			task.result = result;
 		},

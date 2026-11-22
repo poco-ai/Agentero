@@ -140,6 +140,7 @@ function EquationPopoverContent({
 	return (
 		<PopoverContent
 			className="flex gap-2"
+			data-equation-editor={editor.id}
 			onEscapeKeyDown={(e) => e.preventDefault()}
 			contentEditable={false}
 		>

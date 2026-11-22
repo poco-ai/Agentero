@@ -4,14 +4,18 @@ import {
 	buildTranslateMessages,
 	buildTranslatePrompt,
 	COMMERCIAL_MT_PROVIDER_IDS,
+	displayTranslateError,
 	FREE_MT_PROVIDER_IDS,
 	getTranslateService,
 	isCommercialProviderConfigured,
 	isCommercialTranslateProvider,
 	isFreeMtProvider,
 	isShortColloquialPrompt,
+	isTranslateIncomplete,
 	isTranslateProviderId,
+	isTranslateTimeout,
 	isTranslateTransportError,
+	isTranslateUpstreamError,
 	langsFromSettings,
 	listSelectableProviders,
 	resolveTargetLangCode,
@@ -72,6 +76,42 @@ describe("isTranslateTransportError", () => {
 		).toBe(false);
 		expect(isTranslateTransportError("Empty translation result")).toBe(false);
 		expect(isTranslateTransportError(undefined)).toBe(false);
+		expect(isTranslateTransportError("translate.timeout")).toBe(false);
+		expect(isTranslateTransportError("translate.incomplete")).toBe(false);
+		expect(
+			isTranslateTransportError(
+				"OpenAI-compatible timed out waiting for output",
+			),
+		).toBe(false);
+	});
+});
+
+describe("displayTranslateError", () => {
+	it("distinguishes timeout, truncation, and upstream failures", () => {
+		expect(isTranslateTimeout("translate.timeout")).toBe(true);
+		expect(isTranslateIncomplete("translate.incomplete")).toBe(true);
+		expect(
+			isTranslateUpstreamError(
+				"OpenAI-compatible failed (HTTP 502): bad gateway",
+			),
+		).toBe(true);
+
+		const timeout = displayTranslateError("translate.timeout");
+		const incomplete = displayTranslateError("translate.incomplete");
+		const upstream = displayTranslateError(
+			"OpenAI-compatible failed (HTTP 502): bad gateway",
+		);
+		const unreachable = displayTranslateError(
+			"Tencent Transmart request failed: error sending request for url (https://transmart.qq.com/api/imt)",
+		);
+		expect(timeout).not.toBe(incomplete);
+		expect(timeout).not.toBe(upstream);
+		expect(incomplete).not.toBe(upstream);
+		expect(timeout).not.toBe(unreachable);
+		expect(timeout).toMatch(/timed out|超时/);
+		expect(incomplete).toMatch(/cut off|截断/);
+		expect(upstream).toContain("HTTP 502");
+		expect(unreachable).not.toContain("HTTP 502");
 	});
 });
 
@@ -109,8 +149,8 @@ describe("translate services registry", () => {
 		expect(ids).toContain("agent");
 	});
 
-	it("defaults to tencent transmart", () => {
-		expect(DEFAULT_TRANSLATE_SETTINGS.provider).toBe("tencenttransmart");
+	it("defaults to Bilibili Translate 2B", () => {
+		expect(DEFAULT_TRANSLATE_SETTINGS.provider).toBe("indextranslate2b");
 		expect(DEFAULT_TRANSLATE_SETTINGS.agentId).toBe("");
 		expect(DEFAULT_TRANSLATE_SETTINGS.modelId).toBe("");
 	});

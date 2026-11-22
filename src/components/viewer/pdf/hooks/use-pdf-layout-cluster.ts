@@ -127,7 +127,6 @@ export function usePdfLayoutCluster({
 		if (isRemotePaper || plainViewer) return;
 		startLayoutAnalysisRef.current({
 			force: false,
-			openFigures: true,
 			showOverlay: true,
 			asBackgroundTask: true,
 			notifyOnError: true,

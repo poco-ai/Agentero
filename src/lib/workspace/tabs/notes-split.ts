@@ -163,8 +163,6 @@ export function createNotesSplitPane(tab: DocTab): DocTab | null {
 		title: i18n.t("app:labels.notes"),
 		paperMeta: tab.paperMeta,
 		notesPath: tab.notesPath,
-		notesSeed: tab.notesSeed,
-		loaded: true,
 	};
 }
 

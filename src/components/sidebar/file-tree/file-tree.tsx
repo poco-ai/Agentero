@@ -2,9 +2,11 @@ import {
 	forwardRef,
 	memo,
 	useCallback,
+	useEffect,
 	useImperativeHandle,
 	useMemo,
 	useRef,
+	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { FileTree as AiFileTree } from "@/components/sidebar/file-tree/file-tree-primitives";
@@ -45,6 +47,7 @@ import {
 	treeRowIndentStyle,
 } from "./tree-rows";
 import { TreeRowsViewport } from "./tree-rows-viewport";
+import { TreeSelectionBar } from "./tree-selection-bar";
 import type { TreeCreateDraft, TreeCreateKind, TreeRenameDraft } from "./types";
 import { buildZoteroCollectionReferences } from "./zotero-collection-references";
 
@@ -130,8 +133,6 @@ type FileTreeProps = {
 	onDropMove?: (paths: string[], targetPath: string) => void;
 	onCutPaths?: (paths: string[]) => void;
 	onPasteInto?: (targetPath: string) => void;
-	/** Report the semantic multi-selection count to the fixed sidebar header. */
-	onSelectionChange?: (count: number) => void;
 	/** Absolute paths currently staged by Cut (for row dimming). */
 	cutPaths?: string[];
 	/**
@@ -161,8 +162,10 @@ export type FileTreeHandle = {
 	cutSelected: () => void;
 	/** Paste cut items into the currently selected path. */
 	pasteIntoSelected: () => void;
-	/** Clear the transient multi-selection mode. */
+	/** Clear the transient multi-selection. */
 	clearSelection: () => void;
+	/** True while at least one tree row is selected. */
+	hasSelection: () => boolean;
 	/** Open the move picker for the current multi-selection. */
 	moveSelected: (anchor: { x: number; y: number }) => void;
 	/** Move the current multi-selection to the recycle bin. */
@@ -216,7 +219,6 @@ export const FileTree = memo(
 			onDropMove,
 			onCutPaths,
 			onPasteInto,
-			onSelectionChange,
 			cutPaths = [],
 			onDropLocalPdfs,
 			onLoadDirChildren,
@@ -228,6 +230,17 @@ export const FileTree = memo(
 		const plazaEnabled = useSettings((s) => s.plazaEnabled);
 		const plazaHiddenSources = useSettings((s) => s.plazaHiddenSources);
 		const containerRef = useRef<HTMLDivElement>(null);
+		const [treeWidth, setTreeWidth] = useState(0);
+		useEffect(() => {
+			const element = containerRef.current;
+			if (!element) return;
+			const measure = () => setTreeWidth(element.getBoundingClientRect().width);
+			measure();
+			if (typeof ResizeObserver === "undefined") return;
+			const observer = new ResizeObserver(measure);
+			observer.observe(element);
+			return () => observer.disconnect();
+		}, []);
 		const skillLabels = useSkillLabels(vaultPath, nodes);
 		const {
 			byPath,
@@ -273,12 +286,13 @@ export const FileTree = memo(
 		});
 
 		const selection = useTreeSelection({
-			nodes,
+			vaultPath,
 			selectedPath,
 			selectableOrder,
 			byPath,
 			createDraft,
 			renameDraft,
+			containerRef,
 			onSelectFile,
 			onSelectLibrary,
 			onSelectTrash,
@@ -289,7 +303,6 @@ export const FileTree = memo(
 			onDeletePaths,
 			onCutPaths,
 			onPasteInto,
-			onSelectionChange,
 		});
 
 		const handleRenamePath = useCallback(
@@ -339,40 +352,42 @@ export const FileTree = memo(
 			[cutPaths],
 		);
 
-		const { menuProps, revealError, handleContextMenuPath } =
-			useTreeContextMenu({
-				nodes,
-				vaultPath,
-				paperMetaByRelPath,
-				byPath,
-				cutPaths,
-				cutPathKeys,
-				createDraft,
-				renameDraft,
-				libraryExportBusy,
-				citingScanBusy,
-				pathsForAction: selection.pathsForAction,
-				prepareContextSelection: selection.prepareContextSelection,
-				openMovePicker: movePicker.openPicker,
-				onExportLibrary,
-				onRescanLibrary,
-				libraryRescanning,
-				onDiscoverCiting,
-				onDownloadAllMissing: paperActions.showLibraryDownload
-					? paperActions.downloadAllMissing
-					: undefined,
-				onEmptyTrash,
-				onOpenPaperNotes,
-				onEditPaperMeta,
-				onStartCreate,
-				onStartRename,
-				onDeletePath,
-				onDeletePaths,
-				onCutPaths,
-				onPasteInto,
-				onMoveTo,
-				skillLabels,
-			});
+		const { menuProps, handleContextMenuPath } = useTreeContextMenu({
+			nodes,
+			vaultPath,
+			paperMetaByRelPath,
+			byPath,
+			cutPaths,
+			cutPathKeys,
+			createDraft,
+			renameDraft,
+			libraryExportBusy,
+			citingScanBusy,
+			pathsForAction: selection.pathsForAction,
+			prepareContextSelection: selection.prepareContextSelection,
+			openMovePicker: movePicker.openPicker,
+			onExportLibrary,
+			onRescanLibrary,
+			libraryRescanning,
+			onDiscoverCiting,
+			onDownloadAllMissing: paperActions.showLibraryDownload
+				? paperActions.downloadAllMissing
+				: undefined,
+			onEmptyTrash,
+			onOpenPaperNotes,
+			onEditPaperMeta,
+			// Context-menu re-read works for already-read papers too (#958);
+			// same row action, so its busy/concurrency guards apply.
+			onRereadPaper: onReadPaper ? paperActions.readPaper : undefined,
+			onStartCreate,
+			onStartRename,
+			onDeletePath,
+			onDeletePaths,
+			onCutPaths,
+			onPasteInto,
+			onMoveTo,
+			skillLabels,
+		});
 
 		const { collapsePaths, collapseToDefault } = expansion;
 		const collapseSelected = useCallback(() => {
@@ -399,6 +414,7 @@ export const FileTree = memo(
 				cutSelected: selection.cutSelected,
 				pasteIntoSelected: selection.pasteIntoSelected,
 				clearSelection: selection.clearSelection,
+				hasSelection: () => selection.selected.size > 0,
 				moveSelected,
 				deleteSelected: selection.runBatchDelete,
 			}),
@@ -408,6 +424,7 @@ export const FileTree = memo(
 				selection.cutSelected,
 				selection.pasteIntoSelected,
 				selection.clearSelection,
+				selection.selected.size,
 				moveSelected,
 				selection.runBatchDelete,
 			],
@@ -458,7 +475,10 @@ export const FileTree = memo(
 					/>
 					<div
 						ref={treeScrollRef}
-						className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]"
+						className={cn(
+							"agentero-scroll min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]",
+							selection.selected.size >= 2 && "pb-10",
+						)}
 					>
 						{nodes.length === 0 && !createDraft ? (
 							<>
@@ -519,12 +539,17 @@ export const FileTree = memo(
 								/>
 							</AiFileTree>
 						)}
-						{revealError ? (
-							<p className="px-3 py-1 text-destructive text-xs leading-snug">
-								{revealError}
-							</p>
-						) : null}
 					</div>
+					{selection.selected.size >= 2 ? (
+						<TreeSelectionBar
+							count={selection.selected.size}
+							compact={treeWidth > 0 && treeWidth < 180}
+							canMove={Boolean(onMoveTo)}
+							onMove={moveSelected}
+							onDelete={selection.runBatchDelete}
+							onDone={selection.clearSelection}
+						/>
+					) : null}
 					{menuProps ? <TreeContextMenuPortal {...menuProps} /> : null}
 				</div>
 			</TooltipProvider>

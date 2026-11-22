@@ -9,7 +9,7 @@
 //! - Always try PDF; arXiv IDs also try e-print TeX; caller runs liteparse when
 //!   no TeX is available.
 
-use super::{institution_proxy, AppHandle, PaperDownloadAssetsArgs};
+use super::{institution_proxy, openreview, web_verify, AppHandle, PaperDownloadAssetsArgs};
 use crate::error::AppError;
 use crate::features::catalog::{papers, probe_paper_caps, CapsCache};
 use crate::features::paper::source::{self, SourceStatus};
@@ -57,10 +57,54 @@ pub struct AssetDownloadResult {
     #[serde(default)]
     pub paper_md: bool,
     pub messages: Vec<String>,
+    pub openreview_pdf_issue: Option<OpenReviewPdfIssue>,
     /// Follow-up steps for this download. Not part of the IPC payload.
     #[serde(skip)]
     #[specta(skip)]
     pub preparation: super::preparation::PreparationPlan,
+}
+
+/// Why the OpenReview PDF is still missing after trying available sources.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum OpenReviewPdfIssue {
+    VerificationRequired,
+    RateLimited,
+    Network,
+    Unavailable,
+    DownloadFailed,
+}
+
+impl OpenReviewPdfIssue {
+    fn from_error(error: &AppError) -> Self {
+        match error.code() {
+            "openreview_auth_required" => Self::VerificationRequired,
+            "download_rate_limited" => Self::RateLimited,
+            "download_network" => Self::Network,
+            "download_not_found" => Self::Unavailable,
+            _ => Self::DownloadFailed,
+        }
+    }
+
+    pub fn phase(self) -> &'static str {
+        match self {
+            Self::VerificationRequired => "verificationRequired",
+            Self::RateLimited => "rateLimited",
+            Self::Network => "network",
+            Self::Unavailable => "unavailable",
+            Self::DownloadFailed => "downloadFailed",
+        }
+    }
+
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::VerificationRequired => "OpenReview requires browser verification",
+            Self::RateLimited => "OpenReview is rate limiting PDF downloads. Try again later.",
+            Self::Network => "Could not reach OpenReview to download the PDF",
+            Self::Unavailable => "No accessible PDF was found for this OpenReview paper",
+            Self::DownloadFailed => "Could not download the PDF from OpenReview",
+        }
+    }
 }
 
 /// Byte/count progress wire event for projected JobCenter rows. `task_id`
@@ -384,8 +428,8 @@ pub async fn ensure_paper_assets_with_cookies(
 
 #[derive(Debug, Default)]
 struct PdfAssetResult {
-    ok: bool,
     messages: Vec<String>,
+    openreview_issue: Option<OpenReviewPdfIssue>,
 }
 
 #[derive(Debug, Default)]
@@ -443,8 +487,8 @@ async fn ensure_paper_assets_impl(
     let pdf_task = async {
         if !need_pdf {
             return PdfAssetResult {
-                ok: true,
                 messages: vec!["pdf already present".into()],
+                ..Default::default()
             };
         }
         let res = fetch_pdf_assets(
@@ -454,6 +498,7 @@ async fn ensure_paper_assets_impl(
             pdf_url,
             doi,
             cookies,
+            (vault, paper_path),
             pdf_stream,
         )
         .await;
@@ -472,8 +517,14 @@ async fn ensure_paper_assets_impl(
         let Some(aid) = tex_arxiv_id else {
             return TexAssetResult::default();
         };
-        let res = match prepare_arxiv_source_with_progress(paper_dir, aid, tex_stream, retry_source)
-            .await
+        let res = match prepare_arxiv_source_with_progress(
+            paper_dir,
+            aid,
+            tex_stream,
+            retry_source,
+            !pdf_url.is_some_and(openreview::is_openreview_url),
+        )
+        .await
         {
             Ok(tex) => TexAssetResult {
                 messages: vec![if tex {
@@ -510,6 +561,8 @@ async fn ensure_paper_assets_impl(
         .unwrap_or_else(|| probe_paper_caps(paper_dir));
     if after.has_pdf() {
         out.pdf = true;
+    } else {
+        out.openreview_pdf_issue = pdf_res.openreview_issue;
     }
     if after.has_tex {
         out.tex = true;
@@ -519,11 +572,30 @@ async fn ensure_paper_assets_impl(
         source::reconcile_body(vault, paper_path)?;
     }
     if after.has_pdf() && !paper_path.is_empty() {
+        if pdf_url.is_some_and(openreview::is_openreview_url) {
+            if need_pdf {
+                super::webpage::fill_openreview_metadata(
+                    vault,
+                    paper_path,
+                    after.pdf_path.as_deref(),
+                    progress.task_id,
+                )
+                .await;
+            } else {
+                super::webpage::repair_openreview_bibliography(
+                    vault,
+                    paper_path,
+                    after.pdf_path.as_deref(),
+                    progress.task_id,
+                )
+                .await;
+            }
+        }
         super::code_repo::fill_code_repo_from_pdf(vault, paper_path).await;
     }
     super::check_task_not_cancelled(progress.task_id)?;
 
-    if let Some(error) = tex_error {
+    if let Some(error) = tex_error.filter(|_| out.openreview_pdf_issue.is_none()) {
         return Err(error);
     }
     Ok(out)
@@ -537,10 +609,14 @@ async fn fetch_pdf_assets(
     pdf_url: Option<&str>,
     doi: Option<&str>,
     cookies: Option<&str>,
+    (vault, paper_path): (&Path, &str),
     progress: StreamProgress<'_, '_>,
 ) -> PdfAssetResult {
+    let interactive = !pdf_url.is_some_and(openreview::is_openreview_url);
     let mut out = PdfAssetResult::default();
-    let mut candidates = pdf_url_candidates(id, arxiv_id, pdf_url);
+    let from_openreview = !interactive;
+    let mut candidates =
+        pdf_url_candidates(id, if from_openreview { None } else { arxiv_id }, pdf_url);
     let mut ok = try_download_candidates_with_cookies(
         paper_dir,
         id,
@@ -548,8 +624,59 @@ async fn fetch_pdf_assets(
         &mut out,
         cookies,
         progress,
+        interactive,
     )
     .await;
+    // Prefer the published edition over a matched preprint. Both are public
+    // sources, so the OpenReview credential stays on the original request.
+    if !ok && from_openreview && super::check_task_not_cancelled(progress.task_id()).is_ok() {
+        let paper = if paper_path.is_empty() {
+            None
+        } else {
+            super::webpage::repair_openreview_bibliography(
+                vault,
+                paper_path,
+                None,
+                progress.task_id(),
+            )
+            .await
+        };
+        if let Some(paper) = &paper {
+            if let Some(url) = super::sources::iclr::proceedings_pdf_url(paper).await {
+                ok = try_download_candidates_with_cookies(
+                    paper_dir,
+                    id,
+                    std::slice::from_ref(&url),
+                    &mut out,
+                    None,
+                    progress,
+                    false,
+                )
+                .await;
+                candidates.push(url);
+            }
+        }
+        if !ok && super::check_task_not_cancelled(progress.task_id()).is_ok() {
+            let matched = match (arxiv_id, &paper) {
+                (None, Some(paper)) => super::sources::openreview::matching_arxiv_id(paper).await,
+                _ => None,
+            };
+            if let Some(arxiv) = arxiv_id.or(matched.as_deref()) {
+                let extra: Vec<_> = pdf_url_candidates(id, Some(arxiv), None)
+                    .into_iter()
+                    .filter(|url| !candidates.contains(url))
+                    .collect();
+                ok = try_download_candidates_with_cookies(
+                    paper_dir, id, &extra, &mut out, None, progress, false,
+                )
+                .await;
+                candidates.extend(extra);
+                if let (true, Some(paper), Some(id)) = (ok, &paper, matched) {
+                    super::sources::openreview::save_matched_arxiv_id(vault, paper, id);
+                }
+            }
+        }
+    }
     // DOI fallback: Crossref often lists a direct / open-access PDF link even
     // when the Translator gave no pdf_url (or the publisher landing page failed).
     if !ok {
@@ -568,7 +695,13 @@ async fn fetch_pdf_assets(
                     .push("pdf: no Crossref PDF link for DOI".into());
             } else {
                 ok = try_download_candidates_with_cookies(
-                    paper_dir, id, &extra, &mut out, cookies, progress,
+                    paper_dir,
+                    id,
+                    &extra,
+                    &mut out,
+                    if interactive { cookies } else { None },
+                    progress,
+                    interactive,
                 )
                 .await;
                 candidates.extend(extra);
@@ -590,8 +723,9 @@ async fn fetch_pdf_assets(
                         id,
                         std::slice::from_ref(&url),
                         &mut out,
-                        cookies,
+                        if interactive { cookies } else { None },
                         progress,
+                        interactive,
                     )
                     .await;
                     candidates.push(url);
@@ -616,6 +750,7 @@ async fn fetch_pdf_assets(
                     &mut out,
                     None,
                     progress,
+                    interactive,
                 )
                 .await;
                 candidates.push(url);
@@ -656,7 +791,9 @@ async fn fetch_pdf_assets(
     if !ok && candidates.is_empty() {
         out.messages.push("pdf: no url".into());
     }
-    out.ok = ok;
+    if ok {
+        out.openreview_issue = None;
+    }
     out
 }
 
@@ -690,7 +827,7 @@ pub async fn prepare_arxiv_source(
     task_id: Option<&str>,
 ) -> Result<bool, AppError> {
     let aggregator = AssetProgressAggregator::new(None, task_id, "tex", 1);
-    prepare_arxiv_source_with_progress(paper_dir, arxiv_id, aggregator.stream(0), false).await
+    prepare_arxiv_source_with_progress(paper_dir, arxiv_id, aggregator.stream(0), false, true).await
 }
 
 async fn prepare_arxiv_source_with_progress(
@@ -698,6 +835,7 @@ async fn prepare_arxiv_source_with_progress(
     arxiv_id: &str,
     progress: StreamProgress<'_, '_>,
     retry: bool,
+    interactive: bool,
 ) -> Result<bool, AppError> {
     let _guard = source::lock(paper_dir, progress.task_id()).await?;
     if source::read_tex(paper_dir).is_some() {
@@ -759,7 +897,7 @@ async fn prepare_arxiv_source_with_progress(
     }
     let source = paper_dir.join("source");
     fs::create_dir_all(&source)?;
-    match download_arxiv_source(&source, paper_dir, &request, progress).await {
+    match download_arxiv_source(&source, paper_dir, &request, progress, interactive).await {
         Ok(()) => {
             let ready = source::read_tex(paper_dir).is_some();
             source::record_state(
@@ -884,16 +1022,25 @@ async fn try_download_candidates_with_cookies(
     out: &mut PdfAssetResult,
     cookies: Option<&str>,
     progress: StreamProgress<'_, '_>,
+    interactive: bool,
 ) -> bool {
     for url in urls {
+        let cookies = cookies.filter(|_| interactive || openreview::is_openreview_url(url));
         // PDF lives next to NOTES.md, not under source/
-        match download_pdf_with_cookies(paper_dir, id, url, cookies, progress).await {
+        match download_pdf_with_cookies(paper_dir, id, url, cookies, progress, interactive).await {
             Ok(()) => {
-                out.ok = true;
                 out.messages.push(format!("pdf ok ({url})"));
                 return true;
             }
             Err(e) => {
+                if openreview::is_openreview_url(url) {
+                    let issue = OpenReviewPdfIssue::from_error(&e);
+                    if out.openreview_issue.is_none()
+                        || issue == OpenReviewPdfIssue::VerificationRequired
+                    {
+                        out.openreview_issue = Some(issue);
+                    }
+                }
                 out.messages
                     .push(format!("pdf candidate failed ({url}): {e}"));
             }
@@ -978,14 +1125,24 @@ async fn download_pdf_with_cookies(
     url: &str,
     cookies: Option<&str>,
     progress: StreamProgress<'_, '_>,
+    interactive: bool,
 ) -> Result<(), AppError> {
-    let bytes =
-        http_get_bytes_with_progress(url, Duration::from_secs(180), cookies, progress).await?;
+    let bytes = http_get_bytes_with_progress(
+        url,
+        Duration::from_secs(180),
+        cookies,
+        progress,
+        interactive,
+    )
+    .await?;
     // Reject HTML error pages disguised as PDF
     if bytes.len() >= 4 && &bytes[..4] == b"%PDF" {
         let name = safe_filename(id, "pdf");
         fs::write(source_dir.join(name), &bytes)?;
         return Ok(());
+    }
+    if url.starts_with("https://proceedings.iclr.cc/") {
+        return Err(AppError::message("ICLR proceedings did not return a PDF"));
     }
     // Some servers omit magic; still write if URL looks like pdf and body is large
     if (url.contains("/pdf/") || url.ends_with(".pdf")) && bytes.len() > 1024 {
@@ -1008,6 +1165,7 @@ async fn download_arxiv_source(
     paper_dir: &Path,
     arxiv_id: &str,
     progress: StreamProgress<'_, '_>,
+    interactive: bool,
 ) -> Result<(), AppError> {
     let bare = strip_arxiv_version(arxiv_id);
     // Prefer e-print; /src/ is an alias
@@ -1020,7 +1178,15 @@ async fn download_arxiv_source(
     let mut attempts_left = 3_u32;
     let mut last_error: Option<AppError> = None;
     let bytes = loop {
-        match http_get_bytes_with_progress(&url, Duration::from_secs(900), None, progress).await {
+        match http_get_bytes_with_progress(
+            &url,
+            Duration::from_secs(900),
+            None,
+            progress,
+            interactive,
+        )
+        .await
+        {
             Ok(bytes) => break bytes,
             Err(error) => {
                 attempts_left = attempts_left.saturating_sub(1);
@@ -1252,61 +1418,208 @@ pub(crate) async fn http_get_bytes_with_progress(
     timeout: Duration,
     cookies: Option<&str>,
     progress: StreamProgress<'_, '_>,
+    interactive: bool,
 ) -> Result<Vec<u8>, AppError> {
     let task_id = progress.task_id();
     super::check_task_not_cancelled(task_id)?;
     // Each attempt counts from zero: PDF falls back across candidate URLs.
     progress.restart();
-    let client = http::client_with(timeout, 10, http::BROWSER_USER_AGENT)?;
-    let mut request = client
-        .get(url)
-        .header("Accept", "application/pdf,application/octet-stream,*/*");
-    if let Some(cookie) = cookies.map(str::trim).filter(|s| !s.is_empty()) {
-        request = request.header(reqwest::header::COOKIE, cookie);
-    }
-    let mut res = request
-        .send()
-        .await
-        .map_err(|e| AppError::message(format!("download: {e}")))?;
-    super::check_task_not_cancelled(task_id)?;
-    if !res.status().is_success() {
-        return Err(AppError::message(format!("download HTTP {}", res.status())));
-    }
-    let total_bytes = res.content_length();
-    // Big artifacts on a lossy link: one TCP stream gets throttled or reset,
-    // and a reset discards every byte already received. arXiv (and most CDNs)
-    // answer `Accept-Ranges: bytes`, so fetch large bodies as parallel ranges —
-    // ~3x faster here, and each chunk retries on its own.
-    if let Some(total) = total_bytes {
-        if total >= PARALLEL_MIN_BYTES && cookies.is_none() && supports_ranges(res.headers()) {
-            drop(res);
-            let bytes = fetch_bytes_parallel(&client, url, total, progress, task_id).await?;
-            progress.finish();
-            return Ok(bytes);
+    let is_openreview = openreview::is_openreview_url(url);
+    let had_credential = openreview::cookie_header_for(url).is_some()
+        || web_verify::cookie_header_for(url).is_some();
+    // At most one interactive verification round-trip per request: a second
+    // challenge is reported instead of re-opening the window in a loop.
+    let mut verified = false;
+    let mut try_account = is_openreview;
+    'attempt: loop {
+        // Verification cookies are process state, not page cookies: merge them
+        // in for the matching hosts only (OpenReview keeps its own durable
+        // credential; every other site keeps it for this session).
+        let stored =
+            openreview::cookie_header_for(url).or_else(|| web_verify::cookie_header_for(url));
+        let cookie = merge_cookie_header(cookies, stored);
+        let client = http::client_with(timeout, 10, http::BROWSER_USER_AGENT)?;
+        let mut request = client
+            .get(url)
+            .header("Accept", "application/pdf,application/octet-stream,*/*");
+        if let Some(cookie) = cookie.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            request = request.header(reqwest::header::COOKIE, cookie);
         }
-    }
-    let mut downloaded_bytes = 0_u64;
-    let mut bytes = Vec::new();
-    while let Some(chunk) = res
-        .chunk()
-        .await
-        .map_err(|e| AppError::message(format!("download body: {e}")))?
-    {
-        if let Some(task_id) = task_id {
-            if super::is_task_cancelled(task_id) {
-                return Err(AppError::message("background task cancelled"));
+        let account = if std::mem::take(&mut try_account) {
+            openreview::account_pdf_response(url, timeout).await
+        } else {
+            None
+        };
+        let used_account = account.is_some();
+        let mut res = match account {
+            Some(response) => response,
+            None => {
+                super::check_task_not_cancelled(task_id)?;
+                request
+                    .send()
+                    .await
+                    .map_err(|e| AppError::domain("download_network", format!("download: {e}")))?
+            }
+        };
+        super::check_task_not_cancelled(task_id)?;
+        if is_openreview
+            && ((openreview::is_openreview_url(res.url().as_str())
+                && res.url().path() == "/challenge")
+                || web_verify::challenge_detected(res.status().as_u16(), res.headers(), &[]))
+        {
+            return Err(verification_error(url, had_credential));
+        }
+        if !res.status().is_success() {
+            let status = res.status();
+            let headers = res.headers().clone();
+            let body = res
+                .bytes()
+                .await
+                .map_err(|e| AppError::domain("download_network", format!("download body: {e}")))?;
+            // Cloudflare / Turnstile answer scripted clients with an
+            // interactive wall. Ask the desktop Host to open its verification
+            // window on this URL once, then replay the request with the
+            // captured clearance cookie.
+            let challenged = (is_openreview
+                && openreview::looks_like_challenge(status.as_u16(), &body))
+                || web_verify::challenge_detected(status.as_u16(), &headers, &body);
+            if challenged {
+                // Try alternate PDF sources before asking for OpenReview verification.
+                if is_openreview || !interactive || verified {
+                    return Err(verification_error(url, had_credential));
+                }
+                verified = true;
+                super::check_task_not_cancelled(task_id)?;
+                if web_verify::request_auth(url.to_string()).await.is_none() {
+                    return Err(verification_error(url, had_credential));
+                }
+                progress.restart();
+                continue;
+            }
+            let code = match status.as_u16() {
+                429 => "download_rate_limited",
+                404 | 410 => "download_not_found",
+                _ => "download_http",
+            };
+            return Err(AppError::domain(code, format!("download HTTP {status}")));
+        }
+        let total_bytes = res.content_length();
+        // Big artifacts on a lossy link: one TCP stream gets throttled or reset,
+        // and a reset discards every byte already received. arXiv (and most CDNs)
+        // answer `Accept-Ranges: bytes`, so fetch large bodies as parallel ranges —
+        // ~3x faster here, and each chunk retries on its own.
+        if let Some(total) = total_bytes {
+            if total >= PARALLEL_MIN_BYTES
+                && !used_account
+                && cookie.is_none()
+                && supports_ranges(res.headers())
+            {
+                drop(res);
+                let bytes = fetch_bytes_parallel(&client, url, total, progress, task_id).await?;
+                progress.finish();
+                return Ok(bytes);
             }
         }
-        downloaded_bytes += chunk.len() as u64;
-        bytes.extend_from_slice(&chunk);
-        // Per-chunk emits flood the webview event loop; the aggregator
-        // throttles to percent moves / ≥100ms.
-        progress.report(downloaded_bytes, total_bytes);
+        let mut downloaded_bytes = 0_u64;
+        let mut bytes = Vec::new();
+        loop {
+            let chunk = match res.chunk().await {
+                Ok(Some(chunk)) => chunk,
+                Ok(None) => break,
+                Err(_) if used_account => {
+                    progress.restart();
+                    continue 'attempt;
+                }
+                Err(error) => {
+                    return Err(AppError::domain(
+                        "download_network",
+                        format!("download body: {error}"),
+                    ));
+                }
+            };
+            if let Some(task_id) = task_id {
+                if super::is_task_cancelled(task_id) {
+                    return Err(AppError::message("background task cancelled"));
+                }
+            }
+            downloaded_bytes += chunk.len() as u64;
+            bytes.extend_from_slice(&chunk);
+            // Per-chunk emits flood the webview event loop; the aggregator
+            // throttles to percent moves / ≥100ms.
+            progress.report(downloaded_bytes, total_bytes);
+        }
+        if used_account && !bytes.starts_with(b"%PDF") {
+            progress.restart();
+            continue;
+        }
+        // Settling always lands an event, even when the throttle just swallowed
+        // the last chunk: the task bar must reach the final byte count.
+        progress.finish();
+        return Ok(bytes);
     }
-    // Settling always lands an event, even when the throttle just swallowed
-    // the last chunk: the task bar must reach the final byte count.
-    progress.finish();
-    Ok(bytes)
+}
+
+/// Merge the page/connector `Cookie` header with the stored OpenReview
+/// credential; explicit pairs win on name collisions.
+fn merge_cookie_header(explicit: Option<&str>, stored: Option<String>) -> Option<String> {
+    let Some(stored) = stored else {
+        return explicit.map(str::to_string);
+    };
+    let Some(explicit) = explicit.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Some(stored);
+    };
+    let mut names: Vec<String> = explicit
+        .split(';')
+        .filter_map(|pair| pair.trim().split_once('='))
+        .map(|(name, _)| name.trim().to_string())
+        .collect();
+    let mut out = explicit.to_string();
+    for pair in stored
+        .split(';')
+        .map(str::trim)
+        .filter(|pair| !pair.is_empty())
+    {
+        let name = pair
+            .split_once('=')
+            .map(|(name, _)| name.trim())
+            .unwrap_or(pair);
+        if names.iter().any(|known| known == name) {
+            continue;
+        }
+        names.push(name.to_string());
+        out.push_str("; ");
+        out.push_str(pair);
+    }
+    Some(out)
+}
+
+/// Readable failure for a verification wall: no valid cookie came out of the
+/// verification window (closed early, headless CLI, or expired again).
+fn verification_error(url: &str, had_credential: bool) -> AppError {
+    if openreview::is_openreview_url(url) {
+        return if had_credential {
+            AppError::domain(
+                "openreview_auth_required",
+                "OpenReview browser verification expired",
+            )
+        } else {
+            AppError::domain(
+                "openreview_auth_required",
+                "OpenReview requires browser verification",
+            )
+        };
+    }
+    if had_credential {
+        AppError::domain(
+            "site_verification_required",
+            "The site's browser verification expired; retry the download and complete the verification window",
+        )
+    } else {
+        AppError::domain(
+            "site_verification_required",
+            "The site requires browser verification; retry the download and complete the verification window",
+        )
+    }
 }
 
 fn supports_ranges(headers: &reqwest::header::HeaderMap) -> bool {
@@ -1420,17 +1733,19 @@ pub async fn download_paper_assets_with_progress(
 
             let resolved = if let Ok(Some(row)) = papers::get_by_path(&vault, &path_rel) {
                 let request = source::arxiv_request(&row);
-                (row.id, request, row.pdf_url, row.doi, None)
+                let pdf_url = row
+                    .pdf_url
+                    .clone()
+                    .or_else(|| super::sources::openreview::paper_pdf_url(&row));
+                (row.id, request, pdf_url, row.doi, None)
             } else if let Ok(Some(row)) = papers::ensure_row_for_path(&vault, &path_rel) {
                 // Orphaned folder (import failed after shell + folder were written but
                 // before the catalog row landed): rebuild the row so the Library sees it.
-                (
-                    row.id.clone(),
-                    row.arxiv_id,
-                    row.pdf_url,
-                    row.doi,
-                    Some(row.id),
-                )
+                let pdf_url = row
+                    .pdf_url
+                    .clone()
+                    .or_else(|| super::sources::openreview::paper_pdf_url(&row));
+                (row.id.clone(), row.arxiv_id, pdf_url, row.doi, Some(row.id))
             } else {
                 // Fallback: folder name as id; treat as arXiv if it looks like one
                 let name = paper_dir
@@ -1639,6 +1954,25 @@ mod tests {
     use flate2::write::GzEncoder;
     use flate2::Compression;
     use std::io::Write;
+
+    #[test]
+    fn openreview_cookie_merge_keeps_explicit_pairs() {
+        // No stored guard cookie: the explicit header must pass through.
+        assert_eq!(
+            merge_cookie_header(Some("a=1; b=2"), None).as_deref(),
+            Some("a=1; b=2")
+        );
+        // Stored clearance joins the explicit cookie unless the name repeats.
+        assert_eq!(
+            merge_cookie_header(Some("a=1"), Some("a=stale; guard=ok".into())).as_deref(),
+            Some("a=1; guard=ok")
+        );
+        assert_eq!(
+            merge_cookie_header(None, Some("guard=ok".into())).as_deref(),
+            Some("guard=ok")
+        );
+        assert_eq!(merge_cookie_header(None, None), None);
+    }
 
     /// 2000 × 8KB chunks of a 16MB known-size download at the same instant
     /// (time gate never opens) must be capped by percent moves: ≤ ~100 emits

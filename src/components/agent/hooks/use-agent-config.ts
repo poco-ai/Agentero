@@ -24,6 +24,7 @@ import {
 	type AgentModelChoice,
 	type AgentSkill,
 	type CatalogScanResponse,
+	invalidateCatalogScan,
 	listAgentSkills,
 	listAgents,
 	loadCollaborationCatalog,
@@ -32,6 +33,7 @@ import {
 	loadModelFavorites,
 	loadModelPref,
 	loadReasoningEffortPref,
+	markModelPicked,
 	resolveReasoningEffort,
 	saveCollaborationCatalog,
 	saveCollaborationPref,
@@ -39,7 +41,7 @@ import {
 	saveModelFavorites,
 	saveModelPref,
 	saveReasoningEffortPref,
-	scanCatalog,
+	scanCatalogCached,
 	warmAgent,
 } from "@/lib/agent";
 import {
@@ -126,7 +128,7 @@ export type AgentConfig = {
 		efforts: AgentEffortChoice[];
 	}) => void;
 	applyFastModeEvent: (ev: { agentId: string; enabled: boolean }) => void;
-	refresh: () => Promise<void>;
+	refresh: (opts?: { forceCatalog?: boolean }) => Promise<void>;
 	selectedModelName: string | null;
 	groupedModels: {
 		id: string;
@@ -289,25 +291,29 @@ export function useAgentConfig({
 		[selectedAgentIdRef],
 	);
 
-	const refresh = useCallback(async () => {
-		if (!isTauri()) return;
-		try {
-			// Scan first: scanCatalog now auto-registers catalog agents that are
-			// on PATH but not yet persisted, so listAgents() returns them without
-			// requiring the user to open Settings first.
-			const scan = await scanCatalog();
-			const [list, discoveredSkills] = await Promise.all([
-				listAgents(),
-				listAgentSkills(vaultPath ?? undefined).catch(() => []),
-			]);
-			setRegistry(list);
-			setCatalog(scan);
-			setSkills(discoveredSkills);
-			setSelectedAgentId((prev) => prev ?? list.defaultId);
-		} catch (e) {
-			setLines((prev) => [...prev, errorChatLine(errorText(e))]);
-		}
-	}, [vaultPath, setLines, setSelectedAgentId]);
+	const refresh = useCallback(
+		async (opts?: { forceCatalog?: boolean }) => {
+			if (!isTauri()) return;
+			try {
+				// Scan first: the catalog scan auto-registers agents that are on PATH
+				// but not yet persisted, so listAgents() returns them without
+				// requiring the user to open Settings first. Mounts reuse the app-start
+				// scan; user-visible waits (CLI login, agent switch) force a fresh one.
+				const scan = await scanCatalogCached({ force: opts?.forceCatalog });
+				const [list, discoveredSkills] = await Promise.all([
+					listAgents(),
+					listAgentSkills(vaultPath ?? undefined).catch(() => []),
+				]);
+				setRegistry(list);
+				setCatalog(scan);
+				setSkills(discoveredSkills);
+				setSelectedAgentId((prev) => prev ?? list.defaultId);
+			} catch (e) {
+				setLines((prev) => [...prev, errorChatLine(errorText(e))]);
+			}
+		},
+		[vaultPath, setLines, setSelectedAgentId],
+	);
 
 	useEffect(() => {
 		void refresh();
@@ -320,6 +326,8 @@ export function useAgentConfig({
 		const off = lifecycle.on("agent:registry-changed", () => {
 			window.clearTimeout(timer);
 			timer = window.setTimeout(() => {
+				// Probes/installs write the registry, so the shared scan is stale.
+				invalidateCatalogScan();
 				void refresh();
 			}, 150);
 		});
@@ -403,6 +411,8 @@ export function useAgentConfig({
 			agentId: string;
 			vaultPath: string | null;
 			modelId?: string;
+			/** Re-apply `modelId` even when ACP reports it as the current model. */
+			forceModel?: boolean;
 			collaborationModeId?: string;
 			generation: number;
 			/** Apply models/usage only when still the intended warm target. */
@@ -420,6 +430,7 @@ export function useAgentConfig({
 					agentId: args.agentId,
 					vaultPath: args.vaultPath ?? undefined,
 					modelId: args.modelId,
+					forceModel: args.forceModel,
 					collaborationModeId: args.collaborationModeId,
 				});
 				if (args.generation !== warmGenRef.current || !args.stillValid()) {
@@ -541,12 +552,16 @@ export function useAgentConfig({
 	const pickModel = (id: string) => {
 		const next = id.trim();
 		if (!next) return;
-		if (next === modelId) return;
+		// Re-picking the model shown in the UI is still meaningful: the adapter
+		// may report a current model that differs from the one in effect (Claude
+		// ACP's reported current ignores `settings.env.ANTHROPIC_MODEL`), so the
+		// switch must be re-sent instead of deduplicated against the display.
 		// Free-form / third-party ids may not be in the advertised catalog yet.
 		setModels((prev) => ensureModelsInclude(prev, [next]));
 		setModelId(next);
 		if (!selectedAgentId) return;
 		saveModelPref(selectedAgentId, next);
+		markModelPicked(selectedAgentId, next);
 		if (!isTauri() || !agentListenersReady) return;
 
 		const agentId = selectedAgentId;
@@ -560,6 +575,7 @@ export function useAgentConfig({
 			agentId,
 			vaultPath: requestVaultPath,
 			modelId: next,
+			forceModel: true,
 			collaborationModeId:
 				loadCollaborationPref(agentId) ?? collaborationModeId ?? undefined,
 			generation,

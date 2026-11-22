@@ -2,7 +2,7 @@
 
 import { Link2 } from "lucide-react";
 import { useEditorRef, useEditorSelector } from "platejs/react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/hover-card";
 import { useWikiStore } from "@/hooks/use-app-stores";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { cn } from "@/lib/core/utils";
 import {
 	countChars,
 	countWords,
@@ -43,18 +42,20 @@ function fragmentLabel(link: ResolvedLink): string | null {
 	return fragment.path.join(" › ");
 }
 
-type EditorStatusBarProps = {
+type EditorStatusInfoProps = {
 	filePath?: string | null;
 	vaultPath?: string | null;
-	/** Pinned to the left edge; counts and backlinks stay right-aligned. */
-	leading?: ReactNode;
 };
 
-export function EditorStatusBar({
+/**
+ * Right cluster of the editor bar: backlinks, words and characters. Rendered
+ * inside the bar, so the `@container/statusbar` container queries below read
+ * the bar's width.
+ */
+export function EditorStatusInfo({
 	filePath,
 	vaultPath,
-	leading,
-}: EditorStatusBarProps) {
+}: EditorStatusInfoProps) {
 	const { t } = useTranslation("editor");
 	const wikiIndexRevision = useWikiStore((s) => s.wikiIndexRevision);
 	const [backlinks, setBacklinks] = useState<ResolvedLink[]>([]);
@@ -126,99 +127,86 @@ export function EditorStatusBar({
 
 	return (
 		<div
-			className={cn(
-				"@container/statusbar flex h-7 shrink-0 items-center gap-3 overflow-hidden",
-				"border-t border-border/80 bg-background/95 px-3",
-				"whitespace-nowrap text-xs text-muted-foreground tabular-nums select-none",
-			)}
+			role="status"
+			aria-label={t("statusBar.label")}
+			className="ml-auto hidden min-w-0 items-center justify-end gap-3 whitespace-nowrap text-xs text-muted-foreground tabular-nums @min-[18rem]/statusbar:flex"
 		>
-			{leading ? (
-				<div className="flex shrink-0 items-center">{leading}</div>
-			) : null}
-			<div
-				role="status"
-				aria-label={t("statusBar.label")}
-				className="ml-auto flex min-w-0 items-center justify-end gap-3"
-			>
-				<HoverCard openDelay={200} closeDelay={150}>
-					<HoverCardTrigger asChild>
-						<span className="hidden cursor-default items-center gap-1 @min-[18rem]/statusbar:inline-flex">
-							<Link2 className="size-3" aria-hidden />
-							{t("statusBar.backlinks", { count: backlinks.length })}
-						</span>
-					</HoverCardTrigger>
-					<HoverCardContent
-						side="top"
-						align="end"
-						className="w-72 overflow-hidden p-0"
-					>
-						<div className="border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
-							{t("statusBar.backlinksHoverTitle", {
-								count: backlinks.length,
-							})}
-						</div>
-						<div className="agentero-scroll max-h-64 overflow-y-auto p-1.5">
-							{backlinks.length === 0 ? (
-								<p className="px-1.5 py-2 text-xs text-muted-foreground">
-									{t("statusBar.noBacklinks")}
-								</p>
-							) : (
-								<ul className="flex flex-col gap-0.5">
-									{backlinks.map((link) => {
-										const source = link.occurrence.source;
-										const name = source.split("/").pop() ?? source;
-										const fragment = fragmentLabel(link);
-										const status =
-											link.status === "resolved" ? null : link.status;
-										return (
-											<li
-												key={`${source}:${link.occurrence.sourceRange.start}`}
+			<HoverCard openDelay={200} closeDelay={150}>
+				<HoverCardTrigger asChild>
+					<span className="hidden cursor-default items-center gap-1 @min-[28rem]/statusbar:inline-flex">
+						<Link2 className="size-3" aria-hidden />
+						{t("statusBar.backlinks", { count: backlinks.length })}
+					</span>
+				</HoverCardTrigger>
+				<HoverCardContent
+					side="top"
+					align="end"
+					className="w-72 overflow-hidden p-0"
+				>
+					<div className="border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
+						{t("statusBar.backlinksHoverTitle", {
+							count: backlinks.length,
+						})}
+					</div>
+					<div className="agentero-scroll max-h-64 overflow-y-auto p-1.5">
+						{backlinks.length === 0 ? (
+							<p className="px-1.5 py-2 text-xs text-muted-foreground">
+								{t("statusBar.noBacklinks")}
+							</p>
+						) : (
+							<ul className="flex flex-col gap-0.5">
+								{backlinks.map((link) => {
+									const source = link.occurrence.source;
+									const name = source.split("/").pop() ?? source;
+									const fragment = fragmentLabel(link);
+									const status =
+										link.status === "resolved" ? null : link.status;
+									return (
+										<li key={`${source}:${link.occurrence.sourceRange.start}`}>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-auto w-full justify-start px-1.5 py-1 text-left font-normal"
+												title={source}
+												onClick={() => handleNavigate(link)}
 											>
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													className="h-auto w-full justify-start px-1.5 py-1 text-left font-normal"
-													title={source}
-													onClick={() => handleNavigate(link)}
-												>
-													<span className="min-w-0 flex-1 truncate text-xs">
-														<span className="font-medium text-foreground">
-															{name}
-														</span>
-														{fragment ? (
-															<span className="ml-1 text-muted-foreground">
-																{fragment}
-															</span>
-														) : null}
-														{status ? (
-															<span className="ml-1.5 text-destructive">
-																{t(`statusBar.backlinkStatus.${status}`)}
-															</span>
-														) : null}
+												<span className="min-w-0 flex-1 truncate text-xs">
+													<span className="font-medium text-foreground">
+														{name}
 													</span>
-												</Button>
-											</li>
-										);
-									})}
-								</ul>
-							)}
-						</div>
-					</HoverCardContent>
-				</HoverCard>
-				<span
-					className="hidden h-3 w-px bg-border @min-[18rem]/statusbar:block"
-					aria-hidden
-				/>
-				<span className="hidden @min-[11rem]/statusbar:inline">
-					{t("statusBar.words", { count: words })}
-				</span>
-				<span
-					className="hidden h-3 w-px bg-border @min-[11rem]/statusbar:block"
-					aria-hidden
-				/>
-				<span>{t("statusBar.characters", { count: chars })}</span>
-			</div>
+													{fragment ? (
+														<span className="ml-1 text-muted-foreground">
+															{fragment}
+														</span>
+													) : null}
+													{status ? (
+														<span className="ml-1.5 text-destructive">
+															{t(`statusBar.backlinkStatus.${status}`)}
+														</span>
+													) : null}
+												</span>
+											</Button>
+										</li>
+									);
+								})}
+							</ul>
+						)}
+					</div>
+				</HoverCardContent>
+			</HoverCard>
+			<span
+				className="hidden h-3 w-px bg-border @min-[28rem]/statusbar:block"
+				aria-hidden
+			/>
+			<span className="hidden @min-[21rem]/statusbar:inline">
+				{t("statusBar.words", { count: words })}
+			</span>
+			<span
+				className="hidden h-3 w-px bg-border @min-[21rem]/statusbar:block"
+				aria-hidden
+			/>
+			<span>{t("statusBar.characters", { count: chars })}</span>
 		</div>
 	);
 }

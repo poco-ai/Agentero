@@ -5,6 +5,8 @@
 //! [`super::capabilities::probe_paper_caps`], which skips `attachments/`.
 //! A directory named `attachments` is not an identity marker.
 
+use url::Url;
+
 use crate::features::paper::catalog::sidecar::SIDECAR_FILE;
 
 /// Notes file that marks a paper folder.
@@ -76,6 +78,42 @@ fn file_ext_eq(name: &str, ext: &str) -> bool {
         return false;
     };
     !stem.is_empty() && found.eq_ignore_ascii_case(ext)
+}
+
+/// Canonical spelling of a web page URL, for URL-based dedupe of webpage
+/// entries (which carry no DOI/arXiv/PMID).
+///
+/// The `url` crate already lowercases scheme and host and drops default ports.
+/// Beyond that, a `#fragment`, a trailing slash, and marketing/tracking query
+/// parameters (`utm_*`, `fbclid`, `gclid`) do not change which page a URL
+/// points at, so they are normalized away. `http` and `https` stay distinct.
+pub fn canonical_page_url(raw: &str) -> Option<String> {
+    let mut url = Url::parse(raw.trim()).ok()?;
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+        return None;
+    }
+    url.set_fragment(None);
+    let path = url.path().to_string();
+    if path.len() > 1 && path.ends_with('/') {
+        url.set_path(path.trim_end_matches('/'));
+    }
+    if url.query().is_some() {
+        let kept: Vec<(String, String)> = url
+            .query_pairs()
+            .filter(|(key, _)| !is_tracking_query_param(key))
+            .map(|(key, value)| (key.into_owned(), value.into_owned()))
+            .collect();
+        url.set_query(None);
+        for (key, value) in &kept {
+            url.query_pairs_mut().append_pair(key, value);
+        }
+    }
+    Some(url.to_string())
+}
+
+/// Query parameters used for campaign/click attribution, never page identity.
+fn is_tracking_query_param(key: &str) -> bool {
+    matches!(key, "fbclid" | "gclid" | "mc_cid" | "mc_eid" | "ref_src") || key.starts_with("utm_")
 }
 
 #[cfg(test)]
@@ -176,5 +214,39 @@ mod tests {
         assert!(first.has_paper_md);
         assert!(first.has_tex);
         assert_eq!(first.primary_pdf_name.as_deref(), Some("a.pdf"));
+    }
+
+    #[test]
+    fn page_urls_canonicalize_away_fragments_case_and_tracking() {
+        let canonical = canonical_page_url("https://example.com/notes/post").unwrap();
+        for spelling in [
+            "https://example.com/notes/post/",
+            "https://example.com/notes/post#section-2",
+            "HTTPS://Example.COM/notes/post",
+            "https://example.com/notes/post?utm_source=rss&fbclid=abc",
+            "  https://example.com/notes/post  ",
+        ] {
+            assert_eq!(
+                canonical_page_url(spelling).as_deref(),
+                Some(canonical.as_str()),
+                "{spelling}"
+            );
+        }
+        // A meaningful query parameter still distinguishes pages…
+        assert_ne!(
+            canonical_page_url("https://example.com/post?id=1"),
+            canonical_page_url("https://example.com/post?id=2")
+        );
+        // …and http/https stay distinct (redirects are resolved before import).
+        assert_ne!(
+            canonical_page_url("http://example.com/post"),
+            canonical_page_url("https://example.com/post")
+        );
+        assert_eq!(
+            canonical_page_url("https://example.com/").as_deref(),
+            Some("https://example.com/")
+        );
+        assert_eq!(canonical_page_url("not a url"), None);
+        assert_eq!(canonical_page_url("ftp://example.com/x"), None);
     }
 }

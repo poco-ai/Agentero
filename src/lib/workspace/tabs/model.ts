@@ -245,6 +245,7 @@ export function createPlaceholderTab(
 		pdfUrl: null,
 		pdfBytes: null,
 		htmlUrl: null,
+		htmlArchivePath: null,
 		imageUrl: null,
 		notesPath: null,
 		notesSeed: "",
@@ -314,12 +315,20 @@ export function patchFromTabResources(
 				? res.pdfBytes.slice(0)
 				: (res.pdfBytes ?? null),
 		htmlUrl: res.htmlUrl,
+		htmlArchivePath: res.htmlArchivePath ?? null,
 		imageUrl: res.imageUrl,
 		notesPath: res.notesPath,
 		notesSeed: res.notesSeed,
 		markdownSeed: res.markdownSeed,
 		textSeed: res.textSeed ?? "",
 		seedKey: 1,
+		loadError:
+			current &&
+			res.mode === "markdown" &&
+			res.notesPath &&
+			normalizePathKey(current.path) === normalizePathKey(res.notesPath)
+				? res.error
+				: undefined,
 		loaded: true,
 	};
 }

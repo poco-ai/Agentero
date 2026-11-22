@@ -2,8 +2,11 @@
 //!
 //! Only supplement the normal process PATH. Explicit path-list resolution must
 //! stay isolated, and a desktop GUI executable is never an agent entrypoint.
-use std::path::{Path, PathBuf};
+#[cfg(any(target_os = "macos", test))]
+use std::path::Path;
+use std::path::PathBuf;
 
+#[cfg(any(target_os = "macos", test))]
 const MACOS_CLI_ENTRIES: &[&str] = &[
     "ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
     "DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh",
@@ -19,7 +22,15 @@ pub(super) fn path_dirs() -> Vec<PathBuf> {
     path_dirs_in(&roots, MACOS_CLI_ENTRIES)
 }
 
+/// Linux desktop installs append their bundled CLI directories in the Host,
+/// where the installation probes live; nothing to add here.
+#[cfg(target_os = "linux")]
+pub(super) fn path_dirs() -> Vec<PathBuf> {
+    Vec::new()
+}
+
 /// Preserve root/entry order, reject broken installs, and deduplicate directories.
+#[cfg(any(target_os = "macos", test))]
 fn path_dirs_in(roots: &[PathBuf], entries: &[&str]) -> Vec<PathBuf> {
     let mut result = Vec::new();
     for root in roots {

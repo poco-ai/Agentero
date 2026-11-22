@@ -96,7 +96,7 @@ impl WebdavClient {
         self.journal_put(&key, b"journal".to_vec()).await?;
         let read = self.get(&key).await;
         self.delete(&key).await?;
-        if !read?.is_some_and(|(body, _)| body == b"journal") {
+        if read?.is_none_or(|(body, _)| body != b"journal") {
             return Err(AppError::message(
                 "WebDAV journal probe could not read its upload",
             ));

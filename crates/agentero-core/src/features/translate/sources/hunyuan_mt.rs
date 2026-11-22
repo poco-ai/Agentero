@@ -242,7 +242,7 @@ async fn request_segment(
         })
         .send()
         .await
-        .map_err(|e| AppError::message(format!("Agentero built-in request failed: {e}")))?;
+        .map_err(|e| super::map_request_error("Agentero built-in", e))?;
     let (status, body) = super::read_body(resp).await?;
     if !status.is_success() {
         return Err(super::http_err(status, &body, "Agentero built-in"));
@@ -253,13 +253,10 @@ async fn request_segment(
         .get("choices")
         .and_then(|x| x.get(0))
         .ok_or_else(|| AppError::message("Unexpected Agentero built-in response"))?;
-    if let Some(reason) = choice.get("finish_reason").and_then(|x| x.as_str()) {
-        if matches!(reason, "length" | "max_tokens" | "content_filter") {
-            return Err(AppError::message(format!(
-                "Agentero built-in translation incomplete (finish_reason={reason}); retry with a smaller chunk"
-            )));
-        }
-    }
+    super::reject_incomplete_finish(
+        choice.get("finish_reason").and_then(|x| x.as_str()),
+        "Agentero built-in",
+    )?;
     choice
         .get("message")
         .and_then(|x| x.get("content"))

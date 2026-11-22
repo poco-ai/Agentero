@@ -1,5 +1,6 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { preservedLayoutRegions } from "@/lib/pdf/layout/translation-exclusions";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
@@ -42,6 +43,8 @@ vi.mock("@/lib/core/logger", () => ({
 const disk = vi.hoisted(() => ({
 	files: new Map<string, Uint8Array>(),
 	layout: "layout-one",
+	failWrite: false,
+	failRename: false,
 }));
 
 // Directory tree with byte sizes for the cache-manage walk (merged from
@@ -65,9 +68,11 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 		return bytes;
 	},
 	writeFile: async (path: string, bytes: Uint8Array) => {
+		if (disk.failWrite) throw new Error("write failed");
 		disk.files.set(path, new Uint8Array(bytes));
 	},
 	rename: async (from: string, to: string) => {
+		if (disk.failRename) throw new Error("rename failed");
 		const bytes = disk.files.get(from);
 		if (!bytes) throw new Error(`missing ${from}`);
 		disk.files.set(to, bytes);
@@ -150,7 +155,6 @@ function header(pageIndex: number): ReflowIrPageHeader {
 		key: `test-key-${pageIndex}`,
 		paperKey: "papers/demo",
 		pdfSha256: "a".repeat(64),
-		layoutSha256: "b".repeat(64),
 		pageIndex,
 		itemsSha256: "c".repeat(64),
 		regionsSha256: "d".repeat(64),
@@ -228,6 +232,41 @@ function item(id: string, pageIndex: number): LayoutTranslateItem {
 	};
 }
 
+function layoutRegion(
+	overrides: Partial<PdfLayoutRegion> &
+		Pick<PdfLayoutRegion, "id" | "pageIndex">,
+): PdfLayoutRegion {
+	return {
+		kind: "text",
+		label: "text",
+		score: 1,
+		readingOrder: 0,
+		rect: { x: 10, y: 100, w: 120, h: 20 },
+		bbox: { x: 0.05, y: 0.3, w: 0.6, h: 0.05 },
+		...overrides,
+	};
+}
+
+function cacheSource(
+	items: readonly LayoutTranslateItem[],
+	regions: readonly PdfLayoutRegion[],
+	pdf = "pdf-one",
+) {
+	return {
+		paperKey: "papers/demo",
+		paperAbsPath: "/vault/papers/demo",
+		pdfBytes: new TextEncoder().encode(pdf),
+		items,
+		regions,
+	};
+}
+
+function irFiles(): string[] {
+	return [...disk.files.keys()]
+		.filter((path) => path.endsWith(".json.gz"))
+		.sort();
+}
+
 const document = {
 	pages: [0, 1].map((index) => ({
 		index,
@@ -236,6 +275,13 @@ const document = {
 } as unknown as PdfDocumentObject;
 
 describe("reflow IR cache", () => {
+	beforeEach(() => {
+		disk.files.clear();
+		disk.layout = "layout-one";
+		disk.failWrite = false;
+		disk.failRename = false;
+	});
+
 	it("roundtrips a page with formulas, styles, table fields, and coverage", async () => {
 		const page = pageWithFormula(0);
 		const expected = header(0);
@@ -378,16 +424,8 @@ describe("reflow IR cache", () => {
 		expect(engine.getPageGlyphs).not.toHaveBeenCalled();
 	});
 
-	it("persists pages through the real store and misses when PDF or layout changes", async () => {
-		disk.files.clear();
-		disk.layout = "layout-one";
-		const source = {
-			paperKey: "papers/demo",
-			paperAbsPath: "/vault/papers/demo",
-			pdfBytes: new TextEncoder().encode("pdf-one"),
-			items: [item("p0", 0)],
-			regions: [],
-		};
+	it("persists pages through the real store and misses when the PDF changes", async () => {
+		const source = cacheSource([item("p0", 0)], []);
 		const cache = createReflowIrCache(source);
 		expect(await cache.read([0])).toEqual(new Map());
 		const page = pageWithFormula(0);
@@ -399,10 +437,332 @@ describe("reflow IR cache", () => {
 			pdfBytes: new TextEncoder().encode("pdf-two"),
 		});
 		expect(await otherPdf.read([0])).toEqual(new Map());
+		expect(irFiles()).toHaveLength(1);
+	});
 
-		disk.layout = "layout-two";
-		const otherLayout = createReflowIrCache(source);
-		expect(await otherLayout.read([0])).toEqual(new Map());
+	it("reuses the page file when sidecar bytes or unused fields change", async () => {
+		disk.layout = JSON.stringify({
+			generatedAt: "2026-01-01T00:00:00.000Z",
+			regions: [{ id: "r0" }],
+		});
+		const regions = [
+			layoutRegion({
+				id: "r0",
+				pageIndex: 0,
+				text: "Introduction",
+				title: "Introduction",
+				sourceStyle: { fontSize: 0.02, bold: false, italic: false },
+				titleBbox: { x: 0.1, y: 0.1, w: 0.2, h: 0.05 },
+				captionBbox: { x: 0.1, y: 0.2, w: 0.2, h: 0.04 },
+			}),
+		];
+		const page = pageWithFormula(0);
+		await createReflowIrCache(cacheSource([item("p0", 0)], regions)).write([
+			page,
+		]);
+		const files = irFiles();
+		expect(files).toHaveLength(1);
+
+		disk.layout = `{
+			"generatedAt": "2026-11-21T08:00:00.000Z",
+			"regions": [{ "id": "r0" }]
+		}`;
+		const again = createReflowIrCache(
+			cacheSource(
+				[
+					{
+						...item("p0", 0),
+						source: "changed source",
+						translated: "译文",
+						status: "done",
+					},
+				],
+				[
+					layoutRegion({
+						id: "r0",
+						pageIndex: 0,
+						text: "Introduction",
+						title: "Introduction",
+						sourceStyle: { fontSize: 0.02, bold: true, italic: true },
+						titleBbox: { x: 0.4, y: 0.4, w: 0.1, h: 0.1 },
+						captionBbox: { x: 0.5, y: 0.5, w: 0.1, h: 0.1 },
+						captionPageIndex: 3,
+					}),
+				],
+			),
+		);
+		expect(await again.read([0])).toEqual(new Map([[0, page]]));
+		await again.write([page]);
+		expect(irFiles()).toEqual(files);
+	});
+
+	it("misses when the page box, kind, reading order, or PDF bytes change", async () => {
+		const regions = [layoutRegion({ id: "r0", pageIndex: 0, text: "Body" })];
+		const items = [item("p0", 0)];
+		const page = pageWithFormula(0);
+		await createReflowIrCache(cacheSource(items, regions)).write([page]);
+		const files = irFiles();
+
+		const moved = createReflowIrCache(
+			cacheSource(
+				[{ ...items[0], bbox: { x: 0.2, y: 0.2, w: 0.2, h: 0.2 } }],
+				regions,
+			),
+		);
+		expect(await moved.read([0])).toEqual(new Map());
+
+		const resized = createReflowIrCache(
+			cacheSource(items, [
+				layoutRegion({
+					id: "r0",
+					pageIndex: 0,
+					text: "Body",
+					rect: { x: 12, y: 40, w: 80, h: 30 },
+				}),
+			]),
+		);
+		expect(await resized.read([0])).toEqual(new Map());
+
+		const headed = createReflowIrCache(
+			cacheSource([{ ...items[0], kind: "header" }], regions),
+		);
+		expect(await headed.read([0])).toEqual(new Map());
+
+		const formula = createReflowIrCache(
+			cacheSource(items, [
+				layoutRegion({
+					id: "r0",
+					pageIndex: 0,
+					text: "Body",
+					kind: "formula",
+					label: "formula",
+				}),
+			]),
+		);
+		expect(await formula.read([0])).toEqual(new Map());
+
+		const reordered = createReflowIrCache(
+			cacheSource([{ ...items[0], readingOrder: 4 }], regions),
+		);
+		expect(await reordered.read([0])).toEqual(new Map());
+
+		const otherPdf = createReflowIrCache(
+			cacheSource(items, regions, "pdf-two"),
+		);
+		expect(await otherPdf.read([0])).toEqual(new Map());
+		expect(irFiles()).toEqual(files);
+	});
+
+	it("misses only the page whose text changes preservation", async () => {
+		const body = layoutRegion({
+			id: "body",
+			pageIndex: 1,
+			text: "Unchanged body",
+		});
+		const intro = layoutRegion({
+			id: "h0",
+			pageIndex: 0,
+			kind: "header",
+			label: "paragraph_title",
+			text: "Introduction",
+		});
+		const references = { ...intro, text: "References" };
+		expect(preservedLayoutRegions([intro, body]).has("h0")).toBe(false);
+		expect(preservedLayoutRegions([references, body]).get("h0")).toBe(
+			"reference",
+		);
+
+		const items = [item("p0", 0), item("p1", 1)];
+		const page0 = pageWithFormula(0);
+		const page1 = pageWithFormula(1);
+		await createReflowIrCache(cacheSource(items, [intro, body])).write([
+			page0,
+			page1,
+		]);
+		const next = createReflowIrCache(cacheSource(items, [references, body]));
+		expect(await next.read([0])).toEqual(new Map());
+		expect(await next.read([1])).toEqual(new Map([[1, page1]]));
+
+		const titleIntro = { ...intro, text: undefined, title: "Introduction" };
+		const titleOnly = { ...intro, text: undefined, title: "References" };
+		expect(preservedLayoutRegions([titleIntro, body]).has("h0")).toBe(false);
+		expect(preservedLayoutRegions([titleOnly, body]).get("h0")).toBe(
+			"reference",
+		);
+		disk.files.clear();
+		await createReflowIrCache(cacheSource(items, [titleIntro, body])).write([
+			page0,
+			page1,
+		]);
+		const titled = createReflowIrCache(cacheSource(items, [titleOnly, body]));
+		expect(await titled.read([0])).toEqual(new Map());
+		expect(await titled.read([1])).toEqual(new Map([[1, page1]]));
+
+		const plain = layoutRegion({
+			id: "run",
+			pageIndex: 0,
+			kind: "header",
+			label: "header",
+			text: "Introduction",
+			bbox: { x: 0.05, y: 0.02, w: 0.4, h: 0.03 },
+		});
+		const running = { ...plain, text: "Journal of Physics" };
+		const caption = { ...running, captionRole: "figure_main" as const };
+		expect(preservedLayoutRegions([plain, body]).has("run")).toBe(false);
+		expect(preservedLayoutRegions([running, body]).get("run")).toBe(
+			"page-header",
+		);
+		expect(preservedLayoutRegions([caption, body]).has("run")).toBe(false);
+
+		disk.files.clear();
+		await createReflowIrCache(cacheSource(items, [plain, body])).write([
+			page0,
+			page1,
+		]);
+		const shifted = createReflowIrCache(cacheSource(items, [running, body]));
+		expect(await shifted.read([0])).toEqual(new Map());
+		expect(await shifted.read([1])).toEqual(new Map([[1, page1]]));
+		const captioned = createReflowIrCache(cacheSource(items, [caption, body]));
+		await createReflowIrCache(cacheSource(items, [running, body])).write([
+			page0,
+			page1,
+		]);
+		expect(await captioned.read([0])).toEqual(new Map());
+		expect(await captioned.read([1])).toEqual(new Map([[1, page1]]));
+
+		const title = layoutRegion({
+			id: "title",
+			pageIndex: 0,
+			kind: "header",
+			label: "paragraph_title",
+			text: "A Study of Widgets",
+			bbox: { x: 0.1, y: 0.05, w: 0.8, h: 0.06 },
+			sourceStyle: { fontSize: 0.04, bold: true, italic: false },
+		});
+		const prose = layoutRegion({
+			id: "prose",
+			pageIndex: 0,
+			kind: "text",
+			label: "text",
+			text: "Ordinary prose without an abstract heading.",
+			bbox: { x: 0.1, y: 0.4, w: 0.8, h: 0.1 },
+			sourceStyle: { fontSize: 0.02, bold: false, italic: false },
+		});
+		const smallTitle = {
+			...title,
+			sourceStyle: { fontSize: 0.02, bold: true, italic: false },
+		};
+		expect(preservedLayoutRegions([title, prose, body]).get("title")).toBe(
+			"paper-title",
+		);
+		expect(preservedLayoutRegions([smallTitle, prose, body]).has("title")).toBe(
+			false,
+		);
+		disk.files.clear();
+		await createReflowIrCache(
+			cacheSource(items, [smallTitle, prose, body]),
+		).write([page0, page1]);
+		const larger = createReflowIrCache(
+			cacheSource(items, [title, prose, body]),
+		);
+		expect(await larger.read([0])).toEqual(new Map());
+		expect(await larger.read([1])).toEqual(new Map([[1, page1]]));
+	});
+
+	it("drops same-page files only after the new page file is renamed into place", async () => {
+		const intro = layoutRegion({
+			id: "h0",
+			pageIndex: 0,
+			kind: "header",
+			label: "paragraph_title",
+			text: "Introduction",
+		});
+		const references = { ...intro, text: "References" };
+		const body = layoutRegion({
+			id: "body",
+			pageIndex: 1,
+			text: "Unchanged body",
+		});
+		const items = [item("p0", 0), item("p1", 1)];
+		const page0 = pageWithFormula(0);
+		const page1 = pageWithFormula(1);
+		await createReflowIrCache(cacheSource(items, [intro, body])).write([
+			page0,
+			page1,
+		]);
+		const before = irFiles();
+		expect(before).toHaveLength(2);
+		const page0File = before.find((path) => path.includes("/0-"));
+		const page1File = before.find((path) => path.includes("/1-"));
+		if (!page0File || !page1File) throw new Error("missing page files");
+		const dir = page0File.slice(0, page0File.lastIndexOf("/"));
+		const seeded = `${dir}/0-aaaaaaaaaaaaaaaaaaaa.json.gz`;
+		const otherPage = `${dir}/10-bbbbbbbbbbbbbbbbbbbb.json.gz`;
+		disk.files.set(seeded, new Uint8Array([1, 2, 3]));
+		disk.files.set(otherPage, new Uint8Array([4]));
+
+		const replaced = pageWithFormula(0);
+		replaced.paragraphs[0].source = "replaced";
+		await createReflowIrCache(cacheSource(items, [references, body])).write([
+			replaced,
+		]);
+
+		const after = irFiles();
+		expect(after).not.toContain(page0File);
+		expect(after).not.toContain(seeded);
+		expect(after).toContain(page1File);
+		expect(after).toContain(otherPage);
+		expect(after.filter((path) => path.includes("/0-"))).toHaveLength(1);
+		const read = await createReflowIrCache(
+			cacheSource(items, [references, body]),
+		).read([0, 1]);
+		expect(read.get(0)?.paragraphs[0].source).toBe("replaced");
+		expect(read.get(1)).toEqual(page1);
+	});
+
+	it("keeps the previous page file when the write or rename fails", async () => {
+		const intro = layoutRegion({
+			id: "h0",
+			pageIndex: 0,
+			kind: "header",
+			label: "paragraph_title",
+			text: "Introduction",
+		});
+		const references = { ...intro, text: "References" };
+		const items = [item("p0", 0)];
+		const page = pageWithFormula(0);
+		await createReflowIrCache(cacheSource(items, [intro])).write([page]);
+		const before = irFiles();
+		expect(before).toHaveLength(1);
+		const bytes = disk.files.get(before[0] ?? "");
+
+		disk.failWrite = true;
+		await createReflowIrCache(cacheSource(items, [references])).write([
+			pageWithFormula(0),
+		]);
+		expect(irFiles()).toEqual(before);
+		expect(disk.files.get(before[0] ?? "")).toBe(bytes);
+		expect([...disk.files.keys()].some((path) => path.includes(".tmp"))).toBe(
+			false,
+		);
+
+		disk.failWrite = false;
+		disk.failRename = true;
+		await createReflowIrCache(cacheSource(items, [references])).write([
+			pageWithFormula(0),
+		]);
+		expect(irFiles()).toEqual(before);
+		expect(disk.files.get(before[0] ?? "")).toBe(bytes);
+		expect([...disk.files.keys()].some((path) => path.includes(".tmp"))).toBe(
+			false,
+		);
+
+		disk.failRename = false;
+		await createReflowIrCache(cacheSource(items, [references])).write([
+			pageWithFormula(0),
+		]);
+		expect(irFiles()).toHaveLength(1);
+		expect(irFiles()).not.toEqual(before);
 	});
 
 	it("stops writing new pages when persistence is disabled but keeps reusing existing ones", async () => {

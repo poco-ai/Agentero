@@ -4,13 +4,28 @@
 //! this module adds desktop-host discovery where installation probes need Tauri.
 
 pub use crate::core::process::discover::login_shell_env;
-#[cfg(not(windows))]
-pub use crate::core::process::discover::path_entries;
 
 #[cfg(windows)]
 pub fn path_entries() -> Vec<std::path::PathBuf> {
     let mut paths = crate::core::process::discover::path_entries();
     for directory in crate::features::system::desktop_apps::windows_cli_dirs() {
+        if !paths.contains(&directory) {
+            paths.push(directory);
+        }
+    }
+    paths
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
+pub use crate::core::process::discover::path_entries;
+
+/// Linux desktop installs keep their bundled CLI in `/opt`, a Flatpak deploy
+/// or a Snap tree. Discovery, availability checks and ACP spawns all read this
+/// list, so a desktop-bundled engine is found exactly where it is launched.
+#[cfg(target_os = "linux")]
+pub fn path_entries() -> Vec<std::path::PathBuf> {
+    let mut paths = crate::core::process::discover::path_entries();
+    for directory in crate::features::system::desktop_apps::linux_cli_dirs() {
         if !paths.contains(&directory) {
             paths.push(directory);
         }

@@ -6,6 +6,7 @@
  * does not write the annotation.
  */
 
+import { translationContainsIndexPromptEcho } from "@/lib/pdf/layout/index-translate-echo";
 import {
 	joinTranslatedDisplays,
 	matchingSentenceIndexes,
@@ -88,6 +89,15 @@ export function parseAnnotationTranslateSidecar(
 		};
 		const sentences = parseDisplaySentences(value.sentences);
 		if (sentences) item.sentences = sentences;
+		// An echoed block is untranslated. Leave it out so embeds show the quote
+		// until that block is translated again.
+		if (translationContainsIndexPromptEcho(item.translated)) continue;
+		if (
+			item.sentences?.some((sentence) =>
+				translationContainsIndexPromptEcho(sentence.translated),
+			)
+		)
+			continue;
 		items.push(item);
 	}
 	return { targetLang, items };

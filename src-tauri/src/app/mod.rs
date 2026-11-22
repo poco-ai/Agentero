@@ -21,6 +21,8 @@ mod workspace_cli;
 pub mod finder_service;
 pub use crate::features::open_request;
 #[cfg(not(target_os = "ios"))]
+pub mod open_with;
+#[cfg(not(target_os = "ios"))]
 pub mod terminal;
 #[cfg(not(target_os = "ios"))]
 pub mod window;
@@ -368,6 +370,14 @@ pub fn run() {
             settings.network_proxy_enabled,
             &settings.network_proxy_url,
         )?;
+        // A page fetch or PDF download that hits an interactive verification
+        // wall (OpenReview Turnstile, Cloudflare) asks this hook to open the
+        // blocked URL in a window (#1157). Mobile has no such window, and the
+        // CLI has no Host at all; both report the wall as a readable error.
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        crate::features::system::settings::commands::install_web_verification_hook(
+            app.handle().clone(),
+        );
         #[cfg(not(any(target_os = "ios", target_os = "android")))]
         crate::features::paper::import::refresh_parser_config(&settings_store);
         let _ = agents.set_proxy(

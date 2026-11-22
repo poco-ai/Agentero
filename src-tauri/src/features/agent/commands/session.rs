@@ -247,6 +247,7 @@ pub async fn agent_warm(
         desc,
         request.vault_path,
         request.model_id,
+        request.force_model,
         request.collaboration_mode_id,
         remote,
         pool.inner().clone(),

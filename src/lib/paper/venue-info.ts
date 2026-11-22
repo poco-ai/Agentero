@@ -6,6 +6,10 @@
  * turns those raw values into one display model.
  */
 import {
+	type EasyScholarRankId,
+	easyScholarRankIdFromTagName,
+} from "@/lib/paper/easy-scholar-ranks";
+import {
 	EASY_SCHOLAR_TAG_PREFIX,
 	isEasyScholarTagName,
 	isSubmittedTagName,
@@ -110,16 +114,33 @@ export function formatEasyScholarMetric(name: string): string | null {
 	return value ? `${key} ${value}` : key || null;
 }
 
-function venueMetrics(tags: readonly PaperTagInput[]): string[] {
+/**
+ * Compact metrics for one paper. `ranks` narrows the display to the systems
+ * enabled in settings; omitted means "show every stored metric" (used by
+ * non-UI callers such as sort keys).
+ */
+function venueMetrics(
+	tags: readonly PaperTagInput[],
+	ranks?: readonly EasyScholarRankId[],
+): string[] {
+	const enabled = ranks ? new Set(ranks) : null;
 	const metrics = tags
-		.map((tag) => formatEasyScholarMetric(tagName(tag)))
+		.map((tag) => {
+			const name = tagName(tag);
+			const id = easyScholarRankIdFromTagName(name);
+			if (enabled && id !== null && !enabled.has(id)) return null;
+			return formatEasyScholarMetric(name);
+		})
 		.filter((value): value is string => Boolean(value));
 	return [...new Set(metrics)].sort(
 		(a, b) => metricRank(a) - metricRank(b) || a.localeCompare(b),
 	);
 }
 
-export function venueInfo(paper: VenueSource): VenueInfo {
+export function venueInfo(
+	paper: VenueSource,
+	ranks?: readonly EasyScholarRankId[],
+): VenueInfo {
 	const publication = paper.publication?.trim() ?? "";
 	const tags = paper.tags ?? [];
 	const submitted = submittedTarget(tags);
@@ -131,7 +152,7 @@ export function venueInfo(paper: VenueSource): VenueInfo {
 			name: publication,
 			fullName: publication,
 			inferred: false,
-			metrics: venueMetrics(tags),
+			metrics: venueMetrics(tags, ranks),
 		};
 	}
 	if (submitted) {

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
+import i18n from "@/i18n";
 import { backgroundTasksStore } from "@/lib/core/background-tasks";
 import type { JobSnapshot } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
@@ -98,6 +99,11 @@ export type PdfLayoutTranslatePartial = {
 	open: boolean;
 	/** A completion / retranslate attempt already ran and gaps remain. */
 	completionFailed: boolean;
+	/**
+	 * Host failure that the partial summary does not already say, such as a
+	 * stalled formula call. Null when there is nothing extra to show.
+	 */
+	failureMessage: string | null;
 	/** Localized, 1-based page ranges with no layout text result. */
 	layoutWarningPages: string | null;
 	layoutWarningCount: number;
@@ -152,8 +158,10 @@ export type PdfLayoutTranslate = {
 	/**
 	 * Cache-first document translation start used by the reading-view switch.
 	 * Never stops a running job and never hides painted pages.
+	 * `completePending` fills sidecar gaps after cached pages paint. Only a
+	 * user gesture into 译文 sets it; restore and the dual pane omit it.
 	 */
-	ensureLayoutTranslate: () => void;
+	ensureLayoutTranslate: (options?: { completePending?: boolean }) => void;
 	/**
 	 * Reveal retained translations (clear per-page hides) without starting or
 	 * stopping the job. The reading-view switch calls it when entering 译文.
@@ -162,9 +170,11 @@ export type PdfLayoutTranslate = {
 	/**
 	 * Cancel this paper's running/queued full-document translation. Used when
 	 * the reading view returns to 原文 (including a manual translation-tab close),
-	 * so the visible mode and the task state stay in sync.
+	 * so the visible mode and the task state stay in sync. `stopTypeset` also
+	 * ends local page generation, which is what the meter's stop square needs
+	 * once the Host job has already settled.
 	 */
-	cancelLayoutTranslate: () => void;
+	cancelLayoutTranslate: (options?: { stopTypeset?: boolean }) => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
 	togglePageLayoutTranslate: (pageIndex: number) => void;
 	/** Paragraph warning: retry a failed page's blocks without hiding it. */
@@ -342,6 +352,26 @@ function restoreTranslatedItems(
 	});
 }
 
+/**
+ * A translation job for this paper is already running or queued (e.g. 重译整篇
+ * started from 译文, or another window). The 对照 pane must follow it instead
+ * of stopping at its cached sidecar: the reader toolbar no longer shows a
+ * second meter there, so an unfollowed job would run unseen and unstoppable.
+ */
+function hasLiveLayoutTranslateJob(
+	paperRelPath: string | null | undefined,
+): boolean {
+	if (!paperRelPath) return false;
+	return backgroundTasksStore
+		.getState()
+		.tasks.some(
+			(task) =>
+				task.kind === "layoutTranslate" &&
+				(task.status === "running" || task.status === "queued") &&
+				sameRelPaperPath(task.paperPath ?? null, paperRelPath),
+		);
+}
+
 /** One items state update per frame while batches stream in. */
 const LAYOUT_TRANSLATE_PUBLISH_COALESCE_MS = 100;
 
@@ -423,7 +453,20 @@ export function usePdfLayoutTranslate({
 		useState<LayoutTranslateJobState>(EMPTY_LAYOUT_TRANSLATE_JOB);
 	const layoutTranslateJobRef = useRef(layoutTranslateJob);
 	layoutTranslateJobRef.current = layoutTranslateJob;
+	const layoutTranslateQueuedRef = useRef(layoutTranslateQueued);
+	layoutTranslateQueuedRef.current = layoutTranslateQueued;
+	/**
+	 * A gesture into 译文 that landed before layout regions existed. The
+	 * auto-start effect consumes it once; restore and page tags never set it.
+	 */
+	const completePendingAfterLayoutRef = useRef(false);
+	const beginPendingCompletionRef = useRef<
+		(job: LayoutTranslateJobState) => void
+	>(() => {});
 	const [partialDialogOpen, setPartialDialogOpen] = useState(false);
+	const [layoutTranslateFailure, setLayoutTranslateFailure] = useState<
+		string | null
+	>(null);
 	// Visibility must not discard the translation or invalidate its reflow preview.
 	const [hiddenPageIndexes, setHiddenPageIndexes] = useState<
 		ReadonlySet<number>
@@ -436,6 +479,7 @@ export function usePdfLayoutTranslate({
 		reflowFinalFailed,
 		reflowOutput,
 		reflowPages,
+		cancelReflowBuild,
 		exportTranslatedPdf,
 	} = usePdfReflow(
 		reflowContext,
@@ -449,6 +493,9 @@ export function usePdfLayoutTranslate({
 		layoutTranslateJob.reflowPageOnly ?? layoutTranslateJob.scope === "page",
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
+	/** Aborts the local page-generation build owned by `usePdfReflow`. */
+	const cancelReflowBuildRef = useRef(cancelReflowBuild);
+	cancelReflowBuildRef.current = cancelReflowBuild;
 	/** Incremented whenever a translation owner changes; stale cache hydrates cannot commit. */
 	const layoutTranslateRunEpochRef = useRef(0);
 	/**
@@ -492,27 +539,40 @@ export function usePdfLayoutTranslate({
 	});
 	const parsePendingForPaper = layoutJobPending || layoutUiRunning;
 
-	const stopLayoutTranslate = useCallback(() => {
+	const stopLayoutTranslate = useCallback((stopTypeset = false) => {
 		layoutTranslateRunEpochRef.current += 1;
+		completePendingAfterLayoutRef.current = false;
 		const shared = sharedTranslateRef.current;
 		if (shared) shared.cancelRequested = true;
 		if (shared?.jobId) cancelTask(shared.jobId);
 		sharedTranslateRef.current = null;
 		setLayoutTranslateQueued(false);
+		layoutTranslateQueuedRef.current = false;
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
 		setSourcePreparing(false);
 		setPartialDialogOpen(false);
 		setLayoutTranslateJob((prev) => {
 			if (prev.status !== "running") return prev;
-			const items = resetRunningTranslateItems(prev.items);
-			return {
+			const next = {
 				...prev,
-				status: "cancelled",
-				items,
+				status: "cancelled" as const,
+				items: resetRunningTranslateItems(prev.items),
 				partialCompletionFailed: false,
 			};
+			layoutTranslateJobRef.current = next;
+			return next;
 		});
+		if (!stopTypeset) return;
+		// The Host job may already be done while the corrected pages are still
+		// generated here; the stop square has to end that local build and close
+		// the meter instead of staying a dead button.
+		cancelReflowBuildRef.current();
+		setLayoutTranslateJob((prev) =>
+			prev.status === "done" || prev.status === "partial"
+				? { ...prev, status: "cancelled" }
+				: prev,
+		);
 	}, []);
 
 	// Translation job and block failures never raise a toast: a document run
@@ -522,11 +582,15 @@ export function usePdfLayoutTranslate({
 
 	const cancelWaitingLayout = useCallback(() => {
 		layoutTranslateWaitTargetRef.current = null;
+		completePendingAfterLayoutRef.current = false;
 		waitingAutoStartedRef.current = false;
 		toast.dismiss(layoutTranslateWaitToastIdRef.current);
-		setLayoutTranslateJob((prev) =>
-			prev.status === "waitingLayout" ? { ...prev, status: "idle" } : prev,
-		);
+		setLayoutTranslateJob((prev) => {
+			if (prev.status !== "waitingLayout") return prev;
+			const next = { ...prev, status: "idle" as const };
+			layoutTranslateJobRef.current = next;
+			return next;
+		});
 	}, []);
 
 	/**
@@ -534,17 +598,20 @@ export function usePdfLayoutTranslate({
 	 * local work, and cancel a Host job owned by the dual-pane viewer too. Used
 	 * by 原文 and by the toolbar meter's only stop surface.
 	 */
-	const cancelLayoutTranslate = useCallback(() => {
-		if (layoutTranslateWaitTargetRef.current) cancelWaitingLayout();
-		stopLayoutTranslate();
-		if (!paperRelPath) return;
-		for (const task of backgroundTasksStore.getState().tasks) {
-			if (task.kind !== "layoutTranslate") continue;
-			if (task.status !== "running" && task.status !== "queued") continue;
-			if (!sameRelPaperPath(task.paperPath ?? null, paperRelPath)) continue;
-			cancelTask(task.id);
-		}
-	}, [cancelWaitingLayout, paperRelPath, stopLayoutTranslate]);
+	const cancelLayoutTranslate = useCallback(
+		(options?: { stopTypeset?: boolean }) => {
+			if (layoutTranslateWaitTargetRef.current) cancelWaitingLayout();
+			stopLayoutTranslate(options?.stopTypeset ?? false);
+			if (!paperRelPath) return;
+			for (const task of backgroundTasksStore.getState().tasks) {
+				if (task.kind !== "layoutTranslate") continue;
+				if (task.status !== "running" && task.status !== "queued") continue;
+				if (!sameRelPaperPath(task.paperPath ?? null, paperRelPath)) continue;
+				cancelTask(task.id);
+			}
+		},
+		[cancelWaitingLayout, paperRelPath, stopLayoutTranslate],
+	);
 
 	/**
 	 * Queue the job behind layout analysis: ensure a parse is pending, park the
@@ -553,6 +620,8 @@ export function usePdfLayoutTranslate({
 	 */
 	const enterWaitingLayout = useCallback(
 		(target: LayoutTranslateWaitTarget) => {
+			// A page tag must not inherit a document gesture's completion.
+			if (target.mode === "page") completePendingAfterLayoutRef.current = false;
 			layoutTranslateWaitTargetRef.current = target;
 			if (paperAbsPath) {
 				enqueuePaperLayoutAnalysis({
@@ -573,10 +642,11 @@ export function usePdfLayoutTranslate({
 				return;
 			}
 			waitingAutoStartedRef.current = false;
-			setLayoutTranslateJob((prev) => ({
-				...prev,
-				status: "waitingLayout",
-			}));
+			setLayoutTranslateJob((prev) => {
+				const next = { ...prev, status: "waitingLayout" as const };
+				layoutTranslateJobRef.current = next;
+				return next;
+			});
 		},
 		[parsePendingForPaper, paperAbsPath, cancelWaitingLayout, t],
 	);
@@ -676,6 +746,11 @@ export function usePdfLayoutTranslate({
 						if (ac.signal.aborted) return;
 						shared.jobId = job.id;
 						setLayoutTranslateQueued(job.state === "queued");
+						setLayoutTranslateFailure((prev) => {
+							const next =
+								job.state === "failed" ? job.error?.trim() || null : null;
+							return prev === next ? prev : next;
+						});
 						if (!snapshot) {
 							setSourcePreparing(
 								job.state === "running" || job.state === "queued",
@@ -745,6 +820,7 @@ export function usePdfLayoutTranslate({
 			force = false,
 			runScopeIds: readonly string[] = [],
 			reanalyzeLayout = false,
+			completePending = false,
 		) => {
 			layoutTranslateRunEpochRef.current += 1;
 			progressFloorRef.current = 0;
@@ -755,13 +831,25 @@ export function usePdfLayoutTranslate({
 			setPartialDialogOpen(false);
 			setSourcePreparing(true);
 			setLayoutTranslateQueued(false);
+			layoutTranslateQueuedRef.current = false;
 			sharedTranslateRef.current = null;
-			setLayoutTranslateJob((prev) => ({
-				...prev,
-				scope: "document",
-				reflowPageOnly: false,
-				status: "running",
-			}));
+			setLayoutTranslateJob((prev) => {
+				const next = {
+					...prev,
+					scope: "document" as const,
+					reflowPageOnly: false,
+					status: "running" as const,
+					...(runScopeIds.length > 0
+						? {
+								runScope: "pending" as const,
+								runScopeIds,
+								partialCompletionFailed: false,
+							}
+						: {}),
+				};
+				layoutTranslateJobRef.current = next;
+				return next;
+			});
 			void (async () => {
 				// Opening cached translations must not wait for a translation slot.
 				// Explicit completion/retranslation still belongs to the shared job.
@@ -797,33 +885,57 @@ export function usePdfLayoutTranslate({
 									raw,
 								);
 								if (ac.signal.aborted) return;
+								// A page run can be in memory before its sidecar flush. A
+								// gesture must count those blocks as done; restore keeps
+								// the sidecar-only hydrate.
+								const memoryItems =
+									completePending &&
+									sameLayoutTranslateCacheIdentity(
+										layoutTranslateJobRef.current.cacheKey,
+										cacheKey,
+									)
+										? layoutTranslateJobRef.current.items
+										: [];
 								const hydration = hydrateLayoutTranslateItems(
-									prepared,
+									reuseCompletedTranslateItems(prepared, memoryItems),
 									sidecar,
 									{
 										requireReflowSentencePairs: true,
 									},
 								);
-								if (hydration.fromCache) {
+								// Cached blocks paint immediately, but a live job still has to be
+								// followed: stopping here would leave the pane on the sidecar while
+								// the real job runs. Fall through to `attachSharedTranslate`.
+								if (
+									hydration.fromCache &&
+									!hasLiveLayoutTranslateJob(paperRelPath)
+								) {
 									setCacheOnly(true);
 									setSourcePreparing(false);
-									setLayoutTranslateJob(
-										layoutTranslateJobPatch({
-											status:
-												hydration.pendingRequired > 0 ? "partial" : "done",
-											scope: "document",
-											reflowPageOnly: false,
-											items: hydration.items,
-											cacheKey,
-											fromCache: true,
-											runScope: "all",
-											runScopeIds: [],
-											layoutWarnings:
-												layout?.source.completeness?.warnings ?? [],
-											layoutPageCount:
-												layout?.source.completeness?.pageCount ?? null,
-										}),
-									);
+									const painted = layoutTranslateJobPatch({
+										status: hydration.pendingRequired > 0 ? "partial" : "done",
+										scope: "document",
+										reflowPageOnly: false,
+										items: hydration.items,
+										cacheKey,
+										fromCache: true,
+										runScope: "all",
+										runScopeIds: [],
+										layoutWarnings: layout?.source.completeness?.warnings ?? [],
+										layoutPageCount:
+											layout?.source.completeness?.pageCount ?? null,
+									});
+									layoutTranslateJobRef.current = painted;
+									setLayoutTranslateJob(painted);
+									// Paint first. A gesture may then queue only the missing
+									// blocks; this return still owns the no-request cache path.
+									if (
+										completePending &&
+										hydration.pendingRequired > 0 &&
+										!ac.signal.aborted
+									) {
+										beginPendingCompletionRef.current(painted);
+									}
 									if (layoutTranslateAbortRef.current === ac)
 										layoutTranslateAbortRef.current = null;
 									return;
@@ -835,6 +947,7 @@ export function usePdfLayoutTranslate({
 				if (ac.signal.aborted) return;
 				setCacheOnly(false);
 				setLayoutTranslateQueued(true);
+				layoutTranslateQueuedRef.current = true;
 				await attachSharedTranslate(
 					"document",
 					true,
@@ -847,7 +960,12 @@ export function usePdfLayoutTranslate({
 				if (ac.signal.aborted) return;
 				setSourcePreparing(false);
 				setLayoutTranslateQueued(false);
-				setLayoutTranslateJob((prev) => ({ ...prev, status: "partial" }));
+				layoutTranslateQueuedRef.current = false;
+				setLayoutTranslateJob((prev) => {
+					const next = { ...prev, status: "partial" as const };
+					layoutTranslateJobRef.current = next;
+					return next;
+				});
 				// Queueing / cache / typesetting failures are not translation
 				// results: they keep their own prompt instead of the removed
 				// translation-failure toast.
@@ -857,56 +975,60 @@ export function usePdfLayoutTranslate({
 		[
 			attachSharedTranslate,
 			paperAbsPath,
+			paperRelPath,
 			layoutRawRegions,
 			docId,
 			prepareReflow,
 		],
 	);
 
-	const startLayoutTranslate = useCallback(() => {
-		if (
-			paperAbsPath &&
-			paperRelPath &&
-			vaultPath &&
-			!vaultPath.startsWith("remote:")
-		) {
-			startSharedDocumentTranslate();
-			return;
-		}
-		const raw = layoutRawRegions;
-		if (!raw?.length) {
-			enterWaitingLayout({ mode: "document" });
-			return;
-		}
-		const regions = listTranslatableLayoutRegions(raw);
-		if (regions.length === 0) {
-			notifyError(t("pdf.layoutTranslate.noText"));
-			return;
-		}
-		layoutTranslateRunEpochRef.current += 1;
-		layoutTranslateAbortRef.current?.abort();
-		const ac = new AbortController();
-		layoutTranslateAbortRef.current = ac;
-		setSourcePreparing(true);
-		setHiddenPageIndexes(new Set());
-		progressFloorRef.current = 0;
-		const cacheKey = currentLayoutTranslateCacheKey();
-		// Raw region text differs from the prepared protected text, so the
-		// seed-time reuse misses formula/style blocks; the prepared pass below
-		// matches again by id + prepared source.
-		const previousItems = sameLayoutTranslateCacheIdentity(
-			layoutTranslateJobRef.current.cacheKey,
-			cacheKey,
-		)
-			? layoutTranslateJobRef.current.items
-			: [];
-		const pendingItems = reuseCompletedTranslateItems(
-			toLayoutTranslateItems(regions),
-			previousItems,
-		);
-		const seedScopeIds = layoutTranslateScopeIds(pendingItems, true);
-		setLayoutTranslateJob(
-			layoutTranslateJobPatch({
+	const startLayoutTranslate = useCallback(
+		(options?: { completePending?: boolean }) => {
+			const completePending = options?.completePending ?? false;
+			if (
+				paperAbsPath &&
+				paperRelPath &&
+				vaultPath &&
+				!vaultPath.startsWith("remote:")
+			) {
+				startSharedDocumentTranslate(false, [], false, completePending);
+				return;
+			}
+			const raw = layoutRawRegions;
+			if (!raw?.length) {
+				completePendingAfterLayoutRef.current = completePending;
+				enterWaitingLayout({ mode: "document" });
+				return;
+			}
+			completePendingAfterLayoutRef.current = false;
+			const regions = listTranslatableLayoutRegions(raw);
+			if (regions.length === 0) {
+				notifyError(t("pdf.layoutTranslate.noText"));
+				return;
+			}
+			layoutTranslateRunEpochRef.current += 1;
+			layoutTranslateAbortRef.current?.abort();
+			const ac = new AbortController();
+			layoutTranslateAbortRef.current = ac;
+			setSourcePreparing(true);
+			setHiddenPageIndexes(new Set());
+			progressFloorRef.current = 0;
+			const cacheKey = currentLayoutTranslateCacheKey();
+			// Raw region text differs from the prepared protected text, so the
+			// seed-time reuse misses formula/style blocks; the prepared pass below
+			// matches again by id + prepared source.
+			const previousItems = sameLayoutTranslateCacheIdentity(
+				layoutTranslateJobRef.current.cacheKey,
+				cacheKey,
+			)
+				? layoutTranslateJobRef.current.items
+				: [];
+			const pendingItems = reuseCompletedTranslateItems(
+				toLayoutTranslateItems(regions),
+				previousItems,
+			);
+			const seedScopeIds = layoutTranslateScopeIds(pendingItems, true);
+			const seedJob = layoutTranslateJobPatch({
 				status: "running",
 				items: pendingItems,
 				scope: "document",
@@ -915,97 +1037,117 @@ export function usePdfLayoutTranslate({
 				runScope: "initial",
 				runScopeIds: seedScopeIds,
 				cacheKey,
-			}),
-		);
-		const publishes = createTranslatePublishCoalescer((next) => {
-			if (ac.signal.aborted) return;
-			persistLayoutTranslateSidecarBestEffort(paperAbsPath, cacheKey, next);
-			setLayoutTranslateJob((prev) => ({
-				...prev,
-				status: prev.status === "cancelled" ? "cancelled" : "running",
-				items: next,
-			}));
-		});
-		void (async () => {
-			const sidecar = await readLayoutTranslateSidecar(paperAbsPath, cacheKey);
-			if (ac.signal.aborted) return;
-			const prepared = await prepareReflow(pendingItems, ac.signal);
-			if (ac.signal.aborted) return;
-			setSourcePreparing(false);
-			// Cached text renders immediately; filling gaps is an explicit action.
-			const hydration = hydrateLayoutTranslateItems(
-				reuseCompletedTranslateItems(prepared, previousItems),
-				sidecar,
-				{ requireReflowSentencePairs: true },
-			);
-			const needsRun = !hydration.fromCache;
-			setCacheOnly(!needsRun);
-			setLayoutTranslateJob((prev) => ({
-				...prev,
-				status: needsRun
-					? "running"
-					: hydration.pendingRequired > 0
-						? "partial"
-						: "done",
-				items: hydration.items,
-				scope: "document",
-				reflowPageOnly: false,
-				fromCache: hydration.fromCache,
-				runScope: "initial",
-				// Include cached blocks in document-wide progress.
-				runScopeIds: hydration.items.map((item) => item.id),
-				cacheKey,
-				partialCompletionFailed: false,
-			}));
-			if (!needsRun) return;
-			const finalItems = await runLayoutRegionTranslate({
-				items: hydration.items,
-				signal: ac.signal,
-				paperKey,
-				vaultPath,
-				onUpdate: (next) => {
-					if (ac.signal.aborted) return;
-					publishes.push(next);
-				},
 			});
-			// Cancellation/replacement owns the visible state now. A late result
-			// must not restore hidden overlays or overwrite a newer sidecar write.
-			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
-			await flushLayoutTranslateSidecar(paperAbsPath, cacheKey, finalItems);
-			setLayoutTranslateJob((prev) => ({
-				...prev,
-				status: hasPendingLayoutTranslateItems(finalItems) ? "partial" : "done",
-				items: finalItems,
-				partialCompletionFailed: false,
-			}));
-		})()
-			.catch((error) => {
+			layoutTranslateJobRef.current = seedJob;
+			setLayoutTranslateJob(seedJob);
+			const publishes = createTranslatePublishCoalescer((next) => {
 				if (ac.signal.aborted) return;
+				persistLayoutTranslateSidecarBestEffort(paperAbsPath, cacheKey, next);
 				setLayoutTranslateJob((prev) => ({
 					...prev,
-					status: "partial",
+					status: prev.status === "cancelled" ? "cancelled" : "running",
+					items: next,
 				}));
-				// Sidecar / preparation failures keep their own prompt.
-				notifyError(displayTranslateError(errorText(error)));
-			})
-			.finally(() => {
-				publishes.cancel();
-				if (layoutTranslateAbortRef.current === ac) {
-					if (!ac.signal.aborted) setSourcePreparing(false);
-					layoutTranslateAbortRef.current = null;
-				}
 			});
-	}, [
-		layoutRawRegions,
-		paperAbsPath,
-		paperKey,
-		vaultPath,
-		enterWaitingLayout,
-		prepareReflow,
-		startSharedDocumentTranslate,
-		paperRelPath,
-		t,
-	]);
+			void (async () => {
+				const sidecar = await readLayoutTranslateSidecar(
+					paperAbsPath,
+					cacheKey,
+				);
+				if (ac.signal.aborted) return;
+				const prepared = await prepareReflow(pendingItems, ac.signal);
+				if (ac.signal.aborted) return;
+				setSourcePreparing(false);
+				// Cached text renders immediately. Filling gaps stays explicit, except
+				// for a user gesture into 译文 which queues a pending-only run below.
+				const hydration = hydrateLayoutTranslateItems(
+					reuseCompletedTranslateItems(prepared, previousItems),
+					sidecar,
+					{ requireReflowSentencePairs: true },
+				);
+				const needsRun = !hydration.fromCache;
+				setCacheOnly(!needsRun);
+				const painted = {
+					...layoutTranslateJobRef.current,
+					status: needsRun
+						? ("running" as const)
+						: hydration.pendingRequired > 0
+							? ("partial" as const)
+							: ("done" as const),
+					items: hydration.items,
+					scope: "document" as const,
+					reflowPageOnly: false,
+					fromCache: hydration.fromCache,
+					runScope: "initial" as const,
+					// Include cached blocks in document-wide progress.
+					runScopeIds: hydration.items.map((item) => item.id),
+					cacheKey,
+					partialCompletionFailed: false,
+				};
+				layoutTranslateJobRef.current = painted;
+				setLayoutTranslateJob(painted);
+				if (!needsRun) {
+					if (
+						completePending &&
+						hydration.pendingRequired > 0 &&
+						!ac.signal.aborted
+					) {
+						beginPendingCompletionRef.current(painted);
+					}
+					return;
+				}
+				const finalItems = await runLayoutRegionTranslate({
+					items: hydration.items,
+					signal: ac.signal,
+					paperKey,
+					vaultPath,
+					onUpdate: (next) => {
+						if (ac.signal.aborted) return;
+						publishes.push(next);
+					},
+				});
+				// Cancellation/replacement owns the visible state now. A late result
+				// must not restore hidden overlays or overwrite a newer sidecar write.
+				if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
+				await flushLayoutTranslateSidecar(paperAbsPath, cacheKey, finalItems);
+				setLayoutTranslateJob((prev) => ({
+					...prev,
+					status: hasPendingLayoutTranslateItems(finalItems)
+						? "partial"
+						: "done",
+					items: finalItems,
+					partialCompletionFailed: false,
+				}));
+			})()
+				.catch((error) => {
+					if (ac.signal.aborted) return;
+					setLayoutTranslateJob((prev) => ({
+						...prev,
+						status: "partial",
+					}));
+					// Sidecar / preparation failures keep their own prompt.
+					notifyError(displayTranslateError(errorText(error)));
+				})
+				.finally(() => {
+					publishes.cancel();
+					if (layoutTranslateAbortRef.current === ac) {
+						if (!ac.signal.aborted) setSourcePreparing(false);
+						layoutTranslateAbortRef.current = null;
+					}
+				});
+		},
+		[
+			layoutRawRegions,
+			paperAbsPath,
+			paperKey,
+			vaultPath,
+			enterWaitingLayout,
+			prepareReflow,
+			startSharedDocumentTranslate,
+			paperRelPath,
+			t,
+		],
+	);
 	/** Cache-miss fallback from the translation pane's hydrate effect. */
 	const startLayoutTranslateRef = useRef(startLayoutTranslate);
 	startLayoutTranslateRef.current = startLayoutTranslate;
@@ -1290,118 +1432,151 @@ export function usePdfLayoutTranslate({
 	 * keep their text and the sidecar is rewritten from the merged result, so a
 	 * partial run can never drop cached translations.
 	 */
-	const completeMissingLayoutTranslate = useCallback(() => {
-		const job = layoutTranslateJobRef.current;
-		if (job.status === "running" || job.status === "waitingLayout") return;
-		const pendingIds = new Set(
-			job.items
-				.filter((item) => !item.translated?.trim())
-				.map((item) => item.id),
-		);
-		if (pendingIds.size === 0) return;
-		if (
-			paperAbsPath &&
-			paperRelPath &&
-			vaultPath &&
-			!vaultPath.startsWith("remote:")
-		) {
-			startSharedDocumentTranslate(false, [...pendingIds]);
-			return;
-		}
-		const cacheKey = job.cacheKey ?? currentLayoutTranslateCacheKey();
-		const snapshot = snapshotTranslatedItems(job.items);
-		layoutTranslateRunEpochRef.current += 1;
-		layoutTranslateAbortRef.current?.abort();
-		const ac = new AbortController();
-		layoutTranslateAbortRef.current = ac;
-		progressFloorRef.current = 0;
-		setPartialDialogOpen(false);
-		setHiddenPageIndexes(new Set());
-		setSourcePreparing(false);
-		setCacheOnly(false);
-		const scopeIds = [...pendingIds];
-		const seed = job.items.map((item) =>
-			pendingIds.has(item.id)
-				? { ...item, status: "running" as const, error: undefined }
-				: item,
-		);
-		setLayoutTranslateJob({
-			...job,
-			status: "running",
-			items: seed,
-			cacheKey,
-			runScope: "pending",
-			reflowPageOnly: false,
-			runScopeIds: scopeIds,
-			partialCompletionFailed: false,
-		});
-		const publishes = createTranslatePublishCoalescer((next) => {
-			if (ac.signal.aborted) return;
-			setLayoutTranslateJob((prev) => ({
-				...prev,
-				status: prev.status === "cancelled" ? "cancelled" : "running",
-				items: next,
-			}));
-		});
-		void (async () => {
-			const finalItems = await runLayoutRegionTranslate({
-				items: seed.map((item) => ({ ...item })),
-				signal: ac.signal,
-				paperKey,
-				vaultPath,
-				onUpdate: (next) => {
-					if (ac.signal.aborted) return;
-					publishes.push(next);
-				},
-			});
-			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
-			const settled = restoreTranslatedItems(finalItems, snapshot);
-			await flushLayoutTranslateSidecar(paperAbsPath, cacheKey, settled);
-			const pending = settled.filter((item) => !item.translated?.trim());
-			setLayoutTranslateJob((prev) => ({
-				...prev,
-				status: pending.length > 0 ? "partial" : "done",
-				items: settled,
+	const beginPendingCompletion = useCallback(
+		(job: LayoutTranslateJobState) => {
+			if (job.status === "running" || job.status === "waitingLayout") return;
+			if (layoutTranslateQueuedRef.current) return;
+			const pendingIds = new Set(
+				job.items
+					.filter((item) => !item.translated?.trim())
+					.map((item) => item.id),
+			);
+			if (pendingIds.size === 0) return;
+			// Claim the run before any await so a second gesture in this turn no-ops.
+			layoutTranslateJobRef.current = { ...job, status: "running" };
+			if (
+				paperAbsPath &&
+				paperRelPath &&
+				vaultPath &&
+				!vaultPath.startsWith("remote:")
+			) {
+				startSharedDocumentTranslate(false, [...pendingIds]);
+				return;
+			}
+			const cacheKey = job.cacheKey ?? currentLayoutTranslateCacheKey();
+			const snapshot = snapshotTranslatedItems(job.items);
+			layoutTranslateRunEpochRef.current += 1;
+			layoutTranslateAbortRef.current?.abort();
+			const ac = new AbortController();
+			layoutTranslateAbortRef.current = ac;
+			progressFloorRef.current = 0;
+			setPartialDialogOpen(false);
+			setHiddenPageIndexes(new Set());
+			setSourcePreparing(false);
+			setCacheOnly(false);
+			const scopeIds = [...pendingIds];
+			const seed = job.items.map((item) =>
+				pendingIds.has(item.id)
+					? { ...item, status: "running" as const, error: undefined }
+					: item,
+			);
+			const runningJob = {
+				...job,
+				status: "running" as const,
+				items: seed,
 				cacheKey,
-				runScope: "pending",
+				scope: "document" as const,
+				runScope: "pending" as const,
+				reflowPageOnly: false,
 				runScopeIds: scopeIds,
-				// Failure keeps the button visible but must not auto-open again.
-				partialCompletionFailed: pending.length > 0,
-			}));
-		})()
-			.catch((error) => {
+				partialCompletionFailed: false,
+			};
+			layoutTranslateJobRef.current = runningJob;
+			setLayoutTranslateJob(runningJob);
+			const publishes = createTranslatePublishCoalescer((next) => {
 				if (ac.signal.aborted) return;
-				// The remaining gaps stay on the partial entry; this prompt is
-				// for the sidecar / preparation failure itself.
-				notifyError(displayTranslateError(errorText(error)));
-				setLayoutTranslateJob((prev) => {
-					const settled = restoreTranslatedItems(
-						resetRunningTranslateItems(prev.items),
-						snapshot,
-					);
-					const pending = settled.filter((item) => !item.translated?.trim());
-					return {
-						...prev,
-						status: "partial",
-						items: settled,
-						partialCompletionFailed: pending.length > 0,
-					};
-				});
-			})
-			.finally(() => {
-				publishes.cancel();
-				if (layoutTranslateAbortRef.current === ac) {
-					if (!ac.signal.aborted) setSourcePreparing(false);
-					layoutTranslateAbortRef.current = null;
-				}
+				setLayoutTranslateJob((prev) => ({
+					...prev,
+					status: prev.status === "cancelled" ? "cancelled" : "running",
+					items: next,
+				}));
 			});
-	}, [
-		paperAbsPath,
-		paperKey,
-		vaultPath,
-		paperRelPath,
-		startSharedDocumentTranslate,
-	]);
+			void (async () => {
+				const finalItems = await runLayoutRegionTranslate({
+					items: seed.map((item) => ({ ...item })),
+					signal: ac.signal,
+					paperKey,
+					vaultPath,
+					onUpdate: (next) => {
+						if (ac.signal.aborted) return;
+						publishes.push(next);
+					},
+				});
+				if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
+				const settled = restoreTranslatedItems(finalItems, snapshot);
+				await flushLayoutTranslateSidecar(paperAbsPath, cacheKey, settled);
+				const pending = settled.filter((item) => !item.translated?.trim());
+				setLayoutTranslateJob((prev) => ({
+					...prev,
+					status: pending.length > 0 ? "partial" : "done",
+					items: settled,
+					cacheKey,
+					runScope: "pending",
+					runScopeIds: scopeIds,
+					// Failure keeps the button visible but must not auto-open again.
+					partialCompletionFailed: pending.length > 0,
+				}));
+			})()
+				.catch((error) => {
+					if (ac.signal.aborted) return;
+					// The remaining gaps stay on the partial entry; this prompt is
+					// for the sidecar / preparation failure itself.
+					notifyError(displayTranslateError(errorText(error)));
+					setLayoutTranslateJob((prev) => {
+						const settled = restoreTranslatedItems(
+							resetRunningTranslateItems(prev.items),
+							snapshot,
+						);
+						const pending = settled.filter((item) => !item.translated?.trim());
+						return {
+							...prev,
+							status: "partial",
+							items: settled,
+							partialCompletionFailed: pending.length > 0,
+						};
+					});
+				})
+				.finally(() => {
+					publishes.cancel();
+					if (layoutTranslateAbortRef.current === ac) {
+						if (!ac.signal.aborted) setSourcePreparing(false);
+						layoutTranslateAbortRef.current = null;
+					}
+				});
+		},
+		[
+			paperAbsPath,
+			paperKey,
+			vaultPath,
+			paperRelPath,
+			startSharedDocumentTranslate,
+		],
+	);
+	beginPendingCompletionRef.current = beginPendingCompletion;
+
+	const completeMissingLayoutTranslate = useCallback(() => {
+		beginPendingCompletion(layoutTranslateJobRef.current);
+	}, [beginPendingCompletion]);
+
+	/**
+	 * Reading-view entry. A running, queued, or layout-wait job is left alone.
+	 * `completePending` is the user gesture into 译文: after the cache paints,
+	 * missing blocks are queued without a second click. Restore omits it.
+	 */
+	const ensureLayoutTranslate = useCallback(
+		(options?: { completePending?: boolean }) => {
+			const job = layoutTranslateJobRef.current;
+			if (
+				job.status === "running" ||
+				job.status === "waitingLayout" ||
+				layoutTranslateQueuedRef.current
+			) {
+				return;
+			}
+			startLayoutTranslate(options);
+		},
+		[startLayoutTranslate],
+	);
 
 	/**
 	 * Re-request the whole document after an explicit confirmation. Every
@@ -1596,13 +1771,17 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
 		setSourcePreparing(false);
+		setLayoutTranslateFailure(null);
 		setHiddenPageIndexes(new Set());
 		layoutTranslateWaitTargetRef.current = null;
+		completePendingAfterLayoutRef.current = false;
 		waitingAutoStartedRef.current = false;
 		progressFloorRef.current = 0;
 		setPartialDialogOpen(false);
+		layoutTranslateJobRef.current = EMPTY_LAYOUT_TRANSLATE_JOB;
 		setLayoutTranslateJob(EMPTY_LAYOUT_TRANSLATE_JOB);
 		sharedTranslateRef.current = null;
+		layoutTranslateQueuedRef.current = false;
 		setLayoutTranslateQueued(false);
 		return () => {
 			layoutTranslateRunEpochRef.current += 1;
@@ -1654,8 +1833,10 @@ export function usePdfLayoutTranslate({
 		waitingAutoStartedRef.current = true;
 		const target = layoutTranslateWaitTargetRef.current;
 		layoutTranslateWaitTargetRef.current = null;
+		const completePending = completePendingAfterLayoutRef.current;
+		completePendingAfterLayoutRef.current = false;
 		if (target?.mode === "page") startPageLayoutTranslate(target.pageIndex);
-		else startLayoutTranslate();
+		else startLayoutTranslate({ completePending });
 	}, [
 		layoutTranslateJob.status,
 		layoutRawRegions,
@@ -1664,8 +1845,8 @@ export function usePdfLayoutTranslate({
 	]);
 
 	// Edge-triggered parse-failure watch while queued: only tasks observed
-	// queued/running during the wait may cancel it — finished rows linger in the
-	// panel store, so a level check would trip on a stale earlier failure.
+	// queued/running during the wait may cancel it — finished rows stay visible
+	// for a short window, so a level check would trip on a stale failure.
 	useEffect(() => {
 		if (layoutTranslateJob.status !== "waitingLayout") return;
 		const fail = () => {
@@ -1978,10 +2159,29 @@ export function usePdfLayoutTranslate({
 	// Keep the entry available while gaps remain, including during page building;
 	// only an in-flight translation or layout wait temporarily hides it.
 	// Page-only gaps remain recoverable from their page tag.
+	// A host failure whose text repeats the partial summary stays on that summary.
+	const layoutTranslateFailureDetail = useMemo(() => {
+		if (!layoutTranslateFailure) return null;
+		if (layoutTranslatePendingRequired <= 0) return layoutTranslateFailure;
+		const echoed = i18n.t("app:tasks.layoutTranslatePartial", {
+			translated: Math.max(
+				0,
+				layoutTranslateJob.items.length - layoutTranslatePendingRequired,
+			),
+			total: layoutTranslateJob.items.length,
+			pending: layoutTranslatePendingRequired,
+		});
+		return layoutTranslateFailure === echoed ? null : layoutTranslateFailure;
+	}, [
+		layoutTranslateFailure,
+		layoutTranslatePendingRequired,
+		layoutTranslateJob.items.length,
+	]);
 	const layoutTranslatePartialVisible =
 		layoutTranslateJob.scope === "document" &&
 		(layoutTranslatePendingRequired > 0 ||
-			layoutTranslateJob.layoutWarnings.length > 0) &&
+			layoutTranslateJob.layoutWarnings.length > 0 ||
+			Boolean(layoutTranslateFailureDetail)) &&
 		!layoutTranslateRunning &&
 		!layoutTranslateWaiting;
 
@@ -2022,6 +2222,7 @@ export function usePdfLayoutTranslate({
 			visible: layoutTranslatePartialVisible,
 			open: partialDialogOpen,
 			completionFailed: layoutTranslateJob.partialCompletionFailed,
+			failureMessage: layoutTranslateFailureDetail,
 			layoutWarningPages: layoutWarningPages || null,
 			layoutWarningCount: layoutWarningPageCount,
 			layoutPageCount: layoutTranslateJob.layoutPageCount,
@@ -2043,6 +2244,7 @@ export function usePdfLayoutTranslate({
 			layoutTranslatePartialVisible,
 			partialDialogOpen,
 			layoutTranslateJob.partialCompletionFailed,
+			layoutTranslateFailureDetail,
 			completeMissingLayoutTranslate,
 			retranslateAllLayoutTranslate,
 			reparseAndTranslateLayout,
@@ -2074,7 +2276,7 @@ export function usePdfLayoutTranslate({
 		 * toggling visibility. The reading-view switch uses this when the reader
 		 * explicitly asks for the translated view.
 		 */
-		ensureLayoutTranslate: startLayoutTranslate,
+		ensureLayoutTranslate,
 		showLayoutTranslate,
 		cancelLayoutTranslate,
 		togglePageLayoutTranslate,

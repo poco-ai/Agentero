@@ -321,7 +321,7 @@ export function TableToolbar({
 					<h1 className="min-w-0">
 						<button
 							type="button"
-							className="block max-w-full truncate rounded px-1 py-1 text-base font-semibold tracking-tight outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+							className="block max-w-full truncate rounded px-1 py-1 text-base font-semibold tracking-tight outline-none hover:bg-muted/60 focus-visible:ring-1 focus-visible:ring-ring"
 							title={table.name}
 							onClick={() => {
 								setName(table.name);

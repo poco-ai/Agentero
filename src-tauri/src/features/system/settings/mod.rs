@@ -20,6 +20,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+mod openreview_account;
+
 pub const DEFAULT_NETWORK_PROXY_URL: &str = "http://127.0.0.1:7890";
 /// Default System One endpoint (TypeSafe jEV). Clef/OpenAI presets override it.
 pub const DEFAULT_DECISION_BASE_URL: &str = "https://api.typesafe.ai/v1/systemone";
@@ -71,6 +73,21 @@ pub fn mask_translate_api_key(key: &str) -> String {
     }
 }
 
+/// AlphaXiv credential kept in Host settings. `api_key` is a secret.
+/// Profile fields stay empty: API keys cannot read `GET /users/v3`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AlphaXivSettings {
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub email: String,
+    #[serde(default)]
+    pub real_name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -80,6 +97,11 @@ pub struct AppSettings {
     /// EasyScholar key for journal ranking and impact-factor lookups.
     #[serde(default)]
     pub easy_scholar_key: String,
+    /// EasyScholar rank systems the Library table and Paper Info may display,
+    /// in canonical order. Every supported system is on by default; an empty
+    /// list hides the metrics without clearing the stored `#easyscholar:` tags.
+    #[serde(default = "default_easy_scholar_ranks")]
+    pub easy_scholar_ranks: Vec<String>,
     /// 知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。
     #[serde(default)]
     pub zhihu_access_secret: String,
@@ -100,6 +122,21 @@ pub struct AppSettings {
     /// `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
     #[serde(default)]
     pub institution_proxy_type: String,
+    /// Cookie captured by the OpenReview verification window (`openreview.*`
+    /// cookies, notably the short-lived `clearanceToken`). Empty = verified by
+    /// nobody yet. Redacted to the frontend and attached only to OpenReview
+    /// hosts by the download layer.
+    #[serde(default)]
+    pub openreview_cookie: String,
+    /// Unix seconds when the captured OpenReview credential expires; `0` when
+    /// the cookie carries no readable expiry. Drives the Settings status dot.
+    #[serde(default)]
+    pub openreview_cookie_expires_at: i64,
+    /// AlphaXiv API key. The key is masked across IPC. A plaintext key in
+    /// `settings_set` is ignored; only [`AppSettingsStore::update_alphaxiv_auth`]
+    /// stores one, after `GET /folders/v3` succeeds. Profile fields stay empty.
+    #[serde(default)]
+    pub alphaxiv: AlphaXivSettings,
     #[serde(default = "default_paper_tree_label_mode")]
     pub paper_tree_label_mode: String,
     #[serde(default = "default_paper_tree_sort_mode")]
@@ -558,12 +595,16 @@ impl Default for AppSettings {
         Self {
             shortcut_overrides: HashMap::new(),
             easy_scholar_key: String::new(),
+            easy_scholar_ranks: default_easy_scholar_ranks(),
             zhihu_access_secret: String::new(),
             network_proxy_enabled: false,
             network_proxy_url: default_network_proxy_url(),
             institution_proxy_prefix: String::new(),
             institution_proxy_cookie: String::new(),
             institution_proxy_type: "auto".to_string(),
+            openreview_cookie: String::new(),
+            openreview_cookie_expires_at: 0,
+            alphaxiv: AlphaXivSettings::default(),
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
@@ -574,7 +615,7 @@ impl Default for AppSettings {
             terminal_app: String::new(),
             pdf_scroll_strategy: default_pdf_scroll_strategy(),
             pdf_vim_keys: true,
-            vim_mode: true,
+            vim_mode: false,
             hint_mode_enabled: true,
             sound_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
@@ -628,6 +669,30 @@ fn default_true() -> bool {
 }
 fn default_network_proxy_url() -> String {
     DEFAULT_NETWORK_PROXY_URL.to_string()
+}
+/// Selectable EasyScholar rank-system ids. Keep in sync with the renderer
+/// registry (`src/lib/paper/easy-scholar-ranks.ts`) and the Host tag projection
+/// in `features/paper/scholar_api/sources/easy_scholar.rs`.
+pub const EASY_SCHOLAR_RANK_IDS: &[&str] = &[
+    "if", "if5", "jci", "sci", "ssci", "eii", "cssci", "pku", "ccf", "fms", "utd24",
+];
+fn default_easy_scholar_ranks() -> Vec<String> {
+    EASY_SCHOLAR_RANK_IDS
+        .iter()
+        .map(|id| (*id).to_string())
+        .collect()
+}
+/// Trim, drop unknown ids, and dedupe while keeping the configured order.
+/// An empty input stays empty: the user chose to hide every rank metric.
+fn normalize_easy_scholar_ranks(raw: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for raw_id in raw {
+        let id = raw_id.trim().to_ascii_lowercase();
+        if EASY_SCHOLAR_RANK_IDS.contains(&id.as_str()) && !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
 }
 fn default_decision_provider() -> String {
     "jev".to_string()
@@ -729,7 +794,7 @@ fn default_ai_response_language() -> String {
     "auto".into()
 }
 fn default_translate_provider() -> String {
-    "tencenttransmart".into()
+    "indextranslate2b".into()
 }
 fn default_connector_port() -> u16 {
     DEFAULT_CONNECTOR_PORT
@@ -1215,6 +1280,110 @@ impl AppSettingsStore {
         Ok(Some(redacted))
     }
 
+    /// Stored OpenReview verification cookie. `None` when the user has not
+    /// completed the browser check yet.
+    pub fn openreview_cookie(&self) -> Option<String> {
+        let guard = self.inner.lock().ok()?;
+        let cookie = guard.openreview_cookie.trim();
+        if cookie.is_empty() || is_translate_api_key_mask(cookie) {
+            None
+        } else {
+            Some(cookie.to_string())
+        }
+    }
+
+    /// Persist the credential captured by the OpenReview verification window
+    /// without overwriting settings another window changed meanwhile. Mirrors
+    /// [`Self::update_institution_proxy_cookie`]: persist, sync the process-wide
+    /// download credential, then notify settings listeners.
+    pub fn update_openreview_auth(
+        &self,
+        cookie: String,
+        expires_at: i64,
+    ) -> Result<Option<AppSettings>, AppError> {
+        let cookie =
+            agentero_core::features::paper::import::openreview::verification_cookies(&cookie);
+        let redacted = {
+            let mut guard = self
+                .inner
+                .lock()
+                .map_err(|_| AppError::message("settings lock poisoned"))?;
+            let mut next = guard.clone();
+            next.openreview_cookie = cookie.clone();
+            next.openreview_cookie_expires_at = expires_at.max(0);
+            persist(&self.path, &next)?;
+            *guard = next.clone();
+            redact_secrets(next)
+        };
+        agentero_core::features::paper::import::openreview::set_openreview_cookie(&cookie);
+        self.notify(&redacted);
+        Ok(Some(redacted))
+    }
+
+    /// Stored AlphaXiv API key. `None` when unset or when the value is still
+    /// a UI mask, so a probe never sends `*`.
+    pub fn alphaxiv_api_key(&self) -> Option<String> {
+        let guard = self.inner.lock().ok()?;
+        let key = guard.alphaxiv.api_key.trim();
+        if key.is_empty() || is_translate_api_key_mask(key) {
+            None
+        } else {
+            Some(key.to_string())
+        }
+    }
+
+    /// Persist a key that already passed `GET /folders/v3`. That response has
+    /// no account, so the profile fields are stored as given. The snapshot
+    /// echoed to the WebView is masked.
+    pub fn update_alphaxiv_auth(
+        &self,
+        api_key: String,
+        username: String,
+        email: String,
+        real_name: String,
+    ) -> Result<AppSettings, AppError> {
+        let api_key = api_key.trim().to_string();
+        if api_key.is_empty() || is_translate_api_key_mask(&api_key) {
+            return Err(AppError::domain(
+                "alphaxiv_key_missing",
+                "AlphaXiv API key is not set",
+            ));
+        }
+        let redacted = {
+            let mut guard = self
+                .inner
+                .lock()
+                .map_err(|_| AppError::message("settings lock poisoned"))?;
+            let mut next = guard.clone();
+            next.alphaxiv.api_key = api_key;
+            next.alphaxiv.username = username.trim().to_string();
+            next.alphaxiv.email = email.trim().to_string();
+            next.alphaxiv.real_name = real_name.trim().to_string();
+            persist(&self.path, &next)?;
+            *guard = next.clone();
+            redact_secrets(next)
+        };
+        self.notify(&redacted);
+        Ok(redacted)
+    }
+
+    /// Drop the AlphaXiv key and the saved profile.
+    pub fn clear_alphaxiv_auth(&self) -> Result<AppSettings, AppError> {
+        let redacted = {
+            let mut guard = self
+                .inner
+                .lock()
+                .map_err(|_| AppError::message("settings lock poisoned"))?;
+            let mut next = guard.clone();
+            next.alphaxiv = AlphaXivSettings::default();
+            persist(&self.path, &next)?;
+            *guard = next.clone();
+            redact_secrets(next)
+        };
+        self.notify(&redacted);
+        Ok(redacted)
+    }
+
     /// Resolve the configured EasyScholar key. Returns None when unset or when
     /// the stored value is a UI mask (`*`-only), so probes never send masks.
     pub fn easy_scholar_key(&self) -> Option<String> {
@@ -1327,6 +1496,12 @@ fn redact_secrets(mut settings: AppSettings) -> AppSettings {
     if !settings.decision.api_key.trim().is_empty() {
         settings.decision.api_key = mask_translate_api_key(&settings.decision.api_key);
     }
+    if !settings.openreview_cookie.trim().is_empty() {
+        settings.openreview_cookie = mask_translate_api_key(&settings.openreview_cookie);
+    }
+    if !settings.alphaxiv.api_key.trim().is_empty() {
+        settings.alphaxiv.api_key = mask_translate_api_key(&settings.alphaxiv.api_key);
+    }
     settings
 }
 
@@ -1366,6 +1541,31 @@ fn merge_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
     if is_translate_api_key_mask(&incoming.decision.api_key) {
         incoming.decision.api_key = previous.decision.api_key.clone();
     }
+    if is_translate_api_key_mask(&incoming.openreview_cookie) {
+        incoming.openreview_cookie = previous.openreview_cookie.clone();
+        // The expiry travels with the cookie so the status cannot claim a
+        // fresh credential while the old one is still in place.
+        incoming.openreview_cookie_expires_at = previous.openreview_cookie_expires_at;
+    } else if incoming.openreview_cookie.trim().is_empty() {
+        incoming.openreview_cookie_expires_at = 0;
+    }
+    // Plaintext never lands through `settings_set`. The validated write path
+    // is `update_alphaxiv_auth`. An empty key is an explicit disconnect.
+    if is_translate_api_key_mask(&incoming.alphaxiv.api_key) {
+        incoming.alphaxiv.api_key = previous.alphaxiv.api_key.clone();
+        if incoming.alphaxiv.username.is_empty()
+            && incoming.alphaxiv.email.is_empty()
+            && incoming.alphaxiv.real_name.is_empty()
+        {
+            incoming.alphaxiv.username = previous.alphaxiv.username.clone();
+            incoming.alphaxiv.email = previous.alphaxiv.email.clone();
+            incoming.alphaxiv.real_name = previous.alphaxiv.real_name.clone();
+        }
+    } else if incoming.alphaxiv.api_key.trim().is_empty() {
+        incoming.alphaxiv = AlphaXivSettings::default();
+    } else {
+        incoming.alphaxiv.api_key = previous.alphaxiv.api_key.clone();
+    }
 }
 
 /// Cap a translate template and drop placeholders other than
@@ -1391,6 +1591,7 @@ fn normalize(s: &mut AppSettings) {
         .to_ascii_lowercase();
     s.mcp_tunnel_api_key = s.mcp_tunnel_api_key.trim().to_string();
     s.easy_scholar_key = s.easy_scholar_key.trim().to_string();
+    s.easy_scholar_ranks = normalize_easy_scholar_ranks(&s.easy_scholar_ranks);
     s.zhihu_access_secret = s.zhihu_access_secret.trim().to_string();
     s.decision.api_key = s.decision.api_key.trim().to_string();
     let provider = s.decision.provider.trim().to_ascii_lowercase();
@@ -1460,6 +1661,24 @@ fn normalize(s: &mut AppSettings) {
         &s.institution_proxy_prefix,
         &s.institution_proxy_cookie,
     );
+    s.alphaxiv.api_key = s.alphaxiv.api_key.trim().to_string();
+    s.alphaxiv.username = s.alphaxiv.username.trim().to_string();
+    s.alphaxiv.email = s.alphaxiv.email.trim().to_string();
+    s.alphaxiv.real_name = s.alphaxiv.real_name.trim().to_string();
+    if s.alphaxiv.api_key.is_empty() {
+        s.alphaxiv.username.clear();
+        s.alphaxiv.email.clear();
+        s.alphaxiv.real_name.clear();
+    }
+    s.openreview_cookie = agentero_core::features::paper::import::openreview::verification_cookies(
+        &s.openreview_cookie,
+    );
+    s.openreview_cookie_expires_at = if s.openreview_cookie.is_empty() {
+        0
+    } else {
+        s.openreview_cookie_expires_at.max(0)
+    };
+    agentero_core::features::paper::import::openreview::set_openreview_cookie(&s.openreview_cookie);
 
     const LABEL_MODES: &[&str] = &["title-author", "title", "author-year-title", "folder"];
     if !LABEL_MODES.contains(&s.paper_tree_label_mode.as_str()) {
@@ -1777,6 +1996,40 @@ mod tests {
     }
 
     #[test]
+    fn captured_openreview_cookie_is_masked_but_kept_across_echoes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = AppSettingsStore {
+            inner: Mutex::new(AppSettings {
+                openreview_cookie: "old=1".into(),
+                openreview_cookie_expires_at: 1,
+                theme: "dark".into(),
+                ..AppSettings::default()
+            }),
+            path: dir.path().join("settings.json"),
+            listeners: Mutex::new(Vec::new()),
+        };
+        let snapshot = store
+            .update_openreview_auth("openreview.clearanceToken=fresh".into(), 1_800_000_000)
+            .unwrap()
+            .expect("settings snapshot");
+        // The WebView only sees the mask; the durable file keeps the cookie.
+        assert!(is_translate_api_key_mask(&snapshot.openreview_cookie));
+        assert_eq!(snapshot.openreview_cookie_expires_at, 1_800_000_000);
+        let (saved, _) = read_file(&store.path);
+        assert_eq!(saved.openreview_cookie, "openreview.clearanceToken=fresh");
+        assert_eq!(saved.openreview_cookie_expires_at, 1_800_000_000);
+        assert_eq!(saved.theme, "dark");
+
+        // A later settings write echoes the mask; the real cookie must survive.
+        let mut echoed = saved.clone();
+        echoed.openreview_cookie = mask_translate_api_key("openreview.clearanceToken=fresh");
+        store.set(echoed).unwrap();
+        let (saved, _) = read_file(&store.path);
+        assert_eq!(saved.openreview_cookie, "openreview.clearanceToken=fresh");
+        assert_eq!(saved.openreview_cookie_expires_at, 1_800_000_000);
+    }
+
+    #[test]
     fn roundtrip_defaults() {
         let n = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1792,14 +2045,14 @@ mod tests {
         assert_eq!(loaded.theme, "system");
         assert_eq!(loaded.auto_update_internal_links, "ask");
         assert_eq!(loaded.paper_note_mode, "standard");
-        assert!(loaded.vim_mode);
+        assert!(!loaded.vim_mode);
         assert!(!loaded.onboarding_done);
         assert!(!loaded.feature_tour_done);
         // Persisted wire shape is camelCase: the settings window sends
         // `vimMode` and expects it back, otherwise the switch snaps back on.
         let json: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(json["vimMode"], serde_json::json!(true));
+        assert_eq!(json["vimMode"], serde_json::json!(false));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -2625,7 +2878,7 @@ mod tests {
         let path = dir.path().join("settings.json");
         let (s, existed) = read_file(&path);
         assert!(!existed);
-        assert_eq!(s.translate.provider, "tencenttransmart");
+        assert_eq!(s.translate.provider, "indextranslate2b");
         assert_eq!(s.layout.parser_backend, "local");
         assert_eq!(s.layout.backend, "local");
 
@@ -2692,7 +2945,7 @@ mod tests {
             }
             let (settings, existed) = read_file(&path);
             assert_eq!(existed, raw.is_some());
-            assert_eq!(settings.translate.provider, "tencenttransmart");
+            assert_eq!(settings.translate.provider, "indextranslate2b");
             persist(&path, &settings).unwrap();
             let (reloaded, existed) = read_file(&path);
             assert!(existed);

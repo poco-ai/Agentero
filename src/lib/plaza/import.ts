@@ -22,6 +22,7 @@ import { enqueueTaskSettled, type TaskExecutorContext } from "@/lib/core/tasks";
 import { lookupSubmit } from "@/lib/paper/import-actions";
 import { currentLookupParentDir } from "@/lib/paper/library-actions";
 import { refreshLibrary } from "@/lib/paper/library-store";
+import { notifyOpenReviewDownloadIssue } from "@/lib/paper/openreview-download";
 import { getVaultPath, refreshTree } from "@/lib/vault/store";
 
 export type PlazaImportRequest = {
@@ -35,10 +36,8 @@ export type PlazaImportRequest = {
 };
 
 /**
- * The 魔棒 import settles through `onComplete`, which this frame does not
- * await, so a failure in there never reaches our `catch`. Settle regardless
- * after this long so the row cannot stay stuck pending; the tasks panel still
- * reports the real error. A retry is harmless — the Host dedupes by id.
+ * Bound the wait for the lookup job so the row can be retried even when the
+ * task does not settle. The Host dedupes retries by paper ID.
  */
 const SETTLE_TIMEOUT_MS = 120_000;
 
@@ -81,11 +80,17 @@ function importViaLookup(
 		}
 		void lookupSubmit([request.url], {
 			parentDir,
-			onComplete: (result) => settle(result.imported.length > 0),
-		}).catch((error) => {
-			notifyError(errorText(error));
-			settle(false);
-		});
+			onComplete: (result) =>
+				settle(
+					result.imported.length > 0 ||
+						result.skipped.some((row) => row.reason === "already_in_library"),
+				),
+		})
+			.then(() => settle(false))
+			.catch((error) => {
+				notifyError(errorText(error));
+				settle(false);
+			});
 	});
 }
 
@@ -190,7 +195,15 @@ export async function runPlazaImportJob(
 		if (result.pdf) notifySuccess(i18n.t("app:plazaImport.imported", { name }));
 		// The unit is in the library; only the PDF is missing. Say so instead of
 		// reporting a clean success the user would later find untrue.
-		else notifyWarning(i18n.t("app:plazaImport.importedNoPdf", { name }));
+		else if (result.openreviewPdfIssue) {
+			notifyOpenReviewDownloadIssue(
+				vaultPath,
+				result.path,
+				result.openreviewPdfIssue,
+			);
+		} else {
+			notifyWarning(i18n.t("app:plazaImport.importedNoPdf", { name }));
+		}
 		return;
 	}
 	notifyWarning(

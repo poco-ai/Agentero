@@ -41,6 +41,7 @@ import {
 	setLibraryPapers,
 	setLibraryRescanning,
 } from "@/lib/paper/library-store";
+import { isOpenReviewDownloadFailure } from "@/lib/paper/openreview-download";
 import {
 	maybeAutoRunPaperReader,
 	paperAssetsReadyForReader,
@@ -48,6 +49,7 @@ import {
 } from "@/lib/paper/reader";
 import type { FileNode } from "@/lib/vault";
 import { joinVaultPath, readVaultFile } from "@/lib/vault";
+import { normalizePathKey } from "@/lib/vault/path";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { getVaultPath, refreshTree, vaultStore } from "@/lib/vault/store";
 import { toVaultRelative } from "@/lib/wiki";
@@ -233,7 +235,7 @@ export async function downloadPaperAssetsAction(node: FileNode): Promise<void> {
 				});
 		}
 	} catch (e) {
-		notifyError(errorText(e));
+		if (!isOpenReviewDownloadFailure(e)) notifyError(errorText(e));
 	}
 }
 
@@ -299,7 +301,57 @@ export async function downloadLibraryPaper(
 	try {
 		await runPaperAssetsDownload(vaultPath, rel);
 	} catch (e) {
+		if (!isOpenReviewDownloadFailure(e)) notifyError(errorText(e));
+	}
+}
+
+/** Papers whose `webpage.html` snapshot is being re-fetched; dedupes submits. */
+const recapturingWebpages = new Set<string>();
+
+/**
+ * Re-fetch the offline snapshot of an HTML-imported paper
+ * (`<paperDir>/webpage.html`). Success refreshes the tree/library and points
+ * open paper tabs at the new snapshot; the Host owns the fetch and sanitizing.
+ */
+export async function recaptureWebpageSnapshot(
+	vaultPath: string | null,
+	paper: PaperMetadata,
+): Promise<void> {
+	if (!vaultPath || isRemoteVaultHandle(vaultPath)) return;
+	const rel = (paper.path ?? "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+	if (!rel || recapturingWebpages.has(rel)) return;
+	recapturingWebpages.add(rel);
+	try {
+		await callApiResult(() => commands.paperRecaptureWebpage(vaultPath, rel), {
+			fallback: "webpage recapture failed",
+		});
+		const paperAbs = joinVaultPath(vaultPath, rel);
+		const archivePath = joinVaultPath(paperAbs, "webpage.html");
+		setTabs((prev) =>
+			prev.map((tab) => {
+				const samePaper =
+					normalizePathKey(tab.path) === normalizePathKey(paperAbs) ||
+					Boolean(
+						tab.paperMeta?.path &&
+							tab.paperMeta.path
+								.replace(/\\/g, "/")
+								.replace(/^\/+|\/+$/g, "") === rel,
+					);
+				if (!samePaper) return tab;
+				return {
+					...tab,
+					htmlArchivePath: archivePath,
+					htmlKey: tab.htmlKey + 1,
+				};
+			}),
+		);
+		await refreshTree(vaultPath);
+		await refreshLibrary();
+		notifySuccess(i18n.t("sidebar:papersLibrary.recaptureWebpageDone"));
+	} catch (e) {
 		notifyError(errorText(e));
+	} finally {
+		recapturingWebpages.delete(rel);
 	}
 }
 

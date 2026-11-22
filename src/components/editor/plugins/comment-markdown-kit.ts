@@ -1,8 +1,8 @@
 /**
  * Reduced Plate kit for small Markdown editors embedded outside the note
  * editor (PDF comment cards): marks with their Markdown input rules, lists
- * ("- " grows a bullet), blockquotes, and the plain paragraph. Deliberately
- * excludes the wikilink / embed / table / math plugins so the viewer layer
+ * ("- " grows a bullet), blockquotes, and equations. Deliberately
+ * excludes the wikilink / embed / table plugins so the viewer layer
  * can mount it without importing the wiki-embed graph (which reaches back
  * into viewer/pdf and would close a dependency cycle).
  */
@@ -34,7 +34,9 @@ import { KEYS, TrailingBlockPlugin } from "platejs";
 import { ParagraphPlugin } from "platejs/react";
 import { BlockList } from "@/components/editor/nodes/block/list-node";
 import { ParagraphElement } from "@/components/editor/nodes/block/paragraph-node";
+import { EquationKit } from "@/components/editor/plugins/equation-kit";
 import { MARKDOWN_REMARK_PLUGINS } from "@/lib/markdown/remark-plugins";
+import { texDelimiterMarkdownRules } from "@/lib/markdown/serialize";
 
 const commentListTargets = [KEYS.p, KEYS.blockquote];
 
@@ -110,8 +112,12 @@ export const CommentMarkdownKit = [
 		},
 		render: { belowNodes: BlockList },
 	}),
+	...EquationKit,
 	TrailingBlockPlugin,
 	MarkdownPlugin.configure({
-		options: { remarkPlugins: MARKDOWN_REMARK_PLUGINS },
+		options: {
+			remarkPlugins: MARKDOWN_REMARK_PLUGINS,
+			rules: { ...texDelimiterMarkdownRules },
+		},
 	}),
 ];

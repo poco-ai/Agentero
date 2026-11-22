@@ -34,6 +34,7 @@ import {
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
 import {
+	jobFailureMessage,
 	jobReport,
 	registerJobExecutor,
 	requestJobCancel,
@@ -348,12 +349,19 @@ export async function enqueueTaskSettled(spec: TaskSpec): Promise<JobSnapshot> {
 	return awaitTaskSettled(await enqueueTask(spec));
 }
 
+export class JobFailedError extends Error {
+	constructor(readonly job: JobSnapshot) {
+		super(jobFailureMessage(job) || i18n.t("app:tasks.failed"));
+		this.name = "JobFailedError";
+	}
+}
+
 /** Settle an already-enqueued job (for callers that need the job id first). */
 export async function awaitTaskSettled(job: JobSnapshot): Promise<JobSnapshot> {
 	const terminal = await terminalSnapshot(job);
 	if (terminal.state === "cancelled") throw new BackgroundTaskCancelledError();
 	if (terminal.state === "failed") {
-		throw new Error(terminal.error?.trim() || i18n.t("app:tasks.failed"));
+		throw new JobFailedError(terminal);
 	}
 	return terminal;
 }
@@ -378,7 +386,7 @@ export type TaskExecutorContext = {
 	paperPath: string | null;
 	force: boolean;
 	params: Json | null;
-	/** Aborts when `job:changed` reports this job cancelled. */
+	/** Aborts when this job is cancelled or failed, and when the task runtime unloads. */
 	signal: AbortSignal;
 	report: (args: TaskReportArgs) => Promise<void>;
 };
@@ -417,13 +425,23 @@ export function registerTaskExecutor(
 	registerJobExecutor(kind, (offer) => runTaskExecutor(offer, executor));
 }
 
+const activeExecutors = new Set<AbortController>();
+
+function abortTaskExecutors(): void {
+	for (const controller of activeExecutors) controller.abort();
+}
+
 function runTaskExecutor(
 	offer: JobOfferPayload,
 	executor: TaskExecutor,
 ): Promise<void> {
 	const controller = new AbortController();
+	activeExecutors.add(controller);
 	const dispose = listenEventSafe(events.jobChanged, ({ job }) => {
-		if (job.id === offer.jobId && job.state === "cancelled") {
+		if (
+			job.id === offer.jobId &&
+			(job.state === "cancelled" || job.state === "failed")
+		) {
 			controller.abort();
 		}
 	});
@@ -435,8 +453,22 @@ function runTaskExecutor(
 		force: offer.force,
 		params: offer.params,
 		signal: controller.signal,
-		report: (args) => jobReport({ jobId: offer.jobId, ...args }),
-	}).finally(dispose);
+		report: (args) => {
+			// Host failure and window unload already ended this job. A late
+			// success must not be written onto it. `job_report` on a settled
+			// job is already a no-op; this keeps that result from being sent.
+			if (
+				controller.signal.aborted &&
+				(args.state === "succeeded" || args.state === "skipped")
+			) {
+				return Promise.resolve();
+			}
+			return jobReport({ jobId: offer.jobId, ...args });
+		},
+	}).finally(() => {
+		activeExecutors.delete(controller);
+		dispose();
+	});
 }
 
 /**
@@ -446,7 +478,17 @@ export function startTaskRuntime(): () => void {
 	startJobCenterExecutorListener();
 	startJobTaskProjection();
 	startJobProgressListener();
+	// Webview close does not always run the React unmount that owns this
+	// disposer. `pagehide` is the existing window-lifetime signal.
+	const onPageHide = () => abortTaskExecutors();
+	if (typeof window !== "undefined") {
+		window.addEventListener("pagehide", onPageHide);
+	}
 	return () => {
+		if (typeof window !== "undefined") {
+			window.removeEventListener("pagehide", onPageHide);
+		}
+		abortTaskExecutors();
 		stopJobCenterExecutorListener();
 		stopJobTaskProjection();
 		stopJobProgressListener();

@@ -9,6 +9,7 @@ pub mod sources;
 pub use crate::features::paper::analyze::parse as pdf_parse;
 
 pub mod api_mapper;
+pub mod page_snapshot;
 pub mod webpage;
 pub use crate::features::scholar_api::identifiers::doi_slug;
 pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_record};
@@ -16,15 +17,17 @@ pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_r
 pub mod code_repo;
 pub mod download;
 pub mod institution_proxy;
+pub mod openreview;
 pub mod recognize;
 pub mod search_router;
 pub mod skill;
+pub mod web_verify;
 
 pub use crate::features::paper::capabilities::{has_local_pdf, has_local_tex};
 pub use download::{
     download_paper_assets, download_paper_assets_with_progress, ensure_paper_assets,
     ensure_paper_assets_with_cookies, ensure_paper_assets_with_progress, AssetDownloadResult,
-    AssetProgressContext,
+    AssetProgressContext, OpenReviewPdfIssue,
 };
 // Stable top-level API for the desktop connector (`integration/connector`):
 // commit pipeline entry point + policies. Consumers must not reach into the
@@ -56,7 +59,7 @@ pub use pdf_parse::CANCELLED_MESSAGE;
 pub use crate::app_handle::AppHandle;
 use crate::error::AppError;
 use crate::features::catalog::{
-    papers::{self, PaperRecord},
+    papers::{self, PaperKind, PaperRecord},
     CapsCache,
 };
 use crate::features::import::download::{AssetDownloadProgress, JOB_PROGRESS_EVENT};
@@ -254,6 +257,8 @@ pub struct LookupImportResult {
     /// Download / parse messages (for UI warnings).
     #[serde(default)]
     pub asset_messages: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub openreview_pdf_issue: Option<OpenReviewPdfIssue>,
     /// `Deduped` when the paper already existed and (for local PDFs) the PDF
     /// was merged into the existing entry instead of creating a duplicate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -344,6 +349,7 @@ pub async fn import_by_identifier_with_progress(
         record: meta,
         used_translator,
         notices,
+        page_snapshot: snapshot_plan,
     } = resolved;
 
     let commit = paper_commit(
@@ -369,26 +375,82 @@ pub async fn import_by_identifier_with_progress(
     )
     .await?;
     check_task_not_cancelled(args.task_id.as_deref())?;
+    let is_openreview = sources::openreview::forum_url(text).is_some();
+    if commit.status == paper_import::CommitStatus::Deduped && commit.pdf && is_openreview {
+        let pdf = crate::features::paper::capabilities::probe_paper_caps(&vault.join(&commit.path))
+            .pdf_path;
+        webpage::fill_openreview_metadata(
+            &vault,
+            &commit.path,
+            pdf.as_deref(),
+            args.task_id.as_deref(),
+        )
+        .await;
+    }
+    // A webpage entry is only "readable offline" once its snapshot exists;
+    // dedupe of an older URL-only entry repairs it here.
+    let snapshot_written =
+        apply_page_snapshot(&vault, &commit.path, &commit.title, snapshot_plan, cache).await;
 
+    let title = if is_openreview {
+        papers::get_by_path(&vault, &commit.path)
+            .ok()
+            .flatten()
+            .map(|paper| paper.title)
+            .unwrap_or(commit.title)
+    } else {
+        commit.title
+    };
     Ok(LookupImportResult {
         paper_dir: commit.paper_dir,
         path: commit.path,
         id: commit.id,
-        title: commit.title,
+        title,
         used_translator,
         translator_base_url: base,
         pdf: commit.pdf,
         tex: commit.tex,
-        paper_md: commit.paper_md,
+        paper_md: commit.paper_md || snapshot_written,
         asset_messages: {
             let mut messages = commit.asset_messages;
             messages.extend(notices);
             messages
         },
+        openreview_pdf_issue: commit.openreview_pdf_issue,
         status: Some(commit.status),
         recognize_pending: false,
         preparation: commit.preparation,
     })
+}
+
+/// Re-fetch the readable page snapshot of one webpage entry, replacing
+/// `webpage.html` and `PAPER.md` in its folder.
+///
+/// This is the retry path for entries imported while the origin was
+/// unreachable (a bare URL in the library) or for pages whose body has since
+/// changed. Errors are user-visible: the caller reports them.
+pub async fn recapture_webpage_snapshot(
+    vault: &Path,
+    paper_rel: &str,
+    cache: Option<&CapsCache>,
+) -> Result<u64, AppError> {
+    let record = papers::get_by_path(vault, paper_rel)?
+        .ok_or_else(|| AppError::message("paper not found"))?;
+    if record.paper_type != PaperKind::Html {
+        return Err(AppError::domain(
+            "not_webpage",
+            "only webpage entries store a page snapshot",
+        ));
+    }
+    let url = webpage::page_snapshot_url(&record).ok_or_else(|| {
+        AppError::domain("webpage_url_missing", "webpage entry has no source URL")
+    })?;
+    let bytes =
+        page_snapshot::fetch_and_write(&vault.join(&record.path), &url, &record.title).await?;
+    if let Some(cache) = cache {
+        cache.invalidate(vault, &record.path);
+    }
+    Ok(bytes)
 }
 
 /// Batch import multiple identifiers with deduplication.
@@ -772,7 +834,10 @@ async fn import_one_local_pdf(
 
     let sync_probe = if ctx.recognize_sync && !dialog_meta {
         let translator_base = ctx.translator_base_url.unwrap_or("");
-        let probe = recognize::recognize_and_resolve(&src, translator_base, ctx.task_id).await;
+        let probe =
+            recognize::recognize_and_resolve(&src, translator_base, ctx.task_id, Some(&title))
+                .await;
+        check_task_not_cancelled(ctx.task_id)?;
         if let Some(canon) = recognize::canonical_base_id(&probe) {
             base_id = canon;
         }
@@ -920,6 +985,7 @@ async fn import_one_local_pdf(
         tex: commit.tex,
         paper_md: commit.paper_md,
         asset_messages: commit.asset_messages,
+        openreview_pdf_issue: commit.openreview_pdf_issue,
         status: Some(commit.status),
         recognize_pending,
         preparation,
@@ -1028,6 +1094,19 @@ pub fn allocate_paper_path(
     }
 }
 
+/// What to do about the readable snapshot of a web page (see
+/// [`page_snapshot`]): the offline `.html` and `PAPER.md` body that make a
+/// collected page a first-class library object.
+pub enum PageSnapshotPlan {
+    /// Not a webpage: nothing to archive.
+    Skip,
+    /// The page was already fetched while resolving the metadata.
+    Ready(page_snapshot::PageSnapshot),
+    /// Fetch this URL once the paper folder exists (Translator produced the
+    /// metadata without the page body; also the re-import repair path).
+    Fetch(String),
+}
+
 /// Metadata resolved for an import, plus whether the Translator Runtime
 /// produced it and any diagnostic notices for the UI.
 pub struct ResolvedMetadata {
@@ -1036,6 +1115,8 @@ pub struct ResolvedMetadata {
     /// Stable tokens such as `translator_degraded|503|1102|page|<host>`.
     /// The desktop shell translates them; they are not raw user copy.
     pub notices: Vec<String>,
+    /// Readable page snapshot to store beside the paper (webpage imports).
+    pub page_snapshot: PageSnapshotPlan,
 }
 
 pub async fn resolve_metadata(
@@ -1043,28 +1124,114 @@ pub async fn resolve_metadata(
     translator_base: &str,
     task_id: Option<&str>,
 ) -> Result<ResolvedMetadata, AppError> {
+    let openreview_forum = sources::openreview::forum_url(text);
+    if let Some((id, forum)) = &openreview_forum {
+        check_task_not_cancelled(task_id)?;
+        if let Some(record) = sources::openreview::lookup_metadata(id, forum).await {
+            check_task_not_cancelled(task_id)?;
+            return Ok(ResolvedMetadata {
+                record,
+                used_translator: false,
+                notices: Vec::new(),
+                page_snapshot: PageSnapshotPlan::Skip,
+            });
+        }
+    }
     // Prefer Translator Runtime. A failure is not fatal for a web URL: the
     // identifier chains run next, and a page with no DOI / arXiv / PMID is
     // imported from the page itself.
     let mut resolved = match translator_fetch(text, translator_base, task_id).await {
         Ok(record) => {
             check_task_not_cancelled(task_id)?;
+            // A webpage item from the Translator has metadata but no body; the
+            // commit fetches the readable snapshot once the folder exists.
+            let plan = match webpage::page_snapshot_url(&record) {
+                Some(url) => PageSnapshotPlan::Fetch(url),
+                None => PageSnapshotPlan::Skip,
+            };
             ResolvedMetadata {
                 record,
                 used_translator: true,
                 notices: Vec::new(),
+                page_snapshot: plan,
             }
         }
         Err(failure) => webpage::recover_metadata(text, translator_base, task_id, failure).await?,
     };
-    if let Some(request) = crate::features::scholar_api::identifiers::extract_arxiv_request(text) {
+    if let Some((id, forum)) = openreview_forum {
+        // A successful Translator response may describe the gate or label a forum as a webpage.
+        if sources::openreview::is_stub(&resolved.record, &id) {
+            resolved.record = sources::openreview::url_only_record(&id, forum);
+            resolved.used_translator = false;
+        } else {
+            resolved.record.paper_type = PaperKind::Pdf;
+            if resolved.record.zotero_item_type.as_deref() == Some("webpage") {
+                resolved.record.zotero_item_type = Some("conferencePaper".into());
+            }
+            resolved.record.pdf_url = sources::openreview::pdf_url(forum.as_str());
+            resolved.record.source_url = Some(forum.into());
+        }
+        resolved.page_snapshot = PageSnapshotPlan::Skip;
+    } else if let Some(request) =
+        crate::features::scholar_api::identifiers::extract_arxiv_request(text)
+    {
         resolved.record.arxiv_id = Some(strip_arxiv_version(&request));
         let urls = crate::features::scholar_api::urls::arxiv_canonical_urls(&request);
         resolved.record.pdf_url = Some(urls.pdf);
         resolved.record.html_url = Some(urls.html);
         resolved.record.source_url = Some(urls.abs);
+        // An arXiv item is a paper, not a collected page.
+        resolved.page_snapshot = PageSnapshotPlan::Skip;
     }
     Ok(resolved)
+}
+
+/// Store the readable snapshot for a committed webpage import.
+///
+/// Best effort by design: a page that cannot be re-fetched must not fail the
+/// import that already created the entry. Existing snapshots are kept on
+/// dedupe (an ordinary re-import is a no-op); the recapture command rewrites
+/// them explicitly. Returns whether a snapshot was written.
+async fn apply_page_snapshot(
+    vault: &Path,
+    paper_rel: &str,
+    title: &str,
+    plan: PageSnapshotPlan,
+    cache: Option<&CapsCache>,
+) -> bool {
+    let dir = vault.join(paper_rel);
+    let outcome = match plan {
+        PageSnapshotPlan::Skip => return false,
+        PageSnapshotPlan::Ready(snapshot) => {
+            if page_snapshot::snapshot_present(&dir) {
+                return false;
+            }
+            page_snapshot::write_snapshot(&dir, &snapshot).map(|_| ())
+        }
+        PageSnapshotPlan::Fetch(url) => {
+            if page_snapshot::snapshot_present(&dir) {
+                return false;
+            }
+            page_snapshot::fetch_and_write(&dir, &url, title)
+                .await
+                .map(|_| ())
+        }
+    };
+    match outcome {
+        Ok(()) => {
+            if let Some(cache) = cache {
+                cache.invalidate(vault, paper_rel);
+            }
+            true
+        }
+        Err(err) => {
+            log::warn!(
+                target: "agentero::lookup",
+                "page snapshot for {paper_rel} failed: {err}"
+            );
+            false
+        }
+    }
 }
 
 async fn translator_fetch(
@@ -1990,6 +2157,79 @@ mod tests {
         fs::write(&path, "user template").unwrap();
         assert!(!seed_notes_template(&vault).unwrap());
         assert_eq!(fs::read_to_string(&path).unwrap(), "user template");
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[tokio::test]
+    async fn page_snapshot_is_written_once_and_never_fails_the_import() {
+        let vault = note_shell_tmp_dir("page-snapshot");
+        let rel = "papers/page";
+        let dir = vault.join(rel);
+        let snapshot = page_snapshot::PageSnapshot {
+            html: "<!doctype html><p>body</p>".into(),
+            markdown: "# Title\n\nbody".into(),
+        };
+
+        let wrote = apply_page_snapshot(
+            &vault,
+            rel,
+            "Title",
+            PageSnapshotPlan::Ready(snapshot.clone()),
+            None,
+        )
+        .await;
+        assert!(wrote);
+        assert!(dir.join(page_snapshot::WEBPAGE_HTML_FILE).is_file());
+        assert!(dir.join(page_snapshot::WEBPAGE_BODY_FILE).is_file());
+
+        // Re-import of an archived page keeps the existing files (no rewrite).
+        fs::write(dir.join(page_snapshot::WEBPAGE_BODY_FILE), "kept").unwrap();
+        let wrote_again = apply_page_snapshot(
+            &vault,
+            rel,
+            "Title",
+            PageSnapshotPlan::Ready(snapshot),
+            None,
+        )
+        .await;
+        assert!(!wrote_again);
+        assert_eq!(
+            fs::read_to_string(dir.join(page_snapshot::WEBPAGE_BODY_FILE)).unwrap(),
+            "kept"
+        );
+
+        // Non-webpage imports do nothing.
+        assert!(!apply_page_snapshot(&vault, rel, "Title", PageSnapshotPlan::Skip, None).await);
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[tokio::test]
+    async fn recapture_rejects_entries_that_have_no_page_snapshot() {
+        let vault = note_shell_tmp_dir("recapture-guard");
+        // A PDF entry has no readable page snapshot to recapture.
+        let mut pdf = papers::PaperRecord::local_pdf("pdf-entry".into(), "PDF entry".into());
+        pdf.source_url = Some("https://example.com/paper.pdf".into());
+        papers::upsert_paper(&vault, &pdf.at_path("papers/pdf-entry")).unwrap();
+        let err = recapture_webpage_snapshot(&vault, "papers/pdf-entry", None)
+            .await
+            .expect_err("PDF entries are rejected");
+        assert_eq!(err.code(), "not_webpage");
+
+        // A webpage without a source address has nothing to fetch.
+        let mut page = papers::PaperRecord::local_pdf("page-entry".into(), "Page entry".into());
+        page.paper_type = PaperKind::Html;
+        papers::upsert_paper(&vault, &page.at_path("papers/page-entry")).unwrap();
+        let err = recapture_webpage_snapshot(&vault, "papers/page-entry", None)
+            .await
+            .expect_err("a page without a URL is rejected");
+        assert_eq!(err.code(), "webpage_url_missing");
+
+        let err = recapture_webpage_snapshot(&vault, "papers/missing", None)
+            .await
+            .expect_err("an unknown path is rejected");
+        assert!(err.to_string().contains("paper not found"));
 
         let _ = fs::remove_dir_all(&vault);
     }

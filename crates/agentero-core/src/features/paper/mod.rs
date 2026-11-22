@@ -1,6 +1,7 @@
 //! Paper domain: catalog metadata, import/discovery, citation analysis, and
 //! paper-scoped filesystem operations (tauri-free subset).
 
+pub mod alphaxiv;
 pub mod analyze;
 pub mod capabilities;
 pub mod catalog;

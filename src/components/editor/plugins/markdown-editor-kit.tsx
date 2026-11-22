@@ -45,8 +45,6 @@ import {
 	TaskListRules,
 } from "@platejs/list";
 import { ListPlugin } from "@platejs/list/react";
-import { MathRules } from "@platejs/math";
-import { EquationPlugin, InlineEquationPlugin } from "@platejs/math/react";
 import { MentionPlugin } from "@platejs/mention/react";
 import {
 	TableCellHeaderPlugin,
@@ -63,10 +61,6 @@ import {
 	CodeLineElement,
 	CodeSyntaxLeaf,
 } from "@/components/editor/nodes/block/code-block-node";
-import {
-	EquationElement,
-	InlineEquationElement,
-} from "@/components/editor/nodes/block/equation-node";
 import {
 	H1Element,
 	H2Element,
@@ -95,6 +89,7 @@ import {
 	ColumnGroupPlugin,
 	ColumnPlugin,
 } from "@/components/editor/plugins/column-group-plugin";
+import { EquationKit } from "@/components/editor/plugins/equation-kit";
 import { FindReplaceKit } from "@/components/editor/plugins/find-replace-kit";
 import { HtmlBlockPlugin } from "@/components/editor/plugins/html-plugin";
 import { ImageGroupPlugin } from "@/components/editor/plugins/image-group-plugin";
@@ -106,7 +101,6 @@ import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
 import { insertBreakAfterHorizontalRule } from "@/lib/markdown/block-selection";
 import { handleCodeBlockDeleteBackward } from "@/lib/markdown/code-block-delete";
 import { highlightInputRule } from "@/lib/markdown/highlight-input-rule";
-import { inlineMathInputRule } from "@/lib/markdown/inline-math-input-rule";
 
 const lowlight = createLowlight(common);
 
@@ -280,15 +274,7 @@ export const MarkdownEditorKit = [
 	TableCellPlugin.withComponent(TableCellElement),
 	TableCellHeaderPlugin.withComponent(TableCellHeaderElement),
 
-	// Math
-	InlineEquationPlugin.configure({
-		inputRules: [inlineMathInputRule],
-		node: { component: InlineEquationElement },
-	}),
-	EquationPlugin.configure({
-		inputRules: [MathRules.markdown({ on: "break", variant: "$$" })],
-		node: { component: EquationElement },
-	}),
+	...EquationKit,
 
 	// Inline nodes
 	// ImagePlugin is configured per-editor (uploadImage → ./assets/) in markdown-editor.tsx

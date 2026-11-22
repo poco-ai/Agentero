@@ -12,6 +12,7 @@ use crate::features::import::preparation::{
 use crate::features::import::{
     allocate_paper_path, ensure_paper_assets_with_progress, normalize_parent_dir,
     write_paper_shell_opts, AssetDownloadResult, AssetProgressContext, NoteShellMode,
+    OpenReviewPdfIssue,
 };
 use serde::Serialize;
 use std::fs;
@@ -32,9 +33,10 @@ pub enum CommitStatus {
 pub enum DedupePolicy {
     /// Catalog has a row with the same `id` → `Deduped` (single-item entries).
     ByCatalogId,
-    /// Catalog row shares a canonical id or identifier (arXiv ID, DOI, PMID, ISBN)
-    /// → `Deduped`. With `CopyPdf`, the local PDF is merged into the existing
-    /// folder instead of being discarded (Fix #406).
+    /// Catalog row shares a canonical id or identifier (arXiv ID, DOI, PMID,
+    /// ISBN), or — for a webpage entry — the canonical page URL → `Deduped`.
+    /// With `CopyPdf`, the local PDF is merged into the existing folder instead
+    /// of being discarded (Fix #406).
     ByIdentifiers,
     /// `{parent}/{id}` exists with NOTES.md, or catalog has that path →
     /// `Skipped` (batch Bib/RIS compatibility).
@@ -98,6 +100,7 @@ pub struct PaperCommitResult {
     pub tex: bool,
     pub paper_md: bool,
     pub asset_messages: Vec<String>,
+    pub openreview_pdf_issue: Option<OpenReviewPdfIssue>,
     /// True when assets are still downloading in the background (`Deferred`).
     pub assets_pending: bool,
     /// Follow-up steps for this commit. Not part of the IPC payload.
@@ -175,6 +178,7 @@ pub async fn paper_commit(
                     tex: caps.has_tex,
                     paper_md: caps.has_paper_md,
                     asset_messages: Vec::new(),
+                    openreview_pdf_issue: None,
                     assets_pending: false,
                     preparation: PreparationPlan::empty(candidate),
                 });
@@ -235,13 +239,17 @@ pub async fn paper_commit(
     let arxiv_request = crate::features::paper::source::arxiv_request(&meta);
     let (assets, assets_pending) = match opts.assets {
         AssetsPolicy::SyncDownload { cookies, progress } => {
+            let pdf_url = meta
+                .pdf_url
+                .clone()
+                .or_else(|| super::sources::openreview::paper_pdf_url(&meta));
             let assets = match ensure_paper_assets_with_progress(
                 &paper_dir,
                 vault,
                 &path_rel,
                 &meta.id,
                 arxiv_request.as_deref(),
-                meta.pdf_url.as_deref(),
+                pdf_url.as_deref(),
                 meta.doi.as_deref(),
                 cookies,
                 opts.cache,
@@ -250,9 +258,11 @@ pub async fn paper_commit(
             .await
             {
                 Ok(assets) => {
-                    crate::features::lifecycle::emit_paper_assets_ready(
-                        opts.app, vault, &meta.id, &path_rel,
-                    );
+                    if assets.openreview_pdf_issue.is_none() {
+                        crate::features::lifecycle::emit_paper_assets_ready(
+                            opts.app, vault, &meta.id, &path_rel,
+                        );
+                    }
                     assets
                 }
                 Err(e) => {
@@ -310,6 +320,7 @@ pub async fn paper_commit(
         tex: assets.tex,
         paper_md: assets.paper_md,
         asset_messages: assets.messages,
+        openreview_pdf_issue: assets.openreview_pdf_issue,
         assets_pending,
         preparation,
     })
@@ -344,6 +355,7 @@ fn existing_result(
         id: existing.id,
         title: existing.title,
         asset_messages: Vec::new(),
+        openreview_pdf_issue: None,
         assets_pending: false,
         preparation,
     }
@@ -388,6 +400,32 @@ fn backfill_existing_metadata(
     incoming: &papers::PaperRecord,
 ) -> bool {
     let mut changed = false;
+
+    if incoming.paper_type == papers::PaperKind::Pdf {
+        let forum = super::sources::openreview::forum_url;
+        if let Some((id, incoming_forum)) = incoming.source_url.as_deref().and_then(forum) {
+            let existing_forum = [existing.source_url.as_deref(), existing.html_url.as_deref()]
+                .into_iter()
+                .flatten()
+                .find_map(forum);
+            if existing_forum.is_some_and(|(_, url)| url == incoming_forum) {
+                if existing.paper_type == papers::PaperKind::Html {
+                    existing.paper_type = papers::PaperKind::Pdf;
+                    if existing.zotero_item_type.as_deref() == Some("webpage") {
+                        existing.zotero_item_type = incoming.zotero_item_type.clone();
+                    }
+                    changed = true;
+                }
+                if super::sources::openreview::is_stub(existing, &id)
+                    && !super::sources::openreview::is_stub(incoming, &id)
+                {
+                    existing.title = incoming.title.clone();
+                    existing.meta_source = incoming.meta_source.clone();
+                    changed = true;
+                }
+            }
+        }
+    }
 
     if existing.title.trim().is_empty() && !incoming.title.trim().is_empty() {
         existing.title = incoming.title.clone();
@@ -489,7 +527,14 @@ fn find_existing_by_identifiers(
             .is_some_and(|doi| super::doi_slug(doi) == meta.id);
     if canonical_id {
         if let Some(existing) = papers::get_by_id(vault, &meta.id)? {
-            return Ok(Some(existing));
+            // The id slug folds `.` `/` and Windows-illegal characters to `_`,
+            // so a row found by id can describe a different paper
+            // (`10.1/a.b` vs `10.1/a_b`). Merge only when the strong
+            // identifiers agree; otherwise fall through to the identifier
+            // lookups (and then to a suffixed folder, which keeps both).
+            if identities_agree(&existing, meta) {
+                return Ok(Some(existing));
+            }
         }
     }
     let lookups: [(&str, Option<&str>); 4] = [
@@ -506,7 +551,71 @@ fn find_existing_by_identifiers(
             return Ok(Some(existing));
         }
     }
+    // A webpage entry has no scholarly identifier: its address is the
+    // identity. Match the canonical page URL so an RSS / context-menu /
+    // pasted-URL re-import lands on the entry it already created instead of
+    // a second folder (and so the snapshot repair below runs).
+    let openreview_forum = meta
+        .source_url
+        .as_deref()
+        .and_then(super::sources::openreview::forum_url);
+    if let Some((_, url)) = openreview_forum {
+        return papers::find_by_web_url(vault, url.as_str());
+    }
+    if meta.paper_type == papers::PaperKind::Html {
+        for url in [meta.source_url.as_deref(), meta.html_url.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            if let Some(existing) = papers::find_by_web_url(vault, url)? {
+                return Ok(Some(existing));
+            }
+        }
+    }
     Ok(None)
+}
+
+/// True when the two rows can describe the same paper: every strong identifier
+/// both sides carry has to match after normalization. A missing identifier on
+/// either side is not a contradiction (older rows imported from BibTeX or a
+/// local PDF only carry some of them).
+fn identities_agree(existing: &papers::PaperRecord, incoming: &papers::PaperRecord) -> bool {
+    fn agrees(left: Option<&str>, right: Option<&str>) -> bool {
+        match (left, right) {
+            (Some(left), Some(right)) => identifier_key(left) == identifier_key(right),
+            _ => true,
+        }
+    }
+    agrees(existing.doi.as_deref(), incoming.doi.as_deref())
+        && agrees(existing.arxiv_id.as_deref(), incoming.arxiv_id.as_deref())
+}
+
+/// Compare identifiers independent of wrapper prefixes, case and arXiv version.
+fn identifier_key(raw: &str) -> String {
+    let trimmed = raw.trim().to_ascii_lowercase();
+    let bare = trimmed
+        .trim_start_matches("https://doi.org/")
+        .trim_start_matches("http://doi.org/")
+        .trim_start_matches("https://dx.doi.org/")
+        .trim_start_matches("http://dx.doi.org/")
+        .trim_start_matches("doi:")
+        .trim_start_matches("https://arxiv.org/abs/")
+        .trim_start_matches("http://arxiv.org/abs/")
+        .trim_start_matches("arxiv:")
+        .trim();
+    // `2501.00001v2` and `2501.00001` are the same arXiv record.
+    let without_version = match bare.rsplit_once('v') {
+        Some((base, version))
+            if !version.is_empty()
+                && version.chars().all(|c| c.is_ascii_digit())
+                && base.chars().any(|c| c.is_ascii_digit())
+                && !base.contains('/') =>
+        {
+            base
+        }
+        _ => bare,
+    };
+    without_version.to_string()
 }
 
 /// Merge a freshly imported PDF into an existing catalog entry instead of
@@ -604,6 +713,7 @@ async fn merge_pdf_into_existing(
         id: existing.id,
         title: existing.title,
         asset_messages: vec![message],
+        openreview_pdf_issue: None,
         assets_pending: false,
         preparation,
     })
@@ -899,6 +1009,71 @@ mod tests {
             row.openreview_url.as_deref(),
             Some("https://openreview.net/forum?id=keep")
         );
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[tokio::test]
+    async fn by_identifiers_dedupes_a_webpage_by_canonical_url() {
+        let vault = tmp_vault("web-url");
+        let mut existing = papers::PaperRecord::local_pdf("Lab-notes".into(), "Lab notes".into());
+        existing.paper_type = papers::PaperKind::Html;
+        existing.source_url = Some("https://example.com/notes/rust".into());
+        existing.html_url = Some("https://example.com/notes/rust".into());
+        papers::upsert_paper(&vault, &existing.at_path("papers/Lab-notes")).unwrap();
+        fs::create_dir_all(vault.join("papers/Lab-notes")).unwrap();
+        fs::write(vault.join("papers/Lab-notes/NOTES.md"), "# Lab notes\n").unwrap();
+
+        // Same page, different title/id spelling, trailing slash + fragment +
+        // tracking parameter: the URL is the identity.
+        let mut incoming =
+            papers::PaperRecord::local_pdf("Different-title".into(), "Different title".into());
+        incoming.paper_type = papers::PaperKind::Html;
+        incoming.source_url = Some("https://example.com/notes/rust/?utm_source=rss#top".into());
+        let res = paper_commit(
+            incoming,
+            PaperCommitOptions {
+                vault: &vault,
+                parent_dir: "papers",
+                dedupe: DedupePolicy::ByIdentifiers,
+                assets: AssetsPolicy::Deferred,
+                translate_abstract: false,
+                note_mode: NoteShellMode::TitleOnly,
+                fresh_timestamps: false,
+                cache: None,
+                app: None,
+                defer_parse_jobs: false,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(res.status, CommitStatus::Deduped);
+        assert_eq!(res.path, "papers/Lab-notes");
+        assert!(!vault.join("papers/Different-title").exists());
+
+        // A different page on the same host is still a different entry.
+        let mut other = papers::PaperRecord::local_pdf("Other".into(), "Other page".into());
+        other.paper_type = papers::PaperKind::Html;
+        other.source_url = Some("https://example.com/notes/other".into());
+        let created = paper_commit(
+            other,
+            PaperCommitOptions {
+                vault: &vault,
+                parent_dir: "papers",
+                dedupe: DedupePolicy::ByIdentifiers,
+                assets: AssetsPolicy::Deferred,
+                translate_abstract: false,
+                note_mode: NoteShellMode::TitleOnly,
+                fresh_timestamps: false,
+                cache: None,
+                app: None,
+                defer_parse_jobs: false,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(created.status, CommitStatus::Created);
 
         let _ = fs::remove_dir_all(&vault);
     }

@@ -43,6 +43,7 @@ import {
 	formatLookupError,
 	lookupDegradedWarning,
 } from "@/lib/paper/lookup-diagnostics";
+import { notifyOpenReviewDownloadIssue } from "@/lib/paper/openreview-download";
 import { enqueuePaperLayoutAnalysis } from "@/lib/pdf/layout";
 import { getSettings } from "@/lib/settings/react-store";
 import {
@@ -346,6 +347,15 @@ async function finishImportedPapers(
 	sourceInput: string,
 ): Promise<void> {
 	for (const paper of result.imported) {
+		if (paper.openreviewPdfIssue) {
+			notifyOpenReviewDownloadIssue(
+				vaultPath,
+				paper.path,
+				paper.openreviewPdfIssue,
+			);
+		}
+	}
+	for (const paper of result.imported) {
 		const rel = (paper.path || "")
 			.replace(/\\/g, "/")
 			.replace(/^\/+|\/+$/g, "");
@@ -410,6 +420,7 @@ async function finishImportedPapers(
 	// of the frontend tree walk; the runner is idempotent and backfills
 	// PAPER.md + layout.
 	const newPaths = result.imported
+		.filter((paper) => !paper.openreviewPdfIssue)
 		.map((r) => (r.path || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""))
 		.filter(Boolean);
 	if (newPaths.length === 0) return;
@@ -491,9 +502,14 @@ export type LookupBatchQueue = {
 };
 
 /** Queue the confirmed checklist as ONE batch import job (batch dedupe +
- * n/total progress) and return at enqueue time. */
+ * n/total progress) and return at enqueue time.
+ * `onComplete` receives the batch result after the job finishes, including
+ * the layout and asset follow-up. */
 export async function enqueueLookupBatch(
 	texts: string[],
+	opts: {
+		onComplete?: (result: LookupBatchAddResult) => void | Promise<void>;
+	} = {},
 ): Promise<LookupBatchQueue | null> {
 	const vaultPath = getVaultPath();
 	if (!vaultPath) throw new Error(i18n.t("sidebar:lookup.needsVault"));
@@ -508,7 +524,10 @@ export async function enqueueLookupBatch(
 	});
 	return {
 		jobId: job.id,
-		settled: awaitTaskSettled(job).then(() => undefined),
+		settled: awaitTaskSettled(job).then(async () => {
+			const result = lookupResults.get(job.id);
+			if (result) await opts.onComplete?.(result);
+		}),
 	};
 }
 

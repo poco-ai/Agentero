@@ -140,6 +140,12 @@ fn download_assets_runner(
                     // background translation (settings gate inside).
                     crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &path);
                 }
+                if let Some(issue) = downloaded.openreview_pdf_issue {
+                    return RunOutcome::FailedWithPhase {
+                        phase: issue.phase(),
+                        error: issue.message().into(),
+                    };
+                }
                 RunOutcome::Succeeded
             }
             Err(e) => RunOutcome::Failed(Some(e.to_string())),
@@ -149,7 +155,7 @@ fn download_assets_runner(
 
 /// Runner for [`JobKind::RecognizeMetadata`]: recognize a just-committed
 /// local PDF import in the background (liteparse probe → Zotero recognizer →
-/// identifier resolution), land the result via `recognize::apply` (metadata
+/// identifier resolution or title search), land the result via `recognize::apply` (metadata
 /// upsert / canonical-id rename / merge into an existing entry), then
 /// orchestrate the PAPER.md + refs + layout follow-ups against the paper's
 /// final path.
@@ -182,19 +188,28 @@ fn recognize_metadata_runner(
         let translator_base =
             crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL.to_string();
 
+        let known_title = match crate::features::paper::catalog::papers::get_by_path(&vault, &path)
+        {
+            Ok(paper) => paper
+                .filter(|paper| paper.meta_source.as_deref() != Some("manual"))
+                .map(|paper| paper.title),
+            Err(e) => return RunOutcome::Failed(Some(e.to_string())),
+        };
         let probe =
             crate::features::paper::import::recognize::pdf_recognize::recognize_and_resolve(
                 &pdf,
                 &translator_base,
                 Some(&task_id),
+                known_title.as_deref(),
             )
             .await;
 
         // Cancelled mid-probe: land nothing; the paper keeps its placeholder.
-        if probe.status == "error"
-            && probe.error.as_deref().is_some_and(|e| {
-                e.contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE)
-            })
+        if crate::features::paper::import::is_task_cancelled(&task_id)
+            || (probe.status == "error"
+                && probe.error.as_deref().is_some_and(|e| {
+                    e.contains(crate::features::paper::import::pdf_parse::CANCELLED_MESSAGE)
+                }))
         {
             return RunOutcome::Cancelled;
         }
@@ -244,26 +259,40 @@ fn recognize_metadata_runner(
         // catalog fill follow-ups run against the final path.
         crate::features::paper::discovery::pwc::spawn_enrich(&vault, &final_path);
 
-        // Soft warning for the frontend: arXiv id found, Atom lookup hit 429,
-        // recognizer had no title — keep filename placeholder; Toast via
-        // `job:changed` params (no new lifecycle event).
-        if probe.warning.as_deref() == Some("arxiv_rate_limited")
-            && probe
-                .title
-                .as_deref()
-                .map(str::trim)
-                .filter(|t| !t.is_empty())
-                .is_none()
-        {
-            center
-                .merge_running_job_params(
-                    &snapshot.id,
-                    serde_json::json!({
-                        "warning": "arxiv_rate_limited",
-                        "arxivId": probe.arxiv_id,
-                    }),
+        // Only report an unresolved result if it was applied; a removed paper
+        // or a manual edit made during the probe must not trigger a warning.
+        let applied = outcome.as_ref().is_ok_and(|result| {
+            !matches!(
+                result,
+                crate::features::paper::import::recognize::apply::RecognizeApply::Skipped(_)
+            )
+        });
+        if applied {
+            let warning = if probe.warning.as_deref() == Some("arxiv_rate_limited")
+                && probe
+                    .title
+                    .as_deref()
+                    .is_none_or(|title| title.trim().is_empty())
+            {
+                Some("arxiv_rate_limited")
+            } else if probe.status == "no-match"
+                && crate::features::paper::import::recognize::pdf_recognize::canonical_base_id(
+                    &probe,
                 )
-                .await;
+                .is_none()
+            {
+                Some("no_match")
+            } else {
+                None
+            };
+            if let Some(warning) = warning {
+                center
+                    .merge_running_job_params(
+                        &snapshot.id,
+                        serde_json::json!({ "warning": warning, "arxivId": probe.arxiv_id }),
+                    )
+                    .await;
+            }
         }
 
         let final_caps = cache.caps_for(&vault, &final_path);
@@ -293,6 +322,7 @@ fn recognize_metadata_runner(
         }
 
         match outcome {
+            Ok(_) if applied && probe.status == "error" => RunOutcome::Failed(probe.error),
             Ok(_) => RunOutcome::Succeeded,
             Err(e) => RunOutcome::Failed(Some(e.to_string())),
         }

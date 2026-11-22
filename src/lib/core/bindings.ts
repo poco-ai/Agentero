@@ -12,6 +12,12 @@ export const commands = {
 	 *  Domain side effects are not wired here: they run as
 	 *  [`AppSettingsStore::subscribe`] listeners registered by the app assembly
 	 *  (see `app/mod.rs`), fired inside `store.set` with the redacted snapshot.
+	 * 
+	 *  `async` is deliberate. A synchronous `#[tauri::command]` runs inside the
+	 *  WebView2 interface-thread IPC callback, and this path rewrites
+	 *  `settings.json` and fans out to every subscriber on each edit. Keep the
+	 *  `AppHandle` argument rather than `State<'_, _>`: an async command cannot
+	 *  borrow the invoke context.
 	 */
 	settingsSet: (settings: AppSettings_Deserialize) => __TAURI_INVOKE<ApiResult<AppSettings_Serialize>>("settings_set", { settings }),
 	/**
@@ -52,6 +58,10 @@ export const commands = {
 	 *  Resolves once the login window closes; `true` when a cookie was captured.
 	 */
 	institutionProxyLoginOpen: (prefix: string) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix })),
+	/**  Use the official sign-in page, including any MFA required by the account. */
+	openreviewAuthLoginOpen: () => typedError<boolean, string>(__TAURI_INVOKE("openreview_auth_login_open")),
+	/**  Return the expiry of the account session for the Settings indicator. */
+	openreviewAccountExpiry: () => __TAURI_INVOKE<number | null>("openreview_account_expiry"),
 	builtinProviderStatus: () => __TAURI_INVOKE<ApiResult<BuiltinProviderStatus>>("builtin_provider_status"),
 	decisionGatewayDecide: (request: DecisionGatewayRequest) => __TAURI_INVOKE<ApiResult<DecisionGatewayResponse>>("decision_gateway_decide", { request }),
 	layoutModelStatus: () => __TAURI_INVOKE<ApiResult<LayoutModelStatus>>("layout_model_status"),
@@ -107,7 +117,7 @@ export const commands = {
 	doctorCheckNetwork: () => typedError<ApiResult<NetworkDoctorReport_Serialize>, string>(__TAURI_INVOKE("doctor_check_network")),
 	/**  List which known desktop apps are installed on this machine. */
 	desktopAppsProbe: () => typedError<ApiResult<DesktopAppStatus_Serialize[]>, string>(__TAURI_INVOKE("desktop_apps_probe")),
-	/**  Launch one installed desktop app (macOS or Windows). */
+	/**  Launch one installed desktop app (macOS, Windows or Linux). */
 	desktopAppOpen: (id: DesktopAppId) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("desktop_app_open", { id })),
 	/**
 	 *  Retarget in-flight agent runs that emit to `source_label` so later events
@@ -122,7 +132,12 @@ export const commands = {
 	jobLayoutAnalyzeEnqueue: (args: JobLayoutAnalyzeEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
 	/**  Request a document translation through the same queue used by imports. */
 	jobLayoutTranslateEnqueue: (args: JobLayoutTranslateEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_translate_enqueue", { args })),
-	jobLayoutTranslateClaim: (args: JobLayoutTranslateClaimArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_layout_translate_claim", { args })),
+	/**
+	 *  Claim a running renderer-executed job for the calling window. Rust
+	 *  broadcasts every `job:offer` to all windows; only the first claimer runs
+	 *  the frontend executor, so uploads / cloud calls happen once per job.
+	 */
+	jobRendererClaim: (args: JobRendererClaimArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_renderer_claim", { args })),
 	jobDownloadAssetsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_download_assets_enqueue", { args })),
 	/**
 	 *  Enqueue a renderer-orchestrated import (magic wand / local PDF / plaza /
@@ -305,7 +320,8 @@ export const commands = {
 	/**
 	 *  Streaming translate: pushes each increment through `on_delta`, then returns
 	 *  the final text. Providers without a streaming path fall back to one-shot
-	 *  translation (no deltas, final text only).
+	 *  translation (no deltas, final text only). Streaming calls are timed by
+	 *  silence, not by a total deadline.
 	 */
 	translateTextStream: (args: TranslateTextArgs, onDelta: Channel<string>) => __TAURI_INVOKE<ApiResult<TranslateTextResult>>("translate_text_stream", { args, onDelta }),
 	dictionaryLookup: (text: string, targetLang: string) => __TAURI_INVOKE<ApiResult<DictionaryEntry[]>>("dictionary_lookup", { text, targetLang }),
@@ -335,6 +351,14 @@ export const commands = {
 	paperResolveIdentifier: (args: PaperResolveIdentifierArgs) => __TAURI_INVOKE<ApiResult<PaperRecord_Serialize>>("paper_resolve_identifier", { args }),
 	/**  Stage a path-less OS drop (File bytes as base64) into `~/.agentero/import-tmp/`. */
 	paperStageImportFile: (args: StageImportFileArgs) => __TAURI_INVOKE<ApiResult<StageImportFileResult>>("paper_stage_import_file", { args }),
+	/**
+	 *  Re-fetch the readable snapshot (`webpage.html` + `PAPER.md`) of a webpage
+	 *  entry. Backs the library "recapture" action for pages imported while the
+	 *  origin was unreachable or behind a WAF.
+	 */
+	paperRecaptureWebpage: (vaultPath: string, path: string) => typedError<ApiResult<WebpageSnapshotResult>, string>(__TAURI_INVOKE("paper_recapture_webpage", { vaultPath, path })),
+	/**  Verify access to a PDF on the catalog entry the user chose to retry. */
+	paperVerifyOpenreviewPdf: (vaultPath: string, path: string) => typedError<OpenReviewPdfVerification, string>(__TAURI_INVOKE("paper_verify_openreview_pdf", { vaultPath, path })),
 	/**
 	 *  Seed `{vault}/.agentero/templates/NOTES.md` with a starting template for
 	 *  the `custom` paper-note mode. Never overwrites an existing template.
@@ -614,6 +638,18 @@ export const commands = {
 	/**  List known external terminals for the "Open in Terminal" preference. */
 	terminalAppsProbe: () => typedError<ApiResult<TerminalAppStatus[]>, string>(__TAURI_INVOKE("terminal_apps_probe")),
 	/**
+	 *  List the menu rows for the path bar "Open with" control: the system file
+	 *  manager, the editors installed on this machine, and the terminal. Icons are
+	 *  real application icons (PNG data URLs) when the host can extract them.
+	 */
+	pathOpenWithApps: () => typedError<ApiResult<OpenWithApp[]>, string>(__TAURI_INVOKE("path_open_with_apps")),
+	/**
+	 *  Open `path` with a probed row id: `"finder"` (file manager), `"terminal"`
+	 *  (Settings-preferred terminal), or an installed editor. Directories open as
+	 *  themselves; files open their parent directory.
+	 */
+	pathOpenWith: (appId: string, path: string) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("path_open_with", { appId, path })),
+	/**
 	 *  Open a fresh Agentero window without restoring the last vault (`?fresh=1`).
 	 * 
 	 *  `async` is load-bearing: sync command handlers run on the main thread inside
@@ -659,6 +695,23 @@ export const commands = {
 	 *  is `Send` and keeps streaming from the blocking pool.
 	 */
 	zoteroSync: (args: ZoteroSyncArgs, onProgress: Channel<SyncProgress>) => __TAURI_INVOKE<ApiResult<ZoteroSyncResult>>("zotero_sync", { args, onProgress }),
+	/**
+	 *  Check an AlphaXiv API key with `GET /folders/v3` without saving it.
+	 *  An empty value or a mask rechecks the key already stored in Host settings.
+	 */
+	alphaxivTestKey: (apiKey: string) => __TAURI_INVOKE<ApiResult<AlphaXivAccount>>("alphaxiv_test_key", { apiKey }),
+	/**
+	 *  Validate a pasted AlphaXiv API key with `GET /folders/v3`, then store it.
+	 *  The returned settings snapshot masks the key. A failed check stores nothing.
+	 */
+	alphaxivSaveKey: (apiKey: string) => __TAURI_INVOKE<ApiResult<AlphaXivSaveResult_Serialize>>("alphaxiv_save_key", { apiKey }),
+	/**  Remove the stored AlphaXiv API key and the saved profile. */
+	alphaxivClearKey: () => __TAURI_INVOKE<ApiResult<AppSettings_Serialize>>("alphaxiv_clear_key"),
+	/**
+	 *  List the signed-in user's AlphaXiv folders. Each folder already includes
+	 *  its papers. Uses the stored key only.
+	 */
+	alphaxivListFolders: () => __TAURI_INVOKE<ApiResult<AlphaXivFolder[]>>("alphaxiv_list_folders"),
 	/**  Current sync binding + last-pass info for the settings pane. */
 	syncGetStatus: (args: SyncVaultArgs) => typedError<ApiResult<SyncStatus_Serialize>, string>(__TAURI_INVOKE("sync_get_status", { args })),
 	/**  Validate + connection-test + persist the S3 binding for a vault. */
@@ -1345,6 +1398,11 @@ export type AgentModelsEvent_Deserialize = {
 	agentId: string,
 	/**  ACP config option id for the model selector. */
 	configId: string,
+	/**
+	 *  Model the agent reports as active. Empty means the agent did not report
+	 *  one; never invent it from the catalog — upstream agents can misreport
+	 *  `current` (see #1087), and callers treat empty as "unknown, always set".
+	 */
 	currentId: string,
 	models: AgentModelChoice_Deserialize[],
 };
@@ -1355,6 +1413,11 @@ export type AgentModelsEvent_Serialize = {
 	agentId: string,
 	/**  ACP config option id for the model selector. */
 	configId: string,
+	/**
+	 *  Model the agent reports as active. Empty means the agent did not report
+	 *  one; never invent it from the catalog — upstream agents can misreport
+	 *  `current` (see #1087), and callers treat empty as "unknown, always set".
+	 */
 	currentId: string,
 	models: AgentModelChoice_Serialize[],
 };
@@ -1703,6 +1766,93 @@ export type AliasRepairResult = {
 	updatedPaths: string[],
 };
 
+/**  Account fields safe to show in Settings. No credential. */
+export type AlphaXivAccount = {
+	username: string,
+	email: string,
+	realName: string,
+	/**  `realName`, else `username`, else `email`, else `"AlphaXiv"`. */
+	label: string,
+};
+
+/**  One library folder. `papers` is the list the folder payload already included. */
+export type AlphaXivFolder = {
+	id: string,
+	name: string,
+	folderType: string,
+	order: number,
+	parentId: string,
+	sharingStatus: string,
+	/**
+	 *  Lucide icon name from the folder appearance (`cpu`). Empty when AlphaXiv
+	 *  leaves the mark to the client and sends `icon: null`.
+	 */
+	icon: string,
+	/**  Appearance palette name (`red`, `orange`, …). Empty when unset. */
+	color: string,
+	papers: AlphaXivFolderPaper[],
+	paperCount: number,
+};
+
+/**  One paper inside a folder payload. */
+export type AlphaXivFolderPaper = {
+	paperGroupId: string,
+	universalPaperId: string,
+	canonicalId: string,
+	paperVersionId: string,
+	title: string,
+	paperAbstract: string,
+	topics: string[],
+	authors: string[],
+	/**
+	 *  Original `addedAt` string, or the decimal timestamp when that is all
+	 *  the payload has. Empty when absent.
+	 */
+	addedAt: string,
+	/**  Bare public arXiv id (`1706.03762`). Empty for private uploads. */
+	arxivId: string,
+	importable: boolean,
+	/**  [`SKIP_REASON_PRIVATE`] when `importable` is false, otherwise empty. */
+	skipReason: string,
+	/**  `https://pdfs.assets.alphaxiv.org/{canonical}.pdf` for a public paper. */
+	pdfUrl: string,
+};
+
+/**
+ *  Settings snapshot after a successful key save. `settings.alphaxiv.apiKey`
+ *  is masked. `account` has no profile: API keys cannot read `GET /users/v3`.
+ */
+export type AlphaXivSaveResult = AlphaXivSaveResult_Serialize | AlphaXivSaveResult_Deserialize;
+
+/**
+ *  Settings snapshot after a successful key save. `settings.alphaxiv.apiKey`
+ *  is masked. `account` has no profile: API keys cannot read `GET /users/v3`.
+ */
+export type AlphaXivSaveResult_Deserialize = {
+	settings: AppSettings_Deserialize,
+	account: AlphaXivAccount,
+};
+
+/**
+ *  Settings snapshot after a successful key save. `settings.alphaxiv.apiKey`
+ *  is masked. `account` has no profile: API keys cannot read `GET /users/v3`.
+ */
+export type AlphaXivSaveResult_Serialize = {
+	settings: AppSettings_Serialize,
+	account: AlphaXivAccount,
+};
+
+/**
+ *  AlphaXiv credential kept in Host settings. `api_key` is a secret.
+ *  Profile fields stay empty: API keys cannot read `GET /users/v3`.
+ */
+export type AlphaXivSettings = {
+	apiKey?: string,
+	username?: string,
+	email?: string,
+	realName?: string,
+};
+
 export type ApiResult<T> = {
 	ok: boolean,
 	data: T | null,
@@ -1716,6 +1866,12 @@ export type AppSettings_Deserialize = {
 	shortcutOverrides?: { [key in string]: ShortcutBinding_Deserialize | null },
 	/**  EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey?: string,
+	/**
+	 *  EasyScholar rank systems the Library table and Paper Info may display,
+	 *  in canonical order. Every supported system is on by default; an empty
+	 *  list hides the metrics without clearing the stored `#easyscholar:` tags.
+	 */
+	easyScholarRanks?: string[],
 	/**  知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
 	zhihuAccessSecret?: string,
 	networkProxyEnabled?: boolean,
@@ -1736,6 +1892,24 @@ export type AppSettings_Deserialize = {
 	 *  `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
 	 */
 	institutionProxyType?: string,
+	/**
+	 *  Cookie captured by the OpenReview verification window (`openreview.*`
+	 *  cookies, notably the short-lived `clearanceToken`). Empty = verified by
+	 *  nobody yet. Redacted to the frontend and attached only to OpenReview
+	 *  hosts by the download layer.
+	 */
+	openreviewCookie?: string,
+	/**
+	 *  Unix seconds when the captured OpenReview credential expires; `0` when
+	 *  the cookie carries no readable expiry. Drives the Settings status dot.
+	 */
+	openreviewCookieExpiresAt?: number,
+	/**
+	 *  AlphaXiv API key. The key is masked across IPC. A plaintext key in
+	 *  `settings_set` is ignored; only [`AppSettingsStore::update_alphaxiv_auth`]
+	 *  stores one, after `GET /folders/v3` succeeds. Profile fields stay empty.
+	 */
+	alphaxiv?: AlphaXivSettings,
 	paperTreeLabelMode?: string,
 	paperTreeSortMode?: string,
 	/**
@@ -1872,6 +2046,12 @@ export type AppSettings_Serialize = {
 	shortcutOverrides: { [key in string]: ShortcutBinding_Serialize | null },
 	/**  EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string,
+	/**
+	 *  EasyScholar rank systems the Library table and Paper Info may display,
+	 *  in canonical order. Every supported system is on by default; an empty
+	 *  list hides the metrics without clearing the stored `#easyscholar:` tags.
+	 */
+	easyScholarRanks: string[],
 	/**  知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
 	zhihuAccessSecret: string,
 	networkProxyEnabled: boolean,
@@ -1892,6 +2072,24 @@ export type AppSettings_Serialize = {
 	 *  `subdomain` (Astraeus-style host mapping). Empty/unknown means `auto`.
 	 */
 	institutionProxyType: string,
+	/**
+	 *  Cookie captured by the OpenReview verification window (`openreview.*`
+	 *  cookies, notably the short-lived `clearanceToken`). Empty = verified by
+	 *  nobody yet. Redacted to the frontend and attached only to OpenReview
+	 *  hosts by the download layer.
+	 */
+	openreviewCookie: string,
+	/**
+	 *  Unix seconds when the captured OpenReview credential expires; `0` when
+	 *  the cookie carries no readable expiry. Drives the Settings status dot.
+	 */
+	openreviewCookieExpiresAt: number,
+	/**
+	 *  AlphaXiv API key. The key is masked across IPC. A plaintext key in
+	 *  `settings_set` is ignored; only [`AppSettingsStore::update_alphaxiv_auth`]
+	 *  stores one, after `GET /folders/v3` succeeds. Profile fields stay empty.
+	 */
+	alphaxiv: AlphaXivSettings,
 	paperTreeLabelMode: string,
 	paperTreeSortMode: string,
 	/**
@@ -2961,20 +3159,30 @@ export type DepPolicy = "allSettled" | "allSucceeded";
 /**  Stable id the frontend keys rows and brand logos on. */
 export type DesktopAppId = "chatgpt" | "qwenwork" | "workbuddy" | "dsh-desktop";
 
-/**  Detection result: macOS bundle or Windows executable path when known. */
+/**  Detection result: the installed executable (or macOS bundle) path when known. */
 export type DesktopAppStatus = DesktopAppStatus_Serialize | DesktopAppStatus_Deserialize;
 
-/**  Detection result: macOS bundle or Windows executable path when known. */
+/**  Detection result: the installed executable (or macOS bundle) path when known. */
 export type DesktopAppStatus_Deserialize = {
 	id: DesktopAppId,
 	installed: boolean,
+	/**
+	 *  True when the vendor ships no build for this platform, so the row can
+	 *  never become installed here.
+	 */
+	unsupported: boolean,
 	path: string | null,
 };
 
-/**  Detection result: macOS bundle or Windows executable path when known. */
+/**  Detection result: the installed executable (or macOS bundle) path when known. */
 export type DesktopAppStatus_Serialize = {
 	id: DesktopAppId,
 	installed: boolean,
+	/**
+	 *  True when the vendor ships no build for this platform, so the row can
+	 *  never become installed here.
+	 */
+	unsupported?: boolean,
 	path?: string | null,
 };
 
@@ -3642,10 +3850,6 @@ export type JobLayoutAnalyzeEnqueueArgs = {
 	autoTranslate?: boolean,
 };
 
-export type JobLayoutTranslateClaimArgs = {
-	jobId: string,
-};
-
 export type JobLayoutTranslateEnqueueArgs = {
 	vaultPath: string,
 	path: string,
@@ -3711,6 +3915,10 @@ export type JobProgressEvent_Serialize = AssetDownloadProgress_Serialize;
 export type JobReconcilePaperArgs = {
 	vaultPath: string,
 	path: string,
+};
+
+export type JobRendererClaimArgs = {
+	jobId: string,
 };
 
 export type JobReorderArgs = {
@@ -4183,6 +4391,7 @@ export type LookupImportResult_Deserialize = {
 	paperMd?: boolean,
 	/**  Download / parse messages (for UI warnings). */
 	assetMessages?: string[],
+	openreviewPdfIssue: OpenReviewPdfIssue | null,
 	/**
 	 *  `Deduped` when the paper already existed and (for local PDFs) the PDF
 	 *  was merged into the existing entry instead of creating a duplicate.
@@ -4212,6 +4421,7 @@ export type LookupImportResult_Serialize = {
 	paperMd: boolean,
 	/**  Download / parse messages (for UI warnings). */
 	assetMessages: string[],
+	openreviewPdfIssue?: OpenReviewPdfIssue | null,
 	/**
 	 *  `Deduped` when the paper already existed and (for local PDFs) the PDF
 	 *  was merged into the existing entry instead of creating a duplicate.
@@ -4359,6 +4569,32 @@ export type OpenInTerminalResult = {
 	cwd: string,
 };
 
+
+/**  Why the OpenReview PDF is still missing after trying available sources. */
+export type OpenReviewPdfIssue = "verificationRequired" | "rateLimited" | "network" | "unavailable" | "downloadFailed";
+
+export type OpenReviewPdfVerification = {
+	verified: boolean,
+	url: string,
+};
+
+export type OpenWithApp = {
+	/**  Stable id used by `path_open_with`. */
+	id: string,
+	/**  Brand name shown verbatim. */
+	name: string,
+	/**  Grouping/fallback-glyph hint for the menu. */
+	kind: OpenWithKind,
+	/**
+	 *  Real application icon as a PNG data URL; `None` when this platform has
+	 *  no extractable icon and the menu renders a generic glyph instead.
+	 */
+	icon: string | null,
+};
+
+/**  Menu grouping/fallback-glyph hint for one entry. */
+export type OpenWithKind = "fileManager" | "editor" | "terminal";
+
 /**
  *  Which side wins a manual overwrite. `RemoteToLocal` mirrors the remote
  *  HEAD manifest onto disk (discarding divergent local content);
@@ -4415,6 +4651,7 @@ export type PaperCommitResult = {
 	tex: boolean,
 	paperMd: boolean,
 	assetMessages: string[],
+	openreviewPdfIssue: OpenReviewPdfIssue | null,
 	/**  True when assets are still downloading in the background (`Deferred`). */
 	assetsPending: boolean,
 };
@@ -4593,7 +4830,6 @@ export type PaperOpenBundleArgs = {
 export type PaperOpenBundle_Deserialize = {
 	paper: PaperRecord_Deserialize,
 	pathRel: string,
-	notesSeed: string | null,
 	pdfPath: string | null,
 	hasTex: boolean,
 	hasPaperMd: boolean,
@@ -4602,7 +4838,6 @@ export type PaperOpenBundle_Deserialize = {
 export type PaperOpenBundle_Serialize = {
 	paper: PaperRecord_Serialize,
 	pathRel: string,
-	notesSeed?: string | null,
 	pdfPath?: string | null,
 	hasTex: boolean,
 	hasPaperMd: boolean,
@@ -5355,6 +5590,11 @@ export type RunOnceRequest_Deserialize = {
 	target?: string | null,
 	/**  Preferred model id from ACP session config (category: model). Applied after session/new. */
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel?: boolean,
 	/**  Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan. */
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
@@ -5422,6 +5662,11 @@ export type RunOnceRequest_Serialize = {
 	target?: string | null,
 	/**  Preferred model id from ACP session config (category: model). Applied after session/new. */
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel: boolean,
 	/**  Preferred Codex-style collaboration mode (`collaboration_mode`), e.g. default / plan. */
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
@@ -6401,6 +6646,11 @@ export type WarmRequest_Deserialize = {
 	agentId?: string | null,
 	vaultPath?: string | null,
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel?: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };
@@ -6410,6 +6660,11 @@ export type WarmRequest_Serialize = {
 	agentId?: string | null,
 	vaultPath?: string | null,
 	modelId?: string | null,
+	/**
+	 *  Force one `session/set_config_option` for `model_id` even when the agent
+	 *  reports it as current. Set for explicit user picks only (Fix #1087).
+	 */
+	forceModel: boolean,
 	/**  Preferred collaboration mode (`collaboration_mode`: default / plan). */
 	collaborationModeId?: string | null,
 };
@@ -6439,6 +6694,13 @@ export type WarmResult_Serialize = {
 export type WebProxyAllowHostArgs = {
 	/**  Public DNS host the viewer is about to load through the proxy. */
 	host: string,
+};
+
+export type WebpageSnapshotResult = {
+	/**  Vault-relative paper folder that now holds the snapshot. */
+	path: string,
+	/**  Bytes written: `webpage.html` + `PAPER.md`. */
+	bytes: number,
 };
 
 export type WikiApplyExternalRenameArgs = {
@@ -6972,6 +7234,19 @@ export type ZoteroMigrateArgs = {
 	migrateAnnotations?: boolean,
 };
 
+/**
+ *  One item the migration could not import, with enough context to find it in
+ *  Zotero again and to explain the failure.
+ */
+export type ZoteroMigrateFailure = {
+	/**  Zotero itemID (the item's own id, or the note's itemID for standalone notes). */
+	itemId: number,
+	title: string,
+	/**  DOI as stored in Zotero (`DOI` field), when the item has one. */
+	doi: string | null,
+	message: string,
+};
+
 export type ZoteroMigrateResult = {
 	imported: number,
 	skipped: number,
@@ -6996,7 +7271,12 @@ export type ZoteroMigrateResult = {
 	/**  Orphan catalog rows removed before import (paper folder gone from disk). */
 	pruned: number,
 	paths: string[],
-	errors: string[],
+	/**
+	 *  Per-item failures. `message` is the Host error text; `title` / `doi` let
+	 *  the UI (and the log) point at the exact Zotero entry instead of a bare
+	 *  count.
+	 */
+	failures: ZoteroMigrateFailure[],
 };
 
 export type ZoteroScan = ZoteroScan_Serialize | ZoteroScan_Deserialize;

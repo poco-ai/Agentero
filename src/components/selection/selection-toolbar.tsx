@@ -75,7 +75,7 @@ export function SelectionToolbarAction({
 			}
 			aria-keyshortcuts={shortcut?.length === 1 ? shortcut : undefined}
 			className={cn(
-				"inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 font-medium text-caption text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 motion-reduce:active:scale-100",
+				"inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 font-medium text-caption text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 motion-reduce:active:scale-100",
 				className,
 			)}
 			onPointerDown={(event) => {

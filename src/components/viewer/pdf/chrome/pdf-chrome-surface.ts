@@ -23,10 +23,12 @@ export const PDF_CHROME_VIS_HIDE =
 /**
  * Left outline / references / figures panel.
  * Heavier material than chips; enters from the left (spatial consistency).
- * Reserve the bottom 4rem for the page / zoom bar and a clear gap.
+ * Full reading height: the rail is an overlay, so it covers the bottom page /
+ * zoom bar instead of shortening itself to leave the bar a lane. The bar sits
+ * below it in the stack (`pdf-bottom-bar` z-10 vs z-20 here).
  */
 export const PDF_SIDE_PANEL =
-	"absolute top-0 bottom-16 left-0 z-20 w-80 select-none border-r border-border/50 bg-background/90 pt-11 pb-2 shadow-overlay backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/75 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-200 motion-reduce:animate-none";
+	"absolute top-0 bottom-0 left-0 z-20 w-80 select-none border-r border-border/50 bg-background/90 pt-11 pb-2 shadow-overlay backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/75 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-200 motion-reduce:animate-none";
 
 /** Ask / translate / preview cards — near-solid for dense text. */
 export const PDF_FLOAT_CARD =

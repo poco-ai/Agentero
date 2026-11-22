@@ -32,6 +32,7 @@ type PdfTranslatePartialDialogProps = {
 	/** Localized page span, or null when nothing is pending. */
 	pages: string | null;
 	completionFailed: boolean;
+	failureMessage: string | null;
 	layoutWarningPages: string | null;
 	layoutWarningCount: number;
 	layoutPageCount: number | null;
@@ -75,6 +76,7 @@ export function PdfTranslatePartialDialog({
 	pendingRequired,
 	pages,
 	completionFailed,
+	failureMessage,
 	layoutWarningPages,
 	layoutWarningCount,
 	layoutPageCount,
@@ -90,6 +92,8 @@ export function PdfTranslatePartialDialog({
 	const hasLayoutWarning =
 		layoutWarningCount > 0 && Boolean(layoutWarningPages);
 	const warningsOnly = hasLayoutWarning && pendingRequired === 0;
+	const failureOnly =
+		Boolean(failureMessage) && pendingRequired === 0 && !hasLayoutWarning;
 
 	if (confirming) {
 		return (
@@ -137,7 +141,9 @@ export function PdfTranslatePartialDialog({
 					<PopoverTitle>
 						{warningsOnly
 							? t("pdf.layoutTranslate.layoutWarningTitle")
-							: t("pdf.layoutTranslate.partialTitle")}
+							: failureOnly
+								? t("pdf.layoutTranslate.failed")
+								: t("pdf.layoutTranslate.partialTitle")}
 					</PopoverTitle>
 					<DialogCloseButton
 						label={t("pdf.layoutTranslate.close")}
@@ -152,6 +158,11 @@ export function PdfTranslatePartialDialog({
 								translated: translatedPageCount,
 								total: layoutPageCount ?? totalCount,
 							})}
+						</PopoverDescription>
+					) : null}
+					{failureMessage ? (
+						<PopoverDescription className="text-amber-700 dark:text-amber-400">
+							{failureMessage}
 						</PopoverDescription>
 					) : null}
 					{pendingRequired > 0 ? (
@@ -229,6 +240,7 @@ export const PdfTranslatePartialButton = memo(
 			pageRange,
 			open,
 			completionFailed,
+			failureMessage,
 			layoutWarningPages,
 			layoutWarningCount,
 			layoutPageCount,
@@ -249,8 +261,13 @@ export const PdfTranslatePartialButton = memo(
 						end: pageRange.end,
 					})
 			: null;
-		const label =
-			layoutWarningCount > 0 && pendingRequired === 0
+		const failureOnly =
+			Boolean(failureMessage) &&
+			pendingRequired === 0 &&
+			layoutWarningCount === 0;
+		const label = failureOnly
+			? t("pdf.layoutTranslate.failed")
+			: layoutWarningCount > 0 && pendingRequired === 0
 				? t("pdf.layoutTranslate.layoutWarningButton", {
 						count: layoutWarningCount,
 					})
@@ -323,6 +340,7 @@ export const PdfTranslatePartialButton = memo(
 						pendingRequired={pendingRequired}
 						pages={pages}
 						completionFailed={completionFailed}
+						failureMessage={failureMessage}
 						layoutWarningPages={layoutWarningPages}
 						layoutWarningCount={layoutWarningCount}
 						layoutPageCount={layoutPageCount}

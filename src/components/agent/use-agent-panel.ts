@@ -335,7 +335,8 @@ export function useAgentPanel({
 			await openAgentLoginTerminal(selectedLogin.templateId);
 			for (const delay of [2_000, 5_000, 10_000, 20_000]) {
 				window.setTimeout(() => {
-					void refresh();
+					// The user is waiting for the login to change the catalog.
+					void refresh({ forceCatalog: true });
 				}, delay);
 			}
 		} catch (error) {
@@ -724,7 +725,7 @@ export function useAgentPanel({
 			setSessionHistory([]);
 			clearMessageQueue();
 			setSelectedAgentId(agentId);
-			await refresh();
+			await refresh({ forceCatalog: true });
 		} catch (e) {
 			setLines((p) => [...p, errorChatLine(errorText(e))]);
 		} finally {

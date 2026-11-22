@@ -129,9 +129,7 @@ function RenameRow({
 		<TreeRenameInput
 			initialName={ctx.renameDraft.currentName}
 			icon={icon}
-			onConfirm={(newName) => {
-				void ctx.onConfirmRename?.(node.path, newName);
-			}}
+			onConfirm={(newName) => ctx.onConfirmRename?.(node.path, newName)}
 			onCancel={() => ctx.onCancelRename?.()}
 		/>
 	);

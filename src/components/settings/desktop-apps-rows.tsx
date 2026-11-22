@@ -1,4 +1,4 @@
-import { ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, Ban, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DesktopAppLogo } from "@/components/agent/desktop-app-logo";
@@ -99,6 +99,7 @@ function DesktopAppsRows() {
 		<>
 			{DESKTOP_APP_IDS.map((id) => {
 				const installed = statuses[id]?.installed ?? false;
+				const unsupported = statuses[id]?.unsupported ?? false;
 				const label = t(`agent.desktopApps.${id}`);
 				const icon = (
 					<DesktopAppLogo
@@ -124,6 +125,15 @@ function DesktopAppsRows() {
 								{icon}
 								{text}
 							</div>
+							{unsupported ? (
+								<span
+									className="flex shrink-0 items-center gap-1 text-muted-foreground text-xs"
+									title={t("agent.desktopApps.unsupportedHint")}
+								>
+									<Ban className="size-3.5" aria-hidden />
+									{t("agent.desktopApps.unsupported")}
+								</span>
+							) : null}
 						</div>
 					);
 				}

@@ -45,6 +45,7 @@ tar = "0.4.46"
 zip = { version = "9.1", default-features = false, features = ["deflate"] }
 htmd = "0.5.4"
 dom_smoothie = "0.18"
+dom_query = "0.28"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 bitflags = "2"
 sha2 = "0.11.0"

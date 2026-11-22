@@ -12,9 +12,8 @@
  */
 
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
-import { commands } from "@/lib/core/bindings";
+import i18n from "@/i18n";
 import { errorText } from "@/lib/core/error";
-import { callApiResult } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import {
 	registerTaskExecutor,
@@ -53,6 +52,7 @@ import { createReflowBuildCache } from "@/lib/pdf/reflow/build-cache";
 import { createReflowIrCache } from "@/lib/pdf/reflow/cache";
 import { buildReflowPdf } from "@/lib/pdf/reflow/export";
 import { loadReflowFonts } from "@/lib/pdf/reflow/fonts";
+import { FormulaPdfCallStalledError } from "@/lib/pdf/reflow/formula-engine";
 import {
 	prepareReflowItems,
 	reflowDocumentFromItems,
@@ -96,8 +96,6 @@ async function runLayoutTranslateExecutor(
 		return;
 	}
 
-	if (!(await callApiResult(() => commands.jobLayoutTranslateClaim({ jobId }))))
-		return;
 	const paperAbsPath = joinVaultPath(vaultPath, paperPath);
 	const publisher = createTranslationPublisher(report, jobId);
 
@@ -121,12 +119,7 @@ async function runLayoutTranslateExecutor(
 			await report({ state: "failed", error: result.error });
 			return;
 		}
-		await report({
-			progress: 100,
-			phase:
-				result.pending > 0 ? `${result.translated}/${result.total}` : undefined,
-			state: "succeeded",
-		});
+		await report({ progress: 100, state: "succeeded" });
 	} catch (error) {
 		if (signal.aborted || isCancelledError(error)) {
 			await report({ state: "cancelled" });
@@ -139,7 +132,10 @@ async function runLayoutTranslateExecutor(
 		});
 		await report({
 			state: "failed",
-			error: displayTranslateError(errorText(error)),
+			error:
+				error instanceof FormulaPdfCallStalledError
+					? i18n.t("app:tasks.layoutTranslateFormulaStalled")
+					: displayTranslateError(errorText(error)),
 		});
 	} finally {
 		await publisher.flush();
@@ -251,7 +247,10 @@ export async function translatePaperLayoutHeadless(opts: {
 			signal,
 			run,
 		);
-	report({ progress: 2 });
+	report({
+		progress: 2,
+		phase: i18n.t("app:tasks.layoutTranslatePrepareItems"),
+	});
 	const prepared = await withDocument((engine, doc) => {
 		const irCache = createReflowIrCache(
 			{
@@ -295,7 +294,10 @@ export async function translatePaperLayoutHeadless(opts: {
 		return skipped("complete cache", total, 0);
 	}
 
-	report({ progress: 5 });
+	report({
+		progress: 5,
+		phase: i18n.t("app:tasks.layoutTranslateRun"),
+	});
 	let reported = 5;
 	const items = await runLayoutRegionTranslate({
 		items: hydration.items,
@@ -368,9 +370,17 @@ export async function translatePaperLayoutHeadless(opts: {
 		translated,
 		total,
 		pending,
+		// A complete cache returns earlier with pendingRequired === 0.
+		// Written sidecar blocks stay; a partial run is not success.
 		error:
-			translated === 0 && firstError?.error
-				? displayTranslateError(firstError.error)
+			pending > 0
+				? translated === 0 && firstError?.error
+					? displayTranslateError(firstError.error)
+					: i18n.t("app:tasks.layoutTranslatePartial", {
+							translated,
+							total,
+							pending,
+						})
 				: undefined,
 	};
 }
@@ -383,7 +393,8 @@ function countTranslated(items: readonly LayoutTranslateItem[]): number {
 
 /**
  * Build and persist the translated PDF through the same content-keyed cache the
- * viewer uses. Best effort: a failed build only slows the next open down.
+ * viewer uses. A stalled formula call fails the task. Other build failures stay
+ * best-effort: the sidecar is already written, and the next open rebuilds the PDF.
  */
 async function buildFinalCache(opts: {
 	engine: PdfEngine;
@@ -417,6 +428,8 @@ async function buildFinalCache(opts: {
 			logger.info("pdf.translate.headless", { result: "pdf-cache-hit" });
 			return;
 		}
+		let writingPdf = false;
+		opts.report({ phase: i18n.t("app:tasks.layoutTranslateFormulas") });
 		const built = await buildReflowPdf(
 			opts.engine,
 			opts.doc,
@@ -425,7 +438,17 @@ async function buildFinalCache(opts: {
 			fonts,
 			opts.signal,
 			true,
-			(ratio) => opts.report({ progress: 90 + Math.round(9 * ratio) }),
+			(ratio) => {
+				if (!writingPdf && ratio >= 0.6) {
+					writingPdf = true;
+					opts.report({
+						progress: 90 + Math.round(9 * ratio),
+						phase: i18n.t("app:tasks.layoutTranslateWritePdf"),
+					});
+					return;
+				}
+				opts.report({ progress: 90 + Math.round(9 * ratio) });
+			},
 		);
 		opts.signal?.throwIfAborted();
 		await cache.writeFinal(ir, translations, fonts, built.bytes);
@@ -437,7 +460,9 @@ async function buildFinalCache(opts: {
 	try {
 		await run();
 	} catch (error) {
-		if (opts.signal?.aborted) throw error;
+		if (opts.signal?.aborted || error instanceof FormulaPdfCallStalledError) {
+			throw error;
+		}
 		logger.warn("layout translate final PDF failed", {
 			paperAbsPath: opts.paperAbsPath,
 			error: errorText(error),

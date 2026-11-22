@@ -11,6 +11,7 @@ import {
 	Copy,
 	Download,
 	FolderOpen,
+	Loader2,
 	MessageSquarePlus,
 	Pencil,
 	RefreshCw,
@@ -35,7 +36,10 @@ import {
 } from "@/components/ui/context-menu";
 import { notifyError } from "@/lib/core/notify";
 import type { PaperLibraryRow, PaperMetadata } from "@/lib/paper";
-import { downloadLibraryPaper } from "@/lib/paper/library-actions";
+import {
+	downloadLibraryPaper,
+	recaptureWebpageSnapshot,
+} from "@/lib/paper/library-actions";
 import { setEditMetaDraft } from "@/lib/paper/library-store";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
 import {
@@ -125,6 +129,10 @@ export function LibraryRowMenu({
 }: LibraryRowMenuProps) {
 	/** Row the menu was opened on; null until the first right-click. */
 	const [targetKey, setTargetKey] = useState<string | null>(null);
+	/** Papers whose webpage snapshot is being re-fetched (row busy). */
+	const [recapturingKeys, setRecapturingKeys] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
 
 	const onContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
 		const row = (event.target as HTMLElement | null)?.closest<HTMLElement>(
@@ -154,6 +162,19 @@ export function LibraryRowMenu({
 		for (const row of selectedRows) {
 			if (isMissingLocalPdf(row.paper)) void downloadLibraryPaper(row.paper);
 		}
+	};
+
+	const recaptureWebpage = (paper: PaperMetadata) => {
+		const key = paperSelectionKey(paper);
+		if (recapturingKeys.has(key)) return;
+		setRecapturingKeys((prev) => new Set(prev).add(key));
+		void recaptureWebpageSnapshot(vaultPath, paper).finally(() => {
+			setRecapturingKeys((prev) => {
+				const next = new Set(prev);
+				next.delete(key);
+				return next;
+			});
+		});
 	};
 
 	return (
@@ -221,6 +242,8 @@ export function LibraryRowMenu({
 						row={targetRow}
 						vaultPath={vaultPath}
 						canEditMeta={canEditMeta}
+						recapturing={Boolean(targetKey && recapturingKeys.has(targetKey))}
+						onRecaptureWebpage={recaptureWebpage}
 						onOpenPaper={onOpenPaper}
 						onRefreshMetadata={onRefreshMetadata}
 						onAddToChat={onAddToChat}
@@ -239,6 +262,8 @@ function SingleRowMenu({
 	row,
 	vaultPath,
 	canEditMeta,
+	recapturing,
+	onRecaptureWebpage,
 	onOpenPaper,
 	onRefreshMetadata,
 	onAddToChat,
@@ -249,6 +274,9 @@ function SingleRowMenu({
 	row: PaperRow;
 	vaultPath: string | null;
 	canEditMeta: boolean;
+	/** This row's webpage snapshot is being re-fetched. */
+	recapturing: boolean;
+	onRecaptureWebpage: (paper: PaperMetadata) => void;
 	onOpenPaper: (paper: PaperMetadata) => void;
 	onRefreshMetadata?: (paper: PaperMetadata) => void;
 	onAddToChat: (papers: PaperLibraryRow[]) => void;
@@ -282,6 +310,19 @@ function SingleRowMenu({
 				<ContextMenuItem onSelect={() => void onRefreshMetadata?.(p)}>
 					<RefreshCw className="size-3.5" />
 					{t("papersLibrary.rowRefreshMeta")}
+				</ContextMenuItem>
+			) : null}
+			{canEditMeta && p.type === "html" ? (
+				<ContextMenuItem
+					disabled={recapturing}
+					onSelect={() => onRecaptureWebpage(p)}
+				>
+					{recapturing ? (
+						<Loader2 className="size-3.5 animate-spin" />
+					) : (
+						<RefreshCw className="size-3.5" />
+					)}
+					{t("papersLibrary.rowRecaptureWebpage")}
 				</ContextMenuItem>
 			) : null}
 			{absPath ? (

@@ -3,7 +3,7 @@ import { AgenteroRenderLayer } from "@/components/viewer/pdf/layers/agentero-ren
 import { cn } from "@/lib/core/utils";
 import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
-import { layoutTranslateSentenceNodes } from "@/lib/pdf/layout/layout-sentences";
+import { groupReflowUnitsBySentence } from "@/lib/pdf/layout/layout-sentences";
 import {
 	assignPreservedLinks,
 	type GlyphRun,
@@ -27,27 +27,11 @@ function reflowSentenceGroups(
 	item: LayoutTranslateItem,
 	units: PlacedUnit[],
 ): { index?: number; units: PlacedUnit[] }[] {
-	const split = layoutTranslateSentenceNodes(
+	return groupReflowUnitsBySentence(
 		item.translated ?? "",
 		item.sentences,
+		units,
 	);
-	if (!split) return [{ units }];
-	let offset = 0;
-	const groups = split.nodes.map((node) => {
-		const start = offset;
-		offset += node.text.length + split.gap.length;
-		return { index: node.index, start, units: [] as PlacedUnit[] };
-	});
-	let current = 0;
-	for (const unit of units) {
-		while (
-			current + 1 < groups.length &&
-			unit.translatedOffset >= groups[current + 1].start
-		)
-			current++;
-		groups[current].units.push(unit);
-	}
-	return groups;
 }
 
 /** The PDF raster and transparent selection geometry share the export layout. */
@@ -158,7 +142,6 @@ export function ReflowPageOverlay({
 						// transparent: one box per character would stack in the seam.
 						// The line band paints the highlight once.
 						data-reflow-selection="true"
-						data-paper={tone}
 						className="pdf-translate-selection pointer-events-auto absolute select-text"
 						onPointerDownCapture={(event) => {
 							if (event.button !== 0) return;

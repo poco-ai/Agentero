@@ -234,9 +234,9 @@ export function usePdfSyncTex(options: {
 				layer = document.createElement("div");
 				layer.dataset.synctexHover = "";
 				layer.dataset.sourceSentence = "";
+				// Hover weight and shape come from the paper-mark tokens.
 				layer.className = "pdf-layout-sentence-wash is-on";
 				layer.style.zIndex = "6";
-				layer.style.setProperty("--pdf-sentence-opacity", "12%");
 				layer.setAttribute("aria-hidden", "true");
 				layer.append(document.createElement("span"));
 				page.append(layer);

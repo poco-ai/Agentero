@@ -1,4 +1,4 @@
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 mod desktop_cli;
 pub mod discover;
 #[cfg(windows)]
@@ -75,6 +75,54 @@ impl SanitizeAppImageEnv for tokio::process::Command {
             }
         }
         self
+    }
+}
+
+/// Start a child that is not tied to a Vault in Agentero's private scratch
+/// directory instead of inheriting the Host's process cwd.
+///
+/// macOS attributes privacy (TCC) prompts to the *responsible* process, and a
+/// GUI app started by LaunchServices has `/` as its cwd. Third-party CLIs and
+/// the user's login shell scan their startup directory — from `/` that walks
+/// `$HOME` and trips Music / Desktop / Downloads / other-app-data prompts,
+/// which the user sees as Agentero asking for unrelated permissions (#570).
+///
+/// ACP sessions already change into the Vault before exec; this trait covers
+/// the spawns with no Vault context: availability/version probes, diagnostics,
+/// the login-shell environment snapshot and installers. Keeps the same
+/// [`crate::paths::agent_scratch_dir`] contract (data dir, then an
+/// Agentero-only temp subdirectory) and degrades to the inherited cwd only
+/// when neither location can be created.
+pub trait SpawnInAgentScratchDir {
+    /// Point the child at the private scratch directory when it is available.
+    fn spawn_in_agent_scratch_dir(&mut self) -> &mut Self;
+}
+
+impl SpawnInAgentScratchDir for std::process::Command {
+    fn spawn_in_agent_scratch_dir(&mut self) -> &mut Self {
+        if let Some(dir) = agent_scratch_cwd() {
+            self.current_dir(dir);
+        }
+        self
+    }
+}
+
+impl SpawnInAgentScratchDir for tokio::process::Command {
+    fn spawn_in_agent_scratch_dir(&mut self) -> &mut Self {
+        if let Some(dir) = agent_scratch_cwd() {
+            self.current_dir(dir);
+        }
+        self
+    }
+}
+
+fn agent_scratch_cwd() -> Option<std::path::PathBuf> {
+    match crate::paths::agent_scratch_dir() {
+        Ok(dir) => Some(dir),
+        Err(error) => {
+            log::debug!("agent scratch cwd unavailable, inheriting process cwd: {error}");
+            None
+        }
     }
 }
 
@@ -329,6 +377,37 @@ mod tests {
             windows_shell_path(std::path::Path::new("/home/user/vault")),
             std::path::Path::new("/home/user/vault")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn probe_children_run_in_the_private_scratch_dir() {
+        let scratch = agent_scratch_cwd().expect("agent scratch directory");
+        let mut command = std::process::Command::new("/bin/pwd");
+        command.spawn_in_agent_scratch_dir();
+        let output = command.output().expect("run pwd");
+        assert!(output.status.success());
+        let printed = String::from_utf8_lossy(&output.stdout);
+        let printed = std::fs::canonicalize(printed.trim()).expect("canonical child cwd");
+        let expected = std::fs::canonicalize(&scratch).expect("canonical scratch");
+        assert_eq!(printed, expected);
+        // The whole point: never inherit `/` from a LaunchServices launch.
+        assert_ne!(expected, std::path::PathBuf::from("/"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn probe_children_run_in_the_private_scratch_dir() {
+        let scratch = agent_scratch_cwd().expect("agent scratch directory");
+        let mut command = std::process::Command::new("cmd");
+        command.args(["/D", "/C", "cd"]);
+        command.spawn_in_agent_scratch_dir();
+        let output = command.output().expect("run cd");
+        assert!(output.status.success());
+        let printed = String::from_utf8_lossy(&output.stdout);
+        let printed = std::fs::canonicalize(printed.trim()).expect("canonical child cwd");
+        let expected = std::fs::canonicalize(&scratch).expect("canonical scratch");
+        assert_eq!(printed, expected);
     }
 
     #[test]

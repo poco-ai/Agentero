@@ -38,7 +38,7 @@ import { paperSelectionKey } from "@/components/library/library-selection";
 import { LibrarySelectionBar } from "@/components/library/library-selection-bar";
 import { LibraryTableHeader } from "@/components/library/library-table-header";
 import { Button } from "@/components/ui/button";
-import { useWritingStore } from "@/hooks/use-app-stores";
+import { useSettings, useWritingStore } from "@/hooks/use-app-stores";
 import { useDebouncedCallback } from "@/hooks/use-debounce";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { broadcastAgentAttachContext } from "@/lib/agent/context-attach";
@@ -132,6 +132,7 @@ export function PapersLibrary({
 	className,
 }: PapersLibraryProps) {
 	const reading = useWritingStore((s) => s.surface === "reading");
+	const easyScholarRanks = useSettings((s) => s.easyScholarRanks);
 	const { t: tRaw, i18n } = useTranslation("sidebar");
 	/** Column renderers take plain string keys; cast off strict resource unions. */
 	const t = tRaw as unknown as CellT;
@@ -495,9 +496,11 @@ export function PapersLibrary({
 	});
 
 	/** Stable t + onCellCopy pair shared by every memoized row. */
-	const cellCtx = useMemo<Pick<CellCtx, "t" | "onCellCopy">>(
-		() => ({ t, onCellCopy }),
-		[t, onCellCopy],
+	const cellCtx = useMemo<
+		Pick<CellCtx, "t" | "onCellCopy" | "easyScholarRanks">
+	>(
+		() => ({ t, onCellCopy, easyScholarRanks }),
+		[t, onCellCopy, easyScholarRanks],
 	);
 
 	/** Selected papers, resolved on action only (never per marquee frame). */

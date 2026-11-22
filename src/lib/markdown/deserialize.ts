@@ -2,7 +2,8 @@
  * Markdown → Plate deserialize prep.
  *
  * 1. Normalize TeX math delimiters (`\[…\]` / `\(…\)`, single-line `$$…$$`)
- *    to the dollar forms `remark-math` parses.
+ *    to the dollar forms `remark-math` parses, recording the original
+ *    delimiter so saving writes it back.
  * 2. Preserve extra blank lines that CommonMark would otherwise collapse.
  * 3. Prevent an unclosed block-math fence from consuming the rest of a document.
  * 4. Escape a `<` that MDX would treat as a tag, except the HTML the editor

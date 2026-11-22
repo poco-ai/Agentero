@@ -63,6 +63,27 @@ export function isPdfPaperTone(value: unknown): value is PdfPaperTone {
 }
 
 /**
+ * Search-hit fills for EmbedPDF's `SearchLayer`.
+ *
+ * The layer paints one rect per hit with a solid colour under
+ * `mix-blend-mode: multiply` (its own inline style). On inverted dark paper
+ * that multiplication lands at almost the paper's own luminance, so a hit is
+ * invisible. A translucent fill plus a normal blend (`.pdf-search-hits` in
+ * index.css) keeps the glyphs readable and the mark visible on every paper
+ * tone. The active hit is brighter and denser than the rest.
+ */
+export const PDF_SEARCH_HIT_FILL = "rgba(253, 224, 71, 0.35)";
+export const PDF_SEARCH_ACTIVE_FILL = "rgba(251, 191, 36, 0.6)";
+
+/**
+ * Source-page hits paint above rasterized glyphs (the translated pages keep
+ * their hit layer under the DOM glyphs), so the fill covers the text itself.
+ * Keep it lighter there; the translated overlays keep the denser pair.
+ */
+export const PDF_SEARCH_SOURCE_HIT_FILL = "rgba(253, 224, 71, 0.25)";
+export const PDF_SEARCH_SOURCE_ACTIVE_FILL = "rgba(251, 191, 36, 0.4)";
+
+/**
  * Dark-mode page raster styling.
  *
  * Soft partial invert (not 100%) + slight brightness/contrast so pure white

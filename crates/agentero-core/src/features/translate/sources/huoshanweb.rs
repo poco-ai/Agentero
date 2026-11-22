@@ -54,9 +54,7 @@ async fn request_once(client: &reqwest::Client, body: &Value) -> Result<String, 
         .json(body)
         .send()
         .await
-        .map_err(|e| {
-            AttemptError::Fatal(AppError::message(format!("Volcengine request failed: {e}")))
-        })?;
+        .map_err(|e| AttemptError::Fatal(super::map_request_error("Volcengine", e)))?;
     let (status, body) = super::read_body(resp).await.map_err(AttemptError::Fatal)?;
     if !status.is_success() {
         let error = super::http_err(status, &body, "Volcengine Web");

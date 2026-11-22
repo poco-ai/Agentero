@@ -1,3 +1,4 @@
+import type { EasyScholarRankId } from "@/lib/paper/easy-scholar-ranks";
 import type {
 	PaperTreeLabelMode,
 	PaperTreeSortMode,
@@ -168,12 +169,22 @@ export function isPaperNoteMode(v: unknown): v is PaperNoteMode {
 	);
 }
 
+/** AlphaXiv API key (masked across IPC) and the profile from the last check. */
+export type AlphaXivSettings = {
+	apiKey: string;
+	username: string;
+	email: string;
+	realName: string;
+};
+
 export type AppSettings = {
 	/** Null disables a command; absent ids use their default shortcut. */
 	shortcutOverrides: ShortcutOverrides;
 	// General
 	/** EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string;
+	/** EasyScholar rank systems shown in the Library/Paper Info (empty = none). */
+	easyScholarRanks: EasyScholarRankId[];
 	/** 知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
 	zhihuAccessSecret: string;
 	/** EZProxy/WebVPN prefix for paywalled PDF fallback ("" disables). */
@@ -182,6 +193,20 @@ export type AppSettings = {
 	institutionProxyCookie: string;
 	/** Gateway type: "auto" | "ezproxy" | "wengine" | "subdomain". */
 	institutionProxyType: string;
+	/**
+	 * Host-captured OpenReview verification cookie (masked across IPC). The
+	 * download layer attaches it to OpenReview PDF requests.
+	 */
+	openreviewCookie: string;
+	/** Unix seconds when the OpenReview credential expires (0 = unknown). */
+	openreviewCookieExpiresAt: number;
+	/**
+	 * AlphaXiv API key. The key is masked across IPC. A plaintext key in a
+	 * generic settings save is ignored; the Host stores one only after
+	 * `GET /folders/v3`. Profile fields stay empty because API keys cannot
+	 * read `GET /users/v3`.
+	 */
+	alphaxiv: AlphaXivSettings;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */
 	networkProxyEnabled: boolean;
 	networkProxyUrl: string;

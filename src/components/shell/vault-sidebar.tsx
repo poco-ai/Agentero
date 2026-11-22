@@ -10,7 +10,6 @@ import {
 	useLayoutEffect,
 	useMemo,
 	useRef,
-	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { registerFileTreeHandle } from "@/components/shell/file-tree-registry";
@@ -54,7 +53,11 @@ import {
 	readPaper,
 	rescanLibraryPapers,
 } from "@/lib/paper/library-actions";
-import { setZoteroOpen, setZoteroSyncOpen } from "@/lib/shell/ui-store";
+import {
+	setAlphaXivOpen,
+	setZoteroOpen,
+	setZoteroSyncOpen,
+} from "@/lib/shell/ui-store";
 import {
 	joinVaultPath,
 	treeFindNode,
@@ -118,10 +121,11 @@ const onOpenRemoteVaultClick = (args: {
 	remotePath: string;
 }) => void openRemoteVault(args);
 const onMigrateZotero = () => setZoteroOpen(true);
+const onImportAlphaXiv = () => setAlphaXivOpen(true);
 const onSyncZotero = () => setZoteroSyncOpen(true);
 const onConfirmCreate = (name: string) => void confirmCreate(name);
 const onConfirmRename = (path: string, name: string) =>
-	void confirmRenamePath(path, name);
+	confirmRenamePath(path, name);
 const onCancelRename = () => cancelRenamePath();
 const onDeletePath = (path: string) => void trashPathsAndNotify([path]);
 const onDeletePaths = (paths: string[]) => void trashPathsAndNotify(paths);
@@ -144,7 +148,6 @@ function normalizePaperRelPath(path: string | null | undefined): string | null {
 
 export function VaultSidebar() {
 	const fileTreeRef = useRef<FileTreeHandle>(null);
-	const [treeSelectionCount, setTreeSelectionCount] = useState(0);
 	useEffect(() => {
 		registerFileTreeHandle(fileTreeRef.current);
 		return () => registerFileTreeHandle(null);
@@ -255,38 +258,6 @@ export function VaultSidebar() {
 		() => resolvePapersParentDir(vaultPath, treeSelectedPath, tree),
 		[vaultPath, treeSelectedPath, tree],
 	);
-	const clearTreeSelection = useCallback(
-		() => fileTreeRef.current?.clearSelection(),
-		[],
-	);
-	const moveTreeSelection = useCallback(
-		(anchor: { x: number; y: number }) =>
-			fileTreeRef.current?.moveSelected(anchor),
-		[],
-	);
-	const deleteTreeSelection = useCallback(
-		() => fileTreeRef.current?.deleteSelected(),
-		[],
-	);
-	const treeSelectionHeader = useMemo(
-		() =>
-			treeSelectionCount > 0
-				? {
-						count: treeSelectionCount,
-						disabled: busy,
-						onClear: clearTreeSelection,
-						onMove: moveTreeSelection,
-						onDelete: deleteTreeSelection,
-					}
-				: undefined,
-		[
-			busy,
-			clearTreeSelection,
-			deleteTreeSelection,
-			moveTreeSelection,
-			treeSelectionCount,
-		],
-	);
 
 	return (
 		<>
@@ -297,7 +268,6 @@ export function VaultSidebar() {
 							? `${vaultDisplayName(vaultPath)} · ${t("app:vault.remoteBadge")}`
 							: vaultDisplayName(vaultPath)
 					}
-					selection={treeSelectionHeader}
 					lookupParentDir={lookupParentDir}
 					onLookupSubmit={onLookupSubmit}
 					onLookupBatchSubmit={onLookupBatchSubmit}
@@ -316,6 +286,7 @@ export function VaultSidebar() {
 					onCreateVault={onCreateVaultClick}
 					onOpenRemoteVault={onOpenRemoteVaultClick}
 					onMigrateZotero={onMigrateZotero}
+					onImportAlphaXiv={onImportAlphaXiv}
 					onSyncZotero={onSyncZotero}
 				/>
 			</div>
@@ -340,7 +311,6 @@ export function VaultSidebar() {
 						onDropMove={onDropMove}
 						onCutPaths={cutSelectedPaths}
 						onPasteInto={onPasteInto}
-						onSelectionChange={setTreeSelectionCount}
 						cutPaths={cutPaths}
 						onDropLocalPdfs={dropLocalPdfs}
 						onSelectFile={selectFileNode}

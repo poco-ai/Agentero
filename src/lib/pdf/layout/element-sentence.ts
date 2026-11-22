@@ -1,4 +1,8 @@
 import { pointInBbox } from "@/lib/pdf/layout/hit-test";
+import {
+	groupReflowUnitsBySentence,
+	layoutTranslateSentenceNodes,
+} from "@/lib/pdf/layout/layout-sentences";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
 import type { LayoutTranslateSentence } from "@/lib/pdf/layout/types";
 import { mergeClientRectsIntoLines } from "@/lib/pdf/layout/visible-selection-rects";
@@ -95,6 +99,85 @@ export function sourceSentenceHoverBands(
 	});
 }
 
+type ReflowHoverUnit = {
+	translatedOffset: number;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	fontSize: number;
+	formula?: unknown;
+};
+
+type ReflowHoverItem = {
+	id: string;
+	bbox: { w: number; h: number };
+	reflow?: { box: { w: number; h: number } };
+	reflowLayout?: { units: readonly ReflowHoverUnit[] };
+	translated?: string;
+	sentences?: readonly { translated: string; display?: string }[];
+};
+
+/**
+ * Translated line bands for one reflowed page, in page fractions.
+ * Returns null when the page is still showing source glyphs. A block whose
+ * pairs do not rebuild the translation contributes its whole placed paragraph.
+ */
+export function companionReflowSentenceBands(
+	items: readonly ReflowHoverItem[],
+	members: readonly {
+		itemId: string;
+		pageIndex: number;
+		sentenceIndex: number;
+	}[],
+	pageIndex: number,
+): SentenceFractionRect[] | null {
+	const rects: SentenceFractionRect[] = [];
+	let sawLayout = false;
+	for (const member of members) {
+		if (member.pageIndex !== pageIndex) continue;
+		const item = items.find((entry) => entry.id === member.itemId);
+		const units = item?.reflowLayout?.units;
+		if (
+			!item?.reflow ||
+			!units?.length ||
+			!(item.bbox.w > 0) ||
+			!(item.bbox.h > 0)
+		)
+			continue;
+		const pageWidth = item.reflow.box.w / item.bbox.w;
+		const pageHeight = item.reflow.box.h / item.bbox.h;
+		if (!(pageWidth > 0) || !(pageHeight > 0)) continue;
+		sawLayout = true;
+		const split = layoutTranslateSentenceNodes(
+			item.translated ?? "",
+			item.sentences,
+		);
+		const groups = groupReflowUnitsBySentence(
+			item.translated ?? "",
+			item.sentences,
+			units,
+		);
+		const chosen = split
+			? groups.filter((group) => group.index === member.sentenceIndex)
+			: groups;
+		for (const group of chosen) {
+			for (const unit of group.units) {
+				if (!(unit.width > 0) || !(unit.height > 0)) continue;
+				const top = unit.y - (unit.formula ? unit.height : unit.fontSize * 0.8);
+				rects.push({
+					x: unit.x / pageWidth,
+					y: top / pageHeight,
+					w: unit.width / pageWidth,
+					h: unit.height / pageHeight,
+				});
+			}
+		}
+	}
+	if (!sawLayout) return null;
+	return sentenceHoverBands(rects);
+}
+
 /** One painted slice of a sentence. Split boxes share `quote`. */
 export type ElementSentenceMember = {
 	itemId: string;
@@ -180,6 +263,50 @@ const sentenceHitBandCache = new WeakMap<
 	readonly (readonly SentenceFractionRect[])[],
 	SentenceFractionRect[][]
 >();
+
+/** Joined quotes of one block, used to spot a bbox that clipped a larger block. */
+export function sentenceListText(item: SentenceItem): string {
+	return (item.sentences ?? [])
+		.map((sentence) => sentence.quote.replace(/\s+/g, " ").trim())
+		.filter(Boolean)
+		.join(" ");
+}
+
+function isStrictSentencePrefix(shorter: string, longer: string): boolean {
+	if (!shorter || shorter.length >= longer.length) return false;
+	if (!longer.startsWith(shorter)) return false;
+	return longer[shorter.length] === " ";
+}
+
+function sentenceBlockArea(item: SentenceItem): number {
+	const box = item.bbox;
+	if (!box || !(box.w > 0) || !(box.h > 0)) return Number.POSITIVE_INFINITY;
+	return box.w * box.h;
+}
+
+/**
+ * Drop a detection whose sentence list is only the start of a larger block.
+ *
+ * A clipped line box is smaller, so the minimum-area hit would light that
+ * fragment and hide the real sentence. The larger block has to contain the
+ * same point; this does not compare blocks the pointer missed.
+ */
+export function dropTruncatedSentencePrefixes<T extends SentenceItem>(
+	items: readonly T[],
+): T[] {
+	const texts = items.map(sentenceListText);
+	return items.filter((item, index) => {
+		const text = texts[index] ?? "";
+		if (!text) return true;
+		const area = sentenceBlockArea(item);
+		return !items.some((other, otherIndex) => {
+			if (otherIndex === index || other.pageIndex !== item.pageIndex)
+				return false;
+			if (!(sentenceBlockArea(other) > area + 1e-12)) return false;
+			return isStrictSentencePrefix(text, texts[otherIndex] ?? "");
+		});
+	});
+}
 
 /** Adjacent lines share a hit boundary at their midpoint; painted boxes stay tight. */
 function sentenceHitBands(
@@ -273,11 +400,13 @@ export function elementSentenceAtPoint(options: {
 	const item =
 		options.items.find((entry) => entry.id === options.regionId) ?? null;
 	if (options.pageIndex != null && !options.span) {
-		const candidates = sentenceItemsUnderPoint(
-			options.items,
-			options.pageIndex,
-			options.x,
-			options.y,
+		const candidates = dropTruncatedSentencePrefixes(
+			sentenceItemsUnderPoint(
+				options.items,
+				options.pageIndex,
+				options.x,
+				options.y,
+			),
 		);
 		const hits = candidates.flatMap((entry) => {
 			const result = elementSentenceAtPoint({

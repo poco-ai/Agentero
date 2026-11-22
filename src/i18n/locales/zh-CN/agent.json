@@ -119,6 +119,7 @@
 		"selectionChipWithPage": "{{title}}:{{page}}页",
 		"selectionChipWithLine": "{{title}} {{from}}行",
 		"selectionChipWithLines": "{{title}} {{from}}-{{to}}行",
+		"referencePaperRoot": "Papers",
 		"visualAnnotation": "视觉批注",
 		"visualAnnotationPage": "第{{page}}页",
 		"visualAnnotationsTitle": "视觉批注（{{count}}）",

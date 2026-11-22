@@ -242,7 +242,7 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 								const busy = settingDefault || installing;
 								const rowLifecycle = lifecycleProgress[entry.templateId];
 								const cardClassName = cn(
-									"group relative flex h-full w-full flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center outline-none transition-colors hover:border-primary/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+									"group relative flex h-full w-full flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center outline-none transition-colors hover:border-primary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
 									isDefault && "border-primary bg-primary/5",
 									!available && "opacity-60",
 								);
@@ -284,7 +284,7 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 													e.stopPropagation();
 													void onInstall(entry);
 												}}
-												className="absolute top-1.5 right-1.5 rounded p-0.5 text-muted-foreground transition-colors opacity-80 hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 group-hover:opacity-100"
+												className="absolute top-1.5 right-1.5 rounded p-0.5 text-muted-foreground transition-colors opacity-80 hover:bg-background hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring group-hover:opacity-100"
 											>
 												{busy ? (
 													<LoaderCircle className="size-3.5 animate-spin" />
@@ -351,7 +351,7 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 															e.stopPropagation();
 															cancelToolLifecycle(entry.templateId);
 														}}
-														className="flex size-4 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+														className="flex size-4 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
 													>
 														<X className="size-3" aria-hidden />
 													</button>
@@ -398,6 +398,7 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 					<ul className="grid grid-cols-4 auto-rows-fr gap-3">
 						{DESKTOP_APP_IDS.map((id) => {
 							const installed = desktopApps[id]?.installed ?? false;
+							const unsupported = desktopApps[id]?.unsupported ?? false;
 							return (
 								<li key={id}>
 									<div
@@ -413,7 +414,9 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 											{t(`agent.desktopApps.${id}`)}
 										</p>
 										<p className="w-full text-caption text-muted-foreground leading-tight">
-											{t("agent.desktopApps.bundledCli")}
+											{unsupported
+												? t("agent.desktopApps.unsupported")
+												: t("agent.desktopApps.bundledCli")}
 										</p>
 									</div>
 								</li>

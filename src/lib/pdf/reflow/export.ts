@@ -1,6 +1,7 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import { logOp } from "@/lib/core/logger";
 import type { ReflowFontBytes } from "./fonts";
+import { withFormulaPdfEngine } from "./formula-engine";
 import type { ReflowOutput } from "./pdf-write";
 import type { ReflowDocument } from "./types";
 import { runReflowWorker } from "./write-client";
@@ -69,6 +70,82 @@ export async function buildReflowPdf(
 	);
 }
 
+type FormulaFragment = {
+	key: string;
+	box: { x: number; y: number; w: number; h: number };
+};
+
+async function collectFormulaPdfs(
+	engine: PdfEngine,
+	doc: PdfDocumentObject,
+	ir: ReflowDocument,
+	formulasByPage: ReadonlyArray<readonly FormulaFragment[]>,
+	formulaCount: number,
+	signal: AbortSignal | undefined,
+	onProgress: ReportProgress | undefined,
+): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+	return withFormulaPdfEngine(signal, async (formulaEngine, call, alive) => {
+		const formulaPdfs = new Map<string, Uint8Array<ArrayBuffer>>();
+		for (const [pageIndex, page] of ir.pages.entries()) {
+			signal?.throwIfAborted();
+			const formulas = formulasByPage[pageIndex];
+			if (!formulas.length) continue;
+			const singlePage = await engine
+				.extractPages(doc, [page.index])
+				.toPromise();
+			for (const { key, box } of formulas) {
+				signal?.throwIfAborted();
+				const fragment = await call(
+					formulaEngine
+						.openDocumentBuffer({
+							id: `formula-${crypto.randomUUID()}`,
+							content: singlePage.slice(0),
+						})
+						.toPromise(),
+				);
+				try {
+					const pad = 0.75;
+					const left = Math.max(0, box.x - pad);
+					const top = Math.max(0, box.y - pad);
+					const right = Math.min(page.width, box.x + box.w + pad);
+					const bottom = Math.min(page.height, box.y + box.h + pad);
+					const outside = [
+						{ x: 0, y: 0, w: page.width, h: top },
+						{ x: 0, y: bottom, w: page.width, h: page.height - bottom },
+						{ x: 0, y: top, w: left, h: bottom - top },
+						{ x: right, y: top, w: page.width - right, h: bottom - top },
+					]
+						.filter((rect) => rect.w > 0 && rect.h > 0)
+						.map((rect) => ({
+							origin: { x: rect.x, y: rect.y },
+							size: { width: rect.w, height: rect.h },
+						}));
+					await call(
+						formulaEngine
+							.redactTextInRects(fragment, fragment.pages[0], outside, {
+								recurseForms: true,
+								drawBlackBoxes: false,
+							})
+							.toPromise(),
+					);
+					formulaPdfs.set(
+						key,
+						new Uint8Array(
+							await call(formulaEngine.saveAsCopy(fragment).toPromise()),
+						),
+					);
+				} finally {
+					if (alive()) {
+						await call(formulaEngine.closeDocument(fragment).toPromise());
+					}
+				}
+				onProgress?.((0.4 * formulaPdfs.size) / Math.max(1, formulaCount));
+			}
+		}
+		return formulaPdfs;
+	});
+}
+
 async function prepareWrite(
 	engine: PdfEngine,
 	doc: PdfDocumentObject,
@@ -92,53 +169,18 @@ async function prepareWrite(
 		(count, formulas) => count + formulas.length,
 		0,
 	);
-	const formulaPdfs = new Map<string, Uint8Array<ArrayBuffer>>();
-	for (const [pageIndex, page] of ir.pages.entries()) {
-		signal?.throwIfAborted();
-		const formulas = formulasByPage[pageIndex];
-		if (!formulas.length) continue;
-		const singlePage = await engine.extractPages(doc, [page.index]).toPromise();
-		for (const { key, box } of formulas) {
-			signal?.throwIfAborted();
-			const fragment = await engine
-				.openDocumentBuffer({
-					id: `formula-${crypto.randomUUID()}`,
-					content: singlePage.slice(0),
-				})
-				.toPromise();
-			try {
-				const pad = 0.75;
-				const left = Math.max(0, box.x - pad);
-				const top = Math.max(0, box.y - pad);
-				const right = Math.min(page.width, box.x + box.w + pad);
-				const bottom = Math.min(page.height, box.y + box.h + pad);
-				const outside = [
-					{ x: 0, y: 0, w: page.width, h: top },
-					{ x: 0, y: bottom, w: page.width, h: page.height - bottom },
-					{ x: 0, y: top, w: left, h: bottom - top },
-					{ x: right, y: top, w: page.width - right, h: bottom - top },
-				]
-					.filter((rect) => rect.w > 0 && rect.h > 0)
-					.map((rect) => ({
-						origin: { x: rect.x, y: rect.y },
-						size: { width: rect.w, height: rect.h },
-					}));
-				await engine
-					.redactTextInRects(fragment, fragment.pages[0], outside, {
-						recurseForms: true,
-						drawBlackBoxes: false,
-					})
-					.toPromise();
-				formulaPdfs.set(
-					key,
-					new Uint8Array(await engine.saveAsCopy(fragment).toPromise()),
+	const formulaPdfs =
+		formulaCount === 0
+			? new Map<string, Uint8Array<ArrayBuffer>>()
+			: await collectFormulaPdfs(
+					engine,
+					doc,
+					ir,
+					formulasByPage,
+					formulaCount,
+					signal,
+					onProgress,
 				);
-			} finally {
-				await engine.closeDocument(fragment).toPromise();
-			}
-			onProgress?.((0.4 * formulaPdfs.size) / Math.max(1, formulaCount));
-		}
-	}
 	onProgress?.(0.4);
 	signal?.throwIfAborted();
 	const clone = await engine

@@ -9,6 +9,7 @@
 ## 实现与兼容
 
 - 小范围修改，优先复用上游公开接口。`src/components/ui/` 保持通用，业务状态、IPC 和渲染放在业务目录。升级组件时先检查上游能否替代补丁。陌生领域先查适用的开源实现。
+- 在 UI 修改的过程中尽量少加入无关的、非必须的i18n 文案，如果能用icon表达，就不要加额外的描述。操作失败用 `notifyError` Toast，不在侧栏 header 挂常驻错误条。UI 优先使用上游现成组件及公开组合接口。能复用的窗口和组件不要新创。可以使用 `apple-design` skill 对于修改 UI 进行调整。
 - 用户文案用 `t()`，同步 `en` 和 `zh-CN`。优先使用能表达操作的图标。一般操作失败用 `notifyError` 提示；有专门错误状态的流程在对应任务中呈现。
 - 桌面窗口命令用 async。保留原生窗口装饰、`dragDropEnabled` 和 macOS 主线程 `setCollectionBehavior`。Windows 唤起顺序为 unminimize → show → set_focus；子进程用 `CREATE_NO_WINDOW`，安装走 npm/PowerShell，Unix 路径与 Cargo `cfg` 保持一致。缩放对齐用 rem。
 - `PdfEngineHost` 和 `EditorDndProvider` 放在 StrictMode 外。验收安装包时，用包内 CLI 和 PDFium 实际读取 PDF，再核对签名和更新清单。

@@ -66,7 +66,6 @@ describe("link preview drag", () => {
 					boxWidthPx: 240,
 					boxHeightPx: 48,
 					isHeading: false,
-					paperDark: false,
 					tone: "white",
 					linkAssignments: [{ start: 2, end: 6, text: "[12]", key: "cite.12" }],
 					onHoverLink: hover,

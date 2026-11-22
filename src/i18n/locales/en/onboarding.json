@@ -55,7 +55,8 @@
 			"qwenwork": "QwenWork",
 			"workbuddy": "WorkBuddy",
 			"dsh-desktop": "Dsh Desktop",
-			"bundledCli": "Bundled CLI — connectable"
+			"bundledCli": "Bundled CLI — connectable",
+			"unsupported": "No Linux version"
 		},
 		"desktopBundled": "Desktop‑bundled"
 	},

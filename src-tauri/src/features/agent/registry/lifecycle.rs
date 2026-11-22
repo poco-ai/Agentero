@@ -4,7 +4,7 @@
 //! npm fallback; login-shell PATH for GUI apps; no `curl | bash` pipes).
 //! Scoped to Motif catalog templates.
 
-use crate::core::process::SanitizeAppImageEnv;
+use crate::core::process::{SanitizeAppImageEnv, SpawnInAgentScratchDir};
 use crate::features::agent::registry::discovery::{login_shell_env, path_entries, resolve_command};
 use crate::features::agent::registry::templates::{
     kimi_launcher_dir, template_info, zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND,
@@ -1398,6 +1398,9 @@ fn run_tool_lifecycle_silently(
         let script = format!("set -e\nset -o pipefail\n{command_line}\n");
         let mut cmd = Command::new("bash");
         cmd.arg("-c").arg(script);
+        // Installers run user tooling; keep them out of the Host's
+        // LaunchServices cwd (#1119).
+        cmd.spawn_in_agent_scratch_dir();
         apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
         apply_npm_cache_env(&mut cmd, effective_npm_cache_dir().as_deref());
         if let Some(prefix) = npm_prefix {
@@ -1429,6 +1432,10 @@ fn run_tool_lifecycle_silently(
         cmd.sanitize_appimage_env();
         let output = run_command_with_cancellation(cmd, app, task_id, phase);
         crate::core::process::discover::invalidate_login_shell_env();
+        // Vendor CLIs, Node, and the desktop apps that bundle them may all have
+        // changed; drop the cached probes so the next catalog scan re-detects.
+        crate::features::agent::registry::bundled::invalidate_probe_cache();
+        crate::features::system::desktop_apps::invalidate_detect_cache();
         let output = output.map_err(format_lifecycle_process_error)?;
         check_lifecycle_cancelled(task_id)?;
         finish_lifecycle_output(&output)
@@ -1444,6 +1451,7 @@ fn run_tool_lifecycle_silently(
             .arg("/C")
             .arg(&bat_file)
             .env("PATH", merged_path);
+        cmd.spawn_in_agent_scratch_dir();
         cmd.sanitize_appimage_env();
         crate::core::process::hide_console_window(&mut cmd);
         apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
@@ -1453,6 +1461,8 @@ fn run_tool_lifecycle_silently(
         }
         let output = run_command_with_cancellation(cmd, app, task_id, phase);
         let _ = fs::remove_file(&bat_file);
+        crate::features::agent::registry::bundled::invalidate_probe_cache();
+        crate::features::system::desktop_apps::invalidate_detect_cache();
         check_lifecycle_cancelled(task_id)?;
         finish_lifecycle_output(&output.map_err(format_lifecycle_process_error)?)
     }

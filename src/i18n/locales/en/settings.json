@@ -118,13 +118,10 @@
 		"title": "General",
 		"sections": {
 			"papers": "Paper library",
-			"pdf": "PDF reading",
-			"plaza": "Plaza",
 			"system": "System",
 			"network": "Network",
 			"integrations": "Integrations",
-			"mcp": "MCP",
-			"keyboard": "Keyboard"
+			"mcp": "MCP"
 		},
 		"terminalApp": {
 			"label": "Open in Terminal with",
@@ -185,26 +182,6 @@
 			"ask": "Ask",
 			"always": "Always when safe"
 		},
-		"pdfScrollStrategy": {
-			"label": "PDF navigation mode",
-			"vertical": "Vertical",
-			"horizontal": "Horizontal",
-			"paginated": "Page by page"
-		},
-		"pdfVimKeys": {
-			"label": "Enable PDF Vim keys (j/k/h/l)",
-			"requiresVimMode": "Requires Vim mode"
-		},
-		"vimMode": {
-			"label": "Vim mode",
-			"description": "Enable j/k/h/l navigation and F jump labels in the file tree, dropdown lists and the PDF reader. Off keeps plain typing and arrow keys."
-		},
-		"pdfSpreadMode": {
-			"label": "PDF page layout",
-			"none": "Single page",
-			"odd": "Two-page (from page 1)",
-			"even": "Two-page (cover separate)"
-		},
 		"batchImportConcurrency": {
 			"label": "Background task concurrency",
 			"value": "{{value}} simultaneous"
@@ -242,6 +219,34 @@
 				"bjmu": "Peking University Health Science Center"
 			}
 		},
+		"openreviewAuth": {
+			"label": "OpenReview",
+			"login": "Sign in",
+			"loggingIn": "Waiting…",
+			"statusIdle": "Not signed in",
+			"statusWaiting": "Waiting for sign-in…",
+			"statusOk": "Browser verified",
+			"statusSignedIn": "Signed in",
+			"statusSessionExpired": "Sign-in expired",
+			"statusExpired": "Verification expired",
+			"loginFailed": "OpenReview sign-in failed"
+		},
+		"alphaxiv": {
+			"label": "AlphaXiv",
+			"keyLabel": "API key",
+			"placeholder": "Paste an AlphaXiv API key",
+			"test": "Test connection",
+			"testing": "Testing…",
+			"disconnect": "Disconnect",
+			"disconnecting": "Disconnecting…",
+			"statusIdle": "Not connected",
+			"statusOk": "Connected",
+			"statusFail": "Could not connect",
+			"statusProbing": "Testing…",
+			"testFailed": "AlphaXiv connection failed",
+			"clearFailed": "Could not disconnect AlphaXiv",
+			"openKeyPage": "Get a key"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",
@@ -251,10 +256,23 @@
 			"probeIdle": "Not configured",
 			"probeOk": "Available",
 			"probeFail": "Unavailable",
-			"probeProbing": "Checking…"
-		},
-		"plaza": {
-			"label": "Plaza"
+			"probeProbing": "Checking…",
+			"ranksLabel": "Rank tags",
+			"ranksPlaceholder": "Select rank tags to show",
+			"ranksReset": "Reset",
+			"rankNames": {
+				"if": "IF",
+				"if5": "IF5",
+				"jci": "JCI",
+				"sci": "SCI",
+				"ssci": "SSCI",
+				"eii": "EI",
+				"cssci": "CSSCI",
+				"pku": "PKU Core",
+				"ccf": "CCF",
+				"fms": "FMS",
+				"utd24": "UTD24"
+			}
 		},
 		"connector": {
 			"label": "Zotero Connector compatibility",
@@ -269,7 +287,6 @@
 		"mcp": {
 			"allowWrite": "Allow clients to modify the Vault",
 			"allowOnline": "Allow online tools",
-			"scope": "These permissions apply to local MCP clients and the connected tunnel.",
 			"exposeText": {
 				"label": "Allow clients to read full papers"
 			},
@@ -307,13 +324,6 @@
 				"action": "Clear",
 				"done": "Activity history cleared"
 			}
-		},
-		"pdfTranslateTab": {
-			"label": "Page translate button",
-			"description": "Fixed screen size on the page corner. Hidden still leaves the PDF toolbar and the translate shortcut.",
-			"hover": "Show on hover",
-			"always": "Always show",
-			"hidden": "Hidden"
 		}
 	},
 	"appearance": {
@@ -341,8 +351,35 @@
 		},
 		"sound": {
 			"label": "In-app sounds",
-			"description": "Quiet cues when an Agent needs you, or a turn or PDF translation finishes or fails",
 			"preview": "Preview"
+		},
+		"sections": {
+			"pdf": "PDF reading"
+		},
+		"plaza": {
+			"label": "Plaza"
+		},
+		"pdfScrollStrategy": {
+			"label": "PDF navigation mode",
+			"vertical": "Vertical",
+			"horizontal": "Horizontal",
+			"paginated": "Page by page"
+		},
+		"pdfVimKeys": {
+			"label": "Enable PDF Vim keys (j/k/h/l)",
+			"requiresVimMode": "Requires Vim mode"
+		},
+		"pdfSpreadMode": {
+			"label": "PDF page layout",
+			"none": "Single page",
+			"odd": "Two-page (from page 1)",
+			"even": "Two-page (cover separate)"
+		},
+		"pdfTranslateTab": {
+			"label": "PDF top-left translate-page button",
+			"hover": "Show on hover",
+			"always": "Always show",
+			"hidden": "Hidden"
 		},
 		"fonts": {
 			"section": "Fonts",
@@ -462,7 +499,9 @@
 			"qwenwork": "QwenWork",
 			"workbuddy": "WorkBuddy",
 			"dsh-desktop": "Dsh Desktop",
-			"bundledCli": "Bundled CLI — connectable"
+			"bundledCli": "Bundled CLI — connectable",
+			"unsupported": "No Linux version",
+			"unsupportedHint": "Dsh Desktop is not available on Linux — install the dsh CLI with `npm i -g @deepseek-ai/dsh` to use it as an Agent."
 		},
 		"zcodeDesktopPathHint": "If ZCode is not found, set ZCODE_BIN to its zcode.cjs path. This supports any drive and nested install folder.",
 		"defaultAgent": {
@@ -613,7 +652,11 @@
 		"errors": {
 			"noBuiltinKey": "Built-in translation is not available in this build.",
 			"unreachable": "Could not reach the translation service. Check the network or pick another service in Translate settings.",
-			"terminology": "This service could not preserve the terminology. Choose another translation service and retry."
+			"timeout": "Translation timed out because the service stopped sending output. Retry this block.",
+			"incomplete": "The translation was cut off before it finished. Retry this block.",
+			"upstream": "The translation service returned an error: {{detail}}",
+			"terminology": "This service could not preserve the terminology. Choose another translation service and retry.",
+			"indexPromptEcho": "The translation included the prompt. The original text was kept for that passage."
 		},
 		"targetLang": {
 			"label": "Target language",
@@ -1021,6 +1064,7 @@
 	},
 	"keyboard": {
 		"title": "Keyboard",
+		"vimMode": "Vim mode",
 		"edit": "Change shortcut for {{command}}",
 		"clear": "Unbind {{command}}",
 		"clearHint": "Unbind this shortcut",

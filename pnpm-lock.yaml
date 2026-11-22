@@ -43,7 +43,7 @@ patchedDependencies:
   '@embedpdf/plugin-tiling@2.14.4': c3ef64464b3685d9ada63e641e8704ae79af3797bd431f5634734aaafc7e379e
   '@platejs/markdown@53.2.2': f1ae34d7476675192ce8d5fd52f23e0ebf781334386b1ccd6bb16231492828ef
   '@platejs/toc@53.0.0': 59d8aa74c06566a1b758035ef7d31e02ddb2140d68c0cd04ac1afb0c3992c09c
-  dockview-core@7.0.4: c4e401908d6c38c3fa1c7c4d21f9c6c3669b677d61d5344dd6bd379313000154
+  dockview-core@7.0.4: d271ddaf715059f959f75a4827e7a2cafb207348cfbd8eff313886a28448b9f0
 
 importers:
 
@@ -10035,7 +10035,7 @@ snapshots:
       '@react-dnd/invariant': 4.0.2
       redux: 4.2.1
 
-  dockview-core@7.0.4(patch_hash=c4e401908d6c38c3fa1c7c4d21f9c6c3669b677d61d5344dd6bd379313000154): {}
+  dockview-core@7.0.4(patch_hash=d271ddaf715059f959f75a4827e7a2cafb207348cfbd8eff313886a28448b9f0): {}
 
   dockview-react@7.0.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
@@ -10045,7 +10045,7 @@ snapshots:
 
   dockview@7.0.4:
     dependencies:
-      dockview-core: 7.0.4(patch_hash=c4e401908d6c38c3fa1c7c4d21f9c6c3669b677d61d5344dd6bd379313000154)
+      dockview-core: 7.0.4(patch_hash=d271ddaf715059f959f75a4827e7a2cafb207348cfbd8eff313886a28448b9f0)
 
   dom-serializer@3.1.1:
     dependencies:

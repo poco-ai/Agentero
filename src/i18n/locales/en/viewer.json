@@ -13,6 +13,7 @@
 		"outline": "Outline",
 		"linkAria": "PDF link",
 		"linkUrl": "Link address",
+		"linkPreview": "Link preview",
 		"paperTone": "Page background",
 		"paperToneOption": {
 			"white": "White",
@@ -111,7 +112,8 @@
 			"retranslateConfirmTitle": "Retranslate all?",
 			"retranslateConfirmDescription": "This requests every block again and replaces translations that succeed. Blocks that fail keep their previous translation.",
 			"retranslateConfirm": "Retranslate",
-			"pagesCount": "Completed {{done}}/{{total}} pages"
+			"pagesCount": "Completed {{done}}/{{total}} pages",
+			"pagesGenerated": "Generated {{done}}/{{total}} pages"
 		},
 		"translation": {
 			"title": "Translation",
@@ -216,6 +218,9 @@
 		"previewLabel": "Reference preview",
 		"previewImport": "Import",
 		"expandPreview": "Expand full reference details",
+		"collapsePreview": "Collapse reference details",
+		"remainingAuthors_one": "{{count}} more author",
+		"remainingAuthors_other": "{{count}} more authors",
 		"citationCount_one": "{{count}} citation",
 		"citationCount_other": "{{count}} citations",
 		"importToFolder": "Import to folder",

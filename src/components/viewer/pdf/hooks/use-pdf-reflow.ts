@@ -133,6 +133,13 @@ export function usePdfReflow(
 		const value = session.current;
 		return value && value.document === document ? value.decorate(items) : items;
 	}, [items, document, revision]);
+	/** Abort the in-flight page / final builds; published output is kept. */
+	const cancelBuild = useCallback(() => {
+		const value = session.current;
+		if (!value) return;
+		value.cancelBuilds();
+		setRevision((n) => n + 1);
+	}, []);
 	const exportPdf = useCallback(
 		async (dual = false) => {
 			const value = session.current;
@@ -177,6 +184,7 @@ export function usePdfReflow(
 		reflowProgress: session.current?.progress ?? 0,
 		/** Pages built in the current final pass, when the build reached that phase. */
 		reflowPages: session.current?.pages ?? null,
+		cancelReflowBuild: cancelBuild,
 		exportTranslatedPdf: exportPdf,
 	};
 }

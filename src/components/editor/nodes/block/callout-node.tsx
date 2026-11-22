@@ -238,7 +238,7 @@ export function CalloutElement(props: PlateElementProps) {
 						<PopoverTrigger asChild>
 							<button
 								type="button"
-								className="flex size-6 shrink-0 items-center justify-center rounded-md outline-none hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring/50"
+								className="flex size-6 shrink-0 items-center justify-center rounded-md outline-none hover:bg-foreground/5 focus-visible:ring-1 focus-visible:ring-ring"
 								aria-label={t("callout.typePickerLabel")}
 							>
 								<theme.Icon

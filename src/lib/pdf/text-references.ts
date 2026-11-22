@@ -1,5 +1,6 @@
 /** Local text fallback for publishers without usable citation link annotations. */
 import type { Rect } from "@embedpdf/models";
+import { normalizeArxivId } from "@/lib/bibtex/scholar-url";
 import type { Citation } from "@/lib/paper/refs";
 import {
 	type CrossrefLabel,
@@ -279,6 +280,16 @@ export type BibliographyEntry = {
 	rect: Rect;
 };
 
+function bibliographyArxivId(raw: string): string | null {
+	const markers =
+		/(?:^|[\s([{])(?:https?:\/\/arxiv\.org\/(?:abs|pdf|html)\/|arxiv:|CoRR,\s*abs\/)\s*([^\s<>\])}?#]+)/gi;
+	for (const match of raw.matchAll(markers)) {
+		const id = normalizeArxivId(match[1].replace(/[.,;:]+$/, ""));
+		if (id) return id;
+	}
+	return null;
+}
+
 /** Read only the bibliography, after a References heading has been located. */
 export function bibliographyEntries(
 	pages: readonly { pageIndex: number; rects: readonly PageTextRect[] }[],
@@ -354,9 +365,11 @@ export function bibliographyEntries(
 		const doi = raw
 			.match(/\b10\.\d{4,9}\/[^\s<>]+/i)?.[0]
 			.replace(/[.,;]+$/, "");
+		const arxivId = bibliographyArxivId(raw);
 		citation.metadata = {
 			...(year ? { year: Number.parseInt(year, 10) } : {}),
 			...(doi ? { doi } : {}),
+			...(arxivId ? { arxivId } : {}),
 		};
 	}
 	return entries;

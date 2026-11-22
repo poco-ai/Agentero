@@ -9,6 +9,11 @@ export const ERR_TRANSLATE_EXTRA_INVALID = "translate.extra_parameters_invalid";
 export const ERR_TRANSLATE_TERMINOLOGY = "translate.terminology_not_preserved";
 export const ERR_TRANSLATE_EXTRA_RESERVED =
 	"translate.extra_parameters_reserved";
+/** Streaming silence budget, or a one-shot total deadline, elapsed. */
+export const ERR_TRANSLATE_TIMEOUT = "translate.timeout";
+/** Model stopped on length or a content filter. The text is unfinished. */
+export const ERR_TRANSLATE_INCOMPLETE = "translate.incomplete";
+export const ERR_TRANSLATE_INDEX_PROMPT_ECHO = "translate.index_prompt_echo";
 
 /**
  * Host MT command via the generated typed binding (tauri-specta pilot).
@@ -28,7 +33,10 @@ export async function invokeTranslateText(args: {
 	dictionarySurrounding?: string;
 	dictionaryReference?: string;
 	extraRequestBody?: string;
-	/** Host request timeout (ms); clamped 1s–30s server-side. */
+	/**
+	 * Host timeout (ms), clamped 1s–30s. One-shot providers use it as a total
+	 * deadline. Streaming providers use it as the longest gap with no output.
+	 */
 	timeoutMs?: number;
 	/** Receives each increment when the provider streams; others call it never. */
 	onDelta?: (chunk: string) => void;
@@ -79,7 +87,10 @@ export async function invokeTranslateText(args: {
 			code === ERR_TRANSLATE_NO_BUILTIN_KEY ||
 				code === ERR_TRANSLATE_TERMINOLOGY ||
 				code === ERR_TRANSLATE_EXTRA_INVALID ||
-				code === ERR_TRANSLATE_EXTRA_RESERVED
+				code === ERR_TRANSLATE_EXTRA_RESERVED ||
+				code === ERR_TRANSLATE_TIMEOUT ||
+				code === ERR_TRANSLATE_INCOMPLETE ||
+				code === ERR_TRANSLATE_INDEX_PROMPT_ECHO
 				? code
 				: (res.error?.message ?? "translate failed"),
 		);

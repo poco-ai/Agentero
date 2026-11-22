@@ -11,7 +11,7 @@
  * Virtual tab path / slot store live in `lib/agent/zen-path.ts` and
  * `lib/agent/zen-store.ts`.
  */
-import { Plus, Waves, X } from "lucide-react";
+import { Loader2, Plus, Waves, X } from "lucide-react";
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
@@ -36,6 +36,7 @@ import type { AcpSessionInfo } from "@/lib/agent/api";
 import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
+import { invalidateHarnessHistory } from "@/lib/agent/session-history-cache";
 import {
 	useZenStore,
 	type ZenHistoryItem,
@@ -139,6 +140,8 @@ type HarnessGroup = {
 	agentId: string | null;
 	name: string;
 	template: string | null;
+	/** This harness's ACP history query is still running. */
+	loading: boolean;
 	rows: ZenSessionRow[];
 };
 
@@ -247,7 +250,7 @@ function ZenSessionRowView({
 				type="button"
 				aria-current={row.active ? "true" : undefined}
 				title={label}
-				className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start text-sm outline-none focus-visible:ring-1 focus-visible:ring-brand/80"
+				className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start text-sm outline-none focus-visible:ring-1 focus-visible:ring-brand"
 				onClick={onActivate}
 			>
 				<span className="min-w-0 flex-1 truncate">{label}</span>
@@ -315,7 +318,7 @@ function HarnessSection({
 					type="button"
 					aria-expanded={!collapsed}
 					aria-label={group.name}
-					className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-brand/80"
+					className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-brand"
 					onClick={onToggle}
 				>
 					<FileTreeDisclosureIcon
@@ -327,6 +330,12 @@ function HarnessSection({
 					<span className="min-w-0 flex-1 truncate font-medium text-xs">
 						{group.name}
 					</span>
+					{group.loading ? (
+						<Loader2
+							className="size-3 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none"
+							aria-hidden
+						/>
+					) : null}
 					{collapsed && running ? (
 						<span
 							role="img"
@@ -339,7 +348,7 @@ function HarnessSection({
 					type="button"
 					aria-label={t("zen.newConversation")}
 					title={t("zen.newConversation")}
-					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-brand/80"
+					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-brand"
 					onClick={onNewSlot}
 				>
 					<Plus className="size-3.5" />
@@ -368,7 +377,8 @@ export function ZenView({ active }: { active: boolean }) {
 	const slots = useZenStore((s) => s.slots);
 	const activeSlotId = useZenStore((s) => s.activeSlotId);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
-	const { sections: historySections } = useZenHarnessHistory(vaultPath, active);
+	const { sections: historySections, refresh: refreshHistory } =
+		useZenHarnessHistory(vaultPath, active);
 	const openRows = useOpenZenRows(slots);
 	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -382,7 +392,7 @@ export function ZenView({ active }: { active: boolean }) {
 			const key = agentId ?? UNKNOWN_HARNESS;
 			let group = map.get(key);
 			if (!group) {
-				group = { key, agentId, name, template, rows: [] };
+				group = { key, agentId, name, template, loading: false, rows: [] };
 				map.set(key, group);
 			}
 			return group;
@@ -390,7 +400,12 @@ export function ZenView({ active }: { active: boolean }) {
 
 		const slotById = new Map(slots.map((slot) => [slot.id, slot]));
 		for (const section of historySections) {
-			ensure(section.agent.id, section.agent.name, section.agent.template);
+			const group = ensure(
+				section.agent.id,
+				section.agent.name,
+				section.agent.template,
+			);
+			group.loading = section.loading;
 		}
 		for (const row of openRows) {
 			const slot = slotById.get(row.slotId);
@@ -443,7 +458,9 @@ export function ZenView({ active }: { active: boolean }) {
 		}
 
 		for (const group of map.values()) group.rows.sort(sortRows);
-		return [...map.values()].filter((group) => group.rows.length > 0);
+		// Harnesses show up as soon as the registry answers, even before their
+		// sessions arrive, so the list never grows one header at a time.
+		return [...map.values()];
 	}, [historySections, slots, openRows, activeSlotId, t]);
 
 	const newSlotFor = (group: HarnessGroup | null) => {
@@ -521,7 +538,16 @@ export function ZenView({ active }: { active: boolean }) {
 			zenStore.getState().removeSlot(row.slotId);
 			return;
 		}
+		const slot = zenStore
+			.getState()
+			.slots.find((candidate) => candidate.id === row.slotId);
 		zenStore.getState().closeSlotSession(row.slotId, row.sessionId);
+		// The harness still owns the session; re-read just this harness so the
+		// row shows up under its history instead of vanishing.
+		if (slot?.agent.id) {
+			invalidateHarnessHistory(slot.agent.id);
+			void refreshHistory();
+		}
 	};
 
 	return (

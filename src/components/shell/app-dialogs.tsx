@@ -4,6 +4,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { AlphaXivImportDialog } from "@/components/dialogs/alphaxiv-import-dialog";
 import { CommandPalette } from "@/components/dialogs/command-palette";
 import { ExternalRenameDialog } from "@/components/dialogs/external-rename-dialog";
 import { PaperSearchDialog } from "@/components/dialogs/paper-search-dialog";
@@ -35,6 +36,7 @@ import {
 	subscribeCommands,
 } from "@/lib/shell/commands/registry";
 import {
+	setAlphaXivOpen,
 	setCommandOpen,
 	setZoteroOpen,
 	setZoteroSyncOpen,
@@ -47,6 +49,7 @@ export function AppDialogs() {
 	useSyncExternalStore(subscribeCommands, commandRegistryRevision);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const zoteroOpen = useUiStore((s) => s.zoteroOpen);
+	const alphaxivOpen = useUiStore((s) => s.alphaxivOpen);
 	const zoteroSyncOpen = useUiStore((s) => s.zoteroSyncOpen);
 	const commandOpen = useUiStore((s) => s.commandOpen);
 	const commandMode = useUiStore((s) => s.commandMode);
@@ -62,6 +65,12 @@ export function AppDialogs() {
 			<ZoteroMigrateDialog
 				open={zoteroOpen}
 				onOpenChange={setZoteroOpen}
+				vaultPath={vaultPath}
+				onDone={refreshAll}
+			/>
+			<AlphaXivImportDialog
+				open={alphaxivOpen}
+				onOpenChange={setAlphaXivOpen}
 				vaultPath={vaultPath}
 				onDone={refreshAll}
 			/>

@@ -60,6 +60,8 @@ type UiStore = {
 	lookupOpenSignal: number;
 	/** Zotero one-click migration dialog. */
 	zoteroOpen: boolean;
+	/** AlphaXiv library import dialog. */
+	alphaxivOpen: boolean;
 	/** Zotero bidirectional sync dialog. */
 	zoteroSyncOpen: boolean;
 	commandOpen: boolean;
@@ -87,6 +89,7 @@ export const uiStore = createStore<UiStore>(() => ({
 	featurePoppedOut: {},
 	lookupOpenSignal: 0,
 	zoteroOpen: false,
+	alphaxivOpen: false,
 	zoteroSyncOpen: false,
 	commandOpen: false,
 	commandMode: "go",
@@ -195,6 +198,10 @@ export function bumpLookupOpenSignal(): void {
 
 export function setZoteroOpen(open: boolean): void {
 	uiStore.setState({ zoteroOpen: open });
+}
+
+export function setAlphaXivOpen(open: boolean): void {
+	uiStore.setState({ alphaxivOpen: open });
 }
 
 export function setZoteroSyncOpen(open: boolean): void {
@@ -340,6 +347,7 @@ export function clearUiVaultState(): void {
 		paperSearchDraft: null,
 		hoveredPaperPath: null,
 		zoteroOpen: false,
+		alphaxivOpen: false,
 		zoteroSyncOpen: false,
 		commandOpen: false,
 	});

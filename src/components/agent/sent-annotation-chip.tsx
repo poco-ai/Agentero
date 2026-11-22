@@ -1,5 +1,5 @@
 /** Read-only annotation references captured on a sent message. */
-import { ImageIcon, Quote, TriangleAlert } from "lucide-react";
+import { ImageIcon, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { defaultRemarkPlugins } from "streamdown";
@@ -7,6 +7,7 @@ import { AnnotationSnapshotCards } from "@/components/agent/annotation-snapshot-
 import { MessageResponse } from "@/components/agent/message";
 import { REFERENCE_CHIP_CLASS } from "@/components/agent/reference-chip-style";
 import { AgentCitationLink } from "@/components/agent/rendering/agent-citation-link";
+import { QuoteIcon } from "@/components/icons/quote-icon";
 import { SelectionSourceButton } from "@/components/selection/selection-source-button";
 import {
 	HoverCard,
@@ -37,7 +38,7 @@ export function SentAnnotationChip({
 			: t("transcript.annotationLabel", { n: snapshot.n }));
 	const visual = snapshot.kind === "visual";
 	const buildLog = selection?.surface === "build-log";
-	const Icon = buildLog ? TriangleAlert : visual ? ImageIcon : Quote;
+	const Icon = buildLog ? TriangleAlert : visual ? ImageIcon : QuoteIcon;
 	return (
 		<HoverCard
 			open={open}

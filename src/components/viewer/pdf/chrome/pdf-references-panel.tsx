@@ -6,16 +6,14 @@ import { cn } from "@/lib/core/utils";
 type PdfReferencesPanelProps = {
 	vaultPath: string | null;
 	paperPath: string | null;
-	showReferences: boolean;
 };
 
-/** Left-side citation panel. The toggle button lives in PdfLeftToolbar. */
+/** Left-side citation rail. Mounting is owned by the viewer's panel slot. */
 export const PdfReferencesPanel = memo(function PdfReferencesPanel({
 	vaultPath,
 	paperPath,
-	showReferences,
 }: PdfReferencesPanelProps) {
-	if (!showReferences || !paperPath) return null;
+	if (!paperPath) return null;
 
 	return (
 		<aside data-pdf-chrome className={cn("agentero-scroll", PDF_SIDE_PANEL)}>

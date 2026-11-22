@@ -172,7 +172,66 @@ fn parse_cloud_page(
     )
 }
 
+/// Why a Paddle cloud job runs: the callers read different parts of the JSONL
+/// result, so they must ask the server for different pipelines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PaddleJobPurpose {
+    /// PAPER.md body parsing: needs the markdown pipeline (`markdown.text`,
+    /// with `prunedResult.parsing_res_list[].block_content` as the fallback),
+    /// so all recognizers and block-content formatting stay enabled.
+    BodyParse,
+    /// Figure/layout boxes: only `prunedResult.layout_det_res.boxes` is read.
+    Layout,
+}
+
+impl PaddleJobPurpose {
+    fn optional_payload(self) -> String {
+        match self {
+            Self::BodyParse => body_parse_optional_payload(),
+            Self::Layout => layout_optional_payload(),
+        }
+    }
+}
+
+/// `optionalPayload` for body parsing: the historical preset. It keeps the
+/// markdown pipeline intact — only the document-prep stages we never need are
+/// disabled, so `markdown.text` and the `block_content` fallback still arrive.
+fn body_parse_optional_payload() -> String {
+    json!({
+        "useDocOrientationClassify": false,
+        "useDocUnwarping": false,
+        "useChartRecognition": false,
+    })
+    .to_string()
+}
+
+/// `optionalPayload` for the layout path: disable every sub-pipeline whose
+/// output we never read.
+///
+/// The layout path only consumes `prunedResult.layout_det_res.boxes` (see
+/// [`parse_cloud_page`]), so doc orientation, unwarping, chart/table/formula/
+/// seal/textline recognition, region detection and block-content formatting
+/// only add server latency — the layout path is slow because they all run
+/// (issue #1153, root cause 1). `useLayoutDetection` deliberately stays enabled:
+/// the boxes we return come from it. `visualize` also stays untouched because
+/// [`page_rendered_size`] falls back to the inline `inputImage` JPEG header.
+fn layout_optional_payload() -> String {
+    json!({
+        "useDocOrientationClassify": false,
+        "useDocUnwarping": false,
+        "useChartRecognition": false,
+        "useTableRecognition": false,
+        "useFormulaRecognition": false,
+        "useSealRecognition": false,
+        "useTextlineOrientation": false,
+        "useRegionDetection": false,
+        "formatBlockContent": false,
+    })
+    .to_string()
+}
+
 /// Submit one OCR job (multipart file upload) and return the job id.
+#[allow(clippy::too_many_arguments)]
 async fn submit_job(
     client: &reqwest::Client,
     jobs_url: &str,
@@ -181,14 +240,8 @@ async fn submit_job(
     file_name: String,
     mime: &str,
     model: &str,
+    purpose: PaddleJobPurpose,
 ) -> Result<String, AppError> {
-    // Skip OCR-heavy sub-pipelines we do not consume (matches the official sample).
-    let optional_payload = json!({
-        "useDocOrientationClassify": false,
-        "useDocUnwarping": false,
-        "useChartRecognition": false,
-    })
-    .to_string();
     let form = reqwest::multipart::Form::new()
         .part(
             "file",
@@ -198,7 +251,7 @@ async fn submit_job(
                 .map_err(|e| AppError::message(format!("layout_remote: multipart: {e}")))?,
         )
         .text("model", model.to_string())
-        .text("optionalPayload", optional_payload);
+        .text("optionalPayload", purpose.optional_payload());
     let response = client
         .post(jobs_url)
         .header("Authorization", auth)
@@ -240,14 +293,18 @@ fn resolve_cloud_target(api_key: Option<&str>) -> Result<(String, String), AppEr
 
 /// Whole-document PP-StructureV3 job: multipart upload → poll → download the
 /// JSONL result. Shared by the layout analyze path and the PAPER.md body-parse
-/// engine (which reads per-page markdown from the same JSONL). Returns the raw
-/// JSONL text plus the job-level `dataInfo` (rendered page sizes).
+/// engine (which reads per-page markdown from the same JSONL). `purpose` picks
+/// the `optionalPayload`: body parsing keeps the full markdown pipeline, while
+/// layout analysis disables the sub-pipelines it never reads (#1153). Returns
+/// the raw JSONL text plus the job-level `dataInfo` (rendered page sizes).
+#[allow(clippy::too_many_arguments)]
 pub async fn run_paddle_ocr_job(
     api_key: Option<&str>,
     file_bytes: Vec<u8>,
     file_name: String,
     mime: &str,
     model: &str,
+    purpose: PaddleJobPurpose,
     progress: super::ProgressFn<'_>,
     cancel: super::CancelFn<'_>,
 ) -> Result<(String, Option<Value>), AppError> {
@@ -257,7 +314,7 @@ pub async fn run_paddle_ocr_job(
     // 1) Submit the whole-document job (multipart file upload).
     progress("uploading", None, None);
     let job_id = submit_job(
-        &client, &jobs_url, &auth, file_bytes, file_name, mime, model,
+        &client, &jobs_url, &auth, file_bytes, file_name, mime, model, purpose,
     )
     .await?;
 
@@ -344,15 +401,24 @@ pub async fn run_paddle_ocr_job(
         )));
     }
 
-    // Keep the raw JSONL for diagnosis (scale/field issues); best effort.
-    let debug_path = crate::paths::agentero_cache_dir().join("paddle-last-result.jsonl");
-    if let Some(parent) = debug_path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    if let Err(e) = std::fs::write(&debug_path, result_text.as_bytes()) {
-        log::warn!(target: "agentero::layout::hosted", "failed to write {debug_path:?}: {e}");
+    // Keep the raw JSONL for diagnosis (scale/field issues), but only on demand:
+    // a long PDF makes this a large file. Set `AGENTERO_PADDLE_DUMP` to opt in.
+    if std::env::var_os("AGENTERO_PADDLE_DUMP").is_some() {
+        let debug_path = crate::paths::agentero_cache_dir().join("paddle-last-result.jsonl");
+        if let Some(parent) = debug_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Err(e) = std::fs::write(&debug_path, result_text.as_bytes()) {
+            log::warn!(target: "agentero::layout::hosted", "failed to write {debug_path:?}: {e}");
+        } else {
+            log::info!(target: "agentero::layout::hosted", "raw cloud result saved to {debug_path:?}");
+        }
     } else {
-        log::info!(target: "agentero::layout::hosted", "raw cloud result saved to {debug_path:?}");
+        log::debug!(
+            target: "agentero::layout::hosted",
+            "raw cloud result kept in memory only ({} bytes; set AGENTERO_PADDLE_DUMP=1 to save it)",
+            result_text.len()
+        );
     }
 
     Ok((result_text, data_info))
@@ -378,6 +444,7 @@ async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdf
         file_name,
         "application/pdf",
         CLOUD_MODEL,
+        PaddleJobPurpose::Layout,
         &emit_progress,
         &|| false,
     )
@@ -472,6 +539,8 @@ async fn probe(
         .decode(args.image_base64.trim())
         .map_err(|e| AppError::message(format!("layout_remote: invalid probe image: {e}")))?;
     let client = http::client(Duration::from_secs(30))?;
+    // Probe with the same payload the real layout analysis sends, so a green
+    // probe also validates that preset against the service.
     let job_id = submit_job(
         &client,
         &jobs_url,
@@ -480,6 +549,7 @@ async fn probe(
         "probe.jpg".to_string(),
         "image/jpeg",
         CLOUD_MODEL,
+        PaddleJobPurpose::Layout,
     )
     .await?;
     Ok(LayoutRemoteProbeResult { job_id })
@@ -501,5 +571,76 @@ mod tests {
         let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
         assert_eq!(jpeg_dimensions_base64(&b64), Some((11, 7)));
         assert_eq!(jpeg_dimensions_base64("not-base64!!"), None);
+    }
+
+    #[test]
+    fn layout_optional_payload_disables_unused_sub_pipelines() {
+        let payload: Value = serde_json::from_str(&layout_optional_payload())
+            .expect("optionalPayload must be valid JSON");
+        for flag in [
+            "useDocOrientationClassify",
+            "useDocUnwarping",
+            "useChartRecognition",
+            "useTableRecognition",
+            "useFormulaRecognition",
+            "useSealRecognition",
+            "useTextlineOrientation",
+            "useRegionDetection",
+            "formatBlockContent",
+        ] {
+            assert_eq!(
+                payload.get(flag),
+                Some(&Value::Bool(false)),
+                "{flag} must be disabled"
+            );
+        }
+        // Layout detection supplies the boxes we consume; never disable it.
+        assert_ne!(
+            payload.get("useLayoutDetection").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            PaddleJobPurpose::Layout.optional_payload(),
+            layout_optional_payload()
+        );
+    }
+
+    #[test]
+    fn body_parse_optional_payload_keeps_the_markdown_pipeline() {
+        let payload: Value = serde_json::from_str(&body_parse_optional_payload())
+            .expect("optionalPayload must be valid JSON");
+        // Byte-for-byte the historical preset: the same three flags, nothing new.
+        assert_eq!(payload.as_object().map(|o| o.len()), Some(3));
+        for flag in [
+            "useDocOrientationClassify",
+            "useDocUnwarping",
+            "useChartRecognition",
+        ] {
+            assert_eq!(
+                payload.get(flag),
+                Some(&Value::Bool(false)),
+                "{flag} must stay disabled"
+            );
+        }
+        // Body parsing reads `markdown.text` / `parsing_res_list[].block_content`,
+        // so these pipelines must stay enabled.
+        for flag in [
+            "useTableRecognition",
+            "useFormulaRecognition",
+            "useSealRecognition",
+            "useTextlineOrientation",
+            "useRegionDetection",
+            "formatBlockContent",
+        ] {
+            assert_ne!(
+                payload.get(flag).and_then(Value::as_bool),
+                Some(false),
+                "{flag} must stay enabled for body parsing"
+            );
+        }
+        assert_eq!(
+            PaddleJobPurpose::BodyParse.optional_payload(),
+            body_parse_optional_payload()
+        );
     }
 }

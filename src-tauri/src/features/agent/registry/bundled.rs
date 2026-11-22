@@ -13,10 +13,10 @@
 //! `manifest.json` + one shared `node_modules/` tree whose entry paths the
 //! manifest records relative to the root.
 
-use crate::core::process::SanitizeAppImageEnv;
+use crate::core::process::{SanitizeAppImageEnv, SpawnInAgentScratchDir};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::Deserialize;
 use tauri::Manager;
@@ -115,8 +115,15 @@ pub fn adapters_root() -> Option<&'static Path> {
 /// Resolve a bundled adapter from an explicit root. Pure so tests can point it
 /// at a fixture; unknown template ids and missing entry files yield `None`.
 pub fn adapter_at(root: &Path, template_id: &str) -> Option<BundledAdapter> {
-    let manifest: BundledManifest =
-        serde_json::from_str(&std::fs::read_to_string(root.join("manifest.json")).ok()?).ok()?;
+    let manifest = read_manifest(root)?;
+    adapter_in(&manifest, root, template_id)
+}
+
+fn adapter_in(
+    manifest: &BundledManifest,
+    root: &Path,
+    template_id: &str,
+) -> Option<BundledAdapter> {
     let info = manifest.adapters.get(template_id)?;
     let entry_js = root.join(&info.entry);
     if !entry_js.is_file() {
@@ -129,14 +136,85 @@ pub fn adapter_at(root: &Path, template_id: &str) -> Option<BundledAdapter> {
     })
 }
 
+fn read_manifest(root: &Path) -> Option<BundledManifest> {
+    serde_json::from_str(&std::fs::read_to_string(root.join("manifest.json")).ok()?).ok()
+}
+
+/// Parsed manifest + Node version probes cached for the process.
+///
+/// Every catalog scan resolves a bundled adapter for each installed template,
+/// so without a cache the same `manifest.json` is read (and `node --version`
+/// spawned) dozens of times per scan, on every panel mount. Both inputs only
+/// change when something installs or repackages, which
+/// [`invalidate_probe_cache`] covers.
+type CachedManifest = (PathBuf, Arc<BundledManifest>);
+static MANIFEST_CACHE: OnceLock<Mutex<Option<CachedManifest>>> = OnceLock::new();
+static NODE_MAJOR_CACHE: OnceLock<Mutex<HashMap<PathBuf, Option<u32>>>> = OnceLock::new();
+
+fn manifest_cache() -> &'static Mutex<Option<CachedManifest>> {
+    MANIFEST_CACHE.get_or_init(Default::default)
+}
+
+fn node_major_cache() -> &'static Mutex<HashMap<PathBuf, Option<u32>>> {
+    NODE_MAJOR_CACHE.get_or_init(Default::default)
+}
+
+fn cached_manifest(root: &Path) -> Option<Arc<BundledManifest>> {
+    let mut cache = manifest_cache()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if let Some((cached_root, manifest)) = cache.as_ref() {
+        if cached_root == root {
+            return Some(Arc::clone(manifest));
+        }
+    }
+    let manifest = Arc::new(read_manifest(root)?);
+    *cache = Some((root.to_path_buf(), Arc::clone(&manifest)));
+    Some(manifest)
+}
+
+/// Forget the parsing/version caches (run after an installer may have changed
+/// the adapters root or the Node on PATH).
+pub fn invalidate_probe_cache() {
+    if let Some(cache) = MANIFEST_CACHE.get() {
+        *cache.lock().unwrap_or_else(|error| error.into_inner()) = None;
+    }
+    if let Some(cache) = NODE_MAJOR_CACHE.get() {
+        cache
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clear();
+    }
+}
+
 /// Bundled adapter for a template id, or `None` when the tier is absent.
 pub fn bundled_adapter(template_id: &str) -> Option<BundledAdapter> {
-    adapter_at(adapters_root()?, template_id)
+    let root = adapters_root()?;
+    let manifest = cached_manifest(root)?;
+    adapter_in(&manifest, root, template_id)
 }
 
 fn node_major_of(node: &Path) -> Option<u32> {
+    if let Some(cached) = node_major_cache()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(node)
+    {
+        return *cached;
+    }
+    let major = probe_node_major(node);
+    node_major_cache()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .insert(node.to_path_buf(), major);
+    major
+}
+
+/// Spawn `node --version` once per resolved binary, not once per catalog scan.
+fn probe_node_major(node: &Path) -> Option<u32> {
     let mut command = std::process::Command::new(node);
     command.arg("--version");
+    command.spawn_in_agent_scratch_dir();
     command.sanitize_appimage_env();
     crate::core::process::hide_console_window(&mut command);
     let output = command.output().ok()?;

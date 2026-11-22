@@ -55,7 +55,8 @@
 			"qwenwork": "千问办公",
 			"workbuddy": "WorkBuddy",
 			"dsh-desktop": "Dsh 桌面版",
-			"bundledCli": "自带 CLI，可接入"
+			"bundledCli": "自带 CLI，可接入",
+			"unsupported": "暂无 Linux 版"
 		},
 		"desktopBundled": "桌面内置"
 	},

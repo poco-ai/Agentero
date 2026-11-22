@@ -5,6 +5,7 @@
 //! directories kept here are thin bridges around their desktop-only shells
 //! (commands / job runners / remote engines).
 
+pub mod alphaxiv;
 pub mod analyze;
 pub mod catalog;
 pub mod discovery;

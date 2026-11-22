@@ -33,7 +33,8 @@ export async function openDesktopApp(id: DesktopAppId): Promise<void> {
  * Qoder CN, `DeepSeek Harness` → Dsh).
  *
  * macOS bundles sit under `<App>.app/Contents/Resources/…`; Windows installs
- * mirror that under `<install dir>\resources\{bin,runtime\cli\bin,…}`.
+ * mirror that under `<install dir>\resources\{bin,runtime\cli\bin,…}`; Linux
+ * packages (.deb/.rpm, Flatpak, Snap) keep `<install root>/resources/…`.
  */
 export function isDesktopBundledCliPath(
 	path: string | null | undefined,

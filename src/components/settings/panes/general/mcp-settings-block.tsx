@@ -105,11 +105,7 @@ export function McpSettingsBlock({
 	return (
 		<>
 			<SettingsGroup>
-				<SettingsRow
-					label={t("general.mcp.label")}
-					description={t("general.mcp.scope")}
-					htmlFor="mcp-enabled"
-				>
+				<SettingsRow label={t("general.mcp.label")} htmlFor="mcp-enabled">
 					<Switch
 						id="mcp-enabled"
 						checked={settings.mcpEnabled}

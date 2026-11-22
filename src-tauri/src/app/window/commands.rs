@@ -5,6 +5,8 @@ use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewUrl, WebviewWindowB
 
 use crate::core::log_util::OpTimer;
 
+use super::singleton::create_gate;
+
 // Settings store is only used for macOS traffic-light y scaling.
 #[cfg(target_os = "macos")]
 use crate::features::system::settings::AppSettingsStore;
@@ -176,6 +178,10 @@ pub async fn settings_window_open(
     vault_path: Option<String>,
 ) -> Result<(), String> {
     let op = OpTimer::start("settings_window_open");
+    // Hold across the existence check and `build`: the label is only
+    // registered once the window exists, so two overlapping calls would both
+    // pass the check and each build a titled window.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
         if let Some(section) = section {
@@ -308,6 +314,9 @@ pub async fn feature_window_open(
     let op = OpTimer::start("feature_window_open");
     validate_feature_view(&view)?;
     let label = feature_window_label(&view);
+    // Same create-or-focus race as `settings_window_open`: the label only
+    // exists once the window is built.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(&label) {
         raise_existing_window(&win);
@@ -399,6 +408,8 @@ pub async fn doc_window_open(
         return Err("path is required".into());
     }
     let label = doc_window_label(&path);
+    // Same create-or-focus race as `settings_window_open`.
+    let _gate = create_gate();
 
     if let Some(win) = app.get_webview_window(&label) {
         raise_existing_window(&win);

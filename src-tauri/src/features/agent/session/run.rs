@@ -12,6 +12,7 @@ use crate::features::agent::acp::updates::{
     collaboration_from_config_options, effort_from_config_options, emit_rich_session_update,
     emit_session_config_options, fast_mode_value_to_set, is_fast_option, is_pi_startup_banner,
     models_from_config_options, should_drop_codex_instruction_warning, stream_from_update,
+    ToolOutputAccumulator,
 };
 use crate::features::agent::context_turn::{
     insert_context_block, insert_resume_transcript, prepare_context,
@@ -28,7 +29,7 @@ use crate::features::agent::prompt::skills::{
 use crate::features::agent::runtime::events::AgentEventEmitter;
 use crate::features::agent::runtime::gates::{AskUserGate, ElicitationGate, PermissionGate};
 use crate::features::agent::runtime::stream::{StreamCoalescer, STREAM_COALESCE_WINDOW};
-use crate::features::agent::session::config::RunPreferences;
+use crate::features::agent::session::config::{apply_model_preference, ModelApply, RunPreferences};
 use crate::features::agent::session::handlers::{
     agentero_turn_builder, clear_turn, install_turn, new_registry, ActiveTurn, TurnRegistry,
 };
@@ -61,6 +62,9 @@ pub struct RunOnceParams {
     pub target: Option<String>,
     pub vault_path: Option<String>,
     pub preferred_model_id: Option<String>,
+    /// Explicit user pick: send one `set_config_option` even when the agent
+    /// reports the same model as current (Fix #1087).
+    pub force_model: bool,
     pub preferred_collaboration_mode_id: Option<String>,
     pub preferred_reasoning_effort: Option<String>,
     pub prefer_highest_reasoning_effort: bool,
@@ -359,6 +363,7 @@ pub(crate) struct RunOnceContext {
     /// leaves this false so an unused warm session stays hidden.
     prompt_sent: Arc<AtomicBool>,
     stop_reason: Arc<Mutex<Option<String>>>,
+    tool_outputs: Arc<Mutex<ToolOutputAccumulator>>,
     /// Terminal capability: headless command execution on behalf of the agent.
     terminals: Arc<tokio::sync::Mutex<AcpTerminalManager>>,
     context_fingerprint: Option<String>,
@@ -409,6 +414,7 @@ impl RunOnceContext {
             live_stream: Arc::new(AtomicBool::new(params.resume_session_id.is_none())),
             prompt_sent: Arc::new(AtomicBool::new(false)),
             stop_reason: Arc::new(Mutex::new(None)),
+            tool_outputs: Arc::new(Mutex::new(ToolOutputAccumulator::default())),
             terminals: acp_terminals(Some(cwd)),
             context_fingerprint: None,
             prefetched_sources: Vec::new(),
@@ -468,6 +474,7 @@ impl RunOnceContext {
                             &self.session_id,
                             &self.agent_id,
                             notification,
+                            Some(&self.tool_outputs),
                         );
                     }
                     _ => {}
@@ -526,7 +533,13 @@ impl RunOnceContext {
             self.coalescer.flush();
         }
         if !self.suppress_transcript {
-            emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
+            emit_rich_session_update(
+                &self.app,
+                &self.session_id,
+                &self.agent_id,
+                notification,
+                Some(&self.tool_outputs),
+            );
         }
     }
 
@@ -587,6 +600,7 @@ impl RunOnceContext {
             ask_user_gate,
             cancellation,
             preferred_model_id,
+            force_model,
             preferred_collaboration_mode_id,
             preferred_reasoning_effort,
             prefer_highest_reasoning_effort,
@@ -603,6 +617,7 @@ impl RunOnceContext {
             preferences: RunPreferences::for_workflow(
                 workflow.as_deref(),
                 preferred_model_id,
+                force_model,
                 preferred_collaboration_mode_id,
                 preferred_reasoning_effort,
                 prefer_highest_reasoning_effort,
@@ -971,37 +986,21 @@ impl RunOnceContext {
             // complete response before resolving the remaining preferences.
             // Also attempt custom / third-party model ids not in the advertised catalog
             // (gateway models, cc-switch, free-form provider ids).
-            if let Some(pref) = prefs.model_id.clone() {
-                if pref != ev.current_id {
-                    let listed = ev.models.iter().any(|m| m.id == pref);
-                    let response = tokio::select! {
-                        result = timed_acp_request(
-                            "set model",
-                            connection
-                                .send_request(SetSessionConfigOptionRequest::new(
-                                    acp_session_id.clone(),
-                                    SessionConfigId::new(ev.config_id.as_str()),
-                                    SessionConfigOptionValue::value_id(pref.clone()),
-                                ))
-                                .block_task(),
-                        ) => result,
-                        () = wait_for_cancellation(&mut *cancellation) => return_cancelled!(),
-                    };
-                    match response {
-                        Ok(response) => {
-                            config_options = response.config_options;
-                        }
-                        Err(e) => {
-                            log::debug!(
-                                target: "agentero::agent",
-                                "agent={} set model failed (listed={}): pref={} err={}",
-                                self.agent_id,
-                                listed,
-                                pref,
-                                e
-                            );
-                        }
-                    }
+            if let Some(pref) = prefs.model_id.as_deref() {
+                match apply_model_preference(
+                    connection,
+                    &self.agent_id,
+                    acp_session_id,
+                    &ev,
+                    pref,
+                    prefs.force_model,
+                    Some(&mut *cancellation),
+                )
+                .await
+                {
+                    ModelApply::Updated(options) => config_options = options,
+                    ModelApply::Unchanged => {}
+                    ModelApply::Cancelled => return_cancelled!(),
                 }
             }
         }
@@ -1249,6 +1248,7 @@ async fn run_on_pooled(
     let preferences = RunPreferences::for_workflow(
         params.workflow.as_deref(),
         params.preferred_model_id.clone(),
+        params.force_model,
         params.preferred_collaboration_mode_id.clone(),
         params.preferred_reasoning_effort.clone(),
         params.prefer_highest_reasoning_effort,
@@ -1452,7 +1452,7 @@ async fn serve_delegate_connection(
     };
     let state = RunOnceContext::new(&base, prep.cwd.clone());
     let registry = new_registry();
-    let preferences = RunPreferences::for_workflow(None, None, None, None, false, None);
+    let preferences = RunPreferences::for_workflow(None, None, false, None, None, false, None);
     let params = base.clone();
     let result = agentero_turn_builder!(state.terminals.clone(), registry.clone(), None)
         .connect_with(acp, {

@@ -606,7 +606,7 @@ export function TranslatePane({
 									<button
 										type="button"
 										aria-label={t("translate.cache.tip")}
-										className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+										className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
 									>
 										<Info className="size-3.5" aria-hidden />
 									</button>

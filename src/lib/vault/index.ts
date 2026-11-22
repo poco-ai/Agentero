@@ -1,5 +1,6 @@
 export {
 	createVaultDirectory,
+	createVaultFile,
 	isMarkdownPath,
 	isTextOpenable,
 	readVaultBytes,

@@ -10,6 +10,11 @@ import { errorText } from "@/lib/core/error";
 import { callApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
+import {
+	ERR_TRANSLATE_INDEX_PROMPT_ECHO,
+	isIndexPromptEchoError,
+	translationContainsIndexPromptEcho,
+} from "@/lib/pdf/layout/index-translate-echo";
 import { parseBbox } from "@/lib/pdf/layout/layout-index";
 import {
 	draftChainSentences,
@@ -94,6 +99,31 @@ export const LAYOUT_TRANSLATE_PROVIDER_DOWN_FAILURES = 3;
  * still grouping ~one double-column page of paragraphs for shared context.
  */
 export const LAYOUT_TRANSLATE_BATCH_CHARS = 4500;
+
+/**
+ * Streaming batch cap. A stalled block throws away only this much source.
+ * One-shot providers keep {@link LAYOUT_TRANSLATE_BATCH_CHARS} and a 30s
+ * total deadline. Streaming providers send each block through
+ * `translate_text_stream`, timed by silence rather than total duration.
+ */
+export const LAYOUT_TRANSLATE_STREAM_BATCH_CHARS = 2000;
+
+const STREAMING_LAYOUT_TRANSLATE_PROVIDERS = new Set<TranslateProviderId>([
+	"openaiCompatible",
+	"indextranslate",
+	"indextranslate2b",
+]);
+
+/** Character budget for one bulk request. Agent translation stays on the one-shot cap. */
+export function layoutTranslateBatchChars(
+	provider: TranslateProviderId,
+	agent: boolean,
+): number {
+	if (agent || !STREAMING_LAYOUT_TRANSLATE_PROVIDERS.has(provider)) {
+		return LAYOUT_TRANSLATE_BATCH_CHARS;
+	}
+	return LAYOUT_TRANSLATE_STREAM_BATCH_CHARS;
+}
 
 export const LAYOUT_TRANSLATE_SIDECAR_SCHEMA_VERSION = 2;
 export const LAYOUT_TRANSLATE_SIDECAR_FILE = "layout-translate.json";
@@ -397,13 +427,18 @@ export function parseLayoutTranslateSidecar(
 		serviceKey === expectedKey?.legacyServiceKey
 			? PREVIOUS_TERMINOLOGY_REVISION
 			: undefined;
-	const items = raw.items.map((value) => {
+	const parsed = raw.items.map((value) => {
 		const item = parseLayoutTranslateSidecarItem(value);
 		if (item && !item.terminologyRevision && legacyRevision)
 			item.terminologyRevision = legacyRevision;
 		return item;
 	});
-	if (items.some((item) => !item)) return null;
+	if (parsed.some((item) => !item)) return null;
+	// A prompt echo is one bad block, not a corrupt file. Drop it so the next
+	// run translates that block again and keeps every other cached block.
+	const items = (parsed as LayoutTranslateSidecarItem[]).filter(
+		(item) => !sidecarTranslationHasPromptEcho(item),
+	);
 	return {
 		schemaVersion: LAYOUT_TRANSLATE_SIDECAR_SCHEMA_VERSION,
 		source: {
@@ -414,8 +449,21 @@ export function parseLayoutTranslateSidecar(
 			targetLang,
 			serviceKey,
 		},
-		items: items as LayoutTranslateSidecarItem[],
+		items,
 	};
+}
+
+function sidecarTranslationHasPromptEcho(item: {
+	translated: string;
+	sentences?: readonly { translated: string; display?: string }[];
+}): boolean {
+	if (translationContainsIndexPromptEcho(item.translated)) return true;
+	return (item.sentences ?? []).some(
+		(sentence) =>
+			translationContainsIndexPromptEcho(sentence.translated) ||
+			(sentence.display != null &&
+				translationContainsIndexPromptEcho(sentence.display)),
+	);
 }
 
 export async function readLayoutTranslateSidecar(
@@ -438,13 +486,10 @@ export function applyLayoutTranslateSidecar(
 ): LayoutTranslateItem[] {
 	if (!sidecar?.items.length) return items.map((it) => ({ ...it }));
 	const byId = new Map(sidecar.items.map((item) => [item.id, item]));
-	return items.map((item) => {
+	const applied = items.map((item) => {
 		const cached = byId.get(item.id);
 		if (!cached || cached.source !== item.source) return { ...item };
-		if (
-			item.reflow &&
-			!validReflowTranslation(item.reflow, cached.translated.trim())
-		)
+		if (sidecarTranslationHasPromptEcho(cached)) {
 			return {
 				...item,
 				status: "pending" as const,
@@ -452,23 +497,21 @@ export function applyLayoutTranslateSidecar(
 				sentences: undefined,
 				error: undefined,
 			};
-		if (options?.requireReflowSentencePairs && item.reflow) {
-			const drafts = draftReflowSentences(item.reflow);
-			if (
-				drafts.length > 1 &&
-				(cached.sentences?.length !== drafts.length ||
-					drafts.some(
-						(draft, index) => draft.quote !== cached.sentences?.[index]?.quote,
-					))
-			) {
-				return {
-					...item,
-					status: "pending",
-					translated: undefined,
-					sentences: undefined,
-					error: undefined,
-				};
-			}
+		}
+		if (
+			item.reflow &&
+			!validReflowTranslation(item.reflow, cached.translated.trim())
+		)
+			return pendingLayoutTranslateItem(item);
+		if (
+			options?.requireReflowSentencePairs &&
+			item.reflow &&
+			reflowSentencePairsStale(
+				draftReflowSentences(item.reflow),
+				cached.sentences,
+			)
+		) {
+			return pendingLayoutTranslateItem(item);
 		}
 		return {
 			...item,
@@ -479,6 +522,81 @@ export function applyLayoutTranslateSidecar(
 			error: undefined,
 		};
 	});
+	if (!options?.requireReflowSentencePairs) return applied;
+	return invalidateStaleChainSentencePairs(applied);
+}
+
+function pendingLayoutTranslateItem(
+	item: LayoutTranslateItem,
+): LayoutTranslateItem {
+	return {
+		...item,
+		status: "pending",
+		translated: undefined,
+		sentences: undefined,
+		error: undefined,
+	};
+}
+
+/**
+ * Sentence cuts changed, or a multi-sentence reflow block was cached without
+ * pairs. A single whole-block translation with no pairs stays cached.
+ */
+function reflowSentencePairsStale(
+	drafts: readonly { quote: string }[],
+	cached: readonly { quote: string }[] | undefined,
+): boolean {
+	const stored = cached ?? [];
+	if (stored.length === 0) return drafts.length > 1;
+	if (drafts.length !== stored.length) return true;
+	return drafts.some((draft, index) => draft.quote !== stored[index]?.quote);
+}
+
+/** Quotes painted across a chain, skipping a sentence repeated on the next box. */
+function cachedChainQuotes(members: readonly LayoutTranslateItem[]): string[] {
+	const quotes: string[] = [];
+	const seen = new Set<string>();
+	for (const member of members) {
+		for (const sentence of member.sentences ?? []) {
+			if (seen.has(sentence.quote)) continue;
+			seen.add(sentence.quote);
+			quotes.push(sentence.quote);
+		}
+	}
+	return quotes;
+}
+
+/**
+ * Chain blocks do not go through the reflow pair check. A cached split that no
+ * longer matches `draftChainSentences` (an abbreviation that used to cut the
+ * sentence, or a clipped quote) is translated again as one chain.
+ */
+function invalidateStaleChainSentencePairs(
+	items: readonly LayoutTranslateItem[],
+): LayoutTranslateItem[] {
+	const stale = new Set<string>();
+	for (const chain of buildLayoutTranslateChains(items)) {
+		if (chain.members.some((member) => member.reflow)) continue;
+		if (chain.members.every((member) => member.status !== "done")) continue;
+		const drafts = draftChainSentences(
+			chain.members.map((member) => ({
+				raw: member.raw,
+				source: member.source,
+				kind: member.kind,
+			})),
+		);
+		const cached = cachedChainQuotes(chain.members);
+		if (cached.length === 0) continue;
+		const mismatch =
+			drafts.length !== cached.length ||
+			drafts.some((draft, index) => draft.quote !== cached[index]);
+		if (!mismatch) continue;
+		for (const member of chain.members) stale.add(member.id);
+	}
+	if (stale.size === 0) return [...items];
+	return items.map((item) =>
+		stale.has(item.id) ? pendingLayoutTranslateItem(item) : item,
+	);
 }
 
 /** Cached translations recovered from `layout-translate.json`, plus what is left. */
@@ -554,7 +672,15 @@ export async function writeLayoutTranslateSidecar(
 ): Promise<void> {
 	if (!paperAbsPath) return;
 	const done = items
-		.filter((item) => item.status === "done" && item.translated?.trim())
+		.filter(
+			(item) =>
+				item.status === "done" &&
+				Boolean(item.translated?.trim()) &&
+				!sidecarTranslationHasPromptEcho({
+					translated: item.translated ?? "",
+					sentences: item.sentences,
+				}),
+		)
 		.map((item): LayoutTranslateSidecarItem => {
 			const written: LayoutTranslateSidecarItem = {
 				id: item.id,
@@ -865,21 +991,19 @@ function batchPayloadLength(batch: readonly TranslateUnit[]): number {
 
 /**
  * Group units (already in reading order) into batches whose combined payload
- * stays under {@link LAYOUT_TRANSLATE_BATCH_CHARS}. Oversized units are kept
- * alone and split by the transport. Batches may span adjacent pages; results are mapped
- * back per unit, so positions are unaffected.
+ * stays under `maxChars`. Oversized units are kept alone and split by the
+ * transport. Batches may span adjacent pages; results are mapped back per
+ * unit, so positions are unaffected.
  */
 export function buildTranslateBatches<T extends TranslateUnit>(
 	units: readonly T[],
+	maxChars = LAYOUT_TRANSLATE_BATCH_CHARS,
 ): T[][] {
 	const batches: T[][] = [];
 	let current: T[] = [];
 	for (const unit of units) {
 		const candidate = [...current, unit];
-		if (
-			current.length > 0 &&
-			batchPayloadLength(candidate) > LAYOUT_TRANSLATE_BATCH_CHARS
-		) {
+		if (current.length > 0 && batchPayloadLength(candidate) > maxChars) {
 			batches.push(current);
 			current = [unit];
 		} else {
@@ -973,6 +1097,11 @@ export async function runLayoutRegionTranslate(options: {
 		translateSettings,
 		i18n.language ?? "en",
 	).targetLang;
+	const batchChars = layoutTranslateBatchChars(
+		translateSettings.provider,
+		Boolean(agentOpts),
+	);
+	const streamBatch = batchChars === LAYOUT_TRANSLATE_STREAM_BATCH_CHARS;
 
 	type SentenceSlot = { state: "pending" | "ok" | "fail"; text: string };
 	type ChainJob = {
@@ -1027,7 +1156,7 @@ export async function runLayoutRegionTranslate(options: {
 		a.job.chain.members[0].readingOrder - b.job.chain.members[0].readingOrder;
 	// Keep payloads intact so page priority cannot increase request count.
 	// A batch can straddle late detected blocks and early-page IR backfills.
-	const batches = buildTranslateBatches(units)
+	const batches = buildTranslateBatches(units, batchChars)
 		.map((batch) => ({
 			batch,
 			first: batch.reduce((first, unit) =>
@@ -1060,10 +1189,7 @@ export async function runLayoutRegionTranslate(options: {
 		pageIndex: number | undefined,
 	): Promise<string> => {
 		const parts: string[] = [];
-		for (const chunk of splitTranslationChunks(
-			text,
-			LAYOUT_TRANSLATE_BATCH_CHARS,
-		)) {
+		for (const chunk of splitTranslationChunks(text, batchChars)) {
 			if (signal?.aborted) return "";
 			// The provider was already unreachable; a further request would only
 			// spend another timeout on the same dead endpoint.
@@ -1078,7 +1204,7 @@ export async function runLayoutRegionTranslate(options: {
 							surface: "pdf-layout-bulk",
 						},
 					},
-					agentOpts,
+					streamBatch ? { ...agentOpts, onDelta: () => {} } : agentOpts,
 				);
 			} catch (error) {
 				const message = errorText(error);
@@ -1096,6 +1222,11 @@ export async function runLayoutRegionTranslate(options: {
 			}
 			transportFailures = 0;
 			if (!translated.trim()) throw new Error("Empty translation result");
+			// The Host strips an Index-Translate echo before returning. A reply
+			// that still contains the prompt is a failed block, not text to store.
+			if (translationContainsIndexPromptEcho(translated)) {
+				throw new Error(ERR_TRANSLATE_INDEX_PROMPT_ECHO);
+			}
 			parts.push(translated.trim());
 		}
 		return joinTranslatedDisplays(parts, targetLang);
@@ -1131,7 +1262,7 @@ export async function runLayoutRegionTranslate(options: {
 			const leading = part.match(/^[\s.,;:!?。；，：！？)\]]*/u)?.[0] ?? "";
 			return [{ index, leading, source: part.slice(leading.length) }];
 		});
-		for (const batch of buildTranslateBatches(prose)) {
+		for (const batch of buildTranslateBatches(prose, batchChars)) {
 			if (signal?.aborted) return "";
 			let segments: string[] | null = null;
 			try {
@@ -1142,7 +1273,11 @@ export async function runLayoutRegionTranslate(options: {
 				segments = parseNumberedTranslation(result, batch.length);
 			} catch (error) {
 				if (signal?.aborted) return "";
-				if (batch.length === 1 || !isMissingTranslationResponse(error))
+				if (
+					batch.length === 1 ||
+					(!isMissingTranslationResponse(error) &&
+						!isIndexPromptEchoError(error))
+				)
 					throw error;
 			}
 			for (const [index, part] of batch.entries()) {
@@ -1332,7 +1467,10 @@ export async function runLayoutRegionTranslate(options: {
 				pageOf(batch[0] as SentenceUnit),
 			);
 		} catch (error) {
-			if (!batch.some((unit) => canRecoverProtectedResponse(unit, error)))
+			if (
+				!isIndexPromptEchoError(error) &&
+				!batch.some((unit) => canRecoverProtectedResponse(unit, error))
+			)
 				throw error;
 			await translateIndividually(batch);
 			return;

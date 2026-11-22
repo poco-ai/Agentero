@@ -1,7 +1,13 @@
-import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
+import {
+	LAYOUT_SELECT_MIN_AREA,
+	LAYOUT_SIDEBAR_MIN_SCORE,
+} from "@/lib/pdf/layout/constants";
+import { dedupeLayoutRegions } from "@/lib/pdf/layout/dedupe";
 import {
 	isAlgorithmLayoutKind,
+	isLayoutElementTextKind,
 	isLayoutTranslatableKind,
+	isLayoutVisualKind,
 } from "@/lib/pdf/layout/labels";
 import { normalizeLayoutSourceText } from "@/lib/pdf/layout/layout-translate-source";
 import { bboxCoveredBy } from "@/lib/pdf/layout/merge-captions";
@@ -16,6 +22,31 @@ export function layoutRegionSourceText(region: PdfLayoutRegion): string {
 	return (region.text ?? region.title ?? "").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Text blocks the sentence catalog may quote.
+ *
+ * Raw layout keeps low-score duplicates and cross-column boxes. A cross-column
+ * box interleaves the two columns' lines, so sentence cuts then light both
+ * columns at once. Keep the same confidence and dedupe as element selection,
+ * then drop text that sits inside a figure, table, or algorithm.
+ */
+export function sentenceHoverTextRegions(
+	regions: readonly PdfLayoutRegion[],
+	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
+): PdfLayoutRegion[] {
+	const text = regions.filter(
+		(region) =>
+			isLayoutElementTextKind(region.kind) &&
+			region.score >= minScore &&
+			region.bbox.w > 0 &&
+			region.bbox.h > 0,
+	);
+	return dedupeLayoutRegions(text, {
+		minScore,
+		minArea: LAYOUT_SELECT_MIN_AREA,
+	}).filter((region) => !isInsideVisualLayoutRegion(region, regions));
+}
+
 /** True when most of `region` sits inside an algorithm detection box. */
 export function isInsideAlgorithmRegion(
 	region: PdfLayoutRegion,
@@ -25,6 +56,26 @@ export function isInsideAlgorithmRegion(
 	for (const alg of algorithms) {
 		if (alg.pageIndex !== region.pageIndex) continue;
 		if (bboxCoveredBy(region.bbox, alg.bbox) >= coverage) return true;
+	}
+	return false;
+}
+
+/**
+ * True when most of `region` sits inside a figure / chart / table / algorithm /
+ * formula crop. The model often detects the text inside a vector figure as
+ * separate prose blocks; those runs are part of the graphic, so they are not
+ * hover sentences (the whole element is selected instead).
+ */
+export function isInsideVisualLayoutRegion(
+	region: Pick<PdfLayoutRegion, "pageIndex" | "bbox">,
+	regions: readonly PdfLayoutRegion[],
+	coverage = 0.45,
+): boolean {
+	for (const candidate of regions) {
+		if (candidate.pageIndex !== region.pageIndex) continue;
+		if (!(candidate.score >= LAYOUT_SIDEBAR_MIN_SCORE)) continue;
+		if (!isLayoutVisualKind(candidate.kind)) continue;
+		if (bboxCoveredBy(region.bbox, candidate.bbox) >= coverage) return true;
 	}
 	return false;
 }

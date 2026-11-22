@@ -1,16 +1,12 @@
-import { translationRetryItems } from "@/lib/pdf/layout/translation-retry";
-import {
-	TRANSLATION_SPINNER_SIZE,
-	translationSpinnerAnchor,
-	translationSpinnerItems,
-} from "@/lib/pdf/layout/translation-spinner";
-import { ReflowPageOverlay } from "./reflow-page-overlay";
-import { TranslationRetryMarker } from "./translation-retry-marker";
-import { TranslationSpinner } from "./translation-spinner";
 /**
- * Progressive translation overlays for layout body-text regions.
- * Full bbox stays covered (hides source PDF text); font size tracks paper
- * body size, then re-fits so the translation fills the block without huge gaps.
+ * Layout-mode progressive translation overlay.
+ *
+ * Each translated block covers its full source bbox so the original PDF text
+ * underneath stays hidden. Font size starts from the size the paper's own
+ * body would use, then re-fits so a denser translation fills the block
+ * without large gaps; a DOM-measured second pass corrects for real font
+ * metrics. Also renders tail spinners for in-flight paragraphs and retry
+ * markers for failed ones.
  */
 
 import {
@@ -51,6 +47,12 @@ import {
 	type PreservedLinkAssignment,
 	type TranslateLinkBox,
 } from "@/lib/pdf/layout/translated-links";
+import { translationRetryItems } from "@/lib/pdf/layout/translation-retry";
+import {
+	TRANSLATION_SPINNER_SIZE,
+	translationSpinnerAnchor,
+	translationSpinnerItems,
+} from "@/lib/pdf/layout/translation-spinner";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import {
 	beginLinkPreviewDrag,
@@ -62,30 +64,33 @@ import {
 	PDF_PAPER_BLOCK_CLASS,
 	type PdfPaperTone,
 } from "@/lib/pdf/page-theme";
+import { ReflowPageOverlay } from "./reflow-page-overlay";
+import { TranslationRetryMarker } from "./translation-retry-marker";
+import { TranslationSpinner } from "./translation-spinner";
 
 type LayoutTranslateOverlayProps = {
-	/** Items already bucketed for this one page (groupLayoutTranslateItemsByPage). */
+	/** Translation items already bucketed to this page (groupLayoutTranslateItemsByPage). */
 	items: readonly LayoutTranslateItem[];
-	/** 0-based page index in the translated PDF (same order as the source). */
+	/** 0-based page index; source and translated PDFs share page order. */
 	pageIndex: number;
 	/** Finished translated PDF document id for the shared render path. */
 	reflowDocumentId?: string | null;
-	/** Lightweight version currently loaded by the hidden translated document. */
+	/** Lightweight version the hidden translated document currently holds. */
 	reflowDocumentVersion?:
 		| import("@/lib/pdf/reflow/output-version").ReflowOutputVersion
 		| null;
 	/** Current viewer zoom, forwarded to the shared render layer. */
 	zoom: number;
-	/** Page pixel size (for font-size heuristic). */
+	/** Page size in CSS pixels; feeds the font-size heuristics. */
 	pageWidthPx: number;
 	pageHeightPx: number;
-	/** Match PDF page paper (not app chrome). */
+	/** Paper tone of the PDF page itself (not app chrome). */
 	tone?: PdfPaperTone;
-	/** Raw page regions; used as collision blockers for safe overlay expansion. */
+	/** Raw page regions, used as collision blockers when expanding overlays. */
 	layoutRegions?: readonly PdfLayoutRegion[];
 	/**
-	 * English highlights on this page that have no translated boxes. A sentence
-	 * is filled when its English glyph boxes overlap the highlight. Nothing is
+	 * English highlights on this page without translated boxes. A sentence is
+	 * tinted when its English glyph boxes overlap the highlight; nothing is
 	 * written back.
 	 */
 	highlightQuotes?: readonly HighlightQuoteTint[];
@@ -96,45 +101,53 @@ type LayoutTranslateOverlayProps = {
 	>;
 	/**
 	 * Page link annotations and bare URLs, in normalized page fractions.
-	 * Preserved citation / ref / URL tokens inside a block become the hit
-	 * targets so the English rectangles can stay under the glyphs.
+	 * Citation / ref / URL tokens preserved inside a block become its hit
+	 * targets, so the English rectangles can stay under the glyphs.
 	 */
 	links?: readonly TranslateLinkBox[];
-	/** Source text runs for this page. Keeps grouped citations on their own glyphs. */
+	/** Source text runs for this page; keeps grouped citations on their own glyphs. */
 	glyphRuns?: readonly GlyphRun[];
 	/**
-	 * The page's text is translated while its translated raster is still being
-	 * generated. Keeps the paragraph-end spinner up until the preview paints.
+	 * Set while the page's text is translated but its translated raster is
+	 * still generating; keeps the paragraph-end spinner up until the preview
+	 * paints.
 	 */
 	awaitingPreview?: boolean;
 	/**
-	 * Retry a paragraph's page after its translation failed for good. When
-	 * absent, failed blocks render no in-place retry marker.
+	 * Retries the paragraph's page after its translation failed for good.
+	 * When absent, failed blocks render no in-place retry marker.
 	 */
 	onRetryTranslation?: (pageIndex: number) => void;
+	/** Opens a preserved link the user clicked. */
 	onOpenLink?: (assignment: PreservedLinkAssignment) => void;
+	/** Preserved-link hover lifecycle; `point` is the anchor's viewport box, null on leave. */
 	onHoverLink?: (
 		assignment: PreservedLinkAssignment | null,
 		point: { x: number; y: number; top: number; bottom: number } | null,
 	) => void;
 };
 
+/** Line-height multiplier shared by the estimate and the painted paragraph. */
 const LINE_HEIGHT = 1.25;
 /**
- * Heuristic floor. A DOM-measured second pass below may go lower only when the
- * real browser metrics prove the text would otherwise be clipped.
+ * Font-size bounds for the heuristic fit. FS_MIN is only the estimate's
+ * floor: the DOM-measured second pass may go lower when real browser metrics
+ * prove the text would otherwise clip.
  */
 const FS_MIN = 4;
 const FS_MAX = 20;
+/** Shrink heuristic results a touch so estimate error errs toward fitting. */
 const FIT_SAFETY = 0.97;
-/** One-line heading box height → font size (box ≈ ascender..descender). */
+/** A one-line heading box spans roughly ascender..descender ≈ 0.9 em. */
 const HEADING_EM_PER_BOX = 0.9;
-/** Section titles should outrank body text on the same page. */
+/** How far section titles must outrank same-page body text. */
 export const HEADING_TO_BODY_SIZE_RATIO = 1.35;
 
 /**
- * Median of body block sizes on a page. Empty when the page has no painted
- * body blocks yet (still translating / title-only).
+ * Reference body size for a page: the upper quartile of its painted body
+ * blocks' font sizes, so small or dense outliers cannot drag the heading
+ * floor back toward microcopy. Undefined until the page has at least one
+ * painted body block (still translating, or a title-only page).
  */
 export function bodyReferenceFontSize(
 	sizes: readonly number[],
@@ -143,13 +156,11 @@ export function bodyReferenceFontSize(
 		.filter((n) => Number.isFinite(n) && n > FS_MIN)
 		.sort((a, b) => a - b);
 	if (usable.length === 0) return undefined;
-	// Prefer the upper quartile so short/dense outliers do not drag section
-	// titles back toward body size.
 	const idx = Math.min(usable.length - 1, Math.ceil(usable.length * 0.75) - 1);
 	return usable[Math.max(0, idx)];
 }
 
-/** Raise a heading to at least `bodyRef × HEADING_TO_BODY_SIZE_RATIO`. */
+/** Lift a heading to at least `bodyRef × HEADING_TO_BODY_SIZE_RATIO`, capped at FS_MAX. */
 export function applyHeadingBodyFloor(
 	headingFs: number,
 	bodyRefPx: number | undefined,
@@ -161,14 +172,20 @@ export function applyHeadingBodyFloor(
 	);
 }
 
+/** Right edge (page fraction) an overlay may expand to. */
 const OVERLAY_PAGE_RIGHT = 0.97;
+/** Gap kept between an expanded overlay and its nearest blocker, in page fractions. */
 const OVERLAY_GUTTER = 0.006;
 
+/** Whether two ranges share more than a boundary (gutters rely on that). */
 function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number) {
 	return Math.min(aEnd, bEnd) - Math.max(aStart, bStart) > 0;
 }
 
-/** Source heading size the overlay should keep while the box grows. */
+/**
+ * Page pixel size plus heading font size, so the expansion can estimate how
+ * many lines a translated heading wraps to.
+ */
 export type LayoutTranslateHeadingFit = {
 	pageWidthPx: number;
 	pageHeightPx: number;
@@ -176,11 +193,12 @@ export type LayoutTranslateHeadingFit = {
 };
 
 /**
- * Conservative counterpart to BabelDOC's paragraph-box expansion. We never
- * cross a detected layout region and cap each direction, so a missed detection
- * cannot turn one translated label into a page-wide white slab. Headings may
- * also grow downward (up to 2.75×) so a longer translation keeps the source
- * glyph size instead of collapsing.
+ * Grow a block's bbox when its translation needs more room than the source
+ * did. Only headings and figure titles may expand, in one direction (widen
+ * ≤1.5× or deepen ≤1.75×) and never past the nearest colliding region; with
+ * `headingFit`, a wrapped heading also gains height (≤2.75×) so lines are
+ * not clipped. Body prose never expands: raw layout regions are reliable
+ * blockers around titles, but too incomplete to trust for body text.
  */
 export function expandLayoutTranslateBbox(
 	item: LayoutTranslateItem,
@@ -193,9 +211,8 @@ export function expandLayoutTranslateBbox(
 	const translatedWidth = translated
 		? translated.replace(/\s+/g, "").length * avgGlyphEm(translated)
 		: 0;
-	// Raw layout boxes are reliable collision blockers for titles/captions, but
-	// not sufficiently complete to safely borrow space for body prose. Expand
-	// only when translated glyph width genuinely exceeds the source by 10%.
+	// The 10% threshold filters noise: expand only when the translated glyphs
+	// are genuinely wider than the source, not on estimate jitter.
 	const expandable =
 		(isLayoutTranslateHeadingKind(item.kind) || item.kind === "figure_title") &&
 		translatedWidth > sourceWidth * 1.1;
@@ -226,8 +243,8 @@ export function expandLayoutTranslateBbox(
 			original.w,
 			Math.min(right - original.x, original.w * 1.5),
 		);
-		// Prefer one-direction expansion. Expanding both could cover a diagonal
-		// figure/table that does not overlap the original narrow title box.
+		// One direction only: widening both ways could cover a diagonally
+		// adjacent figure/table that never overlapped the narrow original box.
 		bbox =
 			width > original.w + 0.001
 				? { ...original, w: width }
@@ -240,6 +257,8 @@ export function expandLayoutTranslateBbox(
 					};
 	}
 
+	// Second stage (headings only): deepen the box for the extra lines the
+	// translation wraps to, capped by blockers and 2.75× the source box.
 	if (
 		!headingFit ||
 		headingFit.pageHeightPx <= 0 ||
@@ -275,17 +294,18 @@ export function expandLayoutTranslateBbox(
 	return h > bbox.h + 0.0001 ? { ...bbox, h } : bbox;
 }
 
-/** Wider glyphs for CJK; narrower for Latin (academic body). */
+/** Average glyph advance in em: 1.0 for CJK, 0.55 for Latin academic prose. */
 function avgGlyphEm(text: string): number {
 	const t = text.replace(/\s+/g, "");
 	if (!t.length) return 0.58;
 	const cjk = (t.match(/[\u3000-\u9fff\u3400-\u4dbf]/g) ?? []).length;
 	const ratio = cjk / t.length;
-	// Slightly conservative widths avoid an optimistic fit estimate followed by
-	// CSS overflow clipping at real browser font metrics.
+	// The Latin width is deliberately conservative so the estimate does not
+	// promise a fit that real font metrics later clip.
 	return 0.55 * (1 - ratio) + 1 * ratio;
 }
 
+/** Estimated line count: honor explicit newlines, wrap the rest by average glyph advance. */
 function estimateLineCount(
 	text: string,
 	widthPx: number,
@@ -306,6 +326,7 @@ function estimateLineCount(
 	return Math.max(1, Math.ceil(chars / cpl));
 }
 
+/** Estimated wrapped height of `text` at `fontSize`. */
 function estimateBlockHeight(
 	text: string,
 	widthPx: number,
@@ -317,7 +338,8 @@ function estimateBlockHeight(
 }
 
 /**
- * Largest font size such that wrapped `text` still fits in (widthPx × heightPx).
+ * Largest font size whose wrapped `text` still fits in widthPx × heightPx,
+ * found by binary search over the line-count estimate.
  */
 function fitFontSizeToBox(
 	text: string,
@@ -328,7 +350,7 @@ function fitFontSizeToBox(
 	const content = text.replace(/\s+/g, " ").trim() || "…";
 	let lo = FS_MIN;
 	let hi = FS_MAX;
-	// 12 iterations → sub-pixel precision for UI.
+	// 12 halvings of the [FS_MIN, FS_MAX] range land well below one pixel.
 	for (let i = 0; i < 12; i++) {
 		const mid = (lo + hi) / 2;
 		const h = estimateBlockHeight(content, widthPx, mid, glyphEm);
@@ -340,16 +362,18 @@ function fitFontSizeToBox(
 
 export type LayoutTranslateFontOptions = {
 	/**
-	 * Section and title blocks. Keep the size implied by the source box so a
-	 * longer translation does not flatten the heading into body text. The box
-	 * grows instead; body blocks still shrink to fit.
+	 * Section/title blocks: keep the size implied by the source box so a
+	 * longer translation cannot flatten the heading into body text — the box
+	 * grows instead. Body blocks still shrink to fit their translation.
 	 */
 	heading?: boolean;
 };
 
 /**
- * Paper-like size from the English/source block, then adjust for the
- * translation so CN denser text does not leave a half-empty white slab.
+ * Font size for one translated block. Start from the size the source text
+ * would use in the same box (paper-like), then adjust for the translation:
+ * shrink when it would overflow, grow modestly when denser text (e.g.
+ * Chinese) would otherwise leave the block half empty.
  */
 export function fontSizeForLayoutTranslateBox(
 	bbox: LayoutTranslateItem["bbox"],
@@ -369,24 +393,23 @@ export function fontSizeForLayoutTranslateBox(
 	const srcEm = avgGlyphEm(src);
 	const dispEm = avgGlyphEm(display);
 
-	// 1) Size the original paper body would use in this bbox.
+	// 1) The size the original paper text would use in this box.
 	const paperFs = fitFontSizeToBox(src, w, h, srcEm);
 
 	if (options?.heading) {
 		let fs = paperFs;
 		const srcLines = estimateLineCount(src, w, Math.max(paperFs, 8), srcEm);
-		// A one-line title strip should fill its band. Do not cap that floor by
-		// the smaller size that would cram a longer translation into the same box.
+		// A one-line title strip should fill its band; that floor must not be
+		// dragged down by the smaller size a longer translation would cram into.
 		if (srcLines === 1 && src.length < 140 && h < 56) {
 			fs = Math.max(fs, Math.min(FS_MAX, (h / LINE_HEIGHT) * 0.92));
 		}
-		// Layout boxes for a short section title hug the glyphs (about one em
-		// tall). Subtracting paragraph padding from such a box, or a pessimistic
-		// line estimate at the 8px probe, collapsed "1. Introduction" to FS_MIN at
-		// normal zoom, smaller than the body text. Size from the raw box height.
-		// Only for boxes that really hold one source line at that size; multi-line
-		// titles, logos and author strips keep the fitted size, and untranslated
-		// strips (dates, ids) keep the size that already fits their box.
+		// A short section title's box hugs its glyphs (~1 em tall), so padding
+		// subtraction and the pessimistic 8px line probe both undersize it. Size
+		// from the raw box height instead — but only when the box truly holds a
+		// single source line at that size. Multi-line titles, logos and author
+		// strips keep the fitted size; untranslated strips (dates, ids) keep
+		// whatever already fits.
 		const rawFs = Math.min(FS_MAX, bbox.h * pageHeightPx * HEADING_EM_PER_BOX);
 		if (
 			rawFs > fs &&
@@ -398,21 +421,21 @@ export function fontSizeForLayoutTranslateBox(
 		return Math.max(FS_MIN, Math.min(FS_MAX, fs));
 	}
 
-	// 2) Largest size that still fits the translation in the same box.
+	// 2) The largest size the translation itself would still fit at.
 	const fitFs = fitFontSizeToBox(display, w, h, dispEm);
 
-	// 3) Prefer paper-like; shrink if translation would overflow; allow modest
-	//    grow when translation is denser (CN) so the block is not half blank.
+	// 3) Prefer the paper-like size: shrink on overflow, grow only modestly so
+	//    a denser translation does not leave the block half blank.
 	let fs = paperFs;
 	if (fitFs < paperFs * 0.98) {
-		// Translation longer / wider glyphs → must shrink.
+		// Translation longer / glyphs wider → must shrink.
 		fs = fitFs;
 	} else if (fitFs > paperFs * 1.05) {
-		// Room to grow: fill up toward ~90% of the max fit, capped at 1.22× paper.
+		// Room to grow: aim for ~90% of the max fit, capped at 1.22× paper size.
 		fs = Math.min(fitFs * 0.9, paperFs * 1.22);
 	}
 
-	// Tiny header strips: use most of the strip height.
+	// A one-line micro strip (headers, bylines) should use most of its height.
 	const srcLines = estimateLineCount(src, w, Math.max(paperFs, 8), srcEm);
 	if (srcLines === 1 && src.length < 100 && h < 40) {
 		fs = Math.min(fitFs, Math.max(fs, h * 0.7));
@@ -422,13 +445,13 @@ export function fontSizeForLayoutTranslateBox(
 }
 
 /**
- * Fit-result cache. Streaming job updates repaint every mounted page, but the
- * fitted size only depends on (item, box pixel size, source, text), so
- * unchanged blocks reuse their last result instead of re-running the
- * binary-search fit on every render. Inner maps use raw strings as keys
- * (value equality), so cache hits build no large key strings. Bounded:
- * oldest item entries are evicted first; per-item maps hold only the few
- * text variants a block goes through (placeholder → final).
+ * Cache for the binary-search fit. Streaming job updates repaint every
+ * mounted page, but a block's fitted size depends only on (item, box pixel
+ * size, source, translation), so unchanged blocks reuse their last result
+ * instead of re-fitting on every render. Nested maps key on raw strings
+ * (value equality), so hits build no composite key strings. Bounded: oldest
+ * item entries evict first; per-item maps hold only the few text variants a
+ * block passes through (placeholder → final).
  */
 const FONT_SIZE_CACHE_MAX_ITEMS = 1024;
 const FONT_SIZE_CACHE_MAX_SOURCES = 8;
@@ -448,7 +471,8 @@ function fontSizeForLayoutTranslateItem(
 	pageHeightPx: number,
 	text: string,
 ): number {
-	// Preserve the real PDF em; do not grow short translations to fill the box.
+	// A measured PDF font size is authoritative: use it as-is and never grow a
+	// short translation to fill the box.
 	if (item.sourceStyle) return item.sourceStyle.fontSize * pageHeightPx;
 	const boxWidthPx = item.bbox.w * pageWidthPx;
 	const boxHeightPx = item.bbox.h * pageHeightPx;
@@ -464,7 +488,7 @@ function fontSizeForLayoutTranslateItem(
 		entry.boxWidthPx !== boxWidthPx ||
 		entry.boxHeightPx !== boxHeightPx
 	) {
-		// Zoom or region geometry changed: cached sizes no longer apply.
+		// Box pixels changed (zoom or geometry): cached sizes no longer apply.
 		entry.boxWidthPx = boxWidthPx;
 		entry.boxHeightPx = boxHeightPx;
 		entry.bySource.clear();
@@ -492,6 +516,7 @@ function fontSizeForLayoutTranslateItem(
 	return fontSize;
 }
 
+/** Apply a fitted font size and line height to the paragraph element. */
 function applyParagraphMetrics(
 	element: HTMLParagraphElement,
 	fontSize: number,
@@ -519,6 +544,7 @@ type ExactFitParagraphProps = {
 	onHoverLink?: LayoutTranslateOverlayProps["onHoverLink"];
 };
 
+/** Split paragraph `text` along sentence nodes, recording each slice's start offset. */
 function sentenceSlices(
 	text: string,
 	nodes: readonly { index: number; text: string }[],
@@ -545,6 +571,7 @@ function linkInkStyle(
 	return { color: linkColorOnPaper(color, tone) };
 }
 
+/** The anchor element's viewport box, for hover-card placement. */
 function linkPoint(element: HTMLElement) {
 	const box = element.getBoundingClientRect();
 	return {
@@ -556,12 +583,12 @@ function linkPoint(element: HTMLElement) {
 }
 
 /**
- * Render `text`, wrapping preserved link tokens. Anchors stay non-draggable:
- * the browser default drag on `<a href>` replaces the text range when a drag
- * starts on or crosses a citation. A drag that produced a selection does not
- * navigate. Each token uses the original glyph fill (`assignment.color`),
- * adjusted for the paper tone. The source page marks these links by ink
- * color, so the token does not add an underline.
+ * `text` with preserved link tokens wrapped in anchors. Anchors must stay
+ * non-draggable — the browser's default `<a href>` drag replaces the text
+ * selection whenever it starts on or crosses a citation — and a click that
+ * left a selection does not navigate. Tokens keep their original glyph fill
+ * (`assignment.color`) adjusted for the paper tone and add no underline: the
+ * source page signals these links by ink color alone.
  */
 function LinkifiedText({
 	text,
@@ -637,10 +664,11 @@ function LinkifiedText({
 }
 
 /**
- * The heuristic above is fast but font metrics differ across Windows/macOS,
- * installed CJK fonts, and zoom levels. Verify the final browser layout and, if
- * necessary, binary-search the actual DOM font size so `overflow-hidden` never
- * silently chops off an otherwise complete translation.
+ * One translated paragraph. The heuristic start size is fast but approximate
+ * — font metrics vary across platforms, installed CJK fonts and zoom — so
+ * after paint, a DOM-measured pass re-fits the actual font size until the
+ * text genuinely fits, keeping `overflow-hidden` from silently truncating a
+ * complete translation.
  */
 export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 	sourceStyle,
@@ -681,6 +709,7 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 	useLayoutEffect(() => {
 		const element = ref.current;
 		if (!element || boxWidthPx <= 0 || boxHeightPx <= 0) return;
+		// Anchor the running spinner just past the last painted glyph.
 		const measureTail = () => {
 			if (!running) return;
 			const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -713,8 +742,8 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 			measureTail();
 			return;
 		}
-		// A page of paragraphs used to binary-search on the mount frame. Spread
-		// that across frames, and drop the job if this page scrolls away.
+		// Spread the DOM fit work across frames instead of measuring a whole
+		// page on mount; the job is dropped if this page scrolls away first.
 		return scheduleLayoutTranslateDomFit(() => {
 			const live = ref.current;
 			if (!live) return;
@@ -746,7 +775,6 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 					isHeading && "font-bold",
 				)}
 				data-layout-item={itemId}
-				data-paper={tone}
 				onPointerDownCapture={(event) => {
 					if (event.button !== 0) return;
 					beginLinkPreviewDrag();
@@ -757,8 +785,8 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 					fontStyle: sourceStyle?.italic ? "italic" : "normal",
 					lineHeight: cachedDomFit?.lineHeight ?? LINE_HEIGHT,
 					overflowWrap: cachedDomFit?.overflowWrap ?? "normal",
-					// Browser-native UAX #14 breaking avoids a CJK opening bracket at a
-					// line end and keeps Latin words intact until the measured fallback.
+					// Strict UAX #14 breaking: no CJK opening bracket stranded at a
+					// line end, Latin words stay whole until the measured fallback.
 					lineBreak: "strict",
 					wordBreak: "normal",
 				}}
@@ -810,13 +838,16 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 					/>
 				)}
 			</p>
-			{running && tail && <TranslationSpinner {...tail} tone={tone} />}
+			{running && tail && <TranslationSpinner {...tail} />}
 		</div>
 	);
 });
 
 /**
- * Paint translated (or in-flight) blocks for one PDF page.
+ * All translation chrome for one PDF page: the shared reflow render path
+ * when a preview or finished document exists, otherwise per-block overlays —
+ * plus tail spinners for in-flight paragraphs and retry markers for failed
+ * ones.
  */
 export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	items,
@@ -848,8 +879,8 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 			)
 			.map((item) => {
 				const paintText = item.translated ?? "";
-				// Size from the source box. Expansion below must not inflate a
-				// heading just because the translation borrowed extra height.
+				// Fit against the source box: the bbox expansion below must not
+				// inflate a heading merely because it borrowed extra height.
 				const paintFontSize = fontSizeForLayoutTranslateItem(
 					item,
 					pageWidthPx,
@@ -858,10 +889,10 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 				);
 				return { item, paintText, paintFontSize };
 			});
-		// Same-page body reference so section titles outrank paragraphs even
-		// when the layout detector hugged the heading glyphs (tiny bbox).
-		// Tall paragraph boxes only — captions, author lines and footnotes are
-		// often kind "text" but sized like microcopy and would collapse the floor.
+		// Body reference from this page's tall paragraphs only, so section
+		// titles still outrank body text when the detector hugged the heading
+		// glyphs into a tiny bbox. Captions, bylines and footnotes are often
+		// plain "text" but microcopy-sized; including them would sink the floor.
 		const bodyCandidates = painted.filter(
 			({ item }) =>
 				!isLayoutTranslateHeadingKind(item.kind) &&
@@ -873,8 +904,8 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 		);
 		return painted.map(({ item, paintText, paintFontSize: baseFs }) => {
 			const isHeading = isLayoutTranslateHeadingKind(item.kind);
-			// Doc titles already dwarf body; page chrome (date, logo) must not be
-			// inflated. Only short section strips need the body-relative floor.
+			// Only short section strips need the body-relative floor: document
+			// titles already dwarf body text; page chrome must not be inflated.
 			const sectionStrip = isHeading && item.bbox.h < 0.035;
 			const paintFontSize =
 				sectionStrip && !item.sourceStyle
@@ -932,11 +963,10 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 					pageHeightPx,
 					glyphRuns,
 				)}
-				tone={tone}
 			/>
 		));
-	// A failed paragraph keeps the source text; the warning takes the spinner's
-	// place at the tail and retries the page, so no toast is needed.
+	// Failed paragraphs keep their source text visible; the marker sits where
+	// the spinner was and retries the whole page — no toast needed.
 	const retryMarkers = onRetryTranslation
 		? translationRetryItems(items, layoutRegions).map((item) => (
 				<TranslationRetryMarker
@@ -947,7 +977,6 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 						pageHeightPx,
 						glyphRuns,
 					)}
-					tone={tone}
 					label={t("pdf.layoutTranslate.retryPage")}
 					onRetry={() => onRetryTranslation(pageIndex)}
 				/>
@@ -1012,11 +1041,11 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 				return (
 					<Fragment key={`layout-tr-${item.id}`}>
 						{/*
-						 * Paper and glyphs are separate layers. The PDF selection
-						 * tint is z-index 5 and uses multiply: an opaque block above
-						 * it hides the highlight, but glyphs under it get washed out
-						 * (WebKit). Paper stays at z-3, under the tint. Glyphs are
-						 * z-6, above the tint, so the translation stays readable.
+						 * Paper and glyphs must be separate layers around the PDF
+						 * selection tint (z-5, multiply): an opaque block above the
+						 * tint hides the highlight, while glyphs beneath it wash out
+						 * in WebKit. Paper stays at z-3, under the tint; glyphs at
+						 * z-6, above it, stay readable.
 						 */}
 						<div
 							aria-hidden="true"
@@ -1027,9 +1056,9 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							style={boxStyle}
 						>
 							{/*
-							 * Paper tone lives on this layer only. A filter on the
-							 * text itself hides ::selection (WebKit), so dark mode
-							 * inverts the paper and sets the glyphs explicitly.
+							 * Tone the paper layer only, never the text: filters on
+							 * text hide ::selection in WebKit. Dark mode inverts the
+							 * paper and sets glyph colors explicitly instead.
 							 */}
 							<div
 								className={cn(
@@ -1047,19 +1076,17 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							style={{ ...boxStyle, padding: "1px 2px" }}
 						>
 							<div
-								className={cn(
-									"h-full w-full",
-									tone === "dark" ? "text-zinc-100" : "text-zinc-900",
-								)}
+								className="h-full w-full"
 								style={{
+									color: "var(--pdf-paper-ink)",
 									fontSize,
 									lineHeight: LINE_HEIGHT,
 									fontFamily:
 										'ui-serif, "Times New Roman", Times, "Noto Serif SC", "Songti SC", "Source Han Serif SC", serif',
 									fontWeight: isHeading ? 700 : 400,
-									// Justified CJK inserts space between every character. Those
-									// gaps paint as a darker selection block where two highlight
-									// rects overlap. Keep the glyphs adjacent, like the English line.
+									// Justified CJK stretches the gap between characters, and those
+									// gaps paint darker where two highlight rects overlap. Keep
+									// glyphs adjacent, as in the English source line.
 									textAlign: "start",
 								}}
 							>

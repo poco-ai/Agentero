@@ -100,6 +100,7 @@ export {
 	isLayoutElementTextKind,
 	isLayoutTranslatableKind,
 	isLayoutTranslateHeadingKind,
+	isLayoutVisualKind,
 	isSidebarLayoutKind,
 	isTableLayoutKind,
 	isTextLayoutKind,
@@ -229,7 +230,10 @@ export {
 	resolveCaptionRole,
 	textFromRunsInBbox,
 } from "@/lib/pdf/layout/title-text";
-export { listTranslatableLayoutRegions } from "@/lib/pdf/layout/translatable";
+export {
+	isInsideVisualLayoutRegion,
+	listTranslatableLayoutRegions,
+} from "@/lib/pdf/layout/translatable";
 export {
 	isInsidePreservedRegion,
 	type LayoutPreserveReason,

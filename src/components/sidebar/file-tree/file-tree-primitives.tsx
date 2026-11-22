@@ -27,6 +27,7 @@ import {
 	FILE_TREE_ROW_STATE,
 } from "@/components/sidebar/tree-row-styles";
 import { cn } from "@/lib/core/utils";
+import { isMacCtrlClick, isTreeSelectModifier } from "./tree-helpers";
 
 export type SelectMods = { meta: boolean; ctrl: boolean; shift: boolean };
 
@@ -307,6 +308,30 @@ export const FileTreeName = ({
 );
 
 /**
+ * Hover group that reveals the disclosure chevron. Folder rows reveal it from
+ * the row itself; rows whose disclosure is a nested button scope it to that
+ * button's own named group (`attachment`, `skill`).
+ *
+ * Both class sets are written out so Tailwind can see them.
+ */
+const DISCLOSURE_REVEAL = {
+	row: {
+		hide: "group-hover:invisible group-focus-visible:invisible",
+		show: "group-hover:visible group-focus-visible:visible",
+	},
+	attachment: {
+		hide: "group-hover/attachment:invisible group-focus-visible/attachment:invisible",
+		show: "group-hover/attachment:visible group-focus-visible/attachment:visible",
+	},
+	skill: {
+		hide: "group-hover/skill:invisible group-focus-visible/skill:invisible",
+		show: "group-hover/skill:visible group-focus-visible/skill:visible",
+	},
+} as const;
+
+export type DisclosureReveal = keyof typeof DISCLOSURE_REVEAL;
+
+/**
  * Keep the disclosure affordance in the row icon slot. This mirrors the
  * sidebar pattern used by Notion: the item identity is visible at rest, and
  * the same-sized expand/collapse affordance appears in its place when
@@ -316,23 +341,28 @@ export const FileTreeName = ({
  * the same slot as separate opacity layers; in WKWebView (Tauri macOS) the
  * fading-out icon's dirty region can be missed inside these virtualized rows,
  * leaving half of the folder glyph under the chevron until the next repaint.
- * Only the chevron's expand/collapse rotation stays animated.
+ * Only the chevron's expand/collapse rotation stays animated, so every
+ * disclosure slot renders through this component — paper attachments and
+ * skill rows included.
  */
 export function FileTreeDisclosureIcon({
 	isExpanded,
 	icon,
+	revealOn = "row",
 }: {
 	isExpanded: boolean;
 	icon: ReactNode;
+	/** Named hover group whose target paints the chevron. */
+	revealOn?: DisclosureReveal;
 }) {
+	const reveal = DISCLOSURE_REVEAL[revealOn];
 	return (
 		<span className="relative flex size-4 shrink-0 items-center justify-center">
-			<span className="group-hover:invisible group-focus-visible:invisible">
-				{icon}
-			</span>
+			<span className={reveal.hide}>{icon}</span>
 			<ChevronRightIcon
 				className={cn(
-					"pointer-events-none absolute size-4 text-muted-foreground invisible transition-transform duration-100 group-hover:visible group-focus-visible:visible",
+					"pointer-events-none absolute size-4 text-muted-foreground invisible transition-transform duration-100",
+					reveal.show,
 					isExpanded && "rotate-90",
 				)}
 				aria-hidden
@@ -411,10 +441,13 @@ export const FileTreeFolderRow = ({
 				// Keep the row focused so Enter can start inline rename right
 				// after a click (WebKit does not focus buttons on click).
 				e.currentTarget.focus();
-				if ((e.metaKey || e.ctrlKey || e.shiftKey) && onSelectRow) {
+				// macOS Ctrl-click is the native context-menu gesture.
+				if (isMacCtrlClick(e)) return;
+				const selectMod = isTreeSelectModifier(e);
+				if ((selectMod || e.shiftKey) && onSelectRow) {
 					onSelectRow(path, {
-						meta: e.metaKey,
-						ctrl: e.ctrlKey,
+						meta: selectMod,
+						ctrl: selectMod,
 						shift: e.shiftKey,
 					});
 					return;
@@ -539,10 +572,13 @@ export const FileTreeFile = ({
 			// Keep the row focused so Enter can start inline rename right after
 			// a click (matches VS Code / Finder tree behavior).
 			(e.currentTarget as HTMLElement).focus();
+			// macOS Ctrl-click is the native context-menu gesture.
+			if (isMacCtrlClick(e)) return;
+			const selectMod = isTreeSelectModifier(e);
 			if (onSelectRow) {
 				onSelectRow(path, {
-					meta: e.metaKey,
-					ctrl: e.ctrlKey,
+					meta: selectMod,
+					ctrl: selectMod,
 					shift: e.shiftKey,
 				});
 			} else {
