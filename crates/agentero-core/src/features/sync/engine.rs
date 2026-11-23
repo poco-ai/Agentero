@@ -5,12 +5,13 @@
 //!
 //! ```text
 //! vault.json                  { vaultId, formatVersion, encryption }
-//! HEAD                        { version, manifestKey, updatedAt }   闂?CAS
+//! HEAD                        { version, manifestKey, updatedAt }   ← CAS
 //! manifests/<v>-<nonce>.json.gz
 //! blobs/<aa>/<sha256>         gzip(file content)
 //! ```
 //!
-//! One pass = scan 闂?three-way merge against the last synced manifest 闂?//! stage verified bytes 闂?upload blobs and manifest 闂?CAS `HEAD` 闂?apply locally. A lost CAS re-runs the merge against the winner's manifest.
+//! One pass = scan → three-way merge against the last synced manifest →
+//! stage verified bytes → upload blobs and manifest → CAS `HEAD` → apply locally. A lost CAS re-runs the merge against the winner's manifest.
 //!
 //! Passes that would change nothing stop early: an up-to-date vault returns
 //! after the single `HEAD` read, and a pass whose merged manifest matches the
@@ -76,7 +77,7 @@ pub struct SyncOutcome {
     pub conflict_copies: Vec<String>,
 }
 
-/// `(phase, current, total)` 闂?totals of 0 mean indeterminate.
+/// `(phase, current, total)` — totals of 0 mean indeterminate.
 pub type Progress<'a> = &'a (dyn Fn(&str, usize, usize) + Send + Sync);
 
 /// Test the configured endpoint and its conditional-write semantics.
@@ -217,7 +218,7 @@ async fn run_sync<S: RemoteStore>(
             // Up to date: HEAD still points at the manifest this vault last
             // agreed on, no local file changed content since, and this
             // device is using the same scope as before. One request
-            // instead of a full pull/merge/publish pass 闂?backends meter
+            // instead of a full pull/merge/publish pass — backends meter
             // requests per account (Nutstore allows 600 per 30 min on a free
             // plan), so the steady state has to be cheap. Sync history is
             // required because a first pass must establish the remote
@@ -651,7 +652,7 @@ async fn force_push<S: RemoteStore>(
 
 /// Degraded-mode HEAD publication: acquire the publish lock, re-read HEAD
 /// (a changed pointer rebases like a lost CAS), plain-PUT, read back, release.
-/// `Ok(false)` means "lost the race or could not hold the lock" 闂?the caller
+/// `Ok(false)` means "lost the race or could not hold the lock" — the caller
 /// rebases and retries; transport failures propagate as errors.
 async fn publish_head_locked<S: RemoteStore>(
     vault: &Path,
@@ -691,7 +692,7 @@ async fn publish_head_locked<S: RemoteStore>(
             }
             // The lock's server timestamp predates arbitration round-trips;
             // abort with half the TTL as margin so an expired lock can never
-            // reach the publication (Joplin rule: own lock expired 闂?cancel).
+            // reach the publication (Joplin rule: own lock expired — cancel).
             if acquired.elapsed().as_secs() >= (super::store::PUBLISH_LOCK_TTL_SECS as u64) / 2 {
                 return Ok(false);
             }
@@ -739,8 +740,8 @@ pub struct OverwritePreview {
     pub remote_version: u64,
 }
 
-/// Resolve the degraded protocol from a live probe: supported store 闂?false;
-/// ignoring store + per-device opt-in on WebDAV 闂?true; otherwise the
+/// Resolve the degraded protocol from a live probe: supported store — false;
+/// ignoring store + per-device opt-in on WebDAV — true; otherwise the
 /// localized hard stop. Phase 1 keeps degraded sync WebDAV-only.
 async fn resolve_degraded<S: RemoteStore>(
     cfg: &SyncBackendConfig,
@@ -759,7 +760,7 @@ async fn resolve_degraded<S: RemoteStore>(
 }
 
 /// Force-pull plan: remote membership wins wholesale within the sync scope.
-/// Divergent local bytes are discarded (no conflict copies 闂?the user chose
+/// Divergent local bytes are discarded (no conflict copies — the user chose
 /// overwrite). `delete_local` is sorted because the staged apply resolves
 /// directory replacements with a binary search.
 fn plan_remote_mirror(
@@ -893,7 +894,7 @@ async fn ensure_remote_identity<S: RemoteStore>(
                 format_version: FORMAT_VERSION,
                 encryption: "none".into(),
             };
-            // Lost create race 闂?re-verify against the winner.
+            // Lost create race → re-verify against the winner.
             if degraded {
                 // No create-if-absent guarantee on this store: plain PUT, then
                 // read back so a foreign vault id is detected instead of
@@ -1007,7 +1008,7 @@ struct MergePlan {
     merged: BTreeMap<String, FileEntry>,
     downloads: Vec<(String, FileEntry)>,
     delete_local: Vec<String>,
-    /// `(original rel, conflict-copy rel)` 闂?copy the local file aside before
+    /// `(original rel, conflict-copy rel)` — copy the local file aside before
     /// the remote version overwrites it.
     preserve_local: Vec<(String, String)>,
     conflict_copies: Vec<String>,
@@ -1175,7 +1176,7 @@ fn merge(
                         plan.merged.insert(path.clone(), le.clone());
                     }
                 }
-                // Delete vs modify 闂?keep the modification.
+                // Delete vs modify → keep the modification.
                 (Some(le), None) => {
                     plan.merged.insert(path.clone(), le.clone());
                 }
@@ -1599,7 +1600,7 @@ mod tests {
         revisions: AtomicUsize,
         gets: AtomicUsize,
         puts: AtomicUsize,
-        /// PUTs allowed before the store starts refusing 闂?models a rate limit
+        /// PUTs allowed before the store starts refusing — models a rate limit
         /// landing partway through a pass.
         put_budget: AtomicUsize,
     }
@@ -2099,7 +2100,7 @@ mod tests {
             .unwrap()
             .contains("edited on B"));
 
-        // Divergent edits on both 闂?conflict copy, then both converge.
+        // Divergent edits on both → conflict copy, then both converge.
         fs::write(a.join("papers/x/NOTES.md"), "# x\nA version\n").unwrap();
         fs::write(b.join("papers/x/NOTES.md"), "# x\nB version\n").unwrap();
         sync_vault(&a, &cfg, noop).await.expect("sync A divergent");
@@ -2198,7 +2199,7 @@ mod tests {
             .unwrap()
             .contains("edited on B"));
 
-        // Divergent edits on both 闂?conflict copy, then both converge.
+        // Divergent edits on both → conflict copy, then both converge.
         fs::write(a.join("papers/x/NOTES.md"), "# x\nA version\n").unwrap();
         fs::write(b.join("papers/x/NOTES.md"), "# x\nB version\n").unwrap();
         sync_vault(&a, &cfg, noop).await.expect("sync A divergent");
