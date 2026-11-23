@@ -12,6 +12,21 @@ use serde::{Deserialize, Serialize};
 
 pub mod annotations;
 
+pub(crate) fn first_page_text(pdf: &[u8]) -> Result<String, AppError> {
+    let lib = crate::features::pdf::open_library()?;
+    let doc = lib
+        .load_document_from_bytes(pdf, None)
+        .map_err(|error| AppError::message(format!("open pdf: {error:?}")))?;
+    Ok(doc
+        .page(0)
+        .ok()
+        .and_then(|page| {
+            let text = page.text().ok()?;
+            Some(text.get_text(0, text.char_count()))
+        })
+        .unwrap_or_default())
+}
+
 fn default_max_matches() -> usize {
     50
 }

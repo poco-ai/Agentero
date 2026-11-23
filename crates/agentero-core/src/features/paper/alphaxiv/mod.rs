@@ -1,8 +1,8 @@
 //! Authenticated alphaXiv library client.
 //!
-//! v1 talks to `https://api.alphaxiv.org` with `GET /folders/v3` only.
-//! That call both checks a pasted API key and lists folders (each already
+//! `GET /folders/v3` checks a pasted API key and lists folders (each already
 //! carrying its `papers` array). An empty list is still a successful check.
+//! `GET /papers/v3/groups/{group}/notes` reads the user's private annotations.
 //! `GET /users/v3` rejects a valid API key with HTTP 403, so it is not used.
 //! Write routes (`add-papers`, `remove-papers`) are intentionally absent.
 //!
@@ -16,6 +16,8 @@ use serde_json::Value;
 
 use crate::error::AppError;
 use crate::features::paper::scholar_api::identifiers::extract_arxiv_id;
+
+pub mod notes;
 
 const API_BASE: &str = "https://api.alphaxiv.org";
 const PDF_ASSET_BASE: &str = "https://pdfs.assets.alphaxiv.org";
