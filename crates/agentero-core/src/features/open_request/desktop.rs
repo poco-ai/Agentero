@@ -34,9 +34,11 @@ pub fn active_endpoint() -> Option<PathBuf> {
         return None;
     }
     let path = marker.parent()?.join(name);
+    // Liveness only: the host holds its lock on this file, so a shared read
+    // handle is enough. Asking for write access would fail for any caller
+    // whose sandbox allows the workspace but not the config directory.
     let probe = std::fs::OpenOptions::new()
         .read(true)
-        .write(true)
         .open(path.join("lease"))
         .ok()?;
     let error = fs2::FileExt::try_lock_exclusive(&probe).err()?;
