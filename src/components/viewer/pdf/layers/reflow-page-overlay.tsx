@@ -5,7 +5,13 @@ import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
 import { groupReflowUnitsBySentence } from "@/lib/pdf/layout/layout-sentences";
 import {
+	activateTranslatedLinkClick,
+	rememberTranslatedLinkOrigin,
+	useCoalescedTranslatedLinkHover,
+} from "@/lib/pdf/layout/translated-link-gesture";
+import {
 	assignPreservedLinks,
+	claimTranslateLinks,
 	type GlyphRun,
 	type PreservedLinkAssignment,
 	type TranslateLinkBox,
@@ -14,7 +20,6 @@ import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import {
 	beginLinkPreviewDrag,
 	linkHoverSuppressed,
-	linkPreviewDragActive,
 } from "@/lib/pdf/link-preview-drag";
 import {
 	PDF_PAGE_RASTER_DARK_CLASS,
@@ -22,6 +27,57 @@ import {
 	type PdfPaperTone,
 } from "@/lib/pdf/page-theme";
 import type { PlacedUnit } from "@/lib/pdf/reflow/types";
+
+type GlyphFrame = { left: number; top: number; width: number; height: number };
+
+type GlyphPlacement = {
+	unit: PlacedUnit;
+	start: number;
+	assignment: PreservedLinkAssignment | null;
+};
+
+/** Glyph box in the paragraph's pixel space. `y` on a unit is its baseline. */
+function glyphFrame(
+	unit: PlacedUnit,
+	originX: number,
+	originY: number,
+	sx: number,
+	sy: number,
+): GlyphFrame {
+	return {
+		left: (unit.x - originX) * sx,
+		top:
+			(unit.y - originY - (unit.formula ? unit.height : unit.fontSize * 0.8)) *
+			sy,
+		width: unit.width * sx,
+		height: unit.height * sy,
+	};
+}
+
+/**
+ * One hit target per link per line. A glyph-sized anchor leaves the hover
+ * dwell every time the pointer crosses a character, and the gap between two
+ * advances is not part of either glyph.
+ */
+function sameLinkLine(a: GlyphPlacement, b: GlyphPlacement): boolean {
+	if (!a.assignment || a.assignment !== b.assignment) return false;
+	const dy = Math.abs(a.unit.y - b.unit.y);
+	const size = Math.max(a.unit.fontSize, b.unit.fontSize, 1);
+	return dy <= size * 0.35;
+}
+
+function chunkPlacements(
+	placed: readonly GlyphPlacement[],
+): GlyphPlacement[][] {
+	const groups: GlyphPlacement[][] = [];
+	for (const item of placed) {
+		const last = groups[groups.length - 1];
+		const prev = last?.[last.length - 1];
+		if (prev && last && sameLinkLine(prev, item)) last.push(item);
+		else groups.push([item]);
+	}
+	return groups;
+}
 
 function reflowSentenceGroups(
 	item: LayoutTranslateItem,
@@ -77,6 +133,13 @@ export function ReflowPageOverlay({
 		? height / (reference.reflow.box.h / reference.bbox.h)
 		: 1;
 	const renderRef: RefObject<HTMLDivElement | null> = useRef(null);
+	const linkHover = useCoalescedTranslatedLinkHover(onHoverLink);
+	// Same claim as the block overlay: center first, then overlap, each link once.
+	// Identity uses the normalized source, not the raw text layer.
+	const linksByItem = claimTranslateLinks(
+		items.filter((item) => item.reflowLayout),
+		links ?? [],
+	);
 	return (
 		<div className="pointer-events-none absolute inset-0">
 			{/*
@@ -120,19 +183,31 @@ export function ReflowPageOverlay({
 				const text = layout.units.map((u) => u.text).join("");
 				const assignments = assignPreservedLinks(
 					text,
-					(links ?? []).filter((l) => {
-						const x = l.box.x + l.box.w / 2,
-							y = l.box.y + l.box.h / 2;
-						return (
-							x >= item.bbox.x &&
-							x <= item.bbox.x + item.bbox.w &&
-							y >= item.bbox.y &&
-							y <= item.bbox.y + item.bbox.h
-						);
-					}),
-					{ source: item.raw, block: item.bbox, runs: glyphRuns },
+					linksByItem.get(item.id) ?? [],
+					{
+						source: item.source || item.raw,
+						...(glyphRuns?.length ? { block: item.bbox, runs: glyphRuns } : {}),
+					},
 				);
 				let offset = 0;
+				const placedGroups = reflowSentenceGroups(item, layout.units).map(
+					(group) => {
+						const placed: GlyphPlacement[] = group.units.map((unit) => {
+							const start = offset;
+							offset += unit.text.length;
+							return {
+								unit,
+								start,
+								assignment:
+									assignments.find(
+										(assignment) =>
+											assignment.start < offset && assignment.end > start,
+									) ?? null,
+							};
+						});
+						return { index: group.index, runs: chunkPlacements(placed) };
+					},
+				);
 				return (
 					<div
 						key={item.id}
@@ -141,8 +216,10 @@ export function ReflowPageOverlay({
 						// layer only provides selection geometry. ::selection stays
 						// transparent: one box per character would stack in the seam.
 						// The line band paints the highlight once.
+						// Above the source citation hits (z-2) and the selection tint
+						// (z-5), same slot as the block-overlay glyphs.
 						data-reflow-selection="true"
-						className="pdf-translate-selection pointer-events-auto absolute select-text"
+						className="pdf-translate-selection pointer-events-auto absolute z-[6] select-text"
 						onPointerDownCapture={(event) => {
 							if (event.button !== 0) return;
 							beginLinkPreviewDrag();
@@ -155,30 +232,37 @@ export function ReflowPageOverlay({
 							color: "transparent",
 						}}
 					>
-						{reflowSentenceGroups(item, layout.units).map((group) => {
+						{placedGroups.map((group) => {
 							const tint =
 								group.index === undefined
 									? undefined
 									: tints?.get(item.id)?.get(group.index);
 							return (
 								<span key={group.index ?? "block"} data-sentence={group.index}>
-									{group.units.map((u) => {
-										const start = offset;
-										offset += u.text.length;
-										const assignment = assignments.find(
-											(a) => a.start < offset && a.end > start,
-										);
-										const style: CSSProperties = {
-											position: "absolute",
-											left: (u.x - layout.box.x) * sx,
-											top:
-												(u.y -
-													layout.box.y -
-													(u.formula ? u.height : u.fontSize * 0.8)) *
+									{group.runs.map((run) => {
+										const first = run[0];
+										if (!first) return null;
+										const frames = run.map((placed) =>
+											glyphFrame(
+												placed.unit,
+												layout.box.x,
+												layout.box.y,
+												sx,
 												sy,
-											width: u.width * sx,
-											height: u.height * sy,
-											fontSize: u.fontSize * sy,
+											),
+										);
+										const glyphStyle = (
+											frame: GlyphFrame,
+											fontSize: number,
+											left: number,
+											top: number,
+										): CSSProperties => ({
+											position: "absolute",
+											left: frame.left - left,
+											top: frame.top - top,
+											width: frame.width,
+											height: frame.height,
+											fontSize,
 											lineHeight: 1,
 											fontFamily: "serif",
 											whiteSpace: "pre",
@@ -192,28 +276,71 @@ export function ReflowPageOverlay({
 														}
 													: { backgroundColor: highlightFill(tint.color) }
 												: null),
-										};
-										const key = `${u.x}-${u.y}-${u.text}`;
-										return assignment ? (
+										});
+										const key = `${first.unit.x}-${first.unit.y}-${first.start}`;
+										const assignment = first.assignment;
+										if (!assignment) {
+											const frame = frames[0];
+											if (!frame) return null;
+											return (
+												<span
+													key={key}
+													style={glyphStyle(
+														frame,
+														first.unit.fontSize * sy,
+														0,
+														0,
+													)}
+												>
+													{first.unit.text}
+												</span>
+											);
+										}
+										const left = Math.min(...frames.map((frame) => frame.left));
+										const top = Math.min(...frames.map((frame) => frame.top));
+										const right = Math.max(
+											...frames.map((frame) => frame.left + frame.width),
+										);
+										const bottom = Math.max(
+											...frames.map((frame) => frame.top + frame.height),
+										);
+										return (
 											<a
 												key={key}
-												style={style}
 												href={assignment.url ?? "#"}
 												draggable={false}
 												aria-label={assignment.text}
-												tabIndex={start === assignment.start ? 0 : -1}
+												data-translated-link={
+													assignment.key ?? assignment.url ?? ""
+												}
+												tabIndex={first.start === assignment.start ? 0 : -1}
 												className="select-text"
+												style={{
+													position: "absolute",
+													left,
+													top,
+													width: Math.max(0, right - left),
+													height: Math.max(0, bottom - top),
+													color: "transparent",
+													textDecoration: "none",
+												}}
 												onDragStart={(event) => event.preventDefault()}
+												onPointerDown={(event) => {
+													if (event.button !== 0) return;
+													rememberTranslatedLinkOrigin(event.currentTarget, {
+														x: event.clientX,
+														y: event.clientY,
+													});
+												}}
 												onClick={(event) => {
-													event.preventDefault();
-													event.stopPropagation();
-													if (!window.getSelection()?.toString())
+													activateTranslatedLinkClick(event, () => {
 														onOpenLink?.(assignment);
+													});
 												}}
 												onPointerEnter={(event) => {
 													if (linkHoverSuppressed(event.buttons)) return;
 													const b = event.currentTarget.getBoundingClientRect();
-													onHoverLink?.(assignment, {
+													linkHover.enter(assignment, {
 														x: b.left + b.width / 2,
 														y: b.bottom,
 														top: b.top,
@@ -221,16 +348,27 @@ export function ReflowPageOverlay({
 													});
 												}}
 												onPointerLeave={() => {
-													if (linkPreviewDragActive()) return;
-													onHoverLink?.(null, null);
+													linkHover.leave();
 												}}
 											>
-												{u.text}
+												{run.map((placed, index) => {
+													const frame = frames[index];
+													if (!frame) return null;
+													return (
+														<span
+															key={`${placed.unit.x}-${placed.unit.y}-${placed.unit.text}`}
+															style={glyphStyle(
+																frame,
+																placed.unit.fontSize * sy,
+																left,
+																top,
+															)}
+														>
+															{placed.unit.text}
+														</span>
+													);
+												})}
 											</a>
-										) : (
-											<span key={key} style={style}>
-												{u.text}
-											</span>
 										);
 									})}
 								</span>
