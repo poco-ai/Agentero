@@ -50,6 +50,7 @@ import {
 	visibleMenuPoint,
 	visiblePagesFromClientRects,
 } from "@/lib/pdf/layout/visible-selection-rects";
+import { wordRangeAtPoint } from "@/lib/pdf/layout/word-bounds";
 import { holdLinkPreviewDrag } from "@/lib/pdf/link-preview-drag";
 import {
 	mergeTightGlyphRects,
@@ -76,6 +77,11 @@ export type UsePdfTranslationSelectionOptions = {
 	closeSelectionMenu: () => void;
 	paperRelPath: string | null;
 	paperAbsPath: string | null;
+	/**
+	 * Whole-sentence double-click. Off selects the word under the pointer
+	 * and does not pin the sentence wash. Default on.
+	 */
+	sentenceSelection?: boolean;
 };
 
 function caretInsideLayoutItem(host: HTMLElement | null): boolean {
@@ -198,6 +204,7 @@ export function usePdfTranslationSelection({
 	closeSelectionMenu,
 	paperRelPath,
 	paperAbsPath,
+	sentenceSelection = true,
 }: UsePdfTranslationSelectionOptions): void {
 	const { i18n } = useTranslation();
 	const itemsRef = useRef(itemsByPage);
@@ -206,6 +213,8 @@ export function usePdfTranslationSelection({
 	menuRef.current = selectionMenu;
 	const langRef = useRef(i18n.language);
 	langRef.current = i18n.language;
+	const sentenceSelectionRef = useRef(sentenceSelection);
+	sentenceSelectionRef.current = sentenceSelection;
 	const genRef = useRef(0);
 	useTranslationSelectionBands(docId, hostRef, enabled);
 
@@ -450,6 +459,18 @@ export function usePdfTranslationSelection({
 				event.clientY,
 			);
 			if (!sentence || !host.contains(sentence)) return;
+			if (!sentenceSelectionRef.current) {
+				const word = wordRangeAtPoint(sentence, event.clientX, event.clientY);
+				if (!word) return;
+				event.preventDefault();
+				event.stopPropagation();
+				const selection = window.getSelection();
+				selection?.removeAllRanges();
+				selection?.addRange(word);
+				pointerDown = false;
+				commit();
+				return;
+			}
 			event.preventDefault();
 			event.stopPropagation();
 			const item = sentence.closest<HTMLElement>("[data-layout-item]");

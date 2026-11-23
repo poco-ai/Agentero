@@ -574,9 +574,13 @@ function PdfViewerInner({
 	onCloseTranslationTab,
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
-	// Writing previews own the hover affordance via SyncTeX; the reader's
-	// sentence wash (and its whole-page text fallback) stays off there.
-	const sentenceHover = syncTexScope !== "writing";
+	// Writing previews own the hover affordance via SyncTeX. The reading
+	// setting turns the sentence wash off without replacing that line hint.
+	// `readingSentenceLayer` stays on in the reader so the element layer does
+	// not start its own sentence tracking when the wash is disabled.
+	const pdfSentenceHover = useSettings((s) => s.pdfSentenceHover);
+	const readingSentenceLayer = syncTexScope !== "writing";
+	const sentenceHover = readingSentenceLayer && pdfSentenceHover;
 	const [importBusy, setImportBusy] = useState(false);
 	// Parent often passes inline lambdas; keep latest in refs so data effects
 	// do not re-fire every parent render (was Maximum update depth exceeded).
@@ -1666,6 +1670,7 @@ function PdfViewerInner({
 		closeSelectionMenu,
 		paperRelPath,
 		paperAbsPath,
+		sentenceSelection: pdfSentenceHover,
 	});
 
 	// The meter's stop square ends the whole visible run: a live Host job, a
@@ -2583,14 +2588,14 @@ function PdfViewerInner({
 			insetCommentCards,
 			translationOnly,
 			plainViewer,
-			sentencePairing: sentenceHover,
+			sentencePairing: readingSentenceLayer,
 		}),
 		[
 			elementSelecting,
 			translationOnly,
 			plainViewer,
 			insetCommentCards,
-			sentenceHover,
+			readingSentenceLayer,
 		],
 	);
 

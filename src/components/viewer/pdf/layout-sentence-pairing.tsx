@@ -15,6 +15,7 @@ import {
 	layoutSentenceCatalogItems,
 	layoutSentenceHover,
 	layoutSentenceLineRects,
+	releaseHeldLayoutSentenceHover,
 	releaseLayoutSentenceHover,
 	sentenceForActivation,
 	subscribeLayoutSentenceHover,
@@ -209,6 +210,9 @@ export function usePdfSentenceInteraction(
 			root.removeEventListener("pointerdown", onDown);
 			root.removeEventListener("pointerleave", onLeave);
 			if (raf) cancelAnimationFrame(raf);
+			// Turning the setting off unmounts these listeners. A wash held by
+			// the selection toolbar has to drop with them.
+			releaseHeldLayoutSentenceHover(docId);
 			const current = layoutSentenceHover();
 			if (current?.docId === docId) clearLayoutSentenceHover();
 		};

@@ -47,6 +47,7 @@ export function usePdfCompanionSelection({
 	paperRelPath,
 	paperAbsPath,
 	highlights,
+	sentenceSelection = true,
 }: {
 	docId: string;
 	hostRef: RefObject<HTMLDivElement | null>;
@@ -59,6 +60,8 @@ export function usePdfCompanionSelection({
 	paperRelPath: string | null;
 	paperAbsPath: string | null;
 	highlights: PdfHighlights;
+	/** Whole-sentence double-click on the translation. Default on. */
+	sentenceSelection?: boolean;
 }) {
 	const [noteDraft, setNoteDraft] = useState<SelectionCommentDraft | null>(
 		null,
@@ -85,6 +88,7 @@ export function usePdfCompanionSelection({
 		itemsByPage,
 		paperRelPath,
 		paperAbsPath,
+		sentenceSelection,
 	});
 	const activeSessionRef = useRef<string | null>(null);
 	const ask = useSelectionAsk<ScreenPoint>({
