@@ -3083,6 +3083,7 @@ function PdfViewerInner({
 		<div
 			ref={hostRef}
 			data-pdf-root
+			data-sentence-hover={pdfSentenceHover ? undefined : "off"}
 			className="content-arrive relative flex h-full min-h-0 w-full select-none flex-col"
 		>
 			{!translationOnly && !immersiveReading && (

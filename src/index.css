@@ -878,6 +878,11 @@
 	isolation: isolate;
 	opacity: var(--pdf-mark-selection-alpha);
 }
+/* Sentence hover off: a drag is the only mark on the words. Keep it at the
+ * hover weight. The selection weight is a dark stripe once that wash is gone. */
+[data-pdf-root][data-sentence-hover="off"] [data-paper] {
+	--pdf-mark-selection-alpha: var(--pdf-mark-hover-alpha);
+}
 .pdf-live-selection-band {
 	transform: translateY(-12%);
 	border-radius: 1px;
