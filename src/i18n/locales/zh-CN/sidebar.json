@@ -220,6 +220,7 @@
 		"resetColumns": "重置列",
 		"import": "导入文献",
 		"importPdf": "导入 PDF",
+		"syncZoteroExisting": "与 Zotero 同步（更新已有条目）",
 		"export": "导出论文库",
 		"exporting": "导出中…",
 		"importDone": "已导入 {{count}} 篇",

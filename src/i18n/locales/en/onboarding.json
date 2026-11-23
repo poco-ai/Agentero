@@ -165,7 +165,7 @@
 		},
 		"workspaceNext": {
 			"title": "Try your first paper",
-			"desc": "Import a PDF or paste a DOI with {{magicWandShortcut}}, then open the paper to continue the reading tour. You can also open the tutorial notes or configure an Agent in Settings."
+			"desc": "Import a PDF or paste a DOI with {{magicWandShortcut}}. To import into a folder, open that folder first, then right-click an empty area and choose how to import. Open the paper to continue the reading tour. You can also open the tutorial notes or configure an Agent in Settings."
 		},
 		"readingNext": {
 			"title": "Keep your reading flowing",

@@ -353,6 +353,7 @@ async function upgradeUnmatched(
 
 async function importTokens(
 	tokens: string[],
+	parentDir?: string,
 ): Promise<LookupBatchAddResult | null> {
 	if (tokens.length === 0) return null;
 	let captured: LookupBatchAddResult | null = null;
@@ -360,18 +361,23 @@ async function importTokens(
 		onComplete: (result) => {
 			captured = result;
 		},
+		parentDir,
 	});
 	if (!queued) return null;
 	await queued.settled;
 	return captured;
 }
 
-async function importOneToken(token: string): Promise<AlphaXivItemOutcome> {
+async function importOneToken(
+	token: string,
+	parentDir?: string,
+): Promise<AlphaXivItemOutcome> {
 	let captured: LookupBatchAddResult | null = null;
 	const queued = await enqueueLookup([token], {
 		onComplete: (result) => {
 			captured = result;
 		},
+		parentDir,
 	});
 	await queued.settled;
 	if (!captured) return { kind: "failed", message: "" };
@@ -381,11 +387,14 @@ async function importOneToken(token: string): Promise<AlphaXivItemOutcome> {
 /**
  * Import the planned papers through the identifier batch pipeline.
  * An arXiv id that fails is retried once with the AlphaXiv PDF URL.
+ * Both steps use `parentDir` when it is set, so a later library navigation
+ * cannot split the fallback into another folder. Omit it to keep the
+ * current lookup folder. Papers already in the library are skipped in place.
  * Folder tags are added onto the current tag list.
  */
 export async function importAlphaXivPlan(
 	items: readonly AlphaXivImportPlanItem[],
-	opts: { tagFolders: boolean; importNotes?: boolean },
+	opts: { tagFolders: boolean; importNotes?: boolean; parentDir?: string },
 ): Promise<AlphaXivImportSummary> {
 	const summary: AlphaXivImportSummary = {
 		imported: 0,
@@ -397,6 +406,7 @@ export async function importAlphaXivPlan(
 	if (items.length === 0) return summary;
 	const vaultPath = getVaultPath();
 	if (!vaultPath) throw new Error(i18n.t("sidebar:alphaxivImport.noVault"));
+	const parentDir = opts.parentDir?.trim() || undefined;
 
 	const pathsByArxiv = new Map<string, string>();
 	if (opts.importNotes) {
@@ -409,7 +419,10 @@ export async function importAlphaXivPlan(
 	const toDownload = items.filter(
 		(item) => !pathsByArxiv.has(arxivMatchKey(item.arxivId)),
 	);
-	const batch = await importTokens(toDownload.map((item) => item.arxivId));
+	const batch = await importTokens(
+		toDownload.map((item) => item.arxivId),
+		parentDir,
+	);
 	if (toDownload.length && !batch)
 		throw new Error(i18n.t("sidebar:alphaxivImport.importFailed"));
 	const classified = classifyAlphaXivBatch(
@@ -442,7 +455,7 @@ export async function importAlphaXivPlan(
 					message: "",
 				});
 		if (outcome.kind === "failed" && item.pdfUrl) {
-			const retried = await importOneToken(item.pdfUrl);
+			const retried = await importOneToken(item.pdfUrl, parentDir);
 			if (retried.kind !== "failed") outcome = retried;
 			else if (retried.message) outcome = retried;
 		}

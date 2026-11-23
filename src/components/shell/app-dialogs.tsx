@@ -49,7 +49,9 @@ export function AppDialogs() {
 	useSyncExternalStore(subscribeCommands, commandRegistryRevision);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const zoteroOpen = useUiStore((s) => s.zoteroOpen);
+	const zoteroParentDir = useUiStore((s) => s.zoteroParentDir);
 	const alphaxivOpen = useUiStore((s) => s.alphaxivOpen);
+	const alphaxivParentDir = useUiStore((s) => s.alphaxivParentDir);
 	const zoteroSyncOpen = useUiStore((s) => s.zoteroSyncOpen);
 	const commandOpen = useUiStore((s) => s.commandOpen);
 	const commandMode = useUiStore((s) => s.commandMode);
@@ -66,12 +68,14 @@ export function AppDialogs() {
 				open={zoteroOpen}
 				onOpenChange={setZoteroOpen}
 				vaultPath={vaultPath}
+				initialParentDir={zoteroParentDir}
 				onDone={refreshAll}
 			/>
 			<AlphaXivImportDialog
 				open={alphaxivOpen}
 				onOpenChange={setAlphaXivOpen}
 				vaultPath={vaultPath}
+				parentDir={alphaxivParentDir}
 				onDone={refreshAll}
 			/>
 			<ZoteroSyncDialog

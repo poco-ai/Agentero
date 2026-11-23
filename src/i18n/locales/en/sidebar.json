@@ -221,6 +221,7 @@
 		"resetColumns": "Reset columns",
 		"import": "Import bibliography",
 		"importPdf": "Import PDF",
+		"syncZoteroExisting": "Sync with Zotero (updates existing items)",
 		"export": "Export library",
 		"exporting": "Exporting…",
 		"importDone": "Imported {{count}} papers",

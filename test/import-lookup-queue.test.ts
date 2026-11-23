@@ -87,7 +87,11 @@ vi.mock("@/lib/vault/store", () => ({
 }));
 vi.mock("@/lib/wiki", () => ({ toVaultRelative: () => "" }));
 
-import { enqueueLookup, lookupSubmit } from "@/lib/paper/import-actions";
+import {
+	enqueueLookup,
+	enqueueLookupBatch,
+	lookupSubmit,
+} from "@/lib/paper/import-actions";
 
 function deferred() {
 	let resolve!: () => void;
@@ -194,6 +198,28 @@ it("still rejects without a vault so the popover can show it", async () => {
 		"sidebar:lookup.needsVault",
 	);
 	expect(mocks.enqueueTask).not.toHaveBeenCalled();
+});
+
+it("pins a batch import to the given folder and ignores a blank one", async () => {
+	mocks.enqueueTask.mockResolvedValue({ id: "job-batch" });
+	mocks.awaitTaskSettled.mockResolvedValue(undefined);
+
+	await enqueueLookupBatch(["2401.00001"], { parentDir: " papers/nlp " });
+	await enqueueLookupBatch(["2401.00002"], { parentDir: " " });
+	await enqueueLookup(["2401.00003"], { parentDir: "" });
+
+	expect(mocks.enqueueTask).toHaveBeenNthCalledWith(
+		1,
+		expect.objectContaining({ path: "papers/nlp" }),
+	);
+	expect(mocks.enqueueTask).toHaveBeenNthCalledWith(
+		2,
+		expect.objectContaining({ path: "papers" }),
+	);
+	expect(mocks.enqueueTask).toHaveBeenNthCalledWith(
+		3,
+		expect.objectContaining({ path: "papers" }),
+	);
 });
 
 it("opens the title picker before the enqueue settles", async () => {

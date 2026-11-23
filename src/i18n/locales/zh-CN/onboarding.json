@@ -165,7 +165,7 @@
 		},
 		"workspaceNext": {
 			"title": "试试第一篇论文",
-			"desc": "导入 PDF，或按 {{magicWandShortcut}} 粘贴 DOI。打开论文后会继续介绍阅读工具。也可以先打开教程笔记，或到设置中配置 Agent。"
+			"desc": "导入 PDF，或按 {{magicWandShortcut}} 粘贴 DOI。想导入到某个文件夹时，先进入该文件夹，再在空白处右键选择导入方式。打开论文后会继续介绍阅读工具。也可以先打开教程笔记，或到设置中配置 Agent。"
 		},
 		"readingNext": {
 			"title": "开始阅读与整理",

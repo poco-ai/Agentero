@@ -20,6 +20,8 @@ import {
 import type { MouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SiZotero } from "react-icons/si";
+import { AlphaXivIcon } from "@/components/icons/paper-service-icons";
 import { useCellCopy } from "@/components/library/hooks/use-cell-copy";
 import { useLibraryHeatmap } from "@/components/library/hooks/use-library-heatmap";
 import { useLibraryMarquee } from "@/components/library/hooks/use-library-marquee";
@@ -102,6 +104,11 @@ import {
 	useUiScale,
 } from "@/lib/settings";
 import { allowsNativeSelectAll } from "@/lib/shell/native-select-all";
+import {
+	setAlphaXivOpen,
+	setZoteroOpen,
+	setZoteroSyncOpen,
+} from "@/lib/shell/ui-store";
 import { joinVaultPath } from "@/lib/vault";
 import { trashPathsAndNotify } from "@/lib/vault/actions";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
@@ -811,6 +818,10 @@ export function PapersLibrary({
 	const initialLoad = Boolean(loading) && papers.length === 0;
 	const empty = rows.length === 0 && folders.length === 0;
 	const parentDir = libraryDropParentDir(scopePath);
+	const blankImportDir = useRef(parentDir);
+	const captureBlankImportDir = useCallback(() => {
+		blankImportDir.current = parentDir;
+	}, [parentDir]);
 	const ioBusy = useLibraryStore((state) => state.ioBusy);
 	const [folderDraft, setFolderDraft] = useState<LibraryFolderDraft | null>(
 		null,
@@ -823,7 +834,7 @@ export function PapersLibrary({
 						setFolderDraft({
 							kind: "create",
 							vaultPath,
-							parentPath: joinVaultPath(vaultPath, parentDir),
+							parentPath: joinVaultPath(vaultPath, blankImportDir.current),
 						})
 					}
 				>
@@ -835,17 +846,43 @@ export function PapersLibrary({
 						<ContextMenuSeparator />
 						<ContextMenuItem
 							disabled={Boolean(ioBusy)}
-							onSelect={() => void importLocalPdf({ parentDir, vaultPath })}
+							onSelect={() =>
+								void importLocalPdf({
+									parentDir: blankImportDir.current,
+									vaultPath,
+								})
+							}
 						>
 							<FileUp className="size-3.5" />
 							{t("papersLibrary.importPdf")}
 						</ContextMenuItem>
 						<ContextMenuItem
 							disabled={Boolean(ioBusy)}
-							onSelect={() => void libraryImport(parentDir)}
+							onSelect={() => void libraryImport(blankImportDir.current)}
 						>
 							<Upload className="size-3.5" />
 							{t("papersLibrary.import")}
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={Boolean(ioBusy)}
+							onSelect={() => setAlphaXivOpen(true, blankImportDir.current)}
+						>
+							<AlphaXivIcon className="size-3.5 shrink-0 text-[#B33131]" />
+							{t("alphaxivImport.button")}
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={Boolean(ioBusy)}
+							onSelect={() => setZoteroOpen(true, blankImportDir.current)}
+						>
+							<SiZotero className="size-3.5 text-[#CC2936]" />
+							{t("zoteroMigrate.button")}
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={Boolean(ioBusy)}
+							onSelect={() => setZoteroSyncOpen(true)}
+						>
+							<RefreshCw className="size-3.5" />
+							{t("papersLibrary.syncZoteroExisting")}
 						</ContextMenuItem>
 					</>
 				) : null}
@@ -1192,6 +1229,7 @@ export function PapersLibrary({
 				onClearSelection={clearSelection}
 				onPrepareContext={prepareContext}
 				backgroundItems={backgroundItems}
+				onBlankMenu={captureBlankImportDir}
 				t={t}
 			>
 				<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">

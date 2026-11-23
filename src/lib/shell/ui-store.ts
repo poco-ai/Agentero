@@ -60,8 +60,18 @@ type UiStore = {
 	lookupOpenSignal: number;
 	/** Zotero one-click migration dialog. */
 	zoteroOpen: boolean;
+	/**
+	 * Vault-relative folder captured with the migration dialog.
+	 * Null keeps the folder remembered from the last migration.
+	 */
+	zoteroParentDir: string | null;
 	/** AlphaXiv library import dialog. */
 	alphaxivOpen: boolean;
+	/**
+	 * Vault-relative folder captured with the AlphaXiv dialog.
+	 * Null keeps the current lookup folder at import time.
+	 */
+	alphaxivParentDir: string | null;
 	/** Zotero bidirectional sync dialog. */
 	zoteroSyncOpen: boolean;
 	commandOpen: boolean;
@@ -89,7 +99,9 @@ export const uiStore = createStore<UiStore>(() => ({
 	featurePoppedOut: {},
 	lookupOpenSignal: 0,
 	zoteroOpen: false,
+	zoteroParentDir: null,
 	alphaxivOpen: false,
+	alphaxivParentDir: null,
 	zoteroSyncOpen: false,
 	commandOpen: false,
 	commandMode: "go",
@@ -196,12 +208,27 @@ export function bumpLookupOpenSignal(): void {
 	uiStore.setState((s) => ({ lookupOpenSignal: s.lookupOpenSignal + 1 }));
 }
 
-export function setZoteroOpen(open: boolean): void {
-	uiStore.setState({ zoteroOpen: open });
+/** Blank means the dialog should keep its own default destination. */
+function capturedImportDir(parentDir?: string | null): string | null {
+	const trimmed = parentDir?.trim();
+	return trimmed || null;
 }
 
-export function setAlphaXivOpen(open: boolean): void {
-	uiStore.setState({ alphaxivOpen: open });
+export function setZoteroOpen(open: boolean, parentDir?: string | null): void {
+	uiStore.setState({
+		zoteroOpen: open,
+		zoteroParentDir: open ? capturedImportDir(parentDir) : null,
+	});
+}
+
+export function setAlphaXivOpen(
+	open: boolean,
+	parentDir?: string | null,
+): void {
+	uiStore.setState({
+		alphaxivOpen: open,
+		alphaxivParentDir: open ? capturedImportDir(parentDir) : null,
+	});
 }
 
 export function setZoteroSyncOpen(open: boolean): void {
@@ -348,7 +375,9 @@ export function clearUiVaultState(): void {
 		paperSearchDraft: null,
 		hoveredPaperPath: null,
 		zoteroOpen: false,
+		zoteroParentDir: null,
 		alphaxivOpen: false,
+		alphaxivParentDir: null,
 		zoteroSyncOpen: false,
 		commandOpen: false,
 	});

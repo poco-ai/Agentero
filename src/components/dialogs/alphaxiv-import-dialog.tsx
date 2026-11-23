@@ -227,11 +227,14 @@ export function AlphaXivImportDialog({
 	open,
 	onOpenChange,
 	vaultPath,
+	parentDir = null,
 	onDone,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	vaultPath: string | null;
+	/** Folder captured when the dialog opened. Null keeps the lookup default. */
+	parentDir?: string | null;
 	onDone: () => void;
 }) {
 	const { t, i18n: translation } = useTranslation("sidebar");
@@ -374,8 +377,15 @@ export function AlphaXivImportDialog({
 	const runImport = () => {
 		if (!vaultPath || plan.length === 0 || importing) return;
 		setImporting(true);
+		// Read the captured folder before closing. Closing clears the store,
+		// and a later browse must not retarget this import.
+		const destination = parentDir?.trim() || undefined;
 		onOpenChange(false);
-		void importAlphaXivPlan(plan, { tagFolders, importNotes })
+		void importAlphaXivPlan(plan, {
+			tagFolders,
+			importNotes,
+			parentDir: destination,
+		})
 			.then((result) => {
 				onDone();
 				if (result.notes) {

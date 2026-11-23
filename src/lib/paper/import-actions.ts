@@ -78,7 +78,7 @@ export function openMagicWand(): void {
 }
 
 export type LookupSubmitOptions = {
-	/** Vault-relative destination, e.g. `papers` or `papers/nlp`. Defaults to the current tree selection. */
+	/** Vault-relative destination, e.g. `papers` or `papers/nlp`. Blank keeps the current tree selection. */
 	parentDir?: string;
 	/** Run after one input has finished importing (store refresh is debounced via paper:imported). */
 	onComplete?: (result: LookupBatchAddResult) => void | Promise<void>;
@@ -86,6 +86,15 @@ export type LookupSubmitOptions = {
 
 /** In-flight title-search jobs; closing the picker card cancels them. */
 const pendingSearchJobIds = new Set<string>();
+
+/** A blank destination means "wherever the lookup is aimed right now". */
+function explicitParentDir(
+	parentDir: string | undefined,
+	fallback: string,
+): string {
+	const trimmed = parentDir?.trim();
+	return trimmed || fallback;
+}
 
 type LocalPdfDropRequest = {
 	vaultPath: string;
@@ -169,7 +178,7 @@ export async function enqueueLookup(
 	}
 	const inputs = texts.map((text) => text.trim()).filter(Boolean);
 	if (inputs.length === 0) return { jobIds: [], settled: Promise.resolve() };
-	const parentDir = opts.parentDir ?? currentLookupParentDir();
+	const parentDir = explicitParentDir(opts.parentDir, currentLookupParentDir());
 	const runs = await Promise.all(
 		inputs.map((input) =>
 			enqueueLookupRun(input, vaultPath, parentDir, opts).catch((e) => {
@@ -504,11 +513,13 @@ export type LookupBatchQueue = {
 /** Queue the confirmed checklist as ONE batch import job (batch dedupe +
  * n/total progress) and return at enqueue time.
  * `onComplete` receives the batch result after the job finishes, including
- * the layout and asset follow-up. */
+ * the layout and asset follow-up.
+ * `parentDir` pins the destination; omit it to keep the current lookup folder. */
 export async function enqueueLookupBatch(
 	texts: string[],
 	opts: {
 		onComplete?: (result: LookupBatchAddResult) => void | Promise<void>;
+		parentDir?: string;
 	} = {},
 ): Promise<LookupBatchQueue | null> {
 	const vaultPath = getVaultPath();
@@ -518,7 +529,7 @@ export async function enqueueLookupBatch(
 	const job = await enqueueTask({
 		kind: "import",
 		vaultPath,
-		path: currentLookupParentDir(),
+		path: explicitParentDir(opts.parentDir, currentLookupParentDir()),
 		lane: "normal",
 		params: { mode: "lookupBatch", texts: list },
 	});

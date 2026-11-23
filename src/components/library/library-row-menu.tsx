@@ -116,6 +116,8 @@ export type LibraryRowMenuProps = {
 	onPrepareContext: (key: string) => void;
 	t: CellT;
 	backgroundItems?: ReactNode;
+	/** Blank-area menu is about to open. Capture the folder before a later browse. */
+	onBlankMenu?: () => void;
 	children: ReactNode;
 };
 
@@ -131,6 +133,7 @@ const PaperMenuContext = createContext<{
 export function LibraryRowMenu({
 	backgroundItems,
 	onPrepareContext,
+	onBlankMenu,
 	children,
 	...props
 }: LibraryRowMenuProps) {
@@ -163,6 +166,8 @@ export function LibraryRowMenu({
 				)
 			) {
 				event.preventDefault();
+			} else {
+				onBlankMenu?.();
 			}
 			return;
 		}
@@ -202,7 +207,7 @@ export function LibraryRowMenu({
 				<ContextMenuTrigger asChild onContextMenu={onContextMenu}>
 					{children}
 				</ContextMenuTrigger>
-				<ContextMenuContent className="w-52">
+				<ContextMenuContent className="w-max min-w-52 max-w-80">
 					{targetRow ? (
 						<LibraryPaperMenuItems row={targetRow} mode="context" />
 					) : (

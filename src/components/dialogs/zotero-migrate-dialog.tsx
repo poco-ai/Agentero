@@ -111,11 +111,14 @@ export function ZoteroMigrateDialog({
 	open,
 	onOpenChange,
 	vaultPath,
+	initialParentDir = null,
 	onDone,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	vaultPath: string | null;
+	/** Folder captured with this open. Null keeps the remembered folder. */
+	initialParentDir?: string | null;
 	onDone: () => void;
 }) {
 	const { t } = useTranslation(["sidebar", "app"]);
@@ -133,6 +136,7 @@ export function ZoteroMigrateDialog({
 		saved.migrateAnnotations,
 	);
 	const [parentDir, setParentDir] = useState(saved.parentDir);
+	const [appliedOpen, setAppliedOpen] = useState(open);
 	const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 	const [query, setQuery] = useState("");
 	const [collFilter, setCollFilter] = useState<number | "all">("all");
@@ -144,6 +148,14 @@ export function ZoteroMigrateDialog({
 	const [error, setError] = useState<string | null>(null);
 	const [result, setResult] = useState<ZoteroMigrateResult | null>(null);
 	const [showFailures, setShowFailures] = useState(false);
+	if (open !== appliedOpen) {
+		setAppliedOpen(open);
+		if (open) {
+			const remembered = loadStoredOpts(OPTS_KEY, DEFAULT_OPTS).parentDir;
+			const captured = initialParentDir?.trim();
+			setParentDir(captured || remembered.trim() || "papers");
+		}
+	}
 
 	useOverlayRegistration("zotero-migrate", open, () => onOpenChange(false));
 
