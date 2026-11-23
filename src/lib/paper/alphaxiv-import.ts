@@ -319,6 +319,7 @@ async function applyFolderTags(
 	let meta = paper
 		? await loadPaperMetadata(absolutePaperDir(vaultPath, paper), vaultPath)
 		: null;
+	if (getVaultPath() !== vaultPath) return;
 	if (!meta) {
 		const key = arxivMatchKey(arxivId);
 		meta =
@@ -431,6 +432,7 @@ export async function importAlphaXivPlan(
 	if (notes) summary.notes = notes;
 
 	for (const item of items) {
+		if (getVaultPath() !== vaultPath) break;
 		const key = arxivMatchKey(item.arxivId);
 		const existingPath = pathsByArxiv.get(key);
 		let outcome: AlphaXivItemOutcome = existingPath

@@ -475,7 +475,7 @@
 		"notesDirty": "Save your paper notes and try importing again.",
 		"notesPaperMissing": "Could not match the paper in the library.",
 		"import": "Import",
-		"importing": "Importing {{count}}…",
+		"importing": "Import in progress…",
 		"importFailed": "AlphaXiv import failed",
 		"cancel": "Cancel",
 		"done": "Done",

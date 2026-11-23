@@ -473,7 +473,7 @@
 		"notesDirty": "请先保存论文笔记，再重试导入。",
 		"notesPaperMissing": "在文库中找不到对应的论文。",
 		"import": "导入",
-		"importing": "正在导入 {{count}} 篇…",
+		"importing": "正在导入…",
 		"importFailed": "AlphaXiv 导入失败",
 		"cancel": "取消",
 		"done": "完成",

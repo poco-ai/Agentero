@@ -3,7 +3,7 @@
  */
 
 import { Check, Import, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlphaXivFolderIcon } from "@/components/dialogs/alphaxiv-folder-icon";
 import { AlphaXivIcon } from "@/components/icons/paper-service-icons";
@@ -44,6 +44,7 @@ import { libraryStore } from "@/lib/paper/library-store";
 import { loadSettings } from "@/lib/settings";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
+import { getVaultPath } from "@/lib/vault/store";
 import { openPaper } from "@/lib/workspace/actions";
 
 type FolderNode = { folder: AlphaXivFolder; depth: number };
@@ -248,13 +249,12 @@ export function AlphaXivImportDialog({
 	const [query, setQuery] = useState("");
 	const [tagFolders, setTagFolders] = useState(true);
 	const [importNotes, setImportNotes] = useState(false);
-	const [importingNotes, setImportingNotes] = useState(false);
+	const [importing, setImporting] = useState(false);
 	const canImportNotes = !isMobileApp() && !isRemoteVaultHandle(vaultPath);
 	const [reloadToken, setReloadToken] = useState(0);
-	const importStarted = useRef(false);
 
 	useOverlayRegistration("alphaxiv-import", open, () => {
-		if (!importingNotes) onOpenChange(false);
+		onOpenChange(false);
 	});
 
 	useEffect(() => {
@@ -345,10 +345,6 @@ export function AlphaXivImportDialog({
 		[folders, selected, translation.language, importNotes, inVault],
 	);
 
-	const handleOpenChange = (next: boolean) => {
-		if (!importingNotes) onOpenChange(next);
-	};
-
 	const togglePaper = (key: string) => {
 		setSelected((prev) => {
 			const next = new Set(prev);
@@ -376,15 +372,10 @@ export function AlphaXivImportDialog({
 	};
 
 	const runImport = () => {
-		if (!vaultPath || plan.length === 0 || importStarted.current) return;
-		importStarted.current = true;
-		const items = plan;
-		const withTags = tagFolders;
-		// The lookup job shows in the bottom-left task panel, so the dialog
-		// does not stay open for a summary.
-		if (importNotes) setImportingNotes(true);
-		else onOpenChange(false);
-		void importAlphaXivPlan(items, { tagFolders: withTags, importNotes })
+		if (!vaultPath || plan.length === 0 || importing) return;
+		setImporting(true);
+		onOpenChange(false);
+		void importAlphaXivPlan(plan, { tagFolders, importNotes })
 			.then((result) => {
 				onDone();
 				if (result.notes) {
@@ -403,21 +394,21 @@ export function AlphaXivImportDialog({
 					} else {
 						notifySuccess(text);
 					}
-					if (!failures.length) onOpenChange(false);
 				}
-				if (result.revealDir) openPaper(result.revealDir);
+				if (result.revealDir && getVaultPath() === vaultPath) {
+					openPaper(result.revealDir);
+				}
 			})
 			.catch((importError: unknown) => {
 				notifyError(errorText(importError));
 			})
 			.finally(() => {
-				importStarted.current = false;
-				setImportingNotes(false);
+				setImporting(false);
 			});
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={handleOpenChange}>
+		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
 				className="flex max-h-[85vh] flex-col sm:max-w-3xl"
 				aria-describedby={undefined}
@@ -429,10 +420,7 @@ export function AlphaXivImportDialog({
 					</DialogTitle>
 				</DialogHeader>
 
-				<fieldset
-					disabled={importingNotes}
-					className="min-h-0 flex-1 overflow-y-auto"
-				>
+				<div className="min-h-0 flex-1 overflow-y-auto">
 					{needsKey ? (
 						<p className="py-2 text-muted-foreground text-sm">
 							{t("alphaxivImport.needsKey")}
@@ -583,7 +571,7 @@ export function AlphaXivImportDialog({
 					{error && folders.length > 0 ? (
 						<p className="mt-2 text-destructive text-xs">{error}</p>
 					) : null}
-				</fieldset>
+				</div>
 
 				<DialogFooter className="sm:justify-between">
 					{needsKey || (!loading && folders.length === 0) ? (
@@ -601,7 +589,7 @@ export function AlphaXivImportDialog({
 								<Checkbox
 									id="alphaxiv-tag-folders"
 									checked={tagFolders}
-									disabled={loading || importingNotes}
+									disabled={loading}
 									onCheckedChange={(value) => setTagFolders(value === true)}
 								/>
 								{t("alphaxivImport.tagFolders")}
@@ -614,7 +602,7 @@ export function AlphaXivImportDialog({
 									<Checkbox
 										id="alphaxiv-import-notes"
 										checked={importNotes}
-										disabled={loading || importingNotes}
+										disabled={loading}
 										onCheckedChange={(value) => setImportNotes(value === true)}
 									/>
 									{t("alphaxivImport.importNotes")}
@@ -657,20 +645,19 @@ export function AlphaXivImportDialog({
 								<Button
 									type="button"
 									variant="ghost"
-									disabled={importingNotes}
-									onClick={() => handleOpenChange(false)}
+									onClick={() => onOpenChange(false)}
 								>
 									{t("alphaxivImport.cancel")}
 								</Button>
 								<Button
 									type="button"
 									className="gap-1.5"
-									disabled={importingNotes || plan.length === 0 || !vaultPath}
+									disabled={importing || plan.length === 0 || !vaultPath}
 									onClick={runImport}
 								>
 									<Import className="size-3.5" />
-									{importingNotes
-										? t("alphaxivImport.importing", { count: plan.length })
+									{importing
+										? t("alphaxivImport.importing")
 										: t("alphaxivImport.import")}
 								</Button>
 							</>
