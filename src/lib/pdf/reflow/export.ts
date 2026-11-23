@@ -3,7 +3,7 @@ import { logOp } from "@/lib/core/logger";
 import type { ReflowFontBytes } from "./fonts";
 import { withFormulaPdfEngine } from "./formula-engine";
 import type { ReflowOutput } from "./pdf-write";
-import type { ReflowDocument } from "./types";
+import { type Box, type ReflowDocument, unionBoxes } from "./types";
 import { runReflowWorker } from "./write-client";
 
 export type { ReflowOutput } from "./pdf-write";
@@ -72,7 +72,7 @@ export async function buildReflowPdf(
 
 type FormulaFragment = {
 	key: string;
-	box: { x: number; y: number; w: number; h: number };
+	redactionBounds: Box;
 };
 
 async function collectFormulaPdfs(
@@ -93,7 +93,7 @@ async function collectFormulaPdfs(
 			const singlePage = await engine
 				.extractPages(doc, [page.index])
 				.toPromise();
-			for (const { key, box } of formulas) {
+			for (const { key, redactionBounds } of formulas) {
 				signal?.throwIfAborted();
 				const fragment = await call(
 					formulaEngine
@@ -105,10 +105,11 @@ async function collectFormulaPdfs(
 				);
 				try {
 					const pad = 0.75;
-					const left = Math.max(0, box.x - pad);
-					const top = Math.max(0, box.y - pad);
-					const right = Math.min(page.width, box.x + box.w + pad);
-					const bottom = Math.min(page.height, box.y + box.h + pad);
+					const { x, y, w, h } = redactionBounds;
+					const left = Math.max(0, x - pad);
+					const top = Math.max(0, y - pad);
+					const right = Math.min(page.width, x + w + pad);
+					const bottom = Math.min(page.height, y + h + pad);
 					const outside = [
 						{ x: 0, y: 0, w: page.width, h: top },
 						{ x: 0, y: bottom, w: page.width, h: page.height - bottom },
@@ -158,12 +159,27 @@ async function prepareWrite(
 	const formulasByPage = ir.pages.map((page) =>
 		page.paragraphs
 			.filter((paragraph) => translations.has(paragraph.id))
-			.flatMap((paragraph) =>
-				paragraph.formulas.map((formula) => ({
-					key: `${paragraph.id}:${formula.id}`,
-					box: formula.box,
-				})),
-			),
+			.flatMap((paragraph) => {
+				if (!paragraph.formulas.length) return [];
+				const glyphBoxes = new Map(
+					paragraph.characters.map((character) => [
+						character.index,
+						character.box,
+					]),
+				);
+				return paragraph.formulas.map((formula) => {
+					const { y, h } = unionBoxes([
+						formula.box,
+						...formula.characterIndexes.flatMap(
+							(index) => glyphBoxes.get(index) ?? [],
+						),
+					]);
+					return {
+						key: `${paragraph.id}:${formula.id}`,
+						redactionBounds: { ...formula.box, y, h },
+					};
+				});
+			}),
 	);
 	const formulaCount = formulasByPage.reduce(
 		(count, formulas) => count + formulas.length,

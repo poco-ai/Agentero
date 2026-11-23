@@ -152,6 +152,7 @@ import {
 } from "@/lib/pdf/page-theme";
 import type { PdfNavigationRegion } from "@/lib/pdf/pending-pdf-page";
 import type { SelectionPin } from "@/lib/pdf/selection";
+import { citationLinksForTranslation } from "@/lib/pdf/text-reference-link";
 
 /**
  * Paint unrotated PDF-point layers (highlights, selection tint) in the same
@@ -1144,7 +1145,9 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			const color = ink?.get(key);
 			return color ? { ...box, color } : box;
 		};
-		for (const link of marks.citationLinks.get(pageIndex) ?? []) {
+		for (const link of citationLinksForTranslation(
+			marks.citationLinks.get(pageIndex) ?? [],
+		)) {
 			const url = linkAnnotationUri(link);
 			boxes.push(
 				withInk(

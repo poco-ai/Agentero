@@ -3,7 +3,7 @@
  *
  * English link rectangles stay under the translation glyphs so they do not
  * block selection. The tokens themselves (`[12]`, `Fig. 3`, a URL) are the
- * hit targets, matched in reading order to the links that overlap the block.
+ * hit targets, matched by source label and glyph location when available.
  */
 
 import {
@@ -364,59 +364,6 @@ function centerInChars(
 	);
 }
 
-/**
- * Unread GoTo links whose centers sit on `chars`, capped at `limit`.
- * Links that are still queued from an earlier unmatched span are skipped
- * until the first center that actually lands on this token. A link past the
- * token ends the group, so a later citation is not pulled in.
- */
-function linksInsideChars(
-	gotos: readonly TranslateLinkBox[],
-	start: number,
-	chars: readonly GlyphChar[],
-	limit: number,
-	used: Set<string>,
-): TranslateLinkBox[] {
-	if (limit < 2 || chars.length === 0) return [];
-	let tokenLeft = chars[0]?.box.x ?? 0;
-	let tokenRight = tokenLeft;
-	let tokenTop = chars[0]?.box.y ?? 0;
-	let tokenBottom = tokenTop;
-	for (const char of chars) {
-		tokenLeft = Math.min(tokenLeft, char.box.x);
-		tokenRight = Math.max(tokenRight, char.box.x + char.box.w);
-		tokenTop = Math.min(tokenTop, char.box.y);
-		tokenBottom = Math.max(tokenBottom, char.box.y + char.box.h);
-	}
-	const beforeToken = (link: TranslateLinkBox) => {
-		const cx = link.box.x + link.box.w / 2;
-		const cy = link.box.y + link.box.h / 2;
-		if (cy < tokenTop - 0.004) return true;
-		if (cy > tokenBottom + 0.004) return false;
-		return cx < tokenLeft - 0.01;
-	};
-	const group: TranslateLinkBox[] = [];
-	let started = false;
-	for (
-		let index = start;
-		index < gotos.length && group.length < limit;
-		index++
-	) {
-		const link = gotos[index];
-		if (!link || used.has(link.key)) {
-			if (started) break;
-			continue;
-		}
-		if (!centerInChars(link, chars)) {
-			if (started || !beforeToken(link)) break;
-			continue;
-		}
-		started = true;
-		group.push(link);
-	}
-	return group;
-}
-
 type BoundPart = {
 	relStart: number;
 	relEnd: number;
@@ -467,8 +414,8 @@ function assignmentFromPart(
 }
 
 /**
- * Bind `spans` to `links` in the order those spans appear. Glyph clustering
- * uses the PDF text layer, so this order has to be the English source order.
+ * Resolve source spans against their glyphs, using link order as a fallback
+ * when a span cannot be located in the PDF text layer.
  */
 function collectBindings(
 	links: readonly TranslateLinkBox[],
@@ -488,11 +435,16 @@ function collectBindings(
 			context?.block && context.runs && context.runs.length > 0
 				? tokenChars(span.text, context.runs, context.block, occurrence)
 				: null;
+		const overlapping = chars
+			? gotos.filter(
+					(link) => !used.has(link.key) && centerInChars(link, chars),
+				)
+			: null;
 		const pieces = splittablePieces(span);
 		if (pieces) {
-			const group = chars
-				? linksInsideChars(gotos, gotoIndex, chars, pieces.length, used)
-				: adjacentGotos(gotos, gotoIndex, pieces.length, used);
+			const group =
+				overlapping?.slice(0, pieces.length) ??
+				adjacentGotos(gotos, gotoIndex, pieces.length, used);
 			if (group.length === pieces.length) {
 				for (let index = 0; index < pieces.length; index++) {
 					const piece = pieces[index];
@@ -515,26 +467,21 @@ function collectBindings(
 					);
 				}
 				const last = group[group.length - 1];
-				const lastAt = last
-					? gotos.findIndex((link) => link.key === last.key)
-					: -1;
-				gotoIndex = lastAt >= 0 ? lastAt + 1 : gotoIndex + pieces.length;
+				if (last) gotoIndex = Math.max(gotoIndex, gotos.indexOf(last) + 1);
 				bindings.push({ text: span.text, start: span.start, parts });
 				continue;
 			}
 		}
 		// Glyphs located this span and no link center sits on it. An unlinked
 		// interval such as `[0,1]` must not consume the next real citation.
-		if (
-			!span.url &&
-			chars &&
-			!gotos.some((link) => !used.has(link.key) && centerInChars(link, chars))
-		) {
+		if (!span.url && overlapping?.length === 0) {
 			bindings.push({ text: span.text, start: span.start, parts: [] });
 			continue;
 		}
-		const hit = matchSpan(span, links, gotos, used, gotoIndex);
-		if (hit.gotoIndex !== gotoIndex) gotoIndex = hit.gotoIndex;
+		const first = overlapping?.[0];
+		const index = !span.url && first ? gotos.indexOf(first) : gotoIndex;
+		const hit = matchSpan(span, links, gotos, used, index);
+		gotoIndex = Math.max(gotoIndex, hit.gotoIndex);
 		if (hit.assignment)
 			parts.push(partFromAssignment(span.start, hit.assignment));
 		bindings.push({ text: span.text, start: span.start, parts });
@@ -638,12 +585,10 @@ function assignBySourceIdentity(
 
 /**
  * Pair preserved tokens in `text` with `links` already claimed by this block.
- * URL tokens match by URL. Citation and ref tokens take GoTo links in source
- * order. When `context.source` is set, a translated token keeps the link of
- * the source token with the same label, so a reordered clause still opens
- * the citation it was translated from. A bracket group with several numbers
- * takes one link per number when each of those links sits on that token's
- * glyphs. A following citation on the same line stays with its own token.
+ * URL tokens match by URL. Citation and ref tokens use source glyph locations,
+ * falling back to source order. A translated token keeps the link of the
+ * source token with the same label even if a clause moves. A bracket group
+ * takes one link per number when those links sit on that token's glyphs.
  * When the glyph count and the number count disagree, the whole token keeps
  * the first link. A span whose glyphs contain no link center stays plain, so
  * an unlinked interval does not take the next citation.

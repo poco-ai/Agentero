@@ -336,9 +336,11 @@ export function usePdfCitations({
 										size: { width: b - a, height: rect.size.height },
 									}));
 							});
-						return fragments.map((rect) => ({ ...reference, rect }));
+						return fragments.map((rect) => ({ reference, rect }));
 					})
-					.map((r, i) => textReferenceLink(r, page, i)),
+					.map(({ reference, rect }, index) =>
+						textReferenceLink(reference, page, index, rect),
+					),
 			]);
 		}
 		return result;

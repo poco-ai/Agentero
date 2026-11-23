@@ -134,8 +134,6 @@ export function ReflowPageOverlay({
 		: 1;
 	const renderRef: RefObject<HTMLDivElement | null> = useRef(null);
 	const linkHover = useCoalescedTranslatedLinkHover(onHoverLink);
-	// Same claim as the block overlay: center first, then overlap, each link once.
-	// Identity uses the normalized source, not the raw text layer.
 	const linksByItem = claimTranslateLinks(
 		items.filter((item) => item.reflowLayout),
 		links ?? [],
@@ -185,7 +183,7 @@ export function ReflowPageOverlay({
 					text,
 					linksByItem.get(item.id) ?? [],
 					{
-						source: item.source || item.raw,
+						source: item.reflow?.source || item.source || item.raw,
 						...(glyphRuns?.length ? { block: item.bbox, runs: glyphRuns } : {}),
 					},
 				);

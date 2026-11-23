@@ -40,7 +40,7 @@ const REFLOW_BUILD_CACHE_VERSION = 1;
  * + fonts (the built bytes are reused verbatim, so layout.ts or export.ts
  * changes must invalidate old entries even when the IR schema is unchanged).
  */
-const REFLOW_BUILD_PIPELINE_VERSION = 3;
+const REFLOW_BUILD_PIPELINE_VERSION = 4;
 /**
  * Translation state churns with every page-level hide/restore, so one paper
  * can legitimately produce several distinct finals in a row. Keep the newest
