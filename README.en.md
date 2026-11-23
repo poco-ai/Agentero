@@ -2,10 +2,10 @@
   <img src="docs/assets/hero.png" alt="Agentero" width="100%" />
 </p>
 
-<h3 align="center">A research workbench for finding papers, taking notes, and reading with agents</h3>
+<h3 align="center">An all-in-one local research workspace that lets your Agent work better with your research.</h3>
 
 <p align="center">
-  Papers, notes, and conversations are stored locally. While reading a PDF, you can send selected passages, figures, or notes to an agent for discussion.
+  Bring literature management and translation, linked notes, experimental results, and LaTeX writing into one place. Easy for you to use, and structured for your Agent to read.
 </p>
 
 <p align="center">
@@ -16,8 +16,8 @@
   <a href="https://github.com/poco-ai/agentero/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/poco-ai/agentero?style=for-the-badge&logo=github&color=E3B341&labelColor=20242D"></a>
   <a href="https://github.com/poco-ai/agentero/releases"><img alt="release" src="https://img.shields.io/github/v/release/poco-ai/agentero?include_prereleases&style=for-the-badge&logo=github&color=1B54E8&labelColor=20242D"></a>
   <a href="https://github.com/poco-ai/agentero/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/poco-ai/agentero?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=34D399&labelColor=20242D"></a>
-  <a href="https://agentero.app/"><img alt="website" src="https://img.shields.io/badge/website-agentero.app-5319E7?style=for-the-badge&labelColor=20242D"></a>
-  <a href="https://agentero-docs.poco-ai.com"><img alt="docs" src="https://img.shields.io/badge/docs-online-5319E7?style=for-the-badge&logo=mkdocs&logoColor=white&labelColor=20242D"></a>
+  <a href="https://agentero.app/"><img alt="website" src="https://img.shields.io/badge/Website-agentero.app-5319E7?style=for-the-badge&labelColor=20242D"></a>
+  <a href="https://agentero-docs.poco-ai.com"><img alt="docs" src="https://img.shields.io/badge/Docs-Online-5319E7?style=for-the-badge&logo=mkdocs&logoColor=white&labelColor=20242D"></a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="https://trendshift.io/repositories/119836?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-119836" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/119836/daily?language=TypeScript" alt="poco-ai%2FAgentero | Trendshift" width="250" height="55"/></a>
 </p>
 
-If this project helps you, please **give it a star** on GitHub!
+If you find this project helpful, please give it a **star** in the top right corner!
 
 <p align="center">
   <a href="https://github.com/poco-ai/agentero/stargazers"><img src="https://github.com/user-attachments/assets/1d49b049-89ae-4992-a92d-d2411c8053b6" alt="Give me a star" width="480" /></a>
@@ -33,193 +33,46 @@ If this project helps you, please **give it a star** on GitHub!
 
 ---
 
-## Background & Motivation
+## Key Features
 
-Zotero is an excellent piece of software for academic reference management. It is mature, stable, and has helped many researchers build their first literature archives.
+Research used to mean juggling six separate tools: Zotero, Immersive Translate, Obsidian, Claude Code, Benchling, and Overleaf. Now, one Agentero is all you need:
 
-However, when it comes to daily research and deep use of large language models (LLMs) and agents, the traditional tool chain exposes a few breakpoints:
+- **Literature Management & Reading (like Zotero)**: Import papers in one click from academic websites or local files. Read, highlight, and annotate directly on the original PDF while extracting structured text for your Agent.
+- **Bilingual Translation & Paper Q&A (like Immersive Translate / ChatPDF)**: Ask questions on selected passages, read side-by-side full-text translations, and export layout-preserved bilingual PDFs.
+- **Linked Notes (like Obsidian / Notion)**: Built-in Markdown editor with math formulas and bidirectional links, connecting your notes, experimental results, and exact passages in PDFs.
+- **Connect Local Agents (like Claude Code / Codex)**: Plug directly into the Agent tools and subscriptions you already have on your machine with no extra fees. Citations in Agent responses can be clicked to jump straight back to the source PDF.
+- **Experiment & Literature Tables (like Benchling / Airtable)**: Create research tables in your workspace to log experimental results or compare paper metrics. Fill them in manually, or let your Agent batch-read papers and extract metrics automatically.
+- **Local LaTeX Writing (like Overleaf)**: Write LaTeX papers directly inside the workspace with live preview, two-way navigation between source and PDF, one-click citations from your library, and Agent-assisted build error fixes.
 
-* **Severely fragmented context**: papers live in Zotero, notes in Obsidian, and the reasoning and analysis done with models remain scattered across web chat windows. The three are isolated from each other; when you want an agent to reason deeply over a specific paper together with your past notes, you have to copy and paste back and forth by hand.
-* **Paper formats are unfriendly to models**: humans are used to reading well-typeset PDFs, but for models, parsing two-column layouts, multi-page tables, complex math, and cross-references is extremely costly and prone to recognition errors and hallucinations. Structured Markdown and LaTeX are far easier for models to understand accurately.
-* **High maintenance cost**: high-frequency needs such as AI-assisted reading, full-text translation, and note syncing usually require installing and tuning multiple community plugins — a high configuration barrier, with compatibility issues whenever versions change.
-* **Limited batch automation**: the large number of papers discovered via Deep Research or automated search tools still need to be saved manually, one by one in the browser, making them hard to fit into a smooth batch research workflow.
-
-**Agentero is not meant to replace Zotero. It explores a new way for humans and agents to handle research context together**:
-* **Humans** pose research questions, make scholarly judgments, read in depth, and derive core conclusions;
-* **Agents** handle batch retrieval and filtering, metadata fetching, figure/formula extraction, citation graph mapping, and basic summarization.
-
----
-
-## Core Features
-
-### 1. Structured Reading & Notes
-* **PDF reading and annotation**: outline navigation, fit-page and fit-width modes, smooth text selection, highlights and annotations, and full-text search.
-* **Figure & formula extraction**: converts formulas, algorithm pseudocode, and tables into Markdown and LaTeX that agents can read.
-* **Bi-directional linked notes**: a built-in WYSIWYG Markdown editor with `[[wikilinks]]`, `/` slash commands, and live LaTeX rendering, natively linking notes to papers.
-* **Multi-mode translation**: selection-based, side-by-side page-level, and full-text translation, with built-in available channels and support for custom API keys (BYOK).
-
-<p align="center">
-  <img src="docs/assets/agent.png" alt="PDF reading with agent assistance" width="90%" />
-  <br/>
-  <sub>Read and annotate the paper on the left. Ask an agent about the selected material on the right.</sub>
-</p>
-
-<p align="center">
-  <img src="docs/assets/translate.png" alt="Selection translation linked to notes" width="90%" />
-  <br/>
-  <sub>Selection translation with live capture: points extracted while reading flow straight into local Markdown notes</sub>
-</p>
-
----
-
-### 2. Open Agent Protocols & Automation Interfaces
-* **Local agents via ACP**: connect to Claude Code, OpenCode, Codex, or agents that support local models. When you send a message, the selected agent receives your question and the material you included. How the data is processed depends on the agent's configuration.
-* **Built-in MCP (Model Context Protocol)**: enable the server to let clients such as ChatGPT Web and Claude Desktop query your library. The connection setup depends on the client.
-* **CLI for hackers**: a built-in headless CLI for scripted workflows such as batch paper import, metadata extraction, and note writing.
-
-<p align="center">
-  <img src="docs/assets/image.png" alt="Built-in MCP" width="90%" />
-  <br/>
-  <sub>Built-in MCP server connects your local library seamlessly to external AI clients</sub>
-</p>
-
----
-
-### 3. Academic Radar & Paper Discovery
-* **Multi-source ingestion**: built-in integration with [Cool Papers](https://papers.cool/) and the ModelScope community — browse and archive papers in one click inside the app; academic RSS subscriptions supported.
-* **Personalized recommendations**: daily arXiv recommendations based on the content of your local library.
-* **Automatic citation mapping**: parses reference lists automatically with one-click batch import; fetches publisher metadata and tracks citations forward.
-
-<p align="center">
-  <img src="docs/assets/coolpaper.png" alt="Cool Papers integration" width="90%" />
-  <br/>
-  <sub>Browse trending Cool Papers inside the app and import them into your local knowledge base in one click</sub>
-</p>
-
----
-
-### 4. Zotero Compatibility & Transparent Local Storage
-* **Zotero migration**: choose which items and attachments to import, with their tags and notes. You can also save papers from the web with the Zotero browser extension or export a bibliography to BibTeX / BibLaTeX.
-* **Local files**: papers and notes are saved as PDF and Markdown files you can open with other tools. The catalog stores structured metadata in `.agentero/catalog.sqlite`.
-* **Multi-device sync & remote access**: sync with any S3-compatible cloud storage; access a library deployed on a remote server over an SSH tunnel.
-
----
-
-## UI & Feature Preview
-
-<details>
-<summary><b>Click to expand: more screenshots (RSS subscriptions, Skill extensions, agent settings, S3 sync, themes)</b></summary>
-<br/>
-
-#### 1. Academic RSS subscriptions
-Track academic blogs, lab homepages, and frontier updates:
-<p align="center">
-  <img src="docs/assets/rss.png" alt="RSS subscriptions" width="85%" />
-</p>
-
-#### 2. Agent Skill extensions
-Browse and install community research skills to extend close-reading and writing analysis:
-<p align="center">
-  <img src="docs/assets/skill-import.png" alt="Skill extensions" width="85%" />
-</p>
-
-#### 3. Agent & connection settings
-Manage, upgrade, and switch local agents via ACP:
-<p align="center">
-  <img src="docs/assets/agent-setting.png" alt="Agent settings" width="85%" />
-</p>
-
-#### 4. S3-compatible cloud sync
-Configure private or commercial S3 storage to sync your knowledge base across devices:
-<p align="center">
-  <img src="docs/assets/s3-sync.png" alt="S3 sync settings" width="85%" />
-</p>
-
-#### 5. Multiple themes
-Light/dark and multiple color schemes, following your system appearance:
-<p align="center">
-  <img src="docs/assets/theme.png" alt="Theme settings" width="85%" />
-</p>
-
-</details>
+Bringing these tools together is about more than opening fewer apps. Because all your research materials stay locally in one place, your Agent can read the full context at once to help you analyze papers, organize data, and revise drafts more accurately.
 
 ---
 
 ## Quick Start
 
-### Desktop app (macOS / Windows / Linux)
+### Desktop App (macOS / Windows / Linux)
 
-Download prebuilt installers for each platform from the **[official website](https://agentero.app/)** or **[GitHub Releases](https://github.com/poco-ai/agentero/releases)**.
+Download the installer for your operating system from the **[official website (agentero.app)](https://agentero.app/)** or **[GitHub Releases](https://github.com/poco-ai/Agentero/releases)**.
 
-#### macOS (Homebrew)
-```bash
-brew tap poco-ai/agentero
-brew install --cask agentero
+### Use Agentero Elsewhere
 
-```
-
-> **Note for Linux users**: Ubuntu 22.04+ is required (`webkit2gtk 4.1`). See the [installation docs](docs/usage/getting-started.md) for details.
-
-#### Linux: blank window or sluggish UI
-
-If the window stays blank, or scrolling and typing feel laggy, WebKitGTK may be running without hardware acceleration. Check whether these variables are set:
-
-```bash
-grep -rn "WEBKIT_\|GDK_BACKEND" ~/.zshrc ~/.bashrc ~/.profile /etc/environment 2>/dev/null
-grep -rn "WEBKIT_" ~/.local/share/applications/ 2>/dev/null
-```
-
-If so, replace `WEBKIT_DISABLE_DMABUF_RENDERER=1` with the following, which keeps hardware compositing and only bypasses the failing buffer path:
-
-```bash
-export WEBKIT_DMABUF_RENDERER_FORCE_SHM=1
-```
-
-When launching from a desktop icon, `.zshrc` has no effect; update the launcher as well:
-
-```ini
-Exec=env WEBKIT_DMABUF_RENDERER_FORCE_SHM=1 /usr/bin/agentero %U
-```
-
-> On WebKitGTK 2.52+ these variables disable hardware compositing and threaded scrolling together, forcing full-window CPU repaints and sustained high CPU usage.
-
----
-
-### Command-line tool (CLI)
-
-To manage your library from the terminal or scripted workflows:
-
-```bash
-brew tap poco-ai/agentero
-brew install agentero
-
-# List commands and options
-agentero --help
-
-```
-
----
-
-### Use Agentero in more places
-
-- **DeepSeek Harness (dsh) plugin**: use the Agentero library, notes, and PDF reader directly inside [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Install with `dsh plugin --profile web add @poco-ai/agentero-dsh`; see [agentero-dsh-plugin](https://github.com/poco-ai/agentero-dsh-plugin).
+- **DeepSeek Harness (dsh) Plugin**: Use your Agentero library, notes, and PDF reader directly inside [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Install with `dsh plugin --profile web add @poco-ai/agentero-dsh`. See [agentero-dsh-plugin](https://github.com/poco-ai/agentero-dsh-plugin) for details.
 
 ---
 
 ## Acknowledgements & Community
 
-* Thanks to the [LinuxDo](https://linux.do/) and [ModelScope](https://modelscope.cn/) communities for their suggestions and feedback during early testing.
-* Thanks to [AtomGit](https://gitcode.com/poco-ai/Agentero) for hosting the domestic mirror.
+- Thanks to members of [LinuxDo](https://linux.do/) and [ModelScope](https://modelscope.cn/) for their feedback and suggestions during early testing.
+- Thanks to [AtomGit](https://gitcode.com/poco-ai/Agentero) for providing mirror support in China.
 
-### Community chat
+### Community
 
 <p align="center">
-  <img src="docs/assets/community-qr.png" alt="Agentero WeChat group QR code" width="240" />
+  <img src="docs/assets/community-qr.png" alt="Agentero Community QR Code" width="240" />
   <br/>
-  <sub>Scan to join the WeChat user group (Chinese-speaking) for tips, feedback, and release news. The QR code is valid for 7 days; if it has expired, leave a note in the <a href="https://github.com/poco-ai/Agentero/issues">Issues</a>.</sub>
 </p>
 
-If Agentero helps your daily research, please consider giving the project a **⭐ Star** on GitHub.
+If Agentero helps with your daily research, consider giving the project a **⭐ Star** on GitHub.
 
 Thanks to all contributors!
 
@@ -231,4 +84,4 @@ Thanks to all contributors!
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). Third-party components and their licenses are listed in [.github/THIRD_PARTY_NOTICES.md](.github/THIRD_PARTY_NOTICES.md).
+This project is licensed under the [MIT License](LICENSE).
