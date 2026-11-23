@@ -87,7 +87,12 @@ fn apply_zotero_extras(item: &Value, record: &mut PaperRecord) {
     // key Zotero already stores on the item, so it wins over the keys derived
     // from identifiers. Keep it verbatim: CJK keys and disambiguation suffixes
     // are part of the contract, and the folder id is assigned independently.
+    //
+    // Zotero 8 stores it in the native `citationKey` field; Zotero 7 pinned
+    // keys lived in the Extra field as a `Citation Key: <key>` line.
     if let Some(key) = str_field(item, "citationKey") {
+        record.bibtex_key = Some(key);
+    } else if let Some(key) = pinned_citation_key(record.extra.as_deref()) {
         record.bibtex_key = Some(key);
     }
 
@@ -110,6 +115,22 @@ fn apply_zotero_extras(item: &Value, record: &mut PaperRecord) {
     {
         record.paper_type = PaperKind::Html;
     }
+}
+
+/// Pinned Better BibTeX key carried by Zotero 7's `extra` field.
+///
+/// Before Zotero 8 introduced the native field, Better BibTeX wrote one
+/// `Citation Key: <key>` line into `extra`. The key is everything after the
+/// first colon, so keys that contain a colon survive unchanged.
+fn pinned_citation_key(extra: Option<&str>) -> Option<String> {
+    extra?.lines().find_map(|line| {
+        let (label, value) = line.split_once(':')?;
+        if !label.trim().eq_ignore_ascii_case("citation key") {
+            return None;
+        }
+        let key = value.trim();
+        (!key.is_empty()).then(|| key.to_string())
+    })
 }
 
 /// Merge `other` into `base`, preferring non-empty fields from `other`.
@@ -570,6 +591,50 @@ mod tests {
             let meta = map_zotero_item_to_record(&item).expect("map");
             assert_eq!(meta.bibtex_key.as_deref(), Some("10_9999_example_2099"));
         }
+    }
+
+    #[test]
+    fn zotero_extra_citation_key_is_used_when_the_native_field_is_missing() {
+        // Zotero 7: Better BibTeX pinned the key in the Extra field.
+        let item = serde_json::json!({
+            "itemType": "journalArticle",
+            "title": "示例论文标题",
+            "creators": [
+                {"firstName": "San", "lastName": "Zhang", "creatorType": "author"}
+            ],
+            "date": "2099",
+            "DOI": "10.9999/example.2099",
+            "extra": "TL;DR: short summary\nCitation Key: 示例2099a\nfoo: bar"
+        });
+        let meta = map_zotero_item_to_record(&item).expect("map");
+        assert_eq!(meta.bibtex_key.as_deref(), Some("示例2099a"));
+        assert_eq!(meta.id, "10_9999_example_2099");
+    }
+
+    #[test]
+    fn native_citation_key_wins_over_the_extra_field() {
+        let item = serde_json::json!({
+            "itemType": "journalArticle",
+            "title": "Example Paper",
+            "date": "2099",
+            "DOI": "10.9999/example.2099",
+            "citationKey": "native2099",
+            "extra": "Citation Key: pinned2099"
+        });
+        let meta = map_zotero_item_to_record(&item).expect("map");
+        assert_eq!(meta.bibtex_key.as_deref(), Some("native2099"));
+    }
+
+    #[test]
+    fn extra_citation_key_keeps_colons_and_matches_the_label_case_insensitively() {
+        let meta = map_zotero_item_to_record(&serde_json::json!({
+            "itemType": "journalArticle",
+            "title": "Example Paper",
+            "date": "2099",
+            "extra": "citation key: smith:2099"
+        }))
+        .expect("map");
+        assert_eq!(meta.bibtex_key.as_deref(), Some("smith:2099"));
     }
 
     fn api_paper_with(

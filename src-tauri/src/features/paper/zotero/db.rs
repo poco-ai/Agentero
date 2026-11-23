@@ -2301,6 +2301,24 @@ mod tests {
     }
 
     #[test]
+    fn extra_pinned_citation_key_survives_the_local_database_migration() {
+        let conn = seed_db();
+        // Zotero 7: Better BibTeX pinned the key inside the Extra field.
+        conn.execute_batch(
+            "INSERT INTO fields VALUES (4,'extra');
+             INSERT INTO itemDataValues VALUES (104,'Citation Key: 示例2099a');
+             INSERT INTO itemData VALUES (10,4,104);",
+        )
+        .unwrap();
+        let ZoteroRead { items, .. } =
+            read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
+        let item = items.iter().find(|i| i.item_id == 10).unwrap();
+        assert_eq!(item.json["extra"], "Citation Key: 示例2099a");
+        let meta = map_zotero_item_to_record(&item.json).unwrap();
+        assert_eq!(meta.bibtex_key.as_deref(), Some("示例2099a"));
+    }
+
+    #[test]
     fn recreates_collection_path_and_tags() {
         let conn = seed_db();
         let ZoteroRead {
