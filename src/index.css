@@ -649,6 +649,14 @@
 	background-color: transparent;
 	color: transparent;
 }
+/*
+ * Reflow glyphs live in the page raster. The sentence fill blends with that
+ * raster (multiply on light paper, screen on dark) so the ink stays intact.
+ * One element carries the blend; each line is a single band.
+ */
+.pdf-reflow-highlight {
+	mix-blend-mode: var(--pdf-mark-blend);
+}
 
 /*
  * Preserved tokens ([12], 图 3, URLs) use the original glyph fill (inline

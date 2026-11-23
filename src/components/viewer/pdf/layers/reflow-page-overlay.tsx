@@ -17,6 +17,7 @@ import {
 	type TranslateLinkBox,
 } from "@/lib/pdf/layout/translated-links";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
+import { mergeClientRectsIntoLines } from "@/lib/pdf/layout/visible-selection-rects";
 import {
 	beginLinkPreviewDrag,
 	linkHoverSuppressed,
@@ -77,6 +78,16 @@ function chunkPlacements(
 		else groups.push([item]);
 	}
 	return groups;
+}
+
+/**
+ * One band per visual line. A fill on every glyph stacks in the seam and
+ * paints over the rasterized character.
+ */
+export function reflowHighlightLineBands(
+	glyphs: readonly GlyphFrame[],
+): GlyphFrame[] {
+	return mergeClientRectsIntoLines(glyphs);
 }
 
 function reflowSentenceGroups(
@@ -140,41 +151,45 @@ export function ReflowPageOverlay({
 	);
 	return (
 		<div className="pointer-events-none absolute inset-0">
-			{/*
-			 * Static per-page raster stays as the streaming fallback. Once the
-			 * finished PDF is registered, the render layer sits on top and
-			 * re-rasterizes at the viewer zoom / device pixel ratio — the same
-			 * path the source page uses, instead of stretching a fixed image.
-			 */}
-			{preview ? (
-				<img
-					src={preview}
-					alt=""
-					draggable={false}
-					className={cn(
-						"absolute inset-0 h-full w-full",
-						tone === "dark" && PDF_PAGE_RASTER_DARK_CLASS,
-					)}
-				/>
-			) : null}
-			{renderDocumentId ? (
-				<div ref={renderRef} className="absolute inset-0">
-					<AgenteroRenderLayer
-						key={renderDocumentId}
-						pageRef={renderRef}
-						documentId={renderDocumentId}
-						pageIndex={pageIndex}
-						scale={zoom}
-						className={tone === "dark" ? PDF_PAGE_RASTER_DARK_CLASS : undefined}
+			<div className="absolute inset-0 isolate">
+				{/*
+				 * Static per-page raster stays as the streaming fallback. Once the
+				 * finished PDF is registered, the render layer sits on top and
+				 * re-rasterizes at the viewer zoom / device pixel ratio — the same
+				 * path the source page uses, instead of stretching a fixed image.
+				 */}
+				{preview ? (
+					<img
+						src={preview}
+						alt=""
+						draggable={false}
+						className={cn(
+							"absolute inset-0 h-full w-full",
+							tone === "dark" && PDF_PAGE_RASTER_DARK_CLASS,
+						)}
 					/>
-				</div>
-			) : null}
-			{PDF_PAPER_TINT[tone] && (
-				<div
-					className="absolute inset-0 mix-blend-multiply"
-					style={{ backgroundColor: PDF_PAPER_TINT[tone] ?? undefined }}
-				/>
-			)}
+				) : null}
+				{renderDocumentId ? (
+					<div ref={renderRef} className="absolute inset-0">
+						<AgenteroRenderLayer
+							key={renderDocumentId}
+							pageRef={renderRef}
+							documentId={renderDocumentId}
+							pageIndex={pageIndex}
+							scale={zoom}
+							className={
+								tone === "dark" ? PDF_PAGE_RASTER_DARK_CLASS : undefined
+							}
+						/>
+					</div>
+				) : null}
+				{PDF_PAPER_TINT[tone] && (
+					<div
+						className="absolute inset-0 mix-blend-multiply"
+						style={{ backgroundColor: PDF_PAPER_TINT[tone] ?? undefined }}
+					/>
+				)}
+			</div>
 			{items.map((item) => {
 				const layout = item.reflowLayout;
 				if (!layout) return null;
@@ -188,32 +203,56 @@ export function ReflowPageOverlay({
 					},
 				);
 				let offset = 0;
-				const placedGroups = reflowSentenceGroups(item, layout.units).map(
-					(group) => {
-						const placed: GlyphPlacement[] = group.units.map((unit) => {
-							const start = offset;
-							offset += unit.text.length;
-							return {
-								unit,
-								start,
-								assignment:
-									assignments.find(
-										(assignment) =>
-											assignment.start < offset && assignment.end > start,
-									) ?? null,
-							};
-						});
-						return { index: group.index, runs: chunkPlacements(placed) };
-					},
-				);
+				const groups = reflowSentenceGroups(item, layout.units);
+				const placedGroups = groups.map((group) => {
+					const placed: GlyphPlacement[] = group.units.map((unit) => {
+						const start = offset;
+						offset += unit.text.length;
+						return {
+							unit,
+							start,
+							assignment:
+								assignments.find(
+									(assignment) =>
+										assignment.start < offset && assignment.end > start,
+								) ?? null,
+						};
+					});
+					return { index: group.index, runs: chunkPlacements(placed) };
+				});
+				const fillBands = groups.flatMap((group) => {
+					const tint =
+						group.index === undefined
+							? undefined
+							: tints?.get(item.id)?.get(group.index);
+					if (!tint || tint.shape === "underline") return [];
+					const originX = layout.box.x;
+					const originY = layout.box.y;
+					return reflowHighlightLineBands(
+						group.units.map((unit) =>
+							glyphFrame(unit, originX, originY, sx, sy),
+						),
+					).map((line) => (
+						<div
+							key={`${item.id}:${group.index}:${line.left}:${line.top}:${line.width}`}
+							style={{
+								position: "absolute",
+								left: line.left,
+								top: line.top,
+								width: line.width,
+								height: line.height,
+								backgroundColor: highlightFill(tint.color),
+								borderRadius: 1,
+							}}
+						/>
+					));
+				});
 				return (
 					<div
 						key={item.id}
 						data-layout-item={item.id}
 						// The preview raster already paints the translated glyphs. This
-						// layer only provides selection geometry. ::selection stays
-						// transparent: one box per character would stack in the seam.
-						// The line band paints the highlight once.
+						// layer provides selection geometry and blends each fill band.
 						// Above the source citation hits (z-2) and the selection tint
 						// (z-5), same slot as the block-overlay glyphs.
 						data-reflow-selection="true"
@@ -230,6 +269,14 @@ export function ReflowPageOverlay({
 							color: "transparent",
 						}}
 					>
+						{fillBands.length > 0 ? (
+							<div
+								aria-hidden="true"
+								className="pdf-reflow-highlight pointer-events-none absolute inset-0"
+							>
+								{fillBands}
+							</div>
+						) : null}
 						{placedGroups.map((group) => {
 							const tint =
 								group.index === undefined
@@ -266,13 +313,11 @@ export function ReflowPageOverlay({
 											whiteSpace: "pre",
 											color: "transparent",
 											textDecoration: "none",
-											...(tint
-												? tint.shape === "underline"
-													? {
-															borderBottom: `2px solid ${HIGHLIGHT_HEX[tint.color]}`,
-															boxSizing: "border-box" as const,
-														}
-													: { backgroundColor: highlightFill(tint.color) }
+											...(tint?.shape === "underline"
+												? {
+														borderBottom: `2px solid ${HIGHLIGHT_HEX[tint.color]}`,
+														boxSizing: "border-box" as const,
+													}
 												: null),
 										});
 										const key = `${first.unit.x}-${first.unit.y}-${first.start}`;
