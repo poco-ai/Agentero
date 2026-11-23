@@ -176,14 +176,7 @@ pub async fn agent_probe(
     };
     // Built-in agents have no ACP process to probe; report them ready.
     if crate::features::agent::models::is_builtin_template(&desc.template) {
-        let result = ProbeResult {
-            agent_id: id.clone(),
-            available: true,
-            agent_name: Some(desc.name.clone()),
-            protocol_version: None,
-            error: None,
-            session_capabilities: None,
-        };
+        let result = crate::features::agent::models::builtin_probe_result(&desc);
         let _ = registry.apply_probe_result(&id, &result);
         emit_registry_changed(&app);
         return Ok(ApiResult::ok(result));

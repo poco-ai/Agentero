@@ -59,6 +59,20 @@ pub fn is_builtin_template(template: &AgentTemplate) -> bool {
     matches!(template, AgentTemplate::Zhihu)
 }
 
+/// 内建 Agent 的探测结果：Host 自己实现适配器，没有 ACP 进程可 spawn，
+/// 因此无需探测、直接视为可用。Doctor 与单 Agent 探测共用，避免两条路径
+/// 对空 `command` 发起 spawn 并把失败写回 registry。
+pub fn builtin_probe_result(desc: &AgentDescriptor) -> ProbeResult {
+    ProbeResult {
+        agent_id: desc.id.clone(),
+        available: true,
+        agent_name: Some(desc.name.clone()),
+        protocol_version: None,
+        error: None,
+        session_capabilities: None,
+    }
+}
+
 /// 内置「知乎」Agent 的稳定 registry id。
 pub const ZHIHU_AGENT_ID: &str = "builtin-zhihu";
 

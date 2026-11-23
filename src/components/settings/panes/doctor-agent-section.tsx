@@ -2,6 +2,7 @@ import { CheckCircle2, Loader2, Terminal, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isChatOnlyAgentTemplate } from "@/lib/agent/api";
 import { cn } from "@/lib/core/utils";
 import type { AgentAcpDiagnostic } from "@/lib/doctor/api";
 import { DoctorSection } from "./doctor-sections";
@@ -90,6 +91,9 @@ function AgentCard({
 	// only ever report a meaningless PATH probe. (#686)
 	const showAcp =
 		agent.template !== "claude-acp" && agent.template !== "codex-acp";
+	// Built-in chat-only agents (Zhihu) have neither a host CLI nor an ACP
+	// entrypoint, so both tool rows are inapplicable. (#1233)
+	const showTools = !isChatOnlyAgentTemplate(agent.template);
 	const canLogin =
 		authStatus === "unauthenticated" &&
 		Boolean(agent.loginCommand?.trim()) &&
@@ -125,13 +129,15 @@ function AgentCard({
 						) : null}
 					</div>
 					<div className="mt-2 grid grid-cols-[3rem_minmax(0,1fr)] gap-x-2 gap-y-1.5 text-xs leading-snug">
-						<MetaRow
-							label="Agent"
-							version={agent.agentVersion}
-							path={agent.agentPath}
-							missingLabel={t("doctor.agent.locationMissing")}
-						/>
-						{showAcp ? (
+						{showTools ? (
+							<MetaRow
+								label="Agent"
+								version={agent.agentVersion}
+								path={agent.agentPath}
+								missingLabel={t("doctor.agent.locationMissing")}
+							/>
+						) : null}
+						{showTools && showAcp ? (
 							<MetaRow
 								label="ACP"
 								version={agent.acpVersion}

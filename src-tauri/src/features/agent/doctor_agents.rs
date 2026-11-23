@@ -9,7 +9,9 @@ use crate::features::agent::acp::probe_agent;
 use crate::features::agent::doctor::{
     diagnose_claude_auth, diagnose_codex_auth, diagnose_tool, CodexAuthStatus, HostToolStatus,
 };
-use crate::features::agent::models::{AgentDescriptor, AgentTemplate, ProbeResult};
+use crate::features::agent::models::{
+    builtin_probe_result, is_builtin_template, AgentDescriptor, AgentTemplate, ProbeResult,
+};
 use crate::features::agent::registry::store::chrono_like_now;
 use crate::features::agent::registry::template_info;
 use crate::features::agent::service::emit_registry_changed;
@@ -130,11 +132,17 @@ pub(crate) fn classify_acp_error(text: &str) -> AcpFailureCategory {
     AcpFailureCategory::Unknown
 }
 
-/// Probe one agent without spawning when its command is known to be missing
-/// (mirrors the `agent_probe` fast path in commands/registry.rs).
-async fn probe_one(registry: &AgentRegistry, desc: &AgentDescriptor) -> ProbeResult {
-    let result = if !desc.available {
-        ProbeResult {
+/// Probe results that must not spawn a process (mirrors the `agent_probe` fast
+/// path in commands/registry.rs). `None` means a real ACP probe is needed.
+fn probe_shortcut(desc: &AgentDescriptor) -> Option<ProbeResult> {
+    if is_builtin_template(&desc.template) {
+        // Built-in agents (Zhihu) have no external ACP process: probing an
+        // empty `command` fails and used to persist that failure. Report ready
+        // and overwrite any stale failure left in the registry (#1233).
+        return Some(builtin_probe_result(desc));
+    }
+    if !desc.available {
+        return Some(ProbeResult {
             agent_id: desc.id.clone(),
             available: false,
             agent_name: None,
@@ -144,9 +152,16 @@ async fn probe_one(registry: &AgentRegistry, desc: &AgentDescriptor) -> ProbeRes
                 .clone()
                 .or_else(|| Some(format!("command `{}` not found on PATH", desc.command))),
             session_capabilities: None,
-        }
-    } else {
-        probe_agent(desc, None).await
+        });
+    }
+    None
+}
+
+/// Probe one agent, skipping spawns for built-ins and known-missing commands.
+async fn probe_one(registry: &AgentRegistry, desc: &AgentDescriptor) -> ProbeResult {
+    let result = match probe_shortcut(desc) {
+        Some(result) => result,
+        None => probe_agent(desc, None).await,
     };
     let _ = registry.apply_probe_result(&desc.id, &result);
     result
@@ -182,6 +197,29 @@ fn auth_from_codex(status: CodexAuthStatus) -> AgentAuthStatus {
 }
 
 async fn diagnostic(desc: &AgentDescriptor, result: &ProbeResult) -> AgentAcpDiagnostic {
+    if is_builtin_template(&desc.template) {
+        // Chat-only built-in agents have no host CLI or ACP entrypoint, so
+        // both tool rows are inapplicable rather than "missing" (#1233).
+        return AgentAcpDiagnostic {
+            agent_id: desc.id.clone(),
+            name: desc.name.clone(),
+            template: desc.template.clone(),
+            command: desc.command.clone(),
+            agent_command: None,
+            login_command: None,
+            agent_path: None,
+            agent_version: None,
+            resolved_path: None,
+            acp_version: None,
+            ok: result.available,
+            failure_category: None,
+            error: None,
+            auth_status: AgentAuthStatus::NotApplicable,
+            agent_name: result.agent_name.clone(),
+            protocol_version: None,
+            probed_at: Some(chrono_like_now()),
+        };
+    }
     let environment = effective_local_agent_env(desc);
     // Fall back to the ACP entrypoint when the template has no distinct detect binary
     // (custom agents, or native-ACP CLIs where command == detect).
@@ -442,5 +480,39 @@ mod tests {
             classify_acp_error("something went wrong"),
             AcpFailureCategory::Unknown
         );
+    }
+
+    fn builtin_zhihu() -> AgentDescriptor {
+        AgentDescriptor {
+            supports_shell: false,
+            id: crate::features::agent::models::ZHIHU_AGENT_ID.to_string(),
+            name: "知乎".to_string(),
+            template: AgentTemplate::Zhihu,
+            command: String::new(),
+            args: Vec::new(),
+            env: Default::default(),
+            available: true,
+            last_error: None,
+            last_probe_ok: Some(false),
+            last_probe_agent_name: None,
+            last_probe_error: Some("program path has no file name".to_string()),
+            last_probed_at: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn builtin_agent_is_ready_and_skips_acp_spawn() {
+        let desc = builtin_zhihu();
+        let result = probe_shortcut(&desc).expect("built-in agent must not spawn ACP");
+        assert!(result.available);
+        assert!(result.error.is_none());
+
+        let diag = diagnostic(&desc, &result).await;
+        assert!(diag.ok);
+        assert!(diag.failure_category.is_none());
+        assert!(diag.error.is_none());
+        assert_eq!(diag.auth_status, AgentAuthStatus::NotApplicable);
+        assert!(diag.agent_path.is_none());
+        assert!(diag.resolved_path.is_none());
     }
 }
