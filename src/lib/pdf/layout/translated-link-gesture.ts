@@ -6,14 +6,21 @@
  * leave the glyph under the pointer selected. Travel is the signal, the same
  * threshold layout regions already use.
  *
- * A reflow line is one hit target, but a token can still wrap. Leaving one
- * piece of a link for another piece must not cancel the dwell timer.
+ * A reflow line is one hit target, but a token can still wrap. The strip
+ * between those lines must not cancel the dwell timer.
  */
 
 import { useCallback, useEffect, useRef } from "react";
 import { isLayoutRegionActivation } from "@/lib/pdf/layout/click-guard";
 import type { PreservedLinkAssignment } from "@/lib/pdf/layout/translated-links";
 import { linkPreviewDragActive } from "@/lib/pdf/link-preview-drag";
+
+/**
+ * How long the pointer may sit in the gap between two lines of one link
+ * before the dwell is cancelled. Line spacing leaves a strip between the hit
+ * boxes; a 0ms clear fires while the pointer is still crossing that strip.
+ */
+export const TRANSLATED_LINK_HOVER_GAP_MS = 100;
 
 export type TranslatedLinkPoint = {
 	x: number;
@@ -126,7 +133,7 @@ export function useCoalescedTranslatedLinkHover(
 			if (current.current == null) return;
 			current.current = null;
 			onHoverRef.current?.(null, null);
-		}, 0);
+		}, TRANSLATED_LINK_HOVER_GAP_MS);
 	}, [cancelClear]);
 	return { enter, leave };
 }

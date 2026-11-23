@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LayoutTranslateParagraph } from "@/components/viewer/pdf/layers/layout-translate-overlay";
 import { ReflowPageOverlay } from "@/components/viewer/pdf/layers/reflow-page-overlay";
+import { TRANSLATED_LINK_HOVER_GAP_MS } from "@/lib/pdf/layout/translated-link-gesture";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import { resetLinkPreviewDragForTests } from "@/lib/pdf/link-preview-drag";
 import type { PlacedUnit } from "@/lib/pdf/reflow/types";
@@ -168,19 +169,41 @@ describe("reflow translated link hits", () => {
 				relatedTarget: glyphs[1],
 			}),
 		);
-		links[1]?.dispatchEvent(
+		expect(hover).toHaveBeenCalledTimes(1);
+
+		const first = links[0];
+		const second = links[1];
+		if (!first || !second)
+			throw new Error("wrapped link lines were not rendered");
+		// The gap between the two line boxes is not part of either anchor.
+		first.dispatchEvent(
 			new PointerEvent("pointerout", {
 				bubbles: true,
-				relatedTarget: links[1],
+				relatedTarget: view.host,
 			}),
 		);
-		links[1]?.dispatchEvent(
-			new PointerEvent("pointerover", { bubbles: true, buttons: 0 }),
-		);
 		await act(async () => {
-			await new Promise((resolve) => setTimeout(resolve, 0));
+			await new Promise((resolve) => setTimeout(resolve, 40));
 		});
 		expect(hover).toHaveBeenCalledTimes(1);
+		second.dispatchEvent(
+			new PointerEvent("pointerover", { bubbles: true, buttons: 0 }),
+		);
+		expect(hover).toHaveBeenCalledTimes(1);
+
+		second.dispatchEvent(
+			new PointerEvent("pointerout", {
+				bubbles: true,
+				relatedTarget: view.host,
+			}),
+		);
+		await act(async () => {
+			await new Promise((resolve) =>
+				setTimeout(resolve, TRANSLATED_LINK_HOVER_GAP_MS + 20),
+			);
+		});
+		expect(hover).toHaveBeenCalledTimes(2);
+		expect(hover.mock.calls[1]?.[0]).toBeNull();
 		await view.unmount();
 	});
 
