@@ -386,6 +386,9 @@
 			"always": "Always show",
 			"hidden": "Hidden"
 		},
+		"pdfSentenceHover": {
+			"label": "Sentence hover highlight"
+		},
 		"fonts": {
 			"section": "Fonts",
 			"interface": "Interface font",

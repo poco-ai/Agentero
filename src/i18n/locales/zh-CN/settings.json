@@ -386,6 +386,9 @@
 			"always": "始终显示",
 			"hidden": "隐藏"
 		},
+		"pdfSentenceHover": {
+			"label": "句子悬停高亮"
+		},
 		"fonts": {
 			"section": "字体",
 			"interface": "界面字体",

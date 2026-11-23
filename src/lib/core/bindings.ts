@@ -1959,6 +1959,8 @@ export type AppSettings_Deserialize = {
 	pdfSpreadMode?: string,
 	/**  In-page translate tab: `hover` (default) | `always` | `hidden`. */
 	pdfTranslateTab?: string,
+	/**  Sentence wash and whole-sentence double-click. Default on. */
+	pdfSentenceHover?: boolean,
 	libraryColumns?: LibraryColumnPref_Deserialize[],
 	connectorEnabled?: boolean,
 	connectorPort?: number,
@@ -2139,6 +2141,8 @@ export type AppSettings_Serialize = {
 	pdfSpreadMode: string,
 	/**  In-page translate tab: `hover` (default) | `always` | `hidden`. */
 	pdfTranslateTab: string,
+	/**  Sentence wash and whole-sentence double-click. Default on. */
+	pdfSentenceHover: boolean,
 	libraryColumns: LibraryColumnPref_Serialize[],
 	connectorEnabled: boolean,
 	connectorPort: number,

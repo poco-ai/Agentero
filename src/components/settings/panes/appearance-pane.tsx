@@ -70,6 +70,7 @@ export type AppearancePaneProps = {
 	pdfVimKeys: boolean;
 	pdfSpreadMode: PdfSpreadMode;
 	pdfTranslateTab: PdfTranslateTabMode;
+	pdfSentenceHover: boolean;
 	vimMode: boolean;
 	patch: (p: Partial<AppSettings>) => void;
 };
@@ -93,6 +94,7 @@ function AppearancePaneInner({
 	pdfVimKeys,
 	pdfSpreadMode,
 	pdfTranslateTab,
+	pdfSentenceHover,
 	vimMode,
 	patch,
 }: AppearancePaneProps) {
@@ -612,6 +614,16 @@ function AppearancePaneInner({
 							))}
 						</SelectContent>
 					</Select>
+				</SettingsRow>
+				<SettingsRow
+					label={t("appearance.pdfSentenceHover.label")}
+					htmlFor="pdf-sentence-hover"
+				>
+					<Switch
+						id="pdf-sentence-hover"
+						checked={pdfSentenceHover}
+						onCheckedChange={(checked) => patch({ pdfSentenceHover: checked })}
+					/>
 				</SettingsRow>
 			</SettingsGroup>
 		</>

@@ -474,6 +474,9 @@ function normalizePartial(
 	if (!isPdfTranslateTabMode(merged.pdfTranslateTab)) {
 		merged.pdfTranslateTab = DEFAULT_SETTINGS.pdfTranslateTab;
 	}
+	if (typeof parsed.pdfSentenceHover !== "boolean") {
+		merged.pdfSentenceHover = DEFAULT_SETTINGS.pdfSentenceHover;
+	}
 	merged.libraryColumns = normalizeLibraryColumns(merged.libraryColumns);
 	if (typeof parsed.autoPaperReader !== "boolean") {
 		merged.autoPaperReader = DEFAULT_SETTINGS.autoPaperReader;

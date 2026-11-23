@@ -186,6 +186,9 @@ pub struct AppSettings {
     /// In-page translate tab: `hover` (default) | `always` | `hidden`.
     #[serde(default = "default_pdf_translate_tab")]
     pub pdf_translate_tab: String,
+    /// Sentence wash and whole-sentence double-click. Default on.
+    #[serde(default = "default_true")]
+    pub pdf_sentence_hover: bool,
     #[serde(default = "default_library_columns")]
     pub library_columns: Vec<LibraryColumnPref>,
     #[serde(default)]
@@ -620,6 +623,7 @@ impl Default for AppSettings {
             sound_enabled: true,
             pdf_spread_mode: default_pdf_spread_mode(),
             pdf_translate_tab: default_pdf_translate_tab(),
+            pdf_sentence_hover: true,
             library_columns: default_library_columns(),
             connector_enabled: false,
             connector_port: default_connector_port(),
@@ -2432,6 +2436,21 @@ mod tests {
         normalize(&mut s);
         assert_eq!(s.pdf_scroll_strategy, "vertical");
         assert_eq!(s.pdf_spread_mode, "none");
+    }
+
+    #[test]
+    fn missing_pdf_sentence_hover_stays_on() {
+        let mut value = serde_json::to_value(AppSettings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("pdfSentenceHover");
+        let parsed: AppSettings = serde_json::from_value(value).unwrap();
+        assert!(parsed.pdf_sentence_hover);
+
+        let mut off = AppSettings {
+            pdf_sentence_hover: false,
+            ..AppSettings::default()
+        };
+        normalize(&mut off);
+        assert!(!off.pdf_sentence_hover);
     }
 
     #[test]

@@ -254,6 +254,12 @@ export type AppSettings = {
 	 */
 	pdfTranslateTab: PdfTranslateTabMode;
 	/**
+	 * Sentence wash while the pointer is over body text, and whole-sentence
+	 * selection on double-click. Off clears the wash and selects one word.
+	 * Default on. The writing preview keeps its SyncTeX line hint either way.
+	 */
+	pdfSentenceHover: boolean;
+	/**
 	 * How NOTES.md is initialized on paper import. `custom` copies the vault
 	 * template `.agentero/templates/NOTES.md`. Default: built-in skeleton.
 	 */
