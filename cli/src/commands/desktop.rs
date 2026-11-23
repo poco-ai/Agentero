@@ -4,7 +4,7 @@ use crate::resolve::{resolve_vault, GlobalOpts};
 use agentero_core::error::AppError;
 use agentero_core::features::context::{CLI_GRANT_ENV, TURN_ENV};
 use agentero_core::features::open_request::desktop::{
-    active_endpoint, private_dir, write_packet, WorkspaceReply, WorkspaceRequest,
+    active_endpoint, private_dir, write_packet, PrivateDir, WorkspaceReply, WorkspaceRequest,
 };
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
@@ -137,7 +137,7 @@ async fn send(
 fn publish(
     endpoint: &std::path::Path,
     request: &mut WorkspaceRequest,
-) -> Result<tempfile::TempDir, AppError> {
+) -> Result<PrivateDir, AppError> {
     let dir = private_dir(Some(endpoint), "request-")?;
     request.id = dir
         .path()

@@ -61,8 +61,13 @@ pub fn acquire_endpoint_lease(dir: &Path) -> Result<std::fs::File, AppError> {
     Ok(file)
 }
 
+/// Handle for a private request directory. Every platform variant removes the
+/// directory when dropped, so callers only need to keep it alive.
 #[cfg(not(windows))]
-pub fn private_dir(parent: Option<&Path>, prefix: &str) -> Result<tempfile::TempDir, AppError> {
+pub type PrivateDir = tempfile::TempDir;
+
+#[cfg(not(windows))]
+pub fn private_dir(parent: Option<&Path>, prefix: &str) -> Result<PrivateDir, AppError> {
     let mut builder = tempfile::Builder::new();
     builder.prefix(prefix);
     #[cfg(unix)]
@@ -79,7 +84,7 @@ pub fn private_dir(parent: Option<&Path>, prefix: &str) -> Result<tempfile::Temp
 #[cfg(windows)]
 mod windows_mailbox;
 #[cfg(windows)]
-pub use windows_mailbox::private_dir;
+pub use windows_mailbox::{private_dir, MailboxDirectory as PrivateDir};
 
 pub fn write_packet<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<(), AppError> {
     let mut file = tempfile::NamedTempFile::new_in(dir)?;
