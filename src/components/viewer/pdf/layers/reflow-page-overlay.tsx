@@ -37,7 +37,7 @@ type GlyphPlacement = {
 	assignment: PreservedLinkAssignment | null;
 };
 
-/** Glyph box in the paragraph's pixel space. `y` on a unit is its baseline. */
+/** Glyph box relative to the given origin. `y` on a unit is its baseline. */
 function glyphFrame(
 	unit: PlacedUnit,
 	originX: number,
@@ -149,6 +149,34 @@ export function ReflowPageOverlay({
 		items.filter((item) => item.reflowLayout),
 		links ?? [],
 	);
+	const placedItems = items.flatMap((item) => {
+		const layout = item.reflowLayout;
+		return layout
+			? [{ item, layout, groups: reflowSentenceGroups(item, layout.units) }]
+			: [];
+	});
+	const fillBands = placedItems.flatMap(({ item, groups }) =>
+		groups.flatMap((group) => {
+			const tint =
+				group.index === undefined
+					? undefined
+					: tints?.get(item.id)?.get(group.index);
+			if (!tint || tint.shape === "underline") return [];
+			return reflowHighlightLineBands(
+				group.units.map((unit) => glyphFrame(unit, 0, 0, sx, sy)),
+			).map((line) => (
+				<div
+					key={`${item.id}:${group.index}:${line.left}:${line.top}:${line.width}`}
+					style={{
+						position: "absolute",
+						...line,
+						backgroundColor: highlightFill(tint.color),
+						borderRadius: 1,
+					}}
+				/>
+			));
+		}),
+	);
 	return (
 		<div className="pointer-events-none absolute inset-0">
 			<div className="absolute inset-0 isolate">
@@ -189,10 +217,17 @@ export function ReflowPageOverlay({
 						style={{ backgroundColor: PDF_PAPER_TINT[tone] ?? undefined }}
 					/>
 				)}
+				{/* Keep paint inside the raster's blend group and outside the text ranges. */}
+				{fillBands.length > 0 ? (
+					<div
+						aria-hidden="true"
+						className="pdf-reflow-highlight pointer-events-none absolute inset-0"
+					>
+						{fillBands}
+					</div>
+				) : null}
 			</div>
-			{items.map((item) => {
-				const layout = item.reflowLayout;
-				if (!layout) return null;
+			{placedItems.map(({ item, layout, groups }) => {
 				const text = layout.units.map((u) => u.text).join("");
 				const assignments = assignPreservedLinks(
 					text,
@@ -203,7 +238,6 @@ export function ReflowPageOverlay({
 					},
 				);
 				let offset = 0;
-				const groups = reflowSentenceGroups(item, layout.units);
 				const placedGroups = groups.map((group) => {
 					const placed: GlyphPlacement[] = group.units.map((unit) => {
 						const start = offset;
@@ -220,39 +254,12 @@ export function ReflowPageOverlay({
 					});
 					return { index: group.index, runs: chunkPlacements(placed) };
 				});
-				const fillBands = groups.flatMap((group) => {
-					const tint =
-						group.index === undefined
-							? undefined
-							: tints?.get(item.id)?.get(group.index);
-					if (!tint || tint.shape === "underline") return [];
-					const originX = layout.box.x;
-					const originY = layout.box.y;
-					return reflowHighlightLineBands(
-						group.units.map((unit) =>
-							glyphFrame(unit, originX, originY, sx, sy),
-						),
-					).map((line) => (
-						<div
-							key={`${item.id}:${group.index}:${line.left}:${line.top}:${line.width}`}
-							style={{
-								position: "absolute",
-								left: line.left,
-								top: line.top,
-								width: line.width,
-								height: line.height,
-								backgroundColor: highlightFill(tint.color),
-								borderRadius: 1,
-							}}
-						/>
-					));
-				});
 				return (
 					<div
 						key={item.id}
 						data-layout-item={item.id}
 						// The preview raster already paints the translated glyphs. This
-						// layer provides selection geometry and blends each fill band.
+						// layer provides the text geometry for hover and selection.
 						// Above the source citation hits (z-2) and the selection tint
 						// (z-5), same slot as the block-overlay glyphs.
 						data-reflow-selection="true"
@@ -269,14 +276,6 @@ export function ReflowPageOverlay({
 							color: "transparent",
 						}}
 					>
-						{fillBands.length > 0 ? (
-							<div
-								aria-hidden="true"
-								className="pdf-reflow-highlight pointer-events-none absolute inset-0"
-							>
-								{fillBands}
-							</div>
-						) : null}
 						{placedGroups.map((group) => {
 							const tint =
 								group.index === undefined
