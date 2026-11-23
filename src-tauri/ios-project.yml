@@ -55,8 +55,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.18.1
-        CFBundleVersion: "0.18.1"
+        CFBundleShortVersionString: 0.18.2
+        CFBundleVersion: "0.18.2"
     entitlements:
       path: agentero_iOS/agentero_iOS.entitlements
     scheme:

@@ -2,6 +2,14 @@
 	"schemaVersion": 1,
 	"releases": [
 		{
+			"tag": "v0.18.2",
+			"releaseDate": "2026-11-24",
+			"summary": {
+				"zh-CN": "### 新功能\n\n- 新建 PDF 批注时，编辑框会在选区旁打开。批注默认显示为右侧卡片，也可在外观设置中改为页边图标，悬停预览，点击编辑。\n- PDF 可关闭默认开启的句子悬停高亮。关闭后，双击选中单词，拖选底色也会变浅。\n- 桌面端的本地知识库可从 AlphaXiv 导入私人高亮、批注和笔记，也可为已入库论文补导。能定位的高亮显示在 PDF 中，其余摘录和独立笔记存入 `NOTES.md`。\n- 右键点击论文库空白处，可从 AlphaXiv 或 Zotero 导入新论文到当前文件夹，也可启动 Zotero 同步以更新已有条目。\n\n### 修复\n\n- 对照阅读时，原文高亮会标到对应译句，已保存高亮的工具栏会避开被标注文字。\n- 译文中的引用和链接恢复悬停与点击，编号引文保留原文方括号。升级后首次打开已有译文时，会用缓存译文重新生成 PDF。\n- Zotero 迁移会保留原生引用键，并读取旧版 Zotero 的 Extra 字段中固定的 Better BibTeX 引用键。\n- WebDAV 服务器缺少强 ETag 时，已开启降级同步的设备可以继续同步。无法更新远端索引的备份镜像会在上传前停止。\n- 内建知乎 Agent 可正确通过问题诊断。知识库位于用户主目录下时，Pi 的项目授权检查会在主目录停止。",
+				"en": "### Features\n\n- New PDF annotation editors open beside the selection. Notes appear in cards on the right by default. Switch to page-margin icons in Appearance settings to preview notes on hover and edit them on click.\n- PDF sentence hover highlighting is on by default and can be turned off. With it off, double-click selects a word and drag selection uses a lighter tint.\n- Import private AlphaXiv highlights, annotations, and notes into a local desktop vault, including for papers already in the library. Highlights that can be placed appear in the PDF. Other excerpts and standalone notes go into `NOTES.md`.\n- Right-click empty space in the library to import new papers from AlphaXiv or Zotero into the current folder, or run Zotero sync to update existing entries.\n\n### Fixes\n\n- In side-by-side reading, source highlights mark the corresponding translated sentence. The toolbar for saved highlights stays clear of the marked text.\n- Hover and click work again on translated citations and links, and numbered citations retain their original square brackets. Opening an existing translation for the first time after upgrading rebuilds its PDF from cached translations.\n- Zotero migration preserves native citation keys and reads pinned Better BibTeX citation keys from the Extra field in older Zotero libraries.\n- Devices with degraded sync enabled can sync with WebDAV servers that lack strong ETags. Backup mirrors that cannot update their remote index stop before uploading.\n- Doctor reports the built-in Zhihu agent correctly. For vaults under the user's home directory, Pi's project trust check stops at that directory."
+			}
+		},
+		{
 			"tag": "v0.18.1",
 			"releaseDate": "2026-11-23",
 			"summary": {
