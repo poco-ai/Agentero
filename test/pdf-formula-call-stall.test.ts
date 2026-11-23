@@ -5,7 +5,12 @@ import {
 	FORMULA_PDF_CALL_STALL_MS,
 	FormulaPdfCallStalledError,
 } from "@/lib/pdf/reflow/formula-engine";
-import type { ReflowDocument } from "@/lib/pdf/reflow/types";
+import {
+	type CharacterStyle,
+	REFLOW_IR_SCHEMA_VERSION,
+	type ReflowDocument,
+} from "@/lib/pdf/reflow/types";
+import { deferred } from "./helpers/deferred";
 
 const mocks = vi.hoisted(() => ({
 	createPdfEngine: vi.fn(),
@@ -19,31 +24,53 @@ vi.mock("@/lib/pdf/engine", () => ({
 	disposePdfEngine: mocks.disposePdfEngine,
 }));
 
-const ir = {
-	version: 2,
+const box = { x: 10, y: 10, w: 40, h: 20 };
+const style: CharacterStyle = {
+	font: "Times",
+	size: 10,
+	bold: false,
+	italic: false,
+	color: { r: 0, g: 0, b: 0 },
+};
+const ir: ReflowDocument = {
+	version: REFLOW_IR_SCHEMA_VERSION,
 	pages: [
 		{
 			index: 0,
 			width: 200,
 			height: 200,
+			obstacles: [],
 			paragraphs: [
 				{
 					id: "p",
-					formulas: [{ id: "f", box: { x: 10, y: 10, w: 40, h: 20 } }],
+					pageIndex: 0,
+					box,
+					characters: [{ index: 0, text: "∑", box, visualBox: box, style }],
+					formulas: [
+						{
+							id: "0",
+							text: "∑",
+							box,
+							characterIndexes: [0],
+							baselineOffset: 0,
+						},
+					],
+					styles: {},
+					source: "∑",
+					protectedText: "⟪F0⟫",
+					style,
+					firstLineIndent: 0,
+					heading: false,
 				},
 			],
 		},
 	],
-} as ReflowDocument;
+};
 
 function engineStub(
 	impl: Partial<Record<keyof PdfEngine, (...args: never[]) => unknown>>,
 ): PdfEngine {
 	return impl as PdfEngine;
-}
-
-async function drain(): Promise<void> {
-	for (let i = 0; i < 40; i += 1) await Promise.resolve();
 }
 
 describe("formula PDFium call stall", () => {
@@ -53,15 +80,16 @@ describe("formula PDFium call stall", () => {
 	});
 
 	it("rejects a stalled call and does not accept the late result as success", async () => {
-		let finishRedact: (() => void) | undefined;
-		const redact = new Promise<void>((resolve) => {
-			finishRedact = resolve;
-		});
+		const redactStarted = deferred();
+		const redact = deferred();
 		const dedicated = engineStub({
 			openDocumentBuffer: vi.fn(() => ({
 				toPromise: async () => ({ pages: [{}] }),
 			})),
-			redactTextInRects: vi.fn(() => ({ toPromise: () => redact })),
+			redactTextInRects: vi.fn(() => {
+				redactStarted.resolve();
+				return { toPromise: () => redact.promise };
+			}),
 			saveAsCopy: vi.fn(() => ({
 				toPromise: async () => new Uint8Array([9]).buffer,
 			})),
@@ -86,7 +114,7 @@ describe("formula PDFium call stall", () => {
 			shared,
 			{} as PdfDocumentObject,
 			ir,
-			new Map([["p", "译文"]]),
+			new Map([["p", "译文⟪F0⟫"]]),
 			new Uint8Array(),
 		).then(
 			() => "ok" as const,
@@ -96,18 +124,18 @@ describe("formula PDFium call stall", () => {
 			},
 		);
 
-		await drain();
-		expect(dedicated.redactTextInRects).toHaveBeenCalled();
+		await expect(Promise.race([redactStarted.promise, pending])).resolves.toBe(
+			undefined,
+		);
 		expect(mocks.destroyPdfEngine).not.toHaveBeenCalled();
 		await vi.advanceTimersByTimeAsync(FORMULA_PDF_CALL_STALL_MS - 1);
-		await drain();
 		expect(failure).toBeUndefined();
 
 		await vi.advanceTimersByTimeAsync(1);
 		await expect(pending).resolves.toBe("err");
 		expect(failure).toBeInstanceOf(FormulaPdfCallStalledError);
-		finishRedact?.();
-		await drain();
+		redact.resolve();
+		await vi.advanceTimersByTimeAsync(0);
 
 		expect(dedicated.saveAsCopy).not.toHaveBeenCalled();
 		expect(shared.openDocumentBuffer).not.toHaveBeenCalled();
