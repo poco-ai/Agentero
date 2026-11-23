@@ -218,6 +218,12 @@ fn has_trust_requiring_project_resources(vault: &Path, home: &Path) -> bool {
     let user_agents_skills = home.join(".agents").join("skills");
     let mut current = vault.to_path_buf();
     loop {
+        // `$HOME` is the user's own level: its `.agents/skills` is never gated,
+        // and nothing above it belongs to the project's ancestry. Stopping here
+        // keeps unrelated directories above the home out of the decision.
+        if paths_equal(&current, &home) {
+            return false;
+        }
         let agents_skills = current.join(".agents").join("skills");
         if !paths_equal(&agents_skills, &user_agents_skills) && agents_skills.exists() {
             return true;
@@ -471,7 +477,10 @@ mod tests {
         let root = crate::core::fs::canonicalize_best_effort(tmp.path());
         let home = root.join("home");
         let agent_dir = home.join(".pi").join("agent");
-        let vault = root.join("project").join("vault");
+        // Keep the fixture vault under the fake home: the trust scan stops at
+        // `home`, so the host machine's own `~/.agents/skills` can never leak
+        // into the decision (temp dirs live under the real home on Windows).
+        let vault = home.join("project").join("vault");
         fs::create_dir_all(&home).unwrap();
         fs::create_dir_all(&vault).unwrap();
         Fixture {
