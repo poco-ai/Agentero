@@ -106,3 +106,72 @@ pub async fn alphaxiv_list_folders(app: AppHandle) -> ApiResult<Vec<AlphaXivFold
         Err(err) => ApiResult::err(err),
     }
 }
+
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+#[tauri::command]
+#[specta::specta]
+pub async fn alphaxiv_prepare_notes(
+    app: AppHandle,
+    vault_path: String,
+    path: String,
+    paper_group_id: String,
+    arxiv_id: String,
+) -> ApiResult<Vec<alphaxiv::notes::import::ImportedReadingRecord>> {
+    use agentero_core::features::paper::{capabilities, catalog::papers};
+    use agentero_core::features::scholar_api::identifiers::extract_arxiv_id;
+    use agentero_core::fs::{resolve_paper_dir, resolve_vault};
+
+    let result = async {
+        let key = app
+            .state::<AppSettingsStore>()
+            .alphaxiv_api_key()
+            .ok_or_else(|| {
+                AppError::domain("alphaxiv_key_missing", "AlphaXiv API key is not set")
+            })?;
+        let group = uuid::Uuid::parse_str(&paper_group_id)
+            .map_err(|_| AppError::domain("alphaxiv_parse", "Missing AlphaXiv paper group ID"))?;
+        let arxiv_id =
+            extract_arxiv_id(&arxiv_id).ok_or_else(|| AppError::message("Invalid arXiv ID"))?;
+        let vault = resolve_vault(&vault_path)?;
+        let (dir, rel) = resolve_paper_dir(&vault, &path)?;
+        let paper = papers::get_by_path(&vault, &rel)?
+            .ok_or_else(|| AppError::message("Paper not found in the library"))?;
+        let matches = paper
+            .arxiv_id
+            .as_deref()
+            .and_then(extract_arxiv_id)
+            .is_some_and(|id| id.eq_ignore_ascii_case(&arxiv_id));
+        if !matches {
+            return Err(AppError::message(
+                "The library paper does not match the AlphaXiv paper",
+            ));
+        }
+        let notes = alphaxiv::notes::fetch_paper_notes(&key, group).await?;
+        tauri::async_runtime::spawn_blocking(move || {
+            let pdf = if notes
+                .highlights
+                .iter()
+                .any(|item| matches!(item.anchor, alphaxiv::notes::HighlightAnchor::Pdf { .. }))
+            {
+                capabilities::find_local_pdf(&dir)
+                    .map(std::fs::read)
+                    .transpose()?
+            } else {
+                None
+            };
+            Ok(alphaxiv::notes::import::prepare_import(
+                notes,
+                group,
+                &arxiv_id,
+                pdf.as_deref(),
+            ))
+        })
+        .await
+        .map_err(|_| AppError::message("AlphaXiv annotation conversion failed"))?
+    }
+    .await;
+    match result {
+        Ok(records) => ApiResult::ok(records),
+        Err(error) => ApiResult::err(error),
+    }
+}

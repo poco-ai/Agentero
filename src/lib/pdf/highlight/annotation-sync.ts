@@ -1,6 +1,7 @@
 import type {
 	AnnotationEvent,
 	AnnotationScope,
+	AnnotationTransferItem,
 } from "@embedpdf/plugin-annotation";
 import { isLiveAnnotation } from "@/lib/pdf/highlight/annotation-store";
 import { normalizePathKey } from "@/lib/vault/path";
@@ -12,6 +13,27 @@ const groups = new Map<
 	{ peers: Set<Peer>; latest: Map<string, Mutation> }
 >();
 const saves = new Map<string, Promise<void>>();
+export function mergeAnnotationSnapshot(
+	snapshot: AnnotationTransferItem[],
+	disk: AnnotationTransferItem[],
+	knownIds: ReadonlySet<string>,
+	editedIds: ReadonlySet<string>,
+): AnnotationTransferItem[] {
+	const byId = new Map(disk.map((item) => [item.annotation.id, item]));
+	const preserved = snapshot.flatMap((item) => {
+		const id = item.annotation.id;
+		if (editedIds.has(id) || !knownIds.has(id)) return [item];
+		const latest = byId.get(id);
+		return latest ? [latest] : [];
+	});
+	const savedIds = new Set(preserved.map((item) => item.annotation.id));
+	return preserved.concat(
+		disk.filter(
+			(item) =>
+				!editedIds.has(item.annotation.id) && !savedIds.has(item.annotation.id),
+		),
+	);
+}
 
 /** Mirror user edits between independent PDF engines, without watcher echo or re-saving imports. */
 export function subscribeAnnotationPeer(

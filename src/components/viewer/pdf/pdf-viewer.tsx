@@ -870,6 +870,7 @@ function PdfViewerInner({
 		docCap,
 		docId,
 		paperAbsPath,
+		vaultPath,
 		paperKey,
 		totalPages,
 		onHighlightsChangeRef,

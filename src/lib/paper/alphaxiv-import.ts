@@ -5,6 +5,11 @@
  */
 
 import i18n from "@/i18n";
+import { errorText } from "@/lib/core/error";
+import {
+	type AlphaXivNotesSummary,
+	importAlphaXivNotes,
+} from "@/lib/paper/alphaxiv-notes";
 import { normalizeArxivId } from "@/lib/paper/arxiv";
 import { enqueueLookup, enqueueLookupBatch } from "@/lib/paper/import-actions";
 import { paperTagsChange } from "@/lib/paper/library-actions";
@@ -17,6 +22,7 @@ import { joinVaultPath } from "@/lib/vault";
 import { getVaultPath } from "@/lib/vault/store";
 
 export type AlphaXivImportSource = {
+	paperGroupId?: string;
 	folderName: string;
 	arxivId: string;
 	pdfUrl: string;
@@ -25,6 +31,7 @@ export type AlphaXivImportSource = {
 };
 
 export type AlphaXivImportPlanItem = {
+	paperGroupId?: string;
 	/** Bare arXiv id, version stripped, original case kept. */
 	arxivId: string;
 	pdfUrl: string;
@@ -58,6 +65,9 @@ export type AlphaXivImportSummary = {
 	failures: { title: string; message: string }[];
 	/** Absolute folder of the first newly created paper, when there is one. */
 	revealDir: string | null;
+	notes?: AlphaXivNotesSummary & {
+		failures: { title: string; message: string }[];
+	};
 };
 
 /** Bare arXiv id used as an import token. Empty when `raw` is not an arXiv id. */
@@ -95,6 +105,7 @@ export function planAlphaXivImport(
 		let item = byKey.get(key);
 		if (!item) {
 			item = {
+				...(row.paperGroupId ? { paperGroupId: row.paperGroupId } : {}),
 				arxivId,
 				pdfUrl: row.pdfUrl.trim(),
 				title: row.title.trim(),
@@ -103,6 +114,8 @@ export function planAlphaXivImport(
 			byKey.set(key, item);
 			order.push(key);
 		} else {
+			if (!item.paperGroupId && row.paperGroupId)
+				item.paperGroupId = row.paperGroupId;
 			if (!item.pdfUrl && row.pdfUrl.trim()) item.pdfUrl = row.pdfUrl.trim();
 			if (!item.title && row.title.trim()) item.title = row.title.trim();
 		}
@@ -371,7 +384,7 @@ async function importOneToken(token: string): Promise<AlphaXivItemOutcome> {
  */
 export async function importAlphaXivPlan(
 	items: readonly AlphaXivImportPlanItem[],
-	opts: { tagFolders: boolean },
+	opts: { tagFolders: boolean; importNotes?: boolean },
 ): Promise<AlphaXivImportSummary> {
 	const summary: AlphaXivImportSummary = {
 		imported: 0,
@@ -384,21 +397,48 @@ export async function importAlphaXivPlan(
 	const vaultPath = getVaultPath();
 	if (!vaultPath) throw new Error(i18n.t("sidebar:alphaxivImport.noVault"));
 
-	const batch = await importTokens(items.map((item) => item.arxivId));
-	if (!batch) throw new Error(i18n.t("sidebar:alphaxivImport.importFailed"));
-	const classified = classifyAlphaXivBatch(items, toSnapshot(batch));
+	const pathsByArxiv = new Map<string, string>();
+	if (opts.importNotes) {
+		for (const paper of libraryStore.getState().papers) {
+			const key = arxivMatchKey(paper.arxiv_id);
+			if (key && paper.path && !pathsByArxiv.has(key))
+				pathsByArxiv.set(key, paper.path);
+		}
+	}
+	const toDownload = items.filter(
+		(item) => !pathsByArxiv.has(arxivMatchKey(item.arxivId)),
+	);
+	const batch = await importTokens(toDownload.map((item) => item.arxivId));
+	if (toDownload.length && !batch)
+		throw new Error(i18n.t("sidebar:alphaxivImport.importFailed"));
+	const classified = classifyAlphaXivBatch(
+		toDownload,
+		batch ? toSnapshot(batch) : { imported: [], skipped: [], errors: [] },
+	);
 	await upgradeUnmatched(
 		vaultPath,
 		classified.outcomes,
 		classified.unmatchedPapers,
 	);
+	const notes = opts.importNotes
+		? {
+				added: 0,
+				existing: 0,
+				excerpts: 0,
+				failures: [] as { title: string; message: string }[],
+			}
+		: undefined;
+	if (notes) summary.notes = notes;
 
 	for (const item of items) {
 		const key = arxivMatchKey(item.arxivId);
-		let outcome = classified.outcomes.get(key) ?? {
-			kind: "failed" as const,
-			message: "",
-		};
+		const existingPath = pathsByArxiv.get(key);
+		let outcome: AlphaXivItemOutcome = existingPath
+			? { kind: "existing" }
+			: (classified.outcomes.get(key) ?? {
+					kind: "failed" as const,
+					message: "",
+				});
 		if (outcome.kind === "failed" && item.pdfUrl) {
 			const retried = await importOneToken(item.pdfUrl);
 			if (retried.kind !== "failed") outcome = retried;
@@ -408,6 +448,11 @@ export async function importAlphaXivPlan(
 		if (outcome.kind === "failed") {
 			summary.failed += 1;
 			summary.failures.push({ title, message: outcome.message });
+			notes?.failures.push({
+				title,
+				message:
+					outcome.message || i18n.t("sidebar:alphaxivImport.importFailed"),
+			});
 			continue;
 		}
 		if (outcome.kind === "created") summary.imported += 1;
@@ -416,6 +461,31 @@ export async function importAlphaXivPlan(
 			const dir = absolutePaperDir(vaultPath, outcome.paper);
 			if (dir) summary.revealDir = dir;
 		}
+		if (notes) {
+			try {
+				const path =
+					outcome.paper?.path ??
+					existingPath ??
+					libraryStore
+						.getState()
+						.papers.find((paper) => arxivMatchKey(paper.arxiv_id) === key)
+						?.path;
+				if (!path)
+					throw new Error(i18n.t("sidebar:alphaxivImport.notesPaperMissing"));
+				const result = await importAlphaXivNotes({
+					vaultPath,
+					path,
+					paperGroupId: item.paperGroupId ?? "",
+					arxivId: item.arxivId,
+				});
+				notes.added += result.added;
+				notes.existing += result.existing;
+				notes.excerpts += result.excerpts;
+			} catch (error) {
+				notes.failures.push({ title, message: errorText(error) });
+			}
+		}
+		if (existingPath) continue;
 		if (!opts.tagFolders) continue;
 		try {
 			await applyFolderTags(

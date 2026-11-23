@@ -2,6 +2,8 @@ import type { PdfAnnotationObject } from "@embedpdf/models";
 import { PdfAnnotationSubtype } from "@embedpdf/models";
 import type { TrackedAnnotation } from "@embedpdf/plugin-annotation";
 import type { AnnotationTransferItem } from "@embedpdf/plugin-annotation/react";
+import { commands } from "@/lib/core/bindings";
+import { callApi } from "@/lib/core/ipc";
 import { isTauri } from "@/lib/core/tauri";
 import {
 	dedupeAnnotationItems,
@@ -22,7 +24,14 @@ import {
 	MARKS_FOLDER,
 	markSelfWrite,
 } from "@/lib/pdf/selection/marks-io";
-import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
+import {
+	isPathMissingError,
+	joinVaultPath,
+	readVaultFile,
+	vaultRelativePath,
+	writeVaultFile,
+} from "@/lib/vault";
+import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 
 /**
  * Highlights/批注 are stored as EmbedPDF annotations (source of truth) in
@@ -66,8 +75,84 @@ function parseAnnotationItems(raw: string): AnnotationTransferItem[] {
 	);
 }
 
+export async function readAnnotationSnapshot(paperAbsPath: string): Promise<{
+	raw: string | null;
+	items: AnnotationTransferItem[];
+	legacy?: boolean;
+}> {
+	if (!isTauri())
+		return { raw: null, items: memoryStore.get(paperAbsPath) ?? [] };
+	for (const path of [
+		annotationsPath(paperAbsPath),
+		legacyAnnotationsPath(paperAbsPath),
+	]) {
+		let raw: string;
+		try {
+			raw = await readVaultFile(path);
+		} catch (error) {
+			if (isPathMissingError(error)) continue;
+			throw error;
+		}
+		const items: unknown = JSON.parse(raw);
+		if (
+			!Array.isArray(items) ||
+			items.some(
+				(item) => !item?.annotation || typeof item.annotation !== "object",
+			)
+		) {
+			throw new Error("Invalid PDF annotations file");
+		}
+		return {
+			raw,
+			items: dedupeAnnotationItems(
+				(items as AnnotationTransferItem[]).map(reviveAnnotationDates),
+			),
+			legacy: path === legacyAnnotationsPath(paperAbsPath),
+		};
+	}
+	return { raw: null, items: [] };
+}
+
+export async function mergeAnnotationItems<Result>(
+	paperAbsPath: string,
+	merge: (current: AnnotationTransferItem[]) => {
+		items: AnnotationTransferItem[];
+		result: Result;
+	},
+	vault: string | null,
+): Promise<Result> {
+	const relative =
+		vault && !isRemoteVaultHandle(vault)
+			? vaultRelativePath(vault, paperAbsPath)
+			: null;
+	for (let attempt = 0; attempt < 4; attempt++) {
+		const {
+			raw,
+			items: current,
+			legacy,
+		} = await readAnnotationSnapshot(paperAbsPath);
+		const { items, result } = merge(current);
+		if (items === current) return result;
+		if (!isTauri() || !vault || !relative) {
+			await saveAnnotationItems(paperAbsPath, items);
+			return result;
+		}
+		const data = `${JSON.stringify(dedupeAnnotationItems(items), null, 2)}\n`;
+		if (data === raw && !legacy) return result;
+		markSelfWrite(annotationsPath(paperAbsPath));
+		if (
+			await callApi(() =>
+				commands.pdfSaveAnnotations(vault, relative, raw, data),
+			)
+		)
+			return result;
+	}
+	throw new Error("PDF annotations changed during save. Try again.");
+}
+
 export async function loadAnnotationItems(
 	paperAbsPath: string,
+	vaultPath: string | null = null,
 ): Promise<AnnotationTransferItem[]> {
 	if (!paperAbsPath) return [];
 	if (!isTauri()) {
@@ -87,16 +172,14 @@ export async function loadAnnotationItems(
 		const items = parseAnnotationItems(
 			await readVaultFile(legacyAnnotationsPath(paperAbsPath)),
 		);
-		if (items.length) {
-			await saveAnnotationItems(paperAbsPath, items);
-		} else {
-			// Empty file still belongs under marks/ once discovered.
-			const path = annotationsPath(paperAbsPath);
-			markSelfWrite(path);
-			await writeVaultFile(path, `${JSON.stringify([], null, 2)}\n`);
-		}
-		await removeFileIfExists(legacyAnnotationsPath(paperAbsPath));
-		return items;
+		return await mergeAnnotationItems(
+			paperAbsPath,
+			(current) => {
+				const next = dedupeAnnotationItems([...current, ...items]);
+				return { items: next, result: next };
+			},
+			vaultPath,
+		);
 	} catch {
 		return [];
 	}
@@ -117,25 +200,6 @@ export async function saveAnnotationItems(
 	await writeVaultFile(path, `${JSON.stringify(next, null, 2)}\n`);
 	// Drop legacy root copy if present so marks/ is the only location.
 	await removeFileIfExists(legacyAnnotationsPath(paperAbsPath));
-}
-
-export async function hasAnnotationsFile(
-	paperAbsPath: string,
-): Promise<boolean> {
-	if (!paperAbsPath) return false;
-	if (!isTauri()) return memoryStore.has(paperAbsPath);
-	for (const path of [
-		annotationsPath(paperAbsPath),
-		legacyAnnotationsPath(paperAbsPath),
-	]) {
-		try {
-			await readVaultFile(path);
-			return true;
-		} catch {
-			// try next
-		}
-	}
-	return false;
 }
 
 /** Text-markup annotations the reader creates and edits (highlight / underline). */

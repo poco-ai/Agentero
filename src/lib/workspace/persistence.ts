@@ -17,6 +17,7 @@ import { isResearchTablePath } from "@/lib/research-table/model";
 import { onTexFileSaved } from "@/lib/tex/auto-build";
 import {
 	isMarkdownPath,
+	isPathMissingError,
 	readVaultFile,
 	vaultRelativePath,
 	writeVaultFile,
@@ -71,6 +72,43 @@ const persistQueues: Record<PersistKind, Map<string, Promise<boolean>>> = {
 	markdown: new Map(),
 	text: new Map(),
 };
+
+export async function updateMarkdownOnDisk(
+	path: string,
+	transform: (current: string) => string,
+	dirtyError: string,
+): Promise<void> {
+	const key = normalizeTabPath(path);
+	const queue = persistQueues.markdown;
+	const attempt = (queue.get(key) ?? Promise.resolve(false))
+		.catch(() => false)
+		.then(async () => {
+			const current = await readVaultFile(path).catch((error: unknown) => {
+				if (isPathMissingError(error)) return "";
+				throw error;
+			});
+			const next = transform(current);
+			if (next === current) return false;
+			if (
+				getTabs().some(
+					(tab) =>
+						(tab.notesDirty && normalizeTabPath(tab.notesPath ?? "") === key) ||
+						(tab.markdownDirty && normalizeTabPath(tab.path) === key),
+				)
+			) {
+				throw new Error(dirtyError);
+			}
+			await writeVaultFile(path, next);
+			await applyDiskChange(path);
+			return true;
+		});
+	queue.set(key, attempt);
+	try {
+		await attempt;
+	} finally {
+		if (queue.get(key) === attempt) queue.delete(key);
+	}
+}
 
 /** Post-write outcome per kind, run only after the write is confirmed. */
 const persistOutcomes: Record<

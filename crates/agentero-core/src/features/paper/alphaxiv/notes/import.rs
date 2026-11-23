@@ -29,13 +29,13 @@ pub fn prepare_import(
     group: Uuid,
     arxiv_id: &str,
     pdf: Option<&[u8]>,
-) -> Result<Vec<ImportedReadingRecord>, AppError> {
+) -> Vec<ImportedReadingRecord> {
     let mut records = Vec::new();
     if !notes.body.trim().is_empty() {
         records.push(ImportedReadingRecord {
             source_id: format!("alphaxiv-note-{group}"),
             annotations: Vec::new(),
-            markdown: Some(format!("**Paper note**\n\n{}", notes.body.trim())),
+            markdown: Some(quote_markdown(notes.body.trim())),
             excerpt: false,
         });
     }
@@ -46,8 +46,7 @@ pub fn prepare_import(
                 .iter()
                 .any(|item| matches!(item.anchor, HighlightAnchor::Pdf { .. }))
         })
-        .map(first_page_text)
-        .transpose()?
+        .and_then(|pdf| first_page_text(pdf).ok())
         .and_then(|text| version_from_text(&text, &arxiv_id.to_ascii_lowercase()));
 
     for highlight in notes.highlights {
@@ -55,8 +54,9 @@ pub fn prepare_import(
         let (annotations, target, quote) = match &highlight.anchor {
             HighlightAnchor::Pdf { annotation } => {
                 let geometry = pdf
-                    .map(|pdf| geometry(pdf, &highlight, annotation, local_version.as_deref()))
-                    .transpose()?
+                    .and_then(|pdf| {
+                        geometry(pdf, &highlight, annotation, local_version.as_deref()).ok()
+                    })
                     .unwrap_or_default();
                 let (stroke, palette, opacity) = paint(annotation.highlight_color.as_deref());
                 let date = chrono::DateTime::parse_from_rfc3339(&highlight.date)
@@ -102,16 +102,12 @@ pub fn prepare_import(
         };
         let excerpt = annotations.is_empty();
         let markdown = excerpt.then(|| {
-            let quote = quote
-                .lines()
-                .map(|line| format!("> {line}"))
-                .collect::<Vec<_>>()
-                .join("\n");
+            let quote = quote_markdown(quote);
             let version = extract_arxiv_request(&highlight.canonical_id)
                 .unwrap_or_else(|| arxiv_id.to_string());
             format!(
                 "**{target} · {version}**\n\n{quote}\n\n{}",
-                highlight.body.trim()
+                quote_markdown(highlight.body.trim())
             )
         });
         records.push(ImportedReadingRecord {
@@ -121,7 +117,14 @@ pub fn prepare_import(
             excerpt,
         });
     }
-    Ok(records)
+    records
+}
+
+fn quote_markdown(text: &str) -> String {
+    text.lines()
+        .map(|line| format!("> {line}"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn geometry(
@@ -246,7 +249,7 @@ mod tests {
     #[test]
     fn notes_geometry_and_fallback() {
         let exact = crate::features::pdf::tiny_pdf("arXiv:2601.01416v1");
-        let records = prepare_import(fixture(), Uuid::nil(), "2601.01416", Some(&exact)).unwrap();
+        let records = prepare_import(fixture(), Uuid::nil(), "2601.01416", Some(&exact));
         assert_eq!(records.len(), 3);
         assert!(records[0]
             .markdown
@@ -262,16 +265,16 @@ mod tests {
         assert!((annotation["opacity"].as_f64().unwrap() - 64.0 / 255.0).abs() < 1e-9);
         let unique = crate::features::pdf::tiny_pdf("A distinctive sentence");
         assert_eq!(
-            prepare_import(fixture(), Uuid::nil(), "2601.01416", Some(&unique)).unwrap()[1]
+            prepare_import(fixture(), Uuid::nil(), "2601.01416", Some(&unique))[1]
                 .annotations
                 .len(),
             1
         );
         let ambiguous =
             crate::features::pdf::tiny_pdf("A distinctive sentence. A distinctive sentence.");
+        assert!(prepare_import(fixture(), Uuid::nil(), "2601.01416", Some(&ambiguous))[1].excerpt);
         assert!(
-            prepare_import(fixture(), Uuid::nil(), "2601.01416", Some(&ambiguous)).unwrap()[1]
-                .excerpt
+            prepare_import(fixture(), Uuid::nil(), "2601.01416", Some(b"not a PDF"))[1].excerpt
         );
     }
 }

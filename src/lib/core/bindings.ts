@@ -708,6 +708,7 @@ export const commands = {
 	 *  its papers. Uses the stored key only.
 	 */
 	alphaxivListFolders: () => __TAURI_INVOKE<ApiResult<AlphaXivFolder[]>>("alphaxiv_list_folders"),
+	alphaxivPrepareNotes: (vaultPath: string, path: string, paperGroupId: string, arxivId: string) => __TAURI_INVOKE<ApiResult<ImportedReadingRecord[]>>("alphaxiv_prepare_notes", { vaultPath, path, paperGroupId, arxivId }),
 	/**  Current sync binding + last-pass info for the settings pane. */
 	syncGetStatus: (args: SyncVaultArgs) => typedError<ApiResult<SyncStatus_Serialize>, string>(__TAURI_INVOKE("sync_get_status", { args })),
 	/**  Validate + connection-test + persist the S3 binding for a vault. */
@@ -789,6 +790,7 @@ export const commands = {
 	exportSystemCjkFont: () => __TAURI_INVOKE<ApiResult<ExportFontPayload>>("export_system_cjk_font"),
 	/**  Replace only the exact PDF revision the outline editor read. */
 	pdfSaveBookmarks: (path: string, expectedHash: string, bytesBase64: string) => __TAURI_INVOKE<ApiResult<null>>("pdf_save_bookmarks", { path, expectedHash, bytesBase64 }),
+	pdfSaveAnnotations: (vaultPath: string, path: string, expected: string | null, data: string) => __TAURI_INVOKE<ApiResult<boolean>>("pdf_save_annotations", { vaultPath, path, expected, data }),
 	/**
 	 *  Ensure `host` may be served by the `agentero-web` proxy before its viewer
 	 *  frame loads.
@@ -3701,6 +3703,13 @@ export type ImportLocalPdfResult_Serialize = {
 	errors: string[],
 };
 
+export type ImportedReadingRecord = {
+	sourceId: string,
+	annotations: Json[],
+	markdown: string | null,
+	excerpt: boolean,
+};
+
 export type InstitutionProxyPreset = {
 	id: string,
 	prefix: string,
@@ -4595,7 +4604,6 @@ export type OpenInTerminalResult = {
 	/**  Absolute directory opened as the terminal cwd. */
 	cwd: string,
 };
-
 
 /**  Why the OpenReview PDF is still missing after trying available sources. */
 export type OpenReviewPdfIssue = "verificationRequired" | "rateLimited" | "network" | "unavailable" | "downloadFailed";

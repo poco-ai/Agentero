@@ -13,7 +13,6 @@ import {
 	HIGHLIGHT_OPACITY,
 	normalizeHighlightColor,
 } from "@/lib/pdf/highlight/palette";
-import { deleteMarkFile } from "@/lib/pdf/selection/marks-io";
 import { unionRectsAll } from "@/lib/pdf/selection-appearance";
 
 /**
@@ -23,8 +22,7 @@ import { unionRectsAll } from "@/lib/pdf/selection-appearance";
  * Normalized rects (top-left origin, y-down) are scaled by the page size in
  * points. Ask/Translate marks are left untouched.
  *
- * Migrated text-markup mark files are deleted so `marks/annotations.json`
- * becomes the single source of truth for highlights/批注.
+ * The caller removes the legacy files after saving the merged sidecar.
  */
 export async function migrateHighlightMarks(
 	paperAbsPath: string,
@@ -34,7 +32,6 @@ export async function migrateHighlightMarks(
 	if (!olds.length) return [];
 
 	const items: AnnotationTransferItem[] = [];
-	const migratedIds: string[] = [];
 
 	for (const h of olds) {
 		const pageIndex = Math.max(0, Math.floor(h.page) - 1);
@@ -61,15 +58,6 @@ export async function migrateHighlightMarks(
 			: { ...base, type: PdfAnnotationSubtype.HIGHLIGHT };
 		if (h.comment?.trim()) obj.contents = h.comment.trim();
 		items.push({ annotation: obj });
-		migratedIds.push(h.id);
-	}
-
-	for (const id of migratedIds) {
-		try {
-			await deleteMarkFile(paperAbsPath, id);
-		} catch {
-			// leaving a stale mark is harmless; ignore
-		}
 	}
 
 	return items;

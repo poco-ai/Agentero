@@ -246,6 +246,8 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::paper::alphaxiv::commands::alphaxiv_save_key,
             crate::features::paper::alphaxiv::commands::alphaxiv_clear_key,
             crate::features::paper::alphaxiv::commands::alphaxiv_list_folders,
+            #[cfg(not(any(target_os = "ios", target_os = "android")))]
+            crate::features::paper::alphaxiv::commands::alphaxiv_prepare_notes,
             crate::integration::sync::commands::sync_get_status,
             crate::integration::sync::commands::sync_configure,
             crate::integration::sync::commands::sync_disconnect,
@@ -289,6 +291,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::core::telemetry::commands::feedback_submit,
             crate::features::pdf::export::commands::export_system_cjk_font,
             crate::features::pdf::bookmarks::pdf_save_bookmarks,
+            crate::features::pdf::annotations::pdf_save_annotations,
             crate::features::web::commands::web_proxy_allow_host,
             crate::features::web::commands::html_preview_grant,
             crate::features::compile::detect_latex_engines,

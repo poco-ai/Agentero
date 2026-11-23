@@ -275,6 +275,7 @@ export function PdfTranslationViewerInner({
 		docCap,
 		docId,
 		paperAbsPath,
+		vaultPath,
 		paperKey,
 		totalPages: docCap?.getDocument(docId)?.pages.length ?? 0,
 		onHighlightsChangeRef,
