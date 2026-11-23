@@ -43,7 +43,7 @@ jobs:
     name: Webhook
     runs-on: ubuntu-latest
     steps:
-      - uses: junka/feishu-bot-webhook-action@main
+      - uses: junka/feishu-bot-webhook-action@1.0.11
         with:
           webhook: ${{ secrets.FEISHU_BOT_WEBHOOK }}
           signkey: ${{ secrets.FEISHU_BOT_SIGNKEY }}

@@ -72,7 +72,7 @@ jobs:
 
       - name: Setup pnpm
         if: steps.signing-config.outputs.ready == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           run_install: false
 
