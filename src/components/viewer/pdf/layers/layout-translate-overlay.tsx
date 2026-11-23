@@ -809,6 +809,7 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 								{index > 0 ? sentenceNodes.gap : null}
 								<span
 									data-sentence={node.index}
+									data-highlight-id={tint?.highlightId}
 									className={cn(tint?.shape !== "underline" && "rounded-[1px]")}
 									style={
 										tint

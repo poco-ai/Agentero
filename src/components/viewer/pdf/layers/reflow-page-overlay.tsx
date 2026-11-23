@@ -328,6 +328,7 @@ export function ReflowPageOverlay({
 											return (
 												<span
 													key={key}
+													data-highlight-id={tint?.highlightId}
 													style={glyphStyle(
 														frame,
 														first.unit.fontSize * sy,
@@ -350,6 +351,7 @@ export function ReflowPageOverlay({
 										return (
 											<a
 												key={key}
+												data-highlight-id={tint?.highlightId}
 												href={assignment.url ?? "#"}
 												draggable={false}
 												aria-label={assignment.text}
