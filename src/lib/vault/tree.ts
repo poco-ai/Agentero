@@ -200,12 +200,22 @@ type TreeAdapter = {
  */
 export function isPathMissingError(error: unknown): boolean {
 	const msg = errorText(error).toLowerCase();
-	return (
+	if (
 		msg.includes("no such file") ||
 		msg.includes("nosuchfile") ||
 		msg.includes("not found") ||
 		msg.includes("enoent") ||
 		msg.includes("does not exist")
+	) {
+		return true;
+	}
+	// Windows: the FS plugin forwards Rust's io error text, which is localized
+	// (`系统找不到指定的文件。 (os error 2)`) except for the numeric code.
+	// 2 = ERROR_FILE_NOT_FOUND, 3 = ERROR_PATH_NOT_FOUND.
+	return (
+		/\bos error:? ?(2|3)\b/.test(msg) ||
+		msg.includes("cannot find the file specified") ||
+		msg.includes("cannot find the path specified")
 	);
 }
 

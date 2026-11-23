@@ -185,6 +185,38 @@ describe("isPathMissingError", () => {
 		expect(isPathMissingError("directory does not exist")).toBe(true);
 		expect(isPathMissingError(new Error("permission denied"))).toBe(false);
 	});
+
+	it("matches Windows missing file and missing directory errors", () => {
+		// Rust's io::Error reaches the webview through the FS plugin as text.
+		// The prose is localized; the numeric code is the stable part.
+		expect(
+			isPathMissingError(
+				new Error("The system cannot find the file specified. (os error 2)"),
+			),
+		).toBe(true);
+		expect(
+			isPathMissingError(
+				"The system cannot find the path specified. (os error 3)",
+			),
+		).toBe(true);
+		expect(isPathMissingError("系统找不到指定的文件。 (os error 2)")).toBe(
+			true,
+		);
+		expect(isPathMissingError("系统找不到指定的路径。 (os error 3)")).toBe(
+			true,
+		);
+		// Unrelated Windows errors must stay hard failures.
+		expect(
+			isPathMissingError(
+				new Error(
+					"The process cannot access the file because it is being used by another process. (os error 32)",
+				),
+			),
+		).toBe(false);
+		expect(
+			isPathMissingError(new Error("Access is denied. (os error 5)")),
+		).toBe(false);
+	});
 });
 
 describe("compareVaultTreeNodes", () => {
