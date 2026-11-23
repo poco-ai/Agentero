@@ -47,6 +47,7 @@ import { usePdfLinkUrlTip } from "@/components/viewer/pdf/hooks/use-pdf-link-url
 import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-tone";
 import { usePdfReadingMode } from "@/components/viewer/pdf/hooks/use-pdf-reading-mode";
 import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
+import { useSentenceGlyphRects } from "@/components/viewer/pdf/hooks/use-pdf-sentence-glyph-rects";
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
 import { useReflowDisplayDocument } from "@/components/viewer/pdf/hooks/use-reflow-display-document";
 import { getLinkDestination } from "@/components/viewer/pdf/layers/citation-links";
@@ -309,6 +310,15 @@ export function PdfTranslationViewerInner({
 		() => partitionHighlightPaint(highlights.highlights),
 		[highlights.highlights],
 	);
+	// English glyph boxes, same as the source pane. A word or half-sentence
+	// highlight only finds its sentence by overlap; quote text misses it.
+	const sentenceRectsByItemId = useSentenceGlyphRects({
+		engine,
+		docCapRef,
+		docId,
+		itemsByPage: layoutTranslateItemsByPage,
+		highlightQuotesByPage: highlightPaint.quotesByPage,
+	});
 
 	const reflowDisplayDocument = useReflowDisplayDocument(
 		docCap,
@@ -483,6 +493,7 @@ export function PdfTranslationViewerInner({
 			layoutTranslatePageStateByPage,
 			linkInkByKey,
 			glyphRunsByPage,
+			sentenceRectsByItemId,
 		}),
 		[
 			rawRegionsByPage,
@@ -490,6 +501,7 @@ export function PdfTranslationViewerInner({
 			layoutTranslatePageStateByPage,
 			linkInkByKey,
 			glyphRunsByPage,
+			sentenceRectsByItemId,
 		],
 	);
 
