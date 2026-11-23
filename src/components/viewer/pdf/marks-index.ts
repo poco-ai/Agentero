@@ -40,6 +40,11 @@ export type MarksIndexInput = {
 	pageTextMap: ReadonlyMap<number, NormalizedRect[]>;
 	/** Catalog title for comment-rail wikilink aliases. */
 	paperTitle: string | undefined;
+	/**
+	 * Gutter display mode: every note also gets an `annotate` pin beside its
+	 * last line, since the rail cards that made it findable are gone.
+	 */
+	commentPins?: boolean;
 };
 
 export type MarksIndex = {
@@ -49,6 +54,11 @@ export type MarksIndex = {
 	commentsByPage: Map<number, PageAnnotationComment[]>;
 };
 
+/** Pin tooltip text: one line, capped. */
+function pinPreview(text: string): string {
+	return text.replace(/\s+/g, " ").trim().slice(0, 96);
+}
+
 export function buildMarksIndex({
 	highlights,
 	highlightAnchors,
@@ -57,6 +67,7 @@ export function buildMarksIndex({
 	visualTraces,
 	pageTextMap,
 	paperTitle,
+	commentPins = false,
 }: MarksIndexInput): MarksIndex {
 	const pins = new Map<number, SelectionPin[]>();
 	const comments = new Map<number, PageAnnotationComment[]>();
@@ -64,6 +75,28 @@ export function buildMarksIndex({
 		const list = pins.get(page);
 		if (list) list.push(pin);
 		else pins.set(page, [pin]);
+	};
+	// A note's pin sits where its card opens from. The translated boxes ride
+	// along for when the page translation is showing.
+	const addNotePin = (
+		page: number,
+		id: string,
+		rects: NormalizedRect[],
+		note: string,
+		translatedRects?: NormalizedRect[],
+	) => {
+		const pageText = pageTextMap.get(page - 1);
+		const pin = pinFromRects(rects, pageText);
+		add(page, {
+			id,
+			kind: "annotate",
+			x: pin.x,
+			y: pin.y,
+			preview: pinPreview(note),
+			overText: pinObscuresBodyText(pin, pageText),
+			side: pin.side,
+			...(translatedRects?.length ? { translatedRects } : {}),
+		});
 	};
 	for (const highlight of highlights) {
 		const comment = highlight.comment?.trim();
@@ -93,6 +126,15 @@ export function buildMarksIndex({
 		const list = comments.get(highlight.page);
 		if (list) list.push(entry);
 		else comments.set(highlight.page, [entry]);
+		if (commentPins) {
+			addNotePin(
+				highlight.page,
+				highlight.id,
+				highlight.rects,
+				comment,
+				highlight.translatedRects,
+			);
+		}
 	}
 	for (const anchor of askPinAnchors) {
 		const pageText = pageTextMap.get(anchor.page - 1);
@@ -116,16 +158,12 @@ export function buildMarksIndex({
 		if (!translate.pinned || translate.rects.length === 0) continue;
 		const pageText = pageTextMap.get(translate.page - 1);
 		const pin = pinFromRects(translate.rects, pageText);
-		const preview = (translate.quote || translate.result || "")
-			.replace(/\s+/g, " ")
-			.trim()
-			.slice(0, 96);
 		add(translate.page, {
 			id: translate.id,
 			kind: "translate",
 			x: pin.x,
 			y: pin.y,
-			preview,
+			preview: pinPreview(translate.quote || translate.result || ""),
 			overText: pinObscuresBodyText(pin, pageText),
 			side: pin.side,
 		});
@@ -164,6 +202,9 @@ export function buildMarksIndex({
 			const list = comments.get(trace.page);
 			if (list) list.push(entry);
 			else comments.set(trace.page, [entry]);
+			if (commentPins) {
+				addNotePin(trace.page, trace.id, trace.rects, trace.comment);
+			}
 		}
 		// Marks with an active Agent conversation keep a gutter pin. When there is
 		// no comment the pin becomes the conversation entry point.
@@ -220,15 +261,20 @@ export function askHighlightRects(
 }
 
 /**
- * Move an ask gutter pin next to the translated selection while that
- * translation is showing. English pin geometry is unchanged.
+ * Move a quick-chat or note gutter pin next to the translated selection while
+ * that translation is showing. English pin geometry is unchanged.
  */
 export function selectionPinForVisibleTranslation(
 	pin: SelectionPin,
 	translationVisible: boolean,
 ): SelectionPin {
 	const rects = pin.translatedRects;
-	if (pin.kind !== "ask" || !translationVisible || !rects?.length) return pin;
+	if (
+		(pin.kind !== "ask" && pin.kind !== "annotate") ||
+		!translationVisible ||
+		!rects?.length
+	)
+		return pin;
 	let y = rects[0]?.y ?? pin.y;
 	for (const rect of rects) y = Math.min(y, rect.y);
 	return y === pin.y ? pin : { ...pin, y };

@@ -144,6 +144,7 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 	onEditHighlightAnnotation: NOOP,
 	onChangeHighlightColor: NOOP,
 	onOpenComment: NOOP,
+	onLeavePin: NOOP,
 	onSaveComment: NOOP,
 	onCancelComment: NOOP,
 	onDeleteComment: NOOP,

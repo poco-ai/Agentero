@@ -570,6 +570,7 @@ export function SettingsContent({
 									pdfSpreadMode={settings.pdfSpreadMode}
 									pdfTranslateTab={settings.pdfTranslateTab}
 									pdfSentenceHover={settings.pdfSentenceHover}
+									pdfCommentDisplay={settings.pdfCommentDisplay}
 									vimMode={settings.vimMode}
 									patch={patch}
 								/>

@@ -189,6 +189,9 @@ pub struct AppSettings {
     /// Sentence wash and whole-sentence double-click. Default on.
     #[serde(default = "default_true")]
     pub pdf_sentence_hover: bool,
+    /// PDF annotation notes: `rail` (default) | `gutter`.
+    #[serde(default = "default_pdf_comment_display")]
+    pub pdf_comment_display: String,
     #[serde(default = "default_library_columns")]
     pub library_columns: Vec<LibraryColumnPref>,
     #[serde(default)]
@@ -624,6 +627,7 @@ impl Default for AppSettings {
             pdf_spread_mode: default_pdf_spread_mode(),
             pdf_translate_tab: default_pdf_translate_tab(),
             pdf_sentence_hover: true,
+            pdf_comment_display: default_pdf_comment_display(),
             library_columns: default_library_columns(),
             connector_enabled: false,
             connector_port: default_connector_port(),
@@ -727,6 +731,9 @@ fn default_pdf_spread_mode() -> String {
 }
 fn default_pdf_translate_tab() -> String {
     "hover".into()
+}
+fn default_pdf_comment_display() -> String {
+    "rail".into()
 }
 /// Canonical papers-Library column keys, in default order.
 const LIBRARY_COLUMN_KEYS: &[&str] = &[
@@ -1742,6 +1749,9 @@ fn normalize(s: &mut AppSettings) {
     if !["hover", "always", "hidden"].contains(&s.pdf_translate_tab.as_str()) {
         s.pdf_translate_tab = default_pdf_translate_tab();
     }
+    if !["rail", "gutter"].contains(&s.pdf_comment_display.as_str()) {
+        s.pdf_comment_display = default_pdf_comment_display();
+    }
 
     // Library columns: drop unknown/duplicate keys, append missing ones
     // with their default visibility, and keep `title` visible.
@@ -2451,6 +2461,28 @@ mod tests {
         };
         normalize(&mut off);
         assert!(!off.pdf_sentence_hover);
+    }
+
+    #[test]
+    fn pdf_comment_display_falls_back_to_rail() {
+        let mut value = serde_json::to_value(AppSettings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("pdfCommentDisplay");
+        let parsed: AppSettings = serde_json::from_value(value).unwrap();
+        assert_eq!(parsed.pdf_comment_display, "rail");
+
+        let mut s = AppSettings {
+            pdf_comment_display: "margin".into(),
+            ..AppSettings::default()
+        };
+        normalize(&mut s);
+        assert_eq!(s.pdf_comment_display, "rail");
+
+        let mut gutter = AppSettings {
+            pdf_comment_display: "gutter".into(),
+            ..AppSettings::default()
+        };
+        normalize(&mut gutter);
+        assert_eq!(gutter.pdf_comment_display, "gutter");
     }
 
     #[test]

@@ -389,6 +389,11 @@
 		"pdfSentenceHover": {
 			"label": "Sentence hover highlight"
 		},
+		"pdfCommentDisplay": {
+			"label": "PDF annotations",
+			"rail": "Cards on the right",
+			"gutter": "Hover icon"
+		},
 		"fonts": {
 			"section": "Fonts",
 			"interface": "Interface font",

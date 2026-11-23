@@ -338,6 +338,7 @@ function LayoutElementMenu({
 								shape,
 								pages,
 								visualRegion: needsCrop ? action.bbox : undefined,
+								rects: needsCrop ? [action.bbox] : anchor.rects,
 							});
 							closeLayoutElementAction();
 						}

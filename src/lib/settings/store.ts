@@ -52,6 +52,7 @@ import {
 	isConfigReminderId,
 	isDecisionProviderId,
 	isPaperNoteMode,
+	isPdfCommentDisplay,
 	isPdfScrollStrategy,
 	isPdfSpreadMode,
 	isPdfTranslateTabMode,
@@ -476,6 +477,9 @@ function normalizePartial(
 	}
 	if (typeof parsed.pdfSentenceHover !== "boolean") {
 		merged.pdfSentenceHover = DEFAULT_SETTINGS.pdfSentenceHover;
+	}
+	if (!isPdfCommentDisplay(merged.pdfCommentDisplay)) {
+		merged.pdfCommentDisplay = DEFAULT_SETTINGS.pdfCommentDisplay;
 	}
 	merged.libraryColumns = normalizeLibraryColumns(merged.libraryColumns);
 	if (typeof parsed.autoPaperReader !== "boolean") {

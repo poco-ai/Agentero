@@ -216,6 +216,7 @@ import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
 import { pickPdfSearchDocumentId } from "@/lib/pdf/search-target";
 import {
 	type ActiveSelectionCard,
+	pinFromRects,
 	selectionAnchorKey,
 } from "@/lib/pdf/selection";
 import { isSelectionInsertionRegion } from "@/lib/pdf/selection-appearance";
@@ -491,6 +492,12 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 	);
 });
 
+/**
+ * How long the rail stays revealed after a note is confirmed in place, so the
+ * reader sees which card the note became before the column tucks away again.
+ */
+const RAIL_LANDING_MS = 1200;
+
 /** Identity of the selected text. Screen position is not part of it, so scrolling does not look like a new selection. */
 function selectionCommentKey(menu: SelectionMenuState | null): string {
 	if (!menu) return "";
@@ -579,6 +586,7 @@ function PdfViewerInner({
 	// `readingSentenceLayer` stays on in the reader so the element layer does
 	// not start its own sentence tracking when the wash is disabled.
 	const pdfSentenceHover = useSettings((s) => s.pdfSentenceHover);
+	const commentDisplay = useSettings((s) => s.pdfCommentDisplay);
 	const readingSentenceLayer = syncTexScope !== "writing";
 	const sentenceHover = readingSentenceLayer && pdfSentenceHover;
 	const [importBusy, setImportBusy] = useState(false);
@@ -1476,6 +1484,7 @@ function PdfViewerInner({
 	 * placement walks the page's whole text-rect list, so doing it inside
 	 * renderPage cost that walk for every mounted page on every scroll frame.
 	 */
+	const commentPins = commentDisplay === "gutter";
 	const { pinsByPage, commentsByPage: commentsByPageBase } = useMemo(
 		() =>
 			buildMarksIndex({
@@ -1486,6 +1495,7 @@ function PdfViewerInner({
 				visualTraces,
 				pageTextMap,
 				paperTitle,
+				commentPins,
 			}),
 		[
 			highlights,
@@ -1495,6 +1505,7 @@ function PdfViewerInner({
 			visualTraces,
 			pageTextMap,
 			paperTitle,
+			commentPins,
 		],
 	);
 
@@ -2092,6 +2103,7 @@ function PdfViewerInner({
 		openCard,
 		openEditorForAnnotation,
 		beginRailEdit,
+		previewComment: setHoveredCommentId,
 		annotationCap,
 		docId,
 		deleteHighlightAnnotation,
@@ -2290,6 +2302,27 @@ function PdfViewerInner({
 	]);
 
 	// Keep the clicked selection while focusing the comment editor clears it.
+	// After a note is confirmed, the rail shows where it landed for a moment.
+	const [railLanding, setRailLanding] = useState<{
+		page: number;
+	} | null>(null);
+	useEffect(() => {
+		if (!railLanding) return;
+		// A press or a scroll is reading intent elsewhere: tuck the rail away.
+		const leave = (event: Event) => {
+			if ((event.target as Element | null)?.closest?.("[data-pdf-chrome]"))
+				return;
+			setRailLanding(null);
+		};
+		const timer = setTimeout(() => setRailLanding(null), RAIL_LANDING_MS);
+		document.addEventListener("pointerdown", leave, true);
+		document.addEventListener("wheel", leave, { capture: true, passive: true });
+		return () => {
+			clearTimeout(timer);
+			document.removeEventListener("pointerdown", leave, true);
+			document.removeEventListener("wheel", leave, true);
+		};
+	}, [railLanding]);
 	const [selectionCommentDraft, setSelectionCommentDraft] =
 		useState<SelectionCommentDraft | null>(null);
 	const selectionCommentDraftRef = useRef(selectionCommentDraft);
@@ -2305,16 +2338,34 @@ function PdfViewerInner({
 		}
 	}, [isRemotePaper, plainViewer, selectionCommentKeyValue]);
 
-	const beginSelectionComment = useCallback((draft: SelectionCommentDraft) => {
-		selectionCommentEngagedRef.current = true;
-		setSelectionCommentDraft(draft);
-	}, []);
+	const beginSelectionComment = useCallback(
+		(draft: SelectionCommentDraft) => {
+			selectionCommentEngagedRef.current = true;
+			setRailLanding(null);
+			// The editor opens where the saved note's gutter pin will sit, so
+			// it follows the same placement rule (and the same page text).
+			setSelectionCommentDraft(
+				draft.rects?.length
+					? {
+							...draft,
+							pin: pinFromRects(
+								draft.rects,
+								pageTextMapRef.current.get(draft.page - 1),
+							),
+						}
+					: draft,
+			);
+		},
+		[pageTextMapRef],
+	);
 
 	const handleMenuNote = useCallback(
 		(shape: PdfTextMarkupKind = "highlight") => {
 			const menu = selectionMenuRef.current;
 			if (!menu?.pages.length || isRemotePaper || plainViewer) return;
 			const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
+			// A translation-overlay selection is visible through its own boxes.
+			const shown = menu.visiblePages?.at(-1);
 			beginSelectionComment({
 				page: visible?.page ?? menu.anchor.page,
 				anchorY: visible?.anchorY ?? menu.anchor.rects[0]?.y ?? 0,
@@ -2322,6 +2373,7 @@ function PdfViewerInner({
 				shape,
 				pages: menu.pages,
 				visiblePages: menu.visiblePages,
+				rects: shown?.rects.length ? shown.rects : menu.anchor.rects,
 			});
 			closeSelectionMenu();
 		},
@@ -2335,6 +2387,7 @@ function PdfViewerInner({
 	const handleDismissSelectionComment = useCallback(() => {
 		selectionCommentEngagedRef.current = false;
 		setSelectionCommentDraft(null);
+		setRailLanding(null);
 		closeSelectionMenu();
 	}, [closeSelectionMenu]);
 
@@ -2346,6 +2399,10 @@ function PdfViewerInner({
 			setSelectionCommentDraft(null);
 			closeSelectionMenu();
 			if (!draft) return;
+			// Only the rail has a landing spot to show; a gutter note is its pin.
+			if (commentDisplay === "rail") {
+				setRailLanding({ page: draft.page });
+			}
 			if (draft.visualRegion) {
 				const region = draft.visualRegion;
 				void captureRegion(draft.page - 1, region).then(
@@ -2368,6 +2425,7 @@ function PdfViewerInner({
 			);
 		},
 		[
+			commentDisplay,
 			captureRegion,
 			saveVisualNote,
 			handleCommitSelectionNote,
@@ -2586,6 +2644,7 @@ function PdfViewerInner({
 		() => ({
 			elementSelecting,
 			insetCommentCards,
+			commentDisplay,
 			translationOnly,
 			plainViewer,
 			sentencePairing: readingSentenceLayer,
@@ -2595,6 +2654,7 @@ function PdfViewerInner({
 			translationOnly,
 			plainViewer,
 			insetCommentCards,
+			commentDisplay,
 			readingSentenceLayer,
 		],
 	);
@@ -2709,6 +2769,12 @@ function PdfViewerInner({
 			onAddCommentToChat: handleAddCommentToChat,
 			onHoverComment: (comment) => setHoveredCommentId(comment.id),
 			onLeaveComment: () => setHoveredCommentId(null),
+			onLeavePin: (pin) => {
+				// A note pin previews a comment card on top of the shared
+				// hover surface, which every pin releases the same way.
+				if (pin.kind === "annotate") setHoveredCommentId(null);
+				scheduleHoverHide();
+			},
 			onCommitSelectionComment: handleCommitSelectionComment,
 			onSelectionCommentActiveChange: handleSelectionCommentActiveChange,
 			onDismissSelectionComment: handleDismissSelectionComment,
@@ -3186,17 +3252,23 @@ function PdfViewerInner({
 					hostRef={hostRef}
 					allowLeftDrag={!translationOnly}
 				/>
-				{!translationOnly && !plainViewer && !immersiveReading ? (
+				{!translationOnly &&
+				!plainViewer &&
+				!immersiveReading &&
+				commentDisplay === "rail" ? (
 					<RailPeek
 						hostRef={hostRef}
 						railWidth={COMMENT_RAIL_WIDTH_PX}
 						hasCommentsOnPage={hasCommentsOnPage}
 						hoveredCommentId={hoveredCommentId}
+						// A confirmed note reveals the rail once its card exists: the
+						// highlight lands in the same batch, a visual crop a moment later.
 						revealPage={
-							selectionCommentDraft?.page ??
-							(railEdit ? railEdit.pageIndex + 1 : null)
+							(railLanding && hasCommentsOnPage(railLanding.page)
+								? railLanding.page
+								: null) ?? (railEdit ? railEdit.pageIndex + 1 : null)
 						}
-						holdOpen={Boolean(railEdit || selectionCommentDraft)}
+						holdOpen={Boolean(railEdit || railLanding)}
 					/>
 				) : null}
 				<ActiveCardScrollSync

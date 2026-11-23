@@ -5,6 +5,9 @@
  * translate card / highlight editor / visual mark card); the other three wire
  * the in-PDF highlight annotation menu (edit note / delete / recolor) to the
  * highlights cluster.
+ *
+ * An `annotate` pin (gutter display mode) previews its note on hover and opens
+ * the in-place editor on click, like the ask / translate pins do for theirs.
  */
 
 import type { useAnnotationCapability } from "@embedpdf/plugin-annotation/react";
@@ -23,6 +26,20 @@ type AnnotationCapabilityProvides = ReturnType<
 	typeof useAnnotationCapability
 >["provides"];
 
+/** Rail edit of a visual mark's note. */
+function visualNoteEdit(trace: PdfVisualSessionTrace): RailEditState {
+	return {
+		id: trace.id,
+		pageIndex: trace.page - 1,
+		kind: "visual",
+		comment: trace.comment,
+		quote: "",
+		color: DEFAULT_HIGHLIGHT_COLOR,
+		anchorY: trace.rects[0]?.y ?? 0,
+		rects: trace.rects,
+	};
+}
+
 export type UsePdfMarkActionsOptions = {
 	activeCardRef: RefObject<ActiveSelectionCard | null>;
 	/** Marks-io mirrors; pin opens read the latest records. */
@@ -37,6 +54,8 @@ export type UsePdfMarkActionsOptions = {
 	openEditorForAnnotation: (id: string) => void;
 	/** Note editor: open the rail edit of a visual pin (#396). */
 	beginRailEdit: (state: RailEditState) => void;
+	/** Hover a note pin: show its comment card beside the mark. */
+	previewComment: (id: string) => void;
 	/** EmbedPDF capability; owned by `PdfViewerInner` (plugin context). */
 	annotationCap: AnnotationCapabilityProvides;
 	docId: string;
@@ -69,6 +88,7 @@ export function usePdfMarkActions({
 	openCard,
 	openEditorForAnnotation,
 	beginRailEdit,
+	previewComment,
 	annotationCap,
 	docId,
 	deleteHighlightAnnotation,
@@ -87,7 +107,17 @@ export function usePdfMarkActions({
 				return;
 			}
 			if (pin.kind === "translate") openCard({ kind: "translate", id: pin.id });
-			if (pin.kind === "annotate") openEditorForAnnotation(pin.id);
+			// A note pin belongs to a highlight or, when a visual mark carries
+			// that id, to the mark's note.
+			if (pin.kind === "annotate") {
+				const trace = visualTracesRef.current.find(
+					(item) => item.id === pin.id,
+				);
+				if (preview) previewComment(pin.id);
+				else if (trace) beginRailEdit(visualNoteEdit(trace));
+				else openEditorForAnnotation(pin.id);
+				return;
+			}
 			if (isVisualMarkKind(pin.kind)) {
 				const markId = pin.traceId || pin.id;
 				const tr = visualTracesRef.current.find((item) => item.id === markId);
@@ -100,17 +130,7 @@ export function usePdfMarkActions({
 					openCard({ kind: "visual", id: tr.id });
 					return;
 				}
-				const state: RailEditState = {
-					id: tr.id,
-					pageIndex: tr.page - 1,
-					kind: "visual",
-					comment: tr.comment,
-					quote: "",
-					color: DEFAULT_HIGHLIGHT_COLOR,
-					anchorY: tr.rects[0]?.y ?? 0,
-					rects: tr.rects,
-				};
-				beginRailEdit(state);
+				beginRailEdit(visualNoteEdit(tr));
 			}
 		},
 		[
@@ -120,6 +140,7 @@ export function usePdfMarkActions({
 			openCard,
 			openEditorForAnnotation,
 			beginRailEdit,
+			previewComment,
 			threadsRef,
 			visualTracesRef,
 		],

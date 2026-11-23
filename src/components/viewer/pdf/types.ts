@@ -24,6 +24,7 @@ import type {
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
 import type { PdfNavigationTarget } from "@/lib/pdf/pending-pdf-page";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
+import type { PinPlacement } from "@/lib/pdf/selection/pin";
 import type { PdfViewerHandle } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 export type { PdfViewerHandle };
@@ -230,8 +231,9 @@ export type SelectionMenuState = {
 };
 
 /**
- * Right-rail editor opened from the selection toolbar. Commit uses snapped
- * `pages` even if focusing the editor cleared the live selection.
+ * Note editor opened from the selection toolbar. It opens beside the selection
+ * (`pin`); the saved note joins the comment rail. Commit uses snapped `pages`
+ * even if focusing the editor cleared the live selection.
  */
 export type SelectionCommentDraft = {
 	/** 1-based page number (matches `commentsByPage` keys). */
@@ -250,6 +252,14 @@ export type SelectionCommentDraft = {
 	 * English text-layer selection, which EmbedPDF already tints.
 	 */
 	visiblePages?: VisibleSelectionPage[];
+	/**
+	 * Normalized boxes of the selection on `page`: the translated boxes when the
+	 * note started on a translation, the region for a visual note. The editor
+	 * opens beside them instead of in the comment rail.
+	 */
+	rects?: PdfAskNormalizedRect[];
+	/** Where the note's gutter pin will sit; set by the viewer from `rects`. */
+	pin?: PinPlacement;
 };
 
 export type CitationPreviewState = {

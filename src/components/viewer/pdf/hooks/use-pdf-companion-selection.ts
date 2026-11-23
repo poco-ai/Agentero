@@ -156,6 +156,9 @@ export function usePdfCompanionSelection({
 				shape,
 				pages: selectionMenu.pages,
 				visiblePages: selectionMenu.visiblePages,
+				rects: visible?.rects.length
+					? visible.rects
+					: selectionMenu.anchor.rects,
 			});
 			closeSelectionMenu();
 		},

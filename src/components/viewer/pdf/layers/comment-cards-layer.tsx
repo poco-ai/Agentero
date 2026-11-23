@@ -7,7 +7,13 @@
  * the viewport and `RailPeek` pans the viewport when the pointer dwells on the
  * right edge. Narrow note embeds render `inset` instead (cards inside the
  * page, only the hovered / editing / brand-new one visible), because their
- * viewport is too small to peek without moving the content.
+ * viewport is too small to peek without moving the content. The `gutter`
+ * display mode keeps no column at all: each note is a gutter pin, and only its
+ * hovered / editing card is shown, hanging from that pin (see
+ * {@link placeAnchoredCard}).
+ *
+ * The selection-toolbar note editor is not a rail card: it opens from where
+ * the new note's pin will sit, and the saved note joins the rail afterwards.
  *
  * Click a card to edit the note in place (Notion-style): the body becomes a
  * Markdown editor, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating
@@ -51,6 +57,11 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+	ANCHORED_CARD_WIDTH_PX,
+	type AnchoredCardPlacement,
+	placeAnchoredCard,
+} from "@/components/viewer/pdf/comment-anchor-placement";
+import {
 	CommentMarkdownEditor,
 	type CommentMarkdownEditorHandle,
 } from "@/components/viewer/pdf/layers/comment-markdown-editor";
@@ -66,6 +77,9 @@ import {
 	HIGHLIGHT_HEX,
 	swatchColorClass,
 } from "@/lib/pdf/highlight/palette";
+import type { SelectionPin } from "@/lib/pdf/selection";
+import { type PinPlacement, pinFromRects } from "@/lib/pdf/selection/pin";
+import type { PdfCommentDisplay } from "@/lib/settings";
 /** Card width in CSS px. */
 export const COMMENT_CARD_WIDTH_PX = 200;
 /** Horizontal gap between the page edge and the card. */
@@ -102,6 +116,12 @@ const VIEW_CONVERSATION_PREVIEW_LINES = 3;
 const EDIT_MIN_COMMENT_LINES = 3;
 /** In-place editor: layout estimate cap until the measured height lands. */
 const EDIT_MAX_COMMENT_LINES = 12;
+/** Tallest the in-place draft editor may get, whatever the reading area allows. */
+const DRAFT_CARD_MAX_HEIGHT_PX = 280;
+/** Let the pointer travel from a highlight or pin into its only visible card. */
+const HOVER_RETENTION_MS = 500;
+/** Visible reading area over this page, in page px. */
+type ReadingAreaView = { height: number; top: number; bottom: number };
 const COMMENT_CARD_SURFACE_CLASS =
 	"pointer-events-auto w-full select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out supports-backdrop-blur:bg-background/70 dark:border-white/10";
 const COMMENT_DRAFT_SURFACE_CLASS =
@@ -109,9 +129,18 @@ const COMMENT_DRAFT_SURFACE_CLASS =
 /** Horizontal action bar floating just above the card's top-right corner. */
 const COMMENT_ACTION_BAR_CLASS =
 	"pointer-events-none absolute right-0 bottom-full z-[1] flex items-center gap-0.5 rounded-md border border-white/50 bg-background/82 p-0.5 shadow-raised ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-150 group-hover:pointer-events-auto dark:border-white/10";
+/** The bar's own height (border, padding, 24px buttons): room an anchored card leaves for it. */
+const COMMENT_ACTION_BAR_PX = 30;
 
 type CommentCardsLayerProps = {
 	inset?: boolean;
+	/**
+	 * `rail` (default) stacks every card beside the page. `gutter` keeps no
+	 * column: the hovered / editing card opens from the note's pin.
+	 */
+	display?: PdfCommentDisplay;
+	/** Annotate pins for `items`, placed by the gutter for the same page. */
+	annotatePins?: readonly SelectionPin[];
 	/** Comments for this page only. */
 	items: PageAnnotationComment[];
 	/** Rendered page width in px (zoom-aware); used by the hover connector. */
@@ -345,12 +374,42 @@ export function commentConnectorPath(
 	return `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${y2Rounded} L ${x2} ${y2Rounded}`;
 }
 
+/** Pin placement for a note editor's boxes; null when the draft has none. */
+function pinForNote(rects: PdfAskNormalizedRect[]): PinPlacement | null {
+	return rects.length ? pinFromRects(rects) : null;
+}
+
+/** Where the gutter draws a pin (it defaults an unset side to the right). */
+function pinPlacement(pin: SelectionPin): PinPlacement {
+	return { x: pin.x, y: pin.y, side: pin.side ?? "right" };
+}
+
+/**
+ * CSS box of a card hanging from a pin: held by its top edge, or by its bottom
+ * edge when it has to grow upward.
+ */
+function anchoredBox({
+	leftPx,
+	widthPx,
+	topPx,
+	bottomPx,
+}: AnchoredCardPlacement) {
+	return {
+		left: leftPx,
+		width: widthPx,
+		...(topPx != null ? { top: topPx } : { bottom: bottomPx }),
+	};
+}
+
 type CommentCardProps = {
 	inset?: boolean;
 	item: PageAnnotationComment;
+	/** Rail slot. Ignored while `anchored` is set. */
 	topPx: number;
 	/** Visible slot. Taller notes scroll inside this height. */
 	maxHeightPx: number;
+	/** Open from the note's pin instead of taking a rail slot. */
+	anchored?: AnchoredCardPlacement | null;
 	editing: boolean;
 	wikiTarget: string | null;
 	hovered: boolean;
@@ -398,6 +457,7 @@ const CommentCard = memo(function CommentCard({
 	item,
 	topPx,
 	maxHeightPx,
+	anchored = null,
 	editing,
 	wikiTarget,
 	hovered,
@@ -548,13 +608,17 @@ const CommentCard = memo(function CommentCard({
 				"group pointer-events-auto absolute",
 				editing || hovered ? "z-[6]" : "hover:z-[7]",
 			)}
-			style={{
-				...(inset
-					? { right: COMMENT_CARD_GAP_PX }
-					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
-				top: topPx,
-				width: COMMENT_CARD_WIDTH_PX,
-			}}
+			style={
+				anchored
+					? anchoredBox(anchored)
+					: {
+							...(inset
+								? { right: COMMENT_CARD_GAP_PX }
+								: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
+							top: topPx,
+							width: COMMENT_CARD_WIDTH_PX,
+						}
+			}
 			onPointerEnter={() => onHover(item)}
 			onPointerLeave={onLeave}
 		>
@@ -712,6 +776,9 @@ const CommentCard = memo(function CommentCard({
 			<div
 				className={cn(
 					COMMENT_ACTION_BAR_CLASS,
+					// A card hanging below its pin puts the bar underneath: above
+					// the card is the pill, which the gutter paints on top.
+					anchored?.topPx != null && "top-full bottom-auto",
 					editing
 						? "opacity-0 group-hover:opacity-100"
 						: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
@@ -790,17 +857,24 @@ type SelectionCommentAffordanceProps = {
 	inset?: boolean;
 	draft: SelectionCommentDraft;
 	pageHeightPx: number;
+	/** Opens from the new note's pin; null falls back to the page's right edge. */
+	placement: AnchoredCardPlacement | null;
 	onCommit: (comment: string) => void;
 	onActiveChange?: (active: boolean) => void;
 	/** Dismiss the sticky draft (Escape with empty text). */
 	onDismiss?: () => void;
 };
 
-/** Selection note editor opened explicitly from the floating toolbar. */
+/**
+ * Selection note editor opened explicitly from the floating toolbar. It opens
+ * where the note's pin will sit, so the reader writes next to the selection;
+ * the saved note only then joins the rail (or becomes the pin).
+ */
 const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 	inset,
 	draft,
 	pageHeightPx,
+	placement,
 	onCommit,
 	onActiveChange,
 	onDismiss,
@@ -820,8 +894,8 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 	const { isBlockedByIme } = useImeGuard();
 	const kind = draft.visualRegion ? "visual" : "highlight";
 
-	// The card hugs the editor; this estimate only keeps the anchor inside
-	// the page while the draft is short.
+	// Without a selection box the card hugs the right edge; this estimate only
+	// keeps it inside the page while the draft is short.
 	const clampHeightPx = estimateCommentCardHeight(
 		{
 			id: "__selection-draft__",
@@ -836,10 +910,20 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 		},
 		true,
 	);
-	const topPx = Math.max(
+	const edgeTopPx = Math.max(
 		0,
 		Math.min(draft.anchorY * pageHeightPx, pageHeightPx - clampHeightPx),
 	);
+	const style = placement
+		? { ...anchoredBox(placement), maxHeight: placement.maxHeightPx }
+		: {
+				...(inset
+					? { right: COMMENT_CARD_GAP_PX }
+					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
+				top: edgeTopPx,
+				width: ANCHORED_CARD_WIDTH_PX,
+				maxHeight: DRAFT_CARD_MAX_HEIGHT_PX,
+			};
 
 	const commit = useCallback((text: string) => {
 		if (committedRef.current) return;
@@ -909,31 +993,30 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			data-comment-card
 			className={cn(
 				COMMENT_DRAFT_SURFACE_CLASS,
-				"z-[7] w-56 bg-background/92 ring-1 ring-ring",
+				"z-[7] flex flex-col bg-background/92 ring-1 ring-ring",
 			)}
-			style={{
-				...(inset
-					? { right: COMMENT_CARD_GAP_PX }
-					: { left: `calc(100% + ${COMMENT_CARD_GAP_PX}px)` }),
-				top: topPx,
-			}}
+			style={style}
 			onPointerDown={(e) => {
 				// Page-local hit: stop EmbedPDF from treating this as click-away
 				// before the editor can take focus. Do not preventDefault.
 				e.stopPropagation();
 			}}
 		>
-			<div className="w-56 px-2.5 py-2">
+			<div className="shrink-0 px-2.5 pt-2">
 				<MarkerGlyph
 					kind={kind}
 					color={DEFAULT_HIGHLIGHT_COLOR}
 					shape={draft.shape}
 				/>
+			</div>
+			{/* The cap is the card's: the editor keeps growing until the reading
+			    area runs out, then this box scrolls instead of the card moving. */}
+			<div className="agentero-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pt-1 pb-2">
 				<CommentMarkdownEditor
 					initialValue=""
 					placeholder={t("annotations.placeholder")}
 					ariaLabel={t("annotations.editorLabel")}
-					className="comment-md mt-1 min-h-15 max-h-60 w-full overflow-y-auto break-words text-sm leading-relaxed text-foreground/80"
+					className="comment-md min-h-15 w-full break-words text-sm leading-relaxed text-foreground/80"
 					handleRef={editorHandleRef}
 					onChange={(markdown) => {
 						draftRef.current = markdown;
@@ -991,6 +1074,8 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 
 export const CommentCardsLayer = memo(function CommentCardsLayer({
 	inset = false,
+	display = "rail",
+	annotatePins,
 	items,
 	pageWidthPx,
 	pageHeightPx,
@@ -1011,6 +1096,10 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 	onHover,
 	onLeave,
 }: CommentCardsLayerProps) {
+	const gutter = display === "gutter";
+	// Inset and gutter cards are the only visible one on their page, so the
+	// pointer must be able to leave the highlight and still reach the card.
+	const keepsHovered = inset || gutter;
 	const [retainedHoverId, setRetainedHoverId] = useState<string | null>(null);
 	const [measuredHeights, setMeasuredHeights] = useState<
 		ReadonlyMap<string, number>
@@ -1024,42 +1113,79 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 		});
 	}, []);
 	// Cap card height to the reading viewport so a short window / pane scrolls
-	// the card body instead of clipping it against the chrome around it.
+	// the card body instead of clipping it against the chrome around it. The
+	// same box decides which side of a pin an anchored card opens on.
 	const rootRef = useRef<HTMLDivElement>(null);
-	const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 	const hasCards = items.length > 0 || Boolean(selectionDraft);
+	// The card opening from a pin right now: the draft, the edited note, or the
+	// hovered one. A new one re-measures; a scroll under an open one must not
+	// flip it to the other side of its pin.
+	const anchoredKey = selectionDraft
+		? "draft"
+		: keepsHovered
+			? (editingId ?? hoveredId ?? retainedHoverId)
+			: null;
+	const [readingArea, setReadingArea] = useState<ReadingAreaView | null>(null);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: page width / height are the re-measure trigger
 	useLayoutEffect(() => {
 		if (!hasCards) return;
 		const el = rootRef.current;
 		if (!el) return;
 		const scroller = el.closest("[data-pdf-viewport]");
 		if (!scroller) return;
-		const measure = () => setViewportHeight(scroller.clientHeight);
+		const measure = () => {
+			const view = scroller.getBoundingClientRect();
+			const page = el.getBoundingClientRect();
+			const next: ReadingAreaView = {
+				height: scroller.clientHeight,
+				top: view.top - page.top,
+				bottom: view.bottom - page.top,
+			};
+			setReadingArea((prev) =>
+				prev &&
+				prev.height === next.height &&
+				prev.top === next.top &&
+				prev.bottom === next.bottom
+					? prev
+					: next,
+			);
+		};
 		measure();
 		const observer = new ResizeObserver(measure);
 		observer.observe(scroller);
 		return () => observer.disconnect();
-	}, [hasCards]);
+	}, [hasCards, anchoredKey, pageWidthPx, pageHeightPx]);
 	const cardMaxHeightPx = Math.max(
 		COMMENT_CARD_MIN_HEIGHT_PX,
 		Math.min(
 			COMMENT_CARD_MAX_HEIGHT_PX,
-			(viewportHeight ?? Number.POSITIVE_INFINITY) -
+			(readingArea?.height ?? Number.POSITIVE_INFINITY) -
 				COMMENT_VIEWPORT_MARGIN_PX * 2,
 		),
 	);
+	// Reading-area edges an anchored card keeps clear of, in page px.
+	const anchorViewport = useMemo(
+		() =>
+			readingArea && {
+				top: readingArea.top + COMMENT_VIEWPORT_MARGIN_PX,
+				bottom: readingArea.bottom - COMMENT_VIEWPORT_MARGIN_PX,
+			},
+		[readingArea],
+	);
 	useEffect(() => {
-		if (!inset) return;
+		if (!keepsHovered) return;
 		if (hoveredId) {
 			setRetainedHoverId(hoveredId);
 			return;
 		}
-		// Let the pointer travel from the source highlight into the inset card.
-		// The card sits at the page's right edge, so a left-column highlight is
-		// a long trip; too short a window makes the card vanish on the way.
-		const timer = setTimeout(() => setRetainedHoverId(null), 500);
+		// Let the pointer travel from the source highlight or pin into the card;
+		// too short a window makes the card vanish on the way.
+		const timer = setTimeout(
+			() => setRetainedHoverId(null),
+			HOVER_RETENTION_MS,
+		);
 		return () => clearTimeout(timer);
-	}, [inset, hoveredId]);
+	}, [keepsHovered, hoveredId]);
 	// Stacking depends only on items / page height / the edited card; hover
 	// re-renders (hoveredId flips) must not redo layout for the whole rail.
 	const laid = useMemo(
@@ -1077,13 +1203,58 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 		() => new Map(items.map((item) => [item.id, item])),
 		[items],
 	);
+	// Gutter cards hang from their note's pin. A pin the gutter has not placed
+	// yet (a brand-new note) falls back to the same rule over its own boxes, so
+	// a gutter card never ends up in the column that mode removed.
+	const anchoredById = useMemo(() => {
+		if (!gutter) return null;
+		const placements = new Map<string, AnchoredCardPlacement>();
+		for (const item of items) {
+			const placed = annotatePins?.find(
+				(candidate) => candidate.id === item.id,
+			);
+			placements.set(
+				item.id,
+				placeAnchoredCard({
+					pin: placed ? pinPlacement(placed) : pinFromRects(item.rects),
+					pageWidthPx,
+					pageHeightPx,
+					maxHeightPx: cardMaxHeightPx,
+					viewport: anchorViewport,
+					reservePx: COMMENT_ACTION_BAR_PX,
+				}),
+			);
+		}
+		return placements;
+	}, [
+		gutter,
+		items,
+		annotatePins,
+		pageWidthPx,
+		pageHeightPx,
+		cardMaxHeightPx,
+		anchorViewport,
+	]);
+	const draftPlacement = useMemo(() => {
+		if (!selectionDraft) return null;
+		const pin = selectionDraft.pin ?? pinForNote(selectionDraft.rects ?? []);
+		if (!pin) return null;
+		return placeAnchoredCard({
+			pin,
+			pageWidthPx,
+			pageHeightPx,
+			maxHeightPx: DRAFT_CARD_MAX_HEIGHT_PX,
+			viewport: anchorViewport,
+		});
+	}, [selectionDraft, pageWidthPx, pageHeightPx, anchorViewport]);
 	if (!items.length && !selectionDraft) return null;
 	const hoveredPlacement = hoveredId
 		? (laid.find((pos) => pos.id === hoveredId) ?? null)
 		: null;
 	const hoveredItem = hoveredId ? (byId.get(hoveredId) ?? null) : null;
+	// An anchored card touches its note, so only the rail draws a leader.
 	const connectorD =
-		!inset && hoveredItem && hoveredPlacement
+		!keepsHovered && hoveredItem && hoveredPlacement
 			? commentConnectorPath(
 					hoveredItem.rects,
 					hoveredPlacement,
@@ -1137,20 +1308,26 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 					const item = byId.get(pos.id);
 					if (!item) return null;
 					if (
-						inset &&
+						keepsHovered &&
 						item.id !== editingId &&
 						item.id !== hoveredId &&
 						item.id !== retainedHoverId &&
 						!item.isNew
 					)
 						return null;
+					const anchored = anchoredById?.get(item.id) ?? null;
 					return (
 						<CommentCard
 							inset={inset}
 							key={item.id}
 							item={item}
 							topPx={pos.topPx}
-							maxHeightPx={pos.heightPx}
+							maxHeightPx={
+								anchored
+									? Math.min(pos.heightPx, anchored.maxHeightPx)
+									: pos.heightPx
+							}
+							anchored={anchored}
 							editing={item.id === editingId}
 							wikiTarget={wikiTarget}
 							hovered={item.id === hoveredId}
@@ -1172,6 +1349,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 						inset={inset}
 						draft={selectionDraft}
 						pageHeightPx={pageHeightPx}
+						placement={draftPlacement}
 						onCommit={onCommitSelectionComment}
 						onActiveChange={onSelectionCommentActiveChange}
 						onDismiss={onDismissSelectionComment}

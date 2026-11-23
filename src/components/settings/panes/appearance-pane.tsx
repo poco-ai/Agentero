@@ -30,6 +30,7 @@ import { cn } from "@/lib/core/utils";
 import type {
 	AppSettings,
 	LocalePreference,
+	PdfCommentDisplay,
 	ThemePreference,
 } from "@/lib/settings";
 import {
@@ -39,6 +40,7 @@ import {
 	EDITOR_LINE_HEIGHT_MIN,
 	EDITOR_LINE_HEIGHT_STEP,
 	MARKDOWN_MAX_WIDTH_PRESETS,
+	PDF_COMMENT_DISPLAY_MODES,
 	PDF_SCROLL_STRATEGIES,
 	PDF_SPREAD_MODES,
 	PDF_TRANSLATE_TAB_MODES,
@@ -71,6 +73,7 @@ export type AppearancePaneProps = {
 	pdfSpreadMode: PdfSpreadMode;
 	pdfTranslateTab: PdfTranslateTabMode;
 	pdfSentenceHover: boolean;
+	pdfCommentDisplay: PdfCommentDisplay;
 	vimMode: boolean;
 	patch: (p: Partial<AppSettings>) => void;
 };
@@ -95,6 +98,7 @@ function AppearancePaneInner({
 	pdfSpreadMode,
 	pdfTranslateTab,
 	pdfSentenceHover,
+	pdfCommentDisplay,
 	vimMode,
 	patch,
 }: AppearancePaneProps) {
@@ -624,6 +628,25 @@ function AppearancePaneInner({
 						checked={pdfSentenceHover}
 						onCheckedChange={(checked) => patch({ pdfSentenceHover: checked })}
 					/>
+				</SettingsRow>
+				<SettingsRow label={t("appearance.pdfCommentDisplay.label")}>
+					<Select
+						value={pdfCommentDisplay}
+						onValueChange={(value) =>
+							patch({ pdfCommentDisplay: value as PdfCommentDisplay })
+						}
+					>
+						<SelectTrigger size="sm" className="min-w-[180px] max-w-[240px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{PDF_COMMENT_DISPLAY_MODES.map((mode) => (
+								<SelectItem key={mode} value={mode}>
+									{t(`appearance.pdfCommentDisplay.${mode}`)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</SettingsRow>
 			</SettingsGroup>
 		</>

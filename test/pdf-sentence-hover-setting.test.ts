@@ -28,3 +28,23 @@ describe("pdf sentence hover setting", () => {
 		expect(loadSettings().pdfSentenceHover).toBe(false);
 	});
 });
+
+describe("pdf comment display setting", () => {
+	it("defaults to the rail when a saved snapshot omits it or stores an unknown mode", () => {
+		const { pdfCommentDisplay: _omitted, ...without } = DEFAULT_SETTINGS;
+		applyExternalSettings(without as AppSettings);
+		expect(loadSettings().pdfCommentDisplay).toBe("rail");
+
+		applyExternalSettings({
+			...DEFAULT_SETTINGS,
+			pdfCommentDisplay:
+				"margin" as unknown as AppSettings["pdfCommentDisplay"],
+		});
+		expect(loadSettings().pdfCommentDisplay).toBe("rail");
+	});
+
+	it("keeps the gutter choice", () => {
+		applyExternalSettings({ ...DEFAULT_SETTINGS, pdfCommentDisplay: "gutter" });
+		expect(loadSettings().pdfCommentDisplay).toBe("gutter");
+	});
+});

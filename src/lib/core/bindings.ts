@@ -1961,6 +1961,8 @@ export type AppSettings_Deserialize = {
 	pdfTranslateTab?: string,
 	/**  Sentence wash and whole-sentence double-click. Default on. */
 	pdfSentenceHover?: boolean,
+	/**  PDF annotation notes: `rail` (default) | `gutter`. */
+	pdfCommentDisplay?: string,
 	libraryColumns?: LibraryColumnPref_Deserialize[],
 	connectorEnabled?: boolean,
 	connectorPort?: number,
@@ -2143,6 +2145,8 @@ export type AppSettings_Serialize = {
 	pdfTranslateTab: string,
 	/**  Sentence wash and whole-sentence double-click. Default on. */
 	pdfSentenceHover: boolean,
+	/**  PDF annotation notes: `rail` (default) | `gutter`. */
+	pdfCommentDisplay: string,
 	libraryColumns: LibraryColumnPref_Serialize[],
 	connectorEnabled: boolean,
 	connectorPort: number,
