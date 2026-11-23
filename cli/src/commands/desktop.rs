@@ -1,6 +1,7 @@
 //! Execute an acknowledged command in the desktop process that owns the workspace.
 use crate::error::{CliError, ExitCode};
 use crate::resolve::{resolve_vault, GlobalOpts};
+use agentero_core::error::AppError;
 use agentero_core::features::context::{CLI_GRANT_ENV, TURN_ENV};
 use agentero_core::features::open_request::desktop::{
     active_endpoint, private_dir, write_packet, WorkspaceReply, WorkspaceRequest,
@@ -97,48 +98,115 @@ async fn send(
         }
     }
     let endpoint = endpoint.ok_or_else(|| unavailable("open Agentero desktop and retry"))?;
-    let dir = private_dir(Some(&endpoint), "request-")?;
-    let id = dir
+    let mut request = WorkspaceRequest {
+        id: String::new(),
+        route: route.to_owned(),
+        vault: vault.map(|p| p.display().to_string()),
+        args,
+    };
+    let reply = match publish(&endpoint, &mut request) {
+        Ok(dir) => wait_for_file_reply(dir.path(), deadline).await?,
+        // A publish error occurs before the atomic rename to `request`.
+        // Once published, a timeout or reply error must never cause a resend.
+        #[cfg(target_os = "macos")]
+        Err(error) if file_access_denied(&error) => {
+            request.id = uuid::Uuid::new_v4().to_string();
+            socket_reply(&endpoint, &request, deadline).await?
+        }
+        Err(error) => return Err(error.into()),
+    };
+    if reply.id != request.id {
+        return Err(CliError::message("unexpected desktop response"));
+    }
+    if let Some(error) = reply.error {
+        return Err(CliError::message(error));
+    }
+    if let Some(code) = reply.value["error_code"].as_str() {
+        return Err(CliError::domain(
+            code,
+            reply.value["message"].as_str().unwrap_or(code),
+            reply.value["details"].clone(),
+        ));
+    }
+    if route == "turn call" {
+        return Ok(reply.value["data"].clone());
+    }
+    Ok(reply.value)
+}
+
+fn publish(
+    endpoint: &std::path::Path,
+    request: &mut WorkspaceRequest,
+) -> Result<tempfile::TempDir, AppError> {
+    let dir = private_dir(Some(endpoint), "request-")?;
+    request.id = dir
         .path()
         .file_name()
         .unwrap()
         .to_string_lossy()
         .into_owned();
-    let req = WorkspaceRequest {
-        id: id.clone(),
-        route: route.to_owned(),
-        vault: vault.map(|p| p.display().to_string()),
-        args,
-    };
-    write_packet(dir.path(), "request", &req)?;
+    write_packet(dir.path(), "request", request)?;
+    Ok(dir)
+}
+
+async fn wait_for_file_reply(
+    dir: &std::path::Path,
+    deadline: Instant,
+) -> Result<WorkspaceReply, CliError> {
     while Instant::now() < deadline {
-        match std::fs::File::open(dir.path().join("reply")) {
-            Ok(file) => {
-                let reply: WorkspaceReply = serde_json::from_reader(file)?;
-                if reply.id != id {
-                    return Err(CliError::message("unexpected desktop response"));
-                }
-                if let Some(error) = reply.error {
-                    return Err(CliError::message(error));
-                }
-                if let Some(code) = reply.value["error_code"].as_str() {
-                    return Err(CliError::domain(
-                        code,
-                        reply.value["message"].as_str().unwrap_or(code),
-                        reply.value["details"].clone(),
-                    ));
-                }
-                if route == "turn call" {
-                    return Ok(reply.value["data"].clone());
-                }
-                return Ok(reply.value);
-            }
+        match std::fs::File::open(dir.join("reply")) {
+            Ok(file) => return Ok(serde_json::from_reader(file)?),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => return Err(e.into()),
         }
         tokio::time::sleep(Duration::from_millis(75)).await;
     }
-    Err(unavailable(
-        "desktop did not acknowledge the command before the timeout",
-    ))
+    Err(reply_timeout())
+}
+
+fn reply_timeout() -> CliError {
+    unavailable("desktop did not acknowledge the command before the timeout")
+}
+
+#[cfg(target_os = "macos")]
+fn file_access_denied(error: &AppError) -> bool {
+    use std::io::ErrorKind::{PermissionDenied, ReadOnlyFilesystem};
+
+    let kind = match error {
+        AppError::Io(error) => Some(error.kind()),
+        AppError::Json(error) => error.io_error_kind(),
+        _ => None,
+    };
+    matches!(kind, Some(PermissionDenied | ReadOnlyFilesystem))
+}
+
+#[cfg(target_os = "macos")]
+async fn socket_reply(
+    endpoint: &std::path::Path,
+    request: &WorkspaceRequest,
+    deadline: Instant,
+) -> Result<WorkspaceReply, CliError> {
+    use agentero_core::features::open_request::desktop::{MAX_REQUEST_BYTES, SOCKET_NAME};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let bytes = serde_json::to_vec(request)?;
+    if bytes.len() as u64 > MAX_REQUEST_BYTES {
+        return Err(CliError::usage("desktop request exceeds 2000000 bytes"));
+    }
+    tokio::time::timeout_at(deadline.into(), async {
+        let mut stream = tokio::net::UnixStream::connect(endpoint.join(SOCKET_NAME))
+            .await
+            .map_err(|error| {
+                unavailable(&format!(
+                    "desktop request directory is not writable and the socket connection failed: {error}"
+                ))
+            })?;
+        stream.write_all(&bytes).await?;
+        stream.shutdown().await?;
+        let mut reply = Vec::new();
+        stream.read_to_end(&mut reply).await?;
+        Ok(serde_json::from_slice(&reply)?)
+    })
+    .await
+    .map_err(|_| reply_timeout())?
 }

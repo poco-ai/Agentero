@@ -5,6 +5,10 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 pub const REQUEST: &str = "cli:workspace";
+pub const MAX_REQUEST_BYTES: u64 = 2_000_000;
+
+#[cfg(target_os = "macos")]
+pub const SOCKET_NAME: &str = "cli.sock";
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct WorkspaceRequest {
