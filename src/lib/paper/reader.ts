@@ -76,17 +76,16 @@ const inflightReads = new Set<string>();
 /**
  * Language line for paper-reader NOTES.md body, based on the resolved App
  * locale (`i18n.language` after settings load: `en` | `zh-CN`).
- * Fixed skill section headings come from the Chinese paper-reader skill; only
- * the body language changes.
+ * Section headings and note structure come from the vault's paper-reader skill.
  */
 export function paperReaderLanguageInstruction(
 	language: string = i18n.language,
 ): string {
 	const lang = (language || "en").toLowerCase();
 	if (lang.startsWith("zh")) {
-		return "Write the NOTES.md body in Chinese (Simplified). Keep the fixed Chinese section headings from the skill (e.g. ## 方法).";
+		return "Write the NOTES.md body in Chinese (Simplified).";
 	}
-	return "Write the NOTES.md body in English. Keep the fixed Chinese section headings from the skill (e.g. ## 方法).";
+	return "Write the NOTES.md body in English.";
 }
 
 /**

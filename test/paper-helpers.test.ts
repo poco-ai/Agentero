@@ -194,18 +194,26 @@ describe("looksLikeTitleSearchQuery", () => {
 });
 
 describe("paper-reader user prompt language", () => {
-	it("asks for Chinese when App locale is zh-CN and targets the paper NOTES.md", () => {
-		expect(paperReaderLanguageInstruction("zh-CN")).toMatch(/Chinese/i);
+	it("asks for a Chinese body without overriding the skill's headings", () => {
+		expect(paperReaderLanguageInstruction("zh-CN")).toBe(
+			"Write the NOTES.md body in Chinese (Simplified).",
+		);
 		const prompt = buildPaperReaderUserPrompt("papers/1706.03762", "zh-CN");
 		expect(prompt).toMatch(/Chinese/i);
 		expect(prompt).toContain("papers/1706.03762/NOTES.md");
+		expect(prompt).not.toContain("Chinese section headings");
+		expect(prompt).not.toContain("## 方法");
 	});
 
-	it("asks for English when App locale is en", () => {
-		expect(paperReaderLanguageInstruction("en")).toMatch(/English/i);
+	it("asks for an English body without overriding the skill's headings", () => {
+		expect(paperReaderLanguageInstruction("en")).toBe(
+			"Write the NOTES.md body in English.",
+		);
 		const prompt = buildPaperReaderUserPrompt("papers/x", "en");
 		expect(prompt).toMatch(/English/i);
 		expect(prompt).toContain("NOTES.md");
+		expect(prompt).not.toContain("Chinese section headings");
+		expect(prompt).not.toContain("## 方法");
 	});
 
 	it("leaves skill activation syntax to the Host envelope", () => {
