@@ -1319,6 +1319,12 @@ async fn run_mirror<S: RemoteStore>(
             ),
             None => (None, None),
         };
+        // A mirror has no degraded protocol, so a HEAD without a strong
+        // ETag can never be replaced. Stop here instead of uploading blobs
+        // and a manifest that no HEAD would reference.
+        if let Some(tag) = &head_etag {
+            PutCondition::IfMatch(tag.clone()).header()?;
+        }
         // What the mirror can already have. Without a HEAD (fresh, wiped, or
         // hand-edited mirror) nothing can be assumed and everything is re-sent.
         let known: HashSet<&str> = if head_ptr.is_some() {
