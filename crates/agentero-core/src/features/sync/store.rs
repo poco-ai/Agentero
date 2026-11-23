@@ -80,6 +80,13 @@ pub(super) async fn probe_conditions(
     let Some((_, tag)) = store.get(key).await? else {
         return Ok(false);
     };
+    // A weak or missing ETag cannot express If-Match at all. That is the
+    // same verdict as a server that ignores it (conditional publication is
+    // unavailable), so the degraded opt-in stays reachable instead of the
+    // pass failing on a header that cannot be built.
+    if PutCondition::IfMatch(tag.clone()).header().is_err() {
+        return Ok(false);
+    }
     if store
         .put(key, vec![2], PutCondition::IfMatch(tag.clone()))
         .await?
@@ -117,7 +124,9 @@ pub trait RemoteStore: Send + Sync {
         body: Vec<u8>,
         condition: PutCondition,
     ) -> impl Future<Output = Result<PutOutcome, AppError>> + Send;
-    /// Connection-test probe: whether conditional PUTs actually enforce.
+    /// Connection-test probe: whether conditional PUTs actually enforce. A
+    /// store whose GET carries no strong ETag cannot express `If-Match`, so
+    /// it reports `false` rather than failing.
     fn probe_conditional_writes(&self) -> impl Future<Output = Result<bool, AppError>> + Send;
     /// Degraded-mode publish lock: try to become the sole HEAD publisher.
     /// Default: unsupported. Only WebDAV implements it (phase 1); the engine
