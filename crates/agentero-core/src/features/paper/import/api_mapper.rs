@@ -83,6 +83,14 @@ fn apply_zotero_extras(item: &Value, record: &mut PaperRecord) {
     record.place = str_field(item, "place");
     record.series = str_field(item, "series");
 
+    // Better BibTeX users cite the same work from several tools through the
+    // key Zotero already stores on the item, so it wins over the keys derived
+    // from identifiers. Keep it verbatim: CJK keys and disambiguation suffixes
+    // are part of the contract, and the folder id is assigned independently.
+    if let Some(key) = str_field(item, "citationKey") {
+        record.bibtex_key = Some(key);
+    }
+
     if let Some(tags) = item.get("tags").and_then(|v| v.as_array()) {
         record.tags = tags
             .iter()
@@ -516,6 +524,52 @@ mod tests {
         assert!(json.contains("\"pdf_url\""), "got {json}");
         assert!(json.contains("\"arxiv_id\""), "got {json}");
         assert!(!json.contains("\"pdfUrl\""));
+    }
+
+    #[test]
+    fn zotero_citation_key_wins_over_the_derived_key() {
+        let item = serde_json::json!({
+            "itemType": "journalArticle",
+            "title": "示例论文标题",
+            "creators": [
+                {"firstName": "San", "lastName": "Zhang", "creatorType": "author"}
+            ],
+            "date": "2099",
+            "DOI": "10.9999/example.2099",
+            "citationKey": "示例2099a"
+        });
+        let meta = map_zotero_item_to_record(&item).expect("map");
+        // Verbatim: the CJK key and its year/disambiguation suffix survive.
+        assert_eq!(meta.bibtex_key.as_deref(), Some("示例2099a"));
+        // The catalog id (and therefore the folder) still follows the DOI.
+        assert_eq!(meta.id, "10_9999_example_2099");
+    }
+
+    #[test]
+    fn zotero_item_without_a_citation_key_keeps_the_derived_key() {
+        let item = serde_json::json!({
+            "itemType": "journalArticle",
+            "title": "Example Paper",
+            "creators": [
+                {"firstName": "San", "lastName": "Zhang", "creatorType": "author"}
+            ],
+            "date": "2099",
+            "DOI": "10.9999/example.2099"
+        });
+        let meta = map_zotero_item_to_record(&item).expect("map");
+        assert_eq!(meta.bibtex_key.as_deref(), Some("10_9999_example_2099"));
+
+        // A blank or null key is treated as missing, not as an empty key.
+        for blank in [
+            serde_json::json!(""),
+            serde_json::json!("   "),
+            serde_json::Value::Null,
+        ] {
+            let mut item = item.clone();
+            item["citationKey"] = blank;
+            let meta = map_zotero_item_to_record(&item).expect("map");
+            assert_eq!(meta.bibtex_key.as_deref(), Some("10_9999_example_2099"));
+        }
     }
 
     fn api_paper_with(

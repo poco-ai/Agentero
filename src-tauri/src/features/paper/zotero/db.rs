@@ -2268,6 +2268,39 @@ mod tests {
     }
 
     #[test]
+    fn native_citation_key_survives_the_local_database_migration() {
+        let conn = seed_db();
+        // Zotero 8 keeps its native citation key in itemData next to the
+        // bibliographic fields, so the assembled item carries it verbatim.
+        conn.execute_batch(
+            "INSERT INTO fields VALUES (4,'citationKey');
+             INSERT INTO itemDataValues VALUES (103,'示例2099a');
+             INSERT INTO itemData VALUES (10,4,103);",
+        )
+        .unwrap();
+        let ZoteroRead { items, .. } =
+            read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
+        let item = items.iter().find(|i| i.item_id == 10).unwrap();
+        assert_eq!(item.json["citationKey"], "示例2099a");
+        let meta = map_zotero_item_to_record(&item.json).unwrap();
+        assert_eq!(meta.bibtex_key.as_deref(), Some("示例2099a"));
+        // The folder id keeps following the DOI, not the citation key.
+        assert_eq!(meta.id, "10_5555_abc");
+
+        // Persist it the way the migration does and read it back: the catalog
+        // row keeps the key, not just the in-memory record.
+        let dir = std::env::temp_dir().join(format!("motif-citekey-{}", now_nanos()));
+        fs::create_dir_all(&dir).unwrap();
+        let rel = "papers/10_5555_abc";
+        papers::upsert_paper(&dir, &meta.at_path(rel)).unwrap();
+        let stored = papers::get_by_path(&dir, rel)
+            .unwrap()
+            .expect("catalog row");
+        assert_eq!(stored.bibtex_key.as_deref(), Some("示例2099a"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn recreates_collection_path_and_tags() {
         let conn = seed_db();
         let ZoteroRead {
