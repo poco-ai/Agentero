@@ -358,7 +358,7 @@ export function PlazaHuggingFaceView({ className }: { className?: string }) {
 								</div>
 							</EmptyState>
 						) : (
-							<div className="mx-auto grid max-w-7xl grid-cols-[repeat(auto-fill,minmax(min(100%,21rem),1fr))] items-start gap-3">
+							<div className="mx-auto grid max-w-7xl grid-cols-[repeat(auto-fill,minmax(min(100%,21rem),1fr))] items-start gap-4">
 								{visiblePapers.map((paper) => (
 									<PaperCard
 										key={`${vaultPath ?? ""}:${paper.arxivId}`}
@@ -623,29 +623,60 @@ function PaperCard({
 			: t("plaza.feeds.import");
 	const importDisabled = isImported || importState === "pending" || !vaultPath;
 	const { upvotes, numComments, githubRepo, githubStars, projectPage } = paper;
+	const displayKeywords = paper.aiKeywords.slice(0, 4);
+	const visibleKeywords = expanded
+		? displayKeywords
+		: displayKeywords.slice(0, 2);
+	const hiddenKeywordCount = expanded
+		? 0
+		: Math.max(0, displayKeywords.length - visibleKeywords.length);
 
 	return (
-		<article className="min-w-0 overflow-hidden rounded-lg border bg-background">
-			<PaperCover key={paper.thumbnail} thumbnail={paper.thumbnail} />
-			<div className="p-3">
-				<h2 className="break-words font-medium text-sm leading-snug">
+		<article className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border/80 bg-background transition-[border-color,box-shadow] duration-(--motion-duration-fast) ease-(--motion-ease-out) hover:border-foreground/15 hover:shadow-raised motion-reduce:transition-none">
+			<div className="relative">
+				<PaperCover key={paper.thumbnail} thumbnail={paper.thumbnail} />
+				<div className="absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-full border border-border/60 bg-background/85 p-0.5 shadow-raised backdrop-blur-md [@media(prefers-reduced-transparency:reduce)]:bg-background [@media(prefers-reduced-transparency:reduce)]:backdrop-blur-none [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100 motion-safe:transition-opacity motion-safe:duration-(--motion-duration-fast) motion-safe:ease-(--motion-ease-out) motion-reduce:transition-none">
+					{projectPage && (
+						<ActionButton
+							label={t("plaza.huggingfacePage.projectPage")}
+							className="size-7 rounded-full"
+							onClick={() => openExternalUrl(projectPage)}
+						>
+							<Globe aria-hidden className="size-3.5" />
+						</ActionButton>
+					)}
+					<ActionButton
+						label={t("plaza.huggingfacePage.openHuggingFace")}
+						className="size-7 rounded-full"
+						onClick={() => openExternalUrl(url)}
+					>
+						<ExternalLink aria-hidden className="size-3.5" />
+					</ActionButton>
+				</div>
+			</div>
+			<div className="flex flex-1 flex-col p-3.5">
+				<h2
+					className="line-clamp-2 min-h-[2.5rem] break-words font-medium text-sm leading-5 tracking-[-0.01em]"
+					title={paper.title}
+				>
 					{paper.title}
 				</h2>
-				{(paper.organization || authors) && (
-					<p
-						className="mt-1 line-clamp-2 break-words text-muted-foreground text-xs"
-						title={[paper.organization, authors].filter(Boolean).join(" · ")}
-					>
-						{paper.organization && (
-							<span className="font-medium text-foreground/80">
-								{paper.organization}
-							</span>
-						)}
-						{paper.organization && authors && " · "}
-						{authors}
-					</p>
-				)}
-				<div className="mt-1 flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground tabular-nums">
+				<p
+					className="mt-1 h-4 truncate text-muted-foreground text-xs leading-4"
+					title={
+						[paper.organization, authors].filter(Boolean).join(" · ") ||
+						undefined
+					}
+				>
+					{paper.organization && (
+						<span className="font-medium text-foreground/80">
+							{paper.organization}
+						</span>
+					)}
+					{paper.organization && authors && " · "}
+					{authors}
+				</p>
+				<div className="mt-2 flex h-6 items-center gap-x-2.5 overflow-hidden text-caption text-muted-foreground tabular-nums">
 					{upvotes !== undefined && (
 						<PaperMetric
 							label={t("plaza.huggingfacePage.metricCount", {
@@ -653,7 +684,7 @@ function PaperCard({
 								count: upvotes,
 							})}
 						>
-							<ArrowUp aria-hidden className="size-3.5" />
+							<ArrowUp aria-hidden className="size-3.5 shrink-0" />
 							{formatCompactCount(upvotes)}
 						</PaperMetric>
 					)}
@@ -667,10 +698,10 @@ function PaperCard({
 										})
 							}
 							size="sm"
-							className="h-6 gap-1 px-1 text-caption"
+							className="h-6 shrink-0 gap-1 rounded-md px-1 text-caption text-muted-foreground hover:text-foreground"
 							onClick={() => openExternalUrl(githubRepo)}
 						>
-							<SiGithub aria-hidden className="size-3.5" />
+							<SiGithub aria-hidden className="size-3.5 shrink-0" />
 							{githubStars !== undefined && formatCompactCount(githubStars)}
 						</ActionButton>
 					)}
@@ -681,41 +712,35 @@ function PaperCard({
 								count: numComments,
 							})}
 						>
-							<MessageSquare aria-hidden className="size-3.5" />
+							<MessageSquare aria-hidden className="size-3.5 shrink-0" />
 							{formatCompactCount(numComments)}
 						</PaperMetric>
 					)}
-					{projectPage && (
-						<ActionButton
-							label={t("plaza.huggingfacePage.projectPage")}
-							className="size-6"
-							onClick={() => openExternalUrl(projectPage)}
-						>
-							<Globe aria-hidden className="size-3.5" />
-						</ActionButton>
+					{displayDate && (
+						<span className="ml-auto shrink-0">
+							{paper.edition &&
+							paper.publishedDate &&
+							paper.edition !== paper.publishedDate ? (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										{/* biome-ignore lint/a11y/noNoninteractiveTabindex: Focus opens the publication date tooltip. */}
+										<time dateTime={displayDate} tabIndex={0}>
+											{displayDate}
+										</time>
+									</TooltipTrigger>
+									<TooltipContent>
+										{t("plaza.huggingfacePage.publishedDate", {
+											date: paper.publishedDate,
+										})}
+									</TooltipContent>
+								</Tooltip>
+							) : (
+								<time dateTime={displayDate}>{displayDate}</time>
+							)}
+						</span>
 					)}
-					{displayDate &&
-						(paper.edition &&
-						paper.publishedDate &&
-						paper.edition !== paper.publishedDate ? (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									{/* biome-ignore lint/a11y/noNoninteractiveTabindex: Focus opens the publication date tooltip. */}
-									<time dateTime={displayDate} tabIndex={0}>
-										{displayDate}
-									</time>
-								</TooltipTrigger>
-								<TooltipContent>
-									{t("plaza.huggingfacePage.publishedDate", {
-										date: paper.publishedDate,
-									})}
-								</TooltipContent>
-							</Tooltip>
-						) : (
-							<time dateTime={displayDate}>{displayDate}</time>
-						))}
 				</div>
-				{fullText && (
+				{fullText ? (
 					<SelectionSurface
 						source={{
 							sourcePath: url,
@@ -725,21 +750,31 @@ function PaperCard({
 							surface: "abstract",
 						}}
 						className={cn(
-							"mt-2 whitespace-pre-wrap break-words select-text text-muted-foreground text-xs leading-relaxed",
-							!expanded && "line-clamp-3",
+							"mt-2 whitespace-pre-wrap break-words select-text text-muted-foreground text-xs leading-5",
+							!expanded && "line-clamp-3 h-[3.75rem]",
 						)}
 					>
 						{showTranslation ? translation : expanded ? fullText : summary}
 					</SelectionSurface>
+				) : (
+					!expanded && <div className="mt-2 h-[3.75rem]" aria-hidden />
 				)}
-				{paper.aiKeywords.length > 0 && (
-					<div className="mt-2 flex flex-wrap gap-1">
-						{paper.aiKeywords.slice(0, 4).map((keyword) => (
+				{(!expanded || visibleKeywords.length > 0) && (
+					<div
+						className={cn(
+							"mt-2.5 flex items-center gap-1.5",
+							expanded ? "flex-wrap" : "h-5 overflow-hidden",
+						)}
+					>
+						{visibleKeywords.map((keyword) => (
 							<Badge
 								key={keyword}
 								variant="secondary"
 								asChild
-								className="max-w-full hover:bg-accent focus-visible:outline-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+								className={cn(
+									"min-w-0 hover:bg-accent focus-visible:outline-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground",
+									expanded ? "max-w-full" : "max-w-[10.5rem] shrink",
+								)}
 							>
 								<button
 									type="button"
@@ -752,24 +787,16 @@ function PaperCard({
 								</button>
 							</Badge>
 						))}
+						{hiddenKeywordCount > 0 && (
+							<span className="shrink-0 text-caption text-muted-foreground tabular-nums">
+								+{hiddenKeywordCount}
+							</span>
+						)}
 					</div>
 				)}
-				<div className="mt-2 flex flex-wrap items-center gap-1">
-					<ActionButton
-						label={t("plaza.arxivRec.read")}
-						onClick={() =>
-							openRemoteArxivPaper({
-								arxivId: paper.arxivId,
-								title: paper.title,
-								abstract: fullText || undefined,
-								url: arxivUrl,
-							})
-						}
-					>
-						<BookOpen aria-hidden />
-					</ActionButton>
+				<div className="mt-3 flex items-center gap-1 border-t border-border/60 pt-2.5">
 					{fullText && (
-						<>
+						<div className="flex items-center gap-0.5 text-muted-foreground">
 							<ActionButton
 								label={t(
 									expanded
@@ -777,6 +804,7 @@ function PaperCard({
 										: "plaza.huggingfacePage.expandAbstract",
 								)}
 								aria-expanded={expanded}
+								className="size-7 text-muted-foreground hover:text-foreground"
 								onClick={() => {
 									if (expanded) {
 										if (translating)
@@ -803,6 +831,10 @@ function PaperCard({
 												: "plaza.huggingfacePage.translate",
 								)}
 								disabled={translating}
+								className={cn(
+									"size-7 text-muted-foreground hover:text-foreground",
+									showTranslation && "bg-secondary text-foreground",
+								)}
 								onClick={() => void translateAbstract()}
 							>
 								{translating ? (
@@ -811,64 +843,71 @@ function PaperCard({
 									<Languages aria-hidden />
 								)}
 							</ActionButton>
-						</>
+						</div>
 					)}
-					<ActionButton
-						label={t("plaza.huggingfacePage.openHuggingFace")}
-						onClick={() => openExternalUrl(url)}
-					>
-						<ExternalLink aria-hidden />
-					</ActionButton>
-					<Popover
-						open={pickerOpen}
-						onOpenChange={(open) => {
-							setPickerOpen(open);
-							if (!open) setNewFolder("");
-						}}
-					>
-						<Tooltip>
-							<TooltipTrigger className="ml-auto inline-flex" asChild>
-								<span>
-									<PopoverTrigger asChild>
-										<Button
-											type="button"
-											size="icon-sm"
-											variant="outline"
-											disabled={importDisabled}
-											aria-label={importLabel}
-										>
-											{isImported ? (
-												<Check aria-hidden />
-											) : importState === "pending" ? (
-												<Loader2
-													aria-hidden
-													className="motion-safe:animate-spin"
-												/>
-											) : (
-												<FolderInput aria-hidden />
-											)}
-										</Button>
-									</PopoverTrigger>
-								</span>
-							</TooltipTrigger>
-							<TooltipContent>{importLabel}</TooltipContent>
-						</Tooltip>
-						{pickerOpen && (
-							<MoveDestinationPicker
-								vaultPath={vaultPath}
-								nodes={tree}
-								sourcePaths={[]}
-								selectedFolder={lastFolder ?? currentLookupParentDir()}
-								newFolder={newFolder}
-								busy={false}
-								onNewFolderChange={setNewFolder}
-								onConfirm={importTo}
-								title={t("plaza.importToFolder")}
-								idPrefix={popupId}
-								side="bottom"
-							/>
-						)}
-					</Popover>
+					<div className="ml-auto flex items-center gap-1.5">
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							className="h-7 gap-1 px-2 text-xs active:scale-[0.98] motion-reduce:active:scale-100"
+							onClick={() =>
+								openRemoteArxivPaper({
+									arxivId: paper.arxivId,
+									title: paper.title,
+									abstract: fullText || undefined,
+									url: arxivUrl,
+								})
+							}
+						>
+							<BookOpen aria-hidden className="size-3.5" />
+							{t("plaza.arxivRec.read")}
+						</Button>
+						<Popover
+							open={pickerOpen}
+							onOpenChange={(open) => {
+								setPickerOpen(open);
+								if (!open) setNewFolder("");
+							}}
+						>
+							<PopoverTrigger asChild>
+								<Button
+									type="button"
+									size="sm"
+									variant={isImported ? "ghost" : "secondary"}
+									className="h-7 gap-1 px-2.5 text-xs active:scale-[0.98] motion-reduce:active:scale-100"
+									disabled={importDisabled}
+								>
+									{isImported ? (
+										<Check aria-hidden className="size-3.5" />
+									) : importState === "pending" ? (
+										<Loader2
+											aria-hidden
+											className="size-3.5 motion-safe:animate-spin"
+										/>
+									) : (
+										<FolderInput aria-hidden className="size-3.5" />
+									)}
+									{importLabel}
+								</Button>
+							</PopoverTrigger>
+							{pickerOpen && (
+								<MoveDestinationPicker
+									vaultPath={vaultPath}
+									nodes={tree}
+									sourcePaths={[]}
+									selectedFolder={lastFolder ?? currentLookupParentDir()}
+									newFolder={newFolder}
+									busy={false}
+									onNewFolderChange={setNewFolder}
+									onConfirm={importTo}
+									title={t("plaza.importToFolder")}
+									idPrefix={popupId}
+									side="bottom"
+								/>
+							)}
+						</Popover>
+					</div>
 				</div>
 			</div>
 		</article>
@@ -901,7 +940,7 @@ function PaperCover({ thumbnail }: { thumbnail: string | null }) {
 	const [failed, setFailed] = useState(false);
 	return (
 		<div
-			className="relative aspect-[2/1] overflow-hidden border-b bg-muted/50"
+			className="relative aspect-[2/1] overflow-hidden border-b border-border/60 bg-muted/40"
 			aria-hidden
 		>
 			<div className="absolute inset-0 grid place-items-center text-muted-foreground/50">

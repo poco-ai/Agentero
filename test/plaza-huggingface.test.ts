@@ -798,4 +798,27 @@ describe("Hugging Face Papers Plaza", () => {
 		expect(tooltip?.getAttribute("role")).toBe("tooltip");
 		expect(tooltip?.textContent).toBe("Published 2026-11-20");
 	});
+
+	it("caps collapsed keyword badges to one row and reveals full tags on expand", async () => {
+		fetchMock.mockResolvedValueOnce(
+			response([
+				row(1, {
+					summary: "Full abstract text",
+					ai_keywords: ["Vision", "Robotics", "Planning", "Diffusion"],
+					projectPage: "https://project.example/demo",
+				}),
+			]),
+		);
+		await render();
+		expect(button("Vision")).toBeDefined();
+		expect(button("Robotics")).toBeDefined();
+		expect(button("Planning")).toBeUndefined();
+		expect(view.container.textContent).toContain("+2");
+		expect(button("Open on Hugging Face")).toBeDefined();
+		expect(button("Open project page")).toBeDefined();
+
+		await click("Full abstract");
+		expect(button("Planning")).toBeDefined();
+		expect(button("Diffusion")).toBeDefined();
+	});
 });
