@@ -26,6 +26,27 @@ pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 pub const SETTINGS_SECTION_REQUESTED_EVENT: &str = "settings:section-requested";
 pub const SETTINGS_VAULT_REQUESTED_EVENT: &str = "settings:vault-requested";
 
+/// Apply the platform's window chrome to a freshly built window.
+///
+/// Windows is frameless: the React `WindowHeader` draws the caption buttons
+/// (`WindowControls`) in the same 32px row as the app chrome, so the OS title
+/// bar does not add a second bar. macOS keeps the native Overlay title bar and
+/// traffic lights; Linux keeps native decorations because an undecorated GTK
+/// window loses its resize handles. Every Windows window builder must go
+/// through this so secondary windows keep working close/minimize buttons.
+fn with_platform_chrome<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: WebviewWindowBuilder<'a, R, M>,
+) -> WebviewWindowBuilder<'a, R, M> {
+    #[cfg(target_os = "windows")]
+    {
+        builder.decorations(false)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        builder
+    }
+}
+
 /// Broadcast when a singleton child window closes (or fails to build).
 /// This window signal uses the `domain:event` convention.
 pub const WINDOW_CLOSED_EVENT: &str = "window:closed";
@@ -119,12 +140,13 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
     // navigates to a dropped PDF.
     // Secondary windows inherit platform defaults — frontend still preventDefaults.
     #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
-    let mut builder =
+    let mut builder = with_platform_chrome(
         WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html?fresh=1".into()))
             .title("Agentero")
             .inner_size(1280.0, 800.0)
             .min_inner_size(700.0, 520.0)
-            .resizable(true);
+            .resizable(true),
+    );
 
     #[cfg(target_os = "macos")]
     {
@@ -220,12 +242,13 @@ pub async fn settings_window_open(
     }
 
     #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
-    let mut builder =
+    let mut builder = with_platform_chrome(
         WebviewWindowBuilder::new(&app, SETTINGS_WINDOW_LABEL, WebviewUrl::App(url.into()))
             .title("Settings")
             .inner_size(880.0, 640.0)
             .min_inner_size(760.0, 520.0)
-            .resizable(true);
+            .resizable(true),
+    );
 
     #[cfg(target_os = "macos")]
     {
@@ -351,11 +374,13 @@ pub async fn feature_window_open(
             });
 
     #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
-    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
-        .title(window_title)
-        .inner_size(420.0, 720.0)
-        .min_inner_size(320.0, 400.0)
-        .resizable(true);
+    let mut builder = with_platform_chrome(
+        WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+            .title(window_title)
+            .inner_size(420.0, 720.0)
+            .min_inner_size(320.0, 400.0)
+            .resizable(true),
+    );
 
     #[cfg(target_os = "macos")]
     {
@@ -434,11 +459,13 @@ pub async fn doc_window_open(
     });
 
     #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
-    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
-        .title(window_title)
-        .inner_size(960.0, 720.0)
-        .min_inner_size(480.0, 360.0)
-        .resizable(true);
+    let mut builder = with_platform_chrome(
+        WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+            .title(window_title)
+            .inner_size(960.0, 720.0)
+            .min_inner_size(480.0, 360.0)
+            .resizable(true),
+    );
 
     #[cfg(target_os = "macos")]
     {

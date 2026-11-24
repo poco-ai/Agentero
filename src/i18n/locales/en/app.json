@@ -86,7 +86,11 @@
 		"menuKeyboardShortcuts": "Keyboard Shortcuts",
 		"menuQuickOpen": "Quick Open…",
 		"menuCommandPalette": "Command Palette…",
-		"layoutImmersive": "Immersive reading"
+		"layoutImmersive": "Immersive reading",
+		"minimize": "Minimize",
+		"maximize": "Maximize",
+		"restore": "Restore",
+		"close": "Close"
 	},
 	"editor": {
 		"markdownPlaceholder": "Type Markdown here...",

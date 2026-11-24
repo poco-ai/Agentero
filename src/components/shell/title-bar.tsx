@@ -5,6 +5,7 @@ import { AgentLogo } from "@/components/agent/agent-logo";
 import { LayoutMenu } from "@/components/shell/layout-menu";
 import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import { UpdateIndicator } from "@/components/shell/update-indicator";
+import { WindowControls } from "@/components/shell/window-controls";
 import { WindowHeader } from "@/components/shell/window-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -271,6 +272,7 @@ export const TitleBar = memo(function TitleBar({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					) : null}
+					<WindowControls className="pl-1" />
 				</div>
 			</TooltipProvider>
 		</WindowHeader>

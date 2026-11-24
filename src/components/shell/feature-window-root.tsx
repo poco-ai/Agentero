@@ -6,6 +6,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
+import { WindowControls } from "@/components/shell/window-controls";
 import { WindowHeader } from "@/components/shell/window-header";
 import {
 	AnnotationsPanel,
@@ -382,17 +383,20 @@ export function FeatureWindowRoot() {
 
 	return (
 		<div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-			{isMac ? (
-				<WindowHeader>
+			<WindowHeader>
+				{isMac ? (
 					<TrafficLightSpacer />
-					<div
-						className="min-w-0 flex-1 truncate px-2 text-sm font-medium text-muted-foreground"
-						data-tauri-drag-region
-					>
-						{title}
-					</div>
-				</WindowHeader>
-			) : null}
+				) : (
+					<div className="w-2 shrink-0 self-stretch" data-tauri-drag-region />
+				)}
+				<div
+					className="min-w-0 flex-1 truncate px-2 text-sm font-medium text-muted-foreground"
+					data-tauri-drag-region
+				>
+					{title}
+				</div>
+				<WindowControls />
+			</WindowHeader>
 
 			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 				{!ready ? (

@@ -9,6 +9,7 @@ export function WindowHeader({
 	return (
 		<header
 			data-titlebar
+			data-tauri-drag-region="deep"
 			className={cn(
 				"flex h-8 shrink-0 items-center border-b border-border/50 bg-background/75 backdrop-blur-xl backdrop-saturate-150 select-none supports-backdrop-blur:bg-background/65",
 				className,

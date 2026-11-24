@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SettingsSection } from "@/components/settings/types";
 import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
+import { WindowControls } from "@/components/shell/window-controls";
 import { applyLocale } from "@/i18n";
 import { commands, events } from "@/lib/core/bindings";
 import { errorMessage, notifyError } from "@/lib/core/notify";
@@ -140,25 +141,29 @@ export function SettingsNativeRoot() {
 		<div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
 			{/*
 			  Window chrome: macOS reserves a drag strip for the native traffic
-			  lights (Overlay title bar). Windows / Linux use native decorations,
-			  so the OS title bar already provides the title and caption buttons.
+			  lights (Overlay title bar). Windows / Linux windows are frameless,
+			  so the same strip hosts the app's caption buttons.
 			*/}
-			{isMac ? (
-				<header
-					data-settings-titlebar
-					className="flex h-8 shrink-0 items-center border-b border-sidebar-border/80 bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150 select-none supports-backdrop-blur:bg-sidebar/65"
-				>
-					{/*
+			<header
+				data-settings-titlebar
+				data-tauri-drag-region="deep"
+				className="flex h-8 shrink-0 items-center border-b border-sidebar-border/80 bg-sidebar/80 backdrop-blur-xl backdrop-saturate-150 select-none supports-backdrop-blur:bg-sidebar/65"
+			>
+				{isMac ? (
+					/*
 					  Traffic lights: x=14, three ~14px buttons + gaps → ends ~68px.
 					  Keep the same reserved strip as the main title bar so the drag
 					  region layout matches across windows (collapses in native
 					  fullscreen, where the lights are hidden), then let the rest of
 					  the header be draggable too.
-					*/}
+					*/
 					<TrafficLightSpacer />
-					<div className="min-w-0 flex-1 self-stretch" data-tauri-drag-region />
-				</header>
-			) : null}
+				) : (
+					<div className="w-2 shrink-0 self-stretch" data-tauri-drag-region />
+				)}
+				<div className="min-w-0 flex-1 self-stretch" data-tauri-drag-region />
+				<WindowControls />
+			</header>
 
 			{/* Content */}
 			<div className="flex min-h-0 flex-1">

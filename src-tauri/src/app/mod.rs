@@ -392,6 +392,14 @@ pub fn run() {
                 app.handle().clone(),
             );
         }
+        // Windows: the React title bar draws the caption buttons, so the native
+        // frame is removed before `on_page_load` reveals the window. macOS keeps
+        // its Overlay title bar + traffic lights (tauri.macos.conf); Linux keeps
+        // native decorations (undecorated GTK windows lose their resize handles).
+        #[cfg(target_os = "windows")]
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = win.set_decorations(false);
+        }
         // Native menu is macOS-only; the renderer re-syncs the locale on mount.
         #[cfg(target_os = "macos")]
         {
