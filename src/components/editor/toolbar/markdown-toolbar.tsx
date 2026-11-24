@@ -47,7 +47,6 @@ import { useTranslation } from "react-i18next";
 
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
 import { CoolPapersIcon } from "@/components/icons/cool-papers-icon";
-
 import {
 	Popover,
 	PopoverContent,
@@ -62,6 +61,7 @@ import type { PaperMetadata } from "@/lib/paper/types";
 import { formatModShortcut } from "@/lib/shell/shortcuts";
 import { paperRelFromNotes } from "@/lib/vault";
 import { useWikiNav } from "@/lib/wiki/nav-context";
+import { MarkdownOpenWithButton } from "./markdown-open-with";
 import { ToolbarButton } from "./primitives";
 import {
 	ResponsiveFixedToolbar,
@@ -224,13 +224,15 @@ function FetchKimiNotesButton({ meta }: { meta: PaperMetadata }) {
 }
 
 /**
- * Contextual action at the right end of the formatting toolbar: fetch Cool
- * Papers notes for the current paper NOTES.md.
+ * Right-end slot shared by the render and source toolbars: the Cool Papers
+ * action on a catalogued paper NOTES.md, otherwise the note's "Open with"
+ * control. The two never render together, and the slot keeps the same width
+ * and position when the editor switches modes.
  */
-export function MarkdownPaperNotesButton() {
+export function MarkdownDocTrailingActions() {
 	const meta = useCoolPapersNotesMeta();
-	if (!meta) return null;
-	return <FetchKimiNotesButton meta={meta} />;
+	if (meta) return <FetchKimiNotesButton meta={meta} />;
+	return <MarkdownOpenWithButton />;
 }
 
 /** Export the note as PDF / PNG. Pinned at the left of the status row. */
@@ -398,7 +400,7 @@ export function MarkdownEditorToolbar() {
 		<ResponsiveFixedToolbar
 			variant="header"
 			actions={actions}
-			trailing={<MarkdownPaperNotesButton />}
+			trailing={<MarkdownDocTrailingActions />}
 		/>
 	);
 }

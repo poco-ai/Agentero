@@ -32,7 +32,7 @@ import { copyFileToMarkdownAssets, pickImageFiles } from "@/lib/markdown/image";
 import type { MarkdownSourceFormat } from "@/lib/markdown/source-format";
 import { sourceFormatTransaction } from "@/lib/markdown/source-format";
 import { formatModShortcut } from "@/lib/shell/shortcuts";
-import { MarkdownPaperNotesButton } from "./markdown-toolbar";
+import { MarkdownDocTrailingActions } from "./markdown-toolbar";
 import {
 	ResponsiveFixedToolbar,
 	type ToolbarAction,
@@ -225,7 +225,7 @@ export function MarkdownSourceToolbar({
 		<ResponsiveFixedToolbar
 			variant="header"
 			actions={actions}
-			trailing={<MarkdownPaperNotesButton />}
+			trailing={<MarkdownDocTrailingActions />}
 		/>
 	);
 }
