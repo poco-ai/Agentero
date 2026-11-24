@@ -291,6 +291,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::pdf::bookmarks::pdf_save_bookmarks,
             crate::features::pdf::annotations::pdf_save_annotations,
             crate::features::web::commands::web_proxy_allow_host,
+            crate::features::web::commands::web_proxy_resolve_image,
             crate::features::web::commands::html_preview_grant,
             crate::features::compile::detect_latex_engines,
             crate::features::rtex::rtex_status,

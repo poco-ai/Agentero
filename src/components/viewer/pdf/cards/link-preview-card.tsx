@@ -23,7 +23,12 @@ import { commands } from "@/lib/core/bindings";
 import { callApiResult } from "@/lib/core/ipc";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
-import { httpUrl, resolveLinkPreviewTarget } from "@/lib/pdf/link-preview";
+import {
+	httpUrl,
+	isPlosSupplementaryFileUrl,
+	plosSupplementaryPreviewLoadUrl,
+	resolveLinkPreviewTarget,
+} from "@/lib/pdf/link-preview";
 import { PDF_PAPER_SHELL_CLASS } from "@/lib/pdf/page-theme";
 import { webViewProxyOrigins, webViewProxyUrl } from "@/lib/web-view/proxy-url";
 
@@ -141,25 +146,48 @@ export function PdfLinkPreviewCard({
 	// Dwell first, then ask the Host to allow the public host and point the
 	// frame / image at the proxy. Only one card exists at a time, and leaving
 	// the card unmounts it (timer + request cleanup below).
+	//
+	// PLOS SI permalinks are classified as `image` but 302 to a corpus R2 host.
+	// agentero-web only follows redirects when the hop is already allowlisted,
+	// so the card Host-resolves (`webProxyResolveImage`) and loads the proxied
+	// Location URL (JPEG/PNG/WebP). TIFF/PDF resolve to null → URL tip.
+	// Do not probe with page-level fetch + manual redirects (no CORS / opaque).
 	const beginPreview = useCallback(async () => {
 		const resolved = httpUrl(previewTarget.url);
 		if (!resolved) {
 			setPhase("failed");
 			return;
 		}
-		let proxied: string;
-		try {
-			proxied = webViewProxyUrl(resolved.href);
-		} catch {
-			setPhase("failed");
-			return;
-		}
 		setPhase("loading");
 		try {
-			const accepted = await callApiResult(() =>
-				commands.webProxyAllowHost({ host: resolved.hostname }),
-			);
-			if (!accepted) {
+			let loadUrl = resolved.href;
+			if (kind === "image" && isPlosSupplementaryFileUrl(resolved.href)) {
+				const hostResolved = await callApiResult(() =>
+					commands.webProxyResolveImage({ url: resolved.href }),
+				);
+				const finalUrl = plosSupplementaryPreviewLoadUrl(
+					resolved.href,
+					hostResolved,
+				);
+				if (!finalUrl) {
+					setPhase("failed");
+					return;
+				}
+				// Host already allowlisted journals + corpus public DNS hosts.
+				loadUrl = finalUrl;
+			} else {
+				const accepted = await callApiResult(() =>
+					commands.webProxyAllowHost({ host: resolved.hostname }),
+				);
+				if (!accepted) {
+					setPhase("failed");
+					return;
+				}
+			}
+			let proxied: string;
+			try {
+				proxied = webViewProxyUrl(loadUrl);
+			} catch {
 				setPhase("failed");
 				return;
 			}

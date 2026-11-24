@@ -14,6 +14,7 @@ import {
 	citationRefNumber,
 	citationSidecarKeysForDest,
 	destinationInPageBox,
+	elifeCrossrefParser,
 	expandCitationLinkCluster,
 	fitHCoordResolver,
 	fitRCoordResolver,
@@ -678,6 +679,29 @@ describe("citationRefNumber", () => {
 	});
 });
 
+describe("elifeCrossrefParser", () => {
+	it("parses eLife figNsM destinations as parent + supplement", () => {
+		expect(elifeCrossrefParser("fig5s1")).toEqual({
+			kind: "figure",
+			number: 5,
+			supplement: 1,
+		});
+		expect(elifeCrossrefParser("Fig2s3")).toEqual({
+			kind: "figure",
+			number: 2,
+			supplement: 3,
+		});
+		expect(elifeCrossrefParser("fig5")).toBeNull();
+		expect(elifeCrossrefParser("fig5a")).toBeNull();
+		expect(elifeCrossrefParser("mk:figS1")).toBeNull();
+	});
+
+	it("does not let Springer claim eLife supplement destinations", () => {
+		expect(springerCrossrefParser("fig5s1")).toBeNull();
+		expect(elifeCrossrefParser("fig5s1")?.supplement).toBe(1);
+	});
+});
+
 describe("springerCrossrefParser", () => {
 	it("parses Springer float destinations", () => {
 		expect(springerCrossrefParser("ch3Fig1")).toEqual({
@@ -915,6 +939,58 @@ describe("crossref label extraction", () => {
 		});
 	});
 
+	it("extracts eLife figure-supplement labels before the main figure", () => {
+		expect(extractCrossrefLabel("Figure 5—figure supplement 1")).toEqual({
+			kind: "figure",
+			number: 5,
+			supplement: 1,
+		});
+		expect(extractCrossrefLabel("Fig. 2-figure supplement 3")).toEqual({
+			kind: "figure",
+			number: 2,
+			supplement: 3,
+		});
+	});
+
+	it("extracts medical/biology standalone supplement labels", () => {
+		expect(extractCrossrefLabel("Supplementary Figure 3")).toEqual({
+			kind: "figure",
+			number: 0,
+			supplement: 3,
+		});
+		expect(extractCrossrefLabel("Supplemental Fig. 2")).toEqual({
+			kind: "figure",
+			number: 0,
+			supplement: 2,
+		});
+		expect(extractCrossrefLabel("see Fig. S1")).toEqual({
+			kind: "figure",
+			number: 0,
+			supplement: 1,
+		});
+		expect(extractCrossrefLabel("Figure S12")).toEqual({
+			kind: "figure",
+			number: 0,
+			supplement: 12,
+		});
+		expect(extractCrossrefLabel("S1 Fig")).toEqual({
+			kind: "figure",
+			number: 0,
+			supplement: 1,
+		});
+		expect(extractCrossrefLabel("S4 Figure")).toEqual({
+			kind: "figure",
+			number: 0,
+			supplement: 4,
+		});
+	});
+
+	it("does not treat Supplementary Figure N as main Figure N", () => {
+		const label = extractCrossrefLabel("Supplementary Figure 5");
+		expect(label).toEqual({ kind: "figure", number: 0, supplement: 5 });
+		expect(label?.number).not.toBe(5);
+	});
+
 	it("extracts table labels", () => {
 		expect(extractCrossrefLabel("in Table 3")).toEqual({
 			kind: "table",
@@ -969,6 +1045,29 @@ describe("pickCrossrefRegionByLabel", () => {
 			requireLabel("Figure 2"),
 		);
 		expect(matched?.title).toBe("Figure 2. caption");
+	});
+
+	it("refuses to crop a main figure for supplement labels", () => {
+		const regions = [
+			region(0, "image", { x: 0, y: 0, w: 1, h: 0.4 }, "Figure 5. caption"),
+		];
+		expect(
+			pickCrossrefRegionByLabel(
+				regions,
+				0,
+				requireLabel("Figure 5—figure supplement 1"),
+			),
+		).toBeNull();
+		expect(
+			pickCrossrefRegionByLabel(
+				regions,
+				0,
+				requireLabel("Supplementary Figure 5"),
+			),
+		).toBeNull();
+		expect(
+			pickCrossrefRegionByLabel(regions, 0, requireLabel("Fig. S5")),
+		).toBeNull();
 	});
 
 	it("returns the only candidate when there is no title", () => {

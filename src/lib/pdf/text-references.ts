@@ -192,8 +192,11 @@ export function detectTextReferences(
 			text += `${lineText(line)}\n`;
 			return { line, start, end: text.length - 1 };
 		});
+		// Include eLife "Figure N—figure supplement M" and medical/biology
+		// standalone forms so they reach extractCrossrefLabel before a bare
+		// "Figure N" truncates the phrase.
 		const pattern =
-			/[[［][\d\s,‐‑‒–—−-]+[\]］]|[（(][^()（）]{0,600}?(?:18|19|20)\d{2}[^()（）]{0,300}?[）)]|\b(?:Fig(?:ure)?s?\.?|Tables?|Tbl\.?)\s*\d+[a-z]?(?:\s*[,–-]\s*[a-z](?![\p{L}\p{N}]))*/giu;
+			/[[［][\d\s,‐‑‒–—−-]+[\]］]|[（(][^()（）]{0,600}?(?:18|19|20)\d{2}[^()（）]{0,300}?[）)]|\bSupplementa(?:ry|l)\s+(?:Fig(?:ure)?s?\.?)\s*\d+|\b(?:Fig(?:ure)?s?\.?)\s*S\d+\b|\bS\d+\s*(?:Fig(?:ure)?s?\.?)\b|\b(?:Fig(?:ure)?s?\.?)\s*\d+\s*(?:[—–‐‑-]\s*)?(?:Figure\s+)?Supplement\s*\d+|\b(?:Fig(?:ure)?s?\.?|Tables?|Tbl\.?)\s*\d+[a-z]?(?:\s*[,–-]\s*[a-z](?![\p{L}\p{N}]))*/giu;
 		for (const match of text.matchAll(pattern)) {
 			const numbers = citationNumbers(match[0]);
 			const authorYears = numbers.length ? [] : citationAuthors(match[0]);

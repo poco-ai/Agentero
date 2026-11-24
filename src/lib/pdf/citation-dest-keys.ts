@@ -327,6 +327,11 @@ export type CrossrefDestLabel = {
 	kind: CrossrefKind;
 	/** The numeric part of the destination name ("mk:figS1" → 1). */
 	number: number;
+	/**
+	 * Present when the destination is a figure supplement (eLife `fig5s1`),
+	 * not the parent figure alone.
+	 */
+	supplement?: number;
 };
 
 /** `pageIndex:pdfY` → parsed labels from destination names at that coordinate. */
@@ -455,6 +460,11 @@ export type CrossrefNameMatch = {
 	kind: CrossrefKind;
 	/** The numeric part, when the name embeds it (e.g. `mk:fig1` → 1). */
 	number?: number;
+	/**
+	 * Figure-supplement index when the destination names a supplement rather
+	 * than the main float (eLife `fig5s1` → supplement 1).
+	 */
+	supplement?: number;
 };
 
 /**
@@ -588,10 +598,26 @@ export const springerCrossrefParser: CrossrefNameParser = (name) => {
 	return null;
 };
 
+/**
+ * eLife figure-supplement destinations (`fig5s1` → Figure 5, supplement 1).
+ * Must run before {@link springerCrossrefParser}: Springer's
+ * `fig(\d+)[a-z]?$` does not match these names today, but a future widening
+ * of that pattern must never claim the parent figure alone.
+ */
+export const elifeCrossrefParser: CrossrefNameParser = (name) => {
+	const match = /^fig(\d+)s(\d+)$/i.exec(name);
+	if (!match) return null;
+	const number = Number.parseInt(match[1] ?? "", 10);
+	const supplement = Number.parseInt(match[2] ?? "", 10);
+	if (Number.isNaN(number) || Number.isNaN(supplement)) return null;
+	return { kind: "figure", number, supplement };
+};
+
 /** Built-in cross-reference name parsers, tried in order. */
 export const defaultCrossrefNameParsers: CrossrefNameParser[] = [
 	hyperrefCrossrefParser,
 	acsCrossrefParser,
+	elifeCrossrefParser,
 	springerCrossrefParser,
 ];
 
@@ -917,9 +943,19 @@ export async function buildPdfDestMaps(
 			return;
 		}
 		const exists = list.some(
-			(l) => l.kind === label.kind && l.number === label.number,
+			(l) =>
+				l.kind === label.kind &&
+				l.number === label.number &&
+				l.supplement === label.supplement,
 		);
 		if (!exists) list.push(label);
+	};
+
+	const toDestLabel = (match: CrossrefNameMatch): CrossrefDestLabel | null => {
+		if (match.number == null) return null;
+		return match.supplement != null
+			? { kind: match.kind, number: match.number, supplement: match.supplement }
+			: { kind: match.kind, number: match.number };
 	};
 
 	for (const [name, dest] of namedDests) {
@@ -934,10 +970,15 @@ export async function buildPdfDestMaps(
 		if (match) {
 			const coord = destCoordKey(dest, context, pageRefs, coordResolvers);
 			if (coord) {
-				stash(crossByCoord, coord, match.kind);
+				// Supplement destinations must not enter the unambiguous-kind map:
+				// that hover fast path crops a main figure before link-label /
+				// label maps can call trySupplementPreview.
+				if (match.supplement == null) {
+					stash(crossByCoord, coord, match.kind);
+				}
 				stashKind(coord, match.kind);
-				if (match.number != null)
-					stashLabel(coord, { kind: match.kind, number: match.number });
+				const label = toDestLabel(match);
+				if (label) stashLabel(coord, label);
 			}
 		}
 	}
@@ -999,13 +1040,15 @@ export async function buildPdfDestMaps(
 					key: citationKey,
 				});
 			} else if (crossMatch && crossMatch.number != null) {
+				const label = toDestLabel(crossMatch);
+				if (!label) continue;
 				crossrefLinks.push({
 					pageIndex,
 					x: device.x,
 					y: device.y,
 					w: device.w,
 					h: device.h,
-					label: { kind: crossMatch.kind, number: crossMatch.number },
+					label,
 				});
 			} else {
 				otherNamedLinks.push({
