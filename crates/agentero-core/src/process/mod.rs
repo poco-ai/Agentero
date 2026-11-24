@@ -4,7 +4,10 @@ pub mod discover;
 #[cfg(windows)]
 mod windows_job;
 
-pub use discover::{path_entries, probe_command, resolve_command, resolve_command_in_paths};
+pub use discover::{
+    command_candidates_in_paths, path_entries, probe_command, resolve_command,
+    resolve_command_in_paths,
+};
 
 /// Library-loader variables an AppImage runtime injects so its bundled libraries
 /// shadow the host's. Forwarding them to external tools makes a distro `node`

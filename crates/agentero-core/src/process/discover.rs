@@ -137,15 +137,30 @@ fn has_pe_magic(path: &Path) -> bool {
 
 /// Resolve `command` against an explicit ordered list of directories.
 pub fn resolve_command_in_paths(command: &str, paths: &[PathBuf]) -> Option<PathBuf> {
+    command_candidates_in_paths(command, paths)
+        .into_iter()
+        .next()
+}
+
+/// Every executable candidate for `command` in `paths`, in resolution order
+/// (directory order, then `PATHEXT` order on Windows).
+///
+/// [`resolve_command_in_paths`] stops at the first directory entry that exists,
+/// which is all a shell needs. Callers that must *spawn* the result need more:
+/// a leftover npm shim (`.cmd`) whose package was removed still shadows a
+/// working native binary later on PATH. Such callers walk this list and keep
+/// the first candidate they can actually use.
+pub fn command_candidates_in_paths(command: &str, paths: &[PathBuf]) -> Vec<PathBuf> {
     let path = Path::new(command);
     if path.is_absolute() || command.contains('/') || command.contains('\\') {
         return if is_executable(path) {
-            Some(path.to_path_buf())
+            vec![path.to_path_buf()]
         } else {
-            None
+            Vec::new()
         };
     }
 
+    let mut candidates = Vec::new();
     for dir in paths {
         // On Windows, `npm i -g` drops BOTH a bare shell script (for Git Bash)
         // and a `.cmd`/`.exe` shim of the same name. The bare file is not a valid
@@ -157,15 +172,15 @@ pub fn resolve_command_in_paths(command: &str, paths: &[PathBuf]) -> Option<Path
         for ext in ["exe", "cmd", "bat", "ps1"] {
             let with_ext = dir.join(format!("{command}.{ext}"));
             if is_executable(&with_ext) {
-                return Some(with_ext);
+                candidates.push(with_ext);
             }
         }
         let candidate = dir.join(command);
         if is_executable(&candidate) {
-            return Some(candidate);
+            candidates.push(candidate);
         }
     }
-    None
+    candidates
 }
 
 /// Resolve `command` on PATH (and common extra dirs). Absolute paths are checked as-is.
@@ -329,6 +344,38 @@ mod tests {
         assert_eq!(map.get("FOO"), Some(&"bar".to_string()));
         assert_eq!(map.get("BAZ"), Some(&"qux".to_string()));
         assert!(!map.contains_key("BAD_NO_EQUAL"));
+    }
+
+    #[test]
+    fn command_candidates_keep_walking_past_the_first_hit() {
+        let root =
+            std::env::temp_dir().join(format!("agentero-candidates-{}", uuid::Uuid::new_v4()));
+        let first = root.join("first");
+        let second = root.join("second");
+        std::fs::create_dir_all(&first).unwrap();
+        std::fs::create_dir_all(&second).unwrap();
+        let name = if cfg!(windows) { "tool.cmd" } else { "tool" };
+        for dir in [&first, &second] {
+            let file = dir.join(name);
+            std::fs::write(&file, "stub").unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+            }
+        }
+
+        let candidates =
+            super::command_candidates_in_paths("tool", &[first.clone(), second.clone()]);
+        assert_eq!(candidates, vec![first.join(name), second.join(name)]);
+        // The plain resolver still stops at the first hit: only spawn-aware
+        // callers need the full candidate list.
+        assert_eq!(
+            super::resolve_command_in_paths("tool", &[first.clone(), second]),
+            Some(first.join(name))
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

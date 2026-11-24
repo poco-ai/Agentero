@@ -272,14 +272,40 @@ pub(crate) fn host_requirement(template_id: &str) -> Option<(&'static str, &'sta
 
 pub fn host_path(template_id: &str, child_env: &HashMap<String, String>) -> Option<PathBuf> {
     let (command, key) = host_requirement(template_id)?;
-    let command = child_env.get(key).map(String::as_str).unwrap_or(command);
-    let path =
-        crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)?;
     #[cfg(windows)]
     if template_id == "claude-acp" {
-        return claude_sdk_path(&path);
+        return claude_host_path(child_env, command, key);
     }
-    Some(path)
+    let command = child_env.get(key).map(String::as_str).unwrap_or(command);
+    crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)
+}
+
+/// Resolve the Windows Claude host entrypoint the SDK can spawn.
+///
+/// An explicit `CLAUDE_CODE_EXECUTABLE` override is authoritative: it is
+/// resolved and must map to an SDK-compatible entrypoint, never silently
+/// replaced by a PATH install. Without an override the whole merged PATH is
+/// walked and the first spawnable candidate wins, so a leftover npm shim whose
+/// package was removed no longer hides the native
+/// `%USERPROFILE%\.local\bin\claude.exe` written by the native installer.
+#[cfg(windows)]
+fn claude_host_path(
+    child_env: &HashMap<String, String>,
+    command: &str,
+    override_key: &str,
+) -> Option<PathBuf> {
+    if let Some(explicit) = child_env.get(override_key) {
+        let resolved =
+            crate::features::agent::acp::client::resolve_command_in_agent_env(explicit, child_env)?;
+        return claude_sdk_path(&resolved);
+    }
+    let paths = child_env
+        .get("PATH")
+        .map(|value| std::env::split_paths(value).collect::<Vec<_>>())
+        .unwrap_or_default();
+    crate::core::process::command_candidates_in_paths(command, &paths)
+        .into_iter()
+        .find_map(|candidate| claude_sdk_path(&candidate))
 }
 
 /// The Claude SDK spawns native binaries directly and JS entrypoints through
@@ -623,6 +649,88 @@ mod tests {
         assert_eq!(host_path("claude-acp", &env), Some(native.clone()));
         std::fs::write(native, "invalid PE file").unwrap();
         assert!(host_path("claude-acp", &env).is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_dead_npm_shim_does_not_hide_native_install_later_on_path() {
+        // Native installer layout next to a stale `npm i -g` shim: the shim's
+        // directory comes first on PATH and its package was removed.
+        let npm = tempfile::tempdir().unwrap();
+        let local = tempfile::tempdir().unwrap();
+        std::fs::write(npm.path().join("claude.cmd"), "@echo off\r\n").unwrap();
+        let native = fake_host(local.path(), "claude");
+        let env = HashMap::from([(
+            "PATH".to_string(),
+            std::env::join_paths([npm.path(), local.path()])
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        )]);
+
+        assert_eq!(host_path("claude-acp", &env), Some(native.clone()));
+        assert_eq!(
+            host_env_injection("claude-acp", &env).unwrap(),
+            vec![(
+                "CLAUDE_CODE_EXECUTABLE".to_string(),
+                native.display().to_string()
+            )]
+        );
+
+        // The dead shim alone still fails closed instead of injecting it.
+        let shim_only = HashMap::from([("PATH".to_string(), npm.path().display().to_string())]);
+        assert!(host_path("claude-acp", &shim_only).is_none());
+        assert!(host_env_injection("claude-acp", &shim_only).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_usable_shim_earlier_on_path_still_wins_over_a_later_native_binary() {
+        let npm = tempfile::tempdir().unwrap();
+        let local = tempfile::tempdir().unwrap();
+        let entry = npm
+            .path()
+            .join("node_modules/@anthropic-ai/claude-code/cli.js");
+        std::fs::create_dir_all(entry.parent().unwrap()).unwrap();
+        std::fs::write(&entry, "").unwrap();
+        std::fs::write(npm.path().join("claude.cmd"), "npm shim").unwrap();
+        fake_host(local.path(), "claude");
+        let env = HashMap::from([(
+            "PATH".to_string(),
+            std::env::join_paths([npm.path(), local.path()])
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        )]);
+
+        assert_eq!(host_path("claude-acp", &env), Some(entry));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_dead_shim_override_never_falls_back_to_path() {
+        let npm = tempfile::tempdir().unwrap();
+        let local = tempfile::tempdir().unwrap();
+        let shim = npm.path().join("claude.cmd");
+        std::fs::write(&shim, "npm shim").unwrap();
+        fake_host(local.path(), "claude");
+        let mut env = HashMap::from([(
+            "PATH".to_string(),
+            std::env::join_paths([npm.path(), local.path()])
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        )]);
+
+        // Without an override the native install later on PATH is found.
+        assert!(host_path("claude-acp", &env).is_some());
+        // An explicit but unusable override fails instead of silently using it.
+        env.insert(
+            "CLAUDE_CODE_EXECUTABLE".to_string(),
+            shim.display().to_string(),
+        );
+        assert!(host_path("claude-acp", &env).is_none());
+        assert!(host_env_injection("claude-acp", &env).is_err());
     }
 
     #[test]
