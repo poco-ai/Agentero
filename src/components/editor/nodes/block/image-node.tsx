@@ -15,8 +15,9 @@ import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-
 import { useInView } from "@/hooks/use-in-view";
 import { cn } from "@/lib/core/utils";
 import {
-	formatMarkdownImageSyntax,
+	imageSourceText,
 	isRemoteOrInlineImageUrl,
+	readImageAlt,
 	resolveMarkdownImageCandidates,
 } from "@/lib/markdown/image";
 import {
@@ -28,7 +29,7 @@ import { imageMimeFromPath } from "@/lib/workspace/viewer";
 
 export function ImageElement(props: PlateElementProps<TImageElement>) {
 	const url = props.element.url ?? "";
-	const alt = (props.element as { alt?: string }).alt ?? "";
+	const alt = readImageAlt(props.element);
 	const { filePath } = useMarkdownDoc();
 	const wikiNav = useWikiNav();
 	const exportMode = useMarkdownExportMode();
@@ -95,7 +96,7 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 		};
 	}, [inView, url, filePath, wikiNav?.vaultPath]);
 
-	const sourceText = formatMarkdownImageSyntax(alt, url);
+	const sourceText = imageSourceText(props.element);
 
 	return (
 		<PlateElement
