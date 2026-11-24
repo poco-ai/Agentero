@@ -22,6 +22,8 @@
 
 侧栏的 **广场** 有 Cool Papers、ModelScope、Hugging Face 每日论文和 Papers with Code 等来源。打开感兴趣的条目后再决定是否加入论文库。想持续跟踪某个来源，可以在 **订阅** 添加 RSS、Atom 或 arXiv 分区。**CCF 截稿**可以按领域和级别筛选。
 
+**Hugging Face 每日论文**默认显示热门论文，也可以切换到每日、每周或每月榜单。搜索、排序和「只看有 GitHub 仓库的论文」适用于已加载的条目。点击 **加载更多** 继续浏览，或点论文卡片的 **阅读** 在工作区打开 PDF。
+
 [![演示订阅里的三篇 Transformer 相关阅读](../assets/screenshots/discovery.webp)](../assets/screenshots/discovery.webp)
 
 **arXiv Daily** 会参照你库里的论文摘要，给当天的新论文排序。使用前确认库里有摘要，且 Embedding 服务可用。想查有哪些新论文引用了库里的文献？右键点击 **论文库**，选 **发现引用我的新论文**，再勾选要导入的结果。
