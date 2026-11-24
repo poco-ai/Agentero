@@ -1,12 +1,53 @@
-import { ExternalLink, FileText, Languages, RotateCw } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import {
+	ArrowUp,
+	BookOpen,
+	Check,
+	ChevronDown,
+	ChevronLeft,
+	ChevronRight,
+	ChevronUp,
+	ExternalLink,
+	FileText,
+	Flame,
+	FolderInput,
+	Globe,
+	Languages,
+	Loader2,
+	MessageSquare,
+	RotateCw,
+	Search,
+	X,
+} from "lucide-react";
+import {
+	type ComponentProps,
+	type ReactNode,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
+import { SiGithub } from "react-icons/si";
 import { SelectionSurface } from "@/components/selection/selection-surface";
 import { MoveDestinationPicker } from "@/components/sidebar/file-tree/move-destination-picker";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLibraryStore, useVaultStore } from "@/hooks/use-app-stores";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -14,33 +55,80 @@ import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import { currentLookupParentDir } from "@/lib/paper/library-actions";
 import {
+	currentUtcIsoWeek,
+	currentUtcMonth,
+	filterAndSortHuggingFacePapers,
+	formatCompactCount,
+	HUGGING_FACE_FEED_MODES,
+	HUGGING_FACE_SORTS,
+	type HuggingFaceFeedMode,
+	type HuggingFaceFeedRequest,
 	type HuggingFacePaper,
+	type HuggingFaceSort,
 	loadHuggingFacePapers,
+	readHuggingFacePrefs,
+	shiftIsoWeek,
+	shiftUtcDate,
+	shiftUtcMonth,
+	todayUtcDate,
+	writeHuggingFacePrefs,
 } from "@/lib/plaza/huggingface";
 import { importPlazaPaper } from "@/lib/plaza/import";
 import { matchingImportedIds } from "@/lib/plaza/imported";
 import { runTranslate } from "@/lib/translate";
+import { openRemoteArxivPaper } from "@/lib/workspace/actions";
+
+type FeedState =
+	| { status: "loading" | "error" }
+	| {
+			status: "ready";
+			papers: HuggingFacePaper[];
+			hasMore: boolean;
+			resolvedDate?: string;
+			page: number;
+			loadingMore: boolean;
+	  };
+
+function currentFeed(mode: HuggingFaceFeedMode): HuggingFaceFeedRequest {
+	switch (mode) {
+		case "daily":
+			return { mode, date: todayUtcDate(), autoFallback: true };
+		case "weekly":
+			return { mode, week: currentUtcIsoWeek() };
+		case "monthly":
+			return { mode, month: currentUtcMonth() };
+		default:
+			return { mode };
+	}
+}
 
 export function PlazaHuggingFaceView({ className }: { className?: string }) {
 	const { t } = useTranslation("sidebar");
-	const [request, setRequest] = useState({ date: "" });
-	const { date } = request;
-	const reload = () => setRequest({ date });
-	const [papers, setPapers] = useState<HuggingFacePaper[]>([]);
-	const [status, setStatus] = useState<"loading" | "ready" | "error">(
-		"loading",
+	const [prefs] = useState(readHuggingFacePrefs);
+	const [request, setRequest] = useState(() => currentFeed(prefs.mode));
+	const [sort, setSort] = useState(prefs.sort);
+	const [codeOnly, setCodeOnly] = useState(prefs.codeOnly);
+	const [query, setQuery] = useState("");
+	const [feed, setFeed] = useState<FeedState>({ status: "loading" });
+	const [destinations, setDestinations] = useState(
+		() => new Map<string, string>(),
 	);
-	const [destination, setDestination] = useState<{
-		vaultPath: string | null;
-		folder: string;
-	} | null>(null);
+	const controllerRef = useRef<AbortController | null>(null);
+	const generation = useRef(0);
 	const vaultPath = useVaultStore((state) => state.vaultPath);
 	const library = useLibraryStore((state) => state.papers);
+	const mode = request.mode;
+	const papers = feed.status === "ready" ? feed.papers : null;
+	const visiblePapers = useMemo(
+		() =>
+			filterAndSortHuggingFacePapers(papers ?? [], { sort, query, codeOnly }),
+		[papers, sort, query, codeOnly],
+	);
 	const importedIds = useMemo(
 		() =>
 			new Set(
 				matchingImportedIds(
-					papers.map((paper) => paper.arxivId),
+					papers?.map((paper) => paper.arxivId) ?? [],
 					library,
 				),
 			),
@@ -48,89 +136,396 @@ export function PlazaHuggingFaceView({ className }: { className?: string }) {
 	);
 
 	useEffect(() => {
+		writeHuggingFacePrefs({ mode, sort, codeOnly });
+	}, [mode, sort, codeOnly]);
+
+	useEffect(() => {
 		const controller = new AbortController();
-		setStatus("loading");
-		loadHuggingFacePapers(request.date, controller.signal).then(
+		controllerRef.current = controller;
+		const requestGeneration = ++generation.current;
+		const isCurrent = () =>
+			requestGeneration === generation.current && !controller.signal.aborted;
+		loadHuggingFacePapers(request, controller.signal).then(
 			(next) => {
-				if (controller.signal.aborted) return;
-				setPapers(next);
-				setStatus("ready");
+				if (isCurrent())
+					setFeed({ ...next, status: "ready", page: 0, loadingMore: false });
 			},
 			() => {
-				if (!controller.signal.aborted) setStatus("error");
+				if (isCurrent()) setFeed({ status: "error" });
 			},
 		);
 		return () => controller.abort();
 	}, [request]);
 
+	const editionRequest: HuggingFaceFeedRequest =
+		mode === "daily" && feed.status === "ready" && feed.resolvedDate
+			? { mode, date: feed.resolvedDate }
+			: request;
+
+	function startRequest(next: HuggingFaceFeedRequest) {
+		controllerRef.current?.abort();
+		setFeed({ status: "loading" });
+		setRequest({ ...next });
+	}
+
+	const reload = () => startRequest(editionRequest);
+
+	async function loadMore() {
+		if (feed.status !== "ready" || !feed.hasMore || feed.loadingMore) return;
+		const signal = controllerRef.current?.signal;
+		if (!signal || signal.aborted) return;
+		const requestGeneration = generation.current;
+		const isCurrent = () =>
+			requestGeneration === generation.current && !signal.aborted;
+		const page = feed.page + 1;
+		setFeed({ ...feed, loadingMore: true });
+		try {
+			const next = await loadHuggingFacePapers(
+				{ ...editionRequest, page },
+				signal,
+			);
+			if (!isCurrent()) return;
+			const known = new Set(feed.papers.map((paper) => paper.arxivId));
+			const added = next.papers.filter((paper) => !known.has(paper.arxivId));
+			setFeed({
+				...feed,
+				papers: [...feed.papers, ...added],
+				page,
+				hasMore: next.hasMore && added.length > 0,
+				loadingMore: false,
+			});
+		} catch (error) {
+			if (!isCurrent()) return;
+			setFeed({ ...feed, loadingMore: false });
+			notifyError(errorText(error));
+		}
+	}
+
+	const loading =
+		feed.status === "loading" || (feed.status === "ready" && feed.loadingMore);
+	const loadMoreButton = feed.status === "ready" && feed.hasMore && (
+		<Button
+			type="button"
+			size="sm"
+			variant="outline"
+			disabled={feed.loadingMore}
+			onClick={() => void loadMore()}
+		>
+			{feed.loadingMore && (
+				<Loader2 aria-hidden className="motion-safe:animate-spin" />
+			)}
+			{t("plaza.huggingfacePage.loadMore")}
+		</Button>
+	);
+
 	return (
 		<div className={cn("flex h-full min-h-0 flex-col", className)}>
-			<div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
-				<Button
-					type="button"
-					size="sm"
-					variant={date ? "ghost" : "secondary"}
-					onClick={() => setRequest({ date: "" })}
-				>
-					{t("plaza.huggingfacePage.latest")}
-				</Button>
-				<Input
-					type="date"
-					className="h-8 w-auto"
-					value={date}
-					aria-label={t("plaza.huggingfacePage.editionDate")}
-					onChange={(event) => setRequest({ date: event.target.value })}
-				/>
-				<Button
-					type="button"
-					className="ml-auto"
-					variant="ghost"
-					size="icon-sm"
-					aria-label={t("plaza.reload")}
-					title={t("plaza.reload")}
-					disabled={status === "loading"}
-					onClick={reload}
-				>
-					<RotateCw aria-hidden />
-				</Button>
+			<div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-2">
+				<fieldset className="inline-flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border p-0.5">
+					<legend className="sr-only">
+						{t("plaza.huggingfacePage.feedMode")}
+					</legend>
+					{HUGGING_FACE_FEED_MODES.map((option) => (
+						<Button
+							key={option}
+							type="button"
+							size="sm"
+							variant={mode === option ? "secondary" : "ghost"}
+							aria-pressed={mode === option}
+							onClick={() => {
+								if (mode !== option) startRequest(currentFeed(option));
+							}}
+						>
+							{option === "trending" && <Flame aria-hidden />}
+							{t(`plaza.huggingfacePage.modes.${option}`)}
+						</Button>
+					))}
+				</fieldset>
+				{editionRequest.mode !== "trending" && (
+					<PeriodControls request={editionRequest} onChange={startRequest} />
+				)}
+				<div className="ml-auto flex flex-wrap items-center gap-1">
+					<div className="relative w-44 max-w-full">
+						<Search
+							aria-hidden
+							className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+						/>
+						<Input
+							value={query}
+							className="h-8 pr-8 pl-8"
+							aria-label={t("plaza.huggingfacePage.search")}
+							placeholder={t("plaza.huggingfacePage.search")}
+							onChange={(event) => setQuery(event.target.value)}
+						/>
+						{query && (
+							<ActionButton
+								className="absolute top-1/2 right-0.5 -translate-y-1/2"
+								label={t("plaza.huggingfacePage.clearSearch")}
+								onClick={() => setQuery("")}
+							>
+								<X aria-hidden />
+							</ActionButton>
+						)}
+					</div>
+					<ActionButton
+						label={t("plaza.huggingfacePage.codeOnly")}
+						aria-pressed={codeOnly}
+						variant={codeOnly ? "secondary" : "ghost"}
+						onClick={() => setCodeOnly(!codeOnly)}
+					>
+						<SiGithub aria-hidden />
+					</ActionButton>
+					<Select
+						value={sort}
+						onValueChange={(value: HuggingFaceSort) => setSort(value)}
+					>
+						<SelectTrigger aria-label={t("plaza.huggingfacePage.sortBy")}>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{HUGGING_FACE_SORTS.map((option) => (
+								<SelectItem key={option} value={option}>
+									{t(`plaza.huggingfacePage.sorts.${option}`)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<ActionButton
+						label={t("plaza.reload")}
+						disabled={feed.status === "loading"}
+						onClick={reload}
+					>
+						<RotateCw
+							aria-hidden
+							className={cn(loading && "motion-safe:animate-spin")}
+						/>
+					</ActionButton>
+				</div>
 			</div>
 			<div
 				className="agentero-scroll min-h-0 flex-1 overflow-y-auto p-3"
-				aria-busy={status === "loading"}
+				aria-busy={loading}
 			>
-				{status === "loading" ? (
+				{feed.status === "loading" && (
 					<EmptyState>{t("plaza.huggingfacePage.loading")}</EmptyState>
-				) : status === "error" ? (
+				)}
+				{feed.status === "error" && (
 					<EmptyState className="flex flex-col gap-2">
 						{t("plaza.huggingfacePage.loadFailed")}
 						<Button type="button" size="sm" variant="outline" onClick={reload}>
-							{t("plaza.reload")}
+							{t("plaza.arxivRec.retry")}
 						</Button>
 					</EmptyState>
-				) : papers.length === 0 ? (
-					<EmptyState>{t("plaza.huggingfacePage.empty")}</EmptyState>
-				) : (
-					<div className="mx-auto grid max-w-7xl grid-cols-[repeat(auto-fill,minmax(min(100%,21rem),1fr))] items-start gap-3">
-						{papers.map((paper) => (
-							<PaperCard
-								key={`${vaultPath ?? ""}:${paper.arxivId}`}
-								paper={paper}
-								imported={importedIds.has(paper.arxivId)}
-								vaultPath={vaultPath}
-								lastFolder={
-									destination?.vaultPath === vaultPath
-										? destination.folder
-										: null
-								}
-								rememberFolder={(folder) =>
-									setDestination({ vaultPath, folder })
-								}
-							/>
-						))}
-					</div>
+				)}
+				{feed.status === "ready" && (
+					<>
+						{feed.papers.length === 0 ? (
+							<EmptyState className="flex flex-col gap-2">
+								{t("plaza.huggingfacePage.empty")}
+								{editionRequest.mode === "daily" && (
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										disabled={editionRequest.date <= FIRST_DAILY_DATE}
+										onClick={() =>
+											startRequest({
+												mode: "daily",
+												date: shiftUtcDate(editionRequest.date, -1),
+											})
+										}
+									>
+										{t("plaza.huggingfacePage.previousDay")}
+									</Button>
+								)}
+							</EmptyState>
+						) : visiblePapers.length === 0 ? (
+							<EmptyState className="flex flex-col gap-2">
+								{t("plaza.huggingfacePage.noMatches")}
+								<div className="flex flex-wrap justify-center gap-2">
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										onClick={() => {
+											setQuery("");
+											setCodeOnly(false);
+										}}
+									>
+										{t("plaza.huggingfacePage.clearFilters")}
+									</Button>
+									{loadMoreButton}
+								</div>
+							</EmptyState>
+						) : (
+							<div className="mx-auto grid max-w-7xl grid-cols-[repeat(auto-fill,minmax(min(100%,21rem),1fr))] items-start gap-3">
+								{visiblePapers.map((paper) => (
+									<PaperCard
+										key={`${vaultPath ?? ""}:${paper.arxivId}`}
+										paper={paper}
+										imported={importedIds.has(paper.arxivId)}
+										vaultPath={vaultPath}
+										lastFolder={
+											vaultPath ? (destinations.get(vaultPath) ?? null) : null
+										}
+										rememberFolder={(folder) => {
+											if (vaultPath)
+												setDestinations((prev) =>
+													new Map(prev).set(vaultPath, folder),
+												);
+										}}
+										activeKeyword={query.trim().toLowerCase()}
+										onKeywordClick={(keyword) =>
+											setQuery(
+												query.trim().toLowerCase() === keyword.toLowerCase()
+													? ""
+													: keyword,
+											)
+										}
+									/>
+								))}
+							</div>
+						)}
+						{visiblePapers.length > 0 && loadMoreButton && (
+							<div className="mt-3 flex justify-center">{loadMoreButton}</div>
+						)}
+					</>
 				)}
 			</div>
 		</div>
+	);
+}
+
+type PeriodRequest = Exclude<HuggingFaceFeedRequest, { mode: "trending" }>;
+const FIRST_DAILY_DATE = "2023-01-01";
+
+function PeriodControls({
+	request,
+	onChange,
+}: {
+	request: PeriodRequest;
+	onChange: (request: HuggingFaceFeedRequest) => void;
+}) {
+	const { t } = useTranslation("sidebar");
+	const dailyDate = request.mode === "daily" ? request.date : "";
+	const [draftDate, setDraftDate] = useState(dailyDate);
+	useEffect(() => setDraftDate(dailyDate), [dailyDate]);
+	const now = new Date();
+	const today = todayUtcDate(now);
+	const current = {
+		daily: today,
+		weekly: currentUtcIsoWeek(now),
+		monthly: currentUtcMonth(now),
+	};
+	const value =
+		request.mode === "daily"
+			? request.date
+			: request.mode === "weekly"
+				? request.week
+				: request.month;
+	const currentValue = current[request.mode];
+
+	function step(delta: number) {
+		switch (request.mode) {
+			case "daily":
+				onChange({ mode: "daily", date: shiftUtcDate(request.date, delta) });
+				break;
+			case "weekly":
+				onChange({ mode: "weekly", week: shiftIsoWeek(request.week, delta) });
+				break;
+			case "monthly":
+				onChange({
+					mode: "monthly",
+					month: shiftUtcMonth(request.month, delta),
+				});
+				break;
+		}
+	}
+
+	return (
+		<div className="inline-flex items-center gap-0.5">
+			<ActionButton
+				label={t("plaza.huggingfacePage.previousPeriod")}
+				disabled={request.mode === "daily" && request.date <= FIRST_DAILY_DATE}
+				onClick={() => step(-1)}
+			>
+				<ChevronLeft aria-hidden />
+			</ActionButton>
+			{request.mode === "daily" ? (
+				<Input
+					type="date"
+					className="h-8 w-auto tabular-nums"
+					value={draftDate}
+					min={FIRST_DAILY_DATE}
+					max={today}
+					aria-label={t("plaza.huggingfacePage.editionDate")}
+					onChange={(event) => {
+						const { value } = event.currentTarget;
+						setDraftDate(value);
+						if (
+							/^\d{4}-\d{2}-\d{2}$/.test(value) &&
+							value >= FIRST_DAILY_DATE &&
+							value <= today
+						) {
+							onChange({ mode: "daily", date: value });
+						}
+					}}
+					onBlur={() => {
+						if (draftDate !== request.date) setDraftDate(request.date);
+					}}
+				/>
+			) : (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="tabular-nums disabled:opacity-100"
+							disabled={value === currentValue}
+							onClick={() => onChange(currentFeed(request.mode))}
+						>
+							{value}
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						{t("plaza.huggingfacePage.currentPeriod")}
+					</TooltipContent>
+				</Tooltip>
+			)}
+			<ActionButton
+				label={t("plaza.huggingfacePage.nextPeriod")}
+				disabled={value >= currentValue}
+				onClick={() => step(1)}
+			>
+				<ChevronRight aria-hidden />
+			</ActionButton>
+		</div>
+	);
+}
+
+function ActionButton({
+	label,
+	size = "icon-sm",
+	variant = "ghost",
+	children,
+	...props
+}: ComponentProps<typeof Button> & { label: string }) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button
+					type="button"
+					size={size}
+					variant={variant}
+					aria-label={label}
+					{...props}
+				>
+					{children}
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>{label}</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -140,12 +535,16 @@ function PaperCard({
 	vaultPath,
 	lastFolder,
 	rememberFolder,
+	activeKeyword,
+	onKeywordClick,
 }: {
 	paper: HuggingFacePaper;
 	imported: boolean;
 	vaultPath: string | null;
 	lastFolder: string | null;
 	rememberFolder: (folder: string) => void;
+	activeKeyword: string;
+	onKeywordClick: (keyword: string) => void;
 }) {
 	const { t } = useTranslation("sidebar");
 	const popupId = useId();
@@ -154,37 +553,55 @@ function PaperCard({
 	const [translation, setTranslation] = useState<string | null>(null);
 	const [showTranslation, setShowTranslation] = useState(false);
 	const [translating, setTranslating] = useState(false);
+	const mountedRef = useRef(true);
+	const collapsedWhileTranslatingRef = useRef(false);
 	const [importState, setImportState] = useState<"idle" | "pending" | "done">(
 		"idle",
 	);
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const [newFolder, setNewFolder] = useState("");
 	const url = `https://huggingface.co/papers/${paper.arxivId}`;
+	const arxivUrl = `https://arxiv.org/abs/${paper.arxivId}`;
+	const fullText = paper.abstract || paper.aiSummary;
+	const summary = paper.aiSummary || paper.abstract;
+	const displayDate = paper.edition ?? paper.publishedDate;
+	const authors = paper.authors.join(", ");
 	const isImported = imported || importState === "done";
 
+	useEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
+
 	async function translateAbstract() {
-		if (translation) {
+		if (!fullText || translating) return;
+		if (translation !== null) {
 			setShowTranslation(!showTranslation);
 			setExpanded(true);
 			return;
 		}
+		collapsedWhileTranslatingRef.current = false;
 		setTranslating(true);
 		try {
-			setTranslation(
-				await runTranslate({
-					text: paper.abstract,
-					context: {
-						surface: "huggingface-daily-papers",
-						paperId: paper.arxivId,
-					},
-				}),
-			);
-			setShowTranslation(true);
-			setExpanded(true);
+			const result = await runTranslate({
+				text: fullText,
+				context: {
+					surface: "huggingface-daily-papers",
+					paperId: paper.arxivId,
+				},
+			});
+			if (!mountedRef.current) return;
+			setTranslation(result);
+			if (!collapsedWhileTranslatingRef.current) {
+				setShowTranslation(true);
+				setExpanded(true);
+			}
 		} catch (error) {
-			notifyError(errorText(error));
+			if (mountedRef.current) notifyError(errorText(error));
 		} finally {
-			setTranslating(false);
+			if (mountedRef.current) setTranslating(false);
 		}
 	}
 
@@ -193,14 +610,10 @@ function PaperCard({
 		setImportState("pending");
 		rememberFolder(folder);
 		const ok = await importPlazaPaper(
-			{
-				id: paper.arxivId,
-				url: `https://arxiv.org/abs/${paper.arxivId}`,
-				title: paper.title,
-			},
+			{ id: paper.arxivId, url: arxivUrl, title: paper.title },
 			folder,
 		);
-		setImportState(ok ? "done" : "idle");
+		if (mountedRef.current) setImportState(ok ? "done" : "idle");
 	}
 
 	const importLabel = isImported
@@ -209,6 +622,7 @@ function PaperCard({
 			? t("plaza.huggingfacePage.importing")
 			: t("plaza.feeds.import");
 	const importDisabled = isImported || importState === "pending" || !vaultPath;
+	const { upvotes, numComments, githubRepo, githubStars, projectPage } = paper;
 
 	return (
 		<article className="min-w-0 overflow-hidden rounded-lg border bg-background">
@@ -217,25 +631,91 @@ function PaperCard({
 				<h2 className="break-words font-medium text-sm leading-snug">
 					{paper.title}
 				</h2>
-				{paper.authors.length > 0 && (
+				{(paper.organization || authors) && (
 					<p
-						className="mt-1 line-clamp-2 text-muted-foreground text-xs"
-						title={paper.authors.join(", ")}
+						className="mt-1 line-clamp-2 break-words text-muted-foreground text-xs"
+						title={[paper.organization, authors].filter(Boolean).join(" · ")}
 					>
-						{paper.authors.join(", ")}
+						{paper.organization && (
+							<span className="font-medium text-foreground/80">
+								{paper.organization}
+							</span>
+						)}
+						{paper.organization && authors && " · "}
+						{authors}
 					</p>
 				)}
-				<div className="mt-1 flex flex-wrap items-center gap-x-3 text-caption text-muted-foreground">
-					{paper.edition && (
-						<time dateTime={paper.edition}>{paper.edition}</time>
+				<div className="mt-1 flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground tabular-nums">
+					{upvotes !== undefined && (
+						<PaperMetric
+							label={t("plaza.huggingfacePage.metricCount", {
+								metric: t("plaza.huggingfacePage.sorts.upvotes"),
+								count: upvotes,
+							})}
+						>
+							<ArrowUp aria-hidden className="size-3.5" />
+							{formatCompactCount(upvotes)}
+						</PaperMetric>
 					)}
-					{paper.upvotes !== undefined && (
-						<span>
-							{t("plaza.huggingfacePage.votes", { count: paper.upvotes })}
-						</span>
+					{githubRepo && (
+						<ActionButton
+							label={
+								githubStars === undefined
+									? t("plaza.huggingfacePage.repository")
+									: t("plaza.huggingfacePage.repositoryStars", {
+											count: githubStars,
+										})
+							}
+							size="sm"
+							className="h-6 gap-1 px-1 text-caption"
+							onClick={() => openExternalUrl(githubRepo)}
+						>
+							<SiGithub aria-hidden className="size-3.5" />
+							{githubStars !== undefined && formatCompactCount(githubStars)}
+						</ActionButton>
 					)}
+					{numComments !== undefined && numComments > 0 && (
+						<PaperMetric
+							label={t("plaza.huggingfacePage.metricCount", {
+								metric: t("plaza.huggingfacePage.sorts.comments"),
+								count: numComments,
+							})}
+						>
+							<MessageSquare aria-hidden className="size-3.5" />
+							{formatCompactCount(numComments)}
+						</PaperMetric>
+					)}
+					{projectPage && (
+						<ActionButton
+							label={t("plaza.huggingfacePage.projectPage")}
+							className="size-6"
+							onClick={() => openExternalUrl(projectPage)}
+						>
+							<Globe aria-hidden className="size-3.5" />
+						</ActionButton>
+					)}
+					{displayDate &&
+						(paper.edition &&
+						paper.publishedDate &&
+						paper.edition !== paper.publishedDate ? (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									{/* biome-ignore lint/a11y/noNoninteractiveTabindex: Focus opens the publication date tooltip. */}
+									<time dateTime={displayDate} tabIndex={0}>
+										{displayDate}
+									</time>
+								</TooltipTrigger>
+								<TooltipContent>
+									{t("plaza.huggingfacePage.publishedDate", {
+										date: paper.publishedDate,
+									})}
+								</TooltipContent>
+							</Tooltip>
+						) : (
+							<time dateTime={displayDate}>{displayDate}</time>
+						))}
 				</div>
-				{paper.abstract && (
+				{fullText && (
 					<SelectionSurface
 						source={{
 							sourcePath: url,
@@ -249,54 +729,96 @@ function PaperCard({
 							!expanded && "line-clamp-3",
 						)}
 					>
-						{showTranslation ? translation : paper.abstract}
+						{showTranslation ? translation : expanded ? fullText : summary}
 					</SelectionSurface>
 				)}
-				<div className="mt-2 flex flex-wrap items-center gap-1">
-					{paper.abstract && (
-						<>
-							<Button
-								type="button"
-								size="sm"
-								variant="ghost"
-								aria-expanded={expanded}
-								onClick={() => setExpanded(!expanded)}
+				{paper.aiKeywords.length > 0 && (
+					<div className="mt-2 flex flex-wrap gap-1">
+						{paper.aiKeywords.slice(0, 4).map((keyword) => (
+							<Badge
+								key={keyword}
+								variant="secondary"
+								asChild
+								className="max-w-full hover:bg-accent focus-visible:outline-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
 							>
-								{t(
+								<button
+									type="button"
+									aria-pressed={activeKeyword === keyword.toLowerCase()}
+									onClick={() => onKeywordClick(keyword)}
+								>
+									<span className="truncate" title={keyword}>
+										{keyword}
+									</span>
+								</button>
+							</Badge>
+						))}
+					</div>
+				)}
+				<div className="mt-2 flex flex-wrap items-center gap-1">
+					<ActionButton
+						label={t("plaza.arxivRec.read")}
+						onClick={() =>
+							openRemoteArxivPaper({
+								arxivId: paper.arxivId,
+								title: paper.title,
+								abstract: fullText || undefined,
+								url: arxivUrl,
+							})
+						}
+					>
+						<BookOpen aria-hidden />
+					</ActionButton>
+					{fullText && (
+						<>
+							<ActionButton
+								label={t(
 									expanded
 										? "plaza.huggingfacePage.collapseAbstract"
 										: "plaza.huggingfacePage.expandAbstract",
 								)}
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								variant="ghost"
-								disabled={translating}
-								onClick={() => void translateAbstract()}
+								aria-expanded={expanded}
+								onClick={() => {
+									if (expanded) {
+										if (translating)
+											collapsedWhileTranslatingRef.current = true;
+										setShowTranslation(false);
+									}
+									setExpanded(!expanded);
+								}}
 							>
-								<Languages aria-hidden />
-								{t(
+								{expanded ? (
+									<ChevronUp aria-hidden />
+								) : (
+									<ChevronDown aria-hidden />
+								)}
+							</ActionButton>
+							<ActionButton
+								label={t(
 									translating
 										? "plaza.huggingfacePage.translating"
 										: showTranslation
 											? "plaza.huggingfacePage.showOriginal"
-											: translation
+											: translation !== null
 												? "plaza.huggingfacePage.showTranslation"
 												: "plaza.huggingfacePage.translate",
 								)}
-							</Button>
+								disabled={translating}
+								onClick={() => void translateAbstract()}
+							>
+								{translating ? (
+									<Loader2 aria-hidden className="motion-safe:animate-spin" />
+								) : (
+									<Languages aria-hidden />
+								)}
+							</ActionButton>
 						</>
 					)}
-					<Button
-						type="button"
-						size="sm"
-						variant="ghost"
+					<ActionButton
+						label={t("plaza.huggingfacePage.openHuggingFace")}
 						onClick={() => openExternalUrl(url)}
 					>
 						<ExternalLink aria-hidden />
-						{t("plaza.feeds.openOriginal")}
-					</Button>
+					</ActionButton>
 					<Popover
 						open={pickerOpen}
 						onOpenChange={(open) => {
@@ -304,16 +826,33 @@ function PaperCard({
 							if (!open) setNewFolder("");
 						}}
 					>
-						<PopoverTrigger asChild>
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								disabled={importDisabled}
-							>
-								{importLabel}
-							</Button>
-						</PopoverTrigger>
+						<Tooltip>
+							<TooltipTrigger className="ml-auto inline-flex" asChild>
+								<span>
+									<PopoverTrigger asChild>
+										<Button
+											type="button"
+											size="icon-sm"
+											variant="outline"
+											disabled={importDisabled}
+											aria-label={importLabel}
+										>
+											{isImported ? (
+												<Check aria-hidden />
+											) : importState === "pending" ? (
+												<Loader2
+													aria-hidden
+													className="motion-safe:animate-spin"
+												/>
+											) : (
+												<FolderInput aria-hidden />
+											)}
+										</Button>
+									</PopoverTrigger>
+								</span>
+							</TooltipTrigger>
+							<TooltipContent>{importLabel}</TooltipContent>
+						</Tooltip>
 						{pickerOpen && (
 							<MoveDestinationPicker
 								vaultPath={vaultPath}
@@ -333,6 +872,28 @@ function PaperCard({
 				</div>
 			</div>
 		</article>
+	);
+}
+
+function PaperMetric({
+	label,
+	children,
+}: {
+	label: string;
+	children: ReactNode;
+}) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<span className="inline-flex items-center gap-1">
+					<span className="sr-only">{label}</span>
+					<span aria-hidden className="inline-flex items-center gap-1">
+						{children}
+					</span>
+				</span>
+			</TooltipTrigger>
+			<TooltipContent>{label}</TooltipContent>
+		</Tooltip>
 	);
 }
 
