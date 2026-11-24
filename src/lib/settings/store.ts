@@ -280,11 +280,25 @@ export function initSettingsSync(): void {
 /** Awaitable save (settings UI / tests). */
 export async function saveSettingsAsync(
 	settings: AppSettings,
+	{ rollbackOnError = false } = {},
 ): Promise<AppSettings> {
+	const previous = cache;
 	const next = normalizeSettings(settings);
 	applyExternalSettings(next);
 	if (!isTauri()) return loadSettings();
-	return queueSave(next);
+	const optimistic = cache;
+	try {
+		return await queueSave(next);
+	} catch (error) {
+		// A subsequent save or Host notification owns the newer snapshot.
+		if (rollbackOnError && cache === optimistic) {
+			const persisted = await callApi(() => commands.settingsGet())
+				.then((result) => fromSettingsWire(result.settings))
+				.catch(() => previous);
+			if (cache === optimistic) applyExternalSettings(persisted);
+		}
+		throw error;
+	}
 }
 
 async function persistToHost(

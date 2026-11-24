@@ -49,11 +49,11 @@ export const commands = {
 	 */
 	institutionProxyPresets: () => __TAURI_INVOKE<ApiResult<InstitutionProxyPreset[]>>("institution_proxy_presets"),
 	/**
-	 *  Open the configured gateway in a dedicated webview for interactive SSO.
-	 *  Async is required when creating a window from WebView2 on Windows.
-	 *  Resolves once the login window closes; `true` when a cookie was captured.
+	 *  Open the configured gateway for interactive SSO. Automatic preset selection
+	 *  may reuse a verified session. A manual request opens the gateway portal.
+	 *  Returns true when the gateway session was verified.
 	 */
-	institutionProxyLoginOpen: (prefix: string) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix })),
+	institutionProxyLoginOpen: (prefix: string, autoLogin: boolean | null) => typedError<boolean, string>(__TAURI_INVOKE("institution_proxy_login_open", { prefix, autoLogin })),
 	/**  Use the official sign-in page, including any MFA required by the account. */
 	openreviewAuthLoginOpen: () => typedError<boolean, string>(__TAURI_INVOKE("openreview_auth_login_open")),
 	/**  Return the expiry of the account session for the Settings indicator. */
@@ -3745,6 +3745,8 @@ export type InstitutionProxyPreset = {
 	protocolVerifiedAt?: string,
 	/**  True only after an authorized account downloaded a paywalled PDF. */
 	subscriptionVerified?: boolean,
+	/**  Start the institution's configured single sign-on on selection. */
+	autoLogin?: boolean,
 };
 
 export type InstitutionProxyProbe = {

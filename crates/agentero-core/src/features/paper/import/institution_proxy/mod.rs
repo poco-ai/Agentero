@@ -15,4 +15,4 @@ mod session;
 pub use detect::{detect_institution_proxy_kind, resolve_institution_proxy_kind};
 pub use kind::{load_institution_proxy_from_settings, set_institution_proxy, InstitutionProxyKind};
 pub use probe::{fetch_pdf, probe_institution_proxy, InstitutionProxyProbe, ProxyPdfOutcome};
-pub use registry::{presets, InstitutionProxyPreset};
+pub use registry::{preset_login_url, presets, InstitutionProxyPreset};
