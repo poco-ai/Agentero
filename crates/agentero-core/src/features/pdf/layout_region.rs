@@ -87,6 +87,11 @@ impl LayoutKind {
             "table" => Self::Table,
             "algorithm" => Self::Algorithm,
             "formula" => Self::Formula,
+            // PP-DocLayoutV3 keeps display and inline formulas as separate
+            // classes. Both stay `Formula` (inline math is not translated as a
+            // block), but the raw label is preserved so the desktop selection
+            // can keep inline math selectable and display math out of the body.
+            "display_formula" | "inline_formula" => Self::Formula,
             "formula_number" => Self::FormulaNumber,
             "figure_title" => Self::FigureTitle,
             "header" => Self::Header,

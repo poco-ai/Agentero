@@ -5,7 +5,10 @@ import type {
 } from "@embedpdf/plugin-layout-analysis";
 
 import { clamp01 } from "@/lib/core/math";
-import { layoutLabelToKind } from "@/lib/pdf/layout/labels";
+import {
+	layoutLabelForDetection,
+	layoutLabelToKind,
+} from "@/lib/pdf/layout/labels";
 import { mergeCaptionsIntoHosts } from "@/lib/pdf/layout/merge-captions";
 import type {
 	PdfLayoutDocumentResult,
@@ -34,7 +37,8 @@ function blockToRegion(
 	pageWidth: number,
 	pageHeight: number,
 ): PdfLayoutRegion | null {
-	const kind = layoutLabelToKind(block.label);
+	const label = layoutLabelForDetection(block.classId, block.label);
+	const kind = layoutLabelToKind(label);
 	if (!kind) return null;
 	if (pageWidth <= 0 || pageHeight <= 0) return null;
 
@@ -48,7 +52,7 @@ function blockToRegion(
 		id: block.id,
 		pageIndex,
 		kind,
-		label: block.label,
+		label,
 		score: block.score,
 		readingOrder: block.readingOrder,
 		rect: { x, y, w, h },

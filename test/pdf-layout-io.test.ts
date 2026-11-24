@@ -47,7 +47,11 @@ describe("layout sidecar", () => {
 	it("round-trips source metrics after backfill without rerunning layout", () => {
 		const old: PdfLayoutSidecar = {
 			schemaVersion: 3,
-			source: { mode: "embedpdf-layout", generatedAt: "now" },
+			source: {
+				mode: "embedpdf-layout",
+				generatedAt: "now",
+				formulaClasses: true,
+			},
 			regions: [region()],
 		};
 		const sourceStyle = { fontSize: 10 / 792, bold: false, italic: true };
@@ -173,6 +177,7 @@ describe("layout sidecar", () => {
 			source: {
 				mode: "embedpdf-layout",
 				generatedAt: "2026-08-07T00:00:00Z",
+				formulaClasses: true,
 			},
 			regions: [
 				{
@@ -219,6 +224,30 @@ describe("layout sidecar", () => {
 		expect(sidecar?.regions).toHaveLength(1);
 	});
 
+	it("re-analyzes local caches written before the formula-class split", () => {
+		// PP-DocLayoutV3 names both formula classes "formula"; the local cache
+		// only carries the split once formulaClasses is recorded.
+		const legacy = {
+			schemaVersion: 3,
+			source: { mode: "embedpdf-layout", generatedAt: "old" },
+			regions: [region()],
+		};
+		expect(parseLayoutSidecar(legacy)).toBeNull();
+		expect(
+			parseLayoutSidecar({
+				...legacy,
+				source: { ...legacy.source, formulaClasses: true },
+			})?.source.formulaClasses,
+		).toBe(true);
+		// Hosted providers keep their own labels; their cached parses stay valid.
+		expect(
+			parseLayoutSidecar({
+				...legacy,
+				source: { mode: "paddle-layout", generatedAt: "old" },
+			})?.source.mode,
+		).toBe("paddle-layout");
+	});
+
 	it("records a finished text-layer walk and keeps the parse timestamp", () => {
 		const sidecar = parseLayoutSidecar({
 			schemaVersion: 3,
@@ -226,6 +255,7 @@ describe("layout sidecar", () => {
 				mode: "embedpdf-layout",
 				generatedAt: "2026-08-07T00:00:00Z",
 				textLayerExtracted: true,
+				formulaClasses: true,
 			},
 			regions: [region()],
 		});
@@ -238,6 +268,7 @@ describe("layout sidecar", () => {
 			source: {
 				mode: "embedpdf-layout",
 				generatedAt: "2026-08-07T00:00:00Z",
+				formulaClasses: true,
 			},
 			regions: [
 				{
@@ -309,14 +340,22 @@ describe("layout sidecar", () => {
 		expect(
 			parseLayoutSidecar({
 				schemaVersion: 0,
-				source: { mode: "embedpdf-layout", generatedAt: "now" },
+				source: {
+					mode: "embedpdf-layout",
+					generatedAt: "now",
+					formulaClasses: true,
+				},
 				regions: [],
 			}),
 		).toBeNull();
 		expect(
 			parseLayoutSidecar({
 				schemaVersion: 3,
-				source: { mode: "embedpdf-layout", generatedAt: "now" },
+				source: {
+					mode: "embedpdf-layout",
+					generatedAt: "now",
+					formulaClasses: true,
+				},
 				regions: [{ id: "x", kind: "unknown" }],
 			}),
 		).toBeNull();
@@ -324,7 +363,11 @@ describe("layout sidecar", () => {
 		expect(
 			parseLayoutSidecar({
 				schemaVersion: 1,
-				source: { mode: "embedpdf-layout", generatedAt: "now" },
+				source: {
+					mode: "embedpdf-layout",
+					generatedAt: "now",
+					formulaClasses: true,
+				},
 				regions: [],
 			}),
 		).toBeNull();

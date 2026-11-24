@@ -8,6 +8,10 @@ import type {
 	FormattedSelection,
 	SelectionRangeX,
 } from "@embedpdf/plugin-selection";
+import {
+	isDisplayFormulaLabel,
+	isInlineFormulaLabel,
+} from "@/lib/pdf/layout/labels";
 import { groupReadingLines } from "@/lib/pdf/layout/reading-order";
 import { captionRoleFromText } from "@/lib/pdf/layout/title-text";
 import {
@@ -287,7 +291,9 @@ type SelectionInsertionRegion = Pick<
 export function isSelectionInsertionRegion(
 	region: SelectionInsertionRegion,
 ): boolean {
-	if (region.kind === "formula" && region.label === "inline_formula")
+	// Inline math belongs to the body sentence (it is selectable); display
+	// equations stay out of the body flow.
+	if (region.kind === "formula" && isInlineFormulaLabel(region.label))
 		return false;
 	if (
 		[
@@ -333,6 +339,9 @@ function isInlineSelectionFormula(
 	regions: readonly SelectionInsertionRegion[],
 ): boolean {
 	if (region.kind !== "formula" || !geometry) return false;
+	// The detector already separated the classes: a display formula stays out
+	// of the body even when neighbouring prose sits close to its box.
+	if (isDisplayFormulaLabel(region.label)) return false;
 	const cached = inlineSelectionFormulaCache.get(geometry)?.get(region);
 	if (cached != null) return cached;
 	const inline = formulaHasInlineNeighbours(region, geometry, regions);

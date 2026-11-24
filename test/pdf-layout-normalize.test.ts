@@ -114,6 +114,45 @@ describe("pageLayoutToRegions", () => {
 		});
 	});
 
+	it("keeps the detector's display/inline formula split in the label", () => {
+		const page = makePage({
+			pageIndex: 0,
+			blocks: [
+				{
+					id: "display",
+					classId: 5,
+					label: "formula",
+					score: 0.9,
+					rect: {
+						origin: { x: 100, y: 200 },
+						size: { width: 200, height: 40 },
+					},
+					imageBbox: [0, 0, 1, 1],
+					readingOrder: 0,
+				},
+				{
+					id: "inline",
+					classId: 15,
+					label: "formula",
+					score: 0.9,
+					rect: {
+						origin: { x: 200, y: 100 },
+						size: { width: 40, height: 12 },
+					},
+					imageBbox: [0, 0, 1, 1],
+					readingOrder: 1,
+				},
+			],
+		});
+		const regions = pageLayoutToRegions(page);
+		expect(
+			regions.map((region) => [region.id, region.kind, region.label]),
+		).toEqual([
+			["display", "formula", "display_formula"],
+			["inline", "formula", "inline_formula"],
+		]);
+	});
+
 	it("aggregates document counts (figures need title; unnumbered formulas drop)", () => {
 		const doc: DocumentLayout = {
 			pages: [

@@ -238,6 +238,58 @@ describe("selection content", () => {
 			).get(0),
 		).toHaveLength(1);
 	});
+	it("trusts the detector's formula class over the neighbour heuristic", () => {
+		const geometry: PdfPageGeometry = {
+			runs: [
+				{
+					charStart: 0,
+					rect: { x: 0, y: 100, width: 120, height: 10 },
+					glyphs: Array.from({ length: 12 }, (_, i) => ({
+						x: i * 10,
+						y: 100,
+						width: 10,
+						height: 10,
+						flags: 0,
+					})),
+				},
+			],
+		};
+		const selection = {
+			start: { page: 0, index: 0 },
+			end: { page: 1, index: 0 },
+		};
+		// Inline math sits inside the text line: selectable even when the box
+		// covers neighbouring glyphs and the heuristic finds no neighbour.
+		const inline: PdfPageGeometry = {
+			runs: [
+				{
+					...geometry.runs[0],
+					glyphs: geometry.runs[0].glyphs.filter((glyph) => glyph.x >= 40),
+				},
+			],
+		};
+		const inlineRegion = {
+			kind: "formula" as const,
+			label: "inline_formula",
+			pageIndex: 0,
+			rect: { x: 0, y: 100, w: 70, h: 10 },
+		};
+		expect(
+			selectionInsertionExclusions({ 0: inline }, selection, [inlineRegion])
+				.size,
+		).toBe(0);
+		// Display math stays excluded even though prose shares its band.
+		expect(
+			selectionInsertionExclusions({ 0: geometry }, selection, [
+				{
+					kind: "formula" as const,
+					label: "display_formula",
+					pageIndex: 0,
+					rect: { x: 40, y: 100, w: 30, h: 10 },
+				},
+			]).get(0),
+		).toHaveLength(1);
+	});
 	it("skips centered and numbered display formulas that layout analysis missed", () => {
 		function run(
 			charStart: number,

@@ -31,7 +31,50 @@ const LABEL_TO_KIND: Record<string, PdfLayoutKind> = {
 	// Titles that are not figure captions.
 	doc_title: "header",
 	paragraph_title: "header",
+	// Providers that keep the two formula classes apart in their label list.
+	display_formula: "formula",
+	inline_formula: "formula",
 };
+
+/**
+ * PP-DocLayoutV3 class ids for the two formula types. Its published id2label
+ * names both `formula` (classes 5 and 15), so the class id is the only way the
+ * model's display/inline distinction survives.
+ */
+const PP_CLASS_DISPLAY_FORMULA = 5;
+const PP_CLASS_INLINE_FORMULA = 15;
+
+/**
+ * Recover a detection's formula subclass for providers whose label table
+ * collapses classes 5 and 15 into `formula`.
+ *
+ * Display formulas must stay out of body selections (and translation), while
+ * inline math belongs to the surrounding sentence. The distinction is kept in
+ * `PdfLayoutRegion.label` (`display_formula` / `inline_formula`).
+ */
+export function layoutLabelForDetection(
+	classId: number,
+	label: string,
+): string {
+	if (label.trim().toLowerCase() !== "formula") return label;
+	if (classId === PP_CLASS_INLINE_FORMULA) return "inline_formula";
+	if (classId === PP_CLASS_DISPLAY_FORMULA) return "display_formula";
+	return label;
+}
+
+/** True when a region label marks inline math embedded in body text. */
+export function isInlineFormulaLabel(
+	label: string | null | undefined,
+): boolean {
+	return (label ?? "").trim().toLowerCase() === "inline_formula";
+}
+
+/** True when a region label marks a standalone display (block) formula. */
+export function isDisplayFormulaLabel(
+	label: string | null | undefined,
+): boolean {
+	return (label ?? "").trim().toLowerCase() === "display_formula";
+}
 
 export function layoutLabelToKind(label: string): PdfLayoutKind | null {
 	const key = label.trim().toLowerCase();

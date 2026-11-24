@@ -55,6 +55,14 @@ export type PdfLayoutSidecar = {
 		sourceStylesExtracted?: boolean;
 		/** {@link LAYOUT_TEXT_ORDER_VERSION} of the stored body text walk. */
 		textOrderVersion?: number;
+		/**
+		 * The local detector stored its formula classes `display_formula` /
+		 * `inline_formula`. Local caches from before that split carry a generic
+		 * `formula` label (selection then had to guess from geometry), so they
+		 * are re-analyzed instead of migrated — the local model is on-device.
+		 * Hosted providers keep their own labels and are unaffected.
+		 */
+		formulaClasses?: true;
 		/** Verifiable page coverage and content-readiness metadata. */
 		completeness?: LayoutCompleteness;
 	};
@@ -160,6 +168,11 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 		return null;
 	}
 	if (typeof raw.source.generatedAt !== "string") return null;
+	if (
+		raw.source.mode === "embedpdf-layout" &&
+		raw.source.formulaClasses !== true
+	)
+		return null;
 	if (!Array.isArray(raw.regions)) return null;
 	const regions = raw.regions.map(parseRegion);
 	if (regions.some((r) => !r)) return null;
@@ -172,6 +185,7 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 		source.sourceStylesExtracted = true;
 	if (raw.source.figureCaptionsExtracted === true)
 		source.figureCaptionsExtracted = true;
+	if (raw.source.formulaClasses === true) source.formulaClasses = true;
 	if (isFiniteNumber(raw.source.textOrderVersion))
 		source.textOrderVersion = raw.source.textOrderVersion;
 	const completeness = parseLayoutCompleteness(raw.source.completeness);
@@ -301,6 +315,7 @@ export async function writeLayoutSidecar(
 		mode,
 		generatedAt: new Date().toISOString(),
 	};
+	if (mode === "embedpdf-layout") source.formulaClasses = true;
 	if (options.completeness) source.completeness = options.completeness;
 	if (
 		options.completeness?.textLayerComplete === true ||
@@ -378,6 +393,9 @@ export function layoutTextBackfillSidecar(
 		},
 		regions,
 	};
+	if (expected.source.formulaClasses === true) {
+		sidecar.source.formulaClasses = true;
+	}
 	if (completeness) sidecar.source.completeness = completeness;
 	return sidecar;
 }
