@@ -52,6 +52,37 @@ export function formatMarkdownImageSyntax(alt: string, url: string): string {
 	return `![${alt ?? ""}](${url ?? ""})`;
 }
 
+/**
+ * Alt text of an image node.
+ *
+ * Upstream @platejs/markdown keeps the alt of a Markdown image in `caption`
+ * (落盘真源); the editor's `img` rule mirrors it into `alt` (展示镜像).
+ * Read both so a node from either path renders the same text — 写 alt 的路径
+ * 必须同时更新 caption，两者不一致时以 caption 为准。
+ */
+export function readImageAlt(element: Record<string, unknown>): string {
+	const alt = element.alt;
+	if (typeof alt === "string" && alt.length > 0) return alt;
+	const caption = element.caption;
+	if (!Array.isArray(caption)) return "";
+	return caption
+		.map((leaf) =>
+			leaf && typeof leaf === "object" && "text" in leaf
+				? String((leaf as { text?: unknown }).text ?? "")
+				: "",
+		)
+		.join("");
+}
+
+/**
+ * Markdown source text of an image node — the hint shown under a selected
+ * image. Mirrors the node's alt and url back into `![alt](url)`.
+ */
+export function imageSourceText(element: Record<string, unknown>): string {
+	const url = typeof element.url === "string" ? element.url : "";
+	return formatMarkdownImageSyntax(readImageAlt(element), url);
+}
+
 type WalkNode = {
 	type?: string;
 	url?: string;
