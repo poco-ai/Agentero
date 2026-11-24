@@ -9,7 +9,8 @@ use super::openreview_account;
 use crate::core::error::{map_err, ApiResult};
 use crate::features::system::settings::{AppSettings, AppSettingsStore, SettingsGetResult};
 use agentero_core::features::paper::import::institution_proxy::{
-    probe_institution_proxy, InstitutionProxyKind, InstitutionProxyPreset, InstitutionProxyProbe,
+    preset_login_url, probe_institution_proxy, InstitutionProxyKind, InstitutionProxyPreset,
+    InstitutionProxyProbe,
 };
 use agentero_core::features::paper::import::{openreview, web_verify};
 use futures_util::future::BoxFuture;
@@ -29,6 +30,7 @@ const VERIFICATION_POLL: std::time::Duration = std::time::Duration::from_secs(2)
 /// challenge: a background import must not hang on an ignored window for the
 /// whole asset-download budget.
 const VERIFICATION_AUTO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+static PROXY_SIGN_IN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn proxy_login_window_label(kind: InstitutionProxyKind, prefix: &str) -> String {
     use std::hash::{Hash, Hasher};
@@ -49,21 +51,67 @@ fn proxy_gateway_url(prefix: &str) -> Result<Url, String> {
     Ok(url)
 }
 
-/// Open the configured gateway in a dedicated webview for interactive SSO.
-/// Async is required when creating a window from WebView2 on Windows.
-/// Resolves once the login window closes; `true` when a cookie was captured.
+/// Open the configured gateway for interactive SSO. Automatic preset selection
+/// may reuse a verified session. A manual request opens the gateway portal.
+/// Returns true when the gateway session was verified.
 #[tauri::command]
 #[specta::specta]
-pub async fn institution_proxy_login_open(app: AppHandle, prefix: String) -> Result<bool, String> {
+pub async fn institution_proxy_login_open(
+    caller: tauri::WebviewWindow,
+    prefix: String,
+    auto_login: Option<bool>,
+) -> Result<bool, String> {
+    let app = caller.app_handle().clone();
     let prefix = prefix.trim().trim_end_matches('/').to_string();
     let url = proxy_gateway_url(&prefix)?;
-    let Some((kind, saved_prefix, _)) = app.state::<AppSettingsStore>().institution_proxy() else {
+    let store = app.state::<AppSettingsStore>();
+    let Some((kind, saved_prefix, saved_cookie)) = store.institution_proxy() else {
         return Err("institution proxy is not configured".into());
     };
     if saved_prefix != prefix {
         return Err("institution proxy setting changed; reopen the login window".into());
     }
-    let login_url = if prefix.ends_with('=') {
+    let preset_login = preset_login_url(kind, &url);
+    let has_login_path = preset_login.is_some();
+    let automatic = has_login_path && auto_login.unwrap_or(false);
+    if automatic
+        && !saved_cookie.is_empty()
+        && probe_institution_proxy(kind, &prefix, &saved_cookie)
+            .await
+            .is_ok()
+    {
+        return Ok(store.institution_proxy().is_some_and(
+            |(selected_kind, selected_prefix, cookie)| {
+                selected_kind == kind && selected_prefix == prefix && cookie == saved_cookie
+            },
+        ));
+    }
+
+    // Only window creation is serialized. A manual login can open while
+    // another request is waiting for a gateway probe to return.
+    let opening = PROXY_SIGN_IN.lock().await;
+    if !store
+        .institution_proxy()
+        .is_some_and(|(selected_kind, selected_prefix, _)| {
+            selected_kind == kind && selected_prefix == prefix
+        })
+    {
+        return Ok(false);
+    }
+    let label = proxy_login_window_label(kind, &prefix);
+    if let Some(window) = app.get_webview_window(&label) {
+        #[cfg(not(windows))]
+        window.show().map_err(|e| e.to_string())?;
+        #[cfg(desktop)]
+        crate::app::window::commands::raise_existing_window(&window);
+        #[cfg(not(desktop))]
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(false);
+    }
+    let keep_portal_open = has_login_path && !automatic;
+    let login_url = if let Some(login) = preset_login.filter(|_| automatic) {
+        login
+    } else if prefix.ends_with('=') {
         proxy_gateway_url(&format!(
             "{}{}",
             prefix,
@@ -72,21 +120,31 @@ pub async fn institution_proxy_login_open(app: AppHandle, prefix: String) -> Res
     } else {
         url.clone()
     };
-    let title = login_url.host_str().unwrap_or_default().to_string();
-    let label = proxy_login_window_label(kind, &prefix);
-    if let Some(window) = app.get_webview_window(&label) {
-        #[cfg(desktop)]
-        window.unminimize().map_err(|e| e.to_string())?;
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
-        return Ok(false);
+    let builder = || {
+        WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(login_url.clone()))
+            .title(login_url.host_str().unwrap_or_default())
+            .inner_size(1000.0, 750.0)
+    };
+    #[cfg(desktop)]
+    let window = if has_login_path {
+        builder()
+            .center()
+            .parent(&caller)
+            .unwrap_or_else(|_| builder().center())
+    } else {
+        builder()
+    };
+    #[cfg(not(desktop))]
+    let window = builder();
+    let window = window.build().map_err(|e| e.to_string())?;
+    drop(opening);
+    #[cfg(desktop)]
+    if has_login_path {
+        #[cfg(target_os = "macos")]
+        let _ = app.show();
+        crate::app::window::commands::raise_existing_window(&window);
     }
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(login_url))
-        .title(title)
-        .inner_size(1000.0, 750.0)
-        .build()
-        .map_err(|e| e.to_string())?;
-    Ok(monitor_institution_login(app, window, kind, prefix, url).await)
+    Ok(monitor_institution_login(app, window, kind, prefix, url, keep_portal_open).await)
 }
 
 async fn monitor_institution_login(
@@ -95,9 +153,11 @@ async fn monitor_institution_login(
     kind: InstitutionProxyKind,
     prefix: String,
     cookie_url: Url,
+    keep_portal_open: bool,
 ) -> bool {
     use std::time::{Duration, Instant};
 
+    let mut verified = false;
     let mut last_cookie = String::new();
     let mut last_attempt = None;
     let mut interval = tokio::time::interval(Duration::from_secs(2));
@@ -112,6 +172,9 @@ async fn monitor_institution_login(
         {
             let _ = window.close();
             return false;
+        }
+        if app.get_webview_window(window.label()).is_none() {
+            return verified;
         }
         let url = cookie_url.clone();
         let login_window = window.clone();
@@ -129,15 +192,19 @@ async fn monitor_institution_login(
         })
         .await;
         let Ok(Some(cookie)) = captured else {
-            return false;
+            return verified;
         };
-        if cookie.is_empty()
-            || cookie == last_cookie
-                && last_attempt.is_some_and(|at: Instant| at.elapsed() < Duration::from_secs(10))
+        if cookie == last_cookie
+            && (verified
+                || last_attempt.is_some_and(|at: Instant| at.elapsed() < Duration::from_secs(10)))
         {
             continue;
         }
+        verified = false;
         last_cookie = cookie.clone();
+        if cookie.is_empty() {
+            continue;
+        }
         last_attempt = Some(Instant::now());
         if probe_institution_proxy(kind, &prefix, &cookie)
             .await
@@ -150,8 +217,13 @@ async fn monitor_institution_login(
             continue;
         };
         let _ = app.emit("settings:changed", settings);
-        let _ = window.close();
-        return true;
+        if !keep_portal_open {
+            let _ = window.close();
+            return true;
+        }
+        // Keep the manual portal available for signing out or switching accounts.
+        // A new session cookie will be verified and persisted on the next poll.
+        verified = true;
     }
 }
 

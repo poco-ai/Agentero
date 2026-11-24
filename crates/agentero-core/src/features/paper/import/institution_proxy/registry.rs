@@ -24,6 +24,9 @@ pub struct InstitutionProxyPreset {
     /// True only after an authorized account downloaded a paywalled PDF.
     #[serde(default)]
     pub subscription_verified: bool,
+    /// Start the institution's configured single sign-on on selection.
+    #[serde(default)]
+    pub auto_login: bool,
 }
 
 const PRESETS_JSON: &str = include_str!("presets.json");
@@ -34,6 +37,8 @@ struct PresetEntry {
     preset: InstitutionProxyPreset,
     #[serde(rename = "campusProbe")]
     campus_probe: Option<CampusProbe>,
+    #[serde(rename = "loginPath")]
+    login_path: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -51,7 +56,27 @@ fn entries() -> Vec<PresetEntry> {
 /// reaching the UI; callers still get an empty list instead of a panic if a
 /// release somehow ships broken JSON.
 pub fn presets() -> Vec<InstitutionProxyPreset> {
-    entries().into_iter().map(|entry| entry.preset).collect()
+    entries()
+        .into_iter()
+        .map(|entry| InstitutionProxyPreset {
+            auto_login: entry.login_path.is_some(),
+            ..entry.preset
+        })
+        .collect()
+}
+
+pub fn preset_login_url(kind: InstitutionProxyKind, gateway: &Url) -> Option<Url> {
+    entries().into_iter().find_map(|entry| {
+        let path = entry.login_path?;
+        if InstitutionProxyKind::from_setting(&entry.preset.kind) != kind
+            || &Url::parse(&entry.preset.prefix).ok()? != gateway
+        {
+            return None;
+        }
+        let url = gateway.join(&path).ok()?;
+        (url.origin() == gateway.origin() && url.username().is_empty() && url.password().is_none())
+            .then_some(url)
+    })
 }
 
 /// Only the configured gateway receives the credential for its campus probe.

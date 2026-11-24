@@ -41,6 +41,7 @@ import {
 	type AppSettings,
 	AUTO_UPDATE_INTERNAL_LINKS,
 	type AutoUpdateInternalLinks,
+	loadSettings,
 	PAPER_NOTE_MODES,
 	type PaperNoteMode,
 	saveSettingsAsync,
@@ -56,6 +57,8 @@ import { McpSettingsBlock } from "./general/mcp-settings-block";
 import { OpenReviewAuthRow } from "./general/openreview-auth-row";
 import { PrivacySettingsBlock } from "./general/privacy-settings-block";
 import { TerminalAppRow } from "./general/terminal-app-row";
+
+type ProxyPresetOption = InstitutionProxyPresetOption & { autoLogin?: boolean };
 
 export function GeneralPane({
 	settings,
@@ -76,12 +79,21 @@ export function GeneralPane({
 	// OS system proxy detected by the Host (Windows "Internet Settings"); used
 	// automatically while the app proxy is off — surface it for transparency.
 	const [systemProxy, setSystemProxy] = useState<string | null>(null);
-	const [institutionProxyPrefixDraft, setInstitutionProxyPrefixDraft] =
-		useState(settings.institutionProxyPrefix);
-	const [institutionProxyCookieDraft, setInstitutionProxyCookieDraft] =
-		useState(settings.institutionProxyCookie);
+	const [prefixDraft, setPrefixDraft] = useState<string>();
+	const [cookieDraft, setCookieDraft] = useState<{
+		prefix: string;
+		value: string;
+	}>();
+	const proxyPrefix = prefixDraft ?? settings.institutionProxyPrefix;
+	const prefix = proxyPrefix.trim().replace(/\/+$/, "");
+	const proxyCookie =
+		cookieDraft?.prefix === prefix
+			? cookieDraft.value
+			: prefix === settings.institutionProxyPrefix
+				? settings.institutionProxyCookie
+				: "";
 	const [institutionProxyPresets, setInstitutionProxyPresets] = useState<
-		InstitutionProxyPresetOption[]
+		ProxyPresetOption[]
 	>([]);
 	const [institutionProxyTesting, setInstitutionProxyTesting] = useState(false);
 	const [institutionProxyResult, setInstitutionProxyResult] = useState<
@@ -89,29 +101,18 @@ export function GeneralPane({
 		| { status: "fail"; message: string }
 		| undefined
 	>(undefined);
-	const proxySettingsDraft = useCallback(() => {
-		const prefix = institutionProxyPrefixDraft.trim().replace(/\/+$/, "");
-		return {
-			institutionProxyPrefix: prefix,
-			institutionProxyCookie:
-				prefix === settings.institutionProxyPrefix ||
-				institutionProxyCookieDraft !== settings.institutionProxyCookie
-					? institutionProxyCookieDraft.trim()
-					: "",
-		};
-	}, [
-		institutionProxyPrefixDraft,
-		institutionProxyCookieDraft,
-		settings.institutionProxyPrefix,
-		settings.institutionProxyCookie,
-	]);
-	const commitInstitutionProxy = useCallback(() => {
-		const next = proxySettingsDraft();
-		if (next.institutionProxyPrefix !== settings.institutionProxyPrefix) {
+	const commitInstitutionProxy = () => {
+		if (prefixDraft === undefined && cookieDraft === undefined) return;
+		if (prefix !== settings.institutionProxyPrefix) {
 			setInstitutionProxyResult(undefined);
 		}
-		patch(next);
-	}, [proxySettingsDraft, patch, settings.institutionProxyPrefix]);
+		setPrefixDraft(undefined);
+		setCookieDraft(undefined);
+		patch({
+			institutionProxyPrefix: prefix,
+			institutionProxyCookie: proxyCookie.trim(),
+		});
+	};
 	const proxyConfigKey = JSON.stringify([
 		settings.institutionProxyType,
 		settings.institutionProxyPrefix,
@@ -150,20 +151,45 @@ export function GeneralPane({
 				setInstitutionProxyTesting(false);
 		}
 	}, [t]);
-	const openInstitutionLogin = useCallback(async () => {
-		try {
-			const pending = proxySettingsDraft();
-			await saveSettingsAsync({ ...settings, ...pending });
-			const captured = await callResult(() =>
-				commands.institutionProxyLoginOpen(pending.institutionProxyPrefix),
-			);
-			if (captured) void testInstitutionProxy();
-		} catch (error) {
-			notifyError(t("general.institutionProxy.loginFailed"), {
-				description: errorText(error),
-			});
-		}
-	}, [proxySettingsDraft, settings, t, testInstitutionProxy]);
+	const connectInstitutionProxy = useCallback(
+		async (next: AppSettings, autoLogin: boolean) => {
+			try {
+				await saveSettingsAsync(next, { rollbackOnError: true });
+			} catch (error) {
+				notifyError(errorText(error));
+				return;
+			}
+			const selected = loadSettings();
+			if (
+				selected.institutionProxyPrefix !== next.institutionProxyPrefix ||
+				selected.institutionProxyType !== next.institutionProxyType
+			)
+				return;
+			try {
+				const captured = await callResult(() =>
+					commands.institutionProxyLoginOpen(
+						next.institutionProxyPrefix,
+						autoLogin,
+					),
+				);
+				if (captured) void testInstitutionProxy();
+			} catch (error) {
+				notifyError(t("general.institutionProxy.loginFailed"), {
+					description: errorText(error),
+				});
+			}
+		},
+		[t, testInstitutionProxy],
+	);
+	const openInstitutionLogin = () =>
+		connectInstitutionProxy(
+			{
+				...settings,
+				institutionProxyPrefix: prefix,
+				institutionProxyCookie: proxyCookie.trim(),
+			},
+			false,
+		);
 	useEffect(() => {
 		if (!isTauri()) return;
 		let cancelled = false;
@@ -174,6 +200,7 @@ export function GeneralPane({
 					id: preset.id,
 					kind: preset.kind,
 					prefix: preset.prefix,
+					autoLogin: preset.autoLogin,
 					label: t(`general.institutionProxy.presets.${preset.id}`, {
 						defaultValue: preset.id,
 					}),
@@ -185,22 +212,25 @@ export function GeneralPane({
 		};
 	}, [t]);
 	const selectInstitutionProxyPreset = useCallback(
-		(preset: InstitutionProxyPresetOption) => {
+		(preset: ProxyPresetOption) => {
 			const changed =
 				preset.prefix !== settings.institutionProxyPrefix ||
 				preset.kind !== settings.institutionProxyType;
-			setInstitutionProxyPrefixDraft(preset.prefix);
-			if (changed) {
-				setInstitutionProxyCookieDraft("");
-				setInstitutionProxyResult(undefined);
-			}
-			patch({
+			setPrefixDraft(undefined);
+			setCookieDraft(undefined);
+			if (changed) setInstitutionProxyResult(undefined);
+			const next = {
 				institutionProxyPrefix: preset.prefix,
 				institutionProxyType: preset.kind,
 				institutionProxyCookie: changed ? "" : settings.institutionProxyCookie,
-			});
+			};
+			if (preset.autoLogin) {
+				void connectInstitutionProxy({ ...settings, ...next }, true);
+			} else {
+				patch(next);
+			}
 		},
-		[patch, settings],
+		[connectInstitutionProxy, patch, settings],
 	);
 	const institutionProxyProbeStatus: ProbeStatus = institutionProxyTesting
 		? "probing"
@@ -285,11 +315,6 @@ export function GeneralPane({
 	useEffect(() => {
 		setProxyUrlDraft(settings.networkProxyUrl);
 	}, [settings.networkProxyUrl]);
-
-	useEffect(() => {
-		setInstitutionProxyPrefixDraft(settings.institutionProxyPrefix);
-		setInstitutionProxyCookieDraft(settings.institutionProxyCookie);
-	}, [settings.institutionProxyPrefix, settings.institutionProxyCookie]);
 
 	useEffect(() => {
 		setEasyScholarKeyDraft(settings.easyScholarKey);
@@ -509,8 +534,8 @@ export function GeneralPane({
 				<InstitutionProxyRow
 					htmlFor="institution-proxy-prefix"
 					label={t("general.institutionProxy.label")}
-					prefix={institutionProxyPrefixDraft}
-					cookie={institutionProxyCookieDraft}
+					prefix={proxyPrefix}
+					cookie={proxyCookie}
 					typeRow={institutionProxyTypeRow}
 					prefixPlaceholder={
 						settings.institutionProxyType === "ezproxy"
@@ -524,8 +549,8 @@ export function GeneralPane({
 					testingLabel={t("general.institutionProxy.testing")}
 					presetsLabel={t("general.institutionProxy.presetsLabel")}
 					presets={institutionProxyPresets}
-					onPrefixChange={setInstitutionProxyPrefixDraft}
-					onCookieChange={setInstitutionProxyCookieDraft}
+					onPrefixChange={setPrefixDraft}
+					onCookieChange={(value) => setCookieDraft({ prefix, value })}
 					onPresetSelect={selectInstitutionProxyPreset}
 					onCommit={commitInstitutionProxy}
 					onTest={() => void testInstitutionProxy()}

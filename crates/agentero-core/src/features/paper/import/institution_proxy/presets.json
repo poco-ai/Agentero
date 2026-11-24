@@ -53,6 +53,7 @@
 		"prefix": "https://wpn.pku.edu.cn",
 		"kind": "wengine",
 		"subscriptionVerified": false,
+		"loginPath": "/login?pku_login=true",
 		"campusProbe": {
 			"url": "https://clab.pku.edu.cn/",
 			"bodyMarker": "PKU CLab"
