@@ -305,6 +305,9 @@ describe("linkifyBareVaultCitations", () => {
 	});
 });
 
+// 长 URL fixture：带端口、带多段路径、带文件名。内容中性，不含真实会话信息。
+const LONG_URL_WITH_PORT = "http://127.0.0.1:8766/p/some/deep/path/page.html";
+
 describe("linkifyBareUrls", () => {
 	it("wraps a bare http url in a markdown link", () => {
 		expect(linkifyBareUrls("See https://example.com for details.")).toBe(
@@ -327,6 +330,130 @@ describe("linkifyBareUrls", () => {
 	it("strips www from the label", () => {
 		expect(linkifyBareUrls("https://www.arxiv.org/abs/1234")).toBe(
 			"[arxiv.org](https://www.arxiv.org/abs/1234)",
+		);
+	});
+
+	// 回归：端口号必须留在链接目标里，不能掉成正文。
+	it("keeps the port inside the link target", () => {
+		expect(linkifyBareUrls("http://127.0.0.1:8766/p/x/page.html")).toBe(
+			"[127.0.0.1](http://127.0.0.1:8766/p/x/page.html)",
+		);
+	});
+
+	it("keeps the port and the whole path of a long url", () => {
+		const url = LONG_URL_WITH_PORT;
+		expect(linkifyBareUrls(url)).toBe(`[127.0.0.1](${url})`);
+	});
+
+	it("keeps the port of a bare url inside prose", () => {
+		expect(
+			linkifyBareUrls("See http://127.0.0.1:8766/p/x/page.html for details."),
+		).toBe("See [127.0.0.1](http://127.0.0.1:8766/p/x/page.html) for details.");
+	});
+
+	it("labels a url with a port by hostname only", () => {
+		expect(linkifyBareUrls("http://example.com:8766/page.html")).toBe(
+			"[example.com](http://example.com:8766/page.html)",
+		);
+	});
+
+	it("leaves a url with a port inside an existing markdown link unchanged", () => {
+		const md = "[note](http://127.0.0.1:8766/x)";
+		expect(linkifyBareUrls(md)).toBe(md);
+	});
+
+	it("leaves a url with a port inside inline code unchanged", () => {
+		expect(linkifyBareUrls("`http://127.0.0.1:8766/x` is a url.")).toBe(
+			"`http://127.0.0.1:8766/x` is a url.",
+		);
+	});
+
+	it("does not double-wrap a url inside a link label", () => {
+		const url = "http://127.0.0.1:8766/p/x/page.html";
+		expect(linkifyBareUrls(`[${url}](${url})`)).toBe(`[${url}](${url})`);
+	});
+
+	it("does not double-wrap a long url inside a link label", () => {
+		const url = LONG_URL_WITH_PORT;
+		expect(linkifyBareUrls(`[${url}](${url})`)).toBe(`[${url}](${url})`);
+	});
+
+	it("does not double-wrap when the link label differs from the target", () => {
+		const md = "[http://127.0.0.1:8766/x](http://example.com/x)";
+		expect(linkifyBareUrls(md)).toBe(md);
+	});
+
+	it("keeps the port through prepareAgentMessageMarkdown", () => {
+		expect(
+			prepareAgentMessageMarkdown("http://127.0.0.1:8766/p/x/page.html"),
+		).toBe("[127.0.0.1](http://127.0.0.1:8766/p/x/page.html)");
+	});
+
+	it("does not double-wrap a link label through prepareAgentMessageMarkdown", () => {
+		const url = "http://127.0.0.1:8766/p/x/page.html";
+		const md = `[${url}](${url})`;
+		expect(prepareAgentMessageMarkdown(md)).toBe(md);
+	});
+
+	// 回归：链接文字里可能有多个 URL，或文字里自带方括号。
+	it("keeps several urls inside one link label", () => {
+		const md = "[见 http://a.com/x 与 http://b.com/y](http://a.com/x)";
+		expect(linkifyBareUrls(md)).toBe(md);
+	});
+
+	it("keeps a url inside a label that has its own brackets", () => {
+		const md = "[see [1] http://x.com/y](http://x.com/y)";
+		expect(linkifyBareUrls(md)).toBe(md);
+	});
+
+	// 回归：外层 label 跨了内层括号时，URL 仍算在 label 里。
+	it("keeps a url inside an outer label spanning inner brackets", () => {
+		const md = "[a [b http://x.com/y] c](http://z.com/q)";
+		expect(linkifyBareUrls(md)).toBe(md);
+	});
+
+	// 回归：`\[` 是字面量方括号，不该被当成 label 的开头。
+	it("keeps a link whose label contains an escaped bracket", () => {
+		const md = "[a http://x.com/y \\[ b](http://z.com)";
+		expect(linkifyBareUrls(md)).toBe(md);
+	});
+
+	it("keeps a link whose label contains an escaped closing bracket", () => {
+		const md = "[a \\] http://x.com/y](http://z.com)";
+		expect(linkifyBareUrls(md)).toBe(md);
+	});
+
+	// 回归：方括号按配对关系判断，跨段落的 `[` 不能和后面的 `](` 凑成一对。
+	it("links a url whose bracket opens in an earlier paragraph", () => {
+		const text =
+			"第一步 [未完成\n第二步 详见 http://example.com/x\n第三步 [文档](http://a.com/b)";
+		expect(linkifyBareUrls(text)).toBe(
+			"第一步 [未完成\n第二步 详见 [example.com](http://example.com/x)\n第三步 [文档](http://a.com/b)",
+		);
+	});
+
+	it("links a url after an unclosed bracket", () => {
+		expect(linkifyBareUrls("看 [备注 http://example.com/x")).toBe(
+			"看 [备注 [example.com](http://example.com/x)",
+		);
+	});
+
+	// 回归：越界端口会让 `new URL` 抛异常，渲染期抛出会变成整页错误。
+	it("keeps a url with an out-of-range port as plain text", () => {
+		expect(linkifyBareUrls("http://example.com:99999/x")).toBe(
+			"http://example.com:99999/x",
+		);
+	});
+
+	it("keeps a url with an out-of-range port through prepareAgentMessageMarkdown", () => {
+		expect(prepareAgentMessageMarkdown("http://example.com:99999/x")).toBe(
+			"http://example.com:99999/x",
+		);
+	});
+
+	it("links a url with the highest valid port", () => {
+		expect(linkifyBareUrls("http://example.com:65535/x")).toBe(
+			"[example.com](http://example.com:65535/x)",
 		);
 	});
 });
