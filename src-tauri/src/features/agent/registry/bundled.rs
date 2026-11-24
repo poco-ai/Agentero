@@ -273,6 +273,14 @@ pub(crate) fn host_requirement(template_id: &str) -> Option<(&'static str, &'sta
 pub fn host_path(template_id: &str, child_env: &HashMap<String, String>) -> Option<PathBuf> {
     let (command, key) = host_requirement(template_id)?;
     let command = child_env.get(key).map(String::as_str).unwrap_or(command);
+    #[cfg(windows)]
+    if template_id == "claude-acp" && !child_env.contains_key(key) {
+        // A stale npm shim must not hide a later SDK-compatible installation.
+        return std::env::split_paths(child_env.get("PATH")?).find_map(|directory| {
+            crate::core::process::resolve_command_in_paths(command, &[directory])
+                .and_then(|path| claude_sdk_path(&path))
+        });
+    }
     let path =
         crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)?;
     #[cfg(windows)]
@@ -580,13 +588,47 @@ mod tests {
     #[test]
     fn claude_unresolved_shim_fails_before_sdk_spawn() {
         let tmp = tempfile::tempdir().unwrap();
-        std::fs::write(tmp.path().join("claude.cmd"), "npm shim").unwrap();
-        let env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        let shim = tmp.path().join("claude.cmd");
+        std::fs::write(&shim, "npm shim").unwrap();
+        let mut env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
         assert!(host_path("claude-acp", &env).is_none());
         let error = host_env_injection("claude-acp", &env).unwrap_err();
         assert!(error.contains("CLAUDE_CODE_EXECUTABLE"));
         assert!(error.contains("cli.js"));
         assert!(error.contains("native Claude Code installer"));
+
+        // A leftover npm shim must not hide a later native installation.
+        let later = tmp.path().join("native bin");
+        std::fs::create_dir(&later).unwrap();
+        let native = fake_host(&later, "claude");
+        env.insert(
+            "PATH".to_string(),
+            std::env::join_paths([tmp.path(), later.as_path()])
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+        );
+        assert_eq!(host_path("claude-acp", &env), Some(native.clone()));
+        assert_eq!(
+            host_env_injection("claude-acp", &env).unwrap()[0].1,
+            native.display().to_string()
+        );
+
+        // Explicit configuration still fails instead of silently selecting PATH.
+        env.insert(
+            "CLAUDE_CODE_EXECUTABLE".to_string(),
+            shim.display().to_string(),
+        );
+        assert!(host_path("claude-acp", &env).is_none());
+        env.remove("CLAUDE_CODE_EXECUTABLE");
+
+        // A working npm installation retains its original position in PATH.
+        let entry = tmp
+            .path()
+            .join("node_modules/@anthropic-ai/claude-code/cli.js");
+        std::fs::create_dir_all(entry.parent().unwrap()).unwrap();
+        std::fs::write(&entry, "").unwrap();
+        assert_eq!(host_path("claude-acp", &env), Some(entry));
     }
 
     #[cfg(windows)]
