@@ -913,7 +913,6 @@ export function PapersLibrary({
 						vaultPath={vaultPath}
 						visible={visible}
 						selectedKeys={selectedKeys}
-						selectionActive={selectionActive}
 						onSelect={selectRow}
 						onNavigateFolder={handleNavigateFolder}
 						onRenameFolder={
