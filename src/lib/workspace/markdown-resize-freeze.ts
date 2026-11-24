@@ -50,6 +50,55 @@ type PinnedContainer = {
 	width: string;
 };
 
+function captureReadingPosition(container: HTMLElement) {
+	const scroller = container.querySelector<HTMLElement>(
+		":scope > [data-agentero-editor]",
+	);
+	if (!scroller || scroller.scrollTop <= 0) return null;
+	const editor = scroller.querySelector(":scope > [data-slate-editor]");
+	const doc = container.ownerDocument;
+	const view = doc.defaultView;
+	if (!editor || !view) return null;
+
+	const viewport = scroller.getBoundingClientRect();
+	const x =
+		editor.getBoundingClientRect().left +
+		Number.parseFloat(view.getComputedStyle(editor).paddingLeft) +
+		1;
+
+	// Probe near the first visible line, with a second point for block spacing.
+	for (const inset of [8, 32]) {
+		const y = viewport.top + inset;
+		if (y >= viewport.bottom) break;
+		const hit = doc.elementFromPoint(x, y);
+		if (!hit || hit === editor || !editor.contains(hit)) continue;
+
+		const range = doc.caretRangeFromPoint?.(x, y);
+		let target: Range | Element = hit;
+		if (range && range.startContainer.nodeType === Node.TEXT_NODE) {
+			const text = range.startContainer as Text;
+			if (hit.contains(text) && text.length > 0) {
+				// A collapsed caret can resolve to either side of a soft wrap.
+				const offset = Math.min(range.startOffset, text.length - 1);
+				range.setStart(text, offset);
+				range.setEnd(text, offset + 1);
+				target = range;
+			}
+		}
+		const offset = target.getBoundingClientRect().top - viewport.top;
+		return () => {
+			const node = target instanceof Element ? target : target.startContainer;
+			if (!scroller.contains(node)) return;
+			const delta =
+				target.getBoundingClientRect().top -
+				scroller.getBoundingClientRect().top -
+				offset;
+			if (Math.abs(delta) >= 0.5) scroller.scrollTop += delta;
+		};
+	}
+	return null;
+}
+
 export function createMarkdownResizeFreeze(
 	root: Pick<HTMLElement, "querySelectorAll">,
 	gesture: ResizeGesture,
@@ -61,6 +110,16 @@ export function createMarkdownResizeFreeze(
 			container.element.style.width = container.width;
 		}
 		pinned = [];
+	};
+
+	const end = () => {
+		// Dockview lays out the resized panes while the text width is pinned.
+		// Read the visible anchors before unpinning, then restore after reflow.
+		const restorePositions = pinned.map(({ element }) =>
+			captureReadingPosition(element),
+		);
+		release();
+		for (const restorePosition of restorePositions) restorePosition?.();
 	};
 
 	const begin = () => {
@@ -81,12 +140,12 @@ export function createMarkdownResizeFreeze(
 
 	const unsubscribe = gesture.subscribe((active) => {
 		if (active) begin();
-		else release();
+		else end();
 	});
 
 	return {
 		begin,
-		end: release,
+		end,
 		dispose: () => {
 			unsubscribe();
 			release();
