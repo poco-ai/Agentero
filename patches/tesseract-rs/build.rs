@@ -137,6 +137,7 @@ mod build_tesseract {
                         .env("CXX", "sccache c++");
                 }
                 leptonica_config
+                    .profile("Release")
                     .define("CMAKE_POLICY_VERSION_MINIMUM", "3.5")
                     .define("CMAKE_BUILD_TYPE", "Release")
                     .define("BUILD_PROG", "OFF")
@@ -207,6 +208,7 @@ mod build_tesseract {
                         .env("CXX", "sccache c++");
                 }
                 tesseract_config
+                    .profile("Release")
                     .define("CMAKE_POLICY_VERSION_MINIMUM", "3.5")
                     .define("CMAKE_BUILD_TYPE", "Release")
                     .define("BUILD_TRAINING_TOOLS", "OFF")
