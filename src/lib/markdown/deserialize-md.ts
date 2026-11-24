@@ -11,7 +11,10 @@ import {
 } from "platejs";
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
-import { prepareMarkdownForDeserialize } from "@/lib/markdown/deserialize";
+import {
+	prepareMarkdownForDeserialize,
+	protectAngleDestinationFromHtmlJsx,
+} from "@/lib/markdown/deserialize";
 import { remarkRecoverInlineHtmlMarks } from "@/lib/markdown/highlight";
 import {
 	hasTexDelimiterMark,
@@ -202,10 +205,21 @@ export function deserializeMarkdownBody(
 	{ throwOnError = false } = {},
 ) {
 	const prepared = prepareMarkdownForDeserialize(body || " ");
-	const remarkPlugins = selectMarkdownRemarkPluginsForDeserialize(prepared);
-	const withoutMdx = !markdownNeedsMdx(prepared);
+	// MDX 需求只算一次：插件选择与 `withoutMdx` 共用同一个结果。
+	const hasMdxTag = markdownNeedsMdx(prepared);
+	const remarkPlugins = selectMarkdownRemarkPluginsForDeserialize(prepared, {
+		hasMdxTag,
+	});
+	const withoutMdx = !hasMdxTag;
+	// With MDX on, Plate runs `htmlToJsx` over the whole source before parsing
+	// and would rewrite an angle-bracket destination (`<source/x.png>`) as if it
+	// were a void HTML tag. Shield the destinations before handing the source
+	// over; remark decodes the entities back, so the url stays intact.
+	const source = withoutMdx
+		? prepared
+		: protectAngleDestinationFromHtmlJsx(prepared);
 	let mdxError: unknown = null;
-	const value = editor.getApi(MarkdownPlugin).markdown.deserialize(prepared, {
+	const value = editor.getApi(MarkdownPlugin).markdown.deserialize(source, {
 		remarkPlugins,
 		withoutMdx,
 		onError: (error) => {
@@ -230,12 +244,10 @@ export function deserializeMarkdownBody(
 		chars: prepared.length,
 		error: errorText(mdxError),
 	});
-	const recovered = editor
-		.getApi(MarkdownPlugin)
-		.markdown.deserialize(prepared, {
-			remarkPlugins: [...remarkPlugins, remarkRecoverInlineHtmlMarks],
-			withoutMdx: true,
-		});
+	const recovered = editor.getApi(MarkdownPlugin).markdown.deserialize(source, {
+		remarkPlugins: [...remarkPlugins, remarkRecoverInlineHtmlMarks],
+		withoutMdx: true,
+	});
 	adoptTexDelimiters(recovered);
 	return promoteDisplayOnlyInlineEquations(recovered);
 }

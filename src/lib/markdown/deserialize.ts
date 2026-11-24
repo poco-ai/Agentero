@@ -10,8 +10,15 @@
  *    actually supports. `remarkMdx` tokenizes every `<name>`, and Plate's
  *    recovery then drops the rest of the document (#533 and the same failure
  *    on placeholder tags such as `<input>` / `<Constraints>`).
+ * 5. Keep CommonMark angle-bracket destinations (`![alt](<path>)`) literal.
+ *    Their `<` opens a destination, not a tag, so remark resolves the url
+ *    itself and the source text stays as the author wrote it.
  */
 
+import {
+	findAngleDestinations,
+	protectAngleDestinations,
+} from "@/lib/markdown/angle-destination";
 import { normalizeNoteMarkdownMath } from "@/lib/markdown/math-normalize";
 
 /**
@@ -285,10 +292,15 @@ type RawRange = {
  * including nested tags such as `<img>` / `<b>`, because that slice is
  * saved verbatim. An unclosed tag inside that slice is still escaped; it
  * would throw and take the rest of the note with it.
+ *
+ * CommonMark angle-bracket destinations (`![alt](<path>)`) are skipped too:
+ * their `<` opens a destination rather than a tag, and remark resolves the
+ * url from it.
  */
 export function escapeStrayLessThan(source: string): string {
 	if (!source.includes("<")) return source;
 	const mask = buildLiteralMask(source);
+	markAngleDestinations(source, mask);
 	const { ranges: rawRanges, unclosed } = findBalancedRawRanges(source, mask);
 	const escapeAt = new Set<number>(unclosed);
 	collectProseEscapes(source, mask, rawRanges, escapeAt);
@@ -298,7 +310,38 @@ export function escapeStrayLessThan(source: string): string {
 	return applyEscapes(source, escapeAt);
 }
 
-function buildLiteralMask(source: string): Uint8Array {
+/**
+ * CommonMark 尖括号 destination（`![alt](<path>)`）里的 `<` 是 destination 的
+ * 开始，不是 JSX 标签。标成字面量后 `escapeStrayLessThan` 不会碰它，remark 按
+ * CommonMark 解析出正确的 url，源文本也不被改写。
+ */
+function markAngleDestinations(source: string, mask: Uint8Array): void {
+	for (const { start, end } of findAngleDestinations(
+		source,
+		(index) => mask[index] === 1,
+	)) {
+		mask.fill(1, start, end + 1);
+	}
+}
+
+/**
+ * 把尖括号 destination 从 Plate 的 `htmlToJsx` 改写里保护出来。
+ *
+ * MDX 打开时 Plate 会对整篇文档跑一遍 `htmlToJsx`，它把 `<source/x.png>` 当成
+ * void 标签补成 `<source/x.png />`，把图片 url 改坏。destination 的首个字符
+ * 实体化之后 `htmlToJsx` 看不到标签名，remark 解码实体后 url 不变。
+ */
+export function protectAngleDestinationFromHtmlJsx(source: string): string {
+	const mask = buildLiteralMask(source);
+	return protectAngleDestinations(source, (index) => mask[index] === 1);
+}
+
+/**
+ * 标出 source 里已经是字面量的区间：代码块、行内代码、行内公式。
+ *
+ * 这些位置的 `<`、`{`、`}` 不是 JSX/MDX 语法，转义与改写都要跳过。
+ */
+export function buildLiteralMask(source: string): Uint8Array {
 	const mask = new Uint8Array(source.length);
 	const lines = source.split("\n");
 	let offset = 0;
