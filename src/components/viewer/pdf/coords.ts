@@ -13,14 +13,14 @@ import type {
 	PdfAskNormalizedRect,
 	PdfAskTrigger,
 } from "@/lib/pdf/ask/types";
+import { EMBED_PAGE_ATTR } from "@/lib/pdf/page-dom";
 import { normalizedRegionToPdfRect } from "@/lib/pdf/region";
 import {
 	mergeTightGlyphRects,
 	unionRectsAll,
 } from "@/lib/pdf/selection-appearance";
 
-/** Marks a rendered page wrapper so overlays/menus can map page↔screen coords. */
-export const EMBED_PAGE_ATTR = "data-embed-pdf-page";
+export { EMBED_PAGE_ATTR };
 
 export function pageElByIndex(
 	host: HTMLElement | null,

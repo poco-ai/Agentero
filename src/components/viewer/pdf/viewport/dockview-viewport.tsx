@@ -20,13 +20,19 @@ import { useSettings } from "@/hooks/use-app-stores";
 import { createPdfViewportResizeGate } from "@/lib/pdf/dockview-resize";
 import { clampPageScroll } from "@/lib/pdf/page-turn";
 import {
+	followScrollSyncFrom,
 	getScrollSyncPartner,
 	handleScrollSyncIntent,
 	handleScrollSyncScroll,
 	handleScrollSyncScrollEnd,
+	invalidateScrollSyncGeometry,
+	isScrollSyncFollower,
 	registerScrollSyncElement,
 } from "@/lib/pdf/scroll-sync";
-import { createPdfViewportScrollScheduler } from "@/lib/pdf/viewport-scroll";
+import {
+	createPdfViewportMetricsScheduler,
+	createPdfViewportScrollScheduler,
+} from "@/lib/pdf/viewport-scroll";
 import { subscribeResizeGesture } from "@/lib/workspace/resize-gesture";
 
 type DockviewViewportProps = HTMLAttributes<HTMLDivElement> & {
@@ -121,9 +127,9 @@ export function DockviewViewport({
 				});
 			},
 		});
-		// Dual-pane scroll sync writes this element inside the scroll event.
-		// A scrollTo still waiting on the next frame is dropped so it cannot
-		// pull the follower back; plugin metrics stay on the frame below.
+		// Dual-pane scroll sync writes this element from the paired pane's
+		// frame. A scrollTo still waiting on the next frame is dropped so it
+		// cannot pull the follower back; plugin metrics stay on that frame.
 		const unregisterScrollSyncElement = registerScrollSyncElement(
 			documentId,
 			viewport,
@@ -132,6 +138,9 @@ export function DockviewViewport({
 			},
 		);
 		const commitResize = () => {
+			// The scroller's content metrics may have changed; the paired
+			// pane's live follow reads cached geometry.
+			invalidateScrollSyncGeometry(documentId);
 			viewport.style.setProperty(
 				"--pdf-viewport-height",
 				`${viewport.clientHeight}px`,
@@ -168,30 +177,37 @@ export function DockviewViewport({
 			else resizeGate.endDockResize();
 		});
 
-		let scrollFrame: number | null = null;
-		const handleScroll = () => {
-			// Scrollbar, keyboard, drag, and the browser's wheel. The partner is
-			// not moved here; it jumps once the gesture settles. A programmatic
-			// write also arrives here. This handler still must not cancel pending
-			// jumps: virtual-page reordering, zoom, and the jump itself all scroll
-			// programmatically. The wheel listener only claims the leader.
-			handleScrollSyncScroll(documentId);
-			if (scrollFrame != null) return;
-			scrollFrame = requestFrame(() => {
-				scrollFrame = null;
+		const metricsScheduler = createPdfViewportMetricsScheduler({
+			apply: () => {
+				// Follow first: the partner then moves on this frame's leader
+				// position, before this pane's own commit can queue plugin work.
+				followScrollSyncFrom(documentId);
 				viewportPlugin.setViewportScrollMetrics(documentId, {
 					scrollTop: viewport.scrollTop,
 					scrollLeft: viewport.scrollLeft,
 				});
-			});
+			},
+			requestFrame,
+			cancelFrame,
+		});
+
+		const handleScroll = () => {
+			// Scrollbar, keyboard, drag, and the browser's wheel. Claim the
+			// leader and record motion; the partner follows on this pane's next
+			// frame. A follower commits its metrics at a reduced cadence: the
+			// visual follow is a compositor scroll, but every commit repaints
+			// page tiles and re-renders plugin state for both panes.
+			handleScrollSyncScroll(documentId);
+			metricsScheduler.schedule(isScrollSyncFollower(documentId));
 		};
 		const handleScrollEnd = () => handleScrollSyncScrollEnd(documentId);
 		viewport.addEventListener("scroll", handleScroll, { passive: true });
 		viewport.addEventListener("scrollend", handleScrollEnd);
 		// Passive on purpose. Canceling the wheel forces this pane off the
-		// compositor. The partner is not moved until the gesture settles.
-		// Ctrl/Cmd+wheel and pinches belong to zoom. A wheel over PDF chrome,
-		// a dialog, or a field scrolls that surface.
+		// compositor. Only the leader is claimed here; the partner follows on
+		// this pane's animation frames. Ctrl/Cmd+wheel and pinches belong to
+		// zoom. A wheel over PDF chrome, a dialog, or a field scrolls that
+		// surface.
 		const handleWheel = (event: WheelEvent) => {
 			if (event.ctrlKey || event.metaKey) return;
 			const target = event.target;
@@ -228,7 +244,7 @@ export function DockviewViewport({
 			unsubscribeGesture();
 			resizeGate.dispose();
 			resizeObserver.disconnect();
-			if (scrollFrame != null) cancelFrame(scrollFrame);
+			metricsScheduler.dispose();
 			scrollScheduler.dispose();
 			viewport.removeEventListener("scroll", handleScroll);
 			viewport.removeEventListener("scrollend", handleScrollEnd);

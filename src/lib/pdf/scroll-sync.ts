@@ -7,11 +7,13 @@
  * different viewport sizes still show the same region.
  *
  * The pane under the pointer keeps the browser's compositor scroll. The other
- * pane stays where it is for the whole gesture. When that gesture settles
- * (`scrollend`, or a quiet gap when the event never arrives) the partner
- * jumps straight to the same content point: one `scrollTop` write, no scroll
- * animation, and no per-frame follow. Mirroring both panes on every tick is
- * what stalled dual-pane scrolling.
+ * pane follows the same content point on every animation frame (see
+ * followScrollSyncFrom) so the two columns move together. What it must not do
+ * is commit EmbedPDF metrics on every frame: a commit repaints page tiles and
+ * re-renders plugin state, and mirroring both panes at display rate is what
+ * stalled dual-pane scrolling. The viewport host therefore commits follower
+ * metrics at a reduced cadence and lands the exact position
+ * (alignScrollSyncFrom) once the gesture settles.
  */
 
 import { stripEmbedPdfRevision } from "@/lib/pdf/document-id";
@@ -25,6 +27,13 @@ export type SyncScrollMetrics = {
 	scrollWidth: number;
 	clientHeight: number;
 	clientWidth: number;
+	/**
+	 * Client-space top of the scroll container. Panes sit side by side, so the
+	 * same content should land on the same screen height even when one pane has
+	 * extra chrome above it (the paper path bar); without this the mapping can
+	 * only align viewport centers.
+	 */
+	viewportTop?: number;
 };
 
 export type ScrollSyncPeer = {
@@ -87,7 +96,63 @@ const scrollElements = new Map<string, ScrollSyncElementEntry>();
 type ScrollSyncElementEntry = {
 	element: HTMLElement;
 	cancelPendingScroll: () => void;
+	/**
+	 * Cached at gesture start. Reading `scrollHeight` / `clientHeight` on every
+	 * followed frame forces a layout flush while page tiles are still settling;
+	 * only the scroll offsets change during a scroll gesture.
+	 */
+	geometry: ScrollSyncGeometry | null;
 };
+
+type ScrollSyncGeometry = {
+	scrollWidth: number;
+	scrollHeight: number;
+	clientWidth: number;
+	clientHeight: number;
+	/** Screen top at gesture start; chrome above a pane shifts it. */
+	viewportTop?: number;
+};
+
+function elementGeometry(entry: ScrollSyncElementEntry): ScrollSyncGeometry {
+	if (entry.geometry) return entry.geometry;
+	const { element } = entry;
+	const rect =
+		typeof element.getBoundingClientRect === "function"
+			? element.getBoundingClientRect()
+			: null;
+	const geometry: ScrollSyncGeometry = {
+		scrollWidth: element.scrollWidth,
+		scrollHeight: element.scrollHeight,
+		clientWidth: element.clientWidth,
+		clientHeight: element.clientHeight,
+		viewportTop: rect?.top,
+	};
+	// A hidden or not-yet-laid-out scroller has no box worth caching; keep
+	// reading until it settles so the first gesture does not follow nothing.
+	if (
+		geometry.scrollHeight <= 0 ||
+		geometry.clientHeight <= 0 ||
+		geometry.scrollWidth <= 0 ||
+		geometry.clientWidth <= 0
+	) {
+		return geometry;
+	}
+	entry.geometry = geometry;
+	return geometry;
+}
+
+/**
+ * Content metrics changed (pane resize, zoom relayout). Drop the cached
+ * geometry for this pane and its partner so the next frame re-reads both.
+ */
+export function invalidateScrollSyncGeometry(docId: string): void {
+	const key = syncKey(docId);
+	for (const id of [key, getScrollSyncPartner(key)]) {
+		if (!id) continue;
+		const entry = scrollElements.get(id);
+		if (entry) entry.geometry = null;
+	}
+}
 
 export type ScrollSyncElementHooks = {
 	/** Drop a programmatic scrollTo that has not reached the DOM yet. */
@@ -106,23 +171,52 @@ let leaderIdle: ReturnType<typeof setTimeout> | null = null;
 const scrollHold = new Set<string>();
 
 /**
- * How long the leader survives a gap in scroll events when `scrollend` does
- * not fire. Trackpad ticks are far closer than this. When the gap elapses the
- * partner jumps once; it is not moved on the ticks themselves.
+ * Panes whose zoom is mid-transition. While a pair sits at two different zoom
+ * levels their content coordinates do not correspond, so neither live follow
+ * nor the settle jump may map between them.
  */
-const SCROLL_LEADER_IDLE_MS = 180;
+const zoomSyncTargets = new Set<string>();
+
+/**
+ * How long the leader survives a gap in scroll events when `scrollend` does
+ * not fire. Safari only shipped `scrollend` in 26.2, so on the macOS versions
+ * this app supports the quiet gap is the real settle signal: keep it short
+ * enough that the exact alignment lands right after the finger stops.
+ */
+const SCROLL_LEADER_IDLE_MS = 90;
 
 /** Writes closer than this are the follower landing on the position we set. */
 const SCROLL_ECHO_TOLERANCE_PX = 2;
+
+/** Live follow skips sub-pixel drift; the settle alignment is the exact pass. */
+const LIVE_FOLLOW_DEADBAND_PX = 1;
 
 /** Axes the current gesture has moved. The jump must not invent the other axis. */
 let gestureAxes: { x: boolean; y: boolean } | null = null;
 
 /**
- * Previous leader whose coast must not steal the gesture back. Cleared on
- * that pane's own `scrollend`.
+ * Previous leader whose coast must not steal the gesture back. It stays
+ * suppressed until one of its scroll events lands after a quiet gap (WebKit
+ * has no `scrollend` before Safari 26.2), or until the user wheels it again.
  */
 let suppressedLeader: string | null = null;
+let suppressedIdle: ReturnType<typeof setTimeout> | null = null;
+
+function clearSuppressedLeader(): void {
+	if (suppressedIdle != null) {
+		clearTimeout(suppressedIdle);
+		suppressedIdle = null;
+	}
+	suppressedLeader = null;
+}
+
+function armSuppressedIdle(key: string): void {
+	if (suppressedIdle != null) clearTimeout(suppressedIdle);
+	suppressedIdle = setTimeout(() => {
+		suppressedIdle = null;
+		if (suppressedLeader === key) suppressedLeader = null;
+	}, SCROLL_LEADER_IDLE_MS);
+}
 
 /** True while a settle assigns the follower's scroll offset. */
 let committingFollow = false;
@@ -145,9 +239,10 @@ function clearLeaderIdle(): void {
 function releaseScrollLeader(key: string): void {
 	if (scrollLeader !== key) return;
 	clearLeaderIdle();
-	// Jump while this pane is still the leader, so the partner's scroll event
-	// cannot take over and scroll us back.
-	jumpPartner(key, false);
+	const partnerKey = getScrollSyncPartner(key);
+	// While the partner's zoom is landing the panes are at different scales;
+	// its own reconcile assigns the exact position once the layout settles.
+	if (!partnerKey || !zoomSyncTargets.has(partnerKey)) jumpPartner(key, false);
 	gestureAxes = null;
 	if (scrollLeader === key) scrollLeader = null;
 }
@@ -169,12 +264,14 @@ export function registerScrollSyncElement(
 	const entry: ScrollSyncElementEntry = {
 		element,
 		cancelPendingScroll: hooks?.cancelPendingScroll ?? (() => {}),
+		geometry: null,
 	};
 	scrollElements.set(key, entry);
 	rememberPosition(key, element);
 	return () => {
 		if (scrollElements.get(key) !== entry) return;
-		if (suppressedLeader === key) suppressedLeader = null;
+		if (suppressedLeader === key) clearSuppressedLeader();
+		zoomSyncTargets.delete(key);
 		// Jump the partner before this element goes away, while it can still
 		// be measured.
 		releaseScrollLeader(key);
@@ -210,10 +307,10 @@ function isCommandedEcho(key: string, element: HTMLElement): boolean {
 }
 
 /**
- * Assign the partner's scroll offset directly. Called when a gesture settles,
- * not from the leader's scroll handler: WebKit defers `scrollTop` writes made
- * inside that handler. The command is recorded first so the partner's own
- * scroll event is an echo.
+ * Assign the partner's scroll offset directly. Called from the leader's
+ * animation frame or when a gesture settles, never from the leader's scroll
+ * handler: WebKit defers `scrollTop` writes made inside that handler. The
+ * applied position is recorded so the partner's own scroll event is an echo.
  */
 function writeFollowerPosition(
 	partnerKey: string,
@@ -225,8 +322,10 @@ function writeFollowerPosition(
 	const { element } = entry;
 	element.scrollLeft = next.x;
 	element.scrollTop = next.y;
+	// Record what the element actually applied, not what was requested: a
+	// target clamped by the scroller would otherwise leave the command far
+	// from the emitted position and the partner's echo would look like input.
 	const actual = { x: element.scrollLeft, y: element.scrollTop };
-	if (!isNear(element, next)) return;
 	commandedPosition.set(partnerKey, actual);
 	observedPosition.set(partnerKey, actual);
 }
@@ -235,17 +334,10 @@ function positionMetrics(
 	entry: ScrollSyncElementEntry,
 	scroll: { x: number; y: number },
 ): SyncScrollMetrics | null {
-	const { element } = entry;
-	if (element.scrollHeight <= 0 || element.clientHeight <= 0) return null;
-	if (element.scrollWidth <= 0 || element.clientWidth <= 0) return null;
-	return {
-		scrollWidth: element.scrollWidth,
-		scrollHeight: element.scrollHeight,
-		clientWidth: element.clientWidth,
-		clientHeight: element.clientHeight,
-		scrollLeft: scroll.x,
-		scrollTop: scroll.y,
-	};
+	const geometry = elementGeometry(entry);
+	if (geometry.scrollHeight <= 0 || geometry.clientHeight <= 0) return null;
+	if (geometry.scrollWidth <= 0 || geometry.clientWidth <= 0) return null;
+	return { ...geometry, scrollLeft: scroll.x, scrollTop: scroll.y };
 }
 
 function followerTarget(
@@ -323,6 +415,39 @@ function jumpPartner(key: string, force: boolean): void {
 }
 
 /**
+ * Live-follow the leader's current content point onto the partner. Called from
+ * the leader's viewport frame, before that pane's own plugin metrics commit,
+ * so both columns move on the same frame. Geometry is cached (see
+ * elementGeometry); only the scroll offsets are read here.
+ */
+export function followScrollSyncFrom(docId: string): void {
+	const key = syncKey(docId);
+	if (scrollLeader !== key) return;
+	const partnerKey = getScrollSyncPartner(key);
+	if (!partnerKey || scrollHold.has(key) || scrollHold.has(partnerKey)) return;
+	if (zoomSyncTargets.has(key) || zoomSyncTargets.has(partnerKey)) return;
+	// The pane that just handed the gesture over is still coasting; writing it
+	// every frame would fight that momentum (its events are suppressed).
+	if (suppressedLeader === partnerKey) return;
+	const from = scrollElements.get(key);
+	const to = scrollElements.get(partnerKey);
+	if (!from || !to) return;
+	const axes = gestureAxes ?? { x: false, y: false };
+	if (!axes.x && !axes.y) return;
+	const actual = { x: from.element.scrollLeft, y: from.element.scrollTop };
+	observedPosition.set(key, actual);
+	const next = followerTarget(from, to, actual, axes);
+	if (!next) return;
+	if (
+		Math.abs(to.element.scrollLeft - next.x) < LIVE_FOLLOW_DEADBAND_PX &&
+		Math.abs(to.element.scrollTop - next.y) < LIVE_FOLLOW_DEADBAND_PX
+	) {
+		return;
+	}
+	placeFollower(partnerKey, to, next);
+}
+
+/**
  * Move the partner so its viewport center lands on the same content point.
  * Only axes that actually moved are written, so a vertical gesture does not
  * drag a wider pane sideways. `force` (zoom settle, first alignment) writes
@@ -330,6 +455,9 @@ function jumpPartner(key: string, force: boolean): void {
  */
 export function alignScrollSyncFrom(docId: string, force = false): void {
 	const key = syncKey(docId);
+	// A zoom settle or first alignment changes content metrics; live follow
+	// reads cached geometry, so drop it before the exact pass.
+	if (force) invalidateScrollSyncGeometry(key);
 	jumpPartner(key, force);
 	if (scrollLeader !== key) return;
 	clearLeaderIdle();
@@ -341,6 +469,8 @@ export function alignScrollSyncFrom(docId: string, force = false): void {
 export function holdScrollSync(docId: string): () => void {
 	if (scrollLeader) releaseScrollLeader(scrollLeader);
 	const key = syncKey(docId);
+	// Zoom relayout changes scrollHeight / clientHeight while held.
+	invalidateScrollSyncGeometry(key);
 	scrollHold.add(key);
 	let released = false;
 	return () => {
@@ -348,6 +478,54 @@ export function holdScrollSync(docId: string): () => void {
 		released = true;
 		scrollHold.delete(key);
 	};
+}
+
+/**
+ * Suspend content-coordinate sync while this pane's zoom is landing. The two
+ * panes are at different scales in that window, so a mapped follow or jump
+ * would land on the wrong page region. The zoom reconcile releases it after
+ * the exact alignment.
+ */
+export function beginZoomSync(docId: string): void {
+	zoomSyncTargets.add(syncKey(docId));
+}
+
+export function endZoomSync(docId: string): void {
+	zoomSyncTargets.delete(syncKey(docId));
+}
+
+/**
+ * Assign a follower's scroll as part of a zoom hand-off. The write is recorded
+ * as our command so the follower's own scroll event cannot take the pair over.
+ */
+export function setScrollSyncFollowerScroll(
+	docId: string,
+	scroll: { x: number; y: number },
+): void {
+	const key = syncKey(docId);
+	const entry = scrollElements.get(key);
+	if (!entry) return;
+	entry.cancelPendingScroll();
+	entry.element.scrollLeft = scroll.x;
+	entry.element.scrollTop = scroll.y;
+	const actual = {
+		x: entry.element.scrollLeft,
+		y: entry.element.scrollTop,
+	};
+	commandedPosition.set(key, actual);
+	observedPosition.set(key, actual);
+}
+
+/**
+ * Stop treating this pane's scroll as the pair's driver without moving the
+ * partner (a zoom hand-off already placed it).
+ */
+export function endScrollSyncGesture(docId: string): void {
+	const key = syncKey(docId);
+	if (scrollLeader !== key) return;
+	clearLeaderIdle();
+	gestureAxes = null;
+	scrollLeader = null;
 }
 
 /**
@@ -360,9 +538,14 @@ function claimLeader(key: string): void {
 	scrollHold.delete(key);
 	if (scrollLeader !== key) {
 		clearLeaderIdle();
-		if (scrollLeader) suppressedLeader = scrollLeader;
+		if (scrollLeader) {
+			suppressedLeader = scrollLeader;
+			armSuppressedIdle(scrollLeader);
+		}
 		gestureAxes = null;
 		scrollLeader = key;
+		// A new gesture starts from whatever the panes measure now.
+		invalidateScrollSyncGeometry(key);
 	}
 	armLeaderIdle(key);
 }
@@ -370,13 +553,16 @@ function claimLeader(key: string): void {
 export function handleScrollSyncIntent(docId: string): void {
 	const key = syncKey(docId);
 	if (!getScrollSyncPartner(key)) return;
+	// A wheel here is a deliberate grab, even if this pane is still coasting
+	// from the gesture it handed over.
+	if (suppressedLeader === key) clearSuppressedLeader();
 	claimLeader(key);
 }
 
 /**
  * Scrollbar, keyboard, drag, and the browser's own wheel scroll. Record where
- * the leader went. The partner is not moved here; `scrollend` (or the idle
- * gap) jumps it once.
+ * the leader went; the partner follows on the leader's next animation frame
+ * and lands the exact position when the gesture settles.
  */
 export function handleScrollSyncScroll(docId: string): void {
 	const key = syncKey(docId);
@@ -386,22 +572,27 @@ export function handleScrollSyncScroll(docId: string): void {
 		rememberPosition(key, entry.element);
 		return;
 	}
-	if (suppressedLeader === key) {
+	if (zoomSyncTargets.has(key)) {
+		// This pane's own re-anchor scroll belongs to the zoom transition.
 		rememberPosition(key, entry.element);
 		return;
 	}
-	if (!getScrollSyncPartner(key)) return;
-	if (scrollLeader && scrollLeader !== key) {
-		if (isCommandedEcho(key, entry.element)) {
-			rememberPosition(key, entry.element);
-			return;
-		}
-		claimLeader(key);
-	} else if (scrollLeader !== key) {
-		claimLeader(key);
-	} else {
-		armLeaderIdle(key);
+	if (suppressedLeader === key) {
+		rememberPosition(key, entry.element);
+		// Momentum keeps this pane suppressed; after a quiet gap its next
+		// motion is the user's and may take the pair back.
+		armSuppressedIdle(key);
+		return;
 	}
+	if (!getScrollSyncPartner(key)) return;
+	// The settle jump writes the partner after the leader is cleared; its
+	// scroll event must not make the partner the new leader.
+	if (isCommandedEcho(key, entry.element)) {
+		rememberPosition(key, entry.element);
+		return;
+	}
+	if (scrollLeader === key) armLeaderIdle(key);
+	else claimLeader(key);
 	noteLeaderMotion(key, entry.element);
 }
 
@@ -409,7 +600,7 @@ export function handleScrollSyncScroll(docId: string): void {
 export function handleScrollSyncScrollEnd(docId: string): void {
 	const key = syncKey(docId);
 	if (suppressedLeader === key) {
-		suppressedLeader = null;
+		clearSuppressedLeader();
 		return;
 	}
 	if (scrollLeader !== key) return;
@@ -476,13 +667,29 @@ export function getScrollSyncRole(docId: string): "source" | "target" | null {
 }
 
 /**
+ * True while this pane is following the other one. The viewport host commits
+ * its scroll metrics at a reduced cadence in this state: the visual follow is
+ * a compositor scroll per frame, but every metrics commit repaints page tiles
+ * and re-renders plugin state, and mirroring both panes at display rate is
+ * what stalled dual-pane scrolling (#769).
+ */
+export function isScrollSyncFollower(docId: string): boolean {
+	const key = syncKey(docId);
+	if (scrollLeader === null || scrollLeader === key) return false;
+	// Only the fresh pair being driven is a follower; another open comparison
+	// must not inherit the throttle from this gesture.
+	return getScrollSyncPartner(key) === scrollLeader;
+}
+
+/**
  * Map scroll position from one viewport onto another in content coordinates.
  *
- * Paired panes render the same document at the same zoom, so their content
- * coordinate systems are identical. Instead of mirroring the scroll *ratio*
- * (which lands on a different region whenever the panes have different client
- * sizes — comment rail, split ratio, scrollbar), keep both viewport centers
- * aimed at the same content point.
+ * Paired panes render the same document at the same zoom. Vertically the same
+ * content should land on the same screen height, so the offset is the panes'
+ * client-space top difference (one pane may carry the paper path bar above its
+ * viewport). When the tops are unknown, fall back to aiming both viewport
+ * centers at the same content point. Horizontally the panes are side by side,
+ * so their centers are the shared reference instead of a screen column.
  */
 export function mapScrollByContent(
 	from: SyncScrollMetrics,
@@ -496,9 +703,15 @@ export function mapScrollByContent(
 	const fromCenterX = from.scrollLeft + from.clientWidth / 2;
 	const toMaxY = Math.max(0, to.scrollHeight - to.clientHeight);
 	const toMaxX = Math.max(0, to.scrollWidth - to.clientWidth);
+	const fromTop = from.viewportTop;
+	const toTop = to.viewportTop;
+	const mappedY =
+		fromTop !== undefined && toTop !== undefined
+			? from.scrollTop + toTop - fromTop
+			: fromCenterY - to.clientHeight / 2;
 	return {
 		x: Math.min(Math.max(fromCenterX - to.clientWidth / 2, 0), toMaxX),
-		y: Math.min(Math.max(fromCenterY - to.clientHeight / 2, 0), toMaxY),
+		y: Math.min(Math.max(mappedY, 0), toMaxY),
 	};
 }
 

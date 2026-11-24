@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	alignScrollSyncFrom,
+	beginZoomSync,
 	cancelPendingViewportScroll,
+	endZoomSync,
+	followScrollSyncFrom,
 	getScrollSyncElement,
 	getScrollSyncPartner,
 	getScrollSyncPeer,
@@ -9,6 +12,8 @@ import {
 	handleScrollSyncScroll,
 	handleScrollSyncScrollEnd,
 	holdScrollSync,
+	invalidateScrollSyncGeometry,
+	isScrollSyncFollower,
 	mapScrollByContent,
 	mergeSyncedScrollPosition,
 	registerScrollSyncElement,
@@ -65,11 +70,31 @@ function createPeer(initial: {
 }
 
 describe("mapScrollByContent", () => {
-	it("keeps both viewport centers on the same content point across differently sized panes", () => {
+	it("aligns the same content at the same screen height when one pane has chrome above", () => {
+		// The paper path bar pushes the source viewport 36px down. The target
+		// is taller and starts at the panel top; the same content must land on
+		// the same screen row, not on the two viewport centers.
+		const mapped = mapScrollByContent(
+			metrics({
+				scrollTop: 600,
+				scrollHeight: 4000,
+				clientHeight: 200,
+				viewportTop: 136,
+			}),
+			metrics({
+				scrollTop: 0,
+				scrollHeight: 4000,
+				clientHeight: 300,
+				viewportTop: 100,
+			}),
+		);
+		expect(mapped).toEqual({ x: 0, y: 564 });
+	});
+
+	it("falls back to viewport centers when the screen tops are unknown", () => {
 		// Same document in two panes with different viewport heights. The
 		// source center sits on content y = 700; the target must aim its
-		// center there too (700 - 150). The old ratio mapping landed the
-		// target center on y = 675 instead.
+		// center there too (700 - 150).
 		const mapped = mapScrollByContent(
 			metrics({
 				scrollTop: 600,
@@ -394,7 +419,7 @@ describe("dual-pane scroll mirror", () => {
 	});
 });
 
-describe("dual-pane settle jump", () => {
+describe("dual-pane live follow", () => {
 	function surface(
 		partial: Partial<SyncScrollMetrics> &
 			Pick<SyncScrollMetrics, "scrollTop" | "clientHeight">,
@@ -409,23 +434,58 @@ describe("dual-pane settle jump", () => {
 		return { element };
 	}
 
-	it("jumps to the final position once, not to the intermediate ticks", () => {
-		const group = registerScrollSyncPair("settle-a", "settle-a::translation");
+	it("follows the leader every frame and still lands the final position", () => {
+		const group = registerScrollSyncPair("live-a", "live-a::translation");
 		const source = surface({ scrollTop: 0, clientHeight: 200 });
 		const translation = surface({ scrollTop: 0, clientHeight: 200 });
-		const disposeSource = registerScrollSyncElement("settle-a", source.element);
+		const disposeSource = registerScrollSyncElement("live-a", source.element);
 		const disposeTranslation = registerScrollSyncElement(
-			"settle-a::translation",
+			"live-a::translation",
 			translation.element,
 		);
 		source.element.scrollTop = 40;
-		handleScrollSyncScroll("settle-a");
-		source.element.scrollTop = 80;
-		handleScrollSyncScroll("settle-a");
+		handleScrollSyncScroll("live-a");
+		// The partner moves from the viewport frame, not from the handler.
 		expect(translation.element.scrollTop).toBe(0);
-		expect(source.element.scrollTop).toBe(80);
+		followScrollSyncFrom("live-a");
+		expect(translation.element.scrollTop).toBe(40);
 
-		handleScrollSyncScrollEnd("settle-a");
+		source.element.scrollTop = 80;
+		handleScrollSyncScroll("live-a");
+		followScrollSyncFrom("live-a");
+		expect(translation.element.scrollTop).toBe(80);
+
+		// Final tick without a following frame: the settle pass still lands it.
+		source.element.scrollTop = 90;
+		handleScrollSyncScroll("live-a");
+		handleScrollSyncScrollEnd("live-a");
+		expect(translation.element.scrollTop).toBe(90);
+		expect(source.element.scrollTop).toBe(90);
+
+		disposeSource();
+		disposeTranslation();
+		unregisterScrollSyncPair(group);
+	});
+
+	it("treats a live-follow write as an echo, not user input", () => {
+		const group = registerScrollSyncPair("live-b", "live-b::translation");
+		const source = surface({ scrollTop: 0, clientHeight: 200 });
+		const translation = surface({ scrollTop: 0, clientHeight: 200 });
+		const disposeSource = registerScrollSyncElement("live-b", source.element);
+		const disposeTranslation = registerScrollSyncElement(
+			"live-b::translation",
+			translation.element,
+		);
+		source.element.scrollTop = 40;
+		handleScrollSyncScroll("live-b");
+		followScrollSyncFrom("live-b");
+		// The follower's own scroll event for the position we just wrote.
+		translation.element.scrollTop = 40;
+		handleScrollSyncScroll("live-b::translation");
+
+		source.element.scrollTop = 80;
+		handleScrollSyncScroll("live-b");
+		followScrollSyncFrom("live-b");
 		expect(translation.element.scrollTop).toBe(80);
 		expect(source.element.scrollTop).toBe(80);
 
@@ -434,24 +494,25 @@ describe("dual-pane settle jump", () => {
 		unregisterScrollSyncPair(group);
 	});
 
-	it("jumps a taller partner to the same content center", () => {
-		const group = registerScrollSyncPair("settle-b", "settle-b::translation");
+	it("follows a taller partner by content center", () => {
+		const group = registerScrollSyncPair("live-c", "live-c::translation");
 		const source = surface({ scrollTop: 0, clientHeight: 200 });
 		const translation = surface({
 			scrollTop: 0,
 			clientHeight: 300,
 			clientWidth: 500,
 		});
-		const disposeSource = registerScrollSyncElement("settle-b", source.element);
+		const disposeSource = registerScrollSyncElement("live-c", source.element);
 		const disposeTranslation = registerScrollSyncElement(
-			"settle-b::translation",
+			"live-c::translation",
 			translation.element,
 		);
 		source.element.scrollTop = 600;
-		handleScrollSyncScroll("settle-b");
-		expect(translation.element.scrollTop).toBe(0);
-		handleScrollSyncScrollEnd("settle-b");
+		handleScrollSyncScroll("live-c");
+		followScrollSyncFrom("live-c");
 		// Source center is content y = 700. The taller pane aims there.
+		expect(translation.element.scrollTop).toBe(550);
+		handleScrollSyncScrollEnd("live-c");
 		expect(translation.element.scrollTop).toBe(550);
 		expect(source.element.scrollTop).toBe(600);
 
@@ -460,28 +521,94 @@ describe("dual-pane settle jump", () => {
 		unregisterScrollSyncPair(group);
 	});
 
-	it("lets the other pane take over without jumping onto the finger", () => {
-		const group = registerScrollSyncPair("settle-c", "settle-c::translation");
+	it("re-reads content metrics after a resize invalidation", () => {
+		const group = registerScrollSyncPair("live-d", "live-d::translation");
+		const source = surface({
+			scrollTop: 0,
+			clientHeight: 200,
+			scrollHeight: 4000,
+		});
+		const translation = surface({
+			scrollTop: 0,
+			clientHeight: 300,
+			scrollHeight: 4000,
+		});
+		const disposeSource = registerScrollSyncElement("live-d", source.element);
+		const disposeTranslation = registerScrollSyncElement(
+			"live-d::translation",
+			translation.element,
+		);
+		source.element.scrollTop = 3800;
+		handleScrollSyncScroll("live-d");
+		followScrollSyncFrom("live-d");
+		// Clamped by the follower's current 4000px content box.
+		expect(translation.element.scrollTop).toBe(3700);
+
+		translation.element.scrollHeight = 8000;
+		invalidateScrollSyncGeometry("live-d");
+		source.element.scrollTop = 3801;
+		handleScrollSyncScroll("live-d");
+		followScrollSyncFrom("live-d");
+		expect(translation.element.scrollTop).toBe(3751);
+
+		disposeSource();
+		disposeTranslation();
+		unregisterScrollSyncPair(group);
+	});
+
+	it("keeps the same screen row when one pane carries the path bar", () => {
+		const group = registerScrollSyncPair("live-bar", "live-bar::translation");
 		const source = surface({ scrollTop: 0, clientHeight: 200 });
 		const translation = surface({ scrollTop: 0, clientHeight: 200 });
-		const disposeSource = registerScrollSyncElement("settle-c", source.element);
+		// The paper pane's viewport starts 36px lower because the path bar sits
+		// above it; the translation pane has no bar.
+		source.element.getBoundingClientRect = () =>
+			({ top: 136 }) as unknown as DOMRect;
+		translation.element.getBoundingClientRect = () =>
+			({ top: 100 }) as unknown as DOMRect;
+		const disposeSource = registerScrollSyncElement("live-bar", source.element);
 		const disposeTranslation = registerScrollSyncElement(
-			"settle-c::translation",
+			"live-bar::translation",
+			translation.element,
+		);
+		source.element.scrollTop = 600;
+		handleScrollSyncScroll("live-bar");
+		followScrollSyncFrom("live-bar");
+		// Same content at the same screen height: the follower scrolls 36px less.
+		expect(translation.element.scrollTop).toBe(564);
+
+		disposeSource();
+		disposeTranslation();
+		unregisterScrollSyncPair(group);
+	});
+
+	it("lets the other pane take over without jumping onto the finger", () => {
+		const group = registerScrollSyncPair("live-e", "live-e::translation");
+		const source = surface({ scrollTop: 0, clientHeight: 200 });
+		const translation = surface({ scrollTop: 0, clientHeight: 200 });
+		const disposeSource = registerScrollSyncElement("live-e", source.element);
+		const disposeTranslation = registerScrollSyncElement(
+			"live-e::translation",
 			translation.element,
 		);
 		source.element.scrollTop = 100;
-		handleScrollSyncScroll("settle-c");
+		handleScrollSyncScroll("live-e");
+		followScrollSyncFrom("live-e");
+		expect(translation.element.scrollTop).toBe(100);
+
 		translation.element.scrollTop = 240;
-		handleScrollSyncScroll("settle-c::translation");
+		handleScrollSyncScroll("live-e::translation");
+		// The pane that handed the gesture over is still coasting: leave it
+		// alone until it stops instead of tugging it every frame.
+		followScrollSyncFrom("live-e::translation");
 		expect(translation.element.scrollTop).toBe(240);
 		expect(source.element.scrollTop).toBe(100);
 
 		source.element.scrollTop = 160;
-		handleScrollSyncScroll("settle-c");
-		expect(translation.element.scrollTop).toBe(240);
+		handleScrollSyncScroll("live-e");
 		expect(source.element.scrollTop).toBe(160);
 
-		handleScrollSyncScrollEnd("settle-c::translation");
+		handleScrollSyncScrollEnd("live-e::translation");
 		expect(source.element.scrollTop).toBe(240);
 		expect(translation.element.scrollTop).toBe(240);
 
@@ -490,24 +617,24 @@ describe("dual-pane settle jump", () => {
 		unregisterScrollSyncPair(group);
 	});
 
-	it("jumps after a quiet gap when scrollend does not fire", () => {
+	it("settles after a quiet gap when scrollend does not fire", () => {
 		vi.useFakeTimers();
-		const group = registerScrollSyncPair("settle-d", "settle-d::translation");
+		const group = registerScrollSyncPair("live-f", "live-f::translation");
 		const source = surface({ scrollTop: 0, clientHeight: 200 });
 		const translation = surface({ scrollTop: 0, clientHeight: 200 });
-		const disposeSource = registerScrollSyncElement("settle-d", source.element);
+		const disposeSource = registerScrollSyncElement("live-f", source.element);
 		const disposeTranslation = registerScrollSyncElement(
-			"settle-d::translation",
+			"live-f::translation",
 			translation.element,
 		);
 		try {
 			source.element.scrollTop = 40;
-			handleScrollSyncScroll("settle-d");
-			vi.advanceTimersByTime(100);
+			handleScrollSyncScroll("live-f");
+			vi.advanceTimersByTime(50);
 			expect(translation.element.scrollTop).toBe(0);
 			source.element.scrollTop = 80;
-			handleScrollSyncScroll("settle-d");
-			vi.advanceTimersByTime(179);
+			handleScrollSyncScroll("live-f");
+			vi.advanceTimersByTime(89);
 			expect(translation.element.scrollTop).toBe(0);
 			vi.advanceTimersByTime(1);
 			expect(translation.element.scrollTop).toBe(80);
@@ -522,11 +649,104 @@ describe("dual-pane settle jump", () => {
 
 	it("leaves a pane with no partner where it is", () => {
 		const element = surface({ scrollTop: 40, clientHeight: 200 }).element;
-		const dispose = registerScrollSyncElement("settle-lone", element);
+		const dispose = registerScrollSyncElement("live-lone", element);
 		element.scrollTop = 90;
-		handleScrollSyncScroll("settle-lone");
-		handleScrollSyncScrollEnd("settle-lone");
+		handleScrollSyncScroll("live-lone");
+		handleScrollSyncScrollEnd("live-lone");
 		expect(element.scrollTop).toBe(90);
 		dispose();
+	});
+
+	it("suspends live follow while a zoom transition lands", () => {
+		const group = registerScrollSyncPair("zoom-a", "zoom-a::translation");
+		const source = surface({ scrollTop: 0, clientHeight: 200 });
+		const translation = surface({
+			scrollTop: 0,
+			clientHeight: 200,
+			scrollHeight: 4000,
+		});
+		const disposeSource = registerScrollSyncElement("zoom-a", source.element);
+		const disposeTranslation = registerScrollSyncElement(
+			"zoom-a::translation",
+			translation.element,
+		);
+		source.element.scrollTop = 40;
+		handleScrollSyncScroll("zoom-a");
+		followScrollSyncFrom("zoom-a");
+		expect(translation.element.scrollTop).toBe(40);
+
+		// While the panes sit at different scales the mapping is meaningless.
+		beginZoomSync("zoom-a::translation");
+		source.element.scrollTop = 80;
+		handleScrollSyncScroll("zoom-a");
+		followScrollSyncFrom("zoom-a");
+		expect(translation.element.scrollTop).toBe(40);
+		handleScrollSyncScrollEnd("zoom-a");
+		expect(translation.element.scrollTop).toBe(40);
+
+		// The target's own re-anchor scroll must not take the pair over.
+		translation.element.scrollTop = 900;
+		handleScrollSyncScroll("zoom-a::translation");
+		expect(source.element.scrollTop).toBe(80);
+
+		endZoomSync("zoom-a::translation");
+		source.element.scrollTop = 120;
+		handleScrollSyncScroll("zoom-a");
+		followScrollSyncFrom("zoom-a");
+		expect(translation.element.scrollTop).toBe(120);
+
+		disposeSource();
+		disposeTranslation();
+		unregisterScrollSyncPair(group);
+	});
+
+	it("throttles only the pair whose leader is scrolling", () => {
+		const liveGroup = registerScrollSyncPair(
+			"throttle-a",
+			"throttle-a::translation",
+		);
+		const otherGroup = registerScrollSyncPair(
+			"throttle-b",
+			"throttle-b::translation",
+		);
+		const liveSource = surface({ scrollTop: 0, clientHeight: 200 }).element;
+		const liveTranslation = surface({
+			scrollTop: 0,
+			clientHeight: 200,
+		}).element;
+		const otherSource = surface({ scrollTop: 0, clientHeight: 200 }).element;
+		const otherTranslation = surface({
+			scrollTop: 0,
+			clientHeight: 200,
+		}).element;
+		const disposeLiveSource = registerScrollSyncElement(
+			"throttle-a",
+			liveSource,
+		);
+		const disposeLiveTranslation = registerScrollSyncElement(
+			"throttle-a::translation",
+			liveTranslation,
+		);
+		const disposeOtherSource = registerScrollSyncElement(
+			"throttle-b",
+			otherSource,
+		);
+		const disposeOtherTranslation = registerScrollSyncElement(
+			"throttle-b::translation",
+			otherTranslation,
+		);
+		liveSource.scrollTop = 40;
+		handleScrollSyncScroll("throttle-a");
+		expect(isScrollSyncFollower("throttle-a::translation")).toBe(true);
+		expect(isScrollSyncFollower("throttle-a")).toBe(false);
+		expect(isScrollSyncFollower("throttle-b::translation")).toBe(false);
+		expect(isScrollSyncFollower("throttle-b")).toBe(false);
+
+		disposeLiveSource();
+		disposeLiveTranslation();
+		disposeOtherSource();
+		disposeOtherTranslation();
+		unregisterScrollSyncPair(liveGroup);
+		unregisterScrollSyncPair(otherGroup);
 	});
 });

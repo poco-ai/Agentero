@@ -111,6 +111,26 @@ export function zoomPreviewTranslateForViewport(
 	};
 }
 
+/**
+ * Map a gesture point from one synced pane to the other. The panes sit side by
+ * side and share a screen height, so the vertical coordinate is the same —
+ * even when one pane carries extra chrome (the paper path bar) above its
+ * viewport. Horizontally their viewport centers are the shared reference.
+ */
+export function mapZoomPointToPeer(
+	source: { left: number; top: number; width: number; height: number },
+	partner: { left: number; top: number; width: number; height: number },
+	point: { x: number; y: number },
+): { x: number; y: number } {
+	return {
+		x:
+			partner.left +
+			partner.width / 2 +
+			(point.x - (source.left + source.width / 2)),
+		y: point.y,
+	};
+}
+
 /** Step the viewer zoom by 10 percentage points, staying inside the range. */
 export function stepPdfZoom(zoom: number, direction: -1 | 1): number {
 	const next = Math.round((zoom + direction * 0.1) * 100) / 100;

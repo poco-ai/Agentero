@@ -14,6 +14,12 @@ import {
 	zoomPreviewTranslateForViewport,
 	zoomReadingWidth,
 } from "@/lib/pdf/zoom";
+import {
+	beginPeerZoomPreview,
+	clearPeerZoomPreview,
+	settlePeerZoomPreview,
+	updatePeerZoomPreview,
+} from "@/lib/pdf/zoom-preview";
 
 /** Safety net for a dropped `gestureend`: commit the pending preview. */
 const ZOOM_GESTURE_WATCHDOG_MS = 1200;
@@ -83,13 +89,15 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 	// A zoom-state change can precede the virtual scroller's DOM resize. Let the
 	// settle loop verify the rendered page dimensions before removing the preview
 	// transform; clearing it immediately exposes a stale layout for one frame.
+	// A zoom commanded by the paired pane has no local settle loop, so the
+	// mirrored preview is compensated here instead.
 	useLayoutEffect(() => {
-		if (
-			!pendingCommitRef.current ||
-			!Number.isFinite(zoomState.currentZoomLevel)
-		)
+		if (!Number.isFinite(zoomState.currentZoomLevel)) return;
+		if (pendingCommitRef.current) {
+			settleCommitRef.current?.();
 			return;
-		settleCommitRef.current?.();
+		}
+		settlePeerZoomPreview();
 	}, [zoomState.currentZoomLevel]);
 
 	useEffect(() => {
@@ -247,6 +255,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 			};
 			if (Math.abs(target - zoomLevelRef.current) < ZOOM_COMMIT_EPSILON) {
 				resetPreview();
+				clearPeerZoomPreview();
 				container.dispatchEvent(new Event("pdf-zoom-settled"));
 				return;
 			}
@@ -308,6 +317,9 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 								height: pageRect.height,
 							}
 						: null;
+				// The partner's real zoom only lands at commit; scale its raster
+				// with the same preview so the two columns move together.
+				beginPeerZoomPreview(docId, pendingAnchorRef.current);
 				previewZoom = zoomLevelRef.current || 1;
 				previewScale = 1;
 				previewElementWidth = previewElementRef.current?.offsetWidth ?? 0;
@@ -344,6 +356,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 					previewViewportWidth,
 				);
 				element.style.transform = `translate(${offset.x}px, ${offset.y}px) scale(${previewScale})`;
+				updatePeerZoomPreview(docId, previewScale, pointer);
 			},
 			onZoomEnd: commit,
 		});
@@ -357,6 +370,7 @@ export function WheelZoomHandler({ docId }: { docId: string }) {
 			pendingScrollRef.current = null;
 			pendingAnchorRef.current = null;
 			resetPreview();
+			clearPeerZoomPreview();
 		};
 	}, [docId, viewportRef]);
 

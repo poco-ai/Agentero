@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	clampZoomPreviewScale,
 	formatPdfZoomPercentage,
+	mapZoomPointToPeer,
 	parsePdfZoomPercentage,
 	zoomCommitPreviewTransform,
 	zoomGestureCenteringMargin,
@@ -109,6 +110,27 @@ describe("zoomPreviewTranslateForViewport", () => {
 		expect(zoomPreviewTranslateForViewport(50, 100, 4, 200, 500)).toEqual({
 			x: -150,
 			y: -300,
+		});
+	});
+});
+
+describe("mapZoomPointToPeer", () => {
+	const source = { left: 100, top: 100, width: 600, height: 800 };
+	const partner = { left: 800, top: 60, width: 500, height: 700 };
+
+	it("maps the horizontal center and keeps the screen row", () => {
+		expect(mapZoomPointToPeer(source, partner, { x: 400, y: 500 })).toEqual({
+			x: 1050,
+			y: 500,
+		});
+	});
+
+	it("keeps the same screen height when the panes have different chrome", () => {
+		// 60px right of the source center; the row stays 540 even though the
+		// partner viewport is shorter and starts higher.
+		expect(mapZoomPointToPeer(source, partner, { x: 460, y: 540 })).toEqual({
+			x: 1110,
+			y: 540,
 		});
 	});
 });

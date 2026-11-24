@@ -5,6 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { stripEmbedPdfRevision } from "@/lib/pdf/document-id";
 import {
 	alignScrollSyncFrom,
+	beginZoomSync,
+	cancelPendingViewportScroll,
+	endScrollSyncGesture,
+	endZoomSync,
 	getScrollSyncElement,
 	getScrollSyncPartner,
 	getScrollSyncPeer,
@@ -16,6 +20,13 @@ import {
 	subscribeScrollSyncPairs,
 	subscribeScrollSyncPeers,
 } from "@/lib/pdf/scroll-sync";
+import {
+	clearPeerZoomPreview,
+	commitPeerZoomPreview,
+	finishPeerZoomPreview,
+	peerZoomPreviewToken,
+	settlePeerZoomPreview,
+} from "@/lib/pdf/zoom-preview";
 import { getTabs } from "@/lib/workspace/store";
 import { findTranslationSourceId } from "@/lib/workspace/tabs";
 
@@ -23,26 +34,29 @@ import { findTranslationSourceId } from "@/lib/workspace/tabs";
  * Frames to wait for the target's zoom relayout before realigning its scroll.
  * The plugin applies the zoom level synchronously, but the viewport's content
  * metrics (scrollHeight / scrollWidth) only settle after the Scroller
- * re-renders, so a fixed one-frame delay reads stale geometry.
+ * re-renders, so a fixed one-frame delay reads stale geometry. The mirrored
+ * zoom preview is compensated on each of these frames, so waiting for the page
+ * box matches the source pane's own settle allowance.
  */
-const MAX_ZOOM_SETTLE_FRAMES = 16;
+const MAX_ZOOM_SETTLE_FRAMES = 30;
 
 /**
- * Zoom gestures (wheel / pinch) step the level many times per second; pushing
- * every step to the partner re-rasterizes both panes on the main thread and
- * the visible alignment only lands anyway. Land the partner once, this long
- * after the last step.
+ * The zoom gesture itself is a CSS-transform preview (see wheel-zoom-handler),
+ * so the real level only lands once, when the gesture ends. The partner's
+ * commit then only needs to clear this short debounce so both panes relayout
+ * in the same window instead of one after the other.
  */
-const ZOOM_SYNC_SETTLE_MS = 120;
+const ZOOM_SYNC_SETTLE_MS = 40;
 
 /**
  * Sync zoom between this PDF viewer and its paired translation pane, and
  * align scroll once both viewports have layout.
  *
  * The pane under the pointer keeps the browser's own scroll. The partner
- * stays put until that gesture settles, then jumps to the same content
- * point. This hook publishes the zoom peer and, after a zoom gesture
- * settles, realigns the follower.
+ * follows it every animation frame (see followScrollSyncFrom) while its
+ * plugin metrics commit at a reduced cadence, then lands the exact content
+ * point when the gesture settles. This hook publishes the zoom peer and,
+ * after a zoom gesture settles, realigns the follower.
  */
 export function usePdfScrollSync(docId: string): void {
 	const viewportCap = useViewportCapability().provides;
@@ -96,7 +110,16 @@ export function usePdfScrollSync(docId: string): void {
 		}
 
 		return registerScrollSyncPeer(docId, {
-			getMetrics: () => myScope.getMetrics(),
+			getMetrics: () => {
+				const metrics = myScope.getMetrics();
+				const element = getScrollSyncElement(docId);
+				return {
+					...metrics,
+					// Side-by-side panes share a screen; a pane with the paper
+					// path bar above its viewport must not shift the content.
+					viewportTop: element?.getBoundingClientRect().top,
+				};
+			},
 			scrollTo: ({ x, y }) => {
 				// Direct element write: the plugin's scroll-request pipeline wraps
 				// every programmatic scroll in another animation frame. The plugin
@@ -141,11 +164,22 @@ export function usePdfScrollSync(docId: string): void {
 		let cancelled = false;
 		const settleTokens = new Map<string, number>();
 		const settleHolds = new Map<string, () => void>();
+		/** Preview gesture a pending zoom commit is allowed to clear. */
+		const zoomPreviewTokens = new Map<string, number>();
 		let zoomGestureTimer: ReturnType<typeof setTimeout> | null = null;
 
 		const releaseSettleHold = (targetDocId: string) => {
 			settleHolds.get(targetDocId)?.();
 			settleHolds.delete(targetDocId);
+		};
+
+		const clearZoomSync = (targetDocId: string, latest = false) => {
+			endZoomSync(targetDocId);
+			clearPeerZoomPreview(
+				targetDocId,
+				latest ? undefined : (zoomPreviewTokens.get(targetDocId) ?? 0),
+			);
+			zoomPreviewTokens.delete(targetDocId);
 		};
 
 		/**
@@ -160,6 +194,7 @@ export function usePdfScrollSync(docId: string): void {
 			targetDocId: string,
 			expectedZoom: number,
 			expectResize: boolean,
+			previewToken = 0,
 		) => {
 			const token = (settleTokens.get(targetDocId) ?? 0) + 1;
 			settleTokens.set(targetDocId, token);
@@ -172,7 +207,21 @@ export function usePdfScrollSync(docId: string): void {
 			let sawResize = !expectResize;
 			const step = () => {
 				if (cancelled || settleTokens.get(targetDocId) !== token) return;
+				if (previewToken > 0 && peerZoomPreviewToken() > previewToken) {
+					// A newer pinch replaced this commit's preview; its own commit
+					// lands the zoom, so stop touching the preview or the scroll.
+					releaseSettleHold(targetDocId);
+					if (settleTokens.get(targetDocId) === token) {
+						settleTokens.delete(targetDocId);
+					}
+					if (zoomPreviewTokens.get(targetDocId) === previewToken) {
+						zoomPreviewTokens.delete(targetDocId);
+						endZoomSync(targetDocId);
+					}
+					return;
+				}
 				frames += 1;
+				const previewSettled = settlePeerZoomPreview();
 				const metrics = to.getMetrics();
 				if (
 					metrics.scrollHeight !== lastHeight ||
@@ -189,11 +238,19 @@ export function usePdfScrollSync(docId: string): void {
 				lastWidth = metrics.scrollWidth;
 				const zoomApplied = Math.abs(to.getZoom() - expectedZoom) < 0.0001;
 				if (
-					(zoomApplied && sawResize && stableFrames >= 1) ||
+					(zoomApplied && previewSettled && sawResize && stableFrames >= 1) ||
 					frames >= MAX_ZOOM_SETTLE_FRAMES
 				) {
 					releaseSettleHold(targetDocId);
-					alignScrollSyncFrom(fromDocId, true);
+					// The preview already shows the target position; hand it back
+					// to real scrolling instead of recomputing a center alignment
+					// that could shift the page under the reader.
+					if (finishPeerZoomPreview()) {
+						endScrollSyncGesture(fromDocId);
+					} else {
+						alignScrollSyncFrom(fromDocId, true);
+					}
+					clearZoomSync(targetDocId);
 					return;
 				}
 				requestAnimationFrame(step);
@@ -203,8 +260,8 @@ export function usePdfScrollSync(docId: string): void {
 
 		/**
 		 * Coalesce a zoom step from either pane and land it on the partner once
-		 * the gesture settles. Applying every step would re-rasterize both panes
-		 * per step on the main thread for an alignment that keeps moving.
+		 * the gesture settles. The preview scales both panes during the
+		 * gesture; this window only decides when the real relayout starts.
 		 */
 		const applyZoom = (
 			fromDocId: string,
@@ -217,14 +274,36 @@ export function usePdfScrollSync(docId: string): void {
 			// Levels already match: this is either the echo of a zoom we
 			// commanded or a genuine no-op step. The viewport mirror follows
 			// the initiator's own re-anchor.
-			if (Math.abs(to.getZoom() - nextZoom) < 0.0001) return;
+			if (Math.abs(to.getZoom() - nextZoom) < 0.0001) {
+				// The preview scaled a zoom the partner already has.
+				clearZoomSync(targetDocId, true);
+				return;
+			}
+			beginZoomSync(targetDocId);
+			commitPeerZoomPreview(targetDocId);
+			const previewToken = peerZoomPreviewToken();
+			zoomPreviewTokens.set(targetDocId, previewToken);
 			if (zoomGestureTimer != null) clearTimeout(zoomGestureTimer);
 			const flush = () => {
 				zoomGestureTimer = null;
 				if (cancelled) return;
-				if (Math.abs(to.getZoom() - nextZoom) < 0.0001) return;
+				if (Math.abs(to.getZoom() - nextZoom) < 0.0001) {
+					clearZoomSync(targetDocId);
+					return;
+				}
 				to.setZoom(nextZoom);
-				reconcileAfterZoom(fromDocId, to, targetDocId, nextZoom, true);
+				// The mirrored preview (and its hand-off) owns this pane's scroll
+				// through the relayout. The plugin's queued re-anchor would land
+				// under the transform and shift the page for a frame.
+				cancelPendingViewportScroll(targetDocId);
+				reconcileAfterZoom(
+					fromDocId,
+					to,
+					targetDocId,
+					nextZoom,
+					true,
+					previewToken,
+				);
 			};
 			zoomGestureTimer = setTimeout(flush, ZOOM_SYNC_SETTLE_MS);
 		};
@@ -274,6 +353,11 @@ export function usePdfScrollSync(docId: string): void {
 			if (zoomGestureTimer != null) clearTimeout(zoomGestureTimer);
 			for (const release of settleHolds.values()) release();
 			settleHolds.clear();
+			for (const targetDocId of zoomPreviewTokens.keys()) {
+				endZoomSync(targetDocId);
+			}
+			zoomPreviewTokens.clear();
+			clearPeerZoomPreview();
 			unsubscribeMyZoom();
 			unsubscribePartnerZoom();
 		};
