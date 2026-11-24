@@ -21,8 +21,6 @@ import {
 	reflowSentenceGlyphRects,
 	sentenceGlyphRects,
 } from "@/lib/pdf/layout/layout-sentence-selection";
-import { splitLayoutSentences } from "@/lib/pdf/layout/layout-sentences";
-import { orderByReadingLine } from "@/lib/pdf/layout/reading-order";
 import {
 	layoutSentenceScope,
 	setLayoutSentenceScopeLookup,
@@ -99,14 +97,6 @@ let suppressed = false;
 const sources = new Map<string, GlyphSource>();
 
 const slots = new Map<string, CatalogSlot>();
-/**
- * Pages that already have layout-analysis regions, keyed per publishing pane.
- * The whole-page text-run fallback exists for PDFs that were never analysed;
- * on an analysed page it would turn the text inside a figure / table /
- * algorithm box into sentences and wash the graphic on hover.
- */
-const analysedPages = new Map<string, { scope: string; pages: Set<number> }>();
-const sourcePages = new Map<string, Map<number, CatalogItem>>();
 const sourceInk = new Map<string, Map<number, SentenceFractionRect[]>>();
 const sourceGlyphs = new Map<
 	string,
@@ -158,60 +148,6 @@ function scopeStillPublished(scope: string): boolean {
 	return false;
 }
 
-/** Whether this paper's layout analysis already covers the page. */
-function pageIsAnalysed(scope: string, pageIndex: number): boolean {
-	for (const slot of analysedPages.values()) {
-		if (slot.scope === scope && slot.pages.has(pageIndex)) return true;
-	}
-	return false;
-}
-
-/** Drop the whole-page text fallback for pages that just got analysis. */
-function dropPageFallbacks(scope: string, pages: ReadonlySet<number>): boolean {
-	let changed = false;
-	const pageItems = sourcePages.get(scope);
-	for (const pageIndex of pages) {
-		if (pageItems?.delete(pageIndex)) changed = true;
-		const prefix = `${scope}:source-page-${pageIndex}:`;
-		for (const key of glyphs.keys()) {
-			if (!key.startsWith(prefix)) continue;
-			glyphs.delete(key);
-			changed = true;
-		}
-	}
-	if (changed) invalidateCatalog(scope);
-	return changed;
-}
-
-/**
- * Layout analysis published its regions for `docId`.
- * Pages in this list no longer receive synthesized whole-page sentences.
- */
-export function publishLayoutSentencePageAnalysis(
-	docId: string,
-	pages: readonly number[] | null | undefined,
-): void {
-	const scope = layoutSentenceScope(docId);
-	const next = new Set(pages ?? []);
-	if (next.size === 0) {
-		analysedPages.delete(docId);
-		return;
-	}
-	analysedPages.set(docId, { scope, pages: next });
-	if (!dropPageFallbacks(scope, next)) return;
-	// Force a fresh locate: the pointer may still sit on a sentence drawn from
-	// the fallback, and a normal resolve would short-circuit on it.
-	if (!held) hover = null;
-	notify();
-	if (
-		lastQuery &&
-		!suppressed &&
-		layoutSentenceScope(lastQuery.docId) === scope
-	) {
-		applyPointer(lastQuery);
-	}
-}
-
 function itemsForScope(scope: string): CatalogItem[] {
 	const cached = catalogCache.get(scope);
 	if (cached) return cached;
@@ -237,10 +173,6 @@ function itemsForScope(scope: string): CatalogItem[] {
 					),
 			),
 	);
-	for (const item of sourcePages.get(scope)?.values() ?? []) {
-		if (!items.some((existing) => existing.pageIndex === item.pageIndex))
-			items.push(item);
-	}
 	catalogCache.set(scope, items);
 	return items;
 }
@@ -327,7 +259,6 @@ export function bindLayoutSentenceGlyphs(next: GlyphSource): () => void {
 	return () => {
 		if (sources.get(scope) !== next) return;
 		sources.delete(scope);
-		sourcePages.delete(scope);
 		sourceInk.delete(scope);
 		sourceGlyphs.delete(scope);
 		invalidateCatalog(scope);
@@ -531,24 +462,12 @@ export function primeLayoutSentenceGlyphs(
 	const scope = layoutSentenceScope(documentId);
 	const source = sources.get(scope);
 	if (!source) return;
-	let items = itemsForScope(scope).filter(
-		(item) =>
-			item.pageIndex === pageIndex &&
-			(item.sentences?.length ?? 0) > 0 &&
-			!glyphs.has(glyphKey(scope, item)),
+	const pageItems = itemsForScope(scope).filter(
+		(item) => item.pageIndex === pageIndex,
 	);
-	if (
-		items.length === 0 &&
-		itemsForScope(scope).some((item) => item.pageIndex === pageIndex) &&
-		(layoutSentenceLineRects(scope, pageIndex).length > 0 ||
-			sourceInk.get(scope)?.has(pageIndex)) &&
-		sourceGlyphs.get(scope)?.has(pageIndex)
-	)
-		return;
-	// An analysed page never invents whole-page sentences. Figures, tables and
-	// algorithms have no text-like regions of their own, so the fallback would
-	// pick up their inner text runs and wash the graphic under the pointer.
-	if (items.length === 0 && pageIsAnalysed(scope, pageIndex)) return;
+	if (pageItems.length === 0) return;
+	const items = pageItems.filter((item) => !glyphs.has(glyphKey(scope, item)));
+	if (items.length === 0 && sourceGlyphs.get(scope)?.has(pageIndex)) return;
 	const captured = scopeGeneration(scope);
 	const flight = `${scope}:${pageIndex}:${captured}`;
 	if (inflight.has(flight)) return;
@@ -559,7 +478,7 @@ export function primeLayoutSentenceGlyphs(
 		return;
 	inflight.add(flight);
 	void (async () => {
-		let runs: { text: string; rect: Rect; fontSize?: number }[] = [];
+		let runs: { text: string; rect: Rect }[] = [];
 		try {
 			const pageRuns = await engine
 				.getPageTextRuns(
@@ -570,7 +489,6 @@ export function primeLayoutSentenceGlyphs(
 			runs = (pageRuns?.runs ?? []).map((run) => ({
 				text: run.text ?? "",
 				rect: run.rect,
-				fontSize: run.fontSize,
 			}));
 		} catch {
 			runs = [];
@@ -579,34 +497,6 @@ export function primeLayoutSentenceGlyphs(
 			return;
 		}
 
-		if (!items.length && runs.length && !pageIsAnalysed(scope, pageIndex)) {
-			const ordered = orderByReadingLine(runs, (run) => ({
-				x: run.rect.origin.x,
-				y: run.rect.origin.y,
-				width: run.rect.size.width,
-				height: run.rect.size.height,
-				size: run.fontSize,
-			}));
-			const text = ordered
-				.map((run) => run.text.trim())
-				.filter(Boolean)
-				.join(" ");
-			const item: CatalogItem = {
-				id: `source-page-${pageIndex}`,
-				pageIndex,
-				bbox: { x: 0, y: 0, w: 1, h: 1 },
-				source: text,
-				sentences: splitLayoutSentences(text).map((quote) => ({
-					quote,
-					translated: "",
-				})),
-			};
-			const pages = sourcePages.get(scope) ?? new Map<number, CatalogItem>();
-			pages.set(pageIndex, item);
-			sourcePages.set(scope, pages);
-			invalidateCatalog(scope);
-			items = [item];
-		}
 		for (const item of items) {
 			const key = glyphKey(scope, item);
 			if (rectsHaveBoxes(glyphs.get(key) ?? [])) continue;
@@ -884,10 +774,6 @@ function applyPointer(query: PointerQuery, track = false): void {
 		return;
 	}
 	if (locate.status === "element") {
-		if (
-			!itemsForScope(scope).some((item) => item.pageIndex === query.pageIndex)
-		)
-			primeLayoutSentenceGlyphs(query.pageIndex, query.docId);
 		publish(null);
 		return;
 	}

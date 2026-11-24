@@ -58,10 +58,7 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
-import {
-	publishLayoutSentenceCatalog,
-	publishLayoutSentencePageAnalysis,
-} from "@/components/viewer/pdf/layout-sentence-hover";
+import { publishLayoutSentenceCatalog } from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
 import { reportLayoutSourcePeekPress } from "@/components/viewer/pdf/layout-source-peek";
 import type {
@@ -238,25 +235,20 @@ export function PdfTranslationViewerInner({
 		pdfBytes: pdfCacheBytes ?? sourceBytes,
 	});
 
+	const hoverRegions = pdfSentenceHover ? layoutRawRegions : null;
 	useEffect(() => {
-		if (!pdfSentenceHover) {
+		if (!hoverRegions) {
 			publishLayoutSentenceCatalog(docId, []);
-			publishLayoutSentencePageAnalysis(docId, []);
 			return;
 		}
-		const rawRegions = layoutRawRegions ?? [];
-		publishLayoutSentencePageAnalysis(
-			docId,
-			rawRegions.map((region) => region.pageIndex),
-		);
 		const translated = [...layoutTranslateItemsByPage.values()]
 			.flat()
-			.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions))
+			.filter((item) => !isInsideVisualLayoutRegion(item, hoverRegions))
 			.map((item) => withHoverSentences(item));
 		const translatedIds = new Set(translated.map((item) => item.id));
 		// Blocks that are not translated yet still occupy the source PDF on
 		// this pane. Publish their sentences so a hover can paint there.
-		const source = sentenceHoverTextRegions(rawRegions)
+		const source = sentenceHoverTextRegions(hoverRegions)
 			.filter((region) => !translatedIds.has(region.id))
 			.map((region) => ({
 				id: region.id,
@@ -269,15 +261,14 @@ export function PdfTranslationViewerInner({
 				})),
 			}));
 		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
-	}, [docId, layoutTranslateItemsByPage, layoutRawRegions, pdfSentenceHover]);
+	}, [docId, layoutTranslateItemsByPage, hoverRegions]);
 	useEffect(() => {
 		return () => {
 			publishLayoutSentenceCatalog(docId, []);
-			publishLayoutSentencePageAnalysis(docId, []);
 		};
 	}, [docId]);
 	usePdfSentenceInteraction(docId, hostRef, undefined, {
-		enabled: pdfSentenceHover,
+		enabled: hoverRegions !== null,
 	});
 	const { provides: annotationCap } = useAnnotationCapability();
 	const onHighlightsChangeRef = useRef(onHighlightsChange);

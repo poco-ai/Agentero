@@ -129,7 +129,6 @@ import {
 	bindLayoutSentenceGlyphs,
 	holdLayoutSentenceHover,
 	publishLayoutSentenceCatalog,
-	publishLayoutSentencePageAnalysis,
 	suppressLayoutSentenceHover,
 } from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
@@ -590,7 +589,6 @@ function PdfViewerInner({
 	const pdfSentenceHover = useSettings((s) => s.pdfSentenceHover);
 	const commentDisplay = useSettings((s) => s.pdfCommentDisplay);
 	const readingSentenceLayer = syncTexScope !== "writing";
-	const sentenceHover = readingSentenceLayer && pdfSentenceHover;
 	const [importBusy, setImportBusy] = useState(false);
 	// Parent often passes inline lambdas; keep latest in refs so data effects
 	// do not re-fire every parent render (was Maximum update depth exceeded).
@@ -1569,22 +1567,22 @@ function PdfViewerInner({
 		plainViewer,
 	});
 
+	const hoverRegions =
+		readingSentenceLayer && pdfSentenceHover ? layoutRawRegions : null;
 	useEffect(() => {
-		if (!sentenceHover) {
+		if (!hoverRegions) {
 			publishLayoutSentenceCatalog(docId, []);
-			publishLayoutSentencePageAnalysis(docId, []);
 			return;
 		}
-		const rawRegions = layoutRawRegions ?? [];
 		const allTranslated = [...layoutTranslateItemsByPage.values()].flat();
 		const translatedIds = new Set(allTranslated.map((item) => item.id));
 		// The model also detects the text inside vector figures / tables as prose
 		// blocks. Those runs are part of the graphic, so they never hover as
 		// sentences; the whole element is the hover target instead.
 		const translated = allTranslated
-			.filter((item) => !isInsideVisualLayoutRegion(item, rawRegions))
+			.filter((item) => !isInsideVisualLayoutRegion(item, hoverRegions))
 			.map((item) => withHoverSentences(item));
-		const source = sentenceHoverTextRegions(rawRegions)
+		const source = sentenceHoverTextRegions(hoverRegions)
 			.filter((region) => !translatedIds.has(region.id))
 			.map((region) => ({
 				id: region.id,
@@ -1596,27 +1594,14 @@ function PdfViewerInner({
 					translated: "",
 				})),
 			}));
-		// Analysed pages keep sentence hover on their text regions only; the
-		// whole-page text fallback is reserved for pages without analysis.
-		publishLayoutSentencePageAnalysis(docId, [
-			...rawRegions.map((region) => region.pageIndex),
-			...(layoutDocRegions ?? []).map((region) => region.pageIndex),
-		]);
 		publishLayoutSentenceCatalog(docId, [...source, ...translated]);
-	}, [
-		docId,
-		layoutTranslateItemsByPage,
-		layoutRawRegions,
-		layoutDocRegions,
-		sentenceHover,
-	]);
+	}, [docId, layoutTranslateItemsByPage, hoverRegions]);
 	// Clear only when the document changes. Declared after the publish effect so
 	// its cleanup runs first and the next publish restores the new document's
 	// pairs. An items-only update must not flash an empty catalog.
 	useEffect(() => {
 		return () => {
 			publishLayoutSentenceCatalog(docId, []);
-			publishLayoutSentencePageAnalysis(docId, []);
 		};
 	}, [docId]);
 
@@ -2231,7 +2216,7 @@ function PdfViewerInner({
 				},
 			});
 		},
-		{ enabled: sentenceHover },
+		{ enabled: hoverRegions !== null },
 	);
 
 	// ---- Selection action menu ----
