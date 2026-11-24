@@ -63,6 +63,7 @@ import {
 	publishLayoutSentencePageAnalysis,
 } from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
+import { reportLayoutSourcePeekPress } from "@/components/viewer/pdf/layout-source-peek";
 import type {
 	PdfViewerInnerProps,
 	ScreenPoint,
@@ -822,6 +823,9 @@ export function PdfTranslationViewerInner({
 					active={isActive}
 					hostRef={hostRef}
 					allowLeftDrag={false}
+					onMiddleClick={(target, point) =>
+						reportLayoutSourcePeekPress(docId, target, point)
+					}
 				/>
 				<ZoomGestureWrapper documentId={docId} enableWheel={false}>
 					<GlobalPointerProvider documentId={docId}>

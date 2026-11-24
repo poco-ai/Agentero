@@ -1247,6 +1247,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			layoutTranslateOnPage.some((item) => item.status === "running")) ? (
 			<LayoutTranslateOverlay
 				items={layoutTranslateOnPage}
+				docId={docId}
 				pageIndex={pageIndex}
 				reflowDocumentId={reflowDocumentId}
 				reflowDocumentVersion={reflowDocumentVersion}

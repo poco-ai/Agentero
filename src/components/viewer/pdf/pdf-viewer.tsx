@@ -133,6 +133,7 @@ import {
 	suppressLayoutSentenceHover,
 } from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
+import { reportLayoutSourcePeekPress } from "@/components/viewer/pdf/layout-source-peek";
 import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
 import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
@@ -3251,6 +3252,9 @@ function PdfViewerInner({
 					active={isActive}
 					hostRef={hostRef}
 					allowLeftDrag={!translationOnly}
+					onMiddleClick={(target, point) =>
+						reportLayoutSourcePeekPress(docId, target, point)
+					}
 				/>
 				{!translationOnly &&
 				!plainViewer &&

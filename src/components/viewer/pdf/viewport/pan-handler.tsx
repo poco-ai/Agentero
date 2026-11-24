@@ -51,6 +51,14 @@ type PanDragHandlerProps = {
 	hostRef: RefObject<HTMLDivElement | null>;
 	/** False while `⌘.` region select owns the left button. */
 	allowLeftDrag: boolean;
+	/**
+	 * Middle press + release without travel; a middle drag still pans. The
+	 * translation reader uses it to peek at a block's source.
+	 */
+	onMiddleClick?: (
+		target: EventTarget | null,
+		point: { x: number; y: number },
+	) => void;
 };
 
 /**
@@ -75,6 +83,7 @@ export function PanDragHandler({
 	active,
 	hostRef,
 	allowLeftDrag,
+	onMiddleClick,
 }: PanDragHandlerProps) {
 	const viewportRef = useViewportElement();
 	const armedRef = useRef(false);
@@ -82,6 +91,8 @@ export function PanDragHandler({
 	activeRef.current = active;
 	const allowLeftDragRef = useRef(allowLeftDrag);
 	allowLeftDragRef.current = allowLeftDrag;
+	const onMiddleClickRef = useRef(onMiddleClick);
+	onMiddleClickRef.current = onMiddleClick;
 
 	useEffect(() => {
 		const viewport = viewportRef?.current;
@@ -105,6 +116,8 @@ export function PanDragHandler({
 			// menu (and its own right-click actions, e.g. flipping a highlight
 			// swatch); the page pans instead.
 			isRightDragExcludedTarget: isPdfChromeTarget,
+			onMiddleClick: (target, point) =>
+				onMiddleClickRef.current?.(target, point),
 			onStateChange: (state) => {
 				viewport.classList.toggle(PANNING_CLASS, state === "panning");
 			},

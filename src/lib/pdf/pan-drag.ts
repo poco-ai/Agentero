@@ -11,6 +11,8 @@
  * anchors stay in sync without further work.
  */
 
+import { LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX } from "@/lib/pdf/layout/click-guard";
+
 export type PanDragState = "idle" | "panning";
 
 /** Scroll container the gesture drives; structural so it stays testable. */
@@ -37,6 +39,15 @@ type PanDragGestureOptions = {
 	 * and keeps the native / custom menu.
 	 */
 	isRightDragExcludedTarget?: (target: EventTarget | null) => boolean;
+	/**
+	 * A middle press that ended without travel. Middle-drag still pans, so the
+	 * press is reported only after a release inside the click tolerance. The
+	 * right button keeps its drag-to-pan behavior and never reports here.
+	 */
+	onMiddleClick?: (
+		target: EventTarget | null,
+		point: { x: number; y: number },
+	) => void;
 	/** Cursor feedback; `"panning"` for the duration of a drag. */
 	onStateChange?: (state: PanDragState) => void;
 };
@@ -52,6 +63,7 @@ export function bindPanDragGesture({
 	isLeftDragArmed,
 	isExcludedTarget,
 	isRightDragExcludedTarget,
+	onMiddleClick,
 	onStateChange,
 }: PanDragGestureOptions): PanDragBinding {
 	let disposed = false;
@@ -61,6 +73,15 @@ export function bindPanDragGesture({
 		startY: number;
 		scrollLeft: number;
 		scrollTop: number;
+		/**
+		 * Middle press that may still end as a click. Cleared once it travels,
+		 * so a middle-drag pan never opens anything on release.
+		 */
+		middleClick: {
+			target: EventTarget | null;
+			startX: number;
+			startY: number;
+		} | null;
 	} | null = null;
 	/**
 	 * A right press that started a pan owns this button's context menu: WebKit
@@ -118,6 +139,14 @@ export function bindPanDragGesture({
 			startY: event.clientY,
 			scrollLeft: target.scrollLeft,
 			scrollTop: target.scrollTop,
+			middleClick:
+				event.button === 1 && onMiddleClick
+					? {
+							target: event.target,
+							startX: event.clientX,
+							startY: event.clientY,
+						}
+					: null,
 		};
 		onStateChange?.("panning");
 	};
@@ -148,12 +177,37 @@ export function bindPanDragGesture({
 
 	const handlePointerMove = (event: PointerEvent) => {
 		if (!drag || event.pointerId !== drag.pointerId) return;
+		const middleClick = drag.middleClick;
+		if (
+			middleClick &&
+			Math.hypot(
+				event.clientX - middleClick.startX,
+				event.clientY - middleClick.startY,
+			) > LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX
+		) {
+			drag.middleClick = null;
+		}
 		target.scrollLeft = drag.scrollLeft - (event.clientX - drag.startX);
 		target.scrollTop = drag.scrollTop - (event.clientY - drag.startY);
 	};
 
-	const handlePointerEnd = (event: PointerEvent) => {
+	const handlePointerUp = (event: PointerEvent) => {
 		if (!drag || event.pointerId !== drag.pointerId) return;
+		const click = drag.middleClick;
+		drag.middleClick = null;
+		if (click) {
+			onMiddleClick?.(click.target, {
+				x: event.clientX,
+				y: event.clientY,
+			});
+		}
+		endDrag();
+	};
+
+	const handlePointerCancel = (event: PointerEvent) => {
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		// A cancelled gesture is not a click: drop the candidate first.
+		drag.middleClick = null;
 		endDrag();
 	};
 
@@ -161,10 +215,10 @@ export function bindPanDragGesture({
 	target.addEventListener("mousedown", handleMouseDown, true);
 	target.addEventListener("contextmenu", handleContextMenu, true);
 	target.addEventListener("pointermove", handlePointerMove);
-	target.addEventListener("pointerup", handlePointerEnd);
+	target.addEventListener("pointerup", handlePointerUp);
 	// Not `lostpointercapture`: WebKit fires it immediately after a
 	// default-prevented pointerdown, which would end the drag as it starts.
-	target.addEventListener("pointercancel", handlePointerEnd);
+	target.addEventListener("pointercancel", handlePointerCancel);
 
 	return {
 		cancel: endDrag,
@@ -177,8 +231,8 @@ export function bindPanDragGesture({
 			target.removeEventListener("mousedown", handleMouseDown, true);
 			target.removeEventListener("contextmenu", handleContextMenu, true);
 			target.removeEventListener("pointermove", handlePointerMove);
-			target.removeEventListener("pointerup", handlePointerEnd);
-			target.removeEventListener("pointercancel", handlePointerEnd);
+			target.removeEventListener("pointerup", handlePointerUp);
+			target.removeEventListener("pointercancel", handlePointerCancel);
 		},
 	};
 }

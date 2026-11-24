@@ -12,12 +12,15 @@
 import {
 	Fragment,
 	memo,
+	useEffect,
 	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
+import { subscribeLayoutSourcePeekPress } from "@/components/viewer/pdf/layout-source-peek";
 import { cn } from "@/lib/core/utils";
 import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import {
@@ -38,6 +41,10 @@ import {
 } from "@/lib/pdf/layout/layout-translate-dom-fit";
 import { isLayoutTranslateItemPainted } from "@/lib/pdf/layout/layout-translate-reliable";
 import { linkColorOnPaper } from "@/lib/pdf/layout/link-ink";
+import {
+	layoutSourcePeekBlocks,
+	layoutSourceSentenceRange,
+} from "@/lib/pdf/layout/source-peek";
 import type { LayoutSourceStyle } from "@/lib/pdf/layout/source-style";
 import {
 	activateTranslatedLinkClick,
@@ -58,6 +65,7 @@ import {
 	translationSpinnerItems,
 } from "@/lib/pdf/layout/translation-spinner";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
+import { translatedSentenceAtPoint } from "@/lib/pdf/layout/visible-selection-rects";
 import {
 	beginLinkPreviewDrag,
 	linkHoverSuppressed,
@@ -68,6 +76,10 @@ import {
 	PDF_PAPER_BLOCK_CLASS,
 	type PdfPaperTone,
 } from "@/lib/pdf/page-theme";
+import {
+	LayoutSourcePeekCard,
+	type LayoutSourcePeekState,
+} from "./layout-source-peek-card";
 import { ReflowPageOverlay } from "./reflow-page-overlay";
 import { TranslationRetryMarker } from "./translation-retry-marker";
 import { TranslationSpinner } from "./translation-spinner";
@@ -75,6 +87,8 @@ import { TranslationSpinner } from "./translation-spinner";
 type LayoutTranslateOverlayProps = {
 	/** Translation items already bucketed to this page (groupLayoutTranslateItemsByPage). */
 	items: readonly LayoutTranslateItem[];
+	/** Document id the page belongs to; scopes right-click source peeks. */
+	docId: string;
 	/** 0-based page index; source and translated PDFs share page order. */
 	pageIndex: number;
 	/** Finished translated PDF document id for the shared render path. */
@@ -575,6 +589,41 @@ function linkInkStyle(
 	return { color: linkColorOnPaper(color, tone) };
 }
 
+/**
+ * Index of the translated sentence under the pointer. The common case is the
+ * span under the pointer itself; a press that lands between two spans (the
+ * join space) still resolves by line boxes, so the source card highlights the
+ * sentence the reader meant.
+ */
+function sourcePeekSentenceIndex(
+	target: Element,
+	point: { x: number; y: number },
+): number | null {
+	const readIndex = (element: Element | null | undefined): number | null => {
+		const raw = element?.getAttribute("data-sentence");
+		if (raw == null || raw === "") return null;
+		const value = Number(raw);
+		return Number.isInteger(value) ? value : null;
+	};
+	const direct = readIndex(translatedSentenceAtPoint(target, point.x, point.y));
+	if (direct !== null) return direct;
+	const block = target.closest("[data-layout-item]");
+	if (!block) return null;
+	for (const span of block.querySelectorAll("[data-sentence]")) {
+		for (const rect of span.getClientRects()) {
+			if (
+				point.x >= rect.left &&
+				point.x <= rect.right &&
+				point.y >= rect.top &&
+				point.y <= rect.bottom
+			) {
+				return readIndex(span);
+			}
+		}
+	}
+	return null;
+}
+
 /** The anchor element's viewport box, for hover-card placement. */
 function linkPoint(element: HTMLElement) {
 	const box = element.getBoundingClientRect();
@@ -862,6 +911,7 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
  */
 export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	items,
+	docId,
 	pageIndex,
 	reflowDocumentId,
 	reflowDocumentVersion,
@@ -880,6 +930,83 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	onHoverLink,
 }: LayoutTranslateOverlayProps) {
 	const { t } = useTranslation("viewer");
+	const [sourcePeek, setSourcePeek] = useState<LayoutSourcePeekState | null>(
+		null,
+	);
+	const peekItemsRef = useRef(items);
+	peekItemsRef.current = items;
+	/**
+	 * Marks this overlay's page element. A duplicate document mount (same doc
+	 * id and block ids) must not also claim the press.
+	 */
+	const peekOwnerRef = useRef<HTMLSpanElement>(null);
+	// Zooming reflows the page under the card; close instead of leaving the
+	// card anchored to a block that moved.
+	const peekZoomRef = useRef(zoom);
+	useEffect(() => {
+		if (peekZoomRef.current === zoom) return;
+		peekZoomRef.current = zoom;
+		setSourcePeek(null);
+	}, [zoom]);
+	// Middle- and right-drag still pan; only a middle press that ended without
+	// travel reaches here. The page overlay that owns the block opens the card;
+	// every other page just drops its own.
+	useEffect(
+		() =>
+			subscribeLayoutSourcePeekPress((press) => {
+				if (press.docId !== docId) return;
+				const target = press.target;
+				// Links, buttons and PDF chrome keep their middle / right click.
+				if (
+					target.closest(
+						"a, button, [role='button'], [data-pdf-chrome], [data-selection-menu], [data-layout-element]",
+					)
+				) {
+					setSourcePeek(null);
+					return;
+				}
+				// A neighbouring page or another mount of the same document
+				// receives the same press; only the page under the pointer may
+				// claim it.
+				const page = target.closest(`[${EMBED_PAGE_ATTR}]`);
+				if (
+					!page ||
+					page.getAttribute(EMBED_PAGE_ATTR) !== String(pageIndex) ||
+					peekOwnerRef.current?.closest(`[${EMBED_PAGE_ATTR}]`) !== page
+				) {
+					setSourcePeek((current) => (current ? null : current));
+					return;
+				}
+				const itemId =
+					target
+						.closest<HTMLElement>("[data-layout-item]")
+						?.getAttribute("data-layout-item") ?? "";
+				const selection = layoutSourcePeekBlocks(peekItemsRef.current, itemId);
+				if (!selection) {
+					setSourcePeek((current) => (current ? null : current));
+					return;
+				}
+				const sentenceIndex = sourcePeekSentenceIndex(target, press.point);
+				const clicked = selection.blocks[selection.clickedIndex];
+				setSourcePeek({
+					anchor: press.point,
+					blocks: selection.blocks,
+					clickedIndex: selection.clickedIndex,
+					range:
+						clicked && sentenceIndex != null
+							? layoutSourceSentenceRange(
+									clicked.source,
+									clicked.sentences,
+									sentenceIndex,
+								)
+							: null,
+				});
+			}),
+		[docId, pageIndex],
+	);
+	const sourcePeekCard = sourcePeek ? (
+		<LayoutSourcePeekCard {...sourcePeek} onClose={() => setSourcePeek(null)} />
+	) : null;
 	const onPage = useMemo(() => {
 		const painted = items
 			.filter(
@@ -1013,6 +1140,8 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 				/>
 				{sourceSpinners}
 				{retryMarkers}
+				{sourcePeekCard}
+				<span ref={peekOwnerRef} hidden />
 			</>
 		);
 
@@ -1021,12 +1150,16 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 			<>
 				{sourceSpinners}
 				{retryMarkers}
+				{sourcePeekCard}
+				<span ref={peekOwnerRef} hidden />
 			</>
 		);
 	return (
 		<>
 			{sourceSpinners}
 			{retryMarkers}
+			{sourcePeekCard}
+			<span ref={peekOwnerRef} hidden />
 			{onPage.map((item) => {
 				const text = item.paintText;
 				const isHeading = isLayoutTranslateHeadingKind(item.kind);
