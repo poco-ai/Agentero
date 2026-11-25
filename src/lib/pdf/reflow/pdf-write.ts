@@ -1,5 +1,6 @@
 import fontkit from "@pdf-lib/fontkit";
 import {
+	cleanText,
 	PDFArray,
 	PDFDict,
 	PDFDocument,
@@ -64,6 +65,44 @@ async function loadMetrics(
 		),
 	) as ReflowFonts;
 }
+
+async function embedUsedFonts(
+	pdf: PDFDocument,
+	pages: readonly PageLayout[],
+	sources: ReturnType<typeof fontSources>,
+) {
+	const used = new Map<FontKey, Set<number>>();
+	for (const page of pages)
+		for (const paragraph of page.paragraphs)
+			for (const unit of paragraph.units) {
+				if (unit.formula) continue;
+				const text = cleanText(unit.text);
+				if (!text) continue;
+				let codePoints = used.get(unit.font);
+				if (!codePoints) {
+					codePoints = new Set<number>();
+					used.set(unit.font, codePoints);
+				}
+				for (const character of text) {
+					const codePoint = character.codePointAt(0);
+					if (codePoint !== undefined) codePoints.add(codePoint);
+				}
+			}
+	pdf.registerFontkit(fontkit);
+	const embedded = new Map<FontKey, ReflowFonts[FontKey]>();
+	for (const [key, codePoints] of used) {
+		const source = sources[key];
+		if (source instanceof Uint8Array) {
+			const { subsetReflowFont } = await import("./font-subset");
+			const subset = await subsetReflowFont(source, codePoints);
+			embedded.set(key, await pdf.embedFont(subset, { subset: false }));
+		} else {
+			embedded.set(key, await pdf.embedFont(source));
+		}
+	}
+	return embedded;
+}
+
 export type ReflowOutput = { bytes: Uint8Array; pages: PageLayout[] };
 export type ReflowWriteTimings = {
 	layoutMs?: number;
@@ -95,12 +134,7 @@ export async function writeReflowPdf(
 	const layoutStart = performance.now();
 	const pages = await layoutReflowPdf(ir, translations, cjkFont, commonScale);
 	if (timings) timings.layoutMs = performance.now() - layoutStart;
-	pdf.registerFontkit(cachingFontkit);
-	const sources = fontSources(cjkFont);
-	const usedFonts = new Map<
-		FontKey,
-		Awaited<ReturnType<PDFDocument["embedFont"]>>
-	>();
+	const usedFonts = await embedUsedFonts(pdf, pages, fontSources(cjkFont));
 	const sourcePages = new Map(ir.pages.map((page) => [page.index, page]));
 	onProgress?.(0.1);
 	for (const [pageIndex, page] of pages.entries()) {
@@ -154,13 +188,8 @@ export async function writeReflowPdf(
 						height: unit.height,
 					});
 				} else {
-					let font = usedFonts.get(unit.font);
-					if (!font) {
-						font = await pdf.embedFont(sources[unit.font], {
-							subset: false,
-						});
-						usedFonts.set(unit.font, font);
-					}
+					const font = usedFonts.get(unit.font);
+					if (!font) continue;
 					target.drawText(unit.text, {
 						x: crop.x + unit.x,
 						y: crop.y + crop.height - unit.y,

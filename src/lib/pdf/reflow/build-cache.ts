@@ -2,13 +2,11 @@
  * Persistent cache for the finished translated document.
  *
  * The document-level build repeats the same expensive work on every restart:
- * PDFium text redaction, formula fragment extraction, full CJK font embedding
- * (each embedded copy is ~20 MB), and pdf-lib serialization. The bytes depend
+ * PDFium text redaction, formula fragment extraction, font subsetting, and
+ * pdf-lib serialization. The bytes depend
  * only on the source geometry IR, the exact translations, the font bytes, and
  * the reflow schema — so the finished PDF is stored under the app cache
- * directory and reused verbatim. Per-page preview builds are deliberately NOT
- * cached: each embeds the full CJK font pair, so caching them would cost
- * ~20 MB per page for a marginal win over the single final entry.
+ * directory and reused verbatim. Per-page preview builds are not persisted.
  *
  * With a paper folder, the finished PDF is `translations/translated.pdf`
  * next to a `translated.key` sidecar. The sidecar is the same identity
@@ -44,7 +42,7 @@ const REFLOW_BUILD_CACHE_VERSION = 1;
  * + fonts (the built bytes are reused verbatim, so layout.ts or export.ts
  * changes must invalidate old entries even when the IR schema is unchanged).
  */
-const REFLOW_BUILD_PIPELINE_VERSION = 4;
+const REFLOW_BUILD_PIPELINE_VERSION = 5;
 /**
  * Translation state churns with every page-level hide/restore, so one paper
  * can legitimately produce several distinct finals in a row. Keep the newest
