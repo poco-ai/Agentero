@@ -72,6 +72,12 @@ export type AgentPanelProps = {
 	suppressHistoryImport?: boolean;
 	/** Full-page surface: inset the transcript and composer horizontally. */
 	wide?: boolean;
+	/**
+	 * Workspace tab surface (Agent window): the dock owns the tab and the left
+	 * rail owns harness/history, so hide the pane header and move the model /
+	 * mode controls into the composer footer.
+	 */
+	workspace?: boolean;
 	className?: string;
 	headerActions?: ReactNode;
 	autoFocus?: boolean;

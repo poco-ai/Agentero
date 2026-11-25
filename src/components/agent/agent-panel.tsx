@@ -1,3 +1,4 @@
+import { PencilLine } from "lucide-react";
 import type {
 	KeyboardEvent as ReactKeyboardEvent,
 	PointerEvent as ReactPointerEvent,
@@ -9,15 +10,25 @@ import {
 	isAskUserSurfaceActive,
 } from "@/components/agent/agent-ask-user-surface";
 import { AgentComposer } from "@/components/agent/agent-composer";
-import { AgentConfigBar } from "@/components/agent/agent-config-bar";
+import {
+	AgentConfigBar,
+	ComposerCollaborationSelector,
+	ComposerFastToggle,
+} from "@/components/agent/agent-config-bar";
 import { SidebarHistoryTrailing } from "@/components/agent/agent-history";
 import { AgentPermissionDialog } from "@/components/agent/agent-permission-dialog";
 import { AgentSwitcher } from "@/components/agent/agent-switcher";
 import { ChatTranscript } from "@/components/agent/chat-transcript";
+import { ComposerModelSelector } from "@/components/agent/composer/composer-model-selector";
+import { ConversationWidthHandles } from "@/components/agent/conversation-width-handles";
 import { PiProjectTrustNotice } from "@/components/agent/pi-project-trust-notice";
 import type { AgentPanelProps } from "@/components/agent/types";
 import { useAgentPanel } from "@/components/agent/use-agent-panel";
 import { PaneHeader } from "@/components/shell/pane-header";
+import {
+	setConversationWidth,
+	useConversationWidth,
+} from "@/lib/agent/conversation-width";
 import { cn } from "@/lib/core/utils";
 
 const COMPOSER_DEFAULT_HEIGHT_PX = 208;
@@ -64,8 +75,10 @@ export const AgentPanel = memo(function AgentPanel({
 	restoringHistory = false,
 	suppressHistoryImport = false,
 	wide = false,
+	workspace = false,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
+	const conversationWidth = useConversationWidth();
 	const panel = useAgentPanel({
 		vaultPath,
 		selectedPath,
@@ -357,6 +370,41 @@ export const AgentPanel = memo(function AgentPanel({
 		[setFastEnabled],
 	);
 
+	const workspaceFooterStart = workspace ? (
+		<ComposerCollaborationSelector
+			options={collaborationOptions}
+			value={collaborationModeId}
+			selectedName={selectedCollaborationName}
+			onPick={pickCollaborationMode}
+			labelPrefix={false}
+			icon={<PencilLine className="size-3.5 shrink-0" aria-hidden />}
+		/>
+	) : null;
+	const workspaceFooterEnd = workspace ? (
+		<div className="flex min-w-0 shrink items-center gap-1">
+			<ComposerFastToggle
+				fastAvailable={fastAvailable}
+				fastEnabled={fastEnabled}
+				onToggle={toggleFastEnabled}
+			/>
+			<ComposerModelSelector
+				open={modelSelectorOpen}
+				onOpenChange={setModelSelectorOpen}
+				models={models}
+				groupedModels={groupedModels}
+				modelId={modelId}
+				selectedModelName={selectedModelName}
+				favoriteIds={favoriteIds}
+				warming={warming}
+				onPickModel={handlePickModel}
+				onToggleFavorite={toggleFavorite}
+				effortOptions={effortOptions}
+				reasoningEffort={reasoningEffort}
+				onReasoningEffortChange={pickReasoningEffort}
+			/>
+		</div>
+	) : null;
+
 	return (
 		<section
 			data-agent-panel
@@ -366,181 +414,205 @@ export const AgentPanel = memo(function AgentPanel({
 			)}
 			aria-label={title}
 		>
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-				<PaneHeader
-					trailing={
-						<SidebarHistoryTrailing
-							historyOpen={historyOpen}
-							onHistoryOpenChange={setHistoryOpen}
-							activeTabId={activeTabId}
-							submitting={submitting}
-							headerActions={headerActions}
-							onNewConversation={newConversation}
-							onOpenSession={openHistorySession}
-							onDeleteSession={removeHistorySession}
-						/>
+			<div className="flex min-h-0 min-w-0 flex-1 justify-center">
+				<div
+					className="relative flex h-full min-h-0 w-full flex-col"
+					style={
+						workspace
+							? {
+									width: `min(${conversationWidth}px, calc(100% - 4rem))`,
+								}
+							: undefined
 					}
 				>
-					<AgentSwitcher
-						options={options}
-						selected={selected}
-						selectedAgentId={selectedAgentId}
-						disabled={hasRunningSessions || switching || submitting}
-						onSelect={(opt) => void selectAgent(opt)}
-						onOpenAgentSettings={onOpenAgentSettings}
-					/>
-				</PaneHeader>
-
-				<AgentConfigBarMemo
-					modelSelectorOpen={modelSelectorOpen}
-					onModelSelectorOpenChange={setModelSelectorOpen}
-					models={models}
-					groupedModels={groupedModels}
-					modelId={modelId}
-					selectedModelName={selectedModelName}
-					favoriteIds={favoriteIds}
-					warming={warming}
-					onPickModel={handlePickModel}
-					onToggleFavorite={toggleFavorite}
-					collaborationOptions={collaborationOptions}
-					collaborationModeId={collaborationModeId}
-					selectedCollaborationName={selectedCollaborationName}
-					onPickCollaborationMode={pickCollaborationMode}
-					effortOptions={effortOptions}
-					reasoningEffort={reasoningEffort}
-					onReasoningEffortChange={pickReasoningEffort}
-					fastAvailable={fastAvailable}
-					fastEnabled={fastEnabled}
-					onFastEnabledToggle={toggleFastEnabled}
-				/>
-
-				<div ref={bodyRef} className="flex min-h-0 flex-1 flex-col">
-					<ChatTranscript
-						wide={wide}
-						activeTabId={activeTabId}
-						hydratingSessionId={hydratingSessionId}
-						restoring={restoringHistory}
-						compact={composerCompact}
-						activeTabIsRunning={activeTabIsRunning}
-						phase={activePhase}
-						submitting={submitting}
-						switching={switching}
-						editingLineId={editingLineId}
-						editingText={editingText}
-						editTextareaRef={editTextareaRef}
-						editCompositionProps={stableEditCompositionProps}
-						isEditBlockedByIme={isEditBlockedByIme}
-						onEditingTextChange={setEditingText}
-						onCancelEditing={handleCancelEditing}
-						onResendEdited={handleResendEdited}
-						onStartEditing={handleStartEditing}
-						onSendSuggestion={sendSuggestion}
-						onAgentLogin={selectedLogin ? openSelectedAgentLogin : undefined}
-						onOpenSource={onOpenSource}
-						agentTemplate={selected?.template ?? null}
-						paper={selectedPaperMeta}
-					/>
-
-					{/* Questionnaire replaces the composer until submit/cancel. */}
-					<AgentAskUserSurface
-						elicitationRequest={elicitationRequest}
-						onElicitationResolved={() => setElicitationRequest(null)}
-						askUserRequest={askUserRequest}
-						onAskUserResolved={() => setAskUserRequest(null)}
-						toolAskUserRequest={toolAskUserRequest}
-						onToolAskUserResolved={() => setToolAskUserRequest(null)}
-						onAnswerToolAskUser={answerToolAskUser}
-						onRecordAskUserAnswers={recordAskUserAnswers}
-						disabled={switching}
-					/>
-
-					{!askUserActive ? (
+					{workspace ? null : (
 						<>
-							<PiProjectTrustNotice
-								vaultPath={vaultPath}
-								agentId={selected?.id}
-								template={selected?.template}
-								disabled={hasRunningSessions}
-							/>
-							<button
-								type="button"
-								aria-label={t("composer.resizeHandle")}
-								title={t("composer.resizeHandle")}
-								className="group relative h-2 shrink-0 cursor-row-resize touch-none bg-muted/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-								onPointerDown={onComposerResizePointerDown}
-								onKeyDown={onComposerResizeKeyDown}
+							<PaneHeader
+								trailing={
+									<SidebarHistoryTrailing
+										historyOpen={historyOpen}
+										onHistoryOpenChange={setHistoryOpen}
+										activeTabId={activeTabId}
+										submitting={submitting}
+										headerActions={headerActions}
+										onNewConversation={newConversation}
+										onOpenSession={openHistorySession}
+										onDeleteSession={removeHistorySession}
+									/>
+								}
 							>
-								<div className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 h-px w-12 rounded-full bg-border transition-colors group-hover:bg-foreground/35 group-active:bg-foreground/45" />
-							</button>
+								<AgentSwitcher
+									options={options}
+									selected={selected}
+									selectedAgentId={selectedAgentId}
+									disabled={hasRunningSessions || switching || submitting}
+									onSelect={(opt) => void selectAgent(opt)}
+									onOpenAgentSettings={onOpenAgentSettings}
+								/>
+							</PaneHeader>
 
-							<AgentComposer
-								wide={wide}
-								autoFocus={autoFocus}
-								heightPx={composerDisplayHeightPx}
-								compact={composerCompact}
-								activeTabIsRunning={activeTabIsRunning}
-								switching={switching}
-								submitting={submitting}
-								composerText={composerText}
-								onComposerTextChange={(text) => {
-									onComposerTextChangeFromUser(text);
-									setComposerMenuDismissed(false);
-									setMentionActiveIndex(0);
-									setSkillActiveIndex(0);
-									setSlashActiveIndex(0);
-								}}
-								onSubmit={async (text, images) => {
-									if (switchingRef.current || submittingRef.current) {
-										// Keep PromptInput attachments when the submit is rejected.
-										throw new Error("composer busy");
-									}
-									const ok = await submitComposer(text, undefined, images);
-									if (!ok) {
-										// Preserve pasted/picked images when send early-returns (e.g. no agent).
-										throw new Error("composer submit rejected");
-									}
-								}}
-								onComposerKeyDown={handleComposerMenuKeyDown}
-								onComposerDragOver={handleComposerDragOver}
-								onComposerDrop={handleComposerDrop}
-								onDismissComposerMenu={() => setComposerMenuDismissed(true)}
-								messageQueue={messageQueue}
-								onRemoveQueuedMessage={removeQueuedMessage}
-								currentFilePath={currentFilePath}
-								currentFileLabel={currentFileLabel}
-								mentionChipPaths={mentionChipPaths}
-								visualDrafts={visualDrafts}
-								onRemoveVisualDraft={removeVisualDraft}
-								directoryPathSet={directoryPathSet}
-								paperPathSet={paperPathSet}
-								labelForPath={labelForPath}
-								onRemoveContextPath={removeContextPath}
-								selectedSkills={selectedSkills}
-								onRemoveSkill={removeSkill}
-								showMentionMenu={showMentionMenu}
-								mentionBrowseRoot={mentionBrowseRoot}
-								mentionOptions={mentionOptions}
-								mentionActiveIndex={mentionActiveIndex}
-								mentionCandidates={mentionCandidates}
-								onLeaveMentionFolder={leaveMentionFolder}
-								onEnterMentionFolder={enterMentionFolder}
-								onAttachMention={attachMention}
-								onMentionActiveIndexChange={setMentionActiveIndex}
-								showSkillMenu={showSkillMenu}
-								skillOptions={skillOptions}
-								skillActiveIndex={skillActiveIndex}
-								onAttachSkill={attachSkill}
-								onSkillActiveIndexChange={setSkillActiveIndex}
-								showSlashMenu={showSlashMenu}
-								slashOptions={slashOptions}
-								slashActiveIndex={slashActiveIndex}
-								onAttachSlashCommand={attachSlashCommand}
-								onSlashActiveIndexChange={setSlashActiveIndex}
-								activeUsage={activeUsage}
-								composerInputRef={composerInputRef}
-								onCancelRun={() => void cancelCurrentRun()}
+							<AgentConfigBarMemo
+								modelSelectorOpen={modelSelectorOpen}
+								onModelSelectorOpenChange={setModelSelectorOpen}
+								models={models}
+								groupedModels={groupedModels}
+								modelId={modelId}
+								selectedModelName={selectedModelName}
+								favoriteIds={favoriteIds}
+								warming={warming}
+								onPickModel={handlePickModel}
+								onToggleFavorite={toggleFavorite}
+								collaborationOptions={collaborationOptions}
+								collaborationModeId={collaborationModeId}
+								selectedCollaborationName={selectedCollaborationName}
+								onPickCollaborationMode={pickCollaborationMode}
+								effortOptions={effortOptions}
+								reasoningEffort={reasoningEffort}
+								onReasoningEffortChange={pickReasoningEffort}
+								fastAvailable={fastAvailable}
+								fastEnabled={fastEnabled}
+								onFastEnabledToggle={toggleFastEnabled}
 							/>
 						</>
+					)}
+
+					<div ref={bodyRef} className="flex min-h-0 flex-1 flex-col">
+						<ChatTranscript
+							wide={wide}
+							activeTabId={activeTabId}
+							hydratingSessionId={hydratingSessionId}
+							restoring={restoringHistory}
+							compact={composerCompact}
+							activeTabIsRunning={activeTabIsRunning}
+							phase={activePhase}
+							submitting={submitting}
+							switching={switching}
+							editingLineId={editingLineId}
+							editingText={editingText}
+							editTextareaRef={editTextareaRef}
+							editCompositionProps={stableEditCompositionProps}
+							isEditBlockedByIme={isEditBlockedByIme}
+							onEditingTextChange={setEditingText}
+							onCancelEditing={handleCancelEditing}
+							onResendEdited={handleResendEdited}
+							onStartEditing={handleStartEditing}
+							onSendSuggestion={sendSuggestion}
+							onAgentLogin={selectedLogin ? openSelectedAgentLogin : undefined}
+							onOpenSource={onOpenSource}
+							agentTemplate={selected?.template ?? null}
+							paper={selectedPaperMeta}
+						/>
+
+						{/* Questionnaire replaces the composer until submit/cancel. */}
+						<AgentAskUserSurface
+							elicitationRequest={elicitationRequest}
+							onElicitationResolved={() => setElicitationRequest(null)}
+							askUserRequest={askUserRequest}
+							onAskUserResolved={() => setAskUserRequest(null)}
+							toolAskUserRequest={toolAskUserRequest}
+							onToolAskUserResolved={() => setToolAskUserRequest(null)}
+							onAnswerToolAskUser={answerToolAskUser}
+							onRecordAskUserAnswers={recordAskUserAnswers}
+							disabled={switching}
+						/>
+
+						{!askUserActive ? (
+							<>
+								<PiProjectTrustNotice
+									vaultPath={vaultPath}
+									agentId={selected?.id}
+									template={selected?.template}
+									disabled={hasRunningSessions}
+								/>
+								<button
+									type="button"
+									aria-label={t("composer.resizeHandle")}
+									title={t("composer.resizeHandle")}
+									className="group relative h-2 shrink-0 cursor-row-resize touch-none bg-muted/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+									onPointerDown={onComposerResizePointerDown}
+									onKeyDown={onComposerResizeKeyDown}
+								>
+									<div className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 h-px w-12 rounded-full bg-border transition-colors group-hover:bg-foreground/35 group-active:bg-foreground/45" />
+								</button>
+
+								<AgentComposer
+									wide={wide}
+									seamless={workspace}
+									footerStart={workspaceFooterStart}
+									footerEnd={workspaceFooterEnd}
+									autoFocus={autoFocus}
+									heightPx={composerDisplayHeightPx}
+									compact={composerCompact}
+									activeTabIsRunning={activeTabIsRunning}
+									switching={switching}
+									submitting={submitting}
+									composerText={composerText}
+									onComposerTextChange={(text) => {
+										onComposerTextChangeFromUser(text);
+										setComposerMenuDismissed(false);
+										setMentionActiveIndex(0);
+										setSkillActiveIndex(0);
+										setSlashActiveIndex(0);
+									}}
+									onSubmit={async (text, images) => {
+										if (switchingRef.current || submittingRef.current) {
+											// Keep PromptInput attachments when the submit is rejected.
+											throw new Error("composer busy");
+										}
+										const ok = await submitComposer(text, undefined, images);
+										if (!ok) {
+											// Preserve pasted/picked images when send early-returns (e.g. no agent).
+											throw new Error("composer submit rejected");
+										}
+									}}
+									onComposerKeyDown={handleComposerMenuKeyDown}
+									onComposerDragOver={handleComposerDragOver}
+									onComposerDrop={handleComposerDrop}
+									onDismissComposerMenu={() => setComposerMenuDismissed(true)}
+									messageQueue={messageQueue}
+									onRemoveQueuedMessage={removeQueuedMessage}
+									currentFilePath={currentFilePath}
+									currentFileLabel={currentFileLabel}
+									mentionChipPaths={mentionChipPaths}
+									visualDrafts={visualDrafts}
+									onRemoveVisualDraft={removeVisualDraft}
+									directoryPathSet={directoryPathSet}
+									paperPathSet={paperPathSet}
+									labelForPath={labelForPath}
+									onRemoveContextPath={removeContextPath}
+									selectedSkills={selectedSkills}
+									onRemoveSkill={removeSkill}
+									showMentionMenu={showMentionMenu}
+									mentionBrowseRoot={mentionBrowseRoot}
+									mentionOptions={mentionOptions}
+									mentionActiveIndex={mentionActiveIndex}
+									mentionCandidates={mentionCandidates}
+									onLeaveMentionFolder={leaveMentionFolder}
+									onEnterMentionFolder={enterMentionFolder}
+									onAttachMention={attachMention}
+									onMentionActiveIndexChange={setMentionActiveIndex}
+									showSkillMenu={showSkillMenu}
+									skillOptions={skillOptions}
+									skillActiveIndex={skillActiveIndex}
+									onAttachSkill={attachSkill}
+									onSkillActiveIndexChange={setSkillActiveIndex}
+									showSlashMenu={showSlashMenu}
+									slashOptions={slashOptions}
+									slashActiveIndex={slashActiveIndex}
+									onAttachSlashCommand={attachSlashCommand}
+									onSlashActiveIndexChange={setSlashActiveIndex}
+									activeUsage={activeUsage}
+									composerInputRef={composerInputRef}
+									onCancelRun={() => void cancelCurrentRun()}
+								/>
+							</>
+						) : null}
+					</div>
+					{workspace ? (
+						<ConversationWidthHandles
+							width={conversationWidth}
+							onChange={setConversationWidth}
+						/>
 					) : null}
 				</div>
 			</div>

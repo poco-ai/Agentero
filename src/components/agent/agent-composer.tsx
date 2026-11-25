@@ -2,6 +2,7 @@ import { ImageIcon } from "lucide-react";
 import {
 	type KeyboardEvent,
 	type DragEvent as ReactDragEvent,
+	type ReactNode,
 	type RefObject,
 	useCallback,
 	useEffect,
@@ -113,6 +114,12 @@ export type AgentComposerProps = {
 	compact?: boolean;
 	/** Full-page surface: extra horizontal inset around the input shell. */
 	wide?: boolean;
+	/** Workspace tab: mode picker at the composer foot's leading edge. */
+	footerStart?: ReactNode;
+	/** Workspace tab: model / fast controls just before the send button. */
+	footerEnd?: ReactNode;
+	/** Workspace tab: drop the outer tinted band / top rule; only the input card remains. */
+	seamless?: boolean;
 	activeTabIsRunning: boolean;
 	switching: boolean;
 	submitting: boolean;
@@ -172,6 +179,7 @@ export function AgentComposer(props: AgentComposerProps) {
 		heightPx,
 		compact = false,
 		wide = false,
+		seamless = false,
 		activeTabIsRunning,
 		switching,
 		submitting,
@@ -200,6 +208,7 @@ export function AgentComposer(props: AgentComposerProps) {
 	const canSubmitBase = hasComposerText || hasVisualDrafts;
 	const composerMenuOpen = showMentionMenu || showSkillMenu || showSlashMenu;
 	const hasQueuedMessages = props.messageQueue.length > 0;
+	const workspaceFooter = Boolean(props.footerStart || props.footerEnd);
 	const [referenceHover, setReferenceHover] = useState<ReferenceHover | null>(
 		null,
 	);
@@ -312,7 +321,8 @@ export function AgentComposer(props: AgentComposerProps) {
 				// Keep the same horizontal inset and bottom gap in both modes so
 				// the InputGroup width / distance to the panel bottom do not jump
 				// when crossing the compact height threshold.
-				"flex shrink-0 flex-col border-t bg-muted/10 pb-3",
+				"flex shrink-0 flex-col pb-3",
+				seamless ? "border-t-0 bg-transparent" : "border-t bg-muted/10",
 				wide ? "px-5 lg:px-10" : "px-3",
 				compact ? "gap-1 pt-2" : "gap-2 pt-3",
 			)}
@@ -554,14 +564,43 @@ export function AgentComposer(props: AgentComposerProps) {
 								</PopoverAnchor>
 							</Popover>
 						</PromptInputBody>
-						{compact ? null : (
-							<PromptInputFooter className="flex-wrap items-end gap-x-2 gap-y-1.5 px-3 pb-2.5">
-								<PromptInputTools className="min-w-0 flex-1 flex-wrap gap-1">
+						{compact ? (
+							workspaceFooter ? (
+								// Workspace tabs keep the model/mode reachable even when the
+								// composer is dragged down to the compact single-line shape.
+								<PromptInputFooter className="flex-nowrap items-center gap-1 overflow-hidden px-3 pb-2">
+									<PromptInputTools className="min-w-0 flex-1 flex-nowrap gap-1 overflow-hidden">
+										<ComposerToolbar
+											switching={switching}
+											activeUsage={props.activeUsage}
+										/>
+										{props.footerStart}
+									</PromptInputTools>
+									{props.footerEnd}
+								</PromptInputFooter>
+							) : null
+						) : (
+							<PromptInputFooter
+								className={cn(
+									"items-end gap-x-2 gap-y-1.5 px-3 pb-2.5",
+									workspaceFooter ? "flex-nowrap overflow-hidden" : "flex-wrap",
+								)}
+							>
+								<PromptInputTools
+									className={cn(
+										"min-w-0 flex-1 gap-1",
+										workspaceFooter
+											? "flex-nowrap overflow-hidden"
+											: "flex-wrap",
+									)}
+								>
 									<ComposerToolbar
 										switching={switching}
 										activeUsage={props.activeUsage}
 									/>
+									{props.footerStart}
 								</PromptInputTools>
+								{props.footerEnd}
 								<ComposerSubmitControl
 									canSubmitBase={canSubmitBase}
 									switching={switching}
