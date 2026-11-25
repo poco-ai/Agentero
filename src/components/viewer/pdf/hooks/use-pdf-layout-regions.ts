@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { useStore } from "zustand";
 import { EMPTY_LAYOUT_REGIONS_BY_PAGE } from "@/components/viewer/pdf/constants";
 import {
+	LAYOUT_SIDEBAR_MIN_SCORE,
 	layoutAnalysisStore,
 	layoutDocumentKey,
 	type PdfLayoutRegion,
@@ -65,9 +66,13 @@ export function usePdfLayoutRegions(docId: string): PdfLayoutRegions {
 	const selectableRegionsByPage = useMemo(
 		() =>
 			layoutDocRegions
-				? selectableLayoutRegionsByPage(layoutDocRegions)
+				? selectableLayoutRegionsByPage(
+						layoutDocRegions,
+						LAYOUT_SIDEBAR_MIN_SCORE,
+						layoutRawRegions,
+					)
 				: EMPTY_LAYOUT_REGIONS_BY_PAGE,
-		[layoutDocRegions],
+		[layoutDocRegions, layoutRawRegions],
 	);
 	const rawRegionsByPage = useMemo(
 		() =>

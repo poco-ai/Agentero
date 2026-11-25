@@ -5,7 +5,10 @@ import {
 } from "@/lib/pdf/layout/constants";
 import { dedupeLayoutRegions } from "@/lib/pdf/layout/dedupe";
 import { layoutElementBoxes } from "@/lib/pdf/layout/element-selection";
-import { isSidebarLayoutKind } from "@/lib/pdf/layout/labels";
+import {
+	isInlineFormulaLabel,
+	isSidebarLayoutKind,
+} from "@/lib/pdf/layout/labels";
 import { suppressSpuriousFigureDetections } from "@/lib/pdf/layout/merge-captions";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
@@ -143,12 +146,55 @@ export function selectableLayoutRegions(
 	);
 }
 
+function intersectionArea(
+	a: PdfLayoutRegion["bbox"],
+	b: PdfLayoutRegion["bbox"],
+): number {
+	const width = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+	const height = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+	if (width <= 0 || height <= 0) return 0;
+	return width * height;
+}
+
+/**
+ * Formulas the number merge dropped. Element selection can still click and
+ * crop them. Inline formulas stay in the sentence, and a body already covered
+ * by a numbered host is not listed twice.
+ */
+function unnumberedFormulasForSelection(
+	rawRegions: readonly PdfLayoutRegion[],
+	merged: readonly PdfLayoutRegion[],
+	minScore: number,
+): PdfLayoutRegion[] {
+	const hosts = merged.filter((region) => region.kind === "formula");
+	return rawRegions.filter((region) => {
+		if (region.kind !== "formula" || isInlineFormulaLabel(region.label))
+			return false;
+		if (region.score < minScore || region.bbox.w <= 0 || region.bbox.h <= 0)
+			return false;
+		if (bboxArea(region.bbox) < LAYOUT_SELECT_MIN_AREA) return false;
+		const area = bboxArea(region.bbox);
+		return !hosts.some(
+			(host) =>
+				host.pageIndex === region.pageIndex &&
+				intersectionArea(region.bbox, host.bbox) / area >= 0.5,
+		);
+	});
+}
+
 /** Selectable regions bucketed by page, largest first. */
 export function selectableLayoutRegionsByPage(
 	regions: readonly PdfLayoutRegion[],
 	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
+	rawRegions?: readonly PdfLayoutRegion[] | null,
 ): Map<number, PdfLayoutRegion[]> {
-	const byPage = groupByPage(selectableLayoutRegions(regions, minScore));
+	const selectable = selectableLayoutRegions(regions, minScore);
+	const extras = unnumberedFormulasForSelection(
+		rawRegions ?? [],
+		selectable,
+		minScore,
+	);
+	const byPage = groupByPage([...selectable, ...extras]);
 	for (const page of byPage.values()) sortLargestFirst(page);
 	return byPage;
 }

@@ -248,6 +248,69 @@ describe("layout hit-test", () => {
 		]);
 	});
 
+	it("keeps an unnumbered formula selectable without listing it in the sidebar", () => {
+		const numbered = region({
+			id: "f-numbered",
+			kind: "formula",
+			score: 0.9,
+			bbox: { x: 0.15, y: 0.2, w: 0.5, h: 0.04 },
+		});
+		const rawNumberedBody = region({
+			id: "f-body",
+			kind: "formula",
+			label: "display_formula",
+			score: 0.9,
+			bbox: { x: 0.15, y: 0.2, w: 0.4, h: 0.04 },
+		});
+		const unnumbered = region({
+			id: "f-bare",
+			kind: "formula",
+			label: "display_formula",
+			score: 0.86,
+			bbox: { x: 0.15, y: 0.5, w: 0.35, h: 0.04 },
+		});
+		const unlabeled = region({
+			id: "f-plain",
+			kind: "formula",
+			label: "formula",
+			score: 0.8,
+			bbox: { x: 0.15, y: 0.62, w: 0.3, h: 0.035 },
+		});
+		const inline = region({
+			id: "f-inline",
+			kind: "formula",
+			label: "inline_formula",
+			score: 0.9,
+			bbox: { x: 0.15, y: 0.75, w: 0.12, h: 0.02 },
+		});
+		const speck = region({
+			id: "f-speck",
+			kind: "formula",
+			label: "display_formula",
+			score: 0.99,
+			bbox: { x: 0.9, y: 0.9, w: 0.01, h: 0.01 },
+		});
+		const merged = [numbered];
+		expect(hoverableLayoutRegions(merged).map((item) => item.id)).toEqual([
+			"f-numbered",
+		]);
+		const ids = selectableLayoutRegionsByPage(merged, 0.3, [
+			rawNumberedBody,
+			unnumbered,
+			unlabeled,
+			inline,
+			speck,
+		])
+			.get(0)
+			?.map((item) => item.id);
+		expect(ids).toContain("f-numbered");
+		expect(ids).toContain("f-bare");
+		expect(ids).toContain("f-plain");
+		expect(ids).not.toContain("f-body");
+		expect(ids).not.toContain("f-inline");
+		expect(ids).not.toContain("f-speck");
+	});
+
 	it("prefers the smallest selectable box, including text inside a figure", () => {
 		const regions = selectableLayoutRegions([
 			region({
