@@ -752,11 +752,36 @@ function segments(rects: readonly Rect[], minGap: number): Rect[][] {
 	return groups;
 }
 
+/** Other ink on this baseline, inside the same column. */
+function baselineNeighbours(
+	line: InkLine,
+	lines: readonly InkLine[],
+	column: TextColumn,
+): { left: boolean; right: boolean } {
+	let left = false;
+	let right = false;
+	const mid = (line.top + line.bottom) / 2;
+	for (const other of lines) {
+		if (other === line) continue;
+		const otherMid = (other.top + other.bottom) / 2;
+		if (Math.abs(mid - otherMid) > 8) continue;
+		const center = (other.left + other.right) / 2;
+		if (center < column.left - 12 || center > column.right + 12) continue;
+		if (other.right <= line.left + 4) left = true;
+		if (other.left >= line.right - 4) right = true;
+	}
+	return { left, right };
+}
+
 function isDisplayFormulaLine(
 	line: InkLine,
 	column: TextColumn,
 	gapCut: number,
+	lines: readonly InkLine[],
 ): boolean {
+	const neighbours = baselineNeighbours(line, lines, column);
+	// A word between two parts of the same sentence is not an equation.
+	if (neighbours.left && neighbours.right) return false;
 	const parts = segments(line.visual, gapCut);
 	const number = parts.length >= 2 ? parts.at(-1) : undefined;
 	const numberBox = number ? unionRectsAll(number) : null;
@@ -770,6 +795,8 @@ function isDisplayFormulaLine(
 		numberBox.size.width <= Math.max(42, column.width * 0.12) &&
 		column.right - (numberBox.origin.x + numberBox.size.width) <=
 			Math.max(22, column.width * 0.07) &&
+		contentBox.size.width <= column.width * 0.8 &&
+		!neighbours.left &&
 		(contentBox.origin.x - column.left >= Math.max(16, column.width * 0.06) ||
 			hasScripts(content))
 	)
@@ -823,7 +850,8 @@ function findDisplayFormulaExclusionRects(geometry: PdfPageGeometry): Rect[] {
 	const rects: Rect[] = [];
 	for (const line of prepared) {
 		const column = columnFor(line, columns);
-		if (column == null || !isDisplayFormulaLine(line, column, gapCut)) continue;
+		if (column == null || !isDisplayFormulaLine(line, column, gapCut, prepared))
+			continue;
 		const rect = unionRectsAll(line.excluded);
 		if (rect) rects.push(rect);
 	}

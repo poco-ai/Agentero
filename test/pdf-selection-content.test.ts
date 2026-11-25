@@ -534,6 +534,64 @@ describe("selection content", () => {
 		expect(deliberateCovered.has(130)).toBe(true);
 		expect(deliberateCovered.has(133)).toBe(true);
 	});
+	it("keeps a full prose line and a word in the middle of that line", () => {
+		function run(
+			charStart: number,
+			x: number,
+			y: number,
+			count: number,
+			width = 8,
+			height = 10,
+		) {
+			return {
+				charStart,
+				rect: { x, y, width: count * width, height },
+				glyphs: Array.from({ length: count }, (_, index) => ({
+					x: x + index * width,
+					y,
+					width,
+					height,
+					flags: 0,
+				})),
+			};
+		}
+		const script = (charStart: number, x: number, y: number) => ({
+			...run(charStart, x, y, 1, 4, 5),
+			glyphs: [{ x, y, width: 4, height: 5, flags: 0 }],
+		});
+		const geometry: PdfPageGeometry = {
+			runs: [
+				run(0, 40, 80, 40),
+				run(40, 40, 100, 40),
+				run(80, 40, 120, 40),
+				run(120, 40, 160, 34),
+				run(154, 336, 160, 3),
+				script(157, 80, 152),
+				run(158, 40, 220, 8),
+				run(166, 160, 220, 8),
+				run(174, 280, 220, 8),
+				script(182, 176, 212),
+				run(183, 40, 280, 40),
+			],
+		};
+		const excluded = selectionInsertionExclusions(
+			{ 0: geometry },
+			{ start: { page: 0, index: 0 }, end: { page: 1, index: 0 } },
+			[],
+		);
+		const covered = new Set<number>();
+		for (const slice of selectionTextSlices(
+			geometry,
+			0,
+			223,
+			excluded.get(0) ?? [],
+		)) {
+			for (let index = 0; index < slice.count; index++)
+				covered.add(slice.start + index);
+		}
+		for (const index of [120, 140, 154, 157, 158, 166, 174, 182, 183])
+			expect(covered.has(index)).toBe(true);
+	});
 	const size = { width: 600, height: 800 };
 	function line(content: string, y = 45): PdfTextRectObject {
 		return {
