@@ -15,6 +15,7 @@ import { createReflowIrCache } from "@/lib/pdf/reflow/cache";
 import { NO_REGIONS, ReflowPreviewSession } from "@/lib/pdf/reflow/preview";
 import { prepareReflowItems } from "@/lib/pdf/reflow/service";
 import { writeVaultBytes } from "@/lib/vault/fs";
+import { joinVaultPath } from "@/lib/vault/path";
 export type ReflowContext = () => {
 	engine: PdfEngine;
 	document: PdfDocumentObject;
@@ -146,8 +147,13 @@ export function usePdfReflow(
 			if (!value?.ready || current.current.running) return;
 			try {
 				const { save } = await import("@tauri-apps/plugin-dialog");
+				const fileName = dual ? "bilingual.pdf" : "translated.pdf";
+				// Land the export beside the paper: the dialog opens in the paper's
+				// own folder, so the translated copy stays with its source instead of
+				// wherever the last download went.
+				const paperDir = current.current.paperAbsPath;
 				const path = await save({
-					defaultPath: dual ? "bilingual.pdf" : "translated.pdf",
+					defaultPath: paperDir ? joinVaultPath(paperDir, fileName) : fileName,
 					filters: [{ name: "PDF", extensions: ["pdf"] }],
 				});
 				if (
