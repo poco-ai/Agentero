@@ -1,6 +1,6 @@
 /**
  * Vault-wide full-text Markdown search via Host `vault_search`.
- * Powers the command palette's "In contents" tier (see command-palette.tsx).
+ * Powers the quick open's "In contents" tier (see quick-open.tsx).
  */
 
 import { track } from "@/lib/activity";

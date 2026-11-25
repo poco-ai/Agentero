@@ -3,6 +3,7 @@ import { memo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
 import { LayoutMenu } from "@/components/shell/layout-menu";
+import { QuickOpen } from "@/components/shell/quick-open";
 import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import { UpdateIndicator } from "@/components/shell/update-indicator";
 import { WindowControls } from "@/components/shell/window-controls";
@@ -66,6 +67,9 @@ export const TitleBar = memo(function TitleBar({
 	const COMMAND_PALETTE_SHORTCUT = useShortcutLabel("commandPalette");
 	const agentTemplate = useAgentChromeStore((s) => s.template);
 	const [agentWindowMenuOpen, setAgentWindowMenuOpen] = useState(false);
+	// Palette entries in the gear menu hand focus to the title-bar field; stop
+	// Radix from restoring focus to the gear when that menu closes.
+	const paletteMenuOpenRef = useRef(false);
 	// Right-click opens the menu. Left-click on the same trigger asks Radix to
 	// open it too; only a gesture we just marked may do that.
 	const agentWindowMenuOpenedAt = useRef(0);
@@ -75,7 +79,7 @@ export const TitleBar = memo(function TitleBar({
 	};
 
 	return (
-		<WindowHeader>
+		<WindowHeader className="relative z-40">
 			{/* Collapses in native fullscreen, where macOS hides the lights. */}
 			{isMacDesktop ? (
 				<TrafficLightSpacer />
@@ -114,8 +118,16 @@ export const TitleBar = memo(function TitleBar({
 						</TooltipContent>
 					</Tooltip>
 				</div>
-				{/* Drag region fills the middle — document tabs are in dockview. */}
+				{/*
+				 * Middle: drag region plus the inline quick open (⌘P), centered
+				 * on the window rather than on the space between the controls.
+				 */}
 				<div className="min-w-0 flex-1 self-stretch" data-tauri-drag-region />
+				<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+					<div className="pointer-events-auto">
+						<QuickOpen />
+					</div>
+				</div>
 				<div className="flex shrink-0 items-center gap-0.5 pr-2">
 					<UpdateIndicator />
 					<LayoutMenu
@@ -240,7 +252,15 @@ export const TitleBar = memo(function TitleBar({
 									})}
 								</TooltipContent>
 							</Tooltip>
-							<DropdownMenuContent align="end" className="min-w-56">
+							<DropdownMenuContent
+								align="end"
+								className="min-w-56"
+								onCloseAutoFocus={(event) => {
+									if (!paletteMenuOpenRef.current) return;
+									paletteMenuOpenRef.current = false;
+									event.preventDefault();
+								}}
+							>
 								<DropdownMenuItem onSelect={() => onOpenSettings()}>
 									<span className="flex-1">{t("titlebar.menuSettings")}</span>
 									<span className="text-muted-foreground text-xs tracking-wide">
@@ -255,13 +275,23 @@ export const TitleBar = memo(function TitleBar({
 									</span>
 								</DropdownMenuItem>
 								<DropdownMenuSeparator />
-								<DropdownMenuItem onSelect={() => openPalette("go")}>
+								<DropdownMenuItem
+									onSelect={() => {
+										paletteMenuOpenRef.current = true;
+										openPalette("go");
+									}}
+								>
 									<span className="flex-1">{t("titlebar.menuQuickOpen")}</span>
 									<span className="text-muted-foreground text-xs tracking-wide">
 										{QUICK_OPEN_SHORTCUT}
 									</span>
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => openPalette("commands")}>
+								<DropdownMenuItem
+									onSelect={() => {
+										paletteMenuOpenRef.current = true;
+										openPalette("commands");
+									}}
+								>
 									<span className="flex-1">
 										{t("titlebar.menuCommandPalette")}
 									</span>

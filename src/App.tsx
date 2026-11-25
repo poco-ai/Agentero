@@ -400,8 +400,14 @@ export default function App() {
 			fileTreeHandle()?.pasteIntoSelected();
 		},
 		magicWand: openMagicWand,
-		quickOpen: () => openPalette("go"),
-		commandPalette: () => openPalette("commands"),
+		// The quick open lives in the title bar; immersive reading hides that
+		// chrome, so there is nowhere to show it.
+		quickOpen: () => {
+			if (!uiStore.getState().immersiveReading) openPalette("go");
+		},
+		commandPalette: () => {
+			if (!uiStore.getState().immersiveReading) openPalette("commands");
+		},
 		toggleMarkdownSource: () => toggleActiveMarkdownSource(),
 		toggleSidebar,
 		toggleChat,

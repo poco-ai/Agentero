@@ -1,11 +1,10 @@
 /**
- * App-level dialogs: Zotero migration, rename, external-rename repair, move
- * papers, and the command palette. Each subscribes to its own store slice.
+ * App-level dialogs: Zotero migration, rename, external-rename repair, and
+ * move papers. Each subscribes to its own store slice. Quick open lives in
+ * the title bar (`quick-open.tsx`).
  */
 
-import { useSyncExternalStore } from "react";
 import { AlphaXivImportDialog } from "@/components/dialogs/alphaxiv-import-dialog";
-import { CommandPalette } from "@/components/dialogs/command-palette";
 import { ExternalRenameDialog } from "@/components/dialogs/external-rename-dialog";
 import { PaperSearchDialog } from "@/components/dialogs/paper-search-dialog";
 import { SkillImportDialog } from "@/components/dialogs/skill-import-dialog";
@@ -31,31 +30,19 @@ import {
 import { paperMetaChange } from "@/lib/paper/library-actions";
 import { setEditMetaDraft } from "@/lib/paper/library-store";
 import {
-	commandRegistryRevision,
-	listCommands,
-	subscribeCommands,
-} from "@/lib/shell/commands/registry";
-import {
 	setAlphaXivOpen,
-	setCommandOpen,
 	setZoteroOpen,
 	setZoteroSyncOpen,
 } from "@/lib/shell/ui-store";
-import { joinVaultPath } from "@/lib/vault";
 import { refreshAll } from "@/lib/vault/actions";
-import { openPaper, openVaultRel } from "@/lib/workspace/actions";
 
 export function AppDialogs() {
-	useSyncExternalStore(subscribeCommands, commandRegistryRevision);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const zoteroOpen = useUiStore((s) => s.zoteroOpen);
 	const zoteroParentDir = useUiStore((s) => s.zoteroParentDir);
 	const alphaxivOpen = useUiStore((s) => s.alphaxivOpen);
 	const alphaxivParentDir = useUiStore((s) => s.alphaxivParentDir);
 	const zoteroSyncOpen = useUiStore((s) => s.zoteroSyncOpen);
-	const commandOpen = useUiStore((s) => s.commandOpen);
-	const commandMode = useUiStore((s) => s.commandMode);
-	const libraryPapers = useLibraryStore((s) => s.papers);
 	const editMetaDraft = useLibraryStore((s) => s.editMetaDraft);
 	const citingScanDraft = useLibraryStore((s) => s.citingScanDraft);
 	const skillImportDraft = useUiStore((s) => s.skillImportDraft);
@@ -111,19 +98,6 @@ export function AppDialogs() {
 					const updated = await paperMetaChange(paper, patch);
 					if (updated) setEditMetaDraft(null);
 				}}
-			/>
-
-			<CommandPalette
-				open={commandOpen}
-				onOpenChange={setCommandOpen}
-				mode={commandMode}
-				vaultPath={vaultPath}
-				papers={libraryPapers}
-				commands={listCommands()}
-				onOpenPaper={(rel) => {
-					if (vaultPath) openPaper(joinVaultPath(vaultPath, rel));
-				}}
-				onOpenVaultRel={openVaultRel}
 			/>
 		</>
 	);
