@@ -1,3 +1,8 @@
+---
+description: 在知识库里新建 LaTeX 项目，从论文库插入引用并写入 BibTeX，编译后在源码和 PDF 之间双向定位。
+meta_title: 写作与引用：从论文库写 LaTeX 并插入 BibTeX
+---
+
 # 从论文库写论文
 
 ## 建一个 LaTeX 项目

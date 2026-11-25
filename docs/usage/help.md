@@ -1,3 +1,8 @@
+---
+description: 论文打不开 PDF、机构代理登录、Zotero Connector 连不上、翻译卡住、第二台电脑没同步到 PDF 等问题的排查步骤。
+meta_title: 常见问题：PDF 打不开、代理登录与翻译排查
+---
+
 # 常见问题与诊断
 
 ## 论文已入库，但打不开 PDF

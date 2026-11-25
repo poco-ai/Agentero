@@ -1,3 +1,8 @@
+---
+description: 从下载安装、创建第一个 Vault 到导入 PDF、加高亮和写笔记，用一篇现成的论文走完 Agentero 的完整流程。
+meta_title: 开始使用：安装 Agentero 并读完第一篇论文
+---
+
 # 读完第一篇论文
 
 准备一篇电脑上已有的 PDF。接下来会用它试试导入、加高亮和写笔记。有 PDF 就可以开始，无需 Zotero、Agent 或模型账号。

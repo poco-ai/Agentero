@@ -1,3 +1,8 @@
+---
+description: 通过 ACP 连接本机的 Claude Code、Codex 等 Agent，设置权限后划词提问；回答带出处，可以跳回 PDF 原文核对。
+meta_title: 接入 Agent：用 ACP 连接本机 Agent 做文献研究
+---
+
 # 用 Agent 做文献研究
 
 ## 连接 Agent

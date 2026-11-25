@@ -13,6 +13,7 @@
 			"!src-tauri",
 			"!dist",
 			"!tmp",
+			"!overrides",
 			"!target",
 			"!agentero",
 			"!src/lib/writing/templates/vendor",

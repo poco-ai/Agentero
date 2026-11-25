@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{#
+  SEO 覆盖层，只做三件事：
+  1. 用 front matter 的 meta_title 生成浏览器标题（不改变导航文案）。
+  2. 补 Material 默认不输出的 Open Graph / Twitter 卡片标签。
+  3. canonical 由 Material 在设置 site_url 后自动输出，这里不重复添加。
+#}
+
+{% block htmltitle %}
+  {% if page.meta and page.meta.meta_title %}
+    <title>{{ page.meta.meta_title }}{% if not page.is_homepage %} - {{ config.site_name }}{% endif %}</title>
+  {% elif page.title and not page.is_homepage %}
+    <title>{{ page.title | striptags }} - {{ config.site_name }}</title>
+  {% else %}
+    <title>{{ config.site_name }}</title>
+  {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% set og_description = page.meta.description if page.meta and page.meta.description else config.site_description %}
+  {% if page.meta and page.meta.meta_title %}
+    {% set og_title = page.meta.meta_title %}
+  {% elif page.is_homepage %}
+    {% set og_title = config.site_name %}
+  {% else %}
+    {% set og_title = page.title | striptags ~ " - " ~ config.site_name %}
+  {% endif %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.site_name }}">
+  <meta property="og:title" content="{{ og_title }}">
+  <meta property="og:description" content="{{ og_description }}">
+  <meta property="og:url" content="{{ page.canonical_url }}">
+  <meta property="og:image" content="https://agentero.app/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="675">
+  <meta property="og:locale" content="zh_CN">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ og_title }}">
+  <meta name="twitter:description" content="{{ og_description }}">
+  <meta name="twitter:image" content="https://agentero.app/og.png">
+{% endblock %}

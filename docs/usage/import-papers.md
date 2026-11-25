@@ -1,3 +1,8 @@
+---
+description: 用 DOI、arXiv 编号、本地 PDF 或书目文件导入论文；从 Zotero 迁移整个书库、同步已有条目，并按标签和文件夹整理。
+meta_title: 导入论文：DOI、arXiv、本地 PDF 与 Zotero 迁移
+---
+
 # 找论文、导入和整理论文库
 
 ## 按标题、DOI 或 arXiv 编号添加

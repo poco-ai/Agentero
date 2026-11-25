@@ -1,13 +1,18 @@
 site_name: Agentero 用户指南
+site_url: https://docs.agentero.app/
 site_description: 在 Agentero 中发现、阅读和整理论文
 repo_url: https://github.com/poco-ai/agentero
 repo_name: poco-ai/agentero
 edit_uri: edit/main/docs/
+copyright: '<a href="https://agentero.app/">下载 Agentero</a> · <a href="https://github.com/poco-ai/agentero">GitHub</a> · MIT License'
 
 theme:
   name: material
+  custom_dir: overrides
   language: zh
   logo: assets/agentero-app-icon.svg
+  # Google Fonts 在中国大陆不可达，且 Roboto 不含中文字形；用系统字体避免阻塞首屏。
+  font: false
   palette:
     scheme: default
     primary: black
@@ -31,6 +36,7 @@ nav:
   - 工作区与效率: usage/workspace.md
   - 资料、设备与外部工具: usage/vault.md
   - 遇到问题: usage/help.md
+  - 下载 Agentero: https://agentero.app/
 
 markdown_extensions:
   - admonition

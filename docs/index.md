@@ -1,6 +1,8 @@
 ---
 hide:
   - toc
+description: 用普通文件夹保存论文、PDF、笔记和批注；在 Agentero 里发现、精读、整理文献，并把阅读结果接进写作。四个研究场景的上手入口。
+meta_title: Agentero 用户指南：论文、笔记与 Agent 工作流
 ---
 
 # Agentero 用户指南
