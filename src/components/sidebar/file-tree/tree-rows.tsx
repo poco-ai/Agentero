@@ -283,9 +283,7 @@ export function NodeTreeRow({
 					: {})}
 			>
 				<FileTreeFolderRow
-					openOnLabel={Boolean(
-						isAgentRoot || project || (rel && lookup.status === "error"),
-					)}
+					openOnLabel={Boolean(project || (rel && lookup.status === "error"))}
 					expandOnOpen={Boolean(project)}
 					path={node.path}
 					style={treeRowIndentStyle(depth)}

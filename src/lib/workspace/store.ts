@@ -7,6 +7,7 @@
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createStore } from "zustand/vanilla";
+import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { perfActive } from "@/lib/core/perf";
 import { isTauri } from "@/lib/core/tauri";
 import { isFreshWindow } from "@/lib/vault/session";
@@ -72,46 +73,50 @@ function withPersistedPane(tab: DocTab, pane: DocTab["pane"]): DocTab {
 }
 
 function tabsFromPersisted(persisted: PersistedTabs): DocTab[] {
-	return persisted.tabs.map((pt) => {
-		const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
-		// Restore the owning writing project up front so every branch below —
-		// including hydration placeholders — keeps the one-panel project identity.
-		if (pt.writingRoot) tab.writingRoot = pt.writingRoot;
-		// Registry-declared restore override. Translation panes stay paper-kind
-		// and keep their view id; `loaded: false` lets hydration read the path.
-		const restore = viewerModeSpec(pt.mode).restore;
-		if (restore) {
-			return withPersistedPane(
-				{
-					...tab,
-					kind: restore.kind,
-					title: pt.title || restore.fallbackTitle,
-					loaded: restore.loaded,
-				},
-				pt.pane,
-			);
-		}
-		if (pt.texRoot) tab.texRoot = pt.texRoot;
-		// Realtime TeX panes have no file seed to hydrate; restore them
-		// loaded so the viewer remounts instead of showing a skeleton.
-		if (pt.texLive) {
-			return withPersistedPane(
-				{
-					...tab,
-					loaded: true,
-					texLive: true,
-					texRoot: pt.texRoot,
-				},
-				pt.pane,
-			);
-		}
-		// Real-path placeholders default to the folder basename; prefer the
-		// persisted title so strips show paper names before hydration.
-		if (pt.title && tab.kind === "file") {
-			return withPersistedPane({ ...tab, title: pt.title }, pt.pane);
-		}
-		return withPersistedPane(tab, pt.pane);
-	});
+	// The Zen tab was replaced by the title-bar Agent workspace; drop stale
+	// entries from layouts saved by older builds.
+	return persisted.tabs
+		.filter((pt) => !isZenVirtualPath(pt.path))
+		.map((pt) => {
+			const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
+			// Restore the owning writing project up front so every branch below —
+			// including hydration placeholders — keeps the one-panel project identity.
+			if (pt.writingRoot) tab.writingRoot = pt.writingRoot;
+			// Registry-declared restore override. Translation panes stay paper-kind
+			// and keep their view id; `loaded: false` lets hydration read the path.
+			const restore = viewerModeSpec(pt.mode).restore;
+			if (restore) {
+				return withPersistedPane(
+					{
+						...tab,
+						kind: restore.kind,
+						title: pt.title || restore.fallbackTitle,
+						loaded: restore.loaded,
+					},
+					pt.pane,
+				);
+			}
+			if (pt.texRoot) tab.texRoot = pt.texRoot;
+			// Realtime TeX panes have no file seed to hydrate; restore them
+			// loaded so the viewer remounts instead of showing a skeleton.
+			if (pt.texLive) {
+				return withPersistedPane(
+					{
+						...tab,
+						loaded: true,
+						texLive: true,
+						texRoot: pt.texRoot,
+					},
+					pt.pane,
+				);
+			}
+			// Real-path placeholders default to the folder basename; prefer the
+			// persisted title so strips show paper names before hydration.
+			if (pt.title && tab.kind === "file") {
+				return withPersistedPane({ ...tab, title: pt.title }, pt.pane);
+			}
+			return withPersistedPane(tab, pt.pane);
+		});
 }
 
 function applyPersistedWorkspace(persisted: PersistedTabs | null): void {
@@ -123,9 +128,13 @@ function applyPersistedWorkspace(persisted: PersistedTabs | null): void {
 		});
 		return;
 	}
+	const tabs = tabsFromPersisted(persisted);
 	workspaceStore.setState({
-		tabs: tabsFromPersisted(persisted),
-		activeTabId: persisted.activeId ?? null,
+		tabs,
+		activeTabId:
+			persisted.activeId && tabs.some((tab) => tab.id === persisted.activeId)
+				? persisted.activeId
+				: (tabs[0]?.id ?? null),
 		dockLayout: persisted.layout ?? null,
 	});
 }

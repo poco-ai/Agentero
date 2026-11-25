@@ -28,7 +28,6 @@ export {
 	openRemoteArxivPaper,
 	openTab,
 	openTabNotes,
-	openZenWorkspace,
 	refreshOpenPaperPdf,
 	rehydrateMisclassifiedPaperTabs,
 	remapMovedWorkspacePaths,
