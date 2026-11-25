@@ -29,14 +29,12 @@ describe("sentenceIndexesOverlappingHighlight", () => {
 		).toEqual([1]);
 	});
 
-	it("keeps every sentence the highlight actually covers", () => {
+	it("keeps a short sentence fully covered beside a longer one", () => {
+		const short = { x: 0.1, y: 0.4, w: 0.05, h: 0.02 };
 		expect(
 			sentenceIndexesOverlappingHighlight(
-				[[sentences[0]], [sentences[1]], [sentences[2]]],
-				[
-					{ x: 0.1, y: 0.2, w: 0.4, h: 0.02 },
-					{ x: 0.1, y: 0.4, w: 0.4, h: 0.02 },
-				],
+				[[sentences[0]], [short], [sentences[2]]],
+				[sentences[0], short],
 			),
 		).toEqual([0, 1]);
 	});
@@ -133,19 +131,31 @@ describe("sentenceHighlightTints", () => {
 		id,
 		quote,
 		color: "yellow" as const,
+		shape: "highlight" as const,
 		rects: [{ x: 0.1, y: 0.2, w: 0.4, h: 0.05 }],
 	});
 
-	it("maps the tinted sentence back to the owning highlight", () => {
+	it("maps the tinted sentence back to its highlight across a paragraph boundary", () => {
+		const next = {
+			...item,
+			id: "item-2",
+			sentences: [{ quote: "Next paragraph.", translated: "下一段。" }],
+		};
 		const tints = sentenceHighlightTints({
-			layoutItems: [item],
-			highlightQuotes: [highlight("hl-1", "First sentence.")],
+			layoutItems: [item, next],
+			highlightQuotes: [highlight("hl-1", "Second sentence.")],
+			sentenceRectsByItemId: new Map([
+				[item.id, [[box(0.16)], [box(0.2, 0.048)]]],
+				[next.id, [[box(0.248)]]],
+			]),
 		});
-		expect(tints.get("item-1")?.get(0)).toEqual({
+		expect(tints.get(item.id)?.get(1)).toEqual({
 			color: "yellow",
+			shape: "highlight",
 			highlightId: "hl-1",
 		});
-		expect(tints.get("item-1")?.has(1)).toBe(false);
+		expect(tints.get(item.id)?.has(0)).toBe(false);
+		expect(tints.has(next.id)).toBe(false);
 	});
 
 	it("keeps the first highlight when two match the same sentence", () => {

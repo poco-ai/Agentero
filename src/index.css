@@ -818,9 +818,16 @@
 	outline: 1px solid var(--ring);
 	outline-offset: 1px;
 }
-[data-layout-element].is-hot.has-sentence > .pdf-layout-element-frame,
-[data-layout-element].has-sentence:focus-within > .pdf-layout-element-frame {
-	background: transparent;
+[data-layout-element].has-sentence > .pdf-layout-element-frame,
+[data-layout-element].has-sentence
+	> .pdf-layout-element-chip:not(:focus-visible) {
+	opacity: 0;
+	pointer-events: none;
+	transition: none;
+}
+.pdf-layout-sentence-chip {
+	opacity: 1;
+	transition: none;
 }
 .pdf-layout-sentence-wash {
 	position: absolute;

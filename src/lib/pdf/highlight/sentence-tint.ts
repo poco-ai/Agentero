@@ -3,7 +3,7 @@
  *
  * The highlight already stores the English glyph boxes the reader marked.
  * Each sentence can be located to its own English glyph boxes. Overlap picks
- * the sentence. Text is only a stand-in until those boxes have been read.
+ * the sentence across the page. Text is a stand-in for unlocated blocks.
  */
 
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
@@ -23,8 +23,8 @@ export type TranslateSentenceTint = {
 	highlightId: string;
 };
 
-/** A sentence this much smaller than the best overlap is a border sliver. */
-const MIN_SHARE_OF_BEST = 0.2;
+/** Minimum share of the best overlap or of the sentence's own glyph area. */
+const MIN_OVERLAP_SHARE = 0.2;
 
 function intersectionArea(a: PdfHighlightRect, b: PdfHighlightRect): number {
 	const width = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
@@ -38,50 +38,57 @@ function intersectionArea(a: PdfHighlightRect, b: PdfHighlightRect): number {
  * A box that only clips the neighbor's edge stays out.
  */
 export function sentenceIndexesOverlappingHighlight(
-	sentenceRects: readonly (readonly PdfHighlightRect[])[],
+	sentenceRects: readonly (readonly PdfHighlightRect[] | undefined)[],
 	highlightRects: readonly PdfHighlightRect[],
 ): number[] {
 	if (!highlightRects.length) return [];
 	const areas = sentenceRects.map((rects) => {
+		let overlap = 0;
 		let area = 0;
-		for (const sentence of rects) {
+		for (const sentence of rects ?? []) {
+			area += sentence.w * sentence.h;
 			for (const highlight of highlightRects) {
-				area += intersectionArea(sentence, highlight);
+				overlap += intersectionArea(sentence, highlight);
 			}
 		}
-		return area;
+		return { overlap, area };
 	});
-	const best = areas.reduce((max, area) => Math.max(max, area), 0);
+	const best = areas.reduce((max, { overlap }) => Math.max(max, overlap), 0);
 	if (best <= 0) return [];
-	const cutoff = best * MIN_SHARE_OF_BEST;
 	const indexes: number[] = [];
-	areas.forEach((area, index) => {
-		if (area >= cutoff) indexes.push(index);
+	areas.forEach(({ overlap, area }, index) => {
+		// A short sentence can be covered even beside a much longer one.
+		if (overlap > 0 && overlap >= Math.min(best, area) * MIN_OVERLAP_SHARE) {
+			indexes.push(index);
+		}
 	});
 	return indexes;
 }
 
-/**
- * Prefer glyph-box overlap. Fall back to an exact quote match when this
- * block's sentences have not been located on the text layer yet.
- */
+/** Use geometry across the page, with quote matching for unlocated blocks. */
 export function sentenceIndexesForHighlightTint(options: {
 	sentences: readonly { quote: string }[] | undefined;
 	quote: string;
-	sentenceRects: readonly (readonly PdfHighlightRect[])[] | undefined;
+	sentenceRects:
+		| readonly (readonly PdfHighlightRect[] | undefined)[]
+		| undefined;
 	highlightRects: readonly PdfHighlightRect[] | undefined;
 }): number[] {
-	const sentences = options.sentences ?? [];
-	const highlightRects = options.highlightRects ?? [];
-	const located =
-		options.sentenceRects?.some((rects) => rects.length > 0) ?? false;
-	if (located && highlightRects.length > 0 && options.sentenceRects) {
-		return sentenceIndexesOverlappingHighlight(
-			options.sentenceRects,
-			highlightRects,
-		);
+	const { sentenceRects, highlightRects } = options;
+	const byQuote = sentenceIndexesCoveredByQuote(
+		options.sentences ?? [],
+		options.quote,
+	);
+	if (
+		!highlightRects?.length ||
+		!sentenceRects?.some((rects) => rects?.length)
+	) {
+		return byQuote;
 	}
-	return sentenceIndexesCoveredByQuote(sentences, options.quote);
+	return [
+		...sentenceIndexesOverlappingHighlight(sentenceRects, highlightRects),
+		...byQuote.filter((index) => sentenceRects[index] === undefined),
+	];
 }
 
 /**
@@ -96,33 +103,45 @@ export function sentenceHighlightTints(options: {
 		readonly (readonly PdfHighlightRect[])[]
 	>;
 }): Map<string, ReadonlyMap<number, TranslateSentenceTint>> {
-	const byItem = new Map<string, ReadonlyMap<number, TranslateSentenceTint>>();
+	const byItem = new Map<string, Map<number, TranslateSentenceTint>>();
 	const quotes = options.highlightQuotes;
 	const items = options.layoutItems;
 	if (!quotes?.length || !items?.length) return byItem;
-	for (const item of items) {
-		if (!isLayoutTranslateItemPainted(item) || !item.sentences?.length) {
-			continue;
-		}
-		const tints = new Map<number, TranslateSentenceTint>();
-		for (const quote of quotes) {
-			const matchedIndexes = sentenceIndexesForHighlightTint({
-				sentences: item.sentences,
-				quote: quote.quote,
-				sentenceRects: options.sentenceRectsByItemId?.get(item.id),
-				highlightRects: quote.rects,
-			});
-			for (const index of matchedIndexes) {
-				if (!tints.has(index)) {
-					tints.set(index, {
-						color: quote.color,
-						shape: quote.shape,
-						highlightId: quote.id,
-					});
-				}
+	const sentences = items.flatMap((item) => {
+		if (!isLayoutTranslateItemPainted(item) || !item.sentences?.length)
+			return [];
+		const rects = options.sentenceRectsByItemId?.get(item.id);
+		const located = rects?.some((sentence) => sentence.length > 0);
+		return item.sentences.map(({ quote }, index) => ({
+			itemId: item.id,
+			index,
+			quote,
+			rects: located ? (rects?.[index] ?? []) : undefined,
+		}));
+	});
+	const sentenceRects = sentences.map(({ rects }) => rects);
+	for (const highlight of quotes) {
+		const matched = sentenceIndexesForHighlightTint({
+			sentences,
+			quote: highlight.quote,
+			sentenceRects,
+			highlightRects: highlight.rects,
+		});
+		for (const match of matched) {
+			const { itemId, index } = sentences[match];
+			let tints = byItem.get(itemId);
+			if (!tints) {
+				tints = new Map();
+				byItem.set(itemId, tints);
+			}
+			if (!tints.has(index)) {
+				tints.set(index, {
+					color: highlight.color,
+					shape: highlight.shape,
+					highlightId: highlight.id,
+				});
 			}
 		}
-		if (tints.size > 0) byItem.set(item.id, tints);
 	}
 	return byItem;
 }

@@ -575,7 +575,7 @@ describe("elementSentenceAtPoint", () => {
 		expect(located.hit.quote).toBe("Second sentence.");
 	});
 
-	it("waits for glyphs unless the overlay span already names the sentence", () => {
+	it("uses the overlay sentence before glyphs load, even with a different region ID", () => {
 		expect(
 			elementSentenceAtPoint({
 				items,
@@ -588,7 +588,8 @@ describe("elementSentenceAtPoint", () => {
 		const located = elementSentenceAtPoint({
 			items,
 			glyphs: new Map(),
-			regionId: "body",
+			regionId: "merged-body",
+			pageIndex: 0,
 			x: 0.2,
 			y: 0.12,
 			span: { itemId: "body", sentenceIndex: 0 },

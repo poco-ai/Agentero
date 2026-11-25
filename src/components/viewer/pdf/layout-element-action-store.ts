@@ -31,6 +31,8 @@ export type LayoutElementAction = {
 	bbox: PdfAskNormalizedRect;
 	/** Every box that belongs to the element, for the chat pin and translate anchor. */
 	rects: PdfAskNormalizedRect[];
+	/** Rendered sentence geometry for placing the menu on the translation. */
+	visibleRects?: PdfAskNormalizedRect[];
 	screen: LayoutElementScreen;
 	/** Clicked sentence stays painted until this action view is dismissed. */
 	sentence?: LayoutSentenceHover;

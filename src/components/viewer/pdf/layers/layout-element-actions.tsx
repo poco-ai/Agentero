@@ -43,6 +43,7 @@ import {
 	pointInBbox,
 } from "@/lib/pdf/layout";
 import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
+import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
 
 type DocumentManagerCapability = ReturnType<
 	typeof useDocumentManagerCapability
@@ -62,6 +63,7 @@ type LayoutElementActionsProps = {
 		color: HighlightColor,
 		quote: string,
 		shape: PdfTextMarkupKind,
+		translatedPages?: readonly VisibleSelectionPage[],
 	) => void;
 	onNote: (draft: SelectionCommentDraft) => void;
 	onAsk: (anchor: PdfAskAnchor) => void;
@@ -89,7 +91,10 @@ function placeAction(action: LayoutElementAction): LayoutElementScreen | null {
 		`[data-annotation-pdf="${CSS.escape(action.docId)}"][data-embed-pdf-page="${action.pageIndex}"]`,
 	);
 	if (!page) return null;
-	const bounds = selectionBoundsOnScreen(page, action.rects);
+	const bounds = selectionBoundsOnScreen(
+		page,
+		action.visibleRects ?? action.rects,
+	);
 	if (!bounds) return null;
 	return {
 		x: (bounds.left + bounds.right) / 2,
@@ -181,7 +186,9 @@ function LayoutElementMenu({
 }: Omit<LayoutElementActionsProps, "docId"> & { action: LayoutElementAction }) {
 	const { t } = useTranslation("viewer");
 	const { docId, pageIndex } = action;
-	const kindLabel = t(layoutKindI18nKey(action.kind));
+	const kindLabel = t(
+		action.sentence ? "figures.kindSentence" : layoutKindI18nKey(action.kind),
+	);
 	const quote = action.quote.trim();
 	const needsCrop = layoutElementNeedsCrop(action.kind) || !quote;
 	const doc = docCap?.getDocument(docId);
@@ -215,6 +222,9 @@ function LayoutElementMenu({
 				);
 			});
 	const hasMarkup = pages.length > 0;
+	const visiblePages = action.visibleRects?.length
+		? [{ pageIndex, rects: action.visibleRects }]
+		: undefined;
 	const anchor: PdfAskAnchor = anchorFromEmbedSelection(
 		pages,
 		quote,
@@ -323,7 +333,7 @@ function LayoutElementMenu({
 			onHighlight={
 				hasMarkup
 					? (color, shape) => {
-							onHighlight(pages, color, quote, shape);
+							onHighlight(pages, color, quote, shape, visiblePages);
 							closeLayoutElementAction();
 						}
 					: undefined
@@ -337,6 +347,7 @@ function LayoutElementMenu({
 								quote,
 								shape,
 								pages,
+								visiblePages,
 								visualRegion: needsCrop ? action.bbox : undefined,
 								rects: needsCrop ? [action.bbox] : anchor.rects,
 							});

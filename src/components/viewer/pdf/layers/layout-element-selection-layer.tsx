@@ -25,6 +25,7 @@ import {
 import {
 	clearLayoutSentenceHover,
 	type LayoutSentenceHover,
+	layoutSentenceCatalogItems,
 	layoutSentenceHover,
 	primeLayoutSentenceGlyphs,
 	releaseLayoutSentenceHover,
@@ -48,17 +49,24 @@ import {
 	pickSelectableLayoutRegion,
 } from "@/lib/pdf/layout";
 import { sentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
+import {
+	mergeClientRectsIntoLines,
+	translatedSentenceAtPoint,
+} from "@/lib/pdf/layout/visible-selection-rects";
 
-function spanFromTarget(
+function spanAtPoint(
 	target: EventTarget | null,
+	x: number,
+	y: number,
 ): { itemId: string; sentenceIndex: number } | null {
 	if (!(target instanceof Element)) return null;
-	const span = target.closest("[data-sentence]");
+	const span = translatedSentenceAtPoint(target, x, y);
 	const item = span?.closest("[data-layout-item]");
 	if (!span || !item) return null;
 	const itemId = item.getAttribute("data-layout-item");
-	const sentenceIndex = Number(span.getAttribute("data-sentence"));
-	if (!itemId || !Number.isInteger(sentenceIndex)) return null;
+	const index = span.getAttribute("data-sentence");
+	const sentenceIndex = Number(index);
+	if (!itemId || index == null || !Number.isInteger(sentenceIndex)) return null;
 	return { itemId, sentenceIndex };
 }
 
@@ -101,6 +109,7 @@ type LayoutElementSelectionLayerProps = {
 	width: number;
 	height: number;
 	sentencePairing?: boolean;
+	sentenceHover?: boolean;
 };
 
 function screenForElement(
@@ -123,6 +132,32 @@ function screenForElement(
 	};
 }
 
+function translatedSentenceRects(
+	shell: HTMLElement,
+	pageIndex: number,
+	sentence: LayoutSentenceHover,
+): PdfLayoutRegion["bbox"][] {
+	const page = shell.getBoundingClientRect();
+	if (!page.width || !page.height) return [];
+	const range = document.createRange();
+	return sentence.members.flatMap((member) => {
+		if (member.pageIndex !== pageIndex) return [];
+		const node = shell.querySelector(
+			`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
+		);
+		if (!node) return [];
+		range.selectNodeContents(node);
+		return mergeClientRectsIntoLines(Array.from(range.getClientRects())).map(
+			({ left, top, width, height }) => ({
+				x: (left - page.left) / page.width,
+				y: (top - page.top) / page.height,
+				w: width / page.width,
+				h: height / page.height,
+			}),
+		);
+	});
+}
+
 function openFromRegion(
 	docId: string,
 	region: PdfLayoutRegion,
@@ -132,10 +167,11 @@ function openFromRegion(
 ): void {
 	const boxes = layoutElementBoxes(region);
 	const sentenceQuote = sentence?.quote.trim() ?? "";
-	const rects =
-		sentence && sentence.rects.length > 0
-			? sentence.rects
-			: boxes.map((box) => box.bbox);
+	const rects = sentence?.rects ?? boxes.map((box) => box.bbox);
+	const translated = sentence
+		? translatedSentenceRects(shell, region.pageIndex, sentence)
+		: [];
+	const visibleRects = translated.length ? translated : undefined;
 	openLayoutElementAction({
 		docId,
 		regionId: region.id,
@@ -144,7 +180,8 @@ function openFromRegion(
 		quote: sentenceQuote || layoutElementQuote(region),
 		bbox: region.bbox,
 		rects,
-		screen: screenForElement(shell, rects, client),
+		visibleRects,
+		screen: screenForElement(shell, visibleRects ?? rects, client),
 		sentence: sentence ?? undefined,
 	});
 }
@@ -157,10 +194,12 @@ export const LayoutElementSelectionLayer = memo(
 		width,
 		height,
 		sentencePairing = false,
+		sentenceHover = true,
 	}: LayoutElementSelectionLayerProps) {
 		const { t } = useTranslation("viewer");
 		const rootRef = useRef<HTMLDivElement>(null);
 		const washRef = useRef<HTMLDivElement>(null);
+		const sentenceChipRef = useRef<HTMLSpanElement>(null);
 		const regionsRef = useRef(regions);
 		const paintSentenceRef = useRef<() => void>(() => undefined);
 		regionsRef.current = regions;
@@ -288,11 +327,22 @@ export const LayoutElementSelectionLayer = memo(
 				}
 				const host = paintedId ? elementOf(paintedId) : null;
 				const sentenceHere =
-					mine != null &&
+					mine?.docId === docId &&
 					mine.regionId === paintedId &&
-					(marked.length > 0 ||
-						onPage.some((member) => member.rects.length > 0));
+					mine.pageIndex === pageIndex;
 				host?.classList.toggle("has-sentence", sentenceHere);
+				const chip = sentenceChipRef.current;
+				if (chip) {
+					const translated = sentenceHere
+						? translatedSentenceRects(shell, pageIndex, mine)
+						: [];
+					const first = translated[0] ?? (sentenceHere ? mine.rects[0] : null);
+					chip.hidden = !first;
+					if (first) {
+						chip.style.left = `${first.x * 100}%`;
+						chip.style.top = `${first.y * 100}%`;
+					}
+				}
 			};
 
 			const fractionOf = (clientX: number, clientY: number) => {
@@ -307,6 +357,7 @@ export const LayoutElementSelectionLayer = memo(
 			const regionAt = (
 				target: EventTarget | null,
 				point: { x: number; y: number },
+				span: ReturnType<typeof spanAtPoint>,
 			) => {
 				const chipId =
 					target instanceof Element
@@ -318,14 +369,29 @@ export const LayoutElementSelectionLayer = memo(
 					? regionsRef.current.find((region) => region.id === chipId)
 					: null;
 				if (chipRegion) return chipRegion;
-				const span = spanFromTarget(target);
-				const spanned = span
-					? regionsRef.current.find((region) => region.id === span.itemId)
-					: undefined;
-				return (
-					spanned ??
-					pickSelectableLayoutRegion(regionsRef.current, point.x, point.y)
-				);
+				const regions = regionsRef.current;
+				if (span) {
+					const exact = regions.find((region) => region.id === span.itemId);
+					if (exact) return exact;
+					const item = layoutSentenceCatalogItems(docId).find(
+						(item) => item.id === span.itemId && item.pageIndex === pageIndex,
+					);
+					const textRegions = regions.filter((region) =>
+						isLayoutElementTextKind(region.kind),
+					);
+					const bbox = item?.bbox;
+					const source =
+						bbox &&
+						pickSelectableLayoutRegion(
+							textRegions,
+							bbox.x + bbox.w / 2,
+							bbox.y + bbox.h / 2,
+						);
+					return (
+						source ?? pickSelectableLayoutRegion(textRegions, point.x, point.y)
+					);
+				}
+				return pickSelectableLayoutRegion(regions, point.x, point.y);
 			};
 
 			const regionAlongMove = (
@@ -335,8 +401,9 @@ export const LayoutElementSelectionLayer = memo(
 			) => {
 				const point = fractionOf(clientX, clientY);
 				if (!point) return null;
-				const direct = regionAt(target, point);
-				if (direct) return { region: direct, point };
+				const span = spanAtPoint(target, clientX, clientY);
+				const direct = regionAt(target, point, span);
+				if (direct) return { region: direct, point, span };
 				const previous = lastClient;
 				if (!previous) return null;
 				const dx = clientX - previous.x;
@@ -356,7 +423,7 @@ export const LayoutElementSelectionLayer = memo(
 						back.x,
 						back.y,
 					);
-					if (found) return { region: found, point: back };
+					if (found) return { region: found, point: back, span: null };
 				}
 				return null;
 			};
@@ -393,22 +460,26 @@ export const LayoutElementSelectionLayer = memo(
 					clearLayoutSentenceHover();
 					return;
 				}
-				const { region: hit, point } = located;
+				const { region: hit, point, span } = located;
 				hoveredId = hit.id;
 				syncHot();
-				if (sentencePairing) return;
-				if (!isLayoutElementTextKind(hit.kind)) {
+				if (
+					!sentenceHover ||
+					!isLayoutElementTextKind(hit.kind) ||
+					(!span &&
+						target instanceof Element &&
+						target.closest("[data-layout-element], [data-layout-item]"))
+				) {
 					clearLayoutSentenceHover();
 					return;
 				}
-				const span = spanFromTarget(target);
 				syncLayoutSentencePointer({
 					docId,
 					regionId: hit.id,
 					pageIndex,
 					x: point.x,
 					y: point.y,
-					span: span?.itemId === hit.id ? span : null,
+					span,
 				});
 			};
 
@@ -456,20 +527,27 @@ export const LayoutElementSelectionLayer = memo(
 				}
 				const point = fractionOf(event.clientX, event.clientY);
 				if (!point) return;
-				const hit = regionAt(event.target, point);
+				const span = spanAtPoint(target, event.clientX, event.clientY);
+				const hit = regionAt(target, point, span);
 				if (!hit) return;
 				event.preventDefault();
 				event.stopPropagation();
-				const sentence = isLayoutElementTextKind(hit.kind)
-					? sentenceForActivation({
-							docId,
-							regionId: hit.id,
-							pageIndex,
-							x: point.x,
-							y: point.y,
-							span: spanFromTarget(event.target),
-						})
-					: null;
+				const sentence =
+					sentenceHover &&
+					isLayoutElementTextKind(hit.kind) &&
+					(span ||
+						!(
+							target instanceof Element && target.closest("[data-layout-item]")
+						))
+						? sentenceForActivation({
+								docId,
+								regionId: hit.id,
+								pageIndex,
+								x: point.x,
+								y: point.y,
+								span,
+							})
+						: null;
 				openFromRegion(
 					docId,
 					hit,
@@ -499,11 +577,11 @@ export const LayoutElementSelectionLayer = memo(
 				paintSentence();
 			});
 			const unsubscribeSentence = subscribeLayoutSentenceHover(paintSentence);
-			paintSentence();
 			// A width/height change re-runs this effect, and its cleanup strips the
 			// hot classes. Re-apply the pinned frame from the store, or an open
 			// card loses its frame on zoom until the pointer moves.
 			syncHot();
+			paintSentence();
 
 			return () => {
 				shell.removeEventListener("pointermove", onMove);
@@ -516,6 +594,8 @@ export const LayoutElementSelectionLayer = memo(
 				window.clearTimeout(fadeTimer);
 				for (const node of marked) node.removeAttribute("data-sentence-hot");
 				washOf()?.replaceChildren();
+				const chip = sentenceChipRef.current;
+				if (chip) chip.hidden = true;
 				if (raf) cancelAnimationFrame(raf);
 				if (paintedId) {
 					const previous = elementOf(paintedId);
@@ -526,7 +606,15 @@ export const LayoutElementSelectionLayer = memo(
 					clearLayoutSentenceHover();
 				}
 			};
-		}, [docId, pageIndex, regions, sentencePairing, width, height]);
+		}, [
+			docId,
+			pageIndex,
+			regions,
+			sentencePairing,
+			sentenceHover,
+			width,
+			height,
+		]);
 
 		return (
 			<Fragment>
@@ -542,6 +630,14 @@ export const LayoutElementSelectionLayer = memo(
 					style={{ zIndex: 6 }}
 					aria-hidden="true"
 				/>
+				<span
+					ref={sentenceChipRef}
+					className="pdf-layout-element-chip pdf-layout-sentence-chip"
+					aria-hidden="true"
+					hidden
+				>
+					{t("figures.kindSentence")}
+				</span>
 				<div ref={rootRef} className="contents">
 					{regions.map((region) => {
 						const boxes = layoutElementBoxes(region);

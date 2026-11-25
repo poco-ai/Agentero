@@ -649,7 +649,7 @@ const SENTENCE_LOOKBACK = 0.02;
 
 function pointerInCurrentSentence(query: PointerQuery): boolean {
 	if (!hover || held || suppressed) return false;
-	if (layoutSentenceScope(hover.docId) !== layoutSentenceScope(query.docId)) {
+	if (hover.docId !== query.docId || hover.regionId !== query.regionId) {
 		return false;
 	}
 	if (query.span) {

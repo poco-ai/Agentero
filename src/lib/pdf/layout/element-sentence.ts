@@ -397,8 +397,8 @@ export function elementSentenceAtPoint(options: {
 	y: number;
 	span?: { itemId: string; sentenceIndex: number } | null;
 }): SentenceLocate {
-	const item =
-		options.items.find((entry) => entry.id === options.regionId) ?? null;
+	const itemId = options.span?.itemId ?? options.regionId;
+	const item = options.items.find((entry) => entry.id === itemId);
 	if (options.pageIndex != null && !options.span) {
 		const candidates = dropTruncatedSentencePrefixes(
 			sentenceItemsUnderPoint(

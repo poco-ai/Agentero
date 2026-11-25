@@ -114,6 +114,12 @@ export function usePdfSentenceInteraction(
 				clearLayoutSentenceHover();
 				return;
 			}
+			const page =
+				event.target instanceof Element
+					? event.target.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`)
+					: null;
+			// The element layer uses the same hit for hover and click on its page.
+			if (page?.hasAttribute("data-layout-element-selection")) return;
 			if (
 				selectionOwns(root, event, origin) ||
 				root.hasAttribute("data-pdf-selecting") ||
@@ -123,10 +129,6 @@ export function usePdfSentenceInteraction(
 				return;
 			}
 			releaseLayoutSentenceHover();
-			const page =
-				event.target instanceof Element
-					? event.target.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`)
-					: null;
 			const pageIndex = Number(page?.getAttribute(EMBED_PAGE_ATTR));
 			if (
 				!page ||
