@@ -23,6 +23,7 @@ import {
 	useTranslationSelectionBands,
 } from "@/components/viewer/pdf/hooks/use-translation-selection-bands";
 import { clearDomSelectionInside } from "@/components/viewer/pdf/host-dom";
+import { layoutElementActionStore } from "@/components/viewer/pdf/layout-element-action-store";
 import {
 	holdLayoutSentenceHover,
 	sentenceForActivation,
@@ -33,6 +34,15 @@ import {
 	selectionSideFromSelection,
 } from "@/lib/agent/selection-side";
 import { publishSelection } from "@/lib/agent/selection-store";
+import { LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX } from "@/lib/pdf/layout/click-guard";
+import {
+	clipElementDragHits,
+	elementDragAnchorAt,
+	elementDragBoxFromPoints,
+	elementDragHitKey,
+	elementDragTargetsFromDom,
+	trimRangeToKeptHits,
+} from "@/lib/pdf/layout/element-drag-clip";
 import {
 	bboxToPageRect,
 	locateSelectionGlyphs,
@@ -42,6 +52,7 @@ import {
 	translationSelectionFromHits,
 	translationTextFromRange,
 } from "@/lib/pdf/layout/layout-sentence-selection";
+import { layoutSentenceScope } from "@/lib/pdf/layout/store";
 import { clearTranslationSelectionBands } from "@/lib/pdf/layout/translation-selection-bands";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import {
@@ -91,6 +102,24 @@ function caretInsideLayoutItem(host: HTMLElement | null): boolean {
 	if (!node) return false;
 	const el = node instanceof Element ? node : node.parentElement;
 	return Boolean(el && host.contains(el) && el.closest("[data-layout-item]"));
+}
+
+function elementSelectionActive(docId: string): boolean {
+	return (
+		layoutElementActionStore.getState().selectionDocumentId ===
+		layoutSentenceScope(docId)
+	);
+}
+
+function sameDragHits(
+	left: readonly { itemId: string; sentenceIndex: number | null }[],
+	right: readonly { itemId: string; sentenceIndex: number | null }[],
+): boolean {
+	if (left.length !== right.length) return false;
+	return left.every((hit, index) => {
+		const other = right[index];
+		return other != null && elementDragHitKey(hit) === elementDragHitKey(other);
+	});
 }
 
 function hostRange(host: HTMLElement): Range | null {
@@ -230,12 +259,23 @@ export function usePdfTranslationSelection({
 		let disposed = false;
 		let visible = true;
 		let pointerDown = false;
+		let strokeOrigin: { x: number; y: number } | null = null;
+		let dragClip: {
+			box: ReturnType<typeof elementDragBoxFromPoints>;
+			down: { x: number; y: number };
+		} | null = null;
+		let applyingClip = false;
+		let clearClipFrame = 0;
 		let releaseDrag: (() => void) | null = null;
 		let releaseFrame = 0;
 		const inflight = new Set<number>();
 		const reset = () => {
 			genRef.current += 1;
 			pointerDown = false;
+			strokeOrigin = null;
+			dragClip = null;
+			if (clearClipFrame) cancelAnimationFrame(clearClipFrame);
+			clearClipFrame = 0;
 			inflight.clear();
 			if (releaseFrame) cancelAnimationFrame(releaseFrame);
 			releaseFrame = 0;
@@ -271,7 +311,7 @@ export function usePdfTranslationSelection({
 		};
 
 		const commit = () => {
-			if (!visible) return;
+			if (applyingClip || !visible) return;
 			const root = hostRef.current;
 			if (!root) return;
 			const range = hostRange(root);
@@ -284,11 +324,43 @@ export function usePdfTranslationSelection({
 				}
 				return;
 			}
-			const selectedText = range.toString();
 			const generation = ++genRef.current;
 			const alive = () => genRef.current === generation;
-			const hits = translationHitsFromRange(range, root);
-			if (!hits.length) return;
+			let hits = translationHitsFromRange(range, root);
+			// ⌘. only. A drag that merely crosses the next line must not take that
+			// sentence. Reading-mode selection leaves this path alone.
+			const stroke = dragClip;
+			if (stroke && elementSelectionActive(docId)) {
+				const targets = elementDragTargetsFromDom(
+					root,
+					[...itemsRef.current.values()].flat(),
+				);
+				const clipped = clipElementDragHits(
+					hits,
+					targets,
+					stroke.box,
+					elementDragAnchorAt(targets, stroke.down),
+				);
+				if (!sameDragHits(hits, clipped)) {
+					const kept = new Set(clipped.map(elementDragHitKey));
+					applyingClip = true;
+					try {
+						if (trimRangeToKeptHits(range, root, kept)) {
+							const selection = window.getSelection();
+							selection?.removeAllRanges();
+							if (!range.collapsed) selection?.addRange(range);
+						}
+					} finally {
+						applyingClip = false;
+					}
+				}
+				hits = clipped;
+			}
+			if (!hits.length) {
+				if (stroke && elementSelectionActive(docId)) closeSelectionMenu();
+				return;
+			}
+			const selectedText = range.toString();
 			const items = [...itemsRef.current.values()].flat();
 			const lastHit = hits.at(-1);
 			const preferredPageIndex = items.find(
@@ -417,8 +489,12 @@ export function usePdfTranslationSelection({
 		};
 
 		const onPointerDown = (event: PointerEvent) => {
+			dragClip = null;
+			if (clearClipFrame) cancelAnimationFrame(clearClipFrame);
+			clearClipFrame = 0;
 			if (!visible || event.button !== 0) return;
 			pointerDown = true;
+			strokeOrigin = { x: event.clientX, y: event.clientY };
 			const target = event.target;
 			const el =
 				target instanceof Element
@@ -426,17 +502,41 @@ export function usePdfTranslationSelection({
 					: target instanceof Node
 						? target.parentElement
 						: null;
-			if (!el || !host.contains(el) || !el.closest("[data-layout-item]"))
+			if (!el || !host.contains(el) || !el.closest("[data-layout-item]")) {
+				strokeOrigin = null;
 				return;
+			}
 			if (!releaseDrag) {
 				releaseDrag = holdLinkPreviewDrag();
 			}
 		};
 		// The page ends a text drag on bubble pointerup. Stopping that event
 		// here leaves the drag active, so later moves keep extending it.
-		const onPointerUp = () => {
+		const onPointerUp = (event: PointerEvent) => {
 			pointerDown = false;
+			if (strokeOrigin) {
+				const dx = event.clientX - strokeOrigin.x;
+				const dy = event.clientY - strokeOrigin.y;
+				const limit = LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX;
+				if (dx * dx + dy * dy > limit * limit) {
+					dragClip = {
+						box: elementDragBoxFromPoints(strokeOrigin, {
+							x: event.clientX,
+							y: event.clientY,
+						}),
+						down: strokeOrigin,
+					};
+				} else {
+					dragClip = null;
+				}
+				strokeOrigin = null;
+			}
 			commit();
+			if (clearClipFrame) cancelAnimationFrame(clearClipFrame);
+			clearClipFrame = requestAnimationFrame(() => {
+				clearClipFrame = 0;
+				dragClip = null;
+			});
 			scheduleReleaseDrag();
 		};
 		const onSelectionChange = () => {
