@@ -593,11 +593,7 @@ describe("selection content", () => {
 			expect(covered.has(index)).toBe(true);
 	});
 	it("keeps prose when descenders and commas are split onto their own baseline", () => {
-		const glyph = (
-			x: number,
-			tightY: number,
-			tightHeight: number,
-		) => ({
+		const glyph = (x: number, tightY: number, tightHeight: number) => ({
 			x,
 			y: 96,
 			width: 8,
