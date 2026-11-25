@@ -592,6 +592,69 @@ describe("selection content", () => {
 		for (const index of [120, 140, 154, 157, 158, 166, 174, 182, 183])
 			expect(covered.has(index)).toBe(true);
 	});
+	it("keeps prose when descenders and commas are split onto their own baseline", () => {
+		const glyph = (
+			x: number,
+			tightY: number,
+			tightHeight: number,
+		) => ({
+			x,
+			y: 96,
+			width: 8,
+			height: 12,
+			tightX: x,
+			tightY,
+			tightWidth: 8,
+			tightHeight,
+			flags: 0,
+		});
+		const run = (
+			charStart: number,
+			x: number,
+			tightY: number,
+			tightHeight: number,
+			count = 1,
+		) => ({
+			charStart,
+			rect: { x, y: 96, width: 8 * count, height: 12 },
+			glyphs: Array.from({ length: count }, (_, index) =>
+				glyph(x + index * 8, tightY, tightHeight),
+			),
+		});
+		const geometry: PdfPageGeometry = {
+			runs: [
+				run(0, 40, 40, 4, 30),
+				run(30, 40, 60, 4, 30),
+				run(60, 40, 80, 4, 30),
+				run(90, 40, 100, 4, 10),
+				run(100, 122, 102, 6),
+				run(101, 132, 100, 4, 2),
+				run(103, 150, 102, 6),
+				run(104, 160, 98, 10),
+				run(105, 170, 100, 4, 2),
+				run(107, 188, 106, 3),
+				run(108, 198, 100, 4, 8),
+			],
+		};
+		const excluded = selectionInsertionExclusions(
+			{ 0: geometry },
+			{ start: { page: 0, index: 0 }, end: { page: 0, index: 115 } },
+			[],
+		);
+		const covered = new Set<number>();
+		for (const slice of selectionTextSlices(
+			geometry,
+			0,
+			116,
+			excluded.get(0) ?? [],
+		)) {
+			for (let index = 0; index < slice.count; index++)
+				covered.add(slice.start + index);
+		}
+		for (const index of [90, 100, 101, 104, 107, 108])
+			expect(covered.has(index)).toBe(true);
+	});
+
 	const size = { width: 600, height: 800 };
 	function line(content: string, y = 45): PdfTextRectObject {
 		return {

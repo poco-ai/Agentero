@@ -752,6 +752,32 @@ function segments(rects: readonly Rect[], minGap: number): Rect[][] {
 	return groups;
 }
 
+/**
+ * Descenders and commas fall onto their own baseline. That fragment still
+ * sits inside the prose line above it; a display equation does not.
+ */
+function sitsInsideProseLine(
+	line: InkLine,
+	lines: readonly InkLine[],
+	column: TextColumn,
+): boolean {
+	const mid = (line.top + line.bottom) / 2;
+	const width = line.right - line.left;
+	for (const other of lines) {
+		if (other === line) continue;
+		const otherWidth = other.right - other.left;
+		if (otherWidth < width + 24) continue;
+		const otherMid = (other.top + other.bottom) / 2;
+		if (Math.abs(mid - otherMid) > 6) continue;
+		const center = (other.left + other.right) / 2;
+		if (center < column.left - 12 || center > column.right + 12) continue;
+		const overlap =
+			Math.min(line.right, other.right) - Math.max(line.left, other.left);
+		if (overlap > width * 0.5) return true;
+	}
+	return false;
+}
+
 /** Other ink on this baseline, inside the same column. */
 function baselineNeighbours(
 	line: InkLine,
@@ -782,6 +808,8 @@ function isDisplayFormulaLine(
 	const neighbours = baselineNeighbours(line, lines, column);
 	// A word between two parts of the same sentence is not an equation.
 	if (neighbours.left && neighbours.right) return false;
+	// The same sentence's descenders are not an equation either.
+	if (sitsInsideProseLine(line, lines, column)) return false;
 	const parts = segments(line.visual, gapCut);
 	const number = parts.length >= 2 ? parts.at(-1) : undefined;
 	const numberBox = number ? unionRectsAll(number) : null;
