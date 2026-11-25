@@ -419,7 +419,11 @@ async function buildFinalCache(opts: {
 		);
 		if (translations.size === 0) return;
 		const cache = createReflowBuildCache(
-			{ paperKey: opts.paperKey, pdfBytes: opts.pdfBytes },
+			{
+				paperKey: opts.paperKey,
+				paperAbsPath: opts.paperAbsPath,
+				pdfBytes: opts.pdfBytes,
+			},
 			{ writesEnabled: () => loadSettings().translate.cacheReflowFinal },
 		);
 		const cached = await cache.readFinal(ir, translations, fonts);

@@ -10,9 +10,13 @@
  * cached: each embeds the full CJK font pair, so caching them would cost
  * ~20 MB per page for a marginal win over the single final entry.
  *
- * The file is named by a SHA-256 content key and re-read through
- * `pdf-lib.load`, which validates PDF structure. A truncated or corrupt file
- * simply fails the load and the caller rebuilds.
+ * With a paper folder, the finished PDF is `translations/translated.pdf`
+ * next to a `translated.key` sidecar. The sidecar is the same identity
+ * `keyForFinal` returns; a mismatch is a miss, so a newer translation is
+ * not stuck behind an older file. Without a paper folder, the PDF stays in
+ * the app cache, named by a SHA-256 content key. Either file is re-read
+ * through `pdf-lib.load`, which validates PDF structure. A truncated or
+ * corrupt file simply fails the load and the caller rebuilds.
  */
 
 import { appCacheDir, join } from "@tauri-apps/api/path";
@@ -52,6 +56,8 @@ const FINAL_KEEP_COUNT = 2;
 export type ReflowBuildCacheSource = {
 	/** Stable paper identifier, usually the vault-relative paper folder. */
 	paperKey: string | null | undefined;
+	/** Absolute paper folder. Present builds write `translations/translated.pdf`. */
+	paperAbsPath?: string | null;
 	/** Viewer bytes; keyed by content so a changed PDF never reuses old builds. */
 	pdfBytes: ArrayBuffer | Uint8Array | null | undefined;
 };
@@ -265,17 +271,45 @@ export function createReflowBuildCache(
 		);
 	};
 
+	const finalIdentity = async (
+		document: ReflowDocument,
+		translations: ReadonlyMap<string, string>,
+		fonts: ReflowFontBytes,
+	): Promise<string | null> => {
+		if (!source.pdfBytes) return null;
+		const [pdf, build] = await Promise.all([
+			pdfSha256(source.pdfBytes),
+			documentFingerprint(document, translations, fonts),
+		]);
+		return `${pdf}-${build}`;
+	};
+
+	const paperProduct = async (): Promise<{
+		pdf: string;
+		key: string;
+	} | null> => {
+		const paperDir = source.paperAbsPath?.trim();
+		if (!paperDir) return null;
+		return {
+			pdf: await join(paperDir, "translations", "translated.pdf"),
+			key: await join(paperDir, "translations", "translated.key"),
+		};
+	};
+
 	return {
 		writesEnabled: canWrite,
-		async keyForFinal(document, translations, fonts) {
-			if (!source.pdfBytes) return null;
-			const [pdf, build] = await Promise.all([
-				pdfSha256(source.pdfBytes),
-				documentFingerprint(document, translations, fonts),
-			]);
-			return `${pdf}-${build}`;
-		},
+		keyForFinal: finalIdentity,
 		async readFinal(document, translations, fonts) {
+			const identity = await finalIdentity(document, translations, fonts);
+			const product = await paperProduct();
+			if (product) {
+				const stored = await readCacheEntry(product.pdf);
+				if (stored) {
+					const sidecar = await readCacheEntry(product.key);
+					const key = sidecar ? new TextDecoder().decode(sidecar).trim() : "";
+					return identity && key === identity ? stored : null;
+				}
+			}
 			const fingerprint = await documentFingerprint(
 				document,
 				translations,
@@ -287,6 +321,17 @@ export function createReflowBuildCache(
 		},
 		async writeFinal(document, translations, fonts, bytes) {
 			if (!canWrite()) return;
+			const product = await paperProduct();
+			if (product) {
+				const identity = await finalIdentity(document, translations, fonts);
+				if (!identity) return;
+				await writeCacheEntry(product.pdf, bytes);
+				await writeCacheEntry(
+					product.key,
+					new TextEncoder().encode(`${identity}\n`),
+				);
+				return;
+			}
 			const fingerprint = await documentFingerprint(
 				document,
 				translations,

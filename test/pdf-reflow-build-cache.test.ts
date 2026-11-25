@@ -310,6 +310,106 @@ describe("reflow build cache", () => {
 		expect(await cache.readFinal(ir, translations, fontBytes)).toEqual(bytes);
 	});
 
+	it("writes the finished PDF under the paper translations directory", async () => {
+		const paper = "/vault/papers/demo";
+		const product = `${paper}/translations/translated.pdf`;
+		const keyPath = `${paper}/translations/translated.key`;
+		const cache = createReflowBuildCache({
+			paperKey: "papers/demo",
+			paperAbsPath: paper,
+			pdfBytes: new TextEncoder().encode("pdf-one"),
+		});
+		const ir = {
+			version: 1 as const,
+			pages: [
+				{ index: 0, width: 100, height: 100, paragraphs: [], obstacles: [] },
+			],
+		};
+		const translations = new Map([["p0", "译文"]]);
+		const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
+		await cache.writeFinal(ir, translations, fontBytes, bytes);
+		expect(disk.files.get(product)).toEqual(bytes);
+		expect(disk.files.has(keyPath)).toBe(true);
+		expect(
+			[...disk.files.keys()].some((path) => path.includes("reflow-build")),
+		).toBe(false);
+		expect(await cache.readFinal(ir, translations, fontBytes)).toEqual(bytes);
+
+		let enabled = true;
+		const gated = createReflowBuildCache(
+			{
+				paperKey: "papers/demo",
+				paperAbsPath: paper,
+				pdfBytes: new TextEncoder().encode("pdf-one"),
+			},
+			{ writesEnabled: () => enabled },
+		);
+		enabled = false;
+		await gated.writeFinal(
+			ir,
+			translations,
+			fontBytes,
+			new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x39]),
+		);
+		expect(disk.files.get(product)).toEqual(bytes);
+		expect(await gated.readFinal(ir, translations, fontBytes)).toEqual(bytes);
+	});
+
+	it("does not serve a stale paper translation or fall through to the hash cache", async () => {
+		const paper = "/vault/papers/demo";
+		const ir = {
+			version: 1 as const,
+			pages: [
+				{ index: 0, width: 100, height: 100, paragraphs: [], obstacles: [] },
+			],
+		};
+		const pdfBytes = new TextEncoder().encode("pdf-one");
+		const fresh = new Map([["p0", "新译文"]]);
+		const hashBytes = new Uint8Array([3]);
+		await createReflowBuildCache({
+			paperKey: "papers/demo",
+			pdfBytes,
+		}).writeFinal(ir, fresh, fontBytes, hashBytes);
+		const paperBytes = new Uint8Array([4]);
+		const cache = createReflowBuildCache({
+			paperKey: "papers/demo",
+			paperAbsPath: paper,
+			pdfBytes,
+		});
+		await cache.writeFinal(
+			ir,
+			new Map([["p0", "旧译文"]]),
+			fontBytes,
+			paperBytes,
+		);
+		expect(await cache.readFinal(ir, fresh, fontBytes)).toBeNull();
+		expect(disk.files.get(`${paper}/translations/translated.pdf`)).toEqual(
+			paperBytes,
+		);
+	});
+
+	it("reads the hash cache when the paper folder has no translation PDF", async () => {
+		const ir = {
+			version: 1 as const,
+			pages: [
+				{ index: 0, width: 100, height: 100, paragraphs: [], obstacles: [] },
+			],
+		};
+		const translations = new Map([["p0", "译文"]]);
+		const bytes = new Uint8Array([5]);
+		const pdfBytes = new TextEncoder().encode("pdf-one");
+		await createReflowBuildCache({
+			paperKey: "papers/demo",
+			pdfBytes,
+		}).writeFinal(ir, translations, fontBytes, bytes);
+		const cache = createReflowBuildCache({
+			paperKey: "papers/demo",
+			paperAbsPath: "/vault/papers/demo",
+			pdfBytes,
+		});
+		expect(await cache.readFinal(ir, translations, fontBytes)).toEqual(bytes);
+	});
+
 	it("keeps only the newest finals per paper and sweeps legacy page files", async () => {
 		const cache = createReflowBuildCache({
 			paperKey: "papers/demo",

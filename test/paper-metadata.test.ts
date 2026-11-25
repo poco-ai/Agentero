@@ -72,6 +72,12 @@ describe("paper folder minimal unit", () => {
 			),
 		).toBe("/vault/papers/nlp/transformers/1706.03762");
 		expect(paperDirFromPath("papers/a/b/marks/hl-1.json")).toBe("papers/a/b");
+		expect(paperDirFromPath("papers/a/b/translations/translated.pdf")).toBe(
+			"papers/a/b",
+		);
+		expect(
+			paperDirFromPath("/vault/papers/a/b/translations/bilingual.pdf"),
+		).toBe("/vault/papers/a/b");
 		expect(paperDirFromPath("/vault/notes/idea.md")).toBe(null);
 		// Main PDF on the paper root (citation links like …/id.pdf#page=1).
 		expect(paperDirFromPath("papers/vla/2504.16054/2504.16054.pdf")).toBe(

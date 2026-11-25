@@ -183,16 +183,16 @@ export function paperDirFromPath(
 		return norm.replace(fileMarker, "") || null;
 	}
 
-	// …/source|assets|marks/… → paper is parent of that segment
+	// …/source|assets|marks|attachments|translations/… → paper is parent of that segment
 	const nestedAsset = norm.match(
-		/^(.*\/papers\/.+?)\/(source|assets|marks|attachments)(?:\/|$)/i,
+		/^(.*\/papers\/.+?)\/(source|assets|marks|attachments|translations)(?:\/|$)/i,
 	);
 	if (nestedAsset?.[1]) {
 		return nestedAsset[1];
 	}
-	// Vault-relative without leading drive: papers/…/source|marks|attachments/…
+	// Vault-relative without leading drive: papers/…/source|marks|attachments|translations/…
 	const nestedAssetRel = norm.match(
-		/^(papers\/.+?)\/(source|assets|marks|attachments)(?:\/|$)/i,
+		/^(papers\/.+?)\/(source|assets|marks|attachments|translations)(?:\/|$)/i,
 	);
 	if (nestedAssetRel?.[1]) {
 		return nestedAssetRel[1];

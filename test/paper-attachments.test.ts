@@ -157,6 +157,7 @@ describe("paper attachments helpers", () => {
 		).toBe(true);
 		expect(isUnderPaperAttachments(`${paper}/NOTES.md`, paper)).toBe(false);
 		expect(isPaperAssetPath(`${paper}/attachments/supplement.pdf`)).toBe(true);
+		expect(isPaperAssetPath(`${paper}/translations/translated.pdf`)).toBe(true);
 		expect(isPaperAssetPath(`${paper}/NOTES.md`)).toBe(false);
 	});
 

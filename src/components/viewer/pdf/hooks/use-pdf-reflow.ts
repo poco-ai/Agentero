@@ -112,6 +112,7 @@ export function usePdfReflow(
 			createReflowBuildCache(
 				{
 					paperKey: current.current.paperKey || current.current.paperAbsPath,
+					paperAbsPath: current.current.paperAbsPath,
 					pdfBytes: current.current.pdfBytes,
 				},
 				{ writesEnabled: () => cacheFlags.current.final },
@@ -148,12 +149,12 @@ export function usePdfReflow(
 			try {
 				const { save } = await import("@tauri-apps/plugin-dialog");
 				const fileName = dual ? "bilingual.pdf" : "translated.pdf";
-				// Land the export beside the paper: the dialog opens in the paper's
-				// own folder, so the translated copy stays with its source instead of
-				// wherever the last download went.
+				// Default into translations/ so the export is not sorted as the paper PDF.
 				const paperDir = current.current.paperAbsPath;
 				const path = await save({
-					defaultPath: paperDir ? joinVaultPath(paperDir, fileName) : fileName,
+					defaultPath: paperDir
+						? joinVaultPath(joinVaultPath(paperDir, "translations"), fileName)
+						: fileName,
 					filters: [{ name: "PDF", extensions: ["pdf"] }],
 				});
 				if (

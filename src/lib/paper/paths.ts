@@ -29,6 +29,7 @@ export const PAPER_INTERNAL_DIR_NAMES = [
 	"assets",
 	"marks",
 	PAPER_ATTACHMENTS_DIR,
+	"translations",
 ] as const;
 
 export function isPaperInternalDirName(
@@ -48,13 +49,14 @@ export function isPaperAttachmentsDirName(
 
 /**
  * True when path is inside a paper folder's internal dirs
- * (`<paper>/source|assets|marks|attachments/…`). Highlight/LaTeX/image/attachment
- * writes there never change catalog rows, so they must not trigger library refreshes.
+ * (`<paper>/source|assets|marks|attachments|translations/…`). Highlight, LaTeX,
+ * image, attachment, and translation writes there never change catalog rows,
+ * so they must not trigger library refreshes.
  */
 export function isPaperAssetPath(path: string | null): boolean {
 	if (!path) return false;
 	const norm = normalizePath(path);
-	return /(^|\/)papers\/.+?\/(source|assets|marks|attachments)(\/|$)/i.test(
+	return /(^|\/)papers\/.+?\/(source|assets|marks|attachments|translations)(\/|$)/i.test(
 		norm,
 	);
 }
