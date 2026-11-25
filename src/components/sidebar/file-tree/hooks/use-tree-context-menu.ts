@@ -178,8 +178,10 @@ export function useTreeContextMenu({
 	);
 
 	const copyPath = useCallback((path: string) => {
-		setMenu(null);
+		// Write while this click is still the user gesture. Closing the menu
+		// first moves focus back to the PDF before the clipboard write starts.
 		copyFilePath(path);
+		setMenu(null);
 	}, []);
 
 	// Toggle a Plaza source without closing the menu (multi-toggle friendly).

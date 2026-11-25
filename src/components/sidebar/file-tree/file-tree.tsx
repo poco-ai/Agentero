@@ -550,7 +550,12 @@ export const FileTree = memo(
 							onDone={selection.clearSelection}
 						/>
 					) : null}
-					{menuProps ? <TreeContextMenuPortal {...menuProps} /> : null}
+					{menuProps ? (
+						<TreeContextMenuPortal
+							{...menuProps}
+							scrollRootRef={treeScrollRef}
+						/>
+					) : null}
 				</div>
 			</TooltipProvider>
 		);

@@ -734,6 +734,18 @@ export function usePdfTextSelection({
 
 		const onCopy = (event: ClipboardEvent) => {
 			if (!shouldHandlePdfCopy(event.target)) return;
+			// ⌘C is handled on keydown so a PDF selection still copies when focus
+			// is on the page. This listener must not also claim a copy that
+			// started outside the viewer — the sidebar "Copy path" click, or the
+			// textarea the desktop clipboard helper selects — or that write is
+			// replaced and then fails while a translation selection is open.
+			const origin =
+				event.target instanceof Element
+					? event.target
+					: event.target instanceof Node
+						? event.target.parentElement
+						: null;
+			if (host && origin && !host.contains(origin)) return;
 			event.preventDefault();
 			event.clipboardData?.setData("text/plain", selectedText);
 		};

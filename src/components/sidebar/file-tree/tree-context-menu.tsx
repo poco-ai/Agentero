@@ -43,9 +43,30 @@ function fileTreeItemContext(
 	};
 }
 
+/**
+ * Whether a scroll should dismiss the vault-tree menu.
+ *
+ * The menu is anchored to a sidebar row. Only that tree's own scroller moves
+ * the row. PDF translation and dual-pane sync scroll the viewer continuously;
+ * those events must not close the menu before Copy path can be clicked. The
+ * menu's own overflow scroll is ignored too.
+ */
+export function treeContextMenuShouldCloseOnScroll(
+	target: EventTarget | null,
+	menu: Node | null,
+	treeScrollRoot: Node | null,
+): boolean {
+	if (!(target instanceof Node)) return false;
+	if (menu?.contains(target)) return false;
+	if (!treeScrollRoot) return false;
+	return treeScrollRoot === target || treeScrollRoot.contains(target);
+}
+
 export type TreeContextMenuPortalProps = {
 	menu: TreeContextMenu;
 	menuRef: RefObject<HTMLDivElement | null>;
+	/** Sidebar scroller that owns the row. Scrolls elsewhere leave the menu up. */
+	scrollRootRef?: RefObject<HTMLElement | null>;
 	/** Vault root the tree already has. Null when no vault is open. */
 	vaultPath: string | null;
 	/**
@@ -97,6 +118,7 @@ export type TreeContextMenuPortalProps = {
 export function TreeContextMenuPortal({
 	menu,
 	menuRef,
+	scrollRootRef,
 	vaultPath,
 	paperId,
 	menuCount,
@@ -143,18 +165,29 @@ export function TreeContextMenuPortal({
 			if (el && e.target instanceof Node && el.contains(e.target)) return;
 			close();
 		};
+		const onScroll = (event: Event) => {
+			if (
+				treeContextMenuShouldCloseOnScroll(
+					event.target,
+					menuRef.current,
+					scrollRootRef?.current ?? null,
+				)
+			) {
+				close();
+			}
+		};
 		// Defer so the opening contextmenu event does not immediately close.
 		const timer = window.setTimeout(() => {
 			window.addEventListener("pointerdown", onPointer, true);
 			window.addEventListener("keydown", onKey, true);
-			window.addEventListener("scroll", close, true);
+			window.addEventListener("scroll", onScroll, true);
 			window.addEventListener("resize", close);
 		}, 0);
 		return () => {
 			window.clearTimeout(timer);
 			window.removeEventListener("pointerdown", onPointer, true);
 			window.removeEventListener("keydown", onKey, true);
-			window.removeEventListener("scroll", close, true);
+			window.removeEventListener("scroll", onScroll, true);
 			window.removeEventListener("resize", close);
 		};
 	}, [menu]);
