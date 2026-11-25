@@ -59,7 +59,6 @@ export function isCommercialProviderConfigured(
 	config: TranslateProviderConfig | undefined,
 ): boolean {
 	if (!hasSecret(config?.apiKey)) return false;
-	if (id === "azure" && !config?.region.trim()) return false;
 	if (id === "openaiCompatible" && !config?.model.trim()) return false;
 	return true;
 }
@@ -130,7 +129,6 @@ export async function probeCommercialMtProvider(
 			// Mask → Host resolves from durable settings; real draft key is sent once.
 			apiKey: rawKey && !isSecretMask(rawKey) ? rawKey : undefined,
 			baseUrl: opts.config.baseUrl,
-			region: opts.config.region,
 			model: opts.config.model,
 			extraRequestBody: opts.config.extraRequestBody,
 			timeoutMs: opts.timeoutMs ?? TRANSLATE_PROBE_TIMEOUT_MS,

@@ -143,10 +143,10 @@ describe("translate services registry", () => {
 		expect(ids).toContain("huoshanweb");
 		expect(ids).toContain("cnki");
 		expect(ids).toContain("deepl");
-		expect(ids).toContain("azure");
-		expect(ids).toContain("googleCloud");
 		expect(ids).toContain("openaiCompatible");
 		expect(ids).toContain("agent");
+		expect(ids).not.toContain("azure");
+		expect(ids).not.toContain("googleCloud");
 	});
 
 	it("defaults to Bilibili Translate 2B", () => {
@@ -173,7 +173,6 @@ describe("translate services registry", () => {
 			isCommercialProviderConfigured("deepl", {
 				apiKey: masked,
 				baseUrl: "",
-				region: "",
 				model: "",
 			}),
 		).toBe(true);
@@ -181,24 +180,21 @@ describe("translate services registry", () => {
 			isCommercialProviderConfigured("deepl", {
 				apiKey: "",
 				baseUrl: "",
-				region: "",
 				model: "",
 			}),
 		).toBe(false);
 		expect(
-			isCommercialProviderConfigured("azure", {
+			isCommercialProviderConfigured("openaiCompatible", {
 				apiKey: masked,
 				baseUrl: "",
-				region: "",
 				model: "",
 			}),
 		).toBe(false);
 		expect(
-			isCommercialProviderConfigured("azure", {
+			isCommercialProviderConfigured("openaiCompatible", {
 				apiKey: masked,
 				baseUrl: "",
-				region: "eastasia",
-				model: "",
+				model: "qwen3",
 			}),
 		).toBe(true);
 	});

@@ -823,28 +823,6 @@ export function TranslatePane({
 											autoComplete="off"
 										/>
 									</ProviderFieldRow>
-									{id === "azure" ? (
-										<ProviderFieldRow
-											label={t("translate.providerConfig.region.label")}
-											htmlFor={`${inputPrefix}-region`}
-										>
-											<Input
-												id={`${inputPrefix}-region`}
-												value={effectiveCfg.region}
-												onChange={(e) =>
-													setDraftField(id, {
-														region: e.target.value,
-													})
-												}
-												placeholder={t(
-													"translate.providerConfig.region.placeholder",
-												)}
-												className={PROVIDER_INPUT_CLASS}
-												spellCheck={false}
-												autoComplete="off"
-											/>
-										</ProviderFieldRow>
-									) : null}
 									{id === "openaiCompatible" ? (
 										<>
 											<ProviderFieldRow

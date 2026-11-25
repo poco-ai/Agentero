@@ -27,7 +27,6 @@ export async function invokeTranslateText(args: {
 	provider: string;
 	apiKey?: string;
 	baseUrl?: string;
-	region?: string;
 	model?: string;
 	dictionary?: boolean;
 	dictionarySurrounding?: string;
@@ -60,7 +59,6 @@ export async function invokeTranslateText(args: {
 		provider: args.provider,
 		apiKey: args.apiKey?.trim() || null,
 		baseUrl: args.baseUrl?.trim() || null,
-		region: args.region?.trim() || null,
 		model: args.model?.trim() || null,
 		dictionary: args.dictionary ?? false,
 		dictionarySurrounding: args.dictionarySurrounding || null,

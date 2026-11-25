@@ -520,8 +520,6 @@ pub struct TranslateProviderConfig {
     #[serde(default)]
     pub base_url: String,
     #[serde(default)]
-    pub region: String,
-    #[serde(default)]
     pub model: String,
     #[serde(default)]
     pub extra_request_body: String,
@@ -537,7 +535,6 @@ impl Default for TranslateProviderConfig {
         Self {
             api_key: String::new(),
             base_url: String::new(),
-            region: String::new(),
             model: String::new(),
             extra_request_body: String::new(),
             concurrency: default_translate_concurrency(),
@@ -1458,8 +1455,6 @@ fn persist(path: &Path, settings: &AppSettings) -> Result<(), AppError> {
 pub fn commercial_provider_settings_key(provider: &str) -> Option<&'static str> {
     match provider.trim().to_ascii_lowercase().as_str() {
         "deepl" => Some("deepl"),
-        "azure" => Some("azure"),
-        "googlecloud" => Some("googleCloud"),
         "openaicompatible" => Some("openaiCompatible"),
         _ => None,
     }
@@ -1974,7 +1969,7 @@ fn normalize_layout_provider_configs(configs: &mut HashMap<String, LayoutProvide
 }
 
 fn normalize_translate_provider_configs(configs: &mut HashMap<String, TranslateProviderConfig>) {
-    const COMMERCIAL: &[&str] = &["deepl", "azure", "googleCloud", "openaiCompatible"];
+    const COMMERCIAL: &[&str] = &["deepl", "openaiCompatible"];
     configs.retain(|k, _| COMMERCIAL.contains(&k.as_str()));
     for cfg in configs.values_mut() {
         cfg.api_key = cfg.api_key.trim().to_string();
@@ -1982,7 +1977,6 @@ fn normalize_translate_provider_configs(configs: &mut HashMap<String, TranslateP
         // echoed back into the settings UI, so stripping "/" would make it
         // impossible to type paths like ".../v1". Endpoints trim on use.
         cfg.base_url = cfg.base_url.trim().to_string();
-        cfg.region = cfg.region.trim().to_string();
         cfg.model = cfg.model.trim().to_string();
         if cfg.concurrency < 1 || cfg.concurrency > MAX_TRANSLATE_CONCURRENCY {
             cfg.concurrency = default_translate_concurrency();
@@ -2288,14 +2282,7 @@ mod tests {
 
     #[test]
     fn commercial_provider_key_mapping() {
-        assert_eq!(
-            commercial_provider_settings_key("googleCloud"),
-            Some("googleCloud")
-        );
-        assert_eq!(
-            commercial_provider_settings_key("GOOGLECLOUD"),
-            Some("googleCloud")
-        );
+        assert_eq!(commercial_provider_settings_key("deepl"), Some("deepl"));
         assert_eq!(
             commercial_provider_settings_key("openaiCompatible"),
             Some("openaiCompatible")

@@ -6326,7 +6326,6 @@ export type TerminalAppStatus = {
 export type TranslateProviderConfig = {
 	apiKey?: string,
 	baseUrl?: string,
-	region?: string,
 	model?: string,
 	extraRequestBody?: string,
 	/**
@@ -6398,8 +6397,6 @@ export type TranslateTextArgs = {
 	apiKey?: string | null,
 	/**  Commercial BYOK base URL / endpoint override. */
 	baseUrl?: string | null,
-	/**  Azure subscription region. */
-	region?: string | null,
 	/**  OpenAI-compatible model id. */
 	model?: string | null,
 	/**

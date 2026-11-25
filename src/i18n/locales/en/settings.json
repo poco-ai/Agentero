@@ -653,8 +653,6 @@
 			"indextranslate": "Bilibili Translate 35B-A3B",
 			"indextranslate2b": "Bilibili Translate 2B",
 			"deepl": "DeepL API",
-			"azure": "Microsoft Translator",
-			"googleCloud": "Google Cloud Translate",
 			"openaiCompatible": "OpenAI-compatible",
 			"agent": "Agent",
 			"probeIdle": "Not checked yet",
@@ -718,10 +716,6 @@
 			"baseUrl": {
 				"label": "Endpoint (optional)"
 			},
-			"region": {
-				"label": "Region",
-				"placeholder": "e.g. eastasia"
-			},
 			"model": {
 				"label": "Model",
 				"placeholder": "Provider model id"
@@ -738,8 +732,6 @@
 		},
 		"providerDesc": {
 			"deepl": "DeepL neural machine translation, configured with an official API key.",
-			"azure": "Microsoft Translator, configured with an Azure subscription key.",
-			"googleCloud": "Google Cloud Translation API, configured with a service-account key.",
 			"openaiCompatible": "OpenAI Chat Completions-compatible endpoint. Enter the Base URL, e.g. https://api.openai.com/v1; Agentero appends /chat/completions."
 		},
 		"agentId": {

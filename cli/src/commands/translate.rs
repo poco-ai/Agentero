@@ -28,7 +28,6 @@ pub async fn run_raw(
             ("base_url", "baseUrl"),
             ("model", "model"),
             ("api_key", "apiKey"),
-            ("region", "region"),
         ] {
             if let Some(value) = profile.get(field).and_then(toml::Value::as_str) {
                 args[wire] = json!(value);

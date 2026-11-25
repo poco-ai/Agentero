@@ -60,7 +60,6 @@ describe("translation request options", () => {
 		const config = {
 			apiKey: "test-key",
 			baseUrl: "http://localhost:9999/v1",
-			region: "",
 			model: "qwen3",
 			extraRequestBody: '{"chat_template_kwargs":{"enable_thinking":false}}',
 		};

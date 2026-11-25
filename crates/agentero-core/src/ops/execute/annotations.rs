@@ -347,7 +347,6 @@ async fn add(
                     custom_user: None,
                     api_key: None,
                     base_url: None,
-                    region: None,
                     model: None,
                     extra_request_body: None,
                     timeout_ms: None,

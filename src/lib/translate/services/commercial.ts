@@ -37,7 +37,6 @@ export function makeCommercialMtService(
 				// Never send the mask token as if it were a key.
 				apiKey: rawKey && !isSecretMask(rawKey) ? rawKey : undefined,
 				baseUrl: cfg?.baseUrl,
-				region: cfg?.region,
 				model: cfg?.model,
 				extraRequestBody: cfg?.extraRequestBody,
 				onDelta: opts.onDelta,

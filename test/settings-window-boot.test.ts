@@ -116,7 +116,7 @@ function hostFixture(): AppSettings {
 	host.translate = {
 		...host.translate,
 		providerConfigs: {
-			deepl: { apiKey: "sk-host-live", baseUrl: "", region: "", model: "" },
+			deepl: { apiKey: "sk-host-live", baseUrl: "", model: "" },
 		},
 	};
 	return host;

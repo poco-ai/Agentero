@@ -45,7 +45,7 @@ pub const FREE_PROVIDERS: &[&str] = &[
 ];
 
 /// Commercial BYOK provider ids configured in Settings → Translate.
-pub const COMMERCIAL_PROVIDERS: &[&str] = &["deepl", "azure", "googleCloud", "openaiCompatible"];
+pub const COMMERCIAL_PROVIDERS: &[&str] = &["deepl", "openaiCompatible"];
 
 /// Default free engines raced in parallel for best-effort zh-CN (NOTES abstract).
 /// First non-empty success wins; remaining in-flight requests are dropped.
@@ -99,7 +99,6 @@ where
                 provider,
                 api_key: None,
                 base_url: None,
-                region: None,
                 model: None,
                 extra_request_body: None,
                 custom_prompt: None,
@@ -165,9 +164,6 @@ pub struct TranslateTextArgs {
     /// Commercial BYOK base URL / endpoint override.
     #[serde(default)]
     pub base_url: Option<String>,
-    /// Azure subscription region.
-    #[serde(default)]
-    pub region: Option<String>,
     /// OpenAI-compatible model id.
     #[serde(default)]
     pub model: Option<String>,
@@ -307,29 +303,6 @@ async fn translate_with_provider(
         }
         "deepl" => {
             sources::deepl::translate_deepl(
-                text,
-                source,
-                target,
-                timeout,
-                args.api_key.as_deref(),
-                args.base_url.as_deref(),
-            )
-            .await?
-        }
-        "azure" => {
-            sources::azure::translate_azure(
-                text,
-                source,
-                target,
-                timeout,
-                args.api_key.as_deref(),
-                args.base_url.as_deref(),
-                args.region.as_deref(),
-            )
-            .await?
-        }
-        "googlecloud" => {
-            sources::google_cloud::translate_google_cloud(
                 text,
                 source,
                 target,
@@ -630,7 +603,6 @@ mod tests {
             provider: "tencenttransmart".into(),
             api_key: None,
             base_url: None,
-            region: None,
             model: None,
             extra_request_body: None,
             custom_prompt: None,
@@ -650,7 +622,6 @@ mod tests {
         assert!(!provider_streams("tencenttransmart"));
         assert!(!provider_streams("deepl"));
         assert!(!provider_streams("agentero"));
-        assert!(!provider_streams("azure"));
     }
 
     #[test]

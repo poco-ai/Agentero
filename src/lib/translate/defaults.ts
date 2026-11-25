@@ -54,7 +54,6 @@ export function normalizeTranslateConcurrency(value: unknown): number {
 export const EMPTY_TRANSLATE_PROVIDER_CONFIG: TranslateProviderConfig = {
 	apiKey: "",
 	baseUrl: "",
-	region: "",
 	model: "",
 	extraRequestBody: "",
 	concurrency: DEFAULT_TRANSLATE_CONCURRENCY,

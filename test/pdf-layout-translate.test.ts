@@ -1609,7 +1609,6 @@ describe("translateServiceKey custom prompt fingerprint", () => {
 		const cfg = {
 			apiKey: "",
 			baseUrl: "https://example.test/v1",
-			region: "",
 			model: "qwen3",
 		};
 		const key = (options: { extraRequestBody?: string }) =>
