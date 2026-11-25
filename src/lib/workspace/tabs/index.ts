@@ -53,6 +53,7 @@ export {
 } from "@/lib/workspace/tabs/resources";
 export {
 	createTranslationSplitPane,
+	findTranslationPaneForPaper,
 	findTranslationSourceId,
 	translationSplitPlacement,
 } from "@/lib/workspace/tabs/translation-split";

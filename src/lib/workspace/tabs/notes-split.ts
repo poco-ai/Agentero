@@ -6,6 +6,7 @@ import {
 	isCanonicalView,
 	normalizeTabPath,
 } from "@/lib/workspace/tabs/model";
+import { findTranslationPaneForPaper } from "@/lib/workspace/tabs/translation-split";
 import type {
 	DocTab,
 	OpenPlacement,
@@ -214,14 +215,21 @@ export function findPaperBodyForNotes(
 
 /**
  * Panel ids to close together: closing a paper body (PDF/HTML) also closes
- * its open NOTES panel, but closing NOTES leaves the body open.
+ * its open NOTES panel and its comparison translation pane, but closing
+ * NOTES or the translation leaves the body open.
  */
 export function readingPairCloseIds(tabs: DocTab[], id: string): string[] {
 	const tab = tabs.find((t) => t.id === id) ?? null;
+	if (!tab) return [id];
+	// Derived panes first so the body/NOTES order stays stable for tests and
+	// revoke order, and the body is the last panel removed.
+	const ids: string[] = [];
+	const translation = findTranslationPaneForPaper(tabs, tab);
+	if (translation && translation.id !== id) ids.push(translation.id);
 	const companion = findReadingCompanion(tabs, tab);
-	if (!companion || companion.id === id) return [id];
-	// Companion first so body/NOTES order is stable for tests and revoke order.
-	return [companion.id, id];
+	if (companion && companion.id !== id) ids.push(companion.id);
+	ids.push(id);
+	return ids;
 }
 
 /**

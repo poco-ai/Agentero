@@ -2,6 +2,7 @@ import i18n from "@/i18n";
 import {
 	createPlaceholderTab,
 	findCanonicalTab,
+	normalizeTabPath,
 } from "@/lib/workspace/tabs/model";
 import type { DocTab } from "@/lib/workspace/tabs/types";
 
@@ -67,4 +68,29 @@ export function translationSplitPlacement(
 	_tabs: DocTab[],
 ): { direction: "right"; referencePanelId: string } {
 	return { direction: "right", referencePanelId: paperTabId };
+}
+
+/**
+ * Open comparison pane rendering the same paper. Only the canonical body owns
+ * the pair: a split copy or a NOTES tab closes without touching it.
+ */
+export function findTranslationPaneForPaper(
+	tabs: readonly DocTab[],
+	paperTab: DocTab | null,
+): DocTab | null {
+	if (
+		paperTab?.kind !== "paper" ||
+		paperTab.pane === "split" ||
+		paperTab.pane === "translation"
+	) {
+		return null;
+	}
+	const paperPath = normalizeTabPath(paperTab.path);
+	if (!paperPath) return null;
+	return (
+		tabs.find(
+			(tab) =>
+				tab.pane === "translation" && normalizeTabPath(tab.path) === paperPath,
+		) ?? null
+	);
 }

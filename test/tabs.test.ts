@@ -28,6 +28,7 @@ import { getTabs, setActiveTabId, setTabs } from "@/lib/workspace/store";
 import {
 	createNotesSplitPane,
 	createPlaceholderTab,
+	createTranslationSplitPane,
 	type DocTab,
 	extractTabsFromLayout,
 	findCanonicalTab,
@@ -1114,6 +1115,31 @@ describe("flat workspace helpers", () => {
 		expect(readingPairCloseIds([splitBody, notes], splitBody.id)).toEqual([
 			splitBody.id,
 		]);
+	});
+
+	it("closes the comparison translation with the paper body but not the reverse", () => {
+		const paper = makeTab("/vault/p", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/p/NOTES.md",
+			paperMeta: { path: "p", title: "P" } as DocTab["paperMeta"],
+		});
+		const notes = createNotesSplitPane(paper);
+		const translation = createTranslationSplitPane(paper);
+		if (!notes || !translation) throw new Error("expected split panes");
+		const open = [paper, notes, translation];
+		expect(readingPairCloseIds(open, paper.id)).toEqual([
+			translation.id,
+			notes.id,
+			paper.id,
+		]);
+		expect(readingPairCloseIds(open, translation.id)).toEqual([translation.id]);
+		expect(readingPairCloseIds(open, notes.id)).toEqual([notes.id]);
+		// A split copy of the body does not own the translation pane.
+		const splitBody = { ...paper, id: "view-split", pane: "split" as const };
+		expect(readingPairCloseIds([splitBody, translation], splitBody.id)).toEqual(
+			[splitBody.id],
+		);
 	});
 
 	it("moving a view removes only that id and leaves NOTES", () => {

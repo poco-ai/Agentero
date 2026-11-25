@@ -107,6 +107,7 @@ import {
 	type DocTab,
 	findCanonicalTab,
 	findPaperBodyForNotes,
+	findTranslationPaneForPaper,
 	insertPlaceholderTab,
 	isCanonicalView,
 	patchTab,
@@ -795,12 +796,8 @@ export function closeTranslationTab(paperTabId: string): void {
 	const paperTab =
 		tabs.find((t) => t.id === paperTabId) ??
 		tabs.find((t) => t.id === stripEmbedPdfRevision(paperTabId));
-	if (!paperTab) return;
-	const paperKey = normalizePath(paperTab.path);
-	const pane = tabs.find(
-		(t) => t.pane === "translation" && normalizePath(t.path) === paperKey,
-	);
-	if (!pane) return;
+	const pane = findTranslationPaneForPaper(tabs, paperTab ?? null);
+	if (!paperTab || !pane) return;
 	closeTab(pane.id, { remember: false });
 	// Closing the comparison pane returns the reader to the paper, not to the
 	// NOTES tab that shared the right column.
