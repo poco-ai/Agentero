@@ -26,6 +26,7 @@ export {
 	detectPaperDirectory,
 	directoryHasPaperMarkers,
 	isPaperDirectory,
+	paperDeleteDescent,
 	paperDirFromPath,
 	resolvePapersParentDir,
 } from "@/lib/paper/detect";

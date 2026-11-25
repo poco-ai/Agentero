@@ -12,7 +12,7 @@ import type { FileNode } from "@/lib/vault/types";
 type NameKind = {
 	name: string;
 	kind?: "file" | "directory" | string;
-	children?: NameKind[];
+	children?: readonly NameKind[];
 };
 
 const PAPER_FILE_MARKERS = new Set(["notes.md", "paper.md"]);
@@ -32,7 +32,7 @@ function isDirectoryEntry(entry: NameKind): boolean {
  * nearest paper-like descendants as leaves and keep their parents as org dirs.
  * Internal paper dirs are skipped because they can contain arbitrary assets.
  */
-function hasNestedPaperDirectory(children: NameKind[]): boolean {
+function hasNestedPaperDirectory(children: readonly NameKind[]): boolean {
 	return children.some((child) => {
 		if (!isDirectoryEntry(child)) return false;
 		const lower = child.name.toLowerCase();
@@ -116,7 +116,7 @@ export function resolvePapersParentDir(
  * containing nested paper folders wins over its own index/overview note.
  */
 export function directoryHasPaperMarkers(
-	children: NameKind[] | undefined | null,
+	children: readonly NameKind[] | undefined | null,
 ): boolean {
 	if (!children?.length) return false;
 	let hasDirectMarker = false;
@@ -138,7 +138,7 @@ export function directoryHasPaperMarkers(
  */
 export function isPaperDirectory(
 	path: string | null,
-	children?: NameKind[] | null,
+	children?: readonly NameKind[] | null,
 ): boolean {
 	if (!path || !isUnderPapers(path)) return false;
 	if (children !== undefined && children !== null) {
@@ -280,6 +280,35 @@ export function collectPaperFoldersFromTree(
 		}>,
 	);
 	return out;
+}
+
+/**
+ * Split one directory into paper folders whose reflow cache should be dropped,
+ * and the child directories still to walk. `children` of nested folders must
+ * already be loaded, or an organization note hides the papers under it.
+ */
+export function paperDeleteDescent(
+	path: string,
+	children: readonly (NameKind & { path: string })[] | undefined,
+): { papers: string[]; descend: string[] } {
+	const list = children ?? [];
+	const descendInto = (child: { path: string; name: string; kind?: string }) =>
+		(child.kind === "directory" || child.kind == null) &&
+		!isPaperInternalDirName(child.name) &&
+		(isPapersRoot(child.path) || isUnderPapers(child.path));
+	if (!isUnderPapers(path)) {
+		return {
+			papers: [],
+			descend: list.filter(descendInto).map((child) => child.path),
+		};
+	}
+	if (directoryHasPaperMarkers(list)) {
+		return { papers: [normalizePath(path)], descend: [] };
+	}
+	return {
+		papers: [],
+		descend: list.filter(descendInto).map((child) => child.path),
+	};
 }
 
 export async function detectPaperDirectory(path: string): Promise<boolean> {

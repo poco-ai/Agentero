@@ -14,11 +14,14 @@ import {
 	REFLOW_IR_CACHE_FORMAT_VERSION,
 	type ReflowIrCacheStore,
 	type ReflowIrPageHeader,
+	reflowIrCacheDirectory,
 } from "@/lib/pdf/reflow/cache";
 import {
 	clearReflowCaches,
+	forgetPaperReflowCache,
 	reflowCacheUsage,
 } from "@/lib/pdf/reflow/cache-manage";
+import { pdfSha256 } from "@/lib/pdf/reflow/cache-utils";
 import { prepareReflowItems } from "@/lib/pdf/reflow/service";
 import {
 	type Box,
@@ -921,5 +924,68 @@ describe("reflow cache usage and cleanup", () => {
 		tree.tauri = false;
 		expect(await reflowCacheUsage()).toBeNull();
 		expect(await clearReflowCaches()).toBe(0);
+		await forgetPaperReflowCache(["papers/demo"], ["a".repeat(64)]);
+		expect(tree.files.size).toBe(0);
+	});
+
+	it("forgets one paper's IR directory and matching build-cache PDFs", async () => {
+		const key = "papers/demo";
+		const absKey = "/vault/papers/demo";
+		const dir = await reflowIrCacheDirectory(key);
+		const absDir = await reflowIrCacheDirectory(absKey);
+		expect(dir).toBeTruthy();
+		expect(absDir).toBeTruthy();
+		expect(absDir).not.toBe(dir);
+
+		seed(`${dir}/0-a.json.gz`, 40);
+		seed(`${absDir}/0-a.json.gz`, 40);
+		const decoy = "/app-cache/reflow-ir/demo-ffffffffffff/0-b.json.gz";
+		seed(decoy, 20);
+
+		const hash = await pdfSha256(new Uint8Array([1, 2, 3, 4]));
+		const prefix = hash.slice(0, 16);
+		const match = `/app-cache/reflow-build/${prefix}-final-abc.pdf`;
+		const other = "/app-cache/reflow-build/0123456789abcdef-final-zzz.pdf";
+		expect(prefix).not.toBe("0123456789abcdef");
+		seed(match, 80);
+		seed(other, 90);
+		const font = "/app-cache/pdf-fonts/rev/Noto.ttf";
+		seed(font, 70);
+
+		await forgetPaperReflowCache([key, `  ${absKey}  `], [hash]);
+
+		expect(tree.files.has(`${dir}/0-a.json.gz`)).toBe(false);
+		expect(tree.files.has(`${absDir}/0-a.json.gz`)).toBe(false);
+		expect(tree.dirs.has(dir ?? "")).toBe(false);
+		expect(tree.files.has(decoy)).toBe(true);
+		expect(tree.files.has(match)).toBe(false);
+		expect(tree.files.has(other)).toBe(true);
+		expect(tree.files.has(font)).toBe(true);
+	});
+
+	it("leaves the build cache when no PDF hash is known", async () => {
+		const dir = await reflowIrCacheDirectory("papers/demo");
+		seed(`${dir}/0-a.json.gz`, 10);
+		const build = "/app-cache/reflow-build/0123456789abcdef-final-abc.pdf";
+		seed(build, 20);
+
+		await forgetPaperReflowCache(["papers/demo"], []);
+
+		expect(tree.files.has(`${dir}/0-a.json.gz`)).toBe(false);
+		expect(tree.files.has(build)).toBe(true);
+	});
+
+	it("ignores a missing IR directory and a hash that is not 16 hex digits", async () => {
+		const shortName = "/app-cache/reflow-build/abcd-not-a-prefix.pdf";
+		const keep = "/app-cache/reflow-build/0123456789abcdef-keep.pdf";
+		seed(shortName, 10);
+		seed(keep, 10);
+
+		await expect(
+			forgetPaperReflowCache(["papers/missing"], ["zz", "abc", ""]),
+		).resolves.toBeUndefined();
+
+		expect(tree.files.has(shortName)).toBe(true);
+		expect(tree.files.has(keep)).toBe(true);
 	});
 });

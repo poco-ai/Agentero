@@ -16,7 +16,13 @@ import {
 } from "@/lib/core/notify";
 import { dirnameOf, displayPath } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
-import { isPaperDirectory, isPapersRoot, isUnderPapers } from "@/lib/paper";
+import {
+	isPaperDirectory,
+	isPaperInternalDirName,
+	isPapersRoot,
+	isUnderPapers,
+	paperDeleteDescent,
+} from "@/lib/paper";
 import {
 	isLibraryVirtualPath,
 	isTrashVirtualPath,
@@ -32,6 +38,8 @@ import {
 	setLibraryQuery,
 	setLibraryScopePath,
 } from "@/lib/paper/library-store";
+import { forgetPaperReflowCache } from "@/lib/pdf/reflow/cache-manage";
+import { pdfSha256 } from "@/lib/pdf/reflow/cache-utils";
 import { setZoteroOpen } from "@/lib/shell/ui-store";
 import type { FileNode } from "@/lib/vault";
 import {
@@ -41,10 +49,12 @@ import {
 	ensureVault,
 	isValidVaultEntryName,
 	joinVaultPath,
+	listVaultDirChildren,
 	openNewWindow,
 	pickCreateVaultDirectory,
 	pickVaultDirectory,
 	planVaultRename,
+	readVaultBytes,
 	readVaultFile,
 	removeRecentVault,
 	removeTreeNode,
@@ -384,6 +394,88 @@ export function openSelectedInTerminal(): void {
 	})();
 }
 
+type PaperCacheFolder = { path: string; pdfs: string[] };
+
+/** Paper folders under a delete, with the root-level PDFs that key the build cache. */
+async function paperFoldersForCacheForget(
+	vaultPath: string,
+	start: string,
+): Promise<PaperCacheFolder[]> {
+	const out: PaperCacheFolder[] = [];
+	const stack = [start];
+	const seen = new Set<string>();
+	while (stack.length > 0) {
+		const path = stack.pop();
+		if (!path) continue;
+		const key = path.replace(/\\/g, "/").replace(/\/+$/, "");
+		if (seen.has(key)) continue;
+		seen.add(key);
+		const known = treeFindNode(vaultStore.getState().tree, path);
+		if (known?.kind === "file") continue;
+		let children: FileNode[];
+		try {
+			children = await listVaultDirChildren(vaultPath, path);
+		} catch {
+			continue;
+		}
+		const enriched = await Promise.all(
+			children.map(async (child) => {
+				if (child.kind !== "directory" || isPaperInternalDirName(child.name))
+					return child;
+				if (child.children && !child.childrenPending) return child;
+				try {
+					const nested = await listVaultDirChildren(vaultPath, child.path);
+					return { ...child, children: nested, childrenPending: false };
+				} catch {
+					return child;
+				}
+			}),
+		);
+		const decision = paperDeleteDescent(path, enriched);
+		for (const paper of decision.papers) {
+			out.push({
+				path: paper,
+				pdfs: enriched
+					.filter(
+						(child) =>
+							child.kind === "file" &&
+							child.name.toLowerCase().endsWith(".pdf"),
+					)
+					.map((child) => child.path),
+			});
+		}
+		stack.push(...decision.descend);
+	}
+	return out;
+}
+
+async function reflowCacheForgetPlan(
+	vaultPath: string,
+	absPaths: string[],
+): Promise<{ paperKeys: string[]; pdfSha256s: string[] }> {
+	const paperKeys = new Set<string>();
+	const pdfPaths = new Set<string>();
+	for (const start of absPaths) {
+		const folders = await paperFoldersForCacheForget(vaultPath, start);
+		for (const folder of folders) {
+			const rel = vaultRelativePath(vaultPath, folder.path);
+			if (rel) paperKeys.add(rel);
+			const abs = folder.path.replace(/\\/g, "/").replace(/\/+$/, "");
+			if (abs && abs !== rel) paperKeys.add(abs);
+			for (const pdf of folder.pdfs) pdfPaths.add(pdf);
+		}
+	}
+	const pdfSha256s: string[] = [];
+	for (const pdf of pdfPaths) {
+		try {
+			pdfSha256s.push(await pdfSha256(await readVaultBytes(pdf)));
+		} catch {
+			// Missing bytes skip the build cache. The IR directory still goes.
+		}
+	}
+	return { paperKeys: [...paperKeys], pdfSha256s };
+}
+
 /** Delete vault paths into the recycle bin (`.agentero/.trash/`). */
 export async function trashPathsAndNotify(absPaths: string[]): Promise<void> {
 	const vaultPath = getVaultPath();
@@ -406,11 +498,28 @@ export async function trashPathsAndNotify(absPaths: string[]): Promise<void> {
 	if (!(await confirmEmbeddedTableDelete(vaultPath, valid))) return;
 	setVaultBusy(true);
 	trackInternalRenamePaths(valid, Number.POSITIVE_INFINITY);
+	let forgetPlan: { paperKeys: string[]; pdfSha256s: string[] } = {
+		paperKeys: [],
+		pdfSha256s: [],
+	};
+	if (!isRemoteVaultHandle(vaultPath)) {
+		try {
+			forgetPlan = await reflowCacheForgetPlan(vaultPath, valid);
+		} catch {
+			// Cache cleanup is best-effort. The trash still proceeds.
+		}
+	}
 	try {
 		const rels = valid
 			.map((p) => vaultRelativePath(vaultPath, p))
 			.filter((r): r is string => Boolean(r));
 		await trashPaths(vaultPath, rels);
+		if (forgetPlan.paperKeys.length > 0 || forgetPlan.pdfSha256s.length > 0) {
+			await forgetPaperReflowCache(
+				forgetPlan.paperKeys,
+				forgetPlan.pdfSha256s,
+			).catch(() => {});
+		}
 		for (const p of valid) closeTabsUnderPath(p);
 		// Optimistic prune so a concurrent remote list of the deleted path
 		// cannot leave a ghost folder while refresh rebuilds.

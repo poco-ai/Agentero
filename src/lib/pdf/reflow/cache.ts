@@ -205,20 +205,35 @@ async function resolveBase(
 		!source.pdfBytes
 	)
 		return null;
-	const [pdfHash, paperHash] = await Promise.all([
+	const [dir, pdfHash] = await Promise.all([
+		reflowIrCacheDirectory(paperKey),
 		pdfSha256(source.pdfBytes),
-		sha256Text(paperKey),
 	]);
+	if (!dir) return null;
 	return {
 		paperKey,
-		// Spell the folder with a readable paper name plus a stable hash.
-		dir: await join(
-			await appCacheDir(),
-			CACHE_DIR,
-			`${paperSlug(paperKey)}-${paperHash.slice(0, 12)}`,
-		),
+		dir,
 		pdfSha256: pdfHash,
 	};
+}
+
+/** App-cache directory for one paper key: `reflow-ir/<slug>-<hash>`. */
+export async function reflowIrCacheDirectory(
+	paperKey: string,
+): Promise<string | null> {
+	const key = paperKey.trim();
+	if (!isTauri() || !key) return null;
+	try {
+		const paperHash = await sha256Text(key);
+		return await join(
+			await appCacheDir(),
+			CACHE_DIR,
+			`${paperSlug(key)}-${paperHash.slice(0, 12)}`,
+		);
+	} catch (error) {
+		logger.warn("pdf.reflow.cache dir failed", { error: errorText(error) });
+		return null;
+	}
 }
 
 /**

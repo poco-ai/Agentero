@@ -10,6 +10,7 @@ import { appCacheDir, join } from "@tauri-apps/api/path";
 import { mkdir, readDir, remove, stat } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { isTauri } from "@/lib/core/tauri";
+import { reflowIrCacheDirectory } from "@/lib/pdf/reflow/cache";
 
 const IR_DIR = "reflow-ir";
 const BUILD_DIR = "reflow-build";
@@ -115,4 +116,49 @@ export async function clearReflowCaches(): Promise<number> {
 	}
 	if (firstError) throw firstError;
 	return freed;
+}
+
+/**
+ * Drop one paper's IR directory and any build-cache PDFs whose content hash
+ * matches a PDF that lived in that paper. Unmapped hash files stay until
+ * "clear all". Failures are ignored so a trash can still finish.
+ */
+export async function forgetPaperReflowCache(
+	paperKeys: readonly string[],
+	pdfSha256s: readonly string[],
+): Promise<void> {
+	if (!isTauri()) return;
+	const cacheRoot = await appCacheDir();
+	const keys = [...new Set(paperKeys.map((key) => key.trim()).filter(Boolean))];
+	await Promise.all(
+		keys.map(async (key) => {
+			const dir = await reflowIrCacheDirectory(key);
+			if (!dir) return;
+			await remove(dir, { recursive: true }).catch(() => {});
+		}),
+	);
+	const prefixes = [
+		...new Set(
+			pdfSha256s
+				.map((hash) => hash.trim().toLowerCase().slice(0, 16))
+				.filter((prefix) => /^[0-9a-f]{16}$/.test(prefix)),
+		),
+	];
+	if (prefixes.length === 0) return;
+	let entries: Awaited<ReturnType<typeof readDir>>;
+	try {
+		entries = await readDir(await join(cacheRoot, BUILD_DIR));
+	} catch {
+		return;
+	}
+	await Promise.all(
+		entries.map(async (entry) => {
+			if (!entry.isFile) return;
+			if (!prefixes.some((prefix) => entry.name.startsWith(`${prefix}-`)))
+				return;
+			await remove(await join(cacheRoot, BUILD_DIR, entry.name)).catch(
+				() => {},
+			);
+		}),
+	);
 }
