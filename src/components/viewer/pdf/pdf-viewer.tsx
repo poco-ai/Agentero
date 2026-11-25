@@ -1038,6 +1038,7 @@ function PdfViewerInner({
 		setSelectionMenu,
 		isSelecting,
 		selectionStartPageIndex,
+		selectionStartCharIndex,
 		closeSelectionMenu,
 		rePlaceSelectionMenu,
 	} = usePdfTextSelection({
@@ -2596,6 +2597,7 @@ function PdfViewerInner({
 		() => ({
 			selectionInsertionRegions,
 			selectionStartPageIndex,
+			selectionStartCharIndex,
 			selectionTextExclusionsByPage,
 			selectableRegionsByPage,
 			rawRegionsByPage,
@@ -2617,6 +2619,7 @@ function PdfViewerInner({
 			selectionInsertionRegions,
 			layoutOverlayVisible,
 			selectionStartPageIndex,
+			selectionStartCharIndex,
 			layoutTranslateItemsByPage,
 			layoutTranslatePageStateByPage,
 			showTranslatedPages,

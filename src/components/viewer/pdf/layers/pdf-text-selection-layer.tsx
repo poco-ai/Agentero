@@ -57,6 +57,7 @@ function subscribeTranslationCover(onChange: () => void): () => void {
 
 export type PdfTextSelectionLayerProps = {
 	selectionStartPageIndex?: number | null;
+	selectionStartCharIndex?: number | null;
 	insertionRegions?: readonly PdfLayoutRegion[];
 	excludedTextRects?: readonly Rect[];
 	documentId: string;
@@ -83,6 +84,7 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 	excludedTextRects,
 	insertionRegions,
 	selectionStartPageIndex,
+	selectionStartCharIndex,
 	draftPages,
 }: PdfTextSelectionLayerProps) {
 	const { plugin } = useSelectionPlugin();
@@ -106,6 +108,7 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 						insertionRegions,
 						selectionStartPageIndex,
 						"cached",
+						selectionStartCharIndex,
 					)
 				: null;
 		return buildTightSelectionRects(
@@ -131,6 +134,7 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 		excludedTextRects,
 		insertionRegions,
 		selectionStartPageIndex,
+		selectionStartCharIndex,
 		formulaEpoch,
 	]);
 	const scale = useMemo(

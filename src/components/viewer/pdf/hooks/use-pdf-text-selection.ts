@@ -234,6 +234,8 @@ export type UsePdfTextSelectionOptions = {
 
 export type PdfTextSelection = {
 	selectionStartPageIndex: number | null;
+	/** Character index under pointer-down. EmbedPDF reorders the range. */
+	selectionStartCharIndex: number | null;
 	selectionMenu: SelectionMenuState | null;
 	setSelectionMenu: Dispatch<SetStateAction<SelectionMenuState | null>>;
 	/**
@@ -287,6 +289,9 @@ export function usePdfTextSelection({
 	const [selectionStartPageIndex, setSelectionStartPageIndex] = useState<
 		number | null
 	>(null);
+	const [selectionStartCharIndex, setSelectionStartCharIndex] = useState<
+		number | null
+	>(null);
 	const selectionGroup = useWritingSelectionGroup();
 	const selectionEpochRef = useRef(0);
 	const contentRef = useRef({
@@ -300,6 +305,7 @@ export function usePdfTextSelection({
 		ensureSelectionTextExclusions,
 	};
 	const selectionStartPageRef = useRef<number | null>(null);
+	const selectionStartCharRef = useRef<number | null>(null);
 	/** Vertical drag direction; PDFium normalizes start/end, so track the pointer. */
 	const dragPointerRef = useRef<{
 		downY: number;
@@ -471,10 +477,12 @@ export function usePdfTextSelection({
 			}
 			return translationHitsFromRange(selection.getRangeAt(0), host).length > 0;
 		};
-		const offBegin = scope.onBeginSelection(({ page }) => {
+		const offBegin = scope.onBeginSelection(({ page, index }) => {
 			setSelectionStartPageIndex(page);
+			setSelectionStartCharIndex(index);
 			selectionEpochRef.current += 1;
 			selectionStartPageRef.current = page;
+			selectionStartCharRef.current = index;
 			setIsSelecting(true);
 		});
 		const offEnd = scope.onEndSelection(async () => {
@@ -552,6 +560,7 @@ export function usePdfTextSelection({
 				[...(layout?.rawRegions ?? []), ...(layout?.regions ?? [])],
 				selectionStartPageRef.current,
 				"cached",
+				selectionStartCharRef.current,
 			);
 			for (const [pageIndex, rects] of insertions) {
 				excludedByPage.set(pageIndex, [
@@ -748,6 +757,7 @@ export function usePdfTextSelection({
 
 	return {
 		selectionStartPageIndex,
+		selectionStartCharIndex,
 		selectionMenu: interactive ? selectionMenu : null,
 		setSelectionMenu,
 		isSelecting,

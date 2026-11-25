@@ -416,6 +416,7 @@ export type PdfPageMarksSlice = {
 /** Layout-analysis derived overlays (element selection, debug boxes, translations). */
 export type PdfPageLayoutSlice = {
 	selectionStartPageIndex?: number | null;
+	selectionStartCharIndex?: number | null;
 	selectionInsertionRegions?: readonly PdfLayoutRegion[];
 	selectionTextExclusionsByPage?: ReadonlyMap<number, readonly Rect[]>;
 	/** Post-merge elements, every kind, largest first. Empty when analysis is absent. */
@@ -1488,6 +1489,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						armed={selectionArmed}
 						insertionRegions={layout.selectionInsertionRegions}
 						selectionStartPageIndex={layout.selectionStartPageIndex}
+						selectionStartCharIndex={layout.selectionStartCharIndex}
 						excludedTextRects={layout.selectionTextExclusionsByPage?.get(
 							pageIndex,
 						)}

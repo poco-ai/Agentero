@@ -269,6 +269,36 @@ function orderedSelection(selection: SelectionRangeX): SelectionRangeX {
 		: { start: selection.end, end: selection.start };
 }
 
+/**
+ * Glyph under the pointer-down.
+ * EmbedPDF stores `selection` in reading order, so on one page `end` is the
+ * later glyph, not the press. Callers pass the begin-selection index.
+ * A cross-page drag still identifies the press by page when the index is absent.
+ */
+function selectionPressPointer(
+	selection: SelectionRangeX,
+	startPageIndex?: number | null,
+	startCharIndex?: number | null,
+): { page: number; index: number } {
+	if (startPageIndex != null && startCharIndex != null) {
+		return { page: startPageIndex, index: startCharIndex };
+	}
+	if (startPageIndex === selection.end.page) return selection.end;
+	return selection.start;
+}
+
+function glyphAt(
+	geometry: PdfPageGeometry | undefined,
+	index: number,
+): Rect | null {
+	const run = geometry?.runs.find(
+		(item) =>
+			index >= item.charStart && index < item.charStart + item.glyphs.length,
+	);
+	const glyph = run?.glyphs[index - (run?.charStart ?? 0)];
+	return glyph ? glyphRect(glyph) : null;
+}
+
 function insideAnyRect(rect: Rect, excluded: readonly Rect[]): boolean {
 	const x = rect.origin.x + rect.size.width / 2;
 	const y = rect.origin.y + rect.size.height / 2;
@@ -332,6 +362,53 @@ const inlineSelectionFormulaCache = new WeakMap<
 	WeakMap<SelectionInsertionRegion, boolean>
 >();
 
+/**
+ * A formula box that only covers an interior slice of a prose line is a
+ * mislabeled word. Standalone display equations have no prose on both sides.
+ */
+function formulaIsInteriorOfProseLine(
+	region: SelectionInsertionRegion,
+	geometry: PdfPageGeometry,
+	regions: readonly SelectionInsertionRegion[],
+): boolean {
+	const { x, y, w, h } = region.rect;
+	const numbers = regions
+		.filter(
+			(other) =>
+				other.pageIndex === region.pageIndex && other.kind === "formula_number",
+		)
+		.map(({ rect }) => ({
+			origin: { x: rect.x, y: rect.y },
+			size: { width: rect.w, height: rect.h },
+		}));
+	const centerY = y + h / 2;
+	let left = 0;
+	let right = 0;
+	let inside = 0;
+	for (const run of geometry.runs) {
+		for (const glyph of run.glyphs) {
+			const rect = glyphRect(glyph);
+			if (!rect || insideAnyRect(rect, numbers)) continue;
+			const midY = rect.origin.y + rect.size.height / 2;
+			const band = Math.max(rect.size.height, h * 0.45);
+			if (Math.abs(midY - centerY) > band * 0.65) continue;
+			const midX = rect.origin.x + rect.size.width / 2;
+			if (midX >= x && midX <= x + w) {
+				inside++;
+				continue;
+			}
+			const gap =
+				midX < x
+					? x - (rect.origin.x + rect.size.width)
+					: rect.origin.x - (x + w);
+			if (gap > Math.max(8, rect.size.height * 1.5)) continue;
+			if (midX < x) left++;
+			else right++;
+		}
+	}
+	return left >= 2 && right >= 2 && left + right > inside;
+}
+
 /** Adjacent prose on the same line keeps a detected formula in the body flow. */
 function isInlineSelectionFormula(
 	region: SelectionInsertionRegion,
@@ -339,12 +416,14 @@ function isInlineSelectionFormula(
 	regions: readonly SelectionInsertionRegion[],
 ): boolean {
 	if (region.kind !== "formula" || !geometry) return false;
-	// The detector already separated the classes: a display formula stays out
-	// of the body even when neighbouring prose sits close to its box.
-	if (isDisplayFormulaLabel(region.label)) return false;
 	const cached = inlineSelectionFormulaCache.get(geometry)?.get(region);
 	if (cached != null) return cached;
-	const inline = formulaHasInlineNeighbours(region, geometry, regions);
+	// A display label still loses when the box only punches a word out of a
+	// prose line. A standalone equation keeps the label.
+	let inline = formulaIsInteriorOfProseLine(region, geometry, regions);
+	if (!inline && !isDisplayFormulaLabel(region.label)) {
+		inline = formulaHasInlineNeighbours(region, geometry, regions);
+	}
 	const byRegion =
 		inlineSelectionFormulaCache.get(geometry) ??
 		new WeakMap<SelectionInsertionRegion, boolean>();
@@ -751,6 +830,12 @@ function findDisplayFormulaExclusionRects(geometry: PdfPageGeometry): Rect[] {
 	return rects;
 }
 
+function pushPageRect(map: Map<number, Rect[]>, page: number, rect: Rect) {
+	const list = map.get(page) ?? [];
+	list.push(rect);
+	map.set(page, list);
+}
+
 /** Body-to-body selections skip detected insertions; explicit selections keep them. */
 export function selectionInsertionExclusions(
 	geometry: Readonly<Record<number, PdfPageGeometry>>,
@@ -758,9 +843,11 @@ export function selectionInsertionExclusions(
 	regions: readonly SelectionInsertionRegion[],
 	startPageIndex?: number | null,
 	formulaLines: "scan" | "cached" = "scan",
+	startCharIndex?: number | null,
 ): ReadonlyMap<number, readonly Rect[]> {
-	const insertions = new Map<number, Rect[]>();
-	if (!selection) return insertions;
+	const formulas = new Map<number, Rect[]>();
+	const others = new Map<number, Rect[]>();
+	if (!selection) return formulas;
 	const ordered = orderedSelection(selection);
 	const samePage = ordered.start.page === ordered.end.page;
 	for (const region of regions) {
@@ -787,35 +874,50 @@ export function selectionInsertionExclusions(
 			origin: { x: x - pad, y: y - pad },
 			size: { width: w + 2 * pad, height: h + 2 * pad },
 		};
-		const list = insertions.get(region.pageIndex) ?? [];
-		list.push(rect);
-		insertions.set(region.pageIndex, list);
+		const target =
+			region.kind === "formula" || region.kind === "formula_number"
+				? formulas
+				: others;
+		pushPageRect(target, region.pageIndex, rect);
 	}
 	for (let page = ordered.start.page; page <= ordered.end.page; page++) {
 		const pageGeometry = geometry[page];
 		if (!pageGeometry) continue;
-		const formulas =
+		const detected =
 			formulaLines === "cached"
 				? displayFormulaRectCache.get(pageGeometry)
 				: displayFormulaExclusionRects(pageGeometry);
-		if (!formulas?.length) continue;
+		if (!detected?.length) continue;
+		for (const rect of detected) pushPageRect(formulas, page, rect);
+	}
+	// A drag that starts in a table or caption is deliberate, so every crossed
+	// insertion comes back. A press inside a formula keeps only that formula:
+	// another display equation between the two ends stays skipped. Releasing
+	// over a caption must not re-select every table crossed from the body.
+	const origin = selectionPressPointer(
+		selection,
+		startPageIndex,
+		startCharIndex,
+	);
+	const rect = glyphAt(geometry[origin.page], origin.index);
+	if (rect && insideAnyRect(rect, others.get(origin.page) ?? [])) {
+		return new Map();
+	}
+	if (rect) {
+		const pageFormulas = formulas.get(origin.page);
+		if (pageFormulas?.length) {
+			const kept = pageFormulas.filter((box) => !insideAnyRect(rect, [box]));
+			if (kept.length) formulas.set(origin.page, kept);
+			else formulas.delete(origin.page);
+		}
+	}
+	const insertions = new Map<number, Rect[]>();
+	for (const [page, rects] of others) insertions.set(page, rects.slice());
+	for (const [page, rects] of formulas) {
 		const list = insertions.get(page) ?? [];
-		list.push(...formulas);
+		list.push(...rects);
 		insertions.set(page, list);
 	}
-	// A drag starting in an inserted block is deliberate. Merely releasing
-	// over a caption must not re-select every table crossed from the body.
-	const origin =
-		startPageIndex === selection.end.page ? selection.end : selection.start;
-	const run = geometry[origin.page]?.runs.find(
-		(run) =>
-			origin.index >= run.charStart &&
-			origin.index < run.charStart + run.glyphs.length,
-	);
-	const glyph = run?.glyphs[origin.index - run.charStart];
-	const rect = glyph && glyphRect(glyph);
-	if (rect && insideAnyRect(rect, insertions.get(origin.page) ?? []))
-		return new Map();
 	return insertions;
 }
 

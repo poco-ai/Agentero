@@ -72,23 +72,31 @@ describe("selection content", () => {
 			{ origin: { x: 10, y: 100 }, size: { width: 30, height: 10 } },
 			{ origin: { x: 10, y: 600 }, size: { width: 20, height: 10 } },
 		]);
-		expect(
-			selectionInsertionExclusions(
-				{ 0: page, 1: page },
-				{ ...cross, start: { page: 0, index: 4 } },
-				regions,
-			).size,
-		).toBe(0);
+		const startedInside = selectionInsertionExclusions(
+			{ 0: page, 1: page },
+			{ ...cross, start: { page: 0, index: 4 } },
+			regions,
+		);
+		// A press inside a formula keeps that formula only. Other insertions
+		// still come back in full when the drag starts on them.
+		if (insertion.kind === "formula" || insertion.kind === "formula_number")
+			expect(startedInside.size).toBe(1);
+		else expect(startedInside.size).toBe(0);
 		const captionEnd = { start: cross.start, end: { page: 1, index: 4 } };
 		expect(
 			selectionInsertionExclusions({ 0: page, 1: page }, captionEnd, regions, 0)
 				.size,
 		).toBe(2);
 		// Upward drags use the actual origin, not the sorted range's start.
-		expect(
-			selectionInsertionExclusions({ 0: page, 1: page }, captionEnd, regions, 1)
-				.size,
-		).toBe(0);
+		const upward = selectionInsertionExclusions(
+			{ 0: page, 1: page },
+			captionEnd,
+			regions,
+			1,
+		);
+		if (insertion.kind === "formula" || insertion.kind === "formula_number")
+			expect(upward.size).toBe(1);
+		else expect(upward.size).toBe(0);
 		expect(
 			selectionInsertionExclusions(
 				{ 0: page, 1: page },
@@ -278,7 +286,7 @@ describe("selection content", () => {
 			selectionInsertionExclusions({ 0: inline }, selection, [inlineRegion])
 				.size,
 		).toBe(0);
-		// Display math stays excluded even though prose shares its band.
+		// A display label must not punch one word out of a prose line.
 		expect(
 			selectionInsertionExclusions({ 0: geometry }, selection, [
 				{
@@ -287,8 +295,108 @@ describe("selection content", () => {
 					pageIndex: 0,
 					rect: { x: 40, y: 100, w: 30, h: 10 },
 				},
-			]).get(0),
+			]).size,
+		).toBe(0);
+		const alone: PdfPageGeometry = {
+			runs: [
+				{
+					charStart: 0,
+					rect: { x: 0, y: 40, width: 80, height: 10 },
+					glyphs: Array.from({ length: 8 }, (_, i) => ({
+						x: i * 10,
+						y: 40,
+						width: 10,
+						height: 10,
+						flags: 0,
+					})),
+				},
+				{
+					charStart: 8,
+					rect: { x: 40, y: 100, width: 30, height: 10 },
+					glyphs: [0, 1, 2].map((i) => ({
+						x: 40 + i * 10,
+						y: 100,
+						width: 10,
+						height: 10,
+						flags: 0,
+					})),
+				},
+			],
+		};
+		expect(
+			selectionInsertionExclusions(
+				{ 0: alone },
+				{ start: { page: 0, index: 0 }, end: { page: 0, index: 10 } },
+				[
+					{
+						kind: "formula" as const,
+						label: "display_formula",
+						pageIndex: 0,
+						rect: { x: 40, y: 100, w: 30, h: 10 },
+					},
+				],
+			).get(0),
 		).toHaveLength(1);
+	});
+	it("keeps the pressed formula and still skips a later display formula", () => {
+		function row(charStart: number, y: number) {
+			return {
+				charStart,
+				rect: { x: 10, y, width: 30, height: 10 },
+				glyphs: [0, 1, 2].map((i) => ({
+					x: 10 + i * 10,
+					y,
+					width: 10,
+					height: 10,
+					flags: 0,
+				})),
+			};
+		}
+		const geometry: PdfPageGeometry = {
+			runs: [row(0, 100), row(3, 200), row(6, 300), row(9, 400)],
+		};
+		const formulas = [100, 300].map((y) => ({
+			kind: "formula" as const,
+			label: "display_formula",
+			pageIndex: 0,
+			rect: { x: 10, y, w: 30, h: 10 },
+		}));
+		const selection = {
+			start: { page: 0, index: 0 },
+			end: { page: 0, index: 11 },
+		};
+		// Reading-order end is body, so the page alone still drops both formulas.
+		expect(
+			selectionInsertionExclusions({ 0: geometry }, selection, formulas, 0).get(
+				0,
+			),
+		).toHaveLength(2);
+		const pressed = selectionInsertionExclusions(
+			{ 0: geometry },
+			selection,
+			formulas,
+			0,
+			"scan",
+			0,
+		);
+		expect(pressed.get(0)).toEqual([
+			{ origin: { x: 10, y: 300 }, size: { width: 30, height: 10 } },
+		]);
+		expect(
+			selectionTextSlices(geometry, 0, 12, pressed.get(0) ?? []).some(
+				(slice) => slice.start === 0,
+			),
+		).toBe(true);
+		expect(
+			selectionInsertionExclusions(
+				{ 0: geometry },
+				selection,
+				formulas,
+				0,
+				"scan",
+				9,
+			).get(0),
+		).toHaveLength(2);
 	});
 	it("skips centered and numbered display formulas that layout analysis missed", () => {
 		function run(
@@ -407,13 +515,24 @@ describe("selection content", () => {
 		expect(sameCovered.has(120)).toBe(false);
 		expect(sameCovered.has(130)).toBe(false);
 		expect(sameCovered.has(0)).toBe(true);
-		expect(
-			selectionInsertionExclusions(
-				{ 0: geometry },
-				{ start: { page: 0, index: 120 }, end: { page: 0, index: 173 } },
-				[],
-			).size,
-		).toBe(0);
+		const deliberate = selectionInsertionExclusions(
+			{ 0: geometry },
+			{ start: { page: 0, index: 120 }, end: { page: 0, index: 173 } },
+			[],
+		);
+		const deliberateCovered = new Set<number>();
+		for (const slice of selectionTextSlices(
+			geometry,
+			120,
+			54,
+			deliberate.get(0) ?? [],
+		)) {
+			for (let index = 0; index < slice.count; index++)
+				deliberateCovered.add(slice.start + index);
+		}
+		expect(deliberateCovered.has(120)).toBe(true);
+		expect(deliberateCovered.has(130)).toBe(true);
+		expect(deliberateCovered.has(133)).toBe(true);
 	});
 	const size = { width: 600, height: 800 };
 	function line(content: string, y = 45): PdfTextRectObject {
