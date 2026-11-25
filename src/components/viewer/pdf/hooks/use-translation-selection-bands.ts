@@ -31,11 +31,27 @@ export function translationPageFrames(host: HTMLElement): PageFrame[] {
 	});
 }
 
+export type ClippedTranslationRange = { range: Range; parts: Range[] };
+
+export function clippedPartsFor(
+	range: Range,
+	clipped: ClippedTranslationRange | null,
+): Range[] | undefined {
+	if (
+		clipped &&
+		range.compareBoundaryPoints(Range.START_TO_START, clipped.range) === 0 &&
+		range.compareBoundaryPoints(Range.END_TO_END, clipped.range) === 0
+	) {
+		return clipped.parts;
+	}
+}
+
 /** Native translated text uses the same line bands in both viewer modes. */
 export function useTranslationSelectionBands(
 	docId: string,
 	hostRef: RefObject<HTMLElement | null>,
 	enabled: boolean,
+	clippedRef: RefObject<ClippedTranslationRange | null>,
 ): void {
 	useEffect(() => {
 		if (!enabled) {
@@ -67,10 +83,11 @@ export function useTranslationSelectionBands(
 				clearTranslationSelectionBands(docId);
 				return;
 			}
+			const parts = clippedPartsFor(range, clippedRef.current) ?? [range];
 			publishTranslationSelectionBands(
 				docId,
 				visiblePagesFromClientRects(
-					translatedSelectionLineRects(host, range),
+					parts.flatMap((part) => translatedSelectionLineRects(host, part)),
 					translationPageFrames(host),
 				),
 			);
@@ -94,13 +111,13 @@ export function useTranslationSelectionBands(
 					});
 		observer?.observe(host);
 		document.addEventListener("selectionchange", schedule);
-		host.addEventListener("pointerup", schedule, true);
+		document.addEventListener("pointerup", schedule, true);
 		return () => {
 			observer?.disconnect();
 			if (frame) cancelAnimationFrame(frame);
 			document.removeEventListener("selectionchange", schedule);
-			host.removeEventListener("pointerup", schedule, true);
+			document.removeEventListener("pointerup", schedule, true);
 			clearTranslationSelectionBands(docId);
 		};
-	}, [docId, hostRef, enabled]);
+	}, [docId, hostRef, enabled, clippedRef]);
 }

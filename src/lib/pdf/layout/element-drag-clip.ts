@@ -11,7 +11,9 @@
  * Ordinary reading-mode selection does not call this.
  */
 
+import { selectedRangeWithin } from "@/lib/pdf/layout/layout-sentence-selection";
 import type { PdfLayoutKind } from "@/lib/pdf/layout/types";
+import { mergeClientRectsIntoLines } from "@/lib/pdf/layout/visible-selection-rects";
 
 /** Pointer contact thinner than this does not pull another block in. */
 export const ELEMENT_DRAG_GRAZE_PX = 8;
@@ -38,6 +40,7 @@ export type ElementDragTarget = ElementDragHit & {
 	kind: PdfLayoutKind;
 	order: number;
 	box: ElementDragBox;
+	lines?: readonly ElementDragBox[];
 };
 
 export type ElementDragPoint = { x: number; y: number };
@@ -101,43 +104,48 @@ export function elementDragAnchorAt(
 	targets: readonly ElementDragTarget[],
 	point: ElementDragPoint,
 ): ElementDragHit | null {
-	const hits = targets.filter((target) => pointInBox(point, target.box));
-	hits.sort((a, b) => {
-		const inset = insetOf(point, b.box) - insetOf(point, a.box);
-		if (Math.abs(inset) > 1e-6) return inset;
-		return a.order - b.order;
-	});
-	const anchor = hits[0];
+	const hits = targets.flatMap((target) =>
+		(target.lines ?? [target.box])
+			.filter((line) => pointInBox(point, line))
+			.map((line) => ({ target, inset: insetOf(point, line) })),
+	);
+	hits.sort((a, b) => b.inset - a.inset || a.target.order - b.target.order);
+	const anchor = hits[0]?.target;
 	if (!anchor) return null;
 	return { itemId: anchor.itemId, sentenceIndex: anchor.sentenceIndex };
 }
 
 /**
- * The stroke covers `target`.
- * A flat stroke (a drag along one line) covers only its anchor line. The next
- * line can share that edge and still stay out. A taller stroke has to enter
- * the block by more than a graze on both axes; a narrow vertical stroke has
- * to enter it vertically.
+ * A flat stroke follows the anchor paragraph's text line. Wider strokes
+ * need meaningful overlap with a rendered line on both axes, and vertical
+ * strokes are tested along their center.
  */
 export function elementDragCoversTarget(
 	drag: ElementDragBox,
 	target: ElementDragBox,
 	anchor: boolean,
 ): boolean {
-	const hit = overlapAmount(drag, target);
-	if (!hit) return false;
-	const dragW = drag.right - drag.left;
-	const dragH = drag.bottom - drag.top;
-	const flat = dragH <= ELEMENT_DRAG_GRAZE_PX;
-	const narrow = dragW <= ELEMENT_DRAG_GRAZE_PX;
-	if (flat) {
-		if (!anchor) return false;
-		const centerY = (drag.top + drag.bottom) / 2;
-		const onAnchorLine = centerY >= target.top && centerY <= target.bottom;
-		return onAnchorLine && hit.w > ELEMENT_DRAG_GRAZE_PX;
+	const w =
+		Math.min(drag.right, target.right) - Math.max(drag.left, target.left);
+	const h =
+		Math.min(drag.bottom, target.bottom) - Math.max(drag.top, target.top);
+	const minWidth = Math.min(
+		ELEMENT_DRAG_GRAZE_PX,
+		(target.right - target.left) / 2,
+	);
+	const minHeight = Math.min(
+		ELEMENT_DRAG_GRAZE_PX,
+		(target.bottom - target.top) / 2,
+	);
+	if (drag.bottom - drag.top <= ELEMENT_DRAG_GRAZE_PX) {
+		const y = (drag.top + drag.bottom) / 2;
+		return anchor && y >= target.top && y <= target.bottom && w > minWidth;
 	}
-	if (narrow) return hit.h > ELEMENT_DRAG_GRAZE_PX && hit.w > 0;
-	return hit.w > ELEMENT_DRAG_GRAZE_PX && hit.h > ELEMENT_DRAG_GRAZE_PX;
+	if (drag.right - drag.left <= ELEMENT_DRAG_GRAZE_PX) {
+		const x = (drag.left + drag.right) / 2;
+		return x >= target.left && x <= target.right && h > minHeight;
+	}
+	return w > minWidth && h > minHeight;
 }
 
 function sectionShare(drag: ElementDragBox, target: ElementDragBox): number {
@@ -162,11 +170,18 @@ export function clipElementDragHits<T extends ElementDragHit>(
 	const byKey = new Map(
 		targets.map((target) => [elementDragHitKey(target), target]),
 	);
-	const anchorKey = anchor ? elementDragHitKey(anchor) : null;
 	const covered = new Set<string>();
 	for (const target of targets) {
 		const key = elementDragHitKey(target);
-		if (elementDragCoversTarget(drag, target.box, key === anchorKey)) {
+		if (
+			(target.lines ?? [target.box]).some((line) =>
+				elementDragCoversTarget(
+					drag,
+					line,
+					anchor == null || target.itemId === anchor.itemId,
+				),
+			)
+		) {
 			covered.add(key);
 		}
 	}
@@ -212,138 +227,123 @@ export type ElementDragBlockSource = {
 	readingOrder: number;
 };
 
-function unionClientRects(
-	rects: Iterable<{
-		left: number;
-		top: number;
-		right: number;
-		bottom: number;
-		width: number;
-		height: number;
-	}>,
-): ElementDragBox | null {
-	let box: ElementDragBox | null = null;
-	for (const rect of rects) {
-		if (rect.width <= 0 || rect.height <= 0) continue;
-		const next = {
-			left: rect.left,
-			top: rect.top,
-			right: rect.right,
-			bottom: rect.bottom,
-		};
-		if (!box) {
-			box = next;
-			continue;
-		}
-		box = {
-			left: Math.min(box.left, next.left),
-			top: Math.min(box.top, next.top),
-			right: Math.max(box.right, next.right),
-			bottom: Math.max(box.bottom, next.bottom),
-		};
-	}
-	return box;
-}
-
-/** Sentence boxes in reading order, measured from the painted translation. */
+/** Measure the rendered text. Reflow sentence spans wrap absolute glyphs. */
 export function elementDragTargetsFromDom(
-	root: ParentNode,
+	root: HTMLElement,
 	blocks: readonly ElementDragBlockSource[],
+	selection: Range,
 ): ElementDragTarget[] {
-	const sorted = [...blocks].sort(
-		(a, b) => a.pageIndex - b.pageIndex || a.readingOrder - b.readingOrder,
-	);
-	const targets: ElementDragTarget[] = [];
-	let order = 0;
-	for (const block of sorted) {
-		const node = root.querySelector<HTMLElement>(
-			`[data-layout-item="${CSS.escape(block.id)}"]`,
+	const byId = new Map(blocks.map((block) => [block.id, block]));
+	const mounted = Array.from(
+		root.querySelectorAll<HTMLElement>("[data-layout-item]"),
+	)
+		.flatMap((node) => {
+			if (!selection.intersectsNode(node)) return [];
+			const block = byId.get(node.dataset.layoutItem ?? "");
+			return block ? [{ node, block }] : [];
+		})
+		.sort(
+			(a, b) =>
+				a.block.pageIndex - b.block.pageIndex ||
+				a.block.readingOrder - b.block.readingOrder,
 		);
-		if (!node) continue;
-		const spans = node.querySelectorAll<HTMLElement>("[data-sentence]");
-		if (spans.length === 0) {
-			const box = unionClientRects([node.getBoundingClientRect()]);
-			if (!box) continue;
+	const targets: ElementDragTarget[] = [];
+	const range = document.createRange();
+	for (const { node, block } of mounted) {
+		for (const { element, hit } of dragNodes(node)) {
+			range.selectNodeContents(element);
+			const lines = mergeClientRectsIntoLines(
+				Array.from(range.getClientRects()),
+			).map(({ left, top, width, height }) => ({
+				left,
+				top,
+				right: left + width,
+				bottom: top + height,
+			}));
+			const first = lines[0];
+			if (!first) continue;
+			const box = lines.reduce(
+				(box, line) => ({
+					left: Math.min(box.left, line.left),
+					top: Math.min(box.top, line.top),
+					right: Math.max(box.right, line.right),
+					bottom: Math.max(box.bottom, line.bottom),
+				}),
+				first,
+			);
 			targets.push({
-				itemId: block.id,
-				sentenceIndex: null,
+				...hit,
 				kind: block.kind,
-				order: order++,
+				order: targets.length,
 				box,
-			});
-			continue;
-		}
-		for (const span of spans) {
-			const sentenceIndex = Number(span.getAttribute("data-sentence"));
-			if (!Number.isInteger(sentenceIndex)) continue;
-			const box = unionClientRects(span.getClientRects());
-			if (!box) continue;
-			targets.push({
-				itemId: block.id,
-				sentenceIndex,
-				kind: block.kind,
-				order: order++,
-				box,
+				lines,
 			});
 		}
 	}
 	return targets;
 }
 
-function spanHitKey(span: Element): string | null {
-	const itemId = span
-		.closest("[data-layout-item]")
-		?.getAttribute("data-layout-item");
-	const raw = span.getAttribute("data-sentence");
-	if (!itemId || raw == null || raw === "") return null;
-	const sentenceIndex = Number(raw);
-	if (!Number.isInteger(sentenceIndex)) return null;
-	return elementDragHitKey({ itemId, sentenceIndex });
+function dragNodes(
+	block: HTMLElement,
+): { element: HTMLElement; hit: ElementDragHit }[] {
+	const itemId = block.dataset.layoutItem;
+	if (!itemId) return [];
+	const spans = block.querySelectorAll<HTMLElement>("[data-sentence]");
+	return spans.length
+		? Array.from(spans, (element) => ({
+				element,
+				hit: { itemId, sentenceIndex: Number(element.dataset.sentence) },
+			}))
+		: [{ element: block, hit: { itemId, sentenceIndex: null } }];
 }
 
-/**
- * Drop leading and trailing sentence spans the clip rejected.
- * One DOM range cannot punch a hole through a header left between two
- * covered sections; the hit list already excludes that header.
- * Returns true when `range` changed. All-rejected collapses the range.
- */
-export function trimRangeToKeptHits(
+/** Retain selected characters in covered sentences and group adjacent hits within each block. */
+export function elementDragSelectionRanges(
 	range: Range,
 	root: ParentNode,
 	kept: ReadonlySet<string>,
+): Range[] {
+	const ranges: Range[] = [];
+	for (const block of root.querySelectorAll<HTMLElement>(
+		"[data-layout-item]",
+	)) {
+		if (!range.intersectsNode(block)) continue;
+		let part: Range | null = null;
+		for (const { element, hit } of dragNodes(block)) {
+			if (!kept.has(elementDragHitKey(hit))) {
+				part = null;
+				continue;
+			}
+			const selected = selectedRangeWithin(range, element);
+			if (!selected) continue;
+			if (part) {
+				part.setEnd(selected.endContainer, selected.endOffset);
+			} else {
+				part = selected;
+				ranges.push(part);
+			}
+		}
+	}
+	return ranges;
+}
+
+/** A native selection holds one range, so trim its endpoints to the retained text. */
+export function trimRangeToParts(
+	range: Range,
+	parts: readonly Range[],
 ): boolean {
-	const spans = Array.from(root.querySelectorAll("[data-sentence]")).filter(
-		(span) => range.intersectsNode(span),
-	);
-	if (spans.length === 0) return false;
-	let start = 0;
-	while (start < spans.length) {
-		const key = spanHitKey(spans[start]);
-		if (key == null || kept.has(key)) break;
-		start += 1;
+	const first = parts[0];
+	const last = parts.at(-1);
+	if (!first || !last) {
+		range.collapse(true);
+		return true;
 	}
-	let end = spans.length;
-	while (end > start) {
-		const key = spanHitKey(spans[end - 1]);
-		if (key == null || kept.has(key)) break;
-		end -= 1;
-	}
-	try {
-		if (start >= end) {
-			range.collapse(true);
-			return true;
-		}
-		let changed = false;
-		if (start > 0) {
-			range.setStartBefore(spans[start]);
-			changed = true;
-		}
-		if (end < spans.length) {
-			range.setEndBefore(spans[end]);
-			changed = true;
-		}
-		return changed;
-	} catch {
+	if (
+		range.compareBoundaryPoints(Range.START_TO_START, first) === 0 &&
+		range.compareBoundaryPoints(Range.END_TO_END, last) === 0
+	)
 		return false;
-	}
+	range.setStart(first.startContainer, first.startOffset);
+	range.setEnd(last.endContainer, last.endOffset);
+	return true;
 }

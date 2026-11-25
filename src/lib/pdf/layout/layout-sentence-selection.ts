@@ -424,7 +424,10 @@ export function translationSelectionFromHits(
  * the previous span, which then anchors that previous English sentence.
  * Boundary contact with no characters does not count.
  */
-export function selectedTextWithin(range: Range, element: HTMLElement): string {
+export function selectedRangeWithin(
+	range: Range,
+	element: HTMLElement,
+): Range | null {
 	const nodeRange = document.createRange();
 	try {
 		nodeRange.selectNodeContents(element);
@@ -435,7 +438,7 @@ export function selectedTextWithin(range: Range, element: HTMLElement): string {
 			range.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0;
 		const endAfterNodeStart =
 			range.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0;
-		if (!startBeforeNodeEnd || !endAfterNodeStart) return "";
+		if (!startBeforeNodeEnd || !endAfterNodeStart) return null;
 		const slice = range.cloneRange();
 		if (slice.compareBoundaryPoints(Range.START_TO_START, nodeRange) < 0) {
 			slice.setStart(nodeRange.startContainer, nodeRange.startOffset);
@@ -443,10 +446,14 @@ export function selectedTextWithin(range: Range, element: HTMLElement): string {
 		if (slice.compareBoundaryPoints(Range.END_TO_END, nodeRange) > 0) {
 			slice.setEnd(nodeRange.endContainer, nodeRange.endOffset);
 		}
-		return slice.collapsed ? "" : slice.toString();
+		return slice.collapsed ? null : slice;
 	} catch {
-		return "";
+		return null;
 	}
+}
+
+export function selectedTextWithin(range: Range, element: HTMLElement): string {
+	return selectedRangeWithin(range, element)?.toString() ?? "";
 }
 
 /** Read only translated page blocks; a cross-page DOM range can span rail cards. */

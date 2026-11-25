@@ -8,7 +8,8 @@ import {
 	elementDragAnchorAt,
 	elementDragBoxFromPoints,
 	elementDragHitKey,
-	trimRangeToKeptHits,
+	elementDragSelectionRanges,
+	trimRangeToParts,
 } from "@/lib/pdf/layout/element-drag-clip";
 
 function box(
@@ -38,7 +39,10 @@ describe("clipElementDragHits", () => {
 	it("does not expand a stroke that only nips the next sentence", () => {
 		const first = target(0, "a", 0, "text", box(10, 100, 210, 120));
 		const second = target(1, "a", 1, "text", box(10, 120, 210, 140));
-		const drag = elementDragBoxFromPoints({ x: 16, y: 109 }, { x: 190, y: 122 });
+		const drag = elementDragBoxFromPoints(
+			{ x: 16, y: 109 },
+			{ x: 190, y: 122 },
+		);
 		const hits = clipElementDragHits(
 			[
 				{ itemId: "a", sentenceIndex: 0 },
@@ -54,7 +58,10 @@ describe("clipElementDragHits", () => {
 	it("keeps the next sentence when the stroke covers it", () => {
 		const first = target(0, "a", 0, "text", box(10, 100, 210, 120));
 		const second = target(1, "a", 1, "text", box(10, 120, 210, 140));
-		const drag = elementDragBoxFromPoints({ x: 16, y: 109 }, { x: 190, y: 135 });
+		const drag = elementDragBoxFromPoints(
+			{ x: 16, y: 109 },
+			{ x: 190, y: 135 },
+		);
 		const hits = clipElementDragHits(
 			[
 				{ itemId: "a", sentenceIndex: 0 },
@@ -123,7 +130,7 @@ describe("clipElementDragHits", () => {
 	});
 
 	it("drops an uncovered header and a following body the rectangle only nips", () => {
-		const thinHeader = target(1, "h", 0, "header", box(10, 140, 210, 148));
+		const thinHeader = target(1, "h", 0, "header", box(175, 140, 210, 148));
 		const next = target(2, "b", 0, "text", box(10, 148, 210, 188));
 		const drag = elementDragBoxFromPoints(
 			{ x: 20, y: 110 },
@@ -189,25 +196,27 @@ describe("clipElementDragHits", () => {
 	});
 });
 
-describe("trimRangeToKeptHits", () => {
-	it("stops the highlight before a grazed next sentence", () => {
+describe("elementDragSelectionRanges", () => {
+	it("stops the native range before the next paragraph", () => {
 		document.body.innerHTML =
-			'<div id="root"><div data-layout-item="a"><span data-sentence="0">减轻这种工程负担。</span><span data-sentence="1">我们将这两个要求整合到 RSIGym 中。</span></div></div>';
+			'<div id="root"><div data-layout-item="a"><span data-sentence="0">减轻这种工程负担。</span></div><div data-layout-item="b"><span data-sentence="0">我们将这两个要求整合到 RSIGym 中。</span></div></div>';
 		const root = document.getElementById("root");
-		const first = root?.querySelector('[data-sentence="0"]');
-		const second = root?.querySelector('[data-sentence="1"]');
+		const first = root?.querySelector('[data-layout-item="a"] [data-sentence]');
+		const second = root?.querySelector(
+			'[data-layout-item="b"] [data-sentence]',
+		);
 		if (!root || !first?.firstChild || !second?.firstChild) {
 			throw new Error("missing spans");
 		}
 		const range = document.createRange();
 		range.setStart(first.firstChild, 0);
 		range.setEnd(second.firstChild, second.textContent?.length ?? 0);
-		const changed = trimRangeToKeptHits(
+		const parts = elementDragSelectionRanges(
 			range,
 			root,
 			new Set([elementDragHitKey({ itemId: "a", sentenceIndex: 0 })]),
 		);
-		expect(changed).toBe(true);
+		expect(trimRangeToParts(range, parts)).toBe(true);
 		expect(range.toString()).toBe("减轻这种工程负担。");
 	});
 });
