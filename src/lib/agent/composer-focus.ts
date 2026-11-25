@@ -1,4 +1,5 @@
 import { zenOwnsChatInput } from "@/lib/agent/chat-input-surface";
+import { uiStore } from "@/lib/shell/ui-store";
 import { openRightTab } from "@/lib/shell/ui-window-actions";
 
 /**
@@ -64,13 +65,12 @@ function placeCaretAtEnd(el: HTMLElement) {
  * workspace owns them.
  */
 export function presentAgentComposer(options?: ComposerFocusOptions): void {
+	if (uiStore.getState().agentWindowOpen) {
+		focusAgentComposer(options);
+		return;
+	}
 	if (zenOwnsChatInput()) {
-		// Dynamic import keeps workspace actions (and navigation) out of this
-		// hot module's static graph.
-		void import("@/lib/workspace/actions").then(({ openZenWorkspace }) => {
-			openZenWorkspace();
-			focusAgentComposer(options);
-		});
+		focusAgentComposer(options);
 		return;
 	}
 	openRightTab("agent");

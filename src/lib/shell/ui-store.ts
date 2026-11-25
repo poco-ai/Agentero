@@ -49,6 +49,11 @@ type UiStore = {
 	/** Right sidebar (⌘L): Agent (default) or Annotations. */
 	rightSidebarOpen: boolean;
 	rightSidebarTab: RightSidebarTab;
+	/**
+	 * Whole-window Agent workspace: the left rail lists ACP history and the
+	 * center Dockview owns one tab per conversation. Session-only.
+	 */
+	agentWindowOpen: boolean;
 	/** Keep AgentPanel mounted when switching right-rail tabs. */
 	agentPanelMounted: boolean;
 	/**
@@ -95,6 +100,7 @@ export const uiStore = createStore<UiStore>(() => ({
 	lastAppliedPreset: null,
 	rightSidebarOpen: false,
 	rightSidebarTab: "agent",
+	agentWindowOpen: false,
 	agentPanelMounted: false,
 	featurePoppedOut: {},
 	lookupOpenSignal: 0,
@@ -198,6 +204,11 @@ export function initShellLayoutFromPrefs(): void {
 
 export function setRightSidebarTab(tab: RightSidebarTab): void {
 	uiStore.setState({ rightSidebarTab: tab });
+}
+
+export function setAgentWindowOpen(open: boolean): void {
+	if (uiStore.getState().agentWindowOpen === open) return;
+	uiStore.setState({ agentWindowOpen: open });
 }
 
 export function setAgentPanelMounted(mounted: boolean): void {
@@ -380,5 +391,6 @@ export function clearUiVaultState(): void {
 		alphaxivParentDir: null,
 		zoteroSyncOpen: false,
 		commandOpen: false,
+		agentWindowOpen: false,
 	});
 }

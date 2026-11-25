@@ -16,6 +16,7 @@ type RailsLike = {
 	rightSidebarOpen: boolean;
 	rightSidebarTab: string;
 	featurePoppedOut: Partial<Record<string, boolean>>;
+	agentWindowOpen: boolean;
 };
 
 /** A Zen tab exists in this window's center dock. */
@@ -32,9 +33,11 @@ export function railIsAgentSurface(ui: RailsLike): boolean {
 	);
 }
 
-/** Whether an open Zen workspace should receive app-wide chat inputs. */
+/** Whether an open Agent workspace should receive app-wide chat inputs. */
 export function zenOwnsChatInput(): boolean {
+	const ui = uiStore.getState();
+	if (ui.agentWindowOpen) return true;
 	const { tabs } = workspaceStore.getState();
 	if (!zenTabIsOpen(tabs)) return false;
-	return !railIsAgentSurface(uiStore.getState());
+	return !railIsAgentSurface(ui);
 }

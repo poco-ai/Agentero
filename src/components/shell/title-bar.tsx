@@ -1,4 +1,4 @@
-import { PanelLeft, Settings } from "lucide-react";
+import { ArrowUpRight, PanelLeft, Settings, X } from "lucide-react";
 import { memo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
@@ -33,11 +33,16 @@ import { openPalette } from "@/lib/shell/ui-store";
 type TitleBarProps = {
 	isMacDesktop: boolean;
 	showSettingsGear: boolean;
+	/** Whole-window Agent workspace is open. */
+	agentWindowOpen: boolean;
+	/** A vault is open, so the Agent workspace has a session list. */
+	agentWindowAvailable: boolean;
 	sidebarCollapsed: boolean;
 	rightSidebarOpen: boolean;
 	layoutMode: LayoutMode;
 	onToggleSidebar: () => void;
 	onToggleAgent: () => void;
+	onToggleAgentWindow: () => void;
 	onApplyLayoutMode: (mode: Exclude<LayoutMode, "custom">) => void;
 	onToggleImmersive: () => void;
 	onOpenSettings: () => void;
@@ -50,11 +55,14 @@ type TitleBarProps = {
 export const TitleBar = memo(function TitleBar({
 	isMacDesktop,
 	showSettingsGear,
+	agentWindowOpen,
+	agentWindowAvailable,
 	sidebarCollapsed,
 	rightSidebarOpen,
 	layoutMode,
 	onToggleSidebar,
 	onToggleAgent,
+	onToggleAgentWindow,
 	onApplyLayoutMode,
 	onToggleImmersive,
 	onOpenSettings,
@@ -66,16 +74,16 @@ export const TitleBar = memo(function TitleBar({
 	const QUICK_OPEN_SHORTCUT = useShortcutLabel("quickOpen");
 	const COMMAND_PALETTE_SHORTCUT = useShortcutLabel("commandPalette");
 	const agentTemplate = useAgentChromeStore((s) => s.template);
-	const [agentWindowMenuOpen, setAgentWindowMenuOpen] = useState(false);
+	const [agentRailMenuOpen, setAgentRailMenuOpen] = useState(false);
 	// Palette entries in the gear menu hand focus to the title-bar field; stop
 	// Radix from restoring focus to the gear when that menu closes.
 	const paletteMenuOpenRef = useRef(false);
 	// Right-click opens the menu. Left-click on the same trigger asks Radix to
 	// open it too; only a gesture we just marked may do that.
-	const agentWindowMenuOpenedAt = useRef(0);
-	const openAgentWindowMenu = () => {
-		agentWindowMenuOpenedAt.current = performance.now();
-		setAgentWindowMenuOpen(true);
+	const agentRailMenuOpenedAt = useRef(0);
+	const openAgentRailMenu = () => {
+		agentRailMenuOpenedAt.current = performance.now();
+		setAgentRailMenuOpen(true);
 	};
 
 	return (
@@ -123,108 +131,157 @@ export const TitleBar = memo(function TitleBar({
 				 * on the window rather than on the space between the controls.
 				 */}
 				<div className="min-w-0 flex-1 self-stretch" data-tauri-drag-region />
-				<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+				<div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2">
+					{agentWindowAvailable ? (
+						// Invisible twin keeps the search field optically centered while
+						// the Agent card shrinks to its label.
+						<span
+							aria-hidden
+							className="pointer-events-none invisible flex h-[1.375rem] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs"
+						>
+							<span className="min-w-0 truncate">
+								{t("titlebar.agentWindow")}
+							</span>
+							<ArrowUpRight className="size-3 shrink-0" />
+						</span>
+					) : null}
 					<div className="pointer-events-auto">
 						<QuickOpen />
 					</div>
+					{agentWindowAvailable ? (
+						<button
+							type="button"
+							aria-label={t("titlebar.agentWindow")}
+							aria-pressed={agentWindowOpen}
+							title={t("titlebar.agentWindow")}
+							onClick={onToggleAgentWindow}
+							className={cn(
+								"pointer-events-auto flex h-[1.375rem] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none",
+								agentWindowOpen
+									? "border-brand/40 bg-brand/20 text-brand"
+									: "border-brand/20 bg-brand/10 text-brand hover:bg-brand/15",
+							)}
+						>
+							<span className="min-w-0 truncate">
+								{t("titlebar.agentWindow")}
+							</span>
+							{agentWindowOpen ? (
+								<X className="size-3 shrink-0" aria-hidden />
+							) : (
+								<ArrowUpRight
+									className="size-3 shrink-0 opacity-70"
+									aria-hidden
+								/>
+							)}
+						</button>
+					) : null}
 				</div>
 				<div className="flex shrink-0 items-center gap-0.5 pr-2">
 					<UpdateIndicator />
-					<LayoutMenu
-						value={layoutMode}
-						onValueChange={onApplyLayoutMode}
-						onToggleImmersive={onToggleImmersive}
-					/>
-					{/*
-					 * Left click toggles the rail. Right click opens this menu.
-					 * A cursor-anchored context menu is clipped against the right
-					 * edge on Windows, and WebView2 often never emits contextmenu
-					 * here, so the right button opens a menu anchored to the button.
-					 */}
-					<DropdownMenu
-						open={agentWindowMenuOpen}
-						onOpenChange={(next) => {
-							if (
-								next &&
-								performance.now() - agentWindowMenuOpenedAt.current > 500
-							) {
-								return;
-							}
-							if (!next) agentWindowMenuOpenedAt.current = 0;
-							setAgentWindowMenuOpen(next);
-						}}
-					>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<DropdownMenuTrigger asChild>
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon-sm"
-										data-tb-agent
-										data-hint
-										data-hint-priority="1"
-										aria-label={
-											rightSidebarOpen
-												? t("titlebar.hideRightSidebar")
-												: t("titlebar.showRightSidebar")
-										}
-										aria-pressed={rightSidebarOpen}
-										className={cn(
-											rightSidebarOpen && "bg-muted text-foreground",
-										)}
-										onPointerDown={(event) => {
-											if (event.button !== 2) return;
-											event.stopPropagation();
-											openAgentWindowMenu();
-										}}
-										onContextMenu={(event) => {
-											event.preventDefault();
-											openAgentWindowMenu();
-										}}
-										onClick={(event) => {
-											event.preventDefault();
-											if (agentWindowMenuOpen) return;
-											onToggleAgent();
-										}}
-									>
-										<AgentLogo
-											template={agentTemplate}
-											className="size-3.5"
-											iconClassName="size-3"
-											plain
-										/>
-									</Button>
-								</DropdownMenuTrigger>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								{rightSidebarOpen
-									? t("titlebar.hideRightSidebarHint", {
-											shortcut: CHAT_SHORTCUT,
-										})
-									: t("titlebar.showRightSidebarHint", {
-											shortcut: CHAT_SHORTCUT,
-										})}
-							</TooltipContent>
-						</Tooltip>
-						<DropdownMenuContent
-							align="end"
-							className="min-w-40"
-							onInteractOutside={(event) => {
-								if (performance.now() - agentWindowMenuOpenedAt.current < 400) {
-									event.preventDefault();
-								}
-							}}
-						>
-							<DropdownMenuItem
-								onSelect={() => {
-									void moveFeatureToWindow("agent");
+					{agentWindowOpen ? null : (
+						<LayoutMenu
+							value={layoutMode}
+							onValueChange={onApplyLayoutMode}
+							onToggleImmersive={onToggleImmersive}
+						/>
+					)}
+					{agentWindowOpen ? null : (
+						<>
+							{/*
+							 * Left click toggles the rail. Right click opens this menu.
+							 * A cursor-anchored context menu is clipped against the right
+							 * edge on Windows, and WebView2 often never emits contextmenu
+							 * here, so the right button opens a menu anchored to the button.
+							 */}
+							<DropdownMenu
+								open={agentRailMenuOpen}
+								onOpenChange={(next) => {
+									if (
+										next &&
+										performance.now() - agentRailMenuOpenedAt.current > 500
+									) {
+										return;
+									}
+									if (!next) agentRailMenuOpenedAt.current = 0;
+									setAgentRailMenuOpen(next);
 								}}
 							>
-								{t("tabs.contextMoveToNewWindow")}
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<DropdownMenuTrigger asChild>
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon-sm"
+												data-tb-agent
+												data-hint
+												data-hint-priority="1"
+												aria-label={
+													rightSidebarOpen
+														? t("titlebar.hideRightSidebar")
+														: t("titlebar.showRightSidebar")
+												}
+												aria-pressed={rightSidebarOpen}
+												className={cn(
+													rightSidebarOpen && "bg-muted text-foreground",
+												)}
+												onPointerDown={(event) => {
+													if (event.button !== 2) return;
+													event.stopPropagation();
+													openAgentRailMenu();
+												}}
+												onContextMenu={(event) => {
+													event.preventDefault();
+													openAgentRailMenu();
+												}}
+												onClick={(event) => {
+													event.preventDefault();
+													if (agentRailMenuOpen) return;
+													onToggleAgent();
+												}}
+											>
+												<AgentLogo
+													template={agentTemplate}
+													className="size-3.5"
+													iconClassName="size-3"
+													plain
+												/>
+											</Button>
+										</DropdownMenuTrigger>
+									</TooltipTrigger>
+									<TooltipContent side="bottom">
+										{rightSidebarOpen
+											? t("titlebar.hideRightSidebarHint", {
+													shortcut: CHAT_SHORTCUT,
+												})
+											: t("titlebar.showRightSidebarHint", {
+													shortcut: CHAT_SHORTCUT,
+												})}
+									</TooltipContent>
+								</Tooltip>
+								<DropdownMenuContent
+									align="end"
+									className="min-w-40"
+									onInteractOutside={(event) => {
+										if (
+											performance.now() - agentRailMenuOpenedAt.current <
+											400
+										) {
+											event.preventDefault();
+										}
+									}}
+								>
+									<DropdownMenuItem
+										onSelect={() => {
+											void moveFeatureToWindow("agent");
+										}}
+									>
+										{t("tabs.contextMoveToNewWindow")}
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</>
+					)}
 					{/*
 				  Windows / Linux have no native menu bar, so the gear doubles as a
 				  compact app menu: settings entries plus the palette actions that

@@ -31,6 +31,7 @@ import {
 } from "@/hooks/use-app-stores";
 import { useOverlayRegistration } from "@/hooks/use-overlay-registration";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
+import { closeAgentWindow } from "@/lib/agent/agent-window";
 import type { PaperMetadata } from "@/lib/paper";
 import { paperDirFromPath } from "@/lib/paper/detect";
 import { editablePaperTags } from "@/lib/paper/tags";
@@ -258,16 +259,24 @@ export function QuickOpen() {
 	const openPaperRel = (rel: string) => {
 		if (vaultPath) openPaper(joinVaultPath(vaultPath, rel));
 	};
+	const revealWorkspace = () => {
+		// Opening a document from Agent mode would land in the hidden document
+		// dock; drop back to the workspace first.
+		closeAgentWindow();
+	};
 	const choosePaper = (rel: string) => {
+		revealWorkspace();
 		openPaperRel(rel);
 		close();
 	};
 	const chooseHit = (hit: SearchHit) => {
+		revealWorkspace();
 		if (hit.paperPath) openPaperRel(hit.paperPath);
 		else openVaultRel(hit.path);
 		close();
 	};
 	const chooseAlias = (candidate: WikiSearchCandidate) => {
+		revealWorkspace();
 		const paperRel = paperDirFromPath(candidate.path);
 		if (paperRel) openPaperRel(paperRel);
 		else openVaultRel(candidate.path);

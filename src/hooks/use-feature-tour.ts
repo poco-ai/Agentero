@@ -72,6 +72,7 @@ function blocked(): boolean {
 		ui.alphaxivOpen ||
 		ui.zoteroSyncOpen ||
 		ui.commandOpen ||
+		ui.agentWindowOpen ||
 		ui.settingsOpen ||
 		ui.immersiveReading ||
 		[

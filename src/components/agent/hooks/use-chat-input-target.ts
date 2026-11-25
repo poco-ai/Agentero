@@ -17,10 +17,11 @@ import { useZenStore, zenScopeId } from "@/lib/agent/zen-store";
 
 export function useChatInputTarget(): boolean {
 	const { scopeId } = useAgentSessionScope();
-	const zenOpen = useWorkspaceStore((s) => zenTabIsOpen(s.tabs));
+	const zenTabOpen = useWorkspaceStore((s) => zenTabIsOpen(s.tabs));
+	const agentWindowOpen = useUiStore((s) => s.agentWindowOpen);
 	const railVisible = useUiStore(railIsAgentSurface);
 	const activeSlotId = useZenStore((s) => s.activeSlotId);
-	const zenOwns = zenOpen && !railVisible;
+	const zenOwns = (zenTabOpen || agentWindowOpen) && !railVisible;
 	if (scopeId === null) return !zenOwns;
 	return (
 		zenOwns && activeSlotId !== null && scopeId === zenScopeId(activeSlotId)

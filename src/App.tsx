@@ -7,8 +7,10 @@
  */
 
 import { FolderOpen } from "lucide-react";
-import { Fragment, useCallback, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AgentHistorySidebar } from "@/components/agent/zen/agent-history-sidebar";
+import { AgentWorkspace } from "@/components/agent/zen/agent-workspace";
 import { OnboardingRoot } from "@/components/onboarding/onboarding-root";
 import { AppDialogs } from "@/components/shell/app-dialogs";
 import { BackgroundTasksPanel } from "@/components/shell/background-tasks-panel";
@@ -55,8 +57,13 @@ import {
 	agentChromeStore,
 	getAgentChromeState,
 } from "@/lib/agent/agent-chrome-store";
+import { agentDock } from "@/lib/agent/agent-dock-registry";
+import { toggleAgentWindow } from "@/lib/agent/agent-window";
 import { listAgents } from "@/lib/agent/api";
-import { presentAgentComposer } from "@/lib/agent/composer-focus";
+import {
+	focusAgentComposer,
+	presentAgentComposer,
+} from "@/lib/agent/composer-focus";
 import {
 	listenOpenAgentWithPrompt,
 	setPendingAgentComposerPrompt,
@@ -170,6 +177,8 @@ function AppTitleBar() {
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
 	const layoutMode = useUiStore((s) => s.layoutMode);
+	const agentWindowOpen = useUiStore((s) => s.agentWindowOpen);
+	const vaultPath = useVaultStore((s) => s.vaultPath);
 	// PERF: stable identity — an inline arrow would break TitleBar's memo.
 	const applyLayoutMode = useCallback(
 		(mode: Exclude<LayoutMode, "custom">) => layout()?.applyLayoutMode(mode),
@@ -180,11 +189,14 @@ function AppTitleBar() {
 		<TitleBar
 			isMacDesktop={isMacDesktop}
 			showSettingsGear={showSettingsGear}
+			agentWindowOpen={agentWindowOpen}
+			agentWindowAvailable={Boolean(vaultPath)}
 			sidebarCollapsed={sidebarCollapsed}
 			rightSidebarOpen={rightSidebarOpen}
 			layoutMode={layoutMode}
 			onToggleSidebar={toggleSidebar}
 			onToggleAgent={toggleChat}
+			onToggleAgentWindow={toggleAgentWindow}
 			onApplyLayoutMode={applyLayoutMode}
 			onToggleImmersive={toggleImmersiveReading}
 			onOpenSettings={openSettingsWindow}
@@ -260,7 +272,13 @@ export default function App() {
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
 	const immersiveReading = useUiStore((s) => s.immersiveReading);
+	const agentWindowOpen = useUiStore((s) => s.agentWindowOpen);
+	const [agentWindowMounted, setAgentWindowMounted] = useState(false);
 	const isResizingRightRef = useRef(false);
+
+	useEffect(() => {
+		if (agentWindowOpen) setAgentWindowMounted(true);
+	}, [agentWindowOpen]);
 
 	// Seed the chrome agent icon with the registry default before the Agent panel
 	// is ever opened. If the panel mounts first, it wins via agentChromeStore.
@@ -410,7 +428,13 @@ export default function App() {
 		},
 		toggleMarkdownSource: () => toggleActiveMarkdownSource(),
 		toggleSidebar,
-		toggleChat,
+		toggleChat: () => {
+			if (uiStore.getState().agentWindowOpen) {
+				focusAgentComposer();
+				return;
+			}
+			toggleChat();
+		},
 		// ⌘K: in-page Quick chat (Ask) from the armed PDF / Plaza selection.
 		quickChat: () => {
 			runSelectionQuickChat();
@@ -422,17 +446,39 @@ export default function App() {
 			presentAgentComposer();
 		},
 		focusSidebar: () => layout()?.focusSidebar(),
-		focusEditor: () => layout()?.focusEditorPane(),
+		focusEditor: () => {
+			if (uiStore.getState().agentWindowOpen) {
+				focusAgentComposer();
+				return;
+			}
+			layout()?.focusEditorPane();
+		},
 		focusNotes: () => layout()?.focusNotesEditor(),
 		closeTab: () => {
+			if (uiStore.getState().agentWindowOpen) {
+				agentDock()?.closeActive();
+				return;
+			}
 			closeTabOrWindow();
 		},
 		reopenTab: reopenClosedTab,
 		splitPane: splitActivePane,
-		nextTab: () => cycleActiveTab(1),
-		prevTab: () => cycleActiveTab(-1),
-		nextGroupTab: () => cycleActiveGroupTab(1),
-		prevGroupTab: () => cycleActiveGroupTab(-1),
+		nextTab: () => {
+			if (uiStore.getState().agentWindowOpen) agentDock()?.cycleActive(1);
+			else cycleActiveTab(1);
+		},
+		prevTab: () => {
+			if (uiStore.getState().agentWindowOpen) agentDock()?.cycleActive(-1);
+			else cycleActiveTab(-1);
+		},
+		nextGroupTab: () => {
+			if (uiStore.getState().agentWindowOpen) agentDock()?.cycleGroupTab(1);
+			else cycleActiveGroupTab(1);
+		},
+		prevGroupTab: () => {
+			if (uiStore.getState().agentWindowOpen) agentDock()?.cycleGroupTab(-1);
+			else cycleActiveGroupTab(-1);
+		},
 		zoomIn,
 		zoomOut,
 		zoomReset,
@@ -485,8 +531,20 @@ export default function App() {
 		onRefresh: refreshAll,
 		onToggleSidebar: toggleSidebar,
 		onSplitPane: splitActivePane,
-		onToggleChat: toggleChat,
-		onCloseTabOrWindow: closeTabOrWindow,
+		onToggleChat: () => {
+			if (uiStore.getState().agentWindowOpen) {
+				focusAgentComposer();
+				return;
+			}
+			toggleChat();
+		},
+		onCloseTabOrWindow: () => {
+			if (uiStore.getState().agentWindowOpen) {
+				agentDock()?.closeActive();
+				return;
+			}
+			closeTabOrWindow();
+		},
 	});
 
 	// Persist a completed user resize into the active layout's width slot.
@@ -588,10 +646,27 @@ export default function App() {
 									*/}
 										<aside
 											ref={sidebarAsideRef}
-											data-vault-sidebar
+											data-vault-sidebar={agentWindowOpen ? undefined : ""}
 											className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar isolate"
 										>
-											<VaultSidebar />
+											<div
+												className={cn(
+													"h-full min-h-0",
+													agentWindowOpen && "hidden",
+												)}
+											>
+												<VaultSidebar />
+											</div>
+											{agentWindowMounted ? (
+												<div
+													className={cn(
+														"h-full min-h-0",
+														!agentWindowOpen && "hidden",
+													)}
+												>
+													<AgentHistorySidebar active={agentWindowOpen} />
+												</div>
+											) : null}
 										</aside>
 									</ResizablePanel>
 
@@ -636,8 +711,25 @@ export default function App() {
 										<WelcomeCenter />
 									) : (
 										<div className="relative h-full min-h-0 flex-1 overflow-hidden">
-											<WorkspaceHost />
-											<WritingDialogs />
+											<div
+												className={cn(
+													"h-full min-h-0",
+													agentWindowOpen && "hidden",
+												)}
+											>
+												<WorkspaceHost />
+												<WritingDialogs />
+											</div>
+											{agentWindowMounted ? (
+												<div
+													className={cn(
+														"absolute inset-0 min-h-0",
+														!agentWindowOpen && "hidden",
+													)}
+												>
+													<AgentWorkspace />
+												</div>
+											) : null}
 										</div>
 									)}
 								</div>
@@ -647,9 +739,10 @@ export default function App() {
 							    Its Separator stays mounted too (see the left rail above). */}
 							<ResizableHandle
 								className={cn(
-									!rightSidebarOpen && "pointer-events-none w-0 opacity-0",
+									(!rightSidebarOpen || agentWindowOpen) &&
+										"pointer-events-none w-0 opacity-0",
 								)}
-								disabled={!rightSidebarOpen}
+								disabled={!rightSidebarOpen || agentWindowOpen}
 								onDoubleClick={() => commitRailReset("right")}
 								onPointerDown={() => {
 									isResizingRightRef.current = true;

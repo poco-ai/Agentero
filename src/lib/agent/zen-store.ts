@@ -256,6 +256,61 @@ export function seedZenFromRail(vaultPath: string | null): void {
 	copyRailDraft(vaultPath, agentId, activeTabId, slotId);
 }
 
+/**
+ * First Agent-window open takes over the rail's conversations, one slot (and
+ * therefore one Dockview tab) per ordinary rail session. A rail draft becomes
+ * its own tab. Pin/visual-trace chats stay with the paper reader.
+ */
+export function seedAgentWindowFromRail(vaultPath: string | null): void {
+	if (zenStore.getState().slots.length > 0) return;
+	const rail = agentSessionStore.getState();
+	const sessions = rail.sessions.filter((session) => !session.visualTraceId);
+	const chromeAgentId = agentChromeStore.getState().agentId;
+	const activeRailId = sessions.some(
+		(session) => session.id === rail.activeTabId,
+	)
+		? rail.activeTabId
+		: "draft";
+	let activeSlotId: string | null = null;
+	const slotBySession = new Map<string, string>();
+
+	for (const session of sessions) {
+		const agentId = session.agentId ?? chromeAgentId ?? null;
+		const slotId = zenStore.getState().addSlot({
+			sessions: [session],
+			activeTabId: session.id,
+			agentId,
+			agentName: session.agentName ?? null,
+		});
+		slotBySession.set(session.id, slotId);
+		if (session.id === activeRailId) activeSlotId = slotId;
+	}
+
+	if (activeRailId === "draft") {
+		const agentId = chromeAgentId ?? sessions[0]?.agentId ?? null;
+		const slotId = zenStore.getState().addSlot({
+			activeTabId: "draft",
+			draftLines: rail.draftLines,
+			agentId,
+		});
+		activeSlotId = slotId;
+		copyRailDraft(vaultPath, agentId, "draft", slotId);
+	} else {
+		const slotId = slotBySession.get(activeRailId);
+		if (slotId) {
+			const session = sessions.find((item) => item.id === activeRailId);
+			copyRailDraft(
+				vaultPath,
+				session?.agentId ?? chromeAgentId ?? null,
+				activeRailId,
+				slotId,
+			);
+		}
+	}
+
+	if (activeSlotId) zenStore.getState().activateSlot(activeSlotId);
+}
+
 /** React binding for the module store (rows derive their own slot store). */
 export function useZenStore<T>(selector: (state: ZenState) => T): T {
 	return useStore(zenStore, selector);

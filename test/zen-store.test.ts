@@ -7,6 +7,7 @@ import {
 } from "@/lib/agent/agent-session-store";
 import {
 	closeZenWorkspace,
+	seedAgentWindowFromRail,
 	seedZenFromRail,
 	zenStore,
 } from "@/lib/agent/zen-store";
@@ -169,6 +170,59 @@ describe("rail takeover", () => {
 		});
 		seedZenFromRail(null);
 		seedZenFromRail(null);
+		expect(zenStore.getState().slots).toHaveLength(1);
+	});
+});
+
+describe("agent window takeover", () => {
+	it("opens one slot per ordinary rail session and activates the rail tab", () => {
+		agentSessionStore.setState({
+			sessions: [
+				session("chat-1"),
+				session("chat-2", { agentId: "agent-2", agentName: "Codex" }),
+				session("pin-1", { visualTraceId: "trace-1" }),
+			],
+			activeTabId: "chat-2",
+		});
+		agentChromeStore.setState({ agentId: "agent-1", name: "Agent" });
+
+		seedAgentWindowFromRail(null);
+
+		const slots = zenStore.getState().slots;
+		expect(
+			slots.map((slot) => slot.store.getState().sessions.map((s) => s.id)),
+		).toEqual([["chat-1"], ["chat-2"]]);
+		const active = slots.find(
+			(slot) => slot.id === zenStore.getState().activeSlotId,
+		);
+		expect(active?.store.getState().activeTabId).toBe("chat-2");
+		expect(active?.agent.id).toBe("agent-2");
+		expect(active?.agent.name).toBe("Codex");
+	});
+
+	it("adds a draft tab when the rail's active tab is a pin", () => {
+		agentSessionStore.setState({
+			sessions: [session("pin-1", { visualTraceId: "trace-1" })],
+			activeTabId: "pin-1",
+		});
+		agentChromeStore.setState({ agentId: "agent-1", name: "Agent" });
+
+		seedAgentWindowFromRail(null);
+
+		const slots = zenStore.getState().slots;
+		expect(slots).toHaveLength(1);
+		expect(slots[0]?.store.getState().sessions).toEqual([]);
+		expect(slots[0]?.store.getState().activeTabId).toBe("draft");
+		expect(slots[0]?.agent.id).toBe("agent-1");
+	});
+
+	it("only seeds once", () => {
+		agentSessionStore.setState({
+			sessions: [session("chat-1")],
+			activeTabId: "chat-1",
+		});
+		seedAgentWindowFromRail(null);
+		seedAgentWindowFromRail(null);
 		expect(zenStore.getState().slots).toHaveLength(1);
 	});
 });
