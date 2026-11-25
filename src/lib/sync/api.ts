@@ -21,6 +21,8 @@ export type SyncScope = {
 	pdf: boolean;
 	source: boolean;
 	attachments: boolean;
+	/** Finished translation PDFs. Missing on older configs means off. */
+	translation: boolean;
 };
 
 /** Storage backend discriminator; legacy configs without one are S3. */
@@ -63,7 +65,7 @@ export type SyncBackendConfig = {
 	/** Per-device opt-in to the degraded protocol (WebDAV stores that ignore
 	 * conditional writes). Off by default; every device must enable it. */
 	allowDegradedSync: boolean;
-	/** Sync scope for bulky paper assets (default: everything). */
+	/** Sync scope for bulky paper assets. Translations default off. */
 	scope: SyncScope;
 };
 
@@ -152,7 +154,7 @@ export const emptySyncConfig = (
 	intervalMinutes: 30,
 	conditionalWrites: true,
 	allowDegradedSync: false,
-	scope: { pdf: true, source: true, attachments: true },
+	scope: { pdf: true, source: true, attachments: true, translation: false },
 });
 
 /** Interval choices shared with the Host (`config::INTERVAL_CHOICES`). */
@@ -163,6 +165,7 @@ export type SyncScopeSizes = {
 	pdf: number;
 	source: number;
 	attachments: number;
+	translation: number;
 };
 
 /** Fold the generated wire status into the local all-fields-present shape. */
@@ -212,6 +215,7 @@ function configFromWire(config: SyncBackendConfigWire): SyncBackendConfig {
 			pdf: config.scope?.pdf ?? true,
 			source: config.scope?.source ?? true,
 			attachments: config.scope?.attachments ?? true,
+			translation: config.scope?.translation ?? false,
 		},
 	};
 }

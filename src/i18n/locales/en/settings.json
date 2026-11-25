@@ -1274,7 +1274,8 @@
 		"scopeHintGit": "Exclusions apply to new files only. Files already tracked by Git continue to sync across devices.",
 		"scopePdf": "PDFs",
 		"scopeSource": "LaTeX sources",
-		"scopeAttachments": "Attachments"
+		"scopeAttachments": "Attachments",
+		"scopeTranslation": "Translations"
 	},
 	"cloudSync": {
 		"title": "Cloud sync",

@@ -1051,6 +1051,23 @@ function VaultSyncForm({
 						/>
 					</span>
 				</SettingsRow>
+				<SettingsRow
+					label={t("sync.scopeTranslation")}
+					htmlFor="sync-scope-translation"
+				>
+					<span className="flex items-center gap-2">
+						{scopeSizes ? (
+							<span className="text-muted-foreground text-xs tabular-nums">
+								{formatBytes(scopeSizes.translation)}
+							</span>
+						) : null}
+						<Switch
+							id="sync-scope-translation"
+							checked={scope.translation}
+							onCheckedChange={(checked) => patchScope("translation", checked)}
+						/>
+					</span>
+				</SettingsRow>
 			</SettingsGroup>
 
 			{form.backend === "s3" ? (

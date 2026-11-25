@@ -50,6 +50,14 @@ pub fn is_ignored_name(name: &str) -> bool {
         || crate::features::vault::tree::is_sync_store_artifact(name)
 }
 
+fn legacy_scope_on() -> bool {
+    true
+}
+
+fn translation_scope_off() -> bool {
+    false
+}
+
 /// Which bulky, re-derivable paper assets participate in sync. Notes,
 /// sidecars, marks and embedded images always sync — they are small and not
 /// recoverable from any upstream source.
@@ -57,32 +65,50 @@ pub fn is_ignored_name(name: &str) -> bool {
 #[serde(rename_all = "camelCase", default)]
 pub struct SyncScope {
     /// Paper-root PDFs: `papers/<id>/<id>.pdf`.
+    #[serde(default = "legacy_scope_on")]
     pub pdf: bool,
     /// LaTeX / e-print trees: `papers/<id>/source/`.
+    #[serde(default = "legacy_scope_on")]
     pub source: bool,
     /// Supplementary material: `papers/<id>/attachments/`.
+    #[serde(default = "legacy_scope_on")]
     pub attachments: bool,
+    /// Finished translation PDFs: `papers/<id>/translations/`.
+    /// Missing on older configs. Off — not `Default::all()`.
+    #[serde(default = "translation_scope_off")]
+    pub translation: bool,
 }
 
 impl Default for SyncScope {
-    /// Missing scope fields (legacy configs / old remote manifests) mean
-    /// "sync everything".
+    /// A missing scope object means the original three categories are on.
+    /// `translation` stays off so an old manifest is not rewritten as partial
+    /// and does not start syncing translation PDFs.
     fn default() -> Self {
-        Self::all()
-    }
-}
-
-impl SyncScope {
-    pub fn all() -> Self {
         Self {
             pdf: true,
             source: true,
             attachments: true,
+            translation: false,
         }
     }
+}
 
+impl SyncScope {
+    /// Historical full scope: PDF, source, and attachments. Translations stay off.
+    pub fn all() -> Self {
+        Self::default()
+    }
+
+    /// Original three categories only. A manifest that predates `translation`
+    /// still counts as full, so it is not rewritten just because the field is absent.
     pub fn is_all(&self) -> bool {
         self.pdf && self.source && self.attachments
+    }
+
+    /// Closed categories still need a path filter. Translation stays closed
+    /// when `is_all()` is true, and that must not fall through to "sync everything".
+    pub fn has_exclusions(&self) -> bool {
+        !self.is_all() || !self.translation
     }
 }
 
@@ -93,6 +119,7 @@ pub struct SyncScopeSizes {
     pub pdf: u64,
     pub source: u64,
     pub attachments: u64,
+    pub translation: u64,
 }
 
 pub fn scope_sizes(vault: &Path) -> Result<SyncScopeSizes, AppError> {
@@ -115,6 +142,7 @@ pub fn scope_sizes(vault: &Path) -> Result<SyncScopeSizes, AppError> {
                 Category::Pdf => sizes.pdf += size,
                 Category::Source => sizes.source += size,
                 Category::Attachments => sizes.attachments += size,
+                Category::Translation => sizes.translation += size,
             }
         }
     }
@@ -158,10 +186,10 @@ pub fn scan_vault(
     let files = vault_files(vault, "")
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| AppError::message(format!("scan vault: {e}")))?;
-    let roots = if scope.is_all() {
-        Default::default()
-    } else {
+    let roots = if scope.has_exclusions() {
         scope::paper_roots(files.iter().map(|(rel, _)| rel.as_str()))
+    } else {
+        Default::default()
     };
     for (rel, entry) in files {
         if scope::excluded(scope, &rel, &roots) {
@@ -277,12 +305,15 @@ mod tests {
         fs::write(vault.join("papers/x/x.pdf"), b"%PDF").unwrap();
         fs::write(vault.join("papers/x/source/main.tex"), b"tex").unwrap();
         fs::write(vault.join("papers/x/attachments/supp.pdf"), b"%PDF").unwrap();
+        fs::create_dir_all(vault.join("papers/x/translations")).unwrap();
+        fs::write(vault.join("papers/x/translations/translated.pdf"), b"%PDF").unwrap();
         fs::write(vault.join("loose.pdf"), b"%PDF").unwrap(); // outside papers/
 
         let scope = SyncScope {
             pdf: false,
             source: false,
             attachments: true,
+            translation: false,
         };
         let files = scan_vault(&vault, &Manifest::default(), &scope).unwrap();
         let keys: Vec<&String> = files.keys().collect();
@@ -317,6 +348,16 @@ mod tests {
                 "papers/collection/topic/x/attachments/source/fig.pdf",
                 Some(Category::Attachments),
             ),
+            (
+                "papers/collection/topic/x/translations/translated.pdf",
+                Some(Category::Translation),
+            ),
+            (
+                "papers/x/translations/bilingual.pdf",
+                Some(Category::Translation),
+            ),
+            ("papers/x/translated.pdf", Some(Category::Pdf)),
+            ("papers/x/bilingual.pdf", Some(Category::Pdf)),
             ("papers/collection/topic/x/NOTES.md", None),
             ("papers/collection/topic/x/metadata.json", None),
             ("papers/collection/topic/x/marks/a.json", None),
@@ -347,15 +388,30 @@ mod tests {
                 pdf: false,
                 source: true,
                 attachments: true,
+                translation: false,
             },
         };
         let back: Manifest =
             serde_json::from_str(&serde_json::to_string(&partial).unwrap()).unwrap();
         assert!(!back.scope.pdf);
         assert!(back.scope.source && back.scope.attachments);
+        assert!(!back.scope.translation);
 
-        // Legacy manifests (no scope field) mean "everything synced".
+        // Legacy manifests (no scope field) keep the original three on and
+        // leave translations off, so the missing field is not "sync everything".
         let legacy: Manifest = serde_json::from_str(r#"{"version":1,"files":{}}"#).unwrap();
         assert!(legacy.scope.is_all());
+        assert!(!legacy.scope.translation);
+
+        let missing_field: SyncScope =
+            serde_json::from_str(r#"{"pdf":true,"source":true,"attachments":true}"#).unwrap();
+        assert!(missing_field.is_all());
+        assert!(!missing_field.translation);
+
+        let mut opted_in = SyncScope::all();
+        opted_in.translation = true;
+        assert!(opted_in.is_all());
+        assert!(opted_in.translation);
+        assert!(!opted_in.has_exclusions());
     }
 }

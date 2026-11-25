@@ -1274,7 +1274,8 @@
 		"scopeHintGit": "排除项只对新文件生效。Git 已跟踪的文件仍会在各设备之间同步。",
 		"scopePdf": "PDF 文件",
 		"scopeSource": "LaTeX 源码",
-		"scopeAttachments": "支撑材料"
+		"scopeAttachments": "支撑材料",
+		"scopeTranslation": "译文"
 	},
 	"cloudSync": {
 		"title": "云同步",

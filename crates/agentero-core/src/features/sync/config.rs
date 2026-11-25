@@ -107,8 +107,9 @@ pub struct SyncBackendConfig {
     /// Phase 1: WebDAV only. See `docs/development/sync-degraded-mode.md`.
     #[serde(default)]
     pub allow_degraded_sync: bool,
-    /// Which bulky paper assets (PDF / LaTeX source / attachments) take part
-    /// in sync. Notes, sidecars and marks always sync. Default: everything.
+    /// Which bulky paper assets take part in sync. Notes, sidecars and marks
+    /// always sync. PDF, source, and attachments default on. Translations
+    /// default off.
     #[serde(default)]
     pub scope: SyncScope,
 }
@@ -1063,6 +1064,7 @@ mod tests {
             pdf: false,
             source: true,
             attachments: false,
+            translation: false,
         };
         let scope = cfg.scope;
         assert_eq!(cfg.normalized().scope, scope);

@@ -737,6 +737,7 @@ impl Git {
             let paths: Vec<_> = listed_paths(&inventory.stdout).collect();
             scope_ignore_patterns(scope, &paths)
         };
+        let patterns = with_translation_ignore(scope, patterns);
         ensure_sync_gitignore(&self.vault, &patterns)?;
         if scope.is_all() {
             let status = checked(
@@ -797,7 +798,10 @@ impl Git {
     /// Remove excluded index entries after staging, even if a nested
     /// .gitignore negates a managed rule. Leave the working files in place.
     async fn unstage_new_exclusions(&self, scope: &SyncScope) -> Result<(), AppError> {
-        if scope.is_all() {
+        // `is_all()` skips ignore rules for the original three categories.
+        // A closed translation directory still has to be unstaged, or
+        // `git add -A` commits it while PDF, source, and attachments are on.
+        if !scope.has_exclusions() {
             return Ok(());
         }
         let listed = checked(
@@ -1173,6 +1177,17 @@ fn listed_paths(output: &[u8]) -> impl Iterator<Item = &str> {
         .split(|byte| *byte == 0)
         .filter(|field| !field.is_empty())
         .filter_map(|field| std::str::from_utf8(field).ok())
+}
+
+/// `is_all()` skips the inventory, so a closed `translations/` directory would
+/// be committed with the notes. Partial scopes already learn the directory
+/// from `ls-files`; a blanket rule there makes an empty joiner commit a
+/// different `.gitignore` and conflict with the publisher.
+fn with_translation_ignore(scope: &SyncScope, mut patterns: BTreeSet<String>) -> BTreeSet<String> {
+    if scope.is_all() && !scope.translation {
+        patterns.insert("/papers/**/translations/".to_string());
+    }
+    patterns
 }
 
 fn scope_ignore_patterns(scope: &SyncScope, paths: &[&str]) -> BTreeSet<String> {
@@ -1583,6 +1598,81 @@ mod tests {
         assert!(!once.contains("attachments"));
         assert_eq!(sync_gitignore(&once, &BTreeSet::new()), "*.log\n");
         assert_eq!(sync_gitignore("", &BTreeSet::new()), "");
+    }
+
+    #[test]
+    fn translation_off_is_ignored_even_when_the_other_categories_are_on() {
+        let patterns = with_translation_ignore(&SyncScope::all(), BTreeSet::new());
+        let block = sync_gitignore("", &patterns);
+        assert!(block.contains("/papers/**/translations/"));
+
+        let mut opted_in = SyncScope::all();
+        opted_in.translation = true;
+        assert!(with_translation_ignore(&opted_in, BTreeSet::new()).is_empty());
+
+        let mut partial = SyncScope::all();
+        partial.pdf = false;
+        assert!(with_translation_ignore(&partial, BTreeSet::new()).is_empty());
+        let listed = scope_ignore_patterns(&partial, &["papers/x/translations/translated.pdf"]);
+        assert!(listed
+            .iter()
+            .any(|pattern| pattern.contains("translations")));
+    }
+
+    #[tokio::test]
+    async fn git_sync_leaves_translations_untracked_when_the_category_is_off() {
+        if git_exe().is_none() {
+            return;
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let remote = init_bare(tmp.path());
+        let cfg = git_cfg(&remote);
+        assert!(!cfg.scope.translation);
+        let a = tmp.path().join("a");
+        fs::create_dir_all(a.join("papers/x/translations")).unwrap();
+        write_paper(&a, "# x\n");
+        fs::write(a.join("papers/x/x.pdf"), b"%PDF-main").unwrap();
+        fs::write(
+            a.join("papers/x/translations/translated.pdf"),
+            b"%PDF-translated",
+        )
+        .unwrap();
+
+        sync_vault(&a, &cfg, noop_progress()).await.unwrap();
+
+        let tree = run_git_ok(
+            tmp.path(),
+            &[
+                "--git-dir",
+                remote.to_str().expect("utf8 remote"),
+                "ls-tree",
+                "-r",
+                "--name-only",
+                "main",
+            ],
+        );
+        assert!(tree.contains("papers/x/x.pdf"), "{tree}");
+        assert!(tree.contains("papers/x/NOTES.md"), "{tree}");
+        assert!(!tree.contains("translations/translated.pdf"), "{tree}");
+        let ignore = fs::read_to_string(a.join(".gitignore")).unwrap();
+        assert!(ignore.contains("/papers/**/translations/"), "{ignore}");
+        assert_eq!(
+            fs::read(a.join("papers/x/translations/translated.pdf")).unwrap(),
+            b"%PDF-translated"
+        );
+
+        let b = tmp.path().join("b");
+        fs::create_dir_all(&b).unwrap();
+        sync_vault(&b, &cfg, noop_progress()).await.unwrap();
+        assert!(!b.join("papers/x/translations/translated.pdf").exists());
+        assert_eq!(
+            fs::read_to_string(b.join("papers/x/NOTES.md")).unwrap(),
+            "# x\n"
+        );
+        assert_eq!(
+            fs::read(a.join("papers/x/translations/translated.pdf")).unwrap(),
+            b"%PDF-translated"
+        );
     }
 
     #[tokio::test]

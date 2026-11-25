@@ -7,6 +7,7 @@ pub(super) enum Category {
     Pdf,
     Source,
     Attachments,
+    Translation,
 }
 
 impl Category {
@@ -15,11 +16,12 @@ impl Category {
             Self::Pdf => scope.pdf,
             Self::Source => scope.source,
             Self::Attachments => scope.attachments,
+            Self::Translation => scope.translation,
         }
     }
 
     pub(super) fn is_directory(self) -> bool {
-        matches!(self, Self::Source | Self::Attachments)
+        matches!(self, Self::Source | Self::Attachments | Self::Translation)
     }
 }
 
@@ -75,6 +77,7 @@ pub(super) fn classify<'a>(path: &'a str, roots: &PaperRoots) -> Option<(Categor
         match component {
             "source" => return Some((Category::Source, &path[..end])),
             "attachments" => return Some((Category::Attachments, &path[..end])),
+            "translations" => return Some((Category::Translation, &path[..end])),
             "assets" | "marks" => return None,
             _ => {}
         }
@@ -93,5 +96,13 @@ pub(super) fn classify<'a>(path: &'a str, roots: &PaperRoots) -> Option<(Categor
 }
 
 pub(super) fn excluded(scope: &SyncScope, path: &str, roots: &PaperRoots) -> bool {
-    !scope.is_all() && classify(path, roots).is_some_and(|(category, _)| !category.enabled(scope))
+    let Some((category, _)) = classify(path, roots) else {
+        return false;
+    };
+    if category.enabled(scope) {
+        return false;
+    }
+    // `is_all()` ignores `translation`, so a closed translation directory is
+    // still excluded when PDF, source, and attachments are all on.
+    matches!(category, Category::Translation) || !scope.is_all()
 }

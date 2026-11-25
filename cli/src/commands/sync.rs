@@ -62,7 +62,8 @@ pub struct ConfigureArgs {
     /// opt in separately.
     pub allow_degraded_sync: Option<String>,
     /// Bulky asset categories to keep out of sync (comma list of
-    /// pdf,source,attachments). Notes, sidecars and marks always sync.
+    /// pdf,source,attachments,translation). Notes, sidecars and marks always sync.
+    /// `translation` is off unless Settings turns it on; listing it here keeps it off.
     pub exclude: Vec<String>,
 }
 
@@ -477,9 +478,10 @@ fn scope_from_excludes(exclude: &[String]) -> Result<SyncScope, CliError> {
             "pdf" => scope.pdf = false,
             "source" => scope.source = false,
             "attachments" => scope.attachments = false,
+            "translation" => scope.translation = false,
             other => {
                 return Err(CliError::usage(format!(
-                    "unknown scope category '{other}' (expected pdf | source | attachments)"
+                    "unknown scope category '{other}' (expected pdf | source | attachments | translation)"
                 )))
             }
         }

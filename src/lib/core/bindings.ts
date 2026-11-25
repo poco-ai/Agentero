@@ -6006,8 +6006,9 @@ export type SyncBackendConfig_Deserialize = {
 	 */
 	allowDegradedSync?: boolean,
 	/**
-	 *  Which bulky paper assets (PDF / LaTeX source / attachments) take part
-	 *  in sync. Notes, sidecars and marks always sync. Default: everything.
+	 *  Which bulky paper assets take part in sync. Notes, sidecars and marks
+	 *  always sync. PDF, source, and attachments default on. Translations
+	 *  default off.
 	 */
 	scope?: SyncScope,
 };
@@ -6079,8 +6080,9 @@ export type SyncBackendConfig_Serialize = {
 	 */
 	allowDegradedSync: boolean,
 	/**
-	 *  Which bulky paper assets (PDF / LaTeX source / attachments) take part
-	 *  in sync. Notes, sidecars and marks always sync. Default: everything.
+	 *  Which bulky paper assets take part in sync. Notes, sidecars and marks
+	 *  always sync. PDF, source, and attachments default on. Translations
+	 *  default off.
 	 */
 	scope: SyncScope,
 };
@@ -6239,6 +6241,11 @@ export type SyncScope = {
 	source?: boolean,
 	/**  Supplementary material: `papers/<id>/attachments/`. */
 	attachments?: boolean,
+	/**
+	 *  Finished translation PDFs: `papers/<id>/translations/`.
+	 *  Missing on older configs. Off — not `Default::all()`.
+	 */
+	translation?: boolean,
 };
 
 /**  Local disk usage per bulky-asset category (bytes), for the sync-scope UI. */
@@ -6246,6 +6253,7 @@ export type SyncScopeSizes = {
 	pdf: number,
 	source: number,
 	attachments: number,
+	translation: number,
 };
 
 /**
