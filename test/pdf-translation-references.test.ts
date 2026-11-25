@@ -1,7 +1,4 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { PdfiumNative } from "@embedpdf/engines/pdfium";
-import { init } from "@embedpdf/pdfium";
 import {
 	PDFArray,
 	PDFDict,
@@ -10,7 +7,7 @@ import {
 	PDFString,
 	StandardFonts,
 } from "pdf-lib";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
 	listTranslatableLayoutRegions,
 	toLayoutTranslateItems,
@@ -21,6 +18,12 @@ import {
 	prepareReflowItems,
 	reflowDocumentFromItems,
 } from "@/lib/pdf/reflow/service";
+import { createNativePdfium } from "./helpers/native-pdfium";
+
+vi.mock("@/lib/pdf/engine", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@/lib/pdf/engine")>()),
+	createPdfEngine: () => createNativePdfium(),
+}));
 
 const region = (
 	id: string,
@@ -93,14 +96,7 @@ async function fixture() {
 }
 
 it("keeps bibliography out of detected, table and fallback IR while retaining body citations and appendices", async () => {
-	const engine = new PdfiumNative(
-		await init({
-			wasmBinary: readFileSync(
-				fileURLToPath(import.meta.resolve("@embedpdf/pdfium/pdfium.wasm")),
-			),
-		}),
-		{ fontFallback: null },
-	);
+	const engine = await createNativePdfium();
 	const doc = await engine
 		.openDocumentBuffer({
 			id: "reference-exclusions",

@@ -98,13 +98,11 @@ function dispatch(
 				job,
 				fonts: fonts !== workerFonts ? fonts : undefined,
 			};
-			const transfer =
-				job.kind === "write"
-					? [
-							job.redacted.buffer,
-							...Array.from(job.formulaPdfs.values(), (bytes) => bytes.buffer),
-						]
-					: [];
+			const transfer: Transferable[] = [];
+			if (job.kind === "write") {
+				transfer.push(job.redacted.buffer);
+				if (job.formulaSource) transfer.push(job.formulaSource.buffer);
+			}
 			target.postMessage(request, transfer);
 			if (fonts) workerFonts = fonts;
 		} catch (error) {

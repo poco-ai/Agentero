@@ -2,7 +2,7 @@
  * Persistent cache for the finished translated document.
  *
  * The document-level build repeats the same expensive work on every restart:
- * PDFium text redaction, formula fragment extraction, font subsetting, and
+ * PDFium text redaction, vector formula placement, font subsetting, and
  * pdf-lib serialization. The bytes depend
  * only on the source geometry IR, the exact translations, the font bytes, and
  * the reflow schema — so the finished PDF is stored under the app cache

@@ -99,9 +99,6 @@ describe("formula PDFium call stall", () => {
 			saveAsCopy: vi.fn(() => ({
 				toPromise: async () => new Uint8Array([1]).buffer,
 			})),
-			extractPages: vi.fn(() => ({
-				toPromise: async () => new Uint8Array([2]).buffer,
-			})),
 			openDocumentBuffer: vi.fn(),
 			redactTextInRects: vi.fn(),
 			closeDocument: vi.fn(),

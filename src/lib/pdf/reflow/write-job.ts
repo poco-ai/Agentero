@@ -13,7 +13,7 @@ export type WriteJob =
 	| ({
 			kind: "write";
 			redacted: Uint8Array<ArrayBuffer>;
-			formulaPdfs: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+			formulaSource?: Uint8Array<ArrayBuffer>;
 	  } & LayoutInput)
 	| ({ kind: "layout" } & LayoutInput)
 	| {
@@ -52,7 +52,7 @@ export async function executeWriteJob(
 				job.ir,
 				job.translations,
 				fonts,
-				job.formulaPdfs,
+				job.formulaSource,
 				job.commonScale,
 				onProgress,
 				timings,

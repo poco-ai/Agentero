@@ -27,8 +27,8 @@ function abortReason(signal: AbortSignal): unknown {
 }
 
 /**
- * Formula fragments (open, redact, save, close) run on a private PDFium
- * engine. A stalled native redact is destroyed here: `disposePdfEngine`
+ * Preparation for pages with formulas runs on a private PDFium engine.
+ * A stalled native redact is destroyed here: `disposePdfEngine`
  * waits for `closeAllDocuments` and cannot recover a hung engine, and the
  * shared reader engine must stay up for other papers.
  */
