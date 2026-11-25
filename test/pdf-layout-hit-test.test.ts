@@ -238,14 +238,40 @@ describe("layout hit-test", () => {
 			"header",
 			"short-header",
 		]);
-		const byPage = selectableLayoutRegionsByPage(regions);
+		const numbered = region({
+			id: "numbered",
+			kind: "formula",
+			score: 0.7,
+			bbox: { x: 0.2, y: 0.55, w: 0.6, h: 0.02 },
+		});
+		const standalone = region({
+			id: "display",
+			kind: "formula",
+			label: "display_formula",
+			score: 0.9,
+			bbox: { x: 0.4, y: 0.6, w: 0.02, h: 0.015 },
+		});
+		const byPage = selectableLayoutRegionsByPage(
+			[...regions, numbered],
+			undefined,
+			[
+				standalone,
+				{ ...numbered, id: "numbered-body", score: 0.9 },
+				{ ...standalone, id: "inline", label: "inline_formula" },
+			],
+		);
 		expect(byPage.get(0)?.map((item) => item.id)).toEqual([
 			"body",
 			"abstract",
 			"caption",
 			"header",
+			"numbered",
 			"short-header",
+			"display",
 		]);
+		expect(
+			pickSelectableLayoutRegion(byPage.get(0) ?? [], 0.41, 0.605)?.id,
+		).toBe("display");
 	});
 
 	it("keeps an unnumbered formula selectable without listing it in the sidebar", () => {

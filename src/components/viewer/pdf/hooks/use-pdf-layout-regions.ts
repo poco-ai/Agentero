@@ -27,8 +27,8 @@ export type PdfLayoutRegions = {
 	/** Pre-merge detections, flat: the bulk-translate source. */
 	layoutRawRegions: PdfLayoutRegion[] | null;
 	/**
-	 * Post-merge element-selection targets, every kind, bucketed by 0-based
-	 * page index. Largest first. Not the figures-rail subset.
+	 * Element-selection targets, bucketed by 0-based page index, largest first.
+	 * Includes display formulas without a numbered sidebar host.
 	 */
 	selectableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	/** Pre-merge detections for the debug Eye overlay, bucketed by page. */

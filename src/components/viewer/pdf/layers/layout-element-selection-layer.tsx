@@ -354,6 +354,7 @@ export const LayoutElementSelectionLayer = memo(
 				return { x, y };
 			};
 
+			const formulas = regions.filter((region) => region.kind === "formula");
 			const regionAt = (
 				target: EventTarget | null,
 				point: { x: number; y: number },
@@ -369,6 +370,8 @@ export const LayoutElementSelectionLayer = memo(
 					? regionsRef.current.find((region) => region.id === chipId)
 					: null;
 				if (chipRegion) return chipRegion;
+				const formula = pickSelectableLayoutRegion(formulas, point.x, point.y);
+				if (formula) return formula;
 				const regions = regionsRef.current;
 				if (span) {
 					const exact = regions.find((region) => region.id === span.itemId);

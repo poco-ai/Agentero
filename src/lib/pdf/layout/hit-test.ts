@@ -9,7 +9,10 @@ import {
 	isInlineFormulaLabel,
 	isSidebarLayoutKind,
 } from "@/lib/pdf/layout/labels";
-import { suppressSpuriousFigureDetections } from "@/lib/pdf/layout/merge-captions";
+import {
+	bboxCoveredBy,
+	suppressSpuriousFigureDetections,
+} from "@/lib/pdf/layout/merge-captions";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 
 export function bboxArea(bbox: PdfLayoutRegion["bbox"]): number {
@@ -131,70 +134,53 @@ export function rectsIntersect(
 	);
 }
 
-/**
- * Post-merge regions the element selection view can hit: every kind, not
- * only the figures rail. NMS runs once for the document. Small headers stay;
- * speck boxes drop.
- */
+/** Give compact display equations a lower size cutoff than text blocks. */
+const LAYOUT_SELECT_MIN_FORMULA_AREA = LAYOUT_SELECT_MIN_AREA / 2;
+
+/** Element-selection candidates after confidence, size, and overlap filtering. */
 export function selectableLayoutRegions(
 	regions: readonly PdfLayoutRegion[],
 	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
 ): PdfLayoutRegion[] {
 	return dedupeLayoutRegions(
-		regions.filter((region) => region.bbox.w > 0 && region.bbox.h > 0),
-		{ minScore, minArea: LAYOUT_SELECT_MIN_AREA },
+		regions.filter((region) => {
+			const { bbox, kind, label } = region;
+			if (bbox.w <= 0 || bbox.h <= 0) return false;
+			const area = bboxArea(bbox);
+			return kind === "formula"
+				? !isInlineFormulaLabel(label) && area >= LAYOUT_SELECT_MIN_FORMULA_AREA
+				: area >= LAYOUT_SELECT_MIN_AREA;
+		}),
+		{ minScore, minArea: 0 },
 	);
 }
 
-function intersectionArea(
-	a: PdfLayoutRegion["bbox"],
-	b: PdfLayoutRegion["bbox"],
-): number {
-	const width = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-	const height = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-	if (width <= 0 || height <= 0) return 0;
-	return width * height;
-}
-
-/**
- * Formulas the number merge dropped. Element selection can still click and
- * crop them. Inline formulas stay in the sentence, and a body already covered
- * by a numbered host is not listed twice.
- */
-function unnumberedFormulasForSelection(
-	rawRegions: readonly PdfLayoutRegion[],
-	merged: readonly PdfLayoutRegion[],
-	minScore: number,
-): PdfLayoutRegion[] {
-	const hosts = merged.filter((region) => region.kind === "formula");
-	return rawRegions.filter((region) => {
-		if (region.kind !== "formula" || isInlineFormulaLabel(region.label))
-			return false;
-		if (region.score < minScore || region.bbox.w <= 0 || region.bbox.h <= 0)
-			return false;
-		if (bboxArea(region.bbox) < LAYOUT_SELECT_MIN_AREA) return false;
-		const area = bboxArea(region.bbox);
-		return !hosts.some(
-			(host) =>
-				host.pageIndex === region.pageIndex &&
-				intersectionArea(region.bbox, host.bbox) / area >= 0.5,
-		);
-	});
-}
-
-/** Selectable regions bucketed by page, largest first. */
+/** Element selection includes standalone display formulas alongside merged hosts. */
 export function selectableLayoutRegionsByPage(
 	regions: readonly PdfLayoutRegion[],
 	minScore: number = LAYOUT_SIDEBAR_MIN_SCORE,
 	rawRegions?: readonly PdfLayoutRegion[] | null,
 ): Map<number, PdfLayoutRegion[]> {
 	const selectable = selectableLayoutRegions(regions, minScore);
-	const extras = unnumberedFormulasForSelection(
-		rawRegions ?? [],
-		selectable,
+	const formulaHosts = groupByPage(
+		selectable.filter((region) => region.kind === "formula"),
+	);
+	const standaloneCandidates = (rawRegions ?? []).filter(
+		(region) =>
+			region.kind === "formula" &&
+			!formulaHosts
+				.get(region.pageIndex)
+				?.some(
+					(host) =>
+						host.id === region.id ||
+						bboxCoveredBy(region.bbox, host.bbox) >= 0.5,
+				),
+	);
+	const standaloneFormulas = selectableLayoutRegions(
+		standaloneCandidates,
 		minScore,
 	);
-	const byPage = groupByPage([...selectable, ...extras]);
+	const byPage = groupByPage([...selectable, ...standaloneFormulas]);
 	for (const page of byPage.values()) sortLargestFirst(page);
 	return byPage;
 }
