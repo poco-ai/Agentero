@@ -97,7 +97,7 @@ type LayoutTranslateOverlayProps = {
 	reflowDocumentVersion?:
 		| import("@/lib/pdf/reflow/output-version").ReflowOutputVersion
 		| null;
-	/** Current viewer zoom, forwarded to the shared render layer. */
+	/** Current viewer zoom; invalidates an open source peek's anchor. */
 	zoom: number;
 	/** Page size in CSS pixels; feeds the font-size heuristics. */
 	pageWidthPx: number;
@@ -1133,8 +1133,8 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 					items={items}
 					preview={preview ?? ""}
 					pageIndex={pageIndex}
+					viewportDocumentId={docId}
 					renderDocumentId={displayMatchesPreview ? reflowDocumentId : null}
-					zoom={zoom}
 					width={pageWidthPx}
 					height={pageHeightPx}
 				/>

@@ -1,8 +1,7 @@
 /**
  * Registers the finished translated PDF as a hidden document in the viewer's
- * document manager. The translation overlay then renders its pages through the
- * same tiling/render stack as the source PDF, so text stays at native device
- * resolution at every zoom instead of being a stretched preview raster.
+ * document manager. The translation overlay renders its tiles using the
+ * visible page geometry of the reading viewport.
  *
  * The document is never activated (autoActivate: false), so opening and closing
  * it does not move the viewer's current document.

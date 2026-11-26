@@ -99,7 +99,7 @@ async function renderOverlay(
 				items: [item],
 				preview: "",
 				pageIndex: 0,
-				zoom: 1,
+				viewportDocumentId: "source",
 				width: 600,
 				height: 400,
 				links: [cite],

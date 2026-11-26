@@ -1,5 +1,6 @@
 import { type CSSProperties, type RefObject, useRef } from "react";
 import { AgenteroRenderLayer } from "@/components/viewer/pdf/layers/agentero-render-layer";
+import { ReflowTileLayer } from "@/components/viewer/pdf/layers/reflow-tile-layer";
 import { cn } from "@/lib/core/utils";
 import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
@@ -107,8 +108,8 @@ export function ReflowPageOverlay({
 	tints,
 	preview,
 	pageIndex,
+	viewportDocumentId,
 	renderDocumentId,
-	zoom,
 	width,
 	height,
 	links,
@@ -122,9 +123,9 @@ export function ReflowPageOverlay({
 	preview: string;
 	/** Source page index; the finished PDF keeps the same page order. */
 	pageIndex: number;
+	viewportDocumentId: string;
 	/** Finished translated PDF opened in the document manager. */
 	renderDocumentId?: string | null;
-	zoom: number;
 	width: number;
 	height: number;
 	links?: readonly TranslateLinkBox[];
@@ -180,12 +181,6 @@ export function ReflowPageOverlay({
 	return (
 		<div className="pointer-events-none absolute inset-0">
 			<div className="absolute inset-0 isolate">
-				{/*
-				 * Static per-page raster stays as the streaming fallback. Once the
-				 * finished PDF is registered, the render layer sits on top and
-				 * re-rasterizes at the viewer zoom / device pixel ratio — the same
-				 * path the source page uses, instead of stretching a fixed image.
-				 */}
 				{preview ? (
 					<img
 						src={preview}
@@ -199,12 +194,24 @@ export function ReflowPageOverlay({
 				) : null}
 				{renderDocumentId ? (
 					<div ref={renderRef} className="absolute inset-0">
-						<AgenteroRenderLayer
-							key={renderDocumentId}
-							pageRef={renderRef}
+						{!preview ? (
+							<AgenteroRenderLayer
+								key={renderDocumentId}
+								pageRef={renderRef}
+								documentId={renderDocumentId}
+								pageIndex={pageIndex}
+								scale={1}
+								dpr={1}
+								className={
+									tone === "dark" ? PDF_PAGE_RASTER_DARK_CLASS : undefined
+								}
+							/>
+						) : null}
+						<ReflowTileLayer
+							key={`tiles:${renderDocumentId}`}
+							viewportDocumentId={viewportDocumentId}
 							documentId={renderDocumentId}
 							pageIndex={pageIndex}
-							scale={zoom}
 							className={
 								tone === "dark" ? PDF_PAGE_RASTER_DARK_CLASS : undefined
 							}
