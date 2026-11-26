@@ -327,3 +327,112 @@ fn list_page(items: Vec<Value>, cursor: Option<&str>, key: &str, limit: usize) -
     let end = start.saturating_add(limit).min(items.len());
     Ok(json!({"items":&items[start..end],"next_cursor":next(key,&revision,end,items.len())?}))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::{
+        paper::catalog::papers::{self, PaperRecord},
+        pdf::citation::resolve_citation,
+    };
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn layout_read_section_and_search_dedupe_overlapping_regions() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper_dir = vault.join("papers/p1");
+        fs::create_dir_all(paper_dir.join("source")).unwrap();
+        fs::write(paper_dir.join("p1.pdf"), b"%PDF").unwrap();
+        fs::write(paper_dir.join("NOTES.md"), "# Notes\n").unwrap();
+        fs::write(
+            paper_dir.join("source/layout.json"),
+            r#"{
+              "schemaVersion": 3,
+              "source": {"mode": "embedpdf-layout", "generatedAt": "t"},
+              "regions": [
+                {"id":"h1-low","pageIndex":0,"readingOrder":0,"kind":"header","score":0.09,"bbox":{"x":0.1,"y":0.05,"w":0.8,"h":0.04},"title":"1 Introduction","text":"1 Introduction"},
+                {"id":"h1-hi","pageIndex":0,"readingOrder":1,"kind":"header","score":0.94,"bbox":{"x":0.1,"y":0.05,"w":0.8,"h":0.04},"title":"1 Introduction"},
+                {"id":"h1-mid","pageIndex":0,"readingOrder":2,"kind":"paragraph_title","score":0.60,"bbox":{"x":0.1,"y":0.05,"w":0.8,"h":0.04},"text":"1 Introduction"},
+                {"id":"p1-hi","pageIndex":0,"readingOrder":3,"kind":"text","score":0.89,"bbox":{"x":0.1,"y":0.12,"w":0.8,"h":0.12},"text":"Magic checksum guards block deep fuzzing."},
+                {"id":"p1-dup","pageIndex":0,"readingOrder":4,"kind":"abstract","score":0.55,"bbox":{"x":0.1,"y":0.12,"w":0.8,"h":0.12},"text":"Magic checksum guards block deep fuzzing."},
+                {"id":"p1-low","pageIndex":0,"readingOrder":5,"kind":"formula","score":0.05,"bbox":{"x":0.1,"y":0.12,"w":0.8,"h":0.12},"text":"Magic checksum guards block deep fuzzing."},
+                {"id":"fig-cap","pageIndex":0,"readingOrder":6,"kind":"figure_title","score":0.85,"bbox":{"x":0.1,"y":0.26,"w":0.8,"h":0.04},"text":"Figure 1: Transformation pipeline."},
+                {"id":"p2","pageIndex":0,"readingOrder":7,"kind":"text","score":0.87,"bbox":{"x":0.1,"y":0.32,"w":0.8,"h":0.10},"text":"Second paragraph after figure caption."},
+                {"id":"h2","pageIndex":0,"readingOrder":8,"kind":"header","score":0.93,"bbox":{"x":0.1,"y":0.45,"w":0.8,"h":0.04},"title":"2 Method"},
+                {"id":"p3","pageIndex":0,"readingOrder":9,"kind":"text","score":0.88,"bbox":{"x":0.1,"y":0.52,"w":0.8,"h":0.10},"text":"Method details belong to section 2."}
+              ]
+            }"#,
+        )
+        .unwrap();
+
+        let record = PaperRecord::local_pdf("p1".into(), "Demo Paper".into()).at_path("papers/p1");
+        papers::upsert_paper(vault, &record).unwrap();
+
+        let page_read = read(
+            vault,
+            ReadInput {
+                source: "papers/p1".into(),
+                part: Some("layout".into()),
+                pages: Some(vec![1]),
+                ..Default::default()
+            },
+            true,
+        )
+        .unwrap();
+        let page_text = page_read["text"].as_str().unwrap();
+        assert_eq!(page_text.matches("1 Introduction").count(), 1);
+        assert_eq!(
+            page_text
+                .matches("Magic checksum guards block deep fuzzing.")
+                .count(),
+            1
+        );
+        assert_eq!(page_read["regions"].as_array().unwrap().len(), 6);
+
+        let sec_read = read(
+            vault,
+            ReadInput {
+                source: "papers/p1".into(),
+                section: Some("1 Introduction".into()),
+                ..Default::default()
+            },
+            true,
+        )
+        .unwrap();
+        let sec_text = sec_read["text"].as_str().unwrap();
+        assert!(sec_text.contains("Figure 1: Transformation pipeline."));
+        assert!(sec_text.contains("Second paragraph after figure caption."));
+        assert!(!sec_text.contains("Method details belong to section 2."));
+
+        let anchor_read = read(
+            vault,
+            ReadInput {
+                source: "papers/p1".into(),
+                region: Some("#1".into()),
+                ..Default::default()
+            },
+            true,
+        )
+        .unwrap();
+        assert_eq!(anchor_read["text"].as_str().unwrap(), "1 Introduction");
+
+        let cited = resolve_citation(vault, "papers/p1/p1.pdf#section=Introduction").unwrap();
+        assert_eq!(cited.region_id, "h1-hi");
+
+        let searched = search(
+            vault,
+            SearchInput {
+                query: "magic checksum".into(),
+                scope: vec!["papers/p1".into()],
+                kind: vec!["body".into()],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let items = searched["items"].as_array().unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["locator"]["region"], "p1-hi");
+    }
+}

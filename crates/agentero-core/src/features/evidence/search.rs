@@ -204,7 +204,7 @@ pub fn search(vault: &Path, mut input: SearchInput) -> Result<Value> {
             if let Ok(layout) = layout_index::load_raw_layout(&vault, &p.path) {
                 let path = existing(&vault, &format!("{}/source/layout.json", p.path))?;
                 let revision = file_revision(&path)?;
-                for r in layout.regions {
+                for r in layout_index::deduped_regions(&layout) {
                     let body = r.text.as_deref().or(r.title.as_deref()).unwrap_or_default();
                     let score = matcher.score(body);
                     if score > 0 {
