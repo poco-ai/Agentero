@@ -9,13 +9,14 @@ import { uiStore } from "@/lib/shell/ui-store";
 import { currentSidebarPaperNotes } from "@/lib/workspace/sidebar-files";
 
 const WORKSPACE_VIEW = "[data-workspace-view]";
+const RIGHT_SIDEBAR = "[data-right-sidebar]";
 let lastWorkspaceViewId: string | undefined;
 let rightSidebarFocused: boolean | undefined;
 
 export function trackSidebarTabInteraction() {
 	const remember = (event: Event) => {
 		if (!(event.target instanceof Element)) return;
-		rightSidebarFocused = Boolean(event.target.closest("[data-right-sidebar]"));
+		rightSidebarFocused = Boolean(event.target.closest(RIGHT_SIDEBAR));
 		const workspaceView = event.target.closest<HTMLElement>(WORKSPACE_VIEW);
 		if (workspaceView)
 			lastWorkspaceViewId = workspaceView.dataset.workspaceView;
@@ -40,16 +41,26 @@ export function sidebarLauncherNotesPath() {
 
 export function newSidebarTab(): void {
 	if (uiStore.getState().immersiveReading) return;
-	void openOrActivateSidebarTarget({
-		kind: "launcher",
-		notesPath: sidebarLauncherNotesPath() ?? null,
-		focusSearch: true,
-	});
+	void openOrActivateSidebarTarget(
+		{
+			kind: "launcher",
+			notesPath: sidebarLauncherNotesPath() ?? null,
+			focusSearch: true,
+		},
+		{
+			onOpen: () => {
+				rightSidebarFocused = true;
+				document
+					.querySelector<HTMLElement>(RIGHT_SIDEBAR)
+					?.focus({ preventScroll: true });
+			},
+		},
+	);
 }
 
 function isRightSidebarFocused(browserFocused: boolean): boolean {
 	const active = document.activeElement;
-	const sidebar = active?.closest("[data-right-sidebar]");
+	const sidebar = active?.closest(RIGHT_SIDEBAR);
 	return (
 		uiStore.getState().rightSidebarOpen &&
 		(browserFocused ||

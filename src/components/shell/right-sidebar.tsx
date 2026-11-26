@@ -754,6 +754,7 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 		<aside
 			ref={root}
 			data-right-sidebar
+			tabIndex={-1}
 			className="agentero-dockview agentero-dock-global h-full min-h-0 min-w-0 bg-sidebar"
 			aria-label={t("titlebar.showRightSidebar")}
 		>
