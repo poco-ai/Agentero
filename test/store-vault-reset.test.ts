@@ -141,7 +141,6 @@ describe("vault-scoped store clears", () => {
 			// Must all survive.
 			sidebarCollapsed: true,
 			rightSidebarOpen: true,
-			rightSidebarTab: "figures",
 			agentPanelMounted: true,
 			featurePoppedOut: { agent: true },
 			settingsOpen: true,
@@ -159,7 +158,6 @@ describe("vault-scoped store clears", () => {
 
 		expect(s.sidebarCollapsed).toBe(true);
 		expect(s.rightSidebarOpen).toBe(true);
-		expect(s.rightSidebarTab).toBe("figures");
 		expect(s.agentPanelMounted).toBe(true);
 		expect(s.featurePoppedOut).toEqual({ agent: true });
 		expect(s.settingsOpen).toBe(true);

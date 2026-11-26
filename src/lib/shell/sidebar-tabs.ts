@@ -1,5 +1,8 @@
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
-import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
+import { createStore } from "zustand/vanilla";
+import type { AgentSessionRef } from "@/lib/agent/session-ref";
+import { readJsonStorage, writeStorageRaw } from "@/lib/core/storage";
+import { cancelPdfNavigationForTab } from "@/lib/pdf/pending-pdf-page";
 import { layout, setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { getVaultPath, vaultLoadGeneration } from "@/lib/vault/store";
 import type {
@@ -10,9 +13,13 @@ import { currentWindowLabel } from "@/lib/workspace/store";
 import { createViewId } from "@/lib/workspace/tabs/model";
 import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
-export type SidebarTarget =
-	| { kind: "agent"; scopeId: string | null }
-	| SidebarFileTarget;
+export type SidebarAgentTarget = {
+	kind: "agent";
+	scopeId: string | null;
+	sessionRef?: AgentSessionRef;
+	agentId?: string;
+};
+export type SidebarTarget = SidebarAgentTarget | SidebarFileTarget;
 export type SidebarPanelTarget =
 	| SidebarTarget
 	| { kind: "launcher"; notesPath?: string };
@@ -21,6 +28,7 @@ export type SidebarSnapshot = {
 	tabs: SidebarTab[];
 	activeViewId: string | null;
 	expanded: boolean;
+	lastAgentViewId?: string;
 };
 
 export type SidebarPanelParams = {
@@ -31,9 +39,15 @@ type OpenOptions = {
 	replace?: string;
 	canOpen?: () => boolean;
 	file?: SidebarFileData;
+	onOpen?: (viewId: string) => void;
 };
 
 export const DEFAULT_SIDEBAR_AGENT = { kind: "agent", scopeId: null } as const;
+
+export const sidebarChatState = createStore<{
+	scopeId: string | null;
+	sessionId: string;
+}>(() => ({ scopeId: null, sessionId: "draft" }));
 
 type DockOptions = {
 	title: (target: SidebarPanelTarget) => string;
@@ -69,7 +83,13 @@ function sameTarget(left: SidebarPanelTarget, right: SidebarPanelTarget) {
 function isSidebarTarget(target: SidebarTarget | undefined): boolean {
 	switch (target?.kind) {
 		case "agent":
-			return target.scopeId === null || typeof target.scopeId === "string";
+			return (
+				(target.scopeId === null || typeof target.scopeId === "string") &&
+				(!target.sessionRef ||
+					(typeof target.sessionRef.providerSessionId === "string" &&
+						typeof target.sessionRef.agentId === "string" &&
+						typeof target.sessionRef.id === "string"))
+			);
 		case "pdf":
 		case "notes":
 		case "html":
@@ -111,10 +131,10 @@ function createSidebarDock(
 	options: DockOptions,
 ) {
 	const key = storageKey(vaultPath);
-	const generation = vaultLoadGeneration();
 	let disposed = false;
 	let ready = false;
 	let savedJson: string | null = null;
+	let expandedDuringRestore: boolean | undefined;
 	const current = () => !disposed && getVaultPath() === vaultPath;
 	const panels = () => api.groups[0]?.panels ?? [];
 	const find = (target: SidebarPanelTarget) =>
@@ -144,26 +164,67 @@ function createSidebarDock(
 			return target.kind === "launcher" ? [] : [{ viewId: panel.id, target }];
 		});
 		const activeViewId = api.activePanel?.id ?? null;
+		const lastAgentViewId = tabs.find(
+			({ target }) =>
+				target.kind === "agent" &&
+				target.scopeId === sidebarChatState.getState().scopeId,
+		)?.viewId;
 		const snapshot: SidebarSnapshot = {
 			tabs,
 			activeViewId: tabs.some((tab) => tab.viewId === activeViewId)
 				? activeViewId
 				: null,
 			expanded: uiStore.getState().rightSidebarOpen,
+			lastAgentViewId,
 		};
 		const json = JSON.stringify(snapshot);
 		if (savedJson === json) return;
-		savedJson = json;
-		writeJsonStorage(key, snapshot);
+		if (writeStorageRaw(key, json)) savedJson = json;
+	};
+	const syncActive = () => {
+		if (!ready || !current()) return;
+		const active = api.activePanel && targetOf(api.activePanel);
+		if (active?.kind === "agent") {
+			const sessionId = active.sessionRef?.id ?? "draft";
+			const state = sidebarChatState.getState();
+			if (state.scopeId !== active.scopeId || state.sessionId !== sessionId)
+				sidebarChatState.setState({ scopeId: active.scopeId, sessionId });
+		} else if (
+			!panels().some((panel) => {
+				const target = targetOf(panel);
+				return (
+					target.kind === "agent" &&
+					target.scopeId === sidebarChatState.getState().scopeId
+				);
+			})
+		) {
+			const recent = panels()
+				.map(targetOf)
+				.reverse()
+				.find((target) => target.kind === "agent");
+			if (recent || sidebarChatState.getState().scopeId !== null) {
+				sidebarChatState.setState({
+					scopeId: recent?.scopeId ?? null,
+					sessionId: recent?.sessionRef?.id ?? "draft",
+				});
+			}
+		}
+		save();
 	};
 	const subscriptions = [
-		api.onDidLayoutChange(save),
-		api.onDidActivePanelChange(save),
+		api.onDidLayoutChange(syncActive),
+		api.onDidActivePanelChange(syncActive),
+		api.onDidRemovePanel((panel) => cancelPdfNavigationForTab(panel.id)),
 		uiStore.subscribe((state, previous) => {
-			if (state.rightSidebarOpen !== previous.rightSidebarOpen) save();
+			if (
+				state.rightSidebarOpen !== previous.rightSidebarOpen ||
+				state.immersiveReading !== previous.immersiveReading
+			)
+				save();
 		}),
 	];
 	const restore = async () => {
+		const generation = vaultLoadGeneration();
 		const saved = readSnapshot(key);
 		const tabs = await Promise.all(
 			(saved?.tabs ?? []).map(async (tab) => ({
@@ -174,7 +235,7 @@ function createSidebarDock(
 			})),
 		);
 		if (!current()) return;
-		if (vaultLoadGeneration() !== generation) return;
+		if (vaultLoadGeneration() !== generation) return restore();
 		for (const { viewId, target } of tabs) {
 			if (target && !api.getPanel(viewId) && !find(target)) add(target, viewId);
 		}
@@ -183,11 +244,23 @@ function createSidebarDock(
 		const active =
 			(saved?.activeViewId && api.getPanel(saved.activeViewId)) || panels()[0];
 		active?.api.setActive();
-		layout()?.setRightCollapsed(
-			!(saved?.expanded ?? uiStore.getState().rightSidebarOpen),
-		);
+		const lastAgent = saved?.lastAgentViewId
+			? api.getPanel(saved.lastAgentViewId)
+			: undefined;
+		const target = lastAgent && targetOf(lastAgent);
+		sidebarChatState.setState({
+			scopeId: target?.kind === "agent" ? target.scopeId : null,
+			sessionId:
+				target?.kind === "agent" ? (target.sessionRef?.id ?? "draft") : "draft",
+		});
+		const expanded =
+			expandedDuringRestore ??
+			saved?.expanded ??
+			uiStore.getState().rightSidebarOpen;
+		if (!uiStore.getState().immersiveReading)
+			layout()?.setRightCollapsed(!expanded);
 		ready = true;
-		save();
+		syncActive();
 	};
 	return {
 		vaultPath,
@@ -195,7 +268,42 @@ function createSidebarDock(
 		get ready() {
 			return ready;
 		},
-		openOrActivate(target: SidebarPanelTarget, { replace, file }: OpenOptions) {
+		toggle() {
+			const expanded = !uiStore.getState().rightSidebarOpen;
+			if (!ready) expandedDuringRestore = expanded;
+			setExpanded(expanded);
+		},
+		agents() {
+			return panels()
+				.map(targetOf)
+				.filter(
+					(target): target is SidebarAgentTarget => target.kind === "agent",
+				);
+		},
+		updateAgent(viewId: string, target: SidebarAgentTarget) {
+			const panel = api.getPanel(viewId);
+			if (!panel) return;
+			panel.api.updateParameters({ target });
+			panel.api.setTitle(options.title(target));
+			if (sidebarChatState.getState().scopeId === target.scopeId) {
+				sidebarChatState.setState({
+					sessionId: target.sessionRef?.id ?? "draft",
+				});
+			}
+			save();
+		},
+		pdfPath(viewId: string) {
+			const panel = api.getPanel(viewId);
+			const target = panel && targetOf(panel);
+			return target?.kind === "pdf" ? target.vaultRelPath : undefined;
+		},
+		hasPanel(viewId: string) {
+			return Boolean(api.getPanel(viewId));
+		},
+		openOrActivate(
+			target: SidebarPanelTarget,
+			{ replace, file, onOpen }: OpenOptions,
+		) {
 			const replaced = replace ? api.getPanel(replace) : undefined;
 			const existing = find(target);
 			const panel =
@@ -215,6 +323,7 @@ function createSidebarDock(
 			}
 			panel.api.setActive();
 			if (!uiStore.getState().rightSidebarOpen) setExpanded(true);
+			onOpen?.(panel.id);
 			save();
 			return panel.id;
 		},
@@ -233,6 +342,7 @@ function createSidebarDock(
 		},
 		dispose() {
 			disposed = true;
+			for (const panel of panels()) cancelPdfNavigationForTab(panel.id);
 			for (const subscription of subscriptions) {
 				if (typeof subscription === "function") subscription();
 				else subscription.dispose();
@@ -258,6 +368,25 @@ export function connectSidebarDock(
 		next.dispose();
 		if (dock === next) dock = null;
 	};
+}
+
+export function sidebarAgentTargets(): SidebarAgentTarget[] {
+	return dock?.agents() ?? [];
+}
+
+export function updateSidebarAgentTarget(
+	viewId: string,
+	target: SidebarAgentTarget,
+) {
+	dock?.updateAgent(viewId, target);
+}
+
+export function isSidebarView(viewId: string): boolean {
+	return dock?.hasPanel(viewId) ?? false;
+}
+
+export function sidebarPdfPath(viewId: string): string | undefined {
+	return dock?.pdfPath(viewId);
 }
 
 export function openOrActivateSidebarTarget(
@@ -292,6 +421,8 @@ export async function closeSidebarTab(viewId: string) {
 }
 
 export function toggleSidebarTabs() {
-	if (uiStore.getState().immersiveReading || !getVaultPath()) return;
-	setExpanded(!uiStore.getState().rightSidebarOpen);
+	const vaultPath = getVaultPath();
+	if (uiStore.getState().immersiveReading || !vaultPath) return;
+	if (dock?.vaultPath === vaultPath) dock.toggle();
+	else setExpanded(!uiStore.getState().rightSidebarOpen);
 }

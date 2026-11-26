@@ -11,7 +11,6 @@ import {
 	useVaultStore,
 } from "@/hooks/use-app-stores";
 import { AgentSessionScopeContext } from "@/lib/agent/agent-session-store";
-import { closeAgentWindow } from "@/lib/agent/agent-window";
 import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import {
 	useZenStore,
@@ -20,7 +19,7 @@ import {
 	zenStore,
 } from "@/lib/agent/zen-store";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
-import { openCitation } from "@/lib/workspace/actions";
+import { openSidebarCitation } from "@/lib/workspace/sidebar-citations";
 
 function historyItemFor(pending: ZenHistoryItem): ChatSessionHistoryItem {
 	return {
@@ -84,12 +83,10 @@ export function AgentSessionView({
 					zenStore.getState().setSlotAgent(slot.id, agent)
 				}
 				onOpenAgentSettings={() => openSettingsWindow("agent")}
-				onOpenSource={(source) => {
-					// Vault citations land in the hidden document dock; external
-					// links keep the Agent workspace open.
-					if (!/^https?:/i.test(source)) closeAgentWindow();
-					openCitation(source);
-				}}
+				onOpenSource={openSidebarCitation}
+				onOpenArtifact={(file) =>
+					void openSidebarCitation(file.path, file.vault)
+				}
 				autoFocus={autoFocus}
 			/>
 		</AgentSessionScopeContext.Provider>

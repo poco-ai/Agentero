@@ -60,19 +60,13 @@ import {
 import { agentDock } from "@/lib/agent/agent-dock-registry";
 import { toggleAgentWindow } from "@/lib/agent/agent-window";
 import { listAgents } from "@/lib/agent/api";
-import {
-	focusAgentComposer,
-	presentAgentComposer,
-} from "@/lib/agent/composer-focus";
+import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	listenOpenAgentWithPrompt,
 	setPendingAgentComposerPrompt,
 } from "@/lib/agent/composer-seed";
-import {
-	runSelectionAddToChat,
-	runSelectionQuickChat,
-} from "@/lib/agent/selection-quick-chat";
-import { pinActiveSelection } from "@/lib/agent/selection-store";
+import { runChatShortcut } from "@/lib/agent/selection-chat-shortcut";
+import { runSelectionQuickChat } from "@/lib/agent/selection-quick-chat";
 import { closeTopOverlay } from "@/lib/core/overlay-stack";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
@@ -93,6 +87,7 @@ import {
 	openSettingsWindow,
 	toggleSettingsWindow,
 } from "@/lib/shell/settings-window";
+import { closeSidebarTab, isSidebarView } from "@/lib/shell/sidebar-tabs";
 import {
 	type LayoutMode,
 	layout,
@@ -170,6 +165,19 @@ function zoomReset(): void {
 function toggleImmersiveReading(): void {
 	if (!uiStore.getState().immersiveReading && !resolveActivePdfHandle()) return;
 	layout()?.toggleImmersiveReading();
+}
+
+function closeFocusedTab(): void {
+	const view = document.activeElement?.closest<HTMLElement>(
+		"[data-sidebar-view]",
+	)?.dataset.sidebarView;
+	if (view && isSidebarView(view)) {
+		void closeSidebarTab(view);
+	} else if (uiStore.getState().agentWindowOpen) {
+		agentDock()?.closeActive();
+	} else {
+		closeTabOrWindow();
+	}
 }
 
 /** Title bar wrapper: subscribes to tabs/ui itself so the shell stays still. */
@@ -428,23 +436,13 @@ export default function App() {
 		},
 		toggleMarkdownSource: () => toggleActiveMarkdownSource(),
 		toggleSidebar,
-		toggleChat: () => {
-			if (uiStore.getState().agentWindowOpen) {
-				focusAgentComposer();
-				return;
-			}
-			toggleChat();
-		},
+		toggleChat: runChatShortcut,
 		// ⌘K: in-page Quick chat (Ask) from the armed PDF / Plaza selection.
 		quickChat: () => {
 			runSelectionQuickChat();
 		},
 		// Pin a staged selection, surface the owning chat, and focus its composer.
-		addSelectionToChat: () => {
-			if (runSelectionAddToChat()) return;
-			pinActiveSelection();
-			presentAgentComposer();
-		},
+		addSelectionToChat: () => runChatShortcut(true),
 		focusSidebar: () => layout()?.focusSidebar(),
 		focusEditor: () => {
 			if (uiStore.getState().agentWindowOpen) {
@@ -454,13 +452,7 @@ export default function App() {
 			layout()?.focusEditorPane();
 		},
 		focusNotes: () => layout()?.focusNotesEditor(),
-		closeTab: () => {
-			if (uiStore.getState().agentWindowOpen) {
-				agentDock()?.closeActive();
-				return;
-			}
-			closeTabOrWindow();
-		},
+		closeTab: closeFocusedTab,
 		reopenTab: reopenClosedTab,
 		splitPane: splitActivePane,
 		nextTab: () => {
@@ -531,20 +523,8 @@ export default function App() {
 		onRefresh: refreshAll,
 		onToggleSidebar: toggleSidebar,
 		onSplitPane: splitActivePane,
-		onToggleChat: () => {
-			if (uiStore.getState().agentWindowOpen) {
-				focusAgentComposer();
-				return;
-			}
-			toggleChat();
-		},
-		onCloseTabOrWindow: () => {
-			if (uiStore.getState().agentWindowOpen) {
-				agentDock()?.closeActive();
-				return;
-			}
-			closeTabOrWindow();
-		},
+		onToggleChat: runChatShortcut,
+		onCloseTabOrWindow: closeFocusedTab,
 	});
 
 	// Persist a completed user resize into the active layout's width slot.

@@ -35,8 +35,10 @@ import {
 import type { AcpSessionInfo } from "@/lib/agent/api";
 import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
+import { focusOwnedAgentSession } from "@/lib/agent/open-owned-session";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import { invalidateHarnessHistory } from "@/lib/agent/session-history-cache";
+import { sessionHistoryItem } from "@/lib/agent/session-ref";
 import {
 	useZenStore,
 	type ZenHistoryItem,
@@ -46,7 +48,7 @@ import {
 } from "@/lib/agent/zen-store";
 import { cn } from "@/lib/core/utils";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
-import { openCitation } from "@/lib/workspace/actions";
+import { openSidebarCitation } from "@/lib/workspace/sidebar-citations";
 import { useZenHarnessHistory } from "./use-zen-history";
 
 function onOpenAgentSettings(): void {
@@ -112,7 +114,10 @@ function ZenSlotPanel({
 					zenStore.getState().setSlotAgent(slot.id, agent)
 				}
 				onOpenAgentSettings={onOpenAgentSettings}
-				onOpenSource={openCitation}
+				onOpenSource={openSidebarCitation}
+				onOpenArtifact={(file) =>
+					void openSidebarCitation(file.path, file.vault)
+				}
 				autoFocus={autoFocus}
 			/>
 		</AgentSessionScopeContext.Provider>
@@ -484,38 +489,22 @@ export function ZenView({ active }: { active: boolean }) {
 
 	const openHistory = (group: HarnessGroup, session: AcpSessionInfo) => {
 		if (!group.agentId) return;
-		const existing = zenStore
-			.getState()
-			.slots.find(
-				(slot) =>
-					slot.pendingHistory?.id === session.sessionId ||
-					slot.store
-						.getState()
-						.sessions.some(
-							(item) =>
-								item.id === session.sessionId ||
-								item.providerSessionId === session.sessionId,
-						),
-			);
-		if (existing) {
-			zenStore.getState().activateSlot(existing.id);
-			focusAgentComposer();
-			return;
-		}
 		const title =
 			displayHistoryTitle(session.title ?? "", "") || t("zen.untitled");
+		const history = {
+			id: session.sessionId,
+			agentId: group.agentId,
+			agentName: group.name,
+			title,
+			startedAt: session.updatedAt ?? "",
+			providerSessionId: session.sessionId,
+		};
+		if (focusOwnedAgentSession(sessionHistoryItem(history))) return;
 		zenStore.getState().addSlot({
 			agentId: group.agentId,
 			agentName: group.name,
 			agentTemplate: group.template,
-			history: {
-				id: session.sessionId,
-				agentId: group.agentId,
-				agentName: group.name,
-				title,
-				startedAt: session.updatedAt ?? "",
-				providerSessionId: session.sessionId,
-			},
+			history,
 		});
 		focusAgentComposer();
 	};

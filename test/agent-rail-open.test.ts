@@ -1,119 +1,95 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
+import { runChatShortcut } from "@/lib/agent/selection-chat-shortcut";
 import {
-	registerLayoutController,
-	setRightSidebarOpenState,
-	uiStore,
-} from "@/lib/shell/ui-store";
-import { openRightTab, toggleChat } from "@/lib/shell/ui-window-actions";
+	clearSelections,
+	consumeSelections,
+	currentSelections,
+	publishSelection,
+	selectionsForRecipient,
+} from "@/lib/agent/selection-store";
+import { DEFAULT_SIDEBAR_AGENT } from "@/lib/shell/sidebar-tabs";
+import { uiStore } from "@/lib/shell/ui-store";
+import { openRightTab } from "@/lib/shell/ui-window-actions";
 
-const probe = vi.hoisted(() => ({
-	preferFeatureWindow: vi.fn<(tab: string) => Promise<boolean>>(),
+const actions = vi.hoisted(() => ({
+	focusFeatureWindow: vi.fn(async () => true),
+	openOrActivateSidebarTarget: vi.fn(async () => "view-agent"),
+	toggleSidebarTabs: vi.fn(),
+	presentAgentComposer: vi.fn(),
+	chatInputRecipient: vi.fn(() => ({
+		scopeId: "zen:active",
+		sessionId: "session-a",
+	})),
 }));
 
+vi.mock("@/lib/shell/sidebar-tabs", () => ({
+	DEFAULT_SIDEBAR_AGENT: { kind: "agent", scopeId: null },
+	openOrActivateSidebarTarget: actions.openOrActivateSidebarTarget,
+	toggleSidebarTabs: actions.toggleSidebarTabs,
+}));
 vi.mock("@/lib/shell/feature-window", () => ({
-	preferFeatureWindow: probe.preferFeatureWindow,
+	focusFeatureWindow: actions.focusFeatureWindow,
+}));
+vi.mock("@/lib/agent/chat-input-surface", () => ({
+	chatInputRecipient: actions.chatInputRecipient,
+}));
+vi.mock("@/lib/agent/composer-focus", () => ({
+	presentAgentComposer: actions.presentAgentComposer,
 }));
 
-describe("agent rail open", () => {
-	const calls: boolean[] = [];
+beforeEach(() => {
+	vi.clearAllMocks();
+	uiStore.setState({ featurePoppedOut: {} });
+	clearSelections();
+});
 
-	beforeEach(() => {
-		calls.length = 0;
-		uiStore.setState({
-			immersiveReading: false,
-			layoutMode: "custom",
-			rightSidebarOpen: false,
-			rightSidebarTab: "agent",
-			featurePoppedOut: {},
-			agentPanelMounted: false,
-		});
-		probe.preferFeatureWindow.mockReset();
-		probe.preferFeatureWindow.mockResolvedValue(false);
-		registerLayoutController({
-			setLeftCollapsed: () => undefined,
-			setRightCollapsed: (collapsed) => {
-				calls.push(collapsed);
-				setRightSidebarOpenState(!collapsed);
-			},
-			applyLayoutMode: () => undefined,
-			toggleImmersiveReading: () => undefined,
-			focusSidebar: () => undefined,
-			focusEditorPane: () => undefined,
-			focusNotesEditor: () => undefined,
-		});
+it("toggles the shared sidebar without probing a popped-out Agent when there is no selection", () => {
+	uiStore.setState({
+		featurePoppedOut: { agent: true },
+		agentWindowOpen: true,
 	});
+	runChatShortcut();
+	expect(actions.toggleSidebarTabs).toHaveBeenCalledOnce();
+	expect(actions.focusFeatureWindow).not.toHaveBeenCalled();
+	expect(actions.presentAgentComposer).not.toHaveBeenCalled();
+});
 
-	afterEach(() => {
-		registerLayoutController(null);
+it("pins a quote once to the captured conversation and keeps the sidebar unchanged", () => {
+	const recipient = { scopeId: "zen:active", sessionId: "session-a" };
+	publishSelection({
+		text: "quoted passage",
+		sourcePath: "paper.pdf",
+		origin: "pdf",
 	});
+	runChatShortcut();
+	expect(actions.presentAgentComposer).toHaveBeenCalledOnce();
+	expect(actions.presentAgentComposer).toHaveBeenCalledWith({
+		preserveCaret: true,
+		scopeId: recipient.scopeId,
+		recipient,
+	});
+	expect(actions.toggleSidebarTabs).not.toHaveBeenCalled();
+	expect(selectionsForRecipient(recipient).map((quote) => quote.text)).toEqual([
+		"quoted passage",
+	]);
+	expect(
+		selectionsForRecipient({ ...recipient, sessionId: "session-b" }),
+	).toEqual([]);
+	expect(currentSelections()).toEqual([]);
+	expect(consumeSelections()).toEqual([]);
+	expect(selectionsForRecipient(recipient)).toHaveLength(1);
+});
 
-	it("expands the rail before the feature-window probe resolves", async () => {
-		let resolveProbe: (found: boolean) => void = () => undefined;
-		probe.preferFeatureWindow.mockReturnValue(
-			new Promise((resolve) => {
-				resolveProbe = resolve;
-			}),
-		);
-		toggleChat();
-		expect(calls).toEqual([false]);
-		expect(uiStore.getState().rightSidebarOpen).toBe(true);
-		expect(uiStore.getState().agentPanelMounted).toBe(false);
-		resolveProbe(false);
-		await vi.waitFor(() =>
-			expect(probe.preferFeatureWindow).toHaveBeenCalledWith("agent"),
-		);
-		await Promise.resolve();
-		expect(calls).toEqual([false]);
-		expect(uiStore.getState().rightSidebarOpen).toBe(true);
-	});
+it("focuses an existing popout on an explicit Agent open", async () => {
+	uiStore.setState({ featurePoppedOut: { agent: true } });
+	await openRightTab("agent");
+	expect(actions.focusFeatureWindow).toHaveBeenCalledWith("agent");
+	expect(actions.openOrActivateSidebarTarget).not.toHaveBeenCalled();
+});
 
-	it("focuses a known agent window without expanding the rail", async () => {
-		uiStore.setState({ featurePoppedOut: { agent: true } });
-		toggleChat();
-		expect(calls).toEqual([]);
-		expect(uiStore.getState().rightSidebarOpen).toBe(false);
-		await vi.waitFor(() =>
-			expect(probe.preferFeatureWindow).toHaveBeenCalledWith("agent"),
-		);
-	});
-
-	it("yields a speculative rail when the probe finds a window", async () => {
-		probe.preferFeatureWindow.mockResolvedValue(true);
-		toggleChat();
-		expect(calls[0]).toBe(false);
-		await vi.waitFor(() => expect(calls).toEqual([false, true]));
-		expect(uiStore.getState().rightSidebarOpen).toBe(false);
-	});
-
-	it("ignores a stale window hit after the rail is opened again", async () => {
-		let resolveFirst: (found: boolean) => void = () => undefined;
-		probe.preferFeatureWindow.mockImplementationOnce(
-			() =>
-				new Promise((resolve) => {
-					resolveFirst = resolve;
-				}),
-		);
-		toggleChat();
-		await vi.waitFor(() =>
-			expect(probe.preferFeatureWindow).toHaveBeenCalledTimes(1),
-		);
-		toggleChat();
-		toggleChat();
-		resolveFirst(true);
-		await vi.waitFor(() =>
-			expect(probe.preferFeatureWindow).toHaveBeenCalledTimes(2),
-		);
-		await Promise.resolve();
-		expect(uiStore.getState().rightSidebarOpen).toBe(true);
-		expect(calls).toEqual([false, true, false]);
-	});
-
-	it("opens a closed rail immediately from openRightTab", async () => {
-		openRightTab("agent");
-		expect(uiStore.getState().rightSidebarOpen).toBe(true);
-		expect(calls).toEqual([false]);
-		await vi.waitFor(() =>
-			expect(probe.preferFeatureWindow).toHaveBeenCalledWith("agent"),
-		);
-	});
+it("opens the default Agent in the sidebar on an explicit Agent open", async () => {
+	await openRightTab("agent");
+	expect(actions.openOrActivateSidebarTarget).toHaveBeenCalledWith(
+		DEFAULT_SIDEBAR_AGENT,
+	);
 });

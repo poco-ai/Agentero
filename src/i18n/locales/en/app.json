@@ -10,6 +10,7 @@
 	},
 	"sidebarTabs": {
 		"newTab": "New sidebar tab",
+		"newAgent": "New Agent session",
 		"currentNotes": "Open current paper notes",
 		"openFile": "Open local file…",
 		"unsupportedFile": "Choose a supported file inside the current vault.",

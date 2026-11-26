@@ -26,7 +26,13 @@ function sourceLabel(source: string): string {
 	return `${name}${fragment}`;
 }
 
-export function ContextSourceLinks({ sources }: { sources: string[] }) {
+export function ContextSourceLinks({
+	sources,
+	onOpenSource = openCitation,
+}: {
+	sources: string[];
+	onOpenSource?: (source: string) => void;
+}) {
 	const { t } = useTranslation("aiElements");
 	const unique = [
 		...new Set(sources.map((source) => source.trim()).filter(Boolean)),
@@ -56,7 +62,7 @@ export function ContextSourceLinks({ sources }: { sources: string[] }) {
 								className="h-auto max-w-full justify-start whitespace-normal py-1"
 								title={evidenceCitationLabel(source) ?? source}
 								aria-label={sourceLabel(source)}
-								onClick={() => openCitation(source)}
+								onClick={() => onOpenSource(source)}
 							>
 								<TraceLine>
 									<TraceIcon>

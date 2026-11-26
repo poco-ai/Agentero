@@ -18,9 +18,8 @@ import {
 	layoutModeRightCollapsed,
 } from "@/lib/shell/layout-presets";
 
-export type RightSidebarTab = "agent" | "annotations";
 /** Views that may live in a singleton native feature window (right-rail popouts). */
-export type FeatureViewType = RightSidebarTab;
+export type FeatureViewType = "agent" | "annotations";
 /** Layout presets plus the free-form arrangement after any manual change. */
 export type LayoutMode = LayoutPresetMode | "custom";
 
@@ -46,9 +45,7 @@ type UiStore = {
 	 * though `layoutMode` itself flips to "custom".
 	 */
 	lastAppliedPreset: LayoutPresetMode | null;
-	/** Right sidebar (⌘L): Agent (default) or Annotations. */
 	rightSidebarOpen: boolean;
-	rightSidebarTab: RightSidebarTab;
 	/**
 	 * Whole-window Agent workspace: the left rail lists ACP history and the
 	 * center Dockview owns one tab per conversation. Session-only.
@@ -99,7 +96,6 @@ export const uiStore = createStore<UiStore>(() => ({
 	immersiveReading: false,
 	lastAppliedPreset: null,
 	rightSidebarOpen: false,
-	rightSidebarTab: "agent",
 	agentWindowOpen: false,
 	agentPanelMounted: false,
 	featurePoppedOut: {},
@@ -200,10 +196,6 @@ export function initShellLayoutFromPrefs(): void {
 		sidebarCollapsed: prefs.customRails?.leftCollapsed ?? false,
 		rightSidebarOpen: prefs.customRails?.rightOpen ?? false,
 	});
-}
-
-export function setRightSidebarTab(tab: RightSidebarTab): void {
-	uiStore.setState({ rightSidebarTab: tab });
 }
 
 export function setAgentWindowOpen(open: boolean): void {
@@ -347,19 +339,6 @@ export function toggleSidebar(): void {
 	if (uiStore.getState().immersiveReading) return;
 	const { sidebarCollapsed } = uiStore.getState();
 	layout()?.setLeftCollapsed(!sidebarCollapsed);
-}
-
-/**
- * Expand the right rail on `tab` (main window only). The heavy Agent panel
- * mounts on a later frame from the rail view, so this call does not wait on
- * it. Callers that already know a singleton feature window is open must not
- * use this.
- */
-export function openRightTabInRail(tab: RightSidebarTab): void {
-	setRightSidebarTab(tab);
-	if (!uiStore.getState().rightSidebarOpen) {
-		layout()?.setRightCollapsed(false, { focusAgent: tab === "agent" });
-	}
 }
 
 export function setFeaturePoppedOut(

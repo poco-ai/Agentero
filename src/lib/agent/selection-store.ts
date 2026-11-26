@@ -65,7 +65,10 @@ export type SelectionContext = {
 type SelectionStore = {
 	active: SelectionContext | null;
 	pinned: SelectionContext[];
+	recipients: Record<string, SelectionRecipient>;
 };
+
+export type SelectionRecipient = { scopeId: string | null; sessionId: string };
 
 const MAX_SELECTION_CHARS = 4000;
 const MAX_PINNED = 4;
@@ -73,6 +76,7 @@ const MAX_PINNED = 4;
 export const selectionStore = createStore<SelectionStore>(() => ({
 	active: null,
 	pinned: [],
+	recipients: {},
 }));
 
 export type SelectionInput = Omit<SelectionContext, "id" | "pinned">;
@@ -162,18 +166,23 @@ export function clearActiveSelection(origin?: SelectionOrigin): void {
 }
 
 /** Freeze the live selection as a pinned chip. Returns false when there is none. */
-export function pinActiveSelection(): boolean {
+export function pinActiveSelection(recipient?: SelectionRecipient): boolean {
 	const { active } = selectionStore.getState();
 	if (!active) return false;
-	pinSelection(active);
+	pinSelection(active, recipient);
 	return true;
 }
 
 /** Pin a captured quote even after focus has cleared/replaced the live selection. */
-export function pinSelection(active: SelectionContext): void {
-	const { pinned } = selectionStore.getState();
+export function pinSelection(
+	active: SelectionContext,
+	recipient?: SelectionRecipient,
+): void {
+	const { pinned, recipients } = selectionStore.getState();
 	const deduped = pinned.filter(
 		(item) =>
+			recipients[item.id]?.scopeId !== recipient?.scopeId ||
+			recipients[item.id]?.sessionId !== recipient?.sessionId ||
 			item.text !== active.text ||
 			item.sourcePath !== active.sourcePath ||
 			item.origin !== active.origin ||
@@ -183,39 +192,69 @@ export function pinSelection(active: SelectionContext): void {
 			item.messageId !== active.messageId ||
 			item.comment !== active.comment,
 	);
+	const next = [...deduped, { ...active, pinned: true }].slice(-MAX_PINNED);
+	const nextRecipients = Object.fromEntries(
+		next.flatMap((item) => {
+			const target = item.id === active.id ? recipient : recipients[item.id];
+			return target ? [[item.id, target]] : [];
+		}),
+	);
 	selectionStore.setState({
 		active: null,
-		pinned: [...deduped, { ...active, pinned: true }].slice(-MAX_PINNED),
+		pinned: next,
+		recipients: nextRecipients,
 	});
 }
 
 /** Remove one chip (live or pinned) by id. */
 export function removeSelection(id: string): void {
-	const { active, pinned } = selectionStore.getState();
+	const { active, pinned, recipients } = selectionStore.getState();
 	if (active?.id === id) {
 		selectionStore.setState({ active: null });
 		return;
 	}
-	selectionStore.setState({ pinned: pinned.filter((item) => item.id !== id) });
+	const { [id]: _, ...nextRecipients } = recipients;
+	selectionStore.setState({
+		pinned: pinned.filter((item) => item.id !== id),
+		recipients: nextRecipients,
+	});
 }
 
 /** Snapshot pinned chips for a turn (live `active` is staging-only, not sent). */
 export function currentSelections(): SelectionContext[] {
-	return selectionStore.getState().pinned;
+	const { pinned, recipients } = selectionStore.getState();
+	return pinned.filter((selection) => !recipients[selection.id]);
+}
+
+export function selectionsForRecipient(
+	recipient: SelectionRecipient,
+): SelectionContext[] {
+	const { pinned, recipients } = selectionStore.getState();
+	return pinned.filter((selection) => {
+		const target = recipients[selection.id];
+		return (
+			target?.scopeId === recipient.scopeId &&
+			target.sessionId === recipient.sessionId
+		);
+	});
 }
 
 /** Snapshot pinned chips and clear active + pinned after a submitted turn. */
 export function consumeSelections(): SelectionContext[] {
-	const { active, pinned } = selectionStore.getState();
-	const all = pinned;
-	if (active || all.length)
-		selectionStore.setState({ active: null, pinned: [] });
-	return all;
+	const { active, pinned, recipients } = selectionStore.getState();
+	const legacy = pinned.filter((selection) => !recipients[selection.id]);
+	if (active || legacy.length) {
+		selectionStore.setState({
+			active: null,
+			pinned: pinned.filter((selection) => recipients[selection.id]),
+		});
+	}
+	return legacy;
 }
 
 /** Drop every selection chip without returning them (e.g. vault switch). */
 export function clearSelections(): void {
 	const { active, pinned } = selectionStore.getState();
 	if (!active && pinned.length === 0) return;
-	selectionStore.setState({ active: null, pinned: [] });
+	selectionStore.setState({ active: null, pinned: [], recipients: {} });
 }

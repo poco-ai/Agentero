@@ -3,6 +3,7 @@ import type { PromptImage } from "@/lib/agent/api";
 import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
+import type { PresentedFile } from "@/lib/core/bindings";
 import type { PaperMetadata, PaperTreeLabelMode } from "@/lib/paper";
 
 /** Follow-up prompts waiting until the active run finishes. */
@@ -59,6 +60,7 @@ export type AgentPanelProps = {
 	openHistoryItem?: ChatSessionHistoryItem | null;
 	/** Clear the one-shot request once loading has started. */
 	onOpenHistoryHandled?: () => void;
+	onOpenHistoryError?: (item: ChatSessionHistoryItem, error: unknown) => void;
 	/**
 	 * A history row is queued for this panel but hydration has not started yet.
 	 * Shows the restore shimmer instead of the empty-chat suggestions.
@@ -89,6 +91,7 @@ export type AgentPanelProps = {
 	 * Paper paths should open the paper workspace (PDF + NOTES).
 	 */
 	onOpenSource?: (source: string) => void;
+	onOpenArtifact?: (file: PresentedFile) => void;
 };
 
 export type UseAgentPanelArgs = Pick<

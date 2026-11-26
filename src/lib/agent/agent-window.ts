@@ -6,7 +6,7 @@
  * workspace stays mounted but hidden. Both modes share the right rail.
  */
 
-import { seedAgentWindowFromRail } from "@/lib/agent/zen-store";
+import { zenStore } from "@/lib/agent/zen-store";
 import { layout, setAgentWindowOpen, uiStore } from "@/lib/shell/ui-store";
 import { getVaultPath } from "@/lib/vault/store";
 
@@ -17,7 +17,7 @@ export function openAgentWindow(): void {
 	if (!vaultPath || uiStore.getState().agentWindowOpen) return;
 	const ui = uiStore.getState();
 	sidebarWasCollapsed = ui.sidebarCollapsed;
-	seedAgentWindowFromRail(vaultPath);
+	if (!zenStore.getState().slots.length) zenStore.getState().addSlot();
 	setAgentWindowOpen(true);
 	if (sidebarWasCollapsed) layout()?.setLeftCollapsed(false);
 }

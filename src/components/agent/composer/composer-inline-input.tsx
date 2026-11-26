@@ -16,6 +16,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { usePromptInputAttachments } from "@/components/agent/composer/prompt-input";
 import { useImeGuard } from "@/hooks/use-ime-guard";
+import { useAgentSessionScope } from "@/lib/agent/agent-session-store";
 import { AGENT_COMPOSER_INPUT_ATTR } from "@/lib/agent/composer-focus";
 import {
 	parseInlineTokenParts,
@@ -129,6 +130,7 @@ export const ComposerInlineInput = forwardRef<
 		ref,
 	) => {
 		const { t } = useTranslation("agent");
+		const { scopeId } = useAgentSessionScope();
 		const attachments = usePromptInputAttachments();
 		const editorRef = useRef<HTMLDivElement>(null);
 		/** null until first paint so the initial `value` always hydrates into the DOM. */
@@ -593,7 +595,7 @@ export const ComposerInlineInput = forwardRef<
 					{/* biome-ignore lint/a11y/useSemanticElements: chips must live inside the editable surface */}
 					<div
 						ref={editorRef}
-						{...{ [AGENT_COMPOSER_INPUT_ATTR]: "" }}
+						{...{ [AGENT_COMPOSER_INPUT_ATTR]: scopeId ?? "" }}
 						role="textbox"
 						aria-multiline="true"
 						tabIndex={disabled ? -1 : 0}

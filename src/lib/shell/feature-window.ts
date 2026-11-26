@@ -20,7 +20,6 @@ import { getVaultPath } from "@/lib/vault/store";
 
 export type { FeatureViewType };
 
-/** Same set as right-rail tabs / leaf feature views. */
 const FEATURE_TAB_ORDER: FeatureViewType[] = ["agent", "annotations"];
 
 function featureWindowTitle(view: FeatureViewType): string {
@@ -44,19 +43,6 @@ export function featureWindowLabel(view: FeatureViewType): string {
 async function clearMainHostForFeature(view: FeatureViewType): Promise<void> {
 	const ui = await import("@/lib/shell/ui-store");
 	ui.setFeaturePoppedOut(view, true);
-	if (view === "agent") {
-		ui.setAgentPanelMounted(false);
-	}
-	// Rail stays open. If the selected rail tab is the one now in a window,
-	// switch to another non-popped-out tab so the switcher + content remain usable.
-	const { rightSidebarTab, featurePoppedOut } = ui.uiStore.getState();
-	if (rightSidebarTab !== view) return;
-	const next = (FEATURE_TAB_ORDER as Array<"agent" | "annotations">).find(
-		(t) => t !== view && !featurePoppedOut[t],
-	);
-	if (!next) return;
-	ui.setRightSidebarTab(next);
-	if (next === "agent") ui.setAgentPanelMounted(true);
 }
 
 /** Open or focus the singleton feature window for `view`. */
@@ -146,16 +132,6 @@ export async function focusFeatureWindow(
 		// Window still exists; leave featurePoppedOut true.
 		return false;
 	}
-}
-
-/**
- * Prefer an existing singleton feature window over the main right rail.
- * Returns true when the window was found and focused.
- */
-export async function preferFeatureWindow(
-	view: FeatureViewType,
-): Promise<boolean> {
-	return focusFeatureWindow(view);
 }
 
 export function isFeatureViewType(

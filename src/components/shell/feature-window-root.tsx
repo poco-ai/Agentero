@@ -25,7 +25,18 @@ import {
 	vaultPathsMatch,
 	type WindowVaultHold,
 } from "@/hooks/use-window-vault-hold";
-import { applyAgentSessionHandoffOnce } from "@/lib/agent/agent-session-store";
+import {
+	applyAgentSessionHandoffOnce,
+	getAgentSessionState,
+} from "@/lib/agent/agent-session-store";
+import {
+	FEATURE_COMPOSER_INPUT_EVENT,
+	focusAgentComposer,
+} from "@/lib/agent/composer-focus";
+import {
+	pinSelection,
+	type SelectionContext,
+} from "@/lib/agent/selection-store";
 import { toVaultRelative } from "@/lib/core/path";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
 import { toSafeDisposer } from "@/lib/core/tauri-events";
@@ -312,6 +323,24 @@ export function FeatureWindowRoot() {
 			),
 		[vaultHold],
 	);
+
+	useEffect(() => {
+		if (view !== "agent") return;
+		if (!isTauri()) return;
+		return toSafeDisposer(
+			import("@tauri-apps/api/event").then(({ listen }) =>
+				listen<{ selections: SelectionContext[] }>(
+					FEATURE_COMPOSER_INPUT_EVENT,
+					({ payload }) => {
+						const sessionId = getAgentSessionState().activeTabId;
+						for (const selection of payload.selections)
+							pinSelection(selection, { scopeId: null, sessionId });
+						focusAgentComposer({ scopeId: null, preserveCaret: true });
+					},
+				),
+			),
+		);
+	}, [view]);
 
 	useEffect(() => {
 		if (view !== "agent") return;

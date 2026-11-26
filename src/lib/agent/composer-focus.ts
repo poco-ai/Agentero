@@ -1,6 +1,17 @@
-import { zenOwnsChatInput } from "@/lib/agent/chat-input-surface";
+import { chatInputRecipient } from "@/lib/agent/chat-input-surface";
+import type { SelectionRecipient } from "@/lib/agent/selection-store";
+import {
+	removeSelection,
+	selectionsForRecipient,
+} from "@/lib/agent/selection-store";
+import { zenScopeId, zenStore } from "@/lib/agent/zen-store";
+import { broadcastSafe } from "@/lib/core/tauri-events";
+import {
+	DEFAULT_SIDEBAR_AGENT,
+	openOrActivateSidebarTarget,
+	sidebarAgentTargets,
+} from "@/lib/shell/sidebar-tabs";
 import { uiStore } from "@/lib/shell/ui-store";
-import { openRightTab } from "@/lib/shell/ui-window-actions";
 
 /**
  * Focus the Agent composer input (⇧⌘L / palette). React `autoFocus` only fires
@@ -13,19 +24,27 @@ import { openRightTab } from "@/lib/shell/ui-window-actions";
 
 export const AGENT_COMPOSER_INPUT_ATTR = "data-agent-composer-input";
 
-const FOCUS_TIMEOUT_MS = 800;
+const FOCUS_TIMEOUT_MS = 3000;
 
-function visibleComposerInput(): HTMLElement | null {
+export const FEATURE_COMPOSER_INPUT_EVENT = "agent:feature-composer-input";
+
+function visibleComposerInput(scopeId: string | null): HTMLElement | null {
 	const nodes = document.querySelectorAll<HTMLElement>(
 		`[${AGENT_COMPOSER_INPUT_ATTR}]`,
 	);
 	for (const node of nodes) {
-		if (node.offsetParent !== null) return node;
+		if (
+			node.getAttribute(AGENT_COMPOSER_INPUT_ATTR) === (scopeId ?? "") &&
+			node.offsetParent !== null
+		)
+			return node;
 	}
 	return null;
 }
 
 export type ComposerFocusOptions = {
+	scopeId?: string | null;
+	recipient?: SelectionRecipient;
 	/**
 	 * Focus the field without moving the caret. Add-to-chat inserts at the
 	 * saved caret and then places it; jumping to the end would undo that.
@@ -65,23 +84,44 @@ function placeCaretAtEnd(el: HTMLElement) {
  * workspace owns them.
  */
 export function presentAgentComposer(options?: ComposerFocusOptions): void {
-	if (uiStore.getState().agentWindowOpen) {
-		focusAgentComposer(options);
+	const scopeId =
+		options?.scopeId === undefined
+			? chatInputRecipient().scopeId
+			: options.scopeId;
+	if (scopeId?.startsWith("zen:")) {
+		focusAgentComposer({ ...options, scopeId });
 		return;
 	}
-	if (zenOwnsChatInput()) {
-		focusAgentComposer(options);
-		return;
-	}
-	openRightTab("agent");
-	focusAgentComposer(options);
+	void (async () => {
+		if (scopeId === null && uiStore.getState().featurePoppedOut.agent) {
+			const { focusFeatureWindow } = await import("@/lib/shell/feature-window");
+			if (await focusFeatureWindow("agent")) {
+				const selections = options?.recipient
+					? selectionsForRecipient(options.recipient)
+					: [];
+				broadcastSafe(FEATURE_COMPOSER_INPUT_EVENT, { selections });
+				for (const selection of selections) removeSelection(selection.id);
+				return;
+			}
+			if (uiStore.getState().featurePoppedOut.agent) return;
+		}
+		const target =
+			sidebarAgentTargets().find((target) => target.scopeId === scopeId) ??
+			DEFAULT_SIDEBAR_AGENT;
+		await openOrActivateSidebarTarget(target);
+		focusAgentComposer({ ...options, scopeId });
+	})();
 }
 
 export function focusAgentComposer(options?: ComposerFocusOptions): void {
 	if (typeof document === "undefined") return;
+	const scopeId =
+		options?.scopeId === undefined
+			? chatInputRecipient().scopeId
+			: options.scopeId;
 	const deadline = Date.now() + FOCUS_TIMEOUT_MS;
 	const attempt = () => {
-		const input = visibleComposerInput();
+		const input = visibleComposerInput(scopeId);
 		if (input) {
 			if (options?.preserveCaret) {
 				// Focusing again can drop a caret that was just placed after a
@@ -107,4 +147,9 @@ export function focusAgentComposer(options?: ComposerFocusOptions): void {
 		if (Date.now() < deadline) requestAnimationFrame(attempt);
 	};
 	requestAnimationFrame(attempt);
+}
+
+export function focusZenComposer() {
+	const active = zenStore.getState().activeSlotId;
+	if (active) focusAgentComposer({ scopeId: zenScopeId(active) });
 }

@@ -9,7 +9,7 @@ import {
 	type IDockviewPanelHeaderProps,
 	type IDockviewPanelProps,
 } from "dockview-react";
-import { File, NotebookPen, Plus } from "lucide-react";
+import { File, MessageSquarePlus, NotebookPen, Plus } from "lucide-react";
 import {
 	lazy,
 	Suspense,
@@ -30,8 +30,18 @@ import {
 	useVaultStore,
 	useWorkspaceStore,
 } from "@/hooks/use-app-stores";
+import {
+	AgentSessionScopeContext,
+	agentSessionStore,
+	createAgentSessionStore,
+} from "@/lib/agent/agent-session-store";
+import { cancelAgentRun, listAgents } from "@/lib/agent/api";
+import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
+import { isDismissedAcpSession } from "@/lib/agent/history-title-cache";
+import { sessionHistoryItem, sessionReference } from "@/lib/agent/session-ref";
 import { errorText } from "@/lib/core/error";
 import { scheduleIdle } from "@/lib/core/idle";
+import type { ApiError } from "@/lib/core/ipc";
 import { notifyError } from "@/lib/core/notify";
 import { basenameOf } from "@/lib/core/path";
 import { cn } from "@/lib/core/utils";
@@ -39,21 +49,26 @@ import { openSettingsWindow } from "@/lib/shell/settings-window";
 import {
 	closeSidebarTab,
 	connectSidebarDock,
-	DEFAULT_SIDEBAR_AGENT,
+	isSidebarView,
 	openOrActivateSidebarTarget,
+	type SidebarAgentTarget,
 	type SidebarPanelParams,
+	sidebarPdfPath,
+	updateSidebarAgentTarget,
 } from "@/lib/shell/sidebar-tabs";
-import { setAgentPanelMounted, setRightSidebarTab } from "@/lib/shell/ui-store";
+import { setAgentPanelMounted, uiStore } from "@/lib/shell/ui-store";
 import { pickVaultPreviewFile } from "@/lib/vault/pick";
 import { getVaultPath, vaultLoadGeneration } from "@/lib/vault/store";
 import { openCitation } from "@/lib/workspace/actions";
 import { agenteroDockTheme } from "@/lib/workspace/dockview-theme";
+import { openSidebarCitation } from "@/lib/workspace/sidebar-citations";
 import {
 	currentSidebarPaperNotes,
 	readSidebarFile,
 	restoreSidebarFile,
 	sidebarFileTarget,
 } from "@/lib/workspace/sidebar-files";
+import { createViewId } from "@/lib/workspace/tabs/model";
 
 // The panel stays out of the first paint. Once the vault is open and the main
 // thread is idle, mount it hidden so ACP warm runs as a background task
@@ -133,12 +148,34 @@ function AgentRailShell({ title }: { title: string }) {
 	);
 }
 
-function SidebarAgent() {
+function SidebarAgent({
+	api,
+	params,
+}: IDockviewPanelProps<SidebarPanelParams>) {
 	const { t } = useTranslation(["app"]);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
-	const rightSidebarTab = useUiStore((s) => s.rightSidebarTab);
+	const agentWindowOpen = useUiStore((s) => s.agentWindowOpen);
 	const agentPanelMounted = useUiStore((s) => s.agentPanelMounted);
 	const featurePoppedOut = useUiStore((s) => s.featurePoppedOut);
+	const [initialTarget] = useState(params.target as SidebarAgentTarget);
+	const [historyItem, setHistoryItem] = useState(() =>
+		initialTarget.sessionRef
+			? sessionHistoryItem(initialTarget.sessionRef)
+			: null,
+	);
+	const [failedHistory, setFailedHistory] =
+		useState<ChatSessionHistoryItem | null>(null);
+	const [scope] = useState(() => ({
+		scopeId: initialTarget.scopeId,
+		store:
+			initialTarget.scopeId === null
+				? agentSessionStore
+				: createAgentSessionStore(),
+	}));
+	const [visible, setVisible] = useState(api.isVisible);
+	const agentId = useRef(
+		initialTarget.agentId ?? initialTarget.sessionRef?.agentId,
+	);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const vaultMdFiles = useVaultStore((s) => s.vaultMdFiles);
 	const vaultDirPaths = useVaultStore((s) => s.vaultDirPaths);
@@ -155,18 +192,71 @@ function SidebarAgent() {
 	const selectedPath = workspacePath;
 	const selectedPaperTitle = workspaceTitle;
 
-	// Annotations tab was removed; migrate any persisted "annotations" state to
-	// "agent" so the right rail does not open empty.
 	useEffect(() => {
-		if (rightSidebarTab === "annotations") {
-			setRightSidebarTab("agent");
-		}
-	}, [rightSidebarTab]);
+		const subscription = api.onDidVisibilityChange(({ isVisible }) =>
+			setVisible(isVisible),
+		);
+		return () => subscription.dispose();
+	}, [api]);
+	useEffect(
+		() =>
+			scope.store.subscribe((state, previous) => {
+				const old = previous.sessions.find(
+					(session) => session.id === previous.activeTabId,
+				);
+				const current = state.sessions.find(
+					(session) => session.id === state.activeTabId,
+				);
+				if (
+					old === current ||
+					JSON.stringify(sessionReference(old)) ===
+						JSON.stringify(sessionReference(current))
+				)
+					return;
+				updateSidebarAgentTarget(api.id, {
+					kind: "agent",
+					scopeId: scope.scopeId,
+					sessionRef: sessionReference(current),
+					agentId: agentId.current,
+				});
+			}),
+		[api.id, scope],
+	);
+	useEffect(
+		() => () => {
+			if (!scope.scopeId) return;
+			queueMicrotask(() => {
+				if (isSidebarView(api.id)) return;
+				for (const session of scope.store.getState().sessions) {
+					if (session.status === "running")
+						void cancelAgentRun(session.id).catch(() => undefined);
+				}
+			});
+		},
+		[api.id, scope],
+	);
+	const onAgentChange = useCallback(
+		({ id }: { id: string }) => {
+			agentId.current = id;
+			const state = scope.store.getState();
+			const sessionRef =
+				sessionReference(
+					state.sessions.find((session) => session.id === state.activeTabId),
+				) ?? (historyItem ? sessionReference(historyItem) : undefined);
+			updateSidebarAgentTarget(api.id, {
+				kind: "agent",
+				scopeId: scope.scopeId,
+				agentId: id,
+				sessionRef,
+			});
+		},
+		[api.id, historyItem, scope],
+	);
 
 	// Singleton feature windows own the surface — do not also host in the rail.
-	const agentInWindow = Boolean(featurePoppedOut.agent);
-	const agentVisible =
-		!agentInWindow && rightSidebarOpen && rightSidebarTab === "agent";
+	const agentInWindow =
+		scope.scopeId === null && Boolean(featurePoppedOut.agent);
+	const agentVisible = !agentInWindow && rightSidebarOpen && visible;
 
 	// Vault open and idle: load the panel in the background, rail still closed.
 	useEffect(() => {
@@ -191,40 +281,86 @@ function SidebarAgent() {
 	const showShell = agentVisible && !agentPanelMounted;
 
 	return (
-		<>
-			{showShell ? <AgentRailShell title={agentTitle} /> : null}
-			{/* Keep AgentPanel alive when switching rail tabs, but never while
+		<AgentSessionScopeContext.Provider value={scope}>
+			<div data-sidebar-view={api.id} className="h-full min-h-0">
+				{showShell ? <AgentRailShell title={agentTitle} /> : null}
+				{/* Keep AgentPanel alive when switching rail tabs, but never while
 			    the agent singleton window is open. */}
-			{!agentInWindow && agentPanelMounted && (
-				<div className={cn("h-full min-h-0", !agentVisible && "hidden")}>
-					<Suspense fallback={<AgentRailShell title={agentTitle} />}>
-						<AgentPanel
-							vaultPath={vaultPath}
-							selectedPath={selectedPath}
-							selectedPaperTitle={selectedPaperTitle}
-							vaultMarkdownPaths={vaultMdFiles}
-							vaultDirectoryPaths={vaultDirPaths}
-							vaultPaperPaths={vaultPaperPaths}
-							paperMetaByRelPath={paperMetaByRelPath}
-							paperTreeLabelMode={paperTreeLabelMode}
-							className="min-h-0 h-full"
-							title={agentTitle}
-							onOpenAgentSettings={onOpenAgentSettings}
-							onOpenSource={handleAgentOpenSource}
-						/>
-					</Suspense>
-				</div>
-			)}
-		</>
+				{!agentInWindow && agentPanelMounted && (
+					<div className={cn("h-full min-h-0", !agentVisible && "hidden")}>
+						<Suspense fallback={<AgentRailShell title={agentTitle} />}>
+							<AgentPanel
+								vaultPath={vaultPath}
+								selectedPath={selectedPath}
+								selectedPaperTitle={selectedPaperTitle}
+								vaultMarkdownPaths={vaultMdFiles}
+								vaultDirectoryPaths={vaultDirPaths}
+								vaultPaperPaths={vaultPaperPaths}
+								paperMetaByRelPath={paperMetaByRelPath}
+								paperTreeLabelMode={paperTreeLabelMode}
+								className="min-h-0 h-full"
+								initialAgentId={
+									initialTarget.agentId ?? initialTarget.sessionRef?.agentId
+								}
+								openHistoryItem={historyItem}
+								onOpenHistoryHandled={() => setHistoryItem(null)}
+								onOpenHistoryError={(item, error) => {
+									const code = (error as ApiError | null)?.code;
+									if (
+										initialTarget.sessionRef?.id === item.id &&
+										(code === "agent_not_found" ||
+											code === "session_not_found" ||
+											/\b(?:session|thread)(?:\s+\S+)?\s+(?:not found|does not exist)\b/i.test(
+												errorText(error),
+											))
+									) {
+										void closeSidebarTab(api.id);
+									} else setFailedHistory(item);
+								}}
+								headerActions={
+									failedHistory ? (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onClick={() => {
+												setHistoryItem(failedHistory);
+												setFailedHistory(null);
+											}}
+										>
+											{t("sidebarTabs.retry")}
+										</Button>
+									) : undefined
+								}
+								onAgentChange={onAgentChange}
+								restoringHistory={Boolean(historyItem)}
+								suppressHistoryImport={scope.scopeId !== null}
+								title={agentTitle}
+								onOpenAgentSettings={onOpenAgentSettings}
+								onOpenSource={
+									agentWindowOpen ? openSidebarCitation : handleAgentOpenSource
+								}
+							/>
+						</Suspense>
+					</div>
+				)}
+			</div>
+		</AgentSessionScopeContext.Provider>
 	);
 }
 
 function SidebarTab({ api }: IDockviewPanelHeaderProps) {
 	const { t } = useTranslation("app");
+	const [title, setTitle] = useState(api.title);
+	useEffect(() => {
+		const subscription = api.onDidTitleChange(({ title }) => setTitle(title));
+		return () => subscription.dispose();
+	}, [api]);
 	return (
 		<DocumentTab
-			title={api.title}
-			closeLabel={t("tabs.close", { title: api.title })}
+			data-sidebar-view={api.id}
+			title={title}
+			closeLabel={t("tabs.close", { title })}
 			onClose={() => closeSidebarTab(api.id)}
 		/>
 	);
@@ -232,18 +368,54 @@ function SidebarTab({ api }: IDockviewPanelHeaderProps) {
 
 function SidebarNewTabButton() {
 	const { t } = useTranslation("app");
+	const origin = useRef<string | undefined>(undefined);
+	const lastSidebarPdf = useRef<string | undefined>(undefined);
+	useEffect(() => {
+		const rememberSource = (event: Event) => {
+			if (
+				!(event.target instanceof Element) ||
+				event.target.closest("[data-sidebar-new-tab]")
+			)
+				return;
+			lastSidebarPdf.current = event.target.closest<HTMLElement>(
+				"[data-sidebar-view]",
+			)?.dataset.sidebarView;
+		};
+		document.addEventListener("pointerdown", rememberSource, true);
+		document.addEventListener("focusin", rememberSource, true);
+		return () => {
+			document.removeEventListener("pointerdown", rememberSource, true);
+			document.removeEventListener("focusin", rememberSource, true);
+		};
+	}, []);
+	const sourcePdf = () => {
+		const source = document.activeElement?.closest<HTMLElement>(
+			"[data-sidebar-view]",
+		)?.dataset.sidebarView;
+		const view = source ?? lastSidebarPdf.current;
+		return view ? sidebarPdfPath(view) : undefined;
+	};
 	return (
 		<Button
 			type="button"
 			variant="ghost"
 			size="icon-sm"
+			data-sidebar-new-tab
 			aria-label={t("sidebarTabs.newTab")}
-			onClick={() =>
-				openOrActivateSidebarTarget({
+			onPointerDown={() => {
+				origin.current = sourcePdf();
+			}}
+			onClick={(event) => {
+				const pdf = (event.detail ? origin.current : undefined) ?? sourcePdf();
+				origin.current = undefined;
+				void openOrActivateSidebarTarget({
 					kind: "launcher",
-					notesPath: currentSidebarPaperNotes(),
-				})
-			}
+					notesPath:
+						pdf || !uiStore.getState().agentWindowOpen
+							? currentSidebarPaperNotes(pdf)
+							: undefined,
+				});
+			}}
 		>
 			<Plus className="size-4" aria-hidden />
 		</Button>
@@ -286,17 +458,24 @@ function SidebarLauncher({
 		}
 	};
 	return (
-		<div className="flex h-full flex-col items-start gap-2 overflow-auto p-4">
+		<div
+			data-sidebar-view={api.id}
+			className="flex h-full flex-col items-start gap-2 overflow-auto p-4"
+		>
 			<Button
 				type="button"
 				variant="ghost"
 				onClick={() =>
-					openOrActivateSidebarTarget(DEFAULT_SIDEBAR_AGENT, {
-						replace: api.id,
-					})
+					openOrActivateSidebarTarget(
+						{ kind: "agent", scopeId: `sidebar:${createViewId()}` },
+						{
+							replace: api.id,
+						},
+					)
 				}
 			>
-				{t("labels.agent")}
+				<MessageSquarePlus aria-hidden />
+				{t("sidebarTabs.newAgent")}
 			</Button>
 			<Button
 				type="button"
@@ -334,17 +513,27 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 	const onReady = useCallback(
 		({ api }: DockviewReadyEvent) => {
 			disconnect.current?.();
+			let agents: ReturnType<typeof listAgents> | undefined;
 			disconnect.current = connectSidebarDock(api, vaultPath, {
 				title: (target) =>
 					target.kind === "agent"
-						? t("labels.agent")
+						? target.sessionRef?.title || t("labels.agent")
 						: target.kind === "launcher"
 							? t("sidebarTabs.newTab")
 							: basenameOf(target.vaultRelPath),
-				restoreTarget: (target) =>
-					target.kind === "agent"
-						? Promise.resolve(target)
-						: restoreSidebarFile(vaultPath, target),
+				restoreTarget: async (target) => {
+					if (target.kind !== "agent")
+						return restoreSidebarFile(vaultPath, target);
+					const ref = target.sessionRef;
+					if (!ref) return target;
+					if (isDismissedAcpSession(ref.agentId, ref.providerSessionId))
+						return null;
+					agents ??= listAgents();
+					const list = await agents.catch(() => null);
+					return list && !list.agents.some((agent) => agent.id === ref.agentId)
+						? null
+						: target;
+				},
 			});
 		},
 		[t, vaultPath],

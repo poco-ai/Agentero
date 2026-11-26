@@ -20,8 +20,10 @@ import {
 import { useVaultStore } from "@/hooks/use-app-stores";
 import type { AcpSessionInfo } from "@/lib/agent/api";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
+import { focusOwnedAgentSession } from "@/lib/agent/open-owned-session";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import { invalidateHarnessHistory } from "@/lib/agent/session-history-cache";
+import { sessionHistoryItem } from "@/lib/agent/session-ref";
 import { useZenStore, zenStore } from "@/lib/agent/zen-store";
 import { cn } from "@/lib/core/utils";
 
@@ -319,38 +321,22 @@ export function AgentHistorySidebar({ active }: { active: boolean }) {
 
 	const openHistory = (group: HarnessGroup, session: AcpSessionInfo) => {
 		if (!group.agentId) return;
-		const existing = zenStore
-			.getState()
-			.slots.find(
-				(slot) =>
-					slot.pendingHistory?.id === session.sessionId ||
-					slot.store
-						.getState()
-						.sessions.some(
-							(item) =>
-								item.id === session.sessionId ||
-								item.providerSessionId === session.sessionId,
-						),
-			);
-		if (existing) {
-			zenStore.getState().activateSlot(existing.id);
-			focusAgentComposer();
-			return;
-		}
 		const title =
 			displayHistoryTitle(session.title ?? "", "") || t("zen.untitled");
+		const history = {
+			id: session.sessionId,
+			agentId: group.agentId,
+			agentName: group.name,
+			title,
+			startedAt: session.updatedAt ?? "",
+			providerSessionId: session.sessionId,
+		};
+		if (focusOwnedAgentSession(sessionHistoryItem(history))) return;
 		zenStore.getState().addSlot({
 			agentId: group.agentId,
 			agentName: group.name,
 			agentTemplate: group.template,
-			history: {
-				id: session.sessionId,
-				agentId: group.agentId,
-				agentName: group.name,
-				title,
-				startedAt: session.updatedAt ?? "",
-				providerSessionId: session.sessionId,
-			},
+			history,
 		});
 		focusAgentComposer();
 	};

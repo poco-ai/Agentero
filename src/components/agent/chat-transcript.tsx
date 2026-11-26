@@ -128,7 +128,7 @@ import { stripPromptEnvelopeForDisplay } from "@/lib/agent/prompt-display";
 import { selectionNavigationStore } from "@/lib/agent/selection-navigation-state";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
 import { terminalToolData } from "@/lib/agent/terminal-tool";
-import { commands } from "@/lib/core/bindings";
+import { commands, type PresentedFile } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
@@ -402,6 +402,7 @@ type RowHandlers = {
 	onSendSuggestion: (label: string, workflow?: string) => void;
 	onAgentLogin?: () => void;
 	onOpenSource?: (source: string) => void;
+	onOpenArtifact?: (file: PresentedFile) => void;
 	editCompositionProps: {
 		onCompositionStart?: () => void;
 		onCompositionEnd?: () => void;
@@ -941,6 +942,10 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 								className="block rounded-md border px-3 py-2 text-left text-sm hover:bg-muted"
 								title={file.path}
 								onClick={() => {
+									if (handlers.onOpenArtifact) {
+										handlers.onOpenArtifact(file);
+										return;
+									}
 									void commands
 										.workspaceOpenSource(file.vault, file.path)
 										.then((result) => {
@@ -960,7 +965,10 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 					) : null}
 					{!line.streaming && line.sources?.length ? (
 						<div className="px-1">
-							<ContextSourceLinks sources={line.sources} />
+							<ContextSourceLinks
+								sources={line.sources}
+								onOpenSource={onOpenSource}
+							/>
 						</div>
 					) : null}
 					{!line.streaming && hasAgentText ? (
@@ -1185,6 +1193,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	onSendSuggestion,
 	onAgentLogin,
 	onOpenSource,
+	onOpenArtifact,
 	agentTemplate = null,
 	paper = null,
 	phase = null,
@@ -1217,6 +1226,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	onAgentLogin?: () => void;
 	/** Open a vault path / paper (or external URL) from Sources / inline citation. */
 	onOpenSource?: (source: string) => void;
+	onOpenArtifact?: (file: PresentedFile) => void;
 	/** Active agent template — chat-only built-ins (Zhihu) get a bespoke empty state. */
 	agentTemplate?: string | null;
 	/** Focused paper metadata, used by the Zhihu empty-state discussion cards. */
@@ -1262,6 +1272,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 		onSendSuggestion,
 		onAgentLogin,
 		onOpenSource,
+		onOpenArtifact,
 		editCompositionProps,
 	});
 	latestHandlersRef.current = {
@@ -1273,9 +1284,11 @@ export const ChatTranscript = memo(function ChatTranscript({
 		onSendSuggestion,
 		onAgentLogin,
 		onOpenSource,
+		onOpenArtifact,
 		editCompositionProps,
 	};
 	const hasOpenSource = Boolean(onOpenSource);
+	const hasOpenArtifact = Boolean(onOpenArtifact);
 	const writing = useStore(workspaceStore, (state) => {
 		const tab = state.tabs.find((tab) => tab.id === state.activeTabId);
 		return Boolean(tab && (tab.texRoot || isTexPath(tab.path)));
@@ -1301,6 +1314,9 @@ export const ChatTranscript = memo(function ChatTranscript({
 			onOpenSource: hasOpenSource
 				? (source) => latestHandlersRef.current.onOpenSource?.(source)
 				: undefined,
+			onOpenArtifact: hasOpenArtifact
+				? (file) => latestHandlersRef.current.onOpenArtifact?.(file)
+				: undefined,
 			editCompositionProps: {
 				onCompositionStart: () =>
 					latestHandlersRef.current.editCompositionProps.onCompositionStart?.(),
@@ -1308,7 +1324,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 					latestHandlersRef.current.editCompositionProps.onCompositionEnd?.(),
 			},
 		}),
-		[hasOpenSource, onAgentLogin],
+		[hasOpenArtifact, hasOpenSource, onAgentLogin],
 	);
 
 	return (

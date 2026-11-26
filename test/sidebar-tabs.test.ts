@@ -6,6 +6,7 @@ import {
 	DEFAULT_SIDEBAR_AGENT,
 	openOrActivateSidebarTarget,
 	type SidebarTarget,
+	sidebarChatState,
 } from "@/lib/shell/sidebar-tabs";
 import { uiStore } from "@/lib/shell/ui-store";
 
@@ -116,4 +117,33 @@ it("skips missing files, falls back to the first surviving tab, and reuses it", 
 	await vi.waitFor(() => expect(api.activePanel?.id).toBe("view-pdf"));
 	expect(await openOrActivateSidebarTarget(pdf)).toBe("view-pdf");
 	expect(api.panels).toHaveLength(1);
+});
+
+it("restores the last conversation separately from the active document tab", async () => {
+	const first = {
+		viewId: "view-agent-a",
+		target: { kind: "agent", scopeId: "sidebar:a" },
+	};
+	const second = {
+		viewId: "view-agent-b",
+		target: { kind: "agent", scopeId: "sidebar:b" },
+	};
+	const pdf = {
+		viewId: "view-pdf",
+		target: { kind: "pdf", vaultRelPath: "paper.pdf" },
+	};
+	localStorage.setItem(
+		key,
+		JSON.stringify({
+			tabs: [first, second, pdf],
+			activeViewId: pdf.viewId,
+			lastAgentViewId: first.viewId,
+			expanded: false,
+		}),
+	);
+	disconnect = connectSidebarDock(api, vault.path, {
+		title: (target) => target.kind,
+	});
+	await vi.waitFor(() => expect(api.activePanel?.id).toBe(pdf.viewId));
+	expect(sidebarChatState.getState().scopeId).toBe("sidebar:a");
 });

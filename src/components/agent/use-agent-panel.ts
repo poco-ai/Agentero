@@ -90,6 +90,7 @@ export type UseAgentPanelArgs = Pick<
 	/** One-shot ACP history row to load once the history probe is ready. */
 	openHistoryItem?: ChatSessionHistoryItem | null;
 	onOpenHistoryHandled?: () => void;
+	onOpenHistoryError?: (item: ChatSessionHistoryItem, error: unknown) => void;
 	/** Skip the per-panel ACP session import (Zen rail owns the history list). */
 	suppressHistoryImport?: boolean;
 };
@@ -107,6 +108,7 @@ export function useAgentPanel({
 	onAgentChange,
 	openHistoryItem = null,
 	onOpenHistoryHandled,
+	onOpenHistoryError,
 	suppressHistoryImport = false,
 }: UseAgentPanelArgs) {
 	const { t, i18n } = useTranslation("agent");
@@ -760,6 +762,7 @@ export function useAgentPanel({
 		historyOpen,
 		clearMessageQueue,
 		importHistory: !suppressHistoryImport,
+		onOpenHistoryError,
 	});
 
 	// Zen history rows: load straight away (the agent is known from the slot),

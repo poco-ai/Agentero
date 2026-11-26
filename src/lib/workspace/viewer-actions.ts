@@ -966,7 +966,11 @@ export function scheduleCitationJump(
 ): void {
 	const key = canonicalTabId(paperAbs) ?? normalizePath(paperAbs);
 	const resolved = intent ?? beginPdfNavigation(key);
-	completePdfNavigation(resolved, {
+	completePdfNavigation(resolved, citationNavigationTarget(target));
+}
+
+export function citationNavigationTarget(target: CitationTarget) {
+	return {
 		page: target.pageIndex + 1,
 		region: {
 			id: target.regionId,
@@ -974,11 +978,11 @@ export function scheduleCitationJump(
 			bbox: target.bbox,
 			kind: layoutKindFromCitationFragment(target.fragment),
 		},
-	});
+	};
 }
 
 /** Short category toast for a failed citation resolve (e.g. figure / section). */
-function citationResolveFailedMessage(source: string): string {
+export function citationResolveFailedMessage(source: string): string {
 	const hash = source.indexOf("#");
 	const frag = hash >= 0 ? source.slice(hash + 1) : "";
 	const key = (frag.split("=")[0] ?? "").toLowerCase();
@@ -1003,10 +1007,9 @@ function citationResolveFailedMessage(source: string): string {
 }
 
 /** Apply a revision-checked CLI evidence locator to the appropriate viewer. */
-export async function openEvidenceLocation(
-	path: string,
+export function evidenceLinkFragment(
 	locator: import("@/lib/core/bindings").Json,
-): Promise<void> {
+) {
 	const loc =
 		locator && typeof locator === "object" && !Array.isArray(locator)
 			? locator
@@ -1016,12 +1019,22 @@ export async function openEvidenceLocation(
 		"page",
 		...(typeof loc.line_from === "number" ? [] : ["section"]),
 	].find((k) => loc[k] != null);
-	if (key) {
-		openCitation(path + "#" + key + "=" + encodeURIComponent(String(loc[key])));
+	return {
+		fragment: key ? `${key}=${encodeURIComponent(String(loc[key]))}` : "",
+		line: loc.line_from,
+	};
+}
+
+export async function openEvidenceLocation(
+	path: string,
+	locator: import("@/lib/core/bindings").Json,
+): Promise<void> {
+	const { fragment, line } = evidenceLinkFragment(locator);
+	if (fragment) {
+		openCitation(`${path}#${fragment}`);
 		return;
 	}
 	openVaultRel(path);
-	const line = loc.line_from;
 	const vault = getVaultPath();
 	if (typeof line !== "number" || !vault) return;
 	const abs = joinVaultPath(vault, path);

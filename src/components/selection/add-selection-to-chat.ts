@@ -5,6 +5,7 @@
  * dismissal / selection-clearing choreography before calling this.
  */
 
+import { chatInputRecipient } from "@/lib/agent/chat-input-surface";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	type PublishSelectionInput,
@@ -13,7 +14,12 @@ import {
 } from "@/lib/agent/selection-store";
 
 export function addSelectionToChat(payload: PublishSelectionInput): void {
+	const recipient = chatInputRecipient();
 	publishSelection(payload);
-	pinActiveSelection();
-	presentAgentComposer({ preserveCaret: true });
+	pinActiveSelection(recipient);
+	presentAgentComposer({
+		preserveCaret: true,
+		scopeId: recipient.scopeId,
+		recipient,
+	});
 }

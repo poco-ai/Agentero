@@ -269,6 +269,7 @@ export function useAgentComposer({
 	// Every mounted surface observes the pins; only the input target inserts them
 	// (and removes them from the store) — so exactly one composer consumes each.
 	const pinnedSelections = useSelectionStore((s) => s.pinned);
+	const recipients = useSelectionStore((s) => s.recipients);
 
 	// Pin quotes at the caret the composer last reported. Appending at the
 	// string end lands after the contenteditable's trailing break, which
@@ -276,10 +277,16 @@ export function useAgentComposer({
 	const prevPinnedRef = useRef<SelectionContext[]>([]);
 	useEffect(() => {
 		// Not the visible chat surface: leave the pin for the owner to consume.
-		if (!inputTarget) return;
 		const prev = prevPinnedRef.current;
 		const inserted: SelectionContext[] = [];
 		for (const sel of pinnedSelections) {
+			const recipient = recipients[sel.id];
+			if (
+				recipient
+					? recipient.scopeId !== scopeId || recipient.sessionId !== sessionId
+					: !inputTarget
+			)
+				continue;
 			if (!prev.some((p) => p.id === sel.id)) {
 				inserted.push(sel);
 			}
@@ -313,8 +320,15 @@ export function useAgentComposer({
 				removeSelection(sel.id);
 			}
 		}
-		prevPinnedRef.current = pinnedSelections;
-	}, [inputTarget, pinnedSelections, setComposerText]);
+		prevPinnedRef.current = inserted;
+	}, [
+		inputTarget,
+		pinnedSelections,
+		recipients,
+		scopeId,
+		sessionId,
+		setComposerText,
+	]);
 
 	const railVisualDrafts = useVisualContextStore((s) => s.drafts);
 	const visualDrafts = railScope ? railVisualDrafts : EMPTY_VISUAL_DRAFTS;

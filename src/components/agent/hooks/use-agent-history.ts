@@ -27,7 +27,7 @@ import {
 	type AgentSessionRecord,
 	type AgentSessionStoreApi,
 	agentSessionStore,
-	useAgentSessionStoreApi,
+	useAgentSessionScope,
 } from "@/lib/agent/agent-session-store";
 import { annotationSnapshotsFromMessage } from "@/lib/agent/annotation-snapshot";
 import {
@@ -57,6 +57,7 @@ import {
 	setCachedHistoryTitle,
 	setUserHistoryTitle,
 } from "@/lib/agent/history-title-cache";
+import { focusOwnedAgentSession } from "@/lib/agent/open-owned-session";
 import {
 	displayHistoryTitle,
 	stripPromptEnvelopeForDisplay,
@@ -491,6 +492,7 @@ export type UseAgentHistoryOptions = {
 	 * import would spawn an ACP process per slot and fake "open" tabs.
 	 */
 	importHistory?: boolean;
+	onOpenHistoryError?: (item: ChatSessionHistoryItem, error: unknown) => void;
 };
 
 export type AgentHistory = {
@@ -530,8 +532,10 @@ export function useAgentHistory({
 	historyOpen,
 	clearMessageQueue,
 	importHistory = true,
+	onOpenHistoryError,
 }: UseAgentHistoryOptions): AgentHistory {
-	const sessionStore = useAgentSessionStoreApi();
+	const scope = useAgentSessionScope();
+	const { store: sessionStore } = scope;
 	const [supportsResume, setSupportsResume] = useState(false);
 
 	const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -645,6 +649,7 @@ export function useAgentHistory({
 
 	const openHistorySession = (item: ChatSessionHistoryItem): boolean => {
 		if (submittingRef.current) return false;
+		if (focusOwnedAgentSession(item, scope)) return true;
 		const providerSessionId = providerSessionIdForHistoryLoad(item);
 		const hydrationGeneration = ++historyHydrationGenRef.current;
 		setHistoryOpen(false);
@@ -808,6 +813,7 @@ export function useAgentHistory({
 				}
 				setHydratingSessionId(null);
 				setLines((prev) => [...prev, errorChatLine(errorText(error))]);
+				onOpenHistoryError?.(item, error);
 			}
 		})();
 		return true;

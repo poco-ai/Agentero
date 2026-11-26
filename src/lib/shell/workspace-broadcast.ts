@@ -259,8 +259,9 @@ export async function captureAgentSessionHandoffSnapshot(
 async function rebindAgentEventWindow(
 	sourceLabel: string,
 	targetLabel: string,
+	sessionIds: string[],
 ): Promise<void> {
-	await commands.agentRebindEventWindow(sourceLabel, targetLabel);
+	await commands.agentRebindEventWindow(sourceLabel, targetLabel, sessionIds);
 }
 
 /**
@@ -298,7 +299,11 @@ export async function beginAgentSessionHandoff(
 		}
 		if (step.effect !== "rebind" || rebindStarted) return;
 		rebindStarted = true;
-		void rebindAgentEventWindow(snapshot.sourceLabel, snapshot.targetLabel)
+		void rebindAgentEventWindow(
+			snapshot.sourceLabel,
+			snapshot.targetLabel,
+			snapshot.sessions.map((session) => session.id),
+		)
 			.then(() => {
 				stop();
 			})

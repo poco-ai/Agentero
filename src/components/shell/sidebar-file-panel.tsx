@@ -14,7 +14,6 @@ import {
 	setTabHighlights,
 	setTabVisualTraces,
 } from "@/lib/pdf/annotations-store";
-import { cancelPdfNavigationForTab } from "@/lib/pdf/pending-pdf-page";
 import { resolveFontFamilyCss } from "@/lib/settings";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import type { SidebarPanelParams } from "@/lib/shell/sidebar-tabs";
@@ -111,7 +110,6 @@ export function SidebarFilePanel({
 			createPlaceholderTab(path, mode, api.id),
 		]);
 		return () => {
-			cancelPdfNavigationForTab(api.id);
 			removeTabAnnotations([api.id]);
 			setSidebarDocuments((tabs) => tabs.filter((tab) => tab.id !== api.id));
 		};

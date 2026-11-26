@@ -206,7 +206,7 @@ pub async fn accept_run_once(
     };
 
     let app_handle = window.app_handle().clone();
-    let events = AgentEventEmitter::new(app_handle.clone(), window.label());
+    let events = AgentEventEmitter::for_run(app_handle.clone(), window.label(), &session_id);
     // `starting` lands before the accepted ids return, so the webview can paint
     // a loading state for the placeholder line at t=0 (before any stream event).
     let _ = events.emit(

@@ -68,10 +68,12 @@ export const AgentPanel = memo(function AgentPanel({
 	title = "Chat",
 	onOpenAgentSettings,
 	onOpenSource,
+	onOpenArtifact,
 	initialAgentId = null,
 	onAgentChange,
 	openHistoryItem = null,
 	onOpenHistoryHandled,
+	onOpenHistoryError,
 	restoringHistory = false,
 	suppressHistoryImport = false,
 	wide = false,
@@ -92,6 +94,7 @@ export const AgentPanel = memo(function AgentPanel({
 		onAgentChange,
 		openHistoryItem,
 		onOpenHistoryHandled,
+		onOpenHistoryError,
 		suppressHistoryImport,
 	});
 	const bodyRef = useRef<HTMLDivElement>(null);
@@ -499,6 +502,7 @@ export const AgentPanel = memo(function AgentPanel({
 							onSendSuggestion={sendSuggestion}
 							onAgentLogin={selectedLogin ? openSelectedAgentLogin : undefined}
 							onOpenSource={onOpenSource}
+							onOpenArtifact={onOpenArtifact}
 							agentTemplate={selected?.template ?? null}
 							paper={selectedPaperMeta}
 						/>

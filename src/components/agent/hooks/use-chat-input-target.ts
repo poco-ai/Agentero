@@ -1,29 +1,22 @@
-/**
- * Which mounted composer should consume app-wide chat inputs (file-tree
- * "Add to chat", pinned selections, seeded prompts)?
- *
- * The rail wins while it is visibly showing the agent tab; otherwise an open
- * Zen workspace's active slot owns them. Inactive slots stay subscribed but
- * ignore the inputs.
- */
-
+import { useStore } from "zustand";
 import { useUiStore, useWorkspaceStore } from "@/hooks/use-app-stores";
 import { useAgentSessionScope } from "@/lib/agent/agent-session-store";
-import {
-	railIsAgentSurface,
-	zenTabIsOpen,
-} from "@/lib/agent/chat-input-surface";
+import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { useZenStore, zenScopeId } from "@/lib/agent/zen-store";
+import { sidebarChatState } from "@/lib/shell/sidebar-tabs";
 
 export function useChatInputTarget(): boolean {
 	const { scopeId } = useAgentSessionScope();
-	const zenTabOpen = useWorkspaceStore((s) => zenTabIsOpen(s.tabs));
-	const agentWindowOpen = useUiStore((s) => s.agentWindowOpen);
-	const railVisible = useUiStore(railIsAgentSurface);
-	const activeSlotId = useZenStore((s) => s.activeSlotId);
-	const zenOwns = (zenTabOpen || agentWindowOpen) && !railVisible;
-	if (scopeId === null) return !zenOwns;
-	return (
-		zenOwns && activeSlotId !== null && scopeId === zenScopeId(activeSlotId)
+	const zenTabActive = useWorkspaceStore((s) =>
+		s.tabs.some(
+			(tab) => tab.id === s.activeTabId && isZenVirtualPath(tab.path),
+		),
 	);
+	const agentWindowOpen = useUiStore((s) => s.agentWindowOpen);
+	const activeSlotId = useZenStore((s) => s.activeSlotId);
+	const sidebarScope = useStore(sidebarChatState, (state) => state.scopeId);
+	const zenOwns = agentWindowOpen || zenTabActive;
+	return zenOwns && activeSlotId !== null
+		? scopeId === zenScopeId(activeSlotId)
+		: scopeId === sidebarScope;
 }
