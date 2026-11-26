@@ -293,6 +293,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::web::commands::web_proxy_allow_host,
             crate::features::web::commands::web_proxy_resolve_image,
             crate::features::web::commands::html_preview_grant,
+            crate::app::sidebar_browser::sidebar_browser_command,
             crate::features::compile::detect_latex_engines,
             crate::features::rtex::rtex_status,
             crate::features::rtex::rtex_start,

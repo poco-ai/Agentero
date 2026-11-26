@@ -172,8 +172,8 @@ function toggleImmersiveReading(): void {
 	layout()?.toggleImmersiveReading();
 }
 
-function closeFocusedTab(): void {
-	if (closeTopOverlay() || closeFocusedSidebarTab()) return;
+function closeFocusedTab(browserFocused = false): void {
+	if (closeTopOverlay() || closeFocusedSidebarTab(browserFocused)) return;
 	if (uiStore.getState().agentWindowOpen) {
 		agentDock()?.closeActive();
 	} else {
@@ -181,8 +181,8 @@ function closeFocusedTab(): void {
 	}
 }
 
-function cycleFocusedTab(delta: -1 | 1): void {
-	if (cycleFocusedSidebarTab(delta)) return;
+function cycleFocusedTab(delta: -1 | 1, browserFocused = false): void {
+	if (cycleFocusedSidebarTab(delta, browserFocused)) return;
 	if (uiStore.getState().agentWindowOpen) agentDock()?.cycleActive(delta);
 	else cycleActiveTab(delta);
 }
@@ -530,8 +530,8 @@ export default function App() {
 		onNewSidebarTab: () => {
 			if (!anyModalOverlayOpen) newSidebarTab();
 		},
-		onCycleTab: (delta) => {
-			if (!anyModalOverlayOpen) cycleFocusedTab(delta);
+		onCycleTab: (delta, browserFocused) => {
+			if (!anyModalOverlayOpen) cycleFocusedTab(delta, browserFocused);
 		},
 		onCloseTabOrWindow: closeFocusedTab,
 	});

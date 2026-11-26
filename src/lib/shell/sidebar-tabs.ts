@@ -10,6 +10,10 @@ import { readJsonStorage, writeStorageRaw } from "@/lib/core/storage";
 import { cancelPdfNavigationForTab } from "@/lib/pdf/pending-pdf-page";
 import { layout, setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { getVaultPath, vaultLoadGeneration } from "@/lib/vault/store";
+import {
+	type SidebarBrowserTarget,
+	sidebarBrowserUrl,
+} from "@/lib/web-view/sidebar-browser-url";
 import type {
 	SidebarFileData,
 	SidebarFileTarget,
@@ -24,7 +28,10 @@ export type SidebarAgentTarget = {
 	sessionRef?: AgentSessionRef;
 	agentId?: string;
 };
-export type SidebarTarget = SidebarAgentTarget | SidebarFileTarget;
+export type SidebarTarget =
+	| SidebarAgentTarget
+	| SidebarFileTarget
+	| SidebarBrowserTarget;
 export type SidebarPanelTarget =
 	| SidebarTarget
 	| { kind: "launcher"; notesPath?: string | null; focusSearch?: boolean };
@@ -90,6 +97,14 @@ function sameTarget(left: SidebarPanelTarget, right: SidebarPanelTarget) {
 			left.scopeId === right.scopeId
 		);
 	}
+	if (left.kind === "browser" || right.kind === "browser") {
+		return (
+			left.kind === "browser" &&
+			right.kind === "browser" &&
+			left.url !== null &&
+			left.url === right.url
+		);
+	}
 	return left.kind === right.kind && left.vaultRelPath === right.vaultRelPath;
 }
 
@@ -107,6 +122,13 @@ function isSidebarTarget(target: SidebarTarget | undefined): boolean {
 		case "notes":
 		case "html":
 			return typeof target.vaultRelPath === "string";
+		case "browser":
+			return (
+				target.url === null ||
+				(typeof target.url === "string" &&
+					/^https?:\/\//i.test(target.url) &&
+					sidebarBrowserUrl(target.url) !== null)
+			);
 		default:
 			return false;
 	}
@@ -309,6 +331,18 @@ function createSidebarDock(
 			}
 			save();
 		},
+		updateBrowser(viewId: string, url: string, title: string) {
+			const panel = api.getPanel(viewId);
+			if (!panel) return;
+			const target = targetOf(panel);
+			if (target.kind !== "browser") return;
+			if (target.url !== url)
+				panel.api.updateParameters({
+					target: { kind: "browser", url } satisfies SidebarBrowserTarget,
+				});
+			if (panel.api.title !== title) panel.api.setTitle(title);
+			save();
+		},
 		hasPanel(viewId: string) {
 			return Boolean(api.getPanel(viewId));
 		},
@@ -404,6 +438,14 @@ export function updateSidebarAgentTarget(
 	target: SidebarAgentTarget,
 ) {
 	dock?.updateAgent(viewId, target);
+}
+
+export function updateSidebarBrowser(
+	viewId: string,
+	url: string,
+	title: string,
+) {
+	dock?.updateBrowser(viewId, url, title);
 }
 
 export function isSidebarView(viewId: string): boolean {

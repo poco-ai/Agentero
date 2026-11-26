@@ -14,6 +14,7 @@ import {
 	FileCode,
 	FileText,
 	FolderOpen,
+	Globe,
 	MessageSquarePlus,
 	NotebookPen,
 	Plus,
@@ -56,6 +57,7 @@ import { errorText } from "@/lib/core/error";
 import { scheduleIdle } from "@/lib/core/idle";
 import type { ApiError } from "@/lib/core/ipc";
 import { notifyError } from "@/lib/core/notify";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { basenameOf } from "@/lib/core/path";
 import { cn } from "@/lib/core/utils";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
@@ -75,6 +77,10 @@ import {
 import { setAgentPanelMounted } from "@/lib/shell/ui-store";
 import { pickVaultPreviewFile } from "@/lib/vault/pick";
 import { getVaultPath, vaultLoadGeneration } from "@/lib/vault/store";
+import {
+	sidebarBrowserUrl,
+	supportsSidebarBrowser,
+} from "@/lib/web-view/sidebar-browser-url";
 import { searchWikiLinks, type WikiSearchCandidate } from "@/lib/wiki/api";
 import { openCitation } from "@/lib/workspace/actions";
 import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag-selection";
@@ -106,6 +112,20 @@ const SidebarFilePanel = lazy(() =>
 		default: module.SidebarFilePanel,
 	})),
 );
+
+const SidebarBrowserPanel = lazy(() =>
+	import("./sidebar-browser-panel").then((module) => ({
+		default: module.SidebarBrowserPanel,
+	})),
+);
+
+function SidebarBrowser(props: IDockviewPanelProps<SidebarPanelParams>) {
+	return (
+		<Suspense fallback={<Skeleton className="m-4 h-8" />}>
+			<SidebarBrowserPanel {...props} />
+		</Suspense>
+	);
+}
 
 function SidebarFile(props: IDockviewPanelProps<SidebarPanelParams>) {
 	return (
@@ -459,41 +479,52 @@ function SidebarLauncher({
 		[tree, vaultPath, papers],
 	);
 	const search = query.trim();
+	const knownFile = files.some((file) => file.vaultRelPath === search);
+	const webAddress = knownFile ? null : sidebarBrowserUrl(search);
+	const fileSearch = webAddress ? "" : search;
 	const [wikiResult, setWikiResult] = useState<{
 		vault: string;
 		query: string;
 		hits: WikiSearchCandidate[];
 	}>();
 	useEffect(() => {
-		if (!vaultPath || !search) {
+		if (!vaultPath || !fileSearch) {
 			setWikiResult(undefined);
 			return;
 		}
 		let cancelled = false;
 		const timer = setTimeout(() => {
-			void searchWikiLinks(vaultPath, search, { kind: "file" })
+			void searchWikiLinks(vaultPath, fileSearch, { kind: "file" })
 				.catch(() => [])
 				.then((hits) => {
 					if (!cancelled)
-						setWikiResult({ vault: vaultPath, query: search, hits });
+						setWikiResult({ vault: vaultPath, query: fileSearch, hits });
 				});
 		}, 150);
 		return () => {
 			cancelled = true;
 			clearTimeout(timer);
 		};
-	}, [vaultPath, search]);
+	}, [vaultPath, fileSearch]);
 	const wikiHits =
-		wikiResult?.vault === vaultPath && wikiResult?.query === search
+		wikiResult?.vault === vaultPath && wikiResult?.query === fileSearch
 			? wikiResult.hits
 			: undefined;
 	const matches = useMemo(
 		() =>
 			vaultPath
-				? rankSidebarSearchFiles(vaultPath, search, files, wikiHits ?? [])
+				? rankSidebarSearchFiles(vaultPath, fileSearch, files, wikiHits ?? [])
 				: [],
-		[vaultPath, search, files, wikiHits],
+		[vaultPath, fileSearch, files, wikiHits],
 	);
+	const openBrowser = (url: string | null) => {
+		if (url && !supportsSidebarBrowser()) openExternalUrl(url);
+		else
+			void openOrActivateSidebarTarget(
+				{ kind: "browser", url },
+				{ replace: api.id },
+			);
+	};
 	const openFile = async (filePath?: string, openNotes = false) => {
 		const vault = getVaultPath();
 		if (!vault) return;
@@ -550,10 +581,25 @@ function SidebarLauncher({
 					</InputGroup>
 					<CommandList
 						hidden={!search}
-						aria-busy={Boolean(search && !wikiHits)}
+						aria-busy={Boolean(fileSearch && !wikiHits)}
 						className="absolute inset-x-0 top-full mt-2 max-h-[min(13rem,32dvh)] rounded-xl border border-border/60 bg-popover p-1 shadow-md"
 					>
-						{matches.length ? (
+						{webAddress ? (
+							<CommandItem
+								value={webAddress}
+								onSelect={() => openBrowser(webAddress)}
+							>
+								<Globe className="text-muted-foreground" aria-hidden />
+								<span className="min-w-0">
+									<span className="block truncate">
+										{t("sidebarBrowser.openAddress")}
+									</span>
+									<span className="block truncate text-muted-foreground text-xs">
+										{webAddress}
+									</span>
+								</span>
+							</CommandItem>
+						) : matches.length ? (
 							matches.map(({ vaultRelPath: path, kind, label }) => {
 								const Icon =
 									kind === "notes"
@@ -639,6 +685,16 @@ function SidebarLauncher({
 							<FolderOpen className="size-4.5" aria-hidden />
 							{t("sidebarTabs.openFile")}
 						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							className={cardClass}
+							disabled={busy}
+							onClick={() => openBrowser(null)}
+						>
+							<Globe className="size-4.5" aria-hidden />
+							{t("sidebarBrowser.title")}
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -652,6 +708,7 @@ const components = {
 	pdf: SidebarFile,
 	notes: SidebarFile,
 	html: SidebarFile,
+	browser: SidebarBrowser,
 };
 
 function SidebarDock({ vaultPath }: { vaultPath: string }) {
@@ -670,8 +727,13 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 						? target.sessionRef?.title || t("labels.agent")
 						: target.kind === "launcher"
 							? t("sidebarTabs.newTab")
-							: basenameOf(target.vaultRelPath),
+							: target.kind === "browser"
+								? target.url
+									? new URL(target.url).hostname
+									: t("sidebarBrowser.title")
+								: basenameOf(target.vaultRelPath),
 				restoreTarget: async (target) => {
+					if (target.kind === "browser") return target;
 					if (target.kind !== "agent")
 						return restoreSidebarFile(vaultPath, target);
 					const ref = target.sessionRef;

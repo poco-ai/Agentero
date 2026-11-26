@@ -19,6 +19,7 @@ import {
 	restrictSidebarTabDrop,
 	type SidebarTarget,
 	sidebarChatState,
+	updateSidebarBrowser,
 } from "@/lib/shell/sidebar-tabs";
 import { registerLayoutController, uiStore } from "@/lib/shell/ui-store";
 
@@ -312,6 +313,43 @@ it("restores the saved order and active tab without rewriting the snapshot mid-r
 	]);
 	openOrActivateSidebarTarget(DEFAULT_SIDEBAR_AGENT);
 	expect(api.groups[0].panels).toHaveLength(2);
+});
+
+it("restores an HTTP browser tab and saves its navigated address without persisting a page title", async () => {
+	localStorage.setItem(
+		key,
+		JSON.stringify({
+			tabs: [
+				{
+					viewId: "view-browser",
+					target: { kind: "browser", url: "https://example.org/" },
+				},
+				{
+					viewId: "view-invalid-browser",
+					target: { kind: "browser", url: "file:///private/report.html" },
+				},
+			],
+			activeViewId: "view-browser",
+			expanded: false,
+		}),
+	);
+	disconnect = connectSidebarDock(api, vault.path, {
+		title: (target) => target.kind,
+	});
+	await vi.waitFor(() => expect(api.activePanel?.id).toBe("view-browser"));
+	expect(api.getPanel("view-invalid-browser")).toBeUndefined();
+	updateSidebarBrowser(
+		"view-browser",
+		"https://example.org/reading",
+		"Example Reading",
+	);
+	expect(api.activePanel?.api.title).toBe("Example Reading");
+	expect(JSON.parse(localStorage.getItem(key) ?? "null").tabs).toEqual([
+		{
+			viewId: "view-browser",
+			target: { kind: "browser", url: "https://example.org/reading" },
+		},
+	]);
 });
 
 it("drains a pre-mount open intent after restoring the saved tabs", async () => {

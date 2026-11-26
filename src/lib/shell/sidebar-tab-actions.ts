@@ -47,31 +47,35 @@ export function newSidebarTab(): void {
 	});
 }
 
-function isRightSidebarFocused(): boolean {
+function isRightSidebarFocused(browserFocused: boolean): boolean {
 	const active = document.activeElement;
 	const sidebar = active?.closest("[data-right-sidebar]");
 	return (
 		uiStore.getState().rightSidebarOpen &&
-		Boolean(
-			active instanceof HTMLIFrameElement
-				? sidebar
-				: (rightSidebarFocused ?? sidebar),
-		)
+		(browserFocused ||
+			Boolean(
+				active instanceof HTMLIFrameElement
+					? sidebar
+					: (rightSidebarFocused ?? sidebar),
+			))
 	);
 }
 
-export function cycleFocusedSidebarTab(delta: -1 | 1): boolean {
-	if (!isRightSidebarFocused()) return false;
+export function cycleFocusedSidebarTab(
+	delta: -1 | 1,
+	browserFocused = false,
+): boolean {
+	if (!isRightSidebarFocused(browserFocused)) return false;
 	rightSidebarFocused = true;
 	cycleSidebarTab(delta);
 	return true;
 }
 
-export function closeFocusedSidebarTab(): boolean {
+export function closeFocusedSidebarTab(browserFocused = false): boolean {
 	if (!uiStore.getState().rightSidebarOpen) return false;
 	const viewId =
 		onlySidebarViewId() ??
-		(isRightSidebarFocused() ? activeSidebarViewId() : undefined);
+		(isRightSidebarFocused(browserFocused) ? activeSidebarViewId() : undefined);
 	if (!viewId) return false;
 	void closeSidebarTab(viewId);
 	return true;

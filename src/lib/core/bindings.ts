@@ -820,6 +820,13 @@ export const commands = {
 	 *  only paths under it. Closing the vault revokes the token.
 	 */
 	htmlPreviewGrant: (args: HtmlPreviewGrantArgs) => typedError<ApiResult<HtmlPreviewGrant>, string>(__TAURI_INVOKE("html_preview_grant", { args })),
+	sidebarBrowserCommand: (viewId: string, command: SidebarBrowserCommand) => typedError<{
+	url: string,
+	title: string,
+	loading: boolean,
+	canGoBack: boolean,
+	canGoForward: boolean,
+} | null, string>(__TAURI_INVOKE("sidebar_browser_command", { viewId, command })),
 	/**
 	 *  Detect available LaTeX engines on the system.
 	 *  Returns the engines that can actually compile — latexmk (the orchestrator)
@@ -4548,9 +4555,9 @@ export type McpTunnelStatus = {
 
 export type McpTunnelStatusEvent = McpTunnelStatus;
 
-/**  Mirror of the inline `json!({ "action": id })` in `app::mod` menu wiring. */
 export type MenuInvokedEvent = {
 	action: string,
+	browserFocused: boolean,
 };
 
 /**  Progress event streamed to the UI while a migration runs. */
@@ -5860,6 +5867,23 @@ export type ShortcutBinding_Serialize = {
 	ctrl?: boolean | null,
 	alt?: boolean | null,
 	shift?: boolean | null,
+};
+
+export type SidebarBrowserBounds = {
+	x: number | null,
+	y: number | null,
+	width: number | null,
+	height: number | null,
+};
+
+export type SidebarBrowserCommand = { kind: "show"; url: string; bounds: SidebarBrowserBounds } | { kind: "hide" } | { kind: "close" } | { kind: "navigate"; url: string } | { kind: "back" } | { kind: "forward" } | { kind: "reload" } | { kind: "read" };
+
+export type SidebarBrowserState = {
+	url: string,
+	title: string,
+	loading: boolean,
+	canGoBack: boolean,
+	canGoForward: boolean,
 };
 
 export type SkillCandidate = {

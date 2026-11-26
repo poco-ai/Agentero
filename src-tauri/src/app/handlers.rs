@@ -295,6 +295,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::web::commands::web_proxy_allow_host,
             crate::features::web::commands::web_proxy_resolve_image,
             crate::features::web::commands::html_preview_grant,
+            crate::app::sidebar_browser::sidebar_browser_command,
             crate::features::compile::detect_latex_engines,
             crate::features::compile::clean_latex_aux_files,
             crate::features::compile::chktex_lint,

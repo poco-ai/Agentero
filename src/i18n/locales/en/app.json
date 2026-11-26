@@ -14,10 +14,20 @@
 		"currentNotes": "Open current paper notes",
 		"openFile": "Open local file…",
 		"open": "Open",
-		"searchFiles": "Search and open files",
+		"searchFiles": "Search files or enter a URL",
 		"noMatchingFiles": "No matching files",
 		"unsupportedFile": "Choose a supported file inside the current vault.",
 		"retry": "Retry"
+	},
+	"sidebarBrowser": {
+		"title": "Browser",
+		"openAddress": "Open web address",
+		"address": "Enter a web address",
+		"back": "Go back",
+		"forward": "Go forward",
+		"reload": "Reload page",
+		"external": "Open in system browser",
+		"desktopOnly": "Embedded browsing is available on macOS. Enter an address to open it in your system browser."
 	},
 	"pathBar": {
 		"openFolder": "Open folder",

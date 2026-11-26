@@ -14,10 +14,20 @@
 		"currentNotes": "打开当前论文笔记",
 		"openFile": "打开本地文件…",
 		"open": "打开",
-		"searchFiles": "搜索并打开文件",
+		"searchFiles": "搜索文件或输入网址",
 		"noMatchingFiles": "没有匹配的文件",
 		"unsupportedFile": "请选择当前资料库内受支持的文件。",
 		"retry": "重试"
+	},
+	"sidebarBrowser": {
+		"title": "浏览器",
+		"openAddress": "打开网址",
+		"address": "输入网址",
+		"back": "后退",
+		"forward": "前进",
+		"reload": "重新加载网页",
+		"external": "在系统浏览器中打开",
+		"desktopOnly": "macOS 支持在右栏浏览网页。输入网址可在系统浏览器中打开。"
 	},
 	"pathBar": {
 		"openFolder": "打开文件夹",

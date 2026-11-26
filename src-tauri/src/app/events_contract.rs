@@ -66,11 +66,12 @@ pub struct JobCompletedEvent(pub JobTerminalPayload);
 #[tauri_specta(event_name = "job:failed")]
 pub struct JobFailedEvent(pub JobTerminalPayload);
 
-/// Mirror of the inline `json!({ "action": id })` in `app::mod` menu wiring.
-#[derive(specta::Type, tauri_specta::Event)]
+#[derive(serde::Serialize, specta::Type, tauri_specta::Event)]
+#[serde(rename_all = "camelCase")]
 #[tauri_specta(event_name = "menu:invoked")]
 pub struct MenuInvokedEvent {
     pub action: String,
+    pub browser_focused: bool,
 }
 
 #[derive(specta::Type, tauri_specta::Event)]
@@ -1190,7 +1191,13 @@ fn menu_invoked_mirror_matches_inline_json_shape() {
     );
     assert_eq!(
         sites[0],
-        specta_field_keys::<MenuInvokedEvent>(),
+        key_paths(
+            &serde_json::to_value(MenuInvokedEvent {
+                action: "next_tab".into(),
+                browser_focused: true,
+            })
+            .unwrap()
+        ),
         "MenuInvokedEvent mirror drifted from the inline json! payload"
     );
 }

@@ -16,8 +16,8 @@ type NativeMenuHandlers = {
 	onSplitPane: () => void;
 	onToggleChat: () => void;
 	onNewSidebarTab: () => void;
-	onCycleTab: (delta: -1 | 1) => void;
-	onCloseTabOrWindow: () => void;
+	onCycleTab: (delta: -1 | 1, browserFocused: boolean) => void;
+	onCloseTabOrWindow: (browserFocused: boolean) => void;
 };
 
 /**
@@ -52,15 +52,15 @@ export function useNativeMenuEvents(handlers: NativeMenuHandlers): void {
 				handlers.onNewSidebarTab();
 				break;
 			case "previous_tab":
-				handlers.onCycleTab(-1);
+				handlers.onCycleTab(-1, payload.browserFocused);
 				break;
 			case "next_tab":
-				handlers.onCycleTab(1);
+				handlers.onCycleTab(1, payload.browserFocused);
 				break;
 			// File → Close / ⌘W (macOS menu accelerator; keydown also handles
 			// non-macOS)
 			case "close_tab_or_window":
-				handlers.onCloseTabOrWindow();
+				handlers.onCloseTabOrWindow(payload.browserFocused);
 				break;
 		}
 	});

@@ -13,6 +13,7 @@ pub(crate) mod events_contract;
 mod handlers;
 mod logging;
 pub mod menu;
+mod sidebar_browser;
 pub mod vault_session;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod workspace_cli;
@@ -548,10 +549,11 @@ pub fn run() {
                 return;
             }
             if let Some(window) = focused_window {
+                let browser_focused = sidebar_browser::is_focused(window.label());
                 let _ = app.emit_to(
                     tauri::EventTarget::window(window.label()),
                     crate::app::menu::MENU_INVOKED_EVENT,
-                    serde_json::json!({ "action": id }),
+                    serde_json::json!({ "action": id, "browserFocused": browser_focused }),
                 );
             }
         });
@@ -561,6 +563,7 @@ pub fn run() {
     {
         builder = builder.on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
+                sidebar_browser::close_window(window.label());
                 #[cfg(target_os = "macos")]
                 menu::release_window(window.app_handle(), window.label());
                 window.state::<FsWatchController>().stop(window.label());
