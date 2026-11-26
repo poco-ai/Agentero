@@ -32,7 +32,12 @@ export function pickVaultPreviewFile(
 	return open({
 		defaultPath: vaultPath,
 		multiple: false,
-		filters: [{ name: "PDF / HTML", extensions: ["pdf", "html", "htm"] }],
+		filters: [
+			{
+				name: "PDF / Markdown / HTML",
+				extensions: ["pdf", "md", "mdx", "markdown", "html", "htm"],
+			},
+		],
 	});
 }
 

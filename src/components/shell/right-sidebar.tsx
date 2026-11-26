@@ -3,24 +3,36 @@
  * Subscribes to stores directly.
  */
 
+import { Command as CommandPrimitive } from "cmdk";
 import {
 	DockviewReact,
 	type DockviewReadyEvent,
 	type IDockviewPanelHeaderProps,
 	type IDockviewPanelProps,
 } from "dockview-react";
-import { File, MessageSquarePlus, NotebookPen, Plus } from "lucide-react";
+import {
+	FileCode,
+	FileText,
+	FolderOpen,
+	MessageSquarePlus,
+	NotebookPen,
+	Plus,
+	Search,
+} from "lucide-react";
 import {
 	lazy,
 	Suspense,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { PaneHeader } from "@/components/shell/pane-header";
 import { Button } from "@/components/ui/button";
+import { Command, CommandItem, CommandList } from "@/components/ui/command";
+import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DocumentTab } from "@/components/workspace/document-tab";
 import {
@@ -30,6 +42,7 @@ import {
 	useVaultStore,
 	useWorkspaceStore,
 } from "@/hooks/use-app-stores";
+import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import {
 	AgentSessionScopeContext,
 	agentSessionStore,
@@ -47,26 +60,33 @@ import { basenameOf } from "@/lib/core/path";
 import { cn } from "@/lib/core/utils";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import {
+	newSidebarTab,
+	sidebarLauncherNotesPath,
+} from "@/lib/shell/sidebar-tab-actions";
+import {
 	closeSidebarTab,
 	connectSidebarDock,
 	isSidebarView,
 	openOrActivateSidebarTarget,
 	type SidebarAgentTarget,
 	type SidebarPanelParams,
-	sidebarPdfPath,
 	updateSidebarAgentTarget,
 } from "@/lib/shell/sidebar-tabs";
-import { setAgentPanelMounted, uiStore } from "@/lib/shell/ui-store";
+import { setAgentPanelMounted } from "@/lib/shell/ui-store";
 import { pickVaultPreviewFile } from "@/lib/vault/pick";
 import { getVaultPath, vaultLoadGeneration } from "@/lib/vault/store";
+import { searchWikiLinks, type WikiSearchCandidate } from "@/lib/wiki/api";
 import { openCitation } from "@/lib/workspace/actions";
+import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag-selection";
 import { agenteroDockTheme } from "@/lib/workspace/dockview-theme";
 import { openSidebarCitation } from "@/lib/workspace/sidebar-citations";
 import {
-	currentSidebarPaperNotes,
+	collectSidebarSearchFiles,
+	rankSidebarSearchFiles,
 	readSidebarFile,
 	restoreSidebarFile,
 	sidebarFileTarget,
+	sidebarPaperTitle,
 } from "@/lib/workspace/sidebar-files";
 import { createViewId } from "@/lib/workspace/tabs/model";
 
@@ -349,18 +369,32 @@ function SidebarAgent({
 	);
 }
 
-function SidebarTab({ api }: IDockviewPanelHeaderProps) {
+function SidebarTab({
+	api,
+	params,
+}: IDockviewPanelHeaderProps<SidebarPanelParams>) {
 	const { t } = useTranslation("app");
 	const [title, setTitle] = useState(api.title);
+	const target = params.target;
+	const pdfTitle = useLibraryStore((store) =>
+		target.kind === "pdf"
+			? (sidebarPaperTitle(target.vaultRelPath, store.paperMetaByRelPath) ??
+				basenameOf(target.vaultRelPath))
+			: undefined,
+	);
 	useEffect(() => {
 		const subscription = api.onDidTitleChange(({ title }) => setTitle(title));
 		return () => subscription.dispose();
 	}, [api]);
+	useEffect(() => {
+		if (pdfTitle && api.title !== pdfTitle) api.setTitle(pdfTitle);
+	}, [api, pdfTitle]);
+	const label = pdfTitle ?? title;
 	return (
 		<DocumentTab
 			data-sidebar-view={api.id}
-			title={title}
-			closeLabel={t("tabs.close", { title })}
+			title={label}
+			closeLabel={t("tabs.close", { title: label })}
 			onClose={() => closeSidebarTab(api.id)}
 		/>
 	);
@@ -368,57 +402,25 @@ function SidebarTab({ api }: IDockviewPanelHeaderProps) {
 
 function SidebarNewTabButton() {
 	const { t } = useTranslation("app");
-	const origin = useRef<string | undefined>(undefined);
-	const lastSidebarPdf = useRef<string | undefined>(undefined);
-	useEffect(() => {
-		const rememberSource = (event: Event) => {
-			if (
-				!(event.target instanceof Element) ||
-				event.target.closest("[data-sidebar-new-tab]")
-			)
-				return;
-			lastSidebarPdf.current = event.target.closest<HTMLElement>(
-				"[data-sidebar-view]",
-			)?.dataset.sidebarView;
-		};
-		document.addEventListener("pointerdown", rememberSource, true);
-		document.addEventListener("focusin", rememberSource, true);
-		return () => {
-			document.removeEventListener("pointerdown", rememberSource, true);
-			document.removeEventListener("focusin", rememberSource, true);
-		};
-	}, []);
-	const sourcePdf = () => {
-		const source = document.activeElement?.closest<HTMLElement>(
-			"[data-sidebar-view]",
-		)?.dataset.sidebarView;
-		const view = source ?? lastSidebarPdf.current;
-		return view ? sidebarPdfPath(view) : undefined;
-	};
+	const shortcut = useShortcutLabel("newSidebarTab");
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			size="icon-sm"
-			data-sidebar-new-tab
-			aria-label={t("sidebarTabs.newTab")}
-			onPointerDown={() => {
-				origin.current = sourcePdf();
-			}}
-			onClick={(event) => {
-				const pdf = (event.detail ? origin.current : undefined) ?? sourcePdf();
-				origin.current = undefined;
-				void openOrActivateSidebarTarget({
-					kind: "launcher",
-					notesPath:
-						pdf || !uiStore.getState().agentWindowOpen
-							? currentSidebarPaperNotes(pdf)
-							: undefined,
-				});
-			}}
-		>
-			<Plus className="size-4" aria-hidden />
-		</Button>
+		<div className="flex h-full items-center px-0.5">
+			<Button
+				type="button"
+				variant="ghost"
+				size="icon-xs"
+				className="rounded-md hover:bg-foreground/10 active:bg-foreground/15 dark:hover:bg-foreground/15 dark:active:bg-foreground/20"
+				aria-label={t("sidebarTabs.newTab")}
+				title={
+					shortcut
+						? `${t("sidebarTabs.newTab")} (${shortcut})`
+						: t("sidebarTabs.newTab")
+				}
+				onClick={() => newSidebarTab()}
+			>
+				<Plus className="size-4" aria-hidden />
+			</Button>
+		</div>
 	);
 }
 
@@ -428,9 +430,71 @@ function SidebarLauncher({
 }: IDockviewPanelProps<SidebarPanelParams>) {
 	const { t } = useTranslation("app");
 	const [busy, setBusy] = useState(false);
+	const [query, setQuery] = useState("");
+	const vaultPath = useVaultStore((store) => store.vaultPath);
+	const tree = useVaultStore((store) => store.tree);
+	const papers = useLibraryStore((store) => store.paperMetaByRelPath);
+	const agentWindowOpen = useUiStore((store) => store.agentWindowOpen);
+	const rightSidebarOpen = useUiStore((store) => store.rightSidebarOpen);
+	const searchInput = useRef<HTMLInputElement>(null);
+	const focusSearch = useRef(
+		params.target.kind === "launcher" && params.target.focusSearch,
+	);
+	useEffect(() => {
+		if (!rightSidebarOpen || !focusSearch.current) return;
+		const frame = requestAnimationFrame(() => {
+			if (!api.isActive || !searchInput.current) return;
+			focusSearch.current = false;
+			searchInput.current.focus({ preventScroll: true });
+		});
+		return () => cancelAnimationFrame(frame);
+	}, [api, rightSidebarOpen]);
+	const fallbackNotesPath = useWorkspaceStore(() => sidebarLauncherNotesPath());
 	const notesPath =
 		params.target.kind === "launcher" ? params.target.notesPath : undefined;
-	const openFile = async (notes?: string) => {
+	const sourceNotesPath =
+		notesPath === undefined && !agentWindowOpen ? fallbackNotesPath : notesPath;
+	const files = useMemo(
+		() => (vaultPath ? collectSidebarSearchFiles(tree, vaultPath, papers) : []),
+		[tree, vaultPath, papers],
+	);
+	const search = query.trim();
+	const [wikiResult, setWikiResult] = useState<{
+		vault: string;
+		query: string;
+		hits: WikiSearchCandidate[];
+	}>();
+	useEffect(() => {
+		if (!vaultPath || !search) {
+			setWikiResult(undefined);
+			return;
+		}
+		let cancelled = false;
+		const timer = setTimeout(() => {
+			void searchWikiLinks(vaultPath, search, { kind: "file" })
+				.catch(() => [])
+				.then((hits) => {
+					if (!cancelled)
+						setWikiResult({ vault: vaultPath, query: search, hits });
+				});
+		}, 150);
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
+	}, [vaultPath, search]);
+	const wikiHits =
+		wikiResult?.vault === vaultPath && wikiResult?.query === search
+			? wikiResult.hits
+			: undefined;
+	const matches = useMemo(
+		() =>
+			vaultPath
+				? rankSidebarSearchFiles(vaultPath, search, files, wikiHits ?? [])
+				: [],
+		[vaultPath, search, files, wikiHits],
+	);
+	const openFile = async (filePath?: string, openNotes = false) => {
 		const vault = getVaultPath();
 		if (!vault) return;
 		const generation = vaultLoadGeneration();
@@ -440,12 +504,13 @@ function SidebarLauncher({
 			api.isVisible;
 		setBusy(true);
 		try {
-			const path = notes ?? (await pickVaultPreviewFile(vault));
+			const path = filePath ?? (await pickVaultPreviewFile(vault));
 			if (!path || !canOpen()) return;
 			const target = sidebarFileTarget(vault, path);
-			if (!target || (!notes && target.kind === "notes"))
-				throw new Error(t("sidebarTabs.unsupportedFile"));
-			const file = await readSidebarFile(vault, target);
+			if (!target) throw new Error(t("sidebarTabs.unsupportedFile"));
+			const file = await readSidebarFile(vault, target, {
+				allowMissingNotes: openNotes,
+			});
 			await openOrActivateSidebarTarget(target, {
 				replace: api.id,
 				canOpen,
@@ -457,44 +522,126 @@ function SidebarLauncher({
 			setBusy(false);
 		}
 	};
+	const cardClass =
+		"h-auto min-h-[5.25rem] min-w-0 flex-col items-start justify-start gap-2.5 whitespace-normal rounded-xl p-3.5 text-start leading-snug focus-visible:border-ring active:scale-[0.99] motion-reduce:transition-none";
 	return (
 		<div
 			data-sidebar-view={api.id}
-			className="flex h-full flex-col items-start gap-2 overflow-auto p-4"
+			className="agentero-scroll flex h-full min-w-0 flex-col overflow-auto px-4 py-6 sm:px-6"
 		>
-			<Button
-				type="button"
-				variant="ghost"
-				onClick={() =>
-					openOrActivateSidebarTarget(
-						{ kind: "agent", scopeId: `sidebar:${createViewId()}` },
-						{
-							replace: api.id,
-						},
-					)
-				}
-			>
-				<MessageSquarePlus aria-hidden />
-				{t("sidebarTabs.newAgent")}
-			</Button>
-			<Button
-				type="button"
-				variant="ghost"
-				disabled={busy || !notesPath}
-				onClick={() => void openFile(notesPath)}
-			>
-				<NotebookPen aria-hidden />
-				{t("sidebarTabs.currentNotes")}
-			</Button>
-			<Button
-				type="button"
-				variant="ghost"
-				disabled={busy}
-				onClick={() => void openFile()}
-			>
-				<File aria-hidden />
-				{t("sidebarTabs.openFile")}
-			</Button>
+			<div className="mx-auto my-auto w-full max-w-[35rem] min-w-0 space-y-6">
+				<Command
+					className="relative z-10 size-auto overflow-visible bg-transparent p-0"
+					shouldFilter={false}
+					label={t("sidebarTabs.searchFiles")}
+				>
+					<InputGroup className="h-10 rounded-full border-border/70 bg-muted/60 px-3 dark:bg-input/50">
+						<InputGroupAddon className="pl-0 pr-1">
+							<Search className="size-4" aria-hidden />
+						</InputGroupAddon>
+						<CommandPrimitive.Input
+							ref={searchInput}
+							data-slot="input-group-control"
+							className="h-full min-w-0 flex-1 select-text bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+							value={query}
+							onValueChange={setQuery}
+							placeholder={t("sidebarTabs.searchFiles")}
+						/>
+					</InputGroup>
+					<CommandList
+						hidden={!search}
+						aria-busy={Boolean(search && !wikiHits)}
+						className="absolute inset-x-0 top-full mt-2 max-h-[min(13rem,32dvh)] rounded-xl border border-border/60 bg-popover p-1 shadow-md"
+					>
+						{matches.length ? (
+							matches.map(({ vaultRelPath: path, kind, label }) => {
+								const Icon =
+									kind === "notes"
+										? NotebookPen
+										: kind === "html"
+											? FileCode
+											: FileText;
+								return (
+									<CommandItem
+										key={path}
+										value={path}
+										disabled={busy}
+										onSelect={() => void openFile(path)}
+										title={path}
+									>
+										<Icon
+											className="size-4 text-muted-foreground"
+											aria-hidden
+										/>
+										<span className="min-w-0">
+											<span className="block truncate">{label}</span>
+											{path !== label && (
+												<span className="block truncate text-muted-foreground text-xs">
+													{path}
+												</span>
+											)}
+										</span>
+									</CommandItem>
+								);
+							})
+						) : (
+							<p className="px-3 py-2 text-muted-foreground text-xs">
+								{t(
+									wikiHits
+										? "sidebarTabs.noMatchingFiles"
+										: "commandPalette.searching",
+								)}
+							</p>
+						)}
+					</CommandList>
+				</Command>
+				<div className="space-y-2.5">
+					<h2 className="font-medium text-muted-foreground text-xs">
+						{t("sidebarTabs.open")}
+					</h2>
+					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-2">
+						<Button
+							type="button"
+							variant="secondary"
+							className={cardClass}
+							disabled={busy}
+							onClick={() =>
+								openOrActivateSidebarTarget(
+									{ kind: "agent", scopeId: `sidebar:${createViewId()}` },
+									{
+										replace: api.id,
+									},
+								)
+							}
+						>
+							<MessageSquarePlus className="size-4.5" aria-hidden />
+							{t("sidebarTabs.newAgent")}
+						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							className={cardClass}
+							disabled={busy || !sourceNotesPath}
+							onClick={() =>
+								sourceNotesPath && void openFile(sourceNotesPath, true)
+							}
+						>
+							<NotebookPen className="size-4.5" aria-hidden />
+							{t("sidebarTabs.currentNotes")}
+						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							className={cardClass}
+							disabled={busy}
+							onClick={() => void openFile()}
+						>
+							<FolderOpen className="size-4.5" aria-hidden />
+							{t("sidebarTabs.openFile")}
+						</Button>
+					</div>
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -509,12 +656,15 @@ const components = {
 
 function SidebarDock({ vaultPath }: { vaultPath: string }) {
 	const { t } = useTranslation("app");
+	const root = useRef<HTMLElement>(null);
 	const disconnect = useRef<(() => void) | null>(null);
 	const onReady = useCallback(
 		({ api }: DockviewReadyEvent) => {
 			disconnect.current?.();
 			let agents: ReturnType<typeof listAgents> | undefined;
-			disconnect.current = connectSidebarDock(api, vaultPath, {
+			const dragGuard =
+				root.current && installDockviewDragSelectionGuard(root.current, api);
+			const disconnectDock = connectSidebarDock(api, vaultPath, {
 				title: (target) =>
 					target.kind === "agent"
 						? target.sessionRef?.title || t("labels.agent")
@@ -535,6 +685,10 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 						: target;
 				},
 			});
+			disconnect.current = () => {
+				dragGuard?.dispose();
+				disconnectDock();
+			};
 		},
 		[t, vaultPath],
 	);
@@ -542,6 +696,8 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 
 	return (
 		<aside
+			ref={root}
+			data-right-sidebar
 			className="agentero-dockview agentero-dock-global h-full min-h-0 min-w-0 bg-sidebar"
 			aria-label={t("titlebar.showRightSidebar")}
 		>
@@ -550,9 +706,11 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 				theme={agenteroDockTheme}
 				components={components}
 				defaultTabComponent={SidebarTab}
-				rightHeaderActionsComponent={SidebarNewTabButton}
+				leftHeaderActionsComponent={SidebarNewTabButton}
+				noPanelsOverlay="emptyGroup"
 				disableFloatingGroups
-				disableDnd
+				dndStrategy="pointer"
+				dndEdges={false}
 				onReady={onReady}
 			/>
 		</aside>

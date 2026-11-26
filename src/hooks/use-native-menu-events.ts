@@ -1,5 +1,11 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTauriEvent } from "@/hooks/use-tauri-event";
 import { events } from "@/lib/core/bindings";
+import { isTauri } from "@/lib/core/tauri";
+
+const menuInvoked = isTauri()
+	? events.menuInvoked(getCurrentWindow())
+	: events.menuInvoked;
 
 type NativeMenuHandlers = {
 	onSettings: () => void;
@@ -9,6 +15,8 @@ type NativeMenuHandlers = {
 	onToggleSidebar: () => void;
 	onSplitPane: () => void;
 	onToggleChat: () => void;
+	onNewSidebarTab: () => void;
+	onCycleTab: (delta: -1 | 1) => void;
 	onCloseTabOrWindow: () => void;
 };
 
@@ -17,7 +25,7 @@ type NativeMenuHandlers = {
  * View). No-op outside the Tauri shell. `new_window` is handled natively in Rust.
  */
 export function useNativeMenuEvents(handlers: NativeMenuHandlers): void {
-	useTauriEvent(events.menuInvoked, (payload) => {
+	useTauriEvent(menuInvoked, (payload) => {
 		switch (payload?.action) {
 			case "settings":
 				handlers.onSettings();
@@ -39,6 +47,15 @@ export function useNativeMenuEvents(handlers: NativeMenuHandlers): void {
 				break;
 			case "toggle_chat":
 				handlers.onToggleChat();
+				break;
+			case "new_sidebar_tab":
+				handlers.onNewSidebarTab();
+				break;
+			case "previous_tab":
+				handlers.onCycleTab(-1);
+				break;
+			case "next_tab":
+				handlers.onCycleTab(1);
 				break;
 			// File → Close / ⌘W (macOS menu accelerator; keydown also handles
 			// non-macOS)

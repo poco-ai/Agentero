@@ -30,10 +30,13 @@ fn menu_shortcut(id: &str) -> Option<(&'static str, &'static str)> {
         "open_vault" => ("openVault", "CmdOrCtrl+O"),
         "create_vault" => ("createVault", "CmdOrCtrl+Shift+N"),
         "refresh_tree" => ("refreshTree", "CmdOrCtrl+R"),
+        "new_sidebar_tab" => ("newSidebarTab", "CmdOrCtrl+T"),
         "close_tab_or_window" => ("closeTab", "CmdOrCtrl+W"),
         "toggle_sidebar" => ("toggleSidebar", "CmdOrCtrl+Alt+S"),
         "split_pane" => ("splitPane", "CmdOrCtrl+\\"),
         "toggle_chat" => ("toggleChat", "CmdOrCtrl+L"),
+        "previous_tab" => ("prevTab", "CmdOrCtrl+Alt+ArrowLeft"),
+        "next_tab" => ("nextTab", "CmdOrCtrl+Alt+ArrowRight"),
         _ => return None,
     })
 }
@@ -153,6 +156,7 @@ pub const MENU_INVOKED_EVENT: &str = "menu:invoked";
 pub struct MenuLabels {
     pub settings: &'static str,
     pub new_window: &'static str,
+    pub new_sidebar_tab: &'static str,
     pub open_vault: &'static str,
     pub create_vault: &'static str,
     pub refresh_tree: &'static str,
@@ -160,6 +164,8 @@ pub struct MenuLabels {
     pub toggle_sidebar: &'static str,
     pub split_pane: &'static str,
     pub toggle_chat: &'static str,
+    pub previous_tab: &'static str,
+    pub next_tab: &'static str,
     pub toggle_fullscreen: &'static str,
     pub app: &'static str,
     pub file: &'static str,
@@ -172,6 +178,7 @@ pub struct MenuLabels {
 const EN: MenuLabels = MenuLabels {
     settings: "Settings…",
     new_window: "New Window",
+    new_sidebar_tab: "New Right Sidebar Tab",
     open_vault: "Open Vault…",
     create_vault: "Create Vault…",
     refresh_tree: "Refresh File Tree",
@@ -180,6 +187,8 @@ const EN: MenuLabels = MenuLabels {
     toggle_sidebar: "Toggle Sidebar",
     split_pane: "Split Pane Right",
     toggle_chat: "Toggle Chat",
+    previous_tab: "Previous Tab",
+    next_tab: "Next Tab",
     toggle_fullscreen: "Toggle Full Screen",
     app: "Agentero",
     file: "File",
@@ -192,6 +201,7 @@ const EN: MenuLabels = MenuLabels {
 const ZH_CN: MenuLabels = MenuLabels {
     settings: "设置…",
     new_window: "新建窗口",
+    new_sidebar_tab: "新标签页",
     open_vault: "打开知识库…",
     create_vault: "创建知识库…",
     refresh_tree: "刷新文件树",
@@ -199,6 +209,8 @@ const ZH_CN: MenuLabels = MenuLabels {
     toggle_sidebar: "切换侧边栏",
     split_pane: "向右分栏",
     toggle_chat: "切换对话",
+    previous_tab: "上一个标签",
+    next_tab: "下一个标签",
     toggle_fullscreen: "切换全屏",
     app: "Agentero",
     file: "文件",
@@ -247,6 +259,7 @@ pub fn build_menu(
     };
     let settings = item("settings", labels.settings)?;
     let new_window = item("new_window", labels.new_window)?;
+    let new_sidebar_tab = item("new_sidebar_tab", labels.new_sidebar_tab)?;
     let open_vault = item("open_vault", labels.open_vault)?;
     let create_vault = item("create_vault", labels.create_vault)?;
     let refresh_tree = item("refresh_tree", labels.refresh_tree)?;
@@ -255,6 +268,8 @@ pub fn build_menu(
     let toggle_sidebar = item("toggle_sidebar", labels.toggle_sidebar)?;
     let split_pane = item("split_pane", labels.split_pane)?;
     let toggle_chat = item("toggle_chat", labels.toggle_chat)?;
+    let previous_tab = item("previous_tab", labels.previous_tab)?;
+    let next_tab = item("next_tab", labels.next_tab)?;
 
     let app_submenu = SubmenuBuilder::new(app, labels.app)
         .about(None)
@@ -272,6 +287,7 @@ pub fn build_menu(
 
     let file_submenu = SubmenuBuilder::new(app, labels.file)
         .item(&new_window)
+        .item(&new_sidebar_tab)
         .separator()
         .item(&open_vault)
         .item(&create_vault)
@@ -295,6 +311,9 @@ pub fn build_menu(
         .item(&toggle_sidebar)
         .item(&split_pane)
         .item(&toggle_chat)
+        .separator()
+        .item(&previous_tab)
+        .item(&next_tab)
         .separator()
         .fullscreen_with_text(labels.toggle_fullscreen)
         .build()?;
@@ -455,12 +474,36 @@ mod tests {
         );
         overrides.insert("newWindow".into(), None);
         assert_eq!(menu_accelerator("new_window", &overrides), None);
+        assert_eq!(
+            menu_accelerator("new_sidebar_tab", &overrides).as_deref(),
+            Some("CmdOrCtrl+T")
+        );
         overrides.insert("closeTab".into(), Some(binding("Escape")));
         assert_eq!(
             menu_accelerator("close_tab_or_window", &overrides).as_deref(),
             Some("Super+Escape")
         );
         assert_eq!(menu_accelerator("unknown", &overrides), None);
+    }
+
+    #[test]
+    fn tab_navigation_accelerators_follow_shortcut_overrides() {
+        let mut overrides = HashMap::new();
+        assert_eq!(
+            menu_accelerator("previous_tab", &overrides).as_deref(),
+            Some("CmdOrCtrl+Alt+ArrowLeft")
+        );
+        assert_eq!(
+            menu_accelerator("next_tab", &overrides).as_deref(),
+            Some("CmdOrCtrl+Alt+ArrowRight")
+        );
+        overrides.insert("prevTab".into(), Some(binding("F9")));
+        overrides.insert("nextTab".into(), None);
+        assert_eq!(
+            menu_accelerator("previous_tab", &overrides).as_deref(),
+            Some("Super+F9")
+        );
+        assert_eq!(menu_accelerator("next_tab", &overrides), None);
     }
 
     #[test]

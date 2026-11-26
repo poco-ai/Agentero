@@ -1,7 +1,13 @@
-import { ArrowUpRight, PanelLeft, Settings, X } from "lucide-react";
+import {
+	ArrowUpRight,
+	PanelLeft,
+	PanelRightClose,
+	PanelRightOpen,
+	Settings,
+	X,
+} from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AgentLogo } from "@/components/agent/agent-logo";
 import { LayoutMenu } from "@/components/shell/layout-menu";
 import { QuickOpen } from "@/components/shell/quick-open";
 import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
@@ -23,7 +29,6 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
-import { useAgentChromeStore } from "@/lib/agent/agent-chrome-store";
 import { cn } from "@/lib/core/utils";
 import { moveFeatureToWindow } from "@/lib/shell/leaf";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
@@ -73,7 +78,7 @@ export const TitleBar = memo(function TitleBar({
 	const SETTINGS_SHORTCUT = useShortcutLabel("settings");
 	const QUICK_OPEN_SHORTCUT = useShortcutLabel("quickOpen");
 	const COMMAND_PALETTE_SHORTCUT = useShortcutLabel("commandPalette");
-	const agentTemplate = useAgentChromeStore((s) => s.template);
+	const RightSidebarIcon = rightSidebarOpen ? PanelRightClose : PanelRightOpen;
 	const [agentRailMenuOpen, setAgentRailMenuOpen] = useState(false);
 	const [agentWindowTipOpen, setAgentWindowTipOpen] = useState(false);
 	const agentWindowTipTimer = useRef<number | undefined>(undefined);
@@ -288,12 +293,7 @@ export const TitleBar = memo(function TitleBar({
 													onToggleAgent();
 												}}
 											>
-												<AgentLogo
-													template={agentTemplate}
-													className="size-3.5"
-													iconClassName="size-3"
-													plain
-												/>
+												<RightSidebarIcon className="size-3.5" aria-hidden />
 											</Button>
 										</DropdownMenuTrigger>
 									</TooltipTrigger>

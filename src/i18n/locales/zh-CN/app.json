@@ -9,10 +9,13 @@
 		"remoteArxiv": "远程 arXiv"
 	},
 	"sidebarTabs": {
-		"newTab": "新建右栏标签",
+		"newTab": "新标签页",
 		"newAgent": "新建 Agent 会话",
 		"currentNotes": "打开当前论文笔记",
 		"openFile": "打开本地文件…",
+		"open": "打开",
+		"searchFiles": "搜索并打开文件",
+		"noMatchingFiles": "没有匹配的文件",
 		"unsupportedFile": "请选择当前资料库内受支持的文件。",
 		"retry": "重试"
 	},

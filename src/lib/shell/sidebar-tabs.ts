@@ -1,4 +1,9 @@
-import type { DockviewApi, IDockviewPanel } from "dockview-react";
+import type {
+	DockviewApi,
+	DockviewWillDropEvent,
+	DockviewWillShowOverlayLocationEvent,
+	IDockviewPanel,
+} from "dockview-react";
 import { createStore } from "zustand/vanilla";
 import type { AgentSessionRef } from "@/lib/agent/session-ref";
 import { readJsonStorage, writeStorageRaw } from "@/lib/core/storage";
@@ -22,7 +27,7 @@ export type SidebarAgentTarget = {
 export type SidebarTarget = SidebarAgentTarget | SidebarFileTarget;
 export type SidebarPanelTarget =
 	| SidebarTarget
-	| { kind: "launcher"; notesPath?: string };
+	| { kind: "launcher"; notesPath?: string | null; focusSearch?: boolean };
 export type SidebarTab = { viewId: string; target: SidebarTarget };
 export type SidebarSnapshot = {
 	tabs: SidebarTab[];
@@ -54,6 +59,20 @@ type DockOptions = {
 	restoreTarget?: (target: SidebarTarget) => Promise<SidebarTarget | null>;
 };
 
+export function restrictSidebarTabDrop(
+	event: DockviewWillDropEvent | DockviewWillShowOverlayLocationEvent,
+) {
+	const source = event.getData();
+	if (
+		(event.kind !== "tab" && event.kind !== "header_space") ||
+		!source?.panelId ||
+		source.viewId !== event.api.id ||
+		source.groupId !== event.group?.id
+	) {
+		event.preventDefault();
+	}
+}
+
 function storageKey(vaultPath: string): string {
 	return `agentero-sidebar-tabs::${currentWindowLabel()}::${vaultPath}`;
 }
@@ -63,13 +82,7 @@ function targetOf(panel: IDockviewPanel): SidebarPanelTarget {
 }
 
 function sameTarget(left: SidebarPanelTarget, right: SidebarPanelTarget) {
-	if (left.kind === "launcher" || right.kind === "launcher") {
-		return (
-			left.kind === "launcher" &&
-			right.kind === "launcher" &&
-			left.notesPath === right.notesPath
-		);
-	}
+	if (left.kind === "launcher" || right.kind === "launcher") return false;
 	if (left.kind === "agent" || right.kind === "agent") {
 		return (
 			left.kind === "agent" &&
@@ -213,7 +226,10 @@ function createSidebarDock(
 	};
 	const subscriptions = [
 		api.onDidLayoutChange(syncActive),
+		api.onDidMovePanel(save),
 		api.onDidActivePanelChange(syncActive),
+		api.onWillShowOverlay(restrictSidebarTabDrop),
+		api.onWillDrop(restrictSidebarTabDrop),
 		api.onDidRemovePanel((panel) => cancelPdfNavigationForTab(panel.id)),
 		uiStore.subscribe((state, previous) => {
 			if (
@@ -271,6 +287,7 @@ function createSidebarDock(
 		toggle() {
 			const expanded = !uiStore.getState().rightSidebarOpen;
 			if (!ready) expandedDuringRestore = expanded;
+			else if (expanded && !panels().length) add({ kind: "launcher" });
 			setExpanded(expanded);
 		},
 		agents() {
@@ -292,13 +309,27 @@ function createSidebarDock(
 			}
 			save();
 		},
-		pdfPath(viewId: string) {
-			const panel = api.getPanel(viewId);
-			const target = panel && targetOf(panel);
-			return target?.kind === "pdf" ? target.vaultRelPath : undefined;
-		},
 		hasPanel(viewId: string) {
 			return Boolean(api.getPanel(viewId));
+		},
+		activeViewId() {
+			return api.activePanel?.id;
+		},
+		onlyViewId() {
+			const tabs = panels();
+			return tabs.length === 1 ? tabs[0].id : undefined;
+		},
+		cycleTab(delta: -1 | 1) {
+			const tabs = panels();
+			if (tabs.length < 2) return;
+			const index = tabs.findIndex((panel) => panel.id === api.activePanel?.id);
+			const next =
+				index < 0
+					? delta > 0
+						? 0
+						: tabs.length - 1
+					: (index + delta + tabs.length) % tabs.length;
+			tabs[next].api.setActive();
 		},
 		openOrActivate(
 			target: SidebarPanelTarget,
@@ -330,14 +361,8 @@ function createSidebarDock(
 		close(viewId: string) {
 			const panel = api.getPanel(viewId);
 			if (!panel) return;
-			if (panels().length === 1 && targetOf(panel).kind !== "launcher") {
-				add({ kind: "launcher" });
-			}
-			if (panels().length === 1) {
-				setExpanded(false);
-				return;
-			}
-			api.removePanel(panel);
+			if (panels().length === 1) setExpanded(false);
+			panel.api.close();
 			save();
 		},
 		dispose() {
@@ -385,8 +410,16 @@ export function isSidebarView(viewId: string): boolean {
 	return dock?.hasPanel(viewId) ?? false;
 }
 
-export function sidebarPdfPath(viewId: string): string | undefined {
-	return dock?.pdfPath(viewId);
+export function activeSidebarViewId(): string | undefined {
+	return dock?.activeViewId();
+}
+
+export function onlySidebarViewId(): string | undefined {
+	return dock?.onlyViewId();
+}
+
+export function cycleSidebarTab(delta: -1 | 1): void {
+	dock?.cycleTab(delta);
 }
 
 export function openOrActivateSidebarTarget(

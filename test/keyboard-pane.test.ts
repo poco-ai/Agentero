@@ -198,7 +198,7 @@ describe("editable keyboard settings", () => {
 		expect(container.textContent).toContain("Zoom in");
 		expect(container.textContent).not.toContain("Settings…");
 		await setValue("cmd+l");
-		expect(container.textContent).toContain("Show / hide chat sidebar");
+		expect(container.textContent).toContain("Show / hide right sidebar");
 		expect(container.textContent).not.toContain("Zoom in");
 		await setValue("");
 		input.focus();
@@ -213,7 +213,7 @@ describe("editable keyboard settings", () => {
 				}),
 			),
 		);
-		expect(container.textContent).toContain("Show / hide chat sidebar");
+		expect(container.textContent).toContain("Show / hide right sidebar");
 		expect(container.textContent).not.toContain("Quick open");
 		expect(input.value.toLowerCase()).toContain("l");
 	});

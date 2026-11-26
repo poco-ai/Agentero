@@ -209,7 +209,10 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 	const focused = activePanelId === panelId;
 	const active = focused || notesActive;
 	return (
-		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
+		<div
+			data-workspace-view={panelId}
+			className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background"
+		>
 			{!immersiveReading && (
 				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
 			)}
@@ -275,6 +278,7 @@ function WorkspaceTab({
 		<DocumentTab
 			{...rest}
 			data-panel-id={api.id}
+			data-workspace-view={api.id}
 			title={
 				tab?.paperMeta ? (
 					<PaperTitle text={title ?? ""} />

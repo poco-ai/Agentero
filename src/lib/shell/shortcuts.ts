@@ -38,6 +38,7 @@ export type ShortcutId =
 	| "focusSidebar"
 	| "focusEditor"
 	| "focusNotes"
+	| "newSidebarTab"
 	| "closeTab"
 	/** ⇧⌘T — reopen the most recently closed tab */
 	| "reopenTab"
@@ -298,6 +299,13 @@ export const SHORTCUTS: ShortcutDef[] = [
 		id: "focusNotes",
 		group: "Navigation",
 		key: "3",
+		meta: true,
+		whenSettingsClosed: true,
+	},
+	{
+		id: "newSidebarTab",
+		group: "Navigation",
+		key: "t",
 		meta: true,
 		whenSettingsClosed: true,
 	},
@@ -674,6 +682,9 @@ const NATIVE_MENU_SHORTCUTS: ReadonlySet<ShortcutId> = new Set([
 	"openVault",
 	"createVault",
 	"refreshTree",
+	"newSidebarTab",
+	"nextTab",
+	"prevTab",
 	"closeTab",
 	"toggleSidebar",
 	"splitPane",

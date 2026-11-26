@@ -13,6 +13,9 @@
 		"newAgent": "New Agent session",
 		"currentNotes": "Open current paper notes",
 		"openFile": "Open local file…",
+		"open": "Open",
+		"searchFiles": "Search and open files",
+		"noMatchingFiles": "No matching files",
 		"unsupportedFile": "Choose a supported file inside the current vault.",
 		"retry": "Retry"
 	},

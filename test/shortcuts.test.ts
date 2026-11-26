@@ -128,7 +128,17 @@ describe("shell shortcuts", () => {
 		expect(formatShortcut({ key: "\\", meta: true })).toContain("\\");
 	});
 
-	it("separates reopen tab from the terminal chord", () => {
+	it("separates new sidebar tab, reopen tab, and the terminal chord", () => {
+		expect(
+			resolveShortcutId(keyEvent({ key: "t", metaKey: true }), {
+				settingsOpen: false,
+			}),
+		).toBe("newSidebarTab");
+		expect(
+			resolveShortcutId(keyEvent({ key: "t", metaKey: true }), {
+				settingsOpen: true,
+			}),
+		).toBeNull();
 		expect(
 			resolveShortcutId(keyEvent({ key: "t", metaKey: true, shiftKey: true }), {
 				settingsOpen: false,

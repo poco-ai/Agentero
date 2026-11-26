@@ -87,7 +87,12 @@ import {
 	openSettingsWindow,
 	toggleSettingsWindow,
 } from "@/lib/shell/settings-window";
-import { closeSidebarTab, isSidebarView } from "@/lib/shell/sidebar-tabs";
+import {
+	closeFocusedSidebarTab,
+	cycleFocusedSidebarTab,
+	newSidebarTab,
+	trackSidebarTabInteraction,
+} from "@/lib/shell/sidebar-tab-actions";
 import {
 	type LayoutMode,
 	layout,
@@ -168,16 +173,18 @@ function toggleImmersiveReading(): void {
 }
 
 function closeFocusedTab(): void {
-	const view = document.activeElement?.closest<HTMLElement>(
-		"[data-sidebar-view]",
-	)?.dataset.sidebarView;
-	if (view && isSidebarView(view)) {
-		void closeSidebarTab(view);
-	} else if (uiStore.getState().agentWindowOpen) {
+	if (closeTopOverlay() || closeFocusedSidebarTab()) return;
+	if (uiStore.getState().agentWindowOpen) {
 		agentDock()?.closeActive();
 	} else {
 		closeTabOrWindow();
 	}
+}
+
+function cycleFocusedTab(delta: -1 | 1): void {
+	if (cycleFocusedSidebarTab(delta)) return;
+	if (uiStore.getState().agentWindowOpen) agentDock()?.cycleActive(delta);
+	else cycleActiveTab(delta);
 }
 
 /** Title bar wrapper: subscribes to tabs/ui itself so the shell stays still. */
@@ -388,6 +395,7 @@ export default function App() {
 	});
 
 	const anyModalOverlayOpen = useAnyModalOverlayOpen();
+	useEffect(trackSidebarTabInteraction, []);
 	useFlushMarkdownOnClose();
 	useAppShortcuts(anyModalOverlayOpen, {
 		settings: toggleSettingsWindow,
@@ -452,17 +460,12 @@ export default function App() {
 			layout()?.focusEditorPane();
 		},
 		focusNotes: () => layout()?.focusNotesEditor(),
+		newSidebarTab: () => newSidebarTab(),
 		closeTab: closeFocusedTab,
 		reopenTab: reopenClosedTab,
 		splitPane: splitActivePane,
-		nextTab: () => {
-			if (uiStore.getState().agentWindowOpen) agentDock()?.cycleActive(1);
-			else cycleActiveTab(1);
-		},
-		prevTab: () => {
-			if (uiStore.getState().agentWindowOpen) agentDock()?.cycleActive(-1);
-			else cycleActiveTab(-1);
-		},
+		nextTab: () => cycleFocusedTab(1),
+		prevTab: () => cycleFocusedTab(-1),
 		nextGroupTab: () => {
 			if (uiStore.getState().agentWindowOpen) agentDock()?.cycleGroupTab(1);
 			else cycleActiveGroupTab(1);
@@ -524,6 +527,12 @@ export default function App() {
 		onToggleSidebar: toggleSidebar,
 		onSplitPane: splitActivePane,
 		onToggleChat: runChatShortcut,
+		onNewSidebarTab: () => {
+			if (!anyModalOverlayOpen) newSidebarTab();
+		},
+		onCycleTab: (delta) => {
+			if (!anyModalOverlayOpen) cycleFocusedTab(delta);
+		},
 		onCloseTabOrWindow: closeFocusedTab,
 	});
 

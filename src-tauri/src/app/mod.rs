@@ -520,15 +520,18 @@ pub fn run() {
     {
         builder = builder.on_menu_event(|app, event| {
             let id = event.id().as_ref();
+            let focused_window = app
+                .webview_windows()
+                .into_values()
+                .find(|window| window.is_focused().unwrap_or(false));
             if id == "close_tab_or_window" {
-                // Cmd+W is app-global on macOS. When Settings is focused, close
-                // that native window instead of forwarding the command to the
-                // main renderer, where it would close the active document tab.
-                if let Some(settings) =
-                    app.get_webview_window(crate::app::window::commands::SETTINGS_WINDOW_LABEL)
-                {
-                    if settings.is_focused().unwrap_or(false) {
-                        let _ = settings.close();
+                if let Some(window) = &focused_window {
+                    let label = window.label();
+                    if label == crate::app::window::commands::SETTINGS_WINDOW_LABEL
+                        || label.starts_with("doc-")
+                        || label.starts_with("feature-")
+                    {
+                        let _ = window.close();
                         return;
                     }
                 }
@@ -544,12 +547,13 @@ pub fn run() {
                 });
                 return;
             }
-            // Remaining menu ids are renderer actions: broadcast one
-            // `menu:invoked` event with the action id.
-            let _ = app.emit(
-                crate::app::menu::MENU_INVOKED_EVENT,
-                serde_json::json!({ "action": id }),
-            );
+            if let Some(window) = focused_window {
+                let _ = app.emit_to(
+                    tauri::EventTarget::window(window.label()),
+                    crate::app::menu::MENU_INVOKED_EVENT,
+                    serde_json::json!({ "action": id }),
+                );
+            }
         });
     }
 
