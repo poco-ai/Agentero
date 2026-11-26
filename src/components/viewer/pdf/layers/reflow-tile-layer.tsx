@@ -110,8 +110,10 @@ function ReflowTile({
 			alt=""
 			draggable={false}
 			onLoad={({ currentTarget }) => {
+				// Hidden Dockview panels stay mounted and hide their descendants
+				// through inherited visibility.
 				if (currentTarget.naturalWidth > 0)
-					currentTarget.style.visibility = "visible";
+					currentTarget.style.visibility = "inherit";
 			}}
 			style={{
 				position: "absolute",
