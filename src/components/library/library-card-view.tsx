@@ -420,7 +420,7 @@ export function LibraryCardView({
 									key={key}
 									className={cn(
 										cardSurfaceClass,
-										"aspect-[5/6] min-h-36 self-start rounded-xl [--folder-fill:var(--muted)] [--folder-pocket-height:max(40%,3.5rem)] data-selected:[--folder-fill:color-mix(in_oklab,var(--muted),var(--primary)_16%)]",
+										"aspect-square min-h-36 self-start rounded-xl md:aspect-[10/11] [--folder-fill:var(--muted)] [--folder-pocket-height:max(40%,3.5rem)] data-selected:[--folder-fill:color-mix(in_oklab,var(--muted),var(--primary)_16%)]",
 									)}
 									data-library-card
 									data-selected={selected || undefined}
