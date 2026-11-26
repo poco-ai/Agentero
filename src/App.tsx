@@ -652,7 +652,7 @@ export default function App() {
 											<div
 												className={cn(
 													"h-full min-h-0",
-													agentWindowOpen && "hidden",
+													agentWindowOpen ? "hidden" : "flex flex-col",
 												)}
 											>
 												<VaultSidebar />
