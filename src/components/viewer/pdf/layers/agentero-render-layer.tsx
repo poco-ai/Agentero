@@ -16,6 +16,7 @@ import {
 	type PageBitmap,
 	pageBitmapCache,
 } from "@/components/viewer/pdf/layers/page-bitmap-cache";
+import { capPdfRasterScale } from "@/lib/pdf/raster-budget";
 
 type AgenteroRenderLayerProps = {
 	pageRef: RefObject<HTMLDivElement | null>;
@@ -95,27 +96,10 @@ export function AgenteroRenderLayer({
 	// state; the static per-page preview stays visible until then.
 	const loadedDocument =
 		documentState?.status === "loaded" ? documentState.document : null;
-
-	useLayoutEffect(() => {
-		const cached =
-			documents && pageBitmapCache.get(documents, documentId, pageIndex);
-		setImage(cached ? { ...cached, pageIndex } : null);
-	}, [documents, documentId, pageIndex]);
-
-	const displayedBitmap =
-		loadedDocument &&
-		image?.scope === documents &&
-		image?.documentId === documentId &&
-		image.pageIndex === pageIndex
-			? image.bitmap
-			: null;
-	useLayoutEffect(() => {
-		const element = imageRef.current;
-		if (!displayedBitmap || !element) return;
-		const { url, release } = displayedBitmap.retain();
-		element.src = url;
-		return release;
-	}, [displayedBitmap]);
+	const pageSize = loadedDocument?.pages[pageIndex]?.size;
+	const renderScale = pageSize
+		? capPdfRasterScale(pageSize, actualScale, actualDpr)
+		: actualScale;
 
 	// Scroller mounts buffer pages too. Their CRITICAL full-page renders would
 	// queue ahead of visible HIGH-priority tiles and user-requested crops.
@@ -134,7 +118,33 @@ export function AgenteroRenderLayer({
 		return () => observer.disconnect();
 	}, [pageRef]);
 
-	const renderKey = `${actualScale}|${actualDpr}|${rotation}|${refreshVersion}`;
+	useLayoutEffect(() => {
+		// Buffered pages can stay mounted. Only the bounded LRU retains their
+		// whole-page raster when they are outside the viewport.
+		const cached =
+			visible &&
+			documents &&
+			pageBitmapCache.get(documents, documentId, pageIndex);
+		setImage(cached ? { ...cached, pageIndex } : null);
+	}, [documents, documentId, pageIndex, visible]);
+
+	const displayedBitmap =
+		visible &&
+		loadedDocument &&
+		image?.scope === documents &&
+		image?.documentId === documentId &&
+		image.pageIndex === pageIndex
+			? image.bitmap
+			: null;
+	useLayoutEffect(() => {
+		const element = imageRef.current;
+		if (!displayedBitmap || !element) return;
+		const { url, release } = displayedBitmap.retain();
+		element.src = url;
+		return release;
+	}, [displayedBitmap]);
+
+	const renderKey = `${renderScale}|${actualDpr}|${rotation}|${refreshVersion}`;
 	const displayedKey = displayedBitmap ? image?.key : undefined;
 
 	useEffect(() => {
@@ -156,7 +166,7 @@ export function AgenteroRenderLayer({
 		const task = renderProvides.forDocument(documentId).renderPage({
 			pageIndex,
 			options: {
-				scaleFactor: actualScale,
+				scaleFactor: renderScale,
 				dpr: actualDpr,
 				rotation,
 			},
@@ -185,7 +195,7 @@ export function AgenteroRenderLayer({
 	}, [
 		documentId,
 		pageIndex,
-		actualScale,
+		renderScale,
 		actualDpr,
 		rotation,
 		renderProvides,

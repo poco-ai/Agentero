@@ -5,6 +5,7 @@ import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import { capPdfRasterScale } from "@/lib/pdf/raster-budget";
 import type { ReflowBuildCacheStore } from "./build-cache";
 import type { ReflowBuildProvider, ReflowBuildTarget } from "./builder";
 import type { ReflowIrCacheStore } from "./cache";
@@ -57,26 +58,13 @@ function previewDpr(): number {
 	return Math.min(window.devicePixelRatio || 1, 2);
 }
 
-/**
- * A4 at 2x scale on a Retina display allocates a 32 MB bitmap. On long papers
- * those allocations land after dozens of page builds and can exhaust the
- * PDFium wasm heap. Keep each preview under a fixed budget and let quality
- * fall back on unusually large pages.
- */
-const PREVIEW_MAX_BITMAP_BYTES = 16 * 1024 * 1024;
 const PREVIEW_SCALE = 2;
-const PREVIEW_MIN_SCALE = 0.5;
 
 export function previewRasterScale(
 	page: { width: number; height: number },
 	dpr: number,
 ): number {
-	const area = Math.max(1, page.width * page.height);
-	const cap = Math.sqrt(PREVIEW_MAX_BITMAP_BYTES / 4 / area);
-	return Math.max(
-		PREVIEW_MIN_SCALE,
-		Math.min(PREVIEW_SCALE, cap / Math.max(1, dpr)),
-	);
+	return capPdfRasterScale(page, PREVIEW_SCALE, Math.max(1, dpr));
 }
 
 export function isRasterAllocationError(error: unknown): boolean {

@@ -5,8 +5,11 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useLayoutEffect,
+	useRef,
 	useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { createPdfEngine, disposePdfEngine } from "@/lib/pdf/engine";
 
 type PdfEngineContextValue = {
@@ -15,65 +18,83 @@ type PdfEngineContextValue = {
 	error: Error | null;
 };
 
-const PdfEngineContext = createContext<
-	PdfEngineContextValue & { start?: () => void }
->({
+const IDLE_MS = 15_000;
+const LOADING: PdfEngineContextValue = {
 	engine: null,
 	isLoading: true,
 	error: null,
-});
+};
+const PdfEngineContext = createContext<
+	PdfEngineContextValue & { acquire?: () => () => void }
+>(LOADING);
 
-function useAgenteroPdfEngine(active: boolean): PdfEngineContextValue {
-	const [state, setState] = useState<PdfEngineContextValue>({
-		engine: null,
-		isLoading: true,
-		error: null,
-	});
-
-	useEffect(() => {
-		if (!active) return;
-		const controller = new AbortController();
-		let current: PdfEngine | null = null;
-
-		createPdfEngine(controller.signal)
-			.then((engine) => {
-				if (controller.signal.aborted) {
-					disposePdfEngine(engine);
-					return;
-				}
-				current = engine;
-				setState({ engine, isLoading: false, error: null });
-			})
-			.catch((error: unknown) => {
-				if (controller.signal.aborted) return;
-				setState({
-					engine: null,
-					isLoading: false,
-					error: error instanceof Error ? error : new Error(String(error)),
-				});
-			});
-
-		return () => {
-			controller.abort();
-			if (current) disposePdfEngine(current);
-			current = null;
-		};
-	}, [active]);
-
-	return state;
-}
+type EngineSession = {
+	controller: AbortController;
+	engine?: PdfEngine;
+	holders: number;
+	idleTimer?: ReturnType<typeof setTimeout>;
+};
 
 /**
- * Creates the PDFium (WASM) engine once for the whole workspace window and
- * shares it with every PDF tab via context. PDFium holds many documents
- * concurrently, so a single engine backs all `<EmbedPDF>` providers.
+ * Shares one PDFium engine per window. The WASM heap retains its capacity
+ * after documents close, so retire the engine once readers stop using it.
  */
 export function PdfEngineHost({ children }: { children: ReactNode }) {
-	const [active, setActive] = useState(false);
-	const start = useCallback(() => setActive(true), []);
-	const { engine, isLoading, error } = useAgenteroPdfEngine(active);
+	const [state, setState] = useState(LOADING);
+	const sessionRef = useRef<EngineSession | null>(null);
+
+	const stop = useCallback(() => {
+		const session = sessionRef.current;
+		if (!session) return;
+		sessionRef.current = null;
+		clearTimeout(session.idleTimer);
+		session.controller.abort();
+		if (session.engine) disposePdfEngine(session.engine);
+	}, []);
+	useEffect(() => stop, [stop]);
+
+	const acquire = useCallback(() => {
+		const session = sessionRef.current ?? {
+			controller: new AbortController(),
+			holders: 0,
+		};
+		clearTimeout(session.idleTimer);
+		if (sessionRef.current === null) {
+			sessionRef.current = session;
+			const { signal } = session.controller;
+			void createPdfEngine(signal)
+				.then((engine) => {
+					if (signal.aborted) {
+						disposePdfEngine(engine);
+						return;
+					}
+					session.engine = engine;
+					setState({ engine, isLoading: false, error: null });
+				})
+				.catch((error: unknown) => {
+					if (signal.aborted) return;
+					setState({
+						engine: null,
+						isLoading: false,
+						error: error instanceof Error ? error : new Error(String(error)),
+					});
+				});
+		}
+		session.holders += 1;
+		return () => {
+			session.holders -= 1;
+			if (session.holders || sessionRef.current !== session) return;
+			session.idleTimer = setTimeout(() => {
+				if (session.holders || sessionRef.current !== session) return;
+				stop();
+				// A reader reopened at the deadline must not see the retired engine.
+				flushSync(() => setState(LOADING));
+			}, IDLE_MS);
+		};
+	}, [stop]);
+
 	return (
-		<PdfEngineContext.Provider value={{ engine, isLoading, error, start }}>
+		<PdfEngineContext.Provider value={{ ...state, acquire }}>
 			{children}
 		</PdfEngineContext.Provider>
 	);
@@ -81,7 +102,7 @@ export function PdfEngineHost({ children }: { children: ReactNode }) {
 
 export function usePdfEngineContext(): PdfEngineContextValue {
 	const context = useContext(PdfEngineContext);
-	const { start } = context;
-	useEffect(() => start?.(), [start]);
+	const { acquire } = context;
+	useLayoutEffect(() => acquire?.(), [acquire]);
 	return context;
 }
