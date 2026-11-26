@@ -82,7 +82,10 @@
 		"title": "Zen",
 		"newConversation": "New Session",
 		"untitled": "New chat",
-		"close": "Close conversation"
+		"close": "Close conversation",
+		"welcome": {
+			"headline": "Build your library in {{vault}} with {{agent}}"
+		}
 	},
 	"tabs": {
 		"new": "Start a new conversation"

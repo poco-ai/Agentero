@@ -82,7 +82,10 @@
 		"title": "Zen",
 		"newConversation": "新会话",
 		"untitled": "新对话",
-		"close": "关闭对话"
+		"close": "关闭对话",
+		"welcome": {
+			"headline": "在 {{vault}} 中与 {{agent}} 共建文献库"
+		}
 	},
 	"tabs": {
 		"new": "新建会话"

@@ -24,7 +24,9 @@ import { ConversationWidthHandles } from "@/components/agent/conversation-width-
 import { PiProjectTrustNotice } from "@/components/agent/pi-project-trust-notice";
 import type { AgentPanelProps } from "@/components/agent/types";
 import { useAgentPanel } from "@/components/agent/use-agent-panel";
+import { ZenWelcome } from "@/components/agent/zen/zen-welcome";
 import { PaneHeader } from "@/components/shell/pane-header";
+import type { AgentOption } from "@/lib/agent/chat-state";
 import {
 	setConversationWidth,
 	useConversationWidth,
@@ -35,6 +37,12 @@ const COMPOSER_DEFAULT_HEIGHT_PX = 208;
 const COMPOSER_MIN_HEIGHT_PX = 88;
 const COMPOSER_MAX_HEIGHT_PX = 360;
 const COMPOSER_COMPACT_THRESHOLD_PX = 160;
+/**
+ * Workspace tabs (Agent window) start at two thirds of the rail's composer:
+ * the conversation column is the whole page there and needs the room. The
+ * compact threshold scales with it, so the starting size stays expanded.
+ */
+const WORKSPACE_COMPOSER_SCALE = 2 / 3;
 /** Below this app window height, prefer compact as the starting composer size. */
 const WINDOW_COMPACT_THRESHOLD_PX = 600;
 const TRANSCRIPT_MIN_HEIGHT_PX = 160;
@@ -44,11 +52,21 @@ const TRANSCRIPT_MIN_HEIGHT_PX = 160;
 // bails out on unrelated panel re-renders (streaming phase flips, typing).
 const AgentConfigBarMemo = memo(AgentConfigBar);
 
-function initialComposerHeightPx(): number {
-	if (typeof window === "undefined") return COMPOSER_DEFAULT_HEIGHT_PX;
-	return window.innerHeight < WINDOW_COMPACT_THRESHOLD_PX
-		? COMPOSER_COMPACT_THRESHOLD_PX
-		: COMPOSER_DEFAULT_HEIGHT_PX;
+/** The rail's composer sizes, scaled down for workspace tabs. */
+function composerSizePx(railPx: number, workspace: boolean): number {
+	return workspace ? Math.round(railPx * WORKSPACE_COMPOSER_SCALE) : railPx;
+}
+
+function initialComposerHeightPx(workspace: boolean): number {
+	if (typeof window === "undefined") {
+		return composerSizePx(COMPOSER_DEFAULT_HEIGHT_PX, workspace);
+	}
+	return composerSizePx(
+		window.innerHeight < WINDOW_COMPACT_THRESHOLD_PX
+			? COMPOSER_COMPACT_THRESHOLD_PX
+			: COMPOSER_DEFAULT_HEIGHT_PX,
+		workspace,
+	);
 }
 
 export type { AgentPanelProps } from "@/components/agent/types";
@@ -98,8 +116,12 @@ export const AgentPanel = memo(function AgentPanel({
 		suppressHistoryImport,
 	});
 	const bodyRef = useRef<HTMLDivElement>(null);
-	const [composerHeightPx, setComposerHeightPx] = useState(
-		initialComposerHeightPx,
+	const compactThresholdPx = composerSizePx(
+		COMPOSER_COMPACT_THRESHOLD_PX,
+		workspace,
+	);
+	const [composerHeightPx, setComposerHeightPx] = useState(() =>
+		initialComposerHeightPx(workspace),
 	);
 	// Track short-window edge so we only auto-collapse once when crossing below
 	// the threshold — never lock the user out of dragging back to expanded.
@@ -130,7 +152,7 @@ export const AgentPanel = memo(function AgentPanel({
 			windowWasShortRef.current = short;
 			setComposerHeightPx((height) => {
 				const next = crossedIntoShort
-					? Math.min(height, COMPOSER_COMPACT_THRESHOLD_PX)
+					? Math.min(height, compactThresholdPx)
 					: height;
 				return clampComposerHeight(next);
 			});
@@ -138,7 +160,7 @@ export const AgentPanel = memo(function AgentPanel({
 		handleResize();
 		window.addEventListener("resize", handleResize);
 		return () => window.removeEventListener("resize", handleResize);
-	}, [clampComposerHeight]);
+	}, [clampComposerHeight, compactThresholdPx]);
 
 	const onComposerResizePointerDown = useCallback(
 		(event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -204,7 +226,7 @@ export const AgentPanel = memo(function AgentPanel({
 	);
 	// Compact is driven only by composer height so the resize handle can always
 	// leave or re-enter compact, even when the app window is short.
-	const composerCompact = composerHeightPx <= COMPOSER_COMPACT_THRESHOLD_PX;
+	const composerCompact = composerHeightPx <= compactThresholdPx;
 	// Compact mode hugs content (no fixed height) so the shell does not leave a
 	// empty band under the single-line input. Non-compact keeps the resize budget.
 	const composerDisplayHeightPx = composerCompact
@@ -373,6 +395,61 @@ export const AgentPanel = memo(function AgentPanel({
 		[setFastEnabled],
 	);
 
+	// Workspace home for a conversation that has not started. The panel
+	// re-renders on every keystroke and `options` is rebuilt each time, so the
+	// home element is memoized on content-keyed props: typing in the composer
+	// must not re-render it (and its heatmap) or the memoized transcript.
+	const optionsKey = JSON.stringify(
+		options.map((option) => [
+			option.key,
+			option.id,
+			option.templateId,
+			option.name,
+			option.isDefault,
+		]),
+	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: options is keyed by its serialized rows on purpose
+	const welcomeOptions = useMemo(() => options, [optionsKey]);
+	const selectedAgentName = selected?.name ?? null;
+	const selectedAgentTemplate = selected?.template ?? null;
+	const agentSwitchDisabled = hasRunningSessions || switching || submitting;
+	const latestSelectAgentRef = useRef(selectAgent);
+	latestSelectAgentRef.current = selectAgent;
+	const handleSelectAgent = useCallback(
+		(option: AgentOption) => void latestSelectAgentRef.current(option),
+		[],
+	);
+	const handleOpenAgentSettings = useCallback(
+		() => onOpenAgentSettings?.(),
+		[onOpenAgentSettings],
+	);
+	const welcome = useMemo(
+		() =>
+			workspace ? (
+				<ZenWelcome
+					vaultPath={vaultPath}
+					options={welcomeOptions}
+					selectedAgentId={selectedAgentId}
+					selectedAgentName={selectedAgentName}
+					selectedAgentTemplate={selectedAgentTemplate}
+					agentDisabled={agentSwitchDisabled}
+					onSelectAgent={handleSelectAgent}
+					onOpenAgentSettings={handleOpenAgentSettings}
+				/>
+			) : undefined,
+		[
+			workspace,
+			vaultPath,
+			welcomeOptions,
+			selectedAgentId,
+			selectedAgentName,
+			selectedAgentTemplate,
+			agentSwitchDisabled,
+			handleSelectAgent,
+			handleOpenAgentSettings,
+		],
+	);
+
 	const workspaceFooterStart = workspace ? (
 		<ComposerCollaborationSelector
 			options={collaborationOptions}
@@ -488,6 +565,7 @@ export const AgentPanel = memo(function AgentPanel({
 							compact={composerCompact}
 							activeTabIsRunning={activeTabIsRunning}
 							phase={activePhase}
+							welcome={welcome}
 							submitting={submitting}
 							switching={switching}
 							editingLineId={editingLineId}

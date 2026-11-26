@@ -13,7 +13,13 @@ import {
 import { prefersReducedMotion } from "@/lib/core/motion";
 import { cn } from "@/lib/core/utils";
 
-export type ConversationProps = ComponentProps<typeof MessageScroller>;
+export type ConversationProps = ComponentProps<typeof MessageScroller> & {
+	/**
+	 * Where content taller than the viewport starts: `end` for a transcript,
+	 * `start` when the page opens on a home screen.
+	 */
+	defaultScrollPosition?: "start" | "end";
+};
 
 const ConversationViewportContext =
 	createContext<RefObject<HTMLDivElement | null> | null>(null);
@@ -25,11 +31,18 @@ export function useConversationViewport() {
 	return viewport;
 }
 
-export const Conversation = ({ className, ...props }: ConversationProps) => {
+export const Conversation = ({
+	className,
+	defaultScrollPosition = "end",
+	...props
+}: ConversationProps) => {
 	const viewport = useRef<HTMLDivElement>(null);
 	return (
 		<ConversationViewportContext.Provider value={viewport}>
-			<MessageScrollerProvider autoScroll defaultScrollPosition="end">
+			<MessageScrollerProvider
+				autoScroll
+				defaultScrollPosition={defaultScrollPosition}
+			>
 				<MessageScroller
 					className={cn("relative flex-1 overflow-y-hidden", className)}
 					{...props}

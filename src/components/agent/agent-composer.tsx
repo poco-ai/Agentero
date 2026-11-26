@@ -312,6 +312,9 @@ export function AgentComposer(props: AgentComposerProps) {
 		onFileDragOver,
 		onFileDropHighlightEnd,
 	} = useComposerFileDrag();
+	// Workspace tabs round the input shell more and float it a little higher
+	// off the panel bottom (the rail keeps its tighter spacing).
+	const shellRadiusClass = seamless ? "rounded-2xl" : "rounded-xl";
 
 	return (
 		<div
@@ -321,8 +324,10 @@ export function AgentComposer(props: AgentComposerProps) {
 				// Keep the same horizontal inset and bottom gap in both modes so
 				// the InputGroup width / distance to the panel bottom do not jump
 				// when crossing the compact height threshold.
-				"flex shrink-0 flex-col pb-3",
-				seamless ? "border-t-0 bg-transparent" : "border-t bg-muted/10",
+				"flex shrink-0 flex-col",
+				seamless
+					? "border-t-0 bg-transparent pb-4.5"
+					: "border-t bg-muted/10 pb-3",
 				wide ? "px-5 lg:px-10" : "px-3",
 				compact ? "gap-1 pt-2" : "gap-2 pt-3",
 			)}
@@ -395,7 +400,8 @@ export function AgentComposer(props: AgentComposerProps) {
 					<PromptInput
 						className={cn("w-full", compact ? "flex items-end" : "h-full")}
 						inputGroupClassName={cn(
-							"!flex min-h-0 !flex-col overflow-hidden rounded-xl border border-border bg-background shadow-none transition-[background-color,box-shadow,border-color] duration-150",
+							"!flex min-h-0 !flex-col overflow-hidden border border-border bg-background shadow-none transition-[background-color,box-shadow,border-color] duration-150",
+							shellRadiusClass,
 							compact ? "h-auto" : "!h-full",
 							// Keep the same surface while any child is disabled or a run is
 							// in progress — never dim / recolor the composer for "processing".
@@ -614,7 +620,8 @@ export function AgentComposer(props: AgentComposerProps) {
 					{isFileDragOver ? (
 						<div
 							className={cn(
-								"pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl",
+								"pointer-events-none absolute inset-0 z-20 flex items-center justify-center",
+								shellRadiusClass,
 								"border-2 border-primary/50 border-dashed bg-primary/10 backdrop-blur-[1px]",
 							)}
 							aria-hidden

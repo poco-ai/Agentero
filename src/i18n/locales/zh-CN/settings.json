@@ -41,8 +41,6 @@
 		"heatmap": {
 			"reading": "近 6 个月",
 			"tokens": "Token",
-			"less": "少",
-			"more": "多",
 			"cell": "{{date}} · {{value}}"
 		},
 		"weekday": {

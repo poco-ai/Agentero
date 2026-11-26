@@ -19,23 +19,23 @@ import {
 import { cn } from "@/lib/core/utils";
 
 /**
- * Heatmap geometry: square cells that grow with the card so the six-month
- * window fills the pane instead of leaving a hole on the right.
+ * Heatmap geometry: square cells that grow with the card. `fill` lets them
+ * keep growing past the Settings-pane tiers, so the window spans a wider card.
  */
 const CELL = "var(--heat-cell)";
 const CELL_GAP = "var(--heat-gap)";
 /** Month row height plus its bottom margin — offsets the weekday rail. */
 const MONTH_ROW_HEIGHT = 22;
 
-/** Cell size nowrap by container width; the legend follows the same scale. */
+/** Cell size tiers by container width. */
 const HEAT_SCALE_CLASS =
 	"[--heat-cell:13px] [--heat-gap:3px] @[520px]/heat:[--heat-cell:15px] @[660px]/heat:[--heat-cell:16px] @[820px]/heat:[--heat-cell:17px]";
 
 /**
  * Fill scale: for a card that is the whole point of the page, cells keep
- * growing past the pane tiers and the row is centered. Each breakpoint is the
- * full row width of that cell size (26 weeks + the weekday rail), so the grid
- * never overflows its container.
+ * growing past the pane tiers. Each breakpoint is the full row width of that
+ * cell size (26 weeks + the weekday rail), so the grid never overflows its
+ * container.
  */
 const HEAT_FILL_SCALE_CLASS =
 	"[--heat-cell:14px] [--heat-gap:4px] @[554px]/heat:[--heat-cell:16px] @[606px]/heat:[--heat-cell:18px] @[658px]/heat:[--heat-cell:20px] @[710px]/heat:[--heat-cell:22px] @[762px]/heat:[--heat-cell:24px]";
@@ -123,14 +123,9 @@ export function ActivityHeatmap({
 
 	return (
 		<div className="@container/heat overflow-x-auto pb-1">
-			<div className={fill ? "mx-auto w-fit" : undefined}>
-				<div
-					className={cn(
-						"flex gap-2.5",
-						fill ? "justify-center" : "w-max",
-						scaleClass,
-					)}
-				>
+			{/* `w-fit` hugs the row; `mx-auto` centers it, and it still scrolls when wider. */}
+			<div className="mx-auto w-fit">
+				<div className={cn("flex w-max gap-2.5", scaleClass)}>
 					<div
 						className={cn(
 							"grid grid-rows-7 text-[10px] text-muted-foreground",
@@ -179,7 +174,13 @@ export function ActivityHeatmap({
 						>
 							{cells.map((cell) =>
 								cell.future ? (
-									<span key={cell.date} />
+									// Days that have not happened yet keep the window a full
+									// rectangle, fainter than a day without activity.
+									<span
+										key={cell.date}
+										aria-hidden
+										className="rounded-[3px] bg-muted/40"
+									/>
 								) : (
 									<Tooltip key={cell.date}>
 										<TooltipTrigger asChild>
@@ -206,22 +207,6 @@ export function ActivityHeatmap({
 							)}
 						</div>
 					</div>
-				</div>
-				<div
-					className={cn(
-						"mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground",
-						scaleClass,
-					)}
-				>
-					<span>{t("activity.heatmap.less")}</span>
-					{LEVEL_CLASS.map((level) => (
-						<span
-							key={level}
-							className={cn("rounded-[3px]", level)}
-							style={{ width: CELL, height: CELL }}
-						/>
-					))}
-					<span>{t("activity.heatmap.more")}</span>
 				</div>
 			</div>
 		</div>

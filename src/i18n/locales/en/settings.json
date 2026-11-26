@@ -41,8 +41,6 @@
 		"heatmap": {
 			"reading": "Last 6 months",
 			"tokens": "Tokens",
-			"less": "Less",
-			"more": "More",
 			"cell": "{{date}} · {{value}}"
 		},
 		"weekday": {

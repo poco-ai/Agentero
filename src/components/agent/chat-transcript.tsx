@@ -1197,6 +1197,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	agentTemplate = null,
 	paper = null,
 	phase = null,
+	welcome,
 }: {
 	activeTabId: string;
 	hydratingSessionId: string | null;
@@ -1233,6 +1234,11 @@ export const ChatTranscript = memo(function ChatTranscript({
 	paper?: PaperMetadata | null;
 	/** Loading phase of the in-flight turn (starting / waiting-model / reconnecting). */
 	phase?: AgentPhaseState | null;
+	/**
+	 * Host-provided home for a conversation that has not started (Agent
+	 * workspace). Replaces the generic empty state on a fresh draft only.
+	 */
+	welcome?: ReactNode;
 }) {
 	const { t } = useTranslation("agent");
 	// PERF: owned here instead of the panel — streaming flushes swap the
@@ -1244,6 +1250,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 	// Chat-only built-ins (Zhihu) replace the generic suggestions with their own
 	// empty state.
 	const zhihuEmpty = isChatOnlyAgentTemplate(agentTemplate);
+	const showWelcome = Boolean(welcome) && activeTabId === "draft";
 
 	// Lifted Reasoning/Tool/Plan open state so virtualized rows keep their
 	// fold state across unmount/remount. Keyed by `${rowKey}:${part.id}`.
@@ -1328,9 +1335,17 @@ export const ChatTranscript = memo(function ChatTranscript({
 	);
 
 	return (
-		<Conversation className="min-h-0 flex-1">
+		<Conversation
+			className="min-h-0 flex-1"
+			defaultScrollPosition={showWelcome ? "start" : "end"}
+		>
 			<ConversationContent
-				className={wide ? "px-5 lg:px-10" : undefined}
+				className={cn(
+					wide && "px-5 lg:px-10",
+					// The home centers in the viewport, so the scroll content has to
+					// be able to grow to the viewport height first.
+					showWelcome && "min-h-full",
+				)}
 				scrollClassName={
 					compact
 						? "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -1345,44 +1360,56 @@ export const ChatTranscript = memo(function ChatTranscript({
 						</MessageScrollerItem>
 					</MessageScrollerContent>
 				) : lines.length === 0 ? (
-					<MessageScrollerContent>
-						<MessageScrollerItem className="flex w-full flex-col gap-6">
-							<ConversationEmptyState
-								className={zhihuEmpty ? "px-2 py-8" : undefined}
-								title={t("empty.title")}
-								description={t(
-									writing ? "empty.writingDescription" : "empty.description",
-								)}
-							>
-								{zhihuEmpty ? (
-									<ZhihuDiscussions paper={paper} />
-								) : activeTabId === "draft" || activeTabIsRunning ? (
-									<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
-										{activeTabIsRunning ? (
-											<Shimmer className="text-center text-sm">
-												{t("empty.waiting")}
-											</Shimmer>
-										) : (
-											suggestions.map((item) => {
-												const label = t(`suggestions.${item.key}`);
-												return (
-													<Suggestion
-														key={item.key}
-														suggestion={label}
-														className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left hover:shadow-raised"
-														onClick={(value) =>
-															onSendSuggestion(value, item.workflow)
-														}
-														disabled={activeTabIsRunning}
-													/>
-												);
-											})
-										)}
-									</div>
-								) : null}
-							</ConversationEmptyState>
-						</MessageScrollerItem>
-					</MessageScrollerContent>
+					showWelcome && welcome ? (
+						// The content stretches to the full height; `my-auto` then
+						// centers the home in the spare height and collapses to top
+						// alignment once it is taller than the viewport, so nothing
+						// is clipped above.
+						<MessageScrollerContent className="flex-1">
+							<MessageScrollerItem className="my-auto flex w-full flex-col">
+								{welcome}
+							</MessageScrollerItem>
+						</MessageScrollerContent>
+					) : (
+						<MessageScrollerContent>
+							<MessageScrollerItem className="flex w-full flex-col gap-6">
+								<ConversationEmptyState
+									className={zhihuEmpty ? "px-2 py-8" : undefined}
+									title={t("empty.title")}
+									description={t(
+										writing ? "empty.writingDescription" : "empty.description",
+									)}
+								>
+									{zhihuEmpty ? (
+										<ZhihuDiscussions paper={paper} />
+									) : activeTabId === "draft" || activeTabIsRunning ? (
+										<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
+											{activeTabIsRunning ? (
+												<Shimmer className="text-center text-sm">
+													{t("empty.waiting")}
+												</Shimmer>
+											) : (
+												suggestions.map((item) => {
+													const label = t(`suggestions.${item.key}`);
+													return (
+														<Suggestion
+															key={item.key}
+															suggestion={label}
+															className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left hover:shadow-raised"
+															onClick={(value) =>
+																onSendSuggestion(value, item.workflow)
+															}
+															disabled={activeTabIsRunning}
+														/>
+													);
+												})
+											)}
+										</div>
+									) : null}
+								</ConversationEmptyState>
+							</MessageScrollerItem>
+						</MessageScrollerContent>
+					)
 				) : (
 					<TranscriptBody
 						lines={lines}

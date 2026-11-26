@@ -1,4 +1,5 @@
 import { Check, ChevronDown, Settings } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,8 @@ export function AgentSwitcher({
 	disabled,
 	onSelect,
 	onOpenAgentSettings,
+	trigger,
+	align = "start",
 }: {
 	options: AgentOption[];
 	selected: AgentOption | null | undefined;
@@ -25,28 +28,38 @@ export function AgentSwitcher({
 	disabled: boolean;
 	onSelect: (opt: AgentOption) => void;
 	onOpenAgentSettings?: () => void;
+	/**
+	 * Custom trigger (e.g. the Agent workspace headline). It must be a DOM
+	 * element, because the menu attaches its trigger props and ref to it. The
+	 * default is the rail's compact button.
+	 */
+	trigger?: ReactNode;
+	/** Menu edge that lines up with the trigger's. */
+	align?: "start" | "center" | "end";
 }) {
 	const { t } = useTranslation("agent");
 
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild disabled={disabled}>
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					className="h-7 min-w-0 max-w-[9rem] shrink gap-1 px-1.5 font-medium text-sm leading-none"
-					aria-label={t("switchAgent")}
-					title={t("switchAgent")}
-				>
-					{selected ? <AgentLogo template={selected.template} /> : null}
-					<span className="min-w-0 truncate">
-						{selected?.name ?? t("defaultName")}
-					</span>
-					<ChevronDown className="size-3 shrink-0 opacity-70" />
-				</Button>
+				{trigger ?? (
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						className="h-7 min-w-0 max-w-[9rem] shrink gap-1 px-1.5 font-medium text-sm leading-none"
+						aria-label={t("switchAgent")}
+						title={t("switchAgent")}
+					>
+						{selected ? <AgentLogo template={selected.template} /> : null}
+						<span className="min-w-0 truncate">
+							{selected?.name ?? t("defaultName")}
+						</span>
+						<ChevronDown className="size-3 shrink-0 opacity-70" />
+					</Button>
+				)}
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="min-w-[200px]">
+			<DropdownMenuContent align={align} className="min-w-[200px]">
 				{/* Match DropdownMenuLabel height (px-1.5 py-1 text-xs); keep gear inside the row. */}
 				<div className="flex h-6 items-center justify-between gap-1 px-1.5">
 					<span className="min-w-0 truncate font-medium text-muted-foreground text-xs leading-none">
