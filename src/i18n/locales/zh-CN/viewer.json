@@ -32,7 +32,7 @@
 			"dual": "对照",
 			"originalHint": "原文（收起译文并停止翻译）",
 			"translatedHint": "译文（在原文页上原地覆盖）",
-			"dualHint": "对照（原文与译文左右并排）",
+			"dualHint": "对照（原文与译文分栏显示）",
 			"paneUnavailable": "论文路径缺失，无法打开译文栏。"
 		},
 		"smartHighlightFailed": "智能高亮失败",

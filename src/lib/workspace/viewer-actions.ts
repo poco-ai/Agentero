@@ -771,18 +771,19 @@ export function openTranslationTab(
 		})();
 	}
 	setTabs((prev) => [...prev, translationPane]);
+	const placement = translationSplitPlacement(paperTabId, tabs);
 	const notesPath = paperTab.notesPath;
 	const notesPane = notesPath ? findCanonicalTab(tabs, notesPath) : null;
-	if (notesPane) {
+	if (placement.direction === "below") {
+		// A phone-width comparison stacks the translation below the source paper.
+		dockHandle()?.openPanel(translationPane, placement);
+	} else if (notesPane) {
 		dockHandle()?.openPanel(translationPane, {
 			direction: "within",
 			referencePanelId: notesPane.id,
 		});
 	} else {
-		dockHandle()?.splitPanelRight(
-			translationPane,
-			translationSplitPlacement(paperTabId, tabs).referencePanelId,
-		);
+		dockHandle()?.splitPanelRight(translationPane, placement.referencePanelId);
 	}
 }
 

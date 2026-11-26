@@ -62,12 +62,24 @@ export function findTranslationSourceId(
 	return null;
 }
 
-/** Place the translation tab as a right split of the source paper panel. */
+/** Phone-width windows stack the comparison panes instead of squeezing columns. */
+const STACKED_TRANSLATION_MEDIA = "(max-width: 47.9375rem)";
+
+/**
+ * Place the translation tab beside the source paper panel, or below it when
+ * the window is phone-width.
+ */
 export function translationSplitPlacement(
 	paperTabId: string,
 	_tabs: DocTab[],
-): { direction: "right"; referencePanelId: string } {
-	return { direction: "right", referencePanelId: paperTabId };
+): { direction: "right" | "below"; referencePanelId: string } {
+	const stacked =
+		typeof window !== "undefined" &&
+		window.matchMedia(STACKED_TRANSLATION_MEDIA).matches;
+	return {
+		direction: stacked ? "below" : "right",
+		referencePanelId: paperTabId,
+	};
 }
 
 /**

@@ -32,7 +32,7 @@
 			"dual": "Compare",
 			"originalHint": "Original (hide translation and stop the task)",
 			"translatedHint": "Translation (in place on the page)",
-			"dualHint": "Compare (source and translation side by side)",
+			"dualHint": "Compare (source and translation in separate panes)",
 			"paneUnavailable": "The paper has no local folder, so the translation pane cannot open."
 		},
 		"smartHighlightFailed": "Smart highlight failed",
