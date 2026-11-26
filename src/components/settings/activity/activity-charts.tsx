@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import {
 	Tooltip,
@@ -29,6 +30,17 @@ const MONTH_ROW_HEIGHT = 22;
 /** Cell size nowrap by container width; the legend follows the same scale. */
 const HEAT_SCALE_CLASS =
 	"[--heat-cell:13px] [--heat-gap:3px] @[520px]/heat:[--heat-cell:15px] @[660px]/heat:[--heat-cell:16px] @[820px]/heat:[--heat-cell:17px]";
+
+/**
+ * Fill scale: for a card that is the whole point of the page, cells keep
+ * growing past the pane tiers and the row is centered. Each breakpoint is the
+ * full row width of that cell size (26 weeks + the weekday rail), so the grid
+ * never overflows its container.
+ */
+const HEAT_FILL_SCALE_CLASS =
+	"[--heat-cell:14px] [--heat-gap:4px] @[554px]/heat:[--heat-cell:16px] @[606px]/heat:[--heat-cell:18px] @[658px]/heat:[--heat-cell:20px] @[710px]/heat:[--heat-cell:22px] @[762px]/heat:[--heat-cell:24px]";
+/** Weekday rail width while filling; the fill breakpoints assume it. */
+const FILL_RAIL_WIDTH_CLASS = "w-6";
 
 const LEVEL_CLASS = [
 	"bg-muted",
@@ -85,11 +97,14 @@ export function ActivityHeatmap({
 	today,
 	weekStartsOn,
 	metric,
+	fill = false,
 }: {
 	days: UsageDayStat[];
 	today: Date;
 	weekStartsOn: 0 | 1;
 	metric: ActivityMetric;
+	/** Grow cells so the window spans a card wider than the Settings pane. */
+	fill?: boolean;
 }) {
 	const { t, i18n } = useTranslation("settings");
 	const cells = heatCells(days, today, weekStartsOn, metric);
@@ -104,96 +119,165 @@ export function ActivityHeatmap({
 		if (day === 5) return t("activity.weekday.fri");
 		return "";
 	};
+	const scaleClass = fill ? HEAT_FILL_SCALE_CLASS : HEAT_SCALE_CLASS;
 
 	return (
 		<div className="@container/heat overflow-x-auto pb-1">
-			<div className={cn("flex w-max gap-2.5", HEAT_SCALE_CLASS)}>
+			<div className={fill ? "mx-auto w-fit" : undefined}>
 				<div
-					className="grid grid-rows-7 text-[10px] text-muted-foreground"
-					style={{ paddingTop: MONTH_ROW_HEIGHT, gap: CELL_GAP }}
+					className={cn(
+						"flex gap-2.5",
+						fill ? "justify-center" : "w-max",
+						scaleClass,
+					)}
 				>
-					{([0, 1, 2, 3, 4, 5, 6] as const).map((row) => (
-						<span key={row} style={{ lineHeight: CELL }}>
-							{weekday(row)}
-						</span>
-					))}
-				</div>
-				<div>
 					<div
-						className="mb-1.5 grid h-4 text-[11px] text-muted-foreground"
-						style={{
-							gridTemplateColumns: `repeat(${weeks}, ${CELL})`,
-							columnGap: CELL_GAP,
-						}}
+						className={cn(
+							"grid grid-rows-7 text-[10px] text-muted-foreground",
+							fill && FILL_RAIL_WIDTH_CLASS,
+						)}
+						style={{ paddingTop: MONTH_ROW_HEIGHT, gap: CELL_GAP }}
 					>
-						{marks.map((mark) => (
-							<span
-								key={mark.key}
-								className="overflow-hidden whitespace-nowrap"
-								style={{ gridColumn: `${mark.start} / span ${mark.span}` }}
-							>
-								{mark.label}
+						{([0, 1, 2, 3, 4, 5, 6] as const).map((row) => (
+							<span key={row} style={{ lineHeight: CELL }}>
+								{weekday(row)}
 							</span>
 						))}
 					</div>
-					<div
-						className="grid"
-						style={{
-							gridTemplateRows: `repeat(7, ${CELL})`,
-							gridAutoFlow: "column",
-							gridAutoColumns: CELL,
-							gap: CELL_GAP,
-						}}
-						role="img"
-						aria-label={t(
-							metric === "reading"
-								? "activity.heatmap.reading"
-								: "activity.heatmap.tokens",
-						)}
-					>
-						{cells.map((cell) =>
-							cell.future ? (
-								<span key={cell.date} />
-							) : (
-								<Tooltip key={cell.date}>
-									<TooltipTrigger asChild>
-										<span
-											role="img"
-											className={cn("rounded-[3px]", LEVEL_CLASS[cell.level])}
-											aria-label={t("activity.heatmap.cell", {
+					<div>
+						<div
+							className="mb-1.5 grid h-4 text-[11px] text-muted-foreground"
+							style={{
+								gridTemplateColumns: `repeat(${weeks}, ${CELL})`,
+								columnGap: CELL_GAP,
+							}}
+						>
+							{marks.map((mark) => (
+								<span
+									key={mark.key}
+									className="overflow-hidden whitespace-nowrap"
+									style={{ gridColumn: `${mark.start} / span ${mark.span}` }}
+								>
+									{mark.label}
+								</span>
+							))}
+						</div>
+						<div
+							className="grid"
+							style={{
+								gridTemplateRows: `repeat(7, ${CELL})`,
+								gridAutoFlow: "column",
+								gridAutoColumns: CELL,
+								gap: CELL_GAP,
+							}}
+							role="img"
+							aria-label={t(
+								metric === "reading"
+									? "activity.heatmap.reading"
+									: "activity.heatmap.tokens",
+							)}
+						>
+							{cells.map((cell) =>
+								cell.future ? (
+									<span key={cell.date} />
+								) : (
+									<Tooltip key={cell.date}>
+										<TooltipTrigger asChild>
+											<span
+												role="img"
+												className={cn(
+													"rounded-[3px] transition-colors duration-200",
+													LEVEL_CLASS[cell.level],
+												)}
+												aria-label={t("activity.heatmap.cell", {
+													date: cell.date,
+													value: cellText(cell, metric, formatReading),
+												})}
+											/>
+										</TooltipTrigger>
+										<TooltipContent>
+											{t("activity.heatmap.cell", {
 												date: cell.date,
 												value: cellText(cell, metric, formatReading),
 											})}
-										/>
-									</TooltipTrigger>
-									<TooltipContent>
-										{t("activity.heatmap.cell", {
-											date: cell.date,
-											value: cellText(cell, metric, formatReading),
-										})}
-									</TooltipContent>
-								</Tooltip>
-							),
-						)}
+										</TooltipContent>
+									</Tooltip>
+								),
+							)}
+						</div>
 					</div>
 				</div>
+				<div
+					className={cn(
+						"mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground",
+						scaleClass,
+					)}
+				>
+					<span>{t("activity.heatmap.less")}</span>
+					{LEVEL_CLASS.map((level) => (
+						<span
+							key={level}
+							className={cn("rounded-[3px]", level)}
+							style={{ width: CELL, height: CELL }}
+						/>
+					))}
+					<span>{t("activity.heatmap.more")}</span>
+				</div>
 			</div>
-			<div
-				className={cn(
-					"mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground",
-					HEAT_SCALE_CLASS,
-				)}
-			>
-				<span>{t("activity.heatmap.less")}</span>
-				{LEVEL_CLASS.map((level) => (
-					<span
-						key={level}
-						className={cn("rounded-[3px]", level)}
-						style={{ width: CELL, height: CELL }}
-					/>
-				))}
-				<span>{t("activity.heatmap.more")}</span>
-			</div>
+		</div>
+	);
+}
+
+/**
+ * Reading / token switch as an Apple-style segmented control: one sliding
+ * indicator, interruptible, and reduced-motion friendly.
+ */
+export function MetricSwitch({
+	value,
+	onChange,
+}: {
+	value: ActivityMetric;
+	onChange: (next: ActivityMetric) => void;
+}) {
+	const { t } = useTranslation("settings");
+	const reduceMotion = useReducedMotion();
+	const options: { value: ActivityMetric; label: string }[] = [
+		{ value: "reading", label: t("activity.metric.reading") },
+		{ value: "tokens", label: t("activity.metric.tokens") },
+	];
+	return (
+		<div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-muted p-0.5">
+			{options.map((option) => {
+				const selected = value === option.value;
+				return (
+					<button
+						key={option.value}
+						type="button"
+						aria-pressed={selected}
+						onClick={() => onChange(option.value)}
+						className={cn(
+							"relative rounded-[7px] px-2.5 py-1 font-medium text-xs outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
+							selected
+								? "text-foreground"
+								: "text-muted-foreground hover:text-foreground",
+						)}
+					>
+						{selected ? (
+							<motion.span
+								layoutId="activity-metric-indicator"
+								aria-hidden
+								className="absolute inset-0 rounded-[7px] bg-background shadow-raised"
+								transition={
+									reduceMotion
+										? { duration: 0 }
+										: { type: "spring", bounce: 0.15, duration: 0.3 }
+								}
+							/>
+						) : null}
+						<span className="relative">{option.label}</span>
+					</button>
+				);
+			})}
 		</div>
 	);
 }

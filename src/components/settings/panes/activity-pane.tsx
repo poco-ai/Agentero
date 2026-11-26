@@ -1,4 +1,3 @@
-import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -6,13 +5,13 @@ import {
 	ActivityWeekBars,
 	ActivityWorkflows,
 	durationText,
+	MetricSwitch,
 } from "@/components/settings/activity/activity-charts";
 import {
 	PageTitle,
 	settingsCardClassName,
 } from "@/components/settings/settings-layout";
-import type { UsageBoard } from "@/lib/activity/api";
-import { fetchUsageBoard } from "@/lib/activity/api";
+import { useUsageBoard } from "@/hooks/use-usage-board";
 import {
 	type ActivityMetric,
 	boardQueryRange,
@@ -26,51 +25,15 @@ import type { UiRequestPayload } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
-import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
-
-const EMPTY_BOARD: UsageBoard = {
-	days: [],
-	papers: [],
-	workflows: [],
-	weekPaperCount: 0,
-};
-
-function weekStartsOnFor(language: string): 0 | 1 {
-	return language.toLowerCase().startsWith("zh") ? 1 : 0;
-}
 
 export function ActivityPane({ vaultPath }: { vaultPath?: string | null }) {
-	const { t, i18n } = useTranslation("settings");
-	const [board, setBoard] = useState<UsageBoard>(EMPTY_BOARD);
+	const { t } = useTranslation("settings");
+	const { board, today, weekStartsOn } = useUsageBoard(vaultPath);
 	const [metric, setMetric] = useState<ActivityMetric>("reading");
-	const [today] = useState(() => new Date());
-	const remote = Boolean(vaultPath && isRemoteVaultHandle(vaultPath));
-	const weekStartsOn = weekStartsOnFor(i18n.language);
 
 	useEffect(() => {
 		track("activity.view");
 	}, []);
-
-	useEffect(() => {
-		if (!vaultPath || remote) return;
-		const range = boardQueryRange(today, weekStartsOn);
-		let cancelled = false;
-		void fetchUsageBoard({
-			vault: vaultPath,
-			startDay: range.startDay,
-			endDay: range.endDay,
-			weekStart: range.weekStart,
-		})
-			.then((next) => {
-				if (!cancelled) setBoard(next);
-			})
-			.catch((error) => {
-				if (!cancelled) notifyError(errorText(error));
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [remote, today, vaultPath, weekStartsOn]);
 
 	const range = boardQueryRange(today, weekStartsOn);
 	const reading = sumDays(
@@ -309,60 +272,6 @@ function StatDelta({
 		>
 			{`${delta > 0 ? "+" : "−"}${deltaText}`}
 		</p>
-	);
-}
-
-/**
- * Reading / token switch as an Apple-style segmented control: one sliding
- * indicator, interruptible, and reduced-motion friendly.
- */
-function MetricSwitch({
-	value,
-	onChange,
-}: {
-	value: ActivityMetric;
-	onChange: (next: ActivityMetric) => void;
-}) {
-	const { t } = useTranslation("settings");
-	const reduceMotion = useReducedMotion();
-	const options: { value: ActivityMetric; label: string }[] = [
-		{ value: "reading", label: t("activity.metric.reading") },
-		{ value: "tokens", label: t("activity.metric.tokens") },
-	];
-	return (
-		<div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-muted p-0.5">
-			{options.map((option) => {
-				const selected = value === option.value;
-				return (
-					<button
-						key={option.value}
-						type="button"
-						aria-pressed={selected}
-						onClick={() => onChange(option.value)}
-						className={cn(
-							"relative rounded-[7px] px-2.5 py-1 font-medium text-xs outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
-							selected
-								? "text-foreground"
-								: "text-muted-foreground hover:text-foreground",
-						)}
-					>
-						{selected ? (
-							<motion.span
-								layoutId="activity-metric-indicator"
-								aria-hidden
-								className="absolute inset-0 rounded-[7px] bg-background shadow-raised"
-								transition={
-									reduceMotion
-										? { duration: 0 }
-										: { type: "spring", bounce: 0.15, duration: 0.3 }
-								}
-							/>
-						) : null}
-						<span className="relative">{option.label}</span>
-					</button>
-				);
-			})}
-		</div>
 	);
 }
 
