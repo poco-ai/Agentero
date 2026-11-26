@@ -8,6 +8,13 @@
 		"untitled": "未命名",
 		"remoteArxiv": "远程 arXiv"
 	},
+	"sidebarTabs": {
+		"newTab": "新建右栏标签",
+		"currentNotes": "打开当前论文笔记",
+		"openFile": "打开本地文件…",
+		"unsupportedFile": "请选择当前资料库内受支持的文件。",
+		"retry": "重试"
+	},
 	"pathBar": {
 		"openFolder": "打开文件夹",
 		"openWith": "打开方式",

@@ -8,6 +8,13 @@
 		"untitled": "Untitled",
 		"remoteArxiv": "Remote arXiv"
 	},
+	"sidebarTabs": {
+		"newTab": "New sidebar tab",
+		"currentNotes": "Open current paper notes",
+		"openFile": "Open local file…",
+		"unsupportedFile": "Choose a supported file inside the current vault.",
+		"retry": "Retry"
+	},
 	"pathBar": {
 		"openFolder": "Open folder",
 		"openWith": "Open with",

@@ -11,6 +11,7 @@ import { RecycleBinView } from "@/components/workspace/recycle-bin-view";
 import { TexProjectView } from "@/components/writing/tex-project-view";
 import { useSharedWritingEditor } from "@/components/writing/writing-cloud-context";
 import { useSettings } from "@/hooks/use-app-stores";
+import type { HtmlPreviewGrant } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import type { PaperLibraryRow, PaperMetadata } from "@/lib/paper";
@@ -151,7 +152,7 @@ export type DocViewTextProps = {
 	onTabPatch: (id: string, patch: Partial<DocTab>) => void;
 };
 
-export type DocViewProps = {
+type DocumentContentProps = {
 	/** Primary tab or split pane (shared fields). */
 	tab: DocTab;
 	active: boolean;
@@ -164,14 +165,23 @@ export type DocViewProps = {
 	 */
 	keepMounted: boolean;
 	vaultPath: string | null;
-	library: DocViewLibraryProps;
-	editor: DocViewEditorProps;
-	pdf: DocViewPdfProps;
-	text: DocViewTextProps;
-	onTrashChanged: () => void;
+	library?: DocViewLibraryProps;
+	editor?: DocViewEditorProps;
+	pdf?: DocViewPdfProps;
+	text?: DocViewTextProps;
+	onTrashChanged?: () => void;
 	/** Bump to reload recycle bin after Empty Recycle Bin from the sidebar. */
 	trashReloadSignal?: number;
+	localHtmlGrant?: HtmlPreviewGrant;
 };
+
+export type DocViewProps = DocumentContentProps &
+	Required<
+		Pick<
+			DocumentContentProps,
+			"library" | "editor" | "pdf" | "text" | "onTrashChanged"
+		>
+	>;
 
 type TabSkeletonShape = "article" | "page" | "table";
 
@@ -287,11 +297,15 @@ function TexCompilingIndicator() {
  * below whose correspondence is pinned by
  * test/workspace-viewer-modes.test.ts, not enforced structurally.
  */
-function docViewPropsEqual(prev: DocViewProps, next: DocViewProps): boolean {
+function docViewPropsEqual(
+	prev: DocumentContentProps,
+	next: DocumentContentProps,
+): boolean {
 	if (
 		prev.tab !== next.tab ||
 		prev.active !== next.active ||
 		prev.keepMounted !== next.keepMounted ||
+		prev.localHtmlGrant !== next.localHtmlGrant ||
 		prev.vaultPath !== next.vaultPath
 	) {
 		return false;
@@ -320,7 +334,7 @@ function docViewPropsEqual(prev: DocViewProps, next: DocViewProps): boolean {
 }
 
 /** Document content router by tab.kind / mode (library, trash, editor, PDF, image, HTML). */
-const DocumentContent = memo(function DocumentContent({
+export const DocumentContent = memo(function DocumentContent({
 	tab,
 	active,
 	keepMounted,
@@ -331,43 +345,45 @@ const DocumentContent = memo(function DocumentContent({
 	text,
 	onTrashChanged,
 	trashReloadSignal = 0,
-}: DocViewProps) {
+	localHtmlGrant,
+}: DocumentContentProps) {
 	const plazaEnabled = useSettings((s) => s.plazaEnabled);
 	const cloud = useSharedWritingEditor(tab.path);
 	// Bind tab.id once per tab so PdfViewer's memo bails out when only the tab
 	// record changes (highlight / ask patches via updateTab).
 	const handlePdfHandle = useCallback(
-		(handle: PdfViewerHandle | null) => pdf.registerHandle(tab.id, handle),
+		(handle: PdfViewerHandle | null) => pdf?.registerHandle(tab.id, handle),
 		[pdf, tab.id],
 	);
 	const handlePdfHighlightsChange = useCallback(
-		(list: PdfHighlight[]) => pdf.onHighlightsChange(tab.id, list),
+		(list: PdfHighlight[]) => pdf?.onHighlightsChange(tab.id, list),
 		[pdf, tab.id],
 	);
 	const handlePdfAsksChange = useCallback(
-		(list: PdfAskThread[]) => pdf.onAsksChange(tab.id, list),
+		(list: PdfAskThread[]) => pdf?.onAsksChange(tab.id, list),
 		[pdf, tab.id],
 	);
 	const handlePdfVisualTracesChange = useCallback(
-		(list: PdfVisualSessionTrace[]) => pdf.onVisualTracesChange(tab.id, list),
+		(list: PdfVisualSessionTrace[]) => pdf?.onVisualTracesChange(tab.id, list),
 		[pdf, tab.id],
 	);
 	const isNotes = tabIsPaperNotes(tab);
 	const handleEditorPersist = useCallback(
 		(path: string, md: string, lastSaved: string) =>
-			editor.onPersistFile(path, md, lastSaved, tab.id),
-		[editor.onPersistFile, tab.id],
+			editor?.onPersistFile(path, md, lastSaved, tab.id) ??
+			Promise.resolve(false),
+		[editor?.onPersistFile, tab.id],
 	);
 	// Stable identity: an inline lambda here is a new prop on every DocView
 	// render, which defeats the memo boundary around MarkdownEditor.
 	const handleEditorDirtyChange = useCallback(
 		(dirty: boolean) => {
-			editor.onTabPatch(
+			editor?.onTabPatch(
 				tab.id,
 				isNotes ? { notesDirty: dirty } : { markdownDirty: dirty },
 			);
 		},
-		[editor.onTabPatch, isNotes, tab.id],
+		[editor?.onTabPatch, isNotes, tab.id],
 	);
 	if (tab.texLive) {
 		if (!active && !keepMounted) return null;
@@ -402,6 +418,7 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.kind === "library") {
+		if (!library) return null;
 		return (
 			<PapersLibrary
 				papers={library.papers}
@@ -423,6 +440,7 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.kind === "trash") {
+		if (!onTrashChanged) return null;
 		return (
 			<RecycleBinView
 				vaultPath={vaultPath}
@@ -457,6 +475,7 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.mode === "markdown") {
+		if (!editor) return null;
 		// PERF: same keep-alive gate as PDF. Dockview keeps the panel shell
 		// mounted (`renderer: 'always'` in dock-workspace); the workspace host
 		// LRU (`keepMounted`) decides whether the heavyweight Plate editor stays
@@ -518,6 +537,7 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.mode === "pdf") {
+		if (!pdf) return null;
 		// PERF: dockview keeps PDF panel shells mounted (`renderer: 'always'` in
 		// dock-workspace) so inactive siblings stay in the React tree. We still
 		// gate the heavyweight EmbedPDF viewer with App-level PDF LRU
@@ -566,6 +586,7 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.mode === "translation") {
+		if (!pdf) return null;
 		// Render the same PDF page stack as the source, but keep this pane read-only
 		// and chrome-free so it only shows the translation overlay.
 		if (!active && !keepMounted) return null;
@@ -616,6 +637,7 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.mode === "research-table") {
+		if (!text) return null;
 		if (!active && !keepMounted)
 			return <TabLoadingSkeleton shape={tabSkeletonShape(tab)} />;
 		return (
@@ -639,6 +661,7 @@ const DocumentContent = memo(function DocumentContent({
 		);
 	}
 	if (tab.mode === "text") {
+		if (!text) return null;
 		if (cloud.pending || (cloud.session && !cloud.shared))
 			return <TabLoadingSkeleton shape={tabSkeletonShape(tab)} />;
 		// Same keep-alive gate as the Markdown editor: an evicted tab's
@@ -677,12 +700,13 @@ const DocumentContent = memo(function DocumentContent({
 	// request) until the panel is actually activated. A `.html` file in the
 	// vault is a local preview; a paper body with `htmlUrl` stays remote (an
 	// imported webpage falls back to its offline snapshot when it has no URL).
-	if (!active) return null;
+	if (!active && !localHtmlGrant) return null;
 	if (isHtmlPath(tab.path)) {
 		return (
 			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
 				<LocalHtmlViewer
 					path={tab.path}
+					initialGrant={localHtmlGrant}
 					reloadKey={tab.htmlKey}
 					title={tab.title}
 					className="h-full w-full"

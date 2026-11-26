@@ -25,6 +25,17 @@ export async function pickVaultDirectory(): Promise<string | null> {
 	return path ?? null;
 }
 
+export function pickVaultPreviewFile(
+	vaultPath: string,
+): Promise<string | null> {
+	if (!isTauri()) throw new Error(i18n.t("app:vault.openDesktopOnly"));
+	return open({
+		defaultPath: vaultPath,
+		multiple: false,
+		filters: [{ name: "PDF / HTML", extensions: ["pdf", "html", "htm"] }],
+	});
+}
+
 /** Pick a directory that will be scaffolded as a new Agentero vault. */
 export async function pickCreateVaultDirectory(
 	title = i18n.t("app:vault.createDialogTitle"),

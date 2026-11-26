@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useIframeDragShield } from "@/hooks/use-iframe-drag-shield";
-import { commands } from "@/lib/core/bindings";
+import { commands, type HtmlPreviewGrant } from "@/lib/core/bindings";
 import { callApiResult } from "@/lib/core/ipc";
 import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
@@ -14,6 +14,7 @@ import {
 type LocalHtmlViewerProps = {
 	/** Absolute vault path of the `.html` file. */
 	path: string;
+	initialGrant?: HtmlPreviewGrant;
 	/** Bumped when the file changes on disk so the frame refetches. */
 	reloadKey: number;
 	title?: string;
@@ -30,13 +31,16 @@ type Grant = { path: string; token: string; name: string };
  */
 export function LocalHtmlViewer({
 	path,
+	initialGrant,
 	reloadKey,
 	title,
 	className,
 }: LocalHtmlViewerProps) {
 	const { t } = useTranslation("viewer");
 	const iframeRef = useRef<HTMLIFrameElement | null>(null);
-	const grantRef = useRef<Grant | null>(null);
+	const grantRef = useRef<Grant | null>(
+		initialGrant ? { path, ...initialGrant } : null,
+	);
 	const [src, setSrc] = useState<string | null>(null);
 	const [failed, setFailed] = useState(false);
 	const dragShield = useIframeDragShield();

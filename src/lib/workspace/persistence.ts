@@ -30,6 +30,10 @@ import {
 	isSelfWrittenContent,
 	trackSelfWrittenPath,
 } from "@/lib/wiki/store";
+import {
+	getSidebarDocuments,
+	setSidebarDocuments,
+} from "@/lib/workspace/sidebar-documents";
 import { getTabs, setTabs } from "@/lib/workspace/store";
 import {
 	applyMarkdownConflictChoice,
@@ -45,7 +49,7 @@ import { isHtmlPath, viewerModeSpec } from "./viewer";
 /** Collect vault-relative paths with unsaved edits (rename preflight). */
 export function dirtyVaultPaths(root: string): string[] {
 	const dirty = new Set<string>();
-	for (const tab of getTabs()) {
+	for (const tab of openDocuments()) {
 		if (tab.markdownDirty) {
 			const rel = vaultRelativePath(root, tab.path);
 			if (rel) dirty.add(rel);
@@ -90,7 +94,7 @@ export async function updateMarkdownOnDisk(
 			const next = transform(current);
 			if (next === current) return false;
 			if (
-				getTabs().some(
+				openDocuments().some(
 					(tab) =>
 						(tab.notesDirty && normalizeTabPath(tab.notesPath ?? "") === key) ||
 						(tab.markdownDirty && normalizeTabPath(tab.path) === key),
@@ -118,7 +122,7 @@ const persistOutcomes: Record<
 	markdown: (path, content, writerId) => {
 		primeSeedCache(path, content);
 		const conflicts: string[] = [];
-		setTabs((prev) => {
+		updateDocuments((prev) => {
 			const next = syncTabSeedsForPath(prev, path, content, writerId);
 			for (let i = 0; i < next.length; i++) {
 				if (next[i].markdownConflict && !prev[i].markdownConflict) {
@@ -146,9 +150,18 @@ export type DiskChangeSink = {
 	updateTabs: (update: (prev: DocTab[]) => DocTab[]) => void;
 };
 
+function openDocuments() {
+	return [...getTabs(), ...getSidebarDocuments()];
+}
+
+function updateDocuments(update: (tabs: DocTab[]) => DocTab[]) {
+	setTabs(update);
+	setSidebarDocuments(update);
+}
+
 const defaultDiskChangeSink: DiskChangeSink = {
-	getTabs,
-	updateTabs: (update) => setTabs(update),
+	getTabs: openDocuments,
+	updateTabs: updateDocuments,
 };
 
 /**
@@ -168,7 +181,7 @@ function promptMarkdownConflict(path: string, tabId: string): void {
 				try {
 					const content = await readVaultFile(path);
 					primeSeedCache(path, content);
-					setTabs((prev) =>
+					updateDocuments((prev) =>
 						applyMarkdownConflictChoice(prev, tabId, "load", content),
 					);
 				} catch (error) {
@@ -399,7 +412,7 @@ function persistTextLike(
 				if (reseedGuard.has(normalizedPath)) return false;
 				const writer =
 					kind === "markdown"
-						? getTabs().find((tab) => tab.id === writerId)
+						? openDocuments().find((tab) => tab.id === writerId)
 						: undefined;
 				if (writer?.markdownConflict) {
 					promptMarkdownConflict(path, writerId);
@@ -424,7 +437,7 @@ function persistTextLike(
 								)
 					) {
 						if (writer) {
-							setTabs((prev) =>
+							updateDocuments((prev) =>
 								prev.map((tab) =>
 									tab.id === writerId
 										? { ...tab, markdownConflict: true }

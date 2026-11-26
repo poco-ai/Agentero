@@ -233,7 +233,7 @@ export const TitleBar = memo(function TitleBar({
 							onToggleImmersive={onToggleImmersive}
 						/>
 					)}
-					{agentWindowOpen ? null : (
+					{
 						<>
 							{/*
 							 * Left click toggles the rail. Right click opens this menu.
@@ -329,7 +329,7 @@ export const TitleBar = memo(function TitleBar({
 								</DropdownMenuContent>
 							</DropdownMenu>
 						</>
-					)}
+					}
 					{/*
 				  Windows / Linux have no native menu bar, so the gear doubles as a
 				  compact app menu: settings entries plus the palette actions that

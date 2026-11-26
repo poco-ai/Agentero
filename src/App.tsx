@@ -739,10 +739,9 @@ export default function App() {
 							    Its Separator stays mounted too (see the left rail above). */}
 							<ResizableHandle
 								className={cn(
-									(!rightSidebarOpen || agentWindowOpen) &&
-										"pointer-events-none w-0 opacity-0",
+									!rightSidebarOpen && "pointer-events-none w-0 opacity-0",
 								)}
-								disabled={!rightSidebarOpen || agentWindowOpen}
+								disabled={!rightSidebarOpen}
 								onDoubleClick={() => commitRailReset("right")}
 								onPointerDown={() => {
 									isResizingRightRef.current = true;

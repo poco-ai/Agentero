@@ -6,7 +6,11 @@
  */
 
 import {
-	layout,
+	DEFAULT_SIDEBAR_AGENT,
+	openOrActivateSidebarTarget,
+	toggleSidebarTabs,
+} from "@/lib/shell/sidebar-tabs";
+import {
 	openRightTabInRail,
 	type RightSidebarTab,
 	setLayoutMode,
@@ -38,6 +42,7 @@ function revealRightRail(tab: RightSidebarTab, wasOpen: boolean): void {
 	if (!wasOpen || uiStore.getState().rightSidebarTab !== tab) {
 		openRightTabInRail(tab);
 	}
+	if (tab === "agent") openOrActivateSidebarTarget(DEFAULT_SIDEBAR_AGENT);
 	void import("@/lib/shell/feature-window").then(
 		async ({ preferFeatureWindow }) => {
 			if (generation !== railOpenGeneration) return;
@@ -46,22 +51,15 @@ function revealRightRail(tab: RightSidebarTab, wasOpen: boolean): void {
 			// This view lives in its own window. Close a rail we opened only
 			// for it. A rail that was already open keeps its width; the probe
 			// moves the selected tab off this view.
-			if (!wasOpen) layout()?.setRightCollapsed(true);
+			if (!wasOpen && uiStore.getState().rightSidebarOpen) toggleSidebarTabs();
 		},
 	);
 }
 
 /** ⌘L — toggle right sidebar (defaults to agent). */
 export function toggleChat(): void {
-	if (uiStore.getState().immersiveReading) return;
-	setLayoutMode("custom");
-	const { rightSidebarOpen, rightSidebarTab } = uiStore.getState();
-	if (rightSidebarOpen) {
-		railOpenGeneration += 1;
-		layout()?.setRightCollapsed(true);
-		return;
-	}
-	revealRightRail(rightSidebarTab, false);
+	railOpenGeneration += 1;
+	toggleSidebarTabs();
 }
 
 /**
