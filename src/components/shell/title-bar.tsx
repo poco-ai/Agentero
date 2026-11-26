@@ -1,5 +1,5 @@
 import { ArrowUpRight, PanelLeft, Settings, X } from "lucide-react";
-import { memo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
 import { LayoutMenu } from "@/components/shell/layout-menu";
@@ -75,6 +75,11 @@ export const TitleBar = memo(function TitleBar({
 	const COMMAND_PALETTE_SHORTCUT = useShortcutLabel("commandPalette");
 	const agentTemplate = useAgentChromeStore((s) => s.template);
 	const [agentRailMenuOpen, setAgentRailMenuOpen] = useState(false);
+	const [agentWindowTipOpen, setAgentWindowTipOpen] = useState(false);
+	const agentWindowTipTimer = useRef<number | undefined>(undefined);
+	const agentWindowTipTouchAt = useRef(0);
+	const AgentWindowIcon = agentWindowOpen ? X : ArrowUpRight;
+	const agentWindowLabel = t("titlebar.agentWindow");
 	// Palette entries in the gear menu hand focus to the title-bar field; stop
 	// Radix from restoring focus to the gear when that menu closes.
 	const paletteMenuOpenRef = useRef(false);
@@ -85,6 +90,8 @@ export const TitleBar = memo(function TitleBar({
 		agentRailMenuOpenedAt.current = performance.now();
 		setAgentRailMenuOpen(true);
 	};
+
+	useEffect(() => () => window.clearTimeout(agentWindowTipTimer.current), []);
 
 	return (
 		<WindowHeader className="relative z-40">
@@ -137,11 +144,9 @@ export const TitleBar = memo(function TitleBar({
 						// the Agent card shrinks to its label.
 						<span
 							aria-hidden
-							className="pointer-events-none invisible flex h-[1.375rem] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs"
+							className="pointer-events-none invisible hidden h-[1.375rem] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs md:flex"
 						>
-							<span className="min-w-0 truncate">
-								{t("titlebar.agentWindow")}
-							</span>
+							<span className="min-w-0 truncate">{agentWindowLabel}</span>
 							<ArrowUpRight className="size-3 shrink-0" />
 						</span>
 					) : null}
@@ -151,33 +156,76 @@ export const TitleBar = memo(function TitleBar({
 					{agentWindowAvailable ? (
 						<button
 							type="button"
-							aria-label={t("titlebar.agentWindow")}
+							aria-label={agentWindowLabel}
 							aria-pressed={agentWindowOpen}
-							title={t("titlebar.agentWindow")}
+							title={agentWindowLabel}
 							onClick={onToggleAgentWindow}
 							className={cn(
-								"pointer-events-auto flex h-[1.375rem] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none",
+								"pointer-events-auto hidden h-[1.375rem] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none md:flex",
 								agentWindowOpen
 									? "border-brand/40 bg-brand/20 text-brand"
 									: "border-brand/20 bg-brand/10 text-brand hover:bg-brand/15",
 							)}
 						>
-							<span className="min-w-0 truncate">
-								{t("titlebar.agentWindow")}
-							</span>
-							{agentWindowOpen ? (
-								<X className="size-3 shrink-0" aria-hidden />
-							) : (
-								<ArrowUpRight
-									className="size-3 shrink-0 opacity-70"
-									aria-hidden
-								/>
-							)}
+							<span className="min-w-0 truncate">{agentWindowLabel}</span>
+							<AgentWindowIcon
+								className={cn(
+									"size-3 shrink-0",
+									!agentWindowOpen && "opacity-70",
+								)}
+								aria-hidden
+							/>
 						</button>
 					) : null}
 				</div>
 				<div className="flex shrink-0 items-center gap-0.5 pr-2">
 					<UpdateIndicator />
+					{agentWindowAvailable ? (
+						<Tooltip
+							open={agentWindowTipOpen}
+							onOpenChange={(open) => {
+								// Radix closes on click; let the touch tooltip finish its
+								// short dwell instead of vanishing on pointerup.
+								if (
+									!open &&
+									performance.now() - agentWindowTipTouchAt.current < 600
+								) {
+									return;
+								}
+								setAgentWindowTipOpen(open);
+							}}
+						>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon-sm"
+									aria-label={agentWindowLabel}
+									aria-pressed={agentWindowOpen}
+									onClick={onToggleAgentWindow}
+									onPointerDown={(event) => {
+										if (event.pointerType === "mouse") return;
+										agentWindowTipTouchAt.current = performance.now();
+										setAgentWindowTipOpen(true);
+										window.clearTimeout(agentWindowTipTimer.current);
+										agentWindowTipTimer.current = window.setTimeout(
+											() => setAgentWindowTipOpen(false),
+											1600,
+										);
+									}}
+									className={cn(
+										"text-brand md:hidden",
+										agentWindowOpen
+											? "bg-brand/20 text-brand hover:bg-brand/20"
+											: "hover:bg-brand/10 hover:text-brand",
+									)}
+								>
+									<AgentWindowIcon className="size-3.5" aria-hidden />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="bottom">{agentWindowLabel}</TooltipContent>
+						</Tooltip>
+					) : null}
 					{agentWindowOpen ? null : (
 						<LayoutMenu
 							value={layoutMode}
