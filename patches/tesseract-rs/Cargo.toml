@@ -1,7 +1,7 @@
 # Vendored `tesseract-rs` 0.2.0 (MIT). Upstream pins `zip = "2"` for its
 # build-time Tesseract source download; that line is vulnerable to
 # GHSA-m665-v7pm-7grj / GHSA-q7v9-x93c-xqv3 / GHSA-8hxf-qr8p-62x4.
-# Only the version below and the `zip` 9 `mangled_name` result changed.
+# Also carries native-build compatibility fixes alongside the zip 9 update.
 # Remove this patch once upstream ships a release on zip >= 9.0.5.
 [package]
 name = "tesseract-rs"
