@@ -11,30 +11,10 @@ import {
 	useVaultStore,
 } from "@/hooks/use-app-stores";
 import { AgentSessionScopeContext } from "@/lib/agent/agent-session-store";
-import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
-import {
-	useZenStore,
-	type ZenHistoryItem,
-	zenScopeId,
-	zenStore,
-} from "@/lib/agent/zen-store";
+import { sessionHistoryItem } from "@/lib/agent/session-ref";
+import { useZenStore, zenScopeId, zenStore } from "@/lib/agent/zen-store";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { openSidebarCitation } from "@/lib/workspace/sidebar-citations";
-
-function historyItemFor(pending: ZenHistoryItem): ChatSessionHistoryItem {
-	return {
-		id: pending.id,
-		agentId: pending.agentId,
-		agentName: pending.agentName,
-		title: pending.title,
-		startedAt: pending.startedAt,
-		providerSessionId: pending.providerSessionId,
-		source: "external",
-		lines: [],
-		status: "completed",
-		resumeable: true,
-	};
-}
 
 export function AgentSessionView({
 	slotId,
@@ -43,7 +23,9 @@ export function AgentSessionView({
 	slotId: string;
 	autoFocus: boolean;
 }) {
-	const slot = useZenStoreSlot(slotId);
+	const slot = useZenStore(
+		(s) => s.slots.find((slot) => slot.id === slotId) ?? null,
+	);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const vaultMarkdownPaths = useVaultStore((s) => s.vaultMdFiles);
 	const vaultDirectoryPaths = useVaultStore((s) => s.vaultDirPaths);
@@ -55,7 +37,8 @@ export function AgentSessionView({
 		[slot],
 	);
 	const historyItem = useMemo(
-		() => (slot?.pendingHistory ? historyItemFor(slot.pendingHistory) : null),
+		() =>
+			slot?.pendingHistory ? sessionHistoryItem(slot.pendingHistory) : null,
 		[slot?.pendingHistory],
 	);
 	if (!slot || !scope) return null;
@@ -91,8 +74,4 @@ export function AgentSessionView({
 			/>
 		</AgentSessionScopeContext.Provider>
 	);
-}
-
-function useZenStoreSlot(slotId: string) {
-	return useZenStore((s) => s.slots.find((slot) => slot.id === slotId) ?? null);
 }

@@ -7,7 +7,7 @@ import { uiStore } from "@/lib/shell/ui-store";
 import { getActiveTab } from "@/lib/workspace/store";
 
 /** Whether an open Agent workspace should receive app-wide chat inputs. */
-export function zenOwnsChatInput(): boolean {
+function zenOwnsChatInput(): boolean {
 	const ui = uiStore.getState();
 	if (ui.agentWindowOpen) return true;
 	const active = getActiveTab();

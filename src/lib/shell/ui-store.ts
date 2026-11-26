@@ -312,10 +312,7 @@ export function clearPaperSearchDraft(): void {
  */
 export type LayoutController = {
 	setLeftCollapsed: (collapsed: boolean) => void;
-	setRightCollapsed: (
-		collapsed: boolean,
-		opts?: { focusAgent?: boolean },
-	) => void;
+	setRightCollapsed: (collapsed: boolean) => void;
 	applyLayoutMode: (mode: Exclude<LayoutMode, "custom">) => void;
 	/** Fullscreen plus hidden chrome. A second call restores the snapshot. */
 	toggleImmersiveReading: () => void;

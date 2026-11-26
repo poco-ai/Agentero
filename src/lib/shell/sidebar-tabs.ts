@@ -35,8 +35,8 @@ export type SidebarTarget =
 export type SidebarPanelTarget =
 	| SidebarTarget
 	| { kind: "launcher"; notesPath?: string | null; focusSearch?: boolean };
-export type SidebarTab = { viewId: string; target: SidebarTarget };
-export type SidebarSnapshot = {
+type SidebarTab = { viewId: string; target: SidebarTarget };
+type SidebarSnapshot = {
 	tabs: SidebarTab[];
 	activeViewId: string | null;
 	expanded: boolean;

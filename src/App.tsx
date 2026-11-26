@@ -53,13 +53,8 @@ import {
 	useShellLayout,
 } from "@/hooks/use-shell-layout";
 import { useVaultFileEvents } from "@/hooks/use-vault-file-events";
-import {
-	agentChromeStore,
-	getAgentChromeState,
-} from "@/lib/agent/agent-chrome-store";
 import { agentDock } from "@/lib/agent/agent-dock-registry";
 import { toggleAgentWindow } from "@/lib/agent/agent-window";
-import { listAgents } from "@/lib/agent/api";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	listenOpenAgentWithPrompt,
@@ -295,24 +290,6 @@ export default function App() {
 		if (agentWindowOpen) setAgentWindowMounted(true);
 	}, [agentWindowOpen]);
 
-	// Seed the chrome agent icon with the registry default before the Agent panel
-	// is ever opened. If the panel mounts first, it wins via agentChromeStore.
-	useEffect(() => {
-		if (!isTauri()) return;
-		if (getAgentChromeState().agentId) return;
-		void listAgents().then((res) => {
-			if (!res.defaultId) return;
-			const agent = res.agents.find((a) => a.id === res.defaultId);
-			if (agent) {
-				agentChromeStore.setState({
-					agentId: agent.id,
-					name: agent.name,
-					template: agent.template,
-				});
-			}
-		});
-	}, []);
-
 	// The Settings window is a separate WebView. Mirror unsaved Markdown paths
 	// into Host state so Doctor can reject a batch before touching any file.
 	useEffect(() => {
@@ -460,7 +437,7 @@ export default function App() {
 			layout()?.focusEditorPane();
 		},
 		focusNotes: () => layout()?.focusNotesEditor(),
-		newSidebarTab: () => newSidebarTab(),
+		newSidebarTab,
 		closeTab: closeFocusedTab,
 		reopenTab: reopenClosedTab,
 		splitPane: splitActivePane,

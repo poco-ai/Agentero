@@ -161,10 +161,6 @@ function onOpenAgentSettings(): void {
 	openSettingsWindow("agent");
 }
 
-function handleAgentOpenSource(source: string): void {
-	openCitation(source);
-}
-
 /** Holds the rail's shape until the heavy panel mounts on a later frame. */
 function AgentRailShell({ title }: { title: string }) {
 	return (
@@ -222,15 +218,13 @@ function SidebarAgent({
 	const vaultPaperPaths = useVaultStore((s) => s.vaultPaperPaths);
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
 	const paperTreeLabelMode = useSettings((s) => s.paperTreeLabelMode);
-	const workspacePath = useWorkspaceStore(
+	const selectedPath = useWorkspaceStore(
 		(s) => s.tabs.find((tab) => tab.id === s.activeTabId)?.path ?? null,
 	);
-	const workspaceTitle = useWorkspaceStore(
+	const selectedPaperTitle = useWorkspaceStore(
 		(s) =>
 			s.tabs.find((tab) => tab.id === s.activeTabId)?.paperMeta?.title ?? null,
 	);
-	const selectedPath = workspacePath;
-	const selectedPaperTitle = workspaceTitle;
 
 	useEffect(() => {
 		const subscription = api.onDidVisibilityChange(({ isVisible }) =>
@@ -378,7 +372,7 @@ function SidebarAgent({
 								title={agentTitle}
 								onOpenAgentSettings={onOpenAgentSettings}
 								onOpenSource={
-									agentWindowOpen ? openSidebarCitation : handleAgentOpenSource
+									agentWindowOpen ? openSidebarCitation : openCitation
 								}
 							/>
 						</Suspense>

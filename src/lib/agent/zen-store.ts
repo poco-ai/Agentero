@@ -11,21 +11,12 @@
  */
 
 import { createStore, useStore } from "zustand";
-import { agentChromeStore } from "@/lib/agent/agent-chrome-store";
 import {
 	type AgentSessionRecord,
 	type AgentSessionStoreApi,
-	agentSessionStore,
 	createAgentSessionStore,
-	EMPTY_CHAT_LINES,
 } from "@/lib/agent/agent-session-store";
 import { cancelAgentRun } from "@/lib/agent/api";
-import type { ChatLine } from "@/lib/agent/chat-state";
-import {
-	composerScopeKey,
-	loadAgentComposerState,
-	saveAgentComposerState,
-} from "@/lib/agent/composer-state";
 
 /** Agent shown on a slot row (updated when the slot's harness changes). */
 export type ZenSlotAgent = {
@@ -35,7 +26,7 @@ export type ZenSlotAgent = {
 };
 
 /** One ACP history row waiting to be loaded into a fresh slot. */
-export type ZenHistoryItem = {
+type ZenHistoryItem = {
 	/** Provider/runtime session id used for `session/load`. */
 	id: string;
 	agentId: string;
@@ -53,11 +44,10 @@ export type ZenSlot = {
 	pendingHistory?: ZenHistoryItem | null;
 };
 
-/** Initial session state for a new slot (rail takeover / history row). */
-export type ZenSlotSeed = {
+/** Initial session state for a new slot. */
+type ZenSlotSeed = {
 	sessions?: AgentSessionRecord[];
 	activeTabId?: string;
-	draftLines?: ChatLine[];
 	agentId?: string | null;
 	agentName?: string | null;
 	agentTemplate?: string | null;
@@ -99,8 +89,6 @@ function seedSlotStore(store: AgentSessionStoreApi, seed: ZenSlotSeed): void {
 	store.setState({
 		sessions,
 		activeTabId: seed.activeTabId || "draft",
-		hydratingSessionId: null,
-		draftLines: seed.draftLines?.length ? seed.draftLines : EMPTY_CHAT_LINES,
 	});
 }
 
@@ -207,109 +195,6 @@ export const zenStore = createStore<ZenState>((set, get) => ({
 		set({ slots: [], activeSlotId: null });
 	},
 }));
-
-function copyRailDraft(
-	vaultPath: string | null,
-	agentId: string | null,
-	sessionId: string,
-	slotId: string,
-): void {
-	if (!vaultPath || !agentId || typeof window === "undefined") return;
-	const fromKey = composerScopeKey(vaultPath, agentId);
-	const toKey = composerScopeKey(vaultPath, agentId, zenScopeId(slotId));
-	if (!fromKey || !toKey) return;
-	const draft = loadAgentComposerState(window.localStorage, fromKey, sessionId);
-	if (!draft) return;
-	saveAgentComposerState(window.localStorage, toKey, sessionId, draft);
-}
-
-/**
- * First Zen open takes over the rail's conversation: collapse is handled by
- * the caller, this seeds slot #1 from the rail store and copies its draft.
- * The rail store itself is left untouched so reopening it still shows the
- * original conversation.
- */
-export function seedZenFromRail(vaultPath: string | null): void {
-	if (zenStore.getState().slots.length > 0) return;
-	const rail = agentSessionStore.getState();
-	// Visual-annotation pin chats belong to the rail/PDF side; Zen takes over
-	// ordinary conversations only.
-	const sessions = rail.sessions.filter((session) => !session.visualTraceId);
-	const activeTabId = sessions.some(
-		(session) => session.id === rail.activeTabId,
-	)
-		? rail.activeTabId
-		: "draft";
-	const active = sessions.find((session) => session.id === activeTabId) ?? null;
-	const agentId =
-		agentChromeStore.getState().agentId ??
-		active?.agentId ??
-		sessions[0]?.agentId ??
-		null;
-	const slotId = zenStore.getState().addSlot({
-		sessions,
-		activeTabId,
-		draftLines: activeTabId === "draft" ? rail.draftLines : undefined,
-		agentId,
-		agentName: active?.agentName ?? null,
-	});
-	copyRailDraft(vaultPath, agentId, activeTabId, slotId);
-}
-
-/**
- * First Agent-window open takes over the rail's conversations, one slot (and
- * therefore one Dockview tab) per ordinary rail session. A rail draft becomes
- * its own tab. Pin/visual-trace chats stay with the paper reader.
- */
-export function seedAgentWindowFromRail(vaultPath: string | null): void {
-	if (zenStore.getState().slots.length > 0) return;
-	const rail = agentSessionStore.getState();
-	const sessions = rail.sessions.filter((session) => !session.visualTraceId);
-	const chromeAgentId = agentChromeStore.getState().agentId;
-	const activeRailId = sessions.some(
-		(session) => session.id === rail.activeTabId,
-	)
-		? rail.activeTabId
-		: "draft";
-	let activeSlotId: string | null = null;
-	const slotBySession = new Map<string, string>();
-
-	for (const session of sessions) {
-		const agentId = session.agentId ?? chromeAgentId ?? null;
-		const slotId = zenStore.getState().addSlot({
-			sessions: [session],
-			activeTabId: session.id,
-			agentId,
-			agentName: session.agentName ?? null,
-		});
-		slotBySession.set(session.id, slotId);
-		if (session.id === activeRailId) activeSlotId = slotId;
-	}
-
-	if (activeRailId === "draft") {
-		const agentId = chromeAgentId ?? sessions[0]?.agentId ?? null;
-		const slotId = zenStore.getState().addSlot({
-			activeTabId: "draft",
-			draftLines: rail.draftLines,
-			agentId,
-		});
-		activeSlotId = slotId;
-		copyRailDraft(vaultPath, agentId, "draft", slotId);
-	} else {
-		const slotId = slotBySession.get(activeRailId);
-		if (slotId) {
-			const session = sessions.find((item) => item.id === activeRailId);
-			copyRailDraft(
-				vaultPath,
-				session?.agentId ?? chromeAgentId ?? null,
-				activeRailId,
-				slotId,
-			);
-		}
-	}
-
-	if (activeSlotId) zenStore.getState().activateSlot(activeSlotId);
-}
 
 /** React binding for the module store (rows derive their own slot store). */
 export function useZenStore<T>(selector: (state: ZenState) => T): T {

@@ -33,7 +33,6 @@ import {
 	AgentSessionScopeContext,
 } from "@/lib/agent/agent-session-store";
 import type { AcpSessionInfo } from "@/lib/agent/api";
-import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import { focusOwnedAgentSession } from "@/lib/agent/open-owned-session";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
@@ -41,7 +40,6 @@ import { invalidateHarnessHistory } from "@/lib/agent/session-history-cache";
 import { sessionHistoryItem } from "@/lib/agent/session-ref";
 import {
 	useZenStore,
-	type ZenHistoryItem,
 	type ZenSlot,
 	zenScopeId,
 	zenStore,
@@ -53,21 +51,6 @@ import { useZenHarnessHistory } from "./use-zen-history";
 
 function onOpenAgentSettings(): void {
 	openSettingsWindow("agent");
-}
-
-function historyItemFor(pending: ZenHistoryItem): ChatSessionHistoryItem {
-	return {
-		id: pending.id,
-		agentId: pending.agentId,
-		agentName: pending.agentName,
-		title: pending.title,
-		startedAt: pending.startedAt,
-		providerSessionId: pending.providerSessionId,
-		source: "external",
-		lines: [],
-		status: "completed",
-		resumeable: true,
-	};
 }
 
 function ZenSlotPanel({
@@ -82,7 +65,8 @@ function ZenSlotPanel({
 		[slot.id, slot.store],
 	);
 	const historyItem = useMemo(
-		() => (slot.pendingHistory ? historyItemFor(slot.pendingHistory) : null),
+		() =>
+			slot.pendingHistory ? sessionHistoryItem(slot.pendingHistory) : null,
 		[slot.pendingHistory],
 	);
 	const vaultPath = useVaultStore((s) => s.vaultPath);

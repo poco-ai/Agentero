@@ -31,7 +31,6 @@ import {
 	openAgentLoginTerminal,
 	setDefaultAgent,
 } from "@/lib/agent";
-import { agentChromeStore } from "@/lib/agent/agent-chrome-store";
 import {
 	applyAgentSessionHandoffOnce,
 	getActiveLines,
@@ -346,8 +345,6 @@ export function useAgentPanel({
 		}
 	}, [selectedLogin, refresh]);
 
-	// Keep app chrome (title bar, mobile nav, …) in sync with the active agent;
-	// other surfaces (Zen slots) only report their own harness upstream.
 	const selectedId = selected?.id ?? null;
 	const selectedName = selected?.name ?? null;
 	const selectedTemplate = selected?.template ?? null;
@@ -358,13 +355,7 @@ export function useAgentPanel({
 			name: selectedName ?? selectedId,
 			template: selectedTemplate,
 		});
-		if (!isRailScope) return;
-		agentChromeStore.setState({
-			agentId: selectedId,
-			name: selectedName ?? selectedId,
-			template: selectedTemplate,
-		});
-	}, [isRailScope, onAgentChange, selectedId, selectedName, selectedTemplate]);
+	}, [onAgentChange, selectedId, selectedName, selectedTemplate]);
 
 	const activeTabIsRunning = useAgentSessionStore(isActiveTabRunning);
 	const activeUsage = usageBySession[activeTabId] ?? usage;

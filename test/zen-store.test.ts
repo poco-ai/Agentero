@@ -1,21 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { agentChromeStore } from "@/lib/agent/agent-chrome-store";
-import {
-	type AgentSessionRecord,
-	agentSessionStore,
-	EMPTY_CHAT_LINES,
-} from "@/lib/agent/agent-session-store";
-import {
-	closeZenWorkspace,
-	seedAgentWindowFromRail,
-	seedZenFromRail,
-	zenStore,
-} from "@/lib/agent/zen-store";
+import type { AgentSessionRecord } from "@/lib/agent/agent-session-store";
+import { closeZenWorkspace, zenStore } from "@/lib/agent/zen-store";
 
-function session(
-	id: string,
-	overrides: Partial<AgentSessionRecord> = {},
-): AgentSessionRecord {
+function session(id: string): AgentSessionRecord {
 	return {
 		id,
 		agentId: "agent-1",
@@ -25,20 +12,10 @@ function session(
 		startedAt: "",
 		lines: [],
 		status: "completed",
-		...overrides,
 	};
 }
 
-beforeEach(() => {
-	closeZenWorkspace();
-	agentSessionStore.setState({
-		sessions: [],
-		activeTabId: "draft",
-		hydratingSessionId: null,
-		draftLines: EMPTY_CHAT_LINES,
-	});
-	agentChromeStore.setState({ agentId: null, name: null, template: null });
-});
+beforeEach(closeZenWorkspace);
 
 describe("zen slots", () => {
 	it("activates the newest slot and falls back to a neighbor on close", () => {
@@ -120,109 +97,5 @@ describe("zen slots", () => {
 		zenStore.getState().closeSlotSession(id, "chat-1");
 
 		expect(zenStore.getState().slots).toHaveLength(0);
-	});
-});
-
-describe("rail takeover", () => {
-	it("copies ordinary sessions and leaves the rail store intact", () => {
-		const chat = session("chat-1");
-		const pin = session("pin-1", { visualTraceId: "trace-1" });
-		agentSessionStore.setState({
-			sessions: [chat, pin],
-			activeTabId: "chat-1",
-		});
-		agentChromeStore.setState({
-			agentId: "agent-1",
-			name: "Agent",
-			template: "opencode",
-		});
-
-		seedZenFromRail(null);
-
-		const [slot] = zenStore.getState().slots;
-		expect(slot).toBeDefined();
-		if (!slot) return;
-		const zenState = slot.store.getState();
-		expect(zenState.sessions.map((item) => item.id)).toEqual(["chat-1"]);
-		expect(zenState.activeTabId).toBe("chat-1");
-		expect(slot.agent.id).toBe("agent-1");
-		// The rail keeps its own copy (pin sessions included).
-		expect(agentSessionStore.getState().sessions).toHaveLength(2);
-	});
-
-	it("starts a draft when the rail's active tab was a pin chat", () => {
-		agentSessionStore.setState({
-			sessions: [session("pin-1", { visualTraceId: "trace-1" })],
-			activeTabId: "pin-1",
-		});
-
-		seedZenFromRail(null);
-
-		const [slot] = zenStore.getState().slots;
-		expect(slot?.store.getState().activeTabId).toBe("draft");
-		expect(slot?.store.getState().sessions).toEqual([]);
-	});
-
-	it("only seeds once", () => {
-		agentSessionStore.setState({
-			sessions: [session("chat-1")],
-			activeTabId: "chat-1",
-		});
-		seedZenFromRail(null);
-		seedZenFromRail(null);
-		expect(zenStore.getState().slots).toHaveLength(1);
-	});
-});
-
-describe("agent window takeover", () => {
-	it("opens one slot per ordinary rail session and activates the rail tab", () => {
-		agentSessionStore.setState({
-			sessions: [
-				session("chat-1"),
-				session("chat-2", { agentId: "agent-2", agentName: "Codex" }),
-				session("pin-1", { visualTraceId: "trace-1" }),
-			],
-			activeTabId: "chat-2",
-		});
-		agentChromeStore.setState({ agentId: "agent-1", name: "Agent" });
-
-		seedAgentWindowFromRail(null);
-
-		const slots = zenStore.getState().slots;
-		expect(
-			slots.map((slot) => slot.store.getState().sessions.map((s) => s.id)),
-		).toEqual([["chat-1"], ["chat-2"]]);
-		const active = slots.find(
-			(slot) => slot.id === zenStore.getState().activeSlotId,
-		);
-		expect(active?.store.getState().activeTabId).toBe("chat-2");
-		expect(active?.agent.id).toBe("agent-2");
-		expect(active?.agent.name).toBe("Codex");
-	});
-
-	it("adds a draft tab when the rail's active tab is a pin", () => {
-		agentSessionStore.setState({
-			sessions: [session("pin-1", { visualTraceId: "trace-1" })],
-			activeTabId: "pin-1",
-		});
-		agentChromeStore.setState({ agentId: "agent-1", name: "Agent" });
-
-		seedAgentWindowFromRail(null);
-
-		const slots = zenStore.getState().slots;
-		expect(slots).toHaveLength(1);
-		expect(slots[0]?.store.getState().sessions).toEqual([]);
-		expect(slots[0]?.store.getState().activeTabId).toBe("draft");
-		expect(slots[0]?.agent.id).toBe("agent-1");
-	});
-
-	it("only seeds once", () => {
-		agentSessionStore.setState({
-			sessions: [session("chat-1")],
-			activeTabId: "chat-1",
-		});
-		seedAgentWindowFromRail(null);
-		seedAgentWindowFromRail(null);
-		expect(zenStore.getState().slots).toHaveLength(1);
 	});
 });

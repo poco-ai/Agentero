@@ -150,10 +150,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		};
 
 		/** Collapse / expand right Agent/Backlinks panel (always mounted). */
-		const setRightCollapsed = (
-			collapsed: boolean,
-			_opts?: { focusAgent?: boolean },
-		) => {
+		const setRightCollapsed = (collapsed: boolean) => {
 			const panel = rightSidebarPanelRef.current;
 			if (panel) {
 				if (collapsed) {
