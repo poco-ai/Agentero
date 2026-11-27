@@ -83,6 +83,7 @@
 		"newConversation": "新会话",
 		"untitled": "新对话",
 		"close": "关闭对话",
+		"showAllSessions": "显示全部",
 		"welcome": {
 			"headline": "在 {{vault}} 中与 {{agent}} 共建文献库"
 		}

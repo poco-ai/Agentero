@@ -7,26 +7,18 @@
  */
 
 import { zenStore } from "@/lib/agent/zen-store";
-import { layout, setAgentWindowOpen, uiStore } from "@/lib/shell/ui-store";
+import { setAgentWindowOpen, uiStore } from "@/lib/shell/ui-store";
 import { getVaultPath } from "@/lib/vault/store";
-
-let sidebarWasCollapsed = false;
 
 export function openAgentWindow(): void {
 	const vaultPath = getVaultPath();
 	if (!vaultPath || uiStore.getState().agentWindowOpen) return;
-	const ui = uiStore.getState();
-	sidebarWasCollapsed = ui.sidebarCollapsed;
 	if (!zenStore.getState().slots.length) zenStore.getState().addSlot();
 	setAgentWindowOpen(true);
-	if (sidebarWasCollapsed) layout()?.setLeftCollapsed(false);
 }
 
 export function closeAgentWindow(): void {
-	if (!uiStore.getState().agentWindowOpen) return;
 	setAgentWindowOpen(false);
-	if (sidebarWasCollapsed) layout()?.setLeftCollapsed(true);
-	sidebarWasCollapsed = false;
 }
 
 export function toggleAgentWindow(): void {

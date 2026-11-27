@@ -83,6 +83,7 @@
 		"newConversation": "New Session",
 		"untitled": "New chat",
 		"close": "Close conversation",
+		"showAllSessions": "Show all",
 		"welcome": {
 			"headline": "Build your library in {{vault}} with {{agent}}"
 		}

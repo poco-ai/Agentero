@@ -16,7 +16,6 @@ import type {
 import { formatLocaleTimestamp } from "@/i18n";
 import {
 	type AcpDeleteSessionResult,
-	type AcpLoadSessionResult,
 	type AcpSessionInfo,
 	cancelAgentRun,
 	deleteSession,
@@ -52,10 +51,12 @@ import {
 	getOverriddenHistoryTitle,
 	isDismissedAcpSession,
 	isEmptyAcpSession,
+	isSessionIdPrefixTitle,
 	rememberDismissedAcpSession,
 	rememberEmptyAcpSession,
 	setCachedHistoryTitle,
 	setUserHistoryTitle,
+	titleFromLoadedHistory,
 } from "@/lib/agent/history-title-cache";
 import { focusOwnedAgentSession } from "@/lib/agent/open-owned-session";
 import {
@@ -90,15 +91,6 @@ export const sanitizeChatLines = (raw: ChatLine[]): ChatLine[] =>
 		})
 		.filter((line): line is ChatLine => line !== null);
 
-/** Derive a human-readable title from a loaded ACP session's first user turn. */
-export function titleFromLoadedHistory(history: AcpLoadSessionResult): string {
-	const firstUser = history.lines.find((line) => line.kind === "user");
-	if (firstUser) {
-		return displayHistoryTitle(firstUser.text, history.title ?? "");
-	}
-	return displayHistoryTitle(history.title ?? "");
-}
-
 /** First user-turn label from already-hydrated local lines (empty if none). */
 export function titleFromSessionLines(
 	lines: AgentSessionRecord["lines"],
@@ -110,25 +102,6 @@ export function titleFromSessionLines(
 			? inlineMarkupToPlain(firstUser.markup)
 			: firstUser.text;
 	return displayHistoryTitle(source, "");
-}
-
-/**
- * True when `title` is a session-id placeholder (#484), not a human label.
- * Matches exact id, the historical 8-char slice, or any leading slice of the
- * id (Kimi `ses_…` ids often left short leftovers in the store).
- */
-export function isSessionIdPrefixTitle(
-	title: string,
-	sessionId: string,
-): boolean {
-	const trimmed = title.trim();
-	const id = sessionId.trim();
-	if (!trimmed || !id) return false;
-	if (trimmed === id) return true;
-	if (trimmed === id.slice(0, 8)) return true;
-	// Prior bad seeds / OCR-short ids: title is a prefix of the real session id.
-	if (trimmed.length >= 6 && id.startsWith(trimmed)) return true;
-	return false;
 }
 
 type HydrateTitleOptions = {
@@ -794,11 +767,21 @@ export function useAgentHistory({
 						text: t("messages.sessionEmpty"),
 					});
 				}
-				const firstUser = nextLines.find((l) => l.kind === "user");
+				const overridden = getOverriddenHistoryTitle(
+					requestAgentId,
+					item.id,
+					providerSessionId,
+				);
+				const loadedTitle = titleFromLoadedHistory(history);
 				const titleFromBody =
-					firstUser?.kind === "user"
-						? displayHistoryTitle(firstUser.text, history.title ?? "")
-						: displayHistoryTitle(history.title ?? "");
+					overridden ||
+					(item.titleLocked ? item.title : loadedTitle || item.title);
+				if (
+					loadedTitle &&
+					!isSessionIdPrefixTitle(loadedTitle, providerSessionId) &&
+					!overridden
+				)
+					setCachedHistoryTitle(requestAgentId, providerSessionId, loadedTitle);
 				activeConversationRef.current = providerSessionId;
 				activateComposerSession(item.id);
 				activeTabRef.current = item.id;

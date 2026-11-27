@@ -185,6 +185,7 @@ export type ChatSessionHistoryItem = {
 	title: string;
 	agentName: string;
 	startedAt: string;
+	updatedAt?: string;
 	lines: ChatLine[];
 	status: "running" | "completed" | "cancelled" | "failed";
 	/** Durable ACP provider session id used to resume this conversation. */

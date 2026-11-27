@@ -588,6 +588,7 @@ export function useAgentSend({
 			startedAt:
 				turn.activeHistory?.startedAt ||
 				formatLocaleTimestamp(new Date(), i18nLanguage),
+			updatedAt: new Date().toISOString(),
 			lines: historyLines,
 			status: "running",
 			// Carry over pin session provider id until completed event.

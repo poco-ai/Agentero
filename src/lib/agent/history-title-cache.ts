@@ -1,3 +1,5 @@
+import type { AcpLoadSessionResult, AcpSessionInfo } from "@/lib/agent/api";
+import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 
 /**
@@ -85,6 +87,50 @@ function lookup(
 		map[cacheKey(agent, id)]?.trim() ||
 		null
 	);
+}
+
+export function isSessionIdPrefixTitle(
+	title: string,
+	sessionId: string,
+): boolean {
+	const trimmed = title.trim();
+	const id = sessionId.trim();
+	return Boolean(
+		trimmed &&
+			id &&
+			(trimmed === id || (trimmed.length >= 6 && id.startsWith(trimmed))),
+	);
+}
+
+export function titleFromLoadedHistory(history: AcpLoadSessionResult): string {
+	for (const line of history.lines) {
+		if (line.kind !== "user") continue;
+		const title = displayHistoryTitle(line.text);
+		if (title) return title;
+	}
+	return displayHistoryTitle(history.title ?? "");
+}
+
+export function applyListedHistoryTitles(
+	agentId: string,
+	sessions: AcpSessionInfo[],
+): AcpSessionInfo[] {
+	const cached = readAll();
+	const overrides = readOverrides();
+	const empty = readEmptySessions();
+	const dismissed = readDismissedSessions();
+	return sessions.flatMap((session) => {
+		const id = session.sessionId;
+		const key = cacheKey(agentId, id);
+		if (empty[key] || dismissed[key]) return [];
+		const supplied = displayHistoryTitle(session.title ?? "");
+		const saved = lookup(cached, agentId, id);
+		const title =
+			lookup(overrides, agentId, id) ??
+			((!isSessionIdPrefixTitle(supplied, id) && supplied) ||
+				(saved && !isSessionIdPrefixTitle(saved, id) ? saved : null));
+		return [{ ...session, title }];
+	});
 }
 
 export function getCachedHistoryTitle(

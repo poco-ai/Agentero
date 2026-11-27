@@ -113,18 +113,21 @@ export const uiStore = createStore<UiStore>(() => ({
 	paperSearchDraft: null,
 }));
 
+let sidebarBeforeAgentWindow: boolean | undefined;
+
 export function setSidebarCollapsedState(collapsed: boolean): void {
-	const prev = uiStore.getState().sidebarCollapsed;
+	const state = uiStore.getState();
 	uiStore.setState({ sidebarCollapsed: collapsed });
 	// Persist the left sidebar's state unless temporarily collapsed by Reading mode.
 	if (
-		prev !== collapsed &&
-		uiStore.getState().layoutMode !== "reading" &&
-		!uiStore.getState().immersiveReading
+		state.sidebarCollapsed !== collapsed &&
+		state.layoutMode !== "reading" &&
+		!state.immersiveReading &&
+		!state.agentWindowOpen
 	) {
 		saveCustomRails({
 			leftCollapsed: collapsed,
-			rightOpen: uiStore.getState().rightSidebarOpen,
+			rightOpen: state.rightSidebarOpen,
 		});
 	}
 }
@@ -138,7 +141,7 @@ export function setLayoutMode(layoutMode: LayoutMode): void {
 		const state = uiStore.getState();
 		if (state.lastAppliedPreset) saveLastPreset(state.lastAppliedPreset);
 		saveCustomRails({
-			leftCollapsed: state.sidebarCollapsed,
+			leftCollapsed: sidebarBeforeAgentWindow ?? state.sidebarCollapsed,
 			rightOpen: state.rightSidebarOpen,
 		});
 	}
@@ -158,7 +161,8 @@ export function setRightSidebarOpenState(open: boolean): void {
 		!uiStore.getState().immersiveReading
 	) {
 		saveCustomRails({
-			leftCollapsed: uiStore.getState().sidebarCollapsed,
+			leftCollapsed:
+				sidebarBeforeAgentWindow ?? uiStore.getState().sidebarCollapsed,
 			rightOpen: open,
 		});
 	}
@@ -199,8 +203,15 @@ export function initShellLayoutFromPrefs(): void {
 }
 
 export function setAgentWindowOpen(open: boolean): void {
-	if (uiStore.getState().agentWindowOpen === open) return;
+	const state = uiStore.getState();
+	if (state.agentWindowOpen === open) return;
+	const collapsed =
+		open || (sidebarBeforeAgentWindow ?? state.sidebarCollapsed);
+	sidebarBeforeAgentWindow = open ? state.sidebarCollapsed : undefined;
 	uiStore.setState({ agentWindowOpen: open });
+	const controller = layout();
+	if (controller) controller.setLeftCollapsed(collapsed);
+	else uiStore.setState({ sidebarCollapsed: collapsed });
 }
 
 export function setAgentPanelMounted(mounted: boolean): void {
@@ -357,6 +368,7 @@ export function setFeaturePoppedOut(
  * `lookupOpenSignal` all outlive a vault switch.
  */
 export function clearUiVaultState(): void {
+	setAgentWindowOpen(false);
 	uiStore.setState({
 		skillImportDraft: null,
 		paperSearchDraft: null,
@@ -367,6 +379,5 @@ export function clearUiVaultState(): void {
 		alphaxivParentDir: null,
 		zoteroSyncOpen: false,
 		commandOpen: false,
-		agentWindowOpen: false,
 	});
 }

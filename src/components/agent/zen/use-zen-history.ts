@@ -16,15 +16,25 @@ import {
 	type AcpSessionInfo,
 	type AgentDescriptor,
 	listAgents,
+	loadSession,
 } from "@/lib/agent/api";
 import { isBackgroundWorkflowHistoryTitle } from "@/lib/agent/chat-state";
-import { isDismissedAcpSession } from "@/lib/agent/history-title-cache";
+import {
+	applyListedHistoryTitles,
+	getCachedHistoryTitle,
+	getOverriddenHistoryTitle,
+	isSessionIdPrefixTitle,
+	rememberEmptyAcpSession,
+	setCachedHistoryTitle,
+	titleFromLoadedHistory,
+} from "@/lib/agent/history-title-cache";
 import {
 	cachedHarnessHistory,
 	fetchHarnessHistory,
 	isHarnessHistoryFresh,
 } from "@/lib/agent/session-history-cache";
 import { isTauri } from "@/lib/core/tauri";
+import { mapLimit } from "@/lib/core/utils";
 import { lifecycle } from "@/lib/lifecycle";
 
 export type ZenHarnessHistory = {
@@ -42,6 +52,7 @@ export type ZenHarnessHistoryState = {
 
 /** Cold ACP starts are CPU/IO heavy; keep the fan-out small. */
 const LOAD_CONCURRENCY = 3;
+const TITLE_CONCURRENCY = 2;
 
 function byDefaultThenName(defaultId: string | null) {
 	return (a: AgentDescriptor, b: AgentDescriptor) => {
@@ -56,33 +67,12 @@ function visibleSessions(
 	agentId: string,
 	sessions: AcpSessionInfo[],
 ): AcpSessionInfo[] {
-	return sessions
-		.filter(
-			(session) =>
-				!isBackgroundWorkflowHistoryTitle(session.title ?? "") &&
-				!isDismissedAcpSession(agentId, session.sessionId),
-		)
-		.sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
-}
-
-/** Run tasks with a fixed number of workers; stops early when one throws. */
-async function runLimited<T>(
-	items: T[],
-	limit: number,
-	task: (item: T) => Promise<void>,
-): Promise<void> {
-	let index = 0;
-	const workers = Array.from(
-		{ length: Math.min(limit, items.length) },
-		async () => {
-			while (index < items.length) {
-				const item = items[index];
-				index += 1;
-				await task(item);
-			}
-		},
-	);
-	await Promise.all(workers);
+	return applyListedHistoryTitles(
+		agentId,
+		sessions.filter(
+			(session) => !isBackgroundWorkflowHistoryTitle(session.title ?? ""),
+		),
+	).sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
 }
 
 export function useZenHarnessHistory(
@@ -91,32 +81,10 @@ export function useZenHarnessHistory(
 ): ZenHarnessHistoryState {
 	const [sections, setSections] = useState<ZenHarnessHistory[]>([]);
 	const [loading, setLoading] = useState(false);
-	const defaultIdRef = useRef<string | null>(null);
-	/** Agents in the latest registry; late results for removed agents are dropped. */
-	const knownAgentsRef = useRef<Set<string>>(new Set());
 	const generationRef = useRef(0);
 	const refreshRef = useRef<Promise<void> | null>(null);
 	/** A second request arrived while a refresh was running (e.g. install). */
 	const rerunRef = useRef(false);
-
-	/** Replace one harness's rows (and loading flag) in place. */
-	const publish = useCallback(
-		(agent: AgentDescriptor, sessions: AcpSessionInfo[], loading: boolean) => {
-			if (!knownAgentsRef.current.has(agent.id)) return;
-			const visible = visibleSessions(agent.id, sessions);
-			setSections((prev) => {
-				const index = prev.findIndex(
-					(section) => section.agent.id === agent.id,
-				);
-				const section = { agent, sessions: visible, loading };
-				if (index === -1) return [...prev, section];
-				const next = [...prev];
-				next[index] = section;
-				return next;
-			});
-		},
-		[],
-	);
 
 	const refresh = useCallback((): Promise<void> => {
 		if (!isTauri()) return Promise.resolve();
@@ -126,21 +94,92 @@ export function useZenHarnessHistory(
 		}
 		const generation = generationRef.current + 1;
 		generationRef.current = generation;
+		const isCurrent = () => generation === generationRef.current;
+		const titleQueue: { agentId: string; sessionId: string }[] = [];
+		let titlesLoading = 0;
+		const updateSection = (
+			agentId: string,
+			update: (section: ZenHarnessHistory) => ZenHarnessHistory,
+		) => {
+			if (!isCurrent()) return;
+			setSections((prev) =>
+				prev.map((section) =>
+					section.agent.id === agentId ? update(section) : section,
+				),
+			);
+		};
+		const drainTitles = () => {
+			while (isCurrent() && titlesLoading < TITLE_CONCURRENCY) {
+				const item = titleQueue.shift();
+				if (!item) return;
+				const { agentId, sessionId } = item;
+				titlesLoading += 1;
+				void (async () => {
+					let title =
+						getOverriddenHistoryTitle(agentId, sessionId) ??
+						getCachedHistoryTitle(agentId, sessionId);
+					if (!title || isSessionIdPrefixTitle(title, sessionId)) {
+						const history = await loadSession({
+							agentId,
+							sessionId,
+							vaultPath: vaultPath ?? undefined,
+						});
+						if (!isCurrent()) return;
+						if (!history.lines.length) {
+							rememberEmptyAcpSession(agentId, sessionId);
+							updateSection(agentId, (section) => ({
+								...section,
+								sessions: section.sessions.filter(
+									(row) => row.sessionId !== sessionId,
+								),
+							}));
+							return;
+						}
+						title = titleFromLoadedHistory(history);
+						if (!title || isSessionIdPrefixTitle(title, sessionId)) return;
+						setCachedHistoryTitle(agentId, sessionId, title);
+					}
+					const resolved =
+						getOverriddenHistoryTitle(agentId, sessionId) ?? title;
+					updateSection(agentId, (section) => ({
+						...section,
+						sessions: section.sessions.map((row) =>
+							row.sessionId === sessionId ? { ...row, title: resolved } : row,
+						),
+					}));
+				})()
+					.catch(() => undefined)
+					.finally(() => {
+						titlesLoading -= 1;
+						drainTitles();
+					});
+			}
+		};
+		const queueTitles = (agentId: string, sessions: AcpSessionInfo[]) => {
+			for (const session of sessions) {
+				if (!session.title)
+					titleQueue.push({ agentId, sessionId: session.sessionId });
+			}
+			drainTitles();
+		};
 		const run = (async () => {
 			setLoading(true);
 			try {
 				const registry = await listAgents();
-				if (generation !== generationRef.current) return;
-				defaultIdRef.current = registry.defaultId;
+				if (!isCurrent()) return;
 				const agents = registry.agents
 					.filter((agent) => agent.available)
 					.sort(byDefaultThenName(registry.defaultId));
-				knownAgentsRef.current = new Set(agents.map((agent) => agent.id));
-				const stale = agents.filter(
-					(agent) =>
-						!isHarnessHistoryFresh(cachedHarnessHistory(vaultPath, agent.id)),
-				);
-				const staleIds = new Set(stale.map((agent) => agent.id));
+				const initial = agents.map((agent) => {
+					const cached = cachedHarnessHistory(vaultPath, agent.id);
+					return {
+						agent,
+						sessions: cached
+							? visibleSessions(agent.id, cached.sessions)
+							: null,
+						loading: !isHarnessHistoryFresh(cached),
+					};
+				});
 				// Publish every harness immediately — the registry is one cheap call —
 				// and let each harness fill in its own rows. The sidebar must not
 				// depend on the slowest ACP start to show which agents exist.
@@ -148,44 +187,46 @@ export function useZenHarnessHistory(
 					const previous = new Map(
 						prev.map((section) => [section.agent.id, section.sessions]),
 					);
-					return agents.map((agent) => ({
-						agent,
-						sessions: visibleSessions(
-							agent.id,
-							cachedHarnessHistory(vaultPath, agent.id)?.sessions ??
-								previous.get(agent.id) ??
-								[],
-						),
-						loading: staleIds.has(agent.id),
+					return initial.map((section) => ({
+						...section,
+						sessions:
+							section.sessions ??
+							visibleSessions(
+								section.agent.id,
+								previous.get(section.agent.id) ?? [],
+							),
 					}));
 				});
-				await runLimited(stale, LOAD_CONCURRENCY, async (agent) => {
-					try {
+				for (const section of initial) {
+					if (!section.loading && section.sessions)
+						queueTitles(section.agent.id, section.sessions);
+				}
+				await mapLimit(
+					initial.filter((section) => section.loading),
+					LOAD_CONCURRENCY,
+					async (section) => {
+						if (!isCurrent()) return;
+						const agentId = section.agent.id;
 						const entry = await fetchHarnessHistory({
 							vaultPath,
-							agentId: agent.id,
-						});
-						if (generation === generationRef.current) {
-							publish(agent, entry.sessions, false);
-						}
-					} catch {
-						// A harness that needs login or dies must not blank the list;
-						// keep any cached rows and clear its spinner.
-						if (generation === generationRef.current) {
-							setSections((prev) =>
-								prev.map((section) =>
-									section.agent.id === agent.id
-										? { ...section, loading: false }
-										: section,
-								),
-							);
-						}
-					}
-				});
+							agentId,
+						}).catch(() => null);
+						if (!isCurrent()) return;
+						const sessions = entry
+							? visibleSessions(agentId, entry.sessions)
+							: section.sessions;
+						updateSection(agentId, (current) => ({
+							...current,
+							sessions: sessions ?? current.sessions,
+							loading: false,
+						}));
+						if (sessions) queueTitles(agentId, sessions);
+					},
+				);
 			} catch {
 				// `listAgents` failed: keep the current list.
 			} finally {
-				if (generation === generationRef.current) setLoading(false);
+				if (isCurrent()) setLoading(false);
 			}
 		})();
 		const tracked = run.finally(() => {
@@ -198,10 +239,18 @@ export function useZenHarnessHistory(
 		});
 		refreshRef.current = tracked;
 		return tracked;
-	}, [publish, vaultPath]);
+	}, [vaultPath]);
 
 	useEffect(() => {
-		if (enabled) void refresh();
+		if (!enabled) return;
+		void refresh();
+		return () => {
+			generationRef.current += 1;
+			refreshRef.current = null;
+			rerunRef.current = false;
+			setSections([]);
+			setLoading(false);
+		};
 	}, [enabled, refresh]);
 
 	useEffect(() => {

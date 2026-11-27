@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
+import type { ZenHarnessHistory } from "@/components/agent/zen/use-zen-history";
 import type { AgentSessionRecord } from "@/lib/agent/agent-session-store";
 import type { ZenSlot } from "@/lib/agent/zen-store";
 
@@ -17,9 +18,25 @@ export type ZenOpenRow = {
 	title: string;
 	status: AgentSessionRecord["status"] | null;
 	startedAt: string;
+	updatedAt?: string;
 	activeTab: boolean;
 	pendingId: string | null;
 };
+
+export function openSessionSortTime(
+	row: ZenOpenRow,
+	historySections: ZenHarnessHistory[],
+): number {
+	const sessionId = row.providerSessionId ?? row.pendingId ?? row.sessionId;
+	if (!sessionId) return Number.POSITIVE_INFINITY;
+	const listed = historySections
+		.find((section) => section.agent.id === row.agentId)
+		?.sessions.find((session) => session.sessionId === sessionId);
+	return Math.max(
+		Date.parse(row.updatedAt ?? row.startedAt) || 0,
+		Date.parse(listed?.updatedAt ?? "") || 0,
+	);
+}
 
 function openRowsSnapshot(slots: ZenSlot[]): ZenOpenRow[] {
 	const rows: ZenOpenRow[] = [];
@@ -48,6 +65,7 @@ function openRowsSnapshot(slots: ZenSlot[]): ZenOpenRow[] {
 				title: session.title,
 				status: session.status,
 				startedAt: session.startedAt,
+				updatedAt: session.updatedAt,
 				activeTab: session.id === state.activeTabId,
 				pendingId: null,
 			});

@@ -2,12 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	deleteHistorySession,
 	hydrateSessionTitles,
-	isSessionIdPrefixTitle,
 	mergeImportedSessions,
 	renameHistorySessionTitle,
 	sanitizeChatLines,
 	sessionsNeedingTitleHydration,
-	titleFromLoadedHistory,
 } from "@/components/agent/hooks/use-agent-history";
 import * as agentApi from "@/lib/agent";
 import {
@@ -20,8 +18,10 @@ import { encodeMentionToken } from "@/lib/agent/composer-inline-tokens";
 import * as titleCache from "@/lib/agent/history-title-cache";
 import {
 	isDismissedAcpSession,
+	isSessionIdPrefixTitle,
 	rememberDismissedAcpSession,
 	rememberEmptyAcpSession,
+	titleFromLoadedHistory,
 } from "@/lib/agent/history-title-cache";
 
 vi.mock("@/lib/agent", async (importOriginal) => {

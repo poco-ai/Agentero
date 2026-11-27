@@ -11,27 +11,28 @@
  * Virtual tab path / slot store live in `lib/agent/zen-path.ts` and
  * `lib/agent/zen-store.ts`.
  */
-import { Loader2, Plus, Waves, X } from "lucide-react";
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { Plus, Waves, X } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { AgentLogo } from "@/components/agent/agent-logo";
 import { AgentPanel } from "@/components/agent/agent-panel";
-import { FileTreeDisclosureIcon } from "@/components/sidebar/file-tree/file-tree-primitives";
+import {
+	openSessionSortTime,
+	useZenOpenRows,
+} from "@/components/agent/zen/use-zen-open-rows";
+import {
+	sessionRowIndentStyle,
+	ZenHarnessSection,
+} from "@/components/agent/zen/zen-session-list";
 import {
 	FILE_TREE_ROW_SELECTED_STATE,
 	FILE_TREE_ROW_STATE,
-	TREE_ROW_INDENT_STEP_PX,
-	TREE_ROW_INSET_PX,
 } from "@/components/sidebar/tree-row-styles";
 import {
 	useLibraryStore,
 	useSettings,
 	useVaultStore,
 } from "@/hooks/use-app-stores";
-import {
-	type AgentSessionRecord,
-	AgentSessionScopeContext,
-} from "@/lib/agent/agent-session-store";
+import { AgentSessionScopeContext } from "@/lib/agent/agent-session-store";
 import type { AcpSessionInfo } from "@/lib/agent/api";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import { focusOwnedAgentSession } from "@/lib/agent/open-owned-session";
@@ -113,8 +114,7 @@ type ZenSessionRow = {
 	key: string;
 	title: string;
 	status: "running" | "failed" | null;
-	/** ISO timestamp used for recency ordering; empty means "just created". */
-	sortAt: string;
+	sortAt: number;
 	active: boolean;
 	/** Open session: owning slot (null for a history row). */
 	slotId: string | null;
@@ -132,87 +132,6 @@ type HarnessGroup = {
 	/** This harness's ACP history query is still running. */
 	loading: boolean;
 	rows: ZenSessionRow[];
-};
-
-/** Open-session projection — the only signals the row list reacts to. */
-type ZenOpenRow = {
-	slotId: string;
-	sessionId: string | null;
-	providerSessionId: string | null;
-	agentId: string | null;
-	title: string;
-	status: AgentSessionRecord["status"] | null;
-	startedAt: string;
-	activeTab: boolean;
-	pendingId: string | null;
-};
-
-function openRowsSnapshot(slots: ZenSlot[]): ZenOpenRow[] {
-	const rows: ZenOpenRow[] = [];
-	for (const slot of slots) {
-		const state = slot.store.getState();
-		if (state.sessions.length === 0) {
-			rows.push({
-				slotId: slot.id,
-				sessionId: null,
-				providerSessionId: null,
-				agentId: slot.agent.id,
-				title: slot.pendingHistory?.title ?? "",
-				status: null,
-				startedAt: slot.pendingHistory?.startedAt ?? "",
-				activeTab: true,
-				pendingId: slot.pendingHistory?.id ?? null,
-			});
-			continue;
-		}
-		for (const session of state.sessions) {
-			rows.push({
-				slotId: slot.id,
-				sessionId: session.id,
-				providerSessionId: session.providerSessionId ?? null,
-				agentId: session.agentId ?? slot.agent.id,
-				title: session.title,
-				status: session.status,
-				startedAt: session.startedAt,
-				activeTab: session.id === state.activeTabId,
-				pendingId: null,
-			});
-		}
-	}
-	return rows;
-}
-
-/**
- * Subscribe to every slot's store and project open sessions. The snapshot is a
- * JSON signature of presentation-only fields, so stream flushes (`lines`)
- * do not re-render the list.
- */
-function useOpenZenRows(slots: ZenSlot[]): ZenOpenRow[] {
-	const subscribe = useCallback(
-		(onChange: () => void) => {
-			const unsubs = slots.map((slot) => slot.store.subscribe(onChange));
-			return () => {
-				for (const unsubscribe of unsubs) unsubscribe();
-			};
-		},
-		[slots],
-	);
-	const getSnapshot = useCallback(
-		() => JSON.stringify(openRowsSnapshot(slots)),
-		[slots],
-	);
-	const signature = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-	return useMemo(() => JSON.parse(signature) as ZenOpenRow[], [signature]);
-}
-
-function sortRows(a: ZenSessionRow, b: ZenSessionRow): number {
-	if (!a.sortAt || !b.sortAt) return a.sortAt ? 1 : b.sortAt ? -1 : 0;
-	return b.sortAt.localeCompare(a.sortAt);
-}
-
-/** Session rows sit one tree step inside their harness header. */
-const sessionRowIndentStyle = {
-	paddingLeft: TREE_ROW_INSET_PX + TREE_ROW_INDENT_STEP_PX,
 };
 
 function ZenSessionRowView({
@@ -275,90 +194,6 @@ function ZenSessionRowView({
 	);
 }
 
-function HarnessSection({
-	group,
-	collapsed,
-	onToggle,
-	onNewSlot,
-	onActivateSession,
-	onOpenHistory,
-	onCloseSession,
-}: {
-	group: HarnessGroup;
-	collapsed: boolean;
-	onToggle: () => void;
-	onNewSlot: () => void;
-	onActivateSession: (row: ZenSessionRow) => void;
-	onOpenHistory: (row: ZenSessionRow) => void;
-	onCloseSession: (row: ZenSessionRow) => void;
-}) {
-	const { t } = useTranslation("agent");
-	const running = group.rows.some((row) => row.status === "running");
-
-	return (
-		<section className="pb-1">
-			<div
-				className={cn(
-					"group flex h-7 w-full items-center rounded-md pr-1 pl-2.5",
-					FILE_TREE_ROW_STATE,
-				)}
-			>
-				<button
-					type="button"
-					aria-expanded={!collapsed}
-					aria-label={group.name}
-					className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-brand"
-					onClick={onToggle}
-				>
-					<FileTreeDisclosureIcon
-						isExpanded={!collapsed}
-						icon={
-							<AgentLogo template={group.template} plain className="size-4" />
-						}
-					/>
-					<span className="min-w-0 flex-1 truncate font-medium text-xs">
-						{group.name}
-					</span>
-					{group.loading ? (
-						<Loader2
-							className="size-3 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none"
-							aria-hidden
-						/>
-					) : null}
-					{collapsed && running ? (
-						<span
-							role="img"
-							aria-label={t("history.status.running")}
-							className="size-1.5 shrink-0 rounded-full bg-emerald-500 motion-reduce:animate-none"
-						/>
-					) : null}
-				</button>
-				<button
-					type="button"
-					aria-label={t("zen.newConversation")}
-					title={t("zen.newConversation")}
-					className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-brand"
-					onClick={onNewSlot}
-				>
-					<Plus className="size-3.5" />
-				</button>
-			</div>
-			{collapsed
-				? null
-				: group.rows.map((row) => (
-						<ZenSessionRowView
-							key={row.key}
-							row={row}
-							onActivate={() =>
-								row.history ? onOpenHistory(row) : onActivateSession(row)
-							}
-							onClose={() => onCloseSession(row)}
-						/>
-					))}
-		</section>
-	);
-}
-
 const UNKNOWN_HARNESS = "__unknown__";
 
 export function ZenView({ active }: { active: boolean }) {
@@ -368,8 +203,7 @@ export function ZenView({ active }: { active: boolean }) {
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const { sections: historySections, refresh: refreshHistory } =
 		useZenHarnessHistory(vaultPath, active);
-	const openRows = useOpenZenRows(slots);
-	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+	const openRows = useZenOpenRows(slots);
 
 	const groups = useMemo<HarnessGroup[]>(() => {
 		const map = new Map<string, HarnessGroup>();
@@ -412,7 +246,7 @@ export function ZenView({ active }: { active: boolean }) {
 						: row.status === "failed"
 							? "failed"
 							: null,
-				sortAt: row.startedAt,
+				sortAt: openSessionSortTime(row, historySections),
 				active: row.slotId === activeSlotId && row.activeTab,
 				slotId: row.slotId,
 				sessionId: row.sessionId,
@@ -437,7 +271,7 @@ export function ZenView({ active }: { active: boolean }) {
 					key: `history:${session.sessionId}`,
 					title: session.title ?? "",
 					status: null,
-					sortAt: session.updatedAt ?? "",
+					sortAt: Date.parse(session.updatedAt ?? "") || 0,
 					active: false,
 					slotId: null,
 					sessionId: null,
@@ -446,7 +280,9 @@ export function ZenView({ active }: { active: boolean }) {
 			}
 		}
 
-		for (const group of map.values()) group.rows.sort(sortRows);
+		for (const group of map.values()) {
+			group.rows.sort((left, right) => right.sortAt - left.sortAt);
+		}
 		// Harnesses show up as soon as the registry answers, even before their
 		// sessions arrive, so the list never grows one header at a time.
 		return [...map.values()];
@@ -541,22 +377,25 @@ export function ZenView({ active }: { active: boolean }) {
 				</div>
 				<div className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
 					{groups.map((group) => (
-						<HarnessSection
+						<ZenHarnessSection
 							key={group.key}
-							group={group}
-							collapsed={Boolean(collapsed[group.key])}
-							onToggle={() =>
-								setCollapsed((prev) => ({
-									...prev,
-									[group.key]: !prev[group.key],
-								}))
-							}
+							name={group.name}
+							template={group.template}
+							loading={group.loading}
+							rows={group.rows}
 							onNewSlot={() => newSlotFor(group)}
-							onActivateSession={activateSession}
-							onOpenHistory={(row) => {
-								if (row.history) openHistory(group, row.history);
-							}}
-							onCloseSession={closeSession}
+							renderRow={(row) => (
+								<ZenSessionRowView
+									key={row.key}
+									row={row}
+									onActivate={() =>
+										row.history
+											? openHistory(group, row.history)
+											: activateSession(row)
+									}
+									onClose={() => closeSession(row)}
+								/>
+							)}
 						/>
 					))}
 				</div>

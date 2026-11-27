@@ -785,21 +785,27 @@ export async function deleteSession(request: {
 	)) as AcpDeleteSessionResult;
 }
 
-/** Load an ACP session's history via `session/load`. */
-export async function loadSession(request: {
+const pendingSessionLoads = new Map<string, Promise<AcpLoadSessionResult>>();
+
+/** Load ACP history, sharing an in-flight replay with other readers. */
+export function loadSession(request: {
 	agentId?: string;
 	sessionId: string;
 	vaultPath?: string;
 }): Promise<AcpLoadSessionResult> {
-	return (await callApiResult(
-		() =>
-			commands.agentLoadSession(
-				request.agentId ?? null,
-				request.sessionId,
-				request.vaultPath ?? null,
-			),
-		AGENT_CALL_OPTS,
-	)) as AcpLoadSessionResult;
+	const agentId = request.agentId ?? null;
+	const vaultPath = request.vaultPath ?? null;
+	const key = JSON.stringify([vaultPath, agentId, request.sessionId]);
+	const running = pendingSessionLoads.get(key);
+	if (running) return running;
+	const pending = (
+		callApiResult(
+			() => commands.agentLoadSession(agentId, request.sessionId, vaultPath),
+			AGENT_CALL_OPTS,
+		) as Promise<AcpLoadSessionResult>
+	).finally(() => pendingSessionLoads.delete(key));
+	pendingSessionLoads.set(key, pending);
+	return pending;
 }
 
 /** Request cooperative cancellation of the active ACP session. */

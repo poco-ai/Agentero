@@ -1,10 +1,7 @@
 import { History, Pencil, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-	isSessionIdPrefixTitle,
-	renameHistorySessionTitle,
-} from "@/components/agent/hooks/use-agent-history";
+import { renameHistorySessionTitle } from "@/components/agent/hooks/use-agent-history";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -29,6 +26,7 @@ import {
 } from "@/lib/agent/agent-session-store";
 import type { AcpDeleteSessionResult } from "@/lib/agent/api";
 import type { ChatLine, ChatSessionHistoryItem } from "@/lib/agent/chat-state";
+import { isSessionIdPrefixTitle } from "@/lib/agent/history-title-cache";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
