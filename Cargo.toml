@@ -1,13 +1,14 @@
 [workspace]
 members = ["src-tauri", "cli", "crates/agentero-core", "crates/agentero-mcp"]
-exclude = ["patches/tesseract-rs"]
 resolver = "2"
 
-# Upstream tesseract-rs 0.2.0 (liteparse's OCR build dependency) pins zip 2,
-# whose extraction path is affected by GHSA-m665-v7pm-7grj and friends.
-# The vendored copy bumps zip to the patched 9.x line and fixes native-build compatibility.
+# Upstream tesseract-rs 0.4.2 rebuilds the native libraries when security
+# software blocks the build script's cache copy into the install directory,
+# and the rebuild's install step hits the same blocked path. This pin carries
+# a fallback that keeps a byte-identical installed library instead. Drop the
+# patch once that change lands upstream.
 [patch.crates-io]
-tesseract-rs = { path = "patches/tesseract-rs" }
+tesseract-rs = { git = "https://github.com/poco-ai/tesseract-rs", rev = "68f4c23633ad372742ca67581c98728583c23a40" }
 
 # Shared dependencies declared once for both members (src-tauri / cli).
 # Only version + common features live here; `optional`, target-specific

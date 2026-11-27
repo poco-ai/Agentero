@@ -74,11 +74,13 @@ uuid = { version = "1", features = ["v4"] }
 # paired desktop Host for PDF parsing instead of packaging PDFium in the app.
 # Keep in lockstep with the `agentero` crate's target gate.
 [target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
-liteparse = "2.17"
+# Tesseract is the only OCR backend we build; leaving `ocria-nano` off keeps
+# liteparse's default feature set from pulling the ONNX Runtime client in.
+liteparse = { version = "2.21.3", default-features = false, features = ["tesseract"] }
 # The PDFium binding liteparse itself sits on (shared dylib, one global loader).
 # `features::pdf_locate` uses the text engine directly for quote → page rects,
 # bypassing liteparse's layout pass.
-liteparse-pdfium = "1.13"
+liteparse-pdfium = "1.15"
 
 # `http::system_proxy_url` reads the WinINET proxy config (HKCU) on Windows;
 # target deps do not transfer from the `agentero` crate, so declare it here too.

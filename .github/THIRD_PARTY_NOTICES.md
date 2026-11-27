@@ -18,9 +18,9 @@
 
 | 组件 | 版本 | 许可证 | 用途 | 上游 |
 | --- | --- | --- | --- | --- |
-| PDFium（桌面动态库与 WASM） | chromium/7897 | BSD-3-Clause | PDF 渲染与文本提取 | https://pdfium.googlesource.com/pdfium/ |
-| Tesseract OCR | 5.3.4（经 `tesseract-rs` 0.2.0 静态构建） | Apache-2.0 | 扫描版 PDF 的 OCR 回退 | https://github.com/tesseract-ocr/tesseract |
-| Leptonica | 1.84.1 | BSD-2-Clause | Tesseract 图像处理依赖 | http://www.leptonica.org/ |
+| PDFium（桌面动态库与 WASM） | chromium/8172 | BSD-3-Clause | PDF 渲染与文本提取 | https://pdfium.googlesource.com/pdfium/ |
+| Tesseract OCR | 5.5.2（经 `tesseract-rs` 0.4.2 静态构建） | Apache-2.0 | 扫描版 PDF 的 OCR 回退 | https://github.com/tesseract-ocr/tesseract |
+| Leptonica | 1.87.0 | BSD-2-Clause | Tesseract 图像处理依赖 | http://www.leptonica.org/ |
 | tessdata_best（eng / tur） | 构建时快照 | Apache-2.0 | Tesseract 语言数据 | https://github.com/tesseract-ocr/tessdata_best |
 | ONNX Runtime Web | 1.27.0 | MIT | 浏览器内版面模型推理 | https://github.com/microsoft/onnxruntime |
 | PP-DocLayoutV3 ONNX | fp16 转换版 | Apache-2.0 | PDF 版面检测模型 | https://github.com/PaddlePaddle/PaddleOCR |

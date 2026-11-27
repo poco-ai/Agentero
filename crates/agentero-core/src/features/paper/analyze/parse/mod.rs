@@ -1034,7 +1034,7 @@ pub async fn run_liteparse_render_direct(
     }
     let numbers: Vec<u32> = (1..=page_count as u32).collect();
     let parser = liteparse::LiteParse::new(LiteParseConfig {
-        dpi: RENDER_DPI,
+        dpi: Some(RENDER_DPI),
         ..Default::default()
     });
     let rendered = parser

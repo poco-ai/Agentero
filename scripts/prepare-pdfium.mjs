@@ -24,7 +24,7 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-const PDFIUM_RELEASE_TAG = "chromium/8058";
+const PDFIUM_RELEASE_TAG = "chromium/8172";
 const PDFIUM_RELEASE_URL =
 	"https://github.com/run-llama/pdfium-binaries/releases/download";
 const PDFIUM_RELEASE_API =
