@@ -157,7 +157,7 @@ let pending: ((dock: SidebarDock) => void)[] = [];
 
 function setExpanded(expanded: boolean) {
 	setLayoutMode("custom");
-	layout()?.setRightCollapsed(!expanded);
+	layout()?.setRightCollapsed(!expanded, true);
 }
 
 function createSidebarDock(
@@ -295,6 +295,7 @@ function createSidebarDock(
 			expandedDuringRestore ??
 			saved?.expanded ??
 			uiStore.getState().rightSidebarOpen;
+		// The restored arrangement is part of the launch paint, not a slide.
 		if (!uiStore.getState().immersiveReading)
 			layout()?.setRightCollapsed(!expanded);
 		ready = true;

@@ -1444,6 +1444,17 @@ html[data-linux-scrollbars]:has(
 	width: 100%;
 }
 
+/*
+ * Right rail slide: use-shell-layout.ts sets `data-animating-rail` and pins
+ * `--rail-transition-width` on the panel group while the rail's flex-grow
+ * animates. Keeping the rail's content at its settled width turns the width
+ * change into a reveal instead of a reflow (single-row cards, squeezed tabs)
+ * and keeps Dockview from laying the rail out twice.
+ */
+[data-animating-rail] [data-right-sidebar] {
+	width: var(--rail-transition-width, 100%);
+}
+
 /* Tab context-menu rows that show a shortcut hint (see dock-workspace). */
 .agentero-dockview
 .dv-context-menu-item.agentero-dv-context-menu-item--with-shortcut {

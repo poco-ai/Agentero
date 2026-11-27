@@ -155,6 +155,10 @@ describe("shell layout restoration", () => {
 		shell.groupElementRef.current = {
 			setAttribute: (name: string) => attributes.add(name),
 			removeAttribute: (name: string) => attributes.delete(name),
+			style: {
+				setProperty: () => undefined,
+				removeProperty: () => undefined,
+			},
 		} as unknown as HTMLDivElement;
 		const left = shell.sidebarPanelRef.current;
 		if (!left) throw new Error("Missing left test panel");
@@ -166,15 +170,15 @@ describe("shell layout restoration", () => {
 			expect(expand).not.toHaveBeenCalled();
 			expect(resize).toHaveBeenCalledExactlyOnceWith(200);
 			expect(widths.left).toBe(200);
-			expect(shell.isLeftSidebarTransitioning()).toBe(true);
+			expect(shell.isRailTransitioning()).toBe(true);
 			vi.advanceTimersByTime(150);
 			toggleSidebar();
 			expect(widths.left).toBe(0);
 			vi.advanceTimersByTime(100);
-			expect(attributes.has("data-animating-left-sidebar")).toBe(true);
+			expect(attributes.has("data-animating-rail")).toBe(true);
 			vi.runOnlyPendingTimers();
 			expect(attributes.size).toBe(0);
-			expect(shell.isLeftSidebarTransitioning()).toBe(false);
+			expect(shell.isRailTransitioning()).toBe(false);
 		} finally {
 			setAgentWindowOpen(false);
 			vi.restoreAllMocks();

@@ -160,6 +160,11 @@ export function SidebarBrowserPanel({
 		};
 		const resize = new ResizeObserver(schedule);
 		resize.observe(element);
+		// The rail pins its content width while it slides (see index.css), so
+		// this element's own box is stable; track the panel's clip instead or
+		// the native web view keeps the pre-slide bounds.
+		const rail = element.closest("[data-panel]");
+		if (rail) resize.observe(rail);
 		const mutations = new MutationObserver(schedule);
 		mutations.observe(document.body, {
 			childList: true,

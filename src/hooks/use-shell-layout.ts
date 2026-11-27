@@ -81,14 +81,16 @@ type ShellLayout = {
 	/** Restored boot widths (remembered ratios × current window, clamped). */
 	initialLeftPx: number;
 	initialRightPx: number;
-	isLeftSidebarTransitioning: () => boolean;
-	stopLeftSidebarTransition: () => void;
+	isRailTransitioning: () => boolean;
+	stopRailTransition: () => void;
 };
 
 /** Wait for the post-boot window restore/maximize animation to settle. */
 const RAIL_BOOT_RESIZE_DEBOUNCE_MS = 150;
 const RAIL_BOOT_RESIZE_LISTEN_MS = 2000;
-const LEFT_SIDEBAR_TRANSITION = "data-animating-left-sidebar";
+const RAIL_TRANSITION = "data-animating-rail";
+/** Width the rail content keeps while the panel animates (see setRightCollapsed). */
+const RAIL_WIDTH_VAR = "--rail-transition-width";
 const RAIL_TRANSITION_SETTLE_MS = 32;
 
 export function useShellLayout(vaultPath: string | null = null): ShellLayout {
@@ -118,12 +120,42 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 	const controller = useMemo(() => {
 		/** Pre-reading arrangement, restored when reading is toggled off. */
 		let readingSnapshot: ReadingSnapshot | null = null;
-		let leftSidebarTimer: number | undefined;
-		const isLeftSidebarTransitioning = () => leftSidebarTimer !== undefined;
-		const stopLeftSidebarTransition = () => {
-			window.clearTimeout(leftSidebarTimer);
-			leftSidebarTimer = undefined;
-			groupElementRef.current?.removeAttribute(LEFT_SIDEBAR_TRANSITION);
+		let railTimer: number | undefined;
+		/** Deferred right-rail close so its content survives the slide-out. */
+		let rightCloseTimer: number | undefined;
+		const isRailTransitioning = () => railTimer !== undefined;
+		const clearRightCloseTimer = () => {
+			window.clearTimeout(rightCloseTimer);
+			rightCloseTimer = undefined;
+		};
+		const clearRailTransition = () => {
+			const group = groupElementRef.current;
+			group?.removeAttribute(RAIL_TRANSITION);
+			group?.style.removeProperty(RAIL_WIDTH_VAR);
+		};
+		/** Cut the slide short; a pending right-rail close still lands below. */
+		const stopRailTransition = () => {
+			window.clearTimeout(railTimer);
+			railTimer = undefined;
+			clearRailTransition();
+		};
+		/**
+		 * Let the panel group's `flex-grow` change paint as a slide. `pinPx`
+		 * freezes the right rail's content at that width for the duration so
+		 * the drawer reveals a settled layout instead of reflowing mid-slide.
+		 */
+		const beginRailTransition = (pinPx?: number) => {
+			window.clearTimeout(railTimer);
+			const group = groupElementRef.current;
+			if (group) {
+				if (pinPx === undefined) group.style.removeProperty(RAIL_WIDTH_VAR);
+				else group.style.setProperty(RAIL_WIDTH_VAR, `${Math.round(pinPx)}px`);
+				group.setAttribute(RAIL_TRANSITION, "");
+			}
+			railTimer = window.setTimeout(() => {
+				railTimer = undefined;
+				clearRailTransition();
+			}, MOTION_MS.normal + RAIL_TRANSITION_SETTLE_MS);
 		};
 
 		const rememberedWidths = () =>
@@ -138,17 +170,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		/** Collapse / expand left file-tree panel without remounting. */
 		const setLeftCollapsed = (collapsed: boolean, animate = false) => {
 			const panel = sidebarPanelRef.current;
-			const group = groupElementRef.current;
-			if (panel && group && animate && !prefersReducedMotion()) {
-				window.clearTimeout(leftSidebarTimer);
-				group.setAttribute(LEFT_SIDEBAR_TRANSITION, "");
-				leftSidebarTimer = window.setTimeout(
-					stopLeftSidebarTransition,
-					MOTION_MS.normal + RAIL_TRANSITION_SETTLE_MS,
-				);
-			} else {
-				stopLeftSidebarTransition();
-			}
+			if (panel && animate && !prefersReducedMotion()) beginRailTransition();
+			else stopRailTransition();
 			if (panel) {
 				if (collapsed) {
 					try {
@@ -172,9 +195,17 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		};
 
 		/** Collapse / expand right Agent/Backlinks panel (always mounted). */
-		const setRightCollapsed = (collapsed: boolean) => {
-			stopLeftSidebarTransition();
+		const setRightCollapsed = (collapsed: boolean, animate = false) => {
+			// Any explicit rail command supersedes a slide that has not landed yet.
+			clearRightCloseTimer();
 			const panel = rightSidebarPanelRef.current;
+			const sliding = Boolean(panel) && animate && !prefersReducedMotion();
+			const targetPx = collapsed
+				? (panel?.getSize().inPixels ?? rightWidthPxRef.current)
+				: (rememberedWidths().rightPx ??
+					(rightWidthPxRef.current || RIGHT_SIDEBAR_DEFAULT_PX));
+			if (sliding) beginRailTransition(targetPx);
+			else stopRailTransition();
 			if (panel) {
 				if (collapsed) {
 					try {
@@ -182,10 +213,17 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 					} catch {
 						// ignore
 					}
+					if (sliding) {
+						// Keep the rail "open" until the slide lands: the panel content
+						// (and any native web view) stays painted instead of blanking
+						// the moment the drawer starts to close.
+						rightCloseTimer = window.setTimeout(() => {
+							rightCloseTimer = undefined;
+							setRightSidebarOpenState(false);
+						}, MOTION_MS.normal);
+						return;
+					}
 				} else {
-					const targetPx =
-						rememberedWidths().rightPx ??
-						(rightWidthPxRef.current || RIGHT_SIDEBAR_DEFAULT_PX);
 					try {
 						panel.expand();
 						panel.resize(targetPx);
@@ -200,7 +238,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 
 		/** Expand + resize the Agent rail to an absolute pixel width. */
 		const setRightPx = (px: number) => {
-			stopLeftSidebarTransition();
+			clearRightCloseTimer();
+			stopRailTransition();
 			const panel = rightSidebarPanelRef.current;
 			if (!panel) return;
 			try {
@@ -512,7 +551,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			else void enterImmersive();
 		};
 		const dispose = () => {
-			stopLeftSidebarTransition();
+			clearRightCloseTimer();
+			stopRailTransition();
 			groupSizes?.dispose();
 			groupSizes = undefined;
 			fullscreenWatchEpoch += 1;
@@ -565,8 +605,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 
 		return {
 			setLeftCollapsed,
-			isLeftSidebarTransitioning,
-			stopLeftSidebarTransition,
+			isRailTransitioning,
+			stopRailTransition,
 			setRightCollapsed,
 			applyLayoutMode,
 			toggleImmersiveReading,
@@ -618,7 +658,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		// the rails keep their pixel widths when the window is resized.
 		let settleTimer = 0;
 		const applyRememberedWidths = () => {
-			if (controller.isLeftSidebarTransitioning()) return;
+			if (controller.isRailTransitioning()) return;
 			const state = uiStore.getState();
 			const saved = railWidthsForSlot(
 				getShellLayoutPrefs(),
@@ -664,7 +704,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		rightWidthPxRef,
 		initialLeftPx: bootWidths.leftPx,
 		initialRightPx: bootWidths.rightPx,
-		isLeftSidebarTransitioning: controller.isLeftSidebarTransitioning,
-		stopLeftSidebarTransition: controller.stopLeftSidebarTransition,
+		isRailTransitioning: controller.isRailTransitioning,
+		stopRailTransition: controller.stopRailTransition,
 	};
 }

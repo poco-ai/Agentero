@@ -278,8 +278,8 @@ export default function App() {
 		rightWidthPxRef,
 		initialLeftPx,
 		initialRightPx,
-		isLeftSidebarTransitioning,
-		stopLeftSidebarTransition,
+		isRailTransitioning,
+		stopRailTransition,
 	} = useShellLayout(vaultPath);
 
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
@@ -561,7 +561,7 @@ export default function App() {
 						<ResizableGroup
 							elementRef={groupElementRef}
 							orientation="horizontal"
-							className="h-full min-h-0 flex-1 overflow-hidden motion-safe:data-[animating-left-sidebar]:[&>[data-panel]]:transition-[flex-grow] motion-safe:data-[animating-left-sidebar]:[&>[data-panel]]:duration-(--motion-duration-normal) motion-safe:data-[animating-left-sidebar]:[&>[data-panel]]:ease-(--motion-ease-out)"
+							className="h-full min-h-0 flex-1 overflow-hidden motion-safe:data-[animating-rail]:[&>[data-panel]]:transition-[flex-grow] motion-safe:data-[animating-rail]:[&>[data-panel]]:duration-(--motion-duration-normal) motion-safe:data-[animating-rail]:[&>[data-panel]]:ease-(--motion-ease-out)"
 							onLayoutChanged={(_nextLayout, meta) => {
 								// Only genuine user resizes (drag release / keyboard) update
 								// the remembered widths; mount echoes, window resizes and
@@ -599,7 +599,7 @@ export default function App() {
 										groupResizeBehavior="preserve-pixel-size"
 										className="min-h-0 overflow-hidden"
 										onResize={(size) => {
-											if (isLeftSidebarTransitioning()) return;
+											if (isRailTransitioning()) return;
 											// Only mark collapsed after a real collapse, never mid-drag.
 											if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
 												setSidebarCollapsedState(true);
@@ -658,11 +658,11 @@ export default function App() {
 										disabled={sidebarCollapsed}
 										onDoubleClick={() => commitRailReset("left")}
 										onPointerDown={() => {
-											stopLeftSidebarTransition();
+											stopRailTransition();
 											isResizingRightRef.current = false;
 										}}
 										onKeyDown={() => {
-											stopLeftSidebarTransition();
+											stopRailTransition();
 											isResizingRightRef.current = false;
 										}}
 									/>
@@ -719,11 +719,11 @@ export default function App() {
 								disabled={!rightSidebarOpen}
 								onDoubleClick={() => commitRailReset("right")}
 								onPointerDown={() => {
-									stopLeftSidebarTransition();
+									stopRailTransition();
 									isResizingRightRef.current = true;
 								}}
 								onKeyDown={() => {
-									stopLeftSidebarTransition();
+									stopRailTransition();
 									isResizingRightRef.current = true;
 								}}
 							/>
@@ -736,9 +736,12 @@ export default function App() {
 								collapsible
 								collapsedSize={0}
 								groupResizeBehavior="preserve-pixel-size"
+								// The panel library writes `overflow: auto` inline; the class
+								// alone cannot clip the rail's content while it slides.
+								style={{ overflow: "hidden" }}
 								className="min-h-0 overflow-hidden"
 								onResize={(size) => {
-									if (isLeftSidebarTransitioning()) return;
+									if (isRailTransitioning()) return;
 									if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
 										setRightSidebarOpenState(false);
 									} else if (size.inPixels >= RAIL_RECORD_MIN_PX) {
