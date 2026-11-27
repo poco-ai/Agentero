@@ -168,8 +168,8 @@ export const TitleBar = memo(function TitleBar({
 							className={cn(
 								"pointer-events-auto hidden h-[1.375rem] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none md:flex",
 								agentWindowOpen
-									? "border-brand/40 bg-brand/20 text-brand"
-									: "border-brand/20 bg-brand/10 text-brand hover:bg-brand/15",
+									? "border-primary/40 bg-primary/20 text-primary"
+									: "border-primary/20 bg-primary/10 text-primary hover:bg-primary/15",
 							)}
 						>
 							<span className="min-w-0 truncate">{agentWindowLabel}</span>
@@ -219,10 +219,10 @@ export const TitleBar = memo(function TitleBar({
 										);
 									}}
 									className={cn(
-										"text-brand md:hidden",
+										"text-primary md:hidden",
 										agentWindowOpen
-											? "bg-brand/20 text-brand hover:bg-brand/20"
-											: "hover:bg-brand/10 hover:text-brand",
+											? "bg-primary/20 text-primary hover:bg-primary/20"
+											: "hover:bg-primary/10 hover:text-primary",
 									)}
 								>
 									<AgentWindowIcon className="size-3.5" aria-hidden />
