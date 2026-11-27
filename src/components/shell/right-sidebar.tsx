@@ -552,9 +552,9 @@ function SidebarLauncher({
 	return (
 		<div
 			data-sidebar-view={api.id}
-			className="agentero-scroll flex h-full min-w-0 flex-col overflow-auto px-4 py-6 sm:px-6"
+			className="agentero-scroll flex h-full min-w-0 flex-col overflow-auto px-4 py-6 before:flex-[2_0_0px] after:flex-[3_0_0px] sm:px-6"
 		>
-			<div className="mx-auto my-auto w-full max-w-[35rem] min-w-0 space-y-6">
+			<div className="mx-auto w-full max-w-[35rem] min-w-0 shrink-0 space-y-6">
 				<Command
 					className="relative z-10 size-auto overflow-visible bg-transparent p-0"
 					shouldFilter={false}
