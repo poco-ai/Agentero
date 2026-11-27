@@ -5,6 +5,7 @@ import type {
 	LayoutAnalysisScope,
 	LayoutTask,
 } from "@embedpdf/plugin-layout-analysis";
+import i18n from "@/i18n";
 import { events } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 
@@ -983,8 +984,17 @@ function startRemoteLayoutAnalysis(
 							: totalPages;
 					const done =
 						typeof p.extractedPages === "number" ? p.extractedPages : 0;
-					const progress =
-						p.phase === "uploading"
+					// A >=200-page MinerU cloud run is split into page-range
+					// jobs. Keep the bar cumulative across segments and name
+					// the current slice instead of restarting per upload.
+					const segmented =
+						typeof p.segmentTotal === "number" &&
+						p.segmentTotal > 1 &&
+						typeof p.segmentIndex === "number" &&
+						p.segmentIndex > 0;
+					const progress = segmented
+						? clampProgress(3 + (done / known) * 93)
+						: p.phase === "uploading"
 							? 3
 							: p.phase === "downloading" || p.phase === "done"
 								? 96
@@ -992,7 +1002,12 @@ function startRemoteLayoutAnalysis(
 					setLayoutAnalysisUi(
 						{
 							stage: "running",
-							message: analyzingMessage,
+							message: segmented
+								? i18n.t("viewer:figures.analyzingSegment", {
+										index: p.segmentIndex,
+										total: p.segmentTotal,
+									})
+								: analyzingMessage,
 							progress,
 							page: Math.min(done + 1, known),
 							completed: done,
@@ -1021,6 +1036,7 @@ function startRemoteLayoutAnalysis(
 				pdfBase64: arrayBufferToBase64(buffer),
 				fileName: pdfPath.split(/[/\\]/).pop() || "paper.pdf",
 				requestId,
+				pageCount: totalPages,
 			});
 			unlisten?.();
 			unlisten = null;

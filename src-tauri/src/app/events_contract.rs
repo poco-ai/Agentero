@@ -139,6 +139,10 @@ pub struct LayoutRemoteProgressEvent {
     pub total_pages: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub segment_index: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub segment_total: Option<u32>,
 }
 
 /// Owned mirror of the private `ToolLifecycleProgress` in

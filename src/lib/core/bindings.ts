@@ -4240,6 +4240,11 @@ export type LayoutRemoteAnalyzePdfArgs = {
 	requestId?: string | null,
 	/**  Remote provider id (defaults to `paddle`). */
 	provider?: string | null,
+	/**
+	 *  Source PDF page count when the caller knows it. MinerU cloud analyses
+	 *  a PDF in 200-page jobs above this limit; other engines ignore it.
+	 */
+	pageCount?: number | null,
 };
 
 export type LayoutRemoteAnalyzePdfResult = {
@@ -4300,6 +4305,8 @@ export type LayoutRemoteProgressEvent_Deserialize = {
 	extractedPages: number | null,
 	totalPages: number | null,
 	requestId?: string | null,
+	segmentIndex?: number | null,
+	segmentTotal?: number | null,
 };
 
 /**
@@ -4311,6 +4318,8 @@ export type LayoutRemoteProgressEvent_Serialize = {
 	extractedPages: number | null,
 	totalPages: number | null,
 	requestId?: string | null,
+	segmentIndex?: number | null,
+	segmentTotal?: number | null,
 };
 
 /**

@@ -262,6 +262,7 @@ pub async fn analyze_paper_layout(
             api_key: None,
             request_id: Some(request_id),
             provider: Some(provider_settings.provider.clone()),
+            page_count: Some(page_count),
         },
     };
     let result = engine.analyze_pdf(context).await?;

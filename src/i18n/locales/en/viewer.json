@@ -257,6 +257,7 @@
 		"forceReanalyzeMissingPdf": "The paper PDF is not in the paper folder yet.",
 		"forceReanalyzeFailed": "Could not re-run layout analysis",
 		"analyzing": "Analyzing layout…",
+		"analyzingSegment": "Analyzing layout, segment {{index}}/{{total}}…",
 		"queued": "Waiting to analyze layout…",
 		"progressPages": "{{page}} / {{total}} pages",
 		"progressPct": "{{pct}}%",

@@ -255,6 +255,7 @@
 		"forceReanalyzeMissingPdf": "论文目录里还没有论文 PDF。",
 		"forceReanalyzeFailed": "无法重新解析版面",
 		"analyzing": "正在分析版面…",
+		"analyzingSegment": "正在分析版面，第 {{index}}/{{total}} 段…",
 		"queued": "版面分析排队中…",
 		"progressPages": "{{page}} / {{total}} 页",
 		"progressPct": "{{pct}}%",

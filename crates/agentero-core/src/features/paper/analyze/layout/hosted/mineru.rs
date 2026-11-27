@@ -18,8 +18,8 @@ use crate::features::paper::analyze::layout::hosted::engine::{
     HostedLayoutAnalyzer, HostedProviderCredentials, LayoutAnalyzeContext,
 };
 use crate::features::paper::analyze::layout::hosted::{
-    emit_cloud_progress, LayoutRemoteAnalyzePdfResult, LayoutRemoteBox, LayoutRemotePageResult,
-    LayoutRemoteProbeArgs, LayoutRemoteProbeResult,
+    emit_cloud_progress, emit_cloud_progress_segment, LayoutRemoteAnalyzePdfResult,
+    LayoutRemoteBox, LayoutRemotePageResult, LayoutRemoteProbeArgs, LayoutRemoteProbeResult,
 };
 use crate::features::paper::import::CANCELLED_MESSAGE;
 use crate::http;
@@ -36,6 +36,9 @@ const MINERU_BASE_URL: &str = "https://mineru.net";
 const MINERU_POLL_INTERVAL: Duration = Duration::from_secs(3);
 const MINERU_JOB_DEADLINE: Duration = Duration::from_secs(600);
 const MINERU_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+/// MinerU's cloud parser rejects a single job above this page count. Larger
+/// PDFs are submitted as `1-200`, `201-400`, … and merged locally.
+const MINERU_CLOUD_PAGE_LIMIT: u32 = 200;
 /// Document language sent when the user has not picked one. `ch` is also
 /// MinerU's own default and covers Chinese (Simplified / Traditional) plus
 /// English, which fits mixed-language papers.
@@ -420,9 +423,16 @@ fn parse_middle_page_sizes(middle: &Value) -> Result<Vec<(f64, f64)>, AppError> 
 /// Combine `content_list.json` (0–1000 normalized bboxes, top-left origin)
 /// with the `middle.json` page sizes: `px = bbox / 1000 * page_size`. Every
 /// page from middle.json is emitted so page indices stay aligned.
+///
+/// Cloud jobs with `page_ranges` may report absolute source page indices in
+/// both files while `pdf_info` itself only contains the selected slice.
+/// `page_positions` maps those absolute indices back to result positions;
+/// `page_base` is the slice's 0-based start for outputs that omit `page_idx`.
 fn build_pages(
     content_list: &Value,
     page_sizes: &[(f64, f64)],
+    page_positions: &std::collections::HashMap<u32, usize>,
+    page_base: u32,
 ) -> Result<Vec<LayoutRemotePageResult>, AppError> {
     let items = content_list.as_array().ok_or_else(|| {
         AppError::message("MinerU result parse failed: content_list is not an array")
@@ -439,7 +449,12 @@ fn build_pages(
         let Some(page_idx) = item.get("page_idx").and_then(Value::as_u64) else {
             continue;
         };
-        let Some(page) = pages.get_mut(page_idx as usize) else {
+        let Some(position) =
+            content_page_position(page_idx, pages.len(), page_positions, page_base)
+        else {
+            continue;
+        };
+        let Some(page) = pages.get_mut(position) else {
             continue;
         };
         let Some(bbox) = item.get("bbox").and_then(Value::as_array) else {
@@ -452,7 +467,7 @@ fn build_pages(
         if nums.len() != 4 {
             continue;
         }
-        let (w, h) = page_sizes[page_idx as usize];
+        let (w, h) = page_sizes[position];
         if w <= 0.0 || h <= 0.0 {
             continue;
         }
@@ -479,6 +494,47 @@ fn build_pages(
         });
     }
     Ok(pages)
+}
+
+/// Resolve a Content List page index to a position in the result pages:
+/// an explicit `pdf_info[].page_idx` wins, relative indices use their
+/// position, and absolute indices for a page-range slice are offset by the
+/// slice start.
+fn content_page_position(
+    page_idx: u64,
+    page_len: usize,
+    page_positions: &std::collections::HashMap<u32, usize>,
+    page_base: u32,
+) -> Option<usize> {
+    let page_idx = u32::try_from(page_idx).ok()?;
+    if let Some(position) = page_positions.get(&page_idx) {
+        return Some(*position);
+    }
+    if (page_idx as usize) < page_len {
+        return Some(page_idx as usize);
+    }
+    let relative = page_idx.checked_sub(page_base)? as usize;
+    (relative < page_len).then_some(relative)
+}
+
+/// `pdf_info[].page_idx` → result position. Older/vendor outputs omit it, in
+/// which case callers fall back to positional indexing.
+fn middle_page_positions(
+    middle: &Value,
+    page_count: usize,
+) -> std::collections::HashMap<u32, usize> {
+    let mut positions = std::collections::HashMap::new();
+    let Some(pages) = middle.get("pdf_info").and_then(Value::as_array) else {
+        return positions;
+    };
+    for (position, page) in pages.iter().enumerate().take(page_count) {
+        if let Some(page_idx) = page.get("page_idx").and_then(Value::as_u64) {
+            if let Ok(page_idx) = u32::try_from(page_idx) {
+                positions.insert(page_idx, position);
+            }
+        }
+    }
+    positions
 }
 
 /// Only intermediate caption blocks have independent geometry. Their bboxes
@@ -721,8 +777,11 @@ const MIDDLE_CANDIDATES: &[&str] = &["middle.json", "layout.json"];
 /// page-relative (0–1) boxes and per-page sizes live in
 /// `extensions.docvortex_layout.pages[]`. Caption sub-blocks keep their own
 /// geometry, so they become independent `figure_title` boxes.
-fn parse_docvortex_pages(middle: &Value) -> Result<Vec<LayoutRemotePageResult>, AppError> {
-    let sizes: Vec<(f64, f64)> = middle
+fn parse_docvortex_pages(
+    middle: &Value,
+    page_base: u32,
+) -> Result<Vec<LayoutRemotePageResult>, AppError> {
+    let sizes: Vec<(u32, f64, f64)> = middle
         .get("extensions")
         .and_then(|extensions| extensions.get("docvortex_layout"))
         .and_then(|layout| layout.get("pages"))
@@ -730,8 +789,15 @@ fn parse_docvortex_pages(middle: &Value) -> Result<Vec<LayoutRemotePageResult>, 
         .map(|pages| {
             pages
                 .iter()
-                .map(|page| {
+                .enumerate()
+                .map(|(position, page)| {
+                    let page_idx = page
+                        .get("page_idx")
+                        .and_then(Value::as_u64)
+                        .and_then(|idx| u32::try_from(idx).ok())
+                        .unwrap_or(position as u32);
                     (
+                        page_idx,
                         page.get("width_pt").and_then(Value::as_f64).unwrap_or(0.0),
                         page.get("height_pt").and_then(Value::as_f64).unwrap_or(0.0),
                     )
@@ -746,11 +812,16 @@ fn parse_docvortex_pages(middle: &Value) -> Result<Vec<LayoutRemotePageResult>, 
     }
     let mut pages: Vec<LayoutRemotePageResult> = sizes
         .iter()
-        .map(|&(w, h)| LayoutRemotePageResult {
+        .map(|&(_, w, h)| LayoutRemotePageResult {
             boxes: Vec::new(),
             width_px: (w > 0.0).then(|| w.round() as u32),
             height_px: (h > 0.0).then(|| h.round() as u32),
         })
+        .collect();
+    let positions: std::collections::HashMap<u32, usize> = sizes
+        .iter()
+        .enumerate()
+        .map(|(position, (page_idx, _, _))| (*page_idx, position))
         .collect();
     let Some(source_pages) = middle.get("pages").and_then(Value::as_array) else {
         return Ok(pages);
@@ -759,10 +830,14 @@ fn parse_docvortex_pages(middle: &Value) -> Result<Vec<LayoutRemotePageResult>, 
         let Some(page_idx) = source.get("page_idx").and_then(Value::as_u64) else {
             continue;
         };
-        let Some(page) = pages.get_mut(page_idx as usize) else {
+        let Some(position) = content_page_position(page_idx, pages.len(), &positions, page_base)
+        else {
             continue;
         };
-        let (w, h) = sizes[page_idx as usize];
+        let Some(page) = pages.get_mut(position) else {
+            continue;
+        };
+        let (_, w, h) = sizes[position];
         let Some(blocks) = source.get("blocks").and_then(Value::as_array) else {
             continue;
         };
@@ -862,13 +937,23 @@ fn docvortex_text(value: Option<&Value>) -> Option<String> {
 }
 
 fn parse_result_zip(bytes: &[u8]) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
+    parse_result_zip_with_base(bytes, 0)
+}
+
+/// `page_base` is the 0-based start of the requested page-range slice. It is
+/// used only when the provider reports absolute page indices without
+/// `pdf_info[].page_idx` to map them back to positions.
+fn parse_result_zip_with_base(
+    bytes: &[u8],
+    page_base: u32,
+) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
     // Self-hosted 4.0 zips carry the shared docvortex document instead of the
     // cloud content-list + middle-json pair (which 3.x still produces).
     if let Ok(middle_text) = read_zip_entry_by_candidates(bytes, &["middle_json.json"]) {
         let middle: Value = serde_json::from_str(&middle_text).map_err(|e| {
             AppError::message(format!("MinerU result parse failed: middle_json: {e}"))
         })?;
-        let pages = parse_docvortex_pages(&middle)?;
+        let pages = parse_docvortex_pages(&middle, page_base)?;
         let rendered_pages = pages
             .iter()
             .map(|page| (page.width_px.unwrap_or(0), page.height_px.unwrap_or(0)))
@@ -885,7 +970,8 @@ fn parse_result_zip(bytes: &[u8]) -> Result<LayoutRemoteAnalyzePdfResult, AppErr
     let middle: Value = serde_json::from_str(&middle_text)
         .map_err(|e| AppError::message(format!("MinerU result parse failed: middle: {e}")))?;
     let page_sizes = parse_middle_page_sizes(&middle)?;
-    let mut pages = build_pages(&content_list, &page_sizes)?;
+    let page_positions = middle_page_positions(&middle, page_sizes.len());
+    let mut pages = build_pages(&content_list, &page_sizes, &page_positions, page_base)?;
     append_middle_captions(&mut pages, &middle);
     let rendered_pages = page_sizes
         .iter()
@@ -899,7 +985,8 @@ fn parse_result_zip(bytes: &[u8]) -> Result<LayoutRemoteAnalyzePdfResult, AppErr
 
 /// Request one presigned upload URL; returns `(batch_id, upload_url)`.
 /// `language` selects the OCR language pack; `is_ocr` forces OCR even when
-/// the PDF carries a text layer (scanned-document option).
+/// the PDF carries a text layer (scanned-document option); `page_range`
+/// (`"1-200"`) makes the cloud parse only that slice of the uploaded PDF.
 async fn request_upload_url(
     client: &reqwest::Client,
     base: &str,
@@ -907,9 +994,11 @@ async fn request_upload_url(
     file_name: &str,
     language: &str,
     is_ocr: bool,
+    page_range: Option<&str>,
 ) -> Result<(String, String), AppError> {
+    let file = batch_file_entry(file_name, is_ocr, page_range);
     let body = json!({
-        "files": [{ "name": file_name, "is_ocr": is_ocr }],
+        "files": [file],
         "language": language,
         "model_version": "vlm",
         "enable_formula": true,
@@ -952,6 +1041,16 @@ async fn request_upload_url(
     Ok((batch_id, upload_url))
 }
 
+/// One `files[]` entry of the cloud batch request. MinerU documents the
+/// per-file page slice as `file.page_ranges`; omitting it parses all pages.
+fn batch_file_entry(file_name: &str, is_ocr: bool, page_range: Option<&str>) -> Value {
+    let mut file = json!({ "name": file_name, "is_ocr": is_ocr });
+    if let Some(range) = page_range {
+        file["page_ranges"] = Value::String(range.to_string());
+    }
+    file
+}
+
 async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
     let LayoutAnalyzeContext {
         app,
@@ -960,20 +1059,38 @@ async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdf
     } = ctx;
     let (pdf_bytes, file_name) =
         super::prepare_pdf_upload(&args.pdf_base64, args.file_name.as_deref())?;
-
+    let page_count = args.page_count.unwrap_or(0);
     let request_id = args.request_id.clone();
-    let emit_progress = move |phase: &str, extracted: Option<u64>, total: Option<u64>| {
-        emit_cloud_progress(&app, phase, extracted, total, request_id.clone());
-    };
 
-    let zip_bytes =
-        run_mineru_extract_unshared(&credentials, pdf_bytes, &file_name, &emit_progress, &|| {
-            false
-        })
+    // The cloud parser rejects a single job above 200 pages. Split the page
+    // range across sequential batch jobs and merge the per-page results;
+    // self-hosted deployments have no such limit and keep the single job.
+    let result = if !credentials.self_hosted && page_count > MINERU_CLOUD_PAGE_LIMIT {
+        analyze_cloud_chunked(
+            &app,
+            request_id,
+            &credentials,
+            &pdf_bytes,
+            &file_name,
+            page_count,
+            &|| false,
+        )
+        .await?
+    } else {
+        let emit_progress = move |phase: &str, extracted: Option<u64>, total: Option<u64>| {
+            emit_cloud_progress(&app, phase, extracted, total, request_id.clone());
+        };
+        let zip_bytes = run_mineru_extract_unshared(
+            &credentials,
+            pdf_bytes,
+            &file_name,
+            &emit_progress,
+            &|| false,
+        )
         .await?;
-
-    // Extract content_list.json + middle.json and map to page boxes.
-    let result = parse_result_zip(&zip_bytes)?;
+        // Extract content_list.json + middle.json and map to page boxes.
+        parse_result_zip(&zip_bytes)?
+    };
     log::info!(
         target: "agentero::layout::hosted",
         "mineru result: pages={} boxes={}",
@@ -981,6 +1098,175 @@ async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdf
         result.pages.iter().map(|p| p.boxes.len()).sum::<usize>()
     );
     Ok(result)
+}
+
+/// 0-based `[start, end)` slices of at most [`MINERU_CLOUD_PAGE_LIMIT`] pages.
+fn cloud_page_ranges(page_count: u32) -> Vec<(u32, u32)> {
+    let mut ranges = Vec::new();
+    let mut start = 0;
+    while start < page_count {
+        let end = start
+            .saturating_add(MINERU_CLOUD_PAGE_LIMIT)
+            .min(page_count);
+        ranges.push((start, end));
+        start = end;
+    }
+    ranges
+}
+
+/// Cloud layout for a PDF above the per-job page limit: one batch job per
+/// 1-based page slice, then merge by page index. Progress is cumulative so
+/// the bar advances across segments instead of restarting at each upload.
+async fn analyze_cloud_chunked(
+    app: &crate::app_handle::AppHandle,
+    request_id: Option<String>,
+    credentials: &HostedProviderCredentials,
+    pdf_bytes: &[u8],
+    file_name: &str,
+    page_count: u32,
+    cancel: super::CancelFn<'_>,
+) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
+    let (base, auth) = resolve_target(credentials)?;
+    let client = http::client(MINERU_REQUEST_TIMEOUT)?;
+    let ranges = cloud_page_ranges(page_count);
+    let segment_total = ranges.len() as u32;
+    let mut pages: Vec<Option<LayoutRemotePageResult>> = (0..page_count).map(|_| None).collect();
+    let mut rendered_pages = vec![(0, 0); page_count as usize];
+
+    for (index, &(start, end)) in ranges.iter().enumerate() {
+        let segment_index = index as u32 + 1;
+        let range = format!("{}-{}", start + 1, end);
+        let chunk_progress = |phase: &str, extracted: Option<u64>, _total: Option<u64>| {
+            let global = extracted
+                .map(|pages| (start as u64 + pages).min(end as u64))
+                .unwrap_or(if phase == "uploading" {
+                    start as u64
+                } else {
+                    end as u64
+                });
+            // Only the last segment ends the whole run; an intermediate
+            // "done" would jump the UI to 96% and back.
+            let phase = if phase == "done" && segment_index == segment_total {
+                "done"
+            } else {
+                "running"
+            };
+            emit_cloud_progress_segment(
+                app,
+                phase,
+                Some(global),
+                Some(page_count as u64),
+                request_id.clone(),
+                Some((segment_index, segment_total)),
+            );
+        };
+        let zip = run_cloud_extract(
+            &client,
+            &base,
+            &auth,
+            pdf_bytes.to_vec(),
+            file_name,
+            credentials,
+            &chunk_progress,
+            cancel,
+            Some(&range),
+        )
+        .await
+        .map_err(|error| segment_failure(segment_index, segment_total, start, end, error))?;
+        let chunk = parse_result_zip_with_base(&zip, start)
+            .map_err(|error| segment_failure(segment_index, segment_total, start, end, error))?;
+        merge_chunk_pages(
+            &mut pages,
+            &mut rendered_pages,
+            start,
+            end,
+            chunk,
+            segment_index,
+            segment_total,
+        )?;
+    }
+
+    let pages = pages
+        .into_iter()
+        .map(|page| {
+            page.unwrap_or(LayoutRemotePageResult {
+                boxes: Vec::new(),
+                width_px: None,
+                height_px: None,
+            })
+        })
+        .collect();
+    Ok(LayoutRemoteAnalyzePdfResult {
+        pages,
+        rendered_pages,
+    })
+}
+
+/// One segment failed: name the slice so the user sees which part of the
+/// book failed instead of a bare upstream message.
+fn segment_failure(index: u32, total: u32, start: u32, end: u32, error: AppError) -> AppError {
+    AppError::message(format!(
+        "MinerU layout segment {index}/{total} (pages {}-{}) failed: {error}",
+        start + 1,
+        end
+    ))
+}
+
+/// Place one segment's page results at their absolute page index. The cloud
+/// may return only the requested slice (normal) or the whole document (when
+/// it ignores `page_ranges`); both are handled.
+fn merge_chunk_pages(
+    pages: &mut [Option<LayoutRemotePageResult>],
+    rendered_pages: &mut [(u32, u32)],
+    start: u32,
+    end: u32,
+    result: LayoutRemoteAnalyzePdfResult,
+    segment_index: u32,
+    segment_total: u32,
+) -> Result<(), AppError> {
+    let page_count = pages.len() as u32;
+    let chunk_len = (end - start) as usize;
+    let full_document = result.pages.len() as u32 == page_count;
+    let chunk_pages: Vec<LayoutRemotePageResult> = if result.pages.len() == chunk_len {
+        result.pages
+    } else if full_document {
+        result
+            .pages
+            .into_iter()
+            .skip(start as usize)
+            .take(chunk_len)
+            .collect()
+    } else {
+        return Err(segment_failure(
+            segment_index,
+            segment_total,
+            start,
+            end,
+            AppError::message(format!(
+                "returned {} pages for a {chunk_len}-page range",
+                result.pages.len()
+            )),
+        ));
+    };
+    let chunk_rendered: Vec<(u32, u32)> = if full_document {
+        result
+            .rendered_pages
+            .into_iter()
+            .skip(start as usize)
+            .take(chunk_len)
+            .collect()
+    } else {
+        result.rendered_pages.into_iter().take(chunk_len).collect()
+    };
+    for (offset, page) in chunk_pages.into_iter().enumerate() {
+        pages[start as usize + offset] = Some(page);
+    }
+    for (offset, size) in chunk_rendered.into_iter().enumerate() {
+        if let Some(slot) = rendered_pages.get_mut(start as usize + offset) {
+            *slot = size;
+        }
+    }
+    Ok(())
 }
 
 /// Whole-document MinerU extract for PAPER.md body parsing. Identical
@@ -1021,6 +1307,7 @@ async fn run_mineru_extract_unshared(
             credentials,
             progress,
             cancel,
+            None,
         )
         .await;
     }
@@ -1117,7 +1404,8 @@ async fn run_mineru_extract_unshared(
 }
 
 /// Cloud batch flow: request the presigned upload URL, PUT the bytes, poll the
-/// batch id, then download the result zip.
+/// batch id, then download the result zip. `page_range` limits the parse to
+/// one 1-based slice; the whole PDF is still uploaded.
 #[allow(clippy::too_many_arguments)]
 async fn run_cloud_extract(
     client: &reqwest::Client,
@@ -1128,6 +1416,7 @@ async fn run_cloud_extract(
     credentials: &HostedProviderCredentials,
     progress: super::ProgressFn<'_>,
     cancel: super::CancelFn<'_>,
+    page_range: Option<&str>,
 ) -> Result<Vec<u8>, AppError> {
     // 1) Request the presigned upload URL, then PUT the raw PDF bytes
     //    (no Content-Type — the presigned signature does not cover one).
@@ -1138,8 +1427,16 @@ async fn run_cloud_extract(
         .map(str::trim)
         .filter(|l| !l.is_empty())
         .unwrap_or(MINERU_DEFAULT_LANGUAGE);
-    let (batch_id, upload_url) =
-        request_upload_url(client, base, auth, file_name, language, credentials.is_ocr).await?;
+    let (batch_id, upload_url) = request_upload_url(
+        client,
+        base,
+        auth,
+        file_name,
+        language,
+        credentials.is_ocr,
+        page_range,
+    )
+    .await?;
     let upload = client
         .put(&upload_url)
         .body(pdf_bytes)
@@ -1921,7 +2218,13 @@ mod tests {
             {"type":"table", "page_idx":0, "bbox":[500,100,900,500], "table_caption":["Table 1. Results."]},
             {"type":"chart", "page_idx":0, "bbox":[10,600,500,900], "image_caption":[], "content":"Chart text"}
         ]);
-        let pages = build_pages(&content, &[(600.0, 800.0)]).unwrap();
+        let pages = build_pages(
+            &content,
+            &[(600.0, 800.0)],
+            &std::collections::HashMap::new(),
+            0,
+        )
+        .unwrap();
         let boxes = serde_json::to_value(&pages[0].boxes).unwrap();
         assert_eq!(boxes[0]["text"], "Fig. 1 | Overview.");
         assert_eq!(boxes[1]["caption"], "Fig. 1 | Overview.\nPanel details.");
@@ -1999,7 +2302,8 @@ mod tests {
         .unwrap();
         let sizes = parse_middle_page_sizes(&middle).unwrap();
         assert_eq!(sizes, vec![(612.0, 792.0), (612.0, 792.0)]);
-        let pages = build_pages(&content_list, &sizes).unwrap();
+        let pages =
+            build_pages(&content_list, &sizes, &std::collections::HashMap::new(), 0).unwrap();
         assert_eq!(pages.len(), 2);
         assert_eq!(pages[0].width_px, Some(612));
         assert_eq!(pages[0].height_px, Some(792));

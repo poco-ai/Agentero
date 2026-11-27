@@ -87,6 +87,10 @@ pub struct LayoutRemoteAnalyzePdfArgs {
     /// Remote provider id (defaults to `paddle`).
     #[serde(default)]
     pub provider: Option<String>,
+    /// Source PDF page count when the caller knows it. MinerU cloud analyses
+    /// a PDF in 200-page jobs above this limit; other engines ignore it.
+    #[serde(default)]
+    pub page_count: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -118,6 +122,11 @@ pub struct CloudProgressPayload {
     total_pages: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     request_id: Option<String>,
+    /// 1-based chunk index when a provider splits one PDF into several jobs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    segment_index: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    segment_total: Option<u32>,
 }
 
 /// Emit one `layout-remote:progress` event (payload shared by all engines).
@@ -128,6 +137,19 @@ pub(crate) fn emit_cloud_progress(
     total_pages: Option<u64>,
     request_id: Option<String>,
 ) {
+    emit_cloud_progress_segment(app, phase, extracted_pages, total_pages, request_id, None);
+}
+
+/// Emit progress for a segmented run so the UI can say "segment 2/3" instead
+/// of showing a provider-side page limit.
+pub(crate) fn emit_cloud_progress_segment(
+    app: &AppHandle,
+    phase: &str,
+    extracted_pages: Option<u64>,
+    total_pages: Option<u64>,
+    request_id: Option<String>,
+    segment: Option<(u32, u32)>,
+) {
     app.emit(
         CLOUD_PROGRESS_EVENT,
         &CloudProgressPayload {
@@ -135,6 +157,8 @@ pub(crate) fn emit_cloud_progress(
             extracted_pages,
             total_pages,
             request_id,
+            segment_index: segment.map(|(index, _)| index),
+            segment_total: segment.map(|(_, total)| total),
         },
     );
 }
