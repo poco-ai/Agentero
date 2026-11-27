@@ -146,8 +146,8 @@ pub struct AppSettings {
     #[serde(default = "default_paper_note_mode")]
     pub paper_note_mode: String,
     /// Open a paper's NOTES.md in the reading split when a paper is opened.
-    /// Default on; off opens only the PDF/HTML body.
-    #[serde(default = "default_true")]
+    /// Default off; on opens the NOTES companion next to the PDF/HTML body.
+    #[serde(default)]
     pub auto_open_paper_notes: bool,
     /// Auto-ingest: adopt bare folders created under `papers/` that hold at
     /// least one settled PDF into the library in place (catalog row + NOTES
@@ -611,7 +611,7 @@ impl Default for AppSettings {
             paper_tree_label_mode: default_paper_tree_label_mode(),
             paper_tree_sort_mode: default_paper_tree_sort_mode(),
             paper_note_mode: default_paper_note_mode(),
-            auto_open_paper_notes: default_true(),
+            auto_open_paper_notes: false,
             auto_ingest: default_true(),
             replace_current_tab_on_open_paper: false,
             auto_update_internal_links: default_auto_update_internal_links(),

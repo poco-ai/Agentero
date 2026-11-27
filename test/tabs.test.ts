@@ -1423,7 +1423,7 @@ describe("Notes layout actions", () => {
 		try {
 			setTabs([paper, notes]);
 			setActiveTabId(notes.id);
-			openTab(nextPaperPath, { preferMode: "pdf" });
+			openTab(nextPaperPath, { preferMode: "pdf", forceNotes: true });
 
 			expect(handle.openPanel).toHaveBeenNthCalledWith(
 				1,

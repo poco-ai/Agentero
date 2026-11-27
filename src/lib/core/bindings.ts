@@ -1941,7 +1941,7 @@ export type AppSettings_Deserialize = {
 	paperNoteMode?: string,
 	/**
 	 *  Open a paper's NOTES.md in the reading split when a paper is opened.
-	 *  Default on; off opens only the PDF/HTML body.
+	 *  Default off; on opens the NOTES companion next to the PDF/HTML body.
 	 */
 	autoOpenPaperNotes?: boolean,
 	/**
@@ -2125,7 +2125,7 @@ export type AppSettings_Serialize = {
 	paperNoteMode: string,
 	/**
 	 *  Open a paper's NOTES.md in the reading split when a paper is opened.
-	 *  Default on; off opens only the PDF/HTML body.
+	 *  Default off; on opens the NOTES companion next to the PDF/HTML body.
 	 */
 	autoOpenPaperNotes: boolean,
 	/**

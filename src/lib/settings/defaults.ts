@@ -184,7 +184,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	pdfSentenceHover: true,
 	pdfCommentDisplay: "rail",
 	paperNoteMode: "standard",
-	autoOpenPaperNotes: true,
+	autoOpenPaperNotes: false,
 	autoIngest: true,
 	replaceCurrentTabOnOpenPaper: false,
 	libraryColumns: DEFAULT_LIBRARY_COLUMNS.map((c) => ({ ...c })),
