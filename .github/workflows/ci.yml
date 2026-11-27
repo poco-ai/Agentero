@@ -231,16 +231,12 @@ jobs:
           set -euo pipefail
           case "${{ matrix.task }}" in
             agentero-tests)
-              # tesseract-rs 0.2 builds Debug leptonica/tesseract on Windows
-              # (*d.lib) but only links the release names. The release profile
-              # makes CMake produce and link the matching libs; see
-              # CONTRIBUTING.md.
-              cargo test --release -p agentero
+              cargo test -p agentero
               ;;
             cli-tests)
               # Dependency builds do not run core/MCP unit tests. Keep all
               # headless packages in this job to share PDFium and artifacts.
-              cargo test --release -p agentero-core -p agentero-mcp -p agentero-cli
+              cargo test -p agentero-core -p agentero-mcp -p agentero-cli
               ;;
             *)
               echo "::error::Unknown Rust CI task: ${{ matrix.task }}"
