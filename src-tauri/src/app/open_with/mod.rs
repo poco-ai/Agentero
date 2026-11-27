@@ -346,11 +346,32 @@ fn open_in_file_manager(dir: &Path) -> Result<(), AppError> {
     #[cfg(target_os = "macos")]
     let mut command = command("open");
     #[cfg(windows)]
-    let mut command = command("explorer");
+    let (mut command, dir) = (command("explorer"), windows_explorer_arg(dir));
     #[cfg(all(unix, not(target_os = "macos")))]
     let mut command = command("xdg-open");
     command.arg(dir);
     spawn(command)
+}
+
+/// Explorer needs backslashes and ordinary drive/UNC paths on its command line.
+#[cfg(windows)]
+fn windows_explorer_arg(dir: &Path) -> PathBuf {
+    let Some(path) = dir.to_str() else {
+        return dir.to_path_buf();
+    };
+    let path = path.replace('/', "\\");
+    if let Some(unc) = path.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{unc}").into();
+    }
+    if let Some(drive) = path.strip_prefix(r"\\?\").filter(|rest| {
+        matches!(
+            rest.as_bytes(),
+            [b'A'..=b'Z' | b'a'..=b'z', b':', b'\\', ..]
+        )
+    }) {
+        return drive.into();
+    }
+    path.into()
 }
 
 /// Launch a `.app` bundle so macOS resolves it exactly like Finder's Open With.
