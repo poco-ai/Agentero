@@ -173,7 +173,10 @@ fn resolve_section(
     heading: &str,
 ) -> Result<ResolvedFragment, AppError> {
     let raw = layout_index::load_raw_layout(vault, paper_path)?;
-    let headers: Vec<&LayoutRegion> = raw.regions.iter().filter(|r| r.kind == "header").collect();
+    let headers: Vec<&LayoutRegion> = layout_index::deduped_regions(&raw)
+        .into_iter()
+        .filter(|r| r.kind == "header")
+        .collect();
     let needle = normalize_heading(heading);
 
     if heading

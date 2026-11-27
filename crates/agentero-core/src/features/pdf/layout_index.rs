@@ -2,14 +2,21 @@
 //!
 //! Shared by CLI `layout` / `mark --region` and MCP `layout_*` tools.
 
+use super::layout_region::{
+    reaches_min_score, LayoutKind, LayoutRegion, Rect, LAYOUT_SIDEBAR_MIN_SCORE,
+};
 use crate::error::AppError;
 use crate::fs::sanitize_vault_rel;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::SystemTime;
+
+const RAW_DEDUPE_IOU_THRESHOLD: f64 = 0.45;
+const RAW_DEDUPE_CONTAINMENT_THRESHOLD: f64 = 0.85;
 
 pub const LAYOUT_INDEX_FILE: &str = "layout-index.json";
 pub const LAYOUT_RAW_FILE: &str = "layout.json";
@@ -217,6 +224,119 @@ pub fn page_regions(layout: &RawLayout, page_index: u32) -> Vec<&RawLayoutRegion
         .iter()
         .filter(|r| r.page_index == page_index)
         .collect()
+}
+
+fn region_text(region: &RawLayoutRegion) -> Option<&str> {
+    region
+        .text
+        .as_deref()
+        .or(region.title.as_deref())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
+
+fn bbox_to_rect(bbox: &Bbox) -> Rect {
+    Rect::new(bbox.x, bbox.y, bbox.w, bbox.h)
+}
+
+fn normalized_alnum(text: &str) -> String {
+    text.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn texts_overlap(a: &str, b: &str) -> bool {
+    let na = normalized_alnum(a);
+    let nb = normalized_alnum(b);
+    !na.is_empty() && !nb.is_empty() && (na == nb || na.contains(&nb) || nb.contains(&na))
+}
+
+fn raw_visual_group(kind: &str) -> &str {
+    LayoutKind::from_label(kind).map_or(kind, |k| k.dedupe_group())
+}
+
+fn boxes_overlap(a: &Rect, b: &Rect) -> bool {
+    a.area() > 0.0
+        && b.area() > 0.0
+        && (LayoutRegion::bbox_iou(a, b) >= RAW_DEDUPE_IOU_THRESHOLD
+            || LayoutRegion::bbox_containment(a, b) >= RAW_DEDUPE_CONTAINMENT_THRESHOLD)
+}
+
+fn dedupe_regions_slice<'a>(
+    regions: &[&'a RawLayoutRegion],
+    min_score: Option<f64>,
+) -> Vec<&'a RawLayoutRegion> {
+    let mut by_page: BTreeMap<u32, Vec<(usize, &'a RawLayoutRegion)>> = BTreeMap::new();
+    for (idx, &region) in regions.iter().enumerate() {
+        if min_score.is_some_and(|min| !reaches_min_score(region.score, min)) {
+            continue;
+        }
+        by_page
+            .entry(region.page_index)
+            .or_default()
+            .push((idx, region));
+    }
+
+    let mut kept: Vec<(usize, &'a RawLayoutRegion)> = Vec::new();
+    for mut page in by_page.into_values() {
+        page.sort_by(|(_, a), (_, b)| {
+            b.score
+                .total_cmp(&a.score)
+                .then_with(|| {
+                    bbox_to_rect(&b.bbox)
+                        .area()
+                        .total_cmp(&bbox_to_rect(&a.bbox).area())
+                })
+                .then_with(|| {
+                    a.reading_order
+                        .unwrap_or(u32::MAX)
+                        .cmp(&b.reading_order.unwrap_or(u32::MAX))
+                })
+                .then_with(|| a.id.cmp(&b.id))
+        });
+
+        let mut selected_text: Vec<(usize, &'a RawLayoutRegion, Rect, &str)> = Vec::new();
+        let mut selected_visual: Vec<(usize, &'a RawLayoutRegion, Rect)> = Vec::new();
+        for (idx, cand) in page {
+            let rect = bbox_to_rect(&cand.bbox);
+            if let Some(cand_text) = region_text(cand) {
+                let duplicate = selected_text.iter().any(|(_, _, prev_rect, prev_text)| {
+                    boxes_overlap(&rect, prev_rect) && texts_overlap(cand_text, prev_text)
+                });
+                if !duplicate {
+                    selected_text.push((idx, cand, rect, cand_text));
+                }
+            } else {
+                let group = raw_visual_group(&cand.kind);
+                let duplicate = selected_visual.iter().any(|(_, prev, prev_rect)| {
+                    raw_visual_group(&prev.kind) == group && boxes_overlap(&rect, prev_rect)
+                });
+                if !duplicate {
+                    selected_visual.push((idx, cand, rect));
+                }
+            }
+        }
+        kept.extend(selected_text.into_iter().map(|(i, r, _, _)| (i, r)));
+        kept.extend(selected_visual.into_iter().map(|(i, r, _)| (i, r)));
+    }
+
+    kept.sort_by_key(|(idx, _)| *idx);
+    kept.into_iter().map(|(_, r)| r).collect()
+}
+
+/// Regions from `layout.json` filtered by `LAYOUT_SIDEBAR_MIN_SCORE` and
+/// deduplicated per page across overlapping detections, preserving reading order.
+pub fn deduped_regions(layout: &RawLayout) -> Vec<&RawLayoutRegion> {
+    let all: Vec<&RawLayoutRegion> = layout.regions.iter().collect();
+    dedupe_regions_slice(&all, Some(LAYOUT_SIDEBAR_MIN_SCORE))
+}
+
+/// Deduplicated high-confidence regions on a 0-based physical `page_index`,
+/// in reading order.
+pub fn deduped_page_regions(layout: &RawLayout, page_index: u32) -> Vec<&RawLayoutRegion> {
+    let page = page_regions(layout, page_index);
+    dedupe_regions_slice(&page, Some(LAYOUT_SIDEBAR_MIN_SCORE))
 }
 
 /// Highest physical page present (0-based index) + 1, or 0 when no regions.
@@ -584,8 +704,11 @@ fn enumerate_document_anchors(layout: &RawLayout) -> Vec<LayoutIndexItem> {
     let mut section_anchor: Option<String> = None;
     let mut section_marker: Option<SectionMarker> = None;
     let mut paragraph_index = 0u32;
-    for region in super::document_reading_order::document_reading_order(&layout.regions) {
-        let (kind, anchor, ordinal) = if region.kind == "header" {
+    let ordered = super::document_reading_order::document_reading_order(&layout.regions);
+    for region in dedupe_regions_slice(&ordered, None) {
+        let (kind, anchor, ordinal) = if region.kind == "header"
+            && reaches_min_score(region.score, LAYOUT_SIDEBAR_MIN_SCORE)
+        {
             let marker = region
                 .title
                 .as_deref()
@@ -1347,5 +1470,53 @@ mod tests {
         assert_eq!(section_number("2.Method").as_deref(), Some("2"));
         assert_eq!(section_number("Introduction"), None);
         assert_eq!(section_number("arXiv:2504.16054v1"), None);
+    }
+
+    #[test]
+    fn deduped_regions_filter_low_scores_and_preserve_distinct_text_and_anchors() {
+        let dir = tempdir().unwrap();
+        let paper = dir.path().join("papers/p1");
+        write_raw_layout(
+            &paper,
+            r#"{
+              "schemaVersion": 3,
+              "source": {"mode": "embedpdf-layout", "generatedAt": "t"},
+              "regions": [
+                {"id":"h1-low","pageIndex":0,"readingOrder":0,"kind":"header","score":0.08,"bbox":{"x":0.1,"y":0.05,"w":0.8,"h":0.04},"title":"1 Introduction","text":"1 Introduction"},
+                {"id":"h1-dup","pageIndex":0,"readingOrder":1,"kind":"paragraph_title","score":0.62,"bbox":{"x":0.1,"y":0.05,"w":0.8,"h":0.04},"title":"1 Introduction","text":"1 Introduction"},
+                {"id":"h1-hi","pageIndex":0,"readingOrder":2,"kind":"header","score":0.95,"bbox":{"x":0.1,"y":0.05,"w":0.8,"h":0.04},"title":"1 Introduction"},
+                {"id":"abs-hi","pageIndex":0,"readingOrder":3,"kind":"abstract","score":0.88,"bbox":{"x":0.1,"y":0.12,"w":0.8,"h":0.10},"text":"Abstract — Fuzzing discovers bugs."},
+                {"id":"abs-mid","pageIndex":0,"readingOrder":4,"kind":"text","score":0.52,"bbox":{"x":0.1,"y":0.12,"w":0.8,"h":0.10},"text":"Abstract — Fuzzing discovers bugs."},
+                {"id":"abs-low","pageIndex":0,"readingOrder":5,"kind":"formula","score":0.04,"bbox":{"x":0.1,"y":0.12,"w":0.8,"h":0.10},"text":"Abstract — Fuzzing discovers bugs."},
+                {"id":"tbl-empty-1","pageIndex":0,"readingOrder":6,"kind":"table","score":0.70,"bbox":{"x":0.1,"y":0.25,"w":0.8,"h":0.20}},
+                {"id":"tbl-empty-2","pageIndex":0,"readingOrder":7,"kind":"table","score":0.91,"bbox":{"x":0.1,"y":0.25,"w":0.8,"h":0.20}},
+                {"id":"tbl-cap","pageIndex":0,"readingOrder":8,"kind":"figure_title","score":0.84,"bbox":{"x":0.1,"y":0.25,"w":0.8,"h":0.04},"text":"Table 1: Summary of crashes."},
+                {"id":"other-text","pageIndex":0,"readingOrder":9,"kind":"text","score":0.81,"bbox":{"x":0.1,"y":0.25,"w":0.8,"h":0.20},"text":"Unrelated paragraph sharing a loose box."}
+              ]
+            }"#,
+        );
+
+        let layout = load_raw_layout(dir.path(), "papers/p1").unwrap();
+        let kept_ids: Vec<&str> = deduped_regions(&layout)
+            .into_iter()
+            .map(|r| r.id.as_str())
+            .collect();
+        assert_eq!(
+            kept_ids,
+            vec!["h1-hi", "abs-hi", "tbl-empty-2", "tbl-cap", "other-text"]
+        );
+
+        assert_eq!(deduped_page_regions(&layout, 0).len(), 5);
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#1").unwrap().item.id,
+            "h1-hi"
+        );
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#1#p1")
+                .unwrap()
+                .item
+                .id,
+            "other-text"
+        );
     }
 }

@@ -309,7 +309,7 @@ fn physical(
                 if page > count {
                     return Err(missing("page outside source"));
                 }
-                let rows = layout_index::page_regions(&layout, page - 1);
+                let rows = layout_index::deduped_page_regions(&layout, page - 1);
                 let body = rows
                     .iter()
                     .filter_map(|r| r.text.as_deref().or(r.title.as_deref()))
@@ -391,13 +391,14 @@ fn tex_section(text: &str, section: &str) -> Result<Fragment> {
 fn layout_section(vault: &Path, paper: &str, section: &str) -> Result<Option<Fragment>> {
     layout_file(vault, paper)?;
     let layout = layout_index::load_raw_layout(vault, paper)?;
+    let regions = layout_index::deduped_regions(&layout);
     let heading = |r: &layout_index::RawLayoutRegion| {
-        r.kind.contains("title")
+        (r.kind.contains("title") && r.kind != "figure_title")
             || r.kind.contains("header")
             || r.kind.contains("section")
             || r.kind == "heading"
     };
-    let mut matches = layout.regions.iter().enumerate().filter(|(_, r)| {
+    let mut matches = regions.iter().copied().enumerate().filter(|(_, r)| {
         heading(r)
             && r.title
                 .as_deref()
@@ -414,7 +415,7 @@ fn layout_section(vault: &Path, paper: &str, section: &str) -> Result<Option<Fra
         ));
     }
     let text = std::iter::once(first)
-        .chain(layout.regions[i + 1..].iter().take_while(|r| !heading(r)))
+        .chain(regions[i + 1..].iter().copied().take_while(|r| !heading(r)))
         .filter_map(|r| r.text.as_deref().or(r.title.as_deref()))
         .collect::<Vec<_>>()
         .join("\n");
