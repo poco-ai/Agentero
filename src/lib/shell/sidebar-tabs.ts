@@ -354,6 +354,18 @@ function createSidebarDock(
 			const tabs = panels();
 			return tabs.length === 1 ? tabs[0].id : undefined;
 		},
+		/**
+		 * Force the rail's Dockview to the width it is about to animate to. The
+		 * rail pins its content while the panel width slides, so Dockview only
+		 * sees one size change; handing it the final size up front keeps the
+		 * panels laid out at that width from the first frame.
+		 */
+		relayout(width: number) {
+			if (disposed || !ready) return;
+			const height = api.height;
+			if (width <= 0 || height <= 0) return;
+			api.layout(width, height, true);
+		},
 		cycleTab(delta: -1 | 1) {
 			const tabs = panels();
 			if (tabs.length < 2) return;
@@ -428,6 +440,11 @@ export function connectSidebarDock(
 		next.dispose();
 		if (dock === next) dock = null;
 	};
+}
+
+/** Lay the rail's Dockview out at the width its slide will settle on. */
+export function relayoutSidebarDock(width: number) {
+	dock?.relayout(width);
 }
 
 export function sidebarAgentTargets(): SidebarAgentTarget[] {

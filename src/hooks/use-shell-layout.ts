@@ -21,6 +21,7 @@ import {
 	layoutModeRightCollapsed,
 	layoutModeRightRatio,
 } from "@/lib/shell/layout-presets";
+import { relayoutSidebarDock } from "@/lib/shell/sidebar-tabs";
 import {
 	type LayoutMode,
 	registerLayoutController,
@@ -204,8 +205,10 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				? (panel?.getSize().inPixels ?? rightWidthPxRef.current)
 				: (rememberedWidths().rightPx ??
 					(rightWidthPxRef.current || RIGHT_SIDEBAR_DEFAULT_PX));
-			if (sliding) beginRailTransition(targetPx);
-			else stopRailTransition();
+			if (sliding) {
+				beginRailTransition(targetPx);
+				if (!collapsed) relayoutSidebarDock(targetPx);
+			} else stopRailTransition();
 			if (panel) {
 				if (collapsed) {
 					try {

@@ -736,9 +736,6 @@ export default function App() {
 								collapsible
 								collapsedSize={0}
 								groupResizeBehavior="preserve-pixel-size"
-								// The panel library writes `overflow: auto` inline; the class
-								// alone cannot clip the rail's content while it slides.
-								style={{ overflow: "hidden" }}
 								className="min-h-0 overflow-hidden"
 								onResize={(size) => {
 									if (isRailTransitioning()) return;
