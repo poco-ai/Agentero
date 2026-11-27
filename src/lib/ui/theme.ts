@@ -5,7 +5,9 @@ import tweakcnManifest from "@/themes/tweakcn-manifest.json";
  * intentionally excluded so Appearance font stacks stay intact).
  * Full theme data is loaded on-demand from `@/themes/tweakcn-themes.json`;
  * the manifest only contains the metadata needed for the settings dropdown.
- * Refresh with `node scripts/fetch-tweakcn-themes.mjs`.
+ *
+ * `tweakcn-themes.json` is checked-in source data; the upstream fetch script
+ * was removed, so palette fixes belong in the file itself.
  */
 export type UiThemeMeta = {
 	name: string;
