@@ -267,7 +267,6 @@ export const LayoutElementSelectionLayer = memo(
 			};
 
 			let marked: HTMLElement[] = [];
-			let fadeTimer = 0;
 			const washOf = () => washRef.current;
 
 			const paintSentence = () => {
@@ -306,12 +305,8 @@ export const LayoutElementSelectionLayer = memo(
 							);
 					if (rects.length === 0) {
 						wash.classList.remove("is-on");
-						window.clearTimeout(fadeTimer);
-						fadeTimer = window.setTimeout(() => {
-							if (!wash.classList.contains("is-on")) wash.replaceChildren();
-						}, 80);
+						wash.replaceChildren();
 					} else {
-						window.clearTimeout(fadeTimer);
 						wash.replaceChildren(
 							...rects.map((rect) => {
 								const node = document.createElement("span");
@@ -594,7 +589,6 @@ export const LayoutElementSelectionLayer = memo(
 				unsubscribeAction();
 				unsubscribeSentence();
 				paintSentenceRef.current = () => undefined;
-				window.clearTimeout(fadeTimer);
 				for (const node of marked) node.removeAttribute("data-sentence-hot");
 				washOf()?.replaceChildren();
 				const chip = sentenceChipRef.current;

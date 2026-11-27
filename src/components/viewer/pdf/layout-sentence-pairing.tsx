@@ -22,7 +22,6 @@ import {
 	suppressLayoutSentenceHover,
 	syncLayoutSentencePointer,
 } from "@/components/viewer/pdf/layout-sentence-hover";
-import { MOTION_MS, prefersReducedMotion } from "@/lib/core/motion";
 import {
 	LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX,
 	layoutSentenceScope,
@@ -37,9 +36,6 @@ import {
 } from "@/lib/pdf/layout/visible-selection-rects";
 import { linkPreviewDragActive } from "@/lib/pdf/link-preview-drag";
 import { synctexHoverSupersedes } from "@/lib/tex/synctex-boxes";
-
-/** Kept in sync with `--motion-duration-micro` in index.css. */
-const SENTENCE_BAND_FADE_MS = MOTION_MS.micro;
 
 function spanFromTarget(
 	event: PointerEvent,
@@ -240,43 +236,20 @@ export function PdfSentenceHighlight({
 		const shell = layer?.parentElement;
 		if (!layer || !shell) return;
 		let paintedKey: string | null = null;
-		let hideTimer = 0;
-		const fadeTimers = new Set<number>();
 
-		/** Bands of the current sentence; `is-leaving` ones are already fading. */
-		const liveBands = () =>
-			Array.from(layer.children).filter(
-				(node): node is HTMLElement =>
-					node instanceof HTMLElement && !node.classList.contains("is-leaving"),
-			);
+		const bands = () => Array.from(layer.children) as HTMLElement[];
 
-		/** Fade the previous sentence out under the new one, never delaying it. */
+		/** Drop the previous sentence before the new bands paint. */
 		const retireBands = (nodes: readonly HTMLElement[]) => {
-			if (nodes.length > 0) {
-				if (prefersReducedMotion()) {
-					for (const node of nodes) node.remove();
-				} else {
-					for (const node of nodes) node.classList.add("is-leaving");
-					const timer = window.setTimeout(() => {
-						fadeTimers.delete(timer);
-						for (const node of nodes) node.remove();
-					}, SENTENCE_BAND_FADE_MS);
-					fadeTimers.add(timer);
-				}
-			}
-			window.clearTimeout(hideTimer);
-			hideTimer = window.setTimeout(() => {
-				hideTimer = 0;
-				if (liveBands().length > 0) return;
-				layer.classList.remove("is-on");
-			}, SENTENCE_BAND_FADE_MS);
+			for (const node of nodes) node.remove();
+			layer.classList.remove("is-on");
 		};
 
 		const clear = () => {
 			if (paintedKey === null && !layer.classList.contains("is-on")) return;
 			paintedKey = null;
 			layer.classList.remove("is-held");
-			retireBands(liveBands());
+			retireBands(bands());
 		};
 		const paint = () => {
 			const action = layoutElementActionStore.getState().action;
@@ -373,20 +346,15 @@ export function PdfSentenceHighlight({
 				clear();
 				return;
 			}
-			// Crossfade: the new sentence paints on the same frame under the
-			// pointer, while the previous one fades out beneath it. Fading the old
-			// one out *before* showing the next dropped every block the pointer
-			// crossed during that fade.
+			// The new sentence paints on the same frame the pointer moved.
 			const sameSentence = paintedKey === mine.key;
-			const previous = liveBands();
+			const previous = bands();
 			if (sameSentence) {
-				// Zoom / resize on the same sentence: replace without a fade.
+				// Zoom / resize on the same sentence: replace in place.
 				for (const node of previous) node.remove();
 			} else {
 				retireBands(previous);
 			}
-			window.clearTimeout(hideTimer);
-			hideTimer = 0;
 			paintedKey = mine.key;
 			// A hovered sentence is a light wash, a pinned one a denser wash; the
 			// weights live in index.css so no caller sets an opacity (see there).
@@ -404,8 +372,6 @@ export function PdfSentenceHighlight({
 			unsubscribe();
 			unsubscribeAction();
 			observer?.disconnect();
-			window.clearTimeout(hideTimer);
-			for (const timer of fadeTimers) window.clearTimeout(timer);
 			layer.replaceChildren();
 			layer.classList.remove("is-on", "is-held");
 		};
