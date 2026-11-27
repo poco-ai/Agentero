@@ -540,13 +540,19 @@ function SidebarLauncher({
 		}
 	};
 	const cardClass =
-		"h-auto min-h-[5.25rem] min-w-0 flex-col items-start justify-start gap-2.5 whitespace-normal rounded-xl p-3.5 text-start leading-snug focus-visible:border-ring active:scale-[0.99] motion-reduce:transition-none";
+		"h-14 w-full min-w-0 items-center justify-start gap-3 rounded-xl px-3 text-start ring-1 ring-foreground/[0.06] ring-inset focus-visible:border-ring active:scale-[0.99] motion-reduce:transition-none";
+	const cardIconClass =
+		"flex size-8 shrink-0 items-center justify-center rounded-[0.625rem] bg-foreground/[0.06] text-foreground/85";
 	return (
 		<div
 			data-sidebar-view={api.id}
-			className="agentero-scroll flex h-full min-w-0 flex-col overflow-auto px-4 py-6 before:flex-[2_0_0px] after:flex-[3_0_0px] sm:px-6"
+			className="@container agentero-scroll flex h-full min-w-0 flex-col overflow-auto px-4 py-6 before:flex-[2_0_0px] after:flex-[3_0_0px] sm:px-6"
 		>
-			<div className="mx-auto w-full max-w-[35rem] min-w-0 shrink-0 space-y-6">
+			{/* Dockview lays the collapsed group out at its 100px minimum, then
+			catches up a few frames after the rail opens; without the gate the
+			launcher paints once as a 1-column card stack. Opacity keeps the
+			search input focusable while the transient layout is hidden. */}
+			<div className="mx-auto w-full max-w-[35rem] min-w-0 shrink-0 space-y-6 @max-[10rem]:opacity-0">
 				<Command
 					className="relative z-10 size-auto overflow-visible bg-transparent p-0"
 					shouldFilter={false}
@@ -628,10 +634,14 @@ function SidebarLauncher({
 					</CommandList>
 				</Command>
 				<div className="space-y-2.5">
-					<h2 className="font-medium text-muted-foreground text-xs">
+					<h2 className="font-semibold text-muted-foreground text-xs">
 						{t("sidebarTabs.open")}
 					</h2>
-					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-2">
+					{/* Two fixed tracks only once the longest label fits; four equal
+					columns crammed every label against its padding edge, and auto-fit
+					orphaned the last card on narrower rails. Below the breakpoint the
+					actions stack so each label gets the full pane width. */}
+					<div className="grid grid-cols-1 gap-2 @min-[31rem]:grid-cols-2">
 						<Button
 							type="button"
 							variant="secondary"
@@ -646,8 +656,12 @@ function SidebarLauncher({
 								)
 							}
 						>
-							<MessageSquarePlus className="size-4.5" aria-hidden />
-							{t("sidebarTabs.newAgent")}
+							<span className={cardIconClass}>
+								<MessageSquarePlus className="size-4" aria-hidden />
+							</span>
+							<span className="min-w-0 truncate">
+								{t("sidebarTabs.newAgent")}
+							</span>
 						</Button>
 						<Button
 							type="button"
@@ -658,8 +672,12 @@ function SidebarLauncher({
 								sourceNotesPath && void openFile(sourceNotesPath, true)
 							}
 						>
-							<NotebookPen className="size-4.5" aria-hidden />
-							{t("sidebarTabs.currentNotes")}
+							<span className={cardIconClass}>
+								<NotebookPen className="size-4" aria-hidden />
+							</span>
+							<span className="min-w-0 truncate">
+								{t("sidebarTabs.currentNotes")}
+							</span>
 						</Button>
 						<Button
 							type="button"
@@ -668,8 +686,12 @@ function SidebarLauncher({
 							disabled={busy}
 							onClick={() => void openFile()}
 						>
-							<FolderOpen className="size-4.5" aria-hidden />
-							{t("sidebarTabs.openFile")}
+							<span className={cardIconClass}>
+								<FolderOpen className="size-4" aria-hidden />
+							</span>
+							<span className="min-w-0 truncate">
+								{t("sidebarTabs.openFile")}
+							</span>
 						</Button>
 						<Button
 							type="button"
@@ -678,8 +700,12 @@ function SidebarLauncher({
 							disabled={busy}
 							onClick={() => openBrowser(null)}
 						>
-							<Globe className="size-4.5" aria-hidden />
-							{t("sidebarBrowser.title")}
+							<span className={cardIconClass}>
+								<Globe className="size-4" aria-hidden />
+							</span>
+							<span className="min-w-0 truncate">
+								{t("sidebarBrowser.title")}
+							</span>
 						</Button>
 					</div>
 				</div>
