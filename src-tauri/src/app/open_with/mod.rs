@@ -2,17 +2,17 @@
 //!
 //! Mirrors the DSH `open-in-app` design: a fixed catalog (file manager,
 //! editors, terminal) resolved against verified launchers, plus the **real**
-//! application icon extracted from the installed `.app` bundle (`plutil` +
-//! `sips`, as DSH does) so the menu never ships hand-drawn brand marks. A
-//! platform or bundle without an extractable icon falls back to a generic
-//! glyph in the UI. There is no Launch Services query and no disk scan: macOS
-//! detection checks the known application folders only.
+//! application icon extracted from the host (`plutil` + `sips` on macOS,
+//! `explorer.exe` icon resources on Windows) so the menu never ships
+//! hand-drawn brand marks. A platform or bundle without an extractable icon
+//! falls back to a generic glyph in the UI. There is no Launch Services query
+//! and no disk scan: macOS detection checks the known application folders only.
 
 use crate::core::error::AppError;
 use crate::core::process::SanitizeAppImageEnv;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 use base64::engine::general_purpose::STANDARD as BASE64;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 use base64::Engine as _;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -150,7 +150,7 @@ fn file_manager_entry() -> OpenWithApp {
         bundle_icon_data_url(Path::new("/System/Library/CoreServices/Finder.app")),
     );
     #[cfg(windows)]
-    let (name, icon) = ("File Explorer", None);
+    let (name, icon) = ("File Explorer", windows_file_manager_icon_data_url());
     #[cfg(all(unix, not(target_os = "macos")))]
     let (name, icon) = ("File Manager", None);
     OpenWithApp {
@@ -340,6 +340,247 @@ fn first_icns(resources: &Path) -> Option<String> {
         .collect();
     names.sort();
     names.into_iter().next()
+}
+
+/// Real File Explorer icon as a PNG data URL, extracted from `%WINDIR%\explorer.exe`.
+/// Any failure yields `None` so the UI falls back to its generic folder glyph.
+#[cfg(windows)]
+fn windows_file_manager_icon_data_url() -> Option<String> {
+    let explorer = windows_explorer_executable()?;
+    let (width, height, rgba) = extract_windows_icon_rgba(&explorer, 64)?;
+    let png = encode_rgba_png(width, height, &rgba)?;
+    Some(format!("data:image/png;base64,{}", BASE64.encode(png)))
+}
+
+#[cfg(windows)]
+fn windows_explorer_executable() -> Option<PathBuf> {
+    let root = std::env::var_os("WINDIR")
+        .or_else(|| std::env::var_os("SystemRoot"))
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+    let explorer = root.join("explorer.exe");
+    explorer.is_file().then_some(explorer)
+}
+
+#[cfg(windows)]
+fn extract_windows_icon_rgba(exe: &Path, size: u32) -> Option<(u32, u32, Vec<u8>)> {
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr;
+    use windows_sys::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BITMAP, BITMAPINFO,
+        BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ,
+    };
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        DestroyIcon, GetIconInfo, PrivateExtractIconsW, HICON, ICONINFO,
+    };
+
+    struct IconGuard(HICON);
+    impl Drop for IconGuard {
+        fn drop(&mut self) {
+            if !self.0.is_null() {
+                unsafe {
+                    DestroyIcon(self.0);
+                }
+            }
+        }
+    }
+
+    struct BitmapGuard(HBITMAP);
+    impl Drop for BitmapGuard {
+        fn drop(&mut self) {
+            if !self.0.is_null() {
+                unsafe {
+                    DeleteObject(self.0 as HGDIOBJ);
+                }
+            }
+        }
+    }
+
+    struct DcGuard(HDC);
+    impl Drop for DcGuard {
+        fn drop(&mut self) {
+            if !self.0.is_null() {
+                unsafe {
+                    DeleteDC(self.0);
+                }
+            }
+        }
+    }
+
+    let wide: Vec<u16> = exe.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut hicon: HICON = ptr::null_mut();
+    let mut icon_id: u32 = 0;
+    let extracted = unsafe {
+        PrivateExtractIconsW(
+            wide.as_ptr(),
+            0,
+            i32::try_from(size).ok()?,
+            i32::try_from(size).ok()?,
+            &mut hicon,
+            &mut icon_id,
+            1,
+            0,
+        )
+    };
+    if extracted == 0 || extracted == u32::MAX || hicon.is_null() {
+        return None;
+    }
+    let _icon_guard = IconGuard(hicon);
+
+    let mut info = ICONINFO::default();
+    if unsafe { GetIconInfo(hicon, &mut info) } == 0 {
+        return None;
+    }
+    let _mask_guard = BitmapGuard(info.hbmMask);
+    let _color_guard = BitmapGuard(info.hbmColor);
+    if info.hbmColor.is_null() {
+        return None;
+    }
+
+    let mut bmp = BITMAP::default();
+    let got_obj = unsafe {
+        GetObjectW(
+            info.hbmColor as HGDIOBJ,
+            i32::try_from(std::mem::size_of::<BITMAP>()).ok()?,
+            (&mut bmp as *mut BITMAP).cast(),
+        )
+    };
+    if got_obj == 0 || bmp.bmWidth <= 0 || bmp.bmHeight <= 0 {
+        return None;
+    }
+    let width = u32::try_from(bmp.bmWidth).ok()?;
+    let height = u32::try_from(bmp.bmHeight).ok()?;
+    let pixel_count = (width as usize).checked_mul(height as usize)?;
+    let byte_len = pixel_count.checked_mul(4)?;
+
+    let hdc = unsafe { CreateCompatibleDC(ptr::null_mut()) };
+    if hdc.is_null() {
+        return None;
+    }
+    let _dc_guard = DcGuard(hdc);
+
+    let mut bmi = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: u32::try_from(std::mem::size_of::<BITMAPINFOHEADER>()).ok()?,
+            biWidth: bmp.bmWidth,
+            // Negative height asks GDI for a top-down scanline order matching PNG.
+            biHeight: -bmp.bmHeight,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let mut color = vec![0u8; byte_len];
+    let lines = unsafe {
+        GetDIBits(
+            hdc,
+            info.hbmColor,
+            0,
+            height,
+            color.as_mut_ptr().cast(),
+            &mut bmi,
+            DIB_RGB_COLORS,
+        )
+    };
+    if lines == 0 {
+        return None;
+    }
+
+    // Legacy 24bpp icons leave every alpha byte zero; recover transparency from hbmMask.
+    let has_alpha = color.as_chunks::<4>().0.iter().any(|px| px[3] != 0);
+    if !has_alpha && !info.hbmMask.is_null() {
+        let mut mask = vec![0u8; byte_len];
+        let mask_lines = unsafe {
+            GetDIBits(
+                hdc,
+                info.hbmMask,
+                0,
+                height,
+                mask.as_mut_ptr().cast(),
+                &mut bmi,
+                DIB_RGB_COLORS,
+            )
+        };
+        if mask_lines != 0 {
+            for (px, mask_px) in color
+                .as_chunks_mut::<4>()
+                .0
+                .iter_mut()
+                .zip(mask.as_chunks::<4>().0)
+            {
+                px[3] = if mask_px[0] == 0 { 255 } else { 0 };
+            }
+        }
+    }
+
+    // GDI returns BGRA; swap channels to RGBA for PNG encoding.
+    for px in color.as_chunks_mut::<4>().0 {
+        px.swap(0, 2);
+    }
+    Some((width, height, color))
+}
+
+#[cfg(windows)]
+fn encode_rgba_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
+    use flate2::write::ZlibEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    let row_bytes = (width as usize).checked_mul(4)?;
+    let expected = row_bytes.checked_mul(height as usize)?;
+    if width == 0 || height == 0 || rgba.len() != expected {
+        return None;
+    }
+
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    for row in rgba.chunks_exact(row_bytes) {
+        encoder.write_all(&[0]).ok()?;
+        encoder.write_all(row).ok()?;
+    }
+    let idat = encoder.finish().ok()?;
+
+    let mut ihdr = Vec::with_capacity(13);
+    ihdr.extend_from_slice(&width.to_be_bytes());
+    ihdr.extend_from_slice(&height.to_be_bytes());
+    ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+
+    let mut out = Vec::with_capacity(8 + 25 + idat.len() + 24);
+    out.extend_from_slice(b"\x89PNG\r\n\x1a\n");
+    write_png_chunk(&mut out, *b"IHDR", &ihdr)?;
+    write_png_chunk(&mut out, *b"IDAT", &idat)?;
+    write_png_chunk(&mut out, *b"IEND", &[])?;
+    Some(out)
+}
+
+#[cfg(windows)]
+fn write_png_chunk(out: &mut Vec<u8>, kind: [u8; 4], data: &[u8]) -> Option<()> {
+    let len = u32::try_from(data.len()).ok()?;
+    out.extend_from_slice(&len.to_be_bytes());
+    out.extend_from_slice(&kind);
+    out.extend_from_slice(data);
+    let crc = png_crc32(&kind, data);
+    out.extend_from_slice(&crc.to_be_bytes());
+    Some(())
+}
+
+#[cfg(windows)]
+fn png_crc32(kind: &[u8; 4], data: &[u8]) -> u32 {
+    let mut crc = 0xffff_ffffu32;
+    for &byte in kind.iter().chain(data.iter()) {
+        crc ^= u32::from(byte);
+        for _ in 0..8 {
+            crc = if crc & 1 != 0 {
+                (crc >> 1) ^ 0xedb8_8320
+            } else {
+                crc >> 1
+            };
+        }
+    }
+    !crc
 }
 
 fn open_in_file_manager(dir: &Path) -> Result<(), AppError> {
