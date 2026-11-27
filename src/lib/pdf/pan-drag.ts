@@ -1,9 +1,11 @@
 /**
  * Drag-to-pan (momentary hand tool) for the PDF viewport.
  *
- * Matches the common PDF-reader interaction: hold the middle or right button,
- * or hold Space and use the left button, and the page follows the cursor 1:1 on
- * both axes until the button is released.
+ * Matches the common PDF-reader interaction: hold the right button, or hold
+ * Space and use the left button, and the page follows the cursor 1:1 on both
+ * axes until the button is released. A middle button can stay drag-to-pan when
+ * no middle press handler is supplied; with one it is hold-to-reveal (see
+ * `onMiddlePress`).
  *
  * The gesture writes native `scrollLeft` / `scrollTop` on the viewport element;
  * `DockviewViewport` already coalesces the resulting scroll events into
@@ -40,20 +42,33 @@ type PanDragGestureOptions = {
 	 */
 	isRightDragExcludedTarget?: (target: EventTarget | null) => boolean;
 	/**
-	 * A middle press that ended without travel. Middle-drag still pans, so the
-	 * press is reported only after a release inside the click tolerance. The
-	 * right button keeps its drag-to-pan behavior and never reports here.
+	 * A right press that ended without travel. Right-drag still pans, so the
+	 * press is reported only after a release inside the click tolerance; PDF
+	 * chrome keeps its native right menu and never reports here.
 	 */
-	onMiddleClick?: (
+	onClickWithoutDrag?: (
 		target: EventTarget | null,
 		point: { x: number; y: number },
 	) => void;
+	/**
+	 * Middle press. Supplying it makes the middle button hold-to-reveal: the
+	 * press reports immediately and never pans, even when the pointer travels.
+	 * {@link onMiddleRelease} fires when the button is released, cancelled or
+	 * the window loses focus. The translation reader uses this to show the
+	 * original text in place.
+	 */
+	onMiddlePress?: (
+		target: EventTarget | null,
+		point: { x: number; y: number },
+	) => void;
+	/** Matched with {@link onMiddlePress}; fires once per press. */
+	onMiddleRelease?: () => void;
 	/** Cursor feedback; `"panning"` for the duration of a drag. */
 	onStateChange?: (state: PanDragState) => void;
 };
 
 export type PanDragBinding = {
-	/** End an in-flight drag (window lost focus) without detaching listeners. */
+	/** End an in-flight drag or pending click without detaching listeners. */
 	cancel(): void;
 	dispose(): void;
 };
@@ -63,7 +78,9 @@ export function bindPanDragGesture({
 	isLeftDragArmed,
 	isExcludedTarget,
 	isRightDragExcludedTarget,
-	onMiddleClick,
+	onClickWithoutDrag,
+	onMiddlePress,
+	onMiddleRelease,
 	onStateChange,
 }: PanDragGestureOptions): PanDragBinding {
 	let disposed = false;
@@ -74,15 +91,19 @@ export function bindPanDragGesture({
 		scrollLeft: number;
 		scrollTop: number;
 		/**
-		 * Middle press that may still end as a click. Cleared once it travels,
-		 * so a middle-drag pan never opens anything on release.
+		 * Right press that may still end as a click. While it is pending the
+		 * page must not scroll: a click with a pixel of jitter would otherwise
+		 * pan, fire a scroll, and close the card it just opened. Cleared once
+		 * the pointer travels past the click tolerance.
 		 */
-		middleClick: {
-			target: EventTarget | null;
-			startX: number;
-			startY: number;
-		} | null;
+		pressClick: { target: EventTarget | null } | null;
 	} | null = null;
+	/**
+	 * Held middle press when {@link PanDragGestureOptions.onMiddlePress} is
+	 * present. It reports the press immediately and never moves the page: the
+	 * middle button is reserved for the in-place source peek.
+	 */
+	let middleClick: { pointerId: number } | null = null;
 	/**
 	 * A right press that started a pan owns this button's context menu: WebKit
 	 * dispatches it on mousedown (before any movement) and WebView2 after the
@@ -90,6 +111,13 @@ export function bindPanDragGesture({
 	 * event or the next pointerdown.
 	 */
 	let rightPanPress = false;
+	/** Only emit state changes while a pan is actually running. */
+	let panning = false;
+	const setPanning = (next: boolean) => {
+		if (panning === next) return;
+		panning = next;
+		onStateChange?.(next ? "panning" : "idle");
+	};
 
 	const endDrag = () => {
 		if (!drag) return;
@@ -98,22 +126,60 @@ export function bindPanDragGesture({
 		if (target.hasPointerCapture(pointerId)) {
 			target.releasePointerCapture(pointerId);
 		}
-		onStateChange?.("idle");
+		setPanning(false);
 	};
 
-	/** Middle or right button, or left button while Space arms the hand tool. */
-	const isPanButton = (event: MouseEvent) =>
-		event.button === 1 ||
-		event.button === 2 ||
-		(event.button === 0 && isLeftDragArmed());
+	const endMiddleClick = () => {
+		if (!middleClick) return;
+		const { pointerId } = middleClick;
+		middleClick = null;
+		if (target.hasPointerCapture(pointerId)) {
+			target.releasePointerCapture(pointerId);
+		}
+		onMiddleRelease?.();
+	};
 
 	const isRightDragExcluded = (eventTarget: EventTarget | null) =>
 		isRightDragExcludedTarget?.(eventTarget) ?? false;
 
+	/** With a middle handler, the middle button is hold-to-reveal, never a pan. */
+	const isMiddleClick = (event: MouseEvent) =>
+		event.button === 1 && Boolean(onMiddlePress);
+
+	/** Editable fields, PDF chrome, links and buttons keep their native click. */
+	const isMiddleClickExcluded = (target: EventTarget | null) =>
+		isExcludedTarget(target) ||
+		isRightDragExcluded(target) ||
+		(target as Element | null)?.closest?.("a, button, [role='button']") != null;
+
+	/** Middle (legacy only), right, or left while Space arms the hand tool. */
+	const isPanButton = (event: MouseEvent) =>
+		(event.button === 1 && !onMiddlePress) ||
+		event.button === 2 ||
+		(event.button === 0 && isLeftDragArmed());
+
 	const handlePointerDown = (event: PointerEvent) => {
-		if (disposed || drag || event.pointerType !== "mouse") return;
+		if (disposed || drag || middleClick || event.pointerType !== "mouse") {
+			return;
+		}
 		// Each new press decides its own right-click behavior afresh.
 		rightPanPress = false;
+		if (isMiddleClick(event)) {
+			if (isMiddleClickExcluded(event.target)) return;
+			event.preventDefault();
+			event.stopPropagation();
+			try {
+				target.setPointerCapture(event.pointerId);
+			} catch {
+				// Ignored: WebKit drops capture after a default-prevented press.
+			}
+			middleClick = { pointerId: event.pointerId };
+			onMiddlePress?.(event.target, {
+				x: event.clientX,
+				y: event.clientY,
+			});
+			return;
+		}
 		if (!isPanButton(event) || isExcludedTarget(event.target)) return;
 		if (event.button === 2 && isRightDragExcluded(event.target)) return;
 		// Capture phase on the scroll container: stopping propagation here keeps
@@ -133,22 +199,21 @@ export function bindPanDragGesture({
 			// Ignored: see above.
 		}
 		rightPanPress = event.button === 2;
+		const pressClick =
+			event.button === 2 && onClickWithoutDrag
+				? { target: event.target }
+				: null;
 		drag = {
 			pointerId: event.pointerId,
 			startX: event.clientX,
 			startY: event.clientY,
 			scrollLeft: target.scrollLeft,
 			scrollTop: target.scrollTop,
-			middleClick:
-				event.button === 1 && onMiddleClick
-					? {
-							target: event.target,
-							startX: event.clientX,
-							startY: event.clientY,
-						}
-					: null,
+			pressClick,
 		};
-		onStateChange?.("panning");
+		// A pending click must not flash the hand cursor; panning starts only
+		// once the pointer leaves the click zone.
+		if (!pressClick) setPanning(true);
 	};
 
 	// WebKit and Windows still dispatch a compatibility mousedown after a
@@ -156,6 +221,12 @@ export function bindPanDragGesture({
 	// falls back to native autoscroll, the right button opens the page's context
 	// menu, and an armed left-drag starts a native selection instead of panning.
 	const handleMouseDown = (event: MouseEvent) => {
+		if (isMiddleClick(event)) {
+			if (isMiddleClickExcluded(event.target)) return;
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
 		if (disposed || !isPanButton(event)) return;
 		if (isExcludedTarget(event.target)) return;
 		if (event.button === 2 && isRightDragExcluded(event.target)) return;
@@ -176,27 +247,43 @@ export function bindPanDragGesture({
 	};
 
 	const handlePointerMove = (event: PointerEvent) => {
-		if (!drag || event.pointerId !== drag.pointerId) return;
-		const middleClick = drag.middleClick;
-		if (
-			middleClick &&
-			Math.hypot(
-				event.clientX - middleClick.startX,
-				event.clientY - middleClick.startY,
-			) > LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX
-		) {
-			drag.middleClick = null;
+		// The middle press never moves the page; it only holds the reveal.
+		if (middleClick) {
+			if (event.pointerId === middleClick.pointerId) return;
 		}
-		target.scrollLeft = drag.scrollLeft - (event.clientX - drag.startX);
-		target.scrollTop = drag.scrollTop - (event.clientY - drag.startY);
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		const dx = event.clientX - drag.startX;
+		const dy = event.clientY - drag.startY;
+		if (drag.pressClick) {
+			// Still inside the click tolerance: a click must not nudge the
+			// page, or the scroll closes the card the release is about to open.
+			if (Math.hypot(dx, dy) <= LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX) {
+				return;
+			}
+			// The press became a drag. Rebase here so the page starts moving
+			// from where the pointer left the click zone instead of jumping.
+			drag.pressClick = null;
+			drag.startX = event.clientX;
+			drag.startY = event.clientY;
+			drag.scrollLeft = target.scrollLeft;
+			drag.scrollTop = target.scrollTop;
+			setPanning(true);
+			return;
+		}
+		target.scrollLeft = drag.scrollLeft - dx;
+		target.scrollTop = drag.scrollTop - dy;
 	};
 
 	const handlePointerUp = (event: PointerEvent) => {
+		if (middleClick && event.pointerId === middleClick.pointerId) {
+			endMiddleClick();
+			return;
+		}
 		if (!drag || event.pointerId !== drag.pointerId) return;
-		const click = drag.middleClick;
-		drag.middleClick = null;
+		const click = drag.pressClick;
+		drag.pressClick = null;
 		if (click) {
-			onMiddleClick?.(click.target, {
+			onClickWithoutDrag?.(click.target, {
 				x: event.clientX,
 				y: event.clientY,
 			});
@@ -205,9 +292,13 @@ export function bindPanDragGesture({
 	};
 
 	const handlePointerCancel = (event: PointerEvent) => {
+		if (middleClick && event.pointerId === middleClick.pointerId) {
+			endMiddleClick();
+			return;
+		}
 		if (!drag || event.pointerId !== drag.pointerId) return;
 		// A cancelled gesture is not a click: drop the candidate first.
-		drag.middleClick = null;
+		drag.pressClick = null;
 		endDrag();
 	};
 
@@ -221,11 +312,17 @@ export function bindPanDragGesture({
 	target.addEventListener("pointercancel", handlePointerCancel);
 
 	return {
-		cancel: endDrag,
+		cancel() {
+			endDrag();
+			endMiddleClick();
+			setPanning(false);
+		},
 		dispose() {
 			if (disposed) return;
 			disposed = true;
 			endDrag();
+			middleClick = null;
+			setPanning(false);
 			rightPanPress = false;
 			target.removeEventListener("pointerdown", handlePointerDown, true);
 			target.removeEventListener("mousedown", handleMouseDown, true);

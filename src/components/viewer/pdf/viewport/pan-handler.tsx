@@ -51,19 +51,28 @@ type PanDragHandlerProps = {
 	hostRef: RefObject<HTMLDivElement | null>;
 	/** False while `⌘.` region select owns the left button. */
 	allowLeftDrag: boolean;
-	/**
-	 * Middle press + release without travel; a middle drag still pans. The
-	 * translation reader uses it to peek at a block's source.
-	 */
-	onMiddleClick?: (
+	/** Right press + release without travel; right-drag still pans. */
+	onClickWithoutDrag?: (
 		target: EventTarget | null,
 		point: { x: number; y: number },
 	) => void;
+	/**
+	 * Middle press. Supplying it makes the middle button hold-to-reveal: it
+	 * reports immediately and never pans, even when the pointer travels.
+	 */
+	onMiddlePress?: (
+		target: EventTarget | null,
+		point: { x: number; y: number },
+	) => void;
+	/** Matched with {@link PanDragHandlerProps.onMiddlePress}. */
+	onMiddleRelease?: () => void;
 };
 
 /**
- * Momentary hand tool: middle- and right-button drags always pan, and holding
- * Space arms the left button to behave exactly the same.
+ * Momentary hand tool: right-button drags always pan, and holding Space arms
+ * the left button to behave exactly the same. The middle button pans only when
+ * no middle press handler is supplied; the translation reader uses it for the
+ * source peek instead.
  *
  * Space is a bare key with no modifier, so claiming it needs an ownership rule:
  * the hovered viewer wins (focus usually sits on a tab, the sidebar or the notes
@@ -83,7 +92,9 @@ export function PanDragHandler({
 	active,
 	hostRef,
 	allowLeftDrag,
-	onMiddleClick,
+	onClickWithoutDrag,
+	onMiddlePress,
+	onMiddleRelease,
 }: PanDragHandlerProps) {
 	const viewportRef = useViewportElement();
 	const armedRef = useRef(false);
@@ -91,8 +102,14 @@ export function PanDragHandler({
 	activeRef.current = active;
 	const allowLeftDragRef = useRef(allowLeftDrag);
 	allowLeftDragRef.current = allowLeftDrag;
-	const onMiddleClickRef = useRef(onMiddleClick);
-	onMiddleClickRef.current = onMiddleClick;
+	const onClickWithoutDragRef = useRef(onClickWithoutDrag);
+	onClickWithoutDragRef.current = onClickWithoutDrag;
+	const onMiddlePressRef = useRef(onMiddlePress);
+	onMiddlePressRef.current = onMiddlePress;
+	const onMiddleReleaseRef = useRef(onMiddleRelease);
+	onMiddleReleaseRef.current = onMiddleRelease;
+	/** The middle button only becomes hold-to-reveal while a handler is supplied. */
+	const hasMiddlePress = Boolean(onMiddlePress);
 
 	useEffect(() => {
 		const viewport = viewportRef?.current;
@@ -107,7 +124,7 @@ export function PanDragHandler({
 		const binding = bindPanDragGesture({
 			target: viewport,
 			isLeftDragArmed: () => armedRef.current,
-			// Armed, the left button is a hand tool exactly like the middle button and
+			// Armed, the left button is a hand tool exactly like the right button and
 			// pans from anywhere — including over toolbar buttons and in-page citation
 			// links, whose click the held Space has already suspended. Only editors
 			// keep their own pointer behavior.
@@ -116,8 +133,14 @@ export function PanDragHandler({
 			// menu (and its own right-click actions, e.g. flipping a highlight
 			// swatch); the page pans instead.
 			isRightDragExcludedTarget: isPdfChromeTarget,
-			onMiddleClick: (target, point) =>
-				onMiddleClickRef.current?.(target, point),
+			onClickWithoutDrag: (target, point) =>
+				onClickWithoutDragRef.current?.(target, point),
+			onMiddlePress: hasMiddlePress
+				? (target, point) => onMiddlePressRef.current?.(target, point)
+				: undefined,
+			onMiddleRelease: hasMiddlePress
+				? () => onMiddleReleaseRef.current?.()
+				: undefined,
 			onStateChange: (state) => {
 				viewport.classList.toggle(PANNING_CLASS, state === "panning");
 			},
@@ -132,7 +155,12 @@ export function PanDragHandler({
 		// pointerdown), so a release outside the viewport never reaches the binding's
 		// own listeners. This net keeps the drag from sticking with `grabbing` on;
 		// cancel() is a no-op when nothing is in flight.
-		const endDragAnywhere = () => binding.cancel();
+		//
+		// Defer to a microtask: this capture listener runs before the binding's own
+		// pointerup. Cancelling synchronously would clear the click candidate before
+		// it can open the source card; the microtask still catches a release the
+		// binding never sees (outside the viewport or stopped by a child).
+		const endDragAnywhere = () => queueMicrotask(() => binding.cancel());
 		document.addEventListener("pointerup", endDragAnywhere, true);
 		document.addEventListener("pointercancel", endDragAnywhere, true);
 
@@ -193,7 +221,7 @@ export function PanDragHandler({
 			armedRef.current = false;
 			viewport.classList.remove(PAN_READY_CLASS, PANNING_CLASS);
 		};
-	}, [viewportRef, hostRef]);
+	}, [viewportRef, hostRef, hasMiddlePress]);
 
 	return null;
 }

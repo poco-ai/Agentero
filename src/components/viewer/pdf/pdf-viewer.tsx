@@ -132,7 +132,11 @@ import {
 	suppressLayoutSentenceHover,
 } from "@/components/viewer/pdf/layout-sentence-hover";
 import { usePdfSentenceInteraction } from "@/components/viewer/pdf/layout-sentence-pairing";
-import { reportLayoutSourcePeekPress } from "@/components/viewer/pdf/layout-source-peek";
+import {
+	reportLayoutSourcePeekHoldEnd,
+	reportLayoutSourcePeekHoldStart,
+	reportLayoutSourcePeekPress,
+} from "@/components/viewer/pdf/layout-source-peek";
 import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
 import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
@@ -3240,8 +3244,19 @@ function PdfViewerInner({
 					active={isActive}
 					hostRef={hostRef}
 					allowLeftDrag={!translationOnly}
-					onMiddleClick={(target, point) =>
+					onClickWithoutDrag={(target, point) =>
 						reportLayoutSourcePeekPress(docId, target, point)
+					}
+					onMiddlePress={
+						viewMode === "translated"
+							? (target, point) =>
+									reportLayoutSourcePeekHoldStart(docId, target, point)
+							: undefined
+					}
+					onMiddleRelease={
+						viewMode === "translated"
+							? () => reportLayoutSourcePeekHoldEnd()
+							: undefined
 					}
 				/>
 				{!translationOnly &&

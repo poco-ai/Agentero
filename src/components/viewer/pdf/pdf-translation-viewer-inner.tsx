@@ -814,7 +814,7 @@ export function PdfTranslationViewerInner({
 					active={isActive}
 					hostRef={hostRef}
 					allowLeftDrag={false}
-					onMiddleClick={(target, point) =>
+					onClickWithoutDrag={(target, point) =>
 						reportLayoutSourcePeekPress(docId, target, point)
 					}
 				/>

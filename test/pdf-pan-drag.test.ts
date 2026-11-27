@@ -300,6 +300,136 @@ describe("PDF drag-to-pan gesture", () => {
 		expect(states).toEqual(["panning", "idle", "panning", "idle"]);
 	});
 
+	it("holds the middle button without panning and reports a right click without travel", () => {
+		const harness = panTargetHarness();
+		const target = new EventTarget();
+		const presses: Array<{ x: number; y: number }> = [];
+		const clicks: Array<{ x: number; y: number }> = [];
+		const states: string[] = [];
+		let releases = 0;
+		bindPanDragGesture({
+			target: harness.target,
+			isLeftDragArmed: () => false,
+			isExcludedTarget: () => false,
+			onMiddlePress: (_target, point) => presses.push(point),
+			onMiddleRelease: () => {
+				releases += 1;
+			},
+			onClickWithoutDrag: (_target, point) => clicks.push(point),
+			onStateChange: (state) => states.push(state),
+		});
+
+		// The middle press reports immediately; a little jitter neither pans
+		// nor restores the original before the button comes up.
+		harness.dispatch(
+			"pointerdown",
+			{ button: 1, pointerId: 1, clientX: 10, clientY: 20 },
+			target,
+		);
+		expect(presses).toEqual([{ x: 10, y: 20 }]);
+		// The compatibility mousedown must not start native autoscroll.
+		const middleDown = harness.dispatch("mousedown", { button: 1 });
+		expect(middleDown.defaultPrevented).toBe(true);
+		harness.dispatch("pointermove", {
+			pointerId: 1,
+			clientX: 12,
+			clientY: 21,
+		});
+		expect(harness.scroll()).toEqual({ left: 100, top: 200 });
+		expect(releases).toBe(0);
+		harness.dispatch(
+			"pointerup",
+			{ button: 1, pointerId: 1, clientX: 12, clientY: 21 },
+			target,
+		);
+		expect(releases).toBe(1);
+		expect(clicks).toHaveLength(0);
+		expect(harness.scroll()).toEqual({ left: 100, top: 200 });
+		expect(states).toEqual([]);
+
+		// A middle drag is still a hold: the page must not move, and release
+		// restores it.
+		harness.dispatch(
+			"pointerdown",
+			{ button: 1, pointerId: 7, clientX: 10, clientY: 20 },
+			target,
+		);
+		harness.dispatch("pointermove", {
+			pointerId: 7,
+			clientX: 80,
+			clientY: 20,
+		});
+		expect(harness.scroll()).toEqual({ left: 100, top: 200 });
+		harness.dispatch(
+			"pointerup",
+			{ button: 1, pointerId: 7, clientX: 80, clientY: 20 },
+			target,
+		);
+		expect(presses).toHaveLength(2);
+		expect(releases).toBe(2);
+		expect(clicks).toHaveLength(0);
+
+		// A right click reports on release; WebKit's menu (while the button is
+		// down) is still suppressed so the card can open.
+		harness.dispatch(
+			"pointerdown",
+			{ button: 2, pointerId: 2, clientX: 40, clientY: 50 },
+			target,
+		);
+		const menu = harness.dispatch("contextmenu", { button: 2 }, target);
+		expect(menu.defaultPrevented).toBe(true);
+		harness.dispatch("pointermove", {
+			pointerId: 2,
+			clientX: 41,
+			clientY: 50,
+		});
+		harness.dispatch(
+			"pointerup",
+			{ button: 2, pointerId: 2, clientX: 41, clientY: 50 },
+			target,
+		);
+		expect(clicks).toEqual([{ x: 41, y: 50 }]);
+
+		// Once the right pointer travels, the press is a pan and opens nothing.
+		harness.dispatch(
+			"pointerdown",
+			{ button: 2, pointerId: 3, clientX: 10, clientY: 10 },
+			target,
+		);
+		// The first move past the tolerance only turns the click into a drag;
+		// panning starts from that point, not with a jump.
+		harness.dispatch("pointermove", {
+			pointerId: 3,
+			clientX: 17,
+			clientY: 10,
+		});
+		expect(harness.scroll()).toEqual({ left: 100, top: 200 });
+		harness.dispatch("pointermove", {
+			pointerId: 3,
+			clientX: 40,
+			clientY: 10,
+		});
+		harness.dispatch(
+			"pointerup",
+			{ button: 2, pointerId: 3, clientX: 40, clientY: 10 },
+			target,
+		);
+		expect(clicks).toHaveLength(1);
+		expect(harness.scroll()).toEqual({ left: 77, top: 200 });
+		expect(states).toEqual(["panning", "idle"]);
+
+		// A cancelled middle press restores the original too.
+		harness.dispatch(
+			"pointerdown",
+			{ button: 1, pointerId: 4, clientX: 10, clientY: 10 },
+			target,
+		);
+		harness.dispatch("pointercancel", { pointerId: 4 });
+		expect(presses).toHaveLength(3);
+		expect(releases).toBe(3);
+		expect(clicks).toHaveLength(1);
+	});
+
 	it("ignores a second pointer while a drag is in flight", () => {
 		const harness = panTargetHarness();
 		const { states } = bind(harness);

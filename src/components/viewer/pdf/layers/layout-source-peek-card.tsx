@@ -1,5 +1,5 @@
 /**
- * Read-only source card for a middle-clicked translated block.
+ * Read-only source card for a right-clicked translated block.
  *
  * Shows the English text of the clicked block and its reading-order neighbours,
  * with the sentence the pointer rested on tinted. It never translates or writes

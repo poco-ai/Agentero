@@ -12,6 +12,7 @@
 import {
 	Fragment,
 	memo,
+	useCallback,
 	useEffect,
 	useLayoutEffect,
 	useMemo,
@@ -20,7 +21,10 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
-import { subscribeLayoutSourcePeekPress } from "@/components/viewer/pdf/layout-source-peek";
+import {
+	subscribeLayoutSourcePeekHold,
+	subscribeLayoutSourcePeekPress,
+} from "@/components/viewer/pdf/layout-source-peek";
 import { cn } from "@/lib/core/utils";
 import { HIGHLIGHT_HEX, highlightFill } from "@/lib/pdf/highlight/palette";
 import {
@@ -589,6 +593,10 @@ function linkInkStyle(
 	return { color: linkColorOnPaper(color, tone) };
 }
 
+/** Targets that own their click instead of the source peek. */
+const SOURCE_PEEK_EXCLUDED_SELECTOR =
+	"a, button, [role='button'], [data-pdf-chrome], [data-selection-menu], [data-layout-element]";
+
 /**
  * Index of the translated sentence under the pointer. The common case is the
  * span under the pointer itself; a press that lands between two spans (the
@@ -933,6 +941,11 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	const [sourcePeek, setSourcePeek] = useState<LayoutSourcePeekState | null>(
 		null,
 	);
+	/**
+	 * True while the middle button is held: the translated page is hidden so
+	 * the original page underneath shows through.
+	 */
+	const [revealedPage, setRevealedPage] = useState(false);
 	const peekItemsRef = useRef(items);
 	peekItemsRef.current = items;
 	/**
@@ -948,45 +961,51 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 		peekZoomRef.current = zoom;
 		setSourcePeek(null);
 	}, [zoom]);
-	// Middle- and right-drag still pan; only a middle press that ended without
-	// travel reaches here. The page overlay that owns the block opens the card;
-	// every other page just drops its own.
+	/**
+	 * The block under the pointer, only when this overlay owns the page. A
+	 * neighbouring page or another mount of the same document receives the
+	 * same report; `null` tells it to drop its own state.
+	 */
+	const resolvePeekTarget = useCallback(
+		(target: Element): string | null => {
+			if (target.closest(SOURCE_PEEK_EXCLUDED_SELECTOR)) return null;
+			const page = target.closest(`[${EMBED_PAGE_ATTR}]`);
+			if (
+				!page ||
+				page.getAttribute(EMBED_PAGE_ATTR) !== String(pageIndex) ||
+				peekOwnerRef.current?.closest(`[${EMBED_PAGE_ATTR}]`) !== page
+			) {
+				return null;
+			}
+			return (
+				target
+					.closest<HTMLElement>("[data-layout-item]")
+					?.getAttribute("data-layout-item") ?? ""
+			);
+		},
+		[pageIndex],
+	);
+	// Right-click card: a right press that ended without travel. The page
+	// overlay that owns the block opens the card; every other page drops its
+	// own.
 	useEffect(
 		() =>
 			subscribeLayoutSourcePeekPress((press) => {
 				if (press.docId !== docId) return;
-				const target = press.target;
-				// Links, buttons and PDF chrome keep their middle / right click.
-				if (
-					target.closest(
-						"a, button, [role='button'], [data-pdf-chrome], [data-selection-menu], [data-layout-element]",
-					)
-				) {
-					setSourcePeek(null);
-					return;
-				}
-				// A neighbouring page or another mount of the same document
-				// receives the same press; only the page under the pointer may
-				// claim it.
-				const page = target.closest(`[${EMBED_PAGE_ATTR}]`);
-				if (
-					!page ||
-					page.getAttribute(EMBED_PAGE_ATTR) !== String(pageIndex) ||
-					peekOwnerRef.current?.closest(`[${EMBED_PAGE_ATTR}]`) !== page
-				) {
+				const itemId = resolvePeekTarget(press.target);
+				if (itemId === null) {
 					setSourcePeek((current) => (current ? null : current));
 					return;
 				}
-				const itemId =
-					target
-						.closest<HTMLElement>("[data-layout-item]")
-						?.getAttribute("data-layout-item") ?? "";
 				const selection = layoutSourcePeekBlocks(peekItemsRef.current, itemId);
 				if (!selection) {
 					setSourcePeek((current) => (current ? null : current));
 					return;
 				}
-				const sentenceIndex = sourcePeekSentenceIndex(target, press.point);
+				const sentenceIndex = sourcePeekSentenceIndex(
+					press.target,
+					press.point,
+				);
 				const clicked = selection.blocks[selection.clickedIndex];
 				setSourcePeek({
 					anchor: press.point,
@@ -1002,7 +1021,28 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							: null,
 				});
 			}),
-		[docId, pageIndex],
+		[docId, resolvePeekTarget],
+	);
+	// Middle hold: hide the translated page so the untranslated original shows
+	// through. Release restores every page.
+	useEffect(
+		() =>
+			subscribeLayoutSourcePeekHold((hold) => {
+				if (!hold) {
+					setRevealedPage(false);
+					return;
+				}
+				if (hold.docId !== docId) return;
+				// A middle press on the owned page reveals it even between
+				// blocks; links, chrome and other pages keep their click.
+				if (resolvePeekTarget(hold.target) === null) {
+					setRevealedPage(false);
+					return;
+				}
+				setSourcePeek(null);
+				setRevealedPage(true);
+			}),
+		[docId, resolvePeekTarget],
 	);
 	const sourcePeekCard = sourcePeek ? (
 		<LayoutSourcePeekCard {...sourcePeek} onClose={() => setSourcePeek(null)} />
@@ -1123,21 +1163,23 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	if (preview || reflowDocumentId)
 		return (
 			<>
-				<ReflowPageOverlay
-					tints={tintByItem}
-					links={links}
-					glyphRuns={glyphRuns}
-					onOpenLink={onOpenLink}
-					onHoverLink={onHoverLink}
-					tone={tone}
-					items={items}
-					preview={preview ?? ""}
-					pageIndex={pageIndex}
-					viewportDocumentId={docId}
-					renderDocumentId={displayMatchesPreview ? reflowDocumentId : null}
-					width={pageWidthPx}
-					height={pageHeightPx}
-				/>
+				<div className={revealedPage ? "invisible" : undefined}>
+					<ReflowPageOverlay
+						tints={tintByItem}
+						links={links}
+						glyphRuns={glyphRuns}
+						onOpenLink={onOpenLink}
+						onHoverLink={onHoverLink}
+						tone={tone}
+						items={items}
+						preview={preview ?? ""}
+						pageIndex={pageIndex}
+						viewportDocumentId={docId}
+						renderDocumentId={displayMatchesPreview ? reflowDocumentId : null}
+						width={pageWidthPx}
+						height={pageHeightPx}
+					/>
+				</div>
 				{sourceSpinners}
 				{retryMarkers}
 				{sourcePeekCard}
@@ -1196,6 +1238,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							className={cn(
 								"pointer-events-none absolute z-[3] overflow-hidden rounded-[1px]",
 								item.status === "running" && "opacity-90",
+								revealedPage && "invisible",
 							)}
 							style={boxStyle}
 						>
@@ -1216,6 +1259,7 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 							className={cn(
 								"pointer-events-none absolute z-[6] rounded-[1px]",
 								item.status === "running" && "opacity-90",
+								revealedPage && "invisible",
 							)}
 							style={{ ...boxStyle, padding: "1px 2px" }}
 						>
