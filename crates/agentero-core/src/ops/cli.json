@@ -2207,14 +2207,19 @@
 			},
 			{
 				"name": "region",
-				"help": "S3 区域",
-				"default": "us-east-1",
-				"help_en": "S3 region"
+				"help": "S3 区域；新连接默认为 us-east-1",
+				"help_en": "S3 region (defaults to us-east-1 for new connections)"
 			},
 			{
 				"name": "prefix",
 				"help": "桶内键名前缀",
 				"help_en": "Key prefix within the bucket"
+			},
+			{
+				"name": "allow-degraded-sync",
+				"help": "允许在不支持条件写入的 S3 兼容存储上使用发布锁降级同步",
+				"kind": "bool",
+				"help_en": "Allow lock-guarded degraded sync on S3-compatible storage without conditional writes"
 			},
 			{
 				"name": "exclude",
@@ -2265,7 +2270,7 @@
 				"name": "allow-degraded-sync",
 				"help": "允许在不支持条件写入的 WebDAV 上使用发布锁降级同步",
 				"kind": "bool",
-				"help_en": "Allow lock-guarded degraded sync on a WebDAV store without conditional writes"
+				"help_en": "Allow lock-guarded degraded sync on WebDAV without conditional writes"
 			},
 			{
 				"name": "exclude",

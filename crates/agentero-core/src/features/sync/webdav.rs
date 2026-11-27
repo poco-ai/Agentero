@@ -10,8 +10,8 @@
 use crate::error::AppError;
 use crate::features::sync::config::{normalize_webdav_url, SyncBackendConfig};
 use crate::features::sync::store::{
-    check, etag_of, send_with_retries, LockOutcome, PutCondition, PutOutcome, RemoteStore,
-    PUBLISH_LOCK_TTL_SECS,
+    arbitrate_locks, check, etag_of, lock_key, send_with_retries, LockCandidate, LockInfo,
+    LockOutcome, PutCondition, PutOutcome, RemoteStore, PUBLISH_LOCK_TTL_SECS,
 };
 use crate::http;
 use std::collections::{BTreeSet, HashSet};
@@ -397,46 +397,6 @@ impl RemoteStore for WebdavClient {
     async fn release_publish_lock(&self, device_id: &str) -> Result<(), AppError> {
         self.delete(&lock_key(device_id)?).await
     }
-}
-
-/// One lock file's arbitration evidence: device id plus its timestamp in
-/// server-clock seconds (PROPFIND `getlastmodified`), falling back to the
-/// lock content's `acquiredAt` when the server omits the property.
-struct LockCandidate {
-    device_id: String,
-    ts: i64,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LockInfo {
-    device_id: String,
-    acquired_at: String,
-}
-
-/// Lock files live at `locks/<deviceId>.json`; the id is a persisted UUID,
-/// but validate anyway so a hostile value cannot escape the directory.
-fn lock_key(device_id: &str) -> Result<String, AppError> {
-    if device_id.is_empty()
-        || device_id.len() > 64
-        || !device_id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-    {
-        return Err(AppError::message("invalid sync device id"));
-    }
-    Ok(format!("locks/{device_id}.json"))
-}
-
-/// Deterministic winner among live locks: oldest timestamp first, ties by
-/// lexicographic device id. Expired locks are ignored. Pure so arbitration
-/// is unit-testable without HTTP.
-fn arbitrate_locks(candidates: &[LockCandidate], now: i64, ttl: i64) -> Option<String> {
-    candidates
-        .iter()
-        .filter(|c| now.saturating_sub(c.ts) < ttl && c.ts <= now.saturating_add(ttl))
-        .min_by(|a, b| a.ts.cmp(&b.ts).then_with(|| a.device_id.cmp(&b.device_id)))
-        .map(|c| c.device_id.clone())
 }
 
 impl WebdavClient {

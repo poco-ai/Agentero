@@ -23,8 +23,8 @@ pub enum PutCondition {
     IfMatch(String),
     /// Plain PUT, no precondition. Only the opt-in degraded protocol may use
     /// it, and only for keys whose safety does not rest on CAS (the HEAD
-    /// publish under the publish lock, and first-contact `vault.json` with
-    /// read-back verification). Content-addressed blobs and unique-key
+    /// publish under the publish lock, per-device lock files, and first-contact
+    /// `vault.json` with read-back verification). Content-addressed blobs and unique-key
     /// manifests keep `IfNoneMatch` even in degraded mode: ignoring servers
     /// treat it as a plain PUT, enforcing servers save re-uploads.
     Unconditional,
@@ -59,9 +59,50 @@ pub enum LockOutcome {
     Acquired,
     /// Another device holds a live lock; back off and retry.
     Busy,
-    /// The backend has no publish-lock implementation (only WebDAV does in
-    /// phase 1); degraded sync must not run against it.
+    /// The backend has no publish-lock implementation.
     Unsupported,
+}
+
+pub(super) const PUBLISH_LOCK_PREFIX: &str = "locks/";
+
+/// One lock file's arbitration evidence: device id plus its timestamp in
+/// server-clock seconds (when available), falling back to the
+/// lock content's `acquiredAt` when the server omits the property.
+pub(super) struct LockCandidate {
+    pub(super) device_id: String,
+    pub(super) ts: i64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct LockInfo {
+    pub(super) device_id: String,
+    pub(super) acquired_at: String,
+}
+
+/// Lock files live at `locks/<deviceId>.json`; the id is a persisted UUID,
+/// but validate anyway so a hostile value cannot escape the directory.
+pub(super) fn lock_key(device_id: &str) -> Result<String, AppError> {
+    if device_id.is_empty()
+        || device_id.len() > 64
+        || !device_id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    {
+        return Err(AppError::message("invalid sync device id"));
+    }
+    Ok(format!("{PUBLISH_LOCK_PREFIX}{device_id}.json"))
+}
+
+/// Deterministic winner among live locks: oldest timestamp first, ties by
+/// lexicographic device id. Expired locks are ignored. Pure so arbitration
+/// is unit-testable without HTTP.
+pub(super) fn arbitrate_locks(candidates: &[LockCandidate], now: i64, ttl: i64) -> Option<String> {
+    candidates
+        .iter()
+        .filter(|c| now.saturating_sub(c.ts) < ttl && c.ts <= now.saturating_add(ttl))
+        .min_by(|a, b| a.ts.cmp(&b.ts).then_with(|| a.device_id.cmp(&b.device_id)))
+        .map(|c| c.device_id.clone())
 }
 
 pub(super) async fn probe_conditions(
@@ -129,8 +170,7 @@ pub trait RemoteStore: Send + Sync {
     /// it reports `false` rather than failing.
     fn probe_conditional_writes(&self) -> impl Future<Output = Result<bool, AppError>> + Send;
     /// Degraded-mode publish lock: try to become the sole HEAD publisher.
-    /// Default: unsupported. Only WebDAV implements it (phase 1); the engine
-    /// refuses degraded sync on backends that answer `Unsupported`.
+    /// S3 and WebDAV implement it; the default is unsupported.
     fn try_acquire_publish_lock(
         &self,
         _device_id: &str,
@@ -212,6 +252,7 @@ impl RemoteStore for SyncStore {
 
     async fn try_acquire_publish_lock(&self, device_id: &str) -> Result<LockOutcome, AppError> {
         match self {
+            Self::S3(c) => c.try_acquire_publish_lock(device_id).await,
             Self::Webdav(c) => c.try_acquire_publish_lock(device_id).await,
             _ => Ok(LockOutcome::Unsupported),
         }
@@ -219,6 +260,7 @@ impl RemoteStore for SyncStore {
 
     async fn release_publish_lock(&self, device_id: &str) -> Result<(), AppError> {
         match self {
+            Self::S3(c) => c.release_publish_lock(device_id).await,
             Self::Webdav(c) => c.release_publish_lock(device_id).await,
             _ => Ok(()),
         }

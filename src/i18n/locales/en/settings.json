@@ -1224,7 +1224,7 @@
 		"gitSslCaHint": "Absolute PEM path for a self-signed HTTPS server. Empty uses the system trust store.",
 		"gitAuthFailed": "Git could not sign in, and sync does not prompt.\n{{detail}}\nHTTPS: store a token first with `git credential approve` or your credential helper. SSH: run `ssh-add`.",
 		"gitTlsFailed": "Git rejected the server certificate.\n{{detail}}\nFor a self-signed server, set the CA certificate path and connect again.",
-		"noConditionalWrites": "Standard sync is blocked without conditional writes. WebDAV can enable lock-guarded degraded sync below, or use a journal configured through the CLI.",
+		"noConditionalWrites": "Standard sync stops without conditional writes. For S3-compatible storage or WebDAV, enable Allow degraded sync, then save. WebDAV also supports an experimental journal configured through the CLI.",
 		"noConditionalWritesShort": "Server ignores conditional writes; you can enable degraded sync",
 		"dismissNotice": "Dismiss notice",
 		"allowDegradedSync": "Allow degraded sync",

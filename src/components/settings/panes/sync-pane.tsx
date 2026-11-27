@@ -661,6 +661,29 @@ function VaultSyncForm({
 		JSON.stringify(form) !== JSON.stringify(status?.config) ||
 		JSON.stringify(mirrors) !==
 			JSON.stringify((status?.mirrors ?? []).map((mirror) => mirror.config));
+	const showDegradedSync =
+		status?.configured &&
+		status.config?.backend === form.backend &&
+		(isWebdav || form.backend === "s3") &&
+		!form.conditionalWrites;
+	const degradedSyncRow = showDegradedSync ? (
+		<SettingsRow
+			label={
+				<HelpLabel
+					label={t("sync.allowDegradedSync")}
+					help={t("sync.degradedSyncRisk")}
+				/>
+			}
+			htmlFor="sync-allowDegradedSync"
+		>
+			<Switch
+				id="sync-allowDegradedSync"
+				checked={form.allowDegradedSync}
+				onCheckedChange={(value) => patch({ allowDegradedSync: value })}
+				disabled={syncing || saving}
+			/>
+		</SettingsRow>
+	) : null;
 	const primaryAction =
 		!status?.configured || configChanged ? (
 			<Button
@@ -830,6 +853,29 @@ function VaultSyncForm({
 				</div>
 			</div>
 
+			{showDegradedSync && !degradedNoticeDismissed ? (
+				<div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-xs">
+					<TriangleAlert
+						className="size-4 shrink-0 text-amber-600 dark:text-amber-500"
+						aria-hidden
+					/>
+					<span className="min-w-0 flex-1">
+						{t("sync.noConditionalWritesShort")}
+					</span>
+					<button
+						type="button"
+						className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+						aria-label={t("sync.dismissNotice")}
+						onClick={() => {
+							writeJsonStorage(DEGRADED_NOTICE_DISMISSED_KEY, true);
+							setDegradedNoticeDismissed(true);
+						}}
+					>
+						<X className="size-3.5" aria-hidden />
+					</button>
+				</div>
+			) : null}
+
 			{isAgentero ? (
 				<SettingsGroup>
 					<SettingsRow label={t("sync.space")} htmlFor="sync-space">
@@ -908,95 +954,44 @@ function VaultSyncForm({
 					</SettingsRow>
 				</SettingsGroup>
 			) : isWebdav ? (
-				<>
-					{status?.configured &&
-					!form.conditionalWrites &&
-					!degradedNoticeDismissed ? (
-						<div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-xs">
-							<TriangleAlert
-								className="size-4 shrink-0 text-amber-600 dark:text-amber-500"
-								aria-hidden
-							/>
-							<span className="min-w-0 flex-1">
-								{t("sync.noConditionalWritesShort")}
-							</span>
-							<button
+				<SettingsGroup>
+					<SettingsRow label={t("sync.serverUrl")} htmlFor="sync-webdavUrl">
+						{field("webdavUrl", {
+							placeholder: "https://dav.jianguoyun.com/dav/agentero",
+						})}
+					</SettingsRow>
+					<SettingsRow label={t("sync.username")} htmlFor="sync-webdavUsername">
+						{field("webdavUsername")}
+					</SettingsRow>
+					<SettingsRow label={t("sync.password")} htmlFor="sync-webdavPassword">
+						{field("webdavPassword", { type: "password" })}
+					</SettingsRow>
+					{degradedSyncRow}
+					{status?.configured && !configChanged ? (
+						<div className="flex flex-wrap items-center gap-2 px-3.5 py-2.5">
+							<Button
 								type="button"
-								className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-								aria-label={t("sync.dismissNotice")}
-								onClick={() => {
-									writeJsonStorage(DEGRADED_NOTICE_DISMISSED_KEY, true);
-									setDegradedNoticeDismissed(true);
-								}}
+								variant="outline"
+								size="sm"
+								disabled={syncing || saving}
+								onClick={() => void openOverwrite("remoteToLocal")}
 							>
-								<X className="size-3.5" aria-hidden />
-							</button>
+								<ArrowDownToLine data-icon="inline-start" />
+								{t("sync.overwritePull")}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={syncing || saving}
+								onClick={() => void openOverwrite("localToRemote")}
+							>
+								<ArrowUpFromLine data-icon="inline-start" />
+								{t("sync.overwritePush")}
+							</Button>
 						</div>
 					) : null}
-					<SettingsGroup>
-						<SettingsRow label={t("sync.serverUrl")} htmlFor="sync-webdavUrl">
-							{field("webdavUrl", {
-								placeholder: "https://dav.jianguoyun.com/dav/agentero",
-							})}
-						</SettingsRow>
-						<SettingsRow
-							label={t("sync.username")}
-							htmlFor="sync-webdavUsername"
-						>
-							{field("webdavUsername")}
-						</SettingsRow>
-						<SettingsRow
-							label={t("sync.password")}
-							htmlFor="sync-webdavPassword"
-						>
-							{field("webdavPassword", { type: "password" })}
-						</SettingsRow>
-						{status?.configured && !form.conditionalWrites ? (
-							<SettingsRow
-								label={
-									<HelpLabel
-										label={t("sync.allowDegradedSync")}
-										help={t("sync.degradedSyncRisk")}
-									/>
-								}
-								htmlFor="sync-allowDegradedSync"
-							>
-								<Switch
-									id="sync-allowDegradedSync"
-									checked={form.allowDegradedSync}
-									onCheckedChange={(value) =>
-										patch({ allowDegradedSync: value })
-									}
-									disabled={syncing || saving}
-								/>
-							</SettingsRow>
-						) : null}
-						{status?.configured && !configChanged ? (
-							<div className="flex flex-wrap items-center gap-2 px-3.5 py-2.5">
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									disabled={syncing || saving}
-									onClick={() => void openOverwrite("remoteToLocal")}
-								>
-									<ArrowDownToLine data-icon="inline-start" />
-									{t("sync.overwritePull")}
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									disabled={syncing || saving}
-									onClick={() => void openOverwrite("localToRemote")}
-								>
-									<ArrowUpFromLine data-icon="inline-start" />
-									{t("sync.overwritePush")}
-								</Button>
-							</div>
-						) : null}
-					</SettingsGroup>
-				</>
+				</SettingsGroup>
 			) : (
 				<SettingsGroup>
 					<SettingsRow label={t("sync.endpoint")} htmlFor="sync-endpoint">
@@ -1011,6 +1006,7 @@ function VaultSyncForm({
 					<SettingsRow label={t("sync.secretKey")} htmlFor="sync-secretKey">
 						{field("secretKey", { type: "password" })}
 					</SettingsRow>
+					{degradedSyncRow}
 				</SettingsGroup>
 			)}
 

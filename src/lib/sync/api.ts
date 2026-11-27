@@ -62,8 +62,8 @@ export type SyncBackendConfig = {
 	intervalMinutes: number;
 	/** Detected on connect: false when the backend rejects conditional PUTs. */
 	conditionalWrites: boolean;
-	/** Per-device opt-in to the degraded protocol (WebDAV stores that ignore
-	 * conditional writes). Off by default; every device must enable it. */
+	/** Per-device opt-in for S3-compatible storage and WebDAV without conditional
+	 * writes. Off by default; every device must enable it. */
 	allowDegradedSync: boolean;
 	/** Sync scope for bulky paper assets. Translations default off. */
 	scope: SyncScope;

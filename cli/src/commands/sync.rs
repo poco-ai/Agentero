@@ -56,8 +56,8 @@ pub struct ConfigureArgs {
     pub git_allow_insecure_http: Option<String>,
     /// Absolute PEM CA bundle for a self-signed HTTPS Git remote.
     pub git_ssl_ca_info: Option<String>,
-    /// Opt in to degraded sync for WebDAV stores that ignore conditional writes
-    /// (`true` or `false`): publish lock + plain HEAD PUT. Conflict copies and
+    /// Opt in to degraded sync for S3 or WebDAV stores without conditional
+    /// writes: publish lock + plain HEAD PUT. Conflict copies and
     /// resurrected deletions are possible; every device sharing the store must
     /// opt in separately.
     pub allow_degraded_sync: Option<String>,
@@ -221,7 +221,7 @@ async fn configure(
     args: &ConfigureArgs,
     globals: &GlobalOpts,
     credentials: Option<&Value>,
-) -> Result<Value, CliError> {
+) -> Result<(), CliError> {
     let lock = SyncLock::acquire(vault)?;
     let (key, existing) = entry_for(vault);
     let mut cfg = assemble_config(args, existing, globals, credentials)?.normalized();
@@ -246,41 +246,19 @@ async fn configure(
     }
     sync_config::set(&key, VaultSyncConfig::new(cfg.clone()))?;
 
-    let style = globals.style;
-    let mut v = json!({
-        "vault": key,
-        "configured": true,
-        "config": serde_json::to_value(cfg.masked())?,
-        "conditionalWrites": cfg.conditional_writes,
-    });
-    if let Some(obj) = v.as_object_mut() {
-        let target = match cfg.backend {
-            SyncBackendKind::S3 => format!("{}/{}", cfg.endpoint, cfg.bucket),
-            SyncBackendKind::Webdav => cfg.webdav_url.clone(),
-            SyncBackendKind::Git => {
-                format!("{} ({})", cfg.git_remote, cfg.git_branch)
-            }
-            SyncBackendKind::Agentero => format!("{} ({})", cfg.agentero_subject, cfg.agentero_api),
+    if !globals.quiet
+        && !matches!(globals.format, OutputFormat::Json)
+        && cfg.backend == SyncBackendKind::S3
+        && !cfg.conditional_writes
+    {
+        let detail = if cfg.allow_degraded_sync {
+            "no (degraded sync enabled)"
+        } else {
+            "no (sync blocked; use --allow-degraded-sync to opt in)"
         };
-        let mut lines = vec![format!("{} {target}", style.key("configured"))];
-        lines.push(format!(
-            "{} {}",
-            style.key("conditional writes"),
-            if cfg.conditional_writes {
-                "yes"
-            } else if args.webdav_journal {
-                "unused (WebDAV journal)"
-            } else if cfg.allow_degraded_sync {
-                "no (degraded sync enabled)"
-            } else if cfg.backend == SyncBackendKind::Webdav {
-                "no (requires a WebDAV journal or degraded sync)"
-            } else {
-                "no (sync blocked)"
-            }
-        ));
-        obj.insert("lines".into(), json!(lines));
+        eprintln!("{} {detail}", globals.style.key("conditional writes"));
     }
-    Ok(v)
+    Ok(())
 }
 
 mod credentials;
@@ -316,18 +294,29 @@ fn assemble_config(
             "amazonaws.com"
         }
     );
+    // Toggling degraded sync does not require re-entering the saved S3 target.
+    let saved_s3_target = existing.as_ref().filter(|cfg| {
+        cfg.backend == SyncBackendKind::S3
+            && args.backend == BackendKind::S3
+            && args.allow_degraded_sync.is_some()
+            && args.endpoint.is_none()
+            && args.bucket.as_deref() == Some(cfg.bucket.as_str())
+            && args.region.is_none()
+    });
     let endpoint = args
         .endpoint
         .as_deref()
+        .or_else(|| saved_s3_target.map(|cfg| cfg.endpoint.as_str()))
         .unwrap_or(&default_endpoint)
-        .trim_end_matches('/');
+        .trim_end_matches('/')
+        .to_owned();
     let reuse = existing
         .as_ref()
         .is_some_and(|previous| match args.backend {
             BackendKind::S3 => {
                 previous.backend == SyncBackendKind::S3
                     && endpoint == previous.endpoint.trim_end_matches('/')
-                    && args.bucket.as_deref() == Some(&previous.bucket)
+                    && args.bucket.as_deref() == Some(previous.bucket.as_str())
             }
             BackendKind::Webdav => {
                 previous.backend == SyncBackendKind::Webdav
@@ -353,7 +342,7 @@ fn assemble_config(
         cfg.region = v.clone();
     }
     if matches!(args.backend, BackendKind::S3) {
-        cfg.endpoint = endpoint.to_owned();
+        cfg.endpoint = endpoint;
     }
     if matches!(args.backend, BackendKind::S3) && !reuse && args.endpoint.is_some() {
         cfg.force_path_style = true;

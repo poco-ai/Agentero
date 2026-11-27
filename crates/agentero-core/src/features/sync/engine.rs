@@ -186,8 +186,8 @@ async fn run_sync<S: RemoteStore>(
     let local_files = scan_local(vault, scan_cache, cfg.scope).await?;
 
     let mut outcome = SyncOutcome::default();
-    // Opt-in degraded protocol (WebDAV only, phase 1): resolved from the live
-    // probe on the first attempt, then stable across CAS retries.
+    // Resolve opt-in degraded sync from the live probe on the first attempt;
+    // keep that decision across CAS retries.
     let mut degraded = false;
     for attempt in 0..MAX_CAS_RETRIES {
         progress("pull", 0, 0);
@@ -671,7 +671,7 @@ async fn publish_head_locked<S: RemoteStore>(
             LockOutcome::Busy => continue,
             LockOutcome::Unsupported => {
                 return Err(AppError::message(
-                    "degraded sync requires the WebDAV backend",
+                    "degraded sync is not supported for this backend",
                 ));
             }
         }
@@ -741,8 +741,8 @@ pub struct OverwritePreview {
 }
 
 /// Resolve the degraded protocol from a live probe: supported store — false;
-/// ignoring store + per-device opt-in on WebDAV — true; otherwise the
-/// localized hard stop. Phase 1 keeps degraded sync WebDAV-only.
+/// ignoring S3 or WebDAV store + per-device opt-in — true; otherwise the
+/// localized hard stop.
 async fn resolve_degraded<S: RemoteStore>(
     cfg: &SyncBackendConfig,
     client: &S,
@@ -750,7 +750,9 @@ async fn resolve_degraded<S: RemoteStore>(
     if client.probe_conditional_writes().await? {
         return Ok(false);
     }
-    if cfg.allow_degraded_sync && cfg.backend == SyncBackendKind::Webdav {
+    if cfg.allow_degraded_sync
+        && matches!(cfg.backend, SyncBackendKind::S3 | SyncBackendKind::Webdav)
+    {
         return Ok(true);
     }
     Err(AppError::domain(
