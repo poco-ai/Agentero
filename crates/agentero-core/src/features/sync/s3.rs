@@ -1,14 +1,16 @@
 //! Minimal S3-compatible client — exactly what sync needs and nothing more:
-//! GET / PUT (with conditional writes) / ListObjectsV2, signed with SigV4.
+//! GET / PUT / DELETE / ListObjectsV2, signed with SigV4.
 //! Implements the [`RemoteStore`] contract; retry/error plumbing is shared
 //! in `store.rs`.
 //!
-//! Conditional writes are mandatory; never retry as an unconditional PUT.
+//! Conditional writes are required by default. Only explicit degraded sync
+//! uses the publish lock with an unconditional HEAD PUT.
 
 use crate::error::AppError;
 use crate::features::sync::config::SyncBackendConfig;
 use crate::features::sync::store::{
-    check, etag_of, send_with_retries, PutCondition, PutOutcome, RemoteStore,
+    arbitrate_locks, check, etag_of, lock_key, send_with_retries, LockCandidate, LockInfo,
+    LockOutcome, PutCondition, PutOutcome, RemoteStore, PUBLISH_LOCK_PREFIX, PUBLISH_LOCK_TTL_SECS,
 };
 use crate::http;
 use chrono::Utc;
@@ -103,6 +105,77 @@ impl S3Client {
             rest = &tail[end..];
         }
         Ok(keys)
+    }
+
+    async fn list_locks(&self) -> Result<Vec<LockCandidate>, AppError> {
+        let prefix = format!("{}{PUBLISH_LOCK_PREFIX}", self.key_prefix);
+        let query = [
+            ("list-type".to_owned(), "2".to_owned()),
+            ("prefix".to_owned(), prefix.clone()),
+        ];
+        let resp = self.send("GET", "", &query, None, Vec::new()).await?;
+        let xml = check(resp, "LIST", &prefix)
+            .await?
+            .text()
+            .await
+            .map_err(|e| AppError::message(format!("LIST {prefix}: {e}")))?;
+        let doc = roxmltree::Document::parse(&xml)
+            .map_err(|e| AppError::message(format!("LIST {prefix}: invalid XML: {e}")))?;
+        let root = doc.root_element();
+        let truncated = root
+            .children()
+            .find(|n| n.has_tag_name("IsTruncated"))
+            .and_then(|n| n.text());
+        // An incomplete listing might hide the active publisher.
+        if !root.has_tag_name("ListBucketResult") || truncated.map(str::trim) != Some("false") {
+            return Err(AppError::message(format!(
+                "LIST {prefix}: incomplete or invalid publish lock listing"
+            )));
+        }
+
+        let mut candidates = Vec::new();
+        for entry in root.children().filter(|n| n.has_tag_name("Contents")) {
+            let field = |name| {
+                entry
+                    .children()
+                    .find(|n| n.has_tag_name(name))
+                    .and_then(|n| n.text())
+            };
+            let full_key = field("Key").ok_or_else(|| {
+                AppError::message(format!("LIST {prefix}: object is missing its key"))
+            })?;
+            let Some(device_id) = full_key
+                .strip_prefix(&prefix)
+                .and_then(|key| key.strip_suffix(".json"))
+            else {
+                continue;
+            };
+            let Ok(key) = lock_key(device_id) else {
+                continue;
+            };
+            let ts = match field("LastModified")
+                .and_then(|value| chrono::DateTime::parse_from_rfc3339(value.trim()).ok())
+            {
+                Some(dt) => dt.timestamp(),
+                None => {
+                    // If the store omits mtime, fall back to the writer's clock.
+                    let Some((bytes, _)) = self.get(&key).await? else {
+                        continue; // Released since the listing.
+                    };
+                    let info: LockInfo = serde_json::from_slice(&bytes)?;
+                    chrono::DateTime::parse_from_rfc3339(&info.acquired_at)
+                        .map_err(|e| {
+                            AppError::message(format!("GET {key}: invalid lock timestamp: {e}"))
+                        })?
+                        .timestamp()
+                }
+            };
+            candidates.push(LockCandidate {
+                device_id: device_id.to_owned(),
+                ts,
+            });
+        }
+        Ok(candidates)
     }
 
     /// Sign and send one request. `key` empty → bucket-level request.
@@ -237,6 +310,40 @@ impl RemoteStore for S3Client {
         let result = super::store::probe_conditions(self, &key).await;
         let cleanup = self.delete(&key).await;
         result.and_then(|supported| cleanup.map(|_| supported))
+    }
+
+    async fn try_acquire_publish_lock(&self, device_id: &str) -> Result<LockOutcome, AppError> {
+        let key = lock_key(device_id)?;
+        let body = serde_json::to_vec(&LockInfo {
+            device_id: device_id.to_string(),
+            acquired_at: crate::time::now_rfc3339_millis(),
+        })?;
+        let started = std::time::Instant::now();
+        let result = async {
+            if self.put(&key, body, PutCondition::Unconditional).await? != PutOutcome::Ok {
+                return Err(AppError::message("S3 publish lock PUT was rejected"));
+            }
+            let candidates = self.list_locks().await?;
+            // Leave half the TTL for the engine's HEAD re-check and publish.
+            if started.elapsed().as_secs() < (PUBLISH_LOCK_TTL_SECS as u64) / 2
+                && arbitrate_locks(&candidates, Utc::now().timestamp(), PUBLISH_LOCK_TTL_SECS)
+                    .as_deref()
+                    == Some(device_id)
+            {
+                Ok(LockOutcome::Acquired)
+            } else {
+                Ok(LockOutcome::Busy)
+            }
+        }
+        .await;
+        if !matches!(result, Ok(LockOutcome::Acquired)) {
+            let _ = self.delete(&key).await;
+        }
+        result
+    }
+
+    async fn release_publish_lock(&self, device_id: &str) -> Result<(), AppError> {
+        self.delete(&lock_key(device_id)?).await
     }
 }
 

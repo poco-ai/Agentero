@@ -6026,7 +6026,7 @@ export type SyncBackendConfig_Deserialize = {
 	 *  Explicit per-device opt-in to the degraded protocol for stores that
 	 *  ignore conditional writes (publish lock + plain HEAD PUT + read-back
 	 *  verification). Off by default; the engine still hard-stops without it.
-	 *  Phase 1: WebDAV only. See `docs/development/sync-degraded-mode.md`.
+	 *  Available for S3-compatible storage and WebDAV.
 	 */
 	allowDegradedSync?: boolean,
 	/**
@@ -6100,7 +6100,7 @@ export type SyncBackendConfig_Serialize = {
 	 *  Explicit per-device opt-in to the degraded protocol for stores that
 	 *  ignore conditional writes (publish lock + plain HEAD PUT + read-back
 	 *  verification). Off by default; the engine still hard-stops without it.
-	 *  Phase 1: WebDAV only. See `docs/development/sync-degraded-mode.md`.
+	 *  Available for S3-compatible storage and WebDAV.
 	 */
 	allowDegradedSync: boolean,
 	/**
