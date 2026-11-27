@@ -18,7 +18,7 @@
 
 - Dockview 固定为 7.0.4，挂载后决定有哪些面板、怎么排列以及焦点在哪。store 只保存快照。命令先定策略，再调用 Dockview。挂载前只记录意图。同步结束后要补发当前活动面板和可见面板。激活事件不得按 `origin` 过滤，`onWillMutateLayout` 不调用 `preventDefault`。
 - 区分资源（Vault 加载代加路径）、视图（`createViewId()`）、窗口（Tauri label）和会话（label 加 Vault）。新面板路径放 `params.path`，角色放 `params.pane`；重命名保留 id，路径形旧 id 仍可恢复。资源与 blob URL 按引用计数，译文用正文视图 id 配对。文档窗 label 用 `doc-` 加路径 UTF-8 字节 SHA-256 的前 16 位，功能窗用 `feature-{view}`。
-- 主窗口的布局键是 `agentero-open-tabs::{label}::{vault}`，值为 Dockview JSON。独立文档和功能窗不写该快照，旧全局键只迁移一次。侧栏宽度走 `react-resizable-panels`，写作的 TeX 和 PDF 同属一个项目面板。
+- 主窗口的布局键是 `agentero-open-tabs::{label}::{vault}`，值为 Dockview JSON。独立文档和功能窗不写该快照，旧全局键只迁移一次。侧栏宽度走 `react-resizable-panels`，写作的 TeX 和 PDF 同属一个项目面板。`ResizablePanel` 统一给库的内容包裹层压 `overflow: hidden`：库默认内联 `auto`，面板内容正好填满时 Windows 的传统滚动条会反复出现/消失，导致列宽来回跳（macOS 覆盖式滚动条不占位所以看不到）。面板内容自己管滚动，不要指望包裹层滚。
 - 键盘关闭走 `closeTab`，只允许已注册的 Markdown 源码草稿否决。移窗先打开目标并等待接受，失败或约 8 秒超时保留源视图；接受后用 `tabsAfterMovedView` 和 `removePanel` 提交。移出论文时 NOTES 留在源窗；普通关闭正文时成对关闭。Library、Trash、Zen 不能移窗。
 - 阅读配对由 `readingColumnAnchors` 和 `readingPairCloseIds` 决定；布局及阅读切换走 `applyLayoutMode`，退出取消最大化后重放预设。笔记预设不动左栏，保留 `Ctrl+M` 的阅读模式记忆和独立的沉浸全屏。
 
