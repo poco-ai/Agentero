@@ -28,9 +28,9 @@ export function toggleAgentWindow(): void {
 }
 
 /**
- * ⌘W inside the Agent window: close the active conversation tab. With no tab
- * open — the new-session page — leave the Agent window instead of swallowing
- * the key, so the shortcut always gets the user out of Agent mode.
+ * ⌘W inside the Agent window: close the active conversation tab. Closing the
+ * last tab empties the workspace and exits Agent mode; with no panel active the
+ * window closes directly so the shortcut always gets the user out.
  */
 export function closeAgentTabOrWindow(): void {
 	if (agentDock()?.closeActive()) return;

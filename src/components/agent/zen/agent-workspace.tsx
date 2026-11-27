@@ -15,7 +15,6 @@ import {
 	type DockviewReadyEvent,
 	type IDockviewPanelProps,
 } from "dockview-react";
-import { Plus, Waves } from "lucide-react";
 import {
 	type ComponentProps,
 	useEffect,
@@ -28,9 +27,10 @@ import { AgentSessionView } from "@/components/agent/zen/agent-session-panel";
 import { useZenOpenRows } from "@/components/agent/zen/use-zen-open-rows";
 import { DocumentTab } from "@/components/workspace/document-tab";
 import { registerAgentDock } from "@/lib/agent/agent-dock-registry";
-import { focusAgentComposer } from "@/lib/agent/composer-focus";
+import { closeAgentWindow } from "@/lib/agent/agent-window";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import { useZenStore, zenStore } from "@/lib/agent/zen-store";
+import { uiStore } from "@/lib/shell/ui-store";
 import { agenteroDockTheme } from "@/lib/workspace/dockview-theme";
 
 const COMPONENT_SESSION = "agent-session";
@@ -90,26 +90,6 @@ function AgentSessionTab({
 
 const components = { [COMPONENT_SESSION]: AgentSessionPanel };
 
-function EmptyAgentWorkspace() {
-	const { t } = useTranslation("agent");
-	return (
-		<div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-			<Waves className="size-6 opacity-60" aria-hidden />
-			<button
-				type="button"
-				className="pointer-events-auto flex items-center justify-center gap-2 rounded-lg bg-foreground/5 px-4 py-2 text-foreground text-sm outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-foreground/10 focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none"
-				onClick={() => {
-					zenStore.getState().addSlot();
-					focusAgentComposer();
-				}}
-			>
-				<Plus className="size-4 shrink-0" aria-hidden />
-				{t("zen.newConversation")}
-			</button>
-		</div>
-	);
-}
-
 export function AgentWorkspace() {
 	const { t } = useTranslation("agent");
 	const slots = useZenStore((s) => s.slots);
@@ -152,6 +132,14 @@ export function AgentWorkspace() {
 			api.removePanel(panel);
 		}
 	}, [slots, t, titles]);
+
+	// Closing the last conversation leaves nothing to show, so leave Agent mode
+	// instead of parking on an empty workspace.
+	useEffect(() => {
+		if (slots.length === 0 && uiStore.getState().agentWindowOpen) {
+			closeAgentWindow();
+		}
+	}, [slots.length]);
 
 	// Session title can change after the prompt starts streaming.
 	useEffect(() => {
@@ -259,7 +247,6 @@ export function AgentWorkspace() {
 					onReady={onReady}
 				/>
 			</div>
-			{slots.length === 0 ? <EmptyAgentWorkspace /> : null}
 		</div>
 	);
 }
