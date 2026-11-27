@@ -114,6 +114,19 @@ export const uiStore = createStore<UiStore>(() => ({
 }));
 
 let sidebarBeforeAgentWindow: boolean | undefined;
+/** Right rail state the reading workspace comes back to after the Agent window. */
+let rightSidebarBeforeAgentWindow: boolean | undefined;
+/** The user opened or closed the right rail inside the Agent window: keep it. */
+let rightRailChangedInAgentWindow = false;
+
+/**
+ * Right rail state the reading workspace owns. The Agent window collapses the
+ * rail to give the conversation the whole window, and that temporary state must
+ * not overwrite the arrangement saved for reading.
+ */
+export function readingRightSidebarOpen(): boolean {
+	return rightSidebarBeforeAgentWindow ?? uiStore.getState().rightSidebarOpen;
+}
 
 export function setSidebarCollapsedState(collapsed: boolean): void {
 	const state = uiStore.getState();
@@ -127,7 +140,7 @@ export function setSidebarCollapsedState(collapsed: boolean): void {
 	) {
 		saveCustomRails({
 			leftCollapsed: collapsed,
-			rightOpen: state.rightSidebarOpen,
+			rightOpen: readingRightSidebarOpen(),
 		});
 	}
 }
@@ -142,7 +155,7 @@ export function setLayoutMode(layoutMode: LayoutMode): void {
 		if (state.lastAppliedPreset) saveLastPreset(state.lastAppliedPreset);
 		saveCustomRails({
 			leftCollapsed: sidebarBeforeAgentWindow ?? state.sidebarCollapsed,
-			rightOpen: state.rightSidebarOpen,
+			rightOpen: readingRightSidebarOpen(),
 		});
 	}
 }
@@ -153,16 +166,25 @@ export function setLastAppliedPreset(mode: LayoutPresetMode): void {
 }
 
 export function setRightSidebarOpenState(open: boolean): void {
-	const prev = uiStore.getState().rightSidebarOpen;
+	const state = uiStore.getState();
+	const prev = state.rightSidebarOpen;
+	// Opening a citation or closing the rail inside the Agent window changes what
+	// reading should come back to, so track it as the reading arrangement.
+	if (state.agentWindowOpen && !state.immersiveReading) {
+		rightRailChangedInAgentWindow = true;
+		rightSidebarBeforeAgentWindow = open;
+	}
 	uiStore.setState({ rightSidebarOpen: open });
+	// Inside the Agent window the rail is temporary chrome: turning it on or off
+	// there must not rewrite the reading arrangement.
 	if (
 		prev !== open &&
-		uiStore.getState().layoutMode === "custom" &&
-		!uiStore.getState().immersiveReading
+		!state.agentWindowOpen &&
+		state.layoutMode === "custom" &&
+		!state.immersiveReading
 	) {
 		saveCustomRails({
-			leftCollapsed:
-				sidebarBeforeAgentWindow ?? uiStore.getState().sidebarCollapsed,
+			leftCollapsed: sidebarBeforeAgentWindow ?? state.sidebarCollapsed,
 			rightOpen: open,
 		});
 	}
@@ -205,13 +227,38 @@ export function initShellLayoutFromPrefs(): void {
 export function setAgentWindowOpen(open: boolean): void {
 	const state = uiStore.getState();
 	if (state.agentWindowOpen === open) return;
+	const controller = layout();
 	const collapsed =
 		open || (sidebarBeforeAgentWindow ?? state.sidebarCollapsed);
+	// Entering hides both rails so the conversation owns the window; leaving
+	// restores the reading arrangement unless the user rearranged the right rail
+	// while inside the Agent window.
+	const restoreRight =
+		open || rightRailChangedInAgentWindow
+			? undefined
+			: rightSidebarBeforeAgentWindow;
 	sidebarBeforeAgentWindow = open ? state.sidebarCollapsed : undefined;
 	uiStore.setState({ agentWindowOpen: open });
-	const controller = layout();
-	if (controller) controller.setLeftCollapsed(collapsed);
-	else uiStore.setState({ sidebarCollapsed: collapsed });
+	if (!controller) {
+		uiStore.setState({ sidebarCollapsed: collapsed });
+		rightSidebarBeforeAgentWindow = undefined;
+		rightRailChangedInAgentWindow = false;
+		return;
+	}
+	// Restore the left rail first: its persist step also records the right rail,
+	// and the right rail is put back right below.
+	controller.setLeftCollapsed(collapsed);
+	if (open) {
+		controller.setRightCollapsed(true);
+		// The collapse reports through setRightSidebarOpenState as an Agent
+		// window change; the reading workspace keeps the arrangement it had.
+		rightSidebarBeforeAgentWindow = state.rightSidebarOpen;
+		rightRailChangedInAgentWindow = false;
+		return;
+	}
+	rightRailChangedInAgentWindow = false;
+	rightSidebarBeforeAgentWindow = undefined;
+	if (restoreRight !== undefined) controller.setRightCollapsed(!restoreRight);
 }
 
 export function setAgentPanelMounted(mounted: boolean): void {

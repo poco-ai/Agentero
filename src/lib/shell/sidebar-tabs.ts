@@ -9,7 +9,12 @@ import { isAgentDockPath } from "@/lib/agent/agent-dock-path";
 import type { AgentSessionRef } from "@/lib/agent/session-ref";
 import { readJsonStorage, writeStorageRaw } from "@/lib/core/storage";
 import { cancelPdfNavigationForTab } from "@/lib/pdf/pending-pdf-page";
-import { layout, setLayoutMode, uiStore } from "@/lib/shell/ui-store";
+import {
+	layout,
+	readingRightSidebarOpen,
+	setLayoutMode,
+	uiStore,
+} from "@/lib/shell/ui-store";
 import { getVaultPath, vaultLoadGeneration } from "@/lib/vault/store";
 import {
 	type SidebarBrowserTarget,
@@ -234,7 +239,7 @@ function createSidebarDock(
 			activeViewId: tabs.some((tab) => tab.viewId === activeViewId)
 				? activeViewId
 				: null,
-			expanded: uiStore.getState().rightSidebarOpen,
+			expanded: readingRightSidebarOpen(),
 			lastAgentViewId,
 		};
 		const json = JSON.stringify(snapshot);
@@ -321,9 +326,7 @@ function createSidebarDock(
 				target?.kind === "agent" ? (target.sessionRef?.id ?? "draft") : "draft",
 		});
 		const expanded =
-			expandedDuringRestore ??
-			saved?.expanded ??
-			uiStore.getState().rightSidebarOpen;
+			expandedDuringRestore ?? saved?.expanded ?? readingRightSidebarOpen();
 		// The restored arrangement is part of the launch paint, not a slide.
 		if (!uiStore.getState().immersiveReading)
 			layout()?.setRightCollapsed(!expanded);

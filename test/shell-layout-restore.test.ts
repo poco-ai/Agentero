@@ -291,6 +291,52 @@ describe("shell layout restoration", () => {
 		expect(widths.left).toBe(0);
 		expect(shell.leftWidthPxRef.current).toBe(288);
 	});
+	it("collapses the right rail to open the Agent window and brings it back", () => {
+		uiStore.setState({
+			agentWindowOpen: false,
+			layoutMode: "custom",
+			lastAppliedPreset: null,
+			sidebarCollapsed: false,
+			rightSidebarOpen: false,
+		});
+		const { controller, widths } = mountController();
+		controller.setRightCollapsed(false);
+		expect(widths.right).toBeGreaterThan(0);
+		expect(getShellLayoutPrefs().customRails?.rightOpen).toBe(true);
+
+		setAgentWindowOpen(true);
+		expect(widths.right).toBe(0);
+		expect(widths.left).toBe(0);
+		// The temporary collapse must not overwrite the reading arrangement.
+		expect(getShellLayoutPrefs().customRails?.rightOpen).toBe(true);
+
+		setAgentWindowOpen(false);
+		expect(widths.right).toBeGreaterThan(0);
+		expect(uiStore.getState().rightSidebarOpen).toBe(true);
+		expect(getShellLayoutPrefs().customRails?.rightOpen).toBe(true);
+	});
+
+	it("keeps the right rail the user opens inside the Agent window", () => {
+		uiStore.setState({
+			agentWindowOpen: false,
+			layoutMode: "custom",
+			lastAppliedPreset: null,
+			sidebarCollapsed: false,
+			rightSidebarOpen: false,
+		});
+		const { controller, widths } = mountController();
+		controller.setRightCollapsed(true);
+		expect(widths.right).toBe(0);
+
+		setAgentWindowOpen(true);
+		controller.setRightCollapsed(false);
+		expect(widths.right).toBeGreaterThan(0);
+
+		setAgentWindowOpen(false);
+		expect(widths.right).toBeGreaterThan(0);
+		expect(getShellLayoutPrefs().customRails?.rightOpen).toBe(true);
+	});
+
 	it("restores both notes rails after Agent round-trips, including reopening", () => {
 		const { controller, widths } = mountController();
 		controller.applyLayoutMode("notes");
