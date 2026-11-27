@@ -174,26 +174,50 @@ jobs:
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-bundled-cli.mjs
       - name: Run Rust checks
+        shell: bash
         run: |
-          set -euo pipefail
-          case "${{ matrix.task }}" in
-            quality)
-              cargo fmt --all --check
-              cargo clippy --workspace --all-targets -- -D warnings
-              ;;
-            agentero-tests)
-              cargo test -p agentero
-              ;;
-            cli-tests)
-              # Dependency builds do not run core/MCP unit tests. Keep all
-              # headless packages in this job to share PDFium and artifacts.
-              cargo test -p agentero-core -p agentero-mcp -p agentero-cli
-              ;;
-            *)
-              echo "::error::Unknown Rust CI task: ${{ matrix.task }}"
+          set -uo pipefail
+          task="${{ matrix.task }}"
+          run_checks() {
+            case "$task" in
+              quality)
+                cargo fmt --all --check &&
+                  cargo clippy --workspace --all-targets -- -D warnings
+                ;;
+              agentero-tests)
+                cargo test -p agentero
+                ;;
+              cli-tests)
+                # Dependency builds do not run core/MCP unit tests. Keep all
+                # headless packages in this job to share PDFium and artifacts.
+                cargo test -p agentero-core -p agentero-mcp -p agentero-cli
+                ;;
+              *)
+                echo "::error::Unknown Rust CI task: $task"
+                return 2
+                ;;
+            esac
+          }
+          # tesseract-rs' build script downloads its native sources and trained
+          # data straight from GitHub and panics on a 5xx/timeout, which used to
+          # fail the whole job over one CDN blip. Retry only that class of
+          # failure; a real test failure exits on the first attempt.
+          log="$(mktemp)"
+          for attempt in 1 2 3; do
+            if run_checks 2>&1 | tee "$log"; then
+              exit 0
+            fi
+            status="${PIPESTATUS[0]}"
+            if [ "$status" -eq 2 ]; then
               exit 1
-              ;;
-          esac
+            fi
+            if ! grep -Eq 'Failed to download|Failed to read archive|HTTP 5[0-9][0-9]|tls handshake|error sending request' "$log"; then
+              exit "$status"
+            fi
+            echo "::warning::Rust checks hit a dependency download failure; retrying ($attempt/3)"
+            sleep 15
+          done
+          exit 1
 
   # Same test tasks as `rust` above. macos-15 never compiles `#[cfg(windows)]`.
   # Formatting and clippy run once, on the macOS `quality` job: `cargo fmt` is
@@ -250,18 +274,41 @@ jobs:
       - name: Run Rust checks
         shell: bash
         run: |
-          set -euo pipefail
-          case "${{ matrix.task }}" in
-            agentero-tests)
-              cargo test -p agentero
-              ;;
-            cli-tests)
-              # Dependency builds do not run core/MCP unit tests. Keep all
-              # headless packages in this job to share PDFium and artifacts.
-              cargo test -p agentero-core -p agentero-mcp -p agentero-cli
-              ;;
-            *)
-              echo "::error::Unknown Rust CI task: ${{ matrix.task }}"
+          set -uo pipefail
+          task="${{ matrix.task }}"
+          run_checks() {
+            case "$task" in
+              agentero-tests)
+                cargo test -p agentero
+                ;;
+              cli-tests)
+                # Dependency builds do not run core/MCP unit tests. Keep all
+                # headless packages in this job to share PDFium and artifacts.
+                cargo test -p agentero-core -p agentero-mcp -p agentero-cli
+                ;;
+              *)
+                echo "::error::Unknown Rust CI task: $task"
+                return 2
+                ;;
+            esac
+          }
+          # tesseract-rs' build script downloads its native sources and trained
+          # data straight from GitHub and panics on a 5xx/timeout, which used to
+          # fail the whole job over one CDN blip. Retry only that class of
+          # failure; a real test failure exits on the first attempt.
+          log="$(mktemp)"
+          for attempt in 1 2 3; do
+            if run_checks 2>&1 | tee "$log"; then
+              exit 0
+            fi
+            status="${PIPESTATUS[0]}"
+            if [ "$status" -eq 2 ]; then
               exit 1
-              ;;
-          esac
+            fi
+            if ! grep -Eq 'Failed to download|Failed to read archive|HTTP 5[0-9][0-9]|tls handshake|error sending request' "$log"; then
+              exit "$status"
+            fi
+            echo "::warning::Rust checks hit a dependency download failure; retrying ($attempt/3)"
+            sleep 15
+          done
+          exit 1
