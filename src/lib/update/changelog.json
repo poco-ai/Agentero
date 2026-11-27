@@ -2,6 +2,14 @@
 	"schemaVersion": 1,
 	"releases": [
 		{
+			"tag": "v0.19.1",
+			"releaseDate": "2026-11-27",
+			"summary": {
+				"zh-CN": "### 改进\n\n- **右栏开合动画**: 收起或展开右栏时改为滑入滑出，不再瞬间跳变；动画过程中内容不会重新排版，右栏里的网页视图也跟着面板边缘移动。\n- **论文笔记**: 新安装默认不自动打开论文笔记，可在 **设置 → 通用 → 论文库** 打开「默认打开论文笔记」。已保存的设置保持不变。\n\n### 修复\n\n- **Windows 右栏闪烁**: Windows 上打开右栏或继续拖动分栏时，面板不再剧烈闪烁。\n- **Agent 窗口快捷键**: 停在 **新会话** 页面时，`⌘W`（Windows / Linux 为 `Ctrl+W`）会离开 Agent 窗口回到阅读界面；命令面板的「关闭标签页」走同一分支，不再关掉后台隐藏的文档标签。\n- **同步设置**: 不再显示账号登录和额度，新建同步默认使用 S3；顶部的资料库下拉框移到主操作旁。\n- **Agent 窗口入口配色**: 顶栏入口改用当前主题的强调色，不再固定为蓝色，和自定义主题保持一致。",
+				"en": "### Improvements\n\n- **Right sidebar motion**: the right sidebar now slides open and closed instead of snapping, its content stays stable through the animation, and the embedded web view follows the moving panel edge.\n- **Paper notes**: new installations no longer open paper notes automatically; enable **Open paper notes by default** under **Settings → General → Library**. Existing saved choices stay as they are.\n\n### Fixes\n\n- **Windows sidebar flicker**: opening the right sidebar or continuing to drag its divider on Windows no longer makes the panel flash.\n- **Agent window shortcut**: from the **New session** page, `Cmd+W` (`Ctrl+W` on Windows/Linux) now leaves the Agent window and returns to reading; Close Tab in the command palette follows the same path and no longer closes hidden document tabs.\n- **Sync settings**: account sign-in and usage no longer appear, and new sync setups default to S3. The vault picker now sits next to the primary action.\n- **Agent window entry color**: the title-bar entry uses the active theme's accent color instead of a fixed blue, so it matches custom themes."
+			}
+		},
+		{
 			"tag": "v0.19.0",
 			"releaseDate": "2026-11-27",
 			"summary": {
