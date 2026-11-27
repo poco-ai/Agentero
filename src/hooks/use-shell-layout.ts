@@ -7,6 +7,7 @@
 import { type RefObject, useEffect, useMemo, useRef } from "react";
 import { usePanelRef } from "react-resizable-panels";
 import { errorText } from "@/lib/core/error";
+import { MOTION_MS, prefersReducedMotion } from "@/lib/core/motion";
 import { notifyError } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import {
@@ -68,6 +69,7 @@ const RIGHT_LIMITS: RailLimits = {
 };
 
 type ShellLayout = {
+	groupElementRef: RefObject<HTMLDivElement | null>;
 	sidebarPanelRef: ReturnType<typeof usePanelRef>;
 	rightSidebarPanelRef: ReturnType<typeof usePanelRef>;
 	sourcePanelRef: ReturnType<typeof usePanelRef>;
@@ -79,13 +81,18 @@ type ShellLayout = {
 	/** Restored boot widths (remembered ratios × current window, clamped). */
 	initialLeftPx: number;
 	initialRightPx: number;
+	isLeftSidebarTransitioning: () => boolean;
+	stopLeftSidebarTransition: () => void;
 };
 
 /** Wait for the post-boot window restore/maximize animation to settle. */
 const RAIL_BOOT_RESIZE_DEBOUNCE_MS = 150;
 const RAIL_BOOT_RESIZE_LISTEN_MS = 2000;
+const LEFT_SIDEBAR_TRANSITION = "data-animating-left-sidebar";
+const RAIL_TRANSITION_SETTLE_MS = 32;
 
 export function useShellLayout(vaultPath: string | null = null): ShellLayout {
+	const groupElementRef = useRef<HTMLDivElement>(null);
 	const sidebarPanelRef = usePanelRef();
 	const rightSidebarPanelRef = usePanelRef();
 	const sourcePanelRef = usePanelRef();
@@ -111,6 +118,13 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 	const controller = useMemo(() => {
 		/** Pre-reading arrangement, restored when reading is toggled off. */
 		let readingSnapshot: ReadingSnapshot | null = null;
+		let leftSidebarTimer: number | undefined;
+		const isLeftSidebarTransitioning = () => leftSidebarTimer !== undefined;
+		const stopLeftSidebarTransition = () => {
+			window.clearTimeout(leftSidebarTimer);
+			leftSidebarTimer = undefined;
+			groupElementRef.current?.removeAttribute(LEFT_SIDEBAR_TRANSITION);
+		};
 
 		const rememberedWidths = () =>
 			railWidthsForSlot(
@@ -122,8 +136,19 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			);
 
 		/** Collapse / expand left file-tree panel without remounting. */
-		const setLeftCollapsed = (collapsed: boolean) => {
+		const setLeftCollapsed = (collapsed: boolean, animate = false) => {
 			const panel = sidebarPanelRef.current;
+			const group = groupElementRef.current;
+			if (panel && group && animate && !prefersReducedMotion()) {
+				window.clearTimeout(leftSidebarTimer);
+				group.setAttribute(LEFT_SIDEBAR_TRANSITION, "");
+				leftSidebarTimer = window.setTimeout(
+					stopLeftSidebarTransition,
+					MOTION_MS.normal + RAIL_TRANSITION_SETTLE_MS,
+				);
+			} else {
+				stopLeftSidebarTransition();
+			}
 			if (panel) {
 				if (collapsed) {
 					try {
@@ -136,13 +161,10 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 						rememberedWidths().leftPx ??
 						(leftWidthPxRef.current || SIDEBAR_DEFAULT_PX);
 					try {
-						panel.expand();
 						panel.resize(targetPx);
 					} catch {
 						// ignore
 					}
-					// expand() fires onResize synchronously and may overwrite the
-					// remembered width with the library's default expand size.
 					leftWidthPxRef.current = targetPx;
 				}
 			}
@@ -151,6 +173,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 
 		/** Collapse / expand right Agent/Backlinks panel (always mounted). */
 		const setRightCollapsed = (collapsed: boolean) => {
+			stopLeftSidebarTransition();
 			const panel = rightSidebarPanelRef.current;
 			if (panel) {
 				if (collapsed) {
@@ -177,6 +200,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 
 		/** Expand + resize the Agent rail to an absolute pixel width. */
 		const setRightPx = (px: number) => {
+			stopLeftSidebarTransition();
 			const panel = rightSidebarPanelRef.current;
 			if (!panel) return;
 			try {
@@ -488,6 +512,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			else void enterImmersive();
 		};
 		const dispose = () => {
+			stopLeftSidebarTransition();
 			groupSizes?.dispose();
 			groupSizes = undefined;
 			fullscreenWatchEpoch += 1;
@@ -498,9 +523,18 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		};
 
 		const focusSidebar = () => {
-			setLeftCollapsed(false);
+			const { agentWindowOpen, sidebarCollapsed } = uiStore.getState();
+			if (sidebarCollapsed || !agentWindowOpen) {
+				setLeftCollapsed(false, agentWindowOpen);
+			}
 			requestAnimationFrame(() => {
-				sidebarAsideRef.current?.querySelector<HTMLElement>("button")?.focus();
+				sidebarAsideRef.current
+					?.querySelector<HTMLElement>(
+						uiStore.getState().agentWindowOpen
+							? "[data-agent-sidebar] button"
+							: "button",
+					)
+					?.focus({ preventScroll: true });
 			});
 		};
 
@@ -531,6 +565,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 
 		return {
 			setLeftCollapsed,
+			isLeftSidebarTransitioning,
+			stopLeftSidebarTransition,
 			setRightCollapsed,
 			applyLayoutMode,
 			toggleImmersiveReading,
@@ -582,6 +618,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		// the rails keep their pixel widths when the window is resized.
 		let settleTimer = 0;
 		const applyRememberedWidths = () => {
+			if (controller.isLeftSidebarTransitioning()) return;
 			const state = uiStore.getState();
 			const saved = railWidthsForSlot(
 				getShellLayoutPrefs(),
@@ -614,9 +651,10 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			window.clearTimeout(settleTimer);
 			window.clearTimeout(stopTimer);
 		};
-	}, [sidebarPanelRef, rightSidebarPanelRef]);
+	}, [controller, sidebarPanelRef, rightSidebarPanelRef]);
 
 	return {
+		groupElementRef,
 		sidebarPanelRef,
 		rightSidebarPanelRef,
 		sourcePanelRef,
@@ -626,5 +664,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 		rightWidthPxRef,
 		initialLeftPx: bootWidths.leftPx,
 		initialRightPx: bootWidths.rightPx,
+		isLeftSidebarTransitioning: controller.isLeftSidebarTransitioning,
+		stopLeftSidebarTransition: controller.stopLeftSidebarTransition,
 	};
 }

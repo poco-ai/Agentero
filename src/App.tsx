@@ -268,6 +268,7 @@ export default function App() {
 	usePaperBackfillPrompt();
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const {
+		groupElementRef,
 		sidebarPanelRef,
 		rightSidebarPanelRef,
 		sourcePanelRef,
@@ -277,12 +278,15 @@ export default function App() {
 		rightWidthPxRef,
 		initialLeftPx,
 		initialRightPx,
+		isLeftSidebarTransitioning,
+		stopLeftSidebarTransition,
 	} = useShellLayout(vaultPath);
 
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
 	const immersiveReading = useUiStore((s) => s.immersiveReading);
 	const agentWindowOpen = useUiStore((s) => s.agentWindowOpen);
+	const initialSidebarSize = useRef(sidebarCollapsed ? 0 : initialLeftPx);
 	const [agentWindowMounted, setAgentWindowMounted] = useState(false);
 	const isResizingRightRef = useRef(false);
 
@@ -555,8 +559,9 @@ export default function App() {
 
 					<ErrorBoundary label="workspace">
 						<ResizableGroup
+							elementRef={groupElementRef}
 							orientation="horizontal"
-							className="h-full min-h-0 flex-1 overflow-hidden"
+							className="h-full min-h-0 flex-1 overflow-hidden motion-safe:data-[animating-left-sidebar]:[&>[data-panel]]:transition-[flex-grow] motion-safe:data-[animating-left-sidebar]:[&>[data-panel]]:duration-(--motion-duration-normal) motion-safe:data-[animating-left-sidebar]:[&>[data-panel]]:ease-(--motion-ease-out)"
 							onLayoutChanged={(_nextLayout, meta) => {
 								// Only genuine user resizes (drag release / keyboard) update
 								// the remembered widths; mount echoes, window resizes and
@@ -585,7 +590,7 @@ export default function App() {
 									<ResizablePanel
 										id="sidebar"
 										panelRef={sidebarPanelRef}
-										defaultSize={sidebarCollapsed ? 0 : initialLeftPx}
+										defaultSize={initialSidebarSize.current}
 										minSize={SIDEBAR_MIN_PX}
 										maxSize={`${Math.round(SIDEBAR_MAX_RATIO * 100)}%`}
 										collapsible
@@ -594,6 +599,7 @@ export default function App() {
 										groupResizeBehavior="preserve-pixel-size"
 										className="min-h-0 overflow-hidden"
 										onResize={(size) => {
+											if (isLeftSidebarTransitioning()) return;
 											// Only mark collapsed after a real collapse, never mid-drag.
 											if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
 												setSidebarCollapsedState(true);
@@ -646,14 +652,17 @@ export default function App() {
 									*/}
 									<ResizableHandle
 										className={cn(
-											sidebarCollapsed && "pointer-events-none w-0 opacity-0",
+											sidebarCollapsed && "pointer-events-none opacity-0",
+											sidebarCollapsed && !agentWindowOpen && "w-0",
 										)}
 										disabled={sidebarCollapsed}
 										onDoubleClick={() => commitRailReset("left")}
 										onPointerDown={() => {
+											stopLeftSidebarTransition();
 											isResizingRightRef.current = false;
 										}}
 										onKeyDown={() => {
+											stopLeftSidebarTransition();
 											isResizingRightRef.current = false;
 										}}
 									/>
@@ -710,9 +719,11 @@ export default function App() {
 								disabled={!rightSidebarOpen}
 								onDoubleClick={() => commitRailReset("right")}
 								onPointerDown={() => {
+									stopLeftSidebarTransition();
 									isResizingRightRef.current = true;
 								}}
 								onKeyDown={() => {
+									stopLeftSidebarTransition();
 									isResizingRightRef.current = true;
 								}}
 							/>
@@ -727,6 +738,7 @@ export default function App() {
 								groupResizeBehavior="preserve-pixel-size"
 								className="min-h-0 overflow-hidden"
 								onResize={(size) => {
+									if (isLeftSidebarTransitioning()) return;
 									if (size.inPixels <= RAIL_COLLAPSED_MAX_PX) {
 										setRightSidebarOpenState(false);
 									} else if (size.inPixels >= RAIL_RECORD_MIN_PX) {

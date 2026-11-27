@@ -9,6 +9,7 @@ import {
 import {
 	initShellLayoutFromPrefs,
 	layout,
+	setAgentWindowOpen,
 	setLayoutMode,
 	setRightSidebarOpenState,
 	setSidebarCollapsedState,
@@ -145,6 +146,41 @@ afterEach(() => {
 });
 
 describe("shell layout restoration", () => {
+	it("moves the Zen left rail directly to its target and keeps the transition active when reversed", () => {
+		vi.spyOn(window, "matchMedia").mockReturnValue({
+			matches: false,
+		} as MediaQueryList);
+		const { shell, widths } = mountController();
+		const attributes = new Set<string>();
+		shell.groupElementRef.current = {
+			setAttribute: (name: string) => attributes.add(name),
+			removeAttribute: (name: string) => attributes.delete(name),
+		} as unknown as HTMLDivElement;
+		const left = shell.sidebarPanelRef.current;
+		if (!left) throw new Error("Missing left test panel");
+		const expand = vi.spyOn(left, "expand");
+		const resize = vi.spyOn(left, "resize");
+		setAgentWindowOpen(true);
+		try {
+			toggleSidebar();
+			expect(expand).not.toHaveBeenCalled();
+			expect(resize).toHaveBeenCalledExactlyOnceWith(200);
+			expect(widths.left).toBe(200);
+			expect(shell.isLeftSidebarTransitioning()).toBe(true);
+			vi.advanceTimersByTime(150);
+			toggleSidebar();
+			expect(widths.left).toBe(0);
+			vi.advanceTimersByTime(100);
+			expect(attributes.has("data-animating-left-sidebar")).toBe(true);
+			vi.runOnlyPendingTimers();
+			expect(attributes.size).toBe(0);
+			expect(shell.isLeftSidebarTransitioning()).toBe(false);
+		} finally {
+			setAgentWindowOpen(false);
+			vi.restoreAllMocks();
+		}
+	});
+
 	it("maximizes the active pane in reading and toggles back to the previous custom layout", () => {
 		const { controller, widths } = mountController();
 		controller.applyLayoutMode("agent");

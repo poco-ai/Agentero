@@ -322,7 +322,7 @@ export function clearPaperSearchDraft(): void {
  * panel resize lives in the React layer; plain actions call through here).
  */
 export type LayoutController = {
-	setLeftCollapsed: (collapsed: boolean) => void;
+	setLeftCollapsed: (collapsed: boolean, animate?: boolean) => void;
 	setRightCollapsed: (collapsed: boolean) => void;
 	applyLayoutMode: (mode: Exclude<LayoutMode, "custom">) => void;
 	/** Fullscreen plus hidden chrome. A second call restores the snapshot. */
@@ -344,9 +344,10 @@ export function layout(): LayoutController | null {
 }
 
 export function toggleSidebar(): void {
-	if (uiStore.getState().immersiveReading) return;
-	const { sidebarCollapsed } = uiStore.getState();
-	layout()?.setLeftCollapsed(!sidebarCollapsed);
+	const { immersiveReading, sidebarCollapsed, agentWindowOpen } =
+		uiStore.getState();
+	if (immersiveReading) return;
+	layout()?.setLeftCollapsed(!sidebarCollapsed, agentWindowOpen);
 }
 
 export function setFeaturePoppedOut(
