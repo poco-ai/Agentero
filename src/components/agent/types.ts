@@ -72,7 +72,7 @@ export type AgentPanelProps = {
 	 * session as an open tab and spawned one ACP process per slot.
 	 */
 	suppressHistoryImport?: boolean;
-	/** Full-page surface: inset the transcript and composer horizontally. */
+	/** Full-page surface: inset the transcript and use the default composer height. */
 	wide?: boolean;
 	/**
 	 * Workspace tab surface (Agent window): the dock owns the tab and the left

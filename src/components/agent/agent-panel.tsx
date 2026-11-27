@@ -20,17 +20,12 @@ import { AgentPermissionDialog } from "@/components/agent/agent-permission-dialo
 import { AgentSwitcher } from "@/components/agent/agent-switcher";
 import { ChatTranscript } from "@/components/agent/chat-transcript";
 import { ComposerModelSelector } from "@/components/agent/composer/composer-model-selector";
-import { ConversationWidthHandles } from "@/components/agent/conversation-width-handles";
 import { PiProjectTrustNotice } from "@/components/agent/pi-project-trust-notice";
 import type { AgentPanelProps } from "@/components/agent/types";
 import { useAgentPanel } from "@/components/agent/use-agent-panel";
 import { ZenWelcome } from "@/components/agent/zen/zen-welcome";
 import { PaneHeader } from "@/components/shell/pane-header";
 import type { AgentOption } from "@/lib/agent/chat-state";
-import {
-	setConversationWidth,
-	useConversationWidth,
-} from "@/lib/agent/conversation-width";
 import { cn } from "@/lib/core/utils";
 
 const COMPOSER_DEFAULT_HEIGHT_PX = 208;
@@ -38,9 +33,8 @@ const COMPOSER_MIN_HEIGHT_PX = 88;
 const COMPOSER_MAX_HEIGHT_PX = 360;
 const COMPOSER_COMPACT_THRESHOLD_PX = 160;
 /**
- * Workspace tabs (Agent window) start at two thirds of the rail's composer:
- * the conversation column is the whole page there and needs the room. The
- * compact threshold scales with it, so the starting size stays expanded.
+ * Workspace tabs (Agent window) use two thirds of the rail's composer
+ * height, with a matching compact threshold for short windows.
  */
 const WORKSPACE_COMPOSER_SCALE = 2 / 3;
 /** Below this app window height, prefer compact as the starting composer size. */
@@ -98,7 +92,6 @@ export const AgentPanel = memo(function AgentPanel({
 	workspace = false,
 }: AgentPanelProps) {
 	const { t } = useTranslation("agent");
-	const conversationWidth = useConversationWidth();
 	const panel = useAgentPanel({
 		vaultPath,
 		selectedPath,
@@ -116,6 +109,7 @@ export const AgentPanel = memo(function AgentPanel({
 		suppressHistoryImport,
 	});
 	const bodyRef = useRef<HTMLDivElement>(null);
+	const fixedComposerHeight = wide || workspace;
 	const compactThresholdPx = composerSizePx(
 		COMPOSER_COMPACT_THRESHOLD_PX,
 		workspace,
@@ -147,6 +141,12 @@ export const AgentPanel = memo(function AgentPanel({
 
 	useEffect(() => {
 		const handleResize = () => {
+			if (fixedComposerHeight) {
+				setComposerHeightPx(
+					clampComposerHeight(initialComposerHeightPx(workspace)),
+				);
+				return;
+			}
 			const short = window.innerHeight < WINDOW_COMPACT_THRESHOLD_PX;
 			const crossedIntoShort = short && !windowWasShortRef.current;
 			windowWasShortRef.current = short;
@@ -160,7 +160,7 @@ export const AgentPanel = memo(function AgentPanel({
 		handleResize();
 		window.addEventListener("resize", handleResize);
 		return () => window.removeEventListener("resize", handleResize);
-	}, [clampComposerHeight, compactThresholdPx]);
+	}, [clampComposerHeight, compactThresholdPx, fixedComposerHeight, workspace]);
 
 	const onComposerResizePointerDown = useCallback(
 		(event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -224,8 +224,6 @@ export const AgentPanel = memo(function AgentPanel({
 		},
 		[clampComposerHeight],
 	);
-	// Compact is driven only by composer height so the resize handle can always
-	// leave or re-enter compact, even when the app window is short.
 	const composerCompact = composerHeightPx <= compactThresholdPx;
 	// Compact mode hugs content (no fixed height) so the shell does not leave a
 	// empty band under the single-line input. Non-compact keeps the resize budget.
@@ -496,14 +494,10 @@ export const AgentPanel = memo(function AgentPanel({
 		>
 			<div className="flex min-h-0 min-w-0 flex-1 justify-center">
 				<div
-					className="relative flex h-full min-h-0 w-full flex-col"
-					style={
-						workspace
-							? {
-									width: `min(${conversationWidth}px, calc(100% - 4rem))`,
-								}
-							: undefined
-					}
+					className={cn(
+						"relative flex h-full min-h-0 w-full flex-col",
+						workspace && "max-w-[min(56rem,calc(100%_-_4rem))]",
+					)}
 				>
 					{workspace ? null : (
 						<>
@@ -606,16 +600,18 @@ export const AgentPanel = memo(function AgentPanel({
 									template={selected?.template}
 									disabled={hasRunningSessions}
 								/>
-								<button
-									type="button"
-									aria-label={t("composer.resizeHandle")}
-									title={t("composer.resizeHandle")}
-									className="group relative h-2 shrink-0 cursor-row-resize touch-none bg-muted/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-									onPointerDown={onComposerResizePointerDown}
-									onKeyDown={onComposerResizeKeyDown}
-								>
-									<div className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 h-px w-12 rounded-full bg-border transition-colors group-hover:bg-foreground/35 group-active:bg-foreground/45" />
-								</button>
+								{fixedComposerHeight ? null : (
+									<button
+										type="button"
+										aria-label={t("composer.resizeHandle")}
+										title={t("composer.resizeHandle")}
+										className="group relative h-2 shrink-0 cursor-row-resize touch-none bg-muted/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+										onPointerDown={onComposerResizePointerDown}
+										onKeyDown={onComposerResizeKeyDown}
+									>
+										<div className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 h-px w-12 rounded-full bg-border transition-colors group-hover:bg-foreground/35 group-active:bg-foreground/45" />
+									</button>
+								)}
 
 								<AgentComposer
 									wide={wide}
@@ -690,12 +686,6 @@ export const AgentPanel = memo(function AgentPanel({
 							</>
 						) : null}
 					</div>
-					{workspace ? (
-						<ConversationWidthHandles
-							width={conversationWidth}
-							onChange={setConversationWidth}
-						/>
-					) : null}
 				</div>
 			</div>
 
