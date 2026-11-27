@@ -624,6 +624,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 			},
 			hasPendingSource,
 			flushSource: saveNow,
+			save: () => saveNow(),
+			isDirty: () => dirtyRef.current,
 		});
 	}, [
 		canToggleSource,

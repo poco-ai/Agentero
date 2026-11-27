@@ -61,6 +61,17 @@ import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { TAG_COLOR_IDS, tagSwatchStyle } from "@/lib/ui/tag-colors";
 import { closeTab, openTexPdf } from "@/lib/workspace/actions";
 import type { DockHandle } from "@/lib/workspace/dock-registry";
+import {
+	canMoveMainPanelToSidebar,
+	canMoveSidebarPanelToMain,
+	moveMainPanelToSidebar,
+	moveSidebarPanelToMain,
+	sidebarTargetForTab,
+} from "@/lib/workspace/dock-transfer";
+import {
+	isCrossDockTransfer,
+	registerDockTransfer,
+} from "@/lib/workspace/dock-transfer-registry";
 import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag-selection";
 import { installDockviewSashFrameLoop } from "@/lib/workspace/dockview-sash";
 import { agenteroDockTheme } from "@/lib/workspace/dockview-theme";
@@ -213,7 +224,7 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 			data-workspace-view={panelId}
 			className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background"
 		>
-			{!immersiveReading && (
+			{!immersiveReading && tab.kind !== "agent" && (
 				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
 			)}
 			<DocView
@@ -870,6 +881,7 @@ export const DockWorkspace = memo(
 				apiRef.current = api;
 
 				disposablesRef.current = [
+					{ dispose: registerDockTransfer("main", api.id) },
 					api.onWillDragPanel((e) => {
 						if (isLibraryPanel(e.panel)) e.nativeEvent.preventDefault();
 					}),
@@ -883,6 +895,18 @@ export const DockWorkspace = memo(
 						api,
 					),
 					api.onUnhandledDragOver((e: DockviewDndOverlayEvent) => {
+						// A drag started by the right rail: accept so the workspace
+						// overlay appears and `onDidDrop` receives the transfer.
+						const transfer = e.getData();
+						if (isCrossDockTransfer(transfer, "main")) {
+							if (
+								transfer?.panelId &&
+								canMoveSidebarPanelToMain(transfer.panelId)
+							) {
+								e.accept();
+							}
+							return;
+						}
 						if (!isExternalPathDrag(e.nativeEvent)) return;
 						e.accept();
 					}),
@@ -959,7 +983,7 @@ export const DockWorkspace = memo(
 		const metaKey = tabs
 			.map(
 				(t) =>
-					`${t.id}:${t.path}:${t.title}:${t.mode}:${t.texRoot ?? ""}:${t.writingRoot ?? ""}`,
+					`${t.id}:${t.path}:${t.title}:${t.mode}:${t.texRoot ?? ""}:${t.writingRoot ?? ""}:${t.agentSessionRef?.id ?? ""}`,
 			)
 			.join("|");
 		useEffect(() => {
@@ -990,6 +1014,19 @@ export const DockWorkspace = memo(
 		}, []);
 
 		const handleExternalDrop = useCallback((e: DockviewDidDropEvent) => {
+			const transfer = e.getData();
+			if (transfer?.panelId && isCrossDockTransfer(transfer, "main")) {
+				void moveSidebarPanelToMain({
+					panelId: transfer.panelId,
+					position: e.position,
+					referencePanelId:
+						e.panel?.id ??
+						e.group?.activePanel?.id ??
+						e.group?.panels[0]?.id ??
+						null,
+				});
+				return;
+			}
 			if (!isExternalPathDrag(e.nativeEvent)) return;
 			const native = e.nativeEvent;
 			if (!(native instanceof DragEvent) || !native.dataTransfer) return;
@@ -1073,6 +1110,7 @@ export const DockWorkspace = memo(
 					tab.kind !== "library" &&
 					tab.kind !== "trash" &&
 					tab.kind !== "zen" &&
+					tab.kind !== "agent" &&
 					!isLibraryVirtualPath(tab.path) &&
 					!isTrashVirtualPath(tab.path);
 				if (canMoveToWindow && tab) {
@@ -1082,6 +1120,17 @@ export const DockWorkspace = memo(
 							void moveDocToWindow(panel.id);
 						},
 					});
+				}
+				if (tab && centerProps.vaultPath) {
+					const sidebarTarget = sidebarTargetForTab(tab, centerProps.vaultPath);
+					if (sidebarTarget && canMoveMainPanelToSidebar(panel.id)) {
+						menu.push({
+							label: t("tabs.contextMoveToSidebar"),
+							action: () => {
+								void moveMainPanelToSidebar(panel.id);
+							},
+						});
+					}
 				}
 				if (tab?.mode === "pdf") {
 					const handle = pdfHandleFor(panel.id);
@@ -1168,7 +1217,7 @@ export const DockWorkspace = memo(
 
 				return menu;
 			},
-			[t],
+			[t, centerProps.vaultPath],
 		);
 
 		const getTabGroupChipContextMenuItems = useCallback(

@@ -5,8 +5,10 @@
 
 import { Command as CommandPrimitive } from "cmdk";
 import {
+	type DockviewDidDropEvent,
 	DockviewReact,
 	type DockviewReadyEvent,
+	type GetTabContextMenuItemsParams,
 	type IDockviewPanelHeaderProps,
 	type IDockviewPanelProps,
 } from "dockview-react";
@@ -36,6 +38,7 @@ import { Command, CommandItem, CommandList } from "@/components/ui/command";
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DocumentTab } from "@/components/workspace/document-tab";
+import { useAgentScope } from "@/hooks/use-agent-scope";
 import {
 	useLibraryStore,
 	useSettings,
@@ -44,12 +47,8 @@ import {
 	useWorkspaceStore,
 } from "@/hooks/use-app-stores";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
-import {
-	AgentSessionScopeContext,
-	agentSessionStore,
-	createAgentSessionStore,
-} from "@/lib/agent/agent-session-store";
-import { cancelAgentRun, listAgents } from "@/lib/agent/api";
+import { AgentSessionScopeContext } from "@/lib/agent/agent-session-store";
+import { listAgents } from "@/lib/agent/api";
 import type { ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import { isDismissedAcpSession } from "@/lib/agent/history-title-cache";
 import { sessionHistoryItem, sessionReference } from "@/lib/agent/session-ref";
@@ -68,7 +67,6 @@ import {
 import {
 	closeSidebarTab,
 	connectSidebarDock,
-	isSidebarView,
 	openOrActivateSidebarTarget,
 	type SidebarAgentTarget,
 	type SidebarPanelParams,
@@ -83,6 +81,16 @@ import {
 } from "@/lib/web-view/sidebar-browser-url";
 import { searchWikiLinks, type WikiSearchCandidate } from "@/lib/wiki/api";
 import { openCitation } from "@/lib/workspace/actions";
+import {
+	canMoveMainPanelToSidebar,
+	canMoveSidebarPanelToMain,
+	moveMainPanelToSidebar,
+	moveSidebarPanelToMain,
+} from "@/lib/workspace/dock-transfer";
+import {
+	isCrossDockTransfer,
+	registerDockTransfer,
+} from "@/lib/workspace/dock-transfer-registry";
 import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag-selection";
 import { agenteroDockTheme } from "@/lib/workspace/dockview-theme";
 import { openSidebarCitation } from "@/lib/workspace/sidebar-citations";
@@ -194,20 +202,17 @@ function SidebarAgent({
 	const agentPanelMounted = useUiStore((s) => s.agentPanelMounted);
 	const featurePoppedOut = useUiStore((s) => s.featurePoppedOut);
 	const [initialTarget] = useState(params.target as SidebarAgentTarget);
+	// Registry-owned store: a cross-dock move re-mounts the same session.
+	const scope = useAgentScope(initialTarget.scopeId);
+	// Load history only for a fresh store. A moved panel already holds the
+	// transcript, and re-opening the session would reset its live state.
 	const [historyItem, setHistoryItem] = useState(() =>
-		initialTarget.sessionRef
+		initialTarget.sessionRef && scope.store.getState().sessions.length === 0
 			? sessionHistoryItem(initialTarget.sessionRef)
 			: null,
 	);
 	const [failedHistory, setFailedHistory] =
 		useState<ChatSessionHistoryItem | null>(null);
-	const [scope] = useState(() => ({
-		scopeId: initialTarget.scopeId,
-		store:
-			initialTarget.scopeId === null
-				? agentSessionStore
-				: createAgentSessionStore(),
-	}));
 	const [visible, setVisible] = useState(api.isVisible);
 	const agentId = useRef(
 		initialTarget.agentId ?? initialTarget.sessionRef?.agentId,
@@ -254,19 +259,6 @@ function SidebarAgent({
 					agentId: agentId.current,
 				});
 			}),
-		[api.id, scope],
-	);
-	useEffect(
-		() => () => {
-			if (!scope.scopeId) return;
-			queueMicrotask(() => {
-				if (isSidebarView(api.id)) return;
-				for (const session of scope.store.getState().sessions) {
-					if (session.status === "running")
-						void cancelAgentRun(session.id).catch(() => undefined);
-				}
-			});
-		},
 		[api.id, scope],
 	);
 	const onAgentChange = useCallback(
@@ -709,12 +701,49 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 	const { t } = useTranslation("app");
 	const root = useRef<HTMLElement>(null);
 	const disconnect = useRef<(() => void) | null>(null);
+	const handleDrop = useCallback((event: DockviewDidDropEvent) => {
+		const data = event.getData();
+		if (!data?.panelId || !isCrossDockTransfer(data, "sidebar")) return;
+		void moveMainPanelToSidebar(data.panelId);
+	}, []);
+	const getTabContextMenuItems = useCallback(
+		({ panel }: GetTabContextMenuItemsParams) => {
+			if (!canMoveSidebarPanelToMain(panel.id)) return [];
+			return [
+				{
+					label: t("tabs.contextMoveToMain"),
+					action: () => {
+						void moveSidebarPanelToMain({
+							panelId: panel.id,
+							position: "center",
+							referencePanelId: null,
+						});
+					},
+				},
+			];
+		},
+		[t],
+	);
 	const onReady = useCallback(
 		({ api }: DockviewReadyEvent) => {
 			disconnect.current?.();
 			let agents: ReturnType<typeof listAgents> | undefined;
 			const dragGuard =
 				root.current && installDockviewDragSelectionGuard(root.current, api);
+			const unregisterTransfer = registerDockTransfer("sidebar", api.id);
+			// Dockview only consults the group's unhandled-drag hook for drags
+			// started by another container. Accept those so the drop overlay
+			// appears and `onDidDrop` is dispatched.
+			const acceptCrossDock = api.onUnhandledDragOver((event) => {
+				const transfer = event.getData();
+				if (
+					isCrossDockTransfer(transfer, "sidebar") &&
+					transfer?.panelId &&
+					canMoveMainPanelToSidebar(transfer.panelId)
+				) {
+					event.accept();
+				}
+			});
 			const disconnectDock = connectSidebarDock(api, vaultPath, {
 				title: (target) =>
 					target.kind === "agent"
@@ -742,6 +771,8 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 				},
 			});
 			disconnect.current = () => {
+				acceptCrossDock.dispose();
+				unregisterTransfer();
 				dragGuard?.dispose();
 				disconnectDock();
 			};
@@ -769,6 +800,8 @@ function SidebarDock({ vaultPath }: { vaultPath: string }) {
 				dndStrategy="pointer"
 				dndEdges={false}
 				onReady={onReady}
+				onDidDrop={handleDrop}
+				getTabContextMenuItems={getTabContextMenuItems}
 			/>
 		</aside>
 	);

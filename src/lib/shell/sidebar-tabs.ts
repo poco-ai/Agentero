@@ -5,6 +5,7 @@ import type {
 	IDockviewPanel,
 } from "dockview-react";
 import { createStore } from "zustand/vanilla";
+import { isAgentDockPath } from "@/lib/agent/agent-dock-path";
 import type { AgentSessionRef } from "@/lib/agent/session-ref";
 import { readJsonStorage, writeStorageRaw } from "@/lib/core/storage";
 import { cancelPdfNavigationForTab } from "@/lib/pdf/pending-pdf-page";
@@ -14,11 +15,16 @@ import {
 	type SidebarBrowserTarget,
 	sidebarBrowserUrl,
 } from "@/lib/web-view/sidebar-browser-url";
+import { isCrossDockTransfer } from "@/lib/workspace/dock-transfer-registry";
 import type {
 	SidebarFileData,
 	SidebarFileTarget,
 } from "@/lib/workspace/sidebar-files";
 import { currentWindowLabel } from "@/lib/workspace/store";
+import {
+	extractTabsFromLayout,
+	workspaceLayoutStorageKey,
+} from "@/lib/workspace/tabs";
 import { createViewId } from "@/lib/workspace/tabs/model";
 import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
@@ -70,6 +76,9 @@ export function restrictSidebarTabDrop(
 	event: DockviewWillDropEvent | DockviewWillShowOverlayLocationEvent,
 ) {
 	const source = event.getData();
+	// The main workspace may hand a panel to the rail; the drop handler builds
+	// the rail tab. Everything else must stay inside this single group.
+	if (isCrossDockTransfer(source, "sidebar")) return;
 	if (
 		(event.kind !== "tab" && event.kind !== "header_space") ||
 		!source?.panelId ||
@@ -132,6 +141,22 @@ function isSidebarTarget(target: SidebarTarget | undefined): boolean {
 		default:
 			return false;
 	}
+}
+
+/**
+ * Agent scopes the main workspace already hosts. A crash between the two
+ * snapshot writes can leave the same conversation in both layouts; the main
+ * panel is the long-lived one, so the rail skips it.
+ */
+function agentScopesHostedByMain(vaultPath: string): Set<string | null> {
+	const key = workspaceLayoutStorageKey(currentWindowLabel(), vaultPath);
+	const saved = readJsonStorage<{ layout?: unknown } | null>(key, null);
+	const hosted = new Set<string | null>();
+	if (!saved?.layout) return hosted;
+	for (const tab of extractTabsFromLayout(saved.layout).tabs) {
+		if (isAgentDockPath(tab.path)) hosted.add(tab.agentScopeId ?? null);
+	}
+	return hosted;
 }
 
 function readSnapshot(key: string): SidebarSnapshot | null {
@@ -274,7 +299,11 @@ function createSidebarDock(
 		);
 		if (!current()) return;
 		if (vaultLoadGeneration() !== generation) return restore();
+		const hostedAgentScopes = agentScopesHostedByMain(vaultPath);
 		for (const { viewId, target } of tabs) {
+			if (target?.kind === "agent" && hostedAgentScopes.has(target.scopeId)) {
+				continue;
+			}
 			if (target && !api.getPanel(viewId) && !find(target)) add(target, viewId);
 		}
 		if (!panels().length)
@@ -346,6 +375,25 @@ function createSidebarDock(
 		},
 		hasPanel(viewId: string) {
 			return Boolean(api.getPanel(viewId));
+		},
+		panelTarget(viewId: string) {
+			const panel = api.getPanel(viewId);
+			return panel ? targetOf(panel) : undefined;
+		},
+		/**
+		 * Drop a panel because its content now lives in the main workspace.
+		 * When that empties the rail, collapse it instead of leaving an empty
+		 * column; the launcher is parked for the next expansion.
+		 */
+		removeForTransfer(viewId: string) {
+			const panel = api.getPanel(viewId);
+			if (!panel) return;
+			panel.api.close();
+			if (!panels().length) {
+				setExpanded(false);
+				add({ kind: "launcher" });
+			}
+			save();
 		},
 		activeViewId() {
 			return api.activePanel?.id;
@@ -468,6 +516,17 @@ export function updateSidebarBrowser(
 
 export function isSidebarView(viewId: string): boolean {
 	return dock?.hasPanel(viewId) ?? false;
+}
+
+export function sidebarPanelTarget(
+	viewId: string,
+): SidebarPanelTarget | undefined {
+	return dock?.panelTarget(viewId);
+}
+
+/** Remove a rail panel whose content the main workspace now hosts. */
+export function removeSidebarViewForTransfer(viewId: string): void {
+	dock?.removeForTransfer(viewId);
 }
 
 export function activeSidebarViewId(): string | undefined {

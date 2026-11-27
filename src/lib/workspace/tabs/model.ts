@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { agentDockPath, isAgentDockPath } from "@/lib/agent/agent-dock-path";
 import { isZenVirtualPath, ZEN_VIRTUAL_PATH } from "@/lib/agent/zen-path";
 import {
 	isLibraryVirtualPath,
@@ -208,6 +209,7 @@ export function createPlaceholderTab(
 	const isLibrary = isLibraryVirtualPath(path);
 	const isTrash = isTrashVirtualPath(path);
 	const isZen = isZenVirtualPath(path);
+	const isAgent = isAgentDockPath(path);
 	const isPlaza = isPlazaVirtualPath(path);
 	const resolvedId =
 		id ?? (isStableVirtualPath(path) ? tabIdForPath(path) : createViewId());
@@ -228,18 +230,22 @@ export function createPlaceholderTab(
 				? "trash"
 				: isZen
 					? "zen"
-					: isPlaza
-						? "plaza"
-						: "file",
+					: isAgent
+						? "agent"
+						: isPlaza
+							? "plaza"
+							: "file",
 		title: isLibrary
 			? "Library"
 			: isTrash
 				? "Recycle Bin"
 				: isZen
 					? i18n.t("sidebar:zen.title")
-					: isPlaza
-						? plazaTitleForPath(path)
-						: tabTitleForPath(path),
+					: isAgent
+						? i18n.t("app:labels.agent")
+						: isPlaza
+							? plazaTitleForPath(path)
+							: tabTitleForPath(path),
 		mode: preferMode,
 		paperMeta: null,
 		pdfUrl: null,
@@ -259,7 +265,26 @@ export function createPlaceholderTab(
 		textKey: 0,
 		textEpoch: 0,
 		htmlKey: 0,
-		loaded: false,
+		// An Agent panel has no file resources to hydrate; the session ref comes
+		// from the persisted params / the rail target that created it.
+		loaded: isAgent,
+	};
+}
+
+/** Agent panel moved from the rail into the main workspace. */
+export function createAgentDockTab(target: {
+	scopeId: string | null;
+	sessionRef?: DocTab["agentSessionRef"];
+	title?: string;
+}): DocTab {
+	const path = agentDockPath(target.scopeId);
+	const tab = createPlaceholderTab(path);
+	return {
+		...tab,
+		kind: "agent",
+		title: target.title?.trim() || tab.title,
+		agentScopeId: target.scopeId,
+		...(target.sessionRef ? { agentSessionRef: target.sessionRef } : {}),
 	};
 }
 

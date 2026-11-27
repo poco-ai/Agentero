@@ -1,3 +1,4 @@
+import type { AgentSessionRef } from "@/lib/agent/session-ref";
 import { perfActive } from "@/lib/core/perf";
 import {
 	readStorageRaw,
@@ -71,7 +72,25 @@ export function panelPersistParams(tab: DocTab): PanelPersistParams {
 		...(tab.pane === "split" || tab.pane === "translation"
 			? { pane: tab.pane }
 			: {}),
+		...(tab.kind === "agent"
+			? {
+					agentScopeId: tab.agentScopeId ?? null,
+					...(tab.agentSessionRef
+						? { agentSessionRef: tab.agentSessionRef }
+						: {}),
+				}
+			: {}),
 	};
+}
+
+function isAgentSessionRef(value: unknown): value is AgentSessionRef {
+	if (!value || typeof value !== "object") return false;
+	const ref = value as Record<string, unknown>;
+	return (
+		typeof ref.id === "string" &&
+		typeof ref.agentId === "string" &&
+		typeof ref.providerSessionId === "string"
+	);
 }
 
 type LayoutPanelState = {
@@ -85,6 +104,8 @@ type LayoutPanelState = {
 		texRoot?: string;
 		writingRoot?: string;
 		pane?: string;
+		agentScopeId?: string | null;
+		agentSessionRef?: unknown;
 	};
 };
 
@@ -168,6 +189,10 @@ export function extractTabsFromLayout(layout: unknown): {
 				: undefined;
 		const pane =
 			persistedPane(panel.params?.pane) ?? legacyPaneKindFromId(panelId);
+		const agentScopeId = panel.params?.agentScopeId;
+		const agentSessionRef = isAgentSessionRef(panel.params?.agentSessionRef)
+			? panel.params.agentSessionRef
+			: undefined;
 		if (seen.has(panelId)) continue;
 		seen.add(panelId);
 		tabs.push({
@@ -185,6 +210,10 @@ export function extractTabsFromLayout(layout: unknown): {
 			panel.params.writingRoot.trim()
 				? { writingRoot: panel.params.writingRoot }
 				: {}),
+			...(typeof agentScopeId === "string" || agentScopeId === null
+				? { agentScopeId }
+				: {}),
+			...(agentSessionRef ? { agentSessionRef } : {}),
 		});
 	}
 	const activeId = findActivePanelIdInLayout(l);

@@ -1245,7 +1245,7 @@ export function useAgentSend({
 		};
 		sessionStore.getState().registerSendHandler(handler);
 		return () => {
-			sessionStore.getState().registerSendHandler(null);
+			sessionStore.getState().releaseSendHandler(handler);
 		};
 		// Register once — handler reads sendRef / externalTurnCtxRef for latest.
 		// Stable store setters only; handler body uses refs for everything else.

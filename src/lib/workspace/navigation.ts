@@ -5,6 +5,7 @@ import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-regist
 
 import i18n from "@/i18n";
 import { notePaperFocus, track } from "@/lib/activity";
+import { isAgentDockPath } from "@/lib/agent/agent-dock-path";
 import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { closeZenWorkspace } from "@/lib/agent/zen-store";
 import { errorText } from "@/lib/core/error";
@@ -690,7 +691,8 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 					!companionIds.has(tab.id) &&
 					!isLibraryVirtualPath(tab.path) &&
 					!isTrashVirtualPath(tab.path) &&
-					!isZenVirtualPath(tab.path),
+					!isZenVirtualPath(tab.path) &&
+					!isAgentDockPath(tab.path),
 			)
 			.map((tab) => ({
 				path: tab.path,

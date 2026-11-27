@@ -1,5 +1,6 @@
 export {
 	basenameOf,
+	createAgentDockTab,
 	createPlaceholderTab,
 	createViewId,
 	ensureFullLibraryTab,

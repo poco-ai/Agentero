@@ -7,6 +7,7 @@
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createStore } from "zustand/vanilla";
+import { isAgentDockPath } from "@/lib/agent/agent-dock-path";
 import { isZenVirtualPath } from "@/lib/agent/zen-path";
 import { perfActive } from "@/lib/core/perf";
 import { isTauri } from "@/lib/core/tauri";
@@ -79,6 +80,18 @@ function tabsFromPersisted(persisted: PersistedTabs): DocTab[] {
 		.filter((pt) => !isZenVirtualPath(pt.path))
 		.map((pt) => {
 			const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
+			if (isAgentDockPath(pt.path)) {
+				return {
+					...tab,
+					kind: "agent",
+					title: pt.title || tab.title,
+					agentScopeId: pt.agentScopeId ?? null,
+					...(pt.agentSessionRef
+						? { agentSessionRef: pt.agentSessionRef }
+						: {}),
+					loaded: true,
+				};
+			}
 			// Restore the owning writing project up front so every branch below —
 			// including hydration placeholders — keeps the one-panel project identity.
 			if (pt.writingRoot) tab.writingRoot = pt.writingRoot;

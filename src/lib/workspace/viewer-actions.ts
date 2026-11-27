@@ -614,6 +614,9 @@ export function splitActivePane(placement?: {
 	const tabs = getTabs();
 	const active = tabs.find((t) => t.id === id);
 	if (!active) return;
+	// An Agent conversation is one mounted surface per scope; a split would
+	// mount the same session store twice.
+	if (active.kind === "agent") return;
 	// Library is the resident singleton — never clone it into a second pane.
 	if (isLibraryVirtualPath(active.path)) return;
 	if (placement) {

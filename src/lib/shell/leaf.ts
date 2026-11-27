@@ -57,6 +57,7 @@ function prepareDocMove(viewId: string): PreparedDocMove | null {
 		tab.kind === "library" ||
 		tab.kind === "trash" ||
 		tab.kind === "zen" ||
+		tab.kind === "agent" ||
 		isLibraryVirtualPath(tab.path) ||
 		isTrashVirtualPath(tab.path) ||
 		isZenVirtualPath(tab.path)

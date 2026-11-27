@@ -74,6 +74,13 @@ const ZenView = lazy(() =>
 		default: m.ZenView,
 	})),
 );
+// An Agent conversation moved out of the rail; the registry keeps its store
+// alive across the move.
+const AgentDockView = lazy(() =>
+	import("@/components/workspace/agent-dock-view").then((m) => ({
+		default: m.AgentDockView,
+	})),
+);
 
 /** Library-tab-only props (ignored by PDF / editor / trash). */
 export type DocViewLibraryProps = {
@@ -321,6 +328,8 @@ function docViewPropsEqual(
 	}
 	if (tab.kind === "plaza") return true;
 	if (tab.kind === "zen") return true;
+	// The Agent panel reads its title and session ref straight from the tab.
+	if (tab.kind === "agent") return prev.tab === next.tab;
 	switch (viewerModeSpec(tab.mode).props) {
 		case "editor":
 			return prev.editor === next.editor;
@@ -462,6 +471,13 @@ export const DocumentContent = memo(function DocumentContent({
 					active={active}
 					className="bg-background"
 				/>
+			</Suspense>
+		);
+	}
+	if (tab.kind === "agent") {
+		return (
+			<Suspense fallback={<TabLoadingSkeleton shape={tabSkeletonShape(tab)} />}>
+				<AgentDockView tab={tab} />
 			</Suspense>
 		);
 	}

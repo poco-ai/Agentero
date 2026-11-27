@@ -240,7 +240,8 @@ export function WorkspaceHost() {
 	// Scoped library keeps the tree highlight on the org folder. The resident
 	// full Library tab is active by default and must not claim the tree
 	// selection, otherwise every folder click snaps the cursor to `papers/`.
-	const selectedPath = activeTab?.path ?? null;
+	const selectedPath =
+		activeTab && activeTab.kind !== "agent" ? activeTab.path : null;
 	useEffect(() => {
 		if (!selectedPath) return;
 		if (isLibraryVirtualPath(selectedPath)) {

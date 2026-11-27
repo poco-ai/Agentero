@@ -4,6 +4,10 @@ type MarkdownEditorHandle = {
 	revealLine?: (line: number) => boolean;
 	hasPendingSource: () => boolean;
 	flushSource: () => Promise<boolean>;
+	/** Force-save the rendered editor (not only source mode). */
+	save: () => Promise<boolean>;
+	/** True while the rendered document has unsaved changes. */
+	isDirty: () => boolean;
 };
 
 const handles = new Map<string, MarkdownEditorHandle>();

@@ -182,6 +182,10 @@ export type AgentSessionStore = {
 	registerSendHandler: (
 		handler: ((req: AgentTurnRequest) => Promise<boolean>) | null,
 	) => void;
+	/** Clear the handler only when it still belongs to the closing panel. */
+	releaseSendHandler: (
+		handler: (req: AgentTurnRequest) => Promise<boolean>,
+	) => void;
 	/** Queue a turn; panel handler runs it through the real send pipeline. */
 	requestTurn: (input: Omit<AgentTurnRequest, "nonce">) => number;
 	clearTurnRequest: () => void;
@@ -345,6 +349,14 @@ export function createAgentSessionStore(): AgentSessionStoreApi {
 					}
 				});
 			}
+		},
+
+		releaseSendHandler: (handler) => {
+			// A cross-dock move briefly mounts the destination before the source
+			// unmounts; the source must not clear the destination's handler.
+			if (sendHandlerSlot !== handler && get()._sendHandler !== handler) return;
+			sendHandlerSlot = null;
+			get()._sendHandler = null;
 		},
 
 		requestTurn: (input) => {

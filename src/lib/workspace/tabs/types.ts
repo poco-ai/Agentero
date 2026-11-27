@@ -1,3 +1,4 @@
+import type { AgentSessionRef } from "@/lib/agent/session-ref";
 import type { PaperMetadata } from "@/lib/paper";
 import type { LinkFragment } from "@/lib/wiki";
 import type { CenterViewMode } from "@/lib/workspace/viewer";
@@ -7,6 +8,7 @@ export type DocTabKind =
 	| "trash"
 	| "plaza"
 	| "zen"
+	| "agent"
 	| "paper"
 	| "file";
 
@@ -32,6 +34,10 @@ export type DocTab = {
 	title: string;
 	/** View mode for this panel (set at open; no in-pane PDF/HTML toggle). */
 	mode: CenterViewMode;
+	/** Agent session scope when this panel is an Agent moved out of the rail. */
+	agentScopeId?: string | null;
+	/** Last known session identity; lets a restored panel reload history. */
+	agentSessionRef?: AgentSessionRef;
 	paperMeta: PaperMetadata | null;
 	pdfUrl: string | null;
 	/** Local PDF bytes fed straight to the engine (avoids fragile `blob:` fetch). */
@@ -148,6 +154,9 @@ export type PersistedTab = {
 	texRoot?: string;
 	/** Owning writing project for source files and project assets. */
 	writingRoot?: string;
+	/** Agent session hosted in the main workspace. */
+	agentScopeId?: string | null;
+	agentSessionRef?: AgentSessionRef;
 };
 
 /**
@@ -175,6 +184,9 @@ export type PanelPersistParams = {
 	writingRoot?: string;
 	/** Split or translation companion. Never written into `path`. */
 	pane?: TabPaneKind;
+	/** Agent panel identity (scope + resumable session). */
+	agentScopeId?: string | null;
+	agentSessionRef?: AgentSessionRef;
 };
 
 export const NOTES_PLACEHOLDER =
