@@ -9,8 +9,8 @@
 use crate::error::AppError;
 use crate::features::sync::config::SyncBackendConfig;
 use crate::features::sync::store::{
-    arbitrate_locks, check, etag_of, lock_key, send_with_retries, LockCandidate, LockInfo,
-    LockOutcome, PutCondition, PutOutcome, RemoteStore, PUBLISH_LOCK_PREFIX, PUBLISH_LOCK_TTL_SECS,
+    check, etag_of, lock_key, send_with_retries, LockInfo, LockOutcome, PutCondition, PutOutcome,
+    RemoteStore, PUBLISH_LOCK_PREFIX, PUBLISH_LOCK_TTL_SECS,
 };
 use crate::http;
 use chrono::Utc;
@@ -29,6 +29,11 @@ pub struct S3Client {
     access_key: String,
     secret_key: String,
     session_token: Option<String>,
+}
+
+struct S3LockCandidate {
+    device_id: String,
+    modified_at: Option<i64>,
 }
 
 impl S3Client {
@@ -107,7 +112,7 @@ impl S3Client {
         Ok(keys)
     }
 
-    async fn list_locks(&self) -> Result<Vec<LockCandidate>, AppError> {
+    async fn list_locks(&self) -> Result<Vec<S3LockCandidate>, AppError> {
         let prefix = format!("{}{PUBLISH_LOCK_PREFIX}", self.key_prefix);
         let query = [
             ("list-type".to_owned(), "2".to_owned()),
@@ -150,29 +155,15 @@ impl S3Client {
             else {
                 continue;
             };
-            let Ok(key) = lock_key(device_id) else {
+            if lock_key(device_id).is_err() {
                 continue;
-            };
-            let ts = match field("LastModified")
+            }
+            let modified_at = field("LastModified")
                 .and_then(|value| chrono::DateTime::parse_from_rfc3339(value.trim()).ok())
-            {
-                Some(dt) => dt.timestamp(),
-                None => {
-                    // If the store omits mtime, fall back to the writer's clock.
-                    let Some((bytes, _)) = self.get(&key).await? else {
-                        continue; // Released since the listing.
-                    };
-                    let info: LockInfo = serde_json::from_slice(&bytes)?;
-                    chrono::DateTime::parse_from_rfc3339(&info.acquired_at)
-                        .map_err(|e| {
-                            AppError::message(format!("GET {key}: invalid lock timestamp: {e}"))
-                        })?
-                        .timestamp()
-                }
-            };
-            candidates.push(LockCandidate {
+                .map(|dt| dt.timestamp());
+            candidates.push(S3LockCandidate {
                 device_id: device_id.to_owned(),
-                ts,
+                modified_at,
             });
         }
         Ok(candidates)
@@ -324,16 +315,28 @@ impl RemoteStore for S3Client {
                 return Err(AppError::message("S3 publish lock PUT was rejected"));
             }
             let candidates = self.list_locks().await?;
+            // PUT and LIST must be strongly consistent. A later contender must
+            // back off even when its timestamp ties with the current holder's.
+            let Some(ours) = candidates.iter().find(|lock| lock.device_id == device_id) else {
+                return Ok(LockOutcome::Busy);
+            };
+            let has_competitor = candidates.iter().any(|lock| {
+                lock.device_id != device_id
+                    && match (ours.modified_at, lock.modified_at) {
+                        // Compare times from the same store. Keep the TTL boundary
+                        // live because LastModified may have only second precision.
+                        (Some(ours), Some(other)) => {
+                            ours.saturating_sub(other) <= PUBLISH_LOCK_TTL_SECS
+                        }
+                        // A device clock cannot tell us when a competing lock expires.
+                        _ => true,
+                    }
+            });
             // Leave half the TTL for the engine's HEAD re-check and publish.
-            if started.elapsed().as_secs() < (PUBLISH_LOCK_TTL_SECS as u64) / 2
-                && arbitrate_locks(&candidates, Utc::now().timestamp(), PUBLISH_LOCK_TTL_SECS)
-                    .as_deref()
-                    == Some(device_id)
-            {
-                Ok(LockOutcome::Acquired)
-            } else {
-                Ok(LockOutcome::Busy)
+            if has_competitor || started.elapsed().as_secs() >= (PUBLISH_LOCK_TTL_SECS as u64) / 2 {
+                return Ok(LockOutcome::Busy);
             }
+            Ok(LockOutcome::Acquired)
         }
         .await;
         if !matches!(result, Ok(LockOutcome::Acquired)) {
