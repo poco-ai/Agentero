@@ -23,6 +23,7 @@ import {
 	SiMinio,
 	SiNextcloud,
 } from "react-icons/si";
+import { onAuthenticated, onSignedOut } from "tauri-plugin-better-auth/client";
 import { JianguoyunIcon } from "@/components/icons/jianguoyun-icon";
 import {
 	CloudUsageLine,
@@ -64,6 +65,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { authClient } from "@/features/account/client";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { formatLocaleTimestamp } from "@/i18n";
 import { formatBytes } from "@/lib/core/background-tasks";
 import { events } from "@/lib/core/bindings";
@@ -185,12 +187,28 @@ const GIT_PROVIDER_LINKS: SyncProviderLink[] = [
 	},
 ];
 
-const BACKEND_OPTIONS = [
+const ALL_BACKEND_OPTIONS = [
 	{ value: "agentero", labelKey: "sync.backendAgentero" },
 	{ value: "s3", labelKey: "sync.backendS3" },
 	{ value: "webdav", labelKey: "sync.backendWebdav" },
 	{ value: "git", labelKey: "sync.backendGit" },
 ] as const;
+
+/** Ordinary builds hide the account backend along with all sign-in UI. */
+const BACKEND_OPTIONS = ALL_BACKEND_OPTIONS.filter(
+	(option) => option.value !== "agentero" || accountSurfaceEnabled,
+);
+
+const defaultSyncConfig = () =>
+	emptySyncConfig(accountSurfaceEnabled ? "agentero" : "s3");
+
+/** Hide a stored account binding from builds without the account surface. */
+function visibleSyncStatus(status: SyncStatus): SyncStatus {
+	if (accountSurfaceEnabled || status.config?.backend !== "agentero") {
+		return status;
+	}
+	return { ...status, configured: false, config: undefined };
+}
 
 /** Dismissing the conditional-writes notice is a permanent, device-local choice. */
 const DEGRADED_NOTICE_DISMISSED_KEY =
@@ -260,7 +278,7 @@ function VaultSyncForm({
 	const requestId = useRef(0);
 
 	const [status, setStatus] = useState<SyncStatus | null>(null);
-	const [form, setForm] = useState<SyncBackendConfig>(emptySyncConfig());
+	const [form, setForm] = useState<SyncBackendConfig>(defaultSyncConfig());
 	const [saving, setSaving] = useState(false);
 	const [syncing, setSyncing] = useState(false);
 	const [progress, setProgress] = useState<SyncProgressEvent | null>(null);
@@ -286,28 +304,51 @@ function VaultSyncForm({
 		>
 	>({});
 	const [activeOrgId, setActiveOrgId] = useState("");
+	const [usageRevision, setUsageRevision] = useState(0);
 	const cloudSubject =
 		form.agenteroSubject === "organization" ? "organization" : "user";
 	const cloudUsage = useCloudUsage(
 		cloudSubject,
 		cloudSubject === "organization" ? activeOrgId || undefined : undefined,
+		usageRevision,
+		accountSurfaceEnabled,
 	);
 
 	useEffect(() => {
-		let cancelled = false;
-		void authClient.getSession().then((result) => {
-			const id = result.data?.session.activeOrganizationId ?? "";
-			if (!cancelled) setActiveOrgId(id);
-		});
+		if (!isTauri() || !accountSurfaceEnabled) return;
+		let disposed = false;
+		const cleanup: Array<() => void> = [];
+		const register = (promise: Promise<() => void>) =>
+			void promise.then((stop) => (disposed ? stop() : cleanup.push(stop)));
+		const refreshSession = () => {
+			void authClient.getSession().then((result) => {
+				const id = result.data?.session.activeOrganizationId ?? "";
+				if (!disposed) setActiveOrgId(id);
+			});
+		};
+		refreshSession();
+		register(
+			onAuthenticated(() => {
+				refreshSession();
+				setUsageRevision((revision) => revision + 1);
+			}),
+		);
+		register(
+			onSignedOut(() => {
+				setActiveOrgId("");
+				setUsageRevision((revision) => revision + 1);
+			}),
+		);
 		return () => {
-			cancelled = true;
+			disposed = true;
+			for (const stop of cleanup) stop();
 		};
 	}, []);
 
 	const refresh = useCallback(async () => {
 		if (!localVault) return;
 		const id = ++requestId.current;
-		const next = await syncGetStatus(localVault);
+		const next = visibleSyncStatus(await syncGetStatus(localVault));
 		if (id !== requestId.current) return;
 		setStatus(next);
 		setSyncing(next.running);
@@ -331,7 +372,7 @@ function VaultSyncForm({
 				setAdvancedOpen(true);
 			}
 		} else {
-			setForm(emptySyncConfig());
+			setForm(defaultSyncConfig());
 			setAdvancedOpen(false);
 		}
 	}, [localVault, mirrorsDirty]);
@@ -530,7 +571,7 @@ function VaultSyncForm({
 			requestId.current++;
 			formVersion.current++;
 			setStatus(null);
-			setForm(emptySyncConfig());
+			setForm(defaultSyncConfig());
 			setSyncError(null);
 			void refresh().catch(() => undefined);
 		} catch (error) {
@@ -674,42 +715,46 @@ function VaultSyncForm({
 						) : null}
 					</>
 				}
-				actions={primaryAction}
+				actions={
+					<>
+						<span
+							id="sync-vault-label"
+							className="text-muted-foreground text-xs"
+						>
+							{t("sync.vault")}
+						</span>
+						<Select
+							value={localVault ?? undefined}
+							onValueChange={(value) => setSelectedVault(value || null)}
+							disabled={vaults.length === 0}
+						>
+							<SelectTrigger
+								size="sm"
+								className="w-44"
+								aria-labelledby="sync-vault-label"
+								title={localVault ? displayPath(localVault) : undefined}
+							>
+								<SelectValue placeholder={t("sync.vaultPlaceholder")}>
+									{localVault ? vaultDisplayName(localVault) : undefined}
+								</SelectValue>
+							</SelectTrigger>
+							<SelectContent>
+								{vaults.map((path) => (
+									<SelectItem key={path} value={path}>
+										<span className="flex min-w-0 flex-col items-start">
+											<span className="truncate">{vaultDisplayName(path)}</span>
+											<span className="truncate text-muted-foreground text-xs">
+												{displayPath(path)}
+											</span>
+										</span>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{primaryAction}
+					</>
+				}
 			/>
-
-			<div className="mb-3 flex flex-wrap items-center gap-2">
-				<span id="sync-vault-label" className="text-muted-foreground text-xs">
-					{t("sync.vault")}
-				</span>
-				<Select
-					value={localVault ?? undefined}
-					onValueChange={(value) => setSelectedVault(value || null)}
-					disabled={vaults.length === 0}
-				>
-					<SelectTrigger
-						id="sync-vault"
-						size="sm"
-						className="w-44"
-						aria-labelledby="sync-vault-label"
-					>
-						<SelectValue placeholder={t("sync.vaultPlaceholder")}>
-							{localVault ? vaultDisplayName(localVault) : undefined}
-						</SelectValue>
-					</SelectTrigger>
-					<SelectContent>
-						{vaults.map((path) => (
-							<SelectItem key={path} value={path}>
-								<span className="flex min-w-0 flex-col items-start">
-									<span className="truncate">{vaultDisplayName(path)}</span>
-									<span className="truncate text-muted-foreground text-xs">
-										{displayPath(path)}
-									</span>
-								</span>
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
 
 			<div className="mb-3 flex flex-wrap items-center gap-2">
 				<span id="sync-backend-label" className="text-muted-foreground text-xs">
@@ -818,6 +863,7 @@ function VaultSyncForm({
 									? activeOrgId || undefined
 									: undefined
 							}
+							revision={usageRevision}
 						/>
 						{cloudSubject === "organization" && !activeOrgId ? (
 							<p className="text-muted-foreground text-xs">

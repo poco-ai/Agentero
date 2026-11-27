@@ -6,9 +6,17 @@ import { type SyncCloudUsage, syncCloudUsage } from "@/lib/sync/api";
 export function useCloudUsage(
 	subject: "user" | "organization",
 	orgId?: string,
+	revision = 0,
+	enabled = true,
 ) {
 	const [usage, setUsage] = useState<SyncCloudUsage | null>(null);
 	useEffect(() => {
+		// Refetch when the account signs in or out.
+		void revision;
+		if (!enabled) {
+			setUsage(null);
+			return;
+		}
 		let cancelled = false;
 		void syncCloudUsage(subject, orgId)
 			.then((next) => {
@@ -20,7 +28,7 @@ export function useCloudUsage(
 		return () => {
 			cancelled = true;
 		};
-	}, [subject, orgId]);
+	}, [subject, orgId, revision, enabled]);
 	return usage;
 }
 
@@ -28,13 +36,15 @@ export function CloudUsageLine({
 	subject,
 	orgId,
 	namespace = "settings",
+	revision = 0,
 }: {
 	subject: "user" | "organization";
 	orgId?: string;
 	namespace?: "settings" | "account";
+	revision?: number;
 }) {
 	const { t } = useTranslation(namespace);
-	const usage = useCloudUsage(subject, orgId);
+	const usage = useCloudUsage(subject, orgId, revision);
 	if (!usage) return null;
 	if (!usage.signedIn) {
 		return (
