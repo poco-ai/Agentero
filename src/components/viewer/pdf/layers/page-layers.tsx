@@ -249,9 +249,9 @@ function TranslatedHighlightLayer({
 }
 
 /**
- * Text-selection tint. The role lives in index.css (`--pdf-paper-ink` plus the
- * selection layer alpha), not here: a dark UI theme turns `--primary`
- * near-white, so a module-level colour vanished on white / sepia / green paper.
+ * Text-selection tint. The role lives in index.css (`--pdf-mark-selection-fill`
+ * plus the layer alpha), where --primary is toned toward the paper ink so the
+ * themed hue survives white / sepia / green / dark paper.
  */
 const EMPTY_SELECTION_BANDS: readonly PdfAskNormalizedRect[] = [];
 
@@ -1361,8 +1361,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	}
 
 	// Page shell: matches the finished paper so loading gaps do not flash a
-	// different colour. `data-paper` also scopes the paper ink used by
-	// selection / hover tints (`--pdf-paper-ink`).
+	// different colour. `data-paper` also scopes the paper ink used by hover
+	// tints and as the contrast anchor for the themed selection fill.
 	return (
 		<div
 			ref={pageShellRef}

@@ -666,18 +666,18 @@
  */
 /*
  * Marks painted on PDF paper. Paper tone (white / sepia / green / dark) is
- * chosen per paper and is independent of the UI theme, so these tints cannot
- * follow --primary / --foreground: a dark UI theme turns --primary near-white,
- * and a near-white selection band or hover wash then vanishes on white paper.
- * The ink mirrors the page's text ink instead.
+ * chosen per paper and is independent of the UI theme, so hover and held tints
+ * follow the page's text ink. Selection marks — a drag or a held double-click
+ * sentence — take their hue from --primary, toned toward the paper ink so a
+ * near-white dark-theme primary still reads on white paper.
  *
  * Roles are defined once, here, and components only supply geometry and a
- * class. They differ by wash density: a transient hover is the lightest of the
- * three, a pinned ("held") sentence is a denser wash, and a text selection is
- * the only mark at full band weight. Paragraph-level states also carry an
- * edge: a layout frame is a hairline on hover and a heavier frame while its
- * action is pinned. `data-paper` lives on the page shell and descendants
- * inherit the variables; no child sets the attribute again.
+ * class. A transient hover is the lightest wash; a text selection and the
+ * double-click sentence it holds share the full band weight. Paragraph-level
+ * states also carry an edge: a layout frame is a hairline on hover and a
+ * heavier frame while its action is pinned. `data-paper` lives on the page
+ * shell and descendants inherit the variables; no child sets the attribute
+ * again.
  */
 [data-paper] {
 	--pdf-paper-ink: oklch(0.21 0.008 260);
@@ -689,9 +689,13 @@
 		transparent
 	);
 	--pdf-mark-hover-alpha: 8%;
-	--pdf-mark-held-alpha: 16%;
 	--pdf-mark-selection-alpha: 28%;
 	--pdf-mark-translated-alpha: 20%;
+	--pdf-mark-selection-fill: color-mix(
+		in oklch,
+		var(--primary) 70%,
+		var(--pdf-paper-ink)
+	);
 	--pdf-mark-frame-edge: color-mix(
 		in oklch,
 		var(--pdf-paper-ink) 55%,
@@ -734,7 +738,6 @@
 			transparent
 		);
 		--pdf-mark-hover-alpha: 14%;
-		--pdf-mark-held-alpha: 24%;
 		--pdf-mark-selection-alpha: 38%;
 		--pdf-mark-frame-edge: color-mix(
 			in oklch,
@@ -843,13 +846,18 @@
  * overlap by the hover padding, and per-band fills would double up as a darker
  * seam between them. */
 .pdf-layout-sentence-wash.is-held.is-on {
-	opacity: var(--pdf-mark-held-alpha);
+	opacity: var(--pdf-mark-selection-alpha);
 }
 .pdf-layout-sentence-wash > span {
 	position: absolute;
 	transform: translateY(-12%);
 	border-radius: 2px;
 	background: var(--pdf-paper-ink);
+}
+/* A held sentence is the double-click selection or a pinned sentence action,
+ * so it carries the same themed fill as a drag selection. */
+.pdf-layout-sentence-wash.is-held > span {
+	background: var(--pdf-mark-selection-fill);
 }
 .pdf-layout-sentence-wash[data-source-sentence] > span,
 .pdf-layout-sentence-wash > span[data-source-geometry],
@@ -861,21 +869,21 @@
 	background-color: var(--pdf-mark-hover-fill);
 }
 /* Text selection. The layer carries the alpha, not each band, so overlapping
- * rects inside one drag cannot stack into a darker patch. It is the heaviest
- * band on the page: hover and held are lighter washes. */
+ * rects inside one drag cannot stack into a darker patch. It shares its weight
+ * with a held double-click sentence; a transient hover is the lighter wash. */
 .pdf-mark-selection-layer {
 	isolation: isolate;
 	opacity: var(--pdf-mark-selection-alpha);
 }
 /* Sentence hover off: a drag is the only mark on the words. Keep it at the
- * hover weight. The selection weight is a dark stripe once that wash is gone. */
+ * hover weight, because the selection band is then the only wash. */
 [data-pdf-root][data-sentence-hover="off"] [data-paper] {
 	--pdf-mark-selection-alpha: var(--pdf-mark-hover-alpha);
 }
 .pdf-live-selection-band {
 	transform: translateY(-12%);
 	border-radius: 1px;
-	background: var(--pdf-paper-ink);
+	background: var(--pdf-mark-selection-fill);
 }
 @media (prefers-reduced-motion: reduce) {
 	.pdf-layout-element-frame,
