@@ -35,3 +35,4 @@
 - 行为改动写有针对性的测试。新增测试默认本地验证后移除，除非用户要求保留。已有的数据、迁移、删除、路径与 IPC 回归测试随行为维护。纯文案和样式无需新增测试。
 - 修改 `templates/` 下受版本管理的 Skill 或 AGENTS 时同步版本。改动完成后按目的分开提交，使用无 emoji 的 Conventional Commits，按需引用关联 Issue。
 - UI 和功能 PR 在正文附前后对比，新功能附 10–60 秒演示。验收媒体放 PR 正文；用户教程使用演示数据实拍，压缩后可提交到 `docs/assets/screenshots/`。
+- 修改完成后，按照下面的要求 commit：如果库当中有对应的 issue，则在提交信息中引用（如 `Fix #123`）；并在 issue 区评论解决方案以及问题排查发现。如果有多个 unrelated changes，`git commit --only -m "msg" -- <path1> <path2>` 使用只提交指定路径的改动
