@@ -16,6 +16,7 @@ import { preferredModeForPath, viewerModeSpec } from "@/lib/workspace/viewer";
 
 export function tabNotesEligible(tab: DocTab | null): boolean {
 	if (!tab) return false;
+	if (tabIsPaperNoteDocument(tab)) return false;
 	return (
 		tab.kind !== "library" &&
 		!isRemoteArxivPath(tab.path) &&
@@ -44,15 +45,15 @@ export function tabIsPaperNotes(tab: DocTab | null): boolean {
 }
 
 /**
- * Markdown tab that represents a paper note: canonical `NOTES.md` (or the paper
- * root markdown tab) plus any extra note opened from inside the paper folder.
- * Broader than {@link tabIsPaperNotes} so a replaced notes column keeps being
- * recognized after showing an extra note.
+ * Tab that represents a paper note: canonical `NOTES.md` (or the paper root
+ * markdown tab) plus any extra note opened from inside the paper folder, in
+ * Markdown or in a saved HTML snapshot. Broader than {@link tabIsPaperNotes} so
+ * a replaced notes column keeps being recognized after showing an extra note.
+ * The paper body itself is `kind: "paper"` and never counts.
  */
 export function tabIsPaperNoteDocument(tab: DocTab | null): boolean {
-	if (tab?.mode !== "markdown" || !tab.notesPath || tab.kind === "paper") {
-		return false;
-	}
+	if (!tab?.notesPath || tab.kind === "paper") return false;
+	if (tab.mode !== "markdown" && tab.mode !== "html") return false;
 	const paperDir = normalizeTabPath(tab.notesPath).replace(/\/notes\.md$/, "");
 	const tabPath = normalizeTabPath(tab.path);
 	return (

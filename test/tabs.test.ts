@@ -992,6 +992,26 @@ describe("flat workspace helpers", () => {
 		).toBe(false);
 	});
 
+	it("treats a saved HTML snapshot in the paper folder as a note, not a body", () => {
+		const notesPath = "/vault/papers/a/NOTES.md";
+		const html = makeTab("/vault/papers/a/123.html", {
+			mode: "html",
+			notesPath,
+			paperMeta: { path: "a", title: "A" } as DocTab["paperMeta"],
+		});
+		expect(tabIsPaperNoteDocument(html)).toBe(true);
+		expect(tabIsPaperNotes(html)).toBe(false);
+		// The HTML/PDF view switch belongs to the paper body only.
+		expect(tabNotesEligible(html)).toBe(false);
+		const paper = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "html",
+			notesPath,
+		});
+		expect(tabNotesEligible(paper)).toBe(true);
+		expect(tabHasNotesSplit([paper, html], paper)).toBe(true);
+	});
+
 	it("picks the notes pane a newly opened note should replace", () => {
 		const paperA = makeTab("/vault/papers/a", {
 			kind: "paper",

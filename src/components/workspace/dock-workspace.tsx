@@ -267,10 +267,13 @@ function WorkspaceTab({
 	const tab = tabsById.get(api.id) ?? null;
 	// Library is the resident tab — no close affordance.
 	const isLibrary = Boolean(tab && isLibraryVirtualPath(tab.path));
+	// Only the paper body switches between its PDF and saved HTML views. A note
+	// inside the paper folder that happens to be HTML has no PDF counterpart.
 	const canToggleHtml =
-		tab?.paperMeta?.type !== "html" &&
-		Boolean(tab?.htmlUrl) &&
-		(tab?.mode === "pdf" || tab?.mode === "html");
+		tab?.kind === "paper" &&
+		tab.paperMeta?.type !== "html" &&
+		Boolean(tab.htmlUrl) &&
+		(tab.mode === "pdf" || tab.mode === "html");
 
 	useEffect(() => {
 		const disposable = api.onDidTitleChange((event) => setTitle(event.title));

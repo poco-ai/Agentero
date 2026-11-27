@@ -17,6 +17,7 @@ import { lifecycle } from "@/lib/lifecycle";
 import {
 	findLocalPdfPath,
 	isPaperDirectory,
+	isPaperNoteDocPath,
 	isRemoteArxivPath,
 	isUnderPaperAttachments,
 	isUnderPapers,
@@ -1091,9 +1092,17 @@ export function openRemoteArxivPaper(item: RemotePaperItem): void {
 export function openPath(absoluteOrDemoPath: string): void {
 	const preferMode = preferredModeForPath(absoluteOrDemoPath);
 	// Reading layout: a note clicked while a notes pane is open replaces that
-	// pane instead of stacking another note tab in the same column.
+	// pane instead of stacking another note tab in the same column. HTML only
+	// counts for a note document — a paper folder opens as its body.
+	const opensPaperNoteDoc =
+		preferMode === "markdown" ||
+		(preferMode === "html" &&
+			isPaperNoteDocPath(
+				absoluteOrDemoPath,
+				paperDirFromPath(absoluteOrDemoPath),
+			));
 	const replaceNotes =
-		preferMode === "markdown" && isUnderPapers(absoluteOrDemoPath)
+		opensPaperNoteDoc && isUnderPapers(absoluteOrDemoPath)
 			? findNotesPaneForReplacement(getTabs(), getActiveTabId())
 			: null;
 	openTab(absoluteOrDemoPath, {
