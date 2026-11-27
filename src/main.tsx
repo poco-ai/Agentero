@@ -33,7 +33,20 @@ import { initWorkspaceStore } from "@/lib/workspace/store";
 import i18n, { applyLocale } from "./i18n";
 import "./index.css";
 
+/**
+ * WebKit and Chromium report a ResizeObserver settling pass as a window
+ * `error`, but nothing in the app threw: notifications that arrived mid-frame
+ * were dropped and are re-delivered on the next one. Any panel whose box moves
+ * during a CSS transition (rail slide, dock sash) produces it, and the event
+ * carries no filename or stack (`:0:0`), so logging it as an ERROR only fills
+ * the log with lines nobody can act on. Suspect a genuine layout oscillation
+ * instead: observe the element with a wrapped callback and log its box.
+ */
+const RESIZE_OBSERVER_NOISE =
+	/^ResizeObserver loop (completed with undelivered notifications|limit exceeded)\.?(\s|$)/;
+
 window.addEventListener("error", (e) => {
+	if (RESIZE_OBSERVER_NOISE.test(e.message)) return;
 	const location = e.filename ? ` at ${e.filename}:${e.lineno}:${e.colno}` : "";
 	logger.error(`[window.error] ${e.message}${location}`);
 });
