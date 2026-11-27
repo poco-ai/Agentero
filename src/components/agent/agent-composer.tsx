@@ -400,16 +400,16 @@ export function AgentComposer(props: AgentComposerProps) {
 					<PromptInput
 						className={cn("w-full", compact ? "flex items-end" : "h-full")}
 						inputGroupClassName={cn(
-							"!flex min-h-0 !flex-col overflow-hidden border border-border bg-background shadow-none transition-[background-color,box-shadow,border-color] duration-150",
+							"!flex min-h-0 !flex-col overflow-hidden border border-border shadow-none transition-[background-color,box-shadow,border-color] duration-150 [--composer-surface:var(--card)]",
 							shellRadiusClass,
 							compact ? "h-auto" : "!h-full",
 							// Keep the same surface while any child is disabled or a run is
 							// in progress — never dim / recolor the composer for "processing".
-							"has-disabled:bg-transparent has-disabled:opacity-100 dark:has-disabled:bg-input/30 dark:bg-background",
+							"bg-(--composer-surface) has-disabled:bg-(--composer-surface) has-disabled:opacity-100 dark:bg-(--composer-surface) dark:has-disabled:bg-(--composer-surface)",
 							// No focus ring / border flash while typing.
 							"has-[[data-slot=input-group-control]:focus-visible]:border-input has-[[data-slot=input-group-control]:focus-visible]:ring-0",
 							isFileDragOver &&
-								"border-primary/55 bg-primary/5 shadow-[inset_0_0_0_1px] shadow-primary/25 ring-2 ring-primary/35 dark:bg-primary/5",
+								"border-primary/55 shadow-[inset_0_0_0_1px] shadow-primary/25 ring-2 ring-primary/35 [--composer-surface:color-mix(in_oklab,var(--primary)_5%,transparent)]",
 						)}
 						accept={COMPOSER_IMAGE_ACCEPT}
 						multiple
