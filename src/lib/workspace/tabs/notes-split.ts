@@ -12,7 +12,7 @@ import type {
 	OpenPlacement,
 	ReadingColumns,
 } from "@/lib/workspace/tabs/types";
-import { viewerModeSpec } from "@/lib/workspace/viewer";
+import { preferredModeForPath, viewerModeSpec } from "@/lib/workspace/viewer";
 
 export function tabNotesEligible(tab: DocTab | null): boolean {
 	if (!tab) return false;
@@ -59,6 +59,29 @@ export function tabIsPaperNoteDocument(tab: DocTab | null): boolean {
 		tabPath === normalizeTabPath(tab.notesPath) ||
 		tabPath === paperDir ||
 		tabPath.startsWith(`${paperDir}/`)
+	);
+}
+
+/**
+ * The notes column of a paper: its canonical `NOTES.md` panel, or a sibling
+ * note currently shown in that column's place. Everything that pairs a paper
+ * body with "its notes" must go through this — a replaced notes column keeps
+ * the paper's `notesPath` but no longer has the canonical path.
+ */
+export function findNotesPaneForPaper(
+	tabs: DocTab[],
+	notesPath: string | null | undefined,
+): DocTab | null {
+	if (!notesPath) return null;
+	const canonical = findCanonicalTab(tabs, notesPath);
+	if (canonical) return canonical;
+	const key = normalizeTabPath(notesPath);
+	return (
+		tabs.find(
+			(tab) =>
+				tabIsPaperNoteDocument(tab) &&
+				normalizeTabPath(tab.notesPath ?? "") === key,
+		) ?? null
 	);
 }
 
@@ -156,10 +179,22 @@ export function paperReadingPlacements(
 	return { paper: null, notes };
 }
 
-export function createNotesSplitPane(tab: DocTab): DocTab | null {
+/**
+ * Notes column panel for a paper. `notePath` opens one of the paper's extra
+ * notes in that column instead of the canonical `NOTES.md`.
+ */
+export function createNotesSplitPane(
+	tab: DocTab,
+	notePath?: string | null,
+): DocTab | null {
 	if (!tab.notesPath) return null;
+	const notesPath = normalizeTabPath(tab.notesPath);
+	const path =
+		notePath && normalizeTabPath(notePath) !== notesPath
+			? notePath
+			: tab.notesPath;
 	return {
-		...createPlaceholderTab(tab.notesPath, "markdown"),
+		...createPlaceholderTab(path, preferredModeForPath(path)),
 		kind: "file",
 		title: i18n.t("app:labels.notes"),
 		paperMeta: tab.paperMeta,
@@ -173,7 +208,7 @@ export function tabHasNotesSplit(
 	paperTab: DocTab | null,
 ): boolean {
 	if (!paperTab?.notesPath) return false;
-	return findCanonicalTab(tabs, paperTab.notesPath) != null;
+	return findNotesPaneForPaper(tabs, paperTab.notesPath) != null;
 }
 
 /**
@@ -186,7 +221,7 @@ export function findReadingCompanion(
 ): DocTab | null {
 	if (!tab || !isPaperContentTab(tab) || !tab.notesPath) return null;
 	if (!isCanonicalView(tab)) return null;
-	return findCanonicalTab(tabs, tab.notesPath) ?? null;
+	return findNotesPaneForPaper(tabs, tab.notesPath);
 }
 
 /**

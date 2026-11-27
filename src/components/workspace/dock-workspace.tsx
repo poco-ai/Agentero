@@ -46,6 +46,7 @@ import {
 import { TexLiveStatusDot } from "@/components/viewer/texlive/tex-live-status";
 import { DocView, type DocViewProps } from "@/components/workspace/doc-view";
 import { DocumentTab } from "@/components/workspace/document-tab";
+import { PaperNoteSwitcher } from "@/components/workspace/paper-note-switcher";
 import { PaperPathBar } from "@/components/workspace/paper-path-bar";
 import { AgenteroTabGroupChip } from "@/components/workspace/tab-group-chip";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
@@ -90,9 +91,10 @@ import { getTabs } from "@/lib/workspace/store";
 import { readDraggedVaultPaths } from "@/lib/workspace/tab-dnd";
 import {
 	type DocTab,
-	findCanonicalTab,
+	findNotesPaneForPaper,
 	type ReadingColumns,
 	type SplitDirection,
+	tabIsPaperNoteDocument,
 	tabIsPaperNotes,
 	tabNotesEligible,
 } from "@/lib/workspace/tabs";
@@ -215,7 +217,7 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 		tab.mode === "html" &&
 		tab.notesPath != null &&
 		activePanelId != null &&
-		findCanonicalTab([...tabsById.values()], tab.notesPath)?.id ===
+		findNotesPaneForPaper([...tabsById.values()], tab.notesPath)?.id ===
 			activePanelId;
 	const focused = activePanelId === panelId;
 	const active = focused || notesActive;
@@ -301,6 +303,9 @@ function WorkspaceTab({
 			onClose={isLibrary ? undefined : close}
 			trailing={
 				<>
+					{tab && tabIsPaperNoteDocument(tab) ? (
+						<PaperNoteSwitcher tab={tab} />
+					) : null}
 					{tab?.texLive ? (
 						<TexLiveStatusDot
 							rootPath={tab.texRoot ?? tab.path.replace(/\.pdf$/i, ".tex")}
@@ -746,6 +751,9 @@ export const DockWorkspace = memo(
 					const base = idx < 0 ? 0 : idx;
 					const next = panels[(base + delta + panels.length) % panels.length];
 					next?.api.setActive();
+				},
+				activeGroupPanelCount() {
+					return apiRef.current?.activeGroup?.panels.length ?? 0;
 				},
 				visiblePanelIds() {
 					const api = apiRef.current;

@@ -24,6 +24,7 @@ export {
 export {
 	applyMarkdownConflictChoice,
 	createNotesSplitPane,
+	findNotesPaneForPaper,
 	findNotesPaneForReplacement,
 	findPaperBodyForNotes,
 	isPaperContentTab,

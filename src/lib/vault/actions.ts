@@ -1298,6 +1298,36 @@ export async function confirmCreate(name: string): Promise<void> {
 	}
 }
 
+/**
+ * Create an empty note in `parentPath` under a unique default name and open it.
+ * The file tree asks for a name inline; the notes column switcher has no input
+ * on screen, so it starts one and lets the user rename it afterwards.
+ */
+export async function createNoteInFolder(parentPath: string): Promise<void> {
+	const vaultPath = getVaultPath();
+	if (!vaultPath || !isTauri()) {
+		notifyError(i18n.t("sidebar:fileTree.needsVault"));
+		return;
+	}
+	try {
+		setVaultBusy(true);
+		const base = i18n.t("sidebar:fileTree.untitledNote");
+		let name = `${base}.md`;
+		for (let index = 2; index < 100; index += 1) {
+			if (!(await vaultPathExists(joinVaultPath(parentPath, name)))) break;
+			name = `${base} ${index}.md`;
+		}
+		const full = joinVaultPath(parentPath, name);
+		await writeVaultFile(full, "");
+		await refreshTree(vaultPath);
+		openPath(full);
+	} catch (e) {
+		notifyError(errorText(e));
+	} finally {
+		setVaultBusy(false);
+	}
+}
+
 export async function createNewVault(): Promise<void> {
 	try {
 		if (!isTauri()) {

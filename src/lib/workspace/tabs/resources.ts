@@ -13,6 +13,7 @@ import {
 	findLocalPdfPath,
 	getRemoteArxivPaperByPath,
 	isPaperDirectory,
+	isPaperNoteDocPath,
 	isRemoteArxivPath,
 	isUnderPapers,
 	loadPaperMetadata,
@@ -505,6 +506,9 @@ export async function loadTabResources(
 		// PDF bytes are read only when this file's resource is pdf.
 		const mode = preferredModeForPath(path);
 		const isNotes = normalizePathKey(path) === normalizePathKey(notesPath);
+		// Any other root-level document of the paper is a note the notes column
+		// can show; name it after the paper column it belongs to.
+		const isPaperNote = !isNotes && isPaperNoteDocPath(path, paperDir);
 		let pdfUrl: string | null = null;
 		let pdfBytes: ArrayBuffer | null = null;
 		let didDownload = false;
@@ -607,7 +611,13 @@ export async function loadTabResources(
 
 		return {
 			kind: "file",
-			title: isNotes ? i18n.t("app:labels.notes") : tabTitleForPath(path),
+			title: isNotes
+				? i18n.t("app:labels.notes")
+				: isPaperNote
+					? i18n.t("app:tabs.paperNote", {
+							name: basenameOf(path).replace(/\.md$/i, ""),
+						})
+					: tabTitleForPath(path),
 			mode,
 			paperMeta: meta,
 			pdfUrl,

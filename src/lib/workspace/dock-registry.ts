@@ -44,6 +44,8 @@ export type DockHandle = {
 	cycleActive: (delta: number) => void;
 	/** Cycle tabs inside the active dock group only (wraps). */
 	cycleGroupTab: (delta: number) => void;
+	/** Number of tabs in the active dock group (0 when the dock is empty). */
+	activeGroupPanelCount: () => number;
 	/** Active panel id of every visible dock group (one per column). */
 	visiblePanelIds: () => string[];
 	/**

@@ -16,7 +16,10 @@ export {
 export {
 	isPaperChildDocName,
 	isPaperChildDocPath,
+	isPaperNoteDocPath,
+	PAPER_MAIN_NOTE_NAME,
 	paperHasVisibleChildren,
+	paperNoteDocs,
 	paperRootDocChildren,
 	paperSurfacesChildPath,
 	paperVisibleChildren,

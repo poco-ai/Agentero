@@ -82,6 +82,12 @@ import {
 	isWritingPath,
 	resolveWritingTarget,
 } from "@/lib/writing/project-target";
+import {
+	paperNotePaths,
+	paperNotesDir,
+	rememberPaperNote,
+	resumePaperNote,
+} from "./paper-notes";
 import { applyDiskChange } from "./persistence";
 import {
 	basenameOf,
@@ -90,6 +96,7 @@ import {
 	type DocTab,
 	ensureFullLibraryTab,
 	findCanonicalTab,
+	findNotesPaneForPaper,
 	findNotesPaneForReplacement,
 	insertPlaceholderTab,
 	isCanonicalView,
@@ -175,9 +182,10 @@ function readingColumns(): ReadingColumns | null {
  * activate that tab in the notes column too (focus ends on the paper).
  */
 export function activatePaperWithNotes(paperTab: DocTab): void {
-	const notesId = paperTab.notesPath
-		? (findCanonicalTab(getTabs(), paperTab.notesPath)?.id ?? null)
+	const notesPane = paperTab.notesPath
+		? findNotesPaneForPaper(getTabs(), paperTab.notesPath)
 		: null;
+	const notesId = notesPane?.id ?? null;
 	const notesOpen = notesId != null;
 	readingSync = true;
 	try {
@@ -257,9 +265,14 @@ export function handleActivePanelChange(panelId: string | null): void {
 		return;
 	}
 	notePaperFocus(readingPathForTab(tab));
+	// Remember which note of the paper the notes column last showed, so the
+	// next "open notes" returns to it instead of the canonical NOTES.md.
+	if (tabIsPaperNoteDocument(tab) && tab.notesPath) {
+		rememberPaperNote(paperNotesDir(tab.notesPath), tab.path);
+	}
 
 	if (isPaperContentTab(tab) && tab.notesPath) {
-		const notesId = findCanonicalTab(getTabs(), tab.notesPath)?.id ?? null;
+		const notesId = findNotesPaneForPaper(getTabs(), tab.notesPath)?.id ?? null;
 		if (!notesId) return;
 		readingSync = true;
 		try {
@@ -548,6 +561,17 @@ export function openTab(
 }
 
 /**
+ * Notes column panel for a paper, resuming the note the user read last.
+ * Falls back to `NOTES.md` when there is no usable hint.
+ */
+export function createPaperNotesPane(tab: DocTab): DocTab | null {
+	const notesPath = tab.notesPath;
+	if (!notesPath) return null;
+	const tree = vaultStore.getState().tree;
+	return createNotesSplitPane(tab, resumePaperNote(notesPath, tree));
+}
+
+/**
  * Ensure the NOTES companion panel of paper tab `paperId` is open beside it.
  * `paperPatch`/`paperPath` come from a freshly loaded tab; without them the
  * patch is read from the current tab state (hydrate path).
@@ -566,7 +590,7 @@ function openNotesForPaper(
 	if (!tab && !paperPath) return;
 	const path = paperPath ?? tab?.path ?? "";
 	const notesTab = notesPath
-		? (findCanonicalTab(getTabs(), notesPath) ?? null)
+		? findNotesPaneForPaper(getTabs(), notesPath)
 		: null;
 	const notesId = notesTab?.id ?? null;
 	const notesInDock = notesId
@@ -594,7 +618,7 @@ function openNotesForPaper(
 		...tab,
 		notesPath,
 	} as DocTab;
-	const notesPane = createNotesSplitPane(paperLike);
+	const notesPane = createPaperNotesPane(paperLike);
 	if (!notesPane) {
 		return;
 	}
@@ -819,6 +843,7 @@ export function cycleActiveTab(delta: number): void {
 
 /** Cycle tabs inside the active dock group only (the group's tab bar). */
 export function cycleActiveGroupTab(delta: number): void {
+	if (cycleSiblingPaperNote(delta)) return;
 	dockHandle()?.cycleGroupTab(delta);
 }
 
@@ -896,7 +921,8 @@ export function setNotesSplit(
 	if (!opts.preserveLayoutMode) setLayoutMode("custom");
 	const target = activeNotesTarget();
 	if (!target?.notesPath) return;
-	const notesId = findCanonicalTab(getTabs(), target.notesPath)?.id ?? null;
+	const notesId =
+		findNotesPaneForPaper(getTabs(), target.notesPath)?.id ?? null;
 	const isOpen = tabHasNotesSplit(getTabs(), target);
 	if (isOpen === open) return;
 	if (!open) {
@@ -909,7 +935,7 @@ export function setNotesSplit(
 		dockHandle()?.exitMaximizedPanel?.();
 	}
 	if (!tabNotesEligible(target) && target.kind !== "paper") return;
-	const notesPane = createNotesSplitPane(target);
+	const notesPane = createPaperNotesPane(target);
 	if (!notesPane) return;
 	// Stack into the notes column when one exists; else first right split.
 	const { notes: notesPlacement } = paperReadingPlacements(getTabs(), {
@@ -940,7 +966,8 @@ export function toggleNotesSplit(): void {
 export function openTabNotes(tabId: string): void {
 	const target = getTabs().find((t) => t.id === tabId);
 	if (!target?.notesPath || !tabNotesEligible(target)) return;
-	const notesId = findCanonicalTab(getTabs(), target.notesPath)?.id ?? null;
+	const notesId =
+		findNotesPaneForPaper(getTabs(), target.notesPath)?.id ?? null;
 	if (dockHandle()?.isMaximizedPanel?.()) {
 		dockHandle()?.exitMaximizedPanel?.();
 	}
@@ -949,7 +976,7 @@ export function openTabNotes(tabId: string): void {
 		dockHandle()?.activatePanel(notesId);
 		return;
 	}
-	const notesPane = createNotesSplitPane(target);
+	const notesPane = createPaperNotesPane(target);
 	if (!notesPane) return;
 	// Stack into the notes column when one exists; else first right split.
 	const { notes: notesPlacement } = paperReadingPlacements(getTabs(), {
@@ -964,6 +991,57 @@ export function openTabNotes(tabId: string): void {
 	});
 	cacheActiveTabBeforeDock(notesPane.id);
 	dockHandle()?.openPanel(notesPane, notesPlacement);
+}
+
+/**
+ * Show another note of the same paper in the notes column that `fromPanelId`
+ * fills, replacing it in place (same group, same width). Used by the notes-tab
+ * switcher and by ⌃Tab when that column holds a single panel.
+ */
+export function switchPaperNote(fromPanelId: string, notePath: string): void {
+	const from = getTabs().find((t) => t.id === fromPanelId) ?? null;
+	if (!from) return;
+	if (normalizeTabPath(from.path) === normalizeTabPath(notePath)) return;
+	const open = findCanonicalTab(getTabs(), notePath);
+	if (open) {
+		dockHandle()?.activatePanel(open.id);
+		return;
+	}
+	const replace = () =>
+		openTab(notePath, {
+			preferMode: preferredModeForPath(notePath),
+			replaceNotesPaneId: fromPanelId,
+		});
+	// The outgoing note must not lose its raw-source draft to the remount.
+	const editor = markdownEditorFor(fromPanelId);
+	if (editor?.hasPendingSource()) {
+		void editor.flushSource().then((saved) => {
+			if (saved) replace();
+		});
+		return;
+	}
+	replace();
+}
+
+/**
+ * ⌃Tab fallback for a one-panel notes column: walk the paper's other notes.
+ * Returns false when the column holds real tabs (normal group cycling wins).
+ */
+function cycleSiblingPaperNote(delta: number): boolean {
+	const id = getActiveTabId();
+	const tab = id ? (getTabs().find((t) => t.id === id) ?? null) : null;
+	if (!tab?.notesPath || !tabIsPaperNoteDocument(tab)) return false;
+	if ((dockHandle()?.activeGroupPanelCount?.() ?? 0) > 1) return false;
+	const paths = paperNotePaths(tab.notesPath, vaultStore.getState().tree);
+	if (paths.length < 2) return false;
+	const current = paths.findIndex(
+		(path) => normalizeTabPath(path) === normalizeTabPath(tab.path),
+	);
+	if (current < 0) return false;
+	const next = paths[(current + delta + paths.length) % paths.length];
+	if (!next) return false;
+	switchPaperNote(tab.id, next);
+	return true;
 }
 
 /** File-tree "Open notes": reading layout with NOTES in the right column. */

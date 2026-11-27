@@ -28,6 +28,9 @@ const PAPER_CHILD_DOC_EXTS = new Set([".md", ".html", ".htm"]);
  */
 const HIDDEN_PAPER_DOC_NAMES = new Set(["paper.md"]);
 
+/** The paper's canonical note. The notes column shows it unless the user picked another. */
+export const PAPER_MAIN_NOTE_NAME = "notes.md";
+
 function fileExtension(name: string): string {
 	const lower = name.toLowerCase();
 	const dot = lower.lastIndexOf(".");
@@ -56,6 +59,49 @@ export function paperRootDocChildren<T extends NamedChild>(
 		(child) => child.kind === "file" && isPaperChildDocName(child.name),
 	);
 	return docs.length > 1 ? docs : [];
+}
+
+/**
+ * Every root-level document of a paper folder, main `NOTES.md` first.
+ *
+ * Unlike {@link paperRootDocChildren} this keeps the single-document folder
+ * too: the notes column can show any of them, and its switcher needs the whole
+ * set even when it only holds NOTES.md plus one extra note.
+ */
+export function paperNoteDocs<T extends NamedChild>(
+	paper: { children?: T[] } | null | undefined,
+): T[] {
+	const docs = (paper?.children ?? []).filter(
+		(child) =>
+			child.kind === "file" &&
+			Boolean(child.path) &&
+			isPaperChildDocName(child.name),
+	);
+	const main: T[] = [];
+	const rest: T[] = [];
+	for (const doc of docs) {
+		if (doc.name.toLowerCase() === PAPER_MAIN_NOTE_NAME) main.push(doc);
+		else rest.push(doc);
+	}
+	return [...main, ...rest];
+}
+
+/** Basename of a normalized path, without touching the filesystem. */
+function pathBaseName(path: string): string {
+	const norm = normalizePath(path).replace(/\/+$/, "");
+	return norm.slice(norm.lastIndexOf("/") + 1);
+}
+
+/**
+ * Path is one of the paper's own notes: a root-level Markdown/HTML document of
+ * the paper folder, `PAPER.md` (the derived body) excluded.
+ */
+export function isPaperNoteDocPath(
+	path: string | null,
+	paperDir: string | null,
+): boolean {
+	if (!path || !isPaperChildDocPath(path, paperDir)) return false;
+	return !HIDDEN_PAPER_DOC_NAMES.has(pathBaseName(path).toLowerCase());
 }
 
 /**

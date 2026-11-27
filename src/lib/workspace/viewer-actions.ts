@@ -94,6 +94,7 @@ import {
 import {
 	cloneTabForSplit,
 	closeTab,
+	createPaperNotesPane,
 	openPaper,
 	openPath,
 	openTab,
@@ -101,11 +102,11 @@ import {
 } from "./navigation";
 import {
 	basenameOf,
-	createNotesSplitPane,
 	createPlaceholderTab,
 	createTranslationSplitPane,
 	type DocTab,
 	findCanonicalTab,
+	findNotesPaneForPaper,
 	findPaperBodyForNotes,
 	findTranslationPaneForPaper,
 	insertPlaceholderTab,
@@ -642,7 +643,7 @@ export function splitActivePane(placement?: {
 	// (closed) before touching the maximize state, so collapsing notes does not
 	// also drop the reading layout.
 	if (tabNotesEligible(active) && active.notesPath) {
-		const notesId = findCanonicalTab(tabs, active.notesPath)?.id;
+		const notesId = findNotesPaneForPaper(tabs, active.notesPath)?.id;
 		if (
 			notesId &&
 			tabs.some((t) => t.id === notesId) &&
@@ -693,11 +694,11 @@ export function splitActivePane(placement?: {
 	}
 
 	if (tabNotesEligible(active) && active.notesPath) {
-		const notesId = findCanonicalTab(getTabs(), active.notesPath)?.id;
+		const notesId = findNotesPaneForPaper(getTabs(), active.notesPath)?.id;
 		// A restored layout can keep a notes tab in state without a dock panel;
 		// drop it so the split below registers a real, visible panel.
 		if (notesId) setTabs((prev) => prev.filter((t) => t.id !== notesId));
-		const notesPane = createNotesSplitPane(active);
+		const notesPane = createPaperNotesPane(active);
 		if (!notesPane) return;
 		setTabs((prev) =>
 			prev.some((t) => t.id === notesPane.id) ? prev : [...prev, notesPane],
@@ -776,7 +777,7 @@ export function openTranslationTab(
 	setTabs((prev) => [...prev, translationPane]);
 	const placement = translationSplitPlacement(paperTabId, tabs);
 	const notesPath = paperTab.notesPath;
-	const notesPane = notesPath ? findCanonicalTab(tabs, notesPath) : null;
+	const notesPane = notesPath ? findNotesPaneForPaper(tabs, notesPath) : null;
 	if (placement.direction === "below") {
 		// A phone-width comparison stacks the translation below the source paper.
 		dockHandle()?.openPanel(translationPane, placement);

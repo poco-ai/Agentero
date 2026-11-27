@@ -10,6 +10,7 @@ import { libraryStore, setLibraryPapers } from "@/lib/paper/library-store";
 import type { PaperMetadata } from "@/lib/paper/types";
 import { toggleSidebar, uiStore } from "@/lib/shell/ui-store";
 import { vaultStore } from "@/lib/vault/store";
+import type { FileNode } from "@/lib/vault/types";
 import {
 	activatePaperWithNotes,
 	closeTab,
@@ -18,12 +19,14 @@ import {
 	openTab,
 	openTabNotes,
 	setNotesSplit,
+	switchPaperNote,
 	syncUpdatedPaperTabs,
 } from "@/lib/workspace/actions";
 import {
 	type DockHandle,
 	registerDockHandle,
 } from "@/lib/workspace/dock-registry";
+import { paperNotePaths } from "@/lib/workspace/paper-notes";
 import { getTabs, setActiveTabId, setTabs } from "@/lib/workspace/store";
 import {
 	createNotesSplitPane,
@@ -32,6 +35,7 @@ import {
 	type DocTab,
 	extractTabsFromLayout,
 	findCanonicalTab,
+	findNotesPaneForPaper,
 	findNotesPaneForReplacement,
 	insertPlaceholderTab,
 	loadPersistedTabs,
@@ -1043,6 +1047,83 @@ describe("flat workspace helpers", () => {
 		expect(tabHasNotesSplit([paper, notes], paper)).toBe(true);
 	});
 
+	it("treats an extra note filling the column as the paper's notes pane", () => {
+		const notesPath = "/vault/papers/a/NOTES.md";
+		const paper = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath,
+		});
+		const extra = makeTab("/vault/papers/a/ideas.md", {
+			mode: "markdown",
+			notesPath,
+			title: "ideas",
+		});
+		expect(tabHasNotesSplit([paper, extra], paper)).toBe(true);
+		expect(findNotesPaneForPaper([paper, extra], notesPath)?.id).toBe(extra.id);
+		expect(findNotesPaneForPaper([paper], notesPath)).toBeNull();
+		// Closing the body still takes the replaced notes column with it.
+		expect(readingPairCloseIds([paper, extra], paper.id)).toEqual([
+			extra.id,
+			paper.id,
+		]);
+	});
+
+	it("opens a sibling note in the notes column it replaces", () => {
+		const paper = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/papers/a/NOTES.md",
+		});
+		const notes = createNotesSplitPane(paper);
+		if (!notes) throw new Error("Missing notes fixture");
+		const reused = createNotesSplitPane(paper, "/vault/papers/a/ideas.md");
+		expect(reused?.path).toBe("/vault/papers/a/ideas.md");
+		expect(reused?.notesPath).toBe("/vault/papers/a/NOTES.md");
+		expect(reused?.mode).toBe("markdown");
+	});
+
+	it("orders the paper's notes with the main note first", () => {
+		const tree = [
+			{
+				id: "/vault/papers/a",
+				name: "a",
+				path: "/vault/papers/a",
+				kind: "directory",
+				children: [
+					{
+						id: "/vault/papers/a/PAPER.md",
+						name: "PAPER.md",
+						path: "/vault/papers/a/PAPER.md",
+						kind: "file",
+					},
+					{
+						id: "/vault/papers/a/zzz.md",
+						name: "zzz.md",
+						path: "/vault/papers/a/zzz.md",
+						kind: "file",
+					},
+					{
+						id: "/vault/papers/a/NOTES.md",
+						name: "NOTES.md",
+						path: "/vault/papers/a/NOTES.md",
+						kind: "file",
+					},
+					{
+						id: "/vault/papers/a/figure.png",
+						name: "figure.png",
+						path: "/vault/papers/a/figure.png",
+						kind: "file",
+					},
+				],
+			},
+		] as FileNode[];
+		expect(paperNotePaths("/vault/papers/a/NOTES.md", tree)).toEqual([
+			"/vault/papers/a/NOTES.md",
+			"/vault/papers/a/zzz.md",
+		]);
+	});
+
 	it("paperReadingPlacements stacks NOTES into existing notes column only", () => {
 		const paperA = makeTab("/vault/a", {
 			kind: "paper",
@@ -1344,6 +1425,50 @@ describe("Notes layout actions", () => {
 				),
 			);
 			expect(load).toHaveBeenCalledOnce();
+		} finally {
+			registerDockHandle(null);
+			vi.restoreAllMocks();
+		}
+	});
+
+	it("switchPaperNote replaces the notes column in place", async () => {
+		const paper = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/papers/a/NOTES.md",
+		});
+		const notes = createNotesSplitPane(paper);
+		if (!notes) throw new Error("Missing notes fixture");
+		const handle = {
+			openPanel: vi.fn(),
+			remapPanel: vi.fn(),
+			activatePanel: vi.fn(),
+			canActivatePanel: vi.fn(() => true),
+			readingColumns: vi.fn(() => null),
+		};
+		registerDockHandle(handle as unknown as DockHandle);
+		vi.spyOn(tabResources, "loadTabResources").mockResolvedValue(
+			makeResources({ kind: "file", mode: "markdown" }),
+		);
+		try {
+			setTabs([paper, notes]);
+			setActiveTabId(notes.id);
+			switchPaperNote(notes.id, "/vault/papers/a/ideas.md");
+
+			expect(handle.openPanel).not.toHaveBeenCalled();
+			expect(handle.remapPanel).toHaveBeenCalledOnce();
+			const replacement = handle.remapPanel.mock.calls[0]?.[1] as DocTab;
+			expect(replacement.path).toBe("/vault/papers/a/ideas.md");
+			expect(getTabs().map((t) => t.id)).not.toContain(notes.id);
+			await vi.waitFor(() =>
+				expect(getTabs().find((t) => t.id === replacement.id)?.loaded).toBe(
+					true,
+				),
+			);
+			// The replaced pane keeps belonging to the paper once it loads.
+			expect(getTabs().find((t) => t.id === replacement.id)?.notesPath).toBe(
+				"/vault/papers/a/NOTES.md",
+			);
 		} finally {
 			registerDockHandle(null);
 			vi.restoreAllMocks();
