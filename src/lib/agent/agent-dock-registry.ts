@@ -5,7 +5,8 @@
  */
 
 export type AgentDockHandle = {
-	closeActive: () => void;
+	/** Close the active conversation tab; false when the dock has no panel. */
+	closeActive: () => boolean;
 	cycleActive: (delta: 1 | -1) => void;
 	cycleGroupTab: (delta: 1 | -1) => void;
 };

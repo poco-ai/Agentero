@@ -54,7 +54,10 @@ import {
 } from "@/hooks/use-shell-layout";
 import { useVaultFileEvents } from "@/hooks/use-vault-file-events";
 import { agentDock } from "@/lib/agent/agent-dock-registry";
-import { toggleAgentWindow } from "@/lib/agent/agent-window";
+import {
+	closeAgentTabOrWindow,
+	toggleAgentWindow,
+} from "@/lib/agent/agent-window";
 import { focusAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	listenOpenAgentWithPrompt,
@@ -169,11 +172,8 @@ function toggleImmersiveReading(): void {
 
 function closeFocusedTab(browserFocused = false): void {
 	if (closeTopOverlay() || closeFocusedSidebarTab(browserFocused)) return;
-	if (uiStore.getState().agentWindowOpen) {
-		agentDock()?.closeActive();
-	} else {
-		closeTabOrWindow();
-	}
+	if (uiStore.getState().agentWindowOpen) closeAgentTabOrWindow();
+	else closeTabOrWindow();
 }
 
 function cycleFocusedTab(delta: -1 | 1, browserFocused = false): void {

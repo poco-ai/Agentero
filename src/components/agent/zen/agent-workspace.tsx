@@ -202,7 +202,9 @@ export function AgentWorkspace() {
 		registerAgentDock({
 			closeActive: () => {
 				const panel = api.activePanel;
-				if (panel) zenStore.getState().removeSlot(panel.id);
+				if (!panel) return false;
+				zenStore.getState().removeSlot(panel.id);
+				return true;
 			},
 			cycleActive: (delta) => {
 				const panel = api.activePanel;

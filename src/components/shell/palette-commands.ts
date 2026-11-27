@@ -5,6 +5,7 @@
  */
 
 import { fileTreeHandle } from "@/components/shell/file-tree-registry";
+import { closeAgentTabOrWindow } from "@/lib/agent/agent-window";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { pinActiveSelection } from "@/lib/agent/selection-store";
 import { openMagicWand } from "@/lib/paper/import-actions";
@@ -161,7 +162,11 @@ export const paletteCommands: AppCommand[] = [
 		id: "tab.close",
 		titleKey: "commands.tabClose",
 		categoryKey: "commands.catTab",
-		run: () => closeTabOrWindow(),
+		// Mirrors ⌘W: Agent mode owns its own dock, so resolve the same branch.
+		run: () => {
+			if (uiStore.getState().agentWindowOpen) closeAgentTabOrWindow();
+			else closeTabOrWindow();
+		},
 	},
 	{
 		id: "tab.reopen",
