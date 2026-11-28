@@ -288,11 +288,23 @@ pub fn close_window(window: &str) {
     let _ = window;
 }
 
+/// Prepare a freshly created desktop window to host sidebar WebViews before it
+/// is shown. On Linux/GTK, wrapping `default_vbox` inside a `gtk::Overlay`
+/// while the window is still unrealized avoids detaching a live main
+/// `WebKitWebView` later when the first sidebar browser tab opens.
+#[cfg(target_os = "linux")]
+pub fn prepare_window(window: &WebviewWindow) {
+    let win = window.clone();
+    let _ = window.run_on_main_thread(move || {
+        let _ = native::prepare_window(&win);
+    });
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod native {
     use super::*;
     use std::{
-        cell::RefCell,
+        cell::{Cell, RefCell},
         sync::{Arc, Mutex},
     };
     use wry::{
@@ -303,6 +315,7 @@ mod native {
     struct BrowserView {
         webview: WebView,
         status: Arc<Mutex<PageStatus>>,
+        visible: Cell<bool>,
     }
 
     thread_local! {
@@ -342,7 +355,12 @@ mod native {
         }
 
         fn set_visible(&self, visible: bool) -> Result<(), String> {
-            platform::set_visible(&self.webview, visible)
+            if self.visible.get() == visible {
+                return Ok(());
+            }
+            platform::set_visible(&self.webview, visible)?;
+            self.visible.set(visible);
+            Ok(())
         }
 
         fn snapshot(&self) -> SidebarBrowserState {
@@ -427,7 +445,11 @@ mod native {
         let webview = platform::build_webview(window, builder, host_ctx)?;
         #[cfg(not(target_os = "windows"))]
         let webview = platform::build_webview(window, builder)?;
-        Ok(BrowserView { webview, status })
+        Ok(BrowserView {
+            webview,
+            status,
+            visible: Cell::new(false),
+        })
     }
 
     pub fn apply(
@@ -482,6 +504,11 @@ mod native {
             registry.borrow_mut().remove_window(window);
         });
         platform::cleanup_window(window);
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn prepare_window(window: &WebviewWindow) -> Result<(), String> {
+        platform::prepare_window(window)
     }
 
     #[cfg(target_os = "macos")]
@@ -586,18 +613,38 @@ mod native {
     #[cfg(target_os = "linux")]
     mod platform {
         use super::ValidatedBounds;
-        use gtk::prelude::*;
-        use std::cell::RefCell;
-        use std::collections::HashMap;
+        use gtk::{prelude::*, OverlaySignals, Rectangle};
+        use std::{cell::RefCell, collections::HashMap, rc::Rc};
         use tauri::WebviewWindow;
         use wry::{WebView, WebViewBuilder, WebViewBuilderExtUnix, WebViewExtUnix};
 
+        struct OverlayHost {
+            overlay: gtk::Overlay,
+            /// Logical rectangles keyed by each child `GtkWidget` pointer so
+            /// `get-child-position` allocates overlay children directly without
+            /// inflating `GtkOverlay`'s minimum window size via margins.
+            rects: Rc<RefCell<HashMap<usize, Rectangle>>>,
+        }
+
         thread_local! {
-            static OVERLAY_HOSTS: RefCell<HashMap<String, gtk::Overlay>> = RefCell::default();
+            static OVERLAY_HOSTS: RefCell<HashMap<String, OverlayHost>> = RefCell::default();
         }
 
         pub fn format_error(error: wry::Error) -> String {
             error.to_string()
+        }
+
+        fn widget_key(widget: &impl IsA<gtk::Widget>) -> usize {
+            widget.as_ref().as_ptr() as usize
+        }
+
+        fn to_gtk_rect(rect: ValidatedBounds) -> Rectangle {
+            Rectangle::new(
+                rect.x.round() as i32,
+                rect.y.round() as i32,
+                rect.width.round().max(1.0) as i32,
+                rect.height.round().max(1.0) as i32,
+            )
         }
 
         /// Ensure the Tauri window has a `gtk::Overlay` wrapping its existing
@@ -605,10 +652,16 @@ mod native {
         /// positioned overlay child on both X11 and Wayland without creating a
         /// second top-level window, calling X11-only child-window APIs, or
         /// covering the workspace with a full-window input surface.
-        fn ensure_overlay_host(window: &WebviewWindow) -> Result<gtk::Overlay, String> {
+        fn ensure_overlay_host(
+            window: &WebviewWindow,
+        ) -> Result<(gtk::Overlay, Rc<RefCell<HashMap<usize, Rectangle>>>), String> {
             let label = window.label().to_owned();
-            if let Some(existing) = OVERLAY_HOSTS.with(|hosts| hosts.borrow().get(&label).cloned())
-            {
+            if let Some(existing) = OVERLAY_HOSTS.with(|hosts| {
+                hosts
+                    .borrow()
+                    .get(&label)
+                    .map(|host| (host.overlay.clone(), Rc::clone(&host.rects)))
+            }) {
                 return Ok(existing);
             }
 
@@ -641,17 +694,34 @@ mod native {
                 overlay
             };
 
-            OVERLAY_HOSTS.with(|hosts| {
-                hosts.borrow_mut().insert(label, overlay.clone());
+            let rects: Rc<RefCell<HashMap<usize, Rectangle>>> =
+                Rc::new(RefCell::new(HashMap::new()));
+            let rects_for_signal = Rc::clone(&rects);
+            overlay.connect_get_child_position(move |_overlay, widget| {
+                rects_for_signal.borrow().get(&widget_key(widget)).copied()
             });
-            Ok(overlay)
+
+            OVERLAY_HOSTS.with(|hosts| {
+                hosts.borrow_mut().insert(
+                    label,
+                    OverlayHost {
+                        overlay: overlay.clone(),
+                        rects: Rc::clone(&rects),
+                    },
+                );
+            });
+            Ok((overlay, rects))
+        }
+
+        pub fn prepare_window(window: &WebviewWindow) -> Result<(), String> {
+            ensure_overlay_host(window).map(|_| ())
         }
 
         pub fn build_webview(
             window: &WebviewWindow,
             builder: WebViewBuilder<'_>,
         ) -> Result<WebView, String> {
-            let overlay = ensure_overlay_host(window)?;
+            let (overlay, rects) = ensure_overlay_host(window)?;
             // Build inside a transient `gtk::Box` (not `gtk::Fixed`, so wry
             // does not leave `is_in_fixed_parent` set for a removed parent),
             // then mount the resulting `WebKitWebView` directly onto
@@ -665,29 +735,41 @@ mod native {
             // `no_show_all` prevents any parent `show_all()` from revealing a
             // hidden sidebar tab behind the registry's back.
             webkit_view.set_no_show_all(true);
-            webkit_view.set_halign(gtk::Align::Start);
-            webkit_view.set_valign(gtk::Align::Start);
+            webkit_view.set_size_request(0, 0);
+            let key = widget_key(&webkit_view);
+            let rects_for_destroy = Rc::clone(&rects);
+            webkit_view.connect_destroy(move |_| {
+                rects_for_destroy.borrow_mut().remove(&key);
+            });
             overlay.add_overlay(&webkit_view);
             webkit_view.hide();
             Ok(webview)
         }
 
         pub fn set_bounds(view: &WebView, rect: ValidatedBounds) -> Result<(), String> {
-            let x = rect.x.round() as i32;
-            let y = rect.y.round() as i32;
-            let width = rect.width.round().max(1.0) as i32;
-            let height = rect.height.round().max(1.0) as i32;
-
+            let gtk_rect = to_gtk_rect(rect);
             let webkit_view = view.webview();
-            // `GtkOverlay` places each overlay child using its start/top
-            // alignment, margins, and size request, so updating these keeps
-            // bounds accurate across window resizes and divider drags.
-            webkit_view.set_halign(gtk::Align::Start);
-            webkit_view.set_valign(gtk::Align::Start);
-            webkit_view.set_margin_start(x);
-            webkit_view.set_margin_top(y);
-            webkit_view.set_size_request(width, height);
-            webkit_view.queue_resize();
+            let key = widget_key(&webkit_view);
+
+            // Store exact `(x, y, width, height)` for `GtkOverlay`'s
+            // `get-child-position` signal instead of using margins +
+            // `set_size_request`, which would inflate the window's minimum size
+            // and block shrinking the window narrower than `x + width`.
+            if let Some(overlay) = webkit_view
+                .parent()
+                .and_then(|parent| parent.downcast::<gtk::Overlay>().ok())
+            {
+                OVERLAY_HOSTS.with(|hosts| {
+                    for host in hosts.borrow().values() {
+                        if host.overlay == overlay {
+                            host.rects.borrow_mut().insert(key, gtk_rect);
+                            break;
+                        }
+                    }
+                });
+                overlay.queue_allocate();
+            }
+            webkit_view.queue_allocate();
             Ok(())
         }
 
@@ -695,6 +777,12 @@ mod native {
             let webkit_view = view.webview();
             if visible {
                 webkit_view.show();
+                if let Some(overlay) = webkit_view
+                    .parent()
+                    .and_then(|parent| parent.downcast::<gtk::Overlay>().ok())
+                {
+                    overlay.queue_allocate();
+                }
             } else {
                 webkit_view.hide();
             }

@@ -167,6 +167,9 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
             .traffic_light_position(tauri::LogicalPosition::new(TRAFFIC_LIGHT_X, y));
     }
 
+    #[cfg(target_os = "linux")]
+    let builder = builder.visible(false);
+
     let window = match builder.build() {
         Ok(w) => w,
         Err(e) => {
@@ -176,6 +179,8 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
     };
     #[cfg(target_os = "macos")]
     enable_window_tiling(&window);
+    #[cfg(target_os = "linux")]
+    crate::app::sidebar_browser::prepare_window(&window);
     let _ = window.set_focus();
 
     // Native menu is macOS-only; other platforms drive actions from the React
@@ -486,6 +491,9 @@ pub async fn doc_window_open(
             .traffic_light_position(tauri::LogicalPosition::new(TRAFFIC_LIGHT_X, y));
     }
 
+    #[cfg(target_os = "linux")]
+    let builder = builder.visible(false);
+
     let window = match builder.build() {
         Ok(w) => w,
         Err(e) => {
@@ -495,6 +503,8 @@ pub async fn doc_window_open(
     };
     #[cfg(target_os = "macos")]
     enable_window_tiling(&window);
+    #[cfg(target_os = "linux")]
+    crate::app::sidebar_browser::prepare_window(&window);
     let _ = window.set_focus();
 
     op.finish_ok_extra(format!("new label={label}"));

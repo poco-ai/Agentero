@@ -401,6 +401,13 @@ pub fn run() {
         if let Some(win) = app.get_webview_window("main") {
             let _ = win.set_decorations(false);
         }
+        // Linux: wrap `default_vbox` inside a `gtk::Overlay` before `on_page_load`
+        // reveals the main window, so opening the first sidebar browser tab never
+        // detaches a realized main `WebKitWebView`.
+        #[cfg(target_os = "linux")]
+        if let Some(win) = app.get_webview_window("main") {
+            sidebar_browser::prepare_window(&win);
+        }
         // Native menu is macOS-only; the renderer re-syncs the locale on mount.
         #[cfg(target_os = "macos")]
         {
