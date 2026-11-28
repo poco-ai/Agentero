@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 use tauri::Url;
 use tauri::WebviewWindow;
 
@@ -39,12 +39,12 @@ pub struct SidebarBrowserState {
     can_go_forward: bool,
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 const MAX_BOUND_COORD: f64 = 32768.0;
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 const MAX_TITLE_CHARS: usize = 256;
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct ValidatedBounds {
     x: f64,
@@ -53,7 +53,7 @@ struct ValidatedBounds {
     height: f64,
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 fn web_url(raw: &str) -> Option<Url> {
     let url = Url::parse(raw).ok()?;
     (matches!(url.scheme(), "http" | "https")
@@ -63,7 +63,7 @@ fn web_url(raw: &str) -> Option<Url> {
     .then_some(url)
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 fn validate_bounds(rect: SidebarBrowserBounds) -> Result<ValidatedBounds, String> {
     let values = [rect.x, rect.y, rect.width, rect.height];
     if !values
@@ -82,12 +82,12 @@ fn validate_bounds(rect: SidebarBrowserBounds) -> Result<ValidatedBounds, String
     })
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 fn normalize_title(raw: &str) -> String {
     raw.chars().take(MAX_TITLE_CHARS).collect()
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 fn normalize_snapshot(
     raw_url: Option<String>,
     raw_title: &str,
@@ -106,14 +106,14 @@ fn normalize_snapshot(
     }
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Default)]
 struct PageStatus {
     title: String,
     loading: bool,
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 trait BrowserSurface {
     fn load_url(&self, url: &str) -> Result<(), String>;
     fn reload(&self) -> Result<(), String>;
@@ -124,12 +124,12 @@ trait BrowserSurface {
     fn snapshot(&self) -> SidebarBrowserState;
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 struct BrowserRegistry<V> {
     windows: std::collections::HashMap<String, std::collections::HashMap<String, V>>,
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 impl<V> Default for BrowserRegistry<V> {
     fn default() -> Self {
         Self {
@@ -138,7 +138,7 @@ impl<V> Default for BrowserRegistry<V> {
     }
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 impl<V: BrowserSurface> BrowserRegistry<V> {
     fn apply<F>(
         &mut self,
@@ -230,8 +230,29 @@ pub async fn sidebar_browser_command(
     view_id: String,
     command: SidebarBrowserCommand,
 ) -> Result<Option<SidebarBrowserState>, String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
+        #[cfg(target_os = "windows")]
+        if matches!(command, SidebarBrowserCommand::Show { .. }) {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            let parent = window.clone();
+            // `with_webview` runs synchronously on the main/UI thread in Tauri's
+            // Wry runtime, giving us direct access to the host WebView2 environment
+            // before constructing a child WebView.
+            window
+                .with_webview(move |host| {
+                    let environment = host.environment();
+                    let _ = tx.send(native::apply_with_env(
+                        &parent,
+                        view_id,
+                        command,
+                        Some(environment),
+                    ));
+                })
+                .map_err(|error| error.to_string())?;
+            return rx.await.map_err(|error| error.to_string())?;
+        }
+
         let (tx, rx) = tokio::sync::oneshot::channel();
         let parent = window.clone();
         window
@@ -241,19 +262,19 @@ pub async fn sidebar_browser_command(
             .map_err(|error| error.to_string())?;
         rx.await.map_err(|error| error.to_string())?
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (window, view_id, command);
-        Err("Embedded browsing is available on macOS".into())
+        Err("Embedded browsing is available on desktop".into())
     }
 }
 
 pub fn is_focused(window: &str) -> bool {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         native::is_focused(window)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = window;
         false
@@ -261,13 +282,13 @@ pub fn is_focused(window: &str) -> bool {
 }
 
 pub fn close_window(window: &str) {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     native::close_window(window);
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let _ = window;
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 mod native {
     use super::*;
     use std::{
@@ -296,7 +317,7 @@ mod native {
     }
 
     fn explain(error: wry::Error) -> String {
-        error.to_string()
+        platform::format_error(error)
     }
 
     impl BrowserSurface for BrowserView {
@@ -342,11 +363,18 @@ mod native {
         }
     }
 
+    #[cfg(target_os = "windows")]
+    type HostContext =
+        Option<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment>;
+    #[cfg(not(target_os = "windows"))]
+    type HostContext = ();
+
     fn create(
         window: &WebviewWindow,
         id: &str,
         url: &Url,
         rect: ValidatedBounds,
+        #[allow(unused_variables)] host_ctx: HostContext,
     ) -> Result<BrowserView, String> {
         let parent = window.clone();
         let window_label = window.label().to_owned();
@@ -395,7 +423,10 @@ mod native {
             .with_permission_handler(|_| PermissionResponse::Deny)
             .with_download_started_handler(|_, _| false);
 
-        let webview = platform::build_webview(window, builder).map_err(explain)?;
+        #[cfg(target_os = "windows")]
+        let webview = platform::build_webview(window, builder, host_ctx)?;
+        #[cfg(not(target_os = "windows"))]
+        let webview = platform::build_webview(window, builder)?;
         Ok(BrowserView { webview, status })
     }
 
@@ -404,11 +435,35 @@ mod native {
         id: String,
         command: SidebarBrowserCommand,
     ) -> Result<Option<SidebarBrowserState>, String> {
+        #[cfg(target_os = "windows")]
+        {
+            apply_with_env(window, id, command, None)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            REGISTRY.with(|registry| {
+                registry
+                    .borrow_mut()
+                    .apply(window.label(), id, command, |view_id, url, rect| {
+                        create(window, view_id, url, rect, ())
+                    })
+            })
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn apply_with_env(
+        window: &WebviewWindow,
+        id: String,
+        command: SidebarBrowserCommand,
+        environment: HostContext,
+    ) -> Result<Option<SidebarBrowserState>, String> {
+        let mut environment = environment;
         REGISTRY.with(|registry| {
             registry
                 .borrow_mut()
                 .apply(window.label(), id, command, |view_id, url, rect| {
-                    create(window, view_id, url, rect)
+                    create(window, view_id, url, rect, environment.take())
                 })
         })
     }
@@ -428,16 +483,21 @@ mod native {
         });
     }
 
+    #[cfg(target_os = "macos")]
     mod platform {
         use objc2_app_kit::NSView;
         use tauri::WebviewWindow;
         use wry::{WebView, WebViewBuilder, WebViewExtMacOS};
 
+        pub fn format_error(error: wry::Error) -> String {
+            error.to_string()
+        }
+
         pub fn build_webview(
             window: &WebviewWindow,
             builder: WebViewBuilder<'_>,
-        ) -> wry::Result<WebView> {
-            builder.build_as_child(window)
+        ) -> Result<WebView, String> {
+            builder.build_as_child(window).map_err(format_error)
         }
 
         pub fn is_view_focused(view: &WebView) -> bool {
@@ -451,6 +511,52 @@ mod native {
             responder
                 .downcast::<NSView>()
                 .is_ok_and(|responder| responder.isDescendantOf(&wk))
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    mod platform {
+        use tauri::WebviewWindow;
+        use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment;
+        use windows::Win32::UI::{
+            Input::KeyboardAndMouse::GetFocus,
+            WindowsAndMessaging::{IsChild, IsWindowVisible},
+        };
+        use wry::{WebView, WebViewBuilder, WebViewBuilderExtWindows, WebViewExtWindows};
+
+        pub fn format_error(error: wry::Error) -> String {
+            match error {
+                wry::Error::WebView2Error(inner) => {
+                    format!("WebView2 runtime error: {inner}")
+                }
+                other => other.to_string(),
+            }
+        }
+
+        pub fn build_webview(
+            window: &WebviewWindow,
+            mut builder: WebViewBuilder<'_>,
+            environment: Option<ICoreWebView2Environment>,
+        ) -> Result<WebView, String> {
+            // Reuse the host window's WebView2 environment so child views share the
+            // app's writable data directory instead of initializing beside the
+            // executable (which can fail under Program Files), while keeping site
+            // state isolated via `with_incognito(true)`.
+            if let Some(environment) = environment {
+                builder = builder.with_environment(environment);
+            }
+            builder.build_as_child(window).map_err(format_error)
+        }
+
+        pub fn is_view_focused(view: &WebView) -> bool {
+            let hwnd = view.hwnd();
+            unsafe {
+                if !IsWindowVisible(hwnd).as_bool() {
+                    return false;
+                }
+                let focused = GetFocus();
+                !focused.is_invalid() && (focused == hwnd || IsChild(hwnd, focused).as_bool())
+            }
         }
     }
 }
