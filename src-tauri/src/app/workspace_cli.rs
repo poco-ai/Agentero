@@ -86,8 +86,22 @@ pub fn start(app: AppHandle) -> Result<(), crate::core::error::AppError> {
     watcher
         .watch(dir.path(), RecursiveMode::Recursive)
         .map_err(|e| crate::core::error::AppError::message(e.to_string()))?;
+    #[cfg(target_os = "macos")]
+    let socket = match std::os::unix::net::UnixListener::bind(dir.path().join(SOCKET_NAME))
+        .and_then(|listener| {
+            listener.set_nonblocking(true)?;
+            Ok(listener)
+        }) {
+        Ok(listener) => Some(listener),
+        Err(error) => {
+            log::warn!("could not start desktop CLI socket fallback: {error}");
+            None
+        }
+    };
     ready.persist(&marker).map_err(|e| e.error)?;
     tauri::async_runtime::spawn(async move {
+        #[cfg(target_os = "macos")]
+        let socket_task = socket.map(|listener| tokio::spawn(serve_socket(app.clone(), listener)));
         let _watcher = watcher;
         let _lease = lease;
         loop {
@@ -116,8 +130,71 @@ pub fn start(app: AppHandle) -> Result<(), crate::core::error::AppError> {
                 }
             }
         }
+        #[cfg(target_os = "macos")]
+        if let Some(task) = socket_task {
+            task.abort();
+        }
     });
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+async fn serve_socket(app: AppHandle, listener: std::os::unix::net::UnixListener) {
+    use tokio::net::UnixListener;
+    use tokio::sync::Semaphore;
+
+    let listener = match UnixListener::from_std(listener) {
+        Ok(listener) => listener,
+        Err(error) => {
+            log::warn!("could not register desktop CLI socket: {error}");
+            return;
+        }
+    };
+    let slots = Arc::new(Semaphore::new(32));
+    while let Ok(permit) = slots.clone().acquire_owned().await {
+        let (stream, _) = match listener.accept().await {
+            Ok(connection) => connection,
+            Err(error) => {
+                log::warn!("could not accept desktop CLI socket connection: {error}");
+                break;
+            }
+        };
+        let app = app.clone();
+        tokio::spawn(async move {
+            let _permit = permit;
+            if let Err(error) = handle_socket(&app, stream).await {
+                log::debug!("desktop CLI socket request failed: {error}");
+            }
+        });
+    }
+}
+
+#[cfg(target_os = "macos")]
+async fn handle_socket(app: &AppHandle, mut stream: tokio::net::UnixStream) -> Result<(), String> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    const IO_TIMEOUT: Duration = Duration::from_secs(5);
+    let mut bytes = Vec::new();
+    tokio::time::timeout(
+        IO_TIMEOUT,
+        (&mut stream)
+            .take(MAX_REQUEST_BYTES + 1)
+            .read_to_end(&mut bytes),
+    )
+    .await
+    .map_err(|_| "desktop CLI socket request timed out")?
+    .map_err(|e| e.to_string())?;
+    if bytes.len() as u64 > MAX_REQUEST_BYTES {
+        return Err("invalid desktop request".into());
+    }
+    let request: WorkspaceRequest = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let id = request.id.clone();
+    let reply = workspace_reply(id, dispatch(app, request).await);
+    let bytes = serde_json::to_vec(&reply).map_err(|e| e.to_string())?;
+    tokio::time::timeout(IO_TIMEOUT, stream.write_all(&bytes))
+        .await
+        .map_err(|_| "desktop CLI socket reply timed out")?
+        .map_err(|e| e.to_string())
 }
 
 async fn handle(app: AppHandle, dir: PathBuf, file: PathBuf) {
@@ -126,7 +203,7 @@ async fn handle(app: AppHandle, dir: PathBuf, file: PathBuf) {
         let info = tokio::fs::symlink_metadata(&file)
             .await
             .map_err(|e| e.to_string())?;
-        if !info.is_file() || info.len() > 2_000_000 {
+        if !info.is_file() || info.len() > MAX_REQUEST_BYTES {
             return Err("invalid desktop request".into());
         }
         let bytes = tokio::fs::read(file).await.map_err(|e| e.to_string())?;
@@ -138,7 +215,11 @@ async fn handle(app: AppHandle, dir: PathBuf, file: PathBuf) {
         dispatch(&app, request).await
     }
     .await;
-    let reply = match result {
+    let _ = write_packet(&dir, "reply", &workspace_reply(id, result));
+}
+
+fn workspace_reply(id: String, result: Result<Value, String>) -> WorkspaceReply {
+    match result {
         Ok(value) => WorkspaceReply {
             id,
             value,
@@ -149,8 +230,7 @@ async fn handle(app: AppHandle, dir: PathBuf, file: PathBuf) {
             value: Value::Null,
             error: Some(e),
         },
-    };
-    let _ = write_packet(&dir, "reply", &reply);
+    }
 }
 
 fn host_error(e: agentero_core::error::AppError) -> Value {
