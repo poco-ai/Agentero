@@ -381,7 +381,7 @@ function ElementSelectionButton({
 	const label = !available
 		? t("figures.selectionNeedsLayout")
 		: selecting
-			? t("figures.exitElementSelection")
+			? `${t("figures.exitElementSelection")} · ${t("figures.cropHint")}`
 			: t("figures.selectElements");
 
 	return (

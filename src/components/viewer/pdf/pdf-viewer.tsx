@@ -18,6 +18,7 @@ import {
 import {
 	GlobalPointerProvider,
 	InteractionManagerPluginPackage,
+	useInteractionManagerCapability,
 } from "@embedpdf/plugin-interaction-manager/react";
 import {
 	LayoutAnalysisPluginPackage,
@@ -607,6 +608,7 @@ function PdfViewerInner({
 	usePdfScrollSync(docId);
 	usePdfReadingMode(docId);
 	const { provides: selectionCap } = useSelectionCapability();
+	const { provides: interactionCap } = useInteractionManagerCapability();
 	const { provides: annotationCap } = useAnnotationCapability();
 	const { provides: docCap } = useDocumentManagerCapability();
 	const { provides: bookmarkCap } = useBookmarkCapability();
@@ -1061,7 +1063,15 @@ function PdfViewerInner({
 		// instant word/line selection of that same gesture must not open a second
 		// toolbar underneath it (#1175).
 		suppressSelectionMenu: () => {
-			const action = layoutElementActionStore.getState().action;
+			const state = layoutElementActionStore.getState();
+			if (
+				state.cropGestureDocumentId &&
+				layoutSentenceScope(state.cropGestureDocumentId) ===
+					layoutSentenceScope(docId)
+			) {
+				return true;
+			}
+			const action = state.action;
 			return (
 				action != null &&
 				layoutSentenceScope(action.docId) === layoutSentenceScope(docId)
@@ -2108,13 +2118,7 @@ function PdfViewerInner({
 	const elementSelecting =
 		elementSelectionEnabled && !plainViewer && !isRemotePaper;
 	const toggleElementSelection = useCallback(() => {
-		if (
-			plainViewer ||
-			isRemotePaper ||
-			!engine ||
-			(!elementSelectionEnabled && selectableRegionsByPage.size === 0)
-		)
-			return;
+		if (plainViewer || isRemotePaper || !engine) return;
 		closeSelectionMenu();
 		selectionCap?.clear(docId);
 		setLayoutElementSelection(docId, !elementSelectionEnabled);
@@ -2124,9 +2128,44 @@ function PdfViewerInner({
 		plainViewer,
 		isRemotePaper,
 		engine,
-		selectableRegionsByPage,
 		closeSelectionMenu,
 		selectionCap,
+	]);
+
+	const cropGestureDocumentId = useStore(
+		layoutElementActionStore,
+		(state) => state.cropGestureDocumentId,
+	);
+	const cropGestureActive =
+		cropGestureDocumentId != null &&
+		layoutSentenceScope(cropGestureDocumentId) === layoutSentenceScope(docId);
+	useEffect(() => {
+		if (!cropGestureActive) return;
+		const mode =
+			interactionCap?.forDocument(docId).getActiveMode() ?? "pointerMode";
+		selectionCap?.clear(docId);
+		closeSelectionMenu();
+		const pointerMode = {
+			enableSelection: false,
+			showSelectionRects: true,
+			enableMarquee: false,
+			showMarqueeRects: true,
+		};
+		selectionCap?.enableForMode(mode, pointerMode, docId);
+		return () => {
+			selectionCap?.enableForMode(
+				mode,
+				{ ...pointerMode, enableSelection: true },
+				docId,
+			);
+			selectionCap?.clear(docId);
+		};
+	}, [
+		cropGestureActive,
+		docId,
+		interactionCap,
+		selectionCap,
+		closeSelectionMenu,
 	]);
 
 	useEffect(() => {
@@ -3346,7 +3385,7 @@ function PdfViewerInner({
 					onZoomChange={handleZoomSliderChange}
 					onFitWidth={handleFitWidth}
 					elementSelecting={elementSelecting}
-					elementSelectionAvailable={selectableRegionsByPage.size > 0}
+					elementSelectionAvailable={Boolean(engine)}
 					elementSelectionDisabled={!engine}
 					onToggleElementSelection={
 						plainViewer || immersiveReading || isRemotePaper

@@ -239,6 +239,8 @@
 	"figures": {
 		"selectElements": "选择版面元素",
 		"exitElementSelection": "退出元素选择（Esc）",
+		"cropHint": "按住 Alt/⌥ 拖拽框选区域",
+		"kindRegion": "框选区域",
 		"selectedElements": "已选 {{count}} 个元素",
 		"selectionNeedsLayout": "完成版面分析后可选择元素",
 		"title": "解析",

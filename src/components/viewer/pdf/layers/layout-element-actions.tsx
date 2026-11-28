@@ -80,8 +80,10 @@ function elementContext(
 	heading: string,
 ) {
 	const regions =
-		layoutAnalysisStore.getState().byDocument[layoutDocumentKey(docId)]
-			?.regions ?? [];
+		member.source === "element"
+			? (layoutAnalysisStore.getState().byDocument[layoutDocumentKey(docId)]
+					?.regions ?? [])
+			: [];
 	const region = regions.find((item) => item.id === member.regionId);
 	const located =
 		region?.text && member.quote
@@ -200,6 +202,7 @@ function LayoutElementMenu({
 	const { docId, pageIndex } = action;
 	const actionAnchor = anchorLayoutElementAction(action);
 	const labelForMember = (member: LayoutElementActionMember) => {
+		if (member.kind === "region") return t("figures.kindRegion");
 		if (member.sentence) return t("figures.kindSentence");
 		return t(layoutKindI18nKey(member.kind));
 	};
@@ -210,7 +213,11 @@ function LayoutElementMenu({
 	const textMembers: LayoutElementActionMember[] = [];
 	const visualMembers: LayoutElementActionMember[] = [];
 	for (const member of action.members) {
-		if (layoutElementNeedsCrop(member.kind) || !member.quote.trim()) {
+		if (
+			member.kind === "region" ||
+			layoutElementNeedsCrop(member.kind) ||
+			!member.quote.trim()
+		) {
 			visualMembers.push(member);
 		} else {
 			textMembers.push(member);

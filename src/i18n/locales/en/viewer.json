@@ -241,6 +241,8 @@
 	"figures": {
 		"selectElements": "Select layout elements",
 		"exitElementSelection": "Exit element selection (Esc)",
+		"cropHint": "Hold Alt/⌥ and drag to crop a region",
+		"kindRegion": "Region",
 		"selectedElements": "{{count}} elements selected",
 		"selectionNeedsLayout": "Run layout analysis to select elements",
 		"title": "Analysis",

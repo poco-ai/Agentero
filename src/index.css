@@ -899,6 +899,16 @@
 	stroke-linecap: round;
 	vector-effect: non-scaling-stroke;
 }
+.is-layout-crop-ready,
+.is-layout-crop-ready *,
+.is-layout-crop-dragging,
+.is-layout-crop-dragging * {
+	/* biome-ignore lint/complexity/noImportantStyles: must beat EmbedPDF's inline cursor */
+	cursor: crosshair !important;
+}
+.is-layout-crop-dragging {
+	user-select: none;
+}
 /* A held sentence is the double-click selection or a pinned sentence action,
  * so it carries the same themed fill as a drag selection. */
 .pdf-layout-sentence-wash.is-held > span {

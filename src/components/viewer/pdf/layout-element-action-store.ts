@@ -17,14 +17,15 @@ export type LayoutElementScreen = ScreenPoint & {
 	};
 };
 
-/** One selected layout element. */
+/** One selected layout element, or one explicit crop rectangle. */
 export type LayoutElementActionMember = {
 	/** Identity of this selection, including the sentence when one was hit. */
 	id: string;
+	source: "element" | "region";
 	/** Layout region that supplies the element kind and surrounding text. */
-	regionId: string;
+	regionId?: string;
 	pageIndex: number;
-	kind: PdfLayoutKind;
+	kind: PdfLayoutKind | "region";
 	quote: string;
 	/** Main bbox. Visual members are cropped from this box. */
 	bbox: PdfAskNormalizedRect;
@@ -50,10 +51,16 @@ type LayoutElementActionState = {
 	action: LayoutElementAction | null;
 	/** One inspection mode shared by a source PDF and its translation pane. */
 	selectionDocumentId: string | null;
+	/** A modifier-drag crop is in progress; PDF text selection stays off. */
+	cropGestureDocumentId: string | null;
 };
 
 export const layoutElementActionStore = createStore<LayoutElementActionState>(
-	() => ({ action: null, selectionDocumentId: null }),
+	() => ({
+		action: null,
+		selectionDocumentId: null,
+		cropGestureDocumentId: null,
+	}),
 );
 
 export function setLayoutElementSelection(
@@ -66,6 +73,7 @@ export function setLayoutElementSelection(
 	layoutElementActionStore.setState({
 		selectionDocumentId: enabled ? scope : null,
 		action: null,
+		cropGestureDocumentId: null,
 	});
 }
 
@@ -86,6 +94,20 @@ export function anchorLayoutElementAction(
 export function closeLayoutElementAction(): void {
 	if (!layoutElementActionStore.getState().action) return;
 	layoutElementActionStore.setState({ action: null });
+}
+
+export function beginLayoutElementCropGesture(docId: string): void {
+	if (layoutElementActionStore.getState().cropGestureDocumentId === docId) {
+		return;
+	}
+	layoutElementActionStore.setState({ cropGestureDocumentId: docId });
+}
+
+export function endLayoutElementCropGesture(docId: string): void {
+	if (layoutElementActionStore.getState().cropGestureDocumentId !== docId) {
+		return;
+	}
+	layoutElementActionStore.setState({ cropGestureDocumentId: null });
 }
 
 export function moveLayoutElementAction(screen: LayoutElementScreen): void {

@@ -39,6 +39,8 @@ export const EMPTY_LAYOUT_REGIONS_BY_PAGE: ReadonlyMap<
 	PdfLayoutRegion[]
 > = new Map();
 
+export const EMPTY_LAYOUT_REGIONS: PdfLayoutRegion[] = [];
+
 export const EMPTY_PINS: SelectionPin[] = [];
 
 export const EMPTY_COMMENTS: PageAnnotationComment[] = [];

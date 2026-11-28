@@ -47,6 +47,7 @@ import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surfa
 import {
 	EMPTY_CITATION_LINKS,
 	EMPTY_COMMENTS,
+	EMPTY_LAYOUT_REGIONS,
 	EMPTY_PINS,
 	PAGE_LAYER_STYLE,
 	PDF_WORKER_SETTLE_MS,
@@ -770,11 +771,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		};
 	}, [selectionArmed]);
 	const pageNumber = pageIndex + 1;
-	const selectableOnPage =
-		!immersiveReading && !mode.plainViewer && mode.elementSelecting
-			? layout.selectableRegionsByPage.get(pageIndex)
-			: undefined;
-	const elementSelecting = Boolean(selectableOnPage?.length);
+	const elementSelecting =
+		!immersiveReading && !mode.plainViewer && Boolean(mode.elementSelecting);
+	const selectableOnPage = elementSelecting
+		? (layout.selectableRegionsByPage.get(pageIndex) ?? EMPTY_LAYOUT_REGIONS)
+		: undefined;
 	const activeAskOnPage =
 		marks.activeAskAnchor?.page === pageNumber ? marks.activeAskAnchor : null;
 	const activeTranslateOnPage =
@@ -1066,6 +1067,12 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	};
 
 	const handlePageClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
+		if (pageShellRef.current?.hasAttribute("data-layout-crop-release")) {
+			pageShellRef.current.removeAttribute("data-layout-crop-release");
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
 		if ((event.target as Element | null)?.closest("[data-pdf-chrome]")) return;
 		// A translation overlay selection is a real DOM range; page clicks must not
 		// steal it. Selections elsewhere in the app (notes, Agent panel) must not
@@ -1662,7 +1669,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				 * hit-tests the page shell. Hidden while ⌘. marquee is active and
 				 * on PDFs outside papers/. Absent analysis yields no regions.
 				 */}
-				{elementSelecting && selectableOnPage ? (
+				{selectableOnPage ? (
 					<LayoutElementSelectionLayer
 						docId={docId}
 						pageIndex={pageIndex}
