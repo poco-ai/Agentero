@@ -223,10 +223,16 @@ export function estimateCommentCardHeight(
 					),
 				)
 			: 0;
+	const groupedLines =
+		!editing && item.elementKinds && item.elementKinds.length > 1 ? 1 : 0;
+	const quoteLines =
+		!editing && item.kind === "visual" && item.quote.trim()
+			? clampedLines(item.quote, 2)
+			: 0;
 	return (
 		CARD_BASE_HEIGHT_PX +
 		commentLines * CARD_LINE_HEIGHT_PX +
-		conversationPreviewLines * CARD_LINE_HEIGHT_PX
+		(conversationPreviewLines + groupedLines + quoteLines) * CARD_LINE_HEIGHT_PX
 	);
 }
 
@@ -736,6 +742,18 @@ const CommentCard = memo(function CommentCard({
 								color={item.color}
 								shape={item.shape}
 							/>
+							{item.elementKinds && item.elementKinds.length > 1 ? (
+								<p className="mt-1 text-caption text-muted-foreground/80">
+									{t("annotations.groupedElements", {
+										count: item.elementKinds.length,
+									})}
+								</p>
+							) : null}
+							{item.kind === "visual" && item.quote.trim() ? (
+								<blockquote className="mt-1 line-clamp-2 border-border/70 border-l-2 pl-2 text-muted-foreground text-xs leading-relaxed">
+									{item.quote}
+								</blockquote>
+							) : null}
 							<div
 								className={cn(
 									"mt-1 break-words text-sm leading-relaxed",

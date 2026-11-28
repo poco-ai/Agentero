@@ -191,6 +191,7 @@
 		"editorLabel": "Annotation note",
 		"pinAria": "Open annotation: {{preview}}",
 		"panelAria": "Asks and visual notes for this paper",
+		"groupedElements": "Grouped annotation · {{count}} elements",
 		"sectionAsks": "Conversations",
 		"sectionVisual": "Visual annotations",
 		"askTurns": "{{count}} messages",
@@ -240,6 +241,7 @@
 	"figures": {
 		"selectElements": "Select layout elements",
 		"exitElementSelection": "Exit element selection (Esc)",
+		"selectedElements": "{{count}} elements selected",
 		"selectionNeedsLayout": "Run layout analysis to select elements",
 		"title": "Analysis",
 		"panelAria": "Figures, tables, algorithms, and formulas of this paper",

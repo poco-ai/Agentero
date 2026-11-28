@@ -85,6 +85,7 @@ type PointerQuery = {
 	x: number;
 	y: number;
 	span?: { itemId: string; sentenceIndex: number } | null;
+	elementSelection?: boolean;
 };
 
 type CatalogSlot = { scope: string; items: CatalogItem[] };
@@ -240,6 +241,10 @@ function publish(next: LayoutSentenceHover | null): void {
 
 export function layoutSentenceHover(): LayoutSentenceHover | null {
 	return held ?? hover;
+}
+
+export function layoutSentencePointerHover(): LayoutSentenceHover | null {
+	return hover;
 }
 
 export function subscribeLayoutSentenceHover(listener: () => void): () => void {
@@ -742,11 +747,12 @@ function applyPointer(query: PointerQuery, track = false): void {
 	) {
 		primeLayoutSentenceGlyphs(query.pageIndex, query.docId);
 	}
-	if (pointerInCurrentSentence(query)) {
+	if (track && pointerInCurrentSentence(query)) {
 		lastSample = query;
 		return;
 	}
-	const samples = track ? samplesNearPointer(query) : null;
+	const samples =
+		track && !query.elementSelection ? samplesNearPointer(query) : null;
 	lastSample = query;
 	let locate = locateSentence(scope, query);
 	let chosen = query;
@@ -764,6 +770,8 @@ function applyPointer(query: PointerQuery, track = false): void {
 	if (locate.status === "pending") {
 		primeLayoutSentenceGlyphs(query.pageIndex, query.docId);
 		if (
+			track &&
+			!query.elementSelection &&
 			hover &&
 			layoutSentenceScope(hover.docId) === scope &&
 			hover.regionId === query.regionId
@@ -815,6 +823,8 @@ subscribeTranslatedLinkSource(() => {
 
 /** Pointer is choosing a sentence. No-op while a text drag owns the page. */
 export function syncLayoutSentencePointer(query: PointerQuery): void {
+	if (held && query.elementSelection)
+		releaseHeldLayoutSentenceHover(held.docId);
 	lastQuery = query;
 	applyPointer(query, true);
 }

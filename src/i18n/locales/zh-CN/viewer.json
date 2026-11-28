@@ -191,6 +191,7 @@
 		"editorLabel": "批注备注",
 		"pinAria": "打开批注：{{preview}}",
 		"panelAria": "本论文的提问与视觉批注",
+		"groupedElements": "组合批注 · {{count}} 个元素",
 		"sectionAsks": "对话",
 		"sectionVisual": "视觉批注",
 		"askTurns": "{{count}} 条消息",
@@ -238,6 +239,7 @@
 	"figures": {
 		"selectElements": "选择版面元素",
 		"exitElementSelection": "退出元素选择（Esc）",
+		"selectedElements": "已选 {{count}} 个元素",
 		"selectionNeedsLayout": "完成版面分析后可选择元素",
 		"title": "解析",
 		"panelAria": "本论文的插图、表格、算法与公式",

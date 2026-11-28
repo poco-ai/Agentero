@@ -5,7 +5,14 @@
  * nothing here scrolls the partner pane.
  */
 
-import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
+import {
+	Fragment,
+	type RefObject,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+} from "react";
+import { useTranslation } from "react-i18next";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
 import { layoutElementActionStore } from "@/components/viewer/pdf/layout-element-action-store";
 import {
@@ -15,6 +22,7 @@ import {
 	layoutSentenceCatalogItems,
 	layoutSentenceHover,
 	layoutSentenceLineRects,
+	layoutSentencePointerHover,
 	releaseHeldLayoutSentenceHover,
 	releaseLayoutSentenceHover,
 	sentenceForActivation,
@@ -28,6 +36,8 @@ import {
 } from "@/lib/pdf/layout";
 import {
 	companionReflowSentenceBands,
+	type SentenceFractionRect,
+	sentenceOutlinePath,
 	sourceSentenceHoverBands,
 } from "@/lib/pdf/layout/element-sentence";
 import {
@@ -181,7 +191,7 @@ export function usePdfSentenceInteraction(
 			)
 				return;
 			const page = event.target.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`);
-			if (!page) return;
+			if (!page || page.hasAttribute("data-layout-element-selection")) return;
 			const box = page.getBoundingClientRect();
 			const pageIndex = Number(page.getAttribute(EMBED_PAGE_ATTR));
 			if (!box.width || !box.height || !Number.isInteger(pageIndex)) return;
@@ -217,172 +227,260 @@ export function usePdfSentenceInteraction(
 	}, [docId, hostRef, enabled]);
 }
 
-/**
- * Paints the hovered sentence on one translation page.
- * Mounting the page is what paints an off-screen sentence once it is visible.
- */
+/** Visible sentence lines also anchor the action menu on translated pages. */
+export function translatedSentenceRects(
+	shell: HTMLElement,
+	pageIndex: number,
+	sentence: LayoutSentenceHover,
+	page = shell.getBoundingClientRect(),
+): SentenceFractionRect[] {
+	if (!page.width || !page.height) return [];
+	const range = document.createRange();
+	return sentence.members.flatMap((member) => {
+		if (member.pageIndex !== pageIndex) return [];
+		const nodes = shell.querySelectorAll<HTMLElement>(
+			`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
+		);
+		return Array.from(nodes).flatMap((node) => {
+			range.selectNodeContents(node);
+			return translatedSelectionLineRects(shell, range).map((line) => ({
+				x: (line.left - page.left) / page.width,
+				y: (line.top - page.top) / page.height,
+				w: line.width / page.width,
+				h: line.height / page.height,
+			}));
+		});
+	});
+}
+
+function sentenceBandsOnPage(
+	shell: HTMLElement,
+	docId: string,
+	pageIndex: number,
+	source: boolean,
+	sentence: LayoutSentenceHover,
+	page: DOMRect,
+): SentenceFractionRect[] {
+	const members = sentence.members.filter(
+		(member) => member.pageIndex === pageIndex,
+	);
+	if (!members.length || !page.width || !page.height) return [];
+	if (!source) {
+		const rendered = translatedSentenceRects(shell, pageIndex, sentence, page);
+		const translated = rendered.length
+			? rendered
+			: companionReflowSentenceBands(
+					layoutSentenceCatalogItems(docId),
+					members,
+					pageIndex,
+				);
+		if (translated?.length) {
+			return translated.map((rect) => ({ ...rect, y: rect.y - rect.h * 0.12 }));
+		}
+	}
+	const glyphs = members.flatMap((member) => member.rects);
+	const rects = glyphs.length
+		? glyphs
+		: sentence.pageIndex === pageIndex
+			? sentence.rects
+			: [];
+	const lines = layoutSentenceLineRects(docId, pageIndex);
+	return sourceSentenceHoverBands(
+		rects,
+		Math.round(page.width),
+		Math.round(page.height),
+		lines.length ? lines : undefined,
+	);
+}
+
+function paintSentenceBands(
+	layer: HTMLElement,
+	rects: readonly SentenceFractionRect[],
+) {
+	const visible = rects.length > 0;
+	if (!visible && !layer.childElementCount) return;
+	const content = document.createDocumentFragment();
+	for (const rect of rects) {
+		const node = document.createElement("span");
+		Object.assign(node.style, {
+			left: `${rect.x * 100}%`,
+			top: `${rect.y * 100}%`,
+			width: `${rect.w * 100}%`,
+			height: `${rect.h * 100}%`,
+		});
+		content.append(node);
+	}
+	layer.classList.toggle("is-on", visible);
+	layer.replaceChildren(content);
+}
+
+/** One painter per page, with independent bands for hover and selected sentences. */
 export function PdfSentenceHighlight({
 	docId,
 	pageIndex,
 	source = false,
+	elementSelection = false,
 }: {
 	docId: string;
 	pageIndex: number;
 	source?: boolean;
+	elementSelection?: boolean;
 }) {
-	const ref = useRef<HTMLDivElement>(null);
+	const { t } = useTranslation("viewer");
+	const selectedRef = useRef<HTMLDivElement>(null);
+	const hoverRef = useRef<HTMLDivElement>(null);
+	const frameRef = useRef<SVGSVGElement>(null);
+	const outlineRef = useRef<SVGPathElement>(null);
+	const chipRef = useRef<HTMLSpanElement>(null);
+	const repaintRef = useRef<(() => void) | null>(null);
 	useLayoutEffect(() => {
-		const layer = ref.current;
-		const shell = layer?.parentElement;
-		if (!layer || !shell) return;
-		let paintedKey: string | null = null;
+		const selectedLayer = selectedRef.current;
+		const hoverLayer = hoverRef.current;
+		const frames = frameRef.current;
+		const outline = outlineRef.current;
+		const chip = chipRef.current;
+		const shell = hoverLayer?.parentElement;
+		if (!selectedLayer || !hoverLayer || !shell) return;
+		let hoverHost: HTMLElement | null = null;
 
-		const bands = () => Array.from(layer.children) as HTMLElement[];
+		const setHoverHost = (host: HTMLElement | null) => {
+			if (host === hoverHost) return;
+			hoverHost?.classList.remove("has-sentence");
+			hoverHost = host;
+			hoverHost?.classList.add("has-sentence");
+		};
+		const bandsFor = (sentence: LayoutSentenceHover, page: DOMRect) =>
+			sentenceBandsOnPage(shell, docId, pageIndex, source, sentence, page);
 
-		/** Drop the previous sentence before the new bands paint. */
-		const retireBands = (nodes: readonly HTMLElement[]) => {
-			for (const node of nodes) node.remove();
-			layer.classList.remove("is-on");
+		const paintSelected = () => {
+			const { action } = layoutElementActionStore.getState();
+			if (
+				!action ||
+				layoutSentenceScope(action.docId) !== layoutSentenceScope(docId)
+			) {
+				paintSentenceBands(selectedLayer, []);
+				return;
+			}
+			const page = shell.getBoundingClientRect();
+			const bands = action.members.flatMap(({ sentence }) =>
+				sentence ? bandsFor(sentence, page) : [],
+			);
+			paintSentenceBands(selectedLayer, bands);
 		};
 
-		const clear = () => {
-			if (paintedKey === null && !layer.classList.contains("is-on")) return;
-			paintedKey = null;
-			layer.classList.remove("is-held");
-			retireBands(bands());
-		};
-		const paint = () => {
-			const action = layoutElementActionStore.getState().action;
-			const current = action ? action.sentence : layoutSentenceHover();
+		const paintHover = () => {
+			const scope = layoutSentenceScope(docId);
+			const inspecting =
+				elementSelection ||
+				layoutElementActionStore.getState().selectionDocumentId === scope;
+			const current = inspecting
+				? layoutSentencePointerHover()
+				: layoutSentenceHover();
+			const heldDocument = inspecting ? null : heldLayoutSentenceDocument();
 			const mine =
 				current &&
-				layoutSentenceScope(current.docId) === layoutSentenceScope(docId)
+				layoutSentenceScope(current.docId) === scope &&
+				(source || heldDocument !== docId)
 					? current
 					: null;
-			const selectedDocument =
-				action?.sentence?.docId ?? heldLayoutSentenceDocument();
-			// The translated side keeps its native DOM selection tint; the source
-			// PDF has no DOM text, so this layer owns its held sentence band.
-			if (!mine || (!action && !source && selectedDocument === docId)) {
-				clear();
-				return;
+			const page = mine?.members.some(
+				(member) => member.pageIndex === pageIndex,
+			)
+				? shell.getBoundingClientRect()
+				: null;
+			const bands = mine && page ? bandsFor(mine, page) : [];
+			hoverLayer.classList.toggle("is-held", Boolean(heldDocument && mine));
+			paintSentenceBands(hoverLayer, bands);
+
+			if (!frames || !outline || !chip) return;
+			const host =
+				mine?.docId === docId && mine.pageIndex === pageIndex && bands.length
+					? shell.querySelector<HTMLElement>(
+							`[data-layout-element="${CSS.escape(mine.regionId)}"]`,
+						)
+					: null;
+			setHoverHost(host);
+			if (host && page) {
+				frames.setAttribute("viewBox", `0 0 ${page.width} ${page.height}`);
+				outline.setAttribute(
+					"d",
+					sentenceOutlinePath(bands, page.width, page.height),
+				);
+			} else if (outline.hasAttribute("d")) {
+				outline.removeAttribute("d");
 			}
-			if (!mine.members.some((member) => member.pageIndex === pageIndex)) {
-				clear();
-				return;
+			const first = host ? bands[0] : undefined;
+			chip.hidden = !first;
+			if (first) {
+				chip.style.left = `${first.x * 100}%`;
+				chip.style.top = `${first.y * 100}%`;
 			}
-			const box = shell.getBoundingClientRect();
-			if (!box.width || !box.height) return;
-			const content = document.createDocumentFragment();
-			const append = (
-				x: number,
-				y: number,
-				w: number,
-				h: number,
-				sourceGeometry = false,
-			) => {
-				const band = document.createElement("span");
-				band.className = "pdf-sentence-band";
-				if (sourceGeometry) band.dataset.sourceGeometry = "";
-				Object.assign(band.style, {
-					left: `${x * 100}%`,
-					top: `${y * 100}%`,
-					width: `${w * 100}%`,
-					height: `${h * 100}%`,
-				});
-				content.append(band);
-			};
-			const appendSourceBands = () => {
-				const lines = layoutSentenceLineRects(docId, pageIndex);
-				for (const rect of sourceSentenceHoverBands(
-					mine.members
-						.filter((member) => member.pageIndex === pageIndex)
-						.flatMap((member) => member.rects),
-					Math.round(box.width),
-					Math.round(box.height),
-					lines.length ? lines : undefined,
-				))
-					append(rect.x, rect.y, rect.w, rect.h, true);
-			};
-			if (source) {
-				appendSourceBands();
-			} else {
-				for (const member of mine.members) {
-					if (member.pageIndex !== pageIndex) continue;
-					for (const node of shell.querySelectorAll<HTMLElement>(
-						`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
-					)) {
-						const range = document.createRange();
-						range.selectNodeContents(node);
-						for (const line of translatedSelectionLineRects(shell, range)) {
-							append(
-								(line.left - box.left) / box.width,
-								(line.top - box.top) / box.height,
-								line.width / box.width,
-								line.height / box.height,
-							);
-						}
-					}
-				}
-				// Reflow not finished, or the block has no sentence spans: the
-				// translation page is still the source PDF, or the placed
-				// translation has no `[data-sentence]` node. Either way a cleared
-				// layer is the bug — paint the placed translation, then the
-				// source glyphs.
-				if (!content.childElementCount) {
-					const placed = companionReflowSentenceBands(
-						layoutSentenceCatalogItems(docId),
-						mine.members,
-						pageIndex,
-					);
-					if (placed?.length) {
-						for (const rect of placed) append(rect.x, rect.y, rect.w, rect.h);
-					} else {
-						appendSourceBands();
-					}
-				}
-			}
-			if (!content.childElementCount) {
-				clear();
-				return;
-			}
-			// The new sentence paints on the same frame the pointer moved.
-			const sameSentence = paintedKey === mine.key;
-			const previous = bands();
-			if (sameSentence) {
-				// Zoom / resize on the same sentence: replace in place.
-				for (const node of previous) node.remove();
-			} else {
-				retireBands(previous);
-			}
-			paintedKey = mine.key;
-			// A hovered sentence is a light wash, a pinned one a denser wash; the
-			// weights live in index.css so no caller sets an opacity (see there).
-			layer.classList.toggle("is-held", Boolean(selectedDocument));
-			layer.append(content);
-			layer.classList.add("is-on");
 		};
-		const unsubscribe = subscribeLayoutSentenceHover(paint);
-		const unsubscribeAction = layoutElementActionStore.subscribe(paint);
+
+		const repaint = () => {
+			paintSelected();
+			paintHover();
+		};
+		repaintRef.current = repaint;
+		const unsubscribeHover = subscribeLayoutSentenceHover(paintHover);
+		const unsubscribeAction = layoutElementActionStore.subscribe(
+			(state, previous) => {
+				if (state.action?.members !== previous.action?.members) paintSelected();
+				if (state.selectionDocumentId !== previous.selectionDocumentId)
+					paintHover();
+			},
+		);
 		const observer =
-			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(paint);
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(repaint);
 		observer?.observe(shell);
-		paint();
+
 		return () => {
-			unsubscribe();
+			repaintRef.current = null;
+			unsubscribeHover();
 			unsubscribeAction();
 			observer?.disconnect();
-			layer.replaceChildren();
-			layer.classList.remove("is-on", "is-held");
+			setHoverHost(null);
 		};
-	}, [docId, pageIndex, source]);
+	}, [docId, pageIndex, source, elementSelection]);
+	useLayoutEffect(() => {
+		repaintRef.current?.();
+	});
+
 	return (
-		<div
-			ref={ref}
-			className="pdf-layout-sentence-wash"
-			data-source-sentence={source || undefined}
-			style={{ zIndex: source ? 6 : 4 }}
-			aria-hidden="true"
-		/>
+		<Fragment>
+			<div
+				ref={selectedRef}
+				className="pdf-layout-sentence-wash is-held"
+				style={{ zIndex: source ? 6 : 4 }}
+				aria-hidden="true"
+			/>
+			<div
+				ref={hoverRef}
+				className="pdf-layout-sentence-wash"
+				style={{ zIndex: source ? 6 : 4 }}
+				aria-hidden="true"
+			/>
+			{elementSelection ? (
+				<Fragment>
+					<svg
+						ref={frameRef}
+						className="pdf-layout-sentence-frames"
+						aria-hidden="true"
+					>
+						<path ref={outlineRef} />
+					</svg>
+					<span
+						ref={chipRef}
+						className="pdf-layout-element-chip pdf-layout-sentence-chip"
+						aria-hidden="true"
+						hidden
+					>
+						{t("figures.kindSentence")}
+					</span>
+				</Fragment>
+			) : null}
+		</Fragment>
 	);
 }

@@ -1,8 +1,4 @@
-/**
- * Open action view for one layout element.
- * Hover highlighting stays on the page DOM; this store only changes when
- * the user clicks or presses Enter, so pointer moves do not re-render pages.
- */
+/** Selected elements and their action menu. Pointer hover lives separately. */
 
 import { createStore } from "zustand/vanilla";
 import type { LayoutSentenceHover } from "@/components/viewer/pdf/layout-sentence-hover";
@@ -21,21 +17,33 @@ export type LayoutElementScreen = ScreenPoint & {
 	};
 };
 
-export type LayoutElementAction = {
-	docId: string;
+/** One selected layout element. */
+export type LayoutElementActionMember = {
+	/** Identity of this selection, including the sentence when one was hit. */
+	id: string;
+	/** Layout region that supplies the element kind and surrounding text. */
 	regionId: string;
 	pageIndex: number;
 	kind: PdfLayoutKind;
 	quote: string;
-	/** Main bbox. Non-text elements are cropped from this box. */
+	/** Main bbox. Visual members are cropped from this box. */
 	bbox: PdfAskNormalizedRect;
-	/** Every box that belongs to the element, for the chat pin and translate anchor. */
+	/** Every box that belongs to the member, for frames and anchors. */
 	rects: PdfAskNormalizedRect[];
 	/** Rendered sentence geometry for placing the menu on the translation. */
 	visibleRects?: PdfAskNormalizedRect[];
-	screen: LayoutElementScreen;
-	/** Clicked sentence stays painted until this action view is dismissed. */
+	/** Sentence geometry for selection highlights in either pane. */
 	sentence?: LayoutSentenceHover;
+};
+
+export type LayoutElementAction = {
+	docId: string;
+	/** Page of the action menu anchor. All members share this page. */
+	pageIndex: number;
+	/** Member the menu is anchored to. */
+	anchorId: string;
+	members: LayoutElementActionMember[];
+	screen: LayoutElementScreen;
 };
 
 type LayoutElementActionState = {
@@ -63,6 +71,16 @@ export function setLayoutElementSelection(
 
 export function openLayoutElementAction(action: LayoutElementAction): void {
 	layoutElementActionStore.setState({ action });
+}
+
+export function anchorLayoutElementAction(
+	action: LayoutElementAction,
+): LayoutElementActionMember {
+	const anchor =
+		action.members.find((member) => member.id === action.anchorId) ??
+		action.members.at(0);
+	if (!anchor) throw new Error("Layout element action has no members");
+	return anchor;
 }
 
 export function closeLayoutElementAction(): void {

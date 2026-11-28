@@ -805,6 +805,7 @@
 }
 [data-layout-element].is-hot > .pdf-layout-element-frame,
 [data-layout-element].is-hot > .pdf-layout-element-chip,
+[data-layout-element].is-pinned > .pdf-layout-element-chip,
 [data-layout-element]:focus-within > .pdf-layout-element-frame,
 [data-layout-element]:focus-within > .pdf-layout-element-chip {
 	opacity: 1;
@@ -819,7 +820,9 @@
 	background: var(--pdf-mark-frame-fill);
 	pointer-events: none;
 }
-[data-layout-element].is-pinned > .pdf-layout-element-frame {
+[data-layout-element].is-selected > .pdf-layout-element-frame {
+	opacity: 1;
+	transition: none;
 	border-width: 2px;
 	border-color: var(--pdf-mark-pinned-edge);
 	background: var(--pdf-mark-pinned-fill);
@@ -841,6 +844,7 @@
 	box-shadow: var(--shadow-raised);
 }
 [data-layout-element].is-hot > .pdf-layout-element-chip,
+[data-layout-element].is-pinned > .pdf-layout-element-chip,
 [data-layout-element]:focus-within > .pdf-layout-element-chip {
 	pointer-events: auto;
 }
@@ -877,23 +881,31 @@
 }
 .pdf-layout-sentence-wash > span {
 	position: absolute;
-	transform: translateY(-12%);
 	border-radius: 2px;
 	background: var(--pdf-paper-ink);
+}
+.pdf-layout-sentence-frames {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 7;
+	overflow: visible;
+	pointer-events: none;
+}
+.pdf-layout-sentence-frames > path {
+	fill: none;
+	stroke: var(--pdf-mark-frame-edge);
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
 }
 /* A held sentence is the double-click selection or a pinned sentence action,
  * so it carries the same themed fill as a drag selection. */
 .pdf-layout-sentence-wash.is-held > span {
 	background: var(--pdf-mark-selection-fill);
 }
-.pdf-layout-sentence-wash[data-source-sentence] > span,
-.pdf-layout-sentence-wash > span[data-source-geometry],
 .pdf-live-selection-band[data-source-sentence] {
 	transform: none;
-}
-[data-sentence][data-sentence-hot] {
-	border-radius: 1px;
-	background-color: var(--pdf-mark-hover-fill);
 }
 /* Text selection. The layer carries the alpha, not each band, so overlapping
  * rects inside one drag cannot stack into a darker patch. It shares its weight

@@ -21,6 +21,7 @@ import {
 	useCallback,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { addSelectionToChat } from "@/components/selection/add-selection-to-chat";
 import type { PromptImage } from "@/lib/agent";
 import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import { addVisualDraft } from "@/lib/agent/visual-context-store";
@@ -30,6 +31,7 @@ import {
 	createNoteTrace,
 	deletePdfVisualTrace,
 	type PdfVisualSessionTrace,
+	type PdfVisualTraceElement,
 	writePdfVisualTrace,
 } from "@/lib/pdf/agent-trace";
 import { loadPdfVisualTraceImage } from "@/lib/pdf/agent-trace/image";
@@ -50,7 +52,9 @@ export type PdfVisualMarks = {
 	/** Save an element note only after the editor submits a comment. */
 	saveVisualNote: (
 		page: number,
-		region: PdfAskNormalizedRect,
+		rects: PdfAskNormalizedRect[],
+		quote: string,
+		elements: PdfVisualTraceElement[] | undefined,
 		comment: string,
 		image: PromptImage,
 	) => Promise<void>;
@@ -72,11 +76,13 @@ export function usePdfVisualMarks({
 	const { t } = useTranslation("viewer");
 
 	const saveVisualNote = useCallback<PdfVisualMarks["saveVisualNote"]>(
-		async (page, region, comment, image) => {
+		async (page, rects, quote, elements, comment, image) => {
 			const trace = createNoteTrace({
 				paperPath: paperRelPath ?? paperAbsPath ?? "paper",
 				page,
-				rects: [region],
+				rects,
+				quote,
+				elements,
 				comment,
 				image,
 			});
@@ -143,6 +149,16 @@ export function usePdfVisualMarks({
 						mimeType: image.mimeType || "image/png",
 					},
 				});
+				if (latest.quote?.trim()) {
+					addSelectionToChat({
+						text: latest.quote.trim(),
+						sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
+						origin: "pdf",
+						page: latest.page,
+						rects: latest.rects,
+						paperAbsPath: paperAbsPath ?? undefined,
+					});
+				}
 				presentAgentComposer({ preserveCaret: true });
 			})();
 		},

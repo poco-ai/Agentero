@@ -2393,12 +2393,17 @@ function PdfViewerInner({
 				setRailLanding({ page: draft.page });
 			}
 			if (draft.visualRegion) {
-				const region = draft.visualRegion;
-				void captureRegion(draft.page - 1, region).then(
+				const rects = draft.rects?.length ? draft.rects : [draft.visualRegion];
+				void captureRegion(draft.page - 1, draft.visualRegion).then(
 					(image) =>
-						saveVisualNote(draft.page, region, comment, image).catch((error) =>
-							notifyError(errorText(error)),
-						),
+						saveVisualNote(
+							draft.page,
+							rects,
+							draft.quote,
+							draft.visualElements,
+							comment,
+							image,
+						).catch((error) => notifyError(errorText(error))),
 					() => notifyError(t("pdfExplain.cropFailed")),
 				);
 				return;

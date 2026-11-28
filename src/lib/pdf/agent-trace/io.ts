@@ -8,6 +8,7 @@ import { parsePdfVisualSessionTrace } from "@/lib/pdf/agent-trace/schema";
 import type {
 	PdfVisualAgent,
 	PdfVisualSessionTrace,
+	PdfVisualTraceElement,
 	PdfVisualTraceImage,
 	PdfVisualTraceMessage,
 } from "@/lib/pdf/agent-trace/types";
@@ -36,6 +37,10 @@ export type CreateNoteTraceInput = {
 	rects: PdfVisualNormalizedRect[];
 	/** Required non-empty user note for note-only marks. */
 	comment: string;
+	/** Text merged from grouped text members. */
+	quote?: string;
+	/** Members of a grouped visual annotation. */
+	elements?: PdfVisualTraceElement[];
 	image?: PdfVisualTraceImage;
 	createdAt?: string;
 };
@@ -71,6 +76,8 @@ export function createNoteTrace(
 			mimeType: input.image.mimeType || "image/png",
 		};
 	}
+	if (input.quote?.trim()) trace.quote = input.quote.trim();
+	if (input.elements?.length) trace.elements = input.elements;
 	if (!comment && !trace.image) {
 		throw new Error("createNoteTrace requires a comment or crop image");
 	}

@@ -7,17 +7,17 @@
  */
 
 import {
-	Fragment,
 	memo,
 	type MouseEvent as ReactMouseEvent,
 	useEffect,
-	useLayoutEffect,
 	useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { selectionBoundsOnScreen } from "@/components/viewer/pdf/coords";
 import {
+	anchorLayoutElementAction,
 	closeLayoutElementAction,
+	type LayoutElementActionMember,
 	type LayoutElementScreen,
 	layoutElementActionStore,
 	openLayoutElementAction,
@@ -26,14 +26,13 @@ import {
 	clearLayoutSentenceHover,
 	type LayoutSentenceHover,
 	layoutSentenceCatalogItems,
-	layoutSentenceHover,
-	primeLayoutSentenceGlyphs,
+	layoutSentencePointerHover,
 	releaseLayoutSentenceHover,
 	sentenceForActivation,
-	subscribeLayoutSentenceHover,
 	suppressLayoutSentenceHover,
 	syncLayoutSentencePointer,
 } from "@/components/viewer/pdf/layout-sentence-hover";
+import { translatedSentenceRects } from "@/components/viewer/pdf/layout-sentence-pairing";
 import {
 	isLayoutElementTextKind,
 	isLayoutRegionActivation,
@@ -43,16 +42,11 @@ import {
 	layoutElementPreview,
 	layoutElementQuote,
 	layoutKindI18nKey,
-	layoutSentenceScope,
 	type PdfLayoutRegion,
 	type PointerOrigin,
 	pickSelectableLayoutRegion,
 } from "@/lib/pdf/layout";
-import { sentenceHoverBands } from "@/lib/pdf/layout/element-sentence";
-import {
-	mergeClientRectsIntoLines,
-	translatedSentenceAtPoint,
-} from "@/lib/pdf/layout/visible-selection-rects";
+import { translatedSentenceAtPoint } from "@/lib/pdf/layout/visible-selection-rects";
 
 function spanAtPoint(
 	target: EventTarget | null,
@@ -106,9 +100,6 @@ type LayoutElementSelectionLayerProps = {
 	docId: string;
 	pageIndex: number;
 	regions: readonly PdfLayoutRegion[];
-	width: number;
-	height: number;
-	sentencePairing?: boolean;
 	sentenceHover?: boolean;
 };
 
@@ -132,32 +123,6 @@ function screenForElement(
 	};
 }
 
-function translatedSentenceRects(
-	shell: HTMLElement,
-	pageIndex: number,
-	sentence: LayoutSentenceHover,
-): PdfLayoutRegion["bbox"][] {
-	const page = shell.getBoundingClientRect();
-	if (!page.width || !page.height) return [];
-	const range = document.createRange();
-	return sentence.members.flatMap((member) => {
-		if (member.pageIndex !== pageIndex) return [];
-		const node = shell.querySelector(
-			`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
-		);
-		if (!node) return [];
-		range.selectNodeContents(node);
-		return mergeClientRectsIntoLines(Array.from(range.getClientRects())).map(
-			({ left, top, width, height }) => ({
-				x: (left - page.left) / page.width,
-				y: (top - page.top) / page.height,
-				w: width / page.width,
-				h: height / page.height,
-			}),
-		);
-	});
-}
-
 function openFromRegion(
 	docId: string,
 	region: PdfLayoutRegion,
@@ -167,13 +132,18 @@ function openFromRegion(
 ): void {
 	const boxes = layoutElementBoxes(region);
 	const sentenceQuote = sentence?.quote.trim() ?? "";
-	const rects = sentence?.rects ?? boxes.map((box) => box.bbox);
+	const rects = sentence
+		? sentence.members
+				.filter((member) => member.pageIndex === region.pageIndex)
+				.flatMap((member) => member.rects)
+		: boxes.map((box) => box.bbox);
+	if (sentence && !rects.length) rects.push(...sentence.rects);
 	const translated = sentence
 		? translatedSentenceRects(shell, region.pageIndex, sentence)
 		: [];
 	const visibleRects = translated.length ? translated : undefined;
-	openLayoutElementAction({
-		docId,
+	const member: LayoutElementActionMember = {
+		id: sentence ? JSON.stringify([region.id, sentence.key]) : region.id,
 		regionId: region.id,
 		pageIndex: region.pageIndex,
 		kind: region.kind,
@@ -181,8 +151,32 @@ function openFromRegion(
 		bbox: region.bbox,
 		rects,
 		visibleRects,
-		screen: screenForElement(shell, visibleRects ?? rects, client),
 		sentence: sentence ?? undefined,
+	};
+	const action = layoutElementActionStore.getState().action;
+	const existingMembers =
+		action?.docId === docId && action.pageIndex === member.pageIndex
+			? action.members
+			: [];
+	const removing = existingMembers.some((item) => item.id === member.id);
+	const members = removing
+		? existingMembers.filter((item) => item.id !== member.id)
+		: [...existingMembers, member];
+	const anchor = members.at(-1);
+	if (!anchor) {
+		closeLayoutElementAction();
+		return;
+	}
+	openLayoutElementAction({
+		docId,
+		pageIndex: anchor.pageIndex,
+		anchorId: anchor.id,
+		members,
+		screen: screenForElement(
+			shell,
+			anchor.visibleRects ?? anchor.rects,
+			removing ? null : client,
+		),
 	});
 }
 
@@ -191,22 +185,10 @@ export const LayoutElementSelectionLayer = memo(
 		docId,
 		pageIndex,
 		regions,
-		width,
-		height,
-		sentencePairing = false,
 		sentenceHover = true,
 	}: LayoutElementSelectionLayerProps) {
 		const { t } = useTranslation("viewer");
 		const rootRef = useRef<HTMLDivElement>(null);
-		const washRef = useRef<HTMLDivElement>(null);
-		const sentenceChipRef = useRef<HTMLSpanElement>(null);
-		const regionsRef = useRef(regions);
-		const paintSentenceRef = useRef<() => void>(() => undefined);
-		regionsRef.current = regions;
-		useLayoutEffect(() => {
-			paintSentenceRef.current();
-		});
-
 		useEffect(() => {
 			return () => {
 				const action = layoutElementActionStore.getState().action;
@@ -223,121 +205,56 @@ export const LayoutElementSelectionLayer = memo(
 		useEffect(() => {
 			const root = rootRef.current;
 			const shell = root?.parentElement;
-			if (!root || !shell || regions.length === 0) return;
+			if (!root || !shell) return;
 
 			let origin: PointerOrigin | null = null;
 			let raf = 0;
 			let pending: PointerEvent | null = null;
 			let hoveredId: string | null = null;
-			let paintedId: string | null = null;
+			let paintedPinnedId: string | null = null;
 			let lastClient: { x: number; y: number } | null = null;
+			let paintedSelected = new Set<string>();
 
 			const elementOf = (id: string) =>
 				root.querySelector<HTMLElement>(
 					`[data-layout-element="${CSS.escape(id)}"]`,
 				);
 
-			const pinnedId = () => {
+			const syncBlockFrames = () => {
 				const action = layoutElementActionStore.getState().action;
-				if (
-					!action ||
-					action.docId !== docId ||
-					action.pageIndex !== pageIndex
-				) {
-					return null;
-				}
-				return action.regionId;
-			};
-
-			const syncHot = () => {
-				const pinned = pinnedId();
-				const next = pinned ?? hoveredId;
-				if (next !== paintedId) {
-					if (paintedId) {
-						const previous = elementOf(paintedId);
-						previous?.classList.remove("is-hot", "is-pinned", "has-sentence");
-					}
-					if (next) elementOf(next)?.classList.add("is-hot");
-					paintedId = next;
-				}
-				// The open action pins its block: a heavier frame survives the pointer
-				// leaving, so "hovered" and "this card is about this block" differ.
-				if (next)
-					elementOf(next)?.classList.toggle("is-pinned", pinned === next);
-			};
-
-			let marked: HTMLElement[] = [];
-			const washOf = () => washRef.current;
-
-			const paintSentence = () => {
-				const action = layoutElementActionStore.getState().action;
-				const current = action ? action.sentence : layoutSentenceHover();
-				const mine =
-					current &&
-					layoutSentenceScope(current.docId) === layoutSentenceScope(docId)
-						? current
-						: null;
 				const onPage =
-					mine?.members.filter((member) => member.pageIndex === pageIndex) ??
-					[];
-				for (const node of marked) node.removeAttribute("data-sentence-hot");
-				marked = [];
-				for (const member of onPage) {
-					if (member.rects.length === 0) {
-						primeLayoutSentenceGlyphs(member.pageIndex, docId);
-					}
-					const nodes = shell.querySelectorAll<HTMLElement>(
-						`[data-layout-item="${CSS.escape(member.itemId)}"] [data-sentence="${member.sentenceIndex}"]`,
-					);
-					for (const node of sentencePairing ? [] : nodes) {
-						node.setAttribute("data-sentence-hot", "1");
-						marked.push(node);
-					}
+					action?.docId === docId && action.pageIndex === pageIndex
+						? action
+						: null;
+				const anchor = onPage ? anchorLayoutElementAction(onPage) : null;
+				const selected = new Set(
+					onPage?.members.flatMap((member) =>
+						member.sentence ? [] : [member.regionId],
+					),
+				);
+				for (const id of paintedSelected) {
+					if (!selected.has(id)) elementOf(id)?.classList.remove("is-selected");
 				}
-				const wash = washOf();
-				if (wash) {
-					const rects = sentencePairing
-						? []
-						: sentenceHoverBands(
-								onPage.flatMap((member) => member.rects),
-								width,
-								height,
-							);
-					if (rects.length === 0) {
-						wash.classList.remove("is-on");
-						wash.replaceChildren();
-					} else {
-						wash.replaceChildren(
-							...rects.map((rect) => {
-								const node = document.createElement("span");
-								node.style.left = `${rect.x * 100}%`;
-								node.style.top = `${rect.y * 100}%`;
-								node.style.width = `${rect.w * 100}%`;
-								node.style.height = `${rect.h * 100}%`;
-								return node;
-							}),
-						);
-						wash.classList.add("is-on");
-					}
+				for (const id of selected) {
+					if (!paintedSelected.has(id))
+						elementOf(id)?.classList.add("is-selected");
 				}
-				const host = paintedId ? elementOf(paintedId) : null;
-				const sentenceHere =
-					mine?.docId === docId &&
-					mine.regionId === paintedId &&
-					mine.pageIndex === pageIndex;
-				host?.classList.toggle("has-sentence", sentenceHere);
-				const chip = sentenceChipRef.current;
-				if (chip) {
-					const translated = sentenceHere
-						? translatedSentenceRects(shell, pageIndex, mine)
-						: [];
-					const first = translated[0] ?? (sentenceHere ? mine.rects[0] : null);
-					chip.hidden = !first;
-					if (first) {
-						chip.style.left = `${first.x * 100}%`;
-						chip.style.top = `${first.y * 100}%`;
-					}
+				paintedSelected = selected;
+
+				const pinned = anchor?.sentence ? null : (anchor?.regionId ?? null);
+				if (pinned !== paintedPinnedId) {
+					if (paintedPinnedId)
+						elementOf(paintedPinnedId)?.classList.remove("is-pinned");
+					if (pinned) elementOf(pinned)?.classList.add("is-pinned");
+					paintedPinnedId = pinned;
 				}
+			};
+
+			const setHoveredBlock = (id: string | null) => {
+				if (id === hoveredId) return;
+				if (hoveredId) elementOf(hoveredId)?.classList.remove("is-hot");
+				hoveredId = id;
+				if (id) elementOf(id)?.classList.add("is-hot");
 			};
 
 			const fractionOf = (clientX: number, clientY: number) => {
@@ -362,12 +279,11 @@ export const LayoutElementSelectionLayer = memo(
 								?.getAttribute("data-layout-element")
 						: null;
 				const chipRegion = chipId
-					? regionsRef.current.find((region) => region.id === chipId)
+					? regions.find((region) => region.id === chipId)
 					: null;
 				if (chipRegion) return chipRegion;
 				const formula = pickSelectableLayoutRegion(formulas, point.x, point.y);
 				if (formula) return formula;
-				const regions = regionsRef.current;
 				if (span) {
 					const exact = regions.find((region) => region.id === span.itemId);
 					if (exact) return exact;
@@ -416,11 +332,7 @@ export const LayoutElementSelectionLayer = memo(
 					const scale = (reach * (step / steps)) / dist;
 					const back = fractionOf(clientX - dx * scale, clientY - dy * scale);
 					if (!back) continue;
-					const found = pickSelectableLayoutRegion(
-						regionsRef.current,
-						back.x,
-						back.y,
-					);
+					const found = pickSelectableLayoutRegion(regions, back.x, back.y);
 					if (found) return { region: found, point: back, span: null };
 				}
 				return null;
@@ -437,15 +349,13 @@ export const LayoutElementSelectionLayer = memo(
 					target.closest("[data-pdf-chrome], [data-selection-menu]")
 				) {
 					lastClient = null;
-					hoveredId = null;
-					syncHot();
+					setHoveredBlock(null);
 					clearLayoutSentenceHover();
 					return;
 				}
 				if (textDragOwns(shell, event, origin)) {
 					lastClient = null;
-					hoveredId = null;
-					syncHot();
+					setHoveredBlock(null);
 					suppressLayoutSentenceHover();
 					return;
 				}
@@ -453,14 +363,12 @@ export const LayoutElementSelectionLayer = memo(
 				const located = regionAlongMove(event.clientX, event.clientY, target);
 				lastClient = { x: event.clientX, y: event.clientY };
 				if (!located) {
-					hoveredId = null;
-					syncHot();
+					setHoveredBlock(null);
 					clearLayoutSentenceHover();
 					return;
 				}
 				const { region: hit, point, span } = located;
-				hoveredId = hit.id;
-				syncHot();
+				setHoveredBlock(hit.id);
 				if (
 					!sentenceHover ||
 					!isLayoutElementTextKind(hit.kind) ||
@@ -478,6 +386,7 @@ export const LayoutElementSelectionLayer = memo(
 					x: point.x,
 					y: point.y,
 					span,
+					elementSelection: true,
 				});
 			};
 
@@ -493,6 +402,7 @@ export const LayoutElementSelectionLayer = memo(
 			};
 
 			const onClick = (event: MouseEvent) => {
+				if (event.detail > 1) return;
 				const target = event.target;
 				if (
 					target instanceof Element &&
@@ -527,7 +437,10 @@ export const LayoutElementSelectionLayer = memo(
 				if (!point) return;
 				const span = spanAtPoint(target, event.clientX, event.clientY);
 				const hit = regionAt(target, point, span);
-				if (!hit) return;
+				if (!hit) {
+					closeLayoutElementAction();
+					return;
+				}
 				event.preventDefault();
 				event.stopPropagation();
 				const sentence =
@@ -544,6 +457,7 @@ export const LayoutElementSelectionLayer = memo(
 								x: point.x,
 								y: point.y,
 								span,
+								elementSelection: true,
 							})
 						: null;
 				openFromRegion(
@@ -560,8 +474,7 @@ export const LayoutElementSelectionLayer = memo(
 				raf = 0;
 				pending = null;
 				lastClient = null;
-				hoveredId = null;
-				syncHot();
+				setHoveredBlock(null);
 				clearLayoutSentenceHover();
 			};
 
@@ -569,17 +482,13 @@ export const LayoutElementSelectionLayer = memo(
 			shell.addEventListener("pointerdown", onDown);
 			shell.addEventListener("click", onClick);
 			shell.addEventListener("pointerleave", onLeave);
-			paintSentenceRef.current = paintSentence;
-			const unsubscribeAction = layoutElementActionStore.subscribe(() => {
-				syncHot();
-				paintSentence();
-			});
-			const unsubscribeSentence = subscribeLayoutSentenceHover(paintSentence);
-			// A width/height change re-runs this effect, and its cleanup strips the
-			// hot classes. Re-apply the pinned frame from the store, or an open
-			// card loses its frame on zoom until the pointer moves.
-			syncHot();
-			paintSentence();
+			const unsubscribeAction = layoutElementActionStore.subscribe(
+				(state, previous) => {
+					if (state.action?.members !== previous.action?.members)
+						syncBlockFrames();
+				},
+			);
+			syncBlockFrames();
 
 			return () => {
 				shell.removeEventListener("pointermove", onMove);
@@ -587,124 +496,88 @@ export const LayoutElementSelectionLayer = memo(
 				shell.removeEventListener("click", onClick);
 				shell.removeEventListener("pointerleave", onLeave);
 				unsubscribeAction();
-				unsubscribeSentence();
-				paintSentenceRef.current = () => undefined;
-				for (const node of marked) node.removeAttribute("data-sentence-hot");
-				washOf()?.replaceChildren();
-				const chip = sentenceChipRef.current;
-				if (chip) chip.hidden = true;
 				if (raf) cancelAnimationFrame(raf);
-				if (paintedId) {
-					const previous = elementOf(paintedId);
-					previous?.classList.remove("is-hot", "is-pinned", "has-sentence");
+				setHoveredBlock(null);
+				if (paintedPinnedId) {
+					elementOf(paintedPinnedId)?.classList.remove("is-pinned");
 				}
-				const current = layoutSentenceHover();
+				for (const id of paintedSelected) {
+					elementOf(id)?.classList.remove("is-selected");
+				}
+				const current = layoutSentencePointerHover();
 				if (current?.docId === docId && current.pageIndex === pageIndex) {
 					clearLayoutSentenceHover();
 				}
 			};
-		}, [
-			docId,
-			pageIndex,
-			regions,
-			sentencePairing,
-			sentenceHover,
-			width,
-			height,
-		]);
+		}, [docId, pageIndex, regions, sentenceHover]);
 
 		return (
-			<Fragment>
-				{/*
-				 * Direct child of the page shell. A wash inside `display: contents`
-				 * does not paint above the text layer in WKWebView, so the English
-				 * sentence stayed invisible while the translation span did not.
-				 */}
-				<div
-					ref={washRef}
-					className="pdf-layout-sentence-wash"
-					data-layout-sentence-wash
-					style={{ zIndex: 6 }}
-					aria-hidden="true"
-				/>
-				<span
-					ref={sentenceChipRef}
-					className="pdf-layout-element-chip pdf-layout-sentence-chip"
-					aria-hidden="true"
-					hidden
-				>
-					{t("figures.kindSentence")}
-				</span>
-				<div ref={rootRef} className="contents">
-					{regions.map((region) => {
-						const boxes = layoutElementBoxes(region);
-						const kindLabel = t(layoutKindI18nKey(region.kind));
-						const quote = layoutElementQuote(region);
-						const preview = layoutElementPreview(quote);
-						const captionPage = layoutElementCaptionPage(region);
-						const anchor = boxes.reduce((top, box) =>
-							box.bbox.y < top.bbox.y ? box : top,
-						);
-						const aria = preview
-							? t("figures.selectElementAriaPreview", {
-									kind: kindLabel,
-									preview,
-								})
-							: t("figures.selectElementAria", { kind: kindLabel });
-						return (
-							<div
-								key={region.id}
-								data-layout-element={region.id}
-								data-layout-kind={region.kind}
-								data-layout-text={
-									isLayoutElementTextKind(region.kind) ? "1" : "0"
-								}
-								className="contents"
-							>
-								{boxes.map((box) => (
-									<div
-										key={box.key}
-										className="pdf-layout-element-frame"
-										style={{
-											left: `${box.bbox.x * 100}%`,
-											top: `${box.bbox.y * 100}%`,
-											width: `${box.bbox.w * 100}%`,
-											height: `${box.bbox.h * 100}%`,
-										}}
-										aria-hidden="true"
-									/>
-								))}
-								<button
-									type="button"
-									className="pdf-layout-element-chip"
+			<div ref={rootRef} className="contents">
+				{regions.map((region) => {
+					const boxes = layoutElementBoxes(region);
+					const kindLabel = t(layoutKindI18nKey(region.kind));
+					const quote = layoutElementQuote(region);
+					const preview = layoutElementPreview(quote);
+					const captionPage = layoutElementCaptionPage(region);
+					const anchor = boxes.reduce((top, box) =>
+						box.bbox.y < top.bbox.y ? box : top,
+					);
+					const aria = preview
+						? t("figures.selectElementAriaPreview", {
+								kind: kindLabel,
+								preview,
+							})
+						: t("figures.selectElementAria", { kind: kindLabel });
+					return (
+						<div
+							key={region.id}
+							data-layout-element={region.id}
+							className="contents"
+						>
+							{boxes.map((box) => (
+								<div
+									key={box.key}
+									className="pdf-layout-element-frame"
 									style={{
-										left: `${anchor.bbox.x * 100}%`,
-										top: `${anchor.bbox.y * 100}%`,
+										left: `${box.bbox.x * 100}%`,
+										top: `${box.bbox.y * 100}%`,
+										width: `${box.bbox.w * 100}%`,
+										height: `${box.bbox.h * 100}%`,
 									}}
-									aria-label={aria}
-									title={aria}
-									onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-										event.preventDefault();
-										event.stopPropagation();
-										const shell = rootRef.current?.parentElement;
-										if (!(shell instanceof HTMLElement)) return;
-										clearLayoutSentenceHover();
-										openFromRegion(docId, region, shell, null, null);
-									}}
-								>
-									<span className="font-medium">{kindLabel}</span>
-									{captionPage != null ? (
-										<span className="font-normal text-muted-foreground">
-											{" "}
-											· {t("figures.captionOnPage", { page: captionPage })}
-										</span>
-									) : null}
-								</button>
-							</div>
-						);
-					})}
-				</div>
-			</Fragment>
+									aria-hidden="true"
+								/>
+							))}
+							<button
+								type="button"
+								className="pdf-layout-element-chip"
+								style={{
+									left: `${anchor.bbox.x * 100}%`,
+									top: `${anchor.bbox.y * 100}%`,
+								}}
+								aria-label={aria}
+								title={aria}
+								onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+									if (event.detail > 1) return;
+									event.preventDefault();
+									event.stopPropagation();
+									const shell = rootRef.current?.parentElement;
+									if (!(shell instanceof HTMLElement)) return;
+									clearLayoutSentenceHover();
+									openFromRegion(docId, region, shell, null, null);
+								}}
+							>
+								<span className="font-medium">{kindLabel}</span>
+								{captionPage != null ? (
+									<span className="font-normal text-muted-foreground">
+										{" "}
+										· {t("figures.captionOnPage", { page: captionPage })}
+									</span>
+								) : null}
+							</button>
+						</div>
+					);
+				})}
+			</div>
 		);
 	},
 );

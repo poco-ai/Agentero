@@ -12,8 +12,10 @@ import {
 } from "@/components/viewer/pdf/coords";
 import { isPdfDocumentCloseRaceError } from "@/components/viewer/pdf/host-dom";
 import {
+	anchorLayoutElementAction,
 	closeLayoutElementAction,
 	type LayoutElementAction,
+	type LayoutElementActionMember,
 	type LayoutElementScreen,
 	layoutElementActionStore,
 	moveLayoutElementAction,
@@ -44,6 +46,7 @@ import {
 } from "@/lib/pdf/layout";
 import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
 import type { VisibleSelectionPage } from "@/lib/pdf/layout/visible-selection-rects";
+import { unionNormalizedRegions } from "@/lib/pdf/region";
 
 type DocumentManagerCapability = ReturnType<
 	typeof useDocumentManagerCapability
@@ -71,14 +74,18 @@ type LayoutElementActionsProps = {
 	translateSelection: (anchor: PdfAskAnchor) => void;
 };
 
-function elementContext(action: LayoutElementAction, heading: string) {
+function elementContext(
+	docId: string,
+	member: LayoutElementActionMember,
+	heading: string,
+) {
 	const regions =
-		layoutAnalysisStore.getState().byDocument[layoutDocumentKey(action.docId)]
+		layoutAnalysisStore.getState().byDocument[layoutDocumentKey(docId)]
 			?.regions ?? [];
-	const region = regions.find((item) => item.id === action.regionId);
+	const region = regions.find((item) => item.id === member.regionId);
 	const located =
-		region?.text && action.quote
-			? quoteContextFromText(region.text, action.quote)
+		region?.text && member.quote
+			? quoteContextFromText(region.text, member.quote)
 			: { status: "unavailable" as const };
 	if (located.status === "available") {
 		return normalizeQuoteContext({ ...located, heading });
@@ -87,13 +94,14 @@ function elementContext(action: LayoutElementAction, heading: string) {
 }
 
 function placeAction(action: LayoutElementAction): LayoutElementScreen | null {
+	const anchor = anchorLayoutElementAction(action);
 	const page = document.querySelector<HTMLElement>(
 		`[data-annotation-pdf="${CSS.escape(action.docId)}"][data-embed-pdf-page="${action.pageIndex}"]`,
 	);
 	if (!page) return null;
 	const bounds = selectionBoundsOnScreen(
 		page,
-		action.visibleRects ?? action.rects,
+		anchor.visibleRects ?? anchor.rects,
 	);
 	if (!bounds) return null;
 	return {
@@ -127,7 +135,11 @@ export function LayoutElementActions({
 		const onPointerDown = (event: PointerEvent) => {
 			const target = event.target;
 			if (!(target instanceof Element)) return;
-			if (target.closest("[data-selection-ui], [data-layout-element]")) {
+			if (
+				target.closest(
+					"[data-selection-ui], [data-layout-element], [data-layout-element-selection]",
+				)
+			) {
 				return;
 			}
 			if (layoutElementActionStore.getState().action?.docId === docId) {
@@ -164,7 +176,7 @@ export function LayoutElementActions({
 
 	return createPortal(
 		<LayoutElementMenu
-			key={`${action.pageIndex}:${action.regionId}:${action.quote}`}
+			key={`${action.pageIndex}:${action.anchorId}:${action.members.length}`}
 			{...props}
 			action={action}
 		/>,
@@ -186,44 +198,60 @@ function LayoutElementMenu({
 }: Omit<LayoutElementActionsProps, "docId"> & { action: LayoutElementAction }) {
 	const { t } = useTranslation("viewer");
 	const { docId, pageIndex } = action;
-	const kindLabel = t(
-		action.sentence ? "figures.kindSentence" : layoutKindI18nKey(action.kind),
-	);
-	const quote = action.quote.trim();
-	const needsCrop = layoutElementNeedsCrop(action.kind) || !quote;
+	const actionAnchor = anchorLayoutElementAction(action);
+	const labelForMember = (member: LayoutElementActionMember) => {
+		if (member.sentence) return t("figures.kindSentence");
+		return t(layoutKindI18nKey(member.kind));
+	};
+	const kindLabel =
+		action.members.length > 1
+			? t("figures.selectedElements", { count: action.members.length })
+			: labelForMember(actionAnchor);
+	const textMembers: LayoutElementActionMember[] = [];
+	const visualMembers: LayoutElementActionMember[] = [];
+	for (const member of action.members) {
+		if (layoutElementNeedsCrop(member.kind) || !member.quote.trim()) {
+			visualMembers.push(member);
+		} else {
+			textMembers.push(member);
+		}
+	}
+	const needsCrop = visualMembers.length > 0;
+	const quote = textMembers.map((member) => member.quote.trim()).join("\n\n");
 	const doc = docCap?.getDocument(docId);
 	const sizeFor = (index: number) => doc?.pages[index]?.size ?? null;
-	const members = action.sentence?.members;
-	const pages = needsCrop
-		? []
-		: [
-				...new Set([
-					pageIndex,
-					...(members?.map((member) => member.pageIndex) ?? []),
-				]),
-			].flatMap((index) => {
-				const size = sizeFor(index);
-				if (!size) return [];
-				const glyphs = members
-					? members
-							.filter((member) => member.pageIndex === index)
-							.flatMap((member) => member.rects)
-					: layoutSentenceLineRects(docId, index).filter((rect) =>
-							pointInBbox(
-								rect.x + rect.w / 2,
-								rect.y + rect.h / 2,
-								action.bbox,
+	const textRects = textMembers.flatMap((member) => member.rects);
+	const size = sizeFor(pageIndex);
+	const glyphs =
+		!needsCrop && size
+			? textMembers.flatMap((member) =>
+					member.sentence
+						? member.sentence.members
+								.filter((item) => item.pageIndex === pageIndex)
+								.flatMap((item) => item.rects)
+						: layoutSentenceLineRects(docId, pageIndex).filter((rect) =>
+								pointInBbox(
+									rect.x + rect.w / 2,
+									rect.y + rect.h / 2,
+									member.bbox,
+								),
 							),
-						);
-				return formattedSelectionPage(
-					index,
-					glyphs.length || index !== pageIndex ? glyphs : action.rects,
+				)
+			: [];
+	const pages =
+		needsCrop || !size
+			? []
+			: formattedSelectionPage(
+					pageIndex,
+					glyphs.length ? glyphs : textRects,
 					size,
 				);
-			});
 	const hasMarkup = pages.length > 0;
-	const visiblePages = action.visibleRects?.length
-		? [{ pageIndex, rects: action.visibleRects }]
+	const visibleRects = textMembers.flatMap(
+		(member) => member.visibleRects ?? [],
+	);
+	const visiblePages = visibleRects.length
+		? [{ pageIndex, rects: visibleRects }]
 		: undefined;
 	const anchor: PdfAskAnchor = anchorFromEmbedSelection(
 		pages,
@@ -233,7 +261,7 @@ function LayoutElementMenu({
 		pageIndex,
 	) ?? {
 		page: pageIndex + 1,
-		rects: action.rects,
+		rects: textRects.length ? textRects : actionAnchor.rects,
 		quote,
 		trigger: "region",
 	};
@@ -244,7 +272,7 @@ function LayoutElementMenu({
 			text: quote,
 			sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
 			origin: "pdf",
-			context: elementContext(action, kindLabel),
+			context: elementContext(docId, actionAnchor, kindLabel),
 			page: anchor.page,
 			rects: anchor.rects,
 			paperAbsPath: paperAbsPath ?? undefined,
@@ -260,32 +288,38 @@ function LayoutElementMenu({
 		}
 		void (async () => {
 			let cropped = false;
-			try {
-				const image = await captureRegion(pageIndex, action.bbox);
-				if (!docCap?.isDocumentOpen(docId)) return;
-				addVisualDraft({
-					id: `layout-el:${action.regionId}`,
-					paperPath: paperRelPath || paperAbsPath || "paper",
-					paperAbsPath: paperAbsPath ?? undefined,
-					page: pageIndex + 1,
-					rects: [action.bbox],
-					comment: kindLabel,
-					image,
-				});
-				cropped = true;
-			} catch (error) {
-				if (
-					!docCap?.isDocumentOpen(docId) ||
-					isPdfDocumentCloseRaceError(error)
-				) {
-					return;
+			let cropError: unknown = null;
+			for (const member of visualMembers) {
+				try {
+					const image = await captureRegion(member.pageIndex, member.bbox);
+					if (!docCap?.isDocumentOpen(docId)) return;
+					addVisualDraft({
+						id: `layout-el:${member.id}`,
+						paperPath: paperRelPath || paperAbsPath || "paper",
+						paperAbsPath: paperAbsPath ?? undefined,
+						page: member.pageIndex + 1,
+						rects: [member.bbox],
+						comment: labelForMember(member),
+						image,
+					});
+					cropped = true;
+				} catch (error) {
+					if (
+						!docCap?.isDocumentOpen(docId) ||
+						isPdfDocumentCloseRaceError(error)
+					) {
+						return;
+					}
+					cropError = error;
 				}
-				if (!quote) {
-					const message =
-						error instanceof Error ? error.message : t("pdfExplain.cropFailed");
-					notifyError(t("pdfExplain.cropFailed"), { description: message });
-					return;
-				}
+			}
+			if (!cropped && !quote) {
+				const message =
+					cropError instanceof Error
+						? cropError.message
+						: t("pdfExplain.cropFailed");
+				notifyError(t("pdfExplain.cropFailed"), { description: message });
+				return;
 			}
 			if (pinQuote()) return;
 			if (cropped) presentAgentComposer({ preserveCaret: true });
@@ -298,8 +332,10 @@ function LayoutElementMenu({
 			needsCrop
 				? {
 						...anchor,
-						rects: [action.bbox],
-						visualKind: action.kind === "formula" ? "formula" : "figure",
+						rects: [
+							unionNormalizedRegions([actionAnchor.bbox]) ?? actionAnchor.bbox,
+						],
+						visualKind: actionAnchor.kind === "formula" ? "formula" : "figure",
 					}
 				: anchor,
 		);
@@ -309,7 +345,7 @@ function LayoutElementMenu({
 		const isCurrent = () =>
 			layoutElementActionStore.getState().action === action;
 		const unregisterAsk = registerSelectionQuickChat(() => {
-			if (!isCurrent()) return false;
+			if (!isCurrent() || action.members.length !== 1) return false;
 			ask();
 			return true;
 		});
@@ -329,7 +365,7 @@ function LayoutElementMenu({
 			screen={action.screen}
 			selectionText={quote}
 			onAddToChat={addToChat}
-			onAsk={ask}
+			onAsk={action.members.length === 1 ? ask : undefined}
 			onHighlight={
 				hasMarkup
 					? (color, shape) => {
@@ -341,22 +377,42 @@ function LayoutElementMenu({
 			onNote={
 				needsCrop || hasMarkup
 					? (shape) => {
+							const noteRects = needsCrop
+								? action.members.flatMap((member) => member.rects)
+								: textRects;
+							const visualRegion = needsCrop
+								? (unionNormalizedRegions(noteRects) ??
+									unionNormalizedRegions(
+										action.members.map((member) => member.bbox),
+									) ??
+									actionAnchor.bbox)
+								: undefined;
 							onNote({
 								page: anchor.page,
-								anchorY: anchor.rects[0]?.y ?? action.bbox.y,
+								anchorY: noteRects.length
+									? Math.min(...noteRects.map((rect) => rect.y))
+									: actionAnchor.bbox.y,
 								quote,
 								shape,
 								pages,
-								visiblePages,
-								visualRegion: needsCrop ? action.bbox : undefined,
-								rects: needsCrop ? [action.bbox] : anchor.rects,
+								visiblePages: needsCrop ? undefined : visiblePages,
+								visualRegion,
+								visualElements: needsCrop
+									? action.members.map((member) => ({
+											kind: member.kind,
+											...(member.quote.trim()
+												? { quote: member.quote.trim() }
+												: {}),
+										}))
+									: undefined,
+								rects: noteRects,
 							});
 							closeLayoutElementAction();
 						}
 					: undefined
 			}
 			onBookmark={
-				onBookmark
+				onBookmark && action.members.length === 1
 					? () => {
 							onBookmark(pageIndex + 1, quote || kindLabel);
 							closeLayoutElementAction();
@@ -364,7 +420,7 @@ function LayoutElementMenu({
 					: undefined
 			}
 			onTranslate={
-				quote
+				!needsCrop && quote
 					? () => {
 							closeLayoutElementAction();
 							translateSelection(anchor);

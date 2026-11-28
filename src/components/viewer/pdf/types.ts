@@ -9,7 +9,10 @@ import type { PromptImage } from "@/lib/agent/api";
 import type { SelectionSide } from "@/lib/agent/selection-side";
 import type { PaperMetadata } from "@/lib/paper";
 import type { Citation } from "@/lib/paper/refs";
-import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
+import type {
+	PdfVisualSessionTrace,
+	PdfVisualTraceElement,
+} from "@/lib/pdf/agent-trace";
 import type {
 	PdfAskAnchor,
 	PdfAskNormalizedRect,
@@ -247,6 +250,8 @@ export type SelectionCommentDraft = {
 	pages: FormattedSelection[];
 	/** Crop bounds for a visual note; these drafts have no text markup pages. */
 	visualRegion?: PdfAskNormalizedRect;
+	/** Selected members of a grouped visual note. */
+	visualElements?: PdfVisualTraceElement[];
 	/**
 	 * Translation boxes to keep painted while the editor is open. Omitted for an
 	 * English text-layer selection, which EmbedPDF already tints.
@@ -254,7 +259,7 @@ export type SelectionCommentDraft = {
 	visiblePages?: VisibleSelectionPage[];
 	/**
 	 * Normalized boxes of the selection on `page`: the translated boxes when the
-	 * note started on a translation, the region for a visual note. The editor
+	 * note started on a translation, or the member boxes for a visual note. The editor
 	 * opens beside them instead of in the comment rail.
 	 */
 	rects?: PdfAskNormalizedRect[];
@@ -325,6 +330,8 @@ export type PageAnnotationComment = {
 	linkAlias: string | null;
 	/** Visual marks with an Agent conversation show a truncated inline preview. */
 	messages?: PageAnnotationCommentMessage[];
+	/** Grouped visual annotation members, for the card summary. */
+	elementKinds?: string[];
 	/**
 	 * True when this card represents a freshly-created note that has not been
 	 * saved yet. If the editor closes without a non-empty comment, the underlying

@@ -180,10 +180,13 @@ export function buildMarksIndex({
 				pageIndex: trace.page - 1,
 				anchorY: trace.rects[0]?.y ?? 0,
 				rects: trace.rects,
-				quote: "",
+				quote: trace.quote ?? "",
 				comment: trace.comment,
 				color: DEFAULT_HIGHLIGHT_COLOR,
 				kind: "visual",
+				...(trace.elements?.length
+					? { elementKinds: trace.elements.map((element) => element.kind) }
+					: {}),
 				linkAlias:
 					annotationWikilinkAlias(
 						paperTitle,

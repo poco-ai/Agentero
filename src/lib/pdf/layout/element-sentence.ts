@@ -35,6 +35,69 @@ export function sentenceHoverBands(
 	}));
 }
 
+/** Trace the outside of the sentence bands, joining wrapped lines across leading. */
+export function sentenceOutlinePath(
+	rects: readonly SentenceFractionRect[],
+	width: number,
+	height: number,
+): string {
+	const lines = rects
+		.map(({ x, y, w, h }) => ({
+			left: x * width - 2,
+			right: (x + w) * width + 2,
+			top: y * height - 1,
+			bottom: (y + h) * height + 1,
+		}))
+		.sort((a, b) => a.top - b.top || a.left - b.left);
+	const boxes = [...lines];
+	for (const [index, line] of lines.entries()) {
+		const next = lines[index + 1];
+		if (!next) break;
+		const gap = next.top - line.bottom;
+		const left = Math.max(line.left, next.left);
+		const right = Math.min(line.right, next.right);
+		const leading =
+			Math.min(line.bottom - line.top, next.bottom - next.top) / 2;
+		if (gap > 0 && gap <= leading && left < right) {
+			boxes.push({ left, right, top: line.bottom, bottom: next.top });
+		}
+	}
+
+	const levels = [
+		...new Set(boxes.flatMap(({ top, bottom }) => [top, bottom])),
+	].sort((a, b) => a - b);
+	const path: string[] = [];
+	let previous: { left: number; right: number }[] = [];
+	for (const [index, y] of levels.entries()) {
+		const current: typeof previous = [];
+		const covered = boxes
+			.filter(({ top, bottom }) => top <= y && y < bottom)
+			.sort((a, b) => a.left - b.left);
+		for (const { left, right } of covered) {
+			const last = current.at(-1);
+			if (last && left <= last.right) last.right = Math.max(last.right, right);
+			else current.push({ left, right });
+		}
+
+		// The horizontal edge is where coverage starts or ends at this level.
+		const endpoints = [...previous, ...current]
+			.flatMap(({ left, right }) => [left, right])
+			.sort((a, b) => a - b);
+		for (let i = 0; i < endpoints.length; i += 2) {
+			const left = endpoints[i];
+			const right = endpoints[i + 1];
+			if (left !== right) path.push(`M${left} ${y}H${right}`);
+		}
+		const nextY = levels[index + 1];
+		if (nextY === undefined) break;
+		for (const { left, right } of current) {
+			path.push(`M${left} ${y}V${nextY}`, `M${right} ${y}V${nextY}`);
+		}
+		previous = current;
+	}
+	return path.join("");
+}
+
 const sourceLineCache = new WeakMap<
 	readonly SentenceFractionRect[],
 	Map<string, ReturnType<typeof groupReadingLines<SentenceFractionRect>>>

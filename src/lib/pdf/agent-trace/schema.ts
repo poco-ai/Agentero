@@ -2,6 +2,7 @@ import { normalizeVisualTraceImagePath } from "@/lib/pdf/agent-trace/image";
 import type {
 	PdfVisualAgent,
 	PdfVisualSessionTrace,
+	PdfVisualTraceElement,
 	PdfVisualTraceImage,
 	PdfVisualTraceMessage,
 	PdfVisualTraceStatus,
@@ -50,6 +51,22 @@ function parseMessages(v: unknown): PdfVisualTraceMessage[] | undefined {
 			msg.agentSessionId = item.agentSessionId;
 		}
 		out.push(msg);
+	}
+	return out.length ? out : undefined;
+}
+
+function parseElements(v: unknown): PdfVisualTraceElement[] | undefined {
+	if (!Array.isArray(v) || v.length === 0) return undefined;
+	const out: PdfVisualTraceElement[] = [];
+	for (const item of v) {
+		if (!isRecord(item) || typeof item.kind !== "string" || !item.kind) {
+			continue;
+		}
+		const element: PdfVisualTraceElement = { kind: item.kind };
+		if (typeof item.quote === "string" && item.quote.trim()) {
+			element.quote = item.quote.trim();
+		}
+		out.push(element);
 	}
 	return out.length ? out : undefined;
 }
@@ -157,6 +174,11 @@ export function parsePdfVisualSessionTrace(
 	};
 	const image = parseImage(raw.image);
 	if (image) mark.image = image;
+	if (typeof raw.quote === "string" && raw.quote.trim()) {
+		mark.quote = raw.quote.trim();
+	}
+	const elements = parseElements(raw.elements);
+	if (elements) mark.elements = elements;
 	if (agent) mark.agent = agent;
 
 	// At least comment or agent must be present.
@@ -187,6 +209,13 @@ export function serializePdfVisualSessionTrace(
 			path: trace.image.path,
 			mimeType: trace.image.mimeType || "image/png",
 		};
+	}
+	if (trace.quote?.trim()) out.quote = trace.quote.trim();
+	if (trace.elements?.length) {
+		out.elements = trace.elements.map((element) => ({
+			kind: element.kind,
+			...(element.quote?.trim() ? { quote: element.quote.trim() } : {}),
+		}));
 	}
 	if (trace.agent) {
 		const a = trace.agent;

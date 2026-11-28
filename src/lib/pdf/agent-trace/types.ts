@@ -33,6 +33,12 @@ export type PdfVisualTraceMessage = {
 	agentSessionId?: string;
 };
 
+/** One selected member in a grouped visual annotation. */
+export type PdfVisualTraceElement = {
+	kind: string;
+	quote?: string;
+};
+
 /**
  * Optional Agent conversation bound to a visual mark.
  * Absent when the user saved a note-only annotation (#196).
@@ -84,6 +90,10 @@ export type PdfVisualSessionTrace = {
 	rects: PdfVisualNormalizedRect[];
 	/** User note; may be empty when an agent thread is attached. */
 	comment: string;
+	/** Text members merged into a grouped visual annotation. */
+	quote?: string;
+	/** Selected members for grouped annotations; absent on simple crops. */
+	elements?: PdfVisualTraceElement[];
 	/** Crop image for pin hover preview. */
 	image?: PdfVisualTraceImage;
 	/** Present only when the user has started (or finished) an Agent turn. */

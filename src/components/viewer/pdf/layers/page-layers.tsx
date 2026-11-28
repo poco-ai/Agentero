@@ -771,9 +771,10 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	}, [selectionArmed]);
 	const pageNumber = pageIndex + 1;
 	const selectableOnPage =
-		mode.elementSelecting && !mode.plainViewer
+		!immersiveReading && !mode.plainViewer && mode.elementSelecting
 			? layout.selectableRegionsByPage.get(pageIndex)
 			: undefined;
+	const elementSelecting = Boolean(selectableOnPage?.length);
 	const activeAskOnPage =
 		marks.activeAskAnchor?.page === pageNumber ? marks.activeAskAnchor : null;
 	const activeTranslateOnPage =
@@ -804,9 +805,10 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		marks.selectionCommentDraft?.page === pageNumber
 			? marks.selectionCommentDraft
 			: null;
-	const draftVisualRegion = selectionDraftOnPage?.visualRegion;
-	const activeVisualRects = draftVisualRegion
-		? [draftVisualRegion]
+	const activeVisualRects = selectionDraftOnPage?.visualRegion
+		? selectionDraftOnPage.rects?.length
+			? selectionDraftOnPage.rects
+			: [selectionDraftOnPage.visualRegion]
 		: activeVisualOnPage?.rects;
 	const translateHighlightsOnPage =
 		marks.translateHighlightsByPage.get(pageNumber) ?? [];
@@ -1368,9 +1370,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			ref={pageShellRef}
 			data-annotation-pdf={docId}
 			data-annotation-source={annotationSource}
-			data-layout-element-selection={
-				(!immersiveReading && Boolean(selectableOnPage?.length)) || undefined
-			}
+			data-layout-element-selection={elementSelecting || undefined}
 			data-annotation-page={pageIndex + 1}
 			data-paper={tone}
 			className={cn(
@@ -1450,11 +1450,12 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				</button>
 			)}
 			{paperRaster}
-			{mode.sentencePairing ? (
+			{mode.sentencePairing || elementSelecting ? (
 				<PdfSentenceHighlight
 					docId={docId}
 					pageIndex={pageIndex}
 					source={!translationVisible}
+					elementSelection={elementSelecting}
 				/>
 			) : null}
 			{!searchAboveTranslation ? (
@@ -1661,16 +1662,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				 * hit-tests the page shell. Hidden while ⌘. marquee is active and
 				 * on PDFs outside papers/. Absent analysis yields no regions.
 				 */}
-				{!immersiveReading &&
-				selectableOnPage &&
-				selectableOnPage.length > 0 ? (
+				{elementSelecting && selectableOnPage ? (
 					<LayoutElementSelectionLayer
 						docId={docId}
 						pageIndex={pageIndex}
 						regions={selectableOnPage}
-						width={width}
-						height={height}
-						sentencePairing={mode.sentencePairing}
 						sentenceHover={mode.sentenceHover}
 					/>
 				) : null}
