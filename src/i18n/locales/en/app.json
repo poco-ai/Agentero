@@ -27,7 +27,7 @@
 		"forward": "Go forward",
 		"reload": "Reload page",
 		"external": "Open in system browser",
-		"desktopOnly": "Embedded browsing is available on macOS. Enter an address to open it in your system browser."
+		"desktopOnly": "Embedded browsing is available on desktop. Enter an address to open it in your system browser."
 	},
 	"pathBar": {
 		"openFolder": "Open folder",

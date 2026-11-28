@@ -1,11 +1,11 @@
-import { isMacOS, isMobileApp, isTauri } from "@/lib/core/tauri";
+import { getPlatformOS, isMobileApp, isTauri } from "@/lib/core/tauri";
 import { isMarkdownPath } from "@/lib/vault/path-kinds";
 import { isHtmlPath } from "@/lib/workspace/viewer";
 
 export type SidebarBrowserTarget = { kind: "browser"; url: string | null };
 
 export function supportsSidebarBrowser(): boolean {
-	return isTauri() && isMacOS() && !isMobileApp();
+	return isTauri() && !isMobileApp() && getPlatformOS() !== "other";
 }
 
 export function sidebarBrowserUrl(

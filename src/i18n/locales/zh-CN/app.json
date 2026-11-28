@@ -27,7 +27,7 @@
 		"forward": "前进",
 		"reload": "重新加载网页",
 		"external": "在系统浏览器中打开",
-		"desktopOnly": "macOS 支持在右栏浏览网页。输入网址可在系统浏览器中打开。"
+		"desktopOnly": "桌面端支持在右栏浏览网页。输入网址可在系统浏览器中打开。"
 	},
 	"pathBar": {
 		"openFolder": "打开文件夹",
