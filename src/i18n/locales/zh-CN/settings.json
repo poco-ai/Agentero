@@ -1,5 +1,11 @@
 {
 	"title": "设置",
+	"search": {
+		"placeholder": "搜索设置",
+		"resultsTitle": "“{{query}}” 的搜索结果",
+		"empty": "没有匹配的设置",
+		"clear": "清除搜索"
+	},
 	"host": {
 		"remote": "远端",
 		"remoteContextHint": "当前 Vault 在 {{host}}（{{path}}）。外观等仍为本机偏好；打开 Agent 分区时会对远端主机做探测。"

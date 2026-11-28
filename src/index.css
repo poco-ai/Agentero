@@ -60,6 +60,33 @@
 	animation: citation-focus-flash 1.6s ease-out forwards;
 }
 
+/* Settings search jump: hold the row highlight, then fade out (~1.5s). */
+@keyframes settings-search-flash {
+	0%,
+	55% {
+		background-color: color-mix(in oklch, var(--primary) 14%, transparent);
+		box-shadow: inset 0 0 0 1px
+			color-mix(in oklch, var(--primary) 26%, transparent);
+	}
+	100% {
+		background-color: transparent;
+		box-shadow: inset 0 0 0 1px transparent;
+	}
+}
+
+.settings-search-flash {
+	animation: settings-search-flash 1.5s var(--motion-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.settings-search-flash {
+		animation: none;
+		background-color: color-mix(in oklch, var(--primary) 14%, transparent);
+		box-shadow: inset 0 0 0 1px
+			color-mix(in oklch, var(--primary) 26%, transparent);
+	}
+}
+
 /*
  * Recessive skeleton gleam. The bar keeps its own background (so a placeholder
  * can sit on a muted bubble); the highlight travels on top and stays slow.

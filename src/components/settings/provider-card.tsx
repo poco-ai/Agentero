@@ -69,8 +69,9 @@ export function ProviderFieldRow({
 	children: ReactNode;
 }) {
 	return (
-		<div className="flex items-center gap-2">
+		<div data-settings-row="" className="flex items-center gap-2">
 			<Label
+				data-settings-label=""
 				htmlFor={htmlFor}
 				className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
 			>

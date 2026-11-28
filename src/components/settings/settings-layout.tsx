@@ -128,9 +128,10 @@ export function SettingsRow({
 	className?: string;
 }) {
 	return (
-		<div className={cn(settingsRowClassName, className)}>
+		<div data-settings-row="" className={cn(settingsRowClassName, className)}>
 			<div className="min-w-0">
 				<Label
+					data-settings-label=""
 					htmlFor={htmlFor}
 					className="font-normal text-sm leading-snug text-foreground"
 				>

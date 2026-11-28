@@ -1,5 +1,11 @@
 {
 	"title": "Settings",
+	"search": {
+		"placeholder": "Search settings",
+		"resultsTitle": "Results for \"{{query}}\"",
+		"empty": "No matching settings",
+		"clear": "Clear search"
+	},
 	"host": {
 		"remote": "Remote",
 		"remoteContextHint": "Vault is open on {{host}} ({{path}}). App appearance stays local; Agent catalog below probes that host when you open the Agent section."

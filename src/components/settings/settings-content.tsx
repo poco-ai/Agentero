@@ -9,6 +9,7 @@ import {
 	Languages,
 	LayoutTemplate,
 	Paintbrush,
+	Search,
 	SlidersHorizontal,
 	Smartphone,
 	Stethoscope,
@@ -30,11 +31,18 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	findSettingsRow,
+	type SettingsSearchHit,
+	searchSettings,
+} from "@/components/settings/settings-search";
+import { SettingsSearchResults } from "@/components/settings/settings-search-results";
 import type {
 	SettingsHostContext,
 	SettingsSection,
 } from "@/components/settings/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { scrollBehavior } from "@/lib/core/motion";
@@ -212,7 +220,7 @@ export function SettingsContent({
 	titleId,
 	vaultPath = null,
 }: SettingsContentProps) {
-	const { t } = useTranslation(["settings", "common"]);
+	const { t } = useTranslation(["settings", "common", "shortcuts"]);
 	const fallbackTitleId = useId();
 	const headingId = titleId ?? fallbackTitleId;
 	const navItems = useMemo(
@@ -270,6 +278,21 @@ export function SettingsContent({
 	const navItemRefs = useRef<
 		Partial<Record<SettingsSection, HTMLButtonElement>>
 	>({});
+	const [searchQuery, setSearchQuery] = useState("");
+	const searching = searchQuery.trim().length > 0;
+	const searchHits = useMemo(
+		() =>
+			searching
+				? // Catalog keys are dynamic strings; the typed t() only accepts literals.
+					searchSettings(searchQuery, t as (key: string) => string)
+				: [],
+		[searchQuery, searching, t],
+	);
+	const [pendingSearchTarget, setPendingSearchTarget] = useState<{
+		section: SettingsSection;
+		label: string;
+	} | null>(null);
+	const preSearchScrollTop = useRef<number | null>(null);
 	const [navIndicator, setNavIndicator] = useState<{
 		top: number;
 		height: number;
@@ -343,11 +366,79 @@ export function SettingsContent({
 
 	const selectSection = useCallback(
 		(id: SettingsSection) => {
+			setSearchQuery("");
+			setPendingSearchTarget(null);
 			void preloadSettingsPane(id);
 			onSectionChange(id);
 		},
 		[onSectionChange],
 	);
+
+	const openSearchHit = useCallback(
+		(hit: SettingsSearchHit) => {
+			selectSection(hit.section);
+			setPendingSearchTarget({ section: hit.section, label: hit.label });
+		},
+		[selectSection],
+	);
+
+	// Restore the pane scroll position when leaving search without navigating.
+	useEffect(() => {
+		const content = contentScrollRef.current;
+		if (!content) return;
+		if (searching) {
+			preSearchScrollTop.current ??= content.scrollTop;
+			content.scrollTo({ top: 0 });
+			return;
+		}
+		const previous = preSearchScrollTop.current;
+		preSearchScrollTop.current = null;
+		if (previous !== null && !pendingSearchTarget) {
+			content.scrollTo({ top: previous });
+		}
+	}, [searching, pendingSearchTarget]);
+
+	// Wait for the target pane to mount, then scroll to the row and flash it.
+	useEffect(() => {
+		if (!pendingSearchTarget || activeSection !== pendingSearchTarget.section) {
+			return;
+		}
+		const label = pendingSearchTarget.label;
+		let cancelled = false;
+		let frame = 0;
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		let flashed: HTMLElement | null = null;
+		const started = performance.now();
+		const attempt = () => {
+			if (cancelled) return;
+			const pane = contentScrollRef.current?.querySelector<HTMLElement>(
+				'[data-settings-pane][data-active="true"]',
+			);
+			const row = pane ? findSettingsRow(pane, label) : null;
+			if (!row) {
+				if (performance.now() - started < 4000) {
+					frame = requestAnimationFrame(attempt);
+				} else {
+					setPendingSearchTarget(null);
+				}
+				return;
+			}
+			flashed = row;
+			row.scrollIntoView({ block: "center", behavior: scrollBehavior() });
+			row.classList.add("settings-search-flash");
+			timer = setTimeout(() => {
+				row.classList.remove("settings-search-flash");
+				setPendingSearchTarget(null);
+			}, 1500);
+		};
+		frame = requestAnimationFrame(attempt);
+		return () => {
+			cancelled = true;
+			cancelAnimationFrame(frame);
+			if (timer) clearTimeout(timer);
+			flashed?.classList.remove("settings-search-flash");
+		};
+	}, [activeSection, pendingSearchTarget]);
 
 	const onNavItemKeyDown = useCallback(
 		(
@@ -404,11 +495,59 @@ export function SettingsContent({
 						</Button>
 					</div>
 				) : null}
+				<div
+					className={cn(
+						"hidden shrink-0 px-2 pb-4 sm:block",
+						onClose ? "pt-2" : "pt-3",
+					)}
+				>
+					<div className="relative">
+						<Search
+							aria-hidden
+							className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+						/>
+						<Input
+							value={searchQuery}
+							placeholder={t("search.placeholder")}
+							aria-label={t("search.placeholder")}
+							className="h-8 border-sidebar-border bg-sidebar-accent/40 pr-8 pl-8"
+							onChange={(event) => {
+								setSearchQuery(event.target.value);
+								setPendingSearchTarget(null);
+							}}
+							onKeyDown={(event) => {
+								if (event.key === "Escape" && searchQuery) {
+									event.preventDefault();
+									event.stopPropagation();
+									setSearchQuery("");
+									return;
+								}
+								if (event.key === "Enter" && searchHits[0]) {
+									event.preventDefault();
+									openSearchHit(searchHits[0]);
+								}
+							}}
+						/>
+						{searchQuery ? (
+							<button
+								type="button"
+								aria-label={t("search.clear")}
+								className="absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground outline-none transition-[color,background-color] duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)] hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-1 focus-visible:ring-sidebar-ring"
+								onClick={() => {
+									setSearchQuery("");
+									setPendingSearchTarget(null);
+								}}
+							>
+								<X aria-hidden className="size-3.5" />
+							</button>
+						) : null}
+					</div>
+				</div>
 				<ul
 					ref={navListRef}
 					className={cn(
 						"agentero-scroll relative flex min-h-0 flex-1 flex-col gap-0.5 overscroll-y-contain px-2 pb-2",
-						!onClose && "pt-3",
+						!onClose && "max-sm:pt-3",
 					)}
 				>
 					{navIndicator ? (
@@ -513,7 +652,16 @@ export function SettingsContent({
 				data-settings-content
 				className="agentero-scroll min-w-0 flex-1 overscroll-y-contain bg-background"
 			>
-				<div className="px-3 py-5 sm:px-6">
+				{searching ? (
+					<div className="px-3 py-5 sm:px-6">
+						<SettingsSearchResults
+							query={searchQuery.trim()}
+							hits={searchHits}
+							onSelect={openSearchHit}
+						/>
+					</div>
+				) : null}
+				<div className="px-3 py-5 sm:px-6" hidden={searching}>
 					{/* One boundary per pane: a section still loading must not blank out
 					    the panes already visited and kept mounted next to it. */}
 					{visitedSections.includes("general") && (

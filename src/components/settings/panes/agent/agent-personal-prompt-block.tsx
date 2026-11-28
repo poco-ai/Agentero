@@ -14,8 +14,12 @@ export function AgentPersonalPromptBlock({
 	const { t } = useTranslation("settings");
 	return (
 		<SettingsGroup>
-			<div className="flex flex-col gap-1.5 px-3.5 py-2.5">
-				<Label htmlFor="agent-personal-prompt" className="font-normal text-sm">
+			<div data-settings-row="" className="flex flex-col gap-1.5 px-3.5 py-2.5">
+				<Label
+					data-settings-label=""
+					htmlFor="agent-personal-prompt"
+					className="font-normal text-sm"
+				>
 					{t("agent.personalPrompt.label")}
 				</Label>
 				<Textarea

@@ -201,9 +201,15 @@ function AppearancePaneInner({
 						</SelectContent>
 					</Select>
 				</SettingsRow>
-				<div className="border-b border-border/50 px-3.5 py-3.5">
+				<div
+					data-settings-row=""
+					className="border-b border-border/50 px-3.5 py-3.5"
+				>
 					<div className="mb-2.5 flex items-center justify-between gap-3">
-						<span className="font-normal text-sm text-foreground">
+						<span
+							data-settings-label=""
+							className="font-normal text-sm text-foreground"
+						>
 							{t("appearance.uiThemeLabel")}
 						</span>
 						<span className="truncate text-muted-foreground text-xs">
