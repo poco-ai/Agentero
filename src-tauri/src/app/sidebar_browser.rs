@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 use tauri::Url;
 use tauri::WebviewWindow;
 
@@ -39,12 +39,12 @@ pub struct SidebarBrowserState {
     can_go_forward: bool,
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 const MAX_BOUND_COORD: f64 = 32768.0;
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 const MAX_TITLE_CHARS: usize = 256;
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct ValidatedBounds {
     x: f64,
@@ -53,7 +53,7 @@ struct ValidatedBounds {
     height: f64,
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 fn web_url(raw: &str) -> Option<Url> {
     let url = Url::parse(raw).ok()?;
     (matches!(url.scheme(), "http" | "https")
@@ -63,7 +63,7 @@ fn web_url(raw: &str) -> Option<Url> {
     .then_some(url)
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 fn validate_bounds(rect: SidebarBrowserBounds) -> Result<ValidatedBounds, String> {
     let values = [rect.x, rect.y, rect.width, rect.height];
     if !values
@@ -82,12 +82,12 @@ fn validate_bounds(rect: SidebarBrowserBounds) -> Result<ValidatedBounds, String
     })
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 fn normalize_title(raw: &str) -> String {
     raw.chars().take(MAX_TITLE_CHARS).collect()
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 fn normalize_snapshot(
     raw_url: Option<String>,
     raw_title: &str,
@@ -106,14 +106,14 @@ fn normalize_snapshot(
     }
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 #[derive(Debug, Default)]
 struct PageStatus {
     title: String,
     loading: bool,
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 trait BrowserSurface {
     fn load_url(&self, url: &str) -> Result<(), String>;
     fn reload(&self) -> Result<(), String>;
@@ -124,12 +124,12 @@ trait BrowserSurface {
     fn snapshot(&self) -> SidebarBrowserState;
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 struct BrowserRegistry<V> {
     windows: std::collections::HashMap<String, std::collections::HashMap<String, V>>,
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl<V> Default for BrowserRegistry<V> {
     fn default() -> Self {
         Self {
@@ -138,7 +138,7 @@ impl<V> Default for BrowserRegistry<V> {
     }
 }
 
-#[cfg(any(test, target_os = "macos", target_os = "windows"))]
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl<V: BrowserSurface> BrowserRegistry<V> {
     fn apply<F>(
         &mut self,
@@ -230,7 +230,7 @@ pub async fn sidebar_browser_command(
     view_id: String,
     command: SidebarBrowserCommand,
 ) -> Result<Option<SidebarBrowserState>, String> {
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
     {
         #[cfg(target_os = "windows")]
         if matches!(command, SidebarBrowserCommand::Show { .. }) {
@@ -262,7 +262,7 @@ pub async fn sidebar_browser_command(
             .map_err(|error| error.to_string())?;
         rx.await.map_err(|error| error.to_string())?
     }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         let _ = (window, view_id, command);
         Err("Embedded browsing is available on desktop".into())
@@ -270,11 +270,11 @@ pub async fn sidebar_browser_command(
 }
 
 pub fn is_focused(window: &str) -> bool {
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
     {
         native::is_focused(window)
     }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         let _ = window;
         false
@@ -282,13 +282,13 @@ pub fn is_focused(window: &str) -> bool {
 }
 
 pub fn close_window(window: &str) {
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
     native::close_window(window);
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     let _ = window;
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod native {
     use super::*;
     use std::{
@@ -338,11 +338,11 @@ mod native {
         }
 
         fn set_bounds(&self, rect: ValidatedBounds) -> Result<(), String> {
-            self.webview.set_bounds(to_wry_rect(rect)).map_err(explain)
+            platform::set_bounds(&self.webview, rect)
         }
 
         fn set_visible(&self, visible: bool) -> Result<(), String> {
-            self.webview.set_visible(visible).map_err(explain)
+            platform::set_visible(&self.webview, visible)
         }
 
         fn snapshot(&self) -> SidebarBrowserState {
@@ -481,10 +481,12 @@ mod native {
         REGISTRY.with(|registry| {
             registry.borrow_mut().remove_window(window);
         });
+        platform::cleanup_window(window);
     }
 
     #[cfg(target_os = "macos")]
     mod platform {
+        use super::{to_wry_rect, ValidatedBounds};
         use objc2_app_kit::NSView;
         use tauri::WebviewWindow;
         use wry::{WebView, WebViewBuilder, WebViewExtMacOS};
@@ -500,6 +502,14 @@ mod native {
             builder.build_as_child(window).map_err(format_error)
         }
 
+        pub fn set_bounds(view: &WebView, rect: ValidatedBounds) -> Result<(), String> {
+            view.set_bounds(to_wry_rect(rect)).map_err(format_error)
+        }
+
+        pub fn set_visible(view: &WebView, visible: bool) -> Result<(), String> {
+            view.set_visible(visible).map_err(format_error)
+        }
+
         pub fn is_view_focused(view: &WebView) -> bool {
             let wk = view.webview();
             if wk.isHiddenOrHasHiddenAncestor() {
@@ -512,10 +522,13 @@ mod native {
                 .downcast::<NSView>()
                 .is_ok_and(|responder| responder.isDescendantOf(&wk))
         }
+
+        pub fn cleanup_window(_window: &str) {}
     }
 
     #[cfg(target_os = "windows")]
     mod platform {
+        use super::{to_wry_rect, ValidatedBounds};
         use tauri::WebviewWindow;
         use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment;
         use windows::Win32::UI::{
@@ -548,6 +561,14 @@ mod native {
             builder.build_as_child(window).map_err(format_error)
         }
 
+        pub fn set_bounds(view: &WebView, rect: ValidatedBounds) -> Result<(), String> {
+            view.set_bounds(to_wry_rect(rect)).map_err(format_error)
+        }
+
+        pub fn set_visible(view: &WebView, visible: bool) -> Result<(), String> {
+            view.set_visible(visible).map_err(format_error)
+        }
+
         pub fn is_view_focused(view: &WebView) -> bool {
             let hwnd = view.hwnd();
             unsafe {
@@ -557,6 +578,138 @@ mod native {
                 let focused = GetFocus();
                 !focused.is_invalid() && (focused == hwnd || IsChild(hwnd, focused).as_bool())
             }
+        }
+
+        pub fn cleanup_window(_window: &str) {}
+    }
+
+    #[cfg(target_os = "linux")]
+    mod platform {
+        use super::ValidatedBounds;
+        use gtk::prelude::*;
+        use std::cell::RefCell;
+        use std::collections::HashMap;
+        use tauri::WebviewWindow;
+        use wry::{WebView, WebViewBuilder, WebViewBuilderExtUnix, WebViewExtUnix};
+
+        thread_local! {
+            static OVERLAY_HOSTS: RefCell<HashMap<String, gtk::Overlay>> = RefCell::default();
+        }
+
+        pub fn format_error(error: wry::Error) -> String {
+            error.to_string()
+        }
+
+        /// Ensure the Tauri window has a `gtk::Overlay` wrapping its existing
+        /// `default_vbox`, so each sidebar WebView can be mounted as its own
+        /// positioned overlay child on both X11 and Wayland without creating a
+        /// second top-level window, calling X11-only child-window APIs, or
+        /// covering the workspace with a full-window input surface.
+        fn ensure_overlay_host(window: &WebviewWindow) -> Result<gtk::Overlay, String> {
+            let label = window.label().to_owned();
+            if let Some(existing) = OVERLAY_HOSTS.with(|hosts| hosts.borrow().get(&label).cloned())
+            {
+                return Ok(existing);
+            }
+
+            let gtk_window = window
+                .gtk_window()
+                .map_err(|error| format!("GTK host window unavailable: {error}"))?;
+            let vbox = window
+                .default_vbox()
+                .map_err(|error| format!("GTK default container unavailable: {error}"))?;
+
+            // Wrap the existing `default_vbox` inside a `gtk::Overlay` once so
+            // Tauri's main WebView keeps its container while sidebar WebViews
+            // float only over the right-sidebar rect in logical GTK coordinates.
+            let overlay = if let Some(existing_overlay) = vbox
+                .parent()
+                .and_then(|parent| parent.downcast::<gtk::Overlay>().ok())
+            {
+                existing_overlay
+            } else {
+                // Keep a strong GObject reference to `vbox` while detaching it
+                // from `gtk_window` and reattaching it as the overlay base child.
+                let overlay = gtk::Overlay::new();
+                overlay.set_hexpand(true);
+                overlay.set_vexpand(true);
+                gtk_window.remove(&vbox);
+                overlay.add(&vbox);
+                gtk_window.add(&overlay);
+                overlay.show();
+                vbox.show();
+                overlay
+            };
+
+            OVERLAY_HOSTS.with(|hosts| {
+                hosts.borrow_mut().insert(label, overlay.clone());
+            });
+            Ok(overlay)
+        }
+
+        pub fn build_webview(
+            window: &WebviewWindow,
+            builder: WebViewBuilder<'_>,
+        ) -> Result<WebView, String> {
+            let overlay = ensure_overlay_host(window)?;
+            // Build inside a transient `gtk::Box` (not `gtk::Fixed`, so wry
+            // does not leave `is_in_fixed_parent` set for a removed parent),
+            // then mount the resulting `WebKitWebView` directly onto
+            // `gtk::Overlay` via `add_overlay` so it floats above `default_vbox`
+            // with input restricted strictly to its allocated sidebar rectangle
+            // on both X11 and Wayland.
+            let staging = gtk::Box::new(gtk::Orientation::Vertical, 0);
+            let webview = builder.build_gtk(&staging).map_err(format_error)?;
+            let webkit_view = webview.webview();
+            staging.remove(&webkit_view);
+            // `no_show_all` prevents any parent `show_all()` from revealing a
+            // hidden sidebar tab behind the registry's back.
+            webkit_view.set_no_show_all(true);
+            webkit_view.set_halign(gtk::Align::Start);
+            webkit_view.set_valign(gtk::Align::Start);
+            overlay.add_overlay(&webkit_view);
+            webkit_view.hide();
+            Ok(webview)
+        }
+
+        pub fn set_bounds(view: &WebView, rect: ValidatedBounds) -> Result<(), String> {
+            let x = rect.x.round() as i32;
+            let y = rect.y.round() as i32;
+            let width = rect.width.round().max(1.0) as i32;
+            let height = rect.height.round().max(1.0) as i32;
+
+            let webkit_view = view.webview();
+            // `GtkOverlay` places each overlay child using its start/top
+            // alignment, margins, and size request, so updating these keeps
+            // bounds accurate across window resizes and divider drags.
+            webkit_view.set_halign(gtk::Align::Start);
+            webkit_view.set_valign(gtk::Align::Start);
+            webkit_view.set_margin_start(x);
+            webkit_view.set_margin_top(y);
+            webkit_view.set_size_request(width, height);
+            webkit_view.queue_resize();
+            Ok(())
+        }
+
+        pub fn set_visible(view: &WebView, visible: bool) -> Result<(), String> {
+            let webkit_view = view.webview();
+            if visible {
+                webkit_view.show();
+            } else {
+                webkit_view.hide();
+            }
+            Ok(())
+        }
+
+        pub fn is_view_focused(view: &WebView) -> bool {
+            let webkit_view = view.webview();
+            webkit_view.is_visible() && webkit_view.has_focus()
+        }
+
+        pub fn cleanup_window(window: &str) {
+            OVERLAY_HOSTS.with(|hosts| {
+                hosts.borrow_mut().remove(window);
+            });
         }
     }
 }

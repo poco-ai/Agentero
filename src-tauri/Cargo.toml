@@ -47,6 +47,7 @@ desktop = [
   "dep:agentero-mcp",
   "dep:schemars",
   "dep:rtex-core",
+  "dep:gtk",
   "dep:wry",
 ]
 
@@ -152,6 +153,11 @@ security-framework-sys = "2.17"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSView", "NSWindow"] }
 wry = { version = "0.57", default-features = false, optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Match the GTK and Wry/WebKitGTK versions selected by `tauri-runtime-wry`.
+gtk = { version = "0.18", features = ["v3_24"], optional = true }
+wry = { version = "0.57", default-features = false, features = ["os-webview", "linux-body"], optional = true }
 
 # openssh / sendfd are Unix-only (ControlMaster fd passing). Remote vault SFTP
 # is therefore unavailable on Windows until a portable backend lands.

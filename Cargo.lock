@@ -113,6 +113,7 @@ dependencies = [
  "flate2",
  "fontdb 0.23.0",
  "futures-util",
+ "gtk",
  "hayagriva",
  "hex",
  "htmd",
