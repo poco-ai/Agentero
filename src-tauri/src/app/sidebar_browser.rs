@@ -698,7 +698,7 @@ mod native {
                 Rc::new(RefCell::new(HashMap::new()));
             let rects_for_signal = Rc::clone(&rects);
             overlay.connect_get_child_position(move |_overlay, widget| {
-                rects_for_signal.borrow().get(&widget_key(widget)).copied()
+                rects_for_signal.borrow().get(&widget_key(widget)).cloned()
             });
 
             OVERLAY_HOSTS.with(|hosts| {
