@@ -43,6 +43,14 @@ pub struct SidebarBrowserState {
 const MAX_BOUND_COORD: f64 = 32768.0;
 #[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 const MAX_TITLE_CHARS: usize = 256;
+/// Live WebViews kept per window. Hidden tabs beyond this are dropped and
+/// recreated from their retained URL on the next `Show`.
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
+const MAX_LIVE_VIEWS_PER_WINDOW: usize = 3;
+/// A hidden tab idle this long drops its WebView at the next registry command;
+/// its URL and title stay for the reload.
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
+const HIDDEN_VIEW_TTL: std::time::Duration = std::time::Duration::from_secs(10 * 60);
 
 #[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -125,8 +133,79 @@ trait BrowserSurface {
 }
 
 #[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
+struct ViewEntry<V> {
+    /// `None` keeps the tab's URL and title without a live WebView, so a
+    /// window with many tabs only pays for the most recent few.
+    view: Option<V>,
+    url: String,
+    title: String,
+    visible: bool,
+    last_active: std::time::Instant,
+    hidden_since: Option<std::time::Instant>,
+}
+
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
+impl<V: BrowserSurface> ViewEntry<V> {
+    fn dormant(url: &str, now: std::time::Instant) -> Self {
+        Self {
+            view: None,
+            url: url.to_owned(),
+            title: String::new(),
+            visible: false,
+            last_active: now,
+            hidden_since: None,
+        }
+    }
+
+    fn snapshot(&self) -> SidebarBrowserState {
+        match &self.view {
+            Some(view) => view.snapshot(),
+            None => SidebarBrowserState {
+                url: self.url.clone(),
+                title: self.title.clone(),
+                loading: false,
+                can_go_back: false,
+                can_go_forward: false,
+            },
+        }
+    }
+
+    fn record(&mut self, state: &SidebarBrowserState) {
+        if !state.url.is_empty() {
+            self.url.clone_from(&state.url);
+        }
+        // Keep the last real title: a freshly created view reports an empty
+        // one until its document title arrives.
+        if !state.title.is_empty() {
+            self.title.clone_from(&state.title);
+        }
+    }
+
+    fn hide(&mut self, now: std::time::Instant) -> Result<(), String> {
+        if let Some(view) = &self.view {
+            view.set_visible(false)?;
+        }
+        self.visible = false;
+        self.hidden_since = Some(now);
+        Ok(())
+    }
+
+    /// Drop the WebView while keeping the tab's address and title for the
+    /// next `Show` to reload.
+    fn dormantize(&mut self) {
+        if let Some(view) = &self.view {
+            let state = view.snapshot();
+            self.record(&state);
+        }
+        self.view = None;
+        self.visible = false;
+        self.hidden_since = None;
+    }
+}
+
+#[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
 struct BrowserRegistry<V> {
-    windows: std::collections::HashMap<String, std::collections::HashMap<String, V>>,
+    windows: std::collections::HashMap<String, std::collections::HashMap<String, ViewEntry<V>>>,
 }
 
 #[cfg(any(test, target_os = "macos", target_os = "windows", target_os = "linux"))]
@@ -150,72 +229,164 @@ impl<V: BrowserSurface> BrowserRegistry<V> {
     where
         F: FnOnce(&str, &Url, ValidatedBounds) -> Result<V, String>,
     {
-        match command {
+        let now = std::time::Instant::now();
+        let state = match command {
             SidebarBrowserCommand::Show { url, bounds } => {
                 let url = web_url(&url).ok_or("Invalid web address")?;
                 let rect = validate_bounds(bounds)?;
-                let views = self.windows.entry(window_label.to_owned()).or_default();
-                for (other, view) in views.iter() {
-                    if *other != id {
-                        view.set_visible(false)?;
+                let entries = self.windows.entry(window_label.to_owned()).or_default();
+                for (other, entry) in entries.iter_mut() {
+                    if other != &id && entry.visible {
+                        entry.hide(now)?;
                     }
                 }
-                if !views.contains_key(&id) {
-                    let created = create(&id, &url, rect)?;
-                    views.insert(id.clone(), created);
-                }
-                let view = &views[&id];
-                view.set_bounds(rect)?;
-                view.set_visible(true)?;
-                Ok(Some(view.snapshot()))
+                let state = match entries.get_mut(&id) {
+                    Some(entry) => {
+                        if entry.view.is_none() {
+                            entry.view = Some(create(&id, &url, rect)?);
+                            entry.url = url.to_string();
+                        }
+                        let view = entry.view.as_ref().expect("view exists");
+                        view.set_bounds(rect)?;
+                        view.set_visible(true)?;
+                        entry.visible = true;
+                        entry.hidden_since = None;
+                        entry.last_active = now;
+                        let state = view.snapshot();
+                        entry.record(&state);
+                        state
+                    }
+                    None => {
+                        let view = create(&id, &url, rect)?;
+                        view.set_bounds(rect)?;
+                        view.set_visible(true)?;
+                        let state = view.snapshot();
+                        let mut entry = ViewEntry::dormant(url.as_str(), now);
+                        entry.view = Some(view);
+                        entry.visible = true;
+                        entry.record(&state);
+                        entries.insert(id.clone(), entry);
+                        state
+                    }
+                };
+                Some(state)
             }
             SidebarBrowserCommand::Close => {
-                if let Some(views) = self.windows.get_mut(window_label) {
-                    views.remove(&id);
-                    if views.is_empty() {
+                if let Some(entries) = self.windows.get_mut(window_label) {
+                    entries.remove(&id);
+                    if entries.is_empty() {
                         self.windows.remove(window_label);
                     }
                 }
-                Ok(None)
+                None
             }
             other => {
-                let Some(view) = self
-                    .windows
-                    .get(window_label)
-                    .and_then(|views| views.get(&id))
-                else {
+                let Some(entries) = self.windows.get_mut(window_label) else {
+                    return Ok(None);
+                };
+                let Some(entry) = entries.get_mut(&id) else {
                     return Ok(None);
                 };
                 match other {
                     SidebarBrowserCommand::Hide => {
-                        view.set_visible(false)?;
-                        return Ok(None);
+                        if entry.visible {
+                            entry.hide(now)?;
+                        }
+                        None
                     }
                     SidebarBrowserCommand::Navigate { url } => {
                         let url = web_url(&url).ok_or("Invalid web address")?;
-                        view.load_url(url.as_str())?;
+                        match entry.view.as_ref() {
+                            Some(view) => {
+                                view.load_url(url.as_str())?;
+                                let state = view.snapshot();
+                                entry.record(&state);
+                                Some(state)
+                            }
+                            None => {
+                                entry.url = url.to_string();
+                                Some(entry.snapshot())
+                            }
+                        }
                     }
-                    SidebarBrowserCommand::Back => view.go_back()?,
-                    SidebarBrowserCommand::Forward => view.go_forward()?,
-                    SidebarBrowserCommand::Reload => view.reload()?,
-                    SidebarBrowserCommand::Read => {}
+                    SidebarBrowserCommand::Back
+                    | SidebarBrowserCommand::Forward
+                    | SidebarBrowserCommand::Reload => match entry.view.as_ref() {
+                        Some(view) => {
+                            match other {
+                                SidebarBrowserCommand::Back => view.go_back()?,
+                                SidebarBrowserCommand::Forward => view.go_forward()?,
+                                SidebarBrowserCommand::Reload => view.reload()?,
+                                _ => unreachable!(),
+                            }
+                            let state = view.snapshot();
+                            entry.record(&state);
+                            Some(state)
+                        }
+                        None => Some(entry.snapshot()),
+                    },
+                    SidebarBrowserCommand::Read => Some(entry.snapshot()),
                     SidebarBrowserCommand::Show { .. } | SidebarBrowserCommand::Close => {
                         unreachable!()
                     }
                 }
-                Ok(Some(view.snapshot()))
             }
+        };
+        self.sweep(window_label, now);
+        Ok(state)
+    }
+
+    /// Drop hidden views past the idle TTL, then trim the least recently shown
+    /// hidden views until the window is back under its live-WebView budget.
+    fn sweep(&mut self, window_label: &str, now: std::time::Instant) {
+        let Some(entries) = self.windows.get_mut(window_label) else {
+            return;
+        };
+        for entry in entries.values_mut() {
+            if entry.visible || entry.view.is_none() {
+                continue;
+            }
+            let Some(hidden_since) = entry.hidden_since else {
+                continue;
+            };
+            if now
+                .checked_duration_since(hidden_since)
+                .is_some_and(|idle| idle >= HIDDEN_VIEW_TTL)
+            {
+                entry.dormantize();
+            }
+        }
+        let mut live = entries
+            .values()
+            .filter(|entry| entry.view.is_some())
+            .count();
+        while live > MAX_LIVE_VIEWS_PER_WINDOW {
+            let victim = entries
+                .iter()
+                .filter(|(_, entry)| entry.view.is_some() && !entry.visible)
+                .min_by_key(|(_, entry)| entry.last_active)
+                .map(|(id, _)| id.clone());
+            let Some(victim) = victim else {
+                break;
+            };
+            if let Some(entry) = entries.get_mut(&victim) {
+                entry.dormantize();
+            }
+            live -= 1;
         }
     }
 
     fn get(&self, window_label: &str, id: &str) -> Option<&V> {
         self.windows
             .get(window_label)
-            .and_then(|views| views.get(id))
+            .and_then(|entries| entries.get(id))
+            .and_then(|entry| entry.view.as_ref())
     }
 
     fn views_for(&self, window_label: &str) -> Option<impl Iterator<Item = &V>> {
-        self.windows.get(window_label).map(|views| views.values())
+        self.windows
+            .get(window_label)
+            .map(|entries| entries.values().filter_map(|entry| entry.view.as_ref()))
     }
 
     fn remove_window(&mut self, window_label: &str) {
@@ -1161,5 +1332,108 @@ mod tests {
             "WebView2 runtime unavailable"
         );
         assert!(registry.get("main", "v1").is_none());
+    }
+
+    fn live_views<V>(registry: &BrowserRegistry<V>) -> usize {
+        registry
+            .windows
+            .get("main")
+            .map(|entries| {
+                entries
+                    .values()
+                    .filter(|entry| entry.view.is_some())
+                    .count()
+            })
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn registry_dormantizes_least_recent_hidden_views_over_budget() {
+        let mut registry = BrowserRegistry::<MockSurface>::default();
+        let mut created = 0;
+        for page in 1..=4 {
+            registry
+                .apply(
+                    "main",
+                    format!("v{page}"),
+                    SidebarBrowserCommand::Show {
+                        url: format!("https://example.org/{page}"),
+                        bounds: sample_bounds(),
+                    },
+                    |_, url, rect| {
+                        created += 1;
+                        Ok(MockSurface::new(url.as_str(), rect))
+                    },
+                )
+                .unwrap();
+        }
+        assert_eq!(created, 4);
+        assert_eq!(live_views(&registry), MAX_LIVE_VIEWS_PER_WINDOW);
+        assert!(registry.get("main", "v1").is_none());
+
+        let retained = registry
+            .apply(
+                "main",
+                "v1".into(),
+                SidebarBrowserCommand::Read,
+                |_, _, _| unreachable!(),
+            )
+            .unwrap()
+            .expect("dormant view keeps state");
+        assert_eq!(retained.url, "https://example.org/1");
+        assert_eq!(retained.title, "Example");
+        assert!(!retained.loading);
+
+        registry
+            .apply(
+                "main",
+                "v1".into(),
+                SidebarBrowserCommand::Show {
+                    url: "https://example.org/1".into(),
+                    bounds: sample_bounds(),
+                },
+                |_, url, rect| {
+                    created += 1;
+                    Ok(MockSurface::new(url.as_str(), rect))
+                },
+            )
+            .unwrap();
+        assert_eq!(created, 5);
+        assert_eq!(live_views(&registry), MAX_LIVE_VIEWS_PER_WINDOW);
+    }
+
+    #[test]
+    fn registry_dormantizes_views_hidden_past_ttl() {
+        let mut registry = BrowserRegistry::<MockSurface>::default();
+        for page in 1..=2 {
+            registry
+                .apply(
+                    "main",
+                    format!("v{page}"),
+                    SidebarBrowserCommand::Show {
+                        url: format!("https://example.org/{page}"),
+                        bounds: sample_bounds(),
+                    },
+                    |_, url, rect| Ok(MockSurface::new(url.as_str(), rect)),
+                )
+                .unwrap();
+        }
+
+        registry.sweep("main", std::time::Instant::now() + HIDDEN_VIEW_TTL);
+        assert!(registry.get("main", "v1").is_none());
+        assert!(registry.get("main", "v2").is_some());
+        assert_eq!(
+            registry
+                .apply(
+                    "main",
+                    "v1".into(),
+                    SidebarBrowserCommand::Read,
+                    |_, _, _| unreachable!(),
+                )
+                .unwrap()
+                .unwrap()
+                .url,
+            "https://example.org/1"
+        );
     }
 }
